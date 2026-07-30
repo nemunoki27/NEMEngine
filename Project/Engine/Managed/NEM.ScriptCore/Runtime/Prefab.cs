@@ -7,17 +7,17 @@ namespace NEMEngine;
 [NativeAssetType("Prefab")]
 public sealed class Prefab : Asset {
 
-    internal Prefab(UUID id) : base(id) { }
+    internal Prefab(AssetGUID id) : base(id) { }
 
     public Entity Instantiate() {
-        return NativeApi.SpawnPrefab(id.value, Vector3.zero, Quaternion.identity, false, Entity.nullEntity);
+        return NativeApi.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, Entity.nullEntity);
     }
 
     public Entity Instantiate(Vector3 position, Quaternion rotation) {
-        return NativeApi.SpawnPrefab(id.value, position, rotation, true, Entity.nullEntity);
+        return NativeApi.SpawnPrefab(id, position, rotation, true, Entity.nullEntity);
     }
 
     public Entity Instantiate(Vector3 position, Quaternion rotation, Entity parent) {
-        return NativeApi.SpawnPrefab(id.value, position, rotation, true, parent);
+        return NativeApi.SpawnPrefab(id, position, rotation, true, parent);
     }
 }

@@ -6,7 +6,11 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+
+// c++
+#include <chrono>
 
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -116,6 +120,11 @@ void GraphicsPlatform::Init() {
 	// device初期化
 	dxDevice_ = std::make_unique<DxDevice>();
 	InitDXDevice();
+	const uint32_t frameContextCount =
+		featureController_.GetPreferences().
+		frameContextCount;
+	GraphicsFrameState::SetActiveCount(
+		frameContextCount);
 
 	// command初期化、キュー/記録/フレーム終端の順で生成する
 	dxCommandQueue_ = std::make_unique<DxCommandQueue>();
@@ -154,11 +163,49 @@ void GraphicsPlatform::PresentFrame(IDXGISwapChain4* swapChain) {
 	framePresenter_->Present(swapChain);
 }
 
+void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
+
+	frameIndex %= GraphicsFrameState::GetActiveCount();
+	if (dxCommand_->IsRecording()) {
+		Assert::Call(dxCommand_->GetCurrentFrameIndex() == frameIndex,
+			"記録中のGraphicsFrameContextとSwapChain indexが一致しません");
+	}
+
+	const uint64_t fenceValue = dxCommand_->GetCurrentFrameFenceValue();
+	const std::chrono::high_resolution_clock::time_point waitStart =
+		std::chrono::high_resolution_clock::now();
+	dxCommandQueue_->WaitForFenceValue(
+		fenceValue, "GraphicsPlatform::BeginFrame/FrameContextReuse");
+	const std::chrono::duration<float, std::milli> waitElapsed =
+		std::chrono::high_resolution_clock::now() - waitStart;
+	FrameProfiler::GetInstance().AddSample(
+		FrameProfiler::Category::GPUWait, waitElapsed.count());
+
+	dxCommand_->BeginFrame(frameIndex);
+	const uint64_t completedFenceValue =
+		dxCommandQueue_->GetCompletedFenceValue();
+	const uint64_t lastFenceValue =
+		dxCommandQueue_->GetLastSignaledFenceValue();
+	FrameProfiler::GetInstance().SetFrameContextStatistics(
+		frameIndex, GraphicsFrameState::GetActiveCount(),
+		static_cast<uint32_t>(lastFenceValue - completedFenceValue));
+}
+
 void GraphicsPlatform::WaitForGPU() {
 
 	// 現在積んでいるリストを実行してGPU完了まで待つ、終了時のドレイン用
-	dxCommand_->CloseCommandList();
-	dxCommandQueue_->ExecuteCommandList(dxCommand_->GetCommandList());
-	dxCommandQueue_->SignalAndWait();
-	dxCommand_->ResetCommandList();
+	if (dxCommand_->IsRecording()) {
+		dxCommand_->CloseCommandList();
+		dxCommandQueue_->ExecuteCommandList(dxCommand_->GetCommandList());
+		const uint64_t fenceValue = dxCommandQueue_->Signal();
+		dxCommandQueue_->WaitForFenceValue(
+			fenceValue, "GraphicsPlatform::WaitForGPU/Drain");
+		dxCommand_->SetCurrentFrameFenceValue(fenceValue);
+		dxCommand_->ResetCommandList();
+		return;
+	}
+
+	const uint64_t fenceValue = dxCommandQueue_->Signal();
+	dxCommandQueue_->WaitForFenceValue(
+		fenceValue, "GraphicsPlatform::WaitForGPU/QueueDrain");
 }

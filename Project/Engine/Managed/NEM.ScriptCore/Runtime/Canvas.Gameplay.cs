@@ -17,6 +17,11 @@ public sealed unsafe partial class Canvas {
     private const int KeyboardInputDevice = 0;
     private const int GamepadInputDevice = 1;
 
+    // 決定後にCanvas入力がロックされているか
+    public bool InputLocked =>
+        NativeApi.GetCanvasInputLocked != null &&
+        NativeApi.GetCanvasInputLocked(entity.native) != 0;
+
     // GameViewピクセル座標をCanvasローカル座標へ変換する
     public bool TryScreenToLocalPoint(
         Vector2 screenPosition, out Vector2 localPosition) {

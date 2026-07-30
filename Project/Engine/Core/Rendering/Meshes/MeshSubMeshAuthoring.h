@@ -19,6 +19,8 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	class ECSWorld;
+	struct Entity;
 
 	//============================================================================
 	//	MeshSubMeshLayoutItem structures
@@ -27,6 +29,7 @@ namespace Engine {
 	struct MeshSubMeshLayoutItem {
 
 		uint32_t sourceSubMeshIndex = 0;
+		uint32_t vertexCount = 0;
 		std::string name{};
 
 		// 頂点座標から計算したピボット
@@ -45,25 +48,38 @@ namespace Engine {
 		bool hasMetallicFactor = false;
 		bool hasRoughnessFactor = false;
 	};
+
+	// モデル全体から取得した生成時情報
+	struct MeshAssetAuthoringInfo {
+
+		bool hasBones = false;
+	};
 } // Engine
 namespace Engine::MeshSubMeshAuthoring {
 
 	// メッシュアセットからサブメッシュレイアウトを読む
 	bool TryBuildLayout(AssetDatabase* assetDatabase, AssetID meshAssetID,
-		std::vector<MeshSubMeshLayoutItem>& outLayout);
+		std::vector<MeshSubMeshLayoutItem>& outLayout,
+		MeshAssetAuthoringInfo* outInfo = nullptr);
+	// モデル更新時に該当レイアウトの再解析を要求する
+	void InvalidateCachedLayout(AssetID meshAssetID);
 
 	// レイアウトに合わせてサブメッシュを正規化する
 	bool SyncComponentToLayout(const std::vector<MeshSubMeshLayoutItem>& layout,
-		MeshRendererComponent& renderer, bool preserveOverrides);
+		std::vector<SubMeshMaterial>& subMeshes, bool preserveOverrides);
 
 	// データベースから直接レイアウトを読んで正規化する
-	bool SyncComponent(AssetDatabase* assetDatabase,
-		MeshRendererComponent& renderer, bool preserveOverrides);
+	bool SyncComponent(AssetDatabase* assetDatabase, AssetID meshAssetID,
+		std::vector<SubMeshMaterial>& subMeshes, bool preserveOverrides);
+	// EntityのDynamicBufferをメッシュレイアウトへ同期する
+	bool SyncEntity(AssetDatabase* assetDatabase, ECSWorld& world,
+		const Entity& entity, bool preserveOverrides);
 
 	// モデルのマテリアル係数とテクスチャをparameterOverridesへ再適用する、reload用に上書きする
 	void ApplyModelMaterialParameters(const std::vector<MeshSubMeshLayoutItem>& layout,
-		MeshRendererComponent& renderer);
+		std::span<SubMeshMaterial> subMeshes);
 
 	// IDから現在のサブメッシュインデックスを解決する
-	int32_t FindSubMeshIndexByStableID(const MeshRendererComponent& renderer, UUID stableID);
+	int32_t FindSubMeshIndexByStableID(
+		std::span<const SubMeshMaterial> subMeshes, UUID stableID);
 } // Engine

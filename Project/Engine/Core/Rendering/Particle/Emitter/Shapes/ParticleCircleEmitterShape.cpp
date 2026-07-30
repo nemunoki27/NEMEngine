@@ -178,23 +178,10 @@ void Engine::ParticleCircleEmitterShape::FromJson(const nlohmann::json& data, Pa
 	circle.radius = data.value("circleRadius", circle.radius);
 	circle.angleMin = data.value("circleAngleMin", circle.angleMin);
 	circle.angleMax = data.value("circleAngleMax", circle.angleMax);
-	// 旧スキーマの円弧角度は最大角へ引き継ぐ
-	if (!data.contains("circleAngleMax") && data.contains("circleArc")) {
-
-		circle.angleMin = 0.0f;
-		circle.angleMax = data.value("circleArc", 360.0f);
-	}
 	circle.clockwise = data.value("circleClockwise", circle.clockwise);
 	circle.spawnMode = EnumAdapter<ParticleEmitterSpawnMode>::FromString(
 		data.value("circleSpawnMode", "Random")).value_or(ParticleEmitterSpawnMode::Random);
 	circle.stepAngle = data.value("circleStepAngle", circle.stepAngle);
-	// 旧スキーマの順番発生はステップ角度へ換算して引き継ぐ
-	if (!data.contains("circleSpawnMode") && data.value("circleOrder", "Random") == "Sequential") {
-
-		circle.spawnMode = ParticleEmitterSpawnMode::Progressive;
-		const int32_t orderDivide = (std::max)(data.value("circleOrderDivide", 16), 1);
-		circle.stepAngle = (circle.angleMax - circle.angleMin) / static_cast<float>(orderDivide);
-	}
 	circle.velocityMode = EnumAdapter<ParticleEmitterVelocityMode>::FromString(
 		data.value("circleVelocityMode", "Normal")).value_or(ParticleEmitterVelocityMode::Normal);
 	circle.usePrevSegmentDirectionOnWrap =
@@ -286,6 +273,7 @@ void Engine::ParticleCircleEmitterShape::DrawShape(const ParticleEmitterSettings
 }
 
 bool Engine::ParticleCircleEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	ParticleEmitterCircleParams& circle = settings.circle;
 	bool changed = false;
@@ -304,4 +292,8 @@ bool Engine::ParticleCircleEmitterShape::DrawImGui(ParticleEmitterSettings& sett
 		changed |= MyGUI::Checkbox("折り返しで前の向きを使う", circle.usePrevSegmentDirectionOnWrap);
 	}
 	return changed;
+#else
+	(void)settings;
+	return false;
+#endif
 }

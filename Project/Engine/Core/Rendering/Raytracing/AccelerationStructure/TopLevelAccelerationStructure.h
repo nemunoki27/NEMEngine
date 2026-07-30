@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/AccelerationStructureBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
 
 // c++
 #include <vector>
@@ -47,9 +48,13 @@ namespace Engine {
 		ID3D12Device8* device_ = nullptr;
 
 		// 加速化構造バッファ
-		AccelerationStructureBuffer instanceDescBuffer_;
+		DxFrameMappedUploadBuffer instanceDescBuffer_;
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
+		GraphicsDeferredReleaseQueue retiredResources_{};
+		// 毎更新で再確保しないTLAS記述作業領域
+		std::vector<D3D12_RAYTRACING_INSTANCE_DESC>
+			instanceDescScratch_{};
 
 		// ビルド記述
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs_{};

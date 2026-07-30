@@ -13,6 +13,9 @@ namespace Engine::SceneAuthoring {
 
 	// 新しいゲームオブジェクトを作成する
 	Entity CreateGameObject(ECSWorld& world, const std::string_view& name = "Entity");
+	// 追加コンポーネントを含む最終アーキタイプへゲームオブジェクトを作成する
+	Entity CreateGameObject(ECSWorld& world, const std::string_view& name,
+		std::span<const uint32_t> additionalTypeIDs, UUID stableUUID = UUID{});
 	// ゲームオブジェクトのデフォルトコンポーネントを追加する
 	void EnsureGameObjectDefaults(ECSWorld& world, const Entity& entity, const std::string_view& defaultName = "Entity");
 

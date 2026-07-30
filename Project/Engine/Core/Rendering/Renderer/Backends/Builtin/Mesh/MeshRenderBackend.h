@@ -28,6 +28,8 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
 		uint32_t srvIndex = UINT32_MAX;
 		uint32_t vertexOffset = 0;
+		uint64_t poseGeneration = 0;
+		uint64_t bufferGeneration = 0;
 	};
 
 	//============================================================================
@@ -46,6 +48,8 @@ namespace Engine {
 
 		// 可視メッシュのGPUアップロード
 		void RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets);
+		// 指定メッシュがすべてGPUへ反映済みか
+		bool AreMeshesReady(std::span<const AssetID> meshAssets) const;
 		// 全メッシュのGPUリソースを同期作成する
 		void PreloadMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> meshAssets);
 		// 外部編集されたメッシュを再インポートしてバッチキャッシュを無効化する、ホットリロード用
@@ -66,6 +70,7 @@ namespace Engine {
 		bool FindSkinnedVertexSource(ECSWorld* world, Entity entity, AssetID mesh, SkinnedVertexSource& outSource) const;
 
 		const MeshGPUResource* FindMeshResource(AssetID meshAssetID) const { return meshResourceManager_.Find(meshAssetID); }
+		uint64_t GetMeshResourceRevision() const { return meshResourceManager_.GetResourceRevision(); }
 
 		// 静的バッチキャッシュを即時クリアする
 		void ClearStaticBatchCache();
@@ -97,6 +102,12 @@ namespace Engine {
 				h ^= (std::hash<uint64_t>{}(key.hash) << 2);
 				return h;
 			}
+		};
+		struct SkinnedBatchCacheEntry {
+
+			std::unique_ptr<MeshBatchResources> resources{};
+			uint64_t lastUsedFrame = 0;
+			uint64_t lastUploadFrame = 0;
 		};
 		// スキニング頂点のGPUリソースを検索するためのキー
 		struct SkinnedSourceLookupKey {
@@ -144,6 +155,8 @@ namespace Engine {
 		std::unique_ptr<MeshBatchResources> resources{};
 		// 一定フレーム使われなければ破棄する
 		uint64_t lastUsedFrame = 0;
+		// CPU側インスタンス行列を構築したTransform世代
+		uint64_t transformRevision = 0;
 		// FallbackTextureを含む場合は後で本テクスチャに差し替わるため永続化しない
 		bool persistent = false;
 	};
@@ -152,7 +165,6 @@ namespace Engine {
 
 		// バッチ描画に使用するリソース
 		FrameBatchResourcePool<MeshBatchResources> resourcePool_{};
-		FrameBatchResourcePool<DxConstBuffer<SubMeshConstants>> subMeshCBPool_{};
 
 		// メッシュのGPUリソース管理クラス
 		MeshGPUResourceManager meshResourceManager_{};
@@ -169,6 +181,7 @@ namespace Engine {
 		PipelineBindingCache::SlotID skinnedPkdVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID meshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID occlusionDepthSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID screenSpaceOutlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// reflection駆動のマテリアルパラメータcbuffer、カスタムマテリアル用でBuiltinには存在しない
@@ -191,7 +204,8 @@ namespace Engine {
 		// スキニング処理に使用するパイプライン
 		AssetID skinningPipeline_{};
 		// スキンメッシュのバッチキャッシュ
-		std::unordered_map<SkinnedBatchCacheKey, MeshBatchResources*, SkinnedBatchCacheKeyHash> skinnedBatchCache_{};
+		std::unordered_map<SkinnedBatchCacheKey,
+			SkinnedBatchCacheEntry, SkinnedBatchCacheKeyHash> skinnedBatchCache_{};
 		std::unordered_map<SkinnedSourceLookupKey, SkinnedVertexSource, SkinnedSourceLookupKeyHash> skinnedSourceLookup_{};
 		// カメラ移動時に静的メッシュのCPUアップロードを繰り返さないためのキャッシュ
 		std::unordered_map<StaticBatchCacheKey, StaticBatchCacheEntry, StaticBatchCacheKeyHash> staticBatchCache_{};
@@ -220,6 +234,9 @@ namespace Engine {
 			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const;
 		// 長時間使われていない静的バッチを破棄する
 		void PruneStaticBatchCache();
+		// 長時間使われていないスキニングバッチを破棄する
+		void PruneSkinnedBatchCache();
+		void ClearSkinnedBatchCache();
 		// スキンメッシュのGPUディスパッチ
 		void DispatchSkinning(const RenderDrawContext& context, const MeshPreparedBatch& prepared);
 

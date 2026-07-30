@@ -1,45 +1,81 @@
 #include "ScriptComponent.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+
+//============================================================================
 //	ScriptComponent classMethods
 //============================================================================
+void Engine::ScriptComponent::OnAdded(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] ScriptComponent& component) {
+
+	world.AddBuffer<ScriptEntry>(entity);
+}
+
+void Engine::ScriptComponent::OnRemoved(
+	ECSWorld& world, const Entity& entity) {
+
+	if (world.HasBuffer<ScriptEntry>(entity)) {
+		world.RemoveBuffer<ScriptEntry>(entity);
+	}
+}
+
+void Engine::ScriptComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] ScriptComponent& component) {
+}
+
+void Engine::ScriptComponent::ReleaseStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] ScriptComponent& component) {
+}
+
+void Engine::ScriptComponent::DeserializeECS(
+	ECSWorld& world, const Entity& entity, const nlohmann::json& in,
+	[[maybe_unused]] ScriptComponent& component) {
+
+	std::vector<ScriptEntry> entries;
+	if (in.is_array()) {
+		entries = in.get<std::vector<ScriptEntry>>();
+	}
+	SetScriptEntries(world, entity, entries);
+}
+
+void Engine::ScriptComponent::SerializeECS(
+	const ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const ScriptComponent& component,
+	nlohmann::json& out) {
+
+	SerializeScriptEntries(GetScriptEntries(world, entity), out);
+}
+
 void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
 
-	// 新形式: scriptTypeIDが永続主キー / scriptSlotID / lastKnownTypeName
+	// scriptTypeIDを永続主キーとして読み込む
 	entry.scriptTypeID = in.value("scriptTypeId", std::string{});
-	entry.lastKnownTypeName = in.value("lastKnownTypeName", std::string{});
+	entry.lastKnownTypeName =
+		in.value("lastKnownTypeName", std::string{});
 
-	// legacy形式: 旧 "type" のクラス名や完全名を lastKnownTypeName として取り込み後で GUID へ移行する
-	// 破壊的な上書きはせず、scriptTypeIDが空でもserialized fieldsは保持する
-	if (entry.lastKnownTypeName.empty()) {
-		entry.lastKnownTypeName = in.value("type", std::string{});
-	}
-
-	// scriptSlotIDは旧表記も読み、新規発番によるScriptRef切れを防ぐ
-	std::string slotText = in.value("scriptSlotId", std::string{});
-	if (slotText.empty()) {
-		slotText = in.value("scriptSlotID", std::string{});
-	}
+	const std::string slotText =
+		in.value("scriptSlotId", std::string{});
 	const UUID parsedSlot = FromString16Hex(slotText);
 	entry.scriptSlotID = parsedSlot ? parsedSlot : UUID::New();
 
 	entry.scriptAsset = ParseAssetID(in, "scriptAsset");
 	entry.enabled = in.value("enabled", true);
-	entry.serializedFields = in.value("serializedFields", nlohmann::json::object());
+	entry.serializedFields =
+		in.value("serializedFields", nlohmann::json::object());
 	if (!entry.serializedFields.is_object()) {
 		entry.serializedFields = nlohmann::json::object();
 	}
-
-	// ランタイムキャッシュはシリアライズされないため、初期化しておく
-	entry.handle = BehaviorHandle::Null();
-	entry.resolvedRuntimeTypeID = 0;
-	entry.resolvedRuntimeTypeValid = false;
-	entry.serializedRevision = 0;
 }
 
 void Engine::to_json(nlohmann::json& out, const ScriptEntry& entry) {
 
-	// 永続保存の主キーはStable Script Type GUIDで表示とlegacy照合用にlastKnownTypeNameも残す
+	// 型名はInspector表示とMissing Script診断に使う
 	out["scriptTypeId"] = entry.scriptTypeID;
 	out["scriptSlotId"] = ToString(entry.scriptSlotID);
 	out["lastKnownTypeName"] = entry.lastKnownTypeName;
@@ -48,23 +84,52 @@ void Engine::to_json(nlohmann::json& out, const ScriptEntry& entry) {
 	out["serializedFields"] = entry.serializedFields;
 }
 
-void Engine::from_json(const nlohmann::json& in, ScriptComponent& component) {
-
-	// クリア
-	component.scripts.clear();
-
-	if (in.is_array()) {
-
-		component.scripts = in.get<std::vector<ScriptEntry>>();
-		return;
-	}
-	if (in.is_object() && in.contains("scripts") && in["scripts"].is_array()) {
-
-		component.scripts = in["scripts"].get<std::vector<ScriptEntry>>();
-	}
+void Engine::from_json(
+	[[maybe_unused]] const nlohmann::json& in,
+	[[maybe_unused]] ScriptComponent& component) {
 }
 
-void Engine::to_json(nlohmann::json& out, const ScriptComponent& component) {
+void Engine::to_json(
+	nlohmann::json& out,
+	[[maybe_unused]] const ScriptComponent& component) {
 
-	out = component.scripts;
+	out = nlohmann::json::array();
+}
+
+std::span<Engine::ScriptEntry> Engine::GetScriptEntries(
+	ECSWorld& world, const Entity& entity) {
+
+	return world.TryGetBuffer<ScriptEntry>(entity).GetSpan();
+}
+
+std::span<const Engine::ScriptEntry> Engine::GetScriptEntries(
+	const ECSWorld& world, const Entity& entity) {
+
+	return world.GetBufferSpan<ScriptEntry>(entity);
+}
+
+void Engine::SetScriptEntries(
+	ECSWorld& world, const Entity& entity,
+	std::span<const ScriptEntry> entries) {
+
+	DynamicBuffer<ScriptEntry> buffer =
+		world.TryGetBuffer<ScriptEntry>(entity);
+	if (!buffer.IsValid()) {
+		buffer = world.AddBuffer<ScriptEntry>(entity);
+	}
+	buffer.Clear();
+	buffer.Reserve(static_cast<uint32_t>(entries.size()));
+	for (const ScriptEntry& entry : entries) {
+		buffer.Add(entry);
+	}
+	world.MarkComponentModified<ScriptEntry>(entity);
+}
+
+void Engine::SerializeScriptEntries(
+	std::span<const ScriptEntry> entries, nlohmann::json& out) {
+
+	out = nlohmann::json::array();
+	for (const ScriptEntry& entry : entries) {
+		out.emplace_back(entry);
+	}
 }

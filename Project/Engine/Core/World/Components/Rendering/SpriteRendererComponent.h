@@ -20,10 +20,15 @@ namespace Engine {
 	// スプライト描画
 	struct SpriteRendererComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
+
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
+		MaterialParameterOverrides parameterOverrides{};
 
 		// サイズ
 		Vector2 size = Vector2::AnyInit(32.0f);
@@ -47,5 +52,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, SpriteRendererComponent& component);
 	void to_json(nlohmann::json& out, const SpriteRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(SpriteRendererComponent, "SpriteRenderer");
 } // Engine

@@ -20,18 +20,19 @@ void Engine::FillMeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::FillMeshBatchResources::UploadVertices(const std::vector<Vector3>& positions,
-	const std::vector<uint32_t>& indices) {
+void Engine::FillMeshBatchResources::UploadVertices(
+	std::span<const FillMeshPosition> positions,
+	std::span<const FillMeshTriangleIndex> indices) {
 
 	// インデックスから三角形ごとに頂点を展開する、XZ平面でYは0固定で法線は上向き
 	scratch_.clear();
 	scratch_.reserve(indices.size());
-	for (uint32_t index : indices) {
+	for (const FillMeshTriangleIndex& index : indices) {
 
-		if (positions.size() <= index) {
+		if (positions.size() <= index.value) {
 			continue;
 		}
-		const Vector3& p = positions[index];
+		const Vector3& p = positions[index.value].value;
 		FillMeshVertex vertex{};
 		vertex.position = Vector4(p.x, 0.0f, p.z, 1.0f);
 		vertex.normal = Vector4(0.0f, 1.0f, 0.0f, 0.0f);

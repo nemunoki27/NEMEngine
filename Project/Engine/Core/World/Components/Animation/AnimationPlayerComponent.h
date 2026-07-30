@@ -145,5 +145,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, AnimationPlayerComponent& component);
 	void to_json(nlohmann::json& out, const AnimationPlayerComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(AnimationPlayerComponent, "AnimationPlayer");
 } // Engine

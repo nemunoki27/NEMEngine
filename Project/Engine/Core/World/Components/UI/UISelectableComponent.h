@@ -41,7 +41,35 @@ namespace Engine {
 		float soundVolume = 1.0f;
 	};
 
+	// UI選択表示のフレーム状態
+	struct UISelectableRuntimeComponent {
+
+		static constexpr bool kSerializable = false;
+
+		UISelectableState state = UISelectableState::Normal;
+		UISelectableState previousState = UISelectableState::Normal;
+		float colorTransitionElapsed = 0.0f;
+		float scaleTransitionElapsed = 0.0f;
+		Color4 baseColor = Color4::White();
+		Color4 startColor = Color4::White();
+		Color4 currentColor = Color4::White();
+		Vector3 baseScale = Vector3::AnyInit(1.0f);
+		Vector3 startScale = Vector3::AnyInit(1.0f);
+		Vector3 currentScale = Vector3::AnyInit(1.0f);
+		AssetID baseTexture{};
+		bool hadBaseColor = false;
+		bool hadBaseTexture = false;
+		bool initialized = false;
+		bool submitted = false;
+		bool normalThisFrame = false;
+		bool selectedThisFrame = false;
+		bool submittedThisFrame = false;
+		bool disabledThisFrame = false;
+	};
+
 	struct UISelectableComponent {
+
+		static constexpr bool kHasECSHooks = true;
 
 		bool interactable = true;
 
@@ -50,26 +78,18 @@ namespace Engine {
 		UITransitionStyle submitted{ Color4(0.8f, 0.8f, 0.8f, 1.0f), Vector2::AnyInit(0.96f) };
 		UITransitionStyle disabled{ Color4(0.55f, 0.55f, 0.55f, 0.65f), Vector2::AnyInit(1.0f) };
 
-		// ランタイム遷移状態
-		UISelectableState runtimeState = UISelectableState::Normal;
-		UISelectableState runtimePreviousState = UISelectableState::Normal;
-		float runtimeColorTransitionElapsed = 0.0f;
-		float runtimeScaleTransitionElapsed = 0.0f;
-		Color4 runtimeBaseColor = Color4::White();
-		Color4 runtimeStartColor = Color4::White();
-		Color4 runtimeCurrentColor = Color4::White();
-		Vector3 runtimeBaseScale = Vector3::AnyInit(1.0f);
-		Vector3 runtimeStartScale = Vector3::AnyInit(1.0f);
-		Vector3 runtimeCurrentScale = Vector3::AnyInit(1.0f);
-		AssetID runtimeBaseTexture{};
-		bool runtimeHadBaseColor = false;
-		bool runtimeHadBaseTexture = false;
-		bool runtimeInitialized = false;
-		bool runtimeSubmitted = false;
-		bool runtimeNormalThisFrame = false;
-		bool runtimeSelectedThisFrame = false;
-		bool runtimeSubmittedThisFrame = false;
-		bool runtimeDisabledThisFrame = false;
+		// Registryから呼ばれるRuntime状態のライフサイクル
+		static void OnAdded(
+			ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(
+			ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		static void ReleaseStorage(
+			ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity,
+			const nlohmann::json& in, UISelectableComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity,
+			const UISelectableComponent& component, nlohmann::json& out);
 	};
 
 	// シーン設定のみを反映
@@ -78,5 +98,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, UISelectableComponent& component);
 	void to_json(nlohmann::json& out, const UISelectableComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(UISelectableComponent, "UISelectable");
 } // Engine

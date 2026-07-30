@@ -1,6 +1,6 @@
 ﻿# NEMEngine prebuilt SDK packaging
 # エンジンをDLLとしてビルドし、ゲーム側がgit submoduleで参照する配布物だけを SDK フォルダへ集約する
-# 配布物: NEMEngine.dll / import lib / 公開ヘッダ / ランタイムDLL / managed / ゲーム生成・ビルドツール
+# 配布物: NEMRuntime.dll / import lib / 公開ヘッダ / ランタイムDLL / managed / ゲーム生成・ビルドツール
 # エンジンのソースcoreは一切含めない（GameProjectからソースを見えなくするため）
 # Debug / Develop / Release の全構成をまとめて書き出す
 
@@ -16,6 +16,10 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $engineRoot = Split-Path -Parent $PSScriptRoot
 $generated  = Join-Path $engineRoot "Generated"
+$runtimeDeployScript = Join-Path $engineRoot "Tools\DeployRuntimeDependencies.ps1"
+if (-not (Test-Path -LiteralPath $runtimeDeployScript)) {
+    throw "Runtime dependency deploy script was not found: $runtimeDeployScript"
+}
 if ([string]::IsNullOrEmpty($OutDir)) {
     $OutDir = Join-Path $engineRoot "Generated\SDK"
 }
@@ -35,7 +39,7 @@ if (-not $SkipBuild) {
         #   - SDKにゲームプロジェクト(Project/GameProjects/*)は不要（SDKはエンジンDLL+公開ヘッダ+管理ツールチェーンのみ）。
         #   - 取り込んだゲームappとSandboxは同じC#管理ツールチェーン(NEM.ScriptCore/CodeGen/Analyzers/MetaSync)を
         #     プリビルドで同一出力先へビルドするため、-mの並列ビルドで同時実行されるとファイルロック競合で失敗する。
-        # Sandboxを介してエンジン(NEMEngine)・外部ライブラリ・管理ツールチェーンまで一式ビルドされ、
+# Sandboxを介してエンジン(NEMRuntime)・外部ライブラリ・管理ツールチェーンまで一式ビルドされ、
         # GameProjectsはSandboxの依存に含まれないため巻き込まれない。
         & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:Sandbox -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
         if ($LASTEXITCODE -ne 0) { throw "エンジンビルドに失敗しました（$cfg）。" }
@@ -49,18 +53,14 @@ $sdkInclude = Join-Path $OutDir "Include"
 New-Item -ItemType Directory -Force -Path $sdkInclude | Out-Null
 Copy-Item -Force (Join-Path $publicSrc "*.h") $sdkInclude
 
-# エンジン同梱アセット（実行時に External/NEMEngine/Engine/Assets をエンジンルートとして認識させる）
+# エンジン同梱アセット、Editor専用アセットはSDKへ含めない
 $engineAssetsSrc = Join-Path $engineRoot "Project\Engine\Assets"
 if (Test-Path -LiteralPath $engineAssetsSrc) {
     $sdkAssets = Join-Path $OutDir "Engine\Assets"
     New-Item -ItemType Directory -Force -Path $sdkAssets | Out-Null
-    robocopy $engineAssetsSrc $sdkAssets /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
-}
-$engineLibrarySrc = Join-Path $engineRoot "Project\Engine\Library"
-if (Test-Path -LiteralPath $engineLibrarySrc) {
-    $sdkLibrary = Join-Path $OutDir "Engine\Library"
-    New-Item -ItemType Directory -Force -Path $sdkLibrary | Out-Null
-    robocopy $engineLibrarySrc $sdkLibrary /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    $editorShaderAssets = Join-Path $engineAssetsSrc "Shaders\Builtin\Editor"
+    $editorTextureAssets = Join-Path $engineAssetsSrc "Textures\Editor"
+    robocopy $engineAssetsSrc $sdkAssets /MIR /XD $editorShaderAssets $editorTextureAssets /NFL /NDL /NJH /NJS /NP | Out-Null
 }
 
 # ゲーム生成に必要なpremakeヘルパ/exe/パッチ（エンジンソースのpremakeは含めない）
@@ -115,10 +115,9 @@ if (Test-Path $metaSyncDir) { robocopy $metaSyncDir $sdkMngTools /E /NFL /NDL /N
 Write-Host "[4/4] 構成ごとのDLL/ランタイムを書き出し中..."
 $packaged = @()
 foreach ($cfg in $Configurations) {
-    $binSrc     = Join-Path $generated "Bin\$cfg\NEMEngine"
-    $appOutSrc  = Join-Path $generated "Output\$cfg\Sandbox"
+    $binSrc     = Join-Path $generated "Bin\$cfg\NEMRuntime"
     $managedSrc = Join-Path $generated "Managed\NEM.ScriptCore\$cfg"
-    if (-not (Test-Path (Join-Path $binSrc "NEMEngine.dll"))) {
+    if (-not (Test-Path (Join-Path $binSrc "NEMRuntime.dll"))) {
         Write-Host "  [スキップ] $cfg はビルドされていません: $binSrc"
         continue
     }
@@ -129,15 +128,14 @@ foreach ($cfg in $Configurations) {
     foreach ($d in @($sdkBin, $sdkRuntime, $sdkManaged)) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
 
     # リンク用（import lib + DLL）
-    Copy-Item -Force (Join-Path $binSrc "NEMEngine.dll") (Join-Path $sdkBin "NEMEngine.dll")
-    Copy-Item -Force (Join-Path $binSrc "NEMEngine.lib") (Join-Path $sdkBin "NEMEngine.lib")
+    Copy-Item -Force (Join-Path $binSrc "NEMRuntime.dll") (Join-Path $sdkBin "NEMRuntime.dll")
+    Copy-Item -Force (Join-Path $binSrc "NEMRuntime.lib") (Join-Path $sdkBin "NEMRuntime.lib")
 
-    # 実行時ランタイム（NEMEngine.dllはエンジンBinから、他はSandbox出力から）
-    Copy-Item -Force (Join-Path $binSrc "NEMEngine.dll") (Join-Path $sdkRuntime "NEMEngine.dll")
-    foreach ($dll in @("dxcompiler.dll","dxil.dll","nethost.dll","WinPixEventRuntime.dll")) {
-        $src = Join-Path $appOutSrc $dll
-        if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkRuntime $dll) }
-    }
+    # 実行時ランタイムは共通配置処理から書き出し、依存マニフェストも同時に生成する
+    & $runtimeDeployScript `
+        -TargetDirectory $sdkRuntime `
+        -Configuration $cfg `
+        -RuntimeDllPath (Join-Path $binSrc "NEMRuntime.dll")
     # managed（NEM.ScriptCore.dll/pdb等）。pdbも入れてC#ブレークポイントを成立させる
     if (Test-Path $managedSrc) { Copy-Item -Force -Recurse (Join-Path $managedSrc "*") $sdkManaged }
     $packaged += $cfg

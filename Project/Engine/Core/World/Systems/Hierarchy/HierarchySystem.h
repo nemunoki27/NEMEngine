@@ -34,7 +34,7 @@ namespace Engine {
 		// 指定エンティティ以下のアクティブ状態を親を考慮して更新する
 		void UpdateActiveInHierarchy(ECSWorld& world, const Entity& entity);
 		// 指定の親アクティブ状態を起点に、エンティティ以下のアクティブを再計算する、ジョイント追従などで親が階層外のときに使う
-		void RefreshActiveRecursive(ECSWorld& world, const Entity& entity, bool parentActive);
+		bool RefreshActiveRecursive(ECSWorld& world, const Entity& entity, bool parentActive);
 
 		//--------- accessor -----------------------------------------------------
 

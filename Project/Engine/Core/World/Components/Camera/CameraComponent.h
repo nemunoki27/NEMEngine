@@ -65,6 +65,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, PerspectiveCameraComponent& component);
 	void to_json(nlohmann::json& out, const PerspectiveCameraComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(OrthographicCameraComponent, "OrthographicCamera");
-	ENGINE_REGISTER_COMPONENT(PerspectiveCameraComponent, "PerspectiveCamera");
 } // Engine

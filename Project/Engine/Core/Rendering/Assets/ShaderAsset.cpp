@@ -15,7 +15,6 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderAsset& outAsset) {
 	}
 
 	outAsset = ShaderAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedShader");
 
 	if (data.contains("stages") && data["stages"].is_array()) {
@@ -52,7 +51,6 @@ nlohmann::json Engine::ToJson(const ShaderAsset& asset) {
 
 	nlohmann::json data = nlohmann::json::object();
 
-	data["guid"] = ToString(asset.guid);
 	data["name"] = asset.name;
 	data["stages"] = nlohmann::json::array();
 	for (const auto& stage : asset.stages) {

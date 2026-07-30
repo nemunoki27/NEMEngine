@@ -161,6 +161,11 @@ namespace Engine {
 	// プロシージャル形状を生成して描画
 	struct PrimitiveRendererComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
+
 		// 描画する形状
 		PrimitiveType type = PrimitiveType::Plane;
 		// 描画空間、Plane/Ringのみ2D描画に切り替えられる
@@ -178,7 +183,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
+		MaterialParameterOverrides parameterOverrides{};
 
 		// 描画レイヤー
 		int32_t layer = 0;
@@ -223,5 +228,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, PrimitiveRendererComponent& component);
 	void to_json(nlohmann::json& out, const PrimitiveRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(PrimitiveRendererComponent, "PrimitiveRenderer");
 } // Engine

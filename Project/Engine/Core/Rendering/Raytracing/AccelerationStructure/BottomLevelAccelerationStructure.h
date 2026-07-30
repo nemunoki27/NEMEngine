@@ -5,6 +5,10 @@
 //============================================================================
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/AccelerationStructureBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
+
+// c++
+#include <vector>
 
 namespace Engine {
 
@@ -44,19 +48,27 @@ namespace Engine {
 		// 加速化構造バッファ
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
+		// ジオメトリローカル行列のアップロードバッファ
+		DxFrameMappedUploadBuffer geometryTransformBuffer_;
+		GraphicsDeferredReleaseQueue retiredResources_{};
 
 		// ジオメトリ記述
-		D3D12_RAYTRACING_GEOMETRY_DESC geometryDesc_{};
+		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs_{};
 		// ビルド記述
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs_{};
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc_{};
 
+		ID3D12Device8* device_ = nullptr;
 		// 更新を許可するか
 		bool allowUpdate_ = false;
+		// 更新時に変えられないジオメトリレイアウト
+		uint64_t layoutHash_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
-		// ジオメトリ記述の設定
-		void FillGeometryDesc(const RaytracingBLASInput& input);
+		// ジオメトリ記述とローカル行列の設定
+		void FillGeometryDescs(const RaytracingBLASInput& input);
+		// 更新可否を判定するレイアウトHashを計算
+		static uint64_t ComputeLayoutHash(const RaytracingBLASInput& input);
 	};
 } // Engine

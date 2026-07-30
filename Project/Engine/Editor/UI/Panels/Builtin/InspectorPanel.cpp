@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Commands/Entity/RenameEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/SetEntityTagCommand.h>
+#include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
@@ -43,7 +42,6 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
-#include <Engine/Editor/Commands/Entity/SetEntityActiveCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -63,7 +61,6 @@
 
 // c++
 #include <algorithm>
-#include <cctype>
 #include <cfloat>
 #include <cmath>
 #include <filesystem>
@@ -83,17 +80,6 @@
 //============================================================================
 namespace {
 
-	// 16桁hexのAssetID文字列かどうかを判定する
-	bool LooksLikeAssetID(const std::string& text) {
-
-		if (text.size() != 16) {
-			return false;
-		}
-		return std::all_of(text.begin(), text.end(), [](unsigned char c) {
-			return std::isxdigit(c) != 0;
-			});
-	}
-
 	// Material JSON内のパス参照をAssetIDに解決して、Inspectorで編集できる形にする
 	void ResolveMaterialPipelineReferences(Engine::AssetDatabase& database, nlohmann::json& data) {
 
@@ -107,7 +93,7 @@ namespace {
 			}
 
 			const std::string text = passJson["pipeline"].get<std::string>();
-			if (text.empty() || LooksLikeAssetID(text)) {
+			if (text.empty() || Engine::TryParseAssetGUID32Hex(text)) {
 				continue;
 			}
 
@@ -271,7 +257,7 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 	ConfigureInstance("Inspector", instanceID, primaryInstance);
 	modelPreviewCameraController_ = std::make_unique<SceneViewCameraController>();
 	modelPreviewCameraController_->MakeDefaultState();
-	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetGameConfigPath(
+	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetUserSettingsPath(
 		ConfigPaths::kInspectorModelPreviewCamera).string());
 
 	RegisterBuiltinComponentEditors(componentEditorRegistry_, meshRendererDrawer_);
@@ -676,7 +662,8 @@ void Engine::InspectorPanel::RebuildModelAssetPreviewWorld(const EditorPanelCont
 	renderer.queue = RenderPhase::Opaque;
 	renderer.visible = true;
 	renderer.enableZPrepass = true;
-	MeshSubMeshAuthoring::SyncComponent(database, renderer, false);
+	MeshSubMeshAuthoring::SyncEntity(
+		database, *modelPreviewWorld_, entity, false);
 
 	modelPreviewEntity_ = entity;
 	ResetModelAssetPreviewCamera();
@@ -1170,18 +1157,19 @@ void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext&
 		return;
 	}
 
-	const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(world, entity);
 
 	// 選択されているサブメッシュのインデックスを取得
 	uint32_t subMeshIndex = 0;
 	if (!context.editorState->TryResolveSelectedSubMeshIndex(&world, subMeshIndex)) {
 		return;
 	}
-	if (meshRenderer.subMeshes.size() <= subMeshIndex) {
+	if (subMeshes.size() <= subMeshIndex) {
 		return;
 	}
 
-	const auto& subMesh = meshRenderer.subMeshes[subMeshIndex];
+	const auto& subMesh = subMeshes[subMeshIndex];
 
 	// エンティティ名とサブメッシュ名を決定
 	std::string entityName = world.HasComponent<NameComponent>(entity) ?
@@ -1496,7 +1484,14 @@ void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& contex
 		ImGui::TextDisabled("ジョイントが無効です");
 		return;
 	}
-	const Skeleton& skeleton = world->GetComponent<SkinnedAnimationComponent>(skinned).runtimeSkeleton;
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(*world, skinned);
+	if (!runtime) {
+
+		ImGui::TextDisabled("ジョイントが無効です");
+		return;
+	}
+	const Skeleton& skeleton = runtime->skeleton;
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
 
 		ImGui::TextDisabled("ジョイントが無効です");

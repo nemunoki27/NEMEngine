@@ -367,7 +367,7 @@ namespace {
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
 		if (!value.is_object()) { value = nlohmann::json{ {"assetId", ""} }; }
-		Engine::AssetID assetID = Engine::FromString16Hex(value.value("assetId", std::string{}));
+		Engine::AssetID assetID = Engine::FromString32Hex(value.value("assetId", std::string{}));
 
 		const Engine::AssetDatabase* db = (ctx.panel && ctx.panel->editorContext) ? ctx.panel->editorContext->assetDatabase : nullptr;
 		Engine::ValueEditResult r = Engine::MyGUI::AssetReferenceField(label, assetID, db,
@@ -549,11 +549,11 @@ namespace {
 		const std::string rejectTooltip = ToShortTypeName(field.scriptType) + " を持っていません";
 		Engine::ValueEditResult ownerResult = DrawEntityRef(label, value["entity"], ctx,
 			[&field](Engine::ECSWorld& world, Engine::Entity target) {
-				const Engine::ScriptComponent* scripts = world.TryGetComponent<Engine::ScriptComponent>(target);
-				if (!scripts) {
+				if (!world.HasComponent<Engine::ScriptComponent>(target)) {
 					return false;
 				}
-				for (const Engine::ScriptEntry& slotEntry : scripts->scripts) {
+				for (const Engine::ScriptEntry& slotEntry :
+					Engine::GetScriptEntries(world, target)) {
 					if (MatchesFieldScriptType(slotEntry, field)) {
 						return true;
 					}
@@ -579,13 +579,14 @@ namespace {
 
 			if (ctx.world->IsAlive(owner) && ctx.world->HasComponent<Engine::ScriptComponent>(owner)) {
 
-				const auto& scriptComponent = ctx.world->GetComponent<Engine::ScriptComponent>(owner);
+				const std::span<const Engine::ScriptEntry> scriptEntries =
+					Engine::GetScriptEntries(*ctx.world, owner);
 
 				// ドロップ直後は一致スロットが1つだけなら自動選択する、複数あるときだけComboで選ばせる
 				if (ownerResult.valueChanged) {
 					const Engine::ScriptEntry* matched = nullptr;
 					int matchCount = 0;
-					for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
+					for (const Engine::ScriptEntry& slotEntry : scriptEntries) {
 						if (MatchesFieldScriptType(slotEntry, field)) {
 							matched = &slotEntry;
 							++matchCount;
@@ -603,7 +604,7 @@ namespace {
 				if (Engine::MyGUI::BeginPropertyRow("  対象スクリプト")) {
 					// 候補は型名で表示する、内部IDは分かりにくいので既定プレビューには出さない
 					std::string preview = "未選択";
-					for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
+					for (const Engine::ScriptEntry& slotEntry : scriptEntries) {
 						if (Engine::ToString(slotEntry.scriptSlotID) == currentSlot) {
 							preview = ToShortTypeName(slotEntry.lastKnownTypeName);
 							break;
@@ -612,7 +613,7 @@ namespace {
 					if (ImGui::BeginCombo("##slot", preview.c_str())) {
 						// 同型が複数あるときの区別用に候補の通し番号を振る
 						int candidateOrder = 0;
-						for (const Engine::ScriptEntry& slotEntry : scriptComponent.scripts) {
+						for (const Engine::ScriptEntry& slotEntry : scriptEntries) {
 							// 型が一致するスロットのみ候補にする
 							if (!MatchesFieldScriptType(slotEntry, field)) {
 								continue;
@@ -945,48 +946,18 @@ namespace {
 		}
 	}
 
-	// 保存フィールドを新形式へ正規化し移行できない値は未解決として保持する
-	bool MigrateAuthoring(Engine::ScriptEntry& entry, const Engine::ManagedScriptSchema& schema) {
+	// 保存フィールドを現行スキーマで初期化する
+	void EnsureAuthoringSchema(Engine::ScriptEntry& entry, const Engine::ManagedScriptSchema& schema) {
 
 		nlohmann::json& sf = entry.serializedFields;
-		if (!sf.is_object()) { sf = nlohmann::json::object(); }
-
-		// 既に新形式
-		const bool alreadyNew = sf.contains("fields") && sf["fields"].is_object();
-		if (alreadyNew) {
-			if (!sf.contains("unresolvedFields") || !sf["unresolvedFields"].is_object()) {
-				sf["unresolvedFields"] = nlohmann::json::object();
-			}
-			sf["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : sf.value("schemaVersion", 2);
-			return false;
+		if (!sf.is_object() || !sf.contains("fields") || !sf["fields"].is_object()) {
+			sf = nlohmann::json::object();
+			sf["fields"] = nlohmann::json::object();
 		}
-
-		// 旧形式から新形式へ
-		nlohmann::json migrated = nlohmann::json::object();
-		migrated["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : 2;
-		migrated["fields"] = nlohmann::json::object();
-		migrated["unresolvedFields"] = nlohmann::json::object();
-
-		// 名前と旧名からスキーマを引く
-		std::unordered_map<std::string, const Engine::ManagedFieldSchema*> byName;
-		for (const Engine::ManagedFieldSchema& f : schema.fields) {
-			byName[f.name] = &f;
-			for (const std::string& former : f.formerNames) { byName.emplace(former, &f); }
+		if (!sf.contains("unresolvedFields") || !sf["unresolvedFields"].is_object()) {
+			sf["unresolvedFields"] = nlohmann::json::object();
 		}
-
-		for (auto& [name, val] : sf.items()) {
-			auto it = byName.find(name);
-			if (it != byName.end()) {
-				const Engine::ManagedFieldSchema* f = it->second;
-				migrated["fields"][f->fieldID] = nlohmann::json{
-					{"name", f->name}, {"type", KindToTypeString(f->kind)}, {"value", val} };
-			} else {
-				// 解決できない旧フィールドは捨てずに保持する
-				migrated["unresolvedFields"][name] = val;
-			}
-		}
-		sf = std::move(migrated);
-		return true;
+		sf["schemaVersion"] = schema.schemaVersion != 0 ? schema.schemaVersion : 2;
 	}
 
 	// フィールド値を取得し無ければ既定値で作る
@@ -1070,13 +1041,8 @@ namespace {
 		if (!world.IsAlive(entity) || !world.HasComponent<Engine::ScriptComponent>(entity)) {
 			return Engine::BehaviorHandle::Null();
 		}
-		const auto& component = world.GetComponent<Engine::ScriptComponent>(entity);
-		for (const Engine::ScriptEntry& entry : component.scripts) {
-			if (entry.scriptSlotID == scriptSlotID) {
-				return entry.handle;
-			}
-		}
-		return Engine::BehaviorHandle::Null();
+		// 実行時ハンドルはECSへ複製せずBehaviorWorldから解決する
+		return Engine::BehaviorSystem::FindRuntimeHandle(entity, scriptSlotID);
 	}
 
 	// 未解決フィールドを安全に表示する
@@ -1121,7 +1087,8 @@ namespace {
 	}
 
 	// スクリプトのドロップで項目を追加する
-	Engine::ValueEditResult DrawScriptDropField(const Engine::EditorPanelContext& context, Engine::ScriptComponent& component) {
+	Engine::ValueEditResult DrawScriptDropField(const Engine::EditorPanelContext& context,
+		std::vector<Engine::ScriptEntry>& scripts) {
 
 		Engine::ValueEditResult result{};
 		if (!Engine::MyGUI::BeginPropertyRow("スクリプト")) {
@@ -1136,7 +1103,8 @@ namespace {
 			Engine::ScriptAssetDragDrop::ResolvedScriptType resolved{};
 			if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, resolved)) {
 
-				component.scripts.emplace_back(MakeScriptEntry(resolved.scriptTypeID, resolved.typeName, scriptAsset));
+				scripts.emplace_back(MakeScriptEntry(
+					resolved.scriptTypeID, resolved.typeName, scriptAsset));
 				result.valueChanged = true;
 				result.editFinished = true;
 			}
@@ -1147,10 +1115,37 @@ namespace {
 	}
 }
 
+void Engine::ScriptInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity, const ScriptComponent&) {
+
+	const std::span<const ScriptEntry> entries =
+		GetScriptEntries(static_cast<const ECSWorld&>(world), entity);
+	draftScripts_.assign(entries.begin(), entries.end());
+}
+
+void Engine::ScriptInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] const ScriptComponent& component, nlohmann::json& out) const {
+
+	SerializeScriptEntries(draftScripts_, out);
+}
+
+void Engine::ScriptInspectorDrawer::ApplyPreview(
+	ECSWorld& world, const Entity& entity, [[maybe_unused]] const ScriptComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) || !world.HasComponent<ScriptComponent>(entity)) {
+		return;
+	}
+
+	// 可変長データは設定コンポーネントとは別のECS Bufferへまとめて反映する
+	SetScriptEntries(world, entity, draftScripts_);
+	world.MarkComponentModified<ScriptComponent>(entity);
+	world.MarkComponentModified<ScriptEntry>(entity);
+}
+
 void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context,
 	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
-	auto& draft = GetDraft();
 	auto& runtime = ManagedScriptRuntime::GetInstance();
 	const bool playing = context.IsPlaying();
 
@@ -1179,10 +1174,10 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 	int32_t removeIndex = -1;
 	int32_t moveUpIndex = -1;
 	int32_t moveDownIndex = -1;
-	for (size_t i = 0; i < draft.scripts.size(); ++i) {
+	for (size_t i = 0; i < draftScripts_.size(); ++i) {
 
 		ImGui::PushID(static_cast<int32_t>(i));
-		ScriptEntry& entry = draft.scripts[i];
+		ScriptEntry& entry = draftScripts_[i];
 
 		// 型の解決状態はレジストリで判定する
 		const ManagedScriptResolutionReason resolutionReason = ResolveScriptReason(entry);
@@ -1210,7 +1205,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::Separator();
 			}
 			{
-				// 型コンボはGUIDを引き直すだけで値は保持し新スキーマで移行する
+				// 型コンボはGUIDを引き直し保存値はField GUID単位で保持する
 				const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
 				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName, searchIcon);
 				if (result.valueChanged) {
@@ -1221,7 +1216,6 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 						entry.scriptTypeID.clear();
 					}
 					entry.scriptAsset = {};
-					// 既存値は保持し移行できない値は未解決へ残る
 				}
 				PushEditResult(result, anyItemActive);
 				ImGui::Separator();
@@ -1237,8 +1231,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 			// 解決済みかつフィールドがある場合のみ描画する
 			if (resolved && !schema.fields.empty()) {
 
-				// 移行はメモリ上のみで実際の編集時に確定する
-				MigrateAuthoring(entry, schema);
+				EnsureAuthoringSchema(entry, schema);
 
 				DrawContext ctx{};
 				ctx.panel = &context;
@@ -1270,8 +1263,6 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 						changed |= DrawAuthoringField(field, entry.serializedFields, ctx, anyItemActive);
 					}
 					if (changed) {
-						// リビジョンを進めて実行側へ再適用させる
-						++entry.serializedRevision;
 						RequestCommit();
 					}
 				}
@@ -1281,7 +1272,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				ImGui::BulletText("last known type: %s",
 					entry.lastKnownTypeName.empty() ? "(unknown)" : entry.lastKnownTypeName.c_str());
 				ImGui::BulletText("scriptTypeID: %s", entry.scriptTypeID.c_str());
-				ImGui::BulletText("source asset: %016llx", static_cast<unsigned long long>(entry.scriptAsset.value));
+				ImGui::BulletText("source asset: %s", ToString(entry.scriptAsset).c_str());
 				ImGui::BulletText("slot id: %016llx", static_cast<unsigned long long>(entry.scriptSlotID.value));
 				ImGui::BulletText("reason: %s", ResolutionReasonLabel(resolutionReason));
 				if (ImGui::SmallButton("GUID をコピー")) {
@@ -1301,7 +1292,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 			}
 			ImGui::EndDisabled();
 			ImGui::SameLine();
-			ImGui::BeginDisabled(i + 1 >= draft.scripts.size());
+			ImGui::BeginDisabled(i + 1 >= draftScripts_.size());
 			if (ImGui::SmallButton("▼")) {
 				moveDownIndex = static_cast<int32_t>(i);
 			}
@@ -1318,19 +1309,19 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 
 	// Scriptアセットをドロップして追加する
 	DrawField(anyItemActive, [&]() {
-		return DrawScriptDropField(context, draft);
+		return DrawScriptDropField(context, draftScripts_);
 		});
 
 	if (0 <= removeIndex) {
-		draft.scripts.erase(draft.scripts.begin() + removeIndex);
+		draftScripts_.erase(draftScripts_.begin() + removeIndex);
 		RequestCommit();
 	}
 	// スロット並べ替えは入れ替えて確定しUndoできる
-	else if (0 < moveUpIndex && moveUpIndex < static_cast<int32_t>(draft.scripts.size())) {
-		std::swap(draft.scripts[moveUpIndex], draft.scripts[moveUpIndex - 1]);
+	else if (0 < moveUpIndex && moveUpIndex < static_cast<int32_t>(draftScripts_.size())) {
+		std::swap(draftScripts_[moveUpIndex], draftScripts_[moveUpIndex - 1]);
 		RequestCommit();
-	} else if (0 <= moveDownIndex && moveDownIndex + 1 < static_cast<int32_t>(draft.scripts.size())) {
-		std::swap(draft.scripts[moveDownIndex], draft.scripts[moveDownIndex + 1]);
+	} else if (0 <= moveDownIndex && moveDownIndex + 1 < static_cast<int32_t>(draftScripts_.size())) {
+		std::swap(draftScripts_[moveDownIndex], draftScripts_[moveDownIndex + 1]);
 		RequestCommit();
 	}
 	if (ImGui::Button("スクリプトを追加")) {
@@ -1354,7 +1345,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				}
 				// 表示はクラス名のみで内部は完全修飾名を保持する
 				if (ImGui::MenuItem(ScriptTypeShortName(info.name).c_str())) {
-					draft.scripts.emplace_back(MakeScriptEntry(info.scriptTypeID, info.name));
+					draftScripts_.emplace_back(MakeScriptEntry(info.scriptTypeID, info.name));
 					RequestCommit();
 					ImGui::CloseCurrentPopup();
 				}
@@ -1362,7 +1353,7 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 		}
 		ImGui::EndPopup();
 	}
-	if (draft.scripts.empty()) {
+	if (draftScripts_.empty()) {
 		ImGui::TextDisabled("スクリプトは未設定です。");
 	}
 }

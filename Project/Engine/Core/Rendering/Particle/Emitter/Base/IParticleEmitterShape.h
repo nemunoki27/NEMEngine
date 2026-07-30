@@ -41,8 +41,6 @@ namespace Engine {
 		// 形状をデバッグ線で描画する
 		virtual void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const = 0;
-		// 形状パラメータの編集UIを描画する、変更があればtrue
-		virtual bool DrawImGui(ParticleEmitterSettings& settings) const = 0;
 
 		//--------- accessor -----------------------------------------------------
 

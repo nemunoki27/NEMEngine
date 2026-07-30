@@ -76,9 +76,11 @@ void Engine::CollisionQuery::RaycastColliders(ECSWorld& world, const Ray& ray, f
 			return;
 		}
 
-		for (uint32_t shapeIndex = 0; shapeIndex < static_cast<uint32_t>(collision.shapes.size()); ++shapeIndex) {
+		const std::span<const CollisionShape> shapes =
+			GetCollisionShapes(world, entity);
+		for (uint32_t shapeIndex = 0; shapeIndex < static_cast<uint32_t>(shapes.size()); ++shapeIndex) {
 
-			const CollisionShape& shape = collision.shapes[shapeIndex];
+			const CollisionShape& shape = shapes[shapeIndex];
 			if (!shape.enabled || !IsCollisionShape3D(shape.type)) {
 				continue;
 			}
@@ -106,9 +108,14 @@ void Engine::CollisionQuery::RaycastColliders(ECSWorld& world, const Ray& ray, f
 void Engine::CollisionQuery::RaycastFillMeshes(ECSWorld& world, const Ray& ray, float maxDistance,
 	uint32_t layerMask, std::vector<RaycastHit3D>& outHits) {
 
-	world.ForEach<FillMeshRendererComponent>([&](const Entity& entity, FillMeshRendererComponent& fillMesh) {
+	world.ForEach<FillMeshRendererComponent>([&](const Entity& entity,
+		[[maybe_unused]] FillMeshRendererComponent& fillMesh) {
 
-		if (fillMesh.facePositions.empty() || fillMesh.triangleIndices.size() < 3) {
+		const std::span<const FillMeshPosition> positions =
+			GetFillMeshPositions(world, entity);
+		const std::span<const FillMeshTriangleIndex> indices =
+			GetFillMeshTriangleIndices(world, entity);
+		if (positions.empty() || indices.size() < 3) {
 			return;
 		}
 		if ((ResolveFillMeshTypeMask(world, entity) & layerMask) == 0) {
@@ -122,20 +129,20 @@ void Engine::CollisionQuery::RaycastFillMeshes(ECSWorld& world, const Ray& ray, 
 		// Entityごとに最近三角形のヒットだけを採用する
 		bool found = false;
 		RaycastHit3D nearest{};
-		const size_t vertexCount = fillMesh.facePositions.size();
-		for (size_t index = 0; index + 2 < fillMesh.triangleIndices.size(); index += 3) {
+		const size_t vertexCount = positions.size();
+		for (size_t index = 0; index + 2 < indices.size(); index += 3) {
 
-			const uint32_t i0 = fillMesh.triangleIndices[index + 0];
-			const uint32_t i1 = fillMesh.triangleIndices[index + 1];
-			const uint32_t i2 = fillMesh.triangleIndices[index + 2];
+			const uint32_t i0 = indices[index + 0].value;
+			const uint32_t i1 = indices[index + 1].value;
+			const uint32_t i2 = indices[index + 2].value;
 			if (vertexCount <= i0 || vertexCount <= i1 || vertexCount <= i2) {
 				continue;
 			}
 
 			// 頂点位置から行列を掛けてワールド座標に変換する
-			Vector3 worldPos0 = Vector3::Transform(fillMesh.facePositions[i0], transform->worldMatrix);
-			Vector3 worldPos1 = Vector3::Transform(fillMesh.facePositions[i1], transform->worldMatrix);
-			Vector3 worldPos2 = Vector3::Transform(fillMesh.facePositions[i2], transform->worldMatrix);
+			Vector3 worldPos0 = Vector3::Transform(positions[i0].value, transform->worldMatrix);
+			Vector3 worldPos1 = Vector3::Transform(positions[i1].value, transform->worldMatrix);
+			Vector3 worldPos2 = Vector3::Transform(positions[i2].value, transform->worldMatrix);
 
 			float distance = 0.0f;
 			Vector3 normal = Vector3(0.0f, 1.0f, 0.0f);

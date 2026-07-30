@@ -30,8 +30,30 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- variables ----------------------------------------------------
+
+		std::vector<KeyDIKCode> navigationUpKeys_{};
+		std::vector<KeyDIKCode> navigationDownKeys_{};
+		std::vector<KeyDIKCode> navigationLeftKeys_{};
+		std::vector<KeyDIKCode> navigationRightKeys_{};
+		std::vector<GamePadButtons> navigationUpGamepadButtons_{};
+		std::vector<GamePadButtons> navigationDownGamepadButtons_{};
+		std::vector<GamePadButtons> navigationLeftGamepadButtons_{};
+		std::vector<GamePadButtons> navigationRightGamepadButtons_{};
+		std::vector<KeyDIKCode> submitKeys_{};
+		std::vector<GamePadButtons> submitGamepadButtons_{};
+		CanvasNavigationTable navigationTable_{};
+
+		//--------- functions ----------------------------------------------------
+
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
+		void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity,
+			const CanvasComponent& component) override;
+		void SerializeDraft(ECSWorld& world, const Entity& entity,
+			const CanvasComponent& component, nlohmann::json& out) const override;
+		void ApplyPreview(ECSWorld& world, const Entity& entity,
+			const CanvasComponent& previewComponent) override;
 	};
 
 	class UISelectableInspectorDrawer :

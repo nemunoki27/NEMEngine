@@ -7,12 +7,14 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/VertexBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
+#include <array>
 #include <vector>
 
 namespace Engine {
@@ -63,8 +65,14 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const D3D12_VERTEX_BUFFER_VIEW& GetVBV() const { return vertexBuffer_.GetVertexBufferView(); }
-		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress() const { return viewBuffer_.GetResource()->GetGPUVirtualAddress(); }
+		const D3D12_VERTEX_BUFFER_VIEW& GetVBV() const {
+			return vertexBuffers_[GraphicsFrameState::GetCurrentIndex()]
+				.GetVertexBufferView();
+		}
+		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress() const {
+			return viewBuffers_[GraphicsFrameState::GetCurrentIndex()]
+				.GetResource()->GetGPUVirtualAddress();
+		}
 		uint32_t GetVertexCount() const { return vertexCount_; }
 	private:
 		//========================================================================
@@ -77,12 +85,15 @@ namespace Engine {
 		static constexpr float kLineAAFeather = 1.25f;
 
 		// 頂点バッファと現在確保中の頂点容量
-		VertexBuffer<LineVertex> vertexBuffer_{};
-		uint32_t capacity_ = 0;
+		std::array<VertexBuffer<LineVertex>,
+			kGraphicsFrameContextCount> vertexBuffers_{};
+		std::array<uint32_t,
+			kGraphicsFrameContextCount> capacities_{};
 		// 直近で転送した頂点数
 		uint32_t vertexCount_ = 0;
 
 		// ViewConstants b0
-		DxConstBuffer<LinePassConstants> viewBuffer_{};
+		std::array<DxConstBuffer<LinePassConstants>,
+			kGraphicsFrameContextCount> viewBuffers_{};
 	};
 } // Engine

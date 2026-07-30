@@ -202,14 +202,19 @@ void Engine::ParticleColorUVModule::OnUpdate(Particle& particle, float deltaTime
 }
 
 bool Engine::ParticleColorUVModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= DrawOffsetSettings();
 	changed |= DrawScaleSettings();
 	changed |= DrawRotationSettings();
 	return changed;
+#else
+	return false;
+#endif
 }
 
+#if defined(NEM_EDITOR_UI_ENABLED)
 bool Engine::ParticleColorUVModule::DrawOffsetSettings() {
 
 	if (!MyGUI::CollapsingHeader("座標", false)) {
@@ -311,3 +316,4 @@ bool Engine::ParticleColorUVModule::DrawRotationSettings() {
 	ImGui::PopID();
 	return changed;
 }
+#endif

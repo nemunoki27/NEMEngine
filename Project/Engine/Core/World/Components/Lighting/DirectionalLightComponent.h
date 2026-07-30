@@ -15,6 +15,11 @@ namespace Engine {
 	// 平行光源
 	struct DirectionalLightComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Lighting;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Lighting;
+
 		// 色
 		Color4 color = Color4::White();
 		// 方向
@@ -24,6 +29,8 @@ namespace Engine {
 		float intensity = 10.0f;
 		// 影の強さ(0.0=影なし, 1.0=完全に黒)
 		float shadowStrength = 0.92f;
+		// 光源の見かけの半径、度数法
+		float shadowAngularRadius = 0.27f;
 
 		// 有効フラグ
 		bool enabled = true;
@@ -34,5 +41,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, DirectionalLightComponent& component);
 	void to_json(nlohmann::json& out, const DirectionalLightComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(DirectionalLightComponent, "DirectionalLight");
 } // Engine

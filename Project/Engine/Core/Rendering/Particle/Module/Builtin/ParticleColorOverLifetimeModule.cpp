@@ -60,6 +60,7 @@ void Engine::ParticleColorOverLifetimeModule::OnUpdate(
 }
 
 bool Engine::ParticleColorOverLifetimeModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::ColorEdit("開始色", startColor_).valueChanged;
@@ -87,4 +88,7 @@ bool Engine::ParticleColorOverLifetimeModule::DrawImGui() {
 	}
 	changed |= ParticleGui::DrawLoopSettings(loop_);
 	return changed;
+#else
+	return false;
+#endif
 }

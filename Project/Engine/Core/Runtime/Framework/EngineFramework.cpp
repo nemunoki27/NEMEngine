@@ -6,14 +6,20 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
 //	Framework classMethods
 //============================================================================
+Framework::Framework(std::unique_ptr<IEngineApplication> application) :
+	engineApplication_(std::move(application)) {
+}
+
 void Framework::Run() {
 
 	// Comオブジェクト初期化
@@ -38,7 +44,7 @@ void Framework::Run() {
 void Framework::Init() {
 
 	// ログファイルの作成
-	Logger::CreateLogFiles();
+	Logger::CreateLogFiles(RuntimePaths::GetSavedPath("Logs"));
 
 	// グラフィックス機能初期化
 	graphicsCore_ = std::make_unique<GraphicsCore>();
@@ -47,8 +53,7 @@ void Framework::Init() {
 	// 入力機能初期化
 	Input::GetInstance()->Init(graphicsCore_->GetContext().GetWinApp());
 
-	// エンジンアプリケーション初期化
-	engineApplication_ = std::make_unique<EngineApplication>();
+	Assert::Call(engineApplication_ != nullptr, "FrameworkへApplicationを設定してください");
 	engineApplication_->Init(*graphicsCore_);
 
 	// フレーム初期化

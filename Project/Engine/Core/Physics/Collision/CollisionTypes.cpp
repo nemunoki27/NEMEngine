@@ -1,5 +1,10 @@
 #include "CollisionTypes.h"
 
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+
 // c++
 #include <functional>
 
@@ -10,6 +15,51 @@ namespace {
 
 		return (static_cast<uint64_t>(entity.index) << 32) | entity.generation;
 	}
+}
+
+//============================================================================
+//	CollisionShape classMethods
+//============================================================================
+void Engine::from_json(const nlohmann::json& in, CollisionShape& shape) {
+
+	if (!in.is_object()) {
+		return;
+	}
+	shape.type = EnumAdapter<ColliderShapeType>::FromString(
+		in.value("type", "Sphere3D")).value_or(ColliderShapeType::Sphere3D);
+	shape.enabled = in.value("enabled", shape.enabled);
+	shape.isTrigger = in.value("isTrigger", shape.isTrigger);
+	shape.useTransformRotation =
+		in.value("useTransformRotation", shape.useTransformRotation);
+	shape.rotatedQuad = in.value("rotatedQuad", shape.rotatedQuad);
+	if (in.contains("offset")) {
+		shape.offset = Vector3::FromJson(in["offset"]);
+	}
+	if (in.contains("rotationDegrees")) {
+		shape.rotationDegrees = Vector3::FromJson(in["rotationDegrees"]);
+	}
+	shape.radius = in.value("radius", shape.radius);
+	if (in.contains("halfSize2D")) {
+		shape.halfSize2D = Vector2::FromJson(in["halfSize2D"]);
+	}
+	if (in.contains("halfExtents3D")) {
+		shape.halfExtents3D = Vector3::FromJson(in["halfExtents3D"]);
+	}
+}
+
+void Engine::to_json(nlohmann::json& out, const CollisionShape& shape) {
+
+	out = nlohmann::json::object();
+	out["type"] = EnumAdapter<ColliderShapeType>::ToString(shape.type);
+	out["enabled"] = shape.enabled;
+	out["isTrigger"] = shape.isTrigger;
+	out["useTransformRotation"] = shape.useTransformRotation;
+	out["rotatedQuad"] = shape.rotatedQuad;
+	out["offset"] = shape.offset.ToJson();
+	out["rotationDegrees"] = shape.rotationDegrees.ToJson();
+	out["radius"] = shape.radius;
+	out["halfSize2D"] = shape.halfSize2D.ToJson();
+	out["halfExtents3D"] = shape.halfExtents3D.ToJson();
 }
 
 //============================================================================

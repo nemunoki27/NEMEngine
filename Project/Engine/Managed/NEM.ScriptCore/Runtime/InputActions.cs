@@ -40,11 +40,11 @@ public readonly struct InputBinding {
 
 // project-level の Input Action Map。起動時/明示 reload 時だけ JSON を parse し、
 // 以降は compact index と runtime 配列で評価する（gameplay frame で JSON/file/string scan しない）。
-// 設定: ProjectSettings/InputActions.json（default）。ProjectSettings/InputActions.user.json（user override）。
+// 設定: ProjectSettings/InputActions.json（default）。UserSettings/Runtime/InputActions.json（user override）。
 public static class InputActions {
 
     private const string DefaultFileName = "InputActions.json";
-    private const string UserFileName = "InputActions.user.json";
+    private const string UserFileName = "InputActions.json";
     private const int SchemaVersion = 1;
 
     // UI が入力を消費しているフレームは gameplay クエリを抑止する層（editor / UI が設定する）。
@@ -201,11 +201,12 @@ public static class InputActions {
     // user override ファイルへ atomic 保存する（project default は変更しない）。
     public static bool SaveBindings() {
         EnsureLoaded();
-        string? dir = SettingsDirectory();
+        string? dir = UserSettingsDirectory();
         if (dir == null) {
             return false;
         }
         try {
+            Directory.CreateDirectory(dir);
             string json = Serialize();
             string target = Path.Combine(dir, UserFileName);
             string temp = target + ".tmp";
@@ -387,7 +388,7 @@ public static class InputActions {
         }
     }
 
-    private static string? SettingsDirectory() {
+    private static string? ProjectSettingsDirectory() {
         string root = NativeApi.ReadProjectRoot();
         if (string.IsNullOrEmpty(root)) {
             return null;
@@ -395,18 +396,24 @@ public static class InputActions {
         return Path.Combine(root, "ProjectSettings");
     }
 
+    private static string? UserSettingsDirectory() {
+        string root = NativeApi.ReadUserSettingsRoot();
+        if (string.IsNullOrEmpty(root)) {
+            return null;
+        }
+        return Path.Combine(root, "Runtime");
+    }
+
     private static void LoadFromDisk() {
         var parsed = new List<ActionDef>();
         nameToIndex.Clear();
-        string? dir = SettingsDirectory();
-        if (dir != null) {
-            // user override を優先し、無ければ project default を読む
-            string userPath = Path.Combine(dir, UserFileName);
-            string defaultPath = Path.Combine(dir, DefaultFileName);
-            string? path = File.Exists(userPath) ? userPath : (File.Exists(defaultPath) ? defaultPath : null);
-            if (path != null) {
-                TryParseFile(path, parsed);
-            }
+        string? projectDirectory = ProjectSettingsDirectory();
+        string? userDirectory = UserSettingsDirectory();
+        string userPath = userDirectory == null ? string.Empty : Path.Combine(userDirectory, UserFileName);
+        string defaultPath = projectDirectory == null ? string.Empty : Path.Combine(projectDirectory, DefaultFileName);
+        string? path = File.Exists(userPath) ? userPath : (File.Exists(defaultPath) ? defaultPath : null);
+        if (path != null) {
+            TryParseFile(path, parsed);
         }
         actions = parsed.ToArray();
         for (int i = 0; i < actions.Length; ++i) {

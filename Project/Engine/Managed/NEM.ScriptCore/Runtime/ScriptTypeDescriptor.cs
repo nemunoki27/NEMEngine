@@ -10,27 +10,23 @@ public readonly struct ScriptTypeDescriptor {
 		string fullTypeName,
 		string displayName,
 		string sourcePath,
-		bool hasExplicitId,
-		string[] formerlyKnownTypeNames) {
+		bool hasExplicitId) {
 
 		ScriptTypeId = scriptTypeId;
 		FullTypeName = fullTypeName;
 		DisplayName = displayName;
 		SourcePath = sourcePath;
 		HasExplicitId = hasExplicitId;
-		FormerlyKnownTypeNames = formerlyKnownTypeNames;
 	}
 
 	// 正規化済み Stable Script Type GUID
 	public string ScriptTypeId { get; }
-	// 完全修飾型名（表示・legacy 移行用）
+	// 完全修飾型名
 	public string FullTypeName { get; }
 	// 表示名
 	public string DisplayName { get; }
 	// 定義元 .cs のパス（drag&drop の source 照合用。永続識別には使わない）
 	public string SourcePath { get; }
-	// [ScriptTypeId] が明示されていたか（false は移行用 fallback GUID）
+	// [ScriptTypeId]またはmetadataから安定IDを解決できたか
 	public bool HasExplicitId { get; }
-	// [FormerlyKnownScriptType] による旧 full type name
-	public string[] FormerlyKnownTypeNames { get; }
 }

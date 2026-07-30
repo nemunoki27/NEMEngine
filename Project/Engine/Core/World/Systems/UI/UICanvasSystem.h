@@ -9,6 +9,7 @@ namespace Engine {
 
 	// front
 	struct UIProgressComponent;
+	struct UIProgressRuntimeData;
 
 	//============================================================================
 	//	UICanvasSystem class
@@ -29,7 +30,8 @@ namespace Engine {
 		void OnWorldExit(ECSWorld& world, SystemContext& context) override;
 
 		// Progress適用前の見た目へ戻す
-		static void RestoreProgressVisual(ECSWorld& world, UIProgressComponent& progress);
+		static void RestoreProgressVisual(
+			ECSWorld& world, const Entity& entity, UIProgressComponent& progress);
 
 		//--------- accessor -----------------------------------------------------
 

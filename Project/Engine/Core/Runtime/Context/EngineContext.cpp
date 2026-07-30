@@ -30,7 +30,7 @@ void Engine::EngineContext::InitCoreSettings() {
 
 		// 製品ビルドではビルド設定の製品名と起動状態を優先する
 		const nlohmann::json gameBuild = JsonAdapter::Load(
-			RuntimePaths::GetGameConfigPath(ConfigPaths::kGameBuild), false);
+			RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild), false);
 		if (gameBuild.is_object()) {
 
 			const std::string gameName = gameBuild.value("gameName", std::string{});

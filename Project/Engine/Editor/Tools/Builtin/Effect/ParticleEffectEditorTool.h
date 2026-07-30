@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
-#include <Engine/Core/Rendering/Particle/Module/Base/IParticleModule.h>
+#include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 
@@ -48,6 +48,7 @@ namespace Engine {
 		struct ModuleCacheEntry {
 
 			std::string id;
+			ParticleModuleRegistry::TypeID typeID = ParticleModuleRegistry::kInvalidTypeID;
 			std::unique_ptr<IParticleModule> module;
 		};
 

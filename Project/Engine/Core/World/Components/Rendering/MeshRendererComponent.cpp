@@ -4,44 +4,89 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
-//============================================================================
-//	MeshRendererComponent internal
-//============================================================================
+// c++
+#include <vector>
+
 namespace {
 
-	// 旧色フィールドが残るシーンはparameterOverridesへ移行し見た目を保持する
-	void MigrateLegacyColor(const nlohmann::json& in, const char* legacyKey,
-		const char* paramName, Engine::SubMeshMaterial& subMeshMaterial) {
+	void ReadMeshRendererSettings(const nlohmann::json& in,
+		Engine::MeshRendererComponent& component) {
 
-		if (!in.contains(legacyKey) || subMeshMaterial.parameterOverrides.count(paramName)) {
-			return;
-		}
-		Engine::MaterialParameterValue value{};
-		value.value = Engine::Color4::FromJson(in[legacyKey]);
-		subMeshMaterial.parameterOverrides[paramName] = value;
+		component.mesh = Engine::ParseAssetID(in, "mesh");
+		component.material = Engine::ParseAssetID(in, "material");
+		Engine::ReadRenderCommonFields(in, component.layer, component.order,
+			component.visible, component.blendMode, component.queue);
+		component.enableZPrepass =
+			in.value("enableZPrepass", component.enableZPrepass);
+		Engine::ReadMeshRenderFlags(in, component.renderFlags);
 	}
 
-	// 旧テクスチャフィールドが残るシーンはAssetID値としてparameterOverridesへ移行する
-	void MigrateLegacyTexture(const nlohmann::json& in, const char* legacyKey,
-		const char* paramName, Engine::SubMeshMaterial& subMeshMaterial) {
+	void WriteMeshRendererSettings(nlohmann::json& out,
+		const Engine::MeshRendererComponent& component) {
 
-		if (subMeshMaterial.parameterOverrides.count(paramName)) {
-			return;
-		}
-		const Engine::AssetID id = Engine::ParseAssetID(in, legacyKey);
-		if (!id) {
-			return;
-		}
-		Engine::MaterialParameterValue value{};
-		value.value = id;
-		subMeshMaterial.parameterOverrides[paramName] = value;
+		out["mesh"] = Engine::ToAssetReferenceJson(component.mesh);
+		out["material"] = Engine::ToAssetReferenceJson(component.material);
+		Engine::WriteRenderCommonFields(out, component.layer, component.order,
+			component.visible, component.blendMode, component.queue);
+		out["enableZPrepass"] = component.enableZPrepass;
+		Engine::WriteMeshRenderFlags(out, component.renderFlags);
 	}
 }
 
 //============================================================================
 //	MeshRendererComponent classMethods
 //============================================================================
+void Engine::MeshRendererComponent::OnAdded(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] MeshRendererComponent& component) {
+
+	if (!world.HasBuffer<SubMeshMaterial>(entity)) {
+		world.AddBuffer<SubMeshMaterial>(entity);
+	}
+}
+
+void Engine::MeshRendererComponent::OnRemoved(ECSWorld& world, const Entity& entity) {
+
+	// サブメッシュ編集列はMeshRenderer本体と同じ寿命で破棄する
+	if (world.HasBuffer<SubMeshMaterial>(entity)) {
+		world.RemoveBuffer<SubMeshMaterial>(entity);
+	}
+}
+
+void Engine::MeshRendererComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] MeshRendererComponent& component) {
+}
+
+void Engine::MeshRendererComponent::ReleaseStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] MeshRendererComponent& component) {
+}
+
+void Engine::MeshRendererComponent::DeserializeECS(
+	ECSWorld& world, const Entity& entity, const nlohmann::json& in,
+	MeshRendererComponent& component) {
+
+	ReadMeshRendererSettings(in, component);
+	std::vector<SubMeshMaterial> subMeshes;
+	if (in.contains("subMeshes") && in["subMeshes"].is_array()) {
+		subMeshes.reserve(in["subMeshes"].size());
+		for (const nlohmann::json& subMeshJson : in["subMeshes"]) {
+			subMeshes.emplace_back(subMeshJson.get<SubMeshMaterial>());
+		}
+	}
+	SetMeshSubMeshes(world, entity, subMeshes);
+}
+
+void Engine::MeshRendererComponent::SerializeECS(
+	const ECSWorld& world, const Entity& entity,
+	const MeshRendererComponent& component, nlohmann::json& out) {
+
+	SerializeMeshRenderer(component, GetMeshSubMeshes(world, entity), out);
+}
+
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
 
 	subMeshMaterial.name = in.value("name", "");
@@ -60,13 +105,6 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 			}
 		}
 	}
-	// 旧フィールドが残るシーンは同名のparameterOverridesへ移行する
-	MigrateLegacyColor(in, "color", "color", subMeshMaterial);
-	MigrateLegacyColor(in, "emissiveColor", "emissiveColor", subMeshMaterial);
-	MigrateLegacyTexture(in, "baseColorTexture", "baseColorTexture", subMeshMaterial);
-	MigrateLegacyTexture(in, "normalTexture", "normalTexture", subMeshMaterial);
-	MigrateLegacyTexture(in, "emissiveTexture", "emissiveTexture", subMeshMaterial);
-
 	subMeshMaterial.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
 	subMeshMaterial.uvRotation = in.value("uvRotation", 0.0f);
 	subMeshMaterial.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));
@@ -74,9 +112,6 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 	subMeshMaterial.localPos = Vector3::FromJson(in.value("localPos", nlohmann::json{}));
 	subMeshMaterial.localRotation = Vector3::FromJson(in.value("localRotation", nlohmann::json{}));
 	subMeshMaterial.localScale = Vector3::FromJson(in.value("localScale", nlohmann::json{}));
-
-	subMeshMaterial.uvMatrix = Matrix4x4::Identity();
-	subMeshMaterial.worldMatrix = Matrix4x4::Identity();
 
 	subMeshMaterial.sourcePivot = Vector3::FromJson(in.value("sourcePivot", nlohmann::json{}));
 }
@@ -107,12 +142,6 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 
 void Engine::ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flags) {
 
-	// 旧形式の単一uintがあれば優先して読む
-	if (in.contains("renderFlags") && in["renderFlags"].is_number_integer()) {
-		flags = static_cast<MeshRenderFlags>(in.value("renderFlags", static_cast<uint32_t>(flags)));
-		return;
-	}
-	// フラグを増やしても旧シーンでデフォルト値が効くよう、ビットごとに名前付きboolで読む
 	const auto readFlag = [&](const char* key, MeshRenderFlags flag) {
 		SetMeshRenderFlag(flags, flag, in.value(key, HasMeshRenderFlag(flags, flag)));
 		};
@@ -136,31 +165,50 @@ void Engine::WriteMeshRenderFlags(nlohmann::json& out, MeshRenderFlags flags) {
 
 void Engine::from_json(const nlohmann::json& in, MeshRendererComponent& component) {
 
-	component.mesh = ParseAssetID(in, "mesh");
-	component.material = ParseAssetID(in, "material");
-	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
-	component.enableZPrepass = in.value("enableZPrepass", component.enableZPrepass);
-	ReadMeshRenderFlags(in, component.renderFlags);
-
-	component.subMeshes.clear();
-	if (in.contains("subMeshes") && in["subMeshes"].is_array()) {
-		for (const auto& subMeshJson : in["subMeshes"]) {
-
-			component.subMeshes.emplace_back(subMeshJson.get<SubMeshMaterial>());
-		}
-	}
+	ReadMeshRendererSettings(in, component);
 }
 
 void Engine::to_json(nlohmann::json& out, const MeshRendererComponent& component) {
 
-	out["mesh"] = ToAssetReferenceJson(component.mesh);
-	out["material"] = ToAssetReferenceJson(component.material);
-	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
-	out["enableZPrepass"] = component.enableZPrepass;
-	WriteMeshRenderFlags(out, component.renderFlags);
+	WriteMeshRendererSettings(out, component);
+}
 
+std::span<Engine::SubMeshMaterial> Engine::GetMeshSubMeshes(
+	ECSWorld& world, const Entity& entity) {
+
+	return world.TryGetBuffer<SubMeshMaterial>(entity).GetSpan();
+}
+
+std::span<const Engine::SubMeshMaterial> Engine::GetMeshSubMeshes(
+	const ECSWorld& world, const Entity& entity) {
+
+	return world.GetBufferSpan<SubMeshMaterial>(entity);
+}
+
+void Engine::SetMeshSubMeshes(ECSWorld& world, const Entity& entity,
+	std::span<const SubMeshMaterial> subMeshes) {
+
+	DynamicBuffer<SubMeshMaterial> buffer =
+		world.TryGetBuffer<SubMeshMaterial>(entity);
+	if (!buffer.IsValid()) {
+		buffer = world.AddBuffer<SubMeshMaterial>(entity);
+	}
+	buffer.Clear();
+	buffer.Reserve(static_cast<uint32_t>(subMeshes.size()));
+	for (const SubMeshMaterial& subMesh : subMeshes) {
+		buffer.Add(subMesh);
+	}
+	// Buffer要素の変更は構造変更を伴わないため明示的に通知する
+	world.MarkComponentModified<SubMeshMaterial>(entity);
+}
+
+void Engine::SerializeMeshRenderer(
+	const MeshRendererComponent& component,
+	std::span<const SubMeshMaterial> subMeshes, nlohmann::json& out) {
+
+	WriteMeshRendererSettings(out, component);
 	out["subMeshes"] = nlohmann::json::array();
-	for (const auto& subMesh : component.subMeshes) {
+	for (const SubMeshMaterial& subMesh : subMeshes) {
 
 		out["subMeshes"].push_back(subMesh);
 	}
@@ -187,22 +235,4 @@ Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const SubMe
 	Matrix4x4 invPivot = Matrix4x4::MakeTranslateMatrix(Vector3(
 		-subMesh.sourcePivot.x, -subMesh.sourcePivot.y, -subMesh.sourcePivot.z));
 	return invPivot * BuildLocalMatrix(subMesh) * pivot;
-}
-
-void Engine::MeshSubMeshRuntime::UpdateSubMeshRuntime(
-	SubMeshMaterial& subMesh, const Matrix4x4& parentWorldMatrix) {
-
-	subMesh.uvMatrix = BuildUVMatrix(subMesh);
-
-	const Matrix4x4 localMatrix = BuildRenderLocalMatrix(subMesh);
-	subMesh.worldMatrix = localMatrix * parentWorldMatrix;
-}
-
-void Engine::MeshSubMeshRuntime::UpdateRendererRuntime(
-	MeshRendererComponent& renderer, const Matrix4x4& parentWorldMatrix) {
-
-	for (auto& subMesh : renderer.subMeshes) {
-
-		UpdateSubMeshRuntime(subMesh, parentWorldMatrix);
-	}
 }

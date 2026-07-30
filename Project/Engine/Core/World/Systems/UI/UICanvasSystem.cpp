@@ -162,66 +162,67 @@ namespace {
 	}
 
 	void UpdateProgress(Engine::ECSWorld& world, Engine::Entity entity,
-		Engine::UIProgressComponent& progress, float deltaTime) {
+		Engine::UIProgressComponent& progress,
+		Engine::UIProgressRuntimeData& runtime, float deltaTime) {
 
-		EnsureTarget(world, entity, progress.runtimeFillTarget);
+		EnsureTarget(world, entity, runtime.fillTarget);
 		if (progress.delayed && progress.delayedTargetLocalFileID) {
 
 			const Engine::Entity delayedTarget =
 				ResolveTarget(world, progress.delayedTargetLocalFileID);
 			SyncDelayedRenderer(world, entity, delayedTarget, progress.delayedTexture);
-			EnsureTarget(world, delayedTarget, progress.runtimeDelayedTarget);
+			EnsureTarget(world, delayedTarget, runtime.delayedTarget);
 		} else {
-			RestoreTarget(world, progress.runtimeDelayedTarget);
-			progress.runtimeDelayedTarget = {};
+			RestoreTarget(world, runtime.delayedTarget);
+			runtime.delayedTarget = {};
 		}
 
 		const float target = NormalizeValue(progress);
-		if (!progress.runtimeInitialized) {
-			progress.runtimeDisplayedValue = target;
-			progress.runtimeDelayedValue = target;
-			progress.runtimeDisplayStart = target;
-			progress.runtimeDelayedStart = target;
-			progress.runtimeTargetValue = target;
-			progress.runtimeInitialized = true;
+		if (!runtime.initialized) {
+			runtime.displayedValue = target;
+			runtime.delayedValue = target;
+			runtime.displayStart = target;
+			runtime.delayedStart = target;
+			runtime.targetValue = target;
+			runtime.initialized = true;
 		}
-		if (target != progress.runtimeTargetValue) {
-			progress.runtimeDisplayStart = progress.runtimeDisplayedValue;
-			progress.runtimeDelayedStart = progress.runtimeDelayedValue;
-			progress.runtimeTargetValue = target;
-			progress.runtimeSmoothElapsed = 0.0f;
-			progress.runtimeDelayedElapsed = 0.0f;
-			if (progress.runtimeDelayedValue < target) {
-				progress.runtimeDelayedValue = target;
-				progress.runtimeDelayedStart = target;
+		if (target != runtime.targetValue) {
+			runtime.displayStart = runtime.displayedValue;
+			runtime.delayedStart = runtime.delayedValue;
+			runtime.targetValue = target;
+			runtime.smoothElapsed = 0.0f;
+			runtime.delayedElapsed = 0.0f;
+			if (runtime.delayedValue < target) {
+				runtime.delayedValue = target;
+				runtime.delayedStart = target;
 			}
 		}
 
 		if (!progress.smooth || progress.smoothDuration <= 0.0f) {
-			progress.runtimeDisplayedValue = target;
+			runtime.displayedValue = target;
 		} else {
-			progress.runtimeSmoothElapsed += (std::max)(deltaTime, 0.0f);
-			const float t = std::clamp(progress.runtimeSmoothElapsed / progress.smoothDuration, 0.0f, 1.0f);
-			progress.runtimeDisplayedValue = std::lerp(progress.runtimeDisplayStart,
+			runtime.smoothElapsed += (std::max)(deltaTime, 0.0f);
+			const float t = std::clamp(runtime.smoothElapsed / progress.smoothDuration, 0.0f, 1.0f);
+			runtime.displayedValue = std::lerp(runtime.displayStart,
 				target, EasedValue(progress.smoothEasing, t));
 		}
 
 		if (!progress.delayed) {
-			progress.runtimeDelayedValue = progress.runtimeDisplayedValue;
-		} else if (target < progress.runtimeDelayedValue) {
-			progress.runtimeDelayedElapsed += (std::max)(deltaTime, 0.0f);
-			if (progress.delayedWait < progress.runtimeDelayedElapsed) {
+			runtime.delayedValue = runtime.displayedValue;
+		} else if (target < runtime.delayedValue) {
+			runtime.delayedElapsed += (std::max)(deltaTime, 0.0f);
+			if (progress.delayedWait < runtime.delayedElapsed) {
 				const float duration = (std::max)(progress.delayedDuration, 0.0001f);
-				const float t = std::clamp((progress.runtimeDelayedElapsed - progress.delayedWait) / duration, 0.0f, 1.0f);
-				progress.runtimeDelayedValue = std::lerp(progress.runtimeDelayedStart,
+				const float t = std::clamp((runtime.delayedElapsed - progress.delayedWait) / duration, 0.0f, 1.0f);
+				runtime.delayedValue = std::lerp(runtime.delayedStart,
 					target, EasedValue(progress.delayedEasing, t));
 			}
 		}
 
-		ApplyFill(world, progress.runtimeFillTarget, progress.direction, progress.runtimeDisplayedValue);
-		if (progress.runtimeDelayedTarget.valid &&
-			progress.runtimeDelayedTarget.localFileID != progress.runtimeFillTarget.localFileID) {
-			ApplyFill(world, progress.runtimeDelayedTarget, progress.direction, progress.runtimeDelayedValue);
+		ApplyFill(world, runtime.fillTarget, progress.direction, runtime.displayedValue);
+		if (runtime.delayedTarget.valid &&
+			runtime.delayedTarget.localFileID != runtime.fillTarget.localFileID) {
+			ApplyFill(world, runtime.delayedTarget, progress.direction, runtime.delayedValue);
 		}
 	}
 }
@@ -230,29 +231,41 @@ namespace {
 //	UICanvasSystem classMethods
 //============================================================================
 void Engine::UICanvasSystem::RestoreProgressVisual(ECSWorld& world,
-	UIProgressComponent& progress) {
+	const Entity& entity, UIProgressComponent& progress) {
 
-	RestoreTarget(world, progress.runtimeFillTarget);
-	RestoreTarget(world, progress.runtimeDelayedTarget);
-	ResetUIProgressRuntime(progress);
+	UIProgressRuntimeData* runtime = TryGetUIProgressRuntime(world, entity);
+	if (!runtime) {
+		return;
+	}
+
+	// Previewで上書きした描画パラメータを編集前の値へ戻す
+	RestoreTarget(world, runtime->fillTarget);
+	RestoreTarget(world, runtime->delayedTarget);
+	ResetUIProgressRuntime(*runtime, NormalizeValue(progress));
 }
 
 void Engine::UICanvasSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	const bool isPlay = context.mode == WorldMode::Play;
-	world.ForEach<UIProgressComponent>([&](Entity entity, UIProgressComponent& progress) {
+	world.ForEach<UIProgressComponent, UIProgressRuntimeComponent>(
+		[&](Entity entity, UIProgressComponent& progress,
+			[[maybe_unused]] UIProgressRuntimeComponent& runtimeComponent) {
 
+		UIProgressRuntimeData* runtime = TryGetUIProgressRuntime(world, entity);
+		if (!runtime) {
+			return;
+		}
 		if (!progress.enabled || (!isPlay && !progress.previewInEditMode)) {
-			if (progress.runtimeInitialized ||
-				progress.runtimeFillTarget.valid || progress.runtimeDelayedTarget.valid) {
-				RestoreProgressVisual(world, progress);
+			if (runtime->initialized ||
+				runtime->fillTarget.valid || runtime->delayedTarget.valid) {
+				RestoreProgressVisual(world, entity, progress);
 			}
 			return;
 		}
 
 		const float deltaTime = (!isPlay || progress.useUnscaledTime) ?
 			context.unscaledDeltaTime : context.deltaTime;
-		UpdateProgress(world, entity, progress, deltaTime);
+		UpdateProgress(world, entity, progress, *runtime, deltaTime);
 		});
 }
 
@@ -263,8 +276,10 @@ void Engine::UICanvasSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] System
 
 void Engine::UICanvasSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
-	world.ForEach<UIProgressComponent>([&](Entity, UIProgressComponent& progress) {
-		RestoreProgressVisual(world, progress);
-		});
+	world.ForEach<UIProgressComponent, UIProgressRuntimeComponent>(
+		[&](Entity entity, UIProgressComponent& progress,
+			[[maybe_unused]] UIProgressRuntimeComponent& runtimeComponent) {
+			RestoreProgressVisual(world, entity, progress);
+			});
 	UIRuntimeService::GetInstance().Clear(world);
 }

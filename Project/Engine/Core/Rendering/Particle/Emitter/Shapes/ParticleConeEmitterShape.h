@@ -28,8 +28,7 @@ namespace Engine {
 			const ParticleEmitterSettings& settings, bool is2D) const override;
 		void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
-		bool DrawImGui(ParticleEmitterSettings& settings) const override;
+		bool DrawImGui(ParticleEmitterSettings& settings) const;
 	};
 
-	ENGINE_REGISTER_PARTICLE_EMITTER_SHAPE(ParticleConeEmitterShape, ParticleEmitterShape::Cone);
 } // Engine

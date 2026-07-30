@@ -5,8 +5,8 @@ namespace NEMEngine;
 
 // Asset / Entity / Component / ScriptBehaviour 参照フィールドを authoring / runtime JSON へ相互変換する。
 // runtime pointer / index は一切保存せず、UUID と identity だけを round-trip する。
-// 保存形式は旧Ref型時代と同一（AssetRef={"assetId"} / EntityRef={"kind","sourceAsset","localFileId"} 等）で、
-// C++側のInspector / PrefabReferenceRemapperはそのまま動く。
+// AssetRef={"assetId"} / EntityRef={"kind","sourceAsset","localFileId"}形式で保存する。
+// C++側のInspector / PrefabReferenceRemapperも同じidentity形式を扱う。
 // 読み込みはidentityを現在のworldの生きた参照へ解決する（未解決はnull / null Entity）。
 
 // UUID <-> 16桁hex 文字列（"" は None）
@@ -47,7 +47,8 @@ internal sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
         if (root.TryGetProperty("kind", out JsonElement kindElement) && kindElement.ValueKind == JsonValueKind.String) {
             Enum.TryParse(kindElement.GetString(), out kind);
         }
-        UUID source = root.TryGetProperty("sourceAsset", out JsonElement sa) ? UUID.Parse(sa.GetString()) : UUID.None;
+        AssetGUID source = root.TryGetProperty("sourceAsset", out JsonElement sa) ?
+            AssetGUID.Parse(sa.GetString()) : AssetGUID.None;
         UUID local = root.TryGetProperty("localFileId", out JsonElement lf) ? UUID.Parse(lf.GetString()) : UUID.None;
         return new EntityRef(kind, source, local);
     }
@@ -100,7 +101,7 @@ internal sealed class AssetJsonConverter<TAsset> : JsonConverter<TAsset> where T
     // ctorはinternalのためreflectionで一度だけ引く
     private static readonly System.Reflection.ConstructorInfo? ctor = typeof(TAsset).GetConstructor(
         System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
-        new[] { typeof(UUID) });
+        new[] { typeof(AssetGUID) });
 
     public override bool HandleNull => true;
 
@@ -114,7 +115,7 @@ internal sealed class AssetJsonConverter<TAsset> : JsonConverter<TAsset> where T
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("assetId", out JsonElement id)) {
             return null;
         }
-        UUID assetId = UUID.Parse(id.GetString());
+        AssetGUID assetId = AssetGUID.Parse(id.GetString());
         return assetId.isValid && ctor != null ? (TAsset)ctor.Invoke(new object[] { assetId }) : null;
     }
 

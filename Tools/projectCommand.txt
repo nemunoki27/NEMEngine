@@ -1,4 +1,0 @@
-エンジンのSDK書き出し
-C:\Users\k023g\school\NEMProjects\NEMEngine 直下で powershell -ExecutionPolicy Bypass -File Tools\NewGame.ps1 -Name MyGame -SdkPath 
-ゲームを作る
--ExecutionPolicy Bypass -File Tools\NewGame.ps1 -Name MyGame -SdkPath

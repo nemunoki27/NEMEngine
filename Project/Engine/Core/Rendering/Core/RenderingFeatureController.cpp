@@ -100,6 +100,35 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 }
 
+void Engine::GraphicsFeatureController::SetAllowOcclusionCulling(
+	bool enabled) {
+
+	if (preferences_.allowOcclusionCulling == enabled) {
+		return;
+	}
+
+	preferences_.allowOcclusionCulling = enabled;
+	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
+
+	Logger::Output(LogType::Engine, "Occlusion Culling -> {}",
+		runtimeFeatures_.useOcclusionCulling ?
+		"Enabled" : "Disabled");
+}
+
+void Engine::GraphicsFeatureController::SetUseGameViewCameraForSceneCulling(bool enabled) {
+
+	if (preferences_.useGameViewCameraForSceneCulling == enabled) {
+		return;
+	}
+
+	preferences_.useGameViewCameraForSceneCulling = enabled;
+	SavePreferencesToConfig();
+
+	Logger::Output(LogType::Engine, "SceneView Culling Camera -> {}",
+		enabled ? "GameView" : "SceneView");
+}
+
 void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled) {
 
 	// VS経路とMS経路の両方で使うため、共通のRuntimeFeaturesへ反映する
@@ -128,6 +157,58 @@ void Engine::GraphicsFeatureController::SetAllowNormalConeCulling(bool enabled) 
 	Logger::Output(LogType::Engine, "Normal Cone Culling -> {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
 }
 
+void Engine::GraphicsFeatureController::SetAllowMeshLOD(
+	bool enabled) {
+
+	if (preferences_.allowMeshLOD == enabled) {
+		return;
+	}
+
+	preferences_.allowMeshLOD = enabled;
+	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
+
+	Logger::Output(LogType::Engine, "Mesh LOD -> {}",
+		runtimeFeatures_.useMeshLOD ?
+		"Enabled" : "Disabled");
+}
+
+void Engine::GraphicsFeatureController::SetMeshLODThresholds(
+	float lod0, float lod1, float lod2) {
+
+	const std::array<float, 3> thresholds =
+		GraphicsMeshLOD::ClampPixelThresholds(
+			lod0, lod1, lod2);
+	lod0 = thresholds[0];
+	lod1 = thresholds[1];
+	lod2 = thresholds[2];
+	if (preferences_.meshLOD0PixelThreshold == lod0 &&
+		preferences_.meshLOD1PixelThreshold == lod1 &&
+		preferences_.meshLOD2PixelThreshold == lod2) {
+		return;
+	}
+
+	preferences_.meshLOD0PixelThreshold = lod0;
+	preferences_.meshLOD1PixelThreshold = lod1;
+	preferences_.meshLOD2PixelThreshold = lod2;
+	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
+}
+
+void Engine::GraphicsFeatureController::SetFrameContextCount(
+	uint32_t count) {
+
+	count = std::clamp(count, 1u, 3u);
+	if (preferences_.frameContextCount == count) {
+		return;
+	}
+
+	preferences_.frameContextCount = count;
+	SavePreferencesToConfig();
+	Logger::Output(LogType::Engine,
+		"Frame Context Count -> {} after restart", count);
+}
+
 void Engine::GraphicsFeatureController::ClampPreferencesToSupport() {
 
 	if (!support_.SupportsMeshShaderPath()) {
@@ -148,8 +229,16 @@ void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {
 	runtimeFeatures_.useInlineRayTracing = support_.SupportsRayTracingPath() && preferences_.allowInlineRayTracing;
 	runtimeFeatures_.useDispatchRays = support_.SupportsRayTracingPath() && preferences_.allowDispatchRays;
 	runtimeFeatures_.useFrustumCulling = preferences_.allowFrustumCulling;
+	runtimeFeatures_.useOcclusionCulling = preferences_.allowOcclusionCulling;
 	runtimeFeatures_.useContributionCulling = preferences_.allowContributionCulling;
 	runtimeFeatures_.useNormalConeCulling = preferences_.allowNormalConeCulling;
+	runtimeFeatures_.useMeshLOD = preferences_.allowMeshLOD;
+	runtimeFeatures_.meshLOD0PixelThreshold =
+		preferences_.meshLOD0PixelThreshold;
+	runtimeFeatures_.meshLOD1PixelThreshold =
+		preferences_.meshLOD1PixelThreshold;
+	runtimeFeatures_.meshLOD2PixelThreshold =
+		preferences_.meshLOD2PixelThreshold;
 }
 
 void Engine::GraphicsFeatureController::LogCurrentState() const {
@@ -171,15 +260,25 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Runtime Occlusion Culling: {}", runtimeFeatures_.useOcclusionCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "SceneView Culling Camera: {}",
+		preferences_.useGameViewCameraForSceneCulling ? "GameView" : "SceneView");
 	Logger::Output(LogType::Engine, "Runtime Contribution Culling: {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Runtime Mesh LOD: {} ({:.1f}, {:.1f}, {:.1f})",
+		runtimeFeatures_.useMeshLOD ? "Enabled" : "Disabled",
+		runtimeFeatures_.meshLOD0PixelThreshold,
+		runtimeFeatures_.meshLOD1PixelThreshold,
+		runtimeFeatures_.meshLOD2PixelThreshold);
+	Logger::Output(LogType::Engine, "Frame Context Count: {}",
+		preferences_.frameContextCount);
 
 	Logger::EndSection(LogType::Engine);
 }
 
 void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetGameConfigPath(kGraphicsFeatureConfigPath);
+	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath);
 	if (!JsonAdapter::Check(path)) {
 		return;
 	}
@@ -193,8 +292,44 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 	preferences_.allowInlineRayTracing = data.value("allowInlineRayTracing", preferences_.allowInlineRayTracing);
 	preferences_.allowDispatchRays = data.value("allowDispatchRays", preferences_.allowDispatchRays);
 	preferences_.allowFrustumCulling = data.value("allowFrustumCulling", preferences_.allowFrustumCulling);
+	preferences_.allowOcclusionCulling = data.value(
+		"allowOcclusionCulling",
+		preferences_.allowOcclusionCulling);
+	preferences_.useGameViewCameraForSceneCulling = data.value(
+		"useGameViewCameraForSceneCulling", preferences_.useGameViewCameraForSceneCulling);
 	preferences_.allowContributionCulling = data.value("allowContributionCulling", preferences_.allowContributionCulling);
 	preferences_.allowNormalConeCulling = data.value("allowNormalConeCulling", preferences_.allowNormalConeCulling);
+	preferences_.allowMeshLOD = data.value(
+		"allowMeshLOD", preferences_.allowMeshLOD);
+	const float lod0 = data.value(
+		"meshLOD0PixelThreshold",
+		preferences_.meshLOD0PixelThreshold);
+	const float lod1 = data.value(
+		"meshLOD1PixelThreshold",
+		preferences_.meshLOD1PixelThreshold);
+	const float lod2 = data.value(
+		"meshLOD2PixelThreshold",
+		preferences_.meshLOD2PixelThreshold);
+	if (GraphicsMeshLOD::ArePixelThresholdsValid(
+		lod0, lod1, lod2)) {
+
+		preferences_.meshLOD0PixelThreshold = lod0;
+		preferences_.meshLOD1PixelThreshold = lod1;
+		preferences_.meshLOD2PixelThreshold = lod2;
+	} else {
+
+		preferences_.meshLOD0PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[0];
+		preferences_.meshLOD1PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[1];
+		preferences_.meshLOD2PixelThreshold =
+			GraphicsMeshLOD::kDefaultPixelThresholds[2];
+		Logger::Output(LogType::Engine,
+			"Invalid Mesh LOD thresholds were reset to defaults");
+	}
+	preferences_.frameContextCount = std::clamp(
+		data.value("frameContextCount",
+			preferences_.frameContextCount), 1u, 3u);
 }
 
 void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
@@ -204,8 +339,19 @@ void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 	data["allowInlineRayTracing"] = preferences_.allowInlineRayTracing;
 	data["allowDispatchRays"] = preferences_.allowDispatchRays;
 	data["allowFrustumCulling"] = preferences_.allowFrustumCulling;
+	data["allowOcclusionCulling"] = preferences_.allowOcclusionCulling;
+	data["useGameViewCameraForSceneCulling"] = preferences_.useGameViewCameraForSceneCulling;
 	data["allowContributionCulling"] = preferences_.allowContributionCulling;
 	data["allowNormalConeCulling"] = preferences_.allowNormalConeCulling;
+	data["allowMeshLOD"] = preferences_.allowMeshLOD;
+	data["meshLOD0PixelThreshold"] =
+		preferences_.meshLOD0PixelThreshold;
+	data["meshLOD1PixelThreshold"] =
+		preferences_.meshLOD1PixelThreshold;
+	data["meshLOD2PixelThreshold"] =
+		preferences_.meshLOD2PixelThreshold;
+	data["frameContextCount"] =
+		preferences_.frameContextCount;
 
-	JsonAdapter::Save(RuntimePaths::GetGameConfigPath(kGraphicsFeatureConfigPath), data);
+	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), data);
 }

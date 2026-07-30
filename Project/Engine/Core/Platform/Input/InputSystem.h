@@ -104,7 +104,7 @@ namespace Engine {
 		int32_t GetMouseReleaseModKey() const { return mouseReleaseModKey_; }
 		int32_t GetMouseReleaseTriggerKey() const { return mouseReleaseTriggerKey_; }
 
-		// .exeConfigの読み書き、Engine/Assets/Config/inputDevice.exeConfig.json
+		// UserSettingsの入力デバイス設定を読み書きする
 		void LoadConfig();
 		void SaveConfig() const;
 

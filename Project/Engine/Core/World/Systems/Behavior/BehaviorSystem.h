@@ -58,6 +58,8 @@ namespace Engine {
 		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定
 		static int32_t GetScriptEnabled(const Entity& owner, const UUID& scriptSlotID);
 		static void SetScriptEnabled(const Entity& owner, const UUID& scriptSlotID, bool enabled);
+		// Editorの実行時表示用にScript Slotへ対応するハンドルを返す
+		static BehaviorHandle FindRuntimeHandle(const Entity& owner, const UUID& scriptSlotID);
 
 		// GetComponent<Script>用にowner Entity上でscriptTypeID一致のscript instanceを返す、未解決はnullptr
 		static MonoBehavior* FindScriptInstance(const Entity& owner, const std::string& scriptTypeID);
@@ -99,6 +101,14 @@ namespace Engine {
 		bool participantsDirty_ = true;
 		// 同じフレームでUpdateを実行したparticipant
 		std::vector<SyncParticipant> lateUpdateParticipants_;
+		// ScriptComponentが変更されたEntity、通知時に積んで同期前に重複除去する
+		std::vector<Entity> dirtyScriptEntities_;
+		// Active/Hierarchy変更後にOnEnable/OnDisableを再評価する
+		bool enableTransitionsDirty_ = true;
+		// 初回ロードとHot Reloadでだけ全Script同期を行う
+		bool fullSyncRequested_ = true;
+		// ECSWorldのComponent変更通知購読ID
+		uint64_t componentMutationListenerID_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
@@ -113,6 +123,16 @@ namespace Engine {
 		void SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep);
 		// Pass1: ScriptComponentを走査しrecord生成破棄・型解決・instance生成・serialized適用を行う
 		void SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep);
+		// 変更通知されたEntityだけrecordを同期する
+		void SynchronizeDirtyRecords(ECSWorld& world, SystemContext& context);
+		// Entity1つ分のrecordを同期する
+		void SynchronizeEntityRecords(ECSWorld& world, SystemContext& context,
+			const Entity& entity, bool clearOwnerSeen);
+		// Component変更通知をDirty状態へ変換する
+		static void OnComponentMutation(ECSWorld& world, const Entity& entity,
+			uint32_t typeID, ComponentMutationKind kind, void* userData);
+		// Script変更Entityを次の同期へ積む
+		void QueueScriptEntity(const Entity& entity);
 		// participantキャッシュを作り直して安定ソートする、構造変更時のみ
 		void RebuildParticipants(ECSWorld& world);
 		// Pass2: activeなscriptのAwakeを全件実行

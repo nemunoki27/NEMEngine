@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -134,14 +135,14 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetGeometryGPUAddress() const { return geometry_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsGPUAddress() const { return materials_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetCustomParametersGPUAddress() const {
-			return customParameterBuffer_ ? customParameterBuffer_->GetGPUVirtualAddress() : 0;
+			return customParameterBuffer_.GetGPUAddress();
 		}
 		uint32_t GetInstanceCount() const { return instanceCount_; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailPointsGPUAddress() const { return trailPoints_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailSegmentsGPUAddress() const { return trailSegments_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailMaterialsGPUAddress() const { return trailMaterials_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailCustomParametersGPUAddress() const {
-			return trailCustomParameterBuffer_ ? trailCustomParameterBuffer_->GetGPUVirtualAddress() : 0;
+			return trailCustomParameterBuffer_.GetGPUAddress();
 		}
 		uint32_t GetTrailSegmentCount() const { return trailSegmentCount_; }
 	private:
@@ -154,16 +155,12 @@ namespace Engine {
 		StructuredInstanceBuffer<ParticleGeometryData> geometry_{ "gParticleGeometry" };
 		StructuredInstanceBuffer<ParticleMaterialData> materials_{ "gParticleMaterials" };
 		ID3D12Device* device_ = nullptr;
-		ComPtr<ID3D12Resource> customParameterBuffer_{};
-		uint8_t* customParameterMapped_ = nullptr;
-		uint32_t customParameterCapacity_ = 0;
+		DxFrameMappedUploadBuffer customParameterBuffer_{};
 		uint32_t instanceCount_ = 0;
 		StructuredInstanceBuffer<ParticleTrailPointData> trailPoints_{ "gTrailPoints" };
 		StructuredInstanceBuffer<uint32_t> trailSegments_{ "gTrailSegments" };
 		StructuredInstanceBuffer<ParticleMaterialData> trailMaterials_{ "gParticleMaterials_Trail" };
-		ComPtr<ID3D12Resource> trailCustomParameterBuffer_{};
-		uint8_t* trailCustomParameterMapped_ = nullptr;
-		uint32_t trailCustomParameterCapacity_ = 0;
+		DxFrameMappedUploadBuffer trailCustomParameterBuffer_{};
 		uint32_t trailSegmentCount_ = 0;
 		bool initialized_ = false;
 

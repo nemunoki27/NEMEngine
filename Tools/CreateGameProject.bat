@@ -44,7 +44,7 @@ mkdir "%TEMP_DIR%\Project" >nul 2>&1
 
 echo [1/12] Export Sandbox template from engine...
 robocopy "%ENGINE_ROOT%\Project\Sandbox" "%TEMP_SANDBOX%" /E /NFL /NDL /NJH /NJS /NP ^
-    /XD ".vs" "Generated" "Library" "Log" ^
+    /XD ".vs" "Generated" "Library" "Saved" "UserSettings" ^
     /XF "*.sln" "*.slnx" "*.vcxproj" "*.vcxproj.filters" "*.vcxproj.user" "*.db" "*.opendb" "*.sdf" "*.suo"
 set "ROBOCOPY_EXIT=!ERRORLEVEL!"
 if !ROBOCOPY_EXIT! GEQ 8 (
@@ -67,7 +67,7 @@ mkdir "%GAME_ROOT%\Project\%GAME_NAME%" >nul
 
 echo [3/12] Copy sanitized Sandbox to Project\%GAME_NAME%...
 robocopy "%TEMP_SANDBOX%" "%GAME_ROOT%\Project\%GAME_NAME%" /E /NFL /NDL /NJH /NJS /NP ^
-    /XD ".vs" "Generated" "Library" "Log" ^
+    /XD ".vs" "Generated" "Library" "Saved" "UserSettings" ^
     /XF "*.sln" "*.slnx" "*.vcxproj" "*.vcxproj.filters" "*.vcxproj.user" "*.db" "*.opendb" "*.sdf" "*.suo"
 set "ROBOCOPY_EXIT=!ERRORLEVEL!"
 if !ROBOCOPY_EXIT! GEQ 8 (
@@ -97,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$content = $content.Replace('__GAME_NAME__', $gameName);" ^
   "[IO.File]::WriteAllText($premakePath, $content, (New-Object System.Text.UTF8Encoding($false)));"
 
-echo [6/12] Remove copied junk and legacy empty folders...
+echo [6/12] Remove copied generated files...
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj" del /q "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.filters" del /q "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.filters"
 if exist "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.user" del /q "%GAME_ROOT%\Project\%GAME_NAME%\Sandbox.vcxproj.user"
@@ -114,13 +114,6 @@ if exist "%GAME_ROOT%\Project\%GAME_NAME%\Assets" (
 if exist "%GAME_ROOT%\Generated" (
     2>nul rd "%GAME_ROOT%\Generated"
 )
-if exist "%GAME_ROOT%\Project\Library" (
-    2>nul rd "%GAME_ROOT%\Project\Library"
-)
-if exist "%GAME_ROOT%\Project\Log" (
-    2>nul rd "%GAME_ROOT%\Project\Log"
-)
-
 echo [7/12] Rename Sandbox identifiers inside copied source files...
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$root = [IO.Path]::GetFullPath('%GAME_ROOT%\Project\%GAME_NAME%');" ^

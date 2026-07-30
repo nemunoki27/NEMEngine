@@ -558,22 +558,18 @@ internal static class Program {
         catch (Exception ex) {
             Console.Error.WriteLine($"[ScriptMetaSync] failed to read {metaPath}: {ex.Message}");
         }
-        // .cs.meta が無ければ最小 meta を作る（guid は engine 互換の 16hex）
+        // .cs.meta が無ければ最小metaを作る
         return new JsonObject {
-            ["guid"] = NewAssetGuid16(),
-            ["importer"] = "nlohmann::json",
+            ["schemaVersion"] = 2,
+            ["guid"] = NewAssetGuid32(),
             ["type"] = "Script",
-            ["version"] = 1,
+            ["importer"] = "ScriptImporter",
+            ["importerVersion"] = 1,
+            ["settings"] = new JsonObject(),
         };
     }
 
-    private static string NewAssetGuid16() {
-        Span<byte> bytes = stackalloc byte[8];
-        Random.Shared.NextBytes(bytes);
-        var sb = new StringBuilder(16);
-        foreach (byte b in bytes) { sb.Append(b.ToString("x2")); }
-        return sb.ToString();
-    }
+    private static string NewAssetGuid32() => Guid.NewGuid().ToString("N");
 
     private static bool WriteMetaIfChanged(string metaPath, JsonObject meta, Mode mode) {
 

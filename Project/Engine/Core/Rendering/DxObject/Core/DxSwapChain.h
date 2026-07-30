@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // directX
 #include <d3d12.h>
@@ -45,6 +46,10 @@ namespace Engine {
 		IDXGISwapChain4* Get() const { return swapChain_.Get(); }
 		// 現在のバックバッファリソースを取得する
 		ID3D12Resource* GetCurrentResource() const;
+		// 現在のバックバッファインデックスを取得する
+		uint32_t GetCurrentBackBufferIndex() const {
+			return swapChain_->GetCurrentBackBufferIndex();
+		}
 		// 現在のレンダーターゲット情報を取得する
 		const RenderTarget& GetRenderTarget();
 		const DXGI_SWAP_CHAIN_DESC1& GetDesc() const { return desc_; }
@@ -59,15 +64,20 @@ namespace Engine {
 		ID3D12Device* device_ = nullptr;
 		RTVDescriptor* rtvDescriptor_ = nullptr;
 
-		// フレームバッファ数
-		static const constexpr uint32_t kBufferCount = 2;
+		// Flip Modelは最低2枚必要なため1FrameContextでも2枚確保する
+		uint32_t bufferCount_ = kGraphicsFrameContextCount;
 
 		ComPtr<IDXGISwapChain4> swapChain_;
 		DXGI_SWAP_CHAIN_DESC1 desc_{};
 
-		std::array<ComPtr<ID3D12Resource>, kBufferCount> resources_;
-		std::array<D3D12_CPU_DESCRIPTOR_HANDLE, kBufferCount> rtvHandles_;
-		std::array<uint32_t, kBufferCount> rtvIndices_ = { UINT32_MAX, UINT32_MAX };
+		std::array<ComPtr<ID3D12Resource>,
+			kGraphicsFrameContextCount> resources_;
+		std::array<D3D12_CPU_DESCRIPTOR_HANDLE,
+			kGraphicsFrameContextCount> rtvHandles_;
+		std::array<uint32_t,
+			kGraphicsFrameContextCount> rtvIndices_ = {
+			UINT32_MAX, UINT32_MAX, UINT32_MAX
+		};
 
 		// バックバッファとRTVを取得して保持する
 		bool CreateBackBufferResources(bool allocateDescriptors);

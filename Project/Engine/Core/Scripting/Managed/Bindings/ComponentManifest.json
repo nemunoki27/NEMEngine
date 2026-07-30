@@ -1,0 +1,2980 @@
+{
+  "schemaVersion": 2,
+  "comment": "Component ID、ネイティブ登録、C#公開分類、生成Bindingの単一Manifest",
+  "enums": [
+    {
+      "managedType": "EffectEmitterMode",
+      "nativeType": "EffectEmitterMode",
+      "members": [
+        {
+          "name": "Once",
+          "value": 0
+        },
+        {
+          "name": "Continuous",
+          "value": 1
+        },
+        {
+          "name": "Count",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "managedType": "BlendMode",
+      "nativeType": "BlendMode",
+      "members": [
+        {
+          "name": "Normal",
+          "value": 0
+        },
+        {
+          "name": "Add",
+          "value": 1
+        },
+        {
+          "name": "Subtract",
+          "value": 2
+        },
+        {
+          "name": "Multiply",
+          "value": 3
+        },
+        {
+          "name": "Screen",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "managedType": "RenderPhase",
+      "nativeType": "RenderPhase",
+      "members": [
+        {
+          "name": "Opaque",
+          "value": 0
+        },
+        {
+          "name": "Transparent",
+          "value": 1
+        },
+        {
+          "name": "PostProcessMaskedUI",
+          "value": 2
+        },
+        {
+          "name": "ScreenUI",
+          "value": 3
+        },
+        {
+          "name": "EditorOverlay",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "managedType": "RigidbodyType",
+      "nativeType": "RigidbodyType",
+      "members": [
+        {
+          "name": "Dynamic",
+          "value": 0
+        },
+        {
+          "name": "Kinematic",
+          "value": 1
+        },
+        {
+          "name": "Static",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "managedType": "CameraControlMode",
+      "nativeType": "CameraControlMode",
+      "members": [
+        {
+          "name": "None",
+          "value": 0
+        },
+        {
+          "name": "Follow",
+          "value": 1
+        },
+        {
+          "name": "LookAt",
+          "value": 2
+        },
+        {
+          "name": "FollowLookAt",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "managedType": "PrimitiveType",
+      "nativeType": "PrimitiveType",
+      "members": [
+        {
+          "name": "Plane",
+          "value": 0
+        },
+        {
+          "name": "CrossPlane",
+          "value": 1
+        },
+        {
+          "name": "Ring",
+          "value": 2
+        },
+        {
+          "name": "Cylinder",
+          "value": 3
+        },
+        {
+          "name": "Sphere",
+          "value": 4
+        },
+        {
+          "name": "Hemisphere",
+          "value": 5
+        },
+        {
+          "name": "Cube",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "managedType": "PrimitiveRenderSpace",
+      "nativeType": "PrimitiveRenderSpace",
+      "members": [
+        {
+          "name": "World3D",
+          "value": 0
+        },
+        {
+          "name": "Screen2D",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "PrimitivePlaneAxis",
+      "nativeType": "PrimitivePlaneAxis",
+      "members": [
+        {
+          "name": "XY",
+          "value": 0
+        },
+        {
+          "name": "XZ",
+          "value": 1
+        },
+        {
+          "name": "YZ",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "managedType": "PrimitiveCylinderCap",
+      "nativeType": "PrimitiveCylinderCap",
+      "members": [
+        {
+          "name": "None",
+          "value": 0
+        },
+        {
+          "name": "Top",
+          "value": 1
+        },
+        {
+          "name": "Bottom",
+          "value": 2
+        },
+        {
+          "name": "Both",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "managedType": "PrimitiveCylinderUVMode",
+      "nativeType": "PrimitiveCylinderUVMode",
+      "members": [
+        {
+          "name": "None",
+          "value": 0
+        },
+        {
+          "name": "Radial",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "ColliderShapeType",
+      "nativeType": "ColliderShapeType",
+      "members": [
+        {
+          "name": "Circle2D",
+          "value": 0
+        },
+        {
+          "name": "Quad2D",
+          "value": 1
+        },
+        {
+          "name": "Sphere3D",
+          "value": 2
+        },
+        {
+          "name": "AABB3D",
+          "value": 3
+        },
+        {
+          "name": "OBB3D",
+          "value": 4
+        }
+      ]
+    },
+    {
+      "managedType": "CanvasScaleMode",
+      "nativeType": "CanvasScaleMode",
+      "members": [
+        {
+          "name": "ConstantPixelSize",
+          "value": 0
+        },
+        {
+          "name": "ScaleWithScreenSize",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "CanvasNavigationMode",
+      "nativeType": "CanvasNavigationMode",
+      "members": [
+        {
+          "name": "Automatic",
+          "value": 0
+        },
+        {
+          "name": "TransitionTable",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "UISelectableState",
+      "nativeType": "UISelectableState",
+      "members": [
+        {
+          "name": "Normal",
+          "value": 0
+        },
+        {
+          "name": "Selected",
+          "value": 1
+        },
+        {
+          "name": "Submitted",
+          "value": 2
+        },
+        {
+          "name": "Disabled",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "managedType": "UIProgressFillDirection",
+      "nativeType": "UIProgressFillDirection",
+      "members": [
+        {
+          "name": "LeftToRight",
+          "value": 0
+        },
+        {
+          "name": "RightToLeft",
+          "value": 1
+        },
+        {
+          "name": "TopToBottom",
+          "value": 2
+        },
+        {
+          "name": "BottomToTop",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "managedType": "IrisTransitionState",
+      "nativeType": "IrisTransitionState",
+      "members": [
+        {
+          "name": "Open",
+          "value": 0
+        },
+        {
+          "name": "IrisOut",
+          "value": 1
+        },
+        {
+          "name": "Covered",
+          "value": 2
+        },
+        {
+          "name": "IrisIn",
+          "value": 3
+        },
+        {
+          "name": "Stopped",
+          "value": 4
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": 0,
+      "registryName": "AnimationPlayer",
+      "nativeType": "AnimationPlayerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/AnimationPlayerComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.AnimationPlayer",
+      "reason": "globalSpeed/enabled の制御 + state/finished の read-only を generated property で公開。Play/CrossFade/Stop は要求フィールド経由で system が処理する。",
+      "managedType": "AnimationPlayer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "GlobalSpeed",
+          "nativeMember": "globalSpeed",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "CurrentGroup",
+          "nativeMember": "runtimeCurrent",
+          "kind": "String",
+          "access": "ReadOnly"
+        },
+        {
+          "managedName": "IsPlayingValue",
+          "nativeMember": "runtimePlaying",
+          "kind": "Bool",
+          "access": "ReadOnly"
+        },
+        {
+          "managedName": "Finished",
+          "nativeMember": "runtimeFinished",
+          "kind": "Bool",
+          "access": "ReadOnly"
+        },
+        {
+          "managedName": "PlayRequest",
+          "nativeMember": "runtimePlayRequest",
+          "kind": "String",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlayFade",
+          "nativeMember": "runtimePlayFade",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "RepeatCount",
+          "nativeMember": "runtimeRepeatCount",
+          "kind": "Int",
+          "access": "ReadOnly"
+        },
+        {
+          "managedName": "StopRequest",
+          "nativeMember": "runtimeStopRequest",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "registryName": "AudioSource",
+      "nativeType": "AudioSourceComponent",
+      "nativeHeader": "Engine/Core/World/Components/Audio/AudioSourceComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.AudioSource",
+      "reason": "Clip/Volume/Loop 等の調整可能 property は generated binding。Play/Pause/Stop は Audio facade(RuntimeCommand) 経由。",
+      "managedType": "AudioSource",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Clip",
+          "nativeMember": "clip",
+          "kind": "AssetRef",
+          "assetType": "AudioClip",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlayOnAwake",
+          "nativeMember": "playOnAwake",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Loop",
+          "nativeMember": "loop",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Volume",
+          "nativeMember": "volume",
+          "kind": "Float",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "registryName": "Billboard",
+      "nativeType": "BillboardComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/BillboardComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "rendering 補助（常時カメラ向き）。gameplay script から制御する必要がないため internal。必要になれば 13B で再判断。"
+    },
+    {
+      "id": 3,
+      "registryName": "CameraController",
+      "nativeType": "CameraControllerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraControllerComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.CameraController",
+      "reason": "追従、注視、入力回転をC#から制御する。生成propertyはネストしたFollow、LookAtアクセサへ集約し、対象Entity参照も公開。",
+      "managedType": "CameraController",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Mode",
+          "nativeMember": "mode",
+          "kind": "Enum",
+          "enumType": "CameraControlMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "EditorPreview",
+          "nativeMember": "editorPreview",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FollowEnabled",
+          "nativeMember": "follow.enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowTarget",
+          "nativeMember": "follow.target",
+          "kind": "EntityRef",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowOffset",
+          "nativeMember": "follow.offset",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowAxisMask",
+          "nativeMember": "follow.axisMask",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowPositionLerpSpeed",
+          "nativeMember": "follow.posLerpSpeed",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowEnableInputRotation",
+          "nativeMember": "follow.enableInputRotation",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowInputLerpRate",
+          "nativeMember": "follow.inputLerpRate",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowPadSensitivity",
+          "nativeMember": "follow.padSensitivity",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowMouseSensitivity",
+          "nativeMember": "follow.mouseSensitivity",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowPadEnabled",
+          "nativeMember": "follow.padEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowMouseEnabled",
+          "nativeMember": "follow.mouseEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowAutoInputDevice",
+          "nativeMember": "follow.autoInputDevice",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowInvertPitch",
+          "nativeMember": "follow.invertPitch",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "LookAtEnabled",
+          "nativeMember": "lookAt.enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "LookAtTarget",
+          "nativeMember": "lookAt.target",
+          "kind": "EntityRef",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "LookAtOffset",
+          "nativeMember": "lookAt.offset",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "LookAtRotationLerpSpeed",
+          "nativeMember": "lookAt.rotationLerpSpeed",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "LookAtLockRoll",
+          "nativeMember": "lookAt.lockRoll",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowEnabled",
+          "nativeMember": "followLookAt.follow.enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowTarget",
+          "nativeMember": "followLookAt.follow.target",
+          "kind": "EntityRef",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowOffset",
+          "nativeMember": "followLookAt.follow.offset",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowAxisMask",
+          "nativeMember": "followLookAt.follow.axisMask",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowPositionLerpSpeed",
+          "nativeMember": "followLookAt.follow.posLerpSpeed",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowEnableInputRotation",
+          "nativeMember": "followLookAt.follow.enableInputRotation",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowInputLerpRate",
+          "nativeMember": "followLookAt.follow.inputLerpRate",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowPadSensitivity",
+          "nativeMember": "followLookAt.follow.padSensitivity",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowMouseSensitivity",
+          "nativeMember": "followLookAt.follow.mouseSensitivity",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowPadEnabled",
+          "nativeMember": "followLookAt.follow.padEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowMouseEnabled",
+          "nativeMember": "followLookAt.follow.mouseEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowAutoInputDevice",
+          "nativeMember": "followLookAt.follow.autoInputDevice",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtFollowInvertPitch",
+          "nativeMember": "followLookAt.follow.invertPitch",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtLookAtEnabled",
+          "nativeMember": "followLookAt.lookAt.enabled",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtLookAtTarget",
+          "nativeMember": "followLookAt.lookAt.target",
+          "kind": "EntityRef",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtLookAtOffset",
+          "nativeMember": "followLookAt.lookAt.offset",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtLookAtRotationLerpSpeed",
+          "nativeMember": "followLookAt.lookAt.rotationLerpSpeed",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "FollowLookAtLookAtLockRoll",
+          "nativeMember": "followLookAt.lookAt.lockRoll",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "registryName": "CameraShake",
+      "nativeType": "CameraShakeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraShakeComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "ネイティブ内部でのみ使用"
+    },
+    {
+      "id": 5,
+      "registryName": "Canvas",
+      "nativeType": "CanvasComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Canvas",
+      "reason": "スクリーンUIの基準解像度、ソート、入力設定を公開。",
+      "managedType": "Canvas",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ReferenceResolution",
+          "nativeMember": "referenceResolution",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ScaleMode",
+          "nativeMember": "scaleMode",
+          "kind": "Enum",
+          "enumType": "CanvasScaleMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ScaleFactor",
+          "nativeMember": "scaleFactor",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MatchWidthOrHeight",
+          "nativeMember": "matchWidthOrHeight",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SortingLayer",
+          "nativeMember": "sortingLayer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlockGameplayInput",
+          "nativeMember": "blockGameplayInput",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "InputInEditMode",
+          "nativeMember": "inputInEditMode",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlockInputAfterSubmit",
+          "nativeMember": "blockInputAfterSubmit",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "KeyboardInputEnabled",
+          "nativeMember": "keyboardInputEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "GamepadInputEnabled",
+          "nativeMember": "gamepadInputEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "GamepadLeftStickEnabled",
+          "nativeMember": "gamepadLeftStickEnabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "NavigationMode",
+          "nativeMember": "navigationMode",
+          "kind": "Enum",
+          "enumType": "CanvasNavigationMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "WrapNavigation",
+          "nativeMember": "wrapNavigation",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FirstSelected",
+          "nativeMember": "firstSelectedLocalFileID",
+          "kind": "EntityRef",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "registryName": "Collision",
+      "nativeType": "CollisionComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.CollisionComponent",
+      "reason": "設定値だけを generated property で公開し、形状DynamicBufferと実行時衝突状態は専用facadeで操作する",
+      "managedType": "CollisionComponent",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IsStatic",
+          "nativeMember": "isStatic",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "EnablePushback",
+          "nativeMember": "enablePushback",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "TypeMask",
+          "nativeMember": "typeMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "registryName": "DirectionalLight",
+      "nativeType": "DirectionalLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/DirectionalLightComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.DirectionalLight",
+      "reason": "color/direction/intensity 等を generated property で公開。",
+      "managedType": "DirectionalLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Direction",
+          "nativeMember": "direction",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowStrength",
+          "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowAngularRadius",
+          "nativeMember": "shadowAngularRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "registryName": "EffectEmitter",
+      "nativeType": "EffectEmitterComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/EffectEmitterComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.EffectEmitter",
+      "reason": "名前付きグループの独立再生と再生ハンドル制御をgenerated propertyとgameplay methodで公開。",
+      "managedType": "EffectEmitter",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "DefaultGroup",
+          "nativeMember": "defaultGroup",
+          "kind": "String",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlayOnStart",
+          "nativeMember": "playOnStart",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlayInEditMode",
+          "nativeMember": "playInEditMode",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "DrawEmitterShape",
+          "nativeMember": "drawEmitterShape",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "registryName": "FillMeshRenderer",
+      "nativeType": "FillMeshRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.FillMeshRenderer",
+      "reason": "material/color/buildMesh/layer/order/visible/blend を generated property で公開。点列は SetFacePositions で設定。",
+      "managedType": "FillMeshRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Material",
+          "nativeMember": "material",
+          "kind": "AssetRef",
+          "assetType": "Material",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BuildMesh",
+          "nativeMember": "buildMesh",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlendMode",
+          "nativeMember": "blendMode",
+          "kind": "Enum",
+          "enumType": "BlendMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Queue",
+          "nativeMember": "queue",
+          "kind": "Enum",
+          "enumType": "RenderPhase",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "registryName": "FlipbookAnimation",
+      "nativeType": "FlipbookAnimationComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "ネイティブ内部でのみ使用"
+    },
+    {
+      "id": 11,
+      "registryName": "Hierarchy",
+      "nativeType": "HierarchyComponent",
+      "nativeHeader": "Engine/Core/World/Components/Transform/HierarchyComponent.h",
+      "exposure": "HandwrittenFacade",
+      "managedSurface": "NEMEngine.Entity / NEMEngine.Transform (parent/child API)",
+      "reason": "親子関係は Entity/Transform facade(getParent/firstChild/nextSibling/setParent) で十分。raw wrapper 不要。"
+    },
+    {
+      "id": 12,
+      "registryName": "InvertedHullOutline",
+      "nativeType": "InvertedHullOutlineComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "outline rendering effect。gameplay 公開不要のため internal。"
+    },
+    {
+      "id": 13,
+      "registryName": "IrisTransition",
+      "nativeType": "IrisTransitionComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/IrisTransitionComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.IrisTransition",
+      "reason": "画面座標を中心としたアイリス遷移の設定、再生操作と現在状態を公開。",
+      "managedType": "IrisTransition",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ScreenPosition",
+          "nativeMember": "screenPosition",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "TransitionColor",
+          "nativeMember": "transitionColor",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "EdgeSoftness",
+          "nativeMember": "edgeSoftness",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "InvertMask",
+          "nativeMember": "invertMask",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IrisOutDuration",
+          "nativeMember": "irisOutDuration",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IrisInDuration",
+          "nativeMember": "irisInDuration",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlockInput",
+          "nativeMember": "blockInput",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AutoIrisInAfterSceneTransition",
+          "nativeMember": "autoIrisInAfterSceneTransition",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseUnscaledTime",
+          "nativeMember": "useUnscaledTime",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "registryName": "JointAttachment",
+      "nativeType": "JointAttachmentComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/JointAttachmentComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "ネイティブ内部でのみ使用"
+    },
+    {
+      "id": 15,
+      "registryName": "LineRenderer",
+      "nativeType": "LineRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/LineRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.LineRenderer",
+      "reason": "material/layer/order/visible/blend/loop/is2D/useWorldSpace を generated property で公開。点列は可変長なので SetPoints/Clear の手書き partial facade。",
+      "managedType": "LineRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Material",
+          "nativeMember": "material",
+          "kind": "AssetRef",
+          "assetType": "Material",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Loop",
+          "nativeMember": "loop",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Is2D",
+          "nativeMember": "is2D",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseWorldSpace",
+          "nativeMember": "useWorldSpace",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IgnoreParentScale",
+          "nativeMember": "ignoreParentScale",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IgnoreParentRotation",
+          "nativeMember": "ignoreParentRotation",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlendMode",
+          "nativeMember": "blendMode",
+          "kind": "Enum",
+          "enumType": "BlendMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Queue",
+          "nativeMember": "queue",
+          "kind": "Enum",
+          "enumType": "RenderPhase",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "registryName": "MeshRenderer",
+      "nativeType": "MeshRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.MeshRenderer",
+      "reason": "mesh/material/layer/order/visible/blend を generated property で公開。",
+      "managedType": "MeshRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Mesh",
+          "nativeMember": "mesh",
+          "kind": "AssetRef",
+          "assetType": "Mesh",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Material",
+          "nativeMember": "material",
+          "kind": "AssetRef",
+          "assetType": "Material",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlendMode",
+          "nativeMember": "blendMode",
+          "kind": "Enum",
+          "enumType": "BlendMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Queue",
+          "nativeMember": "queue",
+          "kind": "Enum",
+          "enumType": "RenderPhase",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "EnableZPrepass",
+          "nativeMember": "enableZPrepass",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "registryName": "Name",
+      "nativeType": "NameComponent",
+      "nativeHeader": "Engine/Core/World/Components/Scene/NameComponent.h",
+      "exposure": "HandwrittenFacade",
+      "managedSurface": "NEMEngine.Entity.name",
+      "reason": "name surface は Entity facade(copyName/setName) と一致させる。raw component wrapper は作らない。"
+    },
+    {
+      "id": 18,
+      "registryName": "OrthographicCamera",
+      "nativeType": "OrthographicCameraComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.OrthographicCamera",
+      "reason": "clip/priority/cullingMask/isMain を generated property で公開。",
+      "managedType": "OrthographicCamera",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "NearClip",
+          "nativeMember": "nearClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FarClip",
+          "nativeMember": "farClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Priority",
+          "nativeMember": "common.priority",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "CullingMask",
+          "nativeMember": "common.cullingMask",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "common.enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IsMain",
+          "nativeMember": "common.isMain",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "registryName": "PerspectiveCamera",
+      "nativeType": "PerspectiveCameraComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.PerspectiveCamera",
+      "reason": "fov/clip/priority/cullingMask/isMain を generated property で公開。",
+      "managedType": "PerspectiveCamera",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "FovY",
+          "nativeMember": "fovY",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "NearClip",
+          "nativeMember": "nearClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FarClip",
+          "nativeMember": "farClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Priority",
+          "nativeMember": "common.priority",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "CullingMask",
+          "nativeMember": "common.cullingMask",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "common.enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "IsMain",
+          "nativeMember": "common.isMain",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "registryName": "PointLight",
+      "nativeType": "PointLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/PointLightComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.PointLight",
+      "reason": "color/intensity/radius/decay を generated property で公開。",
+      "managedType": "PointLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Radius",
+          "nativeMember": "radius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Decay",
+          "nativeMember": "decay",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowStrength",
+          "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowRadius",
+          "nativeMember": "shadowRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "registryName": "PrefabLink",
+      "nativeType": "PrefabLinkComponent",
+      "nativeHeader": "Engine/Core/World/Components/Prefab/PrefabLinkComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "prefab instance の serialization bookkeeping。gameplay 公開しない。Prefab 生成は Object.Instantiate facade(RuntimeCommand) 経由。"
+    },
+    {
+      "id": 22,
+      "registryName": "PrimitiveRenderer",
+      "nativeType": "PrimitiveRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.PrimitiveRenderer",
+      "reason": "material/layer/order/visible/blend/type/renderSpace と各形状パラメータを generated property で公開。color は SetColor/GetColor で操作。",
+      "managedType": "PrimitiveRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Material",
+          "nativeMember": "material",
+          "kind": "AssetRef",
+          "assetType": "Material",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlendMode",
+          "nativeMember": "blendMode",
+          "kind": "Enum",
+          "enumType": "BlendMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Queue",
+          "nativeMember": "queue",
+          "kind": "Enum",
+          "enumType": "RenderPhase",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Type",
+          "nativeMember": "type",
+          "kind": "Enum",
+          "enumType": "PrimitiveType",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "RenderSpace",
+          "nativeMember": "renderSpace",
+          "kind": "Enum",
+          "enumType": "PrimitiveRenderSpace",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlaneSize",
+          "nativeMember": "plane.size",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "PlanePivot",
+          "nativeMember": "plane.pivot",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "PlaneAxis",
+          "nativeMember": "plane.axis",
+          "kind": "Enum",
+          "enumType": "PrimitivePlaneAxis",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "PlaneDivideX",
+          "nativeMember": "plane.divideX",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "PlaneDivideY",
+          "nativeMember": "plane.divideY",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CrossPlaneSize",
+          "nativeMember": "crossPlane.size",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CrossPlanePivot",
+          "nativeMember": "crossPlane.pivot",
+          "kind": "Vector2",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CrossPlaneCount",
+          "nativeMember": "crossPlane.planeCount",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "RingOuterRadius",
+          "nativeMember": "ring.outerRadius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "RingInnerRadius",
+          "nativeMember": "ring.innerRadius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "RingStartAngle",
+          "nativeMember": "ring.startAngle",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "RingEndAngle",
+          "nativeMember": "ring.endAngle",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "RingDivide",
+          "nativeMember": "ring.divide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderTopRadius",
+          "nativeMember": "cylinder.topRadius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderCenterRadius",
+          "nativeMember": "cylinder.centerRadius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderBottomRadius",
+          "nativeMember": "cylinder.bottomRadius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderTopRadiusWeight",
+          "nativeMember": "cylinder.topRadiusWeight",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderBottomRadiusWeight",
+          "nativeMember": "cylinder.bottomRadiusWeight",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderTopColor",
+          "nativeMember": "cylinder.topColor",
+          "kind": "Color4",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderCenterColor",
+          "nativeMember": "cylinder.centerColor",
+          "kind": "Color4",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderBottomColor",
+          "nativeMember": "cylinder.bottomColor",
+          "kind": "Color4",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderHeight",
+          "nativeMember": "cylinder.height",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderMaxAngle",
+          "nativeMember": "cylinder.maxAngle",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderRadialDivide",
+          "nativeMember": "cylinder.radialDivide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderHeightDivide",
+          "nativeMember": "cylinder.heightDivide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderCap",
+          "nativeMember": "cylinder.cap",
+          "kind": "Enum",
+          "enumType": "PrimitiveCylinderCap",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CylinderUVMode",
+          "nativeMember": "cylinder.uvMode",
+          "kind": "Enum",
+          "enumType": "PrimitiveCylinderUVMode",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "SphereRadius",
+          "nativeMember": "sphere.radius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "SphereLongitudeDivide",
+          "nativeMember": "sphere.longitudeDivide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "SphereLatitudeDivide",
+          "nativeMember": "sphere.latitudeDivide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "HemisphereRadius",
+          "nativeMember": "hemisphere.radius",
+          "kind": "Float",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "HemisphereLongitudeDivide",
+          "nativeMember": "hemisphere.longitudeDivide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "HemisphereLatitudeDivide",
+          "nativeMember": "hemisphere.latitudeDivide",
+          "kind": "Int",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "HemisphereBottomCap",
+          "nativeMember": "hemisphere.bottomCap",
+          "kind": "Bool",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CubeSize",
+          "nativeMember": "cube.size",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
+          "managedName": "CubePivot",
+          "nativeMember": "cube.pivot",
+          "kind": "Vector3",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "registryName": "Rigidbody",
+      "nativeType": "RigidbodyComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/RigidbodyComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Rigidbody",
+      "reason": "速度や質量や重力や力を generated property で公開する3D剛体。AddForce は手書き partial の facade。",
+      "managedType": "Rigidbody",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "BodyType",
+          "nativeMember": "bodyType",
+          "kind": "Enum",
+          "enumType": "RigidbodyType",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Mass",
+          "nativeMember": "mass",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseGravity",
+          "nativeMember": "useGravity",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "GravityScale",
+          "nativeMember": "gravityScale",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "LinearDamping",
+          "nativeMember": "linearDamping",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Restitution",
+          "nativeMember": "restitution",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Friction",
+          "nativeMember": "friction",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AngularDamping",
+          "nativeMember": "angularDamping",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FreezePositionX",
+          "nativeMember": "freezePositionX",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FreezePositionY",
+          "nativeMember": "freezePositionY",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FreezePositionZ",
+          "nativeMember": "freezePositionZ",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AllowTopple",
+          "nativeMember": "allowTopple",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "LinearVelocity",
+          "nativeMember": "linearVelocity",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AngularVelocity",
+          "nativeMember": "angularVelocity",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AccumulatedForce",
+          "nativeMember": "accumulatedForce",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AccumulatedTorque",
+          "nativeMember": "accumulatedTorque",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "registryName": "Rigidbody2D",
+      "nativeType": "Rigidbody2DComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/Rigidbody2DComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Rigidbody2D",
+      "reason": "XY平面の速度や質量や重力や力を generated property で公開する2D剛体。AddForce は手書き partial の facade。",
+      "managedType": "Rigidbody2D",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "BodyType",
+          "nativeMember": "bodyType",
+          "kind": "Enum",
+          "enumType": "RigidbodyType",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Mass",
+          "nativeMember": "mass",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseGravity",
+          "nativeMember": "useGravity",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "GravityScale",
+          "nativeMember": "gravityScale",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "LinearDamping",
+          "nativeMember": "linearDamping",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Restitution",
+          "nativeMember": "restitution",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Friction",
+          "nativeMember": "friction",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AngularDamping",
+          "nativeMember": "angularDamping",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AngularVelocity",
+          "nativeMember": "angularVelocity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FreezePositionX",
+          "nativeMember": "freezePositionX",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FreezePositionY",
+          "nativeMember": "freezePositionY",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FreezeRotation",
+          "nativeMember": "freezeRotation",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AllowTopple",
+          "nativeMember": "allowTopple",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "LinearVelocity",
+          "nativeMember": "linearVelocity",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AccumulatedForce",
+          "nativeMember": "accumulatedForce",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AccumulatedTorque",
+          "nativeMember": "accumulatedTorque",
+          "kind": "Float",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "registryName": "SceneObject",
+      "nativeType": "SceneObjectComponent",
+      "nativeHeader": "Engine/Core/World/Components/Scene/SceneObjectComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "scene/active bookkeeping。active 状態は Entity.activeSelf/activeInHierarchy facade で公開しており raw wrapper 不要。"
+    },
+    {
+      "id": 26,
+      "registryName": "ScreenSpaceOutline",
+      "nativeType": "ScreenSpaceOutlineComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "screen space outline effect。gameplay 公開不要のため internal。"
+    },
+    {
+      "id": 27,
+      "registryName": "Script",
+      "nativeType": "ScriptComponent",
+      "nativeHeader": "Engine/Core/World/Components/Scripting/ScriptComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "managed runtime 自身が扱う ScriptComponent。raw component wrapper は提供しない（ScriptBehaviour が公開面）。"
+    },
+    {
+      "id": 28,
+      "registryName": "SkinnedAnimation",
+      "nativeType": "SkinnedAnimationComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.SkinnedAnimation",
+      "reason": "clip/loop/speed の制御 + state/finished の read-only を generated property で公開。",
+      "managedType": "SkinnedAnimation",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Clip",
+          "nativeMember": "clip",
+          "kind": "String",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Loop",
+          "nativeMember": "loop",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlaybackSpeed",
+          "nativeMember": "playbackSpeed",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "TransitionDuration",
+          "nativeMember": "transitionDuration",
+          "kind": "Float",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "registryName": "SkyboxRenderer",
+      "nativeType": "SkyboxRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h",
+      "exposure": "InternalOnly",
+      "reason": "ネイティブ内部でのみ使用"
+    },
+    {
+      "id": 30,
+      "registryName": "SpotLight",
+      "nativeType": "SpotLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/SpotLightComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.SpotLight",
+      "reason": "color/direction/intensity/distance/decay/angle を generated property で公開。",
+      "managedType": "SpotLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Direction",
+          "nativeMember": "direction",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Distance",
+          "nativeMember": "distance",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Decay",
+          "nativeMember": "decay",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "CosAngle",
+          "nativeMember": "cosAngle",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "CosFalloffStart",
+          "nativeMember": "cosFalloffStart",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowStrength",
+          "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowRadius",
+          "nativeMember": "shadowRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "registryName": "SpriteRenderer",
+      "nativeType": "SpriteRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/SpriteRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.SpriteRenderer",
+      "reason": "material/size/pivot/layer/blend を generated property、color を gameplay method で公開。",
+      "managedType": "SpriteRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Material",
+          "nativeMember": "material",
+          "kind": "AssetRef",
+          "assetType": "Material",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Size",
+          "nativeMember": "size",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Pivot",
+          "nativeMember": "pivot",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlendMode",
+          "nativeMember": "blendMode",
+          "kind": "Enum",
+          "enumType": "BlendMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Queue",
+          "nativeMember": "queue",
+          "kind": "Enum",
+          "enumType": "RenderPhase",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "registryName": "TextRenderer",
+      "nativeType": "TextRendererComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.TextRenderer",
+      "reason": "font/material/text/fontSize/spacing/color/layer/blend を generated property で公開。",
+      "managedType": "TextRenderer",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Font",
+          "nativeMember": "font",
+          "kind": "AssetRef",
+          "assetType": "Font",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Material",
+          "nativeMember": "material",
+          "kind": "AssetRef",
+          "assetType": "Material",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Text",
+          "nativeMember": "text",
+          "kind": "String",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FontSize",
+          "nativeMember": "fontSize",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "CharSpacing",
+          "nativeMember": "charSpacing",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Layer",
+          "nativeMember": "layer",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Order",
+          "nativeMember": "order",
+          "kind": "Int",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Visible",
+          "nativeMember": "visible",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BlendMode",
+          "nativeMember": "blendMode",
+          "kind": "Enum",
+          "enumType": "BlendMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Queue",
+          "nativeMember": "queue",
+          "kind": "Enum",
+          "enumType": "RenderPhase",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "registryName": "TimeScale",
+      "nativeType": "TimeScaleComponent",
+      "nativeHeader": "Engine/Core/World/Components/Time/TimeScaleComponent.h",
+      "exposure": "HandwrittenFacade",
+      "managedSurface": "NEMEngine.Time.TimeScale",
+      "reason": "global な time scale special API。component の raw wrapper ではなく Time facade に集約する。"
+    },
+    {
+      "id": 34,
+      "registryName": "Transform",
+      "nativeType": "TransformComponent",
+      "nativeHeader": "Engine/Core/World/Components/Transform/TransformComponent.h",
+      "exposure": "HandwrittenFacade",
+      "managedSurface": "NEMEngine.Transform (Runtime/Transform.cs)",
+      "reason": "hierarchy-aware な position/rotation/scale + parent/child API は手書き facade。generated binding 化しない。",
+      "managedType": "Transform",
+      "managedFactory": true
+    },
+    {
+      "id": 35,
+      "registryName": "UIImageButton",
+      "nativeType": "UIImageButtonComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIImageButtonComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.UIImageButton",
+      "reason": "画像ボタンのクリック状態を同フレームのC# Updateへ公開。",
+      "managedType": "UIImageButton",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ActionName",
+          "nativeMember": "actionName",
+          "kind": "String",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "registryName": "UIProgress",
+      "nativeType": "UIProgressComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIProgressComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.UIProgress",
+      "reason": "値、フィル方向、補間と遅延表示を公開。",
+      "managedType": "UIProgress",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PreviewInEditMode",
+          "nativeMember": "previewInEditMode",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MinValue",
+          "nativeMember": "minValue",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MaxValue",
+          "nativeMember": "maxValue",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Value",
+          "nativeMember": "value",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Direction",
+          "nativeMember": "direction",
+          "kind": "Enum",
+          "enumType": "UIProgressFillDirection",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Smooth",
+          "nativeMember": "smooth",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SmoothDuration",
+          "nativeMember": "smoothDuration",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Delayed",
+          "nativeMember": "delayed",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "DelayedTexture",
+          "nativeMember": "delayedTexture",
+          "kind": "AssetRef",
+          "assetType": "Texture",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "DelayedWait",
+          "nativeMember": "delayedWait",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "DelayedDuration",
+          "nativeMember": "delayedDuration",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseUnscaledTime",
+          "nativeMember": "useUnscaledTime",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "registryName": "UISelectable",
+      "nativeType": "UISelectableComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UISelectableComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.UISelectable",
+      "reason": "UIの選択可否、表示遷移と現在状態を公開。",
+      "managedType": "UISelectable",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Interactable",
+          "nativeMember": "interactable",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "registryName": "UITextButton",
+      "nativeType": "UITextButtonComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UITextButtonComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.UITextButton",
+      "reason": "テキストボタンのクリック状態を同フレームのC# Updateへ公開。",
+      "managedType": "UITextButton",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ActionName",
+          "nativeMember": "actionName",
+          "kind": "String",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "registryName": "UVTransform",
+      "nativeType": "UVTransformComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/UVTransformComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.UVTransform",
+      "reason": "uv の position/rotation/scale を generated property で公開。",
+      "managedType": "UVTransform",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Position",
+          "nativeMember": "pos",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Rotation",
+          "nativeMember": "rotation",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Scale",
+          "nativeMember": "scale",
+          "kind": "Vector2",
+          "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "registryName": "CollisionShapeBuffer",
+      "nativeType": "CollisionShape",
+      "nativeHeader": "Engine/Core/Physics/Collision/CollisionTypes.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Collision形状をチャンク内優先のDynamicBufferとして保持する。",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 41,
+      "registryName": "CollisionRuntimeState",
+      "nativeType": "CollisionRuntimeStateComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "CollisionSystemが更新する非シリアライズ実行時状態。",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 42,
+      "registryName": "MeshSubMeshBuffer",
+      "nativeType": "SubMeshMaterial",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "サブメッシュ編集データをMeshRenderer本体から分離するDynamicBuffer",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 43,
+      "registryName": "CollisionCompound",
+      "nativeType": "CollisionCompoundComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Runtime判定用の衝突形状列を共有Blobとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 44,
+      "registryName": "LinePointBuffer",
+      "nativeType": "LinePoint",
+      "nativeHeader": "Engine/Core/Assets/RenderComponentTypes.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "LineRendererの点列をチャンク内優先のDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 45,
+      "registryName": "FillMeshPositionBuffer",
+      "nativeType": "FillMeshPosition",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "FillMeshの編集点列をDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 46,
+      "registryName": "FillMeshTriangleIndexBuffer",
+      "nativeType": "FillMeshTriangleIndex",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "FillMeshの三角形分割結果を非シリアライズDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 47,
+      "registryName": "FillMeshRuntimeState",
+      "nativeType": "FillMeshRuntimeStateComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "FillMeshのGPU再構築世代を保存データから分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 48,
+      "registryName": "TextCharTransformBuffer",
+      "nativeType": "TextCharTransform",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "TextRendererの文字別変換をDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 49,
+      "registryName": "TextLayoutGlyphBuffer",
+      "nativeType": "TextLayoutGlyph",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "文字レイアウト済みグリフを非シリアライズDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 50,
+      "registryName": "TextLayoutRuntime",
+      "nativeType": "TextLayoutRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "TextRendererの固定長レイアウトキャッシュを保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 51,
+      "registryName": "FlipbookTileColumnBuffer",
+      "nativeType": "FlipbookTileColumn",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Flipbookの行ごとの横タイル数をDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 52,
+      "registryName": "FlipbookAnimationRuntime",
+      "nativeType": "FlipbookAnimationRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Flipbookの再生経過と終了状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 53,
+      "registryName": "AudioSourceRuntime",
+      "nativeType": "AudioSourceRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Audio/AudioSourceComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Voice一覧と再生要求をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 54,
+      "registryName": "SkinnedAnimationRuntime",
+      "nativeType": "SkinnedAnimationRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "スケルトンとパレットと再生状態をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 55,
+      "registryName": "CameraShakeRuntime",
+      "nativeType": "CameraShakeRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Camera/CameraShakeComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "カメラシェイクの時間とオフセットを保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 56,
+      "registryName": "UISelectableRuntime",
+      "nativeType": "UISelectableRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UISelectableComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "UI選択状態と表示補間値を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 57,
+      "registryName": "UIProgressRuntime",
+      "nativeType": "UIProgressRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIProgressComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Progressの表示補間と復元値をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 58,
+      "registryName": "CanvasInputBindingBuffer",
+      "nativeType": "CanvasInputBinding",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Canvasの操作別入力設定を1本のDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 59,
+      "registryName": "CanvasNavigationCellBuffer",
+      "nativeType": "CanvasNavigationCell",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Canvasの遷移テーブルをDynamicBufferとして保持する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 60,
+      "registryName": "CanvasRuntime",
+      "nativeType": "CanvasRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Canvasの選択と入力リピート状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 61,
+      "registryName": "UIImageButtonRuntime",
+      "nativeType": "UIImageButtonRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UIImageButtonComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "画像ボタンのフレームクリック状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 62,
+      "registryName": "UITextButtonRuntime",
+      "nativeType": "UITextButtonRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/UITextButtonComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "テキストボタンのフレームクリック状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 63,
+      "registryName": "IrisTransitionRuntime",
+      "nativeType": "IrisTransitionRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/UI/IrisTransitionComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "アイリス遷移の再生要求と現在状態を保存設定から分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 64,
+      "registryName": "ScriptEntryBuffer",
+      "nativeType": "ScriptEntry",
+      "nativeHeader": "Engine/Core/World/Components/Scripting/ScriptComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "Scriptの可変長スロットを設定コンポーネントから分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
+    },
+    {
+      "id": 65,
+      "registryName": "RectLight",
+      "nativeType": "RectLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/RectLightComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.RectLight",
+      "reason": "矩形面光源の調整可能パラメータをgenerated propertyで公開する",
+      "managedType": "RectLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AttenuationRadius",
+          "nativeMember": "attenuationRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SourceWidth",
+          "nativeMember": "sourceWidth",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SourceHeight",
+          "nativeMember": "sourceHeight",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Decay",
+          "nativeMember": "decay",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BarnDoorAngle",
+          "nativeMember": "barnDoorAngle",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BarnDoorLength",
+          "nativeMember": "barnDoorLength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowStrength",
+          "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AffectLayerMask",
+          "nativeMember": "affectLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        }
+      ]
+    }
+  ]
+}

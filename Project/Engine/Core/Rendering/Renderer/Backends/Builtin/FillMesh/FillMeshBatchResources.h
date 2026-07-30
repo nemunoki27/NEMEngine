@@ -4,10 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
+#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 
 // c++
+#include <span>
 #include <vector>
 #include <cstdint>
 
@@ -43,7 +45,8 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore);
 
 		// 三角形分割インデックスから展開頂点を作りアップロードする、Yは0固定
-		void UploadVertices(const std::vector<Vector3>& positions, const std::vector<uint32_t>& indices);
+		void UploadVertices(std::span<const FillMeshPosition> positions,
+			std::span<const FillMeshTriangleIndex> indices);
 
 		//--------- accessor -----------------------------------------------------
 

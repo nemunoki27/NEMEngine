@@ -91,18 +91,18 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 
 		// 表示中のグリフ数に合わせて行を用意する、値を編集したときだけコミットされる
 		// 非表示などでレイアウト未生成のときはサイズ0で潰さず保存済みデータを温存する
-		const size_t glyphCount = draft.runtimeLayout.glyphs.size();
+		const size_t glyphCount = GetTextLayoutGlyphs(world, entity).size();
 		if (glyphCount == 0) {
 
 			ImGui::TextDisabled("表示中の文字がありません");
 		} else {
 
-			if (draft.charTransforms.size() != glyphCount) {
-				draft.charTransforms.resize(glyphCount);
+			if (charTransformDraft_.size() != glyphCount) {
+				charTransformDraft_.resize(glyphCount);
 			}
-			for (size_t i = 0; i < draft.charTransforms.size(); ++i) {
+			for (size_t i = 0; i < charTransformDraft_.size(); ++i) {
 
-				TextCharTransform& charTransform = draft.charTransforms[i];
+				TextCharTransform& charTransform = charTransformDraft_[i];
 				ImGui::PushID(static_cast<int>(i));
 				if (ImGui::TreeNode("CharTransform", "文字 %zu", i)) {
 
@@ -124,6 +124,36 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			}
 		}
 	}
+}
+
+void Engine::TextRendererInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const TextRendererComponent& component) {
+
+	const std::span<const TextCharTransform> transforms =
+		GetTextCharTransforms(world, entity);
+	charTransformDraft_.assign(transforms.begin(), transforms.end());
+}
+
+void Engine::TextRendererInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const TextRendererComponent& component, nlohmann::json& out) const {
+
+	SerializeTextRenderer(component, charTransformDraft_, out);
+}
+
+void Engine::TextRendererInspectorDrawer::ApplyPreview(
+	ECSWorld& world, const Entity& entity,
+	const TextRendererComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) ||
+		!world.HasComponent<TextRendererComponent>(entity)) {
+		return;
+	}
+	world.GetComponent<TextRendererComponent>(entity) = previewComponent;
+	SetTextCharTransforms(world, entity, charTransformDraft_);
+	InvalidateTextLayout(world, entity);
+	world.MarkComponentModified<TextRendererComponent>(entity);
 }
 
 void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPanelContext& context) {

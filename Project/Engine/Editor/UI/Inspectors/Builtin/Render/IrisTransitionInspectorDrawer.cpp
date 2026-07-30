@@ -107,13 +107,16 @@ void Engine::IrisTransitionInspectorDrawer::DrawFields(
 		DrawField(anyItemActive, [&]() {
 			float displayProgress = draft.previewProgress;
 			if (context.IsPlaying() || draft.previewInEditMode) {
-				displayProgress = world.GetComponent<IrisTransitionComponent>(entity).runtimeProgress;
+				if (const auto* runtime =
+					world.TryGetComponent<IrisTransitionRuntimeComponent>(entity)) {
+					displayProgress = runtime->progress;
+				}
 			}
 			ValueEditResult result = DrawSliderFloat("進行度", displayProgress, 0.0f, 1.0f);
 			if (result.valueChanged) {
 				draft.previewProgress = displayProgress;
 				if (context.IsPlaying()) {
-					world.GetComponent<IrisTransitionComponent>(entity).SetProgress(displayProgress);
+					RequestIrisProgress(world, entity, displayProgress);
 				}
 			}
 			return result;
@@ -128,15 +131,15 @@ void Engine::IrisTransitionInspectorDrawer::DrawFields(
 		const float buttonWidth = (std::max)(
 			1.0f, (ImGui::GetContentRegionAvail().x - spacing * 2.0f) / 3.0f);
 		if (ImGui::Button("アイリスアウト##Preview", ImVec2(buttonWidth, 0.0f))) {
-			world.GetComponent<IrisTransitionComponent>(entity).IrisOut();
+			RequestIrisOut(world, entity);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("アイリスイン##Preview", ImVec2(buttonWidth, 0.0f))) {
-			world.GetComponent<IrisTransitionComponent>(entity).IrisIn();
+			RequestIrisIn(world, entity);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("リセット", ImVec2(buttonWidth, 0.0f))) {
-			world.GetComponent<IrisTransitionComponent>(entity).Reset();
+			RequestIrisReset(world, entity);
 		}
 		if (previewDisabled) {
 			ImGui::EndDisabled();
@@ -154,6 +157,6 @@ void Engine::IrisTransitionInspectorDrawer::ApplyPreview(ECSWorld& world,
 	auto& component = world.GetComponent<IrisTransitionComponent>(entity);
 	ApplyIrisTransitionAuthoring(previewComponent, component);
 	if (applyEditPreview_) {
-		component.RequestEditPreview();
+		RequestIrisEditPreview(world, entity);
 	}
 }

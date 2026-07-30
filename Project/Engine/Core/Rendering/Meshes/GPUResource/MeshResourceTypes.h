@@ -14,6 +14,9 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
 
+// c++
+#include <array>
+
 namespace Engine {
 
 	//============================================================================
@@ -189,6 +192,17 @@ namespace Engine {
 		float coneCutoff = -1.0f;
 	};
 
+	static constexpr uint32_t kMeshLODCount = 4;
+
+	// 連結Index/Meshletバッファ内のLOD範囲
+	struct MeshLODRange {
+
+		uint32_t indexOffset = 0;
+		uint32_t indexCount = 0;
+		uint32_t meshletOffset = 0;
+		uint32_t meshletCount = 0;
+	};
+
 	// サブメッシュの情報
 	struct SubMeshDesc {
 
@@ -198,6 +212,7 @@ namespace Engine {
 		// subMesh -> meshlet範囲
 		uint32_t meshletOffset = 0;
 		uint32_t meshletCount = 0;
+		std::array<MeshLODRange, kMeshLODCount> lods{};
 
 		// 表示/識別用
 		std::string name;
@@ -233,6 +248,7 @@ namespace Engine {
 		std::vector<uint32_t> meshletVertexIndices;
 		// メッシュレット内の三角形を構成するPrimitiveIndex配列
 		std::vector<uint32_t> meshletPrimitiveIndices;
+		std::array<MeshLODRange, kMeshLODCount> lods{};
 
 		MeshNode rootNode{};
 
@@ -278,8 +294,6 @@ namespace Engine {
 		// PrimitiveIndex()->サブメッシュインデックス参照用
 		MeshStructuredHandle<uint32_t> primitiveSubMeshIndexSRV;
 
-		// メッシュレット
-		MeshStructuredHandle<MeshletDesc> meshletSRV;
 		// AS/MSで必要な範囲情報だけを読むための軽量メッシュレットDesc
 		MeshStructuredHandle<MeshletDrawDesc> meshletDrawSRV;
 		// ASでメッシュレット単位カリングを行うためのBounds
@@ -297,6 +311,7 @@ namespace Engine {
 		uint32_t vertexCount = 0;
 		uint32_t indexCount = 0;
 		uint32_t meshletCount = 0;
+		std::array<MeshLODRange, kMeshLODCount> lods{};
 		// packedMeshletVertexIndexSRVを使える場合だけtrueにする
 		bool usePackedMeshletVertexIndices = false;
 		std::vector<SubMeshDesc> subMeshes;

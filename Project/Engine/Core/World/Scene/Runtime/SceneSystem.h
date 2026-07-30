@@ -15,6 +15,15 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 
+	// 保存要求時点のWorldから確定したシーン保存データ
+	struct SceneSaveSnapshot {
+
+		std::filesystem::path scenePath;
+		AssetID sceneAsset{};
+		nlohmann::json root{};
+		bool useExternalActors = false;
+	};
+
 	//============================================================================
 	//	SceneSystem class
 	//	ECSWorldの内容をファイルへ保存/ファイルから読み込むクラス
@@ -31,10 +40,17 @@ namespace Engine {
 		// ファイルからワールドをロード
 		bool LoadScene(const std::filesystem::path& scenePath, ECSWorld& world, AssetDatabase* assetDatabase, AssetID sourceAsset = AssetID{},
 			UUID sceneInstanceID = UUID{}, SceneHeader* outHeader = nullptr, std::vector<Entity>* outCreatedEntities = nullptr) const;
-		// ワールドをファイルへセーブ、databaseがあればプレファブインスタンスを薄い差分形式で保存する
+		// ワールドをファイルへセーブしプレファブインスタンスを薄い差分形式で保存する
 		bool SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,
-			const SceneHeader& header, const std::vector<Entity>* entitiesSubset = nullptr,
-			AssetDatabase* database = nullptr) const;
+			const SceneHeader& header, AssetDatabase& database,
+			const std::vector<Entity>* entitiesSubset = nullptr) const;
+		// ECSWorldから保存データを取得し、以降のファイル書き込みをワーカーへ渡せる状態にする
+		bool CaptureSaveSnapshot(const std::filesystem::path& scenePath,
+			ECSWorld& world, const SceneHeader& header,
+			AssetDatabase& database, SceneSaveSnapshot& outSnapshot,
+			const std::vector<Entity>* entitiesSubset = nullptr) const;
+		// 確定済みスナップショットをプロジェクト指定の保存形式で書き込む
+		static bool WriteSaveSnapshot(SceneSaveSnapshot snapshot);
 
 		// nlohmann::jsonスナップショット
 		nlohmann::json SerializeEntities(ECSWorld& world, const std::vector<Entity>* subset = nullptr) const;

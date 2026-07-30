@@ -22,6 +22,9 @@ namespace Engine {
 		// 識別ID
 		AssetID guid{};
 		AssetType type = AssetType::Unknown;
+		std::string importer;
+		uint32_t importerVersion = 1;
+		nlohmann::json importerSettings = nlohmann::json::object();
 
 		// アセットのファイルパス
 		std::string assetPath;
@@ -102,7 +105,6 @@ namespace Engine {
 		// ファイルパスのルートを取得
 		const std::filesystem::path& GetProjectRoot() const { return projectRoot_; }
 		const std::filesystem::path& GetAssetsRoot() const { return assetsRoot_; }
-		const std::filesystem::path& GetLibraryRoot() const { return libraryRoot_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -113,7 +115,6 @@ namespace Engine {
 		// ファイルのディレクトリパス
 		std::filesystem::path projectRoot_;
 		std::filesystem::path assetsRoot_;
-		std::filesystem::path libraryRoot_;
 
 		// メタデータのマップ
 		std::unordered_map<AssetID, AssetMeta> guidToMeta_;

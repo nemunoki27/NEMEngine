@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
@@ -18,6 +19,7 @@
 #include <array>
 #include <deque>
 #include <fstream>
+#include <iomanip>
 #include <map>
 #include <optional>
 #include <regex>
@@ -80,6 +82,14 @@ namespace {
 		return text.rfind(prefix, 0) == 0;
 	}
 
+	std::filesystem::path NormalizeBuildPath(const std::filesystem::path& path) {
+
+		std::error_code ec;
+		const std::filesystem::path normalized =
+			std::filesystem::weakly_canonical(path, ec);
+		return ec ? path.lexically_normal() : normalized;
+	}
+
 	// ゲームの生成物を持つワークスペースルートを取得
 	std::filesystem::path ResolveGameBuildRoot(const std::filesystem::path& gameRoot) {
 
@@ -121,11 +131,8 @@ namespace {
 	bool IsEditorOnlyAsset(const std::string& assetPath) {
 
 		return StartsWith(assetPath, "Engine/Assets/Textures/Editor/") ||
-			StartsWith(assetPath, "Engine/Assets/Config/editor") ||
-			StartsWith(assetPath, "Engine/Assets/Config/inspector") ||
-			StartsWith(assetPath, "Engine/Assets/Config/projectPanel") ||
-			StartsWith(assetPath, "Engine/Assets/Config/viewportPanel") ||
-			StartsWith(assetPath, "Engine/Assets/Config/initExeData");
+			StartsWith(assetPath, "Engine/Assets/Shaders/Builtin/Editor/") ||
+			StartsWith(assetPath, "Engine/Assets/Config/");
 	}
 
 	// 製品実行では使用しないGameAssets内の編集用ファイルか
@@ -137,7 +144,14 @@ namespace {
 	}
 		if (StartsWith(lower, "gameassets/fonts/charset/")) {
 			return true;
-	}
+		}
+		if (Engine::Algorithm::EndsWith(lower, ".merge-conflicts.json") ||
+			Engine::Algorithm::EndsWith(lower, ".tmp") ||
+			Engine::Algorithm::EndsWith(lower, ".bak") ||
+			Engine::Algorithm::EndsWith(lower, "thumbs.db") ||
+			Engine::Algorithm::EndsWith(lower, ".ds_store")) {
+			return true;
+		}
 		if (Engine::Algorithm::EndsWith(lower, ".meta")) {
 			lower.resize(lower.size() - 5);
 		}
@@ -151,6 +165,8 @@ namespace {
 
 		std::filesystem::path source;
 		std::string destination;
+		uintmax_t size = 0;
+		std::string sha256;
 	};
 
 	// シーン内で使用される描画機能
@@ -179,6 +195,7 @@ namespace {
 		bool Collect(Engine::AssetID startupScene, std::vector<BuildFileEntry>& outFiles, std::string& outError) {
 
 			AddAllGameAssets();
+			AddPackageFiles();
 			AddAsset(startupScene);
 			AddAsset(Engine::BuiltinAssets::Materials::ToneMapToView);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
@@ -197,7 +214,17 @@ namespace {
 
 			outFiles.reserve(files_.size());
 			for (const auto& [destination, source] : files_) {
-				outFiles.push_back({ source, destination });
+
+				std::error_code ec;
+				const uintmax_t size = std::filesystem::file_size(source, ec);
+				const std::string sha256 = ec ? std::string{} :
+					Engine::ContentHash::FileSHA256(source);
+				if (ec || sha256.empty()) {
+					outError = "ビルド対象ファイルのハッシュを計算できません: " +
+						Engine::Algorithm::PathToUTF8(source);
+					return false;
+				}
+				outFiles.push_back({ source, destination, size, sha256 });
 			}
 			return true;
 		}
@@ -223,7 +250,22 @@ namespace {
 			if (IsEditorOnlyAsset(destination) || IsGameEditorOnlyAsset(destination)) {
 				return;
 			}
-			files_.emplace(destination, source);
+			const auto [it, inserted] = files_.emplace(destination, source);
+			if (!inserted &&
+				NormalizeBuildPath(it->second) != NormalizeBuildPath(source)) {
+				errors_.push_back("ビルド出力パスが重複しています: " + destination);
+			}
+		}
+
+		// 仮想Packageパスを製品内の相対パスへ変換
+		std::string ToBuildDestination(const std::string& assetPath) const {
+
+			constexpr std::string_view kPackageScheme = "package://";
+			if (!assetPath.starts_with(kPackageScheme)) {
+				return assetPath;
+			}
+			return "Packages/" +
+				assetPath.substr(kPackageScheme.size());
 		}
 
 		// アセット本体と.metaを配置一覧へ追加
@@ -235,11 +277,12 @@ namespace {
 			}
 
 			const std::filesystem::path source = database_.ResolveFullPath(meta.guid);
-			AddFile(source, meta.assetPath);
+			const std::string destination = ToBuildDestination(meta.assetPath);
+			AddFile(source, destination);
 
 			std::filesystem::path metaPath = source;
 			metaPath += L".meta";
-			AddFile(metaPath, meta.assetPath + ".meta");
+			AddFile(metaPath, destination + ".meta");
 		}
 
 		// 論理アセットパスのファイルと.metaを追加
@@ -265,6 +308,14 @@ namespace {
 			for (std::filesystem::recursive_directory_iterator it(gameAssetsRoot, ec), end;
 				it != end && !ec; it.increment(ec)) {
 
+				if (it->is_directory(ec)) {
+
+					if (Engine::Algorithm::ToLower(
+						it->path().filename().string()) == "externalactors") {
+						it.disable_recursion_pending();
+					}
+					continue;
+				}
 				if (!it->is_regular_file(ec)) {
 					continue;
 				}
@@ -279,12 +330,60 @@ namespace {
 				if (Engine::Algorithm::EndsWith(Engine::Algorithm::ToLower(assetPath), ".meta")) {
 					continue;
 				}
+				if (Engine::Algorithm::EndsWith(
+					Engine::Algorithm::ToLower(assetPath), ".actor.json")) {
+					const nlohmann::json actor = LoadJson(it->path());
+					if (actor.is_object()) {
+						InspectJson(actor);
+					}
+					continue;
+				}
 				if (const Engine::AssetMeta* meta = database_.FindByPath(assetPath)) {
 					AddAsset(meta->guid);
 				}
 			}
 			if (ec) {
 				errors_.push_back("GameAssetsのファイルを収集できません: " + ec.message());
+			}
+		}
+
+		// 解決済みPackageを製品内へ埋め込み配置
+		void AddPackageFiles() {
+
+			for (const Engine::ResolvedPackage& package :
+				Engine::RuntimePaths::GetPackages()) {
+
+				std::error_code ec;
+				for (auto it = std::filesystem::recursive_directory_iterator(
+					package.root,
+					std::filesystem::directory_options::skip_permission_denied, ec);
+					it != std::filesystem::recursive_directory_iterator{};
+					it.increment(ec)) {
+
+					if (ec) {
+						errors_.push_back("Packageを収集できません: " +
+							package.name + ": " + ec.message());
+						ec.clear();
+						break;
+					}
+					if (!it->is_regular_file(ec)) {
+						continue;
+					}
+
+					const std::filesystem::path relative =
+						it->path().lexically_relative(package.root);
+					const std::string destination = "Packages/" +
+						package.name + "/" +
+						Engine::Algorithm::PathToUTF8(relative);
+					AddFile(it->path(), destination);
+					if (Engine::Algorithm::EndsWith(
+						Engine::Algorithm::ToLower(destination), ".actor.json")) {
+						const nlohmann::json actor = LoadJson(it->path());
+						if (actor.is_object()) {
+							InspectJson(actor);
+						}
+					}
+				}
 			}
 		}
 
@@ -326,6 +425,9 @@ namespace {
 
 				const nlohmann::json data = LoadJson(source);
 				if (!data.is_discarded() && !data.is_null()) {
+					if (meta.type == Engine::AssetType::Scene) {
+						CollectExternalActors(meta, source, data);
+					}
 					InspectJson(data);
 				}
 			}
@@ -337,6 +439,81 @@ namespace {
 			}
 			if (meta.type == Engine::AssetType::ParticleEffect) {
 				usage_.particle = true;
+			}
+		}
+
+		// シーンが列挙するExternalActorsだけを収集
+		void CollectExternalActors(const Engine::AssetMeta& sceneMeta,
+			const std::filesystem::path& scenePath,
+			const nlohmann::json& sceneData) {
+
+			if (!sceneData.contains("ExternalActors") ||
+				!sceneData["ExternalActors"].is_array()) {
+				return;
+			}
+
+			std::filesystem::path assetRoot;
+			const std::array<std::filesystem::path, 2> roots = {
+				Engine::RuntimePaths::GetGameAssetsRoot(),
+				Engine::RuntimePaths::GetEngineAssetsRoot(),
+			};
+			for (const std::filesystem::path& root : roots) {
+				const std::filesystem::path relative =
+					NormalizeBuildPath(scenePath).lexically_relative(
+						NormalizeBuildPath(root));
+				if (!relative.empty() &&
+					!relative.native().starts_with(L"..")) {
+					assetRoot = root;
+					break;
+				}
+			}
+			if (assetRoot.empty()) {
+				for (const Engine::ResolvedPackage& package :
+					Engine::RuntimePaths::GetPackages()) {
+					const std::filesystem::path relative =
+						NormalizeBuildPath(scenePath).lexically_relative(
+							NormalizeBuildPath(package.root));
+					if (!relative.empty() &&
+						!relative.native().starts_with(L"..")) {
+						assetRoot = package.root;
+						break;
+					}
+				}
+			}
+			if (assetRoot.empty()) {
+				errors_.push_back("ExternalActorsの配置先を解決できません: " +
+					sceneMeta.assetPath);
+				return;
+			}
+
+			const std::filesystem::path actorRoot =
+				assetRoot / "ExternalActors" /
+				Engine::ToString(sceneMeta.guid);
+			for (const nlohmann::json& actorID : sceneData["ExternalActors"]) {
+
+				if (!actorID.is_string() ||
+					!Engine::TryParseUUID16Hex(actorID.get<std::string>())) {
+					errors_.push_back("ExternalActor IDが不正です: " +
+						sceneMeta.assetPath);
+					continue;
+				}
+				const std::filesystem::path actorPath =
+					actorRoot /
+					(actorID.get<std::string>() + ".actor.json");
+				const std::string assetPath =
+					Engine::RuntimePaths::ToAssetPath(actorPath);
+				if (assetPath.empty() ||
+					!std::filesystem::is_regular_file(actorPath)) {
+					errors_.push_back("ExternalActorが見つかりません: " +
+						Engine::Algorithm::PathToUTF8(actorPath));
+					continue;
+				}
+
+				AddFile(actorPath, ToBuildDestination(assetPath));
+				const nlohmann::json actor = LoadJson(actorPath);
+				if (actor.is_object()) {
+					InspectJson(actor);
+				}
 			}
 		}
 
@@ -360,14 +537,14 @@ namespace {
 					else if (key == "UIProgress") {
 						usage_.primitive2D = true;
 						usage_.progress = true;
-					} else if (key == "EffectEmitter" || key == "ParticleEmitter") {
+					} else if (key == "EffectEmitter") {
 						usage_.particle = true;
 					}
 
 					if (it->is_string()) {
 
 						const std::string value = it->get<std::string>();
-						if (const std::optional<Engine::AssetID> parsed = Engine::TryParseUUID16Hex(value)) {
+						if (const std::optional<Engine::AssetID> parsed = Engine::TryParseAssetGUID32Hex(value)) {
 							if (database_.Find(*parsed)) {
 								AddAsset(*parsed);
 							}
@@ -551,13 +728,12 @@ namespace {
 				AddFile(gameRoot / destination, destination);
 			}
 
-			const std::array<const char*, 3> runtimeConfigs = {
-				Engine::ConfigPaths::kInputDevice,
-				Engine::ConfigPaths::kGraphicsFeatureSettings,
+			const std::array<const char*, 1> runtimeSettings = {
 				Engine::ConfigPaths::kFrameRate,
 			};
-			for (const char* config : runtimeConfigs) {
-				AddFile(gameRoot / config, config);
+			for (const char* setting : runtimeSettings) {
+				const std::string destination = std::string("ProjectSettings/") + setting;
+				AddFile(Engine::RuntimePaths::GetProjectSettingsPath(setting), destination);
 			}
 		}
 
@@ -600,6 +776,13 @@ namespace {
 	std::wstring QuoteArgument(const std::filesystem::path& path) {
 
 		return L"\"" + path.wstring() + L"\"";
+	}
+
+	std::string ToHex64(uint64_t value) {
+
+		std::ostringstream stream;
+		stream << std::hex << std::setfill('0') << std::setw(16) << value;
+		return stream.str();
 	}
 }
 
@@ -794,20 +977,53 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	}
 
 	nlohmann::json manifest = nlohmann::json::object();
+	manifest["schemaVersion"] = 2;
 	manifest["projectPath"] = Algorithm::ConvertString(projectPath.generic_wstring());
 	manifest["sourceRuntime"] = Algorithm::ConvertString(sourceRuntime.generic_wstring());
 	manifest["runtimeExecutable"] = projectName + ".exe";
 	manifest["outputRoot"] = Algorithm::ConvertString(settings.outputRoot.generic_wstring());
 	manifest["productName"] = productName;
 	manifest["executableName"] = productName + ".exe";
+	manifest["projectGuid"] = RuntimePaths::GetProjectGUID();
 	manifest["startupScene"] = ToString(settings.startupScene);
 	manifest["startupFullscreen"] = settings.startupFullscreen;
+	manifest["packages"] = nlohmann::json::array();
+	std::vector<ResolvedPackage> packages = RuntimePaths::GetPackages();
+	std::sort(packages.begin(), packages.end(),
+		[](const ResolvedPackage& lhs, const ResolvedPackage& rhs) {
+			return lhs.name < rhs.name;
+		});
+	for (const ResolvedPackage& package : packages) {
+		manifest["packages"].push_back({
+			{ "name", package.name },
+			{ "version", package.version },
+			{ "contentHash", ToHex64(package.contentHash) },
+			});
+	}
+
+	std::string cookHashSource;
 	manifest["files"] = nlohmann::json::array();
 	for (const BuildFileEntry& file : files) {
 		manifest["files"].push_back({
 			{ "source", Algorithm::ConvertString(file.source.generic_wstring()) },
 			{ "destination", file.destination },
+			{ "size", file.size },
+			{ "sha256", file.sha256 },
 			});
+		cookHashSource += file.destination;
+		cookHashSource.push_back('\0');
+		cookHashSource += file.sha256;
+		cookHashSource.push_back('\0');
+		cookHashSource += std::to_string(file.size);
+		cookHashSource.push_back('\n');
+	}
+	const auto* cookHashBytes =
+		reinterpret_cast<const uint8_t*>(cookHashSource.data());
+	manifest["cookHash"] = ContentHash::SHA256(
+		std::span<const uint8_t>(cookHashBytes, cookHashSource.size()));
+	if (manifest["cookHash"].get_ref<const std::string&>().empty()) {
+		outError = "Cookマニフェストのハッシュを計算できません";
+		return false;
 	}
 
 	const std::filesystem::path manifestDirectory = buildRoot / "Generated/GameBuild";
@@ -819,14 +1035,8 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	std::filesystem::path manifestFileName = projectNamePath;
 	manifestFileName += L".gameBuildManifest.json";
 	manifestPath_ = manifestDirectory / manifestFileName;
-	std::ofstream file(manifestPath_, std::ios::binary | std::ios::trunc);
-	if (!file.is_open()) {
+	if (!JsonAdapter::SaveCanonical(manifestPath_, manifest)) {
 		outError = "ビルド用マニフェストを作成できません";
-		return false;
-	}
-	file << manifest.dump(2);
-	if (!file.good()) {
-		outError = "ビルド用マニフェストを書き込めません";
 		return false;
 	}
 

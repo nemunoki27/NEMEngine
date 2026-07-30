@@ -44,6 +44,51 @@ namespace Engine {
 		};
 		using GPUPassTime = NamedTime;
 
+		// ECSのチャンクメモリと構造変更統計
+		struct ECSStatistics {
+
+			// エンティティ、アーキタイプ、チャンク数
+			uint32_t entityCount = 0;
+			uint32_t archetypeCount = 0;
+			uint32_t chunkSlotCount = 0;
+			uint32_t allocatedChunkCount = 0;
+			// チャンクの確保量と使用量
+			uint64_t allocatedChunkBytes = 0;
+			uint64_t payloadBytes = 0;
+			// 構造変更による移動量
+			uint64_t structuralMigrationCount = 0;
+			uint64_t relocatedComponentCount = 0;
+			uint64_t relocatedComponentBytes = 0;
+		};
+		// 描画更新量とフレーム多重化の統計
+		struct RenderingStatistics {
+
+			// スキニング更新量
+			uint32_t skinningDispatchCount = 0;
+			uint32_t skinnedInstanceCount = 0;
+
+			// Raytracing構築量
+			uint32_t blasBuildCount = 0;
+			uint32_t blasRefitCount = 0;
+			uint32_t blasSkipCount = 0;
+			uint32_t blasGeometryCount = 0;
+			uint32_t tlasInstanceCount = 0;
+			uint32_t tlasBuildCount = 0;
+			uint32_t tlasRefitCount = 0;
+			uint32_t tlasSkipCount = 0;
+
+			// クラスターライト構築量
+			uint32_t clusterCount = 0;
+			uint32_t clusterLocalLightCount = 0;
+			uint32_t clusterLightIndexCount = 0;
+			uint32_t clusterOverflowCount = 0;
+
+			// フレームコンテキスト状態
+			uint32_t frameContextIndex = 0;
+			uint32_t frameContextCount = 1;
+			uint32_t queuedFrameCount = 0;
+		};
+
 		static FrameProfiler& GetInstance();
 
 		// フレーム開始で前フレームの累積を確定し今フレームの累積をリセットする
@@ -56,6 +101,28 @@ namespace Engine {
 		void SetEcsSystemTimes(const std::vector<NamedTime>& systems);
 		// ECSのarchetype数を設定する、ForEachが走査するarchetypeの数
 		void SetArchetypeCount(uint32_t count) { archetypeCount_ = count; }
+		// ECSのチャンクメモリと構造変更統計を設定する
+		void SetECSStatistics(const ECSStatistics& statistics) { ecsStatistics_ = statistics; }
+		// スキニングDispatchを加算する
+		void AddSkinningDispatch(uint32_t instanceCount);
+		// BLAS構築を加算する
+		void AddBLASBuild(uint32_t geometryCount);
+		// BLAS更新を加算する
+		void AddBLASRefit(uint32_t geometryCount);
+		// BLAS更新省略を加算する
+		void AddBLASSkip(uint32_t geometryCount);
+		// TLASインスタンス数を設定する
+		void SetTLASInstanceCount(uint32_t instanceCount);
+		// TLASの構築、更新、省略を加算する
+		void AddTLASBuild();
+		void AddTLASRefit();
+		void AddTLASSkip();
+		// クラスターライト統計を設定する
+		void SetClusterStatistics(uint32_t clusterCount, uint32_t localLightCount,
+			uint32_t lightIndexCount, uint32_t overflowCount);
+		// フレームコンテキスト状態を設定する
+		void SetFrameContextStatistics(uint32_t contextIndex,
+			uint32_t contextCount, uint32_t queuedFrameCount);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -74,6 +141,10 @@ namespace Engine {
 		bool HasEcsSystemData() const { return !ecsSystemTimes_.empty(); }
 		// ECSのarchetype数
 		uint32_t GetArchetypeCount() const { return archetypeCount_; }
+		// ECSのチャンクメモリと構造変更統計
+		const ECSStatistics& GetECSStatistics() const { return ecsStatistics_; }
+		// 描画更新量とフレーム多重化の統計
+		const RenderingStatistics& GetRenderingStatistics() const { return resolvedRenderingStatistics_; }
 
 		//============================================================================
 		//	ScopedSample
@@ -126,6 +197,12 @@ namespace Engine {
 		std::vector<NamedTime> ecsSystemTimes_{};
 		// ECSのarchetype数の最新値
 		uint32_t archetypeCount_ = 0;
+		// ECSのチャンクメモリと構造変更統計
+		ECSStatistics ecsStatistics_{};
+		// 描画更新量とフレーム多重化の統計
+		RenderingStatistics renderingStatistics_{};
+		// UIに公開する前フレームの確定済み描画統計
+		RenderingStatistics resolvedRenderingStatistics_{};
 
 		// 最初のBeginFrameでは空の累積を確定させない
 		bool firstFrame_ = true;

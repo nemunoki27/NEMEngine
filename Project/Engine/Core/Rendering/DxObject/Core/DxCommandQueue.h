@@ -37,10 +37,16 @@ public:
 
 	// フェンスをシグナルしGPU完了まで待機する
 	void SignalAndWait();
+	// フェンスをシグナルし発行値を返す
+	uint64_t Signal();
+	// 指定Fence値までGPU完了を待つ
+	bool WaitForFenceValue(uint64_t expectedValue, std::string_view operation);
 
 	//--------- accessor -----------------------------------------------------
 
 	ID3D12CommandQueue* GetQueue() const { return commandQueue_.Get(); }
+	uint64_t GetCompletedFenceValue() const { return fence_->GetCompletedValue(); }
+	uint64_t GetLastSignaledFenceValue() const { return fenceValue_; }
 private:
 	//============================================================================
 	//	private Methods
@@ -55,10 +61,6 @@ private:
 	uint64_t fenceValue_ = 0;
 	HANDLE fenceEvent_ = nullptr;
 
-	//--------- functions ----------------------------------------------------
-
-	// 特定のフェンス値を診断可能ループで待機する
-	bool WaitForFenceValue(uint64_t expectedValue, std::string_view operation);
 };
 
 }; // Engine

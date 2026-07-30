@@ -172,29 +172,32 @@ bool Engine::IrisTransitionSystem::ConsumeLatestCommand(ECSWorld& world, WorldMo
 	float commandValue = 0.0f;
 	uint64_t commandSerial = 0;
 
-	world.ForEach<IrisTransitionComponent>([&](Entity entity,
-		IrisTransitionComponent& component) {
+	world.ForEach<IrisTransitionComponent, IrisTransitionRuntimeComponent>(
+		[&](Entity entity, [[maybe_unused]] IrisTransitionComponent& component,
+			IrisTransitionRuntimeComponent& runtime) {
 
-		if (component.runtimeCommand != IrisTransitionCommand::None &&
-			commandSerial <= component.runtimeCommandSerial) {
+		if (runtime.command != IrisTransitionCommand::None &&
+			commandSerial <= runtime.commandSerial) {
 			commandEntity = entity;
-			command = component.runtimeCommand;
-			commandValue = component.runtimeCommandValue;
-			commandSerial = component.runtimeCommandSerial;
+			command = runtime.command;
+			commandValue = runtime.commandValue;
+			commandSerial = runtime.commandSerial;
 		}
-		component.runtimeCommand = IrisTransitionCommand::None;
-		component.runtimeCommandValue = 0.0f;
-		});
+		runtime.command = IrisTransitionCommand::None;
+		runtime.commandValue = 0.0f;
+			});
 
 	if (!world.IsAlive(commandEntity) || command == IrisTransitionCommand::None) {
 		return false;
 	}
 
 	auto& component = world.GetComponent<IrisTransitionComponent>(commandEntity);
+	auto& runtime =
+		world.GetComponent<IrisTransitionRuntimeComponent>(commandEntity);
 	CopySettings(component);
 	ownerUUID_ = world.GetUUID(commandEntity);
 	if (mode == WorldMode::Edit) {
-		component.runtimeEditPreviewSerial = commandSerial;
+		runtime.editPreviewSerial = commandSerial;
 		editPreviewSerial_ = commandSerial;
 		editCommandPreview_ = component.previewInEditMode;
 		editAuthoringProgress_ = component.previewProgress;
@@ -295,21 +298,22 @@ bool Engine::IrisTransitionSystem::UpdateEditPreview(ECSWorld& world) {
 
 	Entity previewEntity = Entity::Null();
 	uint64_t previewSerial = 0;
-	world.ForEach<IrisTransitionComponent>([&](Entity entity,
-		IrisTransitionComponent& component) {
+	world.ForEach<IrisTransitionComponent, IrisTransitionRuntimeComponent>(
+		[&](Entity entity, IrisTransitionComponent& component,
+			IrisTransitionRuntimeComponent& runtime) {
 
 		if (!component.enabled || !component.previewInEditMode) {
 			return;
 		}
 		if (!world.IsAlive(previewEntity) ||
-			previewSerial < component.runtimeEditPreviewSerial ||
-			(previewSerial == component.runtimeEditPreviewSerial &&
+			previewSerial < runtime.editPreviewSerial ||
+			(previewSerial == runtime.editPreviewSerial &&
 				entity.index < previewEntity.index)) {
 
 			previewEntity = entity;
-			previewSerial = component.runtimeEditPreviewSerial;
+			previewSerial = runtime.editPreviewSerial;
 		}
-		});
+			});
 
 	if (!world.IsAlive(previewEntity)) {
 		ResetPlayback();
@@ -410,12 +414,13 @@ void Engine::IrisTransitionSystem::UpdateRenderEntity(ECSWorld& world, bool visi
 
 void Engine::IrisTransitionSystem::SyncComponentRuntime(ECSWorld& world) {
 
-	world.ForEach<IrisTransitionComponent>([&](Entity,
-		IrisTransitionComponent& component) {
+	world.ForEach<IrisTransitionComponent, IrisTransitionRuntimeComponent>(
+		[&](Entity, [[maybe_unused]] IrisTransitionComponent& component,
+			IrisTransitionRuntimeComponent& runtime) {
 
-		component.runtimeState = state_;
-		component.runtimeProgress = progress_;
-		});
+		runtime.state = state_;
+		runtime.progress = progress_;
+			});
 }
 
 void Engine::IrisTransitionSystem::CopySettings(

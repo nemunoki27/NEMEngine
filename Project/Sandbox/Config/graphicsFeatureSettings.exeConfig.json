@@ -1,0 +1,8 @@
+{
+    "allowContributionCulling": true,
+    "allowDispatchRays": false,
+    "allowFrustumCulling": false,
+    "allowInlineRayTracing": true,
+    "allowMeshShader": true,
+    "allowNormalConeCulling": false
+}

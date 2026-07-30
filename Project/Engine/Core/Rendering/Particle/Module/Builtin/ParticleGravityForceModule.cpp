@@ -42,6 +42,7 @@ void Engine::ParticleGravityForceModule::OnUpdate(Particle& particle, float delt
 }
 
 bool Engine::ParticleGravityForceModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragVector3("重力", gravity_, ParticleGui::MakeDragSetting(-1000.0f, 1000.0f)).valueChanged;
@@ -52,4 +53,7 @@ bool Engine::ParticleGravityForceModule::DrawImGui() {
 		changed |= MyGUI::DragFloat("反発係数", restitution_, ParticleGui::MakeDragSetting(0.0f, 1.0f, 0.005f)).valueChanged;
 	}
 	return changed;
+#else
+	return false;
+#endif
 }

@@ -40,10 +40,20 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 
 	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する
 	drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
+	drawContext.occlusionDepthPyramidReady =
+		sceneContext.occlusionDepthPyramidReady;
 	if (sceneContext.disableInlineRayTracing) {
 
 		drawContext.runtimeFeatures.useInlineRayTracing = false;
 		drawContext.runtimeFeatures.useDispatchRays = false;
+	}
+	if (sceneContext.disableMeshCulling) {
+
+		drawContext.runtimeFeatures.useFrustumCulling = false;
+		drawContext.runtimeFeatures.useOcclusionCulling = false;
+		drawContext.occlusionDepthPyramidReady = false;
+		drawContext.runtimeFeatures.useContributionCulling = false;
+		drawContext.runtimeFeatures.useNormalConeCulling = false;
 	}
 
 	drawContext.rtvFormats.fill(DXGI_FORMAT_UNKNOWN);

@@ -22,5 +22,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, TimeScaleComponent& component);
 	void to_json(nlohmann::json& out, const TimeScaleComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(TimeScaleComponent, "TimeScale");
 } // Engine

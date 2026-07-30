@@ -6,9 +6,6 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 
-// c++
-#include <vector>
-
 namespace Engine {
 
 	//============================================================================
@@ -17,7 +14,11 @@ namespace Engine {
 	// カメラ方向へ向ける回転軸設定
 	struct BillboardComponent {
 
-		std::vector<Axis> axes{ Axis::X, Axis::Y, Axis::Z };
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+
+		// 回転を許可する軸のビット
+		uint8_t axisMask = 0x07;
 	};
 
 	// json変換
@@ -29,6 +30,6 @@ namespace Engine {
 	void SetBillboardAxis(BillboardComponent& component, Axis axis, bool enabled);
 	void SetBillboardAllAxes(BillboardComponent& component);
 	void SanitizeBillboardAxes(BillboardComponent& component);
+	bool HasAnyBillboardAxis(const BillboardComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(BillboardComponent, "Billboard");
 } // Engine

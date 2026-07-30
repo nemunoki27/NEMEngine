@@ -14,6 +14,11 @@ namespace Engine {
 	// スポット光源
 	struct SpotLightComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Lighting;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Lighting;
+
 		// 色
 		Color4 color = Color4::White();
 		// 方向
@@ -28,6 +33,10 @@ namespace Engine {
 		// 影響角度
 		float cosAngle = std::cos(Math::pi / 3.0f);
 		float cosFalloffStart = std::cos(Math::pi / 6.0f);
+		// 影の強さ(0.0=影なし, 1.0=完全に黒)
+		float shadowStrength = 0.92f;
+		// 面光源として扱う半径
+		float shadowRadius = 0.05f;
 
 		// 有効フラグ
 		bool enabled = true;
@@ -39,5 +48,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, SpotLightComponent& component);
 	void to_json(nlohmann::json& out, const SpotLightComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(SpotLightComponent, "SpotLight");
 } // Engine

@@ -216,7 +216,6 @@ bool Engine::FromJson(const nlohmann::json& data, RenderPipelineAsset& outAsset)
 	}
 
 	outAsset = RenderPipelineAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedPipeline");
 	if (data.contains("variants") && data["variants"].is_array()) {
 		for (const auto& item : data["variants"]) {
@@ -281,7 +280,6 @@ nlohmann::json Engine::ToJson(const RenderPipelineAsset& asset) {
 
 	nlohmann::json data = nlohmann::json::object();
 
-	data["guid"] = ToString(asset.guid);
 	data["name"] = asset.name;
 	data["variants"] = nlohmann::json::array();
 	for (const auto& variant : asset.variants) {

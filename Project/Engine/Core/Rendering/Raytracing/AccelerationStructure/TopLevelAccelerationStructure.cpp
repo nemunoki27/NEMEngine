@@ -6,13 +6,14 @@
 void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances, bool allowUpdate) {
 
+	retiredResources_.Collect();
 	device_ = device;
 	allowUpdate_ = allowUpdate;
 
-	// インスタンス記述バッファの作成
+	// インスタンス記述はCPU上書き競合を避けるためフレーム別に保持する
 	const UINT64 descBytes = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * static_cast<UINT64>(instances.size());
-	instanceDescBuffer_.Create(device, descBytes, D3D12_RESOURCE_FLAG_NONE,
-		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
+	instanceDescBuffer_.EnsureCapacity(device,
+		static_cast<size_t>(descBytes), "TLASInstanceDescs", 256);
 
 	// インスタンス記述のアップロード
 	UploadInstanceDescs(instances);
@@ -23,11 +24,22 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 	inputs_.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	inputs_.NumDescs = static_cast<UINT>(instances.size());
 	inputs_.InstanceDescs = instanceDescBuffer_.GetGPUAddress();
-	inputs_.Flags = allowUpdate_ ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
-		: D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	inputs_.Flags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	if (allowUpdate_) {
+		inputs_.Flags |=
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+	}
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild{};
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
+	// 再構築前のASは実行中フレームから参照されるため所有を保持する
+	if (scratch_.GetResource()) {
+		retiredResources_.Retire(scratch_.TakeResource());
+	}
+	if (result_.GetResource()) {
+		retiredResources_.Retire(result_.TakeResource());
+	}
 	// スクラッチと結果のバッファを作成
 	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
@@ -52,6 +64,7 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances) {
 
+	retiredResources_.Collect();
 	// 更新が許可されていない、またはASが構築されていない場合は何もしない
 	if (!allowUpdate_ || !result_.GetResource()) {
 		return;
@@ -65,6 +78,8 @@ void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* c
 
 	// インスタンス記述のアップロード
 	UploadInstanceDescs(instances);
+	inputs_.InstanceDescs = instanceDescBuffer_.GetGPUAddress();
+	buildDesc_.Inputs.InstanceDescs = inputs_.InstanceDescs;
 
 	// ASの更新
 	buildDesc_.SourceAccelerationStructureData = result_.GetGPUAddress();
@@ -81,13 +96,11 @@ void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* c
 void Engine::TopLevelAccelerationStructure::UploadInstanceDescs(
 	const std::vector<RaytracingTLASInstance>& instances) {
 
-	// インスタンス記述をマップしてコピー
-	D3D12_RAYTRACING_INSTANCE_DESC* mapped = nullptr;
-	instanceDescBuffer_.GetResource()->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	instanceDescScratch_.resize(instances.size());
 	for (size_t i = 0; i < instances.size(); ++i) {
 
 		const auto& src = instances[i];
-		auto& dst = mapped[i];
+		auto& dst = instanceDescScratch_[i];
 
 		std::memset(&dst, 0, sizeof(dst));
 
@@ -101,7 +114,9 @@ void Engine::TopLevelAccelerationStructure::UploadInstanceDescs(
 		dst.Flags = src.flags;
 		dst.AccelerationStructure = src.blas->GetGPUVirtualAddress();
 	}
-	instanceDescBuffer_.GetResource()->Unmap(0, nullptr);
+	instanceDescBuffer_.Write(instanceDescScratch_.data(),
+		instanceDescScratch_.size() *
+		sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
 }
 
 void Engine::TopLevelAccelerationStructure::CopyMatrix3x4(float(&dst)[3][4], const Matrix4x4& src) {

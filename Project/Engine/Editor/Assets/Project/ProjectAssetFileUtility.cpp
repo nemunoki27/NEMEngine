@@ -161,10 +161,10 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 		return result;
 	}
 
-	// 複製されたアセット内部のGUIDや名前フィールドを整合性のために修正
+	// 複製されたアセット内部の表示名をファイル名に合わせる
 	PatchDuplicatedJsonAsset(targetPath, asset.type);
 
-	// 随行する.meta等のサイドカーファイルも合わせてコピー
+	// モデルのbin等のサイドカーファイルを合わせてコピーする、.metaは新規発行する
 	for (const std::string& sidecar : asset.sidecarFiles) {
 
 		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
@@ -218,10 +218,10 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const 
 		return result;
 	}
 
-	// コピーされたアセット内部のGUIDや名前フィールドを整合性のために修正
+	// コピーされたアセット内部の表示名をファイル名に合わせる
 	PatchDuplicatedJsonAsset(targetPath, asset.type);
 
-	// 随行する.meta等のサイドカーファイルも合わせてコピー
+	// モデルのbin等のサイドカーファイルを合わせてコピーする、.metaは新規発行する
 	for (const std::string& sidecar : asset.sidecarFiles) {
 
 		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;

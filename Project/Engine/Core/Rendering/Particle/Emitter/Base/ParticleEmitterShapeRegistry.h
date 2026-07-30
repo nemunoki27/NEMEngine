@@ -14,7 +14,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ParticleEmitterShapeRegistry class
-	//	発生形状から処理を引くレジストリ、各形状は自己登録する
+	//	Builtin発生形状を明示登録し、形状enumから処理を引く
 	//============================================================================
 	class ParticleEmitterShapeRegistry {
 	public:
@@ -43,16 +43,11 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		ParticleEmitterShapeRegistry();
+
 		//--------- variables ----------------------------------------------------
 
 		// 形状から処理へのマップ
 		std::unordered_map<ParticleEmitterShape, std::unique_ptr<IParticleEmitterShape>> shapes_;
 	};
-
-	//============================================================================
-	//	ParticleEmitterShapeRegistry macros
-	//============================================================================
-#define ENGINE_REGISTER_PARTICLE_EMITTER_SHAPE(T, ShapeValue) \
-    inline const uint32_t kParticleEmitterShape_##T = Engine::ParticleEmitterShapeRegistry::GetInstance().Register( \
-        ShapeValue, std::make_unique<T>());
 } // Engine

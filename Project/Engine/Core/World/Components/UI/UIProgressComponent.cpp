@@ -4,11 +4,120 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/UI/UIComponentSerialization.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 //============================================================================
 //	UIProgressComponent classMethods
 //============================================================================
+void Engine::UIProgressRuntimeComponent::OnAdded(
+	ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	UIProgressRuntimeComponent& component) {
+
+	if (!component.handle.IsValid()) {
+		component.handle =
+			world.GetStorage().Get<UIProgressRuntimeStorage>().Emplace();
+	}
+}
+
+void Engine::UIProgressRuntimeComponent::InitializeStorage(
+	ECSWorld& world, const Entity& entity,
+	UIProgressRuntimeComponent& component) {
+
+	OnAdded(world, entity, component);
+}
+
+void Engine::UIProgressRuntimeComponent::ReleaseStorage(
+	ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	UIProgressRuntimeComponent& component) {
+
+	if (!component.handle.IsValid()) {
+		return;
+	}
+	world.GetStorage().Get<UIProgressRuntimeStorage>().Release(
+		component.handle);
+	component.handle = UIProgressRuntimeHandle::Null();
+}
+
+void Engine::UIProgressRuntimeComponent::DeserializeECS(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] const nlohmann::json& in,
+	[[maybe_unused]] UIProgressRuntimeComponent& component) {
+}
+
+void Engine::UIProgressRuntimeComponent::SerializeECS(
+	[[maybe_unused]] const ECSWorld& world,
+	[[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] const UIProgressRuntimeComponent& component,
+	nlohmann::json& out) {
+
+	out = nlohmann::json::object();
+}
+
+void Engine::UIProgressComponent::OnAdded(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] UIProgressComponent& component) {
+
+	if (!world.HasComponent<UIProgressRuntimeComponent>(entity)) {
+		world.AddComponent<UIProgressRuntimeComponent>(entity);
+	}
+}
+
+void Engine::UIProgressComponent::OnRemoved(
+	ECSWorld& world, const Entity& entity) {
+
+	if (world.HasComponent<UIProgressRuntimeComponent>(entity)) {
+		world.RemoveComponent<UIProgressRuntimeComponent>(entity);
+	}
+}
+
+void Engine::UIProgressComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] UIProgressComponent& component) {
+}
+
+void Engine::UIProgressComponent::ReleaseStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] UIProgressComponent& component) {
+}
+
+void Engine::UIProgressComponent::DeserializeECS(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const nlohmann::json& in, UIProgressComponent& component) {
+
+	from_json(in, component);
+}
+
+void Engine::UIProgressComponent::SerializeECS(
+	[[maybe_unused]] const ECSWorld& world,
+	[[maybe_unused]] const Entity& entity,
+	const UIProgressComponent& component, nlohmann::json& out) {
+
+	to_json(out, component);
+}
+
+Engine::UIProgressRuntimeData* Engine::TryGetUIProgressRuntime(
+	ECSWorld& world, const Entity& entity) {
+
+	UIProgressRuntimeComponent* runtime =
+		world.TryGetComponent<UIProgressRuntimeComponent>(entity);
+	if (!runtime) {
+		return nullptr;
+	}
+	return world.GetStorage().Get<UIProgressRuntimeStorage>().TryGet(
+		runtime->handle);
+}
+
+const Engine::UIProgressRuntimeData* Engine::TryGetUIProgressRuntime(
+	const ECSWorld& world, const Entity& entity) {
+
+	const UIProgressRuntimeComponent* runtime =
+		world.TryGetComponent<UIProgressRuntimeComponent>(entity);
+	const UIProgressRuntimeStorage* storage =
+		world.GetStorage().TryGet<UIProgressRuntimeStorage>();
+	return runtime && storage ? storage->TryGet(runtime->handle) : nullptr;
+}
+
 void Engine::ApplyUIProgressAuthoring(const UIProgressComponent& source,
 	UIProgressComponent& destination) {
 
@@ -51,7 +160,6 @@ void Engine::from_json(const nlohmann::json& in, UIProgressComponent& component)
 	component.delayedEasing = EnumAdapter<EasingType>::FromString(
 		in.value("delayedEasing", "EaseOutSine")).value_or(component.delayedEasing);
 	component.useUnscaledTime = in.value("useUnscaledTime", component.useUnscaledTime);
-	ResetUIProgressRuntime(component);
 }
 
 void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) {
@@ -74,16 +182,17 @@ void Engine::to_json(nlohmann::json& out, const UIProgressComponent& component) 
 	out["useUnscaledTime"] = component.useUnscaledTime;
 }
 
-void Engine::ResetUIProgressRuntime(UIProgressComponent& component) {
+void Engine::ResetUIProgressRuntime(
+	UIProgressRuntimeData& runtime, float value) {
 
-	component.runtimeDisplayedValue = component.value;
-	component.runtimeDelayedValue = component.value;
-	component.runtimeDisplayStart = component.value;
-	component.runtimeDelayedStart = component.value;
-	component.runtimeTargetValue = component.value;
-	component.runtimeSmoothElapsed = 0.0f;
-	component.runtimeDelayedElapsed = 0.0f;
-	component.runtimeFillTarget = {};
-	component.runtimeDelayedTarget = {};
-	component.runtimeInitialized = false;
+	runtime.displayedValue = value;
+	runtime.delayedValue = value;
+	runtime.displayStart = value;
+	runtime.delayedStart = value;
+	runtime.targetValue = value;
+	runtime.smoothElapsed = 0.0f;
+	runtime.delayedElapsed = 0.0f;
+	runtime.fillTarget = {};
+	runtime.delayedTarget = {};
+	runtime.initialized = false;
 }

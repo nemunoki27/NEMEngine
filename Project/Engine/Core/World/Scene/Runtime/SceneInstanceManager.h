@@ -21,6 +21,8 @@ namespace Engine {
 	// シーン内の子シーンのリンク情報
 	struct SceneChildLink {
 
+		// 親Header側スロットの安定ID
+		UUID slotID{};
 		// 子シーンのスロット名
 		std::string slotName;
 		// 子シーンのインスタンスID
@@ -73,11 +75,21 @@ namespace Engine {
 		void UnloadAll(ECSWorld& world);
 		// アクティブなシーンをファイルに保存する
 		bool SaveActive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world) const;
+		// 指定アセットのシーンインスタンスをファイルに保存する
+		bool Save(AssetDatabase& database, const SceneSystem& sceneSystem,
+			ECSWorld& world, AssetID sceneAsset) const;
+		// 指定された保存用Worldからシーン保存スナップショットを確定する
+		bool CaptureSave(AssetDatabase& database,
+			const SceneSystem& sceneSystem, ECSWorld& world,
+			AssetID sceneAsset, SceneSaveSnapshot& outSnapshot) const;
 
 		// シーンの処理を開始するときのスナップショット
 		nlohmann::json SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const;
 		bool LoadSnapshot(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, const nlohmann::json& snapshot);
 		bool LoadSceneTree(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world, AssetID rootAsset);
+		// 親シーンHeaderのサブシーン設定を現在のロード状態へ同期
+		bool SynchronizeSubScenes(AssetDatabase& database, const SceneSystem& sceneSystem,
+			ECSWorld& world, UUID parentInstanceID);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -115,5 +127,11 @@ namespace Engine {
 
 		// シーンインスタンスが所持しているエンティティを収集する
 		static std::vector<Entity> CollectSceneEntities(ECSWorld& world, const SceneInstance& scene);
+		// シーンとサブシーンの枝を再帰的にロード
+		bool LoadSceneBranch(AssetDatabase& database, const SceneSystem& sceneSystem,
+			ECSWorld& world, AssetID sceneAsset, UUID parentInstanceID,
+			UUID forcedInstanceID, const std::vector<AssetID>& ancestors, UUID& outInstanceID);
+		// 子シーンを含めて破棄し、revision更新は呼び出し側で行う
+		bool UnloadInternal(ECSWorld& world, UUID instanceID);
 	};
 } // Engine

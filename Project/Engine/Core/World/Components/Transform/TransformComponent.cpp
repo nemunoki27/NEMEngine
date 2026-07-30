@@ -46,21 +46,34 @@ void Engine::MarkTransformSubtreeDirty(ECSWorld& world, const Entity& entity) {
 		return;
 	}
 
-	if (world.HasComponent<Engine::TransformComponent>(entity)) {
-		world.GetComponent<Engine::TransformComponent>(entity).isDirty = true;
-	}
+	std::vector<Entity> stack{ entity };
+	while (!stack.empty()) {
 
-	if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
-		return;
-	}
-	Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
-	while (child.IsValid() && world.IsAlive(child)) {
-
-		MarkTransformSubtreeDirty(world, child);
-
-		if (!world.HasComponent<Engine::HierarchyComponent>(child)) {
-			break;
+		const Entity current = stack.back();
+		stack.pop_back();
+		if (!world.IsAlive(current)) {
+			continue;
 		}
-		child = world.GetComponent<Engine::HierarchyComponent>(child).nextSibling;
+		if (world.HasComponent<TransformComponent>(current)) {
+			world.GetComponent<TransformComponent>(current).isDirty = true;
+		}
+		const HierarchyComponent* hierarchy =
+			world.TryGetComponent<HierarchyComponent>(current);
+		if (!hierarchy) {
+			continue;
+		}
+		Entity child = hierarchy->firstChild;
+		while (child.IsValid() && world.IsAlive(child)) {
+
+			stack.emplace_back(child);
+			const HierarchyComponent* childHierarchy =
+				world.TryGetComponent<HierarchyComponent>(child);
+			if (!childHierarchy) {
+				break;
+			}
+			child = childHierarchy->nextSibling;
+		}
 	}
+	// 変更通知は部分木ごとに1回だけ発行しTransformSystemへルートを渡す
+	world.MarkComponentModified<TransformComponent>(entity);
 }

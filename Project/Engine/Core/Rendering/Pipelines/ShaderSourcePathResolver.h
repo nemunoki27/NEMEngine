@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Identity/AssetGUID.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
@@ -10,7 +11,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <unordered_map>
 
@@ -23,19 +26,14 @@ namespace Engine::ShaderSourcePath {
 
 	using Index = std::unordered_map<std::string, std::filesystem::path>;
 
-	// 16桁の小文字hexのみで構成され、パス区切りや拡張子を含まないものをGUID参照とみなす
-	inline bool IsGuidReference(const std::string& file) {
+	// 32桁AssetGUIDを索引検索用の小文字表記へ正規化する
+	inline std::optional<std::string> NormalizeGuidReference(std::string_view file) {
 
-		if (file.size() != 16) {
-			return false;
+		const std::optional<AssetGUID> guid = TryParseAssetGUID32Hex(file);
+		if (!guid) {
+			return std::nullopt;
 		}
-		for (char c : file) {
-			const bool isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-			if (!isHex) {
-				return false;
-			}
-		}
-		return true;
+		return ToString(*guid);
 	}
 
 	// .metaから "guid" の値を取り出す、JSON依存を避けて軽量に文字列抽出する
@@ -112,9 +110,10 @@ namespace Engine::ShaderSourcePath {
 				if (!std::filesystem::exists(metaPath, ec)) {
 					continue;
 				}
-				const std::string guid = ReadGuidFromMeta(metaPath);
-				if (!guid.empty()) {
-					result.try_emplace(guid, path);
+				const std::optional<std::string> guid =
+					NormalizeGuidReference(ReadGuidFromMeta(metaPath));
+				if (guid) {
+					result.try_emplace(*guid, path);
 				}
 			}
 			return result;
@@ -130,10 +129,10 @@ namespace Engine::ShaderSourcePath {
 		}
 
 		// GUID参照なら索引から引く、ファイル移動に強い
-		if (IsGuidReference(fileOrGuid)) {
+		if (const std::optional<std::string> guid = NormalizeGuidReference(fileOrGuid)) {
 
 			const auto& guidIndex = GetGuidIndex();
-			auto found = guidIndex.find(fileOrGuid);
+			auto found = guidIndex.find(*guid);
 			if (found != guidIndex.end()) {
 				return found->second;
 			}

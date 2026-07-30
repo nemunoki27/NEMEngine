@@ -12,18 +12,17 @@ using Microsoft.CodeAnalysis.Text;
 namespace NEM.ScriptCodeGen
 {
     // concrete ScriptBehaviour を列挙し、NEMEngine.GeneratedScriptManifest を生成する。
-    // 各型の Stable Script Type GUID / fullTypeName / displayName / sourcePath / 旧名を埋め込む。
+    // 各型の Stable Script Type GUID / fullTypeName / displayName / sourcePath を埋め込む。
     [Generator(LanguageNames.CSharp)]
     public sealed class ScriptManifestGenerator : IIncrementalGenerator
     {
         private const string ScriptBehaviourFullName = "NEMEngine.ScriptBehaviour";
         private const string ScriptTypeIdAttributeName = "NEMEngine.ScriptTypeIdAttribute";
-        private const string FormerlyKnownAttributeName = "NEMEngine.FormerlyKnownScriptTypeAttribute";
 
         private static readonly DiagnosticDescriptor MissingIdRule = new DiagnosticDescriptor(
             "NEMSG001",
             "Script type has no stable id",
-            "Script type '{0}' has no stable Script Type GUID (no [ScriptTypeId] and no .cs.meta entry); a migration fallback GUID was generated. Run Editor metadata sync.",
+            "Script type '{0}' has no stable Script Type GUID (no [ScriptTypeId] and no .cs.meta entry); a temporary fallback GUID was generated. Run Editor metadata sync.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
         private static readonly DiagnosticDescriptor MissingIdValidateRule = new DiagnosticDescriptor(
@@ -55,7 +54,6 @@ namespace NEM.ScriptCodeGen
             public bool InvalidId;
             // 明示属性 or sidecar metadata で安定 ID が得られたか（false は決定的 fallback）
             public bool HasStableId;
-            public List<string> FormerlyKnown = new List<string>();
             public Location Location = Location.None;
         }
 
@@ -123,15 +121,6 @@ namespace NEM.ScriptCodeGen
                         model.HasExplicitId = true;
                     }
                 }
-                else if (attrName == FormerlyKnownAttributeName)
-                {
-                    if (attribute.ConstructorArguments.Length == 1 &&
-                        attribute.ConstructorArguments[0].Value is string formerName &&
-                        !string.IsNullOrWhiteSpace(formerName))
-                    {
-                        model.FormerlyKnown.Add(formerName);
-                    }
-                }
             }
 
             // GUID 正規化（明示が無ければ full type name から決定的 fallback を生成）
@@ -173,7 +162,6 @@ namespace NEM.ScriptCodeGen
             ScriptMetaIndex meta = ScriptMetaIndex.Build(metaContents);
 
             // ID 解決の優先順: 明示属性 → sidecar metadata → 決定的 fallback。
-            // sidecar からの formerNames も manifest へ反映する。
             foreach (ScriptTypeModel model in models)
             {
                 bool hasStable;
@@ -194,12 +182,6 @@ namespace NEM.ScriptCodeGen
                     hasStable = false;
                 }
                 model.HasStableId = hasStable;
-
-                // formerNames を sidecar とマージ
-                foreach (string former in meta.GetScriptFormerNames(model.FullTypeName))
-                {
-                    if (!model.FormerlyKnown.Contains(former)) { model.FormerlyKnown.Add(former); }
-                }
             }
 
             // 診断: 不正 attribute / stable id 欠落 / 重複
@@ -243,16 +225,12 @@ namespace NEM.ScriptCodeGen
             builder.AppendLine("            {");
             foreach (ScriptTypeModel model in models.OrderBy(m => m.FullTypeName, StringComparer.Ordinal))
             {
-                string former = model.FormerlyKnown.Count == 0
-                    ? "global::System.Array.Empty<string>()"
-                    : "new string[] { " + string.Join(", ", model.FormerlyKnown.Select(EscapeString)) + " }";
                 builder.Append("                new global::NEMEngine.ScriptTypeDescriptor(");
                 builder.Append(EscapeString(model.NormalizedId)).Append(", ");
                 builder.Append(EscapeString(model.FullTypeName)).Append(", ");
                 builder.Append(EscapeString(model.DisplayName)).Append(", ");
                 builder.Append(EscapeString(model.SourcePath)).Append(", ");
-                builder.Append(model.HasStableId ? "true" : "false").Append(", ");
-                builder.Append(former);
+                builder.Append(model.HasStableId ? "true" : "false");
                 builder.AppendLine("),");
             }
             builder.AppendLine("            };");

@@ -63,6 +63,7 @@ void Engine::ParticleSpiralMovementModule::OnUpdate(
 }
 
 bool Engine::ParticleSpiralMovementModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= DrawAnimationSettings(
@@ -80,6 +81,9 @@ bool Engine::ParticleSpiralMovementModule::DrawImGui() {
 		changed |= MyGUI::Checkbox("逆回転", reverse_);
 	}
 	return changed;
+#else
+	return false;
+#endif
 }
 
 void Engine::ParticleSpiralMovementModule::ReadAnimationSettings(
@@ -155,6 +159,7 @@ Engine::Vector3 Engine::ParticleSpiralMovementModule::CalculateOffset(
 	return (basis.x * std::cos(angle) + basis.y * std::sin(angle)) * radius;
 }
 
+#if defined(NEM_EDITOR_UI_ENABLED)
 bool Engine::ParticleSpiralMovementModule::DrawAnimationSettings(
 	const char* header, const char* id, const char* startLabel, const char* endLabel,
 	FloatAnimationSettings& settings, float minValue, float maxValue) {
@@ -190,3 +195,4 @@ bool Engine::ParticleSpiralMovementModule::DrawAnimationSettings(
 	ImGui::PopID();
 	return changed;
 }
+#endif

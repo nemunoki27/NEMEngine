@@ -108,8 +108,6 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 
 	// JSONからシーンヘッダーの情報を取得する
 	{
-		std::string guidStr = data.value("guid", "");
-		sceneHeader.guid = guidStr.empty() ? UUID::New() : FromString16Hex(guidStr);
 		sceneHeader.name = data.value("name", "UntitledScene");
 		sceneHeader.postProcessStack = ParseAssetReference(data, "postProcessStack", assetDatabase, AssetType::PostProcessStack);
 	}
@@ -121,21 +119,17 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 		size_t generatedIndex = 0;
 		for (const auto& item : data["subScenes"]) {
 
-			SubSceneSlotDesc desc{};
-			if (item.is_string()) {
-
-				desc.slotName = "SubScene" + std::to_string(generatedIndex++);
-				nlohmann::json temp = { {"sceneAsset", item.get<std::string>()} };
-				desc.sceneAsset = ParseAssetReference(temp, "sceneAsset", assetDatabase, AssetType::Scene);
-				desc.enabled = true;
-			} else if (item.is_object()) {
-
-				desc.slotName = item.value("slotName", "SubScene" + std::to_string(generatedIndex++));
-				desc.sceneAsset = ParseAssetReference(item, "sceneAsset", assetDatabase, AssetType::Scene);
-				desc.enabled = item.value("enabled", true);
-			} else {
-				continue;
+			if (!item.is_object()) {
+				return false;
 			}
+			SubSceneSlotDesc desc{};
+			desc.slotID = FromString16Hex(item.value("slotID", std::string{}));
+			if (!desc.slotID) {
+				return false;
+			}
+			desc.slotName = item.value("slotName", "SubScene" + std::to_string(generatedIndex++));
+			desc.sceneAsset = ParseAssetReference(item, "sceneAsset", assetDatabase, AssetType::Scene);
+			desc.enabled = item.value("enabled", true);
 			if (desc.slotName.empty()) {
 				desc.slotName = "SubScene" + std::to_string(generatedIndex++);
 			}
@@ -153,13 +147,13 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 
 	nlohmann::json data = nlohmann::json::object();
 
-	data["guid"] = ToString(sceneHeader.guid);
 	data["name"] = sceneHeader.name;
 	data["postProcessStack"] = ToAssetReferenceJson(sceneHeader.postProcessStack);
 
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {
 		nlohmann::json item = nlohmann::json::object();
+		item["slotID"] = subScene.slotID ? ToString(subScene.slotID) : "";
 		item["slotName"] = subScene.slotName;
 		item["sceneAsset"] = ToAssetReferenceJson(subScene.sceneAsset);
 		item["enabled"] = subScene.enabled;

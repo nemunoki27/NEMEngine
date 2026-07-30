@@ -18,9 +18,7 @@ namespace Engine {
 		// 破棄、再利用するための世代
 		uint32_t generation = 0;
 
-		// 比較演算子
-		friend bool operator==(const BehaviorHandle& handleA, const BehaviorHandle& handleB) noexcept;
-		friend bool operator!=(const BehaviorHandle& handleA, const BehaviorHandle& handleB) noexcept;
+		bool operator==(const BehaviorHandle& other) const noexcept = default;
 
 		// 有効なハンドルか
 		constexpr bool IsValid() const noexcept { return index != 0xFFFFFFFF; }

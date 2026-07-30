@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Particle/Parametric/ParticleCylinderParametricShape.h>
+#include <Engine/Core/Rendering/Particle/Parametric/ParticleRingParametricShape.h>
 
 // c++
 #include <algorithm>
@@ -10,6 +12,12 @@
 //============================================================================
 //	ParticleParametricShapeRegistry classMethods
 //============================================================================
+Engine::ParticleParametricShapeRegistry::ParticleParametricShapeRegistry() {
+
+	Register(PrimitiveType::Ring, std::make_unique<ParticleRingParametricShape>());
+	Register(PrimitiveType::Cylinder, std::make_unique<ParticleCylinderParametricShape>());
+}
+
 Engine::ParticleParametricShapeRegistry& Engine::ParticleParametricShapeRegistry::GetInstance() {
 
 	static ParticleParametricShapeRegistry instance;

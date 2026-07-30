@@ -13,6 +13,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -332,7 +333,7 @@ namespace {
 		if (Engine::TextRendererComponent* renderer = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
 			renderer->*Member = typed;
 			// レイアウトに関わる値を変えたら、次回描画時にGlyph配置を作り直す
-			renderer->runtimeLayout.valid = false;
+			Engine::InvalidateTextLayout(world, entity);
 			return true;
 		}
 		return false;
@@ -345,7 +346,7 @@ namespace {
 	bool HasCollisionShape(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 		if (Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity)) {
-			return ShapeIndex < collision->shapes.size();
+			return ShapeIndex < Engine::GetCollisionShapes(world, entity).size();
 		}
 		return false;
 	}
@@ -354,8 +355,10 @@ namespace {
 	bool GetCollisionShapeMember(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity)) {
-			if (ShapeIndex < collision->shapes.size()) {
-				out = collision->shapes[ShapeIndex].*Member;
+			if (const Engine::CollisionShape* shape =
+				Engine::TryGetCollisionShape(world, entity, static_cast<uint32_t>(ShapeIndex))) {
+
+				out = shape->*Member;
 				return true;
 			}
 		}
@@ -370,8 +373,10 @@ namespace {
 			return false;
 		}
 		if (Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity)) {
-			if (ShapeIndex < collision->shapes.size()) {
-				collision->shapes[ShapeIndex].*Member = typed;
+			if (Engine::CollisionShape* shape =
+				Engine::TryGetCollisionShape(world, entity, static_cast<uint32_t>(ShapeIndex))) {
+
+				shape->*Member = typed;
 				return true;
 			}
 		}
@@ -384,20 +389,18 @@ namespace {
 	template <size_t SubMeshIndex>
 	bool HasMeshSubMesh(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
-			return SubMeshIndex < renderer->subMeshes.size();
-		}
-		return false;
+		return world.HasComponent<Engine::MeshRendererComponent>(entity) &&
+			SubMeshIndex < Engine::GetMeshSubMeshes(world, entity).size();
 	}
 
 	template <size_t SubMeshIndex, typename Value, Value Engine::SubMeshMaterial::* Member>
 	bool GetSubMeshMember(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
-		if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
-			if (SubMeshIndex < renderer->subMeshes.size()) {
-				out = renderer->subMeshes[SubMeshIndex].*Member;
-				return true;
-			}
+		const std::span<Engine::SubMeshMaterial> subMeshes =
+			Engine::GetMeshSubMeshes(world, entity);
+		if (SubMeshIndex < subMeshes.size()) {
+			out = subMeshes[SubMeshIndex].*Member;
+			return true;
 		}
 		return false;
 	}
@@ -409,11 +412,11 @@ namespace {
 		if (!ReadVariant(value, typed)) {
 			return false;
 		}
-		if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
-			if (SubMeshIndex < renderer->subMeshes.size()) {
-				renderer->subMeshes[SubMeshIndex].*Member = typed;
-				return true;
-			}
+		const std::span<Engine::SubMeshMaterial> subMeshes =
+			Engine::GetMeshSubMeshes(world, entity);
+		if (SubMeshIndex < subMeshes.size()) {
+			subMeshes[SubMeshIndex].*Member = typed;
+			return true;
 		}
 		return false;
 	}
@@ -425,13 +428,11 @@ namespace {
 		if (!ReadVariant(value, typed)) {
 			return false;
 		}
-		if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
-			if (SubMeshIndex < renderer->subMeshes.size()) {
-				Engine::SubMeshMaterial& subMesh = renderer->subMeshes[SubMeshIndex];
-				subMesh.*Member = typed;
-				subMesh.uvMatrix = Engine::MeshSubMeshRuntime::BuildUVMatrix(subMesh);
-				return true;
-			}
+		const std::span<Engine::SubMeshMaterial> subMeshes =
+			Engine::GetMeshSubMeshes(world, entity);
+		if (SubMeshIndex < subMeshes.size()) {
+			subMeshes[SubMeshIndex].*Member = typed;
+			return true;
 		}
 		return false;
 	}
@@ -601,6 +602,39 @@ void Engine::RegisterBuiltinAnimationProperties() {
 			HasComponent<PointLightComponent>,
 			GetMember<PointLightComponent, float, &PointLightComponent::decay>,
 			SetMember<PointLightComponent, float, &PointLightComponent::decay>);
+
+		Register(registry, "RectLight", "color", "RectLight.color", AnimationValueType::Color4,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, Color4, &RectLightComponent::color>,
+			SetMember<RectLightComponent, Color4, &RectLightComponent::color>);
+		Register(registry, "RectLight", "intensity", "RectLight.intensity", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::intensity>,
+			SetMember<RectLightComponent, float, &RectLightComponent::intensity>);
+		Register(registry, "RectLight", "attenuationRadius", "RectLight.attenuationRadius", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::attenuationRadius>,
+			SetMember<RectLightComponent, float, &RectLightComponent::attenuationRadius>);
+		Register(registry, "RectLight", "sourceWidth", "RectLight.sourceWidth", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::sourceWidth>,
+			SetMember<RectLightComponent, float, &RectLightComponent::sourceWidth>);
+		Register(registry, "RectLight", "sourceHeight", "RectLight.sourceHeight", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::sourceHeight>,
+			SetMember<RectLightComponent, float, &RectLightComponent::sourceHeight>);
+		Register(registry, "RectLight", "decay", "RectLight.decay", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::decay>,
+			SetMember<RectLightComponent, float, &RectLightComponent::decay>);
+		Register(registry, "RectLight", "barnDoorAngle", "RectLight.barnDoorAngle", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::barnDoorAngle>,
+			SetMember<RectLightComponent, float, &RectLightComponent::barnDoorAngle>);
+		Register(registry, "RectLight", "barnDoorLength", "RectLight.barnDoorLength", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::barnDoorLength>,
+			SetMember<RectLightComponent, float, &RectLightComponent::barnDoorLength>);
 
 		Register(registry, "SpotLight", "color", "SpotLight.color", AnimationValueType::Color4,
 			HasComponent<SpotLightComponent>,

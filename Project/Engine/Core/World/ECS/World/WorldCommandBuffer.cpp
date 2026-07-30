@@ -151,7 +151,7 @@ void Engine::WorldCommandBuffer::EnqueueCreateEntity(const Entity& reserved, std
 	createCommandIndex_[EntityKey(reserved)] = commands_.size() - 1;
 }
 
-void Engine::WorldCommandBuffer::EnqueueInstantiatePrefab(const Entity& reservedRoot, const UUID& prefabAsset,
+void Engine::WorldCommandBuffer::EnqueueInstantiatePrefab(const Entity& reservedRoot, AssetID prefabAsset,
 	const Vector3& position, const Quaternion& rotation, bool useTransform, const Entity& parent) {
 
 	Command command{};
@@ -169,7 +169,7 @@ void Engine::WorldCommandBuffer::EnqueueInstantiatePrefab(const Entity& reserved
 	createCommandIndex_[EntityKey(reservedRoot)] = commands_.size() - 1;
 }
 
-void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, const UUID& sceneAsset) {
+void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset) {
 
 	Command command{};
 	command.kind = CommandKind::LoadSceneAdditive;
@@ -186,7 +186,7 @@ void Engine::WorldCommandBuffer::EnqueueUnloadScene(const UUID& sceneInstanceID)
 	commands_.emplace_back(std::move(command));
 }
 
-void Engine::WorldCommandBuffer::EnqueueLoadSceneSingle(const UUID& sceneInstanceID, const UUID& sceneAsset) {
+void Engine::WorldCommandBuffer::EnqueueLoadSceneSingle(const UUID& sceneInstanceID, AssetID sceneAsset) {
 
 	Command command{};
 	command.kind = CommandKind::LoadSceneSingle;
@@ -318,7 +318,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		}
 		if (command.kind == CommandKind::LoadSceneAdditive) {
 			services.sceneInstances->LoadAdditive(*services.assetDatabase, *services.sceneSystem, world,
-				AssetID{ command.assetID }, command.sceneInstanceID);
+				command.assetID, command.sceneInstanceID);
 		} else if (command.kind == CommandKind::LoadSceneSingle) {
 
 			// 単一ロード、UnityのadditiveでないLoadScene相当
@@ -329,7 +329,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 				previousScenes.emplace_back(scene.instanceID);
 			}
 			if (!services.sceneInstances->LoadAdditive(*services.assetDatabase,
-				*services.sceneSystem, world, AssetID{ command.assetID },
+				*services.sceneSystem, world, command.assetID,
 				command.sceneInstanceID)) {
 
 				services.sceneInstances->ClearSingleLoadRequest();
@@ -485,7 +485,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 			}
 		}
 		if (!prefabSystem.InstantiatePrefab(*services.assetDatabase, hierarchySystem, world,
-			AssetID{ command.assetID }, result, desc)) {
+			command.assetID, result, desc)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"WorldCommandBuffer: InstantiatePrefab failed (missing or invalid prefab).");
 			break;

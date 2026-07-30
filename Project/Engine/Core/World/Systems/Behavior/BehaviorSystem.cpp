@@ -5,12 +5,11 @@
 //============================================================================
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ScriptExecutionOrderTable.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptProfilerStore.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <algorithm>
@@ -27,52 +26,16 @@ namespace {
 	// ScriptEntryをGUID優先でランタイム型IDへ解決する
 	bool TryResolveTypeID(Engine::ScriptEntry& entry, uint32_t& outTypeID) {
 
-		// 解決済みならキャッシュをそのまま返す
-		if (entry.resolvedRuntimeTypeValid) {
-			outTypeID = entry.resolvedRuntimeTypeID;
-			return true;
-		}
-
 		auto& registry = Engine::BehaviorTypeRegistry::GetInstance();
 
-		// まずGUIDで解決する
-		if (!entry.scriptTypeID.empty()) {
-
-			if (const Engine::BehaviorTypeInfo* info = registry.FindByStableScriptTypeID(entry.scriptTypeID)) {
-
-				entry.lastKnownTypeName = info->name;
-				entry.resolvedRuntimeTypeID = info->id;
-				entry.resolvedRuntimeTypeValid = true;
-				outTypeID = info->id;
-				return true;
-			}
-			// GUIDが現manifestに無いときはフォールバックしない
-			return false;
-		}
-
-		// 旧データは型名から解決してGUIDを補完する
-		if (entry.lastKnownTypeName.empty()) {
-			return false;
-		}
-		const Engine::BehaviorTypeInfo* info = registry.FindByName(entry.lastKnownTypeName);
+		const Engine::BehaviorTypeInfo* info =
+			registry.FindByStableScriptTypeID(entry.scriptTypeID);
 		if (!info) {
-			// 完全名で無ければ単純名で解決し、曖昧ならnullptr
-			const std::string simpleName = Engine::MakeSimpleTypeName(entry.lastKnownTypeName);
-			info = registry.FindManagedBySimpleName(simpleName);
-		}
-		if (!info) {
-			// 解決不能ならMissing Scriptとしてデータは保持する
 			return false;
 		}
 
-		// 解決できたGUIDを主キーへ書き込む
-		entry.scriptTypeID = info->scriptTypeID;
 		entry.lastKnownTypeName = info->name;
-		entry.resolvedRuntimeTypeID = info->id;
-		entry.resolvedRuntimeTypeValid = true;
 		outTypeID = info->id;
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
-			"BehaviorSystem: migrated legacy script '{}' to scriptTypeID={}", info->name, info->scriptTypeID);
 		return true;
 	}
 }
@@ -83,6 +46,10 @@ void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& contex
 	lateUpdateParticipants_.clear();
 	// ワールドをアクティブにする
 	EnsureActiveWorld(world, context);
+	if (activeWorld_ == &world && componentMutationListenerID_ == 0) {
+		componentMutationListenerID_ = world.AddComponentMutationListener(
+			&BehaviorSystem::OnComponentMutation, this);
+	}
 
 	// プレイモードでワールドに入ったときは、スクリプトのビヘイビアの実体化と初期化を行う
 	if (context.mode == WorldMode::Play) {
@@ -101,6 +68,8 @@ void Engine::BehaviorSystem::OnWorldExit(ECSWorld& world, SystemContext& context
 	}
 	// ワールドを破棄する
 	runtime_.DestroyAll(world, context);
+	world.RemoveComponentMutationListener(componentMutationListenerID_);
+	componentMutationListenerID_ = 0;
 	activeWorld_ = nullptr;
 	lateUpdateParticipants_.clear();
 	if (activeSystem_ == this) {
@@ -227,6 +196,7 @@ void Engine::BehaviorSystem::OnSceneInstancesChanged(ECSWorld& world,
 	}
 
 	// 新しいシーンの最初の描画前にAwake、OnEnable、Startを確定する
+	fullSyncRequested_ = true;
 	SynchronizeLifecycle(world, context, true);
 }
 
@@ -307,11 +277,10 @@ namespace {
 	// active worldのowner Entity上でscriptSlotID一致のScriptEntryを探す
 	Engine::ScriptEntry* FindScriptEntryBySlot(Engine::ECSWorld& world, const Engine::Entity& owner, const Engine::UUID& slotID) {
 
-		Engine::ScriptComponent* component = world.TryGetComponent<Engine::ScriptComponent>(owner);
-		if (!component) {
+		if (!world.HasComponent<Engine::ScriptComponent>(owner)) {
 			return nullptr;
 		}
-		for (Engine::ScriptEntry& entry : component->scripts) {
+		for (Engine::ScriptEntry& entry : GetScriptEntries(world, owner)) {
 			if (entry.scriptSlotID == slotID) {
 				return &entry;
 			}
@@ -330,7 +299,9 @@ int32_t Engine::BehaviorSystem::GetScriptEnabled(const Entity& owner, const UUID
 		return -1;
 	}
 	// runtime overrideがあればそれを、無ければauthoringのenabledを返す
-	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry->handle)) {
+	const BehaviorHandle handle =
+		activeSystem_->runtime_.FindHandleBySlot(owner, scriptSlotID);
+	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle)) {
 		if (record->hasRuntimeEnabledOverride) {
 			return record->runtimeEnabledOverride ? 1 : 0;
 		}
@@ -348,10 +319,22 @@ void Engine::BehaviorSystem::SetScriptEnabled(const Entity& owner, const UUID& s
 		return;
 	}
 	// runtime overrideだけ立て、authoringのenabledは変更しない、次のsyncで反映される
-	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry->handle)) {
+	const BehaviorHandle handle =
+		activeSystem_->runtime_.FindHandleBySlot(owner, scriptSlotID);
+	if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle)) {
 		record->runtimeEnabledOverride = enabled;
 		record->hasRuntimeEnabledOverride = true;
+		activeSystem_->enableTransitionsDirty_ = true;
 	}
+}
+
+Engine::BehaviorHandle Engine::BehaviorSystem::FindRuntimeHandle(
+	const Entity& owner, const UUID& scriptSlotID) {
+
+	if (!activeSystem_ || !activeSystem_->activeWorld_) {
+		return BehaviorHandle::Null();
+	}
+	return activeSystem_->runtime_.FindHandleBySlot(owner, scriptSlotID);
 }
 
 Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& owner, const std::string& scriptTypeID) {
@@ -361,15 +344,17 @@ Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& o
 	}
 
 	// owner上でscriptTypeID一致のScriptEntryを探しinstanceを返す
-	ScriptComponent* component = activeSystem_->activeWorld_->TryGetComponent<ScriptComponent>(owner);
-	if (!component) {
+	if (!activeSystem_->activeWorld_->HasComponent<ScriptComponent>(owner)) {
 		return nullptr;
 	}
-	for (ScriptEntry& entry : component->scripts) {
+	for (ScriptEntry& entry :
+		GetScriptEntries(*activeSystem_->activeWorld_, owner)) {
 		if (entry.scriptTypeID != scriptTypeID) {
 			continue;
 		}
-		if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry.handle)) {
+		const BehaviorHandle handle =
+			activeSystem_->runtime_.FindHandleBySlot(owner, entry.scriptSlotID);
+		if (BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle)) {
 			if (record->instance) {
 				return record->instance.get();
 			}
@@ -400,29 +385,32 @@ bool Engine::BehaviorSystem::AttachScript(const Entity& owner, const std::string
 		component = &world.AddComponent<ScriptComponent>(owner);
 	}
 
-	// ScriptEntryを追加してinstanceを即時生成する、Awake/Startは次の同期パスで走る
-	ScriptEntry& entry = component->scripts.emplace_back(MakeScriptEntry(info->scriptTypeID, info->name));
-	entry.resolvedRuntimeTypeID = info->id;
-	entry.resolvedRuntimeTypeValid = true;
-	entry.handle = activeSystem_->runtime_.Create(info->id, owner);
+	// ScriptEntryをBufferへ追加してinstanceを即時生成する
+	DynamicBuffer<ScriptEntry> entries =
+		world.GetBuffer<ScriptEntry>(owner);
+	ScriptEntry& entry =
+		entries.EmplaceBack(MakeScriptEntry(info->scriptTypeID, info->name));
+	const BehaviorHandle handle = activeSystem_->runtime_.Create(
+		info->id, owner, entry.scriptSlotID);
 
-	BehaviorRecord* record = activeSystem_->runtime_.GetRecord(entry.handle);
+	BehaviorRecord* record = activeSystem_->runtime_.GetRecord(handle);
 	if (!record || !record->instance) {
 
-		entry.handle = BehaviorHandle::Null();
-		component->scripts.pop_back();
+		entries.RemoveAt(entries.GetSize() - 1);
 		return false;
 	}
 
 	// scriptSlotIDを渡し、既定のserialized fieldsを適用してからinstanceを確定する
 	record->instance->SetSlotID(entry.scriptSlotID.value);
 	record->instance->SetSerializedFields(entry.serializedFields);
-	record->appliedSerializedRevision = entry.serializedRevision;
 	if (!record->instance->EnsureInstance(world, owner)) {
 
 		record->faulted = true;
 	}
+	world.MarkComponentModified<ScriptComponent>(owner);
+	world.MarkComponentModified<ScriptEntry>(owner);
 	activeSystem_->participantsDirty_ = true;
+	activeSystem_->enableTransitionsDirty_ = true;
 	return true;
 }
 
@@ -441,12 +429,16 @@ void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& c
 	// 前のワールドを破棄する
 	if (activeWorld_) {
 
+		activeWorld_->RemoveComponentMutationListener(componentMutationListenerID_);
+		componentMutationListenerID_ = 0;
 		runtime_.DestroyAll(*activeWorld_, context);
 	}
 
 	// 新しいワールドをアクティブにする
 	activeWorld_ = &world;
 	ResetRuntimeState(world);
+	componentMutationListenerID_ = world.AddComponentMutationListener(
+		&BehaviorSystem::OnComponentMutation, this);
 }
 
 void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
@@ -454,18 +446,11 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 	// participantキャッシュを破棄し、次のsynchronizeで作り直す
 	participants_.clear();
 	participantsDirty_ = true;
-
-	// 全Scriptのruntimeキャッシュを無効化する、次のsyncで作り直す
-	world.ForEach<ScriptComponent>([&](Entity, ScriptComponent& component) {
-
-		for (auto& entry : component.scripts) {
-
-			// 永続データは消さずruntimeキャッシュだけ無効化する
-			entry.handle = BehaviorHandle::Null();
-			entry.resolvedRuntimeTypeID = 0;
-			entry.resolvedRuntimeTypeValid = false;
-		}
-		});
+	dirtyScriptEntities_.clear();
+	enableTransitionsDirty_ = true;
+	fullSyncRequested_ = true;
+	// 実行時対応はBehaviorWorldが所有し、Script設定側へキャッシュしない
+	(void)world;
 }
 
 void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep) {
@@ -477,8 +462,14 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 		return;
 	}
 
-	// Pass1 record同期と型解決とinstance生成、gameplay callbackは呼ばない
-	SynchronizeRecords(world, context, sweep);
+	// 初回とHot Reloadだけ全走査し、通常フレームは変更されたEntityだけ同期する
+	if (fullSyncRequested_) {
+		dirtyScriptEntities_.clear();
+		SynchronizeRecords(world, context, sweep);
+		fullSyncRequested_ = false;
+	} else {
+		SynchronizeDirtyRecords(world, context);
+	}
 
 	// 構造変更時だけparticipantキャッシュを作り直して安定ソートする
 	if (participantsDirty_) {
@@ -487,112 +478,179 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 		participantsDirty_ = false;
 	}
 
-	// Pass2 activeなものだけAwake
-	InvokePendingAwake(world, context);
-	// Pass3 OnEnable/OnDisable遷移
-	ApplyEnableTransitions(world, context);
+	// ScriptかActive状態が変わった場合だけライフサイクル遷移を再評価する
+	const bool updateLifecycle = enableTransitionsDirty_;
+	enableTransitionsDirty_ = false;
+	if (updateLifecycle) {
+		// Pass2 activeなものだけAwake
+		InvokePendingAwake(world, context);
+		// Pass3 OnEnable/OnDisable遷移
+		ApplyEnableTransitions(world, context);
+	}
 	// Pass4 全Awake/OnEnable後Startより前にSceneLoaded/Unloadedを発火する
 	ManagedScriptRuntime::GetInstance().PumpSceneEvents();
 
-	// Pass5 全件Start
-	InvokePendingStart(world, context);
+	if (updateLifecycle) {
+		// Pass5 全件Start
+		InvokePendingStart(world, context);
+	}
 }
 
 void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep) {
 
-	// フラグリセット
+	// 全同期はWorld開始、Scene構成変更、Hot Reloadだけで実行する
 	runtime_.ClearSeenFlags();
-
-	// 全Scriptを走査しrecordを同期する、ここではgameplay callbackを呼ばない
 	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
-
-		for (size_t slot = 0; slot < component.scripts.size(); ++slot) {
-
-			ScriptEntry& entry = component.scripts[slot];
-
-			// GUIDも型名も空のスロットはビヘイビアを破棄する
-			if (entry.scriptTypeID.empty() && entry.lastKnownTypeName.empty()) {
-				if (entry.handle.IsValid()) {
-
-					runtime_.Destroy(entry.handle, world, context);
-					entry.handle = BehaviorHandle::Null();
-					participantsDirty_ = true;
-				}
-				continue;
-			}
-
-			uint32_t typeID = 0;
-			if (!TryResolveTypeID(entry, typeID)) {
-				if (entry.handle.IsValid()) {
-
-					runtime_.Destroy(entry.handle, world, context);
-					entry.handle = BehaviorHandle::Null();
-					participantsDirty_ = true;
-				}
-				continue;
-			}
-
-			// ハンドルが有効で、かつ生存しているならレコードを取得する
-			BehaviorRecord* record = nullptr;
-			if (runtime_.IsAlive(entry.handle)) {
-
-				record = runtime_.GetRecord(entry.handle);
-				// 無効の場合はハンドルを破棄して無効にする
-				if (!record || record->typeID != typeID || record->owner != entity) {
-
-					runtime_.Destroy(entry.handle, world, context);
-					entry.handle = BehaviorHandle::Null();
-					record = nullptr;
-					participantsDirty_ = true;
-				}
-			}
-			// ハンドルが無効なら新しくビヘイビアを生成する
-			if (!record) {
-
-				entry.handle = runtime_.Create(typeID, entity);
-				record = runtime_.GetRecord(entry.handle);
-				// 生成に失敗している場合はハンドルを破棄して無効にする
-				if (!record || !record->instance) {
-					entry.handle = BehaviorHandle::Null();
-					continue;
-				}
-				// scriptSlotIDをinstanceへ渡す、C#側が自身のentryを特定するのに使う
-				record->instance->SetSlotID(entry.scriptSlotID.value);
-				participantsDirty_ = true;
-			}
-
-			// アクセスされたフラグを立てる
-			record->seen = true;
-
-			// faulted状態のビヘイビアは生存させたまま以降の初期化を行わない
-			if (record->faulted || record->instance->IsFaulted()) {
-
-				record->faulted = true;
-				continue;
-			}
-
-			// serializedFieldsはrevisionが進んだときだけ適用しhot pathでJSONを触らない
-			if (record->appliedSerializedRevision != entry.serializedRevision) {
-
-				record->instance->SetSerializedFields(entry.serializedFields);
-				record->appliedSerializedRevision = entry.serializedRevision;
-			}
-
-			// inactiveでもinstanceは生成し、生成失敗はfaultedにして除外する
-			if (!record->instance->EnsureInstance(world, entity)) {
-
-				record->faulted = true;
-			}
-		}
+		(void)component;
+		SynchronizeEntityRecords(world, context, entity, false);
 		});
 
-	// 更新時、参照されなくなったビヘイビアをワールドから破棄する
 	if (sweep) {
-
 		if (runtime_.SweepUnseen(world, context) > 0) {
 			participantsDirty_ = true;
 		}
 	}
+	enableTransitionsDirty_ = true;
+}
+
+void Engine::BehaviorSystem::SynchronizeDirtyRecords(ECSWorld& world, SystemContext& context) {
+
+	if (dirtyScriptEntities_.empty()) {
+		return;
+	}
+
+	// 同期中のライフサイクルから発生した変更通知は次回分として残す
+	std::vector<Entity> targets{};
+	targets.swap(dirtyScriptEntities_);
+
+	// 同一Entityへの複数変更通知を1回へまとめる
+	std::sort(targets.begin(), targets.end(),
+		[](const Entity& lhs, const Entity& rhs) {
+			if (lhs.index != rhs.index) {
+				return lhs.index < rhs.index;
+			}
+			return lhs.generation < rhs.generation;
+		});
+	targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+
+	for (const Entity& entity : targets) {
+		SynchronizeEntityRecords(world, context, entity, true);
+	}
+	enableTransitionsDirty_ = true;
+}
+
+void Engine::BehaviorSystem::SynchronizeEntityRecords(ECSWorld& world, SystemContext& context,
+	const Entity& entity, bool clearOwnerSeen) {
+
+	if (clearOwnerSeen) {
+		runtime_.ClearSeenFlagsByOwner(entity);
+	}
+
+	if (!world.HasComponent<ScriptComponent>(entity)) {
+		if (runtime_.DestroyByOwner(entity, world, context) > 0) {
+			participantsDirty_ = true;
+		}
+		return;
+	}
+
+	const std::span<ScriptEntry> entries =
+		GetScriptEntries(world, entity);
+	for (size_t slot = 0; slot < entries.size(); ++slot) {
+
+		ScriptEntry& entry = entries[slot];
+		BehaviorHandle handle =
+			runtime_.FindHandleBySlot(entity, entry.scriptSlotID);
+
+		// GUIDも型名も空のスロットはビヘイビアを破棄する
+		if (entry.scriptTypeID.empty() && entry.lastKnownTypeName.empty()) {
+			if (handle.IsValid()) {
+				runtime_.Destroy(handle, world, context);
+				participantsDirty_ = true;
+			}
+			continue;
+		}
+
+		uint32_t typeID = 0;
+		if (!TryResolveTypeID(entry, typeID)) {
+			if (handle.IsValid()) {
+				runtime_.Destroy(handle, world, context);
+				participantsDirty_ = true;
+			}
+			continue;
+		}
+
+		BehaviorRecord* record = nullptr;
+		if (runtime_.IsAlive(handle)) {
+			record = runtime_.GetRecord(handle);
+			if (!record || record->typeID != typeID || record->owner != entity) {
+				runtime_.Destroy(handle, world, context);
+				handle = BehaviorHandle::Null();
+				record = nullptr;
+				participantsDirty_ = true;
+			}
+		}
+		if (!record) {
+			handle = runtime_.Create(typeID, entity, entry.scriptSlotID);
+			record = runtime_.GetRecord(handle);
+			if (!record || !record->instance) {
+				continue;
+			}
+			record->instance->SetSlotID(entry.scriptSlotID.value);
+			participantsDirty_ = true;
+		}
+
+		record->seen = true;
+		if (record->faulted || record->instance->IsFaulted()) {
+			record->faulted = true;
+			continue;
+		}
+
+		// この関数は初回または変更Entityだけを通るためJSON比較キャッシュは不要
+		record->instance->SetSerializedFields(entry.serializedFields);
+
+		if (!record->instance->EnsureInstance(world, entity)) {
+			record->faulted = true;
+		}
+	}
+
+	if (clearOwnerSeen && runtime_.SweepUnseenByOwner(entity, world, context) > 0) {
+		participantsDirty_ = true;
+	}
+}
+
+void Engine::BehaviorSystem::OnComponentMutation(ECSWorld& world, const Entity& entity,
+	uint32_t typeID, ComponentMutationKind kind, void* userData) {
+
+	auto* system = static_cast<BehaviorSystem*>(userData);
+	if (!system || system->activeWorld_ != &world) {
+		return;
+	}
+
+	if (kind == ComponentMutationKind::EntityDestroyed) {
+		system->QueueScriptEntity(entity);
+		system->enableTransitionsDirty_ = true;
+		return;
+	}
+
+	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
+	if (typeID == registry.GetID<ScriptComponent>() ||
+		typeID == registry.GetID<ScriptEntry>()) {
+		system->QueueScriptEntity(entity);
+		system->participantsDirty_ = true;
+		return;
+	}
+	if (typeID == registry.GetID<SceneObjectComponent>() ||
+		typeID == registry.GetID<HierarchyComponent>()) {
+		system->enableTransitionsDirty_ = true;
+	}
+}
+
+void Engine::BehaviorSystem::QueueScriptEntity(const Entity& entity) {
+
+	if (entity.IsValid()) {
+		dirtyScriptEntities_.emplace_back(entity);
+	}
+	enableTransitionsDirty_ = true;
 }
 
 void Engine::BehaviorSystem::InvalidateExecutionOrder() {
@@ -601,6 +659,8 @@ void Engine::BehaviorSystem::InvalidateExecutionOrder() {
 	ScriptExecutionOrderTable::GetInstance().Reload();
 	if (activeSystem_) {
 		activeSystem_->participantsDirty_ = true;
+		activeSystem_->fullSyncRequested_ = true;
+		activeSystem_->enableTransitionsDirty_ = true;
 	}
 }
 
@@ -614,15 +674,20 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 	orderTable.EnsureLoaded();
 	BehaviorTypeRegistry& typeRegistry = BehaviorTypeRegistry::GetInstance();
 
-	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
+	world.ForEach<ScriptComponent>(
+		[&](Entity entity, [[maybe_unused]] ScriptComponent& component) {
 
-		for (size_t slot = 0; slot < component.scripts.size(); ++slot) {
+		const std::span<const ScriptEntry> entries =
+			GetScriptEntries(world, entity);
+		for (size_t slot = 0; slot < entries.size(); ++slot) {
 
-			const ScriptEntry& entry = component.scripts[slot];
-			if (!runtime_.IsAlive(entry.handle)) {
+			const ScriptEntry& entry = entries[slot];
+			const BehaviorHandle handle =
+				runtime_.FindHandleBySlot(entity, entry.scriptSlotID);
+			if (!runtime_.IsAlive(handle)) {
 				continue;
 			}
-			const BehaviorRecord* record = runtime_.GetRecord(entry.handle);
+			const BehaviorRecord* record = runtime_.GetRecord(handle);
 			if (!record || !record->seen || !record->instance) {
 				continue;
 			}
@@ -633,9 +698,11 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 			if (!typeInfo.scriptTypeID.empty() && orderTable.TryGetOverride(typeInfo.scriptTypeID, overrideValue)) {
 				executionOrder = overrideValue;
 			}
-			participants_.emplace_back(SyncParticipant{ entry.handle, entity, static_cast<int32_t>(slot), executionOrder });
+			participants_.emplace_back(SyncParticipant{
+				handle, entity, static_cast<int32_t>(slot), executionOrder
+				});
 		}
-		});
+			});
 
 	std::sort(participants_.begin(), participants_.end(),
 		[](const SyncParticipant& lhs, const SyncParticipant& rhs) {
@@ -678,14 +745,19 @@ void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& 
 bool Engine::BehaviorSystem::IsParticipantEnabled(ECSWorld& world,
 	const SyncParticipant& participant, const BehaviorRecord& record) const {
 
-	const ScriptComponent* component = world.TryGetComponent<ScriptComponent>(record.owner);
-	if (!component || participant.slot < 0 || component->scripts.size() <= static_cast<size_t>(participant.slot)) {
+	if (!world.HasComponent<ScriptComponent>(record.owner) ||
+		participant.slot < 0) {
+		return false;
+	}
+	const std::span<const ScriptEntry> entries =
+		GetScriptEntries(world, record.owner);
+	if (entries.size() <= static_cast<size_t>(participant.slot)) {
 		return false;
 	}
 	if (record.hasRuntimeEnabledOverride) {
 		return record.runtimeEnabledOverride;
 	}
-	return component->scripts[participant.slot].enabled;
+	return entries[participant.slot].enabled;
 }
 
 void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemContext& context) {

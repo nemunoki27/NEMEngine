@@ -4,6 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+
+// c++
+#include <array>
 
 namespace Engine {
 
@@ -31,7 +35,10 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 内部リソースを取得する
-		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const { return buffer_.GetResource()->GetGPUVirtualAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const {
+			return buffers_[GraphicsFrameState::GetCurrentIndex()]
+				.GetResource()->GetGPUVirtualAddress();
+		}
 
 		// 描画バウンディング名を取得する
 		std::string_view GetBindingName() const { return bindingName_; }
@@ -46,7 +53,7 @@ namespace Engine {
 		std::string bindingName_{};
 
 		// バッファ
-		DxConstBuffer<T> buffer_{};
+		std::array<DxConstBuffer<T>, kGraphicsFrameContextCount> buffers_{};
 	};
 
 	//============================================================================
@@ -55,15 +62,17 @@ namespace Engine {
 	template<typename T>
 	inline void ViewConstantBuffer<T>::Init(ID3D12Device* device) {
 
-		if (!buffer_.IsCreatedResource()) {
+		for (DxConstBuffer<T>& buffer : buffers_) {
 
-			buffer_.CreateBuffer(device);
+			if (!buffer.IsCreatedResource()) {
+				buffer.CreateBuffer(device);
+			}
 		}
 	}
 
 	template<typename T>
 	inline void ViewConstantBuffer<T>::Upload(const T& value) {
 
-		buffer_.TransferData(value);
+		buffers_[GraphicsFrameState::GetCurrentIndex()].TransferData(value);
 	}
 } // Engine

@@ -51,6 +51,7 @@ void Engine::ParticleFlipbookModule::OnUpdate(
 }
 
 bool Engine::ParticleFlipbookModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	if (MyGUI::DragInt("分割Y", tilesY_, { .minValue = 1, .maxValue = 256 }).valueChanged) {
@@ -78,4 +79,7 @@ bool Engine::ParticleFlipbookModule::DrawImGui() {
 	}
 	changed |= MyGUI::DragFloat("周回数", cycles_, ParticleGui::MakeDragSetting(0.01f, 100.0f)).valueChanged;
 	return changed;
+#else
+	return false;
+#endif
 }

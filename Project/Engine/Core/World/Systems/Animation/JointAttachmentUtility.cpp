@@ -32,13 +32,19 @@ bool Engine::JointAttachmentUtility::ResolveAttachedJoint(ECSWorld& world, const
 		return false;
 	}
 
-	const auto& anim = world.GetComponent<SkinnedAnimationComponent>(outSkinnedEntity);
-	const int32_t jointIndex =
-		FindSkeletonJointIndex(anim.runtimeSkeleton, attachment.jointName);
-	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(anim.runtimeSkeleton.joints.size())) {
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, outSkinnedEntity);
+	if (!runtime) {
 		return false;
 	}
-	outSkeletonSpaceMatrix = anim.runtimeSkeleton.joints[jointIndex].skeletonSpaceMatrix;
+	const int32_t jointIndex =
+		FindSkeletonJointIndex(runtime->skeleton, attachment.jointName);
+	if (jointIndex < 0 ||
+		jointIndex >= static_cast<int32_t>(runtime->skeleton.joints.size())) {
+		return false;
+	}
+	outSkeletonSpaceMatrix =
+		runtime->skeleton.joints[jointIndex].skeletonSpaceMatrix;
 	return true;
 }
 
@@ -49,12 +55,19 @@ bool Engine::JointAttachmentUtility::GetJointWorldMatrix(ECSWorld& world, const 
 		!world.HasComponent<TransformComponent>(skinnedEntity)) {
 		return false;
 	}
-	const auto& anim = world.GetComponent<SkinnedAnimationComponent>(skinnedEntity);
-	const int32_t jointIndex = FindSkeletonJointIndex(anim.runtimeSkeleton, jointName);
-	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(anim.runtimeSkeleton.joints.size())) {
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, skinnedEntity);
+	if (!runtime) {
 		return false;
 	}
-	const Matrix4x4& jointSkeletonSpace = anim.runtimeSkeleton.joints[jointIndex].skeletonSpaceMatrix;
+	const int32_t jointIndex =
+		FindSkeletonJointIndex(runtime->skeleton, jointName);
+	if (jointIndex < 0 ||
+		jointIndex >= static_cast<int32_t>(runtime->skeleton.joints.size())) {
+		return false;
+	}
+	const Matrix4x4& jointSkeletonSpace =
+		runtime->skeleton.joints[jointIndex].skeletonSpaceMatrix;
 	const Matrix4x4& skinnedWorld = world.GetComponent<TransformComponent>(skinnedEntity).worldMatrix;
 	outWorldMatrix = jointSkeletonSpace * skinnedWorld;
 	return true;

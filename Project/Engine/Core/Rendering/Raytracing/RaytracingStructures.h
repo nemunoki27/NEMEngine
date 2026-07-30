@@ -8,6 +8,8 @@
 
 // directX
 #include <d3d12.h> 
+// c++
+#include <span>
 
 namespace Engine {
 
@@ -20,29 +22,28 @@ namespace Engine {
 	// ピックなど常に当てたいレイ用、全インスタンスで必ず立てる
 	static constexpr uint8_t kRaytracingMaskAlwaysHit = 1u << 2;
 
+	// BLASへ登録する1つのジオメトリ
+	struct RaytracingBLASGeometryInput {
+
+		D3D12_GPU_VIRTUAL_ADDRESS vertexAddress = 0;
+		uint32_t vertexStride = 0;
+		uint32_t vertexCount = 0;
+		DXGI_FORMAT vertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+		D3D12_GPU_VIRTUAL_ADDRESS indexAddress = 0;
+		uint32_t indexCount = 0;
+		DXGI_FORMAT indexFormat = DXGI_FORMAT_R32_UINT;
+
+		// ジオメトリ単位のローカル行列
+		Matrix4x4 localMatrix = Matrix4x4::Identity();
+		D3D12_RAYTRACING_GEOMETRY_FLAGS flags =
+			D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+	};
 	// BLAS構築入力
 	struct RaytracingBLASInput {
 
-		const MeshGPUResource* meshResource = nullptr;
-
-		// サブメッシュ単位BLAS
-		uint32_t subMeshIndex = 0;
-		uint32_t indexOffset = 0;
-		uint32_t indexCount = 0;
-
+		std::span<const RaytracingBLASGeometryInput> geometries{};
 		bool allowUpdate = false;
-
-		// BLAS構築時に頂点データを上書きするか
-		D3D12_GPU_VIRTUAL_ADDRESS overrideVertexAddress = 0;
-		uint32_t overrideVertexCount = 0;
-
-		// 汎用ジオメトリ入力
-		D3D12_GPU_VIRTUAL_ADDRESS customVertexAddress = 0;
-		uint32_t customVertexStride = 0;
-		uint32_t customVertexCount = 0;
-		DXGI_FORMAT customVertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-		D3D12_GPU_VIRTUAL_ADDRESS customIndexAddress = 0;
-		DXGI_FORMAT customIndexFormat = DXGI_FORMAT_R32_UINT;
 	};
 	// TLASインスタンス
 	struct RaytracingTLASInstance {
@@ -63,12 +64,19 @@ namespace Engine {
 		uint32_t indexDescriptorIndex = 0;
 		// スキニングメッシュを使う時の頂点先頭オフセット
 		uint32_t vertexOffset = 0;
-		// このTLASインスタンスが参照するサブメッシュデータ
-		uint32_t subMeshDataIndex = 0;
+		// このTLASインスタンスが参照するジオメトリデータの先頭
+		uint32_t geometryDataOffset = 0;
+	};
+	// BLAS内ジオメトリ情報
+	struct RaytracingGeometryShaderData {
 
-		// インデックスバッファのどこからこのサブメッシュが始まるか
+		// このジオメトリが参照するサブメッシュデータ
+		uint32_t subMeshDataIndex = 0;
+		// インデックスバッファ内のサブメッシュ先頭
 		uint32_t indexOffset = 0;
-		uint32_t _pad[3] = { 0,0,0 };
+		// エディターピック記録のインデックス
+		uint32_t pickRecordIndex = 0;
+		uint32_t _pad = 0;
 	};
 	// GPUへ渡すシーン共通データ
 	struct RaytracingScene {

@@ -9,8 +9,10 @@
 #include <Engine/Editor/Tools/Builtin/PostProcess/PostProcessStackTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
+#include <Engine/Editor/Tools/Builtin/Scene/SceneCompositionTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Input/InputDeviceTool.h>
+#include <Engine/Editor/Tools/Builtin/Performance/PerformanceCheckTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExecutionOrderTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
@@ -48,7 +50,9 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<PostProcessStackTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ParticleEffectEditorTool>();
+	RegisterBuiltinEditorTool<SceneCompositionTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
+	RegisterBuiltinEditorTool<PerformanceCheckTool>();
 	// 動作が不安定なため、処理しない
 	//RegisterBuiltinEditorTool<InputDeviceTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();

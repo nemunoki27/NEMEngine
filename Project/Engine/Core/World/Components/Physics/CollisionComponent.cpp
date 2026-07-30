@@ -3,92 +3,298 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+
+// c++
+#include <vector>
+
+namespace {
+
+	// チャンク内設定をjsonへ書き出す
+	void SaveSettings(const Engine::CollisionComponent& component, nlohmann::json& out) {
+
+		out["enabled"] = component.enabled;
+		out["isStatic"] = component.isStatic;
+		out["enablePushback"] = component.enablePushback;
+		out["typeMask"] = component.typeMask;
+	}
+}
 
 //============================================================================
 //	CollisionComponent classMethods
 //============================================================================
-namespace {
+void Engine::CollisionComponent::OnAdded(
+	ECSWorld& world, const Entity& entity, [[maybe_unused]] CollisionComponent& component) {
 
-	// jsonから衝突形状を読み込む
-	Engine::CollisionShape LoadShape(const nlohmann::json& in) {
-
-		Engine::CollisionShape shape{};
-		if (!in.is_object()) {
-			return shape;
-		}
-
-		shape.type = Engine::EnumAdapter<Engine::ColliderShapeType>::FromString(
-			in.value("type", "Sphere3D")).value_or(Engine::ColliderShapeType::Sphere3D);
-		shape.enabled = in.value("enabled", shape.enabled);
-		shape.isTrigger = in.value("isTrigger", shape.isTrigger);
-		shape.useTransformRotation = in.value("useTransformRotation", shape.useTransformRotation);
-		shape.rotatedQuad = in.value("rotatedQuad", shape.rotatedQuad);
-		if (in.contains("offset")) {
-			shape.offset = Engine::Vector3::FromJson(in["offset"]);
-		}
-		if (in.contains("rotationDegrees")) {
-			shape.rotationDegrees = Engine::Vector3::FromJson(in["rotationDegrees"]);
-		}
-		shape.radius = in.value("radius", shape.radius);
-		if (in.contains("halfSize2D")) {
-			shape.halfSize2D = Engine::Vector2::FromJson(in["halfSize2D"]);
-		}
-		if (in.contains("halfExtents3D")) {
-			shape.halfExtents3D = Engine::Vector3::FromJson(in["halfExtents3D"]);
-		}
-		return shape;
+	// 形状列と実行状態は設定Componentから分離し、必要なWorldだけへ構築する
+	if (!world.HasBuffer<CollisionShape>(entity)) {
+		world.AddBuffer<CollisionShape>(entity);
 	}
+	EnsureCollisionShapes(world, entity);
+	if (world.GetKind() == ECSWorldKind::Runtime &&
+		!world.HasComponent<CollisionRuntimeStateComponent>(entity)) {
+		world.AddComponent<CollisionRuntimeStateComponent>(entity);
+	}
+	if (world.GetKind() == ECSWorldKind::Runtime &&
+		!world.HasComponent<CollisionCompoundComponent>(entity)) {
+		world.AddComponent<CollisionCompoundComponent>(entity);
+	}
+	RebuildCollisionCompound(world, entity);
+}
 
-	// 衝突形状をjsonへ書き出す
-	nlohmann::json SaveShape(const Engine::CollisionShape& shape) {
+void Engine::CollisionComponent::OnRemoved(ECSWorld& world, const Entity& entity) {
 
-		nlohmann::json out = nlohmann::json::object();
-		out["type"] = Engine::EnumAdapter<Engine::ColliderShapeType>::ToString(shape.type);
-		out["enabled"] = shape.enabled;
-		out["isTrigger"] = shape.isTrigger;
-		out["useTransformRotation"] = shape.useTransformRotation;
-		out["rotatedQuad"] = shape.rotatedQuad;
-		out["offset"] = shape.offset.ToJson();
-		out["rotationDegrees"] = shape.rotationDegrees.ToJson();
-		out["radius"] = shape.radius;
-		out["halfSize2D"] = shape.halfSize2D.ToJson();
-		out["halfExtents3D"] = shape.halfExtents3D.ToJson();
-		return out;
+	// 設定Componentに従属する形状列とRuntime状態を同時に破棄する
+	if (world.HasBuffer<CollisionShape>(entity)) {
+		world.RemoveBuffer<CollisionShape>(entity);
+	}
+	if (world.HasComponent<CollisionRuntimeStateComponent>(entity)) {
+		world.RemoveComponent<CollisionRuntimeStateComponent>(entity);
+	}
+	if (world.HasComponent<CollisionCompoundComponent>(entity)) {
+		world.RemoveComponent<CollisionCompoundComponent>(entity);
 	}
 }
 
-void Engine::from_json(const nlohmann::json& in, CollisionComponent& component) {
+void Engine::CollisionComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] CollisionComponent& component) {
+}
 
-	// CollisionComponent本体を読み込む
+void Engine::CollisionComponent::ReleaseStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] CollisionComponent& component) {
+}
+
+void Engine::CollisionComponent::DeserializeECS(ECSWorld& world, const Entity& entity,
+	const nlohmann::json& in, CollisionComponent& component) {
+
+	DeserializeComponent(world, entity, in, component);
+}
+
+void Engine::CollisionComponent::SerializeECS(const ECSWorld& world, const Entity& entity,
+	const CollisionComponent& component, nlohmann::json& out) {
+
+	SerializeComponent(world, entity, component, out);
+}
+
+//============================================================================
+//	CollisionCompoundComponent classMethods
+//============================================================================
+void Engine::CollisionCompoundComponent::OnAdded(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] CollisionCompoundComponent& component) {
+
+	RebuildCollisionCompound(world, entity);
+}
+
+void Engine::CollisionCompoundComponent::InitializeStorage(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] CollisionCompoundComponent& component) {
+}
+
+void Engine::CollisionCompoundComponent::ReleaseStorage(
+	ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	CollisionCompoundComponent& component) {
+
+	if (component.blob.IsValid()) {
+		world.GetStorage().Get<BlobStore>().Release(component.blob.handle);
+		component.blob = {};
+	}
+}
+
+void Engine::CollisionCompoundComponent::DeserializeECS(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] const nlohmann::json& in,
+	[[maybe_unused]] CollisionCompoundComponent& component) {
+}
+
+void Engine::CollisionCompoundComponent::SerializeECS(
+	[[maybe_unused]] const ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	[[maybe_unused]] const CollisionCompoundComponent& component,
+	nlohmann::json& out) {
+
+	out = nlohmann::json::object();
+}
+
+std::span<Engine::CollisionShape> Engine::GetCollisionShapes(
+	ECSWorld& world, const Entity& entity) {
+
+	DynamicBuffer<CollisionShape> buffer =
+		world.TryGetBuffer<CollisionShape>(entity);
+	return buffer.GetSpan();
+}
+
+std::span<const Engine::CollisionShape> Engine::GetCollisionShapes(
+	const ECSWorld& world, const Entity& entity) {
+
+	// RuntimeはDynamicBufferではなく共有Blobを判定の読み取り元にする
+	if (world.GetKind() == ECSWorldKind::Runtime) {
+		const CollisionCompoundComponent* compound =
+			world.TryGetComponent<CollisionCompoundComponent>(entity);
+		if (compound && compound->blob.IsValid()) {
+			const BlobStore* store = world.GetStorage().TryGet<BlobStore>();
+			const CollisionCompoundBlob* root =
+				store ? store->TryGetObject<CollisionCompoundBlob>(
+					compound->blob.handle) : nullptr;
+			if (root) {
+				return root->shapes.Get(root);
+			}
+		}
+	}
+	return world.GetBufferSpan<CollisionShape>(entity);
+}
+
+void Engine::SetCollisionShapes(ECSWorld& world, const Entity& entity,
+	std::span<const CollisionShape> shapes) {
+
+	DynamicBuffer<CollisionShape> buffer =
+		world.TryGetBuffer<CollisionShape>(entity);
+	if (!buffer.IsValid()) {
+		buffer = world.AddBuffer<CollisionShape>(entity);
+	}
+	buffer.Clear();
+	buffer.Reserve(static_cast<uint32_t>(shapes.size()));
+	for (const CollisionShape& shape : shapes) {
+		buffer.Add(shape);
+	}
+	RebuildCollisionCompound(world, entity);
+	world.MarkComponentModified<CollisionShape>(entity);
+}
+
+void Engine::EnsureCollisionShapes(ECSWorld& world, const Entity& entity) {
+
+	if (!GetCollisionShapes(world, entity).empty()) {
+		return;
+	}
+	const CollisionShape shape{};
+	SetCollisionShapes(world, entity, std::span<const CollisionShape>(&shape, 1));
+}
+
+Engine::CollisionShape* Engine::TryGetCollisionShape(
+	ECSWorld& world, const Entity& entity, uint32_t index) {
+
+	const std::span<CollisionShape> shapes = GetCollisionShapes(world, entity);
+	return index < shapes.size() ? &shapes[index] : nullptr;
+}
+
+const Engine::CollisionShape* Engine::TryGetCollisionShape(
+	const ECSWorld& world, const Entity& entity, uint32_t index) {
+
+	const std::span<const CollisionShape> shapes = GetCollisionShapes(world, entity);
+	return index < shapes.size() ? &shapes[index] : nullptr;
+}
+
+void Engine::AddCollisionShape(ECSWorld& world, const Entity& entity,
+	const CollisionShape& shape) {
+
+	DynamicBuffer<CollisionShape> buffer =
+		world.TryGetBuffer<CollisionShape>(entity);
+	if (!buffer.IsValid()) {
+		buffer = world.AddBuffer<CollisionShape>(entity);
+	}
+	buffer.Add(shape);
+	RebuildCollisionCompound(world, entity);
+	world.MarkComponentModified<CollisionShape>(entity);
+}
+
+bool Engine::RemoveCollisionShape(
+	ECSWorld& world, const Entity& entity, uint32_t index) {
+
+	DynamicBuffer<CollisionShape> buffer =
+		world.TryGetBuffer<CollisionShape>(entity);
+	if (!buffer.IsValid() || buffer.GetSize() <= index) {
+		return false;
+	}
+	buffer.RemoveAt(index);
+	RebuildCollisionCompound(world, entity);
+	world.MarkComponentModified<CollisionShape>(entity);
+	return true;
+}
+
+void Engine::ClearCollisionShapes(ECSWorld& world, const Entity& entity) {
+
+	DynamicBuffer<CollisionShape> buffer =
+		world.TryGetBuffer<CollisionShape>(entity);
+	if (buffer.IsValid()) {
+		buffer.Clear();
+		RebuildCollisionCompound(world, entity);
+		world.MarkComponentModified<CollisionShape>(entity);
+	}
+}
+
+void Engine::RebuildCollisionCompound(ECSWorld& world, const Entity& entity) {
+
+	if (world.GetKind() != ECSWorldKind::Runtime ||
+		!world.HasComponent<CollisionCompoundComponent>(entity)) {
+		return;
+	}
+
+	CollisionCompoundComponent& compound =
+		world.GetComponent<CollisionCompoundComponent>(entity);
+	BlobStore& store = world.GetStorage().Get<BlobStore>();
+	if (compound.blob.IsValid()) {
+		store.Release(compound.blob.handle);
+		compound.blob = {};
+	}
+
+	// 形状列全体を単一Blobへまとめ、同じCollider構成は内容Hashで共有する
+	const std::span<const CollisionShape> shapes =
+		world.GetBufferSpan<CollisionShape>(entity);
+	BlobBuilder<CollisionCompoundBlob> builder{};
+	CollisionCompoundBlob root{};
+	root.shapes = builder.AddArray(shapes);
+	builder.SetRoot(root);
+	compound.blob = builder.Build(store);
+}
+
+bool Engine::IsCollisionColliding(const ECSWorld& world, const Entity& entity) {
+
+	const CollisionRuntimeStateComponent* state =
+		world.TryGetComponent<CollisionRuntimeStateComponent>(entity);
+	return state && state->colliding;
+}
+
+void Engine::DeserializeComponent(ECSWorld& world, const Entity& entity,
+	const nlohmann::json& in, CollisionComponent& component) {
+
 	component.enabled = in.value("enabled", component.enabled);
 	component.isStatic = in.value("isStatic", component.isStatic);
 	component.enablePushback = in.value("enablePushback", component.enablePushback);
 	component.typeMask = in.value("typeMask", component.typeMask);
 
-	// 形状がない場合はデフォルト形状を1つ持たせる
-	component.shapes.clear();
+	std::vector<CollisionShape> shapes;
 	if (in.contains("shapes") && in["shapes"].is_array()) {
-		for (const auto& shapeJson : in["shapes"]) {
-			component.shapes.push_back(LoadShape(shapeJson));
+		shapes.reserve(in["shapes"].size());
+		for (const nlohmann::json& shapeJson : in["shapes"]) {
+			shapes.emplace_back(shapeJson.get<CollisionShape>());
 		}
 	}
-	if (component.shapes.empty()) {
-		component.shapes.push_back(CollisionShape{});
+	if (shapes.empty()) {
+		shapes.emplace_back();
+	}
+	SetCollisionShapes(world, entity, shapes);
+}
+
+void Engine::SerializeComponent(const ECSWorld& world, const Entity& entity,
+	const CollisionComponent& component, nlohmann::json& out) {
+
+	SerializeCollisionDraft(component, GetCollisionShapes(world, entity), out);
+}
+
+void Engine::SerializeCollisionDraft(const CollisionComponent& component,
+	std::span<const CollisionShape> shapes, nlohmann::json& out) {
+
+	SaveSettings(component, out);
+	out["shapes"] = nlohmann::json::array();
+	for (const CollisionShape& shape : shapes) {
+		out["shapes"].push_back(shape);
 	}
 }
 
-void Engine::to_json(nlohmann::json& out, const CollisionComponent& component) {
+void Engine::SerializeComponentDraft(
+	const CollisionComponent& component, nlohmann::json& out) {
 
-	// CollisionComponent本体を書き出す
-	out["enabled"] = component.enabled;
-	out["isStatic"] = component.isStatic;
-	out["enablePushback"] = component.enablePushback;
-	out["typeMask"] = component.typeMask;
-
-	// 設定されている形状を書き出す
+	SaveSettings(component, out);
 	out["shapes"] = nlohmann::json::array();
-	for (const auto& shape : component.shapes) {
-		out["shapes"].push_back(SaveShape(shape));
-	}
 }

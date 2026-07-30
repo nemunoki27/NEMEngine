@@ -1,4 +1,5 @@
 #include "ParticleEffectEditorTool.h"
+#include "ParticleEditorDescriptorRegistry.h"
 
 using namespace Engine;
 
@@ -267,20 +268,6 @@ namespace {
 			FindStructuredBuffer(reflection, "gParticleCustomParameters")) {
 
 			for (const ShaderConstantBufferVariable& var : buffer->variables) {
-				if (IsParticleMaterialAnimatable(var)) {
-					variables.emplace_back(var);
-				}
-			}
-		}
-		// 旧Particle PSはMaterialParametersからslotへ割り当てる
-		if (!variables.empty()) {
-			return variables;
-		}
-		for (const ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
-			if (cb.name != "MaterialParameters") {
-				continue;
-			}
-			for (const ShaderConstantBufferVariable& var : cb.variables) {
 				if (IsParticleMaterialAnimatable(var)) {
 					variables.emplace_back(var);
 				}
@@ -660,7 +647,8 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 
 			// 形状別パラメータ
 			if (const IParticleEmitterShape* shape = shapeRegistry.Find(group.emitter.shape)) {
-				changed |= shape->DrawImGui(group.emitter);
+				changed |= ParticleEditorDescriptorRegistry::GetInstance().DrawEmitterShape(
+					group.emitter.shape, *shape, group.emitter);
 			}
 		}
 		//========================================================================================================================================================
@@ -1081,7 +1069,7 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 		std::clamp(selectedModule, 0, static_cast<int32_t>(phase.modules.size()) - 1);
 
 	ImGui::BeginChild("ModuleList", ImVec2(190.0f, 0.0f), true);
-	const std::vector<std::string> registeredIDs = ParticleModuleRegistry::GetInstance().GetRegisteredIDs();
+	const auto& moduleDescriptors = ParticleModuleRegistry::GetInstance().GetDescriptors();
 	if (ImGui::Button("モジュール追加", ImVec2(-FLT_MIN, 0.0f))) {
 		ImGui::OpenPopup("##AddParticleModulePopup");
 	}
@@ -1096,17 +1084,17 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 		ImGui::Separator();
 
 		bool hasAny = false;
-		for (const std::string& id : registeredIDs) {
+		for (const ParticleModuleRegistry::Descriptor& descriptor : moduleDescriptors) {
 
-			if (!addModuleSearchFilter_.Matches(id)) {
+			if (!addModuleSearchFilter_.Matches(descriptor.id)) {
 				continue;
 			}
 			hasAny = true;
-			if (ImGui::MenuItem(id.c_str())) {
+			if (ImGui::MenuItem(descriptor.id.c_str())) {
 
 				ParticleEffectModuleEntry entry{};
-				entry.id = id;
-				if (auto module = ParticleModuleRegistry::GetInstance().Create(entry.id)) {
+				entry.id = descriptor.id;
+				if (auto module = ParticleModuleRegistry::GetInstance().Create(descriptor.typeID)) {
 					entry.params = module->ToJson();
 				}
 				phase.modules.emplace_back(std::move(entry));
@@ -1193,7 +1181,8 @@ bool ParticleEffectEditorTool::DrawPhaseModules(const EditorToolContext& context
 				}
 				custom->SetReflectedParameters(parameters);
 			}
-			if (module->DrawImGui()) {
+			if (ParticleEditorDescriptorRegistry::GetInstance().DrawModule(
+				cache[selectedModule].typeID, *module)) {
 
 				entry.params = module->ToJson();
 				changed = true;
@@ -1310,7 +1299,9 @@ Engine::IParticleModule* ParticleEffectEditorTool::ResolveModuleCache(ModuleCach
 	if (!cache.module || cache.id != entry.id) {
 
 		cache.id = entry.id;
-		cache.module = ParticleModuleRegistry::GetInstance().Create(entry.id);
+		ParticleModuleRegistry& registry = ParticleModuleRegistry::GetInstance();
+		cache.typeID = registry.FindTypeID(entry.id);
+		cache.module = registry.Create(cache.typeID);
 		if (cache.module) {
 			cache.module->FromJson(entry.params);
 		}

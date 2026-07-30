@@ -32,7 +32,7 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui() override;
+		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetSpawnExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
@@ -69,8 +69,6 @@ namespace Engine {
 		void EnsureParameters();
 		// 実行時評価用の参照を名前付きパラメータから解決
 		void RebuildParameterCache();
-		// 旧開始終了形式を項目別アニメーションへ移行
-		void MigrateLegacyParameters(const nlohmann::json& params);
 		// 形状項目のアニメーションUIを描画
 		bool DrawParameter(const char* label, const char* key, float defaultValue,
 			float minValue, float maxValue, float dragSpeed = 0.01f);
@@ -80,5 +78,4 @@ namespace Engine {
 		void EvaluateShape(Particle& particle, float progress) const;
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleShapeOverLifetimeModule, "ShapeOverLifetime");
 } // Engine

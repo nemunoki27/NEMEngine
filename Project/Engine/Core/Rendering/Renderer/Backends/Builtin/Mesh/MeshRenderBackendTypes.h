@@ -3,14 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
@@ -26,7 +24,8 @@ namespace Engine {
 	// メッシュ描画のために準備されたバッチ
 	struct MeshPreparedBatch {
 
-		std::vector<const RenderItem*> items{};
+		// DrawBatch呼び出し中だけ有効なRenderQueue側の連続参照
+		std::span<const RenderItem* const> items{};
 
 		AssetID batchMesh{};
 
@@ -55,6 +54,5 @@ namespace Engine {
 		const RenderDrawContext* drawContext = nullptr;
 		const MeshPreparedBatch* prepared = nullptr;
 
-		FrameBatchResourcePool<DxConstBuffer<SubMeshConstants>>* subMeshCBPool = nullptr;
 	};
 }

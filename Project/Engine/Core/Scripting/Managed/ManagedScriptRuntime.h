@@ -92,8 +92,8 @@ namespace Engine {
 		bool IsInitialized() const { return initialized_; }
 		// Inspector描画用にserialized field schemaを取得する、blobを一度だけparseしてcacheし未解決は空schema
 		const ManagedScriptSchema& GetScriptSchema(const std::string& scriptTypeID);
-		// 任意形式のauthoring serializedFieldsからfieldGuidとvalueの値マップをmigration込みで作る
-		nlohmann::json BuildSerializedValueMap(const std::string& scriptTypeID, const nlohmann::json& serializedFields);
+		// authoring serializedFieldsからfieldGuidとvalueの値マップを作る
+		nlohmann::json BuildSerializedValueMap(const nlohmann::json& serializedFields);
 
 		// Play中runtime Inspector用：instanceの現在値を{ fieldGuid: value }で取得する
 		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
@@ -319,10 +319,18 @@ namespace Engine {
 		static int32_t __cdecl GetIgnoreParentScaleCallback(ManagedNativeEntity entity);
 		static void __cdecl SetIgnoreParentScaleCallback(ManagedNativeEntity entity, int32_t value);
 		// generic component access / Entity破棄/ ScriptBehaviour.Enabled
-		static int32_t __cdecl GetComponentTypeIdCallback(const char* name);
 		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID);
+		// Buffer参照は保持せず呼び出しごとにEntityとType IDから解決する
+		static int32_t __cdecl DynamicBufferLengthCallback(
+			ManagedNativeEntity entity, int32_t typeID, int32_t elementSize);
+		static int32_t __cdecl DynamicBufferCopyCallback(
+			ManagedNativeEntity entity, int32_t typeID, int32_t elementSize,
+			int32_t startIndex, void* destination, int32_t capacity);
+		static int32_t __cdecl DynamicBufferMutateCallback(
+			ManagedNativeEntity entity, int32_t typeID, int32_t elementSize,
+			int32_t operation, int32_t index, const void* data, int32_t count);
 		static void __cdecl DestroyEntityCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl GetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID);
 		static void __cdecl SetScriptEnabledCallback(ManagedNativeEntity owner, uint64_t scriptSlotID, int32_t enabled);
@@ -365,18 +373,40 @@ namespace Engine {
 		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
 		// 指定クリップを頭から再生する、clip/enabledを設定し終了フラグを同フレームで下ろす
 		static void __cdecl PlaySkinnedAnimationCallback(ManagedNativeEntity entity, const char* clipName);
+		// 現在のクリップ名をC#側バッファへコピーする
+		static int32_t __cdecl CopySkinnedAnimationCurrentClipCallback(
+			ManagedNativeEntity entity, char* buffer, int32_t capacity);
+		// 固定長の再生状態をC#へ返す
+		static int32_t __cdecl GetSkinnedAnimationRuntimeStateCallback(
+			ManagedNativeEntity entity, ManagedSkinnedAnimationRuntimeState* outState);
+		// UI選択状態とフレーム遷移フラグをC#へ返す
+		static int32_t __cdecl GetUISelectableRuntimeStateCallback(
+			ManagedNativeEntity entity, ManagedUISelectableRuntimeState* outState);
+		// UIProgressの補間済み表示値をC#へ返す
+		static int32_t __cdecl GetUIProgressRuntimeStateCallback(
+			ManagedNativeEntity entity, ManagedUIProgressRuntimeState* outState);
+		// Canvasの入力ロック状態をC#へ返す
+		static int32_t __cdecl GetCanvasInputLockedCallback(
+			ManagedNativeEntity entity);
+		// 画像またはテキストボタンのフレームクリック状態をC#へ返す
+		static int32_t __cdecl GetUIButtonClickedCallback(
+			ManagedNativeEntity entity, int32_t buttonType);
+		// アイリス遷移の現在状態をC#へ返す
+		static int32_t __cdecl GetIrisTransitionRuntimeStateCallback(
+			ManagedNativeEntity entity,
+			ManagedIrisTransitionRuntimeState* outState);
 		// Gameplay v7のAssetRef runtime resolve
-		static int32_t __cdecl AssetExistsCallback(uint64_t assetID);
-		static int32_t __cdecl CopyAssetDisplayNameCallback(uint64_t assetID, char* buffer, int32_t capacity);
+		static int32_t __cdecl AssetExistsCallback(ManagedAssetGUID assetID);
+		static int32_t __cdecl CopyAssetDisplayNameCallback(ManagedAssetGUID assetID, char* buffer, int32_t capacity);
 		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		static ManagedNativeEntity __cdecl CreateEntityCallback(const char* name, ManagedNativeEntity parent);
-		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(uint64_t prefabAssetID, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
-		static uint64_t __cdecl LoadSceneAdditiveCallback(uint64_t sceneAssetID);
-		static uint64_t __cdecl LoadSceneSingleCallback(uint64_t sceneAssetID);
+		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
+		static uint64_t __cdecl LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID);
+		static uint64_t __cdecl LoadSceneSingleCallback(ManagedAssetGUID sceneAssetID);
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
-		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(uint64_t sourceAsset, uint64_t localFileID);
+		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(ManagedAssetGUID sourceAsset, uint64_t localFileID);
 		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う
-		static void __cdecl GetEntityReferenceIdentityCallback(ManagedNativeEntity entity, uint64_t* sourceAsset, uint64_t* localFileID, int32_t* kind);
+		static void __cdecl GetEntityReferenceIdentityCallback(ManagedNativeEntity entity, ManagedAssetGUID* sourceAsset, uint64_t* localFileID, int32_t* kind);
 		// レイキャストの最近ヒットを返す、ヒット無しは0
 		static int32_t __cdecl PhysicsRaycastCallback(ManagedVector3 origin, ManagedVector3 direction, float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* outHit);
 		// レイキャストの全ヒットを距離昇順で書き込みヒット総数を返す、bufferへはcapacity分だけ書く
@@ -450,15 +480,16 @@ namespace Engine {
 			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
 			int32_t property, const void* data, int32_t size);
 		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
-		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, uint64_t materialID);
+		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, ManagedAssetGUID materialID);
 		// 即時球描画、組み込みの球生成で線分を発行する
-		static void __cdecl LineDrawSphereImmediateCallback(ManagedVector3 center, float radius, ManagedColor4 color, int32_t division, float thickness, uint64_t materialID);
+		static void __cdecl LineDrawSphereImmediateCallback(ManagedVector3 center, float radius, ManagedColor4 color, int32_t division, float thickness, ManagedAssetGUID materialID);
 		// v14のTag公開とLayerマスク公開と検索
 		static int32_t __cdecl CopyTagCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity);
 		static void __cdecl SetTagCallback(ManagedNativeEntity entity, const char* tag);
 		static int32_t __cdecl GetVisibilityLayerMaskCallback(ManagedNativeEntity entity);
 		static void __cdecl SetVisibilityLayerMaskCallback(ManagedNativeEntity entity, int32_t mask);
 		static int32_t __cdecl GetCollisionTypeMaskCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl GetCollisionRuntimeStateCallback(ManagedNativeEntity entity);
 		static void __cdecl SetCollisionTypeMaskCallback(ManagedNativeEntity entity, int32_t mask);
 		static ManagedNativeEntity __cdecl FindEntityByNameCallback(const char* name);
 		static ManagedNativeEntity __cdecl FindEntityByTagCallback(const char* tag);
@@ -481,9 +512,11 @@ namespace Engine {
 		static int32_t __cdecl CopyTextInputCallback(char* buffer, int32_t capacity);
 		// Gameplay v7のproject rootパス
 		static int32_t __cdecl CopyProjectRootCallback(char* buffer, int32_t capacity);
+		// UserSettings rootパス
+		static int32_t __cdecl CopyUserSettingsRootCallback(char* buffer, int32_t capacity);
 		// Gameplay v7のAudioSource gameplay method
 		static void __cdecl AudioPlayCallback(ManagedNativeEntity entity);
-		static void __cdecl AudioPlayOneShotCallback(ManagedNativeEntity entity, uint64_t clipID, float volumeScale);
+		static void __cdecl AudioPlayOneShotCallback(ManagedNativeEntity entity, ManagedAssetGUID clipID, float volumeScale);
 		static void __cdecl AudioPauseCallback(ManagedNativeEntity entity);
 		static void __cdecl AudioUnPauseCallback(ManagedNativeEntity entity);
 		static void __cdecl AudioStopCallback(ManagedNativeEntity entity);

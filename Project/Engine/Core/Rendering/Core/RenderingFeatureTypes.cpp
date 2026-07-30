@@ -1,5 +1,48 @@
 #include "RenderingFeatureTypes.h"
 
+// c++
+#include <algorithm>
+#include <cmath>
+
+//============================================================================
+//	GraphicsMeshLOD namespaceMethods
+//============================================================================
+bool Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
+	float lod0, float lod1, float lod2) {
+
+	return std::isfinite(lod0) &&
+		std::isfinite(lod1) &&
+		std::isfinite(lod2) &&
+		lod0 <= kMaximumPixelThreshold &&
+		lod2 >= kMinimumPixelThreshold &&
+		lod0 - lod1 >= kPixelThresholdGap &&
+		lod1 - lod2 >= kPixelThresholdGap;
+}
+
+std::array<float, 3> Engine::GraphicsMeshLOD::ClampPixelThresholds(
+	float lod0, float lod1, float lod2) {
+
+	if (!std::isfinite(lod0) ||
+		!std::isfinite(lod1) ||
+		!std::isfinite(lod2)) {
+		return kDefaultPixelThresholds;
+	}
+
+	lod0 = std::clamp(
+		lod0,
+		kMinimumPixelThreshold + kPixelThresholdGap * 2.0f,
+		kMaximumPixelThreshold);
+	lod1 = std::clamp(
+		lod1,
+		kMinimumPixelThreshold + kPixelThresholdGap,
+		lod0 - kPixelThresholdGap);
+	lod2 = std::clamp(
+		lod2,
+		kMinimumPixelThreshold,
+		lod1 - kPixelThresholdGap);
+	return { lod0, lod1, lod2 };
+}
+
 //============================================================================
 //	GraphicsFeatureText namespaceMethods
 //============================================================================

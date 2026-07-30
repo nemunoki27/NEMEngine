@@ -11,6 +11,7 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <type_traits>
 #include <variant>
 
@@ -107,7 +108,7 @@ namespace {
 	}
 
 	template<typename TValue>
-	uint32_t WriteScalarArray(std::vector<uint8_t>& bytes,
+	uint32_t WriteScalarArray(std::span<uint8_t> bytes,
 		const Engine::ShaderConstantBufferVariable& variable,
 		const std::array<TValue, 4>& values, uint32_t componentCount,
 		uint32_t layoutSizeInBytes) {
@@ -233,7 +234,7 @@ namespace {
 			}, parameter.value);
 	}
 
-	void WriteParameterValue(std::vector<uint8_t>& bytes,
+	void WriteParameterValue(std::span<uint8_t> bytes,
 		const Engine::ShaderConstantBufferVariable& variable,
 		const Engine::MaterialParameterValue& parameter,
 		const char* sourceValueTypeName,
@@ -274,6 +275,45 @@ namespace {
 				values[0], values[1], values[2], values[3]);
 		}
 	}
+
+	size_t HashCombine(size_t seed, size_t value) {
+
+		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
+	}
+
+	size_t HashParameterValue(const Engine::MaterialParameterValue& parameter) {
+
+		size_t seed = parameter.value.index();
+		std::visit([&](const auto& value) {
+			using ValueType = std::decay_t<decltype(value)>;
+
+			if constexpr (std::is_same_v<ValueType, float>) {
+				seed = HashCombine(seed, std::hash<float>{}(value));
+			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
+				seed = HashCombine(seed, std::hash<float>{}(value.x));
+				seed = HashCombine(seed, std::hash<float>{}(value.y));
+			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
+				seed = HashCombine(seed, std::hash<float>{}(value.x));
+				seed = HashCombine(seed, std::hash<float>{}(value.y));
+				seed = HashCombine(seed, std::hash<float>{}(value.z));
+			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
+				seed = HashCombine(seed, std::hash<float>{}(value.x));
+				seed = HashCombine(seed, std::hash<float>{}(value.y));
+				seed = HashCombine(seed, std::hash<float>{}(value.z));
+				seed = HashCombine(seed, std::hash<float>{}(value.w));
+			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
+				seed = HashCombine(seed, std::hash<float>{}(value.r));
+				seed = HashCombine(seed, std::hash<float>{}(value.g));
+				seed = HashCombine(seed, std::hash<float>{}(value.b));
+				seed = HashCombine(seed, std::hash<float>{}(value.a));
+			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
+				seed = HashCombine(seed, std::hash<Engine::AssetID>{}(value));
+			} else {
+				seed = HashCombine(seed, std::hash<ValueType>{}(value));
+			}
+			}, parameter.value);
+		return seed;
+	}
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
@@ -281,6 +321,19 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
 
 	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
 	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
+	BuildInto(bytes, material, layout);
+	return bytes;
+}
+
+bool Engine::MaterialParameterBufferBuilder::BuildInto(std::span<uint8_t> bytes,
+	const MaterialAsset& material, const MaterialParameterLayout& layout) {
+
+	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
+	if (bytes.size() < (std::max)(layoutSizeInBytes, 16u)) {
+		return false;
+	}
+	std::fill(bytes.begin(), bytes.end(), uint8_t{});
+
 	const std::vector<ShaderConstantBufferVariable>& variables = layout.GetVariables();
 	for (size_t variableIndex = 0; variableIndex < variables.size(); ++variableIndex) {
 
@@ -297,7 +350,7 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
 		// Reflectionのoffsetへ直接詰めることで、HLSL側のパッキングに追従する
 		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
 	}
-	return bytes;
+	return true;
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
@@ -308,6 +361,22 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 
 	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
 	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
+	BuildElementInto(bytes, defaults, overrides, layout, resolveTexture);
+	return bytes;
+}
+
+bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t> bytes,
+	const std::unordered_map<std::string, MaterialParameterValue>& defaults,
+	const std::unordered_map<std::string, MaterialParameterValue>& overrides,
+	const MaterialParameterLayout& layout,
+	const TextureResolver& resolveTexture) {
+
+	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
+	if (bytes.size() < (std::max)(layoutSizeInBytes, 16u)) {
+		return false;
+	}
+	std::fill(bytes.begin(), bytes.end(), uint8_t{});
+
 	const std::vector<ShaderConstantBufferVariable>& variables = layout.GetVariables();
 
 	// 1変数分を詰める、AssetID値はテクスチャ扱いでbindless indexへ解決しuintとして書く
@@ -347,5 +416,17 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 			std::memcpy(bytes.data() + variable.offset, &noTexture, sizeof(uint32_t));
 		}
 	}
-	return bytes;
+	return true;
+}
+
+uint64_t Engine::MaterialParameterBufferBuilder::ComputeHash(
+	const std::unordered_map<std::string, MaterialParameterValue>& parameters) {
+
+	// unordered_mapの走査順に依存させず、同じ内容なら同じ値になるよう各要素をXORする
+	uint64_t result = static_cast<uint64_t>(parameters.size());
+	for (const auto& [name, value] : parameters) {
+		const size_t entryHash = HashCombine(std::hash<std::string>{}(name), HashParameterValue(value));
+		result ^= static_cast<uint64_t>(HashCombine(entryHash, 0xd6e8feb86659fd93ull));
+	}
+	return result;
 }

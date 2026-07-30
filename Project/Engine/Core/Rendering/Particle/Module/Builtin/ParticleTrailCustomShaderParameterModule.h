@@ -23,5 +23,4 @@ namespace Engine {
 
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleTrailCustomShaderParameterModule, "TrailCustomShaderParameter");
 } // Engine

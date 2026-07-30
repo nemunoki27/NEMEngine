@@ -15,6 +15,8 @@ Engine::SceneComponentOverlayRegistry::SceneComponentOverlayRegistry() {
 		SceneComponentOverlayKind::LightIcon, BuiltinAssets::EditorTextures::DirectionalLightIcon });
 	registrations_.push_back({ SceneComponentOverlayComponentKind::PointLight,
 		SceneComponentOverlayKind::LightIcon, BuiltinAssets::EditorTextures::PointLightIcon });
+	registrations_.push_back({ SceneComponentOverlayComponentKind::RectLight,
+		SceneComponentOverlayKind::LightIcon, BuiltinAssets::EditorTextures::SpotLightIcon });
 	registrations_.push_back({ SceneComponentOverlayComponentKind::SpotLight,
 		SceneComponentOverlayKind::LightIcon, BuiltinAssets::EditorTextures::SpotLightIcon });
 	registrations_.push_back({ SceneComponentOverlayComponentKind::PerspectiveCamera,

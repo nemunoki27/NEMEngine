@@ -4,18 +4,19 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
+#include <Engine/Core/Runtime/Application/GameApplication.h>
 
 // c++
 #include <memory>
 
 //============================================================================
 //	NEMEngine public runtime API implementation
-//	エディタのライフサイクルをDLL内に閉じ込め、アプリからは公開ABIだけで起動させる
+//	ゲームランタイムのライフサイクルをDLL内に閉じ込める
 //============================================================================
 
-int NEM_RunEditor() {
+int NEM_RunGame() {
 
-	std::unique_ptr<Engine::Framework> app = std::make_unique<Engine::Framework>();
-	app->Run();
+	Engine::Framework framework(std::make_unique<Engine::GameApplication>());
+	framework.Run();
 	return 0;
 }

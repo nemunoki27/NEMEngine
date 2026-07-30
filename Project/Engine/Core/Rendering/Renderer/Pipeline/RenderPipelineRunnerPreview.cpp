@@ -103,6 +103,10 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	if (meshBackend && !meshAssets.empty()) {
 
 		meshBackend->RequestMeshes(graphicsCore, *request.assetDatabase, meshAssets);
+		// 非同期読込中は完了扱いにせず、呼び出し側へ次フレームの再描画を要求させる
+		if (!meshBackend->AreMeshesReady(meshAssets)) {
+			return false;
+		}
 		PreDispatchVisibleMeshSkinning(graphicsCore, context,
 			renderBatch_, previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 	}

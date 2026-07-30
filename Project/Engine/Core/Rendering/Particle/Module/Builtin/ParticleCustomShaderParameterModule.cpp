@@ -75,6 +75,7 @@ nlohmann::json Engine::ParticleCustomShaderParameterModule::ToJson() const {
 }
 
 bool Engine::ParticleCustomShaderParameterModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	if (reflectedParameters_.empty()) {
 		ImGui::TextDisabled("アニメーション可能なカスタムパラメータがありません");
@@ -94,6 +95,9 @@ bool Engine::ParticleCustomShaderParameterModule::DrawImGui() {
 		ImGui::PopID();
 	}
 	return changed;
+#else
+	return false;
+#endif
 }
 
 void Engine::ParticleCustomShaderParameterModule::SetReflectedParameters(
@@ -105,6 +109,7 @@ void Engine::ParticleCustomShaderParameterModule::SetReflectedParameters(
 	}
 }
 
+#if defined(NEM_EDITOR_UI_ENABLED)
 bool Engine::ParticleCustomShaderParameterModule::DrawParameter(
 	const ShaderConstantBufferVariable& variable,
 	ParticleMaterialAnimatedParameter& parameter, ParameterUiState& uiState) {
@@ -218,3 +223,4 @@ bool Engine::ParticleCustomShaderParameterModule::DrawParameter(
 	changed |= ParticleGui::DrawLoopSettings(parameter.loop);
 	return changed;
 }
+#endif

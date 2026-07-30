@@ -245,12 +245,12 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
 
 bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset) {
 
-	if (!data.is_object()) {
+	if (!data.is_object() || data.value("version", 0u) != 2u ||
+		!data.contains("groups") || !data["groups"].is_array()) {
 		return false;
 	}
 
 	outAsset = ParticleEffectAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedEffect");
 	outAsset.version = 2;
 	outAsset.space = EnumAdapter<PrimitiveRenderSpace>::FromString(
@@ -273,7 +273,6 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		group.name = groupJson.value("name", group.name);
 		group.enabled = groupJson.value("enabled", group.enabled);
 		group.looping = groupJson.value("looping", group.looping);
-		group.emitter.maxParticles = groupJson.value("maxParticles", group.emitter.maxParticles);
 		if (const auto it = groupJson.find("emitter"); it != groupJson.end() && it->is_object()) {
 
 			const nlohmann::json& e = *it;
@@ -334,10 +333,6 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 				"continueUpdateAfterParticleDeath", group.trail.continueUpdateAfterParticleDeath);
 			group.trail.maxPoints = it->value("maxPoints", group.trail.maxPoints);
 			group.trail.minDistance = it->value("minDistance", group.trail.minDistance);
-			if (const auto vit = it->find("width"); vit != it->end()) {
-				group.trail.startWidth = vit->get<float>();
-				group.trail.endWidth = vit->get<float>();
-			}
 			group.trail.startWidth = it->value("startWidth", group.trail.startWidth);
 			group.trail.endWidth = it->value("endWidth", group.trail.endWidth);
 			if (const auto vit = it->find("startColor"); vit != it->end()) { group.trail.startColor = Color4::FromJson(*vit); }
@@ -362,7 +357,6 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 				ParticleEffectModuleEntry entry{};
 				entry.id = moduleJson.value("id", "");
 				if (entry.id.empty()) { continue; }
-				if (entry.id == "RotationOverLifetime") { entry.id = "Rotation"; }
 				if (const auto it = moduleJson.find("params"); it != moduleJson.end() && it->is_object()) {
 					entry.params = *it;
 				}
@@ -394,53 +388,24 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 					if (phase.parentSettings.useEmitter) { phase.parentSettings.entityLocalFileID = {}; }
 				}
 				readModules(phaseJson, phase.modules);
-				if (const auto settings = phaseJson.find("materialSettings");
-					settings != phaseJson.end() && settings->is_object()) {
-
-					if (const auto parameters = settings->find("parameters");
-						parameters != settings->end() && parameters->is_object() && !parameters->empty()) {
-
-						ParticleEffectModuleEntry entry{};
-						entry.id = "CustomShaderParameter";
-						entry.params["parameters"] = *parameters;
-						phase.modules.emplace_back(std::move(entry));
-					}
-				}
 				group.phases.emplace_back(std::move(phase));
 			}
-		} else {
-
-			ParticleEffectPhase phase{};
-			if (const auto eit = groupJson.find("emitter"); eit != groupJson.end() && eit->is_object()) {
-				if (const auto vit = eit->find("lifetime"); vit != eit->end()) { from_json(*vit, phase.lifetime); }
-			}
-			readModules(groupJson, phase.modules);
-			group.phases.emplace_back(std::move(phase));
 		}
 		if (group.phases.empty()) { group.phases.emplace_back(); }
 		};
 
-	if (const auto it = data.find("groups"); it != data.end() && it->is_array()) {
-		for (const auto& groupJson : *it) {
+	for (const auto& groupJson : data["groups"]) {
 
-			if (!groupJson.is_object()) { continue; }
-			ParticleEffectGroup group{};
-			readGroup(groupJson, group);
-			outAsset.groups.emplace_back(std::move(group));
-		}
-	} else {
-
+		if (!groupJson.is_object()) { continue; }
 		ParticleEffectGroup group{};
-		readGroup(data, group);
-		group.id = UUID{ 1 };
-		group.name = outAsset.name.empty() ? "Group 1" : outAsset.name;
+		readGroup(groupJson, group);
 		outAsset.groups.emplace_back(std::move(group));
 	}
-	if (outAsset.groups.empty()) { outAsset.groups.emplace_back(); }
+	if (outAsset.groups.empty()) { return false; }
 	std::unordered_set<UUID> groupIDs{};
 	for (ParticleEffectGroup& group : outAsset.groups) {
 
-		while (!group.id || groupIDs.contains(group.id)) { group.id = UUID::New(); }
+		if (!group.id || groupIDs.contains(group.id)) { return false; }
 		groupIDs.emplace(group.id);
 	}
 	return true;

@@ -67,6 +67,17 @@ namespace Engine {
 			return false;
 		}
 
+		// 同じ対象への連続操作は直前のUndo基準を残して1件へまとめる
+		if (!undoStack_.empty() &&
+			undoStack_.back()->CanCoalesce(*command)) {
+
+			if (!undoStack_.back()->ExecuteCoalesced(*command, context)) {
+				return false;
+			}
+			redoStack_.clear();
+			return true;
+		}
+
 		// 実行に失敗したコマンドは履歴に積まない
 		if (!command->Execute(context)) {
 			return false;

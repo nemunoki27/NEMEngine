@@ -56,17 +56,6 @@ bool Engine::SetSerializedComponentCommand::Apply(EditorCommandContext& context,
 	} else {
 		world->AddComponentFromJson(target, typeName_, data);
 	}
-	if (typeName_ == "MeshRenderer" && world->HasComponent<MeshRendererComponent>(target)) {
-
-		auto& meshRenderer = world->GetComponent<MeshRendererComponent>(target);
-
-		Matrix4x4 parentWorld = Matrix4x4::Identity();
-		if (world->HasComponent<TransformComponent>(target)) {
-			parentWorld = world->GetComponent<TransformComponent>(target).worldMatrix;
-		}
-		MeshSubMeshRuntime::UpdateRendererRuntime(meshRenderer, parentWorld);
-	}
-
 	if (context.editorState) {
 		if (context.editorState->selectedEntity == target) {
 

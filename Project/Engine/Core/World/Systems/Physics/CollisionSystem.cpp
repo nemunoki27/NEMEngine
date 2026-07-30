@@ -349,12 +349,13 @@ namespace {
 		// 追加形状回転より外側で求めた補正をTransformのローカル回転へ変換する
 		if (selfShape->type != Engine::ColliderShapeType::AABB3D) {
 			const auto* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
-			if (!collision || collision->shapes.size() <= selfShape->shapeIndex ||
-				!collision->shapes[selfShape->shapeIndex].useTransformRotation) {
+			const Engine::CollisionShape* shape = collision ?
+				Engine::TryGetCollisionShape(world, entity, selfShape->shapeIndex) : nullptr;
+			if (!shape || !shape->useTransformRotation) {
 				return;
 			}
 			const Engine::Quaternion shapeRotation = Engine::Quaternion::FromEulerDegrees(
-				collision->shapes[selfShape->shapeIndex].rotationDegrees);
+				shape->rotationDegrees);
 			correction = Engine::Quaternion::Inverse(shapeRotation) *
 				correction * shapeRotation;
 		}
@@ -531,13 +532,14 @@ void Engine::CollisionSystem::LateUpdate(ECSWorld& world, SystemContext& context
 
 void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& context, bool applyResponse) {
 
-	// 形状描画の衝突中フラグを毎フレーム初期化する、衝突したものだけ後で立てる
-	world.ForEach<CollisionComponent>([](Entity, CollisionComponent& collision) {
-		collision.runtimeColliding = false;
+	// 実行時状態は設定データと分離し、衝突したEntityだけ後で立てる
+	world.ForEach<CollisionRuntimeStateComponent>([](
+		Entity, CollisionRuntimeStateComponent& state) {
+		state.colliding = false;
 		});
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	settings.BindGlobal(context.assetDatabase);
+	settings.BindGlobal();
 	settings.EnsureLoaded();
 
 	std::vector<CollisionRuntimeEntity> entities{};
@@ -552,10 +554,13 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 			CollisionRuntimeEntity runtime{};
 			runtime.entity = entity;
 			runtime.collision = &collision;
+			runtime.state = world.TryGetComponent<CollisionRuntimeStateComponent>(entity);
 			runtime.transform = &transform;
-			for (uint32_t i = 0; i < static_cast<uint32_t>(collision.shapes.size()); ++i) {
+			const std::span<const CollisionShape> shapes =
+				GetCollisionShapes(world, entity);
+			for (uint32_t i = 0; i < static_cast<uint32_t>(shapes.size()); ++i) {
 
-				const CollisionShape& shape = collision.shapes[i];
+				const CollisionShape& shape = shapes[i];
 				if (!shape.enabled) {
 					continue;
 				}
@@ -600,11 +605,11 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 			currentContacts[key] = bestContact;
 
 			// 衝突中フラグを立てて形状描画を赤くする、トリガーの重なりも衝突として扱う
-			if (a.collision) {
-				a.collision->runtimeColliding = true;
+			if (a.state) {
+				a.state->colliding = true;
 			}
-			if (b.collision) {
-				b.collision->runtimeColliding = true;
+			if (b.state) {
+				b.state->colliding = true;
 			}
 
 			// 押し戻しとEnter / Stayの分配は固定ステップのみ行う

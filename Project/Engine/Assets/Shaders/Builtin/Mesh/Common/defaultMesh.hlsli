@@ -34,6 +34,8 @@ cbuffer ViewConstants : register(b0) {
 	float4x4 cullingView;
 	float3 cullingCameraPos;
 	float cullingNearClip;
+	float3 cullingCameraForward;
+	float _cullingPad0;
 	float2 viewSize;
 	float2 cullingViewSize;
 	float2 cullingProjectionScale;
@@ -55,7 +57,7 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	uint instanceCount;
 	uint cullingEnabled;
 	uint packedMeshletVertexIndices;
-	uint _meshDrawReserved0;
+	uint frustumCullingEnabled;
 	uint contributionCullingEnabled;
 	uint normalConeCullingEnabled;
 	float3 meshBoundsCenter;
@@ -65,7 +67,14 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	float outlineMaxModelExpansion;
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
-	uint3 _meshDrawReserved1;
+	uint occlusionCullingEnabled;
+	uint2 _meshDrawReserved1;
+	uint4 lodIndexOffsets;
+	uint4 lodIndexCounts;
+	uint4 lodMeshletOffsets;
+	uint4 lodMeshletCounts;
+	float3 lodPixelThresholds;
+	uint lodCount;
 };
 // 共有GPU構造体はmeshShaderSharedTypes.hlsliへ集約済み
 
@@ -87,6 +96,10 @@ StructuredBuffer<uint> gMeshletPrimitiveIndices : register(t2, space1);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
 StructuredBuffer<MeshletBounds> gMeshletBounds : register(t4, space1);
 StructuredBuffer<uint> gPackedMeshletVertexIndices : register(t5, space1);
+Texture2D<float> gOcclusionDepthPyramid : register(t7, space1);
+
+#define NEM_OCCLUSION_DEPTH_PYRAMID gOcclusionDepthPyramid
+#include "../../Common/CullingHelpers.hlsli"
 
 //============================================================================
 //	functions
@@ -211,72 +224,34 @@ MeshVertex LoadMeshVertex(uint instanceID, uint vertexIndex) {
 	return DecodePackedVertex(gPackedVertices[vertexIndex]);
 }
 
-float4 GetFrustumPlane(uint index) {
-
-	float4 col0 = float4(cullingViewProjection[0][0], cullingViewProjection[1][0], cullingViewProjection[2][0], cullingViewProjection[3][0]);
-	float4 col1 = float4(cullingViewProjection[0][1], cullingViewProjection[1][1], cullingViewProjection[2][1], cullingViewProjection[3][1]);
-	float4 col2 = float4(cullingViewProjection[0][2], cullingViewProjection[1][2], cullingViewProjection[2][2], cullingViewProjection[3][2]);
-	float4 col3 = float4(cullingViewProjection[0][3], cullingViewProjection[1][3], cullingViewProjection[2][3], cullingViewProjection[3][3]);
-
-	if (index == 0) { return col3 + col0; }
-	if (index == 1) { return col3 - col0; }
-	if (index == 2) { return col3 + col1; }
-	if (index == 3) { return col3 - col1; }
-	if (index == 4) { return col2; }
-	return col3 - col2;
-}
-
-float4 NormalizePlane(float4 plane) {
-
-	float len = length(plane.xyz);
-	if (len <= 0.00001f) {
-		return plane;
-	}
-	return plane / len;
-}
-
-float GetMatrixMaxScale(float4x4 inputMat) {
-
-	float sx = length(inputMat[0].xyz);
-	float sy = length(inputMat[1].xyz);
-	float sz = length(inputMat[2].xyz);
-	return max(sx, max(sy, sz));
-}
-
-bool IsSphereInFrustum(float3 center, float radius) {
-
-	[unroll]
-	for (uint i = 0; i < 6; ++i) {
-
-		float4 plane = NormalizePlane(GetFrustumPlane(i));
-		if (dot(plane.xyz, center) + plane.w < -radius) {
-			return false;
-		}
-	}
-	return true;
-}
-
-float2 CalcProjectedPixelRadiusXY(float3 center, float radius) {
-
-	float4 clip = mul(float4(center, 1.0f), cullingViewProjection);
-	if (clip.w <= 0.00001f) {
-		return float2(contributionPixelThreshold, contributionPixelThreshold);
-	}
-
-	float3 viewCenter = mul(float4(center, 1.0f), cullingView).xyz;
-	float nearZ = viewCenter.z - radius;
-	if (nearZ <= max(cullingNearClip, 0.00001f)) {
-		return float2(1000000.0f, 1000000.0f);
-	}
-
-	float2 projectedRadius = abs(radius * cullingProjectionScale / nearZ);
-	return projectedRadius * cullingViewSize * 0.5f;
-}
-
 float CalcProjectedPixelRadius(float3 center, float radius) {
 
-	float2 radiusXY = CalcProjectedPixelRadiusXY(center, radius);
+	float2 radiusXY = CalcProjectedPixelRadiusXY(
+		cullingViewProjection, cullingView, cullingNearClip, cullingProjectionScale,
+		cullingViewSize, contributionPixelThreshold, center, radius);
 	return max(radiusXY.x, radiusXY.y);
+}
+
+uint ResolveMeshLOD(MeshInstance instance) {
+
+	if (lodCount <= 1u ||
+		(instance.flags & MESH_INSTANCE_FLAG_SKINNED) != 0u) {
+		return 0u;
+	}
+
+	float3 center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
+	float radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
+	float pixelRadius = CalcProjectedPixelRadius(center, radius);
+	if (pixelRadius >= lodPixelThresholds.x) {
+		return 0u;
+	}
+	if (pixelRadius >= lodPixelThresholds.y) {
+		return 1u;
+	}
+	if (pixelRadius >= lodPixelThresholds.z) {
+		return 2u;
+	}
+	return min(3u, lodCount - 1u);
 }
 
 bool HasContribution(float3 center, float radius) {
@@ -300,6 +275,19 @@ bool IsNormalConeVisible(MeshletBounds bounds, float3 center, float3x3 normalMat
 	return dot(axis, viewDir) > -coneAngleSin;
 }
 
+bool IsSphereOccluded(float3 center, float radius) {
+
+	if (occlusionCullingEnabled == 0u) {
+		return false;
+	}
+
+	return IsSphereOccludedHiZ(
+		cullingViewProjection, cullingView,
+		cullingNearClip, cullingProjectionScale,
+		cullingViewSize, cullingCameraForward,
+		center, radius);
+}
+
 bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 
 	if (cullingEnabled == 0u) {
@@ -320,13 +308,17 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	if (invertedHullOutlinePass != 0u) {
 		radius += outlineMaxAbsCameraZOffset;
 	}
-	if (!IsSphereInFrustum(center, radius)) {
+	if (frustumCullingEnabled != 0u &&
+		!IsSphereInFrustum(cullingViewProjection, center, radius)) {
 		return false;
 	}
 	if (!HasContribution(center, radius)) {
 		return false;
 	}
 	if (!IsNormalConeVisible(bounds, center, (float3x3)normalMatrix)) {
+		return false;
+	}
+	if (IsSphereOccluded(center, radius)) {
 		return false;
 	}
 	return true;

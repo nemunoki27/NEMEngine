@@ -11,6 +11,11 @@
 //============================================================================
 void Engine::LightExtractorRegistry::BuildBatch(ECSWorld& world, FrameLightBatch& batch) {
 
+	const uint64_t revision = world.GetLightDataRevision();
+	if (batch.MatchesSource(&world, revision)) {
+		return;
+	}
+
 	// ライト抽出器を呼び出してバッチを構築する
 	batch.Clear();
 	for (auto& extractor : items_) {
@@ -18,4 +23,5 @@ void Engine::LightExtractorRegistry::BuildBatch(ECSWorld& world, FrameLightBatch
 		extractor->Extract(world, batch);
 	}
 	batch.Sort();
+	batch.SetSource(&world, revision);
 }

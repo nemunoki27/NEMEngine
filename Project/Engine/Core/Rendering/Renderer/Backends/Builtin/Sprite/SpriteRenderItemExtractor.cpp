@@ -26,7 +26,7 @@ namespace {
 			if (textureIt != parameters.end()) {
 
 				if (const Engine::AssetID* textureID = std::get_if<Engine::AssetID>(&textureIt->second.value)) {
-					return textureID->value;
+					return std::hash<Engine::AssetID>{}(*textureID);
 				}
 			}
 		}
@@ -59,7 +59,7 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		payload.pivot = renderer.pivot;
 		payload.uvMatrix = uvMatrix;
 		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
-		payload.materialOverrides = &renderer.parameterOverrides;
+		payload.materialOverrides = &renderer.parameterOverrides.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
 		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);

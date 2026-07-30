@@ -1,11 +1,9 @@
 -- Project/GameProjects/<container>/<app> に取り込んだゲームを、エンジンソース直リンクのアプリとして生成する。
--- Sandboxと同型(WindowedApp + NEMEngineソースを直接リンク)でビルドするため、
--- ゲーム実行中にエンジン側へブレークポイントを置いてデバッグできる。
+-- Sandboxと同型(WindowedApp + NEMRuntime公開ABI)でビルドする。
 -- 取り込み(Tools/Import)で複製したフォルダを毎回スキャンするだけなので、premake5.luaへの登録追記は不要。
 --
--- 1段ネストにしている理由: エンジンの実行時ルート解決(RuntimePaths::FindGameRoot)は、作業ディレクトリ直下に
--- GameAssetsがあると「ゲーム未検出」と誤判定してSandboxへフォールバックする。これを避けるため、各ゲームを
--- 専用コンテナ(<container>)配下に置き、実行時はコンテナをcwdにする(GameAssetsを持つ子はappだけになる)。
+-- 1段ネストにしている理由: コンテナを実行時の作業ディレクトリにして、直下のappにある
+-- .nemprojectを一意に探索するため。
 
 local gameProjectsRoot = path.join(NEM_PROJECT_ROOT, "GameProjects")
 

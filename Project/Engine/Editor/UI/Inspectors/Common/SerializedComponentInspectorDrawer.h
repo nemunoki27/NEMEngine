@@ -60,8 +60,12 @@ namespace Engine {
 
 		// ワールドからドラフト同期直後の追加処理
 		virtual void OnSyncDraftFromWorld([[maybe_unused]] const T& component) {}
+		virtual void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity, const T& component);
 		// コミット前の追加処理
 		virtual void OnBeforeCommit([[maybe_unused]] const T& beforeComponent, [[maybe_unused]] T& afterComponent) {}
+		// ドラフトをコマンド保存用のjsonへ変換する
+		virtual void SerializeDraft(ECSWorld& world, const Entity& entity,
+			const T& component, nlohmann::json& out) const;
 
 		// プレビューの適用
 		virtual void ApplyPreview(ECSWorld& world, const Entity& entity, const T& previewComponent);
@@ -101,6 +105,7 @@ namespace Engine {
 		bool previewRequested_ = false;
 		// プレビュー開始時のコンポーネントの状態
 		T previewBeginComponent_{};
+		nlohmann::json previewBeginData_{};
 
 		//--------- functions ----------------------------------------------------
 
@@ -184,6 +189,27 @@ namespace Engine {
 			return;
 		}
 		world.GetComponent<T>(entity) = previewComponent;
+		world.MarkComponentModified<T>(entity);
+	}
+
+	template<typename T>
+	inline void SerializedComponentInspectorDrawer<T>::OnSyncDraftFromWorld(
+		[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+		const T& component) {
+
+		OnSyncDraftFromWorld(component);
+	}
+
+	template<typename T>
+	inline void SerializedComponentInspectorDrawer<T>::SerializeDraft(
+		[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+		const T& component, nlohmann::json& out) const {
+
+		if constexpr (requires { SerializeComponentDraft(component, out); }) {
+			SerializeComponentDraft(component, out);
+		} else {
+			out = component;
+		}
 	}
 
 	template<typename T>
@@ -202,9 +228,10 @@ namespace Engine {
 		previewActive_ = false;
 		previewRequested_ = false;
 		previewBeginComponent_ = T{};
+		previewBeginData_ = nlohmann::json{};
 
 		// ドラフトをワールドから同期した後の追加処理
-		OnSyncDraftFromWorld(draftComponent_);
+		OnSyncDraftFromWorld(world, entity, draftComponent_);
 	}
 
 	template<typename T>
@@ -220,14 +247,19 @@ namespace Engine {
 			return;
 		}
 
-		// コミット前の追加処理
 		const T beforeComponent = previewActive_ ? previewBeginComponent_ : world.GetComponent<T>(entity);
 
 		T afterComponent = draftComponent_;
 		OnBeforeCommit(beforeComponent, afterComponent);
 
-		nlohmann::json beforeData = beforeComponent;
-		nlohmann::json afterData = afterComponent;
+		nlohmann::json beforeData;
+		if (previewActive_) {
+			beforeData = previewBeginData_;
+		} else if (!world.SerializeComponentToJson(entity, componentTypeName_, beforeData)) {
+			return;
+		}
+		nlohmann::json afterData;
+		SerializeDraft(world, entity, afterComponent, afterData);
 
 		// シリアライズ後のデータが同じならコミットしない
 		if (beforeData == afterData) {
@@ -258,6 +290,9 @@ namespace Engine {
 
 		if (!previewActive_) {
 			previewBeginComponent_ = world.GetComponent<T>(entity);
+			if (!world.SerializeComponentToJson(entity, componentTypeName_, previewBeginData_)) {
+				return;
+			}
 			previewActive_ = true;
 		}
 
@@ -272,7 +307,7 @@ namespace Engine {
 		if (world.IsAlive(entity) && world.HasComponent<T>(entity)) {
 
 			draftComponent_ = world.GetComponent<T>(entity);
-			OnSyncDraftFromWorld(draftComponent_);
+			OnSyncDraftFromWorld(world, entity, draftComponent_);
 		}
 	}
 

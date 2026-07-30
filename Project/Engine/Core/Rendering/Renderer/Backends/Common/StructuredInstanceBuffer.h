@@ -5,9 +5,11 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <array>
 #include <string>
 #include <vector>
 #include <span>
@@ -45,9 +47,15 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 内部リソースを取得する
-		ID3D12Resource* GetResource() const { return buffer_->GetResource(); }
-		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const { return buffer_->GetResource()->GetGPUVirtualAddress(); }
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetGPUHandle() const { return srvGPUHandle_; }
+		ID3D12Resource* GetResource() const {
+			return buffers_[GraphicsFrameState::GetCurrentIndex()]->GetResource();
+		}
+		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const {
+			return GetResource()->GetGPUVirtualAddress();
+		}
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetGPUHandle() const {
+			return srvGPUHandles_[GraphicsFrameState::GetCurrentIndex()];
+		}
 
 		// 描画バウンディング名を取得する
 		std::string_view GetBindingName() const { return bindingName_; }
@@ -65,12 +73,19 @@ namespace Engine {
 		std::string bindingName_{};
 
 		// バッファ
-		std::unique_ptr<DxStructuredBuffer<T>> buffer_{};
-		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle_{};
+		std::array<std::unique_ptr<DxStructuredBuffer<T>>,
+			kGraphicsFrameContextCount> buffers_{};
+		std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
+			kGraphicsFrameContextCount> srvGPUHandles_{};
 
 		// SRVの最大容量
 		uint32_t capacity_ = 0;
-		uint32_t srvIndex_ = UINT32_MAX;
+		std::array<uint32_t, kGraphicsFrameContextCount> srvIndices_ = {
+			UINT32_MAX, UINT32_MAX, UINT32_MAX
+		};
+		// 容量拡張前のリソースとDescriptorはGPU完了前に破棄しない
+		std::vector<std::unique_ptr<DxStructuredBuffer<T>>> retiredBuffers_{};
+		std::vector<uint32_t> retiredSrvIndices_{};
 
 		//--------- functions ----------------------------------------------------
 
@@ -92,13 +107,24 @@ namespace Engine {
 	inline void StructuredInstanceBuffer<T>::Release() {
 
 		// SRVを解放する
-		if (srvDescriptor_ && srvIndex_ != UINT32_MAX) {
-			srvDescriptor_->Free(srvIndex_);
-			srvIndex_ = UINT32_MAX;
+		if (srvDescriptor_) {
+			for (uint32_t& index : srvIndices_) {
+				if (index != UINT32_MAX) {
+					srvDescriptor_->Free(index);
+					index = UINT32_MAX;
+				}
+			}
+			for (uint32_t index : retiredSrvIndices_) {
+				srvDescriptor_->Free(index);
+			}
 		}
-		buffer_.reset();
+		for (std::unique_ptr<DxStructuredBuffer<T>>& buffer : buffers_) {
+			buffer.reset();
+		}
+		retiredBuffers_.clear();
+		retiredSrvIndices_.clear();
 		capacity_ = 0;
-		srvGPUHandle_ = {};
+		srvGPUHandles_ = {};
 		device_ = nullptr;
 		srvDescriptor_ = nullptr;
 	}
@@ -116,7 +142,8 @@ namespace Engine {
 		if (data.empty()) {
 			return;
 		}
-		buffer_->TransferData(data.data(), static_cast<uint32_t>(data.size()));
+		buffers_[GraphicsFrameState::GetCurrentIndex()]->TransferData(
+			data.data(), static_cast<uint32_t>(data.size()));
 	}
 
 	template<typename T>
@@ -130,21 +157,35 @@ namespace Engine {
 
 		// 新しい容量を計算する
 		uint32_t newCapacity = RoundUpCapacity(requiredCount);
-		if (srvDescriptor_ && srvIndex_ != UINT32_MAX) {
-			srvDescriptor_->Free(srvIndex_);
-			srvIndex_ = UINT32_MAX;
-		}
+		for (uint32_t frameIndex = 0;
+			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
-		// バッファを作成する
-		buffer_ = std::make_unique<DxStructuredBuffer<T>>();
-		buffer_->CreateSRVBuffer(device_, newCapacity);
-		if (!bindingName_.empty()) {
-			buffer_->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
+			if (buffers_[frameIndex]) {
+				retiredBuffers_.emplace_back(std::move(buffers_[frameIndex]));
+			}
+			if (srvIndices_[frameIndex] != UINT32_MAX) {
+				retiredSrvIndices_.emplace_back(srvIndices_[frameIndex]);
+				srvIndices_[frameIndex] = UINT32_MAX;
+			}
+
+			// 各フレームでCPU更新領域を分離する
+			buffers_[frameIndex] = std::make_unique<DxStructuredBuffer<T>>();
+			buffers_[frameIndex]->CreateSRVBuffer(device_, newCapacity);
+			if (!bindingName_.empty()) {
+				const std::string resourceName = bindingName_ +
+					"[" + std::to_string(frameIndex) + "]";
+				buffers_[frameIndex]->GetResource()->SetName(
+					Algorithm::ConvertString(resourceName).c_str());
+			}
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc =
+				buffers_[frameIndex]->GetSRVDesc(newCapacity);
+			srvDescriptor_->CreateSRV(srvIndices_[frameIndex],
+				buffers_[frameIndex]->GetResource(), srvDesc);
+			srvGPUHandles_[frameIndex] =
+				srvDescriptor_->GetGPUHandle(srvIndices_[frameIndex]);
+			buffers_[frameIndex]->SetSRVGPUHandle(
+				srvGPUHandles_[frameIndex]);
 		}
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = buffer_->GetSRVDesc(newCapacity);
-		srvDescriptor_->CreateSRV(srvIndex_, buffer_->GetResource(), srvDesc);
-		srvGPUHandle_ = srvDescriptor_->GetGPUHandle(srvIndex_);
-		buffer_->SetSRVGPUHandle(srvGPUHandle_);
 		// 容量を更新する
 		capacity_ = newCapacity;
 	}
@@ -158,4 +199,3 @@ namespace Engine {
 		return capacity;
 	}
 } // Engine
-

@@ -75,7 +75,6 @@ namespace {
 		const std::filesystem::path engineRoot = Engine::RuntimePaths::GetEngineProjectRoot().parent_path();
 		return FindFirstExistingPath({
 			exeDir / "Managed/NEM.ScriptCore.dll",
-			Engine::RuntimePaths::GetEngineLibraryRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
 			engineRoot / "Generated/Managed/NEM.ScriptCore" / profile / "NEM.ScriptCore.dll",
 			Engine::RuntimePaths::GetGameRoot() / "Managed" / profile / "NEM.ScriptCore.dll",
 			current / "Managed/NEM.ScriptCore.dll"
@@ -226,10 +225,12 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getRotation = &ManagedScriptRuntime::GetRotationCallback;
 	callbacks.setRotation = &ManagedScriptRuntime::SetRotationCallback;
 	callbacks.getLossyScale = &ManagedScriptRuntime::GetLossyScaleCallback;
-	callbacks.getComponentTypeId = &ManagedScriptRuntime::GetComponentTypeIdCallback;
 	callbacks.hasComponent = &ManagedScriptRuntime::HasComponentCallback;
 	callbacks.addComponent = &ManagedScriptRuntime::AddComponentCallback;
 	callbacks.removeComponent = &ManagedScriptRuntime::RemoveComponentCallback;
+	callbacks.dynamicBufferLength = &ManagedScriptRuntime::DynamicBufferLengthCallback;
+	callbacks.dynamicBufferCopy = &ManagedScriptRuntime::DynamicBufferCopyCallback;
+	callbacks.dynamicBufferMutate = &ManagedScriptRuntime::DynamicBufferMutateCallback;
 	callbacks.destroyEntity = &ManagedScriptRuntime::DestroyEntityCallback;
 	callbacks.getScriptEnabled = &ManagedScriptRuntime::GetScriptEnabledCallback;
 	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
@@ -261,6 +262,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
 	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;
 	callbacks.playSkinnedAnimation = &ManagedScriptRuntime::PlaySkinnedAnimationCallback;
+	callbacks.copySkinnedAnimationCurrentClip =
+		&ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;
+	callbacks.getSkinnedAnimationRuntimeState =
+		&ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback;
 	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
 	callbacks.fillMeshCopyPositions = &ManagedScriptRuntime::FillMeshCopyPositionsCallback;
 	callbacks.effectEmit = &ManagedScriptRuntime::EffectEmitCallback;
@@ -268,6 +273,16 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
 	callbacks.effectIsPlaying = &ManagedScriptRuntime::EffectIsPlayingCallback;
 	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
+	callbacks.getUISelectableRuntimeState =
+		&ManagedScriptRuntime::GetUISelectableRuntimeStateCallback;
+	callbacks.getUIProgressRuntimeState =
+		&ManagedScriptRuntime::GetUIProgressRuntimeStateCallback;
+	callbacks.getCanvasInputLocked =
+		&ManagedScriptRuntime::GetCanvasInputLockedCallback;
+	callbacks.getUIButtonClicked =
+		&ManagedScriptRuntime::GetUIButtonClickedCallback;
+	callbacks.getIrisTransitionRuntimeState =
+		&ManagedScriptRuntime::GetIrisTransitionRuntimeStateCallback;
 	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
 	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
 	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
@@ -320,6 +335,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getHasFocus = &ManagedScriptRuntime::GetHasFocusCallback;
 	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
 	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
+	callbacks.copyUserSettingsRoot = &ManagedScriptRuntime::CopyUserSettingsRootCallback;
 	// Gameplay v7のAudioSourceメソッド
 	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
 	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;
@@ -332,6 +348,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getVisibilityLayerMask = &ManagedScriptRuntime::GetVisibilityLayerMaskCallback;
 	callbacks.setVisibilityLayerMask = &ManagedScriptRuntime::SetVisibilityLayerMaskCallback;
 	callbacks.getCollisionTypeMask = &ManagedScriptRuntime::GetCollisionTypeMaskCallback;
+	callbacks.getCollisionRuntimeState = &ManagedScriptRuntime::GetCollisionRuntimeStateCallback;
 	callbacks.setCollisionTypeMask = &ManagedScriptRuntime::SetCollisionTypeMaskCallback;
 	callbacks.findEntityByName = &ManagedScriptRuntime::FindEntityByNameCallback;
 	callbacks.findEntityByTag = &ManagedScriptRuntime::FindEntityByTagCallback;
@@ -621,11 +638,6 @@ namespace {
 		field.componentType = node.value("componentType", std::string{});
 		field.defaultValueJson = node.value("defaultValueJson", std::string("null"));
 
-		if (node.contains("formerNames") && node["formerNames"].is_array()) {
-			for (const auto& n : node["formerNames"]) {
-				field.formerNames.push_back(n.get<std::string>());
-			}
-		}
 		if (node.contains("range") && node["range"].is_object()) {
 			field.hasRange = true;
 			field.rangeMin = node["range"].value("min", 0.0f);
@@ -722,41 +734,20 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 	return it->second;
 }
 
-nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(const std::string& scriptTypeID,
+nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(
 	const nlohmann::json& serializedFields) {
 
-	// インスタンスへ適用するfieldGuidから値のマップを作る、新形式はそのまま旧形式は名前で移行する
 	nlohmann::json result = nlohmann::json::object();
-	if (!serializedFields.is_object()) {
+	if (!serializedFields.is_object() ||
+		!serializedFields.contains("fields") || !serializedFields["fields"].is_object()) {
 		return result;
 	}
 
-	// 新形式{ fields: { guid: { name, type, value } } }
-	if (serializedFields.contains("fields") && serializedFields["fields"].is_object()) {
-
-		for (auto& [guid, entry] : serializedFields["fields"].items()) {
-			if (entry.is_object() && entry.contains("value")) {
-				result[guid] = entry["value"];
-			} else {
-				result[guid] = entry;
-			}
-		}
-		return result;
-	}
-
-	// 旧形式の名前から値の形式で、スキーマの名前や旧名からguidを引いて移行する
-	const ManagedScriptSchema& schema = GetScriptSchema(scriptTypeID);
-	std::unordered_map<std::string, std::string> nameToGuid;
-	for (const ManagedFieldSchema& field : schema.fields) {
-		nameToGuid[field.name] = field.fieldID;
-		for (const std::string& former : field.formerNames) {
-			nameToGuid.emplace(former, field.fieldID);
-		}
-	}
-	for (auto& [name, value] : serializedFields.items()) {
-		auto it = nameToGuid.find(name);
-		if (it != nameToGuid.end()) {
-			result[it->second] = value;
+	for (auto& [guid, entry] : serializedFields["fields"].items()) {
+		if (entry.is_object() && entry.contains("value")) {
+			result[guid] = entry["value"];
+		} else {
+			result[guid] = entry;
 		}
 	}
 	return result;

@@ -154,10 +154,10 @@ public sealed partial class EffectEmitter {
 
         public ParticleEffect? Effect {
             get {
-                ulong value = Get<ulong>(EffectProperty);
-                return value != 0ul ? new ParticleEffect(new UUID(value)) : null;
+                AssetGUID value = Get<AssetGUID>(EffectProperty);
+                return value.isValid ? new ParticleEffect(value) : null;
             }
-            set => Set(EffectProperty, value != null ? value.assetId.value : 0ul);
+            set => Set(EffectProperty, value != null ? value.assetId : AssetGUID.None);
         }
 
         public EffectEmitterMode Mode {

@@ -12,7 +12,7 @@ namespace Engine {
 	//============================================================================
 	//	RaytracingReflectionPass class
 	//	LightingPassが書いたSceneColorFinalへレイトレーシング反射を加算するパス
-	//	GBufferの法線/位置を入力にし、ベース色はSceneColorFinal自身から読む
+	//	GBufferの法線/位置/PBRパラメータを入力にし、SceneColorFinalへ反射を合成する
 	//============================================================================
 	class RaytracingReflectionPass :
 		public IRenderPass {

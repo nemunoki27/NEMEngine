@@ -4,10 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
-#include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 //============================================================================
@@ -15,165 +13,128 @@
 //============================================================================
 void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 
-	// すでに初期化されているなら何もしない
 	if (initialized_) {
 		return;
 	}
 
-	auto& platform = graphicsCore.GetDXObject();
+	MultiRenderTargetCreateDesc desc{};
+	desc.width = 1;
+	desc.height = 1;
+	desc.colors.emplace_back(ColorAttachmentDesc{
+		.name = "MeshPickingID",
+		.format = DXGI_FORMAT_R32G32B32A32_UINT,
+		.clearColor = Color4::Black(),
+		.createUAV = false,
+		});
 
-	// ピック用のコンピュートシェーダーのパイプラインを生成
-	ComputePipelineDesc desc{};
-	desc.compute.file = BuiltinShaderSource::Editor::PickMeshInstanceCS;
-	desc.compute.entry = "main";
-	desc.compute.profile = "cs_6_6";
-	pipeline_.CreateCompute(platform.GetDevice(), platform.GetDxShaderCompiler(), desc);
+	DepthTextureCreateDesc depth{};
+	depth.width = 1;
+	depth.height = 1;
+	depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
+	depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+	depth.debugName = L"MeshPickingDepth";
+	desc.depth = depth;
 
-	// バッファの生成
-	pickingBuffer_.CreateBuffer(platform.GetDevice());
-	outputBuffer_.CreateUAVBuffer(platform.GetDevice(), 1);
-	readbackBuffer_.CreateBuffer(platform.GetDevice());
+	renderTarget_.Create(graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(), &graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(), desc);
+	readbackBuffer_.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
 
-	// 出力バッファは初期状態ではCOMMON
-	outputState_ = D3D12_RESOURCE_STATE_COMMON;
 	pendingReadback_ = false;
-	pendingRecords_.clear();
 	initialized_ = true;
 }
 
 void Engine::MeshSubMeshPicker::Finalize() {
 
-	pendingRecords_.clear();
-	outputState_ = D3D12_RESOURCE_STATE_COMMON;
-	initialized_ = false;
+	renderTarget_.Destroy();
 	pendingReadback_ = false;
+	pendingFrameIndex_ = 0;
+	initialized_ = false;
 }
 
-Engine::MeshSubMeshPickOutcome Engine::MeshSubMeshPicker::ConsumePendingResult(ECSWorld* world) {
+Engine::MeshSubMeshPickOutcome
+Engine::MeshSubMeshPicker::ConsumePendingResult(
+	GraphicsCore& graphicsCore, ECSWorld* world) {
 
 	MeshSubMeshPickOutcome outcome{};
-
-	// ピック結果のreadbackが完了していないなら消費せず返す
 	if (!pendingReadback_) {
 		return outcome;
 	}
-	pendingReadback_ = false;
 
-	if (!world) {
-		pendingRecords_.clear();
+	const DxCommand* dxCommand =
+		graphicsCore.GetDXObject().GetDxCommand();
+	const uint64_t fenceValue =
+		dxCommand->GetFrameFenceValue(pendingFrameIndex_);
+	if (graphicsCore.GetDXObject().GetCommandQueue()->
+		GetCompletedFenceValue() < fenceValue) {
 		return outcome;
 	}
 
-	// ここから先は呼び出し側で選択確定すべきケース
+	pendingReadback_ = false;
 	outcome.committed = true;
 
-	// ピック結果を取得
-	const PickResult result = readbackBuffer_.GetReadbackData();
-
-	// ヒットなしは選択解除へ倒す、空クリックは選択解除になる
-	if (result.instanceID == kInvalidPickInstanceID ||
-		result.instanceID >= pendingRecords_.size()) {
-		pendingRecords_.clear();
+	if (!world) {
 		return outcome;
 	}
 
-	// clearで参照がdanglingしないよう値でコピーしてから保持配列を空にする
-	const MeshSubMeshPickRecord picked = pendingRecords_[result.instanceID];
-	pendingRecords_.clear();
-	if (!world->IsAlive(picked.entity)) {
+	const PickResult& result = readbackBuffer_.GetReadbackData().result;
+	if (result.valid == 0 ||
+		result.entityIndex == UINT32_MAX ||
+		result.entityGeneration == UINT32_MAX) {
 		return outcome;
 	}
 
-	// ヒット、呼び出し側で候補を更新し選択を確定する
+	const Entity entity{ result.entityIndex, result.entityGeneration };
+	if (!world->IsAlive(entity)) {
+		return outcome;
+	}
+
 	outcome.hit = true;
-	outcome.entity = picked.entity;
-	outcome.subMeshIndex = picked.subMeshIndex;
-	outcome.subMeshStableID = picked.subMeshStableID;
+	outcome.entity = entity;
+	outcome.subMeshIndex = result.subMeshIndex;
+
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(*world, entity);
+	if (result.subMeshIndex < subMeshes.size()) {
+		outcome.subMeshStableID = subMeshes[result.subMeshIndex].stableID;
+	}
 	return outcome;
 }
 
-void Engine::MeshSubMeshPicker::ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view,
-	const Vector2& inputPixel, std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource,
-	bool additive, bool dragOnly) {
+void Engine::MeshSubMeshPicker::ExecuteReadback(GraphicsCore& graphicsCore) {
 
-	// 結果消費時にシフト/Ctrl併用だったか判定するため保持する
-	pendingAdditive_ = additive;
-	pendingDragOnly_ = dragOnly;
-
-	// 無効な状態のときは何もしない
-	if (!initialized_ || !tlasResource) {
+	if (!initialized_ || !renderTarget_.IsValid()) {
 		return;
 	}
 
-	// カメラ情報を取得
-	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective);
-	if (!camera) {
+	RenderTexture2D* sourceTexture = renderTarget_.GetColorTexture(0);
+	if (!sourceTexture || !sourceTexture->GetResource()) {
 		return;
 	}
 
-	// メッシュが1つも無いなら空選択扱い
-	if (pickRecords.empty()) {
-		pendingRecords_.clear();
-		pendingReadback_ = false;
-		return;
-	}
+	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
+	sourceTexture->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-	// ピック用のデータを構築してGPUへ転送
-	PickingData data{};
-	data.inputPixelX = static_cast<uint32_t>(std::clamp(inputPixel.x, 0.0f, static_cast<float>(view.width - 1)));
-	data.inputPixelY = static_cast<uint32_t>(std::clamp(inputPixel.y, 0.0f, static_cast<float>(view.height - 1)));
-	data.textureWidth = view.width;
-	data.textureHeight = view.height;
-	data.inverseViewProjection = Matrix4x4::Inverse(camera->matrices.viewProjectionMatrix);
-	data.cameraWorldPos = camera->cameraPos;
-	data.rayMax = camera->farClip;
-	pickingBuffer_.TransferData(data);
+	D3D12_TEXTURE_COPY_LOCATION destination{};
+	destination.pResource = readbackBuffer_.GetResource();
+	destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	destination.PlacedFootprint.Footprint.Format =
+		DXGI_FORMAT_R32G32B32A32_UINT;
+	destination.PlacedFootprint.Footprint.Width = 1;
+	destination.PlacedFootprint.Footprint.Height = 1;
+	destination.PlacedFootprint.Footprint.Depth = 1;
+	destination.PlacedFootprint.Footprint.RowPitch =
+		D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
 
-	// ピック対象のサブメッシュ情報を保持
-	pendingRecords_.assign(pickRecords.begin(), pickRecords.end());
+	D3D12_TEXTURE_COPY_LOCATION source{};
+	source.pResource = sourceTexture->GetResource();
+	source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	source.SubresourceIndex = 0;
 
-	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
-	auto* commandList = dxCommand->GetCommandList();
-
-	// 出力バッファをUAV状態に遷移
-	if (outputState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
-
-		dxCommand->TransitionBarriers({ outputBuffer_.GetResource() },
-			outputState_, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		outputState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-	}
-
-	// パイプラインを設定
-	commandList->SetComputeRootSignature(pipeline_.GetRootSignature());
-	commandList->SetPipelineState(pipeline_.GetComputePipeline());
-
-	// ルート引数をバインドしパイプラインが変わった時だけスロットを再解決する
-	pickBindCache_.Sync(pipeline_);
-	if (pickBindCache_.Has(tlasSlot_)) {
-		RootBindingCommand::SetComputeSRV(commandList, pickBindCache_.Get(tlasSlot_),
-			tlasResource->GetGPUVirtualAddress(), {});
-	}
-	if (pickBindCache_.Has(outputUAVSlot_)) {
-		RootBindingCommand::SetComputeUAV(commandList, pickBindCache_.Get(outputUAVSlot_),
-			outputBuffer_.GetResource()->GetGPUVirtualAddress(), {});
-	}
-	if (pickBindCache_.Has(pickingCBVSlot_)) {
-		RootBindingCommand::SetComputeCBV(commandList, pickBindCache_.Get(pickingCBVSlot_),
-			pickingBuffer_.GetResource()->GetGPUVirtualAddress());
-	}
-
-	// ピック処理実行
-	commandList->Dispatch(1, 1, 1);
-
-	// UAVの書き込み順序保証のためバリアを発行
-	dxCommand->UAVBarrier(outputBuffer_.GetResource());
-
-	// CPUに書き戻す
-	dxCommand->TransitionBarriers({ outputBuffer_.GetResource() },
-		outputState_, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	outputState_ = D3D12_RESOURCE_STATE_COPY_SOURCE;
-	// 出力バッファの内容をリードバック用バッファへコピー
-	commandList->CopyResource(readbackBuffer_.GetResource(), outputBuffer_.GetResource());
-
+	commandList->CopyTextureRegion(
+		&destination, 0, 0, 0, &source, nullptr);
+	pendingFrameIndex_ = dxCommand->GetCurrentFrameIndex();
 	pendingReadback_ = true;
 }

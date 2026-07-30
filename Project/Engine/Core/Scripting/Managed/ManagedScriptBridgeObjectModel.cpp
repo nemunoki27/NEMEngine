@@ -10,22 +10,44 @@
 #include <Engine/Core/Scripting/Managed/ManagedBehavior.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
+// c++
+#include <cstring>
+#include <limits>
+
+namespace {
+
+	Engine::UntypedDynamicBuffer ResolveDynamicBuffer(
+		Engine::ECSWorld* world, const Engine::Entity& entity,
+		int32_t typeID, int32_t elementSize) {
+
+		if (!world || !world->IsAlive(entity) ||
+			typeID < 0 || elementSize <= 0) {
+			return {};
+		}
+		Engine::ComponentTypeRegistry& registry =
+			Engine::ComponentTypeRegistry::GetInstance();
+		const uint32_t resolvedTypeID =
+			static_cast<uint32_t>(typeID);
+		if (resolvedTypeID >= registry.GetComponentTypeCount()) {
+			return {};
+		}
+		const Engine::ComponentTypeInfo& info =
+			registry.GetInfo(resolvedTypeID);
+		if (info.storageKind != Engine::ComponentStorageKind::Buffer ||
+			info.elementSize != static_cast<size_t>(elementSize) ||
+			!info.bufferElementTriviallyCopyable) {
+			return {};
+		}
+		return world->TryGetUntypedBuffer(entity, resolvedTypeID);
+	}
+}
+
 namespace Engine {
 
 	//============================================================================
 	//	オブジェクトモデルのコールバック
 	//	C#側Entity/IComponentRef/ScriptBehaviour.Enabledから呼ばれる汎用操作
 	//============================================================================
-
-	int32_t ManagedScriptRuntime::GetComponentTypeIdCallback(const char* name) {
-
-		// 安定なコンポーネント名からcompactなruntime type idを一度だけ解決しC#側でキャッシュする、未登録なら-1を返しC#側はHas=false扱いにする
-		if (!name) {
-			return -1;
-		}
-		const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(name);
-		return info ? static_cast<int32_t>(info->id) : -1;
-	}
 
 	int32_t ManagedScriptRuntime::HasComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
 
@@ -34,12 +56,11 @@ namespace Engine {
 		if (!world || !world->IsAlive(resolved) || typeID < 0) {
 			return 0;
 		}
-		auto& registry = ComponentTypeRegistry::GetInstance();
-		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
+		const uint32_t componentTypeID = static_cast<uint32_t>(typeID);
+		if (componentTypeID >= ComponentTypeRegistry::GetInstance().GetComponentTypeCount()) {
 			return 0;
 		}
-		// compact idから登録名を引いて存在判定する、O(1)のcomponentマスク照合
-		return world->HasComponent(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name) ? 1 : 0;
+		return world->HasComponent(resolved, componentTypeID) ? 1 : 0;
 	}
 
 	void ManagedScriptRuntime::AddComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
@@ -70,6 +91,103 @@ namespace Engine {
 		}
 		// 対象無しの削除や適用前のentity失効もApply側で安全に無処理になる
 		world->GetCommandBuffer().EnqueueRemoveComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name);
+	}
+
+	int32_t ManagedScriptRuntime::DynamicBufferLengthCallback(
+		ManagedNativeEntity entity, int32_t typeID, int32_t elementSize) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const UntypedDynamicBuffer buffer =
+			ResolveDynamicBuffer(world, resolved, typeID, elementSize);
+		return buffer.IsValid() ?
+			static_cast<int32_t>(buffer.GetSize()) : -1;
+	}
+
+	int32_t ManagedScriptRuntime::DynamicBufferCopyCallback(
+		ManagedNativeEntity entity, int32_t typeID, int32_t elementSize,
+		int32_t startIndex, void* destination, int32_t capacity) {
+
+		if (startIndex < 0 || capacity < 0 ||
+			(capacity != 0 && !destination)) {
+			return -1;
+		}
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		const UntypedDynamicBuffer buffer =
+			ResolveDynamicBuffer(world, resolved, typeID, elementSize);
+		if (!buffer.IsValid()) {
+			return -1;
+		}
+		return static_cast<int32_t>(buffer.CopyTo(
+			destination, static_cast<uint32_t>(capacity),
+			static_cast<uint32_t>(startIndex)));
+	}
+
+	int32_t ManagedScriptRuntime::DynamicBufferMutateCallback(
+		ManagedNativeEntity entity, int32_t typeID, int32_t elementSize,
+		int32_t operation, int32_t index, const void* data, int32_t count) {
+
+		if (index < 0 || count < 0) {
+			return 0;
+		}
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		UntypedDynamicBuffer buffer =
+			ResolveDynamicBuffer(world, resolved, typeID, elementSize);
+		if (!buffer.IsValid()) {
+			return 0;
+		}
+
+		bool success = false;
+		switch (static_cast<ManagedDynamicBufferOperation>(operation)) {
+		case ManagedDynamicBufferOperation::Replace:
+			success = buffer.SetData(
+				data, static_cast<uint32_t>(count));
+			break;
+		case ManagedDynamicBufferOperation::Append: {
+			if (count != 0 && !data) {
+				break;
+			}
+			const uint32_t oldSize = buffer.GetSize();
+			const uint32_t appendCount = static_cast<uint32_t>(count);
+			if (appendCount >
+				(std::numeric_limits<uint32_t>::max)() - oldSize ||
+				!buffer.Resize(oldSize + appendCount)) {
+				break;
+			}
+			if (appendCount != 0) {
+				std::memcpy(
+					static_cast<std::byte*>(buffer.GetData()) +
+					buffer.GetElementSize() * oldSize,
+					data, buffer.GetElementSize() * appendCount);
+			}
+			success = true;
+			break;
+		}
+		case ManagedDynamicBufferOperation::SetElement:
+			success = buffer.SetElement(
+				static_cast<uint32_t>(index), data);
+			break;
+		case ManagedDynamicBufferOperation::RemoveAt:
+			success = buffer.RemoveAt(static_cast<uint32_t>(index));
+			break;
+		case ManagedDynamicBufferOperation::Resize:
+			success = buffer.Resize(static_cast<uint32_t>(count));
+			break;
+		case ManagedDynamicBufferOperation::Clear:
+			success = buffer.Resize(0);
+			break;
+		default:
+			break;
+		}
+
+		if (success) {
+			// Bakerと描画抽出へ同じフレーム内のBuffer変更を伝える
+			world->MarkComponentModified(
+				resolved, static_cast<uint32_t>(typeID));
+		}
+		return success ? 1 : 0;
 	}
 
 	void ManagedScriptRuntime::DestroyEntityCallback(ManagedNativeEntity entity) {

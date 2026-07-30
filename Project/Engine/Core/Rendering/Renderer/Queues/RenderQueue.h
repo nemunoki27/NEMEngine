@@ -16,6 +16,7 @@
 
 // c++
 #include <vector>
+#include <span>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -27,6 +28,8 @@ namespace Engine {
 	struct MaterialParameterValue;
 	struct PrimitiveRendererComponent;
 	struct ParticleGroupRuntimeState;
+	struct FillMeshPosition;
+	struct FillMeshTriangleIndex;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -82,8 +85,10 @@ namespace Engine {
 	struct FillMeshRenderPayload {
 
 		// Systemが構築した点列と三角形分割インデックスを指す、同フレーム内のみ有効
-		const std::vector<Vector3>* positions = nullptr;
-		const std::vector<uint32_t>* indices = nullptr;
+		const FillMeshPosition* positions = nullptr;
+		uint32_t positionCount = 0;
+		const FillMeshTriangleIndex* indices = nullptr;
+		uint32_t indexCount = 0;
 
 		Color4 color = Color4::White();
 
@@ -140,8 +145,6 @@ namespace Engine {
 		AssetID material{};
 		// 描画アイテムの種類ごとのデータへのキー
 		uint64_t batchKey = 0;
-		// 静的バッチキャッシュキー用の内容ハッシュで抽出時に1度だけ計算する(Meshのみ使用)
-		uint64_t contentHash = 0;
 
 		// 描画に使用するカメラ
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
@@ -154,6 +157,13 @@ namespace Engine {
 	//	RenderSceneBatch class
 	//	フレーム中の描画アイテムを統一管理する
 	//============================================================================
+	struct RenderTransformChange {
+
+		ECSWorld* world = nullptr;
+		Entity entity = Entity::Null();
+		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+	};
+
 	class RenderSceneBatch {
 	public:
 		//============================================================================
@@ -171,6 +181,17 @@ namespace Engine {
 		void Reserve(uint32_t itemCount, uint32_t payloadByteCount);
 		// 描画アイテムのソート
 		void Sort();
+		// 抽出元Worldと描画データ、Transform世代を記録する
+		void SetSource(const ECSWorld* world,
+			uint64_t renderRevision, uint64_t transformRevision);
+		// Transformだけを更新した世代を記録する
+		void SetTransformSource(uint64_t transformRevision,
+			bool completeChanges);
+		// 指定EntityだけのTransformを更新
+		void RefreshTransforms(ECSWorld& world,
+			std::span<const Entity> changedEntities);
+		// 差分履歴が利用できない場合に全Transformを更新
+		void RefreshAllTransforms();
 
 		// 描画アイテムのペイロードの追加
 		template<class T>
@@ -179,6 +200,25 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const std::vector<RenderItem>& GetItems() const { return items_; }
+		std::vector<RenderItem>& GetMutableItems() { return items_; }
+		std::span<const RenderTransformChange>
+			GetTransformChanges() const {
+			return transformChanges_;
+		}
+		bool HasCompleteTransformChanges() const {
+			return completeTransformChanges_;
+		}
+		// Raytracing等が描画内容の変更検知に使用する世代
+		uint64_t GetSourceRevision() const { return contentRevision_; }
+		uint64_t GetSourceRenderRevision() const { return sourceRenderRevision_; }
+		uint64_t GetSourceTransformRevision() const { return sourceTransformRevision_; }
+		bool MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const {
+			return sourceWorld_ == world &&
+				sourceRenderRevision_ == renderRevision;
+		}
+		bool MatchesTransforms(uint64_t transformRevision) const {
+			return sourceTransformRevision_ == transformRevision;
+		}
 
 		template<class T>
 		const T* GetPayload(const RenderItem& item) const { return payloadArena_.Get<T>(item.payload); }
@@ -190,7 +230,20 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::vector<RenderItem> items_;
+		std::unordered_multimap<uint64_t, size_t>
+			entityItemLookup_;
+		std::vector<RenderTransformChange> transformChanges_;
 		RenderPayloadArena payloadArena_{};
+		const ECSWorld* sourceWorld_ = nullptr;
+		uint64_t sourceRenderRevision_ = 0;
+		uint64_t sourceTransformRevision_ = 0;
+		uint64_t contentRevision_ = 0;
+		bool completeTransformChanges_ = false;
+
+		// Entityを描画アイテム索引へ変換するキー
+		static uint64_t BuildEntityKey(const Entity& entity);
+		// ソート後の描画アイテム索引を構築
+		void RebuildEntityLookup();
 	};
 } // Engine
 

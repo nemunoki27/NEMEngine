@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthPyramidTexture.h>
 
 // c++
 #include <cstdint>
@@ -86,6 +87,9 @@ namespace Engine {
 		MultiRenderTarget* GetSceneMain() const { return sceneMain_.get(); }
 		// Raytracing/Transparent/PostProcess用の1色(UAV)サーフェス、ライティング結果の合成先
 		MultiRenderTarget* GetSceneFinal() const { return sceneFinal_.get(); }
+		// 深度プリパスから生成するHi-Zテクスチャ
+		DepthPyramidTexture& GetDepthPyramid() { return depthPyramid_; }
+		const DepthPyramidTexture& GetDepthPyramid() const { return depthPyramid_; }
 
 		// GBuffer各アタッチメントの取得、ライティングパスが属性ごとに参照する
 		RenderTexture2D* GetGBufferAlbedo() const { return GetGBufferColor(GBufferAttachment::Albedo); }
@@ -116,6 +120,7 @@ namespace Engine {
 		std::unique_ptr<MultiRenderTarget> sceneMain_;
 		// SceneColorFinal (UAV付き)
 		std::unique_ptr<MultiRenderTarget> sceneFinal_;
+		DepthPyramidTexture depthPyramid_{};
 		// Runtime ScreenSpaceOutlineComponent用
 		ScreenSpaceOutlineViewResources runtimeOutline_{};
 		// Editor選択temporary request用

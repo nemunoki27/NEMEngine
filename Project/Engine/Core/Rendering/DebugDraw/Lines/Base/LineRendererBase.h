@@ -12,10 +12,12 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/VertexBuffer.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
 #include <memory>
+#include <array>
 #include <vector>
 
 namespace Engine {
@@ -36,10 +38,12 @@ namespace Engine {
 		}
 		virtual ~LineRendererBase() {
 			// 描画中に確保したGPUバッファを持つRenderResourceを明示resetする
-			for (auto& resource : renderResources_) {
-				resource.reset();
+			for (auto& frameResources : renderResources_) {
+				for (auto& resource : frameResources) {
+					resource.reset();
+				}
+				frameResources.clear();
 			}
-			renderResources_.clear();
 		}
 
 		// 初期化
@@ -121,8 +125,10 @@ namespace Engine {
 		PipelineBindingCache::SlotID lineCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		// 同じコマンドリスト内で複数回描画しても、後の描画内容で上書きしないためのバッファ
-		std::vector<std::unique_ptr<RenderResource>> renderResources_{};
-		uint32_t renderResourceIndex_ = 0;
+		std::array<std::vector<std::unique_ptr<RenderResource>>,
+			kGraphicsFrameContextCount> renderResources_{};
+		std::array<uint32_t,
+			kGraphicsFrameContextCount> renderResourceIndices_{};
 
 		// 描画するラインの頂点情報、常に手前に描くオーバーレイ線
 		std::vector<LineVertex> vertices_{};
@@ -209,7 +215,9 @@ namespace Engine {
 		Assert::Call(occludedCreated, "DebugLineRenderer occluded pipeline create failed");
 
 		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
-		renderResources_.reserve(4);
+		for (auto& resources : renderResources_) {
+			resources.reserve(4);
+		}
 
 		// 頂点配列の容量を最大頂点数に合わせる
 		vertices_.reserve(kMaxVertexCount_);
@@ -222,7 +230,7 @@ namespace Engine {
 		occludedVertices_.clear();
 		occludedMode_ = false;
 		occlusionDepth_ = nullptr;
-		renderResourceIndex_ = 0;
+		renderResourceIndices_[GraphicsFrameState::GetCurrentIndex()] = 0;
 	}
 
 	template<typename T>
@@ -331,15 +339,18 @@ namespace Engine {
 	template<typename T>
 	inline typename LineRendererBase<T>::RenderResource& LineRendererBase<T>::AllocateRenderResource(GraphicsCore& graphicsCore) {
 
-		if (renderResources_.size() <= renderResourceIndex_) {
+		const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+		auto& resources = renderResources_[frameIndex];
+		uint32_t& resourceIndex = renderResourceIndices_[frameIndex];
+		if (resources.size() <= resourceIndex) {
 
 			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない
 			auto resource = std::make_unique<RenderResource>();
 			resource->vertexBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice(), kMaxVertexCount_);
 			resource->passBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
-			renderResources_.emplace_back(std::move(resource));
+			resources.emplace_back(std::move(resource));
 		}
-		return *renderResources_[renderResourceIndex_++];
+		return *resources[resourceIndex++];
 	}
 } // Engine
 

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
@@ -40,6 +41,8 @@ namespace Engine {
 	Vector3 ToVector3(const ManagedVector3& value);
 	ManagedQuaternion ToManagedQuaternion(const Quaternion& value);
 	Quaternion ToQuaternion(const ManagedQuaternion& value);
+	ManagedAssetGUID ToManagedAssetGUID(AssetID assetID);
+	AssetID ToAssetID(const ManagedAssetGUID& assetGUID);
 
 	//--------- Transform /階層操作の補助-----------------------------------
 

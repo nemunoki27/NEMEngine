@@ -47,7 +47,7 @@ bool Engine::RemoveComponentCommand::ApplyRemove(EditorCommandContext& context) 
 
 	if (typeName_ == "UIProgress") {
 		if (auto* progress = world->TryGetComponent<UIProgressComponent>(target)) {
-			UICanvasSystem::RestoreProgressVisual(*world, *progress);
+			UICanvasSystem::RestoreProgressVisual(*world, target, *progress);
 		}
 	}
 

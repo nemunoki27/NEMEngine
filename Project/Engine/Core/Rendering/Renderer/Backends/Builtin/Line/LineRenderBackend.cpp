@@ -134,7 +134,8 @@ void Engine::LineRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする
 		if (resolvedPass.material) {
-			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material, commandList);
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, materialParamBinder_,
+				*resolvedPass.material, commandList);
 		}
 	}
 

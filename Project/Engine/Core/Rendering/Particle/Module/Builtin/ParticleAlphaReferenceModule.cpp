@@ -38,10 +38,14 @@ void Engine::ParticleAlphaReferenceModule::OnUpdate(
 }
 
 bool Engine::ParticleAlphaReferenceModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragFloat("開始閾値", startReference_, ParticleGui::MakeDragSetting(0.0f, 1.0f, 0.005f)).valueChanged;
 	changed |= MyGUI::DragFloat("終了閾値", endReference_, ParticleGui::MakeDragSetting(0.0f, 1.0f, 0.005f)).valueChanged;
 	changed |= ParticleGui::SelectEasing(easingType_);
 	return changed;
+#else
+	return false;
+#endif
 }

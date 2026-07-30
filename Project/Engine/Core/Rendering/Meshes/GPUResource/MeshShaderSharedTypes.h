@@ -6,8 +6,10 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 
 // c++
+#include <array>
 #include <cstdint>
 
 namespace Engine {
@@ -35,7 +37,8 @@ namespace Engine {
 		uint32_t cullingEnabled = 0;
 		// 圧縮頂点用のメッシュレットIndexバッファを使うか
 		uint32_t packedMeshletVertexIndices = 0;
-		uint32_t _reserved0 = 0;
+		// 視錐台判定を行うか
+		uint32_t frustumCullingEnabled = 0;
 		// 画面上の寄与が小さいメッシュレットを落とすか
 		uint32_t contributionCullingEnabled = 0;
 		// メッシュレット法線コーンによる背面判定を行うか
@@ -53,7 +56,18 @@ namespace Engine {
 		float outlineMaxAbsCameraZOffset = 0.0f;
 		// ScreenPixels幅を含むバッチかどうか
 		uint32_t outlineHasScreenPixelWidth = 0;
-		uint32_t _reserved1[3] = { 0, 0, 0 };
+		// 深度ピラミッドによる遮蔽判定を行うか
+		uint32_t occlusionCullingEnabled = 0;
+		uint32_t _reserved1[2] = { 0, 0 };
+
+		// 連結Index/Meshletバッファ内の4段階LOD範囲
+		std::array<uint32_t, kMeshLODCount> lodIndexOffsets{};
+		std::array<uint32_t, kMeshLODCount> lodIndexCounts{};
+		std::array<uint32_t, kMeshLODCount> lodMeshletOffsets{};
+		std::array<uint32_t, kMeshLODCount> lodMeshletCounts{};
+		// 投影半径が閾値以上ならLOD0/1/2を選び、それ未満はLOD3にする
+		Vector3 lodPixelThresholds = Vector3(160.0f, 80.0f, 32.0f);
+		uint32_t lodCount = kMeshLODCount;
 	};
 	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
 

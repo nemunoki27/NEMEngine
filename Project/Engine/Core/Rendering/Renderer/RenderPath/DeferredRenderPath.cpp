@@ -11,17 +11,14 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ClearRenderTargetsPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/SkyboxPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/OpaqueRenderPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RaytracingReflectionPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/TransparentRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessMaskedUIPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorSelectionScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/ScreenUIPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorOverlayPass.h>
 
@@ -40,16 +37,36 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 	fixedPasses.reserve(14);
 	fixedPasses.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<DepthPrepass>(deps_));
-	fixedPasses.emplace_back(std::make_unique<OpaqueRenderPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
+		.kind = RenderPathPassKind::Opaque,
+		.phase = RenderPhase::Opaque,
+		.target = QueueRenderPass::Target::SceneMain
+		}));
 	fixedPasses.emplace_back(std::make_unique<LightingPass>());
 	fixedPasses.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
-	fixedPasses.emplace_back(std::make_unique<TransparentRenderPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
+		.kind = RenderPathPassKind::Transparent,
+		.phase = RenderPhase::Transparent,
+		.target = QueueRenderPass::Target::SceneFinal,
+		.materialPass = MaterialPassKind::Transparent,
+		.reuseSceneDepth = true
+		}));
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
-	fixedPasses.emplace_back(std::make_unique<PostProcessMaskedUIPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
+		.kind = RenderPathPassKind::PostProcessMaskedUI,
+		.phase = RenderPhase::PostProcessMaskedUI,
+		.target = QueueRenderPass::Target::SceneFinal,
+		.usePhaseExecution = false
+		}));
 	fixedPasses.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<BlitToViewPass>(deps_));
-	fixedPasses.emplace_back(std::make_unique<ScreenUIPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
+		.kind = RenderPathPassKind::ScreenUI,
+		.phase = RenderPhase::ScreenUI,
+		.target = QueueRenderPass::Target::DefaultSurface,
+		.usePhaseExecution = false
+		}));
 	fixedPasses.emplace_back(std::make_unique<DebugOverlayPass>());
 	fixedPasses.emplace_back(std::make_unique<EditorOverlayPass>());
 

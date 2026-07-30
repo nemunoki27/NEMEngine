@@ -23,29 +23,15 @@ namespace {
 	// JSON値からUUIDを読む
 	Engine::UUID ReadUUIDValue(const nlohmann::json& value) {
 
-		Engine::UUID result{};
-		if (value.is_string()) {
-			return Engine::FromString16Hex(value.get<std::string>());
+		if (!value.is_string()) {
+			return Engine::UUID{};
 		}
-		if (value.is_number_unsigned()) {
-			result.value = value.get<uint64_t>();
-		} else if (value.is_number_integer()) {
-
-			const int64_t raw = value.get<int64_t>();
-			if (raw > 0) {
-				result.value = static_cast<uint64_t>(raw);
-			}
-		}
-		return result;
+		return Engine::FromString16Hex(value.get<std::string>());
 	}
 
 	// JSON値へUUIDを書き戻す
 	void WriteUUIDValue(nlohmann::json& value, Engine::UUID id) {
 
-		if (value.is_number_unsigned() || value.is_number_integer()) {
-			value = id.value;
-			return;
-		}
 		value = id ? Engine::ToString(id) : std::string{};
 	}
 
@@ -64,13 +50,10 @@ namespace {
 		if (!entityJson.is_object()) {
 			return Engine::UUID{};
 		}
-		if (entityJson.contains("LocalFileID")) {
-			return ReadUUIDValue(entityJson["LocalFileID"]);
+		if (!entityJson.contains("LocalFileID")) {
+			return Engine::UUID{};
 		}
-		if (entityJson.contains("UUID")) {
-			return ReadUUIDValue(entityJson["UUID"]);
-		}
-		return Engine::UUID{};
+		return ReadUUIDValue(entityJson["LocalFileID"]);
 	}
 
 	// PrefabルートのローカルIDを読む
@@ -223,7 +206,7 @@ namespace {
 			RemapCameraTarget(component, "follow", localFileIDMap);
 			RemapCameraTarget(component, "lookAt", localFileIDMap);
 			RemapFollowLookAtTarget(component, localFileIDMap);
-		} else if (componentType == "EffectEmitter" || componentType == "ParticleEmitter") {
+		} else if (componentType == "EffectEmitter") {
 			RemapEffectEmitterParents(component, localFileIDMap);
 		}
 	}
@@ -257,90 +240,6 @@ namespace {
 		WriteUUIDValue(value, it->second);
 	}
 
-	// ScriptEntryのslot IDを読み取る
-	Engine::UUID ReadScriptSlotID(const nlohmann::json& scriptEntry) {
-
-		if (!scriptEntry.is_object()) {
-			return Engine::UUID{};
-		}
-		if (scriptEntry.contains("scriptSlotId")) {
-			return ReadUUIDValue(scriptEntry["scriptSlotId"]);
-		}
-		return ReadUUIDKey(scriptEntry, "scriptSlotID");
-	}
-
-	// ScriptRefのslot IDを読み取る
-	Engine::UUID ReadScriptRefSlotID(const nlohmann::json& scriptRef) {
-
-		if (!scriptRef.is_object()) {
-			return Engine::UUID{};
-		}
-		if (scriptRef.contains("scriptSlotId")) {
-			return ReadUUIDValue(scriptRef["scriptSlotId"]);
-		}
-		return ReadUUIDKey(scriptRef, "scriptSlotID");
-	}
-
-	// Prefabファイル内のscriptSlotIDからPrefabローカルIDへの表を作る
-	Engine::PrefabReferenceRemapper::LocalFileIDMap BuildScriptSlotMap(const nlohmann::json& prefabFileJson) {
-
-		Engine::PrefabReferenceRemapper::LocalFileIDMap result;
-		if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") ||
-			!prefabFileJson["Entities"].is_array()) {
-			return result;
-		}
-		for (const auto& entityJson : prefabFileJson["Entities"]) {
-
-			const Engine::UUID localFileID = ReadUUIDKey(entityJson, "LocalFileID");
-			if (!localFileID || !entityJson.contains("Components") || !entityJson["Components"].is_object()) {
-				continue;
-			}
-			const nlohmann::json& components = entityJson["Components"];
-			if (!components.contains("Script") || !components["Script"].is_array()) {
-				continue;
-			}
-			for (const auto& scriptEntry : components["Script"]) {
-
-				const Engine::UUID slotID = ReadScriptSlotID(scriptEntry);
-				if (slotID) {
-					result.emplace(slotID, localFileID);
-				}
-			}
-		}
-		return result;
-	}
-
-	// ScriptRefのentityをslot IDから復旧する
-	void RepairScriptRefTree(nlohmann::json& value,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& scriptSlotToLocalFileID,
-		Engine::AssetID prefabAsset) {
-
-		if (value.is_object()) {
-
-			if (value.contains("entity") && value["entity"].is_object() &&
-				(value.contains("scriptSlotId") || value.contains("scriptSlotID"))) {
-
-				const Engine::UUID slotID = ReadScriptRefSlotID(value);
-				auto it = scriptSlotToLocalFileID.find(slotID);
-				if (it != scriptSlotToLocalFileID.end() && it->second) {
-
-					nlohmann::json& entity = value["entity"];
-					entity["kind"] = "Prefab";
-					entity["sourceAsset"] = prefabAsset ? Engine::ToString(prefabAsset) : std::string{};
-					entity["localFileId"] = Engine::ToString(it->second);
-				}
-			}
-			for (auto it = value.begin(); it != value.end(); ++it) {
-				RepairScriptRefTree(it.value(), scriptSlotToLocalFileID, prefabAsset);
-			}
-			return;
-		}
-		if (value.is_array()) {
-			for (auto& element : value) {
-				RepairScriptRefTree(element, scriptSlotToLocalFileID, prefabAsset);
-			}
-		}
-	}
 }
 
 //============================================================================
@@ -442,13 +341,4 @@ void Engine::PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(nlohma
 		auto& parentLocalFileID = components["Hierarchy"]["parentLocalFileID"];
 		WriteUUIDValue(parentLocalFileID, UUID{});
 	}
-}
-
-void Engine::PrefabReferenceRemapper::RepairPrefabFileScriptRefs(nlohmann::json& prefabFileJson, AssetID prefabAsset) {
-
-	const LocalFileIDMap scriptSlotToLocalFileID = BuildScriptSlotMap(prefabFileJson);
-	if (scriptSlotToLocalFileID.empty()) {
-		return;
-	}
-	RepairScriptRefTree(prefabFileJson, scriptSlotToLocalFileID, prefabAsset);
 }

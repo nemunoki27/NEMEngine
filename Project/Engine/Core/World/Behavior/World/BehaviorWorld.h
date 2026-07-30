@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Behavior/BehaviorHandle.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
 #include <memory>
@@ -29,6 +30,8 @@ namespace Engine {
 
 		// 所持しているエンティティ
 		Entity owner = Entity::Null();
+		// ScriptEntryとの安定した対応キー
+		UUID scriptSlotID{};
 		// 実体
 		std::unique_ptr<MonoBehavior> instance;
 
@@ -45,10 +48,6 @@ namespace Engine {
 		bool faulted = false;
 		// スイープ用
 		bool seen = false;
-
-		// serializedFieldsを適用済みのリビジョンでsentinelは未適用
-		// ScriptEntry.serializedRevisionと一致するまで再適用しhot pathでのJSON再適用を防ぐ
-		uint32_t appliedSerializedRevision = 0xFFFFFFFF;
 	};
 
 	//============================================================================
@@ -65,17 +64,24 @@ namespace Engine {
 		~BehaviorWorld() = default;
 
 		// ビヘイビアの作成
-		BehaviorHandle Create(uint32_t typeID, const Entity& owner);
+		BehaviorHandle Create(
+			uint32_t typeID, const Entity& owner, UUID scriptSlotID);
 		// ビヘイビアの破棄
 		void Destroy(const BehaviorHandle& handle, ECSWorld& world, const  SystemContext& context);
 		// ビヘイビアの全ての実体を破棄
 		void DestroyAll(ECSWorld& world, const  SystemContext& context);
+		// 指定Entityが所有するビヘイビアを全て破棄
+		uint32_t DestroyByOwner(const Entity& owner, ECSWorld& world, const SystemContext& context);
 
 		// 全てのビヘイビアの実体に対してアクセスされたフラグをクリアする
 		void ClearSeenFlags();
+		// 指定Entityが所有するビヘイビアのアクセスフラグをクリアする
+		void ClearSeenFlagsByOwner(const Entity& owner);
 		// 実体がアクセスされなかったビヘイビアを全てのレコードに対して破棄する
 		// 破棄した件数を返しparticipantキャッシュの再構築要否判定に使う
 		uint32_t SweepUnseen(ECSWorld& world, const SystemContext& context);
+		// 指定Entity内でアクセスされなかったビヘイビアを破棄する
+		uint32_t SweepUnseenByOwner(const Entity& owner, ECSWorld& world, const SystemContext& context);
 
 		// ビヘイビアの実体全てに対して関数を呼び出す
 		template <typename Fn>
@@ -92,6 +98,9 @@ namespace Engine {
 		// ビヘイビアのレコード情報を返す
 		BehaviorRecord* GetRecord(const BehaviorHandle& handle);
 		const BehaviorRecord* GetRecord(const BehaviorHandle& handle) const;
+		// EntityとScript Slotから生存ハンドルを返す
+		BehaviorHandle FindHandleBySlot(
+			const Entity& owner, UUID scriptSlotID) const;
 
 		// ビヘイビアの実体を返す
 		MonoBehavior* GetBehavior(const BehaviorHandle& handle);

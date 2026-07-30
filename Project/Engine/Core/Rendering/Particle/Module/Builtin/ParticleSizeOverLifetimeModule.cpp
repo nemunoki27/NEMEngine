@@ -50,6 +50,7 @@ void Engine::ParticleSizeOverLifetimeModule::OnUpdate(
 }
 
 bool Engine::ParticleSizeOverLifetimeModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
 	changed |= MyGUI::DragFloat("開始倍率", startScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
@@ -74,4 +75,7 @@ bool Engine::ParticleSizeOverLifetimeModule::DrawImGui() {
 	}
 	changed |= ParticleGui::DrawLoopSettings(loop_);
 	return changed;
+#else
+	return false;
+#endif
 }

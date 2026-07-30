@@ -35,6 +35,9 @@ namespace Engine {
 	// 背面法アウトライン描画
 	struct InvertedHullOutlineComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+
 		// 有効か
 		bool enabled = true;
 
@@ -69,5 +72,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, InvertedHullOutlineComponent& component);
 	void to_json(nlohmann::json& out, const InvertedHullOutlineComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(InvertedHullOutlineComponent, "InvertedHullOutline");
 } // Engine

@@ -42,10 +42,10 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 
 	// 登録されている衝突形状を描画する
 	int32_t removeIndex = -1;
-	for (uint32_t i = 0; i < static_cast<uint32_t>(draft.shapes.size()); ++i) {
+	for (uint32_t i = 0; i < static_cast<uint32_t>(shapeDraft_.size()); ++i) {
 
 		ImGui::PushID(static_cast<int32_t>(i));
-		CollisionShape& shape = draft.shapes[i];
+		CollisionShape& shape = shapeDraft_[i];
 		if (ImGui::TreeNodeEx("形状", ImGuiTreeNodeFlags_DefaultOpen, "形状 %u : %s", i,
 			EnumAdapter<ColliderShapeType>::ToString(shape.type))) {
 
@@ -59,20 +59,57 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 		ImGui::PopID();
 	}
 
-	if (0 <= removeIndex && removeIndex < static_cast<int32_t>(draft.shapes.size())) {
-		draft.shapes.erase(draft.shapes.begin() + removeIndex);
-		if (draft.shapes.empty()) {
-			draft.shapes.push_back(CollisionShape{});
+	if (0 <= removeIndex && removeIndex < static_cast<int32_t>(shapeDraft_.size())) {
+		shapeDraft_.erase(shapeDraft_.begin() + removeIndex);
+		if (shapeDraft_.empty()) {
+			shapeDraft_.push_back(CollisionShape{});
 		}
 		RequestCommit();
 	}
 
 	if (ImGui::Button("形状を追加", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		draft.shapes.push_back(CollisionShape{});
+		shapeDraft_.push_back(CollisionShape{});
 		RequestCommit();
 	}
 
 	ImGui::Unindent();
+}
+
+void Engine::CollisionInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const CollisionComponent& component) {
+
+	const std::span<const CollisionShape> shapes =
+		GetCollisionShapes(world, entity);
+	shapeDraft_.assign(shapes.begin(), shapes.end());
+	if (shapeDraft_.empty()) {
+		shapeDraft_.emplace_back();
+	}
+}
+
+void Engine::CollisionInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const CollisionComponent& component, nlohmann::json& out) const {
+
+	SerializeCollisionDraft(component, shapeDraft_, out);
+}
+
+void Engine::CollisionInspectorDrawer::ApplyPreview(ECSWorld& world,
+	const Entity& entity, const CollisionComponent& previewComponent) {
+
+	if (!world.IsAlive(entity)) {
+		return;
+	}
+	CollisionComponent* component =
+		world.TryGetComponent<CollisionComponent>(entity);
+	if (!component) {
+		return;
+	}
+
+	*component = previewComponent;
+	// 形状は独立Bufferのため、設定プレビュー後に編集用配列だけを書き戻す
+	SetCollisionShapes(world, entity, shapeDraft_);
+	world.MarkComponentModified<CollisionComponent>(entity);
 }
 
 Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawTypeMaskField(CollisionComponent& component) {

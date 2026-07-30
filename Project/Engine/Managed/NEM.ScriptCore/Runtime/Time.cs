@@ -4,15 +4,13 @@ namespace NEMEngine;
 // hot path で reflection / JSON / file I/O を行わない。scaled と unscaled を明確に分離する。
 public static class Time {
 
-    // time scale 適用後のフレーム間秒数（TimeScale=0 で 0 になる）。既存 lowercase は互換のため維持。
-    public static float deltaTime => NativeApi.ReadDeltaTime();
+    // time scale 適用後のフレーム間秒数（TimeScale=0 で 0 になる）
     public static float DeltaTime => NativeApi.ReadDeltaTime();
 
     // time scale を無視したフレーム間秒数（pause 中も実時間で進む）
     public static float UnscaledDeltaTime => NativeApi.ReadUnscaledDeltaTime();
 
     // 固定ステップ間隔。値は time scale に依らず一定（scale は substep 回数側に反映される）
-    public static float fixedDeltaTime => NativeApi.ReadFixedDeltaTime();
     public static float FixedDeltaTime => NativeApi.ReadFixedDeltaTime();
     public static float UnscaledFixedDeltaTime => NativeApi.ReadUnscaledFixedDeltaTime();
 

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/IDentity/UUID.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -104,21 +104,26 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 
 		PostProcessStackPassSettings pass{};
 		const std::string idStr = passJson.value("id", "");
-		pass.id = idStr.size() == 16 ? FromString16Hex(idStr) : UUID::New();
+		pass.id = idStr.size() == 16 ? FromString16Hex(idStr) : UUID{};
+		if (!pass.id) {
+			continue;
+		}
 		pass.name = passJson.value("name", "Pass");
 		pass.enabled = passJson.value("enabled", true);
 
 		const std::string guidStr = passJson.value("materialGuid", "");
-		pass.materialGuid = guidStr.size() == 16 ? FromString16Hex(guidStr) : AssetID{};
+		pass.materialGuid = guidStr.size() == 32 ? FromString32Hex(guidStr) : AssetID{};
 		const auto passKind = EnumAdapter<MaterialPassKind>::FromString(passJson.value("passKind", ""));
 		if (!passKind || *passKind == MaterialPassKind::Invalid) {
 			continue;
 		}
 		pass.passKind = *passKind;
 
-		// anchor未指定の旧データは従来位置のAfterMaskedUIへ寄せる
-		pass.anchor = EnumAdapter<PostProcessAnchor>::FromString(passJson.value("anchor", ""))
-			.value_or(PostProcessAnchor::AfterMaskedUI);
+		const auto anchor = EnumAdapter<PostProcessAnchor>::FromString(passJson.value("anchor", ""));
+		if (!anchor) {
+			continue;
+		}
+		pass.anchor = *anchor;
 
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
 			for (auto it = passJson["parameters"].begin(); it != passJson["parameters"].end(); ++it) {
@@ -135,8 +140,8 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 					continue;
 				}
 				const std::string texGuidStr = it.value().value("textureGuid", "");
-				if (texGuidStr.size() == 16) {
-					pass.textureGuids[it.key()] = FromString16Hex(texGuidStr);
+				if (texGuidStr.size() == 32) {
+					pass.textureGuids[it.key()] = FromString32Hex(texGuidStr);
 				}
 			}
 		}

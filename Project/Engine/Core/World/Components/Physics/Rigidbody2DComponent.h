@@ -55,5 +55,4 @@ namespace Engine {
 	// コンポーネントからjsonへ変換する
 	void to_json(nlohmann::json& out, const Rigidbody2DComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(Rigidbody2DComponent, "Rigidbody2D");
 } // Engine

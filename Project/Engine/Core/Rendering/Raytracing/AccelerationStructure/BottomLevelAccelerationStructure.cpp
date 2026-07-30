@@ -4,91 +4,112 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	BottomLevelAccelerationStructure classMethods
 //============================================================================
-void Engine::BottomLevelAccelerationStructure::FillGeometryDesc(const RaytracingBLASInput& input) {
+namespace {
 
-	D3D12_GPU_VIRTUAL_ADDRESS vertexBaseAddress = 0;
-	UINT vertexCount = 0;
-	UINT vertexStride = 0;
-	DXGI_FORMAT vertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-	D3D12_GPU_VIRTUAL_ADDRESS indexBaseAddress = 0;
-	DXGI_FORMAT indexFormat = DXGI_FORMAT_R32_UINT;
-	// 通常のMeshRenderer経由描画
-	if (input.meshResource) {
+	struct GeometryTransform3x4 {
 
-		// メッシュリソースの取得と検査
-		const MeshGPUResource& mesh = *input.meshResource;
+		float value[3][4]{};
+	};
+}
 
-		Assert::Call(input.subMeshIndex < mesh.subMeshes.size(), "Invalid subMeshIndex.");
-		Assert::Call((input.indexOffset + input.indexCount) <= mesh.indexCount, "SubMesh index range out of bounds.");
+void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
+	const RaytracingBLASInput& input) {
 
-		// スキニング結果の頂点データを使用するか
-		const bool useOverrideVertexBuffer = input.overrideVertexAddress != 0 && input.overrideVertexCount != 0;
+	geometryDescs_.resize(input.geometries.size());
 
-		// 頂点はMeshVertexのtepositionを先頭にしてstrideはMeshVertexサイズ
-		vertexBaseAddress = (useOverrideVertexBuffer ? input.overrideVertexAddress :
-			mesh.vertexSRV.buffer->GetResource()->GetGPUVirtualAddress()) + offsetof(MeshVertex, position);
-		vertexCount = useOverrideVertexBuffer ? static_cast<UINT>(input.overrideVertexCount) : static_cast<UINT>(mesh.vertexCount);
-		vertexStride = static_cast<UINT>(sizeof(MeshVertex));
-		vertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+	std::vector<GeometryTransform3x4> transforms(input.geometries.size());
 
-		// インデックスGPUアドレスはサブメッシュ範囲まで、BLAS側にもIBVと同じFormatを渡す
-		indexBaseAddress = mesh.indexBuffer.GetResource()->GetGPUVirtualAddress() +
-			mesh.indexBuffer.GetIndexSizeInBytes() * static_cast<uint64_t>(input.indexOffset);
-		indexFormat = mesh.indexBuffer.GetFormat();
+	for (uint32_t index = 0;
+		index < static_cast<uint32_t>(input.geometries.size()); ++index) {
+
+		const RaytracingBLASGeometryInput& source = input.geometries[index];
+		Assert::Call(source.vertexAddress != 0 && source.vertexStride != 0 &&
+			source.vertexCount != 0, "BLAS geometry requires vertices");
+		Assert::Call(source.indexAddress != 0 && source.indexCount != 0,
+			"BLAS geometry requires indices");
+
+		// 行ベクトル行列をDXRの3x4行列へ変換
+		const Matrix4x4 matrix = Matrix4x4::Transpose(source.localMatrix);
+		for (uint32_t row = 0; row < 3; ++row) {
+			for (uint32_t column = 0; column < 4; ++column) {
+				transforms[index].value[row][column] =
+					matrix.m[row][column];
+			}
+		}
+
+		D3D12_RAYTRACING_GEOMETRY_DESC& geometry = geometryDescs_[index];
+		geometry = {};
+		geometry.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+		geometry.Flags = source.flags;
+		geometry.Triangles.Transform3x4 =
+			geometryTransformBuffer_.GetGPUAddress() +
+			sizeof(GeometryTransform3x4) * static_cast<uint64_t>(index);
+		geometry.Triangles.VertexFormat = source.vertexFormat;
+		geometry.Triangles.VertexCount = source.vertexCount;
+		geometry.Triangles.VertexBuffer.StartAddress = source.vertexAddress;
+		geometry.Triangles.VertexBuffer.StrideInBytes = source.vertexStride;
+		geometry.Triangles.IndexFormat = source.indexFormat;
+		geometry.Triangles.IndexCount = source.indexCount;
+		geometry.Triangles.IndexBuffer = source.indexAddress;
 	}
-	// カスタムメッシュ描画の設定
-	else {
+	geometryTransformBuffer_.Write(
+		transforms.data(), transforms.size() * sizeof(GeometryTransform3x4));
+}
 
-		Assert::Call(input.customVertexAddress != 0 && input.customVertexStride != 0, "Custom BLAS geometry requires a vertex buffer.");
+uint64_t Engine::BottomLevelAccelerationStructure::ComputeLayoutHash(
+	const RaytracingBLASInput& input) {
 
-		// 入力設定をそのままセット
-		vertexBaseAddress = input.customVertexAddress;
-		vertexCount = static_cast<UINT>(input.customVertexCount);
-		vertexStride = static_cast<UINT>(input.customVertexStride);
-		vertexFormat = input.customVertexFormat;
-		indexBaseAddress = input.customIndexAddress;
-		indexFormat = input.customIndexFormat;
+	uint64_t hash = static_cast<uint64_t>(input.geometries.size());
+	for (const RaytracingBLASGeometryInput& geometry : input.geometries) {
+
+		Algorithm::HashCombine(hash, geometry.vertexStride);
+		Algorithm::HashCombine(hash, geometry.vertexCount);
+		Algorithm::HashCombine(hash, static_cast<uint32_t>(geometry.vertexFormat));
+		Algorithm::HashCombine(hash, geometry.indexCount);
+		Algorithm::HashCombine(hash, static_cast<uint32_t>(geometry.indexFormat));
+		Algorithm::HashCombine(hash, static_cast<uint32_t>(geometry.flags));
 	}
-
-	// ジオメトリ記述の設定
-	geometryDesc_ = {};
-	geometryDesc_.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	geometryDesc_.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-	geometryDesc_.Triangles.Transform3x4 = 0;
-	// 頂点
-	geometryDesc_.Triangles.VertexFormat = vertexFormat;
-	geometryDesc_.Triangles.VertexCount = vertexCount;
-	geometryDesc_.Triangles.VertexBuffer.StartAddress = vertexBaseAddress;
-	geometryDesc_.Triangles.VertexBuffer.StrideInBytes = vertexStride;
-	// インデックス
-	geometryDesc_.Triangles.IndexFormat = indexFormat;
-	geometryDesc_.Triangles.IndexCount = static_cast<UINT>(input.indexCount);
-	geometryDesc_.Triangles.IndexBuffer = indexBaseAddress;
+	return hash;
 }
 
 void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
-	allowUpdate_ = input.allowUpdate;
+	Assert::Call(!input.geometries.empty(), "BLAS requires geometry");
+	retiredResources_.Collect();
 
-	// ジオメトリ記述の設定
-	FillGeometryDesc(input);
+	device_ = device;
+	allowUpdate_ = input.allowUpdate;
+	layoutHash_ = ComputeLayoutHash(input);
+
+	// ジオメトリローカル行列の領域を作成
+	geometryTransformBuffer_.EnsureCapacity(device,
+		sizeof(GeometryTransform3x4) * input.geometries.size(),
+		"BLASGeometryTransforms", 256);
+	FillGeometryDescs(input);
 
 	// ASビルド記述の設定
 	inputs_ = {};
 	inputs_.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
 	inputs_.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	inputs_.NumDescs = 1;
-	inputs_.pGeometryDescs = &geometryDesc_;
+	inputs_.NumDescs = static_cast<UINT>(geometryDescs_.size());
+	inputs_.pGeometryDescs = geometryDescs_.data();
 	inputs_.Flags = allowUpdate_ ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
 		: D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild{};
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
+	if (scratch_.GetResource()) {
+		retiredResources_.Retire(scratch_.TakeResource());
+	}
+	if (result_.GetResource()) {
+		retiredResources_.Retire(result_.TakeResource());
+	}
 	// スクラッチと結果のバッファを作成
 	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
@@ -112,15 +133,20 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 
 void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
+	retiredResources_.Collect();
 	// 更新が許可されていない場合やASが構築されていない場合は何もしない
 	if (!allowUpdate_ || !result_.GetResource()) {
 		return;
 	}
+	if (layoutHash_ != ComputeLayoutHash(input)) {
+		Build(device_, commandList, input);
+		return;
+	}
 
 	// 毎フレーム、最新の頂点アドレスで組み直す
-	FillGeometryDesc(input);
+	FillGeometryDescs(input);
 
-	buildDesc_.Inputs.pGeometryDescs = &geometryDesc_;
+	buildDesc_.Inputs.pGeometryDescs = geometryDescs_.data();
 	buildDesc_.SourceAccelerationStructureData = result_.GetGPUAddress();
 	buildDesc_.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
 	commandList->BuildRaytracingAccelerationStructure(&buildDesc_, 0, nullptr);

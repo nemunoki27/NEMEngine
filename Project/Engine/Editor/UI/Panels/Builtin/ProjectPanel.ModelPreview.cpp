@@ -148,8 +148,9 @@ void Engine::ProjectPanel::PrepareModelPreviewAtlas(const EditorPanelContext& co
 			modelPreviewAtlasSize_, modelPreviewSettings_.clearColor, kModelPreviewColorTargetCount);
 	}
 	if (atlas && modelPreviewRefreshFrames_ > 0) {
-		RenderModelPreviewAtlas(toolContext, *atlas);
-		--modelPreviewRefreshFrames_;
+		if (RenderModelPreviewAtlas(toolContext, *atlas)) {
+			--modelPreviewRefreshFrames_;
+		}
 	}
 
 	EndEditorToolFrame();
@@ -196,7 +197,8 @@ void Engine::ProjectPanel::RebuildModelPreviewSlots(AssetDatabase& database, con
 		renderer.queue = RenderPhase::Opaque;
 		renderer.visible = true;
 		renderer.enableZPrepass = true;
-		MeshSubMeshAuthoring::SyncComponent(&database, renderer, false);
+		MeshSubMeshAuthoring::SyncEntity(
+			&database, *modelPreviewWorld_, entity, false);
 
 		const int32_t column = i % columns;
 		const int32_t row = i / columns;
@@ -222,14 +224,15 @@ void Engine::ProjectPanel::RebuildModelPreviewSlots(AssetDatabase& database, con
 	}
 }
 
-void Engine::ProjectPanel::RenderModelPreviewAtlas(const EditorToolContext& toolContext,
+bool Engine::ProjectPanel::RenderModelPreviewAtlas(const EditorToolContext& toolContext,
 	EditorToolRenderTexture& atlas) {
 
 	if (!toolContext.panelContext || !toolContext.panelContext->renderPipeline || !modelPreviewWorld_) {
-		return;
+		return false;
 	}
 
 	ApplyModelPreviewLightSettings();
+	bool allRendered = true;
 	RenderToTexture(atlas, [&](EditorToolRenderContext& renderContext) {
 
 		for (const ModelPreviewSlot& slot : modelPreviewSlots_) {
@@ -254,9 +257,12 @@ void Engine::ProjectPanel::RenderModelPreviewAtlas(const EditorToolContext& tool
 			request.viewportWidth = static_cast<uint32_t>(slot.pixelSize.x);
 			request.viewportHeight = static_cast<uint32_t>(slot.pixelSize.y);
 
-			toolContext.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
+			allRendered &=
+				toolContext.panelContext->renderPipeline->RenderEntityPreview(
+					*renderContext.graphicsCore, request);
 		}
 		}, atlas.clearColor);
+	return allRendered;
 }
 
 bool Engine::ProjectPanel::TryGetModelPreviewImage(AssetID assetID,
@@ -293,7 +299,8 @@ uint64_t Engine::ProjectPanel::BuildModelPreviewSignature(const ProjectDirectory
 		if (!asset) {
 			continue;
 		}
-		HashCombine(signature, asset->assetID.value);
+		HashCombine(signature, asset->assetID.high);
+		HashCombine(signature, asset->assetID.low);
 		HashString(signature, asset->assetPath);
 
 		std::error_code ec{};

@@ -4,7 +4,7 @@ workspace "NEMEngine"
     location (NEM_PROJECT_ROOT)
     configurations { "Debug", "Develop", "Release" }
     platforms { "x64" }
-    startproject "Sandbox"
+    startproject "NEMEditor"
 
     filter "platforms:x64"
         architecture "x64"

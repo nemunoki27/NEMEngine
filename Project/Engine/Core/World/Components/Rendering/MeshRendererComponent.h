@@ -12,6 +12,7 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
+#include <span>
 #include <unordered_map>
 
 namespace Engine {
@@ -23,7 +24,7 @@ namespace Engine {
 	enum class MeshRenderFlags : uint32_t {
 
 		None = 0,
-		// ライティングを行うか、無効ならUnlitでアルベドと発光をそのまま出す
+		// ライティングを行うか
 		Lighting = 1 << 0,
 		// 他のメッシュへ影を落とすか
 		CastShadow = 1 << 1,
@@ -35,8 +36,8 @@ namespace Engine {
 		CastReflection = 1 << 4,
 		// レイトレ反射を受けるか
 		ReceiveReflection = 1 << 5,
-		// 全フラグ有効、追加時はここにも足す
-		Default = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5),
+		// 全フラグ有効
+		Default = Lighting | CastShadow | ReceiveShadow | ReceiveIBL | CastReflection | ReceiveReflection,
 	};
 
 	inline MeshRenderFlags operator|(MeshRenderFlags lhs, MeshRenderFlags rhs) {
@@ -59,11 +60,15 @@ namespace Engine {
 	}
 
 	// MeshRenderFlagsのjson入出力、名前付きbool群で保存しMesh/Primitiveで共用する
-	// 旧形式の単一uint("renderFlags")も後方互換で読み込む
 	void ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flags);
 	void WriteMeshRenderFlags(nlohmann::json& out, MeshRenderFlags flags);
 
 	struct SubMeshMaterial {
+
+		static constexpr ComponentStorageKind kStorageKind = ComponentStorageKind::Buffer;
+		static constexpr uint32_t kInternalBufferCapacity = 0;
+		static constexpr bool kSerializable = false;
+		static constexpr ComponentChangeChannel kChangeChannels = ComponentChangeChannel::Render;
 
 		// 表示用の名前
 		std::string name;
@@ -74,22 +79,17 @@ namespace Engine {
 		uint32_t sourceSubMeshIndex = 0;
 
 		// シェーダーごとのマテリアルパラメータ
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides{};
+		MaterialParameterOverrides parameterOverrides{};
 
 		// UV
 		Vector2 uvPos = Vector2::AnyInit(0.0f);
 		float uvRotation = 0.0f;
 		Vector2 uvScale = Vector2::AnyInit(1.0f);
-		// ランタイム計算結果
-		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
 		// ローカル変換(Entityが親)
 		Vector3 localPos = Vector3::AnyInit(0.0f);
 		Vector3 localRotation = Vector3::AnyInit(0.0f);
 		Vector3 localScale = Vector3::AnyInit(1.0f);
-
-		// ランタイム計算結果
-		Matrix4x4 worldMatrix = Matrix4x4::Identity();
 
 		// 頂点座標から計算したピボット
 		Vector3 sourcePivot = Vector3::AnyInit(0.0f);
@@ -97,6 +97,10 @@ namespace Engine {
 
 	// メッシュ描画
 	struct MeshRendererComponent {
+
+		static constexpr bool kHasECSHooks = true;
+		static constexpr ComponentChangeChannel kChangeChannels = ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels = ComponentChangeChannel::Render;
 
 		// メッシュ
 		AssetID mesh{};
@@ -121,8 +125,13 @@ namespace Engine {
 		// ライティングや影の適用を切り替えるフラグ
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
 
-		// サブメッシュごとのマテリアル設定
-		std::vector<SubMeshMaterial> subMeshes{};
+		// Registryから呼ばれるワールド依存Storageフック
+		static void OnAdded(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
+		static void OnRemoved(ECSWorld& world, const Entity& entity);
+		static void InitializeStorage(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
+		static void ReleaseStorage(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity, const nlohmann::json& in, MeshRendererComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity, const MeshRendererComponent& component, nlohmann::json& out);
 	};
 
 	// json変換
@@ -130,6 +139,12 @@ namespace Engine {
 	void to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial);
 	void from_json(const nlohmann::json& in, MeshRendererComponent& component);
 	void to_json(nlohmann::json& out, const MeshRendererComponent& component);
+	// Entityに付随するサブメッシュ編集データ
+	std::span<SubMeshMaterial> GetMeshSubMeshes(ECSWorld& world, const Entity& entity);
+	std::span<const SubMeshMaterial> GetMeshSubMeshes(const ECSWorld& world, const Entity& entity);
+	void SetMeshSubMeshes(ECSWorld& world, const Entity& entity, std::span<const SubMeshMaterial> subMeshes);
+	// サブメッシュを含む保存データへ変換する
+	void SerializeMeshRenderer(const MeshRendererComponent& component, std::span<const SubMeshMaterial> subMeshes, nlohmann::json& out);
 
 	// helpers
 	namespace MeshSubMeshRuntime {
@@ -138,11 +153,5 @@ namespace Engine {
 		Matrix4x4 BuildUVMatrix(const SubMeshMaterial& subMesh);
 		Matrix4x4 BuildLocalMatrix(const SubMeshMaterial& subMesh);
 		Matrix4x4 BuildRenderLocalMatrix(const SubMeshMaterial& subMesh);
-
-		// ランタイム更新
-		void UpdateSubMeshRuntime(SubMeshMaterial& subMesh, const Matrix4x4& parentWorldMatrix);
-		void UpdateRendererRuntime(MeshRendererComponent& renderer, const Matrix4x4& parentWorldMatrix);
 	}
-
-	ENGINE_REGISTER_COMPONENT(MeshRendererComponent, "MeshRenderer");
 } // Engine

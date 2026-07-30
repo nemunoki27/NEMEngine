@@ -57,7 +57,7 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 	if (Algorithm::EndsWith(filename, ".animclip.json") || extension == ".animclip") {
 		return AssetType::AnimationClip;
 	}
-	return AssetType::Unknown;
+	return AssetType::DefaultAsset;
 }
 
 bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {

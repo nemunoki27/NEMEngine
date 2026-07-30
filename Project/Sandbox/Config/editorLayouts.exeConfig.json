@@ -1,0 +1,98 @@
+{
+    "layouts": [
+        {
+            "builtinDefault": false,
+            "displayName": "EditEffect",
+            "imguiIniData": "[Window][##EditorDockSpaceHost]\nPos=0,24\nSize=1920,1033\nCollapsed=0\n\n[Window][Toolbar]\nPos=0,24\nSize=1020,32\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Hierarchy]\nPos=0,647\nSize=187,251\nCollapsed=0\nDockId=0x0000000B,0\n\n[Window][Console]\nPos=189,647\nSize=388,410\nCollapsed=0\nDockId=0x0000000A,1\n\n[Window][Inspector:inspector.primary]\nPos=1022,24\nSize=898,1033\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Tool]\nPos=0,900\nSize=187,157\nCollapsed=0\nDockId=0x0000000C,0\n\n[Window][Project:project.primary]\nPos=189,647\nSize=388,410\nCollapsed=0\nDockId=0x0000000A,0\n\n[Window][GameView]\nPos=0,58\nSize=1020,587\nCollapsed=0\nDockId=0x0000000D,0\n\n[Window][SceneView]\nPos=0,58\nSize=1020,587\nCollapsed=0\nDockId=0x0000000D,1\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][エディターレイアウトの保存]\nPos=852,451\nSize=216,154\nCollapsed=0\n\n[Window][ParticleEffect]\nPos=1022,58\nSize=898,999\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project:Project.c178dd92533b7544]\nPos=579,647\nSize=441,410\nCollapsed=0\nDockId=0x00000008,0\n\n[Window][シーン未保存通知##CloseApplication]\nPos=764,470\nSize=392,117\nCollapsed=0\n\n[Docking][Data]\nDockSpace             ID=0x031325F7 Window=0xEF43222D Pos=0,24 Size=1920,1033 Split=X\n  DockNode            ID=0x00000003 Parent=0x031325F7 SizeRef=1020,995 Split=Y Selected=0x6B18D6E3\n    DockNode          ID=0x00000005 Parent=0x00000003 SizeRef=676,32 HiddenTabBar=1 Selected=0x0C01D6D5\n    DockNode          ID=0x00000006 Parent=0x00000003 SizeRef=676,999 Split=Y Selected=0x6B18D6E3\n      DockNode        ID=0x0000000D Parent=0x00000006 SizeRef=676,587 CentralNode=1 Selected=0x6B18D6E3\n      DockNode        ID=0x0000000E Parent=0x00000006 SizeRef=676,410 Split=X Selected=0xD119DF97\n        DockNode      ID=0x00000007 Parent=0x0000000E SizeRef=577,357 Split=X Selected=0x93E80FB3\n          DockNode    ID=0x00000009 Parent=0x00000007 SizeRef=187,406 Split=Y Selected=0xBABDAE5E\n            DockNode  ID=0x0000000B Parent=0x00000009 SizeRef=187,251 Selected=0xBABDAE5E\n            DockNode  ID=0x0000000C Parent=0x00000009 SizeRef=187,157 Selected=0x93E80FB3\n          DockNode    ID=0x0000000A Parent=0x00000007 SizeRef=388,406 Selected=0xEA83D666\n        DockNode      ID=0x00000008 Parent=0x0000000E SizeRef=441,357 Selected=0x4DFD90B9\n  DockNode            ID=0x00000004 Parent=0x031325F7 SizeRef=898,995 Split=Y Selected=0x1B3C7F84\n    DockNode          ID=0x00000001 Parent=0x00000004 SizeRef=899,32 Selected=0x1B3C7F84\n    DockNode          ID=0x00000002 Parent=0x00000004 SizeRef=899,999 Selected=0x73922575\n\n",
+            "imported": false,
+            "layoutID": "user.c8ecf5a16e4f6f59",
+            "order": 1,
+            "panels": [
+                {
+                    "instanceID": "inspector.primary",
+                    "open": true,
+                    "primary": true,
+                    "state": {
+                        "lockedEntityUUID": "",
+                        "mode": "FollowSelection"
+                    },
+                    "typeID": "Inspector"
+                },
+                {
+                    "instanceID": "project.primary",
+                    "open": true,
+                    "primary": true,
+                    "state": {
+                        "assetSource": "Engine",
+                        "displayName": "Project",
+                        "selectedDirectory": "Engine/Assets"
+                    },
+                    "typeID": "Project"
+                },
+                {
+                    "instanceID": "Project.c178dd92533b7544",
+                    "open": true,
+                    "primary": false,
+                    "state": {
+                        "assetSource": "Game",
+                        "displayName": "Project 2",
+                        "selectedDirectory": "GameAssets/Effects/Test"
+                    },
+                    "typeID": "Project"
+                }
+            ],
+            "visibility": {
+                "console": true,
+                "gameView": true,
+                "hierarchy": true,
+                "inspector": true,
+                "project": true,
+                "sceneView": true,
+                "tool": true,
+                "toolbar": true
+            }
+        },
+        {
+            "builtinDefault": true,
+            "displayName": "Default",
+            "imguiIniData": "[Window][##EditorDockSpaceHost]\nPos=0,24\nSize=1920,1033\nCollapsed=0\n\n[Window][Toolbar]\nPos=0,24\nSize=1163,32\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Console]\nPos=1393,640\nSize=527,417\nCollapsed=0\nDockId=0x0000000A,1\n\n[Window][Inspector:inspector.primary]\nPos=1393,24\nSize=527,614\nCollapsed=0\nDockId=0x00000009,0\n\n[Window][Tool]\nPos=1165,640\nSize=226,417\nCollapsed=0\nDockId=0x0000000C,0\n\n[Window][Project:project.primary]\nPos=1393,640\nSize=527,417\nCollapsed=0\nDockId=0x0000000A,0\n\n[Window][GameView]\nPos=0,58\nSize=1163,317\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][SceneView]\nPos=0,377\nSize=1163,680\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Project:Project.c178dd92533b7544]\nPos=237,578\nSize=885,479\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][Hierarchy]\nPos=1165,24\nSize=226,614\nCollapsed=0\nDockId=0x0000000B,0\n\n[Window][エディターレイアウトの保存]\nPos=852,451\nSize=216,154\nCollapsed=0\n\n[Window][シーン未保存通知##CloseApplication]\nPos=563,472\nSize=392,117\nCollapsed=0\n\n[Window][アセットの削除]\nPos=825,470\nSize=330,117\nCollapsed=0\n\n[Window][アセットの作成]\nPos=852,439\nSize=216,178\nCollapsed=0\n\n[Window][アニメーションクリップ作成ツール]\nPos=817,75\nSize=896,964\nCollapsed=0\n\n[Table][0x12B29AED,2]\nRefScale=20\nColumn 0  Width=504\nColumn 1  Weight=1.0000\n\n[Table][0xF47B73D2,2]\nRefScale=20\nColumn 0  Weight=1.0000\nColumn 1  Width=340\n\n[Docking][Data]\nDockSpace       ID=0x031325F7 Window=0xEF43222D Pos=0,24 Size=1920,1033 Split=X\n  DockNode      ID=0x00000003 Parent=0x031325F7 SizeRef=1163,995 Split=Y Selected=0x5B83CEA4\n    DockNode    ID=0x00000005 Parent=0x00000003 SizeRef=1074,351 Split=Y Selected=0x5B83CEA4\n      DockNode  ID=0x00000001 Parent=0x00000005 SizeRef=1179,32 HiddenTabBar=1 Selected=0x0C01D6D5\n      DockNode  ID=0x00000002 Parent=0x00000005 SizeRef=1179,317 CentralNode=1 Selected=0x5B83CEA4\n    DockNode    ID=0x00000006 Parent=0x00000003 SizeRef=1074,680 Selected=0x6B18D6E3\n  DockNode      ID=0x00000004 Parent=0x031325F7 SizeRef=755,995 Split=X Selected=0x1B3C7F84\n    DockNode    ID=0x00000007 Parent=0x00000004 SizeRef=226,995 Split=Y Selected=0xBABDAE5E\n      DockNode  ID=0x0000000B Parent=0x00000007 SizeRef=181,614 Selected=0xBABDAE5E\n      DockNode  ID=0x0000000C Parent=0x00000007 SizeRef=181,417 Selected=0x93E80FB3\n    DockNode    ID=0x00000008 Parent=0x00000004 SizeRef=527,995 Split=Y Selected=0x1B3C7F84\n      DockNode  ID=0x00000009 Parent=0x00000008 SizeRef=661,614 Selected=0x1B3C7F84\n      DockNode  ID=0x0000000A Parent=0x00000008 SizeRef=661,417 Selected=0xD119DF97\n\n",
+            "imported": false,
+            "layoutID": "engine.default",
+            "order": 0,
+            "panels": [
+                {
+                    "instanceID": "inspector.primary",
+                    "open": true,
+                    "primary": true,
+                    "state": {
+                        "lockedEntityUUID": "",
+                        "mode": "FollowSelection"
+                    },
+                    "typeID": "Inspector"
+                },
+                {
+                    "instanceID": "project.primary",
+                    "open": true,
+                    "primary": true,
+                    "state": {
+                        "assetSource": "Game",
+                        "displayName": "Project",
+                        "selectedDirectory": "GameAssets/Textures/PBR/rock_face_03"
+                    },
+                    "typeID": "Project"
+                }
+            ],
+            "visibility": {
+                "console": true,
+                "gameView": true,
+                "hierarchy": true,
+                "inspector": true,
+                "project": true,
+                "sceneView": true,
+                "tool": true,
+                "toolbar": true
+            }
+        }
+    ],
+    "schemaVersion": 1
+}

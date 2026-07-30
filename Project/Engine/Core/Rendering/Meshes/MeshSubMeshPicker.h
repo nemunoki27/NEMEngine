@@ -3,18 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Pipelines/PipelineState.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxReadbackBuffer.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxStructuredBuffer.h>
-#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
-#include <Engine/Core/Foundation/Math/Vector2.h>
-
-// c++
-#include <span>
-#include <vector>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 
 namespace Engine {
 
@@ -25,26 +17,21 @@ namespace Engine {
 	//============================================================================
 	//	MeshSubMeshPicker structures
 	//============================================================================
-
-	// ピック結果を呼び出し側へ渡すための情報
 	struct MeshSubMeshPickOutcome {
 
-		// CommitScenePickを行うべきか、readback未完了や対象ワールド無しならfalse
+		// CommitScenePickを行うべきか
 		bool committed = false;
-		// エンティティにヒットしたか、ヒットなしは選択解除になる
+		// エンティティにヒットしたか
 		bool hit = false;
 
-		// ヒットしたエンティティ
 		Entity entity = Entity::Null();
-		// ヒットしたサブメッシュ番号
 		uint32_t subMeshIndex = 0;
-		// ヒットしたサブメッシュの安定ID
 		UUID subMeshStableID{};
 	};
 
 	//============================================================================
 	//	MeshSubMeshPicker class
-	// メッシュのサブメッシュ単位でのピック処理クラス
+	//	1x1整数RTでメッシュのサブメッシュを取得するクラス
 	//============================================================================
 	class MeshSubMeshPicker {
 	public:
@@ -52,30 +39,25 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		MeshSubMeshPicker() {
-			tlasSlot_       = pickBindCache_.AddSlotByRegister(ShaderBindingKind::AccelStruct, 0, 0);
-			outputUAVSlot_  = pickBindCache_.AddSlotByRegister(ShaderBindingKind::UAV,         0, 0);
-			pickingCBVSlot_ = pickBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,         0, 0);
-		}
+		MeshSubMeshPicker() = default;
 		~MeshSubMeshPicker() = default;
 
 		// 初期化
 		void Init(GraphicsCore& graphicsCore);
-
-		// 前フレームで仕込んだ結果をフレーム頭で消費し、選択へ適用するための結果を返す
-		MeshSubMeshPickOutcome ConsumePendingResult(ECSWorld* world);
-		// GPUピックのreadback待ちが残っているか、クリック確定の遅延判定に使う
-		bool HasPendingReadback() const { return pendingReadback_; }
-
-		// シービュー左クリック時に実行、additiveはシフト併用の複数選択、dragOnlyはCtrl併用で選択を変えずドラッグ対象だけ拾う
-		void ExecutePick(GraphicsCore& graphicsCore, const ResolvedRenderView& view, const Vector2& inputPixel,
-			std::span<const MeshSubMeshPickRecord> pickRecords, ID3D12Resource* tlasResource, bool additive, bool dragOnly);
-
+		// 前フレームの結果を選択情報へ変換する
+		MeshSubMeshPickOutcome ConsumePendingResult(
+			GraphicsCore& graphicsCore, ECSWorld* world);
+		// ラスター描画済みの1x1整数RTをreadbackへコピーする
+		void ExecuteReadback(GraphicsCore& graphicsCore);
 		// 終了処理
 		void Finalize();
 
 		//--------- accessor -----------------------------------------------------
 
+		bool HasPendingReadback() const { return pendingReadback_; }
+		MultiRenderTarget* GetRenderTarget() {
+			return renderTarget_.IsValid() ? &renderTarget_ : nullptr;
+		}
 	private:
 		//============================================================================
 		//	private Methods
@@ -83,58 +65,28 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// ピック処理に必要な情報をまとめた構造体
-		struct PickingData {
-
-			uint32_t inputPixelX = 0;
-			uint32_t inputPixelY = 0;
-			uint32_t textureWidth = 0;
-			uint32_t textureHeight = 0;
-
-			// カメラ情報
-			Matrix4x4 inverseViewProjection = Matrix4x4::Identity();
-			Vector3 cameraWorldPos = Vector3::AnyInit(0.0f);
-
-			// ピック用のレイの最大距離
-			float rayMax = 10000.0f;
-		};
-		// ピック結果
 		struct PickResult {
 
-			uint32_t instanceID = 0xFFFFFFFFu;
+			uint32_t entityIndex = UINT32_MAX;
+			uint32_t entityGeneration = UINT32_MAX;
+			uint32_t subMeshIndex = UINT32_MAX;
+			uint32_t valid = 0;
 		};
+		// テクスチャコピーのRowPitchは256byte境界に合わせる
+		struct PickReadbackRow {
+
+			PickResult result{};
+			uint32_t padding[60]{};
+		};
+		static_assert(sizeof(PickReadbackRow) == D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
 		//--------- variables ----------------------------------------------------
 
-		// 無効なピックインスタンスID
-		static constexpr uint32_t kInvalidPickInstanceID = 0xFFFFFFFFu;
+		MultiRenderTarget renderTarget_{};
+		DxReadbackBuffer<PickReadbackRow> readbackBuffer_{};
 
-		// CS用のパイプライン
-		PipelineState pipeline_{};
-
-		// ルート引数スロットのキャッシュでTLAS/UAV/CBVをレジスタで解決する
-		PipelineBindingCache pickBindCache_{};
-		PipelineBindingCache::SlotID tlasSlot_       = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID outputUAVSlot_  = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID pickingCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-
-		// バッファ
-		DxConstBuffer<PickingData> pickingBuffer_{};
-		DxStructuredBuffer<PickResult> outputBuffer_{};
-		DxReadbackBuffer<PickResult> readbackBuffer_{};
-
-		// ピッキングデータ
-		std::vector<MeshSubMeshPickRecord> pendingRecords_{};
-
-		// 出力バッファの現在の状態
-		D3D12_RESOURCE_STATES outputState_ = D3D12_RESOURCE_STATE_COMMON;
-
-		// 初期化済みかどうか
 		bool initialized_ = false;
 		bool pendingReadback_ = false;
-		// 直近のピックがシフト併用の追加選択だったか、結果消費時に判定する
-		bool pendingAdditive_ = false;
-		// 直近のピックがCtrl併用のドラッグ専用だったか、結果消費時に判定する
-		bool pendingDragOnly_ = false;
+		uint32_t pendingFrameIndex_ = 0;
 	};
 } // Engine

@@ -75,7 +75,7 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
 	for (ShaderStageEntry& stage : asset.stages) {
 
 		std::filesystem::path sourcePath{};
-		if (const std::optional<AssetID> sourceID = TryParseUUID16Hex(stage.file)) {
+		if (const std::optional<AssetID> sourceID = TryParseAssetGUID32Hex(stage.file)) {
 
 			sourcePath = database_->ResolveFullPath(*sourceID);
 		} else {

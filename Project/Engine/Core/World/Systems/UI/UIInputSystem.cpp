@@ -39,6 +39,7 @@ namespace {
 		Engine::Entity entity = Engine::Entity::Null();
 		Engine::Entity canvas = Engine::Entity::Null();
 		Engine::UISelectableComponent* selectable = nullptr;
+		Engine::UISelectableRuntimeComponent* runtime = nullptr;
 		const Engine::UIElementRuntime* element = nullptr;
 		Engine::Vector2 center{};
 	};
@@ -58,9 +59,13 @@ namespace {
 				(0.5f - sprite->pivot.x) * sprite->size.x,
 				(0.5f - sprite->pivot.y) * sprite->size.y);
 		} else if (const auto* text = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
+			const auto* layout =
+				world.TryGetComponent<Engine::TextLayoutRuntimeComponent>(entity);
+			const Engine::Vector2 boundsSize =
+				layout ? layout->boundsSize : Engine::Vector2::AnyInit(0.0f);
 			localCenter = Engine::Vector2(
-				(0.5f - text->pivot.x) * text->runtimeLayout.boundsSize.x,
-				(0.5f - text->pivot.y) * text->runtimeLayout.boundsSize.y);
+				(0.5f - text->pivot.x) * boundsSize.x,
+				(0.5f - text->pivot.y) * boundsSize.y);
 		}
 		const Engine::Vector3 center = Engine::Vector3::Transform(
 			Engine::Vector3(localCenter.x, localCenter.y, 0.0f), runtime.screenMatrix);
@@ -138,21 +143,25 @@ namespace {
 		return best;
 	}
 
-	bool IsTransitionTableEntry(Engine::ECSWorld& world, const Engine::CanvasComponent& canvas,
+	bool IsTransitionTableEntry(Engine::ECSWorld& world,
+		std::span<const Engine::CanvasNavigationCell> cells,
 		const SelectableEntry& entry) {
 
 		const Engine::UUID localFileID = GetLocalFileID(world, entry.entity);
-		return localFileID && std::find(canvas.navigationTable.cells.begin(),
-			canvas.navigationTable.cells.end(), localFileID) != canvas.navigationTable.cells.end();
+		return localFileID && std::find_if(cells.begin(), cells.end(),
+			[localFileID](const Engine::CanvasNavigationCell& cell) {
+				return cell.localFileID == localFileID;
+			}) != cells.end();
 	}
 
 	SelectableEntry* FindFirstTransitionTableEntry(Engine::ECSWorld& world,
 		std::vector<SelectableEntry>& entries, Engine::Entity canvasEntity,
-		const Engine::CanvasComponent& canvas) {
+		std::span<const Engine::CanvasNavigationCell> cells) {
 
-		for (Engine::UUID localFileID : canvas.navigationTable.cells) {
+		for (const Engine::CanvasNavigationCell& cell : cells) {
 
-			SelectableEntry* entry = FindEntryByLocalFileID(world, entries, canvasEntity, localFileID);
+			SelectableEntry* entry = FindEntryByLocalFileID(
+				world, entries, canvasEntity, cell.localFileID);
 			if (entry && entry->selectable->interactable) {
 				return entry;
 			}
@@ -163,23 +172,27 @@ namespace {
 	SelectableEntry* FindTransitionTableNavigation(Engine::ECSWorld& world,
 		std::vector<SelectableEntry>& entries, Engine::Entity canvasEntity,
 		const Engine::CanvasComponent& canvas, const SelectableEntry& current,
-		const Engine::Vector2& direction) {
+		const Engine::Vector2& direction,
+		std::span<const Engine::CanvasNavigationCell> cells) {
 
-		const int32_t rows = canvas.navigationTable.rows;
-		const int32_t columns = canvas.navigationTable.columns;
-		if (rows <= 0 || columns <= 0 || canvas.navigationTable.cells.empty()) {
+		const int32_t rows = canvas.navigationRows;
+		const int32_t columns = canvas.navigationColumns;
+		if (rows <= 0 || columns <= 0 || cells.empty()) {
 			return nullptr;
 		}
 
 		const Engine::UUID currentLocalFileID = GetLocalFileID(world, current.entity);
-		const auto currentCell = std::find(canvas.navigationTable.cells.begin(),
-			canvas.navigationTable.cells.end(), currentLocalFileID);
-		if (currentCell == canvas.navigationTable.cells.end()) {
-			return FindFirstTransitionTableEntry(world, entries, canvasEntity, canvas);
+		const auto currentCell = std::find_if(cells.begin(), cells.end(),
+			[currentLocalFileID](const Engine::CanvasNavigationCell& cell) {
+				return cell.localFileID == currentLocalFileID;
+			});
+		if (currentCell == cells.end()) {
+			return FindFirstTransitionTableEntry(
+				world, entries, canvasEntity, cells);
 		}
 
 		const int32_t currentIndex = static_cast<int32_t>(
-			std::distance(canvas.navigationTable.cells.begin(), currentCell));
+			std::distance(cells.begin(), currentCell));
 		int32_t row = currentIndex / columns;
 		int32_t column = currentIndex % columns;
 		const int32_t directionX = direction.x < 0.0f ? -1 : (0.0f < direction.x ? 1 : 0);
@@ -200,11 +213,11 @@ namespace {
 			}
 
 			const size_t index = static_cast<size_t>(row * columns + column);
-			if (canvas.navigationTable.cells.size() <= index) {
+			if (cells.size() <= index) {
 				continue;
 			}
 			SelectableEntry* next = FindEntryByLocalFileID(
-				world, entries, canvasEntity, canvas.navigationTable.cells[index]);
+				world, entries, canvasEntity, cells[index].localFileID);
 			if (next && next->entity != current.entity && next->selectable->interactable) {
 				return next;
 			}
@@ -212,41 +225,38 @@ namespace {
 		return nullptr;
 	}
 
-	bool IsKeyboardTriggered(Engine::Input& input, const std::vector<KeyDIKCode>& bindings) {
+	bool IsBindingTriggered(Engine::Input& input,
+		std::span<const Engine::CanvasInputBinding> bindings,
+		Engine::CanvasInputAction action, Engine::CanvasInputDevice device) {
 
-		for (KeyDIKCode key : bindings) {
-			if (input.TriggerKey(static_cast<BYTE>(key))) {
+		for (const Engine::CanvasInputBinding& binding : bindings) {
+			if (binding.action != action || binding.device != device) {
+				continue;
+			}
+			const bool triggered = device == Engine::CanvasInputDevice::Keyboard ?
+				input.TriggerKey(static_cast<BYTE>(binding.code)) :
+				input.TriggerGamepadButton(
+					static_cast<GamePadButtons>(binding.code));
+			if (triggered) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	bool IsKeyboardHeld(Engine::Input& input, const std::vector<KeyDIKCode>& bindings) {
+	bool IsBindingHeld(Engine::Input& input,
+		std::span<const Engine::CanvasInputBinding> bindings,
+		Engine::CanvasInputAction action, Engine::CanvasInputDevice device) {
 
-		for (KeyDIKCode key : bindings) {
-			if (input.PushKey(static_cast<BYTE>(key))) {
-				return true;
+		for (const Engine::CanvasInputBinding& binding : bindings) {
+			if (binding.action != action || binding.device != device) {
+				continue;
 			}
-		}
-		return false;
-	}
-
-	bool IsGamepadTriggered(Engine::Input& input,
-		const std::vector<GamePadButtons>& bindings) {
-
-		for (GamePadButtons button : bindings) {
-			if (button != GamePadButtons::Counts && input.TriggerGamepadButton(button)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	bool IsGamepadHeld(Engine::Input& input, const std::vector<GamePadButtons>& bindings) {
-
-		for (GamePadButtons button : bindings) {
-			if (button != GamePadButtons::Counts && input.PushGamepadButton(button)) {
+			const bool held = device == Engine::CanvasInputDevice::Keyboard ?
+				input.PushKey(static_cast<BYTE>(binding.code)) :
+				input.PushGamepadButton(
+					static_cast<GamePadButtons>(binding.code));
+			if (held) {
 				return true;
 			}
 		}
@@ -254,60 +264,78 @@ namespace {
 	}
 
 	Engine::Vector2 ReadTriggeredNavigationDirection(Engine::Input& input,
-		const Engine::CanvasComponent& canvas) {
+		const Engine::CanvasComponent& canvas,
+		std::span<const Engine::CanvasInputBinding> bindings) {
 
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardTriggered(input, canvas.navigationUpKeys)) ||
+			IsBindingTriggered(input, bindings,
+				Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadTriggered(input, canvas.navigationUpGamepadButtons))) {
+				IsBindingTriggered(input, bindings,
+					Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(0.0f, -1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardTriggered(input, canvas.navigationDownKeys)) ||
+			IsBindingTriggered(input, bindings,
+				Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadTriggered(input, canvas.navigationDownGamepadButtons))) {
+				IsBindingTriggered(input, bindings,
+					Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(0.0f, 1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardTriggered(input, canvas.navigationLeftKeys)) ||
+			IsBindingTriggered(input, bindings,
+				Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadTriggered(input, canvas.navigationLeftGamepadButtons))) {
+				IsBindingTriggered(input, bindings,
+					Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(-1.0f, 0.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardTriggered(input, canvas.navigationRightKeys)) ||
+			IsBindingTriggered(input, bindings,
+				Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadTriggered(input, canvas.navigationRightGamepadButtons))) {
+				IsBindingTriggered(input, bindings,
+					Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(1.0f, 0.0f);
 		}
 		return {};
 	}
 
 	Engine::Vector2 ReadHeldNavigationDirection(Engine::Input& input,
-		const Engine::CanvasComponent& canvas) {
+		const Engine::CanvasComponent& canvas,
+		std::span<const Engine::CanvasInputBinding> bindings) {
 
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardHeld(input, canvas.navigationUpKeys)) ||
+			IsBindingHeld(input, bindings,
+				Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadHeld(input, canvas.navigationUpGamepadButtons))) {
+				IsBindingHeld(input, bindings,
+					Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(0.0f, -1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardHeld(input, canvas.navigationDownKeys)) ||
+			IsBindingHeld(input, bindings,
+				Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadHeld(input, canvas.navigationDownGamepadButtons))) {
+				IsBindingHeld(input, bindings,
+					Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(0.0f, 1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardHeld(input, canvas.navigationLeftKeys)) ||
+			IsBindingHeld(input, bindings,
+				Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadHeld(input, canvas.navigationLeftGamepadButtons))) {
+				IsBindingHeld(input, bindings,
+					Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(-1.0f, 0.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
-			IsKeyboardHeld(input, canvas.navigationRightKeys)) ||
+			IsBindingHeld(input, bindings,
+				Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadHeld(input, canvas.navigationRightGamepadButtons))) {
+				IsBindingHeld(input, bindings,
+					Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Gamepad))) {
 			return Engine::Vector2(1.0f, 0.0f);
 		}
 
@@ -322,29 +350,37 @@ namespace {
 		return {};
 	}
 
-	bool IsSubmitTriggered(Engine::Input& input, const Engine::CanvasComponent& canvas) {
+	bool IsSubmitTriggered(Engine::Input& input,
+		const Engine::CanvasComponent& canvas,
+		std::span<const Engine::CanvasInputBinding> bindings) {
 
 		return (canvas.keyboardInputEnabled &&
-			IsKeyboardTriggered(input, canvas.submitKeys)) ||
+			IsBindingTriggered(input, bindings,
+				Engine::CanvasInputAction::Submit,
+				Engine::CanvasInputDevice::Keyboard)) ||
 			(canvas.gamepadInputEnabled &&
-				IsGamepadTriggered(input, canvas.submitGamepadButtons));
+				IsBindingTriggered(input, bindings,
+					Engine::CanvasInputAction::Submit,
+					Engine::CanvasInputDevice::Gamepad));
 	}
 
 	std::unordered_map<std::string, Engine::MaterialParameterValue>* ResolveMaterialParameters(
 		Engine::ECSWorld& world, Engine::Entity target) {
 
 		if (auto* sprite = world.TryGetComponent<Engine::SpriteRendererComponent>(target)) {
-			return &sprite->parameterOverrides;
+			return &sprite->parameterOverrides.GetMutable();
 		}
 		if (auto* text = world.TryGetComponent<Engine::TextRendererComponent>(target)) {
-			return &text->parameterOverrides;
+			return &text->parameterOverrides.GetMutable();
 		}
 		return nullptr;
 	}
 
-	const Engine::UITransitionStyle& ResolveStyle(const Engine::UISelectableComponent& selectable) {
+	const Engine::UITransitionStyle& ResolveStyle(
+		const Engine::UISelectableComponent& selectable,
+		const Engine::UISelectableRuntimeComponent& runtime) {
 
-		switch (selectable.runtimeState) {
+		switch (runtime.state) {
 		case Engine::UISelectableState::Selected: return selectable.selected;
 		case Engine::UISelectableState::Submitted: return selectable.submitted;
 		case Engine::UISelectableState::Disabled: return selectable.disabled;
@@ -381,31 +417,31 @@ namespace {
 	}
 
 	void ApplySelectableBaseVisual(Engine::ECSWorld& world, Engine::Entity entity,
-		Engine::UISelectableComponent& selectable) {
+		Engine::UISelectableRuntimeComponent& runtime) {
 
-		if (!selectable.runtimeInitialized) {
+		if (!runtime.initialized) {
 			return;
 		}
 		if (auto* parameters = ResolveMaterialParameters(world, entity)) {
-			if (selectable.runtimeHadBaseColor) {
-				(*parameters)["color"].value = selectable.runtimeBaseColor;
+			if (runtime.hadBaseColor) {
+				(*parameters)["color"].value = runtime.baseColor;
 			} else {
 				parameters->erase("color");
 			}
-			if (selectable.runtimeHadBaseTexture) {
-				(*parameters)["baseColorTexture"].value = selectable.runtimeBaseTexture;
+			if (runtime.hadBaseTexture) {
+				(*parameters)["baseColorTexture"].value = runtime.baseTexture;
 			} else {
 				parameters->erase("baseColorTexture");
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
-			transform->localScale = selectable.runtimeBaseScale;
-			transform->isDirty = true;
+			transform->localScale = runtime.baseScale;
+			Engine::MarkTransformSubtreeDirty(world, entity);
 		}
-		selectable.runtimeCurrentColor = selectable.runtimeBaseColor;
-		selectable.runtimeStartColor = selectable.runtimeBaseColor;
-		selectable.runtimeCurrentScale = selectable.runtimeBaseScale;
-		selectable.runtimeStartScale = selectable.runtimeBaseScale;
+		runtime.currentColor = runtime.baseColor;
+		runtime.startColor = runtime.baseColor;
+		runtime.currentScale = runtime.baseScale;
+		runtime.startScale = runtime.baseScale;
 	}
 
 	void CaptureAnimationBaseValue(Engine::ECSWorld& world, Engine::Entity entity,
@@ -534,106 +570,96 @@ namespace {
 	}
 
 	void RestoreSelectableVisual(Engine::ECSWorld& world, Engine::Entity entity,
-		Engine::UISelectableComponent& selectable) {
+		Engine::UISelectableRuntimeComponent& runtime) {
 
-		if (!selectable.runtimeInitialized) {
+		if (!runtime.initialized) {
 			return;
 		}
-		ApplySelectableBaseVisual(world, entity, selectable);
+		ApplySelectableBaseVisual(world, entity, runtime);
 
-		selectable.runtimeState = Engine::UISelectableState::Normal;
-		selectable.runtimePreviousState = Engine::UISelectableState::Normal;
-		selectable.runtimeColorTransitionElapsed = 0.0f;
-		selectable.runtimeScaleTransitionElapsed = 0.0f;
-		selectable.runtimeHadBaseColor = false;
-		selectable.runtimeHadBaseTexture = false;
-		selectable.runtimeInitialized = false;
-		selectable.runtimeSubmitted = false;
-		selectable.runtimeNormalThisFrame = false;
-		selectable.runtimeSelectedThisFrame = false;
-		selectable.runtimeSubmittedThisFrame = false;
-		selectable.runtimeDisabledThisFrame = false;
+		// Canvas入力対象から外れた時点で次回初期化用の状態へ戻す
+		runtime = {};
 	}
 
-	void ResetStateThisFrame(Engine::UISelectableComponent& selectable) {
+	void ResetStateThisFrame(Engine::UISelectableRuntimeComponent& runtime) {
 
-		selectable.runtimeNormalThisFrame = false;
-		selectable.runtimeSelectedThisFrame = false;
-		selectable.runtimeSubmittedThisFrame = false;
-		selectable.runtimeDisabledThisFrame = false;
+		runtime.normalThisFrame = false;
+		runtime.selectedThisFrame = false;
+		runtime.submittedThisFrame = false;
+		runtime.disabledThisFrame = false;
 	}
 
-	void SetStateThisFrame(Engine::UISelectableComponent& selectable,
+	void SetStateThisFrame(Engine::UISelectableRuntimeComponent& runtime,
 		Engine::UISelectableState state) {
 
 		switch (state) {
 		case Engine::UISelectableState::Normal:
-			selectable.runtimeNormalThisFrame = true;
+			runtime.normalThisFrame = true;
 			break;
 		case Engine::UISelectableState::Selected:
-			selectable.runtimeSelectedThisFrame = true;
+			runtime.selectedThisFrame = true;
 			break;
 		case Engine::UISelectableState::Submitted:
-			selectable.runtimeSubmittedThisFrame = true;
+			runtime.submittedThisFrame = true;
 			break;
 		case Engine::UISelectableState::Disabled:
-			selectable.runtimeDisabledThisFrame = true;
+			runtime.disabledThisFrame = true;
 			break;
 		}
 	}
 
-	void ResetCanvasInputRuntime(Engine::CanvasComponent& canvas) {
+	void ResetCanvasInputRuntime(Engine::CanvasRuntimeComponent& runtime) {
 
-		canvas.runtimeSelectedLocalFileID = {};
-		canvas.runtimeRepeatDirection = {};
-		canvas.runtimeRepeatElapsed = 0.0f;
-		canvas.runtimeRepeatStarted = false;
-		canvas.runtimeInputLocked = false;
+		runtime = {};
 	}
 
 	void InitializeSelectableRuntime(Engine::ECSWorld& world, Engine::Entity entity,
-		Engine::UISelectableComponent& selectable) {
+		const Engine::UISelectableComponent& selectable,
+		Engine::UISelectableRuntimeComponent& runtime) {
 
-		if (selectable.runtimeInitialized) {
+		if (runtime.initialized) {
 			return;
 		}
 
-		selectable.runtimeBaseColor = Engine::Color4::White();
-		selectable.runtimeBaseTexture = {};
-		selectable.runtimeHadBaseColor = false;
-		selectable.runtimeHadBaseTexture = false;
+		runtime.baseColor = Engine::Color4::White();
+		runtime.baseTexture = {};
+		runtime.hadBaseColor = false;
+		runtime.hadBaseTexture = false;
 		if (auto* parameters = ResolveMaterialParameters(world, entity)) {
 			if (const auto colorIt = parameters->find("color"); colorIt != parameters->end()) {
 				if (const auto* color = std::get_if<Engine::Color4>(&colorIt->second.value)) {
-					selectable.runtimeBaseColor = *color;
-					selectable.runtimeHadBaseColor = true;
+					runtime.baseColor = *color;
+					runtime.hadBaseColor = true;
 				}
 			}
 			if (const auto textureIt = parameters->find("baseColorTexture"); textureIt != parameters->end()) {
 				if (const auto* texture = std::get_if<Engine::AssetID>(&textureIt->second.value)) {
-					selectable.runtimeBaseTexture = *texture;
-					selectable.runtimeHadBaseTexture = true;
+					runtime.baseTexture = *texture;
+					runtime.hadBaseTexture = true;
 				}
 			}
 		}
-		selectable.runtimeBaseScale = Engine::Vector3::AnyInit(1.0f);
+		runtime.baseScale = Engine::Vector3::AnyInit(1.0f);
 		if (const auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
-			selectable.runtimeBaseScale = transform->localScale;
+			runtime.baseScale = transform->localScale;
 		}
-		selectable.runtimeCurrentColor = selectable.runtimeBaseColor;
-		selectable.runtimeStartColor = selectable.runtimeBaseColor;
-		selectable.runtimeCurrentScale = selectable.runtimeBaseScale;
-		selectable.runtimeStartScale = selectable.runtimeBaseScale;
-		selectable.runtimePreviousState = selectable.runtimeState;
-		const Engine::UITransitionStyle& style = ResolveStyle(selectable);
-		selectable.runtimeColorTransitionElapsed = style.colorTransitionDuration;
-		selectable.runtimeScaleTransitionElapsed = style.scaleTransitionDuration;
-		selectable.runtimeInitialized = true;
+		runtime.currentColor = runtime.baseColor;
+		runtime.startColor = runtime.baseColor;
+		runtime.currentScale = runtime.baseScale;
+		runtime.startScale = runtime.baseScale;
+		runtime.previousState = runtime.state;
+		const Engine::UITransitionStyle& style =
+			ResolveStyle(selectable, runtime);
+		runtime.colorTransitionElapsed = style.colorTransitionDuration;
+		runtime.scaleTransitionElapsed = style.scaleTransitionDuration;
+		runtime.initialized = true;
 	}
 
 	bool ConfigureAnimationRuntime(Engine::ECSWorld& world, Engine::Entity entity,
-		Engine::UISelectableComponent& selectable, Engine::SystemContext& context,
-		Engine::UISelectableAnimationRuntime& runtime) {
+		const Engine::UISelectableComponent& selectable,
+		Engine::UISelectableRuntimeComponent& selectableRuntime,
+		Engine::SystemContext& context,
+		Engine::UISelectableAnimationRuntime& animationRuntime) {
 
 		std::array<Engine::AssetID, 4> clips{};
 		std::array<bool, 4> useClips{};
@@ -643,92 +669,111 @@ namespace {
 			useClips[index] = styles[index]->useAnimationClip;
 		}
 
-		const bool changed = !runtime.configured ||
-			runtime.configuredClips != clips || runtime.configuredUseClips != useClips;
+		const bool changed = !animationRuntime.configured ||
+			animationRuntime.configuredClips != clips ||
+			animationRuntime.configuredUseClips != useClips;
 		if (changed) {
 
-			if (runtime.applied) {
-				RestoreAnimationBaseValues(world, entity, runtime.baseValues);
+			if (animationRuntime.applied) {
+				RestoreAnimationBaseValues(
+					world, entity, animationRuntime.baseValues);
 			}
-			ApplySelectableBaseVisual(world, entity, selectable);
-			runtime.configuredClips = clips;
-			runtime.configuredUseClips = useClips;
-			runtime.baseValues.clear();
-			runtime.activeClip = {};
-			runtime.time = 0.0f;
-			runtime.configured = true;
-			runtime.baseCaptured = false;
-			runtime.stateInitialized = false;
-			runtime.playing = false;
-			runtime.applied = false;
+			ApplySelectableBaseVisual(world, entity, selectableRuntime);
+			animationRuntime.configuredClips = clips;
+			animationRuntime.configuredUseClips = useClips;
+			animationRuntime.baseValues.clear();
+			animationRuntime.activeClip = {};
+			animationRuntime.time = 0.0f;
+			animationRuntime.configured = true;
+			animationRuntime.baseCaptured = false;
+			animationRuntime.stateInitialized = false;
+			animationRuntime.playing = false;
+			animationRuntime.applied = false;
 		}
-		if (!runtime.baseCaptured && context.assetDatabase && context.animationClipManager) {
-			CaptureAnimationBaseValues(world, entity, selectable, context, runtime.baseValues);
-			runtime.baseCaptured = true;
+		if (!animationRuntime.baseCaptured &&
+			context.assetDatabase && context.animationClipManager) {
+			CaptureAnimationBaseValues(
+				world, entity, selectable, context, animationRuntime.baseValues);
+			animationRuntime.baseCaptured = true;
 		}
 		return changed;
 	}
 
 	bool UpdateSelectableAnimation(Engine::ECSWorld& world, Engine::Entity entity,
-		Engine::UISelectableComponent& selectable, Engine::SystemContext& context,
-		Engine::UISelectableAnimationRuntime& runtime, float deltaTime) {
+		const Engine::UISelectableComponent& selectable,
+		Engine::UISelectableRuntimeComponent& selectableRuntime,
+		Engine::SystemContext& context,
+		Engine::UISelectableAnimationRuntime& animationRuntime,
+		float deltaTime) {
 
-		InitializeSelectableRuntime(world, entity, selectable);
-		const bool hadState = runtime.stateInitialized;
-		const uint8_t previousState = runtime.state;
+		InitializeSelectableRuntime(
+			world, entity, selectable, selectableRuntime);
+		const bool hadState = animationRuntime.stateInitialized;
+		const uint8_t previousState = animationRuntime.state;
 		const bool configurationChanged =
-			ConfigureAnimationRuntime(world, entity, selectable, context, runtime);
-		const uint8_t currentState = static_cast<uint8_t>(GetStyleIndex(selectable.runtimeState));
+			ConfigureAnimationRuntime(world, entity, selectable,
+				selectableRuntime, context, animationRuntime);
+		const uint8_t currentState =
+			static_cast<uint8_t>(GetStyleIndex(selectableRuntime.state));
 		const bool actualStateChanged = hadState && previousState != currentState;
 		const bool startState = configurationChanged || !hadState || actualStateChanged;
-		const Engine::UITransitionStyle& style = ResolveStyle(selectable);
+		const Engine::UITransitionStyle& style =
+			ResolveStyle(selectable, selectableRuntime);
 
 		if (startState) {
 
-			if (runtime.applied) {
-				RestoreAnimationBaseValues(world, entity, runtime.baseValues);
+			if (animationRuntime.applied) {
+				RestoreAnimationBaseValues(
+					world, entity, animationRuntime.baseValues);
 			}
-			if (runtime.applied || style.useAnimationClip) {
-				ApplySelectableBaseVisual(world, entity, selectable);
+			if (animationRuntime.applied || style.useAnimationClip) {
+				ApplySelectableBaseVisual(world, entity, selectableRuntime);
 			}
-			runtime.activeClip = style.useAnimationClip ? style.animationClip : Engine::AssetID{};
-			runtime.time = 0.0f;
-			runtime.state = currentState;
-			runtime.stateInitialized = true;
-			runtime.playing = style.useAnimationClip && static_cast<bool>(runtime.activeClip);
-			runtime.applied = false;
+			animationRuntime.activeClip =
+				style.useAnimationClip ? style.animationClip : Engine::AssetID{};
+			animationRuntime.time = 0.0f;
+			animationRuntime.state = currentState;
+			animationRuntime.stateInitialized = true;
+			animationRuntime.playing =
+				style.useAnimationClip &&
+				static_cast<bool>(animationRuntime.activeClip);
+			animationRuntime.applied = false;
 
 			if (actualStateChanged &&
-				selectable.runtimeState != Engine::UISelectableState::Submitted) {
+				selectableRuntime.state != Engine::UISelectableState::Submitted) {
 				PlayStateSound(style, context);
 			}
 		}
 		if (!style.useAnimationClip) {
 			return false;
 		}
-		if (!runtime.activeClip || !context.assetDatabase || !context.animationClipManager) {
-			runtime.playing = false;
+		if (!animationRuntime.activeClip ||
+			!context.assetDatabase || !context.animationClipManager) {
+			animationRuntime.playing = false;
 			return true;
 		}
 		const Engine::AnimationClipAsset* clip =
-			context.animationClipManager->GetOrLoad(*context.assetDatabase, runtime.activeClip);
+			context.animationClipManager->GetOrLoad(
+				*context.assetDatabase, animationRuntime.activeClip);
 		if (!clip) {
-			runtime.playing = false;
+			animationRuntime.playing = false;
 			return true;
 		}
-		if (!runtime.playing && runtime.applied) {
+		if (!animationRuntime.playing && animationRuntime.applied) {
 			return true;
 		}
 
 		if (!startState) {
-			runtime.time += (std::max)(deltaTime, 0.0f);
+			animationRuntime.time += (std::max)(deltaTime, 0.0f);
 		}
 		const float duration = (std::max)(clip->duration, 0.001f);
-		runtime.time = (std::min)(runtime.time, duration);
-		ApplyAnimationClipOnce(world, entity, *clip, runtime.time, runtime.baseValues);
-		runtime.applied = true;
-		if (runtime.time >= duration) {
-			runtime.playing = false;
+		animationRuntime.time =
+			(std::min)(animationRuntime.time, duration);
+		ApplyAnimationClipOnce(world, entity, *clip,
+			animationRuntime.time, animationRuntime.baseValues);
+		animationRuntime.applied = true;
+		if (animationRuntime.time >= duration) {
+			animationRuntime.playing = false;
 		}
 		return true;
 	}
@@ -736,19 +781,22 @@ namespace {
 	void UpdateSelectableVisual(Engine::ECSWorld& world, const SelectableEntry& entry, float deltaTime) {
 
 		Engine::UISelectableComponent& selectable = *entry.selectable;
-		InitializeSelectableRuntime(world, entry.entity, selectable);
-		if (!selectable.runtimeInitialized) {
+		Engine::UISelectableRuntimeComponent& runtime = *entry.runtime;
+		InitializeSelectableRuntime(
+			world, entry.entity, selectable, runtime);
+		if (!runtime.initialized) {
 			return;
 		}
 
-		if (selectable.runtimePreviousState != selectable.runtimeState) {
-			selectable.runtimePreviousState = selectable.runtimeState;
-			selectable.runtimeColorTransitionElapsed = 0.0f;
-			selectable.runtimeScaleTransitionElapsed = 0.0f;
-			selectable.runtimeStartColor = selectable.runtimeCurrentColor;
-			selectable.runtimeStartScale = selectable.runtimeCurrentScale;
+		if (runtime.previousState != runtime.state) {
+			runtime.previousState = runtime.state;
+			runtime.colorTransitionElapsed = 0.0f;
+			runtime.scaleTransitionElapsed = 0.0f;
+			runtime.startColor = runtime.currentColor;
+			runtime.startScale = runtime.currentScale;
 		}
-		const Engine::UITransitionStyle& style = ResolveStyle(selectable);
+		const Engine::UITransitionStyle& style =
+			ResolveStyle(selectable, runtime);
 		if (style.useAnimationClip) {
 			if (style.overrideTexture) {
 				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
@@ -758,41 +806,46 @@ namespace {
 			return;
 		}
 		const float elapsedTime = (std::max)(deltaTime, 0.0f);
-		selectable.runtimeColorTransitionElapsed += elapsedTime;
-		selectable.runtimeScaleTransitionElapsed += elapsedTime;
+		runtime.colorTransitionElapsed += elapsedTime;
+		runtime.scaleTransitionElapsed += elapsedTime;
 		const float colorProgress = style.colorTransitionDuration <= 0.0f ? 1.0f :
-			std::clamp(selectable.runtimeColorTransitionElapsed / style.colorTransitionDuration, 0.0f, 1.0f);
+			std::clamp(runtime.colorTransitionElapsed /
+				style.colorTransitionDuration, 0.0f, 1.0f);
 		const float scaleProgress = style.scaleTransitionDuration <= 0.0f ? 1.0f :
-			std::clamp(selectable.runtimeScaleTransitionElapsed / style.scaleTransitionDuration, 0.0f, 1.0f);
-		const Engine::Color4 targetColor = selectable.runtimeBaseColor * style.color;
+			std::clamp(runtime.scaleTransitionElapsed /
+				style.scaleTransitionDuration, 0.0f, 1.0f);
+		const Engine::Color4 targetColor = runtime.baseColor * style.color;
 		const Engine::Vector3 targetScale(
-			selectable.runtimeBaseScale.x * style.scale.x,
-			selectable.runtimeBaseScale.y * style.scale.y,
-			selectable.runtimeBaseScale.z);
-		selectable.runtimeCurrentColor = Engine::Color4::Lerp(
-			selectable.runtimeStartColor, targetColor, EasedValue(style.colorEasing, colorProgress));
-		selectable.runtimeCurrentScale = Engine::Vector3::Lerp(
-			selectable.runtimeStartScale, targetScale, EasedValue(style.scaleEasing, scaleProgress));
+			runtime.baseScale.x * style.scale.x,
+			runtime.baseScale.y * style.scale.y,
+			runtime.baseScale.z);
+		runtime.currentColor = Engine::Color4::Lerp(
+			runtime.startColor, targetColor,
+			EasedValue(style.colorEasing, colorProgress));
+		runtime.currentScale = Engine::Vector3::Lerp(
+			runtime.startScale, targetScale,
+			EasedValue(style.scaleEasing, scaleProgress));
 
 		if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
-			(*parameters)["color"].value = selectable.runtimeCurrentColor;
+			(*parameters)["color"].value = runtime.currentColor;
 			if (style.overrideTexture) {
 				(*parameters)["baseColorTexture"].value = style.texture;
-			} else if (selectable.runtimeHadBaseTexture) {
-				(*parameters)["baseColorTexture"].value = selectable.runtimeBaseTexture;
+			} else if (runtime.hadBaseTexture) {
+				(*parameters)["baseColorTexture"].value = runtime.baseTexture;
 			} else {
 				parameters->erase("baseColorTexture");
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entry.entity)) {
-			if (transform->localScale != selectable.runtimeCurrentScale) {
-				transform->localScale = selectable.runtimeCurrentScale;
-				transform->isDirty = true;
+			if (transform->localScale != runtime.currentScale) {
+				transform->localScale = runtime.currentScale;
+				Engine::MarkTransformSubtreeDirty(world, entry.entity);
 			}
 		}
 	}
 
 	bool IsSubmitTransitionFinished(const Engine::UISelectableComponent& selectable,
+		const Engine::UISelectableRuntimeComponent& selectableRuntime,
 		const Engine::UISelectableAnimationRuntime* animationRuntime) {
 
 		if (selectable.submitted.useAnimationClip) {
@@ -800,17 +853,25 @@ namespace {
 				animationRuntime->state == GetStyleIndex(Engine::UISelectableState::Submitted) &&
 				!animationRuntime->playing;
 		}
-		return selectable.submitted.colorTransitionDuration <= selectable.runtimeColorTransitionElapsed &&
-			selectable.submitted.scaleTransitionDuration <= selectable.runtimeScaleTransitionElapsed;
+		return selectable.submitted.colorTransitionDuration <=
+			selectableRuntime.colorTransitionElapsed &&
+			selectable.submitted.scaleTransitionDuration <=
+			selectableRuntime.scaleTransitionElapsed;
 	}
 
 	void ClickButton(Engine::ECSWorld& world, Engine::Entity entity) {
 
 		if (auto* button = world.TryGetComponent<Engine::UIImageButtonComponent>(entity); button && button->enabled) {
-			button->runtimeClickedThisFrame = true;
+			if (auto* runtime =
+				world.TryGetComponent<Engine::UIImageButtonRuntimeComponent>(entity)) {
+				runtime->clickedThisFrame = true;
+			}
 		}
 		if (auto* button = world.TryGetComponent<Engine::UITextButtonComponent>(entity); button && button->enabled) {
-			button->runtimeClickedThisFrame = true;
+			if (auto* runtime =
+				world.TryGetComponent<Engine::UITextButtonRuntimeComponent>(entity)) {
+				runtime->clickedThisFrame = true;
+			}
 		}
 	}
 }
@@ -822,14 +883,17 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	UIRuntimeService& runtimeService = UIRuntimeService::GetInstance();
 	runtimeService.SetGameplayInputBlocked(false);
-	world.ForEach<UIImageButtonComponent>([](Entity, UIImageButtonComponent& button) {
-		button.runtimeClickedThisFrame = false;
+	world.ForEach<UIImageButtonRuntimeComponent>(
+		[](Entity, UIImageButtonRuntimeComponent& runtime) {
+		runtime.clickedThisFrame = false;
 		});
-	world.ForEach<UITextButtonComponent>([](Entity, UITextButtonComponent& button) {
-		button.runtimeClickedThisFrame = false;
+	world.ForEach<UITextButtonRuntimeComponent>(
+		[](Entity, UITextButtonRuntimeComponent& runtime) {
+		runtime.clickedThisFrame = false;
 		});
-	world.ForEach<UISelectableComponent>([](Entity, UISelectableComponent& selectable) {
-		ResetStateThisFrame(selectable);
+	world.ForEach<UISelectableRuntimeComponent>(
+		[](Entity, UISelectableRuntimeComponent& runtime) {
+		ResetStateThisFrame(runtime);
 		});
 
 	const bool isPlay = context.mode == WorldMode::Play;
@@ -849,13 +913,16 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 			continue;
 		}
 		auto* selectable = world.TryGetComponent<UISelectableComponent>(element.entity);
-		if (!selectable) {
+		auto* selectableRuntime =
+			world.TryGetComponent<UISelectableRuntimeComponent>(element.entity);
+		if (!selectable || !selectableRuntime) {
 			continue;
 		}
 		SelectableEntry entry{};
 		entry.entity = element.entity;
 		entry.canvas = element.canvas;
 		entry.selectable = selectable;
+		entry.runtime = selectableRuntime;
 		entry.element = &element;
 		entry.center = ResolveElementCenter(world, entry.entity, *entry.element);
 		entries.emplace_back(entry);
@@ -879,20 +946,24 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	}
 
 	// Canvas入力対象から外れたUIは開始前の表示へ戻す
-	world.ForEach<UISelectableComponent>([&](Entity entity, UISelectableComponent& selectable) {
+	world.ForEach<UISelectableComponent, UISelectableRuntimeComponent>(
+		[&](Entity entity, [[maybe_unused]] UISelectableComponent& selectable,
+			UISelectableRuntimeComponent& selectableRuntime) {
 
 		if (!activeSelectableEntities.contains(world.GetUUID(entity))) {
-			RestoreSelectableVisual(world, entity, selectable);
+			RestoreSelectableVisual(world, entity, selectableRuntime);
 		}
 		});
 
 	// 入力を無効にしたCanvasの選択状態を破棄
-	world.ForEach<CanvasComponent>([isPlay](Entity, CanvasComponent& canvas) {
+	world.ForEach<CanvasComponent, CanvasRuntimeComponent>(
+		[isPlay](Entity, CanvasComponent& canvas,
+			CanvasRuntimeComponent& runtime) {
 
 		if (!canvas.enabled || (!isPlay && !canvas.inputInEditMode)) {
-			ResetCanvasInputRuntime(canvas);
+			ResetCanvasInputRuntime(runtime);
 		}
-		});
+			});
 	if (entries.empty()) {
 		return;
 	}
@@ -907,20 +978,25 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	for (Entity canvasEntity : canvases) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(canvasEntity);
+		auto& canvasRuntime =
+			world.GetComponent<CanvasRuntimeComponent>(canvasEntity);
+		const std::span<const CanvasNavigationCell> cells =
+			GetCanvasNavigationCells(world, canvasEntity);
 		if (!canvas.blockInputAfterSubmit) {
-			canvas.runtimeInputLocked = false;
+			canvasRuntime.inputLocked = false;
 		}
 		SelectableEntry* selected = FindEntryByLocalFileID(world, entries,
-			canvasEntity, canvas.runtimeSelectedLocalFileID);
+			canvasEntity, canvasRuntime.selectedLocalFileID);
 		if (canvas.navigationMode == CanvasNavigationMode::TransitionTable) {
 			if (!selected || !selected->selectable->interactable ||
-				!IsTransitionTableEntry(world, canvas, *selected)) {
+				!IsTransitionTableEntry(world, cells, *selected)) {
 				selected = FindEntryByLocalFileID(world, entries,
 					canvasEntity, canvas.firstSelectedLocalFileID);
 			}
 			if (!selected || !selected->selectable->interactable ||
-				!IsTransitionTableEntry(world, canvas, *selected)) {
-				selected = FindFirstTransitionTableEntry(world, entries, canvasEntity, canvas);
+				!IsTransitionTableEntry(world, cells, *selected)) {
+				selected = FindFirstTransitionTableEntry(
+					world, entries, canvasEntity, cells);
 			}
 		} else {
 			if (!selected || !selected->selectable->interactable) {
@@ -931,7 +1007,8 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 				selected = FindFirstInteractable(entries, canvasEntity);
 			}
 		}
-		canvas.runtimeSelectedLocalFileID = selected ? GetLocalFileID(world, selected->entity) : UUID{};
+		canvasRuntime.selectedLocalFileID =
+			selected ? GetLocalFileID(world, selected->entity) : UUID{};
 	}
 
 	Input* input = runtimeService.IsTransitionInputBlocked() ?
@@ -940,7 +1017,9 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	Entity activeCanvas = Entity::Null();
 	for (Entity candidate : canvases) {
 		const auto& canvas = world.GetComponent<CanvasComponent>(candidate);
-		if (!canvas.runtimeSelectedLocalFileID) {
+		const auto& canvasRuntime =
+			world.GetComponent<CanvasRuntimeComponent>(candidate);
+		if (!canvasRuntime.selectedLocalFileID) {
 			continue;
 		}
 		if (!world.IsAlive(activeCanvas)) {
@@ -957,54 +1036,64 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	Vector2 direction{};
 	bool navigationTriggered = false;
 	if (input && world.IsAlive(activeCanvas) &&
-		!world.GetComponent<CanvasComponent>(activeCanvas).runtimeInputLocked) {
+		!world.GetComponent<CanvasRuntimeComponent>(activeCanvas).inputLocked) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
-		Vector2 heldDirection = ReadTriggeredNavigationDirection(*input, canvas);
+		auto& canvasRuntime =
+			world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
+		const std::span<const CanvasInputBinding> bindings =
+			GetCanvasInputBindings(world, activeCanvas);
+		Vector2 heldDirection = ReadTriggeredNavigationDirection(
+			*input, canvas, bindings);
 		if (heldDirection == Vector2{}) {
-			heldDirection = ReadHeldNavigationDirection(*input, canvas);
+			heldDirection = ReadHeldNavigationDirection(
+				*input, canvas, bindings);
 		}
 		if (heldDirection != Vector2{}) {
-			if (heldDirection != canvas.runtimeRepeatDirection) {
-				canvas.runtimeRepeatDirection = heldDirection;
-				canvas.runtimeRepeatElapsed = 0.0f;
-				canvas.runtimeRepeatStarted = false;
+			if (heldDirection != canvasRuntime.repeatDirection) {
+				canvasRuntime.repeatDirection = heldDirection;
+				canvasRuntime.repeatElapsed = 0.0f;
+				canvasRuntime.repeatStarted = false;
 				direction = heldDirection;
 				navigationTriggered = true;
 			} else {
-				canvas.runtimeRepeatElapsed += context.unscaledDeltaTime;
-				const float threshold = canvas.runtimeRepeatStarted ?
+				canvasRuntime.repeatElapsed += context.unscaledDeltaTime;
+				const float threshold = canvasRuntime.repeatStarted ?
 					(std::max)(canvas.repeatInterval, 0.01f) : (std::max)(canvas.repeatDelay, 0.0f);
-				if (threshold <= canvas.runtimeRepeatElapsed) {
-					canvas.runtimeRepeatElapsed = 0.0f;
-					canvas.runtimeRepeatStarted = true;
+				if (threshold <= canvasRuntime.repeatElapsed) {
+					canvasRuntime.repeatElapsed = 0.0f;
+					canvasRuntime.repeatStarted = true;
 					direction = heldDirection;
 					navigationTriggered = true;
 				}
 			}
 		} else {
-			canvas.runtimeRepeatDirection = {};
-			canvas.runtimeRepeatElapsed = 0.0f;
-			canvas.runtimeRepeatStarted = false;
+			canvasRuntime.repeatDirection = {};
+			canvasRuntime.repeatElapsed = 0.0f;
+			canvasRuntime.repeatStarted = false;
 		}
 	}
 
 	if (navigationTriggered && world.IsAlive(activeCanvas)) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
+		auto& canvasRuntime =
+			world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
 		SelectableEntry* current = FindEntryByLocalFileID(world, entries,
-			activeCanvas, canvas.runtimeSelectedLocalFileID);
+			activeCanvas, canvasRuntime.selectedLocalFileID);
 		SelectableEntry* next = nullptr;
 		if (current) {
 			if (canvas.navigationMode == CanvasNavigationMode::TransitionTable) {
 				next = FindTransitionTableNavigation(world, entries,
-					activeCanvas, canvas, *current, direction);
+					activeCanvas, canvas, *current, direction,
+					GetCanvasNavigationCells(world, activeCanvas));
 			} else {
 				next = FindAutomaticNavigation(entries, *current, direction, canvas.wrapNavigation);
 			}
 		}
 		if (next && next->selectable->interactable) {
-			canvas.runtimeSelectedLocalFileID = GetLocalFileID(world, next->entity);
+			canvasRuntime.selectedLocalFileID =
+				GetLocalFileID(world, next->entity);
 			consumedInput = true;
 		}
 	}
@@ -1012,14 +1101,18 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	if (input && world.IsAlive(activeCanvas)) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
-		if (!canvas.runtimeInputLocked) {
+		auto& canvasRuntime =
+			world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
+		if (!canvasRuntime.inputLocked) {
 			if (SelectableEntry* selected = FindEntryByLocalFileID(world, entries,
-				activeCanvas, canvas.runtimeSelectedLocalFileID);
-				selected && IsSubmitTriggered(*input, canvas)) {
+				activeCanvas, canvasRuntime.selectedLocalFileID);
+				selected && IsSubmitTriggered(
+					*input, canvas, GetCanvasInputBindings(world, activeCanvas))) {
 
-				selected->selectable->runtimeSubmitted = true;
-				selected->selectable->runtimeSubmittedThisFrame = true;
-				selected->selectable->runtimePreviousState = UISelectableState::Selected;
+				selected->runtime->submitted = true;
+				selected->runtime->submittedThisFrame = true;
+				selected->runtime->previousState =
+					UISelectableState::Selected;
 				if (auto runtime = animationRuntimes_.find(world.GetUUID(selected->entity));
 					runtime != animationRuntimes_.end()) {
 					if (runtime->second.stateInitialized &&
@@ -1033,10 +1126,10 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 				consumedInput = true;
 
 				if (canvas.blockInputAfterSubmit) {
-					canvas.runtimeInputLocked = true;
-					canvas.runtimeRepeatDirection = {};
-					canvas.runtimeRepeatElapsed = 0.0f;
-					canvas.runtimeRepeatStarted = false;
+					canvasRuntime.inputLocked = true;
+					canvasRuntime.repeatDirection = {};
+					canvasRuntime.repeatElapsed = 0.0f;
+					canvasRuntime.repeatStarted = false;
 				}
 			}
 		}
@@ -1046,25 +1139,28 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	for (SelectableEntry& entry : entries) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(entry.canvas);
+		auto& canvasRuntime =
+			world.GetComponent<CanvasRuntimeComponent>(entry.canvas);
 		const UUID localFileID = GetLocalFileID(world, entry.entity);
-		const UISelectableState previousState = entry.selectable->runtimeState;
-		if (entry.selectable->runtimeSubmitted && canvas.blockInputAfterSubmit) {
-			canvas.runtimeInputLocked = true;
+		UISelectableRuntimeComponent& selectableRuntime = *entry.runtime;
+		const UISelectableState previousState = selectableRuntime.state;
+		if (selectableRuntime.submitted && canvas.blockInputAfterSubmit) {
+			canvasRuntime.inputLocked = true;
 		}
-		if (entry.selectable->runtimeSubmitted && canvas.runtimeInputLocked) {
-			entry.selectable->runtimeState = UISelectableState::Submitted;
+		if (selectableRuntime.submitted && canvasRuntime.inputLocked) {
+			selectableRuntime.state = UISelectableState::Submitted;
 		} else if (!entry.selectable->interactable) {
-			entry.selectable->runtimeSubmitted = false;
-			entry.selectable->runtimeState = UISelectableState::Disabled;
-		} else if (entry.selectable->runtimeSubmitted) {
-			entry.selectable->runtimeState = UISelectableState::Submitted;
-		} else if (canvas.runtimeSelectedLocalFileID == localFileID) {
-			entry.selectable->runtimeState = UISelectableState::Selected;
+			selectableRuntime.submitted = false;
+			selectableRuntime.state = UISelectableState::Disabled;
+		} else if (selectableRuntime.submitted) {
+			selectableRuntime.state = UISelectableState::Submitted;
+		} else if (canvasRuntime.selectedLocalFileID == localFileID) {
+			selectableRuntime.state = UISelectableState::Selected;
 		} else {
-			entry.selectable->runtimeState = UISelectableState::Normal;
+			selectableRuntime.state = UISelectableState::Normal;
 		}
-		if (previousState != entry.selectable->runtimeState) {
-			SetStateThisFrame(*entry.selectable, entry.selectable->runtimeState);
+		if (previousState != selectableRuntime.state) {
+			SetStateThisFrame(selectableRuntime, selectableRuntime.state);
 		}
 
 		UISelectableAnimationRuntime* animationRuntime = nullptr;
@@ -1074,14 +1170,16 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 				runtime = animationRuntimes_.try_emplace(world.GetUUID(entry.entity)).first;
 			}
 			animationRuntime = &runtime->second;
-			UpdateSelectableAnimation(world, entry.entity, *entry.selectable,
+			UpdateSelectableAnimation(world, entry.entity,
+				*entry.selectable, selectableRuntime,
 				context, runtime->second, context.unscaledDeltaTime);
 		}
 		UpdateSelectableVisual(world, entry, context.unscaledDeltaTime);
 
-		if (entry.selectable->runtimeSubmitted && !canvas.runtimeInputLocked &&
-			IsSubmitTransitionFinished(*entry.selectable, animationRuntime)) {
-			entry.selectable->runtimeSubmitted = false;
+		if (selectableRuntime.submitted && !canvasRuntime.inputLocked &&
+			IsSubmitTransitionFinished(
+				*entry.selectable, selectableRuntime, animationRuntime)) {
+			selectableRuntime.submitted = false;
 		}
 	}
 
@@ -1101,11 +1199,13 @@ void Engine::UIInputSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] System
 		}
 	}
 	animationRuntimes_.clear();
-	world.ForEach<UISelectableComponent>([&](Entity entity, UISelectableComponent& selectable) {
-		RestoreSelectableVisual(world, entity, selectable);
+	world.ForEach<UISelectableRuntimeComponent>(
+		[&](Entity entity, UISelectableRuntimeComponent& runtime) {
+		RestoreSelectableVisual(world, entity, runtime);
 		});
-	world.ForEach<CanvasComponent>([](Entity, CanvasComponent& canvas) {
-		ResetCanvasInputRuntime(canvas);
-		});
+	world.ForEach<CanvasRuntimeComponent>(
+		[](Entity, CanvasRuntimeComponent& runtime) {
+			ResetCanvasInputRuntime(runtime);
+			});
 	UIRuntimeService::GetInstance().Clear(world);
 }

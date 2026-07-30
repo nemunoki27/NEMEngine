@@ -7,6 +7,6 @@
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
-	// エンジンソースには触れず、公開ABIだけでエディタを起動する
-	return NEM_RunEditor();
+	// エンジンソースには触れず、公開ABIだけでゲームを起動する
+	return NEM_RunGame();
 }

@@ -1,0 +1,801 @@
+{
+  "schemaVersion": 1,
+  "comment": "ManagedNativeApiTableとNativeApiTableの単一ABI定義",
+  "functions": [
+    {
+      "name": "getDeltaTime",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "getFixedDeltaTime",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "log",
+      "nativeType": "LogCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, byte*, void>"
+    },
+    {
+      "name": "getKey",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getKeyDown",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getKeyUp",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getMouseButton",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getMouseButtonDown",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getMouseButtonUp",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getMousePosition",
+      "nativeType": "GetVector2Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector2>"
+    },
+    {
+      "name": "getMouseDelta",
+      "nativeType": "GetVector2Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector2>"
+    },
+    {
+      "name": "getMouseWheel",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "getGamepadButton",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getGamepadButtonDown",
+      "nativeType": "GetInputButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "isGamepadConnected",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "getLeftStick",
+      "nativeType": "GetVector2Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector2>"
+    },
+    {
+      "name": "getRightStick",
+      "nativeType": "GetVector2Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector2>"
+    },
+    {
+      "name": "getLeftTrigger",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "getRightTrigger",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "isAlive",
+      "nativeType": "IsAliveCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "copyName",
+      "nativeType": "CopyStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int>"
+    },
+    {
+      "name": "setName",
+      "nativeType": "SetStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, void>"
+    },
+    {
+      "name": "getActiveSelf",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "setActiveSelf",
+      "nativeType": "SetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "getActiveInHierarchy",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "getParent",
+      "nativeType": "GetEntityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity>"
+    },
+    {
+      "name": "getFirstChild",
+      "nativeType": "GetEntityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity>"
+    },
+    {
+      "name": "getNextSibling",
+      "nativeType": "GetEntityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity>"
+    },
+    {
+      "name": "setParent",
+      "nativeType": "SetParentCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, void>"
+    },
+    {
+      "name": "getPosition",
+      "nativeType": "GetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3>"
+    },
+    {
+      "name": "setPosition",
+      "nativeType": "SetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void>"
+    },
+    {
+      "name": "getLocalPosition",
+      "nativeType": "GetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3>"
+    },
+    {
+      "name": "setLocalPosition",
+      "nativeType": "SetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void>"
+    },
+    {
+      "name": "getLocalScale",
+      "nativeType": "GetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3>"
+    },
+    {
+      "name": "setLocalScale",
+      "nativeType": "SetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void>"
+    },
+    {
+      "name": "getLocalRotation",
+      "nativeType": "GetQuaternionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion>"
+    },
+    {
+      "name": "setLocalRotation",
+      "nativeType": "SetQuaternionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void>"
+    },
+    {
+      "name": "getRotation",
+      "nativeType": "GetQuaternionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion>"
+    },
+    {
+      "name": "setRotation",
+      "nativeType": "SetQuaternionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void>"
+    },
+    {
+      "name": "getLossyScale",
+      "nativeType": "GetVector3Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3>"
+    },
+    {
+      "name": "hasComponent",
+      "nativeType": "HasComponentCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
+    },
+    {
+      "name": "addComponent",
+      "nativeType": "ComponentMutateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "removeComponent",
+      "nativeType": "ComponentMutateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "destroyEntity",
+      "nativeType": "DestroyEntityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "getScriptEnabled",
+      "nativeType": "GetScriptEnabledCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, int>"
+    },
+    {
+      "name": "setScriptEnabled",
+      "nativeType": "SetScriptEnabledCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void>"
+    },
+    {
+      "name": "getComponentProperty",
+      "nativeType": "GetComponentPropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+    },
+    {
+      "name": "setComponentProperty",
+      "nativeType": "SetComponentPropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+    },
+    {
+      "name": "getComponentStringProperty",
+      "nativeType": "GetComponentStringPropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int>"
+    },
+    {
+      "name": "setComponentStringProperty",
+      "nativeType": "SetComponentStringPropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int>"
+    },
+    {
+      "name": "getUnscaledDeltaTime",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "getUnscaledFixedDeltaTime",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "getTimeSinceStartup",
+      "nativeType": "GetDoubleCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<double>"
+    },
+    {
+      "name": "getUnscaledTime",
+      "nativeType": "GetDoubleCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<double>"
+    },
+    {
+      "name": "getTimeScale",
+      "nativeType": "GetDeltaTimeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float>"
+    },
+    {
+      "name": "setTimeScale",
+      "nativeType": "SetFloatCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float, void>"
+    },
+    {
+      "name": "getFrameCount",
+      "nativeType": "GetUInt64Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong>"
+    },
+    {
+      "name": "assetExists",
+      "nativeType": "AssetExistsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, int>"
+    },
+    {
+      "name": "copyAssetDisplayName",
+      "nativeType": "CopyAssetStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int>"
+    },
+    {
+      "name": "createEntity",
+      "nativeType": "CreateEntityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity>"
+    },
+    {
+      "name": "instantiatePrefab",
+      "nativeType": "InstantiatePrefabCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity>"
+    },
+    {
+      "name": "loadSceneAdditive",
+      "nativeType": "LoadSceneCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"
+    },
+    {
+      "name": "unloadScene",
+      "nativeType": "UnloadSceneCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, void>"
+    },
+    {
+      "name": "isSceneInstanceAlive",
+      "nativeType": "SceneInstanceAliveCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, int>"
+    },
+    {
+      "name": "setParentKeepWorld",
+      "nativeType": "SetParentKeepWorldCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void>"
+    },
+    {
+      "name": "getGamepadButtonIndexed",
+      "nativeType": "GamepadIndexedButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int, int>"
+    },
+    {
+      "name": "getGamepadButtonDownIndexed",
+      "nativeType": "GamepadIndexedButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int, int>"
+    },
+    {
+      "name": "getGamepadButtonUpIndexed",
+      "nativeType": "GamepadIndexedButtonCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int, int>"
+    },
+    {
+      "name": "getGamepadAxis",
+      "nativeType": "GamepadAxisCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int, float>"
+    },
+    {
+      "name": "isGamepadConnectedIndexed",
+      "nativeType": "GamepadConnectedCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getConnectedGamepadCount",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "getHasFocus",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "copyTextInput",
+      "nativeType": "CopyTextCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
+    },
+    {
+      "name": "copyProjectRoot",
+      "nativeType": "CopyTextCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
+    },
+    {
+      "name": "copyUserSettingsRoot",
+      "nativeType": "CopyTextCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
+    },
+    {
+      "name": "audioPlay",
+      "nativeType": "EntityActionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "audioPause",
+      "nativeType": "EntityActionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "audioStop",
+      "nativeType": "EntityActionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "audioIsPlaying",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "reportScriptException",
+      "nativeType": "ReportStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, void>"
+    },
+    {
+      "name": "getScriptInstance",
+      "nativeType": "GetScriptInstanceCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle>"
+    },
+    {
+      "name": "attachScript",
+      "nativeType": "AttachScriptCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int>"
+    },
+    {
+      "name": "loadSceneSingle",
+      "nativeType": "LoadSceneCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"
+    },
+    {
+      "name": "resolveEntityRef",
+      "nativeType": "ResolveEntityRefCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity>"
+    },
+    {
+      "name": "lineSetPoints",
+      "nativeType": "LineSetPointsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void>"
+    },
+    {
+      "name": "lineDrawImmediate",
+      "nativeType": "LineDrawImmediateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, AssetGUID, void>"
+    },
+    {
+      "name": "lineDrawSphereImmediate",
+      "nativeType": "LineDrawSphereImmediateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID, void>"
+    },
+    {
+      "name": "lineAddPoint",
+      "nativeType": "LineAddPointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int>"
+    },
+    {
+      "name": "lineUpdatePoint",
+      "nativeType": "LineUpdatePointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void>"
+    },
+    {
+      "name": "copyTag",
+      "nativeType": "CopyStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int>"
+    },
+    {
+      "name": "setTag",
+      "nativeType": "SetStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, void>"
+    },
+    {
+      "name": "getVisibilityLayerMask",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "setVisibilityLayerMask",
+      "nativeType": "SetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "getCollisionTypeMask",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "getCollisionRuntimeState",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "setCollisionTypeMask",
+      "nativeType": "SetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "findEntityByName",
+      "nativeType": "FindByStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, NativeEntity>"
+    },
+    {
+      "name": "findEntityByTag",
+      "nativeType": "FindByStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, NativeEntity>"
+    },
+    {
+      "name": "findEntitiesByTag",
+      "nativeType": "FindManyByStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, NativeEntity*, int, int>"
+    },
+    {
+      "name": "findEntityByComponent",
+      "nativeType": "FindByComponentCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, NativeEntity>"
+    },
+    {
+      "name": "findEntitiesByComponent",
+      "nativeType": "FindManyByComponentCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int>"
+    },
+    {
+      "name": "lineDrawShape",
+      "nativeType": "LineDrawShapeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeLineShape*, void>"
+    },
+    {
+      "name": "getIgnoreParentRotation",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "setIgnoreParentRotation",
+      "nativeType": "SetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "getIgnoreParentScale",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "setIgnoreParentScale",
+      "nativeType": "SetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "getInputType",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "setInputType",
+      "nativeType": "SetNativeIntCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, void>"
+    },
+    {
+      "name": "getMouseRangeControl",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "setMouseRangeControl",
+      "nativeType": "SetNativeIntCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, void>"
+    },
+    {
+      "name": "setRendererMaterialColor",
+      "nativeType": "SetRendererColorCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void>"
+    },
+    {
+      "name": "getRendererMaterialColor",
+      "nativeType": "GetRendererColorCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4>"
+    },
+    {
+      "name": "fillMeshSetPositions",
+      "nativeType": "FillMeshSetPositionsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void>"
+    },
+    {
+      "name": "getEntityReferenceIdentity",
+      "nativeType": "GetEntityRefIdentityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void>"
+    },
+    {
+      "name": "physicsRaycast",
+      "nativeType": "PhysicsRaycastCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int>"
+    },
+    {
+      "name": "physicsRaycastAll",
+      "nativeType": "PhysicsRaycastAllCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int>"
+    },
+    {
+      "name": "screenPointToRay",
+      "nativeType": "ScreenPointToRayCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int>"
+    },
+    {
+      "name": "getMousePositionInView",
+      "nativeType": "GetMousePositionInViewCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector2*, int>"
+    },
+    {
+      "name": "getCollisionTypeMaskByName",
+      "nativeType": "GetCollisionTypeMaskByNameCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, uint>"
+    },
+    {
+      "name": "easedValue",
+      "nativeType": "EasedValueCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, float, float>"
+    },
+    {
+      "name": "collisionShapeCount",
+      "nativeType": "CollisionShapeCountCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "collisionAddShape",
+      "nativeType": "CollisionAddShapeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "collisionRemoveShapeAt",
+      "nativeType": "CollisionRemoveShapeAtCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
+    },
+    {
+      "name": "collisionClearShapes",
+      "nativeType": "CollisionClearShapesCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "collisionGetShapeProperty",
+      "nativeType": "CollisionGetShapeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+    },
+    {
+      "name": "collisionSetShapeProperty",
+      "nativeType": "CollisionSetShapeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+    },
+    {
+      "name": "getSkinnedAnimationDuration",
+      "nativeType": "GetSkinnedAnimationDurationCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, float>"
+    },
+    {
+      "name": "playSkinnedAnimation",
+      "nativeType": "PlaySkinnedAnimationCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, void>"
+    },
+    {
+      "name": "copySkinnedAnimationCurrentClip",
+      "nativeType": "CopyStringCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int>"
+    },
+    {
+      "name": "getSkinnedAnimationRuntimeState",
+      "nativeType": "GetSkinnedAnimationRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int>"
+    },
+    {
+      "name": "fillMeshCopyPositions",
+      "nativeType": "FillMeshCopyPositionsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int>"
+    },
+    {
+      "name": "effectEmit",
+      "nativeType": "EffectEmitCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong>"
+    },
+    {
+      "name": "effectStop",
+      "nativeType": "EffectControlCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void>"
+    },
+    {
+      "name": "effectClear",
+      "nativeType": "EffectControlCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void>"
+    },
+    {
+      "name": "effectIsPlaying",
+      "nativeType": "EffectIsPlayingCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int>"
+    },
+    {
+      "name": "getUIBlocksGameplayInput",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "getUISelectableRuntimeState",
+      "nativeType": "GetUISelectableRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeUISelectableRuntimeState*, int>"
+    },
+    {
+      "name": "getUIProgressRuntimeState",
+      "nativeType": "GetUIProgressRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*, int>"
+    },
+    {
+      "name": "getCanvasInputLocked",
+      "nativeType": "GetBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "getUIButtonClicked",
+      "nativeType": "GetUIButtonClickedCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
+    },
+    {
+      "name": "getIrisTransitionRuntimeState",
+      "nativeType": "GetIrisTransitionRuntimeStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeIrisTransitionRuntimeState*, int>"
+    },
+    {
+      "name": "canvasCopyInputBindings",
+      "nativeType": "CanvasCopyInputBindingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int>"
+    },
+    {
+      "name": "canvasSetInputBindings",
+      "nativeType": "CanvasSetInputBindingsCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void>"
+    },
+    {
+      "name": "requestApplicationQuit",
+      "nativeType": "ApplicationQuitCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<void>"
+    },
+    {
+      "name": "worldToScreenPoint",
+      "nativeType": "WorldToScreenPointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int>"
+    },
+    {
+      "name": "canvasScreenToLocalPoint",
+      "nativeType": "CanvasScreenToLocalPointCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int>"
+    },
+    {
+      "name": "irisTransitionCommand",
+      "nativeType": "IrisTransitionCommandCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, float, void>"
+    },
+    {
+      "name": "audioPlayOneShot",
+      "nativeType": "AudioPlayOneShotCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID, float, void>"
+    },
+    {
+      "name": "audioUnPause",
+      "nativeType": "EntityActionCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
+    },
+    {
+      "name": "effectGroupCount",
+      "nativeType": "EffectGroupCountCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "effectStateCount",
+      "nativeType": "EffectStateCountCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
+    },
+    {
+      "name": "effectCopyGroupName",
+      "nativeType": "EffectCopyGroupNameCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int>"
+    },
+    {
+      "name": "effectCopyStateName",
+      "nativeType": "EffectCopyStateNameCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int>"
+    },
+    {
+      "name": "effectSetStateName",
+      "nativeType": "EffectSetStateNameCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int>"
+    },
+    {
+      "name": "effectGetStateProperty",
+      "nativeType": "EffectGetStatePropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
+    },
+    {
+      "name": "effectSetStateProperty",
+      "nativeType": "EffectSetStatePropertyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
+    },
+    {
+      "name": "dynamicBufferLength",
+      "nativeType": "DynamicBufferLengthCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int>"
+    },
+    {
+      "name": "dynamicBufferCopy",
+      "nativeType": "DynamicBufferCopyCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
+    },
+    {
+      "name": "dynamicBufferMutate",
+      "nativeType": "DynamicBufferMutateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int>"
+    }
+  ]
+}

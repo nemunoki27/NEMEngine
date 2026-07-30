@@ -55,7 +55,7 @@ void Engine::ManagedBehavior::SetSerializedFields(const nlohmann::json& serializ
 	// 生成済みのC#インスタンスにはPlay中のインスペクター変更をその場で反映する、編集用形式はfieldGuidから値の形へ正規化してから渡す
 	if (managedHandle_.IsValid()) {
 		auto& runtime = ManagedScriptRuntime::GetInstance();
-		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(scriptTypeID_, serializedFields_));
+		runtime.SetSerializedFields(managedHandle_, runtime.BuildSerializedValueMap(serializedFields_));
 	}
 }
 
@@ -215,7 +215,7 @@ void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entit
 	}
 	auto& runtime = ManagedScriptRuntime::GetInstance();
 	managedHandle_ = runtime.CreateInstance(scriptTypeID_, world, entity,
-		runtime.BuildSerializedValueMap(scriptTypeID_, serializedFields_), scriptSlotID_);
+		runtime.BuildSerializedValueMap(serializedFields_), scriptSlotID_);
 }
 
 void Engine::ManagedBehavior::ReleaseInstance() {

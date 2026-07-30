@@ -36,6 +36,11 @@ namespace Engine {
 		// 保存
 		static void Save(const std::string& directoryFilePath, const nlohmann::json& data);
 		static void Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data);
+		// キー順と数値表現を正規化し、同一内容なら書き換えず安全に保存
+		static bool SaveCanonical(const std::filesystem::path& directoryFilePath,
+			const nlohmann::json& data, int32_t indent = 4);
+		// Canonical JSONをUTF-8文字列へ変換
+		static std::string SerializeCanonical(const nlohmann::json& data, int32_t indent = 4);
 		// 読み込み
 		static nlohmann::json Load(const std::string& directoryFilePath, bool assertion = false);
 		static nlohmann::json Load(const std::filesystem::path& directoryFilePath, bool assertion = false);

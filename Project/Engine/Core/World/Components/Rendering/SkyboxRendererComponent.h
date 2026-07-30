@@ -29,5 +29,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, SkyboxRendererComponent& component);
 	void to_json(nlohmann::json& out, const SkyboxRendererComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(SkyboxRendererComponent, "SkyboxRenderer");
 } // Engine

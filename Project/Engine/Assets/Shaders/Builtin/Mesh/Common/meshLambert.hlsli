@@ -66,7 +66,41 @@ float3 EvaluateLambertSpot(SpotLight light, float3 worldPos, float3 N) {
 	return lambert * light.color.rgb * light.intensity * distanceAttenuation * coneAttenuation;
 }
 
-// 点光源とスポットライトを全ライト集計する、平行光源はPS側で足す
+float3 EvaluateLambertRect(RectLight light, float3 worldPos, float3 N) {
+
+	float centerDistance = length(light.pos - worldPos);
+	float attenuation = ComputeDistanceAttenuation(
+		centerDistance, light.attenuationRadius, light.decay);
+	float barnAttenuation =
+		ComputeRectBarnAttenuation(light, worldPos);
+	if (attenuation <= 0.0f || barnAttenuation <= 0.0f) {
+		return 0.0f.xxx;
+	}
+
+	float3 result = 0.0f.xxx;
+	[unroll]
+	for (uint sampleIndex = 0u;
+		sampleIndex < kRectLightSampleCount; ++sampleIndex) {
+
+		float3 samplePos =
+			GetRectLightSamplePosition(light, sampleIndex);
+		float3 toLight = samplePos - worldPos;
+		float sampleDistance = length(toLight);
+		if (sampleDistance <= 1e-5f) {
+			continue;
+		}
+
+		float3 L = toLight / sampleDistance;
+		float sourceFacing =
+			saturate(dot(-L, light.direction));
+		result += HalfLambert(N, L) * light.color.rgb *
+			light.intensity * attenuation *
+			barnAttenuation * sourceFacing;
+	}
+	return result / float(kRectLightSampleCount);
+}
+
+// ローカルライトを全ライト集計する、平行光源はPS側で足す
 float3 AccumulateLocalLambertLighting(float3 worldPos, float3 N) {
 
 	float3 lit = 0.0f.xxx;
@@ -78,6 +112,10 @@ float3 AccumulateLocalLambertLighting(float3 worldPos, float3 N) {
 	[loop]
 	for (uint i = 0; i < spotCount; ++i) {
 		lit += EvaluateLambertSpot(gSpotLights[i], worldPos, N);
+	}
+	[loop]
+	for (uint i = 0; i < rectCount; ++i) {
+		lit += EvaluateLambertRect(gRectLights[i], worldPos, N);
 	}
 	return lit;
 }

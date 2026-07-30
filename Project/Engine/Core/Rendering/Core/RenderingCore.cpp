@@ -80,6 +80,7 @@ void Engine::GraphicsCore::SyncWindowSize() {
 
 void Engine::GraphicsCore::BeginRenderFrame() {
 
+	graphicsPlatform_->BeginFrame(swapChain_->GetCurrentBackBufferIndex());
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();
 
 	// Present -> RenderTarget
@@ -100,6 +101,10 @@ void Engine::GraphicsCore::Render() {
 void Engine::GraphicsCore::EndRenderFrame() {
 
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();
+
+	// 描画中に集めたDEFAULT heap差分を1Batchで提出し
+	// 後続の描画QueueだけをGPU側で待たせる
+	bufferUploadService_->SubmitBatch();
 
 	// RenderTarget -> Present
 	dxCommand->TransitionBarriers({ swapChain_->GetCurrentResource() },

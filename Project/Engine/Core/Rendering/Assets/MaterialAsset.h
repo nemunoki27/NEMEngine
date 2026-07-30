@@ -44,6 +44,7 @@ namespace Engine {
 
 		Invalid = 0,
 		ZPrepass,
+		EditorPicking,
 		Draw,
 		Transparent,
 		Outline,

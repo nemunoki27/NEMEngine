@@ -87,7 +87,8 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// 非インスタンシングなので先頭アイテムを描く
 	const RenderItem* item = items.front();
 	const FillMeshRenderPayload* payload = context.batch->GetPayload<FillMeshRenderPayload>(*item);
-	if (!payload || !payload->positions || !payload->indices || payload->indices->empty()) {
+	if (!payload || !payload->positions || !payload->indices ||
+		payload->positionCount == 0 || payload->indexCount == 0) {
 		return;
 	}
 
@@ -106,7 +107,11 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 		[](FillMeshBatchResources& resource, GraphicsCore& core) {
 			resource.Init(core);
 		});
-	resources.UploadVertices(*payload->positions, *payload->indices);
+	resources.UploadVertices(
+		std::span<const FillMeshPosition>(
+			payload->positions, payload->positionCount),
+		std::span<const FillMeshTriangleIndex>(
+			payload->indices, payload->indexCount));
 	if (resources.GetVertexCount() == 0) {
 		return;
 	}

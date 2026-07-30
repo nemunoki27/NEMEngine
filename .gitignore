@@ -25,14 +25,19 @@ Project/Externals/libcurl/build-*/
 
 # Local config
 *.ini
-*.meta
 *.pdb
-*.exeConfig.json
 
 # Logs / temp
 *.log
 *.tmp
 *.cache
+Project/Sandbox/Library/
+Project/Sandbox/Saved/
+Project/Sandbox/UserSettings/
+
+# NEMEngine内のシーンは単一JSONで管理する
+/Project/Engine/Assets/ExternalActors/
+/Project/Sandbox/GameAssets/ExternalActors/
 
 # Optional: local premake binary
 premake5.exe

@@ -43,28 +43,15 @@ void FramePresenter::Finalize() {
 
 void FramePresenter::Present(IDXGISwapChain4* swapChain) {
 
-	// コマンドを提出してPresentする
-	ExecuteAndPresent(swapChain);
-
-	// GPU完了待ちでCPUがブロックした時間を計測する、DX12のフレームコンテキスト多重化検討の判断材料
-	const std::chrono::high_resolution_clock::time_point waitStart = std::chrono::high_resolution_clock::now();
-
-	// Graphicsの完了を待つ
-	commandQueue_->SignalAndWait();
-
-	// 待機時間をプロファイラへ加算する、GPUがすでに完了済みならほぼ0になる
-	const std::chrono::duration<float, std::milli> waitElapsed =
-		std::chrono::high_resolution_clock::now() - waitStart;
-	FrameProfiler::GetInstance().AddSample(FrameProfiler::Category::GPUWait, waitElapsed.count());
+	// 提出したフレームのFence値は同じContextを再利用するときだけ待つ
+	const uint64_t fenceValue = ExecuteAndPresent(swapChain);
+	command_->SetCurrentFrameFenceValue(fenceValue);
 
 	// FPS固定
 	WaitForTargetFps();
-
-	// コマンドリストのリセット
-	command_->ResetCommandList();
 }
 
-void FramePresenter::ExecuteAndPresent(IDXGISwapChain4* swapChain) {
+uint64_t FramePresenter::ExecuteAndPresent(IDXGISwapChain4* swapChain) {
 
 	command_->CloseCommandList();
 	commandQueue_->ExecuteCommandList(command_->GetCommandList());
@@ -88,7 +75,9 @@ void FramePresenter::ExecuteAndPresent(IDXGISwapChain4* swapChain) {
 	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
 	if (!DxDredDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::ExecuteAndPresent/Present")) {
 		Assert::Call(false, "SwapChain Present failed.");
+		return 0;
 	}
+	return commandQueue_->Signal();
 }
 
 void FramePresenter::WaitForTargetFps() {

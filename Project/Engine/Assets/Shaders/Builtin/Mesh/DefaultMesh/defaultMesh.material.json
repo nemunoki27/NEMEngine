@@ -4,17 +4,22 @@
   "passes": [
     {
       "passKind": "ZPrepass",
-      "pipeline": "f09836087840b1d2",
+      "pipeline": "4e454d4153534554f09836087840b1d2",
       "preferredVariant": "GraphicsMesh"
     },
     {
+      "passKind": "EditorPicking",
+      "pipeline": "4e454d41535345548d50435034671c2c",
+      "preferredVariant": "GraphicsVertex"
+    },
+    {
       "passKind": "Draw",
-      "pipeline": "cb1dfc9e9ef2bae9",
+      "pipeline": "4e454d4153534554cb1dfc9e9ef2bae9",
       "preferredVariant": "GraphicsMesh"
     },
     {
       "passKind": "Transparent",
-      "pipeline": "70a440da60fc61a5",
+      "pipeline": "4e454d415353455470a440da60fc61a5",
       "preferredVariant": "GraphicsMesh"
     }
   ],

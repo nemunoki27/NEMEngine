@@ -17,10 +17,26 @@
 //============================================================================
 Engine::Entity Engine::SceneAuthoring::CreateGameObject(ECSWorld& world, const std::string_view& name) {
 
-	// エンティティの作成
-	Entity entity = world.CreateEntity();
-	// デフォルトコンポーネントの追加
-	EnsureGameObjectDefaults(world, entity, name);
+	return CreateGameObject(world, name, {});
+}
+
+Engine::Entity Engine::SceneAuthoring::CreateGameObject(ECSWorld& world,
+	const std::string_view& name, std::span<const uint32_t> additionalTypeIDs,
+	UUID stableUUID) {
+
+	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
+	std::vector<uint32_t> typeIDs;
+	typeIDs.reserve(4 + additionalTypeIDs.size());
+	typeIDs.emplace_back(registry.GetID<NameComponent>());
+	typeIDs.emplace_back(registry.GetID<TransformComponent>());
+	typeIDs.emplace_back(registry.GetID<HierarchyComponent>());
+	typeIDs.emplace_back(registry.GetID<SceneObjectComponent>());
+	typeIDs.insert(typeIDs.end(), additionalTypeIDs.begin(), additionalTypeIDs.end());
+
+	// 最終アーキタイプへ一度だけ配置する
+	Entity entity = world.CreateEntityWithComponents(typeIDs, stableUUID);
+	world.GetComponent<NameComponent>(entity).name = std::string(name);
+	world.GetComponent<SceneObjectComponent>(entity).localFileID = UUID::New();
 	return entity;
 }
 

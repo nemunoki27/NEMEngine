@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 // imgui
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -97,10 +99,17 @@ namespace Engine {
 		bool ConsumePlayFrameStepRequest();
 		// シーン操作要求
 		EditorSceneRequest ConsumeSceneRequest();
-		// アクティブシーンを保存済み状態にする
-		void MarkActiveSceneSaved();
+		// 指定シーンを保存済み状態にする
+		void MarkSceneSaved(AssetID sceneAsset);
+		// 保存開始時の変更世代と一致する場合だけ保存済み状態にする
+		void MarkSceneSaved(AssetID sceneAsset,
+			uint64_t dirtyRevision);
+		// 全シーンを保存済み状態にする
+		void MarkAllScenesSaved();
 		// シーン切り替え後の編集状態をリセットする
 		void ResetSceneEditingState();
+		// 読み込み中シーンの未保存状態をリセットする
+		void ResetSceneDirtyState();
 
 		// エディタコマンド実行
 		bool ExecuteEditorCommand(std::unique_ptr<IEditorCommand> command) override;
@@ -137,6 +146,8 @@ namespace Engine {
 		void RequestOpenScene(AssetID sceneAsset) override;
 		// アクティブシーンの保存要求
 		void RequestSaveScene() override;
+		// アクティブシーンを未保存状態にする
+		void RequestMarkSceneDirty() override;
 		// プレファブ編集の開始/終了/保存要求
 		void RequestEnterPrefabEdit(AssetID prefabAsset) override;
 		void RequestExitPrefabEdit() override;
@@ -150,7 +161,7 @@ namespace Engine {
 
 		// シーンビューのメッシュピック処理
 		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
-			const EditorContext& context, const RenderPipelineRunner& renderPipeline);
+			const EditorContext& context, RenderPipelineRunner& renderPipeline);
 		// SceneView描画前に選択エンティティのデバッグラインを積む
 		void DrawSceneDebugObjects(const EditorContext& context);
 
@@ -158,7 +169,11 @@ namespace Engine {
 
 		// エディタの状態の取得
 		const EditorLayoutState& GetLayoutState() const { return layoutState_; }
-		bool IsActiveSceneDirty() const { return activeSceneDirty_; }
+		bool IsSceneDirty(AssetID sceneAsset) const;
+		uint64_t GetSceneDirtyRevision(
+			AssetID sceneAsset) const;
+		bool HasDirtyScenes() const { return !dirtySceneAssets_.empty(); }
+		const std::unordered_set<AssetID>& GetDirtySceneAssets() const { return dirtySceneAssets_; }
 
 		// シーンビュー用のエディタカメラの状態の取得
 		const ManualRenderCameraState& GetSceneViewCameraState() const { return sceneViewCameraController_->GetCameraState(); }
@@ -198,8 +213,11 @@ namespace Engine {
 		bool requestOpenCloseUnsavedPopup_ = false;
 		// 終了時の未保存確認結果
 		EditorUnsavedScenePopupResult closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-		// アクティブシーンに未保存の変更があるか
-		bool activeSceneDirty_ = false;
+		// 未保存の変更があるシーンアセット
+		std::unordered_set<AssetID> dirtySceneAssets_;
+		// 非同期保存中の再編集を保存済みにしないためのシーン別変更世代
+		std::unordered_map<AssetID, uint64_t> dirtySceneRevisions_;
+		uint64_t dirtySceneRevision_ = 0;
 		// パネル複製要求
 		std::string pendingDuplicatePanelID_;
 		// 次のフレーム開始時に適用するレイアウト
@@ -231,6 +249,8 @@ namespace Engine {
 		void HandleGlobalShortcuts(const EditorContext& context);
 		// シーン操作要求をキューに積む
 		void QueueSceneRequest(const EditorSceneRequest& request);
+		// 現在編集中のシーンを未保存状態にする
+		void MarkCurrentSceneDirty();
 		// 未保存シーンの確認ポップアップを描画する
 		void DrawUnsavedScenePopup();
 		// 終了時の未保存シーン確認ポップアップを描画する

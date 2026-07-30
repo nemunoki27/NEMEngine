@@ -37,6 +37,8 @@ namespace Engine {
 
 		// フレーム終端でコマンドを提出しPresentまで行う
 		void PresentFrame(IDXGISwapChain4* swapChain);
+		// 指定フレームコンテキストの完了を待って記録を開始する
+		void BeginFrame(uint32_t frameIndex);
 
 		// 現在積んでいるコマンドを実行しGPU完了まで待機する
 		void WaitForGPU();

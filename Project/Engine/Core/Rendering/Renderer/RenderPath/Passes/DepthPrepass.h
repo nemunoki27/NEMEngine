@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Assets/AssetTypes.h>
 
 namespace Engine {
 
@@ -19,7 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit DepthPrepass(const RenderPipelineDeps& deps) : deps_(deps) {}
+		explicit DepthPrepass(const RenderPipelineDeps& deps);
 		~DepthPrepass() override = default;
 
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
@@ -36,11 +39,24 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
+		PostProcessConstantBufferAllocator constantAllocator_{};
+		uint64_t constantAllocatorFrameSerial_ = 0;
+		AssetID depthPyramidPipeline_{};
+		PipelineBindingCache bindCache_{};
+		PipelineBindingCache::SlotID constantsCBVSlot_ =
+			PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID sourceDepthSRVSlot_ =
+			PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID outputDepthUAVSlot_ =
+			PipelineBindingCache::kInvalidSlot;
 
 		//--------- functions ----------------------------------------------------
 
 		// 深度プリパス対象アイテムを収集する
 		std::vector<const RenderItem*> CollectItems(const SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets) const;
+		// 現在Viewの深度から同一フレーム用Hi-Zを生成する
+		void BuildDepthPyramid(GraphicsCore& graphicsCore,
+			SceneExecutionContext& context);
 	};
 } // Engine

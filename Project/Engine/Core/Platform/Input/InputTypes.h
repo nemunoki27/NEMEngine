@@ -198,9 +198,6 @@ struct InputVibrationParams {
 	float release;  // フェードアウト秒
 	int priority;   // 予約
 
-	// エディター
-	void ImGui(const char* label);
-
 	// json
 	void FromJson(const nlohmann::json& data);
 	void ToJson(nlohmann::json& data);

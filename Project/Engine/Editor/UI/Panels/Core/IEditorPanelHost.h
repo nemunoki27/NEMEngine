@@ -66,6 +66,8 @@ namespace Engine {
 		virtual void RequestOpenScene(AssetID sceneAsset) = 0;
 		// アクティブシーンの保存要求
 		virtual void RequestSaveScene() = 0;
+		// アクティブシーンを未保存状態にする
+		virtual void RequestMarkSceneDirty() = 0;
 		// プレファブ編集モードへ入る要求、隔離ワールドで編集する
 		virtual void RequestEnterPrefabEdit(AssetID prefabAsset) = 0;
 		// プレファブ編集モードを抜ける要求、ネスト中は1階層戻る

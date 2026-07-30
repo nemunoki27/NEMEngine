@@ -30,5 +30,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, PrefabLinkComponent& component);
 	void to_json(nlohmann::json& out, const PrefabLinkComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(PrefabLinkComponent, "PrefabLink");
 } // Engine

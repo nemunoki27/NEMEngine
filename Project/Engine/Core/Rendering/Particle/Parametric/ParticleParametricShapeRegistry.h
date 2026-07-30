@@ -14,7 +14,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ParticleParametricShapeRegistry class
-	//	描画形状からパラメトリック形状の処理を引くレジストリ、各形状は自己登録する
+	//	Builtinパラメトリック形状を明示登録し、描画形状から処理を引く
 	//============================================================================
 	class ParticleParametricShapeRegistry {
 	public:
@@ -40,16 +40,11 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		ParticleParametricShapeRegistry();
+
 		//--------- variables ----------------------------------------------------
 
 		// 形状から処理へのマップ
 		std::unordered_map<PrimitiveType, std::unique_ptr<IParticleParametricShape>> shapes_;
 	};
-
-	//============================================================================
-	//	ParticleParametricShapeRegistry macros
-	//============================================================================
-#define ENGINE_REGISTER_PARTICLE_PARAMETRIC_SHAPE(T, TypeValue) \
-    inline const uint32_t kParticleParametricShape_##T = Engine::ParticleParametricShapeRegistry::GetInstance().Register( \
-        TypeValue, std::make_unique<T>());
 } // Engine

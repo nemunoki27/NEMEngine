@@ -21,6 +21,10 @@ namespace Engine {
 	// 名前
 	struct SceneObjectComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render |
+			ComponentChangeChannel::Lighting;
+
 		// シーン、プレファブファイル内での永続ID
 		UUID localFileID{};
 
@@ -48,5 +52,4 @@ namespace Engine {
 	// 階層内でアクティブか
 	bool IsEntityActiveInHierarchy(ECSWorld& world, const Entity& entity);
 
-	ENGINE_REGISTER_COMPONENT(SceneObjectComponent, "SceneObject");
 } // Engine

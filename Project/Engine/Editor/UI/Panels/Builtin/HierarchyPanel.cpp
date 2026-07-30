@@ -8,7 +8,7 @@
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/ReparentEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/SetEntityActiveCommand.h>
+#include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
@@ -213,22 +214,57 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		});
 
 	bool hasVisibleEntity = false;
-	Entity lastVisibleRoot = Entity::Null();
-	for (const Entity& entity : rootEntities) {
+	auto drawSceneRoots = [&](UUID sceneInstanceID) {
 
-		if (!ShouldDrawEntityNode(*world, entity)) {
-			continue;
+		Entity lastVisibleRoot = Entity::Null();
+		for (const Entity& entity : rootEntities) {
+
+			if (world->GetComponent<SceneObjectComponent>(entity).sceneInstanceID != sceneInstanceID ||
+				!ShouldDrawEntityNode(*world, entity)) {
+				continue;
+			}
+
+			DrawSiblingDropTarget(context, *world, entity, false);
+			DrawEntityNode(context, *world, entity, false);
+			hasVisibleEntity = true;
+			lastVisibleRoot = entity;
 		}
+		if (world->IsAlive(lastVisibleRoot)) {
+			DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
+		}
+		};
 
-		DrawSiblingDropTarget(context, *world, entity, false);
-		// ルートエンティティを表示
-		DrawEntityNode(context, *world, entity, false);
-		hasVisibleEntity = true;
-		lastVisibleRoot = entity;
-	}
-	if (world->IsAlive(lastVisibleRoot)) {
+	SceneInstanceManager* sceneInstances = context.editorContext ?
+		context.editorContext->sceneInstances : nullptr;
+	if (sceneInstances && !prefabEditing && !sceneInstances->GetAll().empty()) {
 
-		DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
+		for (const SceneInstance& scene : sceneInstances->GetAll()) {
+
+			ImGui::PushID(ToString(scene.instanceID).c_str());
+			ImGuiTreeNodeFlags flags =
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+			if (scene.instanceID == context.editorContext->activeSceneInstanceID) {
+				flags |= ImGuiTreeNodeFlags_Selected;
+			}
+			const bool open = ImGui::TreeNodeEx("##Scene", flags, "%s", scene.header.name.c_str());
+			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+				sceneInstances->SetActive(scene.instanceID);
+			}
+			if (open) {
+				drawSceneRoots(scene.instanceID);
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+	} else {
+		for (const Entity& entity : rootEntities) {
+			if (!ShouldDrawEntityNode(*world, entity)) {
+				continue;
+			}
+			DrawSiblingDropTarget(context, *world, entity, false);
+			DrawEntityNode(context, *world, entity, false);
+			hasVisibleEntity = true;
+		}
 	}
 	if (rootEntities.empty()) {
 		ImGui::TextDisabled("Hierarchy is empty.");
@@ -351,16 +387,16 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	// サブメッシュを持っているか
 	bool hasSubMeshChildren = false;
 	if (world.HasComponent<MeshRendererComponent>(entity)) {
-
-		const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-		hasSubMeshChildren = !meshRenderer.subMeshes.empty();
+		hasSubMeshChildren = !GetMeshSubMeshes(world, entity).empty();
 	}
 	// スキンメッシュのジョイントを持っているか
 	bool hasSkinnedMeshChildren = false;
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
 
-		const auto& anim = world.GetComponent<SkinnedAnimationComponent>(entity);
-		hasSkinnedMeshChildren = !anim.runtimeSkeleton.joints.empty();
+		const SkinnedAnimationRuntimeData* runtime =
+			TryGetSkinnedAnimationRuntime(world, entity);
+		hasSkinnedMeshChildren =
+			runtime && !runtime->skeleton.joints.empty();
 	}
 
 	// ツリー表示できる子がいるか
@@ -378,11 +414,16 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 	}
 
-	// 表示名を取得
-	const std::string displayName = GetEntityDisplayName(world, entity);
-	const std::string idString = ToString(world.GetUUID(entity));
+	// 表示名はNameComponentの文字列を直接参照して行ごとの確保を避ける
+	const char* displayName = "Entity";
+	if (const NameComponent* name =
+		world.TryGetComponent<NameComponent>(entity);
+		name && !name->name.empty()) {
+		displayName = name->name.c_str();
+	}
 
-	ImGui::PushID(idString.c_str());
+	ImGui::PushID(static_cast<int>(entity.index));
+	ImGui::PushID(static_cast<int>(entity.generation));
 
 	//============================================================================
 	//	左側のアクティブチェックボックス
@@ -391,6 +432,14 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	// チェックボックスがクリックされたか
 	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
 	auto selectEntityInHierarchy = [&]() {
+		if (context.editorContext && context.editorContext->sceneInstances &&
+			world.HasComponent<SceneObjectComponent>(entity)) {
+			const UUID sceneInstanceID =
+				world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID;
+			if (sceneInstanceID) {
+				context.editorContext->sceneInstances->SetActive(sceneInstanceID);
+			}
+		}
 		if (additiveSelect && context.editorState->selectKind == EditorSelectionKind::Entity &&
 			context.editorState->CanMultiSelect(world, entity)) {
 			context.editorState->ToggleEntityInSelection(entity);
@@ -443,7 +492,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, 0.0f));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 1.0f));
 	ImGui::SetWindowFontScale(0.88f);
-	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName.c_str());
+	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::PopStyleVar(2);
 
@@ -540,7 +589,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 		const UUID stableUUID = world.GetUUID(entity);
 		ImGui::SetDragDropPayload(kHierarchyDragDropPayloadType, &stableUUID, sizeof(UUID));
-		ImGui::Text("%s", displayName.c_str());
+		ImGui::Text("%s", displayName);
 		ImGui::EndDragDropSource();
 	}
 
@@ -620,12 +669,20 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	}
 
 	ImGui::PopID();
+	ImGui::PopID();
 }
 
 void Engine::HierarchyPanel::DrawSiblingDropTarget(const EditorPanelContext& context, ECSWorld& world,
 	const Entity& anchorEntity, bool insertAfter) {
 
 	if (!context.CanEditScene() || !world.IsAlive(anchorEntity)) {
+		return;
+	}
+	const ImGuiPayload* activePayload =
+		ImGui::GetDragDropPayload();
+	if (!activePayload ||
+		!activePayload->IsDataType(
+			kHierarchyDragDropPayloadType)) {
 		return;
 	}
 
@@ -670,8 +727,9 @@ void Engine::HierarchyPanel::DrawSubMeshNodes(const EditorPanelContext& context,
 	if (!world.HasComponent<MeshRendererComponent>(entity)) {
 		return;
 	}
-	const auto& meshRenderer = world.GetComponent<MeshRendererComponent>(entity);
-	if (meshRenderer.subMeshes.empty()) {
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(world, entity);
+	if (subMeshes.empty()) {
 		return;
 	}
 
@@ -680,9 +738,10 @@ void Engine::HierarchyPanel::DrawSubMeshNodes(const EditorPanelContext& context,
 	if (MyGUI::CollapsingHeader("サブメッシュ", false)) {
 
 		ImGui::Indent();
-		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(meshRenderer.subMeshes.size()); ++subMeshIndex) {
+		for (uint32_t subMeshIndex = 0;
+			subMeshIndex < static_cast<uint32_t>(subMeshes.size()); ++subMeshIndex) {
 
-			const auto& subMesh = meshRenderer.subMeshes[subMeshIndex];
+			const auto& subMesh = subMeshes[subMeshIndex];
 
 			// 選択状態
 			bool isSelected = context.editorState && context.editorState->IsMeshSubMeshSelected(entity, subMesh.stableID, subMeshIndex);
@@ -722,7 +781,12 @@ void Engine::HierarchyPanel::DrawSkinnedMeshNodes(const EditorPanelContext& cont
 	if (!world.HasComponent<SkinnedAnimationComponent>(entity)) {
 		return;
 	}
-	const Skeleton& skeleton = world.GetComponent<SkinnedAnimationComponent>(entity).runtimeSkeleton;
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, entity);
+	if (!runtime) {
+		return;
+	}
+	const Skeleton& skeleton = runtime->skeleton;
 	if (skeleton.joints.empty()) {
 		return;
 	}
@@ -782,7 +846,12 @@ void Engine::HierarchyPanel::DrawJointNode(const EditorPanelContext& context, EC
 	if (!world.HasComponent<SkinnedAnimationComponent>(skinnedEntity)) {
 		return;
 	}
-	const Skeleton& skeleton = world.GetComponent<SkinnedAnimationComponent>(skinnedEntity).runtimeSkeleton;
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, skinnedEntity);
+	if (!runtime) {
+		return;
+	}
+	const Skeleton& skeleton = runtime->skeleton;
 	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
 		return;
 	}
@@ -956,6 +1025,12 @@ bool Engine::HierarchyPanel::CanReparent(const EditorPanelContext& context, ECSW
 	if (!PrefabInstanceEditUtility::CanChangeParent(context.editorContext, world, child, newParent)) {
 		return false;
 	}
+	if (world.HasComponent<SceneObjectComponent>(child) &&
+		world.HasComponent<SceneObjectComponent>(newParent) &&
+		world.GetComponent<SceneObjectComponent>(child).sceneInstanceID !=
+		world.GetComponent<SceneObjectComponent>(newParent).sceneInstanceID) {
+		return false;
+	}
 
 	// 自分自身の子孫の下には入れられない
 	Entity cursor = newParent;
@@ -988,6 +1063,12 @@ bool Engine::HierarchyPanel::CanReorder(const EditorPanelContext& context, ECSWo
 		return false;
 	}
 	if (!PrefabInstanceEditUtility::CanChangeSiblingOrder(context.editorContext, world, child, anchor)) {
+		return false;
+	}
+	if (world.HasComponent<SceneObjectComponent>(child) &&
+		world.HasComponent<SceneObjectComponent>(anchor) &&
+		world.GetComponent<SceneObjectComponent>(child).sceneInstanceID !=
+		world.GetComponent<SceneObjectComponent>(anchor).sceneInstanceID) {
 		return false;
 	}
 	return GetParentEntity(world, child) == GetParentEntity(world, anchor);

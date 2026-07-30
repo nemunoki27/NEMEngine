@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -152,6 +153,9 @@ namespace {
 		projection.screen += offset;
 
 		const float size = ComputeLightIconPixelSize(projection.distance, settings);
+		if (size < settings.lightIconCullPixelSize) {
+			return;
+		}
 		const Engine::Vector2 halfSize(size * 0.5f, size * 0.5f);
 
 		// PickerはこのrectMin/rectMaxと同じ矩形でCPU判定する
@@ -255,6 +259,10 @@ void Engine::SceneComponentOverlayCollector::Collect(ECSWorld& world, const Reso
 		AddLightItem(world, entity, SceneComponentOverlayComponentKind::PointLight, light.color, light.enabled,
 			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);
 	});
+	world.ForEach<RectLightComponent>([&](const Entity& entity, RectLightComponent& light) {
+		AddLightItem(world, entity, SceneComponentOverlayComponentKind::RectLight, light.color, light.enabled,
+			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);
+		});
 	world.ForEach<SpotLightComponent>([&](const Entity& entity, SpotLightComponent& light) {
 		AddLightItem(world, entity, SceneComponentOverlayComponentKind::SpotLight, light.color, light.enabled,
 			0.0f, registry, *camera, view, settings, stableOrder, overlapCounts, outItems);

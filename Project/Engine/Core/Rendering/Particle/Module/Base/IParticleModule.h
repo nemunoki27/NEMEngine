@@ -39,8 +39,6 @@ namespace Engine {
 		virtual void FromJson(const nlohmann::json& params) = 0;
 		// JSONパラメータの書き出し
 		virtual nlohmann::json ToJson() const = 0;
-		// パラメータの編集UIを描画する、変更があればtrue
-		virtual bool DrawImGui() = 0;
 
 		// このフレームの発生数を返す、蓄積値はエミッターごとにコンポーネント側が持つ
 		virtual uint32_t OnEmit([[maybe_unused]] float deltaTime, [[maybe_unused]] float& emitAccumulator) { return 0; }

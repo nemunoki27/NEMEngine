@@ -198,6 +198,7 @@ float EasedValue(EasingType easingType, float t) {
 }
 
 void Easing::SelectEasingType(EasingType& easingType, const std::string& lebel, float itemWidth) {
+#if defined(NEM_EDITOR_UI_ENABLED)
 
 	const char* easeInOptions[] = {
 		"EaseInSine","EaseInQuad","EaseInCubic","EaseInQuart","EaseInQuint","EaseInExpo","EaseInCirc","EaseInBack","EaseInBounce"
@@ -278,4 +279,9 @@ void Easing::SelectEasingType(EasingType& easingType, const std::string& lebel, 
 		ImGui::PopItemWidth();
 		ImGui::EndCombo();
 	}
+#else
+	(void)easingType;
+	(void)lebel;
+	(void)itemWidth;
+#endif
 }

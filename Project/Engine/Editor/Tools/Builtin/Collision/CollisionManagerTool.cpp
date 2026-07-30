@@ -239,17 +239,16 @@ void Engine::CollisionManagerTool::DrawEditorTool(const EditorToolContext& conte
 	}
 }
 
-void Engine::CollisionManagerTool::DrawWindow(const EditorToolContext& context) {
+void Engine::CollisionManagerTool::DrawWindow(
+	[[maybe_unused]] const EditorToolContext& context) {
 
 	if (!ImGui::Begin("衝突設定", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
 
-	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
-
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	settings.BindGlobal(assetDatabase);
+	settings.BindGlobal();
 	settings.EnsureLoaded();
 
 	ImGui::SetWindowFontScale(0.9f);
@@ -426,17 +425,17 @@ void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld&
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// World内の有効なCollision形状をすべて描画する
-	world.ForEach<CollisionComponent, TransformComponent>([](
-		Entity, CollisionComponent& collision, TransformComponent& transform) {
+	world.ForEach<CollisionComponent, TransformComponent>([&world](
+		Entity entity, CollisionComponent& collision, TransformComponent& transform) {
 
 			if (!collision.enabled) {
 				return;
 			}
-			for (const CollisionShape& shape : collision.shapes) {
+			for (const CollisionShape& shape : GetCollisionShapes(world, entity)) {
 				if (!shape.enabled) {
 					continue;
 				}
-				DrawCollisionShape(shape, transform, collision.runtimeColliding);
+				DrawCollisionShape(shape, transform, IsCollisionColliding(world, entity));
 			}
 		});
 #endif

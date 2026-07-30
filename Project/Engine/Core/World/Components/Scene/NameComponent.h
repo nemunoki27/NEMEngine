@@ -20,5 +20,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, NameComponent& component);
 	void to_json(nlohmann::json& out, const NameComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(NameComponent, "Name");
 } // Engine

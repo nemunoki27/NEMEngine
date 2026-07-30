@@ -3,10 +3,13 @@
 //============================================================================
 //	SkinnedAnimationInspectorDrawer classMethods
 //============================================================================
-void Engine::SkinnedAnimationInspectorDrawer::DrawFields([[maybe_unused]] const EditorPanelContext& context,
-	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
+void Engine::SkinnedAnimationInspectorDrawer::DrawFields(
+	[[maybe_unused]] const EditorPanelContext& context,
+	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	const SkinnedAnimationRuntimeData* runtime =
+		TryGetSkinnedAnimationRuntime(world, entity);
 
 	//============================================================================
 	//	アニメーションの基本設定
@@ -15,9 +18,10 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields([[maybe_unused]] const 
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 			});
-		if (!draft.runtimeAvailableClips.empty()) {
+		if (runtime && !runtime->availableClips.empty()) {
 			DrawField(anyItemActive, [&]() {
-				return MyGUI::StringCombo("クリップ", draft.clip, draft.runtimeAvailableClips, "<自動>");
+				return MyGUI::StringCombo(
+					"クリップ", draft.clip, runtime->availableClips, "<自動>");
 				});
 		} else {
 			DrawField(anyItemActive, [&]() {
@@ -49,9 +53,14 @@ void Engine::SkinnedAnimationInspectorDrawer::DrawFields([[maybe_unused]] const 
 	//	デバッグ表示
 	//============================================================================
 	{
-		ImGui::Text("実行クリップ : %s", draft.runtimeCurrentClip.c_str());
-		ImGui::Text("実行時間     : %.3f", draft.runtimeTime);
-		ImGui::Text("ブレンド時間 : %.3f", draft.runtimeBlendTime);
-		ImGui::Text("パレット数   : %u", static_cast<uint32_t>(draft.palette.size()));
+		// Runtime情報は編集Draftへ混ぜず、現在のWorldから直接表示する
+		ImGui::Text("実行クリップ : %s",
+			runtime ? runtime->currentClip.c_str() : "");
+		ImGui::Text("実行時間     : %.3f",
+			runtime ? runtime->time : 0.0f);
+		ImGui::Text("ブレンド時間 : %.3f",
+			runtime ? runtime->blendTime : 0.0f);
+		ImGui::Text("パレット数   : %u",
+			runtime ? static_cast<uint32_t>(runtime->palette.size()) : 0u);
 	}
 }

@@ -3,13 +3,13 @@
     "stages": [
         {
             "entry": "main",
-            "file": "104c059fbd4f269a",
+            "file": "4e454d4153534554104c059fbd4f269a",
             "profile": "vs_6_6",
             "stage": "VS"
         },
         {
             "entry": "mainTransparent",
-            "file": "a839aeebe0aef31e",
+            "file": "4e454d4153534554a839aeebe0aef31e",
             "profile": "ps_6_6",
             "stage": "PS"
         }

@@ -1,0 +1,29 @@
+{
+    "name": "meshPBRWireShader",
+    "stages": [
+        {
+            "entry": "main",
+            "file": "4e454d4153534554f6485468f3b0f105",
+            "profile": "vs_6_6",
+            "stage": "VS"
+        },
+        {
+            "entry": "main",
+            "file": "4e454d415353455406811f98f605bb52",
+            "profile": "as_6_6",
+            "stage": "AS"
+        },
+        {
+            "entry": "main",
+            "file": "4e454d4153534554109772a2d84dd757",
+            "profile": "ms_6_6",
+            "stage": "MS"
+        },
+        {
+            "entry": "main",
+            "file": "4e454d41535345542b5e427ce09053d5",
+            "profile": "ps_6_6",
+            "stage": "PS"
+        }
+    ]
+}

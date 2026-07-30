@@ -235,7 +235,7 @@ namespace Engine {
 		void RebuildModelPreviewSlots(AssetDatabase& database, const ProjectDirectoryNode& node,
 			const std::vector<const ProjectAssetEntry*>& meshAssets, uint64_t signature);
 		// モデルプレビューAtlasを描画する
-		void RenderModelPreviewAtlas(const EditorToolContext& toolContext, EditorToolRenderTexture& atlas);
+		bool RenderModelPreviewAtlas(const EditorToolContext& toolContext, EditorToolRenderTexture& atlas);
 		// プレビューWorld内のライトへ現在の表示設定を反映する
 		void ApplyModelPreviewLightSettings();
 		// AssetIDからモデルプレビューの表示情報を取得する

@@ -10,7 +10,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ManagedIdeSettings struct
-	//	ProjectSettings/ManagedScriptingEditor.jsonから読むIDE起動設定
+	//	ProjectSettingsのスクリプト構成とUserSettingsのIDE設定
 	//============================================================================
 	struct ManagedIdeSettings {
 
@@ -31,7 +31,7 @@ namespace Engine {
 	//============================================================================
 	namespace ManagedIdeLauncher {
 
-		// 設定をProjectSettings/ManagedScriptingEditor.jsonから読み直す、無ければ既定値
+		// プロジェクト構成とIDE設定を読み直す、無ければ既定値
 		void ReloadSettings();
 		// 現在の設定を返す、読み込み済みでなければloadする
 		const ManagedIdeSettings& GetSettings();

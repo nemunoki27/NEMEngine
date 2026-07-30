@@ -2,7 +2,7 @@
     "name": "fillMeshOutlineMask",
     "domain": "Surface",
     "passes": [
-        { "passKind": "ScreenSpaceOutlineMask", "pipeline": "fa11e50000000a05", "preferredVariant": "GraphicsVertex" },
-        { "passKind": "ScreenSpaceOutlineCoverageMask", "pipeline": "fa11e50000000a06", "preferredVariant": "GraphicsVertex" }
+        { "passKind": "ScreenSpaceOutlineMask", "pipeline": "4e454d4153534554fa11e50000000a05", "preferredVariant": "GraphicsVertex" },
+        { "passKind": "ScreenSpaceOutlineCoverageMask", "pipeline": "4e454d4153534554fa11e50000000a06", "preferredVariant": "GraphicsVertex" }
     ]
 }

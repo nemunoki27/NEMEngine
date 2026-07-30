@@ -165,6 +165,37 @@ public readonly struct Entity : IEquatable<Entity> {
         }
     }
 
+    // DynamicBufferはチャンクアドレスを保持せず、各操作で現在位置を再解決する
+    public DynamicBuffer<T> GetBuffer<T>()
+        where T : unmanaged, IBufferElementData<T> {
+
+        return new DynamicBuffer<T>(this);
+    }
+
+    public bool HasBuffer<T>()
+        where T : unmanaged, IBufferElementData<T> {
+
+        return isValid && new DynamicBuffer<T>(this).IsCreated;
+    }
+
+    // Bufferの追加削除も通常Componentと同じ安全地点で反映する
+    public DynamicBuffer<T> AddBuffer<T>()
+        where T : unmanaged, IBufferElementData<T> {
+
+        if (isValid) {
+            NativeApi.EnqueueAddComponent(native, T.componentTypeID);
+        }
+        return new DynamicBuffer<T>(this);
+    }
+
+    public void RemoveBuffer<T>()
+        where T : unmanaged, IBufferElementData<T> {
+
+        if (isValid) {
+            NativeApi.EnqueueRemoveComponent(native, T.componentTypeID);
+        }
+    }
+
     // Entity 破棄。callback 中の即時破棄は走査を壊すため WorldCommandBuffer 経由で遅延適用される。
     // flush 後に isAlive == false。invalid / 二重破棄は安全に扱われる
     public void Destroy() {

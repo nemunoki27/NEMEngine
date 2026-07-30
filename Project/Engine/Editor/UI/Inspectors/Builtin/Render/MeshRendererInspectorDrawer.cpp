@@ -57,14 +57,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	uint32_t selectedSubMeshIndex = 0;
 	if (TryGetSelectedSubMeshIndex(context, world, entity, draft, selectedSubMeshIndex)) {
 
-		Matrix4x4 parentWorld = Matrix4x4::Identity();
-		if (world.HasComponent<TransformComponent>(entity)) {
-			parentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
-		}
-		if (selectedSubMeshIndex < draft.subMeshes.size()) {
-			MeshSubMeshRuntime::UpdateSubMeshRuntime(draft.subMeshes[selectedSubMeshIndex], parentWorld);
-		}
-		auto& subMesh = draft.subMeshes[selectedSubMeshIndex];
+		auto& subMesh = subMeshDraft_[selectedSubMeshIndex];
 		DrawSubMeshFields(context, world, entity, subMesh, anyItemActive);
 		return;
 	}
@@ -80,7 +73,6 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			if (result.valueChanged) {
 
 				SyncDraftSubMeshes(context, draft, false);
-				UpdateDraftRuntime(world, entity, draft);
 				result.editFinished = true;
 			}
 			return result;
@@ -162,15 +154,25 @@ void Engine::MeshRendererInspectorDrawer::ApplyPreview(ECSWorld& world, const En
 		return;
 	}
 
-	MeshRendererComponent preview = previewComponent;
+	world.GetComponent<MeshRendererComponent>(entity) = previewComponent;
+	SetMeshSubMeshes(world, entity, subMeshDraft_);
+	world.MarkComponentModified<MeshRendererComponent>(entity);
+}
 
-	Matrix4x4 parentWorld = Matrix4x4::Identity();
-	if (world.HasComponent<TransformComponent>(entity)) {
-		parentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
-	}
+void Engine::MeshRendererInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const MeshRendererComponent& component) {
 
-	MeshSubMeshRuntime::UpdateRendererRuntime(preview, parentWorld);
-	world.GetComponent<MeshRendererComponent>(entity) = std::move(preview);
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(world, entity);
+	subMeshDraft_.assign(subMeshes.begin(), subMeshes.end());
+}
+
+void Engine::MeshRendererInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const MeshRendererComponent& component, nlohmann::json& out) const {
+
+	SerializeMeshRenderer(component, subMeshDraft_, out);
 }
 
 void Engine::MeshRendererInspectorDrawer::RefreshSubMeshLayoutCache(
@@ -198,8 +200,8 @@ void Engine::MeshRendererInspectorDrawer::SyncDraftSubMeshes(const EditorPanelCo
 	RefreshSubMeshLayoutCache(assetDatabase, draft.mesh);
 
 	if (!draft.mesh) {
-		if (!draft.subMeshes.empty()) {
-			draft.subMeshes.clear();
+		if (!subMeshDraft_.empty()) {
+			subMeshDraft_.clear();
 		}
 		return;
 	}
@@ -210,11 +212,14 @@ void Engine::MeshRendererInspectorDrawer::SyncDraftSubMeshes(const EditorPanelCo
 	}
 
 	// レイアウトに合わせてドラフトのサブメッシュを正規化する
-	MeshSubMeshAuthoring::SyncComponentToLayout(cachedSubMeshLayout_, draft, preserveOverrides);
+	MeshSubMeshAuthoring::SyncComponentToLayout(
+		cachedSubMeshLayout_, subMeshDraft_, preserveOverrides);
 }
 
 bool Engine::MeshRendererInspectorDrawer::TryGetSelectedSubMeshIndex(const EditorPanelContext& context,
-	ECSWorld& world, const Entity& entity, const MeshRendererComponent& draft, uint32_t& outSubMeshIndex) const {
+	ECSWorld& world, const Entity& entity,
+	[[maybe_unused]] const MeshRendererComponent& draft,
+	uint32_t& outSubMeshIndex) const {
 
 	// サブメッシュが選択されていることを前提に、選択されているサブメッシュのインデックスを返す
 	if (!context.editorState || !context.editorState->HasValidSubMeshSelection(&world)) {
@@ -226,7 +231,7 @@ bool Engine::MeshRendererInspectorDrawer::TryGetSelectedSubMeshIndex(const Edito
 	if (!context.editorState->TryResolveSelectedSubMeshIndex(&world, outSubMeshIndex)) {
 		return false;
 	}
-	return outSubMeshIndex < draft.subMeshes.size();
+	return outSubMeshIndex < subMeshDraft_.size();
 }
 
 void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelContext& context,
@@ -279,7 +284,13 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 					});
 			}
 			ImGui::Separator();
-			MyGUI::TextMatrix4x4("ワールド行列", subMesh.worldMatrix);
+			Matrix4x4 parentWorld = Matrix4x4::Identity();
+			if (world.HasComponent<TransformComponent>(entity)) {
+				parentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
+			}
+			const Matrix4x4 worldMatrix =
+				MeshSubMeshRuntime::BuildRenderLocalMatrix(subMesh) * parentWorld;
+			MyGUI::TextMatrix4x4("ワールド行列", worldMatrix);
 			ImGui::Separator();
 			// UV
 			DrawField(anyItemActive, [&]() {
@@ -294,7 +305,8 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshFields(const EditorPanelCon
 				return MyGUI::DragVector2("UVスケール", subMesh.uvScale,
 					{ .dragSpeed = 0.01f, .minValue = -100000.0f, .maxValue = 100000.0f });
 				});
-			MyGUI::TextMatrix4x4("UV行列", subMesh.uvMatrix);
+			const Matrix4x4 uvMatrix = MeshSubMeshRuntime::BuildUVMatrix(subMesh);
+			MyGUI::TextMatrix4x4("UV行列", uvMatrix);
 			ImGui::Separator();
 		}
 
@@ -355,7 +367,7 @@ void Engine::MeshRendererInspectorDrawer::ApplyModelMaterialParameters(
 	if (!MeshSubMeshAuthoring::TryBuildLayout(assetDatabase, draft.mesh, layout)) {
 		return;
 	}
-	MeshSubMeshAuthoring::ApplyModelMaterialParameters(layout, draft);
+	MeshSubMeshAuthoring::ApplyModelMaterialParameters(layout, subMeshDraft_);
 }
 
 void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
@@ -369,7 +381,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		batchOverrideAllowed_.clear();
 		return;
 	}
-	if (draft.subMeshes.empty()) {
+	if (subMeshDraft_.empty()) {
 		return;
 	}
 
@@ -387,7 +399,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 
 	// 編集確定値を全サブメッシュへ書き込む
 	auto applyToAll = [&](const std::string& name, const MaterialParameterValue& value) {
-		for (SubMeshMaterial& subMesh : draft.subMeshes) {
+		for (SubMeshMaterial& subMesh : subMeshDraft_) {
 			subMesh.parameterOverrides[name] = value;
 		}
 		};
@@ -396,10 +408,11 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	auto drawVar = [&](const ShaderConstantBufferVariable& var) {
 
 		// 全サブメッシュで値が一致しているか調べ、混在していれば既定では編集無効にする
-		MaterialParameterValue common = ResolveSubMeshParamValue(draft.subMeshes.front(), var);
+		MaterialParameterValue common =
+			ResolveSubMeshParamValue(subMeshDraft_.front(), var);
 		bool mixed = false;
-		for (size_t i = 1; i < draft.subMeshes.size(); ++i) {
-			if (!ParamValueEqual(ResolveSubMeshParamValue(draft.subMeshes[i], var), common)) {
+		for (size_t i = 1; i < subMeshDraft_.size(); ++i) {
+			if (!ParamValueEqual(ResolveSubMeshParamValue(subMeshDraft_[i], var), common)) {
 				mixed = true;
 				break;
 			}
@@ -547,15 +560,4 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 			return result;
 			});
 	}
-}
-
-void Engine::MeshRendererInspectorDrawer::UpdateDraftRuntime(
-	ECSWorld& world, const Entity& entity, MeshRendererComponent& draft) const {
-
-	Matrix4x4 parentWorld = Matrix4x4::Identity();
-	if (world.HasComponent<TransformComponent>(entity)) {
-
-		parentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
-	}
-	MeshSubMeshRuntime::UpdateRendererRuntime(draft, parentWorld);
 }

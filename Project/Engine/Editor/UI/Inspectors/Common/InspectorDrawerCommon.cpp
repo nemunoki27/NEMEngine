@@ -9,6 +9,7 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
@@ -18,6 +19,9 @@
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/Interface/ILightExtractor.h>
+
+// c++
+#include <algorithm>
 
 //============================================================================
 //	InspectorDrawerCommon classMethods
@@ -175,8 +179,13 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 
 		auto& animation = world.GetComponent<SkinnedAnimationComponent>(entity);
 		if (animation.isDisplayBone) {
-			// スケルトンのジョイントを描画
-			renderer3D->DrawSkeleton(transform.worldMatrix, animation.runtimeSkeleton);
+			const SkinnedAnimationRuntimeData* runtime =
+				TryGetSkinnedAnimationRuntime(world, entity);
+			if (runtime) {
+				// チャンク外の更新済みポーズをデバッグ描画へ渡す
+				renderer3D->DrawSkeleton(
+					transform.worldMatrix, runtime->skeleton);
+			}
 		}
 	}
 	// 平行光源
@@ -190,6 +199,35 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 		// DirectionalLightの向きを矢印で表示する
 		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
 			rotation, directionalLight.color, 1.0f);
+	}
+	// 矩形面光源
+	if (world.HasComponent<RectLightComponent>(entity)) {
+
+		auto& rectLight = world.GetComponent<RectLightComponent>(entity);
+		const Vector3 center = transform.worldMatrix.GetTranslationValue();
+		const Vector3 direction = LightExtract::GetWorldDirection(
+			Vector3(1.0f, 0.0f, 0.0f), transform.worldMatrix);
+		const Vector3 right = LightExtract::GetWorldDirection(
+			Vector3(0.0f, 1.0f, 0.0f), transform.worldMatrix);
+		const Vector3 up = LightExtract::GetWorldDirection(
+			Vector3(0.0f, 0.0f, 1.0f), transform.worldMatrix);
+		const Vector3 halfRight =
+			right * (rectLight.sourceWidth * 0.5f);
+		const Vector3 halfUp =
+			up * (rectLight.sourceHeight * 0.5f);
+		const Vector3 corner0 = center - halfRight - halfUp;
+		const Vector3 corner1 = center + halfRight - halfUp;
+		const Vector3 corner2 = center + halfRight + halfUp;
+		const Vector3 corner3 = center - halfRight + halfUp;
+
+		// 光源面と照射方向をワイヤー表示する
+		renderer3D->DrawLine(corner0, corner1, rectLight.color, 1.0f);
+		renderer3D->DrawLine(corner1, corner2, rectLight.color, 1.0f);
+		renderer3D->DrawLine(corner2, corner3, rectLight.color, 1.0f);
+		renderer3D->DrawLine(corner3, corner0, rectLight.color, 1.0f);
+		renderer3D->DrawArrow(center,
+			(std::min)(rectLight.attenuationRadius, 4.0f),
+			Quaternion::FromToY(direction), rectLight.color, 1.0f);
 	}
 	// スポットライト
 	if (world.HasComponent<SpotLightComponent>(entity)) {

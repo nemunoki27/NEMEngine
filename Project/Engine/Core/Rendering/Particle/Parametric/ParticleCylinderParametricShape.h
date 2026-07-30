@@ -27,5 +27,4 @@ namespace Engine {
 		int32_t GetDivide(const ParticleRenderSettings& settings) const override;
 	};
 
-	ENGINE_REGISTER_PARTICLE_PARAMETRIC_SHAPE(ParticleCylinderParametricShape, PrimitiveType::Cylinder);
 } // Engine

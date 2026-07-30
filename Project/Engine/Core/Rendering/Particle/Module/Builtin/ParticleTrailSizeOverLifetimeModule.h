@@ -18,11 +18,10 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		ParticleTrailSizeOverLifetimeModule();
+		ParticleTrailSizeOverLifetimeModule() { SetScaleRange(0.1f, 0.0f); }
 		~ParticleTrailSizeOverLifetimeModule() override = default;
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::None; }
 	};
 
-	ENGINE_REGISTER_PARTICLE_MODULE(ParticleTrailSizeOverLifetimeModule, "TrailSizeOverLifetime");
 } // Engine

@@ -6,7 +6,7 @@
         {
             "kind": "Compute",
             "pipelineType": "Compute",
-            "shader": "630a78e9348979b7"
+            "shader": "4e454d4153534554630a78e9348979b7"
         }
     ]
 }

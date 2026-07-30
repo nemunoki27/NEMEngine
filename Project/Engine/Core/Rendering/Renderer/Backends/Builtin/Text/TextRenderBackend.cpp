@@ -41,32 +41,49 @@ namespace {
 		return context.assetLibrary->LoadFont(payload->font);
 	}
 	// 現在のレンダラー状態に対してレイアウトキャッシュを作り直す必要があるか
-	bool NeedsTextLayoutRebuild(const Engine::TextRendererComponent& renderer) {
+	bool NeedsTextLayoutRebuild(const Engine::ECSWorld& world,
+		const Engine::Entity& entity,
+		const Engine::TextRendererComponent& renderer) {
 
-		const auto& cache = renderer.runtimeLayout;
-		return !cache.valid || cache.font != renderer.font || cache.text != renderer.text ||
-			cache.fontSize != renderer.fontSize || cache.charSpacing != renderer.charSpacing;
+		const auto* cache =
+			world.TryGetComponent<Engine::TextLayoutRuntimeComponent>(entity);
+		return !cache || !cache->valid || cache->font != renderer.font ||
+			cache->textHash != Engine::HashTextLayoutString(renderer.text) ||
+			cache->fontSize != renderer.fontSize ||
+			cache->charSpacing != renderer.charSpacing;
 	}
 
 	// レイアウトだけをキャッシュする
-	bool RebuildTextLayoutCache(const Engine::MSDFFontAsset& font, Engine::TextRendererComponent& renderer) {
+	bool RebuildTextLayoutCache(const Engine::MSDFFontAsset& font,
+		Engine::ECSWorld& world, const Engine::Entity& entity,
+		Engine::TextRendererComponent& renderer) {
 
-		auto& cache = renderer.runtimeLayout;
+		auto* cache =
+			world.TryGetComponent<Engine::TextLayoutRuntimeComponent>(entity);
+		if (!cache) {
+			return false;
+		}
+		Engine::DynamicBuffer<Engine::TextLayoutGlyph> glyphs =
+			world.TryGetBuffer<Engine::TextLayoutGlyph>(entity);
+		if (!glyphs.IsValid()) {
+			return false;
+		}
 
 		// キャッシュをクリアして必要な情報を保存する
-		cache.valid = false;
-		cache.font = renderer.font;
-		cache.text = renderer.text;
-		cache.fontSize = renderer.fontSize;
-		cache.charSpacing = renderer.charSpacing;
-		cache.atlasSize = font.GetAtlasSize();
-		cache.pxRange = font.pxRange;
-		cache.glyphs.clear();
+		cache->valid = false;
+		cache->font = renderer.font;
+		cache->textHash = Engine::HashTextLayoutString(renderer.text);
+		cache->fontSize = renderer.fontSize;
+		cache->charSpacing = renderer.charSpacing;
+		cache->atlasSize = font.GetAtlasSize();
+		cache->pxRange = font.pxRange;
+		cache->boundsSize = Engine::Vector2::AnyInit(0.0f);
+		glyphs.Clear();
 
 		// UTF-8 -> codepoint変換
 		std::vector<char32_t> codepoints = Engine::Algorithm::Utf8ToCodepoints(renderer.text);
 		if (codepoints.empty()) {
-			cache.valid = true;
+			cache->valid = true;
 			return false;
 		}
 
@@ -85,7 +102,7 @@ namespace {
 		float invAtlasW = 1.0f / static_cast<float>((std::max)(font.atlasWidth, 1u));
 		float invAtlasH = 1.0f / static_cast<float>((std::max)(font.atlasHeight, 1u));
 
-		cache.glyphs.reserve(codepoints.size());
+		glyphs.Reserve(static_cast<uint32_t>(codepoints.size()));
 
 		Engine::Vector2 boundsMin((std::numeric_limits<float>::max)(), (std::numeric_limits<float>::max)());
 		Engine::Vector2 boundsMax(-(std::numeric_limits<float>::max)(), -(std::numeric_limits<float>::max)());
@@ -140,7 +157,7 @@ namespace {
 			NormalizeMinMax(u0, u1);
 			NormalizeMinMax(v0, v1);
 
-			cache.glyphs.push_back({
+			glyphs.Add({
 				.rectMin = Engine::Vector2(x0, y0),
 				.rectMax = Engine::Vector2(x1, y1),
 				.uvMin = Engine::Vector2(u0, v0),
@@ -155,48 +172,49 @@ namespace {
 			penX += advance + renderer.charSpacing;
 		}
 
-		if (cache.glyphs.empty()) {
-			cache.valid = true;
+		if (glyphs.IsEmpty()) {
+			cache->valid = true;
 			return false;
 		}
 
 		const Engine::Vector2 origin = boundsMin;
 		// ブロック全体のサイズを保存しておきインスタンス構築時のピボット基準にする
-		cache.boundsSize = Engine::Vector2(boundsMax.x - boundsMin.x, boundsMax.y - boundsMin.y);
-		for (auto& glyph : cache.glyphs) {
+		cache->boundsSize = Engine::Vector2(
+			boundsMax.x - boundsMin.x, boundsMax.y - boundsMin.y);
+		for (Engine::TextLayoutGlyph& glyph : glyphs.GetSpan()) {
 			glyph.rectMin -= origin;
 			glyph.rectMax -= origin;
 		}
-		cache.valid = true;
+		cache->valid = true;
+		world.MarkComponentModified<Engine::TextLayoutGlyph>(entity);
 		return true;
 	}
 
 	// キャッシュ済みレイアウトからVS/PSインスタンスを構築する
 	void AppendGlyphInstancesFromCache(const Engine::TextRendererComponent& renderer,
+		const Engine::TextLayoutRuntimeComponent& cache,
+		std::span<const Engine::TextLayoutGlyph> glyphs,
+		std::span<const Engine::TextCharTransform> charTransforms,
 		const Engine::Matrix4x4& worldMatrix, const Engine::Matrix4x4& uvMatrix,
 		std::vector<Engine::TextVSInstanceData>& outVS,
 		std::vector<Engine::TextPSInstanceData>& outPS) {
 
-		const auto& cache = renderer.runtimeLayout;
-		if (!cache.valid || cache.glyphs.empty()) {
+		if (!cache.valid || glyphs.empty()) {
 			return;
 		}
 
 		// 再確保回数を減らす
-		outVS.reserve(outVS.size() + cache.glyphs.size());
-		outPS.reserve(outPS.size() + cache.glyphs.size());
-
-		// 文字ごとトランスフォームは描画グリフ順で対応付ける、足りない分は単位変換にする
-		const auto& charTransforms = renderer.charTransforms;
+		outVS.reserve(outVS.size() + glyphs.size());
+		outPS.reserve(outPS.size() + glyphs.size());
 
 		// ピボット分のオフセット、スプライトと同じく正規化0-1基準のこの点を原点へ合わせる
 		const Engine::Vector2 pivotOffset(
 			-renderer.pivot.x * cache.boundsSize.x,
 			-renderer.pivot.y * cache.boundsSize.y);
 
-		for (size_t glyphIndex = 0; glyphIndex < cache.glyphs.size(); ++glyphIndex) {
+		for (size_t glyphIndex = 0; glyphIndex < glyphs.size(); ++glyphIndex) {
 
-			const Engine::TextLayoutGlyph& glyph = cache.glyphs[glyphIndex];
+			const Engine::TextLayoutGlyph& glyph = glyphs[glyphIndex];
 
 			// ピボット分シフトしたグリフ矩形を基準に各処理を行う
 			const Engine::Vector2 rectMin(glyph.rectMin.x + pivotOffset.x, glyph.rectMin.y + pivotOffset.y);
@@ -313,11 +331,17 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 
 		// テキストやサイズが変わった時だけレイアウトを再構築する
-		if (NeedsTextLayoutRebuild(*renderer)) {
-			if (!RebuildTextLayoutCache(*font, *renderer)) {
+		if (NeedsTextLayoutRebuild(*item->world, item->entity, *renderer)) {
+			if (!RebuildTextLayoutCache(
+				*font, *item->world, item->entity, *renderer)) {
 				continue;
 			}
-		} else if (renderer->runtimeLayout.glyphs.empty()) {
+		}
+		const TextLayoutRuntimeComponent* cache =
+			item->world->TryGetComponent<TextLayoutRuntimeComponent>(item->entity);
+		const std::span<const TextLayoutGlyph> glyphs =
+			GetTextLayoutGlyphs(*item->world, item->entity);
+		if (!cache || glyphs.empty()) {
 			continue;
 		}
 		// キャッシュ済みレイアウトからVS/PSインスタンスだけ構築する
@@ -328,7 +352,9 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			const float s = renderer->worldScale;
 			worldMatrix = Matrix4x4::MakeScaleMatrix(Vector3(s, -s, s)) * worldMatrix;
 		}
-		AppendGlyphInstancesFromCache(*renderer, worldMatrix, payload->uvMatrix,
+		AppendGlyphInstancesFromCache(*renderer, *cache, glyphs,
+			GetTextCharTransforms(*item->world, item->entity),
+			worldMatrix, payload->uvMatrix,
 			vsGlyphScratch_, psGlyphScratch_);
 	}
 	// 描画に使用するグリフがない場合は描画しない
@@ -380,8 +406,9 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
 		if (resolvedPass.material) {
 			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
-			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, *resolvedPass.material,
-				commandList, firstPayload ? firstPayload->materialOverrides : nullptr);
+			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, materialParamBinder_,
+				*resolvedPass.material, commandList,
+				firstPayload ? firstPayload->materialOverrides : nullptr);
 		}
 	}
 

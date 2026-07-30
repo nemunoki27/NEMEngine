@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 
 // c++
@@ -32,7 +31,7 @@ namespace Engine {
 		// 現在のCollision設定を設定ファイルへ保存する
 		void Save() const;
 		// 全シーン共通のCollision設定ファイルへ結び付ける
-		void BindGlobal(const AssetDatabase* assetDatabase);
+		void BindGlobal();
 		// 使用するCollision設定ファイルを実ファイルパスから切り替える
 		void SetActiveSettingsPath(const std::filesystem::path& settingsPath);
 		// 衝突形状を描画するか

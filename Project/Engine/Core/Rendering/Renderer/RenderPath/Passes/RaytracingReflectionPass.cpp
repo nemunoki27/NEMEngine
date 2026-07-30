@@ -71,8 +71,9 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	const RegisteredRenderBuffer* viewConstants = context.bufferRegistry.Find("RaytracingViewConstants");
 	const RegisteredRenderBuffer* sceneInstances = context.bufferRegistry.Find("gRaytracingSceneInstances");
 	const RegisteredRenderBuffer* sceneSubMeshes = context.bufferRegistry.Find("gRaytracingSubMeshes");
+	const RegisteredRenderBuffer* sceneGeometries = context.bufferRegistry.Find("gRaytracingGeometries");
 	// どれか1つでもなければ処理しない
-	if (!tlas || !viewConstants || !sceneInstances || !sceneSubMeshes) {
+	if (!tlas || !viewConstants || !sceneInstances || !sceneSubMeshes || !sceneGeometries) {
 		return;
 	}
 
@@ -81,23 +82,25 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	DepthTexture2D* sourceDepth = sceneMain->GetDepthTexture();
 	RenderTexture2D* sourceNormal = context.resources->GetGBufferNormal();
 	RenderTexture2D* sourcePosition = context.resources->GetGBufferPosition();
+	RenderTexture2D* sourceMaterial = context.resources->GetGBufferMaterial();
 	// 反射を受けないサーフェイスの判定にマテリアルフラグを使う
 	RenderTexture2D* sourceFlags = context.resources->GetGBufferFlags();
 	RenderTexture2D* destColor = sceneFinal->GetColorTexture(0);
 	// 入力が1つでも欠けるかUAVが無いSceneFinalなら反射できないので照明結果を残して抜ける
-	if (!sourceColor || !sourceDepth || !sourceNormal || !sourcePosition || !sourceFlags || !destColor ||
-		destColor->GetUAVGPUHandle().ptr == 0) {
+	if (!sourceColor || !sourceDepth || !sourceNormal || !sourcePosition ||
+		!sourceMaterial || !sourceFlags || !destColor || destColor->GetUAVGPUHandle().ptr == 0) {
 		return;
 	}
 
 	auto* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	auto* commandList = dxCommand->GetCommandList();
 
-	// 入力5枚をSRV読み取りへ、出力をUAVへ遷移する
+	// GBuffer入力をSRV読み取りへ、出力をUAVへ遷移する
 	sourceColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourceDepth->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourceNormal->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourcePosition->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	sourceMaterial->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	sourceFlags->Transition(*dxCommand, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	destColor->Transition(*dxCommand, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -114,9 +117,12 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourcePosition, sourcePosition->GetSRVGPUHandle());
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneInstances, sceneInstances->srvGPUHandle);
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneSubMeshes, sceneSubMeshes->srvGPUHandle);
+	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSceneGeometries, sceneGeometries->srvGPUHandle);
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexDestUAV, destColor->GetUAVGPUHandle());
 	commandList->SetComputeRootConstantBufferView(RaytracingPipelineState::kRootIndexViewCBV, viewConstants->gpuAddress);
 	commandList->SetComputeRootDescriptorTable(RaytracingPipelineState::kRootIndexSourceFlags, sourceFlags->GetSRVGPUHandle());
+	commandList->SetComputeRootDescriptorTable(
+		RaytracingPipelineState::kRootIndexSourceMaterial, sourceMaterial->GetSRVGPUHandle());
 
 	// レイを飛ばして反射を書き込む
 	D3D12_DISPATCH_RAYS_DESC dispatchDesc = pipelineState->BuildDispatchDesc(sceneFinal->GetWidth(), sceneFinal->GetHeight(), 1);

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "projectGuid": "d0d59331ff0a4eb589ea7801cb52f208",
+  "name": "Sandbox",
+  "sceneStorage": "Monolithic",
+  "assetsDirectory": "GameAssets",
+  "packagesDirectory": "Packages",
+  "projectSettingsDirectory": "ProjectSettings"
+}

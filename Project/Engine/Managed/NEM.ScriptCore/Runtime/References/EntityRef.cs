@@ -15,12 +15,12 @@ internal readonly struct EntityRef
 
     // 参照の種別
     public readonly EntityRefKind kind;
-    // 参照元のシーン、プレファブアセットUUID
-    public readonly UUID sourceAsset;
+    // 参照元のシーン、プレファブアセットGUID
+    public readonly AssetGUID sourceAsset;
     // シーン、プレファブファイル内での安定ID
     public readonly UUID localFileId;
 
-    public EntityRef(EntityRefKind kind, UUID sourceAsset, UUID localFileId)
+    public EntityRef(EntityRefKind kind, AssetGUID sourceAsset, UUID localFileId)
     {
         this.kind = kind;
         this.sourceAsset = sourceAsset;
@@ -30,11 +30,11 @@ internal readonly struct EntityRef
     public bool isValid => kind != EntityRefKind.Null && localFileId.isValid;
 
     // 参照先の現在のランタイムワールドエンティティを取得する
-    public Entity Resolve() => isValid ? NativeApi.ResolveEntityReference(sourceAsset.value, localFileId.value) : Entity.nullEntity;
+    public Entity Resolve() => isValid ? NativeApi.ResolveEntityReference(sourceAsset, localFileId.value) : Entity.nullEntity;
 
-    public static EntityRef Null => new(EntityRefKind.Null, UUID.None, UUID.None);
+    public static EntityRef Null => new(EntityRefKind.Null, AssetGUID.None, UUID.None);
 
-    public static EntityRef Scene(UUID sceneAsset, UUID localFileId) => new(EntityRefKind.Scene, sceneAsset, localFileId);
+    public static EntityRef Scene(AssetGUID sceneAsset, UUID localFileId) => new(EntityRefKind.Scene, sceneAsset, localFileId);
 
-    public static EntityRef Prefab(UUID prefabAsset, UUID localFileId) => new(EntityRefKind.Prefab, prefabAsset, localFileId);
+    public static EntityRef Prefab(AssetGUID prefabAsset, UUID localFileId) => new(EntityRefKind.Prefab, prefabAsset, localFileId);
 }

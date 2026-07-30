@@ -5,12 +5,12 @@
     "passes": [
         {
             "passKind": "Draw",
-            "pipeline": "e477347a287dcf1d",
+            "pipeline": "4e454d4153534554e477347a287dcf1d",
             "preferredVariant": "GraphicsVertex"
         },
         {
             "passKind": "Transparent",
-            "pipeline": "8e7b6e92f0d1c3a5",
+            "pipeline": "4e454d41535345548e7b6e92f0d1c3a5",
             "preferredVariant": "GraphicsVertex"
         }
     ]

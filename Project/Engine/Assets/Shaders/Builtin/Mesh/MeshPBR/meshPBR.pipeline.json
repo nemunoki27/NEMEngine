@@ -4,7 +4,7 @@
     {
       "kind": "GraphicsMesh",
       "pipelineType": "Mesh",
-      "shader": "5cea6ee9e474022f",
+      "shader": "4e454d41535345545cea6ee9e474022f",
       "numRenderTargets": 3,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",
@@ -32,7 +32,7 @@
     {
       "kind": "GraphicsVertex",
       "pipelineType": "Vertex",
-      "shader": "5cea6ee9e474022f",
+      "shader": "4e454d41535345545cea6ee9e474022f",
       "numRenderTargets": 3,
       "dynamicRenderTargetFormats": true,
       "dsvFormat": "DXGI_FORMAT_UNKNOWN",

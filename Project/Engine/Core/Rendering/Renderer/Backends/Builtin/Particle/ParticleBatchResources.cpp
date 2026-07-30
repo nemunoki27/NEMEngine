@@ -4,12 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // c++
 #include <algorithm>
-#include <cassert>
-#include <cstring>
 #include <span>
 
 //============================================================================
@@ -42,22 +39,8 @@ void Engine::ParticleBatchResources::Init(GraphicsCore& graphicsCore) {
 
 void Engine::ParticleBatchResources::EnsureCustomParameterCapacity(uint32_t requiredSize) {
 
-	requiredSize = (std::max)(requiredSize, 16u);
-	if (requiredSize <= customParameterCapacity_) {
-		return;
-	}
-	uint32_t newCapacity = 256;
-	while (newCapacity < requiredSize) {
-		newCapacity *= 2;
-	}
-	customParameterBuffer_.Reset();
-	customParameterMapped_ = nullptr;
-	DxUtils::CreateBufferResource(device_, customParameterBuffer_, newCapacity);
-	HRESULT hr = customParameterBuffer_->Map(0, nullptr,
-		reinterpret_cast<void**>(&customParameterMapped_));
-	assert(SUCCEEDED(hr));
-	customParameterBuffer_->SetName(L"gParticleCustomParameters");
-	customParameterCapacity_ = newCapacity;
+	customParameterBuffer_.EnsureCapacity(device_,
+		(std::max)(requiredSize, 16u), "gParticleCustomParameters");
 }
 
 void Engine::ParticleBatchResources::UploadInstances(const std::vector<ParticleDrawInstanceData>& instances) {
@@ -82,9 +65,10 @@ void Engine::ParticleBatchResources::UploadCustomParameters(const std::vector<ui
 
 	EnsureCustomParameterCapacity(static_cast<uint32_t>(data.size()));
 	if (!data.empty()) {
-		std::memcpy(customParameterMapped_, data.data(), data.size());
+		customParameterBuffer_.Write(data.data(), data.size());
 	} else {
-		std::memset(customParameterMapped_, 0, 16);
+		const std::array<uint8_t, 16> emptyData{};
+		customParameterBuffer_.Write(emptyData.data(), emptyData.size());
 	}
 }
 
@@ -100,22 +84,9 @@ void Engine::ParticleBatchResources::UploadTrailGeometry(const ParticleTrailRend
 
 void Engine::ParticleBatchResources::EnsureTrailCustomParameterCapacity(uint32_t requiredSize) {
 
-	requiredSize = (std::max)(requiredSize, 16u);
-	if (requiredSize <= trailCustomParameterCapacity_) {
-		return;
-	}
-	uint32_t newCapacity = 256;
-	while (newCapacity < requiredSize) {
-		newCapacity *= 2;
-	}
-	trailCustomParameterBuffer_.Reset();
-	trailCustomParameterMapped_ = nullptr;
-	DxUtils::CreateBufferResource(device_, trailCustomParameterBuffer_, newCapacity);
-	HRESULT hr = trailCustomParameterBuffer_->Map(0, nullptr,
-		reinterpret_cast<void**>(&trailCustomParameterMapped_));
-	assert(SUCCEEDED(hr));
-	trailCustomParameterBuffer_->SetName(L"gParticleCustomParameters_Trail");
-	trailCustomParameterCapacity_ = newCapacity;
+	trailCustomParameterBuffer_.EnsureCapacity(device_,
+		(std::max)(requiredSize, 16u),
+		"gParticleCustomParameters_Trail");
 }
 
 void Engine::ParticleBatchResources::UploadTrailMaterials(
@@ -132,8 +103,10 @@ void Engine::ParticleBatchResources::UploadTrailCustomParameters(const std::vect
 
 	EnsureTrailCustomParameterCapacity(static_cast<uint32_t>(data.size()));
 	if (!data.empty()) {
-		std::memcpy(trailCustomParameterMapped_, data.data(), data.size());
+		trailCustomParameterBuffer_.Write(data.data(), data.size());
 	} else {
-		std::memset(trailCustomParameterMapped_, 0, 16);
+		const std::array<uint8_t, 16> emptyData{};
+		trailCustomParameterBuffer_.Write(
+			emptyData.data(), emptyData.size());
 	}
 }

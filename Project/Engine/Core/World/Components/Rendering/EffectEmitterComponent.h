@@ -139,6 +139,11 @@ namespace Engine {
 	// 複数のエフェクトグループを名前付きで再生する
 	struct EffectEmitterComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels =
+			ComponentChangeChannel::Render;
+
 		bool enabled = true;
 		std::vector<EffectEmitterGroup> groups{ EffectEmitterGroup{} };
 		std::string defaultGroup = "Default";
@@ -172,6 +177,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, EffectEmitterComponent& component);
 	void to_json(nlohmann::json& out, const EffectEmitterComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(EffectEmitterComponent, "EffectEmitter");
-	ENGINE_REGISTER_COMPONENT_ALIAS(EffectEmitterComponent, "ParticleEmitter");
 } // Engine

@@ -37,6 +37,9 @@ namespace Engine {
 	// 画面空間アウトライン
 	struct ScreenSpaceOutlineComponent {
 
+		static constexpr ComponentChangeChannel kChangeChannels =
+			ComponentChangeChannel::Render;
+
 		// 有効か
 		bool enabled = true;
 
@@ -59,5 +62,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& component);
 	void to_json(nlohmann::json& out, const ScreenSpaceOutlineComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(ScreenSpaceOutlineComponent, "ScreenSpaceOutline");
 } // Engine

@@ -88,7 +88,8 @@ namespace Engine::BackendDrawCommon {
 	// space2テクスチャを宣言しないBuiltinでは何もせず無回帰
 	// overridesを渡すとレンダラー個別のテクスチャ上書きをマテリアル既定より優先する
 	void BindMaterialTextures(const RenderDrawContext& context, const PipelineState& pipelineState,
-		const MaterialAsset& material, ID3D12GraphicsCommandList* commandList,
+		MaterialParameterBinder& binder, const MaterialAsset& material,
+		ID3D12GraphicsCommandList* commandList,
 		const std::unordered_map<std::string, MaterialParameterValue>* overrides = nullptr);
 
 	// MaterialParameters cbufferをreflection駆動でアップロードしバインドする

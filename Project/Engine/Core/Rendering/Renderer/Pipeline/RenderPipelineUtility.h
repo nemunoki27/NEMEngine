@@ -22,6 +22,12 @@ namespace Engine {
 		PipelineStateCache& pipelineCache, MaterialResolver& materialResolver,
 		const RenderPassPhaseBuckets& passBuckets);
 
+	// レイトレーシングシーンに含まれる全スキンメッシュをビュー可視性に依存せず更新する
+	void PreDispatchSceneMeshSkinning(GraphicsCore& graphicsCore,
+		const SceneExecutionContext& context, const RenderSceneBatch& renderBatch,
+		RenderBackendRegistry& backendRegistry, RenderAssetLibrary& assetLibrary,
+		PipelineStateCache& pipelineCache, MaterialResolver& materialResolver);
+
 	// ビューに対して可視なメッシュアセットIDを収集する
 	void CollectVisibleMeshAssetsForView(const RenderSceneBatch& renderBatch,
 		UUID sceneInstanceID, const ResolvedRenderView& view,

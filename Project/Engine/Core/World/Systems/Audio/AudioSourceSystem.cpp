@@ -44,32 +44,40 @@ void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) 
 	AssetDatabase& database = *context.assetDatabase;
 	Audio::GetInstance()->CleanupFinishedVoices();
 
-	world.ForEach<AudioSourceComponent>([&](Entity entity, AudioSourceComponent& component) {
+	world.ForEach<AudioSourceComponent, AudioSourceRuntimeComponent>(
+		[&](Entity entity, AudioSourceComponent& component,
+			[[maybe_unused]] AudioSourceRuntimeComponent& runtimeComponent) {
 
-		const bool active = component.enabled && IsEntityActiveInHierarchy(world, entity);
-		if (!active) {
-			StopSourceVoices(component);
-			component.runtimeCommands.clear();
-			component.runtimeActive = false;
-			component.runtimePlayOnAwakeConsumed = false;
-			RefreshRuntimeState(component);
+		AudioSourceRuntimeData* runtime =
+			TryGetAudioSourceRuntime(world, entity);
+		if (!runtime) {
 			return;
 		}
 
-		const bool activated = !component.runtimeActive;
-		component.runtimeActive = true;
-		if (activated && component.playOnAwake && !component.runtimePlayOnAwakeConsumed) {
-			component.runtimePlayOnAwakeConsumed = true;
+		const bool active = component.enabled && IsEntityActiveInHierarchy(world, entity);
+		if (!active) {
+			StopSourceVoices(*runtime);
+			runtime->commands.clear();
+			runtime->active = false;
+			runtime->playOnAwakeConsumed = false;
+			RefreshRuntimeState(*runtime);
+			return;
+		}
+
+		const bool activated = !runtime->active;
+		runtime->active = true;
+		if (activated && component.playOnAwake && !runtime->playOnAwakeConsumed) {
+			runtime->playOnAwakeConsumed = true;
 			if (component.clip) {
-				StartPlayback(entity, component, component.clip,
+				StartPlayback(entity, component, *runtime, component.clip,
 					true, component.loop, 1.0f, database);
 			}
 		}
 
-		ProcessCommands(entity, component, database);
-		CleanupFinishedPlaybacks(component);
-		UpdatePlaybackSettings(component);
-		RefreshRuntimeState(component);
+		ProcessCommands(entity, component, *runtime, database);
+		CleanupFinishedPlaybacks(*runtime);
+		UpdatePlaybackSettings(component, *runtime);
+		RefreshRuntimeState(*runtime);
 		});
 }
 
@@ -90,17 +98,20 @@ void Engine::AudioSourceSystem::StopPlayback(AudioSourcePlaybackRuntime& playbac
 	playback.voiceID = 0;
 }
 
-void Engine::AudioSourceSystem::StopSourceVoices(AudioSourceComponent& component) {
+void Engine::AudioSourceSystem::StopSourceVoices(
+	AudioSourceRuntimeData& runtime) {
 
-	for (AudioSourcePlaybackRuntime& playback : component.runtimePlaybacks) {
+	for (AudioSourcePlaybackRuntime& playback : runtime.playbacks) {
 		StopPlayback(playback);
 	}
-	component.runtimePlaybacks.clear();
-	component.runtimePlaying = false;
-	component.runtimePaused = false;
+	runtime.playbacks.clear();
+	runtime.playing = false;
+	runtime.paused = false;
 }
 
-bool Engine::AudioSourceSystem::StartPlayback(Entity entity, AudioSourceComponent& component,
+bool Engine::AudioSourceSystem::StartPlayback(
+	Entity entity, const AudioSourceComponent& component,
+	AudioSourceRuntimeData& runtime,
 	AssetID clip, bool primary, bool loop, float volumeScale, AssetDatabase& database) {
 
 	const std::filesystem::path fullPath = database.ResolveFullPath(clip);
@@ -122,38 +133,40 @@ bool Engine::AudioSourceSystem::StartPlayback(Entity entity, AudioSourceComponen
 	}
 
 	runtimeVoices_.insert_or_assign(playback.voiceID, entity);
-	component.runtimePlaybacks.push_back(std::move(playback));
+	runtime.playbacks.push_back(std::move(playback));
 	return true;
 }
 
 void Engine::AudioSourceSystem::ProcessCommands(Entity entity,
-	AudioSourceComponent& component, AssetDatabase& database) {
+	const AudioSourceComponent& component,
+	AudioSourceRuntimeData& runtime, AssetDatabase& database) {
 
-	std::vector<AudioSourceCommand> commands = std::move(component.runtimeCommands);
-	component.runtimeCommands.clear();
+	std::vector<AudioSourceCommand> commands =
+		std::move(runtime.commands);
+	runtime.commands.clear();
 	Audio* audio = Audio::GetInstance();
 
 	for (const AudioSourceCommand& command : commands) {
 		switch (command.type) {
 		case AudioSourceCommandType::Play:
-			for (auto it = component.runtimePlaybacks.begin();
-				it != component.runtimePlaybacks.end();) {
+			for (auto it = runtime.playbacks.begin();
+				it != runtime.playbacks.end();) {
 				if (!it->primary) {
 					++it;
 					continue;
 				}
 				StopPlayback(*it);
-				it = component.runtimePlaybacks.erase(it);
+				it = runtime.playbacks.erase(it);
 			}
-			StartPlayback(entity, component, command.clip,
+			StartPlayback(entity, component, runtime, command.clip,
 				true, command.loop, 1.0f, database);
 			break;
 		case AudioSourceCommandType::PlayOneShot:
-			StartPlayback(entity, component, command.clip,
+			StartPlayback(entity, component, runtime, command.clip,
 				false, false, command.volumeScale, database);
 			break;
 		case AudioSourceCommandType::Pause:
-			for (AudioSourcePlaybackRuntime& playback : component.runtimePlaybacks) {
+			for (AudioSourcePlaybackRuntime& playback : runtime.playbacks) {
 				if (!playback.paused) {
 					audio->PauseVoice(playback.voiceID);
 					playback.paused = true;
@@ -161,7 +174,7 @@ void Engine::AudioSourceSystem::ProcessCommands(Entity entity,
 			}
 			break;
 		case AudioSourceCommandType::UnPause:
-			for (AudioSourcePlaybackRuntime& playback : component.runtimePlaybacks) {
+			for (AudioSourcePlaybackRuntime& playback : runtime.playbacks) {
 				if (playback.paused) {
 					audio->ResumeVoice(playback.voiceID);
 					playback.paused = false;
@@ -169,17 +182,18 @@ void Engine::AudioSourceSystem::ProcessCommands(Entity entity,
 			}
 			break;
 		case AudioSourceCommandType::Stop:
-			StopSourceVoices(component);
+			StopSourceVoices(runtime);
 			break;
 		}
 	}
 }
 
-void Engine::AudioSourceSystem::UpdatePlaybackSettings(AudioSourceComponent& component) {
+void Engine::AudioSourceSystem::UpdatePlaybackSettings(
+	const AudioSourceComponent& component, AudioSourceRuntimeData& runtime) {
 
 	Audio* audio = Audio::GetInstance();
 	const float sourceVolume = std::clamp(component.volume, 0.0f, 1.0f);
-	for (AudioSourcePlaybackRuntime& playback : component.runtimePlaybacks) {
+	for (AudioSourcePlaybackRuntime& playback : runtime.playbacks) {
 		const float volume = sourceVolume * playback.volumeScale;
 		if (std::abs(playback.appliedVolume - volume) > 0.0001f) {
 			audio->SetVoiceVolume(playback.voiceID, volume);
@@ -192,26 +206,28 @@ void Engine::AudioSourceSystem::UpdatePlaybackSettings(AudioSourceComponent& com
 	}
 }
 
-void Engine::AudioSourceSystem::CleanupFinishedPlaybacks(AudioSourceComponent& component) {
+void Engine::AudioSourceSystem::CleanupFinishedPlaybacks(
+	AudioSourceRuntimeData& runtime) {
 
 	Audio* audio = Audio::GetInstance();
-	component.runtimePlaybacks.erase(std::remove_if(
-		component.runtimePlaybacks.begin(), component.runtimePlaybacks.end(),
+	runtime.playbacks.erase(std::remove_if(
+		runtime.playbacks.begin(), runtime.playbacks.end(),
 		[&](const AudioSourcePlaybackRuntime& playback) {
 			if (audio->IsVoiceAlive(playback.voiceID)) {
 				return false;
 			}
 			runtimeVoices_.erase(playback.voiceID);
 			return true;
-		}), component.runtimePlaybacks.end());
+		}), runtime.playbacks.end());
 }
 
-void Engine::AudioSourceSystem::RefreshRuntimeState(AudioSourceComponent& component) {
+void Engine::AudioSourceSystem::RefreshRuntimeState(
+	AudioSourceRuntimeData& runtime) {
 
-	component.runtimePlaying = std::any_of(
-		component.runtimePlaybacks.begin(), component.runtimePlaybacks.end(),
+	runtime.playing = std::any_of(
+		runtime.playbacks.begin(), runtime.playbacks.end(),
 		[](const AudioSourcePlaybackRuntime& playback) { return !playback.paused; });
-	component.runtimePaused = !component.runtimePlaybacks.empty() && !component.runtimePlaying;
+	runtime.paused = !runtime.playbacks.empty() && !runtime.playing;
 }
 
 void Engine::AudioSourceSystem::StopOrphanVoices(ECSWorld& world) {
@@ -221,10 +237,10 @@ void Engine::AudioSourceSystem::StopOrphanVoices(ECSWorld& world) {
 
 		const uint64_t voiceID = it->first;
 		const Entity entity = it->second;
-		const AudioSourceComponent* component = world.IsAlive(entity)
-			? world.TryGetComponent<AudioSourceComponent>(entity) : nullptr;
-		const bool owned = component && std::any_of(
-			component->runtimePlaybacks.begin(), component->runtimePlaybacks.end(),
+		const AudioSourceRuntimeData* runtime = world.IsAlive(entity) ?
+			TryGetAudioSourceRuntime(world, entity) : nullptr;
+		const bool owned = runtime && std::any_of(
+			runtime->playbacks.begin(), runtime->playbacks.end(),
 			[voiceID](const AudioSourcePlaybackRuntime& playback) {
 				return playback.voiceID == voiceID;
 			});
@@ -241,12 +257,19 @@ void Engine::AudioSourceSystem::StopOrphanVoices(ECSWorld& world) {
 
 void Engine::AudioSourceSystem::StopAll(ECSWorld& world) {
 
-	world.ForEach<AudioSourceComponent>([&](Entity, AudioSourceComponent& component) {
+	world.ForEach<AudioSourceComponent, AudioSourceRuntimeComponent>(
+		[&](Entity entity, AudioSourceComponent&,
+			[[maybe_unused]] AudioSourceRuntimeComponent& runtimeComponent) {
 
-		StopSourceVoices(component);
-		component.runtimeActive = false;
-		component.runtimePlayOnAwakeConsumed = false;
-		component.runtimeCommands.clear();
+		AudioSourceRuntimeData* runtime =
+			TryGetAudioSourceRuntime(world, entity);
+		if (!runtime) {
+			return;
+		}
+		StopSourceVoices(*runtime);
+		runtime->active = false;
+		runtime->playOnAwakeConsumed = false;
+		runtime->commands.clear();
 		});
 
 	Audio* audio = Audio::GetInstance();

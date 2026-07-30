@@ -27,5 +27,4 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, JointAttachmentComponent& component);
 	void to_json(nlohmann::json& out, const JointAttachmentComponent& component);
 
-	ENGINE_REGISTER_COMPONENT(JointAttachmentComponent, "JointAttachment");
 } // Engine

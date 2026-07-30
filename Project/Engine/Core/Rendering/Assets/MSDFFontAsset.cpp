@@ -39,7 +39,6 @@ bool Engine::FromJson(const nlohmann::json& data, MSDFFontAsset& outAsset) {
 	}
 
 	outAsset = MSDFFontAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", outAsset.name);
 	outAsset.atlasTexture = ParseAssetID(data, "atlasTexture");
 

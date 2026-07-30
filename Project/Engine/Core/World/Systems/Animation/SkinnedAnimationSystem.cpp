@@ -79,16 +79,22 @@ Engine::Quaternion Engine::SkinnedAnimationSystem::SampleKeyframes<Engine::Quate
 
 void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
-	// MeshRendererComponentとSkinnedAnimationComponentを持つエンティティに対して処理を行う
-	world.ForEach<MeshRendererComponent, SkinnedAnimationComponent>([&]([[maybe_unused]] const Entity& entity,
-		MeshRendererComponent& renderer, SkinnedAnimationComponent& anim) {
+	world.ForEach<MeshRendererComponent, SkinnedAnimationComponent, SkinnedAnimationRuntimeComponent>(
+		[&](const Entity& entity, MeshRendererComponent& renderer,
+			SkinnedAnimationComponent& anim, [[maybe_unused]] SkinnedAnimationRuntimeComponent& runtimeComponent) {
 
+			// 重いスケルトンとパレットはチャンク外Storageから一度だけ解決する
+			SkinnedAnimationRuntimeData* runtime =
+				TryGetSkinnedAnimationRuntime(world, entity);
+			if (!runtime) {
+				return;
+			}
 			// メッシュが無効な場合はアニメーションデータをクリアして終了
 			if (!renderer.mesh) {
-				anim.palette.clear();
-				anim.runtimeAvailableClips.clear();
-				anim.runtimeInitialized = false;
-				anim.runtimeCurrentDuration = 0.0f;
+				runtime->palette.clear();
+				runtime->availableClips.clear();
+				runtime->initialized = false;
+				runtime->currentDuration = 0.0f;
 				return;
 			}
 
@@ -97,59 +103,59 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			// メッシュに対応するアニメーションセットを取得
 			const SkinnedMeshAnimationSet* animationSet = context.skinnedAnimationManager->Find(renderer.mesh);
 			if (!animationSet || !animationSet->valid || animationSet->clips.empty()) {
-				anim.palette.clear();
-				anim.runtimeAvailableClips.clear();
-				anim.runtimeCurrentDuration = 0.0f;
+				runtime->palette.clear();
+				runtime->availableClips.clear();
+				runtime->currentDuration = 0.0f;
 				return;
 			}
 
 			// メッシュが切り替わったか
-			bool meshChanged = (!anim.runtimeInitialized || anim.runtimeMesh != renderer.mesh);
+			bool meshChanged = (!runtime->initialized || runtime->mesh != renderer.mesh);
 			if (meshChanged) {
 
 				// 初期クリップの名前を取得
-				anim.runtimeCurrentClip = ResolveInitialClip(*animationSet, anim.clip);
+				runtime->currentClip = ResolveInitialClip(*animationSet, anim.clip);
 
-				anim.runtimeMesh = renderer.mesh;
-				anim.runtimeInitialized = true;
-				anim.runtimeBindSkeleton = animationSet->skeleton;
-				anim.runtimeSkeleton = anim.runtimeBindSkeleton;
-				anim.palette.resize(animationSet->skeleton.joints.size());
-				anim.runtimeFromClip.clear();
-				anim.runtimeToClip.clear();
-				anim.runtimeTime = 0.0f;
-				anim.runtimeFromTime = 0.0f;
-				anim.runtimeBlendTime = 0.0f;
-				anim.runtimeInTransition = false;
-				anim.runtimeAnimationFinished = false;
-				anim.runtimeRepeatCount = 0;
+				runtime->mesh = renderer.mesh;
+				runtime->initialized = true;
+				runtime->bindSkeleton = animationSet->skeleton;
+				runtime->skeleton = runtime->bindSkeleton;
+				runtime->palette.resize(animationSet->skeleton.joints.size());
+				runtime->fromClip.clear();
+				runtime->toClip.clear();
+				runtime->time = 0.0f;
+				runtime->fromTime = 0.0f;
+				runtime->blendTime = 0.0f;
+				runtime->inTransition = false;
+				runtime->animationFinished = false;
+				runtime->repeatCount = 0;
 
 				// クリップ一覧を作り直す
-				anim.runtimeAvailableClips.clear();
-				anim.runtimeAvailableClips.reserve(animationSet->clipOrder.size());
+				runtime->availableClips.clear();
+				runtime->availableClips.reserve(animationSet->clipOrder.size());
 				for (const std::string& clipName : animationSet->clipOrder) {
 
-					anim.runtimeAvailableClips.emplace_back(clipName);
+					runtime->availableClips.emplace_back(clipName);
 				}
 			}
 
 			// 再生するクリップの名前を取得
 			std::string desiredClip = ResolveInitialClip(*animationSet, anim.clip);
 			bool clipChanged = false;
-			if (!desiredClip.empty() && desiredClip != anim.runtimeCurrentClip && !anim.runtimeInTransition) {
+			if (!desiredClip.empty() && desiredClip != runtime->currentClip && !runtime->inTransition) {
 
 				clipChanged = true;
 				// 再生開始の瞬間に終了フラグを下ろす、遷移中も前回のtrueを残さない
-				anim.runtimeAnimationFinished = false;
-				anim.runtimeFromClip = anim.runtimeCurrentClip;
-				anim.runtimeToClip = desiredClip;
-				anim.runtimeFromTime = anim.runtimeTime;
-				anim.runtimeBlendTime = 0.0f;
-				anim.runtimeInTransition = (anim.transitionDuration > 0.0f);
-				if (!anim.runtimeInTransition) {
+				runtime->animationFinished = false;
+				runtime->fromClip = runtime->currentClip;
+				runtime->toClip = desiredClip;
+				runtime->fromTime = runtime->time;
+				runtime->blendTime = 0.0f;
+				runtime->inTransition = (anim.transitionDuration > 0.0f);
+				if (!runtime->inTransition) {
 
-					anim.runtimeCurrentClip = desiredClip;
-					anim.runtimeTime = 0.0f;
+					runtime->currentClip = desiredClip;
+					runtime->time = 0.0f;
 				}
 			}
 
@@ -160,77 +166,84 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			// フレーム時間を再生速度に応じてスケーリング
 			float deltaTime = allowTimeAdvance ? sourceDelta * anim.playbackSpeed : 0.0f;
 
-			// 一時停止中や再生停止中はdeltaTimeが0でポーズが前フレームと同一になるため再計算を省く
-			const bool poseDirty = meshChanged || clipChanged || anim.runtimeInTransition ||
-				deltaTime != 0.0f || !anim.runtimeInitialized || anim.palette.empty();
+			// 停止中、遷移一時停止中、非ループ再生完了後はポーズが変わらないため再計算を省く
+			const bool transitionAdvances =
+				runtime->inTransition && deltaTime != 0.0f;
+			const bool clipAdvances =
+				!runtime->inTransition && deltaTime != 0.0f &&
+				(anim.loop || !runtime->animationFinished);
+			const bool poseDirty = meshChanged || clipChanged ||
+				transitionAdvances || clipAdvances ||
+				!runtime->initialized || runtime->palette.empty();
 			if (!poseDirty) {
 				return;
 			}
 
 			// スケルトンをバインドポーズで初期化
-			anim.runtimeSkeleton = anim.runtimeBindSkeleton;
+			runtime->skeleton = runtime->bindSkeleton;
 			// アニメーション遷移していないとき
-			if (!anim.runtimeInTransition) {
+			if (!runtime->inTransition) {
 
-				const AnimationData& clip = animationSet->clips.at(anim.runtimeCurrentClip);
-				anim.runtimeCurrentDuration = clip.duration;
+				const AnimationData& clip = animationSet->clips.at(runtime->currentClip);
+				runtime->currentDuration = clip.duration;
 				if (0.0f < clip.duration) {
 
 					if (anim.loop) {
-						float nextTime = anim.runtimeTime + deltaTime;
+						float nextTime = runtime->time + deltaTime;
 						// ループ再生している場合、再生時間がアニメーションクリップの長さを超えたらループ回数を増やす
 						if (clip.duration <= nextTime) {
 
-							++anim.runtimeRepeatCount;
+							++runtime->repeatCount;
 						}
-						anim.runtimeTime = std::fmod(nextTime, clip.duration);
-						anim.runtimeAnimationFinished = false;
+						runtime->time = std::fmod(nextTime, clip.duration);
+						runtime->animationFinished = false;
 					} else {
 
 						// ループ再生していない場合、再生時間がアニメーションクリップの長さを超えないようにする
-						anim.runtimeTime = (std::min)(anim.runtimeTime + deltaTime, clip.duration);
-						anim.runtimeAnimationFinished = clip.duration <= anim.runtimeTime;
+						runtime->time = (std::min)(runtime->time + deltaTime, clip.duration);
+						runtime->animationFinished = clip.duration <= runtime->time;
 					}
 				}
 
 				// 現在再生中のアニメーションクリップをスケルトンに適用
-				auto trackIt = animationSet->clipJointTracks.find(anim.runtimeCurrentClip);
+				auto trackIt = animationSet->clipJointTracks.find(runtime->currentClip);
 				if (trackIt != animationSet->clipJointTracks.end()) {
 
-					ApplyClipToSkeleton(anim.runtimeSkeleton, trackIt->second, anim.runtimeTime);
+					ApplyClipToSkeleton(runtime->skeleton, trackIt->second, runtime->time);
 				}
 			}
 			// アニメーション遷移中
 			else {
 
 				// 遷移元と遷移先のアニメーションクリップを取得
-				const AnimationData& toClip = animationSet->clips.at(anim.runtimeToClip);
-				anim.runtimeCurrentDuration = toClip.duration;
+				const AnimationData& toClip = animationSet->clips.at(runtime->toClip);
+				runtime->currentDuration = toClip.duration;
 
 				// 遷移時間を進める
-				anim.runtimeBlendTime += deltaTime;
+				runtime->blendTime += deltaTime;
 				// 遷移時間に対する経過時間の割合を計算
-				float alpha = 0.0f < anim.transitionDuration ? anim.runtimeBlendTime / anim.transitionDuration : 1.0f;
+				float alpha = 0.0f < anim.transitionDuration ? runtime->blendTime / anim.transitionDuration : 1.0f;
 
 				// 遷移元と遷移先のアニメーションクリップの対応するノードのアニメーションをブレンドしてスケルトンに適用
-				auto fromTrackIt = animationSet->clipJointTracks.find(anim.runtimeFromClip);
-				auto toTrackIt = animationSet->clipJointTracks.find(anim.runtimeToClip);
+				auto fromTrackIt = animationSet->clipJointTracks.find(runtime->fromClip);
+				auto toTrackIt = animationSet->clipJointTracks.find(runtime->toClip);
 				if (fromTrackIt != animationSet->clipJointTracks.end() && toTrackIt != animationSet->clipJointTracks.end()) {
 
-					BlendClipsToSkeleton(anim.runtimeSkeleton, fromTrackIt->second, anim.runtimeFromTime, toTrackIt->second, 0.0f, alpha);
+					BlendClipsToSkeleton(runtime->skeleton, fromTrackIt->second, runtime->fromTime, toTrackIt->second, 0.0f, alpha);
 				}
 
 				// 遷移が完了したら遷移フラグを下ろして遷移先のアニメーションクリップを再生状態にする
 				if (1.0f <= alpha) {
 
-					anim.runtimeInTransition = false;
-					anim.runtimeCurrentClip = anim.runtimeToClip;
-					anim.runtimeTime = 0.0f;
+					runtime->inTransition = false;
+					runtime->currentClip = runtime->toClip;
+					runtime->time = 0.0f;
 				}
 			}
 			// スケルトンの階層を更新してGPU用のパレットを構築
-			UpdateSkeletonHierarchy(anim.runtimeSkeleton);
-			BuildPalette(anim.runtimeSkeleton, animationSet->skinCluster, anim.palette);
+			UpdateSkeletonHierarchy(runtime->skeleton);
+			BuildPalette(runtime->skeleton, animationSet->skinCluster, runtime->palette);
+			++runtime->poseGeneration;
 		});
 }
 

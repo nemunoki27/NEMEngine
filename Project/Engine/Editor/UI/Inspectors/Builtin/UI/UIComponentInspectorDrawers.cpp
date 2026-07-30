@@ -644,19 +644,19 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 					ImGui::SeparatorText("キーボード");
 					ImGui::PushID("KeyboardNavigation");
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("上", draft.navigationUpKeys,
+						return DrawInputBindings("上", navigationUpKeys_,
 							kKeyboardSubmitInputs, KeyDIKCode::UP, DrawKeyboardInputCombo);
 						});
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("下", draft.navigationDownKeys,
+						return DrawInputBindings("下", navigationDownKeys_,
 							kKeyboardSubmitInputs, KeyDIKCode::DOWN, DrawKeyboardInputCombo);
 						});
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("左", draft.navigationLeftKeys,
+						return DrawInputBindings("左", navigationLeftKeys_,
 							kKeyboardSubmitInputs, KeyDIKCode::LEFT, DrawKeyboardInputCombo);
 						});
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("右", draft.navigationRightKeys,
+						return DrawInputBindings("右", navigationRightKeys_,
 							kKeyboardSubmitInputs, KeyDIKCode::RIGHT, DrawKeyboardInputCombo);
 						});
 					ImGui::PopID();
@@ -675,19 +675,19 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 							});
 					}
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("上", draft.navigationUpGamepadButtons,
+						return DrawInputBindings("上", navigationUpGamepadButtons_,
 							kGamepadSubmitInputs, GamePadButtons::ARROW_UP, DrawGamepadInputCombo);
 						});
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("下", draft.navigationDownGamepadButtons,
+						return DrawInputBindings("下", navigationDownGamepadButtons_,
 							kGamepadSubmitInputs, GamePadButtons::ARROW_DOWN, DrawGamepadInputCombo);
 						});
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("左", draft.navigationLeftGamepadButtons,
+						return DrawInputBindings("左", navigationLeftGamepadButtons_,
 							kGamepadSubmitInputs, GamePadButtons::ARROW_LEFT, DrawGamepadInputCombo);
 						});
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("右", draft.navigationRightGamepadButtons,
+						return DrawInputBindings("右", navigationRightGamepadButtons_,
 							kGamepadSubmitInputs, GamePadButtons::ARROW_RIGHT, DrawGamepadInputCombo);
 						});
 					ImGui::PopID();
@@ -696,12 +696,12 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 				if (ImGui::BeginTabItem("決定")) {
 					ImGui::SeparatorText("キーボード");
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("決定", draft.submitKeys,
+						return DrawInputBindings("決定", submitKeys_,
 							kKeyboardSubmitInputs, KeyDIKCode::RETURN, DrawKeyboardInputCombo);
 						});
 					ImGui::SeparatorText("ゲームパッド");
 					DrawField(anyItemActive, [&]() {
-						return DrawInputBindings("決定", draft.submitGamepadButtons,
+						return DrawInputBindings("決定", submitGamepadButtons_,
 							kGamepadSubmitInputs, GamePadButtons::A, DrawGamepadInputCombo);
 						});
 					ImGui::EndTabItem();
@@ -715,31 +715,158 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 			ImGui::Indent();
 			if (MyGUI::CollapsingHeader("遷移テーブル", false)) {
 				DrawField(anyItemActive, [&]() {
-					int32_t rows = draft.navigationTable.rows;
+					int32_t rows = navigationTable_.rows;
 					ValueEditResult result = MyGUI::DragInt("縦", rows,
 						{ .dragSpeed = 1.0f,.minValue = 1,.maxValue = CanvasNavigationTable::kMaxSize });
 					if (result.valueChanged) {
-						ResizeCanvasNavigationTable(draft.navigationTable, rows, draft.navigationTable.columns);
+						ResizeCanvasNavigationTable(
+							navigationTable_, rows, navigationTable_.columns);
 					}
 					return result;
 					});
 				DrawField(anyItemActive, [&]() {
-					int32_t columns = draft.navigationTable.columns;
+					int32_t columns = navigationTable_.columns;
 					ValueEditResult result = MyGUI::DragInt("横", columns,
 						{ .dragSpeed = 1.0f,.minValue = 1,.maxValue = CanvasNavigationTable::kMaxSize });
 					if (result.valueChanged) {
-						ResizeCanvasNavigationTable(draft.navigationTable, draft.navigationTable.rows, columns);
+						ResizeCanvasNavigationTable(
+							navigationTable_, navigationTable_.rows, columns);
 					}
 					return result;
 					});
 				DrawField(anyItemActive, [&]() {
-					return DrawNavigationTable(world, entity, draft.navigationTable);
+					return DrawNavigationTable(world, entity, navigationTable_);
 					});
 			}
 			ImGui::Unindent();
 		}
 	}
 	ImGui::Unindent();
+}
+
+void Engine::CanvasInspectorDrawer::OnSyncDraftFromWorld(
+	ECSWorld& world, const Entity& entity, const CanvasComponent& component) {
+
+	navigationUpKeys_.clear();
+	navigationDownKeys_.clear();
+	navigationLeftKeys_.clear();
+	navigationRightKeys_.clear();
+	navigationUpGamepadButtons_.clear();
+	navigationDownGamepadButtons_.clear();
+	navigationLeftGamepadButtons_.clear();
+	navigationRightGamepadButtons_.clear();
+	submitKeys_.clear();
+	submitGamepadButtons_.clear();
+
+	// ECS BufferをInspector編集用の型別配列へ展開する
+	for (const CanvasInputBinding& binding :
+		GetCanvasInputBindings(world, entity)) {
+
+		if (binding.device == CanvasInputDevice::Keyboard) {
+			const KeyDIKCode key = static_cast<KeyDIKCode>(binding.code);
+			switch (binding.action) {
+			case CanvasInputAction::Up: navigationUpKeys_.emplace_back(key); break;
+			case CanvasInputAction::Down: navigationDownKeys_.emplace_back(key); break;
+			case CanvasInputAction::Left: navigationLeftKeys_.emplace_back(key); break;
+			case CanvasInputAction::Right: navigationRightKeys_.emplace_back(key); break;
+			case CanvasInputAction::Submit: submitKeys_.emplace_back(key); break;
+			}
+			continue;
+		}
+
+		const GamePadButtons button =
+			static_cast<GamePadButtons>(binding.code);
+		switch (binding.action) {
+		case CanvasInputAction::Up:
+			navigationUpGamepadButtons_.emplace_back(button);
+			break;
+		case CanvasInputAction::Down:
+			navigationDownGamepadButtons_.emplace_back(button);
+			break;
+		case CanvasInputAction::Left:
+			navigationLeftGamepadButtons_.emplace_back(button);
+			break;
+		case CanvasInputAction::Right:
+			navigationRightGamepadButtons_.emplace_back(button);
+			break;
+		case CanvasInputAction::Submit:
+			submitGamepadButtons_.emplace_back(button);
+			break;
+		}
+	}
+
+	navigationTable_.rows = component.navigationRows;
+	navigationTable_.columns = component.navigationColumns;
+	navigationTable_.cells.clear();
+	for (const CanvasNavigationCell& cell :
+		GetCanvasNavigationCells(world, entity)) {
+		navigationTable_.cells.emplace_back(cell.localFileID);
+	}
+	ResizeCanvasNavigationTable(
+		navigationTable_, navigationTable_.rows, navigationTable_.columns);
+}
+
+void Engine::CanvasInspectorDrawer::SerializeDraft(
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	const CanvasComponent& component, nlohmann::json& out) const {
+
+	std::vector<CanvasInputBinding> bindings;
+	auto appendKeys = [&](CanvasInputAction action,
+		const std::vector<KeyDIKCode>& values) {
+			for (KeyDIKCode value : values) {
+				bindings.emplace_back(CanvasInputBinding{
+					static_cast<uint16_t>(value), action,
+					CanvasInputDevice::Keyboard
+					});
+			}
+		};
+	auto appendButtons = [&](CanvasInputAction action,
+		const std::vector<GamePadButtons>& values) {
+			for (GamePadButtons value : values) {
+				bindings.emplace_back(CanvasInputBinding{
+					static_cast<uint16_t>(value), action,
+					CanvasInputDevice::Gamepad
+					});
+			}
+		};
+	appendKeys(CanvasInputAction::Up, navigationUpKeys_);
+	appendKeys(CanvasInputAction::Down, navigationDownKeys_);
+	appendKeys(CanvasInputAction::Left, navigationLeftKeys_);
+	appendKeys(CanvasInputAction::Right, navigationRightKeys_);
+	appendKeys(CanvasInputAction::Submit, submitKeys_);
+	appendButtons(CanvasInputAction::Up, navigationUpGamepadButtons_);
+	appendButtons(CanvasInputAction::Down, navigationDownGamepadButtons_);
+	appendButtons(CanvasInputAction::Left, navigationLeftGamepadButtons_);
+	appendButtons(CanvasInputAction::Right, navigationRightGamepadButtons_);
+	appendButtons(CanvasInputAction::Submit, submitGamepadButtons_);
+
+	std::vector<CanvasNavigationCell> cells;
+	cells.reserve(navigationTable_.cells.size());
+	for (UUID localFileID : navigationTable_.cells) {
+		cells.emplace_back(CanvasNavigationCell{ localFileID });
+	}
+
+	CanvasComponent serialized = component;
+	serialized.navigationRows = navigationTable_.rows;
+	serialized.navigationColumns = navigationTable_.columns;
+	SerializeCanvas(serialized, bindings, cells, out);
+}
+
+void Engine::CanvasInspectorDrawer::ApplyPreview(
+	ECSWorld& world, const Entity& entity,
+	const CanvasComponent& previewComponent) {
+
+	if (!world.IsAlive(entity) || !world.HasComponent<CanvasComponent>(entity)) {
+		return;
+	}
+
+	nlohmann::json data;
+	SerializeDraft(world, entity, previewComponent, data);
+
+	// Previewも本保存と同じDeserialize経路でBufferを更新する
+	CanvasComponent::DeserializeECS(
+		world, entity, data, world.GetComponent<CanvasComponent>(entity));
+	world.MarkComponentModified<CanvasComponent>(entity);
 }
 
 //========================================================================================================================================================

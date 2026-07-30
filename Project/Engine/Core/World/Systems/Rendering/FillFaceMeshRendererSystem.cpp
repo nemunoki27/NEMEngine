@@ -29,7 +29,8 @@ namespace {
 	}
 
 	// XZ平面の単純ポリゴンを耳切り法で三角形分割する
-	std::vector<uint32_t> TriangulatePolygonXZ(const std::vector<Engine::Vector3>& points) {
+	std::vector<uint32_t> TriangulatePolygonXZ(
+		std::span<const Engine::FillMeshPosition> points) {
 
 		std::vector<uint32_t> indices;
 		const size_t count = points.size();
@@ -40,8 +41,8 @@ namespace {
 		// 符号付き面積でワインディングを判定する
 		float area = 0.0f;
 		for (size_t i = 0; i < count; ++i) {
-			const Engine::Vector3& a = points[i];
-			const Engine::Vector3& b = points[(i + 1) % count];
+			const Engine::Vector3& a = points[i].value;
+			const Engine::Vector3& b = points[(i + 1) % count].value;
 			area += a.x * b.z - b.x * a.z;
 		}
 		const bool clockwise = area < 0.0f;
@@ -63,9 +64,9 @@ namespace {
 				const uint32_t i0 = remaining[(i + n - 1) % n];
 				const uint32_t i1 = remaining[i];
 				const uint32_t i2 = remaining[(i + 1) % n];
-				const Engine::Vector3& a = points[i0];
-				const Engine::Vector3& b = points[i1];
-				const Engine::Vector3& c = points[i2];
+				const Engine::Vector3& a = points[i0].value;
+				const Engine::Vector3& b = points[i1].value;
+				const Engine::Vector3& c = points[i2].value;
 
 				// CCWで凸頂点なら外積が正
 				const float cross = (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
@@ -80,7 +81,7 @@ namespace {
 					if (pj == i0 || pj == i1 || pj == i2) {
 						continue;
 					}
-					if (PointInTriangleXZ(points[pj], a, b, c)) {
+					if (PointInTriangleXZ(points[pj].value, a, b, c)) {
 						contains = true;
 						break;
 					}
@@ -116,16 +117,21 @@ namespace {
 
 void Engine::FillFaceMeshRendererSystem::Update(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
-	world.ForEach<FillMeshRendererComponent>([&]([[maybe_unused]] Entity entity, FillMeshRendererComponent& fillMesh) {
+	world.ForEach<FillMeshRendererComponent>([&](Entity entity, FillMeshRendererComponent& fillMesh) {
 
 		// buildMeshが立っているフレームだけ構築する
 		if (!fillMesh.buildMesh) {
 			return;
 		}
 
-		// 点列から三角形分割しインデックスを作る
-		fillMesh.triangleIndices = TriangulatePolygonXZ(fillMesh.facePositions);
-		++fillMesh.geometryGeneration;
+		// 点列から三角形分割し、Runtime用Bufferと更新世代を差し替える
+		const std::vector<uint32_t> indices =
+			TriangulatePolygonXZ(GetFillMeshPositions(world, entity));
+		SetFillMeshTriangleIndices(world, entity, indices);
+		if (FillMeshRuntimeStateComponent* state =
+			world.TryGetComponent<FillMeshRuntimeStateComponent>(entity)) {
+			++state->geometryGeneration;
+		}
 		fillMesh.buildMesh = false;
 		});
 }

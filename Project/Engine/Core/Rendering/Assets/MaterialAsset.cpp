@@ -34,8 +34,8 @@ namespace {
 		}
 		if (data.is_string()) {
 			const std::string text = data.get<std::string>();
-			if (text.size() == 16) {
-				outValue.value = Engine::FromString16Hex(text);
+			if (text.size() == 32) {
+				outValue.value = Engine::FromString32Hex(text);
 				return true;
 			}
 			return false;
@@ -117,6 +117,131 @@ nlohmann::json Engine::SerializeMaterialParameterValue(const MaterialParameterVa
 	return SerializeParameterValue(parameter);
 }
 
+//============================================================================
+//	MaterialParameterOverrides classMethods
+//============================================================================
+Engine::MaterialParameterOverrides::MaterialParameterOverrides(
+	const MaterialParameterOverrides& other) {
+
+	if (!other.empty()) {
+		values_ = std::make_unique<Map>(other.Get());
+	}
+}
+
+Engine::MaterialParameterOverrides&
+Engine::MaterialParameterOverrides::operator=(
+	const MaterialParameterOverrides& other) {
+
+	if (this == &other) {
+		return *this;
+	}
+	if (other.empty()) {
+		values_.reset();
+	} else {
+		values_ = std::make_unique<Map>(other.Get());
+	}
+	return *this;
+}
+
+Engine::MaterialParameterValue&
+Engine::MaterialParameterOverrides::operator[](const std::string& name) {
+
+	return GetMutable()[name];
+}
+
+Engine::MaterialParameterValue&
+Engine::MaterialParameterOverrides::operator[](const char* name) {
+
+	return GetMutable()[name];
+}
+
+void Engine::MaterialParameterOverrides::clear() {
+
+	values_.reset();
+}
+
+size_t Engine::MaterialParameterOverrides::erase(const std::string& name) {
+
+	if (!values_) {
+		return 0;
+	}
+	const size_t erased = values_->erase(name);
+	if (values_->empty()) {
+		values_.reset();
+	}
+	return erased;
+}
+
+Engine::MaterialParameterOverrides::iterator
+Engine::MaterialParameterOverrides::erase(iterator position) {
+
+	return GetMutable().erase(position);
+}
+
+size_t Engine::MaterialParameterOverrides::count(
+	const std::string& name) const {
+
+	return values_ ? values_->count(name) : 0;
+}
+
+bool Engine::MaterialParameterOverrides::contains(
+	const std::string& name) const {
+
+	return values_ && values_->contains(name);
+}
+
+Engine::MaterialParameterOverrides::iterator
+Engine::MaterialParameterOverrides::begin() {
+
+	return GetMutable().begin();
+}
+
+Engine::MaterialParameterOverrides::iterator
+Engine::MaterialParameterOverrides::end() {
+
+	return GetMutable().end();
+}
+
+Engine::MaterialParameterOverrides::const_iterator
+Engine::MaterialParameterOverrides::begin() const {
+
+	return Get().begin();
+}
+
+Engine::MaterialParameterOverrides::const_iterator
+Engine::MaterialParameterOverrides::end() const {
+
+	return Get().end();
+}
+
+Engine::MaterialParameterOverrides::iterator
+Engine::MaterialParameterOverrides::find(const std::string& name) {
+
+	return GetMutable().find(name);
+}
+
+Engine::MaterialParameterOverrides::const_iterator
+Engine::MaterialParameterOverrides::find(const std::string& name) const {
+
+	return Get().find(name);
+}
+
+Engine::MaterialParameterOverrides::Map&
+Engine::MaterialParameterOverrides::GetMutable() {
+
+	if (!values_) {
+		values_ = std::make_unique<Map>();
+	}
+	return *values_;
+}
+
+const Engine::MaterialParameterOverrides::Map&
+Engine::MaterialParameterOverrides::Get() const {
+
+	static const Map empty{};
+	return values_ ? *values_ : empty;
+}
+
 void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
 	std::unordered_map<std::string, MaterialParameterValue>& outOverrides) {
 
@@ -133,6 +258,15 @@ void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
 	}
 }
 
+void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
+	MaterialParameterOverrides& outOverrides) {
+
+	ReadMaterialParameterOverrides(in, outOverrides.GetMutable());
+	if (outOverrides.Get().empty()) {
+		outOverrides.clear();
+	}
+}
+
 nlohmann::json Engine::WriteMaterialParameterOverrides(
 	const std::unordered_map<std::string, MaterialParameterValue>& overrides) {
 
@@ -143,6 +277,12 @@ nlohmann::json Engine::WriteMaterialParameterOverrides(
 	return out;
 }
 
+nlohmann::json Engine::WriteMaterialParameterOverrides(
+	const MaterialParameterOverrides& overrides) {
+
+	return WriteMaterialParameterOverrides(overrides.Get());
+}
+
 bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 
 	if (!data.is_object()) {
@@ -150,7 +290,6 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 	}
 
 	outAsset = MaterialAsset{};
-	outAsset.guid = ParseAssetID(data, "guid");
 	outAsset.name = data.value("name", "UnnamedMaterial");
 	outAsset.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface")).value_or(MaterialDomain::Surface);
 	outAsset.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic")).value_or(MaterialUsage::Generic);
@@ -195,7 +334,6 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 
 	nlohmann::json data = nlohmann::json::object();
 
-	data["guid"] = ToString(asset.guid);
 	data["name"] = asset.name;
 	data["domain"] = EnumAdapter<MaterialDomain>::ToString(asset.domain);
 	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);

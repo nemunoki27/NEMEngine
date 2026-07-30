@@ -68,6 +68,9 @@ namespace Engine {
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
 		RenderPathResources* resources = nullptr;
+		// カリングカメラに対応するHi-Zを持つViewリソース
+		RenderPathResources* cullingResources = nullptr;
+		bool occlusionDepthPyramidReady = false;
 		// ビルボードの計算基準にするビュー
 		const ResolvedRenderView* billboardView = nullptr;
 		// ツールプレビューなど、1枚のRT内の一部だけへ描く時の描画矩形
@@ -81,14 +84,14 @@ namespace Engine {
 		RaytracingSceneRuntimeContext raytracing{};
 		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない
 		bool disableInlineRayTracing = false;
-		// エディターピック用に、描画Raytracing設定とは独立してTLASだけを構築する
-		bool requireRaytracingSceneForEditorPicking = false;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
 		// 実エディターSceneViewの表示結果にだけSceneComponentOverlayを重ねる
 		bool allowSceneComponentOverlay = false;
 		// ツールプレビューではVertex版のGraphics Variantを優先する
 		bool forceVertexMeshVariant = false;
+		// ピッキングなど画面外判定を再利用できない描画ではメッシュカリングを無効化する
+		bool disableMeshCulling = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
@@ -125,8 +128,8 @@ namespace Engine {
 		// プレビュー用RenderTextureにだけ描画するグリッド
 		bool drawGrid2D = false;
 		bool drawGrid3D = false;
-		// プレビューではMeshShader/RayQueryを避け、Vertex版の非RayQueryシェーダを優先する
-		bool forceVertexMeshVariant = true;
+		// RayQueryは無効化したまま、利用可能なら本描画と同じMeshShader経路を使う
+		bool forceVertexMeshVariant = false;
 	};
 
 	//============================================================================
@@ -190,14 +193,21 @@ namespace Engine {
 		const FrameLightBatch& GetFrameLightBatch() const { return frameLightBatch_; }
 		// ルートシーン用のビュー別ライト集合
 		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const {
-			return (kind == RenderViewKind::Game || gameViewState_.view.valid) ? gameViewState_.lightSet : sceneViewState_.lightSet;
+			return (kind == RenderViewKind::Game) ? gameViewState_.lightSet : sceneViewState_.lightSet;
 		}
 
 		// ピック用のTLASリソースとサブメッシュ情報の取得
 		ID3D12Resource* GetGameViewTLASResource() const { return tlasResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickRecords_; }
+		const std::vector<uint32_t>& GetGameViewPickRecordOffsets() const { return pickRecordOffsets_; }
 		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
 		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
+		const std::vector<uint32_t>& GetSceneViewPickRecordOffsets() const { return pickRecordOffsets_; }
+
+		// 指定ピクセルだけを1x1整数RTへ描画する
+		bool RenderMeshPicking(GraphicsCore& graphicsCore,
+			RenderViewKind kind, const Vector2& inputPixel,
+			MultiRenderTarget& target);
 
 		// 指定ビューのGBufferアタッチメントテクスチャを取得する、GBufferデバッグ表示用、未生成はnullptr
 		RenderTexture2D* GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment);
@@ -244,6 +254,7 @@ namespace Engine {
 		// ピック用のTLASリソースとサブメッシュ情報
 		ID3D12Resource* tlasResource_ = nullptr;
 		std::vector<MeshSubMeshPickRecord> pickRecords_{};
+		std::vector<uint32_t> pickRecordOffsets_{};
 
 		// 描画アイテム抽出器のレジストリ
 		RenderExtractorRegistry extractorRegistry_{};
@@ -280,6 +291,9 @@ namespace Engine {
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;
+		// メイン描画後のエディターピックで同じシーン情報を使う
+		RenderFrameRequest lastRenderRequest_{};
+		const SceneInstance* lastActiveScene_ = nullptr;
 
 		// 毎フレーム使い回すスクラッチで再確保を避ける
 		std::unordered_set<AssetID> visibleMeshSet_{};

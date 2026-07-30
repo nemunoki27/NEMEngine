@@ -88,10 +88,14 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 			const bool skinnedActive = IsEntityActiveInHierarchy(world, skinned);
 			hierarchySystem.RefreshActiveRecursive(world, entity, skinnedActive);
 
-			const auto& anim = world.GetComponent<SkinnedAnimationComponent>(skinned);
+			const SkinnedAnimationRuntimeData* runtime =
+				TryGetSkinnedAnimationRuntime(world, skinned);
+			if (!runtime) {
+				return;
+			}
 
 			// ジョイントを名前で解決する
-			const Skeleton& skeleton = anim.runtimeSkeleton;
+			const Skeleton& skeleton = runtime->skeleton;
 			const int32_t jointIndex =
 				FindSkeletonJointIndex(skeleton, attachment.jointName);
 			if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {

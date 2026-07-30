@@ -14,8 +14,12 @@ nlohmann::json Engine::ParticleLookToVelocityModule::ToJson() const {
 }
 
 bool Engine::ParticleLookToVelocityModule::DrawImGui() {
+#if defined(NEM_EDITOR_UI_ENABLED)
 	// 調整項目なし
 	return false;
+#else
+	return false;
+#endif
 }
 
 void Engine::ParticleLookToVelocityModule::OnSpawn(Particle& particle) {

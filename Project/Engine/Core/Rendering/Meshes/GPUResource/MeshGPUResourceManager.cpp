@@ -346,6 +346,7 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 		requested_.erase(meshAssetID);
 		// 世代を進めて、TLAS等のキャッシュが古いジオメトリを使わないようにする
 		++reloadGeneration_[meshAssetID];
+		++resourceRevision_;
 	}
 
 	// インポートサービスは初回ロード後にidの記録を残さないため、同じ要求で再パースされる
@@ -363,7 +364,6 @@ void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) 
 	mesh.indexSRV.Release(srvDescriptor_);
 	mesh.vertexSubMeshIndexSRV.Release(srvDescriptor_);
 	mesh.primitiveSubMeshIndexSRV.Release(srvDescriptor_);
-	mesh.meshletSRV.Release(srvDescriptor_);
 	mesh.meshletDrawSRV.Release(srvDescriptor_);
 	mesh.meshletBoundsSRV.Release(srvDescriptor_);
 	mesh.meshletVertexIndexSRV.Release(srvDescriptor_);
@@ -436,8 +436,9 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 	MeshGPUResource mesh{};
 	mesh.assetID = imported.assetID;
 	mesh.vertexCount = static_cast<uint32_t>(imported.vertices.size());
-	mesh.indexCount = static_cast<uint32_t>(imported.indices.size());
-	mesh.meshletCount = static_cast<uint32_t>(imported.meshlets.size());
+	mesh.lods = imported.lods;
+	mesh.indexCount = mesh.lods[0].indexCount;
+	mesh.meshletCount = mesh.lods[0].meshletCount;
 	mesh.isSkinned = imported.isSkinned;
 	mesh.boneCount = imported.boneCount;
 	// インスタンス単位カリングで使用するメッシュ全体Boundsを作る
@@ -509,10 +510,6 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 
 	// メッシュレットSRVリソース
 	if (!imported.meshlets.empty()) {
-		// 互換用のフルDescも保持しておく
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.meshletSRV, imported.meshlets, L"Meshlets");
-
 		// MSが使う範囲情報だけを分離して読み込み量を減らす
 		std::vector<MeshletDrawDesc> drawDescs = BuildMeshletDrawDescs(imported.meshlets);
 		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
@@ -550,5 +547,6 @@ void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imp
 		// 現在のリロード世代を焼き込み、BLAS等のキャッシュが差し替えを検知できるようにする
 		mesh.reloadGeneration = reloadGeneration_[imported.assetID];
 		gpuMeshes_.emplace(imported.assetID, std::move(mesh));
+		++resourceRevision_;
 	}
 }
