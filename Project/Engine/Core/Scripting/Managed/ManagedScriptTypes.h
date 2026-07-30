@@ -52,7 +52,7 @@ namespace Engine {
 	// v35: UserSettingsルート取得APIを追加
 	// v36: Collision実行時状態をAuthoring設定から分離
 	// v42: IrisTransitionのRuntime状態を設定コンポーネントから分離
-	inline constexpr uint32_t kManagedAbiVersion = 42;
+	inline constexpr uint32_t kManagedAbiVersion = 43;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -399,6 +399,40 @@ namespace Engine {
 		ManagedColor4 color{};
 	};
 
+	// RendererごとのMaterial Instance参照先
+	enum class ManagedRendererMaterialTarget : int32_t {
+
+		Mesh = 0,
+		Sprite,
+		Text,
+		Primitive,
+		Line,
+		FillMesh,
+	};
+
+	// MaterialParameterValueのvariant indexと独立したABI用の型
+	enum class ManagedMaterialParameterValueType : int32_t {
+
+		Float = 0,
+		Vector2,
+		Vector3,
+		Vector4,
+		Color,
+		Texture,
+		Int,
+		UInt,
+		Bool,
+	};
+
+	// C#との境界では最大16byteの値と型だけを固定レイアウトで渡す
+	struct ManagedMaterialParameterValue {
+
+		uint64_t data0 = 0;
+		uint64_t data1 = 0;
+		int32_t type = 0;
+		int32_t reserved = 0;
+	};
+
 	// ネイティブAPIテーブル先頭に置くABIヘッダでversionとsizeとcapabilityを検証に使う
 	struct ManagedAbiHeader {
 
@@ -423,9 +457,15 @@ namespace Engine {
 		using GetInputButtonCallback = int32_t(__cdecl*)(int32_t);
 		using GetNativeBoolCallback = int32_t(__cdecl*)();
 		using SetNativeIntCallback = void(__cdecl*)(int32_t);
-		// componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ
-		using SetRendererColorCallback = void(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*, float, float, float, float);
-		using GetRendererColorCallback = ManagedColor4(__cdecl*)(ManagedNativeEntity, int32_t, int32_t);
+		// RendererのMaterial Instanceへ型付きパラメータを読み書きする
+		using SetRendererMaterialParameterCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, uint64_t, const char*,
+			const ManagedMaterialParameterValue*);
+		using GetRendererMaterialParameterCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, uint64_t,
+			ManagedMaterialParameterValue*);
+		using ClearRendererMaterialParameterCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, uint64_t);
 		// Collision形状操作、shapeIndexとpropIdで衝突形状を読み書きする
 		using CollisionShapeCountCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using CollisionAddShapeCallback = void(__cdecl*)(ManagedNativeEntity);
@@ -582,6 +622,7 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedNativeEntity>);
 	static_assert(std::is_standard_layout_v<ManagedAbiHeader>);
 	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
+	static_assert(std::is_standard_layout_v<ManagedMaterialParameterValue>);
 	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
 	static_assert(std::is_standard_layout_v<ManagedScriptTypeDescriptor>);
 	static_assert(sizeof(ManagedScriptTypeDescriptor) == 40 + 256 + 128 + 260 + 4 + 4);
@@ -590,4 +631,5 @@ namespace Engine {
 	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);
 	static_assert(sizeof(ManagedNativeEntity) == 16);
 	static_assert(sizeof(ManagedAbiHeader) == 16);
+	static_assert(sizeof(ManagedMaterialParameterValue) == 24);
 } // Engine

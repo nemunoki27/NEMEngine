@@ -45,7 +45,8 @@ internal static class ManagedAbi {
     // v36: Collision実行時状態をAuthoring設定から分離
     // v37: 型安全なDynamicBufferアクセスを追加
     // v42: IrisTransitionのRuntime状態を設定コンポーネントから分離
-    internal const uint Version = 42;
+    // v43: 全Renderer共通の型付きMaterial Instance APIを追加
+    internal const uint Version = 43;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -61,6 +62,48 @@ internal static class ManagedAbi {
     internal const ulong RequiredCapabilities =
         CapabilityCore | CapabilityInput | CapabilityEntity | CapabilityHierarchy | CapabilityTransform
         | CapabilityObjectModel | CapabilityComponentBindings | CapabilityGameplay;
+}
+
+// C++側 ManagedRendererMaterialTarget と一致させる
+internal enum RendererMaterialTarget {
+
+    Mesh = 0,
+    Sprite,
+    Text,
+    Primitive,
+    Line,
+    FillMesh,
+}
+
+// C++側 ManagedMaterialParameterValueType と一致させる
+internal enum NativeMaterialParameterValueType {
+
+    Float = 0,
+    Vector2,
+    Vector3,
+    Vector4,
+    Color,
+    Texture,
+    Int,
+    UInt,
+    Bool,
+}
+
+// C++側 ManagedMaterialParameterValue と同一レイアウト
+[StructLayout(LayoutKind.Explicit, Size = 24)]
+public struct NativeMaterialParameterValue {
+
+    [FieldOffset(0)] internal ulong data0;
+    [FieldOffset(8)] internal ulong data1;
+    [FieldOffset(0)] internal float x;
+    [FieldOffset(4)] internal float y;
+    [FieldOffset(8)] internal float z;
+    [FieldOffset(12)] internal float w;
+    [FieldOffset(0)] internal int intValue;
+    [FieldOffset(0)] internal uint uintValue;
+    [FieldOffset(0)] internal AssetGUID assetID;
+    [FieldOffset(16)] internal NativeMaterialParameterValueType type;
+    [FieldOffset(20)] internal int reserved;
 }
 
 // C++側 ManagedAbiHeader と同一レイアウト
@@ -379,8 +422,9 @@ internal static unsafe class NativeApi {
     // v17: 入力デバイス
     internal static delegate* unmanaged[Cdecl]<int> GetInputType;
     internal static delegate* unmanaged[Cdecl]<int, void> SetInputType;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void> SetRendererMaterialColor;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4> GetRendererMaterialColor;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*, int> SetRendererMaterialParameter;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*, int> GetRendererMaterialParameter;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int> ClearRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> FillMeshSetPositions;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
@@ -556,8 +600,9 @@ internal static unsafe class NativeApi {
         SetInputType = callbacks->setInputType;
         GetMouseRangeControl = callbacks->getMouseRangeControl;
         SetMouseRangeControl = callbacks->setMouseRangeControl;
-        SetRendererMaterialColor = callbacks->setRendererMaterialColor;
-        GetRendererMaterialColor = callbacks->getRendererMaterialColor;
+        SetRendererMaterialParameter = callbacks->setRendererMaterialParameter;
+        GetRendererMaterialParameter = callbacks->getRendererMaterialParameter;
+        ClearRendererMaterialParameter = callbacks->clearRendererMaterialParameter;
         FillMeshSetPositions = callbacks->fillMeshSetPositions;
         GetEntityReferenceIdentity = callbacks->getEntityReferenceIdentity;
         PhysicsRaycast = callbacks->physicsRaycast;
@@ -777,25 +822,50 @@ internal static unsafe class NativeApi {
     internal static void WriteInputType(int type) { if (SetInputType != null) { SetInputType(type); } }
     internal static bool ReadMouseRangeControl() => GetMouseRangeControl != null && GetMouseRangeControl() != 0;
     internal static void WriteMouseRangeControl(bool enabled) { if (SetMouseRangeControl != null) { SetMouseRangeControl(enabled ? 1 : 0); } }
-    // componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ、param空でcolor/baseColor/albedoへフォールバック設定する
-    internal static void WriteRendererMaterialColor(NativeEntity entity, int componentType, int subMeshIndex,
-        string param, float r, float g, float b, float a) {
+    // パラメータ名は保存用、IDは描画時の高速検索用として両方を境界へ渡す
+    internal static bool WriteRendererMaterialParameter(
+        NativeEntity entity, RendererMaterialTarget target, int subMeshIndex,
+        ulong parameterID, string name, NativeMaterialParameterValue value) {
 
-        if (SetRendererMaterialColor == null) {
-            return;
+        if (SetRendererMaterialParameter == null ||
+            parameterID == 0ul || string.IsNullOrEmpty(name)) {
+            return false;
         }
-        string safe = param ?? string.Empty;
-        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(safe) + 1];
-        Encoding.UTF8.GetBytes(safe, 0, safe.Length, bytes, 0);
-        fixed (byte* ptr = bytes) {
-            SetRendererMaterialColor(entity, componentType, subMeshIndex, ptr, r, g, b, a);
+
+        int byteCount = Encoding.UTF8.GetByteCount(name);
+        Span<byte> bytes = byteCount < 256
+            ? stackalloc byte[byteCount + 1]
+            : new byte[byteCount + 1];
+        Encoding.UTF8.GetBytes(name, bytes);
+        bytes[byteCount] = 0;
+        fixed (byte* namePtr = bytes) {
+            return SetRendererMaterialParameter(
+                entity, (int)target, subMeshIndex, parameterID,
+                namePtr, &value) != 0;
         }
     }
-    // マテリアルcolorを取得する、未設定や対象なしは白を返す
-    internal static Color4 ReadRendererMaterialColor(NativeEntity entity, int componentType, int subMeshIndex) {
-        return GetRendererMaterialColor != null
-            ? GetRendererMaterialColor(entity, componentType, subMeshIndex).ToColor4()
-            : new Color4(1.0f, 1.0f, 1.0f, 1.0f);
+
+    internal static bool ReadRendererMaterialParameter(
+        NativeEntity entity, RendererMaterialTarget target, int subMeshIndex,
+        ulong parameterID, out NativeMaterialParameterValue value) {
+
+        NativeMaterialParameterValue result = default;
+        bool succeeded = GetRendererMaterialParameter != null &&
+            parameterID != 0ul &&
+            GetRendererMaterialParameter(
+                entity, (int)target, subMeshIndex, parameterID, &result) != 0;
+        value = result;
+        return succeeded;
+    }
+
+    internal static bool ClearRendererMaterialParameterValue(
+        NativeEntity entity, RendererMaterialTarget target,
+        int subMeshIndex, ulong parameterID) {
+
+        return ClearRendererMaterialParameter != null &&
+            parameterID != 0ul &&
+            ClearRendererMaterialParameter(
+                entity, (int)target, subMeshIndex, parameterID) != 0;
     }
 
     // Collision形状操作のマネージドラッパー、未登録時は安全な既定値を返す

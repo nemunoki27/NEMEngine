@@ -1,7 +1,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include "../Common/defaultMesh.hlsli"
+#include "defaultMesh.hlsli"
 
 groupshared float4x4 gMeshletWorldMatrix;
 groupshared float4x4 gMeshletNormalMatrix;

@@ -442,7 +442,8 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		StaticBatchCacheKey key{};
 		key.world = outPrepared.items.front()->world;
 		key.mesh = outPrepared.batchMesh;
-		key.hash = BuildStaticBatchHash(context, outPrepared.items, *outPrepared.gpuMesh);
+		key.hash = BuildStaticBatchHash(
+			outPrepared.items, *outPrepared.gpuMesh);
 
 		auto it = staticBatchCache_.find(key);
 		if (it != staticBatchCache_.end()) {
@@ -450,9 +451,21 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			resources = it->second.resources.get();
 			// SceneView/GameViewで行列が変わるため、キャッシュ済みでもView定数だけ更新する
 			resources->UpdateView(*context.view, context.cullingView);
+			const uint64_t renderRevision =
+				context.batch->GetSourceRenderRevision();
 			const uint64_t transformRevision =
 				context.batch->GetSourceTransformRevision();
-			if (it->second.transformRevision != transformRevision) {
+			if (it->second.renderRevision != renderRevision) {
+
+				// 描画値変更時は同じGPUリソースへ再構築し旧世代のキャッシュ増殖を防ぐ
+				resources->UploadBatchData(context, *context.batch,
+					outPrepared.items, *outPrepared.gpuMesh);
+				it->second.renderRevision = renderRevision;
+				it->second.transformRevision = transformRevision;
+				it->second.persistent =
+					!resources->UsesFallbackTexture();
+			} else if (it->second.transformRevision !=
+				transformRevision) {
 
 				if (!context.batch->HasCompleteTransformChanges() ||
 					!resources->RefreshInstanceTransforms(
@@ -472,6 +485,8 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			entry.resources->UpdateView(*context.view, context.cullingView);
 			entry.resources->UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
 			entry.lastUsedFrame = frameIndex_;
+			entry.renderRevision =
+				context.batch->GetSourceRenderRevision();
 			entry.transformRevision =
 				context.batch->GetSourceTransformRevision();
 			// ErrorTexture使用中のバッチは、本テクスチャ読込後に作り直せるよう永続化しない
@@ -684,15 +699,14 @@ uint64_t Engine::MeshRenderBackend::BuildBatchHash(std::span<const RenderItem* c
 	return h;
 }
 
-uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(const RenderDrawContext& context,
-	std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const {
+uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(
+	std::span<const RenderItem* const> items,
+	const MeshGPUResource& gpuMesh) const {
 
 	uint64_t h = 1469598103934665603ull;
-	// 描画データ世代とバッチ識別子だけを使い、Transform変更時も同じキャッシュを再利用する
+	// バッチ識別子だけを使い、Render/Transform世代変更時も同じGPUリソースを再利用する
 	HashCombine(h, static_cast<uint64_t>(items.size()));
 	HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
-	HashCombine(h, context.batch ?
-		context.batch->GetSourceRenderRevision() : 0ull);
 	if (const RenderItem* first = items.front()) {
 		HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(first->material)));
 		HashCombine(h, first->batchKey);

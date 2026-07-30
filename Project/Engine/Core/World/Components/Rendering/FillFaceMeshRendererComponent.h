@@ -67,7 +67,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		MaterialParameterOverrides parameterOverrides{};
+		MaterialInstanceParameters materialInstance{};
 
 		// 色
 		Color4 color = Color4::White();
@@ -83,6 +83,8 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Normal;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::Opaque;
+		// 選択的PostProcessなど描画機能が対象を絞るためのマスク
+		uint32_t renderingLayerMask = 1u;
 
 		// Registryから呼ばれる点列とRuntime状態のライフサイクル
 		static void OnAdded(

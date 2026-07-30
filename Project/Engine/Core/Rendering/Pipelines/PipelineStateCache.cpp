@@ -172,6 +172,22 @@ namespace {
 				target.colorParameters.emplace_back(name);
 			}
 		}
+		for (const Engine::ShaderParameterMetadata& parameter :
+			source.parameters) {
+
+			const auto found = std::find_if(
+				target.parameters.begin(),
+				target.parameters.end(),
+				[&](const Engine::ShaderParameterMetadata& current) {
+					return current.shaderName ==
+						parameter.shaderName;
+				});
+			if (found != target.parameters.end()) {
+				*found = parameter;
+			} else {
+				target.parameters.emplace_back(parameter);
+			}
+		}
 	}
 }
 
@@ -249,6 +265,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 			ShaderAsset pixelShader{};
 			pixelShader.stages.emplace_back(stage);
 			pixelShader.colorParameters = stateShader->colorParameters;
+			pixelShader.parameters =
+				stateShader->parameters;
 			OverlayShaderStages(composedShader, pixelShader);
 		}
 	}
@@ -274,23 +292,13 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	if (!pipelineState->CreateGraphics(graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc)) {
 		return restoreFallback();
 	}
+	pipelineState->ApplyShaderMetadata(
+		composedShader);
 
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
-	ShaderReflectionInfo reflection = it->second->GetGraphicsReflection();
-	for (ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
-		for (ShaderConstantBufferVariable& var : cb.variables) {
-			var.isColor = std::find(composedShader.colorParameters.begin(),
-				composedShader.colorParameters.end(), var.name) != composedShader.colorParameters.end();
-		}
-	}
-	for (ShaderStructuredBufferInfo& buffer : reflection.structuredBuffers) {
-		for (ShaderConstantBufferVariable& var : buffer.variables) {
-			var.isColor = std::find(composedShader.colorParameters.begin(),
-				composedShader.colorParameters.end(), var.name) != composedShader.colorParameters.end();
-		}
-	}
-	graphicsReflectionByPipeline_[pipelineAssetID] = std::move(reflection);
+	graphicsReflectionByPipeline_[pipelineAssetID] =
+		it->second->GetGraphicsReflection();
 	return it->second.get();
 }
 
@@ -405,27 +413,15 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	if (!created) {
 		return restoreFallback();
 	}
+	pipelineState->ApplyShaderMetadata(
+		*shaderAsset);
 	// キャッシュに保存
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
 	// マテリアルインスペクタ等がエディタ側でPSOを再生成せず、reflectionを引けるようpipelineAsset別に保存する
 	if (variant->kind != PipelineVariantKind::Compute) {
-
-		ShaderReflectionInfo reflection = it->second->GetGraphicsReflection();
-		// シェーダー側メタデータで宣言された色paramにisColorを立てる
-		for (ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
-			for (ShaderConstantBufferVariable& var : cb.variables) {
-				var.isColor = std::find(shaderAsset->colorParameters.begin(),
-					shaderAsset->colorParameters.end(), var.name) != shaderAsset->colorParameters.end();
-			}
-		}
-		for (ShaderStructuredBufferInfo& buffer : reflection.structuredBuffers) {
-			for (ShaderConstantBufferVariable& var : buffer.variables) {
-				var.isColor = std::find(shaderAsset->colorParameters.begin(),
-					shaderAsset->colorParameters.end(), var.name) != shaderAsset->colorParameters.end();
-			}
-		}
-		graphicsReflectionByPipeline_[pipelineAssetID] = std::move(reflection);
+		graphicsReflectionByPipeline_[pipelineAssetID] =
+			it->second->GetGraphicsReflection();
 	}
 	return it->second.get();
 }

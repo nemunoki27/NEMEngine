@@ -18,9 +18,9 @@ namespace {
 		Engine::LineRendererComponent& component) {
 
 		component.material = Engine::ParseAssetID(in, "material");
-		Engine::ReadMaterialParameterOverrides(
-			in.value("parameterOverrides", nlohmann::json::object()),
-			component.parameterOverrides);
+		Engine::ReadMaterialInstance(
+			in.value("materialInstance", nlohmann::json::object()),
+			component.materialInstance);
 		component.loop = in.value("loop", component.loop);
 		component.is2D = in.value("is2D", component.is2D);
 		component.useWorldSpace = in.value("useWorldSpace", component.useWorldSpace);
@@ -38,8 +38,8 @@ namespace {
 		const Engine::LineRendererComponent& component) {
 
 		out["material"] = Engine::ToAssetReferenceJson(component.material);
-		out["parameterOverrides"] =
-			Engine::WriteMaterialParameterOverrides(component.parameterOverrides);
+		out["materialInstance"] =
+			Engine::WriteMaterialInstance(component.materialInstance);
 		out["loop"] = component.loop;
 		out["is2D"] = component.is2D;
 		out["useWorldSpace"] = component.useWorldSpace;

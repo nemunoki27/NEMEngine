@@ -171,7 +171,7 @@ const Engine::GPUTextureResource* Engine::BackendDrawCommon::ResolveTextureAsset
 void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& context,
 	const PipelineState& pipelineState, MaterialParameterBinder& binder, const MaterialAsset& material,
 	ID3D12GraphicsCommandList* commandList,
-	const std::unordered_map<std::string, MaterialParameterValue>* overrides) {
+	const MaterialParameterSet* overrides) {
 
 	GraphicsCore& graphicsCore = *context.graphicsCore;
 	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
@@ -193,15 +193,15 @@ void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& co
 
 void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDrawContext& context,
 	MaterialParameterBinder& binder, const PipelineState& pipelineState, const MaterialAsset& material,
-	const std::unordered_map<std::string, MaterialParameterValue>* overrides,
+	const MaterialParameterSet* overrides,
 	PipelineBindingCache& bindCache, PipelineBindingCache::SlotID slot, ID3D12GraphicsCommandList* commandList) {
 
 	// cbufferを宣言していないBuiltinシェーダーはslot未登録なので何もしない
 	if (!bindCache.Has(slot)) {
 		return;
 	}
-	static const std::unordered_map<std::string, MaterialParameterValue> kEmptyOverrides{};
-	const std::unordered_map<std::string, MaterialParameterValue>& effectiveOverrides =
+	static const MaterialParameterSet kEmptyOverrides{};
+	const MaterialParameterSet& effectiveOverrides =
 		overrides ? *overrides : kEmptyOverrides;
 	ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
 	const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =

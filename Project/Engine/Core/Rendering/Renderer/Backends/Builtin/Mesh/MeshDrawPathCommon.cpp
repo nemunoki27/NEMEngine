@@ -17,14 +17,20 @@ namespace {
 	// サブメッシュのテクスチャparamを取り出す、上書きが無くオーサリング確定済みならテクスチャなし扱い
 	Engine::AssetID ResolveSubMeshTextureParam(
 		std::span<const Engine::SubMeshMaterial> subMeshes, uint32_t subMeshIndex,
-		const char* paramName, const Engine::AssetID& modelDefault) {
+		Engine::MaterialParameterID parameterID,
+		const Engine::AssetID& modelDefault) {
 
 		if (subMeshIndex < subMeshes.size()) {
 
-			const auto& params = subMeshes[subMeshIndex].parameterOverrides;
-			auto it = params.find(paramName);
-			if (it != params.end() && std::holds_alternative<Engine::AssetID>(it->second.value)) {
-				return std::get<Engine::AssetID>(it->second.value);
+			const auto& params = subMeshes[subMeshIndex].materialInstance;
+			const Engine::MaterialParameterValue* value =
+				params.Find(parameterID);
+			if (value &&
+				std::holds_alternative<Engine::AssetID>(
+					value->value)) {
+
+				return std::get<Engine::AssetID>(
+					value->value);
 			}
 			if (subMeshes[subMeshIndex].stableID) {
 				return {};
@@ -68,7 +74,8 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshBaseColorTextureAssetI
 
 	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
 		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.baseColorTexture : AssetID{};
-	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex, "baseColorTexture", modelDefault);
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::BaseColorTexture, modelDefault);
 }
 
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(const MeshGPUResource& gpuMesh,
@@ -76,7 +83,8 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshNormalTextureAssetID(c
 
 	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
 		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.normalTexture : AssetID{};
-	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex, "normalTexture", modelDefault);
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::NormalTexture, modelDefault);
 }
 
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(const MeshGPUResource& gpuMesh,
@@ -84,7 +92,8 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextu
 
 	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
 		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.metallicRoughnessTexture : AssetID{};
-	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex, "metallicRoughnessTexture", modelDefault);
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::MetallicRoughnessTexture, modelDefault);
 }
 
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(const MeshGPUResource& gpuMesh,
@@ -92,7 +101,8 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID
 
 	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
 		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.emissiveTexture : AssetID{};
-	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex, "emissiveTexture", modelDefault);
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::EmissiveTexture, modelDefault);
 }
 
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(const MeshGPUResource& gpuMesh,
@@ -100,7 +110,8 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetI
 
 	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
 		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.occlusionTexture : AssetID{};
-	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex, "occlusionTexture", modelDefault);
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::AmbientOcclusionTexture, modelDefault);
 }
 
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(const MeshGPUResource& gpuMesh,
@@ -108,20 +119,28 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID
 
 	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
 		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.specularTexture : AssetID{};
-	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex, "specularTexture", modelDefault);
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::SpecularTexture, modelDefault);
 }
 
 bool Engine::MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(const MeshGPUResource& gpuMesh,
 	std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex) {
 
-	// オーサリング確定済みはparameterOverridesのbaseColorTextureが権威で空ならテクスチャなし扱い
+	// オーサリング確定済みはmaterialInstanceのbaseColorTextureが権威で空ならテクスチャなし扱い
 	if (subMeshIndex < subMeshes.size()) {
 		if (subMeshes[subMeshIndex].stableID) {
 
-			const auto& params = subMeshes[subMeshIndex].parameterOverrides;
-			auto it = params.find("baseColorTexture");
-			return it != params.end() && std::holds_alternative<AssetID>(it->second.value) &&
-				static_cast<bool>(std::get<AssetID>(it->second.value));
+			const auto& params = subMeshes[subMeshIndex].materialInstance;
+			const MaterialParameterValue* value =
+				params.Find(
+					MaterialParameterIDs::
+						BaseColorTexture);
+			return value &&
+				std::holds_alternative<AssetID>(
+					value->value) &&
+				static_cast<bool>(
+					std::get<AssetID>(
+						value->value));
 		}
 	}
 

@@ -15,7 +15,7 @@ namespace Engine::BuiltinAssets {
 
 		inline constexpr AssetID DefaultSprite{ 0x4e454d4153534554ull, 0xef1a0db1d6ef57acull };
 		inline constexpr AssetID DefaultText{ 0x4e454d4153534554ull, 0x39346ff93864d791ull };
-		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0xb876437b44304df0ull };
+		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x317efcbf7aca8e61ull };
 		inline constexpr AssetID DefaultMeshOutline{ 0x4e454d4153534554ull, 0x9ed9dab27dc8ba93ull };
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4084ull };
 		inline constexpr AssetID DefaultFillMesh{ 0x4e454d4153534554ull, 0x4b5a225df5b0044bull };
@@ -29,6 +29,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0x4e454d4153534554ull, 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7cull };
+		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0004ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6031ull };
 		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6032ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6033ull };
@@ -50,7 +51,9 @@ namespace Engine::BuiltinAssets {
 	namespace Pipelines {
 
 		inline constexpr AssetID DefaultMeshZPrepass{ 0x4e454d4153534554ull, 0xf09836087840b1d2ull };
+		inline constexpr AssetID DefaultMeshEditorPicking{ 0x4e454d4153534554ull, 0x8d50435034671c2cull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x966f3e8a34595313ull };
+		inline constexpr AssetID DefaultMeshTransparent{ 0x4e454d4153534554ull, 0xb8996e4516e31236ull };
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0x4e454d4153534554ull, 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0x4e454d4153534554ull, 0xe0400afbd444f5d6ull };
@@ -61,10 +64,14 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ParticleTrail{ 0x4e454d4153534554ull, 0xeff0000000000012ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6021ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6023ull };
+		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0003ull };
 	}
 
 	namespace Shaders {
 
+		inline constexpr AssetID MeshGeometryVS{ 0x4e454d4153534554ull, 0xf6485468f3b0f105ull };
+		inline constexpr AssetID MeshGeometryAS{ 0x4e454d4153534554ull, 0x06811f98f605bb52ull };
+		inline constexpr AssetID MeshGeometryMS{ 0x4e454d4153534554ull, 0x109772a2d84dd757ull };
 		// VSと既定PSを持つパーティクルの基本シェーダー
 		inline constexpr AssetID Particle{ 0x4e454d4153534554ull, 0xeff0000000000004ull };
 	}

@@ -97,20 +97,25 @@ namespace {
 			return false;
 		}
 
-		const auto it = renderer->parameterOverrides.find("color");
-		if (it == renderer->parameterOverrides.end()) {
+		const Engine::MaterialParameterValue* value =
+			renderer->materialInstance.Find(
+				Engine::MaterialParameterIDs::BaseColor);
+		if (!value) {
 			out = Engine::Color4::White();
 			return true;
 		}
-		if (const Engine::Color4* color = std::get_if<Engine::Color4>(&it->second.value)) {
+		if (const Engine::Color4* color =
+			std::get_if<Engine::Color4>(&value->value)) {
 			out = *color;
 			return true;
 		}
-		if (const Engine::Vector4* color = std::get_if<Engine::Vector4>(&it->second.value)) {
+		if (const Engine::Vector4* color =
+			std::get_if<Engine::Vector4>(&value->value)) {
 			out = Engine::Color4(color->x, color->y, color->z, color->w);
 			return true;
 		}
-		if (const Engine::Vector3* color = std::get_if<Engine::Vector3>(&it->second.value)) {
+		if (const Engine::Vector3* color =
+			std::get_if<Engine::Vector3>(&value->value)) {
 			out = Engine::Color4(color->x, color->y, color->z, 1.0f);
 			return true;
 		}
@@ -126,7 +131,14 @@ namespace {
 			return false;
 		}
 		if (Component* renderer = world.TryGetComponent<Component>(entity)) {
-			renderer->parameterOverrides["color"].value = color;
+			Engine::MaterialParameterValue parameter{};
+			parameter.value = color;
+			renderer->materialInstance.Set(
+				Engine::MaterialParameterIDs::BaseColor,
+				Engine::MaterialParameterNames::BaseColor,
+				Engine::MaterialParameterSemantic::BaseColor,
+				parameter);
+			world.MarkRenderDataModified();
 			return true;
 		}
 		return false;
@@ -493,7 +505,7 @@ namespace {
 		const std::string prefix = std::format("subMeshes[{}]", SubMeshIndex);
 		const std::string displayPrefix = std::format("MeshRenderer.subMeshes[{}]", SubMeshIndex);
 
-		// 色やテクスチャなどのマテリアルパラメータはparameterOverridesへ移ったため
+		// 色やテクスチャなどのマテリアルパラメータはmaterialInstanceへ移ったため
 		// メンバポインタでは登録せず、MaterialAnimationAccessorがreflection駆動で動的に扱う
 		Register(registry, "MeshRenderer", std::format("{}.uvPos", prefix).c_str(),
 			std::format("{}.uvPos", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,

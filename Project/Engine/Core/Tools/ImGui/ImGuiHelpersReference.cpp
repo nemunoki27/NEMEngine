@@ -20,6 +20,7 @@ namespace Engine {
 			switch (type) {
 			case AssetType::Texture:          return ".png/.jpg/.dds";
 			case AssetType::Material:         return ".material";
+			case AssetType::ShaderGraph:      return ".shadergraph";
 			case AssetType::Mesh:             return ".gltf/.obj";
 			case AssetType::Font:             return ".font";
 			case AssetType::Audio:            return ".wav/.mp3";

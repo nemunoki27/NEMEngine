@@ -12,6 +12,7 @@
 
 // c++
 #include <mutex>
+#include <string_view>
 #include <unordered_map>
 
 //============================================================================
@@ -30,19 +31,28 @@ namespace {
 	std::unordered_map<const Engine::AssetDatabase*,
 		std::unordered_map<Engine::AssetID, CachedMeshLayout>> gLayoutCaches;
 
-	// モデルのマテリアル係数とテクスチャをparameterOverridesへ流す、overwrite=falseは未設定のみ
+	// モデルのマテリアル係数とテクスチャをmaterialInstanceへ流す、overwrite=falseは未設定のみ
 	bool ApplyLayoutItemToSubMesh(Engine::SubMeshMaterial& subMesh,
 		const Engine::MeshSubMeshLayoutItem& item, bool overwrite) {
 
 		bool changed = false;
-		auto setParam = [&](const char* name, const Engine::MaterialParameterValue& value) {
-			if (!overwrite && subMesh.parameterOverrides.count(name)) {
+		auto setParam = [&](std::string_view name,
+			const Engine::MaterialParameterValue& value) {
+
+			const Engine::MaterialParameterID id =
+				Engine::MaterialParameterID::FromName(name);
+			if (!overwrite &&
+				subMesh.materialInstance.Find(id)) {
 				return;
 			}
-			subMesh.parameterOverrides[name] = value;
+			subMesh.materialInstance.Set(
+				id, name,
+				Engine::ResolveMaterialParameterSemantic(name),
+				value);
 			changed = true;
 			};
-		auto setTexture = [&](const char* name, const Engine::AssetID& texture) {
+		auto setTexture = [&](std::string_view name,
+			const Engine::AssetID& texture) {
 			if (!texture) {
 				return;
 			}
@@ -57,18 +67,18 @@ namespace {
 			Engine::MaterialParameterValue v{}; v.value = f; return v;
 			};
 
-		if (item.hasBaseColorFactor) { setParam("color", colorValue(item.baseColorFactor)); }
-		if (item.hasEmissiveFactor) { setParam("emissiveColor", colorValue(item.emissiveFactor)); }
-		if (item.hasMetallicFactor) { setParam("Metallic", floatValue(item.metallicFactor)); }
-		if (item.hasRoughnessFactor) { setParam("Roughness", floatValue(item.roughnessFactor)); }
+		if (item.hasBaseColorFactor) { setParam(Engine::MaterialParameterNames::BaseColor, colorValue(item.baseColorFactor)); }
+		if (item.hasEmissiveFactor) { setParam(Engine::MaterialParameterNames::EmissiveColor, colorValue(item.emissiveFactor)); }
+		if (item.hasMetallicFactor) { setParam(Engine::MaterialParameterNames::Metallic, floatValue(item.metallicFactor)); }
+		if (item.hasRoughnessFactor) { setParam(Engine::MaterialParameterNames::Roughness, floatValue(item.roughnessFactor)); }
 
 		const auto& tex = item.defaultTextureAssets;
-		setTexture("baseColorTexture", tex.baseColorTexture);
-		setTexture("normalTexture", tex.normalTexture);
-		setTexture("emissiveTexture", tex.emissiveTexture);
-		setTexture("metallicRoughnessTexture", tex.metallicRoughnessTexture);
-		setTexture("occlusionTexture", tex.occlusionTexture);
-		setTexture("specularTexture", tex.specularTexture);
+		setTexture(Engine::MaterialParameterNames::BaseColorTexture, tex.baseColorTexture);
+		setTexture(Engine::MaterialParameterNames::NormalTexture, tex.normalTexture);
+		setTexture(Engine::MaterialParameterNames::EmissiveTexture, tex.emissiveTexture);
+		setTexture(Engine::MaterialParameterNames::MetallicRoughnessTexture, tex.metallicRoughnessTexture);
+		setTexture(Engine::MaterialParameterNames::AmbientOcclusionTexture, tex.occlusionTexture);
+		setTexture(Engine::MaterialParameterNames::SpecularTexture, tex.specularTexture);
 		return changed;
 	}
 

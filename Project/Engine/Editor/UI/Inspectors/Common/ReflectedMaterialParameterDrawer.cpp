@@ -42,7 +42,7 @@ const Engine::ShaderReflectionInfo* Engine::ReflectedMaterialParameterDrawer::En
 
 Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureParameter(
 	const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID,
-	const std::unordered_map<std::string, MaterialParameterValue>& parameters,
+	const MaterialParameterSet& parameters,
 	const std::string& name) {
 
 	if (!EnsureMaterialReflection(context, materialID, defaultMaterialID)) {
@@ -52,32 +52,40 @@ Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureParamete
 }
 
 Engine::MaterialParameterValue Engine::ReflectedMaterialParameterDrawer::ResolveParamValue(
-	const std::unordered_map<std::string, MaterialParameterValue>& parameters,
+	const MaterialParameterSet& parameters,
 	const ShaderConstantBufferVariable& variable) const {
 
-	const auto overrideIt = parameters.find(variable.name);
-	if (overrideIt != parameters.end()) {
-		return overrideIt->second;
+	if (const MaterialParameterValue* value =
+		parameters.Find(variable.parameterID)) {
+
+		return *value;
 	}
-	const auto defaultIt = cachedMaterial_.parameters.find(variable.name);
-	return defaultIt != cachedMaterial_.parameters.end() ?
-		defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(variable);
+	if (const MaterialParameterValue* value =
+		cachedMaterial_.parameters.Find(variable.parameterID)) {
+
+		return *value;
+	}
+	return MaterialParameterEditor::DefaultValueForVariable(variable);
 }
 
 Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureValue(
-	const std::unordered_map<std::string, MaterialParameterValue>& parameters, const std::string& name) const {
+	const MaterialParameterSet& parameters, const std::string& name) const {
 
-	const auto overrideIt = parameters.find(name);
-	if (overrideIt != parameters.end()) {
-		if (const AssetID* textureID = std::get_if<AssetID>(&overrideIt->second.value)) {
+	const MaterialParameterID parameterID =
+		MaterialParameterID::FromName(name);
+	if (const MaterialParameterValue* value =
+		parameters.Find(parameterID)) {
+
+		if (const AssetID* textureID = std::get_if<AssetID>(&value->value)) {
 			if (*textureID) {
 				return *textureID;
 			}
 		}
 	}
-	const auto defaultIt = cachedMaterial_.parameters.find(name);
-	if (defaultIt != cachedMaterial_.parameters.end()) {
-		if (const AssetID* textureID = std::get_if<AssetID>(&defaultIt->second.value)) {
+	if (const MaterialParameterValue* value =
+		cachedMaterial_.parameters.Find(parameterID)) {
+
+		if (const AssetID* textureID = std::get_if<AssetID>(&value->value)) {
 			return *textureID;
 		}
 	}

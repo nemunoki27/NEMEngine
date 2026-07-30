@@ -34,6 +34,6 @@ namespace Engine {
 		bool useWorldSpace = true;
 
 		// エンティティごとのマテリアルパラメータ上書き、描画時に既定値へ重ねる
-		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+		const MaterialParameterSet* materialInstance = nullptr;
 	};
 } // Engine

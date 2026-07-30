@@ -80,7 +80,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
 		materialParameterDrawer_.Draw(context, draft.material,
-			DefaultMaterialSettings::GetInstance().GetTextOrBuiltin(), draft.parameterOverrides,
+			DefaultMaterialSettings::GetInstance().GetTextOrBuiltin(), draft.materialInstance,
 			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });
 	}
 	//============================================================================

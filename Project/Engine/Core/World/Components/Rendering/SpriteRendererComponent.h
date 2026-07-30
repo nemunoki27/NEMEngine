@@ -28,7 +28,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		MaterialParameterOverrides parameterOverrides{};
+		MaterialInstanceParameters materialInstance{};
 
 		// サイズ
 		Vector2 size = Vector2::AnyInit(32.0f);

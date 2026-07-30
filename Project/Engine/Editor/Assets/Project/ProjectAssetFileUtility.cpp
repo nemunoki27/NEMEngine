@@ -45,6 +45,7 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 	case ProjectAssetFileKind::AnimationClip: return "AnimationClip";
 	case ProjectAssetFileKind::Shader: return "Shader";
 	case ProjectAssetFileKind::RenderPipeline: return "Render Pipeline";
+	case ProjectAssetFileKind::ShaderGraph: return "Shader Graph";
 	}
 	return "Asset";
 }
@@ -61,6 +62,7 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 	case ProjectAssetFileKind::AnimationClip: return "NewAnimation";
 	case ProjectAssetFileKind::Shader: return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline: return "NewPipeline";
+	case ProjectAssetFileKind::ShaderGraph: return "NewShaderGraph";
 	}
 	return "NewAsset";
 }

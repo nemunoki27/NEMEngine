@@ -72,8 +72,9 @@ project "NEMEditor"
     links {
         "NEMCore",
         "imgui",
+        "imgui-node-editor",
     }
-    dependson { "NEMCore" }
+    dependson { "NEMCore", "imgui-node-editor" }
     debugdir (path.join(NEM_PROJECT_ROOT, "Sandbox"))
 
     filter "configurations:Release"

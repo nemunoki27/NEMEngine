@@ -397,6 +397,13 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 		[&](AssetID id) { settings.SetPrimitive(id); });
 	drawSlot("Primitive2D", settings.GetPrimitive2D(), settings.GetPrimitive2DOrBuiltin(),
 		[&](AssetID id) { settings.SetPrimitive2D(id); });
+	drawSlot(
+		"Raytracing Reflection",
+		settings.GetRaytracingReflection(),
+		settings.GetRaytracingReflectionOrBuiltin(),
+		[&](AssetID id) {
+			settings.SetRaytracingReflection(id);
+		});
 }
 
 void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolContext& context) {

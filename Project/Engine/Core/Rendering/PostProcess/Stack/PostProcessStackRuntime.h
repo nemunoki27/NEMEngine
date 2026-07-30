@@ -27,10 +27,32 @@ namespace Engine {
 		AssetID material{};
 		MaterialPassKind passKind = MaterialPassKind::PostProcess;
 		PostProcessAnchor anchor = PostProcessAnchor::AfterMaskedUI;
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
+		UUID sourcePass{};
+		bool graphOutput = false;
+		uint32_t targetMask = 0u;
+		MaterialParameterSet parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureGuids;
 		std::unordered_map<std::string, std::string> renderTargetInputs;
+		std::unordered_map<std::string, UUID> passInputs;
 		std::unordered_map<std::string, PipelineStaticSamplerSettings> samplerOverrides;
+	};
+
+	struct PostProcessGraphPlanNode {
+
+		const PostProcessStackRuntimePass* pass = nullptr;
+		UUID sourcePass{};
+	};
+
+	struct PostProcessGraphPlan {
+
+		std::vector<PostProcessGraphPlanNode> nodes;
+		UUID outputPass{};
+		std::string diagnostic;
+
+		bool IsValid() const {
+			return diagnostic.empty() &&
+				(!nodes.empty() || !outputPass);
+		}
 	};
 
 	// ランタイム実行用のPostProcessStack全体データ
@@ -40,5 +62,8 @@ namespace Engine {
 
 		// 指定アンカーに割り当てられた有効なパスが1つ以上あるか
 		bool HasEnabledPassesForAnchor(PostProcessAnchor anchor) const;
+		// 依存関係を検証し、実行可能な順序へ変換する
+		PostProcessGraphPlan BuildGraphPlan(
+			PostProcessAnchor anchor) const;
 	};
 } // Engine

@@ -30,7 +30,7 @@ void Engine::BuiltinRenderBackendBase::SyncAndBindRegistry(const PipelineState& 
 
 void Engine::BuiltinRenderBackendBase::BindMaterial(const RenderDrawContext& context,
 	const PipelineState& pipelineState, const MaterialAsset& material,
-	const std::unordered_map<std::string, MaterialParameterValue>* overrides,
+	const MaterialParameterSet* overrides,
 	ID3D12GraphicsCommandList* commandList) {
 
 	BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, pipelineState,

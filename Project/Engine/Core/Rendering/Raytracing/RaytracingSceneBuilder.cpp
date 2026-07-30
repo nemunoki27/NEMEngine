@@ -886,23 +886,43 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			if (hasMesh) {
 
 				const auto& authoring = subMeshes[subMeshIndex];
-				// RTはfixedなSubMeshShaderDataを使うのでparameterOverridesから既知名を取り出して詰める
-				const auto& params = authoring.parameterOverrides;
-				auto findColor = [&](const char* name, const Color4& fallback) -> Color4 {
-					auto it = params.find(name);
-					return (it != params.end() && std::holds_alternative<Color4>(it->second.value)) ?
-						std::get<Color4>(it->second.value) : fallback;
+				// RTはfixedなSubMeshShaderDataを使うので標準Parameter IDから値を詰める
+				const auto& params = authoring.materialInstance;
+				auto findColor = [&](MaterialParameterID id,
+					const Color4& fallback) -> Color4 {
+
+					const MaterialParameterValue* value =
+						params.Find(id);
+					return value &&
+						std::holds_alternative<Color4>(
+							value->value) ?
+						std::get<Color4>(value->value) :
+						fallback;
 					};
-				auto findFloat = [&](const char* name, float fallback) -> float {
-					auto it = params.find(name);
-					return (it != params.end() && std::holds_alternative<float>(it->second.value)) ?
-						std::get<float>(it->second.value) : fallback;
+				auto findFloat = [&](MaterialParameterID id,
+					float fallback) -> float {
+
+					const MaterialParameterValue* value =
+						params.Find(id);
+					return value &&
+						std::holds_alternative<float>(
+							value->value) ?
+						std::get<float>(value->value) :
+						fallback;
 					};
-				// テクスチャindexはMeshDrawPathCommonのresolverがparameterOverridesを見て解決済み
-				subMeshData.color = findColor("color", Color4::White());
-				subMeshData.emissiveColor = findColor("emissiveColor", Color4(0.0f, 0.0f, 0.0f, 0.0f));
-				subMeshData.metallic = findFloat("Metallic", subMeshData.metallic);
-				subMeshData.roughness = findFloat("Roughness", subMeshData.roughness);
+				// テクスチャindexはMeshDrawPathCommonのresolverがmaterialInstanceを見て解決済み
+				subMeshData.color = findColor(
+					MaterialParameterIDs::BaseColor,
+					Color4::White());
+				subMeshData.emissiveColor = findColor(
+					MaterialParameterIDs::EmissiveColor,
+					Color4(0.0f, 0.0f, 0.0f, 0.0f));
+				subMeshData.metallic = findFloat(
+					MaterialParameterIDs::Metallic,
+					subMeshData.metallic);
+				subMeshData.roughness = findFloat(
+					MaterialParameterIDs::Roughness,
+					subMeshData.roughness);
 				subMeshData.uvMatrix = MeshSubMeshRuntime::BuildUVMatrix(authoring);
 				subMeshData.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
 				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(subMeshData.localMatrix);

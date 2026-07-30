@@ -29,6 +29,7 @@ namespace Engine {
 		AnimationClip,
 		Shader,
 		RenderPipeline,
+		ShaderGraph,
 	};
 
 	//============================================================================

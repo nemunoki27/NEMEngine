@@ -88,3 +88,8 @@ public sealed class AnimationClip : Asset {
 public sealed class ParticleEffect : Asset {
     internal ParticleEffect(AssetGUID id) : base(id) { }
 }
+
+[NativeAssetType("ShaderGraph")]
+public sealed class ShaderGraph : Asset {
+    internal ShaderGraph(AssetGUID id) : base(id) { }
+}

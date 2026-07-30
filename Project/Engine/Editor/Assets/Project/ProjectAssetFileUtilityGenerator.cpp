@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 
 // c++
 #include <fstream>
@@ -24,6 +27,7 @@ namespace Engine {
 		case ProjectAssetFileKind::AnimationClip: return ".animClip.json";
 		case ProjectAssetFileKind::Shader: return ".shader.json";
 		case ProjectAssetFileKind::RenderPipeline: return ".pipeline.json";
+		case ProjectAssetFileKind::ShaderGraph: return ".shadergraph.json";
 		case ProjectAssetFileKind::Folder:
 		default: break;
 		}
@@ -81,14 +85,21 @@ namespace Engine {
 			// プレファイルでシーンと同様だがPrefab固有のメタ情報を含む
 			return std::format("{{\n  \"Entities\": [],\n  \"Header\": {{\n    \"guid\": \"\",\n    \"name\": \"{}\",\n    \"rootLocalFileID\": \"\",\n    \"version\": 1\n  }},\n  \"SchemaVersion\": 1\n}}\n", assetName);
 		case ProjectAssetFileKind::Material:
-			// マテリアルで標準のシェーダとパラメータを設定した状態で作成
-			return std::format("{{\n  \"name\": \"{}\",\n  \"domain\": \"Surface\",\n  \"passes\": [\n    {{\n      \"passKind\": \"ZPrepass\",\n      \"pipeline\": \"4e454d4153534554f09836087840b1d2\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }},\n    {{\n      \"passKind\": \"Draw\",\n      \"pipeline\": \"4e454d4153534554966f3e8a34595313\",\n      \"preferredVariant\": \"GraphicsMesh\"\n    }}\n  ],\n  \"parameters\": {{\n    \"BaseColor\": {{ \"r\": 1.0, \"g\": 1.0, \"b\": 1.0, \"a\": 1.0 }},\n    \"Metallic\": 0.0,\n    \"Roughness\": 0.5\n  }}\n}}\n", assetName);
+		{
+			// 標準PBRの型付き既定値からマテリアル雛形を生成する
+			return JsonAdapter::SerializeCanonical(
+				ToJson(CreateDefaultMeshMaterialAsset(assetName)), 2);
+		}
 		case ProjectAssetFileKind::AnimationClip:
 			return std::format("{{\n  \"guid\": \"\",\n  \"name\": \"{}\",\n  \"duration\": 1.0,\n  \"curveTracks\": [],\n  \"events\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::Shader:
 			return std::format("{{\n  \"name\": \"{}\",\n  \"stages\": []\n}}\n", assetName);
 		case ProjectAssetFileKind::RenderPipeline:
 			return std::format("{{\n  \"name\": \"{}\",\n  \"variants\": []\n}}\n", assetName);
+		case ProjectAssetFileKind::ShaderGraph:
+			// 新規グラフは標準PBRノードを接続済みの状態で作成する
+			return JsonAdapter::SerializeCanonical(
+				ToJson(CreateDefaultSurfaceShaderGraph(assetName)), 2);
 		case ProjectAssetFileKind::Text: return "";
 		case ProjectAssetFileKind::Folder:
 		default: break;

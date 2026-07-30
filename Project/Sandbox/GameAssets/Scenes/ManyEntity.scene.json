@@ -38,7 +38,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -141,7 +141,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -344,7 +344,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -497,7 +497,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -600,7 +600,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -703,7 +703,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -906,7 +906,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1009,7 +1009,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1112,7 +1112,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1215,7 +1215,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1318,7 +1318,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1471,7 +1471,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1574,7 +1574,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1677,7 +1677,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -1880,7 +1880,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2033,7 +2033,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2136,7 +2136,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2239,7 +2239,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2392,7 +2392,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2595,7 +2595,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2698,7 +2698,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -2951,7 +2951,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3054,7 +3054,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3157,7 +3157,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3260,7 +3260,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3363,7 +3363,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3466,7 +3466,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3669,7 +3669,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -3872,7 +3872,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -4025,7 +4025,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -4378,7 +4378,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -4481,7 +4481,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -4730,7 +4730,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -4833,7 +4833,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -5036,7 +5036,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -5289,7 +5289,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -5392,7 +5392,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -5495,7 +5495,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -5848,7 +5848,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6101,7 +6101,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6204,7 +6204,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6457,7 +6457,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6560,7 +6560,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6663,7 +6663,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6766,7 +6766,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -6919,7 +6919,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -7022,7 +7022,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -7175,7 +7175,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -7578,7 +7578,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -7731,7 +7731,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -7834,7 +7834,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -7937,7 +7937,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -8140,7 +8140,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -8293,7 +8293,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -8446,7 +8446,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -8699,7 +8699,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -8802,7 +8802,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -8955,7 +8955,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9058,7 +9058,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9261,7 +9261,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9364,7 +9364,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9467,7 +9467,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9570,7 +9570,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9673,7 +9673,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9776,7 +9776,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9879,7 +9879,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -9982,7 +9982,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10085,7 +10085,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10188,7 +10188,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10341,7 +10341,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10494,7 +10494,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10647,7 +10647,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10750,7 +10750,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10853,7 +10853,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -10956,7 +10956,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -11059,7 +11059,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -11212,7 +11212,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -11615,7 +11615,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -11718,7 +11718,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -11871,7 +11871,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12074,7 +12074,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12177,7 +12177,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12280,7 +12280,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12433,7 +12433,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12536,7 +12536,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12689,7 +12689,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -12842,7 +12842,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13045,7 +13045,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13148,7 +13148,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13251,7 +13251,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13404,7 +13404,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13657,7 +13657,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13760,7 +13760,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -13913,7 +13913,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -14066,7 +14066,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -14169,7 +14169,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -14272,7 +14272,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -14625,7 +14625,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -14828,7 +14828,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -14931,7 +14931,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15034,7 +15034,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15137,7 +15137,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15240,7 +15240,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15343,7 +15343,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15446,7 +15446,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15649,7 +15649,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -15952,7 +15952,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -16055,7 +16055,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -16208,7 +16208,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -16361,7 +16361,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -16564,7 +16564,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -16767,7 +16767,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -16870,7 +16870,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17023,7 +17023,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17126,7 +17126,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17279,7 +17279,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17382,7 +17382,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17485,7 +17485,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17588,7 +17588,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17791,7 +17791,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17894,7 +17894,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -17997,7 +17997,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -18186,7 +18186,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -18339,7 +18339,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -18492,7 +18492,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -18745,7 +18745,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -18898,7 +18898,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19001,7 +19001,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19154,7 +19154,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19407,7 +19407,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19560,7 +19560,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19663,7 +19663,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19816,7 +19816,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -19969,7 +19969,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20072,7 +20072,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20175,7 +20175,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20278,7 +20278,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20431,7 +20431,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20534,7 +20534,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20637,7 +20637,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20790,7 +20790,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -20943,7 +20943,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21046,7 +21046,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21199,7 +21199,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21302,7 +21302,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21405,7 +21405,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21508,7 +21508,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21611,7 +21611,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -21811,7 +21811,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -22064,7 +22064,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -22167,7 +22167,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -22320,7 +22320,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -22423,7 +22423,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -22626,7 +22626,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -22829,7 +22829,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23032,7 +23032,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23135,7 +23135,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23238,7 +23238,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23391,7 +23391,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23494,7 +23494,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23597,7 +23597,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23700,7 +23700,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23803,7 +23803,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -23906,7 +23906,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24059,7 +24059,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24162,7 +24162,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24265,7 +24265,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24518,7 +24518,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24621,7 +24621,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24774,7 +24774,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24877,7 +24877,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -24980,7 +24980,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -25083,7 +25083,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -25236,7 +25236,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -25489,7 +25489,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -25592,7 +25592,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -25845,7 +25845,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -25948,7 +25948,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -26051,7 +26051,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -26154,7 +26154,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -26307,7 +26307,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -26410,7 +26410,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -26563,7 +26563,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -26866,7 +26866,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27019,7 +27019,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27122,7 +27122,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27375,7 +27375,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27478,7 +27478,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27631,7 +27631,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27784,7 +27784,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27887,7 +27887,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -27990,7 +27990,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -28093,7 +28093,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -28196,7 +28196,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -28349,7 +28349,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -28702,7 +28702,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -29105,7 +29105,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -29258,7 +29258,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -29361,7 +29361,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -29514,7 +29514,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -29667,7 +29667,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -29770,7 +29770,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30073,7 +30073,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30176,7 +30176,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30279,7 +30279,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30382,7 +30382,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30485,7 +30485,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30688,7 +30688,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30841,7 +30841,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -30994,7 +30994,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31097,7 +31097,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31300,7 +31300,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31403,7 +31403,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31506,7 +31506,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31659,7 +31659,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31762,7 +31762,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -31915,7 +31915,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -32068,7 +32068,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -32221,7 +32221,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -32324,7 +32324,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -32427,7 +32427,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -32769,7 +32769,7 @@
                     "lighting": true,
                     "material": "",
                     "order": 0,
-                    "parameterOverrides": {
+                    "materialInstance": {
                         "Metallic": 0,
                         "Roughness": 1,
                         "baseColorTexture": "4e454d4153534554cf3513fc74564db7",
@@ -32934,7 +32934,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -33037,7 +33037,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -33140,7 +33140,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,
@@ -33243,7 +33243,7 @@
                                 "z": 1.0
                             },
                             "name": "mesh",
-                            "parameterOverrides": {
+                            "materialInstance": {
                                 "baseColorTexture": "4e454d415353455436762d22cf755749",
                                 "color": {
                                     "a": 1.0,

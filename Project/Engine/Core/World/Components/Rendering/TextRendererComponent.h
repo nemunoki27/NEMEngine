@@ -83,7 +83,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ上書き、reflection駆動で描画/アニメーションに使う
-		MaterialParameterOverrides parameterOverrides{};
+		MaterialInstanceParameters materialInstance{};
 		// 描画するテキスト
 		std::string text = "Text";
 

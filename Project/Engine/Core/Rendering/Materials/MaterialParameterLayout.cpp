@@ -46,6 +46,11 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 			const uint32_t declaredEnd = variable.offset + GetDeclaredVariableByteSize(variable);
 			sizeInBytes_ = (std::max)(sizeInBytes_, declaredEnd);
 		}
+		std::sort(variables_.begin(), variables_.end(),
+			[](const ShaderConstantBufferVariable& lhs,
+				const ShaderConstantBufferVariable& rhs) {
+				return lhs.parameterID.value < rhs.parameterID.value;
+			});
 		sizeInBytes_ = AlignConstantBufferSize(sizeInBytes_);
 		return;
 	}
@@ -57,5 +62,21 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 		bindPoint_ = structuredBuffer->bindPoint;
 		space_ = structuredBuffer->space;
 		variables_ = structuredBuffer->variables;
+		std::sort(variables_.begin(), variables_.end(),
+			[](const ShaderConstantBufferVariable& lhs,
+				const ShaderConstantBufferVariable& rhs) {
+				return lhs.parameterID.value < rhs.parameterID.value;
+			});
 	}
+}
+
+const Engine::ShaderConstantBufferVariable*
+Engine::MaterialParameterLayout::Find(MaterialParameterID id) const {
+
+	const auto position = std::lower_bound(variables_.begin(), variables_.end(), id.value,
+		[](const ShaderConstantBufferVariable& variable, uint64_t target) {
+			return variable.parameterID.value < target;
+		});
+	return position != variables_.end() && position->parameterID == id ?
+		&*position : nullptr;
 }

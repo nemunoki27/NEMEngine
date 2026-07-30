@@ -75,7 +75,7 @@ namespace Engine::MeshSubMeshAuthoring {
 	bool SyncEntity(AssetDatabase* assetDatabase, ECSWorld& world,
 		const Entity& entity, bool preserveOverrides);
 
-	// モデルのマテリアル係数とテクスチャをparameterOverridesへ再適用する、reload用に上書きする
+	// モデルのマテリアル係数とテクスチャをmaterialInstanceへ再適用する、reload用に上書きする
 	void ApplyModelMaterialParameters(const std::vector<MeshSubMeshLayoutItem>& layout,
 		std::span<SubMeshMaterial> subMeshes);
 

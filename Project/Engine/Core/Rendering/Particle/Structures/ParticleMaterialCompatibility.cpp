@@ -3,10 +3,15 @@
 //============================================================================
 //	ParticleMaterialCompatibility internal
 //============================================================================
+#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
+
+// c++
+#include <string_view>
+
 namespace {
 
 	// 指定名のシェーダーリソースが存在するか確認する
-	bool HasResource(const Engine::ShaderReflectionInfo& reflection, const char* name,
+	bool HasResource(const Engine::ShaderReflectionInfo& reflection, std::string_view name,
 		Engine::ShaderBindingKind kind) {
 
 		for (const Engine::ShaderResourceBinding& resource : reflection.resources) {
@@ -52,7 +57,8 @@ Engine::ParticleMaterialCompatibilityResult Engine::CheckParticleMaterialCompati
 
 	bool hasBaseColorTexture = false;
 	for (const ShaderResourceBinding& resource : reflection->resources) {
-		if (resource.name == "baseColorTexture" && resource.kind == ShaderBindingKind::SRV &&
+		if (resource.name == MaterialParameterNames::BaseColorTexture &&
+			resource.kind == ShaderBindingKind::SRV &&
 			resource.space == 2 && resource.rawType == D3D_SIT_TEXTURE) {
 
 			hasBaseColorTexture = true;

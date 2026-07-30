@@ -481,21 +481,59 @@ void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
 void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 
 	// マテリアルキャッシュを破棄して次フレームのLoadMaterialでファイルから読み直させる
-	// インスペクタでの編集を実行中に即反映するため
+	// DXRのパス構成もMaterial内にあるためState Objectも再解決する
 	renderAssetLibrary_.InvalidateMaterial(materialAssetID);
+	materialRenderStateCache_.erase(materialAssetID);
+	raytracingPipelineStateCache_.Clear();
+	PostProcessStackService::GetInstance().ClearReflection(materialAssetID);
+}
+
+void RenderPipelineRunner::ApplyMaterialRenderStates() {
+
+	for (RenderItem& item : renderBatch_.GetMutableItems()) {
+
+		if (!item.material) {
+			continue;
+		}
+
+		auto found = materialRenderStateCache_.find(item.material);
+		if (found == materialRenderStateCache_.end()) {
+			const MaterialAsset* material =
+				renderAssetLibrary_.LoadMaterial(item.material);
+			const MaterialRenderState state =
+				material ? material->renderState :
+				MaterialRenderState{};
+			found = materialRenderStateCache_.
+				emplace(item.material, state).first;
+		}
+
+		// 既定MaterialはRenderer設定を保ち、状態を所有するMaterialだけを適用する
+		const MaterialRenderState& state = found->second;
+		if (state.overridesRenderer) {
+			item.renderPhase = state.phase;
+			item.blendMode = state.blendMode;
+		}
+	}
 }
 
 void RenderPipelineRunner::ReloadShader(AssetID shaderAssetID) {
 
-	// 新PSO生成に失敗した場合は退避した旧PSOを継続使用する
+	// Raster/Compute/DXRが同じShaderAssetを参照できるため全実行キャッシュを無効化する
 	renderAssetLibrary_.InvalidateShader(shaderAssetID);
 	pipelineStateCache_.InvalidateByShaderAsset(shaderAssetID);
+	raytracingPipelineStateCache_.Clear();
+	postProcessExecutor_.ClearParameterLayoutCache();
+	PostProcessStackService::GetInstance().ClearReflectionCache();
 }
 
 void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
 
 	renderAssetLibrary_.InvalidatePipeline(pipelineAssetID);
 	pipelineStateCache_.InvalidateByPipelineAsset(pipelineAssetID);
+	raytracingPipelineStateCache_.InvalidateByPipelineAsset(
+		pipelineAssetID);
+	postProcessExecutor_.ClearParameterLayoutCache();
+	PostProcessStackService::GetInstance().ClearReflectionCache();
 }
 
 void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID) {
@@ -596,6 +634,7 @@ void RenderPipelineRunner::Finalize() {
 	gameViewState_.lightBuffers.Release();
 	sceneViewState_.lightBuffers.Release();
 	previewLightBufferPool_.Clear();
+	materialRenderStateCache_.clear();
 	if (viewportRenderService_) {
 		viewportRenderService_->Finalize();
 		viewportRenderService_.reset();
@@ -666,6 +705,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// 描画アイテムの抽出
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
+	ApplyMaterialRenderStates();
 	// ライト抽出
 	lightExtractorRegistry_.BuildBatch(*request.world, frameLightBatch_);
 

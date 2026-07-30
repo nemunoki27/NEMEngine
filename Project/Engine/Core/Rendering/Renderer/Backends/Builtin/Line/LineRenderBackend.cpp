@@ -129,7 +129,7 @@ void Engine::LineRenderBackend::DrawBatch(const RenderDrawContext& context,
 		const LineRenderPayload* firstPayload = context.batch->GetPayload<LineRenderPayload>(*items.front());
 		if (resolvedPass.material) {
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
-				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
+				*resolvedPass.material, firstPayload ? firstPayload->materialInstance : nullptr,
 				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする

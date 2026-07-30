@@ -229,27 +229,6 @@ namespace {
 			}, parameter.value);
 	}
 
-	// よく使うMesh用MaterialのPass構成を設定する
-	void ApplyDefaultMeshMaterialTemplate(Engine::MaterialAsset& material) {
-
-		material.domain = Engine::MaterialDomain::Surface;
-		material.passes.clear();
-
-		material.passes.push_back({
-			.passKind = Engine::MaterialPassKind::ZPrepass,
-			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMeshZPrepass,
-			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
-			});
-		material.passes.push_back({
-			.passKind = Engine::MaterialPassKind::Draw,
-			.pipeline = Engine::BuiltinAssets::Pipelines::DefaultMesh,
-			.preferredVariant = Engine::PipelineVariantKind::GraphicsMesh,
-			});
-
-		material.parameters.try_emplace("BaseColor", Engine::MaterialParameterValue{ .value = Engine::Color4::White() });
-		material.parameters.try_emplace("Metallic", Engine::MaterialParameterValue{ .value = 0.0f });
-		material.parameters.try_emplace("Roughness", Engine::MaterialParameterValue{ .value = 0.5f });
-	}
 }
 
 Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool primaryInstance) {
@@ -767,7 +746,9 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 
 	if (ImGui::Button("Use Mesh Template", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
-		ApplyDefaultMeshMaterialTemplate(materialDraft_);
+		const AssetID guid = materialDraft_.guid;
+		materialDraft_ = CreateDefaultMeshMaterialAsset(materialDraft_.name);
+		materialDraft_.guid = guid;
 		saveRequested = true;
 	}
 
@@ -945,12 +926,18 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 
 		if (ImGui::Button("Add BaseColor", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
-			materialDraft_.parameters["BaseColor"] = MaterialParameterValue{ .value = Color4::White() };
+			materialDraft_.parameters.Set(MaterialParameterIDs::BaseColor,
+				MaterialParameterNames::BaseColor,
+				MaterialParameterSemantic::BaseColor,
+				MaterialParameterValue{ .value = Color4::White() });
 			saveRequested = true;
 		}
 		if (ImGui::Button("Add MainTexture", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 
-			materialDraft_.parameters["MainTexture"] = MaterialParameterValue{ .value = AssetID{} };
+			materialDraft_.parameters.Set(MaterialParameterIDs::BaseColorTexture,
+				MaterialParameterNames::BaseColorTexture,
+				MaterialParameterSemantic::BaseColorTexture,
+				MaterialParameterValue{ .value = AssetID{} });
 			saveRequested = true;
 		}
 		if (ImGui::Button("Add Float", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {

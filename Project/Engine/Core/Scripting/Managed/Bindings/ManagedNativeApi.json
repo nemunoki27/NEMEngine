@@ -553,14 +553,19 @@
       "managedType": "delegate* unmanaged[Cdecl]<int, void>"
     },
     {
-      "name": "setRendererMaterialColor",
-      "nativeType": "SetRendererColorCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, float, float, float, float, void>"
+      "name": "setRendererMaterialParameter",
+      "nativeType": "SetRendererMaterialParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*, int>"
     },
     {
-      "name": "getRendererMaterialColor",
-      "nativeType": "GetRendererColorCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeColor4>"
+      "name": "getRendererMaterialParameter",
+      "nativeType": "GetRendererMaterialParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "clearRendererMaterialParameter",
+      "nativeType": "ClearRendererMaterialParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int>"
     },
     {
       "name": "fillMeshSetPositions",

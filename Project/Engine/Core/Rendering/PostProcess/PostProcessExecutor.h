@@ -71,7 +71,7 @@ namespace Engine {
 		RenderTargetSetReference source;
 		RenderTargetSetReference dest;
 		std::unordered_map<std::string, std::string> extraSources;
-		std::unordered_map<std::string, MaterialParameterValue> parameterOverrides;
+		MaterialParameterSet parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureOverrides;
 		std::unordered_map<std::string, PipelineStaticSamplerSettings> samplerOverrides;
 		ComputeDispatchMode dispatchMode = ComputeDispatchMode::FromDestSize;

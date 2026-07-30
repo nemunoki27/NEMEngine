@@ -17,6 +17,9 @@ static const uint kMaterialFlagLighting = 1u << 1;
 static const uint kMaterialFlagReceiveShadow = 1u << 2;
 static const uint kMaterialFlagReceiveIBL = 1u << 3;
 static const uint kMaterialFlagReceiveReflection = 1u << 4;
+// 上位24bitはRendererの描画対象マスクとして保持する
+static const uint kRenderingLayerMaskShift = 8u;
+static const uint kRenderingLayerMaskBits = 0x00FFFFFFu;
 // フラグを持たない描画で使う全適用のデフォルト値
 static const uint kMaterialFlagLightingDefault =
 	kMaterialFlagLighting | kMaterialFlagReceiveShadow | kMaterialFlagReceiveIBL | kMaterialFlagReceiveReflection;
@@ -63,7 +66,18 @@ uint BuildMaterialFlags(uint instanceFlags) {
 	if (instanceFlags & MESH_INSTANCE_FLAG_RECEIVE_REFLECTION) {
 		flags |= kMaterialFlagReceiveReflection;
 	}
+	flags |= instanceFlags &
+		(kRenderingLayerMaskBits <<
+			kRenderingLayerMaskShift);
 	return flags;
+}
+
+uint PackRenderingLayerMask(
+	uint renderingLayerMask) {
+
+	return (renderingLayerMask &
+		kRenderingLayerMaskBits) <<
+		kRenderingLayerMaskShift;
 }
 
 // メッシュサーフェイスをGBufferに設定して返す

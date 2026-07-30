@@ -10,6 +10,7 @@
 #include <array>
 #include <span>
 #include <string>
+#include <string_view>
 
 //============================================================================
 //	ParticleCustomShaderParameterModule internal
@@ -19,7 +20,19 @@ namespace {
 	// リフレクション情報と変数名から色パラメータか判定
 	bool IsColorParameter(const Engine::ShaderConstantBufferVariable& variable) {
 
-		return variable.isColor || variable.name.find("Color") != std::string::npos;
+		if (variable.isColor) {
+			return true;
+		}
+		constexpr std::string_view kColor = "color";
+		return std::search(variable.name.begin(), variable.name.end(),
+			kColor.begin(), kColor.end(),
+			[](char lhs, char rhs) {
+				const auto toLower = [](char value) {
+					return value >= 'A' && value <= 'Z' ?
+						static_cast<char>(value + ('a' - 'A')) : value;
+					};
+				return toLower(lhs) == rhs;
+			}) != variable.name.end();
 	}
 
 	// パラメータの構成要素からカーブ編集用の参照を生成する

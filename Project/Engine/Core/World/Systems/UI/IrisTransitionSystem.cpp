@@ -404,12 +404,12 @@ void Engine::IrisTransitionSystem::UpdateRenderEntity(ECSWorld& world, bool visi
 	sprite->size = viewportSize;
 	sprite->visible = visible;
 	sprite->material = BuiltinAssets::Materials::IrisTransition;
-	sprite->parameterOverrides["transitionColor"].value = settings_.transitionColor;
-	sprite->parameterOverrides["center"].value = settings_.screenPosition;
-	sprite->parameterOverrides["progress"].value = std::clamp(progress_, 0.0f, 1.0f);
-	sprite->parameterOverrides["edgeSoftness"].value = (std::max)(settings_.edgeSoftness, 0.0f);
-	sprite->parameterOverrides["viewportSize"].value = viewportSize;
-	sprite->parameterOverrides["invertMask"].value = settings_.invertMask ? 1.0f : 0.0f;
+	sprite->materialInstance["transitionColor"].value = settings_.transitionColor;
+	sprite->materialInstance["center"].value = settings_.screenPosition;
+	sprite->materialInstance["progress"].value = std::clamp(progress_, 0.0f, 1.0f);
+	sprite->materialInstance["edgeSoftness"].value = (std::max)(settings_.edgeSoftness, 0.0f);
+	sprite->materialInstance["viewportSize"].value = viewportSize;
+	sprite->materialInstance["invertMask"].value = settings_.invertMask ? 1.0f : 0.0f;
 }
 
 void Engine::IrisTransitionSystem::SyncComponentRuntime(ECSWorld& world) {

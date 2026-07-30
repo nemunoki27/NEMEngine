@@ -6,6 +6,9 @@
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
+// c++
+#include <span>
+
 namespace Engine {
 
 	//============================================================================
@@ -22,6 +25,16 @@ namespace Engine {
 		std::string entry = "main";
 		std::string profile;
 	};
+	// HLSL変数名とMaterial Instanceの安定IDを対応付けるメタデータ
+	struct ShaderParameterMetadata {
+
+		std::string shaderName;
+		std::string displayName;
+		MaterialParameterID id{};
+		MaterialParameterSemantic semantic =
+			MaterialParameterSemantic::None;
+		bool isColor = false;
+	};
 	// シェーダーアセットの情報
 	struct ShaderAsset {
 
@@ -34,6 +47,8 @@ namespace Engine {
 		std::vector<ShaderStageEntry> stages;
 		// 色として編集するマテリアルパラメータ名、reflectionに色情報が無いのでここで宣言する
 		std::vector<std::string> colorParameters;
+		// Shader Graph等が生成した安定IDと表示情報
+		std::vector<ShaderParameterMetadata> parameters;
 	};
 
 	// json変換
@@ -42,4 +57,8 @@ namespace Engine {
 
 	// シェーダーステージを検索する
 	const ShaderStageEntry* FindShaderStage(const ShaderAsset& asset, ShaderStage stage);
+	// Shader Assetのメタデータをコンパイル済みReflectionへ反映する
+	void ApplyShaderParameterMetadata(
+		ShaderReflectionInfo& reflection,
+		const ShaderAsset& asset);
 } // Engine

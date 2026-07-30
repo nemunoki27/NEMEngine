@@ -382,6 +382,90 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 		service.RebuildRuntime();
 	}
 
+	// 主入力は空なら一覧上の直前、明示時は選択したパス出力を使う
+	const auto findPassName =
+		[&](UUID id) -> const char* {
+
+		for (const PostProcessStackPassSettings& candidate :
+			passes) {
+
+			if (candidate.id == id) {
+				return candidate.name.c_str();
+			}
+		}
+		return "(参照なし)";
+		};
+	const char* sourcePreview =
+		pass.sourcePass ?
+		findPassName(pass.sourcePass) :
+		"直前のパス";
+	if (ImGui::BeginCombo(
+		"主入力", sourcePreview)) {
+
+		if (ImGui::Selectable(
+			"直前のパス", !pass.sourcePass)) {
+
+			pass.sourcePass = {};
+			service.MarkDirty();
+			service.RebuildRuntime();
+		}
+		for (const PostProcessStackPassSettings& candidate :
+			passes) {
+
+			if (candidate.id == pass.id ||
+				candidate.anchor != pass.anchor) {
+				continue;
+			}
+			if (ImGui::Selectable(
+				candidate.name.c_str(),
+				pass.sourcePass == candidate.id)) {
+
+				pass.sourcePass = candidate.id;
+				service.MarkDirty();
+				service.RebuildRuntime();
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	bool graphOutput = pass.graphOutput;
+	if (MyGUI::Checkbox(
+		"最終出力", graphOutput)) {
+
+		pass.graphOutput = graphOutput;
+		if (graphOutput) {
+			for (PostProcessStackPassSettings& candidate :
+				passes) {
+
+				if (candidate.id != pass.id &&
+					candidate.anchor == pass.anchor) {
+					candidate.graphOutput = false;
+				}
+			}
+		}
+		service.MarkDirty();
+		service.RebuildRuntime();
+	}
+
+	int32_t targetMask =
+		static_cast<int32_t>(pass.targetMask);
+	if (MyGUI::DragInt(
+		"対象マスク", targetMask,
+		{ .minValue = 0,
+		  .maxValue = static_cast<int32_t>(
+			  kRenderingLayerMaskBits) }).valueChanged) {
+
+		pass.targetMask =
+			static_cast<uint32_t>(targetMask);
+		service.MarkDirty();
+		service.RebuildRuntime();
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip(
+			"0は全画面、1以上はMesh、Primitive、FillMeshの不透明描画で"
+			"\n描画対象マスクと一致する画素だけへ適用します");
+	}
+
 	ImGui::Separator();
 
 	// マテリアル参照フィールド
@@ -459,6 +543,48 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 
 			ImGui::PushID(srv.name.c_str());
 
+			// 任意の先行パス出力をSRVへ接続する
+			auto passInput =
+				pass.passInputs.find(srv.name);
+			const UUID currentPassInput =
+				passInput != pass.passInputs.end() ?
+				passInput->second : UUID{};
+			const std::string passLabel =
+				srv.name + " (パス出力)";
+			if (ImGui::BeginCombo(
+				passLabel.c_str(),
+				currentPassInput ?
+				findPassName(currentPassInput) :
+				"(なし)")) {
+
+				if (ImGui::Selectable(
+					"(なし)", !currentPassInput)) {
+
+					pass.passInputs.erase(srv.name);
+					anySRVChanged = true;
+				}
+				for (const PostProcessStackPassSettings&
+					candidate : passes) {
+
+					if (candidate.id == pass.id ||
+						candidate.anchor != pass.anchor) {
+						continue;
+					}
+					if (ImGui::Selectable(
+						candidate.name.c_str(),
+						currentPassInput ==
+							candidate.id)) {
+
+						pass.passInputs[srv.name] =
+							candidate.id;
+						pass.renderTargetInputs.erase(
+							srv.name);
+						anySRVChanged = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+
 			// 中間RT(GBuffer/深度など)の割り当て、設定すると.pngより優先される
 			auto rtIt = pass.renderTargetInputs.find(srv.name);
 			const std::string currentRT = (rtIt != pass.renderTargetInputs.end()) ? rtIt->second : std::string();
@@ -472,6 +598,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 				for (const char* sourceName : kPostProcessInputSources) {
 					if (ImGui::Selectable(sourceName, currentRT == sourceName)) {
 						pass.renderTargetInputs[srv.name] = sourceName;
+						pass.passInputs.erase(srv.name);
 						anySRVChanged = true;
 					}
 				}

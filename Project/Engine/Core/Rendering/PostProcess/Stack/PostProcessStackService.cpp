@@ -113,9 +113,13 @@ void Engine::PostProcessStackService::RebuildRuntime() {
 		runtimePass.material = passSetting.materialGuid;
 		runtimePass.passKind = passSetting.passKind;
 		runtimePass.anchor = passSetting.anchor;
+		runtimePass.sourcePass = passSetting.sourcePass;
+		runtimePass.graphOutput = passSetting.graphOutput;
+		runtimePass.targetMask = passSetting.targetMask;
 		runtimePass.parameterOverrides = passSetting.parameterOverrides;
 		runtimePass.textureGuids = passSetting.textureGuids;
 		runtimePass.renderTargetInputs = passSetting.renderTargetInputs;
+		runtimePass.passInputs = passSetting.passInputs;
 		runtimePass.samplerOverrides = passSetting.samplerOverrides;
 		runtime_.passes.emplace_back(std::move(runtimePass));
 	}
@@ -163,6 +167,14 @@ void PostProcessStackService::ClearReflection(AssetID materialID) {
 	reflectionVars_.erase(materialID);
 	reflectionSRVs_.erase(materialID);
 	reflectionSamplers_.erase(materialID);
+}
+
+void PostProcessStackService::ClearReflectionCache() {
+
+	reflectionVars_.clear();
+	reflectionSRVs_.clear();
+	reflectionSamplers_.clear();
+	pendingReflectionReloads_.clear();
 }
 
 void Engine::PostProcessStackService::RequestShaderReload(AssetID materialID) {

@@ -141,6 +141,22 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		drawRenderFlagField("IBLを受ける", MeshRenderFlags::ReceiveIBL);
 		drawRenderFlagField("反射に映す", MeshRenderFlags::CastReflection);
 		drawRenderFlagField("反射を受ける", MeshRenderFlags::ReceiveReflection);
+		DrawField(anyItemActive, [&]() {
+			int32_t mask =
+				static_cast<int32_t>(
+					draft.renderingLayerMask);
+			ValueEditResult result =
+				MyGUI::DragInt(
+					"描画対象マスク", mask,
+					{ .minValue = 0,
+					  .maxValue = static_cast<int32_t>(
+						  kRenderingLayerMaskBits) });
+			if (result.valueChanged) {
+				draft.renderingLayerMask =
+					static_cast<uint32_t>(mask);
+			}
+			return result;
+			});
 	}
 
 	// 一番下に全サブメッシュ同時編集UIを置く
@@ -346,8 +362,8 @@ const Engine::ShaderReflectionInfo* Engine::MeshRendererInspectorDrawer::EnsureM
 Engine::MaterialParameterValue Engine::MeshRendererInspectorDrawer::ResolveSubMeshParamValue(
 	const SubMeshMaterial& subMesh, const ShaderConstantBufferVariable& var) const {
 
-	auto it = subMesh.parameterOverrides.find(var.name);
-	if (it != subMesh.parameterOverrides.end()) {
+	auto it = subMesh.materialInstance.find(var.name);
+	if (it != subMesh.materialInstance.end()) {
 		return it->second;
 	}
 	auto defaultIt = cachedMaterial_.parameters.find(var.name);
@@ -400,7 +416,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	// 編集確定値を全サブメッシュへ書き込む
 	auto applyToAll = [&](const std::string& name, const MaterialParameterValue& value) {
 		for (SubMeshMaterial& subMesh : subMeshDraft_) {
-			subMesh.parameterOverrides[name] = value;
+			subMesh.materialInstance[name] = value;
 		}
 		};
 
@@ -529,7 +545,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 			// valueChangedでプレビュー更新、editFinishedでcommitされUndo/dirtyに乗る
 			Engine::ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
 			if (result.valueChanged) {
-				subMesh.parameterOverrides[var.name] = value;
+				subMesh.materialInstance[var.name] = value;
 			}
 			return result;
 			});
@@ -541,9 +557,9 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 		if (!var.used || !MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
-		auto it = subMesh.parameterOverrides.find(var.name);
+		auto it = subMesh.materialInstance.find(var.name);
 		AssetID textureID{};
-		if (it != subMesh.parameterOverrides.end() && std::holds_alternative<AssetID>(it->second.value)) {
+		if (it != subMesh.materialInstance.end() && std::holds_alternative<AssetID>(it->second.value)) {
 			textureID = std::get<AssetID>(it->second.value);
 		}
 		DrawField(anyItemActive, [&]() {
@@ -555,7 +571,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;
-				subMesh.parameterOverrides[var.name] = value;
+				subMesh.materialInstance[var.name] = value;
 			}
 			return result;
 			});

@@ -400,7 +400,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		if (resolvedPass.material) {
 			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
-				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
+				*resolvedPass.material, firstPayload ? firstPayload->materialInstance : nullptr,
 				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする、Builtinはspace2無で無回帰
@@ -408,7 +408,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 			const TextRenderPayload* firstPayload = context.batch->GetPayload<TextRenderPayload>(*items.front());
 			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, materialParamBinder_,
 				*resolvedPass.material, commandList,
-				firstPayload ? firstPayload->materialOverrides : nullptr);
+				firstPayload ? firstPayload->materialInstance : nullptr);
 		}
 	}
 

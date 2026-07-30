@@ -9,6 +9,10 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
+#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackRuntime.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
@@ -916,6 +920,125 @@ namespace {
 			!Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
 				534.1f, 0.1f, 0.1f);
 	}
+
+	bool TestMaterialParameters() {
+
+		Engine::MaterialParameterSet parameters{};
+		Engine::MaterialParameterValue color{};
+		color.value = Engine::Color4(0.25f, 0.5f, 0.75f, 1.0f);
+		parameters.Set(
+			Engine::MaterialParameterIDs::BaseColor,
+			Engine::MaterialParameterNames::BaseColor,
+			Engine::MaterialParameterSemantic::BaseColor,
+			color);
+
+		const Engine::MaterialParameterValue* byID =
+			parameters.Find(Engine::MaterialParameterIDs::BaseColor);
+		const Engine::MaterialParameterValue* bySemantic =
+			parameters.Find(Engine::MaterialParameterSemantic::BaseColor);
+		const uint64_t hash = parameters.GetContentHash();
+		if (!byID || !bySemantic || byID != bySemantic || hash == 0 ||
+			parameters.GetContentHash() != hash) {
+
+			return false;
+		}
+
+		Engine::MaterialParameterValue* mutableColor =
+			parameters.Find(
+				Engine::MaterialParameterIDs::BaseColor);
+		if (!mutableColor) {
+			return false;
+		}
+		mutableColor->value =
+			Engine::Color4(1.0f, 0.5f, 0.75f, 1.0f);
+		return parameters.GetContentHash() != hash;
+	}
+
+	bool TestShaderGraphCompile() {
+
+		Engine::ShaderGraphAsset graph =
+			Engine::CreateDefaultSurfaceShaderGraph("NEMTest");
+		const Engine::ShaderGraphCompileOutput output =
+			Engine::ShaderGraphCompiler::Compile(
+				graph, "NEMTest.surface.hlsli");
+		if (!output.Succeeded() ||
+			output.parameters.size() != graph.parameters.size() ||
+			output.surfaceHLSL.find("EvaluateShaderGraphSurface") ==
+				std::string::npos ||
+			output.opaquePixelHLSL.find("EncodeGBuffer") ==
+				std::string::npos ||
+			output.transparentPixelHLSL.find("EvaluateMeshSurfaceLighting") ==
+				std::string::npos) {
+
+			return false;
+		}
+
+		graph.nodes[1].id = graph.nodes[0].id;
+		const Engine::ShaderGraphCompileOutput invalid =
+			Engine::ShaderGraphCompiler::Compile(
+				graph, "NEMTest.surface.hlsli");
+		return !invalid.Succeeded() &&
+			!invalid.diagnostics.empty();
+	}
+
+	bool TestPostProcessGraphPlan() {
+
+		Engine::PostProcessStackRuntime runtime{};
+		Engine::PostProcessStackRuntimePass first{};
+		first.id = Engine::UUID{ 1 };
+		first.material = Engine::AssetID{ 1, 1 };
+		Engine::PostProcessStackRuntimePass second{};
+		second.id = Engine::UUID{ 2 };
+		second.material = Engine::AssetID{ 1, 2 };
+		second.sourcePass = first.id;
+		Engine::PostProcessStackRuntimePass output{};
+		output.id = Engine::UUID{ 3 };
+		output.material = Engine::AssetID{ 1, 3 };
+		output.sourcePass = first.id;
+		output.passInputs.emplace("historyTexture", second.id);
+		output.graphOutput = true;
+		runtime.passes = { first, second, output };
+
+		const Engine::PostProcessGraphPlan plan =
+			runtime.BuildGraphPlan(
+				Engine::PostProcessAnchor::AfterMaskedUI);
+		if (!plan.diagnostic.empty() || plan.nodes.size() != 3 ||
+			plan.nodes[0].pass->id != first.id ||
+			plan.nodes[1].pass->id != second.id ||
+			plan.nodes[2].pass->id != output.id) {
+
+			return false;
+		}
+
+		runtime.passes[0].sourcePass = second.id;
+		const Engine::PostProcessGraphPlan cycle =
+			runtime.BuildGraphPlan(
+				Engine::PostProcessAnchor::AfterMaskedUI);
+		if (cycle.diagnostic.empty() || !cycle.nodes.empty()) {
+			return false;
+		}
+
+		// 別Anchorや無効パスへの参照を実行時まで持ち越さない
+		runtime.passes[0].sourcePass = {};
+		runtime.passes[1].anchor =
+			Engine::PostProcessAnchor::AfterLighting;
+		const Engine::PostProcessGraphPlan missingDependency =
+			runtime.BuildGraphPlan(
+				Engine::PostProcessAnchor::AfterMaskedUI);
+		if (missingDependency.diagnostic.empty() ||
+			!missingDependency.nodes.empty()) {
+			return false;
+		}
+
+		runtime.passes[1].anchor =
+			Engine::PostProcessAnchor::AfterMaskedUI;
+		runtime.passes[1].graphOutput = true;
+		const Engine::PostProcessGraphPlan duplicateOutput =
+			runtime.BuildGraphPlan(
+				Engine::PostProcessAnchor::AfterMaskedUI);
+		return !duplicateOutput.diagnostic.empty() &&
+			duplicateOutput.nodes.empty();
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -993,6 +1116,18 @@ int main(int argc, char* argv[]) {
 	if (!TestMeshLODGeneration()) {
 		std::cerr << "Mesh LOD generation failed\n";
 		return 16;
+	}
+	if (!TestMaterialParameters()) {
+		std::cerr << "Material parameter storage failed\n";
+		return 17;
+	}
+	if (!TestShaderGraphCompile()) {
+		std::cerr << "Shader Graph compilation failed\n";
+		return 18;
+	}
+	if (!TestPostProcessGraphPlan()) {
+		std::cerr << "PostProcess graph planning failed\n";
+		return 19;
 	}
 	std::cout << "NEMTests passed\n";
 	return 0;

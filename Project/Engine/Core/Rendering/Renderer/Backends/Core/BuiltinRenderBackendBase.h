@@ -57,7 +57,7 @@ namespace Engine {
 		// reflection駆動のマテリアルパラメータとテクスチャをバインドする、宣言しないBuiltinは無回帰
 		void BindMaterial(const RenderDrawContext& context, const PipelineState& pipelineState,
 			const MaterialAsset& material,
-			const std::unordered_map<std::string, MaterialParameterValue>* overrides,
+			const MaterialParameterSet* overrides,
 			ID3D12GraphicsCommandList* commandList);
 
 		//--------- variables ----------------------------------------------------

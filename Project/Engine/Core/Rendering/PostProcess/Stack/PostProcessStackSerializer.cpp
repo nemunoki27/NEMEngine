@@ -124,6 +124,14 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 			continue;
 		}
 		pass.anchor = *anchor;
+		pass.sourcePass =
+			FromString16Hex(
+				passJson.value("sourcePass", ""));
+		pass.graphOutput =
+			passJson.value("graphOutput", false);
+		pass.targetMask =
+			passJson.value("targetMask", 0u) &
+			kRenderingLayerMaskBits;
 
 		if (passJson.contains("parameters") && passJson["parameters"].is_object()) {
 			for (auto it = passJson["parameters"].begin(); it != passJson["parameters"].end(); ++it) {
@@ -154,6 +162,24 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 			}
 		}
 
+		if (passJson.contains("passInputs") &&
+			passJson["passInputs"].is_object()) {
+
+			for (auto it = passJson["passInputs"].begin();
+				it != passJson["passInputs"].end(); ++it) {
+
+				if (!it.value().is_string()) {
+					continue;
+				}
+				const UUID source =
+					FromString16Hex(
+						it.value().get<std::string>());
+				if (source) {
+					pass.passInputs[it.key()] = source;
+				}
+			}
+		}
+
 		if (passJson.contains("samplers") && passJson["samplers"].is_object()) {
 			for (auto it = passJson["samplers"].begin(); it != passJson["samplers"].end(); ++it) {
 				pass.samplerOverrides[it.key()] = ParseSamplerSettings(it.value());
@@ -169,7 +195,7 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStackSettings& stackSettings) {
 
 	nlohmann::json data = nlohmann::json::object();
-	data["version"] = stackSettings.version;
+	data["version"] = 2;
 
 	data["passes"] = nlohmann::json::array();
 	for (const auto& pass : stackSettings.passes) {
@@ -181,6 +207,12 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["materialGuid"] = ToAssetReferenceJson(pass.materialGuid);
 		passJson["passKind"] = EnumAdapter<MaterialPassKind>::ToString(pass.passKind);
 		passJson["anchor"] = EnumAdapter<PostProcessAnchor>::ToString(pass.anchor);
+		passJson["sourcePass"] =
+			pass.sourcePass ? ToString(pass.sourcePass) : "";
+		passJson["graphOutput"] = pass.graphOutput;
+		passJson["targetMask"] =
+			pass.targetMask &
+			kRenderingLayerMaskBits;
 
 		passJson["parameters"] = nlohmann::json::object();
 		for (const auto& [name, value] : pass.parameterOverrides) {
@@ -197,6 +229,12 @@ nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStack
 		passJson["renderTargetInputs"] = nlohmann::json::object();
 		for (const auto& [name, source] : pass.renderTargetInputs) {
 			passJson["renderTargetInputs"][name] = source;
+		}
+
+		passJson["passInputs"] = nlohmann::json::object();
+		for (const auto& [name, source] : pass.passInputs) {
+			passJson["passInputs"][name] =
+				ToString(source);
 		}
 
 		passJson["samplers"] = nlohmann::json::object();

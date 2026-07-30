@@ -30,6 +30,11 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 	if (Algorithm::EndsWith(filename, ".material.json") || extension == ".material") {
 		return AssetType::Material;
 	}
+	if (Algorithm::EndsWith(filename, ".shadergraph.json") ||
+		extension == ".shadergraph") {
+
+		return AssetType::ShaderGraph;
+	}
 	if (Algorithm::EndsWith(filename, ".shader.json") || extension == ".shader" ||
 		extension == ".hlsl" || extension == ".hlsli") {
 		return AssetType::Shader;
@@ -72,6 +77,7 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::RenderPipeline:
 	case AssetType::PostProcessStack:
 	case AssetType::ParticleEffect:
+	case AssetType::ShaderGraph:
 		return true;
 	default:
 		return false;

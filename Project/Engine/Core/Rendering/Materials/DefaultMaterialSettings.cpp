@@ -40,6 +40,9 @@ void Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
 	fillMesh_ = ParseAssetID(data, "fillMesh");
 	primitive_ = ParseAssetID(data, "primitive");
 	primitive2D_ = ParseAssetID(data, "primitive2D");
+	raytracingReflection_ =
+		ParseAssetID(
+			data, "raytracingReflection");
 }
 
 void Engine::DefaultMaterialSettings::Save() const {
@@ -61,6 +64,9 @@ void Engine::DefaultMaterialSettings::Save() const {
 	data["fillMesh"] = ToAssetReferenceJson(fillMesh_);
 	data["primitive"] = ToAssetReferenceJson(primitive_);
 	data["primitive2D"] = ToAssetReferenceJson(primitive2D_);
+	data["raytracingReflection"] =
+		ToAssetReferenceJson(
+			raytracingReflection_);
 	JsonAdapter::Save(configPath_, data);
 }
 
@@ -97,4 +103,12 @@ Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitiveOrBuiltin() const {
 Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitive2DOrBuiltin() const {
 
 	return primitive2D_ ? primitive2D_ : BuiltinAssets::Materials::DefaultPrimitive2D;
+}
+
+Engine::AssetID Engine::DefaultMaterialSettings::
+GetRaytracingReflectionOrBuiltin() const {
+
+	return raytracingReflection_ ?
+		raytracingReflection_ :
+		BuiltinAssets::Materials::RaytracingReflection;
 }

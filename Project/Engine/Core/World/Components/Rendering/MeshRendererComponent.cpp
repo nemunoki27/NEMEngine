@@ -21,6 +21,10 @@ namespace {
 		component.enableZPrepass =
 			in.value("enableZPrepass", component.enableZPrepass);
 		Engine::ReadMeshRenderFlags(in, component.renderFlags);
+		component.renderingLayerMask =
+			in.value("renderingLayerMask",
+				component.renderingLayerMask) &
+			Engine::kRenderingLayerMaskBits;
 	}
 
 	void WriteMeshRendererSettings(nlohmann::json& out,
@@ -32,6 +36,9 @@ namespace {
 			component.visible, component.blendMode, component.queue);
 		out["enableZPrepass"] = component.enableZPrepass;
 		Engine::WriteMeshRenderFlags(out, component.renderFlags);
+		out["renderingLayerMask"] =
+			component.renderingLayerMask &
+			Engine::kRenderingLayerMaskBits;
 	}
 }
 
@@ -95,16 +102,9 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 	subMeshMaterial.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
 
 	// reflection駆動のパラメータ上書きを読む
-	subMeshMaterial.parameterOverrides.clear();
-	if (in.contains("parameterOverrides") && in["parameterOverrides"].is_object()) {
-		for (auto it = in["parameterOverrides"].begin(); it != in["parameterOverrides"].end(); ++it) {
-
-			MaterialParameterValue value{};
-			if (ParseMaterialParameterValue(it.value(), value)) {
-				subMeshMaterial.parameterOverrides[it.key()] = std::move(value);
-			}
-		}
-	}
+	ReadMaterialInstance(
+		in.value("materialInstance", nlohmann::json::array()),
+		subMeshMaterial.materialInstance);
 	subMeshMaterial.uvPos = Vector2::FromJson(in.value("uvPos", nlohmann::json{}));
 	subMeshMaterial.uvRotation = in.value("uvRotation", 0.0f);
 	subMeshMaterial.uvScale = Vector2::FromJson(in.value("uvScale", nlohmann::json{}));
@@ -123,11 +123,8 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
 
 	// reflection駆動のパラメータ上書きを書き出す
-	out["parameterOverrides"] = nlohmann::json::object();
-	for (const auto& [name, value] : subMeshMaterial.parameterOverrides) {
-
-		out["parameterOverrides"][name] = SerializeMaterialParameterValue(value);
-	}
+	out["materialInstance"] =
+		WriteMaterialInstance(subMeshMaterial.materialInstance);
 
 	out["uvPos"] = subMeshMaterial.uvPos.ToJson();
 	out["uvRotation"] = subMeshMaterial.uvRotation;

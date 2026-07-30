@@ -25,7 +25,7 @@ namespace Engine {
 
 	// front
 	class ECSWorld;
-	struct MaterialParameterValue;
+	class MaterialParameterSet;
 	struct PrimitiveRendererComponent;
 	struct ParticleGroupRuntimeState;
 	struct FillMeshPosition;
@@ -54,9 +54,8 @@ namespace Engine {
 
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
-		// エンティティごとのマテリアルパラメータ上書き、コンポーネントのmapを指す(同フレーム内のみ有効)
-		// 同一バッチでは先頭の上書きを使用する
-		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+		// エンティティ固有のマテリアル値を同フレーム内だけ参照する
+		const MaterialParameterSet* materialInstance = nullptr;
 	};
 	// テキスト描画データ
 	struct TextRenderPayload {
@@ -69,8 +68,8 @@ namespace Engine {
 		float charSpacing = 0.0f;
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
-		// エンティティごとのマテリアルパラメータ上書き、コンポーネントのmapを指す(同フレーム内のみ有効)
-		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+		// エンティティ固有のマテリアル値を同フレーム内だけ参照する
+		const MaterialParameterSet* materialInstance = nullptr;
 	};
 	// メッシュ描画データ
 	struct MeshRenderPayload {
@@ -91,9 +90,10 @@ namespace Engine {
 		uint32_t indexCount = 0;
 
 		Color4 color = Color4::White();
+		uint32_t renderingLayerMask = 1u;
 
-		// マテリアルパラメータ上書き、コンポーネントのmapを指す
-		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+		// エンティティ固有のマテリアル値
+		const MaterialParameterSet* materialInstance = nullptr;
 	};
 	// プロシージャル形状描画データ
 	struct PrimitiveRenderPayload {
@@ -104,8 +104,8 @@ namespace Engine {
 		// UVTransformComponentのUV行列、無ければ単位行列
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 
-		// マテリアルパラメータ上書き、コンポーネントのmapを指す
-		const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides = nullptr;
+		// エンティティ固有のマテリアル値
+		const MaterialParameterSet* materialInstance = nullptr;
 	};
 	// パーティクル描画データ
 	struct ParticleRenderPayload {

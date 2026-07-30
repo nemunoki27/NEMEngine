@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 
 // c++
 #include <algorithm>
@@ -24,7 +25,6 @@ namespace {
 	constexpr const char* kProgressParameter = "progress";
 	constexpr const char* kDirectionParameter = "fillDirection";
 	constexpr const char* kPrimitiveTypeParameter = "primitiveType";
-	constexpr const char* kBaseColorTextureParameter = "baseColorTexture";
 
 	Engine::UUID GetLocalFileID(Engine::ECSWorld& world, Engine::Entity entity) {
 
@@ -52,15 +52,20 @@ namespace {
 
 		*delayedPrimitive = *sourcePrimitive;
 		if (delayedTexture) {
-			delayedPrimitive->parameterOverrides[kBaseColorTextureParameter].value =
-				delayedTexture;
+			Engine::MaterialParameterValue value{};
+			value.value = delayedTexture;
+			delayedPrimitive->materialInstance.Set(
+				Engine::MaterialParameterIDs::BaseColorTexture,
+				Engine::MaterialParameterNames::BaseColorTexture,
+				Engine::MaterialParameterSemantic::BaseColorTexture,
+				value);
 		}
 		if ((std::numeric_limits<int32_t>::min)() < delayedPrimitive->order) {
 			--delayedPrimitive->order;
 		}
 	}
 
-	void RestoreParameter(std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters,
+	void RestoreParameter(Engine::MaterialParameterSet& parameters,
 		const char* name, bool existed, const Engine::MaterialParameterValue& value) {
 
 		if (existed) {
@@ -83,15 +88,15 @@ namespace {
 		if (!primitive) {
 			return;
 		}
-		RestoreParameter(primitive->parameterOverrides, kProgressParameter,
+		RestoreParameter(primitive->materialInstance, kProgressParameter,
 			runtime.hadProgressParameter, runtime.progressParameter);
-		RestoreParameter(primitive->parameterOverrides, kDirectionParameter,
+		RestoreParameter(primitive->materialInstance, kDirectionParameter,
 			runtime.hadDirectionParameter, runtime.directionParameter);
-		RestoreParameter(primitive->parameterOverrides, kPrimitiveTypeParameter,
+		RestoreParameter(primitive->materialInstance, kPrimitiveTypeParameter,
 			runtime.hadPrimitiveTypeParameter, runtime.primitiveTypeParameter);
 	}
 
-	void CaptureParameter(const std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters,
+	void CaptureParameter(const Engine::MaterialParameterSet& parameters,
 		const char* name, bool& outExisted, Engine::MaterialParameterValue& outValue) {
 
 		const auto found = parameters.find(name);
@@ -123,11 +128,11 @@ namespace {
 			primitive->material = Engine::BuiltinAssets::Materials::ProgressPrimitive;
 		}
 		runtime.localFileID = targetLocalFileID;
-		CaptureParameter(primitive->parameterOverrides, kProgressParameter,
+		CaptureParameter(primitive->materialInstance, kProgressParameter,
 			runtime.hadProgressParameter, runtime.progressParameter);
-		CaptureParameter(primitive->parameterOverrides, kDirectionParameter,
+		CaptureParameter(primitive->materialInstance, kDirectionParameter,
 			runtime.hadDirectionParameter, runtime.directionParameter);
-		CaptureParameter(primitive->parameterOverrides, kPrimitiveTypeParameter,
+		CaptureParameter(primitive->materialInstance, kPrimitiveTypeParameter,
 			runtime.hadPrimitiveTypeParameter, runtime.primitiveTypeParameter);
 		runtime.valid = true;
 	}
@@ -146,9 +151,9 @@ namespace {
 		}
 
 		ratio = std::clamp(ratio, 0.0f, 1.0f);
-		primitive->parameterOverrides[kProgressParameter].value = ratio;
-		primitive->parameterOverrides[kDirectionParameter].value = static_cast<uint32_t>(direction);
-		primitive->parameterOverrides[kPrimitiveTypeParameter].value =
+		primitive->materialInstance[kProgressParameter].value = ratio;
+		primitive->materialInstance[kDirectionParameter].value = static_cast<uint32_t>(direction);
+		primitive->materialInstance[kPrimitiveTypeParameter].value =
 			primitive->type == Engine::PrimitiveType::Ring ? 1u : 0u;
 	}
 

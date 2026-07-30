@@ -38,6 +38,7 @@ namespace Engine {
 		AnimationClip,
 		PostProcessStack,
 		ParticleEffect,
+		ShaderGraph,
 		DefaultAsset,
 	};
 

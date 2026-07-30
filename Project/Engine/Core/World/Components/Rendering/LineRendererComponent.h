@@ -29,7 +29,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ上書き
-		MaterialParameterOverrides parameterOverrides{};
+		MaterialInstanceParameters materialInstance{};
 
 		// 始点と終点をつないで閉じるか
 		bool loop = false;

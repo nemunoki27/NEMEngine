@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
+#include <Engine/Core/Rendering/Assets/ShaderAsset.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/AutoRootSignatureBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/AutoInputLayoutBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/BlendState.h>
@@ -105,6 +106,8 @@ namespace Engine {
 		// パイプラインステートオブジェクトの生成
 		bool CreateGraphics(ID3D12Device8* device, DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc);
 		bool CreateCompute(ID3D12Device8* device, DxShaderCompiler* compiler, const ComputePipelineDesc& desc);
+		// Asset側の安定IDと表示情報をReflectionへ適用する
+		void ApplyShaderMetadata(const ShaderAsset& asset);
 
 		//--------- accessor -----------------------------------------------------
 

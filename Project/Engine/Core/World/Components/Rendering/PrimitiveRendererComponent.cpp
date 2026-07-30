@@ -163,10 +163,14 @@ void Engine::from_json(const nlohmann::json& in, PrimitiveRendererComponent& com
 	if (const auto it = in.find("cube"); it != in.end()) { from_json(*it, component.cube); }
 
 	component.material = ParseAssetID(in, "material");
-	ReadMaterialParameterOverrides(in.value("parameterOverrides", nlohmann::json::object()), component.parameterOverrides);
+	ReadMaterialInstance(in.value("materialInstance", nlohmann::json::object()), component.materialInstance);
 
 	ReadRenderCommonFields(in, component.layer, component.order, component.visible, component.blendMode, component.queue);
 	ReadMeshRenderFlags(in, component.renderFlags);
+	component.renderingLayerMask =
+		in.value("renderingLayerMask",
+			component.renderingLayerMask) &
+		kRenderingLayerMaskBits;
 }
 
 void Engine::to_json(nlohmann::json& out, const PrimitiveRendererComponent& component) {
@@ -183,8 +187,11 @@ void Engine::to_json(nlohmann::json& out, const PrimitiveRendererComponent& comp
 	out["cube"] = component.cube;
 
 	out["material"] = ToAssetReferenceJson(component.material);
-	out["parameterOverrides"] = WriteMaterialParameterOverrides(component.parameterOverrides);
+	out["materialInstance"] = WriteMaterialInstance(component.materialInstance);
 
 	WriteRenderCommonFields(out, component.layer, component.order, component.visible, component.blendMode, component.queue);
 	WriteMeshRenderFlags(out, component.renderFlags);
+	out["renderingLayerMask"] =
+		component.renderingLayerMask &
+		kRenderingLayerMaskBits;
 }

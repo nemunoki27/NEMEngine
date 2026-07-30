@@ -19,13 +19,17 @@ namespace {
 
 		component.buildMesh = in.value("buildMesh", component.buildMesh);
 		component.material = Engine::ParseAssetID(in, "material");
-		Engine::ReadMaterialParameterOverrides(
-			in.value("parameterOverrides", nlohmann::json::object()),
-			component.parameterOverrides);
+		Engine::ReadMaterialInstance(
+			in.value("materialInstance", nlohmann::json::object()),
+			component.materialInstance);
 		component.color = Engine::Color4::FromJson(
 			in.value("color", nlohmann::json()));
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		component.renderingLayerMask =
+			in.value("renderingLayerMask",
+				component.renderingLayerMask) &
+			Engine::kRenderingLayerMaskBits;
 	}
 
 	void WriteFillMeshSettings(nlohmann::json& out,
@@ -33,11 +37,14 @@ namespace {
 
 		out["buildMesh"] = component.buildMesh;
 		out["material"] = Engine::ToAssetReferenceJson(component.material);
-		out["parameterOverrides"] =
-			Engine::WriteMaterialParameterOverrides(component.parameterOverrides);
+		out["materialInstance"] =
+			Engine::WriteMaterialInstance(component.materialInstance);
 		out["color"] = component.color.ToJson();
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		out["renderingLayerMask"] =
+			component.renderingLayerMask &
+			Engine::kRenderingLayerMaskBits;
 	}
 
 	std::vector<Engine::Vector3> ReadFillMeshPositions(

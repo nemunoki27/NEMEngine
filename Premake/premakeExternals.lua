@@ -46,6 +46,44 @@ project "imgui"
 
     filter {}
 
+project "imgui-node-editor"
+    location (path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor"))
+    kind "StaticLib"
+
+    removeconfigurations { "Develop" }
+    configmap { ["Develop"] = "Release" }
+
+    system "windows"
+    language "C++"
+    cppdialect "C++20"
+    staticruntime "On"
+    warnings "Default"
+    multiprocessorcompile "On"
+    buildoptions { "/utf-8" }
+
+    files {
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor/crude_json.cpp"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor/imgui_canvas.cpp"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor/imgui_node_editor.cpp"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor/imgui_node_editor_api.cpp"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor/*.h"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor/*.inl"),
+    }
+
+    includedirs {
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui"),
+        path.join(NEMENGINE_ROOT, "Project/Externals/imgui-node-editor"),
+    }
+    dependson { "imgui" }
+
+    filter "configurations:Debug"
+        symbols "On"
+
+    filter "configurations:Release"
+        optimize "On"
+
+    filter {}
+
 project "meshoptimizer"
     location (NEM_MESHOPTIMIZER_PROJECT_LOCATION or path.join(NEMENGINE_ROOT, "Project/Externals/meshoptimizer"))
     kind "StaticLib"

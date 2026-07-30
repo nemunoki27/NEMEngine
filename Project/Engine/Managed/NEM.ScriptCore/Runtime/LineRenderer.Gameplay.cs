@@ -8,6 +8,19 @@ public sealed partial class LineRenderer {
     public DynamicBuffer<LineRendererPoint> Points =>
         entity.GetBuffer<LineRendererPoint>();
 
+    public MaterialInstance MaterialInstance =>
+        new(entity, RendererMaterialTarget.Line);
+
+    public void SetColor(Color4 color) {
+        MaterialInstance.SetColor(MaterialParameterIDs.BaseColor, MaterialParameterNames.BaseColor, color);
+    }
+
+    public Color4 GetColor() {
+        return MaterialInstance.TryGetColor(MaterialParameterNames.BaseColor, out Color4 color)
+            ? color
+            : new Color4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
     // 末尾へ1点追加し、indexを採番したLinePointを返す。後でUpdatePointに渡して更新できる
     public LinePoint AddPoint(LinePoint point) {
         point.index = NativeApi.LineAddComponentPoint(entity.native, point);

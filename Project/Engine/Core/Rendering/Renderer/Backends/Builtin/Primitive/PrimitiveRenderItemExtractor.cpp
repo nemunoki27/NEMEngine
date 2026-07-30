@@ -25,18 +25,19 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 		if (const auto* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
 			payload.uvMatrix = uvTransform->uvMatrix;
 		}
-		payload.materialOverrides = &renderer.parameterOverrides.Get();
+		payload.materialInstance = &renderer.materialInstance.Get();
 
 		// 描画アイテムの構築
 		RenderItem item{};
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
 		item.backendID = RenderBackendID::Primitive;
 		item.material = renderer.material;
-		// 同一形状はまとめてインスタンシングするが、マテリアル上書きを持つものは
-		// バッチ先頭の上書きしか反映されないためエンティティ単位で分離して個別描画にする
+		// 同一形状と同じMaterial Instance値を同一バッチへまとめる
 		const uint64_t shapeHash = PrimitiveMeshGenerator::ComputeHash(renderer);
-		item.batchKey = renderer.parameterOverrides.empty() ?
-			shapeHash : (shapeHash ^ (static_cast<uint64_t>(entity.index + 1) * 0x9E3779B97F4A7C15ull));
+		const uint64_t materialHash = renderer.materialInstance.GetContentHash();
+		item.batchKey = shapeHash ^
+			(materialHash + 0x9e3779b97f4a7c15ull +
+				(shapeHash << 6) + (shapeHash >> 2));
 		item.cameraDomain = RenderCameraDomain::Perspective;
 		// Plane/Ringのみ2D描画に対応し、正射投影のScreenUIフェーズへ流す
 		if (IsPrimitiveScreen2D(renderer)) {

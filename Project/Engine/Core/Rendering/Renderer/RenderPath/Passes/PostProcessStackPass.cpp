@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
@@ -20,9 +21,11 @@
 
 // c++
 #include <algorithm>
-#include <cstring>
 #include <array>
 #include <span>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <optional>
 
@@ -33,8 +36,6 @@
 namespace {
 
 	constexpr const char* kSceneColorFinal = Engine::RenderTargetNames::kSceneColorFinal;
-	constexpr const char* kPingName = "PostProcessPing";
-	constexpr const char* kPongName = "PostProcessPong";
 
 	bool CopyColor0Resource(Engine::GraphicsCore& graphicsCore,
 		Engine::MultiRenderTarget* source, Engine::MultiRenderTarget* dest) {
@@ -158,39 +159,33 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 	service.EnsureLoaded();
 	const PostProcessStackRuntime& runtime = service.GetRuntime();
 
-	if (!runtime.HasEnabledPassesForAnchor(anchor_)) {
-		return;
-	}
+	const PostProcessGraphPlan graphPlan =
+		runtime.BuildGraphPlan(anchor_);
+	if (graphPlan.nodes.empty()) {
+		if (!graphPlan.diagnostic.empty() &&
+			graphPlan.diagnostic != lastGraphDiagnostic_) {
 
-	// このアンカーに割り当てられた有効なパスだけ抽出する
-	std::vector<const PostProcessStackRuntimePass*> activePasses;
-	activePasses.reserve(runtime.passes.size());
-	for (const auto& pass : runtime.passes) {
-		if (pass.enabled && pass.material && pass.anchor == anchor_) {
-			activePasses.push_back(&pass);
+			Logger::Output(
+				LogType::Engine,
+				"[PostProcessGraph] {}",
+				graphPlan.diagnostic);
 		}
-	}
-	if (activePasses.empty()) {
+		lastGraphDiagnostic_ =
+			graphPlan.diagnostic;
 		return;
 	}
-
-	// SceneFinalを入力にするため、1パスだけでも一時RTを必ず経由する
-	MultiRenderTarget* ping = deps_.postProcessTargetPool->Acquire(graphicsCore,
-		*context.targetRegistry, kPingName, *sceneFinal);
-	MultiRenderTarget* pong = nullptr;
-	if (activePasses.size() > 2) {
-		pong = deps_.postProcessTargetPool->Acquire(graphicsCore, *context.targetRegistry, kPongName, *sceneFinal);
-	}
-	if (!ping || (activePasses.size() > 2 && !pong)) {
-		return;
-	}
+	lastGraphDiagnostic_.clear();
 
 	// エディタの選択中パスを基準に、そのパス実行前後の結果をプレビューへ退避
-	// 選択中パスがこのアンカーに含まれるときだけ退避先を確保する
 	const UUID previewPassID = service.GetPreviewPassId();
 	const bool anchorHasPreviewPass = static_cast<bool>(previewPassID) &&
-		std::any_of(activePasses.begin(), activePasses.end(),
-			[&](const PostProcessStackRuntimePass* p) { return p->id == previewPassID; });
+		std::any_of(
+			graphPlan.nodes.begin(),
+			graphPlan.nodes.end(),
+			[&](const PostProcessGraphPlanNode& node) {
+				return node.pass &&
+					node.pass->id == previewPassID;
+			});
 	const bool capturePreview = (context.kind == RenderViewKind::Game) && anchorHasPreviewPass;
 	MultiRenderTarget* previewBefore = nullptr;
 	MultiRenderTarget* previewAfter = nullptr;
@@ -202,8 +197,15 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 			*context.targetRegistry, "PostProcessPreviewAfter", *sceneFinal);
 	}
 
-	// 実行前にリフレクション情報をキャッシュしておく
-	for (const auto* passPtr : activePasses) {
+	// 実行前に使用パスだけのリフレクション情報をキャッシュする
+	for (const PostProcessGraphPlanNode& node :
+		graphPlan.nodes) {
+
+		const PostProcessStackRuntimePass* passPtr =
+			node.pass;
+		if (!passPtr) {
+			continue;
+		}
 
 		// シェーダーリロード要求があれば、パイプラインとレイアウトキャッシュを破棄する
 		if (service.TakeReloadRequest(passPtr->material)) {
@@ -229,48 +231,143 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		}
 	}
 
-	// パスのsource/dest名から、対応する中間RTを引く
-	auto resolveTargetByName = [&](const char* name) -> MultiRenderTarget* {
-		if (!name) {
-			return nullptr;
-		}
-		if (std::strcmp(name, kSceneColorFinal) == 0) {
-			return sceneFinal;
-		}
-		if (std::strcmp(name, kPingName) == 0) {
-			return ping;
-		}
-		if (std::strcmp(name, kPongName) == 0) {
-			return pong;
-		}
-		return nullptr;
-		};
+	struct GraphOutputResource {
 
-	const size_t passCount = activePasses.size();
-	for (size_t i = 0; i < passCount; ++i) {
+		MultiRenderTarget* target = nullptr;
+		std::string alias;
+		uint32_t slot = 0;
+	};
+	struct GraphTargetSlot {
 
-		const PostProcessStackRuntimePass& pass = *activePasses[i];
-		const bool isFirst = (i == 0);
-		const bool isLast = (i == passCount - 1);
+		MultiRenderTarget* target = nullptr;
+		std::string alias;
+		UUID owner{};
+	};
 
-		const char* sourceName = nullptr;
-		const char* destName = nullptr;
-		if (isFirst) {
-			sourceName = kSceneColorFinal;
-			destName = kPingName;
-		} else {
-			sourceName = (i % 2 == 1) ? kPingName : kPongName;
-			destName = isLast ? kSceneColorFinal : ((i % 2 == 1) ? kPongName : kPingName);
+	std::unordered_map<uint64_t, uint32_t>
+		remainingUses{};
+	for (const PostProcessGraphPlanNode& node :
+		graphPlan.nodes) {
+
+		if (node.sourcePass) {
+			++remainingUses[node.sourcePass.value];
 		}
+		for (const auto& [name, source] :
+			node.pass->passInputs) {
+
+			(void)name;
+			if (source) {
+				++remainingUses[source.value];
+			}
+		}
+	}
+	// 最終出力は全ノード実行後のSceneFinalコピーまで保持する
+	++remainingUses[graphPlan.outputPass.value];
+
+	std::vector<GraphTargetSlot> slots{};
+	std::unordered_map<uint64_t,
+		GraphOutputResource> outputs{};
+	MultiRenderTarget* maskEffectTarget = nullptr;
+	const std::string maskEffectAlias =
+		"PostProcessMaskEffect" +
+		std::to_string(
+			static_cast<uint32_t>(anchor_));
+
+	for (const PostProcessGraphPlanNode& node :
+		graphPlan.nodes) {
+
+		if (!node.pass) {
+			continue;
+		}
+		const PostProcessStackRuntimePass& pass =
+			*node.pass;
+		const GraphOutputResource* sourceOutput =
+			nullptr;
+		if (node.sourcePass) {
+			const auto found =
+				outputs.find(node.sourcePass.value);
+			if (found == outputs.end()) {
+				return;
+			}
+			sourceOutput = &found->second;
+		}
+		MultiRenderTarget* sourceTarget =
+			sourceOutput ?
+			sourceOutput->target : sceneFinal;
+		const std::string sourceName =
+			sourceOutput ?
+			sourceOutput->alias : kSceneColorFinal;
+
+		std::unordered_set<MultiRenderTarget*>
+			inputTargets{ sourceTarget };
+		for (const auto& [name, source] :
+			pass.passInputs) {
+
+			(void)name;
+			const auto found =
+				outputs.find(source.value);
+			if (found != outputs.end()) {
+				inputTargets.insert(
+					found->second.target);
+			}
+		}
+
+		uint32_t slotIndex =
+			static_cast<uint32_t>(slots.size());
+		for (uint32_t index = 0;
+			index < slots.size(); ++index) {
+
+			const GraphTargetSlot& slot =
+				slots[index];
+			if (slot.owner &&
+				remainingUses[slot.owner.value] != 0) {
+				continue;
+			}
+			if (inputTargets.contains(slot.target)) {
+				continue;
+			}
+			slotIndex = index;
+			break;
+		}
+		if (slotIndex == slots.size()) {
+			const std::string alias =
+				"PostProcessGraphSlot" +
+				std::to_string(
+					static_cast<uint32_t>(anchor_)) +
+				"_" + std::to_string(slotIndex);
+			MultiRenderTarget* target =
+				deps_.postProcessTargetPool->Acquire(
+					graphicsCore,
+					*context.targetRegistry,
+					alias, *sceneFinal);
+			if (!target) {
+				return;
+			}
+			slots.emplace_back(
+				GraphTargetSlot{
+					.target = target,
+					.alias = alias,
+				});
+		}
+		GraphTargetSlot& outputSlot =
+			slots[slotIndex];
+		outputSlot.owner = pass.id;
+		outputs[pass.id.value] =
+			GraphOutputResource{
+				.target = outputSlot.target,
+				.alias = outputSlot.alias,
+				.slot = slotIndex,
+			};
 
 		// 選択中パスなら、実行前のsource内容をbeforeへ退避する
-		// GameViewと同じトーンマップを通して退避し、見た目を一致させる
 		const bool isPreviewTarget = capturePreview && previewBefore && previewAfter &&
 			(pass.id == previewPassID);
 		if (isPreviewTarget) {
-			if (!ToneMapBlitToPreview(graphicsCore, context, resolveTargetByName(sourceName), previewBefore,
+			if (!ToneMapBlitToPreview(graphicsCore, context, sourceTarget, previewBefore,
 				*deps_.assetLibrary, *deps_.pipelineCache, previewToneMapSRVCache_, previewToneMapSrcColorSlot_)) {
-				CopyColor0Resource(graphicsCore, resolveTargetByName(sourceName), previewBefore);
+				CopyColor0Resource(
+					graphicsCore,
+					sourceTarget, previewBefore);
 			}
 		}
 
@@ -278,12 +375,37 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 		desc.material = pass.material;
 		desc.passKind = pass.passKind;
 		desc.source.colors = { sourceName };
-		desc.dest.colors = { destName };
+		const bool useTargetMask =
+			pass.targetMask != 0u;
+		if (useTargetMask && !maskEffectTarget) {
+			maskEffectTarget =
+				deps_.postProcessTargetPool->Acquire(
+					graphicsCore,
+					*context.targetRegistry,
+					maskEffectAlias, *sceneFinal);
+			if (!maskEffectTarget) {
+				return;
+			}
+		}
+		desc.dest.colors = {
+			useTargetMask ?
+			maskEffectAlias : outputSlot.alias
+		};
 		desc.parameterOverrides = pass.parameterOverrides;
 		desc.textureOverrides = pass.textureGuids;
 		desc.samplerOverrides = pass.samplerOverrides;
 		// SRVバインド名へ割り当てたGBuffer/深度などの中間RTを入力として渡す
 		desc.extraSources = pass.renderTargetInputs;
+		for (const auto& [name, source] :
+			pass.passInputs) {
+
+			const auto found =
+				outputs.find(source.value);
+			if (found != outputs.end()) {
+				desc.extraSources[name] =
+					found->second.alias;
+			}
+		}
 		desc.dispatchMode = ComputeDispatchMode::FromDestSize;
 
 		if (!deps_.postProcessExecutor->Execute(graphicsCore, RenderFrameRequest{},
@@ -294,28 +416,101 @@ void Engine::PostProcessStackPass::Execute(GraphicsCore& graphicsCore,
 			return;
 		}
 
-		// エディタUI用にリフレクション情報をキャッシュする
-		const MaterialParameterLayout* layout = deps_.postProcessExecutor->GetLastExecutedLayout();
+		// 合成パスで上書きされる前に元パスのreflectionを退避する
+		const MaterialParameterLayout* layout =
+			deps_.postProcessExecutor->
+			GetLastExecutedLayout();
 		if (layout) {
-			service.CacheReflection(pass.material,
+			service.CacheReflection(
+				pass.material,
 				layout->GetVariables(),
-				deps_.postProcessExecutor->GetLastExecutedSRVBindings(),
-				deps_.postProcessExecutor->GetLastExecutedSamplerBindings());
+				deps_.postProcessExecutor->
+				GetLastExecutedSRVBindings(),
+				deps_.postProcessExecutor->
+				GetLastExecutedSamplerBindings());
+		}
+
+		if (useTargetMask) {
+			PostProcessExecutionDesc composite{};
+			composite.material =
+				BuiltinAssets::Materials::
+				PostProcessMaskComposite;
+			composite.passKind =
+				MaterialPassKind::PostProcess;
+			composite.source.colors = { sourceName };
+			composite.dest.colors = {
+				outputSlot.alias
+			};
+			composite.extraSources[
+				PostProcessBindingNames::
+				kEffectColor] =
+				maskEffectAlias;
+			composite.extraSources[
+				PostProcessBindingNames::
+				kSourceFlags] =
+				RenderTargetNames::
+				kSceneFlagsMain;
+
+			MaterialParameterValue targetMask{};
+			targetMask.value =
+				pass.targetMask &
+				kRenderingLayerMaskBits;
+			composite.parameterOverrides.Set(
+				MaterialParameterIDs::TargetMask,
+				MaterialParameterNames::TargetMask,
+				MaterialParameterSemantic::None,
+				targetMask);
+			if (!deps_.postProcessExecutor->Execute(
+				graphicsCore,
+				RenderFrameRequest{}, context,
+				*deps_.assetLibrary,
+				*deps_.pipelineCache,
+				composite)) {
+
+				Logger::Output(
+					LogType::Engine,
+					"[PostProcessGraph] mask composite failed. pass={}",
+					pass.name);
+				return;
+			}
 		}
 
 		// 選択中パスなら、実行後のdest内容をafterへ退避する
 		if (isPreviewTarget) {
-			if (!ToneMapBlitToPreview(graphicsCore, context, resolveTargetByName(destName), previewAfter,
+			if (!ToneMapBlitToPreview(graphicsCore, context, outputSlot.target, previewAfter,
 				*deps_.assetLibrary, *deps_.pipelineCache, previewToneMapSRVCache_, previewToneMapSrcColorSlot_)) {
-				CopyColor0Resource(graphicsCore, resolveTargetByName(destName), previewAfter);
+				CopyColor0Resource(
+					graphicsCore,
+					outputSlot.target, previewAfter);
 			}
 			previewCaptured = true;
 		}
+
+		// このパスが読み終えた依存出力は次ノードから再利用可能にする
+		if (node.sourcePass) {
+			--remainingUses[
+				node.sourcePass.value];
+		}
+		for (const auto& [name, source] :
+			pass.passInputs) {
+
+			(void)name;
+			if (source) {
+				--remainingUses[source.value];
+			}
+		}
 	}
 
-	if (passCount == 1) {
-		CopyColor0Resource(graphicsCore, ping, sceneFinal);
+	const auto finalOutput =
+		outputs.find(graphPlan.outputPass.value);
+	if (finalOutput == outputs.end() ||
+		!CopyColor0Resource(
+			graphicsCore,
+			finalOutput->second.target,
+			sceneFinal)) {
+		return;
 	}
+	--remainingUses[graphPlan.outputPass.value];
 
 	// 選択中パスの実行前後(before/after)のSRVをサービスへ渡す
 	// 退避先はCopyColor0Resource内でシェーダー読み取り状態へ遷移済み

@@ -112,6 +112,8 @@ namespace {
 			reflection->GetResourceBindingDesc(i, &bindDesc);
 			ShaderResourceBinding binding{};
 			binding.name = bindDesc.Name ? bindDesc.Name : "";
+			binding.parameterID = MaterialParameterID::FromName(binding.name);
+			binding.semantic = ResolveMaterialParameterSemantic(binding.name);
 			binding.kind = ToShaderBindingKind(bindDesc.Type);
 			binding.bindPoint = bindDesc.BindPoint;
 			binding.bindCount = bindDesc.BindCount;
@@ -187,6 +189,8 @@ namespace {
 
 						ShaderConstantBufferVariable memberInfo{};
 						memberInfo.name = memberName;
+						memberInfo.parameterID = MaterialParameterID::FromName(memberInfo.name);
+						memberInfo.semantic = ResolveMaterialParameterSemantic(memberInfo.name);
 						// memberDesc.Offsetは要素struct内での相対オフセットなので変数先頭と合算する
 						memberInfo.offset = variableDesc.StartOffset + memberDesc.Offset;
 						memberInfo.valueClass = memberDesc.Class;
@@ -206,6 +210,8 @@ namespace {
 
 				ShaderConstantBufferVariable variableInfo{};
 				variableInfo.name = variableDesc.Name ? variableDesc.Name : "";
+				variableInfo.parameterID = MaterialParameterID::FromName(variableInfo.name);
+				variableInfo.semantic = ResolveMaterialParameterSemantic(variableInfo.name);
 				variableInfo.offset = variableDesc.StartOffset;
 				variableInfo.size = variableDesc.Size;
 				// 未使用変数はpaddingとみなして編集対象から外す

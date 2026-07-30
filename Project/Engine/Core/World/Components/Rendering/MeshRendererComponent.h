@@ -79,7 +79,7 @@ namespace Engine {
 		uint32_t sourceSubMeshIndex = 0;
 
 		// シェーダーごとのマテリアルパラメータ
-		MaterialParameterOverrides parameterOverrides{};
+		MaterialInstanceParameters materialInstance{};
 
 		// UV
 		Vector2 uvPos = Vector2::AnyInit(0.0f);
@@ -124,6 +124,8 @@ namespace Engine {
 
 		// ライティングや影の適用を切り替えるフラグ
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
+		// 選択的PostProcessなど描画機能が対象を絞るためのマスク
+		uint32_t renderingLayerMask = 1u;
 
 		// Registryから呼ばれるワールド依存Storageフック
 		static void OnAdded(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);

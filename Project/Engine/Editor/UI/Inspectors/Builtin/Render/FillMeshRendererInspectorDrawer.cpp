@@ -68,6 +68,22 @@ void Engine::FillMeshRendererInspectorDrawer::DrawFields(const EditorPanelContex
 	InspectorDrawerCommon::DrawCommonRenderFields(
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+	DrawField(anyItemActive, [&]() {
+		int32_t mask =
+			static_cast<int32_t>(
+				draft.renderingLayerMask);
+		ValueEditResult result =
+			MyGUI::DragInt(
+				"描画対象マスク", mask,
+				{ .minValue = 0,
+				  .maxValue = static_cast<int32_t>(
+					  kRenderingLayerMaskBits) });
+		if (result.valueChanged) {
+			draft.renderingLayerMask =
+				static_cast<uint32_t>(mask);
+		}
+		return result;
+		});
 }
 
 void Engine::FillMeshRendererInspectorDrawer::OnSyncDraftFromWorld(

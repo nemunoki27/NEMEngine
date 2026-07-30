@@ -752,6 +752,9 @@ namespace {
 			if (usage_.fillMesh) AddAsset(defaults.GetFillMeshOrBuiltin());
 			if (usage_.primitive) AddAsset(defaults.GetPrimitiveOrBuiltin());
 			if (usage_.primitive2D) AddAsset(defaults.GetPrimitive2DOrBuiltin());
+			AddAsset(
+				defaults.
+				GetRaytracingReflectionOrBuiltin());
 			if (usage_.progress) AddAsset(Engine::BuiltinAssets::Materials::ProgressPrimitive);
 			if (usage_.particle) {
 				AddAsset(Engine::BuiltinAssets::Effects::DefaultParticle);

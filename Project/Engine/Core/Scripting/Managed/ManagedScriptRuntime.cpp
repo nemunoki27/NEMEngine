@@ -252,8 +252,12 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.setInputType = &ManagedScriptRuntime::SetInputTypeCallback;
 	callbacks.getMouseRangeControl = &ManagedScriptRuntime::GetMouseRangeControlCallback;
 	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
-	callbacks.setRendererMaterialColor = &ManagedScriptRuntime::SetRendererMaterialColorCallback;
-	callbacks.getRendererMaterialColor = &ManagedScriptRuntime::GetRendererMaterialColorCallback;
+	callbacks.setRendererMaterialParameter =
+		&ManagedScriptRuntime::SetRendererMaterialParameterCallback;
+	callbacks.getRendererMaterialParameter =
+		&ManagedScriptRuntime::GetRendererMaterialParameterCallback;
+	callbacks.clearRendererMaterialParameter =
+		&ManagedScriptRuntime::ClearRendererMaterialParameterCallback;
 	callbacks.collisionShapeCount = &ManagedScriptRuntime::CollisionShapeCountCallback;
 	callbacks.collisionAddShape = &ManagedScriptRuntime::CollisionAddShapeCallback;
 	callbacks.collisionRemoveShapeAt = &ManagedScriptRuntime::CollisionRemoveShapeAtCallback;

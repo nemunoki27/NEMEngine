@@ -37,6 +37,7 @@
 // c++
 #include <memory>
 #include <vector>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace Engine {
@@ -298,6 +299,8 @@ namespace Engine {
 		// 毎フレーム使い回すスクラッチで再確保を避ける
 		std::unordered_set<AssetID> visibleMeshSet_{};
 		std::vector<AssetID> visibleMeshes_{};
+		std::unordered_map<AssetID, MaterialRenderState>
+			materialRenderStateCache_{};
 		RenderPassPhaseBuckets passBuckets_{};
 		// 型付きMeshバックエンドのキャッシュで毎フレームのdynamic_castを避ける
 		MeshRenderBackend* meshBackend_ = nullptr;
@@ -311,6 +314,8 @@ namespace Engine {
 		void SyncRequestedSurfaces(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 		// 描画ビューの情報を要求に応じて確定させる
 		void ResolveViews(const RenderFrameRequest& request);
+		// Materialが描画状態を所有する場合にRendererの抽出値へ反映する
+		void ApplyMaterialRenderStates();
 
 		// ビューの情報に応じたコンテキストを構築
 		SceneExecutionContext BuildViewExecutionContext(GraphicsCore& graphicsCore,

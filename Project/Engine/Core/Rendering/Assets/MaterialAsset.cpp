@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
@@ -117,138 +118,45 @@ nlohmann::json Engine::SerializeMaterialParameterValue(const MaterialParameterVa
 	return SerializeParameterValue(parameter);
 }
 
-//============================================================================
-//	MaterialParameterOverrides classMethods
-//============================================================================
-Engine::MaterialParameterOverrides::MaterialParameterOverrides(
-	const MaterialParameterOverrides& other) {
-
-	if (!other.empty()) {
-		values_ = std::make_unique<Map>(other.Get());
-	}
-}
-
-Engine::MaterialParameterOverrides&
-Engine::MaterialParameterOverrides::operator=(
-	const MaterialParameterOverrides& other) {
-
-	if (this == &other) {
-		return *this;
-	}
-	if (other.empty()) {
-		values_.reset();
-	} else {
-		values_ = std::make_unique<Map>(other.Get());
-	}
-	return *this;
-}
-
-Engine::MaterialParameterValue&
-Engine::MaterialParameterOverrides::operator[](const std::string& name) {
-
-	return GetMutable()[name];
-}
-
-Engine::MaterialParameterValue&
-Engine::MaterialParameterOverrides::operator[](const char* name) {
-
-	return GetMutable()[name];
-}
-
-void Engine::MaterialParameterOverrides::clear() {
-
-	values_.reset();
-}
-
-size_t Engine::MaterialParameterOverrides::erase(const std::string& name) {
-
-	if (!values_) {
-		return 0;
-	}
-	const size_t erased = values_->erase(name);
-	if (values_->empty()) {
-		values_.reset();
-	}
-	return erased;
-}
-
-Engine::MaterialParameterOverrides::iterator
-Engine::MaterialParameterOverrides::erase(iterator position) {
-
-	return GetMutable().erase(position);
-}
-
-size_t Engine::MaterialParameterOverrides::count(
-	const std::string& name) const {
-
-	return values_ ? values_->count(name) : 0;
-}
-
-bool Engine::MaterialParameterOverrides::contains(
-	const std::string& name) const {
-
-	return values_ && values_->contains(name);
-}
-
-Engine::MaterialParameterOverrides::iterator
-Engine::MaterialParameterOverrides::begin() {
-
-	return GetMutable().begin();
-}
-
-Engine::MaterialParameterOverrides::iterator
-Engine::MaterialParameterOverrides::end() {
-
-	return GetMutable().end();
-}
-
-Engine::MaterialParameterOverrides::const_iterator
-Engine::MaterialParameterOverrides::begin() const {
-
-	return Get().begin();
-}
-
-Engine::MaterialParameterOverrides::const_iterator
-Engine::MaterialParameterOverrides::end() const {
-
-	return Get().end();
-}
-
-Engine::MaterialParameterOverrides::iterator
-Engine::MaterialParameterOverrides::find(const std::string& name) {
-
-	return GetMutable().find(name);
-}
-
-Engine::MaterialParameterOverrides::const_iterator
-Engine::MaterialParameterOverrides::find(const std::string& name) const {
-
-	return Get().find(name);
-}
-
-Engine::MaterialParameterOverrides::Map&
-Engine::MaterialParameterOverrides::GetMutable() {
-
-	if (!values_) {
-		values_ = std::make_unique<Map>();
-	}
-	return *values_;
-}
-
-const Engine::MaterialParameterOverrides::Map&
-Engine::MaterialParameterOverrides::Get() const {
-
-	static const Map empty{};
-	return values_ ? *values_ : empty;
-}
-
-void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
-	std::unordered_map<std::string, MaterialParameterValue>& outOverrides) {
+void Engine::ReadMaterialInstance(const nlohmann::json& in,
+	MaterialInstanceParameters& outOverrides) {
 
 	outOverrides.clear();
+	if (in.is_array()) {
+		for (const nlohmann::json& record : in) {
+			if (!record.is_object()) {
+				continue;
+			}
+
+			const std::string name = record.value("name", "");
+			const UUID parsedID =
+				FromString16Hex(record.value("id", ""));
+			if (name.empty()) {
+				continue;
+			}
+
+			MaterialParameterValue value{};
+			if (!record.contains("value") ||
+				!ParseMaterialParameterValue(record["value"], value)) {
+
+				continue;
+			}
+			const MaterialParameterSemantic semantic =
+				EnumAdapter<MaterialParameterSemantic>::FromString(
+					record.value("semantic", "None")).
+				value_or(ResolveMaterialParameterSemantic(name));
+			outOverrides.Set(
+				parsedID ? MaterialParameterID::FromUUID(parsedID) :
+				MaterialParameterID::FromName(name),
+				name, semantic, value);
+		}
+		return;
+	}
 	if (!in.is_object()) {
 		return;
 	}
+
+	// 旧object形式は読み込み時だけ受け、次回保存でID付きrecordへ移行する
 	for (auto it = in.begin(); it != in.end(); ++it) {
 
 		MaterialParameterValue value{};
@@ -258,29 +166,19 @@ void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
 	}
 }
 
-void Engine::ReadMaterialParameterOverrides(const nlohmann::json& in,
-	MaterialParameterOverrides& outOverrides) {
+nlohmann::json Engine::WriteMaterialInstance(
+	const MaterialInstanceParameters& overrides) {
 
-	ReadMaterialParameterOverrides(in, outOverrides.GetMutable());
-	if (outOverrides.Get().empty()) {
-		outOverrides.clear();
-	}
-}
-
-nlohmann::json Engine::WriteMaterialParameterOverrides(
-	const std::unordered_map<std::string, MaterialParameterValue>& overrides) {
-
-	nlohmann::json out = nlohmann::json::object();
-	for (const auto& [name, value] : overrides) {
-		out[name] = SerializeMaterialParameterValue(value);
+	nlohmann::json out = nlohmann::json::array();
+	for (const MaterialParameterRecord& record : overrides.GetRecords()) {
+		out.push_back({
+			{ "id", ToString(UUID{ record.id.value }) },
+			{ "name", record.namedValue.first },
+			{ "semantic", EnumAdapter<MaterialParameterSemantic>::ToString(record.semantic) },
+			{ "value", SerializeMaterialParameterValue(record.namedValue.second) },
+			});
 	}
 	return out;
-}
-
-nlohmann::json Engine::WriteMaterialParameterOverrides(
-	const MaterialParameterOverrides& overrides) {
-
-	return WriteMaterialParameterOverrides(overrides.Get());
 }
 
 bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
@@ -293,6 +191,17 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 	outAsset.name = data.value("name", "UnnamedMaterial");
 	outAsset.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface")).value_or(MaterialDomain::Surface);
 	outAsset.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic")).value_or(MaterialUsage::Generic);
+	if (data.contains("renderState") && data["renderState"].is_object()) {
+		const nlohmann::json& renderState = data["renderState"];
+		outAsset.renderState.overridesRenderer =
+			renderState.value("overridesRenderer", false);
+		outAsset.renderState.phase = RenderPhaseFromString(
+			renderState.value("phase", "Opaque"), RenderPhase::Opaque);
+		outAsset.renderState.blendMode =
+			EnumAdapter<BlendMode>::FromString(
+				renderState.value("blendMode", "Normal")).
+			value_or(BlendMode::Normal);
+	}
 	if (data.contains("passes") && data["passes"].is_array()) {
 		for (const auto& passJson : data["passes"]) {
 
@@ -318,14 +227,8 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 		}
 	}
 
-	if (data.contains("parameters") && data["parameters"].is_object()) {
-		for (auto it = data["parameters"].begin(); it != data["parameters"].end(); ++it) {
-			MaterialParameterValue value{};
-			if (!TryParseParameterValue(it.value(), value)) {
-				continue;
-			}
-			outAsset.parameters[it.key()] = std::move(value);
-		}
+	if (data.contains("parameters")) {
+		ReadMaterialInstance(data["parameters"], outAsset.parameters);
 	}
 	return true;
 }
@@ -337,6 +240,14 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	data["name"] = asset.name;
 	data["domain"] = EnumAdapter<MaterialDomain>::ToString(asset.domain);
 	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);
+	if (asset.renderState.overridesRenderer) {
+		data["renderState"] = {
+			{ "overridesRenderer", true },
+			{ "phase", std::string(ToString(asset.renderState.phase)) },
+			{ "blendMode", EnumAdapter<BlendMode>::ToString(
+				asset.renderState.blendMode) },
+		};
+	}
 	data["passes"] = nlohmann::json::array();
 	for (const auto& pass : asset.passes) {
 		nlohmann::json item = nlohmann::json::object();
@@ -348,11 +259,71 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 		item["preferredVariant"] = EnumAdapter<PipelineVariantKind>::ToString(pass.preferredVariant);
 		data["passes"].push_back(item);
 	}
-	data["parameters"] = nlohmann::json::object();
-	for (const auto& [name, parameter] : asset.parameters) {
-		data["parameters"][name] = SerializeParameterValue(parameter);
-	}
+	data["parameters"] = WriteMaterialInstance(asset.parameters);
 	return data;
+}
+
+Engine::MaterialAsset Engine::CreateDefaultMeshMaterialAsset(std::string_view name) {
+
+	MaterialAsset material{};
+	material.name = name.empty() ? "NewMaterial" : std::string(name);
+	material.domain = MaterialDomain::Surface;
+	material.usage = MaterialUsage::Mesh;
+	material.passes = {
+		MaterialPassBinding{
+			.passKind = MaterialPassKind::ZPrepass,
+			.pipeline = BuiltinAssets::Pipelines::DefaultMeshZPrepass,
+			.preferredVariant = PipelineVariantKind::GraphicsMesh,
+		},
+		MaterialPassBinding{
+			.passKind = MaterialPassKind::EditorPicking,
+			.pipeline = BuiltinAssets::Pipelines::DefaultMeshEditorPicking,
+			.preferredVariant = PipelineVariantKind::GraphicsVertex,
+		},
+		MaterialPassBinding{
+			.passKind = MaterialPassKind::Draw,
+			.pipeline = BuiltinAssets::Pipelines::DefaultMesh,
+			.preferredVariant = PipelineVariantKind::GraphicsMesh,
+		},
+		MaterialPassBinding{
+			.passKind = MaterialPassKind::Transparent,
+			.pipeline = BuiltinAssets::Pipelines::DefaultMeshTransparent,
+			.preferredVariant = PipelineVariantKind::GraphicsMesh,
+		},
+	};
+
+	material.parameters.Set(MaterialParameterIDs::BaseColor,
+		MaterialParameterNames::BaseColor,
+		MaterialParameterSemantic::BaseColor,
+		MaterialParameterValue{ .value = Color4::White() });
+	material.parameters.Set(MaterialParameterIDs::EmissiveColor,
+		MaterialParameterNames::EmissiveColor,
+		MaterialParameterSemantic::EmissiveColor,
+		MaterialParameterValue{ .value = Color4{} });
+	material.parameters.Set(MaterialParameterIDs::Metallic,
+		MaterialParameterNames::Metallic,
+		MaterialParameterSemantic::Metallic,
+		MaterialParameterValue{ .value = 0.0f });
+	material.parameters.Set(MaterialParameterIDs::Roughness,
+		MaterialParameterNames::Roughness,
+		MaterialParameterSemantic::Roughness,
+		MaterialParameterValue{ .value = 0.5f });
+	material.parameters.Set(MaterialParameterIDs::EmissiveIntensity,
+		MaterialParameterNames::EmissiveIntensity,
+		MaterialParameterSemantic::None,
+		MaterialParameterValue{ .value = 0.0f });
+
+	return material;
+}
+
+Engine::MaterialPassBinding* Engine::FindPass(MaterialAsset& asset, MaterialPassKind passKind) {
+
+	for (auto& pass : asset.passes) {
+		if (pass.passKind == passKind) {
+			return &pass;
+		}
+	}
+	return nullptr;
 }
 
 const Engine::MaterialPassBinding* Engine::FindPass(const MaterialAsset& asset, MaterialPassKind passKind) {

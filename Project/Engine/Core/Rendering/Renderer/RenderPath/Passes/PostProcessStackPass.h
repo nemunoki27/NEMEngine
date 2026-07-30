@@ -8,6 +8,9 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessAnchor.h>
 
+// c++
+#include <string>
+
 namespace Engine {
 
 	//============================================================================
@@ -46,6 +49,7 @@ namespace Engine {
 		// プレビューをGameViewと同じトーンマップ後の見た目で出すための全画面blit用SRVキャッシュ
 		PipelineBindingCache previewToneMapSRVCache_{};
 		PipelineBindingCache::SlotID previewToneMapSrcColorSlot_ = PipelineBindingCache::kInvalidSlot;
+		std::string lastGraphDiagnostic_{};
 	};
 } // Engine
 

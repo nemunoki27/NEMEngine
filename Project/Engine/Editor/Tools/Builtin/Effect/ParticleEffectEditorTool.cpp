@@ -178,7 +178,7 @@ namespace {
 		if (!var.used || var.valueType != D3D_SVT_FLOAT || IsPaddingName(var.name)) {
 			return false;
 		}
-		if (var.name == "color") {
+		if (var.name == MaterialParameterNames::BaseColor) {
 			return false;
 		}
 		return true;
@@ -285,7 +285,8 @@ namespace {
 		std::vector<ShaderResourceBinding> textures{};
 		for (const ShaderResourceBinding& resource : reflection.resources) {
 			if (resource.kind == ShaderBindingKind::SRV && resource.space == 2 &&
-				resource.rawType == D3D_SIT_TEXTURE && resource.name != "baseColorTexture") {
+				resource.rawType == D3D_SIT_TEXTURE &&
+				resource.name != MaterialParameterNames::BaseColorTexture) {
 				textures.emplace_back(resource);
 			}
 		}

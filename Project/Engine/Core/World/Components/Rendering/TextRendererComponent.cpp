@@ -19,9 +19,9 @@ namespace {
 
 		component.font = Engine::ParseAssetID(in, "font");
 		component.material = Engine::ParseAssetID(in, "material");
-		Engine::ReadMaterialParameterOverrides(
-			in.value("parameterOverrides", nlohmann::json::object()),
-			component.parameterOverrides);
+		Engine::ReadMaterialInstance(
+			in.value("materialInstance", nlohmann::json::object()),
+			component.materialInstance);
 		component.text = in.value("text", component.text);
 		component.fontSize = in.value("fontSize", component.fontSize);
 		component.charSpacing = in.value("charSpacing", component.charSpacing);
@@ -42,8 +42,8 @@ namespace {
 
 		out["font"] = Engine::ToAssetReferenceJson(component.font);
 		out["material"] = Engine::ToAssetReferenceJson(component.material);
-		out["parameterOverrides"] =
-			Engine::WriteMaterialParameterOverrides(component.parameterOverrides);
+		out["materialInstance"] =
+			Engine::WriteMaterialInstance(component.materialInstance);
 		out["text"] = component.text;
 		out["fontSize"] = component.fontSize;
 		out["charSpacing"] = component.charSpacing;

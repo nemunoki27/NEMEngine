@@ -364,14 +364,14 @@ namespace {
 					Engine::CanvasInputDevice::Gamepad));
 	}
 
-	std::unordered_map<std::string, Engine::MaterialParameterValue>* ResolveMaterialParameters(
+	Engine::MaterialParameterSet* ResolveMaterialParameters(
 		Engine::ECSWorld& world, Engine::Entity target) {
 
 		if (auto* sprite = world.TryGetComponent<Engine::SpriteRendererComponent>(target)) {
-			return &sprite->parameterOverrides.GetMutable();
+			return &sprite->materialInstance;
 		}
 		if (auto* text = world.TryGetComponent<Engine::TextRendererComponent>(target)) {
-			return &text->parameterOverrides.GetMutable();
+			return &text->materialInstance;
 		}
 		return nullptr;
 	}
@@ -424,14 +424,27 @@ namespace {
 		}
 		if (auto* parameters = ResolveMaterialParameters(world, entity)) {
 			if (runtime.hadBaseColor) {
-				(*parameters)["color"].value = runtime.baseColor;
+				Engine::MaterialParameterValue value{};
+				value.value = runtime.baseColor;
+				parameters->Set(
+					Engine::MaterialParameterIDs::BaseColor,
+					Engine::MaterialParameterNames::BaseColor,
+					Engine::MaterialParameterSemantic::BaseColor,
+					value);
 			} else {
-				parameters->erase("color");
+				parameters->erase(
+					Engine::MaterialParameterIDs::BaseColor);
 			}
 			if (runtime.hadBaseTexture) {
-				(*parameters)["baseColorTexture"].value = runtime.baseTexture;
+				Engine::MaterialParameterValue value{};
+				value.value = runtime.baseTexture;
+				parameters->Set(
+					Engine::MaterialParameterIDs::BaseColorTexture,
+					Engine::MaterialParameterNames::BaseColorTexture,
+					Engine::MaterialParameterSemantic::BaseColorTexture,
+					value);
 			} else {
-				parameters->erase("baseColorTexture");
+				parameters->erase(Engine::MaterialParameterIDs::BaseColorTexture);
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -626,14 +639,23 @@ namespace {
 		runtime.hadBaseColor = false;
 		runtime.hadBaseTexture = false;
 		if (auto* parameters = ResolveMaterialParameters(world, entity)) {
-			if (const auto colorIt = parameters->find("color"); colorIt != parameters->end()) {
-				if (const auto* color = std::get_if<Engine::Color4>(&colorIt->second.value)) {
+			if (const Engine::MaterialParameterValue* value =
+				parameters->Find(
+					Engine::MaterialParameterIDs::BaseColor)) {
+
+				if (const auto* color =
+					std::get_if<Engine::Color4>(
+						&value->value)) {
 					runtime.baseColor = *color;
 					runtime.hadBaseColor = true;
 				}
 			}
-			if (const auto textureIt = parameters->find("baseColorTexture"); textureIt != parameters->end()) {
-				if (const auto* texture = std::get_if<Engine::AssetID>(&textureIt->second.value)) {
+			if (const Engine::MaterialParameterValue* value =
+				parameters->Find(Engine::MaterialParameterIDs::BaseColorTexture)) {
+
+				if (const auto* texture =
+					std::get_if<Engine::AssetID>(
+						&value->value)) {
 					runtime.baseTexture = *texture;
 					runtime.hadBaseTexture = true;
 				}
@@ -800,7 +822,13 @@ namespace {
 		if (style.useAnimationClip) {
 			if (style.overrideTexture) {
 				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
-					(*parameters)["baseColorTexture"].value = style.texture;
+					Engine::MaterialParameterValue value{};
+					value.value = style.texture;
+					parameters->Set(
+						Engine::MaterialParameterIDs::BaseColorTexture,
+						Engine::MaterialParameterNames::BaseColorTexture,
+						Engine::MaterialParameterSemantic::BaseColorTexture,
+						value);
 				}
 			}
 			return;
@@ -827,13 +855,31 @@ namespace {
 			EasedValue(style.scaleEasing, scaleProgress));
 
 		if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
-			(*parameters)["color"].value = runtime.currentColor;
+			Engine::MaterialParameterValue color{};
+			color.value = runtime.currentColor;
+			parameters->Set(
+				Engine::MaterialParameterIDs::BaseColor,
+				Engine::MaterialParameterNames::BaseColor,
+				Engine::MaterialParameterSemantic::BaseColor,
+				color);
 			if (style.overrideTexture) {
-				(*parameters)["baseColorTexture"].value = style.texture;
+				Engine::MaterialParameterValue texture{};
+				texture.value = style.texture;
+				parameters->Set(
+					Engine::MaterialParameterIDs::BaseColorTexture,
+					Engine::MaterialParameterNames::BaseColorTexture,
+					Engine::MaterialParameterSemantic::BaseColorTexture,
+					texture);
 			} else if (runtime.hadBaseTexture) {
-				(*parameters)["baseColorTexture"].value = runtime.baseTexture;
+				Engine::MaterialParameterValue texture{};
+				texture.value = runtime.baseTexture;
+				parameters->Set(
+					Engine::MaterialParameterIDs::BaseColorTexture,
+					Engine::MaterialParameterNames::BaseColorTexture,
+					Engine::MaterialParameterSemantic::BaseColorTexture,
+					texture);
 			} else {
-				parameters->erase("baseColorTexture");
+				parameters->erase(Engine::MaterialParameterIDs::BaseColorTexture);
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entry.entity)) {

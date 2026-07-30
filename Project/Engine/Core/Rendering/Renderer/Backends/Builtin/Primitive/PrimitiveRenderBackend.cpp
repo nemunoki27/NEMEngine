@@ -29,7 +29,9 @@ namespace {
 	constexpr uint32_t kInstanceFlagFlipScreenV = 1u << 5;
 
 	// renderFlagsのうちピクセル側で参照するものをインスタンスフラグへ写す
-	uint32_t ToInstanceFlags(Engine::MeshRenderFlags renderFlags) {
+	uint32_t ToInstanceFlags(
+		Engine::MeshRenderFlags renderFlags,
+		uint32_t renderingLayerMask) {
 
 		uint32_t flags = 0;
 		if (Engine::HasMeshRenderFlag(renderFlags, Engine::MeshRenderFlags::Lighting)) {
@@ -44,6 +46,9 @@ namespace {
 		if (Engine::HasMeshRenderFlag(renderFlags, Engine::MeshRenderFlags::ReceiveReflection)) {
 			flags |= kInstanceFlagReceiveReflection;
 		}
+		flags |=
+			(renderingLayerMask &
+				Engine::kRenderingLayerMaskBits) << 8;
 		return flags;
 	}
 
@@ -143,7 +148,10 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 		instance.worldMatrix = billboardView ?
 			RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
 		instance.uvMatrix = payload->uvMatrix;
-		instance.flags = payload->renderer ? ToInstanceFlags(payload->renderer->renderFlags) : 0;
+		instance.flags = payload->renderer ?
+			ToInstanceFlags(
+				payload->renderer->renderFlags,
+				payload->renderer->renderingLayerMask) : 0;
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Cylinder) {
 
 			const PrimitiveCylinderParams& cylinder = payload->renderer->cylinder;
@@ -236,7 +244,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	// reflection駆動のマテリアルパラメータとテクスチャ、宣言しないBuiltinは無回帰
 	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialOverrides, commandList);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialInstance, commandList);
 	}
 	// 選択アウトラインのマスク描画ではStyle IDを渡す、通常描画は宣言が無いので無回帰
 	if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {

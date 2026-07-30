@@ -25,8 +25,8 @@ namespace {
 size_t Engine::MaterialParameterBinder::CacheKeyHasher::operator()(const CacheKey& key) const noexcept {
 
 	size_t result = std::hash<uint64_t>{}(key.pipelineID);
-	result = HashCombine(result, std::hash<const void*>{}(key.material));
-	result = HashCombine(result, std::hash<const void*>{}(key.overrides));
+	result = HashCombine(result, std::hash<uint64_t>{}(key.materialHash));
+	result = HashCombine(result, std::hash<uint64_t>{}(key.instanceHash));
 	return result;
 }
 
@@ -67,26 +67,16 @@ const Engine::MaterialParameterLayout& Engine::MaterialParameterBinder::ResolveL
 
 Engine::MaterialParameterBinder::CachedBindingData& Engine::MaterialParameterBinder::ResolveCacheEntry(
 	const PipelineState& pipeline, const MaterialAsset& material,
-	const std::unordered_map<std::string, MaterialParameterValue>* overrides) {
+	const MaterialParameterSet* overrides) {
 
+	// 内容ハッシュをキーにしてEntityが異なっても同じMaterial Instanceを共有する
 	const CacheKey key{
 		.pipelineID = pipeline.GetUniqueID(),
-		.material = &material,
-		.overrides = overrides,
+		.materialHash = material.parameters.GetContentHash(),
+		.instanceHash = overrides ? overrides->GetContentHash() : 0,
 	};
 	CachedBindingData& cache = bindingCache_[key];
 	cache.lastUsedFrame = frameIndex_;
-
-	const uint64_t materialHash = MaterialParameterBufferBuilder::ComputeHash(material.parameters);
-	const uint64_t overridesHash = overrides ?
-		MaterialParameterBufferBuilder::ComputeHash(*overrides) : 0;
-	if (cache.materialHash != materialHash || cache.overridesHash != overridesHash) {
-
-		cache.materialHash = materialHash;
-		cache.overridesHash = overridesHash;
-		cache.parametersValid = false;
-		cache.texturesValid = false;
-	}
 	return cache;
 }
 
@@ -111,15 +101,20 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 	if (cache.packedParameters.empty()) {
 		return 0;
 	}
+	if (cache.uploadedFrame == frameIndex_ && cache.gpuAddress != 0) {
+		return cache.gpuAddress;
+	}
 
 	const PostProcessConstantBufferAllocation allocation =
 		allocator_.AllocateAndUploadBytes(device, cache.packedParameters);
-	return allocation.gpuAddress;
+	cache.uploadedFrame = frameIndex_;
+	cache.gpuAddress = allocation.gpuAddress;
+	return cache.gpuAddress;
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
 	const PipelineState& pipeline, const MaterialAsset& material,
-	const std::unordered_map<std::string, MaterialParameterValue>& overrides) {
+	const MaterialParameterSet& overrides) {
 
 	if (overrides.empty()) {
 		return ResolveAndUpload(device, pipeline, material);
@@ -136,7 +131,7 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 		cache.packedParameters.resize((std::max)(layout.GetSizeInBytes(), 16u));
 		if (!MaterialParameterBufferBuilder::BuildElementInto(
 			cache.packedParameters, material.parameters, overrides, layout,
-			[](const std::string&, const AssetID&) { return 0u; })) {
+			[](MaterialParameterSemantic, const AssetID&) { return 0u; })) {
 			cache.packedParameters.clear();
 			return 0;
 		}
@@ -145,16 +140,21 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 	if (cache.packedParameters.empty()) {
 		return 0;
 	}
+	if (cache.uploadedFrame == frameIndex_ && cache.gpuAddress != 0) {
+		return cache.gpuAddress;
+	}
 
 	const PostProcessConstantBufferAllocation allocation =
 		allocator_.AllocateAndUploadBytes(device, cache.packedParameters);
-	return allocation.gpuAddress;
+	cache.uploadedFrame = frameIndex_;
+	cache.gpuAddress = allocation.gpuAddress;
+	return cache.gpuAddress;
 }
 
 std::span<const Engine::MaterialParameterBinder::TextureBinding>
 Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 	const MaterialAsset& material,
-	const std::unordered_map<std::string, MaterialParameterValue>* overrides) {
+	const MaterialParameterSet* overrides) {
 
 	CachedBindingData& cache = ResolveCacheEntry(pipeline, material, overrides);
 	if (cache.texturesValid) {
@@ -176,17 +176,17 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 
 		AssetID textureID{};
 		if (overrides) {
-			const auto found = overrides->find(resource.name);
-			if (found != overrides->end()) {
-				if (const AssetID* id = std::get_if<AssetID>(&found->second.value)) {
+			if (const MaterialParameterValue* value =
+				overrides->Find(resource.parameterID)) {
+				if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
 					textureID = *id;
 				}
 			}
 		}
 		if (!textureID) {
-			const auto found = material.parameters.find(resource.name);
-			if (found != material.parameters.end()) {
-				if (const AssetID* id = std::get_if<AssetID>(&found->second.value)) {
+			if (const MaterialParameterValue* value =
+				material.parameters.Find(resource.parameterID)) {
+				if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
 					textureID = *id;
 				}
 			}

@@ -5,6 +5,9 @@ namespace NEMEngine;
 // 低レベルの生成 property（PlaneSize 等）は internal なので、ここから委譲する。
 public sealed partial class PrimitiveRenderer {
 
+    public MaterialInstance MaterialInstance =>
+        new(entity, RendererMaterialTarget.Primitive);
+
     // 形状ごとのアクセサ、生成 wrapper 1 つにつき遅延生成してキャッシュする
     private PlaneAccessor? plane_;
     private CrossPlaneAccessor? crossPlane_;
@@ -24,15 +27,17 @@ public sealed partial class PrimitiveRenderer {
 
     // マテリアル color を上書きする。
     public void SetColor(Color4 color) {
-        NativeApi.WriteRendererMaterialColor(entity.native, 3, -1, "", color.r, color.g, color.b, color.a);
+        MaterialInstance.SetColor(MaterialParameterIDs.BaseColor, MaterialParameterNames.BaseColor, color);
     }
     public void SetColor(Color3 color) {
-        NativeApi.WriteRendererMaterialColor(entity.native, 3, -1, "", color.r, color.g, color.b, 1.0f);
+        SetColor(new Color4(color.r, color.g, color.b, 1.0f));
     }
 
     // 現在のマテリアル color を取得する。
     public Color4 GetColor() {
-        return NativeApi.ReadRendererMaterialColor(entity.native, 3, -1);
+        return MaterialInstance.TryGetColor(MaterialParameterNames.BaseColor, out Color4 color)
+            ? color
+            : new Color4(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     // Plane 形状パラメータ

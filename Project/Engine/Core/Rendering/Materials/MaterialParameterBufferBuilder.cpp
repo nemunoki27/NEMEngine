@@ -276,6 +276,18 @@ namespace {
 		}
 	}
 
+	const Engine::MaterialParameterValue* FindParameterValue(
+		const Engine::MaterialParameterSet& parameters,
+		const Engine::ShaderConstantBufferVariable& variable) {
+
+		if (const Engine::MaterialParameterValue* value =
+			parameters.Find(variable.parameterID)) {
+
+			return value;
+		}
+		return parameters.FindByName(variable.name);
+	}
+
 	size_t HashCombine(size_t seed, size_t value) {
 
 		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
@@ -339,13 +351,16 @@ bool Engine::MaterialParameterBufferBuilder::BuildInto(std::span<uint8_t> bytes,
 
 		const ShaderConstantBufferVariable& variable = variables[variableIndex];
 
-		auto found = material.parameters.find(variable.name);
-		if (found == material.parameters.end()) {
+		const MaterialParameterValue* value =
+			FindParameterValue(
+				material.parameters, variable);
+		if (!value) {
 			continue;
 		}
 
-		const char* sourceValueTypeName = GetParameterValueTypeName(found->second);
-		const MaterialParameterValue parameter = NormalizeParameterValueForVariable(variable, found->second);
+		const char* sourceValueTypeName = GetParameterValueTypeName(*value);
+		const MaterialParameterValue parameter =
+			NormalizeParameterValueForVariable(variable, *value);
 
 		// Reflectionのoffsetへ直接詰めることで、HLSL側のパッキングに追従する
 		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
@@ -354,8 +369,8 @@ bool Engine::MaterialParameterBufferBuilder::BuildInto(std::span<uint8_t> bytes,
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
-	const std::unordered_map<std::string, MaterialParameterValue>& defaults,
-	const std::unordered_map<std::string, MaterialParameterValue>& overrides,
+	const MaterialParameterSet& defaults,
+	const MaterialParameterSet& overrides,
 	const MaterialParameterLayout& layout,
 	const TextureResolver& resolveTexture) {
 
@@ -366,8 +381,8 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 }
 
 bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t> bytes,
-	const std::unordered_map<std::string, MaterialParameterValue>& defaults,
-	const std::unordered_map<std::string, MaterialParameterValue>& overrides,
+	const MaterialParameterSet& defaults,
+	const MaterialParameterSet& overrides,
 	const MaterialParameterLayout& layout,
 	const TextureResolver& resolveTexture) {
 
@@ -384,7 +399,8 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 
 		if (std::holds_alternative<AssetID>(value.value)) {
 
-			const uint32_t index = resolveTexture ? resolveTexture(variable.name, std::get<AssetID>(value.value)) : 0u;
+			const uint32_t index = resolveTexture ?
+				resolveTexture(variable.semantic, std::get<AssetID>(value.value)) : 0u;
 			if (static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
 				std::memcpy(bytes.data() + variable.offset, &index, sizeof(uint32_t));
 			}
@@ -398,14 +414,14 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 	for (const ShaderConstantBufferVariable& variable : variables) {
 
 		// 上書きを優先しなければマテリアル既定値を使う
-		auto overrideIt = overrides.find(variable.name);
-		if (overrideIt != overrides.end()) {
-			writeOne(variable, overrideIt->second);
+		if (const MaterialParameterValue* overrideValue =
+			FindParameterValue(overrides, variable)) {
+			writeOne(variable, *overrideValue);
 			continue;
 		}
-		auto defaultIt = defaults.find(variable.name);
-		if (defaultIt != defaults.end()) {
-			writeOne(variable, defaultIt->second);
+		if (const MaterialParameterValue* defaultValue =
+			FindParameterValue(defaults, variable)) {
+			writeOne(variable, *defaultValue);
 			continue;
 		}
 		// テクスチャindexはcbuffer内でuintとして現れる、未指定はkNoTextureにしてテクスチャなし分岐へ乗せる
@@ -420,13 +436,7 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 }
 
 uint64_t Engine::MaterialParameterBufferBuilder::ComputeHash(
-	const std::unordered_map<std::string, MaterialParameterValue>& parameters) {
+	const MaterialParameterSet& parameters) {
 
-	// unordered_mapの走査順に依存させず、同じ内容なら同じ値になるよう各要素をXORする
-	uint64_t result = static_cast<uint64_t>(parameters.size());
-	for (const auto& [name, value] : parameters) {
-		const size_t entryHash = HashCombine(std::hash<std::string>{}(name), HashParameterValue(value));
-		result ^= static_cast<uint64_t>(HashCombine(entryHash, 0xd6e8feb86659fd93ull));
-	}
-	return result;
+	return parameters.GetContentHash();
 }

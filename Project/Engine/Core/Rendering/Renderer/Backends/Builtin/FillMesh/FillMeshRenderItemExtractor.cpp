@@ -32,7 +32,9 @@ void Engine::FillMeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBa
 		payload.indices = indices.data();
 		payload.indexCount = static_cast<uint32_t>(indices.size());
 		payload.color = renderer.color;
-		payload.materialOverrides = &renderer.parameterOverrides.Get();
+		payload.renderingLayerMask =
+			renderer.renderingLayerMask;
+		payload.materialInstance = &renderer.materialInstance.Get();
 
 		// 描画アイテムの構築
 		RenderItem item{};

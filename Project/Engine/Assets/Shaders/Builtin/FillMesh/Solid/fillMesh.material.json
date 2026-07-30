@@ -1,7 +1,15 @@
 {
     "domain": "Surface",
+    "usage": "FillFaceMesh",
     "name": "fillMesh",
-    "parameters": {},
+    "parameters": {
+        "color": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
+        "emissiveColor": { "r": 0.0, "g": 0.0, "b": 0.0, "a": 0.0 },
+        "Metallic": 0.0,
+        "Roughness": 0.5,
+        "ambientOcclusion": 1.0,
+        "emissiveIntensity": 0.0
+    },
     "passes": [
         {
             "passKind": "Draw",

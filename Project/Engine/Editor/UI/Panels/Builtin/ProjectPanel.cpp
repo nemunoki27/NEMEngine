@@ -29,7 +29,9 @@
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
+#include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
+#include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -1043,6 +1045,28 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 		};
 	script.onDragSource = DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(std::move(script));
+
+	// ShaderGraphは専用ノードエディターで対象アセットを開く
+	AssetActionDescriptor shaderGraph{};
+	shaderGraph.type = AssetType::ShaderGraph;
+	shaderGraph.displayName = "ShaderGraph";
+	shaderGraph.iconResolver = ResolveDefaultAssetIcon;
+	shaderGraph.onDoubleClick =
+		[](const EditorPanelContext& /*context*/,
+			const ProjectAssetEntry& asset) {
+
+		ITool* tool = ToolRegistry::GetInstance().
+			Find("engine.shader_graph");
+		auto* editor =
+			dynamic_cast<ShaderGraphEditorTool*>(tool);
+		if (editor) {
+			editor->OpenAsset(asset.assetID);
+		}
+		};
+	shaderGraph.onDragSource =
+		DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(
+		std::move(shaderGraph));
 }
 
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
@@ -1207,7 +1231,7 @@ void Engine::ProjectPanel::BeginRenameDirectory(const ProjectDirectoryNode& node
 
 void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtualPath) {
 
-	constexpr std::array<ProjectAssetFileKind, 9> kCreateKinds = {
+	constexpr std::array<ProjectAssetFileKind, 10> kCreateKinds = {
 		ProjectAssetFileKind::Folder,
 		ProjectAssetFileKind::Script,
 		ProjectAssetFileKind::Scene,
@@ -1215,6 +1239,7 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 		ProjectAssetFileKind::Material,
 		ProjectAssetFileKind::AnimationClip,
 		ProjectAssetFileKind::Shader,
+		ProjectAssetFileKind::ShaderGraph,
 		ProjectAssetFileKind::RenderPipeline,
 		ProjectAssetFileKind::Text,
 	};

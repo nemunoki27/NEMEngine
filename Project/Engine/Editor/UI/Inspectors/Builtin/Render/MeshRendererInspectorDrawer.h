@@ -87,7 +87,7 @@ namespace Engine {
 		// サブメッシュのparam最終値を解決する、上書き無しはマテリアル既定値か型既定値
 		MaterialParameterValue ResolveSubMeshParamValue(const SubMeshMaterial& subMesh,
 			const ShaderConstantBufferVariable& var) const;
-		// モデルファイルのマテリアル係数とテクスチャを現shaderのparameterOverridesへ再適用する
+		// モデルファイルのマテリアル係数とテクスチャを現shaderのmaterialInstanceへ再適用する
 		void ApplyModelMaterialParameters(const EditorPanelContext& context, MeshRendererComponent& draft);
 		// シェーダーreflection駆動でサブメッシュ単位のマテリアルパラメータを編集する
 		void DrawSubMeshReflectedParameters(const EditorPanelContext& context,

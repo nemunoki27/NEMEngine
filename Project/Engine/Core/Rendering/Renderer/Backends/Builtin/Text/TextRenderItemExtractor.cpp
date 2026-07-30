@@ -28,8 +28,8 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		if (const UVTransformComponent* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
 			payload.uvMatrix = uvTransform->uvMatrix;
 		}
-		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
-		payload.materialOverrides = &renderer.parameterOverrides.Get();
+		// Renderer固有Material Instanceを描画時に既定値へ重ねる
+		payload.materialInstance = &renderer.materialInstance.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
 		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);
@@ -54,9 +54,11 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 
 			item.cameraDomain = RenderCameraDomain::Orthographic;
 		}
-		// 個別マテリアルパラメータを持つアイテムは専用cbufferが要るので、エンティティ単位で一意化して単独描画にする
-		item.batchKey = renderer.parameterOverrides.empty() ? std::hash<AssetID>{}(renderer.font) :
-			((static_cast<uint64_t>(entity.generation) << 32) | entity.index);
+		// フォントとMaterial Instance値が同じTextを同一バッチへまとめる
+		const uint64_t fontHash = std::hash<AssetID>{}(renderer.font);
+		item.batchKey = fontHash ^
+			(renderer.materialInstance.GetContentHash() + 0x9e3779b97f4a7c15ull +
+				(fontHash << 6) + (fontHash >> 2));
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加
 		batch.Add(std::move(item));

@@ -13,7 +13,8 @@
 //============================================================================
 namespace {
 
-	const std::string kBaseColorTextureParameter = "baseColorTexture";
+	const std::string kBaseColorTextureParameter(
+		Engine::MaterialParameterNames::BaseColorTexture);
 
 	// 設定中テクスチャの実サイズを取得する、未ロードや未設定ならfalse
 	bool TryResolveTextureSize(const Engine::EditorPanelContext& context,
@@ -53,7 +54,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	{
 		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
 		const AssetID baseColorTexture = materialParameterDrawer_.ResolveTextureParameter(context,
-			draft.material, defaultMaterialID, draft.parameterOverrides, kBaseColorTextureParameter);
+			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragVector2("サイズ", draft.size,
@@ -94,13 +95,13 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	{
 		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
 		const AssetID previousTexture = materialParameterDrawer_.ResolveTextureParameter(context,
-			draft.material, defaultMaterialID, draft.parameterOverrides, kBaseColorTextureParameter);
+			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 
 		InspectorDrawerCommon::DrawCommonRenderFields(
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
 		// シェーダーパラメータ
-		materialParameterDrawer_.Draw(context, draft.material, defaultMaterialID, draft.parameterOverrides,
+		materialParameterDrawer_.Draw(context, draft.material, defaultMaterialID, draft.materialInstance,
 			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });
 	}
 }

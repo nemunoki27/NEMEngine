@@ -75,6 +75,8 @@ namespace Engine {
 		const std::vector<ShaderResourceBinding>* FindReflectionSamplers(AssetID materialID) const;
 		// 指定マテリアルのリフレクションキャッシュを削除する
 		void ClearReflection(AssetID materialID);
+		// Shader/Pipeline更新時に保持中の全reflectionを破棄する
+		void ClearReflectionCache();
 
 		// シェーダーリロードを要求する
 		void RequestShaderReload(AssetID materialID);

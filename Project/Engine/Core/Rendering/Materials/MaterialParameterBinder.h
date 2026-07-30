@@ -59,12 +59,12 @@ namespace Engine {
 		// Sprite/Text等の個別マテリアル対応で使う、overridesが空なら既定値のみと同じになる
 		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(ID3D12Device* device,
 			const PipelineState& pipeline, const MaterialAsset& material,
-			const std::unordered_map<std::string, MaterialParameterValue>& overrides);
+			const MaterialParameterSet& overrides);
 
 		// space2テクスチャのRootBindingとAssetIDを解決する
 		std::span<const TextureBinding> ResolveTextures(const PipelineState& pipeline,
 			const MaterialAsset& material,
-			const std::unordered_map<std::string, MaterialParameterValue>* overrides);
+			const MaterialParameterSet* overrides);
 	private:
 		//============================================================================
 		//	private Methods
@@ -73,8 +73,8 @@ namespace Engine {
 		struct CacheKey {
 
 			uint64_t pipelineID = 0;
-			const MaterialAsset* material = nullptr;
-			const void* overrides = nullptr;
+			uint64_t materialHash = 0;
+			uint64_t instanceHash = 0;
 
 			bool operator==(const CacheKey&) const = default;
 		};
@@ -84,11 +84,11 @@ namespace Engine {
 		};
 		struct CachedBindingData {
 
-			uint64_t materialHash = 0;
-			uint64_t overridesHash = 0;
 			std::vector<uint8_t> packedParameters{};
 			std::vector<TextureBinding> textures{};
 			uint64_t lastUsedFrame = 0;
+			uint64_t uploadedFrame = 0;
+			D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
 			bool parametersValid = false;
 			bool texturesValid = false;
 		};
@@ -98,7 +98,7 @@ namespace Engine {
 		// 変更検知済みのキャッシュエントリを取得する
 		CachedBindingData& ResolveCacheEntry(const PipelineState& pipeline,
 			const MaterialAsset& material,
-			const std::unordered_map<std::string, MaterialParameterValue>* overrides);
+			const MaterialParameterSet* overrides);
 
 		//--------- variables ----------------------------------------------------
 

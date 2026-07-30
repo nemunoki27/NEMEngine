@@ -26,7 +26,7 @@
 //============================================================================
 namespace {
 
-	using OverridesMap = std::unordered_map<std::string, Engine::MaterialParameterValue>;
+	using OverridesMap = Engine::MaterialParameterSet;
 	using OverridesLocator = std::function<OverridesMap* (Engine::ECSWorld&, const Engine::Entity&)>;
 
 	// 成分数で値型を決める、色判定はreflectionに無いのでシェーダー側メタデータのisColorに従う
@@ -122,7 +122,7 @@ namespace {
 		return false;
 	}
 
-	// アニメーション値をparameterOverridesへ書き込むMaterialParameterValueへ変換する
+	// アニメーション値をmaterialInstanceへ書き込むMaterialParameterValueへ変換する
 	Engine::MaterialParameterValue AnimationValueToMaterial(const Engine::AnimationPropertyValue& value) {
 
 		Engine::MaterialParameterValue result{};
@@ -213,6 +213,7 @@ namespace {
 					return false;
 				}
 				(*map)[paramName] = AnimationValueToMaterial(value);
+				world.MarkRenderDataModified();
 				return true;
 			};
 		// override未設定のparamはPreview前に値が無いので、復元時はsetでなく除去して既定の見た目へ戻す
@@ -227,7 +228,9 @@ namespace {
 				if (!map) {
 					return false;
 				}
-				map->erase(paramName);
+				if (map->erase(paramName) != 0) {
+					world.MarkRenderDataModified();
+				}
 				return true;
 			};
 		return desc;
@@ -331,7 +334,7 @@ namespace {
 	//============================================================================
 	//	Component別プロバイダ
 	//============================================================================
-	// MeshRendererはsubMeshes[N]ごとに別々のparameterOverridesを持つ
+	// MeshRendererはsubMeshes[N]ごとに別々のmaterialInstanceを持つ
 	MaterialSlotProvider MakeMeshProvider() {
 
 		MaterialSlotProvider provider{};
@@ -371,7 +374,7 @@ namespace {
 				const std::span<Engine::SubMeshMaterial> subMeshes =
 					Engine::GetMeshSubMeshes(world, entity);
 				if (index < subMeshes.size()) {
-					return &subMeshes[index].parameterOverrides.GetMutable();
+					return &subMeshes[index].materialInstance;
 				}
 				return nullptr;
 			};
@@ -404,7 +407,7 @@ namespace {
 					return nullptr;
 				}
 				if (Component* renderer = world.TryGetComponent<Component>(entity)) {
-					return &renderer->parameterOverrides.GetMutable();
+					return &renderer->materialInstance;
 				}
 				return nullptr;
 			};
@@ -432,7 +435,7 @@ namespace {
 					return false;
 				}
 				// 先頭サブメッシュを代表値とし、未設定なら0を現在値として返す
-				const auto& map = subMeshes[0].parameterOverrides;
+				const auto& map = subMeshes[0].materialInstance;
 				auto it = map.find(paramName);
 				if (it != map.end() && MaterialValueToAnimation(it->second, valueType, out)) {
 					return true;
@@ -449,24 +452,29 @@ namespace {
 				const Engine::MaterialParameterValue materialValue = AnimationValueToMaterial(value);
 				for (Engine::SubMeshMaterial& subMesh :
 					Engine::GetMeshSubMeshes(world, entity)) {
-					subMesh.parameterOverrides[paramName] = materialValue;
+					subMesh.materialInstance[paramName] = materialValue;
 				}
+				world.MarkRenderDataModified();
 				return true;
 			};
 		desc.hasValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
 			const std::span<Engine::SubMeshMaterial> subMeshes =
 				Engine::GetMeshSubMeshes(world, entity);
 			return !subMeshes.empty() &&
-				subMeshes[0].parameterOverrides.find(paramName) !=
-				subMeshes[0].parameterOverrides.end();
+				subMeshes[0].materialInstance.find(paramName) !=
+				subMeshes[0].materialInstance.end();
 			};
 		desc.clearValue = [paramName](Engine::ECSWorld& world, const Engine::Entity& entity) {
 			if (!world.HasComponent<Engine::MeshRendererComponent>(entity)) {
 				return false;
 			}
+			bool removed = false;
 			for (Engine::SubMeshMaterial& subMesh :
 				Engine::GetMeshSubMeshes(world, entity)) {
-				subMesh.parameterOverrides.erase(paramName);
+				removed |= subMesh.materialInstance.erase(paramName) != 0;
+			}
+			if (removed) {
+				world.MarkRenderDataModified();
 			}
 			return true;
 			};

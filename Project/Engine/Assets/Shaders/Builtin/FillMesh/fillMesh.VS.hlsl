@@ -9,11 +9,13 @@
 cbuffer ViewConstants : register(b0) {
 
 	float4x4 viewProjection;
+	float3 cameraPosition;
+	float _viewPadding;
 };
 cbuffer ObjectConstants : register(b1) {
 
 	float4x4 worldMatrix;
-	float4 color;
+	float4 objectColor;
 };
 StructuredBuffer<FillMeshVertex> gVertices : register(t0);
 

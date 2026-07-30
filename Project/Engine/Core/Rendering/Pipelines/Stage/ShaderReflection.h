@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 
 // c++
 #include <string>
@@ -48,6 +49,10 @@ namespace Engine {
 
 		// リソースの名前
 		std::string name;
+		// 実行時の安定パラメータID
+		MaterialParameterID parameterID{};
+		// 標準マテリアル上の意味
+		MaterialParameterSemantic semantic = MaterialParameterSemantic::None;
 		// リソースの種類
 		ShaderBindingKind kind;
 
@@ -72,6 +77,10 @@ namespace Engine {
 
 		// 変数名
 		std::string name;
+		// 実行時の安定パラメータID
+		MaterialParameterID parameterID{};
+		// 標準マテリアル上の意味
+		MaterialParameterSemantic semantic = MaterialParameterSemantic::None;
 		// 定数バッファ内の開始位置
 		UINT offset = 0;
 		// 変数が使用するバイト数

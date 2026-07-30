@@ -14,8 +14,7 @@ namespace Engine {
 
 	void ProjectAssetFileUtility::PatchJsonAssetName(const std::filesystem::path& path, AssetType type, bool) {
 		// 対象がScene/Prefab/Material等のJSONベースのアセットでなければスキップ
-		if (type != AssetType::Scene && type != AssetType::Prefab && type != AssetType::Material &&
-			type != AssetType::AnimationClip && type != AssetType::Shader && type != AssetType::RenderPipeline) {
+		if (!AssetTypeResolver::IsJsonAssetType(type)) {
 			return;
 		}
 		// 拡張子がJSONでなければバイナリアセット除外として処理しない

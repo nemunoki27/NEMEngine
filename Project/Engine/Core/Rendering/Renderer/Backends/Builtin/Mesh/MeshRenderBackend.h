@@ -155,6 +155,8 @@ namespace Engine {
 		std::unique_ptr<MeshBatchResources> resources{};
 		// 一定フレーム使われなければ破棄する
 		uint64_t lastUsedFrame = 0;
+		// CPU側描画データを構築したRender世代
+		uint64_t renderRevision = 0;
 		// CPU側インスタンス行列を構築したTransform世代
 		uint64_t transformRevision = 0;
 		// FallbackTextureを含む場合は後で本テクスチャに差し替わるため永続化しない
@@ -230,8 +232,9 @@ namespace Engine {
 
 		// スキンメッシュのバッチキャッシュを構築するためのハッシュを計算する
 		uint64_t BuildBatchHash(std::span<const RenderItem* const> items) const;
-		uint64_t BuildStaticBatchHash(const RenderDrawContext& context,
-			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const;
+		uint64_t BuildStaticBatchHash(
+			std::span<const RenderItem* const> items,
+			const MeshGPUResource& gpuMesh) const;
 		// 長時間使われていない静的バッチを破棄する
 		void PruneStaticBatchCache();
 		// 長時間使われていないスキニングバッチを破棄する

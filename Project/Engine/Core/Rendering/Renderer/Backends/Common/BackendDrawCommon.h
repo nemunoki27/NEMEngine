@@ -90,13 +90,13 @@ namespace Engine::BackendDrawCommon {
 	void BindMaterialTextures(const RenderDrawContext& context, const PipelineState& pipelineState,
 		MaterialParameterBinder& binder, const MaterialAsset& material,
 		ID3D12GraphicsCommandList* commandList,
-		const std::unordered_map<std::string, MaterialParameterValue>* overrides = nullptr);
+		const MaterialParameterSet* overrides = nullptr);
 
 	// MaterialParameters cbufferをreflection駆動でアップロードしバインドする
 	// overridesはエンティティごとの個別マテリアル用、nullや空なら既定値のみになる
 	void BindReflectedMaterialParameters(const RenderDrawContext& context, MaterialParameterBinder& binder,
 		const PipelineState& pipelineState, const MaterialAsset& material,
-		const std::unordered_map<std::string, MaterialParameterValue>* overrides,
+		const MaterialParameterSet* overrides,
 		PipelineBindingCache& bindCache, PipelineBindingCache::SlotID slot,
 		ID3D12GraphicsCommandList* commandList);
 

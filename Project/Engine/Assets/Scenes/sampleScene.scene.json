@@ -726,7 +726,7 @@
                     "layer": 0,
                     "material": "",
                     "order": 0,
-                    "parameterOverrides": {},
+                    "materialInstance": {},
                     "pivot": {
                         "x": 0,
                         "y": 0
@@ -818,7 +818,7 @@
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
-                    "material": "4e454d4153534554b876437b44304df0",
+                    "material": "4e454d4153534554317efcbf7aca8e61",
                     "mesh": "",
                     "order": 0,
                     "queue": "Opaque",
@@ -1078,7 +1078,7 @@
                     "layer": 0,
                     "material": "",
                     "order": 0,
-                    "parameterOverrides": {
+                    "materialInstance": {
                         "baseColorTexture": "4e454d415353455436762d22cf755749",
                         "color": {
                             "a": 1,

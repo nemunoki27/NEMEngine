@@ -51,6 +51,7 @@ namespace Engine {
 		uint32_t GetBindPoint() const { return bindPoint_; }
 		uint32_t GetSpace() const { return space_; }
 		const std::vector<ShaderConstantBufferVariable>& GetVariables() const { return variables_; }
+		const ShaderConstantBufferVariable* Find(MaterialParameterID id) const;
 	private:
 		//============================================================================
 		//	private Methods

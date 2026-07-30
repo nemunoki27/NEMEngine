@@ -31,6 +31,15 @@ uint64_t Engine::PipelineState::NextUniqueID() {
 	return ++counter;
 }
 
+void Engine::PipelineState::ApplyShaderMetadata(
+	const ShaderAsset& asset) {
+
+	ApplyShaderParameterMetadata(
+		graphicsReflection_, asset);
+	ApplyShaderParameterMetadata(
+		computeReflection_, asset);
+}
+
 namespace {
 
 	// シェーダーソース参照(GUIDまたはパス)を実体パスへ解決する

@@ -504,6 +504,11 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::ReceiveReflection)) {
 				instance.flags |= kMeshInstanceFlagReceiveReflection;
 			}
+			if (renderer) {
+				instance.flags |=
+					(renderer->renderingLayerMask &
+						kRenderingLayerMaskBits) << 8;
+			}
 
 			// スキニングする場合の設定
 			if (gpuMesh.isSkinned && skinning_ && skinnedRuntime &&
@@ -595,7 +600,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				// Position Scaling膨張の基準で原点基準にならないようサブメッシュのピボットを渡す
 				data.sourcePivot = authoring.sourcePivot;
 				// reflection paramの上書きをインスタンス×サブメッシュ単位で集める
-				subMeshParamScratch_.emplace_back(authoring.parameterOverrides);
+				subMeshParamScratch_.emplace_back(authoring.materialInstance);
 			} else {
 
 				// rendererが無いときも要素数をgSubMeshesと揃える
@@ -722,19 +727,17 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	const uint32_t fallbackIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
 	bool usedFallbackTexture = false;
 
-	// テクスチャparamのAssetIDをbindless indexへ解決する、名前でsRGB可否を判定する
+	// テクスチャSemanticからsRGB可否を決めてbindless indexへ解決する
 	// 未指定はkNoTextureを返しシェーダー側でテクスチャなしの分岐に乗せる
-	auto resolveTexture = [&](const std::string& name, const AssetID& id) -> uint32_t {
+	auto resolveTexture = [&](MaterialParameterSemantic semantic,
+		const AssetID& id) -> uint32_t {
 
 		if (!id) {
 			return UINT32_MAX;
 		}
-		const bool sRGB = name.find("baseColor") != std::string::npos ||
-			name.find("BaseColor") != std::string::npos ||
-			name.find("emissive") != std::string::npos ||
-			name.find("Emissive") != std::string::npos;
 		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
-			graphicsCore, drawContext.assetDatabase, id, sRGB);
+			graphicsCore, drawContext.assetDatabase, id,
+			IsSRGBMaterialTexture(semantic));
 		if (!texture || texture->srvIndex == UINT32_MAX) {
 			usedFallbackTexture = true;
 			return fallbackIndex;
@@ -745,8 +748,8 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		return texture->srvIndex;
 		};
 
-	const std::unordered_map<std::string, MaterialParameterValue> emptyMap{};
-	const std::unordered_map<std::string, MaterialParameterValue>& defaults =
+	const MaterialParameterSet emptyMap{};
+	const MaterialParameterSet& defaults =
 		material ? material->parameters : emptyMap;
 
 	// リフレクションから取得した構造体strideをそのまま使用する

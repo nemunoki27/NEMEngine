@@ -23,11 +23,15 @@ namespace {
 	struct FillMeshViewConstants {
 
 		Engine::Matrix4x4 viewProjection = Engine::Matrix4x4::Identity();
+		Engine::Vector3 cameraPos = Engine::Vector3::AnyInit(0.0f);
+		float padding = 0.0f;
 	};
 	struct FillMeshObjectConstants {
 
 		Engine::Matrix4x4 worldMatrix = Engine::Matrix4x4::Identity();
 		Engine::Color4 color = Engine::Color4::White();
+		uint32_t renderingLayerMask = 1u;
+		uint32_t padding[3] = { 0, 0, 0 };
 	};
 
 	bool ResolveFillMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
@@ -120,6 +124,7 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	FillMeshViewConstants viewConstants{};
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
+		viewConstants.cameraPos = camera->cameraPos;
 	}
 	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
 
@@ -129,6 +134,8 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	objectConstants.worldMatrix = billboardView ?
 		RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
 	objectConstants.color = payload->color;
+	objectConstants.renderingLayerMask =
+		payload->renderingLayerMask;
 	const PostProcessConstantBufferAllocation objectAlloc = constantBufferAllocator_.AllocateAndUpload(device, objectConstants);
 
 	// パイプラインを設定する
@@ -149,7 +156,7 @@ void Engine::FillMeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	// reflection駆動のマテリアルパラメータ、cbuffer無のBuiltinは無回帰
 	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialOverrides, commandList);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialInstance, commandList);
 	}
 	// 選択アウトラインのマスク描画ではStyle IDを渡す、通常描画は宣言が無いので無回帰
 	if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {

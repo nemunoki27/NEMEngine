@@ -9,6 +9,19 @@ public sealed partial class FillMeshRenderer {
     public DynamicBuffer<FillMeshPoint> Points =>
         entity.GetBuffer<FillMeshPoint>();
 
+    public MaterialInstance MaterialInstance =>
+        new(entity, RendererMaterialTarget.FillMesh);
+
+    public void SetColor(Color4 color) {
+        MaterialInstance.SetColor(MaterialParameterIDs.BaseColor, MaterialParameterNames.BaseColor, color);
+    }
+
+    public Color4 GetColor() {
+        return MaterialInstance.TryGetColor(MaterialParameterNames.BaseColor, out Color4 color)
+            ? color
+            : new Color4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
     // 面を構成する点列を差し替える、XZ平面でY座標は構築時に0へ固定される
     public void SetFacePositions(ReadOnlySpan<Vector3> positions) {
         NativeApi.FillMeshSetFacePositions(entity.native, positions);

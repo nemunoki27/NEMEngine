@@ -79,14 +79,14 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う
 		if (resolvedPass.material) {
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
-				*resolvedPass.material, firstPayload ? firstPayload->materialOverrides : nullptr,
+				*resolvedPass.material, firstPayload ? firstPayload->materialInstance : nullptr,
 				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする
 		if (resolvedPass.material) {
 			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, materialParamBinder_,
 				*resolvedPass.material, commandList,
-				firstPayload ? firstPayload->materialOverrides : nullptr);
+				firstPayload ? firstPayload->materialInstance : nullptr);
 		}
 	}
 

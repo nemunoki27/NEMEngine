@@ -189,7 +189,7 @@ namespace Engine::MaterialParameterEditor {
 	// parametersに未登録の変数は既定値で補完する、補完自体はsaveを誘発しない
 	inline bool DrawReflectedCBufferParameters(const ShaderReflectionInfo& reflection,
 		const std::string& cbufferName,
-		std::unordered_map<std::string, MaterialParameterValue>& parameters) {
+		MaterialParameterSet& parameters) {
 
 		bool valueChanged = false;
 		for (const ShaderConstantBufferInfo& cb : reflection.constantBuffers) {
@@ -198,12 +198,16 @@ namespace Engine::MaterialParameterEditor {
 			}
 			for (const ShaderConstantBufferVariable& var : cb.variables) {
 
-				auto it = parameters.find(var.name);
-				if (it == parameters.end()) {
+				MaterialParameterValue* value =
+					parameters.Find(var.parameterID);
+				if (!value) {
 					// シェーダーが要求するパラメータをUIへ出すため既定値で補完する
-					it = parameters.emplace(var.name, DefaultValueForVariable(var)).first;
+					parameters.Set(
+						var.parameterID, var.name, var.semantic,
+						DefaultValueForVariable(var));
+					value = parameters.Find(var.parameterID);
 				}
-				if (DrawValueEdit(var, it->second).valueChanged) {
+				if (value && DrawValueEdit(var, *value).valueChanged) {
 					valueChanged = true;
 				}
 			}

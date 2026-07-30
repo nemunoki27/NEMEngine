@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineState.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -18,12 +19,9 @@
 
 Engine::AssetID Engine::RaytracingReflectionPass::ResolveMaterial() const {
 
-	if (materialSearched_) {
-		return cachedMaterialID_;
-	}
-	materialSearched_ = true;
-	cachedMaterialID_ = BuiltinAssets::Materials::RaytracingReflection;
-	return cachedMaterialID_;
+	return
+		DefaultMaterialSettings::GetInstance().
+		GetRaytracingReflectionOrBuiltin();
 }
 
 void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
@@ -61,7 +59,8 @@ void Engine::RaytracingReflectionPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 	RaytracingPipelineState* pipelineState = deps_.raytracingPipelineCache->GetOrCreate(
-		graphicsCore.GetDXObject(), *deps_.assetLibrary, passBinding->pipeline);
+		graphicsCore.GetDXObject(), *deps_.assetLibrary,
+		passBinding->pipeline, passBinding->shaderOverride);
 	if (!pipelineState) {
 		return;
 	}

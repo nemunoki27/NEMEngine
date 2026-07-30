@@ -108,14 +108,19 @@ namespace {
 		return kDefault;
 	}
 
-	void AppendPhaseMaterialOverrides(const Engine::ParticlePhaseMaterialSettings& materialSettings,
-		std::unordered_map<std::string, Engine::MaterialParameterValue>& outOverrides) {
+	void BuildPhaseMaterialInstance(
+		const Engine::ParticlePhaseMaterialSettings& materialSettings,
+		Engine::MaterialParameterSet& outInstance) {
 
-		outOverrides.clear();
+		outInstance.clear();
 		if (materialSettings.baseColorTexture) {
 			Engine::MaterialParameterValue value{};
 			value.value = materialSettings.baseColorTexture;
-			outOverrides["baseColorTexture"] = value;
+			outInstance.Set(
+				Engine::MaterialParameterIDs::BaseColorTexture,
+				Engine::MaterialParameterNames::BaseColorTexture,
+				Engine::MaterialParameterSemantic::BaseColorTexture,
+				value);
 		}
 		for (const auto& [name, texture] : materialSettings.textureOverrides) {
 			if (!texture) {
@@ -123,7 +128,7 @@ namespace {
 			}
 			Engine::MaterialParameterValue value{};
 			value.value = texture;
-			outOverrides[name] = value;
+			outInstance[name] = value;
 		}
 		for (const auto& [name, parameter] : materialSettings.parameters) {
 			if (parameter.mode != Engine::ParticleMaterialParameterMode::Constant) {
@@ -139,7 +144,7 @@ namespace {
 			} else {
 				value.value = parameter.constant;
 			}
-			outOverrides[name] = value;
+			outInstance[name] = value;
 		}
 	}
 
@@ -436,13 +441,16 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	}
 	if (resolvedPass.material) {
 
-		std::unordered_map<std::string, MaterialParameterValue> trailOverrides{};
+		MaterialParameterSet trailInstance{};
 		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
 		if (payload && payload->group) {
-			AppendPhaseMaterialOverrides(payload->group->renderSettings.trail.materialSettings, trailOverrides);
+			BuildPhaseMaterialInstance(
+				payload->group->renderSettings.trail.materialSettings,
+				trailInstance);
 		}
 		BindMaterial(context, *pipelineState, *resolvedPass.material,
-			trailOverrides.empty() ? nullptr : &trailOverrides, commandList);
+			trailInstance.empty() ? nullptr : &trailInstance,
+			commandList);
 	}
 
 	if (variant && variant->kind == PipelineVariantKind::GraphicsMesh) {
@@ -537,10 +545,12 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 				instanceOffset += instanceCount;
 				continue;
 			}
-			std::unordered_map<std::string, MaterialParameterValue> phaseOverrides{};
-			AppendPhaseMaterialOverrides(GetPhaseMaterialSettings(settings, phaseIndex), phaseOverrides);
-			const std::unordered_map<std::string, MaterialParameterValue>* phaseOverridePtr =
-				phaseOverrides.empty() ? nullptr : &phaseOverrides;
+			MaterialParameterSet phaseInstance{};
+			BuildPhaseMaterialInstance(
+				GetPhaseMaterialSettings(settings, phaseIndex),
+				phaseInstance);
+			const MaterialParameterSet* phaseInstancePtr =
+				phaseInstance.empty() ? nullptr : &phaseInstance;
 			const D3D12_GPU_VIRTUAL_ADDRESS geometryAddress = resources.GetGeometryGPUAddress() +
 				static_cast<uint64_t>(instanceOffset) * sizeof(ParticleGeometryData);
 			const D3D12_GPU_VIRTUAL_ADDRESS materialsAddress = resources.GetMaterialsGPUAddress() +
@@ -552,17 +562,17 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 			bool drawn = false;
 			if (parametric) {
 				drawn = DrawParametricShapePath(context, item, *parametric, settings, phasePass,
-					phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
+					phaseInstancePtr, geometryAddress, materialsAddress, customParametersAddress,
 					instanceCount, viewAlloc.gpuAddress);
 			}
 			if (!drawn && settings.model) {
 				drawn = DrawModelMeshPath(context, item, settings, phasePass,
-					phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
+					phaseInstancePtr, geometryAddress, materialsAddress, customParametersAddress,
 					instanceCount, viewAlloc.gpuAddress);
 			}
 			if (!drawn) {
 				DrawSharedGeometryPath(context, item, settings, phasePass,
-					phaseOverridePtr, geometryAddress, materialsAddress, customParametersAddress,
+					phaseInstancePtr, geometryAddress, materialsAddress, customParametersAddress,
 					instanceCount, viewAlloc.gpuAddress);
 			}
 			instanceOffset += instanceCount;
@@ -584,7 +594,7 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,
 	const IParticleParametricShape& parametric, const ParticleRenderSettings& settings,
 	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
-	const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides,
+	const MaterialParameterSet* materialInstance,
 	D3D12_GPU_VIRTUAL_ADDRESS geometryAddress, D3D12_GPU_VIRTUAL_ADDRESS materialsAddress,
 	D3D12_GPU_VIRTUAL_ADDRESS customParametersAddress,
 	uint32_t instanceCount,
@@ -635,7 +645,7 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 			customParametersAddress, {});
 	}
 	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, materialOverrides, commandList);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, materialInstance, commandList);
 	}
 
 	// 1グループ64三角形で全粒子分をDispatchMeshする
@@ -664,7 +674,7 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& context, const RenderItem* item,
 	const ParticleRenderSettings& settings,
 	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
-	const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides,
+	const MaterialParameterSet* materialInstance,
 	D3D12_GPU_VIRTUAL_ADDRESS geometryAddress, D3D12_GPU_VIRTUAL_ADDRESS materialsAddress,
 	D3D12_GPU_VIRTUAL_ADDRESS customParametersAddress,
 	uint32_t instanceCount,
@@ -708,7 +718,7 @@ bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& c
 			customParametersAddress, {});
 	}
 	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, materialOverrides, commandList);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, materialInstance, commandList);
 	}
 
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -721,7 +731,7 @@ bool Engine::ParticleRenderBackend::DrawModelMeshPath(const RenderDrawContext& c
 void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawContext& context, const RenderItem* item,
 	const ParticleRenderSettings& settings,
 	const BackendDrawCommon::ResolvedMaterialPass& resolvedPass,
-	const std::unordered_map<std::string, MaterialParameterValue>* materialOverrides,
+	const MaterialParameterSet* materialInstance,
 	D3D12_GPU_VIRTUAL_ADDRESS geometryAddress, D3D12_GPU_VIRTUAL_ADDRESS materialsAddress,
 	D3D12_GPU_VIRTUAL_ADDRESS customParametersAddress,
 	uint32_t instanceCount,
@@ -763,7 +773,7 @@ void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawConte
 			customParametersAddress, {});
 	}
 	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, materialOverrides, commandList);
+		BindMaterial(context, *pipelineState, *resolvedPass.material, materialInstance, commandList);
 	}
 
 	// 共有インデックスバッファでインスタンシング描画する

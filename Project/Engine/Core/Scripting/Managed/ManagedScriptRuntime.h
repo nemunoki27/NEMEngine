@@ -354,12 +354,17 @@ namespace Engine {
 		static void __cdecl SetInputTypeCallback(int32_t type);
 		static int32_t __cdecl GetMouseRangeControlCallback();
 		static void __cdecl SetMouseRangeControlCallback(int32_t enabled);
-		// Mesh/Sprite/Textのマテリアルcolorを上書きする、componentType 0=Mesh 1=Sprite 2=Text、subMeshIndex<0で全サブメッシュ
-		static void __cdecl SetRendererMaterialColorCallback(ManagedNativeEntity entity, int32_t componentType,
-			int32_t subMeshIndex, const char* param, float r, float g, float b, float a);
-		// Mesh/Sprite/Textのマテリアルcolorを取得する、未設定は白を返す
-		static ManagedColor4 __cdecl GetRendererMaterialColorCallback(ManagedNativeEntity entity,
-			int32_t componentType, int32_t subMeshIndex);
+		// RendererのMaterial Instanceへ型付きパラメータを読み書きする
+		static int32_t __cdecl SetRendererMaterialParameterCallback(
+			ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
+			uint64_t parameterID, const char* name,
+			const ManagedMaterialParameterValue* value);
+		static int32_t __cdecl GetRendererMaterialParameterCallback(
+			ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
+			uint64_t parameterID, ManagedMaterialParameterValue* outValue);
+		static int32_t __cdecl ClearRendererMaterialParameterCallback(
+			ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
+			uint64_t parameterID);
 		// CollisionComponentのshapes操作、件数取得と追加削除、shapeIndexとpropId指定でパラメータを読み書きする
 		static int32_t __cdecl CollisionShapeCountCallback(ManagedNativeEntity entity);
 		static void __cdecl CollisionAddShapeCallback(ManagedNativeEntity entity);

@@ -45,6 +45,7 @@ namespace {
 		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";
 		case Engine::AssetType::PostProcessStack: return "PostProcessStackImporter";
 		case Engine::AssetType::ParticleEffect:   return "ParticleEffectImporter";
+		case Engine::AssetType::ShaderGraph:      return "ShaderGraphImporter";
 		default:                                  return "DefaultImporter";
 		}
 	}
@@ -70,6 +71,7 @@ namespace {
 			{ "material", Engine::AssetType::Material },
 			{ "materials", Engine::AssetType::Material },
 			{ "materialGuid", Engine::AssetType::Material },
+			{ "generatedMaterial", Engine::AssetType::Material },
 			{ "texture", Engine::AssetType::Texture },
 			{ "baseColorTexture", Engine::AssetType::Texture },
 			{ "normalTexture", Engine::AssetType::Texture },
@@ -87,6 +89,8 @@ namespace {
 			{ "effect", Engine::AssetType::ParticleEffect },
 			{ "shader", Engine::AssetType::Shader },
 			{ "shaderOverride", Engine::AssetType::Shader },
+			{ "generatedOpaqueShader", Engine::AssetType::Shader },
+			{ "generatedTransparentShader", Engine::AssetType::Shader },
 			{ "file", Engine::AssetType::Shader },
 			{ "pipeline", Engine::AssetType::RenderPipeline },
 			{ "postProcessStack", Engine::AssetType::PostProcessStack },
@@ -119,6 +123,26 @@ namespace {
 		std::unordered_map<Engine::AssetID, Engine::AssetType>& out) {
 
 		if (node.is_object()) {
+
+			// Material Instanceのrecord形式ではTexture GUIDがvalue配下に保存される
+			if (node.contains("id") &&
+				node.contains("name") &&
+				node.contains("value")) {
+
+				TryCollectReference(
+					node["value"],
+					Engine::AssetType::Texture,
+					out);
+			}
+			// Shader GraphのTexture2D既定値も生成Material作成前から依存として保持する
+			if (node.value("type", std::string{}) == "Texture2D" &&
+				node.contains("defaultValue")) {
+
+				TryCollectReference(
+					node["defaultValue"],
+					Engine::AssetType::Texture,
+					out);
+			}
 
 			const auto& keyMap = ReferenceKeyMap();
 			for (auto it = node.begin(); it != node.end(); ++it) {

@@ -326,7 +326,7 @@ namespace Engine {
 		uint32_t subMeshParamElementCount_ = 0;
 		bool subMeshParamAvailable_ = false;
 		// UploadBatchDataで集めるインスタンス×サブメッシュ単位の上書きパラメータ
-		std::vector<std::unordered_map<std::string, MaterialParameterValue>> subMeshParamScratch_{};
+		std::vector<MaterialParameterSet> subMeshParamScratch_{};
 		std::vector<uint8_t> subMeshParamPackedScratch_{};
 		uint64_t subMeshParamLayoutHash_ = 0;
 		const MaterialAsset* subMeshParamMaterial_ = nullptr;

@@ -33,11 +33,11 @@ namespace Engine {
 		// reflectionした定数とテクスチャを描画する
 		template <typename DrawFieldFn>
 		void Draw(const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID,
-			std::unordered_map<std::string, MaterialParameterValue>& parameters, DrawFieldFn&& drawField);
+			MaterialParameterSet& parameters, DrawFieldFn&& drawField);
 		// テクスチャの実効値を取得する
 		AssetID ResolveTextureParameter(const EditorPanelContext& context,
 			AssetID materialID, AssetID defaultMaterialID,
-			const std::unordered_map<std::string, MaterialParameterValue>& parameters,
+			const MaterialParameterSet& parameters,
 			const std::string& name);
 	private:
 		//========================================================================
@@ -58,11 +58,11 @@ namespace Engine {
 			AssetID materialID, AssetID defaultMaterialID);
 		// param最終値を解決する
 		MaterialParameterValue ResolveParamValue(
-			const std::unordered_map<std::string, MaterialParameterValue>& parameters,
+			const MaterialParameterSet& parameters,
 			const ShaderConstantBufferVariable& variable) const;
 		// テクスチャ最終値を解決する
 		AssetID ResolveTextureValue(
-			const std::unordered_map<std::string, MaterialParameterValue>& parameters,
+			const MaterialParameterSet& parameters,
 			const std::string& name) const;
 	};
 } // Engine
@@ -73,7 +73,7 @@ namespace Engine {
 template <typename DrawFieldFn>
 inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelContext& context,
 	AssetID materialID, AssetID defaultMaterialID,
-	std::unordered_map<std::string, MaterialParameterValue>& parameters, DrawFieldFn&& drawField) {
+	MaterialParameterSet& parameters, DrawFieldFn&& drawField) {
 
 	ImGui::SeparatorText("シェーダーパラメータ");
 
@@ -99,7 +99,9 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 
 				ValueEditResult result = MaterialParameterEditor::DrawValueEdit(variable, value);
 				if (result.valueChanged) {
-					parameters[variable.name] = value;
+					parameters.Set(
+						variable.parameterID, variable.name,
+						variable.semantic, value);
 				}
 				return result;
 				});
@@ -130,7 +132,11 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 			ValueEditResult result = MyGUI::AssetReferenceField(resource->name.c_str(), textureID,
 				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			if (result.valueChanged) {
-				parameters[resource->name].value = textureID;
+				MaterialParameterValue value{};
+				value.value = textureID;
+				parameters.Set(
+					resource->parameterID, resource->name,
+					resource->semantic, value);
 			}
 			return result;
 			});

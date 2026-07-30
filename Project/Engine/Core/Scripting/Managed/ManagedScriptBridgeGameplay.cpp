@@ -35,6 +35,7 @@
 
 // c++
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <string>
 #include <string_view>
@@ -866,49 +867,192 @@ namespace Engine {
 
 	namespace {
 
-		using OverridesMap = std::unordered_map<std::string, Engine::MaterialParameterValue>;
+		template<typename Function>
+		int32_t VisitRendererMaterialInstances(
+			Engine::ECSWorld& world, const Engine::Entity& entity,
+			Engine::ManagedRendererMaterialTarget target,
+			int32_t subMeshIndex, Function&& function) {
 
-		// componentTypeとsubMeshIndexから上書き対象のparameterOverridesを集める、0=Mesh 1=Sprite 2=Text 3=Primitive
-		std::vector<OverridesMap*> CollectColorTargets(Engine::ECSWorld& world, const Engine::Entity& entity,
-			int32_t componentType, int32_t subMeshIndex) {
+			int32_t count = 0;
+			auto visit = [&](Engine::MaterialParameterSet& materialInstance) {
+				function(materialInstance);
+				++count;
+			};
 
-			std::vector<OverridesMap*> targets;
-			if (componentType == 0) {
+			switch (target) {
+			case Engine::ManagedRendererMaterialTarget::Mesh:
+				if (!world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
+					break;
+				}
+				if (const std::span<Engine::SubMeshMaterial> subMeshes =
+					Engine::GetMeshSubMeshes(world, entity);
+					subMeshIndex < 0) {
 
-				if (Engine::MeshRendererComponent* renderer = world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
-					const std::span<Engine::SubMeshMaterial> subMeshes =
-						Engine::GetMeshSubMeshes(world, entity);
-					if (subMeshIndex < 0) {
-						for (Engine::SubMeshMaterial& subMesh : subMeshes) {
-							targets.emplace_back(
-								&subMesh.parameterOverrides.GetMutable());
-						}
-					} else if (static_cast<size_t>(subMeshIndex) < subMeshes.size()) {
-						targets.emplace_back(
-							&subMeshes[static_cast<size_t>(subMeshIndex)].
-								parameterOverrides.GetMutable());
+					for (Engine::SubMeshMaterial& subMesh : subMeshes) {
+						visit(subMesh.materialInstance);
 					}
+				} else if (static_cast<size_t>(subMeshIndex) < subMeshes.size()) {
+					visit(subMeshes[static_cast<size_t>(subMeshIndex)].materialInstance);
 				}
-			} else if (componentType == 1) {
+				break;
+			case Engine::ManagedRendererMaterialTarget::Sprite:
+				if (Engine::SpriteRendererComponent* renderer =
+					world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
 
-				if (Engine::SpriteRendererComponent* renderer = world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
-					targets.emplace_back(
-						&renderer->parameterOverrides.GetMutable());
+					visit(renderer->materialInstance);
 				}
-			} else if (componentType == 2) {
+				break;
+			case Engine::ManagedRendererMaterialTarget::Text:
+				if (Engine::TextRendererComponent* renderer =
+					world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
 
-				if (Engine::TextRendererComponent* renderer = world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
-					targets.emplace_back(
-						&renderer->parameterOverrides.GetMutable());
+					visit(renderer->materialInstance);
 				}
-			} else if (componentType == 3) {
+				break;
+			case Engine::ManagedRendererMaterialTarget::Primitive:
+				if (Engine::PrimitiveRendererComponent* renderer =
+					world.TryGetComponent<Engine::PrimitiveRendererComponent>(entity)) {
 
-				if (Engine::PrimitiveRendererComponent* renderer = world.TryGetComponent<Engine::PrimitiveRendererComponent>(entity)) {
-					targets.emplace_back(
-						&renderer->parameterOverrides.GetMutable());
+					visit(renderer->materialInstance);
 				}
+				break;
+			case Engine::ManagedRendererMaterialTarget::Line:
+				if (Engine::LineRendererComponent* renderer =
+					world.TryGetComponent<Engine::LineRendererComponent>(entity)) {
+
+					visit(renderer->materialInstance);
+				}
+				break;
+			case Engine::ManagedRendererMaterialTarget::FillMesh:
+				if (Engine::FillMeshRendererComponent* renderer =
+					world.TryGetComponent<Engine::FillMeshRendererComponent>(entity)) {
+
+					visit(renderer->materialInstance);
+				}
+				break;
 			}
-			return targets;
+			return count;
+		}
+
+		bool DecodeMaterialParameterValue(
+			const Engine::ManagedMaterialParameterValue& source,
+			Engine::MaterialParameterValue& outValue) {
+
+			std::array<float, 4> floatValues{};
+			std::memcpy(floatValues.data(), &source.data0, sizeof(floatValues));
+			switch (static_cast<Engine::ManagedMaterialParameterValueType>(source.type)) {
+			case Engine::ManagedMaterialParameterValueType::Float:
+				outValue.value = floatValues[0];
+				return true;
+			case Engine::ManagedMaterialParameterValueType::Vector2:
+				outValue.value = Engine::Vector2(floatValues[0], floatValues[1]);
+				return true;
+			case Engine::ManagedMaterialParameterValueType::Vector3:
+				outValue.value = Engine::Vector3(
+					floatValues[0], floatValues[1], floatValues[2]);
+				return true;
+			case Engine::ManagedMaterialParameterValueType::Vector4:
+				outValue.value = Engine::Vector4(
+					floatValues[0], floatValues[1], floatValues[2], floatValues[3]);
+				return true;
+			case Engine::ManagedMaterialParameterValueType::Color:
+				outValue.value = Engine::Color4(
+					floatValues[0], floatValues[1], floatValues[2], floatValues[3]);
+				return true;
+			case Engine::ManagedMaterialParameterValueType::Texture: {
+				Engine::ManagedAssetGUID asset{};
+				std::memcpy(&asset, &source.data0, sizeof(asset));
+				outValue.value = Engine::ToAssetID(asset);
+				return true;
+			}
+			case Engine::ManagedMaterialParameterValueType::Int: {
+				int32_t value = 0;
+				std::memcpy(&value, &source.data0, sizeof(value));
+				outValue.value = value;
+				return true;
+			}
+			case Engine::ManagedMaterialParameterValueType::UInt: {
+				uint32_t value = 0;
+				std::memcpy(&value, &source.data0, sizeof(value));
+				outValue.value = value;
+				return true;
+			}
+			case Engine::ManagedMaterialParameterValueType::Bool: {
+				int32_t value = 0;
+				std::memcpy(&value, &source.data0, sizeof(value));
+				outValue.value = value != 0;
+				return true;
+			}
+			}
+			return false;
+		}
+
+		bool EncodeMaterialParameterValue(
+			const Engine::MaterialParameterValue& source,
+			Engine::ManagedMaterialParameterValue& outValue) {
+
+			outValue = {};
+			auto writeFloats = [&](std::array<float, 4> values) {
+				std::memcpy(&outValue.data0, values.data(), sizeof(values));
+			};
+
+			if (const float* floatValue = std::get_if<float>(&source.value)) {
+				writeFloats({ *floatValue, 0.0f, 0.0f, 0.0f });
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Float);
+			} else if (const Engine::Vector2* vector2 =
+				std::get_if<Engine::Vector2>(&source.value)) {
+
+				writeFloats({ vector2->x, vector2->y, 0.0f, 0.0f });
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Vector2);
+			} else if (const Engine::Vector3* vector3 =
+				std::get_if<Engine::Vector3>(&source.value)) {
+
+				writeFloats({ vector3->x, vector3->y, vector3->z, 0.0f });
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Vector3);
+			} else if (const Engine::Vector4* vector4 =
+				std::get_if<Engine::Vector4>(&source.value)) {
+
+				writeFloats({ vector4->x, vector4->y, vector4->z, vector4->w });
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Vector4);
+			} else if (const Engine::Color4* color =
+				std::get_if<Engine::Color4>(&source.value)) {
+
+				writeFloats({ color->r, color->g, color->b, color->a });
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Color);
+			} else if (const Engine::AssetID* assetID =
+				std::get_if<Engine::AssetID>(&source.value)) {
+
+				const Engine::ManagedAssetGUID asset =
+					Engine::ToManagedAssetGUID(*assetID);
+				std::memcpy(&outValue.data0, &asset, sizeof(asset));
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Texture);
+			} else if (const int32_t* intValue =
+				std::get_if<int32_t>(&source.value)) {
+
+				std::memcpy(&outValue.data0, intValue, sizeof(*intValue));
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Int);
+			} else if (const uint32_t* uintValue =
+				std::get_if<uint32_t>(&source.value)) {
+
+				std::memcpy(&outValue.data0, uintValue, sizeof(*uintValue));
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::UInt);
+			} else if (const bool* boolValue = std::get_if<bool>(&source.value)) {
+				const int32_t native = *boolValue ? 1 : 0;
+				std::memcpy(&outValue.data0, &native, sizeof(native));
+				outValue.type = static_cast<int32_t>(
+					Engine::ManagedMaterialParameterValueType::Bool);
+			} else {
+				return false;
+			}
+			return true;
 		}
 
 		// shapeIndexからCollisionComponentの衝突形状を取得する、範囲外はnullptr
@@ -926,72 +1070,103 @@ namespace Engine {
 		}
 	}
 
-	void ManagedScriptRuntime::SetRendererMaterialColorCallback(ManagedNativeEntity entity, int32_t componentType,
-		int32_t subMeshIndex, const char* param, float r, float g, float b, float a) {
+	int32_t ManagedScriptRuntime::SetRendererMaterialParameterCallback(
+		ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
+		uint64_t parameterID, const char* name,
+		const ManagedMaterialParameterValue* value) {
 
 		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return;
+		if (!world || !value || !name || name[0] == '\0') {
+			return 0;
 		}
 		const Entity resolved = ResolveEntity(entity);
 		if (!world->IsAlive(resolved)) {
-			return;
+			return 0;
 		}
 
-		// バッファ構築側で宣言成分数へ詰めるのでColor4で保持しfloat3 float4どちらにも対応する
-		MaterialParameterValue value{};
-		value.value = Color4(r, g, b, a);
-
-		// パラメータ名未指定は標準的なcolor名へフォールバックして設定する、未使用キーは描画側で無視される
-		std::vector<std::string> names;
-		if (param != nullptr && param[0] != '\0') {
-			names.emplace_back(param);
-		} else {
-			names = { "color", "baseColor", "albedo" };
+		MaterialParameterValue decoded{};
+		if (!DecodeMaterialParameterValue(*value, decoded)) {
+			return 0;
 		}
-
-		for (std::unordered_map<std::string, MaterialParameterValue>* overrides :
-			CollectColorTargets(*world, resolved, componentType, subMeshIndex)) {
-
-			for (const std::string& name : names) {
-				(*overrides)[name] = value;
-			}
+		const std::string_view parameterName(name);
+		const MaterialParameterID id{
+			parameterID != 0 ?
+			parameterID : MaterialParameterID::FromName(parameterName).value
+		};
+		const int32_t updated = VisitRendererMaterialInstances(
+			*world, resolved,
+			static_cast<ManagedRendererMaterialTarget>(target), subMeshIndex,
+			[&](MaterialParameterSet& materialInstance) {
+				materialInstance.Set(
+					id, parameterName,
+					ResolveMaterialParameterSemantic(parameterName), decoded);
+			});
+		if (updated != 0) {
+			// 外部ストレージを含むRenderer変更を描画バッチへ通知する
+			world->MarkRenderDataModified();
 		}
+		return updated;
 	}
 
-	ManagedColor4 ManagedScriptRuntime::GetRendererMaterialColorCallback(ManagedNativeEntity entity,
-		int32_t componentType, int32_t subMeshIndex) {
+	int32_t ManagedScriptRuntime::GetRendererMaterialParameterCallback(
+		ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
+		uint64_t parameterID, ManagedMaterialParameterValue* outValue) {
 
-		// 未設定や対象が無い場合は白を返す
-		ManagedColor4 result{ 1.0f, 1.0f, 1.0f, 1.0f };
+		if (!outValue || parameterID == 0) {
+			return 0;
+		}
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
-			return result;
+			return 0;
 		}
 		const Entity resolved = ResolveEntity(entity);
 		if (!world->IsAlive(resolved)) {
-			return result;
+			return 0;
 		}
 
-		const std::vector<std::unordered_map<std::string, MaterialParameterValue>*> targets =
-			CollectColorTargets(*world, resolved, componentType, subMeshIndex < 0 ? 0 : subMeshIndex);
-		if (targets.empty()) {
-			return result;
+		bool found = false;
+		VisitRendererMaterialInstances(
+			*world, resolved,
+			static_cast<ManagedRendererMaterialTarget>(target),
+			subMeshIndex < 0 ? 0 : subMeshIndex,
+			[&](MaterialParameterSet& materialInstance) {
+				if (found) {
+					return;
+				}
+				const MaterialParameterSet& readOnly =
+					materialInstance;
+				const MaterialParameterValue* value =
+					readOnly.Find(MaterialParameterID{ parameterID });
+				found = value && EncodeMaterialParameterValue(*value, *outValue);
+			});
+		return found ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::ClearRendererMaterialParameterCallback(
+		ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
+		uint64_t parameterID) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		if (!world || parameterID == 0) {
+			return 0;
+		}
+		const Entity resolved = ResolveEntity(entity);
+		if (!world->IsAlive(resolved)) {
+			return 0;
 		}
 
-		// 代表として先頭対象から、color名のフォールバック順で最初に見つかった値を返す
-		const std::unordered_map<std::string, MaterialParameterValue>& overrides = *targets.front();
-		for (const char* name : { "color", "baseColor", "albedo" }) {
-
-			const auto it = overrides.find(name);
-			if (it == overrides.end()) {
-				continue;
-			}
-			if (const Color4* c = std::get_if<Color4>(&it->second.value)) { return ManagedColor4{ c->r, c->g, c->b, c->a }; }
-			if (const Vector4* v = std::get_if<Vector4>(&it->second.value)) { return ManagedColor4{ v->x, v->y, v->z, v->w }; }
-			if (const Vector3* v = std::get_if<Vector3>(&it->second.value)) { return ManagedColor4{ v->x, v->y, v->z, 1.0f }; }
+		int32_t removed = 0;
+		VisitRendererMaterialInstances(
+			*world, resolved,
+			static_cast<ManagedRendererMaterialTarget>(target), subMeshIndex,
+			[&](MaterialParameterSet& materialInstance) {
+				removed += static_cast<int32_t>(
+					materialInstance.erase(MaterialParameterID{ parameterID }));
+			});
+		if (removed != 0) {
+			world->MarkRenderDataModified();
 		}
-		return result;
+		return removed;
 	}
 
 	int32_t ManagedScriptRuntime::CollisionShapeCountCallback(ManagedNativeEntity entity) {

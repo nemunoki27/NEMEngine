@@ -207,6 +207,18 @@ namespace {
 			std::filesystem::path relative = std::filesystem::relative(entry.path(), shaderRoot);
 			std::filesystem::path relativeFolder = relative.parent_path();
 			std::string baseName = fileName.substr(0, fileName.size() - std::string(".CS.hlsl").size());
+			const std::filesystem::path assetFolder =
+				entry.path().parent_path();
+			// 固定パス専用の手書きアセットは汎用PostProcessとして重複生成しない
+			if (std::filesystem::exists(
+				assetFolder / (baseName + ".shader.json")) &&
+				std::filesystem::exists(
+					assetFolder / (baseName + ".pipeline.json")) &&
+				std::filesystem::exists(
+					assetFolder / (baseName + ".material.json"))) {
+
+				continue;
+			}
 			std::string folder = relativeFolder.generic_string();
 			if (folder.empty()) {
 				folder = baseName;

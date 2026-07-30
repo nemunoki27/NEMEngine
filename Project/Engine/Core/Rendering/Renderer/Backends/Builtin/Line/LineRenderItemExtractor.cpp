@@ -32,7 +32,7 @@ void Engine::LineRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		payload.loop = renderer.loop;
 		payload.is2D = renderer.is2D;
 		payload.useWorldSpace = renderer.useWorldSpace;
-		payload.materialOverrides = &renderer.parameterOverrides.Get();
+		payload.materialInstance = &renderer.materialInstance.Get();
 
 		// 親追従の行列を決める、useWorldSpaceなら描画時に使われないので単位でよい
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
@@ -86,9 +86,8 @@ void Engine::LineRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Line;
 		item.material = renderer.material;
-		// 個別マテリアルパラメータを持つアイテムは専用cbufferが要るので、エンティティ単位で一意化して単独描画にする
-		item.batchKey = renderer.parameterOverrides.empty() ? std::hash<AssetID>{}(renderer.material) :
-			((static_cast<uint64_t>(entity.generation) << 32) | entity.index);
+		// 同じMaterial Instance値を持つLineを同一バッチへまとめる
+		item.batchKey = renderer.materialInstance.GetContentHash();
 		item.cameraDomain = renderer.is2D ? RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective;
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加

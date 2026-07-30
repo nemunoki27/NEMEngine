@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
+#include <string_view>
 #include <variant>
 
 namespace Engine {
@@ -74,6 +75,14 @@ namespace Engine {
 		PipelineVariantKind preferredVariant = PipelineVariantKind::GraphicsVertex;
 	};
 
+	// マテリアルがRendererの描画順序とブレンドを決定する場合の設定
+	struct MaterialRenderState {
+
+		bool overridesRenderer = false;
+		RenderPhase phase = RenderPhase::Opaque;
+		BlendMode blendMode = BlendMode::Normal;
+	};
+
 	// マテリアルアセットの情報
 	struct MaterialAsset {
 
@@ -85,17 +94,23 @@ namespace Engine {
 		MaterialDomain domain = MaterialDomain::Surface;
 		// マテリアルを使用する描画機能
 		MaterialUsage usage = MaterialUsage::Generic;
+		// Shader Graphなど見た目と描画状態を一体で扱うMaterialの設定
+		MaterialRenderState renderState{};
 
 		// 使用されるパスのリスト
 		std::vector<MaterialPassBinding> passes;
-		// パラメーターの名前と値のマップ
-		std::unordered_map<std::string, MaterialParameterValue> parameters;
+		// ID順に保持するマテリアル既定値
+		MaterialParameterSet parameters;
 	};
 
 	// json変換
 	bool FromJson(const nlohmann::json& data, MaterialAsset& outAsset);
 	nlohmann::json ToJson(const MaterialAsset& asset);
 
+	// 標準PBR描画に必要なPassと既定値を持つMeshマテリアルを生成する
+	MaterialAsset CreateDefaultMeshMaterialAsset(std::string_view name);
+
 	// マテリアルアセットからパス情報を検索する
+	MaterialPassBinding* FindPass(MaterialAsset& asset, MaterialPassKind passKind);
 	const MaterialPassBinding* FindPass(const MaterialAsset& asset, MaterialPassKind passKind);
 } // Engine

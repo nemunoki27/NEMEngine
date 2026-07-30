@@ -39,9 +39,6 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 
-		mutable AssetID cachedMaterialID_{};
-		mutable bool materialSearched_ = false;
-
 		//--------- functions ----------------------------------------------------
 
 		// リフレクションマテリアルのIDを取得する

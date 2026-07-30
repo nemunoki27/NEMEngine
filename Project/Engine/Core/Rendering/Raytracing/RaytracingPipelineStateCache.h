@@ -14,6 +14,18 @@
 namespace Engine {
 
 	//============================================================================
+	//	RaytracingPipelineCacheKey structure
+	//============================================================================
+	struct RaytracingPipelineCacheKey {
+
+		AssetID pipelineAsset{};
+		AssetID pipelineShaderAsset{};
+		AssetID shaderOverrideAsset{};
+
+		bool operator==(const RaytracingPipelineCacheKey& rhs) const noexcept;
+	};
+
+	//============================================================================
 	//	RaytracingPipelineStateCache class
 	//	レイトレーシングパイプラインステートのキャッシュを管理するクラス
 	//============================================================================
@@ -28,10 +40,13 @@ namespace Engine {
 
 		// パイプラインステートの取得、キャッシュに存在しない場合は作成してキャッシュする
 		RaytracingPipelineState* GetOrCreate(GraphicsPlatform& graphicsPlatform,
-			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID);
+			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID,
+			AssetID shaderOverrideAssetID = {});
 
 		// データクリア
 		void Clear();
+		// 指定Pipelineから生成したState Objectだけを破棄する
+		void InvalidateByPipelineAsset(AssetID pipelineAssetID);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -42,7 +57,19 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::unordered_map<AssetID, std::unique_ptr<RaytracingPipelineState>> cache_{};
+		struct RaytracingPipelineCacheKeyHash {
+			size_t operator()(const RaytracingPipelineCacheKey& key) const noexcept {
+
+				size_t hash = std::hash<AssetID>{}(key.pipelineAsset);
+				hash ^= std::hash<AssetID>{}(key.pipelineShaderAsset) << 1;
+				hash ^= std::hash<AssetID>{}(key.shaderOverrideAsset) << 2;
+				return hash;
+			}
+		};
+
+		std::unordered_map<RaytracingPipelineCacheKey,
+			std::unique_ptr<RaytracingPipelineState>,
+			RaytracingPipelineCacheKeyHash> cache_{};
 	};
 } // Engine
 

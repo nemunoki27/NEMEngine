@@ -13,24 +13,10 @@
 //============================================================================
 namespace {
 
-	// baseColorTextureだけを上書きするSpriteは同じテクスチャごとにまとめる
-	uint64_t ResolveBatchKey(const Engine::Entity& entity,
-		const std::unordered_map<std::string, Engine::MaterialParameterValue>& parameters) {
+	// 同じMaterial Instance値を持つSpriteを同一バッチへまとめる
+	uint64_t ResolveBatchKey(const Engine::MaterialParameterSet& parameters) {
 
-		if (parameters.empty()) {
-			return 0;
-		}
-		if (parameters.size() == 1) {
-
-			const auto textureIt = parameters.find("baseColorTexture");
-			if (textureIt != parameters.end()) {
-
-				if (const Engine::AssetID* textureID = std::get_if<Engine::AssetID>(&textureIt->second.value)) {
-					return std::hash<Engine::AssetID>{}(*textureID);
-				}
-			}
-		}
-		return (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+		return parameters.GetContentHash();
 	}
 }
 
@@ -58,8 +44,8 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		payload.size = renderer.size;
 		payload.pivot = renderer.pivot;
 		payload.uvMatrix = uvMatrix;
-		// 個別マテリアルパラメータはコンポーネントのmapを指す、描画時に既定値へ重ねる
-		payload.materialOverrides = &renderer.parameterOverrides.Get();
+		// Renderer固有Material Instanceを描画時に既定値へ重ねる
+		payload.materialInstance = &renderer.materialInstance.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
 		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);
@@ -67,8 +53,7 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Sprite;
 		item.material = renderer.material;
-		// baseColorTextureだけの上書きは同じテクスチャでまとめ、それ以外の上書きは単独描画にする
-		item.batchKey = ResolveBatchKey(entity, renderer.parameterOverrides);
+		item.batchKey = ResolveBatchKey(renderer.materialInstance);
 		if (uiRuntime) {
 			// シーンに保存されない内部UIはアクティブシーンの描画へ含める
 			if (!item.sceneInstanceID) {

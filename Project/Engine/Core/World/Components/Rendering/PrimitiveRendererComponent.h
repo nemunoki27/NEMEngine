@@ -183,7 +183,7 @@ namespace Engine {
 		// マテリアル
 		AssetID material{};
 		// エンティティごとのマテリアルパラメータ
-		MaterialParameterOverrides parameterOverrides{};
+		MaterialInstanceParameters materialInstance{};
 
 		// 描画レイヤー
 		int32_t layer = 0;
@@ -199,6 +199,8 @@ namespace Engine {
 
 		// ライティングや影の適用を切り替えるフラグ
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
+		// 選択的PostProcessなど描画機能が対象を絞るためのマスク
+		uint32_t renderingLayerMask = 1u;
 	};
 
 	// Plane/Ringかつ描画空間がScreen2Dのときだけ2D描画になる

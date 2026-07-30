@@ -8,6 +8,7 @@
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
@@ -35,8 +36,12 @@ namespace {
 	// テクスチャ欄の表示順、リストにない名前は末尾へ回す
 	size_t TextureDisplayRank(const std::string& name) {
 
-		static const char* kOrder[] = {
-			"baseColorTexture", "normalTexture", "emissiveTexture", "metallicRoughnessTexture", "occlusionTexture",
+		static constexpr std::string_view kOrder[] = {
+			Engine::MaterialParameterNames::BaseColorTexture,
+			Engine::MaterialParameterNames::NormalTexture,
+			Engine::MaterialParameterNames::EmissiveTexture,
+			Engine::MaterialParameterNames::MetallicRoughnessTexture,
+			Engine::MaterialParameterNames::AmbientOcclusionTexture,
 		};
 		for (size_t i = 0; i < std::size(kOrder); ++i) {
 			if (name == kOrder[i]) {
@@ -97,6 +102,22 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		drawFlag("影を受ける", MeshRenderFlags::ReceiveShadow);
 		drawFlag("反射に映る", MeshRenderFlags::CastReflection);
 		drawFlag("反射を受ける", MeshRenderFlags::ReceiveReflection);
+		DrawField(anyItemActive, [&]() {
+			int32_t mask =
+				static_cast<int32_t>(
+					draft.renderingLayerMask);
+			ValueEditResult result =
+				MyGUI::DragInt(
+					"描画対象マスク", mask,
+					{ .minValue = 0,
+					  .maxValue = static_cast<int32_t>(
+						  kRenderingLayerMaskBits) });
+			if (result.valueChanged) {
+				draft.renderingLayerMask =
+					static_cast<uint32_t>(mask);
+			}
+			return result;
+			});
 	}
 
 	ImGui::SeparatorText("形状別パラメータ");
@@ -191,8 +212,8 @@ const Engine::ShaderReflectionInfo* Engine::PrimitiveRendererInspectorDrawer::En
 Engine::MaterialParameterValue Engine::PrimitiveRendererInspectorDrawer::ResolveParamValue(
 	const PrimitiveRendererComponent& draft, const ShaderConstantBufferVariable& var) const {
 
-	auto it = draft.parameterOverrides.find(var.name);
-	if (it != draft.parameterOverrides.end()) {
+	auto it = draft.materialInstance.find(var.name);
+	if (it != draft.materialInstance.end()) {
 		return it->second;
 	}
 	auto defaultIt = cachedMaterial_.parameters.find(var.name);
@@ -227,7 +248,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			// valueChangedでプレビュー更新、editFinishedでcommitされUndo/dirtyに乗る
 			ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
 			if (result.valueChanged) {
-				draft.parameterOverrides[var.name] = value;
+				draft.materialInstance[var.name] = value;
 			}
 			return result;
 			});
@@ -249,9 +270,9 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 
 	for (const ShaderResourceBinding* resource : textures) {
 
-		auto it = draft.parameterOverrides.find(resource->name);
+		auto it = draft.materialInstance.find(resource->name);
 		AssetID textureID{};
-		if (it != draft.parameterOverrides.end() && std::holds_alternative<AssetID>(it->second.value)) {
+		if (it != draft.materialInstance.end() && std::holds_alternative<AssetID>(it->second.value)) {
 			textureID = std::get<AssetID>(it->second.value);
 		}
 		DrawField(anyItemActive, [&]() {
@@ -263,7 +284,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;
-				draft.parameterOverrides[resource->name] = value;
+				draft.materialInstance[resource->name] = value;
 			}
 			return result;
 			});
