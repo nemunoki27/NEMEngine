@@ -53,6 +53,29 @@ namespace Engine {
 		float shadowRadius = 0.05f;
 	};
 	static_assert(sizeof(PointLightGPU) % 16 == 0, "PointLightGPU must be 16 byte aligned");
+	// 矩形面光源
+	struct RectLightGPU {
+
+		Color4 color = Color4::White();
+
+		Vector3 direction = Vector3(1.0f, 0.0f, 0.0f);
+		float intensity = 1.0f;
+
+		Vector3 pos = Vector3::AnyInit(0.0f);
+		float attenuationRadius = 10.0f;
+
+		Vector3 right = Vector3(0.0f, 1.0f, 0.0f);
+		float sourceWidth = 2.0f;
+
+		Vector3 up = Vector3(0.0f, 0.0f, 1.0f);
+		float sourceHeight = 2.0f;
+
+		float decay = 1.0f;
+		float barnDoorAngle = 88.0f;
+		float barnDoorLength = 0.0f;
+		float shadowStrength = 1.0f;
+	};
+	static_assert(sizeof(RectLightGPU) % 16 == 0, "RectLightGPU must be 16 byte aligned");
 	// スポットライト
 	struct SpotLightGPU {
 
@@ -88,7 +111,10 @@ namespace Engine {
 		uint32_t directionalCount = 0;
 		uint32_t pointCount = 0;
 		uint32_t spotCount = 0;
+		uint32_t rectCount = 0;
+
 		uint32_t localCount = 0;
+		uint32_t pad[3] = { 0, 0, 0 };
 	};
 	static_assert(sizeof(LightCountsGPU) % 16 == 0, "LightCountsGPU must be 16 byte aligned");
 

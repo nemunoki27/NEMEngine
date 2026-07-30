@@ -68,5 +68,6 @@ void Engine::ViewLightCollector::CollectForView(const FrameLightBatch& batch, co
 	// 有効なライトを追加
 	AppendVisibleLights(batch.GetDirectionalLights(), sceneInstance, *camera, outSet.directionalLights);
 	AppendVisibleLights(batch.GetPointLights(), sceneInstance, *camera, outSet.pointLights);
+	AppendVisibleLights(batch.GetRectLights(), sceneInstance, *camera, outSet.rectLights);
 	AppendVisibleLights(batch.GetSpotLights(), sceneInstance, *camera, outSet.spotLights);
 }

@@ -25,12 +25,14 @@ void Engine::PerViewLightSet::Clear() {
 	sourceRevision = 0;
 	directionalLights.clear();
 	pointLights.clear();
+	rectLights.clear();
 	spotLights.clear();
 }
 
 bool Engine::PerViewLightSet::IsEmpty() const {
 
-	return directionalLights.empty() && pointLights.empty() && spotLights.empty();
+	return directionalLights.empty() && pointLights.empty() &&
+		rectLights.empty() && spotLights.empty();
 }
 
 uint32_t Engine::PerViewLightSet::GetDirectionalCount() const {
@@ -43,6 +45,11 @@ uint32_t Engine::PerViewLightSet::GetPointCount() const {
 	return static_cast<uint32_t>(pointLights.size());
 }
 
+uint32_t Engine::PerViewLightSet::GetRectCount() const {
+
+	return static_cast<uint32_t>(rectLights.size());
+}
+
 uint32_t Engine::PerViewLightSet::GetSpotCount() const {
 
 	return static_cast<uint32_t>(spotLights.size());
@@ -50,12 +57,13 @@ uint32_t Engine::PerViewLightSet::GetSpotCount() const {
 
 uint32_t Engine::PerViewLightSet::GetLocalLightCount() const {
 
-	return GetPointCount() + GetSpotCount();
+	return GetPointCount() + GetSpotCount() + GetRectCount();
 }
 
 uint32_t Engine::PerViewLightSet::GetTotalCount() const {
 
-	return GetDirectionalCount() + GetPointCount() + GetSpotCount();
+	return GetDirectionalCount() + GetPointCount() +
+		GetSpotCount() + GetRectCount();
 }
 
 void Engine::FrameLightBatch::Add(DirectionalLightItem&& item) {
@@ -68,6 +76,11 @@ void Engine::FrameLightBatch::Add(PointLightItem&& item) {
 	pointLights_.emplace_back(std::move(item));
 }
 
+void Engine::FrameLightBatch::Add(RectLightItem&& item) {
+
+	rectLights_.emplace_back(std::move(item));
+}
+
 void Engine::FrameLightBatch::Add(SpotLightItem&& item) {
 
 	spotLights_.emplace_back(std::move(item));
@@ -77,6 +90,7 @@ void Engine::FrameLightBatch::Clear() {
 
 	directionalLights_.clear();
 	pointLights_.clear();
+	rectLights_.clear();
 	spotLights_.clear();
 	sourceWorld_ = nullptr;
 	sourceRevision_ = 0;
@@ -86,6 +100,7 @@ void Engine::FrameLightBatch::Sort() {
 
 	std::sort(directionalLights_.begin(), directionalLights_.end(), LightItemLess<DirectionalLightItem>);
 	std::sort(pointLights_.begin(), pointLights_.end(), LightItemLess<PointLightItem>);
+	std::sort(rectLights_.begin(), rectLights_.end(), LightItemLess<RectLightItem>);
 	std::sort(spotLights_.begin(), spotLights_.end(), LightItemLess<SpotLightItem>);
 }
 

@@ -64,17 +64,43 @@ struct SpotLight {
 	float shadowRadius;
 	float3 _pad0;
 };
+// 矩形面光源
+struct RectLight {
+
+	float4 color;
+
+	float3 direction;
+	float intensity;
+
+	float3 pos;
+	float attenuationRadius;
+
+	float3 right;
+	float sourceWidth;
+
+	float3 up;
+	float sourceHeight;
+
+	float decay;
+	float barnDoorAngle;
+	float barnDoorLength;
+	float shadowStrength;
+};
 // ライト数
 cbuffer LightCounts : register(b0) {
 
 	uint directionalCount;
 	uint pointCount;
 	uint spotCount;
+	uint rectCount;
+
 	uint localCount;
+	uint3 _lightCountPad;
 };
 StructuredBuffer<DirectionalLight> gDirectionalLights : register(t6);
 StructuredBuffer<PointLight> gPointLights : register(t7);
 StructuredBuffer<SpotLight> gSpotLights : register(t8);
+StructuredBuffer<RectLight> gRectLights : register(t12);
 
 struct LightClusterHeader {
 
@@ -143,6 +169,12 @@ static const float2 kSoftShadowDisk[kSoftShadowSampleCount] = {
 	float2(-0.451180f, 0.414030f),
 	float2(0.068910f, -0.787560f),
 	float2(0.569130f, 0.742260f)
+};
+static const float2 kRectLightSamples[kSoftShadowSampleCount] = {
+	float2(-0.375f, -0.125f),
+	float2(0.125f, -0.375f),
+	float2(-0.125f, 0.375f),
+	float2(0.375f, 0.125f)
 };
 
 uint HashShadowSeed(uint value) {
@@ -276,6 +308,60 @@ float TraceLocalSoftShadow(float3 worldPos, float3 worldNormal,
 	return occlusion / float(kSoftShadowSampleCount);
 }
 
+float3 GetRectLightSamplePosition(RectLight light,
+	float2 sampleUV) {
+
+	return light.pos +
+		light.right * (sampleUV.x * max(light.sourceWidth, 0.0f)) +
+		light.up * (sampleUV.y * max(light.sourceHeight, 0.0f));
+}
+
+// 矩形面上の複数点へレイを飛ばして面積に応じた遮蔽率を返す
+float TraceRectShadow(float3 worldPos, float3 worldNormal,
+	RectLight light, uint2 pixel, uint lightIndex) {
+
+	float3 origin = worldPos + worldNormal * shadowNormalBias;
+	if (light.sourceWidth <= 0.0001f &&
+		light.sourceHeight <= 0.0001f) {
+
+		float3 toLight = light.pos - origin;
+		float distanceToLight = length(toLight);
+		if (distanceToLight <= 1e-5f) {
+			return 0.0f;
+		}
+		return TraceShadowRay(origin,
+			toLight / distanceToLight,
+			distanceToLight) ? 1.0f : 0.0f;
+	}
+
+	uint seed = HashShadowSeed(
+		pixel.x * 1973u + pixel.y * 9277u +
+		lightIndex * 26699u);
+	float2 sampleSign = float2(
+		(seed & 1u) != 0u ? -1.0f : 1.0f,
+		(seed & 2u) != 0u ? -1.0f : 1.0f);
+
+	float occlusion = 0.0f;
+	[unroll]
+	for (uint sampleIndex = 0u;
+		sampleIndex < kSoftShadowSampleCount; ++sampleIndex) {
+
+		float2 sampleUV =
+			kRectLightSamples[sampleIndex] * sampleSign;
+		float3 samplePos =
+			GetRectLightSamplePosition(light, sampleUV);
+		float3 toLight = samplePos - origin;
+		float distanceToLight = length(toLight);
+		if (distanceToLight <= 1e-5f) {
+			continue;
+		}
+		occlusion += TraceShadowRay(origin,
+			toLight / distanceToLight,
+			distanceToLight) ? 1.0f : 0.0f;
+	}
+	return occlusion / float(kSoftShadowSampleCount);
+}
+
 //============================================================================
 //	PBR lighting
 //============================================================================
@@ -294,6 +380,35 @@ float ComputeDistanceAttenuation(float dist, float range, float decay) {
 
 	return smooth * distanceFalloff;
 }
+
+// バーンドアで矩形外側へ広がる光の範囲と境界の鋭さを制御する
+float ComputeRectBarnAttenuation(RectLight light, float3 worldPos) {
+
+	float3 fromLight = worldPos - light.pos;
+	float forward = dot(fromLight, light.direction);
+	if (forward <= 0.0f) {
+		return 0.0f;
+	}
+	if (light.barnDoorLength <= 0.0001f) {
+		return 1.0f;
+	}
+
+	float spread = tan(radians(clamp(
+		light.barnDoorAngle, 0.0f, 89.0f))) * forward;
+	float widthLimit = max(light.sourceWidth, 0.0f) * 0.5f + spread;
+	float heightLimit = max(light.sourceHeight, 0.0f) * 0.5f + spread;
+	float lateralX = abs(dot(fromLight, light.right));
+	float lateralY = abs(dot(fromLight, light.up));
+	float edgeSoftness = max(
+		forward / (1.0f + light.barnDoorLength * 4.0f), 0.001f);
+
+	float widthAttenuation =
+		1.0f - smoothstep(widthLimit, widthLimit + edgeSoftness, lateralX);
+	float heightAttenuation =
+		1.0f - smoothstep(heightLimit, heightLimit + edgeSoftness, lateralY);
+	return widthAttenuation * heightAttenuation;
+}
+
 float3 EvaluatePBRLight(float3 N, float3 V, float3 L, float3 radiance,
 	float3 albedo, float metallic, float roughness, float3 F0) {
 
@@ -388,6 +503,55 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 		distanceAttenuation * coneAttenuation * shadow;
 	return EvaluatePBRLight(
 		N, V, L, radiance, albedo, metallic, roughness, F0);
+}
+
+float3 EvaluateRectLightIndex(uint lightIndex,
+	float3 worldPos, float3 N, float3 V,
+	float3 albedo, float metallic, float roughness, float3 F0,
+	uint flags, bool useShadow, uint2 pixel) {
+
+	RectLight light = gRectLights[lightIndex];
+	float centerDistance = length(light.pos - worldPos);
+	float attenuation = ComputeDistanceAttenuation(
+		centerDistance, light.attenuationRadius, light.decay);
+	float barnAttenuation =
+		ComputeRectBarnAttenuation(light, worldPos);
+	if (attenuation <= 0.0f || barnAttenuation <= 0.0f) {
+		return 0.0f.xxx;
+	}
+
+	float shadow = 1.0f;
+	if (useShadow && light.shadowStrength > 0.0f &&
+		(flags & kMaterialFlagReceiveShadow) != 0u) {
+
+		float occlusion = TraceRectShadow(
+			worldPos, N, light, pixel,
+			pointCount + spotCount + lightIndex);
+		shadow = 1.0f - occlusion * light.shadowStrength;
+	}
+
+	float3 result = 0.0f.xxx;
+	[unroll]
+	for (uint sampleIndex = 0u;
+		sampleIndex < kSoftShadowSampleCount; ++sampleIndex) {
+
+		float3 samplePos = GetRectLightSamplePosition(
+			light, kRectLightSamples[sampleIndex]);
+		float3 toLight = samplePos - worldPos;
+		float sampleDistance = length(toLight);
+		if (sampleDistance <= 1e-5f) {
+			continue;
+		}
+
+		float3 L = toLight / sampleDistance;
+		float sourceFacing =
+			saturate(dot(-L, light.direction));
+		float3 radiance = light.color.rgb * light.intensity *
+			attenuation * barnAttenuation * sourceFacing * shadow;
+		result += EvaluatePBRLight(
+			N, V, L, radiance, albedo, metallic, roughness, F0);
+	}
+	return result / float(kSoftShadowSampleCount);
 }
 
 bool ResolveLightCluster(int2 pixel, float3 worldPos,
@@ -507,6 +671,13 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 					Lo += EvaluateSpotLightIndex(spotIndex,
 						worldPos, N, V, albedo, metallic,
 						roughness, F0, flags, useShadow, pixel.xy);
+				} else {
+					uint rectIndex = spotIndex - spotCount;
+					if (rectIndex < rectCount) {
+						Lo += EvaluateRectLightIndex(rectIndex,
+							worldPos, N, V, albedo, metallic,
+							roughness, F0, flags, useShadow, pixel.xy);
+					}
 				}
 			}
 		}
@@ -521,6 +692,12 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		[loop]
 		for (uint si = 0; si < spotCount; ++si) {
 			Lo += EvaluateSpotLightIndex(si,
+				worldPos, N, V, albedo, metallic,
+				roughness, F0, flags, useShadow, pixel.xy);
+		}
+		[loop]
+		for (uint ri = 0; ri < rectCount; ++ri) {
+			Lo += EvaluateRectLightIndex(ri,
 				worldPos, N, V, albedo, metallic,
 				roughness, F0, flags, useShadow, pixel.xy);
 		}

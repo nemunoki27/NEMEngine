@@ -13,6 +13,7 @@
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -601,6 +602,39 @@ void Engine::RegisterBuiltinAnimationProperties() {
 			HasComponent<PointLightComponent>,
 			GetMember<PointLightComponent, float, &PointLightComponent::decay>,
 			SetMember<PointLightComponent, float, &PointLightComponent::decay>);
+
+		Register(registry, "RectLight", "color", "RectLight.color", AnimationValueType::Color4,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, Color4, &RectLightComponent::color>,
+			SetMember<RectLightComponent, Color4, &RectLightComponent::color>);
+		Register(registry, "RectLight", "intensity", "RectLight.intensity", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::intensity>,
+			SetMember<RectLightComponent, float, &RectLightComponent::intensity>);
+		Register(registry, "RectLight", "attenuationRadius", "RectLight.attenuationRadius", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::attenuationRadius>,
+			SetMember<RectLightComponent, float, &RectLightComponent::attenuationRadius>);
+		Register(registry, "RectLight", "sourceWidth", "RectLight.sourceWidth", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::sourceWidth>,
+			SetMember<RectLightComponent, float, &RectLightComponent::sourceWidth>);
+		Register(registry, "RectLight", "sourceHeight", "RectLight.sourceHeight", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::sourceHeight>,
+			SetMember<RectLightComponent, float, &RectLightComponent::sourceHeight>);
+		Register(registry, "RectLight", "decay", "RectLight.decay", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::decay>,
+			SetMember<RectLightComponent, float, &RectLightComponent::decay>);
+		Register(registry, "RectLight", "barnDoorAngle", "RectLight.barnDoorAngle", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::barnDoorAngle>,
+			SetMember<RectLightComponent, float, &RectLightComponent::barnDoorAngle>);
+		Register(registry, "RectLight", "barnDoorLength", "RectLight.barnDoorLength", AnimationValueType::Float,
+			HasComponent<RectLightComponent>,
+			GetMember<RectLightComponent, float, &RectLightComponent::barnDoorLength>,
+			SetMember<RectLightComponent, float, &RectLightComponent::barnDoorLength>);
 
 		Register(registry, "SpotLight", "color", "SpotLight.color", AnimationValueType::Color4,
 			HasComponent<SpotLightComponent>,

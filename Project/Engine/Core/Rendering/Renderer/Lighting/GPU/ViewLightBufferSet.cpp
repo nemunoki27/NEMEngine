@@ -86,6 +86,7 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 	lightCounts_.Init(device);
 	directionalLights_.Init(device, srvDescriptor);
 	pointLights_.Init(device, srvDescriptor);
+	rectLights_.Init(device, srvDescriptor);
 	spotLights_.Init(device, srvDescriptor);
 	clusterConstants_.Init(device);
 	clusterHeaders_.Init(device, srvDescriptor);
@@ -94,11 +95,13 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 	// 要素数を最低限確保
 	directionalLights_.EnsureCapacity(1);
 	pointLights_.EnsureCapacity(1);
+	rectLights_.EnsureCapacity(1);
 	spotLights_.EnsureCapacity(1);
 	clusterHeaders_.EnsureCapacity(1);
 	clusterLightIndices_.EnsureCapacity(1);
 	directionalScratch_.reserve(1);
 	pointScratch_.reserve(1);
+	rectScratch_.reserve(1);
 	spotScratch_.reserve(1);
 
 	// 初期化完了
@@ -109,14 +112,17 @@ void Engine::ViewLightBufferSet::Release() {
 
 	directionalLights_.Release();
 	pointLights_.Release();
+	rectLights_.Release();
 	spotLights_.Release();
 	clusterHeaders_.Release();
 	clusterLightIndices_.Release();
 	directionalScratch_.clear();
 	pointScratch_.clear();
+	rectScratch_.clear();
 	spotScratch_.clear();
 	directionalScratch_.shrink_to_fit();
 	pointScratch_.shrink_to_fit();
+	rectScratch_.shrink_to_fit();
 	spotScratch_.shrink_to_fit();
 	clusterHeaderScratch_.clear();
 	clusterLightIndexScratch_.clear();
@@ -152,6 +158,7 @@ void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
 	counts.directionalCount = lightSet.GetDirectionalCount();
 	counts.pointCount = lightSet.GetPointCount();
 	counts.spotCount = lightSet.GetSpotCount();
+	counts.rectCount = lightSet.GetRectCount();
 	counts.localCount = lightSet.GetLocalLightCount();
 	lightCountsScratch_ = counts;
 
@@ -163,6 +170,11 @@ void Engine::ViewLightBufferSet::Upload(const PerViewLightSet& lightSet) {
 	// 点光源
 	FillLightScratch(lightSet.pointLights, pointScratch_,
 		[](const PointLightItem& item) {
+			return ViewLightBufferSet::ToGPU(item);
+		});
+	// 矩形面光源
+	FillLightScratch(lightSet.rectLights, rectScratch_,
+		[](const RectLightItem& item) {
 			return ViewLightBufferSet::ToGPU(item);
 		});
 	// スポットライト
@@ -193,6 +205,7 @@ void Engine::ViewLightBufferSet::UploadCachedBuffers() {
 	lightCounts_.Upload(lightCountsScratch_);
 	directionalLights_.Upload(directionalScratch_);
 	pointLights_.Upload(pointScratch_);
+	rectLights_.Upload(rectScratch_);
 	spotLights_.Upload(spotScratch_);
 	clusterConstants_.Upload(clusterConstantsScratch_);
 	clusterHeaders_.Upload(clusterHeaderScratch_);
@@ -219,6 +232,12 @@ void Engine::ViewLightBufferSet::RegisterTo(RenderBufferRegistry& registry) cons
 		.srvGPUHandle = pointLights_.GetGPUHandle(),.uavGPUHandle = {},.elementCount = 0,.stride = sizeof(PointLightGPU) });
 	registry.Register({ .alias = "gPointLights",.resource = nullptr,.gpuAddress = pointLights_.GetGPUAddress(),
 		.srvGPUHandle = pointLights_.GetGPUHandle(),.uavGPUHandle = {},.elementCount = 0,.stride = sizeof(PointLightGPU) });
+
+	// 矩形面光源: SRV
+	registry.Register({ .alias = "RectLights",.resource = nullptr,.gpuAddress = rectLights_.GetGPUAddress(),
+		.srvGPUHandle = rectLights_.GetGPUHandle(),.uavGPUHandle = {},.elementCount = 0,.stride = sizeof(RectLightGPU) });
+	registry.Register({ .alias = "gRectLights",.resource = nullptr,.gpuAddress = rectLights_.GetGPUAddress(),
+		.srvGPUHandle = rectLights_.GetGPUHandle(),.uavGPUHandle = {},.elementCount = 0,.stride = sizeof(RectLightGPU) });
 
 	// スポットライト: SRV
 	registry.Register({ .alias = "SpotLights",.resource = nullptr,.gpuAddress = spotLights_.GetGPUAddress(),
@@ -363,6 +382,14 @@ void Engine::ViewLightBufferSet::BuildClusters(
 		const Vector3 center = light.pos + direction * (light.distance * 0.5f);
 		appendBounds(center, light.distance,
 			static_cast<uint32_t>(lightSet.pointLights.size()) + index);
+	}
+	for (uint32_t index = 0;
+		index < static_cast<uint32_t>(lightSet.rectLights.size()); ++index) {
+		const RectLightItem& light = *lightSet.rectLights[index];
+		appendBounds(light.pos, light.attenuationRadius,
+			static_cast<uint32_t>(
+				lightSet.pointLights.size() +
+				lightSet.spotLights.size()) + index);
 	}
 
 	uint32_t overflowCount = 0;
@@ -565,6 +592,27 @@ Engine::SpotLightGPU Engine::ViewLightBufferSet::ToGPU(const SpotLightItem& item
 	light.cosFalloffStart = item.cosFalloffStart;
 	light.shadowStrength = item.shadowStrength;
 	light.shadowRadius = item.shadowRadius;
+
+	return light;
+}
+
+Engine::RectLightGPU Engine::ViewLightBufferSet::ToGPU(const RectLightItem& item) {
+
+	RectLightGPU light{};
+
+	light.color = item.color;
+	light.direction = item.direction;
+	light.pos = item.pos;
+	light.right = item.right;
+	light.up = item.up;
+	light.intensity = item.intensity;
+	light.attenuationRadius = item.attenuationRadius;
+	light.sourceWidth = item.sourceWidth;
+	light.sourceHeight = item.sourceHeight;
+	light.decay = item.decay;
+	light.barnDoorAngle = item.barnDoorAngle;
+	light.barnDoorLength = item.barnDoorLength;
+	light.shadowStrength = item.shadowStrength;
 
 	return light;
 }

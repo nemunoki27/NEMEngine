@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
@@ -65,6 +66,7 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 		world.HasComponent<PerspectiveCameraComponent>(entity) ||
 		world.HasComponent<DirectionalLightComponent>(entity) ||
 		world.HasComponent<PointLightComponent>(entity) ||
+		world.HasComponent<RectLightComponent>(entity) ||
 		world.HasComponent<SpotLightComponent>(entity)) {
 		return Dimension::Type3D;
 	}

@@ -85,6 +85,60 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
+	});
+}
+
+//============================================================================
+//	RectLightInspectorDrawer classMethods
+//============================================================================
+void Engine::RectLightInspectorDrawer::DrawFields(
+	[[maybe_unused]] const EditorPanelContext& context,
+	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
+	bool& anyItemActive) {
+
+	auto& draft = GetDraft();
+
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::ColorEdit("色", draft.color);
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("強度", draft.intensity,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("減衰半径", draft.attenuationRadius,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1024.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("光源幅", draft.sourceWidth,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("光源高さ", draft.sourceHeight,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("減衰", draft.decay,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 512.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("バーンドア角度", draft.barnDoorAngle,
+			{ .dragSpeed = 0.1f,.minValue = 0.0f,.maxValue = 89.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("バーンドア長さ", draft.barnDoorLength,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 128.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::DragFloat("影の強さ", draft.shadowStrength,
+			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+		});
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
+		});
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawLayerMaskField(
+			"レイヤーマスク", draft.affectLayerMask);
 		});
 }
 

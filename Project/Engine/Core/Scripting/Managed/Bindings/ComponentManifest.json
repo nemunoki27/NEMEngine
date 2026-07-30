@@ -2895,6 +2895,86 @@
       "allowAdd": false,
       "allowRemove": false,
       "properties": []
+    },
+    {
+      "id": 65,
+      "registryName": "RectLight",
+      "nativeType": "RectLightComponent",
+      "nativeHeader": "Engine/Core/World/Components/Lighting/RectLightComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.RectLight",
+      "reason": "矩形面光源の調整可能パラメータをgenerated propertyで公開する",
+      "managedType": "RectLight",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Intensity",
+          "nativeMember": "intensity",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AttenuationRadius",
+          "nativeMember": "attenuationRadius",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SourceWidth",
+          "nativeMember": "sourceWidth",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SourceHeight",
+          "nativeMember": "sourceHeight",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Decay",
+          "nativeMember": "decay",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BarnDoorAngle",
+          "nativeMember": "barnDoorAngle",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "BarnDoorLength",
+          "nativeMember": "barnDoorLength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ShadowStrength",
+          "nativeMember": "shadowStrength",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AffectLayerMask",
+          "nativeMember": "affectLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        }
+      ]
     }
   ]
 }

@@ -121,6 +121,7 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	{
 		registry.Register(MakeComponentEditorDescriptor<DirectionalLightInspectorDrawer>("DirectionalLight", "DirectionalLight", "Lighting"));
 		registry.Register(MakeComponentEditorDescriptor<PointLightInspectorDrawer>("PointLight", "PointLight", "Lighting"));
+		registry.Register(MakeComponentEditorDescriptor<RectLightInspectorDrawer>("RectLight", "RectLight", "Lighting"));
 		registry.Register(MakeComponentEditorDescriptor<SpotLightInspectorDrawer>("SpotLight", "SpotLight", "Lighting"));
 	}
 	// スクリプト

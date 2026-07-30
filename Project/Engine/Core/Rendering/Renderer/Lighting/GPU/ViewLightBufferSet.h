@@ -70,6 +70,7 @@ namespace Engine {
 		ViewConstantBuffer<LightCountsGPU> lightCounts_{ "LightCounts" };
 		StructuredInstanceBuffer<DirectionalLightGPU> directionalLights_{ "gDirectionalLights" };
 		StructuredInstanceBuffer<PointLightGPU> pointLights_{ "gPointLights" };
+		StructuredInstanceBuffer<RectLightGPU> rectLights_{ "gRectLights" };
 		StructuredInstanceBuffer<SpotLightGPU> spotLights_{ "gSpotLights" };
 		ViewConstantBuffer<LightClusterConstantsGPU> clusterConstants_{ "LightClusterConstants" };
 		StructuredInstanceBuffer<LightClusterHeaderGPU> clusterHeaders_{ "gLightClusterHeaders" };
@@ -78,6 +79,7 @@ namespace Engine {
 		// 毎フレーム再利用するCPU側配列
 		std::vector<DirectionalLightGPU> directionalScratch_{};
 		std::vector<PointLightGPU> pointScratch_{};
+		std::vector<RectLightGPU> rectScratch_{};
 		std::vector<SpotLightGPU> spotScratch_{};
 		std::vector<LightClusterHeaderGPU> clusterHeaderScratch_{};
 		std::vector<uint32_t> clusterLightIndexScratch_{};
@@ -104,6 +106,7 @@ namespace Engine {
 		// CPU側のライト構造体をGPU用の構造体に変換
 		static DirectionalLightGPU ToGPU(const DirectionalLightItem& item);
 		static PointLightGPU ToGPU(const PointLightItem& item);
+		static RectLightGPU ToGPU(const RectLightItem& item);
 		static SpotLightGPU ToGPU(const SpotLightItem& item);
 		// 確定済みCPUデータを現在のフレームスロットへ転送する
 		void UploadCachedBuffers();

@@ -34,6 +34,7 @@ namespace Engine {
 		// 対応コンポーネント種別でRegistryの検索キーとして使う
 		DirectionalLight,
 		PointLight,
+		RectLight,
 		SpotLight,
 		PerspectiveCamera,
 	};

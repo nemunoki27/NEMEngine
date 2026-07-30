@@ -60,6 +60,26 @@ namespace Engine {
 		float shadowStrength = 1.0f;
 		float shadowRadius = 0.05f;
 	};
+	// 矩形面光源
+	struct RectLightItem {
+
+		LightItemCommon common{};
+
+		Color4 color = Color4::White();
+		Vector3 pos = Vector3::AnyInit(0.0f);
+		Vector3 direction = Vector3(1.0f, 0.0f, 0.0f);
+		Vector3 right = Vector3(0.0f, 1.0f, 0.0f);
+		Vector3 up = Vector3(0.0f, 0.0f, 1.0f);
+
+		float intensity = 1.0f;
+		float attenuationRadius = 10.0f;
+		float sourceWidth = 2.0f;
+		float sourceHeight = 2.0f;
+		float decay = 1.0f;
+		float barnDoorAngle = 88.0f;
+		float barnDoorLength = 0.0f;
+		float shadowStrength = 1.0f;
+	};
 	// スポット光源
 	struct SpotLightItem {
 
@@ -87,6 +107,7 @@ namespace Engine {
 
 		std::vector<const DirectionalLightItem*> directionalLights;
 		std::vector<const PointLightItem*> pointLights;
+		std::vector<const RectLightItem*> rectLights;
 		std::vector<const SpotLightItem*> spotLights;
 
 		// データクリア
@@ -98,6 +119,7 @@ namespace Engine {
 		// ライトの数を返す
 		uint32_t GetDirectionalCount() const;
 		uint32_t GetPointCount() const;
+		uint32_t GetRectCount() const;
 		uint32_t GetSpotCount() const;
 		uint32_t GetLocalLightCount() const;
 		uint32_t GetTotalCount() const;
@@ -119,6 +141,7 @@ namespace Engine {
 		// ライト追加
 		void Add(DirectionalLightItem&& item);
 		void Add(PointLightItem&& item);
+		void Add(RectLightItem&& item);
 		void Add(SpotLightItem&& item);
 
 		// データクリア
@@ -134,13 +157,18 @@ namespace Engine {
 		// ライトのセットを返す
 		const std::vector<DirectionalLightItem>& GetDirectionalLights() const { return directionalLights_; }
 		const std::vector<PointLightItem>& GetPointLights() const { return pointLights_; }
+		const std::vector<RectLightItem>& GetRectLights() const { return rectLights_; }
 		const std::vector<SpotLightItem>& GetSpotLights() const { return spotLights_; }
 
 		// ライトの数を返す
 		uint32_t GetDirectionalCount() const { return static_cast<uint32_t>(directionalLights_.size()); }
 		uint32_t GetPointCount() const { return static_cast<uint32_t>(pointLights_.size()); }
+		uint32_t GetRectCount() const { return static_cast<uint32_t>(rectLights_.size()); }
 		uint32_t GetSpotCount() const { return static_cast<uint32_t>(spotLights_.size()); }
-		uint32_t GetTotalCount() const { return GetDirectionalCount() + GetPointCount() + GetSpotCount(); }
+		uint32_t GetTotalCount() const {
+			return GetDirectionalCount() + GetPointCount() +
+				GetRectCount() + GetSpotCount();
+		}
 		uint64_t GetSourceRevision() const { return sourceRevision_; }
 		bool MatchesSource(const ECSWorld* world, uint64_t revision) const {
 			return sourceWorld_ == world && sourceRevision_ == revision;
@@ -154,6 +182,7 @@ namespace Engine {
 
 		std::vector<DirectionalLightItem> directionalLights_{};
 		std::vector<PointLightItem> pointLights_{};
+		std::vector<RectLightItem> rectLights_{};
 		std::vector<SpotLightItem> spotLights_{};
 		const ECSWorld* sourceWorld_ = nullptr;
 		uint64_t sourceRevision_ = 0;

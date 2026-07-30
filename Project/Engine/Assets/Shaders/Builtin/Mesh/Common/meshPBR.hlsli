@@ -95,6 +95,12 @@ float3 EvaluateForwardPBRLighting(VSOutput input, ResolvedPBRMaterial m) {
 		Lo += EvaluatePBRSpotLight(gSpotLights[si], input.worldPos, m.N, V,
 			m.baseColor.rgb, m.metallic, m.roughness, F0);
 	}
+	[loop]
+	for (uint ri = 0; ri < rectCount; ++ri) {
+
+		Lo += EvaluatePBRRectLight(gRectLights[ri], input.worldPos, m.N, V,
+			m.baseColor.rgb, m.metallic, m.roughness, F0);
+	}
 
 	// 環境光はAOで減衰、環境光を受けないサーフェイスは加算しない
 	float3 ambient = 0.0f.xxx;

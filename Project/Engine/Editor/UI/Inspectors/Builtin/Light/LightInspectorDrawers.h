@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 
 namespace Engine {
@@ -49,6 +50,29 @@ namespace Engine {
 		PointLightInspectorDrawer() :
 			SerializedComponentInspectorDrawer("PointLight", "PointLight") {}
 		~PointLightInspectorDrawer() = default;
+	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
+			const Entity& entity, bool& anyItemActive) override;
+	};
+
+	//============================================================================
+	//	RectLightInspectorDrawer class
+	//	矩形面光源コンポーネントのインスペクター描画
+	//============================================================================
+	class RectLightInspectorDrawer :
+		public SerializedComponentInspectorDrawer<RectLightComponent> {
+	public:
+		//============================================================================
+		//	public Methods
+		//============================================================================
+
+		RectLightInspectorDrawer() :
+			SerializedComponentInspectorDrawer("RectLight", "RectLight") {}
+		~RectLightInspectorDrawer() = default;
 	private:
 		//============================================================================
 		//	private Methods

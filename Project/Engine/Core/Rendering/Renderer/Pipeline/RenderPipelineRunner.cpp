@@ -163,6 +163,7 @@ void RenderPipelineRunner::Init() {
 	lightExtractorRegistry_.Clear();
 	lightExtractorRegistry_.Register(std::make_unique<DirectionalLightExtractor>());
 	lightExtractorRegistry_.Register(std::make_unique<PointLightExtractor>());
+	lightExtractorRegistry_.Register(std::make_unique<RectLightExtractor>());
 	lightExtractorRegistry_.Register(std::make_unique<SpotLightExtractor>());
 
 	renderAssetLibrary_.Clear();

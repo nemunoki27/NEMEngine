@@ -65,12 +65,10 @@ namespace Engine {
 
 	struct SubMeshMaterial {
 
-		static constexpr ComponentStorageKind kStorageKind =
-			ComponentStorageKind::Buffer;
+		static constexpr ComponentStorageKind kStorageKind = ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 0;
 		static constexpr bool kSerializable = false;
-		static constexpr ComponentChangeChannel kChangeChannels =
-			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kChangeChannels = ComponentChangeChannel::Render;
 
 		// 表示用の名前
 		std::string name;
@@ -101,10 +99,8 @@ namespace Engine {
 	struct MeshRendererComponent {
 
 		static constexpr bool kHasECSHooks = true;
-		static constexpr ComponentChangeChannel kChangeChannels =
-			ComponentChangeChannel::Render;
-		static constexpr ComponentChangeChannel kTransformChannels =
-			ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kChangeChannels = ComponentChangeChannel::Render;
+		static constexpr ComponentChangeChannel kTransformChannels = ComponentChangeChannel::Render;
 
 		// メッシュ
 		AssetID mesh{};
@@ -130,17 +126,12 @@ namespace Engine {
 		MeshRenderFlags renderFlags = MeshRenderFlags::Default;
 
 		// Registryから呼ばれるワールド依存Storageフック
-		static void OnAdded(
-			ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
+		static void OnAdded(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
 		static void OnRemoved(ECSWorld& world, const Entity& entity);
-		static void InitializeStorage(
-			ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
-		static void ReleaseStorage(
-			ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
-		static void DeserializeECS(ECSWorld& world, const Entity& entity,
-			const nlohmann::json& in, MeshRendererComponent& component);
-		static void SerializeECS(const ECSWorld& world, const Entity& entity,
-			const MeshRendererComponent& component, nlohmann::json& out);
+		static void InitializeStorage(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
+		static void ReleaseStorage(ECSWorld& world, const Entity& entity, MeshRendererComponent& component);
+		static void DeserializeECS(ECSWorld& world, const Entity& entity, const nlohmann::json& in, MeshRendererComponent& component);
+		static void SerializeECS(const ECSWorld& world, const Entity& entity, const MeshRendererComponent& component, nlohmann::json& out);
 	};
 
 	// json変換
@@ -149,16 +140,11 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, MeshRendererComponent& component);
 	void to_json(nlohmann::json& out, const MeshRendererComponent& component);
 	// Entityに付随するサブメッシュ編集データ
-	std::span<SubMeshMaterial> GetMeshSubMeshes(
-		ECSWorld& world, const Entity& entity);
-	std::span<const SubMeshMaterial> GetMeshSubMeshes(
-		const ECSWorld& world, const Entity& entity);
-	void SetMeshSubMeshes(ECSWorld& world, const Entity& entity,
-		std::span<const SubMeshMaterial> subMeshes);
+	std::span<SubMeshMaterial> GetMeshSubMeshes(ECSWorld& world, const Entity& entity);
+	std::span<const SubMeshMaterial> GetMeshSubMeshes(const ECSWorld& world, const Entity& entity);
+	void SetMeshSubMeshes(ECSWorld& world, const Entity& entity, std::span<const SubMeshMaterial> subMeshes);
 	// サブメッシュを含む保存データへ変換する
-	void SerializeMeshRenderer(
-		const MeshRendererComponent& component,
-		std::span<const SubMeshMaterial> subMeshes, nlohmann::json& out);
+	void SerializeMeshRenderer(const MeshRendererComponent& component, std::span<const SubMeshMaterial> subMeshes, nlohmann::json& out);
 
 	// helpers
 	namespace MeshSubMeshRuntime {
@@ -168,5 +154,4 @@ namespace Engine {
 		Matrix4x4 BuildLocalMatrix(const SubMeshMaterial& subMesh);
 		Matrix4x4 BuildRenderLocalMatrix(const SubMeshMaterial& subMesh);
 	}
-
 } // Engine

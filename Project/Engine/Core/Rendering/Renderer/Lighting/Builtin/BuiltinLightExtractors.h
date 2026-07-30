@@ -9,6 +9,7 @@ namespace Engine {
 
 	struct DirectionalLightComponent;
 	struct PointLightComponent;
+	struct RectLightComponent;
 	struct SpotLightComponent;
 
 	//============================================================================
@@ -32,5 +33,6 @@ namespace Engine {
 	// ライト種別ごとの型名は登録側で明示して扱う
 	using DirectionalLightExtractor = BuiltinLightExtractor<DirectionalLightComponent>;
 	using PointLightExtractor = BuiltinLightExtractor<PointLightComponent>;
+	using RectLightExtractor = BuiltinLightExtractor<RectLightComponent>;
 	using SpotLightExtractor = BuiltinLightExtractor<SpotLightComponent>;
 } // Engine
