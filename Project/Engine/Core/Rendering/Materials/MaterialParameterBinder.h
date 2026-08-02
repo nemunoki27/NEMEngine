@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/AutoRootSignatureBuilder.h>
@@ -53,13 +54,15 @@ namespace Engine {
 		// 指定パイプラインのMaterialParameters cbufferへmaterialの値を詰めてアップロードする
 		// cbufferが無ければ0を返し、呼び出し側はバインドをスキップすればよい
 		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(ID3D12Device* device,
-			const PipelineState& pipeline, const MaterialAsset& material);
+			const PipelineState& pipeline, const MaterialAsset& material,
+			const MaterialParameterBufferBuilder::TextureResolver& resolveTexture);
 
 		// マテリアル既定値にエンティティごとのparameterOverridesを重ねてアップロードする
 		// Sprite/Text等の個別マテリアル対応で使う、overridesが空なら既定値のみと同じになる
 		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(ID3D12Device* device,
 			const PipelineState& pipeline, const MaterialAsset& material,
-			const MaterialParameterSet& overrides);
+			const MaterialParameterSet& overrides,
+			const MaterialParameterBufferBuilder::TextureResolver& resolveTexture);
 
 		// space2テクスチャのRootBindingとAssetIDを解決する
 		std::span<const TextureBinding> ResolveTextures(const PipelineState& pipeline,
@@ -88,6 +91,7 @@ namespace Engine {
 			std::vector<TextureBinding> textures{};
 			uint64_t lastUsedFrame = 0;
 			uint64_t uploadedFrame = 0;
+			uint64_t packedFrame = 0;
 			D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
 			bool parametersValid = false;
 			bool texturesValid = false;

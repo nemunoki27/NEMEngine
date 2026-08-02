@@ -62,6 +62,8 @@ namespace Engine {
 		static void SetCloseRequestCallback(bool (*callback)()) { closeRequestCallback_ = callback; }
 		// Editor UIがWin32メッセージを処理する場合の転送先
 		static void SetMessageHandler(MessageHandler handler) { messageHandler_ = handler; }
+		// 外部ウィンドウへドロップされたファイルを入力へ積む
+		static bool HandleExternalFileDrop(HWND hwnd, WPARAM wparam);
 		// 確認済みの終了要求を次のメッセージ処理へ投げる
 		static void RequestCloseWindow();
 	private:
@@ -97,6 +99,8 @@ namespace Engine {
 
 		// クライアント領域のRECTをスクリーン座標のRECTに変換する
 		static RECT ClientRectToScreenRect(HWND hwnd, const RECT& clientRect);
+		// プロセスをモニターごとのDPIへ対応させる
+		static void EnablePerMonitorDpiAwareness();
 
 		// Win32のウィンドウプロシージャ
 		static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);

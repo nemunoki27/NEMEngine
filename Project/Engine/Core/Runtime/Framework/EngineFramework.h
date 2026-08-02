@@ -20,6 +20,7 @@ namespace Engine {
 		virtual void Init(GraphicsCore& graphicsCore) = 0;
 		virtual void Tick(GraphicsCore& graphicsCore, float deltaTime) = 0;
 		virtual void Render(GraphicsCore& graphicsCore) = 0;
+		virtual void RenderPlatformWindows(GraphicsCore& graphicsCore) = 0;
 		virtual void Finalize() = 0;
 		virtual bool ConsumeFrameDeltaResetRequest() = 0;
 	};

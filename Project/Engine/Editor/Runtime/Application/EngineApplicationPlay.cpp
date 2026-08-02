@@ -202,6 +202,9 @@ void Engine::EngineApplication::StartPlayWorld() {
 	runtimeWorldBaker_.BakeAll();
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
+	systemContext_.time = 0.0f;
+	systemContext_.unscaledTime = 0.0f;
+	systemContext_.smoothDeltaTime = 0.0f;
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
 	requestFrameDeltaReset_ = true;

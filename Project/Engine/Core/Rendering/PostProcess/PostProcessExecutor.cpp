@@ -194,6 +194,21 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	MaterialParameterLayout& parameterLayout = cacheEntry.layout;
 	if (parameterLayout.IsValid()) {
 
+		const auto resolveTexture = [&](MaterialParameterSemantic semantic,
+			const AssetID& textureAssetID) {
+
+			if (!textureAssetID) {
+				return MaterialParameterBufferBuilder::TextureResolveResult{};
+			}
+			const RuntimeTextureResolver::BindlessResolveResult result =
+				RuntimeTextureResolver::ResolveBindless(
+					graphicsCore, context.assetDatabase, textureAssetID,
+					IsSRGBMaterialTexture(semantic));
+			return MaterialParameterBufferBuilder::TextureResolveResult{
+				.index = result.srvIndex,
+				.cacheable = !result.retry,
+			};
+		};
 		std::vector<uint8_t> bytes;
 		if (!desc.parameterOverrides.empty()) {
 
@@ -201,9 +216,11 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			for (const auto& [name, val] : desc.parameterOverrides) {
 				merged.parameters[name] = val;
 			}
-			bytes = MaterialParameterBufferBuilder::Build(merged, parameterLayout);
+			bytes = MaterialParameterBufferBuilder::Build(
+				merged, parameterLayout, resolveTexture);
 		} else {
-			bytes = MaterialParameterBufferBuilder::Build(*materialAsset, parameterLayout);
+			bytes = MaterialParameterBufferBuilder::Build(
+				*materialAsset, parameterLayout, resolveTexture);
 		}
 
 		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetDevice(), bytes);

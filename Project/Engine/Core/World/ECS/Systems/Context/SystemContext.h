@@ -49,5 +49,9 @@ namespace Engine {
 		float fixedDeltaTime = 1.0f / 60.0f;
 		// TimeScale非適用のリアルフレーム時間でEdit中もPlay同様に進む、Editプレビュー再生などが参照する
 		float unscaledDeltaTime = 0.0f;
+		// ShaderGraphなどフレーム共通処理が参照する経過時間
+		float time = 0.0f;
+		float unscaledTime = 0.0f;
+		float smoothDeltaTime = 0.0f;
 	};
 } // Engine

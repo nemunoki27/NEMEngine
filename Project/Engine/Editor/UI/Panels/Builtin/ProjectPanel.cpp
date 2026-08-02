@@ -297,17 +297,12 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 		return;
 	}
 
-	// クライアント座標のドロップ点をImGui座標へ合わせる、viewports無効ではmain viewportのposは0
-	const ImVec2 viewportPos = ImGui::GetMainViewport()->Pos;
-	const float dropX = dropPoint.x + viewportPos.x;
-	const float dropY = dropPoint.y + viewportPos.y;
-
 	// ドロップ位置がProjectウィンドウ内のときだけ取り込む、それ以外は破棄する
 	const ImVec2 windowPos = ImGui::GetWindowPos();
 	const ImVec2 windowSize = ImGui::GetWindowSize();
 	const bool insidePanel =
-		dropX >= windowPos.x && dropX <= windowPos.x + windowSize.x &&
-		dropY >= windowPos.y && dropY <= windowPos.y + windowSize.y;
+		dropPoint.x >= windowPos.x && dropPoint.x <= windowPos.x + windowSize.x &&
+		dropPoint.y >= windowPos.y && dropPoint.y <= windowPos.y + windowSize.y;
 	if (!insidePanel) {
 		return;
 	}
@@ -345,7 +340,12 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	const std::string windowName = MakeWindowName(displayName_);
 	ApplyInitialDock();
-	if (!ImGui::Begin(windowName.c_str(), open)) {
+	const bool visible = ImGui::Begin(windowName.c_str(), open);
+	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		context.host->NotifyEditorCommandPanelFocused(
+			EditorCommandPanelKind::Project);
+	}
+	if (!visible) {
 		DrawTitleBarContextMenu(context);
 		ImGui::End();
 		return;

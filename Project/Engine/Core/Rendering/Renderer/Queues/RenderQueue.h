@@ -140,6 +140,9 @@ namespace Engine {
 
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;
+		// RendererとMaterialを解決した最終的な影設定
+		bool castShadows = true;
+		bool receiveShadows = true;
 
 		// 描画に使用するマテリアル
 		AssetID material{};

@@ -329,54 +329,39 @@ namespace {
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
-	const MaterialAsset& material, const MaterialParameterLayout& layout) {
+	const MaterialAsset& material, const MaterialParameterLayout& layout,
+	const TextureResolver& resolveTexture,
+	bool* outTextureValuesCacheable) {
 
 	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
 	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
-	BuildInto(bytes, material, layout);
+	BuildInto(bytes, material, layout, resolveTexture,
+		outTextureValuesCacheable);
 	return bytes;
 }
 
 bool Engine::MaterialParameterBufferBuilder::BuildInto(std::span<uint8_t> bytes,
-	const MaterialAsset& material, const MaterialParameterLayout& layout) {
+	const MaterialAsset& material, const MaterialParameterLayout& layout,
+	const TextureResolver& resolveTexture,
+	bool* outTextureValuesCacheable) {
 
-	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
-	if (bytes.size() < (std::max)(layoutSizeInBytes, 16u)) {
-		return false;
-	}
-	std::fill(bytes.begin(), bytes.end(), uint8_t{});
-
-	const std::vector<ShaderConstantBufferVariable>& variables = layout.GetVariables();
-	for (size_t variableIndex = 0; variableIndex < variables.size(); ++variableIndex) {
-
-		const ShaderConstantBufferVariable& variable = variables[variableIndex];
-
-		const MaterialParameterValue* value =
-			FindParameterValue(
-				material.parameters, variable);
-		if (!value) {
-			continue;
-		}
-
-		const char* sourceValueTypeName = GetParameterValueTypeName(*value);
-		const MaterialParameterValue parameter =
-			NormalizeParameterValueForVariable(variable, *value);
-
-		// Reflectionのoffsetへ直接詰めることで、HLSL側のパッキングに追従する
-		WriteParameterValue(bytes, variable, parameter, sourceValueTypeName, layoutSizeInBytes);
-	}
-	return true;
+	static const MaterialParameterSet kEmptyOverrides{};
+	return BuildElementInto(bytes, material.parameters,
+		kEmptyOverrides, layout, resolveTexture,
+		outTextureValuesCacheable);
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::BuildElement(
 	const MaterialParameterSet& defaults,
 	const MaterialParameterSet& overrides,
 	const MaterialParameterLayout& layout,
-	const TextureResolver& resolveTexture) {
+	const TextureResolver& resolveTexture,
+	bool* outTextureValuesCacheable) {
 
 	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
 	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
-	BuildElementInto(bytes, defaults, overrides, layout, resolveTexture);
+	BuildElementInto(bytes, defaults, overrides, layout, resolveTexture,
+		outTextureValuesCacheable);
 	return bytes;
 }
 
@@ -384,13 +369,15 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 	const MaterialParameterSet& defaults,
 	const MaterialParameterSet& overrides,
 	const MaterialParameterLayout& layout,
-	const TextureResolver& resolveTexture) {
+	const TextureResolver& resolveTexture,
+	bool* outTextureValuesCacheable) {
 
 	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
 	if (bytes.size() < (std::max)(layoutSizeInBytes, 16u)) {
 		return false;
 	}
 	std::fill(bytes.begin(), bytes.end(), uint8_t{});
+	bool textureValuesCacheable = true;
 
 	const std::vector<ShaderConstantBufferVariable>& variables = layout.GetVariables();
 
@@ -399,10 +386,17 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 
 		if (std::holds_alternative<AssetID>(value.value)) {
 
-			const uint32_t index = resolveTexture ?
-				resolveTexture(variable.semantic, std::get<AssetID>(value.value)) : 0u;
+			TextureResolveResult result{};
+			if (resolveTexture) {
+				result = resolveTexture(variable.semantic,
+					std::get<AssetID>(value.value));
+			} else if (std::get<AssetID>(value.value)) {
+				result.cacheable = false;
+			}
+			textureValuesCacheable &= result.cacheable;
 			if (static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
-				std::memcpy(bytes.data() + variable.offset, &index, sizeof(uint32_t));
+				std::memcpy(bytes.data() + variable.offset,
+					&result.index, sizeof(uint32_t));
 			}
 			return;
 		}
@@ -431,6 +425,9 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 			const uint32_t noTexture = kNoTextureIndex;
 			std::memcpy(bytes.data() + variable.offset, &noTexture, sizeof(uint32_t));
 		}
+	}
+	if (outTextureValuesCacheable) {
+		*outTextureValuesCacheable = textureValuesCacheable;
 	}
 	return true;
 }

@@ -982,6 +982,13 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	nlohmann::json manifest = nlohmann::json::object();
 	manifest["schemaVersion"] = 2;
 	manifest["projectPath"] = Algorithm::ConvertString(projectPath.generic_wstring());
+	manifest["gameRoot"] = Algorithm::PathToUTF8(gameRoot);
+	manifest["buildToolProject"] = Algorithm::PathToUTF8(
+		RuntimePaths::GetEngineProjectRoot() /
+		"Tools/NEM.BuildTool/NEMBuildTool.vcxproj");
+	manifest["buildToolExecutable"] = Algorithm::PathToUTF8(
+		RuntimePaths::GetEngineProjectRoot().parent_path() /
+		"Generated/Output/Release/NEMBuildTool/NEMBuildTool.exe");
 	manifest["sourceRuntime"] = Algorithm::ConvertString(sourceRuntime.generic_wstring());
 	manifest["runtimeExecutable"] = projectName + ".exe";
 	manifest["outputRoot"] = Algorithm::ConvertString(settings.outputRoot.generic_wstring());

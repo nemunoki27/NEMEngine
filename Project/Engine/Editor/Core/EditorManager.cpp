@@ -495,8 +495,13 @@ void Engine::EditorManager::DrawCloseUnsavedScenePopup() {
 
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
 
+	if (editorCommandPanelKind_ !=
+		EditorCommandPanelKind::Scene) {
+		return;
+	}
+
 	ImGuiIO& io = ImGui::GetIO();
-	if (io.WantTextInput) {
+	if (io.WantTextInput || ImGui::IsAnyItemActive()) {
 		return;
 	}
 
@@ -680,6 +685,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	UpdateSceneViewManualCamera();
 
 	// 各パネルの描画
+	editorCommandPanelKind_ = EditorCommandPanelKind::None;
 	EditorPanelContext panelContext{};
 	panelContext.editorContext = &context;
 	panelContext.editorState = &editorState_;
@@ -689,8 +695,6 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 
-	// グローバルショートカットの処理
-	HandleGlobalShortcuts(context);
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	DrawUnsavedScenePopup();
 	DrawCloseUnsavedScenePopup();
@@ -771,6 +775,8 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 
 	// ドッキングスペースの描画
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PostScene);
+	// 全パネルのフォーカスが確定してからメイン編集コマンドを処理
+	HandleGlobalShortcuts(context);
 	ApplyPendingPanelDuplicate(panelContext);
 
 	//ImGui::ShowDemoWindow();
@@ -794,6 +800,14 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	imguiManager_.Draw(dxCommand->GetCommandList());
 
 	currentRenderContext_ = nullptr;
+}
+
+void Engine::EditorManager::RenderPlatformWindows() {
+
+	if (!initialized_) {
+		return;
+	}
+	imguiManager_.DrawPlatformWindows();
 }
 
 void Engine::EditorManager::Finalize() {

@@ -81,6 +81,8 @@ namespace Engine {
 		bool overridesRenderer = false;
 		RenderPhase phase = RenderPhase::Opaque;
 		BlendMode blendMode = BlendMode::Normal;
+		bool castShadows = true;
+		bool receiveShadows = true;
 	};
 
 	// マテリアルアセットの情報
@@ -94,6 +96,8 @@ namespace Engine {
 		MaterialDomain domain = MaterialDomain::Surface;
 		// マテリアルを使用する描画機能
 		MaterialUsage usage = MaterialUsage::Generic;
+		// 見た目を生成するShader Graph
+		AssetID shaderGraph{};
 		// Shader Graphなど見た目と描画状態を一体で扱うMaterialの設定
 		MaterialRenderState renderState{};
 

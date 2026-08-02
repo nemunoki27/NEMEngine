@@ -10,6 +10,7 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
+#include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 
 // c++
 #include <algorithm>
@@ -94,13 +95,13 @@ namespace {
 	}
 	// シェーダーオブジェクトからD3D12_SHADER_BYTECODEを生成する
 	D3D12_SHADER_BYTECODE ToBytecode(const CompiledShader* shader) {
-		if (!shader || !shader->object) {
+		if (!shader || !shader->IsValid()) {
 			return D3D12_SHADER_BYTECODE{};
 		}
 
 		D3D12_SHADER_BYTECODE byteCode{};
-		byteCode.pShaderBytecode = shader->object->GetBufferPointer();
-		byteCode.BytecodeLength = shader->object->GetBufferSize();
+		byteCode.pShaderBytecode = shader->GetBytecodePointer();
+		byteCode.BytecodeLength = shader->GetBytecodeSize();
 		return byteCode;
 	}
 	// フォーマットがRTVとしてブレンド可能か
@@ -175,6 +176,28 @@ namespace {
 		if (desc.file.empty()) {
 			return true;
 		}
+		const std::string entryText = desc.entry.empty() ? "main" : desc.entry;
+		const std::string profileText = desc.profile.empty() ?
+			Algorithm::ConvertString(ResolveProfile({}, stage)) : desc.profile;
+		CompiledShader shader{};
+		if (desc.shader && ShaderCook::Load({
+			.shader = desc.shader,
+			.stage = stage,
+			.entry = entryText,
+			.profile = profileText,
+			}, shader)) {
+			shaders.emplace_back(std::move(shader));
+			Logger::Output(LogType::Engine,
+				"[ShaderCook] Loaded {} shader={} entry={}",
+				stageName, ToString(desc.shader), entryText);
+			return true;
+		}
+		if (ShaderCook::IsCookedProduct()) {
+			Logger::Output(LogType::Engine,
+				"[ShaderCook] Missing cooked shader: shader={} stage={} entry={} profile={}",
+				ToString(desc.shader), stageName, entryText, profileText);
+			return false;
+		}
 
 		std::filesystem::path shaderPath = ResolveShaderPath(desc.file);
 		if (shaderPath.empty()) {
@@ -185,8 +208,8 @@ namespace {
 		std::wstring entry = ResolveEntry(desc.entry);
 		std::wstring profile = ResolveProfile(desc.profile, stage);
 
-		CompiledShader shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), stage);
-		if (!shader.object) {
+		shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), stage);
+		if (!shader.IsValid()) {
 			Logger::Output(LogType::Engine, "Failed compiling {} for {}",
 				stageName, Algorithm::PathToUTF8(shaderPath));
 			return false;
@@ -512,23 +535,18 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 	Logger::BeginSection(LogType::Engine);
 	Logger::Output(LogType::Engine, "Start CreateComputePipeline: {}", desc.compute.file);
 
-	// シェーダーのコンパイル
-	const std::filesystem::path shaderPath = ResolveShaderPath(desc.compute.file);
-	if (shaderPath.empty()) {
-		Logger::Output(LogType::Engine, "[PostProcess] Compute shader file not found: {}", desc.compute.file);
+	// Graphicsと同じCook経路でCSを取得する
+	std::vector<CompiledShader> shaders;
+	if (!CompileOne(shaders, compiler, desc.compute,
+		ShaderStage::CS, "CS") || shaders.empty()) {
+		Logger::Output(LogType::Engine,
+			"[PostProcess] Shader load failed: {}", desc.compute.file);
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
-	const std::wstring entry = ResolveEntry(desc.compute.entry);
-	const std::wstring profile = ResolveProfile(desc.compute.profile, ShaderStage::CS);
-	CompiledShader shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), ShaderStage::CS);
-	if (!shader.object) {
-		Logger::Output(LogType::Engine, "[PostProcess] Shader compilation failed: {}", desc.compute.file);
-		Logger::EndSection(LogType::Engine);
-		return false;
-	}
+	CompiledShader& shader = shaders.front();
 	Logger::Output(LogType::Engine, "Finished compiling CS for {}",
-		Algorithm::PathToUTF8(shaderPath));
+		desc.compute.file);
 
 	// スレッドサイズを設定
 	threadGroupX_ = shader.reflection.threadGroupX;

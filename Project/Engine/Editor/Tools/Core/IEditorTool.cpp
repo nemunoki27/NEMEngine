@@ -48,7 +48,8 @@ void Engine::IEditorTool::EndEditorToolFrame() {
 }
 
 EditorToolRenderTexture* Engine::IEditorTool::CreateRenderTexture(const std::string& name,
-	const Vector2I& size, const Color4& clearColor, uint32_t colorCount) {
+	const Vector2I& size, const Color4& clearColor, uint32_t colorCount,
+	bool withDepth) {
 
 	if (EditorToolRenderTexture* texture = FindRenderTexture(name)) {
 		return texture;
@@ -57,12 +58,29 @@ EditorToolRenderTexture* Engine::IEditorTool::CreateRenderTexture(const std::str
 	if (!currentGraphicsCore_) {
 		return nullptr;
 	}
+	colorCount = std::clamp(colorCount, 1u, 8u);
+	const auto hasCapacity = [](const BaseDescriptor& descriptor,
+		uint32_t requiredCount) {
+
+		return descriptor.GetUseDescriptorCount() <=
+			descriptor.GetMaxDescriptorCount() &&
+			requiredCount <= descriptor.GetMaxDescriptorCount() -
+				descriptor.GetUseDescriptorCount();
+	};
+	const uint32_t srvCount = colorCount + (withDepth ? 1u : 0u);
+	if (!hasCapacity(currentGraphicsCore_->GetRTVDescriptor(), colorCount) ||
+		!hasCapacity(currentGraphicsCore_->GetSRVDescriptor(), srvCount) ||
+		(withDepth &&
+		 !hasCapacity(currentGraphicsCore_->GetDSVDescriptor(), 1u))) {
+
+		return nullptr;
+	}
 
 	// テクスチャ設定
 	EditorToolRenderTexture texture{};
 	texture.name = name;
 	texture.size = size;
-	texture.colorCount = std::clamp(colorCount, 1u, 8u);
+	texture.colorCount = colorCount;
 	texture.clearColor = clearColor;
 	texture.renderTarget = std::make_unique<MultiRenderTarget>();
 	// レンダーターゲット記述子の作成
@@ -79,12 +97,15 @@ EditorToolRenderTexture* Engine::IEditorTool::CreateRenderTexture(const std::str
 			.format = DXGI_FORMAT_R32G32B32A32_FLOAT,.clearColor = clearColor,.createUAV = false, });
 	}
 
-	// ツールプレビューは3D確認で使うことが多いため、必ず深度を持たせる
-	DepthTextureCreateDesc depthDesc{};
-	depthDesc.width = size.x;
-	depthDesc.height = size.y;
-	depthDesc.debugName = std::wstring(name.begin(), name.end()) + L"_Depth";
-	createDesc.depth = depthDesc;
+	if (withDepth) {
+
+		DepthTextureCreateDesc depthDesc{};
+		depthDesc.width = size.x;
+		depthDesc.height = size.y;
+		depthDesc.debugName =
+			std::wstring(name.begin(), name.end()) + L"_Depth";
+		createDesc.depth = depthDesc;
+	}
 
 	// レンダーターゲット作成
 	texture.renderTarget->Create(currentGraphicsCore_->GetDXObject().GetDevice(),

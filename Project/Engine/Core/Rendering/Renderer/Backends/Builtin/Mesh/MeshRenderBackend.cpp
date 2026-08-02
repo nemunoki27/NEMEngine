@@ -19,6 +19,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/Draw/MeshShaderDrawPath.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -70,26 +71,6 @@ namespace {
 			outResolved.pass = pass;
 			return true;
 		}
-		if (context.passKind == Engine::MaterialPassKind::EditorPicking) {
-
-			const Engine::AssetID materialID =
-				Engine::BuiltinAssets::Materials::DefaultMesh;
-			const Engine::MaterialAsset* material =
-				context.assetLibrary->LoadMaterial(materialID);
-			if (!material) {
-				return false;
-			}
-			const Engine::MaterialPassBinding* pass =
-				Engine::FindPass(*material, context.passKind);
-			if (!pass) {
-				return false;
-			}
-			outResolved.materialID = materialID;
-			outResolved.material = material;
-			outResolved.pass = pass;
-			return true;
-		}
-
 		// 通常描画
 		if (context.passKind == Engine::MaterialPassKind::Draw) {
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
@@ -145,6 +126,8 @@ Engine::MeshRenderBackend::MeshRenderBackend() {
 	outlineSRVSlot_      = sharedBindCache_.AddSlot("gMeshOutlines",          ShaderBindingKind::SRV);
 	screenSpaceOutlineMaskCBVSlot_ = sharedBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,
 		kScreenSpaceOutlineMaskCBVRegister, kScreenSpaceOutlineMaskCBVSpace);
+	shaderGraphTimeCBVSlot_ = sharedBindCache_.AddSlot(
+		"ShaderGraphTimeConstants", ShaderBindingKind::CBV);
 	materialParamsCBVSlot_ = sharedBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
 	subMeshMaterialParamSRVSlot_ = sharedBindCache_.AddSlot(MaterialParameterCBuffer::kMesh, ShaderBindingKind::SRV);
 
@@ -300,6 +283,8 @@ void Engine::MeshRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 	PruneSkinnedBatchCache();
 
 	resourcePool_.BeginFrame();
+	constantBufferAllocator_.BeginFrame();
+	shaderGraphTimeGPUAddress_ = 0;
 	// マテリアルパラメータCBVのアップロード位置を戻す
 	materialParamBinder_.BeginFrame();
 
@@ -559,17 +544,38 @@ void Engine::MeshRenderBackend::BindSharedResources(const RenderDrawContext& con
 		RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(drawCBVSlot_),
 			prepared.resources->GetDrawGPUAddress());
 	}
+	if (sharedBindCache_.Has(shaderGraphTimeCBVSlot_) &&
+		context.systemContext) {
+
+		if (shaderGraphTimeGPUAddress_ == 0) {
+			const SystemContext& systemContext = *context.systemContext;
+			const ShaderGraphTimeConstantsGPU constants{
+				.time = systemContext.time,
+				.deltaTime = systemContext.deltaTime,
+				.smoothDeltaTime = systemContext.smoothDeltaTime,
+				.unscaledTime = systemContext.unscaledTime,
+			};
+			const PostProcessConstantBufferAllocation allocation =
+				constantBufferAllocator_.AllocateAndUpload(
+					context.graphicsCore->GetDXObject().GetDevice(),
+					constants);
+			shaderGraphTimeGPUAddress_ = allocation.gpuAddress;
+		}
+		if (shaderGraphTimeGPUAddress_ != 0) {
+			RootBindingCommand::SetGraphicsCBV(
+				commandList,
+				sharedBindCache_.Get(shaderGraphTimeCBVSlot_),
+				shaderGraphTimeGPUAddress_);
+		}
+	}
 	// シェーダーがMaterialParameters cbufferを宣言している場合のみ、reflection駆動でマテリアル値を詰めてバインドする
 	// Builtinメッシュシェーダーはこのcbufferを持たずslotが解決されないため、ここは何もしない
 	if (sharedBindCache_.Has(materialParamsCBVSlot_) && prepared.material) {
 
-		ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
-		const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
-			materialParamBinder_.ResolveAndUpload(device, *prepared.pipelineState, *prepared.material);
-		if (materialParamsAddress != 0) {
-			RootBindingCommand::SetGraphicsCBV(commandList, sharedBindCache_.Get(materialParamsCBVSlot_),
-				materialParamsAddress);
-		}
+		BackendDrawCommon::BindReflectedMaterialParameters(
+			context, materialParamBinder_, *prepared.pipelineState,
+			*prepared.material, nullptr, sharedBindCache_,
+			materialParamsCBVSlot_, commandList);
 	}
 	// reflection駆動のサブメッシュ単位マテリアルパラメータを詰めて構造化バッファとしてバインドする
 	if (sharedBindCache_.Has(subMeshMaterialParamSRVSlot_) && prepared.material) {

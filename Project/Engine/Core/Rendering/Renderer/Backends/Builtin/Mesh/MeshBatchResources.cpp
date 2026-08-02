@@ -491,7 +491,10 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 
 			// MeshRenderFlagsのうちピクセル側で参照するものをinstance.flagsへ写す
-			const MeshRenderFlags renderFlags = renderer ? renderer->renderFlags : MeshRenderFlags::Default;
+			MeshRenderFlags renderFlags = renderer ? renderer->renderFlags : MeshRenderFlags::Default;
+			SetMeshRenderFlag(renderFlags,
+				MeshRenderFlags::ReceiveShadow,
+				item->receiveShadows);
 			if (HasMeshRenderFlag(renderFlags, MeshRenderFlags::Lighting)) {
 				instance.flags |= kMeshInstanceFlagLighting;
 			}
@@ -722,30 +725,18 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		return;
 	}
 
-	GraphicsCore& graphicsCore = *drawContext.graphicsCore;
-	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
-	const uint32_t fallbackIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
 	bool usedFallbackTexture = false;
 
 	// テクスチャSemanticからsRGB可否を決めてbindless indexへ解決する
 	// 未指定はkNoTextureを返しシェーダー側でテクスチャなしの分岐に乗せる
 	auto resolveTexture = [&](MaterialParameterSemantic semantic,
-		const AssetID& id) -> uint32_t {
+		const AssetID& id) {
 
-		if (!id) {
-			return UINT32_MAX;
-		}
-		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
-			graphicsCore, drawContext.assetDatabase, id,
-			IsSRGBMaterialTexture(semantic));
-		if (!texture || texture->srvIndex == UINT32_MAX) {
-			usedFallbackTexture = true;
-			return fallbackIndex;
-		}
-		if (texture == fallback) {
-			usedFallbackTexture = true;
-		}
-		return texture->srvIndex;
+		const MaterialParameterBufferBuilder::TextureResolveResult result =
+			BackendDrawCommon::ResolveMaterialTextureIndex(
+				drawContext, semantic, id);
+		usedFallbackTexture |= !result.cacheable;
+		return result;
 		};
 
 	const MaterialParameterSet emptyMap{};

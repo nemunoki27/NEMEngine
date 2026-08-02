@@ -33,6 +33,7 @@ namespace Engine {
 		void Init(GraphicsCore& graphicsCore) override;
 		void Tick(GraphicsCore& graphicsCore, float deltaTime) override;
 		void Render(GraphicsCore& graphicsCore) override;
+		void RenderPlatformWindows(GraphicsCore& graphicsCore) override;
 		void Finalize() override;
 		bool ConsumeFrameDeltaResetRequest() override;
 	private:

@@ -9,6 +9,8 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessBindingNames.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
 
 namespace Engine {
 
@@ -93,9 +95,31 @@ namespace Engine {
 			resolvedName = kSourceDepthName;
 		}
 		else if (!binding.name.empty()) {
+			const auto resolveGraphSource = [&]() -> std::string_view {
+
+				if (binding.name == ShaderGraphBindingNames::kSceneColor) return RenderTargetNames::kSceneColorOpaque;
+				if (binding.name == ShaderGraphBindingNames::kSceneDepth) return RenderTargetNames::kSceneDepth;
+				if (binding.name == ShaderGraphBindingNames::kSceneNormal) return RenderTargetNames::kSceneNormalMain;
+				if (binding.name == ShaderGraphBindingNames::kScenePosition) return RenderTargetNames::kScenePositionMain;
+				if (binding.name == ShaderGraphBindingNames::kSceneMaterial) return RenderTargetNames::kSceneMaterialMain;
+				if (binding.name == ShaderGraphBindingNames::kSceneEmissive) return RenderTargetNames::kSceneEmissiveMain;
+				if (binding.name == ShaderGraphBindingNames::kSceneFlags) return RenderTargetNames::kSceneFlagsMain;
+				return {};
+			};
+			const std::string_view graphSource = resolveGraphSource();
+			if (!graphSource.empty() && context.targetRegistry) {
+				const std::string graphSourceName(graphSource);
+				if (RenderTexture2D* color = context.targetRegistry->FindColorByName(graphSourceName)) {
+					texture = color;
+					resolvedName = binding.name;
+				} else if (DepthTexture2D* foundDepth = context.targetRegistry->FindDepthByName(graphSourceName)) {
+					depth = foundDepth;
+					resolvedName = binding.name;
+				}
+			}
 			// 標準名以外はdesc.extraSourcesでの追加のパス入力指定を確認
 			auto found = desc.extraSources.find(binding.name);
-			if (found != desc.extraSources.end() && context.targetRegistry) {
+			if (!texture && !depth && found != desc.extraSources.end() && context.targetRegistry) {
 				// GBufferの色名→特定アタッチメント、深度名→深度、エイリアス→color0 の順で解決する
 				if (RenderTexture2D* color = context.targetRegistry->FindColorByName(found->second)) {
 					texture = color;

@@ -191,6 +191,7 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 	outAsset.name = data.value("name", "UnnamedMaterial");
 	outAsset.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface")).value_or(MaterialDomain::Surface);
 	outAsset.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic")).value_or(MaterialUsage::Generic);
+	outAsset.shaderGraph = ParseAssetID(data, "shaderGraph");
 	if (data.contains("renderState") && data["renderState"].is_object()) {
 		const nlohmann::json& renderState = data["renderState"];
 		outAsset.renderState.overridesRenderer =
@@ -201,6 +202,10 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 			EnumAdapter<BlendMode>::FromString(
 				renderState.value("blendMode", "Normal")).
 			value_or(BlendMode::Normal);
+		outAsset.renderState.castShadows =
+			renderState.value("castShadows", true);
+		outAsset.renderState.receiveShadows =
+			renderState.value("receiveShadows", true);
 	}
 	if (data.contains("passes") && data["passes"].is_array()) {
 		for (const auto& passJson : data["passes"]) {
@@ -240,12 +245,17 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	data["name"] = asset.name;
 	data["domain"] = EnumAdapter<MaterialDomain>::ToString(asset.domain);
 	data["usage"] = EnumAdapter<MaterialUsage>::ToString(asset.usage);
+	if (asset.shaderGraph) {
+		data["shaderGraph"] = ToAssetReferenceJson(asset.shaderGraph);
+	}
 	if (asset.renderState.overridesRenderer) {
 		data["renderState"] = {
 			{ "overridesRenderer", true },
 			{ "phase", std::string(ToString(asset.renderState.phase)) },
 			{ "blendMode", EnumAdapter<BlendMode>::ToString(
 				asset.renderState.blendMode) },
+			{ "castShadows", asset.renderState.castShadows },
+			{ "receiveShadows", asset.renderState.receiveShadows },
 		};
 	}
 	data["passes"] = nlohmann::json::array();

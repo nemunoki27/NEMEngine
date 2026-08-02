@@ -105,6 +105,10 @@ void Framework::Tick() {
 		// 描画
 		engineApplication_->Render(*graphicsCore_);
 
+		// メイン描画を先に提出して外部ウィンドウから同一フレームの結果を参照する
+		graphicsCore_->SubmitRenderFrame();
+		engineApplication_->RenderPlatformWindows(*graphicsCore_);
+
 		// 描画終了
 		EndRenderFrame();
 	}

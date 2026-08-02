@@ -29,6 +29,7 @@ namespace Engine {
 		std::string file;
 		std::string entry = "main";
 		std::string profile;
+		AssetID shader{};
 	};
 	// 静的サンプラーの編集可能な設定
 	struct PipelineStaticSamplerSettings {

@@ -275,15 +275,41 @@ namespace {
 	}
 }
 
+DxShaderCompiler::~DxShaderCompiler() {
+
+	includeHandler_.Reset();
+	dxcCompiler_.Reset();
+	dxcUtils_.Reset();
+	if (dxcompilerModule_) {
+		FreeLibrary(dxcompilerModule_);
+		dxcompilerModule_ = nullptr;
+	}
+}
+
 void DxShaderCompiler::Init() {
 
 	dxcUtils_ = nullptr;
 	dxcCompiler_ = nullptr;
 	includeHandler_ = nullptr;
 
-	HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
+	dxcompilerModule_ = LoadLibraryW(L"dxcompiler.dll");
+	assert(dxcompilerModule_ != nullptr);
+	if (!dxcompilerModule_) {
+		return;
+	}
+	using DxcCreateInstanceFunction =
+		HRESULT(WINAPI*)(REFCLSID, REFIID, LPVOID*);
+	const auto createInstance = reinterpret_cast<DxcCreateInstanceFunction>(
+		GetProcAddress(dxcompilerModule_, "DxcCreateInstance"));
+	assert(createInstance != nullptr);
+	if (!createInstance) {
+		return;
+	}
+
+	HRESULT hr = createInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
 	assert(SUCCEEDED(hr));
-	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
+	hr = createInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
+	assert(SUCCEEDED(hr));
 
 	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
 	assert(SUCCEEDED(hr));

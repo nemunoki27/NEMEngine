@@ -24,6 +24,8 @@ namespace Engine {
 		std::string file;
 		std::string entry = "main";
 		std::string profile;
+		// 合成後もCook済みステージを元Shader Assetから引くための実行時ID
+		AssetID ownerShader{};
 	};
 	// HLSL変数名とMaterial Instanceの安定IDを対応付けるメタデータ
 	struct ShaderParameterMetadata {

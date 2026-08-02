@@ -8,6 +8,7 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 
 // c++
 #include <chrono>
@@ -15,7 +16,6 @@ using namespace Engine;
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
-#pragma comment(lib,"dxcompiler.lib")
 
 //============================================================================
 //	GraphicsPlatform classMethods
@@ -134,9 +134,11 @@ void GraphicsPlatform::Init() {
 	framePresenter_ = std::make_unique<FramePresenter>();
 	framePresenter_->Create(dxDevice_->Get(), dxCommand_.get(), dxCommandQueue_.get());
 
-	// DXC初期化
-	dxShaderComplier_ = std::make_unique<DxShaderCompiler>();
-	dxShaderComplier_->Init();
+	// 製品はCook済みDXILを使い、DXCをロードしない
+	if (!ShaderCook::IsCookedProduct()) {
+		dxShaderComplier_ = std::make_unique<DxShaderCompiler>();
+		dxShaderComplier_->Init();
+	}
 }
 
 void GraphicsPlatform::Finalize(HWND hwnd) {
@@ -156,6 +158,11 @@ void GraphicsPlatform::Finalize(HWND hwnd) {
 
 	// ウィンドウを閉じる
 	CloseWindow(hwnd);
+}
+
+void GraphicsPlatform::SubmitFrame() {
+
+	framePresenter_->Submit();
 }
 
 void GraphicsPlatform::PresentFrame(IDXGISwapChain4* swapChain) {

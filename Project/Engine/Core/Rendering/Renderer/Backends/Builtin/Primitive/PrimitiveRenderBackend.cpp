@@ -148,10 +148,16 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 		instance.worldMatrix = billboardView ?
 			RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
 		instance.uvMatrix = payload->uvMatrix;
-		instance.flags = payload->renderer ?
-			ToInstanceFlags(
-				payload->renderer->renderFlags,
-				payload->renderer->renderingLayerMask) : 0;
+		if (payload->renderer) {
+			MeshRenderFlags renderFlags =
+				payload->renderer->renderFlags;
+			SetMeshRenderFlag(renderFlags,
+				MeshRenderFlags::ReceiveShadow,
+				item->receiveShadows);
+			instance.flags = ToInstanceFlags(
+				renderFlags,
+				payload->renderer->renderingLayerMask);
+		}
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Cylinder) {
 
 			const PrimitiveCylinderParams& cylinder = payload->renderer->cylinder;

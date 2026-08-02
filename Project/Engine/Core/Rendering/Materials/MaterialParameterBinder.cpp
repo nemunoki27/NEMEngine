@@ -81,7 +81,8 @@ Engine::MaterialParameterBinder::CachedBindingData& Engine::MaterialParameterBin
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
-	const PipelineState& pipeline, const MaterialAsset& material) {
+	const PipelineState& pipeline, const MaterialAsset& material,
+	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
 	const MaterialParameterLayout& layout = ResolveLayout(pipeline);
 	if (!layout.IsValid()) {
@@ -89,14 +90,17 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 	}
 
 	CachedBindingData& cache = ResolveCacheEntry(pipeline, material, nullptr);
-	if (!cache.parametersValid) {
+	if (!cache.parametersValid && cache.packedFrame != frameIndex_) {
 
 		cache.packedParameters.resize((std::max)(layout.GetSizeInBytes(), 16u));
-		if (!MaterialParameterBufferBuilder::BuildInto(cache.packedParameters, material, layout)) {
+		bool textureValuesCacheable = true;
+		if (!MaterialParameterBufferBuilder::BuildInto(cache.packedParameters,
+			material, layout, resolveTexture, &textureValuesCacheable)) {
 			cache.packedParameters.clear();
 			return 0;
 		}
-		cache.parametersValid = true;
+		cache.parametersValid = textureValuesCacheable;
+		cache.packedFrame = frameIndex_;
 	}
 	if (cache.packedParameters.empty()) {
 		return 0;
@@ -114,10 +118,11 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 
 D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
 	const PipelineState& pipeline, const MaterialAsset& material,
-	const MaterialParameterSet& overrides) {
+	const MaterialParameterSet& overrides,
+	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
 	if (overrides.empty()) {
-		return ResolveAndUpload(device, pipeline, material);
+		return ResolveAndUpload(device, pipeline, material, resolveTexture);
 	}
 
 	const MaterialParameterLayout& layout = ResolveLayout(pipeline);
@@ -126,16 +131,18 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 	}
 
 	CachedBindingData& cache = ResolveCacheEntry(pipeline, material, &overrides);
-	if (!cache.parametersValid) {
+	if (!cache.parametersValid && cache.packedFrame != frameIndex_) {
 
 		cache.packedParameters.resize((std::max)(layout.GetSizeInBytes(), 16u));
+		bool textureValuesCacheable = true;
 		if (!MaterialParameterBufferBuilder::BuildElementInto(
-			cache.packedParameters, material.parameters, overrides, layout,
-			[](MaterialParameterSemantic, const AssetID&) { return 0u; })) {
+			cache.packedParameters, material.parameters, overrides,
+			layout, resolveTexture, &textureValuesCacheable)) {
 			cache.packedParameters.clear();
 			return 0;
 		}
-		cache.parametersValid = true;
+		cache.parametersValid = textureValuesCacheable;
+		cache.packedFrame = frameIndex_;
 	}
 	if (cache.packedParameters.empty()) {
 		return 0;

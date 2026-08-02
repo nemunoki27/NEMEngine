@@ -321,7 +321,12 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 
 	const std::string windowName = MakeWindowName(displayName);
 	ApplyInitialDock();
-	if (!ImGui::Begin(windowName.c_str(), open)) {
+	const bool visible = ImGui::Begin(windowName.c_str(), open);
+	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		context.host->NotifyEditorCommandPanelFocused(
+			EditorCommandPanelKind::Scene);
+	}
+	if (!visible) {
 		DrawTitleBarContextMenu(context);
 		ImGui::End();
 		return;

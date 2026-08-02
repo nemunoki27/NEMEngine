@@ -237,8 +237,12 @@ namespace Engine {
 		static ValueEditResult DragVector4(const char* label, Vector4& value, const FloatEditSetting& setting = FloatEditSetting{});
 		static ValueEditResult DragQuaternion(const char* label, Quaternion& value, bool displayEuler = false, const FloatEditSetting& setting = FloatEditSetting{});
 		// 色編集
-		static ValueEditResult ColorEdit(const char* label, Color3& value);
-		static ValueEditResult ColorEdit(const char* label, Color4& value);
+		static ValueEditResult ColorEdit(
+			const char* label, Color3& value,
+			ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float);
+		static ValueEditResult ColorEdit(
+			const char* label, Color4& value,
+			ImGuiColorEditFlags flags = ImGuiColorEditFlags_Float);
 
 		//============================================================================
 		//	カーブ編集

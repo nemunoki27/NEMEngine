@@ -5,6 +5,7 @@
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
@@ -27,6 +28,7 @@
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 
 // c++
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -951,10 +953,96 @@ namespace {
 		}
 		mutableColor->value =
 			Engine::Color4(1.0f, 0.5f, 0.75f, 1.0f);
-		return parameters.GetContentHash() != hash;
+		if (parameters.GetContentHash() == hash) {
+			return false;
+		}
+
+		Engine::MaterialParameterValue renamed{};
+		renamed.value = Engine::Vector2(2.0f, 4.0f);
+		parameters.Set(
+			Engine::MaterialParameterIDs::BaseColor,
+			"RenamedParameter",
+			Engine::MaterialParameterSemantic::None,
+			renamed);
+		const Engine::MaterialParameterValue* renamedValue =
+			parameters.Find(
+				Engine::MaterialParameterIDs::BaseColor);
+		return parameters.size() == 1 &&
+			parameters.FindByName(
+				Engine::MaterialParameterNames::BaseColor) == nullptr &&
+			parameters.FindByName("RenamedParameter") != nullptr &&
+			renamedValue &&
+			std::holds_alternative<Engine::Vector2>(
+				renamedValue->value);
 	}
 
 	bool TestShaderGraphCompile() {
+
+		const std::filesystem::path generatedRoot =
+			std::filesystem::current_path() /
+			"Generated/Temp/ShaderGraphTests";
+		std::error_code ec{};
+		std::filesystem::create_directories(
+			generatedRoot, ec);
+		if (ec) {
+			return false;
+		}
+		auto writeGeneratedGraph =
+			[&](const Engine::ShaderGraphAsset& sourceGraph,
+				std::string_view name) {
+
+			const std::filesystem::path graphRoot =
+				generatedRoot / std::string(name);
+			std::filesystem::create_directories(
+				graphRoot, ec);
+			if (ec) {
+				return false;
+			}
+			const std::filesystem::path surfacePath =
+				graphRoot / "surface.hlsli";
+			const std::filesystem::path opaquePath =
+				graphRoot / "opaque.PS.hlsl";
+			const std::filesystem::path transparentPath =
+				graphRoot / "transparent.PS.hlsl";
+			const std::filesystem::path vertexPath =
+				graphRoot / "vertex.VS.hlsl";
+			const std::filesystem::path meshPath =
+				graphRoot / "mesh.MS.hlsl";
+			const Engine::ShaderGraphCompileOutput generated =
+				Engine::ShaderGraphCompiler::Compile(
+					sourceGraph, "surface.hlsli");
+			if (!generated.Succeeded()) {
+				return false;
+			}
+			auto write = [](const std::filesystem::path& path,
+				std::string_view source) {
+
+				std::ofstream stream(
+					path, std::ios::binary |
+					std::ios::trunc);
+				stream.write(
+					source.data(),
+					static_cast<std::streamsize>(
+						source.size()));
+				return stream.good();
+			};
+			if (!write(surfacePath, generated.surfaceHLSL) ||
+				!write(opaquePath, generated.opaquePixelHLSL) ||
+				!write(
+					transparentPath,
+					generated.transparentPixelHLSL)) {
+
+				return false;
+			}
+			if ((!generated.vertexHLSL.empty() &&
+				!write(vertexPath, generated.vertexHLSL)) ||
+				(!generated.meshHLSL.empty() &&
+					!write(meshPath, generated.meshHLSL))) {
+
+				return false;
+			}
+			return true;
+		};
 
 		Engine::ShaderGraphAsset graph =
 			Engine::CreateDefaultSurfaceShaderGraph("NEMTest");
@@ -963,7 +1051,11 @@ namespace {
 				graph, "NEMTest.surface.hlsli");
 		if (!output.Succeeded() ||
 			output.parameters.size() != graph.parameters.size() ||
+			!graph.parameters.empty() ||
+			graph.nodes.size() != 8 ||
 			output.surfaceHLSL.find("EvaluateShaderGraphSurface") ==
+				std::string::npos ||
+			output.surfaceHLSL.find("ShaderGraphTimeConstants") ==
 				std::string::npos ||
 			output.opaquePixelHLSL.find("EncodeGBuffer") ==
 				std::string::npos ||
@@ -971,6 +1063,588 @@ namespace {
 				std::string::npos) {
 
 			return false;
+		}
+
+		Engine::ShaderGraphAsset groupedGraph = graph;
+		const Engine::UUID groupID = Engine::UUID::New();
+		groupedGraph.groups.emplace_back(
+			Engine::ShaderGraphGroup{
+				.id = groupID,
+				.name = "NoiseA",
+				.position = Engine::Vector2(32.0f, 64.0f),
+				.size = Engine::Vector2(320.0f, 180.0f),
+			});
+		groupedGraph.nodes.front().groupID = groupID;
+		Engine::ShaderGraphAsset restoredGroup{};
+		if (!Engine::FromJson(
+			Engine::ToJson(groupedGraph), restoredGroup) ||
+			restoredGroup.groups.size() != 1 ||
+			restoredGroup.nodes.front().groupID != groupID) {
+
+			return false;
+		}
+		if (!writeGeneratedGraph(graph, "Mesh")) {
+			return false;
+		}
+
+		// Runtime KeywordはMaterial値、Static Keywordは保存時の定数へ変換する
+		Engine::ShaderGraphAsset keywordGraph =
+			Engine::CreateDefaultSurfaceShaderGraph("NEMKeywordTest");
+		std::erase_if(keywordGraph.links,
+			[&](const Engine::ShaderGraphLink& link) {
+				return link.inputNode == keywordGraph.outputNode &&
+					link.inputSlot == 2;
+			});
+		const Engine::UUID keywordID = Engine::UUID::New();
+		const Engine::UUID keywordNodeID = Engine::UUID::New();
+		keywordGraph.keywords.emplace_back(Engine::ShaderGraphKeyword{
+			.id = keywordID,
+			.name = "Runtime Feature",
+			.referenceName = "RUNTIME_FEATURE",
+			.defaultIndex = 1,
+			.runtimeToggle = true,
+			});
+		keywordGraph.nodes.emplace_back(Engine::ShaderGraphNode{
+			.id = keywordNodeID,
+			.kind = Engine::ShaderGraphNodeKind::Keyword,
+			.keywordID = keywordID,
+			});
+		keywordGraph.links.emplace_back(Engine::ShaderGraphLink{
+			.id = Engine::UUID::New(),
+			.outputNode = keywordNodeID,
+			.inputNode = keywordGraph.outputNode,
+			.inputSlot = 2,
+			});
+		const Engine::ShaderGraphCompileOutput runtimeKeywordOutput =
+			Engine::ShaderGraphCompiler::Compile(
+				keywordGraph, "NEMKeywordTest.surface.hlsli");
+		const std::string runtimeKeywordName =
+			runtimeKeywordOutput.parameters.empty() ? std::string{} :
+			runtimeKeywordOutput.parameters.front().shaderName;
+		if (!runtimeKeywordOutput.Succeeded() ||
+			runtimeKeywordOutput.parameters.size() != 1 ||
+			runtimeKeywordOutput.surfaceHLSL.find(
+				"uint " + runtimeKeywordName + ";") ==
+				std::string::npos ||
+			runtimeKeywordOutput.surfaceHLSL.find(
+				"graphParameters." + runtimeKeywordName) == std::string::npos) {
+			return false;
+		}
+		if (!writeGeneratedGraph(keywordGraph, "RuntimeKeyword")) {
+			return false;
+		}
+		keywordGraph.keywords.front().runtimeToggle = false;
+		const Engine::ShaderGraphCompileOutput staticKeywordOutput =
+			Engine::ShaderGraphCompiler::Compile(
+				keywordGraph, "NEMKeywordTest.surface.hlsli");
+		if (!staticKeywordOutput.Succeeded() ||
+			!staticKeywordOutput.parameters.empty() ||
+			staticKeywordOutput.surfaceHLSL.find(
+				"uint " + runtimeKeywordName + ";") !=
+				std::string::npos ||
+			staticKeywordOutput.surfaceHLSL.find("1u") == std::string::npos) {
+			return false;
+		}
+
+		const Engine::ShaderGraphAsset postProcessGraph =
+			Engine::CreateDefaultPostProcessShaderGraph("NEMPostProcess");
+		const Engine::ShaderGraphCompileOutput postProcessOutput =
+			Engine::ShaderGraphCompiler::Compile(
+				postProcessGraph, "NEMPostProcess.generated.hlsli");
+		Engine::ShaderGraphAsset restoredPostProcess{};
+		if (!postProcessOutput.Succeeded() ||
+			postProcessOutput.computeHLSL.find("[numthreads(8, 8, 1)]") ==
+				std::string::npos ||
+			postProcessOutput.computeHLSL.find("gSourceColor.SampleLevel") ==
+				std::string::npos ||
+			!Engine::FromJson(
+				Engine::ToJson(postProcessGraph), restoredPostProcess) ||
+			restoredPostProcess.domain !=
+				Engine::ShaderGraphDomain::PostProcess) {
+			return false;
+		}
+
+		constexpr std::array targetIncludes{
+			std::pair{
+				Engine::ShaderGraphTarget::Primitive3D,
+				"Builtin/Primitive/primitive.hlsli" },
+			std::pair{
+				Engine::ShaderGraphTarget::FillMesh,
+				"Builtin/FillMesh/fillMesh.hlsli" },
+			std::pair{
+				Engine::ShaderGraphTarget::Sprite,
+				"Builtin/Sprite/defaultSprite.hlsli" },
+			std::pair{
+				Engine::ShaderGraphTarget::Text,
+				"Builtin/Text/defaultText.hlsli" },
+			std::pair{
+				Engine::ShaderGraphTarget::Primitive2D,
+					"Builtin/Primitive/primitive2D.hlsli" },
+			std::pair{
+				Engine::ShaderGraphTarget::Particle,
+					"Builtin/Particle/Common/particle.hlsli" },
+			std::pair{
+				Engine::ShaderGraphTarget::Trail,
+					"Builtin/Particle/Common/particle.hlsli" },
+		};
+		for (const auto& [target, include] : targetIncludes) {
+			const Engine::ShaderGraphAsset targetGraph =
+				Engine::CreateDefaultSurfaceShaderGraph(
+					"NEMTargetTest", target);
+			const Engine::ShaderGraphCompileOutput targetOutput =
+				Engine::ShaderGraphCompiler::Compile(
+					targetGraph,
+					"NEMTargetTest.surface.hlsli");
+			if (!targetOutput.Succeeded() ||
+				targetOutput.opaquePixelHLSL.find(include) ==
+					std::string::npos ||
+				targetGraph.nodes.size() !=
+					(Engine::IsShaderGraph3DTarget(target) ?
+						8u : 4u)) {
+
+				return false;
+			}
+			if (!writeGeneratedGraph(
+				targetGraph,
+				Engine::EnumAdapter<
+					Engine::ShaderGraphTarget>::
+				ToString(target))) {
+
+				return false;
+			}
+			Engine::ShaderGraphAsset restoredTarget{};
+			if (!Engine::FromJson(
+				Engine::ToJson(targetGraph),
+				restoredTarget) ||
+				restoredTarget.target != target) {
+
+				return false;
+			}
+		}
+
+		// Sampler Stateはノード単位の静的サンプラーとして保存、登録する
+		{
+			Engine::ShaderGraphAsset samplerGraph =
+				Engine::CreateDefaultSurfaceShaderGraph(
+					"NEMSamplerTest");
+			std::erase_if(
+				samplerGraph.links,
+				[&](const Engine::ShaderGraphLink& link) {
+					return link.inputNode == samplerGraph.outputNode &&
+						link.inputSlot == 0;
+				});
+
+			Engine::MaterialParameterValue textureValue{};
+			textureValue.value = Engine::AssetID{};
+			const Engine::UUID textureParameter = Engine::UUID::New();
+			samplerGraph.parameters.emplace_back(
+				Engine::ShaderGraphParameter{
+					.id = textureParameter,
+					.name = "SamplerTexture",
+					.type = Engine::ShaderGraphValueType::Texture2D,
+					.defaultValue = textureValue,
+				});
+
+			const Engine::UUID textureNode = Engine::UUID::New();
+			const Engine::UUID uvNode = Engine::UUID::New();
+			const Engine::UUID samplerNode = Engine::UUID::New();
+			const Engine::UUID sampleNode = Engine::UUID::New();
+			Engine::ShaderGraphNode sampler{
+				.id = samplerNode,
+				.kind = Engine::ShaderGraphNodeKind::SamplerState,
+			};
+			sampler.sampler.filter =
+				D3D12_FILTER_ANISOTROPIC;
+			sampler.sampler.addressU =
+				D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			sampler.sampler.addressV =
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+			sampler.sampler.maxAnisotropy = 8;
+			samplerGraph.nodes.insert(
+				samplerGraph.nodes.end(), {
+					Engine::ShaderGraphNode{
+						.id = textureNode,
+						.kind = Engine::ShaderGraphNodeKind::Parameter,
+						.parameterID = textureParameter,
+						.valueType = Engine::ShaderGraphValueType::Texture2D,
+					},
+					Engine::ShaderGraphNode{
+						.id = uvNode,
+						.kind = Engine::ShaderGraphNodeKind::UV,
+					},
+					sampler,
+					Engine::ShaderGraphNode{
+						.id = sampleNode,
+						.kind = Engine::ShaderGraphNodeKind::TextureSample,
+					},
+				});
+			const auto addSamplerLink =
+				[&](Engine::UUID source,
+					Engine::UUID destination,
+					uint32_t destinationSlot) {
+
+					samplerGraph.links.emplace_back(
+						Engine::ShaderGraphLink{
+							.id = Engine::UUID::New(),
+							.outputNode = source,
+							.inputNode = destination,
+							.inputSlot = destinationSlot,
+						});
+				};
+			addSamplerLink(textureNode, sampleNode, 0);
+			addSamplerLink(uvNode, sampleNode, 1);
+			addSamplerLink(samplerNode, sampleNode, 2);
+			addSamplerLink(sampleNode, samplerGraph.outputNode, 0);
+
+			const Engine::ShaderGraphCompileOutput samplerOutput =
+				Engine::ShaderGraphCompiler::Compile(
+					samplerGraph,
+					"NEMSamplerTest.surface.hlsli");
+			if (!samplerOutput.Succeeded() ||
+				samplerOutput.samplers.size() != 1 ||
+				samplerOutput.samplers.front().node != samplerNode ||
+				samplerOutput.samplers.front().shaderRegister != 1 ||
+				samplerOutput.samplers.front().settings.filter !=
+					D3D12_FILTER_ANISOTROPIC ||
+				samplerOutput.surfaceHLSL.find(
+					"register(s1)") == std::string::npos ||
+				samplerOutput.surfaceHLSL.find(
+					samplerOutput.samplers.front().shaderName) ==
+					std::string::npos) {
+
+				return false;
+			}
+			if (!writeGeneratedGraph(
+				samplerGraph, "Sampler")) {
+
+				return false;
+			}
+
+			Engine::ShaderGraphAsset restoredSampler{};
+			if (!Engine::FromJson(
+				Engine::ToJson(samplerGraph), restoredSampler)) {
+
+				return false;
+			}
+			const auto restoredSamplerNode = std::ranges::find_if(
+				restoredSampler.nodes,
+				[&](const Engine::ShaderGraphNode& node) {
+					return node.id == samplerNode;
+				});
+			if (restoredSamplerNode == restoredSampler.nodes.end() ||
+				restoredSamplerNode->sampler.filter !=
+					D3D12_FILTER_ANISOTROPIC ||
+				restoredSamplerNode->sampler.addressU !=
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP ||
+				restoredSamplerNode->sampler.addressV !=
+					D3D12_TEXTURE_ADDRESS_MODE_MIRROR ||
+				restoredSamplerNode->sampler.maxAnisotropy != 8) {
+
+				return false;
+			}
+		}
+
+		constexpr std::array vertexTargets{
+			Engine::ShaderGraphTarget::Mesh,
+			Engine::ShaderGraphTarget::Primitive3D,
+			Engine::ShaderGraphTarget::Primitive2D,
+		};
+		for (const Engine::ShaderGraphTarget target :
+			vertexTargets) {
+
+			Engine::ShaderGraphAsset vertexGraph =
+				Engine::CreateDefaultSurfaceShaderGraph(
+					"NEMVertexTargetTest", target);
+			const Engine::UUID vertexOutput =
+				Engine::UUID::New();
+			vertexGraph.nodes.emplace_back(
+				Engine::ShaderGraphNode{
+					.id = vertexOutput,
+					.kind = Engine::ShaderGraphNodeKind::VertexOutput,
+				});
+			vertexGraph.vertexOutputNode = vertexOutput;
+
+			Engine::MaterialParameterValue textureValue{};
+			textureValue.value = Engine::AssetID{};
+			const Engine::UUID textureParameter =
+				Engine::UUID::New();
+			vertexGraph.parameters.emplace_back(
+				Engine::ShaderGraphParameter{
+					.id = textureParameter,
+					.name = "DisplacementTexture",
+					.type = Engine::ShaderGraphValueType::Texture2D,
+					.defaultValue = textureValue,
+				});
+			const Engine::UUID textureNode = Engine::UUID::New();
+			const Engine::UUID uvNode = Engine::UUID::New();
+			const Engine::UUID timeNode = Engine::UUID::New();
+			const Engine::UUID uvAddNode = Engine::UUID::New();
+			const Engine::UUID sampleNode = Engine::UUID::New();
+			const Engine::UUID positionNode = Engine::UUID::New();
+			const Engine::UUID positionAddNode = Engine::UUID::New();
+			vertexGraph.nodes.insert(
+				vertexGraph.nodes.end(), {
+					Engine::ShaderGraphNode{
+						.id = textureNode,
+						.kind = Engine::ShaderGraphNodeKind::Parameter,
+						.parameterID = textureParameter,
+						.valueType = Engine::ShaderGraphValueType::Texture2D,
+					},
+					Engine::ShaderGraphNode{
+						.id = uvNode,
+						.kind = Engine::ShaderGraphNodeKind::UV,
+					},
+					Engine::ShaderGraphNode{
+						.id = timeNode,
+						.kind = Engine::ShaderGraphNodeKind::Time,
+					},
+					Engine::ShaderGraphNode{
+						.id = uvAddNode,
+						.kind = Engine::ShaderGraphNodeKind::Add,
+					},
+					Engine::ShaderGraphNode{
+						.id = sampleNode,
+						.kind = Engine::ShaderGraphNodeKind::TextureSample,
+					},
+					Engine::ShaderGraphNode{
+						.id = positionNode,
+						.kind = Engine::ShaderGraphNodeKind::ObjectPosition,
+					},
+					Engine::ShaderGraphNode{
+						.id = positionAddNode,
+						.kind = Engine::ShaderGraphNodeKind::Add,
+					},
+				});
+			const auto addVertexLink =
+				[&](Engine::UUID source, uint32_t sourceSlot,
+					Engine::UUID destination, uint32_t destinationSlot) {
+
+				vertexGraph.links.emplace_back(
+					Engine::ShaderGraphLink{
+						.id = Engine::UUID::New(),
+						.outputNode = source,
+						.outputSlot = sourceSlot,
+						.inputNode = destination,
+						.inputSlot = destinationSlot,
+					});
+			};
+			addVertexLink(uvNode, 0, uvAddNode, 0);
+			addVertexLink(timeNode, 0, uvAddNode, 1);
+			addVertexLink(textureNode, 0, sampleNode, 0);
+			addVertexLink(uvAddNode, 0, sampleNode, 1);
+			addVertexLink(positionNode, 0, positionAddNode, 0);
+			addVertexLink(sampleNode, 2, positionAddNode, 1);
+			addVertexLink(positionAddNode, 0, vertexOutput, 0);
+			const Engine::ShaderGraphCompileOutput vertexOutputResult =
+				Engine::ShaderGraphCompiler::Compile(
+					vertexGraph,
+					"NEMVertexTargetTest.surface.hlsli");
+			const bool expectsMeshShader =
+				target != Engine::ShaderGraphTarget::Primitive2D;
+			const std::string expectedFunction =
+				target == Engine::ShaderGraphTarget::Mesh ?
+					"EvaluateShaderGraphVertex" :
+					(target == Engine::ShaderGraphTarget::Primitive3D ?
+						"EvaluatePrimitiveShaderGraphVertex" :
+						"EvaluatePrimitive2DShaderGraphVertex");
+			if (!Engine::SupportsShaderGraphVertexOutput(target) ||
+				!vertexOutputResult.Succeeded() ||
+				vertexOutputResult.vertexHLSL.find(
+					expectedFunction) == std::string::npos ||
+				(expectsMeshShader !=
+					!vertexOutputResult.meshHLSL.empty()) ||
+				!writeGeneratedGraph(
+					vertexGraph,
+					std::string("Vertex") +
+						std::string(Engine::EnumAdapter<
+							Engine::ShaderGraphTarget>::
+							ToString(target)))) {
+
+				return false;
+			}
+		}
+
+		constexpr std::array additionalNodeKinds{
+			Engine::ShaderGraphNodeKind::Subtract,
+			Engine::ShaderGraphNodeKind::Divide,
+			Engine::ShaderGraphNodeKind::Power,
+			Engine::ShaderGraphNodeKind::Sine,
+			Engine::ShaderGraphNodeKind::Time,
+			Engine::ShaderGraphNodeKind::Remap,
+			Engine::ShaderGraphNodeKind::TilingAndOffset,
+			Engine::ShaderGraphNodeKind::PolarCoordinates,
+			Engine::ShaderGraphNodeKind::Split,
+			Engine::ShaderGraphNodeKind::Combine,
+		};
+		for (const Engine::ShaderGraphNodeKind kind :
+			additionalNodeKinds) {
+
+			Engine::ShaderGraphAsset nodeGraph =
+				Engine::CreateDefaultSurfaceShaderGraph("NEMNodeTest");
+			for (auto it = nodeGraph.links.begin();
+				it != nodeGraph.links.end();) {
+
+				if (it->inputNode == nodeGraph.outputNode &&
+					it->inputSlot == 0) {
+
+					it = nodeGraph.links.erase(it);
+					continue;
+				}
+				++it;
+			}
+
+			const Engine::UUID nodeID = Engine::UUID::New();
+			nodeGraph.nodes.emplace_back(Engine::ShaderGraphNode{
+				.id = nodeID,
+				.kind = kind,
+				.previewExpanded = false,
+				});
+			nodeGraph.links.emplace_back(Engine::ShaderGraphLink{
+				.id = Engine::UUID::New(),
+				.outputNode = nodeID,
+				.inputNode = nodeGraph.outputNode,
+				.inputSlot = 0,
+				});
+
+			const Engine::ShaderGraphCompileOutput nodeOutput =
+				Engine::ShaderGraphCompiler::Compile(
+					nodeGraph, "NEMNodeTest.surface.hlsli");
+			if (!nodeOutput.Succeeded()) {
+				return false;
+			}
+
+			Engine::ShaderGraphAsset restored{};
+			if (!Engine::FromJson(Engine::ToJson(nodeGraph), restored)) {
+				return false;
+			}
+			const Engine::ShaderGraphNode& restoredNode =
+				restored.nodes.back();
+			if (restoredNode.kind != kind ||
+				restoredNode.previewExpanded) {
+
+				return false;
+			}
+		}
+
+		constexpr std::array timeExpressions{
+			"(shaderGraphTime).xxxx",
+			"(sin(shaderGraphTime)).xxxx",
+			"(cos(shaderGraphTime)).xxxx",
+			"(shaderGraphDeltaTime).xxxx",
+			"(shaderGraphSmoothDeltaTime).xxxx",
+		};
+		for (uint32_t outputSlot = 0;
+			outputSlot < timeExpressions.size();
+			++outputSlot) {
+
+			Engine::ShaderGraphAsset timeGraph =
+				Engine::CreateDefaultSurfaceShaderGraph("NEMTimeTest");
+			std::erase_if(
+				timeGraph.links,
+				[&](const Engine::ShaderGraphLink& link) {
+					return link.inputNode == timeGraph.outputNode &&
+						link.inputSlot == 0;
+				});
+			const Engine::UUID timeNodeID = Engine::UUID::New();
+			timeGraph.nodes.emplace_back(Engine::ShaderGraphNode{
+				.id = timeNodeID,
+				.kind = Engine::ShaderGraphNodeKind::Time,
+				.previewExpanded = false,
+				});
+			timeGraph.links.emplace_back(Engine::ShaderGraphLink{
+				.id = Engine::UUID::New(),
+				.outputNode = timeNodeID,
+				.outputSlot = outputSlot,
+				.inputNode = timeGraph.outputNode,
+				.inputSlot = 0,
+				});
+			const Engine::ShaderGraphCompileOutput timeOutput =
+				Engine::ShaderGraphCompiler::Compile(
+					timeGraph, "NEMTimeTest.surface.hlsli");
+			if (!timeOutput.Succeeded() ||
+				timeOutput.surfaceHLSL.find(
+					timeExpressions[outputSlot]) ==
+					std::string::npos) {
+
+				return false;
+			}
+		}
+
+		// Sub Graphは公開パラメータを入力、参照先Outputを出力として展開する
+		{
+			Engine::ShaderGraphAsset child =
+				Engine::CreateDefaultSurfaceShaderGraph("NEMSubGraph");
+			std::erase_if(child.links,
+				[&](const Engine::ShaderGraphLink& link) {
+					return link.inputNode == child.outputNode &&
+						link.inputSlot == 0;
+				});
+			const Engine::UUID parameterID = Engine::UUID::New();
+			child.parameters.emplace_back(Engine::ShaderGraphParameter{
+				.id = parameterID,
+				.name = "Color",
+				.type = Engine::ShaderGraphValueType::Color,
+				.defaultValue = Engine::MaterialParameterValue{
+					.value = Engine::Color4::White(),
+					},
+				});
+			const Engine::UUID parameterNode = Engine::UUID::New();
+			child.nodes.emplace_back(Engine::ShaderGraphNode{
+				.id = parameterNode,
+				.kind = Engine::ShaderGraphNodeKind::Parameter,
+				.parameterID = parameterID,
+				.valueType = Engine::ShaderGraphValueType::Color,
+				});
+			child.links.emplace_back(Engine::ShaderGraphLink{
+				.id = Engine::UUID::New(),
+				.outputNode = parameterNode,
+				.inputNode = child.outputNode,
+				.inputSlot = 0,
+				});
+
+			Engine::ShaderGraphAsset parent =
+				Engine::CreateDefaultSurfaceShaderGraph("NEMSubGraphParent");
+			const Engine::UUID colorNode = parent.links.front().outputNode;
+			std::erase_if(parent.links,
+				[&](const Engine::ShaderGraphLink& link) {
+					return link.inputNode == parent.outputNode &&
+						link.inputSlot == 0;
+				});
+			const Engine::UUID subGraphNode = Engine::UUID::New();
+			const Engine::AssetID subGraphID{ 10, 20 };
+			parent.nodes.emplace_back(Engine::ShaderGraphNode{
+				.id = subGraphNode,
+				.kind = Engine::ShaderGraphNodeKind::SubGraph,
+				.subGraph = subGraphID,
+				});
+			parent.links.emplace_back(Engine::ShaderGraphLink{
+				.id = Engine::UUID::New(),
+				.outputNode = colorNode,
+				.inputNode = subGraphNode,
+				.inputSlot = 0,
+				});
+			parent.links.emplace_back(Engine::ShaderGraphLink{
+				.id = Engine::UUID::New(),
+				.outputNode = subGraphNode,
+				.outputSlot = 0,
+				.inputNode = parent.outputNode,
+				.inputSlot = 0,
+				});
+			const Engine::ShaderGraphCompileOutput subGraphOutput =
+				Engine::ShaderGraphCompiler::Compile(
+					parent, "NEMSubGraph.surface.hlsli",
+					[&](Engine::AssetID id, Engine::ShaderGraphAsset& outGraph) {
+						if (id != subGraphID) {
+							return false;
+						}
+						outGraph = child;
+						return true;
+					});
+			if (!subGraphOutput.Succeeded() ||
+				subGraphOutput.surfaceHLSL.find("NEMSubGraph") !=
+					std::string::npos) {
+				return false;
+			}
 		}
 
 		graph.nodes[1].id = graph.nodes[0].id;
@@ -1050,6 +1724,16 @@ int main(int argc, char* argv[]) {
 			return 10;
 		}
 		std::cout << "ECS chunk storage passed\n";
+		return 0;
+	}
+	if (1 < argc &&
+		std::string_view(argv[1]) == "--shader-graph") {
+
+		if (!TestShaderGraphCompile()) {
+			std::cerr << "Shader Graph compilation failed\n";
+			return 18;
+		}
+		std::cout << "Shader Graph compilation passed\n";
 		return 0;
 	}
 

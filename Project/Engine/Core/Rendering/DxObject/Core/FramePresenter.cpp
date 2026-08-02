@@ -41,20 +41,23 @@ void FramePresenter::Finalize() {
 	}
 }
 
+void FramePresenter::Submit() {
+
+	command_->CloseCommandList();
+	commandQueue_->ExecuteCommandList(command_->GetCommandList());
+}
+
 void FramePresenter::Present(IDXGISwapChain4* swapChain) {
 
 	// 提出したフレームのFence値は同じContextを再利用するときだけ待つ
-	const uint64_t fenceValue = ExecuteAndPresent(swapChain);
+	const uint64_t fenceValue = PresentAndSignal(swapChain);
 	command_->SetCurrentFrameFenceValue(fenceValue);
 
 	// FPS固定
 	WaitForTargetFps();
 }
 
-uint64_t FramePresenter::ExecuteAndPresent(IDXGISwapChain4* swapChain) {
-
-	command_->CloseCommandList();
-	commandQueue_->ExecuteCommandList(command_->GetCommandList());
+uint64_t FramePresenter::PresentAndSignal(IDXGISwapChain4* swapChain) {
 
 	// 目標フレームレートに応じてvsyncと上限解除を切り替える、0または60超はvsync上限を外す
 	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
@@ -73,7 +76,7 @@ uint64_t FramePresenter::ExecuteAndPresent(IDXGISwapChain4* swapChain) {
 
 	// GPUとOSに画面の交換を行うように通知する
 	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::ExecuteAndPresent/Present")) {
+	if (!DxDredDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::PresentAndSignal/Present")) {
 		Assert::Call(false, "SwapChain Present failed.");
 		return 0;
 	}

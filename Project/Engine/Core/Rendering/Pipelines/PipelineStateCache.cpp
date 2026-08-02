@@ -64,9 +64,11 @@ namespace {
 			if (!vs || !ps) {
 				return false;
 			}
+			outDesc.preRaster.shader = vs->ownerShader;
 			outDesc.preRaster.file = vs->file;
 			outDesc.preRaster.entry = ResolveEntryOrDefault(vs);
 			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::VS, vs);
+			outDesc.pixel.shader = ps->ownerShader;
 			outDesc.pixel.file = ps->file;
 			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
 			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);
@@ -77,12 +79,15 @@ namespace {
 			if (!vs || !gs || !ps) {
 				return false;
 			}
+			outDesc.preRaster.shader = vs->ownerShader;
 			outDesc.preRaster.file = vs->file;
 			outDesc.preRaster.entry = ResolveEntryOrDefault(vs);
 			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::VS, vs);
+			outDesc.geometry.shader = gs->ownerShader;
 			outDesc.geometry.file = gs->file;
 			outDesc.geometry.entry = ResolveEntryOrDefault(gs);
 			outDesc.geometry.profile = ResolveProfileOrDefault(Engine::ShaderStage::GS, gs);
+			outDesc.pixel.shader = ps->ownerShader;
 			outDesc.pixel.file = ps->file;
 			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
 			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);
@@ -92,13 +97,16 @@ namespace {
 			if (!ms || !ps) {
 				return false;
 			}
+			outDesc.preRaster.shader = ms->ownerShader;
 			outDesc.preRaster.file = ms->file;
 			outDesc.preRaster.entry = ResolveEntryOrDefault(ms);
 			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::MS, ms);
+			outDesc.pixel.shader = ps->ownerShader;
 			outDesc.pixel.file = ps->file;
 			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
 			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);
 			if (as) {
+				outDesc.amplification.shader = as->ownerShader;
 				outDesc.amplification.file = as->file;
 				outDesc.amplification.entry = ResolveEntryOrDefault(as);
 				outDesc.amplification.profile = ResolveProfileOrDefault(Engine::ShaderStage::AS, as);
@@ -149,6 +157,7 @@ namespace {
 		if (!cs) {
 			return false;
 		}
+		outDesc.compute.shader = cs->ownerShader;
 		outDesc.compute.file = cs->file;
 		outDesc.compute.entry = ResolveEntryOrDefault(cs);
 		outDesc.compute.profile = ResolveProfileOrDefault(Engine::ShaderStage::CS, cs);

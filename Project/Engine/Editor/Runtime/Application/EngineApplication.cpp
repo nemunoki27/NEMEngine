@@ -551,6 +551,20 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		float rawDelta = (!skipFirstAdvance && ShouldAdvanceActiveWorld()) ? deltaTime : 0.0f;
 		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
 		systemContext_.unscaledDeltaTime = rawDelta;
+		const float timeDelta = systemContext_.mode == WorldMode::Play ?
+			systemContext_.deltaTime : rawDelta;
+		systemContext_.time += timeDelta;
+		systemContext_.unscaledTime += rawDelta;
+		if (0.0f < rawDelta) {
+			const float smoothWeight =
+				(std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
+			systemContext_.smoothDeltaTime =
+				systemContext_.smoothDeltaTime <= 0.0f ?
+					timeDelta :
+					systemContext_.smoothDeltaTime +
+					(timeDelta - systemContext_.smoothDeltaTime) *
+					smoothWeight;
+		}
 	}
 
 	ECSWorld* world = systemContext_.world;
@@ -689,6 +703,13 @@ void Engine::EngineApplication::Render(GraphicsCore& graphicsCore) {
 
 		// エディタがない場合はゲームビューをバックバッファに描画する
 		renderPipeline_->PresentViewToBackBuffer(graphicsCore, RenderViewKind::Game);
+	}
+}
+
+void Engine::EngineApplication::RenderPlatformWindows([[maybe_unused]] GraphicsCore& graphicsCore) {
+
+	if constexpr (BuildConfig::kEditorEnabled) {
+		editorManager_.RenderPlatformWindows();
 	}
 }
 

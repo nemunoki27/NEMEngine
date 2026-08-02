@@ -113,6 +113,12 @@ void Engine::EditorManager::RequestImportEditorLayouts() {
 	}
 }
 
+void Engine::EditorManager::NotifyEditorCommandPanelFocused(
+	EditorCommandPanelKind kind) {
+
+	editorCommandPanelKind_ = kind;
+}
+
 void Engine::EditorManager::DrawPanelsByPhase(const EditorPanelContext& context, EditorPanelPhase phase) {
 
 	if (context.layoutState && context.layoutState->hidePanels) {

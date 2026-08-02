@@ -18,7 +18,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		RTVDescriptor() :BaseDescriptor(128) {};
+		RTVDescriptor() :BaseDescriptor(512) {};
 		~RTVDescriptor() = default;
 
 		// カラーリソースからRTVを作成しCPUハンドルを割り当てる

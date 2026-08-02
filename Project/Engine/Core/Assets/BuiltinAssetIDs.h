@@ -54,11 +54,19 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultMeshEditorPicking{ 0x4e454d4153534554ull, 0x8d50435034671c2cull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x966f3e8a34595313ull };
 		inline constexpr AssetID DefaultMeshTransparent{ 0x4e454d4153534554ull, 0xb8996e4516e31236ull };
+		inline constexpr AssetID DefaultSprite{ 0x4e454d4153534554ull, 0x3309336c2fa4669cull };
+		inline constexpr AssetID DefaultText{ 0x4e454d4153534554ull, 0xbe890ab815b3de9aull };
+		inline constexpr AssetID DefaultPrimitive{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f605ull };
+		inline constexpr AssetID DefaultPrimitiveTransparent{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f609ull };
+		inline constexpr AssetID DefaultPrimitive2D{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f615ull };
+		inline constexpr AssetID DefaultFillMesh{ 0x4e454d4153534554ull, 0xe477347a287dcf1dull };
+		inline constexpr AssetID DefaultFillMeshTransparent{ 0x4e454d4153534554ull, 0x8e7b6e92f0d1c3a5ull };
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0x4e454d4153534554ull, 0xda1205f1e1e19bdbull };
 		inline constexpr AssetID BuildIndexedIndirectArgs{ 0x4e454d4153534554ull, 0xe0400afbd444f5d6ull };
 		inline constexpr AssetID BuildDepthPyramid{ 0x4e454d4153534554ull, 0xd9a171e5f80901a3ull };
 		// パーティクルの形状アニメ用MSパイプラインとトレイル用パイプライン
+		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000005ull };
 		inline constexpr AssetID ParticleRingMS{ 0x4e454d4153534554ull, 0xeff000000000000bull };
 		inline constexpr AssetID ParticleCylinderMS{ 0x4e454d4153534554ull, 0xeff000000000000eull };
 		inline constexpr AssetID ParticleTrail{ 0x4e454d4153534554ull, 0xeff0000000000012ull };

@@ -98,7 +98,7 @@ void Engine::GraphicsCore::Render() {
 	dxCommand->ClearDepthStencilView(dsvDescriptor_->GetFrameCPUHandle());
 	dxCommand->SetViewportAndScissor(swapChainDesc.Width, swapChainDesc.Height);
 }
-void Engine::GraphicsCore::EndRenderFrame() {
+void Engine::GraphicsCore::SubmitRenderFrame() {
 
 	auto* dxCommand = graphicsPlatform_->GetDxCommand();
 
@@ -110,7 +110,13 @@ void Engine::GraphicsCore::EndRenderFrame() {
 	dxCommand->TransitionBarriers({ swapChain_->GetCurrentResource() },
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-	// コマンド提出からPresentまで
+	// 外部ウィンドウ描画より先にメイン描画を提出する
+	graphicsPlatform_->SubmitFrame();
+}
+
+void Engine::GraphicsCore::EndRenderFrame() {
+
+	// 全描画提出後にメインウィンドウをPresentする
 	graphicsPlatform_->PresentFrame(swapChain_->Get());
 }
 

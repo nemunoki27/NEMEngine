@@ -117,7 +117,15 @@ namespace {
 			!variant["staticSamplers"].empty()) {
 			const auto& sampler = variant["staticSamplers"].front();
 			outSettings.samplerFilter = EnumFromJsonString(sampler, "filter", outSettings.samplerFilter);
-			outSettings.samplerAddress = EnumFromJsonString(sampler, "addressU", outSettings.samplerAddress);
+			outSettings.samplerAddressU = EnumFromJsonString(sampler, "addressU", outSettings.samplerAddressU);
+			outSettings.samplerAddressV = EnumFromJsonString(sampler, "addressV", outSettings.samplerAddressV);
+			outSettings.samplerAddressW = EnumFromJsonString(sampler, "addressW", outSettings.samplerAddressW);
+			outSettings.samplerComparison = EnumFromJsonString(sampler, "comparisonFunc", outSettings.samplerComparison);
+			outSettings.samplerBorderColor = EnumFromJsonString(sampler, "borderColor", outSettings.samplerBorderColor);
+			outSettings.samplerMaxAnisotropy = sampler.value("maxAnisotropy", outSettings.samplerMaxAnisotropy);
+			outSettings.samplerMipLODBias = sampler.value("mipLODBias", outSettings.samplerMipLODBias);
+			outSettings.samplerMinLOD = sampler.value("minLOD", outSettings.samplerMinLOD);
+			outSettings.samplerMaxLOD = sampler.value("maxLOD", outSettings.samplerMaxLOD);
 		}
 		return true;
 	}
@@ -233,10 +241,15 @@ namespace {
 					{ "shaderRegister", 0 },
 					{ "registerSpace", 0 },
 					{ "filter", EnumToJsonString(settings.samplerFilter) },
-					{ "addressU", EnumToJsonString(settings.samplerAddress) },
-					{ "addressV", EnumToJsonString(settings.samplerAddress) },
-					{ "addressW", EnumToJsonString(settings.samplerAddress) },
-					{ "comparisonFunc", "D3D12_COMPARISON_FUNC_ALWAYS" },
+					{ "addressU", EnumToJsonString(settings.samplerAddressU) },
+					{ "addressV", EnumToJsonString(settings.samplerAddressV) },
+					{ "addressW", EnumToJsonString(settings.samplerAddressW) },
+					{ "comparisonFunc", EnumToJsonString(settings.samplerComparison) },
+					{ "borderColor", EnumToJsonString(settings.samplerBorderColor) },
+					{ "maxAnisotropy", settings.samplerMaxAnisotropy },
+					{ "mipLODBias", settings.samplerMipLODBias },
+					{ "minLOD", settings.samplerMinLOD },
+					{ "maxLOD", settings.samplerMaxLOD },
 					{ "shaderVisibility", "D3D12_SHADER_VISIBILITY_PIXEL" },
 				}
 			}) },
@@ -271,7 +284,8 @@ namespace {
 	// material.jsonを作る、domain/passKindはタイプで決める
 	nlohmann::json MakeMaterialJson(const std::string& name, Engine::AssetID pipelineID,
 		Engine::AssetID transparentPipelineID, Engine::AssetID shaderOverride, Engine::MaterialCreateType type,
-		bool useMeshShader, bool useGeometryShader) {
+		bool useMeshShader, bool useGeometryShader,
+		const Engine::PipelineCreateSettings& settings) {
 
 		// Mesh/Line/FillFaceMeshは3DワールドなのでSurface、Sprite/TextはUI
 		const bool surfaceDomain = (type == Engine::MaterialCreateType::Mesh) ||
@@ -305,6 +319,11 @@ namespace {
 			{ "name", name },
 			{ "domain", domain },
 			{ "usage", Engine::EnumAdapter<Engine::MaterialUsage>::ToString(ToMaterialUsage(type)) },
+			{ "renderState", {
+				{ "overridesRenderer", true },
+				{ "phase", std::string(Engine::ToString(settings.phase)) },
+				{ "blendMode", Engine::EnumAdapter<Engine::BlendMode>::ToString(settings.blendMode) },
+			} },
 			{ "passes", std::move(passes) },
 			{ "parameters", nlohmann::json::object() },
 		};
@@ -449,6 +468,7 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 			assetDatabase, { AssetType::Material }, setting).valueChanged) {
 
 			createSourceMaterial_ = sourceMaterial;
+			createSourceUsesShaderGraph_ = false;
 			if (sourceMaterial && assetDatabase) {
 
 				LoadPipelineSettingsFromMaterial(*assetDatabase, sourceMaterial);
@@ -470,6 +490,8 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	auto drawPipelineSettings = [&](const char* id, const char* title, PipelineCreateSettings& settings) {
 		ImGui::SeparatorText(title);
 		ImGui::PushID(id);
+		MyGUI::EnumCombo("描画フェーズ", settings.phase);
+		MyGUI::EnumCombo("ブレンド", settings.blendMode);
 		MyGUI::EnumCombo("塗りモード", settings.fillMode);
 		MyGUI::EnumCombo("カリング", settings.cullMode);
 		MyGUI::Checkbox("前面反時計回り", settings.frontCounterClockwise);
@@ -479,14 +501,31 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 		MyGUI::EnumCombo("深度比較", settings.depthFunc);
 		MyGUI::Checkbox("ステンシル", settings.stencilEnable);
 		MyGUI::EnumCombo("フィルタ", settings.samplerFilter);
-		MyGUI::EnumCombo("アドレスモード", settings.samplerAddress);
+		MyGUI::EnumCombo("アドレスU", settings.samplerAddressU);
+		MyGUI::EnumCombo("アドレスV", settings.samplerAddressV);
+		MyGUI::EnumCombo("アドレスW", settings.samplerAddressW);
+		MyGUI::EnumCombo("比較関数", settings.samplerComparison);
+		MyGUI::EnumCombo("境界色", settings.samplerBorderColor);
+		MyGUI::DragInt("異方性", settings.samplerMaxAnisotropy, {
+			.dragSpeed = 1.0f,
+			.minValue = 1,
+			.maxValue = 16,
+			});
+		MyGUI::DragFloat("Mip LODバイアス", settings.samplerMipLODBias);
+		MyGUI::DragFloat("最小LOD", settings.samplerMinLOD);
+		MyGUI::DragFloat("最大LOD", settings.samplerMaxLOD);
 		ImGui::PopID();
 	};
+	if (createSourceUsesShaderGraph_) {
+		ImGui::TextDisabled("Shader Graph Materialの描画設定はShader Graph側で編集します");
+	}
+	ImGui::BeginDisabled(createSourceUsesShaderGraph_);
 	drawPipelineSettings("DrawPipeline", createType_ == MaterialCreateType::Mesh ?
 		"不透明パイプライン設定" : "パイプライン設定", createPipeline_);
 	if (createType_ == MaterialCreateType::Mesh && createTransparentPass_) {
 		drawPipelineSettings("TransparentPipeline", "半透明パイプライン設定", createTransparentPipeline_);
 	}
+	ImGui::EndDisabled();
 
 	// 出力先、GameAssets/Materials/固定でそれ以降をファイル名込みで入力する
 	ImGui::SeparatorText("作成");
@@ -520,7 +559,9 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.depthEnable = true;
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else if (type == MaterialCreateType::Particle) {
 
 		// Particleは半透明描画を前提に深度テストのみ有効にする
@@ -528,11 +569,17 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.depthEnable = true;
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.phase = RenderPhase::Transparent;
+		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else if (type == MaterialCreateType::Sprite) {
 
 		// スプライトは深度無効でラップサンプリング
-		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.phase = RenderPhase::Transparent;
+		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else if (type == MaterialCreateType::Line) {
 
 		// ラインは3Dワールドに描くので深度テスト有効で裏面カリングしない
@@ -540,7 +587,9 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.depthEnable = true;
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	} else if (type == MaterialCreateType::FillFaceMesh) {
 
 		// 面は両面表示で深度テスト書き込み有効、GBufferへ書く
@@ -548,11 +597,16 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.depthEnable = true;
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else {
 
 		// テキストは深度無効でクランプサンプリング
-		settings.samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		settings.phase = RenderPhase::Transparent;
+		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 	}
 	createPipeline_ = settings;
 	createTransparentPipeline_ = settings;
@@ -582,6 +636,8 @@ void Engine::MaterialEditorTool::LoadPipelineSettingsFromMaterial(AssetDatabase&
 	}
 
 	const nlohmann::json materialData = JsonAdapter::Load(materialPath.string(), false);
+	createSourceUsesShaderGraph_ = static_cast<bool>(
+		ParseAssetID(materialData, "shaderGraph"));
 	if (!materialData.is_object() || !materialData.contains("passes") ||
 		!materialData["passes"].is_array() || materialData["passes"].empty()) {
 		createMessage_ = "マテリアルにパスがありません";
@@ -605,6 +661,13 @@ void Engine::MaterialEditorTool::LoadPipelineSettingsFromMaterial(AssetDatabase&
 		} else if (passKind == "Transparent") {
 			transparentPipelineID = ParseAssetID(pass, "pipeline");
 		}
+	}
+	if (const auto renderState = materialData.find("renderState");
+		renderState != materialData.end() && renderState->is_object()) {
+		createPipeline_.phase = RenderPhaseFromString(
+			renderState->value("phase", "Opaque"), RenderPhase::Opaque);
+		createPipeline_.blendMode = EnumAdapter<BlendMode>::FromString(
+			renderState->value("blendMode", "Normal")).value_or(BlendMode::Normal);
 	}
 	if (!drawPipelineID) {
 		drawPipelineID = ParseAssetID(materialData["passes"].front(), "pipeline");
@@ -785,7 +848,8 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 
 	// materialを書き出して登録する、同用途の取り込み元があればパラメータも引き継ぐ
 	nlohmann::json materialData = MakeMaterialJson(baseName, pipelineID, transparentPipelineID,
-		isParticle ? shaderID : AssetID{}, createType_, useMeshShader, useGeometryShader);
+		isParticle ? shaderID : AssetID{}, createType_, useMeshShader, useGeometryShader,
+		createPipeline_);
 	if (createSourceMaterial_) {
 
 		const std::filesystem::path sourcePath = assetDatabase->ResolveFullPath(createSourceMaterial_);

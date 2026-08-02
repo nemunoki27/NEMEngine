@@ -81,6 +81,10 @@ namespace Engine::BackendDrawCommon {
 	// テクスチャアセットIDからGPUテクスチャを取得、失敗したらエラーテクスチャ
 	const GPUTextureResource* ResolveTextureAsset(const RenderDrawContext& context,
 		GraphicsCore& graphicsCore, AssetID textureAssetID);
+	// MaterialParameters内のTexture2Dをbindless SRV indexへ解決する
+	MaterialParameterBufferBuilder::TextureResolveResult ResolveMaterialTextureIndex(
+		const RenderDrawContext& context, MaterialParameterSemantic semantic,
+		const AssetID& textureAssetID);
 
 	// マテリアルテクスチャをreflection駆動でバインドする
 	// 規約はregister space2のテクスチャSRVだけマテリアルテクスチャ扱い、エンジン供給SRVはspace0か1

@@ -42,6 +42,11 @@ namespace Engine {
 		const MaterialAsset* LoadMaterial(AssetID assetID);
 		const MSDFFontAsset* LoadFont(AssetID assetID);
 		const ParticleEffectAsset* LoadParticleEffect(AssetID assetID);
+		// Library内の派生Shaderを実行時キャッシュへ登録
+		void RegisterDerivedShader(ShaderAsset shader);
+		void RegisterDerivedPipeline(RenderPipelineAsset pipeline);
+		// プレビュー用の派生Materialを実行時キャッシュへ登録
+		void RegisterDerivedMaterial(MaterialAsset material);
 
 		// マテリアルのキャッシュを破棄して次回ロードでファイルから読み直させる、実行中の編集反映に使う
 		void InvalidateMaterial(AssetID assetID) { materialCache_.erase(assetID); }
@@ -69,6 +74,8 @@ namespace Engine {
 		void ResolveRuntimeReferences(T&) {}
 		// シェーダーソース参照を実体パスへ解決
 		void ResolveRuntimeReferences(ShaderAsset& asset);
+		// Shader Graph参照を派生Shaderへ解決
+		void ResolveRuntimeReferences(MaterialAsset& asset);
 
 		//--------- variables ----------------------------------------------------
 

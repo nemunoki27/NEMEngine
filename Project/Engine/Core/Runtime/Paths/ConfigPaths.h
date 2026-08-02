@@ -27,6 +27,9 @@ namespace Engine {
 		// パフォーマンスチェックツールの設定
 		inline constexpr const char* kPerformanceCheckTool =
 			"Editor/performanceCheckTool.exeConfig.json";
+		// シェーダーグラフの外観設定
+		inline constexpr const char* kShaderGraphAppearance =
+			"Editor/ShaderGraphAppearance.json";
 		// ユーザーが保存したエディターレイアウト
 		inline constexpr const char* kEditorLayouts = "Editor/Layouts.json";
 		// 終了時のエディターレイアウト

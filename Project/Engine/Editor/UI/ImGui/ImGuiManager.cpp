@@ -7,9 +7,13 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
+#include <Engine/Core/Platform/Input/InputSystem.h>
 
 // c++
 #include <filesystem>
+
+// windows
+#include <shellapi.h>
 
 // imgui
 #include <imgui.h>
@@ -26,7 +30,34 @@ namespace {
 
 		return ImGui_ImplWin32_WndProcHandler(hwnd, message, wparam, lparam);
 	}
+
+	void ApplyDarkWindowFrame(HWND hwnd) {
+
+		using DwmSetWindowAttributeFunction = HRESULT(WINAPI*)(HWND, DWORD, LPCVOID, DWORD);
+
+		HMODULE dwmapi = LoadLibraryW(L"dwmapi.dll");
+		if (!dwmapi) {
+			return;
+		}
+
+		auto setWindowAttribute = reinterpret_cast<DwmSetWindowAttributeFunction>(
+			GetProcAddress(dwmapi, "DwmSetWindowAttribute"));
+		if (setWindowAttribute) {
+
+			const BOOL enabled = TRUE;
+			constexpr DWORD kUseImmersiveDarkMode = 20;
+			constexpr DWORD kUseImmersiveDarkModeLegacy = 19;
+			if (FAILED(setWindowAttribute(hwnd, kUseImmersiveDarkMode,
+				&enabled, sizeof(enabled)))) {
+				setWindowAttribute(hwnd, kUseImmersiveDarkModeLegacy,
+					&enabled, sizeof(enabled));
+			}
+		}
+		FreeLibrary(dwmapi);
+	}
 }
+
+ImGuiManager* ImGuiManager::instance_ = nullptr;
 
 //============================================================================
 //	ImGuiManager classMethods
@@ -39,6 +70,8 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	}
 
 	srvDescriptor_ = srvDescriptor;
+	instance_ = this;
+	ApplyDarkWindowFrame(hwnd);
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -46,6 +79,12 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	// コンフィグ設定
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	io.ConfigViewportsNoAutoMerge = false;
+	io.ConfigViewportsNoTaskBarIcon = false;
+	io.ConfigViewportsNoDecoration = false;
+	io.ConfigDpiScaleFonts = true;
+	io.ConfigDpiScaleViewports = true;
 
 	ImGui::StyleColorsDark();
 	//Win32初期化
@@ -211,6 +250,12 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 
 	style.DockingSeparatorSize = 2.0f;
 
+	// 外部ウィンドウではOS枠と重なるImGui装飾を平坦化する
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		style.WindowRounding = 0.0f;
+		colors[ImGuiCol_WindowBg].w = 1.0f;
+	}
+
 	initialized_ = true;
 }
 
@@ -232,6 +277,10 @@ void ImGuiManager::End() {
 	}
 
 	ImGui::Render();
+	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		ImGui::UpdatePlatformWindows();
+		RegisterPlatformWindows();
+	}
 }
 
 void ImGuiManager::Draw(ID3D12GraphicsCommandList* commandList) {
@@ -246,19 +295,31 @@ void ImGuiManager::Draw(ID3D12GraphicsCommandList* commandList) {
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 }
 
+void ImGuiManager::DrawPlatformWindows() {
+
+	if (!initialized_ ||
+		!(ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)) {
+		return;
+	}
+	ImGui::RenderPlatformWindowsDefault();
+}
+
 void ImGuiManager::Finalize() {
 
 	if (!initialized_) {
 		return;
 	}
 
+	RestorePlatformWindowProcedures();
 	WinApp::SetMessageHandler(nullptr);
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
 	imguiSRVIndices_.clear();
+	platformWindowProcedures_.clear();
 	srvDescriptor_ = nullptr;
+	instance_ = nullptr;
 	initialized_ = false;
 }
 
@@ -310,4 +371,81 @@ void ImGuiManager::FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
 		srvDescriptor_->Free(it->second);
 	}
 	imguiSRVIndices_.erase(it);
+}
+
+void ImGuiManager::RegisterPlatformWindows() {
+
+	ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+	for (int32_t index = 1; index < platformIO.Viewports.Size; ++index) {
+
+		ImGuiViewport* viewport = platformIO.Viewports[index];
+		HWND hwnd = static_cast<HWND>(viewport->PlatformHandleRaw);
+		if (!hwnd || platformWindowProcedures_.contains(hwnd)) {
+			continue;
+		}
+
+		ApplyDarkWindowFrame(hwnd);
+		DragAcceptFiles(hwnd, TRUE);
+		WNDPROC previous = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(
+			hwnd, GWLP_WNDPROC,
+			reinterpret_cast<LONG_PTR>(&ImGuiManager::PlatformWindowProc)));
+		if (previous) {
+			platformWindowProcedures_.emplace(hwnd, previous);
+		}
+	}
+}
+
+void ImGuiManager::RestorePlatformWindowProcedures() {
+
+	for (const auto& [hwnd, procedure] : platformWindowProcedures_) {
+		if (IsWindow(hwnd)) {
+			SetWindowLongPtrW(hwnd, GWLP_WNDPROC,
+				reinterpret_cast<LONG_PTR>(procedure));
+		}
+	}
+	platformWindowProcedures_.clear();
+}
+
+bool ImGuiManager::IsEditorWindow(HWND hwnd) const {
+
+	return hwnd == WinApp::GetHwnd() ||
+		platformWindowProcedures_.contains(hwnd);
+}
+
+LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message,
+	WPARAM wparam, LPARAM lparam) {
+
+	if (!instance_) {
+		return DefWindowProcW(hwnd, message, wparam, lparam);
+	}
+
+	auto found = instance_->platformWindowProcedures_.find(hwnd);
+	if (found == instance_->platformWindowProcedures_.end()) {
+		return DefWindowProcW(hwnd, message, wparam, lparam);
+	}
+	WNDPROC previous = found->second;
+
+	switch (message) {
+	case WM_SETFOCUS:
+		if (Input* input = Input::GetInstance()) {
+			input->SetWindowFocus(true);
+		}
+		break;
+	case WM_KILLFOCUS:
+		if (Input* input = Input::GetInstance()) {
+			input->SetWindowFocus(
+				instance_->IsEditorWindow(reinterpret_cast<HWND>(wparam)));
+		}
+		break;
+	case WM_DROPFILES:
+		WinApp::HandleExternalFileDrop(hwnd, wparam);
+		return 0;
+	}
+
+	const LRESULT result = CallWindowProcW(previous,
+		hwnd, message, wparam, lparam);
+	if (message == WM_NCDESTROY) {
+		instance_->platformWindowProcedures_.erase(hwnd);
+	}
+	return result;
 }

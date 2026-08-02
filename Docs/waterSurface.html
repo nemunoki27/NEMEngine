@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEMEngine 揺らぐ水面 Shader Graph ガイド</title>
+<style>
+:root {
+  color-scheme: dark;
+  --background: #101315;
+  --surface: #181d20;
+  --surface-strong: #20272b;
+  --line: #374248;
+  --text: #e8eef0;
+  --muted: #a9b6bb;
+  --water: #42b8d5;
+  --water-strong: #74d9ee;
+  --green: #77c99a;
+  --yellow: #e0bd63;
+  --red: #dd7a76;
+  --code: #0a0d0f;
+  --nav-width: 248px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+  font-size: 15px;
+  line-height: 1.75;
+  letter-spacing: 0;
+}
+a { color: var(--water-strong); }
+code, pre { font-family: Consolas, "Cascadia Mono", monospace; }
+code {
+  padding: 2px 5px;
+  border: 1px solid #303a3f;
+  background: #111619;
+  border-radius: 3px;
+  color: #cceef5;
+}
+pre {
+  overflow-x: auto;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  background: var(--code);
+  border-radius: 5px;
+  line-height: 1.55;
+}
+pre code { padding: 0; border: 0; background: transparent; color: #d9e6e9; }
+.layout { display: grid; grid-template-columns: var(--nav-width) minmax(0, 1fr); }
+nav {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 24px 18px;
+  border-right: 1px solid var(--line);
+  background: #14191c;
+}
+nav strong {
+  display: block;
+  margin-bottom: 14px;
+  color: #f4f8f9;
+  font-size: 16px;
+}
+nav a {
+  display: block;
+  padding: 5px 8px;
+  color: var(--muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+nav a:hover { color: var(--text); border-left-color: var(--water); }
+main { width: min(1180px, 100%); padding: 46px 54px 80px; }
+header { margin-bottom: 36px; }
+h1, h2, h3, h4 { line-height: 1.35; letter-spacing: 0; }
+h1 { margin: 0 0 12px; font-size: 34px; }
+h2 {
+  margin: 54px 0 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 24px;
+}
+h3 { margin: 34px 0 12px; font-size: 19px; }
+h4 { margin: 22px 0 8px; font-size: 16px; }
+p { margin: 10px 0; }
+.lead { max-width: 850px; color: #cdd8dc; font-size: 18px; }
+.meta { color: var(--muted); font-size: 13px; }
+.reference {
+  margin: 26px 0 0;
+  border: 1px solid var(--line);
+  background: #091723;
+}
+.reference img {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  object-fit: cover;
+}
+.reference figcaption { padding: 10px 14px; color: var(--muted); font-size: 13px; }
+.notice {
+  margin: 16px 0;
+  padding: 13px 15px;
+  border-left: 4px solid var(--water);
+  background: #17252a;
+}
+.notice.ok { border-left-color: var(--green); background: #17251e; }
+.notice.warn { border-left-color: var(--yellow); background: #292416; }
+.notice.danger { border-left-color: var(--red); background: #2b1919; }
+.status-grid, .preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.status-grid > div, .preset-grid > article {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 5px;
+}
+.status-grid strong, .preset-grid h4 { color: #f1f6f7; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; min-width: 720px; }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { background: var(--surface-strong); color: #f0f5f6; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.steps { counter-reset: step; padding: 0; list-style: none; }
+.steps > li {
+  position: relative;
+  min-height: 38px;
+  margin: 12px 0;
+  padding: 7px 0 7px 48px;
+}
+.steps > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #4aa2b7;
+  border-radius: 50%;
+  color: #d9f7ff;
+  background: #17323a;
+  font-weight: 700;
+}
+.flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 13px 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  background: #111719;
+}
+.node {
+  padding: 6px 9px;
+  border: 1px solid #3f8495;
+  border-radius: 4px;
+  background: #19272c;
+  color: #e4f8fc;
+  white-space: nowrap;
+}
+.node.parameter { border-color: #8a7950; background: #282419; color: #f3e1a9; }
+.node.output { border-color: #6cad80; background: #1b2b21; color: #d9f1df; }
+.arrow { color: #6d858e; font-weight: 700; }
+.pin-map { margin: 8px 0 20px; }
+.pin-map dt { margin-top: 7px; color: #dce8eb; font-weight: 700; }
+.pin-map dd { margin-left: 22px; color: var(--muted); }
+.formula {
+  padding: 14px 16px;
+  border: 1px solid #3b6973;
+  background: #101d21;
+  color: #d8f3f8;
+  overflow-x: auto;
+}
+.checklist { padding-left: 0; list-style: none; }
+.checklist li { margin: 7px 0; padding-left: 27px; position: relative; }
+.checklist li::before { content: "✓"; position: absolute; left: 3px; color: var(--green); font-weight: 700; }
+.tag {
+  display: inline-block;
+  margin: 0 5px 5px 0;
+  padding: 2px 7px;
+  border: 1px solid #46636b;
+  border-radius: 3px;
+  color: #bad3da;
+  font-size: 12px;
+}
+details { margin: 10px 0; border: 1px solid var(--line); background: var(--surface); }
+summary { cursor: pointer; padding: 10px 13px; font-weight: 700; }
+details > div { padding: 0 13px 13px; }
+.small { color: var(--muted); font-size: 13px; }
+footer { margin-top: 58px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }
+@media (max-width: 860px) {
+  .layout { display: block; }
+  nav { position: static; width: 100%; height: auto; columns: 2; }
+  nav strong { column-span: all; }
+  main { padding: 28px 20px 60px; }
+  .status-grid, .preset-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav aria-label="目次">
+  <strong>Water Surface Guide</strong>
+  <a href="#feasibility">実現可否</a>
+  <a href="#result">作成する見た目</a>
+  <a href="#requirements">必要なAsset</a>
+  <a href="#settings">Graph設定</a>
+  <a href="#parameters">公開パラメータ</a>
+  <a href="#graph">基本Graph</a>
+  <a href="#loop">シームレスループ</a>
+  <a href="#pbr">PBR仕上げ</a>
+  <a href="#normal">法線の揺らぎ</a>
+  <a href="#vertex">頂点波</a>
+  <a href="#apply">Material適用</a>
+  <a href="#csharp">C#制御</a>
+  <a href="#tuning">見た目の調整</a>
+  <a href="#performance">負荷</a>
+  <a href="#limitations">現在の制限</a>
+  <a href="#troubleshooting">トラブル対応</a>
+  <a href="#check">完成確認</a>
+</nav>
+<main>
+<header>
+  <h1>揺らぐ水面 Shader Graph</h1>
+  <p class="lead">2枚のシームレスなコースティクス模様を異なる方向へ流し、青い水面、明るい屈折模様、Fresnel、法線の揺らぎを組み合わせる手順です。</p>
+  <p class="meta">対象: NEMEngine Shader Graph / Primitive3D / 2026-08-01時点</p>
+  <figure class="reference">
+    <img src="../../WaterSurface/スクリーンショット 2026-08-01 202232.png" alt="青い水面に明るいコースティクス模様が広がる参考画像">
+    <figcaption>目標イメージ。添付画像自体は見た目の参考であり、シームレスTextureとしてそのまま使用する前提ではありません。</figcaption>
+  </figure>
+</header>
+
+<section id="feasibility">
+  <h2>現在の機能で作れるか</h2>
+  <div class="notice ok"><strong>作成できます。</strong> Texture2D、UV、Time、Tiling And Offset、演算、Smoothstep、PBR Surface、Fresnel、Unpack Normal、Vertex出力が実装済みです。専用Water Shaderや新しいRender Passは、この参考画像に近い見た目を作るだけなら不要です。</div>
+  <div class="status-grid">
+    <div><strong>現在できること</strong><br>水色のPBR面、流れるコースティクス、完全な時間ループ、透明度、Fresnel、法線の揺れ、小さな頂点波。</div>
+    <div><strong>別途必要なもの</strong><br>空間的に継ぎ目のないコースティクスTexture。法線も動かす場合はシームレスなWater Normal Texture。</div>
+    <div><strong>専用機能なしで難しいこと</strong><br>物理的に正しい屈折、波面に追従する焦線計算、海岸線のDepth Fade、FFT海洋、平面反射。</div>
+    <div><strong>今回の推奨</strong><br>最初はOpaqueで模様を完成させ、必要な場合だけTransparentへ切り替えます。</div>
+  </div>
+  <div class="notice warn"><strong>重要:</strong> Simple NoiseとVoronoiだけでも試作できますが、現在の実装は指定秒数で元の模様へ戻る周期Noiseではありません。正確なループを優先する場合はシームレスTexture方式を使用してください。</div>
+</section>
+
+<section id="result">
+  <h2>今回作成する見た目</h2>
+  <p>水面の色とコースティクス模様を別に考えます。模様は同じTextureを2回Sampleし、拡大率と移動方向を変えて重ねます。同じ画像を使用しても、重なりが一定にならないため反復感を抑えられます。</p>
+  <div class="flow">
+    <span class="node">UV Layer A</span><span class="arrow">→</span>
+    <span class="node">Caustics Sample A</span><span class="arrow">+</span>
+    <span class="node">Caustics Sample B</span><span class="arrow">→</span>
+    <span class="node">Maximum</span><span class="arrow">→</span>
+    <span class="node">Smoothstep</span><span class="arrow">→</span>
+    <span class="node output">Base Color / Emissive</span>
+  </div>
+  <pre class="formula"><code>uvA       = UV * TilingA + frac(Time * FlowA)
+uvB       = UV * TilingB + frac(Time * FlowB)
+raw       = max(Texture(uvA).r, Texture(uvB).r)
+mask      = smoothstep(Threshold, Threshold + Softness, raw)
+water     = lerp(DeepColor, ShallowColor, saturate(raw * 0.35))
+caustics  = CausticsColor * mask * CausticsIntensity
+BaseColor = water + caustics
+Emissive  = caustics * EmissiveStrength</code></pre>
+</section>
+
+<section id="requirements">
+  <h2>必要なAssetとEntity</h2>
+  <h3>1. コースティクスTexture</h3>
+  <ul>
+    <li>上下左右が連続するグレースケールTextureを用意します。</li>
+    <li>明るい線、暗い水面という構成にします。逆の場合はGraphで<code>One Minus</code>を挟みます。</li>
+    <li>推奨解像度は512×512または1024×1024です。</li>
+    <li>保存先例: <code>GameAssets/Textures/Water/waterCaustics.png</code></li>
+  </ul>
+  <p>エンジン標準の<code>Project/Engine/Assets/Textures/DefaultEffect/Noise</code>でも試作できますが、全Textureのシームレス性は保証されません。完成版では専用Textureを推奨します。</p>
+
+  <h3>2. Water Normal Texture</h3>
+  <p>法線の揺れを追加する場合だけ必要です。DirectX形式のNormal Mapを用意し、上下左右が連続するようにします。保存先例は<code>GameAssets/Textures/Water/waterNormal.png</code>です。</p>
+
+  <h3>3. 水面Primitive</h3>
+  <ul>
+    <li>EntityへPrimitiveRendererを追加し、形状を<code>Plane</code>、描画空間を<code>World3D</code>、軸を<code>XZ</code>にします。</li>
+    <li>基本表示だけなら分割X/Yは1で十分です。</li>
+    <li>隣接Planeへ模様を連続させる場合、各Planeで同じUV密度を使います。</li>
+    <li>Vertex変形を使う場合は分割X/Yを32にします。32×32分割では1089頂点、2048三角形が生成されます。</li>
+  </ul>
+
+  <h3>4. Graph作成先</h3>
+  <pre><code>GameAssets/Materials/Water/waterSurface.shadergraph.json
+GameAssets/Materials/Water/waterSurface.material.json  // 自動生成</code></pre>
+</section>
+
+<section id="settings">
+  <h2>Shader Graphの設定</h2>
+  <ol class="steps">
+    <li>シェーダーグラフツールを開きます。</li>
+    <li><strong>作成種類</strong>を<code>Surface</code>、<strong>作成対象</strong>を<code>Primitive3D</code>にします。</li>
+    <li>作成先へ<code>GameAssets/Materials/Water/waterSurface.shadergraph.json</code>を入力して新規作成します。</li>
+    <li>左パネルの<strong>グラフ設定</strong>を開き、下表の値を設定します。</li>
+  </ol>
+  <div class="table-wrap"><table>
+    <thead><tr><th>項目</th><th>最初の推奨</th><th>透明水面へ変更するとき</th></tr></thead>
+    <tbody>
+      <tr><td>描画対象</td><td>Primitive3D</td><td>変更なし</td></tr>
+      <tr><td>サーフェス</td><td>Opaque</td><td>Transparent</td></tr>
+      <tr><td>ブレンド</td><td>Normal</td><td>Normal</td></tr>
+      <tr><td>深度テスト</td><td>有効</td><td>有効</td></tr>
+      <tr><td>深度書き込み</td><td>有効</td><td>無効を推奨</td></tr>
+      <tr><td>両面描画</td><td>必要な場合だけ有効</td><td>水中から見る場合は有効</td></tr>
+      <tr><td>影を落とす</td><td>無効を推奨</td><td>無効を推奨</td></tr>
+      <tr><td>影を受ける</td><td>有効</td><td>有効</td></tr>
+      <tr><td>フィルタ</td><td>FILTER_MIN_MAG_MIP_LINEAR</td><td>変更なし</td></tr>
+      <tr><td>アドレスU/V/W</td><td>MODE_WRAP</td><td>変更なし</td></tr>
+      <tr><td>異方性</td><td>4から8</td><td>変更なし</td></tr>
+    </tbody>
+  </table></div>
+  <div class="notice"><strong>先にOpaqueで確認する理由:</strong> 透明描画のソートや背景色に影響されず、UV、Texture、Maskの間違いを見つけやすいためです。添付画像のように水底を見せない表現ならOpaqueのままでも問題ありません。</div>
+</section>
+
+<section id="parameters">
+  <h2>公開パラメータ</h2>
+  <p>左パネルの公開パラメータで以下を追加します。追加後、キャンバスを右クリックして<strong>パラメータ</strong>から対応するParameterノードを作成します。</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>名前</th><th>型</th><th>既定値</th><th>役割</th></tr></thead>
+    <tbody>
+      <tr><td>CausticsTexture</td><td>Texture2D</td><td>waterCaustics.png</td><td>明るい焦線模様</td></tr>
+      <tr><td>DeepColor</td><td>Color</td><td>(0.01, 0.12, 0.38, 1)</td><td>暗い水色</td></tr>
+      <tr><td>ShallowColor</td><td>Color</td><td>(0.00, 0.42, 0.82, 1)</td><td>明るい水色</td></tr>
+      <tr><td>CausticsColor</td><td>Color</td><td>(0.40, 0.90, 1.00, 1)</td><td>焦線の色</td></tr>
+      <tr><td>TilingA</td><td>Vector2</td><td>(2, 2)</td><td>大きい模様</td></tr>
+      <tr><td>TilingB</td><td>Vector2</td><td>(3, 3)</td><td>細かい模様</td></tr>
+      <tr><td>FlowA</td><td>Vector2</td><td>(0.05, 0.05)</td><td>Layer Aの移動量/秒</td></tr>
+      <tr><td>FlowB</td><td>Vector2</td><td>(-0.05, 0.05)</td><td>Layer Bの移動量/秒</td></tr>
+      <tr><td>Threshold</td><td>Float</td><td>0.55</td><td>明るい線を抜き出す開始値</td></tr>
+      <tr><td>Softness</td><td>Float</td><td>0.12</td><td>線の境界の柔らかさ</td></tr>
+      <tr><td>CausticsIntensity</td><td>Float</td><td>1.15</td><td>Base Colorへ足す強さ</td></tr>
+      <tr><td>EmissiveStrength</td><td>Float</td><td>0.30</td><td>焦線の発光量</td></tr>
+      <tr><td>Roughness</td><td>Float</td><td>0.12</td><td>水面の反射のぼけ</td></tr>
+      <tr><td>Opacity</td><td>Float</td><td>0.82</td><td>Transparent時の透明度</td></tr>
+      <tr><td>FresnelPower</td><td>Float</td><td>4.0</td><td>輪郭反射の狭さ</td></tr>
+      <tr><td>FresnelStrength</td><td>Float</td><td>0.25</td><td>輪郭反射の強さ</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">Color値は出発点です。Sceneの露出、Directional Light、Skyboxに応じて調整してください。</p>
+</section>
+
+<section id="graph">
+  <h2>基本Graphの作成</h2>
+  <h3>1. 共通ノード</h3>
+  <p><code>UV</code>と<code>Time</code>を1つずつ追加します。出力は複数ノードへ接続できます。</p>
+
+  <h3>2. Layer Aを作る</h3>
+  <div class="flow">
+    <span class="node">Time.Time</span><span class="arrow">→</span>
+    <span class="node">Multiply × FlowA</span><span class="arrow">→</span>
+    <span class="node">Fraction</span><span class="arrow">→</span>
+    <span class="node">Tiling And Offset.Offset</span>
+  </div>
+  <div class="flow">
+    <span class="node">UV.Output</span><span class="arrow">→</span>
+    <span class="node">Tiling And Offset A</span><span class="arrow">→</span>
+    <span class="node">Sample Texture 2D A.UV</span>
+  </div>
+  <dl class="pin-map">
+    <dt>Tiling And Offset A</dt><dd>UVにUV.Output、TilingにTilingA、OffsetにFractionの出力を接続します。</dd>
+    <dt>Sample Texture 2D A</dt><dd>TextureにCausticsTexture、UVにTiling And Offset A.Outputを接続します。</dd>
+    <dt>使用出力</dt><dd>Sample Texture 2D AのRを使用します。</dd>
+  </dl>
+
+  <h3>3. Layer Bを作る</h3>
+  <p>Layer Aと同じ構成を複製し、TilingB、FlowBへ差し替えます。Textureは同じCausticsTextureを接続します。</p>
+  <div class="flow">
+    <span class="node">Time.Time × FlowB</span><span class="arrow">→</span>
+    <span class="node">Fraction</span><span class="arrow">→</span>
+    <span class="node">Tiling And Offset B.Offset</span><span class="arrow">→</span>
+    <span class="node">Sample Texture 2D B.R</span>
+  </div>
+  <div class="notice warn"><strong>Rotateを使わない理由:</strong> 任意角度でUVを回転すると、UV境界の座標差が整数でなくなり、繰り返し配置したPlaneの境界で模様が一致しない場合があります。1枚の有限PlaneだけならLayer BへRotateを加えても構いません。</div>
+
+  <h3>4. 2枚を合成して焦線Maskを作る</h3>
+  <ol class="steps">
+    <li><code>Maximum</code>を追加し、AへSample A.R、BへSample B.Rを接続します。</li>
+    <li><code>Add</code>を追加し、ThresholdとSoftnessを接続します。これがSmoothstepのEdge 2です。</li>
+    <li><code>Smoothstep</code>を追加します。Edge 1へThreshold、Edge 2へAdd、InputへMaximumを接続します。</li>
+    <li>Smoothstep.Outputを<code>CausticsMask</code>として後続処理に使います。</li>
+  </ol>
+  <div class="flow">
+    <span class="node">Sample A.R</span><span class="arrow">↘</span>
+    <span class="node">Maximum</span><span class="arrow">→</span>
+    <span class="node">Smoothstep</span><span class="arrow">→</span>
+    <span class="node output">CausticsMask</span>
+    <span class="node">Sample B.R</span><span class="arrow">↗</span>
+  </div>
+  <p>線が暗く背景が白いTextureの場合は、各SampleのR直後に<code>One Minus</code>を追加します。線が太すぎる場合はThresholdを上げ、硬すぎる場合はSoftnessを上げます。</p>
+
+  <h3>5. 水色と焦線を合成する</h3>
+  <ol class="steps">
+    <li>Sample A.RとSample B.RをAddし、0.25をMultiplyしてSaturateします。</li>
+    <li><code>Lerp</code>のAへDeepColor、BへShallowColor、TへSaturateを接続します。</li>
+    <li>CausticsColor × CausticsMask × CausticsIntensityをMultiplyで作ります。</li>
+    <li>Lerpの水色と焦線色をAddし、PBR SurfaceのBase Colorへ接続します。</li>
+    <li>焦線色 × EmissiveStrengthをPBR SurfaceのEmissiveへ接続します。</li>
+  </ol>
+  <div class="flow">
+    <span class="node parameter">DeepColor / ShallowColor</span><span class="arrow">→</span>
+    <span class="node">Lerp</span><span class="arrow">+</span>
+    <span class="node">CausticsColor × Mask × Intensity</span><span class="arrow">→</span>
+    <span class="node output">PBR Base Color</span>
+  </div>
+</section>
+
+<section id="loop">
+  <h2>空間と時間をシームレスにする</h2>
+  <h3>空間シーム</h3>
+  <ul>
+    <li>上下左右が一致するTextureを使用します。</li>
+    <li>SamplerのAddress U/V/Wを<code>MODE_WRAP</code>にします。</li>
+    <li>隣接PlaneがUV 0から1を共有する場合、Tilingは2、3、4などの整数にします。</li>
+    <li>World Scaleが異なるPlaneを並べる場合、同じUV密度になるようPrimitiveのSizeかTilingを合わせます。</li>
+  </ul>
+
+  <h3>20秒で完全に元へ戻す</h3>
+  <p>TextureはUVが整数分移動すると同じ位置へ戻ります。各Flow成分について次の条件を満たします。</p>
+  <pre class="formula"><code>Flow.x * LoopSeconds = 整数
+Flow.y * LoopSeconds = 整数</code></pre>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Layer</th><th>Flow</th><th>20秒後の移動</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>(0.05, 0.05)</td><td>(1, 1)</td><td>元のSample位置へ戻る</td></tr>
+      <tr><td>B</td><td>(-0.05, 0.05)</td><td>(-1, 1)</td><td>元のSample位置へ戻る</td></tr>
+    </tbody>
+  </table></div>
+  <p><code>Fraction</code>をOffset前へ入れることで値を0から1付近に保ち、長時間実行時の大きなUV座標も避けられます。Fractionが0へ戻る瞬間もMODE_WRAPなら同じTexel位置なので見た目は飛びません。</p>
+  <div class="notice danger"><strong>ループしない設定:</strong> FlowAを(0.037, 0.021)のような任意値にすると20秒後の移動量が整数にならず、録画やタイトル画面のループ境界で模様が飛びます。</div>
+</section>
+
+<section id="pbr">
+  <h2>PBRとして仕上げる</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>PBR入力</th><th>接続</th><th>推奨</th></tr></thead>
+    <tbody>
+      <tr><td>Base Color</td><td>水色 + 焦線色</td><td>HDR化しすぎず0から1付近</td></tr>
+      <tr><td>Normal</td><td>未設定なら幾何法線</td><td>後述のNormal合成を追加可能</td></tr>
+      <tr><td>Metallic</td><td>Float定数</td><td>0.0</td></tr>
+      <tr><td>Roughness</td><td>Roughness Parameter</td><td>0.08から0.20</td></tr>
+      <tr><td>Ambient Occlusion</td><td>Float定数</td><td>1.0</td></tr>
+      <tr><td>Emissive</td><td>焦線色 × EmissiveStrength</td><td>0.15から0.50</td></tr>
+      <tr><td>Opacity</td><td>OpacityまたはFresnelとのLerp</td><td>Opaque時1.0、Transparent時0.75から0.9</td></tr>
+      <tr><td>Alpha Clip</td><td>Float定数</td><td>0.0</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Fresnelを追加する</h3>
+  <ol class="steps">
+    <li><code>World Normal</code>と<code>View Direction</code>を追加します。</li>
+    <li><code>Fresnel Effect</code>へNormal、View Direction、FresnelPowerを接続します。</li>
+    <li>Fresnel × FresnelStrength × CausticsColorを作り、Emissiveへ加算します。</li>
+    <li>Transparent時は<code>Lerp(Opacity, 1.0, Fresnel)</code>をOpacityへ接続すると、斜めから見た輪郭が濃くなります。</li>
+  </ol>
+  <div class="flow">
+    <span class="node">World Normal + View Direction</span><span class="arrow">→</span>
+    <span class="node">Fresnel Effect</span><span class="arrow">→</span>
+    <span class="node">× Strength × Color</span><span class="arrow">→</span>
+    <span class="node output">Emissive / Opacity</span>
+  </div>
+</section>
+
+<section id="normal">
+  <h2>法線も揺らす</h2>
+  <p>コースティクス模様だけでは輪郭と反射像は平面のままです。Water Normal Textureを同じように2方向へ流すと、水面らしいハイライトになります。</p>
+  <ol class="steps">
+    <li><code>WaterNormalTexture</code>をTexture2D、<code>NormalStrength</code>をFloatの公開パラメータとして追加します。NormalStrengthは0.35から開始します。</li>
+    <li>Layer A/Bで使用したTiling And Offsetの出力を、それぞれNormal用Sample Texture 2Dへ接続します。</li>
+    <li>各SampleのRGBAを別々の<code>Unpack Normal</code>へ接続します。</li>
+    <li>2つのUnpack Normal出力をAddし、Normalizeします。</li>
+    <li><code>Lerp(World Normal, 合成Normal, NormalStrength)</code>をNormalizeし、PBR SurfaceのNormalへ接続します。</li>
+  </ol>
+  <div class="flow">
+    <span class="node">Normal Sample A</span><span class="arrow">→</span>
+    <span class="node">Unpack Normal</span><span class="arrow">↘</span>
+    <span class="node">Add → Normalize</span><span class="arrow">→</span>
+    <span class="node">Lerp(World Normal)</span><span class="arrow">→</span>
+    <span class="node output">PBR Normal</span>
+  </div>
+  <p><code>Unpack Normal</code>はPrimitive頂点のTangent-to-World行列を使用してワールド法線へ変換します。そのため、Unpack前ではなくUnpack後にWorld Normalと混ぜます。</p>
+</section>
+
+<section id="vertex">
+  <h2>任意: Primitive Planeを小さく波打たせる</h2>
+  <div class="notice warn">添付画像の模様を作るだけなら不要です。Planeのシルエットや反射を揺らしたい場合だけ追加してください。</div>
+  <p>公開パラメータとして<code>WaveAmplitude</code>を追加し、0.02から0.08程度で使用します。Primitive Planeの分割X/Yは32以上を推奨します。</p>
+  <ol class="steps">
+    <li>右クリックの出力から<code>Vertex</code>を追加します。</li>
+    <li>Vertex用にUV、Time、Tiling And Offset、Texture Sampleを複製します。</li>
+    <li>2つのSample.RをAddし、0.5をMultiplyしてから0.5をSubtractします。値が約-0.5から0.5になります。</li>
+    <li>値 × WaveAmplitude × Object Normalを作ります。</li>
+    <li>Object Positionへ加算し、VertexのPosition (Object)へ接続します。</li>
+    <li>Object NormalとObject TangentはそのままVertexのNormal/Tangentへ接続します。</li>
+  </ol>
+  <div class="flow">
+    <span class="node">Height Samples</span><span class="arrow">→</span>
+    <span class="node">-0.5 × Amplitude</span><span class="arrow">→</span>
+    <span class="node">× Object Normal</span><span class="arrow">+</span>
+    <span class="node">Object Position</span><span class="arrow">→</span>
+    <span class="node output">Vertex Position</span>
+  </div>
+  <p>現在は変位後の幾何法線を自動再計算しません。変位量を小さくし、Fragment側のWater Normalで細かい反射を表現する構成が安定します。</p>
+  <p>同じVertex出力は<code>Primitive2D</code>でも使用できます。画面演出用のPlane/Ringでは生成VSで変形されますが、ワールド水面には<code>Primitive3D</code>を使用してください。</p>
+</section>
+
+<section id="apply">
+  <h2>保存、Material生成、Entityへ適用</h2>
+  <ol class="steps">
+    <li>水面Entityを<strong>プレビューエンティティ</strong>へ設定します。</li>
+    <li><strong>保存してコンパイル</strong>を押します。</li>
+    <li><code>waterSurface.material.json</code>が同じフォルダへ生成されたことを確認します。</li>
+    <li>生成Materialを水面EntityのPrimitiveRendererへ設定します。</li>
+    <li>PlayせずEdit中でもTimeを含むノードプレビューとMaterialプレビューを確認します。</li>
+  </ol>
+  <p>TextureやColorを変更した場合は自動プレビューされます。ノードやグループの位置だけを移動した場合はShader再コンパイルされません。</p>
+</section>
+
+<section id="csharp">
+  <h2>C#からゲーム中に調整する</h2>
+  <p>水面の移動時間はShader GraphのTimeが自動更新するため、毎フレームC#からTimeを設定する必要はありません。天候やゲームイベントで色・強度を変える場合だけMaterialInstanceを使用します。</p>
+  <pre><code>using NEMEngine;
+
+public sealed class WaterSurfaceController : ScriptBehaviour {
+    [SerializeField] private PrimitiveRenderer waterRenderer;
+    [SerializeField] private float calmIntensity = 0.8f;
+    [SerializeField] private float activeIntensity = 1.4f;
+
+    // Shader Graphの公開パラメータ欄に表示される16桁IDを設定する
+    private static readonly MaterialParameterID CausticsIntensityID =
+        MaterialParameterID.FromHex("ここへParameter ID");
+
+    public void SetActive(bool active) {
+        float intensity = active ? activeIntensity : calmIntensity;
+        waterRenderer.MaterialInstance.SetFloat(
+            CausticsIntensityID,
+            "CausticsIntensity",
+            intensity);
+    }
+
+    public void SetWaterColor(Color4 color) {
+        waterRenderer.MaterialInstance.SetColor("ShallowColor", color);
+    }
+}</code></pre>
+  <div class="notice"><strong>安定ID:</strong> Shader Graph公開パラメータを確実に更新する場合は、パラメータ欄からIDをコピーし、<code>MaterialParameterID.FromHex</code>を使用します。名前変更後も同じIDを維持できます。</div>
+  <p>Entity固有の値を元へ戻す場合はMaterialInstanceの<code>Clear</code>を使用します。</p>
+</section>
+
+<section id="tuning">
+  <h2>添付画像へ近づける調整</h2>
+  <div class="preset-grid">
+    <article>
+      <h4>線を細く、明るくする</h4>
+      <span class="tag">Threshold ↑</span><span class="tag">Softness ↓</span>
+      <p>Thresholdを0.6から0.75へ上げ、Softnessを0.05から0.1へ下げます。EmissiveStrengthは0.3前後から調整します。</p>
+    </article>
+    <article>
+      <h4>大きくゆっくり揺らす</h4>
+      <span class="tag">Tiling ↓</span><span class="tag">LoopSeconds ↑</span>
+      <p>TilingAを(1,1)、TilingBを(2,2)にします。40秒ループならFlowを±0.025単位にします。</p>
+    </article>
+    <article>
+      <h4>青を深くする</h4>
+      <span class="tag">DeepColor</span><span class="tag">Roughness</span>
+      <p>DeepColorのBを残してR/Gを下げます。Roughnessを0.08程度へ下げると水面反射が強くなります。</p>
+    </article>
+    <article>
+      <h4>模様の反復感を減らす</h4>
+      <span class="tag">Tiling 2 / 3</span><span class="tag">逆方向Flow</span>
+      <p>Layer A/Bで互いに素な整数Tilingを使い、X方向を逆に流します。同じ位置で模様が重なる周期を長くできます。</p>
+    </article>
+  </div>
+  <h3>推奨プリセット</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>用途</th><th>Tiling A/B</th><th>Loop</th><th>Roughness</th><th>Opacity</th></tr></thead>
+    <tbody>
+      <tr><td>プール</td><td>2 / 3</td><td>20秒</td><td>0.10</td><td>0.82</td></tr>
+      <tr><td>浅瀬</td><td>3 / 5</td><td>20秒</td><td>0.18</td><td>0.72</td></tr>
+      <tr><td>幻想的な水面</td><td>2 / 4</td><td>10秒</td><td>0.08</td><td>0.88</td></tr>
+      <tr><td>遠景の海</td><td>6 / 9</td><td>40秒</td><td>0.28</td><td>1.00</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="performance">
+  <h2>処理負荷</h2>
+  <ul>
+    <li>基本構成はコースティクスTextureを2回Sampleします。</li>
+    <li>Normalも2方向へ流すと合計4 Texture Sampleです。</li>
+    <li>Vertex変形でTextureを2回Sampleすると、Primitiveの各頂点段階にも追加負荷が発生します。</li>
+    <li>大量の小さな水面ではNormal Layerを1枚に減らすか、Emissiveだけの簡易Materialを用意します。</li>
+    <li>Voronoiは1Sampleごとに周辺9セルを評価するため、Texture方式よりALU負荷が高くなります。</li>
+    <li>TimeはGPU側の共通定数で更新されるため、EntityごとのC# Updateは不要です。</li>
+  </ul>
+  <div class="notice ok"><strong>推奨負荷構成:</strong> 大きな水面1から数枚なら、Caustics 2 Sample + Normal 2 Sample + Fresnelで問題ありません。多数の水面を表示する場合はCaustics 2 Sample + 幾何法線へ減らします。</div>
+</section>
+
+<section id="limitations">
+  <h2>現在の制限</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>機能</th><th>現状</th><th>今回の対処</th></tr></thead>
+    <tbody>
+      <tr><td>専用Water Node</td><td>なし</td><td>汎用UV/Time/PBRノードで構成</td></tr>
+      <tr><td>周期Noise</td><td>Simple Noise/Voronoiは時間周期を保証しない</td><td>シームレスTextureを整数UV分移動</td></tr>
+      <tr><td>Planar Reflection</td><td>Water専用経路なし</td><td>PBRの環境反射とFresnelを使用</td></tr>
+      <tr><td>正確な屈折</td><td>高水準なRefractionノードなし</td><td>今回の基本構成では使用しない</td></tr>
+      <tr><td>Depth Fade/岸泡</td><td>専用ノードなし</td><td>必要ならTransparent + Scene Depthを使う別Graphを設計</td></tr>
+      <tr><td>変位法線再計算</td><td>Vertex変位後に自動再計算しない</td><td>小さい変位 + Normal Texture</td></tr>
+      <tr><td>FFT/Gerstner Wave</td><td>組み込みなし</td><td>Custom Functionまたは将来の専用実装が必要</td></tr>
+    </tbody>
+  </table></div>
+  <p>したがって、添付画像のような「青い面に揺らぐ明るい焦線」は現在の機能で完成できます。一方、海洋シミュレーションや正確な水中屈折まで同じMaterialで実現するには追加機能が必要です。</p>
+</section>
+
+<section id="troubleshooting">
+  <h2>トラブル対応</h2>
+  <details open><summary>水面が真っ黒になる</summary><div>
+    <ul>
+      <li>CausticsTexture ParameterへTextureが設定されているか確認します。</li>
+      <li>ParameterノードがSample Texture 2DのTextureへ接続されているか確認します。</li>
+      <li>PBR SurfaceのBase Colorへ最終Addが接続されているか確認します。</li>
+      <li>保存だけでなく<strong>保存してコンパイル</strong>を実行します。</li>
+      <li>生成された<code>waterSurface.material.json</code>をRendererへ設定します。</li>
+    </ul>
+  </div></details>
+  <details><summary>模様が動かない</summary><div>
+    <p>TimeノードのTime出力、MultiplyのFlow値、Fraction、Tiling And OffsetのOffsetを順に確認します。Flowが(0,0)なら動きません。</p>
+  </div></details>
+  <details><summary>Textureの境界に線が出る</summary><div>
+    <p>元Textureがシームレスでないか、Address U/VがMODE_CLAMPになっています。MODE_WRAPへ変更し、Textureの左右・上下が一致するか画像編集ツールで確認します。</p>
+  </div></details>
+  <details><summary>20秒目で模様が飛ぶ</summary><div>
+    <p>各Flow成分 × 20が整数か確認します。Rotateを使用して隣接Planeをまたいでいる場合はRotateを外してください。</p>
+  </div></details>
+  <details><summary>焦線が面全体を白くする</summary><div>
+    <p>Thresholdを上げます。Textureが白背景の場合はSample直後へOne Minusを追加します。CausticsIntensityとEmissiveStrengthも下げてください。</p>
+  </div></details>
+  <details><summary>透明水面の描画順がおかしい</summary><div>
+    <p>まずOpaqueへ戻してGraph自体を確認します。Transparentでは深度書き込みを無効にし、重なる透明面を必要以上に増やさないでください。</p>
+  </div></details>
+  <details><summary>Normalの凹凸が逆に見える</summary><div>
+    <p>Normal TextureのGチャンネル規約を確認します。必要ならSampleをSplitし、GへOne Minusを通してCombineした後、Unpack Normalへ接続します。</p>
+  </div></details>
+  <details><summary>Vertex変形が見えない</summary><div>
+    <p>Primitive Planeの分割X/Yが1では中央が曲がりません。両方を32にし、WaveAmplitudeを一時的に0.2程度へ上げて接続を確認します。Shader Graphの描画対象が<code>Primitive3D</code>であることも確認してください。</p>
+  </div></details>
+  <details><summary>C#から値を変えても反映されない</summary><div>
+    <p>Shader Graphパラメータの16桁IDをコピーし、MaterialParameterID.FromHexを使用します。PrimitiveRendererへ生成Materialが設定されていることも確認してください。</p>
+  </div></details>
+</section>
+
+<section id="check">
+  <h2>完成確認</h2>
+  <ul class="checklist">
+    <li>水面が黒ではなくDeepColorとShallowColorで表示される</li>
+    <li>Layer AとBが異なる方向へ動く</li>
+    <li>Texture境界と隣接Plane境界に継ぎ目がない</li>
+    <li>20秒後のフレームが開始時と一致する</li>
+    <li>Thresholdで焦線の太さを調整できる</li>
+    <li>Fresnelが斜め方向で強くなる</li>
+    <li>Normalを有効にすると反射ハイライトが揺れる</li>
+    <li>OpaqueとTransparentのどちらを採用するか決定している</li>
+    <li>保存してコンパイル後のMaterialをRendererへ設定している</li>
+    <li>Release用Shader Cookに生成MaterialとShader Graphが含まれる</li>
+  </ul>
+  <div class="notice ok"><strong>最小完成条件:</strong> Caustics 2 Sample、Maximum、Smoothstep、Base Color、Roughness、Emissiveまで接続できれば、添付画像に近い揺らぐ水面として使用できます。NormalとVertex変形は後から追加できます。</div>
+</section>
+
+<footer>
+  <p>関連資料: <a href="ShaderGraph.html">NEMEngine Shader Graph全機能ガイド</a></p>
+</footer>
+</main>
+</div>
+</body>
+</html>

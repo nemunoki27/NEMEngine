@@ -4,6 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
+#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
 //============================================================================
 //	BuiltinRenderBackendBase classMethods
@@ -18,6 +21,7 @@ void Engine::BuiltinRenderBackendBase::BeginFrameCommon() {
 
 	constantBufferAllocator_.BeginFrame();
 	materialParamBinder_.BeginFrame();
+	shaderGraphTimeGPUAddress_ = 0;
 }
 
 void Engine::BuiltinRenderBackendBase::SyncAndBindRegistry(const PipelineState& pipelineState,
@@ -26,6 +30,32 @@ void Engine::BuiltinRenderBackendBase::SyncAndBindRegistry(const PipelineState& 
 	registryAutoBindTable_.Sync(pipelineState, *context.bufferRegistry);
 	registryAutoBindTable_.BindGraphics(*context.bufferRegistry, commandList);
 	perDrawBindCache_.Sync(pipelineState);
+	if (!perDrawBindCache_.Has(shaderGraphTimeCBVSlot_) ||
+		!context.graphicsCore || !context.systemContext) {
+
+		return;
+	}
+
+	if (shaderGraphTimeGPUAddress_ == 0) {
+		const SystemContext& systemContext = *context.systemContext;
+		const ShaderGraphTimeConstantsGPU constants{
+			.time = systemContext.time,
+			.deltaTime = systemContext.deltaTime,
+			.smoothDeltaTime = systemContext.smoothDeltaTime,
+			.unscaledTime = systemContext.unscaledTime,
+		};
+		const PostProcessConstantBufferAllocation allocation =
+			constantBufferAllocator_.AllocateAndUpload(
+				context.graphicsCore->GetDXObject().GetDevice(),
+				constants);
+		shaderGraphTimeGPUAddress_ = allocation.gpuAddress;
+	}
+	if (shaderGraphTimeGPUAddress_ != 0) {
+		RootBindingCommand::SetGraphicsCBV(
+			commandList,
+			perDrawBindCache_.Get(shaderGraphTimeCBVSlot_),
+			shaderGraphTimeGPUAddress_);
+	}
 }
 
 void Engine::BuiltinRenderBackendBase::BindMaterial(const RenderDrawContext& context,

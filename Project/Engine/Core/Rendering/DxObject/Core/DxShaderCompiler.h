@@ -21,7 +21,7 @@ namespace Engine {
 		//============================================================================
 
 		DxShaderCompiler() = default;
-		~DxShaderCompiler() = default;
+		~DxShaderCompiler();
 
 		// DXCの初期化(コンパイラインターフェース/インクルードハンドラ等の準備)
 		void Init();
@@ -39,5 +39,6 @@ namespace Engine {
 		ComPtr<IDxcUtils> dxcUtils_;
 		ComPtr<IDxcCompiler3> dxcCompiler_;
 		ComPtr<IDxcIncludeHandler> includeHandler_;
+		HMODULE dxcompilerModule_ = nullptr;
 	};
 }; // Engine

@@ -1,0 +1,3082 @@
+{
+    "defaultPrecision": "Float",
+    "domain": "Surface",
+    "groups": [],
+    "keywords": [],
+    "links": [
+        {
+            "id": "79b4670bf0538332",
+            "inputNode": "3ded7adf2b1b5f73",
+            "inputSlot": 2,
+            "outputNode": "d0d973619b487254",
+            "outputSlot": 0
+        },
+        {
+            "id": "36096d12cce561ea",
+            "inputNode": "3ded7adf2b1b5f73",
+            "inputSlot": 3,
+            "outputNode": "121602785fc5755c",
+            "outputSlot": 0
+        },
+        {
+            "id": "aeddda35cf1aa85e",
+            "inputNode": "3ded7adf2b1b5f73",
+            "inputSlot": 4,
+            "outputNode": "b00f1271643be315",
+            "outputSlot": 0
+        },
+        {
+            "id": "4be1cc5fa1fa0e1b",
+            "inputNode": "ad4969c57800f61d",
+            "inputSlot": 0,
+            "outputNode": "d8cc536fd0d86494",
+            "outputSlot": 0
+        },
+        {
+            "id": "6ba54190b4bb8f71",
+            "inputNode": "7f021912f69a4556",
+            "inputSlot": 1,
+            "outputNode": "1410c4b55f37539c",
+            "outputSlot": 0
+        },
+        {
+            "id": "99047d319e7fdad6",
+            "inputNode": "abd6dc605e454f8d",
+            "inputSlot": 0,
+            "outputNode": "0cb3169443a8277d",
+            "outputSlot": 0
+        },
+        {
+            "id": "7aca7868d9543c9a",
+            "inputNode": "abd6dc605e454f8d",
+            "inputSlot": 1,
+            "outputNode": "05de668d3033f557",
+            "outputSlot": 0
+        },
+        {
+            "id": "62f411ba808947f1",
+            "inputNode": "6ffe6c665a6f393a",
+            "inputSlot": 0,
+            "outputNode": "7f021912f69a4556",
+            "outputSlot": 0
+        },
+        {
+            "id": "8dbfda16662a665c",
+            "inputNode": "6ffe6c665a6f393a",
+            "inputSlot": 1,
+            "outputNode": "abd6dc605e454f8d",
+            "outputSlot": 0
+        },
+        {
+            "id": "2704ef5b164d90a7",
+            "inputNode": "a46da19231d1f83d",
+            "inputSlot": 0,
+            "outputNode": "6ffe6c665a6f393a",
+            "outputSlot": 0
+        },
+        {
+            "id": "f166b5b9488b6ecb",
+            "inputNode": "5ca9aea576cc802b",
+            "inputSlot": 0,
+            "outputNode": "a46da19231d1f83d",
+            "outputSlot": 0
+        },
+        {
+            "id": "f3583d7c9f74fa21",
+            "inputNode": "a6becef5b43a7c0d",
+            "inputSlot": 0,
+            "outputNode": "437883564dc0be30",
+            "outputSlot": 0
+        },
+        {
+            "id": "630cb2244019e9f9",
+            "inputNode": "6ab1395139ab2322",
+            "inputSlot": 1,
+            "outputNode": "a6becef5b43a7c0d",
+            "outputSlot": 0
+        },
+        {
+            "id": "4f531b6c7acc6fa1",
+            "inputNode": "6ab1395139ab2322",
+            "inputSlot": 0,
+            "outputNode": "2668b22afea3373b",
+            "outputSlot": 0
+        },
+        {
+            "id": "f4cfe253fdf9707e",
+            "inputNode": "cf8ba51649e03ba7",
+            "inputSlot": 0,
+            "outputNode": "6ab1395139ab2322",
+            "outputSlot": 0
+        },
+        {
+            "id": "4fcc7e048bc3e3e2",
+            "inputNode": "c79f9eb47e8e5517",
+            "inputSlot": 0,
+            "outputNode": "6f407c0be3baff89",
+            "outputSlot": 0
+        },
+        {
+            "id": "d48bf97c2a00e8b9",
+            "inputNode": "32c64f29aa68623c",
+            "inputSlot": 0,
+            "outputNode": "a59b56553bc29f78",
+            "outputSlot": 0
+        },
+        {
+            "id": "fa5f7763bbee203f",
+            "inputNode": "c79f9eb47e8e5517",
+            "inputSlot": 2,
+            "outputNode": "32c64f29aa68623c",
+            "outputSlot": 0
+        },
+        {
+            "id": "0457a61ceabf4db8",
+            "inputNode": "ba6d59790cc13ce5",
+            "inputSlot": 0,
+            "outputNode": "a39c7bc75e372d68",
+            "outputSlot": 0
+        },
+        {
+            "id": "be1f356816d2d5a4",
+            "inputNode": "f912c10aabf15189",
+            "inputSlot": 0,
+            "outputNode": "9b2e2bf795c71c4e",
+            "outputSlot": 0
+        },
+        {
+            "id": "af1f22696802138e",
+            "inputNode": "f912c10aabf15189",
+            "inputSlot": 1,
+            "outputNode": "650570292751b7da",
+            "outputSlot": 0
+        },
+        {
+            "id": "e4a014480b936278",
+            "inputNode": "af1e383640ed7d57",
+            "inputSlot": 0,
+            "outputNode": "f912c10aabf15189",
+            "outputSlot": 0
+        },
+        {
+            "id": "21fae2a31937ae37",
+            "inputNode": "65da0deed339c85a",
+            "inputSlot": 0,
+            "outputNode": "750de5ac5f72c5cc",
+            "outputSlot": 0
+        },
+        {
+            "id": "2e48a09a12e73fc7",
+            "inputNode": "af1e383640ed7d57",
+            "inputSlot": 2,
+            "outputNode": "65da0deed339c85a",
+            "outputSlot": 0
+        },
+        {
+            "id": "b6055e6b268e14d1",
+            "inputNode": "4e7b4b8178158458",
+            "inputSlot": 0,
+            "outputNode": "5cf184235209ead4",
+            "outputSlot": 0
+        },
+        {
+            "id": "9d56c439075718b8",
+            "inputNode": "4e7b4b8178158458",
+            "inputSlot": 1,
+            "outputNode": "af1e383640ed7d57",
+            "outputSlot": 0
+        },
+        {
+            "id": "252856e78a9ba3b5",
+            "inputNode": "b6bd2819e61a7a6a",
+            "inputSlot": 0,
+            "outputNode": "ba6d59790cc13ce5",
+            "outputSlot": 2
+        },
+        {
+            "id": "09b037c7ec71dbd3",
+            "inputNode": "b6bd2819e61a7a6a",
+            "inputSlot": 1,
+            "outputNode": "4e7b4b8178158458",
+            "outputSlot": 2
+        },
+        {
+            "id": "0406e9cfa96b77bc",
+            "inputNode": "dd3c654d477fbb8b",
+            "inputSlot": 0,
+            "outputNode": "0057fc5efc2f7549",
+            "outputSlot": 0
+        },
+        {
+            "id": "8f497f5229fc27f0",
+            "inputNode": "dd3c654d477fbb8b",
+            "inputSlot": 1,
+            "outputNode": "7712e6bbf9202691",
+            "outputSlot": 0
+        },
+        {
+            "id": "3de9bd901c83ddb8",
+            "inputNode": "45fb385e895570b4",
+            "inputSlot": 1,
+            "outputNode": "cf6936b2c757c14f",
+            "outputSlot": 0
+        },
+        {
+            "id": "266ed31ec4e5dcc9",
+            "inputNode": "2ed1af63971afa14",
+            "inputSlot": 0,
+            "outputNode": "45fb385e895570b4",
+            "outputSlot": 0
+        },
+        {
+            "id": "b00b42becc693d6b",
+            "inputNode": "2ed1af63971afa14",
+            "inputSlot": 1,
+            "outputNode": "afdc4ceaeb437326",
+            "outputSlot": 0
+        },
+        {
+            "id": "b35e16e9997d6cee",
+            "inputNode": "0b9da06df41eac98",
+            "inputSlot": 0,
+            "outputNode": "ad4969c57800f61d",
+            "outputSlot": 0
+        },
+        {
+            "id": "163f56f46ed14e16",
+            "inputNode": "0b9da06df41eac98",
+            "inputSlot": 1,
+            "outputNode": "ad4969c57800f61d",
+            "outputSlot": 2
+        },
+        {
+            "id": "31007b02fd2b1f99",
+            "inputNode": "7f021912f69a4556",
+            "inputSlot": 0,
+            "outputNode": "0b9da06df41eac98",
+            "outputSlot": 0
+        },
+        {
+            "id": "9106c3d999665399",
+            "inputNode": "4e7b4b8178158458",
+            "inputSlot": 2,
+            "outputNode": "772e310ea5b99fba",
+            "outputSlot": 0
+        },
+        {
+            "id": "1b500be7f0352b1f",
+            "inputNode": "3528a6aa2dbd8456",
+            "inputSlot": 1,
+            "outputNode": "4b7ac77ec402bee4",
+            "outputSlot": 0
+        },
+        {
+            "id": "71905c727d86fd56",
+            "inputNode": "3528a6aa2dbd8456",
+            "inputSlot": 0,
+            "outputNode": "b6bd2819e61a7a6a",
+            "outputSlot": 0
+        },
+        {
+            "id": "344638aa683f4f53",
+            "inputNode": "5ca9aea576cc802b",
+            "inputSlot": 1,
+            "outputNode": "1869e6e1632b47b4",
+            "outputSlot": 0
+        },
+        {
+            "id": "f5e77982fa04c75e",
+            "inputNode": "dcccce188b005f15",
+            "inputSlot": 0,
+            "outputNode": "5ca9aea576cc802b",
+            "outputSlot": 0
+        },
+        {
+            "id": "49e3656366e93521",
+            "inputNode": "dcccce188b005f15",
+            "inputSlot": 1,
+            "outputNode": "3528a6aa2dbd8456",
+            "outputSlot": 0
+        },
+        {
+            "id": "99fc3e5af7d2a2d1",
+            "inputNode": "a6becef5b43a7c0d",
+            "inputSlot": 1,
+            "outputNode": "dcccce188b005f15",
+            "outputSlot": 0
+        },
+        {
+            "id": "e5affa061239b88d",
+            "inputNode": "32c64f29aa68623c",
+            "inputSlot": 1,
+            "outputNode": "148dc8689b6b9580",
+            "outputSlot": 0
+        },
+        {
+            "id": "692e7edca6077333",
+            "inputNode": "65da0deed339c85a",
+            "inputSlot": 1,
+            "outputNode": "395a436b9bff8266",
+            "outputSlot": 0
+        },
+        {
+            "id": "b5ffeeb84dfe2913",
+            "inputNode": "c79f9eb47e8e5517",
+            "inputSlot": 1,
+            "outputNode": "3c3727d1509e4a41",
+            "outputSlot": 0
+        },
+        {
+            "id": "2c4301b8068f7aff",
+            "inputNode": "af1e383640ed7d57",
+            "inputSlot": 1,
+            "outputNode": "779718f75ea75b7a",
+            "outputSlot": 0
+        },
+        {
+            "id": "be6924a91eb519a3",
+            "inputNode": "dbb070e358eb8b86",
+            "inputSlot": 0,
+            "outputNode": "b6bd2819e61a7a6a",
+            "outputSlot": 0
+        },
+        {
+            "id": "7d515ce31039b57a",
+            "inputNode": "dbb070e358eb8b86",
+            "inputSlot": 1,
+            "outputNode": "e5ebf7feb724af12",
+            "outputSlot": 0
+        },
+        {
+            "id": "5aa1200ba9dd3e2b",
+            "inputNode": "dbb070e358eb8b86",
+            "inputSlot": 2,
+            "outputNode": "05d653f5122efaae",
+            "outputSlot": 0
+        },
+        {
+            "id": "9cef823042cc233a",
+            "inputNode": "ebbd840065414140",
+            "inputSlot": 0,
+            "outputNode": "dbb070e358eb8b86",
+            "outputSlot": 0
+        },
+        {
+            "id": "980b887d33559d66",
+            "inputNode": "f0facc2e8b2d0295",
+            "inputSlot": 0,
+            "outputNode": "ebbd840065414140",
+            "outputSlot": 0
+        },
+        {
+            "id": "55e3653ccaad022d",
+            "inputNode": "f0facc2e8b2d0295",
+            "inputSlot": 1,
+            "outputNode": "2163b5242ec9c429",
+            "outputSlot": 0
+        },
+        {
+            "id": "8defe94a52b9c13a",
+            "inputNode": "45fb385e895570b4",
+            "inputSlot": 0,
+            "outputNode": "f0facc2e8b2d0295",
+            "outputSlot": 0
+        },
+        {
+            "id": "7666bdef2a0146c0",
+            "inputNode": "a6307cfb65d5cfc8",
+            "inputSlot": 0,
+            "outputNode": "4e7b4b8178158458",
+            "outputSlot": 2
+        },
+        {
+            "id": "51422385c2540d86",
+            "inputNode": "b0a233bba1063e84",
+            "inputSlot": 1,
+            "outputNode": "f3ddde7a7439cd19",
+            "outputSlot": 0
+        },
+        {
+            "id": "8b59c11061cb5b21",
+            "inputNode": "b0a233bba1063e84",
+            "inputSlot": 0,
+            "outputNode": "a6307cfb65d5cfc8",
+            "outputSlot": 0
+        },
+        {
+            "id": "b45811feded43793",
+            "inputNode": "a459be0790c1a406",
+            "inputSlot": 0,
+            "outputNode": "b0a233bba1063e84",
+            "outputSlot": 0
+        },
+        {
+            "id": "195bbeb71bcf0473",
+            "inputNode": "a459be0790c1a406",
+            "inputSlot": 1,
+            "outputNode": "d27a5ef9b4bdc19e",
+            "outputSlot": 0
+        },
+        {
+            "id": "3f8e14ee31fde477",
+            "inputNode": "ba6d59790cc13ce5",
+            "inputSlot": 2,
+            "outputNode": "e047a49f7e0495aa",
+            "outputSlot": 0
+        },
+        {
+            "id": "9a98fbba4a6930bf",
+            "inputNode": "52523d8fcfe7323f",
+            "inputSlot": 0,
+            "outputNode": "c79f9eb47e8e5517",
+            "outputSlot": 0
+        },
+        {
+            "id": "9ea4bff77e8dd38c",
+            "inputNode": "52523d8fcfe7323f",
+            "inputSlot": 1,
+            "outputNode": "a459be0790c1a406",
+            "outputSlot": 0
+        },
+        {
+            "id": "085533aa743f0082",
+            "inputNode": "ba6d59790cc13ce5",
+            "inputSlot": 1,
+            "outputNode": "52523d8fcfe7323f",
+            "outputSlot": 0
+        },
+        {
+            "id": "0a508c98f8398902",
+            "inputNode": "a6307cfb65d5cfc8",
+            "inputSlot": 1,
+            "outputNode": "3de449910fbd4469",
+            "outputSlot": 0
+        },
+        {
+            "id": "357f30beb0b75991",
+            "inputNode": "a6307cfb65d5cfc8",
+            "inputSlot": 2,
+            "outputNode": "0b8abdf8febc7e0e",
+            "outputSlot": 0
+        },
+        {
+            "id": "0c6977e5fc586ab9",
+            "inputNode": "a2d118ebc7b42dd4",
+            "inputSlot": 1,
+            "outputNode": "55b52a688d349ca3",
+            "outputSlot": 0
+        },
+        {
+            "id": "b442e77365798814",
+            "inputNode": "cc3be28938c87e5d",
+            "inputSlot": 0,
+            "outputNode": "a2d118ebc7b42dd4",
+            "outputSlot": 0
+        },
+        {
+            "id": "95fd904d1f2120b8",
+            "inputNode": "f912c10aabf15189",
+            "inputSlot": 2,
+            "outputNode": "cc3be28938c87e5d",
+            "outputSlot": 0
+        },
+        {
+            "id": "04ea9343c45f6d80",
+            "inputNode": "cc3be28938c87e5d",
+            "inputSlot": 1,
+            "outputNode": "f14feb22df6a135d",
+            "outputSlot": 0
+        },
+        {
+            "id": "922121bd5c53db60",
+            "inputNode": "f472a551f005f1d0",
+            "inputSlot": 0,
+            "outputNode": "f0facc2e8b2d0295",
+            "outputSlot": 0
+        },
+        {
+            "id": "ebb00baa06782cb8",
+            "inputNode": "dd3c654d477fbb8b",
+            "inputSlot": 2,
+            "outputNode": "f472a551f005f1d0",
+            "outputSlot": 0
+        },
+        {
+            "id": "a5a7f82561e4fb4c",
+            "inputNode": "04f8532126a8c536",
+            "inputSlot": 0,
+            "outputNode": "4e7b4b8178158458",
+            "outputSlot": 2
+        },
+        {
+            "id": "3a1da84a1e24bc07",
+            "inputNode": "04f8532126a8c536",
+            "inputSlot": 1,
+            "outputNode": "af9c0b964851cb13",
+            "outputSlot": 0
+        },
+        {
+            "id": "d4aeb6a0ab0d8e26",
+            "inputNode": "1c0877de7fcb3fb5",
+            "inputSlot": 1,
+            "outputNode": "af9c0b964851cb13",
+            "outputSlot": 0
+        },
+        {
+            "id": "9c19f89b9ac2413a",
+            "inputNode": "1c0877de7fcb3fb5",
+            "inputSlot": 0,
+            "outputNode": "ba6d59790cc13ce5",
+            "outputSlot": 2
+        },
+        {
+            "id": "4df668c1bd5e40e0",
+            "inputNode": "638ad0b0969a2dd6",
+            "inputSlot": 0,
+            "outputNode": "1c0877de7fcb3fb5",
+            "outputSlot": 0
+        },
+        {
+            "id": "951f3a6ce2239743",
+            "inputNode": "c9074d06c1dfa0f6",
+            "inputSlot": 0,
+            "outputNode": "638ad0b0969a2dd6",
+            "outputSlot": 2
+        },
+        {
+            "id": "7e7fc3cd1e591359",
+            "inputNode": "c9074d06c1dfa0f6",
+            "inputSlot": 1,
+            "outputNode": "7f52030658166bcd",
+            "outputSlot": 0
+        },
+        {
+            "id": "392a200ce101623f",
+            "inputNode": "35f3be8d7131a537",
+            "inputSlot": 0,
+            "outputNode": "5d4296c359aae94d",
+            "outputSlot": 0
+        },
+        {
+            "id": "391e4add94f29145",
+            "inputNode": "cec9d5298c26b33e",
+            "inputSlot": 0,
+            "outputNode": "35f3be8d7131a537",
+            "outputSlot": 0
+        },
+        {
+            "id": "5aa14aa76c990d7e",
+            "inputNode": "35f3be8d7131a537",
+            "inputSlot": 1,
+            "outputNode": "c9074d06c1dfa0f6",
+            "outputSlot": 0
+        },
+        {
+            "id": "320085509f78a2f8",
+            "inputNode": "638ad0b0969a2dd6",
+            "inputSlot": 1,
+            "outputNode": "04f8532126a8c536",
+            "outputSlot": 0
+        },
+        {
+            "id": "b1c992728fe1ca10",
+            "inputNode": "3ded7adf2b1b5f73",
+            "inputSlot": 0,
+            "outputNode": "dd3c654d477fbb8b",
+            "outputSlot": 0
+        },
+        {
+            "id": "cdfd0853118d426d",
+            "inputNode": "3ded7adf2b1b5f73",
+            "inputSlot": 6,
+            "outputNode": "033e73230e52b2b5",
+            "outputSlot": 0
+        },
+        {
+            "id": "fe3e0df52459dedf",
+            "inputNode": "443255e23687568b",
+            "inputSlot": 0,
+            "outputNode": "cec9d5298c26b33e",
+            "outputSlot": 1
+        },
+        {
+            "id": "27bdc42224e390b7",
+            "inputNode": "443255e23687568b",
+            "inputSlot": 2,
+            "outputNode": "e174ed309e47fc91",
+            "outputSlot": 0
+        },
+        {
+            "id": "21052ebfee78392f",
+            "inputNode": "27f6270e41a84a4b",
+            "inputSlot": 1,
+            "outputNode": "dd3c654d477fbb8b",
+            "outputSlot": 0
+        },
+        {
+            "id": "45c84994d92f5d2f",
+            "inputNode": "27f6270e41a84a4b",
+            "inputSlot": 0,
+            "outputNode": "cec9d5298c26b33e",
+            "outputSlot": 1
+        },
+        {
+            "id": "48137ccf07407bde",
+            "inputNode": "443255e23687568b",
+            "inputSlot": 1,
+            "outputNode": "27f6270e41a84a4b",
+            "outputSlot": 0
+        },
+        {
+            "id": "2cca8aca413b2780",
+            "inputNode": "39b9cf81c54e58b4",
+            "inputSlot": 1,
+            "outputNode": "443255e23687568b",
+            "outputSlot": 0
+        },
+        {
+            "id": "d26a8be3780b5e83",
+            "inputNode": "39b9cf81c54e58b4",
+            "inputSlot": 0,
+            "outputNode": "2ed1af63971afa14",
+            "outputSlot": 0
+        },
+        {
+            "id": "0f51edb56046f9f9",
+            "inputNode": "3ded7adf2b1b5f73",
+            "inputSlot": 5,
+            "outputNode": "39b9cf81c54e58b4",
+            "outputSlot": 0
+        },
+        {
+            "id": "1c0e4695c1e46981",
+            "inputNode": "a2d118ebc7b42dd4",
+            "inputSlot": 0,
+            "outputNode": "750de5ac5f72c5cc",
+            "outputSlot": 0
+        }
+    ],
+    "name": "emissivePulse",
+    "nodes": [
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "3ded7adf2b1b5f73",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SurfaceOutput",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 823.0,
+                "y": 238.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "d0d973619b487254",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 659.0,
+                "y": 132.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "121602785fc5755c",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 515.0,
+                "y": 132.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.20000000298023224,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "b00f1271643be315",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 371.0,
+                "y": 132.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 1.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "0cb3169443a8277d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Time",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -641.0,
+                "y": -158.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cf8ba51649e03ba7",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "VertexOutput",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 995.0,
+                "y": -228.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "d8cc536fd0d86494",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "ObjectPosition",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -721.0,
+                "y": -314.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "437883564dc0be30",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "ObjectNormal",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 503.0,
+                "y": -266.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "ad4969c57800f61d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Split",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -561.0,
+                "y": -316.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "5ca9aea576cc802b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 327.0,
+                "y": -204.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "abd6dc605e454f8d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -201.0,
+                "y": -188.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a6becef5b43a7c0d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 679.0,
+                "y": -234.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "7f021912f69a4556",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -197.0,
+                "y": -268.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "6ffe6c665a6f393a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Add",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -21.0,
+                "y": -268.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "6ab1395139ab2322",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Add",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 831.0,
+                "y": -248.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a46da19231d1f83d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Sine",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 139.0,
+                "y": -266.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "1410c4b55f37539c",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "1b4a25d30f10e785",
+            "position": {
+                "x": -469.0,
+                "y": -204.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "05de668d3033f557",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "ff54db46263e0605",
+            "position": {
+                "x": -469.0,
+                "y": -124.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "2668b22afea3373b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "ObjectPosition",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 655.0,
+                "y": -312.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "6f407c0be3baff89",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "UV",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2633.0,
+                "y": -528.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "c79f9eb47e8e5517",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "TilingAndOffset",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2441.0,
+                "y": -436.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "32c64f29aa68623c",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2617.0,
+                "y": -368.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a59b56553bc29f78",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Time",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2825.0,
+                "y": -496.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "ba6d59790cc13ce5",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "TextureSample",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2093.0,
+                "y": -492.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a39c7bc75e372d68",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "fe81d67c90acff44",
+            "position": {
+                "x": -2265.0,
+                "y": -546.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Texture2D"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "9b2e2bf795c71c4e",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "UV",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3693.0,
+                "y": -120.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f912c10aabf15189",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Rotate",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3497.0,
+                "y": -56.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "650570292751b7da",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3709.0,
+                "y": -42.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                0.5,
+                0.5
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "af1e383640ed7d57",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "TilingAndOffset",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3321.0,
+                "y": 52.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "65da0deed339c85a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3513.0,
+                "y": 294.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "750de5ac5f72c5cc",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Time",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -4077.0,
+                "y": -40.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "5cf184235209ead4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "400db124a49e0781",
+            "position": {
+                "x": -3325.0,
+                "y": -26.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Texture2D"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "4e7b4b8178158458",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "TextureSample",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3133.0,
+                "y": -28.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "b6bd2819e61a7a6a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Subtract",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1897.0,
+                "y": 118.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "0057fc5efc2f7549",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "1cbe08349480f0d9",
+            "position": {
+                "x": -509.0,
+                "y": 260.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Color"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "7712e6bbf9202691",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "b11145159f768f77",
+            "position": {
+                "x": -509.0,
+                "y": 340.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Color"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "dd3c654d477fbb8b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Lerp",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -329.0,
+                "y": 278.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cf6936b2c757c14f",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "b11145159f768f77",
+            "position": {
+                "x": -525.0,
+                "y": 518.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Color"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "45fb385e895570b4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -345.0,
+                "y": 470.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "2ed1af63971afa14",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -121.0,
+                "y": 502.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "afdc4ceaeb437326",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "0daa6888b2b57990",
+            "position": {
+                "x": -349.0,
+                "y": 630.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "0b9da06df41eac98",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -385.0,
+                "y": -300.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "772e310ea5b99fba",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SamplerState",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3321.0,
+                "y": 156.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "sampler": {
+                "addressU": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+                "addressV": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+                "addressW": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+                "borderColor": "D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK",
+                "comparisonFunc": "D3D12_COMPARISON_FUNC_ALWAYS",
+                "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+                "maxAnisotropy": 1,
+                "maxLOD": 3.4028234663852886e+38,
+                "minLOD": 0.0,
+                "mipLODBias": 0.0
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "3528a6aa2dbd8456",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 311.0,
+                "y": -42.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "4b7ac77ec402bee4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "5c5c5d0e620a31e8",
+            "position": {
+                "x": 119.0,
+                "y": 52.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "1869e6e1632b47b4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "95bff9480e854e48",
+            "position": {
+                "x": 143.0,
+                "y": -126.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "dcccce188b005f15",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Add",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 507.0,
+                "y": -202.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "148dc8689b6b9580",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "de97c7e02233ca89",
+            "position": {
+                "x": -2821.0,
+                "y": -370.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "395a436b9bff8266",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "ba638c022285f4ad",
+            "position": {
+                "x": -3721.0,
+                "y": 308.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "3c3727d1509e4a41",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "df02cc0337f16392",
+            "position": {
+                "x": -2617.0,
+                "y": -450.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "779718f75ea75b7a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "c5297103f4694b17",
+            "position": {
+                "x": -3497.0,
+                "y": 118.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "dbb070e358eb8b86",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Remap",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1417.0,
+                "y": 278.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "e5ebf7feb724af12",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1629.0,
+                "y": 244.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                -1.0,
+                1.0
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "05d653f5122efaae",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1635.0,
+                "y": 351.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                0.0,
+                1.0
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "ebbd840065414140",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Saturate",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1225.0,
+                "y": 278.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f0facc2e8b2d0295",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Power",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1033.0,
+                "y": 328.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "2163b5242ec9c429",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "d16641090d77b078",
+            "position": {
+                "x": -1229.0,
+                "y": 420.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a6307cfb65d5cfc8",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Remap",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2877.0,
+                "y": -272.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "0b8abdf8febc7e0e",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3105.0,
+                "y": -276.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                -1.0,
+                1.0
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "3de449910fbd4469",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3105.0,
+                "y": -164.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                0.0,
+                1.0
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "b0a233bba1063e84",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2685.0,
+                "y": -242.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f3ddde7a7439cd19",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "3e4364ddfa2f2203",
+            "position": {
+                "x": -2865.0,
+                "y": -98.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a459be0790c1a406",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2493.0,
+                "y": -242.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "d27a5ef9b4bdc19e",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2689.0,
+                "y": -84.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                1.0,
+                -0.7300000190734863
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "e047a49f7e0495aa",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SamplerState",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2281.0,
+                "y": -284.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "sampler": {
+                "addressU": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+                "addressV": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+                "addressW": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
+                "borderColor": "D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK",
+                "comparisonFunc": "D3D12_COMPARISON_FUNC_ALWAYS",
+                "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+                "maxAnisotropy": 1,
+                "maxLOD": 3.4028234663852886e+38,
+                "minLOD": 0.0,
+                "mipLODBias": 0.0
+            },
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "52523d8fcfe7323f",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Add",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2281.0,
+                "y": -450.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a2d118ebc7b42dd4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3897.0,
+                "y": 6.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "55b52a688d349ca3",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -4073.0,
+                "y": 98.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.07999999821186066,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cc3be28938c87e5d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Add",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3669.0,
+                "y": 102.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f14feb22df6a135d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -3897.0,
+                "y": 162.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": -0.003000000026077032,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f472a551f005f1d0",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "OneMinus",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -857.0,
+                "y": 328.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "5d4296c359aae94d",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "ScreenPosition",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1373.0,
+                "y": -168.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "void BuildRefractionUV(\n      float4 screenPosition,\n      float2 distortion,\n      out float2 sceneUV)\n  {\n      uint width;\n      uint height;\n      gShaderGraphSceneColor.GetDimensions(width, height);\n\n      float2 resolution = max(\n          float2(width, height),\n          float2(1.0f, 1.0f));\n\n      sceneUV = saturate(\n          screenPosition.xy / resolution + distortion);\n  }",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "BuildRefractionUV",
+            "groupID": "",
+            "id": "35f3be8d7131a537",
+            "inputPorts": [
+                {
+                    "defaultValue": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "id": "12f4e097be9c3cc7",
+                    "name": "ScreenPosition",
+                    "type": "Float4"
+                },
+                {
+                    "defaultValue": [
+                        0.0,
+                        0.0
+                    ],
+                    "id": "6afab4673beefda6",
+                    "name": "Distortion",
+                    "type": "Float2"
+                }
+            ],
+            "keywordID": "",
+            "kind": "CustomFunction",
+            "outputPorts": [
+                {
+                    "defaultValue": [
+                        0.0,
+                        0.0
+                    ],
+                    "id": "ffc71a78b27de868",
+                    "name": "SceneUV",
+                    "type": "Float2"
+                }
+            ],
+            "parameterID": "",
+            "position": {
+                "x": -1200.0,
+                "y": -154.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cec9d5298c26b33e",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SceneColor",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -489.0,
+                "y": 62.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "04f8532126a8c536",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Subtract",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1757.0,
+                "y": -72.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "1c0877de7fcb3fb5",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Subtract",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1757.0,
+                "y": -152.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "638ad0b0969a2dd6",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Combine",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1565.0,
+                "y": -142.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "c9074d06c1dfa0f6",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -1373.0,
+                "y": -110.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "af9c0b964851cb13",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -2109.0,
+                "y": -140.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.5,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "7f52030658166bcd",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "d51391dd087eda13",
+            "position": {
+                "x": -1565.0,
+                "y": 48.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "033e73230e52b2b5",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "ae5f8526c1a6c71b",
+            "position": {
+                "x": 211.0,
+                "y": 166.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "443255e23687568b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Lerp",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 55.0,
+                "y": 676.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "e174ed309e47fc91",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "efa787b9dbb9c83c",
+            "position": {
+                "x": -109.0,
+                "y": 758.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "27f6270e41a84a4b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -153.0,
+                "y": 280.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "39b9cf81c54e58b4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Add",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 279.0,
+                "y": 472.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        }
+    ],
+    "outputNode": "3ded7adf2b1b5f73",
+    "parameters": [
+        {
+            "defaultValue": 0.009999999776482582,
+            "exposed": true,
+            "id": "ed0754f01af46959",
+            "name": "Amplitude",
+            "precision": "Inherit",
+            "referenceName": "Amplitude",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.12999999523162842,
+            "exposed": true,
+            "id": "1b4a25d30f10e785",
+            "name": "Frequency",
+            "precision": "Inherit",
+            "referenceName": "Frequency",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.699999988079071,
+            "exposed": true,
+            "id": "ff54db46263e0605",
+            "name": "Speed",
+            "precision": "Inherit",
+            "referenceName": "Speed",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": "fa8a722ec0ae8be200c86308a3b1b757",
+            "exposed": true,
+            "id": "fe81d67c90acff44",
+            "name": "ColorNoiseTextureA",
+            "precision": "Inherit",
+            "referenceName": "ColorNoiseTextureA",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Texture2D"
+        },
+        {
+            "defaultValue": "b8e6c1090d48cb6868a7dcb58fabf2a0",
+            "exposed": true,
+            "id": "400db124a49e0781",
+            "name": "ColorNoiseTextureB",
+            "precision": "Inherit",
+            "referenceName": "ColorNoiseTextureB",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Texture2D"
+        },
+        {
+            "defaultValue": {
+                "a": 1.0,
+                "b": 0.0810810923576355,
+                "g": 0.0,
+                "r": 0.008139418438076973
+            },
+            "exposed": true,
+            "id": "1cbe08349480f0d9",
+            "name": "BaseColor",
+            "precision": "Inherit",
+            "referenceName": "BaseColor",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Color"
+        },
+        {
+            "defaultValue": {
+                "a": 1.0,
+                "b": 0.33976835012435913,
+                "g": 0.05247388035058975,
+                "r": 0.0
+            },
+            "exposed": true,
+            "id": "b11145159f768f77",
+            "name": "GrowColor",
+            "precision": "Inherit",
+            "referenceName": "GrowColor",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Color"
+        },
+        {
+            "defaultValue": 0.10999999940395355,
+            "exposed": true,
+            "id": "0daa6888b2b57990",
+            "name": "GrowPower",
+            "precision": "Inherit",
+            "referenceName": "GrowPower",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.10000000149011612,
+            "exposed": true,
+            "id": "b71c0e325ae361a4",
+            "name": "FlowSpeedA",
+            "precision": "Inherit",
+            "referenceName": "FlowSpeedA",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": -0.5,
+            "exposed": true,
+            "id": "5501732fd3ca70b4",
+            "name": "FlowSpeedB",
+            "precision": "Inherit",
+            "referenceName": "FlowSpeedB",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.07000000029802322,
+            "exposed": true,
+            "id": "5c5c5d0e620a31e8",
+            "name": "WaveAmplitude",
+            "precision": "Inherit",
+            "referenceName": "WaveAmplitude",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.0,
+            "exposed": true,
+            "id": "356f7fccc4a39776",
+            "name": "NoiseTextureA",
+            "precision": "Inherit",
+            "referenceName": "NoiseTextureA",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Texture2D"
+        },
+        {
+            "defaultValue": 0.0,
+            "exposed": true,
+            "id": "7492187f88543e90",
+            "name": "NoiseTextureB",
+            "precision": "Inherit",
+            "referenceName": "NoiseTextureB",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Texture2D"
+        },
+        {
+            "defaultValue": [
+                2.5999999046325684,
+                3.5999999046325684
+            ],
+            "exposed": true,
+            "id": "df02cc0337f16392",
+            "name": "TilingA",
+            "precision": "Inherit",
+            "referenceName": "TilingA",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float2"
+        },
+        {
+            "defaultValue": [
+                6.199999809265137,
+                5.199999809265137
+            ],
+            "exposed": true,
+            "id": "c5297103f4694b17",
+            "name": "TilingB",
+            "precision": "Inherit",
+            "referenceName": "TilingB",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float2"
+        },
+        {
+            "defaultValue": [
+                0.02500000037252903,
+                0.014999999664723873
+            ],
+            "exposed": true,
+            "id": "de97c7e02233ca89",
+            "name": "FlowA",
+            "precision": "Inherit",
+            "referenceName": "FlowA",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float2"
+        },
+        {
+            "defaultValue": [
+                -0.017999999225139618,
+                0.03200000151991844
+            ],
+            "exposed": true,
+            "id": "ba638c022285f4ad",
+            "name": "FlowB",
+            "precision": "Inherit",
+            "referenceName": "FlowB",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float2"
+        },
+        {
+            "defaultValue": 0.7200000286102295,
+            "exposed": true,
+            "id": "3e4364ddfa2f2203",
+            "name": "WrapStrength",
+            "precision": "Inherit",
+            "referenceName": "WrapStrength",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 1.2999999523162842,
+            "exposed": true,
+            "id": "d16641090d77b078",
+            "name": "CrestPower",
+            "precision": "Inherit",
+            "referenceName": "CrestPower",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.009999999776482582,
+            "exposed": true,
+            "id": "95bff9480e854e48",
+            "name": "LargeWaveAmp",
+            "precision": "Inherit",
+            "referenceName": "",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.8700000047683716,
+            "exposed": true,
+            "id": "ae5f8526c1a6c71b",
+            "name": "Opacity",
+            "precision": "Inherit",
+            "referenceName": "",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.019999999552965164,
+            "exposed": true,
+            "id": "d51391dd087eda13",
+            "name": "RefractionStrength",
+            "precision": "Inherit",
+            "referenceName": "RefractionStrength",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.20999999344348907,
+            "exposed": true,
+            "id": "efa787b9dbb9c83c",
+            "name": "RefractionTint",
+            "precision": "Inherit",
+            "referenceName": "RefractionTint",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        }
+    ],
+    "renderState": {
+        "alphaClipping": false,
+        "blendMode": "Normal",
+        "castShadows": false,
+        "cullMode": "D3D12_CULL_MODE_BACK",
+        "depthClipEnable": true,
+        "depthFunc": "D3D12_COMPARISON_FUNC_LESS_EQUAL",
+        "depthTest": true,
+        "depthWrite": false,
+        "fillMode": "D3D12_FILL_MODE_SOLID",
+        "frontCounterClockwise": false,
+        "receiveShadows": true,
+        "stencilEnable": false,
+        "twoSided": true
+    },
+    "schemaVersion": 8,
+    "surfaceMode": "Transparent",
+    "target": "Primitive3D",
+    "vertexOutputNode": "cf8ba51649e03ba7"
+}

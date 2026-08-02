@@ -79,7 +79,12 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 有効か
-		bool IsValid() const { return sceneMain_ && sceneMain_->IsValid() && sceneFinal_ && sceneFinal_->IsValid(); }
+		bool IsValid() const {
+
+			return sceneMain_ && sceneMain_->IsValid() &&
+				sceneFinal_ && sceneFinal_->IsValid() &&
+				sceneColorOpaque_ && sceneColorOpaque_->IsValid();
+		}
 
 		// DeferredのGBufferサーフェス、color並びはGBufferAttachmentと一致させる
 		// color0 albedo / color1 normal / color2 worldPosition / color3 material / color4 emissive / color5 flags + 深度
@@ -87,6 +92,7 @@ namespace Engine {
 		MultiRenderTarget* GetSceneMain() const { return sceneMain_.get(); }
 		// Raytracing/Transparent/PostProcess用の1色(UAV)サーフェス、ライティング結果の合成先
 		MultiRenderTarget* GetSceneFinal() const { return sceneFinal_.get(); }
+		MultiRenderTarget* GetSceneColorOpaque() const { return sceneColorOpaque_.get(); }
 		// 深度プリパスから生成するHi-Zテクスチャ
 		DepthPyramidTexture& GetDepthPyramid() { return depthPyramid_; }
 		const DepthPyramidTexture& GetDepthPyramid() const { return depthPyramid_; }
@@ -120,6 +126,8 @@ namespace Engine {
 		std::unique_ptr<MultiRenderTarget> sceneMain_;
 		// SceneColorFinal (UAV付き)
 		std::unique_ptr<MultiRenderTarget> sceneFinal_;
+		// SceneFinalと同形式の透明Surface用読み取りコピー
+		std::unique_ptr<MultiRenderTarget> sceneColorOpaque_;
 		DepthPyramidTexture depthPyramid_{};
 		// Runtime ScreenSpaceOutlineComponent用
 		ScreenSpaceOutlineViewResources runtimeOutline_{};
@@ -140,6 +148,7 @@ namespace Engine {
 
 		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
 		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);
+		static MultiRenderTargetCreateDesc BuildSceneColorOpaqueDesc(uint32_t width, uint32_t height);
 		static MultiRenderTargetCreateDesc BuildScreenSpaceOutlineMaskDesc(
 			uint32_t width, uint32_t height, std::string_view name, bool createUAV);
 	};

@@ -168,6 +168,24 @@ const Engine::GPUTextureResource* Engine::BackendDrawCommon::ResolveTextureAsset
 	return RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase, textureAssetID);
 }
 
+Engine::MaterialParameterBufferBuilder::TextureResolveResult
+Engine::BackendDrawCommon::ResolveMaterialTextureIndex(
+	const RenderDrawContext& context, MaterialParameterSemantic semantic,
+	const AssetID& textureAssetID) {
+
+	if (!textureAssetID || !context.graphicsCore) {
+		return {};
+	}
+	const RuntimeTextureResolver::BindlessResolveResult result =
+		RuntimeTextureResolver::ResolveBindless(
+			*context.graphicsCore, context.assetDatabase,
+			textureAssetID, IsSRGBMaterialTexture(semantic));
+	return {
+		.index = result.srvIndex,
+		.cacheable = !result.retry,
+	};
+}
+
 void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& context,
 	const PipelineState& pipelineState, MaterialParameterBinder& binder, const MaterialAsset& material,
 	ID3D12GraphicsCommandList* commandList,
@@ -204,8 +222,13 @@ void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDraw
 	const MaterialParameterSet& effectiveOverrides =
 		overrides ? *overrides : kEmptyOverrides;
 	ID3D12Device* device = context.graphicsCore->GetDXObject().GetDevice();
+	const auto resolveTexture = [&context](MaterialParameterSemantic semantic,
+		const AssetID& textureAssetID) {
+		return ResolveMaterialTextureIndex(context, semantic, textureAssetID);
+	};
 	const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
-		binder.ResolveAndUpload(device, pipelineState, material, effectiveOverrides);
+		binder.ResolveAndUpload(device, pipelineState, material,
+			effectiveOverrides, resolveTexture);
 	if (materialParamsAddress != 0) {
 		RootBindingCommand::SetGraphicsCBV(commandList, bindCache.Get(slot), materialParamsAddress);
 	}

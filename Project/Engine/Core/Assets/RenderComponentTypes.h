@@ -46,8 +46,9 @@ namespace Engine {
 		Subtract, // 減算
 		Multiply, // 乗算
 		Screen,   // スクリーン
+		Premultiplied, // 乗算済みα
 	};
-	static constexpr const uint32_t kBlendModeCount = static_cast<uint32_t>(BlendMode::Screen) + 1;
+	static constexpr const uint32_t kBlendModeCount = static_cast<uint32_t>(BlendMode::Premultiplied) + 1;
 
 	// Renderer固有の疎なマテリアル値
 	using MaterialInstanceParameters = MaterialParameterSet;

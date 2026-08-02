@@ -266,7 +266,8 @@ void Engine::MaterialParameterSet::Set(
 	if (!id) {
 		id = MaterialParameterID::FromName(name);
 	}
-	if (MaterialParameterRecord* record = FindRecord(id, name)) {
+	if (MaterialParameterRecord* record = FindRecord(id)) {
+		record->namedValue.first = name;
 		record->semantic = semantic;
 		record->namedValue.second = value;
 		Touch();
@@ -318,32 +319,19 @@ const Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
 
 Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(MaterialParameterID id) {
 
-	if (!data_) {
-		return nullptr;
-	}
-	const auto position = std::lower_bound(data_->records.begin(), data_->records.end(), id.value,
-		[](const MaterialParameterRecord& record, uint64_t target) {
-			return record.id.value < target;
-		});
-	if (position == data_->records.end() || position->id != id) {
+	MaterialParameterRecord* record = FindRecord(id);
+	if (!record) {
 		return nullptr;
 	}
 	Touch();
-	return &position->namedValue.second;
+	return &record->namedValue.second;
 }
 
 const Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
 	MaterialParameterID id) const {
 
-	if (!data_) {
-		return nullptr;
-	}
-	const auto position = std::lower_bound(data_->records.begin(), data_->records.end(), id.value,
-		[](const MaterialParameterRecord& record, uint64_t target) {
-			return record.id.value < target;
-		});
-	return position != data_->records.end() && position->id == id ?
-		&position->namedValue.second : nullptr;
+	const MaterialParameterRecord* record = FindRecord(id);
+	return record ? &record->namedValue.second : nullptr;
 }
 
 Engine::MaterialParameterValue*
@@ -471,6 +459,28 @@ void Engine::MaterialParameterSet::Touch() {
 	}
 	++data_->revision;
 	data_->contentHashDirty = true;
+}
+
+Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(
+	MaterialParameterID id) {
+
+	return const_cast<MaterialParameterRecord*>(
+		static_cast<const MaterialParameterSet*>(this)->FindRecord(id));
+}
+
+const Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(
+	MaterialParameterID id) const {
+
+	if (!data_ || !id) {
+		return nullptr;
+	}
+	const auto position = std::lower_bound(
+		data_->records.begin(), data_->records.end(), id.value,
+		[](const MaterialParameterRecord& record, uint64_t target) {
+			return record.id.value < target;
+		});
+	return position != data_->records.end() && position->id == id ?
+		&*position : nullptr;
 }
 
 Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(

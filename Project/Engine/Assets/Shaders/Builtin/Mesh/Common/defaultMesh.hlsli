@@ -1,3 +1,6 @@
+#ifndef NEM_DEFAULT_MESH_HLSLI
+#define NEM_DEFAULT_MESH_HLSLI
+
 //============================================================================
 //	Common VS/PS
 //============================================================================
@@ -350,3 +353,5 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 
 	return output;
 }
+
+#endif // NEM_DEFAULT_MESH_HLSLI

@@ -146,11 +146,11 @@ namespace Engine {
 		void AppendTextInputUtf16(wchar_t code) { pendingWide_.push_back(code); }
 		void SetWindowFocus(bool focused) { hasFocus_ = focused; }
 
-		// 外部エクスプローラーからのファイルドロップでWM_DROPFILESからmain threadで積む、点はクライアント座標
-		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& clientPoint) {
+		// 外部エクスプローラーからのファイルドロップを画面座標で積む
+		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint) {
 			if (paths.empty()) { return; }
 			droppedFiles_ = paths;
-			droppedFilesPoint_ = clientPoint;
+			droppedFilesPoint_ = screenPoint;
 			hasDroppedFiles_ = true;
 		}
 		// 溜めたファイルドロップを取り出して消費する、未着なら何もせずfalse

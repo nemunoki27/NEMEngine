@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
+#include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 
 //============================================================================
 //	RaytracingPipelineState classMethods
@@ -32,9 +33,47 @@ namespace {
 	D3D12_SHADER_BYTECODE ToByteCode(const Engine::CompiledShader& shader) {
 
 		D3D12_SHADER_BYTECODE byteCode{};
-		byteCode.pShaderBytecode = shader.object->GetBufferPointer();
-		byteCode.BytecodeLength = shader.object->GetBufferSize();
+		byteCode.pShaderBytecode = shader.GetBytecodePointer();
+		byteCode.BytecodeLength = shader.GetBytecodeSize();
 		return byteCode;
+	}
+
+	Engine::CompiledShader LoadRaytracingLibrary(
+		Engine::DxShaderCompiler* compiler,
+		const Engine::ShaderStageEntry& stage) {
+
+		const std::string entry = stage.entry.empty() ?
+			"main" : stage.entry;
+		const std::string profile = stage.profile.empty() ?
+			"lib_6_6" : stage.profile;
+		Engine::CompiledShader shader{};
+		if (stage.ownerShader && Engine::ShaderCook::Load({
+			.shader = stage.ownerShader,
+			.stage = Engine::ShaderStage::Lib,
+			.entry = entry,
+			.profile = profile,
+			}, shader)) {
+
+			Engine::Logger::Output(Engine::LogType::Engine,
+				"[ShaderCook] Loaded DXR shader={} entry={}",
+				Engine::ToString(stage.ownerShader), entry);
+			return shader;
+		}
+		if (Engine::ShaderCook::IsCookedProduct()) {
+			Engine::Logger::Output(Engine::LogType::Engine,
+				spdlog::level::err,
+				"[ShaderCook] Missing cooked DXR shader={} entry={} profile={}",
+				Engine::ToString(stage.ownerShader), entry, profile);
+			return {};
+		}
+		const std::filesystem::path path = ResolveShaderPath(stage.file);
+		if (!compiler || path.empty()) {
+			return {};
+		}
+		return compiler->CompileShader(path.wstring(),
+			Engine::Algorithm::ConvertString(profile).c_str(),
+			Engine::Algorithm::ConvertString(entry).c_str(),
+			Engine::ShaderStage::Lib);
 	}
 }
 
@@ -185,38 +224,20 @@ bool Engine::RaytracingPipelineState::BuildStateObject(ID3D12Device8* device,
 		return false;
 	}
 
-	// シェーダーファイルのパスを取得
-	const std::filesystem::path rayGenPath = ResolveShaderPath(rayGenStage->file);
-	const std::filesystem::path missPath = ResolveShaderPath(missStage->file);
-	const std::filesystem::path hitPath = ResolveShaderPath(closestHitStage->file);
-	const std::filesystem::path anyHitPath = anyHitStage ?
-		ResolveShaderPath(anyHitStage->file) : std::filesystem::path{};
-	// シェーダーファイルが見つからない場合はエラー
-	if (rayGenPath.empty() || missPath.empty() || hitPath.empty() ||
-		(anyHitStage && anyHitPath.empty())) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Required shader file was not found");
-		return false;
-	}
-
-	// シェーダーのコンパイル
-	CompiledShader rayGenShader = compiler->CompileShader(rayGenPath.wstring(),
-		Algorithm::ConvertString(rayGenStage->profile.empty() ? std::string("lib_6_6") : rayGenStage->profile).c_str(),
-		Algorithm::ConvertString(rayGenStage->entry).c_str(), ShaderStage::Lib);
-	CompiledShader missShader = compiler->CompileShader(missPath.wstring(),
-		Algorithm::ConvertString(missStage->profile.empty() ? std::string("lib_6_6") : missStage->profile).c_str(),
-		Algorithm::ConvertString(missStage->entry).c_str(), ShaderStage::Lib);
-	CompiledShader closestHitShader = compiler->CompileShader(hitPath.wstring(),
-		Algorithm::ConvertString(closestHitStage->profile.empty() ? std::string("lib_6_6") : closestHitStage->profile).c_str(),
-		Algorithm::ConvertString(closestHitStage->entry).c_str(), ShaderStage::Lib);
+	// 製品ではCook済みDXIL、EditorではCook失敗時のみソースを使用
+	CompiledShader rayGenShader =
+		LoadRaytracingLibrary(compiler, *rayGenStage);
+	CompiledShader missShader =
+		LoadRaytracingLibrary(compiler, *missStage);
+	CompiledShader closestHitShader =
+		LoadRaytracingLibrary(compiler, *closestHitStage);
 	CompiledShader anyHitShader{};
 	if (anyHitStage) {
-		anyHitShader = compiler->CompileShader(anyHitPath.wstring(),
-			Algorithm::ConvertString(anyHitStage->profile.empty() ? std::string("lib_6_6") : anyHitStage->profile).c_str(),
-			Algorithm::ConvertString(anyHitStage->entry).c_str(), ShaderStage::Lib);
+		anyHitShader = LoadRaytracingLibrary(
+			compiler, *anyHitStage);
 	}
-	if (!rayGenShader.object || !missShader.object || !closestHitShader.object ||
-		(anyHitStage && !anyHitShader.object)) {
+	if (!rayGenShader.IsValid() || !missShader.IsValid() || !closestHitShader.IsValid() ||
+		(anyHitStage && !anyHitShader.IsValid())) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[RaytracingPipeline] Required shader library compilation failed");
 		return false;

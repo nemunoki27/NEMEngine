@@ -34,6 +34,9 @@ namespace Engine {
 	//============================================================================
 	struct PipelineCreateSettings {
 
+		RenderPhase phase = RenderPhase::Opaque;
+		BlendMode blendMode = BlendMode::Normal;
+
 		// ラスタライザ
 		D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID;
 		D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_NONE;
@@ -46,9 +49,17 @@ namespace Engine {
 		D3D12_COMPARISON_FUNC depthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 		bool stencilEnable = false;
 
-		// 静的サンプラー、U/V/Wは同じ設定をまとめて使う
+		// 静的サンプラー
 		D3D12_FILTER samplerFilter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-		D3D12_TEXTURE_ADDRESS_MODE samplerAddress = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		D3D12_TEXTURE_ADDRESS_MODE samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		D3D12_TEXTURE_ADDRESS_MODE samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		D3D12_TEXTURE_ADDRESS_MODE samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		D3D12_COMPARISON_FUNC samplerComparison = D3D12_COMPARISON_FUNC_ALWAYS;
+		D3D12_STATIC_BORDER_COLOR samplerBorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+		int32_t samplerMaxAnisotropy = 1;
+		float samplerMipLODBias = 0.0f;
+		float samplerMinLOD = 0.0f;
+		float samplerMaxLOD = D3D12_FLOAT32_MAX;
 	};
 
 	//============================================================================
@@ -116,6 +127,8 @@ namespace Engine {
 		AssetID createSourceMaterial_{};
 		// 取り込み元マテリアルの参照シェーダーも一緒に設定するか
 		bool createImportShaders_ = false;
+		// Shader Graph Materialの描画状態はGraph側でのみ編集する
+		bool createSourceUsesShaderGraph_ = false;
 		// GameAssets/以降のパスでファイル名込み、拡張子は付けない
 		std::string createRelativePath_{};
 		// 不透明描画用のPipeline設定

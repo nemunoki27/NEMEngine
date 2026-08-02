@@ -35,7 +35,9 @@ public:
 	// 終了処理:タイマーを破棄する
 	void Finalize();
 
-	// コマンドを提出しPresentしてFence発行とFPS待機まで行う
+	// 記録済みコマンドをGPUへ提出する
+	void Submit();
+	// PresentしてFence発行とFPS待機まで行う
 	void Present(IDXGISwapChain4* swapChain);
 private:
 	//============================================================================
@@ -55,8 +57,8 @@ private:
 
 	//--------- functions ----------------------------------------------------
 
-	// コマンドリストを閉じて提出しPresentしてFence値を返す
-	uint64_t ExecuteAndPresent(IDXGISwapChain4* swapChain);
+	// PresentしてFence値を返す
+	uint64_t PresentAndSignal(IDXGISwapChain4* swapChain);
 	// 固定FPS向けにCPU側の待機/時間調整を行う
 	void WaitForTargetFps();
 };

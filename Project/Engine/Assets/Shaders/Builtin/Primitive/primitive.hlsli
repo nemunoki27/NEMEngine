@@ -61,4 +61,32 @@ struct VSOutput {
 	float4 vertexColor : COLOR0;
 };
 
+VSOutput BuildPrimitiveVertexOutput(
+	float3 localPosition,
+	float3 localNormal,
+	float3 localTangent,
+	float tangentSign,
+	float2 uv,
+	float4 vertexColor,
+	PrimitiveInstance instance) {
+
+	VSOutput output;
+	float4 worldPosition = mul(
+		float4(localPosition, 1.0f),
+		instance.worldMatrix);
+	output.position = mul(worldPosition, viewProjection);
+	output.worldPos = worldPosition.xyz;
+	output.normal = normalize(mul(
+		localNormal, (float3x3)instance.worldMatrix));
+	output.tangent = normalize(mul(
+		localTangent, (float3x3)instance.worldMatrix));
+	output.tangentSign = tangentSign;
+	output.texcoord = mul(
+		float4(uv, 0.0f, 1.0f),
+		instance.uvMatrix).xy;
+	output.flags = instance.flags;
+	output.vertexColor = vertexColor;
+	return output;
+}
+
 #endif // NEM_PRIMITIVE_HLSLI

@@ -130,6 +130,7 @@ namespace Engine {
 			ECSWorld* world = nullptr;
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const MeshRendererComponent* renderer = nullptr;
+			bool castShadows = true;
 		};
 		// FillMeshのコレクション
 		struct CollectedFillMeshInstance {
@@ -138,6 +139,7 @@ namespace Engine {
 			ECSWorld* world = nullptr;
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const FillMeshRendererComponent* renderer = nullptr;
+			bool castShadows = true;
 		};
 		// Primitiveのコレクション
 		struct CollectedPrimitiveInstance {
@@ -146,6 +148,7 @@ namespace Engine {
 			ECSWorld* world = nullptr;
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const PrimitiveRendererComponent* renderer = nullptr;
+			bool castShadows = true;
 			// 形状ハッシュ、共有ジオメトリのキー
 			uint64_t geometryHash = 0;
 		};

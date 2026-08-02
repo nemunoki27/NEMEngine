@@ -252,6 +252,8 @@ namespace Engine {
 
 		Data& EnsureData();
 		void Touch();
+		MaterialParameterRecord* FindRecord(MaterialParameterID id);
+		const MaterialParameterRecord* FindRecord(MaterialParameterID id) const;
 		MaterialParameterRecord* FindRecord(MaterialParameterID id, std::string_view name);
 		const MaterialParameterRecord* FindRecord(MaterialParameterID id, std::string_view name) const;
 

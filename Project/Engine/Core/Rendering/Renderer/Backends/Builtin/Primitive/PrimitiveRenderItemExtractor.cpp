@@ -32,6 +32,10 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
 		item.backendID = RenderBackendID::Primitive;
 		item.material = renderer.material;
+		item.castShadows = HasMeshRenderFlag(
+			renderer.renderFlags, MeshRenderFlags::CastShadow);
+		item.receiveShadows = HasMeshRenderFlag(
+			renderer.renderFlags, MeshRenderFlags::ReceiveShadow);
 		// 同一形状と同じMaterial Instance値を同一バッチへまとめる
 		const uint64_t shapeHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		const uint64_t materialHash = renderer.materialInstance.GetContentHash();

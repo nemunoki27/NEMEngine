@@ -42,6 +42,8 @@ namespace Engine {
 
 		// 描画
 		void Draw(ID3D12GraphicsCommandList* commandList);
+		// ネイティブ外部ウィンドウを描画してPresentする
+		void DrawPlatformWindows();
 
 		// 終了処理
 		void Finalize();
@@ -58,13 +60,25 @@ namespace Engine {
 		void AllocateImGuiSRV(D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle,
 			D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle);
 		void FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle);
+		// 新しく生成された外部ウィンドウへエディター処理を接続する
+		void RegisterPlatformWindows();
+		// 外部ウィンドウの元のプロシージャを復元する
+		void RestorePlatformWindowProcedures();
+		// 指定ウィンドウがエディターの管理対象か
+		bool IsEditorWindow(HWND hwnd) const;
+		// 外部ウィンドウのメッセージを処理する
+		static LRESULT CALLBACK PlatformWindowProc(HWND hwnd, UINT message,
+			WPARAM wparam, LPARAM lparam);
 
 		//--------- variables ----------------------------------------------------
+
+		static ImGuiManager* instance_;
 
 		// 初期化済みか
 		bool initialized_ = false;
 
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		std::unordered_map<uint64_t, uint32_t> imguiSRVIndices_;
+		std::unordered_map<HWND, WNDPROC> platformWindowProcedures_;
 	};
 }; // Engine

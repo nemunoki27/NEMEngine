@@ -88,6 +88,8 @@ namespace Engine {
 		void EndFrame(GraphicsCore& graphicsCore, const EditorContext& context,
 			const ViewportRenderService* viewportRenderService, const ResolvedRenderView* sceneRenderView,
 			RenderPipelineRunner* renderPipeline);
+		// 外部エディターウィンドウを描画してPresentする
+		void RenderPlatformWindows();
 
 		// 終了処理
 		void Finalize();
@@ -121,6 +123,8 @@ namespace Engine {
 		bool DuplicateSelection() override;
 		bool CopySelectionToClipboard() override;
 		bool PasteClipboard() override;
+		void NotifyEditorCommandPanelFocused(
+			EditorCommandPanelKind kind) override;
 
 		// パネル複製要求
 		void RequestDuplicatePanel(const std::string& instanceID) override;
@@ -227,6 +231,9 @@ namespace Engine {
 
 		// 各パネル
 		std::vector<std::unique_ptr<IEditorPanel>> panels_;
+		// メイン編集コマンドを受け取るパネルがフォーカス中か
+		EditorCommandPanelKind editorCommandPanelKind_ =
+			EditorCommandPanelKind::None;
 
 		// エディタコンテキスト
 		const EditorContext* currentRenderContext_ = nullptr;

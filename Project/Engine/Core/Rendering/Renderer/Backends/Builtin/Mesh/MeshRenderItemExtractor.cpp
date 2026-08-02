@@ -28,6 +28,10 @@ void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, entityWorldMatrix);
 		item.backendID = RenderBackendID::Mesh;
 		item.material = renderer.material;
+		item.castShadows = HasMeshRenderFlag(
+			renderer.renderFlags, MeshRenderFlags::CastShadow);
+		item.receiveShadows = HasMeshRenderFlag(
+			renderer.renderFlags, MeshRenderFlags::ReceiveShadow);
 		item.cameraDomain = RenderCameraDomain::Perspective;
 		item.batchKey = std::hash<AssetID>{}(renderer.mesh);
 		item.payload = batch.PushPayload(payload);

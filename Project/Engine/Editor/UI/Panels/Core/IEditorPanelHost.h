@@ -14,6 +14,13 @@
 
 namespace Engine {
 
+	enum class EditorCommandPanelKind : uint8_t {
+
+		None,
+		Scene,
+		Project,
+	};
+
 	//============================================================================
 	//	IEditorPanelHost class
 	//	パネルから操作を依頼するための窓口
@@ -38,6 +45,9 @@ namespace Engine {
 		virtual bool DuplicateSelection() = 0;
 		virtual bool CopySelectionToClipboard() = 0;
 		virtual bool PasteClipboard() = 0;
+		// メイン編集コマンドを受け取るパネルのフォーカスを通知
+		virtual void NotifyEditorCommandPanelFocused(
+			EditorCommandPanelKind kind) = 0;
 
 		// パネル複製要求
 		virtual void RequestDuplicatePanel(const std::string& instanceID) = 0;

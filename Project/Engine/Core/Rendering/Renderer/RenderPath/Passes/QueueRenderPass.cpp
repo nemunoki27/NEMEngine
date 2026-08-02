@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
 
 //============================================================================
 //	QueueRenderPass classMethods
@@ -32,6 +33,17 @@ void Engine::QueueRenderPass::Execute(GraphicsCore& graphicsCore,
 	}
 	if (!target) {
 		return;
+	}
+	if (desc_.kind == RenderPathPassKind::Transparent &&
+		context.resources) {
+
+		MultiRenderTargetCopy::CopyColor0Resource(
+			graphicsCore,
+			context.resources->GetSceneFinal(),
+			context.resources->GetSceneColorOpaque());
+		context.resources->GetSceneColorOpaque()->
+			TransitionForShaderRead(
+				*graphicsCore.GetDXObject().GetDxCommand());
 	}
 
 	if (!desc_.usePhaseExecution) {

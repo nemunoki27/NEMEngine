@@ -55,6 +55,7 @@ namespace Engine {
 
 		// 描画
 		void Render(GraphicsCore& graphicsCore) override;
+		void RenderPlatformWindows(GraphicsCore& graphicsCore) override;
 
 		// 終了処理
 		void Finalize() override;

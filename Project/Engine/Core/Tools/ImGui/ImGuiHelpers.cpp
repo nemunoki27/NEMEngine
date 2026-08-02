@@ -426,7 +426,7 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 
 		PropertyLabelWidthState& state = propertyLabelWidthStack.back();
 		const float measuredWidth =
-			ImGui::CalcTextSize(label).x + ImGui::GetStyle().CellPadding.x * 2.0f;
+			ImGui::CalcTextSize(label).x + 4.0f;
 		state.measuredWidth = (std::max)(state.measuredWidth, measuredWidth);
 		labelWidth = (std::max)(state.labelWidth, measuredWidth);
 	}
@@ -505,7 +505,9 @@ Engine::ValueEditResult Engine::MyGUI::DragInt(const char* label, int32_t& value
 	return result;
 }
 
-Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color3& value) {
+Engine::ValueEditResult Engine::MyGUI::ColorEdit(
+	const char* label, Color3& value,
+	ImGuiColorEditFlags flags) {
 
 	ValueEditResult result{};
 
@@ -514,7 +516,8 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color3& valu
 	}
 
 	float color[3] = { value.r, value.g, value.b };
-	result.valueChanged = ImGui::ColorEdit3("##Value", color, ImGuiColorEditFlags_Float);
+	result.valueChanged =
+		ImGui::ColorEdit3("##Value", color, flags);
 	result.anyItemActive = ImGui::IsItemActive();
 	result.editFinished = ImGui::IsItemDeactivatedAfterEdit() || result.valueChanged;
 
@@ -528,7 +531,9 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color3& valu
 	return result;
 }
 
-Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& value) {
+Engine::ValueEditResult Engine::MyGUI::ColorEdit(
+	const char* label, Color4& value,
+	ImGuiColorEditFlags flags) {
 
 	ValueEditResult result{};
 
@@ -537,7 +542,8 @@ Engine::ValueEditResult Engine::MyGUI::ColorEdit(const char* label, Color4& valu
 	}
 
 	float color[4] = { value.r, value.g, value.b, value.a };
-	result.valueChanged = ImGui::ColorEdit4("##Value", color, ImGuiColorEditFlags_Float);
+	result.valueChanged =
+		ImGui::ColorEdit4("##Value", color, flags);
 	result.anyItemActive = ImGui::IsItemActive();
 	result.editFinished = ImGui::IsItemDeactivatedAfterEdit() || result.valueChanged;
 

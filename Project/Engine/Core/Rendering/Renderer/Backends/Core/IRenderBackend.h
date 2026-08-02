@@ -27,6 +27,16 @@ namespace Engine {
 	//============================================================================
 	//	IRenderBackend structures
 	//============================================================================
+	// ShaderGraph生成シェーダーへ渡すフレーム共通時間
+	struct ShaderGraphTimeConstantsGPU {
+
+		float time = 0.0f;
+		float deltaTime = 0.0f;
+		float smoothDeltaTime = 0.0f;
+		float unscaledTime = 0.0f;
+	};
+	static_assert(sizeof(ShaderGraphTimeConstantsGPU) == 16);
+
 	// 描画コンテキスト
 	struct RenderDrawContext {
 

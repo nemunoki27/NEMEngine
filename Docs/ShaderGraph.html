@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEMEngine Shader Graph Guide</title>
+<style>
+:root {
+  color-scheme: light;
+  --ink: #20242a;
+  --muted: #66707c;
+  --line: #d7dce2;
+  --panel: #f5f7f9;
+  --code: #171b20;
+  --green: #13795b;
+  --blue: #1769aa;
+  --amber: #9a6700;
+  --red: #b42318;
+  --purple: #7147a8;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background: #ffffff;
+  font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+a { color: var(--blue); }
+code, pre { font-family: Consolas, "Cascadia Code", monospace; }
+code {
+  padding: 0.1em 0.3em;
+  border: 1px solid #dce1e6;
+  background: #f3f5f7;
+  border-radius: 3px;
+}
+pre {
+  margin: 14px 0;
+  padding: 16px;
+  overflow: auto;
+  color: #f3f5f7;
+  background: var(--code);
+  border-radius: 6px;
+  line-height: 1.55;
+}
+pre code { padding: 0; border: 0; color: inherit; background: transparent; }
+.layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
+nav {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 22px 18px;
+  background: #1e242b;
+  border-right: 1px solid #11161b;
+}
+nav strong { display: block; margin-bottom: 12px; color: #ffffff; font-size: 17px; }
+nav a {
+  display: block;
+  padding: 6px 8px;
+  color: #cbd2d9;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+nav a:hover { color: #ffffff; border-left-color: #5fbf9f; background: #29313a; }
+main { width: min(1120px, 100%); padding: 38px 48px 80px; }
+header { padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.25; }
+h2 { margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 25px; }
+h3 { margin: 30px 0 10px; font-size: 19px; }
+h4 { margin: 22px 0 8px; font-size: 16px; }
+p { margin: 9px 0; }
+ul, ol { padding-left: 24px; }
+.meta { color: var(--muted); }
+.lead { max-width: 860px; font-size: 17px; }
+.notice {
+  margin: 16px 0;
+  padding: 12px 15px;
+  border-left: 4px solid var(--blue);
+  background: #eef6fc;
+}
+.notice.warn { border-left-color: var(--amber); background: #fff8e6; }
+.notice.danger { border-left-color: var(--red); background: #fff1f0; }
+.notice.ok { border-left-color: var(--green); background: #edf8f4; }
+.status {
+  display: inline-block;
+  min-width: 70px;
+  padding: 2px 7px;
+  color: #ffffff;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.done { background: var(--green); }
+.partial { background: var(--amber); }
+.reserved { background: var(--purple); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+table { width: 100%; border-collapse: collapse; min-width: 680px; }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { background: #eef1f4; font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+.steps { counter-reset: step; list-style: none; padding: 0; }
+.steps li { position: relative; padding: 2px 0 16px 42px; }
+.steps li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  color: #ffffff;
+  background: var(--green);
+  border-radius: 50%;
+  text-align: center;
+  line-height: 28px;
+  font-weight: 700;
+}
+.node-filter { width: 100%; max-width: 420px; padding: 9px 11px; border: 1px solid #9da7b1; border-radius: 4px; font: inherit; }
+.noise-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.noise-item { margin: 0; padding: 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 5px; }
+.noise-item img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #cdd3d9; image-rendering: auto; }
+.noise-item figcaption { margin-top: 5px; font-family: Consolas, monospace; font-size: 12px; text-align: center; }
+.two-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.term { padding: 13px 15px; border: 1px solid var(--line); border-radius: 5px; }
+.term h4 { margin-top: 0; }
+.recipe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+.recipe { padding: 15px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+.recipe h4 { margin: 0 0 7px; }
+.recipe p { margin: 7px 0; }
+.recipe dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 10px; margin: 11px 0 0; }
+.recipe dt { font-weight: 700; color: var(--muted); }
+.recipe dd { margin: 0; min-width: 0; }
+.node-chain { overflow-x: auto; padding: 9px 10px; border: 1px solid #c6cdd4; border-radius: 4px; background: #fff; font-family: Consolas, monospace; font-size: 13px; white-space: nowrap; }
+.tag { display: inline-block; margin: 0 5px 5px 0; padding: 2px 7px; border: 1px solid #9ca8b2; border-radius: 999px; background: #fff; font-size: 12px; }
+details { margin: 10px 0; border: 1px solid var(--line); border-radius: 5px; }
+summary { cursor: pointer; padding: 10px 13px; font-weight: 700; background: var(--panel); }
+details > div { padding: 2px 13px 13px; }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }
+@media (max-width: 820px) {
+  .layout { display: block; }
+  nav { position: static; width: 100%; height: auto; columns: 2; }
+  nav strong { column-span: all; }
+  main { padding: 28px 20px 60px; }
+  .two-column { grid-template-columns: 1fr; }
+  h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav aria-label="目次">
+  <strong>Shader Graph Guide</strong>
+  <a href="#overview">概要</a>
+  <a href="#quickstart">基本手順</a>
+  <a href="#window">画面構成</a>
+  <a href="#domains">グラフ種類と対象</a>
+  <a href="#outputs">出力ノード</a>
+  <a href="#parameters">公開パラメータ</a>
+  <a href="#nodes">全ノード一覧</a>
+  <a href="#editing">編集操作</a>
+  <a href="#preview">プレビュー</a>
+  <a href="#reuse">再利用と拡張</a>
+  <a href="#material">Materialと実行時</a>
+  <a href="#csharp">C# API</a>
+  <a href="#examples">表現・Material例</a>
+  <a href="#noise">ノイズとVFX</a>
+  <a href="#postprocess">PostProcess</a>
+  <a href="#limitations">現在の制限</a>
+  <a href="#troubleshooting">トラブル対応</a>
+</nav>
+<main>
+<header id="overview">
+  <h1>NEMEngine Shader Graph</h1>
+  <p class="lead">ノードを接続してSurfaceまたはPostProcess用HLSLとMaterialを生成する、現在のNEMEngine Shader Graph機能ガイドです。</p>
+  <p class="meta">対象: schemaVersion 4 / 2026-08-01時点の実装</p>
+</header>
+
+<section>
+  <h2>概要</h2>
+  <p>正本は<code>.shadergraph.json</code>です。保存してコンパイルすると、同じフォルダへ<code>.material.json</code>を作成し、再生成可能なHLSLとShader情報は<code>Library/ShaderGraph</code>へ出力します。</p>
+  <div class="notice ok"><strong>対応済み:</strong> 3D PBR、2D Unlit、Particle、Trail、Vertex変形、Scene Texture、ノードプレビュー、Entityプレビュー、Sub Graph、Custom Function、PostProcess Compute、Release用DXIL Cook。</div>
+  <div class="notice warn"><strong>注意:</strong> Shader GraphのSurfaceロジックをDXR Closest Hitへ共有する経路とMaterialごとのStatic Variant組み合わせ生成は未対応です。詳細は「現在の制限」を参照してください。</div>
+</section>
+
+<section id="quickstart">
+  <h2>基本手順</h2>
+  <ol class="steps">
+    <li>メニューバーのツールから<strong>シェーダーグラフ</strong>を開きます。</li>
+    <li><strong>作成種類</strong>をSurfaceまたはPostProcessから選びます。Surfaceでは<strong>作成対象</strong>も選びます。</li>
+    <li><strong>作成先</strong>へ<code>GameAssets/...</code>から始まる<code>.shadergraph.json</code>パスを入力し、<strong>新規作成</strong>を押します。</li>
+    <li>キャンバスを右クリックし、定数、パラメータ、演算、UV、テクスチャなどのノードを追加して出力ノードへ接続します。</li>
+    <li><strong>保存してコンパイル</strong>を押します。同名の<code>.material.json</code>が生成または更新されます。</li>
+    <li>生成Materialを対象Rendererへ設定します。SurfaceグラフではプレビューEntityを指定すると編集中の見た目も確認できます。</li>
+  </ol>
+  <div class="notice">例: <code>GameAssets/Materials/VFX/Dissolve.shadergraph.json</code>を作成すると、Materialは同じ場所の<code>Dissolve.material.json</code>になります。</div>
+</section>
+
+<section id="window">
+  <h2>画面構成</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>領域</th><th>機能</th></tr></thead>
+    <tbody>
+      <tr><td>上部ツールバー</td><td>グラフ選択、新規作成、保存、保存してコンパイル、元に戻す、やり直す、ステータス表示。</td></tr>
+      <tr><td>左パネル</td><td>見た目設定、グラフ設定、Materialプレビュー、公開パラメータ、Keyword、選択中のSub GraphまたはCustom Function編集。</td></tr>
+      <tr><td>右キャンバス</td><td>ノードとリンクの作成、範囲選択、移動、グループ化、プレビュー、右クリックメニュー。</td></tr>
+    </tbody>
+  </table></div>
+  <p>Shader Graphのショートカットは、Shader Graphウィンドウまたはその子ウィンドウがフォーカスされている間だけ反応します。SceneViewやHierarchy側のEditorコマンドとは同時に実行されません。</p>
+</section>
+
+<section id="domains">
+  <h2>グラフ種類と描画対象</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>種類</th><th>対象</th><th>出力</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td>Surface</td><td>Mesh</td><td>PBR Surface</td><td>通常のメッシュ、サブメッシュ単位Material。</td></tr>
+      <tr><td>Surface</td><td>Primitive3D</td><td>PBR Surface</td><td>Plane、Cube、Sphere、Ring、Cylinderなど。</td></tr>
+      <tr><td>Surface</td><td>FillMesh</td><td>PBR Surface</td><td>FillMeshRendererの面描画。</td></tr>
+      <tr><td>Surface</td><td>Sprite</td><td>Unlit Surface</td><td>SpriteRendererの2D描画。</td></tr>
+      <tr><td>Surface</td><td>Text</td><td>Unlit Surface</td><td>TextRendererの文字描画。</td></tr>
+      <tr><td>Surface</td><td>Primitive2D</td><td>Unlit Surface</td><td>2D Primitive描画。</td></tr>
+      <tr><td>Surface</td><td>Particle</td><td>Particle Surface</td><td>Particle Effectの粒子本体。フェーズごとの値とTextureを使用可能。</td></tr>
+      <tr><td>Surface</td><td>Trail</td><td>Trail Surface</td><td>Particle EffectのTrail専用Material。粒子本体とは別に設定可能。</td></tr>
+      <tr><td>PostProcess</td><td>Compute</td><td>Post Process</td><td>Scene Colorを入力にした1 Compute Pass。</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Surface設定</h3>
+  <ul>
+    <li><strong>名前:</strong> グラフと生成Materialの表示名。</li>
+    <li><strong>既定精度:</strong> Inheritノードが参照するFloat/Half指定。現在はIRメタデータまでで、生成型は主にfloatです。</li>
+    <li><strong>描画対象:</strong> Rendererと生成PSの入出力契約を切り替えます。</li>
+    <li><strong>サーフェス:</strong> OpaqueまたはTransparent。生成MaterialのRenderPhaseを決定します。</li>
+    <li><strong>描画状態:</strong> Blend、Cull、Fill、深度、ステンシル、アルファクリップ、Shadow設定を派生Pipelineへ反映します。</li>
+    <li><strong>Sampler:</strong> Filter、Address U/V/W、比較、Border Color、Anisotropy、Mip LOD範囲を設定できます。</li>
+  </ul>
+</section>
+
+<section id="outputs">
+  <h2>出力ノード</h2>
+  <h3>PBR Surface</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>入力</th><th>既定値</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>Base Color</td><td>白</td><td>RGBA基本色。Texture SampleやColorを接続します。</td></tr>
+      <tr><td>Normal</td><td>幾何法線</td><td>ワールド法線。Unpack Normal出力を使う場合は空間に注意してください。</td></tr>
+      <tr><td>Metallic</td><td>0.0</td><td>0で非金属、1で金属。</td></tr>
+      <tr><td>Roughness</td><td>0.5</td><td>小さいほど滑らか。内部で0.04以上へ制限されます。</td></tr>
+      <tr><td>Ambient Occlusion</td><td>1.0</td><td>1で遮蔽なし、0へ近づくほど暗くします。</td></tr>
+      <tr><td>Emissive</td><td>黒</td><td>発光色。HDR専用UIは未実装です。</td></tr>
+      <tr><td>Opacity</td><td>1.0</td><td>透明度。Transparent Materialで使用します。</td></tr>
+      <tr><td>Alpha Clip</td><td>0.0</td><td>Base ColorのAlphaが閾値未満ならdiscardします。</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Unlit Surface</h3>
+  <p><strong>Color</strong>、<strong>Opacity</strong>、<strong>Alpha Clip</strong>を持ち、Sprite、Text、Primitive2Dで使用します。</p>
+  <h3>Post Process</h3>
+  <p><strong>Color</strong>をCompute出力へ書き込みます。既定グラフはScene Colorをそのまま出力します。</p>
+  <h3>Vertex</h3>
+  <p>Mesh、Primitive3D、Primitive2DではVertex出力を1つ追加でき、Object Spaceの<code>Position</code>、<code>Normal</code>、<code>Tangent</code>を編集できます。Meshは生成VS/MS、ZPrepass、Pickingへ反映され、Primitive3Dは生成VS/MS、Primitive2Dは生成VSへ反映されます。Skinned Meshの入力も既存頂点読み込み経路を使用します。</p>
+</section>
+
+<section id="parameters">
+  <h2>公開パラメータ</h2>
+  <p>左パネルの<strong>追加</strong>で作成し、キャンバス右クリックの<strong>パラメータ</strong>からノード化します。パラメータIDはコピーでき、名前変更後も同じMaterial値を追跡できます。</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>項目</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>名前</td><td>Editor表示名。MaterialとC#の名前指定にも使えます。</td></tr>
+      <tr><td>参照名</td><td>生成HLSL向け内部名。空の場合は名前から生成します。</td></tr>
+      <tr><td>型</td><td>Float、Float2、Float3、Float4、Color、Texture2D、Boolean、Integerを実用可能。Matrix4はスキーマ予約段階です。</td></tr>
+      <tr><td>Semantic</td><td>BaseColorやMetallicなど、標準Materialパラメータとの意味対応。</td></tr>
+      <tr><td>既定値</td><td>生成Materialへ書き込む初期値。Texture2DではProjectPanelのTextureを設定します。</td></tr>
+      <tr><td>精度</td><td>Inherit、Float、Half。現在はIRへ保持されます。</td></tr>
+      <tr><td>更新単位</td><td>PerMaterial、PerInstance、Global。PerMaterialが現在の推奨です。</td></tr>
+      <tr><td>公開</td><td>有効ならMaterialに値を生成し、Sub Graphでは入力ポートになります。</td></tr>
+    </tbody>
+  </table></div>
+  <div class="notice warn">Texture2DはTextureそのものをCBufferへ入れず、GPU Descriptor IndexをMaterialパラメータとして渡してBindless参照します。</div>
+</section>
+
+<section id="nodes">
+  <h2>全ノード一覧</h2>
+  <label for="nodeFilter">ノード名・カテゴリー検索</label><br>
+  <input class="node-filter" id="nodeFilter" type="search" placeholder="例: Noise / UV / ベクトル">
+  <div class="table-wrap" style="margin-top:12px"><table id="nodeTable">
+    <thead><tr><th>カテゴリー</th><th>ノード</th><th>主な入出力と用途</th><th>Stage</th></tr></thead>
+    <tbody>
+      <tr><td>入力</td><td>Parameter</td><td>公開パラメータの値を出力。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>Constant</td><td>Float、Float2、Float3、Float4、Color、Boolean、Integerの定数。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>Keyword</td><td>BooleanまたはEnum。静的値またはMaterialから変更する実行時値を出力。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>UV</td><td>現在の頂点UVをFloat2で出力。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>World Normal</td><td>ワールド法線。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>World Position</td><td>ワールド座標。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>Object Position</td><td>オブジェクト空間座標。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>Object Normal / Object Tangent</td><td>Vertex変形に使用するオブジェクト空間方向。</td><td>Vertex</td></tr>
+      <tr><td>入力</td><td>View Direction</td><td>ピクセルからカメラへ向かう方向。</td><td>Fragment</td></tr>
+      <tr><td>入力</td><td>Screen Position</td><td>SV_Position相当のスクリーン位置。</td><td>Fragment</td></tr>
+      <tr><td>入力</td><td>Vertex Color</td><td>Rendererが出力した頂点カラー。</td><td>Any</td></tr>
+      <tr><td>入力</td><td>Time</td><td>Time、Sine Time、Cosine Time、Delta Time、Smooth Deltaを出力。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Add / Subtract / Multiply / Divide</td><td>AとBの四則演算。スカラーとベクトルを自動拡張。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Power</td><td><code>pow(A, B)</code>。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Minimum / Maximum</td><td><code>min</code>、<code>max</code>。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Lerp</td><td>AとBをTで線形補間。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Clamp</td><td>MinimumからMaximumへ制限。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Smoothstep / Step</td><td>滑らかな閾値または二値閾値。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>One Minus</td><td><code>1 - Input</code>。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Saturate</td><td>0から1へ制限。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Sine / Cosine</td><td>周期運動、点滅、UVアニメーション。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Absolute / Floor / Fraction</td><td>絶対値、切り下げ、小数部。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Square Root / Negate</td><td>平方根、符号反転。</td><td>Any</td></tr>
+      <tr><td>演算</td><td>Remap</td><td>入力範囲を別の出力範囲へ変換。</td><td>Any</td></tr>
+      <tr><td>ベクトル</td><td>Dot Product</td><td>内積。向きの一致度やマスク作成。</td><td>Any</td></tr>
+      <tr><td>ベクトル</td><td>Cross Product</td><td>外積。2方向に垂直な方向。</td><td>Any</td></tr>
+      <tr><td>ベクトル</td><td>Distance</td><td>2点間距離。</td><td>Any</td></tr>
+      <tr><td>ベクトル</td><td>Reflect</td><td>法線に対する反射ベクトル。</td><td>Any</td></tr>
+      <tr><td>ベクトル</td><td>Normalize / Length</td><td>単位ベクトル化、ベクトル長。</td><td>Any</td></tr>
+      <tr><td>ロジック</td><td>Branch</td><td>PredicateでTrueとFalseを選択。現状は動的分岐。</td><td>Any</td></tr>
+      <tr><td>UV</td><td>Tiling And Offset</td><td>UVへTilingを掛け、Offsetを加算。</td><td>Any</td></tr>
+      <tr><td>UV</td><td>Polar Coordinates</td><td>直交UVを角度と半径へ変換。</td><td>Any</td></tr>
+      <tr><td>UV</td><td>Rotate</td><td>Centerを中心にUVを回転。</td><td>Any</td></tr>
+      <tr><td>チャンネル</td><td>Split</td><td>ベクトルをR、G、B、Aへ分離。</td><td>Any</td></tr>
+      <tr><td>チャンネル</td><td>Combine</td><td>R、G、B、AからRGBA、RGB、RGを生成。</td><td>Any</td></tr>
+      <tr><td>テクスチャ</td><td>Sample Texture 2D</td><td>TextureとUVを入力し、RGBA、RGB、R、G、B、Aを出力。</td><td>Any</td></tr>
+      <tr><td>テクスチャ</td><td>Unpack Normal</td><td>0から1の法線Texture値を-1から1へ展開。</td><td>Fragment</td></tr>
+      <tr><td>入力</td><td>Fresnel Effect</td><td>Normal、View Direction、Powerから輪郭マスクを生成。</td><td>Fragment</td></tr>
+      <tr><td>プロシージャル</td><td>Simple Noise</td><td>UVとScaleから補間Value Noiseを生成。</td><td>Any</td></tr>
+      <tr><td>プロシージャル</td><td>Voronoi</td><td>UV、Angle Offset、Cell Densityから距離とCell値を生成。</td><td>Any</td></tr>
+      <tr><td>シーン</td><td>Scene Color</td><td>現在のPostProcess入力またはOpaque描画完了時点のColorをサンプリング。</td><td>Fragment / Compute</td></tr>
+      <tr><td>シーン</td><td>Scene Depth / Normal / Position</td><td>DepthまたはGBufferの法線と座標を読み取る。</td><td>Fragment / Compute</td></tr>
+      <tr><td>シーン</td><td>Scene Material / Emissive / Flags</td><td>GBufferのMaterial、Emissive、描画Flagsを読み取る。</td><td>Fragment / Compute</td></tr>
+      <tr><td>グラフ</td><td>Sub Graph</td><td>別Shader Graphの公開パラメータを入力、出力ノード入力を出力として展開。</td><td>Any</td></tr>
+      <tr><td>グラフ</td><td>Custom Function</td><td>Inline HLSLまたは外部HLSL関数を可変入出力で呼び出す。</td><td>Any</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="editing">
+  <h2>編集操作</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>操作</th><th>入力</th><th>条件</th></tr></thead>
+    <tbody>
+      <tr><td>ノード作成</td><td>キャンバス右クリック</td><td>検索またはカテゴリーから選択。</td></tr>
+      <tr><td>リンク作成</td><td>出力ピンから入力ピンへドラッグ</td><td>Stageと型が互換の場合だけ受付。</td></tr>
+      <tr><td>削除</td><td>Deleteまたは右クリック</td><td>Shader Graphフォーカス中のみ。出力ノードは削除不可。</td></tr>
+      <tr><td>Undo</td><td>Ctrl+Z</td><td>最大128状態。</td></tr>
+      <tr><td>Redo</td><td>Ctrl+Y / Ctrl+Shift+Z</td><td>新しい編集後はRedo履歴を破棄。</td></tr>
+      <tr><td>コピー / 貼り付け</td><td>Ctrl+C / Ctrl+V</td><td>選択ノードと内部リンクをJSON形式でClipboardへ保存。</td></tr>
+      <tr><td>複製</td><td>Ctrl+Dまたは右クリック</td><td>選択内容をオフセットして複製。</td></tr>
+      <tr><td>保存してコンパイル</td><td>Ctrl+S</td><td>通常の保存ではなくコンパイルまで実行。</td></tr>
+      <tr><td>グループ化</td><td>複数選択後に右クリック</td><td>グループ名は中央へ表示し、リサイズ可能。</td></tr>
+      <tr><td>グループ複製 / 削除</td><td>グループ右クリック</td><td>複製時は内包ノードと内部リンクも複製。</td></tr>
+    </tbody>
+  </table></div>
+  <p>ノード移動中は履歴を増やさず、操作終了後の状態を1回の履歴として確定します。テキスト入力やColor Picker操作中はショートカットを受け付けません。</p>
+</section>
+
+<section id="preview">
+  <h2>プレビューと見た目設定</h2>
+  <h3>ノードプレビュー</h3>
+  <p>出力ノード以外はプレビューを展開できます。Texture、UV、演算、Noise、Timeの途中結果を同じキャンバス上で確認できます。Timeノードを含むプレビューはEdit中も更新されます。</p>
+  <h3>MaterialプレビューEntity</h3>
+  <p>Surfaceグラフでは、HierarchyのEntityを<strong>プレビューエンティティ</strong>へ設定できます。MeshRenderer、PrimitiveRenderer、FillMeshRenderer、SpriteRenderer、TextRendererに対応し、解除時は元のMaterialへ戻します。</p>
+  <h3>見た目設定</h3>
+  <p>設定はユーザー設定へ保存され、Git管理するグラフアセットには入りません。</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>区分</th><th>設定可能項目</th></tr></thead>
+    <tbody>
+      <tr><td>キャンバス</td><td>背景色、グリッド色。</td></tr>
+      <tr><td>ノード</td><td>背景、通常/ホバー/選択境界線、範囲選択色、余白、文字スケール、最小幅、プレビュー表示サイズ、プレビュー解像度、角丸、各境界線幅。</td></tr>
+      <tr><td>接続</td><td>通常/ホバー/選択/強調リンク色、範囲選択色、ピン選択色、開始/終了位置オフセット、ピン角丸、ピン境界線幅、リンク曲率、リンク太さ。</td></tr>
+      <tr><td>操作</td><td>保存、読み込み、既定値へ戻す。</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="reuse">
+  <h2>再利用と拡張</h2>
+  <h3>Sub Graph</h3>
+  <ol>
+    <li>再利用したい処理を通常の<code>.shadergraph.json</code>として作成します。</li>
+    <li>親グラフへSub Graphノードを追加し、左パネルの選択ノード設定で参照グラフを指定します。</li>
+    <li>子グラフの公開パラメータが入力ポート、子の出力ノード入力が親側の出力ポートになります。</li>
+  </ol>
+  <p>コンパイル前に親グラフへ展開され、循環参照と参照失敗は診断されます。現在は専用<code>.shadersubgraph.json</code>ではなくShader Graphアセットを参照します。</p>
+  <h3>Custom Function</h3>
+  <p>関数名、InlineまたはFile、入力ポート、出力ポートを設定できます。ポートの追加、削除、名前、型変更に対応します。</p>
+  <pre><code>void DistortUV(float2 UV, float Time, out float2 Output) {
+    Output = UV + float2(sin(UV.y * 12.0f + Time), 0.0f) * 0.03f;
+}</code></pre>
+  <p>Inlineでは関数定義全体を入力します。Fileでは生成HLSLから参照可能な<code>.hlsli</code>パスを指定します。</p>
+  <h3>Keyword</h3>
+  <p>BooleanとEnum、名前、参照名、既定値を保存できます。<strong>実行時切り替え</strong>が無効なら既定値をHLSLへ埋め込み、グラフ保存時に再コンパイルします。有効ならMaterialパラメータになり、InspectorまたはC#の<code>MaterialInstance.SetBool</code>/<code>SetInt</code>で切り替えられます。</p>
+  <div class="notice">実行時KeywordはShader Variantを増やさない代わりに動的分岐になります。同時に使う組み合わせが少なく固定できる表現は静的、ゲーム中に変える表現は実行時を選びます。</div>
+</section>
+
+<section id="material">
+  <h2>Materialと実行時処理</h2>
+  <p><strong>保存してコンパイル</strong>は次の処理を行います。</p>
+  <ol>
+    <li>Shader Graph JSONを保存。</li>
+    <li>型、リンク範囲、重複入力、循環、Stage互換をIRで検証。</li>
+    <li>Surfaceなら共通Surface HLSLとOpaque/Transparent PS、PostProcessならCSを生成。</li>
+    <li><code>Library/ShaderGraph/&lt;Graph AssetID&gt;/...</code>へ派生ファイルを保存。</li>
+    <li>決定的な派生Shader AssetIDを生成してRenderAssetLibraryへ登録。</li>
+    <li>同名Materialを作成または更新。既存の同一グラフMaterial値は維持。</li>
+    <li>プレビュー中ならPipelineをReloadしてEntityへ即時反映。</li>
+  </ol>
+  <p>Materialロード時も<code>shaderGraph</code>参照を解決し、派生Shaderを登録します。Textureや色などのRenderer固有値はMaterial Instance Overrideとして扱います。</p>
+</section>
+
+<section id="csharp">
+  <h2>C#から公開パラメータを操作</h2>
+  <p>各Rendererの<code>MaterialInstance</code>から名前またはParameter IDで値を変更できます。MeshRendererはサブメッシュ単位の<code>GetMaterialInstance(index)</code>も使用できます。</p>
+  <pre><code>using NEMEngine;
+
+public sealed class DissolveController : ScriptBehaviour {
+    [SerializeField] private SpriteRenderer target;
+    [SerializeField] private Texture noiseTexture;
+
+    private static readonly MaterialParameterID DissolveID =
+        MaterialParameterID.FromHex("グラフ上でコピーしたParameter ID");
+
+    public override void Start() {
+        target.MaterialInstance.SetTexture("NoiseTexture", noiseTexture);
+    }
+
+    public override void Update() {
+        float amount = (MathF.Sin(Time.time) + 1.0f) * 0.5f;
+        target.MaterialInstance.SetFloat(DissolveID, "Dissolve", amount);
+    }
+}</code></pre>
+  <p>使用可能な主なAPIは<code>SetFloat</code>、<code>SetVector</code>、<code>SetColor</code>、<code>SetTexture</code>、<code>SetInt</code>、<code>SetUInt</code>、<code>SetBool</code>、対応する<code>TryGet...</code>、<code>Clear</code>です。</p>
+</section>
+
+<section id="examples">
+  <h2>作成できる表現・演出・Material例</h2>
+  <p>以下は現在のShader Graphにあるノードだけで構成できる代表例です。矢印は主な接続順を表し、色や速度などを公開パラメータにするとMaterialまたはC#から調整できます。</p>
+
+  <h3>3D PBR Material</h3>
+  <div class="recipe-grid">
+    <article class="recipe">
+      <h4>塗装された金属</h4>
+      <span class="tag">Mesh</span><span class="tag">Primitive3D</span><span class="tag">PBR</span>
+      <p>金属素地と塗装色をNoiseで混ぜ、傷や塗装剥がれを表現します。</p>
+      <div class="node-chain">UV -> Sample Noise -> Smoothstep -> Lerp(MetalColor, PaintColor) -> Base Color</div>
+      <dl>
+        <dt>Metallic</dt><dd>素地1.0、塗装部0.0から0.3</dd>
+        <dt>Roughness</dt><dd>0.2から0.6。Noiseを少量加えると均一感を減らせます</dd>
+        <dt>公開値</dt><dd>PaintColor、ScratchScale、ScratchAmount</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>濡れた石・路面</h4>
+      <span class="tag">Mesh</span><span class="tag">PBR</span>
+      <p>石のBase Colorは維持しつつ、濡れマスクの部分だけ暗く滑らかにします。</p>
+      <div class="node-chain">WetMask -> Lerp(DryColor, DryColor * 0.55) -> Base Color</div>
+      <dl>
+        <dt>Roughness</dt><dd>Lerp(0.75, 0.08, WetMask)</dd>
+        <dt>Normal</dt><dd>法線Textureがある場合はSample Texture 2D -> Unpack Normal</dd>
+        <dt>公開値</dt><dd>WetAmount、WetDarkness、WetRoughness</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>ホログラム・エネルギー物体</h4>
+      <span class="tag">Mesh</span><span class="tag">Transparent</span><span class="tag">Emissive</span>
+      <p>View DirectionとWorld Normalから輪郭光を作り、縦スクロールする線を重ねます。</p>
+      <div class="node-chain">World Normal + View Direction -> Fresnel Effect -> Multiply(Color) -> Emissive</div>
+      <dl>
+        <dt>走査線</dt><dd>World Position.Y * Density + Time * Speed -> Sine -> Saturate</dd>
+        <dt>Opacity</dt><dd>Fresnelと走査線を合成。SurfaceをTransparentに設定</dd>
+        <dt>公開値</dt><dd>EdgeColor、ScanSpeed、ScanDensity、Opacity</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>発光する紋様・溶岩</h4>
+      <span class="tag">Mesh</span><span class="tag">Emissive</span><span class="tag">Noise</span>
+      <p>2種類のNoiseを異なる速度で流し、隙間だけを発光させます。</p>
+      <div class="node-chain">NoiseA * NoiseB -> Smoothstep -> Multiply(GlowColor) -> Emissive</div>
+      <dl>
+        <dt>Base Color</dt><dd>暗い岩色と発光色を同じMaskでLerp</dd>
+        <dt>Roughness</dt><dd>岩側0.8、発光部0.25程度</dd>
+        <dt>公開値</dt><dd>FlowSpeed、NoiseScale、GlowColor、GlowPower</dd>
+      </dl>
+    </article>
+  </div>
+
+  <h3>2D・UI Material</h3>
+  <div class="recipe-grid">
+    <article class="recipe">
+      <h4>流れるUIゲージ</h4>
+      <span class="tag">Sprite</span><span class="tag">Text</span><span class="tag">Unlit</span>
+      <p>元Textureへ細いハイライトを流し、ゲージや選択中UIに動きを付けます。</p>
+      <div class="node-chain">UV.X + Time * Speed -> Fraction -> Smoothstep -> Add(BaseColor) -> Color</div>
+      <dl>
+        <dt>Opacity</dt><dd>Base TextureのAlphaをそのまま接続</dd>
+        <dt>公開値</dt><dd>HighlightColor、Speed、Width、Intensity</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>点滅・ダメージフラッシュ</h4>
+      <span class="tag">Sprite</span><span class="tag">Text</span><span class="tag">C#制御</span>
+      <p>通常Textureとフラッシュ色をLerpし、C#からAmountを短時間だけ0から1へ変化させます。</p>
+      <div class="node-chain">Lerp(BaseTexture, FlashColor, FlashAmount) -> Color</div>
+      <dl>
+        <dt>公開値</dt><dd>FlashColor、FlashAmount</dd>
+        <dt>用途</dt><dd>被弾、選択、回復、警告、文字強調</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>UVスクロール背景</h4>
+      <span class="tag">Sprite</span><span class="tag">Unlit</span>
+      <p>TextureのUVをTimeで移動し、メニュー背景、雲、星、ベルトコンベアなどを表現します。</p>
+      <div class="node-chain">UV -> Tiling And Offset(Time * Direction) -> Sample Texture 2D -> Color</div>
+      <dl>
+        <dt>公開値</dt><dd>Tiling、Direction、Speed、TintColor</dd>
+        <dt>Texture</dt><dd>継ぎ目なく流す場合はシームレスTextureを使用</dd>
+      </dl>
+    </article>
+  </div>
+
+  <h3>VFX Material</h3>
+  <div class="recipe-grid">
+    <article class="recipe">
+      <h4>ディゾルブと発光する境界</h4>
+      <span class="tag">Mesh</span><span class="tag">Sprite</span><span class="tag">Alpha Clip</span>
+      <p>Noiseと進行度の差で消える範囲を作り、その差が小さい場所だけを境界色として発光させます。</p>
+      <div class="node-chain">Noise.R - Dissolve -> Step -> Alpha Clip / Smoothstep -> Edge -> Emissive</div>
+      <dl>
+        <dt>公開値</dt><dd>Dissolve、EdgeWidth、EdgeColor、NoiseScale</dd>
+        <dt>C#</dt><dd>Dissolveを0から1へ補間</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>魔法シールド・フォースフィールド</h4>
+      <span class="tag">Mesh</span><span class="tag">Transparent</span><span class="tag">Fresnel</span>
+      <p>輪郭はFresnel、表面はVoronoiやNoiseで構成し、接続線や六角形風の模様を流します。</p>
+      <div class="node-chain">Fresnel + Smoothstep(Voronoi) -> Multiply(ShieldColor) -> Emissive</div>
+      <dl>
+        <dt>Opacity</dt><dd>低い定数へFresnelと模様を加算して調整</dd>
+        <dt>公開値</dt><dd>ShieldColor、EdgePower、CellScale、FlowSpeed</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>炎・煙</h4>
+      <span class="tag">Sprite</span><span class="tag">Primitive2D</span><span class="tag">Noise</span>
+      <p>上方向へ流すNoiseで輪郭を崩し、下を濃く上を薄くする縦Maskを掛けます。</p>
+      <div class="node-chain">UV + TimeY -> Noise -> Multiply(VerticalMask) -> Smoothstep -> Opacity</div>
+      <dl>
+        <dt>Color</dt><dd>炎は内側色と外側色をLerp、煙は低彩度色</dd>
+        <dt>公開値</dt><dd>Speed、Distortion、Cutoff、InnerColor、OuterColor</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>衝撃波・魔法陣・リング</h4>
+      <span class="tag">Sprite</span><span class="tag">Primitive2D</span><span class="tag">Polar Coordinates</span>
+      <p>中心からの距離を細い帯へ変換し、TimeまたはC#値で半径を広げます。</p>
+      <div class="node-chain">UV -> Polar Coordinates.Radius - Progress -> Absolute -> Smoothstep -> Opacity</div>
+      <dl>
+        <dt>変形</dt><dd>NoiseをRadiusへ少量加えると輪郭が揺らぎます</dd>
+        <dt>公開値</dt><dd>Progress、Width、Color、Distortion</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>オーラ・流れるエネルギー</h4>
+      <span class="tag">Sprite</span><span class="tag">Mesh</span><span class="tag">Emissive</span>
+      <p>拡大率と速度が異なるNoiseを重ねて偏りを作り、強い部分だけを発光させます。</p>
+      <div class="node-chain">Noise(UV + TimeA) * Noise(UV * 2 + TimeB) -> Power -> Emissive</div>
+      <dl>
+        <dt>公開値</dt><dd>PrimarySpeed、SecondarySpeed、Contrast、EnergyColor</dd>
+        <dt>負荷</dt><dd>大量表示では標準Noise Textureを使うとALUを抑えやすい</dd>
+      </dl>
+    </article>
+  </div>
+
+  <h3>PostProcess演出</h3>
+  <div class="recipe-grid">
+    <article class="recipe">
+      <h4>画面フェード・色フラッシュ</h4>
+      <span class="tag">PostProcess</span><span class="tag">Scene Color</span>
+      <p>Scene Colorと指定色をLerpします。シーン遷移、被弾、回復、警告に利用できます。</p>
+      <div class="node-chain">Scene Color -> Lerp(SceneColor, EffectColor, Amount) -> Post Process Color</div>
+      <dl><dt>公開値</dt><dd>EffectColor、Amount</dd></dl>
+    </article>
+    <article class="recipe">
+      <h4>画面UV歪み・熱気</h4>
+      <span class="tag">PostProcess</span><span class="tag">Noise</span>
+      <p>NoiseでScene Colorへ渡すUVを少量ずらし、熱気、水中、ダメージ時の揺れを作ります。</p>
+      <div class="node-chain">UV + (Noise(UV + Time) - 0.5) * Strength -> Scene Color -> Output</div>
+      <dl>
+        <dt>公開値</dt><dd>Strength、Scale、Speed</dd>
+        <dt>注意</dt><dd>歪み量を大きくしすぎると画面端のSampleが目立ちます</dd>
+      </dl>
+    </article>
+    <article class="recipe">
+      <h4>グレースケール・色調変更</h4>
+      <span class="tag">PostProcess</span><span class="tag">Dot</span>
+      <p>Scene Colorと輝度係数のDotで明度を作り、元色とLerpします。</p>
+      <div class="node-chain">Dot(SceneColor.RGB, Luminance) -> Lerp(SceneColor, Gray, Amount) -> Output</div>
+      <dl><dt>公開値</dt><dd>Amount、TintColor、Contrast</dd></dl>
+    </article>
+  </div>
+
+  <div class="notice"><strong>Scene Texture:</strong> Transparent SurfaceとPostProcessではScene Color、Depth、Normal、Position、Material、Emissive、Flagsを参照できます。Opaque Surfaceから同じ描画先を読む構成は循環を避けるため使用できません。</div>
+</section>
+
+<section id="noise">
+  <h2>ノイズとVFX</h2>
+  <div class="notice ok"><strong>自分で用意しなくても使用できます。</strong> グラフ内生成のSimple Noise / Voronoiと、エンジン標準の30枚のNoise Textureがあります。</div>
+  <div class="two-column">
+    <div class="term">
+      <h4>プロシージャルノイズ</h4>
+      <p>Texture不要でScaleを自由に変えられます。Simple NoiseはValue Noise、Voronoiはセル境界や粒状表現に向きます。</p>
+      <p><strong>向く用途:</strong> 小規模なディゾルブ、揺らぎ、輪郭、試作。</p>
+      <p><strong>注意:</strong> 多数の描画対象で重ねるとTexture SampleよりALU負荷が高くなります。</p>
+    </div>
+    <div class="term">
+      <h4>Noise Texture</h4>
+      <p><code>Project/Engine/Assets/Textures/DefaultEffect/Noise</code>に<code>noise_0.png</code>から<code>noise_29.png</code>があります。</p>
+      <p><strong>向く用途:</strong> 大量Sprite、Particle、Trail、複数ノイズ合成、形状を固定したい表現。</p>
+      <p><strong>注意:</strong> 全画像のシームレス性、Blue Noise特性、方向場は保証されません。</p>
+    </div>
+  </div>
+  <h3>Noise Textureの使い方</h3>
+  <ol class="steps">
+    <li>公開パラメータを追加し、型を<strong>Texture2D</strong>、名前を<code>NoiseTexture</code>にします。</li>
+    <li>既定値へ<code>Project/Engine/Assets/Textures/DefaultEffect/Noise/noise_*.png</code>を設定します。</li>
+    <li>ParameterノードとSample Texture 2Dノードを追加し、ParameterをTexture入力へ接続します。</li>
+    <li>UVをTiling And Offsetへ接続し、出力をSample Texture 2DのUVへ接続します。</li>
+    <li>Timeに速度を掛けた値をOffsetへ加算するとスクロールします。</li>
+    <li>SampleのRをSmoothstepまたはStepへ入れ、Dissolve値と比較してAlpha Clipへ接続します。</li>
+  </ol>
+  <h3>VFX向け構成例</h3>
+  <details open><summary>ディゾルブ</summary><div>
+    <p><code>Noise.R - Dissolve</code>をSmoothstepへ入れ、Base ColorのAlphaまたはAlpha Clipへ接続します。境界だけを別Smoothstepで抜き、Emissiveへ加えると発光縁になります。</p>
+  </div></details>
+  <details><summary>流れるエネルギー</summary><div>
+    <p>同じNoise TextureをTilingの異なるUVで2回Sampleし、一方を逆方向へスクロールします。MultiplyまたはMinimumで合成し、ColorとEmissiveへ接続します。</p>
+  </div></details>
+  <details><summary>煙・炎</summary><div>
+    <p>Polar Coordinatesまたは縦方向UVへNoiseを加えて形状を歪めます。Timeで上方向へ流し、下から上へ薄くなるマスクをMultiplyします。</p>
+  </div></details>
+  <details><summary>衝撃波・リング</summary><div>
+    <p>Polar Coordinatesの半径へTimeを加え、FractionとSmoothstepで細い帯を作ります。Noiseを掛けて輪郭を崩し、Emissiveへ出力します。</p>
+  </div></details>
+  <h3>自作Textureが必要になるケース</h3>
+  <ul>
+    <li>完全にシームレスなループが必要。</li>
+    <li>Blue Noise、Curl Noise、Flow Map、法線Noiseが必要。</li>
+    <li>炎、雷、煙など特定方向へ流れる形を作りたい。</li>
+    <li>複数チャンネルへ異なるNoiseをパックし、Sample回数を減らしたい。</li>
+    <li>ゲーム固有の輪郭や手描き表現が必要。</li>
+  </ul>
+  <h3>標準Noise Texture一覧</h3>
+  <div class="noise-gallery" id="noiseGallery"></div>
+</section>
+
+<section id="postprocess">
+  <h2>PostProcess Graph</h2>
+  <ol>
+    <li>作成種類を<strong>PostProcess</strong>にしてグラフを作成します。</li>
+    <li>Scene ColorのUVへ必要なUVを接続し、RGBAを演算してPost ProcessのColorへ接続します。</li>
+    <li>保存してコンパイルし、生成されたCompute MaterialをPostProcess Stackのパスへ設定します。</li>
+    <li>PostProcess Stack側でAnchor、入力パス、出力、他パス参照を設定します。</li>
+  </ol>
+  <p>生成CSは<code>[numthreads(8, 8, 1)]</code>で動作します。Scene Colorに加えてDepth、Normal、Position、Material、Emissive、Flagsを選択したUVから参照できます。</p>
+</section>
+
+<section id="limitations">
+  <h2>現在の制限</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>機能</th><th>状態</th><th>現在の挙動</th></tr></thead>
+    <tbody>
+      <tr><td>Surface/Unlit PS生成</td><td><span class="status done">対応</span></td><td>Mesh、Primitive、FillMesh、Sprite、Text、Particle、Trailへ生成可能。</td></tr>
+      <tr><td>PostProcess CS生成</td><td><span class="status done">対応</span></td><td>Scene Textureを使う1 Compute Pass。</td></tr>
+      <tr><td>Vertex Graph</td><td><span class="status done">対応</span></td><td>MeshのVS/MS/ZPrepass/Picking、Primitive3DのVS/MS、Primitive2DのVSへ反映。</td></tr>
+      <tr><td>Keyword</td><td><span class="status done">対応</span></td><td>静的既定値とMaterial単位の実行時Boolean/Enum。組み合わせ別Static Variant生成は未対応。</td></tr>
+      <tr><td>Render State</td><td><span class="status done">対応</span></td><td>Blend、Rasterizer、Depth/Stencil、Sampler、Shadowを派生Pipelineへ反映。</td></tr>
+      <tr><td>Float/Half精度</td><td><span class="status partial">IRのみ</span></td><td>生成HLSL型は主にfloat。</td></tr>
+      <tr><td>PerInstance/Global Scope</td><td><span class="status partial">メタデータ</span></td><td>現在の実用経路はPerMaterialとRenderer Material Instance Override。</td></tr>
+      <tr><td>Sub Graph</td><td><span class="status done">対応</span></td><td>通常Shader Graph参照、展開、循環検出。</td></tr>
+      <tr><td>Custom Function</td><td><span class="status done">対応</span></td><td>Inline/File、可変ポート、外部FileとSub Graphの依存監視。</td></tr>
+      <tr><td>DXR Product Cook</td><td><span class="status done">対応</span></td><td>ReleaseではCook済みLibrary DXILのみを使用。</td></tr>
+      <tr><td>DXR Material共有</td><td><span class="status reserved">未接続</span></td><td>生成SurfaceロジックはClosest Hit/Any Hitへ未共有。</td></tr>
+      <tr><td>Release Cook済みDXIL</td><td><span class="status done">対応</span></td><td>Shader/Graph派生Shaderを事前Cookし、製品へHLSL、Graph、DXC DLLを含めない。</td></tr>
+      <tr><td>詳細診断UI</td><td><span class="status done">対応</span></td><td>診断一覧から対象ノードへ移動し、依存変更時は再コンパイル。</td></tr>
+      <tr><td>Matrix4 Property</td><td><span class="status reserved">予約</span></td><td>スキーマとHLSL型はあるがEditor既定値とMaterial APIが未完成。</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="troubleshooting">
+  <h2>トラブル対応</h2>
+  <details><summary>Materialを設定すると何も描画されない</summary><div>
+    <ul>
+      <li>グラフの描画対象とRenderer種類が一致しているか確認します。</li>
+      <li><strong>保存してコンパイル</strong>を行い、通常保存だけで終わっていないか確認します。</li>
+      <li>Base ColorまたはColorが0、Opacityが0、Alpha Clipが高すぎないか確認します。</li>
+      <li><code>Project/Log/engine.log</code>のShader Compile Errorを確認します。</li>
+    </ul>
+  </div></details>
+  <details><summary>Textureが黒またはエラーTextureになる</summary><div>
+    <ul>
+      <li>Texture2Dパラメータに既定Textureが設定されているか確認します。</li>
+      <li>ParameterノードがSample Texture 2DのTexture入力へ接続されているか確認します。</li>
+      <li>Material側で同名パラメータを別値で上書きしていないか確認します。</li>
+    </ul>
+  </div></details>
+  <details><summary>ノード接続が拒否される</summary><div>
+    <p>入力に複数リンクがないか、Texture2Dと数値を接続していないか、Fragment専用ノードをComputeへ接続していないか確認します。</p>
+  </div></details>
+  <details><summary>UndoやDeleteが別パネルへ作用しない</summary><div>
+    <p>仕様です。Shader Graphの編集コマンドはShader Graphがフォーカス中の場合だけ反応します。SceneのEntity操作はSceneView、GameView、Hierarchy、Inspector側へフォーカスを移してください。</p>
+  </div></details>
+  <h3>実装参照</h3>
+  <ul>
+    <li><a href="../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h">ShaderGraphAsset.h</a>: データ形式</li>
+    <li><a href="../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.cpp">ShaderGraphNodeRegistry.cpp</a>: ノード一覧</li>
+    <li><a href="../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphIR.cpp">ShaderGraphIR.cpp</a>: 型とStage検証</li>
+    <li><a href="../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.cpp">ShaderGraphCompiler.cpp</a>: HLSL生成</li>
+    <li><a href="../Project/Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.cpp">ShaderGraphArtifactCache.cpp</a>: 派生成果物とMaterial</li>
+    <li><a href="../Project/Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.cpp">ShaderGraphEditorTool.cpp</a>: Editor UI</li>
+  </ul>
+</section>
+
+<footer>
+  <p>NEMEngine Shader Graph Guide. この文書は現在の実装を基準とし、未接続の設計項目を対応済みとして扱いません。</p>
+</footer>
+</main>
+</div>
+<script>
+const filter = document.getElementById('nodeFilter');
+const rows = Array.from(document.querySelectorAll('#nodeTable tbody tr'));
+filter.addEventListener('input', () => {
+  const term = filter.value.trim().toLocaleLowerCase('ja');
+  rows.forEach(row => {
+    row.hidden = term.length > 0 && !row.textContent.toLocaleLowerCase('ja').includes(term);
+  });
+});
+
+const gallery = document.getElementById('noiseGallery');
+for (let index = 0; index < 30; ++index) {
+  const figure = document.createElement('figure');
+  figure.className = 'noise-item';
+  const image = document.createElement('img');
+  image.src = `../Project/Engine/Assets/Textures/DefaultEffect/Noise/noise_${index}.png`;
+  image.alt = `標準ノイズテクスチャ noise_${index}`;
+  image.loading = 'lazy';
+  const caption = document.createElement('figcaption');
+  caption.textContent = `noise_${index}.png`;
+  figure.append(image, caption);
+  gallery.appendChild(figure);
+}
+</script>
+</body>
+</html>

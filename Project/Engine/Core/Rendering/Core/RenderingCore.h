@@ -38,6 +38,8 @@ namespace Engine {
 
 		// フレーム開始/終了処理
 		void BeginRenderFrame();
+		// 描画コマンドをGPUへ提出する
+		void SubmitRenderFrame();
 		void EndRenderFrame();
 
 		// 描画

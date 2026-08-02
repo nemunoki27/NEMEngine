@@ -4,22 +4,29 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphIR.h>
 #include <Engine/Core/Rendering/Assets/ShaderAsset.h>
 
 // c++
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace Engine {
 
+	using ShaderGraphAssetResolver =
+		std::function<bool(AssetID, ShaderGraphAsset&)>;
+
 	//============================================================================
 	//	ShaderGraphCompiler structures
 	//============================================================================
-	struct ShaderGraphDiagnostic {
+	struct ShaderGraphSamplerBinding {
 
 		UUID node{};
-		std::string message;
+		std::string shaderName;
+		uint32_t shaderRegister = 0;
+		PipelineStaticSamplerSettings settings{};
 	};
 
 	struct ShaderGraphCompileOutput {
@@ -27,10 +34,17 @@ namespace Engine {
 		std::string surfaceHLSL;
 		std::string opaquePixelHLSL;
 		std::string transparentPixelHLSL;
+		std::string depthPixelHLSL;
+		std::string pickingPixelHLSL;
+		std::string vertexHLSL;
+		std::string meshHLSL;
+		std::string computeHLSL;
 		std::vector<ShaderParameterMetadata> parameters;
+		std::vector<ShaderGraphSamplerBinding> samplers;
 		std::vector<ShaderGraphDiagnostic> diagnostics;
+		ShaderGraphIRModule ir;
 
-		bool Succeeded() const { return diagnostics.empty(); }
+		bool Succeeded() const;
 	};
 
 	//============================================================================
@@ -48,6 +62,7 @@ namespace Engine {
 
 		static ShaderGraphCompileOutput Compile(
 			const ShaderGraphAsset& graph,
-			std::string_view surfaceIncludeFile);
+			std::string_view surfaceIncludeFile,
+			const ShaderGraphAssetResolver& resolver = {});
 	};
 } // Engine

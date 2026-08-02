@@ -67,6 +67,9 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 	if (sceneFinal_) {
 		sceneFinal_->Destroy();
 	}
+	if (sceneColorOpaque_) {
+		sceneColorOpaque_->Destroy();
+	}
 	depthPyramid_.Destroy();
 	runtimeOutline_.Destroy();
 	editorSelectionOutline_.Destroy();
@@ -86,6 +89,14 @@ void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t wi
 		&graphicsCore.GetDSVDescriptor(),
 		&graphicsCore.GetSRVDescriptor(),
 		BuildSceneFinalDesc(width, height));
+
+	sceneColorOpaque_ = std::make_unique<MultiRenderTarget>();
+	sceneColorOpaque_->Create(
+		graphicsCore.GetDXObject().GetDevice(),
+		&graphicsCore.GetRTVDescriptor(),
+		&graphicsCore.GetDSVDescriptor(),
+		&graphicsCore.GetSRVDescriptor(),
+		BuildSceneColorOpaqueDesc(width, height));
 
 	depthPyramid_.Create(
 		graphicsCore.GetDXObject().GetDevice(),
@@ -166,6 +177,10 @@ void Engine::RenderPathResources::Destroy() {
 	if (sceneFinal_) {
 		sceneFinal_->Destroy();
 		sceneFinal_.reset();
+	}
+	if (sceneColorOpaque_) {
+		sceneColorOpaque_->Destroy();
+		sceneColorOpaque_.reset();
 	}
 	depthPyramid_.Destroy();
 	runtimeOutline_.Destroy();
@@ -258,6 +273,18 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneFinal
 	color.createUAV = true;
 	desc.colors.emplace_back(color);
 
+	return desc;
+}
+
+Engine::MultiRenderTargetCreateDesc
+Engine::RenderPathResources::BuildSceneColorOpaqueDesc(
+	uint32_t width, uint32_t height) {
+
+	MultiRenderTargetCreateDesc desc =
+		BuildSceneFinalDesc(width, height);
+	desc.colors[0].name =
+		RenderTargetNames::kSceneColorOpaque;
+	desc.colors[0].createUAV = false;
 	return desc;
 }
 

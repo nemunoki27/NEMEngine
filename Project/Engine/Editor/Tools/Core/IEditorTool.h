@@ -41,7 +41,7 @@ namespace Engine {
 		// プレビュー対象Entityで描画側で必要な時だけ解決して使用する
 		UUID previewEntityUUID{};
 
-		// 色+深度をまとめた描画先
+		// 色と必要に応じた深度をまとめた描画先
 		std::unique_ptr<MultiRenderTarget> renderTarget;
 
 		// リソースを破棄してデスクリプタを解放する
@@ -107,7 +107,8 @@ namespace Engine {
 		//============================================================================
 		// ツール専用RenderTextureを作成し同じ名前がある場合は既存のものを返す
 		EditorToolRenderTexture* CreateRenderTexture(const std::string& name,
-			const Vector2I& size, const Color4& clearColor = Color4::Black(), uint32_t colorCount = 1);
+			const Vector2I& size, const Color4& clearColor = Color4::Black(),
+			uint32_t colorCount = 1, bool withDepth = true);
 
 		// 作成済みRenderTextureを名前で取得する
 		EditorToolRenderTexture* FindRenderTexture(const std::string& name);

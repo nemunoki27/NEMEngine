@@ -348,6 +348,7 @@ void Engine::ParticleRenderBackend::CollectInstances(const RenderDrawContext& co
 			instance.material.materialColor = Color4::White();
 			instance.material.uvMatrix = BuildParticleUVMatrix(particle);
 			const ParticleCustomParameterLayout& customLayout = customLayouts[phaseIndex];
+			instance.customParameters = customLayout.defaultData;
 			instance.customParameters.resize(customLayout.stride, 0);
 			for (const ShaderConstantBufferVariable& variable : customLayout.variables) {
 
@@ -390,8 +391,15 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 	if (!pipelineState) {
 		return;
 	}
-	const ParticleCustomParameterLayout customLayout = BuildParticleCustomParameterLayout(
-		pipelineState->GetGraphicsReflection());
+	const auto resolveTexture = [&context](MaterialParameterSemantic semantic,
+		const AssetID& textureAssetID) {
+		return BackendDrawCommon::ResolveMaterialTextureIndex(
+			context, semantic, textureAssetID);
+	};
+	const ParticleCustomParameterLayout customLayout =
+		BuildParticleCustomParameterLayout(
+			pipelineState->GetGraphicsReflection(),
+			&resolvedPass.material->parameters, resolveTexture);
 	ParticleTrailDataBuilder::Build(context, items, customLayout, trailDataScratch_);
 	resources.UploadTrailGeometry(trailDataScratch_);
 	if (resources.GetTrailSegmentCount() == 0) {
@@ -494,6 +502,11 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 			settings.phaseMaterialSettings.size()), static_cast<size_t>(1));
 		std::vector<BackendDrawCommon::ResolvedMaterialPass> phasePasses(phaseCount);
 		std::vector<ParticleCustomParameterLayout> customLayouts(phaseCount);
+		const auto resolveTexture = [&context](MaterialParameterSemantic semantic,
+			const AssetID& textureAssetID) {
+			return BackendDrawCommon::ResolveMaterialTextureIndex(
+				context, semantic, textureAssetID);
+		};
 		for (size_t phaseIndex = 0; phaseIndex < phaseCount; ++phaseIndex) {
 
 			const AssetID phaseMaterial =
@@ -506,7 +519,10 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 				context, *phasePasses[phaseIndex].pass);
 			if (reflectionPipeline) {
 				customLayouts[phaseIndex] = BuildParticleCustomParameterLayout(
-					reflectionPipeline->GetGraphicsReflection());
+					reflectionPipeline->GetGraphicsReflection(),
+					phasePasses[phaseIndex].material ?
+						&phasePasses[phaseIndex].material->parameters : nullptr,
+					resolveTexture);
 			}
 		}
 

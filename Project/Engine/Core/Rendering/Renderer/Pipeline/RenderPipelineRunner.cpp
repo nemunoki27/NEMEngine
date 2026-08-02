@@ -38,6 +38,9 @@ using namespace Engine;
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -512,6 +515,8 @@ void RenderPipelineRunner::ApplyMaterialRenderStates() {
 		if (state.overridesRenderer) {
 			item.renderPhase = state.phase;
 			item.blendMode = state.blendMode;
+			item.castShadows = state.castShadows;
+			item.receiveShadows = state.receiveShadows;
 		}
 	}
 }
@@ -553,6 +558,72 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 		ReloadPipeline(assetID);
 		return;
 	}
+	if (meta->type == AssetType::ShaderGraph) {
+		std::vector<AssetID> affectedGraphs{ assetID };
+		const std::vector<AssetID> referencers =
+			assetDatabase.FindReferencersRecursive(assetID);
+		for (AssetID referencer : referencers) {
+			const AssetMeta* referencerMeta = assetDatabase.Find(referencer);
+			if (referencerMeta &&
+				referencerMeta->type == AssetType::ShaderGraph) {
+
+				affectedGraphs.emplace_back(referencer);
+			}
+		}
+
+		// 子Sub Graphから親Graphの順で再生成し、循環参照はDatabase側で除外する
+		for (AssetID graphID : affectedGraphs) {
+			ShaderGraphAsset graph{};
+			ShaderGraphArtifact artifact{};
+			const std::filesystem::path graphPath =
+				assetDatabase.ResolveFullPath(graphID);
+			if (graphPath.empty() ||
+				!FromJson(JsonAdapter::Load(graphPath, true), graph) ||
+				!ShaderGraphArtifactCache::Compile(
+					graph, graphID, artifact, &assetDatabase)) {
+
+				continue;
+			}
+			const std::array shaderIDs{
+				artifact.opaqueShaderID,
+				artifact.transparentShaderID,
+				artifact.depthShaderID,
+				artifact.pickingShaderID,
+				artifact.computeShaderID,
+			};
+			for (AssetID shaderID : shaderIDs) {
+				if (shaderID) {
+					pipelineStateCache_.InvalidateByShaderAsset(shaderID);
+				}
+			}
+			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.opaqueShader));
+			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.transparentShader));
+			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.depthShader));
+			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.pickingShader));
+			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.computeShader));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.opaquePipeline));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.transparentPipeline));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.depthPipeline));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.pickingPipeline));
+		}
+
+		for (AssetID referencer : referencers) {
+			const AssetMeta* referencerMeta = assetDatabase.Find(referencer);
+			if (referencerMeta && referencerMeta->type == AssetType::Material) {
+				ReloadMaterial(referencer);
+			}
+		}
+		return;
+	}
 	if (meta->type != AssetType::Shader) {
 		return;
 	}
@@ -569,6 +640,10 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 		const AssetMeta* referencerMeta = assetDatabase.Find(referencer);
 		if (referencerMeta && referencerMeta->type == AssetType::Shader) {
 			ReloadShader(referencer);
+		} else if (referencerMeta &&
+			referencerMeta->type == AssetType::ShaderGraph) {
+
+			ReloadAsset(assetDatabase, referencer);
 		}
 	}
 }
@@ -1143,6 +1218,44 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	if (resources.GetSceneFinal()) {
 		registry->Register("SceneFinal", resources.GetSceneFinal(), { RenderTargetNames::kSceneColorFinal }, std::nullopt);
 	}
+	if (resources.GetSceneColorOpaque()) {
+		registry->Register("SceneColorOpaque", resources.GetSceneColorOpaque(),
+			{ RenderTargetNames::kSceneColorOpaque }, std::nullopt);
+	}
+
+	// Shader GraphのScene TextureをGraphics Pipelineの名前解決へ登録
+	const auto registerSceneTexture = [&](const char* alias,
+		ID3D12Resource* resource, D3D12_GPU_DESCRIPTOR_HANDLE handle) {
+
+		if (!resource || handle.ptr == 0) {
+			return;
+		}
+		context.bufferRegistry.Register(RegisteredRenderBuffer{
+			.alias = alias,
+			.resource = resource,
+			.srvGPUHandle = handle,
+		});
+	};
+	if (RenderTexture2D* texture = resources.GetSceneColorOpaque()->GetColorTexture(0)) {
+		registerSceneTexture(ShaderGraphBindingNames::kSceneColor,
+			texture->GetResource(), texture->GetSRVGPUHandle());
+	}
+	if (DepthTexture2D* depth = resources.GetSceneMain()->GetDepthTexture()) {
+		registerSceneTexture(ShaderGraphBindingNames::kSceneDepth,
+			depth->GetResource(), depth->GetSRVGPUHandle());
+	}
+	const auto registerGBuffer = [&](const char* alias, GBufferAttachment attachment) {
+
+		if (RenderTexture2D* texture = resources.GetGBuffer(attachment)) {
+			registerSceneTexture(alias,
+				texture->GetResource(), texture->GetSRVGPUHandle());
+		}
+	};
+	registerGBuffer(ShaderGraphBindingNames::kSceneNormal, GBufferAttachment::Normal);
+	registerGBuffer(ShaderGraphBindingNames::kScenePosition, GBufferAttachment::Position);
+	registerGBuffer(ShaderGraphBindingNames::kSceneMaterial, GBufferAttachment::Material);
+	registerGBuffer(ShaderGraphBindingNames::kSceneEmissive, GBufferAttachment::Emissive);
+	registerGBuffer(ShaderGraphBindingNames::kSceneFlags, GBufferAttachment::Flags);
 
 	// ZPrepassでもRoot Signatureを満たせるよう、生成前から有効なHi-Z SRVを登録する
 	if (context.cullingResources) {

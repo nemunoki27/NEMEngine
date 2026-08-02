@@ -36,6 +36,8 @@ namespace Engine {
 		BuiltinRenderBackendBase() {
 
 			viewCBVSlot_ = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
+			shaderGraphTimeCBVSlot_ = perDrawBindCache_.AddSlot(
+				"ShaderGraphTimeConstants", ShaderBindingKind::CBV);
 			materialParamsCBVSlot_ = perDrawBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
 		}
 		~BuiltinRenderBackendBase() override = default;
@@ -69,6 +71,8 @@ namespace Engine {
 		PostProcessConstantBufferAllocator constantBufferAllocator_{};
 
 		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID shaderGraphTimeCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		D3D12_GPU_VIRTUAL_ADDRESS shaderGraphTimeGPUAddress_ = 0;
 	};
 } // Engine

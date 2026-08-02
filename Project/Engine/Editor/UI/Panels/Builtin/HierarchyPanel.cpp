@@ -124,7 +124,12 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	if (!ImGui::Begin("Hierarchy", &context.layoutState->showHierarchy)) {
+	const bool visible = ImGui::Begin("Hierarchy", &context.layoutState->showHierarchy);
+	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		context.host->NotifyEditorCommandPanelFocused(
+			EditorCommandPanelKind::Scene);
+	}
+	if (!visible) {
 		ImGui::End();
 		return;
 	}

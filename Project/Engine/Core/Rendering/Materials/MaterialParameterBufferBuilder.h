@@ -23,6 +23,11 @@ namespace Engine {
 	//============================================================================
 	class MaterialParameterBufferBuilder {
 	public:
+		struct TextureResolveResult {
+
+			uint32_t index = kNoTextureIndex;
+			bool cacheable = true;
+		};
 		//============================================================================
 		//	public Methods
 		//============================================================================
@@ -31,27 +36,34 @@ namespace Engine {
 		~MaterialParameterBufferBuilder() = default;
 
 		// テクスチャSemanticとAssetIDからbindless SRV indexを解決する
-		using TextureResolver = std::function<uint32_t(
+		using TextureResolver = std::function<TextureResolveResult(
 			MaterialParameterSemantic, const AssetID&)>;
 
 		// MaterialAssetの値を指定レイアウトのbyte列に変換する
-		static std::vector<uint8_t> Build(const MaterialAsset& material, const MaterialParameterLayout& layout);
+		static std::vector<uint8_t> Build(const MaterialAsset& material,
+			const MaterialParameterLayout& layout,
+			const TextureResolver& resolveTexture = {},
+			bool* outTextureValuesCacheable = nullptr);
 		// 呼び出し側が確保済みの領域へMaterialAssetの値を詰める
 		static bool BuildInto(std::span<uint8_t> bytes,
-			const MaterialAsset& material, const MaterialParameterLayout& layout);
+			const MaterialAsset& material, const MaterialParameterLayout& layout,
+			const TextureResolver& resolveTexture = {},
+			bool* outTextureValuesCacheable = nullptr);
 
 		// マテリアル既定値にサブメッシュ上書きを重ね、テクスチャはbindless indexへ解決して1要素分を詰める
 		static std::vector<uint8_t> BuildElement(
 			const MaterialParameterSet& defaults,
 			const MaterialParameterSet& overrides,
 			const MaterialParameterLayout& layout,
-			const TextureResolver& resolveTexture);
+			const TextureResolver& resolveTexture,
+			bool* outTextureValuesCacheable = nullptr);
 		// 呼び出し側が確保済みの領域へ既定値と上書きを詰める
 		static bool BuildElementInto(std::span<uint8_t> bytes,
 			const MaterialParameterSet& defaults,
 			const MaterialParameterSet& overrides,
 			const MaterialParameterLayout& layout,
-			const TextureResolver& resolveTexture);
+			const TextureResolver& resolveTexture,
+			bool* outTextureValuesCacheable = nullptr);
 
 		// キャッシュ変更検知用の順序非依存ハッシュを計算する
 		static uint64_t ComputeHash(

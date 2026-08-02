@@ -30,6 +30,7 @@ namespace Engine {
 
 		uint32_t stride = 0;
 		std::vector<ShaderConstantBufferVariable> variables{};
+		std::vector<uint8_t> defaultData{};
 	};
 
 	//============================================================================

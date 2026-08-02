@@ -98,7 +98,8 @@ namespace {
 
 		if (customLayout.stride != 0) {
 
-			std::vector<uint8_t> custom(customLayout.stride, 0);
+			std::vector<uint8_t> custom = customLayout.defaultData;
+			custom.resize(customLayout.stride, 0);
 			for (const Engine::ShaderConstantBufferVariable& variable : customLayout.variables) {
 
 				auto parameter = materialPhase.parameters.find(variable.name);

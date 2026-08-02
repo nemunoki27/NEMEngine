@@ -3,16 +3,20 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 
 // c++
 #include <algorithm>
+#include <array>
 #include <cstring>
 
 //============================================================================
 //	ParticleRenderDataUtility functions
 //============================================================================
 Engine::ParticleCustomParameterLayout Engine::BuildParticleCustomParameterLayout(
-	const ShaderReflectionInfo& reflection) {
+	const ShaderReflectionInfo& reflection, const MaterialParameterSet* defaults,
+	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
 	ParticleCustomParameterLayout layout{};
 	const ShaderStructuredBufferInfo* buffer = FindStructuredBuffer(reflection, "gParticleCustomParameters");
@@ -21,10 +25,22 @@ Engine::ParticleCustomParameterLayout Engine::BuildParticleCustomParameterLayout
 	}
 	layout.stride = buffer->stride;
 	for (const ShaderConstantBufferVariable& variable : buffer->variables) {
-		if (variable.valueType == D3D_SVT_FLOAT && variable.offset < layout.stride) {
+		const bool supported = variable.valueType == D3D_SVT_FLOAT ||
+			variable.valueType == D3D_SVT_INT || variable.valueType == D3D_SVT_UINT ||
+			variable.valueType == D3D_SVT_BOOL;
+		if (supported && variable.offset < layout.stride) {
 			layout.variables.emplace_back(variable);
 		}
 	}
+	layout.defaultData.resize((std::max)(layout.stride, 16u), 0);
+	if (defaults) {
+		MaterialParameterLayout parameterLayout{};
+		parameterLayout.Build(reflection, "gParticleCustomParameters");
+		MaterialParameterBufferBuilder::BuildElementInto(
+			layout.defaultData, *defaults, {}, parameterLayout,
+			resolveTexture);
+	}
+	layout.defaultData.resize(layout.stride);
 	return layout;
 }
 
@@ -37,5 +53,28 @@ void Engine::WriteParticleCustomParameter(std::vector<uint8_t>& data,
 		return;
 	}
 	const float values[4] = { value.x, value.y, value.z, value.w };
-	std::memcpy(data.data() + variable.offset, values, writeSize);
+	if (variable.valueType == D3D_SVT_FLOAT) {
+		std::memcpy(data.data() + variable.offset, values, writeSize);
+		return;
+	}
+	if (variable.valueType == D3D_SVT_INT) {
+		const int32_t converted[4] = {
+			static_cast<int32_t>(value.x), static_cast<int32_t>(value.y),
+			static_cast<int32_t>(value.z), static_cast<int32_t>(value.w),
+		};
+		std::memcpy(data.data() + variable.offset, converted, writeSize);
+		return;
+	}
+	const std::array<uint32_t, 4> converted = variable.valueType == D3D_SVT_BOOL ?
+		std::array<uint32_t, 4>{
+			value.x != 0.0f ? 1u : 0u, value.y != 0.0f ? 1u : 0u,
+			value.z != 0.0f ? 1u : 0u, value.w != 0.0f ? 1u : 0u,
+		} :
+		std::array<uint32_t, 4>{
+			static_cast<uint32_t>((std::max)(value.x, 0.0f)),
+			static_cast<uint32_t>((std::max)(value.y, 0.0f)),
+			static_cast<uint32_t>((std::max)(value.z, 0.0f)),
+			static_cast<uint32_t>((std::max)(value.w, 0.0f)),
+		};
+	std::memcpy(data.data() + variable.offset, converted.data(), writeSize);
 }

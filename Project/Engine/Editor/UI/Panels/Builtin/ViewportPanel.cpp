@@ -332,7 +332,12 @@ void Engine::ViewportPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	if (!ImGui::Begin(windowName_.c_str(), visible)) {
+	const bool drawContents = ImGui::Begin(windowName_.c_str(), visible);
+	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
+		context.host->NotifyEditorCommandPanelFocused(
+			EditorCommandPanelKind::Scene);
+	}
+	if (!drawContents) {
 		ImGui::End();
 		return;
 	}

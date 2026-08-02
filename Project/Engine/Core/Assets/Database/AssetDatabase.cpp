@@ -16,6 +16,7 @@
 #include <optional>
 #include <system_error>
 #include <unordered_map>
+#include <unordered_set>
 
 //============================================================================
 //	AssetDatabase classMethods
@@ -71,7 +72,8 @@ namespace {
 			{ "material", Engine::AssetType::Material },
 			{ "materials", Engine::AssetType::Material },
 			{ "materialGuid", Engine::AssetType::Material },
-			{ "generatedMaterial", Engine::AssetType::Material },
+			{ "shaderGraph", Engine::AssetType::ShaderGraph },
+			{ "subGraph", Engine::AssetType::ShaderGraph },
 			{ "texture", Engine::AssetType::Texture },
 			{ "baseColorTexture", Engine::AssetType::Texture },
 			{ "normalTexture", Engine::AssetType::Texture },
@@ -89,8 +91,7 @@ namespace {
 			{ "effect", Engine::AssetType::ParticleEffect },
 			{ "shader", Engine::AssetType::Shader },
 			{ "shaderOverride", Engine::AssetType::Shader },
-			{ "generatedOpaqueShader", Engine::AssetType::Shader },
-			{ "generatedTransparentShader", Engine::AssetType::Shader },
+			{ "functionFileAsset", Engine::AssetType::Shader },
 			{ "file", Engine::AssetType::Shader },
 			{ "pipeline", Engine::AssetType::RenderPipeline },
 			{ "postProcessStack", Engine::AssetType::PostProcessStack },
@@ -626,6 +627,25 @@ const std::vector<Engine::AssetID>& Engine::AssetDatabase::FindReferencers(Asset
 	static const std::vector<AssetID> kEmpty;
 	auto it = referencersByGuid_.find(id);
 	return (it == referencersByGuid_.end()) ? kEmpty : it->second;
+}
+
+std::vector<Engine::AssetID>
+Engine::AssetDatabase::FindReferencersRecursive(AssetID id) const {
+
+	std::vector<AssetID> result;
+	std::vector<AssetID> pending{ id };
+	std::unordered_set<AssetID> visited{ id };
+	for (size_t index = 0; index < pending.size(); ++index) {
+
+		for (AssetID referencer : FindReferencers(pending[index])) {
+			if (!visited.insert(referencer).second) {
+				continue;
+			}
+			result.emplace_back(referencer);
+			pending.emplace_back(referencer);
+		}
+	}
+	return result;
 }
 
 bool Engine::AssetDatabase::HasReferencers(AssetID id) const {

@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 
 // c++
@@ -270,6 +271,22 @@ namespace {
 		std::cout << "Cook verified: " << fileCount << " files\n";
 		return 0;
 	}
+
+	int CookShaders(const std::filesystem::path& manifestPath,
+		const std::filesystem::path& outputRoot) {
+
+		Engine::ShaderCookResult result{};
+		std::string error;
+		if (!Engine::ShaderCook::Cook(
+			manifestPath, outputRoot, result, error)) {
+			std::cerr << "[ShaderCook] " << error << '\n';
+			return 11;
+		}
+		std::cout << "[ShaderCook] shaders=" << result.shaderCount <<
+			" stages=" << result.stageCount <<
+			" dxilBytes=" << result.bytecodeSize << '\n';
+		return 0;
+	}
 }
 
 int main(int argc, char** argv) {
@@ -290,10 +307,14 @@ int main(int argc, char** argv) {
 	if (argc == 4 && std::string_view(argv[1]) == "--verify-cook") {
 		return VerifyCook(argv[2], argv[3]);
 	}
+	if (argc == 4 && std::string_view(argv[1]) == "--cook-shaders") {
+		return CookShaders(argv[2], argv[3]);
+	}
 
 	std::cout << "NEMBuildTool --validate-project <project-directory>\n"
 		"NEMBuildTool --canonicalize-scenes <project-directory> [--include-engine]\n"
 		"NEMBuildTool --merge-json <base> <ours> <theirs> <output>\n"
-		"NEMBuildTool --verify-cook <manifest> <content-root>\n";
+		"NEMBuildTool --verify-cook <manifest> <content-root>\n"
+		"NEMBuildTool --cook-shaders <game-build-manifest> <output-root>\n";
 	return argc == 1 ? 0 : 1;
 }

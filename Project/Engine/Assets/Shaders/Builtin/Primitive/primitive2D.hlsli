@@ -33,4 +33,34 @@ struct VSOutput {
 	float2 localTexcoord : TEXCOORD1;
 };
 
+float2 ResolvePrimitive2DTexcoord(
+	float2 uv,
+	PrimitiveInstance instance) {
+
+	if ((instance.flags &
+		PRIMITIVE_INSTANCE_FLAG_FLIP_SCREEN_V) != 0u) {
+
+		uv.y = 1.0f - uv.y;
+	}
+	return uv;
+}
+
+VSOutput BuildPrimitive2DVertexOutput(
+	float3 localPosition,
+	float2 uv,
+	PrimitiveInstance instance) {
+
+	VSOutput output;
+	float4 worldPosition = mul(
+		float4(localPosition, 1.0f),
+		instance.worldMatrix);
+	output.position = mul(worldPosition, viewProjection);
+	output.localTexcoord = ResolvePrimitive2DTexcoord(
+		uv, instance);
+	output.texcoord = mul(
+		float4(output.localTexcoord, 0.0f, 1.0f),
+		instance.uvMatrix).xy;
+	return output;
+}
+
 #endif // NEM_PRIMITIVE2D_HLSLI

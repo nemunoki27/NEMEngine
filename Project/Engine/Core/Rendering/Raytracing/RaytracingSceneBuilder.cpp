@@ -1082,7 +1082,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.hitGroupIndex = 0;
 		instance.mask = kRaytracingMaskAlwaysHit;
 		if (src.renderer) {
-			if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastShadow)) {
+			if (src.castShadows) {
 				instance.mask |= kRaytracingMaskShadowCaster;
 			}
 			if (HasMeshRenderFlag(src.renderer->renderFlags, MeshRenderFlags::CastReflection)) {
@@ -1195,8 +1195,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.blas = resource.blas.GetResource();
 		instance.instanceID = shaderInstanceIndex;
 		instance.hitGroupIndex = 0;
-		// FillMeshはフラグを持たないため全てのレイに当てる
-		instance.mask = kRaytracingMaskAlwaysHit | kRaytracingMaskShadowCaster | kRaytracingMaskReflectionCaster;
+		instance.mask = kRaytracingMaskAlwaysHit |
+			kRaytracingMaskReflectionCaster;
+		if (src.castShadows) {
+			instance.mask |= kRaytracingMaskShadowCaster;
+		}
 		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 		instance.worldMatrix = src.worldMatrix;
 		tlasInstances.emplace_back(instance);
@@ -1264,7 +1267,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instance.hitGroupIndex = 0;
 		// CastShadow/CastReflectionに応じて影レイと反射レイの当たり判定を分ける
 		instance.mask = kRaytracingMaskAlwaysHit;
-		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastShadow)) {
+		if (src.castShadows) {
 			instance.mask |= kRaytracingMaskShadowCaster;
 		}
 		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastReflection)) {
@@ -1422,6 +1425,7 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
 		}
 		instance.renderer = nullptr;
+		instance.castShadows = item.castShadows;
 		if (item.world && item.world->IsAlive(item.entity)) {
 			if (item.world->HasComponent<MeshRendererComponent>(item.entity)) {
 
@@ -1466,6 +1470,7 @@ void Engine::RaytracingSceneBuilder::CollectSceneFillMeshInstances(const RenderS
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
 		}
 		instance.renderer = &renderer;
+		instance.castShadows = item.castShadows;
 		outInstances.emplace_back(instance);
 	}
 }
@@ -1506,6 +1511,7 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
 		}
 		instance.renderer = &renderer;
+		instance.castShadows = item.castShadows;
 		// batchKeyは上書き分離を含むためBLAS共有には形状ハッシュを使う
 		instance.geometryHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		outInstances.emplace_back(instance);

@@ -132,6 +132,23 @@ static ImGui_ImplDX12_Data* ImGui_ImplDX12_GetBackendData()
     return ImGui::GetCurrentContext() ? (ImGui_ImplDX12_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
+static DXGI_FORMAT ImGui_ImplDX12_GetSwapChainFormat(DXGI_FORMAT rtv_format)
+{
+    if (rtv_format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB)
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+    if (rtv_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+        return DXGI_FORMAT_B8G8R8A8_UNORM;
+    return rtv_format;
+}
+
+static void ImGui_ImplDX12_CreateRenderTargetView(ImGui_ImplDX12_Data* bd, ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE descriptor)
+{
+    D3D12_RENDER_TARGET_VIEW_DESC desc = {};
+    desc.Format = bd->RTVFormat;
+    desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    bd->pd3dDevice->CreateRenderTargetView(resource, &desc, descriptor);
+}
+
 // Buffers used during the rendering of a frame
 struct ImGui_ImplDX12_RenderBuffers
 {
@@ -1139,7 +1156,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     sd1.BufferCount = bd->numFramesInFlight;
     sd1.Width = (UINT)viewport->Size.x;
     sd1.Height = (UINT)viewport->Size.y;
-    sd1.Format = bd->RTVFormat;
+    sd1.Format = ImGui_ImplDX12_GetSwapChainFormat(bd->RTVFormat);
     sd1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     sd1.SampleDesc.Count = 1;
     sd1.SampleDesc.Quality = 0;
@@ -1188,7 +1205,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
         {
             IM_ASSERT(vd->FrameCtx[i].RenderTarget == nullptr);
             vd->SwapChain->GetBuffer(i, IID_PPV_ARGS(&back_buffer));
-            bd->pd3dDevice->CreateRenderTargetView(back_buffer, nullptr, vd->FrameCtx[i].RenderTargetCpuDescriptors);
+            ImGui_ImplDX12_CreateRenderTargetView(bd, back_buffer, vd->FrameCtx[i].RenderTargetCpuDescriptors);
             vd->FrameCtx[i].RenderTarget = back_buffer;
         }
 
@@ -1275,7 +1292,7 @@ static void ImGui_ImplDX12_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
         for (UINT i = 0; i < bd->numFramesInFlight; i++)
         {
             vd->SwapChain->GetBuffer(i, IID_PPV_ARGS(&back_buffer));
-            bd->pd3dDevice->CreateRenderTargetView(back_buffer, nullptr, vd->FrameCtx[i].RenderTargetCpuDescriptors);
+            ImGui_ImplDX12_CreateRenderTargetView(bd, back_buffer, vd->FrameCtx[i].RenderTargetCpuDescriptors);
             vd->FrameCtx[i].RenderTarget = back_buffer;
         }
     }

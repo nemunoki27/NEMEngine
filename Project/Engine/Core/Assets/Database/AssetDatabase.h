@@ -95,6 +95,8 @@ namespace Engine {
 		// 依存関係・逆引き参照・診断の取得(該当なしは共通の空vectorを返す)
 		const std::vector<AssetID>& FindDependencies(AssetID id) const;
 		const std::vector<AssetID>& FindReferencers(AssetID id) const;
+		// 循環参照を除外しながら全ての間接参照元を取得
+		std::vector<AssetID> FindReferencersRecursive(AssetID id) const;
 		bool HasReferencers(AssetID id) const;
 		const std::vector<AssetDatabaseIssue>& GetIssues() const { return issues_; }
 		const std::unordered_map<AssetID, AssetMeta>& GetAssets() const { return guidToMeta_; }

@@ -149,8 +149,20 @@ namespace Engine {
 
 		// シェーダーのDXILバイナリ
 		ComPtr<IDxcBlob> object;
+		// Cook済み製品ではdxcompiler.dllを使わず所有する
+		std::vector<uint8_t> bytecode;
 		// シェーダーのリフレクション情報
 		ShaderReflectionInfo reflection;
+
+		bool IsValid() const noexcept {
+			return object || !bytecode.empty();
+		}
+		const void* GetBytecodePointer() const noexcept {
+			return object ? object->GetBufferPointer() : bytecode.data();
+		}
+		size_t GetBytecodeSize() const noexcept {
+			return object ? object->GetBufferSize() : bytecode.size();
+		}
 	};
 
 	// reflectionから指定名の定数バッファを探す、無ければnullptr

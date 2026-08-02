@@ -26,6 +26,8 @@ namespace Engine {
 		inline constexpr const char* kSceneDepth = "SceneDepth";
 		// ライティング/レイトレ後の最終カラー
 		inline constexpr const char* kSceneColorFinal = "SceneColorFinal";
+		// 透明描画開始直前のSceneColorFinalコピー
+		inline constexpr const char* kSceneColorOpaque = "SceneColorOpaque";
 
 	} // RenderTargetNames
 } // Engine

@@ -186,6 +186,8 @@ namespace Engine {
 
 		ViewportRenderService& GetViewportRenderService() { return *viewportRenderService_.get(); }
 		const ViewportRenderService& GetViewportRenderService() const { return *viewportRenderService_.get(); }
+		RenderAssetLibrary& GetRenderAssetLibrary() { return renderAssetLibrary_; }
+		const RenderAssetLibrary& GetRenderAssetLibrary() const { return renderAssetLibrary_; }
 
 		// 種類に応じた描画ビューの情報の取得
 		const ResolvedRenderView& GetResolvedView(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewState_.view : sceneViewState_.view; }

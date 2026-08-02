@@ -12,6 +12,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
 
 // c++
 #include <memory>
@@ -186,9 +187,12 @@ namespace Engine {
 		PipelineBindingCache::SlotID occlusionDepthSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID screenSpaceOutlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID shaderGraphTimeCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// reflection駆動のマテリアルパラメータcbuffer、カスタムマテリアル用でBuiltinには存在しない
 		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		MaterialParameterBinder materialParamBinder_{};
+		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		D3D12_GPU_VIRTUAL_ADDRESS shaderGraphTimeGPUAddress_ = 0;
 		// reflection駆動のサブメッシュ単位マテリアルパラメータ構造化バッファのスロット
 		PipelineBindingCache::SlotID subMeshMaterialParamSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		// スキニングComputeバインドのパイプラインスロットID

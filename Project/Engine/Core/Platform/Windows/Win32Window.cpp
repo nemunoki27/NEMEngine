@@ -149,6 +149,7 @@ RECT WinApp::ClientRectToScreenRect(HWND hwnd, const RECT& clientRect) {
 void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 
 	timeBeginPeriod(1);
+	EnablePerMonitorDpiAwareness();
 	RegisterWindowClass();
 	fullscreen_ = false;
 
@@ -179,6 +180,58 @@ void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 
 	ApplyCursorVisibilityIfNeeded();
 	ApplyCursorClipIfNeeded();
+}
+
+bool WinApp::HandleExternalFileDrop(HWND hwnd, WPARAM wparam) {
+
+	HDROP drop = reinterpret_cast<HDROP>(wparam);
+	POINT dropPoint{};
+	DragQueryPoint(drop, &dropPoint);
+	ClientToScreen(hwnd, &dropPoint);
+
+	const UINT fileCount = DragQueryFileW(drop, 0xFFFFFFFFu, nullptr, 0);
+	std::vector<std::string> paths;
+	paths.reserve(fileCount);
+	for (UINT i = 0; i < fileCount; ++i) {
+
+		const UINT length = DragQueryFileW(drop, i, nullptr, 0);
+		if (length == 0) {
+			continue;
+		}
+		std::wstring wide(length, L'\0');
+		DragQueryFileW(drop, i, wide.data(), length + 1);
+
+		const int utf8Size = ::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(),
+			static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+		std::string utf8(static_cast<size_t>(utf8Size), '\0');
+		::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), static_cast<int>(wide.size()),
+			utf8.data(), utf8Size, nullptr, nullptr);
+		paths.emplace_back(std::move(utf8));
+	}
+	DragFinish(drop);
+
+	if (Input* input = Input::GetInstance()) {
+		input->PushDroppedFiles(paths,
+			Vector2(static_cast<float>(dropPoint.x), static_cast<float>(dropPoint.y)));
+	}
+	return !paths.empty();
+}
+
+void WinApp::EnablePerMonitorDpiAwareness() {
+
+	using SetProcessDpiAwarenessContextFunction = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
+
+	HMODULE user32 = GetModuleHandleW(L"user32.dll");
+	if (!user32) {
+		return;
+	}
+
+	auto setProcessDpiAwarenessContext =
+		reinterpret_cast<SetProcessDpiAwarenessContextFunction>(
+			GetProcAddress(user32, "SetProcessDpiAwarenessContext"));
+	if (setProcessDpiAwarenessContext) {
+		setProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+	}
 }
 
 bool WinApp::ProcessMessage() {
@@ -387,37 +440,7 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 	case WM_DROPFILES:
 	{
-		// 外部エクスプローラーからドロップされたファイルをInputへ積みProjectPanelが消費する
-		HDROP hDrop = reinterpret_cast<HDROP>(wparam);
-		// DragQueryPointはクライアント座標を返す、ImGuiもviewports無効ではクライアント座標なので変換しない
-		POINT dropPoint{};
-		DragQueryPoint(hDrop, &dropPoint);
-
-		const UINT fileCount = DragQueryFileW(hDrop, 0xFFFFFFFFu, nullptr, 0);
-		std::vector<std::string> paths;
-		paths.reserve(fileCount);
-		for (UINT i = 0; i < fileCount; ++i) {
-
-			const UINT length = DragQueryFileW(hDrop, i, nullptr, 0);
-			if (length == 0) {
-				continue;
-			}
-			std::wstring wide(length, L'\0');
-			DragQueryFileW(hDrop, i, wide.data(), length + 1);
-			// ワイド文字列をUTF-8へ変換する
-			const int utf8Size = ::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(),
-				static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
-			std::string utf8(static_cast<size_t>(utf8Size), '\0');
-			::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), static_cast<int>(wide.size()),
-				utf8.data(), utf8Size, nullptr, nullptr);
-			paths.emplace_back(std::move(utf8));
-		}
-		DragFinish(hDrop);
-
-		if (Input* input = Input::GetInstance()) {
-			input->PushDroppedFiles(paths,
-				Vector2(static_cast<float>(dropPoint.x), static_cast<float>(dropPoint.y)));
-		}
+		HandleExternalFileDrop(hwnd, wparam);
 		return 0;
 	}
 	}

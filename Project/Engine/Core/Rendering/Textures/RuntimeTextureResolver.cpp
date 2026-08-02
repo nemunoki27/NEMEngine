@@ -51,6 +51,52 @@ namespace Engine::RuntimeTextureResolver {
 		return fallback;
 	}
 
+	BindlessResolveResult ResolveBindless(GraphicsCore& graphicsCore,
+		AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB) {
+
+		if (!textureAssetID) {
+			return {};
+		}
+
+		const GPUTextureResource* fallback =
+			graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
+		const uint32_t fallbackIndex =
+			fallback && fallback->srvIndex != UINT32_MAX ?
+			fallback->srvIndex : UINT32_MAX;
+		if (!assetDatabase) {
+			return { fallbackIndex, false };
+		}
+
+		const std::filesystem::path fullPath =
+			assetDatabase->ResolveFullPath(textureAssetID);
+		if (fullPath.empty()) {
+			return { fallbackIndex, false };
+		}
+
+		TextureUploadService& uploadService =
+			graphicsCore.GetTextureUploadService();
+		const std::string basePath = fullPath.generic_string();
+		const std::string key = sRGB ? basePath + ":srgb" : basePath;
+		TextureRequestState state = uploadService.GetState(key);
+		if (state == TextureRequestState::None) {
+
+			TextureFileRequestDesc desc{};
+			desc.key = key;
+			desc.assetPath = basePath;
+			desc.forceSRGB = sRGB;
+			uploadService.RequestTextureFile(desc);
+			state = TextureRequestState::Queued;
+		}
+
+		if (const GPUTextureResource* texture =
+			uploadService.GetTexture(key)) {
+			if (texture->valid && texture->srvIndex != UINT32_MAX) {
+				return { texture->srvIndex, false };
+			}
+		}
+		return { fallbackIndex, state != TextureRequestState::Failed };
+	}
+
 	bool TryResolveSize(GraphicsCore& graphicsCore,
 		AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize) {
 

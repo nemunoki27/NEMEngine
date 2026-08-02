@@ -184,6 +184,9 @@ void Engine::GameApplication::StartPlayWorld() {
 	runtimeWorldBaker_.BakeAll();
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
+	systemContext_.time = 0.0f;
+	systemContext_.unscaledTime = 0.0f;
+	systemContext_.smoothDeltaTime = 0.0f;
 	requestFrameDeltaReset_ = true;
 	playWorldJustStarted_ = true;
 	RefreshActiveWorldContext();
@@ -258,6 +261,20 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 	systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(
 		rawDelta, systemContext_.fixedDeltaTime, worldManager_.IsPlaying() && !skipFirstAdvance);
 	systemContext_.unscaledDeltaTime = rawDelta;
+	const float timeDelta = worldManager_.IsPlaying() ?
+		systemContext_.deltaTime : rawDelta;
+	systemContext_.time += timeDelta;
+	systemContext_.unscaledTime += rawDelta;
+	if (0.0f < rawDelta) {
+		const float smoothWeight =
+			(std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
+		systemContext_.smoothDeltaTime =
+			systemContext_.smoothDeltaTime <= 0.0f ?
+				timeDelta :
+				systemContext_.smoothDeltaTime +
+				(timeDelta - systemContext_.smoothDeltaTime) *
+				smoothWeight;
+	}
 
 	LineImmediateBuffer::GetInstance().BeginFrame();
 
@@ -322,6 +339,10 @@ void Engine::GameApplication::Render(GraphicsCore& graphicsCore) {
 	graphicsCore.Render();
 	renderPipeline_->Render(graphicsCore, BuildRenderFrameRequest(graphicsCore));
 	renderPipeline_->PresentViewToBackBuffer(graphicsCore, RenderViewKind::Game);
+}
+
+void Engine::GameApplication::RenderPlatformWindows([[maybe_unused]] GraphicsCore& graphicsCore) {
+
 }
 
 void Engine::GameApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, ECSWorld& world,

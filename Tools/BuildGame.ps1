@@ -102,6 +102,17 @@ try {
         throw "Release build failed"
     }
 
+    $buildToolProject = [System.IO.Path]::GetFullPath([string]$manifest.buildToolProject)
+    $buildToolExecutable = [System.IO.Path]::GetFullPath([string]$manifest.buildToolExecutable)
+    if (-not (Test-Path -LiteralPath $buildToolProject -PathType Leaf)) {
+        throw "NEMBuildTool project was not found: $buildToolProject"
+    }
+    Write-Output "Starting Shader Cook tool build"
+    & $msbuild $buildToolProject /t:Build /p:Configuration=Release /p:Platform=x64 /m /nodeReuse:false /v:minimal
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $buildToolExecutable -PathType Leaf)) {
+        throw "NEMBuildTool build failed"
+    }
+
     $targetDirectory = Get-ChildPath -Root $outputRoot -Relative $productName
     $stageName = "." + $productName + ".building-" + $PID
     $stageDirectory = Get-ChildPath -Root $outputRoot -Relative $stageName
@@ -139,7 +150,10 @@ try {
         throw "Runtime dependency manifest does not contain NEMRuntime.dll"
     }
 
-    foreach ($runtimeFile in $runtimeFiles) {
+    $productRuntimeFiles = @($runtimeFiles | Where-Object {
+        $_ -ne "dxcompiler.dll" -and $_ -ne "dxil.dll"
+    })
+    foreach ($runtimeFile in $productRuntimeFiles) {
         $source = Get-ChildPath -Root $sourceRuntime -Relative $runtimeFile
         if (-not (Test-Path -LiteralPath $source)) {
             throw "Runtime file is missing: $source"
@@ -149,8 +163,11 @@ try {
         New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
         Copy-Item -LiteralPath $source -Destination $destination -Force
     }
-    Copy-Item -LiteralPath $runtimeManifestPath `
-        -Destination (Join-Path $stageDirectory $runtimeManifestName) -Force
+    Write-Utf8Json -Path (Join-Path $stageDirectory $runtimeManifestName) -Value ([ordered]@{
+        schemaVersion = 1
+        configuration = "Release"
+        files = $productRuntimeFiles
+    })
 
     $managedSource = Join-Path $sourceRuntime "Managed"
     if (-not (Test-Path -LiteralPath $managedSource)) {
@@ -182,6 +199,40 @@ try {
         Copy-Item -LiteralPath $source -Destination $destination -Force
         Assert-FileHash -Path $destination -ExpectedSize ([long]$entry.size) -ExpectedSha256 ([string]$entry.sha256)
     }
+
+    $cookedShaderRoot = Join-Path $stageDirectory "Cooked\Shaders"
+    New-Item -ItemType Directory -Path $cookedShaderRoot -Force | Out-Null
+    Write-Output "Starting Shader Cook"
+    & $buildToolExecutable --cook-shaders $ManifestPath $cookedShaderRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "Shader Cook failed"
+    }
+
+    # MaterialはCook済みPassだけを参照し、製品AssetDatabaseへGraph依存を残さない
+    $detachedMaterialCount = 0
+    Get-ChildItem -LiteralPath $stageDirectory -Recurse -File -Filter "*.material.json" |
+        ForEach-Object {
+            $material = Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($material.PSObject.Properties.Name -contains "shaderGraph") {
+                $material.PSObject.Properties.Remove("shaderGraph")
+                Write-Utf8Json -Path $_.FullName -Value $material
+                ++$detachedMaterialCount
+            }
+        }
+    Write-Output "Detached Shader Graph source references: $detachedMaterialCount"
+
+    # 製品はCook済みDXILのみを使用し、Graph/HLSLソースを配置しない
+    Get-ChildItem -LiteralPath $stageDirectory -Recurse -File |
+        Where-Object {
+            $lower = $_.Name.ToLowerInvariant()
+            $lower.EndsWith(".hlsl") -or
+            $lower.EndsWith(".hlsli") -or
+            $lower.EndsWith(".hlsl.meta") -or
+            $lower.EndsWith(".hlsli.meta") -or
+            $lower.EndsWith(".shadergraph.json") -or
+            $lower.EndsWith(".shadergraph.json.meta")
+        } |
+        Remove-Item -Force
 
     $packageDependencies = [ordered]@{}
     $packageLockDependencies = [ordered]@{}
@@ -236,13 +287,20 @@ try {
         cookHash = [string]$manifest.cookHash
         configuration = "Release"
     }
-    $cookFiles = @($manifest.files | ForEach-Object {
-        [ordered]@{
-            path = [string]$_.destination
-            size = [long]$_.size
-            sha256 = [string]$_.sha256
-        }
-    })
+    $stageRootFull = [System.IO.Path]::GetFullPath($stageDirectory).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
+    $cookFiles = @(Get-ChildItem -LiteralPath $stageDirectory -Recurse -File |
+        ForEach-Object {
+            $relative = $_.FullName.Substring($stageRootFull.Length).TrimStart(
+                [System.IO.Path]::DirectorySeparatorChar,
+                [System.IO.Path]::AltDirectorySeparatorChar).Replace('\', '/')
+            [ordered]@{
+                path = $relative
+                size = [long]$_.Length
+                sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+        } | Sort-Object { $_.path })
     Write-Utf8Json -Path (Join-Path $stageDirectory ".nemCookManifest.json") -Value ([ordered]@{
         schemaVersion = 1
         cookHash = [string]$manifest.cookHash

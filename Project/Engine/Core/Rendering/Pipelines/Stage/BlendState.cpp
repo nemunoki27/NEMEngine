@@ -77,5 +77,18 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
+
+		// 乗算済みα
+	case BlendMode::Premultiplied:
+
+		blendDesc.BlendEnable = true;
+		blendDesc.SrcBlend = D3D12_BLEND_ONE;
+		blendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+		blendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+
+		break;
 	}
 }

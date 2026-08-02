@@ -1491,6 +1491,16 @@ static void             UpdateViewportPlatformMonitor(ImGuiViewportP* viewport);
 ImGuiContext*   GImGui = NULL;
 #endif
 
+// Node EditorのCanvas内では一部のポップアップ位置をローカル座標で計算する
+static int GImGuiNodeEditorCanvasDepth = 0;
+void Priv_ImGuiNodeEditor_EnterCanvas() { ++GImGuiNodeEditorCanvasDepth; }
+void Priv_ImGuiNodeEditor_ExitCanvas()
+{
+    IM_ASSERT(GImGuiNodeEditorCanvasDepth > 0);
+    --GImGuiNodeEditorCanvasDepth;
+}
+bool Priv_ImGuiNodeEditor_IsInCanvas() { return GImGuiNodeEditorCanvasDepth > 0; }
+
 // Memory Allocator functions. Use SetAllocatorFunctions() to change them.
 // - You probably don't want to modify that mid-program, and if you use global/static e.g. ImVector<> instances you may need to keep them accessible during program destruction.
 // - DLL users: read comments above.
@@ -7825,6 +7835,7 @@ static void SetWindowActiveForSkipRefresh(ImGuiWindow* window)
 bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
 {
     ImGuiContext& g = *GImGui;
+    CallContextHooks(&g, ImGuiContextHookType_BeginWindow);
     const ImGuiStyle& style = g.Style;
     IM_ASSERT(name != NULL && name[0] != '\0');     // Window name required
     IM_ASSERT(g.WithinFrameScope);                  // Forgot to call ImGui::NewFrame()
@@ -8860,6 +8871,7 @@ void ImGui::End()
     SetCurrentWindow(g.CurrentWindowStack.Size == 0 ? NULL : g.CurrentWindowStack.back().Window);
     if (g.CurrentWindow)
         SetCurrentViewport(g.CurrentWindow, g.CurrentWindow->Viewport);
+    CallContextHooks(&g, ImGuiContextHookType_EndWindow);
 }
 
 void ImGui::PushItemFlag(ImGuiItemFlags option, bool enabled)

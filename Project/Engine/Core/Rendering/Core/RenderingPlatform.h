@@ -35,7 +35,9 @@ namespace Engine {
 		// コマンドキュー終端などの後処理を実行し、各リソースを破棄する
 		void Finalize(HWND hwnd);
 
-		// フレーム終端でコマンドを提出しPresentまで行う
+		// フレーム終端で記録済みコマンドを提出する
+		void SubmitFrame();
+		// 提出済みフレームをPresentする
 		void PresentFrame(IDXGISwapChain4* swapChain);
 		// 指定フレームコンテキストの完了を待って記録を開始する
 		void BeginFrame(uint32_t frameIndex);
