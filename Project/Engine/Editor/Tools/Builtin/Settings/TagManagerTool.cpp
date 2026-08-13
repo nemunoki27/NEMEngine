@@ -45,7 +45,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	ImGui::TextWrapped("ゲームプレイ用タグの一覧");
 	ImGui::Separator();
 
-	// 保存はScriptExecutionOrderと同様に明示操作で、編集はdirtyで知らせる
+	// 保存は明示操作で行い、編集済み状態はdirtyで知らせる
 	if (ImGui::Button("保存")) {
 		if (ProjectTagSettings::Save()) {
 			dirty_ = false;

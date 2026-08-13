@@ -176,7 +176,6 @@ namespace {
 		bool sprite = false;
 		bool text = false;
 		bool line = false;
-		bool fillMesh = false;
 		bool primitive = false;
 		bool primitive2D = false;
 		bool progress = false;
@@ -202,7 +201,6 @@ namespace {
 			AddAsset(Engine::BuiltinAssets::Materials::OutputTransform);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
 			AddAsset(Engine::BuiltinAssets::Materials::RaytracingReflection);
-			AddAsset(Engine::BuiltinAssets::Materials::IrisTransition);
 
 			AddFixedRuntimeFiles();
 			ProcessAssets();
@@ -531,7 +529,6 @@ namespace {
 					else if (key == "SpriteRenderer") usage_.sprite = true;
 					else if (key == "TextRenderer") usage_.text = true;
 					else if (key == "LineRenderer") usage_.line = true;
-					else if (key == "FillMeshRenderer") usage_.fillMesh = true;
 					else if (key == "PrimitiveRenderer") {
 						usage_.primitive = true;
 						usage_.primitive2D = true;
@@ -719,9 +716,8 @@ namespace {
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/skyboxIrradiance.CS.hlsl");
 
 			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
-			const std::array<const char*, 3> gameProjectSettings = {
+			const std::array<const char*, 2> gameProjectSettings = {
 				"InputActions.json",
-				"ScriptExecutionOrder.json",
 				"TagSettings.json",
 			};
 			for (const char* setting : gameProjectSettings) {
@@ -751,7 +747,6 @@ namespace {
 			if (usage_.sprite) AddAsset(defaults.GetSpriteOrBuiltin());
 			if (usage_.text) AddAsset(defaults.GetTextOrBuiltin());
 			if (usage_.line) AddAsset(defaults.GetLineOrBuiltin());
-			if (usage_.fillMesh) AddAsset(defaults.GetFillMeshOrBuiltin());
 			if (usage_.primitive) AddAsset(defaults.GetPrimitiveOrBuiltin());
 			if (usage_.primitive2D) AddAsset(defaults.GetPrimitive2DOrBuiltin());
 			AddAsset(

@@ -396,10 +396,6 @@ namespace Engine {
 		// 画像またはテキストボタンのフレームクリック状態をC#へ返す
 		static int32_t __cdecl GetUIButtonClickedCallback(
 			ManagedNativeEntity entity, int32_t buttonType);
-		// アイリス遷移の現在状態をC#へ返す
-		static int32_t __cdecl GetIrisTransitionRuntimeStateCallback(
-			ManagedNativeEntity entity,
-			ManagedIrisTransitionRuntimeState* outState);
 		// Gameplay v7のAssetRef runtime resolve
 		static int32_t __cdecl AssetExistsCallback(ManagedAssetGUID assetID);
 		static int32_t __cdecl CopyAssetDisplayNameCallback(ManagedAssetGUID assetID, char* buffer, int32_t capacity);
@@ -431,10 +427,6 @@ namespace Engine {
 		static int32_t __cdecl LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
 		// LineRendererComponentのpoint.indexの点を更新する、範囲外は何もしない
 		static void __cdecl LineUpdatePointCallback(ManagedNativeEntity entity, ManagedLinePoint point);
-		// FillMeshRendererComponentの点列を置き換える、count0でクリア
-		static void __cdecl FillMeshSetPositionsCallback(ManagedNativeEntity entity, const ManagedVector3* points, int32_t count);
-		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
-		static int32_t __cdecl FillMeshCopyPositionsCallback(ManagedNativeEntity entity, ManagedVector3* points, int32_t capacity, int32_t worldSpace);
 		// Canvasの入力配列を操作種別とデバイス別にコピーする
 		static int32_t __cdecl CanvasCopyInputBindingsCallback(
 			ManagedNativeEntity entity, int32_t action, int32_t device,
@@ -447,9 +439,6 @@ namespace Engine {
 		static int32_t __cdecl CanvasScreenToLocalPointCallback(
 			ManagedNativeEntity entity, ManagedVector2 screenPosition,
 			ManagedVector2* outLocalPosition);
-		// IrisTransitionへ再生操作を要求する
-		static void __cdecl IrisTransitionCommandCallback(
-			ManagedNativeEntity entity, int32_t command, float value);
 		// EffectEmitterの再生要求を追加しハンドルを返す
 		static uint64_t __cdecl EffectEmitCallback(ManagedNativeEntity entity, const char* group,
 			ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor);

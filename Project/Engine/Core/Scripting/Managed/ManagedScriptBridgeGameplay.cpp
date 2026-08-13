@@ -11,7 +11,6 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -19,13 +18,11 @@
 #include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
 #include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
 #include <Engine/Core/World/Components/UI/UITextButtonComponent.h>
-#include <Engine/Core/World/Components/UI/IrisTransitionComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
@@ -186,72 +183,6 @@ namespace Engine {
 		line->loop = (loop != 0);
 	}
 
-	void ManagedScriptRuntime::FillMeshSetPositionsCallback(ManagedNativeEntity entity,
-		const ManagedVector3* points, int32_t count) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return;
-		}
-		const Entity resolved = ResolveEntity(entity);
-		FillMeshRendererComponent* fillMesh = world->IsAlive(resolved) ?
-			world->TryGetComponent<FillMeshRendererComponent>(resolved) : nullptr;
-		if (!fillMesh) {
-			return;
-		}
-
-		// Managed配列を変換して編集点列Bufferをまとめて差し替える
-		std::vector<Vector3> converted{};
-		if (points != nullptr && count > 0) {
-
-			converted.reserve(static_cast<size_t>(count));
-			for (int32_t i = 0; i < count; ++i) {
-				converted.emplace_back(points[i].x, points[i].y, points[i].z);
-			}
-		}
-		SetFillMeshPositions(*world, resolved, converted);
-	}
-
-	int32_t ManagedScriptRuntime::FillMeshCopyPositionsCallback(ManagedNativeEntity entity,
-		ManagedVector3* points, int32_t capacity, int32_t worldSpace) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return 0;
-		}
-		const Entity resolved = ResolveEntity(entity);
-		const FillMeshRendererComponent* fillMesh = world->IsAlive(resolved) ?
-			world->TryGetComponent<FillMeshRendererComponent>(resolved) : nullptr;
-		if (!fillMesh) {
-			return 0;
-		}
-
-		const std::span<const FillMeshPosition> positions =
-			GetFillMeshPositions(*world, resolved);
-		const int32_t count = static_cast<int32_t>(positions.size());
-		if (!points || capacity <= 0) {
-			return count;
-		}
-
-		Matrix4x4 worldMatrix = Matrix4x4::Identity();
-		if (worldSpace != 0) {
-			if (const TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved)) {
-				worldMatrix = transform->worldMatrix;
-			}
-		}
-
-		const int32_t copyCount = (std::min)(count, capacity);
-		for (int32_t i = 0; i < copyCount; ++i) {
-
-			const Vector3 localPosition =
-				positions[static_cast<size_t>(i)].value;
-			const Vector3 position = worldSpace != 0 ?
-				Vector3::Transform(localPosition, worldMatrix) : localPosition;
-			points[i] = { position.x, position.y, position.z };
-		}
-		return count;
-	}
-
 	int32_t ManagedScriptRuntime::GetUISelectableRuntimeStateCallback(
 		ManagedNativeEntity entity,
 		ManagedUISelectableRuntimeState* outState) {
@@ -337,29 +268,6 @@ namespace Engine {
 			return runtime && runtime->clickedThisFrame ? 1 : 0;
 		}
 		return 0;
-	}
-
-	int32_t ManagedScriptRuntime::GetIrisTransitionRuntimeStateCallback(
-		ManagedNativeEntity entity,
-		ManagedIrisTransitionRuntimeState* outState) {
-
-		if (!outState) {
-			return 0;
-		}
-		*outState = {};
-
-		ECSWorld* world = ResolveWorld(entity);
-		const Entity resolved = ResolveEntity(entity);
-		const IrisTransitionRuntimeComponent* runtime =
-			world && world->IsAlive(resolved) ?
-			world->TryGetComponent<IrisTransitionRuntimeComponent>(resolved) :
-			nullptr;
-		if (!runtime) {
-			return 0;
-		}
-		outState->state = static_cast<int32_t>(runtime->state);
-		outState->progress = runtime->progress;
-		return 1;
 	}
 
 	int32_t ManagedScriptRuntime::CanvasCopyInputBindingsCallback(
@@ -451,55 +359,6 @@ namespace Engine {
 			}
 		}
 		SetCanvasInputBindings(*world, resolved, replaced);
-	}
-
-	void ManagedScriptRuntime::IrisTransitionCommandCallback(
-		ManagedNativeEntity entity, int32_t command, float value) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		const Entity resolved = ResolveEntity(entity);
-		IrisTransitionComponent* iris = world && world->IsAlive(resolved) ?
-			world->TryGetComponent<IrisTransitionComponent>(resolved) : nullptr;
-		if (!iris) {
-			return;
-		}
-
-		IrisTransitionRuntimeComponent* runtime =
-			world->TryGetComponent<IrisTransitionRuntimeComponent>(resolved);
-		if (!runtime) {
-			return;
-		}
-		const uint64_t beforeSerial = runtime->commandSerial;
-		switch (command) {
-		case 0:
-			RequestIrisOut(*world, resolved, value);
-			break;
-		case 1:
-			RequestIrisIn(*world, resolved, value);
-			break;
-		case 2:
-			RequestIrisProgress(*world, resolved, value);
-			break;
-		case 3:
-			RequestIrisCancel(*world, resolved);
-			break;
-		case 4:
-			RequestIrisReset(*world, resolved);
-			break;
-		default:
-			return;
-		}
-		if (beforeSerial == runtime->commandSerial) {
-			return;
-		}
-
-		const SystemContext* context = GetCurrentContext();
-		if (!context || context->mode != WorldMode::Play) {
-			return;
-		}
-		const bool blockInput =
-			(command == 0 || command == 1) && iris->blockInput;
-		UIRuntimeService::GetInstance().SetTransitionInputBlocked(blockInput);
 	}
 
 	namespace {
@@ -919,13 +778,6 @@ namespace Engine {
 			case Engine::ManagedRendererMaterialTarget::Line:
 				if (Engine::LineRendererComponent* renderer =
 					world.TryGetComponent<Engine::LineRendererComponent>(entity)) {
-
-					visit(renderer->materialInstance);
-				}
-				break;
-			case Engine::ManagedRendererMaterialTarget::FillMesh:
-				if (Engine::FillMeshRendererComponent* renderer =
-					world.TryGetComponent<Engine::FillMeshRendererComponent>(entity)) {
 
 					visit(renderer->materialInstance);
 				}

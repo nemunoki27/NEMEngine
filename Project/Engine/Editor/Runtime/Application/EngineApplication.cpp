@@ -34,10 +34,8 @@
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
-#include <Engine/Core/World/Systems/Rendering/FillFaceMeshRendererSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/UI/UIInputSystem.h>
-#include <Engine/Core/World/Systems/UI/IrisTransitionSystem.h>
 #include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
 // c++
 #include <algorithm>
@@ -90,8 +88,6 @@ void Engine::EngineApplication::InitSystems() {
 	// UI入力はBehaviorより先に確定し、C#のUpdateから同フレームのクリックを参照できるようにする
 	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	// C#からの遷移要求を同フレームで描画状態へ反映する
-	scheduler_.AddSystem(std::make_unique<IrisTransitionSystem>(), ++order);
 	// EffectEmitterとAnimationPlayerは次期データ指向設計へ置き換えるまで実行対象外
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
@@ -101,7 +97,6 @@ void Engine::EngineApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<FillFaceMeshRendererSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);

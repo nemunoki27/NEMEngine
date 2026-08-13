@@ -30,23 +30,21 @@ internal static class ManagedAbi {
     // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
     // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
     // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
-    // v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
     // v25: EffectEmitterの再生ハンドルAPIを追加
     // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
     // v27: UISelectableの決定入力配列取得と設定を追加
     // v28: UI入力配列をCanvasの上下左右と決定へ移行
     // v29: Application.Quitの終了要求を追加
     // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
-    // v31: IrisTransitionの再生操作を追加
     // v32: AudioSourceのPlayOneShotとUnPauseを追加
     // v33: EffectEmitterのグループとState設定APIを追加
     // v34: アセット参照を128bit AssetGUIDへ移行
     // v35: UserSettingsルート取得APIを追加
     // v36: Collision実行時状態をAuthoring設定から分離
     // v37: 型安全なDynamicBufferアクセスを追加
-    // v42: IrisTransitionのRuntime状態を設定コンポーネントから分離
     // v43: 全Renderer共通の型付きMaterial Instance APIを追加
-    internal const uint Version = 43;
+    // v44: 廃止した描画、画面遷移APIを削除
+    internal const uint Version = 44;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -72,7 +70,6 @@ internal enum RendererMaterialTarget {
     Text,
     Primitive,
     Line,
-    FillMesh,
 }
 
 // C++側 ManagedMaterialParameterValueType と一致させる
@@ -179,7 +176,6 @@ public struct NativeRaycastHit {
     public NativeVector3 normal;
     public float distance;
     public int shapeIndex;
-    public int triangleIndex;
     public int trigger;
 }
 
@@ -214,14 +210,6 @@ public struct NativeUIProgressRuntimeState {
     public float displayedValue;
     public float delayedValue;
     public int initialized;
-}
-
-// C++側 ManagedIrisTransitionRuntimeState と同一レイアウト
-[StructLayout(LayoutKind.Sequential)]
-public struct NativeIrisTransitionRuntimeState {
-
-    public int state;
-    public float progress;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -425,7 +413,6 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*, int> SetRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*, int> GetRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int> ClearRendererMaterialParameter;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void> FillMeshSetPositions;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
     // v20: Entityの保存identityを逆引きする
@@ -451,8 +438,6 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopySkinnedAnimationCurrentClip;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int> GetSkinnedAnimationRuntimeState;
-    // v24: FillMeshRendererComponentの点列取得
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int> FillMeshCopyPositions;
     // v25: EffectEmitterの発生とハンドルまたはグループ単位の制御
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong> EffectEmit;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectStop;
@@ -475,7 +460,6 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*, int> GetUIProgressRuntimeState;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCanvasInputLocked;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> GetUIButtonClicked;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeIrisTransitionRuntimeState*, int> GetIrisTransitionRuntimeState;
     // v28: Canvasの操作別入力配列
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> CanvasCopyInputBindings;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
@@ -484,8 +468,6 @@ internal static unsafe class NativeApi {
     // v30: GameViewとCanvas座標変換
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> WorldToScreenPoint;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> CanvasScreenToLocalPoint;
-    // v31: IrisTransition再生操作
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, float, void> IrisTransitionCommand;
 
     internal static void SetCallbacks(NativeApiTable* callbacks) {
 
@@ -603,7 +585,6 @@ internal static unsafe class NativeApi {
         SetRendererMaterialParameter = callbacks->setRendererMaterialParameter;
         GetRendererMaterialParameter = callbacks->getRendererMaterialParameter;
         ClearRendererMaterialParameter = callbacks->clearRendererMaterialParameter;
-        FillMeshSetPositions = callbacks->fillMeshSetPositions;
         GetEntityReferenceIdentity = callbacks->getEntityReferenceIdentity;
         PhysicsRaycast = callbacks->physicsRaycast;
         PhysicsRaycastAll = callbacks->physicsRaycastAll;
@@ -621,7 +602,6 @@ internal static unsafe class NativeApi {
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
         CopySkinnedAnimationCurrentClip = callbacks->copySkinnedAnimationCurrentClip;
         GetSkinnedAnimationRuntimeState = callbacks->getSkinnedAnimationRuntimeState;
-        FillMeshCopyPositions = callbacks->fillMeshCopyPositions;
         EffectEmit = callbacks->effectEmit;
         EffectStop = callbacks->effectStop;
         EffectClear = callbacks->effectClear;
@@ -641,13 +621,11 @@ internal static unsafe class NativeApi {
         GetUIProgressRuntimeState = callbacks->getUIProgressRuntimeState;
         GetCanvasInputLocked = callbacks->getCanvasInputLocked;
         GetUIButtonClicked = callbacks->getUIButtonClicked;
-        GetIrisTransitionRuntimeState = callbacks->getIrisTransitionRuntimeState;
         CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
         CanvasSetInputBindings = callbacks->canvasSetInputBindings;
         RequestApplicationQuit = callbacks->requestApplicationQuit;
         WorldToScreenPoint = callbacks->worldToScreenPoint;
         CanvasScreenToLocalPoint = callbacks->canvasScreenToLocalPoint;
-        IrisTransitionCommand = callbacks->irisTransitionCommand;
         AudioPlayOneShot = callbacks->audioPlayOneShot;
         AudioUnPause = callbacks->audioUnPause;
     }
@@ -1089,17 +1067,6 @@ internal static unsafe class NativeApi {
         return state;
     }
 
-    // アイリス遷移の状態と進行度をまとめて取得する
-    internal static NativeIrisTransitionRuntimeState ReadIrisTransitionRuntimeState(
-        NativeEntity entity) {
-
-        NativeIrisTransitionRuntimeState state = default;
-        if (GetIrisTransitionRuntimeState != null) {
-            GetIrisTransitionRuntimeState(entity, &state);
-        }
-        return state;
-    }
-
     internal static int ReadDynamicBufferLength(
         NativeEntity entity, int typeId, int elementSize) {
 
@@ -1365,25 +1332,6 @@ internal static unsafe class NativeApi {
         }
     }
 
-    // FillMeshRendererComponent の点列を差し替える、count0でクリア
-    internal static void FillMeshSetFacePositions(NativeEntity entity, ReadOnlySpan<Vector3> positions) {
-        if (FillMeshSetPositions == null) {
-            return;
-        }
-        int count = positions.Length;
-        if (count == 0) {
-            FillMeshSetPositions(entity, null, 0);
-            return;
-        }
-        NativeVector3[] native = new NativeVector3[count];
-        for (int i = 0; i < count; ++i) {
-            native[i] = NativeVector3.From(positions[i]);
-        }
-        fixed (NativeVector3* p = native) {
-            FillMeshSetPositions(entity, p, count);
-        }
-    }
-
 	internal static bool ReadUIBlocksGameplayInput() {
 		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput() != 0;
 	}
@@ -1444,37 +1392,6 @@ internal static unsafe class NativeApi {
         }
         localPosition = nativePosition.ToVector2();
         return true;
-    }
-
-    internal static void IrisTransitionCommandCall(
-        NativeEntity entity, int command, float value = 0.0f) {
-
-        if (IrisTransitionCommand != null) {
-            IrisTransitionCommand(entity, command, value);
-        }
-    }
-
-    // FillMeshRendererComponentの点列をローカル座標またはワールド座標で取得する
-    internal static List<Vector3> FillMeshGetPoints(NativeEntity entity, bool worldSpace) {
-
-        if (FillMeshCopyPositions == null) {
-            return new List<Vector3>();
-        }
-        int count = FillMeshCopyPositions(entity, null, 0, worldSpace ? 1 : 0);
-        if (count <= 0) {
-            return new List<Vector3>();
-        }
-
-        NativeVector3[] native = new NativeVector3[count];
-        fixed (NativeVector3* p = native) {
-            count = Math.Min(count, FillMeshCopyPositions(entity, p, count, worldSpace ? 1 : 0));
-        }
-
-        List<Vector3> points = new List<Vector3>(count);
-        for (int i = 0; i < count; ++i) {
-            points.Add(native[i].ToVector3());
-        }
-        return points;
     }
 
     // LineRendererComponent の末尾へ1点追加し、追加した位置のindexを返す。失敗時は-1

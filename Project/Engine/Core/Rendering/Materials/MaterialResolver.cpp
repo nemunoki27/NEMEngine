@@ -25,7 +25,6 @@ Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& databa
 	case DefaultMaterialSlot::Sprite: configured = DefaultMaterialSettings::GetInstance().GetSprite(); break;
 	case DefaultMaterialSlot::Text:   configured = DefaultMaterialSettings::GetInstance().GetText();   break;
 	case DefaultMaterialSlot::Line:   configured = DefaultMaterialSettings::GetInstance().GetLine();   break;
-	case DefaultMaterialSlot::FillMesh: configured = DefaultMaterialSettings::GetInstance().GetFillMesh(); break;
 	case DefaultMaterialSlot::Primitive: configured = DefaultMaterialSettings::GetInstance().GetPrimitive(); break;
 	case DefaultMaterialSlot::Primitive2D: configured = DefaultMaterialSettings::GetInstance().GetPrimitive2D(); break;
 	default: break;
@@ -75,7 +74,6 @@ void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
 	assignIfRegistered(DefaultMaterialSlot::MeshOutline, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::FullscreenCopy, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::Line, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::FillMesh, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::Primitive, AssetType::Material);
 	assignIfRegistered(DefaultMaterialSlot::Primitive2D, AssetType::Material);
 
@@ -99,8 +97,6 @@ Engine::AssetID Engine::MaterialResolver::GetDefaultAssetID(DefaultMaterialSlot 
 		return BuiltinAssets::Materials::FullscreenCopy;
 	case DefaultMaterialSlot::Line:
 		return BuiltinAssets::Materials::DefaultLine;
-	case DefaultMaterialSlot::FillMesh:
-		return BuiltinAssets::Materials::DefaultFillMesh;
 	case DefaultMaterialSlot::Primitive:
 		return BuiltinAssets::Materials::DefaultPrimitive;
 	case DefaultMaterialSlot::Primitive2D:

@@ -549,7 +549,7 @@ void Engine::PostProcessStackTool::DrawPassDetail(const EditorToolContext& conte
 	}
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip(
-			"0は全画面、1以上はMesh、Primitive、FillMeshの不透明描画で"
+			"0は全画面、1以上はMesh、Primitiveの不透明描画で"
 			"\n描画対象マスクと一致する画素だけへ適用します");
 	}
 

@@ -9,15 +9,6 @@
 
 namespace Engine {
 
-	namespace {
-
-		// アイリス遷移中にゲーム入力を読み取れるか
-		bool CanReadGameplayInput() {
-
-			return !UIRuntimeService::GetInstance().IsTransitionInputBlocked();
-		}
-	}
-
 	//============================================================================
 	//	Input Callbacks
 	//	C#側のInputクラスから呼び出されるネイティブ実装
@@ -25,7 +16,7 @@ namespace Engine {
 
 	int32_t ManagedScriptRuntime::GetKeyCallback(int32_t key) {
 		// キーコードの範囲チェック
-		if (!CanReadGameplayInput() || key < 0 || 255 < key) {
+		if (key < 0 || 255 < key) {
 			return 0;
 		}
 		Input* input = Input::GetInstance();
@@ -34,7 +25,7 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::GetKeyDownCallback(int32_t key) {
-		if (!CanReadGameplayInput() || key < 0 || 255 < key) {
+		if (key < 0 || 255 < key) {
 			return 0;
 		}
 		Input* input = Input::GetInstance();
@@ -43,7 +34,7 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::GetKeyUpCallback(int32_t key) {
-		if (!CanReadGameplayInput() || key < 0 || 255 < key) {
+		if (key < 0 || 255 < key) {
 			return 0;
 		}
 		Input* input = Input::GetInstance();
@@ -52,9 +43,6 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::GetMouseButtonCallback(int32_t button) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		if (!input) {
 			return 0;
@@ -70,9 +58,6 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::GetMouseButtonDownCallback(int32_t button) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		if (!input) {
 			return 0;
@@ -87,9 +72,6 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::GetMouseButtonUpCallback(int32_t button) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		if (!input) {
 			return 0;
@@ -104,35 +86,25 @@ namespace Engine {
 	}
 
 	ManagedVector2 ManagedScriptRuntime::GetMousePositionCallback() {
-		if (!CanReadGameplayInput()) {
-			return {};
-		}
 		Input* input = Input::GetInstance();
 		// スクリーン空間でのマウス座標を取得
 		return input ? ToManagedVector2(input->GetMousePos()) : ManagedVector2{};
 	}
 
 	ManagedVector2 ManagedScriptRuntime::GetMouseDeltaCallback() {
-		if (!CanReadGameplayInput()) {
-			return {};
-		}
 		Input* input = Input::GetInstance();
 		// 前フレームからのマウス移動量を取得
 		return input ? ToManagedVector2(input->GetMouseMoveValue()) : ManagedVector2{};
 	}
 
 	float ManagedScriptRuntime::GetMouseWheelCallback() {
-		if (!CanReadGameplayInput()) {
-			return 0.0f;
-		}
 		Input* input = Input::GetInstance();
 		// ホイールの回転量を取得し上回転で正、下回転で負
 		return input ? input->GetMouseWheel() : 0.0f;
 	}
 
 	int32_t ManagedScriptRuntime::GetGamepadButtonCallback(int32_t button) {
-		if (!CanReadGameplayInput() ||
-			button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
+		if (button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
 			return 0;
 		}
 		Input* input = Input::GetInstance();
@@ -141,8 +113,7 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::GetGamepadButtonDownCallback(int32_t button) {
-		if (!CanReadGameplayInput() ||
-			button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
+		if (button < 0 || static_cast<int32_t>(GamePadButtons::Counts) <= button) {
 			return 0;
 		}
 		Input* input = Input::GetInstance();
@@ -157,36 +128,24 @@ namespace Engine {
 	}
 
 	ManagedVector2 ManagedScriptRuntime::GetLeftStickCallback() {
-		if (!CanReadGameplayInput()) {
-			return {};
-		}
 		Input* input = Input::GetInstance();
 		// 左スティックの傾きを取得(-1.0 ~ 1.0)
 		return input ? ToManagedVector2(input->GetLeftStickVal()) : ManagedVector2{};
 	}
 
 	ManagedVector2 ManagedScriptRuntime::GetRightStickCallback() {
-		if (!CanReadGameplayInput()) {
-			return {};
-		}
 		Input* input = Input::GetInstance();
 		// 右スティックの傾きを取得(-1.0 ~ 1.0)
 		return input ? ToManagedVector2(input->GetRightStickVal()) : ManagedVector2{};
 	}
 
 	float ManagedScriptRuntime::GetLeftTriggerCallback() {
-		if (!CanReadGameplayInput()) {
-			return 0.0f;
-		}
 		Input* input = Input::GetInstance();
 		// 左トリガーの押し込み量を取得(0.0 ~ 1.0)
 		return input ? input->GetLeftTriggerValue() : 0.0f;
 	}
 
 	float ManagedScriptRuntime::GetRightTriggerCallback() {
-		if (!CanReadGameplayInput()) {
-			return 0.0f;
-		}
 		Input* input = Input::GetInstance();
 		// 右トリガーの押し込み量を取得(0.0 ~ 1.0)
 		return input ? input->GetRightTriggerValue() : 0.0f;
@@ -201,33 +160,21 @@ namespace Engine {
 	//	raw Input拡張多gamepadとaxisとtextとfocus
 	//============================================================================
 	int32_t ManagedScriptRuntime::GetGamepadButtonIndexedCallback(int32_t index, int32_t button) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		return (input && input->GamepadButtonByIndex(index, button)) ? 1 : 0;
 	}
 
 	int32_t ManagedScriptRuntime::GetGamepadButtonDownIndexedCallback(int32_t index, int32_t button) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		return (input && input->GamepadButtonDownByIndex(index, button)) ? 1 : 0;
 	}
 
 	int32_t ManagedScriptRuntime::GetGamepadButtonUpIndexedCallback(int32_t index, int32_t button) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		return (input && input->GamepadButtonUpByIndex(index, button)) ? 1 : 0;
 	}
 
 	float ManagedScriptRuntime::GetGamepadAxisCallback(int32_t index, int32_t axis) {
-		if (!CanReadGameplayInput()) {
-			return 0.0f;
-		}
 		Input* input = Input::GetInstance();
 		return input ? input->GamepadAxisByIndex(index, axis) : 0.0f;
 	}
@@ -249,9 +196,6 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::CopyTextInputCallback(char* buffer, int32_t capacity) {
-		if (!CanReadGameplayInput()) {
-			return 0;
-		}
 		Input* input = Input::GetInstance();
 		if (!input) {
 			return 0;

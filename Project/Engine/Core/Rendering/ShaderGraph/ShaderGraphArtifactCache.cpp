@@ -95,9 +95,6 @@ namespace {
 		case ShaderGraphTarget::Primitive3D:
 			return transparent ? BuiltinAssets::Pipelines::DefaultPrimitiveTransparent :
 				BuiltinAssets::Pipelines::DefaultPrimitive;
-		case ShaderGraphTarget::FillMesh:
-			return transparent ? BuiltinAssets::Pipelines::DefaultFillMeshTransparent :
-				BuiltinAssets::Pipelines::DefaultFillMesh;
 		case ShaderGraphTarget::Sprite:
 			return BuiltinAssets::Pipelines::DefaultSprite;
 		case ShaderGraphTarget::Text:
@@ -474,11 +471,9 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 		material.usage =
 			graph.target == ShaderGraphTarget::Sprite ? MaterialUsage::Sprite :
 			(graph.target == ShaderGraphTarget::Text ? MaterialUsage::Text :
-				(graph.target == ShaderGraphTarget::FillMesh ?
-					MaterialUsage::FillFaceMesh :
-					((graph.target == ShaderGraphTarget::Particle ||
-						graph.target == ShaderGraphTarget::Trail) ?
-						MaterialUsage::Particle : MaterialUsage::Generic)));
+				((graph.target == ShaderGraphTarget::Particle ||
+					graph.target == ShaderGraphTarget::Trail) ?
+					MaterialUsage::Particle : MaterialUsage::Generic));
 
 		const auto addPass = [&](MaterialPassKind passKind,
 			AssetID pipeline, PipelineVariantKind variant) {
@@ -497,14 +492,6 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 			addPass(MaterialPassKind::Transparent,
 				BuiltinAssets::Pipelines::DefaultPrimitiveTransparent,
 				PipelineVariantKind::GraphicsMesh);
-			break;
-		case ShaderGraphTarget::FillMesh:
-			addPass(MaterialPassKind::Draw,
-				BuiltinAssets::Pipelines::DefaultFillMesh,
-				PipelineVariantKind::GraphicsVertex);
-			addPass(MaterialPassKind::Transparent,
-				BuiltinAssets::Pipelines::DefaultFillMeshTransparent,
-				PipelineVariantKind::GraphicsVertex);
 			break;
 		case ShaderGraphTarget::Sprite:
 			addPass(MaterialPassKind::Draw,

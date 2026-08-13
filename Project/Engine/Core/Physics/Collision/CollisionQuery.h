@@ -22,9 +22,7 @@ namespace Engine {
 		None = 0,
 		// CollisionComponentの3D形状
 		Colliders = 1 << 0,
-		// FillMeshRendererComponentの三角形
-		FillMeshes = 1 << 1,
-		All = (1 << 0) | (1 << 1),
+		All = Colliders,
 	};
 
 	inline bool HasRaycastTarget(RaycastTargets targets, RaycastTargets target) {
@@ -34,7 +32,7 @@ namespace Engine {
 
 	//============================================================================
 	//	CollisionQuery class
-	//	ワールド内の衝突形状とFillMeshに対するレイクエリ
+	//	ワールド内の衝突形状に対するレイクエリ
 	//============================================================================
 	class CollisionQuery {
 	public:
@@ -48,7 +46,7 @@ namespace Engine {
 		// 最近ヒットを返す、ヒット無しはfalse
 		static bool Raycast(ECSWorld& world, const Ray& ray, float maxDistance,
 			uint32_t layerMask, RaycastTargets targets, RaycastHit3D& outHit);
-		// 全ヒットを距離昇順で返す、コライダーは形状単位でFillMeshはEntity単位で1件
+		// 全ヒットを距離昇順で返す
 		static void RaycastAll(ECSWorld& world, const Ray& ray, float maxDistance,
 			uint32_t layerMask, RaycastTargets targets, std::vector<RaycastHit3D>& outHits);
 	private:
@@ -60,9 +58,6 @@ namespace Engine {
 
 		// CollisionComponentの3D形状のヒットを集める
 		static void RaycastColliders(ECSWorld& world, const Ray& ray, float maxDistance,
-			uint32_t layerMask, std::vector<RaycastHit3D>& outHits);
-		// FillMeshの三角形のヒットを集める、Entityごとに最近三角形の1件
-		static void RaycastFillMeshes(ECSWorld& world, const Ray& ray, float maxDistance,
 			uint32_t layerMask, std::vector<RaycastHit3D>& outHits);
 	};
 } // Engine

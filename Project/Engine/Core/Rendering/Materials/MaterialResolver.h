@@ -23,7 +23,6 @@ namespace Engine {
 		MeshOutline,
 		FullscreenCopy,
 		Line,
-		FillMesh,
 		Primitive,
 		Primitive2D,
 	};

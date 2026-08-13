@@ -24,7 +24,6 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
-#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -1048,11 +1047,9 @@ namespace {
 		material.usage =
 			target == ShaderGraphTarget::Sprite ? MaterialUsage::Sprite :
 			(target == ShaderGraphTarget::Text ? MaterialUsage::Text :
-				(target == ShaderGraphTarget::FillMesh ?
-					MaterialUsage::FillFaceMesh :
-					((target == ShaderGraphTarget::Particle ||
-						target == ShaderGraphTarget::Trail) ?
-						MaterialUsage::Particle : MaterialUsage::Generic)));
+				((target == ShaderGraphTarget::Particle ||
+					target == ShaderGraphTarget::Trail) ?
+					MaterialUsage::Particle : MaterialUsage::Generic));
 
 		auto addPass = [&](MaterialPassKind passKind,
 			AssetID pipeline,
@@ -1075,16 +1072,6 @@ namespace {
 				MaterialPassKind::Transparent,
 				BuiltinAssets::Pipelines::DefaultPrimitiveTransparent,
 				PipelineVariantKind::GraphicsMesh);
-			break;
-		case ShaderGraphTarget::FillMesh:
-			addPass(
-				MaterialPassKind::Draw,
-				BuiltinAssets::Pipelines::DefaultFillMesh,
-				PipelineVariantKind::GraphicsVertex);
-			addPass(
-				MaterialPassKind::Transparent,
-				BuiltinAssets::Pipelines::DefaultFillMeshTransparent,
-				PipelineVariantKind::GraphicsVertex);
 			break;
 		case ShaderGraphTarget::Sprite:
 			addPass(
@@ -1197,15 +1184,6 @@ namespace {
 				return true;
 			}
 			break;
-		case Engine::ShaderGraphTarget::FillMesh:
-			if (const auto* renderer =
-				world.TryGetComponent<
-					Engine::FillMeshRendererComponent>(entity)) {
-
-				outMaterial = renderer->material;
-				return true;
-			}
-			break;
 		case Engine::ShaderGraphTarget::Sprite:
 			if (const auto* renderer =
 				world.TryGetComponent<
@@ -1271,17 +1249,6 @@ namespace {
 				renderer->material = material;
 				world.MarkComponentModified<
 					Engine::PrimitiveRendererComponent>(entity);
-				return true;
-			}
-			break;
-		case Engine::ShaderGraphTarget::FillMesh:
-			if (auto* renderer =
-				world.TryGetComponent<
-					Engine::FillMeshRendererComponent>(entity)) {
-
-				renderer->material = material;
-				world.MarkComponentModified<
-					Engine::FillMeshRendererComponent>(entity);
 				return true;
 			}
 			break;

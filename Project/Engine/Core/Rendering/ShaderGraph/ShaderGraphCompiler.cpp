@@ -2339,78 +2339,6 @@ namespace {
 		return source;
 	}
 
-	std::string BuildFillMeshPixelSource(
-		std::string_view surfaceIncludeFile,
-		const CompilerContext& context,
-		bool transparent) {
-
-		std::string source =
-			"// Shader Graph generated file\n"
-			"#include \"Builtin/FillMesh/fillMesh.hlsli\"\n"
-			"#include \"Builtin/Mesh/Common/pbrShading.hlsli\"\n"
-			"#include \"Builtin/Mesh/Common/deferredGBuffer.hlsli\"\n"
-			"cbuffer ViewConstants : register(b0) { float4x4 viewProjection; float3 cameraPosition; float _viewPadding; };\n"
-			"cbuffer ObjectConstants : register(b1) { float4x4 worldMatrix; float4 objectColor; uint renderingLayerMask; float3 _objectPadding; };\n"
-			"#include \"" + std::string(surfaceIncludeFile) + "\"\n\n";
-		source += context.BuildMaterialConstantBuffer();
-		source += "\n" + context.BuildMaterialParameterGetter();
-		source +=
-			"\nShaderGraphSurface EvaluateFillMeshShaderGraph(VSOutput input) {\n\n"
-			"\tfloat3 N = normalize(input.normal);\n"
-			"\tfloat3 T = normalize(abs(N.y) < 0.999f ? cross(float3(0.0f, 1.0f, 0.0f), N) : cross(float3(1.0f, 0.0f, 0.0f), N));\n"
-			"\tShaderGraphSurfaceInput graphInput;\n"
-			"\tgraphInput.uv = input.worldPos.xz;\n"
-			"\tgraphInput.worldNormal = N;\n"
-			"\tgraphInput.worldPosition = input.worldPos;\n"
-			"\tgraphInput.objectPosition = input.worldPos;\n"
-			"\tgraphInput.objectNormal = N;\n"
-			"\tgraphInput.objectTangent = T;\n"
-			"\tgraphInput.viewDirection = normalize(cameraPosition - input.worldPos);\n"
-			"\tgraphInput.screenPosition = input.position;\n"
-			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
-			"\tgraphInput.tangentToWorld = float3x3(T, cross(N, T), N);\n"
-			"\tShaderGraphSurface graph = EvaluateShaderGraphSurface(graphInput, GetShaderGraphParameters());\n"
-			"\tgraph.baseColor *= objectColor;\n"
-			"\treturn graph;\n"
-			"}\n\n";
-		if (!transparent) {
-			source +=
-				"GBufferOutput main(VSOutput input) {\n\n"
-				"\tShaderGraphSurface graph = EvaluateFillMeshShaderGraph(input);\n"
-				"\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
-				"\tMeshSurface surface;\n"
-				"\tsurface.albedo = graph.baseColor.rgb;\n"
-				"\tsurface.normal = graph.normal;\n"
-				"\tsurface.worldPos = input.worldPos;\n"
-				"\tsurface.metallic = graph.metallic;\n"
-				"\tsurface.roughness = graph.roughness;\n"
-				"\tsurface.occlusion = graph.ambientOcclusion;\n"
-				"\tsurface.emissive = graph.emissive;\n"
-				"\tsurface.flags = kMaterialFlagLightingDefault | PackRenderingLayerMask(renderingLayerMask);\n"
-				"\treturn EncodeGBuffer(surface);\n"
-				"}\n";
-		} else {
-			source +=
-				"struct TransparentPSOutput { float4 color : SV_TARGET0; };\n\n"
-				"TransparentPSOutput mainTransparent(VSOutput input) {\n\n"
-				"\tShaderGraphSurface graph = EvaluateFillMeshShaderGraph(input);\n"
-				"\tfloat alpha = graph.baseColor.a * graph.opacity;\n"
-				"\tclip(alpha - graph.alphaClip);\n"
-				"\tfloat3 V = normalize(cameraPosition - input.worldPos);\n"
-				"\tfloat3 F0 = lerp(0.04f.xxx, graph.baseColor.rgb, graph.metallic);\n"
-				"\tfloat3 lighting = 0.0f.xxx;\n"
-				"\t[loop] for (uint i = 0; i < directionalCount; ++i) lighting += EvaluatePBRDirectionalLight(gDirectionalLights[i], graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0);\n"
-				"\t[loop] for (uint i = 0; i < pointCount; ++i) lighting += EvaluatePBRPointLight(gPointLights[i], input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0);\n"
-				"\t[loop] for (uint i = 0; i < spotCount; ++i) lighting += EvaluatePBRSpotLight(gSpotLights[i], input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0);\n"
-				"\t[loop] for (uint i = 0; i < rectCount; ++i) lighting += EvaluatePBRRectLight(gRectLights[i], input.worldPos, graph.normal, V, graph.baseColor.rgb, graph.metallic, graph.roughness, F0);\n"
-				"\tTransparentPSOutput output;\n"
-				"\toutput.color = float4(lighting + 0.03f * graph.baseColor.rgb * graph.ambientOcclusion + graph.emissive, alpha);\n"
-				"\treturn output;\n"
-				"}\n";
-		}
-		return source;
-	}
-
 	std::string BuildUnlitPixelSource(
 		ShaderGraphTarget target,
 		std::string_view surfaceIncludeFile,
@@ -2680,9 +2608,6 @@ namespace {
 				surfaceIncludeFile, transparent);
 		case ShaderGraphTarget::Primitive3D:
 			return BuildPrimitivePixelSource(
-				surfaceIncludeFile, context, transparent);
-		case ShaderGraphTarget::FillMesh:
-			return BuildFillMeshPixelSource(
 				surfaceIncludeFile, context, transparent);
 		case ShaderGraphTarget::Sprite:
 		case ShaderGraphTarget::Text:

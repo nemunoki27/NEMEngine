@@ -18,7 +18,7 @@ public struct Ray {
 // レイキャストのヒット結果
 public struct RaycastHit {
 
-    // ヒットしたコライダー/FillMeshの所有Entity
+    // ヒットしたコライダーの所有Entity
     public Entity entity;
 
     // ワールド空間のヒット点と法線
@@ -27,10 +27,8 @@ public struct RaycastHit {
     // レイのoriginからの距離
     public float distance;
 
-    // CollisionComponent内の形状index、FillMeshヒット時は-1
+    // CollisionComponent内の形状index
     public int shapeIndex;
-    // FillMeshヒット時の三角形index、形状ヒット時は-1
-    public int triangleIndex;
     // Trigger形状へのヒットか
     public bool isTrigger;
 
@@ -43,7 +41,6 @@ public struct RaycastHit {
             normal = native.normal.ToVector3(),
             distance = native.distance,
             shapeIndex = native.shapeIndex,
-            triangleIndex = native.triangleIndex,
             isTrigger = native.trigger != 0,
         };
     }
@@ -55,12 +52,10 @@ public enum RaycastTargets : uint {
 
     // CollisionComponentの3D形状
     Colliders = 1 << 0,
-    // FillMeshRendererComponentの三角形
-    FillMeshes = 1 << 1,
-    All = Colliders | FillMeshes,
+    All = Colliders,
 }
 
-// 物理クエリ。コライダーの3D形状とFillMeshの三角形に対してレイを飛ばす。
+// 物理クエリ。コライダーの3D形状に対してレイを飛ばす。
 // 判定はコライダー基準(見た目のメッシュではない)で、Transformは前フレームのLateUpdate確定値を参照する。
 public static class Physics {
 
@@ -103,7 +98,7 @@ public static class Physics {
         return Raycast(start, delta * (1.0f / length), out hit, length, layerMask, targets);
     }
 
-    // 全ヒットを距離昇順で返す。コライダーは形状単位、FillMeshはEntity単位で1件
+    // 全ヒットを距離昇順で返す
     public static RaycastHit[] RaycastAll(Vector3 origin, Vector3 direction,
         float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
 

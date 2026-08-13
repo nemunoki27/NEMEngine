@@ -1169,9 +1169,6 @@ namespace {
 				Engine::ShaderGraphTarget::Primitive3D,
 				"Builtin/Primitive/primitive.hlsli" },
 			std::pair{
-				Engine::ShaderGraphTarget::FillMesh,
-				"Builtin/FillMesh/fillMesh.hlsli" },
-			std::pair{
 				Engine::ShaderGraphTarget::Sprite,
 				"Builtin/Sprite/defaultSprite.hlsli" },
 			std::pair{

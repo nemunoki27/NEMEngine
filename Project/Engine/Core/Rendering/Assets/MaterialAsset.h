@@ -36,7 +36,6 @@ namespace Engine {
 		Sprite,
 		Text,
 		Line,
-		FillFaceMesh,
 	};
 
 	// マテリアル内の固定パス種別

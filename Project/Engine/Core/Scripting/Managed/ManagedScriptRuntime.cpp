@@ -270,8 +270,6 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;
 	callbacks.getSkinnedAnimationRuntimeState =
 		&ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback;
-	callbacks.fillMeshSetPositions = &ManagedScriptRuntime::FillMeshSetPositionsCallback;
-	callbacks.fillMeshCopyPositions = &ManagedScriptRuntime::FillMeshCopyPositionsCallback;
 	callbacks.effectEmit = &ManagedScriptRuntime::EffectEmitCallback;
 	callbacks.effectStop = &ManagedScriptRuntime::EffectStopCallback;
 	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
@@ -285,14 +283,11 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::GetCanvasInputLockedCallback;
 	callbacks.getUIButtonClicked =
 		&ManagedScriptRuntime::GetUIButtonClickedCallback;
-	callbacks.getIrisTransitionRuntimeState =
-		&ManagedScriptRuntime::GetIrisTransitionRuntimeStateCallback;
 	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
 	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
 	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
 	callbacks.worldToScreenPoint = &ManagedScriptRuntime::WorldToScreenPointCallback;
 	callbacks.canvasScreenToLocalPoint = &ManagedScriptRuntime::CanvasScreenToLocalPointCallback;
-	callbacks.irisTransitionCommand = &ManagedScriptRuntime::IrisTransitionCommandCallback;
 	callbacks.audioPlayOneShot = &ManagedScriptRuntime::AudioPlayOneShotCallback;
 	callbacks.audioUnPause = &ManagedScriptRuntime::AudioUnPauseCallback;
 	callbacks.effectGroupCount = &ManagedScriptRuntime::EffectGroupCountCallback;

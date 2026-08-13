@@ -311,32 +311,6 @@
           "value": 3
         }
       ]
-    },
-    {
-      "managedType": "IrisTransitionState",
-      "nativeType": "IrisTransitionState",
-      "members": [
-        {
-          "name": "Open",
-          "value": 0
-        },
-        {
-          "name": "IrisOut",
-          "value": 1
-        },
-        {
-          "name": "Covered",
-          "value": 2
-        },
-        {
-          "name": "IrisIn",
-          "value": 3
-        },
-        {
-          "name": "Stopped",
-          "value": 4
-        }
-      ]
     }
   ],
   "components": [
@@ -1018,71 +992,6 @@
     },
     {
       "id": 9,
-      "registryName": "FillMeshRenderer",
-      "nativeType": "FillMeshRendererComponent",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
-      "exposure": "GeneratedBinding",
-      "managedSurface": "NEMEngine.FillMeshRenderer",
-      "reason": "material/color/buildMesh/layer/order/visible/blend を generated property で公開。点列は SetFacePositions で設定。",
-      "managedType": "FillMeshRenderer",
-      "allowAdd": true,
-      "allowRemove": true,
-      "properties": [
-        {
-          "managedName": "Material",
-          "nativeMember": "material",
-          "kind": "AssetRef",
-          "assetType": "Material",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Color",
-          "nativeMember": "color",
-          "kind": "Color4",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "BuildMesh",
-          "nativeMember": "buildMesh",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Layer",
-          "nativeMember": "layer",
-          "kind": "Int",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Order",
-          "nativeMember": "order",
-          "kind": "Int",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Visible",
-          "nativeMember": "visible",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "BlendMode",
-          "nativeMember": "blendMode",
-          "kind": "Enum",
-          "enumType": "BlendMode",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "Queue",
-          "nativeMember": "queue",
-          "kind": "Enum",
-          "enumType": "RenderPhase",
-          "access": "ReadWrite"
-        }
-      ]
-    },
-    {
-      "id": 10,
       "registryName": "FlipbookAnimation",
       "nativeType": "FlipbookAnimationComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
@@ -1090,7 +999,7 @@
       "reason": "ネイティブ内部でのみ使用"
     },
     {
-      "id": 11,
+      "id": 10,
       "registryName": "Hierarchy",
       "nativeType": "HierarchyComponent",
       "nativeHeader": "Engine/Core/World/Components/Transform/HierarchyComponent.h",
@@ -1099,7 +1008,7 @@
       "reason": "親子関係は Entity/Transform facade(getParent/firstChild/nextSibling/setParent) で十分。raw wrapper 不要。"
     },
     {
-      "id": 12,
+      "id": 11,
       "registryName": "InvertedHullOutline",
       "nativeType": "InvertedHullOutlineComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/InvertedHullOutlineComponent.h",
@@ -1107,81 +1016,7 @@
       "reason": "outline rendering effect。gameplay 公開不要のため internal。"
     },
     {
-      "id": 13,
-      "registryName": "IrisTransition",
-      "nativeType": "IrisTransitionComponent",
-      "nativeHeader": "Engine/Core/World/Components/UI/IrisTransitionComponent.h",
-      "exposure": "GeneratedBinding",
-      "managedSurface": "NEMEngine.IrisTransition",
-      "reason": "画面座標を中心としたアイリス遷移の設定、再生操作と現在状態を公開。",
-      "managedType": "IrisTransition",
-      "allowAdd": true,
-      "allowRemove": true,
-      "properties": [
-        {
-          "managedName": "Enabled",
-          "nativeMember": "enabled",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "ScreenPosition",
-          "nativeMember": "screenPosition",
-          "kind": "Vector2",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "TransitionColor",
-          "nativeMember": "transitionColor",
-          "kind": "Color4",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "EdgeSoftness",
-          "nativeMember": "edgeSoftness",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "InvertMask",
-          "nativeMember": "invertMask",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "IrisOutDuration",
-          "nativeMember": "irisOutDuration",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "IrisInDuration",
-          "nativeMember": "irisInDuration",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "BlockInput",
-          "nativeMember": "blockInput",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "AutoIrisInAfterSceneTransition",
-          "nativeMember": "autoIrisInAfterSceneTransition",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "UseUnscaledTime",
-          "nativeMember": "useUnscaledTime",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        }
-      ]
-    },
-    {
-      "id": 14,
+      "id": 12,
       "registryName": "JointAttachment",
       "nativeType": "JointAttachmentComponent",
       "nativeHeader": "Engine/Core/World/Components/Animation/JointAttachmentComponent.h",
@@ -1189,7 +1024,7 @@
       "reason": "ネイティブ内部でのみ使用"
     },
     {
-      "id": 15,
+      "id": 13,
       "registryName": "LineRenderer",
       "nativeType": "LineRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/LineRendererComponent.h",
@@ -1272,7 +1107,7 @@
       ]
     },
     {
-      "id": 16,
+      "id": 14,
       "registryName": "MeshRenderer",
       "nativeType": "MeshRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",
@@ -1338,7 +1173,7 @@
       ]
     },
     {
-      "id": 17,
+      "id": 15,
       "registryName": "Name",
       "nativeType": "NameComponent",
       "nativeHeader": "Engine/Core/World/Components/Scene/NameComponent.h",
@@ -1347,7 +1182,7 @@
       "reason": "name surface は Entity facade(copyName/setName) と一致させる。raw component wrapper は作らない。"
     },
     {
-      "id": 18,
+      "id": 16,
       "registryName": "OrthographicCamera",
       "nativeType": "OrthographicCameraComponent",
       "nativeHeader": "Engine/Core/World/Components/Camera/CameraComponent.h",
@@ -1397,7 +1232,7 @@
       ]
     },
     {
-      "id": 19,
+      "id": 17,
       "registryName": "PerspectiveCamera",
       "nativeType": "PerspectiveCameraComponent",
       "nativeHeader": "Engine/Core/World/Components/Camera/CameraComponent.h",
@@ -1453,7 +1288,7 @@
       ]
     },
     {
-      "id": 20,
+      "id": 18,
       "registryName": "PointLight",
       "nativeType": "PointLightComponent",
       "nativeHeader": "Engine/Core/World/Components/Lighting/PointLightComponent.h",
@@ -1509,7 +1344,7 @@
       ]
     },
     {
-      "id": 21,
+      "id": 19,
       "registryName": "PrefabLink",
       "nativeType": "PrefabLinkComponent",
       "nativeHeader": "Engine/Core/World/Components/Prefab/PrefabLinkComponent.h",
@@ -1517,7 +1352,7 @@
       "reason": "prefab instance の serialization bookkeeping。gameplay 公開しない。Prefab 生成は Object.Instantiate facade(RuntimeCommand) 経由。"
     },
     {
-      "id": 22,
+      "id": 20,
       "registryName": "PrimitiveRenderer",
       "nativeType": "PrimitiveRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h",
@@ -1839,7 +1674,7 @@
       ]
     },
     {
-      "id": 23,
+      "id": 21,
       "registryName": "Rigidbody",
       "nativeType": "RigidbodyComponent",
       "nativeHeader": "Engine/Core/World/Components/Physics/RigidbodyComponent.h",
@@ -1950,7 +1785,7 @@
       ]
     },
     {
-      "id": 24,
+      "id": 22,
       "registryName": "Rigidbody2D",
       "nativeType": "Rigidbody2DComponent",
       "nativeHeader": "Engine/Core/World/Components/Physics/Rigidbody2DComponent.h",
@@ -2061,7 +1896,7 @@
       ]
     },
     {
-      "id": 25,
+      "id": 23,
       "registryName": "SceneObject",
       "nativeType": "SceneObjectComponent",
       "nativeHeader": "Engine/Core/World/Components/Scene/SceneObjectComponent.h",
@@ -2069,7 +1904,7 @@
       "reason": "scene/active bookkeeping。active 状態は Entity.activeSelf/activeInHierarchy facade で公開しており raw wrapper 不要。"
     },
     {
-      "id": 26,
+      "id": 24,
       "registryName": "ScreenSpaceOutline",
       "nativeType": "ScreenSpaceOutlineComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h",
@@ -2077,7 +1912,7 @@
       "reason": "screen space outline effect。gameplay 公開不要のため internal。"
     },
     {
-      "id": 27,
+      "id": 25,
       "registryName": "Script",
       "nativeType": "ScriptComponent",
       "nativeHeader": "Engine/Core/World/Components/Scripting/ScriptComponent.h",
@@ -2085,7 +1920,7 @@
       "reason": "managed runtime 自身が扱う ScriptComponent。raw component wrapper は提供しない（ScriptBehaviour が公開面）。"
     },
     {
-      "id": 28,
+      "id": 26,
       "registryName": "SkinnedAnimation",
       "nativeType": "SkinnedAnimationComponent",
       "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
@@ -2129,7 +1964,7 @@
       ]
     },
     {
-      "id": 29,
+      "id": 27,
       "registryName": "SkyboxRenderer",
       "nativeType": "SkyboxRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h",
@@ -2137,7 +1972,7 @@
       "reason": "ネイティブ内部でのみ使用"
     },
     {
-      "id": 30,
+      "id": 28,
       "registryName": "SpotLight",
       "nativeType": "SpotLightComponent",
       "nativeHeader": "Engine/Core/World/Components/Lighting/SpotLightComponent.h",
@@ -2211,7 +2046,7 @@
       ]
     },
     {
-      "id": 31,
+      "id": 29,
       "registryName": "SpriteRenderer",
       "nativeType": "SpriteRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/SpriteRendererComponent.h",
@@ -2276,7 +2111,7 @@
       ]
     },
     {
-      "id": 32,
+      "id": 30,
       "registryName": "TextRenderer",
       "nativeType": "TextRendererComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
@@ -2354,7 +2189,7 @@
       ]
     },
     {
-      "id": 33,
+      "id": 31,
       "registryName": "TimeScale",
       "nativeType": "TimeScaleComponent",
       "nativeHeader": "Engine/Core/World/Components/Time/TimeScaleComponent.h",
@@ -2363,7 +2198,7 @@
       "reason": "global な time scale special API。component の raw wrapper ではなく Time facade に集約する。"
     },
     {
-      "id": 34,
+      "id": 32,
       "registryName": "Transform",
       "nativeType": "TransformComponent",
       "nativeHeader": "Engine/Core/World/Components/Transform/TransformComponent.h",
@@ -2374,7 +2209,7 @@
       "managedFactory": true
     },
     {
-      "id": 35,
+      "id": 33,
       "registryName": "UIImageButton",
       "nativeType": "UIImageButtonComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UIImageButtonComponent.h",
@@ -2400,7 +2235,7 @@
       ]
     },
     {
-      "id": 36,
+      "id": 34,
       "registryName": "UIProgress",
       "nativeType": "UIProgressComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UIProgressComponent.h",
@@ -2494,7 +2329,7 @@
       ]
     },
     {
-      "id": 37,
+      "id": 35,
       "registryName": "UISelectable",
       "nativeType": "UISelectableComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UISelectableComponent.h",
@@ -2514,7 +2349,7 @@
       ]
     },
     {
-      "id": 38,
+      "id": 36,
       "registryName": "UITextButton",
       "nativeType": "UITextButtonComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UITextButtonComponent.h",
@@ -2540,7 +2375,7 @@
       ]
     },
     {
-      "id": 39,
+      "id": 37,
       "registryName": "UVTransform",
       "nativeType": "UVTransformComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/UVTransformComponent.h",
@@ -2572,7 +2407,7 @@
       ]
     },
     {
-      "id": 40,
+      "id": 38,
       "registryName": "CollisionShapeBuffer",
       "nativeType": "CollisionShape",
       "nativeHeader": "Engine/Core/Physics/Collision/CollisionTypes.h",
@@ -2585,7 +2420,7 @@
       "properties": []
     },
     {
-      "id": 41,
+      "id": 39,
       "registryName": "CollisionRuntimeState",
       "nativeType": "CollisionRuntimeStateComponent",
       "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
@@ -2598,7 +2433,7 @@
       "properties": []
     },
     {
-      "id": 42,
+      "id": 40,
       "registryName": "MeshSubMeshBuffer",
       "nativeType": "SubMeshMaterial",
       "nativeHeader": "Engine/Core/World/Components/Rendering/MeshRendererComponent.h",
@@ -2611,7 +2446,7 @@
       "properties": []
     },
     {
-      "id": 43,
+      "id": 41,
       "registryName": "CollisionCompound",
       "nativeType": "CollisionCompoundComponent",
       "nativeHeader": "Engine/Core/World/Components/Physics/CollisionComponent.h",
@@ -2624,7 +2459,7 @@
       "properties": []
     },
     {
-      "id": 44,
+      "id": 42,
       "registryName": "LinePointBuffer",
       "nativeType": "LinePoint",
       "nativeHeader": "Engine/Core/Assets/RenderComponentTypes.h",
@@ -2637,46 +2472,7 @@
       "properties": []
     },
     {
-      "id": 45,
-      "registryName": "FillMeshPositionBuffer",
-      "nativeType": "FillMeshPosition",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
-      "exposure": "InternalOnly",
-      "managedSurface": "",
-      "reason": "FillMeshの編集点列をDynamicBufferとして保持する",
-      "managedType": "",
-      "allowAdd": false,
-      "allowRemove": false,
-      "properties": []
-    },
-    {
-      "id": 46,
-      "registryName": "FillMeshTriangleIndexBuffer",
-      "nativeType": "FillMeshTriangleIndex",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
-      "exposure": "InternalOnly",
-      "managedSurface": "",
-      "reason": "FillMeshの三角形分割結果を非シリアライズDynamicBufferとして保持する",
-      "managedType": "",
-      "allowAdd": false,
-      "allowRemove": false,
-      "properties": []
-    },
-    {
-      "id": 47,
-      "registryName": "FillMeshRuntimeState",
-      "nativeType": "FillMeshRuntimeStateComponent",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h",
-      "exposure": "InternalOnly",
-      "managedSurface": "",
-      "reason": "FillMeshのGPU再構築世代を保存データから分離する",
-      "managedType": "",
-      "allowAdd": false,
-      "allowRemove": false,
-      "properties": []
-    },
-    {
-      "id": 48,
+      "id": 43,
       "registryName": "TextCharTransformBuffer",
       "nativeType": "TextCharTransform",
       "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
@@ -2689,7 +2485,7 @@
       "properties": []
     },
     {
-      "id": 49,
+      "id": 44,
       "registryName": "TextLayoutGlyphBuffer",
       "nativeType": "TextLayoutGlyph",
       "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
@@ -2702,7 +2498,7 @@
       "properties": []
     },
     {
-      "id": 50,
+      "id": 45,
       "registryName": "TextLayoutRuntime",
       "nativeType": "TextLayoutRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/TextRendererComponent.h",
@@ -2715,7 +2511,7 @@
       "properties": []
     },
     {
-      "id": 51,
+      "id": 46,
       "registryName": "FlipbookTileColumnBuffer",
       "nativeType": "FlipbookTileColumn",
       "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
@@ -2728,7 +2524,7 @@
       "properties": []
     },
     {
-      "id": 52,
+      "id": 47,
       "registryName": "FlipbookAnimationRuntime",
       "nativeType": "FlipbookAnimationRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h",
@@ -2741,7 +2537,7 @@
       "properties": []
     },
     {
-      "id": 53,
+      "id": 48,
       "registryName": "AudioSourceRuntime",
       "nativeType": "AudioSourceRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/Audio/AudioSourceComponent.h",
@@ -2754,7 +2550,7 @@
       "properties": []
     },
     {
-      "id": 54,
+      "id": 49,
       "registryName": "SkinnedAnimationRuntime",
       "nativeType": "SkinnedAnimationRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h",
@@ -2767,7 +2563,7 @@
       "properties": []
     },
     {
-      "id": 55,
+      "id": 50,
       "registryName": "CameraShakeRuntime",
       "nativeType": "CameraShakeRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/Camera/CameraShakeComponent.h",
@@ -2780,7 +2576,7 @@
       "properties": []
     },
     {
-      "id": 56,
+      "id": 51,
       "registryName": "UISelectableRuntime",
       "nativeType": "UISelectableRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UISelectableComponent.h",
@@ -2793,7 +2589,7 @@
       "properties": []
     },
     {
-      "id": 57,
+      "id": 52,
       "registryName": "UIProgressRuntime",
       "nativeType": "UIProgressRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UIProgressComponent.h",
@@ -2806,7 +2602,7 @@
       "properties": []
     },
     {
-      "id": 58,
+      "id": 53,
       "registryName": "CanvasInputBindingBuffer",
       "nativeType": "CanvasInputBinding",
       "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
@@ -2819,7 +2615,7 @@
       "properties": []
     },
     {
-      "id": 59,
+      "id": 54,
       "registryName": "CanvasNavigationCellBuffer",
       "nativeType": "CanvasNavigationCell",
       "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
@@ -2832,7 +2628,7 @@
       "properties": []
     },
     {
-      "id": 60,
+      "id": 55,
       "registryName": "CanvasRuntime",
       "nativeType": "CanvasRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/CanvasComponent.h",
@@ -2845,7 +2641,7 @@
       "properties": []
     },
     {
-      "id": 61,
+      "id": 56,
       "registryName": "UIImageButtonRuntime",
       "nativeType": "UIImageButtonRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UIImageButtonComponent.h",
@@ -2858,7 +2654,7 @@
       "properties": []
     },
     {
-      "id": 62,
+      "id": 57,
       "registryName": "UITextButtonRuntime",
       "nativeType": "UITextButtonRuntimeComponent",
       "nativeHeader": "Engine/Core/World/Components/UI/UITextButtonComponent.h",
@@ -2871,20 +2667,7 @@
       "properties": []
     },
     {
-      "id": 63,
-      "registryName": "IrisTransitionRuntime",
-      "nativeType": "IrisTransitionRuntimeComponent",
-      "nativeHeader": "Engine/Core/World/Components/UI/IrisTransitionComponent.h",
-      "exposure": "InternalOnly",
-      "managedSurface": "",
-      "reason": "アイリス遷移の再生要求と現在状態を保存設定から分離する",
-      "managedType": "",
-      "allowAdd": false,
-      "allowRemove": false,
-      "properties": []
-    },
-    {
-      "id": 64,
+      "id": 58,
       "registryName": "ScriptEntryBuffer",
       "nativeType": "ScriptEntry",
       "nativeHeader": "Engine/Core/World/Components/Scripting/ScriptComponent.h",
@@ -2897,7 +2680,7 @@
       "properties": []
     },
     {
-      "id": 65,
+      "id": 59,
       "registryName": "RectLight",
       "nativeType": "RectLightComponent",
       "nativeHeader": "Engine/Core/World/Components/Lighting/RectLightComponent.h",

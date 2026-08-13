@@ -28,8 +28,6 @@ namespace Engine {
 	class MaterialParameterSet;
 	struct PrimitiveRendererComponent;
 	struct ParticleGroupRuntimeState;
-	struct FillMeshPosition;
-	struct FillMeshTriangleIndex;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -41,7 +39,6 @@ namespace Engine {
 		static constexpr uint32_t Text = 0x1002;
 		static constexpr uint32_t Mesh = 0x1003;
 		static constexpr uint32_t Line = 0x1004;
-		static constexpr uint32_t FillMesh = 0x1005;
 		static constexpr uint32_t Primitive = 0x1006;
 		static constexpr uint32_t Particle = 0x1007;
 	}
@@ -79,21 +76,6 @@ namespace Engine {
 
 		// 深度前描画を有効にするか
 		bool enableZPrepass = true;
-	};
-	// 面メッシュ描画データ
-	struct FillMeshRenderPayload {
-
-		// Systemが構築した点列と三角形分割インデックスを指す、同フレーム内のみ有効
-		const FillMeshPosition* positions = nullptr;
-		uint32_t positionCount = 0;
-		const FillMeshTriangleIndex* indices = nullptr;
-		uint32_t indexCount = 0;
-
-		Color4 color = Color4::White();
-		uint32_t renderingLayerMask = 1u;
-
-		// エンティティ固有のマテリアル値
-		const MaterialParameterSet* materialInstance = nullptr;
 	};
 	// プロシージャル形状描画データ
 	struct PrimitiveRenderPayload {

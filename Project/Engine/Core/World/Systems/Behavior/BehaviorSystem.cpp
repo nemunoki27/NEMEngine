@@ -7,13 +7,10 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
-#include <Engine/Core/Scripting/Managed/ScriptExecutionOrderTable.h>
-#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptProfilerStore.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 
 // c++
 #include <algorithm>
-#include <chrono>
 
 //============================================================================
 //	BehaviorSystem classMethods
@@ -53,9 +50,6 @@ void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& contex
 
 	// プレイモードでワールドに入ったときは、スクリプトのビヘイビアの実体化と初期化を行う
 	if (context.mode == WorldMode::Play) {
-
-		// 新しいPlayの計測のためdetail profilerをresetする
-		ManagedScriptProfilerStore::GetInstance().Reset();
 		SynchronizeLifecycle(world, context, false);
 	}
 }
@@ -94,25 +88,14 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 		if (!record || !record->instance || !record->enabled || record->faulted) {
 			continue;
 		}
-		// type slot単位で所要時間を計測する、Releaseでは無効
-		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::FixedUpdate);
 		record->instance->FixedUpdate(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
 			record->faulted = true;
-			sample.MarkFaulted();
 		}
 	}
 
 	// FixedUpdate末でWaitForFixedUpdateのコルーチンをresumeする
-	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
-		const auto t0 = std::chrono::high_resolution_clock::now();
-		ManagedScriptRuntime::GetInstance().TickFrame(1, context);
-		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
-		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
-	}
-	else {
-		ManagedScriptRuntime::GetInstance().TickFrame(1, context);
-	}
+	ManagedScriptRuntime::GetInstance().TickFrame(1, context);
 }
 
 void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -133,24 +116,14 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 			continue;
 		}
 		lateUpdateParticipants_.emplace_back(participant);
-		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::Update);
 		record->instance->Update(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
 			record->faulted = true;
-			sample.MarkFaulted();
 		}
 	}
 
 	// Update末でTimerとコルーチンを駆動する
-	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
-		const auto t0 = std::chrono::high_resolution_clock::now();
-		ManagedScriptRuntime::GetInstance().TickFrame(0, context);
-		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
-		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
-	}
-	else {
-		ManagedScriptRuntime::GetInstance().TickFrame(0, context);
-	}
+	ManagedScriptRuntime::GetInstance().TickFrame(0, context);
 }
 
 void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
@@ -168,24 +141,14 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 			!IsParticipantEnabled(world, participant, *record)) {
 			continue;
 		}
-		ScriptProfileSample sample(record->typeID, record->owner.index, participant.slot, ScriptCallbackKind::LateUpdate);
 		record->instance->LateUpdate(world, context, record->owner);
 		if (record->instance->IsFaulted()) {
 			record->faulted = true;
-			sample.MarkFaulted();
 		}
 	}
 
 	// LateUpdate末でWaitForEndOfFrameのコルーチンをresumeする
-	if constexpr (ManagedScriptProfilerStore::kDetailEnabled) {
-		const auto t0 = std::chrono::high_resolution_clock::now();
-		ManagedScriptRuntime::GetInstance().TickFrame(2, context);
-		const std::chrono::duration<float, std::milli> ms = std::chrono::high_resolution_clock::now() - t0;
-		ManagedScriptProfilerStore::GetInstance().RecordCoroutineResume(ms.count());
-	}
-	else {
-		ManagedScriptRuntime::GetInstance().TickFrame(2, context);
-	}
+	ManagedScriptRuntime::GetInstance().TickFrame(2, context);
 }
 
 void Engine::BehaviorSystem::OnSceneInstancesChanged(ECSWorld& world,
@@ -653,25 +616,11 @@ void Engine::BehaviorSystem::QueueScriptEntity(const Entity& entity) {
 	enableTransitionsDirty_ = true;
 }
 
-void Engine::BehaviorSystem::InvalidateExecutionOrder() {
-
-	// 設定ファイルを読み直し、次のSynchronizeLifecycleでparticipantを再ソートさせる
-	ScriptExecutionOrderTable::GetInstance().Reload();
-	if (activeSystem_) {
-		activeSystem_->participantsDirty_ = true;
-		activeSystem_->fullSyncRequested_ = true;
-		activeSystem_->enableTransitionsDirty_ = true;
-	}
-}
-
 void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 
 	// seenなrecordを集めて実行順で安定ソートする、構造変更時のみ呼ぶ
 	participants_.clear();
 
-	// GUID単位の実行順overrideを解決する、未設定は0
-	ScriptExecutionOrderTable& orderTable = ScriptExecutionOrderTable::GetInstance();
-	orderTable.EnsureLoaded();
 	BehaviorTypeRegistry& typeRegistry = BehaviorTypeRegistry::GetInstance();
 
 	world.ForEach<ScriptComponent>(
@@ -691,13 +640,9 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 			if (!record || !record->seen || !record->instance) {
 				continue;
 			}
-			// 実行順はoverride優先、未設定はDefaultExecutionOrder
-			const BehaviorTypeInfo& typeInfo = typeRegistry.GetInfo(record->typeID);
-			int32_t executionOrder = typeInfo.defaultExecutionOrder;
-			int32_t overrideValue = 0;
-			if (!typeInfo.scriptTypeID.empty() && orderTable.TryGetOverride(typeInfo.scriptTypeID, overrideValue)) {
-				executionOrder = overrideValue;
-			}
+			// 型へ設定された既定実行順を使う
+			const int32_t executionOrder =
+				typeRegistry.GetInfo(record->typeID).defaultExecutionOrder;
 			participants_.emplace_back(SyncParticipant{
 				handle, entity, static_cast<int32_t>(slot), executionOrder
 				});

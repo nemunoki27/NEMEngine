@@ -68,9 +68,6 @@ namespace Engine {
 		// instanceは即時生成しAwake/Startは次のライフサイクル同期で走る、生成成否を返す
 		static bool AttachScript(const Entity& owner, const std::string& scriptTypeID);
 
-		// participant cacheを再ソート
-		static void InvalidateExecutionOrder();
-
 		//--------- accessor -----------------------------------------------------
 
 		const char* GetName() const override { return "BehaviorSystem"; }

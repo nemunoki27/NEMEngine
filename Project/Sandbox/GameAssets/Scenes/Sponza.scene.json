@@ -9214,6 +9214,41 @@
         },
         {
             "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "halfSize2D": {
+                                "x": 0.5,
+                                "y": 0.5
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 0.5,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "Sphere3D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 1
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 4

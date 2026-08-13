@@ -37,6 +37,7 @@ void Engine::CollisionInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 	ImGui::Indent();
 
 	if (!MyGUI::CollapsingHeader("形状一覧")) {
+		ImGui::Unindent();
 		return;
 	}
 

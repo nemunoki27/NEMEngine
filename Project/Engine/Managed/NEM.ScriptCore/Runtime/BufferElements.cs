@@ -7,7 +7,7 @@ namespace NEMEngine;
 public struct CollisionShapeData :
     IBufferElementData<CollisionShapeData> {
 
-    public static int componentTypeID => 40;
+    public static int componentTypeID => 38;
 
     public ColliderShapeType type;
     private byte enabled_;
@@ -59,7 +59,7 @@ public struct CollisionShapeData :
 public struct LineRendererPoint :
     IBufferElementData<LineRendererPoint> {
 
-    public static int componentTypeID => 44;
+    public static int componentTypeID => 42;
 
     public Vector3 position;
     public Color4 color;
@@ -74,26 +74,12 @@ public struct LineRendererPoint :
     }
 }
 
-// FillMeshRendererのローカル編集点
-[StructLayout(LayoutKind.Sequential)]
-public struct FillMeshPoint :
-    IBufferElementData<FillMeshPoint> {
-
-    public static int componentTypeID => 45;
-
-    public Vector3 value;
-
-    public FillMeshPoint(Vector3 value) {
-        this.value = value;
-    }
-}
-
 // TextRendererの文字単位SRT
 [StructLayout(LayoutKind.Sequential)]
 public struct TextCharacterTransform :
     IBufferElementData<TextCharacterTransform> {
 
-    public static int componentTypeID => 48;
+    public static int componentTypeID => 43;
 
     public Vector2 translation;
     public float rotation;

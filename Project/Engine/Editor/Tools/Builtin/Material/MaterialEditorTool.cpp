@@ -56,7 +56,6 @@ namespace {
 		case Engine::MaterialCreateType::Sprite: return Engine::MaterialUsage::Sprite;
 		case Engine::MaterialCreateType::Text: return Engine::MaterialUsage::Text;
 		case Engine::MaterialCreateType::Line: return Engine::MaterialUsage::Line;
-		case Engine::MaterialCreateType::FillFaceMesh: return Engine::MaterialUsage::FillFaceMesh;
 		default: return Engine::MaterialUsage::Generic;
 		}
 	}
@@ -70,7 +69,6 @@ namespace {
 		case Engine::MaterialUsage::Sprite: return Engine::MaterialCreateType::Sprite;
 		case Engine::MaterialUsage::Text: return Engine::MaterialCreateType::Text;
 		case Engine::MaterialUsage::Line: return Engine::MaterialCreateType::Line;
-		case Engine::MaterialUsage::FillFaceMesh: return Engine::MaterialCreateType::FillFaceMesh;
 		default: return std::nullopt;
 		}
 	}
@@ -287,10 +285,10 @@ namespace {
 		bool useMeshShader, bool useGeometryShader,
 		const Engine::PipelineCreateSettings& settings) {
 
-		// Mesh/Line/FillFaceMeshは3DワールドなのでSurface、Sprite/TextはUI
+		// Mesh/Particle/Lineは3DワールドなのでSurface、Sprite/TextはUI
 		const bool surfaceDomain = (type == Engine::MaterialCreateType::Mesh) ||
 			(type == Engine::MaterialCreateType::Particle) ||
-			(type == Engine::MaterialCreateType::Line) || (type == Engine::MaterialCreateType::FillFaceMesh);
+			(type == Engine::MaterialCreateType::Line);
 		const char* domain = surfaceDomain ? "Surface" : "UI";
 		const char* preferredVariant = useMeshShader ? "GraphicsMesh" : (useGeometryShader ? "GraphicsGeometry" : "GraphicsVertex");
 		auto makePass = [&](const char* passKind, Engine::AssetID passPipelineID) {
@@ -410,8 +408,6 @@ void Engine::MaterialEditorTool::DrawDefaultMaterialSection(const EditorToolCont
 		[&](AssetID id) { settings.SetText(id); });
 	drawSlot("Line", settings.GetLine(), settings.GetLineOrBuiltin(),
 		[&](AssetID id) { settings.SetLine(id); });
-	drawSlot("FillFaceMesh", settings.GetFillMesh(), settings.GetFillMeshOrBuiltin(),
-		[&](AssetID id) { settings.SetFillMesh(id); });
 	drawSlot("Primitive", settings.GetPrimitive(), settings.GetPrimitiveOrBuiltin(),
 		[&](AssetID id) { settings.SetPrimitive(id); });
 	drawSlot("Primitive2D", settings.GetPrimitive2D(), settings.GetPrimitive2DOrBuiltin(),
@@ -590,16 +586,6 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	} else if (type == MaterialCreateType::FillFaceMesh) {
-
-		// 面は両面表示で深度テスト書き込み有効、GBufferへ書く
-		settings.cullMode = D3D12_CULL_MODE_NONE;
-		settings.depthEnable = true;
-		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else {
 
 		// テキストは深度無効でクランプサンプリング
@@ -788,8 +774,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 	const bool useMeshShader = (createType_ == MaterialCreateType::Mesh) && static_cast<bool>(createMS_);
 	const bool useGeometryShader = (createType_ == MaterialCreateType::Line);
 	const bool isParticle = createType_ == MaterialCreateType::Particle;
-	const int numRenderTargets = (createType_ == MaterialCreateType::Mesh ||
-		createType_ == MaterialCreateType::FillFaceMesh) ? 3 : 1;
+	const int numRenderTargets = createType_ == MaterialCreateType::Mesh ? 3 : 1;
 
 	// 描画パス別のShader/PipelineとMaterialを同じ階層へ書き出す
 	const std::string shaderLogical = "GameAssets/Materials/" + relativePath + ".shader.json";

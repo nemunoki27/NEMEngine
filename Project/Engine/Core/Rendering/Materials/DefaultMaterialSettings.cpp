@@ -37,7 +37,6 @@ void Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
 	sprite_ = ParseAssetID(data, "sprite");
 	text_ = ParseAssetID(data, "text");
 	line_ = ParseAssetID(data, "line");
-	fillMesh_ = ParseAssetID(data, "fillMesh");
 	primitive_ = ParseAssetID(data, "primitive");
 	primitive2D_ = ParseAssetID(data, "primitive2D");
 	raytracingReflection_ =
@@ -61,7 +60,6 @@ void Engine::DefaultMaterialSettings::Save() const {
 	data["sprite"] = ToAssetReferenceJson(sprite_);
 	data["text"] = ToAssetReferenceJson(text_);
 	data["line"] = ToAssetReferenceJson(line_);
-	data["fillMesh"] = ToAssetReferenceJson(fillMesh_);
 	data["primitive"] = ToAssetReferenceJson(primitive_);
 	data["primitive2D"] = ToAssetReferenceJson(primitive2D_);
 	data["raytracingReflection"] =
@@ -88,11 +86,6 @@ Engine::AssetID Engine::DefaultMaterialSettings::GetTextOrBuiltin() const {
 Engine::AssetID Engine::DefaultMaterialSettings::GetLineOrBuiltin() const {
 
 	return line_ ? line_ : BuiltinAssets::Materials::DefaultLine;
-}
-
-Engine::AssetID Engine::DefaultMaterialSettings::GetFillMeshOrBuiltin() const {
-
-	return fillMesh_ ? fillMesh_ : BuiltinAssets::Materials::DefaultFillMesh;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitiveOrBuiltin() const {

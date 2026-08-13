@@ -36,7 +36,6 @@ namespace Engine {
 		AssetID GetSprite() const { return sprite_; }
 		AssetID GetText() const { return text_; }
 		AssetID GetLine() const { return line_; }
-		AssetID GetFillMesh() const { return fillMesh_; }
 		AssetID GetPrimitive() const { return primitive_; }
 		AssetID GetPrimitive2D() const { return primitive2D_; }
 		AssetID GetRaytracingReflection() const {
@@ -48,7 +47,6 @@ namespace Engine {
 		void SetSprite(AssetID id) { sprite_ = id; }
 		void SetText(AssetID id) { text_ = id; }
 		void SetLine(AssetID id) { line_ = id; }
-		void SetFillMesh(AssetID id) { fillMesh_ = id; }
 		void SetPrimitive(AssetID id) { primitive_ = id; }
 		void SetPrimitive2D(AssetID id) { primitive2D_ = id; }
 		void SetRaytracingReflection(AssetID id) {
@@ -60,7 +58,6 @@ namespace Engine {
 		AssetID GetSpriteOrBuiltin() const;
 		AssetID GetTextOrBuiltin() const;
 		AssetID GetLineOrBuiltin() const;
-		AssetID GetFillMeshOrBuiltin() const;
 		AssetID GetPrimitiveOrBuiltin() const;
 		AssetID GetPrimitive2DOrBuiltin() const;
 		AssetID GetRaytracingReflectionOrBuiltin() const;
@@ -79,7 +76,6 @@ namespace Engine {
 		AssetID sprite_{};
 		AssetID text_{};
 		AssetID line_{};
-		AssetID fillMesh_{};
 		AssetID primitive_{};
 		AssetID primitive2D_{};
 		AssetID raytracingReflection_{};

@@ -30,11 +30,9 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
-#include <Engine/Core/World/Systems/Rendering/FillFaceMeshRendererSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
-#include <Engine/Core/World/Systems/UI/IrisTransitionSystem.h>
 #include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
 #include <Engine/Core/World/Systems/UI/UIInputSystem.h>
 
@@ -65,7 +63,6 @@ void Engine::GameApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<IrisTransitionSystem>(), ++order);
 	// EffectEmitterとAnimationPlayerは次期データ指向設計へ置き換えるまで実行対象外
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
@@ -75,7 +72,6 @@ void Engine::GameApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<FillFaceMeshRendererSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UICanvasSystem>(), ++order);

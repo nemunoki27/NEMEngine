@@ -8,7 +8,6 @@
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -51,9 +50,7 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	// アイテムを操作しているか
 	bool anyItemActive = false;
 
-	ImGui::PushItemWidth(160.0f);
-	EnumAdapter<Dimension>::Combo("次元", &editDimension_);
-	ImGui::PopItemWidth();
+	MyGUI::EnumCombo("次元", editDimension_);
 
 	bool is3D = editDimension_ == Dimension::Type3D;
 

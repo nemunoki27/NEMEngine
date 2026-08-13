@@ -142,7 +142,6 @@ void Engine::UIRuntimeService::Clear(ECSWorld& world) {
 
 	worlds_.erase(&world);
 	gameplayInputBlocked_ = false;
-	transitionInputBlocked_ = false;
 }
 
 bool Engine::UIRuntimeService::TryScreenToLocalPoint(const ECSWorld& world, Entity canvas,

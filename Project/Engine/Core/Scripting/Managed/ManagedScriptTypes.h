@@ -38,21 +38,19 @@ namespace Engine {
 	// v21: レイキャストのphysicsRaycast physicsRaycastAllとカメラレイのscreenPointToRay getMousePositionInViewとgetCollisionTypeMaskByNameを追加
 	// v22: AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntime attachするattachScriptを追加
 	// v23: イージング関数のeasedValueを追加、EasingTypeとtからイージング済みの値を返す
-	// v24: FillMeshRendererComponentのローカル座標とワールド座標の点列取得を追加
 	// v25: EffectEmitterの再生ハンドルAPIを追加
 	// v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
 	// v27: UISelectableの決定入力配列取得と設定を追加
 	// v28: UI入力配列をCanvasの上下左右と決定へ移行
 	// v29: Application.Quitの終了要求を追加
 	// v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
-	// v31: IrisTransitionの再生操作を追加
 	// v32: AudioSourceのPlayOneShotとUnPauseを追加
 	// v33: EffectEmitterのグループとState設定APIを追加
 	// v34: アセット参照を128bit AssetGUIDへ移行
 	// v35: UserSettingsルート取得APIを追加
 	// v36: Collision実行時状態をAuthoring設定から分離
-	// v42: IrisTransitionのRuntime状態を設定コンポーネントから分離
-	inline constexpr uint32_t kManagedAbiVersion = 43;
+	// v44: 廃止した描画、画面遷移APIを削除
+	inline constexpr uint32_t kManagedAbiVersion = 44;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -277,10 +275,8 @@ namespace Engine {
 		// originからの距離
 		float distance = 0.0f;
 
-		// CollisionComponent内の形状index、FillMeshヒット時は-1
+		// CollisionComponent内の形状index
 		int32_t shapeIndex = -1;
-		// FillMeshヒット時の三角形index、形状ヒット時は-1
-		int32_t triangleIndex = -1;
 		// Trigger形状へのヒットか
 		int32_t trigger = 0;
 	};
@@ -361,13 +357,6 @@ namespace Engine {
 		int32_t initialized = 0;
 	};
 
-	// C#へ返すアイリス遷移の現在状態
-	struct ManagedIrisTransitionRuntimeState {
-
-		int32_t state = 0;
-		float progress = 0.0f;
-	};
-
 	// 即時形状描画の種類、値はC#のLineShapeTypeと一致させる
 	enum class ManagedLineShapeKind : int32_t {
 
@@ -407,7 +396,6 @@ namespace Engine {
 		Text,
 		Primitive,
 		Line,
-		FillMesh,
 	};
 
 	// MaterialParameterValueのvariant indexと独立したABI用の型
@@ -485,8 +473,6 @@ namespace Engine {
 			ManagedNativeEntity, ManagedUIProgressRuntimeState*);
 		using GetUIButtonClickedCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t);
-		using GetIrisTransitionRuntimeStateCallback = int32_t(__cdecl*)(
-			ManagedNativeEntity, ManagedIrisTransitionRuntimeState*);
 		using IsAliveCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetBoolCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using SetBoolCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
@@ -568,10 +554,6 @@ namespace Engine {
 		using FindManyByComponentCallback = int32_t(__cdecl*)(int32_t, ManagedNativeEntity*, int32_t);
 		// v15の即時形状描画、記述子1件を渡してC++側で線分へ展開する
 		using LineDrawShapeCallback = void(__cdecl*)(const ManagedLineShape*);
-		// FillMeshRendererComponentの点列を置き換える、count0でクリア
-		using FillMeshSetPositionsCallback = void(__cdecl*)(ManagedNativeEntity, const ManagedVector3*, int32_t);
-		// FillMeshRendererComponentの点列をローカル座標またはワールド座標でコピーする
-		using FillMeshCopyPositionsCallback = int32_t(__cdecl*)(ManagedNativeEntity, ManagedVector3*, int32_t, int32_t);
 		// EffectEmitterの発生とハンドルまたはグループ単位の制御
 		using EffectEmitCallback = uint64_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedVector3, ManagedQuaternion, int32_t);
 		using EffectControlCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
@@ -593,9 +575,6 @@ namespace Engine {
 		// Canvasローカル座標への変換
 		using CanvasScreenToLocalPointCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, ManagedVector2, ManagedVector2*);
-		// IrisTransitionの再生操作
-		using IrisTransitionCommandCallback = void(__cdecl*)(
-			ManagedNativeEntity, int32_t, float);
 		// Application.Quitの終了要求
 		using ApplicationQuitCallback = void(__cdecl*)();
 

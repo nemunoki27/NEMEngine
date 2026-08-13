@@ -13,7 +13,6 @@
 #include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/FillFaceMeshRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -160,8 +159,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 	// メッシュとプロシージャル形状、それぞれのバックエンドがマスク描画に対応している
 	const bool hasMesh = world.HasComponent<MeshRendererComponent>(entity);
 	const bool hasPrimitive = world.HasComponent<PrimitiveRendererComponent>(entity);
-	const bool hasFillMesh = world.HasComponent<FillMeshRendererComponent>(entity);
-	if (hasMesh || hasPrimitive || hasFillMesh) {
+	if (hasMesh || hasPrimitive) {
 
 		// 選択中のアウトラインはシーン保存対象にしない
 		ScreenSpaceOutlineStyle style{};
@@ -170,7 +168,7 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 		style.priority = 300;
 		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
 
-		// MeshのみSubMesh選択を持つ、Primitive/FillMeshは制限なし
+		// MeshのみSubMesh選択を持つ、Primitiveは制限なし
 		const int32_t subMeshIndex = hasMesh ? selectionSubMeshIndex : -1;
 		EditorSelectionOutlineRequestService::GetInstance().Request(&world, entity, subMeshIndex, style);
 	}

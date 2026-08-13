@@ -26,7 +26,6 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
-#include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
@@ -1020,16 +1019,6 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 	prefab.onDoubleClick = [](const EditorPanelContext& context, const ProjectAssetEntry& asset) {
 		if (context.host) {
 			context.host->RequestEnterPrefabEdit(asset.assetID);
-		}
-		};
-	prefab.onContextMenu = [](const EditorPanelContext& context, const ProjectAssetEntry& asset) {
-
-		ImGui::Separator();
-		if (ImGui::MenuItem("Instantiate Prefab", nullptr, false, context.CanEditScene())) {
-
-			if (context.host) {
-				context.host->ExecuteEditorCommand(std::make_unique<InstantiatePrefabCommand>(asset.assetID));
-			}
 		}
 		};
 	prefab.onDragSource = DrawDefaultAssetDragDropSource;

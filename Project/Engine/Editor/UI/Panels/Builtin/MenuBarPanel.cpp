@@ -60,32 +60,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	DrawGameBuildMenu(context);
 
 	//============================================================================
-	//	シーンファイル操作
-	//============================================================================
-	if (ImGui::BeginMenu("ファイル")) {
-
-		ImGui::SetWindowFontScale(0.72f);
-
-		const bool canEditScene = context.CanEditScene();
-		const bool isPrefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
-		if (ImGui::MenuItem("シーン作成", nullptr, false, canEditScene && !isPrefabEditing)) {
-			context.host->RequestNewScene();
-		}
-		// プレファブ編集中は同じ項目で隔離ワールドを.prefabへ保存する
-		if (ImGui::MenuItem(isPrefabEditing ? "プレファブを保存" : "シーンを保存", "Ctrl+S", false, canEditScene)) {
-			if (isPrefabEditing) {
-				context.host->RequestSavePrefab();
-			} else {
-				context.host->RequestSaveScene();
-			}
-		}
-
-		ImGui::SetWindowFontScale(1.0f);
-
-		ImGui::EndMenu();
-	}
-
-	//============================================================================
 	//	編集操作
 	//============================================================================
 	if (ImGui::BeginMenu("編集補助")) {

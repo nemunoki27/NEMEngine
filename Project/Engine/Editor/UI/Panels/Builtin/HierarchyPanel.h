@@ -80,6 +80,7 @@ namespace Engine {
 
 		TextureUploadService* textureUploadService_ = nullptr;
 		bool activeIconRequested_ = false;
+		uint32_t visibleEntityRowIndex_ = 0;
 		TextSearchFilter searchFilter_;
 	};
 } // Engine

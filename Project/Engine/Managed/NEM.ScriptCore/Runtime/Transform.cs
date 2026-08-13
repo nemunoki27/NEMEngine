@@ -14,7 +14,7 @@ public sealed class Transform : Component, IComponentRef<Transform> {
         this.entity = entity;
     }
 
-    public static int componentTypeID => 34;
+    public static int componentTypeID => 32;
     public static Transform FromEntity(Entity entity) => new(entity);
 
     public Vector3 position {

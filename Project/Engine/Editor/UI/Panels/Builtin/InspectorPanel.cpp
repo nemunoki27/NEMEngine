@@ -333,16 +333,6 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	}
 	DrawTitleBarContextMenu(context);
 
-	// D&D中はImGui既定のホイールが効かないので、インスペクター上なら手動でスクロールする
-	if (ImGui::GetDragDropPayload() != nullptr &&
-		ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem | ImGuiHoveredFlags_ChildWindows)) {
-
-		const float wheel = ImGui::GetIO().MouseWheel;
-		if (wheel != 0.0f) {
-			ImGui::SetScrollY(ImGui::GetScrollY() - wheel * ImGui::GetFontSize() * 3.0f);
-		}
-	}
-
 	if (!lockedEntityUUID_ && context.editorState->selectionKind == EditorSelectionKind::Asset) {
 
 		ImGui::SetWindowFontScale(fontScale_);
@@ -400,14 +390,33 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	// プレファブインスタンスならオーバーライド一覧UIを描画する
 	DrawPrefabOverrideUI(context, *world, selected);
 
-	// 登録済みコンポーネント描画
-	for (const auto& drawer : componentEditorRegistry_.GetDrawers()) {
+	// Entity情報と操作ボタンを固定し、コンポーネント一覧だけを残り領域でスクロールする
+	const bool componentsVisible =
+		ImGui::BeginChild("##InspectorComponents", ImVec2(0.0f, 0.0f), true);
+	// Childは別Windowとして扱われるため、Inspectorの文字倍率を明示的に引き継ぐ
+	ImGui::SetWindowFontScale(fontScale_);
+	if (componentsVisible) {
 
-		if (!drawer->CanDraw(*world, selected)) {
-			continue;
+		// D&D中もコンポーネント一覧上のホイール操作を受け付ける
+		if (ImGui::GetDragDropPayload() != nullptr &&
+			ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+
+			const float wheel = ImGui::GetIO().MouseWheel;
+			if (wheel != 0.0f) {
+				ImGui::SetScrollY(ImGui::GetScrollY() - wheel * ImGui::GetFontSize() * 3.0f);
+			}
 		}
-		drawer->Draw(context, *world, selected);
+
+		// 登録済みコンポーネント描画
+		for (const auto& drawer : componentEditorRegistry_.GetDrawers()) {
+
+			if (!drawer->CanDraw(*world, selected)) {
+				continue;
+			}
+			drawer->Draw(context, *world, selected);
+		}
 	}
+	ImGui::EndChild();
 
 	ImGui::SetWindowFontScale(1.0f);
 
@@ -1169,11 +1178,11 @@ void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext&
 	std::string subMeshName = subMesh.name.empty() ?
 		("SubMesh_" + std::to_string(subMesh.sourceSubMeshIndex)) : subMesh.name;
 
-	ImGui::TextDisabled("Selected Target : Mesh SubMesh");
-	ImGui::Text("Owner Entity : %s", entityName.c_str());
-	ImGui::Text("SubMesh : [%u] %s", subMeshIndex, subMeshName.c_str());
+	ImGui::TextDisabled("選択対象: サブメッシュ");
+	ImGui::Text("所有Entity: %s", entityName.c_str());
+	ImGui::Text("サブメッシュ: [%u] %s", subMeshIndex, subMeshName.c_str());
 
-	if (ImGui::Button("Back To Entity")) {
+	if (ImGui::Button("Entityへ戻る")) {
 
 		context.editorState->SelectEntity(entity);
 	}

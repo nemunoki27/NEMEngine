@@ -568,11 +568,6 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int>"
     },
     {
-      "name": "fillMeshSetPositions",
-      "nativeType": "FillMeshSetPositionsCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, void>"
-    },
-    {
       "name": "getEntityReferenceIdentity",
       "nativeType": "GetEntityRefIdentityCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void>"
@@ -658,11 +653,6 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int>"
     },
     {
-      "name": "fillMeshCopyPositions",
-      "nativeType": "FillMeshCopyPositionsCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3*, int, int, int>"
-    },
-    {
       "name": "effectEmit",
       "nativeType": "EffectEmitCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong>"
@@ -708,11 +698,6 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
     },
     {
-      "name": "getIrisTransitionRuntimeState",
-      "nativeType": "GetIrisTransitionRuntimeStateCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeIrisTransitionRuntimeState*, int>"
-    },
-    {
       "name": "canvasCopyInputBindings",
       "nativeType": "CanvasCopyInputBindingsCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int>"
@@ -736,11 +721,6 @@
       "name": "canvasScreenToLocalPoint",
       "nativeType": "CanvasScreenToLocalPointCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int>"
-    },
-    {
-      "name": "irisTransitionCommand",
-      "nativeType": "IrisTransitionCommandCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, float, void>"
     },
     {
       "name": "audioPlayOneShot",

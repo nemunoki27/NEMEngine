@@ -29,10 +29,8 @@ namespace Engine {
 		// originからの距離
 		float distance = 0.0f;
 
-		// CollisionComponent内の形状index、FillMeshヒット時は-1
+		// CollisionComponent内の形状index
 		int32_t shapeIndex = -1;
-		// FillMeshヒット時の三角形index、形状ヒット時は-1
-		int32_t triangleIndex = -1;
 		// Trigger形状へのヒットか
 		bool trigger = false;
 	};

@@ -59,7 +59,6 @@ namespace Engine {
 
 		Mesh,
 		Primitive3D,
-		FillMesh,
 		Sprite,
 		Text,
 		Primitive2D,

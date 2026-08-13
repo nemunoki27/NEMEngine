@@ -69,7 +69,7 @@ namespace {
 			return;
 		}
 
-		// モデル/テクスチャ/テキストはファクトリで生成し、親があればぶら下げる
+		// モデル/テクスチャ/フォントはファクトリで生成し、親があればぶら下げる
 		if (!Engine::AssetEntityFactory::CanSpawn(payload) || !context.graphicsCore) {
 			return;
 		}
@@ -219,6 +219,8 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		});
 
 	bool hasVisibleEntity = false;
+	bool entitySectionOpen = true;
+	visibleEntityRowIndex_ = 0;
 	auto drawSceneRoots = [&](UUID sceneInstanceID) {
 
 		Entity lastVisibleRoot = Entity::Null();
@@ -243,21 +245,17 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		context.editorContext->sceneInstances : nullptr;
 	if (sceneInstances && !prefabEditing && !sceneInstances->GetAll().empty()) {
 
+		entitySectionOpen = false;
 		for (const SceneInstance& scene : sceneInstances->GetAll()) {
 
 			ImGui::PushID(ToString(scene.instanceID).c_str());
-			ImGuiTreeNodeFlags flags =
-				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
-			if (scene.instanceID == context.editorContext->activeSceneInstanceID) {
-				flags |= ImGuiTreeNodeFlags_Selected;
-			}
-			const bool open = ImGui::TreeNodeEx("##Scene", flags, "%s", scene.header.name.c_str());
+			const bool open = MyGUI::CollapsingHeader(scene.header.name.c_str(), true);
 			if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 				sceneInstances->SetActive(scene.instanceID);
 			}
 			if (open) {
+				entitySectionOpen = true;
 				drawSceneRoots(scene.instanceID);
-				ImGui::TreePop();
 			}
 			ImGui::PopID();
 		}
@@ -271,10 +269,12 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 			hasVisibleEntity = true;
 		}
 	}
-	if (rootEntities.empty()) {
-		ImGui::TextDisabled("Hierarchy is empty.");
-	} else if (!hasVisibleEntity) {
-		ImGui::TextDisabled("No matching entities.");
+	if (entitySectionOpen) {
+		if (rootEntities.empty()) {
+			ImGui::TextDisabled("エンティティなし");
+		} else if (!hasVisibleEntity) {
+			ImGui::TextDisabled("該当なし");
+		}
 	}
 
 	// 親子関係のないエンティティをドロップしてルートエンティティにするためのドロップ目標
@@ -408,7 +408,8 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	bool hasAnyTreeChildren = hasChildren || hasSubMeshChildren || hasSkinnedMeshChildren;
 
 	// ノードのフラグを設定
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
+		ImGuiTreeNodeFlags_SpanAvailWidth;
 	if (isSelected) {
 		flags |= ImGuiTreeNodeFlags_Selected;
 	}
@@ -430,11 +431,21 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ImGui::PushID(static_cast<int>(entity.index));
 	ImGui::PushID(static_cast<int>(entity.generation));
 
-	//============================================================================
-	//	左側のアクティブチェックボックス
-	//============================================================================
+	// 行を交互に塗り、深い階層でも横方向を追いやすくする
+	if ((visibleEntityRowIndex_++ & 1u) != 0u) {
 
-	// チェックボックスがクリックされたか
+		ImVec4 rowColor = ImGui::GetStyleColorVec4(ImGuiCol_Header);
+		rowColor.w = 0.10f;
+		const ImVec2 windowPosition = ImGui::GetWindowPos();
+		const ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+		const ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+		const float rowY = ImGui::GetCursorScreenPos().y;
+		ImGui::GetWindowDrawList()->AddRectFilled(
+			ImVec2(windowPosition.x + contentMin.x, rowY),
+			ImVec2(windowPosition.x + contentMax.x, rowY + ImGui::GetFrameHeight()),
+			ImGui::GetColorU32(rowColor));
+	}
+
 	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
 	auto selectEntityInHierarchy = [&]() {
 		if (context.editorContext && context.editorContext->sceneInstances &&
@@ -452,22 +463,6 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 			context.editorState->SelectEntity(entity);
 		}
 		};
-
-	bool checkboxLeftClicked = false;
-	bool checkboxRightClicked = false;
-	DrawActiveToggleIcon(context, world, entity, activeSelf, checkboxLeftClicked, checkboxRightClicked);
-
-	// チェックボックスクリックでも選択状態にする
-	if (checkboxLeftClicked || checkboxRightClicked) {
-		selectEntityInHierarchy();
-	}
-
-	// チェックボックス上で右クリックしたときもコンテキストメニューを開く
-	if (checkboxRightClicked) {
-		ImGui::OpenPopup("HierarchyEntityContextMenu");
-	}
-
-	ImGui::SameLine(0.0f, 7.0f);
 
 	//============================================================================
 	//	ツリーノード本体
@@ -497,6 +492,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, 0.0f));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 1.0f));
 	ImGui::SetWindowFontScale(0.88f);
+	ImGui::SetNextItemAllowOverlap();
 	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::PopStyleVar(2);
@@ -526,6 +522,60 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 	// ノード右クリックでもコンテキストメニューを開く
 	if (nodeRightClicked) {
+		ImGui::OpenPopup("HierarchyEntityContextMenu");
+	}
+
+	//============================================================================
+	//	ドラッグ開始
+	//============================================================================
+	// TreeNodeExを直前Itemとして扱える位置で、行全体のドラッグ元を登録する
+	if (ImGui::BeginDragDropSource()) {
+
+		const UUID stableUUID = world.GetUUID(entity);
+		ImGui::SetDragDropPayload(kHierarchyDragDropPayloadType, &stableUUID, sizeof(UUID));
+		ImGui::Text("%s", displayName);
+		ImGui::EndDragDropSource();
+	}
+
+	//============================================================================
+	//	ドラッグ目標
+	//============================================================================
+	if (ImGui::BeginDragDropTarget()) {
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
+			if (payload->IsDelivery()) {
+
+				Entity dragged = ResolveDraggedEntity(world, payload);
+				if (CanReparent(context, world, dragged, entity)) {
+
+					context.host->ExecuteEditorCommand(
+						std::make_unique<ReparentEntityCommand>(dragged, world.GetUUID(entity)));
+				}
+			}
+		}
+		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
+			if (payload->IsDelivery() && context.CanEditScene() &&
+				payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
+
+				// 重なっているエンティティの子としてアセットエンティティを原点に作成する
+				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
+				if (assetPayload) {
+					DropProjectAssetToHierarchy(context, world, *assetPayload, entity);
+				}
+			}
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	// Blenderと同じく、アクティブ切り替えを行の右端へ固定する
+	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
+	ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - iconSize);
+	bool checkboxLeftClicked = false;
+	bool checkboxRightClicked = false;
+	DrawActiveToggleIcon(context, world, entity, activeSelf, checkboxLeftClicked, checkboxRightClicked);
+	if (checkboxLeftClicked || checkboxRightClicked) {
+		selectEntityInHierarchy();
+	}
+	if (checkboxRightClicked) {
 		ImGui::OpenPopup("HierarchyEntityContextMenu");
 	}
 
@@ -585,45 +635,6 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 			}
 		}
 		ImGui::EndPopup();
-	}
-
-	//============================================================================
-	//	ドラッグ開始
-	//============================================================================
-	if (ImGui::BeginDragDropSource()) {
-
-		const UUID stableUUID = world.GetUUID(entity);
-		ImGui::SetDragDropPayload(kHierarchyDragDropPayloadType, &stableUUID, sizeof(UUID));
-		ImGui::Text("%s", displayName);
-		ImGui::EndDragDropSource();
-	}
-
-	//============================================================================
-	//	ドラッグ目標
-	//============================================================================
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-
-				Entity dragged = ResolveDraggedEntity(world, payload);
-				if (CanReparent(context, world, dragged, entity)) {
-
-					context.host->ExecuteEditorCommand(
-						std::make_unique<ReparentEntityCommand>(dragged, world.GetUUID(entity)));
-				}
-			}
-		}
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
-			if (payload->IsDelivery() && context.CanEditScene() && payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
-
-				// 重なっているエンティティの子としてアセットエンティティを原点に作成する
-				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
-				if (assetPayload) {
-					DropProjectAssetToHierarchy(context, world, *assetPayload, entity);
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
 	}
 
 	//============================================================================

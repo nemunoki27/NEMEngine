@@ -285,8 +285,7 @@ bool Engine::IsShaderGraph3DTarget(
 	ShaderGraphTarget target) {
 
 	return target == ShaderGraphTarget::Mesh ||
-		target == ShaderGraphTarget::Primitive3D ||
-		target == ShaderGraphTarget::FillMesh;
+		target == ShaderGraphTarget::Primitive3D;
 }
 
 bool Engine::SupportsShaderGraphVertexOutput(

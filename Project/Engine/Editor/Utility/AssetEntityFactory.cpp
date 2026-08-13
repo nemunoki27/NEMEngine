@@ -16,30 +16,16 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 
 // c++
 #include <filesystem>
-#include <fstream>
 #include <string>
 
 //============================================================================
 //	AssetEntityFactory internalMethods
 //============================================================================
 namespace {
-
-	// 拡張子を小文字で取り出す
-	std::string LowerExtension(const std::string& path) {
-
-		return Engine::Algorithm::ToLower(std::filesystem::path(path).extension().string());
-	}
-
-	// テキストとして扱う拡張子か
-	bool IsTextExtension(const std::string& extension) {
-
-		return extension == ".txt" || extension == ".csv" || extension == ".json" || extension == ".md";
-	}
 
 	// アセットパスから表示名を作る
 	std::string MakeNameFromPath(const char* assetPath) {
@@ -104,8 +90,7 @@ bool Engine::AssetEntityFactory::CanSpawn(const EditorAssetDragDropPayload& payl
 	case AssetType::Font:
 		return true;
 	default:
-		// テキストファイルは型未判定でも拡張子で受け入れる
-		return IsTextExtension(LowerExtension(payload.assetPath));
+		return false;
 	}
 }
 
@@ -206,35 +191,7 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		break;
 	}
 	default:
-	{
-		// テキストファイルはファイル内容を読み込んだTextRendererを持つ2Dエンティティにする
-		if (!IsTextExtension(LowerExtension(payload.assetPath))) {
-			break;
-		}
-		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID);
-		auto& renderer = world.AddComponent<TextRendererComponent>(entity);
-		renderer.dimension = Dimension::Type2D;
-
-		// 物理パスを解決してファイル内容を読み込む、長すぎる場合は一定量で切る
-		const std::filesystem::path fullPath = database.ResolveAssetPath(payload.assetPath);
-		std::ifstream file(fullPath, std::ios::binary);
-		if (file) {
-
-			std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-			constexpr size_t kMaxTextLength = 512;
-			if (content.size() > kMaxTextLength) {
-				content.resize(kMaxTextLength);
-			}
-			if (!content.empty()) {
-				renderer.text = content;
-			}
-		}
-
-		result.root = entity;
-		result.isThreeD = false;
-		result.valid = true;
 		break;
-	}
 	}
 
 	// 右クリック作成と同じく、生成したルートはヒエラルキーの末尾に並べる

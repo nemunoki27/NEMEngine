@@ -19,7 +19,6 @@ namespace Engine::RenderBackendCapabilities {
 	inline bool SupportsOutlineMask(uint32_t backendID) {
 
 		return backendID == RenderBackendID::Mesh ||
-			backendID == RenderBackendID::FillMesh ||
 			backendID == RenderBackendID::Primitive;
 	}
 
