@@ -330,6 +330,10 @@ namespace {
 		g_runtimeState = ShaderCookRuntimeState{};
 		g_runtimeState.loaded = true;
 		g_runtimeState.manifestPath = manifestPath;
+		// Source実行ではCook済みデータを参照せず、呼び出し側のHLSLコンパイルへ戻す
+		if (!Engine::ShaderCook::IsCookedProduct()) {
+			return false;
+		}
 		const nlohmann::json manifest =
 			Engine::JsonAdapter::Load(manifestPath, true);
 		if (!manifest.is_object() ||
