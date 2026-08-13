@@ -11741,7 +11741,14 @@
     "Header": {
         "name": "Sponza",
         "postProcessStack": "4e454d4153534554799b3b15597cb842",
-        "subScenes": []
+        "subScenes": [
+            {
+                "enabled": false,
+                "sceneAsset": "4e454d41535345543f455ec2e83f5ff6",
+                "slotID": "40d30752ecbbb074",
+                "slotName": "SubScene1"
+            }
+        ]
     },
     "PrefabInstances": [],
     "SchemaVersion": 3
