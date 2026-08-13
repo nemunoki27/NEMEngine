@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
@@ -209,6 +210,34 @@ void Engine::GraphicsFeatureController::SetFrameContextCount(
 		"Frame Context Count -> {} after restart", count);
 }
 
+void Engine::GraphicsFeatureController::SetDisplayOutputMode(
+	DisplayOutputMode mode) {
+
+	if (preferences_.displayOutput.mode == mode) {
+		return;
+	}
+	preferences_.displayOutput.mode = mode;
+	SavePreferencesToConfig();
+	Logger::Output(LogType::Engine,
+		"Display Output -> {} after restart",
+		EnumAdapter<DisplayOutputMode>::ToString(mode));
+}
+
+void Engine::GraphicsFeatureController::SetDisplayLuminance(
+	float paperWhiteNits, float maxLuminanceNits) {
+
+	paperWhiteNits = std::clamp(paperWhiteNits, 80.0f, 1000.0f);
+	maxLuminanceNits = std::clamp(maxLuminanceNits,
+		paperWhiteNits, 10000.0f);
+	if (preferences_.displayOutput.paperWhiteNits == paperWhiteNits &&
+		preferences_.displayOutput.maxLuminanceNits == maxLuminanceNits) {
+		return;
+	}
+	preferences_.displayOutput.paperWhiteNits = paperWhiteNits;
+	preferences_.displayOutput.maxLuminanceNits = maxLuminanceNits;
+	SavePreferencesToConfig();
+}
+
 void Engine::GraphicsFeatureController::ClampPreferencesToSupport() {
 
 	if (!support_.SupportsMeshShaderPath()) {
@@ -272,6 +301,11 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 		runtimeFeatures_.meshLOD2PixelThreshold);
 	Logger::Output(LogType::Engine, "Frame Context Count: {}",
 		preferences_.frameContextCount);
+	Logger::Output(LogType::Engine, "Display Output: {} ({:.0f}/{:.0f} nits)",
+		EnumAdapter<DisplayOutputMode>::ToString(
+			preferences_.displayOutput.mode),
+		preferences_.displayOutput.paperWhiteNits,
+		preferences_.displayOutput.maxLuminanceNits);
 
 	Logger::EndSection(LogType::Engine);
 }
@@ -330,6 +364,15 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 	preferences_.frameContextCount = std::clamp(
 		data.value("frameContextCount",
 			preferences_.frameContextCount), 1u, 3u);
+	preferences_.displayOutput.mode =
+		EnumAdapter<DisplayOutputMode>::FromString(
+			data.value("displayOutputMode", "SDR"))
+		.value_or(DisplayOutputMode::SDR);
+	preferences_.displayOutput.paperWhiteNits = std::clamp(
+		data.value("paperWhiteNits", 200.0f), 80.0f, 1000.0f);
+	preferences_.displayOutput.maxLuminanceNits = std::clamp(
+		data.value("maxLuminanceNits", 1000.0f),
+		preferences_.displayOutput.paperWhiteNits, 10000.0f);
 }
 
 void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
@@ -352,6 +395,10 @@ void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 		preferences_.meshLOD2PixelThreshold;
 	data["frameContextCount"] =
 		preferences_.frameContextCount;
+	data["displayOutputMode"] = EnumAdapter<DisplayOutputMode>::ToString(
+		preferences_.displayOutput.mode);
+	data["paperWhiteNits"] = preferences_.displayOutput.paperWhiteNits;
+	data["maxLuminanceNits"] = preferences_.displayOutput.maxLuminanceNits;
 
 	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), data);
 }

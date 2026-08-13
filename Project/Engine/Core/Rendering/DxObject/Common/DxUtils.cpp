@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 //============================================================================
 //	DxUtils namespaceMethods
@@ -42,6 +43,8 @@ void DxUtils::CreateUploadBufferResource(ID3D12Device* device, ComPtr<ID3D12Reso
 	HRESULT hr = device->CreateCommittedResource(
 		&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
+	Engine::DxDredDiagnostics::CheckHRESULT(
+		device, hr, "DxUtils::CreateUploadBufferResource/CreateCommittedResource");
 	assert(SUCCEEDED(hr));
 }
 

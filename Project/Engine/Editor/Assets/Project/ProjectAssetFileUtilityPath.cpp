@@ -3,11 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
-#include <array>
 #include <cctype>
 #include <format>
 
@@ -15,17 +15,6 @@
 //	Internal Path Helpers
 //============================================================================
 namespace {
-
-	constexpr std::array<const char*, 8> kCompoundSuffixes = {
-		".scene.json",
-		".prefab.json",
-		".effect.json",
-		".material.json",
-		".animClip.json",
-		".shader.json",
-		".pipeline.json",
-		".graph.json",
-	};
 
 	// 文字列前後の空白を取り除く
 	std::string Trim(std::string text) {
@@ -74,15 +63,14 @@ namespace Engine {
 
 	std::pair<std::string, std::string> ProjectAssetFileUtility::SplitAssetFileName(const std::filesystem::path& path) {
 		const std::string fileName = path.filename().string();
-		const std::string lower = Engine::Algorithm::ToLower(fileName);
 
 		// .scene.jsonなどのエンジン独自の複合拡張子を優先的に判定
-		for (const char* suffix : kCompoundSuffixes) {
-			const std::string suffixText = suffix;
-			if (Engine::Algorithm::EndsWith(lower, Engine::Algorithm::ToLower(suffixText))) {
-				const size_t suffixSize = suffixText.size();
-				return { fileName.substr(0, fileName.size() - suffixSize), fileName.substr(fileName.size() - suffixSize) };
-			}
+		const std::string_view suffix =
+			AssetTypeResolver::FindCompoundSuffix(path);
+		if (!suffix.empty()) {
+			const size_t suffixSize = suffix.size();
+			return { fileName.substr(0, fileName.size() - suffixSize),
+				fileName.substr(fileName.size() - suffixSize) };
 		}
 		// 複合拡張子に該当しない場合は標準のstem/extensionを使用
 		return { path.stem().string(), path.extension().string() };

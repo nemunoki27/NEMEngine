@@ -27,6 +27,7 @@ void Engine::PerViewLightSet::Clear() {
 	pointLights.clear();
 	rectLights.clear();
 	spotLights.clear();
+	hasShadowCastingLight = false;
 }
 
 bool Engine::PerViewLightSet::IsEmpty() const {

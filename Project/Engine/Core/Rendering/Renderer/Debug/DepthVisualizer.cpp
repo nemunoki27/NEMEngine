@@ -9,6 +9,10 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/DepthTexture2D.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTexture2D.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+
+// c++
+#include <cmath>
 
 //============================================================================
 //	DepthVisualizer classMethods
@@ -16,7 +20,8 @@
 
 Engine::DepthVisualizer::DepthVisualizer() {
 
-	// 深度SRVはt0で受ける
+	// 可視化用定数はb0、深度SRVはt0で受ける
+	constantsSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 	depthSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
 }
 
@@ -56,10 +61,16 @@ void Engine::DepthVisualizer::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FO
 	initialized_ = pipeline_.CreateGraphics(
 		graphicsCore.GetDXObject().GetDevice(),
 		graphicsCore.GetDXObject().GetDxShaderCompiler(), desc);
+	if (initialized_) {
+		for (DxConstBuffer<DepthVisualizeConstants>& buffer : constantBuffers_) {
+			buffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+		}
+	}
 }
 
 Engine::RenderTexture2D* Engine::DepthVisualizer::Render(
-	GraphicsCore& graphicsCore, DepthTexture2D* depth, MultiRenderTarget& output) {
+	GraphicsCore& graphicsCore, const ResolvedCameraView& camera,
+	DepthTexture2D* depth, MultiRenderTarget& output) {
 
 	if (!depth || !depth->IsValid() || !output.IsValid() || output.GetColorCount() == 0) {
 		return nullptr;
@@ -77,6 +88,21 @@ Engine::RenderTexture2D* Engine::DepthVisualizer::Render(
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList* commandList = dxCommand->GetCommandList();
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	DxConstBuffer<DepthVisualizeConstants>& constantBuffer =
+		constantBuffers_[frameIndex];
+	if (!constantBuffer.IsCreatedResource()) {
+		return nullptr;
+	}
+
+	DepthVisualizeConstants constants{};
+	constants.projectionA = camera.matrices.projectionMatrix.m[2][2];
+	constants.projectionB = camera.matrices.projectionMatrix.m[3][2];
+	constants.nearClip = camera.nearClip;
+	constants.farClip = camera.farClip;
+	constants.perspective =
+		std::abs(camera.matrices.projectionMatrix.m[2][3]) > 0.5f;
+	constantBuffer.TransferData(constants);
 
 	// 入力深度を読み取り、出力色をレンダーターゲットへ遷移する
 	depth->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -88,9 +114,12 @@ Engine::RenderTexture2D* Engine::DepthVisualizer::Render(
 	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
 
 	bindCache_.Sync(pipeline_);
-	if (!bindCache_.Has(depthSlot_)) {
+	if (!bindCache_.Has(constantsSlot_) || !bindCache_.Has(depthSlot_)) {
 		return nullptr;
 	}
+	RootBindingCommand::SetGraphicsCBV(commandList,
+		bindCache_.Get(constantsSlot_),
+		constantBuffer.GetResource()->GetGPUVirtualAddress());
 	RootBindingCommand::SetGraphicsSRV(
 		commandList, bindCache_.Get(depthSlot_), 0, depth->GetSRVGPUHandle());
 

@@ -228,6 +228,8 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 	}
 
 	ImGui::Separator();
+	DrawColorPipelineSettings();
+	ImGui::Separator();
 
 	// .postProcessStack.jsonドロップゾーン
 	DrawDropZones(context);
@@ -260,6 +262,91 @@ void Engine::PostProcessStackTool::DrawWindow(const EditorToolContext& context) 
 	DrawUnsavedConfirmPopup(context);
 
 	ImGui::End();
+}
+
+void Engine::PostProcessStackTool::DrawColorPipelineSettings() {
+
+	PostProcessStackService& service = PostProcessStackService::GetInstance();
+	ColorPipelineSettings& settings = service.GetSettings().colorPipeline;
+	bool changed = false;
+
+	if (!MyGUI::CollapsingHeader("カラー出力", false)) {
+		return;
+	}
+	ImGui::Indent();
+
+	if (MyGUI::CollapsingHeader("露出", true)) {
+
+		MyGUI::ScopedPropertyLabelWidth labelWidth("PostProcessExposure");
+		changed |= MyGUI::EnumCombo("露出モード", settings.exposure.mode).valueChanged;
+		if (settings.exposure.mode == ExposureMode::Manual) {
+			changed |= MyGUI::DragFloat("EV100", settings.exposure.manualEV100,
+				{ .dragSpeed = 0.01f,.minValue = -20.0f,.maxValue = 30.0f }).valueChanged;
+		} else {
+			changed |= MyGUI::DragFloat("最小EV100", settings.exposure.minEV100,
+				{ .dragSpeed = 0.01f,.minValue = -20.0f,.maxValue = 30.0f }).valueChanged;
+			changed |= MyGUI::DragFloat("最大EV100", settings.exposure.maxEV100,
+				{ .dragSpeed = 0.01f,.minValue = -20.0f,.maxValue = 30.0f }).valueChanged;
+			changed |= MyGUI::DragFloat("低輝度除外率", settings.exposure.histogramLowPercent,
+				{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 0.99f }).valueChanged;
+			changed |= MyGUI::DragFloat("高輝度除外率", settings.exposure.histogramHighPercent,
+				{ .dragSpeed = 0.001f,.minValue = 0.01f,.maxValue = 1.0f }).valueChanged;
+			changed |= MyGUI::DragFloat("明順応速度", settings.exposure.speedUp,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 20.0f }).valueChanged;
+			changed |= MyGUI::DragFloat("暗順応速度", settings.exposure.speedDown,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 20.0f }).valueChanged;
+		}
+		changed |= MyGUI::DragFloat("露出補正", settings.exposure.compensation,
+			{ .dragSpeed = 0.01f,.minValue = -20.0f,.maxValue = 20.0f }).valueChanged;
+		changed |= MyGUI::Checkbox("Pre-Exposureを使用", settings.exposure.usePreExposure);
+	}
+
+	if (MyGUI::CollapsingHeader("フィルミック", false)) {
+
+		MyGUI::ScopedPropertyLabelWidth labelWidth("PostProcessFilmic");
+		changed |= MyGUI::DragFloat("Slope", settings.filmic.slope,
+			{ .dragSpeed = 0.001f,.minValue = 0.01f,.maxValue = 4.0f }).valueChanged;
+		changed |= MyGUI::DragFloat("Toe", settings.filmic.toe,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 1.0f }).valueChanged;
+		changed |= MyGUI::DragFloat("Shoulder", settings.filmic.shoulder,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 1.0f }).valueChanged;
+		changed |= MyGUI::DragFloat("Black Clip", settings.filmic.blackClip,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 0.99f }).valueChanged;
+		changed |= MyGUI::DragFloat("White Clip", settings.filmic.whiteClip,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 0.99f }).valueChanged;
+	}
+
+	if (MyGUI::CollapsingHeader("カラーグレーディング", false)) {
+
+		MyGUI::ScopedPropertyLabelWidth labelWidth("PostProcessColorGrading");
+		changed |= MyGUI::ColorEdit("カラーフィルター", settings.colorGrading.colorFilter).valueChanged;
+		changed |= MyGUI::DragFloat("色温度", settings.colorGrading.temperature,
+			{ .dragSpeed = 1.0f,.minValue = 1000.0f,.maxValue = 15000.0f }).valueChanged;
+		changed |= MyGUI::DragFloat("Tint", settings.colorGrading.tint,
+			{ .dragSpeed = 0.01f,.minValue = -100.0f,.maxValue = 100.0f }).valueChanged;
+		changed |= MyGUI::DragVector3("彩度", settings.colorGrading.saturation,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 4.0f }).valueChanged;
+		changed |= MyGUI::DragVector3("コントラスト", settings.colorGrading.contrast,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 4.0f }).valueChanged;
+		changed |= MyGUI::DragVector3("ガンマ", settings.colorGrading.gamma,
+			{ .dragSpeed = 0.001f,.minValue = 0.01f,.maxValue = 4.0f }).valueChanged;
+		changed |= MyGUI::DragVector3("ゲイン", settings.colorGrading.gain,
+			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 8.0f }).valueChanged;
+		changed |= MyGUI::DragVector3("オフセット", settings.colorGrading.offset,
+			{ .dragSpeed = 0.001f,.minValue = -2.0f,.maxValue = 2.0f }).valueChanged;
+	}
+	ImGui::Unindent();
+
+	settings.exposure.minEV100 = (std::min)(
+		settings.exposure.minEV100, settings.exposure.maxEV100);
+	settings.exposure.histogramHighPercent = (std::max)(
+		settings.exposure.histogramHighPercent,
+		settings.exposure.histogramLowPercent + 0.01f);
+	settings.exposure.histogramHighPercent = (std::min)(
+		settings.exposure.histogramHighPercent, 1.0f);
+	if (changed) {
+		service.MarkDirty();
+	}
 }
 
 void Engine::PostProcessStackTool::DrawPassList() {

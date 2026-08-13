@@ -101,11 +101,11 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::Resolve(
 	view.kind = request.kind;
 	view.width = request.width;
 	view.height = request.height;
-	view.aspectRatio = static_cast<float>(request.width) / static_cast<float>(request.height);
-	// 無効な場合はここで返す
-	if (!request.enabled) {
+	// 無効なビューや0サイズのビューではカメラ行列と描画リソースを構築しない
+	if (!request.enabled || request.width == 0 || request.height == 0) {
 		return view;
 	}
+	view.aspectRatio = static_cast<float>(request.width) / static_cast<float>(request.height);
 	// 描画ビューの情報を確定させる
 	switch (request.sourceKind) {
 	case RenderViewSourceKind::WorldCamera:

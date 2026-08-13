@@ -40,6 +40,10 @@ namespace Engine {
 			float lod0, float lod1, float lod2);
 		// 次回起動時のフレームコンテキスト数を設定する
 		void SetFrameContextCount(uint32_t count);
+		// 製品ランタイムで使用するDisplay出力設定を保存する
+		void SetDisplayOutputMode(DisplayOutputMode mode);
+		void SetDisplayLuminance(float paperWhiteNits,
+			float maxLuminanceNits);
 
 		//--------- accessor -----------------------------------------------------
 

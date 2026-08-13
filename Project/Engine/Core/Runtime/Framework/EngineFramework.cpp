@@ -48,7 +48,7 @@ void Framework::Init() {
 
 	// グラフィックス機能初期化
 	graphicsCore_ = std::make_unique<GraphicsCore>();
-	graphicsCore_->Init();
+	graphicsCore_->Init(engineApplication_->UsesEditorUI());
 
 	// 入力機能初期化
 	Input::GetInstance()->Init(graphicsCore_->GetContext().GetWinApp());

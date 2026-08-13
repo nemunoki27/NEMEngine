@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
-#include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 
 namespace Engine {
 
@@ -20,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit BlitToViewPass(const RenderPipelineDeps& deps) : deps_(deps) {
-			srcColorSlot_ = blitSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
-		}
+		explicit BlitToViewPass(const RenderPipelineDeps& deps) : deps_(deps) {}
 		~BlitToViewPass() override = default;
 
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
@@ -38,10 +35,6 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
-
-		// フルスクリーンブリット用SRVスロットでソースカラーt0のキャッシュ
-		PipelineBindingCache blitSRVCache_{};
-		PipelineBindingCache::SlotID srcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
 

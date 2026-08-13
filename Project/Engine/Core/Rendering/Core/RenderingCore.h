@@ -29,7 +29,7 @@ namespace Engine {
 		~GraphicsCore() = default;
 
 		// 初期化
-		void Init();
+		void Init(bool usesEditorUI);
 
 		// 毎フレーム更新
 		void TickFrameServices();
@@ -71,6 +71,9 @@ namespace Engine {
 		const RenderTarget& GetBackBufferRenderTarget() const { return swapChain_->GetRenderTarget(); }
 		ID3D12Resource* GetBackBufferResource() const { return swapChain_->GetCurrentResource(); }
 		const DXGI_SWAP_CHAIN_DESC1& GetSwapChainDesc() const { return swapChain_->GetDesc(); }
+		const DisplayOutputSettings& GetDisplayOutputSettings() const {
+			return swapChain_->GetDisplayOutputSettings();
+		}
 
 		// フレームバッファのDSVを取得
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetFrameDepthHandle() const { return dsvDescriptor_->GetFrameCPUHandle(); }

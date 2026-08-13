@@ -144,6 +144,8 @@ namespace Engine {
 	// Entityに付随するサブメッシュ編集データ
 	std::span<SubMeshMaterial> GetMeshSubMeshes(ECSWorld& world, const Entity& entity);
 	std::span<const SubMeshMaterial> GetMeshSubMeshes(const ECSWorld& world, const Entity& entity);
+	bool SetMeshSubMesh(ECSWorld& world, const Entity& entity,
+		uint32_t subMeshIndex, const SubMeshMaterial& subMesh);
 	void SetMeshSubMeshes(ECSWorld& world, const Entity& entity, std::span<const SubMeshMaterial> subMeshes);
 	// サブメッシュを含む保存データへ変換する
 	void SerializeMeshRenderer(const MeshRendererComponent& component, std::span<const SubMeshMaterial> subMeshes, nlohmann::json& out);

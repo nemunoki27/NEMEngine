@@ -72,12 +72,12 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 
 	auto& engineContext = graphicsCore.GetContext();
 	auto& graphicsPlatform = graphicsCore.GetDXObject();
-	const auto& graphicsSetting = engineContext.GetGraphicsSetting();
 
 	// ImGuiの初期化
 	imguiManager_.Init(engineContext.GetWinApp()->GetHwnd(), graphicsCore.GetSwapChainDesc().BufferCount,
 		graphicsPlatform.GetDevice(), graphicsPlatform.GetCommandQueue()->GetQueue(),
-		&graphicsCore.GetSRVDescriptor(), graphicsSetting.swapChainFormat, DXGI_FORMAT_D24_UNORM_S8_UINT);
+		&graphicsCore.GetSRVDescriptor(), graphicsCore.GetBackBufferRenderTarget().format,
+		DXGI_FORMAT_D24_UNORM_S8_UINT);
 
 	// ImGuizmoのImGuiコンテキストを設定
 	ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());

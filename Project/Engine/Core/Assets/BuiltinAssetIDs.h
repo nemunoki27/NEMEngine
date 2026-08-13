@@ -28,6 +28,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID IrisTransition{ 0x4e454d4153534554ull, 0x1a15000000000004ull };
 		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x93946a52e2bc7030ull };
 		inline constexpr AssetID ToneMapToView{ 0x4e454d4153534554ull, 0xaa28624401e1e4b6ull };
+		inline constexpr AssetID OutputTransform{ 0x4e454d4153534554ull, 0xae00000000000014ull };
 		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7cull };
 		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0004ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6031ull };
@@ -50,6 +51,7 @@ namespace Engine::BuiltinAssets {
 
 	namespace Pipelines {
 
+		inline constexpr AssetID AutoExposure{ 0x4e454d4153534554ull, 0xae00000000000003ull };
 		inline constexpr AssetID DefaultMeshZPrepass{ 0x4e454d4153534554ull, 0xf09836087840b1d2ull };
 		inline constexpr AssetID DefaultMeshEditorPicking{ 0x4e454d4153534554ull, 0x8d50435034671c2cull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x966f3e8a34595313ull };

@@ -161,10 +161,12 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 		irradianceCubemapIndex = irradianceMap_.GetSRVIndex();
 	}
 
-	// inlineRTが使えてTLASが構築済みのときだけ、平行光源シャドウ付きPSOを選ぶ
+	// 影付きライトがありinlineRTとTLASを使えるときだけシャドウ付きPSOを選ぶ
 	const auto& runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	const bool tlasAvailable = context.bufferRegistry.Find("gSceneTLAS") != nullptr;
-	const bool useShadow = shadowedAvailable_ && runtimeFeatures.useInlineRayTracing && tlasAvailable;
+	const bool useShadow = context.hasShadowCastingLight &&
+		shadowedAvailable_ && runtimeFeatures.useInlineRayTracing &&
+		tlasAvailable;
 	PipelineState& activePipeline = useShadow ? pipelineShadowed_ : pipeline_;
 
 	commandList->SetGraphicsRootSignature(activePipeline.GetRootSignature());

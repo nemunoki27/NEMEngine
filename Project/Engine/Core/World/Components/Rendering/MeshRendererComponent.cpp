@@ -182,6 +182,21 @@ std::span<const Engine::SubMeshMaterial> Engine::GetMeshSubMeshes(
 	return world.GetBufferSpan<SubMeshMaterial>(entity);
 }
 
+bool Engine::SetMeshSubMesh(ECSWorld& world, const Entity& entity,
+	uint32_t subMeshIndex, const SubMeshMaterial& subMesh) {
+
+	DynamicBuffer<SubMeshMaterial> buffer =
+		world.TryGetBuffer<SubMeshMaterial>(entity);
+	if (!buffer.IsValid() || buffer.GetSize() <= subMeshIndex) {
+		return false;
+	}
+
+	buffer.GetSpan()[subMeshIndex] = subMesh;
+	// Buffer要素の変更は構造変更を伴わないため明示的に通知する
+	world.MarkComponentModified<SubMeshMaterial>(entity);
+	return true;
+}
+
 void Engine::SetMeshSubMeshes(ECSWorld& world, const Entity& entity,
 	std::span<const SubMeshMaterial> subMeshes) {
 

@@ -55,6 +55,8 @@ namespace Engine {
 		std::unordered_set<std::string> batchOverrideAllowed_{};
 		// DynamicBufferから分離した編集中のサブメッシュ一覧
 		std::vector<SubMeshMaterial> subMeshDraft_{};
+		// 単一サブメッシュ編集中はDynamicBuffer全体の再構築を避ける
+		uint32_t previewSubMeshIndex_ = UINT32_MAX;
 
 		//--------- functions ----------------------------------------------------
 

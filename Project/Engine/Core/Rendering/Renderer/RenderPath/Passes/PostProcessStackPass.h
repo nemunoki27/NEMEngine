@@ -24,9 +24,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		PostProcessStackPass(const RenderPipelineDeps& deps, PostProcessAnchor anchor) : deps_(deps), anchor_(anchor) {
-			previewToneMapSrcColorSlot_ = previewToneMapSRVCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
-		}
+		PostProcessStackPass(const RenderPipelineDeps& deps, PostProcessAnchor anchor) : deps_(deps), anchor_(anchor) {}
 		~PostProcessStackPass() override = default;
 
 		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
@@ -45,10 +43,6 @@ namespace Engine {
 
 		// このパスインスタンスが担当する挿入位置、ここに割り当てられたポストだけを実行する
 		PostProcessAnchor anchor_;
-
-		// プレビューをGameViewと同じトーンマップ後の見た目で出すための全画面blit用SRVキャッシュ
-		PipelineBindingCache previewToneMapSRVCache_{};
-		PipelineBindingCache::SlotID previewToneMapSrcColorSlot_ = PipelineBindingCache::kInvalidSlot;
 		std::string lastGraphDiagnostic_{};
 	};
 } // Engine

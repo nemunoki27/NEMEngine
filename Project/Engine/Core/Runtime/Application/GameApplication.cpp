@@ -374,8 +374,15 @@ void Engine::GameApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, ECS
 	gameView.height = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.y));
 	gameView.sourceKind = RenderViewSourceKind::WorldCamera;
 
+	RenderViewRequest& sceneView = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
+	sceneView.kind = RenderViewKind::Scene;
+	sceneView.enabled = false;
+
 	renderPipeline_->Render(graphicsCore, request);
+	// Scene固有Bufferが破棄される前にCopy Queueを提出し、描画Queueとの依存を確定する
+	graphicsCore.GetBufferUploadService().SubmitBatch();
 	graphicsCore.GetDXObject().WaitForGPU();
+	graphicsCore.GetBufferUploadService().FlushAndWait();
 }
 
 void Engine::GameApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {

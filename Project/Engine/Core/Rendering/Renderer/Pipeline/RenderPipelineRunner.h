@@ -25,6 +25,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
+#include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
@@ -85,6 +86,8 @@ namespace Engine {
 		RaytracingSceneRuntimeContext raytracing{};
 		// ツールプレビューなど、TLASを作らない描画ではRayQuery系Variantを選ばない
 		bool disableInlineRayTracing = false;
+		// 現在のビューに影強度が0より大きいライトが存在するか
+		bool hasShadowCastingLight = false;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
 		// 実エディターSceneViewの表示結果にだけSceneComponentOverlayを重ねる
@@ -275,6 +278,7 @@ namespace Engine {
 		RenderItemBatchDispatcher batchDispatcher_{};
 		// ComputeShader版PostProcess
 		PostProcessExecutor postProcessExecutor_{};
+		ColorPipelineProcessor colorPipelineProcessor_{};
 		PostProcessTemporaryTargetPool postProcessTargetPool_{};
 		PostProcessDebugInjector postProcessDebugInjector_{};
 		PostProcessAssetGenerator postProcessAssetGenerator_{};

@@ -61,6 +61,23 @@ namespace Engine {
 	}
 
 	// ユーザー参照設定
+	enum class DisplayOutputMode :
+		uint8_t {
+
+		SDR,
+		HDR10,
+		ScRGB,
+	};
+
+	// SwapChainと最終出力変換で共有する表示設定
+	struct DisplayOutputSettings {
+
+		DisplayOutputMode mode = DisplayOutputMode::SDR;
+		float paperWhiteNits = 200.0f;
+		float maxLuminanceNits = 1000.0f;
+	};
+
+	// ユーザー参照設定
 	struct GraphicsFeaturePreferences {
 
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
@@ -88,6 +105,8 @@ namespace Engine {
 			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 		// 起動時に使用するフレームコンテキスト数
 		uint32_t frameContextCount = 3;
+		// 製品ランタイムのDisplay出力設定、エディターUIはSDR固定
+		DisplayOutputSettings displayOutput{};
 	};
 
 	// ランタイムで使用する機能

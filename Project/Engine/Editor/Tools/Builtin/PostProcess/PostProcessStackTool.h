@@ -73,6 +73,8 @@ namespace Engine {
 		void DrawPassList();
 		// 選択中パスの詳細を描画する
 		void DrawPassDetail(const EditorToolContext& context);
+		// シーン共通の露出とカラー出力設定を描画する
+		void DrawColorPipelineSettings();
 		// スタックファイルやマテリアル追加のドロップゾーンを描画する
 		void DrawDropZones(const EditorToolContext& context);
 		// 未保存確認ポップアップを描画する

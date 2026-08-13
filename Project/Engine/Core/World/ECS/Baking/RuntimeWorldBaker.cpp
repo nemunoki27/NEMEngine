@@ -95,8 +95,7 @@ bool Engine::RuntimeWorldBaker::IsBakeRelevant(uint32_t typeID) {
 	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
 	return typeID == registry.GetID<CollisionComponent>() ||
 		typeID == registry.GetID<CollisionShape>() ||
-		typeID == registry.GetID<MeshRendererComponent>() ||
-		typeID == registry.GetID<SubMeshMaterial>();
+		typeID == registry.GetID<MeshRendererComponent>();
 }
 
 void Engine::RuntimeWorldBaker::MarkDirty(const Entity& entity) {

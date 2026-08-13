@@ -7,6 +7,8 @@
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessAnchor.h>
+#include <Engine/Core/Foundation/Math/Color.h>
+#include <Engine/Core/Foundation/Math/Vector3.h>
 
 // c++
 #include <string>
@@ -14,6 +16,63 @@
 #include <unordered_map>
 
 namespace Engine {
+
+	//============================================================================
+	//	ColorPipeline structures
+	//============================================================================
+	// シーンの露出を固定値と輝度ヒストグラムのどちらで決めるか
+	enum class ExposureMode :
+		uint8_t {
+
+		Manual,
+		Automatic,
+	};
+
+	// EV100と自動露出の適応範囲を保持する
+	struct ExposureSettings {
+
+		ExposureMode mode = ExposureMode::Manual;
+		float manualEV100 = 0.0f;
+		float compensation = 0.0f;
+		float minEV100 = -10.0f;
+		float maxEV100 = 20.0f;
+		float histogramLowPercent = 0.8f;
+		float histogramHighPercent = 0.95f;
+		float speedUp = 3.0f;
+		float speedDown = 1.0f;
+		bool usePreExposure = true;
+	};
+
+	// ACES fitted後のフィルム特性を調整する
+	struct FilmicToneMapSettings {
+
+		float slope = 1.0f;
+		float toe = 0.0f;
+		float shoulder = 0.0f;
+		float blackClip = 0.0f;
+		float whiteClip = 0.0f;
+	};
+
+	// ToneMap前に適用するシーン共通カラー補正
+	struct ColorGradingSettings {
+
+		Color4 colorFilter = Color4::White();
+		float temperature = 6500.0f;
+		float tint = 0.0f;
+		Vector3 saturation = Vector3::AnyInit(1.0f);
+		Vector3 contrast = Vector3::AnyInit(1.0f);
+		Vector3 gamma = Vector3::AnyInit(1.0f);
+		Vector3 gain = Vector3::AnyInit(1.0f);
+		Vector3 offset = Vector3::AnyInit(0.0f);
+	};
+
+	// シーンのHDRカラーから表示用カラーまでの共通設定
+	struct ColorPipelineSettings {
+
+		ExposureSettings exposure{};
+		FilmicToneMapSettings filmic{};
+		ColorGradingSettings colorGrading{};
+	};
 
 	//============================================================================
 	//	PostProcessStack structures
@@ -54,7 +113,8 @@ namespace Engine {
 	// シーンごとのPostProcessStackの設定データ
 	struct PostProcessStackSettings {
 
-		int version = 1;
+		int version = 3;
+		ColorPipelineSettings colorPipeline{};
 		std::vector<PostProcessStackPassSettings> passes;
 	};
 } // Engine

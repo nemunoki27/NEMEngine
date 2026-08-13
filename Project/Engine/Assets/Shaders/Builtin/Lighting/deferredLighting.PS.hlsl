@@ -455,7 +455,8 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	}
 	float3 L = toLight / dist;
 	float shadow = 1.0f;
-	if (useShadow && (flags & kMaterialFlagReceiveShadow) != 0u) {
+	if (useShadow && light.shadowStrength > 0.0f &&
+		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
 			light.shadowRadius, pixel, lightIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
@@ -494,7 +495,8 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 		return 0.0f.xxx;
 	}
 	float shadow = 1.0f;
-	if (useShadow && (flags & kMaterialFlagReceiveShadow) != 0u) {
+	if (useShadow && light.shadowStrength > 0.0f &&
+		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
 			light.shadowRadius, pixel, pointCount + lightIndex);
 		shadow = 1.0f - occlusion * light.shadowStrength;
@@ -643,7 +645,8 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		float3 L = normalize(-light.direction);
 		// 影計算を行うか、影を受けないサーフェイスもスキップして1.0fのまま使う
 		float shadow = 1.0f;
-		if (useShadow && (flags & kMaterialFlagReceiveShadow) != 0u) {
+		if (useShadow && light.shadowStrength > 0.0f &&
+			(flags & kMaterialFlagReceiveShadow) != 0u) {
 
 			float occlusion = TraceDirectionalShadow(worldPos, N,
 				light.direction, light.shadowAngularRadius, pixel.xy, di);

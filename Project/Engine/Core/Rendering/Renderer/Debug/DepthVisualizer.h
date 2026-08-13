@@ -5,6 +5,11 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+
+// c++
+#include <array>
 
 namespace Engine {
 
@@ -13,6 +18,7 @@ namespace Engine {
 	class DepthTexture2D;
 	class MultiRenderTarget;
 	class RenderTexture2D;
+	struct ResolvedCameraView;
 
 	//============================================================================
 	//	DepthVisualizer class
@@ -28,7 +34,8 @@ namespace Engine {
 		~DepthVisualizer() = default;
 
 		// 深度を可視化用レンダーターゲットへ描画する
-		RenderTexture2D* Render(GraphicsCore& graphicsCore, DepthTexture2D* depth,
+		RenderTexture2D* Render(GraphicsCore& graphicsCore,
+			const ResolvedCameraView& camera, DepthTexture2D* depth,
 			MultiRenderTarget& output);
 	private:
 		//========================================================================
@@ -36,9 +43,23 @@ namespace Engine {
 		//========================================================================
 
 		//--------- variables ----------------------------------------------------
+		struct DepthVisualizeConstants {
+
+			float projectionA = 1.0f;
+			float projectionB = 0.0f;
+			float nearClip = 0.1f;
+			float farClip = 1000.0f;
+
+			uint32_t perspective = 1;
+			uint32_t _pad[3] = {};
+		};
 
 		PipelineState pipeline_{};
 		PipelineBindingCache bindCache_{};
+		std::array<DxConstBuffer<DepthVisualizeConstants>,
+			kGraphicsFrameContextCount> constantBuffers_{};
+		PipelineBindingCache::SlotID constantsSlot_ =
+			PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID depthSlot_ = PipelineBindingCache::kInvalidSlot;
 		bool initialized_ = false;
 

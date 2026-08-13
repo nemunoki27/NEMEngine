@@ -26,6 +26,7 @@ namespace Engine {
 	struct SceneExecutionContext;
 	struct RenderPassPhaseBuckets;
 	class RenderSceneBatch;
+	class ColorPipelineProcessor;
 
 	//============================================================================
 	//	RenderPipelineDeps structure
@@ -43,6 +44,7 @@ namespace Engine {
 		PostProcessTemporaryTargetPool* postProcessTargetPool = nullptr;
 		PostProcessDebugInjector* postProcessDebugInjector = nullptr;
 		PostProcessAssetGenerator* postProcessAssetGenerator = nullptr;
+		ColorPipelineProcessor* colorPipelineProcessor = nullptr;
 		const RenderItemBatchDispatcher* dispatcher = nullptr;
 	};
 

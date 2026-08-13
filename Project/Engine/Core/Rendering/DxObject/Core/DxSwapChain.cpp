@@ -10,53 +10,106 @@ using namespace Engine;
 #include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+
+// c++
+#include <algorithm>
 
 //============================================================================
 //	DxSwapChain classMethods
 //============================================================================
-void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
-	uint32_t width, uint32_t height, DXGI_FORMAT format, const Color4& clearColor) {
+namespace {
+
+	struct SwapChainOutputFormat {
+
+		DXGI_FORMAT bufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		DXGI_COLOR_SPACE_TYPE colorSpace =
+			DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+	};
+
+	SwapChainOutputFormat ResolveSDRFormat(DXGI_FORMAT format) {
+
+		SwapChainOutputFormat result{};
+		switch (format) {
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+			result.bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
+			result.rtvFormat = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+			break;
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		default:
+			break;
+		}
+		return result;
+	}
+
+	SwapChainOutputFormat ResolveOutputFormat(DXGI_FORMAT sdrFormat,
+		Engine::DisplayOutputMode mode) {
+
+		if (mode == Engine::DisplayOutputMode::HDR10) {
+			return {
+				DXGI_FORMAT_R10G10B10A2_UNORM,
+				DXGI_FORMAT_R10G10B10A2_UNORM,
+				DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020,
+			};
+		}
+		if (mode == Engine::DisplayOutputMode::ScRGB) {
+			return {
+				DXGI_FORMAT_R16G16B16A16_FLOAT,
+				DXGI_FORMAT_R16G16B16A16_FLOAT,
+				DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709,
+			};
+		}
+		return ResolveSDRFormat(sdrFormat);
+	}
+
+	const char* GetDisplayOutputName(Engine::DisplayOutputMode mode) {
+
+		switch (mode) {
+		case Engine::DisplayOutputMode::HDR10:
+			return "HDR10";
+		case Engine::DisplayOutputMode::ScRGB:
+			return "scRGB";
+		case Engine::DisplayOutputMode::SDR:
+		default:
+			return "SDR";
+		}
+	}
+}
+
+void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
+	IDXGIFactory7* factory, ID3D12CommandQueue* queue,
+	RTVDescriptor* rtvDescriptor, uint32_t width, uint32_t height,
+	DXGI_FORMAT format, const Color4& clearColor,
+	const DisplayOutputSettings& displayOutput) {
 
 	device_ = device;
 	rtvDescriptor_ = rtvDescriptor;
 	bufferCount_ = (std::max)(
 		2u, GraphicsFrameState::GetActiveCount());
-
-	DXGI_FORMAT bufferFormat = format;
-	DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
-	switch (format) {
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		bufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		break;
-	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-		bufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
-		break;
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-	case DXGI_FORMAT_B8G8R8A8_UNORM:
-		break;
-	case DXGI_FORMAT_R10G10B10A2_UNORM:
-		colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
-		break;
-	case DXGI_FORMAT_R16G16B16A16_FLOAT:
-		colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;
-		break;
-	default:
-		format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		bufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		break;
-	}
+	displayOutput_ = displayOutput;
+	displayOutput_.paperWhiteNits = std::clamp(
+		displayOutput_.paperWhiteNits, 80.0f, 1000.0f);
+	displayOutput_.maxLuminanceNits = std::clamp(
+		displayOutput_.maxLuminanceNits,
+		displayOutput_.paperWhiteNits, 10000.0f);
+	SwapChainOutputFormat outputFormat = ResolveOutputFormat(
+		format, displayOutput_.mode);
+	colorSpace_ = outputFormat.colorSpace;
 
 	// レンダーターゲットの設定
 	renderTarget_.width = width;
 	renderTarget_.height = height;
-	renderTarget_.format = format;
+	renderTarget_.format = outputFormat.rtvFormat;
 	renderTarget_.clearColor = clearColor;
 
 	swapChain_ = nullptr;
 	desc_ = {};
 	desc_.Width = width;
 	desc_.Height = height;
-	desc_.Format = bufferFormat;
+	desc_.Format = outputFormat.bufferFormat;
 	desc_.SampleDesc.Count = 1;
 	desc_.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	desc_.BufferCount = bufferCount_;
@@ -73,17 +126,31 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* fa
 		reinterpret_cast<IDXGISwapChain1**>(swapChain_.GetAddressOf()));
 	assert(SUCCEEDED(hr));
 
-	// HDR formatのときは対応していればcolor spaceを設定する
-	if (colorSpace != DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709) {
+	if (displayOutput_.mode != DisplayOutputMode::SDR &&
+		!SupportsDisplayOutput()) {
 
-		UINT colorSpaceSupport = 0;
-		if (SUCCEEDED(swapChain_->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) &&
-			(colorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT)) {
-			swapChain_->SetColorSpace1(colorSpace);
-		}
+		Logger::Output(LogType::Engine,
+			"Display Output {} is unavailable. Falling back to SDR.",
+			GetDisplayOutputName(displayOutput_.mode));
+		displayOutput_.mode = DisplayOutputMode::SDR;
+		outputFormat = ResolveOutputFormat(format, displayOutput_.mode);
+		colorSpace_ = outputFormat.colorSpace;
+		desc_.Format = outputFormat.bufferFormat;
+		renderTarget_.format = outputFormat.rtvFormat;
+		const HRESULT fallbackResult = swapChain_->ResizeBuffers(
+			bufferCount_, width, height, desc_.Format, desc_.Flags);
+		Assert::Call(DxDredDiagnostics::CheckHRESULT(device_, fallbackResult,
+			"DxSwapChain::Create/SDRFallback"),
+			"SwapChain SDR fallback failed.");
 	}
+	Assert::Call(ApplyDisplayOutput(),
+		"SwapChain display output configuration failed.");
 
 	Assert::Call(CreateBackBufferResources(true), "SwapChain back buffer creation failed.");
+	Logger::Output(LogType::Engine, "Display Output: {} ({:.0f}/{:.0f} nits)",
+		GetDisplayOutputName(displayOutput_.mode),
+		displayOutput_.paperWhiteNits,
+		displayOutput_.maxLuminanceNits);
 }
 
 bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
@@ -110,10 +177,75 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 	desc_.Height = height;
 	renderTarget_.width = width;
 	renderTarget_.height = height;
+	if (!ApplyDisplayOutput()) {
+		return false;
+	}
 
 	const bool created = CreateBackBufferResources(false);
 	Assert::Call(created, "SwapChain back buffer recreation failed.");
 	return created;
+}
+
+bool DxSwapChain::SupportsDisplayOutput() const {
+
+	UINT colorSpaceSupport = 0;
+	if (FAILED(swapChain_->CheckColorSpaceSupport(
+		colorSpace_, &colorSpaceSupport)) ||
+		!(colorSpaceSupport &
+			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT)) {
+		return false;
+	}
+
+	ComPtr<IDXGIOutput> output{};
+	if (FAILED(swapChain_->GetContainingOutput(output.GetAddressOf()))) {
+		return false;
+	}
+	ComPtr<IDXGIOutput6> output6{};
+	if (FAILED(output.As(&output6))) {
+		return false;
+	}
+	DXGI_OUTPUT_DESC1 outputDesc{};
+	if (FAILED(output6->GetDesc1(&outputDesc))) {
+		return false;
+	}
+	return outputDesc.ColorSpace ==
+		DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+}
+
+bool DxSwapChain::ApplyDisplayOutput() {
+
+	UINT colorSpaceSupport = 0;
+	if (FAILED(swapChain_->CheckColorSpaceSupport(
+		colorSpace_, &colorSpaceSupport)) ||
+		!(colorSpaceSupport &
+			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) ||
+		FAILED(swapChain_->SetColorSpace1(colorSpace_))) {
+		return false;
+	}
+
+	if (displayOutput_.mode != DisplayOutputMode::HDR10) {
+		return SUCCEEDED(swapChain_->SetHDRMetaData(
+			DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr));
+	}
+
+	DXGI_HDR_METADATA_HDR10 metadata{};
+	metadata.RedPrimary[0] = 35400;
+	metadata.RedPrimary[1] = 14600;
+	metadata.GreenPrimary[0] = 8500;
+	metadata.GreenPrimary[1] = 39850;
+	metadata.BluePrimary[0] = 6550;
+	metadata.BluePrimary[1] = 2300;
+	metadata.WhitePoint[0] = 15635;
+	metadata.WhitePoint[1] = 16450;
+	metadata.MaxMasteringLuminance = static_cast<uint32_t>(
+		displayOutput_.maxLuminanceNits * 10000.0f);
+	metadata.MinMasteringLuminance = 50;
+	metadata.MaxContentLightLevel = static_cast<uint16_t>(
+		displayOutput_.maxLuminanceNits);
+	metadata.MaxFrameAverageLightLevel = static_cast<uint16_t>(
+		displayOutput_.maxLuminanceNits * 0.5f);
+	return SUCCEEDED(swapChain_->SetHDRMetaData(
+		DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata));
 }
 
 bool DxSwapChain::CreateBackBufferResources(bool allocateDescriptors) {

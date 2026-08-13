@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 
 // directX
 #include <d3d12.h>
@@ -35,8 +36,11 @@ namespace Engine {
 		~DxSwapChain() = default;
 
 		// ウィンドウ/ファクトリ/キュー/RTVデスクリプタからスワップチェーンとRTVを作成する
-		void Create(WinApp* winApp, ID3D12Device* device, IDXGIFactory7* factory, ID3D12CommandQueue* queue, RTVDescriptor* rtvDescriptor,
-			uint32_t width, uint32_t height, DXGI_FORMAT format, const Color4& clearColor);
+		void Create(WinApp* winApp, ID3D12Device* device,
+			IDXGIFactory7* factory, ID3D12CommandQueue* queue,
+			RTVDescriptor* rtvDescriptor, uint32_t width, uint32_t height,
+			DXGI_FORMAT format, const Color4& clearColor,
+			const DisplayOutputSettings& displayOutput);
 		// バックバッファを指定サイズへ再作成する
 		bool Resize(uint32_t width, uint32_t height);
 
@@ -53,6 +57,9 @@ namespace Engine {
 		// 現在のレンダーターゲット情報を取得する
 		const RenderTarget& GetRenderTarget();
 		const DXGI_SWAP_CHAIN_DESC1& GetDesc() const { return desc_; }
+		const DisplayOutputSettings& GetDisplayOutputSettings() const {
+			return displayOutput_;
+		}
 	private:
 		//============================================================================
 		//	private Methods
@@ -69,6 +76,9 @@ namespace Engine {
 
 		ComPtr<IDXGISwapChain4> swapChain_;
 		DXGI_SWAP_CHAIN_DESC1 desc_{};
+		DisplayOutputSettings displayOutput_{};
+		DXGI_COLOR_SPACE_TYPE colorSpace_ =
+			DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 
 		std::array<ComPtr<ID3D12Resource>,
 			kGraphicsFrameContextCount> resources_;
@@ -81,5 +91,7 @@ namespace Engine {
 
 		// バックバッファとRTVを取得して保持する
 		bool CreateBackBufferResources(bool allocateDescriptors);
+		bool SupportsDisplayOutput() const;
+		bool ApplyDisplayOutput();
 	};
 }; // Engine

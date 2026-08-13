@@ -92,6 +92,68 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 	PostProcessStackSettings settings{};
 	settings.version = data.value("version", 1);
 
+	if (data.contains("colorPipeline") && data["colorPipeline"].is_object()) {
+
+		const nlohmann::json& colorPipeline = data["colorPipeline"];
+		if (colorPipeline.contains("exposure") && colorPipeline["exposure"].is_object()) {
+
+			const nlohmann::json& exposure = colorPipeline["exposure"];
+			settings.colorPipeline.exposure.mode =
+				EnumAdapter<ExposureMode>::FromString(
+					exposure.value("mode", "Manual"))
+				.value_or(ExposureMode::Manual);
+			settings.colorPipeline.exposure.manualEV100 =
+				exposure.value("manualEV100", 0.0f);
+			settings.colorPipeline.exposure.compensation =
+				exposure.value("compensation", 0.0f);
+			settings.colorPipeline.exposure.minEV100 =
+				exposure.value("minEV100", -10.0f);
+			settings.colorPipeline.exposure.maxEV100 =
+				exposure.value("maxEV100", 20.0f);
+			settings.colorPipeline.exposure.histogramLowPercent =
+				exposure.value("histogramLowPercent", 0.8f);
+			settings.colorPipeline.exposure.histogramHighPercent =
+				exposure.value("histogramHighPercent", 0.95f);
+			settings.colorPipeline.exposure.speedUp =
+				exposure.value("speedUp", 3.0f);
+			settings.colorPipeline.exposure.speedDown =
+				exposure.value("speedDown", 1.0f);
+			settings.colorPipeline.exposure.usePreExposure =
+				exposure.value("usePreExposure", true);
+		}
+
+		if (colorPipeline.contains("filmic") && colorPipeline["filmic"].is_object()) {
+
+			const nlohmann::json& filmic = colorPipeline["filmic"];
+			settings.colorPipeline.filmic.slope = filmic.value("slope", 1.0f);
+			settings.colorPipeline.filmic.toe = filmic.value("toe", 0.0f);
+			settings.colorPipeline.filmic.shoulder = filmic.value("shoulder", 0.0f);
+			settings.colorPipeline.filmic.blackClip = filmic.value("blackClip", 0.0f);
+			settings.colorPipeline.filmic.whiteClip = filmic.value("whiteClip", 0.0f);
+		}
+
+		if (colorPipeline.contains("colorGrading") &&
+			colorPipeline["colorGrading"].is_object()) {
+
+			const nlohmann::json& grading = colorPipeline["colorGrading"];
+			settings.colorPipeline.colorGrading.colorFilter =
+				JsonAdapter::GetColor4(grading, "colorFilter", Color4::White());
+			settings.colorPipeline.colorGrading.temperature =
+				grading.value("temperature", 6500.0f);
+			settings.colorPipeline.colorGrading.tint = grading.value("tint", 0.0f);
+			settings.colorPipeline.colorGrading.saturation =
+				JsonAdapter::GetVector3(grading, "saturation", Vector3::AnyInit(1.0f));
+			settings.colorPipeline.colorGrading.contrast =
+				JsonAdapter::GetVector3(grading, "contrast", Vector3::AnyInit(1.0f));
+			settings.colorPipeline.colorGrading.gamma =
+				JsonAdapter::GetVector3(grading, "gamma", Vector3::AnyInit(1.0f));
+			settings.colorPipeline.colorGrading.gain =
+				JsonAdapter::GetVector3(grading, "gain", Vector3::AnyInit(1.0f));
+			settings.colorPipeline.colorGrading.offset =
+				JsonAdapter::GetVector3(grading, "offset", Vector3::AnyInit(0.0f));
+		}
+	}
+
 	if (!data.contains("passes") || !data["passes"].is_array()) {
 		return settings;
 	}
@@ -195,7 +257,39 @@ Engine::PostProcessStackSettings Engine::PostProcessStackSerializer::FromJson(co
 nlohmann::json Engine::PostProcessStackSerializer::ToJson(const PostProcessStackSettings& stackSettings) {
 
 	nlohmann::json data = nlohmann::json::object();
-	data["version"] = 2;
+	data["version"] = 3;
+
+	const ColorPipelineSettings& colorPipeline = stackSettings.colorPipeline;
+	data["colorPipeline"] = nlohmann::json::object();
+	data["colorPipeline"]["exposure"] = {
+		{ "mode", EnumAdapter<ExposureMode>::ToString(colorPipeline.exposure.mode) },
+		{ "manualEV100", colorPipeline.exposure.manualEV100 },
+		{ "compensation", colorPipeline.exposure.compensation },
+		{ "minEV100", colorPipeline.exposure.minEV100 },
+		{ "maxEV100", colorPipeline.exposure.maxEV100 },
+		{ "histogramLowPercent", colorPipeline.exposure.histogramLowPercent },
+		{ "histogramHighPercent", colorPipeline.exposure.histogramHighPercent },
+		{ "speedUp", colorPipeline.exposure.speedUp },
+		{ "speedDown", colorPipeline.exposure.speedDown },
+		{ "usePreExposure", colorPipeline.exposure.usePreExposure },
+	};
+	data["colorPipeline"]["filmic"] = {
+		{ "slope", colorPipeline.filmic.slope },
+		{ "toe", colorPipeline.filmic.toe },
+		{ "shoulder", colorPipeline.filmic.shoulder },
+		{ "blackClip", colorPipeline.filmic.blackClip },
+		{ "whiteClip", colorPipeline.filmic.whiteClip },
+	};
+	nlohmann::json grading = nlohmann::json::object();
+	JsonAdapter::SetColor4(grading, "colorFilter", colorPipeline.colorGrading.colorFilter);
+	grading["temperature"] = colorPipeline.colorGrading.temperature;
+	grading["tint"] = colorPipeline.colorGrading.tint;
+	JsonAdapter::SetVector3(grading, "saturation", colorPipeline.colorGrading.saturation);
+	JsonAdapter::SetVector3(grading, "contrast", colorPipeline.colorGrading.contrast);
+	JsonAdapter::SetVector3(grading, "gamma", colorPipeline.colorGrading.gamma);
+	JsonAdapter::SetVector3(grading, "gain", colorPipeline.colorGrading.gain);
+	JsonAdapter::SetVector3(grading, "offset", colorPipeline.colorGrading.offset);
+	data["colorPipeline"]["colorGrading"] = std::move(grading);
 
 	data["passes"] = nlohmann::json::array();
 	for (const auto& pass : stackSettings.passes) {

@@ -23,6 +23,7 @@ namespace Engine {
 		virtual void RenderPlatformWindows(GraphicsCore& graphicsCore) = 0;
 		virtual void Finalize() = 0;
 		virtual bool ConsumeFrameDeltaResetRequest() = 0;
+		virtual bool UsesEditorUI() const = 0;
 	};
 
 	//============================================================================

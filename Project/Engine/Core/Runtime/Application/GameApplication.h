@@ -36,6 +36,7 @@ namespace Engine {
 		void RenderPlatformWindows(GraphicsCore& graphicsCore) override;
 		void Finalize() override;
 		bool ConsumeFrameDeltaResetRequest() override;
+		bool UsesEditorUI() const override { return false; }
 	private:
 		//============================================================================
 		//	private Methods

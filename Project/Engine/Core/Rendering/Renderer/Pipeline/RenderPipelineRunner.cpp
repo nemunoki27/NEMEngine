@@ -173,6 +173,7 @@ void RenderPipelineRunner::Init() {
 	pipelineStateCache_.Clear();
 	materialResolver_.Clear();
 	postProcessExecutor_.Release();
+	colorPipelineProcessor_.Release();
 	postProcessAssetGenerator_.Clear();
 	frameLightBatch_.Clear();
 	gameViewState_.lightSet.Clear();
@@ -196,6 +197,7 @@ void RenderPipelineRunner::Init() {
 		deps.postProcessTargetPool = &postProcessTargetPool_;
 		deps.postProcessDebugInjector = &postProcessDebugInjector_;
 		deps.postProcessAssetGenerator = &postProcessAssetGenerator_;
+		deps.colorPipelineProcessor = &colorPipelineProcessor_;
 		deps.dispatcher = &batchDispatcher_;
 		renderPath_.Initialize(deps);
 	}
@@ -700,6 +702,7 @@ void RenderPipelineRunner::Finalize() {
 	pipelineStateCache_.Clear();
 	materialResolver_.Clear();
 	postProcessExecutor_.Release();
+	colorPipelineProcessor_.Release();
 	postProcessAssetGenerator_.Clear();
 	lightExtractorRegistry_.Clear();
 	frameLightBatch_.Clear();
@@ -749,6 +752,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	renderAssetLibrary_.Init(request.assetDatabase);
 	postProcessAssetGenerator_.EnsureBuiltinAssets(request.assetDatabase);
 	postProcessExecutor_.BeginFrame(request.systemContext->unscaledDeltaTime);
+	colorPipelineProcessor_.BeginFrame();
 	backendRegistry_.BeginFrame(graphicsCore);
 
 	// ワールドが切り替わった場合は静的バッチキャッシュを即時破棄してSRV重複確保を防ぐ
@@ -1065,6 +1069,10 @@ bool RenderPipelineRunner::PresentViewToBackBuffer(
 	if (!source || !source->GetColorTexture(0) || !assetDatabase) {
 		return false;
 	}
+	if (!material && colorPipelineProcessor_.PresentToBackBuffer(
+		graphicsCore, source, renderAssetLibrary_, pipelineStateCache_)) {
+		return true;
+	}
 
 	// フルスクリーンコピー用のマテリアルを取得して読み込む
 	AssetID resolvedMaterialID = materialResolver_.ResolveORDefault(*assetDatabase, material, DefaultMaterialSlot::FullscreenCopy);
@@ -1198,6 +1206,14 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	// ビューごとの中間レンダーターゲットを確保してコンテキストに設定
 	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewState_.resources : sceneViewState_.resources;
 	resources.Resize(graphicsCore, view.width, view.height);
+	if (!resources.IsValid()) {
+
+		Logger::Output(LogType::Engine,
+			"RenderPathResources creation failed: view={} size={}x{}",
+			EnumAdapter<RenderViewKind>::ToStringView(kind), view.width, view.height);
+		context.sceneInstance = nullptr;
+		return context;
+	}
 	context.resources = &resources;
 	context.cullingResources = (context.cullingView == &gameViewState_.view) ?
 		&gameViewState_.resources : &resources;
@@ -1275,11 +1291,15 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	switch (kind) {
 	case RenderViewKind::Game:
 
+		context.hasShadowCastingLight =
+			gameViewState_.lightSet.hasShadowCastingLight;
 		gameViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		gameViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;
 	case RenderViewKind::Scene:
 
+		context.hasShadowCastingLight =
+			sceneViewState_.lightSet.hasShadowCastingLight;
 		sceneViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		sceneViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;

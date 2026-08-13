@@ -684,6 +684,16 @@ const Engine::RenderTexture2D* Engine::ViewportPanel::RenderDepthVisualization(
 	if (!depth) {
 		return nullptr;
 	}
+	const ResolvedRenderView& view =
+		context.renderPipeline->GetResolvedView(viewKind);
+	const ResolvedCameraView* camera =
+		view.FindCamera(RenderCameraDomain::Perspective);
+	if (!camera) {
+		camera = view.FindCamera(RenderCameraDomain::Orthographic);
+	}
+	if (!camera) {
+		return nullptr;
+	}
 
 	// サイズが変わったら可視化サーフェスを作り直す、深度は持たない1色のグレースケール出力
 	if (!depthVisualizeSurface_ || depthVisualizeWidth_ != width || depthVisualizeHeight_ != height) {
@@ -711,7 +721,8 @@ const Engine::RenderTexture2D* Engine::ViewportPanel::RenderDepthVisualization(
 	}
 
 	// 深度を線形化グレースケールへ変換して可視化サーフェスへ描く
-	return depthVisualizer_.Render(*context.graphicsCore, depth, *depthVisualizeSurface_);
+	return depthVisualizer_.Render(
+		*context.graphicsCore, *camera, depth, *depthVisualizeSurface_);
 }
 
 void Engine::ViewportPanel::DrawSnapSettingsPopup(const EditorPanelContext& context) {

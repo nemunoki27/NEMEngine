@@ -52,6 +52,7 @@ namespace Engine {
 		void Tick(GraphicsCore& graphicsCore, float deltaTime) override;
 		// 重いモード切り替え後にフレームタイマー基準をリセットする要求を取得
 		bool ConsumeFrameDeltaResetRequest() override;
+		bool UsesEditorUI() const override { return true; }
 
 		// 描画
 		void Render(GraphicsCore& graphicsCore) override;

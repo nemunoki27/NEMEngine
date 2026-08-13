@@ -6,7 +6,7 @@
 //============================================================================
 //	GraphicsCore classMethods
 //============================================================================
-void Engine::GraphicsCore::Init() {
+void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// 各コアの初期化
 	engineContext_ = std::make_unique<EngineContext>();
@@ -35,8 +35,15 @@ void Engine::GraphicsCore::Init() {
 
 	// スワップチェーン初期化
 	swapChain_ = std::make_unique<DxSwapChain>();
+	DisplayOutputSettings displayOutput = graphicsPlatform_->GetFeatureController()
+		.GetPreferences().displayOutput;
+	if (usesEditorUI) {
+		// ImGuiのPlatform Windowを含むエディター出力はSDRへ統一する
+		displayOutput.mode = DisplayOutputMode::SDR;
+	}
 	swapChain_->Create(engineContext_->GetWinApp(), device, graphicsPlatform_->GetDxgiFactory(), graphicsPlatform_->GetCommandQueue()->GetQueue(),
-		rtvDescriptor_.get(), frameWidth, frameHeight, graphics.swapChainFormat, graphics.clearColor);
+		rtvDescriptor_.get(), frameWidth, frameHeight, graphics.swapChainFormat,
+		graphics.clearColor, displayOutput);
 
 	// 静的GPUバッファ転送サービスの初期化(テクスチャ用とは独立)
 	bufferUploadService_ = std::make_unique<BufferUploadService>();

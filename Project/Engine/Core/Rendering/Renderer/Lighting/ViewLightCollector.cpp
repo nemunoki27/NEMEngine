@@ -32,7 +32,8 @@ namespace {
 	// 有効なライトを追加
 	template <typename T>
 	void AppendVisibleLights(const std::vector<T>& source, const Engine::SceneInstance* sceneInstance,
-		const Engine::ResolvedCameraView& camera, std::vector<const T*>& out) {
+		const Engine::ResolvedCameraView& camera, std::vector<const T*>& out,
+		bool& hasShadowCastingLight) {
 
 		out.reserve(out.size() + source.size());
 		for (const T& item : source) {
@@ -40,6 +41,7 @@ namespace {
 				continue;
 			}
 			out.emplace_back(&item);
+			hasShadowCastingLight |= item.shadowStrength > 0.0f;
 		}
 	}
 }
@@ -66,8 +68,12 @@ void Engine::ViewLightCollector::CollectForView(const FrameLightBatch& batch, co
 	// カメラをセット
 	outSet.camera = camera;
 	// 有効なライトを追加
-	AppendVisibleLights(batch.GetDirectionalLights(), sceneInstance, *camera, outSet.directionalLights);
-	AppendVisibleLights(batch.GetPointLights(), sceneInstance, *camera, outSet.pointLights);
-	AppendVisibleLights(batch.GetRectLights(), sceneInstance, *camera, outSet.rectLights);
-	AppendVisibleLights(batch.GetSpotLights(), sceneInstance, *camera, outSet.spotLights);
+	AppendVisibleLights(batch.GetDirectionalLights(), sceneInstance, *camera,
+		outSet.directionalLights, outSet.hasShadowCastingLight);
+	AppendVisibleLights(batch.GetPointLights(), sceneInstance, *camera,
+		outSet.pointLights, outSet.hasShadowCastingLight);
+	AppendVisibleLights(batch.GetRectLights(), sceneInstance, *camera,
+		outSet.rectLights, outSet.hasShadowCastingLight);
+	AppendVisibleLights(batch.GetSpotLights(), sceneInstance, *camera,
+		outSet.spotLights, outSet.hasShadowCastingLight);
 }

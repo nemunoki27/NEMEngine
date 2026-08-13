@@ -110,7 +110,7 @@ namespace {
 		SetPerformanceGridCommand(Engine::UUID rootStableUUID,
 			Engine::AssetID model, int32_t gridCountXZ, int32_t gridCountY,
 			float gridWidth, bool playSkinnedAnimation,
-			bool placePointLights,
+			bool placePointLights, bool pointLightShadows,
 			int32_t pointLightCount,
 			float pointLightIntensity, float pointLightRadius,
 			float pointLightDecay,
@@ -122,6 +122,7 @@ namespace {
 			gridWidth_(gridWidth),
 			playSkinnedAnimation_(playSkinnedAnimation),
 			placePointLights_(placePointLights),
+			pointLightShadows_(pointLightShadows),
 			pointLightCount_(pointLightCount),
 			pointLightIntensity_(pointLightIntensity),
 			pointLightRadius_(pointLightRadius),
@@ -164,6 +165,7 @@ namespace {
 
 		bool playSkinnedAnimation_ = false;
 		bool placePointLights_ = false;
+		bool pointLightShadows_ = false;
 		int32_t pointLightCount_ = 200;
 		float pointLightIntensity_ = 1.0f;
 		float pointLightRadius_ = 8.0f;
@@ -297,6 +299,7 @@ bool SetPerformanceGridCommand::ExecuteCoalesced(
 	gridWidth_ = nextGrid->gridWidth_;
 	playSkinnedAnimation_ = nextGrid->playSkinnedAnimation_;
 	placePointLights_ = nextGrid->placePointLights_;
+	pointLightShadows_ = nextGrid->pointLightShadows_;
 	pointLightCount_ = nextGrid->pointLightCount_;
 	pointLightIntensity_ = nextGrid->pointLightIntensity_;
 	pointLightRadius_ = nextGrid->pointLightRadius_;
@@ -434,6 +437,8 @@ bool SetPerformanceGridCommand::TryUpdateGrid(
 
 	size_t lightIndex = 0;
 	if (placePointLights_) {
+		const float shadowStrength = pointLightShadows_ ?
+			Engine::PointLightComponent{}.shadowStrength : 0.0f;
 		const size_t totalCellCount =
 			static_cast<size_t>(gridCountXZ_ - 1) *
 			static_cast<size_t>(gridCountXZ_ - 1) *
@@ -476,12 +481,14 @@ bool SetPerformanceGridCommand::TryUpdateGrid(
 					if (light.color != color ||
 						light.intensity != pointLightIntensity_ ||
 						light.radius != pointLightRadius_ ||
-						light.decay != pointLightDecay_) {
+						light.decay != pointLightDecay_ ||
+						light.shadowStrength != shadowStrength) {
 
 						light.color = color;
 						light.intensity = pointLightIntensity_;
 						light.radius = pointLightRadius_;
 						light.decay = pointLightDecay_;
+						light.shadowStrength = shadowStrength;
 						world->MarkComponentModified<
 							Engine::PointLightComponent>(entity);
 					}
@@ -633,6 +640,8 @@ bool SetPerformanceGridCommand::CreateGrid(
 	};
 	size_t lightIndex = 0;
 	if (placePointLights_) {
+		const float shadowStrength = pointLightShadows_ ?
+			Engine::PointLightComponent{}.shadowStrength : 0.0f;
 		const size_t totalCellCount =
 			static_cast<size_t>(gridCountXZ_ - 1) *
 			static_cast<size_t>(gridCountXZ_ - 1) *
@@ -672,6 +681,7 @@ bool SetPerformanceGridCommand::CreateGrid(
 					light.intensity = pointLightIntensity_;
 					light.radius = pointLightRadius_;
 					light.decay = pointLightDecay_;
+					light.shadowStrength = shadowStrength;
 
 					hierarchySystem.SetParent(*world, entity, root);
 					++lightIndex;
@@ -795,6 +805,7 @@ void Engine::PerformanceCheckTool::DrawWindow(
 			"グリッド間にポイントライトを配置",
 			placePointLights_);
 		ImGui::BeginDisabled(!placePointLights_);
+		MyGUI::Checkbox("影を有効にする", pointLightShadows_);
 		MyGUI::DragInt("配置数", pointLightCount_, {
 			.minValue = 1,
 			.maxValue = static_cast<int32_t>(kMaxEntityCount),
@@ -862,7 +873,8 @@ void Engine::PerformanceCheckTool::DrawWindow(
 						sceneState.rootStableUUID, model_,
 						gridCountXZ_, gridCountY_, gridWidth_,
 						meshInfo.hasBones,
-						placePointLights_, pointLightCount_,
+						placePointLights_, pointLightShadows_,
+						pointLightCount_,
 						pointLightIntensity_,
 						pointLightRadius_, pointLightDecay_,
 						std::move(layout));
@@ -940,7 +952,7 @@ void Engine::PerformanceCheckTool::DrawWindow(
 					sceneState.drawEntityCount));
 			MyGUI::EndPropertyRow();
 		}
-		if (placePointLights_ &&
+		if (sceneState.pointLightCount > 0 &&
 			MyGUI::BeginPropertyRow("ライト数")) {
 
 			ImGui::Text("%llu",
@@ -1060,6 +1072,8 @@ void Engine::PerformanceCheckTool::LoadSettings() {
 
 	placePointLights_ = data.value(
 		"placePointLights", placePointLights_);
+	pointLightShadows_ = data.value(
+		"pointLightShadows", pointLightShadows_);
 	pointLightCount_ = (std::clamp)(
 		data.value("pointLightCount", pointLightCount_),
 		1, static_cast<int32_t>(kMaxEntityCount));
@@ -1077,12 +1091,13 @@ void Engine::PerformanceCheckTool::LoadSettings() {
 void Engine::PerformanceCheckTool::SaveSettings() const {
 
 	nlohmann::json data{};
-	data["schemaVersion"] = 1;
+	data["schemaVersion"] = 2;
 	data["gridCountXZ"] = gridCountXZ_;
 	data["gridCountY"] = gridCountY_;
 	data["gridWidth"] = gridWidth_;
 	data["model"] = ToAssetReferenceJson(model_);
 	data["placePointLights"] = placePointLights_;
+	data["pointLightShadows"] = pointLightShadows_;
 	data["pointLightCount"] = pointLightCount_;
 	data["pointLightIntensity"] = pointLightIntensity_;
 	data["pointLightRadius"] = pointLightRadius_;

@@ -49,6 +49,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 
 	// ドラフトコンポーネントを参照
 	auto& draft = GetDraft();
+	previewSubMeshIndex_ = UINT32_MAX;
 
 	// 現在のメッシュに合わせてサブメッシュ配列を整える
 	SyncDraftSubMeshes(context, draft, true);
@@ -57,6 +58,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	uint32_t selectedSubMeshIndex = 0;
 	if (TryGetSelectedSubMeshIndex(context, world, entity, draft, selectedSubMeshIndex)) {
 
+		previewSubMeshIndex_ = selectedSubMeshIndex;
 		auto& subMesh = subMeshDraft_[selectedSubMeshIndex];
 		DrawSubMeshFields(context, world, entity, subMesh, anyItemActive);
 		return;
@@ -167,6 +169,12 @@ void Engine::MeshRendererInspectorDrawer::ApplyPreview(ECSWorld& world, const En
 	const MeshRendererComponent& previewComponent) {
 
 	if (!world.IsAlive(entity) || !world.HasComponent<MeshRendererComponent>(entity)) {
+		return;
+	}
+
+	if (previewSubMeshIndex_ < subMeshDraft_.size() &&
+		SetMeshSubMesh(world, entity, previewSubMeshIndex_,
+			subMeshDraft_[previewSubMeshIndex_])) {
 		return;
 	}
 

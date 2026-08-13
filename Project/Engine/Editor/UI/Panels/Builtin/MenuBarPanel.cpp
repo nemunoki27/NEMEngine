@@ -243,6 +243,37 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("表示出力")) {
+			const char* outputModeLabels[] = { "SDR", "HDR10", "scRGB" };
+			int outputMode = static_cast<int>(preferences.displayOutput.mode);
+			if (ImGui::Combo("出力モード", &outputMode,
+				outputModeLabels, 3)) {
+				featureController.SetDisplayOutputMode(
+					static_cast<DisplayOutputMode>(outputMode));
+			}
+			DrawGraphicsTooltip("製品ランタイムのSwapChain形式と色空間を変更します");
+
+			float paperWhiteNits =
+				preferences.displayOutput.paperWhiteNits;
+			float maxLuminanceNits =
+				preferences.displayOutput.maxLuminanceNits;
+			if (ImGui::DragFloat("Paper White", &paperWhiteNits,
+				1.0f, 80.0f, 1000.0f, "%.0f nits")) {
+				featureController.SetDisplayLuminance(
+					paperWhiteNits,
+					(std::max)(paperWhiteNits, maxLuminanceNits));
+			}
+			DrawGraphicsTooltip("拡散白として扱う表示輝度です");
+			if (ImGui::DragFloat("最大輝度", &maxLuminanceNits,
+				1.0f, paperWhiteNits, 10000.0f, "%.0f nits")) {
+				featureController.SetDisplayLuminance(
+					paperWhiteNits, maxLuminanceNits);
+			}
+			DrawGraphicsTooltip("HDR10メタデータと最終出力変換に使用します");
+			ImGui::TextDisabled("NEMEditorはSDR固定、変更は製品ランタイム再起動後に反映");
+			ImGui::EndMenu();
+		}
+
 		if (ImGui::BeginMenu("カリング")) {
 			bool allowFrustumCulling =
 				preferences.allowFrustumCulling;

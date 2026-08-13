@@ -362,6 +362,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	textureDescriptorIndexCache_.clear();
 
 	blases_.clear();
+	staticInstanceBLASes_.clear();
 	dynamicBlases_.clear();
 	for (auto& pair : fillMeshRTResources_) {
 		pair.second.Release(srvDescriptor_);
@@ -406,6 +407,9 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 	std::erase_if(dynamicBlases_, [&](const auto& pair) {
 		return expired(pair.second.lastUsedFrame);
 	});
+	std::erase_if(staticInstanceBLASes_, [&](const auto& pair) {
+		return expired(pair.second.lastUsedFrame);
+	});
 
 	for (auto it = fillMeshRTResources_.begin();
 		it != fillMeshRTResources_.end();) {
@@ -447,6 +451,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		context.cullingView ? context.cullingView : context.view;
 	const uint64_t lodViewHash =
 		ComputeLODViewHash(runtimeFeatures, lodView);
+	bool lodResourceMissing = false;
 	auto updateCachedLODSelections = [&]() {
 
 		uint32_t changedCount = 0;
@@ -473,21 +478,43 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				continue;
 			}
 
-			BLASKey key{};
-			key.meshAssetID = record.meshAssetID;
-			key.reloadGeneration = record.reloadGeneration;
-			key.lodIndex = lodIndex;
-			key.geometryLayoutHash =
-				record.geometryLayoutHash;
-			auto blasIt = blases_.find(key);
-			if (blasIt == blases_.end() ||
-				!blasIt->second.IsBuilt()) {
-				continue;
+			ID3D12Resource* blasResource = nullptr;
+			if (record.usesInstanceBLAS) {
+
+				StaticInstanceBLASKey key{};
+				key.world = record.world;
+				key.entity = record.entity;
+				key.meshAssetID = record.meshAssetID;
+				key.reloadGeneration = record.reloadGeneration;
+				auto blasIt = staticInstanceBLASes_.find(key);
+				if (blasIt == staticInstanceBLASes_.end() ||
+					blasIt->second.lodGeometryLayoutHashes[lodIndex] !=
+						record.geometryLayoutHash ||
+					!blasIt->second.lodBLASes[lodIndex].IsBuilt()) {
+					lodResourceMissing = true;
+					continue;
+				}
+				blasResource = blasIt->second.
+					lodBLASes[lodIndex].GetResource();
+			} else {
+
+				BLASKey key{};
+				key.meshAssetID = record.meshAssetID;
+				key.reloadGeneration = record.reloadGeneration;
+				key.lodIndex = lodIndex;
+				key.geometryLayoutHash =
+					record.geometryLayoutHash;
+				auto blasIt = blases_.find(key);
+				if (blasIt == blases_.end() ||
+					!blasIt->second.IsBuilt()) {
+					continue;
+				}
+				blasResource = blasIt->second.GetResource();
 			}
 
 			cachedTLASInstances_[
 				record.tlasInstanceIndex].blas =
-					blasIt->second.GetResource();
+					blasResource;
 			const uint32_t geometryCount = (std::min)(
 				record.geometryCount,
 				static_cast<uint32_t>(
@@ -522,6 +549,27 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			renderBatch.GetSourceRenderRevision() &&
 		cachedMeshResourceRevision_ == meshResourceRevision &&
 		tlas_.IsBuilt();
+	if (matchesStaticScene) {
+
+		const uint64_t currentFrame =
+			GraphicsFrameState::GetFrameSerial();
+		for (const CachedMeshLODInstance& record :
+			cachedMeshLODInstances_) {
+
+			if (!record.tracksInstanceLayout) {
+				continue;
+			}
+			StaticInstanceBLASKey key{};
+			key.world = record.world;
+			key.entity = record.entity;
+			key.meshAssetID = record.meshAssetID;
+			key.reloadGeneration = record.reloadGeneration;
+			auto entry = staticInstanceBLASes_.find(key);
+			if (entry != staticInstanceBLASes_.end()) {
+				entry->second.lastUsedFrame = currentFrame;
+			}
+		}
+	}
 	if (matchesStaticScene &&
 		cachedTransformRevision_ ==
 			renderBatch.GetSourceTransformRevision()) {
@@ -529,6 +577,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		const uint32_t lodChangedCount =
 			cachedLODViewHash_ != lodViewHash ?
 				updateCachedLODSelections() : 0;
+		if (lodResourceMissing) {
+			cachedStaticScene_ = false;
+		}
 		if (0 < lodChangedCount) {
 
 			tlas_.Update(
@@ -623,6 +674,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			(transformChanged ||
 				cachedLODViewHash_ != lodViewHash) ?
 				updateCachedLODSelections() : 0;
+		if (lodResourceMissing) {
+			cachedStaticScene_ = false;
+		}
 		changedInstanceCount += lodChangedCount;
 		if (transformChanged || 0 < lodChangedCount) {
 			ID3D12GraphicsCommandList6* commandList =
@@ -728,6 +782,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
 	bool requireTlasRebuild = false;
+	bool requireTlasRefit = false;
 	bool staticScene = sceneFillMeshes.empty();
 	uint32_t blasGeometryCount = 0;
 
@@ -751,6 +806,31 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			std::span<const SubMeshMaterial>{};
 		const uint64_t geometryLayoutHash = ComputeGeometryLayoutHash(
 			subMeshes, static_cast<uint32_t>(meshResource->subMeshes.size()));
+		const bool hasCustomGeometryTransforms =
+			geometryLayoutHash != ComputeGeometryLayoutHash({},
+				static_cast<uint32_t>(meshResource->subMeshes.size()));
+		StaticInstanceBLASKey staticInstanceKey{};
+		StaticInstanceBLASEntry* staticInstanceEntry = nullptr;
+		bool usesInstanceBLAS = false;
+		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
+
+			staticInstanceKey.world = src.world;
+			staticInstanceKey.entity = src.entity;
+			staticInstanceKey.meshAssetID = src.meshAssetID;
+			staticInstanceKey.reloadGeneration =
+				meshResource->reloadGeneration;
+			StaticInstanceBLASEntry& entry =
+				staticInstanceBLASes_[staticInstanceKey];
+			entry.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
+			if (!entry.layoutInitialized) {
+				entry.geometryLayoutHash = geometryLayoutHash;
+				entry.layoutInitialized = true;
+			} else if (entry.geometryLayoutHash != geometryLayoutHash) {
+				entry.dedicated = true;
+			}
+			staticInstanceEntry = &entry;
+			usesInstanceBLAS = entry.dedicated;
+		}
 		Vector3 worldBoundsCenter{};
 		float worldBoundsRadius = 0.0f;
 		CalculateMeshWorldBounds(*meshResource,
@@ -778,6 +858,10 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				});
 			std::erase_if(dynamicBlases_, [&](const auto& pair) {
 				return pair.first.meshAssetID == src.meshAssetID && pair.first.reloadGeneration != reloadGeneration;
+				});
+			std::erase_if(staticInstanceBLASes_, [&](const auto& pair) {
+				return pair.first.meshAssetID == src.meshAssetID &&
+					pair.first.reloadGeneration != reloadGeneration;
 				});
 		}
 		meshBlasGeneration_[src.meshAssetID] = reloadGeneration;
@@ -955,6 +1039,24 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		RaytracingBLASInput input{};
 		input.geometries = geometries;
 		input.allowUpdate = hasSkinnedSource;
+		auto buildLODGeometries = [&](uint32_t lodIndex) {
+
+			// 編集中は表示LODだけをrefitし、未使用LODのGPU更新を次回選択時まで遅延する
+			std::vector<RaytracingBLASGeometryInput> lodGeometries =
+				geometries;
+			for (uint32_t subMeshIndex = 0;
+				subMeshIndex < static_cast<uint32_t>(lodGeometries.size());
+				++subMeshIndex) {
+
+				const MeshLODRange& range = ResolveRaytracingLODRange(
+					meshResource->subMeshes[subMeshIndex], lodIndex);
+				lodGeometries[subMeshIndex].indexAddress =
+					indexAddress + static_cast<uint64_t>(indexSize) *
+						range.indexOffset;
+				lodGeometries[subMeshIndex].indexCount = range.indexCount;
+			}
+			return lodGeometries;
+		};
 
 		ID3D12Resource* blasResource = nullptr;
 		if (hasSkinnedSource) {
@@ -982,6 +1084,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				entry.blas.Update(commandList, input);
 				FrameProfiler::GetInstance().AddBLASRefit(
 					static_cast<uint32_t>(geometries.size()));
+				requireTlasRefit = true;
 			} else {
 
 				FrameProfiler::GetInstance().AddBLASSkip(
@@ -992,6 +1095,41 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			entry.geometryLayoutHash = geometryLayoutHash;
 			entry.vertexAddress = vertexAddress;
 			blasResource = entry.blas.GetResource();
+		} else if (usesInstanceBLAS) {
+
+			StaticInstanceBLASEntry& entry = *staticInstanceEntry;
+			std::vector<RaytracingBLASGeometryInput> lodGeometries =
+				buildLODGeometries(selectedLOD);
+			RaytracingBLASInput lodInput{};
+			lodInput.geometries = lodGeometries;
+			lodInput.allowUpdate = true;
+
+			BottomLevelAccelerationStructure& blas =
+				entry.lodBLASes[selectedLOD];
+			const bool geometryChanged =
+				entry.lodGeometryLayoutHashes[selectedLOD] !=
+				geometryLayoutHash;
+			if (!blas.IsBuilt()) {
+
+				blas.Build(device, commandList, lodInput);
+				FrameProfiler::GetInstance().AddBLASBuild(
+					static_cast<uint32_t>(lodGeometries.size()));
+				requireTlasRebuild = true;
+			} else if (geometryChanged) {
+
+				blas.Update(commandList, lodInput);
+				FrameProfiler::GetInstance().AddBLASRefit(
+					static_cast<uint32_t>(lodGeometries.size()));
+				requireTlasRefit = true;
+			} else {
+
+				FrameProfiler::GetInstance().AddBLASSkip(
+					static_cast<uint32_t>(lodGeometries.size()));
+			}
+			entry.lodGeometryLayoutHashes[selectedLOD] =
+				geometryLayoutHash;
+			blasResource = blas.GetResource();
+			entry.geometryLayoutHash = geometryLayoutHash;
 		} else {
 
 			const uint32_t blasLODCount =
@@ -1022,28 +1160,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 					continue;
 				}
 
-				std::vector<RaytracingBLASGeometryInput>
-					lodGeometries = geometries;
-				for (uint32_t subMeshIndex = 0;
-					subMeshIndex <
-						static_cast<uint32_t>(
-							lodGeometries.size());
-					++subMeshIndex) {
-
-					const MeshLODRange& range =
-						ResolveRaytracingLODRange(
-							meshResource->subMeshes[
-								subMeshIndex],
-							lodIndex);
-					lodGeometries[subMeshIndex].
-						indexAddress =
-							indexAddress +
-							static_cast<uint64_t>(
-								indexSize) *
-							range.indexOffset;
-					lodGeometries[subMeshIndex].
-						indexCount = range.indexCount;
-				}
+				std::vector<RaytracingBLASGeometryInput> lodGeometries =
+					buildLODGeometries(lodIndex);
 
 				RaytracingBLASInput lodInput{};
 				lodInput.geometries = lodGeometries;
@@ -1107,9 +1225,15 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 			CachedMeshLODInstance lodInstance{};
 			lodInstance.meshAssetID = src.meshAssetID;
+			lodInstance.world = src.world;
+			lodInstance.entity = src.entity;
 			lodInstance.reloadGeneration = reloadGeneration;
 			lodInstance.geometryLayoutHash =
 				geometryLayoutHash;
+			lodInstance.tracksInstanceLayout =
+				hasCustomGeometryTransforms;
+			lodInstance.usesInstanceBLAS =
+				usesInstanceBLAS;
 			lodInstance.tlasInstanceIndex =
 				tlasInstanceIndex;
 			lodInstance.geometryDataOffset =
@@ -1333,7 +1457,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		tlas_.Build(device, commandList, tlasInstances, true);
 		firstTLASBuild_ = false;
 		FrameProfiler::GetInstance().AddTLASBuild();
-	} else if (tlasInstanceHash_ != tlasInstanceHash) {
+	} else if (requireTlasRefit ||
+		tlasInstanceHash_ != tlasInstanceHash) {
 
 		tlas_.Update(commandList, tlasInstances);
 		FrameProfiler::GetInstance().AddTLASRefit();

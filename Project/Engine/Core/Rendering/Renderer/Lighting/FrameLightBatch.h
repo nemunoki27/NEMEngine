@@ -109,6 +109,7 @@ namespace Engine {
 		std::vector<const PointLightItem*> pointLights;
 		std::vector<const RectLightItem*> rectLights;
 		std::vector<const SpotLightItem*> spotLights;
+		bool hasShadowCastingLight = false;
 
 		// データクリア
 		void Clear();

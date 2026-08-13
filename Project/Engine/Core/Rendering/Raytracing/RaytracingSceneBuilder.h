@@ -109,12 +109,52 @@ namespace Engine {
 				return h ^ (h3 + 0x9e3779b9u + (h << 6) + (h >> 2));
 			}
 		};
+		// サブメッシュ固有変換を持つ静的メッシュはEntity単位でrefitする
+		struct StaticInstanceBLASKey {
+
+			ECSWorld* world = nullptr;
+			Entity entity = Entity::Null();
+			AssetID meshAssetID{};
+			uint32_t reloadGeneration = 0;
+
+			bool operator==(const StaticInstanceBLASKey& rhs) const noexcept {
+				return world == rhs.world && entity == rhs.entity &&
+					meshAssetID == rhs.meshAssetID &&
+					reloadGeneration == rhs.reloadGeneration;
+			}
+		};
+		struct StaticInstanceBLASKeyHash {
+
+			size_t operator()(const StaticInstanceBLASKey& key) const noexcept {
+				size_t hash = std::hash<void*>{}(key.world);
+				hash ^= std::hash<uint32_t>{}(key.entity.index) << 1;
+				hash ^= std::hash<uint32_t>{}(key.entity.generation) << 2;
+				hash ^= std::hash<AssetID>{}(key.meshAssetID) << 3;
+				hash ^= std::hash<uint32_t>{}(key.reloadGeneration) << 4;
+				return hash;
+			}
+		};
+		struct StaticInstanceBLASEntry {
+
+			std::array<BottomLevelAccelerationStructure,
+				kMeshLODCount> lodBLASes{};
+			std::array<uint64_t, kMeshLODCount>
+				lodGeometryLayoutHashes{};
+			uint64_t geometryLayoutHash = 0;
+			uint64_t lastUsedFrame = 0;
+			bool layoutInitialized = false;
+			bool dedicated = false;
+		};
 		// 静的メッシュのLOD差分更新に必要なインスタンス情報
 		struct CachedMeshLODInstance {
 
 			AssetID meshAssetID{};
+			ECSWorld* world = nullptr;
+			Entity entity = Entity::Null();
 			uint32_t reloadGeneration = 0;
 			uint64_t geometryLayoutHash = 0;
+			bool tracksInstanceLayout = false;
+			bool usesInstanceBLAS = false;
 			uint32_t tlasInstanceIndex = 0;
 			uint32_t geometryDataOffset = 0;
 			uint32_t geometryCount = 0;
@@ -247,6 +287,8 @@ namespace Engine {
 
 		// BLAS
 		std::unordered_map<BLASKey, BottomLevelAccelerationStructure, BLASKeyHash> blases_;
+		std::unordered_map<StaticInstanceBLASKey, StaticInstanceBLASEntry,
+			StaticInstanceBLASKeyHash> staticInstanceBLASes_{};
 		std::unordered_map<DynamicBLASKey,
 			DynamicBLASEntry, DynamicBLASKeyHash> dynamicBlases_{};
 		std::unordered_map<FillMeshRTKey, FillMeshRaytracingResource, FillMeshRTKeyHash> fillMeshRTResources_{};
