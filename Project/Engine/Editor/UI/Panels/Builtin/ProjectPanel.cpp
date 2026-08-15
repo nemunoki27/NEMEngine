@@ -29,6 +29,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
+#include <Engine/Editor/Tools/Builtin/Raytracing/RayTracingEditorTool.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -1056,6 +1057,24 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 		DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(
 		std::move(shaderGraph));
+
+	// Ray Tracing Profileは統合レイトレーシング編集ツールで開く
+	AssetActionDescriptor rayTracingProfile{};
+	rayTracingProfile.type = AssetType::RayTracingProfile;
+	rayTracingProfile.displayName = "RayTracingProfile";
+	rayTracingProfile.iconResolver = ResolveDefaultAssetIcon;
+	rayTracingProfile.onDoubleClick =
+		[](const EditorPanelContext& /*context*/,
+			const ProjectAssetEntry& asset) {
+
+		ITool* tool = ToolRegistry::GetInstance().Find("engine.ray_tracing");
+		auto* editor = dynamic_cast<RayTracingEditorTool*>(tool);
+		if (editor) {
+			editor->OpenAsset(asset.assetID);
+		}
+		};
+	rayTracingProfile.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(rayTracingProfile));
 }
 
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
@@ -1220,7 +1239,7 @@ void Engine::ProjectPanel::BeginRenameDirectory(const ProjectDirectoryNode& node
 
 void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtualPath) {
 
-	constexpr std::array<ProjectAssetFileKind, 10> kCreateKinds = {
+	constexpr std::array<ProjectAssetFileKind, 11> kCreateKinds = {
 		ProjectAssetFileKind::Folder,
 		ProjectAssetFileKind::Script,
 		ProjectAssetFileKind::Scene,
@@ -1230,6 +1249,7 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 		ProjectAssetFileKind::Shader,
 		ProjectAssetFileKind::ShaderGraph,
 		ProjectAssetFileKind::RenderPipeline,
+		ProjectAssetFileKind::RayTracingProfile,
 		ProjectAssetFileKind::Text,
 	};
 

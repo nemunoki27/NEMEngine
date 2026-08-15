@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 //============================================================================
@@ -181,34 +182,12 @@ std::vector<std::string> Engine::ProjectAssetIndex::CollectSidecars(const std::f
 
 std::string Engine::ProjectAssetIndex::MakeDisplayName(const std::filesystem::path& fullPath) {
 
-	std::string fileName = fullPath.filename().string();
-	std::string lower = Algorithm::ToLower(fileName); 
-
-	// 特定の拡張子を持つファイルは、拡張子を除いたファイル名を表示名とする
-	if (Engine::Algorithm::EndsWith(lower, ".scene.json")) {
-		return fileName.substr(0, fileName.size() - 5);
+	const std::string fileName = fullPath.filename().string();
+	const std::string_view suffix = AssetTypeResolver::FindCompoundSuffix(fullPath);
+	if (!suffix.empty()) {
+		return fileName.substr(0, fileName.size() - suffix.size());
 	}
-	if (Engine::Algorithm::EndsWith(lower, ".prefab.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
-	if (Engine::Algorithm::EndsWith(lower, ".effect.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
-	if (Engine::Algorithm::EndsWith(lower, ".material.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
-	if (Engine::Algorithm::EndsWith(lower, ".shader.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
-	if (Engine::Algorithm::EndsWith(lower, ".pipeline.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
-	if (Engine::Algorithm::EndsWith(lower, ".animclip.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
-	if (Engine::Algorithm::EndsWith(lower, ".graph.json")) {
-		return fileName.substr(0, fileName.size() - 5);
-	}
+	// HLSLを含む通常拡張子は省略せず、ファイル種別まで判別できる表示にする
 	return fileName;
 }
 

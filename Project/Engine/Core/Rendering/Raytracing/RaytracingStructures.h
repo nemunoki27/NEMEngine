@@ -66,7 +66,13 @@ namespace Engine {
 		uint32_t vertexOffset = 0;
 		// このTLASインスタンスが参照するジオメトリデータの先頭
 		uint32_t geometryDataOffset = 0;
+
+		// ライティングやIBLをヒット地点で再現するための描画フラグ
+		uint32_t renderFlags = 0;
+		uint32_t _pad[3] = { 0, 0, 0 };
 	};
+	static_assert(sizeof(RaytracingInstanceShaderData) == 32,
+		"RaytracingInstanceShaderData must match HLSL layout");
 	// BLAS内ジオメトリ情報
 	struct RaytracingGeometryShaderData {
 

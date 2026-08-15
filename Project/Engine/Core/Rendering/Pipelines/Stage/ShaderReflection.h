@@ -169,6 +169,9 @@ namespace Engine {
 	const ShaderConstantBufferInfo* FindConstantBuffer(const ShaderReflectionInfo& reflection, std::string_view name);
 	// reflectionから指定名のStructuredBufferを探す
 	const ShaderStructuredBufferInfo* FindStructuredBuffer(const ShaderReflectionInfo& reflection, std::string_view name);
+	// 複数エクスポートのリフレクション情報を統合する
+	void MergeShaderReflection(ShaderReflectionInfo& target,
+		const ShaderReflectionInfo& source);
 
 	// 変数のスカラー成分数を安全側に求める、宣言成分数とサイズから1から4で返す
 	uint32_t GetVariableComponentCount(const ShaderConstantBufferVariable& variable);

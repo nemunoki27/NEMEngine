@@ -46,9 +46,9 @@ namespace Engine {
 		float reflectionNormalBias = 0.0005f;
 		float reflectionViewBias = 0.0005f;
 		float reflectionMinHitDistance = 0.0010f;
-		float reflectionThicknessBase = 0.04f;
+		float reflectionMaxRoughness = 0.8f;
 
-		float reflectionThicknessScale = 0.015f;
+		float reflectionRoughnessFade = 0.15f;
 		float skyIntensity = 1.0f;
 		float fresnelMin = 0.04f;
 		float _pad0 = 0.0f;
@@ -57,8 +57,11 @@ namespace Engine {
 		Color4 skyboxColor = Color4::White();
 		uint32_t skyboxCubemapIndex = 0xFFFFFFFF;
 		uint32_t hasSkybox = 0;
-		float _pad1[2] = { 0.0f, 0.0f };
+		float iblIntensity = 1.0f;
+		float _pad1 = 0.0f;
 	};
+	static_assert(sizeof(RaytracingViewConstantsGPU) % 16 == 0,
+		"RaytracingViewConstantsGPU must be 16 byte aligned");
 
 	//============================================================================
 	//	RaytracingViewBufferSet class

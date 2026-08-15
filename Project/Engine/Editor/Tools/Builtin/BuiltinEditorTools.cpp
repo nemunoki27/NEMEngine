@@ -11,6 +11,7 @@
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Scene/SceneCompositionTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
+#include <Engine/Editor/Tools/Builtin/Raytracing/RayTracingEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Input/InputDeviceTool.h>
 #include <Engine/Editor/Tools/Builtin/Performance/PerformanceCheckTool.h>
@@ -49,6 +50,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<PostProcessStackTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
+	RegisterBuiltinEditorTool<RayTracingEditorTool>();
 	RegisterBuiltinEditorTool<ParticleEffectEditorTool>();
 	RegisterBuiltinEditorTool<SceneCompositionTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();

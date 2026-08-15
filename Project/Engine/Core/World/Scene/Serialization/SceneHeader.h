@@ -119,6 +119,8 @@ namespace Engine {
 
 		// シーンごとのPostProcessStackアセット
 		AssetID postProcessStack{};
+		// シーンで使用するレイトレーシングエフェクト構成
+		AssetID rayTracingProfile{};
 	};
 
 	// json変換

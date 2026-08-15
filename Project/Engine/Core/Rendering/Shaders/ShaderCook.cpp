@@ -393,6 +393,13 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 
 	outResult = ShaderCookResult{};
 	outError.clear();
+	std::error_code outputError;
+	const std::filesystem::path resolvedOutputRoot =
+		std::filesystem::absolute(outputRoot, outputError);
+	if (outputError || resolvedOutputRoot.empty()) {
+		outError = "ShaderCook output directory is invalid";
+		return false;
+	}
 	const nlohmann::json buildManifest = JsonAdapter::Load(manifestPath, true);
 	if (!buildManifest.is_object() ||
 		buildManifest.value("schemaVersion", 0u) != 2u ||
@@ -488,7 +495,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 				ToString(shader.guid) + "/" +
 				std::string(EnumAdapter<ShaderStage>::ToString(stage.stage)) +
 				"_" + entry + ".dxil";
-			const std::filesystem::path bytecodePath = outputRoot /
+			const std::filesystem::path bytecodePath = resolvedOutputRoot /
 				Algorithm::PathFromUTF8(fileName);
 			if (!WriteBinary(bytecodePath, compiled.GetBytecodePointer(),
 				compiled.GetBytecodeSize())) {
@@ -553,12 +560,17 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			!cookShader(std::move(artifact.computeShader), meta->assetPath)) {
 			return false;
 		}
+		if (artifact.rayTracingShader.guid &&
+			!cookShader(std::move(artifact.rayTracingShader), meta->assetPath)) {
+			return false;
+		}
 		for (const RenderPipelineAsset* pipeline : {
 			&artifact.opaquePipeline,
 			&artifact.transparentPipeline,
 			&artifact.depthPipeline,
 			&artifact.pickingPipeline,
 			&artifact.computePipeline,
+			&artifact.rayTracingPipeline,
 			}) {
 			if (!pipeline->guid) {
 				continue;
@@ -572,7 +584,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 		outError = "No Shader Assets were included in the product build";
 		return false;
 	}
-	if (!JsonAdapter::SaveCanonical(outputRoot / "ShaderCookManifest.json",
+	if (!JsonAdapter::SaveCanonical(resolvedOutputRoot / "ShaderCookManifest.json",
 		cookedManifest)) {
 		outError = "ShaderCook manifest write failed";
 		return false;

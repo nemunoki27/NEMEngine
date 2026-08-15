@@ -1879,6 +1879,114 @@ namespace {
 		return source;
 	}
 
+	std::string BuildRayTracingSource(
+		std::string_view surfaceIncludeFile,
+		const CompilerContext& context) {
+
+		std::string source =
+			"// Shader Graph generated Ray Tracing library\n"
+			"#define NEM_REFLECTION_CUSTOM_HIT\n"
+			"#include \"Builtin/Raytracing/reflection.RT.hlsl\"\n"
+			"#include \"" + std::string(surfaceIncludeFile) + "\"\n\n";
+		source += context.BuildMaterialConstantBuffer(
+			5, "RayTracingParameters");
+		source += "\n" + context.BuildMaterialParameterGetter() + "\n";
+		source +=
+			"ShaderGraphSurface EvaluateRayTracingShaderGraph(\n"
+			"\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
+			"\tRaytracingInstanceShaderData instanceData =\n"
+			"\t\tgRaytracingSceneInstances[InstanceID()];\n"
+			"\tRaytracingGeometryShaderData geometryData =\n"
+			"\t\tgRaytracingGeometries[instanceData.geometryDataOffset + GeometryIndex()];\n"
+			"\tSubMeshShaderData subMesh =\n"
+			"\t\tgRaytracingSubMeshes[geometryData.subMeshDataIndex];\n"
+			"\tStructuredBuffer<uint> indices =\n"
+			"\t\tResourceDescriptorHeap[NonUniformResourceIndex(instanceData.indexDescriptorIndex)];\n"
+			"\tStructuredBuffer<MeshVertex> vertices =\n"
+			"\t\tResourceDescriptorHeap[NonUniformResourceIndex(instanceData.vertexDescriptorIndex)];\n"
+			"\tuint baseIndex = geometryData.indexOffset + PrimitiveIndex() * 3u;\n"
+			"\tMeshVertex v0 = vertices[instanceData.vertexOffset + indices[baseIndex + 0u]];\n"
+			"\tMeshVertex v1 = vertices[instanceData.vertexOffset + indices[baseIndex + 1u]];\n"
+			"\tMeshVertex v2 = vertices[instanceData.vertexOffset + indices[baseIndex + 2u]];\n"
+			"\tfloat3 bary = ComputeBarycentrics(attr.barycentrics);\n"
+			"\tfloat2 uv = v0.uv * bary.x + v1.uv * bary.y + v2.uv * bary.z;\n"
+			"\tfloat3 objectPosition = v0.position.xyz * bary.x +\n"
+			"\t\tv1.position.xyz * bary.y + v2.position.xyz * bary.z;\n"
+			"\tfloat3 objectNormal = normalize(v0.normal * bary.x +\n"
+			"\t\tv1.normal * bary.y + v2.normal * bary.z);\n"
+			"\tfloat3 objectTangent = normalize(v0.tangent * bary.x +\n"
+			"\t\tv1.tangent * bary.y + v2.tangent * bary.z);\n"
+			"\tfloat tangentSign = v0.tangentSign * bary.x +\n"
+			"\t\tv1.tangentSign * bary.y + v2.tangentSign * bary.z < 0.0f ? -1.0f : 1.0f;\n"
+			"\tfloat3 localNormal = normalize(mul(float4(objectNormal, 0.0f),\n"
+			"\t\tsubMesh.localNormalMatrix).xyz);\n"
+			"\tfloat3 localTangent = normalize(mul(float4(objectTangent, 0.0f),\n"
+			"\t\tsubMesh.localMatrix).xyz);\n"
+			"\tfloat3x3 objectToWorld = (float3x3)ObjectToWorld3x4();\n"
+			"\tfloat3x3 worldToObject = (float3x3)WorldToObject3x4();\n"
+			"\tfloat3 worldNormal = normalize(mul(localNormal, worldToObject));\n"
+			"\tfloat3 worldTangent = normalize(mul(\n"
+			"\t\tobjectToWorld, localTangent));\n"
+			"\tworldTangent = normalize(worldTangent -\n"
+			"\t\tworldNormal * dot(worldNormal, worldTangent));\n"
+			"\tfloat worldOrientationSign = determinant(objectToWorld) < 0.0f ? -1.0f : 1.0f;\n"
+			"\tfloat bitangentSign = tangentSign *\n"
+			"\t\tsubMesh.localOrientationSign * worldOrientationSign;\n"
+			"\tfloat3 worldBitangent = normalize(\n"
+			"\t\tcross(worldNormal, worldTangent)) * bitangentSign;\n"
+			"\tif (dot(worldNormal, WorldRayDirection()) > 0.0f) {\n"
+			"\t\tworldNormal = -worldNormal;\n"
+			"\t\tworldBitangent = -worldBitangent;\n"
+			"\t}\n"
+			"\tShaderGraphSurfaceInput graphInput;\n"
+			"\tgraphInput.uv = mul(float4(uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;\n"
+			"\tgraphInput.worldNormal = worldNormal;\n"
+			"\tgraphInput.worldPosition = WorldRayOrigin() +\n"
+			"\t\tWorldRayDirection() * RayTCurrent();\n"
+			"\tgraphInput.objectPosition = mul(float4(objectPosition, 1.0f),\n"
+			"\t\tsubMesh.localMatrix).xyz;\n"
+			"\tgraphInput.objectNormal = localNormal;\n"
+			"\tgraphInput.objectTangent = localTangent;\n"
+			"\tgraphInput.viewDirection = normalize(-WorldRayDirection());\n"
+			"\tgraphInput.screenPosition = float4(DispatchRaysIndex().xy, 0.0f, 1.0f);\n"
+			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
+			"\tgraphInput.tangentToWorld = float3x3(\n"
+			"\t\tworldTangent, worldBitangent, worldNormal);\n"
+			"\treturn EvaluateShaderGraphSurface(\n"
+			"\t\tgraphInput, GetShaderGraphParameters());\n"
+			"}\n\n"
+			"[shader(\"anyhit\")]\n"
+			"void ReflectionAnyHit(inout ReflectionPayload payload,\n"
+			"\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
+			"\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(attr);\n"
+			"\tif (graph.baseColor.a * graph.opacity < graph.alphaClip) {\n"
+			"\t\tIgnoreHit();\n"
+			"\t}\n"
+			"}\n\n"
+			"[shader(\"closesthit\")]\n"
+			"void ReflectionClosestHit(inout ReflectionPayload payload,\n"
+			"\tin BuiltInTriangleIntersectionAttributes attr) {\n\n"
+			"\tShaderGraphSurface graph = EvaluateRayTracingShaderGraph(attr);\n"
+			"\tRaytracingInstanceShaderData instanceData =\n"
+			"\t\tgRaytracingSceneInstances[InstanceID()];\n"
+			"\tfloat3 worldPosition = WorldRayOrigin() +\n"
+			"\t\tWorldRayDirection() * RayTCurrent();\n"
+			"\tResolvedPBRMaterial material;\n"
+			"\tmaterial.baseColor = graph.baseColor;\n"
+			"\tmaterial.N = graph.normal;\n"
+			"\tmaterial.metallic = graph.metallic;\n"
+			"\tmaterial.roughness = graph.roughness;\n"
+			"\tmaterial.ao = graph.ambientOcclusion;\n"
+			"\tmaterial.emissive = graph.emissive;\n"
+			"\tpayload.hit = 1u;\n"
+			"\tpayload.color = EvaluateRaytracingSurfaceLighting(\n"
+			"\t\tworldPosition, material, instanceData.renderFlags);\n"
+			"\tpayload.worldPosition = worldPosition;\n"
+			"\tpayload.hitDistance = RayTCurrent();\n"
+			"}\n";
+		return source;
+	}
+
 	std::string BuildMeshAuxiliaryPixelSource(
 		std::string_view surfaceIncludeFile,
 		bool picking) {
@@ -2689,6 +2797,10 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(
 		output.transparentPixelHLSL =
 			BuildPixelSource(
 				expandedGraph, surfaceIncludeFile, context, true);
+		if (IsShaderGraph3DTarget(expandedGraph.target)) {
+			output.rayTracingHLSL = BuildRayTracingSource(
+				surfaceIncludeFile, context);
+		}
 		if (expandedGraph.target == ShaderGraphTarget::Mesh) {
 			output.depthPixelHLSL = BuildMeshAuxiliaryPixelSource(
 				surfaceIncludeFile, false);

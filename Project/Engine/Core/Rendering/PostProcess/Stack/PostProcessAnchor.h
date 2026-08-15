@@ -15,7 +15,7 @@ namespace Engine {
 	enum class PostProcessAnchor : uint8_t {
 
 		AfterLighting,             // ライティング直後で不透明のみの結果
-		AfterRaytracingReflection, // レイトレ反射合成後
+		AfterRayTracing,           // ライティング後のレイトレーシング合成後
 		AfterTransparent,          // 半透明合成後
 		AfterMaskedUI,             // MaskedUI合成後で従来の既定位置
 		BeforeBlit,                // ビューへのBlit直前で表示直前の最終結果

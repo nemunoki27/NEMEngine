@@ -14,6 +14,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
+#include <Engine/Core/Rendering/Raytracing/RayTracingExecutor.h>
 
 // c++
 #include <memory>
@@ -40,6 +41,7 @@ namespace Engine {
 		PipelineStateCache* pipelineCache = nullptr;
 		MaterialResolver* materialResolver = nullptr;
 		RaytracingPipelineStateCache* raytracingPipelineCache = nullptr;
+		RayTracingExecutor* rayTracingExecutor = nullptr;
 		PostProcessExecutor* postProcessExecutor = nullptr;
 		PostProcessTemporaryTargetPool* postProcessTargetPool = nullptr;
 		PostProcessDebugInjector* postProcessDebugInjector = nullptr;

@@ -84,6 +84,32 @@ namespace {
 		return shader;
 	}
 
+	Engine::ShaderAsset MakeRayTracingShader(
+		std::string_view name,
+		Engine::AssetID shaderID,
+		const std::filesystem::path& path,
+		const std::vector<Engine::ShaderParameterMetadata>& parameters) {
+
+		Engine::ShaderAsset shader{};
+		shader.guid = shaderID;
+		shader.name = std::string(name);
+		for (const char* entry : { "ReflectionClosestHit", "ReflectionAnyHit" }) {
+			shader.stages.emplace_back(Engine::ShaderStageEntry{
+				.stage = Engine::ShaderStage::Lib,
+				.file = Engine::Algorithm::PathToUTF8(path),
+				.entry = entry,
+				.profile = "lib_6_6",
+				});
+		}
+		shader.parameters = parameters;
+		for (const Engine::ShaderParameterMetadata& parameter : parameters) {
+			if (parameter.isColor) {
+				shader.colorParameters.emplace_back(parameter.shaderName);
+			}
+		}
+		return shader;
+	}
+
 	Engine::AssetID ResolveBasePipeline(
 		Engine::ShaderGraphTarget target, bool transparent) {
 
@@ -203,6 +229,57 @@ namespace {
 		}
 		return true;
 	}
+
+	bool MakeRayTracingPipeline(
+		const Engine::ShaderGraphAsset& graph,
+		const Engine::ShaderGraphCompileOutput& compileOutput,
+		Engine::AssetID graphID, Engine::AssetDatabase* database,
+		Engine::RenderPipelineAsset& outPipeline,
+		Engine::AssetID& outPipelineID) {
+
+		if (!database) {
+			return false;
+		}
+		const std::filesystem::path path = database->ResolveFullPath(
+			Engine::BuiltinAssets::Pipelines::RaytracingReflection);
+		if (path.empty() || !Engine::FromJson(
+			Engine::JsonAdapter::Load(path, true), outPipeline)) {
+
+			return false;
+		}
+		outPipelineID = Engine::ShaderGraphArtifactCache::MakeDerivedID(
+			graphID, 0x5241595452414350ull);
+		outPipeline.guid = outPipelineID;
+		outPipeline.name = graph.name + "RayTracingPipeline";
+		for (Engine::PipelineVariantDesc& variant : outPipeline.variants) {
+			if (variant.kind != Engine::PipelineVariantKind::Raytracing) {
+				continue;
+			}
+			for (Engine::RaytracingHitGroupDesc& hitGroup : variant.hitGroups) {
+				if (hitGroup.closestHitExport == "ReflectionClosestHit") {
+					hitGroup.anyHitExport = "ReflectionAnyHit";
+				}
+			}
+			for (const Engine::ShaderGraphSamplerBinding& sampler :
+				compileOutput.samplers) {
+
+				const D3D12_STATIC_SAMPLER_DESC graphSampler =
+					MakeGraphSampler(sampler.settings, sampler.shaderRegister);
+				const auto found = std::find_if(
+					variant.staticSamplers.begin(), variant.staticSamplers.end(),
+					[&graphSampler](const D3D12_STATIC_SAMPLER_DESC& current) {
+						return current.ShaderRegister == graphSampler.ShaderRegister &&
+							current.RegisterSpace == graphSampler.RegisterSpace;
+					});
+				if (found != variant.staticSamplers.end()) {
+					*found = graphSampler;
+				} else {
+					variant.staticSamplers.emplace_back(graphSampler);
+				}
+			}
+		}
+		return true;
+	}
 }
 
 //============================================================================
@@ -233,6 +310,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 	outArtifact.vertexPath = outArtifact.root / "vertex.VS.hlsl";
 	outArtifact.meshPath = outArtifact.root / "mesh.MS.hlsl";
 	outArtifact.computePath = outArtifact.root / "postProcess.CS.hlsl";
+	outArtifact.rayTracingPath = outArtifact.root / "rayTracing.RT.hlsl";
 
 	const ShaderGraphAssetResolver resolver =
 		[database](AssetID assetID, ShaderGraphAsset& outGraph) {
@@ -307,6 +385,26 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			outArtifact.compileOutput.transparentPixelHLSL)) {
 
 		return false;
+	}
+	if (!outArtifact.compileOutput.rayTracingHLSL.empty()) {
+		if (!WriteTextFile(outArtifact.rayTracingPath,
+			outArtifact.compileOutput.rayTracingHLSL)) {
+
+			return false;
+		}
+		outArtifact.rayTracingShaderID = MakeDerivedID(
+			graphID, 0x5241595452414345ull ^
+				static_cast<uint64_t>(graph.target));
+		outArtifact.rayTracingShader = MakeRayTracingShader(
+			graph.name + "RayTracing", outArtifact.rayTracingShaderID,
+			outArtifact.rayTracingPath,
+			outArtifact.compileOutput.parameters);
+		if (!MakeRayTracingPipeline(graph, outArtifact.compileOutput,
+			graphID, database, outArtifact.rayTracingPipeline,
+			outArtifact.rayTracingPipelineID)) {
+
+			return false;
+		}
 	}
 
 	outArtifact.opaqueShaderID = MakeDerivedID(
@@ -525,6 +623,15 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 
 	material.shaderGraph = graphID;
 	if (graph.domain == ShaderGraphDomain::Surface) {
+		if (IsShaderGraph3DTarget(graph.target) &&
+			!FindPass(material, MaterialPassKind::RayTracing)) {
+
+			material.passes.emplace_back(MaterialPassBinding{
+				.passKind = MaterialPassKind::RayTracing,
+				.pipeline = BuiltinAssets::Pipelines::RaytracingReflection,
+				.preferredVariant = PipelineVariantKind::Raytracing,
+				});
+		}
 		material.renderState.overridesRenderer = true;
 		material.renderState.phase =
 			graph.surfaceMode == ShaderGraphSurfaceMode::Transparent ?
@@ -599,6 +706,13 @@ void Engine::ShaderGraphArtifactCache::ApplyToMaterial(
 			pass->pipeline = artifact.computePipelineID;
 		}
 		pass->shaderOverride = artifact.computeShaderID;
+	}
+	if (MaterialPassBinding* pass =
+		FindPass(material, MaterialPassKind::RayTracing)) {
+		if (artifact.rayTracingPipelineID) {
+			pass->pipeline = artifact.rayTracingPipelineID;
+		}
+		pass->shaderOverride = artifact.rayTracingShaderID;
 	}
 }
 

@@ -185,7 +185,7 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 	for (const CompiledShader* shader : shaders) {
 
 		// シェーダーオブジェクトがないものは無視
-		if (!shader || !shader->object) {
+		if (!shader || !shader->IsValid()) {
 			continue;
 		}
 

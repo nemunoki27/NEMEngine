@@ -201,6 +201,7 @@ namespace {
 			AddAsset(Engine::BuiltinAssets::Materials::OutputTransform);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
 			AddAsset(Engine::BuiltinAssets::Materials::RaytracingReflection);
+			AddAsset(Engine::BuiltinAssets::RayTracingProfiles::Default);
 
 			AddFixedRuntimeFiles();
 			ProcessAssets();
@@ -710,7 +711,7 @@ namespace {
 		// ウィンドウ設定やグローバル設定や直接参照シェーダーを追加
 		void AddFixedRuntimeFiles() {
 
-			AddLogicalFile("Engine/Assets/Window/windowSetting.json");
+			AddLogicalFile("Engine/Assets/Config/windowSettings.exeConfig.json");
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/FullscreenCopy/fullscreenCopy.VS.hlsl");
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/deferredLighting.PS.hlsl");
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/skyboxIrradiance.CS.hlsl");

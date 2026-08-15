@@ -44,7 +44,8 @@ internal static class ManagedAbi {
     // v37: 型安全なDynamicBufferアクセスを追加
     // v43: 全Renderer共通の型付きMaterial Instance APIを追加
     // v44: 廃止した描画、画面遷移APIを削除
-    internal const uint Version = 44;
+    // v45: RayTracingProfileの実行時パラメータAPIを追加
+    internal const uint Version = 45;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -413,6 +414,13 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*, int> SetRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*, int> GetRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int> ClearRendererMaterialParameter;
+    internal static delegate* unmanaged[Cdecl]<int> IsRayTracingSupported;
+    internal static delegate* unmanaged[Cdecl]<int> IsRayTracingActive;
+    internal static delegate* unmanaged[Cdecl]<byte*, int, int> SetRayTracingEffectEnabled;
+    internal static delegate* unmanaged[Cdecl]<byte*, ulong, byte*, NativeMaterialParameterValue*, int> SetRayTracingEffectParameter;
+    internal static delegate* unmanaged[Cdecl]<byte*, ulong, int> ClearRayTracingEffectParameter;
+    internal static delegate* unmanaged[Cdecl]<byte*, int> ResetRayTracingEffect;
+    internal static delegate* unmanaged[Cdecl]<void> ResetRayTracingOverrides;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
     // v20: Entityの保存identityを逆引きする
@@ -585,6 +593,13 @@ internal static unsafe class NativeApi {
         SetRendererMaterialParameter = callbacks->setRendererMaterialParameter;
         GetRendererMaterialParameter = callbacks->getRendererMaterialParameter;
         ClearRendererMaterialParameter = callbacks->clearRendererMaterialParameter;
+        IsRayTracingSupported = callbacks->isRayTracingSupported;
+        IsRayTracingActive = callbacks->isRayTracingActive;
+        SetRayTracingEffectEnabled = callbacks->setRayTracingEffectEnabled;
+        SetRayTracingEffectParameter = callbacks->setRayTracingEffectParameter;
+        ClearRayTracingEffectParameter = callbacks->clearRayTracingEffectParameter;
+        ResetRayTracingEffect = callbacks->resetRayTracingEffect;
+        ResetRayTracingOverrides = callbacks->resetRayTracingOverrides;
         GetEntityReferenceIdentity = callbacks->getEntityReferenceIdentity;
         PhysicsRaycast = callbacks->physicsRaycast;
         PhysicsRaycastAll = callbacks->physicsRaycastAll;
@@ -844,6 +859,101 @@ internal static unsafe class NativeApi {
             parameterID != 0ul &&
             ClearRendererMaterialParameter(
                 entity, (int)target, subMeshIndex, parameterID) != 0;
+    }
+
+    internal static bool ReadRayTracingSupported() =>
+        IsRayTracingSupported != null && IsRayTracingSupported() != 0;
+
+    internal static bool ReadRayTracingActive() =>
+        IsRayTracingActive != null && IsRayTracingActive() != 0;
+
+    internal static bool WriteRayTracingEffectEnabled(
+        string effectName, bool enabled) {
+
+        if (SetRayTracingEffectEnabled == null ||
+            string.IsNullOrEmpty(effectName)) {
+            return false;
+        }
+        int byteCount = Encoding.UTF8.GetByteCount(effectName);
+        Span<byte> bytes = byteCount < 256
+            ? stackalloc byte[byteCount + 1]
+            : new byte[byteCount + 1];
+        Encoding.UTF8.GetBytes(effectName, bytes);
+        bytes[byteCount] = 0;
+        fixed (byte* effectNamePtr = bytes) {
+            return SetRayTracingEffectEnabled(
+                effectNamePtr, enabled ? 1 : 0) != 0;
+        }
+    }
+
+    internal static bool WriteRayTracingEffectParameter(
+        string effectName, ulong parameterID, string parameterName,
+        NativeMaterialParameterValue value) {
+
+        if (SetRayTracingEffectParameter == null || parameterID == 0ul ||
+            string.IsNullOrEmpty(effectName) || string.IsNullOrEmpty(parameterName)) {
+            return false;
+        }
+        int effectByteCount = Encoding.UTF8.GetByteCount(effectName);
+        Span<byte> effectBytes = effectByteCount < 256
+            ? stackalloc byte[effectByteCount + 1]
+            : new byte[effectByteCount + 1];
+        Encoding.UTF8.GetBytes(effectName, effectBytes);
+        effectBytes[effectByteCount] = 0;
+
+        int parameterByteCount = Encoding.UTF8.GetByteCount(parameterName);
+        Span<byte> parameterBytes = parameterByteCount < 256
+            ? stackalloc byte[parameterByteCount + 1]
+            : new byte[parameterByteCount + 1];
+        Encoding.UTF8.GetBytes(parameterName, parameterBytes);
+        parameterBytes[parameterByteCount] = 0;
+        fixed (byte* effectNamePtr = effectBytes)
+        fixed (byte* parameterNamePtr = parameterBytes) {
+            return SetRayTracingEffectParameter(
+                effectNamePtr, parameterID, parameterNamePtr, &value) != 0;
+        }
+    }
+
+    internal static bool ClearRayTracingEffectParameterValue(
+        string effectName, ulong parameterID) {
+
+        if (ClearRayTracingEffectParameter == null || parameterID == 0ul ||
+            string.IsNullOrEmpty(effectName)) {
+            return false;
+        }
+        int byteCount = Encoding.UTF8.GetByteCount(effectName);
+        Span<byte> bytes = byteCount < 256
+            ? stackalloc byte[byteCount + 1]
+            : new byte[byteCount + 1];
+        Encoding.UTF8.GetBytes(effectName, bytes);
+        bytes[byteCount] = 0;
+        fixed (byte* effectNamePtr = bytes) {
+            return ClearRayTracingEffectParameter(
+                effectNamePtr, parameterID) != 0;
+        }
+    }
+
+    internal static bool ResetRayTracingEffectValue(string effectName) {
+
+        if (ResetRayTracingEffect == null || string.IsNullOrEmpty(effectName)) {
+            return false;
+        }
+        int byteCount = Encoding.UTF8.GetByteCount(effectName);
+        Span<byte> bytes = byteCount < 256
+            ? stackalloc byte[byteCount + 1]
+            : new byte[byteCount + 1];
+        Encoding.UTF8.GetBytes(effectName, bytes);
+        bytes[byteCount] = 0;
+        fixed (byte* effectNamePtr = bytes) {
+            return ResetRayTracingEffect(effectNamePtr) != 0;
+        }
+    }
+
+    internal static void ResetAllRayTracingOverrides() {
+
+        if (ResetRayTracingOverrides != null) {
+            ResetRayTracingOverrides();
+        }
     }
 
     // Collision形状操作のマネージドラッパー、未登録時は安全な既定値を返す

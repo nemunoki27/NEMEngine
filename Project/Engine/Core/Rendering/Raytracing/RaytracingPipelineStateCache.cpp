@@ -3,33 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+
 // c++
-#include <algorithm>
+#include <chrono>
 
 //============================================================================
 //	RaytracingPipelineStateCache classMethods
 //============================================================================
-
-namespace {
-
-	// Material側の同一ステージでパイプライン側のShaderを上書きする
-	void OverlayShaderStages(Engine::ShaderAsset& target,
-		const Engine::ShaderAsset& source) {
-
-		for (const Engine::ShaderStageEntry& sourceStage : source.stages) {
-
-			auto found = std::find_if(target.stages.begin(), target.stages.end(),
-				[&](const Engine::ShaderStageEntry& stage) {
-					return stage.stage == sourceStage.stage;
-				});
-			if (found != target.stages.end()) {
-				*found = sourceStage;
-			} else {
-				target.stages.emplace_back(sourceStage);
-			}
-		}
-	}
-}
 
 bool Engine::RaytracingPipelineCacheKey::operator==(
 	const RaytracingPipelineCacheKey& rhs) const noexcept {
@@ -43,6 +24,8 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID,
 	AssetID shaderOverrideAssetID) {
 
+	CollectRetiredStates();
+
 	// 無効なIDの場合はnullptrを返す
 	if (!pipelineAssetID) {
 		return nullptr;
@@ -51,13 +34,13 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	// パイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
 	if (!pipelineAsset) {
-		return nullptr;
+		return FindFallback(pipelineAssetID, shaderOverrideAssetID);
 	}
 	// ランタイムの機能から最適なパイプラインバリアントを解決
 	const GraphicsRuntimeFeatures& runtimeFeatures = graphicsPlatform.GetFeatureController().GetRuntimeFeatures();
 	const PipelineVariantDesc* variant = ResolveBestVariant(*pipelineAsset, PipelineVariantKind::Raytracing, runtimeFeatures);
 	if (!variant || variant->kind != PipelineVariantKind::Raytracing) {
-		return nullptr;
+		return FindFallback(pipelineAssetID, shaderOverrideAssetID);
 	}
 
 	RaytracingPipelineCacheKey key{};
@@ -70,29 +53,42 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	if (found != cache_.end()) {
 		return found->second.get();
 	}
+	if (const auto failed = failedRevisions_.find(key);
+		failed != failedRevisions_.end() &&
+		failed->second == revisions_[key]) {
+
+		return FindFallback(pipelineAssetID, shaderOverrideAssetID);
+	}
 
 	// シェーダーアセットをロード
 	const ShaderAsset* shaderAsset = assetLibrary.LoadShader(variant->shader);
 	if (!shaderAsset) {
-		return nullptr;
+		return FindFallback(pipelineAssetID, shaderOverrideAssetID);
 	}
 	ShaderAsset composedShader = *shaderAsset;
 	if (shaderOverrideAssetID) {
 		const ShaderAsset* shaderOverride =
 			assetLibrary.LoadShader(shaderOverrideAssetID);
 		if (!shaderOverride) {
-			return nullptr;
+			return FindFallback(pipelineAssetID, shaderOverrideAssetID);
 		}
-		OverlayShaderStages(composedShader, *shaderOverride);
+		OverlayShaderExports(composedShader, *shaderOverride);
+	}
+	if (FindFallback(pipelineAssetID, shaderOverrideAssetID)) {
+		return UpdateAsyncBuild(graphicsPlatform.GetDevice(), key,
+			*variant, composedShader);
 	}
 	// パイプラインステートを作成してキャッシュする
 	std::unique_ptr<RaytracingPipelineState> state = std::make_unique<RaytracingPipelineState>();
 	if (!state->Create(graphicsPlatform.GetDevice(),
 		graphicsPlatform.GetDxShaderCompiler(), *variant, composedShader)) {
-		cache_.emplace(key, nullptr);
-		return nullptr;
+
+		failedRevisions_[key] = revisions_[key];
+		return FindFallback(pipelineAssetID, shaderOverrideAssetID);
 	}
 	auto [it, inserted] = cache_.emplace(key, std::move(state));
+	failedRevisions_.erase(key);
+	RetireFallbacks(pipelineAssetID, shaderOverrideAssetID);
 	return it->second.get();
 }
 
@@ -103,6 +99,22 @@ void Engine::RaytracingPipelineStateCache::Clear() {
 		entry.second.reset();
 	}
 	cache_.clear();
+	for (auto& entry : fallbackCache_) {
+		entry.second.reset();
+	}
+	fallbackCache_.clear();
+	for (auto& [key, build] : pendingBuilds_) {
+		if (build.result.valid()) {
+			build.result.wait();
+		}
+	}
+	pendingBuilds_.clear();
+	revisions_.clear();
+	failedRevisions_.clear();
+	for (auto& states : retiredStates_) {
+		states.clear();
+	}
+	retiredFrameSerials_ = {};
 }
 
 void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
@@ -110,9 +122,182 @@ void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 
 	for (auto it = cache_.begin(); it != cache_.end();) {
 		if (it->first.pipelineAsset == pipelineAssetID) {
+			++revisions_[it->first];
+			failedRevisions_.erase(it->first);
+			PreserveFallback(it->first, std::move(it->second));
 			it = cache_.erase(it);
 		} else {
 			++it;
 		}
 	}
+	for (auto& [key, build] : pendingBuilds_) {
+		if (key.pipelineAsset == pipelineAssetID) {
+			++revisions_[key];
+			failedRevisions_.erase(key);
+		}
+	}
+}
+
+void Engine::RaytracingPipelineStateCache::InvalidateByShaderAsset(
+	AssetID shaderAssetID) {
+
+	for (auto it = cache_.begin(); it != cache_.end();) {
+		if (it->first.pipelineShaderAsset == shaderAssetID ||
+			it->first.shaderOverrideAsset == shaderAssetID) {
+
+			++revisions_[it->first];
+			failedRevisions_.erase(it->first);
+			PreserveFallback(it->first, std::move(it->second));
+			it = cache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+	for (auto& [key, build] : pendingBuilds_) {
+		if (key.pipelineShaderAsset == shaderAssetID ||
+			key.shaderOverrideAsset == shaderAssetID) {
+
+			++revisions_[key];
+			failedRevisions_.erase(key);
+		}
+	}
+}
+
+void Engine::RaytracingPipelineStateCache::CollectRetiredStates() {
+
+	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+	if (retiredFrameSerials_[frameIndex] == frameSerial) {
+		return;
+	}
+	retiredStates_[frameIndex].clear();
+	retiredFrameSerials_[frameIndex] = frameSerial;
+}
+
+void Engine::RaytracingPipelineStateCache::RetireState(
+	std::unique_ptr<RaytracingPipelineState> state) {
+
+	if (!state) {
+		return;
+	}
+	CollectRetiredStates();
+	retiredStates_[GraphicsFrameState::GetCurrentIndex()].emplace_back(
+		std::move(state));
+}
+
+Engine::RaytracingPipelineState*
+Engine::RaytracingPipelineStateCache::FindFallback(
+	AssetID pipelineAssetID, AssetID shaderOverrideAssetID) const {
+
+	for (const auto& [key, state] : fallbackCache_) {
+		if (key.pipelineAsset == pipelineAssetID &&
+			key.shaderOverrideAsset == shaderOverrideAssetID && state) {
+
+			return state.get();
+		}
+	}
+	return nullptr;
+}
+
+void Engine::RaytracingPipelineStateCache::PreserveFallback(
+	const RaytracingPipelineCacheKey& key,
+	std::unique_ptr<RaytracingPipelineState> state) {
+
+	if (!state) {
+		return;
+	}
+	auto found = fallbackCache_.find(key);
+	if (found != fallbackCache_.end()) {
+		RetireState(std::move(found->second));
+		found->second = std::move(state);
+		return;
+	}
+	fallbackCache_.emplace(key, std::move(state));
+}
+
+void Engine::RaytracingPipelineStateCache::RetireFallbacks(
+	AssetID pipelineAssetID, AssetID shaderOverrideAssetID) {
+
+	for (auto it = fallbackCache_.begin();
+		it != fallbackCache_.end();) {
+
+		if (it->first.pipelineAsset == pipelineAssetID &&
+			it->first.shaderOverrideAsset == shaderOverrideAssetID) {
+
+			RetireState(std::move(it->second));
+			it = fallbackCache_.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+Engine::RaytracingPipelineState*
+Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
+	ID3D12Device8* device,
+	const RaytracingPipelineCacheKey& key,
+	const PipelineVariantDesc& variant,
+	const ShaderAsset& shaderAsset) {
+
+	RaytracingPipelineState* fallback = FindFallback(
+		key.pipelineAsset, key.shaderOverrideAsset);
+	const uint64_t revision = revisions_[key];
+	auto pending = pendingBuilds_.find(key);
+	if (pending != pendingBuilds_.end()) {
+		if (pending->second.result.wait_for(std::chrono::seconds(0)) !=
+			std::future_status::ready) {
+
+			return fallback;
+		}
+
+		std::unique_ptr<RaytracingPipelineState> state =
+			pending->second.result.get();
+		const uint64_t completedRevision = pending->second.revision;
+		pendingBuilds_.erase(pending);
+		if (completedRevision != revisions_[key]) {
+			RetireState(std::move(state));
+		} else if (state) {
+			auto [created, inserted] = cache_.emplace(key, std::move(state));
+			RetireFallbacks(key.pipelineAsset, key.shaderOverrideAsset);
+			failedRevisions_.erase(key);
+			Logger::Output(LogType::Engine,
+				"[RaytracingPipeline] Hot reload swap completed");
+			return created->second.get();
+		} else {
+			failedRevisions_[key] = completedRevision;
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[RaytracingPipeline] Hot reload failed, keeping last valid state");
+			return fallback;
+		}
+	}
+
+	if (auto failed = failedRevisions_.find(key);
+		failed != failedRevisions_.end() && failed->second == revision) {
+
+		return fallback;
+	}
+
+	ComPtr<ID3D12Device8> retainedDevice = device;
+	PipelineVariantDesc variantCopy = variant;
+	ShaderAsset shaderCopy = shaderAsset;
+	PendingBuild build{};
+	build.revision = revision;
+	build.result = std::async(std::launch::async,
+		[retainedDevice, variant = std::move(variantCopy),
+			shader = std::move(shaderCopy)]() mutable {
+
+			DxShaderCompiler compiler{};
+			compiler.Init();
+			auto state = std::make_unique<RaytracingPipelineState>();
+			if (!state->Create(retainedDevice.Get(), &compiler,
+				variant, shader)) {
+
+				return std::unique_ptr<RaytracingPipelineState>{};
+			}
+			return state;
+		});
+	pendingBuilds_.emplace(key, std::move(build));
+	Logger::Output(LogType::Engine,
+		"[RaytracingPipeline] Hot reload build started");
+	return fallback;
 }

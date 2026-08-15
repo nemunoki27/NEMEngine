@@ -568,6 +568,41 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int>"
     },
     {
+      "name": "isRayTracingSupported",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "isRayTracingActive",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "setRayTracingEffectEnabled",
+      "nativeType": "SetRayTracingEffectEnabledCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
+    },
+    {
+      "name": "setRayTracingEffectParameter",
+      "nativeType": "SetRayTracingEffectParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong, byte*, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "clearRayTracingEffectParameter",
+      "nativeType": "ClearRayTracingEffectParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong, int>"
+    },
+    {
+      "name": "resetRayTracingEffect",
+      "nativeType": "ResetRayTracingEffectCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, int>"
+    },
+    {
+      "name": "resetRayTracingOverrides",
+      "nativeType": "ResetRayTracingOverridesCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<void>"
+    },
+    {
       "name": "getEntityReferenceIdentity",
       "nativeType": "GetEntityRefIdentityCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void>"

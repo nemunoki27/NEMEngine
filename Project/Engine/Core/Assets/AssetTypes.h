@@ -39,6 +39,7 @@ namespace Engine {
 		PostProcessStack,
 		ParticleEffect,
 		ShaderGraph,
+		RayTracingProfile,
 		DefaultAsset,
 	};
 

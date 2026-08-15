@@ -46,6 +46,7 @@ void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, con
 	debugData_.skyboxColor = skybox.color;
 	debugData_.skyboxCubemapIndex = skybox.cubemapIndex;
 	debugData_.hasSkybox = skybox.found ? 1u : 0u;
+	debugData_.iblIntensity = skybox.iblIntensity;
 
 	// データ転送
 	params_.Upload(debugData_);

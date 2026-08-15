@@ -163,41 +163,6 @@ namespace {
 		outDesc.compute.profile = ResolveProfileOrDefault(Engine::ShaderStage::CS, cs);
 		return true;
 	}
-	// 同じステージを部分シェーダーで上書きする
-	void OverlayShaderStages(Engine::ShaderAsset& target, const Engine::ShaderAsset& source) {
-
-		for (const Engine::ShaderStageEntry& sourceStage : source.stages) {
-
-			auto found = std::find_if(target.stages.begin(), target.stages.end(),
-				[&](const Engine::ShaderStageEntry& stage) { return stage.stage == sourceStage.stage; });
-			if (found != target.stages.end()) {
-				*found = sourceStage;
-			} else {
-				target.stages.emplace_back(sourceStage);
-			}
-		}
-		for (const std::string& name : source.colorParameters) {
-			if (std::find(target.colorParameters.begin(), target.colorParameters.end(), name) == target.colorParameters.end()) {
-				target.colorParameters.emplace_back(name);
-			}
-		}
-		for (const Engine::ShaderParameterMetadata& parameter :
-			source.parameters) {
-
-			const auto found = std::find_if(
-				target.parameters.begin(),
-				target.parameters.end(),
-				[&](const Engine::ShaderParameterMetadata& current) {
-					return current.shaderName ==
-						parameter.shaderName;
-				});
-			if (found != target.parameters.end()) {
-				*found = parameter;
-			} else {
-				target.parameters.emplace_back(parameter);
-			}
-		}
-	}
 }
 
 bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noexcept {
@@ -276,7 +241,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 			pixelShader.colorParameters = stateShader->colorParameters;
 			pixelShader.parameters =
 				stateShader->parameters;
-			OverlayShaderStages(composedShader, pixelShader);
+			OverlayShaderExports(composedShader, pixelShader);
 		}
 	}
 	if (shaderOverrideAssetID) {
@@ -284,7 +249,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 		if (!shaderOverride) {
 			return restoreFallback();
 		}
-		OverlayShaderStages(composedShader, *shaderOverride);
+		OverlayShaderExports(composedShader, *shaderOverride);
 	}
 
 	PipelineVariantDesc composedVariant = *stateVariant;

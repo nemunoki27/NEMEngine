@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/ShaderAsset.h>
+#include <Engine/Core/Rendering/Pipelines/Stage/AutoRootSignatureBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 
@@ -31,25 +32,10 @@ namespace Engine {
 		//--------- constants ----------------------------------------------------
 
 		static constexpr UINT64 kHandleSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-		static constexpr UINT64 kRecordStride = ((kHandleSize + (D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1)) & ~(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1));
+		static constexpr UINT64 kRecordStride =
+			((kHandleSize + (D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1)) &
+				~(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1));
 		static constexpr UINT64 kTableAlign = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
-
-		static constexpr UINT64 kRayGenOffset = 0 * kTableAlign;
-		static constexpr UINT64 kMissOffset = 1 * kTableAlign;
-		static constexpr UINT64 kHitGroupOffset = 2 * kTableAlign;
-
-		static constexpr UINT kRootIndexTLAS = 0;
-		static constexpr UINT kRootIndexSourceColor = 1;
-		static constexpr UINT kRootIndexSourceDepth = 2;
-		static constexpr UINT kRootIndexSourceNormal = 3;
-		static constexpr UINT kRootIndexSourcePosition = 4;
-		static constexpr UINT kRootIndexSceneInstances = 5;
-		static constexpr UINT kRootIndexSceneSubMeshes = 6;
-		static constexpr UINT kRootIndexSceneGeometries = 7;
-		static constexpr UINT kRootIndexDestUAV = 8;
-		static constexpr UINT kRootIndexViewCBV = 9;
-		static constexpr UINT kRootIndexSourceFlags = 10;
-		static constexpr UINT kRootIndexSourceMaterial = 11;
 
 		//--------- functions ----------------------------------------------------
 
@@ -58,12 +44,20 @@ namespace Engine {
 			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset);
 
 		// レイトレーシングのディスパッチ記述子を構築
-		D3D12_DISPATCH_RAYS_DESC BuildDispatchDesc(uint32_t width, uint32_t height, uint32_t depth = 1) const;
+		D3D12_DISPATCH_RAYS_DESC BuildDispatchDesc(uint32_t width,
+			uint32_t height, uint32_t depth = 1,
+			uint32_t rayGenerationIndex = 0) const;
 
 		//--------- accessor -----------------------------------------------------
 
 		ID3D12StateObject* GetStateObject() const { return stateObject_.Get(); }
 		ID3D12RootSignature* GetRootSignature() const { return globalRootSignature_.Get(); }
+		const std::vector<RootBindingLocation>& GetBindings() const { return bindings_; }
+		const ShaderReflectionInfo& GetReflection() const { return reflection_; }
+		const RootBindingLocation* FindBindingByName(
+			std::string_view name, ShaderBindingKind kind) const;
+		uint64_t GetUniqueID() const { return uniqueID_; }
+		uint32_t GetRayGenerationCount() const { return rayGenerationCount_; }
 		bool IsValid() const { return stateObject_ && stateProps_ && shaderTable_; }
 	private:
 		//============================================================================
@@ -76,20 +70,38 @@ namespace Engine {
 		ComPtr<ID3D12StateObject> stateObject_;
 		ComPtr<ID3D12StateObjectProperties> stateProps_;
 		ComPtr<ID3D12RootSignature> globalRootSignature_;
+		std::vector<RootBindingLocation> bindings_{};
+		ShaderReflectionInfo reflection_{};
 
 		// シェーダーテーブル
 		ComPtr<ID3D12Resource> shaderTable_;
 		UINT shaderTableSize_ = 0;
+		UINT64 rayGenerationTableOffset_ = 0;
+		UINT64 missTableOffset_ = 0;
+		UINT64 hitGroupTableOffset_ = 0;
+		UINT64 callableTableOffset_ = 0;
+		uint32_t rayGenerationCount_ = 0;
+		uint32_t missCount_ = 0;
+		uint32_t hitGroupCount_ = 0;
+		uint32_t callableCount_ = 0;
+		uint64_t uniqueID_ = NextUniqueID();
 
 		//--------- functions ----------------------------------------------------
 
 		// グローバルルートシグネチャの構築
-		bool BuildGlobalRootSignature(ID3D12Device8* device);
+		bool BuildGlobalRootSignature(ID3D12Device8* device,
+			const std::vector<const CompiledShader*>& shaders,
+			const std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers);
 		// レイトレーシングパイプラインステートの構築
 		bool BuildStateObject(ID3D12Device8* device, DxShaderCompiler* compiler,
 			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset);
 		// シェーダーテーブルの構築
-		bool BuildShaderTable(ID3D12Device8* device, const std::wstring& rayGenExport,
-			const std::wstring& missExport, const std::wstring& hitGroupExport);
+		bool BuildShaderTable(ID3D12Device8* device,
+			const std::vector<std::wstring>& rayGenerationExports,
+			const std::vector<std::wstring>& missExports,
+			const std::vector<std::wstring>& hitGroupExports,
+			const std::vector<std::wstring>& callableExports);
+
+		static uint64_t NextUniqueID();
 	};
 } // Engine

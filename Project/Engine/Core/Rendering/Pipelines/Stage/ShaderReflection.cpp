@@ -56,3 +56,46 @@ const Engine::ShaderStructuredBufferInfo* Engine::FindStructuredBuffer(
 	}
 	return nullptr;
 }
+
+void Engine::MergeShaderReflection(
+	ShaderReflectionInfo& target,
+	const ShaderReflectionInfo& source) {
+
+	for (const ShaderResourceBinding& resource : source.resources) {
+		auto found = std::find_if(target.resources.begin(), target.resources.end(),
+			[&](const ShaderResourceBinding& current) {
+				return current.kind == resource.kind &&
+					current.bindPoint == resource.bindPoint &&
+					current.space == resource.space;
+			});
+		if (found != target.resources.end()) {
+			found->stageMask |= resource.stageMask;
+			found->bindCount = (std::max)(found->bindCount, resource.bindCount);
+		} else {
+			target.resources.emplace_back(resource);
+		}
+	}
+	for (const ShaderConstantBufferInfo& buffer : source.constantBuffers) {
+		const auto found = std::find_if(target.constantBuffers.begin(),
+			target.constantBuffers.end(), [&](const ShaderConstantBufferInfo& current) {
+				return current.name == buffer.name &&
+					current.bindPoint == buffer.bindPoint &&
+					current.space == buffer.space;
+			});
+		if (found == target.constantBuffers.end()) {
+			target.constantBuffers.emplace_back(buffer);
+		}
+	}
+	for (const ShaderStructuredBufferInfo& buffer : source.structuredBuffers) {
+		const auto found = std::find_if(target.structuredBuffers.begin(),
+			target.structuredBuffers.end(), [&](const ShaderStructuredBufferInfo& current) {
+				return current.name == buffer.name &&
+					current.bindPoint == buffer.bindPoint &&
+					current.space == buffer.space;
+			});
+		if (found == target.structuredBuffers.end()) {
+			target.structuredBuffers.emplace_back(buffer);
+		}
+	}
+	target.requiresFlags |= source.requiresFlags;
+}

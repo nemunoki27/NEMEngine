@@ -34,6 +34,36 @@
 //	RaytracingSceneBuilder internal
 //============================================================================
 namespace {
+	constexpr uint32_t kRaytracingRenderFlagLighting = 1u << 1;
+	constexpr uint32_t kRaytracingRenderFlagReceiveShadow = 1u << 2;
+	constexpr uint32_t kRaytracingRenderFlagReceiveIBL = 1u << 3;
+	constexpr uint32_t kRaytracingRenderFlagReceiveReflection = 1u << 4;
+
+	uint32_t ToRaytracingRenderFlags(Engine::MeshRenderFlags flags) {
+
+		uint32_t result = 0;
+		if (Engine::HasMeshRenderFlag(flags,
+			Engine::MeshRenderFlags::Lighting)) {
+
+			result |= kRaytracingRenderFlagLighting;
+		}
+		if (Engine::HasMeshRenderFlag(flags,
+			Engine::MeshRenderFlags::ReceiveShadow)) {
+
+			result |= kRaytracingRenderFlagReceiveShadow;
+		}
+		if (Engine::HasMeshRenderFlag(flags,
+			Engine::MeshRenderFlags::ReceiveIBL)) {
+
+			result |= kRaytracingRenderFlagReceiveIBL;
+		}
+		if (Engine::HasMeshRenderFlag(flags,
+			Engine::MeshRenderFlags::ReceiveReflection)) {
+
+			result |= kRaytracingRenderFlagReceiveReflection;
+		}
+		return result;
+	}
 
 	// テクスチャを持たないPrimitive用の単色サブメッシュデータ
 	Engine::MeshSubMeshShaderData MakeFlatSubMeshData(const Engine::Color4& baseColor) {
@@ -322,8 +352,9 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	cachedMeshLODInstances_.clear();
 	cachedMeshLODRecordIndices_.clear();
 
-	textureKeyCache_.clear();
 	textureDescriptorIndexCache_.clear();
+	sRGBTextureDescriptorIndexCache_.clear();
+	hasPendingTextureDescriptors_ = false;
 
 	blases_.clear();
 	staticInstanceBLASes_.clear();
@@ -494,6 +525,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	};
 	const bool matchesStaticScene =
 		cachedStaticScene_ &&
+		!hasPendingTextureDescriptors_ &&
 		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
 		cachedRenderRevision_ ==
 			renderBatch.GetSourceRenderRevision() &&
@@ -714,6 +746,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	sceneInstanceScratch_.clear();
 	sceneGeometryScratch_.clear();
 	sceneSubMeshScratch_.clear();
+	hasPendingTextureDescriptors_ = false;
 
 	// BLASの構築とTLASインスタンスの準備
 	std::vector<RaytracingTLASInstance> tlasInstances;
@@ -872,12 +905,14 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 					*meshResource, subMeshes, subMeshIndex);
 			if (baseColorTextureAsset) {
 
-				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, baseColorTextureAsset);
+				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, baseColorTextureAsset, true);
 			} else if (MeshDrawPathCommon::WasSubMeshBaseColorTextureAssigned(
 				*meshResource, subMeshes, subMeshIndex)) {
 
 				// 宣言はあるが見つからない:エラーテクスチャ
-				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, AssetID{});
+				subMeshData.baseColorTextureIndex = ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, AssetID{}, true);
 			} else {
 
 				// テクスチャ未設定:シェーダ側でimportedBaseColor*colorを使う
@@ -896,15 +931,20 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(
 				*meshResource, subMeshes, subMeshIndex);
 			subMeshData.normalTextureIndex = normalAsset ?
-				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, normalAsset) : UINT32_MAX;
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, normalAsset, false) : UINT32_MAX;
 			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset ?
-				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, metallicRoughnessAsset) : UINT32_MAX;
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, metallicRoughnessAsset, false) : UINT32_MAX;
 			subMeshData.emissiveTextureIndex = emissiveAsset ?
-				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, emissiveAsset) : UINT32_MAX;
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, emissiveAsset, true) : UINT32_MAX;
 			subMeshData.occlusionTextureIndex = occlusionAsset ?
-				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, occlusionAsset) : UINT32_MAX;
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, occlusionAsset, false) : UINT32_MAX;
 			subMeshData.specularTextureIndex = specularAsset ?
-				ResolveTextureDescriptorIndex(graphicsCore, assetDatabase, specularAsset) : UINT32_MAX;
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, specularAsset, false) : UINT32_MAX;
 
 			// 初期値でCPU側のMeshSubMeshShaderDataとHLSLのSubMeshShaderDataは同一レイアウトに保つ
 			subMeshData.localMatrix = Matrix4x4::Identity();
@@ -946,6 +986,10 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				subMeshData.emissiveColor = findColor(
 					MaterialParameterIDs::EmissiveColor,
 					Color4(0.0f, 0.0f, 0.0f, 0.0f));
+				// alphaはRT用の発光強度として使いRGBの色と同じバッファへ詰める
+				subMeshData.emissiveColor.a = findFloat(
+					MaterialParameterIDs::EmissiveIntensity,
+					1.0f);
 				subMeshData.metallic = findFloat(
 					MaterialParameterIDs::Metallic,
 					subMeshData.metallic);
@@ -1134,6 +1178,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instanceShaderData.indexDescriptorIndex = meshResource->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = vertexOffset;
 		instanceShaderData.geometryDataOffset = geometryDataOffset;
+		instanceShaderData.renderFlags = ToRaytracingRenderFlags(
+			src.renderer ? src.renderer->renderFlags :
+				MeshRenderFlags::Default);
 		const uint32_t shaderInstanceIndex =
 			static_cast<uint32_t>(sceneInstanceScratch_.size());
 		sceneInstanceScratch_.emplace_back(instanceShaderData);
@@ -1235,6 +1282,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		instanceShaderData.vertexOffset = 0;
 		instanceShaderData.geometryDataOffset =
 			static_cast<uint32_t>(sceneGeometryScratch_.size());
+		instanceShaderData.renderFlags = ToRaytracingRenderFlags(
+			renderer.renderFlags);
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(sceneInstanceScratch_.size());
 		sceneInstanceScratch_.emplace_back(instanceShaderData);
 
@@ -1497,28 +1546,33 @@ uint64_t Engine::RaytracingSceneBuilder::ComputeTLASInstanceHash(
 }
 
 uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
-	AssetDatabase& assetDatabase, AssetID textureAssetID) const {
+	AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB) {
 
-	// すでに取得済みならそれを返す
-	if (auto it = textureDescriptorIndexCache_.find(textureAssetID);
-		it != textureDescriptorIndexCache_.end()) {
+	auto& descriptorCache = sRGB ?
+		sRGBTextureDescriptorIndexCache_ : textureDescriptorIndexCache_;
+	if (auto it = descriptorCache.find(textureAssetID);
+		it != descriptorCache.end()) {
 		return it->second;
 	}
 
 	const GPUTextureResource* errorTexture = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	const uint32_t errorIndex = (errorTexture && errorTexture->valid) ? errorTexture->srvIndex : 0;
 
-	const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(graphicsCore, &assetDatabase, textureAssetID);
-	if (texture && texture->valid && texture->srvIndex != UINT32_MAX) {
-
-		// エラーテクスチャ以外が解決できている場合はキャッシュする
-		if (texture != errorTexture) {
-			textureDescriptorIndexCache_[textureAssetID] = texture->srvIndex;
-		}
-		return texture->srvIndex;
+	if (!textureAssetID) {
+		return errorIndex;
 	}
 
-	return errorIndex;
+	const RuntimeTextureResolver::BindlessResolveResult resolved =
+		RuntimeTextureResolver::ResolveBindless(
+			graphicsCore, &assetDatabase, textureAssetID, sRGB);
+	hasPendingTextureDescriptors_ |= resolved.retry;
+	const uint32_t descriptorIndex =
+		resolved.srvIndex != UINT32_MAX ? resolved.srvIndex : errorIndex;
+	// 失敗時のErrorTextureは保持せず、次のシーン差分更新で復旧できるようにする
+	if (!resolved.retry && descriptorIndex != errorIndex) {
+		descriptorCache[textureAssetID] = descriptorIndex;
+	}
+	return descriptorIndex;
 }
 
 void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& context) const {

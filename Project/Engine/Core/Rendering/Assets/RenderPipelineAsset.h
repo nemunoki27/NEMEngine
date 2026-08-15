@@ -22,6 +22,22 @@ namespace Engine {
 		Compute,
 		Raytracing,
 	};
+	// レイトレーシングヒットグループの形状種別
+	enum class RaytracingHitGroupKind :
+		uint8_t {
+
+		Triangles,
+		Procedural,
+	};
+	// レイトレーシングヒットグループの構成
+	struct RaytracingHitGroupDesc {
+
+		std::string exportName;
+		std::string closestHitExport;
+		std::string anyHitExport;
+		std::string intersectionExport;
+		RaytracingHitGroupKind kind = RaytracingHitGroupKind::Triangles;
+	};
 
 	// パイプラインを構築するための記述子
 	struct PipelineVariantDesc {
@@ -50,12 +66,11 @@ namespace Engine {
 		bool requiresInlineRayTracing = false;
 		bool requiresDispatchRays = false;
 
-		// レイトレーシング用のシェーダー
-		std::string rayGenerationExport;
-		std::string missExport;
-		std::string closestHitExport;
-		std::string anyHitExport;
-		std::string hitGroupExport = "DefaultHitGroup";
+		// レイトレーシング用のシェーダーエクスポート
+		std::vector<std::string> rayGenerationExports;
+		std::vector<std::string> missExports;
+		std::vector<std::string> callableExports;
+		std::vector<RaytracingHitGroupDesc> hitGroups;
 
 		// レイトレーシングのパラメータ
 		uint32_t maxPayloadSizeInBytes = 16;

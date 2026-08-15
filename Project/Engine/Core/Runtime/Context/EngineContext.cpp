@@ -20,7 +20,7 @@ Engine::EngineContext::GraphicsSetting Engine::EngineContext::graphicsSetting_ =
 void Engine::EngineContext::InitCoreSettings() {
 
 	nlohmann::json data = JsonAdapter::Load(
-		RuntimePaths::GetEngineAssetPath("Window/windowSetting.json"));
+		RuntimePaths::GetEngineAssetPath("Config/windowSettings.exeConfig.json"));
 	// ウィンドウ設定
 	std::string windowTitle = data["WindowTitle"];
 	windowSetting_.title = Algorithm::ConvertString(windowTitle);

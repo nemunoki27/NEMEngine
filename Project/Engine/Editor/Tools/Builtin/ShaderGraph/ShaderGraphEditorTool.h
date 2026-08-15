@@ -51,6 +51,12 @@ namespace Engine {
 			uint32_t slot = 0;
 			bool input = false;
 		};
+		enum class NodeValuePopupKind : uint8_t {
+
+			None,
+			ValueType,
+			Color,
+		};
 		struct PreviewState;
 		// Node Editorへ適用するユーザー外観設定
 		struct NodeAppearanceSetting {
@@ -82,6 +88,8 @@ namespace Engine {
 			float hoveredNodeBorderWidth = 0.0f;
 			float selectedNodeBorderWidth = 0.0f;
 			float nodeTextScale = 1.0f;
+			float gridSpacing = 32.0f;
+			float nodeSnapGridSize = 16.0f;
 			float pinRounding = 0.0f;
 			float pinBorderWidth = 0.0f;
 			float linkStrength = 0.0f;
@@ -126,6 +134,13 @@ namespace Engine {
 		ax::NodeEditor::EditorContext* nodeEditor_ = nullptr;
 		std::unordered_map<uintptr_t, PinAddress> pinAddresses_{};
 		NodeAppearanceSetting appearanceSetting_{};
+		UUID nodeValuePopupNode_{};
+		NodeValuePopupKind nodeValuePopupKind_ =
+			NodeValuePopupKind::None;
+		Vector2 nodeValuePopupAnchor_{};
+		float nodeValuePopupWidth_ = 0.0f;
+		uint32_t nodeValuePopupViewportID_ = 0;
+		bool requestNodeValuePopup_ = false;
 		std::unique_ptr<PreviewState> previewState_{};
 		UUID previewEntityUUID_{};
 		UUID appliedPreviewEntityUUID_{};
@@ -157,6 +172,21 @@ namespace Engine {
 			const ShaderGraphNode& node) const;
 		void DrawNodeValue(
 			ShaderGraphNode& node,
+			float nodeWidth);
+		void DrawNodeValuePopup();
+		void RequestNodeValuePopup(
+			UUID nodeID,
+			NodeValuePopupKind kind,
+			const Vector2& anchor,
+			float width,
+			uint32_t viewportID);
+		void DrawNodeValueTypeButton(
+			ShaderGraphNode& node,
+			float nodeWidth);
+		void DrawNodeColorButton(
+			const ShaderGraphNode& node,
+			const char* label,
+			const Color4& value,
 			float nodeWidth);
 		void DrawContextMenus();
 		void DrawNodeCreationMenu();

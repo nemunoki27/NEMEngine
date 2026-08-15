@@ -94,6 +94,7 @@ const char* Engine::GraphicsFeatureText::ToString(D3D12_RAYTRACING_TIER value) {
 	case D3D12_RAYTRACING_TIER_NOT_SUPPORTED: return "Not Supported";
 	case D3D12_RAYTRACING_TIER_1_0: return "Tier 1.0";
 	case D3D12_RAYTRACING_TIER_1_1: return "Tier 1.1";
+	case D3D12_RAYTRACING_TIER_1_2: return "Tier 1.2";
 	default: return "Unknown";
 	}
 }

@@ -58,7 +58,7 @@ namespace Engine {
 		Blit,
 		Fullscreen,
 		PostProcess,
-		Reflection,
+		RayTracing,
 	};
 
 	// マテリアルのパス情報

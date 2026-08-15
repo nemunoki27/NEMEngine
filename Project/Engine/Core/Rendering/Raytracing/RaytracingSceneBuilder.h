@@ -268,8 +268,10 @@ namespace Engine {
 		std::vector<uint32_t> scenePickRecordOffsets_{};
 
 		// テクスチャ解決キャッシュ
-		mutable std::unordered_map<AssetID, std::string> textureKeyCache_{};
-		mutable std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
+		std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
+		std::unordered_map<AssetID, uint32_t> sRGBTextureDescriptorIndexCache_{};
+		// 非同期読込中は静的シーンのマテリアルバッファを次フレームも再構築する
+		bool hasPendingTextureDescriptors_ = false;
 		SRVDescriptor* srvDescriptor_ = nullptr;
 
 		// 初期化済みか
@@ -314,7 +316,7 @@ namespace Engine {
 			const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances);
 		// テクスチャデスクリプタインデックスの解決
 		uint32_t ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
-			AssetDatabase& assetDatabase, AssetID textureAssetID) const;
+			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB);
 		// TLAS更新が必要か判定するためインスタンス配置をハッシュ化する
 		static uint64_t ComputeTLASInstanceHash(
 			std::span<const RaytracingTLASInstance> instances);

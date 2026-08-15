@@ -168,6 +168,7 @@ void RenderPipelineRunner::Init() {
 	pipelineStateCache_.Clear();
 	materialResolver_.Clear();
 	postProcessExecutor_.Release();
+	rayTracingExecutor_.Release();
 	colorPipelineProcessor_.Release();
 	postProcessAssetGenerator_.Clear();
 	frameLightBatch_.Clear();
@@ -188,6 +189,7 @@ void RenderPipelineRunner::Init() {
 		deps.pipelineCache = &pipelineStateCache_;
 		deps.materialResolver = &materialResolver_;
 		deps.raytracingPipelineCache = &raytracingPipelineStateCache_;
+		deps.rayTracingExecutor = &rayTracingExecutor_;
 		deps.postProcessExecutor = &postProcessExecutor_;
 		deps.postProcessTargetPool = &postProcessTargetPool_;
 		deps.postProcessDebugInjector = &postProcessDebugInjector_;
@@ -280,6 +282,9 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 			break;
 		case AssetType::PostProcessStack:
 			postProcessAssets.emplace_back(meta->guid);
+			break;
+		case AssetType::RayTracingProfile:
+			renderAssetLibrary_.LoadRayTracingProfile(meta->guid);
 			break;
 		default:
 			break;
@@ -480,11 +485,44 @@ void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
 
 void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 
-	// マテリアルキャッシュを破棄して次フレームのLoadMaterialでファイルから読み直させる
-	// DXRのパス構成もMaterial内にあるためState Objectも再解決する
+	AssetID oldPipeline{};
+	AssetID oldShader{};
+	if (const MaterialAsset* oldMaterial =
+		renderAssetLibrary_.LoadMaterial(materialAssetID)) {
+
+		if (const MaterialPassBinding* oldPass =
+			FindPass(*oldMaterial, MaterialPassKind::RayTracing)) {
+
+			oldPipeline = oldPass->pipeline;
+			oldShader = oldPass->shaderOverride;
+		}
+	}
+
+	// Materialが参照する旧/新DXR構成だけを無効化し、無関係なState Objectを保持する
 	renderAssetLibrary_.InvalidateMaterial(materialAssetID);
 	materialRenderStateCache_.erase(materialAssetID);
-	raytracingPipelineStateCache_.Clear();
+	if (oldPipeline) {
+		raytracingPipelineStateCache_.InvalidateByPipelineAsset(oldPipeline);
+	}
+	if (oldShader) {
+		raytracingPipelineStateCache_.InvalidateByShaderAsset(oldShader);
+	}
+	if (const MaterialAsset* newMaterial =
+		renderAssetLibrary_.LoadMaterial(materialAssetID)) {
+
+		if (const MaterialPassBinding* newPass =
+			FindPass(*newMaterial, MaterialPassKind::RayTracing)) {
+
+			if (newPass->pipeline) {
+				raytracingPipelineStateCache_.InvalidateByPipelineAsset(
+					newPass->pipeline);
+			}
+			if (newPass->shaderOverride) {
+				raytracingPipelineStateCache_.InvalidateByShaderAsset(
+					newPass->shaderOverride);
+			}
+		}
+	}
 	PostProcessStackService::GetInstance().ClearReflection(materialAssetID);
 }
 
@@ -523,8 +561,9 @@ void RenderPipelineRunner::ReloadShader(AssetID shaderAssetID) {
 	// Raster/Compute/DXRが同じShaderAssetを参照できるため全実行キャッシュを無効化する
 	renderAssetLibrary_.InvalidateShader(shaderAssetID);
 	pipelineStateCache_.InvalidateByShaderAsset(shaderAssetID);
-	raytracingPipelineStateCache_.Clear();
+	raytracingPipelineStateCache_.InvalidateByShaderAsset(shaderAssetID);
 	postProcessExecutor_.ClearParameterLayoutCache();
+	rayTracingExecutor_.ClearParameterLayoutCache();
 	PostProcessStackService::GetInstance().ClearReflectionCache();
 }
 
@@ -535,6 +574,7 @@ void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
 	raytracingPipelineStateCache_.InvalidateByPipelineAsset(
 		pipelineAssetID);
 	postProcessExecutor_.ClearParameterLayoutCache();
+	rayTracingExecutor_.ClearParameterLayoutCache();
 	PostProcessStackService::GetInstance().ClearReflectionCache();
 }
 
@@ -553,6 +593,10 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 	}
 	if (meta->type == AssetType::RenderPipeline) {
 		ReloadPipeline(assetID);
+		return;
+	}
+	if (meta->type == AssetType::RayTracingProfile) {
+		renderAssetLibrary_.InvalidateRayTracingProfile(assetID);
 		return;
 	}
 	if (meta->type == AssetType::ShaderGraph) {
@@ -587,10 +631,12 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 				artifact.depthShaderID,
 				artifact.pickingShaderID,
 				artifact.computeShaderID,
+				artifact.rayTracingShaderID,
 			};
 			for (AssetID shaderID : shaderIDs) {
 				if (shaderID) {
 					pipelineStateCache_.InvalidateByShaderAsset(shaderID);
+					raytracingPipelineStateCache_.InvalidateByShaderAsset(shaderID);
 				}
 			}
 			renderAssetLibrary_.RegisterDerivedShader(
@@ -603,6 +649,8 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 				std::move(artifact.pickingShader));
 			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.computeShader));
+			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.rayTracingShader));
 			renderAssetLibrary_.RegisterDerivedPipeline(
 				std::move(artifact.opaquePipeline));
 			renderAssetLibrary_.RegisterDerivedPipeline(
@@ -611,6 +659,10 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 				std::move(artifact.depthPipeline));
 			renderAssetLibrary_.RegisterDerivedPipeline(
 				std::move(artifact.pickingPipeline));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.computePipeline));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.rayTracingPipeline));
 		}
 
 		for (AssetID referencer : referencers) {
@@ -671,6 +723,24 @@ const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialDrawReflec
 	return nullptr;
 }
 
+const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialRayTracingReflection(
+	GraphicsCore& graphicsCore, AssetID materialAssetID) {
+
+	const MaterialAsset* material = renderAssetLibrary_.LoadMaterial(materialAssetID);
+	if (!material) {
+		return nullptr;
+	}
+	const MaterialPassBinding* pass = FindPass(*material, MaterialPassKind::RayTracing);
+	if (!pass || !pass->pipeline ||
+		pass->preferredVariant != PipelineVariantKind::Raytracing) {
+		return nullptr;
+	}
+	RaytracingPipelineState* pipeline = raytracingPipelineStateCache_.GetOrCreate(
+		graphicsCore.GetDXObject(), renderAssetLibrary_,
+		pass->pipeline, pass->shaderOverride);
+	return pipeline ? &pipeline->GetReflection() : nullptr;
+}
+
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
 
 	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
@@ -697,6 +767,7 @@ void RenderPipelineRunner::Finalize() {
 	pipelineStateCache_.Clear();
 	materialResolver_.Clear();
 	postProcessExecutor_.Release();
+	rayTracingExecutor_.Release();
 	colorPipelineProcessor_.Release();
 	postProcessAssetGenerator_.Clear();
 	lightExtractorRegistry_.Clear();
@@ -747,6 +818,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	renderAssetLibrary_.Init(request.assetDatabase);
 	postProcessAssetGenerator_.EnsureBuiltinAssets(request.assetDatabase);
 	postProcessExecutor_.BeginFrame(request.systemContext->unscaledDeltaTime);
+	rayTracingExecutor_.BeginFrame();
 	colorPipelineProcessor_.BeginFrame();
 	backendRegistry_.BeginFrame(graphicsCore);
 

@@ -46,6 +46,7 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 	case ProjectAssetFileKind::Shader: return "Shader";
 	case ProjectAssetFileKind::RenderPipeline: return "Render Pipeline";
 	case ProjectAssetFileKind::ShaderGraph: return "Shader Graph";
+	case ProjectAssetFileKind::RayTracingProfile: return "Ray Tracing Profile";
 	}
 	return "Asset";
 }
@@ -63,6 +64,7 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 	case ProjectAssetFileKind::Shader: return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline: return "NewPipeline";
 	case ProjectAssetFileKind::ShaderGraph: return "NewShaderGraph";
+	case ProjectAssetFileKind::RayTracingProfile: return "NewRayTracingProfile";
 	}
 	return "NewAsset";
 }

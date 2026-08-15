@@ -26,6 +26,7 @@ namespace {
 		CompoundAssetSuffix{ ".prefab.json", Engine::AssetType::Prefab },
 		CompoundAssetSuffix{ ".material.json", Engine::AssetType::Material },
 		CompoundAssetSuffix{ ".shadergraph.json", Engine::AssetType::ShaderGraph },
+		CompoundAssetSuffix{ ".raytracingprofile.json", Engine::AssetType::RayTracingProfile },
 		CompoundAssetSuffix{ ".graph.json", Engine::AssetType::ShaderGraph },
 		CompoundAssetSuffix{ ".shader.json", Engine::AssetType::Shader },
 		CompoundAssetSuffix{ ".pipeline.json", Engine::AssetType::RenderPipeline },
@@ -33,7 +34,6 @@ namespace {
 		CompoundAssetSuffix{ ".msdf.json", Engine::AssetType::Font },
 		CompoundAssetSuffix{ ".animclip.json", Engine::AssetType::AnimationClip },
 		CompoundAssetSuffix{ ".execonfig.json", Engine::AssetType::DefaultAsset },
-		CompoundAssetSuffix{ ".windowsetting.json", Engine::AssetType::DefaultAsset },
 		CompoundAssetSuffix{ ".materialsettings.json", Engine::AssetType::DefaultAsset },
 		CompoundAssetSuffix{ ".actor.json", Engine::AssetType::DefaultAsset },
 	};
@@ -120,6 +120,7 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::PostProcessStack:
 	case AssetType::ParticleEffect:
 	case AssetType::ShaderGraph:
+	case AssetType::RayTracingProfile:
 		return true;
 	default:
 		return false;

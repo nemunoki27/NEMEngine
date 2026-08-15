@@ -365,6 +365,18 @@ namespace Engine {
 		static int32_t __cdecl ClearRendererMaterialParameterCallback(
 			ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
 			uint64_t parameterID);
+		// RayTracingProfileの実行可否と実行時オーバーライドを操作する
+		static int32_t __cdecl IsRayTracingSupportedCallback();
+		static int32_t __cdecl IsRayTracingActiveCallback();
+		static int32_t __cdecl SetRayTracingEffectEnabledCallback(
+			const char* effectName, int32_t enabled);
+		static int32_t __cdecl SetRayTracingEffectParameterCallback(
+			const char* effectName, uint64_t parameterID, const char* parameterName,
+			const ManagedMaterialParameterValue* value);
+		static int32_t __cdecl ClearRayTracingEffectParameterCallback(
+			const char* effectName, uint64_t parameterID);
+		static int32_t __cdecl ResetRayTracingEffectCallback(const char* effectName);
+		static void __cdecl ResetRayTracingOverridesCallback();
 		// CollisionComponentのshapes操作、件数取得と追加削除、shapeIndexとpropId指定でパラメータを読み書きする
 		static int32_t __cdecl CollisionShapeCountCallback(ManagedNativeEntity entity);
 		static void __cdecl CollisionAddShapeCallback(ManagedNativeEntity entity);

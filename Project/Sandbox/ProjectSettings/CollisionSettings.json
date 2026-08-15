@@ -1,0 +1,43 @@
+{
+    "drawCollisionWorld": false,
+    "matrixRows": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+    ],
+    "types": [
+        {
+            "enabled": true,
+            "name": "CollisionType1"
+        }
+    ]
+}

@@ -11,6 +11,11 @@
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
+// c++
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
 //============================================================================
 //	SceneViewCameraController classMethods
 //============================================================================
@@ -18,12 +23,55 @@ namespace {
 
 	// カメラ保存パス
 	const std::string kCameraJsonPath = Engine::ConfigPaths::kSceneViewCamera;
+	// 3Dカメラの既定値
+	const Engine::Vector3 kDefaultPosition = Engine::Vector3(-6.8f, 2.52f, -8.19f);
+	const Engine::Vector3 kDefaultRotation = Engine::Vector3(13.75f, 37.8f, 0.0f);
+	constexpr float kDefaultFovY = 30.9397202f;
+	constexpr float kDefaultNearClip = 0.1f;
+	constexpr float kDefaultFarClip = 8000.0f;
+	constexpr float kDefaultRotateSpeed = 0.005f;
+	constexpr float kDefaultZoomRate = 0.4f;
+	constexpr float kDefaultPanSpeed = 0.02f;
 	// フォーカス時に対象から離す距離
 	constexpr float kFocusDistance = 20.0f;
 	// フォーカスの寄り速度、1フレームあたりの補間率
 	constexpr float kFocusLerpRate = 0.2f;
 	// これ以下まで近づいたらフォーカス完了
 	constexpr float kFocusReachEpsilon = 0.01f;
+
+	// Vector3がカメラ計算に使える有限値か判定する
+	bool IsFinite(const Engine::Vector3& value) {
+
+		return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
+	}
+
+	// JSONの数値を有限なfloatとして読み込む
+	float ReadFiniteFloat(const nlohmann::json& data, const char* key, float defaultValue) {
+
+		const auto it = data.find(key);
+		if (it == data.end() || !it->is_number()) {
+			return defaultValue;
+		}
+
+		const float value = static_cast<float>(it->get<double>());
+		return std::isfinite(value) ? value : defaultValue;
+	}
+
+	// JSONの整数をint32_tの範囲内で読み込む
+	int32_t ReadInt32(const nlohmann::json& data, const char* key, int32_t defaultValue) {
+
+		const auto it = data.find(key);
+		if (it == data.end() || !it->is_number_integer()) {
+			return defaultValue;
+		}
+
+		const double value = it->get<double>();
+		if (value < static_cast<double>((std::numeric_limits<int32_t>::min)()) ||
+			value > static_cast<double>((std::numeric_limits<int32_t>::max)())) {
+			return defaultValue;
+		}
+		return static_cast<int32_t>(value);
+	}
 }
 
 Engine::SceneViewCameraController::SceneViewCameraController() {
@@ -36,6 +84,28 @@ Engine::SceneViewCameraController::SceneViewCameraController() {
 
 Engine::SceneViewCameraController::~SceneViewCameraController() {
 
+	// 無効値は既定値へ戻し、次回起動用Configへnullを残さない
+	if (!IsFinite(cameraState_.transform3D.pos)) {
+		cameraState_.transform3D.pos = kDefaultPosition;
+	}
+	if (!IsFinite(cameraState_.transform3D.rotation)) {
+		cameraState_.transform3D.rotation = kDefaultRotation;
+	}
+	cameraState_.perspectiveFovY = std::clamp(
+		std::isfinite(cameraState_.perspectiveFovY) ? cameraState_.perspectiveFovY : kDefaultFovY,
+		1.0f, 179.0f);
+	if (!std::isfinite(cameraState_.perspectiveNearClip) || cameraState_.perspectiveNearClip <= 0.0f) {
+		cameraState_.perspectiveNearClip = kDefaultNearClip;
+	}
+	if (!std::isfinite(cameraState_.perspectiveFarClip) ||
+		cameraState_.perspectiveFarClip <= cameraState_.perspectiveNearClip) {
+		cameraState_.perspectiveFarClip = kDefaultFarClip;
+	}
+	rotateSpeed_ = std::isfinite(rotateSpeed_) && rotateSpeed_ >= 0.0f ?
+		rotateSpeed_ : kDefaultRotateSpeed;
+	zoomRate_ = std::isfinite(zoomRate_) && zoomRate_ >= 0.0f ? zoomRate_ : kDefaultZoomRate;
+	panSpeed_ = std::isfinite(panSpeed_) && panSpeed_ >= 0.0f ? panSpeed_ : kDefaultPanSpeed;
+
 	// カメラを閉じた瞬間の状態を保存する
 	nlohmann::json data{};
 
@@ -44,8 +114,8 @@ Engine::SceneViewCameraController::~SceneViewCameraController() {
 	}
 	// 3D
 	{
-		data["transform3D.pos"] = cameraState_.transform3D.pos.ToJson();
-		data["transform3D.rotation"] = cameraState_.transform3D.rotation.ToJson();
+		JsonAdapter::SetVector3(data, "transform3D.pos", cameraState_.transform3D.pos);
+		JsonAdapter::SetVector3(data, "transform3D.rotation", cameraState_.transform3D.rotation);
 		data["perspectiveFovY"] = cameraState_.perspectiveFovY;
 		data["perspectiveNearClip"] = cameraState_.perspectiveNearClip;
 		data["perspectiveFarClip"] = cameraState_.perspectiveFarClip;
@@ -58,15 +128,15 @@ Engine::SceneViewCameraController::~SceneViewCameraController() {
 		data["panSpeed"] = panSpeed_;
 	}
 
-	JsonAdapter::Save(savePath_, data);
+	JsonAdapter::SaveCanonical(savePath_, data);
 }
 
 void Engine::SceneViewCameraController::MakeDefaultState() {
 
 	cameraState_ = {};
 
-	cameraState_.transform3D.pos = Vector3(-6.8f, 2.52f, -8.19f);
-	cameraState_.transform3D.rotation = Vector3(13.75f, 37.8f, 0.0f);
+	cameraState_.transform3D.pos = kDefaultPosition;
+	cameraState_.transform3D.rotation = kDefaultRotation;
 
 	cameraState_.enableOrthographic = true;
 	cameraState_.orthoNearClip = 0.0f;
@@ -74,41 +144,60 @@ void Engine::SceneViewCameraController::MakeDefaultState() {
 	cameraState_.orthographicCullingMask = -1;
 
 	cameraState_.enablePerspective = true;
-	cameraState_.perspectiveFovY = Math::RadToDeg(0.54f);
-	cameraState_.perspectiveNearClip = 0.1f;
-	cameraState_.perspectiveFarClip = 8000.0f;
+	cameraState_.perspectiveFovY = kDefaultFovY;
+	cameraState_.perspectiveNearClip = kDefaultNearClip;
+	cameraState_.perspectiveFarClip = kDefaultFarClip;
 	cameraState_.perspectiveCullingMask = -1;
 }
 
 void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath) {
 
 	// 保存したカメラデータがあれば読みこんで設定する
-	if (!JsonAdapter::Check(filePath)) {
+	const nlohmann::json data = JsonAdapter::Load(filePath, false);
+	if (!data.is_object()) {
 		return;
 	}
-	nlohmann::json data = JsonAdapter::Load(filePath);
 
 	// 2D(今は未使用)
 	{
 	}
 	// 3D
 	{
-		cameraState_.transform3D.pos = Vector3::FromJson(data["transform3D.pos"]);
-		cameraState_.transform3D.rotation = Vector3::FromJson(data["transform3D.rotation"]);
-		cameraState_.perspectiveFovY = data["perspectiveFovY"].get<float>();
-		cameraState_.perspectiveNearClip = data["perspectiveNearClip"].get<float>();
-		cameraState_.perspectiveFarClip = data["perspectiveFarClip"].get<float>();
-		cameraState_.perspectiveCullingMask = data["perspectiveCullingMask"].get<int32_t>();
+		cameraState_.transform3D.pos = JsonAdapter::GetVector3(
+			data, "transform3D.pos", cameraState_.transform3D.pos);
+		cameraState_.transform3D.rotation = JsonAdapter::GetVector3(
+			data, "trimansform3D.rotation", cameraState_.transform3D.rotation);
+		cameraState_.perspectiveFovY = std::clamp(
+			ReadFiniteFloat(data, "perspectiveFovY", cameraState_.perspectiveFovY), 1.0f, 179.0f);
+		cameraState_.perspectiveNearClip = ReadFiniteFloat(
+			data, "perspectiveNearClip", cameraState_.perspectiveNearClip);
+		cameraState_.perspectiveFarClip = ReadFiniteFloat(
+			data, "perspectiveFarClip", cameraState_.perspectiveFarClip);
+		cameraState_.perspectiveCullingMask = ReadInt32(
+			data, "perspectiveCullingMask", cameraState_.perspectiveCullingMask);
+		if (cameraState_.perspectiveNearClip <= 0.0f) {
+			cameraState_.perspectiveNearClip = kDefaultNearClip;
+		}
+		if (cameraState_.perspectiveFarClip <= cameraState_.perspectiveNearClip) {
+			cameraState_.perspectiveFarClip = kDefaultFarClip;
+		}
 	}
 	// カメラ操作速度、古いConfigにキーが無ければ既定値を保つ
 	{
-		rotateSpeed_ = data.value("rotateSpeed", rotateSpeed_);
-		zoomRate_ = data.value("zoomRate", zoomRate_);
-		panSpeed_ = data.value("panSpeed", panSpeed_);
+		rotateSpeed_ = std::max(0.0f, ReadFiniteFloat(data, "rotateSpeed", rotateSpeed_));
+		zoomRate_ = std::max(0.0f, ReadFiniteFloat(data, "zoomRate", zoomRate_));
+		panSpeed_ = std::max(0.0f, ReadFiniteFloat(data, "panSpeed", panSpeed_));
 	}
 }
 
 void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewArea viewArea) {
+
+	// 外部編集を含めて無効なTransformを描画へ渡さない
+	if (!IsFinite(cameraState_.transform3D.pos) || !IsFinite(cameraState_.transform3D.rotation)) {
+		cameraState_.transform3D.pos = kDefaultPosition;
+		cameraState_.transform3D.rotation = kDefaultRotation;
+		focusActive_ = false;
+	}
 
 	// カメラの状態を更新できない場合は処理しない
 	if (!CanUpdate(viewArea)) {
@@ -132,6 +221,10 @@ void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewAre
 
 void Engine::SceneViewCameraController::FocusOn(const Vector3& worldPosition) {
 
+	if (!IsFinite(worldPosition)) {
+		return;
+	}
+
 	// 現在の前方を保ったまま対象が画面中心へ来る位置を寄り先にする、回転は変えないので注視になる
 	const Matrix4x4 rotateMatrix = Matrix4x4::MakeRotateMatrix(cameraState_.transform3D.rotation);
 	const Vector3 forward = Vector3::TransferNormal(Vector3(0.0f, 0.0f, 1.0f), rotateMatrix);
@@ -142,6 +235,11 @@ void Engine::SceneViewCameraController::FocusOn(const Vector3& worldPosition) {
 void Engine::SceneViewCameraController::UpdateFocus() {
 
 	if (!focusActive_) {
+		return;
+	}
+	if (!IsFinite(cameraState_.transform3D.pos) || !IsFinite(focusTargetPos_)) {
+		cameraState_.transform3D.pos = kDefaultPosition;
+		focusActive_ = false;
 		return;
 	}
 
@@ -177,6 +275,8 @@ bool Engine::SceneViewCameraController::CanUpdate(InputViewArea viewArea) {
 void Engine::SceneViewCameraController::Update3D() {
 
 	Input* input = Input::GetInstance();
+	const Vector3 previousPosition = cameraState_.transform3D.pos;
+	const Vector3 previousRotation = cameraState_.transform3D.rotation;
 
 	// マウスの移動量とホイールの移動量を取得
 	const Vector2 mouseDelta = input->GetMouseMoveValue();
@@ -225,6 +325,12 @@ void Engine::SceneViewCameraController::Update3D() {
 		forward = Vector3::TransferNormal(forward, rotateMatrix);
 
 		cameraState_.transform3D.pos += forward;
+	}
+
+	// 入力値や行列が壊れた場合は最後の正常値を保つ
+	if (!IsFinite(cameraState_.transform3D.pos) || !IsFinite(cameraState_.transform3D.rotation)) {
+		cameraState_.transform3D.pos = IsFinite(previousPosition) ? previousPosition : kDefaultPosition;
+		cameraState_.transform3D.rotation = IsFinite(previousRotation) ? previousRotation : kDefaultRotation;
 	}
 }
 

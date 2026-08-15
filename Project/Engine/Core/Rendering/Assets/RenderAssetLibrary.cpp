@@ -70,6 +70,7 @@ void Engine::RenderAssetLibrary::Clear() {
 	materialCache_.clear();
 	fontCache_.clear();
 	particleEffectCache_.clear();
+	rayTracingProfileCache_.clear();
 }
 
 void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
@@ -123,11 +124,13 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	RegisterDerivedShader(std::move(artifact.depthShader));
 	RegisterDerivedShader(std::move(artifact.pickingShader));
 	RegisterDerivedShader(std::move(artifact.computeShader));
+	RegisterDerivedShader(std::move(artifact.rayTracingShader));
 	RegisterDerivedPipeline(std::move(artifact.opaquePipeline));
 	RegisterDerivedPipeline(std::move(artifact.transparentPipeline));
 	RegisterDerivedPipeline(std::move(artifact.depthPipeline));
 	RegisterDerivedPipeline(std::move(artifact.pickingPipeline));
 	RegisterDerivedPipeline(std::move(artifact.computePipeline));
+	RegisterDerivedPipeline(std::move(artifact.rayTracingPipeline));
 	ShaderGraphArtifactCache::ApplyToMaterial(artifact, asset);
 
 	// Material側の上書きを維持しつつ新規公開値だけ補完する
@@ -186,6 +189,12 @@ const Engine::MSDFFontAsset* Engine::RenderAssetLibrary::LoadFont(AssetID assetI
 const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffect(AssetID assetID) {
 
 	return LoadCachedAsset(particleEffectCache_, assetID);
+}
+
+const Engine::RayTracingProfileAsset*
+Engine::RenderAssetLibrary::LoadRayTracingProfile(AssetID assetID) {
+
+	return LoadCachedAsset(rayTracingProfileCache_, assetID);
 }
 
 void Engine::RenderAssetLibrary::RegisterDerivedShader(

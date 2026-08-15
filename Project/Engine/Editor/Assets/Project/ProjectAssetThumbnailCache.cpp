@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
 //	ProjectAssetThumbnailCache classMethods
@@ -27,6 +28,7 @@ void Engine::ProjectAssetThumbnailCache::Init(TextureUploadService& textureUploa
 void Engine::ProjectAssetThumbnailCache::Finalize() {
 
 	defaultIcons_.clear();
+	customExtensionIcons_.clear();
 	folderIconKey_.clear();
 	textureUploadService_ = nullptr;
 	initialized_ = false;
@@ -69,16 +71,14 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::ParticleEffect].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "particleEffect.png");
 	defaultIcons_[AssetType::Unknown].textureKey = "unknown.dds";
 	defaultIcons_[AssetType::Unknown].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "unknown.dds");
-	// シーンごとの設定ファイルは専用型なので歯車アイコンを型単位で割り当てる
-	defaultIcons_[AssetType::PostProcessStack].textureKey = "exeConfig.png";
-	defaultIcons_[AssetType::PostProcessStack].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
-
-	customExtensionIcons_[".windowSetting.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".windowSetting.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
-	customExtensionIcons_[".postProcessStack.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".postProcessStack.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
-	customExtensionIcons_[".materialSettings.json"].textureKey = "exeConfig.png";
-	customExtensionIcons_[".materialSettings.json"].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png");
+	// 設定アセットは型の有無にかかわらず同じ歯車アイコンへ揃える
+	const IconEntry configIcon{
+		"exeConfig.png", EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png") };
+	defaultIcons_[AssetType::PostProcessStack] = configIcon;
+	defaultIcons_[AssetType::RayTracingProfile] = configIcon;
+	customExtensionIcons_[".postprocessstack.json"] = configIcon;
+	customExtensionIcons_[".execonfig.json"] = configIcon;
+	customExtensionIcons_[".materialsettings.json"] = configIcon;
 
 	for (const auto& [type, icon] : defaultIcons_) {
 
@@ -131,9 +131,10 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetDefaultTypeIcon(AssetType typ
 
 ImTextureID Engine::ProjectAssetThumbnailCache::GetCustomExtensionIcon(const std::string& assetPath) const {
 
+	const std::string lowerAssetPath = Algorithm::ToLower(assetPath);
 	for (const auto& [ext, icon] : customExtensionIcons_) {
-		if (assetPath.length() >= ext.length() &&
-			assetPath.compare(assetPath.length() - ext.length(), ext.length(), ext) == 0) {
+		if (lowerAssetPath.length() >= ext.length() &&
+			lowerAssetPath.compare(lowerAssetPath.length() - ext.length(), ext.length(), ext) == 0) {
 			ImTextureID id = TryGetTextureID(icon.textureKey);
 			if (id != ImTextureID{}) {
 				return id;
@@ -150,11 +151,9 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetAssetTextureID(const std::str
 	}
 
 	if (type != AssetType::Texture) {
-		if (type == AssetType::Unknown) {
-			ImTextureID customIcon = GetCustomExtensionIcon(assetPath);
-			if (customIcon != ImTextureID{}) {
-				return customIcon;
-			}
+		ImTextureID customIcon = GetCustomExtensionIcon(assetPath);
+		if (customIcon != ImTextureID{}) {
+			return customIcon;
 		}
 		return GetDefaultTypeIcon(type);
 	}

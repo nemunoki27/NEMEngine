@@ -110,6 +110,9 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 	{
 		sceneHeader.name = data.value("name", "UntitledScene");
 		sceneHeader.postProcessStack = ParseAssetReference(data, "postProcessStack", assetDatabase, AssetType::PostProcessStack);
+		sceneHeader.rayTracingProfile = ParseAssetReference(data,
+			"rayTracingProfile", assetDatabase,
+			AssetType::RayTracingProfile);
 	}
 
 	// サブシーン
@@ -149,6 +152,8 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 
 	data["name"] = sceneHeader.name;
 	data["postProcessStack"] = ToAssetReferenceJson(sceneHeader.postProcessStack);
+	data["rayTracingProfile"] = ToAssetReferenceJson(
+		sceneHeader.rayTracingProfile);
 
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {

@@ -8,6 +8,7 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderReflectionParser.h>
 
 // c++
 #include <algorithm>
@@ -408,7 +409,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	}
 
 	// シェーダーリフレクション情報を取得
-	if (result->HasOutput(DXC_OUT_REFLECTION) && stage != ShaderStage::Lib) {
+	if (result->HasOutput(DXC_OUT_REFLECTION)) {
 
 		// リフレクション情報を取得
 		ComPtr<IDxcBlob> reflectionBlob;
@@ -423,15 +424,13 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		reflectionBuffer.Ptr = reflectionBlob->GetBufferPointer();
 		reflectionBuffer.Size = reflectionBlob->GetBufferSize();
 		reflectionBuffer.Encoding = 0;
-		// シェーダーリフレクションインターフェースを作成
-		ComPtr<ID3D12ShaderReflection> shaderReflection;
-		hr = dxcUtils_->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection));
-		if (FAILED(hr)) {
+		if (!ParseDxShaderReflection(dxcUtils_.Get(), reflectionBuffer,
+			stage, out.reflection)) {
+
 			Logger::Output(LogType::Engine,
-				"[ShaderCompileError] Failed to create shader reflection: {}", filePathStr);
+				"[ShaderCompileError] Failed to parse shader reflection: {}", filePathStr);
 			return out;
 		}
-		out.reflection = ParseShaderReflection(stage, shaderReflection.Get());
 	}
 	return out;
 }

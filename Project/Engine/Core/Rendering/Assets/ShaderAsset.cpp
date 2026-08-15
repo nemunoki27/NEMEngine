@@ -128,6 +128,58 @@ const Engine::ShaderStageEntry* Engine::FindShaderStage(const ShaderAsset& asset
 	return nullptr;
 }
 
+const Engine::ShaderStageEntry* Engine::FindShaderExport(
+	const ShaderAsset& asset, ShaderStage stage,
+	std::string_view entry) {
+
+	for (const ShaderStageEntry& candidate : asset.stages) {
+		if (candidate.stage == stage && candidate.entry == entry) {
+			return &candidate;
+		}
+	}
+	return nullptr;
+}
+
+void Engine::OverlayShaderExports(
+	ShaderAsset& target, const ShaderAsset& source) {
+
+	for (const ShaderStageEntry& sourceStage : source.stages) {
+		auto found = std::find_if(target.stages.begin(), target.stages.end(),
+			[&](const ShaderStageEntry& targetStage) {
+				if (targetStage.stage != sourceStage.stage) {
+					return false;
+				}
+				return sourceStage.stage != ShaderStage::Lib ||
+					targetStage.entry == sourceStage.entry;
+			});
+		if (found != target.stages.end()) {
+			*found = sourceStage;
+		} else {
+			target.stages.emplace_back(sourceStage);
+		}
+	}
+
+	for (const std::string& name : source.colorParameters) {
+		if (std::find(target.colorParameters.begin(),
+			target.colorParameters.end(), name) ==
+			target.colorParameters.end()) {
+
+			target.colorParameters.emplace_back(name);
+		}
+	}
+	for (const ShaderParameterMetadata& parameter : source.parameters) {
+		auto found = std::find_if(target.parameters.begin(), target.parameters.end(),
+			[&](const ShaderParameterMetadata& targetParameter) {
+				return targetParameter.shaderName == parameter.shaderName;
+			});
+		if (found != target.parameters.end()) {
+			*found = parameter;
+		} else {
+			target.parameters.emplace_back(parameter);
+		}
+	}
+}
+
 void Engine::ApplyShaderParameterMetadata(
 	ShaderReflectionInfo& reflection,
 	const ShaderAsset& asset) {

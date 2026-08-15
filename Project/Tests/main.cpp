@@ -6,12 +6,14 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackRuntime.h>
+#include <Engine/Core/Rendering/Raytracing/RayTracingRuntimeOverrides.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
@@ -976,6 +978,73 @@ namespace {
 				renamedValue->value);
 	}
 
+	bool TestRayTracingRuntimeOverrides() {
+
+		Engine::RayTracingRuntimeOverrides& overrides =
+			Engine::RayTracingRuntimeOverrides::GetInstance();
+		overrides.ResetAll();
+		Engine::MaterialParameterValue value{};
+		value.value = 0.75f;
+		const Engine::MaterialParameterID parameterID =
+			Engine::MaterialParameterID::FromName("ReflectionStrength");
+		if (!overrides.SetEnabled("Reflection", false) ||
+			!overrides.SetParameter("Reflection", parameterID,
+				"ReflectionStrength", value)) {
+
+			return false;
+		}
+
+		const Engine::RayTracingEffectRuntimeOverride* effect =
+			overrides.Find("Reflection");
+		const Engine::MaterialParameterValue* parameter = effect ?
+			effect->parameters.Find(parameterID) : nullptr;
+		const bool valid = effect && effect->enabled.has_value() &&
+			!*effect->enabled && parameter &&
+			std::holds_alternative<float>(parameter->value) &&
+			std::get<float>(parameter->value) == 0.75f;
+		const bool cleared = overrides.ClearParameter(
+			"Reflection", parameterID) &&
+			overrides.ResetEffect("Reflection");
+		overrides.ResetAll();
+		return valid && cleared && overrides.Find("Reflection") == nullptr;
+	}
+
+	bool TestRayTracingPipelineSerialization() {
+
+		const nlohmann::json source = {
+			{ "name", "RayTracingTest" },
+			{ "variants", nlohmann::json::array({ {
+				{ "kind", "Raytracing" },
+				{ "shader", "4e454d4153534554da1b7b9bf8074052" },
+				{ "rayGenerationExports", { "RayGen" } },
+				{ "missExports", { "Miss" } },
+				{ "hitGroups", nlohmann::json::array({ {
+					{ "exportName", "HitGroup" },
+					{ "closestHitExport", "ClosestHit" },
+					{ "kind", "Triangles" },
+				} }) },
+				{ "staticSamplers", nlohmann::json::array({ {
+					{ "shaderRegister", 0 },
+				} }) },
+			} }) },
+		};
+		Engine::RenderPipelineAsset pipeline{};
+		if (!Engine::FromJson(source, pipeline) ||
+			pipeline.variants.size() != 1 ||
+			pipeline.variants.front().staticSamplers.size() != 1 ||
+			pipeline.variants.front().staticSamplers.front().ShaderVisibility !=
+				D3D12_SHADER_VISIBILITY_ALL) {
+
+			return false;
+		}
+
+		const nlohmann::json serialized = Engine::ToJson(pipeline);
+		return serialized["variants"][0]["rayGenerationExports"][0] ==
+			"RayGen" &&
+			serialized["variants"][0]["staticSamplers"][0]
+				["shaderVisibility"] == "D3D12_SHADER_VISIBILITY_ALL";
+	}
+
 	bool TestShaderGraphCompile() {
 
 		const std::filesystem::path generatedRoot =
@@ -1008,6 +1077,8 @@ namespace {
 				graphRoot / "vertex.VS.hlsl";
 			const std::filesystem::path meshPath =
 				graphRoot / "mesh.MS.hlsl";
+			const std::filesystem::path rayTracingPath =
+				graphRoot / "rayTracing.RT.hlsl";
 			const Engine::ShaderGraphCompileOutput generated =
 				Engine::ShaderGraphCompiler::Compile(
 					sourceGraph, "surface.hlsli");
@@ -1037,7 +1108,9 @@ namespace {
 			if ((!generated.vertexHLSL.empty() &&
 				!write(vertexPath, generated.vertexHLSL)) ||
 				(!generated.meshHLSL.empty() &&
-					!write(meshPath, generated.meshHLSL))) {
+					!write(meshPath, generated.meshHLSL)) ||
+				(!generated.rayTracingHLSL.empty() &&
+					!write(rayTracingPath, generated.rayTracingHLSL))) {
 
 				return false;
 			}
@@ -1060,6 +1133,10 @@ namespace {
 			output.opaquePixelHLSL.find("EncodeGBuffer") ==
 				std::string::npos ||
 			output.transparentPixelHLSL.find("EvaluateMeshSurfaceLighting") ==
+				std::string::npos ||
+			output.rayTracingHLSL.find("ReflectionAnyHit") ==
+				std::string::npos ||
+			output.rayTracingHLSL.find("ReflectionClosestHit") ==
 				std::string::npos) {
 
 			return false;
@@ -1726,7 +1803,9 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--shader-graph") {
 
-		if (!TestShaderGraphCompile()) {
+		if (!TestShaderGraphCompile() ||
+			!TestRayTracingRuntimeOverrides() ||
+			!TestRayTracingPipelineSerialization()) {
 			std::cerr << "Shader Graph compilation failed\n";
 			return 18;
 		}
@@ -1801,6 +1880,14 @@ int main(int argc, char* argv[]) {
 	if (!TestMaterialParameters()) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
+	}
+	if (!TestRayTracingRuntimeOverrides()) {
+		std::cerr << "Ray Tracing runtime overrides failed\n";
+		return 20;
+	}
+	if (!TestRayTracingPipelineSerialization()) {
+		std::cerr << "Ray Tracing pipeline serialization failed\n";
+		return 21;
 	}
 	if (!TestShaderGraphCompile()) {
 		std::cerr << "Shader Graph compilation failed\n";

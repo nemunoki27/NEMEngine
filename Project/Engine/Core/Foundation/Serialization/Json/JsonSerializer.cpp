@@ -12,8 +12,26 @@ using namespace Engine;
 #include <cmath>
 #include <filesystem>
 #include <iterator>
+#include <limits>
 
 namespace {
+
+	// JSON要素を有限なfloatとして読み込む
+	bool TryGetFiniteFloat(const nlohmann::json& object, const char* key, float& outValue) {
+
+		const auto it = object.find(key);
+		if (it == object.end() || !it->is_number()) {
+			return false;
+		}
+
+		const double value = it->get<double>();
+		if (!std::isfinite(value) || value < -(std::numeric_limits<float>::max)() ||
+			value > (std::numeric_limits<float>::max)()) {
+			return false;
+		}
+		outValue = static_cast<float>(value);
+		return true;
+	}
 
 	bool CanonicalizeJson(nlohmann::json& value) {
 
@@ -222,12 +240,15 @@ void JsonAdapter::SetVector2(nlohmann::json& json, const std::string& key, const
 }
 
 Vector2 JsonAdapter::GetVector2(const nlohmann::json& json, const std::string& key, const Vector2& defaultValue) {
-	// キーが存在しかつオブジェクト形式であれば値を読み取り、欠落時はデフォルト値を返す
-	if (json.contains(key) && json[key].is_object()) {
-		const auto& v = json[key];
-		return Vector2(v.value("x", defaultValue.x), v.value("y", defaultValue.y));
+
+	const auto it = json.find(key);
+	if (it == json.end() || !it->is_object()) {
+		return defaultValue;
 	}
-	return defaultValue;
+
+	Vector2 value{};
+	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) ?
+		value : defaultValue;
 }
 
 void JsonAdapter::SetVector3(nlohmann::json& json, const std::string& key, const Vector3& value) {
@@ -235,11 +256,15 @@ void JsonAdapter::SetVector3(nlohmann::json& json, const std::string& key, const
 }
 
 Vector3 JsonAdapter::GetVector3(const nlohmann::json& json, const std::string& key, const Vector3& defaultValue) {
-	if (json.contains(key) && json[key].is_object()) {
-		const auto& v = json[key];
-		return Vector3(v.value("x", defaultValue.x), v.value("y", defaultValue.y), v.value("z", defaultValue.z));
+
+	const auto it = json.find(key);
+	if (it == json.end() || !it->is_object()) {
+		return defaultValue;
 	}
-	return defaultValue;
+
+	Vector3 value{};
+	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) &&
+		TryGetFiniteFloat(*it, "z", value.z) ? value : defaultValue;
 }
 
 void JsonAdapter::SetVector4(nlohmann::json& json, const std::string& key, const Vector4& value) {
@@ -247,11 +272,16 @@ void JsonAdapter::SetVector4(nlohmann::json& json, const std::string& key, const
 }
 
 Vector4 JsonAdapter::GetVector4(const nlohmann::json& json, const std::string& key, const Vector4& defaultValue) {
-	if (json.contains(key) && json[key].is_object()) {
-		const auto& v = json[key];
-		return Vector4(v.value("x", defaultValue.x), v.value("y", defaultValue.y), v.value("z", defaultValue.z), v.value("w", defaultValue.w));
+
+	const auto it = json.find(key);
+	if (it == json.end() || !it->is_object()) {
+		return defaultValue;
 	}
-	return defaultValue;
+
+	Vector4 value{};
+	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) &&
+		TryGetFiniteFloat(*it, "z", value.z) && TryGetFiniteFloat(*it, "w", value.w) ?
+		value : defaultValue;
 }
 
 void JsonAdapter::SetQuaternion(nlohmann::json& json, const std::string& key, const Quaternion& value) {
@@ -260,11 +290,16 @@ void JsonAdapter::SetQuaternion(nlohmann::json& json, const std::string& key, co
 }
 
 Quaternion JsonAdapter::GetQuaternion(const nlohmann::json& json, const std::string& key, const Quaternion& defaultValue) {
-	if (json.contains(key) && json[key].is_object()) {
-		const auto& v = json[key];
-		return Quaternion(v.value("x", defaultValue.x), v.value("y", defaultValue.y), v.value("z", defaultValue.z), v.value("w", defaultValue.w));
+
+	const auto it = json.find(key);
+	if (it == json.end() || !it->is_object()) {
+		return defaultValue;
 	}
-	return defaultValue;
+
+	Quaternion value{};
+	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) &&
+		TryGetFiniteFloat(*it, "z", value.z) && TryGetFiniteFloat(*it, "w", value.w) ?
+		value : defaultValue;
 }
 
 void JsonAdapter::SetColor3(nlohmann::json& json, const std::string& key, const Color3& value) {
@@ -273,11 +308,15 @@ void JsonAdapter::SetColor3(nlohmann::json& json, const std::string& key, const 
 }
 
 Color3 JsonAdapter::GetColor3(const nlohmann::json& json, const std::string& key, const Color3& defaultValue) {
-	if (json.contains(key) && json[key].is_object()) {
-		const auto& v = json[key];
-		return Color3(v.value("r", defaultValue.r), v.value("g", defaultValue.g), v.value("b", defaultValue.b));
+
+	const auto it = json.find(key);
+	if (it == json.end() || !it->is_object()) {
+		return defaultValue;
 	}
-	return defaultValue;
+
+	Color3 value{};
+	return TryGetFiniteFloat(*it, "r", value.r) && TryGetFiniteFloat(*it, "g", value.g) &&
+		TryGetFiniteFloat(*it, "b", value.b) ? value : defaultValue;
 }
 
 void JsonAdapter::SetColor4(nlohmann::json& json, const std::string& key, const Color4& value) {
@@ -286,9 +325,14 @@ void JsonAdapter::SetColor4(nlohmann::json& json, const std::string& key, const 
 }
 
 Color4 JsonAdapter::GetColor4(const nlohmann::json& json, const std::string& key, const Color4& defaultValue) {
-	if (json.contains(key) && json[key].is_object()) {
-		const auto& v = json[key];
-		return Color4(v.value("r", defaultValue.r), v.value("g", defaultValue.g), v.value("b", defaultValue.b), v.value("a", defaultValue.a));
+
+	const auto it = json.find(key);
+	if (it == json.end() || !it->is_object()) {
+		return defaultValue;
 	}
-	return defaultValue;
+
+	Color4 value{};
+	return TryGetFiniteFloat(*it, "r", value.r) && TryGetFiniteFloat(*it, "g", value.g) &&
+		TryGetFiniteFloat(*it, "b", value.b) && TryGetFiniteFloat(*it, "a", value.a) ?
+		value : defaultValue;
 }

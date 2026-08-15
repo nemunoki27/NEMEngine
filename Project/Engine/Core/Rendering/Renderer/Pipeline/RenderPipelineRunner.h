@@ -179,6 +179,9 @@ namespace Engine {
 
 		// マテリアルの構築済みDraw/Transparentパスからグラフィックスreflectionを引く
 		const ShaderReflectionInfo* FindMaterialDrawReflection(const MaterialAsset& material) const;
+		// マテリアルのRayTracingパスを構築しLibrary reflectionを取得する
+		const ShaderReflectionInfo* FindMaterialRayTracingReflection(
+			GraphicsCore& graphicsCore, AssetID materialAssetID);
 
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
@@ -256,6 +259,7 @@ namespace Engine {
 		RaytracingPipelineStateCache raytracingPipelineStateCache_{};
 		// レイトレシーンの構築でBillboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
+		RayTracingExecutor rayTracingExecutor_{};
 
 		// ピック用のTLASリソースとサブメッシュ情報
 		ID3D12Resource* tlasResource_ = nullptr;

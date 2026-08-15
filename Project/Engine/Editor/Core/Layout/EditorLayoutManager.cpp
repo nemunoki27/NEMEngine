@@ -133,7 +133,7 @@ namespace {
 
 void Engine::EditorLayoutManager::Init() {
 
-	engineCatalogPath_ = RuntimePaths::GetEngineAssetPath("Config/editorLayouts.json");
+	engineCatalogPath_ = RuntimePaths::GetEngineAssetPath("Config/editorLayouts.exeConfig.json");
 	userCatalogPath_ = RuntimePaths::GetUserSettingsPath(ConfigPaths::kEditorLayouts);
 	sessionPath_ = RuntimePaths::GetUserSettingsPath(ConfigPaths::kEditorLayoutSession);
 

@@ -38,6 +38,7 @@ namespace Engine {
 		std::string pickingPixelHLSL;
 		std::string vertexHLSL;
 		std::string meshHLSL;
+		std::string rayTracingHLSL;
 		std::string computeHLSL;
 		std::vector<ShaderParameterMetadata> parameters;
 		std::vector<ShaderGraphSamplerBinding> samplers;

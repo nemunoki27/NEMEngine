@@ -43,6 +43,7 @@ namespace {
 
 	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
 	constexpr const char* kInactiveEyeTextureKey = "editor:hierarchy:entityActiveOffEye";
+	constexpr float kEntityNodeFontScale = 0.88f;
 
 	int32_t GetHierarchySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
@@ -489,9 +490,12 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 	}
 
 	const ImGuiStyle& style = ImGui::GetStyle();
-	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, 0.0f));
+	const float entityNodeFontHeight = ImGui::GetFontSize() * kEntityNodeFontScale;
+	const float entityNodePaddingY =
+		std::max(0.0f, (ImGui::GetFrameHeight() - entityNodeFontHeight) * 0.5f);
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, entityNodePaddingY));
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 1.0f));
-	ImGui::SetWindowFontScale(0.88f);
+	ImGui::SetWindowFontScale(kEntityNodeFontScale);
 	ImGui::SetNextItemAllowOverlap();
 	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName);
 	ImGui::SetWindowFontScale(1.0f);

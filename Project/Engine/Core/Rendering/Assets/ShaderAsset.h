@@ -59,6 +59,11 @@ namespace Engine {
 
 	// シェーダーステージを検索する
 	const ShaderStageEntry* FindShaderStage(const ShaderAsset& asset, ShaderStage stage);
+	// シェーダーエクスポートを検索する
+	const ShaderStageEntry* FindShaderExport(const ShaderAsset& asset,
+		ShaderStage stage, std::string_view entry);
+	// 部分シェーダーのエクスポートを同じ識別子へ上書きする
+	void OverlayShaderExports(ShaderAsset& target, const ShaderAsset& source);
 	// Shader Assetのメタデータをコンパイル済みReflectionへ反映する
 	void ApplyShaderParameterMetadata(
 		ShaderReflectionInfo& reflection,

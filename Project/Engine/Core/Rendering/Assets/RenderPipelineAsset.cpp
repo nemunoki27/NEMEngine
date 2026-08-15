@@ -88,7 +88,8 @@ namespace {
 		sampler.MaxLOD = D3D12_FLOAT32_MAX;
 		sampler.ShaderRegister = 0;
 		sampler.RegisterSpace = 0;
-		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		// 未指定時はGraphics/Compute/Raytracingのどのパイプラインでも利用できる
+		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 		if (!data.is_object()) {
 			return sampler;
@@ -241,11 +242,42 @@ bool Engine::FromJson(const nlohmann::json& data, RenderPipelineAsset& outAsset)
 			variant.requiresMeshShader = item.value("requiresMeshShader", false);
 			variant.requiresInlineRayTracing = item.value("requiresInlineRayTracing", false);
 			variant.requiresDispatchRays = item.value("requiresDispatchRays", false);
-			variant.rayGenerationExport = item.value("rayGenerationExport", "");
-			variant.missExport = item.value("missExport", "");
-			variant.closestHitExport = item.value("closestHitExport", "");
-			variant.anyHitExport = item.value("anyHitExport", "");
-			variant.hitGroupExport = item.value("hitGroupExport", "DefaultHitGroup");
+			for (const auto& exportJson :
+				item.value("rayGenerationExports", nlohmann::json::array())) {
+				if (exportJson.is_string()) {
+					variant.rayGenerationExports.emplace_back(
+						exportJson.get<std::string>());
+				}
+			}
+			for (const auto& exportJson :
+				item.value("missExports", nlohmann::json::array())) {
+				if (exportJson.is_string()) {
+					variant.missExports.emplace_back(exportJson.get<std::string>());
+				}
+			}
+			for (const auto& exportJson :
+				item.value("callableExports", nlohmann::json::array())) {
+				if (exportJson.is_string()) {
+					variant.callableExports.emplace_back(exportJson.get<std::string>());
+				}
+			}
+			for (const auto& groupJson :
+				item.value("hitGroups", nlohmann::json::array())) {
+				if (!groupJson.is_object()) {
+					continue;
+				}
+				RaytracingHitGroupDesc group{};
+				group.exportName = groupJson.value("exportName", "");
+				group.closestHitExport = groupJson.value("closestHitExport", "");
+				group.anyHitExport = groupJson.value("anyHitExport", "");
+				group.intersectionExport = groupJson.value("intersectionExport", "");
+				group.kind = EnumAdapter<RaytracingHitGroupKind>::FromString(
+					groupJson.value("kind", "Triangles")).value_or(
+						RaytracingHitGroupKind::Triangles);
+				if (!group.exportName.empty()) {
+					variant.hitGroups.emplace_back(std::move(group));
+				}
+			}
 			variant.maxPayloadSizeInBytes = item.value("maxPayloadSizeInBytes", 16u);
 			variant.maxAttributeSizeInBytes = item.value("maxAttributeSizeInBytes",
 				static_cast<uint32_t>(D3D12_RAYTRACING_MAX_ATTRIBUTE_SIZE_IN_BYTES));
@@ -303,11 +335,19 @@ nlohmann::json Engine::ToJson(const RenderPipelineAsset& asset) {
 		item["requiresMeshShader"] = variant.requiresMeshShader;
 		item["requiresInlineRayTracing"] = variant.requiresInlineRayTracing;
 		item["requiresDispatchRays"] = variant.requiresDispatchRays;
-		item["rayGenerationExport"] = variant.rayGenerationExport;
-		item["missExport"] = variant.missExport;
-		item["closestHitExport"] = variant.closestHitExport;
-		item["anyHitExport"] = variant.anyHitExport;
-		item["hitGroupExport"] = variant.hitGroupExport;
+		item["rayGenerationExports"] = variant.rayGenerationExports;
+		item["missExports"] = variant.missExports;
+		item["callableExports"] = variant.callableExports;
+		item["hitGroups"] = nlohmann::json::array();
+		for (const RaytracingHitGroupDesc& group : variant.hitGroups) {
+			item["hitGroups"].push_back({
+				{ "exportName", group.exportName },
+				{ "closestHitExport", group.closestHitExport },
+				{ "anyHitExport", group.anyHitExport },
+				{ "intersectionExport", group.intersectionExport },
+				{ "kind", EnumAdapter<RaytracingHitGroupKind>::ToString(group.kind) },
+			});
+		}
 		item["maxPayloadSizeInBytes"] = variant.maxPayloadSizeInBytes;
 		item["maxAttributeSizeInBytes"] = variant.maxAttributeSizeInBytes;
 		item["maxRecursionDepth"] = variant.maxRecursionDepth;

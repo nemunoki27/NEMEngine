@@ -3,7 +3,7 @@
   "domain": "Surface",
   "passes": [
     {
-      "passKind": "Reflection",
+      "passKind": "RayTracing",
       "pipeline": "4e454d41535345546228d203578ecde2",
       "preferredVariant": "Raytracing"
     }

@@ -13,7 +13,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RaytracingReflectionPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RayTracingPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
@@ -34,7 +34,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	// 固定のパス列、PostProcessStackはここには入れずアンカー位置へ後から挿入する
 	std::vector<std::unique_ptr<IRenderPass>> fixedPasses;
-	fixedPasses.reserve(14);
+	fixedPasses.reserve(15);
 	fixedPasses.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<DepthPrepass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
@@ -43,7 +43,8 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.target = QueueRenderPass::Target::SceneMain
 		}));
 	fixedPasses.emplace_back(std::make_unique<LightingPass>());
-	fixedPasses.emplace_back(std::make_unique<RaytracingReflectionPass>(deps_));
+	fixedPasses.emplace_back(std::make_unique<RayTracingPass>(deps_,
+		RayTracingExecutionPoint::AfterLighting));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
 		.kind = RenderPathPassKind::Transparent,
@@ -52,6 +53,8 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.materialPass = MaterialPassKind::Transparent,
 		.reuseSceneDepth = true
 		}));
+	fixedPasses.emplace_back(std::make_unique<RayTracingPass>(deps_,
+		RayTracingExecutionPoint::AfterTransparent));
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
 		.kind = RenderPathPassKind::PostProcessMaskedUI,
@@ -77,7 +80,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 	};
 	const std::array<AnchorPoint, 5> kAnchorPoints = { {
 		{ PostProcessAnchor::AfterLighting, RenderPathPassKind::Lighting },
-		{ PostProcessAnchor::AfterRaytracingReflection, RenderPathPassKind::RaytracingReflection },
+		{ PostProcessAnchor::AfterRayTracing, RenderPathPassKind::RayTracingAfterLighting },
 		{ PostProcessAnchor::AfterTransparent, RenderPathPassKind::Transparent },
 		{ PostProcessAnchor::AfterMaskedUI, RenderPathPassKind::PostProcessMaskedUI },
 		{ PostProcessAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },

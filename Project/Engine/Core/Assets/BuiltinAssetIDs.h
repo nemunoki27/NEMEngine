@@ -45,6 +45,12 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000010ull };
 	}
 
+	namespace RayTracingProfiles {
+
+		inline constexpr AssetID Default{
+			0x4e454d4153534554ull, 0x525450524f46494cull };
+	}
+
 	namespace Pipelines {
 
 		inline constexpr AssetID AutoExposure{ 0x4e454d4153534554ull, 0xae00000000000003ull };
@@ -69,6 +75,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6021ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6023ull };
 		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0003ull };
+		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0x6228d203578ecde2ull };
 	}
 
 	namespace Shaders {
