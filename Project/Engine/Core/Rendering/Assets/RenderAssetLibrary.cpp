@@ -70,7 +70,7 @@ void Engine::RenderAssetLibrary::Clear() {
 	materialCache_.clear();
 	fontCache_.clear();
 	particleEffectCache_.clear();
-	rayTracingProfileCache_.clear();
+	renderFeatureProfileCache_.clear();
 }
 
 void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
@@ -191,10 +191,10 @@ const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffec
 	return LoadCachedAsset(particleEffectCache_, assetID);
 }
 
-const Engine::RayTracingProfileAsset*
-Engine::RenderAssetLibrary::LoadRayTracingProfile(AssetID assetID) {
+const Engine::RenderFeatureProfileAsset*
+Engine::RenderAssetLibrary::LoadRenderFeatureProfile(AssetID assetID) {
 
-	return LoadCachedAsset(rayTracingProfileCache_, assetID);
+	return LoadCachedAsset(renderFeatureProfileCache_, assetID);
 }
 
 void Engine::RenderAssetLibrary::RegisterDerivedShader(

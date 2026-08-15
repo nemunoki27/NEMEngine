@@ -310,6 +310,7 @@ void ImGuiManager::Finalize() {
 		return;
 	}
 
+	// 外部ViewportのWndProcを戻してから各Backendに所有資源を破棄させる
 	RestorePlatformWindowProcedures();
 	WinApp::SetMessageHandler(nullptr);
 	ImGui_ImplDX12_Shutdown();

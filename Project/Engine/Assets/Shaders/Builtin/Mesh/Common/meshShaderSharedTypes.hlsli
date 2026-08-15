@@ -72,6 +72,8 @@ struct MeshInstance {
 
 	// 位置やBoundsやCulling用のワールド行列
 	float4x4 worldMatrix;
+	// Transform更新フレームだけ参照する更新前ワールド行列
+	float4x4 previousWorldMatrix;
 	// 法線方向用のワールド法線行列
 	float4x4 normalMatrix;
 
@@ -88,6 +90,8 @@ struct MeshInstance {
 
 	// インスタンスごとの乗算色
 	float4 color;
+	uint motionFrameSerial;
+	uint3 _motionPad;
 };
 
 static const uint MESH_INSTANCE_FLAG_SKINNED = 1u;

@@ -85,6 +85,8 @@ GBufferOutput main(VSOutput input) {
 	surface.roughness = m.roughness;
 	surface.occlusion = m.ao;
 	surface.emissive = m.emissive;
+	surface.motion = ComputeGBufferMotion(
+		input.currentClipPosition, input.previousClipPosition);
 	// renderFlagsから影/IBL/反射の受け設定を反映する
 	surface.flags = BuildMaterialFlags(input.flags);
 

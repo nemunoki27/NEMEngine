@@ -150,6 +150,9 @@ cbuffer DeferredLightingConstants : register(b1) {
 	uint irradianceCubemapIndex;
 	// 拡散IBL環境光の強さ
 	float iblIntensity;
+
+	uint softShadowSampleCount;
+	uint3 _lightingPad0;
 };
 
 // 無効キューブマップインデックス
@@ -163,14 +166,14 @@ RaytracingAccelerationStructure gSceneTLAS : register(t10);
 
 // 影を落とすインスタンスのTLASマスク
 static const uint kRaytracingMaskShadowCaster = 1u;
-static const uint kSoftShadowSampleCount = 4u;
-static const float2 kSoftShadowDisk[kSoftShadowSampleCount] = {
+static const uint kMaximumSoftShadowSampleCount = 4u;
+static const float2 kSoftShadowDisk[kMaximumSoftShadowSampleCount] = {
 	float2(0.353553f, 0.000000f),
 	float2(-0.451180f, 0.414030f),
 	float2(0.068910f, -0.787560f),
 	float2(0.569130f, 0.742260f)
 };
-static const float2 kRectLightSamples[kSoftShadowSampleCount] = {
+static const float2 kRectLightSamples[kMaximumSoftShadowSampleCount] = {
 	float2(-0.375f, -0.125f),
 	float2(0.125f, -0.375f),
 	float2(-0.125f, 0.375f),
@@ -201,6 +204,15 @@ float2 RotateShadowDisk(float2 samplePos, float sinRotation, float cosRotation) 
 	return float2(
 		samplePos.x * cosRotation - samplePos.y * sinRotation,
 		samplePos.x * sinRotation + samplePos.y * cosRotation);
+}
+
+uint ResolveShadowSampleIndex(uint sampleIndex, uint sampleCount,
+	uint2 pixel, uint lightIndex) {
+
+	uint offset = HashShadowSeed(pixel.x * 1973u + pixel.y * 9277u +
+		lightIndex * 26699u) & 3u;
+	uint step = kMaximumSoftShadowSampleCount / sampleCount;
+	return (offset + sampleIndex * step) & 3u;
 }
 
 void BuildShadowBasis(float3 direction, out float3 tangent, out float3 bitangent) {
@@ -252,19 +264,27 @@ float TraceDirectionalShadow(float3 worldPos, float3 worldNormal,
 	sincos(rotation, sinRotation, cosRotation);
 
 	float coneRadius = tan(radians(min(angularRadius, 5.0f)));
+	uint sampleCount = clamp(softShadowSampleCount,
+		1u, kMaximumSoftShadowSampleCount);
+	if (sampleCount == 1u) {
+		return TraceShadowRay(origin, centerDirection,
+			shadowMaxDistance) ? 1.0f : 0.0f;
+	}
 	float occlusion = 0.0f;
-	[unroll]
+	[loop]
 	for (uint sampleIndex = 0u;
-		sampleIndex < kSoftShadowSampleCount; ++sampleIndex) {
+		sampleIndex < sampleCount; ++sampleIndex) {
 
+		uint diskIndex = ResolveShadowSampleIndex(
+			sampleIndex, sampleCount, pixel, lightIndex);
 		float2 disk = RotateShadowDisk(
-			kSoftShadowDisk[sampleIndex], sinRotation, cosRotation);
+			kSoftShadowDisk[diskIndex], sinRotation, cosRotation);
 		float3 direction = normalize(centerDirection +
 			(tangent * disk.x + bitangent * disk.y) * coneRadius);
 		occlusion += TraceShadowRay(
 			origin, direction, shadowMaxDistance) ? 1.0f : 0.0f;
 	}
-	return occlusion / float(kSoftShadowSampleCount);
+	return occlusion / float(sampleCount);
 }
 
 //============================================================================
@@ -292,20 +312,28 @@ float TraceLocalSoftShadow(float3 worldPos, float3 worldNormal,
 	float cosRotation;
 	sincos(rotation, sinRotation, cosRotation);
 
+	uint sampleCount = clamp(softShadowSampleCount,
+		1u, kMaximumSoftShadowSampleCount);
+	if (sampleCount == 1u) {
+		return TraceShadowRay(origin, centerDirection,
+			distToLight) ? 1.0f : 0.0f;
+	}
 	float occlusion = 0.0f;
-	[unroll]
+	[loop]
 	for (uint sampleIndex = 0u;
-		sampleIndex < kSoftShadowSampleCount; ++sampleIndex) {
+		sampleIndex < sampleCount; ++sampleIndex) {
 
+		uint diskIndex = ResolveShadowSampleIndex(
+			sampleIndex, sampleCount, pixel, lightIndex);
 		float2 disk = RotateShadowDisk(
-			kSoftShadowDisk[sampleIndex], sinRotation, cosRotation);
+			kSoftShadowDisk[diskIndex], sinRotation, cosRotation);
 		float3 sampleToLight = toLight +
 			(tangent * disk.x + bitangent * disk.y) * sourceRadius;
 		float sampleDistance = length(sampleToLight);
 		occlusion += TraceShadowRay(origin,
 			sampleToLight / sampleDistance, sampleDistance) ? 1.0f : 0.0f;
 	}
-	return occlusion / float(kSoftShadowSampleCount);
+	return occlusion / float(sampleCount);
 }
 
 float3 GetRectLightSamplePosition(RectLight light,
@@ -341,13 +369,24 @@ float TraceRectShadow(float3 worldPos, float3 worldNormal,
 		(seed & 1u) != 0u ? -1.0f : 1.0f,
 		(seed & 2u) != 0u ? -1.0f : 1.0f);
 
+	uint sampleCount = clamp(softShadowSampleCount,
+		1u, kMaximumSoftShadowSampleCount);
+	if (sampleCount == 1u) {
+		float3 toLight = light.pos - origin;
+		float distanceToLight = length(toLight);
+		return distanceToLight > 1e-5f &&
+			TraceShadowRay(origin, toLight / distanceToLight,
+				distanceToLight) ? 1.0f : 0.0f;
+	}
 	float occlusion = 0.0f;
-	[unroll]
+	[loop]
 	for (uint sampleIndex = 0u;
-		sampleIndex < kSoftShadowSampleCount; ++sampleIndex) {
+		sampleIndex < sampleCount; ++sampleIndex) {
 
+		uint rectSampleIndex = ResolveShadowSampleIndex(
+			sampleIndex, sampleCount, pixel, lightIndex);
 		float2 sampleUV =
-			kRectLightSamples[sampleIndex] * sampleSign;
+			kRectLightSamples[rectSampleIndex] * sampleSign;
 		float3 samplePos =
 			GetRectLightSamplePosition(light, sampleUV);
 		float3 toLight = samplePos - origin;
@@ -359,7 +398,7 @@ float TraceRectShadow(float3 worldPos, float3 worldNormal,
 			toLight / distanceToLight,
 			distanceToLight) ? 1.0f : 0.0f;
 	}
-	return occlusion / float(kSoftShadowSampleCount);
+	return occlusion / float(sampleCount);
 }
 
 //============================================================================
@@ -535,7 +574,7 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 	float3 result = 0.0f.xxx;
 	[unroll]
 	for (uint sampleIndex = 0u;
-		sampleIndex < kSoftShadowSampleCount; ++sampleIndex) {
+		sampleIndex < kMaximumSoftShadowSampleCount; ++sampleIndex) {
 
 		float3 samplePos = GetRectLightSamplePosition(
 			light, kRectLightSamples[sampleIndex]);
@@ -553,7 +592,7 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 		result += EvaluatePBRLight(
 			N, V, L, radiance, albedo, metallic, roughness, F0);
 	}
-	return result / float(kSoftShadowSampleCount);
+	return result / float(kMaximumSoftShadowSampleCount);
 }
 
 bool ResolveLightCluster(int2 pixel, float3 worldPos,

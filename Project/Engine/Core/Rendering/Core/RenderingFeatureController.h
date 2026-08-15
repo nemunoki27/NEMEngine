@@ -28,6 +28,8 @@ namespace Engine {
 		void SetAllowMeshShader(bool enabled);
 		void SetAllowInlineRayTracing(bool enabled);
 		void SetAllowDispatchRays(bool enabled);
+		void SetAllowRaytracingDownsampling(bool enabled);
+		void SetSoftShadowSampleCount(uint32_t count);
 		// 描画カリング機能を個別に切り替える
 		void SetAllowFrustumCulling(bool enabled);
 		void SetAllowOcclusionCulling(bool enabled);

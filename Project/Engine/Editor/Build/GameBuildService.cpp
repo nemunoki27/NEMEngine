@@ -201,7 +201,7 @@ namespace {
 			AddAsset(Engine::BuiltinAssets::Materials::OutputTransform);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
 			AddAsset(Engine::BuiltinAssets::Materials::RaytracingReflection);
-			AddAsset(Engine::BuiltinAssets::RayTracingProfiles::Default);
+			AddAsset(Engine::BuiltinAssets::RenderFeatureProfiles::Default);
 
 			AddFixedRuntimeFiles();
 			ProcessAssets();

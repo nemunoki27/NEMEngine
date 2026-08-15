@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
@@ -56,8 +57,9 @@ namespace {
 	struct PrimitiveViewConstants {
 
 		Engine::Matrix4x4 viewProjection = Engine::Matrix4x4::Identity();
+		Engine::Matrix4x4 previousViewProjection = Engine::Matrix4x4::Identity();
 		Engine::Vector3 cameraPosition = Engine::Vector3::AnyInit(0.0f);
-		float _viewPad0 = 0.0f;
+		uint32_t frameSerial = 0;
 	};
 	// MeshShader経路でインデックス数を渡す定数バッファ
 	struct PrimitiveMeshConstants {
@@ -147,6 +149,9 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 		const ResolvedRenderView* billboardView = context.billboardView ? context.billboardView : context.view;
 		instance.worldMatrix = billboardView ?
 			RenderBillboard::ResolveWorldMatrix(*item, *billboardView) : item->worldMatrix;
+		instance.previousWorldMatrix = billboardView ?
+			instance.worldMatrix : item->previousWorldMatrix;
+		instance.motionFrameSerial = billboardView ? 0u : item->motionFrameSerial;
 		instance.uvMatrix = payload->uvMatrix;
 		if (payload->renderer) {
 			MeshRenderFlags renderFlags =
@@ -227,6 +232,22 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	PrimitiveViewConstants viewConstants{};
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
+		const size_t viewIndex = static_cast<size_t>(context.view->kind);
+		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
+		if (viewFrameSerials_[viewIndex] != frameSerial) {
+
+			framePreviousViewProjections_[viewIndex] =
+				previousViewValid_[viewIndex] ?
+				previousViewProjections_[viewIndex] :
+				viewConstants.viewProjection;
+			previousViewProjections_[viewIndex] =
+				viewConstants.viewProjection;
+			previousViewValid_[viewIndex] = true;
+			viewFrameSerials_[viewIndex] = frameSerial;
+		}
+		viewConstants.previousViewProjection =
+			framePreviousViewProjections_[viewIndex];
+		viewConstants.frameSerial = static_cast<uint32_t>(frameSerial);
 		viewConstants.cameraPosition = camera->cameraPos;
 	}
 	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);

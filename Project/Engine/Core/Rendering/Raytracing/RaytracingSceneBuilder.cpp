@@ -107,6 +107,54 @@ namespace {
 		return hash;
 	}
 
+	// レイトレーシング結果へ影響するサブメッシュマテリアルをハッシュ化する
+	uint64_t ComputeSceneMaterialHash(
+		std::span<const Engine::MeshSubMeshShaderData> subMeshes) {
+
+		uint64_t hash = 1469598103934665603ull;
+		Engine::Algorithm::HashCombine(hash,
+			static_cast<uint64_t>(subMeshes.size()));
+		const auto hashFloat = [&hash](float value) {
+
+			Engine::Algorithm::HashCombine(hash,
+				std::bit_cast<uint32_t>(value));
+		};
+		const auto hashColor = [&hashFloat](const Engine::Color4& color) {
+
+			hashFloat(color.r);
+			hashFloat(color.g);
+			hashFloat(color.b);
+			hashFloat(color.a);
+		};
+		for (const Engine::MeshSubMeshShaderData& subMesh : subMeshes) {
+
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.baseColorTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.normalTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.metallicRoughnessTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.emissiveTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.occlusionTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.specularTextureIndex);
+			hashFloat(subMesh.metallic);
+			hashFloat(subMesh.roughness);
+			hashColor(subMesh.importedBaseColor);
+			hashColor(subMesh.color);
+			hashColor(subMesh.emissiveColor);
+			for (uint32_t row = 0; row < 4; ++row) {
+				for (uint32_t column = 0; column < 4; ++column) {
+
+					hashFloat(subMesh.uvMatrix.m[row][column]);
+				}
+			}
+		}
+		return hash;
+	}
+
 	// 大量の配置変更ではrefit後のBVH品質が落ちるためTLASを再構築する
 	bool RequiresTLASRebuildForTraceQuality(
 		size_t instanceCount, uint32_t changedInstanceCount) {
@@ -355,6 +403,8 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	textureDescriptorIndexCache_.clear();
 	sRGBTextureDescriptorIndexCache_.clear();
 	hasPendingTextureDescriptors_ = false;
+	sceneMaterialGeneration_ = 0;
+	cachedSceneMaterialHash_ = 0;
 
 	blases_.clear();
 	staticInstanceBLASes_.clear();
@@ -1384,6 +1434,17 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	tlasInstanceHash_ = tlasInstanceHash;
 
 	// 構築済みにする
+	const uint64_t sceneMaterialHash =
+		ComputeSceneMaterialHash(sceneSubMeshScratch_);
+	if (cachedSceneMaterialHash_ != sceneMaterialHash ||
+		sceneMaterialGeneration_ == 0) {
+
+		cachedSceneMaterialHash_ = sceneMaterialHash;
+		++sceneMaterialGeneration_;
+		if (sceneMaterialGeneration_ == 0) {
+			sceneMaterialGeneration_ = 1;
+		}
+	}
 	builtThisFrame_ = true;
 	builtSceneInstanceID_ = context.sceneInstance->instanceID;
 	cachedStaticScene_ = staticScene;
@@ -1559,7 +1620,7 @@ uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsC
 	const uint32_t errorIndex = (errorTexture && errorTexture->valid) ? errorTexture->srvIndex : 0;
 
 	if (!textureAssetID) {
-		return errorIndex;
+		return UINT32_MAX;
 	}
 
 	const RuntimeTextureResolver::BindlessResolveResult resolved =
@@ -1638,4 +1699,7 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 	}
 	context.raytracing.tlasResource = tlas_.GetResource();
 	context.raytracing.instanceCount = static_cast<uint32_t>(sceneInstanceScratch_.size());
+	context.raytracing.materialGeneration = sceneMaterialGeneration_;
+	context.raytracing.materialTexturesReady =
+		!hasPendingTextureDescriptors_;
 }

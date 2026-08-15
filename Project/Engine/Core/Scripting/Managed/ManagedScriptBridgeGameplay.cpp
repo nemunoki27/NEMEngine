@@ -26,7 +26,7 @@
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingRuntimeOverrides.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 #include <Engine/Core/Assets/AssetTypes.h>
@@ -1038,49 +1038,49 @@ namespace Engine {
 			context->graphicsPlatform->ShouldUseDispatchRays() ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::SetRayTracingEffectEnabledCallback(
-		const char* effectName, int32_t enabled) {
+	int32_t ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback(
+		const char* passName, int32_t enabled) {
 
-		return effectName &&
-			RayTracingRuntimeOverrides::GetInstance().SetEnabled(
-				effectName, enabled != 0) ? 1 : 0;
+		return passName &&
+			RenderFeatureRuntimeOverrides::GetInstance().SetEnabled(
+				passName, enabled != 0) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::SetRayTracingEffectParameterCallback(
-		const char* effectName, uint64_t parameterID,
+	int32_t ManagedScriptRuntime::SetRenderFeaturePassParameterCallback(
+		const char* passName, uint64_t parameterID,
 		const char* parameterName,
 		const ManagedMaterialParameterValue* value) {
 
-		if (!effectName || !parameterName || !value || parameterID == 0) {
+		if (!passName || !parameterName || !value || parameterID == 0) {
 			return 0;
 		}
 		MaterialParameterValue decoded{};
 		if (!DecodeMaterialParameterValue(*value, decoded)) {
 			return 0;
 		}
-		return RayTracingRuntimeOverrides::GetInstance().SetParameter(
-			effectName, MaterialParameterID{ parameterID },
+		return RenderFeatureRuntimeOverrides::GetInstance().SetParameter(
+			passName, MaterialParameterID{ parameterID },
 			parameterName, decoded) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::ClearRayTracingEffectParameterCallback(
-		const char* effectName, uint64_t parameterID) {
+	int32_t ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback(
+		const char* passName, uint64_t parameterID) {
 
-		return effectName && parameterID != 0 &&
-			RayTracingRuntimeOverrides::GetInstance().ClearParameter(
-				effectName, MaterialParameterID{ parameterID }) ? 1 : 0;
+		return passName && parameterID != 0 &&
+			RenderFeatureRuntimeOverrides::GetInstance().ClearParameter(
+				passName, MaterialParameterID{ parameterID }) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::ResetRayTracingEffectCallback(
-		const char* effectName) {
+	int32_t ManagedScriptRuntime::ResetRenderFeaturePassCallback(
+		const char* passName) {
 
-		return effectName &&
-			RayTracingRuntimeOverrides::GetInstance().ResetEffect(effectName) ? 1 : 0;
+		return passName &&
+			RenderFeatureRuntimeOverrides::GetInstance().ResetPass(passName) ? 1 : 0;
 	}
 
-	void ManagedScriptRuntime::ResetRayTracingOverridesCallback() {
+	void ManagedScriptRuntime::ResetRenderFeatureOverridesCallback() {
 
-		RayTracingRuntimeOverrides::GetInstance().ResetAll();
+		RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	}
 
 	int32_t ManagedScriptRuntime::CollisionShapeCountCallback(ManagedNativeEntity entity) {

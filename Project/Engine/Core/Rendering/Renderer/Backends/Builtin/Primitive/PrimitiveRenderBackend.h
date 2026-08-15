@@ -9,6 +9,9 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 
+// c++
+#include <array>
+
 namespace Engine {
 
 	//============================================================================
@@ -55,6 +58,14 @@ namespace Engine {
 		bool geometryManagerInitialized_ = false;
 
 		FrameBatchResourcePool<PrimitiveBatchResources> resourcePool_;
+		std::array<Matrix4x4, 2> previousViewProjections_ = {
+			Matrix4x4::Identity(), Matrix4x4::Identity()
+		};
+		std::array<Matrix4x4, 2> framePreviousViewProjections_ = {
+			Matrix4x4::Identity(), Matrix4x4::Identity()
+		};
+		std::array<uint64_t, 2> viewFrameSerials_ = { 0, 0 };
+		std::array<bool, 2> previousViewValid_ = { false, false };
 
 		PipelineBindingCache::SlotID meshConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID verticesSRVSlot_ = PipelineBindingCache::kInvalidSlot;

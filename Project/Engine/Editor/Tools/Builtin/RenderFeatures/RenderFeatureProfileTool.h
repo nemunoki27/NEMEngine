@@ -1,0 +1,81 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
+#include <Engine/Editor/Tools/Core/IEditorTool.h>
+
+// c++
+#include <cstdint>
+#include <string>
+
+namespace Engine {
+
+	//============================================================================
+	//	RenderFeatureProfileTool class
+	//	ComputeとDispatchRaysを同じProfile上で編集するツール
+	//============================================================================
+	class RenderFeatureProfileTool :
+		public IEditorTool {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		RenderFeatureProfileTool() = default;
+		~RenderFeatureProfileTool() override = default;
+
+		void Tick(ToolContext& context) override;
+		void OpenEditorTool() override;
+		void DrawEditorTool(const EditorToolContext& context) override;
+		void OpenAsset(AssetID assetID);
+
+		const ToolDescriptor& GetDescriptor() const override {
+
+			return descriptor_;
+		}
+
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		ToolDescriptor descriptor_{
+			.id = "engine.render_features",
+			.name = "レンダー機能設定",
+			.category = "レンダリング",
+			.owner = ToolOwner::Engine,
+			.flags = ToolFlags::AllowPlayMode,
+			.order = 0,
+		};
+
+		bool openWindow_ = false;
+		AssetID requestedProfile_{};
+		AssetID observedProfile_{};
+		int32_t selectedPassIndex_ = -1;
+		std::string statusMessage_{};
+		bool statusError_ = false;
+
+		void DrawWindow(const EditorToolContext& context);
+		void DrawColorPipeline();
+		void DrawPassList();
+		void DrawPassDetail(const EditorToolContext& context);
+		void DrawOutputs(RenderFeaturePassSettings& pass);
+		void DrawResources(const EditorToolContext& context,
+			RenderFeaturePassSettings& pass);
+		static std::string MakeReferenceLabel(
+			const RenderFeatureProfileAsset& profile,
+			const RenderFeatureOutputReference& reference,
+			const char* emptyLabel);
+		static bool DrawOutputReferenceCombo(const char* label,
+			const RenderFeatureProfileAsset& profile,
+			const RenderFeaturePassSettings& owner,
+			RenderFeatureOutputReference& reference,
+			const char* emptyLabel);
+		static bool DrawSamplerSettings(
+			PipelineStaticSamplerSettings& settings);
+		bool EnsureProfile(const EditorToolContext& context);
+		void SetDirty();
+	};
+} // Engine

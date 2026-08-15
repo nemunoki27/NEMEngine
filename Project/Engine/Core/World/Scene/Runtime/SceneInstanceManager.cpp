@@ -241,9 +241,9 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 			FromJson(scene["Header"], instance.header, &database);
 		}
 		{
-			// PostProcessStackが未設定ならシーンごとの既定アセットを割り当てる
+			// Profileが未設定ならシーンごとの既定アセットを割り当てる
 			const std::filesystem::path scenePath = database.ResolveFullPath(instance.sceneAsset);
-			EnsureScenePostProcessStack(instance.header,
+			EnsureSceneRenderFeatureProfile(instance.header,
 				Algorithm::PathToUTF8(scenePath), &database);
 		}
 

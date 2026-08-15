@@ -25,6 +25,7 @@ namespace Engine {
 		AssetID pipelineAsset{};
 		AssetID pipelineShaderAsset{};
 		AssetID shaderOverrideAsset{};
+		uint64_t samplerHash = 0;
 
 		bool operator==(const RaytracingPipelineCacheKey& rhs) const noexcept;
 	};
@@ -45,7 +46,8 @@ namespace Engine {
 		// パイプラインステートの取得、キャッシュに存在しない場合は作成してキャッシュする
 		RaytracingPipelineState* GetOrCreate(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID,
-			AssetID shaderOverrideAssetID = {});
+			AssetID shaderOverrideAssetID = {},
+			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
 		// データクリア
 		void Clear();
@@ -69,6 +71,7 @@ namespace Engine {
 				size_t hash = std::hash<AssetID>{}(key.pipelineAsset);
 				hash ^= std::hash<AssetID>{}(key.pipelineShaderAsset) << 1;
 				hash ^= std::hash<AssetID>{}(key.shaderOverrideAsset) << 2;
+				hash ^= std::hash<uint64_t>{}(key.samplerHash) << 3;
 				return hash;
 			}
 		};
@@ -101,19 +104,20 @@ namespace Engine {
 		void RetireState(std::unique_ptr<RaytracingPipelineState> state);
 		// 同じマテリアル要求に対応する直前の有効なState Objectを探す
 		RaytracingPipelineState* FindFallback(AssetID pipelineAssetID,
-			AssetID shaderOverrideAssetID) const;
+			AssetID shaderOverrideAssetID, uint64_t samplerHash) const;
 		// 指定キーの旧State Objectをフォールバックへ退避する
 		void PreserveFallback(const RaytracingPipelineCacheKey& key,
 			std::unique_ptr<RaytracingPipelineState> state);
 		// 同じマテリアル要求に属する旧State Objectを遅延解放へ移す
 		void RetireFallbacks(AssetID pipelineAssetID,
-			AssetID shaderOverrideAssetID);
+			AssetID shaderOverrideAssetID, uint64_t samplerHash);
 		// 旧State Objectを表示したまま更新版をバックグラウンド生成する
 		RaytracingPipelineState* UpdateAsyncBuild(
 			ID3D12Device8* device,
 			const RaytracingPipelineCacheKey& key,
 			const PipelineVariantDesc& variant,
-			const ShaderAsset& shaderAsset);
+			const ShaderAsset& shaderAsset,
+			const PipelineStaticSamplerOverrideSet* samplerOverrides);
 	};
 } // Engine
 

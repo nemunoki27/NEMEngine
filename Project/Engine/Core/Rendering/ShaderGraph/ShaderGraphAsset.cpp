@@ -281,6 +281,37 @@ Engine::ShaderGraphAsset Engine::CreateDefaultPostProcessShaderGraph(
 	return graph;
 }
 
+Engine::ShaderGraphAsset Engine::CreateDefaultRayTracingEffectShaderGraph(
+	std::string_view name) {
+
+	ShaderGraphAsset graph{};
+	graph.name = name.empty() ?
+		"NewRayTracingEffectGraph" : std::string(name);
+	graph.domain = ShaderGraphDomain::RayTracingEffect;
+
+	ShaderGraphNode output{
+		.id = Engine::UUID::New(),
+		.kind = ShaderGraphNodeKind::RayTracingOutput,
+		.position = Vector2(480.0f, 120.0f),
+	};
+	ShaderGraphNode sceneColor{
+		.id = Engine::UUID::New(),
+		.kind = ShaderGraphNodeKind::SceneColor,
+		.position = Vector2(80.0f, 120.0f),
+	};
+	graph.outputNode = output.id;
+	graph.nodes.emplace_back(output);
+	graph.nodes.emplace_back(sceneColor);
+	graph.links.emplace_back(ShaderGraphLink{
+		.id = Engine::UUID::New(),
+		.outputNode = sceneColor.id,
+		.outputSlot = 0,
+		.inputNode = output.id,
+		.inputSlot = 0,
+	});
+	return graph;
+}
+
 bool Engine::IsShaderGraph3DTarget(
 	ShaderGraphTarget target) {
 

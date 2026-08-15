@@ -1324,7 +1324,7 @@
     ],
     "Header": {
         "name": "SampleScene",
-        "postProcessStack": "4e454d4153534554421a1287b7323a99",
+        "renderFeatureProfile": "4e454d4153534554421a1287b7323a99",
         "subScenes": []
     },
     "PrefabInstances": [],

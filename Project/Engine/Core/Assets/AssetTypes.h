@@ -36,10 +36,9 @@ namespace Engine {
 		Script,
 		Audio,
 		AnimationClip,
-		PostProcessStack,
 		ParticleEffect,
 		ShaderGraph,
-		RayTracingProfile,
+		RenderFeatureProfile,
 		DefaultAsset,
 	};
 

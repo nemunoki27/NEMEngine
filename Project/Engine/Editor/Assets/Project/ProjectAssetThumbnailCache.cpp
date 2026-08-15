@@ -74,9 +74,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	// 設定アセットは型の有無にかかわらず同じ歯車アイコンへ揃える
 	const IconEntry configIcon{
 		"exeConfig.png", EditorTextureHelper::MakeEditorTexturePath("File", "exeConfig.png") };
-	defaultIcons_[AssetType::PostProcessStack] = configIcon;
-	defaultIcons_[AssetType::RayTracingProfile] = configIcon;
-	customExtensionIcons_[".postprocessstack.json"] = configIcon;
+	defaultIcons_[AssetType::RenderFeatureProfile] = configIcon;
+	customExtensionIcons_[".renderfeatureprofile.json"] = configIcon;
 	customExtensionIcons_[".execonfig.json"] = configIcon;
 	customExtensionIcons_[".materialsettings.json"] = configIcon;
 

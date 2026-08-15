@@ -50,7 +50,7 @@ namespace Engine {
 	// v35: UserSettingsルート取得APIを追加
 	// v36: Collision実行時状態をAuthoring設定から分離
 	// v44: 廃止した描画、画面遷移APIを削除
-	// v45: RayTracingProfileの実行時パラメータAPIを追加
+	// v45: RenderFeatureProfileの実行時パラメータAPIを追加
 	inline constexpr uint32_t kManagedAbiVersion = 45;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
@@ -455,13 +455,13 @@ namespace Engine {
 			ManagedMaterialParameterValue*);
 		using ClearRendererMaterialParameterCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, uint64_t);
-		// RayTracingProfileへ実行時オーバーライドを設定する
-		using SetRayTracingEffectEnabledCallback = int32_t(__cdecl*)(const char*, int32_t);
-		using SetRayTracingEffectParameterCallback = int32_t(__cdecl*)(
+		// RenderFeatureProfileへ実行時オーバーライドを設定する
+		using SetRenderFeaturePassEnabledCallback = int32_t(__cdecl*)(const char*, int32_t);
+		using SetRenderFeaturePassParameterCallback = int32_t(__cdecl*)(
 			const char*, uint64_t, const char*, const ManagedMaterialParameterValue*);
-		using ClearRayTracingEffectParameterCallback = int32_t(__cdecl*)(const char*, uint64_t);
-		using ResetRayTracingEffectCallback = int32_t(__cdecl*)(const char*);
-		using ResetRayTracingOverridesCallback = void(__cdecl*)();
+		using ClearRenderFeaturePassParameterCallback = int32_t(__cdecl*)(const char*, uint64_t);
+		using ResetRenderFeaturePassCallback = int32_t(__cdecl*)(const char*);
+		using ResetRenderFeatureOverridesCallback = void(__cdecl*)();
 		// Collision形状操作、shapeIndexとpropIdで衝突形状を読み書きする
 		using CollisionShapeCountCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using CollisionAddShapeCallback = void(__cdecl*)(ManagedNativeEntity);

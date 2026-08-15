@@ -8,7 +8,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingProfileAsset.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 
 // c++
 #include <fstream>
@@ -29,7 +29,8 @@ namespace Engine {
 		case ProjectAssetFileKind::Shader: return ".shader.json";
 		case ProjectAssetFileKind::RenderPipeline: return ".pipeline.json";
 		case ProjectAssetFileKind::ShaderGraph: return ".shadergraph.json";
-		case ProjectAssetFileKind::RayTracingProfile: return ".rayTracingProfile.json";
+		case ProjectAssetFileKind::RenderFeatureProfile:
+			return ".renderFeatureProfile.json";
 		case ProjectAssetFileKind::Folder:
 		default: break;
 		}
@@ -77,7 +78,7 @@ namespace Engine {
 				"  \"ExternalActors\": [],\n"
 				"  \"Header\": {{\n"
 				"    \"name\": \"{}\",\n"
-				"    \"postProcessStack\": \"\",\n"
+				"    \"renderFeatureProfile\": \"\",\n"
 				"    \"subScenes\": []\n"
 				"  }},\n"
 				"  \"PrefabInstances\": [],\n"
@@ -102,11 +103,12 @@ namespace Engine {
 			// 新規グラフは標準PBRノードを接続済みの状態で作成する
 			return JsonAdapter::SerializeCanonical(
 				ToJson(CreateDefaultSurfaceShaderGraph(assetName)), 2);
-		case ProjectAssetFileKind::RayTracingProfile:
+		case ProjectAssetFileKind::RenderFeatureProfile:
 		{
-			RayTracingProfileAsset profile{};
+			RenderFeatureProfileAsset profile{};
 			profile.name = assetName;
-			return JsonAdapter::SerializeCanonical(ToJson(profile), 2);
+			return JsonAdapter::SerializeCanonical(
+				RenderFeatureProfileSerializer::ToJson(profile), 2);
 		}
 		case ProjectAssetFileKind::Text: return "";
 		case ProjectAssetFileKind::Folder:

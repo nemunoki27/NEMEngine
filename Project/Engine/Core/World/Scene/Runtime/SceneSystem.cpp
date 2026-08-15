@@ -483,7 +483,8 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 			return false;
 		}
 		outHeader->guid = sourceAsset;
-		EnsureScenePostProcessStack(*outHeader, Algorithm::PathToUTF8(scenePath), assetDatabase);
+		EnsureSceneRenderFeatureProfile(*outHeader,
+			Algorithm::PathToUTF8(scenePath), assetDatabase);
 	}
 	return LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities);
 }

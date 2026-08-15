@@ -88,12 +88,18 @@ namespace {
 		std::string_view name,
 		Engine::AssetID shaderID,
 		const std::filesystem::path& path,
-		const std::vector<Engine::ShaderParameterMetadata>& parameters) {
+		const std::vector<Engine::ShaderParameterMetadata>& parameters,
+		bool renderFeature) {
 
 		Engine::ShaderAsset shader{};
 		shader.guid = shaderID;
 		shader.name = std::string(name);
-		for (const char* entry : { "ReflectionClosestHit", "ReflectionAnyHit" }) {
+		const std::vector<const char*> entries = renderFeature ?
+			std::vector<const char*>{ "RenderFeatureRayGeneration",
+				"ReflectionMiss", "ReflectionClosestHit" } :
+			std::vector<const char*>{ "ReflectionClosestHit",
+				"ReflectionAnyHit" };
+		for (const char* entry : entries) {
 			shader.stages.emplace_back(Engine::ShaderStageEntry{
 				.stage = Engine::ShaderStage::Lib,
 				.file = Engine::Algorithm::PathToUTF8(path),
@@ -255,9 +261,16 @@ namespace {
 			if (variant.kind != Engine::PipelineVariantKind::Raytracing) {
 				continue;
 			}
-			for (Engine::RaytracingHitGroupDesc& hitGroup : variant.hitGroups) {
-				if (hitGroup.closestHitExport == "ReflectionClosestHit") {
-					hitGroup.anyHitExport = "ReflectionAnyHit";
+			if (graph.domain == Engine::ShaderGraphDomain::RayTracingEffect) {
+				variant.rayGenerationExports = {
+					"RenderFeatureRayGeneration" };
+			} else {
+				for (Engine::RaytracingHitGroupDesc& hitGroup :
+					variant.hitGroups) {
+
+					if (hitGroup.closestHitExport == "ReflectionClosestHit") {
+						hitGroup.anyHitExport = "ReflectionAnyHit";
+					}
 				}
 			}
 			for (const Engine::ShaderGraphSamplerBinding& sampler :
@@ -377,6 +390,31 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			ToString(graphID), ToString(outArtifact.computeShaderID));
 		return true;
 	}
+	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
+		if (outArtifact.compileOutput.rayTracingHLSL.empty() ||
+			!WriteTextFile(outArtifact.rayTracingPath,
+				outArtifact.compileOutput.rayTracingHLSL)) {
+
+			return false;
+		}
+		outArtifact.rayTracingShaderID = MakeDerivedID(
+			graphID, 0x5241594645415455ull);
+		outArtifact.rayTracingShader = MakeRayTracingShader(
+			graph.name + "RayTracingFeature",
+			outArtifact.rayTracingShaderID,
+			outArtifact.rayTracingPath,
+			outArtifact.compileOutput.parameters, true);
+		if (!MakeRayTracingPipeline(graph, outArtifact.compileOutput,
+			graphID, database, outArtifact.rayTracingPipeline,
+			outArtifact.rayTracingPipelineID)) {
+
+			return false;
+		}
+		Logger::Output(LogType::Engine,
+			"[ShaderGraph] compiled graph={} target=RayTracingFeature shader={}",
+			ToString(graphID), ToString(outArtifact.rayTracingShaderID));
+		return true;
+	}
 	if (!WriteTextFile(outArtifact.surfacePath,
 		outArtifact.compileOutput.surfaceHLSL) ||
 		!WriteTextFile(outArtifact.opaquePixelPath,
@@ -398,7 +436,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 		outArtifact.rayTracingShader = MakeRayTracingShader(
 			graph.name + "RayTracing", outArtifact.rayTracingShaderID,
 			outArtifact.rayTracingPath,
-			outArtifact.compileOutput.parameters);
+			outArtifact.compileOutput.parameters, false);
 		if (!MakeRayTracingPipeline(graph, outArtifact.compileOutput,
 			graphID, database, outArtifact.rayTracingPipeline,
 			outArtifact.rayTracingPipelineID)) {
@@ -546,7 +584,17 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 	const ShaderGraphAsset& graph, AssetID graphID) {
 
 	MaterialAsset material{};
-	if (graph.domain == ShaderGraphDomain::PostProcess) {
+	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
+		material.name = graph.name.empty() ?
+			"NewRayTracingFeatureMaterial" : graph.name;
+		material.domain = MaterialDomain::RayTracing;
+		material.usage = MaterialUsage::Generic;
+		material.passes.emplace_back(MaterialPassBinding{
+			.passKind = MaterialPassKind::RayTracing,
+			.pipeline = BuiltinAssets::Pipelines::RaytracingReflection,
+			.preferredVariant = PipelineVariantKind::Raytracing,
+		});
+	} else if (graph.domain == ShaderGraphDomain::PostProcess) {
 		material.name = graph.name.empty() ?
 			"NewPostProcessMaterial" : graph.name;
 		material.domain = MaterialDomain::Compute;

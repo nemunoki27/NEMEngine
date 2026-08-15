@@ -361,6 +361,23 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			}
 			DrawGraphicsTooltip("RayQueryを使ったシャドウ判定を有効にします");
 
+			const char* shadowSampleLabels[] = {
+				"低負荷 (1レイ)", "標準 (2レイ)", "高品質 (4レイ)"
+			};
+			int shadowSampleIndex =
+				preferences.softShadowSampleCount <= 1u ? 0 :
+				preferences.softShadowSampleCount <= 2u ? 1 : 2;
+			ImGui::BeginDisabled(!allowInlineRayTracing);
+			if (ImGui::Combo("ソフトシャドウ品質",
+				&shadowSampleIndex, shadowSampleLabels, 3)) {
+
+				const uint32_t sampleCounts[] = { 1u, 2u, 4u };
+				featureController.SetSoftShadowSampleCount(
+					sampleCounts[shadowSampleIndex]);
+			}
+			DrawGraphicsTooltip("ライトごとの影レイ数です。1レイでも画素ごとに分散して柔らかい境界を維持します");
+			ImGui::EndDisabled();
+
 			bool allowDispatchRays =
 				preferences.allowDispatchRays;
 			if (ImGui::Checkbox("マテリアル反射パス",
@@ -369,6 +386,19 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 					allowDispatchRays);
 			}
 			DrawGraphicsTooltip("DispatchRaysによる反射描画を有効にします");
+
+			bool allowRaytracingDownsampling =
+				preferences.allowRaytracingDownsampling;
+			ImGui::BeginDisabled(!allowDispatchRays);
+			if (ImGui::Checkbox("ダウンサンプリング",
+				&allowRaytracingDownsampling)) {
+
+				featureController.SetAllowRaytracingDownsampling(
+					allowRaytracingDownsampling);
+			}
+			DrawGraphicsTooltip(
+				"DispatchRaysと後段フィルターを縮小解像度で実行します");
+			ImGui::EndDisabled();
 			ImGui::EndDisabled();
 
 			if (!support.SupportsRayTracingPath()) {

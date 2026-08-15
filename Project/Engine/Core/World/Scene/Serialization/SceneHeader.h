@@ -34,8 +34,13 @@ namespace Engine {
 	enum class SceneRenderTargetFormat :
 		uint8_t {
 
+		R8_UNORM,
+		R16_FLOAT,
+		RG16_FLOAT,
 		RGBA8_UNORM,
 		RGBA16_FLOAT,
+		R32_FLOAT,
+		RG32_FLOAT,
 		RGBA32_FLOAT,
 	};
 
@@ -117,15 +122,15 @@ namespace Engine {
 		// シーンが持つサブシーンリスト
 		std::vector<SubSceneSlotDesc> subScenes;
 
-		// シーンごとのPostProcessStackアセット
-		AssetID postProcessStack{};
-		// シーンで使用するレイトレーシングエフェクト構成
-		AssetID rayTracingProfile{};
+		// シーンのカラー出力、Compute、DispatchRaysをまとめたProfile
+		AssetID renderFeatureProfile{};
 	};
 
 	// json変換
-	std::string MakeDefaultPostProcessStackPath(const std::string& scenePath);
-	void EnsureScenePostProcessStack(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase);
+	std::string MakeDefaultRenderFeatureProfilePath(
+		const std::string& scenePath);
+	void EnsureSceneRenderFeatureProfile(SceneHeader& sceneHeader,
+		const std::string& scenePath, AssetDatabase* assetDatabase);
 	bool FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase);
 	nlohmann::json ToJson(const SceneHeader& sceneHeader);
 } // Engine

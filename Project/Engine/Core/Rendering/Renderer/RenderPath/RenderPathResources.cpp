@@ -246,6 +246,14 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	color5.createUAV = false;
 	desc.colors.emplace_back(color5);
 
+	// SceneMotionMain、時間フィルタで前フレーム位置へ再投影する
+	ColorAttachmentDesc color6{};
+	color6.name = RenderTargetNames::kSceneMotionMain;
+	color6.format = DXGI_FORMAT_R16G16_FLOAT;
+	color6.clearColor = Color4::Black();
+	color6.createUAV = false;
+	desc.colors.emplace_back(color6);
+
 	// 深度バッファ
 	DepthTextureCreateDesc depth{};
 	depth.width = width;

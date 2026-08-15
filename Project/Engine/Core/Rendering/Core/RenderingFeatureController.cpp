@@ -87,6 +87,37 @@ void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
 	Logger::Output(LogType::Engine, "DispatchRays path -> {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
 }
 
+void Engine::GraphicsFeatureController::SetAllowRaytracingDownsampling(
+	bool enabled) {
+
+	if (preferences_.allowRaytracingDownsampling == enabled) {
+		return;
+	}
+
+	preferences_.allowRaytracingDownsampling = enabled;
+	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
+	Logger::Output(LogType::Engine,
+		"Raytracing Downsampling -> {}",
+		runtimeFeatures_.useRaytracingDownsampling ?
+		"Enabled" : "Disabled");
+}
+
+void Engine::GraphicsFeatureController::SetSoftShadowSampleCount(
+	uint32_t count) {
+
+	// シェーダーが持つ分散サンプル数へ揃える
+	count = count <= 1u ? 1u : count <= 2u ? 2u : 4u;
+	if (preferences_.softShadowSampleCount == count) {
+		return;
+	}
+	preferences_.softShadowSampleCount = count;
+	RebuildRuntimeFeatures();
+	SavePreferencesToConfig();
+	Logger::Output(LogType::Engine,
+		"Soft Shadow Samples -> {}", count);
+}
+
 void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 
 	// カリング系はGPU機能に依存しないため、ユーザー設定をそのまま反映する
@@ -257,6 +288,10 @@ void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {
 	runtimeFeatures_.useMeshShader = support_.SupportsMeshShaderPath() && preferences_.allowMeshShader;
 	runtimeFeatures_.useInlineRayTracing = support_.SupportsRayTracingPath() && preferences_.allowInlineRayTracing;
 	runtimeFeatures_.useDispatchRays = support_.SupportsRayTracingPath() && preferences_.allowDispatchRays;
+	runtimeFeatures_.useRaytracingDownsampling =
+		preferences_.allowRaytracingDownsampling;
+	runtimeFeatures_.softShadowSampleCount =
+		preferences_.softShadowSampleCount;
 	runtimeFeatures_.useFrustumCulling = preferences_.allowFrustumCulling;
 	runtimeFeatures_.useOcclusionCulling = preferences_.allowOcclusionCulling;
 	runtimeFeatures_.useContributionCulling = preferences_.allowContributionCulling;
@@ -287,6 +322,11 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 	Logger::Output(LogType::Engine, "Runtime Mesh Shader: {}", runtimeFeatures_.useMeshShader ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Inline RayTracing: {}", runtimeFeatures_.useInlineRayTracing ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Runtime Raytracing Downsampling: {}",
+		runtimeFeatures_.useRaytracingDownsampling ?
+		"Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Soft Shadow Samples: {}",
+		runtimeFeatures_.softShadowSampleCount);
 	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
 	Logger::Output(LogType::Engine, "Runtime Occlusion Culling: {}", runtimeFeatures_.useOcclusionCulling ? "Enabled" : "Disabled");
@@ -325,6 +365,13 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 	preferences_.allowMeshShader = data.value("allowMeshShader", preferences_.allowMeshShader);
 	preferences_.allowInlineRayTracing = data.value("allowInlineRayTracing", preferences_.allowInlineRayTracing);
 	preferences_.allowDispatchRays = data.value("allowDispatchRays", preferences_.allowDispatchRays);
+	preferences_.allowRaytracingDownsampling = data.value(
+		"allowRaytracingDownsampling",
+		preferences_.allowRaytracingDownsampling);
+	const uint32_t shadowSamples = data.value(
+		"softShadowSampleCount", preferences_.softShadowSampleCount);
+	preferences_.softShadowSampleCount = shadowSamples <= 1u ?
+		1u : shadowSamples <= 2u ? 2u : 4u;
 	preferences_.allowFrustumCulling = data.value("allowFrustumCulling", preferences_.allowFrustumCulling);
 	preferences_.allowOcclusionCulling = data.value(
 		"allowOcclusionCulling",
@@ -381,6 +428,10 @@ void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 	data["allowMeshShader"] = preferences_.allowMeshShader;
 	data["allowInlineRayTracing"] = preferences_.allowInlineRayTracing;
 	data["allowDispatchRays"] = preferences_.allowDispatchRays;
+	data["allowRaytracingDownsampling"] =
+		preferences_.allowRaytracingDownsampling;
+	data["softShadowSampleCount"] =
+		preferences_.softShadowSampleCount;
 	data["allowFrustumCulling"] = preferences_.allowFrustumCulling;
 	data["allowOcclusionCulling"] = preferences_.allowOcclusionCulling;
 	data["useGameViewCameraForSceneCulling"] = preferences_.useGameViewCameraForSceneCulling;

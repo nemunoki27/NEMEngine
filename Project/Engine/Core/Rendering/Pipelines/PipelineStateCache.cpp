@@ -500,42 +500,5 @@ const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsRefl
 uint64_t Engine::PipelineStateCache::HashStaticSamplerOverrides(
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
-	if (!samplerOverrides) {
-		return 0;
-	}
-
-	uint64_t hash = 1469598103934665603ull;
-	auto mix = [&](uint64_t value) {
-		hash ^= value;
-		hash *= 1099511628211ull;
-		};
-	auto mixFloat = [&](float value) {
-		mix(std::hash<float>{}(value));
-		};
-
-	mix(samplerOverrides->fillMissingSamplers ? 1ull : 0ull);
-
-	std::vector<std::string> names;
-	names.reserve(samplerOverrides->byName.size());
-	for (const auto& [name, settings] : samplerOverrides->byName) {
-		names.emplace_back(name);
-	}
-	std::sort(names.begin(), names.end());
-
-	for (const std::string& name : names) {
-
-		mix(std::hash<std::string>{}(name));
-		const PipelineStaticSamplerSettings& settings = samplerOverrides->byName.at(name);
-		mix(static_cast<uint64_t>(settings.filter));
-		mix(static_cast<uint64_t>(settings.addressU));
-		mix(static_cast<uint64_t>(settings.addressV));
-		mix(static_cast<uint64_t>(settings.addressW));
-		mix(static_cast<uint64_t>(settings.borderColor));
-		mix(static_cast<uint64_t>(settings.comparisonFunc));
-		mix(static_cast<uint64_t>(settings.maxAnisotropy));
-		mixFloat(settings.mipLODBias);
-		mixFloat(settings.minLOD);
-		mixFloat(settings.maxLOD);
-	}
-	return hash;
+	return HashPipelineStaticSamplerOverrides(samplerOverrides);
 }

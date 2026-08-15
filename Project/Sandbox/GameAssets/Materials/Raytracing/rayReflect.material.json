@@ -1,87 +1,15 @@
 {
-    "domain": "Surface",
+    "domain": "RayTracing",
     "name": "rayReflect",
-    "parameters": [
-        {
-            "id": "31d4f90ec37c453f",
-            "name": "emissiveIntensity",
-            "semantic": "None",
-            "value": 0.0
-        },
-        {
-            "id": "77f5c18e246c6638",
-            "name": "color",
-            "semantic": "BaseColor",
-            "value": {
-                "a": 1.0,
-                "b": 1.0,
-                "g": 1.0,
-                "r": 1.0
-            }
-        },
-        {
-            "id": "c4617cc0ecd319d1",
-            "name": "emissiveColor",
-            "semantic": "EmissiveColor",
-            "value": {
-                "a": 1.0,
-                "b": 0.0,
-                "g": 0.0,
-                "r": 0.0
-            }
-        },
-        {
-            "id": "dea02d9fafe208b5",
-            "name": "Roughness",
-            "semantic": "Roughness",
-            "value": 0.5
-        },
-        {
-            "id": "dfe7fef1566d1aa8",
-            "name": "Metallic",
-            "semantic": "Metallic",
-            "value": 0.0
-        }
-    ],
+    "parameters": [],
     "passes": [
         {
-            "passKind": "ZPrepass",
-            "pipeline": "f174818663b0391c031167cb413d4eeb",
-            "preferredVariant": "GraphicsMesh",
-            "shaderOverride": "363bfffbc59d07c3efefb7403758be24"
-        },
-        {
-            "passKind": "EditorPicking",
-            "pipeline": "7be2939c4a9747a9546f4fecbacf9442",
-            "preferredVariant": "GraphicsVertex",
-            "shaderOverride": "7be2939c4a9747a9546f4fecbacf9442"
-        },
-        {
-            "passKind": "Draw",
-            "pipeline": "4a3ea00764e9967a541406c32767df65",
-            "preferredVariant": "GraphicsMesh",
-            "shaderOverride": "c7a7013acb1540eeb6122c2a81440c11"
-        },
-        {
-            "passKind": "Transparent",
-            "pipeline": "d24596cdc018d0bfaa6d121cc7090048",
-            "preferredVariant": "GraphicsMesh",
-            "shaderOverride": "9c5fb33741ab3f341c67eb518f49d7d3"
-        },
-        {
             "passKind": "RayTracing",
-            "pipeline": "e99b1241ae1ecd686c8d2f7a3954d93b",
+            "pipeline": "1f5a061394d922228ba9cb57dfe18dad",
             "preferredVariant": "Raytracing",
-            "shaderOverride": "88b112b73d44e1490c04569e2412239a"
+            "shaderOverride": "ac0213d562336c9da541cc693865e79a"
         }
     ],
-    "renderState": {
-        "blendMode": "Normal",
-        "castShadows": true,
-        "overridesRenderer": true,
-        "phase": "Opaque",
-        "receiveShadows": true
-    },
-    "shaderGraph": "6841ea37deea2eaf5dcfc8d92f022d47",
-    "usage": "Mesh"
+    "shaderGraph": "1923acdb68886d2b237fa7bf5ae181f2",
+    "usage": "Generic"
 }

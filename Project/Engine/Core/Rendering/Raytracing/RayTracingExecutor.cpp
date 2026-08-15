@@ -10,11 +10,11 @@
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingRuntimeOverrides.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
-#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
 // c++
@@ -26,70 +26,14 @@ namespace {
 	constexpr const char* kShaderGraphTimeBufferName =
 		"ShaderGraphTimeConstants";
 
-	Engine::RayTracingTextureSource ResolveInputSource(
-		const Engine::RayTracingEffectSettings& effect,
-		std::string_view shaderResource,
-		bool& found) {
-
-		for (const Engine::RayTracingInputBinding& input : effect.inputs) {
-			if (input.shaderResource == shaderResource) {
-				found = true;
-				return input.source;
-			}
-		}
-		found = false;
-		return Engine::RayTracingTextureSource::SceneColor;
-	}
-
-	Engine::RenderTexture2D* ResolveColorSource(
-		const Engine::SceneExecutionContext& context,
-		Engine::RayTracingTextureSource source) {
-
-		if (!context.resources) {
-			return nullptr;
-		}
-		switch (source) {
-		case Engine::RayTracingTextureSource::SceneColor:
-			return context.resources->GetSceneColorOpaque()->GetColorTexture(0);
-		case Engine::RayTracingTextureSource::GBufferAlbedo:
-			return context.resources->GetGBufferAlbedo();
-		case Engine::RayTracingTextureSource::GBufferNormal:
-			return context.resources->GetGBufferNormal();
-		case Engine::RayTracingTextureSource::GBufferPosition:
-			return context.resources->GetGBufferPosition();
-		case Engine::RayTracingTextureSource::GBufferMaterial:
-			return context.resources->GetGBufferMaterial();
-		case Engine::RayTracingTextureSource::GBufferEmissive:
-			return context.resources->GetGBufferEmissive();
-		case Engine::RayTracingTextureSource::GBufferFlags:
-			return context.resources->GetGBufferFlags();
-		case Engine::RayTracingTextureSource::SceneDepth:
-			return nullptr;
-		}
-		return nullptr;
-	}
-
-	Engine::DepthTexture2D* ResolveDepthSource(
-		const Engine::SceneExecutionContext& context,
-		Engine::RayTracingTextureSource source) {
-
-		if (!context.resources ||
-			source != Engine::RayTracingTextureSource::SceneDepth) {
-			return nullptr;
-		}
-		return context.resources->GetSceneMain()->GetDepthTexture();
-	}
-
 	Engine::AssetID ResolveTextureAsset(
-		const Engine::RayTracingEffectSettings& effect,
+		const Engine::RenderFeaturePassSettings& pass,
 		std::string_view shaderResource) {
 
-		for (const Engine::RayTracingTextureBinding& texture : effect.textures) {
-			if (texture.shaderResource == shaderResource) {
-				return texture.texture;
-			}
-		}
-		return {};
+		const auto found = pass.textureOverrides.find(
+			std::string(shaderResource));
+		return found == pass.textureOverrides.end() ?
+			Engine::AssetID{} : found->second;
 	}
 }
 
@@ -112,19 +56,20 @@ void Engine::RayTracingExecutor::Release() {
 	parameterLayoutCache_.clear();
 	diagnostics_.clear();
 	allocatorFrameSerial_ = 0;
+	lastReflection_ = nullptr;
 }
 
 void Engine::RayTracingExecutor::ReportFailure(
-	const RayTracingEffectSettings& effect, std::string_view reason) {
+	const RenderFeaturePassSettings& pass, std::string_view reason) {
 
-	std::string key = effect.name;
+	std::string key = pass.name;
 	key.push_back('|');
 	key.append(reason);
 	if (!diagnostics_.emplace(std::move(key)).second) {
 		return;
 	}
 	Logger::Output(LogType::Engine, spdlog::level::err,
-		"[RayTracing] {}: {}", effect.name, reason);
+		"[RenderFeature/RayTracing] {}: {}", pass.name, reason);
 }
 
 bool Engine::RayTracingExecutor::Execute(
@@ -132,51 +77,42 @@ bool Engine::RayTracingExecutor::Execute(
 	const SceneExecutionContext& context,
 	RenderAssetLibrary& assetLibrary,
 	RaytracingPipelineStateCache& pipelineCache,
-	const RayTracingEffectSettings& effect,
-	const RayTracingEffectRuntimeOverride* runtimeOverride) {
+	const RenderFeaturePassSettings& pass,
+	const RayTracingExecutionResources& resources,
+	const RenderFeaturePassRuntimeOverride* runtimeOverride) {
 
-	if (!context.resources || !context.assetDatabase || !effect.material ||
+	if (!context.resources || !context.assetDatabase || !pass.material ||
 		!context.raytracing.tlasResource) {
-		ReportFailure(effect, "required scene resources are unavailable");
+		ReportFailure(pass, "required scene resources are unavailable");
 		return false;
 	}
-	const MaterialAsset* material = assetLibrary.LoadMaterial(effect.material);
+	const MaterialAsset* material = assetLibrary.LoadMaterial(pass.material);
 	if (!material) {
-		ReportFailure(effect, "material asset could not be loaded");
+		ReportFailure(pass, "material asset could not be loaded");
 		return false;
 	}
-	const MaterialPassBinding* pass = FindPass(
-		*material, MaterialPassKind::RayTracing);
-	if (!pass || pass->preferredVariant != PipelineVariantKind::Raytracing) {
-		ReportFailure(effect, "material has no RayTracing pass");
+	const MaterialPassBinding* materialPass = FindPass(
+		*material, pass.materialPass);
+	if (!materialPass ||
+		materialPass->preferredVariant != PipelineVariantKind::Raytracing) {
+
+		ReportFailure(pass, "material has no RayTracing pass");
 		return false;
 	}
+	PipelineStaticSamplerOverrideSet samplerOverrides{};
+	samplerOverrides.fillMissingSamplers = true;
+	samplerOverrides.byName = pass.samplerOverrides;
 	RaytracingPipelineState* pipeline = pipelineCache.GetOrCreate(
 		graphicsCore.GetDXObject(), assetLibrary,
-		pass->pipeline, pass->shaderOverride);
+		materialPass->pipeline, materialPass->shaderOverride,
+		&samplerOverrides);
 	if (!pipeline) {
-		ReportFailure(effect, "raytracing pipeline creation failed");
+		ReportFailure(pass, "raytracing pipeline creation failed");
 		return false;
 	}
-
-	MultiRenderTarget* sceneFinal = context.resources->GetSceneFinal();
-	RenderTexture2D* destColor = sceneFinal ?
-		sceneFinal->GetColorTexture(0) : nullptr;
-	if (!destColor || destColor->GetUAVGPUHandle().ptr == 0) {
-		ReportFailure(effect, "scene output UAV is unavailable");
+	if (resources.outputs.empty() || !resources.dispatchTarget) {
+		ReportFailure(pass, "output UAV is unavailable");
 		return false;
-	}
-
-	bool needsSceneColorCopy = false;
-	for (const RayTracingInputBinding& input : effect.inputs) {
-		needsSceneColorCopy |=
-			input.source == RayTracingTextureSource::SceneColor;
-	}
-	if (needsSceneColorCopy) {
-		MultiRenderTargetCopy::CopyColor0Resource(graphicsCore,
-			sceneFinal, context.resources->GetSceneColorOpaque());
-		context.resources->GetSceneColorOpaque()->TransitionForShaderRead(
-			*graphicsCore.GetDXObject().GetDxCommand());
 	}
 
 	BeginFrame();
@@ -188,6 +124,7 @@ bool Engine::RayTracingExecutor::Execute(
 	commandList->SetPipelineState1(pipeline->GetStateObject());
 
 	const ShaderReflectionInfo& reflection = pipeline->GetReflection();
+	lastReflection_ = &reflection;
 	for (const ShaderResourceBinding& binding : reflection.resources) {
 
 		const RootBindingLocation* location = pipeline->FindBindingByName(
@@ -220,34 +157,43 @@ bool Engine::RayTracingExecutor::Execute(
 				}
 				continue;
 			}
-			ReportFailure(effect,
+			ReportFailure(pass,
 				"unresolved buffer: " + binding.name);
 			return false;
 		}
 
 		if (binding.kind == ShaderBindingKind::UAV) {
-			destColor->Transition(*dxCommand,
+			const auto output = resources.outputs.find(binding.name);
+			if (output == resources.outputs.end() || !output->second ||
+				output->second->GetUAVGPUHandle().ptr == 0) {
+
+				ReportFailure(pass, "unresolved UAV: " + binding.name);
+				return false;
+			}
+			output->second->Transition(*dxCommand,
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			RootBindingCommand::SetComputeUAV(commandList, location,
-				0, destColor->GetUAVGPUHandle());
+				0, output->second->GetUAVGPUHandle());
 			continue;
 		}
 		if (binding.kind != ShaderBindingKind::SRV) {
 			continue;
 		}
 
-		bool hasSource = false;
-		const RayTracingTextureSource source = ResolveInputSource(
-			effect, binding.name, hasSource);
-		if (hasSource) {
-			if (RenderTexture2D* color = ResolveColorSource(context, source)) {
+		const auto input = resources.inputs.find(binding.name);
+		if (input != resources.inputs.end() && context.targetRegistry) {
+			if (RenderTexture2D* color =
+				context.targetRegistry->FindColorByName(input->second)) {
+
 				color->Transition(*dxCommand,
 					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 				RootBindingCommand::SetComputeSRV(commandList, location,
 					0, color->GetSRVGPUHandle());
 				continue;
 			}
-			if (DepthTexture2D* depth = ResolveDepthSource(context, source)) {
+			if (DepthTexture2D* depth =
+				context.targetRegistry->FindDepthByName(input->second)) {
+
 				depth->Transition(*dxCommand,
 					D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 				RootBindingCommand::SetComputeSRV(commandList, location,
@@ -256,11 +202,11 @@ bool Engine::RayTracingExecutor::Execute(
 			}
 		}
 
-		const AssetID textureAsset = ResolveTextureAsset(effect, binding.name);
+		const AssetID textureAsset = ResolveTextureAsset(pass, binding.name);
 		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
 			graphicsCore, context.assetDatabase, textureAsset);
 		if (!texture || !texture->valid) {
-			ReportFailure(effect,
+			ReportFailure(pass,
 				"unresolved SRV: " + binding.name);
 			return false;
 		}
@@ -277,7 +223,7 @@ bool Engine::RayTracingExecutor::Execute(
 	}
 	if (layout->second.IsValid()) {
 		MaterialAsset merged = *material;
-		for (const auto& [name, value] : effect.parameterOverrides) {
+		for (const auto& [name, value] : pass.parameterOverrides) {
 			merged.parameters[name] = value;
 		}
 		if (runtimeOverride) {
@@ -335,17 +281,25 @@ bool Engine::RayTracingExecutor::Execute(
 	}
 
 	D3D12_DISPATCH_RAYS_DESC dispatch = pipeline->BuildDispatchDesc(
-		sceneFinal->GetWidth(), sceneFinal->GetHeight(), 1,
-		effect.rayGenerationIndex);
+		resources.dispatchTarget->GetRenderTarget().width,
+		resources.dispatchTarget->GetRenderTarget().height, 1,
+		pass.rayGenerationIndex);
 	if (dispatch.Width == 0 || dispatch.Height == 0) {
-		ReportFailure(effect, "ray generation index is out of range");
+		ReportFailure(pass, "ray generation index is out of range");
 		return false;
 	}
 	commandList->DispatchRays(&dispatch);
-	dxCommand->UAVBarrier(destColor->GetResource());
-	destColor->Transition(*dxCommand,
-		static_cast<D3D12_RESOURCE_STATES>(
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
-			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	for (const auto& [name, output] : resources.outputs) {
+
+		(void)name;
+		if (!output) {
+			continue;
+		}
+		dxCommand->UAVBarrier(output->GetResource());
+		output->Transition(*dxCommand,
+			static_cast<D3D12_RESOURCE_STATES>(
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	}
 	return true;
 }

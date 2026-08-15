@@ -12,8 +12,9 @@
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
-#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackRuntime.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingRuntimeOverrides.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
@@ -978,10 +979,10 @@ namespace {
 				renamedValue->value);
 	}
 
-	bool TestRayTracingRuntimeOverrides() {
+	bool TestRenderFeatureRuntimeOverrides() {
 
-		Engine::RayTracingRuntimeOverrides& overrides =
-			Engine::RayTracingRuntimeOverrides::GetInstance();
+		Engine::RenderFeatureRuntimeOverrides& overrides =
+			Engine::RenderFeatureRuntimeOverrides::GetInstance();
 		overrides.ResetAll();
 		Engine::MaterialParameterValue value{};
 		value.value = 0.75f;
@@ -994,7 +995,7 @@ namespace {
 			return false;
 		}
 
-		const Engine::RayTracingEffectRuntimeOverride* effect =
+		const Engine::RenderFeaturePassRuntimeOverride* effect =
 			overrides.Find("Reflection");
 		const Engine::MaterialParameterValue* parameter = effect ?
 			effect->parameters.Find(parameterID) : nullptr;
@@ -1004,7 +1005,7 @@ namespace {
 			std::get<float>(parameter->value) == 0.75f;
 		const bool cleared = overrides.ClearParameter(
 			"Reflection", parameterID) &&
-			overrides.ResetEffect("Reflection");
+			overrides.ResetPass("Reflection");
 		overrides.ResetAll();
 		return valid && cleared && overrides.Find("Reflection") == nullptr;
 	}
@@ -1238,6 +1239,28 @@ namespace {
 				Engine::ToJson(postProcessGraph), restoredPostProcess) ||
 			restoredPostProcess.domain !=
 				Engine::ShaderGraphDomain::PostProcess) {
+			return false;
+		}
+
+		const Engine::ShaderGraphAsset rayTracingGraph =
+			Engine::CreateDefaultRayTracingEffectShaderGraph(
+				"NEMRayTracingFeature");
+		const Engine::ShaderGraphCompileOutput rayTracingOutput =
+			Engine::ShaderGraphCompiler::Compile(
+				rayTracingGraph, "NEMRayTracingFeature.generated.hlsli");
+		Engine::ShaderGraphAsset restoredRayTracing{};
+		if (!rayTracingOutput.Succeeded() ||
+			rayTracingOutput.rayTracingHLSL.find(
+				"RenderFeatureRayGeneration") == std::string::npos ||
+			rayTracingOutput.rayTracingHLSL.find("TraceRay(") ==
+				std::string::npos ||
+			!Engine::FromJson(Engine::ToJson(rayTracingGraph),
+				restoredRayTracing) ||
+			restoredRayTracing.domain !=
+				Engine::ShaderGraphDomain::RayTracingEffect ||
+			!writeGeneratedGraph(rayTracingGraph,
+				"RayTracingFeature")) {
+
 			return false;
 		}
 
@@ -1729,63 +1752,91 @@ namespace {
 			!invalid.diagnostics.empty();
 	}
 
-	bool TestPostProcessGraphPlan() {
+	bool TestRenderFeatureProfile() {
 
-		Engine::PostProcessStackRuntime runtime{};
-		Engine::PostProcessStackRuntimePass first{};
-		first.id = Engine::UUID{ 1 };
-		first.material = Engine::AssetID{ 1, 1 };
-		Engine::PostProcessStackRuntimePass second{};
-		second.id = Engine::UUID{ 2 };
-		second.material = Engine::AssetID{ 1, 2 };
-		second.sourcePass = first.id;
-		Engine::PostProcessStackRuntimePass output{};
-		output.id = Engine::UUID{ 3 };
-		output.material = Engine::AssetID{ 1, 3 };
-		output.sourcePass = first.id;
-		output.passInputs.emplace("historyTexture", second.id);
-		output.graphOutput = true;
-		runtime.passes = { first, second, output };
+		Engine::RenderFeatureProfileAsset profile{};
+		profile.name = "RenderFeatureTest";
 
-		const Engine::PostProcessGraphPlan plan =
-			runtime.BuildGraphPlan(
-				Engine::PostProcessAnchor::AfterMaskedUI);
-		if (!plan.diagnostic.empty() || plan.nodes.size() != 3 ||
-			plan.nodes[0].pass->id != first.id ||
-			plan.nodes[1].pass->id != second.id ||
-			plan.nodes[2].pass->id != output.id) {
+		Engine::RenderFeaturePassSettings ao{};
+		ao.id = Engine::UUID{ 11 };
+		ao.name = "RTAO";
+		ao.type = Engine::RenderFeaturePassType::RayTracing;
+		ao.anchor = Engine::RenderFeatureAnchor::BeforeLighting;
+		ao.material = Engine::AssetID{ 1, 11 };
+		ao.materialPass = Engine::MaterialPassKind::RayTracing;
+		ao.outputs.emplace_back(Engine::RenderFeatureOutputSettings{
+			.name = "AO",
+			.shaderResource = "gAmbientOcclusion",
+			.format = Engine::RenderFeatureTextureFormat::R16_FLOAT,
+			.widthScale = 0.5f,
+			.heightScale = 0.5f,
+		});
+
+		Engine::RenderFeaturePassSettings reflection{};
+		reflection.id = Engine::UUID{ 12 };
+		reflection.name = "Reflection";
+		reflection.type = Engine::RenderFeaturePassType::RayTracing;
+		reflection.anchor = Engine::RenderFeatureAnchor::AfterLighting;
+		reflection.material = Engine::AssetID{ 1, 12 };
+		reflection.materialPass = Engine::MaterialPassKind::RayTracing;
+		reflection.passInputs.emplace(
+			"gAmbientOcclusion",
+			Engine::RenderFeatureOutputReference{
+				.pass = ao.id,
+				.output = "AO",
+			});
+		reflection.outputs.emplace_back(
+			Engine::RenderFeatureOutputSettings{});
+
+		Engine::RenderFeaturePassSettings composite{};
+		composite.id = Engine::UUID{ 13 };
+		composite.name = "ReflectionComposite";
+		composite.anchor = Engine::RenderFeatureAnchor::AfterLighting;
+		composite.material = Engine::AssetID{ 1, 13 };
+		composite.sourceKind = Engine::RenderFeatureSourceKind::SceneColor;
+		composite.passInputs.emplace(
+			"gReflectionColor",
+			Engine::RenderFeatureOutputReference{
+				.pass = reflection.id,
+				.output = "Color",
+			});
+		composite.outputs.emplace_back(
+			Engine::RenderFeatureOutputSettings{});
+		composite.sceneColorOutput = true;
+		profile.passes = { ao, reflection, composite };
+
+		const nlohmann::json data =
+			Engine::RenderFeatureProfileSerializer::ToJson(profile);
+		const Engine::RenderFeatureProfileAsset restored =
+			Engine::RenderFeatureProfileSerializer::FromJson(data);
+		if (restored.name != profile.name || restored.passes.size() != 3 ||
+			restored.passes[0].outputs[0].format !=
+				Engine::RenderFeatureTextureFormat::R16_FLOAT ||
+			restored.passes[1].passInputs.at("gAmbientOcclusion").pass !=
+				ao.id || restored.passes[2].sourceKind !=
+				Engine::RenderFeatureSourceKind::SceneColor) {
 
 			return false;
 		}
 
-		runtime.passes[0].sourcePass = second.id;
-		const Engine::PostProcessGraphPlan cycle =
-			runtime.BuildGraphPlan(
-				Engine::PostProcessAnchor::AfterMaskedUI);
-		if (cycle.diagnostic.empty() || !cycle.nodes.empty()) {
+		Engine::RenderFeatureProfileRuntime runtime{};
+		runtime.Rebuild(restored);
+		const Engine::RenderFeatureExecutionPlan beforeLighting =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::BeforeLighting);
+		const Engine::RenderFeatureExecutionPlan afterLighting =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting);
+		if (!beforeLighting.IsValid() || beforeLighting.nodes.size() != 1 ||
+			!afterLighting.IsValid() || afterLighting.nodes.size() != 2 ||
+			afterLighting.nodes.back().source.pass ||
+			afterLighting.sceneColorOutput.pass != composite.id) {
+
 			return false;
 		}
 
-		// 別Anchorや無効パスへの参照を実行時まで持ち越さない
-		runtime.passes[0].sourcePass = {};
-		runtime.passes[1].anchor =
-			Engine::PostProcessAnchor::AfterLighting;
-		const Engine::PostProcessGraphPlan missingDependency =
-			runtime.BuildGraphPlan(
-				Engine::PostProcessAnchor::AfterMaskedUI);
-		if (missingDependency.diagnostic.empty() ||
-			!missingDependency.nodes.empty()) {
-			return false;
-		}
-
-		runtime.passes[1].anchor =
-			Engine::PostProcessAnchor::AfterMaskedUI;
-		runtime.passes[1].graphOutput = true;
-		const Engine::PostProcessGraphPlan duplicateOutput =
-			runtime.BuildGraphPlan(
-				Engine::PostProcessAnchor::AfterMaskedUI);
-		return !duplicateOutput.diagnostic.empty() &&
-			duplicateOutput.nodes.empty();
+		profile.passes[0].anchor = Engine::RenderFeatureAnchor::AfterTransparent;
+		runtime.Rebuild(profile);
+		return !runtime.BuildPlan(
+			Engine::RenderFeatureAnchor::AfterLighting).IsValid();
 	}
 }
 
@@ -1804,7 +1855,7 @@ int main(int argc, char* argv[]) {
 		std::string_view(argv[1]) == "--shader-graph") {
 
 		if (!TestShaderGraphCompile() ||
-			!TestRayTracingRuntimeOverrides() ||
+			!TestRenderFeatureRuntimeOverrides() ||
 			!TestRayTracingPipelineSerialization()) {
 			std::cerr << "Shader Graph compilation failed\n";
 			return 18;
@@ -1881,8 +1932,8 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
 	}
-	if (!TestRayTracingRuntimeOverrides()) {
-		std::cerr << "Ray Tracing runtime overrides failed\n";
+	if (!TestRenderFeatureRuntimeOverrides()) {
+		std::cerr << "Render Feature runtime overrides failed\n";
 		return 20;
 	}
 	if (!TestRayTracingPipelineSerialization()) {
@@ -1893,9 +1944,9 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Shader Graph compilation failed\n";
 		return 18;
 	}
-	if (!TestPostProcessGraphPlan()) {
-		std::cerr << "PostProcess graph planning failed\n";
-		return 19;
+	if (!TestRenderFeatureProfile()) {
+		std::cerr << "RenderFeature profile failed\n";
+		return 22;
 	}
 	std::cout << "NEMTests passed\n";
 	return 0;

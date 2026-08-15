@@ -8,13 +8,15 @@
 cbuffer ViewConstants : register(b0) {
 
 	float4x4 viewProjection;
+	float4x4 previousViewProjection;
 	float3 cameraPosition;
-	float _viewPad0;
+	uint frameSerial;
 };
 
 struct PrimitiveInstance {
 
 	float4x4 worldMatrix;
+	float4x4 previousWorldMatrix;
 	float4x4 uvMatrix;
 	float4 shapeParams0;
 	float4 shapeParams1;
@@ -22,7 +24,8 @@ struct PrimitiveInstance {
 	float4 centerColor;
 	float4 bottomColor;
 	uint flags;
-	uint3 _pad;
+	uint motionFrameSerial;
+	uint2 _pad;
 };
 
 float SmoothCylinderProfile(float t, float weight, bool pullEnd) {
@@ -59,6 +62,8 @@ struct VSOutput {
 	float tangentSign : TEXCOORD4;
 	nointerpolation uint flags : TEXCOORD5;
 	float4 vertexColor : COLOR0;
+	float4 currentClipPosition : TEXCOORD6;
+	float4 previousClipPosition : TEXCOORD7;
 };
 
 VSOutput BuildPrimitiveVertexOutput(
@@ -75,6 +80,14 @@ VSOutput BuildPrimitiveVertexOutput(
 		float4(localPosition, 1.0f),
 		instance.worldMatrix);
 	output.position = mul(worldPosition, viewProjection);
+	output.currentClipPosition = output.position;
+	float4x4 previousWorldMatrix =
+		instance.motionFrameSerial == frameSerial ?
+		instance.previousWorldMatrix : instance.worldMatrix;
+	float4 previousWorldPosition = mul(
+		float4(localPosition, 1.0f), previousWorldMatrix);
+	output.previousClipPosition = mul(
+		previousWorldPosition, previousViewProjection);
 	output.worldPos = worldPosition.xyz;
 	output.normal = normalize(mul(
 		localNormal, (float3x3)instance.worldMatrix));

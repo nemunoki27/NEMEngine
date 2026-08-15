@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 
 //============================================================================
@@ -47,6 +48,8 @@ void Engine::RaytracingViewBufferSet::Upload(const ResolvedRenderView& view, con
 	debugData_.skyboxCubemapIndex = skybox.cubemapIndex;
 	debugData_.hasSkybox = skybox.found ? 1u : 0u;
 	debugData_.iblIntensity = skybox.iblIntensity;
+	debugData_.frameIndex = static_cast<uint32_t>(
+		GraphicsFrameState::GetFrameSerial());
 
 	// データ転送
 	params_.Upload(debugData_);

@@ -25,6 +25,7 @@ namespace Engine {
 		UI,
 		Fullscreen,
 		Compute,
+		RayTracing,
 	};
 	// マテリアルを使用する描画機能
 	enum class MaterialUsage :

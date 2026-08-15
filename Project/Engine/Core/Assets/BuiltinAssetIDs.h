@@ -27,6 +27,9 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ToneMapToView{ 0x4e454d4153534554ull, 0xaa28624401e1e4b6ull };
 		inline constexpr AssetID OutputTransform{ 0x4e454d4153534554ull, 0xae00000000000014ull };
 		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7cull };
+		inline constexpr AssetID ReflectionSpatial{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7dull };
+		inline constexpr AssetID ReflectionTemporal{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7eull };
+		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0x375384bc3bf6bb7full };
 		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0004ull };
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6031ull };
 		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6032ull };
@@ -45,7 +48,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000010ull };
 	}
 
-	namespace RayTracingProfiles {
+	namespace RenderFeatureProfiles {
 
 		inline constexpr AssetID Default{
 			0x4e454d4153534554ull, 0x525450524f46494cull };
@@ -76,6 +79,9 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6023ull };
 		inline constexpr AssetID PostProcessMaskComposite{ 0x4e454d4153534554ull, 0x50504d41534b0003ull };
 		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0x6228d203578ecde2ull };
+		inline constexpr AssetID ReflectionSpatial{ 0x4e454d4153534554ull, 0x6228d203578ecde3ull };
+		inline constexpr AssetID ReflectionTemporal{ 0x4e454d4153534554ull, 0x6228d203578ecde4ull };
+		inline constexpr AssetID ReflectionComposite{ 0x4e454d4153534554ull, 0x6228d203578ecde5ull };
 	}
 
 	namespace Shaders {

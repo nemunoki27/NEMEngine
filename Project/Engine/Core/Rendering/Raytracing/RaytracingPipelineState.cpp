@@ -129,7 +129,8 @@ uint64_t Engine::RaytracingPipelineState::NextUniqueID() {
 bool Engine::RaytracingPipelineState::Create(
 	ID3D12Device8* device, DxShaderCompiler* compiler,
 	const PipelineVariantDesc& variant,
-	const ShaderAsset& shaderAsset) {
+	const ShaderAsset& shaderAsset,
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	stateObject_.Reset();
 	stateProps_.Reset();
@@ -143,7 +144,8 @@ bool Engine::RaytracingPipelineState::Create(
 	hitGroupCount_ = 0;
 	callableCount_ = 0;
 
-	if (!BuildStateObject(device, compiler, variant, shaderAsset)) {
+	if (!BuildStateObject(device, compiler, variant, shaderAsset,
+		samplerOverrides)) {
 		return false;
 	}
 	Logger::Output(LogType::Engine,
@@ -218,7 +220,8 @@ bool Engine::RaytracingPipelineState::BuildGlobalRootSignature(
 bool Engine::RaytracingPipelineState::BuildStateObject(
 	ID3D12Device8* device, DxShaderCompiler* compiler,
 	const PipelineVariantDesc& variant,
-	const ShaderAsset& shaderAsset) {
+	const ShaderAsset& shaderAsset,
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	if (variant.rayGenerationExports.empty() || variant.missExports.empty()) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -275,8 +278,10 @@ bool Engine::RaytracingPipelineState::BuildStateObject(
 		MergeShaderReflection(reflection_, compiled.reflection);
 	}
 	ApplyShaderParameterMetadata(reflection_, shaderAsset);
-	if (!BuildGlobalRootSignature(device, compiledPointers,
-		variant.staticSamplers)) {
+	const std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers =
+		samplerOverrides ? BuildPipelineStaticSamplers(reflection_,
+			variant.staticSamplers, *samplerOverrides) : variant.staticSamplers;
+	if (!BuildGlobalRootSignature(device, compiledPointers, staticSamplers)) {
 		return false;
 	}
 

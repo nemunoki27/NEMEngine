@@ -75,6 +75,9 @@ namespace Engine {
 			uint32_t irradianceCubemapIndex = 0xFFFFFFFF;
 			// 拡散IBL環境光の強さ
 			float iblIntensity = 1.0f;
+
+			uint32_t softShadowSampleCount = 4;
+			uint32_t _pad0[3]{};
 		};
 
 		//--------- variables ----------------------------------------------------

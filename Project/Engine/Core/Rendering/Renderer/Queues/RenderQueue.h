@@ -119,6 +119,8 @@ namespace Engine {
 
 		// ワールド変換行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
+		uint32_t motionFrameSerial = 0;
 
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;
@@ -147,6 +149,8 @@ namespace Engine {
 		ECSWorld* world = nullptr;
 		Entity entity = Entity::Null();
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
+		uint32_t motionFrameSerial = 0;
 	};
 
 	class RenderSceneBatch {

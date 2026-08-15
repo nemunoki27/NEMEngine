@@ -578,28 +578,28 @@
       "managedType": "delegate* unmanaged[Cdecl]<int>"
     },
     {
-      "name": "setRayTracingEffectEnabled",
-      "nativeType": "SetRayTracingEffectEnabledCallback",
+      "name": "setRenderFeaturePassEnabled",
+      "nativeType": "SetRenderFeaturePassEnabledCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
     },
     {
-      "name": "setRayTracingEffectParameter",
-      "nativeType": "SetRayTracingEffectParameterCallback",
+      "name": "setRenderFeaturePassParameter",
+      "nativeType": "SetRenderFeaturePassParameterCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong, byte*, NativeMaterialParameterValue*, int>"
     },
     {
-      "name": "clearRayTracingEffectParameter",
-      "nativeType": "ClearRayTracingEffectParameterCallback",
+      "name": "clearRenderFeaturePassParameter",
+      "nativeType": "ClearRenderFeaturePassParameterCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong, int>"
     },
     {
-      "name": "resetRayTracingEffect",
-      "nativeType": "ResetRayTracingEffectCallback",
+      "name": "resetRenderFeaturePass",
+      "nativeType": "ResetRenderFeaturePassCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, int>"
     },
     {
-      "name": "resetRayTracingOverrides",
-      "nativeType": "ResetRayTracingOverridesCallback",
+      "name": "resetRenderFeatureOverrides",
+      "nativeType": "ResetRenderFeatureOverridesCallback",
       "managedType": "delegate* unmanaged[Cdecl]<void>"
     },
     {

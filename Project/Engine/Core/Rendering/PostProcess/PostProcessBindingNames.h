@@ -9,6 +9,8 @@ namespace Engine::PostProcessBindingNames {
 
 	// 入力カラーで現在パスのsourceが自動で割り当てられる
 	inline constexpr const char* kSourceColor = "gSourceColor";
+	// GBufferの未ライティングAlbedoを参照する入力
+	inline constexpr const char* kSourceAlbedo = "gSourceAlbedo";
 	// 入力深度で現在パスのsource深度が自動で割り当てられる
 	inline constexpr const char* kSourceDepth = "gSourceDepth";
 	// 出力先カラーで現在パスのdestが自動で割り当てられる
@@ -17,4 +19,6 @@ namespace Engine::PostProcessBindingNames {
 	inline constexpr const char* kEffectColor = "gEffectColor";
 	// GBufferに保存したMaterial/描画対象フラグ
 	inline constexpr const char* kSourceFlags = "gSourceFlags";
+	// GBufferの現在UVから前フレームUVへの移動量
+	inline constexpr const char* kSourceMotion = "gSourceMotion";
 } // Engine::PostProcessBindingNames

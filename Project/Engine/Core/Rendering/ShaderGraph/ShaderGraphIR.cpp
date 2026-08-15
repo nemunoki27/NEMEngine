@@ -221,9 +221,13 @@ Engine::ShaderGraphIRModule Engine::ShaderGraphIRBuilder::Build(
 			ShaderGraphStage::Vertex, module.vertexInstructions);
 		context.BuildStage(graph.outputNode,
 			ShaderGraphStage::Fragment, module.fragmentInstructions);
-	} else {
+	} else if (graph.domain == ShaderGraphDomain::PostProcess) {
 		context.BuildStage(graph.outputNode,
 			ShaderGraphStage::Compute, module.computeInstructions);
+	} else {
+		context.BuildStage(graph.outputNode,
+			ShaderGraphStage::RayGeneration,
+			module.rayGenerationInstructions);
 	}
 	return module;
 }

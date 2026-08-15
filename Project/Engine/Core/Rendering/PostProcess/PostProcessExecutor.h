@@ -71,6 +71,7 @@ namespace Engine {
 		RenderTargetSetReference source;
 		RenderTargetSetReference dest;
 		std::unordered_map<std::string, std::string> extraSources;
+		std::unordered_map<std::string, std::string> outputTargets;
 		MaterialParameterSet parameterOverrides;
 		std::unordered_map<std::string, AssetID> textureOverrides;
 		std::unordered_map<std::string, PipelineStaticSamplerSettings> samplerOverrides;

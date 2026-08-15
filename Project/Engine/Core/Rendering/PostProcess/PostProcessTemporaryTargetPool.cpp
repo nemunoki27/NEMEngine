@@ -55,11 +55,21 @@ Engine::MultiRenderTarget* Engine::PostProcessTemporaryTargetPool::Acquire(
 Engine::SceneRenderTargetFormat Engine::PostProcessTemporaryTargetPool::ToSceneFormat(DXGI_FORMAT format) {
 
 	switch (format) {
+	case DXGI_FORMAT_R8_UNORM:
+		return SceneRenderTargetFormat::R8_UNORM;
+	case DXGI_FORMAT_R16_FLOAT:
+		return SceneRenderTargetFormat::R16_FLOAT;
+	case DXGI_FORMAT_R16G16_FLOAT:
+		return SceneRenderTargetFormat::RG16_FLOAT;
 	case DXGI_FORMAT_R8G8B8A8_UNORM:
 	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
 		return SceneRenderTargetFormat::RGBA8_UNORM;
 	case DXGI_FORMAT_R16G16B16A16_FLOAT:
 		return SceneRenderTargetFormat::RGBA16_FLOAT;
+	case DXGI_FORMAT_R32_FLOAT:
+		return SceneRenderTargetFormat::R32_FLOAT;
+	case DXGI_FORMAT_R32G32_FLOAT:
+		return SceneRenderTargetFormat::RG32_FLOAT;
 	case DXGI_FORMAT_R32G32B32A32_FLOAT:
 	default:
 		return SceneRenderTargetFormat::RGBA32_FLOAT;

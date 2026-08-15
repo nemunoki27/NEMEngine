@@ -7,7 +7,7 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/TopLevelAccelerationStructure.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h> 
+#include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
@@ -272,6 +272,9 @@ namespace Engine {
 		std::unordered_map<AssetID, uint32_t> sRGBTextureDescriptorIndexCache_{};
 		// 非同期読込中は静的シーンのマテリアルバッファを次フレームも再構築する
 		bool hasPendingTextureDescriptors_ = false;
+		// 反射履歴の無効化に使うマテリアル内容の世代
+		uint64_t sceneMaterialGeneration_ = 0;
+		uint64_t cachedSceneMaterialHash_ = 0;
 		SRVDescriptor* srvDescriptor_ = nullptr;
 
 		// 初期化済みか

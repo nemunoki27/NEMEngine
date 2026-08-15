@@ -23,6 +23,7 @@
 
 // c++
 #include <algorithm>
+#include <unordered_set>
 
 //============================================================================
 //	PostProcessExecutor classMethods
@@ -109,7 +110,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	// 深度リソースをポストプロセスで使用するか
 	const bool requiresDepth = RequiresSourceDepth(*pipelineState);
 	// 使用するのに深度リソースがない場合
-	if (requiresDepth && !source->GetDepthTexture()) {
+	if (requiresDepth && !ResolveSourceDepth(context, desc, *source)) {
 		Logger::Output(LogType::Engine, logHeader + "requires gSourceDepth, but source depth is missing.");
 		return false;
 	}
@@ -140,7 +141,9 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			continue;
 		}
 		if (binding.kind == ShaderBindingKind::UAV) {
-			if (!AppendUAVBinding(binding, graphicsCore, *dest, binds, logHeader)) {
+			if (!AppendUAVBinding(binding, graphicsCore, context,
+				desc, *dest, binds, logHeader)) {
+
 				return false;
 			}
 			continue;
@@ -266,10 +269,25 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	}
 	commandList->Dispatch(dispatchX, dispatchY, dispatchZ);
 
-	// UAVバリアを張る
-	const D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(destColor->GetResource());
-	commandList->ResourceBarrier(1, &uavBarrier);
-	dest->TransitionForShaderRead(*dxCommand);
+	// 名前付き出力を含む全UAVの書き込み完了を後続Passへ公開する
+	std::unordered_set<RenderTexture2D*> outputTextures{ destColor };
+	for (const auto& [name, targetName] : desc.outputTargets) {
+
+		(void)name;
+		if (RenderTexture2D* output =
+			context.targetRegistry->FindColorByName(targetName)) {
+
+			outputTextures.insert(output);
+		}
+	}
+	for (RenderTexture2D* output : outputTextures) {
+
+		dxCommand->UAVBarrier(output->GetResource());
+		output->Transition(*dxCommand,
+			static_cast<D3D12_RESOURCE_STATES>(
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
+				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	}
 
 	return true;
 }

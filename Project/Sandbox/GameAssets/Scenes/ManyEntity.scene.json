@@ -37129,7 +37129,7 @@
     ],
     "Header": {
         "name": "ManyEntity",
-        "postProcessStack": "4e454d4153534554799b3b15597cb842",
+        "renderFeatureProfile": "4e454d4153534554525450524f46494c",
         "subScenes": []
     },
     "PrefabInstances": [],

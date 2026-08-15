@@ -19,14 +19,13 @@ namespace {
 		Engine::AssetType type = Engine::AssetType::DefaultAsset;
 	};
 
-	constexpr std::array<CompoundAssetSuffix, 16> kCompoundAssetSuffixes = {
+	constexpr std::array<CompoundAssetSuffix, 15> kCompoundAssetSuffixes = {
 		CompoundAssetSuffix{ ".scene.json", Engine::AssetType::Scene },
-		CompoundAssetSuffix{ ".postprocessstack.json", Engine::AssetType::PostProcessStack },
+		CompoundAssetSuffix{ ".renderfeatureprofile.json", Engine::AssetType::RenderFeatureProfile },
 		CompoundAssetSuffix{ ".effect.json", Engine::AssetType::ParticleEffect },
 		CompoundAssetSuffix{ ".prefab.json", Engine::AssetType::Prefab },
 		CompoundAssetSuffix{ ".material.json", Engine::AssetType::Material },
 		CompoundAssetSuffix{ ".shadergraph.json", Engine::AssetType::ShaderGraph },
-		CompoundAssetSuffix{ ".raytracingprofile.json", Engine::AssetType::RayTracingProfile },
 		CompoundAssetSuffix{ ".graph.json", Engine::AssetType::ShaderGraph },
 		CompoundAssetSuffix{ ".shader.json", Engine::AssetType::Shader },
 		CompoundAssetSuffix{ ".pipeline.json", Engine::AssetType::RenderPipeline },
@@ -117,10 +116,9 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::AnimationClip:
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
-	case AssetType::PostProcessStack:
 	case AssetType::ParticleEffect:
 	case AssetType::ShaderGraph:
-	case AssetType::RayTracingProfile:
+	case AssetType::RenderFeatureProfile:
 		return true;
 	default:
 		return false;

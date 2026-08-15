@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <list>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Engine {
@@ -133,6 +134,7 @@ namespace Engine {
 		float GetAverageMs(Category category) const;
 
 		const std::vector<NamedTime>& GetGPUPassTimes() const { return gpuPassTimes_; }
+		float FindGPUPassMs(std::string_view name) const;
 		float GetGPUTotalMs() const;
 		bool HasGPUData() const { return !gpuPassTimes_.empty(); }
 

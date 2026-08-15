@@ -35,6 +35,9 @@ namespace Engine {
 
 	// 指定された名前のレンダーターゲットを解決
 	MultiRenderTarget* ResolveExtraSource(const SceneExecutionContext& context, const std::string& targetName);
+	// sourceがカラー専用の場合も追加入力から標準深度を解決する
+	DepthTexture2D* ResolveSourceDepth(const SceneExecutionContext& context,
+		const PostProcessExecutionDesc& desc, MultiRenderTarget& source);
 
 	// SRVバインディングを追加し標準名のgSourceColorやgSourceDepthやオーバーライドを考慮する
 	bool AppendSRVBinding(const ShaderResourceBinding& binding,
@@ -44,7 +47,8 @@ namespace Engine {
 
 	// UAVバインディングを追加し出力先のgDestColorをバインドする
 	bool AppendUAVBinding(const ShaderResourceBinding& binding,
-		GraphicsCore& graphicsCore, MultiRenderTarget& dest,
+		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
+		const PostProcessExecutionDesc& desc, MultiRenderTarget& dest,
 		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader);
 
 } // Engine

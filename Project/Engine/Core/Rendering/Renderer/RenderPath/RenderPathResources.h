@@ -50,6 +50,7 @@ namespace Engine {
 		Material = 3,
 		Emissive = 4,
 		Flags = 5,
+		Motion = 6,
 		Count
 	};
 
@@ -104,6 +105,7 @@ namespace Engine {
 		RenderTexture2D* GetGBufferMaterial() const { return GetGBufferColor(GBufferAttachment::Material); }
 		RenderTexture2D* GetGBufferEmissive() const { return GetGBufferColor(GBufferAttachment::Emissive); }
 		RenderTexture2D* GetGBufferFlags() const { return GetGBufferColor(GBufferAttachment::Flags); }
+		RenderTexture2D* GetGBufferMotion() const { return GetGBufferColor(GBufferAttachment::Motion); }
 		// 属性を動的に選んで取得する、GBufferデバッグ表示などで使う
 		RenderTexture2D* GetGBuffer(GBufferAttachment attachment) const { return GetGBufferColor(attachment); }
 		// Runtime Component用のScreen-space Outline中間RT

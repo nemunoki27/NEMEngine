@@ -4226,9 +4226,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 88.94266510009766,
+                        "x": 54.377784729003906,
                         "y": 0.6300348043441772,
-                        "z": -2.116823196411133
+                        "z": -10.744595527648926
                     },
                     "localRotation": {
                         "w": 0.882357656955719,
@@ -14914,6 +14914,12 @@
                                         "g": 0.0,
                                         "r": 0.0
                                     }
+                                },
+                                {
+                                    "id": "dfe7fef1566d1aa8",
+                                    "name": "Metallic",
+                                    "semantic": "Metallic",
+                                    "value": 0.0
                                 }
                             ],
                             "name": "piece_queen_black",
@@ -15788,9 +15794,9 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 79.5134048461914,
-                        "y": -0.25017595291137695,
-                        "z": 5.5666985511779785
+                        "x": 44.94849395751953,
+                        "y": -0.2501757740974426,
+                        "z": -3.061065673828125
                     },
                     "localRotation": {
                         "w": 0.9238796234130859,
@@ -15964,7 +15970,7 @@
                 "MeshRenderer": {
                     "blendMode": "Normal",
                     "castReflection": true,
-                    "castShadow": true,
+                    "castShadow": false,
                     "enableZPrepass": true,
                     "layer": 0,
                     "lighting": true,
@@ -15974,7 +15980,7 @@
                     "queue": "Opaque",
                     "receiveIBL": true,
                     "receiveReflection": true,
-                    "receiveShadow": true,
+                    "receiveShadow": false,
                     "renderingLayerMask": 1,
                     "subMeshes": [
                         {
@@ -16061,20 +16067,20 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 96.61412048339844,
+                        "x": 76.02525329589844,
                         "y": 5.720898628234863,
-                        "z": -7.1347784996032715
+                        "z": -0.816554069519043
                     },
                     "localRotation": {
-                        "w": 0.8384042978286743,
+                        "w": 0.6800813674926758,
                         "x": 0.0,
-                        "y": -0.5450488328933716,
+                        "y": -0.7331367135047913,
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 14.62414264678955,
-                        "y": 13.408235549926758,
-                        "z": 14.542521476745605
+                        "x": 14.624168395996094,
+                        "y": 13.408257484436035,
+                        "z": 14.542548179626465
                     }
                 }
             },
@@ -16083,8 +16089,7 @@
     ],
     "Header": {
         "name": "Sponza",
-        "postProcessStack": "6ba35c82529925140ca517bf3c45d385",
-        "rayTracingProfile": "",
+        "renderFeatureProfile": "6ba35c82529925140ca517bf3c45d385",
         "subScenes": [
             {
                 "enabled": false,

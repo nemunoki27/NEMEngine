@@ -4,12 +4,14 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 //============================================================================
 //	RenderQueue classMethods
 //============================================================================
 void Engine::RenderSceneBatch::Add(RenderItem&& item) {
 
+	item.previousWorldMatrix = item.worldMatrix;
 	items_.emplace_back(std::move(item));
 }
 
@@ -136,7 +138,10 @@ void Engine::RenderSceneBatch::RefreshTransforms(
 				item.worldMatrix == worldMatrix) {
 				continue;
 			}
+			item.previousWorldMatrix = item.worldMatrix;
 			item.worldMatrix = worldMatrix;
+			item.motionFrameSerial = static_cast<uint32_t>(
+				GraphicsFrameState::GetFrameSerial());
 			changed = true;
 		}
 		if (changed) {
@@ -145,6 +150,9 @@ void Engine::RenderSceneBatch::RefreshTransforms(
 					.world = &world,
 					.entity = entity,
 					.worldMatrix = worldMatrix,
+					.previousWorldMatrix = items_[begin->second].previousWorldMatrix,
+					.motionFrameSerial = static_cast<uint32_t>(
+						GraphicsFrameState::GetFrameSerial()),
 				});
 		}
 	}
@@ -162,12 +170,18 @@ void Engine::RenderSceneBatch::RefreshAllTransforms() {
 		if (item.worldMatrix == worldMatrix) {
 			continue;
 		}
+		const Matrix4x4 previousWorldMatrix = item.worldMatrix;
+		item.previousWorldMatrix = previousWorldMatrix;
 		item.worldMatrix = worldMatrix;
+		item.motionFrameSerial = static_cast<uint32_t>(
+			GraphicsFrameState::GetFrameSerial());
 		transformChanges_.emplace_back(
 			RenderTransformChange{
 				.world = item.world,
 				.entity = item.entity,
 				.worldMatrix = worldMatrix,
+				.previousWorldMatrix = previousWorldMatrix,
+				.motionFrameSerial = item.motionFrameSerial,
 			});
 	}
 }

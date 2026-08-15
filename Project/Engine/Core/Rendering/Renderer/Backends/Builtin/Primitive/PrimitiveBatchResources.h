@@ -24,6 +24,7 @@ namespace Engine {
 	struct PrimitiveInstanceData {
 
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
 		Matrix4x4 uvMatrix = Matrix4x4::Identity();
 		// Cylinderの上面、中心、下面半径と高さ
 		Vector4 shapeParams0 = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -33,11 +34,11 @@ namespace Engine {
 		Color4 centerColor = Color4::White();
 		Color4 bottomColor = Color4::White();
 		uint32_t flags = 0;
+		uint32_t motionFrameSerial = 0;
 		uint32_t pad0 = 0;
 		uint32_t pad1 = 0;
-		uint32_t pad2 = 0;
 	};
-	static_assert(sizeof(PrimitiveInstanceData) == 224);
+	static_assert(sizeof(PrimitiveInstanceData) == 288);
 
 	//============================================================================
 	//	PrimitiveBatchResources class

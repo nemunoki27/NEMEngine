@@ -54,7 +54,7 @@ cbuffer RaytracingViewConstants : register(b0) {
 	uint gSkyboxCubemapIndex;
 	uint gHasSkybox;
 	float gIBLIntensity;
-	float gPad1;
+	uint gFrameIndex;
 };
 
 struct ReflectionPayload {
@@ -64,6 +64,9 @@ struct ReflectionPayload {
 
 	float3 worldPosition;
 	float hitDistance;
+
+	float3 worldNormal;
+	float _pad0;
 };
 struct RaytracingInstanceShaderData {
 
@@ -117,14 +120,19 @@ StructuredBuffer<RaytracingGeometryShaderData> gRaytracingGeometries :
 	register(t7);
 Texture2D<uint> gSourceFlags : register(t8);
 Texture2D<float4> gSourceMaterial : register(t9);
+Texture2D<float4> gSourceAlbedo : register(t10);
 StructuredBuffer<LightClusterHeader> gLightClusterHeaders : register(t15);
 StructuredBuffer<uint> gLightClusterIndices : register(t16);
+SamplerState gEnvironmentSampler : register(s1);
 
-// 反射に映すインスタンスのTLASマスク
+// TLAS用途別マスク
+static const uint kRaytracingMaskShadowCaster = 1u;
 static const uint kRaytracingMaskReflectionCaster = 1u << 1;
-static const uint kRaytracingMaskShadowCaster = 1u << 0;
+static const float kMaxReflectionSampleLuminance = 3.0f;
 
 RWTexture2D<float4> gDestColor : register(u0);
+RWTexture2D<float> gReflectionHitDistance : register(u1);
+RWTexture2D<float4> gReflectionHitGeometry : register(u2);
 
 //============================================================================
 //	functions
@@ -136,6 +144,18 @@ float3 SafeNormalize(float3 v, float3 fallbackValue) {
 		return fallbackValue;
 	}
 	return v * rsqrt(lenSq);
+}
+
+float3 ClampReflectionSample(float3 radiance) {
+
+	if (!all(radiance == radiance) || any(abs(radiance) >= 65504.0f.xxx)) {
+		return 0.0f.xxx;
+	}
+	radiance = max(radiance, 0.0f.xxx);
+	float luminance = dot(radiance,
+		float3(0.2126f, 0.7152f, 0.0722f));
+	return radiance * min(1.0f,
+		kMaxReflectionSampleLuminance / max(luminance, 1e-4f));
 }
 
 float3 ReconstructWorldPosition(float2 uv, float depthValue) {
@@ -210,76 +230,13 @@ float3 EvaluateSkyReflection(float3 direction) {
 	return sky * gSkyIntensity;
 }
 
-uint HashReflectionSample(uint value) {
-
-	value ^= value >> 16u;
-	value *= 0x7feb352du;
-	value ^= value >> 15u;
-	value *= 0x846ca68bu;
-	value ^= value >> 16u;
-	return value;
-}
-
-float UintToUnitFloat(uint value) {
-	return float(value) * 2.3283064365386963e-10f;
-}
-
-float RadicalInverse(uint bits) {
-
-	bits = (bits << 16u) | (bits >> 16u);
-	bits = ((bits & 0x55555555u) << 1u) |
-		((bits & 0xAAAAAAAAu) >> 1u);
-	bits = ((bits & 0x33333333u) << 2u) |
-		((bits & 0xCCCCCCCCu) >> 2u);
-	bits = ((bits & 0x0F0F0F0Fu) << 4u) |
-		((bits & 0xF0F0F0F0u) >> 4u);
-	bits = ((bits & 0x00FF00FFu) << 8u) |
-		((bits & 0xFF00FF00u) >> 8u);
-	return UintToUnitFloat(bits);
-}
-
-float2 GetReflectionSample(uint sampleIndex, uint sampleCount, uint2 pixel) {
-
-	uint seed = HashReflectionSample(
-		pixel.x ^ HashReflectionSample(pixel.y + 0x9e3779b9u));
-	float2 rotation = float2(
-		UintToUnitFloat(HashReflectionSample(seed)),
-		UintToUnitFloat(HashReflectionSample(seed ^ 0x68bc21ebu)));
-	float2 sample = float2(
-		(float(sampleIndex) + 0.5f) / float(sampleCount),
-		RadicalInverse(sampleIndex));
-	return frac(sample + rotation);
-}
-
-float3 ImportanceSampleGGX(float2 sample, float roughness, float3 N) {
-
-	float alpha = roughness * roughness;
-	float alphaSquared = alpha * alpha;
-	float phi = 2.0f * PI * sample.x;
-	float cosTheta = sqrt(
-		(1.0f - sample.y) /
-		max(1.0f + (alphaSquared - 1.0f) * sample.y, 1e-6f));
-	float sinTheta = sqrt(saturate(1.0f - cosTheta * cosTheta));
-	float3 localHalf = float3(
-		cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
-
-	float3 helper = abs(N.z) < 0.999f ?
-		float3(0.0f, 0.0f, 1.0f) : float3(0.0f, 1.0f, 0.0f);
-	float3 tangent = SafeNormalize(cross(helper, N),
-		float3(1.0f, 0.0f, 0.0f));
-	float3 bitangent = cross(N, tangent);
-	return SafeNormalize(
-		tangent * localHalf.x + bitangent * localHalf.y + N * localHalf.z,
-		N);
-}
-
 float3 EvaluateReflectionEnvironment(float3 direction) {
 
 	if (gHasSkybox != 0u && gSkyboxCubemapIndex != kNoTexture) {
 
 		TextureCube<float4> skybox = ResourceDescriptorHeap[
 			NonUniformResourceIndex(gSkyboxCubemapIndex)];
-		return skybox.SampleLevel(gSampler, direction, 0.0f).rgb *
+		return skybox.SampleLevel(gEnvironmentSampler, direction, 0.0f).rgb *
 			gSkyboxColor.rgb * gSkyIntensity;
 	}
 	return EvaluateSkyReflection(direction);
@@ -329,14 +286,15 @@ float3 ComputeBarycentrics(float2 bary) {
 	return float3(1.0f - bary.x - bary.y, bary.x, bary.y);
 }
 
-float4 SampleHitTexture(uint textureIndex, float2 uv, float4 fallbackValue) {
+float4 SampleHitTexture(uint textureIndex, float2 uv,
+	float mipLevel, float4 fallbackValue) {
 
 	if (textureIndex == kNoTexture) {
 		return fallbackValue;
 	}
 	Texture2D<float4> texture =
 		ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
-	return texture.SampleLevel(gSampler, uv, 0.0f);
+	return texture.SampleLevel(gSampler, uv, mipLevel);
 }
 
 void ResolveRaytracingHitGeometry(
@@ -427,25 +385,27 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	float3x3 tangentToWorld;
 	ResolveRaytracingHitGeometry(attr, instanceData, subMesh,
 		uv, worldPosition, tangentToWorld);
+	// レイ距離に応じたMipを使い遠距離ヒットの高周波ノイズを抑える
+	float textureMip = max(log2(1.0f + RayTCurrent() * 0.02f), 0.0f);
 
 	float4 baseColor = subMesh.importedBaseColor * subMesh.color;
 	baseColor *= SampleHitTexture(
-		subMesh.baseColorTextureIndex, uv, 1.0f.xxxx);
+		subMesh.baseColorTextureIndex, uv, textureMip, 1.0f.xxxx);
 
 	// glTFのmetallic-roughness規約に合わせてBとGを参照する
 	float4 metallicRoughness = SampleHitTexture(
-		subMesh.metallicRoughnessTextureIndex, uv, 1.0f.xxxx);
+		subMesh.metallicRoughnessTextureIndex, uv, textureMip, 1.0f.xxxx);
 	float metallic = saturate(subMesh.metallic * metallicRoughness.b);
 	float roughness = max(
 		saturate(subMesh.roughness * metallicRoughness.g), 0.04f);
 	float ao = SampleHitTexture(
-		subMesh.occlusionTextureIndex, uv, 1.0f.xxxx).r;
+		subMesh.occlusionTextureIndex, uv, textureMip, 1.0f.xxxx).r;
 
 	float3 normal = tangentToWorld[2];
 	if (subMesh.normalTextureIndex != kNoTexture) {
 
 		float3 tangentNormal = SampleHitTexture(
-			subMesh.normalTextureIndex, uv, 1.0f.xxxx).xyz * 2.0f - 1.0f;
+			subMesh.normalTextureIndex, uv, textureMip, 1.0f.xxxx).xyz * 2.0f - 1.0f;
 		normal = SafeNormalize(
 			mul(tangentNormal, tangentToWorld), normal);
 	}
@@ -453,7 +413,7 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	float3 emissive = subMesh.emissiveColor.rgb *
 		subMesh.emissiveColor.a;
 	emissive *= SampleHitTexture(
-		subMesh.emissiveTextureIndex, uv, 1.0f.xxxx).rgb;
+		subMesh.emissiveTextureIndex, uv, textureMip, 1.0f.xxxx).rgb;
 
 	ResolvedPBRMaterial material;
 	material.baseColor = baseColor;
@@ -527,96 +487,93 @@ bool ResolveRaytracingLightCluster(
 	return true;
 }
 
-float TraceRaytracingShadow(float3 worldPosition, float3 worldNormal,
-	float3 lightDirection, float maxDistance, float shadowStrength) {
+float ResolveRaytracingShadow(float3 worldPosition, float3 worldNormal,
+	float3 direction, float maxDistance, float shadowStrength,
+	uint renderFlags) {
 
-	if (shadowStrength <= 0.0f || maxDistance <= 1e-4f) {
+	if (shadowStrength <= 0.0f ||
+		(renderFlags & MESH_INSTANCE_FLAG_RECEIVE_SHADOW) == 0u ||
+		maxDistance <= 0.002f) {
+
 		return 1.0f;
 	}
 
-	float normalSign = dot(worldNormal, lightDirection) < 0.0f ? -1.0f : 1.0f;
-	float rayBias = max(gReflectionMinHitDistance, 0.0001f);
 	RayDesc ray;
-	ray.Origin = worldPosition + worldNormal * gShadowNormalBias * normalSign;
-	ray.Direction = lightDirection;
-	ray.TMin = rayBias;
-	ray.TMax = maxDistance - rayBias;
-	if (ray.TMax <= ray.TMin) {
-		return 1.0f;
-	}
+	ray.Origin = worldPosition + worldNormal *
+		max(gShadowNormalBias, 0.0001f);
+	ray.Direction = SafeNormalize(direction, worldNormal);
+	ray.TMin = 0.001f;
+	ray.TMax = max(maxDistance - 0.001f, ray.TMin);
 
-	// ヒット位置からライトまでの可視性をTLASへ直接問い合わせる
-	RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
-		RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
-		RAY_FLAG_CULL_NON_OPAQUE> query;
-	query.TraceRayInline(gSceneTLAS, RAY_FLAG_NONE,
-		kRaytracingMaskShadowCaster, ray);
-	while (query.Proceed()) {
+	RayQuery <
+		RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH |
+		RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES > rayQuery;
+	rayQuery.TraceRayInline(
+		gSceneTLAS, 0, kRaytracingMaskShadowCaster, ray);
+	while (rayQuery.Proceed()) {
 	}
-
-	float visibility = query.CommittedStatus() == COMMITTED_NOTHING ? 1.0f : 0.0f;
-	return lerp(1.0f, visibility, saturate(shadowStrength));
+	return rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT ?
+		1.0f - saturate(shadowStrength) : 1.0f;
 }
 
 float3 EvaluateRaytracingDirectionalLight(DirectionalLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
-	float3 V, float3 F0, bool receiveShadow) {
-
-	float3 lighting = EvaluatePBRDirectionalLight(
-		light, material.N, V, material.baseColor.rgb,
-		material.metallic, material.roughness, F0);
-	if (!receiveShadow || all(lighting <= 0.0f.xxx)) {
-		return lighting;
-	}
+	float3 V, float3 F0, uint renderFlags) {
 
 	float3 L = SafeNormalize(-light.direction, material.N);
-	float visibility = TraceRaytracingShadow(
+	if (dot(material.N, L) <= 0.0f) {
+		return 0.0f.xxx;
+	}
+	float shadow = ResolveRaytracingShadow(
 		worldPosition, material.N, L,
-		max(gFarClip, gMaxReflectionDistance), light.shadowStrength);
-	return lighting * visibility;
+		max(gFarClip, gMaxReflectionDistance),
+		light.shadowStrength, renderFlags);
+	return shadow * EvaluatePBRDirectionalLight(
+		light, material.N, V, material.baseColor.rgb,
+		material.metallic, material.roughness, F0);
 }
 
 float3 EvaluateRaytracingPointLight(PointLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
-	float3 V, float3 F0, bool receiveShadow) {
-
-	float3 lighting = EvaluatePBRPointLight(
-		light, worldPosition, material.N, V, material.baseColor.rgb,
-		material.metallic, material.roughness, F0);
-	if (!receiveShadow || all(lighting <= 0.0f.xxx)) {
-		return lighting;
-	}
+	float3 V, float3 F0, uint renderFlags) {
 
 	float3 toLight = light.pos - worldPosition;
-	float lightDistance = length(toLight);
-	float3 L = SafeNormalize(toLight, material.N);
-	float visibility = TraceRaytracingShadow(
-		worldPosition, material.N, L, lightDistance, light.shadowStrength);
-	return lighting * visibility;
+	float distanceToLight = length(toLight);
+	if (distanceToLight <= 1e-5f ||
+		dot(material.N, toLight) <= 0.0f) {
+
+		return 0.0f.xxx;
+	}
+	float shadow = ResolveRaytracingShadow(
+		worldPosition, material.N, toLight / distanceToLight,
+		distanceToLight, light.shadowStrength, renderFlags);
+	return shadow * EvaluatePBRPointLight(
+		light, worldPosition, material.N, V, material.baseColor.rgb,
+		material.metallic, material.roughness, F0);
 }
 
 float3 EvaluateRaytracingSpotLight(SpotLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
-	float3 V, float3 F0, bool receiveShadow) {
-
-	float3 lighting = EvaluatePBRSpotLight(
-		light, worldPosition, material.N, V, material.baseColor.rgb,
-		material.metallic, material.roughness, F0);
-	if (!receiveShadow || all(lighting <= 0.0f.xxx)) {
-		return lighting;
-	}
+	float3 V, float3 F0, uint renderFlags) {
 
 	float3 toLight = light.pos - worldPosition;
-	float lightDistance = length(toLight);
-	float3 L = SafeNormalize(toLight, material.N);
-	float visibility = TraceRaytracingShadow(
-		worldPosition, material.N, L, lightDistance, light.shadowStrength);
-	return lighting * visibility;
+	float distanceToLight = length(toLight);
+	if (distanceToLight <= 1e-5f ||
+		dot(material.N, toLight) <= 0.0f) {
+
+		return 0.0f.xxx;
+	}
+	float shadow = ResolveRaytracingShadow(
+		worldPosition, material.N, toLight / distanceToLight,
+		distanceToLight, light.shadowStrength, renderFlags);
+	return shadow * EvaluatePBRSpotLight(
+		light, worldPosition, material.N, V, material.baseColor.rgb,
+		material.metallic, material.roughness, F0);
 }
 
 float3 EvaluateRaytracingRectLight(RectLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
-	float3 V, float3 F0, bool receiveShadow) {
+	float3 V, float3 F0, uint renderFlags) {
 
 	float centerDistance = length(light.pos - worldPosition);
 	float attenuation = ComputeDistanceAttenuation(
@@ -625,6 +582,11 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 	if (attenuation <= 0.0f || barnAttenuation <= 0.0f) {
 		return 0.0f.xxx;
 	}
+	float3 toCenter = light.pos - worldPosition;
+	float shadow = ResolveRaytracingShadow(
+		worldPosition, material.N,
+		toCenter / max(centerDistance, 1e-5f), centerDistance,
+		light.shadowStrength, renderFlags);
 
 	float3 result = 0.0f.xxx;
 	[unroll]
@@ -641,13 +603,10 @@ float3 EvaluateRaytracingRectLight(RectLight light,
 		float3 L = toLight / sampleDistance;
 		float sourceFacing = saturate(dot(-L, light.direction));
 		float3 radiance = light.color.rgb * light.intensity *
-			attenuation * barnAttenuation * sourceFacing;
-		float visibility = receiveShadow ?
-			TraceRaytracingShadow(worldPosition, material.N, L,
-				sampleDistance, light.shadowStrength) : 1.0f;
+			attenuation * barnAttenuation * sourceFacing * shadow;
 		result += EvaluatePBRRadiance(
 			material.N, V, L, radiance, material.baseColor.rgb,
-			material.metallic, material.roughness, F0) * visibility;
+			material.metallic, material.roughness, F0);
 	}
 	return result / float(kRectLightSampleCount);
 }
@@ -665,15 +624,14 @@ float3 EvaluateRaytracingSurfaceLighting(
 	float3 V = SafeNormalize(-WorldRayDirection(), material.N);
 	float3 F0 = lerp(
 		gFresnelMin.xxx, material.baseColor.rgb, material.metallic);
-	bool receiveShadow =
-		(renderFlags & MESH_INSTANCE_FLAG_RECEIVE_SHADOW) != 0u;
+	// 二次ヒット地点から影を判定し、主カメラの画面範囲に依存しない照明にする
 	float3 lighting = 0.0f.xxx;
 	[loop]
 	for (uint index = 0u; index < directionalCount; ++index) {
 
 		lighting += EvaluateRaytracingDirectionalLight(
 			gDirectionalLights[index], worldPosition,
-			material, V, F0, receiveShadow);
+			material, V, F0, renderFlags);
 	}
 
 	// 画面内はDeferred Lightingと同じクラスター索引でローカルライトを絞る
@@ -690,7 +648,7 @@ float3 EvaluateRaytracingSurfaceLighting(
 
 				lighting += EvaluateRaytracingPointLight(
 					gPointLights[localIndex], worldPosition,
-					material, V, F0, receiveShadow);
+					material, V, F0, renderFlags);
 			} else {
 
 				uint spotIndex = localIndex - pointCount;
@@ -698,7 +656,7 @@ float3 EvaluateRaytracingSurfaceLighting(
 
 					lighting += EvaluateRaytracingSpotLight(
 						gSpotLights[spotIndex], worldPosition,
-						material, V, F0, receiveShadow);
+						material, V, F0, renderFlags);
 				}
 			}
 		}
@@ -710,14 +668,14 @@ float3 EvaluateRaytracingSurfaceLighting(
 
 			lighting += EvaluateRaytracingPointLight(
 				gPointLights[index], worldPosition,
-				material, V, F0, receiveShadow);
+				material, V, F0, renderFlags);
 		}
 		[loop]
 		for (uint index = 0u; index < spotCount; ++index) {
 
 			lighting += EvaluateRaytracingSpotLight(
 				gSpotLights[index], worldPosition,
-				material, V, F0, receiveShadow);
+				material, V, F0, renderFlags);
 		}
 	}
 	[loop]
@@ -725,7 +683,7 @@ float3 EvaluateRaytracingSurfaceLighting(
 
 		lighting += EvaluateRaytracingRectLight(
 			gRectLights[index], worldPosition,
-			material, V, F0, receiveShadow);
+			material, V, F0, renderFlags);
 	}
 
 	float3 ambient = 0.0f.xxx;
@@ -736,7 +694,7 @@ float3 EvaluateRaytracingSurfaceLighting(
 			TextureCube<float4> skybox = ResourceDescriptorHeap[
 				NonUniformResourceIndex(gSkyboxCubemapIndex)];
 			float3 irradiance = skybox.SampleLevel(
-				gSampler, material.N, 5.0f).rgb;
+				gEnvironmentSampler, material.N, 5.0f).rgb;
 			ambient = irradiance * gSkyboxColor.rgb * gIBLIntensity *
 				material.baseColor.rgb * material.ao;
 		} else {
@@ -757,6 +715,8 @@ void ReflectionMiss(inout ReflectionPayload payload) {
 	payload.color = 0.0f.xxx;
 	payload.worldPosition = 0.0f.xxx;
 	payload.hitDistance = 0.0f;
+	payload.worldNormal = 0.0f.xxx;
+	payload._pad0 = 0.0f;
 }
 
 //============================================================================
@@ -778,6 +738,8 @@ void ReflectionClosestHit(
 		worldPosition, material, instanceData.renderFlags);
 	payload.worldPosition = worldPosition;
 	payload.hitDistance = RayTCurrent();
+	payload.worldNormal = material.N;
+	payload._pad0 = 0.0f;
 }
 #endif
 
@@ -789,21 +751,31 @@ void ReflectionRayGen() {
 
 	uint2 pixel = DispatchRaysIndex().xy;
 	uint2 dim = DispatchRaysDimensions().xy;
+	uint2 sourceDim;
+	gSourceDepth.GetDimensions(sourceDim.x, sourceDim.y);
+	float2 sourceUV = (float2(pixel) + 0.5f) / float2(dim);
+	uint2 sourcePixel = min(
+		uint2(sourceUV * float2(sourceDim)), sourceDim - 1u);
 
-	float depthValue = gSourceDepth.Load(int3(pixel, 0));
+	// Trace結果は後続フィルタでScene Colorへ合成する
+	gDestColor[pixel] = 0.0f.xxxx;
+	gReflectionHitDistance[pixel] = 0.0f;
+	gReflectionHitGeometry[pixel] = 0.0f.xxxx;
+
+	float depthValue = gSourceDepth.Load(int3(sourcePixel, 0));
 
 	// 背景画素はLightingPassがskyboxを書いているのでそのまま残す
 	if (depthValue >= 1.0f) {
 		return;
 	}
 	// 反射を受けないサーフェイスはそのまま残す
-	uint surfaceFlags = gSourceFlags.Load(int3(pixel, 0));
+	uint surfaceFlags = gSourceFlags.Load(int3(sourcePixel, 0));
 	if ((surfaceFlags & kMaterialFlagReceiveReflection) == 0u) {
 		return;
 	}
 
-	float3 albedo = gSourceColor.Load(int3(pixel, 0)).rgb;
-	float4 material = gSourceMaterial.Load(int3(pixel, 0));
+	float3 albedo = gSourceAlbedo.Load(int3(sourcePixel, 0)).rgb;
+	float4 material = gSourceMaterial.Load(int3(sourcePixel, 0));
 	float metallic = saturate(material.r);
 	float roughness = clamp(material.g, 0.04f, 1.0f);
 	float roughnessFadeStart = max(
@@ -814,19 +786,19 @@ void ReflectionRayGen() {
 		return;
 	}
 
-	float3 worldPos = LoadPrimaryWorldPosition(pixel);
+	float3 worldPos = LoadPrimaryWorldPosition(sourcePixel);
 	float3 worldNormal = DecodeWorldNormal(
-		gSourceNormal.Load(int3(pixel, 0)).xyz);
+		gSourceNormal.Load(int3(sourcePixel, 0)).xyz);
 	if (dot(worldNormal, worldNormal) <= 1e-6f) {
 		worldNormal = EstimateWorldNormalFromDepth(
-			pixel, dim, depthValue);
+			sourcePixel, sourceDim, depthValue);
 	}
 
 	float3 V = SafeNormalize(
 		gCameraPosition - worldPos, float3(0.0f, 0.0f, 1.0f));
 
 	float worldFootprint = EstimatePrimaryWorldFootprint(
-		pixel, dim, worldPos, worldNormal);
+		sourcePixel, sourceDim, worldPos, worldNormal);
 	float NdotV = max(saturate(dot(worldNormal, V)), 1e-4f);
 	float grazing = 1.0f - NdotV;
 
@@ -840,16 +812,20 @@ void ReflectionRayGen() {
 		worldFootprint * lerp(1.00f, 2.00f, grazing));
 
 	float3 F0 = lerp(gFresnelMin.xxx, albedo, metallic);
-	bool mirrorSample = roughness <= 0.08f;
-	uint sampleCount = mirrorSample ? 1u : (roughness <= 0.35f ? 2u : 4u);
+	const uint sampleCount = 1u;
+	uint acceptedSampleCount = 0u;
 	float3 reflectedRadiance = 0.0f.xxx;
+	float accumulatedHitDistance = 0.0f;
+	float3 accumulatedHitPosition = 0.0f.xxx;
+	uint hitSampleCount = 0u;
 	[loop]
-	for (uint sampleIndex = 0u; sampleIndex < sampleCount; ++sampleIndex) {
+	for (uint sampleIndex = 0u;
+		sampleIndex < sampleCount &&
+		acceptedSampleCount < sampleCount;
+		++sampleIndex) {
 
-		float3 H = mirrorSample ? worldNormal :
-			ImportanceSampleGGX(
-				GetReflectionSample(sampleIndex, sampleCount, pixel),
-				roughness, worldNormal);
+		// 低サンプル数では粗さ乱数が高輝度ちらつきになるため法線反射を安定入力にする
+		float3 H = worldNormal;
 		float VdotH = saturate(dot(V, H));
 		float NdotH = saturate(dot(worldNormal, H));
 		if (VdotH <= 0.0f || NdotH <= 0.0f) {
@@ -874,30 +850,43 @@ void ReflectionRayGen() {
 		payload.color = 0.0f.xxx;
 		payload.worldPosition = 0.0f.xxx;
 		payload.hitDistance = 0.0f;
+		payload.worldNormal = 0.0f.xxx;
+		payload._pad0 = 0.0f;
 
 		// CastReflection無効のインスタンスはマスクで除外される
 		// SBTは全ジオメトリで1つのHitGroupを共有するためGeometryIndexを加算しない
 		TraceRay(gSceneTLAS,
-			RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_CULL_NON_OPAQUE,
+			RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES |
+			RAY_FLAG_CULL_NON_OPAQUE |
+			RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
 			kRaytracingMaskReflectionCaster, 0, 0, 0, ray, payload);
 
-		float3 incomingRadiance = payload.hit != 0u ?
-			payload.color : EvaluateReflectionEnvironment(reflectionDirection);
-		float3 sampleWeight = FresnelSchlick(VdotH, F0);
-		if (!mirrorSample) {
-
-			// GGXのNDFでサンプリングしたspecular BRDF/pdfを重みとして使う
-			float geometry = EvalG(NdotV, NdotL, roughness);
-			sampleWeight *= geometry * VdotH /
-				max(NdotV * NdotH, 1e-4f);
+		float3 incomingRadiance = 0.0f.xxx;
+		if (payload.hit != 0u) {
+			incomingRadiance = payload.color;
+			accumulatedHitPosition += payload.worldPosition;
+			++hitSampleCount;
+		} else {
+			incomingRadiance =
+				EvaluateReflectionEnvironment(reflectionDirection);
 		}
-		reflectedRadiance += incomingRadiance * sampleWeight;
+		accumulatedHitDistance += payload.hit != 0u ?
+			payload.hitDistance : gMaxReflectionDistance;
+		float3 sampleWeight = FresnelSchlick(VdotH, F0);
+		reflectedRadiance += ClampReflectionSample(
+			incomingRadiance * sampleWeight);
+		++acceptedSampleCount;
 	}
-	reflectedRadiance /= float(sampleCount);
+	if (acceptedSampleCount == 0u) {
+		return;
+	}
+	reflectedRadiance /= float(acceptedSampleCount);
 	reflectedRadiance *= gReflectionIntensity * roughnessVisibility;
 
-	// LightingPassの結果へ間接スペキュラーとして反射を加算する
-	float3 litColor = gDestColor[pixel].rgb;
-	float3 finalColor = litColor + reflectedRadiance;
-	gDestColor[pixel] = float4(finalColor, 1.0f);
+	gDestColor[pixel] = float4(reflectedRadiance, roughnessVisibility);
+	gReflectionHitDistance[pixel] =
+		accumulatedHitDistance / float(acceptedSampleCount);
+	gReflectionHitGeometry[pixel] = hitSampleCount != 0u ?
+		float4(accumulatedHitPosition / float(hitSampleCount), 1.0f) :
+		0.0f.xxxx;
 }

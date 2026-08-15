@@ -22,6 +22,8 @@ namespace Engine {
 		inline constexpr const char* kSceneEmissiveMain = "SceneEmissiveMain";
 		// GBuffer: マテリアル挙動フラグ
 		inline constexpr const char* kSceneFlagsMain = "SceneFlagsMain";
+		// GBuffer: 現在UVから前フレームUVへの移動量
+		inline constexpr const char* kSceneMotionMain = "SceneMotionMain";
 		// シーン深度
 		inline constexpr const char* kSceneDepth = "SceneDepth";
 		// ライティング/レイトレ後の最終カラー

@@ -45,6 +45,16 @@ namespace {
 	constexpr std::array kPostProcessInputs{
 		Port{ "Color", Type::Float4 },
 	};
+	constexpr std::array kRayTraceInputs{
+		Port{ "Origin", Type::Float3 }, Port{ "Direction", Type::Float3 },
+		Port{ "Min Distance", Type::Float },
+		Port{ "Max Distance", Type::Float }, Port{ "Mask", Type::Integer },
+	};
+	constexpr std::array kRayTraceOutputs{
+		Port{ "Color", Type::Float3 }, Port{ "Hit", Type::Float },
+		Port{ "Distance", Type::Float }, Port{ "Position", Type::Float3 },
+		Port{ "Normal", Type::Float3 },
+	};
 	constexpr std::array kVertexInputs{
 		Port{ "Position (Object)", Type::Float3 },
 		Port{ "Normal (Object)", Type::Float3 },
@@ -153,6 +163,7 @@ namespace {
 		Node{ Kind::SurfaceOutput, "PBR Surface", "出力", Stage::Fragment, Ports(kSurfaceInputs), EmptyPorts(), false, false },
 		Node{ Kind::UnlitOutput, "Unlit Surface", "出力", Stage::Fragment, Ports(kUnlitInputs), EmptyPorts(), false, false },
 		Node{ Kind::PostProcessOutput, "Post Process", "出力", Stage::Compute, Ports(kPostProcessInputs), EmptyPorts(), false, false },
+		Node{ Kind::RayTracingOutput, "Ray Tracing Effect", "出力", Stage::RayGeneration, Ports(kPostProcessInputs), EmptyPorts(), false, false },
 		Node{ Kind::VertexOutput, "Vertex", "出力", Stage::Vertex, Ports(kVertexInputs), EmptyPorts(), false, false },
 		Node{ Kind::Parameter, "Parameter", "入力", Stage::Any, EmptyPorts(), Ports(kValueOutput), true, false },
 		Node{ Kind::Constant, "Constant", "入力", Stage::Any, EmptyPorts(), Ports(kValueOutput), true, false },
@@ -210,6 +221,7 @@ namespace {
 		Node{ Kind::SceneMaterial, "Scene Material", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
 		Node{ Kind::SceneEmissive, "Scene Emissive", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kTextureOutputs) },
 		Node{ Kind::SceneFlags, "Scene Flags", "シーン", Stage::Any, Ports(kFloat2Output), Ports(kFloatOutput) },
+		Node{ Kind::RayTrace, "Trace Scene", "レイトレーシング", Stage::RayGeneration, Ports(kRayTraceInputs), Ports(kRayTraceOutputs), false, false },
 		Node{ Kind::Fresnel, "Fresnel Effect", "入力", Stage::Fragment, Ports(kFresnelInputs), Ports(kValueOutput) },
 		Node{ Kind::SimpleNoise, "Simple Noise", "プロシージャル", Stage::Any, Ports(kNoiseInputs), Ports(kValueOutput) },
 		Node{ Kind::Voronoi, "Voronoi", "プロシージャル", Stage::Any, Ports(kVoronoiInputs), Ports(kVoronoiOutputs) },

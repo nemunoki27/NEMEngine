@@ -20,6 +20,7 @@ namespace Engine {
 
 		Surface,
 		PostProcess,
+		RayTracingEffect,
 	};
 
 	enum class ShaderGraphSurfaceMode : uint8_t {
@@ -36,6 +37,7 @@ namespace Engine {
 		Fragment,
 		Compute,
 		RayClosestHit,
+		RayGeneration,
 	};
 
 	// 演算精度
@@ -100,6 +102,7 @@ namespace Engine {
 		SurfaceOutput,
 		UnlitOutput,
 		PostProcessOutput,
+		RayTracingOutput,
 		Parameter,
 		Constant,
 		UV,
@@ -130,6 +133,7 @@ namespace Engine {
 		SceneMaterial,
 		SceneEmissive,
 		SceneFlags,
+		RayTrace,
 		VertexColor,
 		ViewDirection,
 		ScreenPosition,
@@ -281,6 +285,9 @@ namespace Engine {
 		ShaderGraphTarget target = ShaderGraphTarget::Mesh);
 	// 入力カラーをそのまま出力するPostProcessグラフを生成
 	ShaderGraphAsset CreateDefaultPostProcessShaderGraph(
+		std::string_view name);
+	// Scene Colorを維持する最小構成のDXR Featureグラフを生成する
+	ShaderGraphAsset CreateDefaultRayTracingEffectShaderGraph(
 		std::string_view name);
 	bool IsShaderGraph3DTarget(ShaderGraphTarget target);
 	bool SupportsShaderGraphVertexOutput(ShaderGraphTarget target);

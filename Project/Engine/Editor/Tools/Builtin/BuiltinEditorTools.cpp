@@ -6,12 +6,11 @@
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
-#include <Engine/Editor/Tools/Builtin/PostProcess/PostProcessStackTool.h>
+#include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Scene/SceneCompositionTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
-#include <Engine/Editor/Tools/Builtin/Raytracing/RayTracingEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/Input/InputDeviceTool.h>
 #include <Engine/Editor/Tools/Builtin/Performance/PerformanceCheckTool.h>
@@ -47,10 +46,9 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
-	RegisterBuiltinEditorTool<PostProcessStackTool>();
+	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
-	RegisterBuiltinEditorTool<RayTracingEditorTool>();
 	RegisterBuiltinEditorTool<ParticleEffectEditorTool>();
 	RegisterBuiltinEditorTool<SceneCompositionTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();

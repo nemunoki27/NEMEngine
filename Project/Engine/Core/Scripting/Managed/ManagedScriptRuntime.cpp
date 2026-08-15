@@ -15,7 +15,7 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingRuntimeOverrides.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -263,16 +263,16 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::IsRayTracingSupportedCallback;
 	callbacks.isRayTracingActive =
 		&ManagedScriptRuntime::IsRayTracingActiveCallback;
-	callbacks.setRayTracingEffectEnabled =
-		&ManagedScriptRuntime::SetRayTracingEffectEnabledCallback;
-	callbacks.setRayTracingEffectParameter =
-		&ManagedScriptRuntime::SetRayTracingEffectParameterCallback;
-	callbacks.clearRayTracingEffectParameter =
-		&ManagedScriptRuntime::ClearRayTracingEffectParameterCallback;
-	callbacks.resetRayTracingEffect =
-		&ManagedScriptRuntime::ResetRayTracingEffectCallback;
-	callbacks.resetRayTracingOverrides =
-		&ManagedScriptRuntime::ResetRayTracingOverridesCallback;
+	callbacks.setRenderFeaturePassEnabled =
+		&ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback;
+	callbacks.setRenderFeaturePassParameter =
+		&ManagedScriptRuntime::SetRenderFeaturePassParameterCallback;
+	callbacks.clearRenderFeaturePassParameter =
+		&ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback;
+	callbacks.resetRenderFeaturePass =
+		&ManagedScriptRuntime::ResetRenderFeaturePassCallback;
+	callbacks.resetRenderFeatureOverrides =
+		&ManagedScriptRuntime::ResetRenderFeatureOverridesCallback;
 	callbacks.collisionShapeCount = &ManagedScriptRuntime::CollisionShapeCountCallback;
 	callbacks.collisionAddShape = &ManagedScriptRuntime::CollisionAddShapeCallback;
 	callbacks.collisionRemoveShapeAt = &ManagedScriptRuntime::CollisionRemoveShapeAtCallback;
@@ -397,7 +397,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 
 	// アセンブリ解放より前にApplication.Quittingを発火する、解放で購読が解除されるため
 	RaiseApplicationQuitting();
-	RayTracingRuntimeOverrides::GetInstance().ResetAll();
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 
 	UnloadGameAssembly();
 	schemaCache_.clear();

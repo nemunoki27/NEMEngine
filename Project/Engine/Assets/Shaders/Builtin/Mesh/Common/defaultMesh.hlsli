@@ -16,6 +16,8 @@ struct VSOutput {
 	float3 tangent : TANGENT0;
 	float2 uv : TEXCOORD0;
 	float3 worldPos : WORLDPOS0;
+	float4 currentClipPosition : TEXCOORD6;
+	float4 previousClipPosition : TEXCOORD7;
 	uint instanceID : INSTANCEID0;
 	uint subMeshIndex : SUBMESHINDEX0;
 	// PS側のTBN構築で使う接線符号と向き符号
@@ -33,6 +35,7 @@ struct DepthVSOutput {
 cbuffer ViewConstants : register(b0) {
 	
 	float4x4 viewProjection;
+	float4x4 previousViewProjection;
 	float4x4 cullingViewProjection;
 	float4x4 cullingView;
 	float3 cullingCameraPos;
@@ -44,7 +47,7 @@ cbuffer ViewConstants : register(b0) {
 	float2 cullingProjectionScale;
 	float2 _viewPad0;
 	float3 renderCameraPos;
-	float _viewPad1;
+	uint frameSerial;
 };
 cbuffer SubMeshConstants : register(b1) {
 
@@ -122,6 +125,17 @@ float4x4 GetInstanceSubMeshWorldMatrix(uint instanceID, uint localSubMeshIndex) 
 	SubMeshShaderData subMesh = GetInstanceSubMesh(instanceID, localSubMeshIndex);
 
 	return mul(subMesh.localMatrix, instance.worldMatrix);
+}
+
+float4x4 GetInstanceSubMeshPreviousWorldMatrix(
+	uint instanceID, uint localSubMeshIndex) {
+
+	MeshInstance instance = gMeshInstances[instanceID];
+	SubMeshShaderData subMesh = GetInstanceSubMesh(
+		instanceID, localSubMeshIndex);
+	float4x4 previousWorld = instance.motionFrameSerial == frameSerial ?
+		instance.previousWorldMatrix : instance.worldMatrix;
+	return mul(subMesh.localMatrix, previousWorld);
 }
 
 // 法線変換行列を合成する、CPUで構築済みなのでinverseは呼ばない
@@ -337,10 +351,17 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 	float4x4 worldMatrix = GetInstanceSubMeshWorldMatrix(instanceID, localSubMeshIndex);
 	float4x4 normalMatrix = GetInstanceSubMeshNormalMatrix(instanceID, localSubMeshIndex);
 	float4 worldPos = mul(vertex.position, worldMatrix);
+	float4x4 previousWorldMatrix = GetInstanceSubMeshPreviousWorldMatrix(
+		instanceID, localSubMeshIndex);
+	float4 previousWorldPos = mul(vertex.position, previousWorldMatrix);
 
 	VSOutput output;
 
 	output.position = mul(worldPos, viewProjection);
+	output.currentClipPosition = output.position;
+	output.previousClipPosition =
+		(gMeshInstances[instanceID].flags & MESH_INSTANCE_FLAG_SKINNED) != 0u ?
+		output.position : mul(previousWorldPos, previousViewProjection);
 	output.worldPos = worldPos.xyz;
 	// 法線はnormalMatrix、接線は位置と同じworldMatrixで変換する
 	output.normal = TransformMeshNormalToWorld(vertex.normal, normalMatrix);

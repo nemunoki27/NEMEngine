@@ -193,6 +193,8 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 	constants.hasSkybox = skybox.found ? 1u : 0u;
 	constants.irradianceCubemapIndex = irradianceCubemapIndex;
 	constants.iblIntensity = skybox.iblIntensity;
+	constants.softShadowSampleCount =
+		runtimeFeatures.softShadowSampleCount;
 	constants.viewportWidth = sceneFinal->GetWidth();
 	constants.viewportHeight = sceneFinal->GetHeight();
 

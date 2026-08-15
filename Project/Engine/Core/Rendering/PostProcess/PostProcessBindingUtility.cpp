@@ -74,13 +74,39 @@ namespace Engine {
 		return context.targetRegistry->Resolve(reference);
 	}
 
+	DepthTexture2D* ResolveSourceDepth(
+		const SceneExecutionContext& context,
+		const PostProcessExecutionDesc& desc,
+		MultiRenderTarget& source) {
+
+		if (DepthTexture2D* depth = source.GetDepthTexture()) {
+			return depth;
+		}
+		if (!context.targetRegistry) {
+			return nullptr;
+		}
+		const auto found = desc.extraSources.find(kSourceDepthName);
+		if (found == desc.extraSources.end()) {
+			return nullptr;
+		}
+		if (DepthTexture2D* depth =
+			context.targetRegistry->FindDepthByName(found->second)) {
+
+			return depth;
+		}
+		MultiRenderTarget* target = ResolveExtraSource(
+			context, found->second);
+		return target ? target->GetDepthTexture() : nullptr;
+	}
+
 	bool AppendSRVBinding(const ShaderResourceBinding& binding,
 		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
 		const PostProcessExecutionDesc& desc, MultiRenderTarget& source,
 		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader) {
 
 		RenderTexture2D* sourceColor = GetFirstColor(&source);
-		DepthTexture2D* sourceDepth = source.GetDepthTexture();
+		DepthTexture2D* sourceDepth = ResolveSourceDepth(
+			context, desc, source);
 		RenderTexture2D* texture = nullptr;
 		DepthTexture2D* depth = nullptr;
 		std::string resolvedName{};
@@ -213,11 +239,28 @@ namespace Engine {
 	}
 
 	bool AppendUAVBinding(const ShaderResourceBinding& binding,
-		GraphicsCore& graphicsCore, MultiRenderTarget& dest,
+		GraphicsCore& graphicsCore, const SceneExecutionContext& context,
+		const PostProcessExecutionDesc& desc, MultiRenderTarget& dest,
 		std::vector<ComputeBindItem>& outBindItems, const std::string& logHeader) {
 
-		// 出力先テクスチャの取得
-		RenderTexture2D* destColor = GetFirstColor(&dest);
+		RenderTexture2D* destColor = nullptr;
+		if (!binding.name.empty()) {
+			const auto output = desc.outputTargets.find(binding.name);
+			if (output != desc.outputTargets.end() && context.targetRegistry) {
+				destColor = context.targetRegistry->FindColorByName(output->second);
+				if (!destColor) {
+					MultiRenderTarget* target = ResolveExtraSource(context, output->second);
+					destColor = GetFirstColor(target);
+				}
+			}
+		}
+
+		// 標準出力は従来通りdestの先頭カラーへ割り当てる
+		const bool isDestColor = binding.name == kDestColorName ||
+			(binding.name.empty() && binding.bindPoint == 0 && binding.space == 0);
+		if (!destColor && isDestColor) {
+			destColor = GetFirstColor(&dest);
+		}
 		if (!destColor) {
 			Logger::Output(LogType::Engine, logHeader + "destination color is missing.");
 			return false;
@@ -225,15 +268,6 @@ namespace Engine {
 		// コンピュート書き込みにはUAVデスクリプタが必須
 		if (destColor->GetUAVGPUHandle().ptr == 0) {
 			Logger::Output(LogType::Engine, logHeader + "destination color has no UAV descriptor.");
-			return false;
-		}
-
-		// 標準的な出力先名(gDestColor)であるか確認
-		const bool isDestColor =
-			(binding.name == kDestColorName) ||
-			(binding.name.empty() && binding.bindPoint == 0 && binding.space == 0);
-		if (!isDestColor) {
-			Logger::Output(LogType::Engine, logHeader + "unresolved UAV binding. binding=" + binding.name);
 			return false;
 		}
 

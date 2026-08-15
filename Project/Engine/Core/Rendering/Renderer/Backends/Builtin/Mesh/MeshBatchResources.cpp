@@ -370,8 +370,13 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
+		constants.previousViewProjection = previousViewValid_[viewIndex] ?
+			previousViewProjections_[viewIndex] : constants.viewProjection;
+		previousViewProjections_[viewIndex] = constants.viewProjection;
+		previousViewValid_[viewIndex] = true;
 		constants.renderCameraPos = camera->cameraPos;
 	}
+	constants.frameSerial = static_cast<uint32_t>(frameSerial);
 	constants.viewSize = Vector2(static_cast<float>((std::max)(view.width, 1u)),
 		static_cast<float>((std::max)(view.height, 1u)));
 	const ResolvedRenderView* cullView = cullingView ? cullingView : &view;
@@ -482,6 +487,10 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			const ResolvedRenderView* billboardView = drawContext.billboardView ? drawContext.billboardView : drawContext.view;
 			MeshInstanceData instance{};
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(*item, *billboardView);
+			const bool billboard = instance.worldMatrix != item->worldMatrix;
+			instance.previousWorldMatrix = billboard ?
+				instance.worldMatrix : item->previousWorldMatrix;
+			instance.motionFrameSerial = billboard ? 0u : item->motionFrameSerial;
 			MeshNormalMatrixResult instanceNormal = BuildSafeMeshNormalMatrix(instance.worldMatrix);
 			instance.normalMatrix = instanceNormal.matrix;
 			instance.orientationSign = instanceNormal.orientationSign;
@@ -694,7 +703,9 @@ bool Engine::MeshBatchResources::RefreshInstanceTransforms(
 				continue;
 			}
 
+			instance.previousWorldMatrix = change.previousWorldMatrix;
 			instance.worldMatrix = change.worldMatrix;
+			instance.motionFrameSerial = change.motionFrameSerial;
 			const MeshNormalMatrixResult normal =
 				BuildSafeMeshNormalMatrix(
 					instance.worldMatrix);

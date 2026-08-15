@@ -141,3 +141,13 @@ float Engine::FrameProfiler::GetGPUTotalMs() const {
 	}
 	return total;
 }
+
+float Engine::FrameProfiler::FindGPUPassMs(std::string_view name) const {
+
+	for (const GPUPassTime& pass : gpuPassTimes_) {
+		if (pass.name == name) {
+			return pass.milliseconds;
+		}
+	}
+	return 0.0f;
+}

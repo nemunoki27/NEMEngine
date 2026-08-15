@@ -16,7 +16,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 #include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
-#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 
 //============================================================================
 //	BlitToViewPass classMethods
@@ -52,12 +52,13 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 		dest = context.defaultSurface;
 	}
 
-	PostProcessStackService& service = PostProcessStackService::GetInstance();
+	RenderFeatureProfileService& service =
+		RenderFeatureProfileService::GetInstance();
 	service.EnsureLoaded();
 	// 露出更新は最終ビュー出力で1フレームに1回だけ行う
 	if (!deps_.colorPipelineProcessor->ToneMap(graphicsCore, context,
 		source, dest, *deps_.assetLibrary, *deps_.pipelineCache,
-		service.GetSettings().colorPipeline, true)) {
+		service.GetProfile().colorPipeline, true)) {
 
 		MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, source, dest);
 	}

@@ -56,6 +56,10 @@ namespace Engine {
 
 		ID3D12Resource* tlasResource = nullptr;
 		uint32_t instanceCount = 0;
+		// レイトレーシング用マテリアルが変化した世代
+		uint64_t materialGeneration = 0;
+		// 非同期テクスチャが全て確定しているか
+		bool materialTexturesReady = true;
 	};
 	// シーンを処理する描画パスの実行に必要なコンテキスト
 	struct SceneExecutionContext {
@@ -182,6 +186,12 @@ namespace Engine {
 		// マテリアルのRayTracingパスを構築しLibrary reflectionを取得する
 		const ShaderReflectionInfo* FindMaterialRayTracingReflection(
 			GraphicsCore& graphicsCore, AssetID materialAssetID);
+		// マテリアルのComputeパスを構築し編集用Reflectionを取得する
+		bool TryGetMaterialComputeReflection(GraphicsCore& graphicsCore,
+			AssetID materialAssetID, MaterialPassKind passKind,
+			std::vector<ShaderConstantBufferVariable>& outVariables,
+			std::vector<ShaderResourceBinding>& outResources,
+			std::vector<ShaderResourceBinding>& outSamplers);
 
 		// 描画ビューのサーフェスをバックバッファに描画する
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
@@ -297,8 +307,8 @@ namespace Engine {
 		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
 		bool previewBackendFrameStarted_ = false;
 
-		// 前回通知したPostProcessStackアセットでシーン切り替え時の再ロードを検出するために使用
-		AssetID lastNotifiedPostProcessStack_{};
+		// 前回通知したProfileでシーン切り替え時の再ロードを検出する
+		AssetID lastNotifiedRenderFeatureProfile_{};
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;

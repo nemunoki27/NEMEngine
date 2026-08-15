@@ -44,10 +44,10 @@ namespace {
 		case Engine::AssetType::Shader:           return "ShaderImporter";
 		case Engine::AssetType::RenderPipeline:   return "RenderPipelineImporter";
 		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";
-		case Engine::AssetType::PostProcessStack: return "PostProcessStackImporter";
 		case Engine::AssetType::ParticleEffect:   return "ParticleEffectImporter";
 		case Engine::AssetType::ShaderGraph:      return "ShaderGraphImporter";
-		case Engine::AssetType::RayTracingProfile:return "RayTracingProfileImporter";
+		case Engine::AssetType::RenderFeatureProfile:
+			return "RenderFeatureProfileImporter";
 		default:                                  return "DefaultImporter";
 		}
 	}
@@ -95,8 +95,7 @@ namespace {
 			{ "functionFileAsset", Engine::AssetType::Shader },
 			{ "file", Engine::AssetType::Shader },
 			{ "pipeline", Engine::AssetType::RenderPipeline },
-			{ "postProcessStack", Engine::AssetType::PostProcessStack },
-			{ "rayTracingProfile", Engine::AssetType::RayTracingProfile },
+			{ "renderFeatureProfile", Engine::AssetType::RenderFeatureProfile },
 			{ "animationClip", Engine::AssetType::AnimationClip },
 			{ "scene", Engine::AssetType::Scene },
 			{ "activeScene", Engine::AssetType::Scene },

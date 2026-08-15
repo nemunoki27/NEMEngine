@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -18,7 +19,7 @@
 //============================================================================
 namespace {
 
-	constexpr const char* kPostProcessStackRoot = "GameAssets/PostProcess";
+	constexpr const char* kRenderFeatureRoot = "GameAssets/RenderFeatures";
 
 	bool StartsWith(const std::string& text, const char* prefix) {
 
@@ -38,7 +39,8 @@ namespace {
 		return relative;
 	}
 
-	std::string MakePostProcessStackFileName(const std::filesystem::path& scenePath) {
+	std::string MakeRenderFeatureProfileFileName(
+		const std::filesystem::path& scenePath) {
 
 		std::filesystem::path stem = scenePath.stem();
 		if (stem.extension() == ".scene") {
@@ -49,53 +51,66 @@ namespace {
 		if (name.empty()) {
 			name = "Scene";
 		}
-		return name + ".postProcessStack.json";
+		return name + ".renderFeatureProfile.json";
 	}
 
 }
 
-std::string Engine::MakeDefaultPostProcessStackPath(const std::string& scenePath) {
+std::string Engine::MakeDefaultRenderFeatureProfilePath(
+	const std::string& scenePath) {
 
-	// シーンが置かれているベース(GameAssets / Engine/Assets)を判定し、そのベース直下のPostProcessへ置く
+	// シーンが置かれているベースを判定し、そのベース直下のRenderFeaturesへ置く
 	const std::filesystem::path sourcePath = Algorithm::PathFromUTF8(scenePath);
 	std::string assetPath = RuntimePaths::ToAssetPath(sourcePath);
 	if (assetPath.empty()) {
 		assetPath = Algorithm::ConvertString(sourcePath.filename().generic_wstring());
 	}
 
-	std::string root = kPostProcessStackRoot;
+	std::string root = kRenderFeatureRoot;
 	std::filesystem::path relativeSource;
 	if (std::string gameRelative = StripScenesPrefix(assetPath, "GameAssets/Scenes"); !gameRelative.empty()) {
-		root = "GameAssets/PostProcess";
+		root = "GameAssets/RenderFeatures";
 		relativeSource = Algorithm::PathFromUTF8(gameRelative);
 	} else if (std::string engineRelative = StripScenesPrefix(assetPath, "Engine/Assets/Scenes"); !engineRelative.empty()) {
-		root = "Engine/Assets/PostProcess";
+		root = "Engine/Assets/RenderFeatures";
 		relativeSource = Algorithm::PathFromUTF8(engineRelative);
 	} else {
 		relativeSource = Algorithm::PathFromUTF8(assetPath).filename();
 	}
 
-	std::filesystem::path stackPath = root;
+	std::filesystem::path profilePath = root;
 	if (relativeSource.has_parent_path()) {
-		stackPath /= relativeSource.parent_path();
+		profilePath /= relativeSource.parent_path();
 	}
-	stackPath /= Algorithm::PathFromUTF8(MakePostProcessStackFileName(relativeSource));
-	return Algorithm::ConvertString(stackPath.generic_wstring());
+	profilePath /= Algorithm::PathFromUTF8(
+		MakeRenderFeatureProfileFileName(relativeSource));
+	return Algorithm::ConvertString(profilePath.generic_wstring());
 }
 
-void Engine::EnsureScenePostProcessStack(SceneHeader& sceneHeader, const std::string& scenePath, AssetDatabase* assetDatabase) {
+void Engine::EnsureSceneRenderFeatureProfile(SceneHeader& sceneHeader,
+	const std::string& scenePath, AssetDatabase* assetDatabase) {
 
 	if (!assetDatabase) {
 		return;
 	}
 	// 既に解決できる参照を持っているなら触らない
-	if (sceneHeader.postProcessStack && assetDatabase->Find(sceneHeader.postProcessStack)) {
+	if (sceneHeader.renderFeatureProfile &&
+		assetDatabase->Find(sceneHeader.renderFeatureProfile)) {
+
 		return;
 	}
 	// 未参照、または保存し直しでguidが変わってリンク切れになった場合は既定ファイルから貼り直す
-	const std::string defaultPath = MakeDefaultPostProcessStackPath(scenePath);
+	const std::string defaultPath =
+		MakeDefaultRenderFeatureProfilePath(scenePath);
 	if (std::filesystem::exists(assetDatabase->ResolveAssetPath(defaultPath))) {
-		sceneHeader.postProcessStack = assetDatabase->ImportOrGet(defaultPath, AssetType::PostProcessStack);
+		sceneHeader.renderFeatureProfile = assetDatabase->ImportOrGet(
+			defaultPath, AssetType::RenderFeatureProfile);
+		return;
+	}
+	// シーン固有Profileが無い場合も内蔵の標準構成を明示的に使用する
+	if (assetDatabase->Find(BuiltinAssets::RenderFeatureProfiles::Default)) {
+		sceneHeader.renderFeatureProfile =
+			BuiltinAssets::RenderFeatureProfiles::Default;
 	}
 }
 
@@ -109,10 +124,9 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 	// JSONからシーンヘッダーの情報を取得する
 	{
 		sceneHeader.name = data.value("name", "UntitledScene");
-		sceneHeader.postProcessStack = ParseAssetReference(data, "postProcessStack", assetDatabase, AssetType::PostProcessStack);
-		sceneHeader.rayTracingProfile = ParseAssetReference(data,
-			"rayTracingProfile", assetDatabase,
-			AssetType::RayTracingProfile);
+		sceneHeader.renderFeatureProfile = ParseAssetReference(data,
+			"renderFeatureProfile", assetDatabase,
+			AssetType::RenderFeatureProfile);
 	}
 
 	// サブシーン
@@ -151,9 +165,8 @@ nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {
 	nlohmann::json data = nlohmann::json::object();
 
 	data["name"] = sceneHeader.name;
-	data["postProcessStack"] = ToAssetReferenceJson(sceneHeader.postProcessStack);
-	data["rayTracingProfile"] = ToAssetReferenceJson(
-		sceneHeader.rayTracingProfile);
+	data["renderFeatureProfile"] = ToAssetReferenceJson(
+		sceneHeader.renderFeatureProfile);
 
 	data["subScenes"] = nlohmann::json::array();
 	for (const auto& subScene : sceneHeader.subScenes) {

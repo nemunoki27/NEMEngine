@@ -84,6 +84,10 @@ namespace Engine {
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
 		bool allowDispatchRays = false;
+		// DispatchRaysと後段フィルターを縮小解像度で実行するか
+		bool allowRaytracingDownsampling = true;
+		// Inline RayTracingでライトごとに発行する影レイ数
+		uint32_t softShadowSampleCount = 4;
 		// フラスタムカリングを行うか
 		bool allowFrustumCulling = true;
 		// 深度ピラミッドによるオクルージョンカリングを行うか
@@ -116,6 +120,8 @@ namespace Engine {
 		bool useMeshShader = false;
 		bool useInlineRayTracing = false;
 		bool useDispatchRays = false;
+		bool useRaytracingDownsampling = true;
+		uint32_t softShadowSampleCount = 4;
 		// 描画パスごとに参照するカリング機能
 		bool useFrustumCulling = false;
 		bool useOcclusionCulling = false;

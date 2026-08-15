@@ -13,10 +13,9 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DepthPrepass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/QueueRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/LightingPass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RayTracingPass.h>
+#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RenderFeaturePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/InvertedHullOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/RuntimeScreenSpaceOutlinePass.h>
-#include <Engine/Core/Rendering/Renderer/RenderPath/Passes/PostProcessStackPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/EditorSelectionScreenSpaceOutlinePass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/BlitToViewPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/Passes/DebugOverlayPass.h>
@@ -32,9 +31,9 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 
 	deps_ = deps;
 
-	// 固定のパス列、PostProcessStackはここには入れずアンカー位置へ後から挿入する
+	// 固定のパス列、RenderFeatureはAnchor位置へ後から挿入する
 	std::vector<std::unique_ptr<IRenderPass>> fixedPasses;
-	fixedPasses.reserve(15);
+	fixedPasses.reserve(13);
 	fixedPasses.emplace_back(std::make_unique<ClearRenderTargetsPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<DepthPrepass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
@@ -43,8 +42,6 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.target = QueueRenderPass::Target::SceneMain
 		}));
 	fixedPasses.emplace_back(std::make_unique<LightingPass>());
-	fixedPasses.emplace_back(std::make_unique<RayTracingPass>(deps_,
-		RayTracingExecutionPoint::AfterLighting));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
 		.kind = RenderPathPassKind::Transparent,
@@ -53,8 +50,6 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.materialPass = MaterialPassKind::Transparent,
 		.reuseSceneDepth = true
 		}));
-	fixedPasses.emplace_back(std::make_unique<RayTracingPass>(deps_,
-		RayTracingExecutionPoint::AfterTransparent));
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
 		.kind = RenderPathPassKind::PostProcessMaskedUI,
@@ -73,20 +68,21 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 	fixedPasses.emplace_back(std::make_unique<DebugOverlayPass>());
 	fixedPasses.emplace_back(std::make_unique<EditorOverlayPass>());
 
-	// アンカーと、その直前に置くパス種別の対応表、アンカーの増減はこの表とPostProcessAnchorの編集で済む
+	// アンカーと、その直前に置く固定パス種別の対応表
 	struct AnchorPoint {
-		PostProcessAnchor anchor;
+		RenderFeatureAnchor anchor;
 		RenderPathPassKind after;
 	};
-	const std::array<AnchorPoint, 5> kAnchorPoints = { {
-		{ PostProcessAnchor::AfterLighting, RenderPathPassKind::Lighting },
-		{ PostProcessAnchor::AfterRayTracing, RenderPathPassKind::RayTracingAfterLighting },
-		{ PostProcessAnchor::AfterTransparent, RenderPathPassKind::Transparent },
-		{ PostProcessAnchor::AfterMaskedUI, RenderPathPassKind::PostProcessMaskedUI },
-		{ PostProcessAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },
+	const std::array<AnchorPoint, 6> kAnchorPoints = { {
+		{ RenderFeatureAnchor::BeforeLighting, RenderPathPassKind::Opaque },
+		{ RenderFeatureAnchor::AfterLighting, RenderPathPassKind::Lighting },
+		{ RenderFeatureAnchor::BeforeTransparent, RenderPathPassKind::InvertedHullOutline },
+		{ RenderFeatureAnchor::AfterTransparent, RenderPathPassKind::Transparent },
+		{ RenderFeatureAnchor::AfterMaskedUI, RenderPathPassKind::PostProcessMaskedUI },
+		{ RenderFeatureAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },
 	} };
 
-	// 固定パスを順に積みつつ、対応するパス種別の直後へPostProcessStackPassを挿入する
+	// 固定パスを順に積みつつ、対応する位置へ共通Feature実行パスを挿入する
 	passes_.reserve(fixedPasses.size() + kAnchorPoints.size());
 	for (auto& pass : fixedPasses) {
 
@@ -94,7 +90,8 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		passes_.emplace_back(std::move(pass));
 		for (const AnchorPoint& point : kAnchorPoints) {
 			if (point.after == kind) {
-				passes_.emplace_back(std::make_unique<PostProcessStackPass>(deps_, point.anchor));
+				passes_.emplace_back(
+					std::make_unique<RenderFeaturePass>(deps_, point.anchor));
 			}
 		}
 	}
@@ -124,12 +121,19 @@ void Engine::DeferredRenderPath::Execute(GraphicsCore& graphicsCore,
 		// GPUPIXイベント発行
 		DxGPUEventScope eventScope{ commandList, eventPassName };
 
-		// GPU計測
-		GPUFrameProfiler::GetInstance().BeginPass(commandList, eventPassName);
+		// RenderFeatureは内部ノード単位で計測する
+		const bool profileWholePass =
+			pass->GetKind() != RenderPathPassKind::RenderFeature;
+		if (profileWholePass) {
+			GPUFrameProfiler::GetInstance().BeginPass(
+				commandList, eventPassName);
+		}
 
 		// パス実行
 		pass->Execute(graphicsCore, passBuckets, context);
 
-		GPUFrameProfiler::GetInstance().EndPass(commandList);
+		if (profileWholePass) {
+			GPUFrameProfiler::GetInstance().EndPass(commandList);
+		}
 	}
 }

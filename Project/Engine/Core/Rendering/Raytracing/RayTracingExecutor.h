@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingProfileAsset.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 
 // c++
 #include <cstdint>
@@ -17,8 +17,17 @@ namespace Engine {
 	class GraphicsCore;
 	class RenderAssetLibrary;
 	class RaytracingPipelineStateCache;
-	struct RayTracingEffectRuntimeOverride;
+	class RenderTexture2D;
+	struct RenderFeaturePassRuntimeOverride;
 	struct SceneExecutionContext;
+
+	// DispatchRaysへ解決済みのグラフリソースを渡す
+	struct RayTracingExecutionResources {
+
+		std::unordered_map<std::string, std::string> inputs{};
+		std::unordered_map<std::string, RenderTexture2D*> outputs{};
+		RenderTexture2D* dispatchTarget = nullptr;
+	};
 
 	//============================================================================
 	//	RayTracingExecutor class
@@ -39,12 +48,19 @@ namespace Engine {
 			const SceneExecutionContext& context,
 			RenderAssetLibrary& assetLibrary,
 			RaytracingPipelineStateCache& pipelineCache,
-			const RayTracingEffectSettings& effect,
-			const RayTracingEffectRuntimeOverride* runtimeOverride = nullptr);
+			const RenderFeaturePassSettings& pass,
+			const RayTracingExecutionResources& resources,
+			const RenderFeaturePassRuntimeOverride* runtimeOverride = nullptr);
 
 		void ClearParameterLayoutCache() {
 			parameterLayoutCache_.clear();
 			diagnostics_.clear();
+		}
+
+		// 最後に実行したDXRシェーダーのReflectionを取得する
+		const ShaderReflectionInfo* GetLastReflection() const {
+
+			return lastReflection_;
 		}
 
 	private:
@@ -57,9 +73,10 @@ namespace Engine {
 			parameterLayoutCache_{};
 		uint64_t allocatorFrameSerial_ = 0;
 		std::unordered_set<std::string> diagnostics_{};
+		const ShaderReflectionInfo* lastReflection_ = nullptr;
 
 		// 同一エフェクトの同一エラーを1度だけ出力する
-		void ReportFailure(const RayTracingEffectSettings& effect,
+		void ReportFailure(const RenderFeaturePassSettings& pass,
 			std::string_view reason);
 	};
 } // Engine

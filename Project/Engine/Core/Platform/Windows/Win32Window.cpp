@@ -237,18 +237,18 @@ void WinApp::EnablePerMonitorDpiAwareness() {
 bool WinApp::ProcessMessage() {
 
 	MSG msg{};
+	bool quitRequested = false;
 
 	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+		if (msg.message == WM_QUIT) {
+			quitRequested = true;
+			continue;
+		}
 
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
-	if (msg.message == WM_QUIT) {
-
-		return true;
-	}
-
-	return false;
+	return quitRequested;
 }
 
 Vector2I WinApp::GetClientSize() {
@@ -465,6 +465,9 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		// 念のため安全復帰
 		ClipCursor(nullptr);
 		ForceShowCursor(true);
+		if (hwnd == hwnd_) {
+			hwnd_ = nullptr;
+		}
 		PostQuitMessage(0);
 		return 0;
 	}

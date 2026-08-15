@@ -350,6 +350,57 @@ const RootBindingLocation* PipelineState::FindBinding(
 	return &bindings_[found->second];
 }
 
+std::vector<D3D12_STATIC_SAMPLER_DESC>
+Engine::BuildPipelineStaticSamplers(
+	const ShaderReflectionInfo& reflection,
+	const std::vector<D3D12_STATIC_SAMPLER_DESC>& baseSamplers,
+	const PipelineStaticSamplerOverrideSet& overrides) {
+
+	return BuildComputeStaticSamplers(reflection, baseSamplers, overrides);
+}
+
+uint64_t Engine::HashPipelineStaticSamplerOverrides(
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
+
+	if (!samplerOverrides) {
+		return 0;
+	}
+
+	uint64_t hash = 1469598103934665603ull;
+	const auto mix = [&hash](uint64_t value) {
+
+		hash ^= value;
+		hash *= 1099511628211ull;
+	};
+	mix(samplerOverrides->fillMissingSamplers ? 1ull : 0ull);
+
+	std::vector<std::string> names{};
+	names.reserve(samplerOverrides->byName.size());
+	for (const auto& [name, settings] : samplerOverrides->byName) {
+
+		(void)settings;
+		names.emplace_back(name);
+	}
+	std::sort(names.begin(), names.end());
+	for (const std::string& name : names) {
+
+		const PipelineStaticSamplerSettings& settings =
+			samplerOverrides->byName.at(name);
+		mix(std::hash<std::string>{}(name));
+		mix(static_cast<uint64_t>(settings.filter));
+		mix(static_cast<uint64_t>(settings.addressU));
+		mix(static_cast<uint64_t>(settings.addressV));
+		mix(static_cast<uint64_t>(settings.addressW));
+		mix(static_cast<uint64_t>(settings.borderColor));
+		mix(static_cast<uint64_t>(settings.comparisonFunc));
+		mix(static_cast<uint64_t>(settings.maxAnisotropy));
+		mix(std::hash<float>{}(settings.mipLODBias));
+		mix(std::hash<float>{}(settings.minLOD));
+		mix(std::hash<float>{}(settings.maxLOD));
+	}
+	return hash;
+}
+
 const RootBindingLocation* Engine::PipelineState::FindBindingByName(
 	const std::string_view& name, ShaderBindingKind kind) const {
 
@@ -559,7 +610,8 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 	// ルートシグネイチャの自動生成
 	AutoRootSignatureBuilder builder;
 	const std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers =
-		BuildComputeStaticSamplers(shader.reflection, desc.staticSamplers, desc.staticSamplerOverrides);
+		BuildPipelineStaticSamplers(shader.reflection, desc.staticSamplers,
+			desc.staticSamplerOverrides);
 	auto rootSignatureResult = builder.Build(device, PipelineType::Compute, { &shader }, staticSamplers);
 	// 結果を設定
 	rootSignature_ = rootSignatureResult.rootSignature;

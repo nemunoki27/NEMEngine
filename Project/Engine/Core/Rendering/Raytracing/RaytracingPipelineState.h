@@ -41,7 +41,8 @@ namespace Engine {
 
 		// パイプライン作成
 		bool Create(ID3D12Device8* device, DxShaderCompiler* compiler,
-			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset);
+			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
+			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
 		// レイトレーシングのディスパッチ記述子を構築
 		D3D12_DISPATCH_RAYS_DESC BuildDispatchDesc(uint32_t width,
@@ -94,7 +95,8 @@ namespace Engine {
 			const std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers);
 		// レイトレーシングパイプラインステートの構築
 		bool BuildStateObject(ID3D12Device8* device, DxShaderCompiler* compiler,
-			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset);
+			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
+			const PipelineStaticSamplerOverrideSet* samplerOverrides);
 		// シェーダーテーブルの構築
 		bool BuildShaderTable(ID3D12Device8* device,
 			const std::vector<std::wstring>& rayGenerationExports,

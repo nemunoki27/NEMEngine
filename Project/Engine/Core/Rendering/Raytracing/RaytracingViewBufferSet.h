@@ -46,7 +46,7 @@ namespace Engine {
 		float reflectionNormalBias = 0.0005f;
 		float reflectionViewBias = 0.0005f;
 		float reflectionMinHitDistance = 0.0010f;
-		float reflectionMaxRoughness = 0.8f;
+		float reflectionMaxRoughness = 0.45f;
 
 		float reflectionRoughnessFade = 0.15f;
 		float skyIntensity = 1.0f;
@@ -58,7 +58,7 @@ namespace Engine {
 		uint32_t skyboxCubemapIndex = 0xFFFFFFFF;
 		uint32_t hasSkybox = 0;
 		float iblIntensity = 1.0f;
-		float _pad1 = 0.0f;
+		uint32_t frameIndex = 0;
 	};
 	static_assert(sizeof(RaytracingViewConstantsGPU) % 16 == 0,
 		"RaytracingViewConstantsGPU must be 16 byte aligned");

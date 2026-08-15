@@ -22,6 +22,8 @@ GBufferOutput main(VSOutput input) {
 	surface.roughness = m.roughness;
 	surface.occlusion = m.ao;
 	surface.emissive = m.emissive;
+	surface.motion = ComputeGBufferMotion(
+		input.currentClipPosition, input.previousClipPosition);
 	// MeshRendererのフラグをGBufferへ渡してライティングパスで分岐させる
 	surface.flags = BuildMaterialFlags(gMeshInstances[input.instanceID].flags);
 	return EncodeGBuffer(surface);

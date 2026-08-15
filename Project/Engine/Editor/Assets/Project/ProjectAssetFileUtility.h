@@ -30,7 +30,7 @@ namespace Engine {
 		Shader,
 		RenderPipeline,
 		ShaderGraph,
-		RayTracingProfile,
+		RenderFeatureProfile,
 	};
 
 	//============================================================================

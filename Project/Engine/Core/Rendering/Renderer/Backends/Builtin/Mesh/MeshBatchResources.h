@@ -44,6 +44,7 @@ namespace Engine {
 
 		// 実際に描画するビューの行列
 		Matrix4x4 viewProjection = Matrix4x4::Identity();
+		Matrix4x4 previousViewProjection = Matrix4x4::Identity();
 		// カリング判定に使うビューの行列でSceneViewではGameViewの行列になる
 		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
 		// Contribution CullingでカリングカメラのView空間へ変換する
@@ -64,7 +65,7 @@ namespace Engine {
 		Vector2 _pad0 = Vector2::AnyInit(0.0f);
 		// PBRライト計算に使う、実際に描画しているビューのカメラ位置
 		Vector3 renderCameraPos = Vector3::AnyInit(0.0f);
-		float _pad1 = 0.0f;
+		uint32_t frameSerial = 0;
 	};
 	static_assert(sizeof(MeshViewConstants) % 16 == 0);
 	struct MeshIndirectArgsConstants {
@@ -78,6 +79,7 @@ namespace Engine {
 
 		// エンティティワールド行列(位置・Bounds・Culling用)
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
 		// worldMatrixの法線変換行列transpose(inverse(worldMatrix))
 		// 非一様スケール・負スケールでも法線が壊れないよう位置用とは別に持つ
 		Matrix4x4 normalMatrix = Matrix4x4::Identity();
@@ -101,6 +103,8 @@ namespace Engine {
 
 		// per-instanceの乗算色tint、同マテリアルのまま個体ごとに色を変えるために使う
 		Color4 color = Color4::White();
+		uint32_t motionFrameSerial = 0;
+		uint32_t _motionPad[3] = { 0, 0, 0 };
 	};
 	static_assert(sizeof(MeshInstanceData) % 16 == 0);
 	// MeshInstanceDataのflagsで、スキニングするか
@@ -305,6 +309,10 @@ namespace Engine {
 		PostProcessConstantBufferAllocator dynamicConstantAllocator_{};
 		uint64_t dynamicConstantFrameSerial_ = 0;
 		std::array<uint64_t, 2> viewUploadFrameSerials_ = { 0, 0 };
+		std::array<Matrix4x4, 2> previousViewProjections_ = {
+			Matrix4x4::Identity(), Matrix4x4::Identity()
+		};
+		std::array<bool, 2> previousViewValid_ = { false, false };
 		D3D12_GPU_VIRTUAL_ADDRESS drawGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS screenSpaceOutlineMaskGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS indirectArgsGPUAddress_ = 0;

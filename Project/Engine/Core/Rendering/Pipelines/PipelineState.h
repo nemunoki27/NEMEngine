@@ -51,6 +51,14 @@ namespace Engine {
 		bool fillMissingSamplers = false;
 		std::unordered_map<std::string, PipelineStaticSamplerSettings> byName;
 	};
+	// Reflectionと上書き設定から静的サンプラーを構築する
+	std::vector<D3D12_STATIC_SAMPLER_DESC> BuildPipelineStaticSamplers(
+		const ShaderReflectionInfo& reflection,
+		const std::vector<D3D12_STATIC_SAMPLER_DESC>& baseSamplers,
+		const PipelineStaticSamplerOverrideSet& overrides);
+	// Pipelineキャッシュ用のサンプラー設定ハッシュを構築する
+	uint64_t HashPipelineStaticSamplerOverrides(
+		const PipelineStaticSamplerOverrideSet* samplerOverrides);
 	// グラフィックスパイプラインの生成に必要な情報
 	struct GraphicsPipelineDesc {
 

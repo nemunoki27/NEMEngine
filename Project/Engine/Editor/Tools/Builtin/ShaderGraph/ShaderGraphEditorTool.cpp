@@ -1623,7 +1623,7 @@ void Engine::ShaderGraphEditorTool::DrawGraphSettings(
 		EnumAdapter<ShaderGraphDomain>::ToString(graph_.domain));
 	graphDirty_ |= MyGUI::EnumCombo(
 		"既定精度", graph_.defaultPrecision).valueChanged;
-	if (graph_.domain == ShaderGraphDomain::PostProcess) {
+	if (graph_.domain != ShaderGraphDomain::Surface) {
 		return;
 	}
 
@@ -4073,10 +4073,16 @@ void Engine::ShaderGraphEditorTool::DrawNodeCreationMenu() {
 	}
 
 	const std::string search = Algorithm::ToLower(nodeSearch_);
-	const auto isCreatable = [](const ShaderGraphNodeDescriptor& descriptor) {
+	const auto isCreatable = [this](
+		const ShaderGraphNodeDescriptor& descriptor) {
+
+		if (descriptor.kind == ShaderGraphNodeKind::RayTrace) {
+			return graph_.domain == ShaderGraphDomain::RayTracingEffect;
+		}
 		return descriptor.kind != ShaderGraphNodeKind::SurfaceOutput &&
 			descriptor.kind != ShaderGraphNodeKind::UnlitOutput &&
 			descriptor.kind != ShaderGraphNodeKind::PostProcessOutput &&
+			descriptor.kind != ShaderGraphNodeKind::RayTracingOutput &&
 			descriptor.kind != ShaderGraphNodeKind::VertexOutput &&
 			descriptor.kind != ShaderGraphNodeKind::Parameter &&
 			descriptor.kind != ShaderGraphNodeKind::Constant &&
@@ -4230,10 +4236,14 @@ bool Engine::ShaderGraphEditorTool::CreateGraph(
 	}
 
 	const std::string name = GraphFileStem(path);
-	ShaderGraphAsset graph =
-		createDomain_ == ShaderGraphDomain::PostProcess ?
-			CreateDefaultPostProcessShaderGraph(name) :
-			CreateDefaultSurfaceShaderGraph(name, createTarget_);
+	ShaderGraphAsset graph{};
+	if (createDomain_ == ShaderGraphDomain::PostProcess) {
+		graph = CreateDefaultPostProcessShaderGraph(name);
+	} else if (createDomain_ == ShaderGraphDomain::RayTracingEffect) {
+		graph = CreateDefaultRayTracingEffectShaderGraph(name);
+	} else {
+		graph = CreateDefaultSurfaceShaderGraph(name, createTarget_);
+	}
 	JsonAdapter::Save(path, ToJson(graph));
 
 	const std::string assetPath =

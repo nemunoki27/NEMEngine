@@ -9,7 +9,7 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/MSDFFontAsset.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
-#include <Engine/Core/Rendering/Raytracing/RayTracingProfileAsset.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 
 // c++
 #include <unordered_map>
@@ -43,7 +43,8 @@ namespace Engine {
 		const MaterialAsset* LoadMaterial(AssetID assetID);
 		const MSDFFontAsset* LoadFont(AssetID assetID);
 		const ParticleEffectAsset* LoadParticleEffect(AssetID assetID);
-		const RayTracingProfileAsset* LoadRayTracingProfile(AssetID assetID);
+		const RenderFeatureProfileAsset* LoadRenderFeatureProfile(
+			AssetID assetID);
 		// Library内の派生Shaderを実行時キャッシュへ登録
 		void RegisterDerivedShader(ShaderAsset shader);
 		void RegisterDerivedPipeline(RenderPipelineAsset pipeline);
@@ -57,8 +58,8 @@ namespace Engine {
 		void InvalidatePipeline(AssetID assetID) { pipelineCache_.erase(assetID); }
 		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
 		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
-		void InvalidateRayTracingProfile(AssetID assetID) {
-			rayTracingProfileCache_.erase(assetID);
+		void InvalidateRenderFeatureProfile(AssetID assetID) {
+			renderFeatureProfileCache_.erase(assetID);
 		}
 
 		//--------- accessor -----------------------------------------------------
@@ -92,7 +93,7 @@ namespace Engine {
 		std::unordered_map<AssetID, MaterialAsset> materialCache_;
 		std::unordered_map<AssetID, MSDFFontAsset> fontCache_;
 		std::unordered_map<AssetID, ParticleEffectAsset> particleEffectCache_;
-		std::unordered_map<AssetID, RayTracingProfileAsset>
-			rayTracingProfileCache_;
+		std::unordered_map<AssetID, RenderFeatureProfileAsset>
+			renderFeatureProfileCache_;
 	};
 } // Engine

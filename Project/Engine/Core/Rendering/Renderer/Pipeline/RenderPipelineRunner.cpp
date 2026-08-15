@@ -39,8 +39,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackService.h>
-#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSerializer.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
@@ -225,7 +224,7 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 	std::vector<AssetID> meshAssets{};
 	std::vector<AssetID> materialAssets{};
 	std::vector<AssetID> pipelineAssets{};
-	std::vector<AssetID> postProcessAssets{};
+	std::vector<AssetID> renderFeatureProfiles{};
 	TextureUploadService& textureUploadService = graphicsCore.GetTextureUploadService();
 	for (const AssetMeta* meta : assets) {
 
@@ -280,11 +279,9 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 		case AssetType::Mesh:
 			meshAssets.emplace_back(meta->guid);
 			break;
-		case AssetType::PostProcessStack:
-			postProcessAssets.emplace_back(meta->guid);
-			break;
-		case AssetType::RayTracingProfile:
-			renderAssetLibrary_.LoadRayTracingProfile(meta->guid);
+		case AssetType::RenderFeatureProfile:
+			renderAssetLibrary_.LoadRenderFeatureProfile(meta->guid);
+			renderFeatureProfiles.emplace_back(meta->guid);
 			break;
 		default:
 			break;
@@ -438,25 +435,41 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 		}
 	}
 
-	// PostProcessはSampler上書きもPSOキーに含むためStackごとに作成する
-	for (AssetID stackID : postProcessAssets) {
+	// Profile単位のSampler上書きを含めてCompute/DXRを事前作成する
+	for (AssetID profileID : renderFeatureProfiles) {
 
-		PostProcessStackSettings stack{};
-		if (!PostProcessStackSerializer::Load(assetDatabase.ResolveFullPath(stackID), stack)) {
+		const RenderFeatureProfileAsset* profile =
+			renderAssetLibrary_.LoadRenderFeatureProfile(profileID);
+		if (!profile) {
 			continue;
 		}
-		for (const PostProcessStackPassSettings& stackPass : stack.passes) {
+		for (const RenderFeaturePassSettings& featurePass : profile->passes) {
 
-			const MaterialAsset* material = renderAssetLibrary_.LoadMaterial(stackPass.materialGuid);
-			const MaterialPassBinding* pass = material ? FindPass(*material, stackPass.passKind) : nullptr;
-			if (!pass || pass->preferredVariant != PipelineVariantKind::Compute) {
+			const MaterialAsset* material =
+				renderAssetLibrary_.LoadMaterial(featurePass.material);
+			const MaterialPassBinding* materialPass = material ?
+				FindPass(*material, featurePass.materialPass) : nullptr;
+			if (!materialPass) {
+				continue;
+			}
+			if (featurePass.type == RenderFeaturePassType::RayTracing) {
+				if (raytracingPipelineStateCache_.GetOrCreate(
+					graphicsCore.GetDXObject(), renderAssetLibrary_,
+					materialPass->pipeline,
+					materialPass->shaderOverride)) {
+
+					++pipelineCount;
+				}
+				continue;
+			}
+			if (materialPass->preferredVariant != PipelineVariantKind::Compute) {
 				continue;
 			}
 			PipelineStaticSamplerOverrideSet samplerOverrides{};
 			samplerOverrides.fillMissingSamplers = true;
-			samplerOverrides.byName = stackPass.samplerOverrides;
+			samplerOverrides.byName = featurePass.samplerOverrides;
 			if (pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
-				pass->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
+				materialPass->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
 				runtimeFeatures, nullptr, false, &samplerOverrides)) {
 				++pipelineCount;
 			}
@@ -523,7 +536,8 @@ void RenderPipelineRunner::ReloadMaterial(AssetID materialAssetID) {
 			}
 		}
 	}
-	PostProcessStackService::GetInstance().ClearReflection(materialAssetID);
+	RenderFeatureProfileService::GetInstance().ClearReflection(
+		materialAssetID);
 }
 
 void RenderPipelineRunner::ApplyMaterialRenderStates() {
@@ -564,7 +578,7 @@ void RenderPipelineRunner::ReloadShader(AssetID shaderAssetID) {
 	raytracingPipelineStateCache_.InvalidateByShaderAsset(shaderAssetID);
 	postProcessExecutor_.ClearParameterLayoutCache();
 	rayTracingExecutor_.ClearParameterLayoutCache();
-	PostProcessStackService::GetInstance().ClearReflectionCache();
+	RenderFeatureProfileService::GetInstance().ClearReflectionCache();
 }
 
 void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
@@ -575,7 +589,7 @@ void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
 		pipelineAssetID);
 	postProcessExecutor_.ClearParameterLayoutCache();
 	rayTracingExecutor_.ClearParameterLayoutCache();
-	PostProcessStackService::GetInstance().ClearReflectionCache();
+	RenderFeatureProfileService::GetInstance().ClearReflectionCache();
 }
 
 void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID) {
@@ -595,8 +609,9 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 		ReloadPipeline(assetID);
 		return;
 	}
-	if (meta->type == AssetType::RayTracingProfile) {
-		renderAssetLibrary_.InvalidateRayTracingProfile(assetID);
+	if (meta->type == AssetType::RenderFeatureProfile) {
+		renderAssetLibrary_.InvalidateRenderFeatureProfile(assetID);
+		RenderFeatureProfileService::GetInstance().Reload();
 		return;
 	}
 	if (meta->type == AssetType::ShaderGraph) {
@@ -741,6 +756,18 @@ const Engine::ShaderReflectionInfo* RenderPipelineRunner::FindMaterialRayTracing
 	return pipeline ? &pipeline->GetReflection() : nullptr;
 }
 
+bool Engine::RenderPipelineRunner::TryGetMaterialComputeReflection(
+	GraphicsCore& graphicsCore, AssetID materialAssetID,
+	MaterialPassKind passKind,
+	std::vector<ShaderConstantBufferVariable>& outVariables,
+	std::vector<ShaderResourceBinding>& outResources,
+	std::vector<ShaderResourceBinding>& outSamplers) {
+
+	return postProcessExecutor_.TryGetReflection(graphicsCore,
+		renderAssetLibrary_, pipelineStateCache_, materialAssetID, passKind,
+		outVariables, outResources, outSamplers);
+}
+
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
 
 	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
@@ -866,17 +893,20 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	lastRenderRequest_ = request;
 	lastActiveScene_ = activeScene;
 
-	// シーン切り替え時にPostProcessStack設定をサービスへ通知する
+	// シーン切り替え時に統合RenderFeatureProfileをサービスへ通知する
 	if (activeScene) {
 
-		const AssetID ppAsset = activeScene->header.postProcessStack;
-		if (ppAsset != lastNotifiedPostProcessStack_) {
+		const AssetID profileAsset =
+			activeScene->header.renderFeatureProfile;
+		if (profileAsset != lastNotifiedRenderFeatureProfile_) {
 
-			PostProcessStackService& service = PostProcessStackService::GetInstance();
+			RenderFeatureProfileService& service =
+				RenderFeatureProfileService::GetInstance();
 			if (!service.IsDirty()) {
-				service.SetActiveSettingsAsset(ppAsset, request.assetDatabase);
+				service.SetActiveProfileAsset(
+					profileAsset, request.assetDatabase);
 			}
-			lastNotifiedPostProcessStack_ = ppAsset;
+			lastNotifiedRenderFeatureProfile_ = profileAsset;
 		}
 	}
 
@@ -1295,7 +1325,8 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	if (resources.GetSceneMain()) {
 		registry->Register("SceneMain", resources.GetSceneMain(),
 			{ RenderTargetNames::kSceneColorMain, RenderTargetNames::kSceneNormalMain, RenderTargetNames::kScenePositionMain,
-			  RenderTargetNames::kSceneMaterialMain, RenderTargetNames::kSceneEmissiveMain, RenderTargetNames::kSceneFlagsMain },
+			  RenderTargetNames::kSceneMaterialMain, RenderTargetNames::kSceneEmissiveMain, RenderTargetNames::kSceneFlagsMain,
+			  RenderTargetNames::kSceneMotionMain },
 			std::string(RenderTargetNames::kSceneDepth));
 	}
 	if (resources.GetSceneFinal()) {

@@ -51,6 +51,7 @@ namespace Engine {
 		std::vector<ShaderGraphIRInstruction> vertexInstructions;
 		std::vector<ShaderGraphIRInstruction> fragmentInstructions;
 		std::vector<ShaderGraphIRInstruction> computeInstructions;
+		std::vector<ShaderGraphIRInstruction> rayGenerationInstructions;
 		std::vector<ShaderGraphDiagnostic> diagnostics;
 
 		bool Succeeded() const;

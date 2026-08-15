@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/PostProcess/Stack/PostProcessStackSettings.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
