@@ -178,7 +178,7 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 			"記録中のGraphicsFrameContextとSwapChain indexが一致しません");
 	}
 
-	const uint64_t fenceValue = dxCommand_->GetCurrentFrameFenceValue();
+	const uint64_t fenceValue = dxCommand_->GetFrameFenceValue(frameIndex);
 	const std::chrono::high_resolution_clock::time_point waitStart =
 		std::chrono::high_resolution_clock::now();
 	dxCommandQueue_->WaitForFenceValue(

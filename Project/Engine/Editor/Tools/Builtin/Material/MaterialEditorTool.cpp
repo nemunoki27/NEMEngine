@@ -319,7 +319,10 @@ namespace {
 			{ "usage", Engine::EnumAdapter<Engine::MaterialUsage>::ToString(ToMaterialUsage(type)) },
 			{ "renderState", {
 				{ "overridesRenderer", true },
-				{ "phase", std::string(Engine::ToString(settings.phase)) },
+				{ "surfaceMode", Engine::EnumAdapter<Engine::MaterialSurfaceMode>::ToString(
+					settings.surfaceMode) },
+				{ "phase", std::string(Engine::ToString(
+					Engine::ResolveMaterialRenderPhase(settings.surfaceMode))) },
 				{ "blendMode", Engine::EnumAdapter<Engine::BlendMode>::ToString(settings.blendMode) },
 			} },
 			{ "passes", std::move(passes) },
@@ -483,10 +486,10 @@ void Engine::MaterialEditorTool::DrawCreateMaterialSection(const EditorToolConte
 	}
 
 	// 描画パスごとのPipeline設定を同じUIで編集する
+	MyGUI::EnumCombo("表面方式", createPipeline_.surfaceMode);
 	auto drawPipelineSettings = [&](const char* id, const char* title, PipelineCreateSettings& settings) {
 		ImGui::SeparatorText(title);
 		ImGui::PushID(id);
-		MyGUI::EnumCombo("描画フェーズ", settings.phase);
 		MyGUI::EnumCombo("ブレンド", settings.blendMode);
 		MyGUI::EnumCombo("塗りモード", settings.fillMode);
 		MyGUI::EnumCombo("カリング", settings.cullMode);
@@ -565,14 +568,14 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 		settings.depthEnable = true;
 		settings.depthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		settings.depthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-		settings.phase = RenderPhase::Transparent;
+		settings.surfaceMode = MaterialSurfaceMode::Transparent;
 		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	} else if (type == MaterialCreateType::Sprite) {
 
 		// スプライトは深度無効でラップサンプリング
-		settings.phase = RenderPhase::Transparent;
+		settings.surfaceMode = MaterialSurfaceMode::Transparent;
 		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -589,7 +592,7 @@ void Engine::MaterialEditorTool::ApplyTypeDefaults(MaterialCreateType type) {
 	} else {
 
 		// テキストは深度無効でクランプサンプリング
-		settings.phase = RenderPhase::Transparent;
+		settings.surfaceMode = MaterialSurfaceMode::Transparent;
 		settings.samplerAddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 		settings.samplerAddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 		settings.samplerAddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -650,8 +653,14 @@ void Engine::MaterialEditorTool::LoadPipelineSettingsFromMaterial(AssetDatabase&
 	}
 	if (const auto renderState = materialData.find("renderState");
 		renderState != materialData.end() && renderState->is_object()) {
-		createPipeline_.phase = RenderPhaseFromString(
+		const RenderPhase legacyPhase = RenderPhaseFromString(
 			renderState->value("phase", "Opaque"), RenderPhase::Opaque);
+		createPipeline_.surfaceMode =
+			EnumAdapter<MaterialSurfaceMode>::FromString(
+				renderState->value("surfaceMode",
+					legacyPhase == RenderPhase::Transparent ?
+					"Transparent" : "Opaque")).
+			value_or(MaterialSurfaceMode::Opaque);
 		createPipeline_.blendMode = EnumAdapter<BlendMode>::FromString(
 			renderState->value("blendMode", "Normal")).value_or(BlendMode::Normal);
 	}

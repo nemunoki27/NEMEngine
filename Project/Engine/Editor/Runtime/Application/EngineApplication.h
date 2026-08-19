@@ -124,6 +124,8 @@ namespace Engine {
 
 		// 描画パイプラインの実行管理
 		std::unique_ptr<RenderPipelineRunner> renderPipeline_;
+		// 副Viewの更新を間引くフレーム番号
+		uint64_t renderFrameSerial_ = 0;
 
 		// スキンメッシュアニメーション管理
 		SkinnedMeshAnimationManager skinnedAnimationManager_{};

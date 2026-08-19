@@ -60,6 +60,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultMeshZPrepass{ 0x4e454d4153534554ull, 0xf09836087840b1d2ull };
 		inline constexpr AssetID DefaultMeshEditorPicking{ 0x4e454d4153534554ull, 0x8d50435034671c2cull };
 		inline constexpr AssetID DefaultMesh{ 0x4e454d4153534554ull, 0x966f3e8a34595313ull };
+		inline constexpr AssetID DefaultMeshMasked{ 0x4e454d4153534554ull, 0x966f3e8a34595314ull };
 		inline constexpr AssetID DefaultMeshTransparent{ 0x4e454d4153534554ull, 0xb8996e4516e31236ull };
 		inline constexpr AssetID DefaultSprite{ 0x4e454d4153534554ull, 0x3309336c2fa4669cull };
 		inline constexpr AssetID DefaultText{ 0x4e454d4153534554ull, 0xbe890ab815b3de9aull };

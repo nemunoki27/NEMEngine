@@ -173,6 +173,7 @@ namespace Engine {
 
 		// エディタの状態の取得
 		const EditorLayoutState& GetLayoutState() const { return layoutState_; }
+		const EditorState& GetEditorState() const { return editorState_; }
 		bool IsSceneDirty(AssetID sceneAsset) const;
 		uint64_t GetSceneDirtyRevision(
 			AssetID sceneAsset) const;

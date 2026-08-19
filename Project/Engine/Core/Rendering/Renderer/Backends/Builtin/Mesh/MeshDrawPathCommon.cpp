@@ -14,6 +14,34 @@
 //============================================================================
 namespace {
 
+	Engine::MeshSubMeshRenderState ResolveSubMeshRenderState(
+		const Engine::MeshRendererComponent& renderer,
+		const Engine::SubMeshMaterial& subMesh) {
+
+		Engine::MeshSubMeshRenderState state{};
+		state.material = subMesh.material ?
+			subMesh.material : renderer.material;
+		state.surfaceModeOverridden =
+			subMesh.surfaceMode != Engine::MaterialSurfaceMode::Auto;
+		state.surfaceMode = state.surfaceModeOverridden ?
+			subMesh.surfaceMode : subMesh.sourceSurfaceMode;
+		if (state.surfaceMode == Engine::MaterialSurfaceMode::Auto) {
+			state.surfaceMode = renderer.queue == Engine::RenderPhase::Transparent ?
+				Engine::MaterialSurfaceMode::Transparent :
+				Engine::MaterialSurfaceMode::Opaque;
+		}
+		return state;
+	}
+
+	bool IsSameRenderState(
+		const Engine::MeshSubMeshRenderState& lhs,
+		const Engine::MeshSubMeshRenderState& rhs) {
+
+		return lhs.material == rhs.material &&
+			lhs.surfaceMode == rhs.surfaceMode &&
+			lhs.surfaceModeOverridden == rhs.surfaceModeOverridden;
+	}
+
 	// サブメッシュのテクスチャparamを取り出す、上書きが無くオーサリング確定済みならテクスチャなし扱い
 	Engine::AssetID ResolveSubMeshTextureParam(
 		std::span<const Engine::SubMeshMaterial> subMeshes, uint32_t subMeshIndex,
@@ -43,6 +71,35 @@ namespace {
 //============================================================================
 //	MeshDrawPathCommon classMethods
 //============================================================================
+void Engine::MeshDrawPathCommon::BuildSubMeshRenderGroups(
+	const MeshRendererComponent& renderer,
+	std::span<const SubMeshMaterial> subMeshes,
+	std::vector<MeshSubMeshRenderState>& outGroups,
+	std::vector<uint32_t>& outGroupIndices) {
+
+	outGroups.clear();
+	outGroupIndices.clear();
+	outGroups.reserve(subMeshes.size());
+	outGroupIndices.reserve(subMeshes.size());
+
+	for (const SubMeshMaterial& subMesh : subMeshes) {
+		const MeshSubMeshRenderState state =
+			ResolveSubMeshRenderState(renderer, subMesh);
+		uint32_t groupIndex = 0;
+		for (; groupIndex < static_cast<uint32_t>(outGroups.size());
+			++groupIndex) {
+
+			if (IsSameRenderState(outGroups[groupIndex], state)) {
+				break;
+			}
+		}
+		if (groupIndex == outGroups.size()) {
+			outGroups.emplace_back(state);
+		}
+		outGroupIndices.emplace_back(groupIndex);
+	}
+}
+
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveBatchMesh(const RenderSceneBatch& batch, std::span<const RenderItem* const> items) {
 
 	AssetID resolved{};

@@ -117,9 +117,14 @@ namespace Engine {
 		// クリック確定までのピック候補のサブメッシュ、リリース時に選択を確定するため保持する
 		uint32_t scenePickCandidateSubMesh = 0;
 		UUID scenePickCandidateSubMeshID{};
+		// GPU結果を押下したクリックへ対応付ける要求ID
+		uint64_t scenePickRequestID = 0;
+		uint64_t scenePickCandidateRequestID = 0;
 		// ドラッグせず離したクリックの保留状態、候補が揃ったら確定する
 		bool scenePickClickPending = false;
 		bool scenePickClickAdditive = false;
+		bool scenePickPressActive = false;
+		bool scenePickPressGameView = false;
 		// ダブルクリックでシーンカメラを寄せたいエンティティ、EditorManagerが消費する
 		Entity cameraFocusRequest = Entity::Null();
 		// シーンカメラがフォーカスで寄っている最中か、フォーカス中はギズモ操作を無効にする

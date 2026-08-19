@@ -69,10 +69,15 @@ namespace Engine {
 		const MaterialParameterSet* materialInstance = nullptr;
 	};
 	// メッシュ描画データ
+	inline constexpr uint32_t kAllMeshSubMeshes = UINT32_MAX;
 	struct MeshRenderPayload {
 
 		// メッシュ
 		AssetID mesh{};
+		// 描画対象サブメッシュ、UINT32_MAXは全サブメッシュ
+		uint32_t subMeshIndex = kAllMeshSubMeshes;
+		// 混在モデルを描画状態でまとめたグループ、UINT32_MAXは全グループ
+		uint32_t subMeshGroupIndex = UINT32_MAX;
 
 		// 深度前描画を有効にするか
 		bool enableZPrepass = true;
@@ -119,11 +124,17 @@ namespace Engine {
 
 		// ワールド変換行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();
+		// ビュー依存ソートに使う代表座標
+		Vector3 sortPosition = Vector3::AnyInit(0.0f);
 		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
 		uint32_t motionFrameSerial = 0;
 
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;
+		// 解決済みの表面方式
+		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
+		// サブメッシュ指定がMaterialの表面方式より優先されるか
+		bool surfaceModeOverridden = false;
 		// RendererとMaterialを解決した最終的な影設定
 		bool castShadows = true;
 		bool receiveShadows = true;
@@ -233,6 +244,8 @@ namespace Engine {
 		static uint64_t BuildEntityKey(const Entity& entity);
 		// ソート後の描画アイテム索引を構築
 		void RebuildEntityLookup();
+		// 現在の行列とサブメッシュ情報から代表座標を更新する
+		void RefreshSortPosition(RenderItem& item) const;
 	};
 } // Engine
 

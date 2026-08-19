@@ -302,6 +302,10 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 
 			// マテリアルがあれば、テクスチャの参照を取得
 			if (material) {
+				const MeshImportUtility::ImportedMaterialSurface surface =
+					MeshImportUtility::ReadMaterialSurface(material);
+				subMesh.surfaceMode = surface.surfaceMode;
+				subMesh.alphaCutoff = surface.alphaCutoff;
 
 				aiString materialName;
 				if (material->Get(AI_MATKEY_NAME, materialName) == AI_SUCCESS && materialName.length > 0) {

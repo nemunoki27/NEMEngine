@@ -38,6 +38,15 @@ namespace Engine {
 	// Countは実描画フェーズではなく番兵として扱う
 	static constexpr size_t kRenderPhaseCount = static_cast<size_t>(RenderPhase::Count);
 
+	// マテリアル表面の描画方式
+	enum class MaterialSurfaceMode : uint8_t {
+
+		Auto,
+		Opaque,
+		Masked,
+		Transparent,
+	};
+
 	// ブレンドモード
 	enum BlendMode {
 
@@ -83,6 +92,12 @@ namespace Engine {
 	std::string_view ToString(RenderPhase phase);
 	bool TryParseRenderPhase(std::string_view value, RenderPhase& outPhase);
 	RenderPhase RenderPhaseFromString(std::string_view value, RenderPhase fallback = RenderPhase::Opaque);
+	// 表面方式から描画フェーズを解決する
+	RenderPhase ResolveMaterialRenderPhase(MaterialSurfaceMode surfaceMode,
+		RenderPhase fallback = RenderPhase::Opaque);
+	// 表面方式からブレンドモードを解決する
+	BlendMode ResolveMaterialBlendMode(MaterialSurfaceMode surfaceMode,
+		BlendMode fallback = BlendMode::Normal);
 
 	// 各Rendererコンポーネントが共通で持つ描画フィールドのjson入出力、既定値は現在値を使う
 	void ReadRenderCommonFields(const nlohmann::json& in,

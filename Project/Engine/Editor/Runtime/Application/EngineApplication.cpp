@@ -181,6 +181,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	// フレームレート上限を設定ファイルから読み込む
 	FrameRateSettings::GetInstance().Load(
 		Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
+	FrameRateSettings::GetInstance().SetUseEditorTargetFps(true);
 	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
 	DefaultMaterialSettings::GetInstance().Load(
 		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
@@ -437,6 +438,8 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 	// エディタの状態に応じて描画ビューの要求を構築する
 	bool showGameView = true;
 	bool showSceneView = false;
+	bool renderGameView = true;
+	bool renderSceneView = false;
 	SceneViewCameraSelection sceneViewCameraSelection{};
 	ManualRenderCameraState manualSceneCamera{};
 
@@ -457,12 +460,32 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 			manualSceneCamera = editorManager_.GetSceneViewCameraState();
 			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
 		}
+
+		// 2つのViewを表示中は操作対象を毎フレーム、副Viewを30Hzで更新してGPUの熱飽和を防ぐ
+		renderGameView = showGameView;
+		renderSceneView = showSceneView;
+		if (showGameView && showSceneView && !layout.hidePanels) {
+
+			const bool renderSecondaryView =
+				(renderFrameSerial_ % 2) == 0;
+			const EditorState& editorState =
+				editorManager_.GetEditorState();
+			if (worldManager_.IsPlaying()) {
+				renderSceneView = renderSecondaryView ||
+					editorState.sceneViewportHovered;
+			} else {
+				renderGameView = renderSecondaryView ||
+					editorState.gameViewportHovered;
+			}
+		}
+		++renderFrameSerial_;
 	}
 	// ゲームビューの要求を構築
 	{
 		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
 		viewRequest.kind = RenderViewKind::Game;
 		viewRequest.enabled = showGameView;
+		viewRequest.renderThisFrame = renderGameView;
 		viewRequest.width = showGameView ? fixedRenderWidth : 0;
 		viewRequest.height = showGameView ? fixedRenderHeight : 0;
 		viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
@@ -474,6 +497,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
 		viewRequest.kind = RenderViewKind::Scene;
 		viewRequest.enabled = showSceneView;
+		viewRequest.renderThisFrame = renderSceneView;
 		viewRequest.width = showSceneView ? fixedRenderWidth : 0;
 		viewRequest.height = showSceneView ? fixedRenderHeight : 0;
 		viewRequest.manualCamera = manualSceneCamera;

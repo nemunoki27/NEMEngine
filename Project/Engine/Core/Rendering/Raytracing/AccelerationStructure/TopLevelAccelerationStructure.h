@@ -32,6 +32,9 @@ namespace Engine {
 		// TLASの更新
 		void Update(ID3D12GraphicsCommandList6* commandList,
 			const std::vector<RaytracingTLASInstance>& instances);
+		// 既存バッファを再利用してTLASを完全再構築する
+		void Rebuild(ID3D12GraphicsCommandList6* commandList,
+			const std::vector<RaytracingTLASInstance>& instances);
 
 		//--------- accessor -----------------------------------------------------
 

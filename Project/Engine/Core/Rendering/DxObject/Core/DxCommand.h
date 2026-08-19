@@ -81,9 +81,6 @@ public:
 
 	ID3D12GraphicsCommandList6* GetCommandList() const { return commandList_.Get(); }
 	uint32_t GetCurrentFrameIndex() const { return currentFrameIndex_; }
-	uint64_t GetCurrentFrameFenceValue() const {
-		return frameContexts_[currentFrameIndex_].fenceValue;
-	}
 	uint64_t GetFrameFenceValue(uint32_t frameIndex) const {
 		return frameContexts_[
 			frameIndex %

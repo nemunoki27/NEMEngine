@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxImmutableStructuredBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
@@ -226,6 +227,10 @@ namespace Engine {
 		bool hasBaseColorTexture = false;
 		// デフォルトのベースカラー
 		Color4 baseColor = Color4::White();
+		// モデルマテリアルから読み取った表面方式
+		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Auto;
+		// Masked描画のα破棄閾値
+		float alphaCutoff = 0.5f;
 	};
 	// 読みこまれたメッシュアセットの情報
 	struct ImportedMeshAsset {

@@ -93,6 +93,40 @@ void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* c
 	commandList->ResourceBarrier(1, &uavBarrier);
 }
 
+void Engine::TopLevelAccelerationStructure::Rebuild(
+	ID3D12GraphicsCommandList6* commandList,
+	const std::vector<RaytracingTLASInstance>& instances) {
+
+	retiredResources_.Collect();
+	if (!result_.GetResource() ||
+		instances.size() != inputs_.NumDescs) {
+		Build(device_, commandList, instances, allowUpdate_);
+		return;
+	}
+
+	// refitで劣化したBVHを、GPUアドレスを変えずに初期品質へ戻す
+	UploadInstanceDescs(instances);
+	inputs_.InstanceDescs = instanceDescBuffer_.GetGPUAddress();
+	inputs_.Flags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	if (allowUpdate_) {
+		inputs_.Flags |=
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+	}
+
+	buildDesc_.Inputs = inputs_;
+	buildDesc_.DestAccelerationStructureData = result_.GetGPUAddress();
+	buildDesc_.ScratchAccelerationStructureData = scratch_.GetGPUAddress();
+	buildDesc_.SourceAccelerationStructureData = 0;
+	commandList->BuildRaytracingAccelerationStructure(
+		&buildDesc_, 0, nullptr);
+
+	D3D12_RESOURCE_BARRIER uavBarrier{};
+	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	uavBarrier.UAV.pResource = result_.GetResource();
+	commandList->ResourceBarrier(1, &uavBarrier);
+}
+
 void Engine::TopLevelAccelerationStructure::UploadInstanceDescs(
 	const std::vector<RaytracingTLASInstance>& instances) {
 

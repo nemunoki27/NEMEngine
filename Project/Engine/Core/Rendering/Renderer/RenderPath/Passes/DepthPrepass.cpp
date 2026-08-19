@@ -94,6 +94,10 @@ std::vector<const Engine::RenderItem*> Engine::DepthPrepass::CollectItems(
 		if (item->backendID != RenderBackendID::Mesh) {
 			continue;
 		}
+		// Maskedはベースカラーαを評価する専用深度パスが無いためGBuffer描画で深度を書き込む
+		if (item->surfaceMode == MaterialSurfaceMode::Masked) {
+			continue;
+		}
 		// カメラのカリングマスクで弾かれるレイヤーは除外する
 		if ((item->visibilityLayerMask & camera->cullingMask) == 0) {
 			continue;

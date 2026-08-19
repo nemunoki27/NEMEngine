@@ -225,6 +225,9 @@ void Engine::RenderFeatureProfileTool::DrawResources(
 	if (const auto* variables =
 		service.FindReflectionVariables(pass.material, pass.materialPass)) {
 		for (const ShaderConstantBufferVariable& variable : *variables) {
+			if (MaterialParameterEditor::IsInternalPaddingParameter(variable)) {
+				continue;
+			}
 			MaterialParameterValue* value =
 				pass.parameterOverrides.Find(variable.parameterID);
 			if (!value) {

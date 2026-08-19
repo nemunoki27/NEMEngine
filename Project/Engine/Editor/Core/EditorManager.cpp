@@ -644,15 +644,21 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	const MeshSubMeshPickOutcome pickOutcome =
 		meshSubMeshPicker_->ConsumePendingResult(
 			graphicsCore, context.activeWorld);
-	if (pickOutcome.committed) {
+	if (pickOutcome.resolved &&
+		pickOutcome.requestID == editorState_.scenePickRequestID) {
 
-		// ヒットなしは選択解除、ヒット時のみ候補サブメッシュを更新する
+		// 最新クリックの結果だけ候補へ反映し、リリース済みなら選択を確定する
 		editorState_.scenePickDragEntity = pickOutcome.hit ? pickOutcome.entity : Entity::Null();
+		editorState_.scenePickCandidateRequestID =
+			pickOutcome.requestID;
 		if (pickOutcome.hit) {
 			editorState_.scenePickCandidateSubMesh = pickOutcome.subMeshIndex;
 			editorState_.scenePickCandidateSubMeshID = pickOutcome.subMeshStableID;
 		}
-		editorState_.CommitScenePick(*context.activeWorld);
+		if (context.activeWorld &&
+			editorState_.scenePickClickPending) {
+			editorState_.CommitScenePick(*context.activeWorld);
+		}
 	}
 
 	editorState_.ValidateSelection(context.activeWorld);

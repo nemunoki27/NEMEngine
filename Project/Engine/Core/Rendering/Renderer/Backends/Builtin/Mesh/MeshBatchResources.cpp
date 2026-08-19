@@ -202,7 +202,8 @@ void Engine::MeshBatchResources::BeginDynamicConstantsFrame() {
 }
 
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
-	const MeshGPUResource& gpuMesh) {
+	const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
+	uint32_t subMeshGroupIndex) {
 
 	const bool hullOutline = IsHullOutlinePass(drawContext.passKind);
 	bool canCull = CanCullView(drawContext, gpuMesh);
@@ -240,7 +241,7 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		normalConeCullingEnabled ||
 		occlusionCullingEnabled;
 	MeshDrawConstants drawConstants{};
-	drawConstants.meshletCount = gpuMesh.meshletCount;
+	drawConstants.meshletCount = 0;
 	drawConstants.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
 	drawConstants.instanceCount = instanceCount_;
 	drawConstants.cullingEnabled = cullingEnabled ? 1u : 0u;
@@ -256,6 +257,7 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		normalConeCullingEnabled ? 1u : 0u;
 	drawConstants.occlusionCullingEnabled =
 		occlusionCullingEnabled ? 1u : 0u;
+	drawConstants.subMeshGroupIndex = subMeshGroupIndex;
 
 	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;
 	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius;
@@ -276,9 +278,14 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics_.maxModelExpansion : 0.0f;
 	drawConstants.outlineMaxAbsCameraZOffset = hullOutline ? outlineMetrics_.maxAbsCameraZOffset : 0.0f;
 	drawConstants.outlineHasScreenPixelWidth = (hullOutline && outlineMetrics_.hasScreenPixelWidth) ? 1u : 0u;
+	const bool drawSingleSubMesh =
+		subMeshIndex != kAllMeshSubMeshes &&
+		subMeshIndex < gpuMesh.subMeshes.size();
 	for (uint32_t lodIndex = 0; lodIndex < kMeshLODCount; ++lodIndex) {
 
-		const MeshLODRange& lod = gpuMesh.lods[lodIndex];
+		const MeshLODRange& lod = drawSingleSubMesh ?
+			gpuMesh.subMeshes[subMeshIndex].lods[lodIndex] :
+			gpuMesh.lods[lodIndex];
 		drawConstants.lodIndexOffsets[lodIndex] = lod.indexOffset;
 		drawConstants.lodIndexCounts[lodIndex] = lod.indexCount;
 		drawConstants.lodMeshletOffsets[lodIndex] = lod.meshletOffset;
@@ -430,8 +437,20 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 		meshScratch_.reserve(items.size());
 	}
 
-	// サブメッシュデータはインスタンスごとに必要なため、アイテム数×サブメッシュ数の容量を確保する
-	size_t totalSubMeshCount = items.size() * gpuMesh.subMeshes.size();
+	// サブメッシュ分割バッチは対象スロットだけを転送し、多数スロット時の二乗的な転送を避ける
+	uint32_t batchSubMeshIndex = kAllMeshSubMeshes;
+	if (!items.empty()) {
+		const MeshRenderPayload* payload =
+			batch.GetPayload<MeshRenderPayload>(*items.front());
+		if (payload && payload->subMeshIndex < gpuMesh.subMeshes.size()) {
+			batchSubMeshIndex = payload->subMeshIndex;
+		}
+	}
+	const uint32_t subMeshCountPerInstance =
+		batchSubMeshIndex == kAllMeshSubMeshes ?
+		static_cast<uint32_t>(gpuMesh.subMeshes.size()) : 1u;
+	const size_t totalSubMeshCount =
+		items.size() * static_cast<size_t>(subMeshCountPerInstance);
 	if (subMeshScratch_.capacity() < totalSubMeshCount) {
 
 		subMeshScratch_.reserve(totalSubMeshCount);
@@ -481,6 +500,13 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			std::span<const SubMeshMaterial>{};
 		const SkinnedAnimationRuntimeData* skinnedRuntime =
 			ResolveSkinnedAnimationRuntime(item);
+		std::vector<MeshSubMeshRenderState> renderGroups;
+		std::vector<uint32_t> subMeshGroupIndices;
+		if (renderer && !subMeshes.empty()) {
+			MeshDrawPathCommon::BuildSubMeshRenderGroups(
+				*renderer, subMeshes,
+				renderGroups, subMeshGroupIndices);
+		}
 
 		// MS/VS
 		{
@@ -497,7 +523,7 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			// 色はサブメッシュ単位のreflection paramへ移したのでper-instance tintは白固定にする
 			instance.color = Color4::White();
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
-			instance.subMeshCount = static_cast<uint32_t>(gpuMesh.subMeshes.size());
+			instance.subMeshCount = subMeshCountPerInstance;
 
 			// MeshRenderFlagsのうちピクセル側で参照するものをinstance.flagsへ写す
 			MeshRenderFlags renderFlags = renderer ? renderer->renderFlags : MeshRenderFlags::Default;
@@ -594,7 +620,13 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			meshScratch_.emplace_back(instance);
 		}
 
-		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(gpuMesh.subMeshes.size()); ++subMeshIndex) {
+		for (uint32_t localSubMeshIndex = 0;
+			localSubMeshIndex < subMeshCountPerInstance;
+			++localSubMeshIndex) {
+
+			const uint32_t subMeshIndex =
+				batchSubMeshIndex == kAllMeshSubMeshes ?
+				localSubMeshIndex : batchSubMeshIndex;
 
 			// 色やテクスチャはreflection paramへ移したのでgSubMeshesには幾何情報のみ詰める
 			MeshSubMeshShaderData data{};
@@ -611,8 +643,21 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 				data.localOrientationSign = localNormal.orientationSign;
 				// Position Scaling膨張の基準で原点基準にならないようサブメッシュのピボットを渡す
 				data.sourcePivot = authoring.sourcePivot;
+				if (subMeshIndex < subMeshGroupIndices.size()) {
+					data.renderGroupIndex =
+						subMeshGroupIndices[subMeshIndex];
+				}
 				// reflection paramの上書きをインスタンス×サブメッシュ単位で集める
-				subMeshParamScratch_.emplace_back(authoring.materialInstance);
+				MaterialParameterSet materialParams = authoring.materialInstance;
+				MaterialParameterValue alphaClip{};
+				alphaClip.value = item->surfaceMode == MaterialSurfaceMode::Masked ?
+					authoring.alphaCutoff : 0.0f;
+				materialParams.Set(
+					MaterialParameterIDs::AlphaClip,
+					MaterialParameterNames::AlphaClip,
+					MaterialParameterSemantic::AlphaClip,
+					alphaClip);
+				subMeshParamScratch_.emplace_back(std::move(materialParams));
 			} else {
 
 				// rendererが無いときも要素数をgSubMeshesと揃える

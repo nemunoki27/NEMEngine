@@ -681,6 +681,12 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 				});
 		}
 		material.renderState.overridesRenderer = true;
+		material.renderState.surfaceMode =
+			graph.surfaceMode == ShaderGraphSurfaceMode::Transparent ?
+			MaterialSurfaceMode::Transparent :
+			(graph.renderState.alphaClipping ?
+				MaterialSurfaceMode::Masked :
+				MaterialSurfaceMode::Opaque);
 		material.renderState.phase =
 			graph.surfaceMode == ShaderGraphSurfaceMode::Transparent ?
 			RenderPhase::Transparent : RenderPhase::Opaque;

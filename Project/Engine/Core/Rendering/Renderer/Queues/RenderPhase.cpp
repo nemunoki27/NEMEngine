@@ -37,6 +37,35 @@ Engine::RenderPhase Engine::RenderPhaseFromString(std::string_view value, Render
 	return phase;
 }
 
+Engine::RenderPhase Engine::ResolveMaterialRenderPhase(
+	MaterialSurfaceMode surfaceMode, RenderPhase fallback) {
+
+	switch (surfaceMode) {
+	case MaterialSurfaceMode::Opaque:
+	case MaterialSurfaceMode::Masked:
+		return RenderPhase::Opaque;
+	case MaterialSurfaceMode::Transparent:
+		return RenderPhase::Transparent;
+	case MaterialSurfaceMode::Auto:
+	default:
+		return fallback;
+	}
+}
+
+Engine::BlendMode Engine::ResolveMaterialBlendMode(
+	MaterialSurfaceMode surfaceMode, BlendMode fallback) {
+
+	switch (surfaceMode) {
+	case MaterialSurfaceMode::Opaque:
+	case MaterialSurfaceMode::Masked:
+		return BlendMode::Normal;
+	case MaterialSurfaceMode::Transparent:
+	case MaterialSurfaceMode::Auto:
+	default:
+		return fallback;
+	}
+}
+
 void Engine::ReadRenderCommonFields(const nlohmann::json& in,
 	int32_t& layer, int32_t& order, bool& visible, BlendMode& blendMode, RenderPhase& queue) {
 

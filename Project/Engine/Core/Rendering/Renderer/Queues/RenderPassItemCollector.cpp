@@ -1,5 +1,53 @@
 #include "RenderPassItemCollector.h"
 
+// c++
+#include <algorithm>
+
+namespace {
+
+	// 半透明を描画優先度の後にカメラから遠い順で並べる
+	void SortTransparentItems(
+		std::vector<const Engine::RenderItem*>& items,
+		const Engine::ResolvedRenderView& view) {
+
+		std::stable_sort(items.begin(), items.end(),
+			[&](const Engine::RenderItem* a,
+				const Engine::RenderItem* b) {
+
+				if (!a || !b) {
+					return a != nullptr;
+				}
+				if (a->sortingLayer != b->sortingLayer) {
+					return a->sortingLayer < b->sortingLayer;
+				}
+				if (a->sortingOrder != b->sortingOrder) {
+					return a->sortingOrder < b->sortingOrder;
+				}
+				if (a->orderedUI || b->orderedUI) {
+					if (a->orderedUI != b->orderedUI) {
+						return !a->orderedUI;
+					}
+					return a->hierarchyOrder < b->hierarchyOrder;
+				}
+
+				const Engine::ResolvedCameraView* cameraA =
+					view.FindCamera(a->cameraDomain);
+				const Engine::ResolvedCameraView* cameraB =
+					view.FindCamera(b->cameraDomain);
+				if (!cameraA || !cameraB) {
+					return false;
+				}
+				const Engine::Vector3 deltaA =
+					a->sortPosition - cameraA->cameraPos;
+				const Engine::Vector3 deltaB =
+					b->sortPosition - cameraB->cameraPos;
+				const float distanceA = Engine::Vector3::Dot(deltaA, deltaA);
+				const float distanceB = Engine::Vector3::Dot(deltaB, deltaB);
+				return distanceA > distanceB;
+			});
+	}
+}
+
 //============================================================================
 //	RenderPassItemCollector classMethods
 //============================================================================
@@ -31,6 +79,9 @@ void Engine::RenderPassItemCollector::CollectForView(const RenderSceneBatch& bat
 		}
 		outList.items.emplace_back(&item);
 	}
+	if (renderPhase == RenderPhase::Transparent) {
+		SortTransparentItems(outList.items, view);
+	}
 }
 
 void Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(const RenderSceneBatch& batch,
@@ -52,6 +103,8 @@ void Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(const RenderSc
 		}
 		outBuckets.Get(item.renderPhase).items.emplace_back(&item);
 	}
+	SortTransparentItems(
+		outBuckets.Get(RenderPhase::Transparent).items, view);
 }
 
 bool Engine::RenderPassItemCollector::IsVisibleToView(const RenderItem& item,

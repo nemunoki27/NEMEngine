@@ -238,7 +238,9 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	// Drag編集paramを先に出す
 	for (const ShaderConstantBufferVariable& var : cb->variables) {
 
-		if (!var.used || MaterialParameterEditor::IsReflectedTextureParam(var)) {
+		if (!var.used ||
+			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
+			MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
 		MaterialParameterValue value = ResolveParamValue(draft, var);

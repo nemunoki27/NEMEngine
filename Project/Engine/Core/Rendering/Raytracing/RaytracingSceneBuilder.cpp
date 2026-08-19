@@ -39,6 +39,30 @@ namespace {
 	constexpr uint32_t kRaytracingRenderFlagReceiveIBL = 1u << 3;
 	constexpr uint32_t kRaytracingRenderFlagReceiveReflection = 1u << 4;
 
+	// サブメッシュごとの描画アイテムからEntity単位のTLASインスタンスへまとめるキー
+	struct RaytracingEntityKey {
+
+		const Engine::ECSWorld* world = nullptr;
+		Engine::Entity entity{};
+
+		bool operator==(const RaytracingEntityKey& other) const {
+			return world == other.world && entity == other.entity;
+		}
+	};
+
+	struct RaytracingEntityKeyHash {
+
+		size_t operator()(const RaytracingEntityKey& key) const {
+
+			uint64_t hash = reinterpret_cast<uintptr_t>(key.world);
+			Engine::Algorithm::HashCombine(hash,
+				static_cast<uint64_t>(key.entity.index));
+			Engine::Algorithm::HashCombine(hash,
+				static_cast<uint64_t>(key.entity.generation));
+			return static_cast<size_t>(hash);
+		}
+	};
+
 	uint32_t ToRaytracingRenderFlags(Engine::MeshRenderFlags flags) {
 
 		uint32_t result = 0;
@@ -163,6 +187,10 @@ namespace {
 			instanceCount <=
 				static_cast<size_t>(changedInstanceCount) * 4;
 	}
+
+	// refitを長時間継続した際のBVH品質低下を定期的に戻す
+	constexpr uint32_t kMaxConsecutiveBLASRefits = 240;
+	constexpr uint32_t kMaxConsecutiveTLASRefits = 240;
 
 	float GetMatrixMaxScale(const Engine::Matrix4x4& matrix) {
 
@@ -378,6 +406,7 @@ void Engine::RaytracingSceneBuilder::Init(GraphicsCore& graphicsCore) {
 
 	firstTLASBuild_ = true;
 	tlasInstanceHash_ = 0;
+	consecutiveTLASRefitCount_ = 0;
 	initialized_ = true;
 }
 
@@ -413,6 +442,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	srvDescriptor_ = nullptr;
 	firstTLASBuild_ = true;
 	tlasInstanceHash_ = 0;
+	consecutiveTLASRefitCount_ = 0;
 	initialized_ = false;
 	builtThisFrame_ = false;
 	builtSceneInstanceID_ = {};
@@ -602,6 +632,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			}
 		}
 	}
+
 	if (matchesStaticScene &&
 		cachedTransformRevision_ ==
 			renderBatch.GetSourceTransformRevision()) {
@@ -614,14 +645,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 		if (0 < lodChangedCount) {
 
-			tlas_.Update(
-				graphicsCore.GetDXObject().GetDxCommand()->
-					GetCommandList(),
-				cachedTLASInstances_);
+			RefitORRebuildTLAS(
+				graphicsCore, cachedTLASInstances_, false);
 			tlasInstanceHash_ =
 				ComputeTLASInstanceHash(
 					cachedTLASInstances_);
-			FrameProfiler::GetInstance().AddTLASRefit();
 		} else {
 			FrameProfiler::GetInstance().AddTLASSkip();
 		}
@@ -711,25 +739,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 		changedInstanceCount += lodChangedCount;
 		if (transformChanged || 0 < lodChangedCount) {
-			ID3D12GraphicsCommandList6* commandList =
-				graphicsCore.GetDXObject().GetDxCommand()->
-				GetCommandList();
 			const bool rebuildForTraceQuality =
 				RequiresTLASRebuildForTraceQuality(
 					cachedTLASInstances_.size(),
 					changedInstanceCount);
-			if (rebuildForTraceQuality) {
-
-				tlas_.Build(
-					graphicsCore.GetDXObject().GetDevice(),
-					commandList, cachedTLASInstances_, true);
-				FrameProfiler::GetInstance().AddTLASBuild();
-			} else {
-
-				tlas_.Update(
-					commandList, cachedTLASInstances_);
-				FrameProfiler::GetInstance().AddTLASRefit();
-			}
+			RefitORRebuildTLAS(graphicsCore,
+				cachedTLASInstances_, rebuildForTraceQuality);
 		} else {
 			FrameProfiler::GetInstance().AddTLASSkip();
 		}
@@ -810,7 +825,6 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
 	bool requireTlasRebuild = false;
-	bool requireTlasRefit = false;
 	bool staticScene = true;
 	uint32_t blasGeometryCount = 0;
 
@@ -1115,15 +1129,26 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				FrameProfiler::GetInstance().AddBLASBuild(
 					static_cast<uint32_t>(geometries.size()));
 				requireTlasRebuild = true;
+				entry.consecutiveRefitCount = 0;
 			} else if (entry.poseGeneration != skinnedSource.poseGeneration ||
 				entry.bufferGeneration != skinnedSource.bufferGeneration ||
 				entry.geometryLayoutHash != geometryLayoutHash ||
 				entry.vertexAddress != vertexAddress) {
 
-				entry.blas.Update(commandList, input);
-				FrameProfiler::GetInstance().AddBLASRefit(
-					static_cast<uint32_t>(geometries.size()));
-				requireTlasRefit = true;
+				if (kMaxConsecutiveBLASRefits <=
+					entry.consecutiveRefitCount + 1) {
+
+					entry.blas.Rebuild(commandList, input);
+					entry.consecutiveRefitCount = 0;
+					FrameProfiler::GetInstance().AddBLASBuild(
+						static_cast<uint32_t>(geometries.size()));
+				} else {
+
+					entry.blas.Update(commandList, input);
+					++entry.consecutiveRefitCount;
+					FrameProfiler::GetInstance().AddBLASRefit(
+						static_cast<uint32_t>(geometries.size()));
+				}
 			} else {
 
 				FrameProfiler::GetInstance().AddBLASSkip(
@@ -1159,7 +1184,6 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				blas.Update(commandList, lodInput);
 				FrameProfiler::GetInstance().AddBLASRefit(
 					static_cast<uint32_t>(lodGeometries.size()));
-				requireTlasRefit = true;
 			} else {
 
 				FrameProfiler::GetInstance().AddBLASSkip(
@@ -1420,13 +1444,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		rebuildForTraceQuality) {
 
 		tlas_.Build(device, commandList, tlasInstances, true);
+		consecutiveTLASRefitCount_ = 0;
 		firstTLASBuild_ = false;
 		FrameProfiler::GetInstance().AddTLASBuild();
-	} else if (requireTlasRefit ||
-		tlasInstanceHash_ != tlasInstanceHash) {
+	} else if (tlasInstanceHash_ != tlasInstanceHash) {
 
-		tlas_.Update(commandList, tlasInstances);
-		FrameProfiler::GetInstance().AddTLASRefit();
+		RefitORRebuildTLAS(graphicsCore, tlasInstances, false);
 	} else {
 
 		FrameProfiler::GetInstance().AddTLASSkip();
@@ -1499,6 +1522,8 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 	const SceneExecutionContext& context, std::vector<CollectedMeshInstance>& outInstances) {
 
 	outInstances.clear();
+	std::unordered_set<RaytracingEntityKey,
+		RaytracingEntityKeyHash> collectedEntities{};
 
 	// シーンインスタンスIDを取得する
 	const UUID sceneInstanceID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
@@ -1513,6 +1538,13 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		}
 		const MeshRenderPayload* payload = renderBatch.GetPayload<MeshRenderPayload>(item);
 		if (!payload || !payload->mesh) {
+			continue;
+		}
+		const RaytracingEntityKey entityKey{
+			.world = item.world,
+			.entity = item.entity,
+		};
+		if (!collectedEntities.emplace(entityKey).second) {
 			continue;
 		}
 
@@ -1604,6 +1636,27 @@ uint64_t Engine::RaytracingSceneBuilder::ComputeTLASInstanceHash(
 		}
 	}
 	return hash;
+}
+
+void Engine::RaytracingSceneBuilder::RefitORRebuildTLAS(
+	GraphicsCore& graphicsCore,
+	const std::vector<RaytracingTLASInstance>& instances,
+	bool forceRebuild) {
+
+	ID3D12GraphicsCommandList6* commandList =
+		graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+	if (forceRebuild || kMaxConsecutiveTLASRefits <=
+		consecutiveTLASRefitCount_ + 1) {
+
+		tlas_.Rebuild(commandList, instances);
+		consecutiveTLASRefitCount_ = 0;
+		FrameProfiler::GetInstance().AddTLASBuild();
+		return;
+	}
+
+	tlas_.Update(commandList, instances);
+	++consecutiveTLASRefitCount_;
+	FrameProfiler::GetInstance().AddTLASRefit();
 }
 
 uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,

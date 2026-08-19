@@ -47,6 +47,7 @@ namespace Engine {
 		ZPrepass,
 		EditorPicking,
 		Draw,
+		Masked,
 		Transparent,
 		Outline,
 		OutlineStencilWrite,
@@ -79,6 +80,7 @@ namespace Engine {
 	struct MaterialRenderState {
 
 		bool overridesRenderer = false;
+		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
 		RenderPhase phase = RenderPhase::Opaque;
 		BlendMode blendMode = BlendMode::Normal;
 		bool castShadows = true;

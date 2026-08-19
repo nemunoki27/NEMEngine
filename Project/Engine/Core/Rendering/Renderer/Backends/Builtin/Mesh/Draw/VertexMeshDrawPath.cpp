@@ -80,17 +80,25 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 	if (context.drawContext->passKind ==
 		MaterialPassKind::EditorPicking) {
 
+		const MeshLODRange& lod =
+			prepared.subMeshIndex != kAllMeshSubMeshes ?
+			prepared.gpuMesh->subMeshes[prepared.subMeshIndex].lods[0] :
+			prepared.gpuMesh->lods[0];
 		context.commandList->DrawIndexedInstanced(
-			prepared.gpuMesh->lods[0].indexCount,
+			lod.indexCount,
 			prepared.instanceCount,
-			prepared.gpuMesh->lods[0].indexOffset,
+			lod.indexOffset,
 			0, 0);
 		return;
 	}
 
 	EnsureCommandSignature(context.graphicsCore->GetDXObject().GetDevice());
 	// Index数は固定、Instance数や可視インスタンス配列はComputeで決定する
-	prepared.resources->UpdateIndexedIndirectArgsConstants(prepared.gpuMesh->indexCount);
+	const uint32_t indexCount =
+		prepared.subMeshIndex != kAllMeshSubMeshes ?
+		prepared.gpuMesh->subMeshes[prepared.subMeshIndex].indexCount :
+		prepared.gpuMesh->indexCount;
+	prepared.resources->UpdateIndexedIndirectArgsConstants(indexCount);
 	if (!BuildIndexedIndirectArgs(context)) {
 		return;
 	}

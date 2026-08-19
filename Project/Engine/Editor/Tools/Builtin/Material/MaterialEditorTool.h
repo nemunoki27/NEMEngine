@@ -33,7 +33,7 @@ namespace Engine {
 	//============================================================================
 	struct PipelineCreateSettings {
 
-		RenderPhase phase = RenderPhase::Opaque;
+		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
 		BlendMode blendMode = BlendMode::Normal;
 
 		// ラスタライザ

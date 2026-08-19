@@ -4,9 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Buffers/DxReadbackBuffer.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+
+// c++
+#include <array>
 
 namespace Engine {
 
@@ -19,10 +23,12 @@ namespace Engine {
 	//============================================================================
 	struct MeshSubMeshPickOutcome {
 
-		// CommitScenePickを行うべきか
-		bool committed = false;
+		// GPU結果が解決済みか
+		bool resolved = false;
 		// エンティティにヒットしたか
 		bool hit = false;
+		// クリック要求との対応付けに使うID
+		uint64_t requestID = 0;
 
 		Entity entity = Entity::Null();
 		uint32_t subMeshIndex = 0;
@@ -48,13 +54,13 @@ namespace Engine {
 		MeshSubMeshPickOutcome ConsumePendingResult(
 			GraphicsCore& graphicsCore, ECSWorld* world);
 		// ラスター描画済みの1x1整数RTをreadbackへコピーする
-		void ExecuteReadback(GraphicsCore& graphicsCore);
+		bool ExecuteReadback(GraphicsCore& graphicsCore,
+			uint64_t requestID);
 		// 終了処理
 		void Finalize();
 
 		//--------- accessor -----------------------------------------------------
 
-		bool HasPendingReadback() const { return pendingReadback_; }
 		MultiRenderTarget* GetRenderTarget() {
 			return renderTarget_.IsValid() ? &renderTarget_ : nullptr;
 		}
@@ -80,13 +86,20 @@ namespace Engine {
 		};
 		static_assert(sizeof(PickReadbackRow) == D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
+		struct ReadbackSlot {
+
+			DxReadbackBuffer<PickReadbackRow> buffer{};
+			uint64_t requestID = 0;
+			uint64_t fenceValue = 0;
+			bool pending = false;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		MultiRenderTarget renderTarget_{};
-		DxReadbackBuffer<PickReadbackRow> readbackBuffer_{};
+		std::array<ReadbackSlot,
+			kGraphicsFrameContextCount> readbackSlots_{};
 
 		bool initialized_ = false;
-		bool pendingReadback_ = false;
-		uint32_t pendingFrameIndex_ = 0;
 	};
 } // Engine

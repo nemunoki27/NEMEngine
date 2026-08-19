@@ -15,6 +15,7 @@
 
 // c++
 #include <algorithm>
+#include <iterator>
 #include <string>
 
 namespace {
@@ -183,20 +184,44 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		if (ImGui::BeginMenu("フレーム設定")) {
 			FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
-			const uint32_t fpsOptions[] = { 30u, 60u, 120u, 0u };
-			const char* fpsLabels[] = { "30", "60", "120", "未制限" };
-			int fpsIndex = 1;
-			for (int i = 0; i < 4; ++i) {
-				if (fpsOptions[i] == frameRate.GetTargetFps()) {
-					fpsIndex = i;
-					break;
+			const uint32_t fpsOptions[] = {
+				30u, 60u, 75u, 90u, 120u, 0u
+			};
+			const char* fpsLabels[] = {
+				"30", "60", "75", "90", "120", "未制限"
+			};
+			constexpr int fpsOptionCount =
+				static_cast<int>(std::size(fpsOptions));
+			const auto drawFpsLimit = [&](const char* label,
+				uint32_t currentFps, const auto& setter) {
+
+				int fpsIndex = 1;
+				for (int i = 0; i < fpsOptionCount; ++i) {
+					if (fpsOptions[i] == currentFps) {
+						fpsIndex = i;
+						break;
+					}
 				}
-			}
-			if (ImGui::Combo("フレームレート制限", &fpsIndex, fpsLabels, 4)) {
-				frameRate.SetTargetFps(fpsOptions[fpsIndex]);
-				frameRate.Save();
-			}
-			DrawGraphicsTooltip("0はVSyncとCPU側のフレーム待機を無効にします");
+				if (ImGui::Combo(label, &fpsIndex,
+					fpsLabels, fpsOptionCount)) {
+
+					setter(fpsOptions[fpsIndex]);
+					frameRate.Save();
+				}
+			};
+
+			drawFpsLimit("エディターFPS制限",
+				frameRate.GetEditorTargetFps(),
+				[&](uint32_t fps) {
+					frameRate.SetEditorTargetFps(fps);
+				});
+			DrawGraphicsTooltip("編集時のGPU過負荷を防ぐ上限です。未制限ではGPU温度により性能が低下する場合があります");
+			drawFpsLimit("ゲームFPS制限",
+				frameRate.GetTargetFps(),
+				[&](uint32_t fps) {
+					frameRate.SetTargetFps(fps);
+				});
+			DrawGraphicsTooltip("製品ランタイムで使用する上限です。未制限はVSyncとCPU側の待機を無効にします");
 
 			const char* frameContextLabels[] = { "1", "2", "3" };
 			int frameContextIndex =

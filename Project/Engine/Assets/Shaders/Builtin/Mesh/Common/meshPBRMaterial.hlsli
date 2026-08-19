@@ -16,6 +16,8 @@ struct MeshMaterialParameters {
 	float Metallic;
 	float Roughness;
 	float emissiveIntensity;
+	float alphaClip;
+	float3 _padding;
 };
 StructuredBuffer<MeshMaterialParameters> gMeshMaterialParameters : register(t0, space3);
 

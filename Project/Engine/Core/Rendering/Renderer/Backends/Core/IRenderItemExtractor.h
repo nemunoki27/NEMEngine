@@ -56,6 +56,7 @@ namespace Engine {
 			item.sortingOrder = renderer.order;
 			item.blendMode = renderer.blendMode;
 			item.worldMatrix = worldMatrix;
+			item.sortPosition = worldMatrix.GetTranslationValue();
 		}
 	}
 } // Engine

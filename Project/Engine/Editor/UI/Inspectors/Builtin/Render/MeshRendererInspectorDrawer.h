@@ -84,6 +84,15 @@ namespace Engine {
 		// サブメッシュのフィールドを描画する
 		void DrawSubMeshFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, SubMeshMaterial& subMesh, bool& anyItemActive);
+		// サブメッシュのMaterial Slotと表面設定を描画する
+		void DrawSubMeshMaterialFields(const EditorPanelContext& context,
+			const MeshRendererComponent& renderer, SubMeshMaterial& subMesh,
+			bool& anyItemActive);
+		// Materialとモデル既定値から実効表面方式を解決する
+		MaterialSurfaceMode ResolveSubMeshSurfaceMode(
+			const EditorPanelContext& context,
+			const MeshRendererComponent& renderer,
+			const SubMeshMaterial& subMesh) const;
 		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
 		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context, AssetID materialID);
 		// サブメッシュのparam最終値を解決する、上書き無しはマテリアル既定値か型既定値

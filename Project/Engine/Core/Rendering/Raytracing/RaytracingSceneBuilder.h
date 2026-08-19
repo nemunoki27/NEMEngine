@@ -235,6 +235,7 @@ namespace Engine {
 			uint64_t geometryLayoutHash = 0;
 			D3D12_GPU_VIRTUAL_ADDRESS vertexAddress = 0;
 			uint64_t lastUsedFrame = 0;
+			uint32_t consecutiveRefitCount = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -306,6 +307,8 @@ namespace Engine {
 		uint64_t cachedLODViewHash_ = 0;
 		uint32_t cachedBLASGeometryCount_ = 0;
 		uint32_t cachedTLASInstanceCount_ = 0;
+		// 連続refitによるBVH品質低下を抑えるための回数
+		uint32_t consecutiveTLASRefitCount_ = 0;
 		std::array<uint64_t, kGraphicsFrameContextCount>
 			sceneUploadFrameSerials_ = { 0, 0, 0 };
 
@@ -323,6 +326,10 @@ namespace Engine {
 		// TLAS更新が必要か判定するためインスタンス配置をハッシュ化する
 		static uint64_t ComputeTLASInstanceHash(
 			std::span<const RaytracingTLASInstance> instances);
+		// TLASを更新し、連続refit上限では同一バッファへ完全再構築する
+		void RefitORRebuildTLAS(GraphicsCore& graphicsCore,
+			const std::vector<RaytracingTLASInstance>& instances,
+			bool forceRebuild);
 		// 既に構築済みのシーン情報を各ビューコンテキストに渡す
 		void PublishBuiltScene(SceneExecutionContext& context) const;
 		// 構築済みCPU配列を現在のフレームスロットへ一度だけ転送する

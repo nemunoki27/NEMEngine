@@ -562,11 +562,17 @@ void RenderPipelineRunner::ApplyMaterialRenderStates() {
 		// 既定MaterialはRenderer設定を保ち、状態を所有するMaterialだけを適用する
 		const MaterialRenderState& state = found->second;
 		if (state.overridesRenderer) {
-			item.renderPhase = state.phase;
+			if (!item.surfaceModeOverridden) {
+				item.surfaceMode = state.surfaceMode;
+			}
 			item.blendMode = state.blendMode;
 			item.castShadows = state.castShadows;
 			item.receiveShadows = state.receiveShadows;
 		}
+		item.renderPhase = ResolveMaterialRenderPhase(
+			item.surfaceMode, item.renderPhase);
+		item.blendMode = ResolveMaterialBlendMode(
+			item.surfaceMode, item.blendMode);
 	}
 }
 
@@ -879,6 +885,8 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	// 描画アイテムの抽出
 	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
 	ApplyMaterialRenderStates();
+	// Material変更後の描画フェーズとバッチキー順を反映する
+	renderBatch_.Sort();
 	// ライト抽出
 	lightExtractorRegistry_.BuildBatch(*request.world, frameLightBatch_);
 
@@ -995,7 +1003,9 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// 描画ビューごとに描画を実行
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view) {
-		if (!view.valid) {
+		const RenderViewRequest* viewRequest = request.FindView(kind);
+		if (!view.valid || !viewRequest ||
+			!viewRequest->renderThisFrame) {
 			return;
 		}
 

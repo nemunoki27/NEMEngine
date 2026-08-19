@@ -1,3 +1,4 @@
 {
-    "targetFps": 0
+    "editorTargetFps": 60,
+    "targetFps": 60
 }

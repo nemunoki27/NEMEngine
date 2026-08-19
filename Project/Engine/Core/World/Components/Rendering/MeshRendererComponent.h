@@ -77,6 +77,14 @@ namespace Engine {
 		UUID stableID{};
 		// 元メッシュ内でのインデックス
 		uint32_t sourceSubMeshIndex = 0;
+		// サブメッシュ固有マテリアル、未設定時はRendererのマテリアルを使う
+		AssetID material{};
+		// ユーザー指定の表面方式、Autoはマテリアルとモデル情報から解決する
+		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Auto;
+		// モデルファイルから読み取った表面方式
+		MaterialSurfaceMode sourceSurfaceMode = MaterialSurfaceMode::Auto;
+		// Masked描画のα破棄閾値
+		float alphaCutoff = 0.5f;
 
 		// シェーダーごとのマテリアルパラメータ
 		MaterialInstanceParameters materialInstance{};

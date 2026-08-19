@@ -9,6 +9,11 @@
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
 #include <assimp/material.h>
+#include <assimp/GltfMaterial.h>
+
+// c++
+#include <algorithm>
+#include <string_view>
 
 //============================================================================
 //	MeshImportUtility functions
@@ -26,6 +31,46 @@ std::string Engine::MeshImportUtility::BuildSubMeshName(
 		}
 	}
 	return "SubMesh_" + std::to_string(meshIndex);
+}
+
+Engine::MeshImportUtility::ImportedMaterialSurface
+Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material) {
+
+	ImportedMaterialSurface result{};
+	if (!material) {
+		return result;
+	}
+
+	// glTFのalphaModeはテクスチャ中のα値より優先される
+	aiString alphaMode;
+	if (material->Get(AI_MATKEY_GLTF_ALPHAMODE, alphaMode) == AI_SUCCESS) {
+
+		const std::string_view mode = alphaMode.C_Str();
+		if (mode == "MASK") {
+			result.surfaceMode = MaterialSurfaceMode::Masked;
+			ai_real cutoff = 0.5f;
+			if (material->Get(AI_MATKEY_GLTF_ALPHACUTOFF, cutoff) == AI_SUCCESS) {
+				result.alphaCutoff = std::clamp(static_cast<float>(cutoff), 0.0f, 1.0f);
+			}
+		} else if (mode == "BLEND") {
+			result.surfaceMode = MaterialSurfaceMode::Transparent;
+		} else {
+			result.surfaceMode = MaterialSurfaceMode::Opaque;
+		}
+		return result;
+	}
+
+	// glTF以外は定数Opacityと専用Opacityテクスチャから安全側で推定する
+	ai_real opacity = 1.0f;
+	if (material->Get(AI_MATKEY_OPACITY, opacity) == AI_SUCCESS &&
+		static_cast<float>(opacity) < 1.0f) {
+		result.surfaceMode = MaterialSurfaceMode::Transparent;
+		return result;
+	}
+	if (material->GetTextureCount(aiTextureType_OPACITY) > 0) {
+		result.surfaceMode = MaterialSurfaceMode::Masked;
+	}
+	return result;
 }
 
 Engine::MeshNode Engine::MeshImportUtility::ReadMeshNode(const aiNode* node) {

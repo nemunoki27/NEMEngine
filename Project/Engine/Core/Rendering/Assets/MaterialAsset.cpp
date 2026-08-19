@@ -198,6 +198,12 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 			renderState.value("overridesRenderer", false);
 		outAsset.renderState.phase = RenderPhaseFromString(
 			renderState.value("phase", "Opaque"), RenderPhase::Opaque);
+		outAsset.renderState.surfaceMode =
+			EnumAdapter<MaterialSurfaceMode>::FromString(
+				renderState.value("surfaceMode",
+					outAsset.renderState.phase == RenderPhase::Transparent ?
+					"Transparent" : "Opaque")).
+			value_or(MaterialSurfaceMode::Opaque);
 		outAsset.renderState.blendMode =
 			EnumAdapter<BlendMode>::FromString(
 				renderState.value("blendMode", "Normal")).
@@ -251,6 +257,8 @@ nlohmann::json Engine::ToJson(const MaterialAsset& asset) {
 	if (asset.renderState.overridesRenderer) {
 		data["renderState"] = {
 			{ "overridesRenderer", true },
+			{ "surfaceMode", EnumAdapter<MaterialSurfaceMode>::ToString(
+				asset.renderState.surfaceMode) },
 			{ "phase", std::string(ToString(asset.renderState.phase)) },
 			{ "blendMode", EnumAdapter<BlendMode>::ToString(
 				asset.renderState.blendMode) },
@@ -293,6 +301,11 @@ Engine::MaterialAsset Engine::CreateDefaultMeshMaterialAsset(std::string_view na
 		MaterialPassBinding{
 			.passKind = MaterialPassKind::Draw,
 			.pipeline = BuiltinAssets::Pipelines::DefaultMesh,
+			.preferredVariant = PipelineVariantKind::GraphicsMesh,
+		},
+		MaterialPassBinding{
+			.passKind = MaterialPassKind::Masked,
+			.pipeline = BuiltinAssets::Pipelines::DefaultMeshMasked,
 			.preferredVariant = PipelineVariantKind::GraphicsMesh,
 		},
 		MaterialPassBinding{

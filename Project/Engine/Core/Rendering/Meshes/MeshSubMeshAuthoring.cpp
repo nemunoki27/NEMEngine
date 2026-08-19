@@ -179,6 +179,10 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 		item.sourcePivot = ComputeMeshLocalCenter(mesh);
 
 		if (material && assetDatabase) {
+			const MeshImportUtility::ImportedMaterialSurface surface =
+				MeshImportUtility::ReadMaterialSurface(material);
+			item.sourceSurfaceMode = surface.surfaceMode;
+			item.alphaCutoff = surface.alphaCutoff;
 
 			// FindByPathで見つからない場合はImportOrGetでメタを作成してから解決する
 			auto resolveAsset = [&](const std::string& assetPath) -> AssetID {
@@ -306,6 +310,17 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 				current.sourcePivot = layout[i].sourcePivot;
 				updated = true;
 			}
+			const bool sourceSurfaceWasUnset =
+				current.sourceSurfaceMode == MaterialSurfaceMode::Auto;
+			if (current.sourceSurfaceMode != layout[i].sourceSurfaceMode) {
+				current.sourceSurfaceMode = layout[i].sourceSurfaceMode;
+				updated = true;
+			}
+			if ((!preserveOverrides || sourceSurfaceWasUnset) &&
+				current.alphaCutoff != layout[i].alphaCutoff) {
+				current.alphaCutoff = layout[i].alphaCutoff;
+				updated = true;
+			}
 			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
 			if (!preserveOverrides) {
 				updated |= ApplyLayoutItemToSubMesh(current, layout[i], false);
@@ -354,7 +369,8 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		SubMeshMaterial entry{};
 
 		const int32_t reusableOldIndex = findReusableOldIndex(i, layout[i]);
-		if (0 <= reusableOldIndex) {
+		const bool reused = 0 <= reusableOldIndex;
+		if (reused) {
 			entry = oldSubMeshes[reusableOldIndex];
 			used[reusableOldIndex] = true;
 			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
@@ -370,6 +386,12 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		entry.name = layout[i].name;
 		entry.sourceSubMeshIndex = layout[i].sourceSubMeshIndex;
 		entry.sourcePivot = layout[i].sourcePivot;
+		const bool sourceSurfaceWasUnset =
+			entry.sourceSurfaceMode == MaterialSurfaceMode::Auto;
+		entry.sourceSurfaceMode = layout[i].sourceSurfaceMode;
+		if (!reused || !preserveOverrides || sourceSurfaceWasUnset) {
+			entry.alphaCutoff = layout[i].alphaCutoff;
+		}
 
 		// 実Entity化、選択保持のための永続ID
 		if (!entry.stableID) {

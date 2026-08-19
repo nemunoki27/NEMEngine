@@ -28,6 +28,10 @@ namespace Engine {
 		std::span<const RenderItem* const> items{};
 
 		AssetID batchMesh{};
+		// バッチが描画するサブメッシュ、UINT32_MAXは全体
+		uint32_t subMeshIndex = kAllMeshSubMeshes;
+		// 混在モデルの描画対象グループ、UINT32_MAXは全体
+		uint32_t subMeshGroupIndex = UINT32_MAX;
 
 		MeshBatchResources* resources = nullptr;
 		const MeshGPUResource* gpuMesh = nullptr;

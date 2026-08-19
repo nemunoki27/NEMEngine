@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 
 //============================================================================
 //	RenderQueue classMethods
@@ -85,6 +86,7 @@ void Engine::RenderSceneBatch::Sort() {
 		return itemA.entity.generation < itemB.entity.generation;
 		};
 	std::stable_sort(items_.begin(), items_.end(), less);
+	RebuildEntityLookup();
 }
 
 void Engine::RenderSceneBatch::SetSource(const ECSWorld* world,
@@ -140,6 +142,7 @@ void Engine::RenderSceneBatch::RefreshTransforms(
 			}
 			item.previousWorldMatrix = item.worldMatrix;
 			item.worldMatrix = worldMatrix;
+			RefreshSortPosition(item);
 			item.motionFrameSerial = static_cast<uint32_t>(
 				GraphicsFrameState::GetFrameSerial());
 			changed = true;
@@ -173,6 +176,7 @@ void Engine::RenderSceneBatch::RefreshAllTransforms() {
 		const Matrix4x4 previousWorldMatrix = item.worldMatrix;
 		item.previousWorldMatrix = previousWorldMatrix;
 		item.worldMatrix = worldMatrix;
+		RefreshSortPosition(item);
 		item.motionFrameSerial = static_cast<uint32_t>(
 			GraphicsFrameState::GetFrameSerial());
 		transformChanges_.emplace_back(
@@ -184,6 +188,30 @@ void Engine::RenderSceneBatch::RefreshAllTransforms() {
 				.motionFrameSerial = item.motionFrameSerial,
 			});
 	}
+}
+
+void Engine::RenderSceneBatch::RefreshSortPosition(RenderItem& item) const {
+
+	item.sortPosition = item.worldMatrix.GetTranslationValue();
+	if (item.backendID != RenderBackendID::Mesh || !item.world) {
+		return;
+	}
+	const MeshRenderPayload* payload =
+		payloadArena_.Get<MeshRenderPayload>(item.payload);
+	if (!payload || payload->subMeshIndex == kAllMeshSubMeshes) {
+		return;
+	}
+	const std::span<const SubMeshMaterial> subMeshes =
+		GetMeshSubMeshes(*item.world, item.entity);
+	if (subMeshes.size() <= payload->subMeshIndex) {
+		return;
+	}
+	const SubMeshMaterial& subMesh = subMeshes[payload->subMeshIndex];
+	const Matrix4x4 subMeshWorld =
+		MeshSubMeshRuntime::BuildRenderLocalMatrix(subMesh) *
+		item.worldMatrix;
+	item.sortPosition = Vector3::Transform(
+		subMesh.sourcePivot, subMeshWorld);
 }
 
 uint64_t Engine::RenderSceneBatch::BuildEntityKey(

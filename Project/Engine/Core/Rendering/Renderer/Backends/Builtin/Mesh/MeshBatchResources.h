@@ -170,7 +170,9 @@ namespace Engine {
 		// 静的キャッシュが保持するCPU配列を現在のフレーム用バッファへ転送する
 		void UploadCachedBatchData();
 		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
-		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh);
+		void UpdateDrawConstants(const RenderDrawContext& drawContext,
+			const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
+			uint32_t subMeshGroupIndex);
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 

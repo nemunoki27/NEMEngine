@@ -74,7 +74,8 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
 	uint occlusionCullingEnabled;
-	uint2 _meshDrawReserved1;
+	uint subMeshGroupIndex;
+	uint _meshDrawReserved1;
 	uint4 lodIndexOffsets;
 	uint4 lodIndexCounts;
 	uint4 lodMeshletOffsets;
@@ -117,6 +118,13 @@ SubMeshShaderData GetInstanceSubMesh(uint instanceID, uint localSubMeshIndex) {
 	uint clampedSubMeshIndex = min(localSubMeshIndex, safeCount - 1u);
 
 	return gSubMeshes[instance.subMeshDataOffset + clampedSubMeshIndex];
+}
+
+bool IsSubMeshRenderGroupVisible(uint instanceID, uint localSubMeshIndex) {
+
+	return subMeshGroupIndex == 0xFFFFFFFFu ||
+		GetInstanceSubMesh(instanceID, localSubMeshIndex).renderGroupIndex ==
+			subMeshGroupIndex;
 }
 
 float4x4 GetInstanceSubMeshWorldMatrix(uint instanceID, uint localSubMeshIndex) {
@@ -307,11 +315,15 @@ bool IsSphereOccluded(float3 center, float radius) {
 
 bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 
+	MeshletDrawDesc meshlet = gMeshlets[meshletIndex];
+	if (!IsSubMeshRenderGroupVisible(
+		instanceIndex, meshlet.subMeshIndex)) {
+		return false;
+	}
 	if (cullingEnabled == 0u) {
 		return true;
 	}
 
-	MeshletDrawDesc meshlet = gMeshlets[meshletIndex];
 	float4x4 worldMatrix = GetInstanceSubMeshWorldMatrix(instanceIndex, meshlet.subMeshIndex);
 	float4x4 normalMatrix = GetInstanceSubMeshNormalMatrix(instanceIndex, meshlet.subMeshIndex);
 	MeshletBounds bounds = gMeshletBounds[meshletIndex];
@@ -371,6 +383,12 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 	output.subMeshIndex = localSubMeshIndex;
 	output.tangentSign = vertex.tangentSign;
 	output.orientationSign = GetInstanceSubMeshOrientationSign(instanceID, localSubMeshIndex);
+	if (!IsSubMeshRenderGroupVisible(instanceID, localSubMeshIndex)) {
+		// VS経路ではグループ外の頂点をfar面の外へ送りラスタライズしない
+		output.position.z = output.position.w * 2.0f;
+		output.currentClipPosition = output.position;
+		output.previousClipPosition = output.position;
+	}
 
 	return output;
 }

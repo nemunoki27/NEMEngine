@@ -38,7 +38,9 @@ namespace {
 	using Engine::Algorithm::HashCombine;
 
 	// メッシュ描画に使用するパスをマテリアルから解決する
-	bool ResolveMeshPass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterialID,
+	bool ResolveMeshPass(const Engine::RenderDrawContext& context,
+		Engine::AssetID requestedMaterialID,
+		Engine::MaterialSurfaceMode surfaceMode,
 		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
 		// 背面法アウトラインの3パスは、元マテリアルと切り離してMeshOutlineデフォルトマテリアルから解決する
@@ -73,6 +75,13 @@ namespace {
 		}
 		// 通常描画
 		if (context.passKind == Engine::MaterialPassKind::Draw) {
+			if (surfaceMode == Engine::MaterialSurfaceMode::Masked &&
+				Engine::BackendDrawCommon::ResolveMaterialPass(
+					context, requestedMaterialID,
+					Engine::DefaultMaterialSlot::Mesh,
+					{ Engine::MaterialPassKind::Masked }, outResolved)) {
+				return true;
+			}
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterialID,
 				Engine::DefaultMaterialSlot::Mesh, { Engine::MaterialPassKind::Draw }, outResolved)) {
 				return true;
@@ -351,6 +360,13 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 	outPrepared = {};
 	outPrepared.items = items;
 	outPrepared.batchMesh = MeshDrawPathCommon::ResolveBatchMesh(*context.batch, items);
+	const MeshRenderPayload* firstPayload =
+		context.batch->GetPayload<MeshRenderPayload>(*firstItem);
+	if (!firstPayload) {
+		return false;
+	}
+	outPrepared.subMeshIndex = firstPayload->subMeshIndex;
+	outPrepared.subMeshGroupIndex = firstPayload->subMeshGroupIndex;
 	// バッチに使用するメッシュがない場合は描画できない
 	if (!outPrepared.batchMesh) {
 		return false;
@@ -366,6 +382,10 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		if (!outPrepared.gpuMesh) {
 			return false;
 		}
+	}
+	if (outPrepared.subMeshIndex != kAllMeshSubMeshes &&
+		outPrepared.gpuMesh->subMeshes.size() <= outPrepared.subMeshIndex) {
+		return false;
 	}
 
 	MeshBatchResources* resources = nullptr;
@@ -484,7 +504,9 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 
 	// 描画パスごとに変わる定数(カリング設定やアウトライン情報)は、
 	// 静的/スキニングキャッシュヒット時も含め毎描画必ず更新する
-	resources->UpdateDrawConstants(context, *outPrepared.gpuMesh);
+	resources->UpdateDrawConstants(
+		context, *outPrepared.gpuMesh, outPrepared.subMeshIndex,
+		outPrepared.subMeshGroupIndex);
 
 	// インスタンス数を設定
 	outPrepared.instanceCount = resources->GetInstanceCount();
@@ -511,7 +533,8 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 
 	// マテリアルパスの解決
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
-	if (!ResolveMeshPass(context, outPrepared.items.front()->material, resolvedPass)) {
+	if (!ResolveMeshPass(context, outPrepared.items.front()->material,
+		outPrepared.items.front()->surfaceMode, resolvedPass)) {
 		return false;
 	}
 

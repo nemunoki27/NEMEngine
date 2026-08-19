@@ -39,17 +39,25 @@ void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 	renderTarget_.Create(graphicsCore.GetDXObject().GetDevice(),
 		&graphicsCore.GetRTVDescriptor(), &graphicsCore.GetDSVDescriptor(),
 		&graphicsCore.GetSRVDescriptor(), desc);
-	readbackBuffer_.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+	for (ReadbackSlot& slot : readbackSlots_) {
+		slot.buffer.CreateBuffer(
+			graphicsCore.GetDXObject().GetDevice());
+		slot.requestID = 0;
+		slot.fenceValue = 0;
+		slot.pending = false;
+	}
 
-	pendingReadback_ = false;
 	initialized_ = true;
 }
 
 void Engine::MeshSubMeshPicker::Finalize() {
 
 	renderTarget_.Destroy();
-	pendingReadback_ = false;
-	pendingFrameIndex_ = 0;
+	for (ReadbackSlot& slot : readbackSlots_) {
+		slot.requestID = 0;
+		slot.fenceValue = 0;
+		slot.pending = false;
+	}
 	initialized_ = false;
 }
 
@@ -58,67 +66,78 @@ Engine::MeshSubMeshPicker::ConsumePendingResult(
 	GraphicsCore& graphicsCore, ECSWorld* world) {
 
 	MeshSubMeshPickOutcome outcome{};
-	if (!pendingReadback_) {
-		return outcome;
-	}
+	const uint64_t completedFence =
+		graphicsCore.GetDXObject().GetCommandQueue()->
+			GetCompletedFenceValue();
+	for (ReadbackSlot& slot : readbackSlots_) {
 
-	const DxCommand* dxCommand =
-		graphicsCore.GetDXObject().GetDxCommand();
-	const uint64_t fenceValue =
-		dxCommand->GetFrameFenceValue(pendingFrameIndex_);
-	if (graphicsCore.GetDXObject().GetCommandQueue()->
-		GetCompletedFenceValue() < fenceValue) {
-		return outcome;
-	}
+		if (!slot.pending || completedFence < slot.fenceValue) {
+			continue;
+		}
+		slot.pending = false;
+		if (outcome.resolved &&
+			slot.requestID < outcome.requestID) {
+			continue;
+		}
 
-	pendingReadback_ = false;
-	outcome.committed = true;
+		outcome = {};
+		outcome.resolved = true;
+		outcome.requestID = slot.requestID;
+		if (!world) {
+			continue;
+		}
 
-	if (!world) {
-		return outcome;
-	}
+		const PickResult& result =
+			slot.buffer.GetReadbackData().result;
+		if (result.valid == 0 ||
+			result.entityIndex == UINT32_MAX ||
+			result.entityGeneration == UINT32_MAX) {
+			continue;
+		}
 
-	const PickResult& result = readbackBuffer_.GetReadbackData().result;
-	if (result.valid == 0 ||
-		result.entityIndex == UINT32_MAX ||
-		result.entityGeneration == UINT32_MAX) {
-		return outcome;
-	}
+		const Entity entity{
+			result.entityIndex, result.entityGeneration };
+		if (!world->IsAlive(entity)) {
+			continue;
+		}
 
-	const Entity entity{ result.entityIndex, result.entityGeneration };
-	if (!world->IsAlive(entity)) {
-		return outcome;
-	}
-
-	outcome.hit = true;
-	outcome.entity = entity;
-	outcome.subMeshIndex = result.subMeshIndex;
-
-	const std::span<const SubMeshMaterial> subMeshes =
-		GetMeshSubMeshes(*world, entity);
-	if (result.subMeshIndex < subMeshes.size()) {
-		outcome.subMeshStableID = subMeshes[result.subMeshIndex].stableID;
+		outcome.hit = true;
+		outcome.entity = entity;
+		outcome.subMeshIndex = result.subMeshIndex;
+		const std::span<const SubMeshMaterial> subMeshes =
+			GetMeshSubMeshes(*world, entity);
+		if (result.subMeshIndex < subMeshes.size()) {
+			outcome.subMeshStableID =
+				subMeshes[result.subMeshIndex].stableID;
+		}
 	}
 	return outcome;
 }
 
-void Engine::MeshSubMeshPicker::ExecuteReadback(GraphicsCore& graphicsCore) {
+bool Engine::MeshSubMeshPicker::ExecuteReadback(
+	GraphicsCore& graphicsCore, uint64_t requestID) {
 
-	if (!initialized_ || !renderTarget_.IsValid()) {
-		return;
+	if (!initialized_ || !renderTarget_.IsValid() || requestID == 0) {
+		return false;
 	}
 
 	RenderTexture2D* sourceTexture = renderTarget_.GetColorTexture(0);
 	if (!sourceTexture || !sourceTexture->GetResource()) {
-		return;
+		return false;
 	}
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
+	ReadbackSlot& slot = readbackSlots_[
+		dxCommand->GetCurrentFrameIndex() %
+		kGraphicsFrameContextCount];
+	if (slot.pending) {
+		return false;
+	}
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
 	sourceTexture->Transition(*dxCommand, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
 	D3D12_TEXTURE_COPY_LOCATION destination{};
-	destination.pResource = readbackBuffer_.GetResource();
+	destination.pResource = slot.buffer.GetResource();
 	destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 	destination.PlacedFootprint.Footprint.Format =
 		DXGI_FORMAT_R32G32B32A32_UINT;
@@ -135,6 +154,10 @@ void Engine::MeshSubMeshPicker::ExecuteReadback(GraphicsCore& graphicsCore) {
 
 	commandList->CopyTextureRegion(
 		&destination, 0, 0, 0, &source, nullptr);
-	pendingFrameIndex_ = dxCommand->GetCurrentFrameIndex();
-	pendingReadback_ = true;
+	slot.requestID = requestID;
+	slot.fenceValue =
+		graphicsCore.GetDXObject().GetCommandQueue()->
+			GetLastSignaledFenceValue() + 1;
+	slot.pending = true;
+	return true;
 }

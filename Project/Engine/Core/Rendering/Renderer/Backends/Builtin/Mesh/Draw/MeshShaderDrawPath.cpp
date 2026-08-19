@@ -81,7 +81,11 @@ void Engine::MeshShaderDrawPath::Draw(const MeshPathDrawContext& context) {
 	const auto& prepared = *context.prepared;
 
 	uint32_t meshletCount = 0;
-	for (const MeshLODRange& lod : prepared.gpuMesh->lods) {
+	const std::array<MeshLODRange, kMeshLODCount>& lods =
+		prepared.subMeshIndex != kAllMeshSubMeshes ?
+		prepared.gpuMesh->subMeshes[prepared.subMeshIndex].lods :
+		prepared.gpuMesh->lods;
+	for (const MeshLODRange& lod : lods) {
 		meshletCount = (std::max)(meshletCount, lod.meshletCount);
 	}
 	// MeshletやInstanceがない場合はDispatchMeshしない

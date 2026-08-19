@@ -242,5 +242,6 @@ bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const Ren
 		first.orderedUI == next.orderedUI &&
 		first.material == next.material &&
 		first.blendMode == next.blendMode &&
+		first.surfaceMode == next.surfaceMode &&
 		first.batchKey == next.batchKey;
 }

@@ -20,6 +20,27 @@
 //============================================================================
 namespace Engine::MaterialParameterEditor {
 
+	// HLSLの16byte整列用メンバはユーザー編集対象にしない
+	inline bool IsInternalPaddingParameter(
+		const ShaderConstantBufferVariable& var) {
+
+		size_t nameIndex = 0;
+		while (nameIndex < var.name.size() &&
+			var.name[nameIndex] == '_') {
+			++nameIndex;
+		}
+		if (var.name.size() - nameIndex < 3) {
+			return false;
+		}
+		const auto toLower = [](char c) {
+			return c >= 'A' && c <= 'Z' ?
+				static_cast<char>(c + ('a' - 'A')) : c;
+			};
+		return toLower(var.name[nameIndex]) == 'p' &&
+			toLower(var.name[nameIndex + 1]) == 'a' &&
+			toLower(var.name[nameIndex + 2]) == 'd';
+	}
+
 	// メタデータまたは変数名から色パラメータか判定する
 	inline bool IsColorParameter(const ShaderConstantBufferVariable& var) {
 
@@ -100,6 +121,9 @@ namespace Engine::MaterialParameterEditor {
 	inline ValueEditResult DrawValueEdit(const ShaderConstantBufferVariable& var, MaterialParameterValue& value,
 		const FloatEditSetting& floatSetting = FloatEditSetting{}) {
 
+		if (IsInternalPaddingParameter(var)) {
+			return ValueEditResult{};
+		}
 		const char* label = var.name.c_str();
 		const bool isColor = IsColorParameter(var);
 		const uint32_t componentCount = Engine::GetVariableComponentCount(var);
@@ -197,6 +221,9 @@ namespace Engine::MaterialParameterEditor {
 				continue;
 			}
 			for (const ShaderConstantBufferVariable& var : cb.variables) {
+				if (IsInternalPaddingParameter(var)) {
+					continue;
+				}
 
 				MaterialParameterValue* value =
 					parameters.Find(var.parameterID);

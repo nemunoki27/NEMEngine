@@ -47,6 +47,10 @@ namespace Engine {
 		bool hasEmissiveFactor = false;
 		bool hasMetallicFactor = false;
 		bool hasRoughnessFactor = false;
+
+		// モデルマテリアルの表面方式
+		MaterialSurfaceMode sourceSurfaceMode = MaterialSurfaceMode::Auto;
+		float alphaCutoff = 0.5f;
 	};
 
 	// モデル全体から取得した生成時情報

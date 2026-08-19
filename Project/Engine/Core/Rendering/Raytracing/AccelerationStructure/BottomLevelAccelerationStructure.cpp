@@ -99,8 +99,12 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	inputs_.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	inputs_.NumDescs = static_cast<UINT>(geometryDescs_.size());
 	inputs_.pGeometryDescs = geometryDescs_.data();
-	inputs_.Flags = allowUpdate_ ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
-		: D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	inputs_.Flags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	if (allowUpdate_) {
+		inputs_.Flags |=
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+	}
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild{};
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
@@ -152,6 +156,40 @@ void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6
 	commandList->BuildRaytracingAccelerationStructure(&buildDesc_, 0, nullptr);
 
 	// UAVバリアを挿入してASの更新完了を待つ
+	D3D12_RESOURCE_BARRIER uavBarrier{};
+	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+	uavBarrier.UAV.pResource = result_.GetResource();
+	commandList->ResourceBarrier(1, &uavBarrier);
+}
+
+void Engine::BottomLevelAccelerationStructure::Rebuild(
+	ID3D12GraphicsCommandList6* commandList,
+	const RaytracingBLASInput& input) {
+
+	retiredResources_.Collect();
+	if (!result_.GetResource() ||
+		layoutHash_ != ComputeLayoutHash(input)) {
+		Build(device_, commandList, input);
+		return;
+	}
+
+	// refitで劣化したBVHを、GPUアドレスを変えずに初期品質へ戻す
+	FillGeometryDescs(input);
+	inputs_.pGeometryDescs = geometryDescs_.data();
+	inputs_.Flags =
+		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+	if (allowUpdate_) {
+		inputs_.Flags |=
+			D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+	}
+
+	buildDesc_.Inputs = inputs_;
+	buildDesc_.DestAccelerationStructureData = result_.GetGPUAddress();
+	buildDesc_.ScratchAccelerationStructureData = scratch_.GetGPUAddress();
+	buildDesc_.SourceAccelerationStructureData = 0;
+	commandList->BuildRaytracingAccelerationStructure(
+		&buildDesc_, 0, nullptr);
+
 	D3D12_RESOURCE_BARRIER uavBarrier{};
 	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	uavBarrier.UAV.pResource = result_.GetResource();

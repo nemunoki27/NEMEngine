@@ -63,4 +63,10 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 	return m;
 }
 
+float ResolveMeshPBRAlphaClip(VSOutput input) {
+
+	return GetInstanceMeshMaterialParameters(
+		input.instanceID, input.subMeshIndex).alphaClip;
+}
+
 #endif // NEM_MESH_PBR_HLSLI

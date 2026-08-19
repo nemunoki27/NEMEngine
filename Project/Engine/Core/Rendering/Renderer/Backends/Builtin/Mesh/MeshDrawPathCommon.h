@@ -8,7 +8,15 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/GraphicsRootBinder.h>
 
 namespace Engine {
+	struct MeshRendererComponent;
 	struct SubMeshMaterial;
+
+	struct MeshSubMeshRenderState {
+
+		AssetID material{};
+		MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
+		bool surfaceModeOverridden = false;
+	};
 }
 
 //============================================================================
@@ -16,6 +24,13 @@ namespace Engine {
 //	メッシュ描画パスで共通の処理
 //============================================================================
 namespace Engine::MeshDrawPathCommon {
+
+	// サブメッシュをMaterialと表面方式が同じ描画グループへ分類する
+	void BuildSubMeshRenderGroups(
+		const MeshRendererComponent& renderer,
+		std::span<const SubMeshMaterial> subMeshes,
+		std::vector<MeshSubMeshRenderState>& outGroups,
+		std::vector<uint32_t>& outGroupIndices);
 
 	// バッチ内で使用するメッシュアセットIDを解決
 	AssetID ResolveBatchMesh(const RenderSceneBatch& batch, std::span<const RenderItem* const> items);

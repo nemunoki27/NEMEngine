@@ -60,7 +60,8 @@ void FramePresenter::Present(IDXGISwapChain4* swapChain) {
 uint64_t FramePresenter::PresentAndSignal(IDXGISwapChain4* swapChain) {
 
 	// 目標フレームレートに応じてvsyncと上限解除を切り替える、0または60超はvsync上限を外す
-	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
+	const uint32_t targetFps =
+		FrameRateSettings::GetInstance().GetPresentTargetFps();
 	UINT syncInterval = 1;
 	UINT presentFlags = 0;
 	if (targetFps == 0 || targetFps > 60) {
@@ -86,7 +87,8 @@ uint64_t FramePresenter::PresentAndSignal(IDXGISwapChain4* swapChain) {
 void FramePresenter::WaitForTargetFps() {
 
 	// 目標フレームレートはGraphicsメニューから設定され0は制限なし
-	const uint32_t targetFps = FrameRateSettings::GetInstance().GetTargetFps();
+	const uint32_t targetFps =
+		FrameRateSettings::GetInstance().GetPresentTargetFps();
 
 	// 制限なしなら待機せず即座に基準時刻だけ更新する
 	if (targetFps == 0) {

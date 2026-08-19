@@ -31,6 +31,8 @@ namespace Engine {
 
 		// BLASの更新
 		void Update(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input);
+		// 既存バッファを再利用してBLASを完全再構築する
+		void Rebuild(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input);
 
 		//--------- accessor -----------------------------------------------------
 

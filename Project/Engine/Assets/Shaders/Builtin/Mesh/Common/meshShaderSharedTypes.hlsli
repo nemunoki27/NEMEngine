@@ -66,6 +66,10 @@ struct SubMeshShaderData {
 	float3 sourcePivot;
 	// 負スケール時に-1になるlocalMatrix線形部の行列式の符号
 	float localOrientationSign;
+
+	// 同じMaterialと表面方式をまとめた描画グループ
+	uint renderGroupIndex;
+	uint3 _renderGroupPad;
 };
 
 struct MeshInstance {

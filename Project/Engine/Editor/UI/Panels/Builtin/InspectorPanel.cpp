@@ -840,6 +840,9 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 			reflections.push_back(reflection);
 			if (const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kSurface)) {
 				for (const ShaderConstantBufferVariable& var : cb->variables) {
+					if (MaterialParameterEditor::IsInternalPaddingParameter(var)) {
+						continue;
+					}
 					reflectedNames.insert(var.name);
 				}
 			}

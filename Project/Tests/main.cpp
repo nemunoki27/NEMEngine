@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
@@ -25,6 +26,7 @@
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
@@ -970,13 +972,46 @@ namespace {
 		const Engine::MaterialParameterValue* renamedValue =
 			parameters.Find(
 				Engine::MaterialParameterIDs::BaseColor);
-		return parameters.size() == 1 &&
+		if (parameters.size() != 1 ||
 			parameters.FindByName(
-				Engine::MaterialParameterNames::BaseColor) == nullptr &&
-			parameters.FindByName("RenamedParameter") != nullptr &&
-			renamedValue &&
-			std::holds_alternative<Engine::Vector2>(
-				renamedValue->value);
+				Engine::MaterialParameterNames::BaseColor) != nullptr ||
+			parameters.FindByName("RenamedParameter") == nullptr ||
+			!renamedValue ||
+			!std::holds_alternative<Engine::Vector2>(
+				renamedValue->value)) {
+
+			return false;
+		}
+
+		// Materialとサブメッシュの表面方式がJSON往復後も維持されることを確認する
+		Engine::MaterialAsset material{};
+		material.renderState.overridesRenderer = true;
+		material.renderState.surfaceMode =
+			Engine::MaterialSurfaceMode::Masked;
+		Engine::MaterialAsset restoredMaterial{};
+		if (!Engine::FromJson(
+			Engine::ToJson(material), restoredMaterial) ||
+			restoredMaterial.renderState.surfaceMode !=
+				Engine::MaterialSurfaceMode::Masked) {
+
+			return false;
+		}
+
+		Engine::SubMeshMaterial subMesh{};
+		subMesh.surfaceMode = Engine::MaterialSurfaceMode::Auto;
+		subMesh.sourceSurfaceMode =
+			Engine::MaterialSurfaceMode::Transparent;
+		subMesh.alphaCutoff = 0.37f;
+		const Engine::SubMeshMaterial restoredSubMesh =
+			nlohmann::json(subMesh).get<Engine::SubMeshMaterial>();
+		return restoredSubMesh.surfaceMode ==
+				Engine::MaterialSurfaceMode::Auto &&
+			restoredSubMesh.sourceSurfaceMode ==
+				Engine::MaterialSurfaceMode::Transparent &&
+			std::abs(restoredSubMesh.alphaCutoff - 0.37f) < 1e-6f &&
+			Engine::ResolveMaterialRenderPhase(
+				Engine::MaterialSurfaceMode::Masked) ==
+				Engine::RenderPhase::Opaque;
 	}
 
 	bool TestRenderFeatureRuntimeOverrides() {
@@ -1861,6 +1896,16 @@ int main(int argc, char* argv[]) {
 			return 18;
 		}
 		std::cout << "Shader Graph compilation passed\n";
+		return 0;
+	}
+	if (1 < argc &&
+		std::string_view(argv[1]) == "--materials") {
+
+		if (!TestMaterialParameters()) {
+			std::cerr << "Material parameter storage failed\n";
+			return 17;
+		}
+		std::cout << "Material parameter storage passed\n";
 		return 0;
 	}
 

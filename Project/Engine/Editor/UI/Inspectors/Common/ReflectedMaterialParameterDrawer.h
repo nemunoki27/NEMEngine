@@ -90,7 +90,8 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 
 		for (const ShaderConstantBufferVariable& variable : layout.GetVariables()) {
 
-			if (!variable.used) {
+			if (!variable.used ||
+				MaterialParameterEditor::IsInternalPaddingParameter(variable)) {
 				continue;
 			}
 			hasParameter = true;

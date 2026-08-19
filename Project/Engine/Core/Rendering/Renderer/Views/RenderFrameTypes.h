@@ -38,6 +38,8 @@ namespace Engine {
 
 		// 有効かどうか
 		bool enabled = true;
+		// 有効なビューの描画をこのフレームに実行するか
+		bool renderThisFrame = true;
 
 		// 出力サイズ
 		uint32_t width = 0;
@@ -66,8 +68,18 @@ namespace Engine {
 
 		// 描画ビューの要求種類
 		std::array<RenderViewRequest, 2> views = {
-			RenderViewRequest{ RenderViewKind::Game,  true, 0, 0, RenderViewSourceKind::WorldCamera, {} },
-			RenderViewRequest{ RenderViewKind::Scene, true, 0, 0, RenderViewSourceKind::ManualCamera, {} }
+			RenderViewRequest{
+				.kind = RenderViewKind::Game,
+				.enabled = true,
+				.renderThisFrame = true,
+				.sourceKind = RenderViewSourceKind::WorldCamera,
+			},
+			RenderViewRequest{
+				.kind = RenderViewKind::Scene,
+				.enabled = true,
+				.renderThisFrame = true,
+				.sourceKind = RenderViewSourceKind::ManualCamera,
+			}
 		};
 
 		// SceneViewのデフォルトグリッドを描画する

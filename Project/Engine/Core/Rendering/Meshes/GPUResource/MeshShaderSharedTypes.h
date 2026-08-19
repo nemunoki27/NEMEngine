@@ -58,7 +58,9 @@ namespace Engine {
 		uint32_t outlineHasScreenPixelWidth = 0;
 		// 深度ピラミッドによる遮蔽判定を行うか
 		uint32_t occlusionCullingEnabled = 0;
-		uint32_t _reserved1[2] = { 0, 0 };
+		// 混在モデルの描画対象グループ、UINT32_MAXは全グループ
+		uint32_t subMeshGroupIndex = UINT32_MAX;
+		uint32_t _reserved1 = 0;
 
 		// 連結Index/Meshletバッファ内の4段階LOD範囲
 		std::array<uint32_t, kMeshLODCount> lodIndexOffsets{};
@@ -123,8 +125,12 @@ namespace Engine {
 		Vector3 sourcePivot = Vector3::AnyInit(0.0f);
 		// localMatrixの線形部の行列式の符号で負スケールのmirror時に-1
 		float localOrientationSign = 1.0f;
+
+		// 同じMaterialと表面方式をまとめた描画グループ
+		uint32_t renderGroupIndex = 0;
+		uint32_t _renderGroupPad[3] = { 0, 0, 0 };
 	};
-	static_assert(sizeof(MeshSubMeshShaderData) == 288,
+	static_assert(sizeof(MeshSubMeshShaderData) == 304,
 		"MeshSubMeshShaderData must match HLSL SubMeshShaderData layout");
 	static_assert(sizeof(MeshSubMeshShaderData) % 16 == 0);
 } // Engine

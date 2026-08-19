@@ -166,18 +166,31 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 
 	Input* input = Input::GetInstance();
 
-	// クリック(ドラッグせず離した)時に選択を確定する、候補が未解決ならreadback到着時に確定する
-	if (input->ReleaseMouse(MouseButton::Left)) {
+	// 押下を開始した同じViewでドラッグせず離した場合だけ選択を確定する
+	if (input->ReleaseMouse(MouseButton::Left) &&
+		editorState_.scenePickPressActive) {
 
-		const bool overViewport = editorState_.sceneViewportHovered || editorState_.gameViewportHovered;
-		if (overViewport && !ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left)) {
+		const bool overPressedViewport =
+			editorState_.scenePickPressGameView ?
+			editorState_.gameViewportHovered :
+			editorState_.sceneViewportHovered;
+		editorState_.scenePickPressActive = false;
+		if (overPressedViewport &&
+			!ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left)) {
 
 			editorState_.scenePickClickPending = true;
-			editorState_.scenePickClickAdditive = ImGui::IsKeyDown(ImGuiKey_LeftShift);
-			// 即時候補や空クリックはreadback待ちが無ければその場で確定する
-			if (!meshSubMeshPicker_->HasPendingReadback() && context.activeWorld) {
-				editorState_.CommitScenePick(*context.activeWorld);
+			editorState_.scenePickClickAdditive =
+				ImGui::IsKeyDown(ImGuiKey_LeftShift);
+			// GPU結果が先に解決済みなら、このリリースで確定する
+			if (editorState_.scenePickCandidateRequestID ==
+				editorState_.scenePickRequestID &&
+				context.activeWorld) {
+				editorState_.CommitScenePick(
+					*context.activeWorld);
 			}
+		} else {
+
+			editorState_.scenePickClickPending = false;
 		}
 	}
 
@@ -200,9 +213,19 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			if (!input->TriggerMouse(MouseButton::Left)) {
 				return false;
 			}
-			// 押すたびに候補と保留クリックをリセットする、選択はリリースまで遅延する
+			// 押すたびに要求IDを進め、古いGPU結果をこのクリックへ適用しない
+			++editorState_.scenePickRequestID;
+			if (editorState_.scenePickRequestID == 0) {
+				++editorState_.scenePickRequestID;
+			}
 			editorState_.scenePickDragEntity = Entity::Null();
+			editorState_.scenePickCandidateSubMesh = 0;
+			editorState_.scenePickCandidateSubMeshID = UUID{};
+			editorState_.scenePickCandidateRequestID = 0;
 			editorState_.scenePickClickPending = false;
+			editorState_.scenePickPressActive = true;
+			editorState_.scenePickPressGameView =
+				viewKind == RenderViewKind::Game;
 
 			// マウス座標を取得
 			const std::optional<Vector2> mousePosInView = input->GetMousePosInView(inputArea);
@@ -215,6 +238,8 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 				editorState_.scenePickDragEntity = hit;
 				editorState_.scenePickCandidateSubMesh = 0;
 				editorState_.scenePickCandidateSubMeshID = UUID{};
+				editorState_.scenePickCandidateRequestID =
+					editorState_.scenePickRequestID;
 				};
 
 			// SceneView専用Overlayは通常2D/TLASより優先してEntity単位で選択する
@@ -237,15 +262,19 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			}
 
 			// 1x1整数RTへクリック画素だけを描画しreadbackを予約する
-			if (meshSubMeshPicker_->HasPendingReadback()) {
-				return true;
-			}
 			MultiRenderTarget* pickTarget =
 				meshSubMeshPicker_->GetRenderTarget();
 			if (pickTarget && renderPipeline.RenderMeshPicking(
 				graphicsCore, viewKind, mousePosInView.value(), *pickTarget)) {
-				meshSubMeshPicker_->ExecuteReadback(graphicsCore);
+
+				if (meshSubMeshPicker_->ExecuteReadback(
+					graphicsCore, editorState_.scenePickRequestID)) {
+					return true;
+				}
 			}
+			// 描画またはreadbackを開始できなかった場合も空候補としてリリース可能にする
+			editorState_.scenePickCandidateRequestID =
+				editorState_.scenePickRequestID;
 			return true;
 		};
 

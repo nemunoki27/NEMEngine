@@ -7,6 +7,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
+#include <algorithm>
 #include <vector>
 
 namespace {
@@ -100,6 +101,12 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 	const std::string stableID = in.value("stableID", "");
 	subMeshMaterial.stableID = stableID.empty() ? UUID{} : FromString16Hex(stableID);
 	subMeshMaterial.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
+	subMeshMaterial.material = ParseAssetID(in, "material");
+	subMeshMaterial.surfaceMode = EnumAdapter<MaterialSurfaceMode>::FromString(
+		in.value("surfaceMode", "Auto")).value_or(MaterialSurfaceMode::Auto);
+	subMeshMaterial.sourceSurfaceMode = EnumAdapter<MaterialSurfaceMode>::FromString(
+		in.value("sourceSurfaceMode", "Auto")).value_or(MaterialSurfaceMode::Auto);
+	subMeshMaterial.alphaCutoff = std::clamp(in.value("alphaCutoff", 0.5f), 0.0f, 1.0f);
 
 	// reflection駆動のパラメータ上書きを読む
 	ReadMaterialInstance(
@@ -121,6 +128,12 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["name"] = subMeshMaterial.name;
 	out["stableID"] = subMeshMaterial.stableID ? ToString(subMeshMaterial.stableID) : "";
 	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
+	out["material"] = ToAssetReferenceJson(subMeshMaterial.material);
+	out["surfaceMode"] = EnumAdapter<MaterialSurfaceMode>::ToString(
+		subMeshMaterial.surfaceMode);
+	out["sourceSurfaceMode"] = EnumAdapter<MaterialSurfaceMode>::ToString(
+		subMeshMaterial.sourceSurfaceMode);
+	out["alphaCutoff"] = subMeshMaterial.alphaCutoff;
 
 	// reflection駆動のパラメータ上書きを書き出す
 	out["materialInstance"] =

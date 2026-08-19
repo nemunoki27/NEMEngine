@@ -28,8 +28,9 @@ void Engine::FrameRateSettings::Load(const std::string& configPath) {
 		return;
 	}
 
-	// 0は制限なしで30/60/120を想定するが、保存値はそのまま採用する
+	// 0は制限なし、保存値はそのまま採用する
 	targetFps_ = data.value("targetFps", targetFps_);
+	editorTargetFps_ = data.value("editorTargetFps", editorTargetFps_);
 }
 
 void Engine::FrameRateSettings::Save() const {
@@ -41,5 +42,6 @@ void Engine::FrameRateSettings::Save() const {
 
 	nlohmann::json data = nlohmann::json::object();
 	data["targetFps"] = targetFps_;
+	data["editorTargetFps"] = editorTargetFps_;
 	JsonAdapter::Save(configPath_, data);
 }
