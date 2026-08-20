@@ -395,9 +395,15 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	// glTFのmetallic-roughness規約に合わせてBとGを参照する
 	float4 metallicRoughness = SampleHitTexture(
 		subMesh.metallicRoughnessTextureIndex, uv, textureMip, 1.0f.xxxx);
-	float metallic = saturate(subMesh.metallic * metallicRoughness.b);
+	float metallicSample = SampleHitTexture(
+		subMesh.metallicTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+	float roughnessSample = SampleHitTexture(
+		subMesh.roughnessTextureIndex, uv, textureMip, 1.0f.xxxx).r;
+	float metallic = saturate(
+		subMesh.metallic * metallicRoughness.b * metallicSample);
 	float roughness = max(
-		saturate(subMesh.roughness * metallicRoughness.g), 0.04f);
+		saturate(subMesh.roughness * metallicRoughness.g * roughnessSample),
+		0.04f);
 	float ao = SampleHitTexture(
 		subMesh.occlusionTextureIndex, uv, textureMip, 1.0f.xxxx).r;
 

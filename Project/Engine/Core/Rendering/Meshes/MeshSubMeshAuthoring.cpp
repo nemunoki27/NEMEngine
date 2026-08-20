@@ -77,6 +77,9 @@ namespace {
 		setTexture(Engine::MaterialParameterNames::NormalTexture, tex.normalTexture);
 		setTexture(Engine::MaterialParameterNames::EmissiveTexture, tex.emissiveTexture);
 		setTexture(Engine::MaterialParameterNames::MetallicRoughnessTexture, tex.metallicRoughnessTexture);
+		setTexture(Engine::MaterialParameterNames::MetallicTexture, tex.metallicTexture);
+		setTexture(Engine::MaterialParameterNames::RoughnessTexture, tex.roughnessTexture);
+		setTexture(Engine::MaterialParameterNames::DisplacementTexture, tex.displacementTexture);
 		setTexture(Engine::MaterialParameterNames::AmbientOcclusionTexture, tex.occlusionTexture);
 		setTexture(Engine::MaterialParameterNames::SpecularTexture, tex.specularTexture);
 		return changed;
@@ -201,13 +204,32 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 			const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(
 				mat, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
 			const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
-				mat, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT });
+				mat, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA });
+			const std::string heightReference =
+				AssimpMaterialTextureExtractor::Extract(
+					mat, { aiTextureType_HEIGHT });
+			AssimpMaterialTextureExtractor::PBRTextureReferences pbrTextures =
+				AssimpMaterialTextureExtractor::ExtractPBR(mat);
+			const std::string normalOrHeightReference =
+				normalReference.empty() ? heightReference : normalReference;
+			if (pbrTextures.displacement.empty() &&
+				!normalReference.empty()) {
+
+				pbrTextures.displacement = heightReference;
+			}
 
 			item.defaultTextureAssets.baseColorTexture = resolveAsset(textureResolver.ResolveAssetPath(baseColorReference));
 			item.defaultTextureAssets.normalTexture =
-				resolveAsset(textureResolver.ResolveNormalAssetPath(normalReference, baseColorReference));
-			item.defaultTextureAssets.metallicRoughnessTexture = resolveAsset(textureResolver.ResolveAssetPath(
-				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN })));
+				resolveAsset(textureResolver.ResolveNormalAssetPath(
+					normalOrHeightReference, baseColorReference));
+			item.defaultTextureAssets.metallicRoughnessTexture =
+				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.metallicRoughness));
+			item.defaultTextureAssets.metallicTexture =
+				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.metallic));
+			item.defaultTextureAssets.roughnessTexture =
+				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.roughness));
+			item.defaultTextureAssets.displacementTexture =
+				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.displacement));
 			item.defaultTextureAssets.specularTexture = resolveAsset(textureResolver.ResolveAssetPath(
 				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_SPECULAR })));
 			item.defaultTextureAssets.emissiveTexture = resolveAsset(textureResolver.ResolveAssetPath(

@@ -42,6 +42,7 @@ void Engine::RenderFeatureProfileRuntime::Rebuild(
 	const RenderFeatureProfileAsset& profile) {
 
 	profile_ = profile;
+	ApplyRenderFeatureHierarchy(profile_);
 	diagnostic_.clear();
 	ValidateProfile();
 }

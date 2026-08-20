@@ -21,6 +21,8 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
+#include <array>
+#include <memory>
 #include <vector>
 #include <span>
 #include <string>
@@ -172,7 +174,7 @@ namespace Engine {
 		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
 		void UpdateDrawConstants(const RenderDrawContext& drawContext,
 			const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
-			uint32_t subMeshGroupIndex);
+			uint32_t subMeshGroupIndex, const MaterialAsset* material);
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 
@@ -215,12 +217,18 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgsGPUAddress_; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
 		// reflection駆動のサブメッシュ単位マテリアルパラメータバッファ
-		bool HasSubMeshMaterialParams() const { return subMeshParamAvailable_; }
-		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const {
-			return subMeshParamBuffer_.GetGPUAddress();
+		bool HasSubMeshMaterialParams() const {
+			return activeSubMeshParamBuffer_ &&
+				activeSubMeshParamBuffer_->available;
 		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSubMeshMaterialParamGPUHandle() const {
-			return subMeshParamHandles_[GraphicsFrameState::GetCurrentIndex()];
+		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const {
+			return activeSubMeshParamBuffer_ ?
+				activeSubMeshParamBuffer_->buffer.GetGPUAddress() : 0;
+		}
+		D3D12_GPU_DESCRIPTOR_HANDLE GetSubMeshMaterialParamGPUHandle() const {
+			return activeSubMeshParamBuffer_ ?
+				activeSubMeshParamBuffer_->handles[GraphicsFrameState::GetCurrentIndex()] :
+				D3D12_GPU_DESCRIPTOR_HANDLE{};
 		}
 		std::string_view GetSubMeshMaterialParamBindingName() const { return MaterialParameterCBuffer::kMesh; }
 		// 背面法アウトラインのインスタンス別GPUデータ
@@ -294,6 +302,27 @@ namespace Engine {
 			D3D12_RESOURCE_STATES skinnedVertexState = D3D12_RESOURCE_STATE_COMMON;
 			D3D12_RESOURCE_STATES skinnedPackedVertexState = D3D12_RESOURCE_STATE_COMMON;
 		};
+		// 同一フレーム内で別パスが通常描画のUpload Heapを書き換えないよう、
+		// MaterialPass単位で独立した可変strideバッファを保持する
+		struct SubMeshMaterialParamBuffer {
+
+			DxFrameMappedUploadBuffer buffer{};
+			std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
+				kGraphicsFrameContextCount> handles{};
+			std::array<uint32_t, kGraphicsFrameContextCount>
+				srvIndices = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
+			std::vector<uint32_t> retiredSrvIndices{};
+			std::vector<uint8_t> packedScratch{};
+			uint64_t layoutHash = 0;
+			uint64_t materialHash = 0;
+			const MaterialAsset* material = nullptr;
+			uint64_t dataGeneration = 1;
+			std::array<uint64_t, kGraphicsFrameContextCount>
+				uploadedGenerations = { 0, 0, 0 };
+			uint32_t stride = 0;
+			bool available = false;
+			bool dirty = true;
+		};
 
 		//--------- variables ----------------------------------------------------
 
@@ -325,25 +354,17 @@ namespace Engine {
 		// サブメッシュ単位マテリアルパラメータ用の可変stride構造化バッファ
 		ID3D12Device* device_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
-		DxFrameMappedUploadBuffer subMeshParamBuffer_{};
-		std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
-			kGraphicsFrameContextCount> subMeshParamHandles_{};
-		std::array<uint32_t, kGraphicsFrameContextCount>
-			subMeshParamSrvIndices_ = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
-		std::vector<uint32_t> retiredSubMeshParamSrvIndices_{};
-		uint32_t subMeshParamCapacityBytes_ = 0;
-		uint32_t subMeshParamStride_ = 0;
-		uint32_t subMeshParamElementCount_ = 0;
-		bool subMeshParamAvailable_ = false;
 		// UploadBatchDataで集めるインスタンス×サブメッシュ単位の上書きパラメータ
 		std::vector<MaterialParameterSet> subMeshParamScratch_{};
-		std::vector<uint8_t> subMeshParamPackedScratch_{};
-		uint64_t subMeshParamLayoutHash_ = 0;
-		const MaterialAsset* subMeshParamMaterial_ = nullptr;
-		bool subMeshParamDirty_ = true;
-		uint64_t subMeshParamDataGeneration_ = 1;
-		std::array<uint64_t, kGraphicsFrameContextCount>
-			uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
+		static constexpr size_t kSubMeshMaterialPassBufferCount =
+			static_cast<size_t>(MaterialPassKind::RayTracing) + 1;
+		std::array<std::unique_ptr<SubMeshMaterialParamBuffer>,
+			kSubMeshMaterialPassBufferCount> subMeshParamBuffers_{};
+		SubMeshMaterialParamBuffer* activeSubMeshParamBuffer_ = nullptr;
+		// 頂点変位Boundsのマテリアル別キャッシュ
+		const MaterialAsset* displacementMetricMaterial_ = nullptr;
+		uint64_t displacementMetricMaterialHash_ = 0;
+		float cachedMaxDisplacement_ = 0.0f;
 		ComPtr<ID3D12Resource> indexedIndirectArgs_{};
 		// ExecuteIndirect引数バッファの現在状態
 		D3D12_RESOURCE_STATES indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
@@ -397,6 +418,14 @@ namespace Engine {
 
 		// 現在のフレームスロットを再利用する前にper-draw定数の切り出し位置を戻す
 		void BeginDynamicConstantsFrame();
+		// マテリアルとサブメッシュ上書きから最大頂点変位量を求める
+		float ResolveMaxDisplacement(const MaterialAsset* material);
+		// 描画パス専用のサブメッシュマテリアルバッファを遅延生成する
+		SubMeshMaterialParamBuffer& GetSubMeshMaterialParamBuffer(
+			MaterialPassKind passKind);
+		// SRV Descriptorを含めてパス専用バッファを解放する
+		void ReleaseSubMeshMaterialParamBuffer(
+			SubMeshMaterialParamBuffer& buffer);
 		static constexpr size_t ToViewIndex(RenderViewKind kind) { return static_cast<size_t>(kind); }
 	};
 } // Engine

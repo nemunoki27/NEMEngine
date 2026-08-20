@@ -75,7 +75,7 @@ cbuffer MeshDrawConstants : register(b0, space1) {
 	uint outlineHasScreenPixelWidth;
 	uint occlusionCullingEnabled;
 	uint subMeshGroupIndex;
-	uint _meshDrawReserved1;
+	float maxDisplacement;
 	uint4 lodIndexOffsets;
 	uint4 lodIndexCounts;
 	uint4 lodMeshletOffsets;
@@ -104,6 +104,8 @@ StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
 StructuredBuffer<MeshletBounds> gMeshletBounds : register(t4, space1);
 StructuredBuffer<uint> gPackedMeshletVertexIndices : register(t5, space1);
 Texture2D<float> gOcclusionDepthPyramid : register(t7, space1);
+
+#include "meshPBRMaterial.hlsli"
 
 #define NEM_OCCLUSION_DEPTH_PYRAMID gOcclusionDepthPyramid
 #include "../../Common/CullingHelpers.hlsli"
@@ -226,6 +228,62 @@ MeshVertex DecodePackedVertex(MeshPackedVertex vertex) {
 	return outVertex;
 }
 
+#if defined(NEM_ENABLE_MESH_DISPLACEMENT)
+// 頂点シェーダーからSamplerを増やさず使用できる繰り返しバイリニアサンプル
+float SampleMeshDisplacement(uint textureIndex, float2 uv) {
+
+	Texture2D<float4> texture =
+		ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
+	uint width;
+	uint height;
+	texture.GetDimensions(width, height);
+
+	const int2 dimensions = int2(max(width, 1u), max(height, 1u));
+	const float2 texelPosition = frac(uv) * float2(dimensions) - 0.5f;
+	const int2 baseTexel = int2(floor(texelPosition));
+	const float2 blend = frac(texelPosition);
+
+	const int2 p00 = (baseTexel % dimensions + dimensions) % dimensions;
+	const int2 p10 =
+		((baseTexel + int2(1, 0)) % dimensions + dimensions) % dimensions;
+	const int2 p01 =
+		((baseTexel + int2(0, 1)) % dimensions + dimensions) % dimensions;
+	const int2 p11 =
+		((baseTexel + int2(1, 1)) % dimensions + dimensions) % dimensions;
+	const float top = lerp(
+		texture.Load(int3(p00, 0)).r,
+		texture.Load(int3(p10, 0)).r, blend.x);
+	const float bottom = lerp(
+		texture.Load(int3(p01, 0)).r,
+		texture.Load(int3(p11, 0)).r, blend.x);
+	return lerp(top, bottom, blend.y);
+}
+
+// DisplacementのRチャンネルをローカル法線方向の頂点変位へ変換
+MeshVertex ApplyMeshDisplacement(
+	MeshVertex vertex, uint instanceID, uint localSubMeshIndex) {
+
+	const MeshMaterialParameters material =
+		GetInstanceMeshMaterialParameters(instanceID, localSubMeshIndex);
+	if (material.displacementTexture == 0xFFFFFFFFu ||
+		abs(material.displacementScale) <= 0.000001f) {
+
+		return vertex;
+	}
+
+	const SubMeshShaderData subMesh =
+		GetInstanceSubMesh(instanceID, localSubMeshIndex);
+	const float2 uv = mul(float4(vertex.uv, 0.0f, 1.0f),
+		subMesh.uvMatrix).xy;
+	const float height = SampleMeshDisplacement(
+		material.displacementTexture, uv);
+	const float offset = (height - material.displacementMidpoint) *
+		material.displacementScale;
+	vertex.position.xyz += normalize(vertex.normal) * offset;
+	return vertex;
+}
+#endif
+
 uint LoadMeshletVertexIndex(uint index) {
 
 	if (packedMeshletVertexIndices == 0u) {
@@ -242,11 +300,21 @@ uint LoadMeshletVertexIndex(uint index) {
 MeshVertex LoadMeshVertex(uint instanceID, uint vertexIndex) {
 
 	MeshInstance instance = gMeshInstances[instanceID];
+	MeshVertex vertex;
 	if ((instance.flags & MESH_INSTANCE_FLAG_SKINNED) != 0u) {
-		
-		return DecodePackedVertex(gSkinnedPackedVertices[instance.skinnedVertexOffset + vertexIndex]);
+
+		vertex = DecodePackedVertex(
+			gSkinnedPackedVertices[instance.skinnedVertexOffset + vertexIndex]);
+	} else {
+
+		vertex = DecodePackedVertex(gPackedVertices[vertexIndex]);
 	}
-	return DecodePackedVertex(gPackedVertices[vertexIndex]);
+#if defined(NEM_ENABLE_MESH_DISPLACEMENT)
+	return ApplyMeshDisplacement(
+		vertex, instanceID, gVertexSubMeshIndices[vertexIndex]);
+#else
+	return vertex;
+#endif
 }
 
 float CalcProjectedPixelRadius(float3 center, float radius) {
@@ -329,7 +397,7 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	MeshletBounds bounds = gMeshletBounds[meshletIndex];
 	float3 center = mul(float4(bounds.center, 1.0f), worldMatrix).xyz;
 	// 背面法アウトラインは元形状より外へ膨張するため、Boundsを安全側へ広げる
-	float localRadius = bounds.radius;
+	float localRadius = bounds.radius + maxDisplacement;
 	if (invertedHullOutlinePass != 0u) {
 		localRadius += outlineMaxModelExpansion;
 	}

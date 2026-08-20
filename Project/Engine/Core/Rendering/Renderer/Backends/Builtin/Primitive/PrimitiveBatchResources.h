@@ -35,8 +35,8 @@ namespace Engine {
 		Color4 bottomColor = Color4::White();
 		uint32_t flags = 0;
 		uint32_t motionFrameSerial = 0;
-		uint32_t pad0 = 0;
-		uint32_t pad1 = 0;
+		uint32_t entityIndex = UINT32_MAX;
+		uint32_t entityGeneration = UINT32_MAX;
 	};
 	static_assert(sizeof(PrimitiveInstanceData) == 288);
 

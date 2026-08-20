@@ -38,6 +38,9 @@ namespace {
 			dst.baseColorTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.baseColorTexturePath);
 			dst.normalTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.normalTexturePath);
 			dst.metallicRoughnessTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.metallicRoughnessTexturePath);
+			dst.metallicTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.metallicTexturePath);
+			dst.roughnessTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.roughnessTexturePath);
+			dst.displacementTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.displacementTexturePath);
 			dst.specularTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.specularTexturePath);
 			dst.emissiveTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.emissiveTexturePath);
 			dst.occlusionTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.occlusionTexturePath);

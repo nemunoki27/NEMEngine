@@ -1,332 +1,506 @@
 {
-  "version": 1,
-  "name": "Sponza Render Features",
-  "colorPipeline": {
-    "exposure": {
-      "mode": "Manual",
-      "manualEV100": 0.0,
-      "compensation": 1.0,
-      "minEV100": -10.0,
-      "maxEV100": 20.0,
-      "histogramLowPercent": 0.8,
-      "histogramHighPercent": 0.95,
-      "speedUp": 3.0,
-      "speedDown": 1.0,
-      "usePreExposure": true
+    "colorPipeline": {
+        "colorGrading": {
+            "colorFilter": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "contrast": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "gain": {
+                "x": 0.9999992251396179,
+                "y": 0.9999992251396179,
+                "z": 0.9999992251396179
+            },
+            "gamma": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "offset": {
+                "x": 6.309710443019867e-08,
+                "y": 6.309710443019867e-08,
+                "z": 6.309710443019867e-08
+            },
+            "saturation": {
+                "x": 1.8580007553100586,
+                "y": 1.8580007553100586,
+                "z": 1.8580007553100586
+            },
+            "temperature": 8051.0,
+            "tint": 0.0
+        },
+        "exposure": {
+            "compensation": 1.0,
+            "histogramHighPercent": 0.949999988079071,
+            "histogramLowPercent": 0.800000011920929,
+            "manualEV100": 0.0,
+            "maxEV100": 20.0,
+            "minEV100": -10.0,
+            "mode": "Manual",
+            "speedDown": 1.0,
+            "speedUp": 3.0,
+            "usePreExposure": true
+        },
+        "filmic": {
+            "blackClip": 0.0,
+            "shoulder": 0.0,
+            "slope": 1.0,
+            "toe": 0.0,
+            "whiteClip": 0.0
+        }
     },
-    "filmic": {
-      "slope": 1.0,
-      "toe": 0.0,
-      "shoulder": 0.0,
-      "blackClip": 0.0,
-      "whiteClip": 0.0
-    },
-    "colorGrading": {
-      "colorFilter": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 },
-      "temperature": 8051.0,
-      "tint": 0.0,
-      "saturation": { "x": 1.8580007553100586, "y": 1.8580007553100586, "z": 1.8580007553100586 },
-      "contrast": { "x": 1.0, "y": 1.0, "z": 1.0 },
-      "gamma": { "x": 1.0, "y": 1.0, "z": 1.0 },
-      "gain": { "x": 0.9999992251396179, "y": 0.9999992251396179, "z": 0.9999992251396179 },
-      "offset": { "x": 6.309710443019867e-08, "y": 6.309710443019867e-08, "z": 6.309710443019867e-08 }
-    }
-  },
-  "passes": [
-    {
-      "id": "52545245464c4543",
-      "name": "Reflection Trace",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "RayTracing",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7c",
-      "materialPass": "RayTracing",
-      "source": { "kind": "SceneColor", "pass": "", "output": "Color" },
-      "sceneColorOutput": false,
-      "targetMask": 0,
-      "rayGenerationIndex": 0,
-      "adaptiveResolution": false,
-      "gpuBudgetMs": 2.0,
-      "minResolutionScale": 0.5,
-      "maxResolutionScale": 1.0,
-      "resolutionStep": 0.25,
-      "adjustmentIntervalFrames": 30,
-      "outputs": [
+    "hierarchy": [
         {
-          "name": "Raw",
-          "shaderResource": "gDestColor",
-          "format": "RGBA16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
+            "children": [
+                {
+                    "id": "52545245464c4543",
+                    "type": "Pass"
+                },
+                {
+                    "id": "5254535041544941",
+                    "type": "Pass"
+                },
+                {
+                    "id": "5254535041544931",
+                    "type": "Pass"
+                },
+                {
+                    "id": "5254535041544932",
+                    "type": "Pass"
+                },
+                {
+                    "id": "5254535041544933",
+                    "type": "Pass"
+                },
+                {
+                    "id": "525454454d504f52",
+                    "type": "Pass"
+                },
+                {
+                    "id": "5254434f4d504f53",
+                    "type": "Pass"
+                }
+            ],
+            "enabled": true,
+            "id": "986f8aacb2a79077",
+            "name": "Reflection",
+            "type": "Group"
+        }
+    ],
+    "name": "Sponza Render Features",
+    "passes": [
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "52545245464c4543",
+            "material": "4e454d4153534554375384bc3bf6bb7c",
+            "materialPass": "RayTracing",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Trace",
+            "outputs": [
+                {
+                    "format": "RGBA16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Raw",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 0.5
+                },
+                {
+                    "format": "R16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "HitDistance",
+                    "shaderResource": "gReflectionHitDistance",
+                    "widthScale": 0.5
+                },
+                {
+                    "format": "RGBA32_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "HitGeometry",
+                    "shaderResource": "gReflectionHitGeometry",
+                    "widthScale": 0.5
+                }
+            ],
+            "parameters": {},
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {
+                "gSourceAlbedo": "SceneColorMain",
+                "gSourceDepth": "SceneDepth",
+                "gSourceFlags": "SceneFlagsMain",
+                "gSourceMaterial": "SceneMaterialMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "SceneColor",
+                "output": "Color",
+                "pass": ""
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "RayTracing"
         },
         {
-          "name": "HitDistance",
-          "shaderResource": "gReflectionHitDistance",
-          "format": "R16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "5254535041544941",
+            "material": "4e454d4153534554375384bc3bf6bb7d",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Anti-firefly",
+            "outputs": [
+                {
+                    "format": "RGBA16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Filtered",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 0.5
+                }
+            ],
+            "parameters": {
+                "antiFirefly": 1.0
+            },
+            "passInputs": {
+                "gReflectionHitDistance": {
+                    "output": "HitDistance",
+                    "pass": "52545245464c4543"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {
+                "gSourceDepth": "SceneDepth",
+                "gSourceMaterial": "SceneMaterialMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "PassOutput",
+                "output": "Raw",
+                "pass": "52545245464c4543"
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "Compute"
         },
         {
-          "name": "HitGeometry",
-          "shaderResource": "gReflectionHitGeometry",
-          "format": "RGBA32_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
-        }
-      ],
-      "sceneInputs": {
-        "gSourceAlbedo": "SceneColorMain",
-        "gSourceDepth": "SceneDepth",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain",
-        "gSourceMaterial": "SceneMaterialMain",
-        "gSourceFlags": "SceneFlagsMain"
-      }
-    },
-    {
-      "id": "5254535041544941",
-      "name": "Reflection Anti-firefly",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "Compute",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7d",
-      "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "52545245464c4543", "output": "Raw" },
-      "sceneColorOutput": false,
-      "outputs": [
-        {
-          "name": "Filtered",
-          "shaderResource": "gDestColor",
-          "format": "RGBA16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
-        }
-      ],
-      "sceneInputs": {
-        "gSourceDepth": "SceneDepth",
-        "gSourceMaterial": "SceneMaterialMain",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain"
-      },
-      "passInputs": {
-        "gReflectionHitDistance": {
-          "pass": "52545245464c4543",
-          "output": "HitDistance"
-        }
-      },
-      "parameters": {
-        "antiFirefly": 1.0
-      }
-    },
-    {
-      "id": "5254535041544931",
-      "name": "Reflection Spatial",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "Compute",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7d",
-      "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544941", "output": "Filtered" },
-      "sceneColorOutput": false,
-      "outputs": [
-        {
-          "name": "Spatial",
-          "shaderResource": "gDestColor",
-          "format": "RGBA16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
-        }
-      ],
-      "sceneInputs": {
-        "gSourceDepth": "SceneDepth",
-        "gSourceMaterial": "SceneMaterialMain",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain"
-      },
-      "passInputs": {
-        "gReflectionHitDistance": {
-          "pass": "52545245464c4543",
-          "output": "HitDistance"
-        }
-      }
-    },
-    {
-      "id": "5254535041544932",
-      "name": "Reflection Spatial 2",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "Compute",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7d",
-      "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544931", "output": "Spatial" },
-      "sceneColorOutput": false,
-      "outputs": [
-        {
-          "name": "Spatial",
-          "shaderResource": "gDestColor",
-          "format": "RGBA16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
-        }
-      ],
-      "sceneInputs": {
-        "gSourceDepth": "SceneDepth",
-        "gSourceMaterial": "SceneMaterialMain",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain"
-      },
-      "passInputs": {
-        "gReflectionHitDistance": {
-          "pass": "52545245464c4543",
-          "output": "HitDistance"
-        }
-      },
-      "parameters": {
-        "stepWidth": 2.0
-      }
-    },
-    {
-      "id": "5254535041544933",
-      "name": "Reflection Spatial 3",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "Compute",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7d",
-      "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544932", "output": "Spatial" },
-      "sceneColorOutput": false,
-      "outputs": [
-        {
-          "name": "Spatial",
-          "shaderResource": "gDestColor",
-          "format": "RGBA16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5
-        }
-      ],
-      "sceneInputs": {
-        "gSourceDepth": "SceneDepth",
-        "gSourceMaterial": "SceneMaterialMain",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain"
-      },
-      "passInputs": {
-        "gReflectionHitDistance": {
-          "pass": "52545245464c4543",
-          "output": "HitDistance"
-        }
-      },
-      "parameters": {
-        "stepWidth": 2.0
-      }
-    },
-    {
-      "id": "525454454d504f52",
-      "name": "Reflection Temporal",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "Compute",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7e",
-      "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544933", "output": "Spatial" },
-      "sceneColorOutput": false,
-      "outputs": [
-        {
-          "name": "Temporal",
-          "shaderResource": "gDestColor",
-          "format": "RGBA16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5,
-          "history": true,
-          "historyShaderResource": "gHistoryColor"
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "5254535041544931",
+            "material": "4e454d4153534554375384bc3bf6bb7d",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Spatial",
+            "outputs": [
+                {
+                    "format": "RGBA16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Spatial",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 0.5
+                }
+            ],
+            "parameters": {},
+            "passInputs": {
+                "gReflectionHitDistance": {
+                    "output": "HitDistance",
+                    "pass": "52545245464c4543"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {
+                "gSourceDepth": "SceneDepth",
+                "gSourceMaterial": "SceneMaterialMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "PassOutput",
+                "output": "Filtered",
+                "pass": "5254535041544941"
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "Compute"
         },
         {
-          "name": "Geometry",
-          "shaderResource": "gHistoryGeometryOutput",
-          "format": "RGBA32_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5,
-          "history": true,
-          "historyShaderResource": "gHistoryGeometry"
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "5254535041544932",
+            "material": "4e454d4153534554375384bc3bf6bb7d",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Spatial 2",
+            "outputs": [
+                {
+                    "format": "RGBA16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Spatial",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 0.5
+                }
+            ],
+            "parameters": {
+                "stepWidth": 2.0
+            },
+            "passInputs": {
+                "gReflectionHitDistance": {
+                    "output": "HitDistance",
+                    "pass": "52545245464c4543"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {
+                "gSourceDepth": "SceneDepth",
+                "gSourceMaterial": "SceneMaterialMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "PassOutput",
+                "output": "Spatial",
+                "pass": "5254535041544931"
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "Compute"
         },
         {
-          "name": "Normal",
-          "shaderResource": "gHistoryNormalOutput",
-          "format": "RG16_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5,
-          "history": true,
-          "historyShaderResource": "gHistoryNormal"
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "5254535041544933",
+            "material": "4e454d4153534554375384bc3bf6bb7d",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Spatial 3",
+            "outputs": [
+                {
+                    "format": "RGBA16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Spatial",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 0.5
+                }
+            ],
+            "parameters": {
+                "stepWidth": 2.0
+            },
+            "passInputs": {
+                "gReflectionHitDistance": {
+                    "output": "HitDistance",
+                    "pass": "52545245464c4543"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {
+                "gSourceDepth": "SceneDepth",
+                "gSourceMaterial": "SceneMaterialMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "PassOutput",
+                "output": "Spatial",
+                "pass": "5254535041544932"
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "Compute"
         },
         {
-          "name": "HitGeometry",
-          "shaderResource": "gHistoryHitGeometryOutput",
-          "format": "RGBA32_FLOAT",
-          "widthScale": 0.5,
-          "heightScale": 0.5,
-          "history": true,
-          "historyShaderResource": "gHistoryHitGeometry"
-        }
-      ],
-      "sceneInputs": {
-        "gSourceDepth": "SceneDepth",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain",
-        "gSourceMotion": "SceneMotionMain"
-      },
-      "passInputs": {
-        "gCurrentHitGeometry": {
-          "pass": "52545245464c4543",
-          "output": "HitGeometry"
-        }
-      }
-    },
-    {
-      "id": "5254434f4d504f53",
-      "name": "Reflection Composite",
-      "enabled": true,
-      "gameView": true,
-      "sceneView": true,
-      "type": "Compute",
-      "anchor": "AfterLighting",
-      "material": "4e454d4153534554375384bc3bf6bb7f",
-      "materialPass": "PostProcess",
-      "source": { "kind": "SceneColor", "pass": "", "output": "Color" },
-      "sceneColorOutput": true,
-      "outputs": [
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "525454454d504f52",
+            "material": "4e454d4153534554375384bc3bf6bb7e",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Temporal",
+            "outputs": [
+                {
+                    "format": "RGBA16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": true,
+                    "historyShaderResource": "gHistoryColor",
+                    "name": "Temporal",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 0.5
+                },
+                {
+                    "format": "RGBA32_FLOAT",
+                    "heightScale": 0.5,
+                    "history": true,
+                    "historyShaderResource": "gHistoryGeometry",
+                    "name": "Geometry",
+                    "shaderResource": "gHistoryGeometryOutput",
+                    "widthScale": 0.5
+                },
+                {
+                    "format": "RG16_FLOAT",
+                    "heightScale": 0.5,
+                    "history": true,
+                    "historyShaderResource": "gHistoryNormal",
+                    "name": "Normal",
+                    "shaderResource": "gHistoryNormalOutput",
+                    "widthScale": 0.5
+                },
+                {
+                    "format": "RGBA32_FLOAT",
+                    "heightScale": 0.5,
+                    "history": true,
+                    "historyShaderResource": "gHistoryHitGeometry",
+                    "name": "HitGeometry",
+                    "shaderResource": "gHistoryHitGeometryOutput",
+                    "widthScale": 0.5
+                }
+            ],
+            "parameters": {},
+            "passInputs": {
+                "gCurrentHitGeometry": {
+                    "output": "HitGeometry",
+                    "pass": "52545245464c4543"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {
+                "gSourceDepth": "SceneDepth",
+                "gSourceMotion": "SceneMotionMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "PassOutput",
+                "output": "Spatial",
+                "pass": "5254535041544933"
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "Compute"
+        },
         {
-          "name": "Color",
-          "shaderResource": "gDestColor",
-          "format": "Inherit",
-          "widthScale": 1.0,
-          "heightScale": 1.0
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterLighting",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "5254434f4d504f53",
+            "material": "4e454d4153534554375384bc3bf6bb7f",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Reflection Composite",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": {},
+            "passInputs": {
+                "gReflectionColor": {
+                    "output": "Temporal",
+                    "pass": "525454454d504f52"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": true,
+            "sceneInputs": {
+                "gSourceDepth": "SceneDepth",
+                "gSourceFlags": "SceneFlagsMain",
+                "gSourceMaterial": "SceneMaterialMain",
+                "gSourceNormal": "SceneNormalMain",
+                "gSourcePosition": "ScenePositionMain"
+            },
+            "sceneView": true,
+            "source": {
+                "kind": "SceneColor",
+                "output": "Color",
+                "pass": ""
+            },
+            "targetMask": 0,
+            "textures": {},
+            "type": "Compute"
         }
-      ],
-      "sceneInputs": {
-        "gSourceDepth": "SceneDepth",
-        "gSourceNormal": "SceneNormalMain",
-        "gSourcePosition": "ScenePositionMain",
-        "gSourceMaterial": "SceneMaterialMain",
-        "gSourceFlags": "SceneFlagsMain"
-      },
-      "passInputs": {
-        "gReflectionColor": {
-          "pass": "525454454d504f52",
-          "output": "Temporal"
-        }
-      }
-    }
-  ]
+    ],
+    "version": 2
 }

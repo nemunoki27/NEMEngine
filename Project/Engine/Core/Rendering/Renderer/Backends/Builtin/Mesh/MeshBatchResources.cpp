@@ -22,7 +22,9 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <cmath>
 #include <unordered_map>
+#include <variant>
 
 //============================================================================
 //	MeshBatchResources classMethods
@@ -137,32 +139,19 @@ void Engine::MeshBatchResources::Finalize() {
 
 	// OptionalSkinningResourcesは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
 	skinning_.reset();
-	// 可変strideマテリアルパラメータバッファのSRVとリソースを解放する
-	if (srvDescriptor_) {
-		for (uint32_t& index : subMeshParamSrvIndices_) {
-			if (index != UINT32_MAX) {
-				srvDescriptor_->Free(index);
-				index = UINT32_MAX;
-			}
-		}
-		for (uint32_t index : retiredSubMeshParamSrvIndices_) {
-			srvDescriptor_->Free(index);
+	// パス別の可変strideマテリアルパラメータバッファを解放する
+	for (auto& buffer : subMeshParamBuffers_) {
+
+		if (buffer) {
+			ReleaseSubMeshMaterialParamBuffer(*buffer);
+			buffer.reset();
 		}
 	}
-	subMeshParamBuffer_.Release();
-	subMeshParamHandles_ = {};
-	retiredSubMeshParamSrvIndices_.clear();
-	subMeshParamCapacityBytes_ = 0;
-	subMeshParamStride_ = 0;
-	subMeshParamElementCount_ = 0;
-	subMeshParamAvailable_ = false;
+	activeSubMeshParamBuffer_ = nullptr;
 	subMeshParamScratch_.clear();
-	subMeshParamPackedScratch_.clear();
-	subMeshParamLayoutHash_ = 0;
-	subMeshParamMaterial_ = nullptr;
-	subMeshParamDirty_ = true;
-	subMeshParamDataGeneration_ = 1;
-	uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
+	displacementMetricMaterial_ = nullptr;
+	displacementMetricMaterialHash_ = 0;
+	cachedMaxDisplacement_ = 0.0f;
 	dynamicConstantAllocator_.Release();
 	dynamicConstantFrameSerial_ = 0;
 	viewUploadFrameSerials_ = { 0, 0 };
@@ -191,6 +180,50 @@ void Engine::MeshBatchResources::Finalize() {
 	initialized_ = false;
 }
 
+Engine::MeshBatchResources::SubMeshMaterialParamBuffer&
+Engine::MeshBatchResources::GetSubMeshMaterialParamBuffer(
+	MaterialPassKind passKind) {
+
+	size_t index = static_cast<size_t>(passKind);
+	if (kSubMeshMaterialPassBufferCount <= index) {
+		index = static_cast<size_t>(MaterialPassKind::Invalid);
+	}
+	auto& buffer = subMeshParamBuffers_[index];
+	if (!buffer) {
+		buffer = std::make_unique<SubMeshMaterialParamBuffer>();
+	}
+	return *buffer;
+}
+
+void Engine::MeshBatchResources::ReleaseSubMeshMaterialParamBuffer(
+	SubMeshMaterialParamBuffer& buffer) {
+
+	if (srvDescriptor_) {
+		for (uint32_t& index : buffer.srvIndices) {
+
+			if (index != UINT32_MAX) {
+				srvDescriptor_->Free(index);
+				index = UINT32_MAX;
+			}
+		}
+		for (const uint32_t index : buffer.retiredSrvIndices) {
+			srvDescriptor_->Free(index);
+		}
+	}
+	buffer.buffer.Release();
+	buffer.handles = {};
+	buffer.retiredSrvIndices.clear();
+	buffer.packedScratch.clear();
+	buffer.layoutHash = 0;
+	buffer.materialHash = 0;
+	buffer.material = nullptr;
+	buffer.dataGeneration = 1;
+	buffer.uploadedGenerations = { 0, 0, 0 };
+	buffer.stride = 0;
+	buffer.available = false;
+	buffer.dirty = true;
+}
+
 void Engine::MeshBatchResources::BeginDynamicConstantsFrame() {
 
 	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
@@ -201,9 +234,73 @@ void Engine::MeshBatchResources::BeginDynamicConstantsFrame() {
 	dynamicConstantFrameSerial_ = frameSerial;
 }
 
+float Engine::MeshBatchResources::ResolveMaxDisplacement(
+	const MaterialAsset* material) {
+
+	if (!material) {
+		return 0.0f;
+	}
+
+	const uint64_t materialHash = material->parameters.GetContentHash();
+	if (displacementMetricMaterial_ == material &&
+		displacementMetricMaterialHash_ == materialHash) {
+
+		return cachedMaxDisplacement_;
+	}
+
+	const auto resolveValue = [&](const MaterialParameterSet& overrides,
+		MaterialParameterID id) -> const MaterialParameterValue* {
+
+		if (const MaterialParameterValue* value = overrides.Find(id)) {
+			return value;
+		}
+		return material->parameters.Find(id);
+	};
+	const auto resolveFloat = [&](const MaterialParameterSet& overrides,
+		MaterialParameterID id, float fallback) {
+
+		const MaterialParameterValue* value = resolveValue(overrides, id);
+		const float* result = value ? std::get_if<float>(&value->value) : nullptr;
+		return result ? *result : fallback;
+	};
+	const auto resolveOne = [&](const MaterialParameterSet& overrides) {
+
+		const MaterialParameterValue* texture = resolveValue(
+			overrides, MaterialParameterIDs::DisplacementTexture);
+		const AssetID* textureID = texture ?
+			std::get_if<AssetID>(&texture->value) : nullptr;
+		if (!textureID || !*textureID) {
+			return 0.0f;
+		}
+
+		const float scale = resolveFloat(overrides,
+			MaterialParameterIDs::DisplacementScale, 0.0f);
+		const float midpoint = resolveFloat(overrides,
+			MaterialParameterIDs::DisplacementMidpoint, 0.5f);
+		const float heightRange = (std::max)(
+			std::abs(midpoint), std::abs(1.0f - midpoint));
+		return std::abs(scale) * heightRange;
+	};
+
+	cachedMaxDisplacement_ = 0.0f;
+	if (subMeshParamScratch_.empty()) {
+		static const MaterialParameterSet kEmptyOverrides{};
+		cachedMaxDisplacement_ = resolveOne(kEmptyOverrides);
+	} else {
+
+		for (const MaterialParameterSet& overrides : subMeshParamScratch_) {
+			cachedMaxDisplacement_ = (std::max)(
+				cachedMaxDisplacement_, resolveOne(overrides));
+		}
+	}
+	displacementMetricMaterial_ = material;
+	displacementMetricMaterialHash_ = materialHash;
+	return cachedMaxDisplacement_;
+}
+
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
 	const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
-	uint32_t subMeshGroupIndex) {
+	uint32_t subMeshGroupIndex, const MaterialAsset* material) {
 
 	const bool hullOutline = IsHullOutlinePass(drawContext.passKind);
 	bool canCull = CanCullView(drawContext, gpuMesh);
@@ -259,8 +356,10 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		occlusionCullingEnabled ? 1u : 0u;
 	drawConstants.subMeshGroupIndex = subMeshGroupIndex;
 
+	const float maxDisplacement = ResolveMaxDisplacement(material);
 	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;
-	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius;
+	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius + maxDisplacement;
+	drawConstants.maxDisplacement = maxDisplacement;
 	// 小さすぎる値はチラつきや誤カリングの原因になるため、控えめな閾値にしている
 	drawConstants.contributionPixelThreshold = 0.5f;
 	drawConstants.lodPixelThresholds = Vector3(
@@ -420,7 +519,15 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 	meshInstanceIndexMap_.clear();
 	subMeshScratch_.clear();
 	subMeshParamScratch_.clear();
-	subMeshParamDirty_ = true;
+	activeSubMeshParamBuffer_ = nullptr;
+	for (auto& buffer : subMeshParamBuffers_) {
+		if (buffer) {
+			buffer->dirty = true;
+		}
+	}
+	displacementMetricMaterial_ = nullptr;
+	displacementMetricMaterialHash_ = 0;
+	cachedMaxDisplacement_ = 0.0f;
 	outlineScratch_.clear();
 	paletteScratch_.clear();
 	skinnedRecords_.clear();
@@ -776,10 +883,13 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	const MaterialParameterLayout& layout, const RenderDrawContext& drawContext) {
 
 	// シェーダーがMaterialParameters構造化バッファを宣言していないバッチはここで早期に無効化する
-	subMeshParamAvailable_ = false;
+	activeSubMeshParamBuffer_ = nullptr;
 	if (!layout.IsValid() || subMeshParamScratch_.empty() || !device_ || !srvDescriptor_) {
 		return;
 	}
+	SubMeshMaterialParamBuffer& buffer =
+		GetSubMeshMaterialParamBuffer(drawContext.passKind);
+	buffer.available = false;
 
 	bool usedFallbackTexture = false;
 
@@ -803,12 +913,15 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	const uint32_t stride = layout.GetSizeInBytes();
 	const uint32_t elementCount = static_cast<uint32_t>(subMeshParamScratch_.size());
 	const uint64_t layoutHash = ComputeMaterialLayoutHash(layout);
-	const bool rebuildPacked = subMeshParamDirty_ ||
-		subMeshParamLayoutHash_ != layoutHash ||
-		subMeshParamMaterial_ != material;
+	const uint64_t materialHash = material ?
+		material->parameters.GetContentHash() : 0;
+	const bool rebuildPacked = buffer.dirty ||
+		buffer.layoutHash != layoutHash ||
+		buffer.materialHash != materialHash ||
+		buffer.material != material;
 	if (rebuildPacked) {
 
-		subMeshParamPackedScratch_.assign(
+		buffer.packedScratch.assign(
 			static_cast<size_t>(stride) * elementCount, 0);
 		for (uint32_t i = 0; i < elementCount; ++i) {
 
@@ -818,29 +931,33 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 			const size_t copyBytes = (std::min)(
 				static_cast<size_t>(stride), element.size());
 			std::memcpy(
-				subMeshParamPackedScratch_.data() +
-				static_cast<size_t>(stride) * i,
+				buffer.packedScratch.data() +
+					static_cast<size_t>(stride) * i,
 				element.data(), copyBytes);
 		}
-		subMeshParamLayoutHash_ = layoutHash;
-		subMeshParamMaterial_ = material;
+		buffer.layoutHash = layoutHash;
+		buffer.materialHash = materialHash;
+		buffer.material = material;
 		// 非同期読込中のErrorTextureを固定せず、実テクスチャへ切り替わるまで再解決する
-		subMeshParamDirty_ = usedFallbackTexture;
+		buffer.dirty = usedFallbackTexture;
 		usesFallbackTexture_ |= usedFallbackTexture;
-		++subMeshParamDataGeneration_;
-		if (subMeshParamDataGeneration_ == 0) {
-			subMeshParamDataGeneration_ = 1;
-			uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
+		++buffer.dataGeneration;
+		if (buffer.dataGeneration == 0) {
+			buffer.dataGeneration = 1;
+			buffer.uploadedGenerations = { 0, 0, 0 };
 		}
 	}
 
 	// 容量不足時は全フレーム分を拡張し、stride変更時はSRVだけを更新する
 	const uint32_t requiredBytes =
-		static_cast<uint32_t>(subMeshParamPackedScratch_.size());
-	const bool reallocated = subMeshParamBuffer_.EnsureCapacity(
-		device_, requiredBytes, "gMeshSubMeshMaterialParameters", 4096);
-	if (reallocated || stride != subMeshParamStride_ ||
-		subMeshParamSrvIndices_[0] == UINT32_MAX) {
+		static_cast<uint32_t>(buffer.packedScratch.size());
+	const std::string resourceName =
+		"gMeshSubMeshMaterialParameters[" +
+		std::to_string(static_cast<uint32_t>(drawContext.passKind)) + "]";
+	const bool reallocated = buffer.buffer.EnsureCapacity(
+		device_, requiredBytes, resourceName, 4096);
+	if (reallocated || stride != buffer.stride ||
+		buffer.srvIndices[0] == UINT32_MAX) {
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -848,41 +965,39 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Buffer.FirstElement = 0;
 		srvDesc.Buffer.NumElements = (std::max)(
-			static_cast<uint32_t>(subMeshParamBuffer_.GetCapacity()) / stride, 1u);
+			static_cast<uint32_t>(buffer.buffer.GetCapacity()) / stride, 1u);
 		srvDesc.Buffer.StructureByteStride = stride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 		for (uint32_t frameIndex = 0;
 			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
-			if (subMeshParamSrvIndices_[frameIndex] != UINT32_MAX) {
-				retiredSubMeshParamSrvIndices_.emplace_back(
-					subMeshParamSrvIndices_[frameIndex]);
-				subMeshParamSrvIndices_[frameIndex] = UINT32_MAX;
+			if (buffer.srvIndices[frameIndex] != UINT32_MAX) {
+				buffer.retiredSrvIndices.emplace_back(
+					buffer.srvIndices[frameIndex]);
+				buffer.srvIndices[frameIndex] = UINT32_MAX;
 			}
 			srvDescriptor_->CreateSRV(
-				subMeshParamSrvIndices_[frameIndex],
-				subMeshParamBuffer_.GetResource(frameIndex), srvDesc);
-			subMeshParamHandles_[frameIndex] =
+				buffer.srvIndices[frameIndex],
+				buffer.buffer.GetResource(frameIndex), srvDesc);
+			buffer.handles[frameIndex] =
 				srvDescriptor_->GetGPUHandle(
-					subMeshParamSrvIndices_[frameIndex]);
+					buffer.srvIndices[frameIndex]);
 		}
-		subMeshParamCapacityBytes_ =
-			static_cast<uint32_t>(subMeshParamBuffer_.GetCapacity());
-		subMeshParamStride_ = stride;
-		uploadedSubMeshParamGenerations_ = { 0, 0, 0 };
+		buffer.stride = stride;
+		buffer.uploadedGenerations = { 0, 0, 0 };
 	}
 
 	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
-	if (!subMeshParamPackedScratch_.empty() &&
-		uploadedSubMeshParamGenerations_[frameIndex] !=
-			subMeshParamDataGeneration_) {
+	if (!buffer.packedScratch.empty() &&
+		buffer.uploadedGenerations[frameIndex] !=
+			buffer.dataGeneration) {
 
-		subMeshParamBuffer_.Write(
-			subMeshParamPackedScratch_.data(),
-			subMeshParamPackedScratch_.size());
-		uploadedSubMeshParamGenerations_[frameIndex] =
-			subMeshParamDataGeneration_;
+		buffer.buffer.Write(
+			buffer.packedScratch.data(),
+			buffer.packedScratch.size());
+		buffer.uploadedGenerations[frameIndex] =
+			buffer.dataGeneration;
 	}
-	subMeshParamElementCount_ = elementCount;
-	subMeshParamAvailable_ = true;
+	buffer.available = true;
+	activeSubMeshParamBuffer_ = &buffer;
 }

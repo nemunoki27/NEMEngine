@@ -180,8 +180,24 @@ Engine::BackendDrawCommon::ResolveMaterialTextureIndex(
 		RuntimeTextureResolver::ResolveBindless(
 			*context.graphicsCore, context.assetDatabase,
 			textureAssetID, IsSRGBMaterialTexture(semantic));
+	uint32_t textureIndex = result.srvIndex;
+	if (semantic == MaterialParameterSemantic::DisplacementTexture) {
+
+		const BuiltinTextureLibrary& builtinTextures =
+			context.graphicsCore->GetBuiltinTextureLibrary();
+		const GPUTextureResource* errorTexture =
+			builtinTextures.GetErrorTexture();
+		const GPUTextureResource* neutralTexture =
+			builtinTextures.GetNeutralDisplacementTexture();
+		if (neutralTexture && neutralTexture->srvIndex != UINT32_MAX &&
+			(result.retry ||
+				(errorTexture && textureIndex == errorTexture->srvIndex))) {
+
+			textureIndex = neutralTexture->srvIndex;
+		}
+	}
 	return {
-		.index = result.srvIndex,
+		.index = textureIndex,
 		.cacheable = !result.retry,
 	};
 }
@@ -193,15 +209,29 @@ void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& co
 
 	GraphicsCore& graphicsCore = *context.graphicsCore;
 	const GPUTextureResource* whiteTexture = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
+	const GPUTextureResource* neutralDisplacementTexture =
+		graphicsCore.GetBuiltinTextureLibrary().GetNeutralDisplacementTexture();
+	const GPUTextureResource* errorTexture =
+		graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 
 	for (const MaterialParameterBinder::TextureBinding& textureBinding :
 		binder.ResolveTextures(pipelineState, material, overrides)) {
 
-		// 未指定や解決失敗は白テクスチャを使い、テクスチャ無しでも破綻させない
+		// 未指定や解決失敗はSemanticごとの中立テクスチャへフォールバックする
 		const GPUTextureResource* texture = textureBinding.textureID ?
 			ResolveTextureAsset(context, graphicsCore, textureBinding.textureID) : nullptr;
-		D3D12_GPU_DESCRIPTOR_HANDLE handle = (texture && texture->gpuHandle.ptr != 0) ?
-			texture->gpuHandle : (whiteTexture ? whiteTexture->gpuHandle : D3D12_GPU_DESCRIPTOR_HANDLE{});
+		if (textureBinding.semantic ==
+			MaterialParameterSemantic::DisplacementTexture &&
+			texture == errorTexture) {
+
+			texture = nullptr;
+		}
+		const GPUTextureResource* fallback =
+			textureBinding.semantic == MaterialParameterSemantic::DisplacementTexture ?
+			neutralDisplacementTexture : whiteTexture;
+		D3D12_GPU_DESCRIPTOR_HANDLE handle =
+			(texture && texture->gpuHandle.ptr != 0) ? texture->gpuHandle :
+			(fallback ? fallback->gpuHandle : D3D12_GPU_DESCRIPTOR_HANDLE{});
 		if (handle.ptr == 0) {
 			continue;
 		}

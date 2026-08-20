@@ -25,6 +25,8 @@ namespace Engine {
 
 		static constexpr const char* kErrorTextureKey = "builtin:error1x1";
 		static constexpr const char* kWhiteTextureKey = "builtin:white1x1";
+		static constexpr const char* kNeutralDisplacementTextureKey =
+			"builtin:neutralDisplacement1x1";
 
 		BuiltinTextureLibrary() = default;
 		~BuiltinTextureLibrary() = default;
@@ -38,6 +40,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const GPUTextureResource* GetWhiteTexture() const;
+		const GPUTextureResource* GetNeutralDisplacementTexture() const;
 		const GPUTextureResource* GetErrorTexture() const;
 	private:
 		//============================================================================
@@ -50,6 +53,9 @@ namespace Engine {
 
 		// 1x1の白テクスチャ
 		std::string whiteKey_ = "builtin:white1x1";
+		// Displacement未設定時に変位を発生させない中間値テクスチャ
+		std::string neutralDisplacementKey_ =
+			"builtin:neutralDisplacement1x1";
 		// エラーテクスチャ
 		std::string errorKey_ = "builtin:error1x1";
 	};

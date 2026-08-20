@@ -42,6 +42,12 @@ namespace Engine::MeshDrawPathCommon {
 		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshMetallicRoughnessTextureAssetID(const MeshGPUResource& gpuMesh,
 		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
+	AssetID ResolveSubMeshMetallicTextureAssetID(const MeshGPUResource& gpuMesh,
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
+	AssetID ResolveSubMeshRoughnessTextureAssetID(const MeshGPUResource& gpuMesh,
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
+	AssetID ResolveSubMeshDisplacementTextureAssetID(const MeshGPUResource& gpuMesh,
+		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshEmissiveTextureAssetID(const MeshGPUResource& gpuMesh,
 		std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex);
 	AssetID ResolveSubMeshOcclusionTextureAssetID(const MeshGPUResource& gpuMesh,

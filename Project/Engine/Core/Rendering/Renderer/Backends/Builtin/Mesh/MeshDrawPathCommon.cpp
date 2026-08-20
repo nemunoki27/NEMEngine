@@ -153,6 +153,36 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextu
 		MaterialParameterIDs::MetallicRoughnessTexture, modelDefault);
 }
 
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshMetallicTextureAssetID(
+	const MeshGPUResource& gpuMesh, std::span<const SubMeshMaterial> subMeshes,
+	uint32_t subMeshIndex) {
+
+	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
+		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.metallicTexture : AssetID{};
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::MetallicTexture, modelDefault);
+}
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshRoughnessTextureAssetID(
+	const MeshGPUResource& gpuMesh, std::span<const SubMeshMaterial> subMeshes,
+	uint32_t subMeshIndex) {
+
+	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
+		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.roughnessTexture : AssetID{};
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::RoughnessTexture, modelDefault);
+}
+
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshDisplacementTextureAssetID(
+	const MeshGPUResource& gpuMesh, std::span<const SubMeshMaterial> subMeshes,
+	uint32_t subMeshIndex) {
+
+	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
+		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.displacementTexture : AssetID{};
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::DisplacementTexture, modelDefault);
+}
+
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(const MeshGPUResource& gpuMesh,
 	std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex) {
 

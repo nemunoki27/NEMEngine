@@ -22,7 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SceneViewCameraController();
+		explicit SceneViewCameraController(bool persistSettings = true);
 		~SceneViewCameraController();
 
 		// カメラの状態を初期化する
@@ -46,7 +46,11 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		void SetSavePath(const std::string& savePath) { savePath_ = savePath; }
+		void SetSavePath(const std::string& savePath) {
+
+			savePath_ = savePath;
+			persistSettings_ = !savePath_.empty();
+		}
 
 		// ツール情報を取得する
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
@@ -74,6 +78,7 @@ namespace Engine {
 
 		// 閉じた時に保存するカメラパス
 		std::string savePath_ = "";
+		bool persistSettings_ = true;
 
 		// カメラの状態
 		ManualRenderCameraState cameraState_;

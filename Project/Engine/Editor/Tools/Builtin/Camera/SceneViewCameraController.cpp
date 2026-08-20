@@ -74,9 +74,13 @@ namespace {
 	}
 }
 
-Engine::SceneViewCameraController::SceneViewCameraController() {
+Engine::SceneViewCameraController::SceneViewCameraController(
+	bool persistSettings) : persistSettings_(persistSettings) {
 
 	MakeDefaultState();
+	if (!persistSettings_) {
+		return;
+	}
 	// jsonから元のカメラ復元
 	MakeFromJson(RuntimePaths::GetUserSettingsPath(kCameraJsonPath).string());
 	savePath_ = RuntimePaths::GetUserSettingsPath(kCameraJsonPath).string();
@@ -84,6 +88,9 @@ Engine::SceneViewCameraController::SceneViewCameraController() {
 
 Engine::SceneViewCameraController::~SceneViewCameraController() {
 
+	if (!persistSettings_ || savePath_.empty()) {
+		return;
+	}
 	// 無効値は既定値へ戻し、次回起動用Configへnullを残さない
 	if (!IsFinite(cameraState_.transform3D.pos)) {
 		cameraState_.transform3D.pos = kDefaultPosition;
@@ -166,7 +173,7 @@ void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath
 		cameraState_.transform3D.pos = JsonAdapter::GetVector3(
 			data, "transform3D.pos", cameraState_.transform3D.pos);
 		cameraState_.transform3D.rotation = JsonAdapter::GetVector3(
-			data, "trimansform3D.rotation", cameraState_.transform3D.rotation);
+			data, "transform3D.rotation", cameraState_.transform3D.rotation);
 		cameraState_.perspectiveFovY = std::clamp(
 			ReadFiniteFloat(data, "perspectiveFovY", cameraState_.perspectiveFovY), 1.0f, 179.0f);
 		cameraState_.perspectiveNearClip = ReadFiniteFloat(

@@ -1,0 +1,55 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera2D"
+                },
+                "OrthographicCamera": {
+                    "cullingMask": -1,
+                    "enabled": true,
+                    "farClip": 1000.0,
+                    "isMain": true,
+                    "nearClip": 0.0,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "3ff9d0287c6b7a53",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.9999997615814209,
+                        "y": 0.9999997615814209,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "3ff9d0287c6b7a53"
+        }
+    ],
+    "Header": {
+        "name": "Game2D",
+        "renderFeatureProfile": "4e454d4153534554525450524f46494c",
+        "subScenes": []
+    },
+    "PrefabInstances": [],
+    "SchemaVersion": 3
+}

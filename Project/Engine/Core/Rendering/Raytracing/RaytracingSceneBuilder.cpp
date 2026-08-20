@@ -100,6 +100,8 @@ namespace {
 		subMeshData.emissiveTextureIndex = UINT32_MAX;
 		subMeshData.occlusionTextureIndex = UINT32_MAX;
 		subMeshData.specularTextureIndex = UINT32_MAX;
+		subMeshData.metallicTextureIndex = UINT32_MAX;
+		subMeshData.roughnessTextureIndex = UINT32_MAX;
 		subMeshData.localMatrix = Engine::Matrix4x4::Identity();
 		subMeshData.localNormalMatrix = Engine::Matrix4x4::Identity();
 		subMeshData.color = Engine::Color4::White();
@@ -164,6 +166,10 @@ namespace {
 				subMesh.occlusionTextureIndex);
 			Engine::Algorithm::HashCombine(hash,
 				subMesh.specularTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.metallicTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
+				subMesh.roughnessTextureIndex);
 			hashFloat(subMesh.metallic);
 			hashFloat(subMesh.roughness);
 			hashColor(subMesh.importedBaseColor);
@@ -988,6 +994,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			AssetID metallicRoughnessAsset =
 				MeshDrawPathCommon::ResolveSubMeshMetallicRoughnessTextureAssetID(
 					*meshResource, subMeshes, subMeshIndex);
+			AssetID metallicAsset =
+				MeshDrawPathCommon::ResolveSubMeshMetallicTextureAssetID(
+					*meshResource, subMeshes, subMeshIndex);
+			AssetID roughnessAsset =
+				MeshDrawPathCommon::ResolveSubMeshRoughnessTextureAssetID(
+					*meshResource, subMeshes, subMeshIndex);
 			AssetID emissiveAsset = MeshDrawPathCommon::ResolveSubMeshEmissiveTextureAssetID(
 				*meshResource, subMeshes, subMeshIndex);
 			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(
@@ -1000,6 +1012,12 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset ?
 				ResolveTextureDescriptorIndex(
 					graphicsCore, assetDatabase, metallicRoughnessAsset, false) : UINT32_MAX;
+			subMeshData.metallicTextureIndex = metallicAsset ?
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, metallicAsset, false) : UINT32_MAX;
+			subMeshData.roughnessTextureIndex = roughnessAsset ?
+				ResolveTextureDescriptorIndex(
+					graphicsCore, assetDatabase, roughnessAsset, false) : UINT32_MAX;
 			subMeshData.emissiveTextureIndex = emissiveAsset ?
 				ResolveTextureDescriptorIndex(
 					graphicsCore, assetDatabase, emissiveAsset, true) : UINT32_MAX;

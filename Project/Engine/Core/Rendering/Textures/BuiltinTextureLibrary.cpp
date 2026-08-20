@@ -15,11 +15,15 @@ void Engine::BuiltinTextureLibrary::Init(TextureUploadService& uploadService) {
 
 	// 1x1の白テクスチャの作成
 	uploadService_->RequestSolidColor1x1(whiteKey_, 255, 255, 255, 255);
+	uploadService_->RequestSolidColor1x1(
+		neutralDisplacementKey_, 128, 128, 128, 255);
 	uploadService_->RequestSolidColor1x1(errorKey_, 255, 20, 147, 255);
 
 	// 組み込みテクスチャは描画フォールバックに使うため、起動時に必ずGPUへ反映しておく
 	uploadService_->TickFinalize();
 	Assert::Call(GetWhiteTexture() != nullptr, "BuiltinTextureLibrary: WhiteTexture の作成に失敗しました");
+	Assert::Call(GetNeutralDisplacementTexture() != nullptr,
+		"BuiltinTextureLibrary: NeutralDisplacementTexture の作成に失敗しました");
 	Assert::Call(GetErrorTexture() != nullptr, "BuiltinTextureLibrary: ErrorTexture の作成に失敗しました");
 }
 
@@ -34,6 +38,15 @@ const Engine::GPUTextureResource* Engine::BuiltinTextureLibrary::GetWhiteTexture
 		return nullptr;
 	}
 	return uploadService_->GetTexture(whiteKey_);
+}
+
+const Engine::GPUTextureResource*
+Engine::BuiltinTextureLibrary::GetNeutralDisplacementTexture() const {
+
+	if (!uploadService_) {
+		return nullptr;
+	}
+	return uploadService_->GetTexture(neutralDisplacementKey_);
 }
 
 const Engine::GPUTextureResource* Engine::BuiltinTextureLibrary::GetErrorTexture() const {

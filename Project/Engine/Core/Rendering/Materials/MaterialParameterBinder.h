@@ -37,6 +37,7 @@ namespace Engine {
 
 			const RootBindingLocation* rootBinding = nullptr;
 			AssetID textureID{};
+			MaterialParameterSemantic semantic = MaterialParameterSemantic::None;
 		};
 
 		//============================================================================

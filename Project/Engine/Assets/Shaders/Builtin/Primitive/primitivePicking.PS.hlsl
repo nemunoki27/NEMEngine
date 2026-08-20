@@ -1,13 +1,16 @@
 //============================================================================
 //	include
 //============================================================================
-#define NEM_ENABLE_MESH_DISPLACEMENT
-#include "defaultMesh.hlsli"
+#include "primitive.hlsli"
 
 //============================================================================
 //	main
 //============================================================================
-VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {
+uint4 main(VSOutput input) : SV_Target0 {
 
-	return BuildMeshSurfaceVertex(vertexID, instanceID);
+	return uint4(
+		input.entityIndex,
+		input.entityGeneration,
+		0u,
+		1u);
 }

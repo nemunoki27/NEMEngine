@@ -333,7 +333,15 @@ Engine::MaterialAsset Engine::CreateDefaultMeshMaterialAsset(std::string_view na
 		MaterialParameterValue{ .value = 0.5f });
 	material.parameters.Set(MaterialParameterIDs::EmissiveIntensity,
 		MaterialParameterNames::EmissiveIntensity,
-		MaterialParameterSemantic::None,
+		MaterialParameterSemantic::EmissiveIntensity,
+		MaterialParameterValue{ .value = 0.0f });
+	material.parameters.Set(MaterialParameterIDs::DisplacementMidpoint,
+		MaterialParameterNames::DisplacementMidpoint,
+		MaterialParameterSemantic::DisplacementMidpoint,
+		MaterialParameterValue{ .value = 0.5f });
+	material.parameters.Set(MaterialParameterIDs::DisplacementScale,
+		MaterialParameterNames::DisplacementScale,
+		MaterialParameterSemantic::DisplacementScale,
 		MaterialParameterValue{ .value = 0.0f });
 
 	return material;

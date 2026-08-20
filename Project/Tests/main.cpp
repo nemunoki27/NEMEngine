@@ -1839,12 +1839,35 @@ namespace {
 			Engine::RenderFeatureOutputSettings{});
 		composite.sceneColorOutput = true;
 		profile.passes = { ao, reflection, composite };
+		profile.hierarchy = {
+			Engine::RenderFeatureHierarchyItem{
+				.type = Engine::RenderFeatureHierarchyItemType::Pass,
+				.id = ao.id,
+			},
+			Engine::RenderFeatureHierarchyItem{
+				.type = Engine::RenderFeatureHierarchyItemType::Group,
+				.id = Engine::UUID{ 21 },
+				.name = "Reflection",
+				.children = {
+					Engine::RenderFeatureHierarchyItem{
+						.type = Engine::RenderFeatureHierarchyItemType::Pass,
+						.id = reflection.id,
+					},
+					Engine::RenderFeatureHierarchyItem{
+						.type = Engine::RenderFeatureHierarchyItemType::Pass,
+						.id = composite.id,
+					},
+				},
+			},
+		};
 
 		const nlohmann::json data =
 			Engine::RenderFeatureProfileSerializer::ToJson(profile);
-		const Engine::RenderFeatureProfileAsset restored =
+		Engine::RenderFeatureProfileAsset restored =
 			Engine::RenderFeatureProfileSerializer::FromJson(data);
 		if (restored.name != profile.name || restored.passes.size() != 3 ||
+			restored.hierarchy.size() != 2 ||
+			restored.hierarchy[1].children.size() != 2 ||
 			restored.passes[0].outputs[0].format !=
 				Engine::RenderFeatureTextureFormat::R16_FLOAT ||
 			restored.passes[1].passInputs.at("gAmbientOcclusion").pass !=
@@ -1864,6 +1887,13 @@ namespace {
 			!afterLighting.IsValid() || afterLighting.nodes.size() != 2 ||
 			afterLighting.nodes.back().source.pass ||
 			afterLighting.sceneColorOutput.pass != composite.id) {
+
+			return false;
+		}
+		restored.hierarchy[1].enabled = false;
+		runtime.Rebuild(restored);
+		if (!runtime.BuildPlan(
+			Engine::RenderFeatureAnchor::AfterLighting).nodes.empty()) {
 
 			return false;
 		}

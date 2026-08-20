@@ -18,6 +18,12 @@
 // c++
 #include <algorithm>
 
+namespace {
+
+	// 出力定義は保持するが、用途が固まるまで追加削除UIを隠す
+	constexpr bool kShowOutputCollectionEditing = false;
+}
+
 //============================================================================
 //	RenderFeatureProfileTool classMethods
 //============================================================================
@@ -111,14 +117,15 @@ bool Engine::RenderFeatureProfileTool::DrawSamplerSettings(
 void Engine::RenderFeatureProfileTool::DrawOutputs(
 	RenderFeaturePassSettings& pass) {
 
-	if (!MyGUI::CollapsingHeader("出力", true)) {
+	if (!MyGUI::CollapsingHeader("出力", false)) {
 		return;
 	}
 	bool changed = false;
+	ImGui::Indent();
 	for (size_t index = 0; index < pass.outputs.size();) {
 		RenderFeatureOutputSettings& output = pass.outputs[index];
 		ImGui::PushID(static_cast<int32_t>(index));
-		if (MyGUI::CollapsingHeader(output.name.c_str(), true)) {
+		if (MyGUI::CollapsingHeader(output.name.c_str(), false)) {
 			MyGUI::ScopedPropertyLabelWidth width("RenderFeatureOutput");
 			changed |= MyGUI::InputText("名前", output.name).valueChanged;
 			changed |= MyGUI::InputText("UAV名", output.shaderResource).valueChanged;
@@ -145,7 +152,9 @@ void Engine::RenderFeatureProfileTool::DrawOutputs(
 					changed = true;
 				}
 			}
-			if (ImGui::Button("出力を削除")) {
+			if (kShowOutputCollectionEditing &&
+				ImGui::Button("出力を削除")) {
+
 				pass.outputs.erase(pass.outputs.begin() + index);
 				changed = true;
 				ImGui::PopID();
@@ -155,13 +164,14 @@ void Engine::RenderFeatureProfileTool::DrawOutputs(
 		ImGui::PopID();
 		++index;
 	}
-	if (ImGui::Button("出力を追加")) {
+	if (kShowOutputCollectionEditing && ImGui::Button("出力を追加")) {
 		RenderFeatureOutputSettings output{};
 		output.name += std::to_string(pass.outputs.size());
 		output.shaderResource += std::to_string(pass.outputs.size());
 		pass.outputs.emplace_back(std::move(output));
 		changed = true;
 	}
+	ImGui::Unindent();
 	if (changed) {
 		SetDirty();
 	}
@@ -170,7 +180,7 @@ void Engine::RenderFeatureProfileTool::DrawOutputs(
 void Engine::RenderFeatureProfileTool::DrawResources(
 	const EditorToolContext& context, RenderFeaturePassSettings& pass) {
 
-	if (!MyGUI::CollapsingHeader("リソースとパラメータ", true)) {
+	if (!MyGUI::CollapsingHeader("リソースとパラメータ", false)) {
 		return;
 	}
 	RenderFeatureProfileService& service =
@@ -224,22 +234,31 @@ void Engine::RenderFeatureProfileTool::DrawResources(
 	bool changed = false;
 	if (const auto* variables =
 		service.FindReflectionVariables(pass.material, pass.materialPass)) {
+
+		const MaterialAsset* material = renderPipeline ?
+			renderPipeline->GetRenderAssetLibrary().LoadMaterial(pass.material) :
+			nullptr;
 		for (const ShaderConstantBufferVariable& variable : *variables) {
 			if (MaterialParameterEditor::IsInternalPaddingParameter(variable)) {
 				continue;
 			}
-			MaterialParameterValue* value =
-				pass.parameterOverrides.Find(variable.parameterID);
-			if (!value) {
-				pass.parameterOverrides.Set(variable.parameterID,
-					variable.name, variable.semantic,
-					MaterialParameterEditor::DefaultValueForVariable(variable));
-				value = pass.parameterOverrides.Find(variable.parameterID);
-				changed = true;
-			}
-			if (value && MaterialParameterEditor::DrawValueEdit(
-				variable, *value).valueChanged) {
+			MaterialParameterValue value =
+				MaterialParameterEditor::DefaultValueForVariable(variable);
+			if (const MaterialParameterValue* materialValue = material ?
+				material->parameters.Find(variable.parameterID) : nullptr) {
 
+				value = *materialValue;
+			}
+			if (const MaterialParameterValue* overrideValue =
+				pass.parameterOverrides.Find(variable.parameterID)) {
+
+				value = *overrideValue;
+			}
+			if (MaterialParameterEditor::DrawValueEdit(
+				variable, value).valueChanged) {
+
+				pass.parameterOverrides.Set(variable.parameterID,
+					variable.name, variable.semantic, value);
 				changed = true;
 			}
 		}
@@ -330,7 +349,7 @@ void Engine::RenderFeatureProfileTool::DrawResources(
 			AssetID texture = textureOverride == pass.textureOverrides.end() ?
 				AssetID{} : textureOverride->second;
 			AssetEditSetting setting{};
-			if (MyGUI::AssetReferenceField("テクスチャ", texture,
+			if (MyGUI::AssetReferenceField(binding.name.c_str(), texture,
 				context.toolContext.assetDatabase,
 				{ AssetType::Texture }, setting).valueChanged) {
 

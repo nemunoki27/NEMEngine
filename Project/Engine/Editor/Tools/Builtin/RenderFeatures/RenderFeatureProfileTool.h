@@ -9,6 +9,7 @@
 // c++
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace Engine {
 
@@ -53,7 +54,9 @@ namespace Engine {
 		bool openWindow_ = false;
 		AssetID requestedProfile_{};
 		AssetID observedProfile_{};
-		int32_t selectedPassIndex_ = -1;
+		UUID selectedPass_{};
+		UUID selectedGroup_{};
+		std::vector<UUID> selectedPasses_{};
 		std::string statusMessage_{};
 		bool statusError_ = false;
 
@@ -61,6 +64,8 @@ namespace Engine {
 		void DrawColorPipeline();
 		void DrawPassList();
 		void DrawPassDetail(const EditorToolContext& context);
+		bool DrawSelectedPassControls(RenderFeatureProfileAsset& profile);
+		void DrawSelectedGroupDetail(RenderFeatureProfileAsset& profile);
 		void DrawOutputs(RenderFeaturePassSettings& pass);
 		void DrawResources(const EditorToolContext& context,
 			RenderFeaturePassSettings& pass);
@@ -76,6 +81,7 @@ namespace Engine {
 		static bool DrawSamplerSettings(
 			PipelineStaticSamplerSettings& settings);
 		bool EnsureProfile(const EditorToolContext& context);
+		void ClearSelection();
 		void SetDirty();
 	};
 } // Engine

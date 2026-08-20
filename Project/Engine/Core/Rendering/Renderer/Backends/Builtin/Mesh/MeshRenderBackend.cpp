@@ -502,12 +502,6 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		}
 	}
 
-	// 描画パスごとに変わる定数(カリング設定やアウトライン情報)は、
-	// 静的/スキニングキャッシュヒット時も含め毎描画必ず更新する
-	resources->UpdateDrawConstants(
-		context, *outPrepared.gpuMesh, outPrepared.subMeshIndex,
-		outPrepared.subMeshGroupIndex);
-
 	// インスタンス数を設定
 	outPrepared.instanceCount = resources->GetInstanceCount();
 	if (outPrepared.instanceCount == 0) {
@@ -546,6 +540,24 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 	}
 	// MaterialParameters cbufferへ詰めるため解決済みマテリアルを保持する
 	outPrepared.material = resolvedPass.material;
+	if (context.passKind == MaterialPassKind::Outline ||
+		context.passKind == MaterialPassKind::OutlineStencilWrite ||
+		context.passKind == MaterialPassKind::OutlineStencilTest ||
+		context.passKind == MaterialPassKind::ScreenSpaceOutlineMask ||
+		context.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
+
+		// 専用パスでも元マテリアルの頂点変位を引き継ぎ、輪郭と本体を一致させる
+		const MaterialAsset* sourceMaterial =
+			context.assetLibrary->LoadMaterial(
+				outPrepared.items.front()->material);
+		if (sourceMaterial) {
+			outPrepared.material = sourceMaterial;
+		}
+	}
+	// マテリアル依存の頂点変位を含む描画定数はパス解決後に毎描画更新する
+	outPrepared.resources->UpdateDrawConstants(
+		context, *outPrepared.gpuMesh, outPrepared.subMeshIndex,
+		outPrepared.subMeshGroupIndex, outPrepared.material);
 	return true;
 }
 

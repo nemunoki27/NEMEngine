@@ -39,8 +39,10 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 
 	// メタリックとラフネスは係数にmetallicRoughnessテクスチャを掛ける、glTF流でB=metallic G=roughness
 	float4 mrSample = SamplePBRTexture(params.metallicRoughnessTexture, uv, 1.0f.xxxx);
-	float metallic = saturate(params.Metallic * mrSample.b);
-	float roughness = saturate(params.Roughness * mrSample.g);
+	float metallicSample = SamplePBRTexture(params.metallicTexture, uv, 1.0f.xxxx).r;
+	float roughnessSample = SamplePBRTexture(params.roughnessTexture, uv, 1.0f.xxxx).r;
+	float metallic = saturate(params.metallic * mrSample.b * metallicSample);
+	float roughness = saturate(params.roughness * mrSample.g * roughnessSample);
 	roughness = max(roughness, 0.04f);
 
 	// AOはocclusionテクスチャから取る、未指定なら白で1になる

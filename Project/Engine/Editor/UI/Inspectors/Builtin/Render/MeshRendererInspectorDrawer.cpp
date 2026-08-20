@@ -519,13 +519,33 @@ const Engine::ShaderReflectionInfo* Engine::MeshRendererInspectorDrawer::EnsureM
 Engine::MaterialParameterValue Engine::MeshRendererInspectorDrawer::ResolveSubMeshParamValue(
 	const SubMeshMaterial& subMesh, const ShaderConstantBufferVariable& var) const {
 
-	auto it = subMesh.materialInstance.find(var.name);
-	if (it != subMesh.materialInstance.end()) {
-		return it->second;
+	if (const MaterialParameterValue* value =
+		subMesh.materialInstance.Find(var.parameterID)) {
+
+		return *value;
 	}
-	auto defaultIt = cachedMaterial_.parameters.find(var.name);
-	return defaultIt != cachedMaterial_.parameters.end() ?
-		defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(var);
+	if (var.semantic != MaterialParameterSemantic::None) {
+
+		if (const MaterialParameterValue* value =
+			subMesh.materialInstance.Find(var.semantic)) {
+
+			return *value;
+		}
+	}
+	if (const MaterialParameterValue* value =
+		cachedMaterial_.parameters.Find(var.parameterID)) {
+
+		return *value;
+	}
+	if (var.semantic != MaterialParameterSemantic::None) {
+
+		if (const MaterialParameterValue* value =
+			cachedMaterial_.parameters.Find(var.semantic)) {
+
+			return *value;
+		}
+	}
+	return MaterialParameterEditor::DefaultValueForVariable(var);
 }
 
 void Engine::MeshRendererInspectorDrawer::ApplyModelMaterialParameters(
@@ -582,9 +602,11 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	const auto& variables = layout.GetVariables();
 
 	// 編集確定値を全サブメッシュへ書き込む
-	auto applyToAll = [&](const std::string& name, const MaterialParameterValue& value) {
+	auto applyToAll = [&](const ShaderConstantBufferVariable& var,
+		const MaterialParameterValue& value) {
 		for (SubMeshMaterial& subMesh : subMeshDraft_) {
-			subMesh.materialInstance[name] = value;
+			subMesh.materialInstance.Set(var.parameterID,
+				var.name, var.semantic, value);
 		}
 		};
 
@@ -641,7 +663,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 
 					MaterialParameterValue value{};
 					value.value = textureID;
-					applyToAll(var.name, value);
+					applyToAll(var, value);
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
@@ -656,35 +678,39 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 				// valueChangedで全サブメッシュへ反映、editFinishedでcommitされUndo/dirtyに乗る
 				ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
 				if (result.valueChanged) {
-					applyToAll(var.name, value);
+					applyToAll(var, value);
 				}
 				return result;
 				});
 		}
 		};
 
-	// サブメッシュ単体編集と表示順を揃えるため、Drag編集paramを先に出す
+	std::vector<const ShaderConstantBufferVariable*> scalarVariables;
+	std::vector<const ShaderConstantBufferVariable*> textureVariables;
 	for (const ShaderConstantBufferVariable& var : variables) {
 
 		if (!var.used ||
 			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
-			IsDedicatedSubMeshProperty(var) ||
-			MaterialParameterEditor::IsReflectedTextureParam(var)) {
+			IsDedicatedSubMeshProperty(var)) {
 			continue;
 		}
-		drawVar(var);
+		if (MaterialParameterEditor::IsReflectedTextureParam(var)) {
+			textureVariables.emplace_back(&var);
+		} else {
+			scalarVariables.emplace_back(&var);
+		}
 	}
+	MaterialParameterEditor::SortScalarParametersForDisplay(
+		scalarVariables);
+	MaterialParameterEditor::SortTextureParametersForDisplay(
+		textureVariables);
 
+	for (const ShaderConstantBufferVariable* var : scalarVariables) {
+		drawVar(*var);
+	}
 	// テクスチャparamは下にまとめて出す
-	for (const ShaderConstantBufferVariable& var : variables) {
-
-		if (!var.used ||
-			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
-			IsDedicatedSubMeshProperty(var) ||
-			!MaterialParameterEditor::IsReflectedTextureParam(var)) {
-			continue;
-		}
-		drawVar(var);
+	for (const ShaderConstantBufferVariable* var : textureVariables) {
+		drawVar(*var);
 	}
 }
 
@@ -706,52 +732,62 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 
 	ImGui::SeparatorText("シェーダーパラメータ");
 
-	// Drag編集paramを先に出す
+	std::vector<const ShaderConstantBufferVariable*> scalarVariables;
+	std::vector<const ShaderConstantBufferVariable*> textureVariables;
 	for (const ShaderConstantBufferVariable& var : variables) {
 
 		if (!var.used ||
 			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
-			IsDedicatedSubMeshProperty(var) ||
-			MaterialParameterEditor::IsReflectedTextureParam(var)) {
+			IsDedicatedSubMeshProperty(var)) {
 			continue;
 		}
-		MaterialParameterValue value = ResolveSubMeshParamValue(subMesh, var);
+		if (MaterialParameterEditor::IsReflectedTextureParam(var)) {
+			textureVariables.emplace_back(&var);
+		} else {
+			scalarVariables.emplace_back(&var);
+		}
+	}
+	MaterialParameterEditor::SortScalarParametersForDisplay(
+		scalarVariables);
+	MaterialParameterEditor::SortTextureParametersForDisplay(
+		textureVariables);
+
+	for (const ShaderConstantBufferVariable* var : scalarVariables) {
+
+		MaterialParameterValue value = ResolveSubMeshParamValue(subMesh, *var);
 		const Engine::FloatEditSetting floatSetting{};
 		DrawField(anyItemActive, [&]() {
 
 			// valueChangedでプレビュー更新、editFinishedでcommitされUndo/dirtyに乗る
-			Engine::ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
+			Engine::ValueEditResult result = MaterialParameterEditor::DrawValueEdit(*var, value, floatSetting);
 			if (result.valueChanged) {
-				subMesh.materialInstance[var.name] = value;
+				subMesh.materialInstance.Set(var->parameterID,
+					var->name, var->semantic, value);
 			}
 			return result;
 			});
 	}
 
 	// テクスチャparamは下にまとめて出す
-	for (const ShaderConstantBufferVariable& var : variables) {
+	for (const ShaderConstantBufferVariable* var : textureVariables) {
 
-		if (!var.used ||
-			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
-			IsDedicatedSubMeshProperty(var) ||
-			!MaterialParameterEditor::IsReflectedTextureParam(var)) {
-			continue;
-		}
-		auto it = subMesh.materialInstance.find(var.name);
 		AssetID textureID{};
-		if (it != subMesh.materialInstance.end() && std::holds_alternative<AssetID>(it->second.value)) {
-			textureID = std::get<AssetID>(it->second.value);
+		const MaterialParameterValue value =
+			ResolveSubMeshParamValue(subMesh, *var);
+		if (std::holds_alternative<AssetID>(value.value)) {
+			textureID = std::get<AssetID>(value.value);
 		}
 		DrawField(anyItemActive, [&]() {
 
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
-			auto result = MyGUI::AssetReferenceField(var.name.c_str(), textureID,
+			auto result = MyGUI::AssetReferenceField(var->name.c_str(), textureID,
 				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			if (result.valueChanged) {
-				MaterialParameterValue value{};
-				value.value = textureID;
-				subMesh.materialInstance[var.name] = value;
+				MaterialParameterValue parameter{};
+				parameter.value = textureID;
+				subMesh.materialInstance.Set(var->parameterID,
+					var->name, var->semantic, parameter);
 			}
 			return result;
 			});

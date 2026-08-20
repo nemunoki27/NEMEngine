@@ -60,7 +60,8 @@ namespace Engine {
 		uint32_t occlusionCullingEnabled = 0;
 		// 混在モデルの描画対象グループ、UINT32_MAXは全グループ
 		uint32_t subMeshGroupIndex = UINT32_MAX;
-		uint32_t _reserved1 = 0;
+		// Displacementによるモデル空間最大変位量
+		float maxDisplacement = 0.0f;
 
 		// 連結Index/Meshletバッファ内の4段階LOD範囲
 		std::array<uint32_t, kMeshLODCount> lodIndexOffsets{};
@@ -103,8 +104,12 @@ namespace Engine {
 
 		uint32_t occlusionTextureIndex = UINT32_MAX;
 		uint32_t specularTextureIndex = UINT32_MAX;
+		uint32_t metallicTextureIndex = UINT32_MAX;
+		uint32_t roughnessTextureIndex = UINT32_MAX;
+
 		float metallic = 0.0f;
 		float roughness = 0.5f;
+		float _materialPad[2] = { 0.0f, 0.0f };
 
 		// サブメッシュごとのローカル行列(位置・Bounds・Culling用)
 		Matrix4x4 localMatrix = Matrix4x4::Identity();
@@ -130,7 +135,7 @@ namespace Engine {
 		uint32_t renderGroupIndex = 0;
 		uint32_t _renderGroupPad[3] = { 0, 0, 0 };
 	};
-	static_assert(sizeof(MeshSubMeshShaderData) == 304,
+	static_assert(sizeof(MeshSubMeshShaderData) == 320,
 		"MeshSubMeshShaderData must match HLSL SubMeshShaderData layout");
 	static_assert(sizeof(MeshSubMeshShaderData) % 16 == 0);
 } // Engine

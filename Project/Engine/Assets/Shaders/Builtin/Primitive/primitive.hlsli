@@ -12,6 +12,25 @@ cbuffer ViewConstants : register(b0) {
 	float3 cameraPosition;
 	uint frameSerial;
 };
+cbuffer MaterialParameters : register(b3) {
+
+	float4 color;
+	float4 emissiveColor;
+	float metallic;
+	float roughness;
+	float emissiveIntensity;
+	float displacementMidpoint;
+	float displacementScale;
+	float3 _materialPad0;
+};
+Texture2D<float4> baseColorTexture : register(t0, space2);
+Texture2D<float4> metallicRoughnessTexture : register(t1, space2);
+Texture2D<float4> occlusionTexture : register(t2, space2);
+Texture2D<float4> emissiveTexture : register(t3, space2);
+Texture2D<float4> normalTexture : register(t4, space2);
+Texture2D<float4> metallicTexture : register(t5, space2);
+Texture2D<float4> roughnessTexture : register(t6, space2);
+Texture2D<float4> displacementTexture : register(t7, space2);
 
 struct PrimitiveInstance {
 
@@ -25,7 +44,8 @@ struct PrimitiveInstance {
 	float4 bottomColor;
 	uint flags;
 	uint motionFrameSerial;
-	uint2 _pad;
+	uint entityIndex;
+	uint entityGeneration;
 };
 
 float SmoothCylinderProfile(float t, float weight, bool pullEnd) {
@@ -52,6 +72,31 @@ float4 ResolvePrimitiveVertexColor(float3 localPosition, PrimitiveInstance insta
 	return lerp(instance.centerColor, instance.topColor, t);
 }
 
+// VSとMSで共通使用する繰り返しバイリニアサンプル
+float SamplePrimitiveDisplacement(float2 uv) {
+
+	uint width;
+	uint height;
+	displacementTexture.GetDimensions(width, height);
+
+	const int2 dimensions = int2(max(width, 1u), max(height, 1u));
+	const float2 texelPosition = frac(uv) * float2(dimensions) - 0.5f;
+	const int2 baseTexel = int2(floor(texelPosition));
+	const float2 blend = frac(texelPosition);
+	const int2 p00 = (baseTexel % dimensions + dimensions) % dimensions;
+	const int2 p10 = ((baseTexel + int2(1, 0)) % dimensions + dimensions) % dimensions;
+	const int2 p01 = ((baseTexel + int2(0, 1)) % dimensions + dimensions) % dimensions;
+	const int2 p11 = ((baseTexel + int2(1, 1)) % dimensions + dimensions) % dimensions;
+
+	const float top = lerp(
+		displacementTexture.Load(int3(p00, 0)).r,
+		displacementTexture.Load(int3(p10, 0)).r, blend.x);
+	const float bottom = lerp(
+		displacementTexture.Load(int3(p01, 0)).r,
+		displacementTexture.Load(int3(p11, 0)).r, blend.x);
+	return lerp(top, bottom, blend.y);
+}
+
 struct VSOutput {
 
 	float4 position : SV_POSITION;
@@ -64,6 +109,8 @@ struct VSOutput {
 	float4 vertexColor : COLOR0;
 	float4 currentClipPosition : TEXCOORD6;
 	float4 previousClipPosition : TEXCOORD7;
+	nointerpolation uint entityIndex : TEXCOORD8;
+	nointerpolation uint entityGeneration : TEXCOORD9;
 };
 
 VSOutput BuildPrimitiveVertexOutput(
@@ -76,6 +123,14 @@ VSOutput BuildPrimitiveVertexOutput(
 	PrimitiveInstance instance) {
 
 	VSOutput output;
+	const float2 transformedUV = mul(
+		float4(uv, 0.0f, 1.0f), instance.uvMatrix).xy;
+	if (abs(displacementScale) > 0.000001f) {
+
+		const float height = SamplePrimitiveDisplacement(transformedUV);
+		localPosition += normalize(localNormal) *
+			((height - displacementMidpoint) * displacementScale);
+	}
 	float4 worldPosition = mul(
 		float4(localPosition, 1.0f),
 		instance.worldMatrix);
@@ -94,11 +149,11 @@ VSOutput BuildPrimitiveVertexOutput(
 	output.tangent = normalize(mul(
 		localTangent, (float3x3)instance.worldMatrix));
 	output.tangentSign = tangentSign;
-	output.texcoord = mul(
-		float4(uv, 0.0f, 1.0f),
-		instance.uvMatrix).xy;
+	output.texcoord = transformedUV;
 	output.flags = instance.flags;
 	output.vertexColor = vertexColor;
+	output.entityIndex = instance.entityIndex;
+	output.entityGeneration = instance.entityGeneration;
 	return output;
 }
 

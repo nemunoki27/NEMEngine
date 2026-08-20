@@ -84,6 +84,13 @@ namespace Engine {
 		RayTracing,
 	};
 
+	// レンダー処理順ツリーの項目種別
+	enum class RenderFeatureHierarchyItemType : uint8_t {
+
+		Pass,
+		Group,
+	};
+
 	// 固定RenderPathへFeatureを差し込む位置
 	enum class RenderFeatureAnchor : uint8_t {
 
@@ -173,6 +180,17 @@ namespace Engine {
 			samplerOverrides{};
 	};
 
+	// パス本体をUUID参照し、表示順とグループ状態だけを保持する
+	struct RenderFeatureHierarchyItem {
+
+		RenderFeatureHierarchyItemType type =
+			RenderFeatureHierarchyItemType::Pass;
+		UUID id{};
+		std::string name = "グループ";
+		bool enabled = true;
+		std::vector<RenderFeatureHierarchyItem> children{};
+	};
+
 	// シーンが使用する描画Feature全体
 	struct RenderFeatureProfileAsset {
 
@@ -181,8 +199,15 @@ namespace Engine {
 		uint32_t version = 1u;
 		ColorPipelineSettings colorPipeline{};
 		std::vector<RenderFeaturePassSettings> passes{};
+		std::vector<RenderFeatureHierarchyItem> hierarchy{};
 	};
 
 	// Anchorの固定RenderPath上の順序を取得する
 	uint32_t GetRenderFeatureAnchorOrder(RenderFeatureAnchor anchor);
+	// 階層内の不正参照を除き、未登録Passをルート末尾へ追加する
+	void NormalizeRenderFeatureHierarchy(RenderFeatureProfileAsset& profile);
+	// 親Groupの有効状態を変えず、Pass配列だけを階層順へ同期する
+	void SynchronizeRenderFeaturePassOrder(RenderFeatureProfileAsset& profile);
+	// 階層順と親Groupの有効状態をランタイム用Profileへ反映する
+	void ApplyRenderFeatureHierarchy(RenderFeatureProfileAsset& profile);
 } // Engine

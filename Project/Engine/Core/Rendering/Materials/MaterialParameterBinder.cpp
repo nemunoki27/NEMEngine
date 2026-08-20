@@ -201,6 +201,7 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 		cache.textures.emplace_back(TextureBinding{
 			.rootBinding = rootBinding,
 			.textureID = textureID,
+			.semantic = resource.semantic,
 			});
 	}
 	cache.texturesValid = true;

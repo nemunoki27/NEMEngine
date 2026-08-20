@@ -66,6 +66,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultText{ 0x4e454d4153534554ull, 0xbe890ab815b3de9aull };
 		inline constexpr AssetID DefaultPrimitive{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f605ull };
 		inline constexpr AssetID DefaultPrimitiveTransparent{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f609ull };
+		inline constexpr AssetID DefaultPrimitiveEditorPicking{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f619ull };
 		inline constexpr AssetID DefaultPrimitive2D{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f615ull };
 		inline constexpr AssetID DefaultLine{ 0x4e454d4153534554ull, 0x7a9d3c5e1b6f4083ull };
 		inline constexpr AssetID Skinning{ 0x4e454d4153534554ull, 0xda1205f1e1e19bdbull };

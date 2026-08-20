@@ -46,7 +46,7 @@ void Engine::RenderFeatureProfileTool::Tick(ToolContext& context) {
 			requestedProfile_, context.assetDatabase);
 		observedProfile_ = requestedProfile_;
 		requestedProfile_ = {};
-		selectedPassIndex_ = -1;
+		ClearSelection();
 		return;
 	}
 	if (!context.activeSceneHeader) {
@@ -61,7 +61,7 @@ void Engine::RenderFeatureProfileTool::Tick(ToolContext& context) {
 	if (!service.IsDirty()) {
 		service.SetActiveProfileAsset(profile, context.assetDatabase);
 		observedProfile_ = profile;
-		selectedPassIndex_ = -1;
+		ClearSelection();
 	}
 }
 
@@ -108,7 +108,7 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 		service.SetActiveProfileAsset(
 			profileAsset, context.toolContext.assetDatabase);
 		observedProfile_ = profileAsset;
-		selectedPassIndex_ = -1;
+		ClearSelection();
 	}
 
 	if (!observedProfile_ && !EnsureProfile(context)) {
@@ -131,7 +131,7 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 	ImGui::SameLine();
 	if (ImGui::Button("再読み込み", ImVec2(buttonWidth, 0.0f))) {
 		service.Reload();
-		selectedPassIndex_ = -1;
+		ClearSelection();
 		statusMessage_ = "再読み込みしました";
 		statusError_ = false;
 	}
@@ -204,7 +204,7 @@ void Engine::RenderFeatureProfileTool::DrawColorPipeline() {
 		RenderFeatureProfileService::GetInstance().GetProfile().colorPipeline;
 	bool changed = false;
 	ImGui::Indent();
-	if (MyGUI::CollapsingHeader("露出", true)) {
+	if (MyGUI::CollapsingHeader("露出", false)) {
 		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureExposure");
 		changed |= MyGUI::EnumCombo("露出モード", settings.exposure.mode).valueChanged;
 		changed |= MyGUI::DragFloat("EV100", settings.exposure.manualEV100).valueChanged;
@@ -233,98 +233,45 @@ void Engine::RenderFeatureProfileTool::DrawColorPipeline() {
 	}
 }
 
-void Engine::RenderFeatureProfileTool::DrawPassList() {
-
-	RenderFeatureProfileAsset& profile =
-		RenderFeatureProfileService::GetInstance().GetProfile();
-	if (ImGui::Button("追加", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		ImGui::OpenPopup("RenderFeatureAddPass");
-	}
-	if (ImGui::BeginPopup("RenderFeatureAddPass")) {
-		for (const auto [type, label] : {
-			std::pair{ RenderFeaturePassType::Compute, "Compute" },
-			std::pair{ RenderFeaturePassType::RayTracing, "DispatchRays" } }) {
-
-			if (!ImGui::MenuItem(label)) {
-				continue;
-			}
-			RenderFeaturePassSettings pass{};
-			pass.id = UUID::New();
-			pass.name = label;
-			pass.type = type;
-			pass.materialPass = type == RenderFeaturePassType::Compute ?
-				MaterialPassKind::PostProcess : MaterialPassKind::RayTracing;
-			pass.outputs.emplace_back();
-			profile.passes.emplace_back(std::move(pass));
-			selectedPassIndex_ = static_cast<int32_t>(profile.passes.size()) - 1;
-			SetDirty();
-		}
-		ImGui::EndPopup();
-	}
-
-	for (int32_t index = 0;
-		index < static_cast<int32_t>(profile.passes.size()); ++index) {
-
-		RenderFeaturePassSettings& pass = profile.passes[index];
-		ImGui::PushID(index);
-		bool enabled = pass.enabled;
-		if (ImGui::Checkbox("##Enabled", &enabled)) {
-			pass.enabled = enabled;
-			SetDirty();
-		}
-		ImGui::SameLine();
-		if (ImGui::Selectable(pass.name.c_str(), selectedPassIndex_ == index)) {
-			selectedPassIndex_ = index;
-		}
-		ImGui::PopID();
-	}
-}
-
 void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	const EditorToolContext& context) {
 
 	RenderFeatureProfileAsset& profile =
 		RenderFeatureProfileService::GetInstance().GetProfile();
-	if (selectedPassIndex_ < 0 ||
-		selectedPassIndex_ >= static_cast<int32_t>(profile.passes.size())) {
-
+	if (!selectedPass_) {
+		if (selectedGroup_) {
+			DrawSelectedGroupDetail(profile);
+			return;
+		}
 		ImGui::TextDisabled("編集するパスを選択してください");
 		return;
 	}
+	if (!DrawSelectedPassControls(profile)) {
+		return;
+	}
+	const auto selected = std::find_if(profile.passes.begin(),
+		profile.passes.end(), [&](const RenderFeaturePassSettings& pass) {
+
+			return pass.id == selectedPass_;
+		});
+	if (selected == profile.passes.end()) {
+		ClearSelection();
+		return;
+	}
+
 	bool changed = false;
-	const float orderButtonWidth =
-		ImGui::GetContentRegionAvail().x * 0.5f - 2.0f;
-	ImGui::BeginDisabled(selectedPassIndex_ == 0);
-	if (ImGui::Button("上へ", ImVec2(orderButtonWidth, 0.0f))) {
-		std::swap(profile.passes[selectedPassIndex_],
-			profile.passes[selectedPassIndex_ - 1]);
-		--selectedPassIndex_;
-		changed = true;
-	}
-	ImGui::EndDisabled();
-	ImGui::SameLine();
-	ImGui::BeginDisabled(selectedPassIndex_ + 1 >=
-		static_cast<int32_t>(profile.passes.size()));
-	if (ImGui::Button("下へ", ImVec2(orderButtonWidth, 0.0f))) {
-		std::swap(profile.passes[selectedPassIndex_],
-			profile.passes[selectedPassIndex_ + 1]);
-		++selectedPassIndex_;
-		changed = true;
-	}
-	ImGui::EndDisabled();
-	RenderFeaturePassSettings& selectedPass =
-		profile.passes[selectedPassIndex_];
-	RenderFeaturePassSettings& editablePass = selectedPass;
+	RenderFeaturePassSettings& editablePass = *selected;
 	changed |= MyGUI::InputText("名前", editablePass.name).valueChanged;
 	changed |= MyGUI::EnumCombo("種類", editablePass.type).valueChanged;
 	changed |= MyGUI::EnumCombo("実行位置", editablePass.anchor).valueChanged;
 	changed |= MyGUI::Checkbox("Game View", editablePass.gameView);
 	changed |= MyGUI::Checkbox("Scene View", editablePass.sceneView);
-	changed |= MyGUI::Checkbox("Scene Colorへ出力",
-		editablePass.sceneColorOutput);
+	const bool sceneColorOutputChanged = MyGUI::Checkbox(
+		"Scene Colorへ出力", editablePass.sceneColorOutput);
+	changed |= sceneColorOutputChanged;
 	changed |= InspectorDrawerCommon::DrawLayerMaskField(
 		"対象レイヤー", editablePass.targetMask).valueChanged;
-	if (editablePass.sceneColorOutput) {
+	if (sceneColorOutputChanged && editablePass.sceneColorOutput) {
 		for (RenderFeaturePassSettings& candidate : profile.passes) {
 			if (candidate.id != editablePass.id &&
 				candidate.anchor == editablePass.anchor) {
@@ -350,27 +297,6 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 			changed = true;
 		}
 	}
-	if (MyGUI::CollapsingHeader("GPU品質", false)) {
-		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureGPUQuality");
-		changed |= MyGUI::Checkbox("動的解像度", editablePass.adaptiveResolution);
-		changed |= MyGUI::DragFloat("GPU予算(ms)", editablePass.gpuBudgetMs,
-			{ .minValue = 0.1f, .maxValue = 33.0f }).valueChanged;
-		changed |= MyGUI::DragFloat("最小スケール", editablePass.minResolutionScale,
-			{ .minValue = 0.25f, .maxValue = 1.0f }).valueChanged;
-		changed |= MyGUI::DragFloat("最大スケール", editablePass.maxResolutionScale,
-			{ .minValue = 0.25f, .maxValue = 1.0f }).valueChanged;
-		changed |= MyGUI::DragFloat("調整幅", editablePass.resolutionStep,
-			{ .minValue = 0.05f, .maxValue = 0.5f }).valueChanged;
-		int32_t interval = static_cast<int32_t>(
-			editablePass.adjustmentIntervalFrames);
-		if (MyGUI::DragInt("調整間隔", interval,
-			{ .minValue = 1, .maxValue = 240 }).valueChanged) {
-
-			editablePass.adjustmentIntervalFrames =
-				static_cast<uint32_t>(interval);
-			changed = true;
-		}
-	}
 
 	const auto sourceKindLabel = [](RenderFeatureSourceKind kind) {
 
@@ -384,24 +310,23 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 		}
 		return "不明";
 	};
-	if (ImGui::BeginCombo("主入力",
-		sourceKindLabel(editablePass.sourceKind))) {
+	static const std::vector<std::string> sourceItems{
+		"直前のパス", "Scene Color", "指定パス" };
+	std::string selectedSource = sourceKindLabel(editablePass.sourceKind);
+	if (MyGUI::StringCombo("主入力", selectedSource,
+		sourceItems).valueChanged) {
 
-		for (const RenderFeatureSourceKind kind : {
-			RenderFeatureSourceKind::PreviousPass,
-			RenderFeatureSourceKind::SceneColor,
-			RenderFeatureSourceKind::PassOutput }) {
-
-			const bool selected = editablePass.sourceKind == kind;
-			if (ImGui::Selectable(sourceKindLabel(kind), selected)) {
-				editablePass.sourceKind = kind;
-				if (kind != RenderFeatureSourceKind::PassOutput) {
-					editablePass.source = {};
-				}
-				changed = true;
-			}
+		if (selectedSource == sourceItems[0]) {
+			editablePass.sourceKind = RenderFeatureSourceKind::PreviousPass;
+		} else if (selectedSource == sourceItems[1]) {
+			editablePass.sourceKind = RenderFeatureSourceKind::SceneColor;
+		} else {
+			editablePass.sourceKind = RenderFeatureSourceKind::PassOutput;
 		}
-		ImGui::EndCombo();
+		if (editablePass.sourceKind != RenderFeatureSourceKind::PassOutput) {
+			editablePass.source = {};
+		}
+		changed = true;
 	}
 	if (editablePass.sourceKind == RenderFeatureSourceKind::PassOutput) {
 		changed |= DrawOutputReferenceCombo("参照出力", profile, editablePass,
@@ -415,12 +340,41 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	DrawOutputs(editablePass);
 	DrawResources(context, editablePass);
 
-	if (ImGui::Button("パスを削除",
-		ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		profile.passes.erase(profile.passes.begin() + selectedPassIndex_);
-		selectedPassIndex_ = -1;
+	bool gpuChanged = false;
+	if (MyGUI::CollapsingHeader("GPU品質", false)) {
+		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureGPUQuality");
+		gpuChanged |= MyGUI::Checkbox("動的解像度",
+			editablePass.adaptiveResolution);
+		gpuChanged |= MyGUI::DragFloat("GPU予算(ms)", editablePass.gpuBudgetMs,
+			{ .minValue = 0.1f, .maxValue = 33.0f }).valueChanged;
+		gpuChanged |= MyGUI::DragFloat("最小スケール",
+			editablePass.minResolutionScale,
+			{ .minValue = 0.25f, .maxValue = 1.0f }).valueChanged;
+		gpuChanged |= MyGUI::DragFloat("最大スケール",
+			editablePass.maxResolutionScale,
+			{ .minValue = 0.25f, .maxValue = 1.0f }).valueChanged;
+		gpuChanged |= MyGUI::DragFloat("調整幅", editablePass.resolutionStep,
+			{ .minValue = 0.05f, .maxValue = 0.5f }).valueChanged;
+		int32_t interval = static_cast<int32_t>(
+			editablePass.adjustmentIntervalFrames);
+		if (MyGUI::DragInt("調整間隔", interval,
+			{ .minValue = 1, .maxValue = 240 }).valueChanged) {
+
+			editablePass.adjustmentIntervalFrames =
+				static_cast<uint32_t>(interval);
+			gpuChanged = true;
+		}
+	}
+	if (gpuChanged) {
 		SetDirty();
 	}
+}
+
+void Engine::RenderFeatureProfileTool::ClearSelection() {
+
+	selectedPass_ = {};
+	selectedGroup_ = {};
+	selectedPasses_.clear();
 }
 
 void Engine::RenderFeatureProfileTool::SetDirty() {

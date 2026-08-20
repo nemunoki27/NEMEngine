@@ -82,6 +82,55 @@ namespace {
 		};
 	}
 
+	std::vector<Engine::RenderFeatureHierarchyItem> ParseHierarchyItems(
+		const nlohmann::json& data) {
+
+		std::vector<Engine::RenderFeatureHierarchyItem> items{};
+		if (!data.is_array()) {
+			return items;
+		}
+		for (const nlohmann::json& itemJson : data) {
+			if (!itemJson.is_object()) {
+				continue;
+			}
+			Engine::RenderFeatureHierarchyItem item{};
+			item.type = itemJson.value("type", "Pass") == "Group" ?
+				Engine::RenderFeatureHierarchyItemType::Group :
+				Engine::RenderFeatureHierarchyItemType::Pass;
+			item.id = Engine::FromString16Hex(
+				itemJson.value("id", std::string{}));
+			item.name = itemJson.value("name", item.name);
+			item.enabled = itemJson.value("enabled", item.enabled);
+			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
+				item.children = ParseHierarchyItems(
+					itemJson.value("children", nlohmann::json::array()));
+			}
+			items.emplace_back(std::move(item));
+		}
+		return items;
+	}
+
+	nlohmann::json WriteHierarchyItems(
+		const std::vector<Engine::RenderFeatureHierarchyItem>& items) {
+
+		nlohmann::json data = nlohmann::json::array();
+		for (const Engine::RenderFeatureHierarchyItem& item : items) {
+			nlohmann::json itemJson{
+				{ "type", item.type ==
+					Engine::RenderFeatureHierarchyItemType::Group ?
+					"Group" : "Pass" },
+				{ "id", Engine::ToString(item.id) },
+			};
+			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
+				itemJson["name"] = item.name;
+				itemJson["enabled"] = item.enabled;
+				itemJson["children"] = WriteHierarchyItems(item.children);
+			}
+			data.push_back(std::move(itemJson));
+		}
+		return data;
+	}
+
 	void ParseColorPipeline(const nlohmann::json& data,
 		Engine::ColorPipelineSettings& outSettings) {
 
@@ -382,19 +431,25 @@ Engine::RenderFeatureProfileSerializer::FromJson(
 		}
 		profile.passes.emplace_back(std::move(pass));
 	}
+	profile.hierarchy = ParseHierarchyItems(data.value(
+		"hierarchy", nlohmann::json::array()));
+	SynchronizeRenderFeaturePassOrder(profile);
 	return profile;
 }
 
 nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(
 	const RenderFeatureProfileAsset& profile) {
 
+	RenderFeatureProfileAsset normalized = profile;
+	SynchronizeRenderFeaturePassOrder(normalized);
 	nlohmann::json data{
-		{ "version", 1u },
-		{ "name", profile.name },
-		{ "colorPipeline", WriteColorPipeline(profile.colorPipeline) },
+		{ "version", 2u },
+		{ "name", normalized.name },
+		{ "colorPipeline", WriteColorPipeline(normalized.colorPipeline) },
 		{ "passes", nlohmann::json::array() },
+		{ "hierarchy", WriteHierarchyItems(normalized.hierarchy) },
 	};
-	for (const RenderFeaturePassSettings& pass : profile.passes) {
+	for (const RenderFeaturePassSettings& pass : normalized.passes) {
 
 		nlohmann::json sourceJson = WriteOutputReference(pass.source);
 		sourceJson["kind"] = EnumAdapter<RenderFeatureSourceKind>::ToString(

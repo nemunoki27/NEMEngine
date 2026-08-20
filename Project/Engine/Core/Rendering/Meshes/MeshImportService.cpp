@@ -316,15 +316,35 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 				const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(
 					material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
 				const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
-					material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT });
+					material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA });
+				const std::string heightReference =
+					AssimpMaterialTextureExtractor::Extract(
+						material, { aiTextureType_HEIGHT });
+				AssimpMaterialTextureExtractor::PBRTextureReferences pbrTextures =
+					AssimpMaterialTextureExtractor::ExtractPBR(material);
+				// HEIGHTは旧モデルのバンプ用途を優先し、明示Normalと併存時だけ頂点変位へ使う
+				const std::string normalOrHeightReference =
+					normalReference.empty() ? heightReference : normalReference;
+				if (pbrTextures.displacement.empty() &&
+					!normalReference.empty()) {
+
+					pbrTextures.displacement = heightReference;
+				}
 				// マテリアルがベースカラーテクスチャを宣言していたかを、解決可否と独立に保持する
 				// (見つからない場合はResolveAssetPathが空を返し、パスからは区別できないため)
 				subMesh.hasBaseColorTexture = !baseColorReference.empty();
 				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(baseColorReference);
 				subMesh.defaultTextures.normalTexturePath =
-					textureResolver.ResolveNormalAssetPath(normalReference, baseColorReference);
-				subMesh.defaultTextures.metallicRoughnessTexturePath = textureResolver.ResolveAssetPath(
-					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
+					textureResolver.ResolveNormalAssetPath(
+						normalOrHeightReference, baseColorReference);
+				subMesh.defaultTextures.metallicRoughnessTexturePath =
+					textureResolver.ResolveAssetPath(pbrTextures.metallicRoughness);
+				subMesh.defaultTextures.metallicTexturePath =
+					textureResolver.ResolveAssetPath(pbrTextures.metallic);
+				subMesh.defaultTextures.roughnessTexturePath =
+					textureResolver.ResolveAssetPath(pbrTextures.roughness);
+				subMesh.defaultTextures.displacementTexturePath =
+					textureResolver.ResolveAssetPath(pbrTextures.displacement);
 				subMesh.defaultTextures.specularTexturePath = textureResolver.ResolveAssetPath(
 					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_SPECULAR }));
 				subMesh.defaultTextures.emissiveTexturePath = textureResolver.ResolveAssetPath(

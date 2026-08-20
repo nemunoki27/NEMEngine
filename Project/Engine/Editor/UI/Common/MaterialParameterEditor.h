@@ -9,9 +9,12 @@
 
 // c++
 #include <algorithm>
+#include <array>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
+#include <vector>
 
 //============================================================================
 //	MaterialParameterEditor
@@ -19,6 +22,75 @@
 //	PostProcessとマテリアルインスペクタで同じ描画を使うため共通化している
 //============================================================================
 namespace Engine::MaterialParameterEditor {
+
+	// 標準PBRスカラーをインスペクターで扱いやすい順に並べる
+	inline size_t GetScalarDisplayRank(
+		const ShaderConstantBufferVariable& var) {
+
+		static constexpr std::array kOrder{
+			MaterialParameterSemantic::BaseColor,
+			MaterialParameterSemantic::EmissiveColor,
+			MaterialParameterSemantic::Metallic,
+			MaterialParameterSemantic::Roughness,
+			MaterialParameterSemantic::AmbientOcclusion,
+			MaterialParameterSemantic::EmissiveIntensity,
+			MaterialParameterSemantic::Opacity,
+			MaterialParameterSemantic::AlphaClip,
+			MaterialParameterSemantic::DisplacementMidpoint,
+			MaterialParameterSemantic::DisplacementScale,
+		};
+		for (size_t i = 0; i < kOrder.size(); ++i) {
+			if (var.semantic == kOrder[i]) {
+				return i;
+			}
+		}
+		return kOrder.size();
+	}
+
+	// 標準PBRテクスチャを通常パラメータの下で固定順に並べる
+	inline size_t GetTextureDisplayRank(std::string_view name) {
+
+		static constexpr std::array kOrder{
+			MaterialParameterSemantic::BaseColorTexture,
+			MaterialParameterSemantic::NormalTexture,
+			MaterialParameterSemantic::MetallicRoughnessTexture,
+			MaterialParameterSemantic::RoughnessTexture,
+			MaterialParameterSemantic::MetallicTexture,
+			MaterialParameterSemantic::EmissiveTexture,
+			MaterialParameterSemantic::AmbientOcclusionTexture,
+			MaterialParameterSemantic::DisplacementTexture,
+		};
+		const MaterialParameterSemantic semantic =
+			ResolveMaterialParameterSemantic(name);
+		for (size_t i = 0; i < kOrder.size(); ++i) {
+			if (semantic == kOrder[i]) {
+				return i;
+			}
+		}
+		return kOrder.size();
+	}
+
+	inline void SortScalarParametersForDisplay(
+		std::vector<const ShaderConstantBufferVariable*>& variables) {
+
+		std::stable_sort(variables.begin(), variables.end(),
+			[](const ShaderConstantBufferVariable* lhs,
+				const ShaderConstantBufferVariable* rhs) {
+				return GetScalarDisplayRank(*lhs) <
+					GetScalarDisplayRank(*rhs);
+			});
+	}
+
+	inline void SortTextureParametersForDisplay(
+		std::vector<const ShaderConstantBufferVariable*>& variables) {
+
+		std::stable_sort(variables.begin(), variables.end(),
+			[](const ShaderConstantBufferVariable* lhs,
+				const ShaderConstantBufferVariable* rhs) {
+				return GetTextureDisplayRank(lhs->name) <
+					GetTextureDisplayRank(rhs->name);
+			});
+	}
 
 	// HLSLの16byte整列用メンバはユーザー編集対象にしない
 	inline bool IsInternalPaddingParameter(

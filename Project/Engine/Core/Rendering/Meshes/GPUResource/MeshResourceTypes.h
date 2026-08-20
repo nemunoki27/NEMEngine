@@ -138,6 +138,9 @@ namespace Engine {
 		std::string baseColorTexturePath;
 		std::string normalTexturePath;
 		std::string metallicRoughnessTexturePath;
+		std::string metallicTexturePath;
+		std::string roughnessTexturePath;
+		std::string displacementTexturePath;
 		std::string specularTexturePath;
 		std::string emissiveTexturePath;
 		std::string occlusionTexturePath;
@@ -148,6 +151,9 @@ namespace Engine {
 		AssetID baseColorTexture{};
 		AssetID normalTexture{};
 		AssetID metallicRoughnessTexture{};
+		AssetID metallicTexture{};
+		AssetID roughnessTexture{};
+		AssetID displacementTexture{};
 		AssetID specularTexture{};
 		AssetID emissiveTexture{};
 		AssetID occlusionTexture{};

@@ -285,6 +285,15 @@ namespace {
 
 			return value;
 		}
+		if (variable.semantic !=
+			Engine::MaterialParameterSemantic::None) {
+
+			if (const Engine::MaterialParameterValue* value =
+				parameters.Find(variable.semantic)) {
+
+				return value;
+			}
+		}
 		return parameters.FindByName(variable.name);
 	}
 

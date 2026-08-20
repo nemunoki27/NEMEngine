@@ -234,7 +234,8 @@ namespace {
 Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool primaryInstance) {
 
 	ConfigureInstance("Inspector", instanceID, primaryInstance);
-	modelPreviewCameraController_ = std::make_unique<SceneViewCameraController>();
+	modelPreviewCameraController_ =
+		std::make_unique<SceneViewCameraController>(false);
 	modelPreviewCameraController_->MakeDefaultState();
 	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetUserSettingsPath(
 		ConfigPaths::kInspectorModelPreviewCamera).string());

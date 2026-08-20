@@ -47,7 +47,8 @@ cbuffer MeshDrawConstants : register(b2) {
 	float outlineMaxAbsCameraZOffset;
 	uint outlineHasScreenPixelWidth;
 	uint occlusionCullingEnabled;
-	uint2 _meshDrawReserved1;
+	uint _meshDrawReservedGroup;
+	float maxDisplacement;
 	uint4 lodIndexOffsets;
 	uint4 lodIndexCounts;
 	uint4 lodMeshletOffsets;

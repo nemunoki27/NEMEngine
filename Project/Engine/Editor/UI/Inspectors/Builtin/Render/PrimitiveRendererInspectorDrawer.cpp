@@ -33,23 +33,6 @@ namespace {
 			Engine::DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin();
 	}
 
-	// テクスチャ欄の表示順、リストにない名前は末尾へ回す
-	size_t TextureDisplayRank(const std::string& name) {
-
-		static constexpr std::string_view kOrder[] = {
-			Engine::MaterialParameterNames::BaseColorTexture,
-			Engine::MaterialParameterNames::NormalTexture,
-			Engine::MaterialParameterNames::EmissiveTexture,
-			Engine::MaterialParameterNames::MetallicRoughnessTexture,
-			Engine::MaterialParameterNames::AmbientOcclusionTexture,
-		};
-		for (size_t i = 0; i < std::size(kOrder); ++i) {
-			if (name == kOrder[i]) {
-				return i;
-			}
-		}
-		return std::size(kOrder);
-	}
 }
 
 //============================================================================
@@ -212,13 +195,33 @@ const Engine::ShaderReflectionInfo* Engine::PrimitiveRendererInspectorDrawer::En
 Engine::MaterialParameterValue Engine::PrimitiveRendererInspectorDrawer::ResolveParamValue(
 	const PrimitiveRendererComponent& draft, const ShaderConstantBufferVariable& var) const {
 
-	auto it = draft.materialInstance.find(var.name);
-	if (it != draft.materialInstance.end()) {
-		return it->second;
+	if (const MaterialParameterValue* value =
+		draft.materialInstance.Find(var.parameterID)) {
+
+		return *value;
 	}
-	auto defaultIt = cachedMaterial_.parameters.find(var.name);
-	return defaultIt != cachedMaterial_.parameters.end() ?
-		defaultIt->second : MaterialParameterEditor::DefaultValueForVariable(var);
+	if (var.semantic != MaterialParameterSemantic::None) {
+
+		if (const MaterialParameterValue* value =
+			draft.materialInstance.Find(var.semantic)) {
+
+			return *value;
+		}
+	}
+	if (const MaterialParameterValue* value =
+		cachedMaterial_.parameters.Find(var.parameterID)) {
+
+		return *value;
+	}
+	if (var.semantic != MaterialParameterSemantic::None) {
+
+		if (const MaterialParameterValue* value =
+			cachedMaterial_.parameters.Find(var.semantic)) {
+
+			return *value;
+		}
+	}
+	return MaterialParameterEditor::DefaultValueForVariable(var);
 }
 
 void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
@@ -228,29 +231,39 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	if (!reflection) {
 		return;
 	}
-	const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kSurface);
-	if (!cb) {
+	MaterialParameterLayout layout{};
+	layout.Build(*reflection, MaterialParameterCBuffer::kSurface);
+	if (!layout.IsValid()) {
 		return;
 	}
 
 	ImGui::SeparatorText("シェーダーパラメータ");
 
-	// Drag編集paramを先に出す
-	for (const ShaderConstantBufferVariable& var : cb->variables) {
+	// ID順のランタイムレイアウトとは分離し、標準PBRの編集順で表示する
+	std::vector<const ShaderConstantBufferVariable*> scalarVariables;
+	for (const ShaderConstantBufferVariable& var : layout.GetVariables()) {
 
 		if (!var.used ||
 			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
 			MaterialParameterEditor::IsReflectedTextureParam(var)) {
 			continue;
 		}
-		MaterialParameterValue value = ResolveParamValue(draft, var);
+		scalarVariables.emplace_back(&var);
+	}
+	MaterialParameterEditor::SortScalarParametersForDisplay(
+		scalarVariables);
+
+	for (const ShaderConstantBufferVariable* var : scalarVariables) {
+
+		MaterialParameterValue value = ResolveParamValue(draft, *var);
 		const FloatEditSetting floatSetting{};
 		DrawField(anyItemActive, [&]() {
 
 			// valueChangedでプレビュー更新、editFinishedでcommitされUndo/dirtyに乗る
-			ValueEditResult result = MaterialParameterEditor::DrawValueEdit(var, value, floatSetting);
+			ValueEditResult result = MaterialParameterEditor::DrawValueEdit(*var, value, floatSetting);
 			if (result.valueChanged) {
-				draft.materialInstance[var.name] = value;
+				draft.materialInstance.Set(var->parameterID,
+					var->name, var->semantic, value);
 			}
 			return result;
 			});
@@ -267,15 +280,30 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	}
 	std::stable_sort(textures.begin(), textures.end(),
 		[](const ShaderResourceBinding* lhs, const ShaderResourceBinding* rhs) {
-			return TextureDisplayRank(lhs->name) < TextureDisplayRank(rhs->name);
+			return MaterialParameterEditor::GetTextureDisplayRank(lhs->name) <
+				MaterialParameterEditor::GetTextureDisplayRank(rhs->name);
 		});
 
 	for (const ShaderResourceBinding* resource : textures) {
 
-		auto it = draft.materialInstance.find(resource->name);
 		AssetID textureID{};
-		if (it != draft.materialInstance.end() && std::holds_alternative<AssetID>(it->second.value)) {
-			textureID = std::get<AssetID>(it->second.value);
+		const MaterialParameterID parameterID =
+			MaterialParameterID::FromName(resource->name);
+		const MaterialParameterSemantic semantic =
+			ResolveMaterialParameterSemantic(resource->name);
+		const MaterialParameterValue* parameter =
+			draft.materialInstance.Find(parameterID);
+		if (!parameter && semantic != MaterialParameterSemantic::None) {
+			parameter = draft.materialInstance.Find(semantic);
+		}
+		if (!parameter) {
+			parameter = cachedMaterial_.parameters.Find(parameterID);
+		}
+		if (!parameter && semantic != MaterialParameterSemantic::None) {
+			parameter = cachedMaterial_.parameters.Find(semantic);
+		}
+		if (parameter && std::holds_alternative<AssetID>(parameter->value)) {
+			textureID = std::get<AssetID>(parameter->value);
 		}
 		DrawField(anyItemActive, [&]() {
 
@@ -286,7 +314,8 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;
-				draft.materialInstance[resource->name] = value;
+				draft.materialInstance.Set(parameterID,
+					resource->name, semantic, value);
 			}
 			return result;
 			});

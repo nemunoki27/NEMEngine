@@ -61,6 +61,9 @@ namespace Engine {
 		MetallicTexture,
 		Roughness,
 		RoughnessTexture,
+		DisplacementTexture,
+		DisplacementScale,
+		DisplacementMidpoint,
 		AmbientOcclusion,
 		AmbientOcclusionTexture,
 		EmissiveColor,
@@ -68,6 +71,8 @@ namespace Engine {
 		Opacity,
 		AlphaClip,
 		UVTransform,
+		MetallicRoughnessTexture,
+		EmissiveIntensity,
 	};
 
 	// 標準PBRパラメータ名
@@ -76,9 +81,14 @@ namespace Engine {
 		inline constexpr std::string_view BaseColor = "color";
 		inline constexpr std::string_view BaseColorTexture = "baseColorTexture";
 		inline constexpr std::string_view NormalTexture = "normalTexture";
-		inline constexpr std::string_view Metallic = "Metallic";
+		inline constexpr std::string_view Metallic = "metallic";
 		inline constexpr std::string_view MetallicRoughnessTexture = "metallicRoughnessTexture";
-		inline constexpr std::string_view Roughness = "Roughness";
+		inline constexpr std::string_view MetallicTexture = "metallicTexture";
+		inline constexpr std::string_view Roughness = "roughness";
+		inline constexpr std::string_view RoughnessTexture = "roughnessTexture";
+		inline constexpr std::string_view DisplacementTexture = "displacementTexture";
+		inline constexpr std::string_view DisplacementScale = "displacementScale";
+		inline constexpr std::string_view DisplacementMidpoint = "displacementMidpoint";
 		inline constexpr std::string_view AmbientOcclusion = "ambientOcclusion";
 		inline constexpr std::string_view AmbientOcclusionTexture = "occlusionTexture";
 		inline constexpr std::string_view EmissiveColor = "emissiveColor";
@@ -103,8 +113,18 @@ namespace Engine {
 			MaterialParameterID::FromName(MaterialParameterNames::Metallic);
 		inline constexpr MaterialParameterID MetallicRoughnessTexture =
 			MaterialParameterID::FromName(MaterialParameterNames::MetallicRoughnessTexture);
+		inline constexpr MaterialParameterID MetallicTexture =
+			MaterialParameterID::FromName(MaterialParameterNames::MetallicTexture);
 		inline constexpr MaterialParameterID Roughness =
 			MaterialParameterID::FromName(MaterialParameterNames::Roughness);
+		inline constexpr MaterialParameterID RoughnessTexture =
+			MaterialParameterID::FromName(MaterialParameterNames::RoughnessTexture);
+		inline constexpr MaterialParameterID DisplacementTexture =
+			MaterialParameterID::FromName(MaterialParameterNames::DisplacementTexture);
+		inline constexpr MaterialParameterID DisplacementScale =
+			MaterialParameterID::FromName(MaterialParameterNames::DisplacementScale);
+		inline constexpr MaterialParameterID DisplacementMidpoint =
+			MaterialParameterID::FromName(MaterialParameterNames::DisplacementMidpoint);
 		inline constexpr MaterialParameterID AmbientOcclusion =
 			MaterialParameterID::FromName(MaterialParameterNames::AmbientOcclusion);
 		inline constexpr MaterialParameterID AmbientOcclusionTexture =

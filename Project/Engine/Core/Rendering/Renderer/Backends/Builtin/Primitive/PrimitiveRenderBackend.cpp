@@ -100,6 +100,27 @@ namespace {
 			outResolved.pass = pass;
 			return true;
 		}
+		// ピッキングは見た目用マテリアルに依存せず、Entity IDを出すBuiltinパスへ固定する
+		if (context.passKind == Engine::MaterialPassKind::EditorPicking) {
+
+			const Engine::AssetID materialID =
+				Engine::BuiltinAssets::Materials::DefaultPrimitive;
+			const Engine::MaterialAsset* material =
+				context.assetLibrary->LoadMaterial(materialID);
+			if (!material) {
+				return false;
+			}
+			const Engine::MaterialPassBinding* pass =
+				Engine::FindPass(*material,
+					Engine::MaterialPassKind::EditorPicking);
+			if (!pass) {
+				return false;
+			}
+			outResolved.materialID = materialID;
+			outResolved.material = material;
+			outResolved.pass = pass;
+			return true;
+		}
 		if (context.passKind == Engine::MaterialPassKind::Transparent) {
 			if (Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
 				Engine::DefaultMaterialSlot::Primitive, { Engine::MaterialPassKind::Transparent }, outResolved)) {
@@ -152,6 +173,8 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 		instance.previousWorldMatrix = billboardView ?
 			instance.worldMatrix : item->previousWorldMatrix;
 		instance.motionFrameSerial = billboardView ? 0u : item->motionFrameSerial;
+		instance.entityIndex = item->entity.index;
+		instance.entityGeneration = item->entity.generation;
 		instance.uvMatrix = payload->uvMatrix;
 		if (payload->renderer) {
 			MeshRenderFlags renderFlags =
