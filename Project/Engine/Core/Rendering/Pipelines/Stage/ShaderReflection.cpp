@@ -6,6 +6,44 @@
 using namespace Engine;
 
 //============================================================================
+//	ShaderReflection internal
+//============================================================================
+namespace {
+
+	void MergeBufferVariables(
+		std::vector<ShaderConstantBufferVariable>& target,
+		const std::vector<ShaderConstantBufferVariable>& source) {
+
+		for (const ShaderConstantBufferVariable& sourceVariable : source) {
+
+			auto found = std::find_if(target.begin(), target.end(),
+				[&](const ShaderConstantBufferVariable& targetVariable) {
+					return targetVariable.parameterID == sourceVariable.parameterID &&
+						targetVariable.name == sourceVariable.name;
+				});
+			if (found == target.end()) {
+				target.emplace_back(sourceVariable);
+				continue;
+			}
+
+			// 同じCBVを使う全ステージの使用状態をまとめる
+			found->used |= sourceVariable.used;
+			found->isColor |= sourceVariable.isColor;
+			found->size = (std::max)(found->size, sourceVariable.size);
+			found->declaredComponentCount = (std::max)(
+				found->declaredComponentCount,
+				sourceVariable.declaredComponentCount);
+			found->declaredByteSize = (std::max)(
+				found->declaredByteSize,
+				sourceVariable.declaredByteSize);
+			if (found->semantic == MaterialParameterSemantic::None) {
+				found->semantic = sourceVariable.semantic;
+			}
+		}
+	}
+}
+
+//============================================================================
 //	ShaderReflection classMethods
 //============================================================================
 ShaderStage Engine::operator|(ShaderStage a, ShaderStage b) {
@@ -76,7 +114,7 @@ void Engine::MergeShaderReflection(
 		}
 	}
 	for (const ShaderConstantBufferInfo& buffer : source.constantBuffers) {
-		const auto found = std::find_if(target.constantBuffers.begin(),
+		auto found = std::find_if(target.constantBuffers.begin(),
 			target.constantBuffers.end(), [&](const ShaderConstantBufferInfo& current) {
 				return current.name == buffer.name &&
 					current.bindPoint == buffer.bindPoint &&
@@ -84,10 +122,13 @@ void Engine::MergeShaderReflection(
 			});
 		if (found == target.constantBuffers.end()) {
 			target.constantBuffers.emplace_back(buffer);
+		} else {
+			found->size = (std::max)(found->size, buffer.size);
+			MergeBufferVariables(found->variables, buffer.variables);
 		}
 	}
 	for (const ShaderStructuredBufferInfo& buffer : source.structuredBuffers) {
-		const auto found = std::find_if(target.structuredBuffers.begin(),
+		auto found = std::find_if(target.structuredBuffers.begin(),
 			target.structuredBuffers.end(), [&](const ShaderStructuredBufferInfo& current) {
 				return current.name == buffer.name &&
 					current.bindPoint == buffer.bindPoint &&
@@ -95,6 +136,9 @@ void Engine::MergeShaderReflection(
 			});
 		if (found == target.structuredBuffers.end()) {
 			target.structuredBuffers.emplace_back(buffer);
+		} else {
+			found->stride = (std::max)(found->stride, buffer.stride);
+			MergeBufferVariables(found->variables, buffer.variables);
 		}
 	}
 	target.requiresFlags |= source.requiresFlags;

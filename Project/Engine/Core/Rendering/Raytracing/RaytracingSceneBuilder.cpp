@@ -6,6 +6,9 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
@@ -89,26 +92,63 @@ namespace {
 		return result;
 	}
 
-	// テクスチャを持たないPrimitive用の単色サブメッシュデータ
-	Engine::MeshSubMeshShaderData MakeFlatSubMeshData(const Engine::Color4& baseColor) {
+	const Engine::MaterialParameterValue* FindStandardMaterialParameter(
+		const Engine::MaterialParameterSet* parameters,
+		Engine::MaterialParameterID id,
+		Engine::MaterialParameterSemantic semantic) {
 
-		Engine::MeshSubMeshShaderData subMeshData{};
-		subMeshData.importedBaseColor = baseColor;
-		subMeshData.baseColorTextureIndex = UINT32_MAX;
-		subMeshData.normalTextureIndex = UINT32_MAX;
-		subMeshData.metallicRoughnessTextureIndex = UINT32_MAX;
-		subMeshData.emissiveTextureIndex = UINT32_MAX;
-		subMeshData.occlusionTextureIndex = UINT32_MAX;
-		subMeshData.specularTextureIndex = UINT32_MAX;
-		subMeshData.metallicTextureIndex = UINT32_MAX;
-		subMeshData.roughnessTextureIndex = UINT32_MAX;
-		subMeshData.localMatrix = Engine::Matrix4x4::Identity();
-		subMeshData.localNormalMatrix = Engine::Matrix4x4::Identity();
-		subMeshData.color = Engine::Color4::White();
-		subMeshData.emissiveColor = Engine::Color4(0.0f, 0.0f, 0.0f, 0.0f);
-		subMeshData.uvMatrix = Engine::Matrix4x4::Identity();
-		subMeshData.roughness = 1.0f;
-		return subMeshData;
+		if (!parameters) {
+			return nullptr;
+		}
+		if (const Engine::MaterialParameterValue* value = parameters->Find(id)) {
+			return value;
+		}
+		return semantic != Engine::MaterialParameterSemantic::None ?
+			parameters->Find(semantic) : nullptr;
+	}
+
+	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
+		const D3D12_RASTERIZER_DESC& rasterizer) {
+
+		D3D12_RAYTRACING_INSTANCE_FLAGS flags =
+			D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		if (rasterizer.CullMode == D3D12_CULL_MODE_NONE) {
+
+			return D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
+		}
+
+		// 反射レイは背面を除外するため、前面カリングは表裏定義を反転して再現する
+		bool frontCounterClockwise = rasterizer.FrontCounterClockwise != FALSE;
+		if (rasterizer.CullMode == D3D12_CULL_MODE_FRONT) {
+			frontCounterClockwise = !frontCounterClockwise;
+		}
+		if (frontCounterClockwise) {
+			flags |= D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE;
+		}
+		return flags;
+	}
+
+	const Engine::PipelineVariantDesc* ResolvePrimitivePipelineVariant(
+		Engine::RenderAssetLibrary& assetLibrary,
+		const Engine::MaterialAsset& material,
+		Engine::MaterialSurfaceMode surfaceMode,
+		const Engine::GraphicsRuntimeFeatures& runtimeFeatures) {
+
+		const Engine::MaterialPassKind passKind =
+			surfaceMode == Engine::MaterialSurfaceMode::Transparent ?
+			Engine::MaterialPassKind::Transparent :
+			Engine::MaterialPassKind::Draw;
+		const Engine::MaterialPassBinding* pass =
+			Engine::FindPass(material, passKind);
+		if (!pass) {
+			return nullptr;
+		}
+		const Engine::RenderPipelineAsset* pipeline =
+			assetLibrary.LoadPipeline(pass->pipeline);
+		return pipeline ?
+			Engine::ResolveBestVariant(
+				*pipeline, pass->preferredVariant, runtimeFeatures) :
+			nullptr;
 	}
 
 	uint64_t ComputeGeometryLayoutHash(
@@ -491,7 +531,9 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 }
 
 void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
-	AssetDatabase& assetDatabase, MeshRenderBackend* meshBackend, PrimitiveGeometryManager* primitiveGeometryManager,
+	AssetDatabase& assetDatabase, RenderAssetLibrary& assetLibrary,
+	MaterialResolver& materialResolver, MeshRenderBackend* meshBackend,
+	PrimitiveGeometryManager* primitiveGeometryManager,
 	const RenderSceneBatch& renderBatch, SceneExecutionContext& context) {
 
 	const auto& featureController = graphicsCore.GetDXObject().GetFeatureController();
@@ -1344,6 +1386,30 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	for (const CollectedPrimitiveInstance& src : scenePrimitives) {
 
 		const PrimitiveRendererComponent& renderer = *src.renderer;
+		AssetID materialID = materialResolver.ResolveORDefault(
+			assetDatabase, src.material, DefaultMaterialSlot::Primitive);
+		const MaterialAsset* material = assetLibrary.LoadMaterial(materialID);
+		if (!material) {
+			continue;
+		}
+		const PipelineVariantDesc* pipelineVariant =
+			ResolvePrimitivePipelineVariant(
+				assetLibrary, *material, src.surfaceMode, runtimeFeatures);
+		// 半透明パスがないMaterialは通常描画と同じくPrimitive既定Materialへ戻す
+		if (!pipelineVariant &&
+			src.surfaceMode == MaterialSurfaceMode::Transparent) {
+
+			materialID = materialResolver.ResolveORDefault(
+				assetDatabase, AssetID{}, DefaultMaterialSlot::Primitive);
+			material = assetLibrary.LoadMaterial(materialID);
+			pipelineVariant = material ?
+				ResolvePrimitivePipelineVariant(
+					assetLibrary, *material, src.surfaceMode, runtimeFeatures) :
+				nullptr;
+		}
+		if (!material || !pipelineVariant) {
+			continue;
+		}
 		++blasGeometryCount;
 
 		PrimitiveGeometry* geometry = primitiveGeometryManager->GetOrCreate(graphicsCore, src.geometryHash, renderer);
@@ -1365,7 +1431,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(sceneSubMeshScratch_.size());
 
-		const MeshSubMeshShaderData subMeshData = MakeFlatSubMeshData(Color4::White());
+		const MeshSubMeshShaderData subMeshData = BuildPrimitiveSubMeshData(
+			graphicsCore, assetDatabase, *material,
+			src.materialInstance, src.uvMatrix);
 		sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
@@ -1404,7 +1472,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastReflection)) {
 			instance.mask |= kRaytracingMaskReflectionCaster;
 		}
-		instance.flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instance.flags = ToRaytracingCullFlags(
+			pipelineVariant->rasterizer);
 		instance.worldMatrix = src.worldMatrix;
 		tlasInstances.emplace_back(instance);
 		tlasEntityKeys.emplace_back(
@@ -1608,7 +1677,12 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 			continue;
 		}
 
-		const PrimitiveRendererComponent& renderer = item.world->GetComponent<PrimitiveRendererComponent>(item.entity);
+		const PrimitiveRenderPayload* payload =
+			renderBatch.GetPayload<PrimitiveRenderPayload>(item);
+		if (!payload || !payload->renderer) {
+			continue;
+		}
+		const PrimitiveRendererComponent& renderer = *payload->renderer;
 
 		// 2D描画はスクリーン空間のUIなので影/反射の対象にしない
 		if (IsPrimitiveScreen2D(renderer)) {
@@ -1623,11 +1697,106 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
 		}
 		instance.renderer = &renderer;
+		instance.materialInstance = payload->materialInstance;
+		instance.material = item.material;
+		instance.surfaceMode = item.surfaceMode;
+		instance.uvMatrix = payload->uvMatrix;
 		instance.castShadows = item.castShadows;
 		// batchKeyは上書き分離を含むためBLAS共有には形状ハッシュを使う
 		instance.geometryHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		outInstances.emplace_back(instance);
 	}
+}
+
+Engine::MeshSubMeshShaderData Engine::RaytracingSceneBuilder::BuildPrimitiveSubMeshData(
+	GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
+	const MaterialAsset& material, const MaterialParameterSet* materialInstance,
+	const Matrix4x4& uvMatrix) {
+
+	const auto resolveValue = [&](MaterialParameterID id,
+		MaterialParameterSemantic semantic) {
+
+		const MaterialParameterValue* value = FindStandardMaterialParameter(
+			materialInstance, id, semantic);
+		return value ? value : FindStandardMaterialParameter(
+			&material.parameters, id, semantic);
+	};
+	const auto resolveColor = [&](MaterialParameterID id,
+		MaterialParameterSemantic semantic, const Color4& fallback) {
+
+		const MaterialParameterValue* value = resolveValue(id, semantic);
+		const Color4* color = value ? std::get_if<Color4>(&value->value) : nullptr;
+		return color ? *color : fallback;
+	};
+	const auto resolveFloat = [&](MaterialParameterID id,
+		MaterialParameterSemantic semantic, float fallback) {
+
+		const MaterialParameterValue* value = resolveValue(id, semantic);
+		const float* number = value ? std::get_if<float>(&value->value) : nullptr;
+		return number ? *number : fallback;
+	};
+	const auto resolveTexture = [&](MaterialParameterID id,
+		MaterialParameterSemantic semantic) {
+
+		const MaterialParameterValue* value = FindStandardMaterialParameter(
+			materialInstance, id, semantic);
+		const AssetID* texture = value ? std::get_if<AssetID>(&value->value) : nullptr;
+		if (texture && *texture) {
+			return *texture;
+		}
+		value = FindStandardMaterialParameter(&material.parameters, id, semantic);
+		texture = value ? std::get_if<AssetID>(&value->value) : nullptr;
+		return texture ? *texture : AssetID{};
+	};
+	const auto resolveTextureIndex = [&](MaterialParameterID id,
+		MaterialParameterSemantic semantic, bool sRGB) {
+
+		const AssetID texture = resolveTexture(id, semantic);
+		return texture ? ResolveTextureDescriptorIndex(
+			graphicsCore, assetDatabase, texture, sRGB) : UINT32_MAX;
+	};
+
+	MeshSubMeshShaderData data{};
+	data.baseColorTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::BaseColorTexture,
+		MaterialParameterSemantic::BaseColorTexture, true);
+	data.normalTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::NormalTexture,
+		MaterialParameterSemantic::NormalTexture, false);
+	data.metallicRoughnessTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::MetallicRoughnessTexture,
+		MaterialParameterSemantic::MetallicRoughnessTexture, false);
+	data.emissiveTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::EmissiveTexture,
+		MaterialParameterSemantic::EmissiveTexture, true);
+	data.occlusionTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::AmbientOcclusionTexture,
+		MaterialParameterSemantic::AmbientOcclusionTexture, false);
+	data.specularTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::SpecularTexture,
+		MaterialParameterSemantic::None, false);
+	data.metallicTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::MetallicTexture,
+		MaterialParameterSemantic::MetallicTexture, false);
+	data.roughnessTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::RoughnessTexture,
+		MaterialParameterSemantic::RoughnessTexture, false);
+
+	data.importedBaseColor = Color4::White();
+	data.color = resolveColor(MaterialParameterIDs::BaseColor,
+		MaterialParameterSemantic::BaseColor, Color4::White());
+	data.emissiveColor = resolveColor(MaterialParameterIDs::EmissiveColor,
+		MaterialParameterSemantic::EmissiveColor,
+		Color4(0.0f, 0.0f, 0.0f, 0.0f));
+	data.emissiveColor.a = resolveFloat(
+		MaterialParameterIDs::EmissiveIntensity,
+		MaterialParameterSemantic::EmissiveIntensity, 1.0f);
+	data.metallic = resolveFloat(MaterialParameterIDs::Metallic,
+		MaterialParameterSemantic::Metallic, 0.0f);
+	data.roughness = resolveFloat(MaterialParameterIDs::Roughness,
+		MaterialParameterSemantic::Roughness, 0.5f);
+	data.uvMatrix = uvMatrix;
+	return data;
 }
 
 uint64_t Engine::RaytracingSceneBuilder::ComputeTLASInstanceHash(

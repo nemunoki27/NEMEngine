@@ -11,6 +11,7 @@
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
+#include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
@@ -1014,6 +1015,44 @@ namespace {
 				Engine::RenderPhase::Opaque;
 	}
 
+	bool TestShaderReflectionMerge() {
+
+		Engine::ShaderConstantBufferVariable vertexVariable{};
+		vertexVariable.name = "metallic";
+		vertexVariable.parameterID =
+			Engine::MaterialParameterID::FromName(
+				vertexVariable.name);
+		vertexVariable.semantic =
+			Engine::MaterialParameterSemantic::Metallic;
+		vertexVariable.used = false;
+
+		Engine::ShaderConstantBufferInfo vertexBuffer{};
+		vertexBuffer.name = "MaterialParameters";
+		vertexBuffer.bindPoint = 3;
+		vertexBuffer.size = 16;
+		vertexBuffer.variables.emplace_back(vertexVariable);
+		Engine::ShaderReflectionInfo reflection{};
+		reflection.constantBuffers.emplace_back(vertexBuffer);
+
+		Engine::ShaderConstantBufferVariable pixelVariable =
+			vertexVariable;
+		pixelVariable.used = true;
+		Engine::ShaderConstantBufferInfo pixelBuffer =
+			vertexBuffer;
+		pixelBuffer.variables.clear();
+		pixelBuffer.variables.emplace_back(pixelVariable);
+		Engine::ShaderReflectionInfo pixelReflection{};
+		pixelReflection.constantBuffers.emplace_back(pixelBuffer);
+
+		Engine::MergeShaderReflection(
+			reflection, pixelReflection);
+		const Engine::ShaderConstantBufferInfo* merged =
+			Engine::FindConstantBuffer(
+				reflection, "MaterialParameters");
+		return merged && merged->variables.size() == 1 &&
+			merged->variables.front().used;
+	}
+
 	bool TestRenderFeatureRuntimeOverrides() {
 
 		Engine::RenderFeatureRuntimeOverrides& overrides =
@@ -1931,7 +1970,8 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--materials") {
 
-		if (!TestMaterialParameters()) {
+		if (!TestMaterialParameters() ||
+			!TestShaderReflectionMerge()) {
 			std::cerr << "Material parameter storage failed\n";
 			return 17;
 		}
@@ -2006,6 +2046,10 @@ int main(int argc, char* argv[]) {
 	if (!TestMaterialParameters()) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
+	}
+	if (!TestShaderReflectionMerge()) {
+		std::cerr << "Shader reflection merge failed\n";
+		return 23;
 	}
 	if (!TestRenderFeatureRuntimeOverrides()) {
 		std::cerr << "Render Feature runtime overrides failed\n";

@@ -30,10 +30,10 @@ namespace Engine::MaterialParameterEditor {
 		static constexpr std::array kOrder{
 			MaterialParameterSemantic::BaseColor,
 			MaterialParameterSemantic::EmissiveColor,
+			MaterialParameterSemantic::EmissiveIntensity,
 			MaterialParameterSemantic::Metallic,
 			MaterialParameterSemantic::Roughness,
 			MaterialParameterSemantic::AmbientOcclusion,
-			MaterialParameterSemantic::EmissiveIntensity,
 			MaterialParameterSemantic::Opacity,
 			MaterialParameterSemantic::AlphaClip,
 			MaterialParameterSemantic::DisplacementMidpoint,

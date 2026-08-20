@@ -1038,7 +1038,10 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			}
 			PrimitiveGeometryManager* primitiveGeometryManager = primitiveBackend_ ? &primitiveBackend_->GetGeometryManager() : nullptr;
 			GPUFrameProfiler::GetInstance().BeginPass(commandList, viewName + "/RaytracingSceneBuild");
-			raytracingSceneBuilder_.BuildForScene(graphicsCore, *request.assetDatabase, meshBackend, primitiveGeometryManager, renderBatch_, context);
+			raytracingSceneBuilder_.BuildForScene(
+				graphicsCore, *request.assetDatabase,
+				renderAssetLibrary_, materialResolver_, meshBackend,
+				primitiveGeometryManager, renderBatch_, context);
 			GPUFrameProfiler::GetInstance().EndPass(commandList);
 			context.view = prevTlasView;
 

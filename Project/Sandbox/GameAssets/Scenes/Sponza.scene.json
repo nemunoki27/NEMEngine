@@ -16684,16 +16684,27 @@
                             "value": 0.0
                         },
                         {
-                            "id": "6cce61cdfda392e5",
-                            "name": "normalTexture",
-                            "semantic": "NormalTexture",
-                            "value": "4e454d4153534554aa93672d260a2909"
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            }
                         },
                         {
-                            "id": "93c33e46dc8a4e8e",
-                            "name": "baseColorTexture",
-                            "semantic": "BaseColorTexture",
-                            "value": "4e454d4153534554cf3513fc74564db7"
+                            "id": "c65b493a4e9d7f55",
+                            "name": "roughness",
+                            "semantic": "Roughness",
+                            "value": 0.05999999865889549
+                        },
+                        {
+                            "id": "df9e0c473a8555c8",
+                            "name": "metallic",
+                            "semantic": "Metallic",
+                            "value": 1.0
                         },
                         {
                             "id": "e021b96b50184d6a",
@@ -16745,8 +16756,8 @@
                 },
                 "Transform": {
                     "localPos": {
-                        "x": 63.41501998901367,
-                        "y": 4.39539909362793,
+                        "x": 40.33755111694336,
+                        "y": 2.673945426940918,
                         "z": 4.328800678253174
                     },
                     "localRotation": {

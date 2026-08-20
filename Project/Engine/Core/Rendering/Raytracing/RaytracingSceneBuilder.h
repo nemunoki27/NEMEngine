@@ -21,8 +21,12 @@ namespace Engine {
 	class GraphicsCore;
 	class AssetDatabase;
 	class MeshRenderBackend;
+	class RenderAssetLibrary;
+	class MaterialResolver;
+	class MaterialParameterSet;
 	class SRVDescriptor;
 	class PrimitiveGeometryManager;
+	struct MaterialAsset;
 	struct SceneExecutionContext;
 	struct MeshRendererComponent;
 	struct PrimitiveRendererComponent;
@@ -59,6 +63,7 @@ namespace Engine {
 
 		// シーンの構築
 		void BuildForScene(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
+			RenderAssetLibrary& assetLibrary, MaterialResolver& materialResolver,
 			MeshRenderBackend* meshBackend, PrimitiveGeometryManager* primitiveGeometryManager,
 			const RenderSceneBatch& renderBatch, SceneExecutionContext& context);
 
@@ -177,6 +182,10 @@ namespace Engine {
 			ECSWorld* world = nullptr;
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const PrimitiveRendererComponent* renderer = nullptr;
+			const MaterialParameterSet* materialInstance = nullptr;
+			AssetID material{};
+			MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
+			Matrix4x4 uvMatrix = Matrix4x4::Identity();
 			bool castShadows = true;
 			// 形状ハッシュ、共有ジオメトリのキー
 			uint64_t geometryHash = 0;
@@ -320,6 +329,10 @@ namespace Engine {
 		// 可視Primitiveインスタンスの収集
 		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch,
 			const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances);
+		// Primitiveの標準PBRマテリアルをレイトレーシング用固定データへ変換する
+		MeshSubMeshShaderData BuildPrimitiveSubMeshData(GraphicsCore& graphicsCore,
+			AssetDatabase& assetDatabase, const MaterialAsset& material,
+			const MaterialParameterSet* materialInstance, const Matrix4x4& uvMatrix);
 		// テクスチャデスクリプタインデックスの解決
 		uint32_t ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB);

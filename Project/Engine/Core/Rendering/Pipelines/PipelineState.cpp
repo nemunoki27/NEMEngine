@@ -48,51 +48,6 @@ namespace {
 
 		return ShaderSourcePath::Resolve(file);
 	}
-	// あるステージのリフレクションを統合先へマージする、定数バッファは名前、リソースはregister/space/kindで重複排除する
-	void MergeShaderReflection(ShaderReflectionInfo& dst, const ShaderReflectionInfo& src) {
-
-		for (const ShaderConstantBufferInfo& cb : src.constantBuffers) {
-
-			bool exists = false;
-			for (const ShaderConstantBufferInfo& existing : dst.constantBuffers) {
-				if (existing.name == cb.name) {
-					exists = true;
-					break;
-				}
-			}
-			if (!exists) {
-				dst.constantBuffers.push_back(cb);
-			}
-		}
-		for (const ShaderStructuredBufferInfo& buffer : src.structuredBuffers) {
-
-			bool exists = false;
-			for (const ShaderStructuredBufferInfo& existing : dst.structuredBuffers) {
-				if (existing.name == buffer.name) {
-					exists = true;
-					break;
-				}
-			}
-			if (!exists) {
-				dst.structuredBuffers.push_back(buffer);
-			}
-		}
-		for (const ShaderResourceBinding& res : src.resources) {
-
-			bool exists = false;
-			for (ShaderResourceBinding& existing : dst.resources) {
-				if (existing.kind == res.kind && existing.bindPoint == res.bindPoint && existing.space == res.space) {
-
-					existing.stageMask |= res.stageMask;
-					exists = true;
-					break;
-				}
-			}
-			if (!exists) {
-				dst.resources.push_back(res);
-			}
-		}
-	}
 	// シェーダーオブジェクトからD3D12_SHADER_BYTECODEを生成する
 	D3D12_SHADER_BYTECODE ToBytecode(const CompiledShader* shader) {
 		if (!shader || !shader->IsValid()) {
@@ -443,7 +398,8 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 	// 全ステージのリフレクションを統合する、MaterialParameters cbufferやテクスチャSRVを後段で解決するため
 	graphicsReflection_ = ShaderReflectionInfo{};
 	for (const auto& shader : shaders) {
-		MergeShaderReflection(graphicsReflection_, shader.reflection);
+		Engine::MergeShaderReflection(
+			graphicsReflection_, shader.reflection);
 	}
 
 	// PSO生成の成否、失敗したBlendModeがあればfalseを返す
