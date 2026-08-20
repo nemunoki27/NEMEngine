@@ -182,7 +182,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("フレーム設定")) {
+		/*if (ImGui::BeginMenu("フレーム設定")) {
 			FrameRateSettings& frameRate = FrameRateSettings::GetInstance();
 			const uint32_t fpsOptions[] = {
 				30u, 60u, 75u, 90u, 120u, 0u
@@ -240,7 +240,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 					preferences.frameContextCount);
 			}
 			ImGui::EndMenu();
-		}
+		}*/
 
 		if (ImGui::BeginMenu("表示出力")) {
 			const char* outputModeLabels[] = { "SDR", "HDR10", "scRGB" };

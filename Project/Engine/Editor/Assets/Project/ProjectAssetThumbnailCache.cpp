@@ -49,8 +49,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	defaultIcons_[AssetType::Prefab].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "prefab.png");
 	defaultIcons_[AssetType::Material].textureKey = "material.png";
 	defaultIcons_[AssetType::Material].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "material.png");
-	defaultIcons_[AssetType::ShaderGraph].textureKey = "material.png";
-	defaultIcons_[AssetType::ShaderGraph].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "material.png");
+	defaultIcons_[AssetType::ShaderGraph].textureKey = "shaderGraph.png";
+	defaultIcons_[AssetType::ShaderGraph].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "shaderGraph.png");
 	defaultIcons_[AssetType::Shader].textureKey = "writeFile.dds";
 	defaultIcons_[AssetType::Shader].assetPath = EditorTextureHelper::MakeEditorTexturePath("File", "writeFile.dds");
 	defaultIcons_[AssetType::Texture].textureKey = "texture.dds";
@@ -78,6 +78,8 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 	customExtensionIcons_[".renderfeatureprofile.json"] = configIcon;
 	customExtensionIcons_[".execonfig.json"] = configIcon;
 	customExtensionIcons_[".materialsettings.json"] = configIcon;
+	customExtensionIcons_[".txt"] = {
+		"text.png", EditorTextureHelper::MakeEditorTexturePath("File", "text.png") };
 
 	for (const auto& [type, icon] : defaultIcons_) {
 

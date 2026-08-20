@@ -260,7 +260,7 @@ namespace {
 		for (size_t index = 0; index < records.size(); ++index) {
 			if (records[index].id != expectedRecords[index].id ||
 				records[index].namedValue.first !=
-					expectedRecords[index].namedValue.first ||
+				expectedRecords[index].namedValue.first ||
 				records[index].semantic != expectedRecords[index].semantic ||
 				Engine::SerializeMaterialParameterValue(
 					records[index].namedValue.second) !=
@@ -289,23 +289,23 @@ namespace {
 		const auto itemGetter = [](
 			void*, int32_t index) -> const char* {
 
-			constexpr auto names = magic_enum::enum_names<T>();
-			constexpr std::string_view typeName =
-				magic_enum::enum_type_name<T>();
-			constexpr size_t separator = typeName.rfind('_');
-			constexpr std::string_view prefix =
-				separator == std::string_view::npos ?
-				std::string_view{} :
-				typeName.substr(0, separator + 1);
-			if (index < 0 || names.size() <= static_cast<size_t>(index)) {
-				return "";
-			}
-			std::string_view name = names[static_cast<size_t>(index)];
-			if (!prefix.empty() && name.starts_with(prefix)) {
-				name.remove_prefix(prefix.size());
-			}
-			return name.data();
-		};
+				constexpr auto names = magic_enum::enum_names<T>();
+				constexpr std::string_view typeName =
+					magic_enum::enum_type_name<T>();
+				constexpr size_t separator = typeName.rfind('_');
+				constexpr std::string_view prefix =
+					separator == std::string_view::npos ?
+					std::string_view{} :
+					typeName.substr(0, separator + 1);
+				if (index < 0 || names.size() <= static_cast<size_t>(index)) {
+					return "";
+				}
+				std::string_view name = names[static_cast<size_t>(index)];
+				if (!prefix.empty() && name.starts_with(prefix)) {
+					name.remove_prefix(prefix.size());
+				}
+				return name.data();
+			};
 		result.valueChanged = ImGui::Combo(
 			"##Value", &currentIndex, itemGetter, nullptr,
 			static_cast<int32_t>(Engine::EnumAdapter<T>::GetEnumCount()));
@@ -763,9 +763,9 @@ namespace {
 
 		const bool sRGB =
 			parameter->semantic ==
-				Engine::MaterialParameterSemantic::BaseColorTexture ||
+			Engine::MaterialParameterSemantic::BaseColorTexture ||
 			parameter->semantic ==
-				Engine::MaterialParameterSemantic::EmissiveTexture;
+			Engine::MaterialParameterSemantic::EmissiveTexture;
 		return PreviewTextureReference{
 			.assetID = *assetID,
 			.sRGB = sRGB,
@@ -781,30 +781,30 @@ namespace {
 		std::function<void(const Engine::ShaderGraphNode&)>
 			visit = [&](const Engine::ShaderGraphNode& node) {
 
-				uint8_t& state = states[node.id.value];
-				if (state == 2 || state == 1) {
-					return;
-				}
-				state = 1;
-				for (const Engine::ShaderGraphLink& link :
-					graph.links) {
+			uint8_t& state = states[node.id.value];
+			if (state == 2 || state == 1) {
+				return;
+			}
+			state = 1;
+			for (const Engine::ShaderGraphLink& link :
+				graph.links) {
 
-					if (link.inputNode != node.id) {
-						continue;
-					}
-					const Engine::ShaderGraphNode* source =
-						FindPreviewNode(
-							graph, link.outputNode);
-					if (source &&
-						IsPreviewableNode(source->kind)) {
+				if (link.inputNode != node.id) {
+					continue;
+				}
+				const Engine::ShaderGraphNode* source =
+					FindPreviewNode(
+						graph, link.outputNode);
+				if (source &&
+					IsPreviewableNode(source->kind)) {
 
-						visit(*source);
-					}
+					visit(*source);
 				}
-				state = 2;
-				if (IsPreviewableNode(node.kind)) {
-					result.emplace_back(&node);
-				}
+			}
+			state = 2;
+			if (IsPreviewableNode(node.kind)) {
+				result.emplace_back(&node);
+			}
 			};
 
 		result.reserve(graph.nodes.size());
@@ -951,7 +951,7 @@ namespace {
 		Engine::AssetID pixelShader,
 		std::string_view pixelEntry,
 		std::span<const Engine::ShaderParameterMetadata>
-			parameters) {
+		parameters) {
 
 		nlohmann::json colorParameterNames =
 			nlohmann::json::array();
@@ -1022,12 +1022,12 @@ namespace {
 			AssetID pipeline,
 			PipelineVariantKind variant) {
 
-			material.passes.emplace_back(MaterialPassBinding{
-				.passKind = passKind,
-				.pipeline = pipeline,
-				.preferredVariant = variant,
-				});
-		};
+				material.passes.emplace_back(MaterialPassBinding{
+					.passKind = passKind,
+					.pipeline = pipeline,
+					.preferredVariant = variant,
+					});
+			};
 
 		switch (target) {
 		case ShaderGraphTarget::Primitive3D:
@@ -1121,7 +1121,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Mesh:
 			if (const auto* renderer =
 				world.TryGetComponent<
-					Engine::MeshRendererComponent>(entity)) {
+				Engine::MeshRendererComponent>(entity)) {
 
 				outMaterial = renderer->material;
 				return true;
@@ -1130,7 +1130,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Primitive3D:
 			if (const auto* renderer =
 				world.TryGetComponent<
-					Engine::PrimitiveRendererComponent>(entity)) {
+				Engine::PrimitiveRendererComponent>(entity)) {
 
 				if (Engine::IsPrimitiveScreen2D(*renderer)) {
 					return false;
@@ -1142,7 +1142,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Primitive2D:
 			if (const auto* renderer =
 				world.TryGetComponent<
-					Engine::PrimitiveRendererComponent>(entity)) {
+				Engine::PrimitiveRendererComponent>(entity)) {
 
 				if (!Engine::IsPrimitiveScreen2D(*renderer)) {
 					return false;
@@ -1154,7 +1154,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Sprite:
 			if (const auto* renderer =
 				world.TryGetComponent<
-					Engine::SpriteRendererComponent>(entity)) {
+				Engine::SpriteRendererComponent>(entity)) {
 
 				outMaterial = renderer->material;
 				return true;
@@ -1163,7 +1163,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Text:
 			if (const auto* renderer =
 				world.TryGetComponent<
-					Engine::TextRendererComponent>(entity)) {
+				Engine::TextRendererComponent>(entity)) {
 
 				outMaterial = renderer->material;
 				return true;
@@ -1183,7 +1183,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Mesh:
 			if (auto* renderer =
 				world.TryGetComponent<
-					Engine::MeshRendererComponent>(entity)) {
+				Engine::MeshRendererComponent>(entity)) {
 
 				renderer->material = material;
 				world.MarkComponentModified<
@@ -1194,7 +1194,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Primitive3D:
 			if (auto* renderer =
 				world.TryGetComponent<
-					Engine::PrimitiveRendererComponent>(entity)) {
+				Engine::PrimitiveRendererComponent>(entity)) {
 
 				if (Engine::IsPrimitiveScreen2D(*renderer)) {
 					return false;
@@ -1208,7 +1208,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Primitive2D:
 			if (auto* renderer =
 				world.TryGetComponent<
-					Engine::PrimitiveRendererComponent>(entity)) {
+				Engine::PrimitiveRendererComponent>(entity)) {
 
 				if (!Engine::IsPrimitiveScreen2D(*renderer)) {
 					return false;
@@ -1222,7 +1222,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Sprite:
 			if (auto* renderer =
 				world.TryGetComponent<
-					Engine::SpriteRendererComponent>(entity)) {
+				Engine::SpriteRendererComponent>(entity)) {
 
 				renderer->material = material;
 				world.MarkComponentModified<
@@ -1233,7 +1233,7 @@ namespace {
 		case Engine::ShaderGraphTarget::Text:
 			if (auto* renderer =
 				world.TryGetComponent<
-					Engine::TextRendererComponent>(entity)) {
+				Engine::TextRendererComponent>(entity)) {
 
 				renderer->material = material;
 				world.MarkComponentModified<
@@ -1513,7 +1513,7 @@ void Engine::ShaderGraphEditorTool::DrawParameterPanel(
 		if (ImGui::Selectable(
 			parameter.name.c_str(),
 			selectedParameter_ ==
-				static_cast<int32_t>(index))) {
+			static_cast<int32_t>(index))) {
 
 			selectedParameter_ =
 				static_cast<int32_t>(index);
@@ -1548,7 +1548,7 @@ void Engine::ShaderGraphEditorTool::DrawParameterPanel(
 	ImGui::BeginDisabled(
 		selectedParameter_ < 0 ||
 		static_cast<size_t>(selectedParameter_) >=
-			graph_.parameters.size());
+		graph_.parameters.size());
 	if (ImGui::Button(
 		"削除", ImVec2(buttonWidth, 0.0f))) {
 
@@ -1559,7 +1559,7 @@ void Engine::ShaderGraphEditorTool::DrawParameterPanel(
 
 	if (0 <= selectedParameter_ &&
 		static_cast<size_t>(selectedParameter_) <
-			graph_.parameters.size()) {
+		graph_.parameters.size()) {
 
 		ImGui::SeparatorText("パラメータ設定");
 		MyGUI::ScopedPropertyLabelWidth labelWidth(
@@ -1648,7 +1648,7 @@ void Engine::ShaderGraphEditorTool::DrawGraphSettings(
 			[&](const ShaderGraphLink& link) {
 				return link.inputNode == graph_.outputNode &&
 					inputCount <= link.inputSlot;
-		});
+			});
 		if (oldTarget != graph_.target) {
 			if (!SupportsShaderGraphVertexOutput(
 				graph_.target) &&
@@ -1806,7 +1806,7 @@ void Engine::ShaderGraphEditorTool::DrawKeywordEditor() {
 			keyword.defaultIndex = (std::min)(
 				keyword.defaultIndex,
 				keyword.entries.empty() ? 0u :
-					static_cast<uint32_t>(keyword.entries.size() - 1));
+				static_cast<uint32_t>(keyword.entries.size() - 1));
 			graphDirty_ = true;
 			ImGui::PopID();
 			continue;
@@ -1907,8 +1907,8 @@ void Engine::ShaderGraphEditorTool::DrawSelectedNodeEditor(
 			ShaderGraphAsset child{};
 			const std::filesystem::path childPath =
 				database && subGraph ?
-					database->ResolveFullPath(subGraph) :
-					std::filesystem::path{};
+				database->ResolveFullPath(subGraph) :
+				std::filesystem::path{};
 			if (!childPath.empty() &&
 				FromJson(JsonAdapter::Load(childPath, true), child)) {
 				for (const ShaderGraphParameter& parameter : child.parameters) {
@@ -2052,38 +2052,26 @@ void Engine::ShaderGraphEditorTool::DrawSelectedNodeEditor(
 
 void Engine::ShaderGraphEditorTool::DrawAppearancePanel() {
 
-	if (!MyGUI::CollapsingHeader(
-		"見た目設定", true)) {
+	if (!MyGUI::CollapsingHeader("見た目設定", false)) {
 		return;
 	}
 
-	const float buttonWidth =
-		(ImGui::GetContentRegionAvail().x -
-			ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
-	if (ImGui::Button(
-		"保存##Appearance",
-		ImVec2(buttonWidth, 0.0f))) {
+	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
+	if (ImGui::Button("保存##Appearance", ImVec2(buttonWidth, 0.0f))) {
 
 		SaveAppearanceSettings();
 		statusMessage_ = "見た目設定を保存しました";
 	}
 	ImGui::SameLine();
-	if (ImGui::Button(
-		"読み込み##Appearance",
-		ImVec2(buttonWidth, 0.0f))) {
+	if (ImGui::Button("読み込み##Appearance", ImVec2(buttonWidth, 0.0f))) {
 
-		const int32_t previousTextureSize =
-			appearanceSetting_.nodePreviewTextureSize;
+		const int32_t previousTextureSize = appearanceSetting_.nodePreviewTextureSize;
 		const bool loaded = LoadAppearanceSettings();
-		if (loaded &&
-			previousTextureSize !=
-				appearanceSetting_.nodePreviewTextureSize) {
+		if (loaded && previousTextureSize != appearanceSetting_.nodePreviewTextureSize) {
 
 			ClearNodePreviews();
 		}
-		statusMessage_ = loaded ?
-			"見た目設定を読み込みました" :
-			"保存済みの見た目設定がありません";
+		statusMessage_ = loaded ? "見た目設定を読み込みました" : "保存済みの見た目設定がありません";
 	}
 	ImGui::SameLine();
 	if (ImGui::Button(
@@ -2736,7 +2724,7 @@ void Engine::ShaderGraphEditorTool::UpdateNodePreviews(
 			state.pipeline.CreateGraphics(
 				graphicsCore.GetDXObject().GetDevice(),
 				graphicsCore.GetDXObject().
-					GetDxShaderCompiler(),
+				GetDxShaderCompiler(),
 				desc);
 	}
 	if (!state.pipelineInitialized) {
@@ -2798,14 +2786,14 @@ void Engine::ShaderGraphEditorTool::UpdateNodePreviews(
 				graphicsCore.GetRTVDescriptor();
 			if (rtvDescriptor.GetMaxDescriptorCount() <=
 				rtvDescriptor.GetUseDescriptorCount() +
-					kNodePreviewRTVReserve ||
+				kNodePreviewRTVReserve ||
 				!CreateRenderTexture(
 					name,
 					Vector2I(
 						appearanceSetting_.
-							nodePreviewTextureSize,
+						nodePreviewTextureSize,
 						appearanceSetting_.
-							nodePreviewTextureSize),
+						nodePreviewTextureSize),
 					Color4::Black(), 1, false)) {
 
 				descriptorLimitReached = true;
@@ -2873,11 +2861,11 @@ void Engine::ShaderGraphEditorTool::UpdateNodePreviews(
 
 	const GPUTextureResource* whiteTexture =
 		graphicsCore.GetBuiltinTextureLibrary().
-			GetWhiteTexture();
+		GetWhiteTexture();
 	const D3D12_GPU_DESCRIPTOR_HANDLE fallbackHandle =
 		whiteTexture && whiteTexture->valid ?
-			whiteTexture->gpuHandle :
-			D3D12_GPU_DESCRIPTOR_HANDLE{};
+		whiteTexture->gpuHandle :
+		D3D12_GPU_DESCRIPTOR_HANDLE{};
 
 	for (const ShaderGraphNode* node : previewOrder) {
 
@@ -2945,16 +2933,16 @@ void Engine::ShaderGraphEditorTool::UpdateNodePreviews(
 				ToPreviewVector(
 					node->value,
 					node->kind ==
-						ShaderGraphNodeKind::TextureSample ?
-						ShaderGraphValueType::Color :
-						node->valueType);
+					ShaderGraphNodeKind::TextureSample ?
+					ShaderGraphValueType::Color :
+					node->valueType);
 		}
 
 		std::array<D3D12_GPU_DESCRIPTOR_HANDLE, 4>
 			inputHandles{
 				fallbackHandle, fallbackHandle,
 				fallbackHandle, fallbackHandle,
-			};
+		};
 		for (uint32_t inputSlot = 0;
 			inputSlot < inputHandles.size();
 			++inputSlot) {
@@ -3020,58 +3008,58 @@ void Engine::ShaderGraphEditorTool::UpdateNodePreviews(
 			[&](const EditorToolRenderContext&
 				renderContext) {
 
-				ID3D12GraphicsCommandList*
-					commandList =
-					renderContext.dxCommand->
+					ID3D12GraphicsCommandList*
+						commandList =
+						renderContext.dxCommand->
 						GetCommandList();
-				commandList->SetGraphicsRootSignature(
-					state.pipeline.GetRootSignature());
-				commandList->SetPipelineState(
-					state.pipeline.GetGraphicsPipeline(
-						BlendMode::Normal));
+					commandList->SetGraphicsRootSignature(
+						state.pipeline.GetRootSignature());
+					commandList->SetPipelineState(
+						state.pipeline.GetGraphicsPipeline(
+							BlendMode::Normal));
 
-				state.bindCache.Sync(state.pipeline);
-				for (uint32_t inputSlot = 0;
-					inputSlot <
+					state.bindCache.Sync(state.pipeline);
+					for (uint32_t inputSlot = 0;
+						inputSlot <
 						inputHandles.size();
-					++inputSlot) {
+						++inputSlot) {
 
+						if (state.bindCache.Has(
+							state.inputSlots[inputSlot])) {
+
+							RootBindingCommand::
+								SetGraphicsSRV(
+									commandList,
+									state.bindCache.Get(
+										state.inputSlots[
+											inputSlot]),
+											0,
+											inputHandles[
+												inputSlot]);
+						}
+					}
+
+					DxConstBuffer<PreviewConstants>&
+						constantBuffer =
+						state.AllocateConstantBuffer(
+							graphicsCore);
+					constantBuffer.TransferData(constants);
 					if (state.bindCache.Has(
-						state.inputSlots[inputSlot])) {
+						state.constantsSlot)) {
 
 						RootBindingCommand::
-							SetGraphicsSRV(
+							SetGraphicsCBV(
 								commandList,
 								state.bindCache.Get(
-									state.inputSlots[
-										inputSlot]),
-								0,
-								inputHandles[
-									inputSlot]);
-					}
-				}
-
-				DxConstBuffer<PreviewConstants>&
-					constantBuffer =
-					state.AllocateConstantBuffer(
-						graphicsCore);
-				constantBuffer.TransferData(constants);
-				if (state.bindCache.Has(
-					state.constantsSlot)) {
-
-					RootBindingCommand::
-						SetGraphicsCBV(
-							commandList,
-							state.bindCache.Get(
-								state.constantsSlot),
-							constantBuffer.GetResource()->
+									state.constantsSlot),
+								constantBuffer.GetResource()->
 								GetGPUVirtualAddress());
-				}
+					}
 
-				commandList->IASetPrimitiveTopology(
-					D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-				commandList->DrawInstanced(
-					3, 1, 0, 0);
+					commandList->IASetPrimitiveTopology(
+						D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+					commandList->DrawInstanced(
+						3, 1, 0, 0);
 			});
 	}
 	state.previewsValid = true;
@@ -3127,7 +3115,7 @@ void Engine::ShaderGraphEditorTool::DrawGroup(
 		ed::GetNodeSize(groupID);
 	const float groupWidth =
 		0.0f < editorGroupSize.x ?
-			editorGroupSize.x : group.size.x;
+		editorGroupSize.x : group.size.x;
 	ed::BeginNode(
 		groupID);
 	ImGui::PushID(
@@ -3141,7 +3129,7 @@ void Engine::ShaderGraphEditorTool::DrawGroup(
 		ImGui::SetCursorScreenPos(
 			ImVec2(
 				headerMinimum.x +
-					(groupWidth - editWidth) * 0.5f,
+				(groupWidth - editWidth) * 0.5f,
 				headerMinimum.y));
 		ImGui::SetNextItemWidth(editWidth);
 		if (requestGroupNameFocus_) {
@@ -3176,7 +3164,7 @@ void Engine::ShaderGraphEditorTool::DrawGroup(
 		ImGui::SetCursorScreenPos(
 			ImVec2(
 				headerMinimum.x +
-					(groupWidth - textWidth) * 0.5f,
+				(groupWidth - textWidth) * 0.5f,
 				headerMinimum.y));
 		ImGui::TextUnformatted(name);
 		if (ImGui::IsItemHovered() &&
@@ -3257,13 +3245,13 @@ void Engine::ShaderGraphEditorTool::DrawNode(
 		ImGui::SetCursorScreenPos(
 			ImVec2(
 				headerMinimum.x +
-					nodeWidth - buttonSize,
+				nodeWidth - buttonSize,
 				headerMinimum.y));
 		if (ImGui::ArrowButton(
 			"##NodePreview",
 			node.previewExpanded ?
-				ImGuiDir_Down :
-				ImGuiDir_Right)) {
+			ImGuiDir_Down :
+			ImGuiDir_Right)) {
 
 			node.previewExpanded =
 				!node.previewExpanded;
@@ -3333,13 +3321,13 @@ void Engine::ShaderGraphEditorTool::DrawNodePreview(
 			PreviewTextureName(node.id));
 	const ImTextureID textureID =
 		texture ?
-			texture->GetImTextureID(0) :
-			static_cast<ImTextureID>(0);
+		texture->GetImTextureID(0) :
+		static_cast<ImTextureID>(0);
 	const float displaySize =
 		(std::min)(
 			nodeWidth,
 			appearanceSetting_.
-				nodePreviewDisplaySize);
+			nodePreviewDisplaySize);
 	const float offsetX =
 		(nodeWidth - displaySize) * 0.5f;
 	const ImVec2 rowMinimum =
@@ -3475,7 +3463,7 @@ void Engine::ShaderGraphEditorTool::DrawNodePins(
 			ImGui::SetCursorScreenPos(
 				ImVec2(
 					rowsMinimum.x +
-						nodeWidth - textWidth,
+					nodeWidth - textWidth,
 					rowY));
 
 			const uintptr_t pinID =
@@ -3533,9 +3521,9 @@ float Engine::ShaderGraphEditorTool::CalculateNodeWidth(
 			ImGui::CalcTextSize(
 				GetShaderGraphNodeName(
 					node.kind).data()).x +
-				(IsPreviewableNode(node.kind) ?
-					ImGui::GetStyle().ItemSpacing.x +
-					ImGui::GetFrameHeight() : 0.0f));
+			(IsPreviewableNode(node.kind) ?
+				ImGui::GetStyle().ItemSpacing.x +
+				ImGui::GetFrameHeight() : 0.0f));
 	if (node.kind == ShaderGraphNodeKind::Parameter) {
 		const auto parameter = std::find_if(
 			graph_.parameters.begin(),
@@ -3557,7 +3545,7 @@ float Engine::ShaderGraphEditorTool::CalculateNodeWidth(
 			(std::max)(
 				nodeWidth,
 				appearanceSetting_.
-					nodePreviewDisplaySize);
+				nodePreviewDisplaySize);
 	}
 
 	float inputWidth = 0.0f;
@@ -3596,8 +3584,8 @@ float Engine::ShaderGraphEditorTool::CalculateNodeWidth(
 			(std::max)(
 				nodeWidth,
 				inputWidth +
-					kNodePinColumnGap +
-					outputWidth);
+				kNodePinColumnGap +
+				outputWidth);
 	} else {
 		nodeWidth =
 			(std::max)(
@@ -3619,7 +3607,7 @@ void Engine::ShaderGraphEditorTool::DrawNodeValue(
 
 	const ShaderGraphValueType valueType =
 		node.kind ==
-			ShaderGraphNodeKind::TextureSample ?
+		ShaderGraphNodeKind::TextureSample ?
 		ShaderGraphValueType::Color :
 		node.valueType;
 	switch (valueType) {
@@ -3693,7 +3681,7 @@ void Engine::ShaderGraphEditorTool::DrawNodeValue(
 			Color4::White();
 		const char* label =
 			node.kind ==
-				ShaderGraphNodeKind::TextureSample ?
+			ShaderGraphNodeKind::TextureSample ?
 			"未設定時" : "値";
 		DrawNodeColorButton(
 			node, label, value, nodeWidth);
@@ -3777,7 +3765,7 @@ void Engine::ShaderGraphEditorTool::DrawNodeValueTypeButton(
 	const ImVec2 screenMax = ed::CanvasToScreen(itemMax);
 	const ImVec2 arrowPosition(
 		itemMax.x - ImGui::GetFrameHeight() +
-			ImGui::GetStyle().FramePadding.x,
+		ImGui::GetStyle().FramePadding.x,
 		itemMin.y + ImGui::GetStyle().FramePadding.y);
 	ImGui::RenderArrow(
 		ImGui::GetWindowDrawList(), arrowPosition,
@@ -3848,7 +3836,7 @@ void Engine::ShaderGraphEditorTool::DrawNodeValuePopup() {
 				ImVec2(
 					FLT_MAX,
 					ImGui::GetTextLineHeightWithSpacing() * 8.0f +
-						ImGui::GetStyle().WindowPadding.y * 2.0f));
+					ImGui::GetStyle().WindowPadding.y * 2.0f));
 		}
 	}
 
@@ -4076,17 +4064,17 @@ void Engine::ShaderGraphEditorTool::DrawNodeCreationMenu() {
 	const auto isCreatable = [this](
 		const ShaderGraphNodeDescriptor& descriptor) {
 
-		if (descriptor.kind == ShaderGraphNodeKind::RayTrace) {
-			return graph_.domain == ShaderGraphDomain::RayTracingEffect;
-		}
-		return descriptor.kind != ShaderGraphNodeKind::SurfaceOutput &&
-			descriptor.kind != ShaderGraphNodeKind::UnlitOutput &&
-			descriptor.kind != ShaderGraphNodeKind::PostProcessOutput &&
-			descriptor.kind != ShaderGraphNodeKind::RayTracingOutput &&
-			descriptor.kind != ShaderGraphNodeKind::VertexOutput &&
-			descriptor.kind != ShaderGraphNodeKind::Parameter &&
-			descriptor.kind != ShaderGraphNodeKind::Constant &&
-			descriptor.kind != ShaderGraphNodeKind::Keyword;
+			if (descriptor.kind == ShaderGraphNodeKind::RayTrace) {
+				return graph_.domain == ShaderGraphDomain::RayTracingEffect;
+			}
+			return descriptor.kind != ShaderGraphNodeKind::SurfaceOutput &&
+				descriptor.kind != ShaderGraphNodeKind::UnlitOutput &&
+				descriptor.kind != ShaderGraphNodeKind::PostProcessOutput &&
+				descriptor.kind != ShaderGraphNodeKind::RayTracingOutput &&
+				descriptor.kind != ShaderGraphNodeKind::VertexOutput &&
+				descriptor.kind != ShaderGraphNodeKind::Parameter &&
+				descriptor.kind != ShaderGraphNodeKind::Constant &&
+				descriptor.kind != ShaderGraphNodeKind::Keyword;
 		};
 	const auto& descriptors =
 		ShaderGraphNodeRegistry::GetDescriptors();
@@ -5020,7 +5008,7 @@ void Engine::ShaderGraphEditorTool::DuplicateGroup(
 		ed::GetNodeSize(sourceGroupID);
 	const float sourceWidth =
 		0.0f < sourceSize.x ?
-			sourceSize.x : sourceGroup.size.x;
+		sourceSize.x : sourceGroup.size.x;
 	const ImVec2 duplicateOffset(
 		sourceWidth + kDuplicateGroupSpacing, 0.0f);
 	ShaderGraphGroup duplicateGroup = sourceGroup;
@@ -5031,9 +5019,9 @@ void Engine::ShaderGraphEditorTool::DuplicateGroup(
 		sourcePosition.y + duplicateOffset.y);
 	duplicateGroup.size = Vector2(
 		0.0f < sourceSize.x ?
-			sourceSize.x : sourceGroup.size.x,
+		sourceSize.x : sourceGroup.size.x,
 		0.0f < sourceSize.y ?
-			sourceSize.y : sourceGroup.size.y);
+		sourceSize.y : sourceGroup.size.y);
 	const UUID newGroupID = duplicateGroup.id;
 
 	// グループ内ノードと内部リンクだけを複製

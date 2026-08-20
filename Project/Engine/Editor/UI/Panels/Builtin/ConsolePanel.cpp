@@ -162,18 +162,18 @@ namespace {
 			ImGui::EndTooltip();
 		}
 		// ECSのarchetype数でForEachが走査する数、多いほどquery plan cacheの効果が見込める
-		ImGui::Text("Archetype数       : %u", profiler.GetArchetypeCount());
+		// コメントアウトして、必要な時にも表示してチェックする
+		//ImGui::Text("Archetype数       : %u", profiler.GetArchetypeCount());
 		const Engine::FrameProfiler::ECSStatistics& ecsStatistics = profiler.GetECSStatistics();
 		ImGui::Text("Entity数          : %u", ecsStatistics.entityCount);
-		ImGui::Text("Chunk             : %u / %u",
-			ecsStatistics.allocatedChunkCount, ecsStatistics.chunkSlotCount);
+		/*ImGui::Text("Chunk             : %u / %u", ecsStatistics.allocatedChunkCount, ecsStatistics.chunkSlotCount);
 		ImGui::Text("Chunkメモリ       : %.2f / %.2f MiB",
 			static_cast<double>(ecsStatistics.payloadBytes) / (1024.0 * 1024.0),
-			static_cast<double>(ecsStatistics.allocatedChunkBytes) / (1024.0 * 1024.0));
-		ImGui::Text("構造移動          : %llu (%llu Components / %.2f KiB)",
-			static_cast<unsigned long long>(ecsStatistics.structuralMigrationCount),
-			static_cast<unsigned long long>(ecsStatistics.relocatedComponentCount),
-			static_cast<double>(ecsStatistics.relocatedComponentBytes) / 1024.0);
+			static_cast<double>(ecsStatistics.allocatedChunkBytes) / (1024.0 * 1024.0));*/
+			/*	ImGui::Text("構造移動          : %llu (%llu Components / %.2f KiB)",
+					static_cast<unsigned long long>(ecsStatistics.structuralMigrationCount),
+					static_cast<unsigned long long>(ecsStatistics.relocatedComponentCount),
+					static_cast<double>(ecsStatistics.relocatedComponentBytes) / 1024.0);*/
 		ImGui::Text("C#処理            : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Script));
 
 		// 描画処理でホバーでGPUの処理時間を各パスごとに表示する
@@ -240,26 +240,20 @@ namespace {
 		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
 		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));
 
-		ImGui::Separator();
+		//ImGui::Separator();
 
-		const Engine::FrameProfiler::RenderingStatistics& rendering =
-			profiler.GetRenderingStatistics();
-		ImGui::Text("Skinning          : %u Dispatch / %u Instances",
-			rendering.skinningDispatchCount, rendering.skinnedInstanceCount);
-		ImGui::Text("BLAS              : %u Build / %u Refit / %u Skip",
-			rendering.blasBuildCount, rendering.blasRefitCount, rendering.blasSkipCount);
+		const Engine::FrameProfiler::RenderingStatistics& rendering = profiler.GetRenderingStatistics();
+		/*ImGui::Text("Skinning          : %u Dispatch / %u Instances", rendering.skinningDispatchCount, rendering.skinnedInstanceCount);
+		ImGui::Text("BLAS              : %u Build / %u Refit / %u Skip", rendering.blasBuildCount, rendering.blasRefitCount, rendering.blasSkipCount);
 		ImGui::Text("BLAS Geometry     : %u", rendering.blasGeometryCount);
 		ImGui::Text("TLAS Instance     : %u", rendering.tlasInstanceCount);
 		ImGui::Text("TLAS              : %u Build / %u Refit / %u Skip",
-			rendering.tlasBuildCount, rendering.tlasRefitCount,
-			rendering.tlasSkipCount);
+			rendering.tlasBuildCount, rendering.tlasRefitCount, rendering.tlasSkipCount);
 		ImGui::Text("Cluster           : %u / %u Lights / %u Indices",
-			rendering.clusterCount, rendering.clusterLocalLightCount,
-			rendering.clusterLightIndexCount);
-		ImGui::Text("Cluster Overflow  : %u", rendering.clusterOverflowCount);
-		ImGui::Text("Frame Context     : %u / %u  Queue=%u",
-			rendering.frameContextIndex, rendering.frameContextCount,
-			rendering.queuedFrameCount);
+			rendering.clusterCount, rendering.clusterLocalLightCount, rendering.clusterLightIndexCount);
+		ImGui::Text("Cluster Overflow  : %u", rendering.clusterOverflowCount);*/
+		/*ImGui::Text("Frame Context     : %u / %u  Queue=%u", rendering.frameContextIndex, rendering.frameContextCount,
+			rendering.queuedFrameCount);*/
 	}
 }
 
@@ -279,14 +273,6 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 	}
 
 	if (ImGui::BeginTabBar("ConsoleTabBar")) {
-		//============================================================================
-		//	ゲームログ
-		//============================================================================
-		if (ImGui::BeginTabItem("Game")) {
-
-			DrawLogTab(Engine::LogType::GameLogic, "##GameLogList");
-			ImGui::EndTabItem();
-		}
 		//============================================================================
 		//	エンジンログ
 		//============================================================================
@@ -310,6 +296,14 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 				}
 				ImGui::EndTabBar();
 			}
+			ImGui::EndTabItem();
+		}
+		//============================================================================
+		//	ゲームログ
+		//============================================================================
+		if (ImGui::BeginTabItem("Game")) {
+
+			DrawLogTab(Engine::LogType::GameLogic, "##GameLogList");
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
