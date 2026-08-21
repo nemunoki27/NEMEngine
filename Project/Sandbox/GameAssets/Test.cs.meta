@@ -1,0 +1,16 @@
+{
+  "guid": "ad5bbbfc977e589ac5e1f35f25882fdc",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.Test",
+      "scriptTypeId": "cef4bd39-3821-4e24-a43f-864af905851a",
+      "formerNames": [],
+      "fields": []
+    }
+  ]
+}

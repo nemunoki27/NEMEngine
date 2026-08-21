@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
@@ -24,6 +25,9 @@ namespace Engine {
 		Vector3 localPos = Vector3::AnyInit(0.0f);
 		Quaternion localRotation = Quaternion::Identity();
 		Vector3 localScale = Vector3::AnyInit(1.0f);
+
+		// エディター上で扱う次元
+		Dimension dimension = Dimension::Type3D;
 
 		// ワールド行列
 		Matrix4x4 worldMatrix = Matrix4x4::Identity();

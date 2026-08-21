@@ -84,6 +84,8 @@ namespace Engine {
 
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
+		// SceneViewへ現在の2Dゲームカメラ範囲を描画する
+		bool drawSceneView2DCameraBounds = false;
 
 		// ビューを種類から検索
 		const RenderViewRequest* FindView(RenderViewKind kind) const;

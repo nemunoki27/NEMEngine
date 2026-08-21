@@ -45,6 +45,9 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 	std::vector<HitRecord> hits;
 
 	world->ForEach<SpriteRendererComponent>([&](const Entity& entity, const SpriteRendererComponent& renderer) {
+		if (!IsScenePickDimensionAllowed(*world, entity, editorState_.sceneViewPickDimension)) {
+			return;
+		}
 		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
 			return;
 		}
@@ -84,6 +87,9 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 	});
 
 	world->ForEach<TextRendererComponent>([&](const Entity& entity, const TextRendererComponent& renderer) {
+		if (!IsScenePickDimensionAllowed(*world, entity, editorState_.sceneViewPickDimension)) {
+			return;
+		}
 		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
 			return;
 		}
@@ -246,7 +252,9 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			if (viewKind == RenderViewKind::Scene) {
 				Entity overlayHit = Entity::Null();
 				if (sceneComponentOverlayPicker_.Pick(context.activeWorld,
-					renderPipeline.GetResolvedView(viewKind), mousePosInView.value(), overlayHit)) {
+					renderPipeline.GetResolvedView(viewKind), mousePosInView.value(), overlayHit) &&
+					context.activeWorld && IsScenePickDimensionAllowed(*context.activeWorld, overlayHit,
+						editorState_.sceneViewPickDimension)) {
 					selectHit(overlayHit);
 					return true;
 				}
@@ -264,8 +272,12 @@ void Engine::EditorManager::ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
 			// 1x1整数RTへクリック画素だけを描画しreadbackを予約する
 			MultiRenderTarget* pickTarget =
 				meshSubMeshPicker_->GetRenderTarget();
-			if (pickTarget && renderPipeline.RenderMeshPicking(
-				graphicsCore, viewKind, mousePosInView.value(), *pickTarget)) {
+			std::optional<Dimension> dimensionFilter{};
+			if (editorState_.sceneViewPickDimension != SceneViewPickDimension::Both) {
+				dimensionFilter = ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension);
+			}
+			if (pickTarget && renderPipeline.RenderMeshPicking(graphicsCore, viewKind,
+				mousePosInView.value(), *pickTarget, dimensionFilter)) {
 
 				if (meshSubMeshPicker_->ExecuteReadback(
 					graphicsCore, editorState_.scenePickRequestID)) {

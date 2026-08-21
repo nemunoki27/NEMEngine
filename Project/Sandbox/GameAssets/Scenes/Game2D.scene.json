@@ -16,6 +16,68 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 0.9999995231628418,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "20b304db08ddfa7a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "b21e57a3fac15395",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Sprite"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "2d9065923997e93a",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": "56c2d4ede3fbd0a848fba6c5db5302db"
+                        }
+                    ],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "size": {
+                        "x": 32.0,
+                        "y": 32.0
+                    },
+                    "visible": true
+                },
+                "Transform": {
+                    "dimension": 0,
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
@@ -34,7 +96,7 @@
                     }
                 }
             },
-            "LocalFileID": "20b304db08ddfa7a"
+            "LocalFileID": "2d9065923997e93a"
         },
         {
             "Components": {
@@ -52,9 +114,10 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 0,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": 957.1268920898438,
+                        "y": 542.01171875,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -64,8 +127,8 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
+                        "x": 2.0,
+                        "y": 1.9999995231628418,
                         "z": 1.0
                     }
                 }
@@ -96,6 +159,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 0,
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
@@ -115,6 +179,67 @@
                 }
             },
             "LocalFileID": "3ff9d0287c6b7a53"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "6e54e7896ac9fad7",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Sprite"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "431e7ed45be18541",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": "56c2d4ede3fbd0a848fba6c5db5302db"
+                        }
+                    ],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "size": {
+                        "x": 32.0,
+                        "y": 32.0
+                    },
+                    "visible": true
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "431e7ed45be18541"
         },
         {
             "Components": {
@@ -156,6 +281,7 @@
                     "visible": true
                 },
                 "Transform": {
+                    "dimension": 0,
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
@@ -180,7 +306,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "3d7e83e18622e67b",
-                    "siblingOrder": 0
+                    "siblingOrder": 1
                 },
                 "Name": {
                     "name": "Leg_L"
@@ -192,9 +318,10 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": -42.0,
+                        "y": 22.0,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -204,8 +331,8 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
+                        "x": 1.9999990463256836,
+                        "y": 1.9999990463256836,
                         "z": 1.0
                     }
                 }
@@ -216,7 +343,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "3d7e83e18622e67b",
-                    "siblingOrder": 0
+                    "siblingOrder": 2
                 },
                 "Name": {
                     "name": "Leg_R"
@@ -228,9 +355,10 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": 8.0,
+                        "y": 22.0,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -240,8 +368,8 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
+                        "x": 1.9999990463256836,
+                        "y": 1.9999990463256836,
                         "z": 1.0
                     }
                 }

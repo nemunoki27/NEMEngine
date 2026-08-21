@@ -24,6 +24,7 @@ bool Engine::SetTransformCommand::NearlyEqualTransform(const Engine::TransformCo
 	return Engine::Vector3::NearlyEqual(lhs.localPos, rhs.localPos) &&
 		Engine::Quaternion::NearlyEqual(lhs.localRotation, rhs.localRotation) &&
 		Engine::Vector3::NearlyEqual(lhs.localScale, rhs.localScale) &&
+		lhs.dimension == rhs.dimension &&
 		lhs.ignoreParentScale == rhs.ignoreParentScale &&
 		lhs.ignoreParentRotation == rhs.ignoreParentRotation;
 }

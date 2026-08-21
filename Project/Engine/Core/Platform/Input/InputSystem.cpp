@@ -150,6 +150,21 @@ std::optional<Vector2> Input::GetMousePosInView(InputViewArea viewArea) const {
 	return local * (rect.srcSize / rect.dstSize);
 }
 
+Vector2 Input::GetMouseMoveValueInView(InputViewArea viewArea) const {
+
+	const auto it = viewRects_.find(viewArea);
+	if (it == viewRects_.end()) {
+		return GetMouseMoveValue();
+	}
+
+	const ViewRect& rect = it->second;
+	if (rect.dstSize.x <= 0.0f || rect.dstSize.y <= 0.0f ||
+		rect.srcSize.x <= 0.0f || rect.srcSize.y <= 0.0f) {
+		return GetMouseMoveValue();
+	}
+	return GetMouseMoveValue() * (rect.srcSize / rect.dstSize);
+}
+
 uint32_t Engine::Input::PlayVibration(const InputVibrationParams& params) {
 
 	// 再生時間が正でなければ無効

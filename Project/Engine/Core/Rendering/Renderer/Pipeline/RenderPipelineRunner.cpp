@@ -32,6 +32,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #endif
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -1082,7 +1083,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 	RenderViewKind kind, const Vector2& inputPixel,
-	MultiRenderTarget& target) {
+	MultiRenderTarget& target, std::optional<Dimension> dimensionFilter) {
 
 	if (!lastRenderRequest_.world || !lastRenderRequest_.assetDatabase ||
 		!lastActiveScene_ || !target.IsValid()) {
@@ -1106,6 +1107,13 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 			item.cameraDomain != RenderCameraDomain::Perspective ||
 			(item.visibilityLayerMask & camera->cullingMask) == 0) {
 			continue;
+		}
+		if (dimensionFilter) {
+			const TransformComponent* transform =
+				lastRenderRequest_.world->TryGetComponent<TransformComponent>(item.entity);
+			if (!transform || transform->dimension != *dimensionFilter) {
+				continue;
+			}
 		}
 		items.emplace_back(&item);
 	}
@@ -1278,6 +1286,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.kind = kind;
 	context.sceneInstance = sceneInstance;
 	context.view = &view;
+	context.gameView = gameViewState_.view.valid ? &gameViewState_.view : nullptr;
 	// SceneViewの描画カメラは変えず、設定に応じてカリングカメラだけを切り替える
 	const bool useGameViewCameraForSceneCulling = graphicsCore.GetDXObject()
 		.GetFeatureController().ShouldUseGameViewCameraForSceneCulling();
@@ -1289,6 +1298,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
 	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
+	context.drawSceneView2DCameraBounds = request.drawSceneView2DCameraBounds;
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
 	// 種類に応じたターゲットレジストリを選択
 	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?

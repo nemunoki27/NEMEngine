@@ -8,10 +8,6 @@
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
-#include <Engine/Core/World/Components/Camera/CameraComponent.h>
 
 //============================================================================
 //	TransformInspectorDrawer classMethods
@@ -36,13 +32,6 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 		SyncDraftFromWorld(world, entity);
 	}
 
-	// 所持コンポーネント構成から編集次元へ追従
-	const std::optional<Dimension> impliedDimension = ResolveEntityDimension(world, entity);
-	if (impliedDimension && lastObservedImpliedDimension_ != impliedDimension) {
-		editDimension_ = *impliedDimension;
-	}
-	lastObservedImpliedDimension_ = impliedDimension;
-
 	if (!MyGUI::CollapsingHeader("Transform")) {
 		return;
 	}
@@ -50,9 +39,14 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 	// アイテムを操作しているか
 	bool anyItemActive = false;
 
-	MyGUI::EnumCombo("次元", editDimension_);
+	auto dimensionResult = MyGUI::EnumCombo("次元", draftTransform_.dimension);
+	if (dimensionResult.valueChanged) {
+		previewRequested_ = true;
+	}
+	anyItemActive |= dimensionResult.anyItemActive;
+	commitRequested_ |= dimensionResult.editFinished;
 
-	bool is3D = editDimension_ == Dimension::Type3D;
+	bool is3D = draftTransform_.dimension == Dimension::Type3D;
 
 	// ドラッグ編集の設定
 	FloatEditSetting editSetting{ .minValue = -10000.0f,.maxValue = 10000.0f,.closeOnProperty = false,.reserveRightWidth = 80.0f };
@@ -206,9 +200,6 @@ void Engine::TransformInspectorDrawer::SyncDraftFromWorld(ECSWorld& world, const
 		draftEulerDegrees_ = Vector3::MakeContinuousDegrees(rawEulerDegrees, draftEulerDegrees_);
 	} else {
 		draftEulerDegrees_ = rawEulerDegrees;
-
-		// エンティティが切り替わったら次元追従を初期化し、直後のDrawで構成に応じた次元へ合わせ直す
-		lastObservedImpliedDimension_.reset();
 	}
 
 	editingEntityStableUUID_ = stableUUID;

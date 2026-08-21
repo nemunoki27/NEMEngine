@@ -98,8 +98,9 @@ namespace Engine {
 
 			std::string debugCameraKey;
 			std::string entityCameraKey;
-			std::string manualCamera2DKey;
-			std::string manualCamera3DKey;
+			std::string selection2DKey;
+			std::string selection3DKey;
+			std::string selection2DAnd3DKey;
 			std::string drawGridKey;
 
 			// 複数選択ギズモのピボット切り替え用、中心ピボットと各原点

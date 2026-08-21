@@ -34,9 +34,11 @@
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 
 // c++
 #include <memory>
+#include <optional>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -69,6 +71,8 @@ namespace Engine {
 		// シーンインスタンスの情報
 		const SceneInstance* sceneInstance = nullptr;
 		const ResolvedRenderView* view = nullptr;
+		// SceneViewのエディター表示で参照するGameView
+		const ResolvedRenderView* gameView = nullptr;
 		const ResolvedRenderView* cullingView = nullptr;
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
@@ -94,6 +98,8 @@ namespace Engine {
 		bool hasShadowCastingLight = false;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
+		// SceneViewへ現在の2Dゲームカメラ範囲を描画する
+		bool drawSceneView2DCameraBounds = false;
 		// 実エディターSceneViewの表示結果にだけSceneComponentOverlayを重ねる
 		bool allowSceneComponentOverlay = false;
 		// ツールプレビューではVertex版のGraphics Variantを優先する
@@ -226,7 +232,7 @@ namespace Engine {
 		// 指定ピクセルだけを1x1整数RTへ描画する
 		bool RenderMeshPicking(GraphicsCore& graphicsCore,
 			RenderViewKind kind, const Vector2& inputPixel,
-			MultiRenderTarget& target);
+			MultiRenderTarget& target, std::optional<Dimension> dimensionFilter = std::nullopt);
 
 		// 指定ビューのGBufferアタッチメントテクスチャを取得する、GBufferデバッグ表示用、未生成はnullptr
 		RenderTexture2D* GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment);

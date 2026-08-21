@@ -48,7 +48,8 @@ Engine::SceneViewSnapGridDecision Engine::ResolveSceneViewSnapGridDecision(
 
 		decision.visible = true;
 		decision.use2D = ResolveEntityDimension(*world, editorState.selectedEntity)
-			.value_or(editorState.manualCameraDimension) == Dimension::Type2D;
+			.value_or(ResolveSceneViewCameraDimension(editorState.sceneViewPickDimension)) ==
+			Dimension::Type2D;
 		if (!TryResolveSnapGridCellSize(snap, decision.use2D, decision.cellSize)) {
 			decision.visible = false;
 		}

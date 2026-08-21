@@ -16,7 +16,7 @@
 
 namespace Engine {
 
-	// エンティティのレンダラ等から2D/3Dを判定する、確定できなければnullopt
+	// エンティティのTransformから2D/3Dを取得する、Transformが無ければnullopt
 	std::optional<Dimension> ResolveEntityDimension(ECSWorld& world, const Entity& entity);
 
 	// エンティティの表示名を返す、NameComponentが無いか名前が空なら"Entity"を返す
@@ -56,6 +56,21 @@ namespace Engine {
 		Rotate,
 		Scale,
 	};
+	// View上で選択できるエンティティの次元
+	enum class SceneViewPickDimension :
+		uint8_t {
+
+		Type3D,
+		Type2D,
+		Both,
+	};
+
+	// 選択次元からマニュアルカメラの操作次元を決定する、両方選択時は3D操作を使用する
+	Dimension ResolveSceneViewCameraDimension(SceneViewPickDimension dimension);
+	// エンティティのTransform次元が現在のView選択設定に一致するか
+	bool IsScenePickDimensionAllowed(ECSWorld& world, const Entity& entity,
+		SceneViewPickDimension dimension);
+
 	// エディターの選択しているオブジェクトの種類
 	enum class EditorSelectionKind :
 		uint8_t {
@@ -157,8 +172,8 @@ namespace Engine {
 
 		// シーンビューのカメラ選択状態
 		SceneViewCameraSelection sceneViewCamera{};
-		// 使用しているカメラの次元
-		Dimension manualCameraDimension = Dimension::Type3D;
+		// View上で選択できるエンティティの次元、マニュアルカメラの操作次元も兼ねる
+		SceneViewPickDimension sceneViewPickDimension = SceneViewPickDimension::Type3D;
 
 		// ピッキング機能のオン/オフ
 		bool enableScenePick = true;
@@ -194,7 +209,7 @@ namespace Engine {
 		void SetSelectedEntities(const std::vector<Entity>& entities);
 		const std::vector<Entity>& GetSelectedEntities() const { return selectedEntities; }
 		size_t SelectionCount() const { return selectedEntities.size(); }
-		// 次元が一致して複数選択へ追加できるか、Textはdimensionで2D/3Dを切り替える
+		// Transformの次元が一致して複数選択へ追加できるか
 		bool CanMultiSelect(ECSWorld& world, const Entity& candidate) const;
 
 		// エンティティやサブメッシュを選択する

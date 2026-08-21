@@ -47,6 +47,7 @@ namespace Engine {
 		bool enableOrthographic = true;
 		float orthoNearClip = 0.0f;
 		float orthoFarClip = 1000.0f;
+		float orthographicZoom = 1.0f;
 		int32_t orthographicCullingMask = -1;
 
 		// 3D

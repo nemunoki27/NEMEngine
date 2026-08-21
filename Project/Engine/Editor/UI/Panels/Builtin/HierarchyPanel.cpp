@@ -34,6 +34,7 @@
 
 // c++
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 //============================================================================
@@ -521,7 +522,10 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 
 	// ダブルクリックでシーンカメラをそのエンティティへ寄せる
 	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-		context.editorState->cameraFocusRequest = entity;
+		const std::optional<Dimension> dimension = ResolveEntityDimension(world, entity);
+		if (dimension && *dimension == Dimension::Type3D) {
+			context.editorState->cameraFocusRequest = entity;
+		}
 	}
 
 	// ノード右クリックでもコンテキストメニューを開く

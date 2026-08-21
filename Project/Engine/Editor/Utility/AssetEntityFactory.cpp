@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -62,7 +63,8 @@ namespace {
 	}
 
 	// 生成した単一エンティティに共通の初期化を施す
-	Engine::Entity CreateBaseEntity(Engine::ECSWorld& world, const char* assetPath, Engine::UUID sceneInstanceID) {
+	Engine::Entity CreateBaseEntity(Engine::ECSWorld& world, const char* assetPath,
+		Engine::UUID sceneInstanceID, Engine::Dimension dimension) {
 
 		Engine::Entity entity = world.CreateEntity();
 		Engine::SceneAuthoring::EnsureGameObjectDefaults(world, entity);
@@ -71,6 +73,9 @@ namespace {
 		}
 		if (world.HasComponent<Engine::NameComponent>(entity)) {
 			world.GetComponent<Engine::NameComponent>(entity).name = MakeNameFromPath(assetPath);
+		}
+		if (world.HasComponent<Engine::TransformComponent>(entity)) {
+			world.GetComponent<Engine::TransformComponent>(entity).dimension = dimension;
 		}
 		return entity;
 	}
@@ -106,7 +111,8 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 	case AssetType::Mesh:
 	{
 		// モデルはMeshRendererを持つ3Dエンティティにする
-		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID);
+		const Entity entity = CreateBaseEntity(
+			world, payload.assetPath, sceneInstanceID, Dimension::Type3D);
 		auto& renderer = world.AddComponent<MeshRendererComponent>(entity);
 		renderer.mesh = payload.assetID;
 		renderer.material = {};
@@ -123,7 +129,8 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 	case AssetType::Texture:
 	{
 		// テクスチャはSpriteRendererを持つ2Dエンティティにする
-		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID);
+		const Entity entity = CreateBaseEntity(
+			world, payload.assetPath, sceneInstanceID, Dimension::Type2D);
 		auto& renderer = world.AddComponent<SpriteRendererComponent>(entity);
 		MaterialParameterValue texture{};
 		texture.value = payload.assetID;
@@ -147,7 +154,8 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 	case AssetType::Font:
 	{
 		// フォントはTextRendererを持つ2Dエンティティにする、フォントを割り当て初期文字で表示する
-		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID);
+		const Entity entity = CreateBaseEntity(
+			world, payload.assetPath, sceneInstanceID, Dimension::Type2D);
 		auto& renderer = world.AddComponent<TextRendererComponent>(entity);
 		renderer.dimension = Dimension::Type2D;
 

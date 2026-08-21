@@ -39,6 +39,7 @@
 // c++
 #include <cmath>
 #include <algorithm>
+#include <optional>
 
 //============================================================================
 //	ViewportPanel classMethods
@@ -56,10 +57,10 @@ namespace {
 	bool Prefers2DGizmo(const Engine::EditorPanelContext& context,
 		Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		// 描画コンポーネントからの2D/3D判定は共有のResolveEntityDimensionを使う
-		// 判定できないときは現在のマニュアルカメラ次元へフォールバックする
+		// Transformを持たない編集対象だけ現在のマニュアルカメラ次元へフォールバックする
 		const Engine::Dimension fallback = context.editorState ?
-			context.editorState->manualCameraDimension : Engine::Dimension::Type3D;
+			Engine::ResolveSceneViewCameraDimension(context.editorState->sceneViewPickDimension) :
+			Engine::Dimension::Type3D;
 		return Engine::ResolveEntityDimension(world, entity).value_or(fallback) == Engine::Dimension::Type2D;
 	}
 	// シーンギズモの描画に使用するカメラビューを選択する
@@ -299,8 +300,9 @@ Engine::ViewportPanel::ViewportPanel(const char* windowName, const char* label, 
 	icons_.entityCameraKey = "entityCamera.dds";
 	icons_.entitySelectKey = "entitySelect.dds";
 	icons_.subMeshSelectKey = "subMeshSelect.dds";
-	icons_.manualCamera2DKey = "sceneCameraMode2D.dds";
-	icons_.manualCamera3DKey = "sceneCameraMode3D.dds";
+	icons_.selection2DKey = "2DOnly.png";
+	icons_.selection3DKey = "3DOnly.png";
+	icons_.selection2DAnd3DKey = "2DAnd3D.png";
 	icons_.drawGridKey = "enabeDrawGrid.png";
 	icons_.gizmoCenterPivotKey = "gizmoCenterPivot.png";
 	icons_.eachEntityOriginKey = "eachEntityOrigin.png";
@@ -477,9 +479,13 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 				Engine::ECSWorld* world = context.GetWorld();
 				if (world && world->IsAlive(context.editorState->selectedEntity)) {
 
-					context.editorState->cameraFocusRequest = context.editorState->selectedEntity;
-					// フォーカス開始のこのフレームからギズモを無効にして、ダブルクリックでの誤移動を防ぐ
-					context.editorState->cameraFocusing = true;
+					const std::optional<Dimension> dimension = ResolveEntityDimension(
+						*world, context.editorState->selectedEntity);
+					if (dimension && *dimension == Dimension::Type3D) {
+						context.editorState->cameraFocusRequest = context.editorState->selectedEntity;
+						// フォーカス開始のこのフレームからギズモを無効にして、ダブルクリックでの誤移動を防ぐ
+						context.editorState->cameraFocusing = true;
+					}
 				}
 			}
 		}
@@ -1104,10 +1110,12 @@ void Engine::ViewportPanel::RequestIcons() {
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.entitySelectKey));
 	textureUploadService_->RequestTextureFile(icons_.subMeshSelectKey,
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.subMeshSelectKey));
-	textureUploadService_->RequestTextureFile(icons_.manualCamera2DKey,
-		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera2DKey));
-	textureUploadService_->RequestTextureFile(icons_.manualCamera3DKey,
-		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.manualCamera3DKey));
+	textureUploadService_->RequestTextureFile(icons_.selection2DKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.selection2DKey));
+	textureUploadService_->RequestTextureFile(icons_.selection3DKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.selection3DKey));
+	textureUploadService_->RequestTextureFile(icons_.selection2DAnd3DKey,
+		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.selection2DAnd3DKey));
 	textureUploadService_->RequestTextureFile(icons_.drawGridKey,
 		EditorTextureHelper::MakeEditorTexturePath("Tool", icons_.drawGridKey));
 	textureUploadService_->RequestTextureFile(icons_.gizmoCenterPivotKey,
@@ -1156,24 +1164,6 @@ void Engine::ViewportPanel::DrawCameraSection(const EditorPanelContext& context)
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip("エンティティカメラによる制御");
 	}
-
-	// マニュアルカメラの次元を切り替えるボタン
-	Dimension& operationMode = context.editorState->manualCameraDimension;
-
-	bool is3D = (operationMode == Dimension::Type3D);
-	// アイコンは次元に応じて変える
-	ImTextureID modeIcon = is3D ? GetTextureID(icons_.manualCamera3DKey) :
-		GetTextureID(icons_.manualCamera2DKey);
-	if (DrawIconButton("##SceneDimensionMode", modeIcon, true, buttonSize_)) {
-
-		operationMode = is3D ? Dimension::Type2D : Dimension::Type3D;
-	}
-	if (ImGui::IsItemHovered()) {
-
-		std::string tooltip = std::string("マニュアルカメラの2D/3D切り替え\n現在の状態: ") +
-			(operationMode == Dimension::Type2D ? "2D" : "3D");
-		ImGui::SetTooltip("%s", tooltip.c_str());
-	}
 }
 
 void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& context) {
@@ -1194,6 +1184,45 @@ void Engine::ViewportPanel::DrawManipulatorSection(const EditorPanelContext& con
 
 			std::string tooltip = std::string("シーンオブジェクト選択の有効/無効切り替え\n現在の状態: ") +
 				(context.editorState->enableScenePick ? "有効" : "無効");
+			ImGui::SetTooltip("%s", tooltip.c_str());
+		}
+
+		// View上で選択できるエンティティ次元を3D、2D、両方の順で切り替える
+		SceneViewPickDimension& pickDimension = context.editorState->sceneViewPickDimension;
+		ImTextureID dimensionIcon = GetTextureID(icons_.selection3DKey);
+		const char* dimensionLabel = "3Dのみ";
+		if (pickDimension == SceneViewPickDimension::Type2D) {
+			dimensionIcon = GetTextureID(icons_.selection2DKey);
+			dimensionLabel = "2Dのみ";
+		} else if (pickDimension == SceneViewPickDimension::Both) {
+			dimensionIcon = GetTextureID(icons_.selection2DAnd3DKey);
+			dimensionLabel = "2D・3D";
+		}
+		if (DrawIconButton("##ScenePickDimension", dimensionIcon, true, buttonSize_)) {
+
+			switch (pickDimension) {
+			case SceneViewPickDimension::Type3D:
+				pickDimension = SceneViewPickDimension::Type2D;
+				break;
+			case SceneViewPickDimension::Type2D:
+				pickDimension = SceneViewPickDimension::Both;
+				break;
+			case SceneViewPickDimension::Both:
+				pickDimension = SceneViewPickDimension::Type3D;
+				break;
+			}
+		}
+		if (ImGui::IsItemHovered()) {
+
+			if (pickDimension == SceneViewPickDimension::Type2D) {
+				dimensionLabel = "2Dのみ";
+			} else if (pickDimension == SceneViewPickDimension::Both) {
+				dimensionLabel = "2D・3D";
+			} else {
+				dimensionLabel = "3Dのみ";
+			}
+			const std::string tooltip = std::string("選択できるエンティティ次元\n現在の状態: ") +
+				dimensionLabel;
 			ImGui::SetTooltip("%s", tooltip.c_str());
 		}
 		if (DrawIconButton("##ManipulatorNone", GetTextureID(icons_.noneKey),

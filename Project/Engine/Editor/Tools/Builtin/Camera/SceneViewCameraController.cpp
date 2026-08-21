@@ -23,6 +23,15 @@ namespace {
 
 	// カメラ保存パス
 	const std::string kCameraJsonPath = Engine::ConfigPaths::kSceneViewCamera;
+	// 2Dカメラの既定値
+	const Engine::Vector3 kDefault2DPosition = Engine::Vector3::AnyInit(0.0f);
+	constexpr float kDefault2DZoom = 1.0f;
+	constexpr float kMin2DZoom = 0.01f;
+	constexpr float kMax2DZoom = 100.0f;
+	constexpr float kDefault2DNearClip = 0.0f;
+	constexpr float kDefault2DFarClip = 1000.0f;
+	constexpr float kDefault2DPanSpeed = 1.0f;
+	constexpr float kDefault2DZoomRate = 0.15f;
 	// 3Dカメラの既定値
 	const Engine::Vector3 kDefaultPosition = Engine::Vector3(-6.8f, 2.52f, -8.19f);
 	const Engine::Vector3 kDefaultRotation = Engine::Vector3(13.75f, 37.8f, 0.0f);
@@ -92,6 +101,19 @@ Engine::SceneViewCameraController::~SceneViewCameraController() {
 		return;
 	}
 	// 無効値は既定値へ戻し、次回起動用Configへnullを残さない
+	if (!IsFinite(cameraState_.transform2D.pos)) {
+		cameraState_.transform2D.pos = kDefault2DPosition;
+	}
+	cameraState_.orthographicZoom = std::clamp(
+		std::isfinite(cameraState_.orthographicZoom) ? cameraState_.orthographicZoom : kDefault2DZoom,
+		kMin2DZoom, kMax2DZoom);
+	if (!std::isfinite(cameraState_.orthoNearClip)) {
+		cameraState_.orthoNearClip = kDefault2DNearClip;
+	}
+	if (!std::isfinite(cameraState_.orthoFarClip) ||
+		cameraState_.orthoFarClip <= cameraState_.orthoNearClip) {
+		cameraState_.orthoFarClip = kDefault2DFarClip;
+	}
 	if (!IsFinite(cameraState_.transform3D.pos)) {
 		cameraState_.transform3D.pos = kDefaultPosition;
 	}
@@ -112,12 +134,23 @@ Engine::SceneViewCameraController::~SceneViewCameraController() {
 		rotateSpeed_ : kDefaultRotateSpeed;
 	zoomRate_ = std::isfinite(zoomRate_) && zoomRate_ >= 0.0f ? zoomRate_ : kDefaultZoomRate;
 	panSpeed_ = std::isfinite(panSpeed_) && panSpeed_ >= 0.0f ? panSpeed_ : kDefaultPanSpeed;
+	zoomRate2D_ = std::isfinite(zoomRate2D_) && zoomRate2D_ >= 0.0f ?
+		zoomRate2D_ : kDefault2DZoomRate;
+	panSpeed2D_ = std::isfinite(panSpeed2D_) && panSpeed2D_ >= 0.0f ?
+		panSpeed2D_ : kDefault2DPanSpeed;
 
 	// カメラを閉じた瞬間の状態を保存する
 	nlohmann::json data{};
 
-	// 2D(今は未使用)
+	// 2D
 	{
+		JsonAdapter::SetVector3(data, "transform2D.pos", cameraState_.transform2D.pos);
+		data["orthographicZoom"] = cameraState_.orthographicZoom;
+		data["orthoNearClip"] = cameraState_.orthoNearClip;
+		data["orthoFarClip"] = cameraState_.orthoFarClip;
+		data["orthographicCullingMask"] = cameraState_.orthographicCullingMask;
+		data["zoomRate2D"] = zoomRate2D_;
+		data["panSpeed2D"] = panSpeed2D_;
 	}
 	// 3D
 	{
@@ -142,12 +175,16 @@ void Engine::SceneViewCameraController::MakeDefaultState() {
 
 	cameraState_ = {};
 
+	cameraState_.transform2D.pos = kDefault2DPosition;
+	cameraState_.transform2D.rotation = Vector3::AnyInit(0.0f);
+
 	cameraState_.transform3D.pos = kDefaultPosition;
 	cameraState_.transform3D.rotation = kDefaultRotation;
 
 	cameraState_.enableOrthographic = true;
-	cameraState_.orthoNearClip = 0.0f;
-	cameraState_.orthoFarClip = 1000.0f;
+	cameraState_.orthoNearClip = kDefault2DNearClip;
+	cameraState_.orthoFarClip = kDefault2DFarClip;
+	cameraState_.orthographicZoom = kDefault2DZoom;
 	cameraState_.orthographicCullingMask = -1;
 
 	cameraState_.enablePerspective = true;
@@ -165,8 +202,22 @@ void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath
 		return;
 	}
 
-	// 2D(今は未使用)
+	// 2D
 	{
+		cameraState_.transform2D.pos = JsonAdapter::GetVector3(
+			data, "transform2D.pos", cameraState_.transform2D.pos);
+		cameraState_.orthographicZoom = std::clamp(
+			ReadFiniteFloat(data, "orthographicZoom", cameraState_.orthographicZoom),
+			kMin2DZoom, kMax2DZoom);
+		cameraState_.orthoNearClip = ReadFiniteFloat(
+			data, "orthoNearClip", cameraState_.orthoNearClip);
+		cameraState_.orthoFarClip = ReadFiniteFloat(
+			data, "orthoFarClip", cameraState_.orthoFarClip);
+		cameraState_.orthographicCullingMask = ReadInt32(
+			data, "orthographicCullingMask", cameraState_.orthographicCullingMask);
+		if (cameraState_.orthoFarClip <= cameraState_.orthoNearClip) {
+			cameraState_.orthoFarClip = kDefault2DFarClip;
+		}
 	}
 	// 3D
 	{
@@ -191,6 +242,8 @@ void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath
 	}
 	// カメラ操作速度、古いConfigにキーが無ければ既定値を保つ
 	{
+		zoomRate2D_ = std::max(0.0f, ReadFiniteFloat(data, "zoomRate2D", zoomRate2D_));
+		panSpeed2D_ = std::max(0.0f, ReadFiniteFloat(data, "panSpeed2D", panSpeed2D_));
 		rotateSpeed_ = std::max(0.0f, ReadFiniteFloat(data, "rotateSpeed", rotateSpeed_));
 		zoomRate_ = std::max(0.0f, ReadFiniteFloat(data, "zoomRate", zoomRate_));
 		panSpeed_ = std::max(0.0f, ReadFiniteFloat(data, "panSpeed", panSpeed_));
@@ -199,7 +252,17 @@ void Engine::SceneViewCameraController::MakeFromJson(const std::string& filePath
 
 void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewArea viewArea) {
 
-	// 外部編集を含めて無効なTransformを描画へ渡さない
+	// 選択次元に関係なく2Dと3Dを同時描画し、入力対象のカメラだけを切り替える
+	cameraState_.enableOrthographic = true;
+	cameraState_.enablePerspective = true;
+
+	// 外部編集を含めて無効なTransformやズーム値を描画へ渡さない
+	if (!IsFinite(cameraState_.transform2D.pos)) {
+		cameraState_.transform2D.pos = kDefault2DPosition;
+	}
+	cameraState_.orthographicZoom = std::clamp(
+		std::isfinite(cameraState_.orthographicZoom) ? cameraState_.orthographicZoom : kDefault2DZoom,
+		kMin2DZoom, kMax2DZoom);
 	if (!IsFinite(cameraState_.transform3D.pos) || !IsFinite(cameraState_.transform3D.rotation)) {
 		cameraState_.transform3D.pos = kDefaultPosition;
 		cameraState_.transform3D.rotation = kDefaultRotation;
@@ -214,16 +277,13 @@ void Engine::SceneViewCameraController::Update(Dimension dimension, InputViewAre
 	switch (dimension) {
 	case Engine::Dimension::Type2D:
 
-		Update2D();
+		Update2D(viewArea);
 		break;
 	case Engine::Dimension::Type3D:
 
 		Update3D();
 		break;
 	}
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	dimension;
-#endif
 }
 
 void Engine::SceneViewCameraController::FocusOn(const Vector3& worldPosition) {
@@ -341,7 +401,39 @@ void Engine::SceneViewCameraController::Update3D() {
 	}
 }
 
-void Engine::SceneViewCameraController::Update2D() {}
+void Engine::SceneViewCameraController::Update2D(InputViewArea viewArea) {
+
+	Input* input = Input::GetInstance();
+	const Vector3 previousPosition = cameraState_.transform2D.pos;
+	const float previousZoom = cameraState_.orthographicZoom;
+	const Vector2 mouseDelta = input->GetMouseMoveValueInView(viewArea);
+	const float wheel = input->GetMouseWheel();
+
+	// 中ドラッグ:上下左右移動
+	if (input->PushMouseCenter()) {
+		const float worldUnitsPerPixel = 1.0f / cameraState_.orthographicZoom;
+		cameraState_.transform2D.pos.x -= mouseDelta.x * panSpeed2D_ * worldUnitsPerPixel;
+		cameraState_.transform2D.pos.y -= mouseDelta.y * panSpeed2D_ * worldUnitsPerPixel;
+	}
+
+	// ホイール:カーソル位置を維持したズーム
+	if (wheel != 0.0f) {
+		const float nextZoom = std::clamp(
+			previousZoom * std::exp(wheel * zoomRate2D_), kMin2DZoom, kMax2DZoom);
+		if (const std::optional<Vector2> mouse = input->GetMousePosInView(viewArea)) {
+			cameraState_.transform2D.pos.x += mouse->x / previousZoom - mouse->x / nextZoom;
+			cameraState_.transform2D.pos.y += mouse->y / previousZoom - mouse->y / nextZoom;
+		}
+		cameraState_.orthographicZoom = nextZoom;
+	}
+
+	// 入力値が壊れた場合は最後の正常値へ戻す
+	if (!IsFinite(cameraState_.transform2D.pos) ||
+		!std::isfinite(cameraState_.orthographicZoom)) {
+		cameraState_.transform2D.pos = previousPosition;
+		cameraState_.orthographicZoom = previousZoom;
+	}
+}
 
 void Engine::SceneViewCameraController::OpenEditorTool() {
 
@@ -360,6 +452,24 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 		ImGui::SeparatorText("2D");
 		{
 			ImGui::PushID("SceneViewCamera2D");
+
+			if (ImGui::Button("リセット")) {
+				cameraState_.transform2D.pos = kDefault2DPosition;
+				cameraState_.orthographicZoom = kDefault2DZoom;
+				cameraState_.orthoNearClip = kDefault2DNearClip;
+				cameraState_.orthoFarClip = kDefault2DFarClip;
+				cameraState_.orthographicCullingMask = -1;
+				zoomRate2D_ = kDefault2DZoomRate;
+				panSpeed2D_ = kDefault2DPanSpeed;
+			}
+			ImGui::DragFloat2("位置", &cameraState_.transform2D.pos.x, 1.0f);
+			ImGui::DragFloat("ズーム", &cameraState_.orthographicZoom,
+				0.01f, kMin2DZoom, kMax2DZoom, "%.3f");
+			ImGui::DragFloat("ニアクリップ", &cameraState_.orthoNearClip, 0.1f);
+			ImGui::DragFloat("ファークリップ", &cameraState_.orthoFarClip, 1.0f);
+			ImGui::DragInt("カリングマスク", &cameraState_.orthographicCullingMask);
+			ImGui::DragFloat("移動速度", &panSpeed2D_, 0.01f, 0.0f, 100.0f, "%.3f");
+			ImGui::DragFloat("ズーム速度", &zoomRate2D_, 0.01f, 0.0f, 10.0f, "%.3f");
 
 			ImGui::PopID();
 		}

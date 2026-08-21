@@ -6,9 +6,6 @@
 #include <Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
-
-#include <optional>
 
 namespace Engine {
 
@@ -54,11 +51,6 @@ namespace Engine {
 		bool previewActive_ = false;
 		bool previewRequested_ = false;
 		TransformComponent previewBeginTransform_{};
-
-		// 2Dモードか3Dモードか
-		Dimension editDimension_ = Dimension::Type3D;
-		// 直近に観測したコンポーネント構成由来の次元、構成変化への追従基準として持つ
-		std::optional<Dimension> lastObservedImpliedDimension_;
 
 		//--------- functions ----------------------------------------------------
 

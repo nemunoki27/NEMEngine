@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <array>
 #include <cassert>
+#include <optional>
 #include <source_location>
 
 namespace Engine {
@@ -117,6 +118,7 @@ namespace Engine {
 		bool HasViewRect(InputViewArea viewArea) const;
 		bool IsMouseOnView(InputViewArea viewArea) const;
 		std::optional<Vector2> GetMousePosInView(InputViewArea viewArea) const;
+		Vector2 GetMouseMoveValueInView(InputViewArea viewArea) const;
 
 		// ゲームパッドの振動
 		uint32_t PlayVibration(const InputVibrationParams& params);

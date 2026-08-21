@@ -1018,6 +1018,27 @@ namespace {
 				Engine::RenderPhase::Opaque;
 	}
 
+	bool TestTransformDimensionSerialization() {
+
+		Engine::TransformComponent source{};
+		source.dimension = Engine::Dimension::Type2D;
+
+		nlohmann::json serialized{};
+		Engine::to_json(serialized, source);
+		Engine::TransformComponent restored{};
+		Engine::from_json(serialized, restored);
+
+		nlohmann::json legacy = serialized;
+		legacy.erase("dimension");
+		Engine::TransformComponent legacyRestored{};
+		Engine::from_json(legacy, legacyRestored);
+
+		return serialized.value("dimension", -1) ==
+			static_cast<int>(Engine::Dimension::Type2D) &&
+			restored.dimension == Engine::Dimension::Type2D &&
+			legacyRestored.dimension == Engine::Dimension::Type3D;
+	}
+
 	bool TestUTF8Path() {
 
 		const std::string directoryName =
@@ -2050,7 +2071,8 @@ int main(int argc, char* argv[]) {
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
-			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer()) {
+			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
+			!TestTransformDimensionSerialization()) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
 		}
@@ -2144,6 +2166,10 @@ int main(int argc, char* argv[]) {
 	if (!TestTransformDirtyHierarchy()) {
 		std::cerr << "Transform dirty hierarchy failed\n";
 		return 14;
+	}
+	if (!TestTransformDimensionSerialization()) {
+		std::cerr << "Transform dimension serialization failed\n";
+		return 26;
 	}
 	if (!TestSerializationClone()) {
 		std::cerr << "Serialization clone failed\n";

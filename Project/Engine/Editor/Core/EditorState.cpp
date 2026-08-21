@@ -5,19 +5,10 @@
 //============================================================================
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
-#include <Engine/Core/World/Components/Camera/CameraComponent.h>
-#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
-#include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
-#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
-#include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
-#include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 
 // c++
@@ -33,42 +24,8 @@ std::optional<Engine::Dimension> Engine::ResolveEntityDimension(ECSWorld& world,
 	if (!world.IsAlive(entity)) {
 		return std::nullopt;
 	}
-	if (world.HasComponent<SpriteRendererComponent>(entity) ||
-		world.HasComponent<CanvasComponent>(entity) ||
-		world.HasComponent<OrthographicCameraComponent>(entity)) {
-		return Dimension::Type2D;
-	}
-	if (world.HasComponent<TextRendererComponent>(entity)) {
-		return world.GetComponent<TextRendererComponent>(entity).dimension;
-	}
-	// PrimitiveはPlane/RingをScreen2Dにしたときだけ2D、それ以外は3D
-	if (world.HasComponent<PrimitiveRendererComponent>(entity)) {
-		return IsPrimitiveScreen2D(world.GetComponent<PrimitiveRendererComponent>(entity)) ?
-			Dimension::Type2D : Dimension::Type3D;
-	}
-	// EffectEmitterは実行中の全エフェクトがScreen2Dのときだけ2D
-	if (world.HasComponent<EffectEmitterComponent>(entity)) {
-
-		const EffectEmitterComponent& emitter = world.GetComponent<EffectEmitterComponent>(entity);
-		bool found = false;
-		bool allScreen2D = true;
-		for (const EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
-			for (const EffectEmitterStateRuntime& state : playback.states) {
-				for (const ParticleEffectInstanceRuntime& effect : state.effects) {
-					found = true;
-					allScreen2D &= effect.runtimeSpace == PrimitiveRenderSpace::Screen2D;
-				}
-			}
-		}
-		return found && allScreen2D ? Dimension::Type2D : Dimension::Type3D;
-	}
-	if (world.HasComponent<MeshRendererComponent>(entity) ||
-		world.HasComponent<PerspectiveCameraComponent>(entity) ||
-		world.HasComponent<DirectionalLightComponent>(entity) ||
-		world.HasComponent<PointLightComponent>(entity) ||
-		world.HasComponent<RectLightComponent>(entity) ||
-		world.HasComponent<SpotLightComponent>(entity)) {
-		return Dimension::Type3D;
+	if (world.HasComponent<TransformComponent>(entity)) {
+		return world.GetComponent<TransformComponent>(entity).dimension;
 	}
 	return std::nullopt;
 }
@@ -83,6 +40,29 @@ std::string Engine::GetEntityDisplayName(ECSWorld& world, const Entity& entity) 
 		}
 	}
 	return "Entity";
+}
+
+Engine::Dimension Engine::ResolveSceneViewCameraDimension(SceneViewPickDimension dimension) {
+
+	return dimension == SceneViewPickDimension::Type2D ?
+		Dimension::Type2D : Dimension::Type3D;
+}
+
+bool Engine::IsScenePickDimensionAllowed(ECSWorld& world, const Entity& entity,
+	SceneViewPickDimension dimension) {
+
+	if (!world.IsAlive(entity)) {
+		return false;
+	}
+	if (dimension == SceneViewPickDimension::Both) {
+		return true;
+	}
+
+	const std::optional<Dimension> entityDimension = ResolveEntityDimension(world, entity);
+	if (!entityDimension) {
+		return false;
+	}
+	return *entityDimension == ResolveSceneViewCameraDimension(dimension);
 }
 
 //============================================================================
@@ -341,7 +321,7 @@ void Engine::EditorState::CommitScenePick(ECSWorld& world) {
 	scenePickClickPending = false;
 
 	// 候補が生存していれば選択、空の場所をクリックしたなら選択解除する
-	if (world.IsAlive(scenePickDragEntity)) {
+	if (IsScenePickDimensionAllowed(world, scenePickDragEntity, sceneViewPickDimension)) {
 		if (scenePickClickAdditive && selectKind == EditorSelectionKind::Entity &&
 			CanMultiSelect(world, scenePickDragEntity)) {
 			ToggleEntityInSelection(scenePickDragEntity);

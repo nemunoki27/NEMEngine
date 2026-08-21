@@ -648,12 +648,18 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 		pickOutcome.requestID == editorState_.scenePickRequestID) {
 
 		// 最新クリックの結果だけ候補へ反映し、リリース済みなら選択を確定する
-		editorState_.scenePickDragEntity = pickOutcome.hit ? pickOutcome.entity : Entity::Null();
+		const bool dimensionAllowed = pickOutcome.hit && context.activeWorld &&
+			IsScenePickDimensionAllowed(*context.activeWorld, pickOutcome.entity,
+				editorState_.sceneViewPickDimension);
+		editorState_.scenePickDragEntity = dimensionAllowed ? pickOutcome.entity : Entity::Null();
 		editorState_.scenePickCandidateRequestID =
 			pickOutcome.requestID;
-		if (pickOutcome.hit) {
+		if (dimensionAllowed) {
 			editorState_.scenePickCandidateSubMesh = pickOutcome.subMeshIndex;
 			editorState_.scenePickCandidateSubMeshID = pickOutcome.subMeshStableID;
+		} else {
+			editorState_.scenePickCandidateSubMesh = 0;
+			editorState_.scenePickCandidateSubMeshID = UUID{};
 		}
 		if (context.activeWorld &&
 			editorState_.scenePickClickPending) {
@@ -672,8 +678,11 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 		ECSWorld* focusWorld = context.activeWorld;
 		const Entity focusTarget = editorState_.cameraFocusRequest;
 		editorState_.cameraFocusRequest = Entity::Null();
-		if (focusWorld && focusWorld->IsAlive(focusTarget) &&
-			editorState_.manualCameraDimension == Dimension::Type3D) {
+		const std::optional<Dimension> focusDimension = focusWorld ?
+			ResolveEntityDimension(*focusWorld, focusTarget) : std::nullopt;
+		if (focusDimension && *focusDimension == Dimension::Type3D &&
+			ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension) ==
+			Dimension::Type3D) {
 
 			sceneViewCameraController_->FocusOn(
 				RenderItemExtract::GetWorldMatrix(*focusWorld, focusTarget).GetTranslationValue());

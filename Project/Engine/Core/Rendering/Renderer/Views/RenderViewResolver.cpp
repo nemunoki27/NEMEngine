@@ -311,8 +311,10 @@ Engine::ResolvedCameraView Engine::RenderViewResolver::BuildManualOrthographic(
 	out.matrices.viewMatrix = Matrix4x4::Inverse(world);
 	// 2Dカメラと同様に深度範囲を前後対称にする
 	const float orthoDepthRange = (std::max)(out.farClip, 1.0f);
+	const float zoom = std::clamp(state.orthographicZoom, 0.01f, 100.0f);
 	out.matrices.projectionMatrix = Matrix4x4::MakeOrthographicMatrix(0.0f, 0.0f,
-		static_cast<float>(width), static_cast<float>(height), -orthoDepthRange, orthoDepthRange);
+		static_cast<float>(width) / zoom, static_cast<float>(height) / zoom,
+		-orthoDepthRange, orthoDepthRange);
 	out.matrices.inverseProjectionMatrix = Matrix4x4::Inverse(out.matrices.projectionMatrix);
 	out.matrices.viewProjectionMatrix = out.matrices.viewMatrix * out.matrices.projectionMatrix;
 

@@ -99,6 +99,10 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 	if (preset_ == EntityCreationPreset::Empty) {
 		return;
 	}
+	TransformComponent* transform = world.TryGetComponent<TransformComponent>(entity);
+	if (transform) {
+		transform->dimension = Dimension::Type2D;
+	}
 
 	bool hasCanvasAncestor = false;
 	Entity ancestor = parent;
@@ -120,7 +124,7 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 	}
 
 	// UI要素はCanvas直下または単独Canvasの場合に画面中央へ作る
-	if (auto* transform = world.TryGetComponent<TransformComponent>(entity)) {
+	if (transform) {
 		const CanvasComponent* canvas = nullptr;
 		if (world.HasComponent<CanvasComponent>(entity)) {
 			canvas = world.TryGetComponent<CanvasComponent>(entity);

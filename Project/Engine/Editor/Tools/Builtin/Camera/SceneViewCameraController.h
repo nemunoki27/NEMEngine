@@ -89,6 +89,8 @@ namespace Engine {
 		Vector3 focusTargetPos_ = Vector3::AnyInit(0.0f);
 
 		// カメラ操作速度、シリアライズ対象
+		float zoomRate2D_ = 0.15f;
+		float panSpeed2D_ = 1.0f;
 		float rotateSpeed_ = 0.005f;
 		float zoomRate_ = 0.4f;
 		float panSpeed_ = 0.02f;
@@ -100,6 +102,6 @@ namespace Engine {
 
 		// 2D/3Dカメラの状態を更新する
 		void Update3D();
-		void Update2D();
+		void Update2D(InputViewArea viewArea);
 	};
 } // Engine

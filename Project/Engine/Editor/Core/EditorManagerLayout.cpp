@@ -317,7 +317,8 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 	}
 
 	// カメラの状態を更新する
-	sceneViewCameraController_->Update(editorState_.manualCameraDimension, InputViewArea::Scene);
+	sceneViewCameraController_->Update(
+		ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension), InputViewArea::Scene);
 }
 
 void Engine::EditorManager::LoadViewportPanelState() {
@@ -369,7 +370,7 @@ void Engine::EditorManager::LoadViewportPanelState() {
 
 	LoadEnumValue(sceneView, "manipulatorMode", editorState_.sceneViewManipulatorMode);
 	LoadEnumValue(sceneView, "cameraMode", editorState_.sceneViewCamera.mode);
-	LoadEnumValue(sceneView, "manualCameraDimension", editorState_.manualCameraDimension);
+	LoadEnumValue(sceneView, "pickDimension", editorState_.sceneViewPickDimension);
 
 	// 実体参照は起動時に持ち越さずモードだけを復元しカメラ指定は現在のシーンで選び直す
 	editorState_.sceneViewCamera.ClearAssignedCameras();
@@ -399,7 +400,8 @@ void Engine::EditorManager::SaveViewportPanelState() const {
 	}
 	sceneView["manipulatorMode"] = EnumAdapter<SceneViewManipulatorMode>::ToString(editorState_.sceneViewManipulatorMode);
 	sceneView["cameraMode"] = EnumAdapter<SceneViewCameraMode>::ToString(editorState_.sceneViewCamera.mode);
-	sceneView["manualCameraDimension"] = EnumAdapter<Dimension>::ToString(editorState_.manualCameraDimension);
+	sceneView["pickDimension"] = EnumAdapter<SceneViewPickDimension>::ToString(
+		editorState_.sceneViewPickDimension);
 
 	nlohmann::json data = nlohmann::json::object();
 	data["sceneView"] = sceneView;

@@ -15,6 +15,8 @@ void Engine::from_json(const nlohmann::json& in, TransformComponent& component) 
 	component.localPos = Vector3::FromJson(in.value("localPos", nlohmann::json{}));
 	component.localRotation = Quaternion::FromJson(in.value("localRotation", nlohmann::json{}));
 	component.localScale = Vector3::FromJson(in.value("localScale", nlohmann::json{}));
+	component.dimension = static_cast<Dimension>(
+		in.value("dimension", static_cast<int>(component.dimension)));
 
 	// 親追従の継承設定、未保存の既存シーンは従来通り両方継承する
 	component.ignoreParentScale = in.value("ignoreParentScale", false);
@@ -30,6 +32,7 @@ void Engine::to_json(nlohmann::json& out, const TransformComponent& component) {
 	out["localPos"] = component.localPos.ToJson();
 	out["localRotation"] = component.localRotation.ToJson();
 	out["localScale"] = component.localScale.ToJson();
+	out["dimension"] = static_cast<int>(component.dimension);
 
 	// 既定値のときは出力を省いてシーンJSONを汚さない
 	if (component.ignoreParentScale) {

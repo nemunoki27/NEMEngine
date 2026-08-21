@@ -459,6 +459,7 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
 			manualSceneCamera = editorManager_.GetSceneViewCameraState();
 			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
+			request.drawSceneView2DCameraBounds = editorManager_.ShouldDrawSceneView2DCameraBounds();
 		}
 
 		// 2つのViewを表示中は操作対象を毎フレーム、副Viewを30Hzで更新してGPUの熱飽和を防ぐ
