@@ -50,7 +50,8 @@ namespace Engine::BackendDrawCommon {
 	// forceDepthTestWriteを立てると深度テスト+書き込みを強制した別PSOを取得する
 	const PipelineState* ResolveGraphicsPipeline(const RenderDrawContext& context,
 		const MaterialPassBinding& passBinding, const PipelineVariantDesc** outVariant = nullptr,
-		bool forceDepthTestWrite = false);
+		bool forceDepthTestWrite = false,
+		const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 	// Renderer側の形状パイプラインとMaterial側の部分シェーダーを合成する
 	const PipelineState* ResolveComposedGraphicsPipeline(const RenderDrawContext& context,
 		const MaterialPassBinding& passBinding, AssetID geometryPipeline,
@@ -80,7 +81,8 @@ namespace Engine::BackendDrawCommon {
 
 	// テクスチャアセットIDからGPUテクスチャを取得、失敗したらエラーテクスチャ
 	const GPUTextureResource* ResolveTextureAsset(const RenderDrawContext& context,
-		GraphicsCore& graphicsCore, AssetID textureAssetID);
+		GraphicsCore& graphicsCore, AssetID textureAssetID,
+		TextureColorSpace requestedColorSpace = TextureColorSpace::Auto);
 	// MaterialParameters内のTexture2Dをbindless SRV indexへ解決する
 	MaterialParameterBufferBuilder::TextureResolveResult ResolveMaterialTextureIndex(
 		const RenderDrawContext& context, MaterialParameterSemantic semantic,

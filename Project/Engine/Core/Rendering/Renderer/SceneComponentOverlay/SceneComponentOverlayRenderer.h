@@ -74,7 +74,6 @@ namespace Engine {
 
 		// 毎フレーム再生成しないためのPSO/テクスチャキーキャッシュ
 		std::unordered_map<uint64_t, PipelinePair> pipelineCache_{};
-		std::unordered_map<AssetID, std::string> textureKeyCache_{};
 
 		// シェーダReflection名からRootBinding位置を引くためのキャッシュ
 		PipelineBindingCache spriteBindingCache_{};

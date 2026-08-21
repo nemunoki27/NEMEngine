@@ -1,0 +1,18 @@
+{
+  "guid": "56c2d4ede3fbd0a848fba6c5db5302db",
+  "importer": "TextureImporter",
+  "importerVersion": 2,
+  "schemaVersion": 2,
+  "settings": {
+    "addressU": "Clamp",
+    "addressV": "Clamp",
+    "alphaColorBleed": false,
+    "colorSpace": "SRGB",
+    "filter": "Point",
+    "generateMipmaps": false,
+    "maxAnisotropy": 1,
+    "normalConvention": "OpenGL",
+    "preset": "PixelArt"
+  },
+  "type": "Texture"
+}

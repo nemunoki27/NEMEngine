@@ -11,7 +11,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/SceneComponentOverlay/SceneComponentOverlayState.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
 // c++
 #include <algorithm>
@@ -111,7 +111,6 @@ void Engine::SceneComponentOverlayRenderer::Finalize() {
 	}
 	spriteRunInstances_.clear();
 	pipelineCache_.clear();
-	textureKeyCache_.clear();
 	initialized_ = false;
 }
 
@@ -163,31 +162,8 @@ const Engine::GPUTextureResource* Engine::SceneComponentOverlayRenderer::Resolve
 		return nullptr;
 	}
 
-	auto keyIt = textureKeyCache_.find(textureAssetID);
-	if (keyIt == textureKeyCache_.end()) {
-		// GUIDから一度だけ実パスを解決し、以降はTextureUploadServiceのキーを使い回す
-		const std::filesystem::path fullPath = assetDatabase.ResolveFullPath(textureAssetID);
-		if (fullPath.empty()) {
-			return nullptr;
-		}
-		const std::string key = fullPath.generic_string() + ":srgb";
-		keyIt = textureKeyCache_.emplace(textureAssetID, key).first;
-	}
-
-	TextureUploadService& uploadService = graphicsCore.GetTextureUploadService();
-	if (uploadService.GetState(keyIt->second) == TextureRequestState::None) {
-		// 非同期ロード中は安全にスキップし、ロード完了後のフレームから描く
-		TextureFileRequestDesc desc{};
-		desc.key = keyIt->second;
-		desc.assetPath = keyIt->second.substr(0, keyIt->second.size() - 5);
-		desc.forceSRGB = true;
-		uploadService.RequestTextureFile(desc);
-		return nullptr;
-	}
-	if (uploadService.GetState(keyIt->second) != TextureRequestState::Ready) {
-		return nullptr;
-	}
-	const GPUTextureResource* texture = uploadService.GetTexture(keyIt->second);
+	const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
+		graphicsCore, &assetDatabase, textureAssetID, TextureColorSpace::SRGB);
 	return (texture && texture->valid) ? texture : nullptr;
 }
 

@@ -124,7 +124,8 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 
 	// cubemapのSRV indexをbindless用に解決する
 	const GPUTextureResource* cubemap = RuntimeTextureResolver::Resolve(
-		graphicsCore, context.assetDatabase, skybox->cubemapTexture, false);
+		graphicsCore, context.assetDatabase, skybox->cubemapTexture,
+		TextureColorSpace::Linear);
 	if (!cubemap || cubemap->srvIndex == UINT32_MAX) {
 		return;
 	}

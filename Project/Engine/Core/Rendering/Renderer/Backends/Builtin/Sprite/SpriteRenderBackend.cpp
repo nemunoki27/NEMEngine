@@ -7,6 +7,45 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+
+// c++
+#include <algorithm>
+
+//============================================================================
+//	SpriteRenderBackend internal
+//============================================================================
+namespace {
+
+	// Spriteのマテリアル値からベースカラーテクスチャを解決する
+	Engine::AssetID ResolveBaseColorTexture(
+		const Engine::MaterialParameterSet* instance,
+		const Engine::MaterialAsset& material) {
+
+		const Engine::MaterialParameterValue* value = instance ?
+			instance->Find(Engine::MaterialParameterSemantic::BaseColorTexture) : nullptr;
+		if (!value) {
+			value = material.parameters.Find(
+				Engine::MaterialParameterSemantic::BaseColorTexture);
+		}
+		const Engine::AssetID* texture = value ?
+			std::get_if<Engine::AssetID>(&value->value) : nullptr;
+		return texture ? *texture : Engine::AssetID{};
+	}
+
+	// Importer設定を静的サンプラー上書きへ変換する
+	Engine::PipelineStaticSamplerSettings MakeSamplerSettings(
+		const Engine::TextureImportSettings& settings) {
+
+		Engine::PipelineStaticSamplerSettings sampler{};
+		sampler.filter = Engine::ToD3D12Filter(settings);
+		sampler.addressU = Engine::ToD3D12AddressMode(settings.addressU);
+		sampler.addressV = Engine::ToD3D12AddressMode(settings.addressV);
+		sampler.addressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		sampler.maxAnisotropy = (std::clamp)(settings.maxAnisotropy, 1u, 16u);
+		return sampler;
+	}
+}
 
 //============================================================================
 //	SpriteRenderBackend classMethods
@@ -41,10 +80,29 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		DefaultMaterialSlot::Sprite, { MaterialPassKind::Draw }, resolvedPass)) {
 		return;
 	}
-	// パイプラインを解決する
-	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass);
-
 	const SpriteRenderPayload* firstPayload = context.batch->GetPayload<SpriteRenderPayload>(*items.front());
+	PipelineStaticSamplerOverrideSet samplerOverrides{};
+	const PipelineStaticSamplerOverrideSet* samplerOverridesPtr = nullptr;
+	if (!resolvedPass.pass->shaderOverride) {
+
+		const AssetID textureAsset = ResolveBaseColorTexture(
+			firstPayload ? firstPayload->materialInstance : nullptr,
+			*resolvedPass.material);
+		if (textureAsset) {
+
+			const TextureImportSettings settings =
+				RuntimeTextureResolver::ResolveImportSettings(
+					context.assetDatabase, textureAsset);
+			samplerOverrides.byName["gSampler"] = MakeSamplerSettings(settings);
+			samplerOverridesPtr = &samplerOverrides;
+		}
+	}
+	// パイプラインを解決する
+	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(
+		context, *resolvedPass.pass, nullptr, false, samplerOverridesPtr);
+	if (!pipelineState) {
+		return;
+	}
 
 	// GPUリソースの更新
 	resources.UpdateView(*context.view, items.front()->cameraDomain);

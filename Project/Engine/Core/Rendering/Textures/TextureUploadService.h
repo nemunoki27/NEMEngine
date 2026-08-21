@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxUploadContext.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 
 // c++
@@ -37,8 +38,14 @@ namespace Engine {
 		std::string key;
 		std::string assetPath;
 
-		// WICロード時にsRGBとして扱うか
-		bool forceSRGB = false;
+		// .metaから解決した取り込み設定
+		TextureImportSettings importSettings{};
+		// 描画用途から要求する色空間、.metaの明示色空間が優先される
+		TextureColorSpace requestedColorSpace = TextureColorSpace::Auto;
+		// InspectorプレビューでImporter設定より表示色空間を優先する
+		bool overrideImportColorSpace = false;
+		// エディタプレビュー用のチャンネル変換
+		TexturePreviewChannel previewChannel = TexturePreviewChannel::Color;
 		// ホットリロードでの再アップロードか、trueなら既存SRVインデックスへ上書きする
 		bool reload = false;
 	};
@@ -72,7 +79,8 @@ namespace Engine {
 		// 既にロード済みのファイル由来テクスチャを再デコードして同一SRVインデックスへ差し替える、未ロードやsolid colorは無視する
 		void RequestReload(const std::string& key);
 		// 指定ファイルを指す全てのキー(描画用base/sRGBやProjectPanelサムネイル等)をまとめて再ロードする
-		void RequestReloadByFile(const std::filesystem::path& fullPath);
+		void RequestReloadByFile(const std::filesystem::path& fullPath,
+			const TextureImportSettings* updatedSettings = nullptr);
 
 		// 終了処理
 		void Finalize();
@@ -124,7 +132,8 @@ namespace Engine {
 		std::unordered_map<std::string, GPUTextureResource> readyTextures_;
 		std::unordered_set<std::string> queuedKeys_;
 		std::unordered_set<std::string> failedKeys_;
-		// ファイル由来テクスチャの再デコードに使う元リクエスト、keyごとにassetPath/forceSRGBを覚えておく
+		std::unordered_set<std::string> deferredReloadKeys_;
+		// ファイル由来テクスチャの再デコードに使う元リクエスト
 		std::unordered_map<std::string, TextureFileRequestDesc> keyRequests_;
 
 		//--------- functions ----------------------------------------------------

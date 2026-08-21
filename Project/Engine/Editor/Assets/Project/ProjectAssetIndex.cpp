@@ -14,7 +14,8 @@ namespace {
 
 	// 同じファイル名で特定の拡張子を持つ兄弟ファイルが存在するか
 	static bool ExistsSiblingWithSameStem(const std::filesystem::path& fullPath, const char* extension) {
-		auto sibling = fullPath.parent_path() / (fullPath.stem().string() + extension);
+		std::filesystem::path sibling = fullPath.parent_path() / fullPath.stem();
+		sibling += Engine::Algorithm::PathFromUTF8(extension);
 		return std::filesystem::exists(sibling);
 	}
 
@@ -38,8 +39,10 @@ namespace {
 
 	Engine::AssetType GuessBrowserAssetType(const std::filesystem::path& fullPath) {
 
-		const std::string fileName = Engine::Algorithm::ToLower(fullPath.filename().string());
-		const std::string extension = Engine::Algorithm::ToLower(fullPath.extension().string());
+		const std::string fileName = Engine::Algorithm::ToLower(
+			Engine::Algorithm::PathToUTF8(fullPath.filename()));
+		const std::string extension = Engine::Algorithm::ToLower(
+			Engine::Algorithm::PathToUTF8(fullPath.extension()));
 
 		if (Engine::Algorithm::EndsWith(fileName, ".animclip.json") || extension == ".animclip") {
 			return Engine::AssetType::AnimationClip;
@@ -92,7 +95,7 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 		browserEntry.assetID = meta->guid;
 		browserEntry.type = meta->type == AssetType::Unknown ? GuessBrowserAssetType(fullPath) : meta->type;
 		browserEntry.assetPath = assetPath;
-		browserEntry.fileName = fullPath.filename().string();
+		browserEntry.fileName = Algorithm::PathToUTF8(fullPath.filename());
 		browserEntry.displayName = MakeDisplayName(fullPath);
 		browserEntry.sidecarFiles = CollectSidecars(fullPath);
 
@@ -119,8 +122,10 @@ const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetByPath(cons
 bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path& fullPath) {
 
 	// ファイル名と拡張子を小文字化して取得
-	const std::string fileName = Algorithm::ToLower(fullPath.filename().string());
-	const std::string extension = Algorithm::ToLower(fullPath.extension().string());
+	const std::string fileName = Algorithm::ToLower(
+		Algorithm::PathToUTF8(fullPath.filename()));
+	const std::string extension = Algorithm::ToLower(
+		Algorithm::PathToUTF8(fullPath.extension()));
 
 	// .metaファイルは常に非表示
 	if (Engine::Algorithm::EndsWith(fileName, ".meta") || fileName.find(".meta.") != std::string::npos) {
@@ -160,21 +165,24 @@ bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path&
 std::vector<std::string> Engine::ProjectAssetIndex::CollectSidecars(const std::filesystem::path& fullPath) {
 
 	std::vector<std::string> result;
-	const std::string extension = Algorithm::ToLower(fullPath.extension().string());
+	const std::string extension = Algorithm::ToLower(
+		Algorithm::PathToUTF8(fullPath.extension()));
 	// .objの付属ファイル
 	if (extension == ".obj") {
 
-		auto mtl = fullPath.parent_path() / (fullPath.stem().string() + ".mtl");
+		std::filesystem::path mtl = fullPath.parent_path() / fullPath.stem();
+		mtl += L".mtl";
 		if (std::filesystem::exists(mtl)) {
-			result.emplace_back(mtl.filename().string());
+			result.emplace_back(Algorithm::PathToUTF8(mtl.filename()));
 		}
 	}
 	// .gltf/.glbの付属バイナリ
 	if (extension == ".gltf" || extension == ".glb") {
 
-		auto bin = fullPath.parent_path() / (fullPath.stem().string() + ".bin");
+		std::filesystem::path bin = fullPath.parent_path() / fullPath.stem();
+		bin += L".bin";
 		if (std::filesystem::exists(bin)) {
-			result.emplace_back(bin.filename().string());
+			result.emplace_back(Algorithm::PathToUTF8(bin.filename()));
 		}
 	}
 	return result;
@@ -182,7 +190,7 @@ std::vector<std::string> Engine::ProjectAssetIndex::CollectSidecars(const std::f
 
 std::string Engine::ProjectAssetIndex::MakeDisplayName(const std::filesystem::path& fullPath) {
 
-	const std::string fileName = fullPath.filename().string();
+	const std::string fileName = Algorithm::PathToUTF8(fullPath.filename());
 	const std::string_view suffix = AssetTypeResolver::FindCompoundSuffix(fullPath);
 	if (!suffix.empty()) {
 		return fileName.substr(0, fileName.size() - suffix.size());
@@ -203,7 +211,7 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 	std::string currentPath = root_.virtualPath;
 	for (const auto& part : relativeDirectory) {
 
-		const std::string name = part.string();
+		const std::string name = Algorithm::PathToUTF8(part);
 		currentPath += "/" + name;
 		auto it = std::find_if(current->children.begin(), current->children.end(),
 			[&](const std::unique_ptr<ProjectDirectoryNode>& child) {

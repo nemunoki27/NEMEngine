@@ -18,10 +18,11 @@ namespace Engine {
 			return;
 		}
 		// 拡張子がJSONでなければバイナリアセット除外として処理しない
-		if (Engine::Algorithm::ToLower(path.extension().string()) != ".json") { return; }
+		if (Engine::Algorithm::ToLower(
+			Engine::Algorithm::PathToUTF8(path.extension())) != ".json") { return; }
 
 		// JSONデータを読み込み失敗した場合は中断
-		nlohmann::json data = Engine::JsonAdapter::Load(path.string(), false);
+		nlohmann::json data = Engine::JsonAdapter::Load(path, false);
 		if (!data.is_object()) { return; }
 
 		// ファイル名から拡張子を除いた新しいアセット名を取得
@@ -37,7 +38,7 @@ namespace Engine {
 			data["name"] = assetName;
 		}
 		// 変更後のJSONをファイルへ保存
-		Engine::JsonAdapter::Save(path.string(), data);
+		Engine::JsonAdapter::Save(path, data);
 	}
 
 	void ProjectAssetFileUtility::PatchDuplicatedJsonAsset(const std::filesystem::path& path, AssetType type) {
@@ -74,16 +75,19 @@ namespace Engine {
 
 	bool ProjectAssetFileUtility::ShouldSkipCopyFile(const std::filesystem::path& path) {
 		// .metaファイルやその一時ファイルをファイル操作の対象から除外するための判定
-		const std::string fileName = Engine::Algorithm::ToLower(path.filename().string());
+		const std::string fileName = Engine::Algorithm::ToLower(
+			Engine::Algorithm::PathToUTF8(path.filename()));
 		return Engine::Algorithm::EndsWith(fileName, ".meta") || fileName.find(".meta.") != std::string::npos;
 	}
 
-	std::vector<std::filesystem::path> ProjectAssetFileUtility::BuildAssetSidecarPaths(const ProjectAssetEntry& asset, const std::filesystem::path& assetPath) {
+	std::vector<std::filesystem::path> ProjectAssetFileUtility::BuildAssetSidecarPaths(
+		const ProjectAssetEntry& asset, const std::filesystem::path& assetPath) {
 		std::vector<std::filesystem::path> result;
 		// アセット本体に随行する.meta等のパスリストを作成し削除や移動の際に一括処理するために使用
 		result.emplace_back(MakeMetaPath(assetPath));
-		for (const std::string& sidecar : asset.sidecarFiles) { 
-			result.emplace_back(assetPath.parent_path() / sidecar); 
+		for (const std::string& sidecar : asset.sidecarFiles) {
+			result.emplace_back(assetPath.parent_path() /
+				Engine::Algorithm::PathFromUTF8(sidecar));
 		}
 		return result;
 	}

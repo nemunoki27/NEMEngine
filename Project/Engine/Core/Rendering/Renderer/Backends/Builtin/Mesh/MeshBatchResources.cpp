@@ -584,7 +584,8 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			return UINT32_MAX;
 		}
 		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
-			graphicsCore, drawContext.assetDatabase, assetID, sRGB);
+			graphicsCore, drawContext.assetDatabase, assetID,
+			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear);
 		if (!texture || texture->srvIndex == UINT32_MAX) {
 			return fallbackSRVIndex;
 		}

@@ -41,7 +41,7 @@ namespace {
 		const std::filesystem::path& assetFullPath) {
 
 		const std::string fileName = Engine::Algorithm::ToLower(
-			assetFullPath.filename().string());
+			Engine::Algorithm::PathToUTF8(assetFullPath.filename()));
 		for (const CompoundAssetSuffix& entry : kCompoundAssetSuffixes) {
 			if (Engine::Algorithm::EndsWith(fileName,
 				std::string(entry.suffix))) {
@@ -58,7 +58,8 @@ namespace {
 Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::path& assetFullPath) {
 
 	// 比較対象はすべて小文字へ寄せて複合サフィックスはfilename、単一拡張子はextensionで見る
-	const std::string extension = Algorithm::ToLower(assetFullPath.extension().string());
+	const std::string extension = Algorithm::ToLower(
+		Algorithm::PathToUTF8(assetFullPath.extension()));
 
 	// 複合サフィックスを先に判定する(.scene.jsonなどは拡張子だけでは区別できないため)
 	if (const CompoundAssetSuffix* compound =
@@ -76,7 +77,8 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 		return AssetType::Shader;
 	}
 	if (extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
-		extension == ".dds" || extension == ".tga" || extension == ".bmp") {
+		extension == ".dds" || extension == ".tga" || extension == ".bmp" ||
+		extension == ".gif" || extension == ".hdr") {
 		return AssetType::Texture;
 	}
 	if (extension == ".obj" || extension == ".gltf" || extension == ".glb") {

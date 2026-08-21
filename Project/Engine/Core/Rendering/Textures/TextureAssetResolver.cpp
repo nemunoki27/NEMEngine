@@ -20,9 +20,11 @@ std::string Engine::TextureAssetResolver::NormalizeStem(const std::string_view& 
 
 bool Engine::TextureAssetResolver::IsTextureExtension(const std::filesystem::path& path) {
 
-	const std::string ext = Algorithm::ToLower(path.extension().string());
+	const std::string ext = Algorithm::ToLower(
+		Algorithm::PathToUTF8(path.extension()));
 	return ext == ".dds" || ext == ".png" || ext == ".jpg" ||
-		ext == ".jpeg" || ext == ".tga" || ext == ".bmp";
+		ext == ".jpeg" || ext == ".tga" || ext == ".bmp" ||
+		ext == ".gif" || ext == ".hdr";
 }
 
 std::string Engine::TextureAssetResolver::ToAssetPath(const std::filesystem::path& fullPath) {

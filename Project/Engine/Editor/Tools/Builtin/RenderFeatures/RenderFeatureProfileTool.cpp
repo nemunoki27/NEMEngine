@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -181,7 +182,8 @@ bool Engine::RenderFeatureProfileTool::EnsureProfile(
 	std::error_code ec;
 	std::filesystem::create_directories(fullPath.parent_path(), ec);
 	RenderFeatureProfileAsset profile{};
-	profile.name = std::filesystem::path(assetPath).stem().string();
+	profile.name = Algorithm::PathToUTF8(
+		Algorithm::PathFromUTF8(assetPath).stem());
 	if (!RenderFeatureProfileSerializer::Save(fullPath, profile)) {
 		statusMessage_ = "プロファイル作成に失敗しました";
 		statusError_ = true;

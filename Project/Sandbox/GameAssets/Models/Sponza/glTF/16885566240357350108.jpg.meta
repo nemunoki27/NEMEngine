@@ -1,8 +1,18 @@
 {
   "guid": "d332b2d3f71ef9a38bb54caec10cd153",
   "importer": "TextureImporter",
-  "importerVersion": 1,
+  "importerVersion": 2,
   "schemaVersion": 2,
-  "settings": {},
+  "settings": {
+    "addressU": "Wrap",
+    "addressV": "Wrap",
+    "alphaColorBleed": false,
+    "colorSpace": "Linear",
+    "filter": "Anisotropic",
+    "generateMipmaps": true,
+    "maxAnisotropy": 8,
+    "normalConvention": "OpenGL",
+    "preset": "Data"
+  },
   "type": "Texture"
 }

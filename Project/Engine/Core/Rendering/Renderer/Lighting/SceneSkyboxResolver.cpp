@@ -39,7 +39,8 @@ Engine::SceneSkyboxInfo Engine::SceneSkyboxResolver::Resolve(
 
 	// cubemapテクスチャを解決する
 	const GPUTextureResource* cubemap = RuntimeTextureResolver::Resolve(
-		graphicsCore, assetDatabase, skybox->cubemapTexture, false);
+		graphicsCore, assetDatabase, skybox->cubemapTexture,
+		TextureColorSpace::Linear);
 	if (!cubemap || cubemap->srvIndex == UINT32_MAX) {
 		return info;
 	}

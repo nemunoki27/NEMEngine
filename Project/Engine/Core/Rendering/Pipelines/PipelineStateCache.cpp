@@ -39,12 +39,17 @@ namespace {
 	}
 	// パイプラインバリアントの情報とシェーダーアセットからグラフィックスパイプラインの記述を構築する
 	bool BuildGraphicsPipelineDesc(const Engine::PipelineVariantDesc& variant, const Engine::ShaderAsset& shaderAsset,
-		std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat, Engine::GraphicsPipelineDesc& outDesc) {
+		std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
+		const Engine::PipelineStaticSamplerOverrideSet* samplerOverrides,
+		Engine::GraphicsPipelineDesc& outDesc) {
 
 		// 基本的な情報をセット
 		outDesc = Engine::GraphicsPipelineDesc{};
 		outDesc.type = variant.pipelineType;
 		outDesc.staticSamplers = variant.staticSamplers;
+		if (samplerOverrides) {
+			outDesc.staticSamplerOverrides = *samplerOverrides;
+		}
 		outDesc.rasterizer = variant.rasterizer;
 		outDesc.depthStencil = variant.depthStencil;
 		outDesc.sampleDesc = variant.sampleDesc;
@@ -259,7 +264,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	composedVariant.requiresMeshShader = geometryVariant->requiresMeshShader;
 
 	GraphicsPipelineDesc desc{};
-	if (!BuildGraphicsPipelineDesc(composedVariant, composedShader, runtimeRTVFormats, runtimeDSVFormat, desc)) {
+	if (!BuildGraphicsPipelineDesc(composedVariant, composedShader,
+		runtimeRTVFormats, runtimeDSVFormat, nullptr, desc)) {
 		return restoreFallback();
 	}
 	std::unique_ptr<PipelineState> pipelineState = std::make_unique<PipelineState>();
@@ -318,7 +324,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
 	key.depthForcedTestWrite = forceDepthTestWrite;
-	key.formatHash = HashFormats(runtimeRTVFormats, (variant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant->dsvFormat : runtimeDSVFormat);
+	key.formatHash = HashFormats(runtimeRTVFormats,
+		variant->dsvFormat != DXGI_FORMAT_UNKNOWN ?
+		variant->dsvFormat : runtimeDSVFormat);
 	key.samplerHash = HashStaticSamplerOverrides(samplerOverrides);
 
 	// キャッシュに存在する場合はそれを返す
@@ -352,7 +360,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	{
 		// グラフィックスパイプラインの記述を構築
 		GraphicsPipelineDesc desc{};
-		if (!BuildGraphicsPipelineDesc(*variant, *shaderAsset, runtimeRTVFormats, runtimeDSVFormat, desc)) {
+		if (!BuildGraphicsPipelineDesc(*variant, *shaderAsset, runtimeRTVFormats,
+			runtimeDSVFormat, samplerOverrides, desc)) {
 			return restoreFallback();
 		}
 		// 次元で深度挙動を変える描画用に、深度テスト+書き込みを強制する

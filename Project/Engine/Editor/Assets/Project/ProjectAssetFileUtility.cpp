@@ -27,6 +27,15 @@ namespace Engine {
 		std::filesystem::path to;
 	};
 
+	// 対象アセットと同じstemへ指定拡張子を付けた兄弟パスを作る
+	std::filesystem::path MakeSiblingPath(const std::filesystem::path& targetPath,
+		const std::filesystem::path& extension) {
+
+		std::filesystem::path result = targetPath.parent_path() / targetPath.stem();
+		result += extension;
+		return result;
+	}
+
 } // Engine
 
 //============================================================================
@@ -73,12 +82,12 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 
 std::string Engine::ProjectAssetFileUtility::GetEditableAssetName(const ProjectAssetEntry& asset) {
 	// 拡張子を取り除いた、編集可能な名前部分を抽出
-	return SplitAssetFileName(std::filesystem::path(asset.assetPath)).first;
+	return SplitAssetFileName(Algorithm::PathFromUTF8(asset.assetPath)).first;
 }
 
 std::string Engine::ProjectAssetFileUtility::GetProtectedAssetSuffix(const ProjectAssetEntry& asset) {
 	// 変更不可能なアセット固有の拡張子部分を抽出
-	return SplitAssetFileName(std::filesystem::path(asset.assetPath)).second;
+	return SplitAssetFileName(Algorithm::PathFromUTF8(asset.assetPath)).second;
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAssetSource source,
@@ -110,9 +119,10 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 	}
 
 	// 同一名称がある場合は自動的に連番を付与して一意のパスを作成
-	const std::filesystem::path preferredPath = kind == ProjectAssetFileKind::Folder ?
-		directory / baseName :
-		directory / (baseName + suffix);
+	const std::string requestedPath = kind == ProjectAssetFileKind::Folder ?
+		baseName : baseName + suffix;
+	const std::filesystem::path preferredPath =
+		directory / Algorithm::PathFromUTF8(requestedPath);
 	const std::filesystem::path createPath = MakeUniquePath(preferredPath);
 	if (createPath.empty()) {
 		result.message = "Failed to build unique file path.";
@@ -173,13 +183,14 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 	// モデルのbin等のサイドカーファイルを合わせてコピーする、.metaは新規発行する
 	for (const std::string& sidecar : asset.sidecarFiles) {
 
-		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
+		const std::filesystem::path sidecarSource =
+			sourcePath.parent_path() / Algorithm::PathFromUTF8(sidecar);
 		if (!std::filesystem::exists(sidecarSource)) {
 			continue;
 		}
 
 		const std::filesystem::path sidecarTarget =
-			targetPath.parent_path() / (targetPath.stem().string() + sidecarSource.extension().string());
+			MakeSiblingPath(targetPath, sidecarSource.extension());
 		std::filesystem::copy_file(sidecarSource, sidecarTarget, std::filesystem::copy_options::none, ec);
 	}
 
@@ -230,13 +241,14 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const 
 	// モデルのbin等のサイドカーファイルを合わせてコピーする、.metaは新規発行する
 	for (const std::string& sidecar : asset.sidecarFiles) {
 
-		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
+		const std::filesystem::path sidecarSource =
+			sourcePath.parent_path() / Algorithm::PathFromUTF8(sidecar);
 		if (!std::filesystem::exists(sidecarSource)) {
 			continue;
 		}
 
 		const std::filesystem::path sidecarTarget =
-			targetPath.parent_path() / (targetPath.stem().string() + sidecarSource.extension().string());
+			MakeSiblingPath(targetPath, sidecarSource.extension());
 		std::filesystem::copy_file(sidecarSource, sidecarTarget, std::filesystem::copy_options::none, ec);
 	}
 
@@ -265,7 +277,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(cons
 		baseName = currentBaseName;
 	}
 
-	const std::filesystem::path targetPath = sourcePath.parent_path() / (baseName + suffix);
+	const std::filesystem::path targetPath =
+		sourcePath.parent_path() / Algorithm::PathFromUTF8(baseName + suffix);
 	// 変更がないなら成功扱い
 	if (targetPath == sourcePath) {
 		result.success = true;
@@ -317,13 +330,14 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(cons
 	// その他サイドカーファイルもリネーム
 	for (const std::string& sidecar : asset.sidecarFiles) {
 
-		const std::filesystem::path sidecarSource = sourcePath.parent_path() / sidecar;
+		const std::filesystem::path sidecarSource =
+			sourcePath.parent_path() / Algorithm::PathFromUTF8(sidecar);
 		if (!std::filesystem::exists(sidecarSource)) {
 			continue;
 		}
 
 		const std::filesystem::path sidecarTarget =
-			targetPath.parent_path() / (targetPath.stem().string() + sidecarSource.extension().string());
+			MakeSiblingPath(targetPath, sidecarSource.extension());
 
 		ec.clear();
 		std::filesystem::rename(sidecarSource, sidecarTarget, ec);
@@ -360,12 +374,14 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameDirectory(
 	}
 
 	// フォルダ名にも使えない文字は除去する、空になったら元の名前を維持する
-	std::string baseName = SanitizeFileName(requestedName.empty() ? sourcePath.filename().string() : requestedName);
+	std::string baseName = SanitizeFileName(requestedName.empty() ?
+		Algorithm::PathToUTF8(sourcePath.filename()) : requestedName);
 	if (baseName.empty()) {
-		baseName = sourcePath.filename().string();
+		baseName = Algorithm::PathToUTF8(sourcePath.filename());
 	}
 
-	const std::filesystem::path targetPath = sourcePath.parent_path() / baseName;
+	const std::filesystem::path targetPath =
+		sourcePath.parent_path() / Algorithm::PathFromUTF8(baseName);
 	// 変更がないなら成功扱い
 	if (targetPath == sourcePath) {
 		result.success = true;

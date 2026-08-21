@@ -21,14 +21,19 @@ namespace Engine {
 
 		// アセットIDからGPUテクスチャリソースを解決し未ロードなら読み込み要求を行う
 		const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,
-			AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB = false);
+			const AssetDatabase* assetDatabase, AssetID textureAssetID,
+			TextureColorSpace requestedColorSpace = TextureColorSpace::Auto);
 		// bindless SRV indexを解決し、非同期ロード中なら次フレーム再試行を要求する
 		BindlessResolveResult ResolveBindless(GraphicsCore& graphicsCore,
-			AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB = false);
+			const AssetDatabase* assetDatabase, AssetID textureAssetID,
+			TextureColorSpace requestedColorSpace = TextureColorSpace::Auto);
+		// アセットの.metaから正規化済みImporter設定を取得する
+		TextureImportSettings ResolveImportSettings(
+			const AssetDatabase* assetDatabase, AssetID textureAssetID);
 
 		// テクスチャの実ピクセルサイズを取得する、ロード済みのときのみtrueを返しフォールバックは対象外
 		bool TryResolveSize(GraphicsCore& graphicsCore,
-			AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize);
+			const AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize);
 
 	} // RuntimeTextureResolver
 } // Engine

@@ -4,11 +4,45 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+
+// c++
+#include <format>
+
+//============================================================================
+//	RuntimeTextureResolver internal
+//============================================================================
+namespace {
+
+	// Importer色空間が明示済みなら描画用途に依存しない同一GPUリソースへ統合する
+	std::string MakeTextureKey(const std::string& path,
+		const Engine::TextureImportSettings& importSettings,
+		Engine::TextureColorSpace requestedColorSpace) {
+
+		const Engine::TextureColorSpace cacheColorSpace =
+			importSettings.colorSpace == Engine::TextureColorSpace::Auto ?
+			requestedColorSpace : Engine::TextureColorSpace::Auto;
+		return std::format("{}:texture:{}", path,
+			static_cast<uint32_t>(cacheColorSpace));
+	}
+}
 
 namespace Engine::RuntimeTextureResolver {
 
+	TextureImportSettings ResolveImportSettings(
+		const AssetDatabase* assetDatabase, AssetID textureAssetID) {
+
+		if (!assetDatabase || !textureAssetID) {
+			return MakeTextureImportSettings(TextureImportPreset::Default);
+		}
+		const AssetMeta* meta = assetDatabase->Find(textureAssetID);
+		return meta ? ParseTextureImportSettings(meta->importerSettings) :
+			MakeTextureImportSettings(TextureImportPreset::Default);
+	}
+
 	const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,
-		AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB) {
+		const AssetDatabase* assetDatabase, AssetID textureAssetID,
+		TextureColorSpace requestedColorSpace) {
 
 		// フォールバック用のエラーテクスチャを取得
 		const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
@@ -28,8 +62,11 @@ namespace Engine::RuntimeTextureResolver {
 		}
 
 		TextureUploadService& uploadService = graphicsCore.GetTextureUploadService();
-		const std::string basePath = fullPath.generic_string();
-		const std::string key = sRGB ? basePath + ":srgb" : basePath;
+		const std::string basePath = Algorithm::PathToUTF8(fullPath);
+		const TextureImportSettings importSettings = ResolveImportSettings(
+			assetDatabase, textureAssetID);
+		const std::string key = MakeTextureKey(
+			basePath, importSettings, requestedColorSpace);
 
 		// 未リクエストならリクエストを投げる
 		if (uploadService.GetState(key) == TextureRequestState::None) {
@@ -37,7 +74,8 @@ namespace Engine::RuntimeTextureResolver {
 			TextureFileRequestDesc desc{};
 			desc.key = key;
 			desc.assetPath = basePath;
-			desc.forceSRGB = sRGB;
+			desc.importSettings = importSettings;
+			desc.requestedColorSpace = requestedColorSpace;
 			uploadService.RequestTextureFile(desc);
 		}
 
@@ -52,7 +90,8 @@ namespace Engine::RuntimeTextureResolver {
 	}
 
 	BindlessResolveResult ResolveBindless(GraphicsCore& graphicsCore,
-		AssetDatabase* assetDatabase, AssetID textureAssetID, bool sRGB) {
+		const AssetDatabase* assetDatabase, AssetID textureAssetID,
+		TextureColorSpace requestedColorSpace) {
 
 		if (!textureAssetID) {
 			return {};
@@ -75,15 +114,19 @@ namespace Engine::RuntimeTextureResolver {
 
 		TextureUploadService& uploadService =
 			graphicsCore.GetTextureUploadService();
-		const std::string basePath = fullPath.generic_string();
-		const std::string key = sRGB ? basePath + ":srgb" : basePath;
+		const std::string basePath = Algorithm::PathToUTF8(fullPath);
+		const TextureImportSettings importSettings = ResolveImportSettings(
+			assetDatabase, textureAssetID);
+		const std::string key = MakeTextureKey(
+			basePath, importSettings, requestedColorSpace);
 		TextureRequestState state = uploadService.GetState(key);
 		if (state == TextureRequestState::None) {
 
 			TextureFileRequestDesc desc{};
 			desc.key = key;
 			desc.assetPath = basePath;
-			desc.forceSRGB = sRGB;
+			desc.importSettings = importSettings;
+			desc.requestedColorSpace = requestedColorSpace;
 			uploadService.RequestTextureFile(desc);
 			state = TextureRequestState::Queued;
 		}
@@ -98,7 +141,7 @@ namespace Engine::RuntimeTextureResolver {
 	}
 
 	bool TryResolveSize(GraphicsCore& graphicsCore,
-		AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize) {
+		const AssetDatabase* assetDatabase, AssetID textureAssetID, Vector2& outSize) {
 
 		if (!textureAssetID || !assetDatabase) {
 			return false;
@@ -111,14 +154,19 @@ namespace Engine::RuntimeTextureResolver {
 		}
 
 		TextureUploadService& uploadService = graphicsCore.GetTextureUploadService();
-		const std::string key = fullPath.generic_string();
+		const std::string basePath = Algorithm::PathToUTF8(fullPath);
+		const TextureImportSettings importSettings = ResolveImportSettings(
+			assetDatabase, textureAssetID);
+		const std::string key = MakeTextureKey(
+			basePath, importSettings, TextureColorSpace::Auto);
 
 		// 未リクエストなら読み込みを促す、ロード済みになるまでは実サイズが確定しない
 		if (uploadService.GetState(key) == TextureRequestState::None) {
 
 			TextureFileRequestDesc desc{};
 			desc.key = key;
-			desc.assetPath = key;
+			desc.assetPath = basePath;
+			desc.importSettings = importSettings;
 			uploadService.RequestTextureFile(desc);
 		}
 

@@ -54,6 +54,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
+#include <exception>
 #include <fstream>
 #include <filesystem>
 #include <initializer_list>
@@ -67,6 +68,30 @@
 //	ProjectPanel classMethods
 //============================================================================
 namespace {
+
+	// 透過テクスチャの背景へチェッカーを描画する
+	void DrawTextureCheckerboard(ImDrawList* drawList,
+		const ImVec2& min, const ImVec2& max) {
+
+		constexpr float kCellSize = 8.0f;
+		const ImU32 colors[2]{
+			IM_COL32(62, 62, 62, 255),
+			IM_COL32(94, 94, 94, 255),
+		};
+		uint32_t row = 0;
+		for (float y = min.y; y < max.y; y += kCellSize, ++row) {
+
+			uint32_t column = 0;
+			for (float x = min.x; x < max.x; x += kCellSize, ++column) {
+
+				drawList->AddRectFilled(
+					ImVec2(x, y),
+					ImVec2((std::min)(x + kCellSize, max.x),
+						(std::min)(y + kCellSize, max.y)),
+					colors[(row + column) & 1]);
+			}
+		}
+	}
 
 
 	// アイテムの幅に基づいて利用可能な幅に収まる列数を計算する
@@ -316,17 +341,31 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 	bool imported = false;
 	for (const std::string& path : droppedPaths) {
 
-		std::error_code ec;
-		const std::filesystem::path externalPath(path);
-		const ProjectAssetFileResult result = std::filesystem::is_directory(externalPath, ec) ?
-			ProjectAssetFileUtility::ImportExternalDirectory(assetSource_, selectedDirectory_, externalPath) :
-			ProjectAssetFileUtility::ImportExternalFile(assetSource_, selectedDirectory_, externalPath);
-		if (result.success) {
-			imported = true;
+		try {
+			std::error_code ec;
+			const std::filesystem::path externalPath = Algorithm::PathFromUTF8(path);
+			const ProjectAssetFileResult result = std::filesystem::is_directory(externalPath, ec) ?
+				ProjectAssetFileUtility::ImportExternalDirectory(assetSource_, selectedDirectory_, externalPath) :
+				ProjectAssetFileUtility::ImportExternalFile(assetSource_, selectedDirectory_, externalPath);
+			if (result.success) {
+				imported = true;
+			}
+		}
+		catch (const std::exception& exception) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"[ProjectPanel] failed to import dropped path. path={} error={}", path, exception.what());
 		}
 	}
 	if (imported) {
-		RefreshDatabaseAndIndex(database);
+		try {
+			RefreshDatabaseAndIndex(database);
+		}
+		catch (const std::exception& exception) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"[ProjectPanel] failed to refresh imported assets. error={}", exception.what());
+		}
 	}
 }
 
@@ -361,6 +400,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	// 自前のdirtyか、外部のファイル追加削除で進んだ構造リビジョンの差分でインデックスを再構築する
 	AssetDatabase& database = *context.editorContext->assetDatabase;
+	thumbnailCache_.SetAssetDatabase(&database);
 	if (dirty_ || database.GetStructureRevision() != lastSeenStructureRevision_) {
 		RebuildIndex(database);
 	}
@@ -663,8 +703,53 @@ void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, 
 	ImVec2 uv1(1.0f, 1.0f);
 	ImTextureID textureID = ResolveAssetIconTextureID(asset, uv0, uv1);
 
-	if (ImGui::ImageButton("##AssetButton", textureID, ImVec2(iconSize, iconSize),
-		uv0, uv1, ImVec4(0.06f, 0.06f, 0.06f, 1.0f))) {
+	bool clicked = false;
+	Vector2 textureSize{};
+	if (asset.type == AssetType::Texture &&
+		thumbnailCache_.TryGetAssetTextureSize(asset.assetPath, textureSize)) {
+
+		const ImVec2 buttonMin = ImGui::GetCursorScreenPos();
+		const ImVec2 buttonMax(buttonMin.x + iconSize, buttonMin.y + iconSize);
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		drawList->AddRectFilled(buttonMin, buttonMax,
+			ImGui::GetColorU32(ImGuiCol_FrameBg));
+
+		const float aspect = textureSize.x / textureSize.y;
+		ImVec2 imageSize(iconSize, iconSize);
+		if (1.0f < aspect) {
+			imageSize.y = iconSize / aspect;
+		} else {
+			imageSize.x = iconSize * aspect;
+		}
+		const ImVec2 imageMin(
+			buttonMin.x + (iconSize - imageSize.x) * 0.5f,
+			buttonMin.y + (iconSize - imageSize.y) * 0.5f);
+		const ImVec2 imageMax(imageMin.x + imageSize.x, imageMin.y + imageSize.y);
+		DrawTextureCheckerboard(drawList, imageMin, imageMax);
+
+		const ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+		const bool nearest = thumbnailCache_.UsesNearestSampling(asset.assetPath);
+		const ImDrawCallback setSampler = nearest ?
+			platformIO.DrawCallback_SetSamplerNearest :
+			platformIO.DrawCallback_SetSamplerLinear;
+		if (setSampler) {
+			drawList->AddCallback(setSampler);
+		}
+		drawList->AddImage(textureID, imageMin, imageMax, uv0, uv1);
+		if (setSampler && platformIO.DrawCallback_SetSamplerLinear) {
+			drawList->AddCallback(platformIO.DrawCallback_SetSamplerLinear);
+		}
+		drawList->AddRect(buttonMin, buttonMax,
+			ImGui::GetColorU32(ImGuiCol_Border));
+		clicked = ImGui::InvisibleButton(
+			"##AssetButton", ImVec2(iconSize, iconSize));
+	} else {
+
+		clicked = ImGui::ImageButton("##AssetButton", textureID,
+			ImVec2(iconSize, iconSize), uv0, uv1,
+			ImVec4(0.06f, 0.06f, 0.06f, 1.0f));
+	}
+	if (clicked) {
 
 		// 単クリックはProject内の選択だけに留め、Inspectorへは反映しない
 		selectedAsset_ = asset.assetID;
@@ -930,7 +1015,8 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 	}
 
 	ImGui::Text(pendingRenameIsDirectory_ ? "フォルダ名変更" : "アセット名変更");
-	ImGui::TextDisabled("%s", pendingRenameIsDirectory_ ? pendingRenameDirectoryPath_.c_str() : pendingRenameAsset_.assetPath.c_str());
+	ImGui::TextDisabled("%s", pendingRenameIsDirectory_ ?
+		pendingRenameDirectoryPath_.c_str() : pendingRenameAsset_.assetPath.c_str());
 	if (!renameProtectedSuffix_.empty()) {
 		ImGui::TextDisabled("変更不可拡張子: %s", renameProtectedSuffix_.c_str());
 	}
@@ -1081,7 +1167,8 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
 
 	// .txtは専用エディタを持たないのでOS既定の関連付けで開く、game_charsetの編集はこの経路
-	const std::string extension = Algorithm::ToLower(std::filesystem::path(asset.assetPath).extension().string());
+	const std::string extension = Algorithm::ToLower(
+		Algorithm::PathToUTF8(Algorithm::PathFromUTF8(asset.assetPath).extension()));
 	if (extension == ".txt") {
 
 		EditorShell::OpenWithSystemDefault(RuntimePaths::ResolveAssetPath(asset.assetPath));
@@ -1262,7 +1349,8 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 	}
 }
 
-void Engine::ProjectPanel::RefreshAfterFileOperation([[maybe_unused]] AssetDatabase& database, const ProjectAssetFileResult& result) {
+void Engine::ProjectPanel::RefreshAfterFileOperation(
+	[[maybe_unused]] AssetDatabase& database, const ProjectAssetFileResult& result) {
 
 	if (!result.success) {
 
@@ -1316,11 +1404,11 @@ const char* Engine::ProjectPanel::GetSourceRootPath() const {
 void Engine::ProjectPanel::LoadPersistentState() {
 
 	const std::filesystem::path path = GetProjectPanelStatePath();
-	if (!JsonAdapter::Check(path.string())) {
+	if (!JsonAdapter::Check(path)) {
 		return;
 	}
 
-	const nlohmann::json data = JsonAdapter::Load(path.string());
+	const nlohmann::json data = JsonAdapter::Load(path);
 	if (!data.is_object()) {
 		return;
 	}
@@ -1342,5 +1430,5 @@ void Engine::ProjectPanel::SavePersistentState() const {
 	data["assetSource"] = EnumAdapter<ProjectAssetSource>::ToString(assetSource_);
 	data["selectedDirectory"] = selectedDirectory_;
 
-	JsonAdapter::Save(GetProjectPanelStatePath().string(), data);
+	JsonAdapter::Save(GetProjectPanelStatePath(), data);
 }

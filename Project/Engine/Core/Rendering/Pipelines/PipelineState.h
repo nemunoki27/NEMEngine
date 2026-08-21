@@ -72,6 +72,7 @@ namespace Engine {
 
 		// サンプラー情報
 		std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers;
+		PipelineStaticSamplerOverrideSet staticSamplerOverrides;
 
 		// ラスタライズ設定
 		D3D12_RASTERIZER_DESC rasterizer{};

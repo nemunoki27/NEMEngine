@@ -24,7 +24,8 @@ namespace {
 	bool IsTextureExtension(const std::string& extension) {
 
 		return extension == ".png" || extension == ".dds" || extension == ".tga" ||
-			extension == ".jpg" || extension == ".jpeg" || extension == ".bmp" || extension == ".gif";
+			extension == ".jpg" || extension == ".jpeg" || extension == ".bmp" ||
+			extension == ".gif" || extension == ".hdr";
 	}
 
 	// 対象とするモデル拡張子か
@@ -56,7 +57,8 @@ void Engine::AssetWatchService::Start(AssetDatabase* assetDatabase, TextureUploa
 		if (watcher->Start(root)) {
 
 			watchers_.emplace_back(std::move(watcher));
-			Logger::Output(LogType::Engine, "[AssetWatch] watching: {}", root.generic_string());
+			Logger::Output(LogType::Engine, "[AssetWatch] watching: {}",
+				Algorithm::PathToUTF8(root));
 		}
 	}
 }
@@ -95,7 +97,7 @@ void Engine::AssetWatchService::Update() {
 	// 変更を受理時刻付きで控える、連続書き込みは最後の時刻で上書きしてdebounceを延ばす
 	// 削除やディレクトリの変更も構造変更として扱うため、存在チェックでは弾かずに全て控える
 	for (const std::filesystem::path& path : changed) {
-		pendingChanges_[path.generic_string()] = now;
+		pendingChanges_[path] = now;
 	}
 
 	// debounce窓を過ぎて安定した変更だけを処理へ回す
@@ -105,11 +107,12 @@ void Engine::AssetWatchService::Update() {
 
 		if (now - it->second >= kDebounceDuration) {
 
-			const std::filesystem::path path(it->first);
+			const std::filesystem::path& path = it->first;
 			if (!DispatchReload(path)) {
 
 				// .metaはRebuildMetaが自前で発番する管理ファイルなので、再構築ループ回避のため無視する
-				if (Algorithm::ToLower(path.extension().string()) != ".meta") {
+				if (Algorithm::ToLower(
+					Algorithm::PathToUTF8(path.extension())) != ".meta") {
 					structureChanged = true;
 				}
 			}
@@ -135,7 +138,31 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 	std::error_code ec{};
 	const bool isRegularFile = std::filesystem::is_regular_file(path, ec) && !ec;
 
-	const std::string extension = Algorithm::ToLower(path.extension().string());
+	const std::string extension = Algorithm::ToLower(
+		Algorithm::PathToUTF8(path.extension()));
+	if (extension == ".meta") {
+
+		// Importer設定の外部変更をDBと既存GPUテクスチャへ同時に反映する
+		std::filesystem::path assetFullPath = path;
+		assetFullPath.replace_extension();
+		assetDatabase_->RebuildMeta();
+		if (textureUploadService_) {
+
+			const std::string changedAssetPath = RuntimePaths::ToAssetPath(assetFullPath);
+			const AssetMeta* changedMeta = changedAssetPath.empty() ? nullptr :
+				assetDatabase_->FindByPath(changedAssetPath);
+			if (changedMeta && changedMeta->type == AssetType::Texture) {
+
+				const TextureImportSettings settings = ParseTextureImportSettings(
+					changedMeta->importerSettings);
+				textureUploadService_->RequestReloadByFile(assetFullPath, &settings);
+			}
+		}
+		Logger::Output(LogType::Engine,
+			"[AssetWatch] importer settings changed: {}",
+			Algorithm::PathToUTF8(assetFullPath));
+		return true;
+	}
 
 	// 内容リロードは実ファイルが存在するときだけ行う、削除やディレクトリ変更は構造変更へ回す
 	if (!isRegularFile) {

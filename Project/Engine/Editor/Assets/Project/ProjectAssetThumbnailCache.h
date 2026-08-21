@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Foundation/Math/Vector2.h>
 
 // c++
 #include <string>
@@ -15,6 +16,7 @@ namespace Engine {
 
 	// front
 	class TextureUploadService;
+	class AssetDatabase;
 
 	//============================================================================
 	//	ProjectAssetThumbnailCache class
@@ -31,6 +33,8 @@ namespace Engine {
 
 		// 初期化
 		void Init(TextureUploadService& textureUploadService);
+		// 現在のアセットDBを設定する
+		void SetAssetDatabase(const AssetDatabase* assetDatabase);
 
 		// 終了処理
 		void Finalize();
@@ -40,6 +44,10 @@ namespace Engine {
 		// フォルダアイコンのテクスチャIDを取得
 		ImTextureID GetFolderIconTextureID() const;
 		ImTextureID GetAssetTextureID(const std::string& assetPath, AssetType type);
+		// 読み込み済みサムネイルの実ピクセルサイズを取得する
+		bool TryGetAssetTextureSize(const std::string& assetPath, Vector2& outSize) const;
+		// Pointサンプリングするテクスチャか
+		bool UsesNearestSampling(const std::string& assetPath) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -57,6 +65,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		TextureUploadService* textureUploadService_ = nullptr;
+		const AssetDatabase* assetDatabase_ = nullptr;
 
 		// 表示するアイコン
 		std::unordered_map<AssetType, IconEntry> defaultIcons_;

@@ -241,7 +241,8 @@ bool Engine::RayTracingExecutor::Execute(
 			const RuntimeTextureResolver::BindlessResolveResult resolved =
 				RuntimeTextureResolver::ResolveBindless(graphicsCore,
 					context.assetDatabase, textureAssetID,
-					IsSRGBMaterialTexture(semantic));
+					IsSRGBMaterialTexture(semantic) ?
+					TextureColorSpace::SRGB : TextureColorSpace::Linear);
 			return MaterialParameterBufferBuilder::TextureResolveResult{
 				.index = resolved.srvIndex,
 				.cacheable = !resolved.retry,

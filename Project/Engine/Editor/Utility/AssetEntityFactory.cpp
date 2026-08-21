@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 
 // c++
@@ -30,7 +31,8 @@ namespace {
 	// アセットパスから表示名を作る
 	std::string MakeNameFromPath(const char* assetPath) {
 
-		std::string stem = std::filesystem::path(assetPath).stem().string();
+		std::string stem = Engine::Algorithm::PathToUTF8(
+			Engine::Algorithm::PathFromUTF8(assetPath).stem());
 		return stem.empty() ? std::string("Entity") : stem;
 	}
 

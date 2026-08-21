@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
 // c++
 #include <algorithm>
@@ -44,11 +45,14 @@ namespace Engine {
 	}
 
 	std::string MakeAssetDisplayNameFromPath(const std::string& assetPath) {
-		const std::filesystem::path path(assetPath);
-		const std::string fileName = path.filename().string();
+		const std::filesystem::path path = Engine::Algorithm::PathFromUTF8(assetPath);
+		const std::string fileName = Engine::Algorithm::PathToUTF8(path.filename());
 		const std::string lower = Engine::Algorithm::ToLower(fileName);
 
-		static constexpr const char* suffixes[] = { ".scene.json", ".prefab.json", ".material.json", ".shader.json", ".pipeline.json", ".animclip.json", ".graph.json" };
+		static constexpr const char* suffixes[] = {
+			".scene.json", ".prefab.json", ".material.json", ".shader.json",
+			".pipeline.json", ".animclip.json", ".graph.json"
+		};
 		for (const char* suffix : suffixes) {
 			if (Engine::Algorithm::EndsWith(lower, suffix)) {
 				return fileName.substr(0, fileName.size() - std::strlen(suffix));
@@ -62,27 +66,20 @@ namespace Engine {
 		const AssetMeta* meta = assetDatabase->Find(assetID);
 		if (!meta || meta->type != AssetType::Texture) { return ImTextureID{}; }
 
-		auto& texService = graphicsCore->GetTextureUploadService();
-		const std::string previewKey = "gui:texture:preview:" + meta->assetPath;
-		// まだロード要求が出ていないなら開始
-		if (texService.GetState(previewKey) == TextureRequestState::None) {
-			TextureFileRequestDesc desc{};
-			desc.key = previewKey;
-			desc.assetPath = meta->assetPath;
-			desc.forceSRGB = true;
-			texService.RequestTextureFile(desc);
-		}
-		// ロード完了済みならGPUハンドルを返す
-		if (const GPUTextureResource* tex = texService.GetTexture(previewKey)) {
-			if (tex->valid) { return static_cast<ImTextureID>(tex->gpuHandle.ptr); }
+		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
+			*graphicsCore, assetDatabase, assetID,
+			TextureColorSpace::SRGB);
+		if (texture && texture->valid) {
+			return static_cast<ImTextureID>(texture->gpuHandle.ptr);
 		}
 		return ImTextureID{};
 	}
 
 	AssetType GuessDroppedAssetType(const EditorAssetDragDropPayload& payload) {
 		const std::string assetPath = Engine::Algorithm::ToLower(payload.assetPath);
-		const std::filesystem::path path(assetPath);
-		const std::string extension = Engine::Algorithm::ToLower(path.extension().string());
+		const std::filesystem::path path = Engine::Algorithm::PathFromUTF8(assetPath);
+		const std::string extension = Engine::Algorithm::ToLower(
+			Engine::Algorithm::PathToUTF8(path.extension()));
 		if (Engine::Algorithm::EndsWith(assetPath, ".animclip.json") || extension == ".animclip") {
 			return AssetType::AnimationClip;
 		}

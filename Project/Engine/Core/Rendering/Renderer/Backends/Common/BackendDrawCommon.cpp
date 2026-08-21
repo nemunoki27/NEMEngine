@@ -60,7 +60,8 @@ bool Engine::BackendDrawCommon::ResolveMaterialPass(const RenderDrawContext& con
 
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const RenderDrawContext& context, const MaterialPassBinding& passBinding,
-	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite) {
+	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
+	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
 		PipelineVariantKind::GraphicsVertex :
@@ -72,7 +73,7 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	}
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
-		context.runtimeFeatures, outVariant, forceDepthTestWrite);
+		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides);
 }
 
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsPipeline(
@@ -163,9 +164,11 @@ void Engine::BackendDrawCommon::AppendGraphicsBufferBindings(const RenderBufferR
 }
 
 const Engine::GPUTextureResource* Engine::BackendDrawCommon::ResolveTextureAsset(
-	const RenderDrawContext& context, GraphicsCore& graphicsCore, AssetID textureAssetID) {
+	const RenderDrawContext& context, GraphicsCore& graphicsCore, AssetID textureAssetID,
+	TextureColorSpace requestedColorSpace) {
 
-	return RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase, textureAssetID);
+	return RuntimeTextureResolver::Resolve(graphicsCore, context.assetDatabase,
+		textureAssetID, requestedColorSpace);
 }
 
 Engine::MaterialParameterBufferBuilder::TextureResolveResult
@@ -179,7 +182,8 @@ Engine::BackendDrawCommon::ResolveMaterialTextureIndex(
 	const RuntimeTextureResolver::BindlessResolveResult result =
 		RuntimeTextureResolver::ResolveBindless(
 			*context.graphicsCore, context.assetDatabase,
-			textureAssetID, IsSRGBMaterialTexture(semantic));
+			textureAssetID, IsSRGBMaterialTexture(semantic) ?
+			TextureColorSpace::SRGB : TextureColorSpace::Linear);
 	uint32_t textureIndex = result.srvIndex;
 	if (semantic == MaterialParameterSemantic::DisplacementTexture) {
 
@@ -219,7 +223,9 @@ void Engine::BackendDrawCommon::BindMaterialTextures(const RenderDrawContext& co
 
 		// 未指定や解決失敗はSemanticごとの中立テクスチャへフォールバックする
 		const GPUTextureResource* texture = textureBinding.textureID ?
-			ResolveTextureAsset(context, graphicsCore, textureBinding.textureID) : nullptr;
+			ResolveTextureAsset(context, graphicsCore, textureBinding.textureID,
+				IsSRGBMaterialTexture(textureBinding.semantic) ?
+				TextureColorSpace::SRGB : TextureColorSpace::Linear) : nullptr;
 		if (textureBinding.semantic ==
 			MaterialParameterSemantic::DisplacementTexture &&
 			texture == errorTexture) {

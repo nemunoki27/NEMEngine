@@ -27,7 +27,8 @@ namespace {
 
 	bool IsExternalActorsDirectory(const std::filesystem::path& path) {
 
-		return Engine::Algorithm::ToLower(path.filename().string()) == "externalactors";
+		return Engine::Algorithm::ToLower(
+			Engine::Algorithm::PathToUTF8(path.filename())) == "externalactors";
 	}
 
 	std::string_view ResolveImporterName(Engine::AssetType type) {
@@ -330,7 +331,7 @@ void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path
 			}
 
 			const std::filesystem::path fullPath = it->path();
-			const std::string filename = fullPath.filename().string();
+			const std::string filename = Algorithm::PathToUTF8(fullPath.filename());
 			// .metaは索引対象外
 			if (Algorithm::EndsWith(filename, ".meta") || filename.find(".meta.") != std::string::npos) {
 				continue;
@@ -379,7 +380,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 			// 壊れた.metaは静かに新UIDで上書きせず診断に残してスキップする
 			AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
-				AssetType::Unknown, AssetType::Unknown, assetPath, metaFull.generic_string(),
+				AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
 				"failed to parse .meta" });
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"[AssetDatabase] corrupt .meta skipped: {}", assetPath);
@@ -410,7 +411,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 	if (!meta.guid) {
 		AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
-			AssetType::Unknown, AssetType::Unknown, assetPath, metaFull.generic_string(),
+			AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
 			"invalid guid" });
 		return {};
 	}
@@ -477,6 +478,30 @@ void Engine::AssetDatabase::RefreshDependencies(AssetID id) {
 	}
 }
 
+bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id,
+	const nlohmann::json& settings, uint32_t importerVersion) {
+
+	auto found = guidToMeta_.find(id);
+	if (found == guidToMeta_.end()) {
+		return false;
+	}
+
+	AssetMeta& meta = found->second;
+	const nlohmann::json previousSettings = meta.importerSettings;
+	const uint32_t previousVersion = meta.importerVersion;
+	meta.importerSettings = settings.is_object() ? settings : nlohmann::json::object();
+	meta.importerVersion = importerVersion;
+
+	const std::filesystem::path fullPath = ResolveAssetPath(meta.assetPath);
+	if (!SaveMeta(MetaPathOf(fullPath), meta)) {
+
+		meta.importerSettings = previousSettings;
+		meta.importerVersion = previousVersion;
+		return false;
+	}
+	return true;
+}
+
 std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const AssetMeta& meta) {
 
 	std::vector<AssetID> dependencies;
@@ -491,7 +516,7 @@ std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const As
 		return dependencies;
 	}
 	// Shader種別には.hlsl/.hlsli等の非JSONも含まれるため、実体が.jsonのものだけ解析する
-	if (Algorithm::ToLower(fullPath.extension().string()) != ".json") {
+	if (Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension())) != ".json") {
 		return dependencies;
 	}
 
@@ -560,7 +585,7 @@ void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::
 
 			const std::filesystem::path metaPath = it->path();
 			// "<asset>.meta" のみを対象にする(.meta.バックアップ等は対象外)
-			const std::string filename = metaPath.filename().string();
+			const std::string filename = Algorithm::PathToUTF8(metaPath.filename());
 			if (!Algorithm::EndsWith(filename, ".meta") || filename.find(".meta.") != std::string::npos) {
 				continue;
 			}
@@ -579,11 +604,13 @@ void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::
 		std::error_code ec;
 		if (std::filesystem::remove(metaPath, ec)) {
 
-			Logger::Output(LogType::Engine, "[AssetDatabase] removed orphan .meta. path={}", metaPath.generic_string());
+			Logger::Output(LogType::Engine, "[AssetDatabase] removed orphan .meta. path={}",
+				Algorithm::PathToUTF8(metaPath));
 		} else {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[AssetDatabase] failed to remove orphan .meta. path={}", metaPath.generic_string());
+				"[AssetDatabase] failed to remove orphan .meta. path={}",
+				Algorithm::PathToUTF8(metaPath));
 		}
 	}
 }

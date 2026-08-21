@@ -4,9 +4,14 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+
+// c++
+#include <format>
 
 //============================================================================
 //	ProjectAssetThumbnailCache classMethods
@@ -25,12 +30,19 @@ void Engine::ProjectAssetThumbnailCache::Init(TextureUploadService& textureUploa
 	initialized_ = true;
 }
 
+void Engine::ProjectAssetThumbnailCache::SetAssetDatabase(
+	const AssetDatabase* assetDatabase) {
+
+	assetDatabase_ = assetDatabase;
+}
+
 void Engine::ProjectAssetThumbnailCache::Finalize() {
 
 	defaultIcons_.clear();
 	customExtensionIcons_.clear();
 	folderIconKey_.clear();
 	textureUploadService_ = nullptr;
+	assetDatabase_ = nullptr;
 	initialized_ = false;
 }
 
@@ -94,7 +106,7 @@ void Engine::ProjectAssetThumbnailCache::CreateDefaultIcons() {
 
 std::string Engine::ProjectAssetThumbnailCache::MakeThumbnailKey(const std::string& assetPath) const {
 
-	return "editor:project:thumbnail:" + assetPath;
+	return std::format("editor:project:thumbnail:{}", assetPath);
 }
 
 ImTextureID Engine::ProjectAssetThumbnailCache::TryGetTextureID(const std::string& key) const {
@@ -176,9 +188,45 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetAssetTextureID(const std::str
 		TextureFileRequestDesc desc{};
 		desc.key = thumbnailKey;
 		desc.assetPath = assetPath;
-		desc.forceSRGB = true;
+		if (assetDatabase_) {
+
+			if (const AssetMeta* meta = assetDatabase_->FindByPath(assetPath)) {
+				desc.importSettings = ParseTextureImportSettings(meta->importerSettings);
+			}
+		}
+		desc.requestedColorSpace = TextureColorSpace::SRGB;
 		textureUploadService_->RequestTextureFile(desc);
 	}
 	// フォールバックアイコン
 	return GetDefaultTypeIcon(type);
+}
+
+bool Engine::ProjectAssetThumbnailCache::TryGetAssetTextureSize(
+	const std::string& assetPath, Vector2& outSize) const {
+
+	if (!textureUploadService_) {
+		return false;
+	}
+	const GPUTextureResource* texture = textureUploadService_->GetTexture(
+		MakeThumbnailKey(assetPath));
+	if (!texture || !texture->valid || !texture->resource) {
+		return false;
+	}
+	const D3D12_RESOURCE_DESC desc = texture->resource->GetDesc();
+	outSize = Vector2(static_cast<float>(desc.Width), static_cast<float>(desc.Height));
+	return 0.0f < outSize.x && 0.0f < outSize.y;
+}
+
+bool Engine::ProjectAssetThumbnailCache::UsesNearestSampling(
+	const std::string& assetPath) const {
+
+	if (!assetDatabase_) {
+		return false;
+	}
+	const AssetMeta* meta = assetDatabase_->FindByPath(assetPath);
+	if (!meta) {
+		return false;
+	}
+	return ParseTextureImportSettings(meta->importerSettings).filter ==
+		TextureFilterMode::Point;
 }

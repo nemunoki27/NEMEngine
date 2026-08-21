@@ -206,7 +206,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			const RuntimeTextureResolver::BindlessResolveResult result =
 				RuntimeTextureResolver::ResolveBindless(
 					graphicsCore, context.assetDatabase, textureAssetID,
-					IsSRGBMaterialTexture(semantic));
+					IsSRGBMaterialTexture(semantic) ?
+					TextureColorSpace::SRGB : TextureColorSpace::Linear);
 			return MaterialParameterBufferBuilder::TextureResolveResult{
 				.index = result.srvIndex,
 				.cacheable = !result.retry,

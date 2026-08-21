@@ -62,7 +62,7 @@ namespace Engine {
 	}
 
 	std::pair<std::string, std::string> ProjectAssetFileUtility::SplitAssetFileName(const std::filesystem::path& path) {
-		const std::string fileName = path.filename().string();
+		const std::string fileName = Engine::Algorithm::PathToUTF8(path.filename());
 
 		// .scene.jsonなどのエンジン独自の複合拡張子を優先的に判定
 		const std::string_view suffix =
@@ -73,7 +73,8 @@ namespace Engine {
 				fileName.substr(fileName.size() - suffixSize) };
 		}
 		// 複合拡張子に該当しない場合は標準のstem/extensionを使用
-		return { path.stem().string(), path.extension().string() };
+		return { Engine::Algorithm::PathToUTF8(path.stem()),
+			Engine::Algorithm::PathToUTF8(path.extension()) };
 	}
 
 	std::filesystem::path ProjectAssetFileUtility::MakeUniquePath(const std::filesystem::path& preferredPath) {
@@ -82,7 +83,8 @@ namespace Engine {
 		const auto [baseName, suffix] = SplitAssetFileName(preferredPath);
 		const std::filesystem::path directory = preferredPath.parent_path();
 		for (uint32_t index = 1; index < 10000; ++index) {
-			std::filesystem::path candidate = directory / std::format("{} {}{}", baseName, index, suffix);
+			const std::string candidateName = std::format("{} {}{}", baseName, index, suffix);
+			std::filesystem::path candidate = directory / Engine::Algorithm::PathFromUTF8(candidateName);
 			if (!std::filesystem::exists(candidate)) { return candidate; }
 		}
 		return {};
@@ -125,7 +127,8 @@ namespace Engine {
 		const std::string prefix = virtualRoot + "/";
 		// 仮想パスがルート配下でないなら無効
 		if (directoryVirtualPath.rfind(prefix, 0) != 0) { return {}; }
-		const std::filesystem::path relative = directoryVirtualPath.substr(prefix.size());
+		const std::filesystem::path relative =
+			Engine::Algorithm::PathFromUTF8(directoryVirtualPath.substr(prefix.size()));
 		// 親階層への移動(..)を含むパスはセキュリティのため制限
 		if (!IsSafeRelativePath(relative)) { return {}; }
 		return (root / relative).lexically_normal();
@@ -153,7 +156,9 @@ namespace Engine {
 
 	std::filesystem::path ProjectAssetFileUtility::MakeMetaPath(const std::filesystem::path& path) {
 		// アセットファイル名に.metaを付与してメタデータパスを作成
-		return path.string() + ".meta";
+		std::filesystem::path metaPath = path;
+		metaPath += L".meta";
+		return metaPath;
 	}
 
 } // Engine

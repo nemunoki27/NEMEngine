@@ -80,6 +80,9 @@ namespace Engine {
 		AssetID ImportOrGet(const std::string& assetPath, AssetType guessedType);
 		// 指定アセットの依存関係と逆引き参照を現在のファイル内容で更新する
 		void RefreshDependencies(AssetID id);
+		// Importer設定をメモリと.metaへ反映する
+		bool UpdateImporterSettings(AssetID id, const nlohmann::json& settings,
+			uint32_t importerVersion);
 
 		//--------- accessor -----------------------------------------------------
 

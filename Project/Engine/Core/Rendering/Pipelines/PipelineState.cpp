@@ -387,20 +387,23 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 	const std::vector<CompiledShader>& shaders = compileResult.shaders;
 	const std::vector<const CompiledShader*> shaderPtrs = MakeShaderPointers(shaders);
 
+	// 全ステージのリフレクションを統合して名前指定のサンプラー設定を解決する
+	graphicsReflection_ = ShaderReflectionInfo{};
+	for (const auto& shader : shaders) {
+		Engine::MergeShaderReflection(graphicsReflection_, shader.reflection);
+	}
+	const std::vector<D3D12_STATIC_SAMPLER_DESC> staticSamplers =
+		BuildPipelineStaticSamplers(graphicsReflection_, desc.staticSamplers,
+			desc.staticSamplerOverrides);
+
 	// ルートシグネイチャの自動生成
 	AutoRootSignatureBuilder signatureBuilder{};
-	RootSignatureBuildResult rootSignatureResult = signatureBuilder.Build(device, desc.type, shaderPtrs, desc.staticSamplers);
+	RootSignatureBuildResult rootSignatureResult = signatureBuilder.Build(
+		device, desc.type, shaderPtrs, staticSamplers);
 	// 結果を設定
 	rootSignature_ = rootSignatureResult.rootSignature;
 	bindings_ = std::move(rootSignatureResult.bindings);
 	RebuildBindingLookupTables();
-
-	// 全ステージのリフレクションを統合する、MaterialParameters cbufferやテクスチャSRVを後段で解決するため
-	graphicsReflection_ = ShaderReflectionInfo{};
-	for (const auto& shader : shaders) {
-		Engine::MergeShaderReflection(
-			graphicsReflection_, shader.reflection);
-	}
 
 	// PSO生成の成否、失敗したBlendModeがあればfalseを返す
 	bool success = true;
@@ -454,7 +457,9 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 			pipelineDesc.BlendState = MakeBlendDesc(device, blendMode, desc.rtvFormats, desc.numRenderTargets);
 
 			// パイプラインステートオブジェクトの生成
-			HRESULT hr = device->CreateGraphicsPipelineState(&pipelineDesc, IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
+			HRESULT hr = device->CreateGraphicsPipelineState(
+				&pipelineDesc,
+				IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
 			if (FAILED(hr)) {
 				Logger::Output(LogType::Engine, "CreateGraphicsPipelineState failed: {} [{}]", desc.pixel.file, mode);
 				success = false;

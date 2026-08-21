@@ -38,6 +38,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -231,19 +232,11 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 		switch (meta->type) {
 		case AssetType::Texture:
 		{
-			const std::filesystem::path fullPath = assetDatabase.ResolveFullPath(meta->guid);
-			if (fullPath.empty()) {
-				break;
-			}
-			const std::string texturePath = fullPath.generic_string();
-			for (bool sRGB : { false, true }) {
-
-				TextureFileRequestDesc desc{};
-				desc.key = sRGB ? texturePath + ":srgb" : texturePath;
-				desc.assetPath = texturePath;
-				desc.forceSRGB = sRGB;
-				textureUploadService.RequestTextureFile(desc);
-			}
+			// Materialの両用途を先読みする、明示色空間なら同じキャッシュへ統合される
+			RuntimeTextureResolver::Resolve(graphicsCore, &assetDatabase,
+				meta->guid, TextureColorSpace::Linear);
+			RuntimeTextureResolver::Resolve(graphicsCore, &assetDatabase,
+				meta->guid, TextureColorSpace::SRGB);
 			break;
 		}
 		case AssetType::Material:
@@ -698,8 +691,8 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 		return;
 	}
 
-	const std::filesystem::path path(meta->assetPath);
-	if (Algorithm::ToLower(path.extension().string()) == ".json") {
+	const std::filesystem::path path = Algorithm::PathFromUTF8(meta->assetPath);
+	if (Algorithm::ToLower(Algorithm::PathToUTF8(path.extension())) == ".json") {
 		ReloadShader(assetID);
 		return;
 	}

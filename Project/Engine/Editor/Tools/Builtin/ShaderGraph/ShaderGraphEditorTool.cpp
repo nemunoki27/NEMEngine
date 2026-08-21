@@ -2827,7 +2827,9 @@ void Engine::ShaderGraphEditorTool::UpdateNodePreviews(
 					graphicsCore,
 					context.toolContext.assetDatabase,
 					reference.assetID,
-					reference.sRGB);
+					reference.sRGB ?
+						TextureColorSpace::SRGB :
+						TextureColorSpace::Linear);
 			if (texture && texture->valid) {
 				textureIndex = texture->srvIndex;
 			}

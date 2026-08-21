@@ -198,14 +198,24 @@ bool WinApp::HandleExternalFileDrop(HWND hwnd, WPARAM wparam) {
 		if (length == 0) {
 			continue;
 		}
-		std::wstring wide(length, L'\0');
-		DragQueryFileW(drop, i, wide.data(), length + 1);
+		std::wstring wide(static_cast<size_t>(length) + 1, L'\0');
+		const UINT copiedLength = DragQueryFileW(drop, i, wide.data(), length + 1);
+		if (copiedLength == 0) {
+			continue;
+		}
+		wide.resize(copiedLength);
 
-		const int utf8Size = ::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(),
+		const int utf8Size = ::WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide.data(),
 			static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+		if (utf8Size <= 0) {
+			continue;
+		}
 		std::string utf8(static_cast<size_t>(utf8Size), '\0');
-		::WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), static_cast<int>(wide.size()),
-			utf8.data(), utf8Size, nullptr, nullptr);
+		if (::WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide.data(),
+			static_cast<int>(wide.size()), utf8.data(), utf8Size, nullptr, nullptr) != utf8Size) {
+
+			continue;
+		}
 		paths.emplace_back(std::move(utf8));
 	}
 	DragFinish(drop);

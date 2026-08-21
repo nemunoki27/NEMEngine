@@ -5,10 +5,13 @@
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
@@ -1015,6 +1018,89 @@ namespace {
 				Engine::RenderPhase::Opaque;
 	}
 
+	bool TestUTF8Path() {
+
+		const std::string directoryName =
+			Engine::Algorithm::ConvertString(L"NEMEngineTests_日本語");
+		const std::filesystem::path testRoot = std::filesystem::temp_directory_path() /
+			Engine::Algorithm::PathFromUTF8(directoryName);
+		const std::filesystem::path texturePath = testRoot / L"normalBlock.png";
+
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		ec.clear();
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+		{
+			std::ofstream texture(texturePath, std::ios::binary);
+			texture << "PNG";
+		}
+
+		const std::string serializedPath = Engine::Algorithm::PathToUTF8(texturePath);
+		const std::filesystem::path restoredPath =
+			Engine::Algorithm::PathFromUTF8(serializedPath);
+		const bool passed = std::filesystem::exists(restoredPath, ec) && !ec &&
+			Engine::Algorithm::PathToUTF8(testRoot.filename()) == directoryName &&
+			Engine::AssetTypeResolver::GuessByPath(restoredPath) == Engine::AssetType::Texture;
+		std::filesystem::remove_all(testRoot, ec);
+		return passed;
+	}
+
+	bool TestTextureImportSettings() {
+
+		const Engine::TextureImportSettings color =
+			Engine::MakeTextureImportSettings(Engine::TextureImportPreset::Color);
+		if (color.colorSpace != Engine::TextureColorSpace::SRGB ||
+			color.filter != Engine::TextureFilterMode::Anisotropic ||
+			!color.generateMipmaps || !color.alphaColorBleed) {
+			return false;
+		}
+
+		const Engine::TextureImportSettings normal =
+			Engine::MakeTextureImportSettings(Engine::TextureImportPreset::NormalMap);
+		if (normal.colorSpace != Engine::TextureColorSpace::Linear ||
+			normal.alphaColorBleed ||
+			Engine::ToD3D12Filter(normal) != D3D12_FILTER_ANISOTROPIC) {
+			return false;
+		}
+
+		const nlohmann::json data = {
+			{ "preset", "Data" },
+			{ "filter", "Point" },
+			{ "addressU", "Mirror" },
+			{ "maxAnisotropy", 99 },
+		};
+		const Engine::TextureImportSettings parsed =
+			Engine::ParseTextureImportSettings(data);
+		if (parsed.preset != Engine::TextureImportPreset::Data ||
+			parsed.colorSpace != Engine::TextureColorSpace::Linear ||
+			parsed.filter != Engine::TextureFilterMode::Point ||
+			parsed.addressU != Engine::TextureAddressMode::Mirror ||
+			parsed.maxAnisotropy != 16 ||
+			Engine::ToD3D12AddressMode(parsed.addressU) !=
+				D3D12_TEXTURE_ADDRESS_MODE_MIRROR) {
+			return false;
+		}
+
+		if (Engine::ParseTextureImportSettings(Engine::ToJson(parsed)) != parsed) {
+			return false;
+		}
+
+		const Engine::TextureImportSettings automatic{};
+		return Engine::ResolveTextureColorSpace(
+			automatic, Engine::TextureColorSpace::SRGB) ==
+				Engine::TextureColorSpace::SRGB &&
+			Engine::ResolveTextureColorSpace(
+				normal, Engine::TextureColorSpace::SRGB) ==
+					Engine::TextureColorSpace::Linear &&
+			Engine::HashTextureImportSettings(
+				automatic, Engine::TextureColorSpace::SRGB) !=
+				Engine::HashTextureImportSettings(
+					automatic, Engine::TextureColorSpace::Linear);
+	}
+
 	bool TestShaderReflectionMerge() {
 
 		Engine::ShaderConstantBufferVariable vertexVariable{};
@@ -1946,6 +2032,22 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--paths") {
+		if (!TestUTF8Path()) {
+			std::cerr << "UTF-8 path failed\n";
+			return 24;
+		}
+		std::cout << "UTF-8 path passed\n";
+		return 0;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--texture-import") {
+		if (!TestTextureImportSettings()) {
+			std::cerr << "Texture import settings failed\n";
+			return 25;
+		}
+		std::cout << "Texture import settings passed\n";
+		return 0;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
 			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer()) {
@@ -1994,6 +2096,14 @@ int main(int argc, char* argv[]) {
 	if (!TestVirtualPath()) {
 		std::cerr << "Virtual path failed\n";
 		return 4;
+	}
+	if (!TestUTF8Path()) {
+		std::cerr << "UTF-8 path failed\n";
+		return 24;
+	}
+	if (!TestTextureImportSettings()) {
+		std::cerr << "Texture import settings failed\n";
+		return 25;
 	}
 	if (!TestCanonicalSceneData()) {
 		std::cerr << "Canonical scene data failed\n";

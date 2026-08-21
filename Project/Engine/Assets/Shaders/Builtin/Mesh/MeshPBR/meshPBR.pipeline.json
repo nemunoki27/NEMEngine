@@ -20,7 +20,8 @@
         {
           "shaderRegister": 0,
           "registerSpace": 0,
-          "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+          "filter": "D3D12_FILTER_ANISOTROPIC",
+          "maxAnisotropy": 8,
           "addressU": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
           "addressV": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
           "addressW": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
@@ -47,7 +48,8 @@
         {
           "shaderRegister": 0,
           "registerSpace": 0,
-          "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+          "filter": "D3D12_FILTER_ANISOTROPIC",
+          "maxAnisotropy": 8,
           "addressU": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
           "addressV": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",
           "addressW": "D3D12_TEXTURE_ADDRESS_MODE_WRAP",

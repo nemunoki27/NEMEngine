@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
@@ -43,7 +44,8 @@ void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
 	PrefabEditStage stage{};
 	stage.asset = prefabAsset;
 	stage.world = std::make_unique<ECSWorld>();
-	stage.name = std::filesystem::path(meta->assetPath).stem().string();
+	stage.name = Algorithm::PathToUTF8(
+		Algorithm::PathFromUTF8(meta->assetPath).stem());
 	stage.inContext = false;
 	// 編集前のベースを控えておき、退出時にインスタンスへ伝播する際のオーバーライド判定に使う
 	stage.baseAtEnter = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDataBase_, prefabAsset);

@@ -1865,7 +1865,8 @@ uint32_t Engine::RaytracingSceneBuilder::ResolveTextureDescriptorIndex(GraphicsC
 
 	const RuntimeTextureResolver::BindlessResolveResult resolved =
 		RuntimeTextureResolver::ResolveBindless(
-			graphicsCore, &assetDatabase, textureAssetID, sRGB);
+			graphicsCore, &assetDatabase, textureAssetID,
+			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear);
 	hasPendingTextureDescriptors_ |= resolved.retry;
 	const uint32_t descriptorIndex =
 		resolved.srvIndex != UINT32_MAX ? resolved.srvIndex : errorIndex;
