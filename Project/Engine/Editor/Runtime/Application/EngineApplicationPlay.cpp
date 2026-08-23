@@ -100,6 +100,12 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 	const SceneHeader* header = GetActiveSceneHeader();
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
+	if (activeSceneInstance) {
+		if (const AssetMeta* meta =
+			assetDataBase_.Find(activeSceneInstance->sceneAsset)) {
+			activeScenePath_ = meta->assetPath;
+		}
+	}
 
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 	systemContext_.world = world;

@@ -56,6 +56,17 @@ namespace {
 
 }
 
+std::string Engine::MakeSceneAssetName(
+	const std::filesystem::path& scenePath) {
+
+	std::filesystem::path stem = scenePath.stem();
+	if (Algorithm::ToLower(
+		Algorithm::PathToUTF8(stem.extension())) == ".scene") {
+		stem = stem.stem();
+	}
+	return Algorithm::PathToUTF8(stem);
+}
+
 std::string Engine::MakeDefaultRenderFeatureProfilePath(
 	const std::string& scenePath) {
 

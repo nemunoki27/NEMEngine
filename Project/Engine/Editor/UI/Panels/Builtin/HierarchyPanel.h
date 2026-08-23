@@ -71,6 +71,9 @@ namespace Engine {
 			const Entity& child, const Entity& anchor) const;
 		// ドロップされたペイロードからエンティティを取得する
 		Entity ResolveDraggedEntity(ECSWorld& world, const ImGuiPayload* payload) const;
+		// 複数選択中なら選択中の祖先を除いた一括移動対象を取得する
+		std::vector<Entity> ResolveDraggedEntities(const EditorPanelContext& context,
+			ECSWorld& world, const ImGuiPayload* payload) const;
 		// 検索条件に一致するエンティティか
 		bool EntityMatchesSearch(ECSWorld& world, const Entity& entity) const;
 		// 自分または子孫に検索条件へ一致するエンティティがあるか

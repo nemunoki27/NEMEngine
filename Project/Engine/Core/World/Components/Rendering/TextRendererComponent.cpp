@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
@@ -219,6 +220,39 @@ uint64_t Engine::HashTextLayoutString(std::string_view text) {
 		hash *= 1099511628211ull;
 	}
 	return hash;
+}
+
+Engine::TextGlyphGeometry Engine::ResolveTextGlyphGeometry(
+	const TextRendererComponent& renderer,
+	const TextLayoutRuntimeComponent& layout,
+	const TextLayoutGlyph& glyph,
+	const TextCharTransform* charTransform,
+	const Matrix4x4& worldMatrix) {
+
+	const Vector2 pivotOffset(
+		-renderer.pivot.x * layout.boundsSize.x,
+		-renderer.pivot.y * layout.boundsSize.y);
+	TextGlyphGeometry geometry{};
+	geometry.rectMin = glyph.rectMin + pivotOffset;
+	geometry.rectMax = glyph.rectMax + pivotOffset;
+	geometry.worldMatrix = worldMatrix;
+	if (!charTransform) {
+		return geometry;
+	}
+
+	const Vector2 pivot(
+		(geometry.rectMin.x + geometry.rectMax.x) * 0.5f,
+		(geometry.rectMin.y + geometry.rectMax.y) * 0.5f);
+	const Matrix4x4 toOrigin = Matrix4x4::MakeAffineMatrix(
+		Vector3(1.0f, 1.0f, 1.0f), Vector3(0.0f, 0.0f, 0.0f),
+		Vector3(-pivot.x, -pivot.y, 0.0f));
+	const Matrix4x4 srt = Matrix4x4::MakeAffineMatrix(
+		Vector3(charTransform->scale.x, charTransform->scale.y, 1.0f),
+		Vector3(0.0f, 0.0f, charTransform->rotation),
+		Vector3(pivot.x + charTransform->translation.x,
+			pivot.y + charTransform->translation.y, 0.0f));
+	geometry.worldMatrix = (toOrigin * srt) * worldMatrix;
+	return geometry;
 }
 
 void Engine::SerializeTextRenderer(const TextRendererComponent& component,

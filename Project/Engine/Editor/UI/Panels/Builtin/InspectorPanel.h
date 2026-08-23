@@ -83,6 +83,7 @@ namespace Engine {
 		ComponentEditorRegistry componentEditorRegistry_{};
 		TextSearchFilter addComponentSearchFilter_;
 		TextSearchFilter removeComponentSearchFilter_;
+		TextSearchFilter addScriptSearchFilter_;
 		// アセット種別ごとのInspector表示登録
 		AssetInspectorRegistry assetInspectorRegistry_{};
 
@@ -161,11 +162,16 @@ namespace Engine {
 		// コンポーネントの追加、削除のポップアップを描画する
 		void DrawAddComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		void DrawRemoveComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// コンポーネント追加ポップアップ右側のC#型一覧を描画する
+		void DrawAddScriptEntries(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
+		// Inspector全体でProjectPanelからのC#スクリプトドロップを受け取る
+		void DrawScriptAssetDropTarget(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// 追加削除ポップアップ共通の検索とカテゴリ区切りつきメニュー描画、判定と実行は呼び出し側が渡す
 		void DrawComponentPopupEntries(const EditorPanelContext& context, TextSearchFilter& searchFilter,
 			const char* searchInputID, const char* emptyText,
 			const std::function<bool(const ComponentEditorDescriptor&)>& shouldShow,
-			const std::function<void(const ComponentEditorDescriptor&)>& onSelect);
+			const std::function<bool(const ComponentEditorDescriptor&)>& onSelect,
+			const std::function<bool(const ComponentEditorDescriptor&)>& drawCustomEntry = {});
 		// サブメッシュが選択されているときのヘッダーを描画する
 		void DrawSelectedSubMeshHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// プレファブインスタンスのオーバーライド表示UI、水色強調トークンの構築とオーバーライドポップアップを描画する

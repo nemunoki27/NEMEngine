@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <optional>
@@ -127,6 +128,8 @@ namespace Engine {
 	};
 
 	// json変換
+	// .scene.jsonのファイル名からシーン表示名を取得する
+	std::string MakeSceneAssetName(const std::filesystem::path& scenePath);
 	std::string MakeDefaultRenderFeatureProfilePath(
 		const std::string& scenePath);
 	void EnsureSceneRenderFeatureProfile(SceneHeader& sceneHeader,

@@ -11,6 +11,7 @@
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
@@ -437,7 +438,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::EndChild();
 
 	DrawCreateAssetPopup(database);
-	DrawRenameAssetPopup(database);
+	DrawRenameAssetPopup(context, database);
 	DrawDeleteAssetPopup(database);
 	ApplyPendingFileOperationRefresh(database);
 
@@ -1002,7 +1003,8 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 	ImGui::EndPopup();
 }
 
-void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
+void Engine::ProjectPanel::DrawRenameAssetPopup(
+	const EditorPanelContext& context, AssetDatabase& database) {
 
 	if (requestOpenRenamePopup_) {
 
@@ -1035,6 +1037,22 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(AssetDatabase& database) {
 
 			renameErrorMessage_.clear();
 			RefreshAfterFileOperation(database, result);
+			if (!pendingRenameIsDirectory_ &&
+				pendingRenameAsset_.type == AssetType::Scene &&
+				context.editorContext && context.editorContext->sceneInstances) {
+
+				const std::string sceneName =
+					MakeSceneAssetName(result.fullPath);
+				SceneInstanceManager& scenes = *context.editorContext->sceneInstances;
+				for (const SceneInstance& scene : scenes.GetAll()) {
+					if (scene.sceneAsset != pendingRenameAsset_.assetID) {
+						continue;
+					}
+					if (SceneInstance* loadedScene = scenes.Find(scene.instanceID)) {
+						loadedScene->header.name = sceneName;
+					}
+				}
+			}
 			ImGui::CloseCurrentPopup();
 		} else {
 

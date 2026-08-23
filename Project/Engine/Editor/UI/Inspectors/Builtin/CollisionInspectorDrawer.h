@@ -52,6 +52,8 @@ namespace Engine {
 		ValueEditResult DrawTypeMaskField(CollisionComponent& component);
 		// 衝突形状タイプの編集UIを描画する
 		ValueEditResult DrawShapeTypeField(ColliderShapeType& type);
+		// カプセル方向の編集UIを描画する
+		ValueEditResult DrawCapsuleAxisField(CapsuleAxis& axis, bool is2D);
 		// 衝突形状の詳細編集UIを描画する
 		ValueEditResult DrawShapeField(CollisionShape& shape, uint32_t index);
 	};

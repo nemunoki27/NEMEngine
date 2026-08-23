@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
@@ -22,6 +23,8 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
+#include <Engine/Core/Physics/Collision/CollisionRaycast.h>
+#include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
@@ -31,9 +34,13 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
+#include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
+#include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 
 // c++
@@ -43,6 +50,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <utility>
 
 namespace {
@@ -820,6 +828,291 @@ namespace {
 		transformSystem.LateUpdate(world, context);
 		return !childTransform.isDirty &&
 			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 10.0f) <= 0.0001f;
+	}
+
+	bool TestRigidbody2DRestingContact() {
+
+		Engine::ECSWorld world(Engine::ECSWorldKind::Runtime);
+		auto createQuad = [&](const char* name, const Engine::Vector3& position,
+			const Engine::Vector2& halfSize, bool isStatic) {
+
+			const Engine::Entity entity =
+				Engine::SceneAuthoring::CreateGameObject(world, name);
+			auto& transform =
+				world.GetComponent<Engine::TransformComponent>(entity);
+			transform.dimension = Engine::Dimension::Type2D;
+			transform.localPos = position;
+			Engine::MarkTransformSubtreeDirty(world, entity);
+
+			auto& collision =
+				world.AddComponent<Engine::CollisionComponent>(entity);
+			collision.isStatic = isStatic;
+			Engine::CollisionShape shape{};
+			shape.type = Engine::ColliderShapeType::Quad2D;
+			shape.halfSize2D = halfSize;
+			Engine::SetCollisionShapes(
+				world, entity,
+				std::span<const Engine::CollisionShape>(&shape, 1));
+			return entity;
+		};
+
+		// 隣接する床Colliderへ同時接触してもPlayerの接地座標が揺れないことを確認する
+		const Engine::Entity player = createQuad(
+			"Player", Engine::Vector3(0.0f, 0.0f, 0.0f),
+			Engine::Vector2(8.0f, 8.0f), false);
+		auto& body =
+			world.AddComponent<Engine::Rigidbody2DComponent>(player);
+		body.restitution = 0.0f;
+		createQuad("FloorLeft", Engine::Vector3(-10.0f, 30.0f, 0.0f),
+			Engine::Vector2(10.0f, 10.0f), true);
+		createQuad("FloorRight", Engine::Vector3(10.0f, 30.0f, 0.0f),
+			Engine::Vector2(10.0f, 10.0f), true);
+
+		Engine::SystemContext context{};
+		context.mode = Engine::WorldMode::Play;
+		context.fixedDeltaTime = 1.0f / 60.0f;
+		Engine::PhysicsSystem physicsSystem{};
+		Engine::TransformSystem transformSystem{};
+		Engine::CollisionSystem collisionSystem{};
+		transformSystem.OnWorldEnter(world, context);
+		transformSystem.FixedUpdate(world, context);
+
+		float minSettledY = (std::numeric_limits<float>::max)();
+		float maxSettledY = (std::numeric_limits<float>::lowest)();
+		for (uint32_t step = 0; step < 300; ++step) {
+
+			physicsSystem.FixedUpdate(world, context);
+			transformSystem.FixedUpdate(world, context);
+			collisionSystem.FixedUpdate(world, context);
+			if (180 <= step) {
+				const float y = world.GetComponent<
+					Engine::TransformComponent>(player).localPos.y;
+				minSettledY = (std::min)(minSettledY, y);
+				maxSettledY = (std::max)(maxSettledY, y);
+			}
+		}
+
+		const float settledY = world.GetComponent<
+			Engine::TransformComponent>(player).localPos.y;
+		const bool passed =
+			maxSettledY - minSettledY <= 0.0001f &&
+			std::abs(body.linearVelocity.y) <= 0.0001f &&
+			std::abs(settledY - 12.001f) <= 0.001f;
+		collisionSystem.OnWorldExit(world, context);
+		transformSystem.OnWorldExit(world, context);
+		return passed;
+	}
+
+	bool TestCapsuleCollisions() {
+
+		auto makeCapsule = [](Engine::ColliderShapeType type,
+			const Engine::Vector3& center, const Engine::Vector3& start,
+			const Engine::Vector3& end, float radius) {
+
+			Engine::CollisionShapeInstance result{};
+			result.type = type;
+			result.center = center;
+			result.segmentStart = start;
+			result.segmentEnd = end;
+			result.radius = radius;
+			return result;
+		};
+		auto makeRoundShape = [](Engine::ColliderShapeType type,
+			const Engine::Vector3& center, float radius) {
+
+			Engine::CollisionShapeInstance result{};
+			result.type = type;
+			result.center = center;
+			result.radius = radius;
+			return result;
+		};
+		auto makeBox = [](Engine::ColliderShapeType type,
+			const Engine::Vector3& center, const Engine::Vector3& halfExtents) {
+
+			Engine::CollisionShapeInstance result{};
+			result.type = type;
+			result.center = center;
+			result.halfExtents = halfExtents;
+			return result;
+		};
+		auto collidesBothWays = [](const Engine::CollisionShapeInstance& a,
+			const Engine::CollisionShapeInstance& b) {
+
+			Engine::CollisionContact contactAB{};
+			Engine::CollisionContact contactBA{};
+			return Engine::TestCollision(a, b, contactAB) &&
+				Engine::TestCollision(b, a, contactBA) &&
+				0.0f <= contactAB.penetration && 0.0f <= contactBA.penetration &&
+				Engine::Vector3::Dot(contactAB.normal, contactBA.normal) < -0.99f;
+		};
+
+		const Engine::CollisionShapeInstance capsule2D = makeCapsule(
+			Engine::ColliderShapeType::Capsule2D,
+			Engine::Vector3::AnyInit(0.0f),
+			Engine::Vector3(0.0f, -1.0f, 0.0f),
+			Engine::Vector3(0.0f, 1.0f, 0.0f), 1.0f);
+		const Engine::CollisionShapeInstance circle = makeRoundShape(
+			Engine::ColliderShapeType::Circle2D,
+			Engine::Vector3(0.0f, 2.5f, 0.0f), 0.6f);
+		const Engine::CollisionShapeInstance quad = makeBox(
+			Engine::ColliderShapeType::Quad2D,
+			Engine::Vector3(1.5f, 0.0f, 0.0f),
+			Engine::Vector3(0.6f, 0.6f, 0.0f));
+		const Engine::CollisionShapeInstance otherCapsule2D = makeCapsule(
+			Engine::ColliderShapeType::Capsule2D,
+			Engine::Vector3(1.5f, 0.0f, 0.0f),
+			Engine::Vector3(1.5f, -1.0f, 0.0f),
+			Engine::Vector3(1.5f, 1.0f, 0.0f), 0.6f);
+		if (!collidesBothWays(capsule2D, circle) ||
+			!collidesBothWays(capsule2D, quad) ||
+			!collidesBothWays(capsule2D, otherCapsule2D)) {
+			return false;
+		}
+		const Engine::CollisionShapeInstance crossingCapsule2D = makeCapsule(
+			Engine::ColliderShapeType::Capsule2D,
+			Engine::Vector3::AnyInit(0.0f),
+			Engine::Vector3(-2.0f, 0.0f, 0.0f),
+			Engine::Vector3(2.0f, 0.0f, 0.0f), 0.5f);
+		const Engine::CollisionShapeInstance centeredQuad = makeBox(
+			Engine::ColliderShapeType::Quad2D,
+			Engine::Vector3::AnyInit(0.0f),
+			Engine::Vector3(1.0f, 1.0f, 0.0f));
+		Engine::CollisionContact crossingContact2D{};
+		if (!Engine::TestCollision(
+			crossingCapsule2D, centeredQuad, crossingContact2D) ||
+			crossingContact2D.penetration < 1.49f) {
+			return false;
+		}
+
+		Engine::CollisionShapeInstance distantCircle = circle;
+		distantCircle.center = Engine::Vector3(5.0f, 0.0f, 0.0f);
+		Engine::CollisionContact contact{};
+		if (Engine::TestCollision(capsule2D, distantCircle, contact)) {
+			return false;
+		}
+
+		const Engine::CollisionShapeInstance capsule3D = makeCapsule(
+			Engine::ColliderShapeType::Capsule3D,
+			Engine::Vector3::AnyInit(0.0f),
+			Engine::Vector3(0.0f, -1.0f, 0.0f),
+			Engine::Vector3(0.0f, 1.0f, 0.0f), 1.0f);
+		const Engine::CollisionShapeInstance sphere = makeRoundShape(
+			Engine::ColliderShapeType::Sphere3D,
+			Engine::Vector3(0.0f, 2.5f, 0.0f), 0.6f);
+		const Engine::CollisionShapeInstance aabb = makeBox(
+			Engine::ColliderShapeType::AABB3D,
+			Engine::Vector3(1.5f, 0.0f, 0.0f),
+			Engine::Vector3::AnyInit(0.6f));
+		Engine::CollisionShapeInstance obb = aabb;
+		obb.type = Engine::ColliderShapeType::OBB3D;
+		const Engine::CollisionShapeInstance otherCapsule3D = makeCapsule(
+			Engine::ColliderShapeType::Capsule3D,
+			Engine::Vector3(1.5f, 0.0f, 0.0f),
+			Engine::Vector3(1.5f, -1.0f, 0.0f),
+			Engine::Vector3(1.5f, 1.0f, 0.0f), 0.6f);
+		if (!collidesBothWays(capsule3D, sphere) ||
+			!collidesBothWays(capsule3D, aabb) ||
+			!collidesBothWays(capsule3D, obb) ||
+			!collidesBothWays(capsule3D, otherCapsule3D)) {
+			return false;
+		}
+		const Engine::CollisionShapeInstance crossingCapsule3D = makeCapsule(
+			Engine::ColliderShapeType::Capsule3D,
+			Engine::Vector3::AnyInit(0.0f),
+			Engine::Vector3(-2.0f, 0.0f, 0.0f),
+			Engine::Vector3(2.0f, 0.0f, 0.0f), 0.5f);
+		const Engine::CollisionShapeInstance centeredBox = makeBox(
+			Engine::ColliderShapeType::AABB3D,
+			Engine::Vector3::AnyInit(0.0f),
+			Engine::Vector3::AnyInit(1.0f));
+		Engine::CollisionContact crossingContact3D{};
+		if (!Engine::TestCollision(
+			crossingCapsule3D, centeredBox, crossingContact3D) ||
+			crossingContact3D.penetration < 1.49f) {
+			return false;
+		}
+
+		Engine::Ray ray{};
+		ray.origin = Engine::Vector3(-3.0f, 0.0f, 0.0f);
+		ray.direction = Engine::Vector3(1.0f, 0.0f, 0.0f);
+		float distance = 0.0f;
+		Engine::Vector3 normal{};
+		if (!Engine::CollisionRaycast::RayVsCapsule(
+			ray, capsule3D, 10.0f, distance, normal) ||
+			std::abs(distance - 2.0f) > 0.0001f || normal.x > -0.99f) {
+			return false;
+		}
+
+		Engine::Ray capRay{};
+		capRay.origin = Engine::Vector3(0.0f, 3.0f, 0.0f);
+		capRay.direction = Engine::Vector3(0.4f, -1.0f, 0.0f).Normalize();
+		float capDistance = 0.0f;
+		Engine::Vector3 capNormal{};
+		float capsuleDistance = 0.0f;
+		Engine::Vector3 capsuleNormal{};
+		if (!Engine::CollisionRaycast::RayVsSphere(
+			capRay, capsule3D.segmentEnd, capsule3D.radius,
+			10.0f, capDistance, capNormal) ||
+			!Engine::CollisionRaycast::RayVsCapsule(
+				capRay, capsule3D, 10.0f, capsuleDistance, capsuleNormal) ||
+			std::abs(capsuleDistance - capDistance) > 0.0001f) {
+			return false;
+		}
+
+		Engine::TransformComponent transform{};
+		transform.worldMatrix = Engine::Matrix4x4::Identity();
+		Engine::CollisionShape authored2D{};
+		authored2D.type = Engine::ColliderShapeType::Capsule2D;
+		authored2D.capsuleSize2D = Engine::Vector2(2.0f, 4.0f);
+		const Engine::CollisionShapeInstance built2D =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), authored2D, 0, transform);
+		Engine::CollisionShape inverted2D = authored2D;
+		inverted2D.capsuleSize2D = Engine::Vector2(4.0f, 2.0f);
+		const Engine::CollisionShapeInstance invertedBuilt2D =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), inverted2D, 0, transform);
+		Engine::CollisionShape horizontal2D = inverted2D;
+		horizontal2D.capsuleAxis = Engine::CapsuleAxis::X;
+		const Engine::CollisionShapeInstance horizontalBuilt2D =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), horizontal2D, 0, transform);
+		Engine::CollisionShape rotated2D = authored2D;
+		rotated2D.offset = Engine::Vector3(0.0f, 0.0f, 5.0f);
+		rotated2D.rotationDegrees = Engine::Vector3(30.0f, 45.0f, 90.0f);
+		const Engine::CollisionShapeInstance rotatedBuilt2D =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), rotated2D, 0, transform);
+		Engine::CollisionShape authored3D{};
+		authored3D.type = Engine::ColliderShapeType::Capsule3D;
+		authored3D.capsuleHeight = 3.0f;
+		authored3D.capsuleAxis = Engine::CapsuleAxis::Z;
+		const Engine::CollisionShapeInstance built3D =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), authored3D, 0, transform);
+		nlohmann::json capsuleJson = authored3D;
+		const Engine::CollisionShape restored3D =
+			capsuleJson.get<Engine::CollisionShape>();
+		return Engine::IsCollisionShape2D(built2D.type) &&
+			Engine::IsCollisionShape3D(built3D.type) &&
+			std::abs(built2D.radius - 1.0f) <= 0.0001f &&
+			std::abs(built2D.segmentStart.y + 1.0f) <= 0.0001f &&
+			std::abs(built2D.segmentEnd.y - 1.0f) <= 0.0001f &&
+			std::abs(invertedBuilt2D.radius - 1.0f) <= 0.0001f &&
+			std::abs(invertedBuilt2D.segmentStart.y) <= 0.0001f &&
+			std::abs(invertedBuilt2D.segmentEnd.y) <= 0.0001f &&
+			std::abs(horizontalBuilt2D.radius - 1.0f) <= 0.0001f &&
+			std::abs(horizontalBuilt2D.segmentStart.x + 1.0f) <= 0.0001f &&
+			std::abs(horizontalBuilt2D.segmentEnd.x - 1.0f) <= 0.0001f &&
+			std::abs(rotatedBuilt2D.center.z) <= 0.0001f &&
+			std::abs(rotatedBuilt2D.segmentStart.z) <= 0.0001f &&
+			std::abs(rotatedBuilt2D.segmentEnd.z) <= 0.0001f &&
+			std::abs(std::abs(rotatedBuilt2D.segmentStart.x) - 1.0f) <= 0.0001f &&
+			std::abs(std::abs(rotatedBuilt2D.segmentEnd.x) - 1.0f) <= 0.0001f &&
+			std::abs(built3D.segmentStart.z + 1.0f) <= 0.0001f &&
+			std::abs(built3D.segmentEnd.z - 1.0f) <= 0.0001f &&
+			std::abs(restored3D.capsuleHeight - authored3D.capsuleHeight) <= 0.0001f &&
+			restored3D.capsuleAxis == authored3D.capsuleAxis;
 	}
 
 	bool TestMeshLODGeneration() {
@@ -2053,6 +2346,14 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--physics") {
+		if (!TestRigidbody2DRestingContact() || !TestCapsuleCollisions()) {
+			std::cerr << "Physics collision test failed\n";
+			return 27;
+		}
+		std::cout << "Physics collision test passed\n";
+		return 0;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--paths") {
 		if (!TestUTF8Path()) {
 			std::cerr << "UTF-8 path failed\n";
@@ -2170,6 +2471,14 @@ int main(int argc, char* argv[]) {
 	if (!TestTransformDimensionSerialization()) {
 		std::cerr << "Transform dimension serialization failed\n";
 		return 26;
+	}
+	if (!TestRigidbody2DRestingContact()) {
+		std::cerr << "Rigidbody2D resting contact failed\n";
+		return 27;
+	}
+	if (!TestCapsuleCollisions()) {
+		std::cerr << "Capsule collision failed\n";
+		return 28;
 	}
 	if (!TestSerializationClone()) {
 		std::cerr << "Serialization clone failed\n";

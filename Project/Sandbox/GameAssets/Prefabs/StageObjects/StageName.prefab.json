@@ -1,0 +1,104 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "StageName"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "54394e65da04ed12",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "TextRenderer": {
+                    "blendMode": "Normal",
+                    "charSpacing": 0.0,
+                    "charTransforms": [
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        }
+                    ],
+                    "dimension": 0,
+                    "font": "4e454d4153534554a6b647d9f9ebc38d",
+                    "fontSize": 64.0,
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "queue": "ScreenUI",
+                    "text": "ステージ 1",
+                    "uvPerCharacter": true,
+                    "visible": true,
+                    "worldScale": 0.009999999776482582
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 33.00239562988281,
+                        "y": 40.30999755859375,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.6000001430511475,
+                        "y": 1.6000001430511475,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "54394e65da04ed12"
+        }
+    ],
+    "Header": {
+        "name": "StageName",
+        "rootLocalFileID": "54394e65da04ed12",
+        "version": 1
+    },
+    "SchemaVersion": 1
+}

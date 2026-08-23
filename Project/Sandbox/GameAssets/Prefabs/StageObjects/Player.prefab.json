@@ -2,24 +2,78 @@
     "Entities": [
         {
             "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "halfSize2D": {
+                                "x": 40.500022888183594,
+                                "y": 40.500022888183594
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 12.649999618530273,
+                                "z": 0.0
+                            },
+                            "radius": 51.60000228881836,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "Quad2D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 2
+                },
                 "Hierarchy": {
-                    "parentLocalFileID": "3d7e83e18622e67b",
-                    "siblingOrder": 0
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
                 },
                 "Name": {
-                    "name": "Body"
+                    "name": "Player"
+                },
+                "Rigidbody2D": {
+                    "allowTopple": false,
+                    "angularDamping": 0.05000000074505806,
+                    "angularVelocity": 0.0,
+                    "bodyType": "Dynamic",
+                    "freezePositionX": false,
+                    "freezePositionY": false,
+                    "freezeRotation": false,
+                    "friction": 0.4000000059604645,
+                    "gravityScale": 1.0,
+                    "linearDamping": 0.0,
+                    "linearVelocity": {
+                        "x": 0.0,
+                        "y": 0.0
+                    },
+                    "mass": 1.0,
+                    "restitution": 0.0,
+                    "useGravity": true
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "20b304db08ddfa7a",
+                    "localFileId": "3d7e83e18622e67b",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
-                    "dimension": 1,
+                    "dimension": 0,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": 192.66827392578125,
+                        "y": 708.2033081054688,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -29,13 +83,50 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0,
-                        "y": 0.9999995231628418,
+                        "x": 2.0,
+                        "y": 1.9999995231628418,
                         "z": 1.0
                     }
                 }
             },
-            "LocalFileID": "20b304db08ddfa7a"
+            "LocalFileID": "3d7e83e18622e67b"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "3d7e83e18622e67b",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "Leg_R"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "b21e57a3fac15395",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 8.0,
+                        "y": 22.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.9999990463256836,
+                        "y": 1.9999990463256836,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "b21e57a3fac15395"
         },
         {
             "Components": {
@@ -101,23 +192,23 @@
         {
             "Components": {
                 "Hierarchy": {
-                    "parentLocalFileID": "",
+                    "parentLocalFileID": "3d7e83e18622e67b",
                     "siblingOrder": 1
                 },
                 "Name": {
-                    "name": "Player"
+                    "name": "Leg_L"
                 },
                 "SceneObject": {
                     "activeSelf": true,
-                    "localFileId": "3d7e83e18622e67b",
+                    "localFileId": "6e54e7896ac9fad7",
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
-                    "dimension": 0,
+                    "dimension": 1,
                     "localPos": {
-                        "x": 957.1268920898438,
-                        "y": 542.01171875,
+                        "x": -42.0,
+                        "y": 22.0,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -127,58 +218,13 @@
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 2.0,
-                        "y": 1.9999995231628418,
+                        "x": 1.9999990463256836,
+                        "y": 1.9999990463256836,
                         "z": 1.0
                     }
                 }
             },
-            "LocalFileID": "3d7e83e18622e67b"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 0
-                },
-                "Name": {
-                    "name": "Camera2D"
-                },
-                "OrthographicCamera": {
-                    "cullingMask": -1,
-                    "enabled": true,
-                    "farClip": 1000.0,
-                    "isMain": true,
-                    "nearClip": 0.0,
-                    "priority": 0
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "3ff9d0287c6b7a53",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "dimension": 0,
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 0.9999997615814209,
-                        "y": 0.9999997615814209,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "3ff9d0287c6b7a53"
+            "LocalFileID": "6e54e7896ac9fad7"
         },
         {
             "Components": {
@@ -244,6 +290,43 @@
         {
             "Components": {
                 "Hierarchy": {
+                    "parentLocalFileID": "3d7e83e18622e67b",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Body"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "20b304db08ddfa7a",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 0.9999995231628418,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "20b304db08ddfa7a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
                     "parentLocalFileID": "20b304db08ddfa7a",
                     "siblingOrder": 0
                 },
@@ -301,87 +384,12 @@
                 }
             },
             "LocalFileID": "67e8635b540420ed"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "3d7e83e18622e67b",
-                    "siblingOrder": 1
-                },
-                "Name": {
-                    "name": "Leg_L"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "6e54e7896ac9fad7",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "dimension": 1,
-                    "localPos": {
-                        "x": -42.0,
-                        "y": 22.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.9999990463256836,
-                        "y": 1.9999990463256836,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "6e54e7896ac9fad7"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "3d7e83e18622e67b",
-                    "siblingOrder": 2
-                },
-                "Name": {
-                    "name": "Leg_R"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "b21e57a3fac15395",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "dimension": 1,
-                    "localPos": {
-                        "x": 8.0,
-                        "y": 22.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.9999990463256836,
-                        "y": 1.9999990463256836,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "b21e57a3fac15395"
         }
     ],
     "Header": {
-        "name": "Game2D",
-        "renderFeatureProfile": "4e454d4153534554525450524f46494c",
-        "subScenes": []
+        "name": "Player",
+        "rootLocalFileID": "3d7e83e18622e67b",
+        "version": 1
     },
-    "PrefabInstances": [],
-    "SchemaVersion": 3
+    "SchemaVersion": 1
 }

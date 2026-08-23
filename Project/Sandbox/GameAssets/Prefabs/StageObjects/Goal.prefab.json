@@ -1,0 +1,82 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
+                },
+                "Name": {
+                    "name": "Goal"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "666e4829b937b9a9",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 0.0,
+                                "g": 0.7659574151039124,
+                                "r": 1.0
+                            }
+                        },
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": "8ffb2d3d5e6104e991a030767a0004db"
+                        }
+                    ],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "size": {
+                        "x": 64.0,
+                        "y": 64.0
+                    },
+                    "visible": true
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 1795.20849609375,
+                        "y": 777.0304565429688,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 2.0,
+                        "y": 2.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "666e4829b937b9a9"
+        }
+    ],
+    "Header": {
+        "name": "Goal",
+        "rootLocalFileID": "666e4829b937b9a9",
+        "version": 1
+    },
+    "SchemaVersion": 1
+}

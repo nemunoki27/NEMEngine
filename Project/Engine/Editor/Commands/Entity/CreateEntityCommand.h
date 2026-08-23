@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 
 // c++
 #include <string>
@@ -39,7 +40,8 @@ namespace Engine {
 		//============================================================================
 
 		explicit CreateEntityCommand(const std::string& name = "Entity", UUID parentStableUUID = UUID{},
-			EntityCreationPreset preset = EntityCreationPreset::Empty);
+			EntityCreationPreset preset = EntityCreationPreset::Empty,
+			Dimension dimension = Dimension::Type3D);
 		~CreateEntityCommand() = default;
 
 		// コマンドの実行
@@ -63,6 +65,7 @@ namespace Engine {
 		UUID parentStableUUID_{};
 		UUID createdStableUUID_{};
 		EntityCreationPreset preset_ = EntityCreationPreset::Empty;
+		Dimension dimension_ = Dimension::Type3D;
 
 		//--------- functions ----------------------------------------------------
 

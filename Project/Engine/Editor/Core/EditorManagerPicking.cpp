@@ -8,12 +8,47 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
 // c++
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <optional>
+
+namespace {
+
+	bool IsPointInsideProjectedRect(const Engine::Vector2& point,
+		const Engine::Vector2& rectMin, const Engine::Vector2& rectMax,
+		const Engine::Matrix4x4& worldViewProjection,
+		uint32_t viewWidth, uint32_t viewHeight) {
+
+		const std::array<Engine::Vector3, 4> corners{
+			Engine::Vector3(rectMin.x, rectMin.y, 0.0f),
+			Engine::Vector3(rectMax.x, rectMin.y, 0.0f),
+			Engine::Vector3(rectMin.x, rectMax.y, 0.0f),
+			Engine::Vector3(rectMax.x, rectMax.y, 0.0f),
+		};
+		Engine::Vector2 projectedMin = Engine::Vector2::AnyInit(
+			(std::numeric_limits<float>::max)());
+		Engine::Vector2 projectedMax = Engine::Vector2::AnyInit(
+			-(std::numeric_limits<float>::max)());
+		for (const Engine::Vector3& corner : corners) {
+			const Engine::Vector3 ndc = Engine::Vector3::Transform(
+				corner, worldViewProjection);
+			const Engine::Vector2 pixel(
+				(ndc.x + 1.0f) * 0.5f * static_cast<float>(viewWidth),
+				(1.0f - ndc.y) * 0.5f * static_cast<float>(viewHeight));
+			projectedMin.x = (std::min)(projectedMin.x, pixel.x);
+			projectedMin.y = (std::min)(projectedMin.y, pixel.y);
+			projectedMax.x = (std::max)(projectedMax.x, pixel.x);
+			projectedMax.y = (std::max)(projectedMax.y, pixel.y);
+		}
+		return point.x >= projectedMin.x && point.x <= projectedMax.x &&
+			point.y >= projectedMin.y && point.y <= projectedMax.y;
+	}
+}
 
 //============================================================================
 //	EditorManager picking methods
@@ -24,18 +59,9 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		return Entity::Null();
 	}
 
-	const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Orthographic);
-	if (!camera) {
+	if (view.width == 0 || view.height == 0) {
 		return Entity::Null();
 	}
-
-	// NDC座標への変換
-	// inputPixelはGetMousePosInView()により、描画元(view.width, view.height)の解像度にスケーリングされた座標
-	float ndcX = (inputPixel.x / static_cast<float>(view.width)) * 2.0f - 1.0f;
-	float ndcY = 1.0f - (inputPixel.y / static_cast<float>(view.height)) * 2.0f;
-
-	Vector3 ndcOrigin(ndcX, ndcY, 0.0f);
-	Vector3 ndcTarget(ndcX, ndcY, 1.0f);
 
 	struct HitRecord {
 		Entity entity;
@@ -52,36 +78,27 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 			return;
 		}
 
-		Matrix4x4 worldMatrix = RenderItemExtract::GetWorldMatrix(*world, entity);
-		Matrix4x4 wvp = worldMatrix * camera->matrices.viewProjectionMatrix;
-		Matrix4x4 wvpInv = Matrix4x4::Inverse(wvp);
-
-		// NDCからローカル空間へのレイを計算
-		Vector3 localOrigin = Vector3::Transform(ndcOrigin, wvpInv);
-		Vector3 localTarget = Vector3::Transform(ndcTarget, wvpInv);
-		Vector3 localDir = Vector3::Normalize(localTarget - localOrigin);
-
-		// Z=0平面との交差判定(rd.zが0に近い場合は平行なのでスキップ)
-		if (std::abs(localDir.z) < 1e-5f) {
+		const UIElementRuntime* uiRuntime =
+			UIRuntimeService::GetInstance().Find(*world, entity);
+		const RenderCameraDomain cameraDomain = uiRuntime ?
+			RenderCameraDomain::Screen : RenderCameraDomain::Orthographic;
+		const ResolvedCameraView* camera = view.FindCamera(cameraDomain);
+		if (!camera) {
 			return;
 		}
-
-		float t = -localOrigin.z / localDir.z;
-		// 後ろにあるものはピッキングしない
-		if (t < 0.0f) {
-			return;
-		}
-
-		Vector3 hitPoint = localOrigin + localDir * t;
 
 		// スプライトの矩形領域内か判定
-		float minX = -renderer.pivot.x * renderer.size.x;
-		float maxX = (1.0f - renderer.pivot.x) * renderer.size.x;
-		float minY = -renderer.pivot.y * renderer.size.y;
-		float maxY = (1.0f - renderer.pivot.y) * renderer.size.y;
-
-		if (hitPoint.x >= minX && hitPoint.x <= maxX &&
-			hitPoint.y >= minY && hitPoint.y <= maxY) {
+		const Vector2 rectMin(
+			-renderer.pivot.x * renderer.size.x,
+			-renderer.pivot.y * renderer.size.y);
+		const Vector2 rectMax(
+			(1.0f - renderer.pivot.x) * renderer.size.x,
+			(1.0f - renderer.pivot.y) * renderer.size.y);
+		const Matrix4x4 worldMatrix = uiRuntime ?
+			uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(*world, entity);
+		if (IsPointInsideProjectedRect(inputPixel, rectMin, rectMax,
+			worldMatrix * camera->matrices.viewProjectionMatrix,
+			view.width, view.height)) {
 			hits.push_back({ entity, renderer.layer, renderer.order });
 		}
 	});
@@ -93,6 +110,11 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
 			return;
 		}
+		const UIElementRuntime* uiRuntime =
+			UIRuntimeService::GetInstance().Find(*world, entity);
+		if (!uiRuntime && renderer.dimension != Dimension::Type2D) {
+			return;
+		}
 		const TextLayoutRuntimeComponent* layout =
 			world->TryGetComponent<TextLayoutRuntimeComponent>(entity);
 		const std::span<const TextLayoutGlyph> glyphs =
@@ -101,51 +123,29 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 			return;
 		}
 
-		Matrix4x4 worldMatrix = RenderItemExtract::GetWorldMatrix(*world, entity);
-		Matrix4x4 wvp = worldMatrix * camera->matrices.viewProjectionMatrix;
-		Matrix4x4 wvpInv = Matrix4x4::Inverse(wvp);
-
-		// NDCからローカル空間へのレイを計算
-		Vector3 localOrigin = Vector3::Transform(ndcOrigin, wvpInv);
-		Vector3 localTarget = Vector3::Transform(ndcTarget, wvpInv);
-		Vector3 localDir = Vector3::Normalize(localTarget - localOrigin);
-
-		if (std::abs(localDir.z) < 1e-5f) {
+		const RenderCameraDomain cameraDomain = uiRuntime ?
+			RenderCameraDomain::Screen : RenderCameraDomain::Orthographic;
+		const ResolvedCameraView* camera = view.FindCamera(cameraDomain);
+		if (!camera) {
 			return;
 		}
 
-		float t = -localOrigin.z / localDir.z;
-		if (t < 0.0f) {
-			return;
-		}
-
-		Vector3 hitPoint = localOrigin + localDir * t;
-
-		// テキストの全体の矩形を計算
-		float minX = (std::numeric_limits<float>::max)();
-		float maxX = -(std::numeric_limits<float>::max)();
-		float minY = (std::numeric_limits<float>::max)();
-		float maxY = -(std::numeric_limits<float>::max)();
-
-		for (const TextLayoutGlyph& glyph : glyphs) {
-			minX = (std::min)(minX, glyph.rectMin.x);
-			maxX = (std::max)(maxX, glyph.rectMax.x);
-			minY = (std::min)(minY, glyph.rectMin.y);
-			maxY = (std::max)(maxY, glyph.rectMax.y);
-		}
-
-		// グリフ矩形はピボット未適用なので、描画側と同じオフセットを加えて判定位置を合わせる
-		// 正規化0-1基準のpivotがブロック全体のboundsSize上のこの点を原点へ寄せる
-		const float pivotOffsetX = -renderer.pivot.x * layout->boundsSize.x;
-		const float pivotOffsetY = -renderer.pivot.y * layout->boundsSize.y;
-		minX += pivotOffsetX;
-		maxX += pivotOffsetX;
-		minY += pivotOffsetY;
-		maxY += pivotOffsetY;
-
-		if (hitPoint.x >= minX && hitPoint.x <= maxX &&
-			hitPoint.y >= minY && hitPoint.y <= maxY) {
-			hits.push_back({ entity, renderer.layer, renderer.order });
+		const Matrix4x4 worldMatrix = uiRuntime ?
+			uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(*world, entity);
+		const std::span<const TextCharTransform> charTransforms =
+			GetTextCharTransforms(*world, entity);
+		for (size_t glyphIndex = 0; glyphIndex < glyphs.size(); ++glyphIndex) {
+			const TextCharTransform* charTransform = glyphIndex < charTransforms.size() ?
+				&charTransforms[glyphIndex] : nullptr;
+			const TextGlyphGeometry geometry = ResolveTextGlyphGeometry(
+				renderer, *layout, glyphs[glyphIndex], charTransform, worldMatrix);
+			if (IsPointInsideProjectedRect(inputPixel,
+				geometry.rectMin, geometry.rectMax,
+				geometry.worldMatrix * camera->matrices.viewProjectionMatrix,
+				view.width, view.height)) {
+				hits.push_back({ entity, renderer.layer, renderer.order });
+				break;
+			}
 		}
 	});
 

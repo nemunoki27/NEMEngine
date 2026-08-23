@@ -33,6 +33,8 @@ namespace Engine {
 		bool allowMultiple = false;
 		// 追加削除メニューに表示するか
 		bool showInComponentMenu = true;
+		// 一括削除メニューに表示するか
+		bool showInRemoveMenu = true;
 
 		// 描画処理の生成関数
 		std::function<std::unique_ptr<IInspectorComponentDrawer>()> drawerFactory{};

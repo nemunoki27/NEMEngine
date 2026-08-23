@@ -199,7 +199,41 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeTypeField(Col
 	return result;
 }
 
-Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(CollisionShape& shape, [[maybe_unused]] uint32_t index) {
+Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawCapsuleAxisField(
+	CapsuleAxis& axis, bool is2D) {
+
+	ValueEditResult result{};
+	if (!MyGUI::BeginPropertyRow("方向")) {
+		return result;
+	}
+
+	if (is2D) {
+
+		const bool horizontal = axis == CapsuleAxis::X;
+		if (ImGui::BeginCombo("##Value", horizontal ? "横" : "縦")) {
+			if (ImGui::Selectable("横", horizontal)) {
+				axis = CapsuleAxis::X;
+				result.valueChanged = true;
+				result.editFinished = true;
+			}
+			if (ImGui::Selectable("縦", !horizontal)) {
+				axis = CapsuleAxis::Y;
+				result.valueChanged = true;
+				result.editFinished = true;
+			}
+			ImGui::EndCombo();
+		}
+	} else if (EnumAdapter<CapsuleAxis>::Combo("##Value", &axis)) {
+		result.valueChanged = true;
+		result.editFinished = true;
+	}
+	result.anyItemActive = ImGui::IsItemActive();
+	MyGUI::EndPropertyRow();
+	return result;
+}
+
+Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(
+	CollisionShape& shape, [[maybe_unused]] uint32_t index) {
 
 	ValueEditResult result{};
 	auto accumulate = [&](const ValueEditResult& item) {
@@ -212,11 +246,41 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(Collisi
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("有効", shape.enabled));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("コールバックのみ", shape.isTrigger));
 	accumulate(InspectorDrawerCommon::DrawCheckboxField("トランスフォーム回転使用", shape.useTransformRotation));
-	accumulate(MyGUI::DragVector3("オフセット", shape.offset));
-	accumulate(MyGUI::DragVector3("回転", shape.rotationDegrees, { .dragSpeed = 0.1f }));
+	if (shape.type == ColliderShapeType::Capsule2D) {
+
+		Vector2 offset(shape.offset.x, shape.offset.y);
+		const ValueEditResult offsetResult =
+			MyGUI::DragVector2("オフセット", offset);
+		if (offsetResult.valueChanged) {
+			shape.offset.x = offset.x;
+			shape.offset.y = offset.y;
+		}
+		accumulate(offsetResult);
+
+		const ValueEditResult rotationResult = MyGUI::DragFloat(
+			"回転", shape.rotationDegrees.z, { .dragSpeed = 0.1f });
+		accumulate(rotationResult);
+		if (shape.offset.z != 0.0f ||
+			shape.rotationDegrees.x != 0.0f ||
+			shape.rotationDegrees.y != 0.0f) {
+
+			shape.offset.z = 0.0f;
+			shape.rotationDegrees.x = 0.0f;
+			shape.rotationDegrees.y = 0.0f;
+			result.valueChanged = true;
+			result.editFinished = true;
+		}
+	} else {
+
+		accumulate(MyGUI::DragVector3("オフセット", shape.offset));
+		accumulate(MyGUI::DragVector3(
+			"回転", shape.rotationDegrees, { .dragSpeed = 0.1f }));
+	}
 
 	// 形状タイプに必要なパラメータだけを表示する
-	if (shape.type == ColliderShapeType::Circle2D || shape.type == ColliderShapeType::Sphere3D) {
+	if (shape.type == ColliderShapeType::Circle2D ||
+		shape.type == ColliderShapeType::Sphere3D ||
+		shape.type == ColliderShapeType::Capsule3D) {
 		accumulate(MyGUI::DragFloat("半径", shape.radius, { .dragSpeed = 0.1f, .minValue = 0.0f }));
 	}
 	if (shape.type == ColliderShapeType::Quad2D) {
@@ -225,6 +289,16 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeField(Collisi
 	}
 	if (shape.type == ColliderShapeType::AABB3D || shape.type == ColliderShapeType::OBB3D) {
 		accumulate(MyGUI::DragVector3("半サイズ", shape.halfExtents3D, { .dragSpeed = 0.01f, .minValue = 0.0f }));
+	}
+	if (shape.type == ColliderShapeType::Capsule2D) {
+		accumulate(MyGUI::DragVector2(
+			"サイズ", shape.capsuleSize2D, { .dragSpeed = 0.1f, .minValue = 0.0f }));
+		accumulate(DrawCapsuleAxisField(shape.capsuleAxis, true));
+	}
+	if (shape.type == ColliderShapeType::Capsule3D) {
+		accumulate(MyGUI::DragFloat(
+			"高さ", shape.capsuleHeight, { .dragSpeed = 0.1f, .minValue = 0.0f }));
+		accumulate(DrawCapsuleAxisField(shape.capsuleAxis, false));
 	}
 	return result;
 }

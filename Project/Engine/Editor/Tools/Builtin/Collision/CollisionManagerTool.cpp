@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
+#include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
@@ -133,6 +134,56 @@ namespace {
 		}
 	}
 
+	// Capsule2DをXY平面に描画する
+	void DrawCapsule2D(const Engine::CollisionShape& shape,
+		const Engine::TransformComponent& transform,
+		const Engine::Color4& color, float thickness) {
+
+		Engine::LineRenderer2D* renderer = Engine::LineRenderer::GetInstance()->Get2D();
+		if (!renderer) {
+			return;
+		}
+
+		const Engine::CollisionShapeInstance capsule =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), shape, 0, transform);
+		const Engine::Vector2 start(capsule.segmentStart.x, capsule.segmentStart.y);
+		const Engine::Vector2 end(capsule.segmentEnd.x, capsule.segmentEnd.y);
+		const Engine::Vector2 segment = end - start;
+		const float segmentLength = segment.Length();
+		constexpr uint32_t kArcDivision = 16;
+		if (segmentLength <= 0.0001f) {
+			renderer->DrawCircle(
+				start, capsule.radius, color, kArcDivision * 2, thickness);
+			return;
+		}
+
+		const Engine::Vector2 axis = segment / segmentLength;
+		const Engine::Vector2 perpendicular(-axis.y, axis.x);
+		renderer->DrawLine(start + perpendicular * capsule.radius,
+			end + perpendicular * capsule.radius, color, thickness);
+		renderer->DrawLine(start - perpendicular * capsule.radius,
+			end - perpendicular * capsule.radius, color, thickness);
+
+		for (uint32_t i = 0; i < kArcDivision; ++i) {
+
+			const float angle0 = Math::pi * static_cast<float>(i) /
+				static_cast<float>(kArcDivision);
+			const float angle1 = Math::pi * static_cast<float>(i + 1) /
+				static_cast<float>(kArcDivision);
+			const Engine::Vector2 start0 = start +
+				(perpendicular * std::cos(angle0) - axis * std::sin(angle0)) * capsule.radius;
+			const Engine::Vector2 start1 = start +
+				(perpendicular * std::cos(angle1) - axis * std::sin(angle1)) * capsule.radius;
+			const Engine::Vector2 end0 = end +
+				(-perpendicular * std::cos(angle0) + axis * std::sin(angle0)) * capsule.radius;
+			const Engine::Vector2 end1 = end +
+				(-perpendicular * std::cos(angle1) + axis * std::sin(angle1)) * capsule.radius;
+			renderer->DrawLine(start0, start1, color, thickness);
+			renderer->DrawLine(end0, end1, color, thickness);
+		}
+	}
+
 	// Sphere3Dを描画する
 	void DrawSphere3D(const Engine::CollisionShape& shape,
 		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
@@ -145,6 +196,44 @@ namespace {
 		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
 		const float radius = shape.radius * (std::max)({ scale.x, scale.y, scale.z });
 		renderer->DrawSphere(MakeWorldCenter(shape, transform), radius, color, thickness);
+	}
+
+	// Capsule3Dを描画する
+	void DrawCapsule3D(const Engine::CollisionShape& shape,
+		const Engine::TransformComponent& transform,
+		const Engine::Color4& color, float thickness) {
+
+		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
+		if (!renderer) {
+			return;
+		}
+
+		const Engine::CollisionShapeInstance capsule =
+			Engine::CollisionShapeUtility::BuildShapeInstance(
+				Engine::Entity::Null(), shape, 0, transform);
+		renderer->DrawSphere(
+			capsule.segmentStart, capsule.radius, color, thickness);
+		if ((capsule.segmentEnd - capsule.segmentStart).Length() <= 0.0001f) {
+			return;
+		}
+		renderer->DrawSphere(
+			capsule.segmentEnd, capsule.radius, color, thickness);
+
+		const Engine::Vector3 axis = Engine::Vector3::NormalizeOr(
+			capsule.segmentEnd - capsule.segmentStart,
+			Engine::Vector3(0.0f, 1.0f, 0.0f));
+		const Engine::Vector3 reference = std::fabs(axis.y) < 0.99f ?
+			Engine::Vector3(0.0f, 1.0f, 0.0f) : Engine::Vector3(1.0f, 0.0f, 0.0f);
+		const Engine::Vector3 right = Engine::Vector3::NormalizeOr(
+			Engine::Vector3::Cross(axis, reference), Engine::Vector3(1.0f, 0.0f, 0.0f));
+		const Engine::Vector3 forward = Engine::Vector3::NormalizeOr(
+			Engine::Vector3::Cross(axis, right), Engine::Vector3(0.0f, 0.0f, 1.0f));
+		for (const Engine::Vector3& direction : { right, -right, forward, -forward }) {
+			renderer->DrawLine(
+				capsule.segmentStart + direction * capsule.radius,
+				capsule.segmentEnd + direction * capsule.radius,
+				color, thickness);
+		}
 	}
 
 	// AABB3Dを描画する
@@ -191,9 +280,13 @@ namespace {
 		case Engine::ColliderShapeType::Quad2D:
 			DrawQuad2D(shape, transform, color, thickness);
 			break;
+		case Engine::ColliderShapeType::Capsule2D:
+			DrawCapsule2D(shape, transform, color, thickness);
+			break;
 		case Engine::ColliderShapeType::Sphere3D:
 		case Engine::ColliderShapeType::AABB3D:
-		case Engine::ColliderShapeType::OBB3D: {
+		case Engine::ColliderShapeType::OBB3D:
+		case Engine::ColliderShapeType::Capsule3D: {
 
 			// 3D形状は不透明メッシュに隠れるよう深度オクルージョン対象バッチへ積む
 			Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
@@ -204,6 +297,8 @@ namespace {
 				DrawSphere3D(shape, transform, color, thickness);
 			} else if (shape.type == Engine::ColliderShapeType::AABB3D) {
 				DrawAABB3D(shape, transform, color, thickness);
+			} else if (shape.type == Engine::ColliderShapeType::Capsule3D) {
+				DrawCapsule3D(shape, transform, color, thickness);
 			} else {
 				DrawOBB3D(shape, transform, color, thickness);
 			}

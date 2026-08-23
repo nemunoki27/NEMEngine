@@ -482,6 +482,11 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 		if (!FromJson(root["Header"], *outHeader, assetDatabase)) {
 			return false;
 		}
+		// シーン表示名はファイル名を正として、外部リネーム後も古いHeader名を残さない
+		if (const std::string assetName = MakeSceneAssetName(scenePath);
+			!assetName.empty()) {
+			outHeader->name = assetName;
+		}
 		outHeader->guid = sourceAsset;
 		EnsureSceneRenderFeatureProfile(*outHeader,
 			Algorithm::PathToUTF8(scenePath), assetDatabase);

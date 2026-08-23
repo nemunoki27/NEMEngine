@@ -4,7 +4,6 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Core/ComponentEditorRegistry.h>
-#include <Engine/Editor/Commands/Components/AddScriptEntryCommand.h>
 
 // ビルトインDrawer群
 #include <Engine/Editor/UI/Inspectors/Builtin/TransformInspectorDrawer.h>
@@ -34,6 +33,7 @@
 
 // c++
 #include <memory>
+#include <string_view>
 #include <utility>
 
 //============================================================================
@@ -43,8 +43,8 @@ namespace {
 
 	// コンポーネント編集情報を生成する
 	template <typename TDrawer>
-	Engine::ComponentEditorDescriptor MakeComponentEditorDescriptor(const char* menuLabel,
-		const char* typeName, const char* category) {
+	Engine::ComponentEditorDescriptor MakeComponentEditorDescriptor(std::string_view menuLabel,
+		std::string_view typeName, std::string_view category) {
 
 		Engine::ComponentEditorDescriptor descriptor{};
 		descriptor.menuLabel = menuLabel;
@@ -75,12 +75,6 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<OrthographicCameraInspectorDrawer>("OrthographicCamera", "OrthographicCamera", "Camera"));
 		registry.Register(MakeComponentEditorDescriptor<CameraControllerInspectorDrawer>("Camera Controller", "CameraController", "Camera"));
 	}
-	// 衝突
-	{
-		registry.Register(MakeComponentEditorDescriptor<CollisionInspectorDrawer>("Collision", "Collision", "Physics"));
-		registry.Register(MakeComponentEditorDescriptor<RigidbodyInspectorDrawer>("Rigidbody", "Rigidbody", "Physics"));
-		registry.Register(MakeComponentEditorDescriptor<Rigidbody2DInspectorDrawer>("Rigidbody 2D", "Rigidbody2D", "Physics"));
-	}
 	// 描画系
 	{
 		meshRendererDrawer = static_cast<MeshRendererInspectorDrawer*>(registry.Register(MakeComponentEditorDescriptor<
@@ -92,6 +86,16 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>("Primitive Renderer", "PrimitiveRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<EffectEmitterInspectorDrawer>("Effect Emitter", "EffectEmitter", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<FlipbookAnimationInspectorDrawer>("Flipbook Animation", "FlipbookAnimation", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>("Billboard", "Billboard", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>("Inverted Hull Outline", "InvertedHullOutline", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<ScreenSpaceOutlineInspectorDrawer>("Screen Space Outline", "ScreenSpaceOutline", "Rendering"));
+	}
+	// 衝突
+	{
+		registry.Register(MakeComponentEditorDescriptor<CollisionInspectorDrawer>("Collision", "Collision", "Physics"));
+		registry.Register(MakeComponentEditorDescriptor<RigidbodyInspectorDrawer>("Rigidbody", "Rigidbody", "Physics"));
+		registry.Register(MakeComponentEditorDescriptor<Rigidbody2DInspectorDrawer>("Rigidbody 2D", "Rigidbody2D", "Physics"));
 	}
 	// UI
 	{
@@ -100,12 +104,6 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<UIImageButtonInspectorDrawer>("UI Image Button", "UIImageButton", "UI"));
 		registry.Register(MakeComponentEditorDescriptor<UITextButtonInspectorDrawer>("UI Text Button", "UITextButton", "UI"));
 		registry.Register(MakeComponentEditorDescriptor<UIProgressInspectorDrawer>("UI Progress", "UIProgress", "UI"));
-	}
-	{
-		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));
-		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>("Billboard", "Billboard", "Rendering"));
-		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>("Inverted Hull Outline", "InvertedHullOutline", "Rendering"));
-		registry.Register(MakeComponentEditorDescriptor<ScreenSpaceOutlineInspectorDrawer>("Screen Space Outline", "ScreenSpaceOutline", "Rendering"));
 	}
 	// アニメーション系
 	{
@@ -121,9 +119,11 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	}
 	// スクリプト
 	{
-		ComponentEditorDescriptor scriptDescriptor = MakeComponentEditorDescriptor<ScriptInspectorDrawer>("Script", "Script", "Scripting");
+		ComponentEditorDescriptor scriptDescriptor = MakeComponentEditorDescriptor<ScriptInspectorDrawer>(
+			"Script", ScriptComponent::kTypeName, "Scripting");
 		scriptDescriptor.allowMultiple = true;
-		scriptDescriptor.addCommandFactory = [](const Entity& entity) {return std::make_unique<AddScriptEntryCommand>(entity); };
+		// ScriptComponentは内部コンテナのため、削除は各C#スクリプトのヘッダーから行う
+		scriptDescriptor.showInRemoveMenu = false;
 		registry.Register(std::move(scriptDescriptor));
 	}
 }

@@ -45,6 +45,12 @@ void Engine::from_json(const nlohmann::json& in, CollisionShape& shape) {
 	if (in.contains("halfExtents3D")) {
 		shape.halfExtents3D = Vector3::FromJson(in["halfExtents3D"]);
 	}
+	shape.capsuleHeight = in.value("capsuleHeight", shape.capsuleHeight);
+	if (in.contains("capsuleSize2D")) {
+		shape.capsuleSize2D = Vector2::FromJson(in["capsuleSize2D"]);
+	}
+	shape.capsuleAxis = EnumAdapter<CapsuleAxis>::FromString(
+		in.value("capsuleAxis", "Y")).value_or(CapsuleAxis::Y);
 }
 
 void Engine::to_json(nlohmann::json& out, const CollisionShape& shape) {
@@ -60,6 +66,9 @@ void Engine::to_json(nlohmann::json& out, const CollisionShape& shape) {
 	out["radius"] = shape.radius;
 	out["halfSize2D"] = shape.halfSize2D.ToJson();
 	out["halfExtents3D"] = shape.halfExtents3D.ToJson();
+	out["capsuleHeight"] = shape.capsuleHeight;
+	out["capsuleSize2D"] = shape.capsuleSize2D.ToJson();
+	out["capsuleAxis"] = EnumAdapter<CapsuleAxis>::ToString(shape.capsuleAxis);
 }
 
 //============================================================================

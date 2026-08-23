@@ -32,6 +32,9 @@ namespace Engine {
 		// 判定サイズ
 		Vector3 halfExtents = Vector3::AnyInit(0.5f);
 		float radius = 0.5f;
+		// カプセル中心線の両端、球とBoxではcenterと同値
+		Vector3 segmentStart = Vector3::AnyInit(0.0f);
+		Vector3 segmentEnd = Vector3::AnyInit(0.0f);
 	};
 
 	// 2D用の衝突形状か

@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 
 // c++
@@ -68,6 +69,13 @@ namespace Engine {
 
 		// キャッシュが有効か
 		bool valid = false;
+	};
+	// 描画とピッキングで共有する1グリフ分の矩形と変換
+	struct TextGlyphGeometry {
+
+		Vector2 rectMin{};
+		Vector2 rectMax{};
+		Matrix4x4 worldMatrix = Matrix4x4::Identity();
 	};
 	// テキスト描画
 	struct TextRendererComponent {
@@ -147,6 +155,13 @@ namespace Engine {
 	void InvalidateTextLayout(ECSWorld& world, const Entity& entity);
 	// 文字列のキャッシュ比較用Hashを返す
 	uint64_t HashTextLayoutString(std::string_view text);
+	// 描画側と同じピボットと文字別SRTを適用したグリフ形状を返す
+	TextGlyphGeometry ResolveTextGlyphGeometry(
+		const TextRendererComponent& renderer,
+		const TextLayoutRuntimeComponent& layout,
+		const TextLayoutGlyph& glyph,
+		const TextCharTransform* charTransform,
+		const Matrix4x4& worldMatrix);
 	// 文字別変換を含む保存データへ変換する
 	void SerializeTextRenderer(const TextRendererComponent& component,
 		std::span<const TextCharTransform> transforms, nlohmann::json& out);

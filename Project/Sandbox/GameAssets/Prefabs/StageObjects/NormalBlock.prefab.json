@@ -1,0 +1,117 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Collision": {
+                    "enablePushback": true,
+                    "enabled": true,
+                    "isStatic": false,
+                    "shapes": [
+                        {
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "halfSize2D": {
+                                "x": 32.00006103515625,
+                                "y": 32.00006103515625
+                            },
+                            "isTrigger": false,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "radius": 25.500001907348633,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "Quad2D",
+                            "useTransformRotation": true
+                        }
+                    ],
+                    "typeMask": 4
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 3
+                },
+                "Name": {
+                    "name": "NormalBlock"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "91ebbfbda4325a51",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SpriteRenderer": {
+                    "blendMode": "Normal",
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 0.3744680881500244,
+                                "g": 1.0,
+                                "r": 0.0
+                            }
+                        },
+                        {
+                            "id": "93c33e46dc8a4e8e",
+                            "name": "baseColorTexture",
+                            "semantic": "BaseColorTexture",
+                            "value": "8d5d518c6b7254a87c332062c6716e69"
+                        }
+                    ],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "size": {
+                        "x": 68.09999084472656,
+                        "y": 68.09999084472656
+                    },
+                    "visible": true
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "91ebbfbda4325a51"
+        }
+    ],
+    "Header": {
+        "name": "NormalBlock",
+        "rootLocalFileID": "91ebbfbda4325a51",
+        "version": 1
+    },
+    "SchemaVersion": 1
+}

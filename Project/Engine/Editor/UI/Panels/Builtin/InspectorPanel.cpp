@@ -9,6 +9,7 @@
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Commands/Components/AddComponentCommand.h>
+#include <Engine/Editor/Commands/Components/AddScriptEntryCommand.h>
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Scripting/DragDrop/ScriptAssetDragDrop.h>
@@ -31,6 +32,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
+#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
@@ -360,7 +362,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	}
 	if (!lockedEntityUUID_ && !context.editorState->HasValidSelection(world)) {
 
-		ImGui::TextDisabled("Entity is not selected.");
+		ImGui::TextDisabled("エンティティが選択されていません");
 		ImGui::End();
 		return;
 	}
@@ -418,6 +420,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 		}
 	}
 	ImGui::EndChild();
+	DrawScriptAssetDropTarget(context, *world, selected);
 
 	ImGui::SetWindowFontScale(1.0f);
 
@@ -1043,6 +1046,8 @@ void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& cont
 
 	// コンポーネントの追加、削除のボタンを表示する
 	if (ImGui::Button("コンポーネント追加", ImVec2(width, 0.0f))) {
+		addComponentSearchFilter_.Clear();
+		addScriptSearchFilter_.Clear();
 		ImGui::OpenPopup("##Inspector_AddComponentPopup");
 	}
 	ImGui::SameLine();
@@ -1065,7 +1070,8 @@ void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& cont
 void Engine::InspectorPanel::DrawComponentPopupEntries(const EditorPanelContext& context,
 	TextSearchFilter& searchFilter, const char* searchInputID, const char* emptyText,
 	const std::function<bool(const ComponentEditorDescriptor&)>& shouldShow,
-	const std::function<void(const ComponentEditorDescriptor&)>& onSelect) {
+	const std::function<bool(const ComponentEditorDescriptor&)>& onSelect,
+	const std::function<bool(const ComponentEditorDescriptor&)>& drawCustomEntry) {
 
 	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
 	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
@@ -1098,10 +1104,14 @@ void Engine::InspectorPanel::DrawComponentPopupEntries(const EditorPanelContext&
 			currentCategory = entryCategory;
 		}
 		hasAny = true;
+		if (drawCustomEntry && drawCustomEntry(entry)) {
+			continue;
+		}
 		if (ImGui::MenuItem(entry.menuLabel.c_str())) {
 
-			onSelect(entry);
-			ImGui::CloseCurrentPopup();
+			if (onSelect(entry)) {
+				ImGui::CloseCurrentPopup();
+			}
 		}
 	}
 	// 対象コンポーネントがない
@@ -1112,26 +1122,112 @@ void Engine::InspectorPanel::DrawComponentPopupEntries(const EditorPanelContext&
 
 void Engine::InspectorPanel::DrawAddComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
+	ImGui::SetNextWindowSize(ImVec2(300.0f, 420.0f), ImGuiCond_Appearing);
 	if (!ImGui::BeginPopup("##Inspector_AddComponentPopup")) {
 		return;
 	}
 
 	DrawComponentPopupEntries(context, addComponentSearchFilter_, "##AddComponentSearch",
-		"No components can be added.",
+		"追加できるコンポーネントはありません",
 		// すでに持っているコンポーネントは追加できない、複数追加を許可したものは除く
-		[&](const ComponentEditorDescriptor& entry) { return componentEditorRegistry_.CanAdd(entry, world, entity); },
+		[&](const ComponentEditorDescriptor& entry) {
+			return componentEditorRegistry_.CanAdd(entry, world, entity);
+		},
 		[&](const ComponentEditorDescriptor& entry) {
 
-			// Script追加など専用コマンドがあれば優先し、無ければ汎用追加コマンドを使う
-			std::unique_ptr<IEditorCommand> command = componentEditorRegistry_.CreateAddCommand(entry, entity);
+			std::unique_ptr<IEditorCommand> command =
+				componentEditorRegistry_.CreateAddCommand(entry, entity);
 			if (!command) {
-
 				command = std::make_unique<AddComponentCommand>(entity, entry.typeName);
 			}
 			context.host->ExecuteEditorCommand(std::move(command));
+			return true;
+		},
+		[&](const ComponentEditorDescriptor& entry) {
+
+			if (entry.typeName != ScriptComponent::kTypeName) {
+				return false;
+			}
+
+			ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_Appearing);
+			if (ImGui::BeginMenu(entry.menuLabel.c_str())) {
+				DrawAddScriptEntries(context, world, entity);
+				ImGui::EndMenu();
+			}
+			return true;
 		});
 
 	ImGui::EndPopup();
+}
+
+void Engine::InspectorPanel::DrawAddScriptEntries(const EditorPanelContext& context,
+	[[maybe_unused]] ECSWorld& world, const Entity& entity) {
+
+	const ImTextureID searchIcon =
+		EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
+	addScriptSearchFilter_.DrawInput("##AddScriptSearch", searchIcon, "スクリプト検索...");
+	ImGui::Separator();
+
+	const BehaviorTypeRegistry& registry = BehaviorTypeRegistry::GetInstance();
+	bool hasAny = false;
+	for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
+
+		const BehaviorTypeInfo& info = registry.GetInfo(i);
+		if (!info.managed || info.scriptTypeID.empty() || info.name.empty() || !info.construct) {
+			continue;
+		}
+
+		const std::string& displayName = info.displayName.empty() ? info.name : info.displayName;
+		if (!addScriptSearchFilter_.Matches(displayName) &&
+			!addScriptSearchFilter_.Matches(info.name)) {
+			continue;
+		}
+
+		hasAny = true;
+		ImGui::PushID(static_cast<int32_t>(i));
+		if (ImGui::Selectable(displayName.c_str())) {
+
+			AssetID scriptAsset{};
+			if (context.editorContext && context.editorContext->assetDatabase) {
+				if (const AssetMeta* meta =
+					context.editorContext->assetDatabase->FindByPath(info.sourcePath)) {
+					scriptAsset = meta->guid;
+				}
+			}
+			context.host->ExecuteEditorCommand(std::make_unique<AddScriptEntryCommand>(
+				entity, info.scriptTypeID, info.name, scriptAsset));
+			ImGui::CloseCurrentPopup();
+		}
+		if (ImGui::IsItemHovered() && displayName != info.name) {
+			ImGui::SetTooltip("%s", info.name.c_str());
+		}
+		ImGui::PopID();
+	}
+	if (!hasAny) {
+		ImGui::TextDisabled("一致するスクリプトはありません");
+	}
+}
+
+void Engine::InspectorPanel::DrawScriptAssetDropTarget(const EditorPanelContext& context,
+	[[maybe_unused]] ECSWorld& world, const Entity& entity) {
+
+	if (!context.CanEditScene() || !context.host) {
+		return;
+	}
+
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	if (!window || !ImGui::BeginDragDropTargetCustom(
+		window->InnerRect, window->GetID("##InspectorScriptDropTarget"))) {
+		return;
+	}
+
+	AssetID scriptAsset{};
+	ScriptAssetDragDrop::ResolvedScriptType resolved{};
+	if (ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, resolved)) {
+		context.host->ExecuteEditorCommand(std::make_unique<AddScriptEntryCommand>(
+			entity, resolved.scriptTypeID, resolved.typeName, scriptAsset));
+	}
+	ImGui::EndDragDropTarget();
 }
 
 void Engine::InspectorPanel::DrawRemoveComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
@@ -1143,10 +1239,13 @@ void Engine::InspectorPanel::DrawRemoveComponentPopup(const EditorPanelContext& 
 	DrawComponentPopupEntries(context, removeComponentSearchFilter_, "##RemoveComponentSearch",
 		"No removable components.",
 		// 持っていないコンポーネントは削除できない
-		[&](const ComponentEditorDescriptor& entry) { return world.HasComponent(entity, entry.typeName); },
+		[&](const ComponentEditorDescriptor& entry) {
+			return entry.showInRemoveMenu && world.HasComponent(entity, entry.typeName);
+		},
 		[&](const ComponentEditorDescriptor& entry) {
 
 			context.host->ExecuteEditorCommand(std::make_unique<RemoveComponentCommand>(entity, entry.typeName));
+			return true;
 		});
 
 	ImGui::EndPopup();

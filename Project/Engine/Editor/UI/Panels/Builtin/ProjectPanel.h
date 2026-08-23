@@ -256,7 +256,8 @@ namespace Engine {
 		// 新規作成用の名前入力ポップアップを描画する
 		void DrawCreateAssetPopup(AssetDatabase& database);
 		// アセットリネーム用の名前入力ポップアップを描画する
-		void DrawRenameAssetPopup(AssetDatabase& database);
+		void DrawRenameAssetPopup(const EditorPanelContext& context,
+			AssetDatabase& database);
 		// 削除確認ポップアップを描画する(参照元があれば警告する)
 		void DrawDeleteAssetPopup(AssetDatabase& database);
 		// アセット種別ごとの操作をRegistryへ登録する

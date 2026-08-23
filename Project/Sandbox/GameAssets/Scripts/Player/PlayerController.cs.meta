@@ -1,0 +1,18 @@
+{
+  "guid": "3f0a9ca948d8ccab0aaab65fe84ebd88",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.PlayerController",
+      "scriptTypeId": "871337a6-9d84-4ada-a61d-782a589c8ab3",
+      "formerNames": [
+        "SandboxScripts.PlayerStateController"
+      ],
+      "fields": []
+    }
+  ]
+}

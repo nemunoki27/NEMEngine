@@ -287,6 +287,79 @@ bool Engine::ReparentEntityCommand::IsSameParent(const ParentState& lhs, const P
 	return lhs.parentStableUUID == rhs.parentStableUUID;
 }
 
+//============================================================================
+//	ReparentEntitiesCommand classMethods
+//============================================================================
+Engine::ReparentEntitiesCommand::ReparentEntitiesCommand(
+	std::vector<Entity> targetEntities, UUID newParentStableUUID) :
+	targetEntities_(std::move(targetEntities)),
+	newParentStableUUID_(newParentStableUUID) {
+}
+
+bool Engine::ReparentEntitiesCommand::Execute(EditorCommandContext& context) {
+
+	if (initialized_) {
+		return Redo(context);
+	}
+	if (targetEntities_.empty()) {
+		return false;
+	}
+
+	commands_.reserve(targetEntities_.size());
+	for (const Entity& entity : targetEntities_) {
+		commands_.emplace_back(
+			std::make_unique<ReparentEntityCommand>(entity, newParentStableUUID_));
+	}
+
+	size_t executedCount = 0;
+	for (const std::unique_ptr<ReparentEntityCommand>& command : commands_) {
+		if (!command->Execute(context)) {
+			for (size_t i = executedCount; i > 0; --i) {
+				commands_[i - 1]->Undo(context);
+			}
+			RestoreSelection(context);
+			return false;
+		}
+		++executedCount;
+	}
+	initialized_ = true;
+	RestoreSelection(context);
+	return true;
+}
+
+void Engine::ReparentEntitiesCommand::Undo(EditorCommandContext& context) {
+
+	for (auto it = commands_.rbegin(); it != commands_.rend(); ++it) {
+		(*it)->Undo(context);
+	}
+	RestoreSelection(context);
+}
+
+bool Engine::ReparentEntitiesCommand::Redo(EditorCommandContext& context) {
+
+	size_t redoneCount = 0;
+	for (const std::unique_ptr<ReparentEntityCommand>& command : commands_) {
+		if (!command->Redo(context)) {
+			for (size_t i = redoneCount; i > 0; --i) {
+				commands_[i - 1]->Undo(context);
+			}
+			RestoreSelection(context);
+			return false;
+		}
+		++redoneCount;
+	}
+	RestoreSelection(context);
+	return true;
+}
+
+void Engine::ReparentEntitiesCommand::RestoreSelection(
+	EditorCommandContext& context) const {
+
+	if (context.editorState) {
+		context.editorState->SetSelectedEntities(targetEntities_);
+	}
+}
+
 Engine::ReorderEntityCommand::ReorderEntityCommand(const Entity& targetEntity, const Entity& anchorEntity, bool insertAfter) :
 	initialTarget_(targetEntity), initialAnchor_(anchorEntity), insertAfter_(insertAfter) {
 }

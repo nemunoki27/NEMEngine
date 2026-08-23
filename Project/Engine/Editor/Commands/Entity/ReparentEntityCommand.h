@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -89,6 +90,43 @@ namespace Engine {
 		bool ApplyState(EditorCommandContext& context, const ParentState& state);
 		// 親子付け先が同じか
 		bool IsSameParent(const ParentState& lhs, const ParentState& rhs) const;
+	};
+
+	//============================================================================
+	//	ReparentEntitiesCommand class
+	//	複数エンティティの親をまとめて変更するコマンド
+	//============================================================================
+	class ReparentEntitiesCommand :
+		public IEditorCommand {
+	public:
+		//============================================================================
+		//	public Methods
+		//============================================================================
+
+		ReparentEntitiesCommand(std::vector<Entity> targetEntities,
+			UUID newParentStableUUID = UUID{});
+		~ReparentEntitiesCommand() = default;
+
+		bool Execute(EditorCommandContext& context) override;
+		void Undo(EditorCommandContext& context) override;
+		bool Redo(EditorCommandContext& context) override;
+
+		const char* GetName() const override { return "Reparent Entities"; }
+	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		std::vector<Entity> targetEntities_{};
+		UUID newParentStableUUID_{};
+		std::vector<std::unique_ptr<ReparentEntityCommand>> commands_{};
+		bool initialized_ = false;
+
+		//--------- functions ----------------------------------------------------
+
+		void RestoreSelection(EditorCommandContext& context) const;
 	};
 
 	//============================================================================

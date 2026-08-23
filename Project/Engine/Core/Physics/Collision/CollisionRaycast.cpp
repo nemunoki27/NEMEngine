@@ -5,6 +5,7 @@
 //============================================================================
 
 // c++
+#include <algorithm>
 #include <cmath>
 
 //============================================================================
@@ -35,6 +36,81 @@ bool Engine::CollisionRaycast::RayVsSphere(const Ray& ray, const Vector3& center
 	}
 	outDistance = distance;
 	outNormal = Vector3::NormalizeOr((ray.origin + ray.direction * distance) - center, -ray.direction);
+	return true;
+}
+
+bool Engine::CollisionRaycast::RayVsCapsule(const Ray& ray,
+	const CollisionShapeInstance& capsule, float maxDistance,
+	float& outDistance, Vector3& outNormal) {
+
+	const Vector3 axis = capsule.segmentEnd - capsule.segmentStart;
+	const float axisLengthSq = Vector3::Dot(axis, axis);
+	if (axisLengthSq <= 0.00000001f) {
+		return RayVsSphere(ray, capsule.center, capsule.radius,
+			maxDistance, outDistance, outNormal);
+	}
+
+	// 始点がカプセル内部なら距離0でヒットさせる
+	const float closestT = std::clamp(
+		Vector3::Dot(ray.origin - capsule.segmentStart, axis) / axisLengthSq,
+		0.0f, 1.0f);
+	const Vector3 closest = capsule.segmentStart + axis * closestT;
+	const Vector3 fromAxis = ray.origin - closest;
+	if (Vector3::Dot(fromAxis, fromAxis) <= capsule.radius * capsule.radius) {
+		outDistance = 0.0f;
+		outNormal = -ray.direction;
+		return true;
+	}
+
+	float bestDistance = maxDistance;
+	Vector3 bestNormal{};
+	bool hit = false;
+
+	// 無限円柱との交点が両端間にある場合は側面へのヒット
+	const Vector3 toOrigin = ray.origin - capsule.segmentStart;
+	const float axisRay = Vector3::Dot(axis, ray.direction);
+	const float axisOrigin = Vector3::Dot(axis, toOrigin);
+	const float rayOrigin = Vector3::Dot(ray.direction, toOrigin);
+	const float originLengthSq = Vector3::Dot(toOrigin, toOrigin);
+	const float a = axisLengthSq - axisRay * axisRay;
+	const float b = axisLengthSq * rayOrigin - axisOrigin * axisRay;
+	const float c = axisLengthSq * originLengthSq - axisOrigin * axisOrigin -
+		capsule.radius * capsule.radius * axisLengthSq;
+	const float discriminant = b * b - a * c;
+	if (0.00000001f < std::fabs(a) && 0.0f <= discriminant) {
+
+		const float distance = (-b - std::sqrt(discriminant)) / a;
+		const float axisDistance = axisOrigin + distance * axisRay;
+		if (0.0f <= distance && distance <= maxDistance &&
+			0.0f <= axisDistance && axisDistance <= axisLengthSq) {
+
+			const Vector3 point = ray.origin + ray.direction * distance;
+			const Vector3 pointOnAxis = capsule.segmentStart +
+				axis * (axisDistance / axisLengthSq);
+			bestDistance = distance;
+			bestNormal = Vector3::NormalizeOr(point - pointOnAxis, -ray.direction);
+			hit = true;
+		}
+	}
+
+	// 両端の半球を含めた全候補から最短ヒットを選ぶ
+	for (const Vector3& center : { capsule.segmentStart, capsule.segmentEnd }) {
+
+		float distance = 0.0f;
+		Vector3 normal{};
+		if (RayVsSphere(ray, center, capsule.radius,
+			bestDistance, distance, normal)) {
+
+			bestDistance = distance;
+			bestNormal = normal;
+			hit = true;
+		}
+	}
+	if (!hit) {
+		return false;
+	}
+	outDistance = bestDistance;
+	outNormal = bestNormal;
 	return true;
 }
 
@@ -145,6 +221,8 @@ bool Engine::CollisionRaycast::RayVsShape(const Ray& ray, const CollisionShapeIn
 	switch (shape.type) {
 	case ColliderShapeType::Sphere3D:
 		return RayVsSphere(ray, shape.center, shape.radius, maxDistance, outDistance, outNormal);
+	case ColliderShapeType::Capsule3D:
+		return RayVsCapsule(ray, shape, maxDistance, outDistance, outNormal);
 	case ColliderShapeType::AABB3D:
 	case ColliderShapeType::OBB3D:
 		return RayVsOBB(ray, shape, maxDistance, outDistance, outNormal);

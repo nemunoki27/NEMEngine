@@ -1166,6 +1166,12 @@ namespace Engine {
 		case 7: if (size < 4) { return 0; } std::memcpy(out, &shape->radius, 4); return 1;
 		case 8: if (size < 8) { return 0; } std::memcpy(out, &shape->halfSize2D, 8); return 1;
 		case 9: if (size < 12) { return 0; } std::memcpy(out, &shape->halfExtents3D, 12); return 1;
+		case 10: if (size < 4) { return 0; } std::memcpy(out, &shape->capsuleHeight, 4); return 1;
+		case 11: if (size < 8) { return 0; } std::memcpy(out, &shape->capsuleSize2D, 8); return 1;
+		case 12:
+			if (size < 4) { return 0; }
+			*reinterpret_cast<int32_t*>(out) = static_cast<int32_t>(shape->capsuleAxis);
+			return 1;
 		}
 		return 0;
 	}
@@ -1177,24 +1183,44 @@ namespace Engine {
 		if (!world) {
 			return 0;
 		}
-		CollisionShape* shape = ResolveCollisionShape(*world, ResolveEntity(entity), shapeIndex);
+		const Entity resolved = ResolveEntity(entity);
+		CollisionShape* shape = ResolveCollisionShape(*world, resolved, shapeIndex);
 		if (!shape || !value) {
 			return 0;
 		}
 
 		switch (propertyId) {
-		case 0: if (size < 4) { return 0; } shape->type = static_cast<ColliderShapeType>(*reinterpret_cast<const int32_t*>(value)); return 1;
-		case 1: if (size < 4) { return 0; } shape->enabled = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
-		case 2: if (size < 4) { return 0; } shape->isTrigger = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
-		case 3: if (size < 4) { return 0; } shape->useTransformRotation = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
-		case 4: if (size < 4) { return 0; } shape->rotatedQuad = *reinterpret_cast<const int32_t*>(value) != 0; return 1;
-		case 5: if (size < 12) { return 0; } std::memcpy(&shape->offset, value, 12); return 1;
-		case 6: if (size < 12) { return 0; } std::memcpy(&shape->rotationDegrees, value, 12); return 1;
-		case 7: if (size < 4) { return 0; } std::memcpy(&shape->radius, value, 4); return 1;
-		case 8: if (size < 8) { return 0; } std::memcpy(&shape->halfSize2D, value, 8); return 1;
-		case 9: if (size < 12) { return 0; } std::memcpy(&shape->halfExtents3D, value, 12); return 1;
+		case 0:
+			if (size < 4) { return 0; }
+			shape->type = static_cast<ColliderShapeType>(
+				*reinterpret_cast<const int32_t*>(value));
+			break;
+		case 1: if (size < 4) { return 0; } shape->enabled = *reinterpret_cast<const int32_t*>(value) != 0; break;
+		case 2: if (size < 4) { return 0; } shape->isTrigger = *reinterpret_cast<const int32_t*>(value) != 0; break;
+		case 3:
+			if (size < 4) { return 0; }
+			shape->useTransformRotation =
+				*reinterpret_cast<const int32_t*>(value) != 0;
+			break;
+		case 4: if (size < 4) { return 0; } shape->rotatedQuad = *reinterpret_cast<const int32_t*>(value) != 0; break;
+		case 5: if (size < 12) { return 0; } std::memcpy(&shape->offset, value, 12); break;
+		case 6: if (size < 12) { return 0; } std::memcpy(&shape->rotationDegrees, value, 12); break;
+		case 7: if (size < 4) { return 0; } std::memcpy(&shape->radius, value, 4); break;
+		case 8: if (size < 8) { return 0; } std::memcpy(&shape->halfSize2D, value, 8); break;
+		case 9: if (size < 12) { return 0; } std::memcpy(&shape->halfExtents3D, value, 12); break;
+		case 10: if (size < 4) { return 0; } std::memcpy(&shape->capsuleHeight, value, 4); break;
+		case 11: if (size < 8) { return 0; } std::memcpy(&shape->capsuleSize2D, value, 8); break;
+		case 12:
+			if (size < 4) { return 0; }
+			shape->capsuleAxis = static_cast<CapsuleAxis>(
+				*reinterpret_cast<const int32_t*>(value));
+			break;
+		default:
+			return 0;
 		}
-		return 0;
+		RebuildCollisionCompound(*world, resolved);
+		world->MarkComponentModified<CollisionShape>(resolved);
+		return 1;
 	}
 
 	float ManagedScriptRuntime::GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName) {

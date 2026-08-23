@@ -32,8 +32,9 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SerializedComponentInspectorDrawer(const std::string_view& headerLabel, const std::string_view& componentTypeName) :
-			headerLabel_(headerLabel), componentTypeName_(componentTypeName) {}
+		SerializedComponentInspectorDrawer(const std::string_view& headerLabel,
+			const std::string_view& componentTypeName, bool drawHeader = true) :
+			headerLabel_(headerLabel), componentTypeName_(componentTypeName), drawHeader_(drawHeader) {}
 		~SerializedComponentInspectorDrawer() = default;
 
 		// インスペクター描画
@@ -90,6 +91,8 @@ namespace Engine {
 		// インスペクターのヘッダのラベル
 		std::string headerLabel_{};
 		std::string componentTypeName_{};
+		// falseなら派生Drawerが最上位ヘッダーを描画する
+		bool drawHeader_ = true;
 
 		// 編集中のエンティティのUUID
 		UUID editingEntityStableUUID_{};
@@ -135,20 +138,24 @@ namespace Engine {
 			SyncDraftFromWorld(world, entity);
 		}
 
-		// ヘッダーを右クリックしたらコンポーネント削除メニューを出す、開閉に関わらず効くようヘッダー直後に置く
-		const bool headerOpen = MyGUI::CollapsingHeader(headerLabel_.c_str());
-		if (ImGui::BeginPopupContextItem()) {
+		if (drawHeader_) {
 
-			if (ImGui::MenuItem("Remove Component")) {
-				if (context.host) {
-					context.host->ExecuteEditorCommand(std::make_unique<RemoveComponentCommand>(entity, componentTypeName_));
+			// ヘッダーを右クリックしたらコンポーネント削除メニューを出す
+			const bool headerOpen = MyGUI::CollapsingHeader(headerLabel_.c_str());
+			if (ImGui::BeginPopupContextItem()) {
+
+				if (ImGui::MenuItem("Remove Component")) {
+					if (context.host) {
+						context.host->ExecuteEditorCommand(
+							std::make_unique<RemoveComponentCommand>(entity, componentTypeName_));
+					}
 				}
+				ImGui::EndPopup();
 			}
-			ImGui::EndPopup();
-		}
-		// ヘッダーが閉じている場合は中身を描画しない
-		if (!headerOpen) {
-			return;
+			// ヘッダーが閉じている場合は中身を描画しない
+			if (!headerOpen) {
+				return;
+			}
 		}
 
 		// アイテムのアクティブ状態を追跡するフラグ

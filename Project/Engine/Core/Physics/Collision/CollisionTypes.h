@@ -36,6 +36,20 @@ namespace Engine {
 		Sphere3D,
 		AABB3D,
 		OBB3D,
+		Capsule2D,
+		Capsule3D,
+	};
+
+	//============================================================================
+	//	CapsuleAxis enum class
+	//	カプセルのローカル長軸
+	//============================================================================
+	enum class CapsuleAxis :
+		int32_t {
+
+		X = 0,
+		Y,
+		Z,
 	};
 
 	//============================================================================
@@ -72,6 +86,12 @@ namespace Engine {
 		Vector2 halfSize2D = Vector2::AnyInit(0.5f);
 		// AABB3D / OBB3D用
 		Vector3 halfExtents3D = Vector3::AnyInit(0.5f);
+		// Capsule3D用の全高
+		float capsuleHeight = 2.0f;
+		// Capsule2D用の全体サイズ
+		Vector2 capsuleSize2D = Vector2(1.0f, 2.0f);
+		// Capsule2D / Capsule3D用のローカル長軸
+		CapsuleAxis capsuleAxis = CapsuleAxis::Y;
 	};
 
 	void from_json(const nlohmann::json& in, CollisionShape& shape);

@@ -1,5 +1,5 @@
 {
-  "guid": "ad5bbbfc977e589ac5e1f35f25882fdc",
+  "guid": "9c4c153f0464ea6bb996945a02f51b2d",
   "importer": "ScriptImporter",
   "importerVersion": 1,
   "schemaVersion": 2,
@@ -7,8 +7,8 @@
   "type": "Script",
   "scripts": [
     {
-      "fullTypeName": "SandboxScripts.Test",
-      "scriptTypeId": "cef4bd39-3821-4e24-a43f-864af905851a",
+      "fullTypeName": "SandboxScripts.PlayerBaseState",
+      "scriptTypeId": "8ed7f650-9f0b-4fc4-8fb1-d488c39264aa",
       "formerNames": [],
       "fields": []
     }

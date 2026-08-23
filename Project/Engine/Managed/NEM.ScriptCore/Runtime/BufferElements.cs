@@ -19,6 +19,9 @@ public struct CollisionShapeData :
     public float radius;
     public Vector2 halfSize2D;
     public Vector3 halfExtents3D;
+    public float capsuleHeight;
+    public Vector2 capsuleSize2D;
+    public CapsuleAxis capsuleAxis;
 
     public bool enabled {
         readonly get => enabled_ != 0;
@@ -45,7 +48,10 @@ public struct CollisionShapeData :
                 rotationDegrees = Vector3.zero,
                 radius = 0.5f,
                 halfSize2D = new Vector2(0.5f, 0.5f),
-                halfExtents3D = new Vector3(0.5f, 0.5f, 0.5f)
+                halfExtents3D = new Vector3(0.5f, 0.5f, 0.5f),
+                capsuleHeight = 2.0f,
+                capsuleSize2D = new Vector2(1.0f, 2.0f),
+                capsuleAxis = CapsuleAxis.Y
             };
             shape.enabled = true;
             shape.useTransformRotation = true;

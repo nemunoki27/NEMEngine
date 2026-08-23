@@ -10,6 +10,7 @@
 
 // c++
 #include <span>
+#include <string_view>
 
 namespace Engine {
 
@@ -42,6 +43,7 @@ namespace Engine {
 	// スクリプトコンポーネント
 	struct ScriptComponent {
 
+		static constexpr std::string_view kTypeName = "Script";
 		static constexpr bool kHasECSHooks = true;
 
 		static void OnAdded(

@@ -552,11 +552,15 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
 			if (payload->IsDelivery()) {
 
-				Entity dragged = ResolveDraggedEntity(world, payload);
-				if (CanReparent(context, world, dragged, entity)) {
-
-					context.host->ExecuteEditorCommand(
-						std::make_unique<ReparentEntityCommand>(dragged, world.GetUUID(entity)));
+				std::vector<Entity> draggedEntities =
+					ResolveDraggedEntities(context, world, payload);
+				draggedEntities.erase(std::remove_if(draggedEntities.begin(), draggedEntities.end(),
+					[&](const Entity& dragged) {
+						return !CanReparent(context, world, dragged, entity);
+						}), draggedEntities.end());
+				if (!draggedEntities.empty()) {
+					context.host->ExecuteEditorCommand(std::make_unique<ReparentEntitiesCommand>(
+						std::move(draggedEntities), world.GetUUID(entity)));
 				}
 			}
 		}
@@ -617,8 +621,10 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		// 子に空エンティティを追加
 		if (ImGui::MenuItem("子に空オブジェクトを作成", nullptr, false, context.CanEditScene())) {
 
-			context.host->ExecuteEditorCommand(
-				std::make_unique<CreateEntityCommand>("Entity", world.GetUUID(entity)));
+			const Dimension dimension = ResolveSceneViewCameraDimension(
+				context.editorState->sceneViewPickDimension);
+			context.host->ExecuteEditorCommand(std::make_unique<CreateEntityCommand>(
+				"Entity", world.GetUUID(entity), EntityCreationPreset::Empty, dimension));
 		}
 		DrawUICreationMenu(context, world.GetUUID(entity));
 		// エンティティを複製
@@ -950,7 +956,10 @@ void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext&
 		// 空エンティティを追加
 		if (ImGui::MenuItem("空オブジェクトを作成", nullptr, false, context.CanEditScene())) {
 
-			context.host->ExecuteEditorCommand(std::make_unique<CreateEntityCommand>("Entity"));
+			const Dimension dimension = ResolveSceneViewCameraDimension(
+				context.editorState->sceneViewPickDimension);
+			context.host->ExecuteEditorCommand(std::make_unique<CreateEntityCommand>(
+				"Entity", UUID{}, EntityCreationPreset::Empty, dimension));
 		}
 		DrawUICreationMenu(context, UUID{});
 		// コピーエンティティを作成
@@ -1107,6 +1116,43 @@ Engine::Entity Engine::HierarchyPanel::ResolveDraggedEntity(ECSWorld& world, con
 	// ペイロードからUUIDを取得してエンティティを検索
 	const UUID stableUUID = *static_cast<const UUID*>(payload->Data);
 	return world.FindByUUID(stableUUID);
+}
+
+std::vector<Engine::Entity> Engine::HierarchyPanel::ResolveDraggedEntities(
+	const EditorPanelContext& context, ECSWorld& world,
+	const ImGuiPayload* payload) const {
+
+	const Entity dragged = ResolveDraggedEntity(world, payload);
+	if (!world.IsAlive(dragged)) {
+		return {};
+	}
+
+	std::vector<Entity> candidates{ dragged };
+	if (context.editorState && context.editorState->IsEntitySelected(dragged)) {
+		candidates = context.editorState->GetSelectedEntities();
+	}
+
+	std::vector<Entity> roots;
+	roots.reserve(candidates.size());
+	for (const Entity& candidate : candidates) {
+		if (!world.IsAlive(candidate)) {
+			continue;
+		}
+
+		bool hasSelectedAncestor = false;
+		Entity parent = GetParentEntity(world, candidate);
+		while (world.IsAlive(parent)) {
+			if (std::find(candidates.begin(), candidates.end(), parent) != candidates.end()) {
+				hasSelectedAncestor = true;
+				break;
+			}
+			parent = GetParentEntity(world, parent);
+		}
+		if (!hasSelectedAncestor) {
+			roots.emplace_back(candidate);
+		}
+	}
+	return roots;
 }
 
 bool Engine::HierarchyPanel::EntityMatchesSearch(ECSWorld& world, const Entity& entity) const {

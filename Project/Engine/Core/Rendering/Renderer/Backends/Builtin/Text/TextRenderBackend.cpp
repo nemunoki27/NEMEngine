@@ -207,41 +207,17 @@ namespace {
 		outVS.reserve(outVS.size() + glyphs.size());
 		outPS.reserve(outPS.size() + glyphs.size());
 
-		// ピボット分のオフセット、スプライトと同じく正規化0-1基準のこの点を原点へ合わせる
-		const Engine::Vector2 pivotOffset(
-			-renderer.pivot.x * cache.boundsSize.x,
-			-renderer.pivot.y * cache.boundsSize.y);
-
 		for (size_t glyphIndex = 0; glyphIndex < glyphs.size(); ++glyphIndex) {
 
 			const Engine::TextLayoutGlyph& glyph = glyphs[glyphIndex];
-
-			// ピボット分シフトしたグリフ矩形を基準に各処理を行う
-			const Engine::Vector2 rectMin(glyph.rectMin.x + pivotOffset.x, glyph.rectMin.y + pivotOffset.y);
-			const Engine::Vector2 rectMax(glyph.rectMax.x + pivotOffset.x, glyph.rectMax.y + pivotOffset.y);
-
-			// グリフ中心を基準に文字ごとのSRTを掛けてからエンティティのワールド行列へ合成する
-			Engine::Matrix4x4 glyphMatrix = worldMatrix;
-			if (glyphIndex < charTransforms.size()) {
-
-				const Engine::TextCharTransform& charTransform = charTransforms[glyphIndex];
-				const Engine::Vector2 pivot(
-					(rectMin.x + rectMax.x) * 0.5f,
-					(rectMin.y + rectMax.y) * 0.5f);
-				// ピボットを原点へ寄せてからピボット+オフセット位置でSRTを掛ける
-				const Engine::Matrix4x4 toOrigin = Engine::Matrix4x4::MakeAffineMatrix(
-					Engine::Vector3(1.0f, 1.0f, 1.0f), Engine::Vector3(0.0f, 0.0f, 0.0f),
-					Engine::Vector3(-pivot.x, -pivot.y, 0.0f));
-				const Engine::Matrix4x4 srt = Engine::Matrix4x4::MakeAffineMatrix(
-					Engine::Vector3(charTransform.scale.x, charTransform.scale.y, 1.0f),
-					Engine::Vector3(0.0f, 0.0f, charTransform.rotation),
-					Engine::Vector3(pivot.x + charTransform.translation.x, pivot.y + charTransform.translation.y, 0.0f));
-				glyphMatrix = (toOrigin * srt) * worldMatrix;
-			}
+			const Engine::TextCharTransform* charTransform =
+				glyphIndex < charTransforms.size() ? &charTransforms[glyphIndex] : nullptr;
+			const Engine::TextGlyphGeometry geometry = Engine::ResolveTextGlyphGeometry(
+				renderer, cache, glyph, charTransform, worldMatrix);
 
 			Engine::TextVSInstanceData vs{};
-			vs.rectMin = rectMin;
-			vs.rectMax = rectMax;
+			vs.rectMin = geometry.rectMin;
+			vs.rectMax = geometry.rectMax;
 			vs.uvMin = glyph.uvMin;
 			vs.uvMax = glyph.uvMax;
 			if (renderer.uvPerCharacter) {
@@ -255,7 +231,7 @@ namespace {
 				vs.materialUVMin = Engine::Vector2(glyph.rectMin.x * inverseBounds.x, glyph.rectMin.y * inverseBounds.y);
 				vs.materialUVMax = Engine::Vector2(glyph.rectMax.x * inverseBounds.x, glyph.rectMax.y * inverseBounds.y);
 			}
-			vs.worldMatrix = glyphMatrix;
+			vs.worldMatrix = geometry.worldMatrix;
 			outVS.emplace_back(vs);
 
 			Engine::TextPSInstanceData ps{};

@@ -51,6 +51,9 @@ namespace Engine {
 		// 球との交差
 		static bool RayVsSphere(const Ray& ray, const Vector3& center, float radius,
 			float maxDistance, float& outDistance, Vector3& outNormal);
+		// カプセルとの交差
+		static bool RayVsCapsule(const Ray& ray, const CollisionShapeInstance& capsule,
+			float maxDistance, float& outDistance, Vector3& outNormal);
 		// OBBとの交差、AABBはワールド軸のOBBとして扱う
 		static bool RayVsOBB(const Ray& ray, const CollisionShapeInstance& box,
 			float maxDistance, float& outDistance, Vector3& outNormal);

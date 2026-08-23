@@ -27,8 +27,8 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		AddScriptEntryCommand(const Entity& targetEntity, const std::string_view& typeName = {},
-			AssetID scriptAsset = {});
+		AddScriptEntryCommand(const Entity& targetEntity, const std::string_view& scriptTypeID,
+			const std::string_view& typeName, AssetID scriptAsset = {});
 		~AddScriptEntryCommand() = default;
 
 		// コマンドの実行
@@ -51,6 +51,7 @@ namespace Engine {
 		Entity initialTarget_ = Entity::Null();
 		UUID targetStableUUID_{};
 
+		std::string scriptTypeID_{};
 		std::string typeName_{};
 		AssetID scriptAsset_{};
 		nlohmann::json beforeData_{};

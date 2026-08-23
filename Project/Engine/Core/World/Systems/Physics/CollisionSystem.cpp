@@ -122,12 +122,19 @@ namespace {
 	constexpr float kSupportEdgeTolerance = 0.001f;
 	// 微小なめり込みを許容して接地中の押し戻し往復を防ぐ
 	constexpr float kPenetrationSlop = 0.001f;
-	// めり込みを一度に補正する割合
-	constexpr float kPenetrationCorrectionRate = 0.8f;
+	// 3Dは急な姿勢変化を抑え、2Dはタイル床上で押し戻しを重複させないよう接触面まで補正する
+	constexpr float kPenetrationCorrectionRate3D = 0.8f;
+	constexpr float kPenetrationCorrectionRate2D = 1.0f;
 	// 接地後に停止扱いにする角速度
 	constexpr float kRestingAngularSpeed = 0.001f;
 	// 拘束方向へ押し戻せるかを判定する下限
 	constexpr float kTranslationResponseEpsilon = 0.000001f;
+
+	// 2D形状か
+	bool IsShape2D(const Engine::CollisionShapeInstance* shape) {
+
+		return shape && Engine::IsCollisionShape2D(shape->type);
+	}
 
 	// 3D剛体の固定軸へ衝突速度を残さない
 	void ApplyVelocityConstraints(Engine::RigidbodyComponent& body) {
@@ -512,6 +519,29 @@ void Engine::CollisionSystem::OnWorldExit([[maybe_unused]] ECSWorld& world, [[ma
 	previousContacts_.clear();
 }
 
+void Engine::CollisionSystem::RebuildRuntimeShapes(
+	ECSWorld& world, CollisionRuntimeEntity& runtime) const {
+
+	runtime.shapes.clear();
+	if (!runtime.collision || !runtime.transform) {
+		return;
+	}
+
+	const std::span<const CollisionShape> shapes =
+		GetCollisionShapes(world, runtime.entity);
+	runtime.shapes.reserve(shapes.size());
+	for (uint32_t i = 0; i < static_cast<uint32_t>(shapes.size()); ++i) {
+
+		const CollisionShape& shape = shapes[i];
+		if (!shape.enabled) {
+			continue;
+		}
+		runtime.shapes.emplace_back(
+			CollisionShapeUtility::BuildShapeInstance(
+				runtime.entity, shape, i, *runtime.transform));
+	}
+}
+
 void Engine::CollisionSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
 
 	// 押し戻しとコールバックはPlay中の固定ステップだけで処理する
@@ -556,16 +586,7 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 			runtime.collision = &collision;
 			runtime.state = world.TryGetComponent<CollisionRuntimeStateComponent>(entity);
 			runtime.transform = &transform;
-			const std::span<const CollisionShape> shapes =
-				GetCollisionShapes(world, entity);
-			for (uint32_t i = 0; i < static_cast<uint32_t>(shapes.size()); ++i) {
-
-				const CollisionShape& shape = shapes[i];
-				if (!shape.enabled) {
-					continue;
-				}
-				runtime.shapes.emplace_back(CollisionShapeUtility::BuildShapeInstance(entity, shape, i, transform));
-			}
+			RebuildRuntimeShapes(world, runtime);
 			if (!runtime.shapes.empty()) {
 				entities.emplace_back(std::move(runtime));
 			}
@@ -680,6 +701,7 @@ void Engine::CollisionSystem::ApplyPushback(ECSWorld& world,
 		};
 	const CollisionShapeInstance* shapeA = findShape(a, contact.selfShapeIndex);
 	const CollisionShapeInstance* shapeB = findShape(b, contact.otherShapeIndex);
+	const bool resolveAs2D = IsShape2D(shapeA) && IsShape2D(shapeB);
 
 	// 固定軸を除いた法線成分で、めり込みを解消できる側へ押し戻し量を配分する
 	const Vector3 responseDirectionA = movableA ?
@@ -690,15 +712,21 @@ void Engine::CollisionSystem::ApplyPushback(ECSWorld& world,
 	const float responseB = (std::max)(Vector3::Dot(responseDirectionB, contact.normal), 0.0f);
 	const float responseSum = responseA + responseB;
 	const float correctionDepth = (std::max)(contact.penetration - kPenetrationSlop, 0.0f);
+	bool movedA = false;
+	bool movedB = false;
 	if (kTranslationResponseEpsilon < responseSum && 0.0f < correctionDepth) {
 
+		const float correctionRate = resolveAs2D ?
+			kPenetrationCorrectionRate2D : kPenetrationCorrectionRate3D;
 		const float correctionScale =
-			correctionDepth * kPenetrationCorrectionRate / responseSum;
+			correctionDepth * correctionRate / responseSum;
 		if (movableA) {
 			MoveEntity(world, a.entity, -responseDirectionA * correctionScale);
+			movedA = true;
 		}
 		if (movableB) {
 			MoveEntity(world, b.entity, responseDirectionB * correctionScale);
+			movedB = true;
 		}
 	}
 
@@ -709,6 +737,14 @@ void Engine::CollisionSystem::ApplyPushback(ECSWorld& world,
 	if (movableB) {
 		ResolveContactVelocity(world, b.entity, contact.normal,
 			contact.point, shapeB, shapeA);
+	}
+
+	// 隣接Colliderを続けて解く場合も、補正前の形状で二重に押し戻さない
+	if (movedA) {
+		RebuildRuntimeShapes(world, a);
+	}
+	if (movedB) {
+		RebuildRuntimeShapes(world, b);
 	}
 }
 

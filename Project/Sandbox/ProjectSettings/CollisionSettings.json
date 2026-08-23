@@ -1,10 +1,10 @@
 {
-    "drawCollisionWorld": false,
+    "drawCollisionWorld": true,
     "matrixRows": [
-        1,
-        0,
-        0,
-        0,
+        15,
+        15,
+        15,
+        15,
         0,
         0,
         0,
@@ -37,7 +37,19 @@
     "types": [
         {
             "enabled": true,
-            "name": "CollisionType1"
+            "name": "Default"
+        },
+        {
+            "enabled": true,
+            "name": "Player"
+        },
+        {
+            "enabled": true,
+            "name": "NormalBlock"
+        },
+        {
+            "enabled": true,
+            "name": "Goal"
         }
     ]
 }

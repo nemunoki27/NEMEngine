@@ -82,5 +82,17 @@ public sealed partial class CollisionComponent {
             get => NativeApi.CollisionGetShapeVector3(r.NativeHandle, index, 9);
             set => NativeApi.CollisionSetShapeVector3(r.NativeHandle, index, 9, value);
         }
+        public float CapsuleHeight {
+            get => NativeApi.CollisionGetShapeFloat(r.NativeHandle, index, 10);
+            set => NativeApi.CollisionSetShapeFloat(r.NativeHandle, index, 10, value);
+        }
+        public Vector2 CapsuleSize2D {
+            get => NativeApi.CollisionGetShapeVector2(r.NativeHandle, index, 11);
+            set => NativeApi.CollisionSetShapeVector2(r.NativeHandle, index, 11, value);
+        }
+        public CapsuleAxis CapsuleAxis {
+            get => (CapsuleAxis)NativeApi.CollisionGetShapeInt(r.NativeHandle, index, 12);
+            set => NativeApi.CollisionSetShapeInt(r.NativeHandle, index, 12, (int)value);
+        }
     }
 }

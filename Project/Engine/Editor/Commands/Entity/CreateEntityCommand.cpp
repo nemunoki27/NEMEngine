@@ -90,8 +90,8 @@ namespace {
 }
 
 Engine::CreateEntityCommand::CreateEntityCommand(const std::string& name, UUID parentStableUUID,
-	EntityCreationPreset preset) :
-	name_(name), parentStableUUID_(parentStableUUID), preset_(preset) {
+	EntityCreationPreset preset, Dimension dimension) :
+	name_(name), parentStableUUID_(parentStableUUID), preset_(preset), dimension_(dimension) {
 }
 
 void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& entity, const Entity& parent) {
@@ -204,6 +204,10 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 
 	// デフォルトのコンポーネントを追加する
 	SceneAuthoring::EnsureGameObjectDefaults(*world, entity, name_);
+	if (TransformComponent* transform =
+		world->TryGetComponent<TransformComponent>(entity)) {
+		transform->dimension = dimension_;
+	}
 
 	// 親指定がある場合は親子付け
 	Entity parent = parentStableUUID_ ? world->FindByUUID(parentStableUUID_) : Entity::Null();

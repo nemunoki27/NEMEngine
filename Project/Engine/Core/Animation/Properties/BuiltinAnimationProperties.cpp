@@ -389,6 +389,8 @@ namespace {
 				Engine::TryGetCollisionShape(world, entity, static_cast<uint32_t>(ShapeIndex))) {
 
 				shape->*Member = typed;
+				Engine::RebuildCollisionCompound(world, entity);
+				world.MarkComponentModified<Engine::CollisionShape>(entity);
 				return true;
 			}
 		}
@@ -497,6 +499,16 @@ namespace {
 			HasCollisionShape<ShapeIndex>,
 			GetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::halfExtents3D>,
 			SetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::halfExtents3D>);
+		Register(registry, "Collision", std::format("{}.capsuleHeight", prefix).c_str(),
+			std::format("{}.capsuleHeight", displayPrefix).c_str(), Engine::AnimationValueType::Float,
+			HasCollisionShape<ShapeIndex>,
+			GetCollisionShapeMember<ShapeIndex, float, &Engine::CollisionShape::capsuleHeight>,
+			SetCollisionShapeMember<ShapeIndex, float, &Engine::CollisionShape::capsuleHeight>);
+		Register(registry, "Collision", std::format("{}.capsuleSize2D", prefix).c_str(),
+			std::format("{}.capsuleSize2D", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
+			HasCollisionShape<ShapeIndex>,
+			GetCollisionShapeMember<ShapeIndex, Engine::Vector2, &Engine::CollisionShape::capsuleSize2D>,
+			SetCollisionShapeMember<ShapeIndex, Engine::Vector2, &Engine::CollisionShape::capsuleSize2D>);
 	}
 
 	template <size_t SubMeshIndex>

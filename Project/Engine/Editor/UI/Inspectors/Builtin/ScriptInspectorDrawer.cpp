@@ -9,22 +9,20 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
-#include <Engine/Editor/Scripting/DragDrop/ScriptAssetDragDrop.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Commands/Components/ApplyRuntimeToAuthoringCommand.h>
-#include <Engine/Editor/Utility/EditorTextureHelper.h>
+#include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <memory>
-
 // c++
 #include <charconv>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <unordered_map>
 
 //============================================================================
@@ -1059,60 +1057,6 @@ namespace {
 		}
 	}
 
-	// Scriptアセットの参照フィールドを描画する
-	Engine::ValueEditResult DrawScriptAssetField(const Engine::EditorPanelContext& context, Engine::ScriptEntry& entry) {
-
-		Engine::AssetID beforeAsset = entry.scriptAsset;
-		Engine::ValueEditResult result = Engine::MyGUI::AssetReferenceField("スクリプト", entry.scriptAsset,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr, { Engine::AssetType::Script });
-		if (!result.valueChanged) {
-			return result;
-		}
-
-		Engine::ScriptAssetDragDrop::ResolvedScriptType resolved{};
-		if (!Engine::ScriptAssetDragDrop::ResolveScriptType(context, entry.scriptAsset, resolved)) {
-
-			entry.scriptAsset = beforeAsset;
-			result.valueChanged = false;
-			result.editFinished = false;
-			return result;
-		}
-		if (entry.scriptTypeID != resolved.scriptTypeID) {
-
-			entry.scriptTypeID = resolved.scriptTypeID;
-			entry.lastKnownTypeName = resolved.typeName;
-			entry.serializedFields = nlohmann::json::object();
-		}
-		return result;
-	}
-
-	// スクリプトのドロップで項目を追加する
-	Engine::ValueEditResult DrawScriptDropField(const Engine::EditorPanelContext& context,
-		std::vector<Engine::ScriptEntry>& scripts) {
-
-		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow("スクリプト")) {
-			return result;
-		}
-		ImGui::Button("C#スクリプトをドロップ", ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
-		result.anyItemActive = ImGui::IsItemActive();
-
-		if (ImGui::BeginDragDropTarget()) {
-
-			Engine::AssetID scriptAsset{};
-			Engine::ScriptAssetDragDrop::ResolvedScriptType resolved{};
-			if (Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, resolved)) {
-
-				scripts.emplace_back(MakeScriptEntry(
-					resolved.scriptTypeID, resolved.typeName, scriptAsset));
-				result.valueChanged = true;
-				result.editFinished = true;
-			}
-			ImGui::EndDragDropTarget();
-		}
-		Engine::MyGUI::EndPropertyRow();
-		return result;
-	}
 }
 
 void Engine::ScriptInspectorDrawer::OnSyncDraftFromWorld(
@@ -1191,35 +1135,22 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 		} else if (!entry.lastKnownTypeName.empty()) {
 			headerText = ScriptTypeShortName(entry.lastKnownTypeName);
 		} else if (resolutionReason == ManagedScriptResolutionReason::Unassigned) {
-			headerText = "Script " + std::to_string(i);
+			headerText = "Missing Script";
 		} else {
 			headerText = "Script " + std::to_string(i);
 		}
 
-		if (ImGui::TreeNodeEx("##ScriptEntry", ImGuiTreeNodeFlags_DefaultOpen |
-			ImGuiTreeNodeFlags_SpanAvailWidth, "%s", headerText.c_str())) {
+		const std::string headerID = headerText + "##ScriptEntry";
+		const bool headerOpen = MyGUI::CollapsingHeader(headerID.c_str());
+		if (ImGui::BeginPopupContextItem()) {
 
-			{
-				ValueEditResult result = DrawScriptAssetField(context, entry);
-				PushEditResult(result, anyItemActive);
-				ImGui::Separator();
+			if (ImGui::MenuItem("スクリプトを削除")) {
+				removeIndex = static_cast<int32_t>(i);
 			}
-			{
-				// 型コンボはGUIDを引き直し保存値はField GUID単位で保持する
-				const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
-				ValueEditResult result = InspectorDrawerCommon::DrawBehaviorTypeField("型", entry.lastKnownTypeName, searchIcon);
-				if (result.valueChanged) {
-					if (const BehaviorTypeInfo* info =
-						BehaviorTypeRegistry::GetInstance().FindByName(entry.lastKnownTypeName)) {
-						entry.scriptTypeID = info->scriptTypeID;
-					} else {
-						entry.scriptTypeID.clear();
-					}
-					entry.scriptAsset = {};
-				}
-				PushEditResult(result, anyItemActive);
-				ImGui::Separator();
-			}
+			ImGui::EndPopup();
+		}
+		if (headerOpen) {
+
 			DrawField(anyItemActive, [&]() {
 				return InspectorDrawerCommon::DrawCheckboxField("有効", entry.enabled);
 				});
@@ -1266,7 +1197,8 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 						RequestCommit();
 					}
 				}
-			} else if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered) {
+			} else if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered ||
+				resolutionReason == ManagedScriptResolutionReason::Unassigned) {
 				// 未登録のときだけ欠落表示し値は保持する
 				ImGui::TextDisabled("型を解決できません (Missing Script)。値は保持されます。");
 				ImGui::BulletText("last known type: %s",
@@ -1278,8 +1210,6 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 				if (ImGui::SmallButton("GUID をコピー")) {
 					ImGui::SetClipboardText(entry.scriptTypeID.c_str());
 				}
-				ImGui::SameLine();
-				ImGui::TextDisabled("型を選び直すと Reassign（上の「型」で型を変更）");
 			}
 
 			// 未解決フィールドは保持して表示する
@@ -1301,18 +1231,20 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 			if (ImGui::Button("スクリプトを削除")) {
 				removeIndex = static_cast<int32_t>(i);
 			}
-			ImGui::TreePop();
 		}
 		ImGui::Separator();
 		ImGui::PopID();
 	}
 
-	// Scriptアセットをドロップして追加する
-	DrawField(anyItemActive, [&]() {
-		return DrawScriptDropField(context, draftScripts_);
-		});
-
 	if (0 <= removeIndex) {
+
+		// 最後のスクリプトなら内部コンテナも残さず削除する
+		if (draftScripts_.size() == 1 && context.host) {
+			context.host->ExecuteEditorCommand(
+				std::make_unique<RemoveComponentCommand>(entity, ScriptComponent::kTypeName));
+			draftScripts_.clear();
+			return;
+		}
 		draftScripts_.erase(draftScripts_.begin() + removeIndex);
 		RequestCommit();
 	}
@@ -1323,37 +1255,5 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 	} else if (0 <= moveDownIndex && moveDownIndex + 1 < static_cast<int32_t>(draftScripts_.size())) {
 		std::swap(draftScripts_[moveDownIndex], draftScripts_[moveDownIndex + 1]);
 		RequestCommit();
-	}
-	if (ImGui::Button("スクリプトを追加")) {
-		ImGui::OpenPopup("##AddScriptPopup");
-	}
-
-	//============================================================================
-	//	スクリプト追加ポップアップ
-	//============================================================================
-	if (ImGui::BeginPopup("##AddScriptPopup")) {
-
-		const auto& registry = BehaviorTypeRegistry::GetInstance();
-		if (registry.GetBehaviorTypeCount() == 0) {
-			ImGui::TextDisabled("登録済みビヘイビアはありません。");
-		} else {
-			for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
-
-				const auto& info = registry.GetInfo(i);
-				if (info.name.empty() || !info.construct) {
-					continue;
-				}
-				// 表示はクラス名のみで内部は完全修飾名を保持する
-				if (ImGui::MenuItem(ScriptTypeShortName(info.name).c_str())) {
-					draftScripts_.emplace_back(MakeScriptEntry(info.scriptTypeID, info.name));
-					RequestCommit();
-					ImGui::CloseCurrentPopup();
-				}
-			}
-		}
-		ImGui::EndPopup();
-	}
-	if (draftScripts_.empty()) {
-		ImGui::TextDisabled("スクリプトは未設定です。");
 	}
 }

@@ -828,6 +828,13 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	// シグネチャからアーキタイプを取得
 	EntityArchetype* oldArchetype = records_[entity.index].location.archetype;
 	EntityArchetype* newArchetype = GetOrCreateArchetype(newSignature);
+	ComponentChangeChannel relocatedChannels = ComponentChangeChannel::None;
+	for (uint32_t typeID : oldArchetype->GetTypes()) {
+		if (newSignature.Test(typeID)) {
+			relocatedChannels |= ComponentTypeRegistry::GetInstance().
+				GetInfo(typeID).changeChannels;
+		}
+	}
 
 	// 新アーキタイプへ未構築の行として追加する
 	auto [newChunkIndex, newRow] = newArchetype->AddUninitialized(entity);
@@ -870,6 +877,16 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	}
 	// 対象エンティティの新位置を記録
 	records_[entity.index].location = EntityLocation{ newArchetype, newChunkIndex, newRow };
+
+	// 構造移動で保持Componentのアドレスが変わるため、外部キャッシュを再抽出する
+	if (HasComponentChangeChannel(
+		relocatedChannels, ComponentChangeChannel::Render)) {
+		MarkRenderDataModified();
+	}
+	if (HasComponentChangeChannel(
+		relocatedChannels, ComponentChangeChannel::Lighting)) {
+		IncrementRevision(lightDataRevision_);
+	}
 }
 
 void Engine::ECSWorld::ReleaseExternalComponents(
