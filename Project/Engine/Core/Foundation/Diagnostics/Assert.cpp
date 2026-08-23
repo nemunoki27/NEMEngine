@@ -41,8 +41,8 @@ void Assert::DebugAssert(bool condition, const std::string& message, const std::
 
 	// メッセージ書き込む
 	std::ostringstream oss;
-	oss << "[Assert::Call] " << message << "\n  Function: " << location.function_name()
-		<< "\n  File: " << location.file_name() << ":" << location.line();
+	oss << "[Assert::Call] " << message << "\n  関数: " << location.function_name()
+		<< "\n  ファイル: " << location.file_name() << ":" << location.line();
 
 	// ログ出力
 	const std::string text = oss.str();
@@ -68,8 +68,8 @@ void Assert::ReleaseAssert(bool condition, const std::string& message, const std
 
 	// メッセージ書き込む
 	std::ostringstream oss{};
-	oss << "[Assert::Call] " << message << " | Function: " << location.function_name() <<
-		" | File: " << location.file_name() << ":" << location.line();
+	oss << "[Assert::Call] " << message << " | 関数: " << location.function_name() <<
+		" | ファイル: " << location.file_name() << ":" << location.line();
 
 	// ログ出力
 	Logger::Output(LogType::Engine, spdlog::level::critical, "{}", oss.str());

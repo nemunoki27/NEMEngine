@@ -48,7 +48,8 @@ namespace Engine::MaterialParameterEditor {
 	}
 
 	// 標準PBRテクスチャを通常パラメータの下で固定順に並べる
-	inline size_t GetTextureDisplayRank(std::string_view name) {
+	inline size_t GetTextureDisplayRank(
+		MaterialParameterSemantic semantic, std::string_view name) {
 
 		static constexpr std::array kOrder{
 			MaterialParameterSemantic::BaseColorTexture,
@@ -60,14 +61,21 @@ namespace Engine::MaterialParameterEditor {
 			MaterialParameterSemantic::AmbientOcclusionTexture,
 			MaterialParameterSemantic::DisplacementTexture,
 		};
-		const MaterialParameterSemantic semantic =
-			ResolveMaterialParameterSemantic(name);
+		if (semantic == MaterialParameterSemantic::None) {
+			semantic = ResolveMaterialParameterSemantic(name);
+		}
 		for (size_t i = 0; i < kOrder.size(); ++i) {
 			if (semantic == kOrder[i]) {
 				return i;
 			}
 		}
 		return kOrder.size();
+	}
+
+	inline size_t GetTextureDisplayRank(std::string_view name) {
+
+		return GetTextureDisplayRank(
+			MaterialParameterSemantic::None, name);
 	}
 
 	inline void SortScalarParametersForDisplay(
@@ -127,9 +135,135 @@ namespace Engine::MaterialParameterEditor {
 			[toLower](char lhs, char rhs) { return toLower(lhs) == rhs; }) != var.name.end();
 	}
 
-	// テクスチャparamはcbuffer内でbindless indexのuintとして現れるので、名前ではなく型で判定する
-	inline bool IsReflectedTextureParam(const ShaderConstantBufferVariable& var) {
-		return var.valueType == D3D_SVT_UINT;
+	// space2のTexture SRVだけをマテリアルテクスチャとして扱う
+	inline bool IsMaterialTextureResource(
+		const ShaderResourceBinding& resource) {
+
+		return resource.kind == ShaderBindingKind::SRV &&
+			resource.space == 2 &&
+			resource.rawType == D3D_SIT_TEXTURE;
+	}
+
+	inline bool IsTextureSemantic(
+		MaterialParameterSemantic semantic) {
+
+		switch (semantic) {
+		case MaterialParameterSemantic::BaseColorTexture:
+		case MaterialParameterSemantic::NormalTexture:
+		case MaterialParameterSemantic::MetallicRoughnessTexture:
+		case MaterialParameterSemantic::RoughnessTexture:
+		case MaterialParameterSemantic::MetallicTexture:
+		case MaterialParameterSemantic::EmissiveTexture:
+		case MaterialParameterSemantic::AmbientOcclusionTexture:
+		case MaterialParameterSemantic::DisplacementTexture:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	// Shader Graphの公開IDを優先してcbuffer変数とTexture SRVを対応付ける
+	inline bool IsSameReflectedMaterialParameter(
+		const ShaderConstantBufferVariable& variable,
+		const ShaderResourceBinding& resource) {
+
+		if (variable.parameterID && resource.parameterID) {
+			return variable.parameterID == resource.parameterID;
+		}
+		if (variable.semantic != MaterialParameterSemantic::None &&
+			resource.semantic != MaterialParameterSemantic::None) {
+			return variable.semantic == resource.semantic;
+		}
+		return variable.name == resource.name;
+	}
+
+	inline const ShaderResourceBinding* FindReflectedTextureResource(
+		const ShaderConstantBufferVariable& variable,
+		const ShaderReflectionInfo& reflection) {
+
+		for (const ShaderResourceBinding& resource : reflection.resources) {
+			if (IsMaterialTextureResource(resource) &&
+				IsSameReflectedMaterialParameter(variable, resource)) {
+				return &resource;
+			}
+		}
+		return nullptr;
+	}
+
+	inline const ShaderConstantBufferVariable* FindReflectedTextureParameter(
+		const ShaderResourceBinding& resource,
+		const ShaderReflectionInfo& reflection) {
+
+		for (const ShaderConstantBufferInfo& buffer : reflection.constantBuffers) {
+			for (const ShaderConstantBufferVariable& variable : buffer.variables) {
+				if (IsSameReflectedMaterialParameter(variable, resource)) {
+					return &variable;
+				}
+			}
+		}
+		for (const ShaderStructuredBufferInfo& buffer : reflection.structuredBuffers) {
+			for (const ShaderConstantBufferVariable& variable : buffer.variables) {
+				if (IsSameReflectedMaterialParameter(variable, resource)) {
+					return &variable;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	// bindless indexのuintと対応するTexture SRVが両方ある場合だけテクスチャparamと判定する
+	inline bool IsReflectedTextureParam(
+		const ShaderConstantBufferVariable& variable,
+		const ShaderReflectionInfo& reflection) {
+
+		if (variable.valueType != D3D_SVT_UINT) {
+			return false;
+		}
+		return variable.isTexture ||
+			IsTextureSemantic(variable.semantic) ||
+			IsTextureSemantic(ResolveMaterialParameterSemantic(variable.name)) ||
+			FindReflectedTextureResource(variable, reflection) != nullptr;
+	}
+
+	inline std::string_view GetReflectedTextureDisplayName(
+		const ShaderResourceBinding& resource,
+		const ShaderReflectionInfo& reflection) {
+
+		if (const ShaderConstantBufferVariable* variable =
+			FindReflectedTextureParameter(resource, reflection)) {
+			return variable->name;
+		}
+		return resource.name;
+	}
+
+	inline MaterialParameterID GetReflectedTextureParameterID(
+		const ShaderResourceBinding& resource,
+		const ShaderReflectionInfo& reflection) {
+
+		if (resource.parameterID) {
+			return resource.parameterID;
+		}
+		if (const ShaderConstantBufferVariable* variable =
+			FindReflectedTextureParameter(resource, reflection)) {
+			if (variable->parameterID) {
+				return variable->parameterID;
+			}
+		}
+		return MaterialParameterID::FromName(resource.name);
+	}
+
+	inline MaterialParameterSemantic GetReflectedTextureSemantic(
+		const ShaderResourceBinding& resource,
+		const ShaderReflectionInfo& reflection) {
+
+		if (resource.semantic != MaterialParameterSemantic::None) {
+			return resource.semantic;
+		}
+		if (const ShaderConstantBufferVariable* variable =
+			FindReflectedTextureParameter(resource, reflection)) {
+			return variable->semantic;
+		}
+		return ResolveMaterialParameterSemantic(resource.name);
 	}
 
 	// 変数タイプから既定のMaterialParameterValueを生成する
@@ -293,7 +427,8 @@ namespace Engine::MaterialParameterEditor {
 				continue;
 			}
 			for (const ShaderConstantBufferVariable& var : cb.variables) {
-				if (IsInternalPaddingParameter(var)) {
+				if (IsInternalPaddingParameter(var) ||
+					IsReflectedTextureParam(var, reflection)) {
 					continue;
 				}
 

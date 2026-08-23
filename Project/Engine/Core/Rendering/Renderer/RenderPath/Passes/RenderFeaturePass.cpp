@@ -233,7 +233,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 	if (!plan.IsValid()) {
 		if (lastDiagnostic_ != plan.diagnostic) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RenderFeature] {}", plan.diagnostic);
+				"[レンダー機能] {}", plan.diagnostic);
 			lastDiagnostic_ = plan.diagnostic;
 		}
 		return;
@@ -381,7 +381,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 				graphicsCore, *context.targetRegistry, desc, *sceneFinal);
 			if (!target || !target->GetColorTexture(0)) {
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[RenderFeature] output creation failed. pass={} output={}",
+					"[レンダー機能] 出力の作成に失敗しました パス={} 出力={}",
 					pass.name, output.name);
 				return;
 			}
@@ -444,7 +444,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			ResolveOutputTarget(*context.targetRegistry, node.source) : sceneFinal;
 		if (!primaryTarget || !sourceTarget) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RenderFeature] unresolved graph resource. pass={}", pass.name);
+				"[レンダー機能] グラフリソースを解決できません パス={}", pass.name);
 			return;
 		}
 		const std::string sourceAlias = node.source.pass ?
@@ -472,7 +472,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 						graphicsCore, sourceTarget, primaryTarget)) {
 
 					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[RenderFeature] pass bypass failed. pass={}",
+						"[レンダー機能] パスのバイパスに失敗しました パス={}",
 						pass.name);
 					return;
 				}
@@ -493,7 +493,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 				!executionPrimaryTarget->GetColorTexture(0)) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[RenderFeature] mask output creation failed. pass={}",
+					"[レンダー機能] マスク出力の作成に失敗しました パス={}",
 					pass.name);
 				return;
 			}
@@ -561,7 +561,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 				*deps_.pipelineCache, desc)) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[RenderFeature] Compute pass failed. pass={}", pass.name);
+					"[レンダー機能] Computeパスに失敗しました パス={}", pass.name);
 				return;
 			}
 			const MaterialParameterLayout* layout =
@@ -638,7 +638,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 				*deps_.pipelineCache, composite)) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[RenderFeature] target mask composite failed. pass={}",
+					"[レンダー機能] 対象マスクの合成に失敗しました パス={}",
 					pass.name);
 				return;
 			}
@@ -652,7 +652,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			graphicsCore, output, sceneFinal)) {
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RenderFeature] SceneColor output must match the view size and format.");
+				"[レンダー機能] シーンカラー出力はViewと同じサイズと形式である必要があります");
 			return;
 		}
 		sceneFinal->TransitionForShaderRead(

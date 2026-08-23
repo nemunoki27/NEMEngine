@@ -63,7 +63,9 @@ namespace Engine {
 		// テクスチャ最終値を解決する
 		AssetID ResolveTextureValue(
 			const MaterialParameterSet& parameters,
-			const std::string& name) const;
+			MaterialParameterID parameterID,
+			MaterialParameterSemantic semantic,
+			std::string_view name) const;
 	};
 } // Engine
 
@@ -86,6 +88,8 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 	bool hasParameter = false;
 	MaterialParameterLayout layout{};
 	layout.Build(*reflection, MaterialParameterCBuffer::kSurface);
+	std::vector<const ShaderConstantBufferVariable*> scalarVariables;
+	std::vector<const ShaderConstantBufferVariable*> textureVariables;
 	if (layout.IsValid()) {
 
 		for (const ShaderConstantBufferVariable& variable : layout.GetVariables()) {
@@ -94,53 +98,98 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 				MaterialParameterEditor::IsInternalPaddingParameter(variable)) {
 				continue;
 			}
-			hasParameter = true;
-			MaterialParameterValue value = ResolveParamValue(parameters, variable);
-			drawField([&]() {
-
-				ValueEditResult result = MaterialParameterEditor::DrawValueEdit(variable, value);
-				if (result.valueChanged) {
-					parameters.Set(
-						variable.parameterID, variable.name,
-						variable.semantic, value);
-				}
-				return result;
-				});
+			if (MaterialParameterEditor::IsReflectedTextureParam(
+				variable, *reflection)) {
+				textureVariables.emplace_back(&variable);
+			} else {
+				scalarVariables.emplace_back(&variable);
+			}
 		}
+	}
+	MaterialParameterEditor::SortScalarParametersForDisplay(scalarVariables);
+	MaterialParameterEditor::SortTextureParametersForDisplay(textureVariables);
+
+	for (const ShaderConstantBufferVariable* variable : scalarVariables) {
+		hasParameter = true;
+		MaterialParameterValue value = ResolveParamValue(parameters, *variable);
+		drawField([&]() {
+
+			ValueEditResult result = MaterialParameterEditor::DrawValueEdit(
+				*variable, value);
+			if (result.valueChanged) {
+				parameters.Set(
+					variable->parameterID, variable->name,
+					variable->semantic, value);
+			}
+			return result;
+			});
+	}
+
+	const auto drawTexture = [&](MaterialParameterID parameterID,
+		MaterialParameterSemantic semantic, std::string_view displayName) {
+
+		hasParameter = true;
+		AssetID textureID = ResolveTextureValue(
+			parameters, parameterID, semantic, displayName);
+		drawField([&]() {
+
+			AssetEditSetting setting{};
+			setting.graphicsCore = context.graphicsCore;
+			ValueEditResult result = MyGUI::AssetReferenceField(
+				displayName.data(), textureID,
+				context.editorContext->assetDatabase,
+				{ AssetType::Texture }, setting);
+			if (result.valueChanged) {
+				MaterialParameterValue value{};
+				value.value = textureID;
+				parameters.Set(
+					parameterID, displayName, semantic, value);
+			}
+			return result;
+			});
+		};
+
+	for (const ShaderConstantBufferVariable* variable : textureVariables) {
+		drawTexture(variable->parameterID,
+			variable->semantic, variable->name);
 	}
 
 	std::vector<const ShaderResourceBinding*> textures;
 	for (const ShaderResourceBinding& resource : reflection->resources) {
 
-		if (resource.kind == ShaderBindingKind::SRV && resource.space == 2 &&
-			resource.rawType == D3D_SIT_TEXTURE) {
-			textures.emplace_back(&resource);
+		if (!MaterialParameterEditor::IsMaterialTextureResource(resource)) {
+			continue;
 		}
+		if (const ShaderConstantBufferVariable* variable =
+			MaterialParameterEditor::FindReflectedTextureParameter(
+				resource, *reflection)) {
+			if (MaterialParameterEditor::IsReflectedTextureParam(
+				*variable, *reflection)) {
+				continue;
+			}
+		}
+		textures.emplace_back(&resource);
 	}
 	std::stable_sort(textures.begin(), textures.end(),
 		[](const ShaderResourceBinding* lhs, const ShaderResourceBinding* rhs) {
-			return lhs->bindPoint < rhs->bindPoint;
+			return MaterialParameterEditor::GetTextureDisplayRank(
+				lhs->semantic, lhs->name) <
+				MaterialParameterEditor::GetTextureDisplayRank(
+					rhs->semantic, rhs->name);
 		});
 
 	for (const ShaderResourceBinding* resource : textures) {
 
-		hasParameter = true;
-		AssetID textureID = ResolveTextureValue(parameters, resource->name);
-		drawField([&]() {
-
-			AssetEditSetting setting{};
-			setting.graphicsCore = context.graphicsCore;
-			ValueEditResult result = MyGUI::AssetReferenceField(resource->name.c_str(), textureID,
-				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
-			if (result.valueChanged) {
-				MaterialParameterValue value{};
-				value.value = textureID;
-				parameters.Set(
-					resource->parameterID, resource->name,
-					resource->semantic, value);
-			}
-			return result;
-			});
+		const std::string_view displayName =
+			MaterialParameterEditor::GetReflectedTextureDisplayName(
+				*resource, *reflection);
+		const MaterialParameterID parameterID =
+			MaterialParameterEditor::GetReflectedTextureParameterID(
+				*resource, *reflection);
+		const MaterialParameterSemantic semantic =
+			MaterialParameterEditor::GetReflectedTextureSemantic(
+				*resource, *reflection);
+		drawTexture(parameterID, semantic, displayName);
 	}
 
 	if (!hasParameter) {

@@ -3058,6 +3058,9 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(
 				.isColor =
 					parameter.type ==
 					ShaderGraphValueType::Color,
+				.isTexture =
+					parameter.type ==
+					ShaderGraphValueType::Texture2D,
 			});
 	}
 	for (const ShaderGraphKeyword& keyword : expandedGraph.keywords) {
@@ -3074,6 +3077,7 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(
 				.id = MaterialParameterID::FromUUID(keyword.id),
 				.semantic = MaterialParameterSemantic::None,
 				.isColor = false,
+				.isTexture = false,
 			});
 	}
 	return output;

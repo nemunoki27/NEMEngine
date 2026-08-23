@@ -317,8 +317,11 @@ namespace {
 		std::string text = std::to_string(v);
 		Engine::ValueEditResult r = DrawTextNumber(label, text);
 		if (r.valueChanged) {
-			try { value = std::stod(text); }
-			catch (...) {}
+			double parsed = 0.0;
+			const auto result = std::from_chars(text.data(), text.data() + text.size(), parsed);
+			if (result.ec == std::errc() && result.ptr == text.data() + text.size()) {
+				value = parsed;
+			}
 		}
 		return r;
 	}
@@ -332,10 +335,13 @@ namespace {
 		// 現在値に対応する名前を探す
 		int currentIndex = -1;
 		for (size_t i = 0; i < field.enumValues.size(); ++i) {
-			try {
-				if (std::stoll(field.enumValues[i]) == current) { currentIndex = static_cast<int>(i); break; }
+			long long parsed = 0;
+			const std::string& text = field.enumValues[i];
+			const auto parse = std::from_chars(text.data(), text.data() + text.size(), parsed);
+			if (parse.ec == std::errc() && parse.ptr == text.data() + text.size() && parsed == current) {
+				currentIndex = static_cast<int>(i);
+				break;
 			}
-			catch (...) {}
 		}
 		const std::string preview = currentIndex >= 0 ? field.enumNames[currentIndex]
 			: ("(" + std::to_string(current) + ")");
@@ -347,8 +353,13 @@ namespace {
 			for (size_t i = 0; i < field.enumNames.size(); ++i) {
 				const bool selected = (static_cast<int>(i) == currentIndex);
 				if (ImGui::Selectable(field.enumNames[i].c_str(), selected)) {
-					try { value = std::stoll(field.enumValues[i]); result.valueChanged = true; }
-					catch (...) {}
+					long long parsed = 0;
+					const std::string& text = field.enumValues[i];
+					const auto parse = std::from_chars(text.data(), text.data() + text.size(), parsed);
+					if (parse.ec == std::errc() && parse.ptr == text.data() + text.size()) {
+						value = parsed;
+						result.valueChanged = true;
+					}
 				}
 				if (selected) { ImGui::SetItemDefaultFocus(); }
 			}

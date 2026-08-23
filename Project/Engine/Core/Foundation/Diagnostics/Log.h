@@ -116,7 +116,8 @@ namespace Engine {
 
 		// accessor
 		static std::shared_ptr<spdlog::logger>& Get(LogType type) {
-			return loggers_[static_cast<std::size_t>(type)];
+			const std::size_t index = static_cast<std::size_t>(type);
+			return index < loggers_.size() ? loggers_[index] : invalidLogger_;
 		}
 		static const std::filesystem::path& GetLogDir() { return logDir_; }
 
@@ -131,6 +132,8 @@ namespace Engine {
 		static void AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message);
 
 		static inline std::vector<std::shared_ptr<spdlog::logger>> loggers_;
+		// 不正なLogType参照を安全に受ける空Logger
+		static inline std::shared_ptr<spdlog::logger> invalidLogger_;
 		static inline std::filesystem::path logDir_ = "./Log";
 		static inline std::mutex mutex_;
 		static inline bool initialized_{ false };

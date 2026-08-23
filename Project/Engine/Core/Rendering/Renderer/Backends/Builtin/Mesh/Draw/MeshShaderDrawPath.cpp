@@ -3,6 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+
+//============================================================================
+//	include
+//============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -93,8 +98,8 @@ void Engine::MeshShaderDrawPath::Draw(const MeshPathDrawContext& context) {
 		return;
 	}
 
-	Assert::Call(meshletCount <= 65535, "meshletCount > 65535 is not supported yet");
-	Assert::Call(prepared.instanceCount <= 65535, "instanceCount > 65535 is not supported yet");
+	Assert::Call(meshletCount <= 65535, "Meshlet数が現在の上限65535を超えています");
+	Assert::Call(prepared.instanceCount <= 65535, "Instance数が現在の上限65535を超えています");
 
 	// X方向は32メッシュレット単位、Y方向はインスタンス単位でASを起動する
 	const uint32_t meshletGroupCount = DxUtils::RoundUp(meshletCount, 32);

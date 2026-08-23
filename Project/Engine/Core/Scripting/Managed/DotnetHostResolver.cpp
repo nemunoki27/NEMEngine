@@ -57,7 +57,7 @@ namespace {
 	void HOSTFXR_CALLTYPE ForwardHostfxrError(const char_t* message) {
 		if (message) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: hostfxr: {}", ToUtf8(message));
+				"ManagedScriptRuntime: hostfxr診断: {}", ToUtf8(message));
 		}
 	}
 
@@ -96,7 +96,7 @@ namespace {
 		if (executableDirectory.empty()) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: could not determine the executable directory for nethost.dll.");
+				"ManagedScriptRuntime: nethost.dllを探索する実行ファイルDirectoryを取得できません");
 			return {};
 		}
 		return (executableDirectory / L"nethost.dll").lexically_normal();
@@ -114,8 +114,7 @@ namespace {
 		if (!std::filesystem::exists(nethostPath, existsError) || existsError) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: nethost.dll was not found at the expected path={} arch={} "
-				"(it must be deployed next to the executable).",
+				"ManagedScriptRuntime: nethost.dllが実行ファイルの隣にありません path={} arch={}",
 				ToUtf8Path(nethostPath), ProcessArchitecture());
 			return {};
 		}
@@ -124,7 +123,7 @@ namespace {
 		if (!nethost) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: failed to load nethost.dll. path={} arch={}.",
+				"ManagedScriptRuntime: nethost.dllの読み込みに失敗しました path={} arch={}",
 				ToUtf8Path(nethostPath), ProcessArchitecture());
 			return {};
 		}
@@ -138,7 +137,7 @@ namespace {
 		if (!getHostfxrPath) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: get_hostfxr_path export was not found in nethost.dll.");
+				"ManagedScriptRuntime: nethost.dllにget_hostfxr_path Exportがありません");
 			return {};
 		}
 
@@ -155,8 +154,8 @@ namespace {
 
 			// サイズ問い合わせ以外で失敗した場合はnethostがhostfxrを特定できない、.NET runtime未導入など
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: get_hostfxr_path (size query) failed. code={} arch={}. "
-				"Install a matching .NET runtime / SDK.", ToHex(result), ProcessArchitecture());
+				"ManagedScriptRuntime: get_hostfxr_pathのSize取得に失敗しました code={} arch={} "
+				"一致する.NET RuntimeまたはSDKを導入してください", ToHex(result), ProcessArchitecture());
 			return {};
 		}
 
@@ -165,7 +164,7 @@ namespace {
 		if (result != 0) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"ManagedScriptRuntime: get_hostfxr_path failed. code={} arch={}.",
+				"ManagedScriptRuntime: get_hostfxr_pathに失敗しました code={} arch={}",
 				ToHex(result), ProcessArchitecture());
 			return {};
 		}
@@ -191,7 +190,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	if (!std::filesystem::exists(runtimeConfigPath, existsError) || existsError) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: runtimeconfig.json was not found. path={}", ToUtf8Path(runtimeConfigPath));
+			"ManagedScriptRuntime: runtimeconfig.jsonが見つかりません path={}", ToUtf8Path(runtimeConfigPath));
 		return false;
 	}
 
@@ -202,7 +201,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 		return false;
 	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: resolved hostfxr. path={} arch={} runtimeconfig={}",
+		"ManagedScriptRuntime: hostfxrを解決しました path={} arch={} runtimeconfig={}",
 		ToUtf8Path(hostfxrPath), ProcessArchitecture(), ToUtf8Path(runtimeConfigPath));
 
 	// hostfxr.dllをget_hostfxr_pathが返した絶対パスのままロードし相対化やbare-name変換はせずnethostと同じ安全な検索フラグを使う
@@ -210,8 +209,8 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	if (!library) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to load hostfxr.dll. path={} arch={} "
-			"(architecture mismatch between this {} host and the resolved hostfxr is possible).",
+			"ManagedScriptRuntime: hostfxr.dllを読み込めません path={} arch={} "
+			"実行HostとhostfxrのArchitectureが一致しない可能性があります Host={}",
 			ToUtf8Path(hostfxrPath), ProcessArchitecture(), ProcessArchitecture());
 		return false;
 	}
@@ -236,7 +235,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	if (!initializeForRuntimeConfig || !getRuntimeDelegate || !closeContext) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: required hostfxr exports were not found.");
+			"ManagedScriptRuntime: 必須のhostfxr Exportが見つかりません");
 		return false;
 	}
 
@@ -255,7 +254,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	if (result < 0 || !context) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr_initialize_for_runtime_config failed. code={} runtimeconfig={}",
+			"ManagedScriptRuntime: hostfxr_initialize_for_runtime_configに失敗しました code={} runtimeconfig={}",
 			ToHex(result), ToUtf8Path(runtimeConfigPath));
 		return false;
 	}
@@ -273,7 +272,7 @@ bool Engine::DotnetHostResolver::Initialize(const std::filesystem::path& scriptC
 	if (result != 0 || !loadAssemblyDelegate) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: hostfxr_get_runtime_delegate(load_assembly_and_get_function_pointer) failed. code={}",
+			"ManagedScriptRuntime: load_assembly_and_get_function_pointerの取得に失敗しました code={}",
 			ToHex(result));
 		return false;
 	}

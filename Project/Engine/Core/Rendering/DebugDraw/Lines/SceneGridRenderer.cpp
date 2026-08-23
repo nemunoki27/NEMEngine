@@ -454,7 +454,7 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	bool created = pipeline_.CreateGraphics(device, compiler, desc);
-	Assert::Call(created, "SceneGridRenderer analytic grid pipeline create failed");
+	Assert::Call(created, "SceneGridRendererの解析グリッドPipeline作成に失敗しました");
 
 	for (auto& buffers : passBuffers_) {
 		buffers.reserve(4);

@@ -1382,7 +1382,7 @@ void AnimationClipTool::LoadClipFromSelectedAsset(const EditorToolContext& conte
 	if (!LoadAnimationClipAsset(path, loaded)) {
 		clipErrorText_ = "Failed to load AnimationClip asset.";
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"AnimationClipTool failed to load clip: {}", path.string());
+			"AnimationClipToolでClipを読み込めません: {}", path.string());
 		return;
 	}
 
@@ -1443,7 +1443,7 @@ void AnimationClipTool::SaveClipToSelectedAsset(const EditorToolContext& context
 	if (!SaveAnimationClipAsset(path, clip_)) {
 		clipErrorText_ = "Failed to save AnimationClip asset.";
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"AnimationClipTool failed to save clip: {}", path.string());
+			"AnimationClipToolでClipを保存できません: {}", path.string());
 		return;
 	}
 

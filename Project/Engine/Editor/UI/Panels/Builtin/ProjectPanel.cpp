@@ -267,7 +267,7 @@ namespace {
 		std::error_code scriptEc;
 		if (scriptPath.empty() || !std::filesystem::exists(scriptPath, scriptEc) || scriptEc) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"ProjectPanel: script file was not found. path={}", asset.assetPath);
+				"ProjectPanel: Scriptファイルが見つかりません path={}", asset.assetPath);
 			return false;
 		}
 
@@ -355,7 +355,7 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 		catch (const std::exception& exception) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[ProjectPanel] failed to import dropped path. path={} error={}", path, exception.what());
+				"[ProjectPanel] DropされたPathのImportに失敗しました path={} 内容={}", path, exception.what());
 		}
 	}
 	if (imported) {
@@ -365,7 +365,7 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 		catch (const std::exception& exception) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[ProjectPanel] failed to refresh imported assets. error={}", exception.what());
+				"[ProjectPanel] Import後のAsset更新に失敗しました 内容={}", exception.what());
 		}
 	}
 }
@@ -462,10 +462,19 @@ void Engine::ProjectPanel::LoadLayoutState(const nlohmann::json& state) {
 		return;
 	}
 
-	displayName_ = state.value("displayName", displayName_);
-	assetSource_ = EnumAdapter<ProjectAssetSource>::FromString(
-		state.value("assetSource", EnumAdapter<ProjectAssetSource>::ToString(assetSource_))).value_or(assetSource_);
-	selectedDirectory_ = state.value("selectedDirectory", selectedDirectory_);
+	if (auto value = state.find("displayName");
+		value != state.end() && value->is_string()) {
+		displayName_ = value->get<std::string>();
+	}
+	if (auto value = state.find("assetSource");
+		value != state.end() && value->is_string()) {
+		assetSource_ = EnumAdapter<ProjectAssetSource>::FromString(
+			value->get<std::string>()).value_or(assetSource_);
+	}
+	if (auto value = state.find("selectedDirectory");
+		value != state.end() && value->is_string()) {
+		selectedDirectory_ = value->get<std::string>();
+	}
 	selectedAsset_ = {};
 	dirty_ = true;
 }
@@ -943,7 +952,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 			if (!result.success) {
 
 				Logger::Output(LogType::Engine, spdlog::level::warn,
-					"ProjectPanel: font regeneration failed. {}", result.message);
+					"ProjectPanel: Fontの再生成に失敗しました {}", result.message);
 			}
 		}
 	}
@@ -1234,7 +1243,7 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 	if (!result.success) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ProjectPanel: failed to create prefab asset. message={}", result.message);
+			"ProjectPanel: Prefab Assetの作成に失敗しました 内容={}", result.message);
 		return false;
 	}
 
@@ -1242,7 +1251,7 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 	if (!prefabSystem.SavePrefab(database, world, entity, result.assetPath)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ProjectPanel: failed to save prefab. path={}", result.assetPath);
+			"ProjectPanel: Prefabの保存に失敗しました path={}", result.assetPath);
 		return false;
 	}
 
@@ -1372,7 +1381,8 @@ void Engine::ProjectPanel::RefreshAfterFileOperation(
 
 	if (!result.success) {
 
-		Logger::Output(LogType::Engine, spdlog::level::warn, "ProjectPanel: file operation failed. message={}", result.message);
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ProjectPanel: ファイル操作に失敗しました 内容={}", result.message);
 		return;
 	}
 
@@ -1431,10 +1441,33 @@ void Engine::ProjectPanel::LoadPersistentState() {
 		return;
 	}
 
-	assetSource_ = EnumAdapter<ProjectAssetSource>::FromString(data.value("assetSource", "Engine")).value();
+	std::string assetSourceName = "Engine";
+	auto assetSourceValue = data.find("assetSource");
+	if (assetSourceValue != data.end() && assetSourceValue->is_string()) {
+		assetSourceName = assetSourceValue->get<std::string>();
+	} else if (assetSourceValue != data.end()) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ProjectPanelのアセット表示元の型が不正なためEngineへ戻します");
+	}
+	const std::optional<ProjectAssetSource> assetSource =
+		EnumAdapter<ProjectAssetSource>::FromString(assetSourceName);
+	if (!assetSource) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ProjectPanelのアセット表示元が不正なためEngineへ戻します");
+	}
+	assetSource_ = assetSource.value_or(ProjectAssetSource::Engine);
 
 	const std::string defaultDirectory = assetSource_ == ProjectAssetSource::Game ? "GameAssets" : "Engine/Assets";
-	selectedDirectory_ = data.value("selectedDirectory", defaultDirectory);
+	auto selectedDirectory = data.find("selectedDirectory");
+	if (selectedDirectory != data.end() && selectedDirectory->is_string()) {
+		selectedDirectory_ = selectedDirectory->get<std::string>();
+	} else {
+		selectedDirectory_ = defaultDirectory;
+		if (selectedDirectory != data.end()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"ProjectPanelの選択Directoryが不正なため表示元のRootへ戻します");
+		}
+	}
 	if (selectedDirectory_.empty()) {
 
 		selectedDirectory_ = defaultDirectory;

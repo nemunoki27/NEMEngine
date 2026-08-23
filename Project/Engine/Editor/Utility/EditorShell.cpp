@@ -174,7 +174,7 @@ bool Engine::EditorShell::OpenWithSystemDefault(const std::filesystem::path& fil
 	if (file.empty() || !std::filesystem::exists(file, ec) || ec) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[EditorShell] target file does not exist: {}", Algorithm::PathToUTF8(file));
+			"[EditorShell] 対象ファイルが存在しません: {}", Algorithm::PathToUTF8(file));
 		return false;
 	}
 
@@ -185,7 +185,7 @@ bool Engine::EditorShell::OpenWithSystemDefault(const std::filesystem::path& fil
 	}
 
 	Logger::Output(LogType::Engine, spdlog::level::warn,
-		"[EditorShell] system default open failed for: {}", Algorithm::PathToUTF8(file));
+		"[EditorShell] 既定アプリでファイルを開けません: {}", Algorithm::PathToUTF8(file));
 	return false;
 }
 
@@ -195,7 +195,7 @@ bool Engine::EditorShell::OpenDirectory(const std::filesystem::path& directory) 
 	if (directory.empty() || !std::filesystem::is_directory(directory, ec) || ec) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[EditorShell] target directory does not exist: {}", Algorithm::PathToUTF8(directory));
+			"[EditorShell] 対象Directoryが存在しません: {}", Algorithm::PathToUTF8(directory));
 		return false;
 	}
 
@@ -206,6 +206,6 @@ bool Engine::EditorShell::OpenDirectory(const std::filesystem::path& directory) 
 	}
 
 	Logger::Output(LogType::Engine, spdlog::level::warn,
-		"[EditorShell] explorer open failed for: {}", Algorithm::PathToUTF8(directory));
+		"[EditorShell] ExplorerでDirectoryを開けません: {}", Algorithm::PathToUTF8(directory));
 	return false;
 }

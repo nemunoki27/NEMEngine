@@ -31,7 +31,7 @@ void Engine::RenderFeatureProfileService::Load() {
 		!RenderFeatureProfileSerializer::Load(profilePath_, profile_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RenderFeature] Failed to load profile: {}",
+			"[レンダー機能] プロファイルの読み込みに失敗しました path={}",
 			profilePath_.string());
 	}
 	RebuildRuntime();

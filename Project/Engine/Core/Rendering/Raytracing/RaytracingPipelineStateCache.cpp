@@ -279,12 +279,12 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 				key.samplerHash);
 			failedRevisions_.erase(key);
 			Logger::Output(LogType::Engine,
-				"[RaytracingPipeline] Hot reload swap completed");
+				"[レイトレーシングパイプライン] ホットリロード結果の差し替えが完了しました");
 			return created->second.get();
 		} else {
 			failedRevisions_[key] = completedRevision;
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RaytracingPipeline] Hot reload failed, keeping last valid state");
+				"[レイトレーシングパイプライン] ホットリロードに失敗したため直前の有効なStateを維持します");
 			return fallback;
 		}
 	}
@@ -321,6 +321,6 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 		});
 	pendingBuilds_.emplace(key, std::move(build));
 	Logger::Output(LogType::Engine,
-		"[RaytracingPipeline] Hot reload build started");
+		"[レイトレーシングパイプライン] ホットリロード用ビルドを開始しました");
 	return fallback;
 }

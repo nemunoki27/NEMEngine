@@ -237,7 +237,7 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 
 		faulted_ = true;
 		Logger::Output(LogType::GameLogic, spdlog::level::err,
-			"ManagedBehavior: script faulted and will be disabled. type={} scriptTypeID={} callback={} entity={}:{}",
+			"ManagedBehavior: Script例外を検出したため無効化します type={} ScriptTypeID={} Callback={} Entity={}:{}",
 			displayName_, scriptTypeID_, callbackName, entity.index, entity.generation);
 	}
 }

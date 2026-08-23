@@ -45,10 +45,39 @@ Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureParamete
 	const MaterialParameterSet& parameters,
 	const std::string& name) {
 
-	if (!EnsureMaterialReflection(context, materialID, defaultMaterialID)) {
+	const ShaderReflectionInfo* reflection =
+		EnsureMaterialReflection(context, materialID, defaultMaterialID);
+	if (!reflection) {
 		return AssetID{};
 	}
-	return ResolveTextureValue(parameters, name);
+
+	const MaterialParameterID requestedID =
+		MaterialParameterID::FromName(name);
+	const MaterialParameterSemantic requestedSemantic =
+		ResolveMaterialParameterSemantic(name);
+	for (const ShaderResourceBinding& resource : reflection->resources) {
+		if (!MaterialParameterEditor::IsMaterialTextureResource(resource)) {
+			continue;
+		}
+		const std::string_view displayName =
+			MaterialParameterEditor::GetReflectedTextureDisplayName(
+				resource, *reflection);
+		const MaterialParameterID parameterID =
+			MaterialParameterEditor::GetReflectedTextureParameterID(
+				resource, *reflection);
+		const MaterialParameterSemantic semantic =
+			MaterialParameterEditor::GetReflectedTextureSemantic(
+				resource, *reflection);
+		if (resource.name == name || displayName == name ||
+			parameterID == requestedID ||
+			(requestedSemantic != MaterialParameterSemantic::None &&
+				semantic == requestedSemantic)) {
+			return ResolveTextureValue(
+				parameters, parameterID, semantic, displayName);
+		}
+	}
+	return ResolveTextureValue(
+		parameters, requestedID, requestedSemantic, name);
 }
 
 Engine::MaterialParameterValue Engine::ReflectedMaterialParameterDrawer::ResolveParamValue(
@@ -69,25 +98,35 @@ Engine::MaterialParameterValue Engine::ReflectedMaterialParameterDrawer::Resolve
 }
 
 Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureValue(
-	const MaterialParameterSet& parameters, const std::string& name) const {
+	const MaterialParameterSet& parameters,
+	MaterialParameterID parameterID,
+	MaterialParameterSemantic semantic,
+	std::string_view name) const {
 
-	const MaterialParameterID parameterID =
-		MaterialParameterID::FromName(name);
-	if (const MaterialParameterValue* value =
-		parameters.Find(parameterID)) {
+	const auto findTexture = [parameterID, semantic, name](
+		const MaterialParameterSet& source) -> AssetID {
 
-		if (const AssetID* textureID = std::get_if<AssetID>(&value->value)) {
-			if (*textureID) {
+		const MaterialParameterValue* value = nullptr;
+		if (parameterID) {
+			value = source.Find(parameterID);
+		}
+		if (!value && semantic != MaterialParameterSemantic::None) {
+			value = source.Find(semantic);
+		}
+		if (!value && !name.empty()) {
+			value = source.FindByName(name);
+		}
+		if (value) {
+			if (const AssetID* textureID =
+				std::get_if<AssetID>(&value->value)) {
 				return *textureID;
 			}
 		}
-	}
-	if (const MaterialParameterValue* value =
-		cachedMaterial_.parameters.Find(parameterID)) {
+		return AssetID{};
+		};
 
-		if (const AssetID* textureID = std::get_if<AssetID>(&value->value)) {
-			return *textureID;
-		}
+	if (const AssetID textureID = findTexture(parameters)) {
+		return textureID;
 	}
-	return AssetID{};
+	return findTexture(cachedMaterial_.parameters);
 }

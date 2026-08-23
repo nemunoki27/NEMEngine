@@ -78,7 +78,7 @@ uint64_t FramePresenter::PresentAndSignal(IDXGISwapChain4* swapChain) {
 	// GPUとOSに画面の交換を行うように通知する
 	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
 	if (!DxDredDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::PresentAndSignal/Present")) {
-		Assert::Call(false, "SwapChain Present failed.");
+		Assert::Call(false, "SwapChainのPresentに失敗しました");
 		return 0;
 	}
 	return commandQueue_->Signal();

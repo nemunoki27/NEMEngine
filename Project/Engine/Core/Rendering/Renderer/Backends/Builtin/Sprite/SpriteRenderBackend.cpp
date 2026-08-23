@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
@@ -16,6 +17,34 @@
 //	SpriteRenderBackend internal
 //============================================================================
 namespace {
+
+	bool IsOutlineMaskPass(Engine::MaterialPassKind passKind) {
+
+		return passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
+			passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask;
+	}
+
+	bool ResolveSpriteOutlinePass(
+		const Engine::RenderDrawContext& context,
+		Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
+
+		const Engine::AssetID materialID =
+			Engine::BuiltinAssets::Materials::SpriteOutlineMask;
+		const Engine::MaterialAsset* material =
+			context.assetLibrary->LoadMaterial(materialID);
+		if (!material) {
+			return false;
+		}
+		const Engine::MaterialPassBinding* pass =
+			Engine::FindPass(*material, context.passKind);
+		if (!pass) {
+			return false;
+		}
+		outResolved.materialID = materialID;
+		outResolved.material = material;
+		outResolved.pass = pass;
+		return true;
+	}
 
 	// Spriteのマテリアル値からベースカラーテクスチャを解決する
 	Engine::AssetID ResolveBaseColorTexture(
@@ -75,19 +104,26 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		});
 
 	// マテリアルパスを解決する
-	BackendDrawCommon::ResolvedMaterialPass resolvedPass{};
-	if (!BackendDrawCommon::ResolveMaterialPass(context, items.front()->material,
-		DefaultMaterialSlot::Sprite, { MaterialPassKind::Draw }, resolvedPass)) {
+	BackendDrawCommon::ResolvedMaterialPass sourcePass{};
+	if (!BackendDrawCommon::ResolveMaterialPass(
+		context, items.front()->material, DefaultMaterialSlot::Sprite,
+		{ MaterialPassKind::Draw }, sourcePass)) {
 		return;
 	}
+	BackendDrawCommon::ResolvedMaterialPass resolvedPass = sourcePass;
+	if (IsOutlineMaskPass(context.passKind) &&
+		!ResolveSpriteOutlinePass(context, resolvedPass)) {
+		return;
+	}
+	const MaterialAsset* bindingMaterial = sourcePass.material;
 	const SpriteRenderPayload* firstPayload = context.batch->GetPayload<SpriteRenderPayload>(*items.front());
 	PipelineStaticSamplerOverrideSet samplerOverrides{};
 	const PipelineStaticSamplerOverrideSet* samplerOverridesPtr = nullptr;
-	if (!resolvedPass.pass->shaderOverride) {
+	if (!resolvedPass.pass->shaderOverride && bindingMaterial) {
 
 		const AssetID textureAsset = ResolveBaseColorTexture(
 			firstPayload ? firstPayload->materialInstance : nullptr,
-			*resolvedPass.material);
+			*bindingMaterial);
 		if (textureAsset) {
 
 			const TextureImportSettings settings =
@@ -135,16 +171,30 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 				resources.GetInstancePSGPUAddress(), {});
 		}
 		// overrides持ちはCanBatchで単独描画になるので先頭の上書きを使う
-		if (resolvedPass.material) {
+		if (bindingMaterial) {
 			BackendDrawCommon::BindReflectedMaterialParameters(context, materialParamBinder_, *pipelineState,
-				*resolvedPass.material, firstPayload ? firstPayload->materialInstance : nullptr,
+				*bindingMaterial, firstPayload ? firstPayload->materialInstance : nullptr,
 				perDrawBindCache_, materialParamsCBVSlot_, commandList);
 		}
 		// space2のマテリアルテクスチャをreflection駆動でバインドする
-		if (resolvedPass.material) {
+		if (bindingMaterial) {
 			BackendDrawCommon::BindMaterialTextures(context, *pipelineState, materialParamBinder_,
-				*resolvedPass.material, commandList,
+				*bindingMaterial, commandList,
 				firstPayload ? firstPayload->materialInstance : nullptr);
+		}
+		if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {
+
+			ScreenSpaceOutlineMaskConstants maskConstants{};
+			maskConstants.styleID = context.screenSpaceOutlineMaskStyleID;
+			maskConstants.restrictSubMeshIndex =
+				context.screenSpaceOutlineMaskRestrictSubMeshIndex;
+			maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
+			const PostProcessConstantBufferAllocation maskAlloc =
+				constantBufferAllocator_.AllocateAndUpload(
+					graphicsCore.GetDXObject().GetDevice(), maskConstants);
+			RootBindingCommand::SetGraphicsCBV(
+				commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_),
+				maskAlloc.gpuAddress);
 		}
 	}
 

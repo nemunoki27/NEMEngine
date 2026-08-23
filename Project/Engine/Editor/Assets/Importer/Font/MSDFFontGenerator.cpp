@@ -122,7 +122,7 @@ namespace {
 		if (!freetype) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"[MSDFFontGenerator] failed to initialize freetype");
+				"[MSDFFontGenerator] FreeTypeの初期化に失敗しました");
 			return false;
 		}
 
@@ -187,7 +187,7 @@ namespace {
 		} else {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"[MSDFFontGenerator] failed to load font. path={}", fontPath.string());
+				"[MSDFFontGenerator] Fontを読み込めません path={}", fontPath.string());
 		}
 
 		msdfgen::deinitializeFreetype(freetype);
@@ -201,7 +201,7 @@ namespace {
 		const std::filesystem::path&, const std::filesystem::path&) {
 
 		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-			"[MSDFFontGenerator] msdf-atlas-gen is not integrated. define NEM_USE_MSDF_ATLAS_GEN to enable generation");
+			"[MSDFFontGenerator] msdf-atlas-genが未統合です 生成を有効にするにはNEM_USE_MSDF_ATLAS_GENを定義してください");
 		return false;
 	}
 

@@ -50,7 +50,7 @@ void Engine::DepthPyramidTexture::Create(ID3D12Device* device,
 		IID_PPV_ARGS(&resource_));
 	if (FAILED(result)) {
 		Assert::Call(false,
-			"DepthPyramidTexture resource create failed");
+			"DepthPyramidTexture用リソースの作成に失敗しました");
 		Destroy();
 		return;
 	}

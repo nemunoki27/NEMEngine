@@ -852,8 +852,10 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 			}
 			// space2のテクスチャSRVもマテリアルテクスチャとして自動列挙対象にする
 			for (const ShaderResourceBinding& res : reflection->resources) {
-				if (res.kind == ShaderBindingKind::SRV && res.space == 2 && res.rawType == D3D_SIT_TEXTURE) {
-					reflectedNames.insert(res.name);
+				if (MaterialParameterEditor::IsMaterialTextureResource(res)) {
+					reflectedNames.insert(std::string(
+						MaterialParameterEditor::GetReflectedTextureDisplayName(
+							res, *reflection)));
 				}
 			}
 		}
@@ -882,33 +884,77 @@ void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext
 	ImGui::Spacing();
 	if (MyGUI::CollapsingHeader("Shader Textures", true)) {
 
-		std::unordered_set<std::string> drawnTextures;
+		std::unordered_set<uint64_t> drawnTextures;
 		bool anyTexture = false;
+		const auto drawTexture = [&](MaterialParameterID parameterID,
+			MaterialParameterSemantic semantic, std::string_view displayName) {
+
+			if (!parameterID ||
+				drawnTextures.count(parameterID.value) != 0) {
+				return;
+			}
+			drawnTextures.insert(parameterID.value);
+			anyTexture = true;
+
+			AssetID textureID{};
+			const MaterialParameterValue* value =
+				materialDraft_.parameters.Find(parameterID);
+			if (!value && semantic != MaterialParameterSemantic::None) {
+				value = materialDraft_.parameters.Find(semantic);
+			}
+			if (!value) {
+				value = materialDraft_.parameters.FindByName(displayName);
+			}
+			if (value) {
+				if (const AssetID* id =
+					std::get_if<AssetID>(&value->value)) {
+					textureID = *id;
+				}
+			}
+			if (MyGUI::AssetReferenceField(
+				displayName.data(), textureID,
+				context.editorContext->assetDatabase,
+				{ AssetType::Texture }).editFinished) {
+
+				MaterialParameterValue parameter{};
+				parameter.value = textureID;
+				materialDraft_.parameters.Set(
+					parameterID, displayName, semantic, parameter);
+				saveRequested = true;
+			}
+			};
+
 		for (const ShaderReflectionInfo* reflection : reflections) {
-			for (const ShaderResourceBinding& res : reflection->resources) {
+			MaterialParameterLayout layout{};
+			layout.Build(
+				*reflection, MaterialParameterCBuffer::kSurface);
+			if (layout.IsValid()) {
+				for (const ShaderConstantBufferVariable& variable :
+					layout.GetVariables()) {
 
-				if (res.kind != ShaderBindingKind::SRV || res.space != 2 || res.rawType != D3D_SIT_TEXTURE) {
-					continue;
-				}
-				if (drawnTextures.count(res.name) != 0) {
-					continue;
-				}
-				drawnTextures.insert(res.name);
-				anyTexture = true;
-
-				AssetID textureID{};
-				auto it = materialDraft_.parameters.find(res.name);
-				if (it != materialDraft_.parameters.end()) {
-					if (const AssetID* id = std::get_if<AssetID>(&it->second.value)) {
-						textureID = *id;
+					if (variable.used &&
+						MaterialParameterEditor::IsReflectedTextureParam(
+							variable, *reflection)) {
+						drawTexture(variable.parameterID,
+							variable.semantic, variable.name);
 					}
 				}
-				if (MyGUI::AssetReferenceField(res.name.c_str(), textureID,
-					context.editorContext->assetDatabase, { AssetType::Texture }).editFinished) {
+			}
+			for (const ShaderResourceBinding& res : reflection->resources) {
 
-					materialDraft_.parameters[res.name].value = textureID;
-					saveRequested = true;
+				if (!MaterialParameterEditor::IsMaterialTextureResource(res)) {
+					continue;
 				}
+				const MaterialParameterID parameterID =
+					MaterialParameterEditor::GetReflectedTextureParameterID(
+						res, *reflection);
+				const std::string_view displayName =
+					MaterialParameterEditor::GetReflectedTextureDisplayName(
+						res, *reflection);
+				const MaterialParameterSemantic semantic =
+					MaterialParameterEditor::GetReflectedTextureSemantic(
+						res, *reflection);
+				drawTexture(parameterID, semantic, displayName);
 			}
 		}
 		if (!anyTexture) {

@@ -230,15 +230,6 @@ namespace Engine {
 		Vector2 droppedFilesPoint_{};
 		bool hasDroppedFiles_ = false;
 
-		std::array<std::chrono::steady_clock::time_point, 256> keyStartTime_{};
-		std::array<bool, 256> keyStayLogged_{};
-
-		std::array<std::chrono::steady_clock::time_point, static_cast<size_t>(GamePadButtons::Counts)> gpStartTime_{};
-		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gpStayLogged_{};
-
-		std::array<std::chrono::steady_clock::time_point, 3> mouseStartTime_{};
-		std::array<bool, 3> mouseStayLogged_{};
-
 		float leftThumbX_;
 		float leftThumbY_;
 		float rightThumbX_;

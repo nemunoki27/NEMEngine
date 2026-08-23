@@ -18,7 +18,7 @@ namespace Engine::DxDredDiagnostics {
 		std::recursive_mutex g_dumpMutex;
 
 		const char* SafeName(const char* name) {
-			return name ? name : "<unnamed>";
+			return name ? name : "<名前なし>";
 		}
 
 		const char* ToBreadcrumbOpName(D3D12_AUTO_BREADCRUMB_OP op) {
@@ -39,7 +39,7 @@ namespace Engine::DxDredDiagnostics {
 #if defined(D3D12_AUTO_BREADCRUMB_OP_PRESENT)
 			case D3D12_AUTO_BREADCRUMB_OP_PRESENT: return "PRESENT";
 #endif
-			default: return "Other";
+			default: return "その他";
 			}
 		}
 
@@ -63,7 +63,7 @@ namespace Engine::DxDredDiagnostics {
 			completed = (std::min)(completed, count);
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[DRED] Queue='{}' CommandList='{}' BreadcrumbCount={} Completed={}",
+				"[DRED] キュー='{}' コマンドリスト='{}' パンくず数={} 完了数={}",
 				SafeName(node->pCommandQueueDebugNameA),
 				SafeName(node->pCommandListDebugNameA),
 				count, completed);
@@ -72,7 +72,7 @@ namespace Engine::DxDredDiagnostics {
 				for (uint32_t i = 0; i < node->BreadcrumbContextsCount; ++i) {
 					const auto& context = node->pBreadcrumbContexts[i];
 					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[DRED]   Context BreadcrumbIndex={} Text='{}'",
+						"[DRED]   コンテキスト パンくず番号={} 内容='{}'",
 						context.BreadcrumbIndex,
 						ConvertWideToMultiByte(context.pContextString));
 				}
@@ -118,7 +118,7 @@ namespace Engine::DxDredDiagnostics {
 			uint32_t count = 0u;
 			for (const auto* node = head; node != nullptr && count < kMaxAllocationNodes; node = node->pNext) {
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[DRED]   [{}] Name='{}' Type={} Object={}",
+					"[DRED]   [{}] 名前='{}' 種別={} オブジェクト={}",
 					count,
 					SafeName(node->ObjectNameA),
 					static_cast<uint32_t>(node->AllocationType),
@@ -127,9 +127,10 @@ namespace Engine::DxDredDiagnostics {
 			}
 
 			if (count == 0u) {
-				Logger::Output(LogType::Engine, spdlog::level::err, "[DRED]   <none>");
+				Logger::Output(LogType::Engine, spdlog::level::err, "[DRED]   <なし>");
 			} else if (count >= kMaxAllocationNodes) {
-				Logger::Output(LogType::Engine, spdlog::level::warn, "[DRED] Allocation list was truncated.");
+				Logger::Output(LogType::Engine, spdlog::level::warn,
+					"[DRED] 割り当て一覧を上限件数で打ち切りました");
 			}
 		}
 
@@ -141,10 +142,11 @@ namespace Engine::DxDredDiagnostics {
 			if (FAILED(dred->GetPageFaultAllocationOutput1(&output))) return;
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[DRED] PageFaultVA=0x{:016X}", static_cast<uint64_t>(output.PageFaultVA));
+				"[DRED] ページフォールト仮想アドレス=0x{:016X}",
+				static_cast<uint64_t>(output.PageFaultVA));
 
-			DumpAllocationList("Existing allocations:", output.pHeadExistingAllocationNode);
-			DumpAllocationList("Recently freed allocations:", output.pHeadRecentFreedAllocationNode);
+			DumpAllocationList("既存の割り当て:", output.pHeadExistingAllocationNode);
+			DumpAllocationList("直近で解放した割り当て:", output.pHeadRecentFreedAllocationNode);
 		}
 
 		bool IsDeviceRemovedHRESULT(HRESULT result) {
@@ -162,7 +164,7 @@ namespace Engine::DxDredDiagnostics {
 			settings1->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 			settings1->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 			settings1->SetBreadcrumbContextEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-			Logger::Output(LogType::Engine, "[DRED] Settings1 enabled.");
+			Logger::Output(LogType::Engine, "[DRED] Settings1を有効にしました");
 			return;
 		}
 
@@ -170,11 +172,12 @@ namespace Engine::DxDredDiagnostics {
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&settings))) && settings) {
 			settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
 			settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-			Logger::Output(LogType::Engine, "[DRED] Legacy settings enabled.");
+			Logger::Output(LogType::Engine, "[DRED] 旧設定インターフェースを有効にしました");
 			return;
 		}
 
-		Logger::Output(LogType::Engine, spdlog::level::warn, "[DRED] Settings interface is unavailable.");
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"[DRED] 設定インターフェースを使用できません");
 #endif
 	}
 
@@ -185,17 +188,17 @@ namespace Engine::DxDredDiagnostics {
 		std::lock_guard<std::recursive_mutex> lock(g_dumpMutex);
 		if (g_dumped.load()) return;
 
-		Logger::Output(LogType::Engine, spdlog::level::err, "[DRED] ===== BEGIN =====");
-		Logger::Output(LogType::Engine, spdlog::level::err, "[DRED] Operation='{}'", operation);
+		Logger::Output(LogType::Engine, spdlog::level::err, "[DRED] ===== 診断開始 =====");
+		Logger::Output(LogType::Engine, spdlog::level::err, "[DRED] 操作='{}'", operation);
 
 		const HRESULT reason = device->GetDeviceRemovedReason();
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[DRED] DeviceRemovedReason=0x{:08X}", static_cast<uint32_t>(reason));
+			"[DRED] デバイス削除理由=0x{:08X}", static_cast<uint32_t>(reason));
 
 		DumpBreadcrumbs(device);
 		DumpPageFault(device);
 
-		Logger::Output(LogType::Engine, spdlog::level::err, "[DRED] ===== END =====");
+		Logger::Output(LogType::Engine, spdlog::level::err, "[DRED] ===== 診断終了 =====");
 		Logger::FlushAll();
 
 		g_dumped.store(true);
@@ -212,7 +215,7 @@ namespace Engine::DxDredDiagnostics {
 		}
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[D3D12] HRESULT failure Operation='{}' HRESULT=0x{:08X}",
+			"[D3D12] HRESULT失敗 操作='{}' HRESULT=0x{:08X}",
 			operation, static_cast<uint32_t>(result));
 		Logger::FlushAll();
 

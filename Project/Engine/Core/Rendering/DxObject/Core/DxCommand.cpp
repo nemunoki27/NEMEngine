@@ -8,7 +8,6 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // c++
-#include <cassert>
 #include <string>
 
 //============================================================================
@@ -21,7 +20,7 @@ void DxCommand::Create(ID3D12Device* device) {
 		GraphicsFrameContext& context = frameContexts_[index];
 		HRESULT hr = device->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.commandAllocator));
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "描画コマンドアロケータの作成に失敗しました");
 		context.commandAllocator->SetName(
 			(L"MainGraphicsCommandAllocator[" + std::to_wstring(index) + L"]").c_str());
 		context.fenceValue = 0;
@@ -33,7 +32,7 @@ void DxCommand::Create(ID3D12Device* device) {
 	HRESULT hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
 		frameContexts_[currentFrameIndex_].commandAllocator.Get(), nullptr,
 		IID_PPV_ARGS(&commandList_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "描画コマンドリストの作成に失敗しました");
 	commandList_->SetName(L"MainGraphicsCommandList");
 	recording_ = true;
 }
@@ -58,7 +57,7 @@ void DxCommand::CloseCommandList() {
 		return;
 	}
 	HRESULT hr = commandList_->Close();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "描画コマンドリストを閉じられませんでした");
 	recording_ = false;
 }
 
@@ -66,9 +65,9 @@ void DxCommand::ResetCommandList() {
 
 	GraphicsFrameContext& context = frameContexts_[currentFrameIndex_];
 	HRESULT hr = context.commandAllocator->Reset();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "描画コマンドアロケータのリセットに失敗しました");
 	hr = commandList_->Reset(context.commandAllocator.Get(), nullptr);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "描画コマンドリストのリセットに失敗しました");
 	recording_ = true;
 }
 
@@ -104,7 +103,7 @@ void DxCommand::SetRenderTargets(const std::optional<RenderTarget>& renderTarget
 			commandList_->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle.value());
 		} else {
 
-			Assert::Call(FALSE, "unSetting ShadowMap");
+			Assert::Call(FALSE, "ShadowMapを解除する描画先がありません");
 		}
 	}
 }
@@ -143,7 +142,7 @@ void Engine::DxCommand::BindRenderTargets(const std::optional<RenderTarget>& ren
 			commandList_->OMSetRenderTargets(0, nullptr, FALSE, &dsvHandle.value());
 		} else {
 
-			Assert::Call(FALSE, "BindRenderTargets failed : no RTV/DSV");
+			Assert::Call(FALSE, "RTVとDSVのどちらも指定されていません");
 		}
 	}
 }

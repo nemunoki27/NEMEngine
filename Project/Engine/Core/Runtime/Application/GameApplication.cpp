@@ -97,7 +97,7 @@ void Engine::GameApplication::LoadActiveSceneConfig() {
 	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
 	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"GameApplication: active scene config points missing scene. guid={}", ToString(sceneAsset));
+			"GameApplication: 設定が存在しないアクティブシーンを参照しています GUID={}", ToString(sceneAsset));
 		return;
 	}
 	activeScene_ = sceneAsset;
@@ -116,7 +116,7 @@ void Engine::GameApplication::InitFirstScene() {
 		!editScenes_.LoadSceneTree(
 			assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"GameApplication: startup scene could not be loaded");
+			"GameApplication: 起動シーンを読み込めません");
 	}
 }
 
@@ -170,7 +170,7 @@ void Engine::GameApplication::StartPlayWorld() {
 		!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"GameApplication: startup scene snapshot load failed.");
+			"GameApplication: 起動シーンのSnapshot読み込みに失敗しました");
 		playScenes_ = SceneInstanceManager{};
 		worldManager_.DestroyPlayWorld();
 		return;
@@ -234,7 +234,7 @@ bool Engine::GameApplication::HandleApplicationQuitRequest() {
 	}
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"GameApplication: Application.Quit requested. Closing application.");
+		"GameApplication: Application.Quit要求を受けたため終了します");
 	WinApp::RequestCloseWindow();
 	return true;
 }
@@ -289,7 +289,7 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 		}
 		if (scriptExceptionVersion != ManagedScriptExceptionStore::GetInstance().Version()) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"GameApplication: script exception during Play.");
+				"GameApplication: Play中にScript例外が発生しました");
 		}
 	}
 
@@ -389,7 +389,7 @@ void Engine::GameApplication::PreloadReleaseResources(GraphicsCore& graphicsCore
 	return;
 #else
 	const auto startTime = std::chrono::steady_clock::now();
-	Logger::Output(LogType::Engine, "[RuntimePreload] Release startup preload begin");
+	Logger::Output(LogType::Engine, "[実行時事前読み込み] Release起動時の事前読み込みを開始します");
 
 	renderPipeline_->PreloadRuntimeAssets(graphicsCore, assetDataBase_);
 
@@ -439,7 +439,7 @@ void Engine::GameApplication::PreloadReleaseResources(GraphicsCore& graphicsCore
 		SceneInstanceManager warmupScenes{};
 		if (!warmupScenes.LoadSceneTree(assetDataBase_, sceneSystem_, warmupWorld, sceneAsset)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[RuntimePreload] Scene load failed. guid={}", ToString(sceneAsset));
+				"[実行時事前読み込み] シーンの読み込みに失敗しました GUID={}", ToString(sceneAsset));
 			continue;
 		}
 
@@ -487,7 +487,7 @@ void Engine::GameApplication::PreloadReleaseResources(GraphicsCore& graphicsCore
 	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::steady_clock::now() - startTime).count();
 	Logger::Output(LogType::Engine,
-		"[RuntimePreload] Release startup preload completed. Scenes={} Elapsed={}ms",
+		"[実行時事前読み込み] Release起動時の事前読み込みが完了しました シーン数={} 経過={}ms",
 		sceneAssets.size(), elapsed);
 	Logger::Flush(LogType::Engine);
 #endif

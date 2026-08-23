@@ -30,7 +30,7 @@ void Engine::AccelerationStructureBuffer::Create(ID3D12Device* device, UINT64 si
 	// リソース作成
 	HRESULT hr = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
 		&desc, initialState, nullptr, IID_PPV_ARGS(&resource_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "AccelerationStructure用バッファの作成に失敗しました");
 }
 
 constexpr UINT64 Engine::AccelerationStructureBuffer::AlignASSize(UINT64 value) {

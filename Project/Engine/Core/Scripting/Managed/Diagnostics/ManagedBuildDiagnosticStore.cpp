@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <ctime>
 
@@ -111,15 +112,21 @@ std::optional<Engine::ManagedBuildDiagnostic> Engine::ManagedBuildDiagnosticStor
 			Truncate(diagnostic.file, kMaxPathLength);
 			const std::string location = left.substr(open + 1, left.size() - open - 2);
 			const size_t comma = location.find(',');
-			try {
-				if (comma == std::string::npos) {
-					diagnostic.line = std::stoi(location);
-				} else {
-					diagnostic.line = std::stoi(location.substr(0, comma));
-					diagnostic.column = std::stoi(location.substr(comma + 1));
+			const std::string_view lineText = comma == std::string::npos ?
+				std::string_view(location) : std::string_view(location).substr(0, comma);
+			const std::string_view columnText = comma == std::string::npos ?
+				std::string_view{} : std::string_view(location).substr(comma + 1);
+			auto parseInteger = [](std::string_view text, int32_t& out) {
+
+				if (text.empty()) {
+					return false;
 				}
-			}
-			catch (...) {
+				const auto result = std::from_chars(text.data(), text.data() + text.size(), out);
+				return result.ec == std::errc() && result.ptr == text.data() + text.size();
+			};
+			if (!parseInteger(lineText, diagnostic.line) ||
+				(!columnText.empty() && !parseInteger(columnText, diagnostic.column))) {
+
 				// locationが数値でない場合はfile扱いをやめてlocationもfileに含める
 				diagnostic.file = left;
 				Truncate(diagnostic.file, kMaxPathLength);

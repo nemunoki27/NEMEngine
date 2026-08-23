@@ -261,7 +261,8 @@ namespace {
 				layoutSizeInBytes);
 			break;
 		default:
-			Engine::Logger::Output(Engine::LogType::Engine, "[Material] unsupported parameter type. name=" + variable.name);
+			Engine::Logger::Output(Engine::LogType::Engine,
+				"[Material] 未対応のパラメーター型です name=" + variable.name);
 			break;
 		}
 
@@ -269,7 +270,8 @@ namespace {
 			uint32_t floatCount = 0;
 			const std::array<float, 4> values = ToFloatArray(parameter, floatCount);
 			Engine::Logger::Output(Engine::LogType::Engine,
-				"[Material Param Debug] name={} offset={} size={} declaredComponents={} declaredBytes={} valueType={} normalizedType={} writeCount={} values=({}, {}, {}, {})",
+				"[Material Parameter Debug] 名前={} offset={} size={} 宣言要素数={} 宣言Byte数={} "
+				"値型={} 正規化型={} 書き込み数={} 値=({}, {}, {}, {})",
 				variable.name, variable.offset, variable.size, variable.declaredComponentCount,
 				variable.declaredByteSize, sourceValueTypeName, GetParameterValueTypeName(parameter), writeCount,
 				values[0], values[1], values[2], values[3]);

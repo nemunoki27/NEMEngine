@@ -19,27 +19,27 @@ void DxUploadCommand::Create(ID3D12Device* device) {
 	fence_ = nullptr;
 	fenceValue_ = 0;
 	HRESULT hr = device->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用Fenceの作成に失敗しました");
 	fence_->SetName(L"DxUploadFence");
 
 	// FenceのSignalを待つためのイベントの作成する
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
-	assert(fenceEvent_ != nullptr);
+	Assert::Call(fenceEvent_ != nullptr, "Upload用Fenceの待機イベント作成に失敗しました");
 
 	commandQueue_ = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 	hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用コマンドキューの作成に失敗しました");
 	commandQueue_->SetName(L"DxUploadQueue");
 
 	commandAllocator_ = nullptr;
 	hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用コマンドアロケータの作成に失敗しました");
 	commandAllocator_->SetName(L"DxUploadCommandAllocator");
 
 	commandList_ = nullptr;
 	hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator_.Get(), nullptr, IID_PPV_ARGS(&commandList_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用コマンドリストの作成に失敗しました");
 	commandList_->SetName(L"DxUploadCommandList");
 }
 
@@ -47,7 +47,7 @@ void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 
 	// コマンドリストの内容を確定させ、すべてのコマンドを積んでからCloseする
 	HRESULT hr = commandList_->Close();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用コマンドリストを閉じられませんでした");
 
 	// GPUにコマンドリストの実行を行わせる
 	ID3D12CommandList* commandLists[] = { commandList_.Get() };
@@ -57,7 +57,7 @@ void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 	fenceValue_++;
 	const HRESULT signalResult = commandQueue_->Signal(fence_.Get(), fenceValue_);
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxUploadCommand::ExecuteCommands/Signal")) {
-		Assert::Call(false, "Upload queue Signal failed.");
+		Assert::Call(false, "Upload用コマンドキューのSignalに失敗しました");
 	}
 
 	// 描画キュー側でもアップロード完了を待つ
@@ -70,7 +70,7 @@ void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 
 		const HRESULT completionResult = fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
 		if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), completionResult, "DxUploadCommand::ExecuteCommands/SetEventOnCompletion")) {
-			Assert::Call(false, "Upload fence SetEventOnCompletion failed.");
+			Assert::Call(false, "Upload用Fenceの完了イベント設定に失敗しました");
 		}
 
 		// イベントを待つ
@@ -90,7 +90,8 @@ void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 			}
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[D3D12] Upload fence wait failed. WaitResult={}", static_cast<uint32_t>(waitResult));
+				"[D3D12] Upload Fenceの待機に失敗しました WaitResult={}",
+				static_cast<uint32_t>(waitResult));
 			return;
 		}
 	}
@@ -100,7 +101,7 @@ void DxUploadCommand::ExecuteCommands(ID3D12CommandQueue* waitQueue) {
 void DxUploadCommand::ResetCommand() {
 
 	HRESULT hr = commandAllocator_->Reset();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用コマンドアロケータのリセットに失敗しました");
 	hr = commandList_->Reset(commandAllocator_.Get(), nullptr);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Upload用コマンドリストのリセットに失敗しました");
 }

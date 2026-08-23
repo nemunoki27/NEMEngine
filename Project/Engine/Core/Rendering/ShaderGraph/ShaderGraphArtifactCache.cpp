@@ -361,7 +361,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			outArtifact.compileOutput.diagnostics) {
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[ShaderGraph] graph={} node={} stage={} message={}",
+				"[ShaderGraph] graph={} node={} stage={} 内容={}",
 				ToString(graphID), ToString(diagnostic.node),
 				EnumAdapter<ShaderGraphStage>::ToString(diagnostic.stage),
 				diagnostic.message);
@@ -386,7 +386,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			BuiltinAssets::Pipelines::PostProcessMaskComposite,
 			0x504f535450495045ull, "ComputePipeline");
 		Logger::Output(LogType::Engine,
-			"[ShaderGraph] compiled graph={} target=PostProcess shader={}",
+			"[ShaderGraph] コンパイル完了 graph={} target=PostProcess shader={}",
 			ToString(graphID), ToString(outArtifact.computeShaderID));
 		return true;
 	}
@@ -411,7 +411,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			return false;
 		}
 		Logger::Output(LogType::Engine,
-			"[ShaderGraph] compiled graph={} target=RayTracingFeature shader={}",
+			"[ShaderGraph] コンパイル完了 graph={} target=RayTracingFeature shader={}",
 			ToString(graphID), ToString(outArtifact.rayTracingShaderID));
 		return true;
 	}
@@ -573,7 +573,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			0x5049434b494e4750ull, "PickingPipeline");
 	}
 	Logger::Output(LogType::Engine,
-		"[ShaderGraph] compiled graph={} target={} opaqueShader={} transparentShader={}",
+		"[ShaderGraph] コンパイル完了 graph={} target={} opaqueShader={} transparentShader={}",
 		ToString(graphID), EnumAdapter<ShaderGraphTarget>::ToString(graph.target),
 		ToString(outArtifact.opaqueShaderID),
 		ToString(outArtifact.transparentShaderID));

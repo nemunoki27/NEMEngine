@@ -646,7 +646,8 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		}
 
 		// 一致または許可済みは通常編集、変更を全サブメッシュへ適用する
-		if (MaterialParameterEditor::IsReflectedTextureParam(var)) {
+		if (MaterialParameterEditor::IsReflectedTextureParam(
+			var, *reflection)) {
 
 			AssetID textureID{};
 			if (std::holds_alternative<AssetID>(common.value)) {
@@ -694,7 +695,8 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 			IsDedicatedSubMeshProperty(var)) {
 			continue;
 		}
-		if (MaterialParameterEditor::IsReflectedTextureParam(var)) {
+		if (MaterialParameterEditor::IsReflectedTextureParam(
+			var, *reflection)) {
 			textureVariables.emplace_back(&var);
 		} else {
 			scalarVariables.emplace_back(&var);
@@ -741,7 +743,8 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 			IsDedicatedSubMeshProperty(var)) {
 			continue;
 		}
-		if (MaterialParameterEditor::IsReflectedTextureParam(var)) {
+		if (MaterialParameterEditor::IsReflectedTextureParam(
+			var, *reflection)) {
 			textureVariables.emplace_back(&var);
 		} else {
 			scalarVariables.emplace_back(&var);

@@ -5,6 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -59,7 +60,7 @@ namespace {
 			return ShaderBindingKind::AccelStruct;
 		}
 		// 未対応
-		Assert::Call(false, "Unsupported D3D_SHADER_INPUT_TYPE");
+		Assert::Call(false, "未対応のD3D_SHADER_INPUT_TYPEです");
 		// デフォルトはCBVとする
 		return ShaderBindingKind::CBV;
 	}
@@ -294,7 +295,7 @@ void DxShaderCompiler::Init() {
 	includeHandler_ = nullptr;
 
 	dxcompilerModule_ = LoadLibraryW(L"dxcompiler.dll");
-	assert(dxcompilerModule_ != nullptr);
+	Assert::Call(dxcompilerModule_ != nullptr, "dxcompiler.dllを読み込めませんでした");
 	if (!dxcompilerModule_) {
 		return;
 	}
@@ -302,18 +303,18 @@ void DxShaderCompiler::Init() {
 		HRESULT(WINAPI*)(REFCLSID, REFIID, LPVOID*);
 	const auto createInstance = reinterpret_cast<DxcCreateInstanceFunction>(
 		GetProcAddress(dxcompilerModule_, "DxcCreateInstance"));
-	assert(createInstance != nullptr);
+	Assert::Call(createInstance != nullptr, "DxcCreateInstanceが見つかりません");
 	if (!createInstance) {
 		return;
 	}
 
 	HRESULT hr = createInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "DXC Utilityの作成に失敗しました");
 	hr = createInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "DXC Compilerの作成に失敗しました");
 
 	hr = dxcUtils_->CreateDefaultIncludeHandler(&includeHandler_);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "DXC Include Handlerの作成に失敗しました");
 }
 
 CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
@@ -333,7 +334,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	HRESULT hr = dxcUtils_->LoadFile(filePath.c_str(), nullptr, &source);
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
-			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: Failed to load HLSL file",
+			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: HLSLファイルの読み込みに失敗しました",
 			filePathStr, entryStr, profileStr);
 		return out;
 	}
@@ -373,7 +374,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		includeHandler_.Get(), IID_PPV_ARGS(&result));
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
-			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: DXC invocation failed",
+			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: DXCの呼び出しに失敗しました",
 			filePathStr, entryStr, profileStr);
 		return out;
 	}
@@ -388,14 +389,14 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		if (FAILED(status)) {
 
 			Logger::Output(LogType::Engine,
-				"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage:\n{}",
+				"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容:\n{}",
 				filePathStr, entryStr, profileStr, msg);
 			return out;
 		}
 	}
 	if (FAILED(status)) {
 		Logger::Output(LogType::Engine,
-			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: Shader compile status failed",
+			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: Shaderのコンパイル結果が失敗です",
 			filePathStr, entryStr, profileStr);
 		return out;
 	}
@@ -403,7 +404,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	hr = result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&out.object), nullptr);
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
-			"[ShaderCompileError]\npath: {}\nentry: {}\ntarget: {}\nmessage: Failed to get DXIL object",
+			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: DXIL Objectの取得に失敗しました",
 			filePathStr, entryStr, profileStr);
 		return out;
 	}
@@ -416,7 +417,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		hr = result->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr);
 		if (FAILED(hr)) {
 			Logger::Output(LogType::Engine,
-				"[ShaderCompileError] Failed to get reflection blob: {}", filePathStr);
+				"[ShaderCompileError] Reflection Blobの取得に失敗しました: {}", filePathStr);
 			return out;
 		}
 		// リフレクション情報をパースするためのバッファを作成
@@ -428,7 +429,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 			stage, out.reflection)) {
 
 			Logger::Output(LogType::Engine,
-				"[ShaderCompileError] Failed to parse shader reflection: {}", filePathStr);
+				"[ShaderCompileError] Shader Reflectionの解析に失敗しました: {}", filePathStr);
 			return out;
 		}
 	}

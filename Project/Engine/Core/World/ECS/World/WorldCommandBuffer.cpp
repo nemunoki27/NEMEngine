@@ -278,7 +278,7 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 		if (kMaxFlushBatches <= batchCount) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: exceeded max flush batches. deferring {} commands to next flush.",
+				"WorldCommandBuffer: 1回の反映上限を超えたため{}件のCommandを次回へ延期します",
 				commands_.size());
 			break;
 		}
@@ -313,7 +313,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		const WorldCommandServices& services = world.GetCommandServices();
 		if (!services.sceneInstances || !services.assetDatabase || !services.sceneSystem) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: scene command skipped (command services not set on world).");
+				"WorldCommandBuffer: WorldにCommandServiceが未設定のためScene Commandを処理できません");
 			return;
 		}
 		if (command.kind == CommandKind::LoadSceneAdditive) {
@@ -393,7 +393,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		// 循環を作る付け替えは拒否する、childがparentの祖先になるケース
 		if (world.IsAlive(parent) && WouldCreateCycle(world, command.target, parent)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: SetParent rejected (would create hierarchy cycle).");
+				"WorldCommandBuffer: 親子階層が循環するためSetParentを拒否しました");
 			break;
 		}
 
@@ -461,7 +461,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		const WorldCommandServices& services = world.GetCommandServices();
 		if (!services.assetDatabase) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: InstantiatePrefab skipped (command services not set on world).");
+				"WorldCommandBuffer: WorldにCommandServiceが未設定のためPrefabを生成できません");
 			break;
 		}
 		HierarchySystem hierarchySystem{};
@@ -487,7 +487,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		if (!prefabSystem.InstantiatePrefab(*services.assetDatabase, hierarchySystem, world,
 			command.assetID, result, desc)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: InstantiatePrefab failed (missing or invalid prefab).");
+				"WorldCommandBuffer: Prefabが存在しないか不正なため生成に失敗しました");
 			break;
 		}
 		// 初期transformの適用で指定された場合のみrootのlocal SRTを上書きする

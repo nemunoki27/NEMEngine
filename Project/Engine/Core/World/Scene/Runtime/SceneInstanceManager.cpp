@@ -309,7 +309,7 @@ bool Engine::SceneInstanceManager::SynchronizeSubScenes(AssetDatabase& database,
 		if (!slot.slotID || !slotIDs.insert(slot.slotID).second ||
 			slot.slotName.empty() || !slotNames.insert(slot.slotName).second) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[SubScene] slot ID or name is empty or duplicated. parent={} slot={}",
+				"[SubScene] Slot IDまたは名前が空か重複しています parent={} slot={}",
 				ToString(parentInstanceID), slot.slotName);
 			return false;
 		}
@@ -385,7 +385,7 @@ bool Engine::SceneInstanceManager::LoadSceneBranch(AssetDatabase& database,
 	outInstanceID = UUID{};
 	if (!sceneAsset || std::find(ancestors.begin(), ancestors.end(), sceneAsset) != ancestors.end()) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SubScene] cyclic scene reference. asset={}", ToString(sceneAsset));
+			"[SubScene] Scene参照が循環しています Asset={}", ToString(sceneAsset));
 		return false;
 	}
 	const std::filesystem::path path = database.ResolveFullPath(sceneAsset);
@@ -419,7 +419,7 @@ bool Engine::SceneInstanceManager::LoadSceneBranch(AssetDatabase& database,
 			slot.slotName.empty() || !slotNames.insert(slot.slotName).second) {
 			UnloadInternal(world, instanceID);
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[SubScene] slot ID or name is empty or duplicated. asset={} slot={}",
+				"[SubScene] Slot IDまたは名前が空か重複しています Asset={} slot={}",
 				ToString(sceneAsset), slot.slotName);
 			return false;
 		}

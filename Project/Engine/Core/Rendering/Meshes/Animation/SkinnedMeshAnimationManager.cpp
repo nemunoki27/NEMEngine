@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
@@ -124,7 +125,16 @@ void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_un
 		imported = ImportAnimationFile(job.meshAssetID, job.fullPath);
 		succeeded = imported.valid;
 	}
+	catch (const std::exception& exception) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"SkinnedMesh Animationの非同期読み込み中に例外が発生しました path={} 内容={}",
+			Algorithm::PathToUTF8(job.fullPath), exception.what());
+		succeeded = false;
+	}
 	catch (...) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"SkinnedMesh Animationの非同期読み込み中に不明な例外が発生しました path={}",
+			Algorithm::PathToUTF8(job.fullPath));
 		succeeded = false;
 	}
 	// 結果の保存

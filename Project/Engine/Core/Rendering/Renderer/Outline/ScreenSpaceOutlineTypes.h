@@ -49,6 +49,9 @@ namespace Engine {
 		int32_t subMeshIndex = -1;
 
 		ScreenSpaceOutlineStyle style{};
+		ScreenSpaceOutlineAlphaSource alphaSource = ScreenSpaceOutlineAlphaSource::OutputColor;
+		ScreenSpaceOutlineUIOcclusionMode uiOcclusionMode =
+			ScreenSpaceOutlineUIOcclusionMode::RespectRenderOrder;
 		ScreenSpaceOutlineSource source = ScreenSpaceOutlineSource::RuntimeComponent;
 	};
 } // Engine

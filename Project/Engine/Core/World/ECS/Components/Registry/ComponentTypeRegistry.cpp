@@ -3,6 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+
+//============================================================================
+//	include
+//============================================================================
 #include <Engine/Core/Scripting/Managed/Generated/BuiltinComponentRegistry.generated.h>
 
 //============================================================================
@@ -15,7 +20,7 @@ Engine::ComponentTypeRegistry::ComponentTypeRegistry() {
 
 const Engine::ComponentTypeInfo& Engine::ComponentTypeRegistry::GetInfo(uint32_t id) const {
 
-	assert(id < infos_.size());
+	Assert::Call(id < infos_.size(), "未登録のComponentType IDです");
 	return infos_[id];
 }
 

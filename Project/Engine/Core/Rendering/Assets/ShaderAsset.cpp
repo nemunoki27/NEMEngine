@@ -76,6 +76,8 @@ bool Engine::FromJson(const nlohmann::json& data, ShaderAsset& outAsset) {
 					MaterialParameterSemantic::None);
 			parameter.isColor =
 				item.value("isColor", false);
+			parameter.isTexture =
+				item.value("isTexture", false);
 			if (!parameter.shaderName.empty() &&
 				parameter.id) {
 
@@ -113,6 +115,7 @@ nlohmann::json Engine::ToJson(const ShaderAsset& asset) {
 			{ "id", ToString(UUID{ parameter.id.value }) },
 			{ "semantic", EnumAdapter<MaterialParameterSemantic>::ToString(parameter.semantic) },
 			{ "isColor", parameter.isColor },
+			{ "isTexture", parameter.isTexture },
 			});
 	}
 	return data;
@@ -207,6 +210,7 @@ void Engine::ApplyShaderParameterMetadata(
 		variable.parameterID = metadata->id;
 		variable.semantic = metadata->semantic;
 		variable.isColor |= metadata->isColor;
+		variable.isTexture |= metadata->isTexture;
 		if (!metadata->displayName.empty()) {
 			variable.name = metadata->displayName;
 		}

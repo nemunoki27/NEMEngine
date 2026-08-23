@@ -3,13 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // directX
 #include <d3d12.h>
-
-// c++
-#include <cassert>
 
 namespace Engine {
 
@@ -58,6 +56,6 @@ namespace Engine {
 
 		// マッピング
 		HRESULT hr = resource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "DxReadbackBufferのMapに失敗しました");
 	}
 }; // Engine

@@ -245,7 +245,7 @@ bool Engine::ColorPipelineProcessor::PresentToBackBuffer(
 	commandList->DrawInstanced(3, 1, 0, 0);
 	if (!outputTransformLogged_) {
 		Logger::Output(LogType::Engine,
-			"ColorPipeline OutputTransform active: mode={} format={}",
+			"ColorPipelineの出力変換が有効です mode={} format={}",
 			static_cast<uint32_t>(output.mode),
 			static_cast<uint32_t>(backBuffer.format));
 		outputTransformLogged_ = true;

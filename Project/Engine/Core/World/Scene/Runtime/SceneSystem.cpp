@@ -121,7 +121,7 @@ namespace {
 		if (ec) {
 			Engine::Logger::Output(
 				Engine::LogType::Engine, spdlog::level::warn,
-				"[SceneSystem] failed to remove external actors. path={}",
+				"[SceneSystem] ExternalActorを削除できません path={}",
 				Engine::Algorithm::PathToUTF8(actorRoot));
 			return;
 		}
@@ -221,7 +221,7 @@ namespace {
 		if (failedIndex != actorPaths.size()) {
 
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"[SceneSystem] external actor is missing or invalid. path={}",
+				"[SceneSystem] ExternalActorが存在しないか不正です path={}",
 				Engine::Algorithm::PathToUTF8(actorPaths[failedIndex]));
 			return false;
 		}
@@ -326,7 +326,7 @@ namespace {
 
 			Engine::Logger::Output(
 				Engine::LogType::Engine, spdlog::level::err,
-				"[SceneSystem] failed to save external actor. path={}",
+				"[SceneSystem] ExternalActorを保存できません path={}",
 				Engine::Algorithm::PathToUTF8(
 					actorEntries[failedIndex].path));
 			return false;
@@ -396,7 +396,7 @@ namespace {
 				world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID;
 			if (!ids.insert(localFileID).second) {
 				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-					"[SceneSystem] duplicate LocalFileID. id={}", Engine::ToString(localFileID));
+					"[SceneSystem] LocalFileIDが重複しています ID={}", Engine::ToString(localFileID));
 				return false;
 			}
 		}
@@ -467,14 +467,14 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 	nlohmann::json root = JsonAdapter::Load(scenePath, true);
 	if (!ValidateSceneFileRoot(root)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] unsupported scene schema. expected={} scene={}",
+			"[SceneSystem] 未対応のScene Schemaです 期待値={} scene={}",
 			kSceneSchemaVersion, Algorithm::PathToUTF8(scenePath));
 		return false;
 	}
 	if (root.contains("ExternalActors") &&
 		!LoadExternalActors(scenePath, sourceAsset, root)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] failed to load external actors. scene={}",
+			"[SceneSystem] ExternalActorを読み込めません scene={}",
 			Algorithm::PathToUTF8(scenePath));
 		return false;
 	}
@@ -689,7 +689,7 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 	}
 	if (!ValidateSerializedLocalFileIDs(root)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] invalid or duplicate LocalFileID in scene");
+			"[SceneSystem] シーン内に不正または重複したLocalFileIDがあります");
 		return false;
 	}
 
@@ -716,7 +716,7 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 					ComponentTypeRegistry::GetInstance().FindByName(it.key());
 				if (!info) {
 					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[SceneSystem] unknown component type: {}", it.key());
+						"[SceneSystem] 未登録のComponentTypeです: {}", it.key());
 					return false;
 				}
 				componentTypeIDs.emplace_back(info->id);

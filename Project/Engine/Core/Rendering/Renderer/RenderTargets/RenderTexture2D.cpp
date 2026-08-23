@@ -64,7 +64,7 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 	// リソースの生成
 	HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
 		&resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, IID_PPV_ARGS(&resource_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "RenderTexture2D用リソースの作成に失敗しました");
 	if (!desc.debugName.empty()) {
 
 		resource_->SetName(desc.debugName.c_str());
@@ -96,10 +96,10 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 		uavGPUHandle_ = srvDescriptor->GetGPUHandle(uavIndex_);
 	}
 
-	Logger::Output(LogType::Engine, "Created RenderTexture2D: {}x{}", desc.width, desc.height);
-	Logger::Output(LogType::Engine, "Name: {}", Algorithm::ConvertString(desc.debugName));
-	Logger::Output(LogType::Engine, "Format: {}", std::string(EnumAdapter<DXGI_FORMAT>::ToString(desc.format)));
-	Logger::Output(LogType::Engine, "UseUAV: {}", desc.createUAV ? "Yes" : "No");
+	Logger::Output(LogType::Engine, "RenderTexture2Dを作成しました: {}x{}", desc.width, desc.height);
+	Logger::Output(LogType::Engine, "名前: {}", Algorithm::ConvertString(desc.debugName));
+	Logger::Output(LogType::Engine, "形式: {}", std::string(EnumAdapter<DXGI_FORMAT>::ToString(desc.format)));
+	Logger::Output(LogType::Engine, "UAVを使用: {}", desc.createUAV ? "はい" : "いいえ");
 
 	// 現在のリソース状態をレンダーターゲットに設定する
 	currentState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;

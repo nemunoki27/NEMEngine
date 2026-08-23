@@ -143,20 +143,20 @@ namespace {
 			}, shader)) {
 			shaders.emplace_back(std::move(shader));
 			Logger::Output(LogType::Engine,
-				"[ShaderCook] Loaded {} shader={} entry={}",
+				"[ShaderCook] 読み込み完了 stage={} shader={} entry={}",
 				stageName, ToString(desc.shader), entryText);
 			return true;
 		}
 		if (ShaderCook::IsCookedProduct()) {
 			Logger::Output(LogType::Engine,
-				"[ShaderCook] Missing cooked shader: shader={} stage={} entry={} profile={}",
+				"[ShaderCook] Cook済みShaderが見つかりません shader={} stage={} entry={} profile={}",
 				ToString(desc.shader), stageName, entryText, profileText);
 			return false;
 		}
 
 		std::filesystem::path shaderPath = ResolveShaderPath(desc.file);
 		if (shaderPath.empty()) {
-			Logger::Output(LogType::Engine, "Shader file not found: {}", desc.file);
+			Logger::Output(LogType::Engine, "Shaderファイルが見つかりません path={}", desc.file);
 			return false;
 		}
 
@@ -165,12 +165,12 @@ namespace {
 
 		shader = compiler->CompileShader(shaderPath.wstring(), profile.c_str(), entry.c_str(), stage);
 		if (!shader.IsValid()) {
-			Logger::Output(LogType::Engine, "Failed compiling {} for {}",
+			Logger::Output(LogType::Engine, "Shaderのコンパイルに失敗しました stage={} path={}",
 				stageName, Algorithm::PathToUTF8(shaderPath));
 			return false;
 		}
 		shaders.emplace_back(std::move(shader));
-		Logger::Output(LogType::Engine, "Finished compiling {} for {}",
+		Logger::Output(LogType::Engine, "Shaderのコンパイルが完了しました stage={} path={}",
 			stageName, Algorithm::PathToUTF8(shaderPath));
 		return true;
 	}
@@ -375,12 +375,13 @@ ID3D12PipelineState* Engine::PipelineState::GetGraphicsPipeline(BlendMode blendM
 bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc) {
 
 	Logger::BeginSection(LogType::Engine);
-	Logger::Output(LogType::Engine, "Start CreateGraphicsPipeline: {} / {}", desc.preRaster.file, desc.pixel.file);
+	Logger::Output(LogType::Engine, "GraphicsPipelineの作成を開始します {} / {}",
+		desc.preRaster.file, desc.pixel.file);
 
 	// シェーダーのコンパイル
 	GraphicsCompileResult compileResult = Compile(compiler, desc);
 	if (!compileResult.success) {
-		Logger::Output(LogType::Engine, "Failed GraphicsPipeline shader compilation");
+		Logger::Output(LogType::Engine, "GraphicsPipeline用Shaderのコンパイルに失敗しました");
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
@@ -439,14 +440,16 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 		pipelineDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
 		pipelineDesc.PrimitiveTopologyType = desc.topologyType;
 		pipelineDesc.DSVFormat = desc.dsvFormat;
-		Logger::Output(LogType::Engine, "Topology: {}", EnumAdapter<D3D12_PRIMITIVE_TOPOLOGY_TYPE>::ToString(desc.topologyType));
-		Logger::Output(LogType::Engine, "DSVFormat: {}", EnumAdapter<DXGI_FORMAT>::ToString(desc.dsvFormat));
+		Logger::Output(LogType::Engine, "トポロジ: {}",
+			EnumAdapter<D3D12_PRIMITIVE_TOPOLOGY_TYPE>::ToString(desc.topologyType));
+		Logger::Output(LogType::Engine, "DSV形式: {}", EnumAdapter<DXGI_FORMAT>::ToString(desc.dsvFormat));
 
 		// MRTのフォーマットを設定
 		for (UINT i = 0; i < desc.numRenderTargets; ++i) {
 
 			pipelineDesc.RTVFormats[i] = desc.rtvFormats[i];
-			Logger::Output(LogType::Engine, "RTVFormats[{}]: {}", i, EnumAdapter<DXGI_FORMAT>::ToString(desc.rtvFormats[i]));
+			Logger::Output(LogType::Engine, "RTV形式[{}]: {}", i,
+				EnumAdapter<DXGI_FORMAT>::ToString(desc.rtvFormats[i]));
 		}
 
 		// 全てのBlendModeに対してパイプラインステートオブジェクトを生成
@@ -461,7 +464,8 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 				&pipelineDesc,
 				IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
 			if (FAILED(hr)) {
-				Logger::Output(LogType::Engine, "CreateGraphicsPipelineState failed: {} [{}]", desc.pixel.file, mode);
+				Logger::Output(LogType::Engine,
+					"GraphicsPipelineStateの作成に失敗しました path={} blend={}", desc.pixel.file, mode);
 				success = false;
 				continue;
 			}
@@ -498,13 +502,14 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 		pipelineDesc.SampleDesc = desc.sampleDesc;
 		pipelineDesc.SampleMask = UINT_MAX;
 		pipelineDesc.DSVFormat = desc.dsvFormat;
-		Logger::Output(LogType::Engine, "DSVFormat: {}", EnumAdapter<DXGI_FORMAT>::ToString(desc.dsvFormat));
+		Logger::Output(LogType::Engine, "DSV形式: {}", EnumAdapter<DXGI_FORMAT>::ToString(desc.dsvFormat));
 
 		// MRTのフォーマットを設定
 		for (UINT i = 0; i < desc.numRenderTargets; ++i) {
 
 			pipelineDesc.RTVFormats[i] = desc.rtvFormats[i];
-			Logger::Output(LogType::Engine, "RTVFormats[{}]: {}", i, EnumAdapter<DXGI_FORMAT>::ToString(desc.rtvFormats[i]));
+			Logger::Output(LogType::Engine, "RTV形式[{}]: {}", i,
+				EnumAdapter<DXGI_FORMAT>::ToString(desc.rtvFormats[i]));
 		}
 
 		// 全てのBlendModeに対してパイプラインステートオブジェクトを生成
@@ -523,7 +528,8 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 			// パイプラインステートオブジェクトの生成
 			HRESULT hr = device->CreatePipelineState(&streamDesc, IID_PPV_ARGS(&graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
 			if (FAILED(hr)) {
-				Logger::Output(LogType::Engine, "CreatePipelineState failed: {} [{}]", desc.pixel.file, mode);
+				Logger::Output(LogType::Engine,
+					"PipelineStateの作成に失敗しました path={} blend={}", desc.pixel.file, mode);
 				success = false;
 				continue;
 			}
@@ -537,7 +543,8 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 		break;
 	}
 	}
-	Logger::Output(LogType::Engine, success ? "Created GraphicsPipeline" : "Failed GraphicsPipeline creation");
+	Logger::Output(LogType::Engine, success ?
+		"GraphicsPipelineを作成しました" : "GraphicsPipelineの作成に失敗しました");
 	Logger::EndSection(LogType::Engine);
 	return success;
 }
@@ -545,19 +552,19 @@ bool Engine::PipelineState::CreateGraphics(ID3D12Device8* device, DxShaderCompil
 bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompiler* compiler, const ComputePipelineDesc& desc) {
 
 	Logger::BeginSection(LogType::Engine);
-	Logger::Output(LogType::Engine, "Start CreateComputePipeline: {}", desc.compute.file);
+	Logger::Output(LogType::Engine, "ComputePipelineの作成を開始します path={}", desc.compute.file);
 
 	// Graphicsと同じCook経路でCSを取得する
 	std::vector<CompiledShader> shaders;
 	if (!CompileOne(shaders, compiler, desc.compute,
 		ShaderStage::CS, "CS") || shaders.empty()) {
 		Logger::Output(LogType::Engine,
-			"[PostProcess] Shader load failed: {}", desc.compute.file);
+			"[PostProcess] Shaderの読み込みに失敗しました path={}", desc.compute.file);
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
 	CompiledShader& shader = shaders.front();
-	Logger::Output(LogType::Engine, "Finished compiling CS for {}",
+	Logger::Output(LogType::Engine, "CSのコンパイルが完了しました path={}",
 		desc.compute.file);
 
 	// スレッドサイズを設定
@@ -566,7 +573,7 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 	threadGroupZ_ = shader.reflection.threadGroupZ;
 	computeReflection_ = shader.reflection;
 
-	Logger::Output(LogType::Engine, "ThreadGroup[{},{},{}]", threadGroupX_, threadGroupY_, threadGroupZ_);
+	Logger::Output(LogType::Engine, "スレッドグループ[{},{},{}]", threadGroupX_, threadGroupY_, threadGroupZ_);
 
 	// ルートシグネイチャの自動生成
 	AutoRootSignatureBuilder builder;
@@ -586,13 +593,14 @@ bool Engine::PipelineState::CreateCompute(ID3D12Device8* device, DxShaderCompile
 	// パイプラインステートオブジェクトの生成
 	HRESULT hr = device->CreateComputePipelineState(&pipelineDesc, IID_PPV_ARGS(&computePipeline_));
 	if (FAILED(hr)) {
-		Logger::Output(LogType::Engine, "[PostProcess] CreateComputePipelineState failed: {}", desc.compute.file);
+		Logger::Output(LogType::Engine,
+			"[PostProcess] ComputePipelineStateの作成に失敗しました path={}", desc.compute.file);
 		Logger::EndSection(LogType::Engine);
 		return false;
 	}
 	computePipeline_->SetName(Algorithm::ConvertString(Algorithm::PathToUTF8(
 		Algorithm::PathFromUTF8(desc.compute.file).stem())).c_str());
-	Logger::Output(LogType::Engine, "Created ComputePipeline");
+	Logger::Output(LogType::Engine, "ComputePipelineを作成しました");
 	Logger::EndSection(LogType::Engine);
 	return true;
 }

@@ -47,14 +47,14 @@ namespace {
 			}, shader)) {
 
 			Engine::Logger::Output(Engine::LogType::Engine,
-				"[ShaderCook] Loaded DXR shader={} entry={}",
+				"[ShaderCook] DXR Shaderの読み込みが完了しました shader={} entry={}",
 				Engine::ToString(stage.ownerShader), entry);
 			return shader;
 		}
 		if (Engine::ShaderCook::IsCookedProduct()) {
 			Engine::Logger::Output(Engine::LogType::Engine,
 				spdlog::level::err,
-				"[ShaderCook] Missing cooked DXR shader={} entry={} profile={}",
+				"[ShaderCook] Cook済みDXR Shaderが見つかりません shader={} entry={} profile={}",
 				Engine::ToString(stage.ownerShader), entry, profile);
 			return {};
 		}
@@ -110,7 +110,7 @@ namespace {
 				message->pDescription) {
 
 				Engine::Logger::Output(Engine::LogType::Engine,
-					spdlog::level::err, "[RaytracingPipeline] D3D12: {}",
+					spdlog::level::err, "[レイトレーシングパイプライン] D3D12: {}",
 					message->pDescription);
 			}
 		}
@@ -149,7 +149,7 @@ bool Engine::RaytracingPipelineState::Create(
 		return false;
 	}
 	Logger::Output(LogType::Engine,
-		"[RaytracingPipeline] Created state object rayGen={} miss={} hitGroup={} callable={}",
+		"[レイトレーシングパイプライン] State Objectを作成しました RayGeneration={} Miss={} HitGroup={} Callable={}",
 		rayGenerationCount_, missCount_, hitGroupCount_, callableCount_);
 	return true;
 }
@@ -209,7 +209,7 @@ bool Engine::RaytracingPipelineState::BuildGlobalRootSignature(
 		PipelineType::Raytracing, shaders, staticSamplers);
 	if (!result.rootSignature) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Global root signature creation failed");
+			"[レイトレーシングパイプライン] グローバルルートシグネチャの作成に失敗しました");
 		return false;
 	}
 	globalRootSignature_ = std::move(result.rootSignature);
@@ -225,7 +225,7 @@ bool Engine::RaytracingPipelineState::BuildStateObject(
 
 	if (variant.rayGenerationExports.empty() || variant.missExports.empty()) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] RayGeneration and Miss exports are required");
+			"[レイトレーシングパイプライン] RayGenerationとMissのExportが必要です");
 		return false;
 	}
 
@@ -247,7 +247,7 @@ bool Engine::RaytracingPipelineState::BuildStateObject(
 			group.intersectionExport.empty()) {
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RaytracingPipeline] Procedural hit group requires Intersection export: {}",
+				"[レイトレーシングパイプライン] Procedural Hit GroupにはIntersection Exportが必要です: {}",
 				group.exportName);
 			return false;
 		}
@@ -260,13 +260,13 @@ bool Engine::RaytracingPipelineState::BuildStateObject(
 			FindShaderExport(shaderAsset, ShaderStage::Lib, exportName);
 		if (!stage) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RaytracingPipeline] Export was not found: {}", exportName);
+				"[レイトレーシングパイプライン] Exportが見つかりません: {}", exportName);
 			return false;
 		}
 		CompiledShader compiled = LoadRaytracingLibrary(compiler, *stage);
 		if (!compiled.IsValid()) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[RaytracingPipeline] Library compilation failed: {}", exportName);
+				"[レイトレーシングパイプライン] ライブラリのコンパイルに失敗しました: {}", exportName);
 			return false;
 		}
 		compiledShaders.emplace_back(std::move(compiled));
@@ -422,7 +422,7 @@ bool Engine::RaytracingPipelineState::BuildStateObject(
 		&stateObjectDesc, IID_PPV_ARGS(&stateObject_));
 	if (FAILED(result) || !stateObject_) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Failed to create state object. HRESULT=0x{:08X}",
+			"[レイトレーシングパイプライン] State Objectの作成に失敗しました HRESULT=0x{:08X}",
 			static_cast<uint32_t>(result));
 		LogStateObjectMessages(infoQueue.Get());
 		return false;
@@ -430,7 +430,7 @@ bool Engine::RaytracingPipelineState::BuildStateObject(
 	result = stateObject_->QueryInterface(IID_PPV_ARGS(&stateProps_));
 	if (FAILED(result) || !stateProps_) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Failed to query state object properties. HRESULT=0x{:08X}",
+			"[レイトレーシングパイプライン] State Object Propertiesの取得に失敗しました HRESULT=0x{:08X}",
 			static_cast<uint32_t>(result));
 		stateObject_.Reset();
 		return false;
@@ -467,7 +467,7 @@ bool Engine::RaytracingPipelineState::BuildShaderTable(
 		nullptr, IID_PPV_ARGS(&shaderTable_));
 	if (FAILED(result) || !shaderTable_) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Failed to create shader table. HRESULT=0x{:08X}",
+			"[レイトレーシングパイプライン] シェーダーテーブルの作成に失敗しました HRESULT=0x{:08X}",
 			static_cast<uint32_t>(result));
 		return false;
 	}
@@ -477,7 +477,7 @@ bool Engine::RaytracingPipelineState::BuildShaderTable(
 		reinterpret_cast<void**>(&mapped));
 	if (FAILED(result) || !mapped) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Failed to map shader table. HRESULT=0x{:08X}",
+			"[レイトレーシングパイプライン] シェーダーテーブルのMapに失敗しました HRESULT=0x{:08X}",
 			static_cast<uint32_t>(result));
 		shaderTable_.Reset();
 		return false;
@@ -505,7 +505,7 @@ bool Engine::RaytracingPipelineState::BuildShaderTable(
 	shaderTable_->Unmap(0, nullptr);
 	if (!written) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[RaytracingPipeline] Shader identifier was not found");
+			"[レイトレーシングパイプライン] シェーダー識別子が見つかりません");
 		shaderTable_.Reset();
 		return false;
 	}

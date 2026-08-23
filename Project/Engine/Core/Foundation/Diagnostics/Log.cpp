@@ -137,15 +137,17 @@ void Logger::Finalize() {
 }
 
 void Logger::EnsureInitialized() {
-	if (initialized_) return;
-	CreateLogFiles(); // default
+	// 初期化判定もCreateLogFiles内のMutexで保護する
+	CreateLogFiles();
 }
 
 std::string_view Logger::TypeToFileName(LogType type) {
-	return kFileNames[static_cast<std::size_t>(type)];
+	const std::size_t index = static_cast<std::size_t>(type);
+	return index < kFileNames.size() ? kFileNames[index] : "unknown.log";
 }
 std::string_view Logger::TypeToLoggerName(LogType type) {
-	return kLoggerNames[static_cast<std::size_t>(type)];
+	const std::size_t index = static_cast<std::size_t>(type);
+	return index < kLoggerNames.size() ? kLoggerNames[index] : "unknown";
 }
 
 void Logger::Output(LogType type, std::string_view message, spdlog::level::level_enum level) {
@@ -216,6 +218,9 @@ std::vector<Logger::LogEntry> Logger::GetRecentLogs(LogType type) {
 
 	std::scoped_lock lock(mutex_);
 	const auto index = static_cast<std::size_t>(type);
+	if (recentLogs_.size() <= index) {
+		return {};
+	}
 	return std::vector<LogEntry>(recentLogs_[index].begin(), recentLogs_[index].end());
 }
 
@@ -223,6 +228,9 @@ void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std:
 
 	std::scoped_lock lock(mutex_);
 	const auto index = static_cast<std::size_t>(type);
+	if (recentLogs_.size() <= index) {
+		return;
+	}
 	auto& logs = recentLogs_[index];
 	logs.push_back(LogEntry{ level, std::move(message) });
 
@@ -249,7 +257,7 @@ void Logger::ScopedOutput::Finish() noexcept {
 		using namespace std::chrono;
 		const auto us = duration_cast<microseconds>(Clock::now() - start_).count();
 		const double ms = static_cast<double>(us) / 1000.0;
-		Logger::Output(type_, spdlog::level::info, "[TIMER] {} : {:.3f} ms", label_, ms);
+		Logger::Output(type_, spdlog::level::info, "[計測] {} : {:.3f} ms", label_, ms);
 	}
 	catch (...) {
 	}

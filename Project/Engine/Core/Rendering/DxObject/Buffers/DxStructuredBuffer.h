@@ -3,11 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // c++
 #include <vector>
-#include <cassert>
 #include <cstring>
 
 namespace Engine {
@@ -87,7 +87,7 @@ namespace Engine {
 
 		// マッピング
 		HRESULT hr = resource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "DxStructuredBufferのMapに失敗しました");
 
 		isCreated_ = true;
 	}
@@ -106,7 +106,7 @@ namespace Engine {
 
 		if (mappedData_) {
 
-			assert(data.size() <= capacity_ && "DxStructuredBuffer capacity exceeded");
+			Assert::Call(data.size() <= capacity_, "DxStructuredBufferの容量を超えて書き込もうとしました");
 			std::memcpy(mappedData_, data.data(), sizeof(T) * data.size());
 		}
 	}
@@ -116,7 +116,8 @@ namespace Engine {
 
 		if (mappedData_) {
 
-			assert(count <= capacity_ && "DxStructuredBuffer capacity exceeded");
+			Assert::Call(count <= capacity_, "DxStructuredBufferの容量を超えて書き込もうとしました");
+			Assert::Call(count <= data.size(), "DxStructuredBufferの転送数が入力要素数を超えています");
 			std::memcpy(mappedData_, data.data(), sizeof(T) * count);
 		}
 	}
@@ -128,7 +129,7 @@ namespace Engine {
 			return;
 		}
 
-		assert(count <= capacity_ && "DxStructuredBuffer capacity exceeded");
+		Assert::Call(count <= capacity_, "DxStructuredBufferの容量を超えて書き込もうとしました");
 		std::memcpy(mappedData_, data, sizeof(T) * count);
 	}
 

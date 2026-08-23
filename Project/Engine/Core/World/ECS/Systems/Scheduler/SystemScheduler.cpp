@@ -125,7 +125,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		if (sceneInstances && sceneRevision != sceneInstances->GetRevision()) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"SystemScheduler: exceeded scene lifecycle synchronization limit.");
+				"SystemScheduler: Scene Lifecycleの同期回数が上限を超えました");
 		}
 		};
 

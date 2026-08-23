@@ -1,6 +1,11 @@
 #include "RootBindingCommandHelper.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+
+//============================================================================
 //	RootBindingCommandHelper classMethods
 //============================================================================
 void Engine::RootBindingCommand::SetGraphicsCBV(ID3D12GraphicsCommandList* commandList,
@@ -11,7 +16,7 @@ void Engine::RootBindingCommand::SetGraphicsCBV(ID3D12GraphicsCommandList* comma
 		commandList->SetGraphicsRootConstantBufferView(binding->rootParameterIndex, gpuAddress);
 		return;
 	}
-	Assert::Call(false, "Binding is not CBV root parameter");
+	Assert::Call(false, "BindingがCBV RootParameterではありません");
 }
 
 void Engine::RootBindingCommand::SetGraphicsSRV(ID3D12GraphicsCommandList* commandList,
@@ -29,7 +34,7 @@ void Engine::RootBindingCommand::SetGraphicsSRV(ID3D12GraphicsCommandList* comma
 		commandList->SetGraphicsRootDescriptorTable(binding->rootParameterIndex, descriptorHandle);
 		return;
 	default:
-		Assert::Call(false, "Binding is not SRV parameter");
+		Assert::Call(false, "BindingがSRV Parameterではありません");
 	}
 }
 
@@ -41,7 +46,7 @@ void Engine::RootBindingCommand::SetComputeCBV(ID3D12GraphicsCommandList* comman
 		commandList->SetComputeRootConstantBufferView(binding->rootParameterIndex, gpuAddress);
 		return;
 	}
-	Assert::Call(false, "Binding is not CBV root parameter");
+	Assert::Call(false, "BindingがCBV RootParameterではありません");
 }
 
 void Engine::RootBindingCommand::SetComputeSRV(ID3D12GraphicsCommandList* commandList,
@@ -59,7 +64,7 @@ void Engine::RootBindingCommand::SetComputeSRV(ID3D12GraphicsCommandList* comman
 		commandList->SetComputeRootDescriptorTable(binding->rootParameterIndex, descriptorHandle);
 		return;
 	default:
-		Assert::Call(false, "Binding is not SRV parameter");
+		Assert::Call(false, "BindingがSRV Parameterではありません");
 	}
 }
 
@@ -78,7 +83,7 @@ void Engine::RootBindingCommand::SetComputeUAV(ID3D12GraphicsCommandList* comman
 		commandList->SetComputeRootDescriptorTable(binding->rootParameterIndex, descriptorHandle);
 		return;
 	default:
-		Assert::Call(false, "Binding is not UAV parameter");
+		Assert::Call(false, "BindingがUAV Parameterではありません");
 		return;
 	}
 }

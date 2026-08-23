@@ -100,6 +100,7 @@ namespace {
 			{ "declaredByteSize", variable.declaredByteSize },
 			{ "used", variable.used },
 			{ "isColor", variable.isColor },
+			{ "isTexture", variable.isTexture },
 		};
 	}
 
@@ -127,6 +128,7 @@ namespace {
 		outVariable.declaredByteSize = data.value("declaredByteSize", 4u);
 		outVariable.used = data.value("used", true);
 		outVariable.isColor = data.value("isColor", false);
+		outVariable.isTexture = data.value("isTexture", false);
 		return !outVariable.name.empty();
 	}
 

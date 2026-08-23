@@ -975,6 +975,7 @@ namespace {
 						Engine::MaterialParameterSemantic>::
 					ToString(parameter.semantic) },
 				{ "isColor", parameter.isColor },
+				{ "isTexture", parameter.isTexture },
 				});
 		}
 		nlohmann::json data{

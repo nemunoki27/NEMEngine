@@ -77,7 +77,7 @@ void Engine::EditorManager::RequestSaveAllEngineLayouts() {
 	std::string error;
 	if (!editorLayoutManager_.SaveAllEngineLayouts(error)) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"Editor layout export failed: {}", error);
+			"Editor LayoutのExportに失敗しました: {}", error);
 	}
 }
 

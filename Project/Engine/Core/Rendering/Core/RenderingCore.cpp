@@ -80,7 +80,7 @@ void Engine::GraphicsCore::SyncWindowSize() {
 	graphicsPlatform_->WaitForGPU();
 	if (swapChain_->Resize(width, height)) {
 		dsvDescriptor_->ResizeFrameBufferDSV(width, height);
-		Logger::Output(LogType::Engine, "SwapChain resized: {}x{} -> {}x{}",
+		Logger::Output(LogType::Engine, "SwapChainをリサイズしました: {}x{} -> {}x{}",
 			previousWidth, previousHeight, width, height);
 	}
 }

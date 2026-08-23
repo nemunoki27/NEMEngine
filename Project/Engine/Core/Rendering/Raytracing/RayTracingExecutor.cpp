@@ -69,7 +69,7 @@ void Engine::RayTracingExecutor::ReportFailure(
 		return;
 	}
 	Logger::Output(LogType::Engine, spdlog::level::err,
-		"[RenderFeature/RayTracing] {}: {}", pass.name, reason);
+		"[レンダー機能/レイトレーシング] {}: {}", pass.name, reason);
 }
 
 bool Engine::RayTracingExecutor::Execute(

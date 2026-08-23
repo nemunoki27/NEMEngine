@@ -11,6 +11,7 @@
 
 // c++
 #include <algorithm>
+#include <cmath>
 
 //============================================================================
 //	GraphicsFeatureController classMethods
@@ -18,6 +19,74 @@
 namespace {
 
 	constexpr const char* kGraphicsFeatureConfigPath = Engine::ConfigPaths::kGraphicsFeatureSettings;
+
+	const char* GetEnabledText(bool enabled) {
+
+		return enabled ? "有効" : "無効";
+	}
+
+	bool ReadBoolSetting(const nlohmann::json& data, const char* key,
+		bool fallback) {
+
+		auto found = data.find(key);
+		if (found == data.end()) {
+			return fallback;
+		}
+		if (found->is_boolean()) {
+			return found->get<bool>();
+		}
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
+		return fallback;
+	}
+
+	uint32_t ReadUIntSetting(const nlohmann::json& data, const char* key,
+		uint32_t fallback) {
+
+		auto found = data.find(key);
+		if (found == data.end()) {
+			return fallback;
+		}
+		if (found->is_number_unsigned()) {
+			return found->get<uint32_t>();
+		}
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
+		return fallback;
+	}
+
+	float ReadFloatSetting(const nlohmann::json& data, const char* key,
+		float fallback) {
+
+		auto found = data.find(key);
+		if (found == data.end()) {
+			return fallback;
+		}
+		if (found->is_number()) {
+			const float value = found->get<float>();
+			if (std::isfinite(value)) {
+				return value;
+			}
+		}
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+			"グラフィックス設定{}の値が不正なため既定値を使用します", key);
+		return fallback;
+	}
+
+	std::string ReadStringSetting(const nlohmann::json& data, const char* key,
+		std::string_view fallback) {
+
+		auto found = data.find(key);
+		if (found == data.end()) {
+			return std::string(fallback);
+		}
+		if (found->is_string()) {
+			return found->get<std::string>();
+		}
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
+			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
+		return std::string(fallback);
+	}
 }
 
 void Engine::GraphicsFeatureController::ApplyDetectedSupport(
@@ -56,7 +125,7 @@ void Engine::GraphicsFeatureController::SetAllowMeshShader(bool enabled) {
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Mesh Shader path -> {}", runtimeFeatures_.useMeshShader ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Mesh Shader経路: {}", GetEnabledText(runtimeFeatures_.useMeshShader));
 }
 
 void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
@@ -70,7 +139,7 @@ void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Inline RayTracing path -> {}", runtimeFeatures_.useInlineRayTracing ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "Inline RayTracing経路: {}", GetEnabledText(runtimeFeatures_.useInlineRayTracing));
 }
 
 void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
@@ -84,7 +153,7 @@ void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "DispatchRays path -> {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "DispatchRays経路: {}", GetEnabledText(runtimeFeatures_.useDispatchRays));
 }
 
 void Engine::GraphicsFeatureController::SetAllowRaytracingDownsampling(
@@ -98,9 +167,8 @@ void Engine::GraphicsFeatureController::SetAllowRaytracingDownsampling(
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 	Logger::Output(LogType::Engine,
-		"Raytracing Downsampling -> {}",
-		runtimeFeatures_.useRaytracingDownsampling ?
-		"Enabled" : "Disabled");
+		"Raytracingダウンサンプリング: {}",
+		GetEnabledText(runtimeFeatures_.useRaytracingDownsampling));
 }
 
 void Engine::GraphicsFeatureController::SetSoftShadowSampleCount(
@@ -115,7 +183,7 @@ void Engine::GraphicsFeatureController::SetSoftShadowSampleCount(
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 	Logger::Output(LogType::Engine,
-		"Soft Shadow Samples -> {}", count);
+		"ソフトシャドウのサンプル数: {}", count);
 }
 
 void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
@@ -129,7 +197,7 @@ void Engine::GraphicsFeatureController::SetAllowFrustumCulling(bool enabled) {
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Frustum Culling -> {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "視錐台カリング: {}", GetEnabledText(runtimeFeatures_.useFrustumCulling));
 }
 
 void Engine::GraphicsFeatureController::SetAllowOcclusionCulling(
@@ -143,9 +211,8 @@ void Engine::GraphicsFeatureController::SetAllowOcclusionCulling(
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Occlusion Culling -> {}",
-		runtimeFeatures_.useOcclusionCulling ?
-		"Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "オクルージョンカリング: {}",
+		GetEnabledText(runtimeFeatures_.useOcclusionCulling));
 }
 
 void Engine::GraphicsFeatureController::SetUseGameViewCameraForSceneCulling(bool enabled) {
@@ -157,7 +224,7 @@ void Engine::GraphicsFeatureController::SetUseGameViewCameraForSceneCulling(bool
 	preferences_.useGameViewCameraForSceneCulling = enabled;
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "SceneView Culling Camera -> {}",
+	Logger::Output(LogType::Engine, "SceneViewのカリングカメラ: {}",
 		enabled ? "GameView" : "SceneView");
 }
 
@@ -172,7 +239,8 @@ void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Contribution Culling -> {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "寄与度カリング: {}",
+		GetEnabledText(runtimeFeatures_.useContributionCulling));
 }
 
 void Engine::GraphicsFeatureController::SetAllowNormalConeCulling(bool enabled) {
@@ -186,7 +254,8 @@ void Engine::GraphicsFeatureController::SetAllowNormalConeCulling(bool enabled) 
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Normal Cone Culling -> {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "法線コーンカリング: {}",
+		GetEnabledText(runtimeFeatures_.useNormalConeCulling));
 }
 
 void Engine::GraphicsFeatureController::SetAllowMeshLOD(
@@ -200,9 +269,8 @@ void Engine::GraphicsFeatureController::SetAllowMeshLOD(
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
-	Logger::Output(LogType::Engine, "Mesh LOD -> {}",
-		runtimeFeatures_.useMeshLOD ?
-		"Enabled" : "Disabled");
+	Logger::Output(LogType::Engine, "メッシュLOD: {}",
+		GetEnabledText(runtimeFeatures_.useMeshLOD));
 }
 
 void Engine::GraphicsFeatureController::SetMeshLODThresholds(
@@ -238,7 +306,7 @@ void Engine::GraphicsFeatureController::SetFrameContextCount(
 	preferences_.frameContextCount = count;
 	SavePreferencesToConfig();
 	Logger::Output(LogType::Engine,
-		"Frame Context Count -> {} after restart", count);
+		"Frame Context数: {} 再起動後に反映されます", count);
 }
 
 void Engine::GraphicsFeatureController::SetDisplayOutputMode(
@@ -250,7 +318,7 @@ void Engine::GraphicsFeatureController::SetDisplayOutputMode(
 	preferences_.displayOutput.mode = mode;
 	SavePreferencesToConfig();
 	Logger::Output(LogType::Engine,
-		"Display Output -> {} after restart",
+		"表示出力: {} 再起動後に反映されます",
 		EnumAdapter<DisplayOutputMode>::ToString(mode));
 }
 
@@ -312,36 +380,35 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 
 	Logger::BeginSection(LogType::Engine);
 
-	Logger::Output(LogType::Engine, "Adapter: {}", adapterInfo_.adapterName);
-	Logger::Output(LogType::Engine, "Feature Level: {}", GraphicsFeatureText::ToString(adapterInfo_.featureLevel));
-	Logger::Output(LogType::Engine, "Shader Model: {}", GraphicsFeatureText::ToString(support_.highestShaderModel));
-	Logger::Output(LogType::Engine, "Mesh Shader Tier: {}", GraphicsFeatureText::ToString(support_.meshShaderTier));
-	Logger::Output(LogType::Engine, "RayTracing Tier: {}", GraphicsFeatureText::ToString(support_.raytracingTier));
-	Logger::Output(LogType::Engine, "Wave Ops: {}", support_.waveOps ? "Supported" : "Not Supported");
-	Logger::Output(LogType::Engine, "Dedicated VRAM: {:.2f} GB", vramGB);
-	Logger::Output(LogType::Engine, "Runtime Mesh Shader: {}", runtimeFeatures_.useMeshShader ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Inline RayTracing: {}", runtimeFeatures_.useInlineRayTracing ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime DispatchRays: {}", runtimeFeatures_.useDispatchRays ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Raytracing Downsampling: {}",
-		runtimeFeatures_.useRaytracingDownsampling ?
-		"Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Soft Shadow Samples: {}",
+	Logger::Output(LogType::Engine, "GPUアダプター: {}", adapterInfo_.adapterName);
+	Logger::Output(LogType::Engine, "機能レベル: {}", GraphicsFeatureText::ToString(adapterInfo_.featureLevel));
+	Logger::Output(LogType::Engine, "シェーダーモデル: {}", GraphicsFeatureText::ToString(support_.highestShaderModel));
+	Logger::Output(LogType::Engine, "メッシュシェーダーTier: {}", GraphicsFeatureText::ToString(support_.meshShaderTier));
+	Logger::Output(LogType::Engine, "レイトレーシングTier: {}", GraphicsFeatureText::ToString(support_.raytracingTier));
+	Logger::Output(LogType::Engine, "Wave命令: {}", support_.waveOps ? "対応" : "未対応");
+	Logger::Output(LogType::Engine, "専用VRAM: {:.2f} GB", vramGB);
+	Logger::Output(LogType::Engine, "実行時Mesh Shader: {}", GetEnabledText(runtimeFeatures_.useMeshShader));
+	Logger::Output(LogType::Engine, "実行時Inline RayTracing: {}", GetEnabledText(runtimeFeatures_.useInlineRayTracing));
+	Logger::Output(LogType::Engine, "実行時DispatchRays: {}", GetEnabledText(runtimeFeatures_.useDispatchRays));
+	Logger::Output(LogType::Engine, "実行時Raytracingダウンサンプリング: {}",
+		GetEnabledText(runtimeFeatures_.useRaytracingDownsampling));
+	Logger::Output(LogType::Engine, "ソフトシャドウのサンプル数: {}",
 		runtimeFeatures_.softShadowSampleCount);
-	Logger::Output(LogType::Engine, "Runtime RayScene Build: {}", runtimeFeatures_.UsesAnyRayTracing() ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Frustum Culling: {}", runtimeFeatures_.useFrustumCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Occlusion Culling: {}", runtimeFeatures_.useOcclusionCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "SceneView Culling Camera: {}",
+	Logger::Output(LogType::Engine, "実行時RayScene構築: {}", GetEnabledText(runtimeFeatures_.UsesAnyRayTracing()));
+	Logger::Output(LogType::Engine, "実行時視錐台カリング: {}", GetEnabledText(runtimeFeatures_.useFrustumCulling));
+	Logger::Output(LogType::Engine, "実行時オクルージョンカリング: {}", GetEnabledText(runtimeFeatures_.useOcclusionCulling));
+	Logger::Output(LogType::Engine, "SceneViewのカリングカメラ: {}",
 		preferences_.useGameViewCameraForSceneCulling ? "GameView" : "SceneView");
-	Logger::Output(LogType::Engine, "Runtime Contribution Culling: {}", runtimeFeatures_.useContributionCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Normal Cone Culling: {}", runtimeFeatures_.useNormalConeCulling ? "Enabled" : "Disabled");
-	Logger::Output(LogType::Engine, "Runtime Mesh LOD: {} ({:.1f}, {:.1f}, {:.1f})",
-		runtimeFeatures_.useMeshLOD ? "Enabled" : "Disabled",
+	Logger::Output(LogType::Engine, "実行時寄与度カリング: {}", GetEnabledText(runtimeFeatures_.useContributionCulling));
+	Logger::Output(LogType::Engine, "実行時法線コーンカリング: {}", GetEnabledText(runtimeFeatures_.useNormalConeCulling));
+	Logger::Output(LogType::Engine, "実行時メッシュLOD: {} ({:.1f}, {:.1f}, {:.1f})",
+		GetEnabledText(runtimeFeatures_.useMeshLOD),
 		runtimeFeatures_.meshLOD0PixelThreshold,
 		runtimeFeatures_.meshLOD1PixelThreshold,
 		runtimeFeatures_.meshLOD2PixelThreshold);
-	Logger::Output(LogType::Engine, "Frame Context Count: {}",
+	Logger::Output(LogType::Engine, "Frame Context数: {}",
 		preferences_.frameContextCount);
-	Logger::Output(LogType::Engine, "Display Output: {} ({:.0f}/{:.0f} nits)",
+	Logger::Output(LogType::Engine, "表示出力: {} ({:.0f}/{:.0f} nits)",
 		EnumAdapter<DisplayOutputMode>::ToString(
 			preferences_.displayOutput.mode),
 		preferences_.displayOutput.paperWhiteNits,
@@ -362,33 +429,39 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 		return;
 	}
 
-	preferences_.allowMeshShader = data.value("allowMeshShader", preferences_.allowMeshShader);
-	preferences_.allowInlineRayTracing = data.value("allowInlineRayTracing", preferences_.allowInlineRayTracing);
-	preferences_.allowDispatchRays = data.value("allowDispatchRays", preferences_.allowDispatchRays);
-	preferences_.allowRaytracingDownsampling = data.value(
+	preferences_.allowMeshShader = ReadBoolSetting(data,
+		"allowMeshShader", preferences_.allowMeshShader);
+	preferences_.allowInlineRayTracing = ReadBoolSetting(data,
+		"allowInlineRayTracing", preferences_.allowInlineRayTracing);
+	preferences_.allowDispatchRays = ReadBoolSetting(data,
+		"allowDispatchRays", preferences_.allowDispatchRays);
+	preferences_.allowRaytracingDownsampling = ReadBoolSetting(data,
 		"allowRaytracingDownsampling",
 		preferences_.allowRaytracingDownsampling);
-	const uint32_t shadowSamples = data.value(
+	const uint32_t shadowSamples = ReadUIntSetting(data,
 		"softShadowSampleCount", preferences_.softShadowSampleCount);
 	preferences_.softShadowSampleCount = shadowSamples <= 1u ?
 		1u : shadowSamples <= 2u ? 2u : 4u;
-	preferences_.allowFrustumCulling = data.value("allowFrustumCulling", preferences_.allowFrustumCulling);
-	preferences_.allowOcclusionCulling = data.value(
+	preferences_.allowFrustumCulling = ReadBoolSetting(data,
+		"allowFrustumCulling", preferences_.allowFrustumCulling);
+	preferences_.allowOcclusionCulling = ReadBoolSetting(data,
 		"allowOcclusionCulling",
 		preferences_.allowOcclusionCulling);
-	preferences_.useGameViewCameraForSceneCulling = data.value(
+	preferences_.useGameViewCameraForSceneCulling = ReadBoolSetting(data,
 		"useGameViewCameraForSceneCulling", preferences_.useGameViewCameraForSceneCulling);
-	preferences_.allowContributionCulling = data.value("allowContributionCulling", preferences_.allowContributionCulling);
-	preferences_.allowNormalConeCulling = data.value("allowNormalConeCulling", preferences_.allowNormalConeCulling);
-	preferences_.allowMeshLOD = data.value(
+	preferences_.allowContributionCulling = ReadBoolSetting(data,
+		"allowContributionCulling", preferences_.allowContributionCulling);
+	preferences_.allowNormalConeCulling = ReadBoolSetting(data,
+		"allowNormalConeCulling", preferences_.allowNormalConeCulling);
+	preferences_.allowMeshLOD = ReadBoolSetting(data,
 		"allowMeshLOD", preferences_.allowMeshLOD);
-	const float lod0 = data.value(
+	const float lod0 = ReadFloatSetting(data,
 		"meshLOD0PixelThreshold",
 		preferences_.meshLOD0PixelThreshold);
-	const float lod1 = data.value(
+	const float lod1 = ReadFloatSetting(data,
 		"meshLOD1PixelThreshold",
 		preferences_.meshLOD1PixelThreshold);
-	const float lod2 = data.value(
+	const float lod2 = ReadFloatSetting(data,
 		"meshLOD2PixelThreshold",
 		preferences_.meshLOD2PixelThreshold);
 	if (GraphicsMeshLOD::ArePixelThresholdsValid(
@@ -405,20 +478,20 @@ void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 			GraphicsMeshLOD::kDefaultPixelThresholds[1];
 		preferences_.meshLOD2PixelThreshold =
 			GraphicsMeshLOD::kDefaultPixelThresholds[2];
-		Logger::Output(LogType::Engine,
-			"Invalid Mesh LOD thresholds were reset to defaults");
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"メッシュLODの閾値が不正なため既定値へ戻しました");
 	}
 	preferences_.frameContextCount = std::clamp(
-		data.value("frameContextCount",
+		ReadUIntSetting(data, "frameContextCount",
 			preferences_.frameContextCount), 1u, 3u);
 	preferences_.displayOutput.mode =
 		EnumAdapter<DisplayOutputMode>::FromString(
-			data.value("displayOutputMode", "SDR"))
+			ReadStringSetting(data, "displayOutputMode", "SDR"))
 		.value_or(DisplayOutputMode::SDR);
 	preferences_.displayOutput.paperWhiteNits = std::clamp(
-		data.value("paperWhiteNits", 200.0f), 80.0f, 1000.0f);
+		ReadFloatSetting(data, "paperWhiteNits", 200.0f), 80.0f, 1000.0f);
 	preferences_.displayOutput.maxLuminanceNits = std::clamp(
-		data.value("maxLuminanceNits", 1000.0f),
+		ReadFloatSetting(data, "maxLuminanceNits", 1000.0f),
 		preferences_.displayOutput.paperWhiteNits, 10000.0f);
 }
 

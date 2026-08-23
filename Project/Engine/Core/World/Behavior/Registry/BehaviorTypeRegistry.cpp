@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedBehavior.h>
 
 // c++
@@ -76,7 +77,7 @@ void Engine::BehaviorTypeRegistry::ClearManaged() {
 
 const Engine::BehaviorTypeInfo& Engine::BehaviorTypeRegistry::GetInfo(uint32_t id) const {
 
-	assert(id < infos_.size());
+	Assert::Call(id < infos_.size(), "未登録のBehaviorType IDです");
 	return infos_[id];
 }
 

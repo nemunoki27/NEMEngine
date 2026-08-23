@@ -121,7 +121,7 @@ namespace Engine {
 			bool found = it != object.end();
 
 			if (!found && assertionEnable) {
-				Assert::Call(false, "not found this object");
+				Assert::Call(false, "対象オブジェクトが見つかりません");
 			}
 			return found;
 		}
@@ -134,7 +134,7 @@ namespace Engine {
 			bool found = it != object.end();
 
 			if (!found && assertionEnable) {
-				Assert::Call(false, "not found this object");
+				Assert::Call(false, "対象オブジェクトが見つかりません");
 			}
 
 			return found;

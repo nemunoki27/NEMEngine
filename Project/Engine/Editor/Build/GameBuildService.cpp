@@ -399,7 +399,7 @@ namespace {
 				const Engine::AssetMeta* meta = database_.Find(assetID);
 				if (!meta) {
 					Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-						"[GameBuild] referenced asset was not found and will be skipped. guid={}",
+						"[ゲームビルド] 参照アセットが見つからないため出力対象から除外します GUID={}",
 						Engine::ToString(assetID));
 					continue;
 				}
@@ -867,7 +867,7 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	state_ = GameBuildState::Building;
 	statusMessage_ = "ビルド中...";
 	failureDetail_.clear();
-	Logger::Output(LogType::Engine, "[GameBuild] started. output={}",
+	Logger::Output(LogType::Engine, "[ゲームビルド] ビルドを開始しました 出力={}",
 		Algorithm::PathToUTF8(outputDirectory_));
 	return true;
 }
@@ -883,7 +883,7 @@ void Engine::GameBuildService::Update() {
 		if (line.empty()) {
 			return;
 		}
-		Logger::Output(LogType::Engine, "[GameBuild] {}", line);
+		Logger::Output(LogType::Engine, "[ゲームビルド] {}", line);
 		if (line.rfind("[NEM_GAME_BUILD_ERROR]", 0) == 0) {
 			failureDetail_ = line.substr(std::string("[NEM_GAME_BUILD_ERROR]").size());
 			while (!failureDetail_.empty() && failureDetail_.front() == ' ') {
@@ -901,7 +901,7 @@ void Engine::GameBuildService::Update() {
 
 		state_ = GameBuildState::Completed;
 		statusMessage_ = "完了しました";
-		Logger::Output(LogType::Engine, "[GameBuild] completed. output={}",
+		Logger::Output(LogType::Engine, "[ゲームビルド] ビルドが完了しました 出力={}",
 			Algorithm::PathToUTF8(outputDirectory_));
 	} else {
 
@@ -911,7 +911,7 @@ void Engine::GameBuildService::Update() {
 			failureDetail_ = "製品ビルドに失敗しました、engine.logを確認してください";
 		}
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[GameBuild] failed. exitCode={} detail={}", exitCode, failureDetail_);
+			"[ゲームビルド] ビルドに失敗しました 終了コード={} 詳細={}", exitCode, failureDetail_);
 	}
 }
 

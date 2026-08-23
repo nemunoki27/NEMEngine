@@ -1,0 +1,47 @@
+{
+    "domain": "UI",
+    "name": "discardSprite",
+    "parameters": [
+        {
+            "id": "4c748dc902b222b5",
+            "name": "color",
+            "semantic": "BaseColor",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
+            "id": "97c2bd5c0942fb8e",
+            "name": "discardAmount",
+            "semantic": "None",
+            "value": 0.0
+        },
+        {
+            "id": "ff9c8fb622e7966e",
+            "name": "baseColorTexture",
+            "semantic": "BaseColorTexture",
+            "value": ""
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "Draw",
+            "pipeline": "f1d8546c3e17452bfc220dafd81c0a24",
+            "preferredVariant": "GraphicsVertex",
+            "shaderOverride": "8e9f6b6a42d05caf52f9a2c4b1549aa0"
+        }
+    ],
+    "renderState": {
+        "blendMode": "Normal",
+        "castShadows": true,
+        "overridesRenderer": true,
+        "phase": "Transparent",
+        "receiveShadows": true,
+        "surfaceMode": "Transparent"
+    },
+    "shaderGraph": "fa72d7deefe8d102206f80ae99d2c417",
+    "usage": "Sprite"
+}

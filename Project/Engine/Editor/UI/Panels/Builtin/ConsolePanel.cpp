@@ -242,7 +242,6 @@ namespace {
 
 		//ImGui::Separator();
 
-		const Engine::FrameProfiler::RenderingStatistics& rendering = profiler.GetRenderingStatistics();
 		/*ImGui::Text("Skinning          : %u Dispatch / %u Instances", rendering.skinningDispatchCount, rendering.skinnedInstanceCount);
 		ImGui::Text("BLAS              : %u Build / %u Refit / %u Skip", rendering.blasBuildCount, rendering.blasRefitCount, rendering.blasSkipCount);
 		ImGui::Text("BLAS Geometry     : %u", rendering.blasGeometryCount);

@@ -165,7 +165,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	scriptCoreAssemblyPath_ = ResolveScriptCoreAssemblyPath();
 	if (scriptCoreAssemblyPath_.empty()) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: NEM.ScriptCore.dll was not found.");
+			"ManagedScriptRuntime: NEM.ScriptCore.dllが見つかりません");
 		return false;
 	}
 
@@ -378,7 +378,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to initialize native callbacks (ABI mismatch or managed exception).");
+			"ManagedScriptRuntime: Native Callbackを初期化できません ABI不一致またはManaged例外の可能性があります");
 		Finalize();
 		return false;
 	}
@@ -388,7 +388,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	// 初期アセンブリつまり現行ビルド出力をロードする、Edit中の以降のリロードはManagedScriptBuildServiceが行う
 	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: GameScripts.dll was not loaded. Managed scripts will be unavailable.");
+			"ManagedScriptRuntime: GameScripts.dllを読み込めないためManaged Scriptを利用できません");
 	}
 	return true;
 }
@@ -456,7 +456,7 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 	}
 	lastManagedTypeCount_ = typeCount;
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: managed script type count={}", typeCount);
+		"ManagedScriptRuntime: Managed Script型数={}", typeCount);
 	for (int32_t i = 0; i < typeCount; ++i) {
 
 		ManagedScriptTypeDescriptor descriptor{};
@@ -468,7 +468,7 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 			descriptor.scriptTypeID, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath,
 			descriptor.defaultExecutionOrder);
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptRuntime: registered managed script type={} id={}",
+			"ManagedScriptRuntime: Managed Script型を登録しました type={} ID={}",
 			descriptor.fullTypeName, descriptor.scriptTypeID);
 	}
 }
@@ -742,7 +742,8 @@ const Engine::ManagedScriptSchema& Engine::ManagedScriptRuntime::GetScriptSchema
 	}
 	catch (const nlohmann::json::exception& e) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: failed to parse script schema for {}: {}", scriptTypeID, e.what());
+			"ManagedScriptRuntime: Script Schemaを解析できません ScriptTypeID={} 内容={}",
+			scriptTypeID, e.what());
 	}
 
 	auto [it, inserted] = schemaCache_.emplace(scriptTypeID, std::move(schema));
@@ -870,7 +871,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 
 	if (gameAssemblyPath_.empty()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: GameScripts.dll was not found.");
+			"ManagedScriptRuntime: GameScripts.dllが見つかりません");
 		return false;
 	}
 	if (!loadGameAssembly_) {
@@ -879,10 +880,10 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 
 	const std::string path = ToUtf8Path(gameAssemblyPath_);
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: loading GameScripts.dll from {}", path);
+		"ManagedScriptRuntime: GameScripts.dllを読み込みます path={}", path);
 	if (loadGameAssembly_(path.c_str()) != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: failed to load GameScripts.dll. path={}", path);
+			"ManagedScriptRuntime: GameScripts.dllの読み込みに失敗しました path={}", path);
 		return false;
 	}
 	return true;

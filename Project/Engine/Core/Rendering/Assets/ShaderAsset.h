@@ -36,6 +36,7 @@ namespace Engine {
 		MaterialParameterSemantic semantic =
 			MaterialParameterSemantic::None;
 		bool isColor = false;
+		bool isTexture = false;
 	};
 	// シェーダーアセットの情報
 	struct ShaderAsset {

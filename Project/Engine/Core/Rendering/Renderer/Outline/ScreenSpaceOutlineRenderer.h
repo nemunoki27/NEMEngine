@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
@@ -18,6 +19,8 @@ namespace Engine {
 
 	// front
 	class GraphicsCore;
+	class DepthTexture2D;
+	class MultiRenderTarget;
 	class RenderTexture2D;
 	struct SceneExecutionContext;
 	struct RenderPassPhaseBuckets;
@@ -45,7 +48,10 @@ namespace Engine {
 		void Render(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
 			std::span<const ScreenSpaceOutlineRequest> requests,
-			ScreenSpaceOutlineViewResources& resources);
+			ScreenSpaceOutlineViewResources& resources,
+			std::span<const RenderPhase> phases,
+			MultiRenderTarget* compositeTarget,
+			DepthTexture2D* depthOverride);
 	private:
 		//============================================================================
 		//	private Methods
@@ -95,7 +101,9 @@ namespace Engine {
 		// 実際に見えている表面(Visible Mask)と、Depth無視の投影範囲(Projected Coverage Mask)の2種類を描画する
 		void DrawMask(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-			ScreenSpaceOutlineViewResources& resources);
+			ScreenSpaceOutlineViewResources& resources,
+			std::span<const RenderPhase> phases,
+			DepthTexture2D* depthOverride);
 		// Mask/HorizontalDilated/Dilatedが全て有効か
 		static bool ValidateDilationResources(const ScreenSpaceOutlineViewResources& resources);
 		bool ExecuteDilation(GraphicsCore& graphicsCore, const RenderPipelineDeps& deps,
@@ -107,7 +115,8 @@ namespace Engine {
 			bool finalToPixelShader, const wchar_t* label);
 
 		bool ExecuteComposite(GraphicsCore& graphicsCore, SceneExecutionContext& context,
-			const RenderPipelineDeps& deps, ScreenSpaceOutlineViewResources& resources);
+			const RenderPipelineDeps& deps, ScreenSpaceOutlineViewResources& resources,
+			MultiRenderTarget* compositeTarget);
 	};
 } // Engine
 

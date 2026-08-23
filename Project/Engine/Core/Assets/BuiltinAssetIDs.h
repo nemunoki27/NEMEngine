@@ -34,6 +34,10 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID ScreenSpaceOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6031ull };
 		inline constexpr AssetID ScreenSpaceOutlineDilate{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6032ull };
 		inline constexpr AssetID ScreenSpaceOutlineComposite{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6033ull };
+		// SpriteのAlpha形状を出力するアウトラインマスク
+		inline constexpr AssetID SpriteOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6043ull };
+		// Primitive2DのAlpha形状を出力するアウトラインマスク
+		inline constexpr AssetID Primitive2DOutlineMask{ 0x4e454d4153534554ull, 0x7c1d9a4b8e2f6047ull };
 		// Primitiveの選択アウトライン用マスクマテリアル
 		inline constexpr AssetID PrimitiveOutlineMask{ 0x4e454d4153534554ull, 0x70a1b2c3d4e5f610ull };
 		// パーティクルの既定マテリアル

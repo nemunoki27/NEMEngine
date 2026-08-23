@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Sprite/SpriteBatchResources.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
+#include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 
 namespace Engine {
 
@@ -24,6 +25,10 @@ namespace Engine {
 		SpriteRenderBackend() {
 			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances", ShaderBindingKind::SRV);
 			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances", ShaderBindingKind::SRV);
+			outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(
+				ShaderBindingKind::CBV,
+				kScreenSpaceOutlineMaskCBVRegister,
+				kScreenSpaceOutlineMaskCBVSpace);
 		}
 		~SpriteRenderBackend() override;
 
@@ -46,6 +51,7 @@ namespace Engine {
 
 		PipelineBindingCache::SlotID vsInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID psInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		PipelineBindingCache::SlotID outlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 	};
 } // Engine
 

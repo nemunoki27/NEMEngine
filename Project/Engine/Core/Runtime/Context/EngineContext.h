@@ -44,8 +44,8 @@ namespace Engine {
 			const float kWindowClearColor[4] = { 0.016f, 0.016f, 0.016f, 1.0f };
 			Color4 clearColor;
 			// 描画フォーマット
-			DXGI_FORMAT swapChainFormat;
-			DXGI_FORMAT renderTextureFormat;
+			DXGI_FORMAT swapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			DXGI_FORMAT renderTextureFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		};
 	public:
 		//============================================================================

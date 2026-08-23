@@ -70,11 +70,37 @@
                             "tag": "Untagged",
                             "visibilityLayerMask": 4294967295
                         },
+                        "ScreenSpaceOutline": {
+                            "alphaSource": "TextureColor",
+                            "color": {
+                                "a": 1.0,
+                                "b": 0.0,
+                                "g": 0.47978267073631287,
+                                "r": 0.8170212507247925
+                            },
+                            "enabled": true,
+                            "priority": 100,
+                            "regionMode": "ExteriorPreferred",
+                            "uiOcclusionMode": "RespectRenderOrder",
+                            "visibilityMode": "VisibleOnly",
+                            "widthPixels": 4.0
+                        },
                         "SpriteRenderer": {
                             "blendMode": "Normal",
                             "layer": 0,
-                            "material": "",
+                            "material": "79eb55ab7acd5dee64b402f7edb3c14e",
                             "materialInstance": [
+                                {
+                                    "id": "4c748dc902b222b5",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.8170212507247925,
+                                        "r": 1.0
+                                    }
+                                },
                                 {
                                     "id": "77f5c18e246c6638",
                                     "name": "color",
@@ -88,6 +114,18 @@
                                 },
                                 {
                                     "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "8ffb2d3d5e6104e991a030767a0004db"
+                                },
+                                {
+                                    "id": "97c2bd5c0942fb8e",
+                                    "name": "discardAmount",
+                                    "semantic": "None",
+                                    "value": 0.0
+                                },
+                                {
+                                    "id": "ff9c8fb622e7966e",
                                     "name": "baseColorTexture",
                                     "semantic": "BaseColorTexture",
                                     "value": "8ffb2d3d5e6104e991a030767a0004db"
@@ -460,6 +498,11 @@
                             "useTransformRotation": true
                         }
                     ]
+                },
+                {
+                    "Path": "SpriteRenderer/order",
+                    "Target": "9084f9787413636f",
+                    "Value": 10
                 },
                 {
                     "Path": "Collision/shapes",

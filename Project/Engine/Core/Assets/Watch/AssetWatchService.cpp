@@ -57,7 +57,7 @@ void Engine::AssetWatchService::Start(AssetDatabase* assetDatabase, TextureUploa
 		if (watcher->Start(root)) {
 
 			watchers_.emplace_back(std::move(watcher));
-			Logger::Output(LogType::Engine, "[AssetWatch] watching: {}",
+			Logger::Output(LogType::Engine, "[AssetWatch] 監視を開始しました: {}",
 				Algorithm::PathToUTF8(root));
 		}
 	}
@@ -159,7 +159,7 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 			}
 		}
 		Logger::Output(LogType::Engine,
-			"[AssetWatch] importer settings changed: {}",
+			"[AssetWatch] Import設定の変更を検出しました: {}",
 			Algorithm::PathToUTF8(assetFullPath));
 		return true;
 	}
@@ -181,7 +181,7 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		if (const AssetMeta* objMeta = objAssetPath.empty() ? nullptr : assetDatabase_->FindByPath(objAssetPath)) {
 
 			meshReloadCallback_(objMeta->guid);
-			Logger::Output(LogType::Engine, "[AssetWatch] mtl changed, reload requested for model: {}", objAssetPath);
+			Logger::Output(LogType::Engine, "[AssetWatch] mtl変更によりModelの再読み込みを要求します: {}", objAssetPath);
 		}
 		return true;
 	}
@@ -204,18 +204,18 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 
 		// このファイルを指す全キー(描画用base/sRGBやProjectPanelサムネイル)をまとめて差し替える
 		textureUploadService_->RequestReloadByFile(path);
-		Logger::Output(LogType::Engine, "[AssetWatch] texture changed, reload requested: {}", assetPath);
+		Logger::Output(LogType::Engine, "[AssetWatch] Texture変更により再読み込みを要求します: {}", assetPath);
 	} else if (meta->type == AssetType::Mesh && isModel && meshReloadCallback_) {
 
 		// モデルはbackend側のmesh管理へAssetIDで委譲する
 		meshReloadCallback_(meta->guid);
-		Logger::Output(LogType::Engine, "[AssetWatch] model changed, reload requested: {}", assetPath);
+		Logger::Output(LogType::Engine, "[AssetWatch] Model変更により再読み込みを要求します: {}", assetPath);
 	} else if ((meta->type == AssetType::Material || meta->type == AssetType::Shader ||
 		meta->type == AssetType::RenderPipeline) && renderAssetReloadCallback_) {
 
 		// 描画アセットは依存関係を含めてRenderPipelineRunner側で再ロードする
 		renderAssetReloadCallback_(meta->guid);
-		Logger::Output(LogType::Engine, "[AssetWatch] render asset changed, reload requested: {}", assetPath);
+		Logger::Output(LogType::Engine, "[AssetWatch] 描画Asset変更により再読み込みを要求します: {}", assetPath);
 	} else {
 		return false;
 	}

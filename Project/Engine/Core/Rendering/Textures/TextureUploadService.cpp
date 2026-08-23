@@ -372,8 +372,8 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 		});
 
 	Logger::BeginSection(LogType::Engine);
-	Logger::Output(LogType::Engine, "Start TextureUploadService");
-	Logger::Output(LogType::Engine, "DecodeWorkerCount: {}", threadCount);
+	Logger::Output(LogType::Engine, "TextureUploadServiceを開始します");
+	Logger::Output(LogType::Engine, "Decode Worker数: {}", threadCount);
 	Logger::EndSection(LogType::Engine);
 }
 
@@ -433,7 +433,8 @@ void Engine::TextureUploadService::TickFinalize() {
 		if (uploaded.valid) {
 
 			const auto desc = uploaded.resource->GetDesc();
-			Logger::Output(LogType::Engine, "[TextureLoad][GPU] key={} srvIndex={} size={}x{} format={} status=READY",
+			Logger::Output(LogType::Engine,
+				"[TextureLoad][GPU] key={} srvIndex={} size={}x{} format={} status=準備完了",
 				job.key, uploaded.srvIndex, static_cast<uint32_t>(desc.Width), desc.Height, static_cast<uint32_t>(desc.Format));
 
 			uploaded.textureName = job.key;
@@ -477,7 +478,7 @@ void Engine::TextureUploadService::TickFinalize() {
 
 		decodeWorkers_.Enqueue(desc);
 		Logger::Output(LogType::Engine,
-			"[TextureReload][Deferred] key={} path={}", desc.key, desc.assetPath);
+			"[TextureReload][遅延] key={} path={}", desc.key, desc.assetPath);
 	}
 }
 
@@ -517,7 +518,8 @@ void Engine::TextureUploadService::RequestSolidColor1x1(
 
 	if (accepted) {
 
-		Logger::Output(LogType::Engine, "[TextureLoad][Queue ] key={} workers=MainThread processing=1 queued=0 rgba=[{},{},{},{}]",
+		Logger::Output(LogType::Engine,
+			"[TextureLoad][待機列] key={} workers=MainThread processing=1 queued=0 rgba=[{},{},{},{}]",
 			key, r, g, b, a);
 	}
 }
@@ -547,7 +549,7 @@ void Engine::TextureUploadService::RequestTextureFile(const TextureFileRequestDe
 	decodeWorkers_.Enqueue(desc);
 
 	const auto stats = decodeWorkers_.GetStats();
-	Logger::Output(LogType::Engine, "[TextureLoad][Queue] key={} workers={} processing={} queued={} path={}",
+	Logger::Output(LogType::Engine, "[TextureLoad][待機列] key={} workers={} processing={} queued={} path={}",
 		desc.key, stats.threadCount, stats.inFlightCount, stats.queuedCount, desc.assetPath);
 }
 
@@ -581,7 +583,7 @@ void Engine::TextureUploadService::RequestReload(const std::string& key) {
 	}
 
 	decodeWorkers_.Enqueue(desc);
-	Logger::Output(LogType::Engine, "[TextureReload][Queue] key={} path={}", desc.key, desc.assetPath);
+	Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}", desc.key, desc.assetPath);
 }
 
 void Engine::TextureUploadService::RequestReloadByFile(
@@ -630,7 +632,7 @@ void Engine::TextureUploadService::RequestReloadByFile(
 	for (TextureFileRequestDesc& desc : toEnqueue) {
 
 		decodeWorkers_.Enqueue(desc);
-		Logger::Output(LogType::Engine, "[TextureReload][Queue] key={} path={}", desc.key, desc.assetPath);
+		Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}", desc.key, desc.assetPath);
 	}
 }
 
@@ -688,7 +690,7 @@ Engine::TextureRequestState Engine::TextureUploadService::GetState(const std::st
 void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& job, uint32_t workerIndex) {
 
 	const auto startStats = decodeWorkers_.GetStats();
-	Logger::Output(LogType::Engine, "[TextureLoad][Start] Worker[{}/{}] processing={} queued={} key={} path={}",
+	Logger::Output(LogType::Engine, "[TextureLoad][開始] Worker[{}/{}] processing={} queued={} key={} path={}",
 		workerIndex + 1, startStats.threadCount, startStats.inFlightCount, startStats.queuedCount, job.key, job.assetPath);
 
 	PendingUploadJob result{};
@@ -791,16 +793,16 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	if (result.success) {
 
 		Logger::Output(LogType::Engine,
-			"[TextureLoad][Finish] Worker[{}/{}] processing={} queued={} "
-			"key={} size={}x{} mips={} format={} status=OK",
+			"[TextureLoad][完了] Worker[{}/{}] processing={} queued={} "
+			"key={} size={}x{} mips={} format={} status=成功",
 			workerIndex + 1, finishStats.threadCount, remainingProcessing, finishStats.queuedCount, job.key,
 			static_cast<uint32_t>(result.metadata.width), static_cast<uint32_t>(result.metadata.height),
 			static_cast<uint32_t>(result.metadata.mipLevels), static_cast<uint32_t>(result.metadata.format));
 	} else {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[TextureLoad][Finish] Worker[{}/{}] processing={} queued={} "
-			"key={} status=FAILED stage={} hr=0x{:08X} path={}",
+			"[TextureLoad][完了] Worker[{}/{}] processing={} queued={} "
+			"key={} status=失敗 stage={} hr=0x{:08X} path={}",
 			workerIndex + 1, finishStats.threadCount, remainingProcessing,
 			finishStats.queuedCount, job.key, failureStage,
 			static_cast<uint32_t>(hr), job.assetPath);

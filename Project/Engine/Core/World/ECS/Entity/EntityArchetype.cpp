@@ -16,7 +16,7 @@ Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const
 	typeToColumn_.assign(ComponentTypeRegistry::GetInstance().GetComponentTypeCount(), kInvalidColumnIndex);
 	for (uint32_t i = 0; i < static_cast<uint32_t>(types_.size()); ++i) {
 
-		Assert::Call(types_[i] < kMaxComponentTypes, "types_[i] < kMaxComponentTypes");
+		Assert::Call(types_[i] < kMaxComponentTypes, "ComponentType IDが上限を超えています");
 		Assert::Call(i < kInvalidColumnIndex, "チャンク列数がuint16_tの範囲を超えています");
 		typeToColumn_[types_[i]] = static_cast<uint16_t>(i);
 	}
@@ -46,7 +46,7 @@ std::pair<uint32_t, uint32_t> Engine::EntityArchetype::AddUninitialized(const En
 
 Engine::Entity Engine::EntityArchetype::RemoveSwap(uint32_t chunkIndex, uint32_t row) {
 
-	Assert::Call(chunkIndex < GetChunkCount(), "chunkIndex < GetChunkCount()");
+	Assert::Call(chunkIndex < GetChunkCount(), "EntityArchetypeのChunk番号が範囲外です");
 	Entity moved = chunks_[chunkIndex]->RemoveSwap(row);
 	if (chunkIndex < firstWritableChunkIndex_) {
 
@@ -57,7 +57,7 @@ Engine::Entity Engine::EntityArchetype::RemoveSwap(uint32_t chunkIndex, uint32_t
 
 void Engine::EntityArchetype::ConstructDefault(uint32_t chunkIndex, uint32_t row, uint32_t typeID) {
 
-	Assert::Call(chunkIndex < GetChunkCount(), "chunkIndex < GetChunkCount()");
+	Assert::Call(chunkIndex < GetChunkCount(), "EntityArchetypeのChunk番号が範囲外です");
 	chunks_[chunkIndex]->ConstructDefaultByColumnIndex(GetColumnIndex(typeID), row);
 }
 
@@ -68,7 +68,7 @@ bool Engine::EntityArchetype::Has(uint32_t typeID) const {
 
 uint32_t Engine::EntityArchetype::GetColumnIndex(uint32_t typeID) const {
 
-	Assert::Call(Has(typeID), "Has(typeID)");
+	Assert::Call(Has(typeID), "EntityArchetypeに指定ComponentTypeがありません");
 	return typeToColumn_[typeID];
 }
 

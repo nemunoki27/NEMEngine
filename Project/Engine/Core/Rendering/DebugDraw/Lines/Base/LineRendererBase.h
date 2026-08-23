@@ -13,6 +13,7 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/VertexBuffer.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
@@ -207,12 +208,12 @@ namespace Engine {
 
 		// パイプラインの生成
 		bool created = pipeline_.CreateGraphics(device, compiler, desc);
-		Assert::Call(created, "DebugLineRenderer pipeline create failed");
+		Assert::Call(created, "DebugLineRendererのPipeline作成に失敗しました");
 
 		// 深度オクルージョン用パイプライン、シーン深度でテストするが書き込みはしないので深度を壊さない
 		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		bool occludedCreated = occludedPipeline_.CreateGraphics(device, compiler, desc);
-		Assert::Call(occludedCreated, "DebugLineRenderer occluded pipeline create failed");
+		Assert::Call(occludedCreated, "DebugLineRendererの遮蔽Pipeline作成に失敗しました");
 
 		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
 		for (auto& resources : renderResources_) {

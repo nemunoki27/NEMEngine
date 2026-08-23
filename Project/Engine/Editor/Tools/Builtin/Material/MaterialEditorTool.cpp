@@ -884,7 +884,7 @@ bool Engine::MaterialEditorTool::CreateMaterialAssets(const EditorToolContext& c
 		assetDatabase->RefreshDependencies(materialID);
 	}
 
-	Logger::Output(LogType::Engine, "[MaterialEditorTool] created material assets. path={}", materialLogical);
+	Logger::Output(LogType::Engine, "[MaterialEditorTool] Material Assetを作成しました path={}", materialLogical);
 	createMessage_ = "作成しました " + materialLogical;
 	return true;
 }

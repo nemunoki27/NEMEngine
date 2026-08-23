@@ -76,17 +76,13 @@ namespace {
 	bool ResolvePrimitivePass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
 		bool is2D, Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
 
-		// 2D描画は正射投影の前方描画専用マテリアルから解決する、アウトラインや半透明の分岐は持たない
-		if (is2D) {
-			return Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
-				Engine::DefaultMaterialSlot::Primitive2D, { Engine::MaterialPassKind::Draw }, outResolved);
-		}
-
-		// 選択アウトラインのマスクは元マテリアルと切り離してPrimitive専用マスクマテリアルから解決する
+		// アウトラインマスクは次元ごとの専用マテリアルから解決する
 		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
 			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
 
-			const Engine::AssetID materialID = Engine::BuiltinAssets::Materials::PrimitiveOutlineMask;
+			const Engine::AssetID materialID = is2D ?
+				Engine::BuiltinAssets::Materials::Primitive2DOutlineMask :
+				Engine::BuiltinAssets::Materials::PrimitiveOutlineMask;
 			const Engine::MaterialAsset* material = context.assetLibrary->LoadMaterial(materialID);
 			if (!material) {
 				return false;
@@ -99,6 +95,13 @@ namespace {
 			outResolved.material = material;
 			outResolved.pass = pass;
 			return true;
+		}
+
+		// 2D描画は正射投影の前方描画専用マテリアルから解決する
+		if (is2D) {
+			return Engine::BackendDrawCommon::ResolveMaterialPass(context, requestedMaterial,
+				Engine::DefaultMaterialSlot::Primitive2D,
+				{ Engine::MaterialPassKind::Draw }, outResolved);
 		}
 		// ピッキングは見た目用マテリアルに依存せず、Entity IDを出すBuiltinパスへ固定する
 		if (context.passKind == Engine::MaterialPassKind::EditorPicking) {
@@ -224,6 +227,19 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	if (!ResolvePrimitivePass(context, item->material, is2D, resolvedPass)) {
 		return;
 	}
+	const bool isOutlineMask =
+		context.passKind == MaterialPassKind::ScreenSpaceOutlineMask ||
+		context.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask;
+	const MaterialAsset* bindingMaterial = resolvedPass.material;
+	BackendDrawCommon::ResolvedMaterialPass sourcePass{};
+	if (is2D && isOutlineMask) {
+		if (!BackendDrawCommon::ResolveMaterialPass(
+			context, item->material, DefaultMaterialSlot::Primitive2D,
+			{ MaterialPassKind::Draw }, sourcePass)) {
+			return;
+		}
+		bindingMaterial = sourcePass.material;
+	}
 	const PipelineVariantDesc* variant = nullptr;
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass, &variant);
 	if (!pipelineState) {
@@ -273,7 +289,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		viewConstants.frameSerial = static_cast<uint32_t>(frameSerial);
 		viewConstants.cameraPosition = camera->cameraPos;
 	}
-	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+	const PostProcessConstantBufferAllocation viewAlloc =
+		constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
 
 	// パイプラインを設定する
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
@@ -282,7 +299,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// ルートパラメータをバインドする
 	SyncAndBindRegistry(*pipelineState, context, commandList);
 	if (perDrawBindCache_.Has(viewCBVSlot_)) {
-		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
+		RootBindingCommand::SetGraphicsCBV(
+			commandList, perDrawBindCache_.Get(viewCBVSlot_), viewAlloc.gpuAddress);
 	}
 	if (perDrawBindCache_.Has(verticesSRVSlot_)) {
 		RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(verticesSRVSlot_),
@@ -293,8 +311,9 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 			resources.GetInstancesGPUAddress(), {});
 	}
 	// reflection駆動のマテリアルパラメータとテクスチャ、宣言しないBuiltinは無回帰
-	if (resolvedPass.material) {
-		BindMaterial(context, *pipelineState, *resolvedPass.material, payload->materialInstance, commandList);
+	if (bindingMaterial) {
+		BindMaterial(context, *pipelineState, *bindingMaterial,
+			payload->materialInstance, commandList);
 	}
 	// 選択アウトラインのマスク描画ではStyle IDを渡す、通常描画は宣言が無いので無回帰
 	if (perDrawBindCache_.Has(outlineMaskCBVSlot_)) {
@@ -302,8 +321,12 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		ScreenSpaceOutlineMaskConstants maskConstants{};
 		maskConstants.styleID = context.screenSpaceOutlineMaskStyleID;
 		maskConstants.restrictSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
-		const PostProcessConstantBufferAllocation maskAlloc = constantBufferAllocator_.AllocateAndUpload(device, maskConstants);
-		RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_), maskAlloc.gpuAddress);
+		maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
+		const PostProcessConstantBufferAllocation maskAlloc =
+			constantBufferAllocator_.AllocateAndUpload(device, maskConstants);
+		RootBindingCommand::SetGraphicsCBV(
+			commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_),
+			maskAlloc.gpuAddress);
 	}
 
 	if (useMeshShader) {
@@ -311,9 +334,12 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// MeshShader経路、インデックスSRVと三角形数を渡してDispatchMeshする
 		PrimitiveMeshConstants meshConstants{};
 		meshConstants.indexCount = geometry->indexCount;
-		const PostProcessConstantBufferAllocation meshAlloc = constantBufferAllocator_.AllocateAndUpload(device, meshConstants);
+		const PostProcessConstantBufferAllocation meshAlloc =
+			constantBufferAllocator_.AllocateAndUpload(device, meshConstants);
 		if (perDrawBindCache_.Has(meshConstantsCBVSlot_)) {
-			RootBindingCommand::SetGraphicsCBV(commandList, perDrawBindCache_.Get(meshConstantsCBVSlot_), meshAlloc.gpuAddress);
+			RootBindingCommand::SetGraphicsCBV(
+				commandList, perDrawBindCache_.Get(meshConstantsCBVSlot_),
+				meshAlloc.gpuAddress);
 		}
 		if (perDrawBindCache_.Has(indicesSRVSlot_)) {
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(indicesSRVSlot_),

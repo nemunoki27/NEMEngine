@@ -124,13 +124,13 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 	HRESULT hr = factory->CreateSwapChainForHwnd(
 		queue, winApp->GetHwnd(), &desc_, nullptr, nullptr,
 		reinterpret_cast<IDXGISwapChain1**>(swapChain_.GetAddressOf()));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "SwapChainの作成に失敗しました");
 
 	if (displayOutput_.mode != DisplayOutputMode::SDR &&
 		!SupportsDisplayOutput()) {
 
 		Logger::Output(LogType::Engine,
-			"Display Output {} is unavailable. Falling back to SDR.",
+			"表示出力{}を利用できないためSDRへ戻します",
 			GetDisplayOutputName(displayOutput_.mode));
 		displayOutput_.mode = DisplayOutputMode::SDR;
 		outputFormat = ResolveOutputFormat(format, displayOutput_.mode);
@@ -141,13 +141,13 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 			bufferCount_, width, height, desc_.Format, desc_.Flags);
 		Assert::Call(DxDredDiagnostics::CheckHRESULT(device_, fallbackResult,
 			"DxSwapChain::Create/SDRFallback"),
-			"SwapChain SDR fallback failed.");
+			"SwapChainのSDR切り替えに失敗しました");
 	}
 	Assert::Call(ApplyDisplayOutput(),
-		"SwapChain display output configuration failed.");
+		"SwapChainの表示出力設定に失敗しました");
 
-	Assert::Call(CreateBackBufferResources(true), "SwapChain back buffer creation failed.");
-	Logger::Output(LogType::Engine, "Display Output: {} ({:.0f}/{:.0f} nits)",
+	Assert::Call(CreateBackBufferResources(true), "SwapChainのBackBuffer作成に失敗しました");
+	Logger::Output(LogType::Engine, "表示出力: {} ({:.0f}/{:.0f} nits)",
 		GetDisplayOutputName(displayOutput_.mode),
 		displayOutput_.paperWhiteNits,
 		displayOutput_.maxLuminanceNits);
@@ -169,7 +169,7 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 	const HRESULT resizeResult = swapChain_->ResizeBuffers(
 		bufferCount_, width, height, desc_.Format, desc_.Flags);
 	if (!DxDredDiagnostics::CheckHRESULT(device_, resizeResult, "DxSwapChain::Resize/ResizeBuffers")) {
-		Assert::Call(false, "SwapChain ResizeBuffers failed.");
+		Assert::Call(false, "SwapChainのResizeBuffersに失敗しました");
 		return false;
 	}
 
@@ -182,7 +182,7 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 	}
 
 	const bool created = CreateBackBufferResources(false);
-	Assert::Call(created, "SwapChain back buffer recreation failed.");
+	Assert::Call(created, "SwapChainのBackBuffer再作成に失敗しました");
 	return created;
 }
 

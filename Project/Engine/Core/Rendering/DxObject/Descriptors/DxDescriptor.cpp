@@ -68,21 +68,21 @@ uint32_t BaseDescriptor::Allocate() {
 	} else {
 		if (!DxUtils::CanAllocateIndex(useIndex_, maxDescriptorCount_)) {
 			Logger::Output(LogType::Engine, spdlog::level::critical,
-				"Descriptor heap exhausted. type={} allocated={} highWater={} freeList={} max={}",
+				"DescriptorHeapを使い切りました type={} 確保数={} 最大使用位置={} 再利用数={} 上限={}",
 				GetHeapTypeName(), allocatedCount_, useIndex_, freeList_.size(), maxDescriptorCount_);
-			Assert::Call(FALSE, std::string("Cannot allocate more DescriptorCount. type=") +
+			Assert::Call(FALSE, std::string("Descriptorをこれ以上確保できません type=") +
 				std::string(GetHeapTypeName()) +
-				" allocated=" + std::to_string(allocatedCount_) +
-				" highWater=" + std::to_string(useIndex_) +
-				" freeList=" + std::to_string(freeList_.size()) +
-				" max=" + std::to_string(maxDescriptorCount_));
+				" 確保数=" + std::to_string(allocatedCount_) +
+				" 最大使用位置=" + std::to_string(useIndex_) +
+				" 再利用数=" + std::to_string(freeList_.size()) +
+				" 上限=" + std::to_string(maxDescriptorCount_));
 		}
 		index = useIndex_;
 		++useIndex_;
 	}
 
-	Assert::Call(index < maxDescriptorCount_, "Descriptor index out of range");
-	Assert::Call(!allocationFlags_[index], "Descriptor index already allocated");
+	Assert::Call(index < maxDescriptorCount_, "Descriptorの確保位置が範囲外です");
+	Assert::Call(!allocationFlags_[index], "指定位置のDescriptorは既に確保されています");
 
 	allocationFlags_[index] = 1;
 	++allocatedCount_;
@@ -93,10 +93,10 @@ uint32_t BaseDescriptor::Allocate() {
 
 void Engine::BaseDescriptor::Free(uint32_t index) {
 
-	Assert::Call(index < maxDescriptorCount_, "Descriptor free index out of range");
+	Assert::Call(index < maxDescriptorCount_, "Descriptorの解放位置が範囲外です");
 
 	if (!allocationFlags_[index]) {
-		Assert::Call(FALSE, "Descriptor double free detected");
+		Assert::Call(FALSE, "Descriptorの二重解放を検出しました");
 		return;
 	}
 

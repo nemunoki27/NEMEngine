@@ -259,7 +259,7 @@ void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view
 
 	const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
 	if (!info) {
-		Assert::Call(false, "Unknown component typeName in scene file");
+		Assert::Call(false, "シーンファイルに未登録のComponentType名があります");
 		return;
 	}
 	Assert::Call(CanStoreComponent(*info),
@@ -638,7 +638,7 @@ Engine::ECSWorld::CloneForSerialization() const {
 
 void ECSWorld::SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const {
 
-	Assert::Call(IsAlive(entity), "entity is not alive");
+	Assert::Call(IsAlive(entity), "Entityが有効ではありません");
 
 	// アーキタイプから持っているコンポーネントの種類を取得
 	const EntityArchetype* archetype = records_[entity.index].location.archetype;
@@ -820,7 +820,7 @@ uint32_t ECSWorld::AllocateIndex() {
 
 void ECSWorld::AssertAlive(const Entity& entity) const {
 
-	Assert::Call(IsAlive(entity), "Entity is not alive / invalid handle");
+	Assert::Call(IsAlive(entity), "Entityが無効または破棄済みです");
 }
 
 void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSignature, const EntitySignature& newSignature) {

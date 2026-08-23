@@ -7,6 +7,7 @@
 #include <Engine/Core/World/ECS/Entity/EntityArchetype.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/World/ECS/World/WorldCommandBuffer.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++

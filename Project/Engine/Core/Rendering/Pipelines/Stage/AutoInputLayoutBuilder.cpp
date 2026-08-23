@@ -31,7 +31,8 @@ namespace {
 		const UINT count = CountMaskBits(mask);
 
 		// 連続成分前提
-		Assert::Call(mask == 0x1 || mask == 0x3 || mask == 0x7 || mask == 0xF, "Unsupported semantic mask");
+		Assert::Call(mask == 0x1 || mask == 0x3 || mask == 0x7 || mask == 0xF,
+			"未対応の入力Semantic Maskです");
 
 		switch (componentType) {
 		case D3D_REGISTER_COMPONENT_FLOAT32:
@@ -59,7 +60,7 @@ namespace {
 			}
 			break;
 		}
-		Assert::Call(false, "Unsupported input semantic format");
+		Assert::Call(false, "未対応の入力Semantic形式です");
 		return DXGI_FORMAT_UNKNOWN;
 	}
 }

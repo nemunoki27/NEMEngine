@@ -64,7 +64,7 @@ namespace {
 		case ShaderBindingKind::AccelStruct: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		}
 		// 未対応
-		Assert::Call(false, "Unsupported binding kind for root signature");
+		Assert::Call(false, "RootSignatureで未対応のBinding種別です");
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	}
 	// パイプラインの種類とステージマスクからD3D12_SHADER_VISIBILITYを決定する
@@ -213,7 +213,8 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 				merged.emplace(key, std::move(location));
 			} else {
 
-				Assert::Call(it->second.bindCount == resource.bindCount, "Mismatched bindCount on same register/space");
+				Assert::Call(it->second.bindCount == resource.bindCount,
+					"同じRegisterとSpaceに異なるBindCountが指定されています");
 				// 共有されるステージ情報をマージ
 				it->second.stageMask |= resource.stageMask;
 			}
@@ -257,7 +258,7 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 		auto& param = params[i];
 
 		// ログ出力
-		Logger::Output(LogType::Engine,"RootParam[{}]: name={},kind={}",
+		Logger::Output(LogType::Engine, "ルートパラメータ[{}]: 名前={} 種別={}",
 			i, binding.name, EnumAdapter<ShaderBindingKind>::ToString(binding.kind));
 
 		binding.rootParameterIndex = static_cast<UINT>(i);
@@ -294,7 +295,7 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 			break;
 		}
 		default:
-			Assert::Call(false, "Unsupported root parameter type");
+			Assert::Call(false, "未対応のRootParameter種別です");
 			break;
 		}
 	}
@@ -313,14 +314,14 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 	if (FAILED(hr)) {
 		if (errorBlob) {
 			const char* err = reinterpret_cast<const char*>(errorBlob->GetBufferPointer());
-			Assert::Call(false, std::string("D3D12SerializeVersionedRootSignature failed: ") + err);
+			Assert::Call(false, std::string("RootSignatureのシリアライズに失敗しました: ") + err);
 		} else {
-			Assert::Call(false, "D3D12SerializeVersionedRootSignature failed");
+			Assert::Call(false, "RootSignatureのシリアライズに失敗しました");
 		}
 	}
 	// デバイスからルートシグネチャを生成
 	hr = device->CreateRootSignature(0, signatureBlob->GetBufferPointer(),
 		signatureBlob->GetBufferSize(), IID_PPV_ARGS(&result.rootSignature));
-	Assert::Call(SUCCEEDED(hr), "CreateRootSignature failed");
+	Assert::Call(SUCCEEDED(hr), "RootSignatureの作成に失敗しました");
 	return result;
 }

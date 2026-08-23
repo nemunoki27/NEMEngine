@@ -135,7 +135,7 @@ namespace {
 	// 診断storeのIngestはMSBuild診断行parse専用のためIDE起動失敗はここではLoggerのみに出す
 	void ReportLaunchDiagnostic(const std::string& message) {
 
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn, "ManagedIdeLauncher: {}", message);
+		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn, "Managed IDE起動: {}", message);
 	}
 }
 
@@ -156,7 +156,7 @@ void Engine::ManagedIdeLauncher::ReloadSettings() {
 		const nlohmann::json root = nlohmann::json::parse(file, nullptr, false);
 		if (!root.is_object()) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ManagedIdeLauncher: failed to parse {}. using defaults.", path.string());
+				"Managed IDE起動: 設定を解析できないため既定値を使用します path={}", path.string());
 			return;
 		}
 		if (projectSettings) {

@@ -115,6 +115,7 @@ namespace Engine {
 		// Mask描画を呼ぶ直前に設定する、Mask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
+		uint32_t screenSpaceOutlineMaskAlphaSource = 0;
 	};
 
 	// エディタツール用のEntityプレビュー描画要求

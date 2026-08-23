@@ -55,7 +55,7 @@ void Engine::VertexMeshDrawPath::EnsureCommandSignature(ID3D12Device* device) {
 	signatureDesc.pArgumentDescs = &argumentDesc;
 
 	HRESULT hr = device->CreateCommandSignature(&signatureDesc, nullptr, IID_PPV_ARGS(&commandSignature_));
-	Assert::Call(SUCCEEDED(hr), "CreateCommandSignature failed");
+	Assert::Call(SUCCEEDED(hr), "描画用CommandSignatureの作成に失敗しました");
 }
 
 void Engine::VertexMeshDrawPath::Setup(const MeshPathSetupContext& context) {
@@ -117,7 +117,7 @@ void Engine::VertexMeshDrawPath::Draw(const MeshPathDrawContext& context) {
 	Assert::Call(
 		instanceBinding->parameterType ==
 			D3D12_ROOT_PARAMETER_TYPE_SRV,
-		"Visible mesh instance SRV must be a root descriptor");
+		"描画対象InstanceのSRVはRootDescriptorである必要があります");
 	if (instanceBinding->parameterType !=
 		D3D12_ROOT_PARAMETER_TYPE_SRV) {
 		return;

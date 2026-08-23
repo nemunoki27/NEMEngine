@@ -75,7 +75,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	// ポストプロセスマテリアル取得
 	const MaterialAsset* materialAsset = assetLibrary.LoadMaterial(desc.material);
 	if (!materialAsset) {
-		Logger::Output(LogType::Engine, "[PostProcess] material is missing.");
+		Logger::Output(LogType::Engine, "[PostProcess] Materialが見つかりません");
 		return false;
 	}
 
@@ -84,14 +84,15 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 
 	// 書き込み先と書き込み元が同じなら処理しない
 	if (sourceColor->GetResource() == destColor->GetResource()) {
-		Logger::Output(LogType::Engine, logHeader + "source and dest are same resource. In-place compute is not allowed.");
+		Logger::Output(LogType::Engine, logHeader +
+			"入力と出力が同じResourceです Computeの同一Resource書き込みは許可されません");
 		return false;
 	}
 
 	// 描画パスをマテリアルから取得
 	const MaterialPassBinding* passBinding = FindPass(*materialAsset, desc.passKind);
 	if (!passBinding || passBinding->preferredVariant != PipelineVariantKind::Compute) {
-		Logger::Output(LogType::Engine, logHeader + "compute pass is missing.");
+		Logger::Output(LogType::Engine, logHeader + "Compute Passが見つかりません");
 		return false;
 	}
 
@@ -103,7 +104,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
 		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(), nullptr, false, &samplerOverrides);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
-		Logger::Output(LogType::Engine, logHeader + "pipeline is missing or compile failed.");
+		Logger::Output(LogType::Engine, logHeader + "Pipelineがないかコンパイルに失敗しました");
 		return false;
 	}
 
@@ -111,7 +112,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	const bool requiresDepth = RequiresSourceDepth(*pipelineState);
 	// 使用するのに深度リソースがない場合
 	if (requiresDepth && !ResolveSourceDepth(context, desc, *source)) {
-		Logger::Output(LogType::Engine, logHeader + "requires gSourceDepth, but source depth is missing.");
+		Logger::Output(LogType::Engine, logHeader +
+			"gSourceDepthが必要ですが入力Depthがありません");
 		return false;
 	}
 

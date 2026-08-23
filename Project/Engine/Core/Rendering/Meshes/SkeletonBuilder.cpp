@@ -85,7 +85,7 @@ namespace {
 		}
 		if (1 < candidates.size()) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"[SkeletonBuilder] bone node fallback is ambiguous. source={} name={} count={}",
+				"[SkeletonBuilder] Bone Nodeの代替候補を一意に決定できません source={} name={} count={}",
 				sourcePath, bone->mName.C_Str(), candidates.size());
 		}
 		return candidates.front();
@@ -114,7 +114,7 @@ namespace {
 				}
 				if (!boneNode) {
 					Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-						"[SkeletonBuilder] bone node was not found. source={} name={}",
+						"[SkeletonBuilder] Bone Nodeが見つかりません source={} name={}",
 						sourcePath, bone->mName.C_Str());
 					continue;
 				}
@@ -202,7 +202,7 @@ namespace {
 				}
 			}
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"[SkeletonBuilder] duplicate node name. source={} name={} paths={}",
+				"[SkeletonBuilder] 同名Nodeを検出しました source={} name={} paths={}",
 				sourcePath, name, paths);
 		}
 	}

@@ -69,7 +69,7 @@ namespace {
 		std::error_code ec{};
 		if (!std::filesystem::exists(csproj, ec)) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"RefreshIdeProject: csproj not found: {}", csproj.string());
+				"RefreshIdeProject: csprojが見つかりません: {}", csproj.string());
 			return;
 		}
 		std::ifstream file(csproj);
@@ -91,13 +91,13 @@ namespace {
 				}
 				Engine::Logger::Output(Engine::LogType::Engine,
 					check.required ? spdlog::level::err : spdlog::level::warn,
-					"RefreshIdeProject: missing {} in {} ({})",
-					check.label, csproj.filename().string(), check.required ? "required" : "optional/future");
+					"RefreshIdeProject: {}に{}がありません 種別={}",
+					csproj.filename().string(), check.label, check.required ? "必須" : "任意または将来用");
 			}
 		}
 		if (allOk) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
-				"RefreshIdeProject: {} OK (required references present).", csproj.filename().string());
+				"RefreshIdeProject: {}の必須参照を確認しました", csproj.filename().string());
 		}
 	}
 }

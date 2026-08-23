@@ -37,11 +37,16 @@ using namespace Engine;
 
 namespace {
 
-	constexpr Engine::MaterialPassKind kMaskPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineMask;
-	constexpr Engine::MaterialPassKind kCoverageMaskPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask;
-	constexpr Engine::MaterialPassKind kDilateHorizontalPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineDilateHorizontal;
-	constexpr Engine::MaterialPassKind kDilateVerticalPassKind = Engine::MaterialPassKind::ScreenSpaceOutlineDilateVertical;
-	constexpr Engine::MaterialPassKind kCompositePassKind = Engine::MaterialPassKind::ScreenSpaceOutlineComposite;
+	constexpr Engine::MaterialPassKind kMaskPassKind =
+		Engine::MaterialPassKind::ScreenSpaceOutlineMask;
+	constexpr Engine::MaterialPassKind kCoverageMaskPassKind =
+		Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask;
+	constexpr Engine::MaterialPassKind kDilateHorizontalPassKind =
+		Engine::MaterialPassKind::ScreenSpaceOutlineDilateHorizontal;
+	constexpr Engine::MaterialPassKind kDilateVerticalPassKind =
+		Engine::MaterialPassKind::ScreenSpaceOutlineDilateVertical;
+	constexpr Engine::MaterialPassKind kCompositePassKind =
+		Engine::MaterialPassKind::ScreenSpaceOutlineComposite;
 
 	RenderTexture2D* GetColor0(MultiRenderTarget* target) {
 
@@ -121,10 +126,13 @@ void ScreenSpaceOutlineRenderer::Finalize() {
 
 void ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 	const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-	std::span<const ScreenSpaceOutlineRequest> requests, ScreenSpaceOutlineViewResources& resources) {
+	std::span<const ScreenSpaceOutlineRequest> requests, ScreenSpaceOutlineViewResources& resources,
+	std::span<const RenderPhase> phases, MultiRenderTarget* compositeTarget,
+	DepthTexture2D* depthOverride) {
 
 	if (!context.resources || !resources.IsValid() || !deps.assetLibrary || !deps.pipelineCache ||
-		!deps.dispatcher || !deps.renderBatch || !deps.backendRegistry || !deps.materialResolver) {
+		!deps.dispatcher || !deps.renderBatch || !deps.backendRegistry || !deps.materialResolver ||
+		phases.empty() || !compositeTarget) {
 		return;
 	}
 
@@ -137,11 +145,11 @@ void ScreenSpaceOutlineRenderer::Render(GraphicsCore& graphicsCore, SceneExecuti
 	styleBuffer_.Upload(styleScratch_);
 
 	ClearMask(graphicsCore, resources);
-	DrawMask(graphicsCore, context, passBuckets, deps, resources);
+	DrawMask(graphicsCore, context, passBuckets, deps, resources, phases, depthOverride);
 	if (!ExecuteDilation(graphicsCore, deps, resources, maxRadiusPixels)) {
 		return;
 	}
-	ExecuteComposite(graphicsCore, context, deps, resources);
+	ExecuteComposite(graphicsCore, context, deps, resources, compositeTarget);
 }
 
 bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
@@ -184,7 +192,7 @@ bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 
 				if (!overflowLogged_) {
 					Logger::Output(LogType::Engine, spdlog::level::warn,
-						"[ScreenSpaceOutline] style count exceeded {}. Extra requests are ignored.",
+						"[ScreenSpaceOutline] Style数が上限{}を超えたため追加要求を無視します",
 						kMaxScreenSpaceOutlineStyles);
 					overflowLogged_ = true;
 				}
@@ -256,25 +264,27 @@ void ScreenSpaceOutlineRenderer::ClearMask(
 
 void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecutionContext& context,
 	const RenderPassPhaseBuckets& passBuckets, const RenderPipelineDeps& deps,
-	ScreenSpaceOutlineViewResources& resources) {
+	ScreenSpaceOutlineViewResources& resources, std::span<const RenderPhase> phases,
+	DepthTexture2D* depthOverride) {
 
-	if (!resources.mask || !resources.projectedCoverageMask ||
-		!context.resources || !context.resources->GetSceneMain()) {
+	if (!resources.mask || !resources.projectedCoverageMask || phases.empty()) {
 		return;
 	}
 
-	DepthTexture2D* sceneDepth = context.resources->GetSceneMain()->GetDepthTexture();
-	if (!sceneDepth) {
-		return;
+	bool hasItems = false;
+	for (RenderPhase phase : phases) {
+		if (!passBuckets.Get(phase).IsEmpty()) {
+			hasItems = true;
+			break;
+		}
 	}
-
-	const RenderPassItemList& list = passBuckets.Get(RenderPhase::Opaque);
-	if (list.IsEmpty()) {
+	if (!hasItems) {
 		return;
 	}
 
 	const uint32_t prevStyleID = context.screenSpaceOutlineMaskStyleID;
 	const int32_t prevSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
+	const uint32_t prevAlphaSource = context.screenSpaceOutlineMaskAlphaSource;
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
@@ -287,12 +297,15 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 
 			const uint32_t groupStyleID = drawScratch_[groupBegin].styleID;
 			const int32_t groupSubMeshIndex = drawScratch_[groupBegin].request.subMeshIndex;
+			const ScreenSpaceOutlineAlphaSource groupAlphaSource =
+				drawScratch_[groupBegin].request.alphaSource;
 			const ScreenSpaceOutlineRegionMode groupRegion = drawScratch_[groupBegin].request.style.regionMode;
 
 			size_t groupEnd = groupBegin;
 			while (groupEnd < drawScratch_.size() &&
 				drawScratch_[groupEnd].styleID == groupStyleID &&
-				drawScratch_[groupEnd].request.subMeshIndex == groupSubMeshIndex) {
+				drawScratch_[groupEnd].request.subMeshIndex == groupSubMeshIndex &&
+				drawScratch_[groupEnd].request.alphaSource == groupAlphaSource) {
 				++groupEnd;
 			}
 
@@ -302,22 +315,28 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 				itemScratch_.clear();
 				for (size_t recordIndex = groupBegin; recordIndex < groupEnd; ++recordIndex) {
 
-					for (const RenderItem* item : list.items) {
+					for (RenderPhase phase : phases) {
 
-						// マスクパスを解決できるバックエンドだけを対象にする
-						if (!item || !RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
-							continue;
+						const RenderPassItemList& list = passBuckets.Get(phase);
+						for (const RenderItem* item : list.items) {
+
+							// マスクパスを解決できるバックエンドだけを対象にする
+							if (!item || !RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
+								continue;
+							}
+							if (!IsSameEntity(*item, drawScratch_[recordIndex].request)) {
+								continue;
+							}
+							itemScratch_.emplace_back(item);
 						}
-						if (!IsSameEntity(*item, drawScratch_[recordIndex].request)) {
-							continue;
-						}
-						itemScratch_.emplace_back(item);
 					}
 				}
 				if (!itemScratch_.empty()) {
 
 					context.screenSpaceOutlineMaskStyleID = groupStyleID;
 					context.screenSpaceOutlineMaskRestrictSubMeshIndex = groupSubMeshIndex;
+					context.screenSpaceOutlineMaskAlphaSource =
+						static_cast<uint32_t>(groupAlphaSource);
 					RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
 						binding, passKind, false, false);
 				}
@@ -330,7 +349,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	{
 		RenderPassSurfaceBinding maskBinding{};
 		maskBinding.colorSurface = resources.mask.get();
-		maskBinding.depthOverride = sceneDepth;
+		maskBinding.depthOverride = depthOverride;
 		drawGroupedMask(maskBinding, kMaskPassKind, false);
 	}
 
@@ -344,6 +363,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 
 	context.screenSpaceOutlineMaskStyleID = prevStyleID;
 	context.screenSpaceOutlineMaskRestrictSubMeshIndex = prevSubMeshIndex;
+	context.screenSpaceOutlineMaskAlphaSource = prevAlphaSource;
 }
 
 bool ScreenSpaceOutlineRenderer::ValidateDilationResources(
@@ -358,7 +378,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsCore,
 	const RenderPipelineDeps& deps, ScreenSpaceOutlineViewResources& resources, uint32_t maxRadiusPixels) {
 
 	if (!ValidateDilationResources(resources)) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation resources are invalid.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のResourceが不正です");
 		return false;
 	}
 
@@ -373,7 +393,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilation(GraphicsCore& graphicsCore,
 	if (!horizontalPass || !verticalPass ||
 		horizontalPass->preferredVariant != PipelineVariantKind::Compute ||
 		verticalPass->preferredVariant != PipelineVariantKind::Compute) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation passes are missing.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のPassがありません");
 		return false;
 	}
 
@@ -400,14 +420,14 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 	const wchar_t* label) {
 
 	if (!inputMask || !outputMask) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation pass texture is null.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のTextureがNullです");
 		return false;
 	}
 
 	const PipelineState* pipelineState = deps.pipelineCache->GetORCreate(graphicsCore.GetDXObject(),
 		*deps.assetLibrary, pipelineID, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation pipeline is missing.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のPipelineがありません");
 		return false;
 	}
 
@@ -417,12 +437,12 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 	const uint32_t width = resources.mask->GetWidth();
 	const uint32_t height = resources.mask->GetHeight();
 	if (threadGroupX == 0u || threadGroupY == 0u || width == 0u || height == 0u) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation thread group or size is zero.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のThread Groupまたは描画サイズが0です");
 		return false;
 	}
 	if (inputMask->GetSRVGPUHandle().ptr == 0 || outputMask->GetUAVGPUHandle().ptr == 0 ||
 		styleBuffer_.GetGPUHandle().ptr == 0) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation resource handle is null.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のResource HandleがNullです");
 		return false;
 	}
 
@@ -452,7 +472,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 		dilateBindCache_.Has(dilateStylesSRVSlot_) &&
 		dilateBindCache_.Has(dilateOutputUAVSlot_);
 	if (!hasAllBindings) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] dilation bindings are incomplete.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のBindingが不足しています");
 		return false;
 	}
 
@@ -478,17 +498,16 @@ bool ScreenSpaceOutlineRenderer::ExecuteDilationPass(GraphicsCore& graphicsCore,
 
 bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 	SceneExecutionContext& context, const RenderPipelineDeps& deps,
-	ScreenSpaceOutlineViewResources& resources) {
+	ScreenSpaceOutlineViewResources& resources, MultiRenderTarget* compositeTarget) {
 
-	if (!context.resources || !context.resources->GetSceneFinal()) {
+	if (!compositeTarget) {
 		return false;
 	}
 
 	RenderTexture2D* mask = GetColor0(resources.mask.get());
 	RenderTexture2D* projectedCoverageMask = GetColor0(resources.projectedCoverageMask.get());
 	RenderTexture2D* dilatedMask = GetColor0(resources.dilatedMask.get());
-	MultiRenderTarget* sceneFinal = context.resources->GetSceneFinal();
-	if (!mask || !projectedCoverageMask || !dilatedMask || !sceneFinal || sceneFinal->GetColorCount() == 0) {
+	if (!mask || !projectedCoverageMask || !dilatedMask || compositeTarget->GetColorCount() == 0) {
 		return false;
 	}
 
@@ -502,8 +521,9 @@ bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 	std::array<DXGI_FORMAT, 8> rtvFormats{};
 	rtvFormats.fill(DXGI_FORMAT_UNKNOWN);
 	uint32_t formatCount = 0;
-	for (uint32_t i = 0; i < (std::min)(sceneFinal->GetColorCount(), static_cast<uint32_t>(rtvFormats.size())); ++i) {
-		if (const RenderTexture2D* color = sceneFinal->GetColorTexture(i)) {
+	for (uint32_t i = 0; i <
+		(std::min)(compositeTarget->GetColorCount(), static_cast<uint32_t>(rtvFormats.size())); ++i) {
+		if (const RenderTexture2D* color = compositeTarget->GetColorTexture(i)) {
 			rtvFormats[formatCount++] = color->GetFormat();
 		}
 	}
@@ -512,7 +532,7 @@ bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 		*deps.assetLibrary, passBinding->pipeline, PipelineVariantKind::GraphicsVertex,
 		std::span<const DXGI_FORMAT>(rtvFormats.data(), formatCount), DXGI_FORMAT_UNKNOWN);
 	if (!pipelineState || !pipelineState->GetGraphicsPipeline(BlendMode::Normal)) {
-		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] composite pipeline is missing.");
+		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 合成Pipelineがありません");
 		return false;
 	}
 
@@ -528,8 +548,8 @@ bool ScreenSpaceOutlineRenderer::ExecuteComposite(GraphicsCore& graphicsCore,
 	mask->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	projectedCoverageMask->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	dilatedMask->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	sceneFinal->TransitionForRender(*dxCommand);
-	sceneFinal->Bind(*dxCommand);
+	compositeTarget->TransitionForRender(*dxCommand);
+	compositeTarget->Bind(*dxCommand);
 	if (context.useViewportRect) {
 		dxCommand->SetViewportAndScissor(
 			context.viewportX, context.viewportY,

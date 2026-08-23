@@ -8,6 +8,12 @@
                     "isStatic": false,
                     "shapes": [
                         {
+                            "capsuleAxis": "Y",
+                            "capsuleHeight": 2.0,
+                            "capsuleSize2D": {
+                                "x": 1.0,
+                                "y": 2.0
+                            },
                             "enabled": true,
                             "halfExtents3D": {
                                 "x": 0.5,
@@ -73,7 +79,7 @@
                             "value": "8d5d518c6b7254a87c332062c6716e69"
                         }
                     ],
-                    "order": 0,
+                    "order": 9,
                     "pivot": {
                         "x": 0.5,
                         "y": 0.5

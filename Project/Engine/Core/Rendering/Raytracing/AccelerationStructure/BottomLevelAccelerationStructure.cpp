@@ -29,9 +29,9 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 
 		const RaytracingBLASGeometryInput& source = input.geometries[index];
 		Assert::Call(source.vertexAddress != 0 && source.vertexStride != 0 &&
-			source.vertexCount != 0, "BLAS geometry requires vertices");
+			source.vertexCount != 0, "BLAS Geometryに頂点データが必要です");
 		Assert::Call(source.indexAddress != 0 && source.indexCount != 0,
-			"BLAS geometry requires indices");
+			"BLAS Geometryにインデックスデータが必要です");
 
 		// 行ベクトル行列をDXRの3x4行列へ変換
 		const Matrix4x4 matrix = Matrix4x4::Transpose(source.localMatrix);
@@ -80,7 +80,7 @@ uint64_t Engine::BottomLevelAccelerationStructure::ComputeLayoutHash(
 void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
-	Assert::Call(!input.geometries.empty(), "BLAS requires geometry");
+	Assert::Call(!input.geometries.empty(), "BLASにGeometryが必要です");
 	retiredResources_.Collect();
 
 	device_ = device;

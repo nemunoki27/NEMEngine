@@ -236,7 +236,7 @@ bool Engine::AssetDatabase::RebuildMeta() {
 		}
 	}
 	Logger::Output(LogType::Engine,
-		"[AssetDatabase] Rebuild completed. assets={} issues={} duplicates={} orphanMeta={} missingReferences={}",
+		"[AssetDatabase] 再構築が完了しました Asset数={} 問題数={} GUID重複={} 孤立Meta={} 参照欠損={}",
 		guidToMeta_.size(), issues_.size(), duplicateCount, orphanCount, missingCount);
 
 	constexpr size_t kMaxDetailLog = 16;
@@ -245,7 +245,7 @@ bool Engine::AssetDatabase::RebuildMeta() {
 
 		const AssetDatabaseIssue& issue = issues_[i];
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[AssetDatabase] issue type={} asset={} ref={} path={} detail={}",
+			"[AssetDatabase] 問題を検出しました 種別={} Asset={} 参照={} path={} 詳細={}",
 			static_cast<int>(issue.type), ToString(issue.assetID), ToString(issue.referencedAssetID),
 			issue.assetPath, issue.detail);
 	}
@@ -292,7 +292,7 @@ void Engine::AssetDatabase::ReconcileFontAtlasReferences() {
 		}
 		ofs << data.dump(2);
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"[AssetDatabase] font atlas relinked. font={} atlas={}", meta.assetPath, atlasPath);
+			"[AssetDatabase] Font Atlasを再接続しました Font={} Atlas={}", meta.assetPath, atlasPath);
 	}
 }
 
@@ -383,7 +383,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 				AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
 				"failed to parse .meta" });
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[AssetDatabase] corrupt .meta skipped: {}", assetPath);
+				"[AssetDatabase] 壊れた.metaを無視しました: {}", assetPath);
 			return {};
 		}
 
@@ -424,7 +424,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 			AssetType::Unknown, AssetType::Unknown, existing->second.assetPath, meta.assetPath,
 			"duplicate guid" });
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[AssetDatabase] duplicate guid {} : '{}' vs '{}'",
+			"[AssetDatabase] GUIDが重複しています {} : '{}' と '{}'",
 			ToString(meta.guid), existing->second.assetPath, meta.assetPath);
 		return {};
 	}
@@ -604,12 +604,12 @@ void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::
 		std::error_code ec;
 		if (std::filesystem::remove(metaPath, ec)) {
 
-			Logger::Output(LogType::Engine, "[AssetDatabase] removed orphan .meta. path={}",
+			Logger::Output(LogType::Engine, "[AssetDatabase] 孤立した.metaを削除しました path={}",
 				Algorithm::PathToUTF8(metaPath));
 		} else {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[AssetDatabase] failed to remove orphan .meta. path={}",
+				"[AssetDatabase] 孤立した.metaを削除できません path={}",
 				Algorithm::PathToUTF8(metaPath));
 		}
 	}

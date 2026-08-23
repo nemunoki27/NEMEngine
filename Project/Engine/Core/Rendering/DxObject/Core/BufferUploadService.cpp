@@ -26,7 +26,7 @@ void Engine::BufferUploadService::Init(ID3D12Device* device, ID3D12CommandQueue*
 	D3D12_COMMAND_QUEUE_DESC queueDesc{};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	HRESULT hr = device_->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&uploadQueue_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "BufferUpload用コマンドキューの作成に失敗しました");
 	uploadQueue_->SetName(L"BufferUploadQueue");
 
 	// アロケータReset待ちを避けるため複数コンテキストをリングで持つ
@@ -34,12 +34,12 @@ void Engine::BufferUploadService::Init(ID3D12Device* device, ID3D12CommandQueue*
 	for (size_t i = 0; i < contexts_.size(); ++i) {
 		UploadFrameContext& context = contexts_[i];
 		hr = device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.allocator));
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "BufferUpload用コマンドアロケータの作成に失敗しました");
 		context.allocator->SetName((L"BufferUploadCommandAllocator[" + std::to_wstring(i) + L"]").c_str());
 
 		hr = device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, context.allocator.Get(), nullptr,
 			IID_PPV_ARGS(&context.commandList));
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "BufferUpload用コマンドリストの作成に失敗しました");
 		context.commandList->SetName((L"BufferUploadCommandList[" + std::to_wstring(i) + L"]").c_str());
 
 		// 作成直後は記録状態なので、BeginBatchでResetできるよう一旦閉じる
@@ -51,11 +51,11 @@ void Engine::BufferUploadService::Init(ID3D12Device* device, ID3D12CommandQueue*
 	nextFenceValue_ = 1;
 	lastSubmittedFenceValue_ = 0;
 	hr = device_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "BufferUpload用Fenceの作成に失敗しました");
 	fence_->SetName(L"BufferUploadFence");
 
 	fenceEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	assert(fenceEvent_ != nullptr);
+	Assert::Call(fenceEvent_ != nullptr, "BufferUpload用Fenceの待機イベント作成に失敗しました");
 
 	contextIndex_ = 0;
 	currentContext_ = nullptr;
@@ -113,9 +113,9 @@ void Engine::BufferUploadService::EnsureBatchOpened() {
 	WaitForFenceValue(context.lastFenceValue);
 
 	HRESULT hr = context.allocator->Reset();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "BufferUpload用コマンドアロケータのリセットに失敗しました");
 	hr = context.commandList->Reset(context.allocator.Get(), nullptr);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "BufferUpload用コマンドリストのリセットに失敗しました");
 
 	currentContext_ = &context;
 	batchOpened_ = true;
@@ -142,7 +142,7 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 		destination->GetDesc().Width) {
 
 		Assert::Call(false,
-			"BufferUpload destination range overflow.");
+			"BufferUploadの書き込み範囲が転送先容量を超えています");
 		return;
 	}
 
@@ -154,7 +154,7 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 
 	void* mapped = nullptr;
 	HRESULT hr = staging->Map(0, nullptr, &mapped);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "BufferUpload用ステージングバッファのMapに失敗しました");
 	std::memcpy(mapped, sourceData.data(), sourceData.size_bytes());
 	staging->Unmap(0, nullptr);
 
@@ -209,7 +209,7 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 	}
 
 	HRESULT hr = currentContext_->commandList->Close();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "BufferUpload用コマンドリストを閉じられませんでした");
 
 	ID3D12CommandList* lists[] = { currentContext_->commandList.Get() };
 	uploadQueue_->ExecuteCommandLists(1, lists);
@@ -217,7 +217,7 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 	const uint64_t submittedFenceValue = nextFenceValue_++;
 	const HRESULT signalResult = uploadQueue_->Signal(fence_.Get(), submittedFenceValue);
 	if (!DxDredDiagnostics::CheckHRESULT(device_, signalResult, "BufferUploadService::SubmitBatch/Signal")) {
-		Assert::Call(false, "BufferUpload queue Signal failed.");
+		Assert::Call(false, "BufferUpload用コマンドキューのSignalに失敗しました");
 	}
 
 	lastSubmittedFenceValue_ = submittedFenceValue;
@@ -278,7 +278,7 @@ void Engine::BufferUploadService::WaitForFenceValue(uint64_t fenceValue) {
 	}
 	const HRESULT completionResult = fence_->SetEventOnCompletion(fenceValue, fenceEvent_);
 	if (!DxDredDiagnostics::CheckHRESULT(device_, completionResult, "BufferUploadService::WaitForFenceValue/SetEventOnCompletion")) {
-		Assert::Call(false, "BufferUpload fence SetEventOnCompletion failed.");
+		Assert::Call(false, "BufferUpload用Fenceの完了イベント設定に失敗しました");
 	}
 
 	while (fence_->GetCompletedValue() < fenceValue) {
@@ -297,7 +297,8 @@ void Engine::BufferUploadService::WaitForFenceValue(uint64_t fenceValue) {
 		}
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[D3D12] BufferUpload fence wait failed. WaitResult={}", static_cast<uint32_t>(waitResult));
+			"[D3D12] BufferUpload Fenceの待機に失敗しました WaitResult={}",
+			static_cast<uint32_t>(waitResult));
 		return;
 	}
 }

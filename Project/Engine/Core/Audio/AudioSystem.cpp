@@ -81,18 +81,18 @@ void Audio::Init() {
 	if (SUCCEEDED(hr)) {
 		mfStarted_ = true;
 	} else {
-		Assert::Call(false, "MFStartup failed");
+		Assert::Call(false, "Media Foundationの開始に失敗しました");
 	}
 
 	// XAudio2初期化
 	hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "XAudio2の初期化に失敗しました");
 
 	hr = xAudio2_->CreateMasteringVoice(&masteringVoice_);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "XAudio2のマスタリングボイス作成に失敗しました");
 
 	hr = xAudio2_->StartEngine();
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "XAudio2の再生エンジン開始に失敗しました");
 
 	// Sounds/配下のファイルをすべて読み込み
 	LoadAllSounds();
@@ -144,7 +144,7 @@ void Audio::LoadAllSounds() {
 
 void Audio::Load(const std::filesystem::path& filename, AudioType type) {
 
-	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before Load()");
+	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Loadより先にAudio::Initを呼び出してください");
 
 	const std::string key = Algorithm::PathToUTF8(filename.stem());
 
@@ -165,7 +165,7 @@ void Audio::Load(const std::filesystem::path& filename, AudioType type) {
 		data = LoadMp3FileWithMediaFoundation(filename);
 	} else {
 
-		Assert::Call(false, "Unsupported audio format. Use WAV or MP3.");
+		Assert::Call(false, "未対応の音声形式です。WAVまたはMP3を使用してください");
 	}
 
 	// タイプと基準音量を設定して登録
@@ -182,7 +182,7 @@ bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
 bool Audio::EnsureLoaded(const std::filesystem::path& filename, AudioType type) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
-	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before EnsureLoaded()");
+	Assert::Call(xAudio2_ && masteringVoice_, "Audio::EnsureLoadedより先にAudio::Initを呼び出してください");
 
 	const std::string key = Algorithm::PathToUTF8(filename.stem());
 	if (sounds_.find(key) != sounds_.end()) {
@@ -238,7 +238,7 @@ uint64_t Audio::PlayManaged(const std::string& name, bool loop, float volume) {
 uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
-	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Init() must be called before Play()");
+	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Playより先にAudio::Initを呼び出してください");
 
 	const std::string key = NormalizeKey(name);
 
@@ -255,8 +255,8 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 
 	HRESULT hr = xAudio2_->CreateSourceVoice(&srcVoice, sound->GetFormat(),
 		0, XAUDIO2_DEFAULT_FREQ_RATIO, nullptr, nullptr, nullptr);
-	assert(SUCCEEDED(hr));
-	assert(srcVoice);
+	Assert::Call(SUCCEEDED(hr), "XAudio2のソースボイス作成に失敗しました");
+	Assert::Call(srcVoice != nullptr, "XAudio2のソースボイスが作成されていません");
 
 	XAUDIO2_BUFFER buf{};
 	buf.pAudioData = sound->GetPCM();
@@ -270,7 +270,7 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	}
 
 	hr = srcVoice->SubmitSourceBuffer(&buf);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "XAudio2へ音声バッファを送信できませんでした");
 
 	VoiceInstance inst{};
 	inst.voice = srcVoice;
@@ -281,7 +281,7 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	ApplyVoiceVolumeLocked(key, inst);
 
 	hr = srcVoice->Start(0, XAUDIO2_COMMIT_NOW);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "XAudio2のソースボイスを開始できませんでした");
 
 	const uint64_t voiceID = inst.voiceID;
 	activeVoices_[key].push_back(inst);
@@ -599,7 +599,7 @@ void Audio::RebuildVoiceBufferLocked(const SoundData& sound, VoiceInstance& inst
 	remaining.PlayLength = sampleCount - currentSample;
 	remaining.Flags = loop ? 0 : XAUDIO2_END_OF_STREAM;
 	HRESULT result = inst.voice->SubmitSourceBuffer(&remaining);
-	assert(SUCCEEDED(result));
+	Assert::Call(SUCCEEDED(result), "XAudio2へ再開位置の音声バッファを送信できませんでした");
 
 	if (loop) {
 		XAUDIO2_BUFFER loopBuffer{};
@@ -608,13 +608,13 @@ void Audio::RebuildVoiceBufferLocked(const SoundData& sound, VoiceInstance& inst
 		loopBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 		loopBuffer.Flags = XAUDIO2_END_OF_STREAM;
 		result = inst.voice->SubmitSourceBuffer(&loopBuffer);
-		assert(SUCCEEDED(result));
+		Assert::Call(SUCCEEDED(result), "XAudio2へループ音声バッファを送信できませんでした");
 	}
 
 	inst.loop = loop;
 	if (!inst.paused) {
 		result = inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
-		assert(SUCCEEDED(result));
+		Assert::Call(SUCCEEDED(result), "XAudio2の音声再開に失敗しました");
 	}
 }
 
@@ -656,13 +656,15 @@ std::string Audio::NormalizeKey(const std::string& nameOrPath) const {
 Audio::SoundData Audio::LoadWaveFile(const std::filesystem::path& filename) {
 
 	std::ifstream file(filename, std::ios::binary);
-	assert(file.is_open());
+	Assert::Call(file.is_open(), "WAVファイルを開けません: " + Algorithm::PathToUTF8(filename));
 
 	RiffHeader riff{};
 	file.read(reinterpret_cast<char*>(&riff), sizeof(riff));
 
-	assert(std::strncmp(riff.chunk.id, "RIFF", 4) == 0);
-	assert(std::strncmp(riff.type, "WAVE", 4) == 0);
+	Assert::Call(std::strncmp(riff.chunk.id, "RIFF", 4) == 0,
+		"WAVファイルのRIFFヘッダーが不正です");
+	Assert::Call(std::strncmp(riff.type, "WAVE", 4) == 0,
+		"WAVファイルの形式識別子が不正です");
 
 	ChunkHeader ch{};
 	bool fmtFound = false;
@@ -673,7 +675,7 @@ Audio::SoundData Audio::LoadWaveFile(const std::filesystem::path& filename) {
 
 	while (file.read(reinterpret_cast<char*>(&ch), sizeof(ch))) {
 		if (std::strncmp(ch.id, "fmt ", 4) == 0) {
-			assert(ch.size >= 16);
+			Assert::Call(16 <= ch.size, "WAVファイルのfmtチャンクが短すぎます");
 
 			fmtBlob.resize(static_cast<size_t>(ch.size));
 			file.read(reinterpret_cast<char*>(fmtBlob.data()), ch.size);
@@ -691,9 +693,9 @@ Audio::SoundData Audio::LoadWaveFile(const std::filesystem::path& filename) {
 	}
 
 	file.close();
-	assert(fmtFound && dataFound);
-	assert(!fmtBlob.empty());
-	assert(!pcm.empty());
+	Assert::Call(fmtFound && dataFound, "WAVファイルにfmtまたはdataチャンクがありません");
+	Assert::Call(!fmtBlob.empty(), "WAVファイルの音声形式が空です");
+	Assert::Call(!pcm.empty(), "WAVファイルのPCMデータが空です");
 
 	SoundData sd{};
 	sd.formatBlob = std::move(fmtBlob);
@@ -703,45 +705,45 @@ Audio::SoundData Audio::LoadWaveFile(const std::filesystem::path& filename) {
 
 Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::filesystem::path& filename) {
 
-	Assert::Call(mfStarted_, "MF must be started in Audio::Init()");
+	Assert::Call(mfStarted_, "Audio::InitでMedia Foundationを開始してください");
 
 	const std::wstring wpath = filename.wstring();
-	assert(!wpath.empty());
+	Assert::Call(!wpath.empty(), "音声ファイルのパスが空です");
 
 	ComPtr<IMFSourceReader> reader;
 	HRESULT hr = MFCreateSourceReaderFromURL(wpath.c_str(), nullptr, &reader);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media Foundationの音声リーダー作成に失敗しました");
 
 	// 出力をPCMに指定
 	ComPtr<IMFMediaType> outType;
 	hr = MFCreateMediaType(&outType);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media Foundationの音声形式作成に失敗しました");
 
 	hr = outType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media Foundationへ音声の主形式を設定できませんでした");
 
 	hr = outType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media FoundationへPCM形式を設定できませんでした");
 
 	hr = outType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media Foundationへ量子化ビット数を設定できませんでした");
 
 	constexpr DWORD kAudioStream = static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM);
 
 	// SetCurrentMediaType
 	hr = reader->SetCurrentMediaType(kAudioStream, nullptr, outType.Get());
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media Foundationへ出力音声形式を設定できませんでした");
 
 	// GetCurrentMediaType
 	ComPtr<IMFMediaType> currentType;
 	hr = reader->GetCurrentMediaType(kAudioStream, &currentType);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "Media Foundationから音声形式を取得できませんでした");
 
 	WAVEFORMATEX* wfx = nullptr;
 	UINT32 wfxSize = 0;
 	hr = MFCreateWaveFormatExFromMFMediaType(currentType.Get(), &wfx, &wfxSize, MFWaveFormatExConvertFlag_Normal);
-	assert(SUCCEEDED(hr));
-	assert(wfx && wfxSize > 0);
+	Assert::Call(SUCCEEDED(hr), "Media Foundationの音声形式変換に失敗しました");
+	Assert::Call(wfx != nullptr && 0 < wfxSize, "変換後のWAVEFORMATEXが不正です");
 
 	std::vector<uint8_t> fmtBlob;
 	fmtBlob.resize(static_cast<size_t>(wfxSize));
@@ -757,15 +759,15 @@ Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::filesystem::pa
 		LONGLONG timestamp = 0;
 		ComPtr<IMFSample> sample;
 
-		hr = reader->ReadSample(
+			hr = reader->ReadSample(
 			kAudioStream,
 			0,
 			&streamIndex,
 			&flags,
 			&timestamp,
-			&sample
-		);
-		assert(SUCCEEDED(hr));
+				&sample
+			);
+		Assert::Call(SUCCEEDED(hr), "Media Foundationから音声サンプルを取得できませんでした");
 		if (flags & static_cast<DWORD>(MF_SOURCE_READERF_ENDOFSTREAM)) {
 			break;
 		}
@@ -774,13 +776,13 @@ Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::filesystem::pa
 
 		ComPtr<IMFMediaBuffer> buffer;
 		hr = sample->ConvertToContiguousBuffer(&buffer);
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "音声サンプルを連続バッファへ変換できませんでした");
 
 		BYTE* data = nullptr;
 		DWORD maxLen = 0;
 		DWORD curLen = 0;
 		hr = buffer->Lock(&data, &maxLen, &curLen);
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "Media Foundationの音声バッファをロックできませんでした");
 
 		const size_t oldSize = pcm.size();
 		pcm.resize(oldSize + curLen);
@@ -789,8 +791,8 @@ Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::filesystem::pa
 		buffer->Unlock();
 	}
 
-	assert(!fmtBlob.empty());
-	assert(!pcm.empty());
+	Assert::Call(!fmtBlob.empty(), "Media Foundationから取得した音声形式が空です");
+	Assert::Call(!pcm.empty(), "Media Foundationから取得したPCMデータが空です");
 
 	SoundData sd{};
 	sd.formatBlob = std::move(fmtBlob);

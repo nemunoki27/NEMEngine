@@ -5,6 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
@@ -20,14 +21,14 @@ void DxDevice::Create() {
 	featureLevel_ = D3D_FEATURE_LEVEL_11_0;
 
 	HRESULT hr = CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "DXGI Factoryの作成に失敗しました");
 
 	for (UINT i = 0; dxgiFactory_->EnumAdapterByGpuPreference(
 		i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&useAdapter_)) != DXGI_ERROR_NOT_FOUND; ++i) {
 
 		DXGI_ADAPTER_DESC3 adapterDesc{};
 		hr = useAdapter_->GetDesc3(&adapterDesc);
-		assert(SUCCEEDED(hr));
+		Assert::Call(SUCCEEDED(hr), "GPUアダプター情報の取得に失敗しました");
 		if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)) {
 
 			adapterName_ = WStringToString(adapterDesc.Description);
@@ -37,7 +38,7 @@ void DxDevice::Create() {
 		useAdapter_ = nullptr;
 	}
 
-	assert(useAdapter_ != nullptr);
+	Assert::Call(useAdapter_ != nullptr, "利用可能なGPUアダプターが見つかりません");
 
 	D3D_FEATURE_LEVEL featuerLevels[] = {
 		D3D_FEATURE_LEVEL_12_2,
@@ -57,7 +58,7 @@ void DxDevice::Create() {
 		}
 	}
 
-	assert(device_ != nullptr);
+	Assert::Call(device_ != nullptr, "DirectX 12デバイスの作成に失敗しました");
 }
 
 std::string DxDevice::WStringToString(const std::wstring& wstr) {

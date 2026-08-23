@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
@@ -144,7 +145,16 @@ void Engine::MeshImportService::LoadJob(MeshLoadJob&& job, [[maybe_unused]] uint
 		imported = ImportFile(job.assetID, job.fullPath);
 		succeeded = !imported.vertices.empty() && !imported.indices.empty();
 	}
+	catch (const std::exception& exception) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"Meshの非同期読み込み中に例外が発生しました path={} 内容={}",
+			Algorithm::PathToUTF8(job.fullPath), exception.what());
+		succeeded = false;
+	}
 	catch (...) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"Meshの非同期読み込み中に不明な例外が発生しました path={}",
+			Algorithm::PathToUTF8(job.fullPath));
 		succeeded = false;
 	}
 	// 結果の保存

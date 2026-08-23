@@ -38,7 +38,7 @@ namespace {
 		static std::unordered_set<std::string> warnedBindings;
 		if (warnedBindings.emplace(key).second) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"AnimationClipEvaluator: animation property not found. component={} property={} type={}",
+				"AnimationClipEvaluator: Animation Propertyが見つかりません Component={} Property={} type={}",
 				binding.componentName, binding.propertyPath, Engine::ToString(binding.valueType));
 		}
 		return std::nullopt;

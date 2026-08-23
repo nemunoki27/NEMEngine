@@ -44,7 +44,7 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 		&depthClearValue,                 // Clear最適値
 		IID_PPV_ARGS(&resource)           // 作成するResourceポインタへのポインタ
 	);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "DepthStencil用リソースの作成に失敗しました");
 }
 
 void DSVDescriptor::InitFrameBufferDSV(uint32_t width, uint32_t height) {

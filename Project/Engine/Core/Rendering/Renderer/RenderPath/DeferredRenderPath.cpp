@@ -51,20 +51,13 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.reuseSceneDepth = true
 		}));
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
-	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
-		.kind = RenderPathPassKind::PostProcessMaskedUI,
-		.phase = RenderPhase::PostProcessMaskedUI,
-		.target = QueueRenderPass::Target::SceneFinal,
-		.usePhaseExecution = false
-		}));
+	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(
+		deps_, RuntimeScreenSpaceOutlinePass::Scope::PostProcessMaskedUI));
 	fixedPasses.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<BlitToViewPass>(deps_));
-	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
-		.kind = RenderPathPassKind::ScreenUI,
-		.phase = RenderPhase::ScreenUI,
-		.target = QueueRenderPass::Target::DefaultSurface,
-		.usePhaseExecution = false
-		}));
+	// UI通常描画と描画順アウトラインは同じパスで処理する
+	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(
+		deps_, RuntimeScreenSpaceOutlinePass::Scope::ScreenUI));
 	fixedPasses.emplace_back(std::make_unique<DebugOverlayPass>());
 	fixedPasses.emplace_back(std::make_unique<EditorOverlayPass>());
 

@@ -12,8 +12,12 @@
 void DxUtils::MakeDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
 	ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC& desc) {
 
+	if (!device) {
+		Engine::Assert::Call(false, "DescriptorHeap作成にDirectX 12デバイスが必要です");
+		return;
+	}
 	HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap));
-	assert(SUCCEEDED(hr));
+	Engine::Assert::Call(SUCCEEDED(hr), "DescriptorHeapの作成に失敗しました");
 }
 
 D3D12_RESOURCE_DESC DxUtils::MakeBufferResourceDesc(size_t sizeInBytes, D3D12_RESOURCE_FLAGS flags) {
@@ -35,6 +39,11 @@ D3D12_RESOURCE_DESC DxUtils::MakeBufferResourceDesc(size_t sizeInBytes, D3D12_RE
 
 void DxUtils::CreateUploadBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes) {
 
+	if (!device || sizeInBytes == 0) {
+		Engine::Assert::Call(false, "UploadBuffer作成にはDeviceと1Byte以上のサイズが必要です");
+		return;
+	}
+
 	// CPUから書き込むためUPLOAD heapに配置し、永続Mapを前提にGENERIC_READで作る
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
 	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -45,11 +54,16 @@ void DxUtils::CreateUploadBufferResource(ID3D12Device* device, ComPtr<ID3D12Reso
 		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&resource));
 	Engine::DxDredDiagnostics::CheckHRESULT(
 		device, hr, "DxUtils::CreateUploadBufferResource/CreateCommittedResource");
-	assert(SUCCEEDED(hr));
+	Engine::Assert::Call(SUCCEEDED(hr), "UploadBufferの作成に失敗しました");
 }
 
 void DxUtils::CreateDefaultBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes,
 	[[maybe_unused]] D3D12_RESOURCE_STATES initialState, D3D12_RESOURCE_FLAGS flags) {
+
+	if (!device || sizeInBytes == 0) {
+		Engine::Assert::Call(false, "DefaultBuffer作成にはDeviceと1Byte以上のサイズが必要です");
+		return;
+	}
 
 	// GPU専用のDEFAULT heap
 	// D3D12 bufferはCreateCommittedResourceのInitialStateにCOPY_DEST等を指定してもCOMMONとして扱われる
@@ -61,7 +75,7 @@ void DxUtils::CreateDefaultBufferResource(ID3D12Device* device, ComPtr<ID3D12Res
 	HRESULT hr = device->CreateCommittedResource(
 		&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
-	assert(SUCCEEDED(hr));
+	Engine::Assert::Call(SUCCEEDED(hr), "DefaultBufferの作成に失敗しました");
 }
 
 void DxUtils::CreateBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes) {
@@ -70,6 +84,11 @@ void DxUtils::CreateBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>&
 }
 
 void DxUtils::CreateUavBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes) {
+
+	if (!device || sizeInBytes == 0) {
+		Engine::Assert::Call(false, "UAV Buffer作成にはDeviceと1Byte以上のサイズが必要です");
+		return;
+	}
 
 	HRESULT hr;
 
@@ -87,10 +106,15 @@ void DxUtils::CreateUavBufferResource(ID3D12Device* device, ComPtr<ID3D12Resourc
 	vertexResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	hr = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc,
 		D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
-	assert(SUCCEEDED(hr));
+	Engine::Assert::Call(SUCCEEDED(hr), "UAV対応Bufferの作成に失敗しました");
 }
 
 void DxUtils::CreateReadbackBufferResource(ID3D12Device* device, ComPtr<ID3D12Resource>& resource, size_t sizeInBytes) {
+
+	if (!device || sizeInBytes == 0) {
+		Engine::Assert::Call(false, "ReadbackBuffer作成にはDeviceと1Byte以上のサイズが必要です");
+		return;
+	}
 
 	HRESULT hr;
 
@@ -114,15 +138,19 @@ void DxUtils::CreateReadbackBufferResource(ID3D12Device* device, ComPtr<ID3D12Re
 	hr = device->CreateCommittedResource(
 		&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource));
-	assert(SUCCEEDED(hr));
+	Engine::Assert::Call(SUCCEEDED(hr), "ReadbackBufferの作成に失敗しました");
 }
 
 bool DxUtils::CanAllocateIndex(uint32_t useIndex, uint32_t kMaxCount) {
-	// FALSE: Assert::Call
+
 	return useIndex < kMaxCount;
 }
 
 UINT DxUtils::RoundUp(UINT round, UINT thread) {
 
+	if (thread == 0) {
+		Engine::Assert::Call(false, "切り上げ除算の除数に0は指定できません");
+		return 0;
+	}
 	return (round + thread - 1) / thread;
 }

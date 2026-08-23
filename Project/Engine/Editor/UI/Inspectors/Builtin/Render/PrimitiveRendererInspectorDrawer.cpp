@@ -241,17 +241,24 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 
 	// ID順のランタイムレイアウトとは分離し、標準PBRの編集順で表示する
 	std::vector<const ShaderConstantBufferVariable*> scalarVariables;
+	std::vector<const ShaderConstantBufferVariable*> textureVariables;
 	for (const ShaderConstantBufferVariable& var : layout.GetVariables()) {
 
 		if (!var.used ||
-			MaterialParameterEditor::IsInternalPaddingParameter(var) ||
-			MaterialParameterEditor::IsReflectedTextureParam(var)) {
+			MaterialParameterEditor::IsInternalPaddingParameter(var)) {
 			continue;
 		}
-		scalarVariables.emplace_back(&var);
+		if (MaterialParameterEditor::IsReflectedTextureParam(
+			var, *reflection)) {
+			textureVariables.emplace_back(&var);
+		} else {
+			scalarVariables.emplace_back(&var);
+		}
 	}
 	MaterialParameterEditor::SortScalarParametersForDisplay(
 		scalarVariables);
+	MaterialParameterEditor::SortTextureParametersForDisplay(
+		textureVariables);
 
 	for (const ShaderConstantBufferVariable* var : scalarVariables) {
 
@@ -269,55 +276,99 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			});
 	}
 
-	// space2のテクスチャSRVをレンダラー個別の上書きとして下にまとめて出す、表示順を整える
-	std::vector<const ShaderResourceBinding*> textures;
-	for (const ShaderResourceBinding& resource : reflection->resources) {
+	const auto drawTexture = [&](MaterialParameterID parameterID,
+		MaterialParameterSemantic semantic, std::string_view displayName,
+		AssetID textureID) {
 
-		if (resource.kind == ShaderBindingKind::SRV && resource.space == 2 &&
-			resource.rawType == D3D_SIT_TEXTURE) {
-			textures.push_back(&resource);
-		}
-	}
-	std::stable_sort(textures.begin(), textures.end(),
-		[](const ShaderResourceBinding* lhs, const ShaderResourceBinding* rhs) {
-			return MaterialParameterEditor::GetTextureDisplayRank(lhs->name) <
-				MaterialParameterEditor::GetTextureDisplayRank(rhs->name);
-		});
-
-	for (const ShaderResourceBinding* resource : textures) {
-
-		AssetID textureID{};
-		const MaterialParameterID parameterID =
-			MaterialParameterID::FromName(resource->name);
-		const MaterialParameterSemantic semantic =
-			ResolveMaterialParameterSemantic(resource->name);
-		const MaterialParameterValue* parameter =
-			draft.materialInstance.Find(parameterID);
-		if (!parameter && semantic != MaterialParameterSemantic::None) {
-			parameter = draft.materialInstance.Find(semantic);
-		}
-		if (!parameter) {
-			parameter = cachedMaterial_.parameters.Find(parameterID);
-		}
-		if (!parameter && semantic != MaterialParameterSemantic::None) {
-			parameter = cachedMaterial_.parameters.Find(semantic);
-		}
-		if (parameter && std::holds_alternative<AssetID>(parameter->value)) {
-			textureID = std::get<AssetID>(parameter->value);
-		}
 		DrawField(anyItemActive, [&]() {
 
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
-			auto result = MyGUI::AssetReferenceField(resource->name.c_str(), textureID,
-				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
+			ValueEditResult result = MyGUI::AssetReferenceField(
+				displayName.data(), textureID,
+				context.editorContext->assetDatabase,
+				{ AssetType::Texture }, setting);
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;
-				draft.materialInstance.Set(parameterID,
-					resource->name, semantic, value);
+				draft.materialInstance.Set(
+					parameterID, displayName, semantic, value);
 			}
 			return result;
 			});
+		};
+
+	for (const ShaderConstantBufferVariable* variable : textureVariables) {
+		AssetID textureID{};
+		const MaterialParameterValue value =
+			ResolveParamValue(draft, *variable);
+		if (const AssetID* resolved =
+			std::get_if<AssetID>(&value.value)) {
+			textureID = *resolved;
+		}
+		drawTexture(variable->parameterID, variable->semantic,
+			variable->name, textureID);
+	}
+
+	// space2のテクスチャSRVをレンダラー個別の上書きとして下にまとめて出す、表示順を整える
+	std::vector<const ShaderResourceBinding*> textures;
+	for (const ShaderResourceBinding& resource : reflection->resources) {
+
+		if (!MaterialParameterEditor::IsMaterialTextureResource(resource)) {
+			continue;
+		}
+		if (const ShaderConstantBufferVariable* variable =
+			MaterialParameterEditor::FindReflectedTextureParameter(
+				resource, *reflection)) {
+			if (MaterialParameterEditor::IsReflectedTextureParam(
+				*variable, *reflection)) {
+				continue;
+			}
+		}
+		textures.push_back(&resource);
+	}
+	std::stable_sort(textures.begin(), textures.end(),
+		[](const ShaderResourceBinding* lhs, const ShaderResourceBinding* rhs) {
+			return MaterialParameterEditor::GetTextureDisplayRank(
+				lhs->semantic, lhs->name) <
+				MaterialParameterEditor::GetTextureDisplayRank(
+					rhs->semantic, rhs->name);
+		});
+
+	for (const ShaderResourceBinding* resource : textures) {
+
+		const MaterialParameterID parameterID =
+			MaterialParameterEditor::GetReflectedTextureParameterID(
+				*resource, *reflection);
+		const MaterialParameterSemantic semantic =
+			MaterialParameterEditor::GetReflectedTextureSemantic(
+				*resource, *reflection);
+		const std::string_view displayName =
+			MaterialParameterEditor::GetReflectedTextureDisplayName(
+				*resource, *reflection);
+		const auto resolveTexture = [parameterID, semantic, displayName](
+			const MaterialParameterSet& parameters) -> AssetID {
+
+			const MaterialParameterValue* parameter =
+				parameters.Find(parameterID);
+			if (!parameter && semantic != MaterialParameterSemantic::None) {
+				parameter = parameters.Find(semantic);
+			}
+			if (!parameter) {
+				parameter = parameters.FindByName(displayName);
+			}
+			if (parameter) {
+				if (const AssetID* textureID =
+					std::get_if<AssetID>(&parameter->value)) {
+					return *textureID;
+				}
+			}
+			return AssetID{};
+			};
+		AssetID textureID = resolveTexture(draft.materialInstance);
+		if (!textureID) {
+			textureID = resolveTexture(cachedMaterial_.parameters);
+		}
+		drawTexture(parameterID, semantic, displayName, textureID);
 	}
 }

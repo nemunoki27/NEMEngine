@@ -210,7 +210,7 @@ void RenderPipelineRunner::Init() {
 
 void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase) {
 
-	Logger::Output(LogType::Engine, "[RuntimePreload] Start");
+	Logger::Output(LogType::Engine, "[実行時事前読み込み] 開始");
 	renderAssetLibrary_.Init(&assetDatabase);
 	postProcessAssetGenerator_.EnsureBuiltinAssets(&assetDatabase);
 
@@ -471,7 +471,7 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 	}
 
 	Logger::Output(LogType::Engine,
-		"[RuntimePreload] Assets={} Textures={} Meshes={} Materials={} Pipelines={}",
+		"[実行時事前読み込み] アセット={} テクスチャ={} メッシュ={} マテリアル={} パイプライン={}",
 		assets.size(),
 		static_cast<size_t>(std::count_if(assets.begin(), assets.end(), [](const AssetMeta* meta) {
 			return meta->type == AssetType::Texture;
@@ -1323,7 +1323,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	if (!resources.IsValid()) {
 
 		Logger::Output(LogType::Engine,
-			"RenderPathResources creation failed: view={} size={}x{}",
+			"RenderPathResourcesの作成に失敗しました view={} size={}x{}",
 			EnumAdapter<RenderViewKind>::ToStringView(kind), view.width, view.height);
 		context.sceneInstance = nullptr;
 		return context;

@@ -94,22 +94,22 @@ namespace {
 	const char* StateName(Engine::ManagedScriptBuildService::State state) {
 		using State = Engine::ManagedScriptBuildService::State;
 		switch (state) {
-		case State::Idle: return "Idle";
-		case State::Debouncing: return "Debouncing";
-		case State::MetadataSyncing: return "MetadataSyncing";
-		case State::Building: return "Building";
-		case State::BuildSucceeded: return "BuildSucceeded";
-		case State::BuildFailed: return "BuildFailed";
-		case State::Staging: return "Staging";
-		case State::ReloadPending: return "ReloadPending";
-		case State::Reloading: return "Reloading";
-		case State::ReloadSucceeded: return "ReloadSucceeded";
-		case State::ReloadFailed: return "ReloadFailed";
-		case State::FallbackLoading: return "FallbackLoading";
-		case State::FallbackSucceeded: return "FallbackSucceeded";
-		case State::FallbackFailed: return "FallbackFailed";
+		case State::Idle: return "待機";
+		case State::Debouncing: return "変更待機";
+		case State::MetadataSyncing: return "Metadata同期中";
+		case State::Building: return "ビルド中";
+		case State::BuildSucceeded: return "ビルド成功";
+		case State::BuildFailed: return "ビルド失敗";
+		case State::Staging: return "Staging中";
+		case State::ReloadPending: return "再読み込み待機";
+		case State::Reloading: return "再読み込み中";
+		case State::ReloadSucceeded: return "再読み込み成功";
+		case State::ReloadFailed: return "再読み込み失敗";
+		case State::FallbackLoading: return "Fallback読み込み中";
+		case State::FallbackSucceeded: return "Fallback成功";
+		case State::FallbackFailed: return "Fallback失敗";
 		}
-		return "Unknown";
+		return "不明";
 	}
 
 	double DurationMs(std::chrono::steady_clock::time_point begin, std::chrono::steady_clock::time_point end) {
@@ -190,7 +190,7 @@ void Engine::ManagedScriptBuildService::Tick(bool playing) {
 		if (dirty_ && !playDirtyNotified_) {
 
 			Logger::Output(LogType::GameLogic, spdlog::level::info,
-				"GameScripts: C# changes detected during Play. They will be rebuilt/reloaded after Stop.");
+				"GameScripts: Play中のC#変更を検出しました Stop後にビルドと再読み込みを行います");
 			playDirtyNotified_ = true;
 		}
 	} else {
@@ -393,7 +393,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
 			// 同期ツールの出力つまり採番やリネームや曖昧診断をエディタコンソールへ転送する、警告/エラーは色分けされる
-			Logger::Output(LogType::GameLogic, DiagnosticLogLevel(line), "[ScriptMetaSync] {}", line);
+			Logger::Output(LogType::GameLogic, DiagnosticLogLevel(line), "[スクリプトメタ同期] {}", line);
 			// 取り込み点で構造化診断ストアへ入れコンソール文字列は再解析しない
 			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildID, diagnostics_.reloadID,
 				ManagedBuildProcessKind::MetadataSync, line);
@@ -413,10 +413,10 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 			} else {
 				// exit 2は手動解決が必要な曖昧リネームでexit 1は失敗、いずれも現行DLLを維持して保留する
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"ManagedScriptBuildService: script metadata sync failed/held. exitCode={} "
-					"(keeping the currently loaded assembly). first='{}' last='{}'. See gameLogic.log.",
-					exitCode, firstErrorLine_.empty() ? "(none)" : firstErrorLine_,
-					lastErrorLine_.empty() ? "(none)" : lastErrorLine_);
+					"ManagedScriptBuildService: Script Metadata同期に失敗したため現在のAssemblyを維持します "
+					"終了Code={} 最初='{}' 最後='{}' 詳細はgameLogic.logを確認してください",
+					exitCode, firstErrorLine_.empty() ? "なし" : firstErrorLine_,
+					lastErrorLine_.empty() ? "なし" : lastErrorLine_);
 				if (currentForPlay_) {
 					playBuildResult_ = PlayBuildResult::Failed;
 				}
@@ -430,7 +430,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	{
 		const bool finished = process_.Poll([this](const std::string& line) {
 			// ビルド出力をエディタコンソールつまりGameLogicログへ逐次転送する、警告は黄エラーは赤で色分けされる
-			Logger::Output(LogType::GameLogic, DiagnosticLogLevel(line), "[GameScripts build] {}", line);
+			Logger::Output(LogType::GameLogic, DiagnosticLogLevel(line), "[ゲームスクリプトビルド] {}", line);
 			// 取り込み点で構造化診断ストアへ入れMSBuildやCSCのエラーと警告を解析する
 			ManagedBuildDiagnosticStore::GetInstance().Ingest(diagnostics_.buildID, diagnostics_.reloadID,
 				ManagedBuildProcessKind::Build, line);
@@ -506,7 +506,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	if (dirError) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: failed to create staging directory. path={} error={}",
+			"ManagedScriptBuildService: Staging Directoryの作成に失敗しました path={} 内容={}",
 			ToUtf8Path(currentStagingDir_), dirError.message());
 		if (forPlay) {
 			playBuildResult_ = PlayBuildResult::Failed;
@@ -547,7 +547,8 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	if (syncToolDll.empty()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: script metadata sync tool not found ({} | {}). Skipping sync; relying on existing .cs.meta.",
+			"ManagedScriptBuildService: Script Metadata同期Toolが見つからないため既存.cs.metaを使用します "
+			"候補={} | {}",
 			ToUtf8Path(syncToolCandidates[0]), ToUtf8Path(syncToolCandidates[1]));
 		return StartGameScriptsBuild();
 	}
@@ -556,16 +557,16 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		L"dotnet \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() + L"\" --mode EditorSync";
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptBuildService: build start. buildID={} forPlay={} staging={}",
+		"ManagedScriptBuildService: ビルドを開始します BuildID={} Play用={} Staging={}",
 		diagnostics_.buildID, forPlay, ToUtf8Path(currentStagingDir_));
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptBuildService: metadata sync. cmd={}", Algorithm::ConvertString(syncCommand));
+		"ManagedScriptBuildService: Metadataを同期します command={}", Algorithm::ConvertString(syncCommand));
 
 	if (!process_.Start(syncCommand, lastBuildWorkingDir_)) {
 
 		// 同期を起動できないときは既存.cs.metaを前提にそのままビルドへ進む
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: failed to start metadata sync process. Proceeding to build with existing .cs.meta.");
+			"ManagedScriptBuildService: Metadata同期Processを開始できないため既存.cs.metaでビルドします");
 		return StartGameScriptsBuild();
 	}
 
@@ -578,13 +579,13 @@ bool Engine::ManagedScriptBuildService::StartGameScriptsBuild() {
 	lastBuildCommandUtf8_ = Algorithm::ConvertString(pendingBuildCommand_);
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptBuildService: build command. cwd={} cmd={}",
+		"ManagedScriptBuildService: ビルドCommandを実行します cwd={} command={}",
 		ToUtf8Path(lastBuildWorkingDir_), lastBuildCommandUtf8_);
 
 	if (!process_.Start(pendingBuildCommand_, lastBuildWorkingDir_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: failed to start dotnet build process. cmd={}", lastBuildCommandUtf8_);
+			"ManagedScriptBuildService: dotnet build Processを開始できません command={}", lastBuildCommandUtf8_);
 		if (currentForPlay_) {
 			playBuildResult_ = PlayBuildResult::Failed;
 		}
@@ -638,7 +639,7 @@ bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 
 		ok = false;
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: prerequisite missing (analyzer). path={} profile={}",
+			"ManagedScriptBuildService: 必須Analyzerがありません path={} profile={}",
 			ToUtf8Path(codeGenDll), profile);
 	}
 
@@ -653,7 +654,7 @@ bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 
 		ok = false;
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: prerequisite missing (ScriptCore). searched={} | {} profile={}",
+			"ManagedScriptBuildService: 必須ScriptCoreがありません 探索先={} | {} profile={}",
 			ToUtf8Path(scriptCoreCandidates[0]), ToUtf8Path(scriptCoreCandidates[1]), profile);
 	}
 
@@ -661,10 +662,10 @@ bool Engine::ManagedScriptBuildService::VerifyBuildPrerequisites() const {
 
 		// --no-dependenciesビルドは前提を作り直さないため明確な復旧手順を出す
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: cannot run the GameScripts staging build because prerequisites are missing. "
-			"Rebuild Sandbox (or the Editor) for profile '{}' so NEM.ScriptCore / NEM.ScriptCodeGen are produced. "
-			"The staging build uses --no-dependencies and will not generate prerequisites at runtime. "
-			"ScriptCore is also already loaded by the Editor and must not be overwritten while running.", profile);
+			"ManagedScriptBuildService: 必須成果物がないためGameScriptsのStaging Buildを実行できません "
+			"NEM.ScriptCoreとNEM.ScriptCodeGenを生成するためprofile '{}'でSandboxまたはEditorを再ビルドしてください "
+			"Staging Buildは--no-dependenciesを使用するためRuntimeでは必須成果物を生成しません "
+			"Editorが読み込み中のScriptCoreも上書きできません", profile);
 	}
 	return ok;
 }
@@ -679,20 +680,20 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 
 		// ビルド失敗時は正常DLLを解放せず維持する、全文はgameLogic.logでengine.logには要約を残す
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: build failed. exitCode={} buildID={} (keeping the currently loaded assembly).",
+			"ManagedScriptBuildService: ビルドに失敗したため現在のAssemblyを維持します 終了Code={} BuildID={}",
 			diagnostics_.buildExitCode, diagnostics_.buildID);
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"  cwd={}", ToUtf8Path(lastBuildWorkingDir_));
+			"  作業Directory={}", ToUtf8Path(lastBuildWorkingDir_));
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"  cmd={}", lastBuildCommandUtf8_);
+			"  実行Command={}", lastBuildCommandUtf8_);
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"  staging={}", ToUtf8Path(currentStagingDir_));
+			"  Staging先={}", ToUtf8Path(currentStagingDir_));
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"  first error: {}", firstErrorLine_.empty() ? "(none captured)" : firstErrorLine_);
+			"  最初のError={}", firstErrorLine_.empty() ? "取得なし" : firstErrorLine_);
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"  last error: {}", lastErrorLine_.empty() ? "(none captured)" : lastErrorLine_);
+			"  最後のError={}", lastErrorLine_.empty() ? "取得なし" : lastErrorLine_);
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"  full build output is in gameLogic.log.");
+			"  ビルド出力全体はgameLogic.logにあります");
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;
@@ -703,7 +704,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	if (!diagnostics_.artifactValid) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: staged artifact validation failed (keeping the currently loaded assembly).");
+			"ManagedScriptBuildService: Staging成果物の検証に失敗したため現在のAssemblyを維持します");
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;
@@ -720,8 +721,8 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	if (!diagnostics_.manifestValid) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: script manifest generation/validation failed (status={}). "
-			"keeping the currently loaded assembly.", static_cast<int32_t>(manifestStatus));
+			"ManagedScriptBuildService: Script Manifestの生成または検証に失敗したため現在のAssemblyを維持します "
+			"状態={}", static_cast<int32_t>(manifestStatus));
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;
@@ -739,7 +740,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	if (!CopyArtifacts(currentStagingDir_, currentShadowDir_) || !ValidateArtifacts(currentShadowDir_)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: failed to create shadow copy (keeping the currently loaded assembly).");
+			"ManagedScriptBuildService: Shadow Copy作成に失敗したため現在のAssemblyを維持します");
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;
@@ -750,7 +751,7 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 	if (!std::filesystem::exists(currentShadowDir_ / kManifestFileName, shadowManifestExists) || shadowManifestExists) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: script manifest is missing in the shadow copy (keeping the currently loaded assembly).");
+			"ManagedScriptBuildService: Shadow CopyにScript Manifestがないため現在のAssemblyを維持します");
 		SetState(State::BuildFailed);
 		FinishCycle(false);
 		return;
@@ -789,8 +790,8 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 		PruneDirectories(ShadowRoot());
 
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptBuildService: reload succeeded. buildID={} reloadID={} changed={} "
-			"buildMs={:.1f} manifestMs={:.1f} shadowMs={:.1f} loadMs={:.1f} types={} fallback={}",
+			"ManagedScriptBuildService: 再読み込みに成功しました BuildID={} ReloadID={} 変更数={} "
+			"Build時間={:.1f}ms Manifest時間={:.1f}ms Shadow時間={:.1f}ms Load時間={:.1f}ms 型数={} Fallback={}",
 			diagnostics_.buildID, diagnostics_.reloadID, diagnostics_.changedSourceCount,
 			diagnostics_.buildMs, diagnostics_.manifestMs, diagnostics_.shadowCopyMs, diagnostics_.loadMs,
 			diagnostics_.scriptTypeCount, diagnostics_.fallbackUsed);
@@ -802,7 +803,7 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 	// リロード失敗、最後の正常版から復旧を試みる
 	SetState(State::ReloadFailed);
 	Logger::Output(LogType::Engine, spdlog::level::err,
-		"ManagedScriptBuildService: reload failed. buildID={} reloadID={}. attempting fallback to last-known-good.",
+		"ManagedScriptBuildService: 再読み込みに失敗したためLastKnownGoodへ戻します BuildID={} ReloadID={}",
 		diagnostics_.buildID, diagnostics_.reloadID);
 	ApplyFallback();
 }
@@ -819,7 +820,7 @@ void Engine::ManagedScriptBuildService::ApplyFallback() {
 
 		SetState(State::FallbackSucceeded);
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: recovered using last-known-good assembly. path={}",
+			"ManagedScriptBuildService: LastKnownGood Assemblyで復旧しました path={}",
 			ToUtf8Path(lastKnownGoodDll));
 		// Editは復旧したが最新ビルドのリロードには失敗しているためPlay成功とはしない
 		FinishCycle(false);
@@ -828,7 +829,7 @@ void Engine::ManagedScriptBuildService::ApplyFallback() {
 
 	SetState(State::FallbackFailed);
 	Logger::Output(LogType::Engine, spdlog::level::err,
-		"ManagedScriptBuildService: fallback to last-known-good also failed. managed scripts are unavailable until fixed.");
+		"ManagedScriptBuildService: LastKnownGoodへの復旧にも失敗したため修正までManaged Scriptを利用できません");
 	FinishCycle(false);
 }
 
@@ -861,7 +862,7 @@ bool Engine::ManagedScriptBuildService::ValidateArtifacts(const std::filesystem:
 		std::error_code optionalError{};
 		if (!std::filesystem::exists(artifact, optionalError) || optionalError) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ManagedScriptBuildService: optional artifact is missing. path={}", ToUtf8Path(artifact));
+				"ManagedScriptBuildService: 任意成果物がありません path={}", ToUtf8Path(artifact));
 		}
 	}
 	return true;
@@ -877,7 +878,7 @@ bool Engine::ManagedScriptBuildService::CopyArtifacts(const std::filesystem::pat
 		copyError);
 	if (copyError) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptBuildService: artifact copy failed. from={} to={} error={}",
+			"ManagedScriptBuildService: 成果物のCopyに失敗しました source={} destination={} 内容={}",
 			ToUtf8Path(from), ToUtf8Path(to), copyError.message());
 		return false;
 	}
@@ -900,7 +901,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 		std::filesystem::remove_all(incoming, ec);
 		lastKnownGoodUpdateFailed_ = true;
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: failed to copy shadow into incoming LKG (reload succeeded, previous LKG kept).");
+			"ManagedScriptBuildService: Shadowを新しいLKGへCopyできないため以前のLKGを維持します");
 		return;
 	}
 
@@ -909,7 +910,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 		std::filesystem::remove_all(incoming, ec);
 		lastKnownGoodUpdateFailed_ = true;
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: incoming LKG failed validation (previous LKG kept).");
+			"ManagedScriptBuildService: 新しいLKGの検証に失敗したため以前のLKGを維持します");
 		return;
 	}
 
@@ -922,7 +923,8 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 			std::filesystem::remove_all(incoming, ec);
 			lastKnownGoodUpdateFailed_ = true;
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ManagedScriptBuildService: failed to back up existing LKG ({}). previous LKG kept.", ec.message());
+				"ManagedScriptBuildService: 既存LKGのBackupに失敗したため以前のLKGを維持します 内容={}",
+				ec.message());
 			return;
 		}
 	}
@@ -937,7 +939,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 		std::filesystem::remove_all(incoming, rollbackEc);
 		lastKnownGoodUpdateFailed_ = true;
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptBuildService: failed to install new LKG ({}). rolled back to previous LKG.", ec.message());
+			"ManagedScriptBuildService: 新しいLKGの導入に失敗したため以前のLKGへ戻しました 内容={}", ec.message());
 		return;
 	}
 
@@ -947,7 +949,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 		std::filesystem::remove_all(backup, ec);
 		if (ec) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ManagedScriptBuildService: failed to remove LKG backup ({}).", ec.message());
+				"ManagedScriptBuildService: LKG Backupを削除できません 内容={}", ec.message());
 		}
 	}
 }
@@ -1034,7 +1036,7 @@ void Engine::ManagedScriptBuildService::PruneDirectories(const std::filesystem::
 		if (removeError) {
 			// 掃除失敗は警告のみでリロード本体は失敗させない
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ManagedScriptBuildService: failed to prune old directory. path={}", ToUtf8Path(directories[i]));
+				"ManagedScriptBuildService: 古いDirectoryを削除できません path={}", ToUtf8Path(directories[i]));
 		}
 	}
 }
@@ -1045,7 +1047,7 @@ void Engine::ManagedScriptBuildService::SetState(State next) {
 		return;
 	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptBuildService: state {} -> {}", StateName(state_), StateName(next));
+		"ManagedScriptBuildService: 状態 {} -> {}", StateName(state_), StateName(next));
 	state_ = next;
 
 	// 失敗系へ遷移したらスナップショット用の失敗要約を構造化状態として記録する、ログ再解析しない

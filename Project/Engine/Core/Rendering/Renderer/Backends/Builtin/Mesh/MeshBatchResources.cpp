@@ -403,6 +403,7 @@ void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& dr
 		ScreenSpaceOutlineMaskConstants params{};
 		params.styleID = drawContext.screenSpaceOutlineMaskStyleID;
 		params.restrictSubMeshIndex = drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
+		params.alphaSource = drawContext.screenSpaceOutlineMaskAlphaSource;
 		screenSpaceOutlineMaskGPUAddress_ =
 			dynamicConstantAllocator_.AllocateAndUpload(
 				device_, params).gpuAddress;

@@ -108,7 +108,7 @@ void Engine::EngineApplication::InitFirstScene() {
 
 	if (!activeScene_) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: active scene is not configured");
+			"EngineApplication: アクティブシーンが設定されていません");
 		return;
 	}
 	// アクティブなシーンの表示・保存用パスはGUIDから引き直す
@@ -119,7 +119,7 @@ void Engine::EngineApplication::InitFirstScene() {
 	if (!editScenes_.LoadSceneTree(
 		assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: active scene could not be loaded. guid={}",
+			"EngineApplication: アクティブシーンを読み込めません GUID={}",
 			ToString(activeScene_));
 	}
 }
@@ -142,7 +142,7 @@ void Engine::EngineApplication::LoadActiveSceneConfig() {
 			assetDataBase_.ResolveFullPath(sceneAsset);
 		if (!sceneAsset || fullPath.empty() || !std::filesystem::exists(fullPath)) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: scene config points missing scene. config={}",
+				"EngineApplication: 設定が存在しないシーンを参照しています config={}",
 				Algorithm::PathToUTF8(configPath));
 			return;
 		}
@@ -252,7 +252,7 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 	return;
 #else
 	const auto startTime = std::chrono::steady_clock::now();
-	Logger::Output(LogType::Engine, "[RuntimePreload] Release startup preload begin");
+	Logger::Output(LogType::Engine, "[RuntimePreload] Release起動時の事前読み込みを開始します");
 
 	// ファイル単位で列挙できる描画アセットとPSOを先に作成する
 	renderPipeline_->PreloadRuntimeAssets(graphicsCore, assetDataBase_);
@@ -302,14 +302,14 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 			continue;
 		}
 		const AssetMeta* sceneMeta = assetDataBase_.Find(sceneAsset);
-		Logger::Output(LogType::Engine, "[RuntimePreload] Scene warmup begin. path={}",
+		Logger::Output(LogType::Engine, "[RuntimePreload] シーンのWarmupを開始します path={}",
 			sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
 		ECSWorld warmupWorld{};
 		SceneInstanceManager warmupScenes{};
 		if (!warmupScenes.LoadSceneTree(assetDataBase_, sceneSystem_, warmupWorld, sceneAsset)) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[RuntimePreload] Scene load failed. guid={}", ToString(sceneAsset));
+				"[RuntimePreload] シーンの読み込みに失敗しました GUID={}", ToString(sceneAsset));
 			continue;
 		}
 
@@ -336,7 +336,7 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 		TransformSystem transformSystem{};
 		transformSystem.LateUpdate(warmupWorld, warmupContext);
 		WarmupReleaseWorld(graphicsCore, warmupWorld, warmupScenes, warmupContext);
-		Logger::Output(LogType::Engine, "[RuntimePreload] Scene warmup completed. path={}",
+		Logger::Output(LogType::Engine, "[RuntimePreload] シーンのWarmupが完了しました path={}",
 			sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
 	}
 
@@ -351,9 +351,9 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 	systemContext_.unscaledDeltaTime = 0.0f;
 	RefreshActiveWorldContext();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
-		Logger::Output(LogType::Engine, "[RuntimePreload] Startup scene warmup begin");
+		Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupを開始します");
 		WarmupReleaseWorld(graphicsCore, *playWorld, playScenes_, systemContext_);
-		Logger::Output(LogType::Engine, "[RuntimePreload] Startup scene warmup completed");
+		Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupが完了しました");
 	}
 
 	graphicsCore.GetTextureUploadService().WaitAll();
@@ -365,7 +365,7 @@ void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCo
 	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::steady_clock::now() - startTime).count();
 	Logger::Output(LogType::Engine,
-		"[RuntimePreload] Release startup preload completed. Scenes={} Elapsed={}ms",
+		"[RuntimePreload] Release起動時の事前読み込みが完了しました Scene数={} 経過={}ms",
 		sceneAssets.size(), elapsed);
 	Logger::Flush(LogType::Engine);
 #endif
@@ -405,12 +405,12 @@ void Engine::EngineApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, E
 	sceneView.width = 0;
 	sceneView.height = 0;
 
-	Logger::Output(LogType::Engine, "[RuntimePreload] Scene render recording begin");
+	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録を開始します");
 	renderPipeline_->Render(graphicsCore, request);
-	Logger::Output(LogType::Engine, "[RuntimePreload] Scene render recording completed");
-	Logger::Output(LogType::Engine, "[RuntimePreload] Scene GPU wait begin");
+	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録が完了しました");
+	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機を開始します");
 	graphicsCore.GetDXObject().WaitForGPU();
-	Logger::Output(LogType::Engine, "[RuntimePreload] Scene GPU wait completed");
+	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機が完了しました");
 }
 
 Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
@@ -638,7 +638,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"EngineApplication: script exception during Play. Returning to Edit mode.");
+				"EngineApplication: Play中のScript例外を検出したためEditへ戻ります");
 			StopPlayWorld();
 			world = systemContext_.world;
 			header = systemContext_.activeSceneHeader;
@@ -747,7 +747,7 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 		// Play中はEditWorldを書き換えない
 		if (worldManager_.IsPlaying()) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: scene operation is ignored while playing.");
+				"EngineApplication: Play中のためシーン操作を無視しました");
 			return;
 		}
 
@@ -817,7 +817,7 @@ bool Engine::EngineApplication::CreateNewEditScene() {
 		"NewScene");
 	if (!result.success) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: failed to create new scene. message={}", result.message);
+			"EngineApplication: 新規シーンの作成に失敗しました 内容={}", result.message);
 		return false;
 	}
 
@@ -838,7 +838,7 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 	}
 	if (!meta || meta->type != AssetType::Scene) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: requested asset is not a scene.");
+			"EngineApplication: 指定Assetはシーンではありません");
 		return false;
 	}
 
@@ -846,7 +846,7 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
 	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: scene file was not found. path={}", meta->assetPath);
+			"EngineApplication: シーンファイルが見つかりません path={}", meta->assetPath);
 		return false;
 	}
 
@@ -861,7 +861,7 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 	// SceneSystemを通してEntity/Componentを復元する
 	if (!editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: failed to open scene. path={}", activeScenePath_);
+			"EngineApplication: シーンを開けません path={}", activeScenePath_);
 		return false;
 	}
 
@@ -874,7 +874,7 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 		editorManager_.ResetSceneDirtyState();
 	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: opened scene. path={}", activeScenePath_);
+		"EngineApplication: シーンを開きました path={}", activeScenePath_);
 	return true;
 }
 
@@ -907,7 +907,7 @@ bool Engine::EngineApplication::SaveActiveEditScene() {
 			std::chrono::steady_clock::now() -
 			captureStartedAt).count();
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: scene save snapshot copied. path={} elapsed={}ms",
+		"EngineApplication: シーン保存用Snapshotを複製しました path={} 経過={}ms",
 		activeScenePath_, captureElapsed);
 
 	SceneSaveJob job{};
@@ -952,7 +952,7 @@ bool Engine::EngineApplication::SaveAllEditScenes() {
 			assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), scene.sceneAsset)) {
 
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: failed to save scene. asset={}", ToString(scene.sceneAsset));
+				"EngineApplication: シーン保存に失敗しました Asset={}", ToString(scene.sceneAsset));
 			return false;
 		}
 	}
@@ -962,7 +962,7 @@ bool Engine::EngineApplication::SaveAllEditScenes() {
 		editorManager_.MarkAllScenesSaved();
 	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: saved loaded scenes. count={}", savedAssets.size());
+		"EngineApplication: 読み込み済みシーンを保存しました 数={}", savedAssets.size());
 	return true;
 }
 
@@ -1003,7 +1003,7 @@ bool Engine::EngineApplication::FinishSceneSave(
 	catch (const std::exception& exception) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: scene save worker failed. path={} message={}",
+			"EngineApplication: シーン保存Workerが失敗しました path={} 内容={}",
 			scenePath, exception.what());
 	}
 	sceneSaveJob_.reset();
@@ -1015,12 +1015,12 @@ bool Engine::EngineApplication::FinishSceneSave(
 		editorManager_.MarkSceneSaved(
 			sceneAsset, dirtyRevision);
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"EngineApplication: saved active scene. path={} elapsed={}ms",
+			"EngineApplication: アクティブシーンを保存しました path={} 経過={}ms",
 			scenePath, elapsed);
 	} else {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: failed to save active scene. path={}",
+			"EngineApplication: アクティブシーンの保存に失敗しました path={}",
 			scenePath);
 	}
 	if (outSucceeded) {

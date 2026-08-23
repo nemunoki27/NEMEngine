@@ -66,7 +66,7 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 
 	HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
 		&resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&cubemap_));
-	Assert::Call(SUCCEEDED(hr), "Failed to create skybox irradiance cubemap");
+	Assert::Call(SUCCEEDED(hr), "SkyboxのIrradiance Cubemap作成に失敗しました");
 	cubemap_->SetName(L"SkyboxIrradianceMap");
 	cubemapState_ = D3D12_RESOURCE_STATE_COMMON;
 

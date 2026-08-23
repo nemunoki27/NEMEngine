@@ -76,6 +76,7 @@ namespace Engine {
 		// 0なら描画せずMask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
+		uint32_t screenSpaceOutlineMaskAlphaSource = 0;
 
 		std::span<const DXGI_FORMAT> GetRTVFormats() const { return std::span<const DXGI_FORMAT>(rtvFormats.data(), numRTVFormats); }
 	};

@@ -121,7 +121,8 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveBatchMesh(const RenderSceneBa
 		}
 
 		// バッチ内に異なるメッシュが混ざっていたらエラー
-		Assert::Call(resolved == payload->mesh, "ResolveBatchMesh: mixed mesh assets in one batch.");
+		Assert::Call(resolved == payload->mesh,
+			"同じ描画Batchに異なるMesh Assetが含まれています");
 	}
 	return resolved;
 }

@@ -34,6 +34,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
@@ -1332,6 +1333,29 @@ namespace {
 			legacyRestored.dimension == Engine::Dimension::Type3D;
 	}
 
+	bool TestScreenSpaceOutlineSerialization() {
+
+		Engine::ScreenSpaceOutlineComponent source{};
+		source.alphaSource =
+			Engine::ScreenSpaceOutlineAlphaSource::TextureColor;
+		source.uiOcclusionMode =
+			Engine::ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible;
+
+		nlohmann::json serialized{};
+		Engine::to_json(serialized, source);
+		Engine::ScreenSpaceOutlineComponent restored{};
+		Engine::from_json(serialized, restored);
+
+		return serialized.value("alphaSource", std::string{}) ==
+			"TextureColor" &&
+			serialized.value("uiOcclusionMode", std::string{}) ==
+				"AlwaysVisible" &&
+			restored.alphaSource ==
+				Engine::ScreenSpaceOutlineAlphaSource::TextureColor &&
+			restored.uiOcclusionMode ==
+				Engine::ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible;
+	}
+
 	bool TestUTF8Path() {
 
 		const std::string directoryName =
@@ -2373,7 +2397,8 @@ int main(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
 			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
-			!TestTransformDimensionSerialization()) {
+			!TestTransformDimensionSerialization() ||
+			!TestScreenSpaceOutlineSerialization()) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
 		}
@@ -2471,6 +2496,10 @@ int main(int argc, char* argv[]) {
 	if (!TestTransformDimensionSerialization()) {
 		std::cerr << "Transform dimension serialization failed\n";
 		return 26;
+	}
+	if (!TestScreenSpaceOutlineSerialization()) {
+		std::cerr << "Screen space outline serialization failed\n";
+		return 29;
 	}
 	if (!TestRigidbody2DRestingContact()) {
 		std::cerr << "Rigidbody2D resting contact failed\n";

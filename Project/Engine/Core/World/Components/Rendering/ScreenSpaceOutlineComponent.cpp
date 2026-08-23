@@ -98,7 +98,7 @@ void Engine::from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& co
 			component.visibilityMode = *parsed;
 		} else {
 			Logger::Output(LogType::Engine,
-				"[ScreenSpaceOutline] unknown visibilityMode '{}', fallback to VisibleOnly", text);
+				"[ScreenSpaceOutline] visibilityMode '{}'が不正なためVisibleOnlyを使用します", text);
 		}
 	}
 	if (in.contains("regionMode") && in["regionMode"].is_string()) {
@@ -108,7 +108,30 @@ void Engine::from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& co
 		if (parsed) {
 			component.regionMode = *parsed;
 		} else {
-			Logger::Output(LogType::Engine, "[ScreenSpaceOutline] unsupported regionMode '{}', fallback to AllVisibleSilhouettes", text);
+			Logger::Output(LogType::Engine,
+				"[ScreenSpaceOutline] regionMode '{}'は未対応のためAllVisibleSilhouettesを使用します", text);
+		}
+	}
+	if (in.contains("alphaSource") && in["alphaSource"].is_string()) {
+
+		const std::string text = in["alphaSource"].get<std::string>();
+		const auto parsed = EnumAdapter<ScreenSpaceOutlineAlphaSource>::FromString(text);
+		if (parsed) {
+			component.alphaSource = *parsed;
+		} else {
+			Logger::Output(LogType::Engine,
+				"[ScreenSpaceOutline] alphaSource '{}'は未対応のためOutputColorを使用します", text);
+		}
+	}
+	if (in.contains("uiOcclusionMode") && in["uiOcclusionMode"].is_string()) {
+
+		const std::string text = in["uiOcclusionMode"].get<std::string>();
+		const auto parsed = EnumAdapter<ScreenSpaceOutlineUIOcclusionMode>::FromString(text);
+		if (parsed) {
+			component.uiOcclusionMode = *parsed;
+		} else {
+			Logger::Output(LogType::Engine,
+				"[ScreenSpaceOutline] uiOcclusionMode '{}'は未対応のためRespectRenderOrderを使用します", text);
 		}
 	}
 }
@@ -121,4 +144,7 @@ void Engine::to_json(nlohmann::json& out, const ScreenSpaceOutlineComponent& com
 	out["priority"] = component.priority;
 	out["visibilityMode"] = EnumAdapter<ScreenSpaceOutlineVisibilityMode>::ToString(component.visibilityMode);
 	out["regionMode"] = EnumAdapter<ScreenSpaceOutlineRegionMode>::ToString(component.regionMode);
+	out["alphaSource"] = EnumAdapter<ScreenSpaceOutlineAlphaSource>::ToString(component.alphaSource);
+	out["uiOcclusionMode"] =
+		EnumAdapter<ScreenSpaceOutlineUIOcclusionMode>::ToString(component.uiOcclusionMode);
 }

@@ -22,7 +22,7 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 	SRVDescriptor* srvDescriptor, const MultiRenderTargetCreateDesc& desc) {
 
 	Logger::BeginSection(LogType::Engine);
-	Logger::Output(LogType::Engine, "Start CreateMultiRenderTarget");
+	Logger::Output(LogType::Engine, "MultiRenderTargetの作成を開始します");
 
 	// 既にリソースが存在している場合は破棄する
 	Destroy();
@@ -36,7 +36,7 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 	colors_.reserve(colorCount);
 	for (size_t i = 0; i < colorCount; ++i) {
 
-		Logger::Output(LogType::Engine, "RenderTexture2D Index: {}", i);
+		Logger::Output(LogType::Engine, "RenderTexture2D番号: {}", i);
 
 		// 色レンダーテクスチャの情報を取得する
 		const auto& color = desc.colors[i];
@@ -61,7 +61,7 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 		depth_->Create(dsvDescriptor, srvDescriptor, *desc.depth);
 	}
 
-	Logger::Output(LogType::Engine, "Created MultiRenderTarget");
+	Logger::Output(LogType::Engine, "MultiRenderTargetを作成しました");
 	Logger::EndSection(LogType::Engine);
 }
 

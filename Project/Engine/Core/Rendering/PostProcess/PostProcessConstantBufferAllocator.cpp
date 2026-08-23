@@ -3,11 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // c++
 #include <algorithm>
-#include <cassert>
 #include <cstring>
 
 //============================================================================
@@ -92,7 +92,7 @@ void Engine::PostProcessConstantBufferAllocator::EnsureCapacity(
 
 	void* mapped = nullptr;
 	const HRESULT hr = state.resource->Map(0, nullptr, &mapped);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "ポストプロセス定数バッファのMapに失敗しました");
 
 	state.mappedData = static_cast<uint8_t*>(mapped);
 	state.capacity = requiredSize;

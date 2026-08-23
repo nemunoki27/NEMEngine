@@ -97,6 +97,8 @@ namespace Engine {
 		bool used = true;
 		// 色として編集するか、シェーダー側メタデータで立てる
 		bool isColor = false;
+		// bindless indexをTextureアセットとして編集するか
+		bool isTexture = false;
 	};
 	// 定数バッファの情報
 	struct ShaderConstantBufferInfo {

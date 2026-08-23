@@ -9,9 +9,6 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
-// c++
-#include <cassert>
-
 //============================================================================
 //	DxCommandQueue classMethods
 //============================================================================
@@ -22,18 +19,18 @@ void DxCommandQueue::Create(ID3D12Device* device) {
 	commandQueue_ = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 	HRESULT hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "描画コマンドキューの作成に失敗しました");
 	commandQueue_->SetName(L"MainGraphicsQueue");
 
 	fence_ = nullptr;
 	fenceValue_ = 0;
 	hr = device->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "描画Fenceの作成に失敗しました");
 	fence_->SetName(L"MainGraphicsFence");
 
 	// FenceのSignalを待つためのイベントの作成する
 	fenceEvent_ = CreateEvent(NULL, FALSE, FALSE, NULL);
-	assert(fenceEvent_ != nullptr);
+	Assert::Call(fenceEvent_ != nullptr, "描画Fenceの待機イベント作成に失敗しました");
 }
 
 void DxCommandQueue::Finalize() {
@@ -67,7 +64,7 @@ uint64_t DxCommandQueue::Signal() {
 	const uint64_t fenceValue = ++fenceValue_;
 	const HRESULT signalResult = commandQueue_->Signal(fence_.Get(), fenceValue);
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommandQueue::SignalAndWait/Signal")) {
-		Assert::Call(false, "Graphics queue Signal failed.");
+		Assert::Call(false, "描画コマンドキューのSignalに失敗しました");
 		return 0;
 	}
 	return fenceValue;
@@ -82,7 +79,7 @@ bool DxCommandQueue::WaitForFenceValue(uint64_t expectedValue, std::string_view 
 	const HRESULT completionResult = fence_->SetEventOnCompletion(expectedValue, fenceEvent_);
 	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), completionResult,
 		"DxCommandQueue::WaitForFenceValue/SetEventOnCompletion")) {
-		Assert::Call(false, "Fence SetEventOnCompletion failed.");
+		Assert::Call(false, "描画Fenceの完了イベント設定に失敗しました");
 		return false;
 	}
 
@@ -102,7 +99,7 @@ bool DxCommandQueue::WaitForFenceValue(uint64_t expectedValue, std::string_view 
 		}
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[D3D12] Fence wait failed. Operation='{}' WaitResult={}",
+			"[D3D12] Fenceの待機に失敗しました 処理='{}' WaitResult={}",
 			operation, static_cast<uint32_t>(waitResult));
 		return false;
 	}

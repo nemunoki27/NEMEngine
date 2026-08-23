@@ -88,7 +88,7 @@ void JsonAdapter::Save(const std::filesystem::path& directoryFilePath, const nlo
 	// 書き込めなかった場合
 	if (!file.is_open()) {
 
-		Assert::Call(false, "Failed to save nlohmann::json file: " + Algorithm::PathToUTF8(directoryFilePath));
+		Assert::Call(false, "JSONファイルの保存に失敗しました: " + Algorithm::PathToUTF8(directoryFilePath));
 		return;
 	}
 
@@ -189,7 +189,7 @@ nlohmann::json JsonAdapter::Load(const std::filesystem::path& directoryFilePath,
 	if (!file.is_open()) {
 		if (assertion) {
 
-			Assert::Call(false, "Failed to load nlohmann::json file: " + Algorithm::PathToUTF8(directoryFilePath));
+			Assert::Call(false, "JSONファイルの読み込みに失敗しました: " + Algorithm::PathToUTF8(directoryFilePath));
 		}
 		return nlohmann::json();
 	}
@@ -201,7 +201,7 @@ nlohmann::json JsonAdapter::Load(const std::filesystem::path& directoryFilePath,
 	catch (const nlohmann::json::parse_error& e) {
 		if (assertion) {
 
-			Assert::Call(false, "Failed to parse nlohmann::json file: " +
+			Assert::Call(false, "JSONファイルの解析に失敗しました: " +
 				Algorithm::PathToUTF8(directoryFilePath) + "\n" + e.what());
 		}
 		return nlohmann::json();
@@ -223,7 +223,7 @@ bool JsonAdapter::Check(const std::filesystem::path& directoryFilePath, bool ass
 	if (!file.is_open()) {
 		if (assertion) {
 
-			Assert::Call(false, "Failed to load nlohmann::json file: " + Algorithm::PathToUTF8(directoryFilePath));
+			Assert::Call(false, "JSONファイルの読み込みに失敗しました: " + Algorithm::PathToUTF8(directoryFilePath));
 		}
 		return false;
 	}

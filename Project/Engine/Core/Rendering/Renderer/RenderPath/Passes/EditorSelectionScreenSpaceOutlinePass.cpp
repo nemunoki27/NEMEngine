@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 
 // c++
+#include <array>
 #include <cmath>
 
 //============================================================================
@@ -40,7 +41,14 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute([[maybe_unused]] Gra
 	}
 
 	// Editor専用のScreenSpaceOutlineへ描いてruntime用とは分離する
+	constexpr std::array<RenderPhase, 1> kEditorOutlinePhases = {
+		RenderPhase::Opaque,
+	};
+	DepthTexture2D* depth = context.resources->GetSceneMain() ?
+		context.resources->GetSceneMain()->GetDepthTexture() : nullptr;
 	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_,
-		context.resources->GetEditorSelectionScreenSpaceOutline());
+		context.resources->GetEditorSelectionScreenSpaceOutline(),
+		kEditorOutlinePhases, context.resources->GetSceneFinal(),
+		depth);
 #endif
 }

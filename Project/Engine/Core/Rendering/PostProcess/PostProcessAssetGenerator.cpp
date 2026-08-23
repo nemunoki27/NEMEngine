@@ -170,7 +170,8 @@ namespace {
 		if (std::filesystem::exists(path)) {
 
 			if (!CanOverwriteAsset(path)) {
-				Engine::Logger::Output(Engine::LogType::Engine, "[PostProcessAssetGenerator] skip custom asset. path=" + path.generic_string());
+				Engine::Logger::Output(Engine::LogType::Engine,
+					"[PostProcessAssetGenerator] Custom Assetのため上書きを省略します path=" + path.generic_string());
 				return;
 			}
 
@@ -183,7 +184,8 @@ namespace {
 
 		std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
 		ofs << newText;
-		Engine::Logger::Output(Engine::LogType::Engine, "[PostProcessAssetGenerator] write asset. path=" + path.generic_string());
+		Engine::Logger::Output(Engine::LogType::Engine,
+			"[PostProcessAssetGenerator] Assetを書き込みます path=" + path.generic_string());
 	}
 
 	std::vector<BuiltinPostProcessSource> GatherPostProcessSources(const std::filesystem::path& assetRoot) {
@@ -423,7 +425,7 @@ Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase
 	const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
 
 	Logger::Output(LogType::Engine,
-		"[PostProcessAssetGenerator] user asset ready. material={}", materialAssetPath);
+		"[PostProcessAssetGenerator] User Assetの準備が完了しました material={}", materialAssetPath);
 	return materialID;
 }
 
@@ -465,6 +467,6 @@ Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader
 	const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
 
 	Logger::Output(LogType::Engine,
-		"[PostProcessAssetGenerator] material created for shader. material={}", materialAssetPath);
+		"[PostProcessAssetGenerator] Shader用Materialを作成しました material={}", materialAssetPath);
 	return materialID;
 }

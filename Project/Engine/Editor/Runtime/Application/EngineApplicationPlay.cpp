@@ -45,7 +45,7 @@ void Engine::EngineApplication::HandlePlayToggle() {
 		scriptBuildService_.RequestPlayBuild();
 		pendingPlayStart_ = true;
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"EngineApplication: Play requested. preparing GameScripts (build/reload)...");
+			"EngineApplication: Play開始に向けてGameScriptsをビルドまたは再読み込みします");
 		ProcessPendingPlayStart();
 	} else {
 
@@ -81,14 +81,14 @@ bool Engine::EngineApplication::HandleApplicationQuitRequest() {
 			return false;
 		}
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"EngineApplication: Application.Quit requested. Returning to Edit mode.");
+			"EngineApplication: Application.Quit要求を受けたためEditへ戻ります");
 		requestFrameDeltaReset_ = true;
 		StopPlayWorld();
 		return true;
 	} else {
 
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"EngineApplication: Application.Quit requested. Closing application.");
+			"EngineApplication: Application.Quit要求を受けたため終了します");
 		WinApp::RequestCloseWindow();
 		return false;
 	}
@@ -163,13 +163,13 @@ void Engine::EngineApplication::ProcessPendingPlayStart() {
 	if (result == ManagedScriptBuildService::PlayBuildResult::Failed) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: Play canceled. GameScripts build/reload failed. Staying in Edit mode.");
+			"EngineApplication: GameScriptsのビルドまたは再読み込みに失敗したためPlayを中止します");
 		return;
 	}
 	if (!IsPrefabEditing() && !SaveAllEditScenes()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: Play canceled. Scene save failed. Staying in Edit mode.");
+			"EngineApplication: シーン保存に失敗したためPlayを中止します");
 		return;
 	}
 
@@ -195,7 +195,7 @@ void Engine::EngineApplication::StartPlayWorld() {
 		!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: failed to enter Play mode. Scene snapshot load failed.");
+			"EngineApplication: シーンSnapshotを読み込めないためPlayを開始できません");
 
 		playScenes_ = SceneInstanceManager{};
 		worldManager_.DestroyPlayWorld();

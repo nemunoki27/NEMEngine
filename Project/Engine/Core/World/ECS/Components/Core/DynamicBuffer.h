@@ -3,9 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+
 // c++
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -135,11 +136,11 @@ namespace Engine {
 		std::span<const T> GetSpan() const { return { GetData(), GetSize() }; }
 
 		T& operator[](uint32_t index) {
-			assert(index < GetSize());
+			Assert::Call(index < GetSize(), "DynamicBufferの参照位置が要素数を超えています");
 			return GetData()[index];
 		}
 		const T& operator[](uint32_t index) const {
-			assert(index < GetSize());
+			Assert::Call(index < GetSize(), "DynamicBufferの参照位置が要素数を超えています");
 			return GetData()[index];
 		}
 	private:
@@ -314,7 +315,7 @@ template <typename T>
 template <typename... Args>
 inline T& Engine::DynamicBuffer<T>::EmplaceBack(Args&&... args) {
 
-	assert(header_);
+	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (header_->size == header_->capacity) {
 		// チャンク内領域を使い切った時だけ外部領域へ拡張する
 		Reserve((std::max)(1u, header_->capacity * 2u));
@@ -328,8 +329,8 @@ inline T& Engine::DynamicBuffer<T>::EmplaceBack(Args&&... args) {
 template <typename T>
 inline void Engine::DynamicBuffer<T>::RemoveAt(uint32_t index) {
 
-	assert(header_);
-	assert(index < header_->size);
+	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
+	Assert::Call(index < header_->size, "DynamicBufferの削除位置が要素数を超えています");
 	T* data = GetData();
 	data[index].~T();
 	for (uint32_t i = index; i + 1 < header_->size; ++i) {
@@ -355,7 +356,7 @@ inline void Engine::DynamicBuffer<T>::Clear() {
 template <typename T>
 inline void Engine::DynamicBuffer<T>::Resize(uint32_t size) {
 
-	assert(header_);
+	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (size < header_->size) {
 		T* data = GetData();
 		for (uint32_t i = size; i < header_->size; ++i) {
@@ -377,7 +378,7 @@ inline void Engine::DynamicBuffer<T>::Resize(uint32_t size) {
 template <typename T>
 inline void Engine::DynamicBuffer<T>::Reserve(uint32_t capacity) {
 
-	assert(header_);
+	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (capacity <= header_->capacity) {
 		return;
 	}

@@ -180,7 +180,7 @@ void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPane
 	} else {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[TextRendererInspector] font generation failed. {}", result.message);
+			"[TextRendererInspector] Font生成に失敗しました {}", result.message);
 		draft.font = AssetID{};
 	}
 	RequestCommit();

@@ -35,8 +35,8 @@ namespace Engine {
 
 		uint32_t styleID = 0;
 		int32_t restrictSubMeshIndex = -1;
+		uint32_t alphaSource = 0;
 		uint32_t _pad0 = 0;
-		uint32_t _pad1 = 0;
 	};
 	static_assert(sizeof(ScreenSpaceOutlineMaskConstants) % 16 == 0);
 

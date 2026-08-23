@@ -36,7 +36,7 @@ void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
 	const AssetMeta* meta = assetDataBase_.Find(prefabAsset);
 	if (!meta || meta->type != AssetType::Prefab) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: EnterPrefabEdit ignored. asset is not a prefab.");
+			"EngineApplication: Prefabではないため編集開始要求を無視しました");
 		return;
 	}
 
@@ -64,7 +64,7 @@ void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
 	if (!MaterializePrefabForEdit(*stage.world, prefabAsset, sceneInstanceID, stage.instanceID, result)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: failed to enter prefab edit. instantiate failed. name={}", stage.name);
+			"EngineApplication: Prefabの実体化に失敗したため編集を開始できません name={}", stage.name);
 		return;
 	}
 	stage.root = result.root;

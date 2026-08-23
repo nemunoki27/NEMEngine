@@ -6,13 +6,15 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineConstants.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 
 //============================================================================
 //	ScreenSpaceOutlineInspectorDrawer classMethods
 //============================================================================
 void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 	[[maybe_unused]] const EditorPanelContext& context,
-	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
+	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
 
@@ -39,4 +41,17 @@ void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawEnumComboField("領域方式", draft.regionMode);
 		});
+	const PrimitiveRendererComponent* primitive =
+		world.TryGetComponent<PrimitiveRendererComponent>(entity);
+	const bool supportsAlphaSource =
+		world.TryGetComponent<SpriteRendererComponent>(entity) != nullptr ||
+		(primitive && IsPrimitiveScreen2D(*primitive));
+	if (supportsAlphaSource) {
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("Alpha判定元", draft.alphaSource);
+			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("UI重なり", draft.uiOcclusionMode);
+			});
+	}
 }

@@ -178,7 +178,7 @@ namespace {
 uint32_t Engine::MeshletBuilder::PackPrimitive(uint32_t i0, uint32_t i1, uint32_t i2) {
 
 	// 10bit * 3 packing
-	Assert::Call(i0 < 1024 && i1 < 1024 && i2 < 1024, "Meshlet local index overflow");
+	Assert::Call(i0 < 1024 && i1 < 1024 && i2 < 1024, "Meshletのローカル頂点番号が上限を超えています");
 	return (i0 & 0x3FFu) | ((i1 & 0x3FFu) << 10u) | ((i2 & 0x3FFu) << 20u);
 }
 

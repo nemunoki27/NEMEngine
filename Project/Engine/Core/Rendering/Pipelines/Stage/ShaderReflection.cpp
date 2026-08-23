@@ -29,6 +29,7 @@ namespace {
 			// 同じCBVを使う全ステージの使用状態をまとめる
 			found->used |= sourceVariable.used;
 			found->isColor |= sourceVariable.isColor;
+			found->isTexture |= sourceVariable.isTexture;
 			found->size = (std::max)(found->size, sourceVariable.size);
 			found->declaredComponentCount = (std::max)(
 				found->declaredComponentCount,

@@ -173,7 +173,7 @@ uint32_t Engine::EntityChunk::AddEntity(const Entity& entity) {
 
 uint32_t Engine::EntityChunk::AddEntityUninitialized(const Entity& entity) {
 
-	assert(HasSpace());
+	Assert::Call(HasSpace(), "EntityChunkに空きがありません");
 	EnsureStorage();
 
 	const uint32_t row = count_;
@@ -184,7 +184,7 @@ uint32_t Engine::EntityChunk::AddEntityUninitialized(const Entity& entity) {
 
 Engine::Entity Engine::EntityChunk::RemoveSwap(uint32_t row) {
 
-	assert(row < GetCount());
+	Assert::Call(row < GetCount(), "EntityChunkの削除行が要素数を超えています");
 
 	const uint32_t last = GetCount() - 1;
 	Entity moved = Entity::Null();
@@ -232,8 +232,8 @@ Engine::Entity Engine::EntityChunk::RemoveSwap(uint32_t row) {
 
 void Engine::EntityChunk::ConstructDefaultByColumnIndex(uint32_t columnIndex, uint32_t row) {
 
-	assert(columnIndex < layout_->columns.size());
-	assert(row < GetCount());
+	Assert::Call(columnIndex < layout_->columns.size(), "EntityChunkの列番号が範囲外です");
+	Assert::Call(row < GetCount(), "EntityChunkの行番号が範囲外です");
 
 	const EntityColumnLayout& column = layout_->columns[columnIndex];
 	column.info->constructDefault(GetPtr(column, row));
@@ -242,22 +242,22 @@ void Engine::EntityChunk::ConstructDefaultByColumnIndex(uint32_t columnIndex, ui
 
 void* Engine::EntityChunk::GetRawByColumnIndex(uint32_t columnIndex, uint32_t row) {
 
-	assert(columnIndex < layout_->columns.size());
-	assert(row < GetCount());
+	Assert::Call(columnIndex < layout_->columns.size(), "EntityChunkの列番号が範囲外です");
+	Assert::Call(row < GetCount(), "EntityChunkの行番号が範囲外です");
 	return GetPtr(layout_->columns[columnIndex], row);
 }
 
 const void* Engine::EntityChunk::GetRawByColumnIndex(
 	uint32_t columnIndex, uint32_t row) const {
 
-	assert(columnIndex < layout_->columns.size());
-	assert(row < GetCount());
+	Assert::Call(columnIndex < layout_->columns.size(), "EntityChunkの列番号が範囲外です");
+	Assert::Call(row < GetCount(), "EntityChunkの行番号が範囲外です");
 	return GetPtr(layout_->columns[columnIndex], row);
 }
 
 void* Engine::EntityChunk::GetColumnDataByColumnIndex(uint32_t columnIndex) {
 
-	assert(columnIndex < layout_->columns.size());
+	Assert::Call(columnIndex < layout_->columns.size(), "EntityChunkの列番号が範囲外です");
 	if (!storage_.ptr) {
 		return nullptr;
 	}
@@ -267,8 +267,8 @@ void* Engine::EntityChunk::GetColumnDataByColumnIndex(uint32_t columnIndex) {
 void Engine::EntityChunk::SetEnabledByColumnIndex(
 	uint32_t columnIndex, uint32_t row, bool enabled) {
 
-	assert(columnIndex < layout_->columns.size());
-	assert(row < GetCount());
+	Assert::Call(columnIndex < layout_->columns.size(), "EntityChunkの列番号が範囲外です");
+	Assert::Call(row < GetCount(), "EntityChunkの行番号が範囲外です");
 	const EntityColumnLayout& column = layout_->columns[columnIndex];
 	if (!column.info->enableable) {
 		return;
@@ -287,8 +287,8 @@ void Engine::EntityChunk::SetEnabledByColumnIndex(
 bool Engine::EntityChunk::IsEnabledByColumnIndex(
 	uint32_t columnIndex, uint32_t row) const {
 
-	assert(columnIndex < layout_->columns.size());
-	assert(row < GetCount());
+	Assert::Call(columnIndex < layout_->columns.size(), "EntityChunkの列番号が範囲外です");
+	Assert::Call(row < GetCount(), "EntityChunkの行番号が範囲外です");
 	const EntityColumnLayout& column = layout_->columns[columnIndex];
 	if (!column.info->enableable) {
 		return true;

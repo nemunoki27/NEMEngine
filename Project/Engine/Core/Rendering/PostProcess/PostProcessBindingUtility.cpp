@@ -216,7 +216,7 @@ namespace Engine {
 			(binding.name == kSourceColorName || binding.name == kSourceDepthName) ||
 			((binding.bindPoint == 0 || binding.bindPoint == 1) && binding.space == 0 && binding.name.empty());
 		if (isSourceReserved) {
-			Logger::Output(LogType::Engine, logHeader + "unresolved SRV binding. binding=" +
+			Logger::Output(LogType::Engine, logHeader + "SRVのBindingを解決できません binding=" +
 				(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
 			return false;
 		}
@@ -224,14 +224,15 @@ namespace Engine {
 		// 任意のテクスチャバインディングが未設定の場合は、黒画面やエラーを防ぐため白テクスチャを割り当て
 		const GPUTextureResource* white = graphicsCore.GetBuiltinTextureLibrary().GetWhiteTexture();
 		if (!white || !white->valid) {
-			Logger::Output(LogType::Engine, logHeader + "unresolved SRV binding and white texture unavailable. binding=" +
+			Logger::Output(LogType::Engine, logHeader +
+				"SRVのBindingを解決できず白Textureも利用できません binding=" +
 				(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name));
 			return false;
 		}
 
-		Logger::Output(LogType::Engine, logHeader +
-			"Texture '" + (binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name) +
-			"' is not assigned. DefaultWhite is used.");
+		Logger::Output(LogType::Engine, logHeader + "Texture '" +
+			(binding.name.empty() ? std::to_string(binding.bindPoint) : binding.name) +
+			"'が未設定のためDefaultWhiteを使用します");
 		outBindItems.push_back({ binding.name.empty() ? std::string_view{} : std::string_view(binding.name),
 			ComputeBindValueType::SRV, 0, white->gpuHandle,
 			binding.bindPoint, binding.space });
@@ -262,12 +263,12 @@ namespace Engine {
 			destColor = GetFirstColor(&dest);
 		}
 		if (!destColor) {
-			Logger::Output(LogType::Engine, logHeader + "destination color is missing.");
+			Logger::Output(LogType::Engine, logHeader + "出力先Colorがありません");
 			return false;
 		}
 		// コンピュート書き込みにはUAVデスクリプタが必須
 		if (destColor->GetUAVGPUHandle().ptr == 0) {
-			Logger::Output(LogType::Engine, logHeader + "destination color has no UAV descriptor.");
+			Logger::Output(LogType::Engine, logHeader + "出力先ColorにUAV Descriptorがありません");
 			return false;
 		}
 

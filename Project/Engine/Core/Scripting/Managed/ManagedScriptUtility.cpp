@@ -26,7 +26,7 @@ namespace Engine {
 
 			// 未登録worldを暗黙登録して隠さない、登録漏れはdebugで検出しnullハンドルを返す
 #if defined(_DEBUG)
-			Assert::Call(false, "MakeNativeEntity: ECSWorld is not registered in ManagedWorldRegistry");
+			Assert::Call(false, "MakeNativeEntityで参照するECSWorldがManagedWorldRegistryに登録されていません");
 #endif
 			return ManagedNativeEntity{};
 		}

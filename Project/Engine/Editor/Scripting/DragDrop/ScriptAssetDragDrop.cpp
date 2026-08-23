@@ -47,7 +47,7 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& co
 	if (candidates.size() > 1) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ScriptAssetDragDrop: ambiguous script source '{}' ({} candidates). drag&dropを中止します。",
+			"ScriptAssetDragDrop: Script候補を一意に決められないためDrag&Dropを中止します path={} 候補数={}",
 			meta->assetPath, candidates.size());
 		return false;
 	}

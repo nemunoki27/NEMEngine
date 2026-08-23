@@ -6,7 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Platform/Windows/Win32Window.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -19,89 +19,6 @@ using namespace Engine;
 //============================================================================
 //	Input classMethods
 //============================================================================
-namespace {
-
-	const char* kMouseNames[3] = { "MouseLeft", "MouseRight", "MouseCenter" };
-
-	std::string MakeCallerTag(const std::source_location& location, std::string_view label) {
-
-		std::string_view fn = location.function_name();
-
-		auto pos = fn.find(' ');
-		if (pos != std::string_view::npos) fn.remove_prefix(pos + 1);
-
-		constexpr std::string_view cdeclStr = "__cdecl ";
-		if (fn.starts_with(cdeclStr)) fn.remove_prefix(cdeclStr.size());
-
-		std::string tag;
-		tag.reserve(fn.size() + label.size() + 1);
-		tag.append(fn);
-		tag.push_back(':');
-		tag.append(label);
-		return tag;
-	}
-
-	const char* ToDikName(uint8_t dik) {
-
-		switch (dik) {
-		case DIK_W:   return "DIK_W";
-		case DIK_A:   return "DIK_A";
-		case DIK_S:   return "DIK_S";
-		case DIK_D:   return "DIK_D";
-		case DIK_R:   return "DIK_R";
-		case DIK_E:   return "DIK_E";
-		case DIK_Q:   return "DIK_Q";
-		case DIK_UP:   return "DIK_UP";
-		case DIK_DOWN:   return "DIK_DOWN";
-		case DIK_RIGHT:   return "DIK_RIGHT";
-		case DIK_LEFT:   return "DIK_LEFT";
-		case DIK_F1: return "DIK_F1";
-		case DIK_F2: return "DIK_F2";
-		case DIK_F3: return "DIK_F3";
-		case DIK_F10: return "DIK_F10";
-		case DIK_F11: return "DIK_F11";
-		case DIK_RETURN:   return "DIK_RETURN";
-		case DIK_SPACE: return "DIK_SPACE";
-		case DIK_ESCAPE: return "DIK_ESCAPE";
-		default:      break;
-		}
-		static char buf[8];
-		std::snprintf(buf, sizeof(buf), "0x%02X", dik);
-		return buf;
-	}
-
-	template<size_t N, class TAG_FUNC, class NAME_FUNC>
-	void LogEnterStayExit(bool now, bool prev,
-		size_t idx, std::array<std::chrono::steady_clock::time_point, N>& start,
-		std::array<bool, N>& stayDone, TAG_FUNC&& makeTag, NAME_FUNC&& toName) {
-
-		if (now) {
-			if (!prev) {
-
-				start[idx] = std::chrono::steady_clock::now();
-				stayDone[idx] = false;
-
-				Logger::Output(LogType::Engine, "{}  Enter {}", makeTag(), toName());
-			} else if (!stayDone[idx]) {
-
-				auto dur = std::chrono::steady_clock::now() - start[idx];
-
-				Logger::Output(LogType::Engine, "{}  Stay  {}  {:.1f}ms",
-					makeTag(), toName(),
-					std::chrono::duration<float, std::milli>(dur).count());
-
-				stayDone[idx] = true;
-			}
-		} else if (prev) {
-
-			auto dur = std::chrono::steady_clock::now() - start[idx];
-
-			Logger::Output(LogType::Engine, "{}  Exit  {}  {:.1f}ms",
-				makeTag(), toName(),
-				std::chrono::duration<float, std::milli>(dur).count());
-		}
-	}
-}
 
 Input* Input::instance_ = nullptr;
 
@@ -126,7 +43,11 @@ bool Engine::Input::HasViewRect(InputViewArea viewArea) const {
 bool Input::IsMouseOnView(InputViewArea viewArea) const {
 
 	Vector2 mouse = GetMousePos();
-	const ViewRect rect = viewRects_.at(viewArea);
+	auto found = viewRects_.find(viewArea);
+	if (found == viewRects_.end()) {
+		return false;
+	}
+	const ViewRect& rect = found->second;
 	return (mouse.x >= rect.dstPos.x && mouse.y >= rect.dstPos.y &&
 		mouse.x < rect.dstPos.x + rect.dstSize.x &&
 		mouse.y < rect.dstPos.y + rect.dstSize.y);
@@ -243,73 +164,30 @@ void Input::Finalize() {
 
 bool Input::PushKey(BYTE keyNumber, const std::source_location& location) {
 
-	const bool now = key_[keyNumber];
-	const bool prev = keyPre_[keyNumber];
-
-	if (now) {
-		if (!prev) {
-			keyStartTime_[keyNumber] = std::chrono::steady_clock::now();
-			keyStayLogged_[keyNumber] = false;
-
-			Logger::Output(LogType::Engine, "{}  Enter {}",
-				MakeCallerTag(location, "Key"),
-				ToDikName(keyNumber));
-		} else if (!keyStayLogged_[keyNumber]) {
-
-			auto dur = std::chrono::steady_clock::now() - keyStartTime_[keyNumber];
-
-			Logger::Output(LogType::Engine, "{}  Stay  {}  {:.1f}ms",
-				MakeCallerTag(location, "Key"),
-				ToDikName(keyNumber),
-				std::chrono::duration<float, std::milli>(dur).count());
-
-			keyStayLogged_[keyNumber] = true;
-		}
-	} else if (prev) {
-
-		auto dur = std::chrono::steady_clock::now() - keyStartTime_[keyNumber];
-
-		Logger::Output(LogType::Engine, "{}  Exit  {}  {:.1f}ms",
-			MakeCallerTag(location, "Key"),
-			ToDikName(keyNumber),
-			std::chrono::duration<float, std::milli>(dur).count());
-	}
-
-	return now;
+	(void)location;
+	return key_[keyNumber];
 }
 
 bool Input::TriggerKey(BYTE keyNumber, const std::source_location& location) {
 
 	// 現在のフレームで押されていて、前のフレームで押されていなかった場合にtrueを返す
-	if (key_[keyNumber] && !keyPre_[keyNumber]) {
-
-		Logger::Output(LogType::Engine, "{}", MakeCallerTag(location, "TriggerKey:" + std::string(ToDikName(keyNumber))));
-		return true;
-	}
-
-	return false;
+	(void)location;
+	return key_[keyNumber] && !keyPre_[keyNumber];
 }
 bool Input::ReleaseKey(BYTE keyNumber, const std::source_location& location) {
 
-	if (!key_[keyNumber] && keyPre_[keyNumber]) {
-
-		Logger::Output(LogType::Engine, "{}", MakeCallerTag(location, "ReleaseKey:" + std::string(ToDikName(keyNumber))));
-		return true;
-	}
-	return false;
+	(void)location;
+	return !key_[keyNumber] && keyPre_[keyNumber];
 }
 bool Input::PushGamepadButton(GamePadButtons button, const std::source_location& location) {
 
 	const size_t index = static_cast<size_t>(button);
-	const bool now = gamepadButtons_[index];
-	const bool prev = gamepadButtonsPre_[index];
-
-	LogEnterStayExit(now, prev, index,
-		gpStartTime_, gpStayLogged_,
-		[&] { return MakeCallerTag(location, "GamePadButtons:"); },
-		[&] { return EnumAdapter<GamePadButtons>::ToString(button); });
-
-	return now;
+	(void)location;
+	if (gamepadButtons_.size() <= index) {
+		Assert::Call(false, "GamePad Button番号が範囲外です");
+		return false;
+	}
+	return gamepadButtons_[index];
 }
 bool Input::TriggerGamepadButton(GamePadButtons button, const std::source_location& location) {
 
@@ -318,14 +196,9 @@ bool Input::TriggerGamepadButton(GamePadButtons button, const std::source_locati
 		return false;
 	}
 
-	bool trigger = gamepadButtons_[static_cast<size_t>(button)] && !gamepadButtonsPre_[static_cast<size_t>(button)];
-	if (trigger) {
-
-		Logger::Output(LogType::Engine, "{}", MakeCallerTag(location,
-			"TriggerGamepadButton:" + std::string(EnumAdapter<GamePadButtons>::ToString(button))));
-	}
-
-	return trigger;
+	(void)location;
+	return gamepadButtons_[static_cast<size_t>(button)] &&
+		!gamepadButtonsPre_[static_cast<size_t>(button)];
 }
 float Input::GetLeftTriggerValue() const {
 
@@ -366,18 +239,9 @@ float Input::GetMouseWheel() {
 }
 bool Input::PushMouseButton(size_t index, const std::source_location& location) const {
 
-	const bool now = mouseButtons_[index];
-	const bool prev = mousePreButtons_[index];
-
-	auto& start = const_cast<Input*>(this)->mouseStartTime_;
-	auto& stayDone = const_cast<Input*>(this)->mouseStayLogged_;
-
-	LogEnterStayExit(now, prev, index,
-		start, stayDone,
-		[&] { return MakeCallerTag(location, "Mouse"); },
-		[&] { return kMouseNames[index]; });
-
-	return now;
+	(void)location;
+	Assert::Call(index < mouseButtons_.size(), "Mouse Button番号が範囲外です");
+	return index < mouseButtons_.size() && mouseButtons_[index];
 }
 bool Input::PushMouse(MouseButton button, const std::source_location& location) const {
 
@@ -403,33 +267,18 @@ bool Input::PushMouse(MouseButton button, const std::source_location& location) 
 }
 bool Input::TriggerMouseLeft(const std::source_location& location) const {
 
-	bool trigger = !mousePreButtons_[0] && mouseButtons_[0];
-	if (trigger) {
-
-		Logger::Output(LogType::Engine, "{}  mouseLeft=triggered", MakeCallerTag(location, "TriggerMouseLeft"));
-	}
-
-	return trigger;
+	(void)location;
+	return !mousePreButtons_[0] && mouseButtons_[0];
 }
 bool Input::TriggerMouseRight(const std::source_location& location) const {
 
-	bool trigger = !mousePreButtons_[1] && mouseButtons_[1];
-	if (trigger) {
-
-		Logger::Output(LogType::Engine, "{}  mouseRight=triggered", MakeCallerTag(location, "TriggerMouseRight"));
-	}
-
-	return trigger;
+	(void)location;
+	return !mousePreButtons_[1] && mouseButtons_[1];
 }
 bool Input::TriggerMouseCenter(const std::source_location& location) const {
 
-	bool trigger = !mousePreButtons_[2] && mouseButtons_[2];
-	if (trigger) {
-
-		Logger::Output(LogType::Engine, "{}  mouseCenter=triggered", MakeCallerTag(location, "TriggerMouseCenter"));
-	}
-
-	return trigger;
+	(void)location;
+	return !mousePreButtons_[2] && mouseButtons_[2];
 }
 bool Input::TriggerMouse(MouseButton button, const std::source_location& location) const {
 
@@ -459,29 +308,20 @@ bool Input::ReleaseMouse(MouseButton button, const std::source_location& locatio
 	switch (button) {
 	case MouseButton::Left: {
 
+		(void)location;
 		released = !mouseButtons_[0] && mousePreButtons_[0];
-		if (released) {
-
-			Logger::Output(LogType::Engine, "{}  mouseLeft=released", MakeCallerTag(location, "ReleaseMouseLeft"));
-		}
 		break;
 	}
 	case MouseButton::Right: {
 
+		(void)location;
 		released = !mouseButtons_[1] && mousePreButtons_[1];
-		if (released) {
-
-			Logger::Output(LogType::Engine, "{}  mouseRight=released", MakeCallerTag(location, "ReleaseMouseRight"));
-		}
 		break;
 	}
 	case MouseButton::Center: {
 
+		(void)location;
 		released = !mouseButtons_[2] && mousePreButtons_[2];
-		if (released) {
-
-			Logger::Output(LogType::Engine, "{}  mouseCenter=released", MakeCallerTag(location, "ReleaseMouseCenter"));
-		}
 		break;
 	}
 	}
@@ -489,7 +329,7 @@ bool Input::ReleaseMouse(MouseButton button, const std::source_location& locatio
 }
 void Input::SetDeadZone(float deadZone) {
 
-	deadZone_ = deadZone;
+	deadZone_ = std::clamp(deadZone, 0.0f, 1.0f);
 }
 
 void Input::Init(WinApp* winApp) {
@@ -501,32 +341,32 @@ void Input::Init(WinApp* winApp) {
 	// DirectInputの初期化
 	dInput_ = nullptr;
 	hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&dInput_, nullptr);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "DirectInputの初期化に失敗しました");
 
 	// キーボードデバイスの初期化
 	keyboard_ = nullptr;
 	hr = dInput_->CreateDevice(GUID_SysKeyboard, &keyboard_, NULL);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "キーボード入力デバイスの作成に失敗しました");
 
 	// 入力データ形式のセット標準形式
 	hr = keyboard_->SetDataFormat(&c_dfDIKeyboard);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "キーボード入力形式の設定に失敗しました");
 
 	// 排他制御レベルのリセット
 	hr = keyboard_->SetCooperativeLevel(winApp_->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "キーボードの協調レベル設定に失敗しました");
 
 	// マウスデバイスの初期化
 	hr = dInput_->CreateDevice(GUID_SysMouse, &mouse_, NULL);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "マウス入力デバイスの作成に失敗しました");
 
 	// 入力データ形式のセット
 	hr = mouse_->SetDataFormat(&c_dfDIMouse);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "マウス入力形式の設定に失敗しました");
 
 	// 排他制御レベルのリセット
 	hr = mouse_->SetCooperativeLevel(winApp_->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
-	assert(SUCCEEDED(hr));
+	Assert::Call(SUCCEEDED(hr), "マウスの協調レベル設定に失敗しました");
 
 	// マウスの取得開始
 	hr = mouse_->Acquire();

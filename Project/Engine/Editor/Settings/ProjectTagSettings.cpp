@@ -173,7 +173,7 @@ bool Engine::ProjectTagSettings::Save() {
 		std::ofstream file(temp, std::ios::binary | std::ios::trunc);
 		if (!file.is_open()) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectTagSettings: failed to open temp file for save: {}", temp.string());
+				"ProjectTagSettings: 保存用一時ファイルを開けません: {}", temp.string());
 			return false;
 		}
 		file << root.dump(2);
@@ -182,7 +182,7 @@ bool Engine::ProjectTagSettings::Save() {
 			file.close();
 			std::filesystem::remove(temp, ec);
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectTagSettings: failed to write temp file: {}", temp.string());
+				"ProjectTagSettings: 一時ファイルへ書き込めません: {}", temp.string());
 			return false;
 		}
 	}
@@ -196,7 +196,8 @@ bool Engine::ProjectTagSettings::Save() {
 		if (ec) {
 			std::filesystem::remove(temp, ec);
 			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectTagSettings: failed to back up {} ({}). keeping existing file.", target.string(), ec.message());
+				"ProjectTagSettings: Backup作成に失敗したため既存ファイルを維持します path={} 内容={}",
+				target.string(), ec.message());
 			return false;
 		}
 	}
@@ -209,8 +210,9 @@ bool Engine::ProjectTagSettings::Save() {
 			std::filesystem::rename(backup, target, rollbackEc);
 		}
 		std::filesystem::remove(temp, rollbackEc);
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ProjectTagSettings: failed to replace {} ({}). rolled back.", target.string(), ec.message());
+	Logger::Output(LogType::Engine, spdlog::level::err,
+			"ProjectTagSettings: ファイル置換に失敗したため元へ戻しました path={} 内容={}",
+			target.string(), ec.message());
 		return false;
 	}
 
@@ -219,7 +221,7 @@ bool Engine::ProjectTagSettings::Save() {
 		std::filesystem::remove(backup, ec);
 		if (ec) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ProjectTagSettings: failed to remove backup {} ({}).", backup.string(), ec.message());
+				"ProjectTagSettings: Backupを削除できません path={} 内容={}", backup.string(), ec.message());
 		}
 	}
 	return true;

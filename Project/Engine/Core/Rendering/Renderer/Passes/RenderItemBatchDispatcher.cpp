@@ -37,6 +37,7 @@ void Engine::RenderItemBatchDispatcher::Dispatch(GraphicsCore& graphicsCore, con
 	// ScreenSpaceOutline Mask描画のper-draw値を引き継ぐ
 	drawContext.screenSpaceOutlineMaskStyleID = sceneContext.screenSpaceOutlineMaskStyleID;
 	drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex = sceneContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
+	drawContext.screenSpaceOutlineMaskAlphaSource = sceneContext.screenSpaceOutlineMaskAlphaSource;
 
 	// プレビューではTLASを作らないため、RayQueryを要求するVariantだけ外して解決する
 	drawContext.runtimeFeatures = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();

@@ -717,7 +717,7 @@ Engine::IMeshDrawPath& Engine::MeshRenderBackend::SelectDrawPath(const PipelineV
 			return *path;
 		}
 	}
-	Assert::Call(false, "Unsupported mesh draw path");
+	Assert::Call(false, "未対応のMesh描画経路です");
 	// サポートされているパスがない
 	return *drawPaths_.front();
 }
