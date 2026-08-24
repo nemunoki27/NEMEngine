@@ -451,40 +451,13 @@ namespace Engine {
 		static int32_t __cdecl CanvasScreenToLocalPointCallback(
 			ManagedNativeEntity entity, ManagedVector2 screenPosition,
 			ManagedVector2* outLocalPosition);
-		// EffectEmitterの再生要求を追加しハンドルを返す
-		static uint64_t __cdecl EffectEmitCallback(ManagedNativeEntity entity, const char* group,
-			ManagedVector3 position, ManagedQuaternion rotation, int32_t fixedAnchor);
-		// EffectEmitterをハンドルまたはグループまたは全体で停止する
-		static void __cdecl EffectStopCallback(ManagedNativeEntity entity,
-			uint64_t playbackID, const char* group, int32_t target);
-		// EffectEmitterをハンドルまたはグループまたは全体で破棄する
-		static void __cdecl EffectClearCallback(ManagedNativeEntity entity,
-			uint64_t playbackID, const char* group, int32_t target);
-		// EffectEmitterの再生状態をハンドルまたはグループまたは全体で返す
-		static int32_t __cdecl EffectIsPlayingCallback(ManagedNativeEntity entity,
-			uint64_t playbackID, const char* group, int32_t target);
-		// EffectEmitterのグループ数を返す
-		static int32_t __cdecl EffectGroupCountCallback(ManagedNativeEntity entity);
-		// EffectEmitterのグループ内State数を返す
-		static int32_t __cdecl EffectStateCountCallback(ManagedNativeEntity entity, int32_t groupIndex);
-		// EffectEmitterのグループ名をコピーする
-		static int32_t __cdecl EffectCopyGroupNameCallback(
-			ManagedNativeEntity entity, int32_t groupIndex, char* buffer, int32_t capacity);
-		// EffectEmitterのState名をコピーする
-		static int32_t __cdecl EffectCopyStateNameCallback(
-			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
-			char* buffer, int32_t capacity);
-		// EffectEmitterのState名を設定する
-		static int32_t __cdecl EffectSetStateNameCallback(
-			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex, const char* name);
-		// EffectEmitterのStateプロパティを取得する
-		static int32_t __cdecl EffectGetStatePropertyCallback(
-			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
-			int32_t property, void* outData, int32_t capacity);
-		// EffectEmitterのStateプロパティを設定する
-		static int32_t __cdecl EffectSetStatePropertyCallback(
-			ManagedNativeEntity entity, int32_t groupIndex, int32_t stateIndex,
-			int32_t property, const void* data, int32_t size);
+		// ParticleSystemへ再生操作を積む、withChildrenが有効なら子階層にも適用する
+		static void __cdecl ParticleSystemControlCallback(
+			ManagedNativeEntity entity, int32_t operation,
+			int32_t stopBehavior, int32_t withChildren);
+		// ParticleSystemの実行状態を返す
+		static int32_t __cdecl ParticleSystemStateCallback(
+			ManagedNativeEntity entity, int32_t state, int32_t withChildren);
 		// 即時ライン描画、任意ポリラインをこのフレームだけ描く
 		static void __cdecl LineDrawImmediateCallback(const ManagedLinePoint* points, int32_t count, int32_t loop, int32_t is2D, ManagedAssetGUID materialID);
 		// 即時球描画、組み込みの球生成で線分を発行する

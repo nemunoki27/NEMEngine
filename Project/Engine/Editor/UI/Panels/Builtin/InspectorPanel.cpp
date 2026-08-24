@@ -591,7 +591,8 @@ void Engine::InspectorPanel::DrawMeshAssetInspector(const EditorPanelContext& co
 	Input::GetInstance()->SetViewRect(InputViewArea::InspectorModelPreview,
 		Vector2(modelPreviewImagePos_.x, modelPreviewImagePos_.y),
 		Vector2(displaySize.x, displaySize.y),
-		EngineContext::GetWindowSetting().gameSize.GetFloat());
+		EngineContext::GetWindowSetting().gameSize.GetFloat(),
+		InputViewCoordinateSpace::Screen);
 
 	ToolContext toolContext{};
 	toolContext.world = context.editorContext->activeWorld;

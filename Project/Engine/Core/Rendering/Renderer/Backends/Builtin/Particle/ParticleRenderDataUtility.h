@@ -8,6 +8,9 @@
 
 namespace Engine {
 	class MaterialParameterSet;
+	struct ParticleGroupRuntimeState;
+	struct ParticleRenderPayload;
+	struct RenderItem;
 
 	//============================================================================
 	//	ParticleRenderDataUtility functions
@@ -20,4 +23,7 @@ namespace Engine {
 	// 可変パラメータへモジュールの数値を書き込む
 	void WriteParticleCustomParameter(std::vector<uint8_t>& data,
 		const ShaderConstantBufferVariable& variable, const Vector4& value);
+	// RenderItemから現在のParticleグループを解決する
+	const ParticleGroupRuntimeState* ResolveParticleRenderGroup(
+		const RenderItem& item, const ParticleRenderPayload& payload);
 } // Engine

@@ -29,6 +29,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
@@ -1170,6 +1171,25 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 		DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(
 		std::move(shaderGraph));
+
+	// ParticleEffectは専用エフェクト編集ツールで対象アセットを開く
+	AssetActionDescriptor particleEffect{};
+	particleEffect.type = AssetType::ParticleEffect;
+	particleEffect.displayName = "ParticleEffect";
+	particleEffect.iconResolver = ResolveDefaultAssetIcon;
+	particleEffect.onDoubleClick =
+		[](const EditorPanelContext& /*context*/,
+			const ProjectAssetEntry& asset) {
+
+		ITool* tool = ToolRegistry::GetInstance().Find(
+			"engine.particle_effect_editor");
+		auto* editor = dynamic_cast<ParticleEffectEditorTool*>(tool);
+		if (editor) {
+			editor->OpenAsset(asset.assetID);
+		}
+		};
+	particleEffect.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(particleEffect));
 
 	// 統合ProfileはComputeとDispatchRaysを同じツールで開く
 	AssetActionDescriptor renderFeatureProfile{};

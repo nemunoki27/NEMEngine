@@ -3,9 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 // c++
@@ -162,9 +162,12 @@ void Engine::ParticleSystem::ResolveParticleParents(ECSWorld& world, const Matri
 
 			const Entity parentEntity = SceneObjectUtility::FindByLocalFileID(world, settings.entityLocalFileID);
 			if (!world.IsAlive(parentEntity)) { continue; }
-			const TransformComponent* transform = world.TryGetComponent<TransformComponent>(parentEntity);
-			if (!transform) { continue; }
-			parentWorld = transform->worldMatrix;
+			ResolvedWorldTransform parentTransform{};
+			if (!TransformWorldUtility::ResolveWorldTransform(
+				world, parentEntity, parentTransform)) {
+				continue;
+			}
+			parentWorld = parentTransform.matrix;
 		}
 
 		ParentRuntime& parent = outParents[i];

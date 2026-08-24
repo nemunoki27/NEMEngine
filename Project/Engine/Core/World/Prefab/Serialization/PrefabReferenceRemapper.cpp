@@ -166,29 +166,6 @@ namespace {
 		RemapCameraTarget(component["followLookAt"], "lookAt", localFileIDMap);
 	}
 
-	// エフェクト発生設定内の親エンティティをリマップする
-	void RemapEffectEmitterParents(nlohmann::json& component,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
-
-		if (!component.contains("groups") || !component["groups"].is_array()) {
-			return;
-		}
-		for (nlohmann::json& group : component["groups"]) {
-
-			if (!group.is_object() || !group.contains("states") || !group["states"].is_array()) {
-				continue;
-			}
-			for (nlohmann::json& state : group["states"]) {
-
-				if (!state.is_object() || !state.contains("parentSettings") ||
-					!state["parentSettings"].is_object()) {
-					continue;
-				}
-				RemapUUIDKey(state["parentSettings"], "entityLocalFileID", localFileIDMap);
-			}
-		}
-	}
-
 	// コンポーネント固有のローカルIDフィールドをリマップする
 	void RemapNativeComponentFields(const std::string& componentType, nlohmann::json& component,
 		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
@@ -206,8 +183,8 @@ namespace {
 			RemapCameraTarget(component, "follow", localFileIDMap);
 			RemapCameraTarget(component, "lookAt", localFileIDMap);
 			RemapFollowLookAtTarget(component, localFileIDMap);
-		} else if (componentType == "EffectEmitter") {
-			RemapEffectEmitterParents(component, localFileIDMap);
+		} else if (componentType == "ParticleSystem") {
+			RemapUUIDKey(component, "customSimulationTarget", localFileIDMap);
 		}
 	}
 
@@ -221,7 +198,7 @@ namespace {
 			path == "CameraController/lookAt/target" ||
 			path == "CameraController/followLookAt/follow/target" ||
 			path == "CameraController/followLookAt/lookAt/target" ||
-			path.ends_with("/parentSettings/entityLocalFileID") ||
+			path == "ParticleSystem/customSimulationTarget" ||
 			path.ends_with("/localFileId");
 	}
 

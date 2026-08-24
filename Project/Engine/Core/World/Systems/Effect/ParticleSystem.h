@@ -17,8 +17,8 @@
 namespace Engine {
 
 	// front
-	struct EffectEmitterComponent;
-	struct EffectEmitterStateRuntime;
+	struct ParticleSystemComponent;
+	struct ParticleSystemRuntimeData;
 	struct ParticleEffectInstanceRuntime;
 	struct ParticleGroupRuntimeState;
 
@@ -125,15 +125,20 @@ namespace Engine {
 		// アセットのグループとフェーズから実行定義を構築する
 		void BuildGroups(EffectRuntime& runtime) const;
 		// コンポーネントの再生要求を実行状態へ反映する
-		void ProcessCommands(EffectEmitterComponent& emitter) const;
-		// stateの発生タイミングを進める
-		void UpdateStateSchedule(EffectEmitterComponent& emitter, EffectEmitterStateRuntime& state,
-			float deltaTime) const;
-		// ParticleEffect1つ分の実行状態を追加する
-		void AddEffectInstance(EffectEmitterComponent& emitter,
-			EffectEmitterStateRuntime& state, bool oneShot) const;
+		void ProcessCommands(const ParticleSystemComponent& component,
+			ParticleSystemRuntimeData& runtime) const;
+		// ParticleEffectを先頭から再生する
+		void StartEffect(ParticleSystemRuntimeData& runtime,
+			AssetID effectID, bool oneShot) const;
+		// ParticleEffectの描画状態を破棄する
+		void ClearEffect(ParticleSystemRuntimeData& runtime) const;
+		// 再生完了時のEntity操作を適用する
+		void ApplyStopAction(ECSWorld& world, const Entity& entity,
+			ParticleSystemComponent& component, ParticleSystemRuntimeData& runtime,
+			WorldMode mode) const;
 		// ParticleEffect実行状態をアセットのグループ順へ同期する
-		void SynchronizeRuntimeGroups(ParticleEffectInstanceRuntime& instance, const EffectRuntime& effect) const;
+		bool SynchronizeRuntimeGroups(
+			ParticleEffectInstanceRuntime& instance, const EffectRuntime& effect) const;
 		// ParticleEffectの再生状態を先頭へ戻す
 		void RestartEffectInstance(ParticleEffectInstanceRuntime& instance, const ParticleEffectAsset& asset) const;
 		// 同時発生を行うフレームか判定する

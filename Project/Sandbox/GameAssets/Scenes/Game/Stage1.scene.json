@@ -2,6 +2,93 @@
     "Entities": [
         {
             "Components": {
+                "CameraController": {
+                    "editorPreview": true,
+                    "enabled": true,
+                    "follow": {
+                        "autoInputDevice": false,
+                        "axisMask": {
+                            "x": 1.0,
+                            "y": 1.0,
+                            "z": 1.0
+                        },
+                        "enableInputRotation": false,
+                        "enabled": true,
+                        "inputLerpRate": 7.800000190734863,
+                        "invertPitch": false,
+                        "mouseEnabled": true,
+                        "mouseSensitivity": {
+                            "x": 0.0020000000949949026,
+                            "y": 0.0020000000949949026
+                        },
+                        "offset": {
+                            "x": -960.0,
+                            "y": -540.0,
+                            "z": 0.0
+                        },
+                        "padEnabled": true,
+                        "padSensitivity": {
+                            "x": 1.909999966621399,
+                            "y": 2.880000114440918
+                        },
+                        "posLerpSpeed": 4.800000190734863,
+                        "target": "3d7e83e18622e67b"
+                    },
+                    "followLookAt": {
+                        "follow": {
+                            "autoInputDevice": false,
+                            "axisMask": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "enableInputRotation": false,
+                            "enabled": true,
+                            "inputLerpRate": 7.800000190734863,
+                            "invertPitch": false,
+                            "mouseEnabled": true,
+                            "mouseSensitivity": {
+                                "x": 0.0020000000949949026,
+                                "y": 0.0020000000949949026
+                            },
+                            "offset": {
+                                "x": 0.0,
+                                "y": 3.0,
+                                "z": -8.0
+                            },
+                            "padEnabled": true,
+                            "padSensitivity": {
+                                "x": 1.909999966621399,
+                                "y": 2.880000114440918
+                            },
+                            "posLerpSpeed": 4.800000190734863,
+                            "target": "0000000000000000"
+                        },
+                        "lookAt": {
+                            "enabled": false,
+                            "lockRoll": true,
+                            "offset": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "rotationLerpSpeed": 12.0,
+                            "target": "0000000000000000"
+                        }
+                    },
+                    "lookAt": {
+                        "enabled": false,
+                        "lockRoll": true,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "rotationLerpSpeed": 12.0,
+                        "target": "0000000000000000"
+                    },
+                    "mode": "Follow"
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
                     "siblingOrder": 0
@@ -26,8 +113,8 @@
                 "Transform": {
                     "dimension": 0,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
+                        "x": -808.9732055664063,
+                        "y": 172.52838134765625,
                         "z": 0.0
                     },
                     "localRotation": {
@@ -44,6 +131,113 @@
                 }
             },
             "LocalFileID": "3ff9d0287c6b7a53"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
+                },
+                "Name": {
+                    "name": "Particle"
+                },
+                "ParticleSystem": {
+                    "customSimulationTarget": "",
+                    "drawEmitterShape": true,
+                    "effect": "261fcf8674e185b35ff84b7afa4df62b",
+                    "enabled": true,
+                    "layer": 0,
+                    "order": 0,
+                    "playInEditMode": true,
+                    "playOnAwake": true,
+                    "playbackSpeed": 1.0,
+                    "simulationSpace": "World",
+                    "stopAction": "None",
+                    "useUnscaledTime": true,
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "997334a7a06eafe4",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 812.5477294921875,
+                        "y": 417.9497375488281,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "997334a7a06eafe4"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 6
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderingLayerMask": 1,
+                    "subMeshes": [],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Static Mesh"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d1c6ef99d902b6ed",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "d1c6ef99d902b6ed"
         }
     ],
     "Header": {
@@ -147,7 +341,7 @@
                             "dimension": 0,
                             "localPos": {
                                 "x": 0.0,
-                                "y": 0.0,
+                                "y": -4.011260986328125,
                                 "z": 0.0
                             },
                             "localRotation": {
@@ -544,6 +738,11 @@
                     ]
                 },
                 {
+                    "Path": "Transform/localPos/x",
+                    "Target": "91ebbfbda4325a51",
+                    "Value": 127.99999237060547
+                },
+                {
                     "Path": "Collision/shapes",
                     "Target": "980e1e524f40cae0",
                     "Value": [
@@ -837,7 +1036,7 @@
             "PrefabAsset": "da6102152e5b2dc13fea837bdad60fbd",
             "RemovedComponents": [],
             "RemovedEntities": [],
-            "RootParent": ""
+            "RootParent": "3ff9d0287c6b7a53"
         },
         {
             "AddedComponents": [],

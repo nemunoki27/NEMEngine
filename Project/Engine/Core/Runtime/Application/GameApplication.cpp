@@ -30,6 +30,7 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
+#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 #include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
 #include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
@@ -63,12 +64,12 @@ void Engine::GameApplication::InitSystems() {
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	// EffectEmitterとAnimationPlayerは次期データ指向設計へ置き換えるまで実行対象外
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);

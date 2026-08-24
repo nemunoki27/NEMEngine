@@ -11,6 +11,7 @@
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Pipelines/Stage/BlendState.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
@@ -43,6 +44,7 @@
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
 // c++
 #include <algorithm>
@@ -791,6 +793,14 @@ namespace {
 		parentTransform.localPos = Engine::Vector3(2.0f, 0.0f, 0.0f);
 		childTransform.localPos = Engine::Vector3(1.0f, 0.0f, 0.0f);
 
+		// LateUpdate前でも現在のlocal値から初回ワールド姿勢を取得できることを確認する
+		Engine::ResolvedWorldTransform resolvedBeforeUpdate{};
+		if (!Engine::TransformWorldUtility::ResolveWorldTransform(
+			world, child, resolvedBeforeUpdate) ||
+			std::abs(resolvedBeforeUpdate.matrix.GetTranslationValue().x - 3.0f) > 0.0001f) {
+			return false;
+		}
+
 		Engine::TransformSystem transformSystem{};
 		Engine::SystemContext context{};
 		transformSystem.OnWorldEnter(world, context);
@@ -1224,6 +1234,53 @@ namespace {
 			160.0f, 80.0f, 32.0f) &&
 			!Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
 				534.1f, 0.1f, 0.1f);
+	}
+
+	bool TestBlendStates() {
+
+		struct ExpectedBlendState {
+
+			Engine::BlendMode mode;
+			D3D12_BLEND source;
+			D3D12_BLEND destination;
+			D3D12_BLEND_OP operation;
+		};
+		constexpr std::array expectedStates = {
+			ExpectedBlendState{ Engine::BlendMode::Normal,
+				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA,
+				D3D12_BLEND_OP_ADD },
+			ExpectedBlendState{ Engine::BlendMode::Add,
+				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_ONE,
+				D3D12_BLEND_OP_ADD },
+			ExpectedBlendState{ Engine::BlendMode::Subtract,
+				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_ONE,
+				D3D12_BLEND_OP_REV_SUBTRACT },
+			ExpectedBlendState{ Engine::BlendMode::Multiply,
+				D3D12_BLEND_ZERO, D3D12_BLEND_SRC_COLOR,
+				D3D12_BLEND_OP_ADD },
+			ExpectedBlendState{ Engine::BlendMode::Screen,
+				D3D12_BLEND_INV_DEST_COLOR, D3D12_BLEND_ONE,
+				D3D12_BLEND_OP_ADD },
+			ExpectedBlendState{ Engine::BlendMode::Premultiplied,
+				D3D12_BLEND_ONE, D3D12_BLEND_INV_SRC_ALPHA,
+				D3D12_BLEND_OP_ADD },
+		};
+		for (const ExpectedBlendState& expected : expectedStates) {
+
+			D3D12_RENDER_TARGET_BLEND_DESC desc{};
+			Engine::BlendState{}.Create(expected.mode, desc);
+			if (!desc.BlendEnable ||
+				desc.SrcBlend != expected.source ||
+				desc.DestBlend != expected.destination ||
+				desc.BlendOp != expected.operation ||
+				desc.SrcBlendAlpha != D3D12_BLEND_ONE ||
+				desc.DestBlendAlpha != D3D12_BLEND_INV_SRC_ALPHA ||
+				desc.BlendOpAlpha != D3D12_BLEND_OP_ADD) {
+
+				return false;
+			}
+		}
+		return true;
 	}
 
 	bool TestMaterialParameters() {
@@ -1793,6 +1850,10 @@ namespace {
 			if (!targetOutput.Succeeded() ||
 				targetOutput.opaquePixelHLSL.find(include) ==
 					std::string::npos ||
+				((target == Engine::ShaderGraphTarget::Particle ||
+					target == Engine::ShaderGraphTarget::Trail) &&
+					targetOutput.opaquePixelHLSL.find(
+						"PrepareParticleBlendColor") == std::string::npos) ||
 				targetGraph.nodes.size() !=
 					(Engine::IsShaderGraph3DTarget(target) ?
 						8u : 4u)) {
@@ -2397,6 +2458,7 @@ int main(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
 			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
+			!TestTransformDirtyHierarchy() ||
 			!TestTransformDimensionSerialization() ||
 			!TestScreenSpaceOutlineSerialization()) {
 			std::cerr << "ECS chunk storage failed\n";
@@ -2420,7 +2482,8 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--materials") {
 
-		if (!TestMaterialParameters() ||
+		if (!TestBlendStates() ||
+			!TestMaterialParameters() ||
 			!TestShaderReflectionMerge()) {
 			std::cerr << "Material parameter storage failed\n";
 			return 17;
@@ -2516,6 +2579,10 @@ int main(int argc, char* argv[]) {
 	if (!TestMeshLODGeneration()) {
 		std::cerr << "Mesh LOD generation failed\n";
 		return 16;
+	}
+	if (!TestBlendStates()) {
+		std::cerr << "Blend state failed\n";
+		return 30;
 	}
 	if (!TestMaterialParameters()) {
 		std::cerr << "Material parameter storage failed\n";

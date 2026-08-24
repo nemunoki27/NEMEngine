@@ -19,7 +19,7 @@ using namespace Engine;
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
-#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
@@ -60,34 +60,27 @@ namespace {
 	constexpr const char* kPhaseReorderPayloadType = "PARTICLE_PHASE_REORDER";
 	// グループ並べ替えのドラッグ&ドロップペイロード
 	constexpr const char* kGroupReorderPayloadType = "PARTICLE_GROUP_REORDER";
-	constexpr const char* kEffectEditorPreviewGroupName = "[EffectEditor]";
-
 	// コンポーネント設定が対象エフェクトを参照しているか
-	bool UsesEffect(const Engine::EffectEmitterComponent& emitter, Engine::AssetID effectID) {
+	bool UsesEffect(const Engine::ParticleSystemComponent& component,
+		Engine::AssetID effectID) {
 
-		for (const Engine::EffectEmitterGroup& group : emitter.groups) {
-			for (const Engine::EffectEmitterState& state : group.states) {
-				const Engine::AssetID resolved = state.effect ? state.effect : Engine::BuiltinAssets::Effects::DefaultParticle;
-				if (resolved == effectID) { return true; }
-			}
-		}
-		return false;
+		const Engine::AssetID resolved = component.effect ? component.effect :
+			Engine::BuiltinAssets::Effects::DefaultParticle;
+		return resolved == effectID;
 	}
 
-	// 実行中の対象エフェクトを順に処理する
-	template <typename Callback>
-	void ForEachEffectInstance(const Engine::EffectEmitterComponent& emitter,
-		Engine::AssetID effectID, Callback&& callback) {
+	// 対象コンポーネントの実行状態を取得する
+	const Engine::ParticleEffectInstanceRuntime* ResolveEffectInstance(
+		const Engine::ECSWorld& world, const Engine::Entity& entity,
+		const Engine::ParticleSystemComponent& component,
+		Engine::AssetID effectID) {
 
-		for (const Engine::EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
-			for (const Engine::EffectEmitterStateRuntime& state : playback.states) {
-				for (const Engine::ParticleEffectInstanceRuntime& effect : state.effects) {
-
-					const Engine::AssetID resolved = effect.effect ? effect.effect : Engine::BuiltinAssets::Effects::DefaultParticle;
-					if (resolved == effectID) { callback(effect); }
-				}
-			}
+		if (!UsesEffect(component, effectID)) {
+			return nullptr;
 		}
+		const Engine::ParticleSystemRuntimeData* runtime =
+			Engine::TryGetParticleSystemRuntime(world, entity);
+		return runtime ? &runtime->effect : nullptr;
 	}
 
 	// 親localFileIDから表示名を作る
@@ -306,8 +299,18 @@ void ParticleEffectEditorTool::OpenEditorTool() {
 	openWindow_ = true;
 }
 
+void ParticleEffectEditorTool::OpenAsset(AssetID assetID) {
+
+	pendingAsset_ = assetID;
+	openWindow_ = true;
+}
+
 void ParticleEffectEditorTool::DrawEditorTool(const EditorToolContext& context) {
 
+	if (pendingAsset_) {
+		LoadEffect(context, pendingAsset_);
+		pendingAsset_ = {};
+	}
 	if (!openWindow_) {
 		return;
 	}
@@ -375,19 +378,22 @@ bool ParticleEffectEditorTool::DrawGroupEmissionSection(const EditorToolContext&
 		bool playing = false;
 		bool oneShot = false;
 		float currentInterval = 0.0f;
-		bool foundEmitter = false;
+		bool foundSystem = false;
 		if (ECSWorld* world = context.GetWorld()) {
-			world->ForEach<EffectEmitterComponent>([&](const Entity&, const EffectEmitterComponent& component) {
+			world->ForEach<ParticleSystemComponent>(
+				[&](const Entity& entity, const ParticleSystemComponent& component) {
 
-				ForEachEffectInstance(component, editingID_, [&](const ParticleEffectInstanceRuntime& effect) {
-
-					if (!foundEmitter) {
-						currentInterval = effect.runtimeGroupEmitTimer;
-						foundEmitter = true;
+					const ParticleEffectInstanceRuntime* effect = ResolveEffectInstance(
+						*world, entity, component, editingID_);
+					if (!effect) {
+						return;
 					}
-					playing |= !effect.emissionStopped;
-					oneShot |= effect.oneShot;
-					});
+					if (!foundSystem) {
+						currentInterval = effect->runtimeGroupEmitTimer;
+						foundSystem = true;
+					}
+					playing |= !effect->emissionStopped;
+					oneShot |= effect->oneShot;
 				});
 		}
 		if (MyGUI::BeginPropertyRow("再生状態")) {
@@ -420,11 +426,17 @@ bool ParticleEffectEditorTool::DrawGroupEmissionSection(const EditorToolContext&
 			}
 		}
 	}
-	if (ImGui::Button("再生")) { RestartEmitters(context, false); }
+	if (ImGui::Button("再生")) {
+		RestartParticleSystems(context, false);
+	}
 	ImGui::SameLine();
-	if (ImGui::Button("単発再生")) { RestartEmitters(context, true); }
+	if (ImGui::Button("単発再生")) {
+		RestartParticleSystems(context, true);
+	}
 	ImGui::SameLine();
-	if (ImGui::Button("停止")) { StopEmitters(context); }
+	if (ImGui::Button("停止")) {
+		StopParticleSystems(context);
+	}
 	ImGui::Separator();
 	return changed;
 }
@@ -569,6 +581,7 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 
 			ImGui::BeginDisabled(draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous);
 			changed |= MyGUI::DragFloat("発生間隔", group.emitter.emitInterval, MakeDragSetting(0.001f, 60.0f)).valueChanged;
+			changed |= MyGUI::Checkbox("ループ再生", group.looping);
 			ImGui::EndDisabled();
 			changed |= ParticleGui::DrawParticleValueUInt("発生数", group.emitter.emitCount);
 			{
@@ -581,14 +594,21 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 				// 現在の発生数を集計して表示する
 				uint32_t aliveCount = 0;
 				if (ECSWorld* world = context.GetWorld()) {
-					world->ForEach<EffectEmitterComponent>([&](const Entity&, const EffectEmitterComponent& component) {
-						ForEachEffectInstance(component, editingID_, [&](const ParticleEffectInstanceRuntime& effect) {
-							for (const ParticleGroupRuntimeState& runtimeGroup : effect.runtimeGroups) {
+					world->ForEach<ParticleSystemComponent>(
+						[&](const Entity& entity, const ParticleSystemComponent& component) {
+
+							const ParticleEffectInstanceRuntime* effect = ResolveEffectInstance(
+								*world, entity, component, editingID_);
+							if (!effect) {
+								return;
+							}
+							for (const ParticleGroupRuntimeState& runtimeGroup :
+								effect->runtimeGroups) {
 								if (runtimeGroup.groupID == group.id) {
-									aliveCount += static_cast<uint32_t>(runtimeGroup.particles.size());
+									aliveCount += static_cast<uint32_t>(
+										runtimeGroup.particles.size());
 								}
 							}
-							});
 						});
 				}
 				if (MyGUI::BeginPropertyRow("現在の発生数")) {
@@ -601,13 +621,6 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 
 			changed |= ParticleGui::DrawParticleValueFloat("発生初速度", group.emitter.speed, MakeDragSetting(0.0f, 10000.0f));
 			changed |= ParticleGui::DrawParticleValueVector3("発生オフセット", group.emitter.emitOffset, MakeDragSetting(-10000.0f, 10000.0f));
-
-			ImGui::Spacing();
-			ImGui::Separator();
-
-			ImGui::BeginDisabled(draft_.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous);
-			changed |= MyGUI::Checkbox("ループ再生", group.looping);
-			ImGui::EndDisabled();
 		}
 		//========================================================================================================================================================
 		if (MyGUI::CollapsingHeader("エミッター形状設定", false)) {
@@ -1226,7 +1239,8 @@ ParticleEffectEditorTool::GroupEditorState& ParticleEffectEditorTool::GetGroupEd
 	return groupEditorStates_[groupID];
 }
 
-void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context, bool oneShot) {
+void ParticleEffectEditorTool::RestartParticleSystems(
+	const EditorToolContext& context, bool oneShot) {
 
 	ECSWorld* world = context.GetWorld();
 	if (!world) {
@@ -1234,32 +1248,21 @@ void ParticleEffectEditorTool::RestartEmitters(const EditorToolContext& context,
 		statusMessage_ = "再生対象のシーンがありません";
 		return;
 	}
-	// 対象エフェクトを使っているエミッターを頭から再生する
+	// 対象エフェクトを使っているParticleSystemを頭から再生する
 	size_t restartCount = 0;
-	world->ForEach<EffectEmitterComponent>([&](const Entity&, EffectEmitterComponent& component) {
+	world->ForEach<ParticleSystemComponent>(
+		[&](const Entity& entity, const ParticleSystemComponent& component) {
 
 		if (!UsesEffect(component, editingID_)) { return; }
-		std::erase_if(component.runtimePlaybacks, [](const EffectEmitterPlaybackRuntime& playback) {
-			return playback.groupName == kEffectEditorPreviewGroupName;
-			});
-
-		EffectEmitterPlaybackRuntime playback{};
-		playback.id = component.runtimeNextPlaybackID++;
-		playback.groupName = kEffectEditorPreviewGroupName;
-		EffectEmitterStateRuntime state{};
-		state.state.name = "Preview";
-		state.state.effect = editingID_;
-		state.state.mode = oneShot ? EffectEmitterMode::Once : EffectEmitterMode::Continuous;
-		state.useAssetParentSettings = true;
-		playback.states.emplace_back(std::move(state));
-		component.runtimePlaybacks.emplace_back(std::move(playback));
+		RequestParticleSystemRestart(*world, entity, oneShot);
 		++restartCount;
 		});
 	statusMessage_ = 0 < restartCount ?
-		std::string{} : "編集中のエフェクトを使用するエミッターがありません";
+		std::string{} : "編集中のエフェクトを使用するParticleSystemがありません";
 }
 
-void ParticleEffectEditorTool::StopEmitters(const EditorToolContext& context) {
+void ParticleEffectEditorTool::StopParticleSystems(
+	const EditorToolContext& context) {
 
 	ECSWorld* world = context.GetWorld();
 	if (!world) {
@@ -1267,31 +1270,18 @@ void ParticleEffectEditorTool::StopEmitters(const EditorToolContext& context) {
 		statusMessage_ = "停止対象のシーンがありません";
 		return;
 	}
-	// 対象エフェクトを使っているエミッターを停止して粒子を消す
+	// 対象エフェクトを使っているParticleSystemを停止して粒子を消す
 	size_t stopCount = 0;
-	world->ForEach<EffectEmitterComponent>([&](const Entity&, EffectEmitterComponent& component) {
+	world->ForEach<ParticleSystemComponent>(
+		[&](const Entity& entity, const ParticleSystemComponent& component) {
 
 		if (!UsesEffect(component, editingID_)) { return; }
-		for (EffectEmitterPlaybackRuntime& playback : component.runtimePlaybacks) {
-			for (EffectEmitterStateRuntime& state : playback.states) {
-
-				const AssetID stateEffect = state.state.effect ? state.state.effect : BuiltinAssets::Effects::DefaultParticle;
-				if (stateEffect == editingID_) {
-					state.scheduleFinished = true;
-					state.effects.clear();
-				}
-			}
-		}
-		std::erase_if(component.runtimePlaybacks, [](const EffectEmitterPlaybackRuntime& playback) {
-			return std::all_of(playback.states.begin(), playback.states.end(),
-				[](const EffectEmitterStateRuntime& state) {
-					return state.scheduleFinished && state.effects.empty();
-				});
-			});
+		RequestParticleSystemStop(*world, entity,
+			ParticleSystemStopBehavior::StopEmittingAndClear);
 		++stopCount;
 		});
 	statusMessage_ = 0 < stopCount ?
-		std::string{} : "編集中のエフェクトを使用するエミッターがありません";
+		std::string{} : "編集中のエフェクトを使用するParticleSystemがありません";
 }
 
 Engine::IParticleModule* ParticleEffectEditorTool::ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry) {

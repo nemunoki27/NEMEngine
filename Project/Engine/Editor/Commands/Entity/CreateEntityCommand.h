@@ -20,6 +20,17 @@ namespace Engine {
 		uint8_t {
 
 		Empty,
+		Camera,
+		StaticMesh,
+		SkinnedMesh,
+		PrimitivePlane,
+		PrimitiveCrossPlane,
+		PrimitiveRing,
+		PrimitiveCylinder,
+		PrimitiveSphere,
+		PrimitiveHemisphere,
+		PrimitiveCube,
+		Particle,
 		Canvas,
 		UIImage,
 		UIText,
@@ -72,6 +83,6 @@ namespace Engine {
 		// コマンドの実行処理
 		bool CreateInternal(EditorCommandContext& context);
 		// 作成プリセットのコンポーネントを追加する
-		void ApplyPreset(ECSWorld& world, const Entity& entity, const Entity& parent);
+		void ApplyPreset(ECSWorld& world, const Entity& entity);
 	};
 } // Engine

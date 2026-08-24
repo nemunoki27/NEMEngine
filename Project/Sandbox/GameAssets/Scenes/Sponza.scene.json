@@ -4410,6 +4410,7 @@
                     "transitionDuration": 0.15000000596046448
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 54.377784729003906,
                         "y": 0.6300348043441772,
@@ -13947,6 +13948,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
@@ -14001,6 +14003,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
@@ -16534,6 +16537,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 41.16445541381836,
                         "y": -0.2501756548881531,
@@ -16580,6 +16584,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 7.809802055358887,
                         "y": 11.472025871276855,
@@ -16755,6 +16760,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 40.33755111694336,
                         "y": 2.673945426940918,
@@ -16813,6 +16819,7 @@
                     "visible": true
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 0.0,
                         "y": 0.0,
@@ -16832,6 +16839,58 @@
                 }
             },
             "LocalFileID": "a987fda577ea8d3a"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 11
+                },
+                "Name": {
+                    "name": "Particle"
+                },
+                "ParticleSystem": {
+                    "customSimulationTarget": "",
+                    "drawEmitterShape": false,
+                    "effect": "b3f31f9cba02eb212102fc0a25270161",
+                    "enabled": true,
+                    "layer": 0,
+                    "order": 0,
+                    "playInEditMode": true,
+                    "playOnAwake": true,
+                    "playbackSpeed": 0.6299999952316284,
+                    "simulationSpace": "EffectAsset",
+                    "stopAction": "None",
+                    "useUnscaledTime": false,
+                    "visible": true
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "b0741ba9e783b6d5",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 42.262367248535156,
+                        "y": 0.7073707580566406,
+                        "z": -1.8068721294403076
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "b0741ba9e783b6d5"
         },
         {
             "Components": {
@@ -16942,6 +17001,7 @@
                     "visibilityLayerMask": 4294967295
                 },
                 "Transform": {
+                    "dimension": 1,
                     "localPos": {
                         "x": 76.02525329589844,
                         "y": 5.720898628234863,

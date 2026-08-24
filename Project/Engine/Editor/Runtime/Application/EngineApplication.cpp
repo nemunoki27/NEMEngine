@@ -49,6 +49,7 @@
 #include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
+#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 
 //============================================================================
 //	EngineApplication classMethods
@@ -88,12 +89,12 @@ void Engine::EngineApplication::InitSystems() {
 	// UI入力はBehaviorより先に確定し、C#のUpdateから同フレームのクリックを参照できるようにする
 	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	// EffectEmitterとAnimationPlayerは次期データ指向設計へ置き換えるまで実行対象外
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
+	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);

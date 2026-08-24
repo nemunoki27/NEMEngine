@@ -77,6 +77,14 @@ project "NEMEditor"
     dependson { "NEMCore", "imgui-node-editor" }
     debugdir (path.join(NEM_PROJECT_ROOT, "Sandbox"))
 
+    -- Native Callback ABIとManaged側のテーブルを同じ構成で揃える
+    local scriptCoreProject = path.translate(path.join(
+        NEM_PROJECT_ROOT, "Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj"), "\\")
+    prebuildcommands {
+        "set DOTNET_CLI_UI_LANGUAGE=en",
+        'dotnet build "' .. scriptCoreProject .. '" -c "$(Configuration)"',
+    }
+
     filter "configurations:Release"
         symbols "On"
 

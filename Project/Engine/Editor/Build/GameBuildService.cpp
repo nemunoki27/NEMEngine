@@ -537,7 +537,7 @@ namespace {
 					else if (key == "UIProgress") {
 						usage_.primitive2D = true;
 						usage_.progress = true;
-					} else if (key == "EffectEmitter") {
+					} else if (key == "ParticleSystem") {
 						usage_.particle = true;
 					}
 

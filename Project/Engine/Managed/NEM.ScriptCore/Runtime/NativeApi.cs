@@ -30,14 +30,12 @@ internal static class ManagedAbi {
     // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
     // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
     // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
-    // v25: EffectEmitterの再生ハンドルAPIを追加
     // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
     // v27: UISelectableの決定入力配列取得と設定を追加
     // v28: UI入力配列をCanvasの上下左右と決定へ移行
     // v29: Application.Quitの終了要求を追加
     // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
     // v32: AudioSourceのPlayOneShotとUnPauseを追加
-    // v33: EffectEmitterのグループとState設定APIを追加
     // v34: アセット参照を128bit AssetGUIDへ移行
     // v35: UserSettingsルート取得APIを追加
     // v36: Collision実行時状態をAuthoring設定から分離
@@ -45,7 +43,8 @@ internal static class ManagedAbi {
     // v43: 全Renderer共通の型付きMaterial Instance APIを追加
     // v44: 廃止した描画、画面遷移APIを削除
     // v45: RenderFeatureProfileの実行時パラメータAPIを追加
-    internal const uint Version = 45;
+    // v46: ParticleSystemのUnity準拠再生操作と実行状態APIを追加
+    internal const uint Version = 46;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -446,18 +445,9 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopySkinnedAnimationCurrentClip;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int> GetSkinnedAnimationRuntimeState;
-    // v25: EffectEmitterの発生とハンドルまたはグループ単位の制御
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong> EffectEmit;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectStop;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> EffectClear;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int> EffectIsPlaying;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> EffectGroupCount;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> EffectStateCount;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int> EffectCopyGroupName;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> EffectCopyStateName;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int> EffectSetStateName;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> EffectGetStateProperty;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> EffectSetStateProperty;
+    // v46: ParticleSystemの再生操作と実行状態
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void> ParticleSystemControl;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> ParticleSystemState;
     // v37: POD BufferをEntityと固定Type IDから解決して操作する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> DynamicBufferLength;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> DynamicBufferCopy;
@@ -617,17 +607,8 @@ internal static unsafe class NativeApi {
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
         CopySkinnedAnimationCurrentClip = callbacks->copySkinnedAnimationCurrentClip;
         GetSkinnedAnimationRuntimeState = callbacks->getSkinnedAnimationRuntimeState;
-        EffectEmit = callbacks->effectEmit;
-        EffectStop = callbacks->effectStop;
-        EffectClear = callbacks->effectClear;
-        EffectIsPlaying = callbacks->effectIsPlaying;
-        EffectGroupCount = callbacks->effectGroupCount;
-        EffectStateCount = callbacks->effectStateCount;
-        EffectCopyGroupName = callbacks->effectCopyGroupName;
-        EffectCopyStateName = callbacks->effectCopyStateName;
-        EffectSetStateName = callbacks->effectSetStateName;
-        EffectGetStateProperty = callbacks->effectGetStateProperty;
-        EffectSetStateProperty = callbacks->effectSetStateProperty;
+        ParticleSystemControl = callbacks->particleSystemControl;
+        ParticleSystemState = callbacks->particleSystemState;
         DynamicBufferLength = callbacks->dynamicBufferLength;
         DynamicBufferCopy = callbacks->dynamicBufferCopy;
         DynamicBufferMutate = callbacks->dynamicBufferMutate;
@@ -1567,122 +1548,22 @@ internal static unsafe class NativeApi {
     internal static bool AudioIsPlayingCall(NativeEntity entity) => AudioIsPlaying != null && AudioIsPlaying(entity) != 0;
 
     //========================================================================
-    //	EffectEmitter gameplay method helpers
+    //	ParticleSystem gameplay method helpers
     //========================================================================
-    internal static ulong EffectEmitCall(NativeEntity entity, string group,
-        Vector3 position, Quaternion rotation, bool fixedAnchor) {
+    internal static void ParticleSystemControlCall(
+        NativeEntity entity, int operation,
+        ParticleSystemStopBehavior stopBehavior, bool withChildren) {
 
-        if (EffectEmit == null) {
-            return 0ul;
-        }
-        byte[] bytes = Encoding.UTF8.GetBytes((group ?? string.Empty) + "\0");
-        fixed (byte* ptr = bytes) {
-            return EffectEmit(entity, ptr, NativeVector3.From(position),
-                NativeQuaternion.From(rotation), fixedAnchor ? 1 : 0);
+        if (ParticleSystemControl != null) {
+            ParticleSystemControl(entity, operation,
+                (int)stopBehavior, withChildren ? 1 : 0);
         }
     }
 
-    internal static void EffectStopHandleCall(NativeEntity entity, ulong handle) {
-        if (EffectStop != null) { EffectStop(entity, handle, null, 0); }
-    }
-    internal static void EffectStopGroupCall(NativeEntity entity, string group) {
-        EffectControlGroupCall(EffectStop, entity, group);
-    }
-    internal static void EffectStopAllCall(NativeEntity entity) {
-        if (EffectStop != null) { EffectStop(entity, 0ul, null, 2); }
-    }
-    internal static void EffectClearHandleCall(NativeEntity entity, ulong handle) {
-        if (EffectClear != null) { EffectClear(entity, handle, null, 0); }
-    }
-    internal static void EffectClearGroupCall(NativeEntity entity, string group) {
-        EffectControlGroupCall(EffectClear, entity, group);
-    }
-    internal static void EffectClearAllCall(NativeEntity entity) {
-        if (EffectClear != null) { EffectClear(entity, 0ul, null, 2); }
-    }
-    internal static bool EffectIsPlayingHandleCall(NativeEntity entity, ulong handle) =>
-        EffectIsPlaying != null && EffectIsPlaying(entity, handle, null, 0) != 0;
-    internal static bool EffectIsPlayingGroupCall(NativeEntity entity, string group) {
-
-        if (EffectIsPlaying == null) {
-            return false;
-        }
-        byte[] bytes = Encoding.UTF8.GetBytes((group ?? string.Empty) + "\0");
-        fixed (byte* ptr = bytes) {
-            return EffectIsPlaying(entity, 0ul, ptr, 1) != 0;
-        }
-    }
-    internal static bool EffectIsPlayingAllCall(NativeEntity entity) =>
-        EffectIsPlaying != null && EffectIsPlaying(entity, 0ul, null, 2) != 0;
-
-    internal static int EffectGroupCountCall(NativeEntity entity) =>
-        EffectGroupCount != null ? EffectGroupCount(entity) : 0;
-    internal static int EffectStateCountCall(NativeEntity entity, int groupIndex) =>
-        EffectStateCount != null ? EffectStateCount(entity, groupIndex) : 0;
-
-    internal static string EffectGroupNameCall(NativeEntity entity, int groupIndex) {
-
-        if (EffectCopyGroupName == null) { return string.Empty; }
-        int needed = EffectCopyGroupName(entity, groupIndex, null, 0);
-        if (needed <= 0) { return string.Empty; }
-        byte[] bytes = new byte[needed + 1];
-        fixed (byte* ptr = bytes) {
-            int written = EffectCopyGroupName(entity, groupIndex, ptr, bytes.Length);
-            return written > 0 ? Encoding.UTF8.GetString(bytes, 0, written) : string.Empty;
-        }
-    }
-
-    internal static string EffectStateNameCall(NativeEntity entity, int groupIndex, int stateIndex) {
-
-        if (EffectCopyStateName == null) { return string.Empty; }
-        int needed = EffectCopyStateName(entity, groupIndex, stateIndex, null, 0);
-        if (needed <= 0) { return string.Empty; }
-        byte[] bytes = new byte[needed + 1];
-        fixed (byte* ptr = bytes) {
-            int written = EffectCopyStateName(entity, groupIndex, stateIndex, ptr, bytes.Length);
-            return written > 0 ? Encoding.UTF8.GetString(bytes, 0, written) : string.Empty;
-        }
-    }
-
-    internal static bool EffectSetStateNameCall(
-        NativeEntity entity, int groupIndex, int stateIndex, string name) {
-
-        if (EffectSetStateName == null) { return false; }
-        byte[] bytes = Encoding.UTF8.GetBytes((name ?? string.Empty) + "\0");
-        fixed (byte* ptr = bytes) {
-            return EffectSetStateName(entity, groupIndex, stateIndex, ptr) != 0;
-        }
-    }
-
-    internal static T EffectGetStatePropertyCall<T>(
-        NativeEntity entity, int groupIndex, int stateIndex, int property) where T : unmanaged {
-
-        T value = default;
-        if (EffectGetStateProperty != null) {
-            EffectGetStateProperty(entity, groupIndex, stateIndex, property, &value, sizeof(T));
-        }
-        return value;
-    }
-
-    internal static bool EffectSetStatePropertyCall<T>(
-        NativeEntity entity, int groupIndex, int stateIndex, int property, T value) where T : unmanaged {
-
-        return EffectSetStateProperty != null &&
-            EffectSetStateProperty(entity, groupIndex, stateIndex, property, &value, sizeof(T)) != 0;
-    }
-
-    private static void EffectControlGroupCall(
-        delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void> callback,
-        NativeEntity entity, string group) {
-
-        if (callback == null) {
-            return;
-        }
-        byte[] bytes = Encoding.UTF8.GetBytes((group ?? string.Empty) + "\0");
-        fixed (byte* ptr = bytes) {
-            callback(entity, 0ul, ptr, 1);
-        }
-    }
+    internal static int ParticleSystemStateCall(
+        NativeEntity entity, int state, bool withChildren = false) =>
+        ParticleSystemState != null ?
+            ParticleSystemState(entity, state, withChildren ? 1 : 0) : 0;
 
     //========================================================================
     //	raw Input 拡張（多 gamepad / axis / text / focus）helpers

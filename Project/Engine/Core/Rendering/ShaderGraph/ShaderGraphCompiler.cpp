@@ -2622,6 +2622,7 @@ namespace {
 			"\tcolor.a *= graph.opacity;\n"
 			"\tclip(color.a - max(material.materialParams.x, graph.alphaClip));\n"
 			"\tcolor.rgb += graph.emissive + material.emissive.rgb * material.emissive.w;\n"
+			"\tcolor = PrepareParticleBlendColor(color, material);\n"
 			"\tPSOutput output;\n"
 			"\toutput.color = color;\n"
 			"\treturn output;\n"

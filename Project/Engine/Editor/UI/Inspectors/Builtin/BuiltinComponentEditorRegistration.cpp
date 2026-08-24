@@ -16,7 +16,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/SkyboxRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/PrimitiveRendererInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Render/EffectEmitterInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/ParticleSystemInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/FlipbookAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/TextRendererInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
@@ -84,7 +84,8 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<SkyboxRendererInspectorDrawer>("Skybox Renderer", "SkyboxRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<LineRendererInspectorDrawer>("Line Renderer", "LineRenderer", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<PrimitiveRendererInspectorDrawer>("Primitive Renderer", "PrimitiveRenderer", "Rendering"));
-		registry.Register(MakeComponentEditorDescriptor<EffectEmitterInspectorDrawer>("Effect Emitter", "EffectEmitter", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<ParticleSystemInspectorDrawer>(
+			"Particle System", "ParticleSystem", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<FlipbookAnimationInspectorDrawer>("Flipbook Animation", "FlipbookAnimation", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<UVTransformInspectorDrawer>("UVTransform", "UVTransform", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>("Billboard", "Billboard", "Rendering"));

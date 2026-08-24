@@ -38,20 +38,19 @@ namespace Engine {
 	// v21: レイキャストのphysicsRaycast physicsRaycastAllとカメラレイのscreenPointToRay getMousePositionInViewとgetCollisionTypeMaskByNameを追加
 	// v22: AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntime attachするattachScriptを追加
 	// v23: イージング関数のeasedValueを追加、EasingTypeとtからイージング済みの値を返す
-	// v25: EffectEmitterの再生ハンドルAPIを追加
 	// v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
 	// v27: UISelectableの決定入力配列取得と設定を追加
 	// v28: UI入力配列をCanvasの上下左右と決定へ移行
 	// v29: Application.Quitの終了要求を追加
 	// v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
 	// v32: AudioSourceのPlayOneShotとUnPauseを追加
-	// v33: EffectEmitterのグループとState設定APIを追加
 	// v34: アセット参照を128bit AssetGUIDへ移行
 	// v35: UserSettingsルート取得APIを追加
 	// v36: Collision実行時状態をAuthoring設定から分離
 	// v44: 廃止した描画、画面遷移APIを削除
 	// v45: RenderFeatureProfileの実行時パラメータAPIを追加
-	inline constexpr uint32_t kManagedAbiVersion = 45;
+	// v46: ParticleSystemの再生操作と実行状態APIを追加し旧エフェクトAPIを削除
+	inline constexpr uint32_t kManagedAbiVersion = 46;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -562,19 +561,11 @@ namespace Engine {
 		using FindManyByComponentCallback = int32_t(__cdecl*)(int32_t, ManagedNativeEntity*, int32_t);
 		// v15の即時形状描画、記述子1件を渡してC++側で線分へ展開する
 		using LineDrawShapeCallback = void(__cdecl*)(const ManagedLineShape*);
-		// EffectEmitterの発生とハンドルまたはグループ単位の制御
-		using EffectEmitCallback = uint64_t(__cdecl*)(ManagedNativeEntity, const char*, ManagedVector3, ManagedQuaternion, int32_t);
-		using EffectControlCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
-		using EffectIsPlayingCallback = int32_t(__cdecl*)(ManagedNativeEntity, uint64_t, const char*, int32_t);
-		using EffectGroupCountCallback = int32_t(__cdecl*)(ManagedNativeEntity);
-		using EffectStateCountCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
-		using EffectCopyGroupNameCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, char*, int32_t);
-		using EffectCopyStateNameCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, char*, int32_t);
-		using EffectSetStateNameCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const char*);
-		using EffectGetStatePropertyCallback = int32_t(__cdecl*)(
-			ManagedNativeEntity, int32_t, int32_t, int32_t, void*, int32_t);
-		using EffectSetStatePropertyCallback = int32_t(__cdecl*)(
-			ManagedNativeEntity, int32_t, int32_t, int32_t, const void*, int32_t);
+		// ParticleSystemの再生操作と実行状態照会
+		using ParticleSystemControlCallback = void(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, int32_t);
+		using ParticleSystemStateCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t);
 		// Canvasの入力配列を操作種別とデバイス別に取得設定する
 		using CanvasCopyInputBindingsCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, int32_t*, int32_t);

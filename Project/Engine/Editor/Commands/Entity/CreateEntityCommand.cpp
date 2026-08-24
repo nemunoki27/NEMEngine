@@ -6,6 +6,10 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
+#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -94,51 +98,79 @@ Engine::CreateEntityCommand::CreateEntityCommand(const std::string& name, UUID p
 	name_(name), parentStableUUID_(parentStableUUID), preset_(preset), dimension_(dimension) {
 }
 
-void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& entity, const Entity& parent) {
+void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& entity) {
 
 	if (preset_ == EntityCreationPreset::Empty) {
 		return;
 	}
-	TransformComponent* transform = world.TryGetComponent<TransformComponent>(entity);
-	if (transform) {
-		transform->dimension = Dimension::Type2D;
-	}
-
-	bool hasCanvasAncestor = false;
-	Entity ancestor = parent;
-	while (world.IsAlive(ancestor)) {
-
-		if (world.HasComponent<CanvasComponent>(ancestor)) {
-			hasCanvasAncestor = true;
-			break;
-		}
-		const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(ancestor);
-		ancestor = hierarchy ? hierarchy->parent : Entity::Null();
-	}
-	if (preset_ == EntityCreationPreset::Canvas || !hasCanvasAncestor) {
-		world.AddComponent<CanvasComponent>(entity);
-	}
-
-	if (preset_ == EntityCreationPreset::Canvas) {
-		return;
-	}
-
-	// UI要素はCanvas直下または単独Canvasの場合に画面中央へ作る
-	if (transform) {
-		const CanvasComponent* canvas = nullptr;
-		if (world.HasComponent<CanvasComponent>(entity)) {
-			canvas = world.TryGetComponent<CanvasComponent>(entity);
-		} else if (world.IsAlive(parent)) {
-			canvas = world.TryGetComponent<CanvasComponent>(parent);
-		}
-		if (canvas) {
-			transform->localPos.x = canvas->referenceResolution.x * 0.5f;
-			transform->localPos.y = canvas->referenceResolution.y * 0.5f;
-			MarkTransformSubtreeDirty(world, entity);
-		}
-	}
 
 	switch (preset_) {
+	case EntityCreationPreset::Camera:
+		if (dimension_ == Dimension::Type2D) {
+			world.AddComponent<OrthographicCameraComponent>(entity);
+		} else {
+			world.AddComponent<PerspectiveCameraComponent>(entity);
+		}
+		break;
+	case EntityCreationPreset::StaticMesh:
+		world.AddComponent<MeshRendererComponent>(entity);
+		break;
+	case EntityCreationPreset::SkinnedMesh:
+		world.AddComponent<MeshRendererComponent>(entity);
+		world.AddComponent<SkinnedAnimationComponent>(entity);
+		break;
+	case EntityCreationPreset::PrimitivePlane:
+	case EntityCreationPreset::PrimitiveCrossPlane:
+	case EntityCreationPreset::PrimitiveRing:
+	case EntityCreationPreset::PrimitiveCylinder:
+	case EntityCreationPreset::PrimitiveSphere:
+	case EntityCreationPreset::PrimitiveHemisphere:
+	case EntityCreationPreset::PrimitiveCube: {
+		auto& primitive = world.AddComponent<PrimitiveRendererComponent>(entity);
+		switch (preset_) {
+		case EntityCreationPreset::PrimitivePlane:
+			primitive.type = PrimitiveType::Plane;
+			break;
+		case EntityCreationPreset::PrimitiveCrossPlane:
+			primitive.type = PrimitiveType::CrossPlane;
+			break;
+		case EntityCreationPreset::PrimitiveRing:
+			primitive.type = PrimitiveType::Ring;
+			break;
+		case EntityCreationPreset::PrimitiveCylinder:
+			primitive.type = PrimitiveType::Cylinder;
+			break;
+		case EntityCreationPreset::PrimitiveSphere:
+			primitive.type = PrimitiveType::Sphere;
+			break;
+		case EntityCreationPreset::PrimitiveHemisphere:
+			primitive.type = PrimitiveType::Hemisphere;
+			break;
+		case EntityCreationPreset::PrimitiveCube:
+			primitive.type = PrimitiveType::Cube;
+			break;
+		default:
+			break;
+		}
+		if (dimension_ == Dimension::Type2D) {
+			primitive.renderSpace = PrimitiveRenderSpace::Screen2D;
+			primitive.material = BuiltinAssets::Materials::DefaultPrimitive2D;
+			primitive.queue = RenderPhase::ScreenUI;
+			if (primitive.type == PrimitiveType::Plane) {
+				primitive.plane.size = Vector2::AnyInit(128.0f);
+			} else if (primitive.type == PrimitiveType::Ring) {
+				primitive.ring.outerRadius = 64.0f;
+				primitive.ring.innerRadius = 32.0f;
+			}
+		}
+		break;
+	}
+	case EntityCreationPreset::Particle:
+		world.AddComponent<ParticleSystemComponent>(entity);
+		break;
+	case EntityCreationPreset::Canvas:
+		world.AddComponent<CanvasComponent>(entity);
+		break;
 	case EntityCreationPreset::UIImage: {
 		auto& sprite = world.AddComponent<SpriteRendererComponent>(entity);
 		sprite.size = Vector2(256.0f, 256.0f);
@@ -177,7 +209,6 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 		break;
 	}
 	case EntityCreationPreset::Empty:
-	case EntityCreationPreset::Canvas:
 	default:
 		break;
 	}
@@ -242,7 +273,7 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 		hierarchy.siblingOrder = FindMaxRootSiblingOrder(*world, entity) + 1;
 	}
 
-	ApplyPreset(*world, entity, parent);
+	ApplyPreset(*world, entity);
 
 	if (context.editorState) {
 

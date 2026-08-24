@@ -688,24 +688,14 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int>"
     },
     {
-      "name": "effectEmit",
-      "nativeType": "EffectEmitCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeVector3, NativeQuaternion, int, ulong>"
+      "name": "particleSystemControl",
+      "nativeType": "ParticleSystemControlCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void>"
     },
     {
-      "name": "effectStop",
-      "nativeType": "EffectControlCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void>"
-    },
-    {
-      "name": "effectClear",
-      "nativeType": "EffectControlCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, void>"
-    },
-    {
-      "name": "effectIsPlaying",
-      "nativeType": "EffectIsPlayingCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, int, int>"
+      "name": "particleSystemState",
+      "nativeType": "ParticleSystemStateCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int>"
     },
     {
       "name": "getUIBlocksGameplayInput",
@@ -766,41 +756,6 @@
       "name": "audioUnPause",
       "nativeType": "EntityActionCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
-    },
-    {
-      "name": "effectGroupCount",
-      "nativeType": "EffectGroupCountCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
-    },
-    {
-      "name": "effectStateCount",
-      "nativeType": "EffectStateCountCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int>"
-    },
-    {
-      "name": "effectCopyGroupName",
-      "nativeType": "EffectCopyGroupNameCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, byte*, int, int>"
-    },
-    {
-      "name": "effectCopyStateName",
-      "nativeType": "EffectCopyStateNameCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int>"
-    },
-    {
-      "name": "effectSetStateName",
-      "nativeType": "EffectSetStateNameCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int>"
-    },
-    {
-      "name": "effectGetStateProperty",
-      "nativeType": "EffectGetStatePropertyCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
-    },
-    {
-      "name": "effectSetStateProperty",
-      "nativeType": "EffectSetStatePropertyCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int>"
     },
     {
       "name": "dynamicBufferLength",

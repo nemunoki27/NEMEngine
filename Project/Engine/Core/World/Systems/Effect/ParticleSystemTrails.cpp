@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 
 // c++
 #include <algorithm>

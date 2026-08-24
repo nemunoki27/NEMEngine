@@ -285,10 +285,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;
 	callbacks.getSkinnedAnimationRuntimeState =
 		&ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback;
-	callbacks.effectEmit = &ManagedScriptRuntime::EffectEmitCallback;
-	callbacks.effectStop = &ManagedScriptRuntime::EffectStopCallback;
-	callbacks.effectClear = &ManagedScriptRuntime::EffectClearCallback;
-	callbacks.effectIsPlaying = &ManagedScriptRuntime::EffectIsPlayingCallback;
+	callbacks.particleSystemControl =
+		&ManagedScriptRuntime::ParticleSystemControlCallback;
+	callbacks.particleSystemState =
+		&ManagedScriptRuntime::ParticleSystemStateCallback;
 	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
 	callbacks.getUISelectableRuntimeState =
 		&ManagedScriptRuntime::GetUISelectableRuntimeStateCallback;
@@ -305,13 +305,6 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.canvasScreenToLocalPoint = &ManagedScriptRuntime::CanvasScreenToLocalPointCallback;
 	callbacks.audioPlayOneShot = &ManagedScriptRuntime::AudioPlayOneShotCallback;
 	callbacks.audioUnPause = &ManagedScriptRuntime::AudioUnPauseCallback;
-	callbacks.effectGroupCount = &ManagedScriptRuntime::EffectGroupCountCallback;
-	callbacks.effectStateCount = &ManagedScriptRuntime::EffectStateCountCallback;
-	callbacks.effectCopyGroupName = &ManagedScriptRuntime::EffectCopyGroupNameCallback;
-	callbacks.effectCopyStateName = &ManagedScriptRuntime::EffectCopyStateNameCallback;
-	callbacks.effectSetStateName = &ManagedScriptRuntime::EffectSetStateNameCallback;
-	callbacks.effectGetStateProperty = &ManagedScriptRuntime::EffectGetStatePropertyCallback;
-	callbacks.effectSetStateProperty = &ManagedScriptRuntime::EffectSetStatePropertyCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;

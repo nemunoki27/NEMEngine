@@ -3,8 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -20,39 +21,6 @@
 #include <algorithm>
 
 //============================================================================
-//	ParticleSystem internal
-//============================================================================
-namespace {
-
-	// 再生中の全発生処理を止める
-	void StopPlayback(Engine::EffectEmitterPlaybackRuntime& playback) {
-
-		playback.stopped = true;
-		for (Engine::EffectEmitterStateRuntime& state : playback.states) {
-
-			state.scheduleFinished = true;
-			for (Engine::ParticleEffectInstanceRuntime& effect : state.effects) {
-				effect.emissionStopped = true;
-			}
-		}
-	}
-
-	// 再生基準行列を作る
-	Engine::Matrix4x4 BuildPlaybackAnchor(Engine::ECSWorld& world, const Engine::Entity& entity,
-		const Engine::EffectEmitterPlaybackRuntime& playback) {
-
-		if (playback.fixedAnchor) {
-			return Engine::Matrix4x4::MakeAffineMatrix(Engine::Vector3::AnyInit(1.0f),
-				playback.fixedRotation, playback.fixedPosition);
-		}
-		if (const auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
-			return transform->worldMatrix;
-		}
-		return Engine::Matrix4x4::Identity();
-	}
-}
-
-//============================================================================
 //	ParticleSystem classMethods
 //============================================================================
 void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -64,201 +32,190 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 		reloadCheckTimer_ = 0.0f;
 	}
 
-	world.ForEach<EffectEmitterComponent>([&](const Entity& entity, EffectEmitterComponent& emitter) {
+	world.ForEach<ParticleSystemComponent, ParticleSystemRuntimeComponent>(
+		[&](const Entity& entity, ParticleSystemComponent& component,
+			ParticleSystemRuntimeComponent&) {
 
-		const bool canPlay = context.mode == WorldMode::Play || emitter.playInEditMode;
-		if (!emitter.runtimeStarted) {
-
-			emitter.runtimeStarted = true;
-			if (emitter.enabled && emitter.playOnStart && canPlay) {
-				emitter.Emit();
+			ParticleSystemRuntimeData* runtime =
+				TryGetParticleSystemRuntime(world, entity);
+			if (!runtime) {
+				return;
 			}
-		}
-		ProcessCommands(emitter);
+			const SceneObjectComponent* sceneObject =
+				world.TryGetComponent<SceneObjectComponent>(entity);
+			const bool active = !sceneObject || sceneObject->activeInHierarchy;
+			const bool canPlay = active &&
+				(context.mode == WorldMode::Play || component.playInEditMode);
 
-		const float deltaTime = context.mode == WorldMode::Play ? context.deltaTime : context.unscaledDeltaTime;
-		const bool updateSimulation = canPlay && 0.0f < deltaTime;
-		for (auto playbackIt = emitter.runtimePlaybacks.begin(); playbackIt != emitter.runtimePlaybacks.end();) {
-
-			EffectEmitterPlaybackRuntime& playback = *playbackIt;
-			const Matrix4x4 playbackAnchor = BuildPlaybackAnchor(world, entity, playback);
-			for (EffectEmitterStateRuntime& state : playback.states) {
-
-				if (updateSimulation && emitter.enabled && !playback.stopped && !state.scheduleFinished) {
-					UpdateStateSchedule(emitter, state, deltaTime);
-				}
-				const Matrix4x4 local = Matrix4x4::MakeAffineMatrix(
-					state.state.localScale, state.state.localRotation, state.state.localPosition);
-				const Matrix4x4 emitterWorld = local * playbackAnchor;
-				for (auto effectIt = state.effects.begin(); effectIt != state.effects.end();) {
-
-					const bool emissionEnabled = emitter.enabled && !playback.stopped && !effectIt->emissionStopped;
-					if (UpdateEffectInstance(world, *effectIt, emitterWorld,
-						state.state.parentSettings, state.useAssetParentSettings, context,
-						deltaTime, updateSimulation, emissionEnabled,
-						emitter.drawEmitterShape, checkReload)) {
-						effectIt = state.effects.erase(effectIt);
-					} else {
-						++effectIt;
-					}
-				}
-				if (state.state.mode == EffectEmitterMode::Continuous && state.state.interval <= 0.0f &&
-					0 < state.emittedCount && state.effects.empty()) {
-					state.scheduleFinished = true;
+			if (!runtime->initialized) {
+				runtime->initialized = true;
+				if (component.enabled && component.playOnAwake && canPlay) {
+					StartEffect(*runtime, component.effect, false);
 				}
 			}
+			ProcessCommands(component, *runtime);
 
-			const bool finished = std::all_of(playback.states.begin(), playback.states.end(),
-				[](const EffectEmitterStateRuntime& state) {
-					return state.scheduleFinished && state.effects.empty();
-				});
-			if (finished) {
-				playbackIt = emitter.runtimePlaybacks.erase(playbackIt);
-			} else {
-				++playbackIt;
+			if (runtime->activeEffect != component.effect &&
+				(runtime->playing || runtime->paused)) {
+				StartEffect(*runtime, component.effect, runtime->effect.oneShot);
 			}
-		}
+			if (runtime->stopActionPending) {
+				ApplyStopAction(world, entity, component, *runtime, context.mode);
+			}
+			if (!runtime->playing || runtime->paused) {
+				return;
+			}
+
+			const float baseDeltaTime = component.useUnscaledTime ||
+				context.mode != WorldMode::Play ? context.unscaledDeltaTime : context.deltaTime;
+			const float deltaTime = baseDeltaTime * (std::max)(component.playbackSpeed, 0.0f);
+			const bool updateSimulation = component.enabled && canPlay && 0.0f < deltaTime;
+			const bool emissionEnabled = component.enabled &&
+				!runtime->effect.emissionStopped;
+			ResolvedWorldTransform emitterTransform{};
+			const Matrix4x4 emitterWorld =
+				TransformWorldUtility::ResolveWorldTransform(
+					world, entity, emitterTransform) ?
+				emitterTransform.matrix : Matrix4x4::Identity();
+
+			ParticlePhaseParentSettings parentSettings{};
+			bool useAssetParentSettings =
+				component.simulationSpace == ParticleSystemSimulationSpace::EffectAsset;
+			switch (component.simulationSpace) {
+			case ParticleSystemSimulationSpace::Local:
+				parentSettings.useEmitter = true;
+				break;
+			case ParticleSystemSimulationSpace::Custom:
+				parentSettings.entityLocalFileID = component.customSimulationTarget;
+				break;
+			case ParticleSystemSimulationSpace::EffectAsset:
+			case ParticleSystemSimulationSpace::World:
+				break;
+			}
+
+			if (UpdateEffectInstance(world, runtime->effect, emitterWorld,
+				parentSettings, useAssetParentSettings, context, deltaTime,
+				updateSimulation, emissionEnabled, component.drawEmitterShape,
+				checkReload)) {
+
+				runtime->playing = false;
+				runtime->paused = false;
+				runtime->stopped = true;
+				runtime->stopActionPending = true;
+				ApplyStopAction(world, entity, component, *runtime, context.mode);
+			}
 		});
 }
 
-void Engine::ParticleSystem::ProcessCommands(EffectEmitterComponent& emitter) const {
+void Engine::ParticleSystem::ProcessCommands(
+	const ParticleSystemComponent& component,
+	ParticleSystemRuntimeData& runtime) const {
 
-	std::vector<EffectEmitterCommand> commands = std::move(emitter.runtimeCommands);
-	emitter.runtimeCommands.clear();
-	for (const EffectEmitterCommand& command : commands) {
+	std::vector<ParticleSystemCommand> commands = std::move(runtime.commands);
+	runtime.commands.clear();
+	for (const ParticleSystemCommand& command : commands) {
 
 		switch (command.type) {
-		case EffectEmitterCommandType::Emit: {
+		case ParticleSystemCommandType::Play:
+			if (runtime.paused && !runtime.stopped) {
+				runtime.paused = false;
+				runtime.playing = true;
+			} else if (runtime.stopped) {
+				StartEffect(runtime, component.effect, command.oneShot);
+			}
+			break;
+		case ParticleSystemCommandType::Pause:
+			if (runtime.playing && !runtime.stopped) {
+				runtime.playing = false;
+				runtime.paused = true;
+			}
+			break;
+		case ParticleSystemCommandType::Stop:
+			runtime.effect.emissionStopped = true;
+			runtime.paused = false;
+			runtime.stopped = true;
+			if (command.stopBehavior ==
+				ParticleSystemStopBehavior::StopEmittingAndClear) {
 
-			if (!emitter.enabled) { break; }
-			const auto found = std::find_if(emitter.groups.begin(), emitter.groups.end(),
-				[&](const EffectEmitterGroup& group) { return group.name == command.groupName; });
-			if (found == emitter.groups.end()) { break; }
-
-			EffectEmitterPlaybackRuntime playback{};
-			playback.id = command.playbackID;
-			playback.groupName = found->name;
-			playback.fixedAnchor = command.fixedAnchor;
-			playback.fixedPosition = command.position;
-			playback.fixedRotation = command.rotation;
-			for (const EffectEmitterState& state : found->states) {
-
-				if (!state.enabled) { continue; }
-				EffectEmitterStateRuntime runtime{};
-				runtime.state = state;
-				playback.states.emplace_back(std::move(runtime));
-			}
-			if (!playback.states.empty()) {
-				emitter.runtimePlaybacks.emplace_back(std::move(playback));
+				ClearEffect(runtime);
+				runtime.playing = false;
+				runtime.stopped = true;
+				runtime.stopActionPending = true;
+			} else {
+				runtime.playing = true;
 			}
 			break;
-		}
-		case EffectEmitterCommandType::StopHandle:
-			for (EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
-				if (playback.id == command.playbackID) { StopPlayback(playback); }
-			}
+		case ParticleSystemCommandType::Clear:
+			ClearEffect(runtime);
 			break;
-		case EffectEmitterCommandType::StopGroup:
-			for (EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
-				if (playback.groupName == command.groupName) { StopPlayback(playback); }
-			}
-			break;
-		case EffectEmitterCommandType::StopAll:
-			for (EffectEmitterPlaybackRuntime& playback : emitter.runtimePlaybacks) {
-				StopPlayback(playback);
-			}
-			break;
-		case EffectEmitterCommandType::ClearHandle:
-			std::erase_if(emitter.runtimePlaybacks, [&](const EffectEmitterPlaybackRuntime& playback) {
-				return playback.id == command.playbackID;
-				});
-			break;
-		case EffectEmitterCommandType::ClearGroup:
-			std::erase_if(emitter.runtimePlaybacks, [&](const EffectEmitterPlaybackRuntime& playback) {
-				return playback.groupName == command.groupName;
-				});
-			break;
-		case EffectEmitterCommandType::ClearAll:
-			emitter.runtimePlaybacks.clear();
+		case ParticleSystemCommandType::Restart:
+			StartEffect(runtime, component.effect, command.oneShot);
 			break;
 		}
 	}
 }
 
-void Engine::ParticleSystem::UpdateStateSchedule(EffectEmitterComponent& emitter,
-	EffectEmitterStateRuntime& state, float deltaTime) const {
+void Engine::ParticleSystem::StartEffect(ParticleSystemRuntimeData& runtime,
+	AssetID effectID, bool oneShot) const {
 
-	state.time += deltaTime;
-	switch (state.state.mode) {
-	case EffectEmitterMode::Once:
+	runtime.effect = ParticleEffectInstanceRuntime{};
+	runtime.effect.effect = effectID;
+	runtime.effect.oneShot = oneShot;
+	runtime.activeEffect = effectID;
+	runtime.playing = true;
+	runtime.paused = false;
+	runtime.stopped = false;
+	runtime.stopActionPending = false;
+}
 
-		if (state.emittedCount == 0 && state.state.delay <= state.time) {
-			AddEffectInstance(emitter, state, true);
-			state.emittedCount = 1;
-			state.scheduleFinished = true;
-		}
-		break;
-	case EffectEmitterMode::Continuous: {
+void Engine::ParticleSystem::ClearEffect(
+	ParticleSystemRuntimeData& runtime) const {
 
-		bool startedThisFrame = false;
-		if (state.emittedCount == 0 && state.state.delay <= state.time) {
-			AddEffectInstance(emitter, state, 0.0f < state.state.interval);
-			state.emittedCount = 1;
-			state.emitTimer = 0.0f;
-			startedThisFrame = true;
-		}
-		if (!state.state.emitUntilStopped && !startedThisFrame &&
-			state.state.delay + state.state.duration <= state.time) {
-			state.scheduleFinished = true;
-			if (state.state.interval <= 0.0f) {
-				for (ParticleEffectInstanceRuntime& effect : state.effects) {
-					effect.emissionStopped = true;
-				}
-			}
-		} else if (!startedThisFrame && 0.0f < state.state.interval) {
+	for (ParticleGroupRuntimeState& group : runtime.effect.runtimeGroups) {
+		group.particles.clear();
+		group.trails.clear();
+	}
+}
 
-			state.emitTimer += deltaTime;
-			if (state.state.interval <= state.emitTimer) {
+void Engine::ParticleSystem::ApplyStopAction(ECSWorld& world,
+	const Entity& entity, ParticleSystemComponent& component,
+	ParticleSystemRuntimeData& runtime, WorldMode mode) const {
 
-				AddEffectInstance(emitter, state, true);
-				++state.emittedCount;
-				state.emitTimer = 0.0f;
-			}
+	if (!runtime.stopActionPending) {
+		return;
+	}
+	runtime.stopActionPending = false;
+	if (mode != WorldMode::Play) {
+		return;
+	}
+	switch (component.stopAction) {
+	case ParticleSystemStopAction::Disable: {
+
+		SceneObjectComponent* sceneObject =
+			world.TryGetComponent<SceneObjectComponent>(entity);
+		if (sceneObject) {
+			sceneObject->activeSelf = false;
 		}
 		break;
 	}
-	case EffectEmitterMode::Count:
-
-		while (state.emittedCount < state.state.count &&
-			state.state.delay + state.state.interval * static_cast<float>(state.emittedCount) <= state.time) {
-
-			AddEffectInstance(emitter, state, true);
-			++state.emittedCount;
-		}
-		state.scheduleFinished = state.state.count <= state.emittedCount;
+	case ParticleSystemStopAction::Destroy:
+		world.DestroyEntity(entity);
+		break;
+	case ParticleSystemStopAction::None:
 		break;
 	}
 }
 
-void Engine::ParticleSystem::AddEffectInstance(EffectEmitterComponent& emitter,
-	EffectEmitterStateRuntime& state, bool oneShot) const {
-
-	ParticleEffectInstanceRuntime instance{};
-	instance.id = emitter.runtimeNextEffectInstanceID++;
-	if (instance.id == 0) { instance.id = emitter.runtimeNextEffectInstanceID++; }
-	instance.effect = state.state.effect;
-	instance.oneShot = oneShot;
-	state.effects.emplace_back(std::move(instance));
-}
-
-void Engine::ParticleSystem::SynchronizeRuntimeGroups(
+bool Engine::ParticleSystem::SynchronizeRuntimeGroups(
 	ParticleEffectInstanceRuntime& instance, const EffectRuntime& effect) const {
 
 	bool matched = instance.runtimeGroups.size() == effect.asset.groups.size();
 	for (size_t i = 0; matched && i < effect.asset.groups.size(); ++i) {
 		matched = instance.runtimeGroups[i].groupID == effect.asset.groups[i].id;
 	}
-	if (matched && instance.runtimeEffectRevision == effect.revision) { return; }
+	if (matched && instance.runtimeEffectRevision == effect.revision) {
+		return false;
+	}
 	if (matched) {
 
 		for (size_t i = 0; i < effect.asset.groups.size(); ++i) {
@@ -266,7 +223,7 @@ void Engine::ParticleSystem::SynchronizeRuntimeGroups(
 				MakeParticleRenderSettings(effect.asset.space, effect.asset.groups[i]);
 		}
 		instance.runtimeEffectRevision = effect.revision;
-		return;
+		return true;
 	}
 
 	std::vector<ParticleGroupRuntimeState> previous = std::move(instance.runtimeGroups);
@@ -289,6 +246,7 @@ void Engine::ParticleSystem::SynchronizeRuntimeGroups(
 		instance.runtimeGroups.back().renderSettings = MakeParticleRenderSettings(effect.asset.space, group);
 	}
 	instance.runtimeEffectRevision = effect.revision;
+	return true;
 }
 
 void Engine::ParticleSystem::RestartEffectInstance(
@@ -357,9 +315,11 @@ bool Engine::ParticleSystem::UpdateEffectInstance(ECSWorld& world,
 	}
 
 	const ParticleEffectAsset& asset = effect->asset;
-	instance.runtimeSpace = asset.space;
 	const bool newRuntime = instance.runtimeGroups.empty();
-	SynchronizeRuntimeGroups(instance, *effect);
+	if (SynchronizeRuntimeGroups(instance, *effect)) {
+		// グループ構成と描画設定を参照するRenderItemだけ再抽出する
+		world.MarkRenderDataModified();
+	}
 	if (newRuntime) {
 		RestartEffectInstance(instance, asset);
 	} else if (instance.runtimeGroupEmissionMode != asset.groupEmission.mode) {

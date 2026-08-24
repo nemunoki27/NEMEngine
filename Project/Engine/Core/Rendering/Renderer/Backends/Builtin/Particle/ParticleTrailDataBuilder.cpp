@@ -9,7 +9,7 @@
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
-#include <Engine/Core/World/Components/Rendering/EffectEmitterComponent.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 
 // c++
 #include <algorithm>
@@ -81,7 +81,7 @@ namespace {
 	// 1セグメント分のマテリアルデータを追加する
 	uint32_t AppendSegmentMaterial(const EvaluatedTrailPoint& point0, const EvaluatedTrailPoint& point1,
 		const Engine::ParticleRenderSettings& settings, const Engine::ParticleCustomParameterLayout& customLayout,
-		Engine::ParticleTrailRenderData& outData) {
+		Engine::BlendMode blendMode, Engine::ParticleTrailRenderData& outData) {
 
 		const Engine::ParticleTrailPhaseSettings& phase0 = GetTrailPhaseSettings(settings, point0.phaseIndex);
 		const Engine::ParticleTrailPhaseSettings& phase1 = GetTrailPhaseSettings(settings, point1.phaseIndex);
@@ -91,6 +91,8 @@ namespace {
 			point0.lifetimeT <= point1.lifetimeT ? phase0 : phase1;
 
 		Engine::ParticleMaterialData material{};
+		material.materialParams.z =
+			static_cast<float>(blendMode);
 		material.materialColor = Engine::Color4::White();
 		material.uvMatrix = BuildTrailUVMatrix(materialPhase.uv, materialT, materialAge);
 		const uint32_t materialIndex = static_cast<uint32_t>(outData.materials.size());
@@ -127,13 +129,14 @@ void Engine::ParticleTrailDataBuilder::Build(const RenderDrawContext& context,
 	for (const RenderItem* item : items) {
 
 		const ParticleRenderPayload* payload = context.batch->GetPayload<ParticleRenderPayload>(*item);
-		if (!payload || !payload->group) {
+		const ParticleGroupRuntimeState* group = payload ?
+			ResolveParticleRenderGroup(*item, *payload) : nullptr;
+		if (!group) {
 			continue;
 		}
-		const ParticleGroupRuntimeState& group = *payload->group;
-		const ParticleRenderSettings& settings = group.renderSettings;
+		const ParticleRenderSettings& settings = group->renderSettings;
 
-		for (const auto& trailPair : group.trails) {
+		for (const auto& trailPair : group->trails) {
 
 			const ParticleTrailRuntime& runtime = trailPair.second;
 			const std::deque<ParticleTrailPoint>& points = runtime.points;
@@ -173,7 +176,8 @@ void Engine::ParticleTrailDataBuilder::Build(const RenderDrawContext& context,
 			for (size_t segmentIndex = 0; segmentIndex + 1 < trailPoints.size(); ++segmentIndex) {
 
 				trailPoints[segmentIndex].render.materialIndex = AppendSegmentMaterial(
-					trailPoints[segmentIndex], trailPoints[segmentIndex + 1], settings, customLayout, outData);
+					trailPoints[segmentIndex], trailPoints[segmentIndex + 1], settings,
+					customLayout, item->blendMode, outData);
 				outData.segments.emplace_back(pointOffset + static_cast<uint32_t>(segmentIndex));
 			}
 			trailPoints.back().render.materialIndex = trailPoints[trailPoints.size() - 2].render.materialIndex;

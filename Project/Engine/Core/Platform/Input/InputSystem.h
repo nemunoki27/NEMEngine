@@ -114,7 +114,8 @@ namespace Engine {
 
 		// view
 		void SetViewRect(InputViewArea viewArea, const Vector2& dstPos,
-			const Vector2& dstSize, const Vector2& srcSize = Vector2::AnyInit(0.0f));
+			const Vector2& dstSize, const Vector2& srcSize = Vector2::AnyInit(0.0f),
+			InputViewCoordinateSpace coordinateSpace = InputViewCoordinateSpace::Client);
 		bool HasViewRect(InputViewArea viewArea) const;
 		bool IsMouseOnView(InputViewArea viewArea) const;
 		std::optional<Vector2> GetMousePosInView(InputViewArea viewArea) const;
@@ -188,6 +189,7 @@ namespace Engine {
 			Vector2 dstPos;   // ウィンドウ内の貼り付け左上
 			Vector2 dstSize;  // ウィンドウ内の貼り付けサイズ
 			Vector2 srcSize;  // 元サイズ
+			InputViewCoordinateSpace coordinateSpace = InputViewCoordinateSpace::Client;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -268,6 +270,7 @@ namespace Engine {
 		std::array<bool, 3> mouseButtons_;    // マウスボタンの状態
 		std::array<bool, 3> mousePreButtons_; // 1フレ前のマウスボタンの状態
 		Vector2 mousePos_;                    // マウスの座標
+		Vector2 mouseScreenPos_;              // デスクトップ上のマウス座標
 		Vector2 mousePrePos_;                 // マウスの前座標
 		float wheelValue_;                    // ホイール移動量
 

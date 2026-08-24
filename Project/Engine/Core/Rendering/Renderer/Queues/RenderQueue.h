@@ -27,7 +27,6 @@ namespace Engine {
 	class ECSWorld;
 	class MaterialParameterSet;
 	struct PrimitiveRendererComponent;
-	struct ParticleGroupRuntimeState;
 
 	//============================================================================
 	//	RenderQueue structures
@@ -97,8 +96,9 @@ namespace Engine {
 	// パーティクル描画データ
 	struct ParticleRenderPayload {
 
-		// 粒子配列を持つグループを指す、同フレーム内のみ有効
-		const ParticleGroupRuntimeState* group = nullptr;
+		// 外部Runtime Storage内のグループを描画時に安全に引き直す
+		UUID groupID{};
+		uint32_t groupIndex = 0;
 	};
 	// 描画アイテム
 	struct RenderItem {

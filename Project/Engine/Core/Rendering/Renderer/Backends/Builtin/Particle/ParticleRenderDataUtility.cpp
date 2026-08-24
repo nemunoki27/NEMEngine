@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
+#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
 
 // c++
 #include <algorithm>
@@ -77,4 +79,29 @@ void Engine::WriteParticleCustomParameter(std::vector<uint8_t>& data,
 			static_cast<uint32_t>((std::max)(value.w, 0.0f)),
 		};
 	std::memcpy(data.data() + variable.offset, converted.data(), writeSize);
+}
+
+const Engine::ParticleGroupRuntimeState* Engine::ResolveParticleRenderGroup(
+	const RenderItem& item, const ParticleRenderPayload& payload) {
+
+	if (!item.world) {
+		return nullptr;
+	}
+	const ParticleSystemRuntimeData* runtime =
+		TryGetParticleSystemRuntime(*item.world, item.entity);
+	if (!runtime) {
+		return nullptr;
+	}
+	const std::vector<ParticleGroupRuntimeState>& groups =
+		runtime->effect.runtimeGroups;
+	if (payload.groupIndex < groups.size() &&
+		groups[payload.groupIndex].groupID == payload.groupID) {
+
+		return &groups[payload.groupIndex];
+	}
+	const auto it = std::find_if(groups.begin(), groups.end(),
+		[&](const ParticleGroupRuntimeState& group) {
+			return group.groupID == payload.groupID;
+		});
+	return it != groups.end() ? &*it : nullptr;
 }

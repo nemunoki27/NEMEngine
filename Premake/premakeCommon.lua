@@ -341,12 +341,14 @@ function NEM_AddEditorProjectFiles()
         ["EditorAssets/*"] = editorAssets,
     }
 
-    -- Particle moduleのEditor UIは現在Core実装と同居しているためEditor構成でのみ再コンパイルする
+    -- ParticleのEditor UIは現在Core実装と同居しているためEditor構成でのみ再コンパイルする
     local editorOwnedCore = {
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.h"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Gui/**.h"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Gui/**.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Emitter/Shapes/**.h"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Emitter/Shapes/**.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Module/**.h"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Module/**.cpp"),
     }

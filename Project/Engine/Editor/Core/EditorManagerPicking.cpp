@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
@@ -67,8 +68,20 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		Entity entity;
 		int32_t layer;
 		int32_t order;
+		uint32_t hierarchyOrder;
+		bool orderedUI;
 	};
 	std::vector<HitRecord> hits;
+	auto addHit = [&](const Entity& entity, int32_t layer, int32_t order,
+		const UIElementRuntime* uiRuntime) {
+
+		if (uiRuntime) {
+			layer += uiRuntime->canvasSortingLayer;
+			order += uiRuntime->canvasOrder;
+		}
+		hits.push_back({ entity, layer, order,
+			uiRuntime ? uiRuntime->hierarchyOrder : 0u, uiRuntime != nullptr });
+	};
 
 	world->ForEach<SpriteRendererComponent>([&](const Entity& entity, const SpriteRendererComponent& renderer) {
 		if (!IsScenePickDimensionAllowed(*world, entity, editorState_.sceneViewPickDimension)) {
@@ -99,7 +112,7 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		if (IsPointInsideProjectedRect(inputPixel, rectMin, rectMax,
 			worldMatrix * camera->matrices.viewProjectionMatrix,
 			view.width, view.height)) {
-			hits.push_back({ entity, renderer.layer, renderer.order });
+			addHit(entity, renderer.layer, renderer.order, uiRuntime);
 		}
 	});
 
@@ -143,20 +156,76 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 				geometry.rectMin, geometry.rectMax,
 				geometry.worldMatrix * camera->matrices.viewProjectionMatrix,
 				view.width, view.height)) {
-				hits.push_back({ entity, renderer.layer, renderer.order });
+				addHit(entity, renderer.layer, renderer.order, uiRuntime);
 				break;
 			}
 		}
 	});
 
+	world->ForEach<PrimitiveRendererComponent>(
+		[&](const Entity& entity, const PrimitiveRendererComponent& renderer) {
+
+			if (!IsPrimitiveScreen2D(renderer) ||
+				!IsScenePickDimensionAllowed(
+					*world, entity, editorState_.sceneViewPickDimension) ||
+				!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
+				return;
+			}
+
+			const UIElementRuntime* uiRuntime =
+				UIRuntimeService::GetInstance().Find(*world, entity);
+			const RenderCameraDomain cameraDomain = uiRuntime ?
+				RenderCameraDomain::Screen : RenderCameraDomain::Orthographic;
+			const ResolvedCameraView* camera = view.FindCamera(cameraDomain);
+			if (!camera) {
+				return;
+			}
+
+			Vector2 rectMin{};
+			Vector2 rectMax{};
+			if (renderer.type == PrimitiveType::Plane) {
+				rectMin = Vector2(
+					-renderer.plane.pivot.x * renderer.plane.size.x,
+					-renderer.plane.pivot.y * renderer.plane.size.y);
+				rectMax = Vector2(
+					(1.0f - renderer.plane.pivot.x) * renderer.plane.size.x,
+					(1.0f - renderer.plane.pivot.y) * renderer.plane.size.y);
+			} else {
+				const float radius = (std::max)(renderer.ring.outerRadius, 0.0f);
+				rectMin = Vector2::AnyInit(-radius);
+				rectMax = Vector2::AnyInit(radius);
+			}
+
+			const Matrix4x4 worldMatrix = uiRuntime ?
+				uiRuntime->screenMatrix :
+				RenderItemExtract::GetWorldMatrix(*world, entity);
+			if (IsPointInsideProjectedRect(inputPixel, rectMin, rectMax,
+				worldMatrix * camera->matrices.viewProjectionMatrix,
+				view.width, view.height)) {
+				addHit(entity, renderer.layer, renderer.order, uiRuntime);
+			}
+		});
+
 	if (hits.empty()) {
 		return Entity::Null();
 	}
 
-	// レイヤーとオーダーの降順でソートし手前にあるものを優先する
+	// 実描画と同じレイヤー、オーダー、Canvas階層順で手前のものを優先する
 	std::sort(hits.begin(), hits.end(), [](const HitRecord& a, const HitRecord& b) {
 		if (a.layer != b.layer) return a.layer > b.layer;
-		return a.order > b.order;
+		if (a.order != b.order) return a.order > b.order;
+		if (a.orderedUI || b.orderedUI) {
+			if (a.orderedUI != b.orderedUI) {
+				return a.orderedUI;
+			}
+			if (a.hierarchyOrder != b.hierarchyOrder) {
+				return a.hierarchyOrder > b.hierarchyOrder;
+			}
+		}
+		if (a.entity.index != b.entity.index) {
+			return a.entity.index > b.entity.index;
+		}
+		return a.entity.generation > b.entity.generation;
 	});
 
 	return hits.front().entity;

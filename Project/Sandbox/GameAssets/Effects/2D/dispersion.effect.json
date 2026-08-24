@@ -1,0 +1,302 @@
+{
+    "groupEmission": {
+        "interval": 1.0,
+        "mode": "Independent",
+        "waitForCompletion": true
+    },
+    "groups": [
+        {
+            "billboardAxes": [
+                "X",
+                "Y",
+                "Z"
+            ],
+            "blendMode": "Add",
+            "crossPlane": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5
+                },
+                "planeCount": 2,
+                "size": {
+                    "x": 1.0,
+                    "y": 1.0
+                }
+            },
+            "cube": {
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                "size": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                }
+            },
+            "cylinder": {
+                "bottomColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "bottomRadius": 1.0,
+                "bottomRadiusWeight": 0.0,
+                "cap": "Both",
+                "centerColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "centerRadius": 1.0,
+                "height": 2.0,
+                "heightDivide": 8,
+                "maxAngleDegrees": 360.0,
+                "radialDivide": 16,
+                "topColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "topRadius": 1.0,
+                "topRadiusWeight": 0.0,
+                "uvMode": "None"
+            },
+            "emitter": {
+                "boxFaceNegX": true,
+                "boxFaceNegY": true,
+                "boxFaceNegZ": true,
+                "boxFacePosX": true,
+                "boxFacePosY": true,
+                "boxFacePosZ": true,
+                "boxSize": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                "circleAngleMax": 360.0,
+                "circleAngleMin": 0.0,
+                "circleClockwise": false,
+                "circleRadius": 64.0,
+                "circleSpawnMode": "Random",
+                "circleStepAngle": 10.0,
+                "circleUsePrevSegmentDirectionOnWrap": false,
+                "circleVelocityMode": "Normal",
+                "coneAngle": 25.0,
+                "coneRadius": 0.5,
+                "emitCount": {
+                    "constant": 4,
+                    "max": 4,
+                    "min": 4,
+                    "type": "Constant"
+                },
+                "emitInterval": 0.10000000149011612,
+                "emitOffset": {
+                    "constant": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "max": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "min": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "type": "Constant"
+                },
+                "maxParticles": 1024,
+                "pointDirection": {
+                    "x": 0.0,
+                    "y": 1.0,
+                    "z": 0.0
+                },
+                "rectEdgeNegX": true,
+                "rectEdgeNegY": true,
+                "rectEdgePosX": true,
+                "rectEdgePosY": true,
+                "rectSize": {
+                    "x": 1.0,
+                    "y": 1.0
+                },
+                "shape": "Circle",
+                "speed": {
+                    "constant": 256.0,
+                    "max": 1.600000023841858,
+                    "min": 1.600000023841858,
+                    "type": "Constant"
+                },
+                "sphereRadius": 0.5,
+                "torusRadius": 1.0,
+                "torusThickness": 0.20000000298023224
+            },
+            "enabled": true,
+            "hemisphere": {
+                "bottomCap": true,
+                "latitudeDivide": 8,
+                "longitudeDivide": 24,
+                "radius": 1.0
+            },
+            "id": "171d8e6a1e18fb69",
+            "looping": true,
+            "material": "",
+            "model": "",
+            "name": "Group 1",
+            "phases": [
+                {
+                    "lifeEndMode": "Kill",
+                    "lifetime": {
+                        "constant": 1.0,
+                        "max": 1.0,
+                        "min": 1.0,
+                        "type": "Constant"
+                    },
+                    "material": "",
+                    "materialSettings": {
+                        "baseColorTexture": "4e454d4153534554030a5fad06d4a843",
+                        "textureOverrides": {}
+                    },
+                    "modules": [
+                        {
+                            "id": "SizeOverLifetime",
+                            "params": {
+                                "curve": {
+                                    "defaultValue": 0.0,
+                                    "keys": [],
+                                    "name": "Value"
+                                },
+                                "easingType": "EaseOutSine",
+                                "endScale": 1.8299999237060547,
+                                "loop": {
+                                    "loopCount": 1,
+                                    "type": "Repeat"
+                                },
+                                "startScale": 1.0,
+                                "useCurve": false
+                            }
+                        },
+                        {
+                            "id": "ColorOverLifetime",
+                            "params": {
+                                "curveChannels": [
+                                    {
+                                        "defaultValue": 1.0,
+                                        "keys": [],
+                                        "name": "R"
+                                    },
+                                    {
+                                        "defaultValue": 1.0,
+                                        "keys": [],
+                                        "name": "G"
+                                    },
+                                    {
+                                        "defaultValue": 1.0,
+                                        "keys": [],
+                                        "name": "B"
+                                    },
+                                    {
+                                        "defaultValue": 1.0,
+                                        "keys": [],
+                                        "name": "A"
+                                    }
+                                ],
+                                "easingType": "EaseOutSine",
+                                "endColor": {
+                                    "a": 0.0,
+                                    "b": 0.0,
+                                    "g": 0.0,
+                                    "r": 1.0
+                                },
+                                "loop": {
+                                    "loopCount": 1,
+                                    "type": "Repeat"
+                                },
+                                "startColor": {
+                                    "a": 1.0,
+                                    "b": 0.043991610407829285,
+                                    "g": 0.2946927547454834,
+                                    "r": 0.876447856426239
+                                },
+                                "useCurve": false
+                            }
+                        }
+                    ],
+                    "name": "Phase 1",
+                    "parentSettings": {
+                        "entityLocalFileID": "",
+                        "ignoreParentRotation": false,
+                        "ignoreParentScale": true,
+                        "keepWorldOnDetach": true,
+                        "useEmitter": false
+                    }
+                }
+            ],
+            "plane": {
+                "axis": "XY",
+                "divideX": 1,
+                "divideY": 1,
+                "pivot": {
+                    "x": 0.5,
+                    "y": 0.5
+                },
+                "size": {
+                    "x": 71.760009765625,
+                    "y": 71.760009765625
+                }
+            },
+            "queue": "ScreenUI",
+            "ring": {
+                "divide": 16,
+                "endAngle": 360.0,
+                "innerRadius": 0.5,
+                "outerRadius": 1.0,
+                "startAngle": 0.0
+            },
+            "shape": "Plane",
+            "sphere": {
+                "latitudeDivide": 16,
+                "longitudeDivide": 24,
+                "radius": 1.0
+            },
+            "trail": {
+                "continueUpdateAfterParticleDeath": true,
+                "drawSource": true,
+                "enabled": false,
+                "endColor": {
+                    "a": 0.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "endWidth": 0.10000000149011612,
+                "keepAfterParticleDeath": false,
+                "material": "",
+                "materialSettings": {
+                    "baseColorTexture": "",
+                    "textureOverrides": {}
+                },
+                "maxPoints": 16,
+                "minDistance": 0.05000000074505806,
+                "pointLifetime": 0.0,
+                "startColor": {
+                    "a": 1.0,
+                    "b": 1.0,
+                    "g": 1.0,
+                    "r": 1.0
+                },
+                "startWidth": 0.10000000149011612
+            }
+        }
+    ],
+    "name": "2D/dispersion",
+    "space": "Screen2D",
+    "version": 2
+}

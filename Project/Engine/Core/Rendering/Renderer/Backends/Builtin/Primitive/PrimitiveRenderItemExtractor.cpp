@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 
 //============================================================================
@@ -29,7 +31,12 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 
 		// 描画アイテムの構築
 		RenderItem item{};
-		RenderItemExtract::FillCommonFields(item, world, entity, renderer, RenderItemExtract::GetWorldMatrix(world, entity));
+		const UIElementRuntime* uiRuntime =
+			UIRuntimeService::GetInstance().Find(world, entity);
+		const Matrix4x4 worldMatrix = uiRuntime ?
+			uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(world, entity);
+		RenderItemExtract::FillCommonFields(
+			item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Primitive;
 		item.material = renderer.material;
 		item.castShadows = HasMeshRenderFlag(
@@ -43,10 +50,25 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 			(materialHash + 0x9e3779b97f4a7c15ull +
 				(shapeHash << 6) + (shapeHash >> 2));
 		item.cameraDomain = RenderCameraDomain::Perspective;
-		// Plane/Ringのみ2D描画に対応し、正射投影のScreenUIフェーズへ流す
+		// Plane/Ringのみ2D描画に対応し、Canvas配下ではスクリーン行列と描画順を使う
 		if (IsPrimitiveScreen2D(renderer)) {
-			item.cameraDomain = RenderCameraDomain::Orthographic;
 			item.renderPhase = RenderPhase::ScreenUI;
+			if (uiRuntime) {
+				if (!item.sceneInstanceID) {
+					const SceneInstance* activeScene =
+						world.GetCommandServices().sceneInstances ?
+						world.GetCommandServices().sceneInstances->GetActive() : nullptr;
+					item.sceneInstanceID = activeScene ?
+						activeScene->instanceID : UUID{};
+				}
+				item.cameraDomain = RenderCameraDomain::Screen;
+				item.sortingLayer += uiRuntime->canvasSortingLayer;
+				item.sortingOrder += uiRuntime->canvasOrder;
+				item.orderedUI = true;
+				item.hierarchyOrder = uiRuntime->hierarchyOrder;
+			} else {
+				item.cameraDomain = RenderCameraDomain::Orthographic;
+			}
 		}
 		item.payload = batch.PushPayload(payload);
 		batch.Add(std::move(item));

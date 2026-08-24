@@ -23,11 +23,13 @@ using namespace Engine;
 Input* Input::instance_ = nullptr;
 
 void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos,
-	const Vector2& dstSize, const Vector2& srcSize) {
+	const Vector2& dstSize, const Vector2& srcSize,
+	InputViewCoordinateSpace coordinateSpace) {
 
 	ViewRect& rect = viewRects_[viewArea];
 	rect.dstPos = dstPos;
 	rect.dstSize = dstSize;
+	rect.coordinateSpace = coordinateSpace;
 	if (srcSize.x <= 0.0f || srcSize.y <= 0.0f) {
 		rect.srcSize = dstSize;
 	} else {
@@ -42,12 +44,13 @@ bool Engine::Input::HasViewRect(InputViewArea viewArea) const {
 
 bool Input::IsMouseOnView(InputViewArea viewArea) const {
 
-	Vector2 mouse = GetMousePos();
 	auto found = viewRects_.find(viewArea);
 	if (found == viewRects_.end()) {
 		return false;
 	}
 	const ViewRect& rect = found->second;
+	const Vector2 mouse = rect.coordinateSpace == InputViewCoordinateSpace::Screen ?
+		mouseScreenPos_ : mousePos_;
 	return (mouse.x >= rect.dstPos.x && mouse.y >= rect.dstPos.y &&
 		mouse.x < rect.dstPos.x + rect.dstSize.x &&
 		mouse.y < rect.dstPos.y + rect.dstSize.y);
@@ -63,7 +66,8 @@ std::optional<Vector2> Input::GetMousePosInView(InputViewArea viewArea) const {
 	if (rect.dstSize.x <= 0.0f || rect.dstSize.y <= 0.0f) {
 		return std::nullopt;
 	}
-	Vector2 mouse = GetMousePos();
+	const Vector2 mouse = rect.coordinateSpace == InputViewCoordinateSpace::Screen ?
+		mouseScreenPos_ : mousePos_;
 	Vector2 local = Vector2(mouse.x - rect.dstPos.x, mouse.y - rect.dstPos.y);
 	if (rect.srcSize.x <= 0.0f || rect.srcSize.y <= 0.0f) {
 		return local;
@@ -603,24 +607,26 @@ void Input::Update() {
 
 	hr = mouse_->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState_);
 
+	POINT screenPoint{};
+	if (GetCursorPos(&screenPoint)) {
+		mouseScreenPos_.x = static_cast<float>(screenPoint.x);
+		mouseScreenPos_.y = static_cast<float>(screenPoint.y);
+
+		POINT clientPoint = screenPoint;
+		ScreenToClient(winApp_->GetHwnd(), &clientPoint);
+		mousePos_.x = static_cast<float>(clientPoint.x);
+		mousePos_.y = static_cast<float>(clientPoint.y);
+	}
+
 	if (FAILED(hr)) {
 		// 取得失敗時の処理
 		std::fill(mouseButtons_.begin(), mouseButtons_.end(), false);
-		mousePos_ = { 0.0f, 0.0f };
 	} else {
 
 		// マウスボタンの状態を保存
 		mouseButtons_[0] = (mouseState_.rgbButtons[0] & 0x80) != 0;
 		mouseButtons_[1] = (mouseState_.rgbButtons[1] & 0x80) != 0;
 		mouseButtons_[2] = (mouseState_.rgbButtons[2] & 0x80) != 0;
-
-		POINT point;
-		GetCursorPos(&point);
-		ScreenToClient(winApp_->GetHwnd(), &point);
-
-		// マウスの移動量を保存
-		mousePos_.x = static_cast<float>(point.x);
-		mousePos_.y = static_cast<float>(point.y);
 
 		// ホイール値
 		wheelValue_ = static_cast<float>(mouseState_.lZ) / WHEEL_DELTA;

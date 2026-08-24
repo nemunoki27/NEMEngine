@@ -3,20 +3,42 @@
   "comment": "Component ID、ネイティブ登録、C#公開分類、生成Bindingの単一Manifest",
   "enums": [
     {
-      "managedType": "EffectEmitterMode",
-      "nativeType": "EffectEmitterMode",
+      "managedType": "ParticleSystemStopAction",
+      "nativeType": "ParticleSystemStopAction",
       "members": [
         {
-          "name": "Once",
+          "name": "None",
           "value": 0
         },
         {
-          "name": "Continuous",
+          "name": "Disable",
           "value": 1
         },
         {
-          "name": "Count",
+          "name": "Destroy",
           "value": 2
+        }
+      ]
+    },
+    {
+      "managedType": "ParticleSystemSimulationSpace",
+      "nativeType": "ParticleSystemSimulationSpace",
+      "members": [
+        {
+          "name": "EffectAsset",
+          "value": 0
+        },
+        {
+          "name": "Local",
+          "value": 1
+        },
+        {
+          "name": "World",
+          "value": 2
+        },
+        {
+          "name": "Custom",
+          "value": 3
         }
       ]
     },
@@ -956,16 +978,29 @@
     },
     {
       "id": 8,
-      "registryName": "EffectEmitter",
-      "nativeType": "EffectEmitterComponent",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/EffectEmitterComponent.h",
+      "registryName": "ParticleSystem",
+      "nativeType": "ParticleSystemComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/ParticleSystemComponent.h",
       "exposure": "GeneratedBinding",
-      "managedSurface": "NEMEngine.EffectEmitter",
-      "reason": "名前付きグループの独立再生と再生ハンドル制御をgenerated propertyとgameplay methodで公開。",
-      "managedType": "EffectEmitter",
+      "managedSurface": "NEMEngine.ParticleSystem",
+      "reason": "Entity上のParticleEffect設定をgenerated property、再生操作をgameplay methodで公開する",
+      "managedType": "ParticleSystem",
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
+        {
+          "managedName": "Effect",
+          "nativeMember": "effect",
+          "kind": "AssetRef",
+          "assetType": "ParticleEffect",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlaybackSpeed",
+          "nativeMember": "playbackSpeed",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "Enabled",
           "nativeMember": "enabled",
@@ -973,26 +1008,14 @@
           "access": "ReadWrite"
         },
         {
-          "managedName": "DefaultGroup",
-          "nativeMember": "defaultGroup",
-          "kind": "String",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "PlayOnStart",
-          "nativeMember": "playOnStart",
+          "managedName": "PlayOnAwake",
+          "nativeMember": "playOnAwake",
           "kind": "Bool",
           "access": "ReadWrite"
         },
         {
-          "managedName": "PlayInEditMode",
-          "nativeMember": "playInEditMode",
-          "kind": "Bool",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "DrawEmitterShape",
-          "nativeMember": "drawEmitterShape",
+          "managedName": "UseUnscaledTime",
+          "nativeMember": "useUnscaledTime",
           "kind": "Bool",
           "access": "ReadWrite"
         },
@@ -1009,9 +1032,17 @@
           "access": "ReadWrite"
         },
         {
-          "managedName": "Visible",
-          "nativeMember": "visible",
-          "kind": "Bool",
+          "managedName": "StopAction",
+          "nativeMember": "stopAction",
+          "kind": "Enum",
+          "enumType": "ParticleSystemStopAction",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SimulationSpace",
+          "nativeMember": "simulationSpace",
+          "kind": "Enum",
+          "enumType": "ParticleSystemSimulationSpace",
           "access": "ReadWrite"
         }
       ]
@@ -2784,6 +2815,19 @@
           "access": "ReadWrite"
         }
       ]
+    },
+    {
+      "id": 60,
+      "registryName": "ParticleSystemRuntime",
+      "nativeType": "ParticleSystemRuntimeComponent",
+      "nativeHeader": "Engine/Core/World/Components/Rendering/ParticleSystemComponent.h",
+      "exposure": "InternalOnly",
+      "managedSurface": "",
+      "reason": "粒子配列とトレイルと再生要求をワールド所有Storageへ分離する",
+      "managedType": "",
+      "allowAdd": false,
+      "allowRemove": false,
+      "properties": []
     }
   ]
 }

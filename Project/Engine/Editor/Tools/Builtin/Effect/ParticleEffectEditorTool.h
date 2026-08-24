@@ -33,6 +33,8 @@ namespace Engine {
 
 		void OpenEditorTool() override;
 		void DrawEditorTool(const EditorToolContext& context) override;
+		// ProjectPanelから指定エフェクトを開く
+		void OpenAsset(AssetID assetID);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -74,6 +76,7 @@ namespace Engine {
 		bool openWindow_ = false;
 
 		// 編集中のエフェクト
+		AssetID pendingAsset_{};
 		AssetID editingID_{};
 		ParticleEffectAsset draft_{};
 		bool loaded_ = false;
@@ -123,10 +126,11 @@ namespace Engine {
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
 		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 
-		// 対象エフェクトを使っているエミッターを頭から再生する、oneShotはループを無視して1回だけ発生する
-		void RestartEmitters(const EditorToolContext& context, bool oneShot);
-		// 対象エフェクトを使っているエミッターを停止して粒子を消す
-		void StopEmitters(const EditorToolContext& context);
+		// 対象エフェクトを使っているParticleSystemを再生する、oneShotはループを無視する
+		void RestartParticleSystems(
+			const EditorToolContext& context, bool oneShot);
+		// 対象エフェクトを使っているParticleSystemを停止して粒子を消す
+		void StopParticleSystems(const EditorToolContext& context);
 
 		// エフェクトをファイルから読み込む
 		void LoadEffect(const EditorToolContext& context, AssetID effectID);

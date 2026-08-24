@@ -188,6 +188,14 @@ enum class InputViewArea {
 	InspectorModelPreview,
 };
 
+// View矩形を登録するときの座標空間
+enum class InputViewCoordinateSpace :
+	uint8_t {
+
+	Client,
+	Screen,
+};
+
 // 入力振動パラメータ
 struct InputVibrationParams {
 

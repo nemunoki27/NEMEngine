@@ -10,6 +10,10 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 	blendDesc = {};
 	blendDesc.BlendEnable = false;
 	blendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	// RGBの演算種別にかかわらず描画先のcoverageは通常α合成で保持する
+	blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 	// 各ブレンドモードの設定をswitch文で行う
 	switch (blendMode) {
@@ -20,9 +24,6 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		blendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.DestBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
 
@@ -33,9 +34,6 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		blendDesc.DestBlend = D3D12_BLEND_ONE;
 		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
 
@@ -46,9 +44,6 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		blendDesc.DestBlend = D3D12_BLEND_ONE;
 		blendDesc.BlendOp = D3D12_BLEND_OP_REV_SUBTRACT;
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
 
@@ -59,9 +54,6 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.SrcBlend = D3D12_BLEND_ZERO;
 		blendDesc.DestBlend = D3D12_BLEND_SRC_COLOR;
 		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
 
@@ -72,9 +64,6 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.SrcBlend = D3D12_BLEND_INV_DEST_COLOR;
 		blendDesc.DestBlend = D3D12_BLEND_ONE;
 		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
 
@@ -85,9 +74,6 @@ void BlendState::Create(BlendMode blendMode, D3D12_RENDER_TARGET_BLEND_DESC& ble
 		blendDesc.SrcBlend = D3D12_BLEND_ONE;
 		blendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 		blendDesc.BlendOp = D3D12_BLEND_OP_ADD;
-		blendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
-		blendDesc.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
-		blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 
 		break;
 	}

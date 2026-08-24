@@ -457,7 +457,8 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		// 実際にImageを置く位置を入力システムへ渡す
 		const ImVec2 imagePos = ImGui::GetCursorScreenPos();
 		Input::GetInstance()->SetViewRect(inputArea, Vector2(imagePos.x, imagePos.y),
-			Vector2(viewSize_.x, viewSize_.y), srcSize);
+			Vector2(viewSize_.x, viewSize_.y), srcSize,
+			InputViewCoordinateSpace::Screen);
 
 		// 描画ビューのサーフェスをImGuiに描画、プレファブ編集中はプレビュー、GBufferデバッグ時はそのバッファを表示する
 		ImGui::Image(static_cast<ImTextureID>(imageSRV.ptr), viewSize_);
