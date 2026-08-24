@@ -356,13 +356,11 @@ namespace {
 		// 追加形状回転より外側で求めた補正をTransformのローカル回転へ変換する
 		if (selfShape->type != Engine::ColliderShapeType::AABB3D) {
 			const auto* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
-			const Engine::CollisionShape* shape = collision ?
-				Engine::TryGetCollisionShape(world, entity, selfShape->shapeIndex) : nullptr;
-			if (!shape || !shape->useTransformRotation) {
+			if (!collision || !collision->shape.useTransformRotation) {
 				return;
 			}
 			const Engine::Quaternion shapeRotation = Engine::Quaternion::FromEulerDegrees(
-				shape->rotationDegrees);
+				collision->shape.rotationDegrees);
 			correction = Engine::Quaternion::Inverse(shapeRotation) *
 				correction * shapeRotation;
 		}
@@ -519,27 +517,19 @@ void Engine::CollisionSystem::OnWorldExit([[maybe_unused]] ECSWorld& world, [[ma
 	previousContacts_.clear();
 }
 
-void Engine::CollisionSystem::RebuildRuntimeShapes(
-	ECSWorld& world, CollisionRuntimeEntity& runtime) const {
+void Engine::CollisionSystem::RebuildRuntimeShape(
+	[[maybe_unused]] ECSWorld& world, CollisionRuntimeEntity& runtime) const {
 
-	runtime.shapes.clear();
+	runtime.hasShape = false;
 	if (!runtime.collision || !runtime.transform) {
 		return;
 	}
-
-	const std::span<const CollisionShape> shapes =
-		GetCollisionShapes(world, runtime.entity);
-	runtime.shapes.reserve(shapes.size());
-	for (uint32_t i = 0; i < static_cast<uint32_t>(shapes.size()); ++i) {
-
-		const CollisionShape& shape = shapes[i];
-		if (!shape.enabled) {
-			continue;
-		}
-		runtime.shapes.emplace_back(
-			CollisionShapeUtility::BuildShapeInstance(
-				runtime.entity, shape, i, *runtime.transform));
+	if (!runtime.collision->shape.enabled) {
+		return;
 	}
+	runtime.shape = CollisionShapeUtility::BuildShapeInstance(
+		runtime.entity, runtime.collision->shape, 0, *runtime.transform);
+	runtime.hasShape = true;
 }
 
 void Engine::CollisionSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
@@ -569,7 +559,6 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 		});
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
-	settings.BindGlobal();
 	settings.EnsureLoaded();
 
 	std::vector<CollisionRuntimeEntity> entities{};
@@ -580,14 +569,14 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 				return;
 			}
 
-			// Entityに含まれる有効形状を判定用形状へ変換する
+			// Componentが持つ単一形状を判定用形状へ変換する
 			CollisionRuntimeEntity runtime{};
 			runtime.entity = entity;
 			runtime.collision = &collision;
 			runtime.state = world.TryGetComponent<CollisionRuntimeStateComponent>(entity);
 			runtime.transform = &transform;
-			RebuildRuntimeShapes(world, runtime);
-			if (!runtime.shapes.empty()) {
+			RebuildRuntimeShape(world, runtime);
+			if (runtime.hasShape) {
 				entities.emplace_back(std::move(runtime));
 			}
 		});
@@ -602,28 +591,13 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 				continue;
 			}
 
-			// 複数形状のうち、最も深く接触した結果をEntity間のContactとして扱う
-			CollisionContact bestContact{};
-			bool hasContact = false;
-			for (const auto& shapeA : a.shapes) {
-				for (const auto& shapeB : b.shapes) {
-
-					CollisionContact contact{};
-					if (!TestCollision(shapeA, shapeB, contact)) {
-						continue;
-					}
-					if (!hasContact || bestContact.penetration < contact.penetration) {
-						bestContact = contact;
-						hasContact = true;
-					}
-				}
-			}
-			if (!hasContact) {
+			CollisionContact contact{};
+			if (!TestCollision(a.shape, b.shape, contact)) {
 				continue;
 			}
 
 			const CollisionPairKey key = CollisionPairKey::Make(a.entity, b.entity);
-			currentContacts[key] = bestContact;
+			currentContacts[key] = contact;
 
 			// 衝突中フラグを立てて形状描画を赤くする、トリガーの重なりも衝突として扱う
 			if (a.state) {
@@ -635,11 +609,11 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 
 			// 押し戻しとEnter / Stayの分配は固定ステップのみ行う
 			if (applyResponse) {
-				ApplyPushback(world, a, b, bestContact);
+				ApplyPushback(world, a, b, contact);
 				if (previousContacts_.contains(key)) {
-					DispatchCollisionStay(world, context, bestContact);
+					DispatchCollisionStay(world, context, contact);
 				} else {
-					DispatchCollisionEnter(world, context, bestContact);
+					DispatchCollisionEnter(world, context, contact);
 				}
 			}
 		}
@@ -689,18 +663,8 @@ void Engine::CollisionSystem::ApplyPushback(ECSWorld& world,
 		return;
 	}
 
-	const auto findShape = [](const CollisionRuntimeEntity& runtime,
-		uint32_t shapeIndex) -> const CollisionShapeInstance* {
-
-		for (const auto& shape : runtime.shapes) {
-			if (shape.shapeIndex == shapeIndex) {
-				return &shape;
-			}
-		}
-		return nullptr;
-		};
-	const CollisionShapeInstance* shapeA = findShape(a, contact.selfShapeIndex);
-	const CollisionShapeInstance* shapeB = findShape(b, contact.otherShapeIndex);
+	const CollisionShapeInstance* shapeA = a.hasShape ? &a.shape : nullptr;
+	const CollisionShapeInstance* shapeB = b.hasShape ? &b.shape : nullptr;
 	const bool resolveAs2D = IsShape2D(shapeA) && IsShape2D(shapeB);
 
 	// 固定軸を除いた法線成分で、めり込みを解消できる側へ押し戻し量を配分する
@@ -741,10 +705,10 @@ void Engine::CollisionSystem::ApplyPushback(ECSWorld& world,
 
 	// 隣接Colliderを続けて解く場合も、補正前の形状で二重に押し戻さない
 	if (movedA) {
-		RebuildRuntimeShapes(world, a);
+		RebuildRuntimeShape(world, a);
 	}
 	if (movedB) {
-		RebuildRuntimeShapes(world, b);
+		RebuildRuntimeShape(world, b);
 	}
 }
 

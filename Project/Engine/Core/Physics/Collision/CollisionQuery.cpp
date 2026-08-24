@@ -58,31 +58,26 @@ void Engine::CollisionQuery::RaycastColliders(ECSWorld& world, const Ray& ray, f
 			return;
 		}
 
-		const std::span<const CollisionShape> shapes =
-			GetCollisionShapes(world, entity);
-		for (uint32_t shapeIndex = 0; shapeIndex < static_cast<uint32_t>(shapes.size()); ++shapeIndex) {
-
-			const CollisionShape& shape = shapes[shapeIndex];
-			if (!shape.enabled || !IsCollisionShape3D(shape.type)) {
-				continue;
-			}
-
-			const CollisionShapeInstance instance =
-				CollisionShapeUtility::BuildShapeInstance(entity, shape, shapeIndex, *transform);
-			float distance = 0.0f;
-			Vector3 normal = Vector3(0.0f, 1.0f, 0.0f);
-			if (!CollisionRaycast::RayVsShape(ray, instance, maxDistance, distance, normal)) {
-				continue;
-			}
-
-			RaycastHit3D hit{};
-			hit.entity = entity;
-			hit.point = ray.origin + ray.direction * distance;
-			hit.normal = normal;
-			hit.distance = distance;
-			hit.shapeIndex = static_cast<int32_t>(shapeIndex);
-			hit.trigger = shape.isTrigger;
-			outHits.emplace_back(hit);
+		const CollisionShape& shape = collision.shape;
+		if (!shape.enabled || !IsCollisionShape3D(shape.type)) {
+			return;
 		}
+
+		const CollisionShapeInstance instance =
+			CollisionShapeUtility::BuildShapeInstance(entity, shape, 0, *transform);
+		float distance = 0.0f;
+		Vector3 normal = Vector3(0.0f, 1.0f, 0.0f);
+		if (!CollisionRaycast::RayVsShape(ray, instance, maxDistance, distance, normal)) {
+			return;
+		}
+
+		RaycastHit3D hit{};
+		hit.entity = entity;
+		hit.point = ray.origin + ray.direction * distance;
+		hit.normal = normal;
+		hit.distance = distance;
+		hit.shapeIndex = 0;
+		hit.trigger = shape.isTrigger;
+		outHits.emplace_back(hit);
 		});
 }

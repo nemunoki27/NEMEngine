@@ -710,18 +710,15 @@ namespace Engine {
 			return true;
 		}
 
-		// shapeIndexからCollisionComponentの衝突形状を取得する、範囲外はnullptr
-		Engine::CollisionShape* ResolveCollisionShape(Engine::ECSWorld& world, const Engine::Entity& entity, int32_t shapeIndex) {
+		// CollisionComponentの単一形状を取得する
+		Engine::CollisionShape* ResolveCollisionShape(
+			Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 			if (!world.IsAlive(entity)) {
 				return nullptr;
 			}
 			Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
-			if (!collision || shapeIndex < 0) {
-				return nullptr;
-			}
-			return Engine::TryGetCollisionShape(
-				world, entity, static_cast<uint32_t>(shapeIndex));
+			return collision ? &collision->shape : nullptr;
 		}
 	}
 
@@ -884,73 +881,14 @@ namespace Engine {
 		RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	}
 
-	int32_t ManagedScriptRuntime::CollisionShapeCountCallback(ManagedNativeEntity entity) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return 0;
-		}
-		const Entity resolved = ResolveEntity(entity);
-		const CollisionComponent* collision = world->IsAlive(resolved) ?
-			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
-		return collision ?
-			static_cast<int32_t>(GetCollisionShapes(*world, resolved).size()) : 0;
-	}
-
-	void ManagedScriptRuntime::CollisionAddShapeCallback(ManagedNativeEntity entity) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return;
-		}
-		const Entity resolved = ResolveEntity(entity);
-		CollisionComponent* collision = world->IsAlive(resolved) ?
-			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
-		if (collision) {
-			AddCollisionShape(*world, resolved);
-			world->MarkComponentModified<CollisionComponent>(resolved);
-		}
-	}
-
-	void ManagedScriptRuntime::CollisionRemoveShapeAtCallback(ManagedNativeEntity entity, int32_t shapeIndex) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return;
-		}
-		const Entity resolved = ResolveEntity(entity);
-		CollisionComponent* collision = world->IsAlive(resolved) ?
-			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
-		if (collision && 0 <= shapeIndex &&
-			RemoveCollisionShape(*world, resolved, static_cast<uint32_t>(shapeIndex))) {
-
-			world->MarkComponentModified<CollisionComponent>(resolved);
-		}
-	}
-
-	void ManagedScriptRuntime::CollisionClearShapesCallback(ManagedNativeEntity entity) {
-
-		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
-			return;
-		}
-		const Entity resolved = ResolveEntity(entity);
-		CollisionComponent* collision = world->IsAlive(resolved) ?
-			world->TryGetComponent<CollisionComponent>(resolved) : nullptr;
-		if (collision) {
-			ClearCollisionShapes(*world, resolved);
-			world->MarkComponentModified<CollisionComponent>(resolved);
-		}
-	}
-
 	int32_t ManagedScriptRuntime::CollisionGetShapePropertyCallback(ManagedNativeEntity entity,
-		int32_t shapeIndex, int32_t propertyId, void* out, int32_t size) {
+		int32_t propertyId, void* out, int32_t size) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
 			return 0;
 		}
-		const CollisionShape* shape = ResolveCollisionShape(*world, ResolveEntity(entity), shapeIndex);
+		const CollisionShape* shape = ResolveCollisionShape(*world, ResolveEntity(entity));
 		if (!shape || !out) {
 			return 0;
 		}
@@ -978,14 +916,14 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::CollisionSetShapePropertyCallback(ManagedNativeEntity entity,
-		int32_t shapeIndex, int32_t propertyId, const void* value, int32_t size) {
+		int32_t propertyId, const void* value, int32_t size) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
 			return 0;
 		}
 		const Entity resolved = ResolveEntity(entity);
-		CollisionShape* shape = ResolveCollisionShape(*world, resolved, shapeIndex);
+		CollisionShape* shape = ResolveCollisionShape(*world, resolved);
 		if (!shape || !value) {
 			return 0;
 		}
@@ -1019,8 +957,7 @@ namespace Engine {
 		default:
 			return 0;
 		}
-		RebuildCollisionCompound(*world, resolved);
-		world->MarkComponentModified<CollisionShape>(resolved);
+		world->MarkComponentModified<CollisionComponent>(resolved);
 		return 1;
 	}
 

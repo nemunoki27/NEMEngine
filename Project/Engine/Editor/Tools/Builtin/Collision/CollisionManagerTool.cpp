@@ -526,12 +526,11 @@ void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld&
 			if (!collision.enabled) {
 				return;
 			}
-			for (const CollisionShape& shape : GetCollisionShapes(world, entity)) {
-				if (!shape.enabled) {
-					continue;
-				}
-				DrawCollisionShape(shape, transform, IsCollisionColliding(world, entity));
+			if (!collision.shape.enabled) {
+				return;
 			}
+			DrawCollisionShape(
+				collision.shape, transform, IsCollisionColliding(world, entity));
 		});
 #endif
 }

@@ -461,13 +461,11 @@ namespace Engine {
 		using ClearRenderFeaturePassParameterCallback = int32_t(__cdecl*)(const char*, uint64_t);
 		using ResetRenderFeaturePassCallback = int32_t(__cdecl*)(const char*);
 		using ResetRenderFeatureOverridesCallback = void(__cdecl*)();
-		// Collision形状操作、shapeIndexとpropIdで衝突形状を読み書きする
-		using CollisionShapeCountCallback = int32_t(__cdecl*)(ManagedNativeEntity);
-		using CollisionAddShapeCallback = void(__cdecl*)(ManagedNativeEntity);
-		using CollisionRemoveShapeAtCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
-		using CollisionClearShapesCallback = void(__cdecl*)(ManagedNativeEntity);
-		using CollisionGetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, void*, int32_t);
-		using CollisionSetShapeCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t, int32_t, const void*, int32_t);
+		// CollisionComponentの単一形状をpropIdで読み書きする
+		using CollisionGetShapeCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, void*, int32_t);
+		using CollisionSetShapeCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, const void*, int32_t);
 		// 指定クリップ名のアニメーション合計長を返す
 		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
 		// 指定クリップを頭から再生する、終了フラグを同フレームで下ろす

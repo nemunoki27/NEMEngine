@@ -377,15 +377,11 @@ namespace Engine {
 			const char* passName, uint64_t parameterID);
 		static int32_t __cdecl ResetRenderFeaturePassCallback(const char* passName);
 		static void __cdecl ResetRenderFeatureOverridesCallback();
-		// CollisionComponentのshapes操作、件数取得と追加削除、shapeIndexとpropId指定でパラメータを読み書きする
-		static int32_t __cdecl CollisionShapeCountCallback(ManagedNativeEntity entity);
-		static void __cdecl CollisionAddShapeCallback(ManagedNativeEntity entity);
-		static void __cdecl CollisionRemoveShapeAtCallback(ManagedNativeEntity entity, int32_t shapeIndex);
-		static void __cdecl CollisionClearShapesCallback(ManagedNativeEntity entity);
+		// CollisionComponentの単一形状をpropId指定で読み書きする
 		static int32_t __cdecl CollisionGetShapePropertyCallback(ManagedNativeEntity entity,
-			int32_t shapeIndex, int32_t propertyId, void* out, int32_t size);
+			int32_t propertyId, void* out, int32_t size);
 		static int32_t __cdecl CollisionSetShapePropertyCallback(ManagedNativeEntity entity,
-			int32_t shapeIndex, int32_t propertyId, const void* value, int32_t size);
+			int32_t propertyId, const void* value, int32_t size);
 		// 指定クリップ名のアニメーション合計長を返す、見つからなければ0
 		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
 		// 指定クリップを頭から再生する、clip/enabledを設定し終了フラグを同フレームで下ろす

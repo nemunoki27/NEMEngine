@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
-#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 
 //============================================================================
@@ -93,9 +92,7 @@ void Engine::RuntimeWorldBaker::OnComponentMutation(
 bool Engine::RuntimeWorldBaker::IsBakeRelevant(uint32_t typeID) {
 
 	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
-	return typeID == registry.GetID<CollisionComponent>() ||
-		typeID == registry.GetID<CollisionShape>() ||
-		typeID == registry.GetID<MeshRendererComponent>();
+	return typeID == registry.GetID<MeshRendererComponent>();
 }
 
 void Engine::RuntimeWorldBaker::MarkDirty(const Entity& entity) {
@@ -111,19 +108,6 @@ void Engine::RuntimeWorldBaker::BakeEntity(const Entity& entity) {
 
 	if (!world_ || !world_->IsAlive(entity)) {
 		return;
-	}
-
-	if (world_->HasComponent<CollisionComponent>(entity)) {
-
-		// Collider設定を判定用の共有Blobへ変換する
-		EnsureCollisionShapes(*world_, entity);
-		if (!world_->HasComponent<CollisionRuntimeStateComponent>(entity)) {
-			world_->AddComponent<CollisionRuntimeStateComponent>(entity);
-		}
-		if (!world_->HasComponent<CollisionCompoundComponent>(entity)) {
-			world_->AddComponent<CollisionCompoundComponent>(entity);
-		}
-		RebuildCollisionCompound(*world_, entity);
 	}
 
 	if (assetDatabase_ && world_->HasComponent<MeshRendererComponent>(entity)) {

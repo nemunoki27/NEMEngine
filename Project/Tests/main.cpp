@@ -858,12 +858,8 @@ namespace {
 			auto& collision =
 				world.AddComponent<Engine::CollisionComponent>(entity);
 			collision.isStatic = isStatic;
-			Engine::CollisionShape shape{};
-			shape.type = Engine::ColliderShapeType::Quad2D;
-			shape.halfSize2D = halfSize;
-			Engine::SetCollisionShapes(
-				world, entity,
-				std::span<const Engine::CollisionShape>(&shape, 1));
+			collision.shape.type = Engine::ColliderShapeType::Quad2D;
+			collision.shape.halfSize2D = halfSize;
 			return entity;
 		};
 
@@ -909,6 +905,71 @@ namespace {
 			maxSettledY - minSettledY <= 0.0001f &&
 			std::abs(body.linearVelocity.y) <= 0.0001f &&
 			std::abs(settledY - 12.001f) <= 0.001f;
+		collisionSystem.OnWorldExit(world, context);
+		transformSystem.OnWorldExit(world, context);
+		return passed;
+	}
+
+	bool TestEditCollisionState() {
+
+		Engine::ECSWorld world(Engine::ECSWorldKind::Authoring);
+		auto createCollider = [&](const char* name, const Engine::Vector3& position,
+			Engine::Dimension dimension, Engine::ColliderShapeType shapeType) {
+
+			const Engine::Entity entity =
+				Engine::SceneAuthoring::CreateGameObject(world, name);
+			auto& transform = world.GetComponent<Engine::TransformComponent>(entity);
+			transform.dimension = dimension;
+			transform.localPos = position;
+			Engine::MarkTransformSubtreeDirty(world, entity);
+
+			auto& collision = world.AddComponent<Engine::CollisionComponent>(entity);
+			collision.shape.type = shapeType;
+			collision.shape.halfSize2D = Engine::Vector2(8.0f, 8.0f);
+			collision.shape.radius = 8.0f;
+			return entity;
+		};
+
+		const Engine::Entity quadA = createCollider(
+			"QuadA", Engine::Vector3(0.0f, 0.0f, 0.0f),
+			Engine::Dimension::Type2D, Engine::ColliderShapeType::Quad2D);
+		const Engine::Entity quadB = createCollider(
+			"QuadB", Engine::Vector3(4.0f, 0.0f, 0.0f),
+			Engine::Dimension::Type2D, Engine::ColliderShapeType::Quad2D);
+		const Engine::Entity sphereA = createCollider(
+			"SphereA", Engine::Vector3(100.0f, 0.0f, 0.0f),
+			Engine::Dimension::Type3D, Engine::ColliderShapeType::Sphere3D);
+		const Engine::Entity sphereB = createCollider(
+			"SphereB", Engine::Vector3(104.0f, 0.0f, 0.0f),
+			Engine::Dimension::Type3D, Engine::ColliderShapeType::Sphere3D);
+
+		Engine::SystemContext context{};
+		context.mode = Engine::WorldMode::Edit;
+		Engine::TransformSystem transformSystem{};
+		Engine::CollisionSystem collisionSystem{};
+		transformSystem.OnWorldEnter(world, context);
+		transformSystem.LateUpdate(world, context);
+		collisionSystem.LateUpdate(world, context);
+
+		if (!Engine::IsCollisionColliding(world, quadA) ||
+			!Engine::IsCollisionColliding(world, quadB) ||
+			!Engine::IsCollisionColliding(world, sphereA) ||
+			!Engine::IsCollisionColliding(world, sphereB)) {
+
+			return false;
+		}
+
+		auto& quadBTransform = world.GetComponent<Engine::TransformComponent>(quadB);
+		quadBTransform.localPos.x = 40.0f;
+		Engine::MarkTransformSubtreeDirty(world, quadB);
+		transformSystem.LateUpdate(world, context);
+		collisionSystem.LateUpdate(world, context);
+
+		const bool passed =
+			!Engine::IsCollisionColliding(world, quadA) &&
+			!Engine::IsCollisionColliding(world, quadB) &&
+			Engine::IsCollisionColliding(world, sphereA) &&
+			Engine::IsCollisionColliding(world, sphereB);
 		collisionSystem.OnWorldExit(world, context);
 		transformSystem.OnWorldExit(world, context);
 		return passed;
@@ -2432,7 +2493,8 @@ namespace {
 int main(int argc, char* argv[]) {
 
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
-		if (!TestRigidbody2DRestingContact() || !TestCapsuleCollisions()) {
+		if (!TestRigidbody2DRestingContact() || !TestEditCollisionState() ||
+			!TestCapsuleCollisions()) {
 			std::cerr << "Physics collision test failed\n";
 			return 27;
 		}
@@ -2567,6 +2629,10 @@ int main(int argc, char* argv[]) {
 	if (!TestRigidbody2DRestingContact()) {
 		std::cerr << "Rigidbody2D resting contact failed\n";
 		return 27;
+	}
+	if (!TestEditCollisionState()) {
+		std::cerr << "Edit collision state failed\n";
+		return 31;
 	}
 	if (!TestCapsuleCollisions()) {
 		std::cerr << "Capsule collision failed\n";

@@ -6,41 +6,39 @@
                     "enablePushback": true,
                     "enabled": true,
                     "isStatic": false,
-                    "shapes": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ],
+                    "shape": {
+                        "capsuleAxis": "Y",
+                        "capsuleHeight": 2.0,
+                        "capsuleSize2D": {
+                            "x": 1.0,
+                            "y": 2.0
+                        },
+                        "enabled": true,
+                        "halfExtents3D": {
+                            "x": 0.5,
+                            "y": 0.5,
+                            "z": 0.5
+                        },
+                        "halfSize2D": {
+                            "x": 32.00006103515625,
+                            "y": 32.00006103515625
+                        },
+                        "isTrigger": false,
+                        "offset": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "radius": 25.500001907348633,
+                        "rotatedQuad": false,
+                        "rotationDegrees": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                        },
+                        "type": "Quad2D",
+                        "useTransformRotation": true
+                    },
                     "typeMask": 4
                 },
                 "Hierarchy": {

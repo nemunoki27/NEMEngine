@@ -638,34 +638,14 @@
       "managedType": "delegate* unmanaged[Cdecl]<int, float, float>"
     },
     {
-      "name": "collisionShapeCount",
-      "nativeType": "CollisionShapeCountCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
-    },
-    {
-      "name": "collisionAddShape",
-      "nativeType": "CollisionAddShapeCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
-    },
-    {
-      "name": "collisionRemoveShapeAt",
-      "nativeType": "CollisionRemoveShapeAtCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void>"
-    },
-    {
-      "name": "collisionClearShapes",
-      "nativeType": "CollisionClearShapesCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, void>"
-    },
-    {
       "name": "collisionGetShapeProperty",
       "nativeType": "CollisionGetShapeCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int>"
     },
     {
       "name": "collisionSetShapeProperty",
       "nativeType": "CollisionSetShapeCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int>"
     },
     {
       "name": "getSkinnedAnimationDuration",

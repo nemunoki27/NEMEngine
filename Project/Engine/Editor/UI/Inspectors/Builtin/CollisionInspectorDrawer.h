@@ -28,26 +28,11 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		//--------- variables ----------------------------------------------------
-
-		// 編集中の衝突形状一覧
-		std::vector<CollisionShape> shapeDraft_;
-
 		//--------- functions ----------------------------------------------------
 
 		// Collisionコンポーネントの編集項目を描画する
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
-		// ワールドから衝突形状一覧を同期する
-		void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity,
-			const CollisionComponent& component) override;
-		// 衝突形状一覧を含むドラフトをjsonへ変換する
-		void SerializeDraft(ECSWorld& world, const Entity& entity,
-			const CollisionComponent& component, nlohmann::json& out) const override;
-		// プレビューをワールドへ適用する
-		void ApplyPreview(ECSWorld& world, const Entity& entity,
-			const CollisionComponent& previewComponent) override;
-
 		// Collisionタイプマスクの編集UIを描画する
 		ValueEditResult DrawTypeMaskField(CollisionComponent& component);
 		// 衝突形状タイプの編集UIを描画する
@@ -55,7 +40,7 @@ namespace Engine {
 		// カプセル方向の編集UIを描画する
 		ValueEditResult DrawCapsuleAxisField(CapsuleAxis& axis, bool is2D);
 		// 衝突形状の詳細編集UIを描画する
-		ValueEditResult DrawShapeField(CollisionShape& shape, uint32_t index);
+		ValueEditResult DrawShapeField(CollisionShape& shape);
 	};
 } // Engine
 

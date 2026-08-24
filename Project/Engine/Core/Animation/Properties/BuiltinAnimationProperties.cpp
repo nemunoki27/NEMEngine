@@ -354,30 +354,22 @@ namespace {
 	//============================================================================
 	//	CollisionComponent
 	//============================================================================
-	template <size_t ShapeIndex>
 	bool HasCollisionShape(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
-		if (Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity)) {
-			return ShapeIndex < Engine::GetCollisionShapes(world, entity).size();
-		}
-		return false;
+		return world.HasComponent<Engine::CollisionComponent>(entity);
 	}
 
-	template <size_t ShapeIndex, typename Value, Value Engine::CollisionShape::* Member>
+	template <typename Value, Value Engine::CollisionShape::* Member>
 	bool GetCollisionShapeMember(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AnimationPropertyValue& out) {
 
 		if (Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity)) {
-			if (const Engine::CollisionShape* shape =
-				Engine::TryGetCollisionShape(world, entity, static_cast<uint32_t>(ShapeIndex))) {
-
-				out = shape->*Member;
-				return true;
-			}
+			out = collision->shape.*Member;
+			return true;
 		}
 		return false;
 	}
 
-	template <size_t ShapeIndex, typename Value, Value Engine::CollisionShape::* Member>
+	template <typename Value, Value Engine::CollisionShape::* Member>
 	bool SetCollisionShapeMember(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::AnimationPropertyValue& value) {
 
 		Value typed{};
@@ -385,14 +377,9 @@ namespace {
 			return false;
 		}
 		if (Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity)) {
-			if (Engine::CollisionShape* shape =
-				Engine::TryGetCollisionShape(world, entity, static_cast<uint32_t>(ShapeIndex))) {
-
-				shape->*Member = typed;
-				Engine::RebuildCollisionCompound(world, entity);
-				world.MarkComponentModified<Engine::CollisionShape>(entity);
-				return true;
-			}
+			collision->shape.*Member = typed;
+			world.MarkComponentModified<Engine::CollisionComponent>(entity);
+			return true;
 		}
 		return false;
 	}
@@ -468,47 +455,36 @@ namespace {
 		registry.Register(desc);
 	}
 
-	template <size_t ShapeIndex>
 	void RegisterCollisionShapeProperties(Engine::AnimationPropertyRegistry& registry) {
 
-		const std::string prefix = std::format("shapes[{}]", ShapeIndex);
-		const std::string displayPrefix = std::format("Collision.shapes[{}]", ShapeIndex);
-
-		Register(registry, "Collision", std::format("{}.offset", prefix).c_str(),
-			std::format("{}.offset", displayPrefix).c_str(), Engine::AnimationValueType::Vector3,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::offset>,
-			SetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::offset>);
-		Register(registry, "Collision", std::format("{}.rotationDegrees", prefix).c_str(),
-			std::format("{}.rotationDegrees", displayPrefix).c_str(), Engine::AnimationValueType::Vector3,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::rotationDegrees>,
-			SetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::rotationDegrees>);
-		Register(registry, "Collision", std::format("{}.radius", prefix).c_str(),
-			std::format("{}.radius", displayPrefix).c_str(), Engine::AnimationValueType::Float,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, float, &Engine::CollisionShape::radius>,
-			SetCollisionShapeMember<ShapeIndex, float, &Engine::CollisionShape::radius>);
-		Register(registry, "Collision", std::format("{}.halfSize2D", prefix).c_str(),
-			std::format("{}.halfSize2D", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, Engine::Vector2, &Engine::CollisionShape::halfSize2D>,
-			SetCollisionShapeMember<ShapeIndex, Engine::Vector2, &Engine::CollisionShape::halfSize2D>);
-		Register(registry, "Collision", std::format("{}.halfExtents3D", prefix).c_str(),
-			std::format("{}.halfExtents3D", displayPrefix).c_str(), Engine::AnimationValueType::Vector3,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::halfExtents3D>,
-			SetCollisionShapeMember<ShapeIndex, Engine::Vector3, &Engine::CollisionShape::halfExtents3D>);
-		Register(registry, "Collision", std::format("{}.capsuleHeight", prefix).c_str(),
-			std::format("{}.capsuleHeight", displayPrefix).c_str(), Engine::AnimationValueType::Float,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, float, &Engine::CollisionShape::capsuleHeight>,
-			SetCollisionShapeMember<ShapeIndex, float, &Engine::CollisionShape::capsuleHeight>);
-		Register(registry, "Collision", std::format("{}.capsuleSize2D", prefix).c_str(),
-			std::format("{}.capsuleSize2D", displayPrefix).c_str(), Engine::AnimationValueType::Vector2,
-			HasCollisionShape<ShapeIndex>,
-			GetCollisionShapeMember<ShapeIndex, Engine::Vector2, &Engine::CollisionShape::capsuleSize2D>,
-			SetCollisionShapeMember<ShapeIndex, Engine::Vector2, &Engine::CollisionShape::capsuleSize2D>);
+		Register(registry, "Collision", "shape.offset", "Collision.shape.offset",
+			Engine::AnimationValueType::Vector3, HasCollisionShape,
+			GetCollisionShapeMember<Engine::Vector3, &Engine::CollisionShape::offset>,
+			SetCollisionShapeMember<Engine::Vector3, &Engine::CollisionShape::offset>);
+		Register(registry, "Collision", "shape.rotationDegrees", "Collision.shape.rotationDegrees",
+			Engine::AnimationValueType::Vector3, HasCollisionShape,
+			GetCollisionShapeMember<Engine::Vector3, &Engine::CollisionShape::rotationDegrees>,
+			SetCollisionShapeMember<Engine::Vector3, &Engine::CollisionShape::rotationDegrees>);
+		Register(registry, "Collision", "shape.radius", "Collision.shape.radius",
+			Engine::AnimationValueType::Float, HasCollisionShape,
+			GetCollisionShapeMember<float, &Engine::CollisionShape::radius>,
+			SetCollisionShapeMember<float, &Engine::CollisionShape::radius>);
+		Register(registry, "Collision", "shape.halfSize2D", "Collision.shape.halfSize2D",
+			Engine::AnimationValueType::Vector2, HasCollisionShape,
+			GetCollisionShapeMember<Engine::Vector2, &Engine::CollisionShape::halfSize2D>,
+			SetCollisionShapeMember<Engine::Vector2, &Engine::CollisionShape::halfSize2D>);
+		Register(registry, "Collision", "shape.halfExtents3D", "Collision.shape.halfExtents3D",
+			Engine::AnimationValueType::Vector3, HasCollisionShape,
+			GetCollisionShapeMember<Engine::Vector3, &Engine::CollisionShape::halfExtents3D>,
+			SetCollisionShapeMember<Engine::Vector3, &Engine::CollisionShape::halfExtents3D>);
+		Register(registry, "Collision", "shape.capsuleHeight", "Collision.shape.capsuleHeight",
+			Engine::AnimationValueType::Float, HasCollisionShape,
+			GetCollisionShapeMember<float, &Engine::CollisionShape::capsuleHeight>,
+			SetCollisionShapeMember<float, &Engine::CollisionShape::capsuleHeight>);
+		Register(registry, "Collision", "shape.capsuleSize2D", "Collision.shape.capsuleSize2D",
+			Engine::AnimationValueType::Vector2, HasCollisionShape,
+			GetCollisionShapeMember<Engine::Vector2, &Engine::CollisionShape::capsuleSize2D>,
+			SetCollisionShapeMember<Engine::Vector2, &Engine::CollisionShape::capsuleSize2D>);
 	}
 
 	template <size_t SubMeshIndex>
@@ -789,14 +765,7 @@ void Engine::RegisterBuiltinAnimationProperties() {
 	//	CollisionComponent
 	//============================================================================
 	{
-		RegisterCollisionShapeProperties<0>(registry);
-		RegisterCollisionShapeProperties<1>(registry);
-		RegisterCollisionShapeProperties<2>(registry);
-		RegisterCollisionShapeProperties<3>(registry);
-		RegisterCollisionShapeProperties<4>(registry);
-		RegisterCollisionShapeProperties<5>(registry);
-		RegisterCollisionShapeProperties<6>(registry);
-		RegisterCollisionShapeProperties<7>(registry);
+		RegisterCollisionShapeProperties(registry);
 	}
 	//============================================================================
 	//	MeshRendererComponent

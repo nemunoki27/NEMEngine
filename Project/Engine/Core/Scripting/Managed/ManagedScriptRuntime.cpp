@@ -273,10 +273,6 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::ResetRenderFeaturePassCallback;
 	callbacks.resetRenderFeatureOverrides =
 		&ManagedScriptRuntime::ResetRenderFeatureOverridesCallback;
-	callbacks.collisionShapeCount = &ManagedScriptRuntime::CollisionShapeCountCallback;
-	callbacks.collisionAddShape = &ManagedScriptRuntime::CollisionAddShapeCallback;
-	callbacks.collisionRemoveShapeAt = &ManagedScriptRuntime::CollisionRemoveShapeAtCallback;
-	callbacks.collisionClearShapes = &ManagedScriptRuntime::CollisionClearShapesCallback;
 	callbacks.collisionGetShapeProperty = &ManagedScriptRuntime::CollisionGetShapePropertyCallback;
 	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
 	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;

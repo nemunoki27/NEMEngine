@@ -55,7 +55,8 @@ namespace Engine {
 			CollisionComponent* collision = nullptr;
 			CollisionRuntimeStateComponent* state = nullptr;
 			TransformComponent* transform = nullptr;
-			std::vector<CollisionShapeInstance> shapes{};
+			CollisionShapeInstance shape{};
+			bool hasShape = false;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -68,7 +69,7 @@ namespace Engine {
 		// 衝突判定を実行し、必要なら押し戻しとコールバックを処理する
 		void UpdateCollisions(ECSWorld& world, SystemContext& context, bool applyResponse);
 		// Transform変更後の判定形状を現在位置から再構築する
-		void RebuildRuntimeShapes(ECSWorld& world,
+		void RebuildRuntimeShape(ECSWorld& world,
 			CollisionRuntimeEntity& runtime) const;
 		// 衝突結果をもとにEntityを押し戻す
 		void ApplyPushback(ECSWorld& world, CollisionRuntimeEntity& a,

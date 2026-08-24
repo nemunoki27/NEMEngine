@@ -58,7 +58,7 @@ namespace Engine {
 	//============================================================================
 	struct CollisionShape {
 
-		// Entityごとの形状列としてDynamicBufferへ格納する
+		// ComponentManifestの固定IDを維持する内部Buffer型情報
 		static constexpr ComponentStorageKind kStorageKind =
 			ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 1;
@@ -122,7 +122,7 @@ namespace Engine {
 		Vector3 point = Vector3::AnyInit(0.0f);
 		float penetration = 0.0f;
 
-		// 衝突した形状インデックス
+		// 単一形状のため現在は常に0
 		uint32_t selfShapeIndex = 0;
 		uint32_t otherShapeIndex = 0;
 
