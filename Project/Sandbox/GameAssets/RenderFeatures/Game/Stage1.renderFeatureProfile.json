@@ -100,8 +100,9 @@
                 }
             ],
             "parameters": {
-                "intensity": 1.0,
-                "knee": 1.0
+                "intensity": 11.130000114440918,
+                "knee": 1.690000057220459,
+                "threshold": 0.019999999552965164
             },
             "passInputs": {},
             "rayGenerationIndex": 0,
@@ -143,7 +144,7 @@
                 }
             ],
             "parameters": {
-                "radius": 16.0
+                "radius": 8.0
             },
             "passInputs": {},
             "rayGenerationIndex": 0,
@@ -185,7 +186,7 @@
                 }
             ],
             "parameters": {
-                "radius": 16.0
+                "radius": 8.0
             },
             "passInputs": {},
             "rayGenerationIndex": 0,
@@ -227,19 +228,16 @@
                 }
             ],
             "parameters": {
-                "intensity": 1.4800000190734863
+                "intensity": 0.6399999856948853
             },
-            "passInputs": {
-                "gSceneColor": {
-                    "output": "Color",
-                    "pass": "27bbe6cf17feaad9"
-                }
-            },
+            "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
             "samplers": {},
             "sceneColorOutput": true,
-            "sceneInputs": {},
+            "sceneInputs": {
+                "gSceneColor": "SceneColorFinal"
+            },
             "sceneView": true,
             "source": {
                 "kind": "PreviousPass",

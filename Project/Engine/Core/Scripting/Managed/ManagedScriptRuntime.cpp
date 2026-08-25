@@ -373,9 +373,12 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getIgnoreParentScale = &ManagedScriptRuntime::GetIgnoreParentScaleCallback;
 	callbacks.setIgnoreParentScale = &ManagedScriptRuntime::SetIgnoreParentScaleCallback;
 
-	if (!initializeNativeApi_ || initializeNativeApi_(&callbacks) != ManagedStatus::Ok) {
+	const ManagedStatus initializeStatus = initializeNativeApi_ ?
+		initializeNativeApi_(&callbacks) : ManagedStatus::Unsupported;
+	if (initializeStatus != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: Native Callbackを初期化できません ABI不一致またはManaged例外の可能性があります");
+			"ManagedScriptRuntime: Native Callbackを初期化できません Status={} NativeABI={} APIサイズ={}",
+			static_cast<int32_t>(initializeStatus), callbacks.header.abiVersion, callbacks.header.structSize);
 		Finalize();
 		return false;
 	}

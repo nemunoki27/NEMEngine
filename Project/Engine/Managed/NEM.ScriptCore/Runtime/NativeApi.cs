@@ -45,7 +45,8 @@ internal static class ManagedAbi {
     // v45: RenderFeatureProfileの実行時パラメータAPIを追加
     // v46: ParticleSystemのUnity準拠再生操作と実行状態APIを追加
     // v47: RenderFeatureグループの有効状態APIを追加
-    internal const uint Version = 47;
+    // v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
+    internal const uint Version = 48;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;

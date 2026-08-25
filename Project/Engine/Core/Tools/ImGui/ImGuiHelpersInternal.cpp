@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
@@ -34,9 +35,95 @@ namespace {
 		case 'W': return { "W", ImVec4(0.90f, 0.78f, 0.20f, 1.0f) }; // yellow
 		default:  return { "-", ImVec4(0.70f, 0.70f, 0.70f, 1.0f) };
 		}
+
 	}
 
 } // namespace
+
+//============================================================================
+//	Easing functions
+//============================================================================
+void Easing::SelectEasingType(EasingType& easingType,
+	const std::string& label, float itemWidth) {
+
+	const char* easeInOptions[] = {
+		"EaseInSine", "EaseInQuad", "EaseInCubic", "EaseInQuart",
+		"EaseInQuint", "EaseInExpo", "EaseInCirc", "EaseInBack", "EaseInBounce"
+	};
+	const char* easeOutOptions[] = {
+		"EaseOutSine", "EaseOutQuad", "EaseOutCubic", "EaseOutQuart",
+		"EaseOutQuint", "EaseOutExpo", "EaseOutCirc", "EaseOutBack", "EaseOutBounce"
+	};
+	const char* easeInOutOptions[] = {
+		"EaseInOutSine", "EaseInOutQuad", "EaseInOutCubic", "EaseInOutQuart",
+		"EaseInOutQuint", "EaseInOutExpo", "EaseInOutCirc", "EaseInOutBounce"
+	};
+
+	const int baseIn = static_cast<int>(EasingType::EaseInSine);
+	const int baseOut = static_cast<int>(EasingType::EaseOutSine);
+	const int baseInOut = static_cast<int>(EasingType::EaseInOutSine);
+	const int easingIndex = static_cast<int>(easingType);
+
+	const char* previewLabel = "Linear";
+	if (easingIndex >= baseIn && easingIndex < baseOut) {
+		previewLabel = easeInOptions[easingIndex - baseIn];
+	} else if (easingIndex >= baseOut && easingIndex < baseInOut) {
+		previewLabel = easeOutOptions[easingIndex - baseOut];
+	} else if (easingIndex >= baseInOut) {
+		previewLabel = easeInOutOptions[easingIndex - baseInOut];
+	}
+
+	ImGui::SetNextItemWidth(itemWidth);
+	if (!ImGui::BeginCombo(("EasingType##" + label).c_str(), previewLabel)) {
+		return;
+	}
+
+	if (ImGui::Button("Linear", ImVec2(itemWidth, 24.0f))) {
+		easingType = EasingType::Linear;
+	}
+
+	ImGui::PushItemWidth(itemWidth);
+	if (ImGui::BeginCombo("EaseIn", "")) {
+		for (int i = 0; i < IM_ARRAYSIZE(easeInOptions); ++i) {
+			const bool selected = static_cast<int>(easingType) == baseIn + i;
+			if (ImGui::Selectable(easeInOptions[i], selected)) {
+				easingType = static_cast<EasingType>(baseIn + i);
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	if (ImGui::BeginCombo("EaseOut", "")) {
+		for (int i = 0; i < IM_ARRAYSIZE(easeOutOptions); ++i) {
+			const bool selected = static_cast<int>(easingType) == baseOut + i;
+			if (ImGui::Selectable(easeOutOptions[i], selected)) {
+				easingType = static_cast<EasingType>(baseOut + i);
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	if (ImGui::BeginCombo("EaseInOut", "")) {
+		for (int i = 0; i < IM_ARRAYSIZE(easeInOutOptions); ++i) {
+			const bool selected = static_cast<int>(easingType) == baseInOut + i;
+			if (ImGui::Selectable(easeInOutOptions[i], selected)) {
+				easingType = static_cast<EasingType>(baseInOut + i);
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	ImGui::PopItemWidth();
+	ImGui::EndCombo();
+}
 
 namespace Engine {
 

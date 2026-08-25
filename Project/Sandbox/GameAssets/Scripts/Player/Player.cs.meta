@@ -1,0 +1,53 @@
+{
+  "guid": "d317a9e78dd80d15ea6928cc84fc87e1",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.Player",
+      "scriptTypeId": "47e1ca09-b0b2-4b22-9ee7-8d3cb7a8188a",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "59eb51b6-683a-49e3-998d-ed90d98bbbb4",
+          "name": "gravityScale",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "6231d50e-f7ad-4c0d-bf80-b2178edc00a2",
+          "name": "jumpSpeed",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "7208ae17-dd16-45ad-99ce-40d6aad1af8a",
+          "name": "coyoteTime",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "a20d98b5-1250-4e56-8dd9-9bea88cd366c",
+          "name": "jumpBufferTime",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "b51017b2-c6df-460c-b1d7-766d22860cc6",
+          "name": "moveSpeed",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "d05faa09-9d91-425e-b88b-ebc306aa95d3",
+          "name": "groundNormalThreshold",
+          "type": "float",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

@@ -4,9 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <cstdio>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+
+// c++
+#include <algorithm>
+#include <cstdio>
+#include <vector>
 
 namespace {
 
@@ -132,6 +136,190 @@ namespace {
 
 namespace {
 
+	constexpr float kGPUPassViewWidth = 360.0f;
+	constexpr float kGPUPassTooltipMargin = 8.0f;
+	constexpr size_t kGPUPassViewColumns = 2;
+
+	// 交互に描画されるGameViewとSceneViewの最新計測結果を保持する
+	struct GPUPassViewSnapshot {
+
+		std::string name{};
+		std::vector<Engine::FrameProfiler::GPUPassTime> passTimes{};
+		float totalMilliseconds = 0.0f;
+	};
+
+	struct GPUPassTooltipState {
+
+		std::vector<GPUPassViewSnapshot> views{};
+
+		void Update(const Engine::FrameProfiler& profiler) {
+
+			if (!profiler.HasGPUData()) {
+				return;
+			}
+
+			std::vector<GPUPassViewSnapshot> updatedViews{};
+			for (const Engine::FrameProfiler::GPUPassTime& pass : profiler.GetGPUPassTimes()) {
+
+				const size_t slash = pass.name.find('/');
+				const std::string viewName = slash != std::string::npos ?
+					pass.name.substr(0, slash) : std::string();
+				auto view = std::find_if(updatedViews.begin(), updatedViews.end(),
+					[&viewName](const GPUPassViewSnapshot& snapshot) {
+						return snapshot.name == viewName;
+					});
+				if (view == updatedViews.end()) {
+					updatedViews.push_back({ .name = viewName });
+					view = std::prev(updatedViews.end());
+				}
+				view->passTimes.push_back(pass);
+				view->totalMilliseconds += pass.milliseconds;
+			}
+
+			for (GPUPassViewSnapshot& updated : updatedViews) {
+
+				auto cached = std::find_if(views.begin(), views.end(),
+					[&updated](const GPUPassViewSnapshot& snapshot) {
+						return snapshot.name == updated.name;
+					});
+				if (cached != views.end()) {
+					*cached = std::move(updated);
+				} else {
+					views.push_back(std::move(updated));
+				}
+			}
+
+			// 2つの主要ビューは常に同じ順序で表示する
+			const auto priority = [](const std::string& name) {
+				if (name == "Game") {
+					return 0;
+				}
+				if (name == "Scene") {
+					return 1;
+				}
+				return 2;
+			};
+			std::stable_sort(views.begin(), views.end(),
+				[&priority](const GPUPassViewSnapshot& lhs, const GPUPassViewSnapshot& rhs) {
+					return priority(lhs.name) < priority(rhs.name);
+				});
+		}
+	};
+
+	float GetGPUPassTooltipWidth(size_t viewCount, const ImGuiViewport& viewport) {
+
+		const size_t columns = std::clamp(viewCount, size_t{ 1 }, kGPUPassViewColumns);
+		const float desiredWidth = kGPUPassViewWidth * static_cast<float>(columns) +
+			ImGui::GetStyle().ItemSpacing.x * static_cast<float>(columns - 1);
+		return std::max(1.0f, std::min(desiredWidth,
+			viewport.WorkSize.x - kGPUPassTooltipMargin * 2.0f));
+	}
+
+	void SetNextGPUPassTooltipWindow(float tooltipWidth) {
+
+		const ImGuiViewport* viewport = ImGui::GetWindowViewport();
+		const ImVec2 itemMin = ImGui::GetItemRectMin();
+		const ImVec2 itemMax = ImGui::GetItemRectMax();
+		const ImVec2 workMin = viewport->WorkPos;
+		const ImVec2 workMax(
+			viewport->WorkPos.x + viewport->WorkSize.x,
+			viewport->WorkPos.y + viewport->WorkSize.y);
+
+		float x = itemMax.x + kGPUPassTooltipMargin;
+		if (workMax.x < x + tooltipWidth) {
+			x = itemMin.x - kGPUPassTooltipMargin - tooltipWidth;
+		}
+		const float minX = workMin.x + kGPUPassTooltipMargin;
+		const float maxX = std::max(minX,
+			workMax.x - tooltipWidth - kGPUPassTooltipMargin);
+		x = std::clamp(x, minX, maxX);
+
+		const float maxHeight = std::max(1.0f,
+			viewport->WorkSize.y - kGPUPassTooltipMargin * 2.0f);
+		ImGui::SetNextWindowPos(
+			ImVec2(x, workMin.y + kGPUPassTooltipMargin), ImGuiCond_Always);
+		ImGui::SetNextWindowSizeConstraints(
+			ImVec2(tooltipWidth, 0.0f), ImVec2(tooltipWidth, maxHeight));
+	}
+
+	void DrawGPUPassView(const GPUPassViewSnapshot& view) {
+
+		ImGui::Text("[%s] GPU合計 : %.3f ms",
+			view.name.empty() ? "-" : view.name.c_str(), view.totalMilliseconds);
+		ImGui::Spacing();
+
+		if (ImGui::BeginTable("##GPUPassTimes", 2,
+			ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg |
+			ImGuiTableFlags_SizingFixedFit)) {
+
+			ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 230.0f);
+			ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+			ImGui::TableHeadersRow();
+
+			for (const Engine::FrameProfiler::GPUPassTime& pass : view.passTimes) {
+
+				const size_t slash = pass.name.find('/');
+				const std::string label = slash != std::string::npos ?
+					pass.name.substr(slash + 1) : pass.name;
+
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				ImGui::TextUnformatted(label.c_str());
+
+				ImGui::TableSetColumnIndex(1);
+				char timeText[32];
+				std::snprintf(timeText, sizeof(timeText), "%.3f ms", pass.milliseconds);
+				const float cellWidth = ImGui::GetContentRegionAvail().x;
+				const float textWidth = ImGui::CalcTextSize(timeText).x;
+				if (textWidth < cellWidth) {
+					ImGui::SetCursorPosX(ImGui::GetCursorPosX() + cellWidth - textWidth);
+				}
+				ImGui::TextUnformatted(timeText);
+			}
+			ImGui::EndTable();
+		}
+	}
+
+	void DrawGPUPassTooltip(const GPUPassTooltipState& state) {
+
+		const ImGuiViewport* viewport = ImGui::GetWindowViewport();
+		const float tooltipWidth = GetGPUPassTooltipWidth(state.views.size(), *viewport);
+		SetNextGPUPassTooltipWindow(tooltipWidth);
+		ImGui::BeginTooltip();
+		if (state.views.empty()) {
+
+			ImGui::TextUnformatted("GPU計測データなし");
+			ImGui::EndTooltip();
+			return;
+		}
+
+		for (size_t firstView = 0; firstView < state.views.size();
+			firstView += kGPUPassViewColumns) {
+
+			const size_t columnCount = std::min(kGPUPassViewColumns,
+				state.views.size() - firstView);
+			ImGui::PushID(static_cast<int>(firstView));
+			if (ImGui::BeginTable("##GPUPassViews", static_cast<int>(columnCount),
+				ImGuiTableFlags_SizingStretchSame)) {
+
+				for (size_t column = 0; column < columnCount; ++column) {
+					ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+				}
+				ImGui::TableNextRow();
+				for (size_t column = 0; column < columnCount; ++column) {
+
+					ImGui::TableSetColumnIndex(static_cast<int>(column));
+					ImGui::PushID(static_cast<int>(column));
+					DrawGPUPassView(state.views[firstView + column]);
+					ImGui::PopID();
+				}
+				ImGui::EndTable();
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndTooltip();
+	}
+
 	// 計測タブ: FrameProfilerのフレーム計測結果を表示する
 	void DrawMeasurementTab() {
 
@@ -178,60 +366,11 @@ namespace {
 
 		// 描画処理でホバーでGPUの処理時間を各パスごとに表示する
 		ImGui::Text("描画処理          : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Draw));
-		if (ImGui::IsItemHovered()) {
-
-			ImGui::BeginTooltip();
-			if (profiler.HasGPUData()) {
-
-				ImGui::Text("GPU合計 : %.3f ms", profiler.GetGPUTotalMs());
-				ImGui::Spacing();
-
-				// パス名と時間を列で揃えて表示しGame/やScene/のビュー接頭辞でグループ分けする
-				if (ImGui::BeginTable("##GPUPassTimes", 2,
-					ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
-
-					ImGui::TableSetupColumn("Pass", ImGuiTableColumnFlags_WidthFixed, 230.0f);
-					ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, 72.0f);
-					ImGui::TableHeadersRow();
-
-					std::string currentGroup = "\x01";
-					for (const Engine::FrameProfiler::GPUPassTime& pass : profiler.GetGPUPassTimes()) {
-
-						const size_t slash = pass.name.find('/');
-						const std::string group = (slash != std::string::npos) ? pass.name.substr(0, slash) : std::string();
-						const std::string label = (slash != std::string::npos) ? pass.name.substr(slash + 1) : pass.name;
-
-						// グループ見出し
-						if (group != currentGroup) {
-
-							currentGroup = group;
-							ImGui::TableNextRow();
-							ImGui::TableSetColumnIndex(0);
-							ImGui::TextDisabled("[%s]", group.empty() ? "-" : group.c_str());
-						}
-
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImGui::TextUnformatted(label.c_str());
-
-						// 時間は右寄せ
-						ImGui::TableSetColumnIndex(1);
-						char timeText[32];
-						std::snprintf(timeText, sizeof(timeText), "%.3f ms", pass.milliseconds);
-						const float cellWidth = ImGui::GetContentRegionAvail().x;
-						const float textWidth = ImGui::CalcTextSize(timeText).x;
-						if (textWidth < cellWidth) {
-							ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (cellWidth - textWidth));
-						}
-						ImGui::TextUnformatted(timeText);
-					}
-					ImGui::EndTable();
-				}
-			} else {
-
-				ImGui::TextUnformatted("GPU計測データなし");
-			}
-			ImGui::EndTooltip();
+		static GPUPassTooltipState gpuPassTooltip{};
+		gpuPassTooltip.Update(profiler);
+		const bool drawTimeHovered = ImGui::IsItemHovered();
+		if (drawTimeHovered) {
+			DrawGPUPassTooltip(gpuPassTooltip);
 		}
 
 		// Meshバッチ構築/GPU転送のCPUコストで描画処理の内訳、staticキャッシュMISSやSkinned/Billboardで増える

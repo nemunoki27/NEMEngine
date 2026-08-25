@@ -81,13 +81,13 @@
                 "circleAngleMax": 360.0,
                 "circleAngleMin": 0.0,
                 "circleClockwise": false,
-                "circleRadius": 64.0,
+                "circleRadius": 44.400001525878906,
                 "circleSpawnMode": "Random",
                 "circleStepAngle": 10.0,
                 "circleUsePrevSegmentDirectionOnWrap": false,
                 "circleVelocityMode": "Normal",
-                "coneAngle": 25.0,
-                "coneRadius": 0.5,
+                "coneAngle": 38.5,
+                "coneRadius": 2.0,
                 "emitCount": {
                     "constant": 4,
                     "max": 4,
@@ -127,7 +127,7 @@
                     "x": 1.0,
                     "y": 1.0
                 },
-                "shape": "Circle",
+                "shape": "Cone2D",
                 "speed": {
                     "constant": 256.0,
                     "max": 1.600000023841858,
@@ -161,7 +161,7 @@
                     },
                     "material": "",
                     "materialSettings": {
-                        "baseColorTexture": "4e454d4153534554030a5fad06d4a843",
+                        "baseColorTexture": "4e454d4153534554680d71cef494825f",
                         "textureOverrides": {}
                     },
                     "modules": [
@@ -226,6 +226,25 @@
                                     "r": 0.876447856426239
                                 },
                                 "useCurve": false
+                            }
+                        },
+                        {
+                            "id": "Emissive",
+                            "params": {
+                                "colorEasingType": "EaseOutSine",
+                                "endColor": {
+                                    "b": 0.06429540365934372,
+                                    "g": 0.4217678904533386,
+                                    "r": 0.876447856426239
+                                },
+                                "endIntensity": 0.0,
+                                "intensityEasingType": "EaseOutSine",
+                                "startColor": {
+                                    "b": 0.06429540365934372,
+                                    "g": 0.4217678904533386,
+                                    "r": 0.876447856426239
+                                },
+                                "startIntensity": 2.140000104904175
                             }
                         }
                     ],

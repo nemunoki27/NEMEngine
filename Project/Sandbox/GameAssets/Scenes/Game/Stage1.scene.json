@@ -131,113 +131,6 @@
                 }
             },
             "LocalFileID": "3ff9d0287c6b7a53"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 5
-                },
-                "Name": {
-                    "name": "Particle"
-                },
-                "ParticleSystem": {
-                    "customSimulationTarget": "",
-                    "drawEmitterShape": true,
-                    "effect": "261fcf8674e185b35ff84b7afa4df62b",
-                    "enabled": true,
-                    "layer": 0,
-                    "order": 0,
-                    "playInEditMode": true,
-                    "playOnAwake": true,
-                    "playbackSpeed": 1.0,
-                    "simulationSpace": "World",
-                    "stopAction": "None",
-                    "useUnscaledTime": true,
-                    "visible": true
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "997334a7a06eafe4",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "dimension": 0,
-                    "localPos": {
-                        "x": 812.5477294921875,
-                        "y": 417.9497375488281,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "997334a7a06eafe4"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
-                    "siblingOrder": 6
-                },
-                "MeshRenderer": {
-                    "blendMode": "Normal",
-                    "castReflection": true,
-                    "castShadow": true,
-                    "enableZPrepass": true,
-                    "layer": 0,
-                    "lighting": true,
-                    "material": "",
-                    "mesh": "",
-                    "order": 0,
-                    "queue": "Opaque",
-                    "receiveIBL": true,
-                    "receiveReflection": true,
-                    "receiveShadow": true,
-                    "renderingLayerMask": 1,
-                    "subMeshes": [],
-                    "visible": true
-                },
-                "Name": {
-                    "name": "Static Mesh"
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "d1c6ef99d902b6ed",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "dimension": 1,
-                    "localPos": {
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "d1c6ef99d902b6ed"
         }
     ],
     "Header": {
@@ -247,7 +140,51 @@
     },
     "PrefabInstances": [
         {
-            "AddedComponents": [],
+            "AddedComponents": [
+                {
+                    "Target": "666e4829b937b9a9",
+                    "Type": "Collision",
+                    "Value": {
+                        "enablePushback": true,
+                        "enabled": true,
+                        "isStatic": false,
+                        "shape": {
+                            "capsuleAxis": "Y",
+                            "capsuleHeight": 2.0,
+                            "capsuleSize2D": {
+                                "x": 1.0,
+                                "y": 2.0
+                            },
+                            "enabled": true,
+                            "halfExtents3D": {
+                                "x": 0.5,
+                                "y": 0.5,
+                                "z": 0.5
+                            },
+                            "halfSize2D": {
+                                "x": 27.399974822998047,
+                                "y": 27.399974822998047
+                            },
+                            "isTrigger": true,
+                            "offset": {
+                                "x": 0.0,
+                                "y": -9.899999618530273,
+                                "z": 0.0
+                            },
+                            "radius": 32.0,
+                            "rotatedQuad": false,
+                            "rotationDegrees": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "type": "Circle2D",
+                            "useTransformRotation": true
+                        },
+                        "typeMask": 1
+                    }
+                }
+            ],
             "AddedEntities": [
                 {
                     "Components": {
@@ -822,7 +759,22 @@
             "RootParent": "3ff9d0287c6b7a53"
         },
         {
-            "AddedComponents": [],
+            "AddedComponents": [
+                {
+                    "Target": "3d7e83e18622e67b",
+                    "Type": "Script",
+                    "Value": [
+                        {
+                            "enabled": true,
+                            "lastKnownTypeName": "SandboxScripts.Player",
+                            "scriptAsset": "d317a9e78dd80d15ea6928cc84fc87e1",
+                            "scriptSlotId": "db4ab4669665216f",
+                            "scriptTypeId": "47e1ca09-b0b2-4b22-9ee7-8d3cb7a8188a",
+                            "serializedFields": {}
+                        }
+                    ]
+                }
+            ],
             "AddedEntities": [],
             "EntityMap": [
                 {
@@ -879,6 +831,11 @@
                         "x": 1.0,
                         "y": 2.0
                     }
+                },
+                {
+                    "Path": "Rigidbody2D/friction",
+                    "Target": "3d7e83e18622e67b",
+                    "Value": 0.0
                 },
                 {
                     "Path": "Transform/localPos/x",
