@@ -130,7 +130,7 @@
                 "mode": "Organization",
                 "phaseMask": 2,
                 "rendererMask": 63,
-                "renderingLayerMask": 2,
+                "renderingLayerMask": 1,
                 "sortingLayer": 0,
                 "sortingOrder": 0
             },
@@ -138,6 +138,10 @@
         },
         {
             "id": "8705f0167e4e1010",
+            "type": "Pass"
+        },
+        {
+            "id": "3696ea5cd82e2224",
             "type": "Pass"
         }
     ],
@@ -567,9 +571,9 @@
                 }
             ],
             "parameters": {
-                "intensity": 1.0,
-                "knee": 0.5,
-                "threshold": 0.0
+                "intensity": 1.2000000476837158,
+                "knee": 1.0399999618530273,
+                "threshold": 0.49000000953674316
             },
             "passInputs": {},
             "rayGenerationIndex": 0,
@@ -758,7 +762,7 @@
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
             "samplers": {},
-            "sceneColorOutput": true,
+            "sceneColorOutput": false,
             "sceneInputs": {
                 "gSceneDepth": "SceneDepth"
             },
@@ -767,6 +771,48 @@
                 "kind": "PassOutput",
                 "output": "Color",
                 "pass": "1e6fa23fe2933034"
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "3696ea5cd82e2224",
+            "material": "4e454d41535345541922d31423bdcd51",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "Gray",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": {
+                "strength": 0.3199999928474426
+            },
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": true,
+            "sceneInputs": {},
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
             },
             "textures": {},
             "type": "Compute"

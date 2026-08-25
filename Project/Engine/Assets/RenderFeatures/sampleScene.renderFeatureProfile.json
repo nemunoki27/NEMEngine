@@ -302,7 +302,7 @@
       "gameView": true,
       "sceneView": true,
       "type": "Compute",
-      "anchor": "AfterMaskedUI",
+      "anchor": "AfterPostProcessUI",
       "material": "4e454d4153534554d4585b4b3c65da40",
       "materialPass": "PostProcess",
       "source": { "kind": "PreviousPass", "pass": "", "output": "Color" },

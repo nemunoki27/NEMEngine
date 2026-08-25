@@ -198,7 +198,7 @@ bool Engine::ParticlePendulumMovementModule::DrawAnimationSettings(
 		startLabel, settings.start, ParticleGui::MakeDragSetting(minValue, maxValue)).valueChanged;
 	changed |= MyGUI::DragFloat(
 		endLabel, settings.end, ParticleGui::MakeDragSetting(minValue, maxValue)).valueChanged;
-	changed |= ParticleGui::SelectEasing(settings.easingType);
+	changed |= ParticleGui::DrawInterpolationEasing(settings.easingType);
 	changed |= MyGUI::Checkbox("カーブを使用", settings.useCurve);
 	if (settings.useCurve) {
 

@@ -51,12 +51,11 @@ namespace Engine::InspectorDrawerCommon {
 	// 各Rendererコンポーネントが共通で持つ描画フィールドを描く、drawFieldは各Drawerのラップを渡す
 	template <typename DrawFieldFn>
 	void DrawCommonRenderFields(DrawFieldFn&& drawField,
-		int32_t& layer, int32_t& order, bool& visible, BlendMode& blendMode,
+		int32_t& layer, int32_t& order, BlendMode& blendMode,
 		RenderPhase& queue, uint32_t* renderingLayerMask = nullptr) {
 
 		drawField([&]() { return MyGUI::DragInt("レイヤー", layer); });
 		drawField([&]() { return MyGUI::DragInt("描画順", order); });
-		drawField([&]() { return DrawCheckboxField("表示", visible); });
 		drawField([&]() { return DrawEnumComboField("ブレンドモード", blendMode); });
 		drawField([&]() { return DrawEnumComboField("キュー", queue); });
 		if (renderingLayerMask) {

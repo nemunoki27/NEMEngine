@@ -39,7 +39,6 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.material = renderer.material;
 		if (uiRuntime) {
 
-			item.renderPhase = RenderPhase::ScreenUI;
 			item.cameraDomain = RenderCameraDomain::Screen;
 			item.sortingLayer += uiRuntime->canvasSortingLayer;
 			item.sortingOrder += uiRuntime->canvasOrder;
@@ -49,7 +48,9 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		} else if (renderer.dimension == Dimension::Type3D) {
 
 			item.cameraDomain = RenderCameraDomain::Perspective;
-			item.renderPhase = RenderPhase::Transparent;
+			if (item.renderPhase == RenderPhase::ScreenUI) {
+				item.renderPhase = RenderPhase::Transparent;
+			}
 		} else {
 
 			item.cameraDomain = RenderCameraDomain::Orthographic;

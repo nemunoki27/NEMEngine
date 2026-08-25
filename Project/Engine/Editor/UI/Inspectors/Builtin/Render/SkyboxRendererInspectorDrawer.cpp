@@ -14,6 +14,9 @@ void Engine::SkyboxRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
+		});
 
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::AssetReferenceField("cubemap", draft.cubemapTexture,
@@ -24,8 +27,5 @@ void Engine::SkyboxRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragFloat("IBL強度", draft.iblIntensity, { .dragSpeed = 0.01f, .minValue = 0.0f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 		});
 }

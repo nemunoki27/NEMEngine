@@ -30,8 +30,8 @@ namespace {
 		Engine::RenderPhase::Opaque,
 		Engine::RenderPhase::Transparent,
 	};
-	constexpr std::array<Engine::RenderPhase, 1> kPostProcessMaskedUIOutlinePhases = {
-		Engine::RenderPhase::PostProcessMaskedUI,
+	constexpr std::array<Engine::RenderPhase, 1> kPostProcessUIOutlinePhases = {
+		Engine::RenderPhase::PostProcessUI,
 	};
 	constexpr std::array<Engine::RenderPhase, 1> kScreenUIOutlinePhases = {
 		Engine::RenderPhase::ScreenUI,
@@ -77,17 +77,17 @@ void Engine::RuntimeScreenSpaceOutlinePass::ExecuteOrderedUI(
 	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 	SceneExecutionContext& context) {
 
-	const RenderPhase phase = scope_ == Scope::PostProcessMaskedUI ?
-		RenderPhase::PostProcessMaskedUI : RenderPhase::ScreenUI;
-	MultiRenderTarget* target = scope_ == Scope::PostProcessMaskedUI ?
+	const RenderPhase phase = scope_ == Scope::PostProcessUI ?
+		RenderPhase::PostProcessUI : RenderPhase::ScreenUI;
+	MultiRenderTarget* target = scope_ == Scope::PostProcessUI ?
 		context.resources->GetSceneFinal() : context.defaultSurface;
 	const RenderPassItemList& uiItems = passBuckets.Get(phase);
 	if (!target || uiItems.IsEmpty()) {
 		return;
 	}
 
-	const std::span<const RenderPhase> phases = scope_ == Scope::PostProcessMaskedUI ?
-		std::span<const RenderPhase>(kPostProcessMaskedUIOutlinePhases) :
+	const std::span<const RenderPhase> phases = scope_ == Scope::PostProcessUI ?
+		std::span<const RenderPhase>(kPostProcessUIOutlinePhases) :
 		std::span<const RenderPhase>(kScreenUIOutlinePhases);
 	CollectRequests(context, passBuckets, phases);
 	if (requests_.empty()) {

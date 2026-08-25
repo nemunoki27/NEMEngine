@@ -28,8 +28,8 @@ namespace Engine {
 		bool DrawParticleValueVector3(const char* label, ParticleValue<Vector3>& value,
 			const FloatEditSetting& setting);
 
-		// イージングを選択する、変更があればtrue
-		bool SelectEasing(EasingType& easing);
+		// 補間用イージングと末尾の区切り線を描画する、変更があればtrue
+		bool DrawInterpolationEasing(EasingType& easing);
 
 		// 進行度のループ設定を編集する、変更があればtrue
 		bool DrawLoopSettings(ParticleLoopSettings& loop);

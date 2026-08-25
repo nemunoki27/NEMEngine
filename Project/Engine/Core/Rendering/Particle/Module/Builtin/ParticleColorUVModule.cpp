@@ -232,7 +232,7 @@ bool Engine::ParticleColorUVModule::DrawOffsetSettings() {
 	}
 	changed |= MyGUI::DragVector2("開始座標", startOffset_, ParticleGui::MakeDragSetting(-100.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragVector2("終了座標", endOffset_, ParticleGui::MakeDragSetting(-100.0f, 100.0f)).valueChanged;
-	changed |= ParticleGui::SelectEasing(offsetEasingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(offsetEasingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useOffsetCurve_);
 	if (useOffsetCurve_) {
 
@@ -264,7 +264,7 @@ bool Engine::ParticleColorUVModule::DrawScaleSettings() {
 	bool changed = false;
 	changed |= MyGUI::DragVector2("開始スケール", startScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragVector2("終了スケール", endScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
-	changed |= ParticleGui::SelectEasing(scaleEasingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(scaleEasingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useScaleCurve_);
 	if (useScaleCurve_) {
 
@@ -297,7 +297,7 @@ bool Engine::ParticleColorUVModule::DrawRotationSettings() {
 	changed |= MyGUI::DragVector2("UVピボット", pivot_, ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("開始回転", startRotation_, ParticleGui::MakeDragSetting(-3600.0f, 3600.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("終了回転", endRotation_, ParticleGui::MakeDragSetting(-3600.0f, 3600.0f)).valueChanged;
-	changed |= ParticleGui::SelectEasing(rotationEasingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(rotationEasingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useRotationCurve_);
 	if (useRotationCurve_) {
 

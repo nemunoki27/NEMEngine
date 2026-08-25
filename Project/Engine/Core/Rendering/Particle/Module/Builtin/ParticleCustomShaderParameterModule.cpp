@@ -181,7 +181,7 @@ bool Engine::ParticleCustomShaderParameterModule::DrawParameter(
 
 	changed |= drawValue("開始", parameter.start);
 	changed |= drawValue("終了", parameter.end);
-	changed |= ParticleGui::SelectEasing(parameter.easingType);
+	changed |= ParticleGui::DrawInterpolationEasing(parameter.easingType);
 	changed |= MyGUI::Checkbox("カーブを使用", parameter.useCurve);
 	if (parameter.useCurve) {
 

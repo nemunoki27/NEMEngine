@@ -41,8 +41,9 @@ namespace Engine {
 		// 発光の強さの始点と終点
 		float startIntensity_ = 1.0f;
 		float endIntensity_ = 1.0f;
-		// イージング
-		EasingType easingType_ = EasingType::EaseOutSine;
+		// 発光色と強度のイージング
+		EasingType colorEasingType_ = EasingType::EaseOutSine;
+		EasingType intensityEasingType_ = EasingType::EaseOutSine;
 	};
 
 } // Engine

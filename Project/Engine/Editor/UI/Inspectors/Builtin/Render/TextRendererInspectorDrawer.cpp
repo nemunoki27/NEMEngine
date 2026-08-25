@@ -19,6 +19,9 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 
 	// ドラフトコンポーネントを参照
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
+		});
 
 	//============================================================================
 	//	アセットファイル
@@ -78,7 +81,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 		// 描画設定
 		InspectorDrawerCommon::DrawCommonRenderFields(
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue,
+			draft.layer, draft.order, draft.blendMode, draft.queue,
 			&draft.renderingLayerMask);
 		materialParameterDrawer_.Draw(context, draft.material,
 			DefaultMaterialSettings::GetInstance().GetTextOrBuiltin(), draft.materialInstance,

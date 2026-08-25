@@ -60,7 +60,7 @@ bool Engine::ParticleScaleOverLifetimeModule::DrawImGui() {
 	bool changed = false;
 	changed |= MyGUI::DragVector3("開始スケール", startScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragVector3("終了スケール", endScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
-	changed |= ParticleGui::SelectEasing(easingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(easingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useCurve_);
 	if (useCurve_) {
 

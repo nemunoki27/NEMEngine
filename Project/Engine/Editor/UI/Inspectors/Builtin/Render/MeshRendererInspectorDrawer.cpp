@@ -121,6 +121,10 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	auto& draft = GetDraft();
 	previewSubMeshIndex_ = UINT32_MAX;
 
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
+		});
+
 	// 現在のメッシュに合わせてサブメッシュ配列を整える
 	SyncDraftSubMeshes(context, draft, true);
 
@@ -171,6 +175,9 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			}
 			return result;
 			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField("Zプリパス", draft.enableZPrepass);
+			});
 	}
 
 	//============================================================================
@@ -183,12 +190,6 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragInt("描画順", draft.order);
 			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
-			});
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawCheckboxField("Zプリパス", draft.enableZPrepass);
-		});
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("既定ブレンドモード", draft.blendMode);
 			});

@@ -1,16 +1,20 @@
 {
     "domain": "Compute",
-    "generated": true,
-    "generatedBy": "PostProcessAssetGenerator",
     "name": "grayscaleMaterial",
-    "parameters": {
-        "strength": 1.0
-    },
+    "parameters": [
+        {
+            "id": "d395fda651867350",
+            "name": "strength",
+            "semantic": "None",
+            "value": 1.0
+        }
+    ],
     "passes": [
         {
             "passKind": "PostProcess",
             "pipeline": "4e454d4153534554ac49febfafced4eb",
             "preferredVariant": "Compute"
         }
-    ]
+    ],
+    "usage": "Generic"
 }

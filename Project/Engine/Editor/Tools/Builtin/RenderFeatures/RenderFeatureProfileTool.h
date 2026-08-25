@@ -62,9 +62,12 @@ namespace Engine {
 
 		void DrawWindow(const EditorToolContext& context);
 		void DrawColorPipeline();
-		void DrawPassList();
+		void DrawPassList(const EditorToolContext& context);
 		void DrawPassDetail(const EditorToolContext& context);
 		bool DrawSelectedPassControls(RenderFeatureProfileAsset& profile);
+		bool DrawSelectedPassApplicationSettings(
+			RenderFeatureProfileAsset& profile,
+			RenderFeaturePassSettings& pass);
 		void DrawSelectedGroupDetail(RenderFeatureProfileAsset& profile);
 		void DrawOutputs(RenderFeaturePassSettings& pass);
 		void DrawResources(const EditorToolContext& context,

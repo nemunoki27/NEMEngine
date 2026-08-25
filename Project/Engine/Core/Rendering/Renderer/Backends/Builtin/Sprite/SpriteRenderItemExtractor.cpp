@@ -61,7 +61,6 @@ void Engine::SpriteRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatc
 					world.GetCommandServices().sceneInstances->GetActive() : nullptr;
 				item.sceneInstanceID = activeScene ? activeScene->instanceID : UUID{};
 			}
-			item.renderPhase = RenderPhase::ScreenUI;
 			item.cameraDomain = RenderCameraDomain::Screen;
 			item.sortingLayer += uiRuntime->canvasSortingLayer;
 			item.sortingOrder += uiRuntime->canvasOrder;

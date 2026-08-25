@@ -91,7 +91,7 @@ namespace Engine {
 		Group,
 	};
 
-	// グループの子Passへ適用する描画対象の分離方法
+	// Passまたはグループへ適用する描画対象の分離方法
 	enum class RenderFeatureSelectionMode : uint8_t {
 
 		Organization,
@@ -130,7 +130,7 @@ namespace Engine {
 	inline constexpr uint32_t kRenderFeatureSelectablePhaseMask =
 		MakeRenderFeaturePhaseMask(RenderPhase::Opaque) |
 		MakeRenderFeaturePhaseMask(RenderPhase::Transparent) |
-		MakeRenderFeaturePhaseMask(RenderPhase::PostProcessMaskedUI);
+		MakeRenderFeaturePhaseMask(RenderPhase::PostProcessUI);
 
 	// 固定RenderPathへFeatureを差し込む位置
 	enum class RenderFeatureAnchor : uint8_t {
@@ -139,7 +139,7 @@ namespace Engine {
 		AfterLighting,
 		BeforeTransparent,
 		AfterTransparent,
-		AfterMaskedUI,
+		AfterPostProcessUI,
 		BeforeBlit,
 	};
 
@@ -220,7 +220,7 @@ namespace Engine {
 			samplerOverrides{};
 	};
 
-	// 選択グループの抽出条件と合成位置
+	// 選択適用の抽出条件と合成位置
 	struct RenderFeatureSelectionSettings {
 
 		RenderFeatureSelectionMode mode =

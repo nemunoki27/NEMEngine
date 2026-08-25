@@ -30,7 +30,7 @@ namespace Engine {
 
 		Opaque,
 		Transparent,
-		PostProcessMaskedUI,
+		PostProcessUI,
 		ScreenUI,
 		EditorOverlay,
 		Count

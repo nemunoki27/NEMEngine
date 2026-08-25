@@ -52,7 +52,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		}));
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<RuntimeScreenSpaceOutlinePass>(
-		deps_, RuntimeScreenSpaceOutlinePass::Scope::PostProcessMaskedUI));
+		deps_, RuntimeScreenSpaceOutlinePass::Scope::PostProcessUI));
 	fixedPasses.emplace_back(std::make_unique<EditorSelectionScreenSpaceOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<BlitToViewPass>(deps_));
 	// UI通常描画と描画順アウトラインは同じパスで処理する
@@ -71,7 +71,8 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		{ RenderFeatureAnchor::AfterLighting, RenderPathPassKind::Lighting },
 		{ RenderFeatureAnchor::BeforeTransparent, RenderPathPassKind::InvertedHullOutline },
 		{ RenderFeatureAnchor::AfterTransparent, RenderPathPassKind::Transparent },
-		{ RenderFeatureAnchor::AfterMaskedUI, RenderPathPassKind::PostProcessMaskedUI },
+		{ RenderFeatureAnchor::AfterPostProcessUI,
+			RenderPathPassKind::PostProcessUI },
 		{ RenderFeatureAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },
 	} };
 

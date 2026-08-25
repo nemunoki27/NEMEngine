@@ -42,6 +42,9 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
+		});
 
 	// 形状の選択
 	{
@@ -67,7 +70,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	// 描画パラメータ
 	InspectorDrawerCommon::DrawCommonRenderFields(
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue,
+		draft.layer, draft.order, draft.blendMode, draft.queue,
 		&draft.renderingLayerMask);
 	// 影/反射などのフラグ
 	{

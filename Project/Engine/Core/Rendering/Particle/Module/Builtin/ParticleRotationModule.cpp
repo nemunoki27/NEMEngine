@@ -447,7 +447,7 @@ bool Engine::ParticleRotationModule::DrawAdditiveSettings() {
 		changed |= DrawAxisAngle("開始回転速度", startSpeedAxis_, startQuaternionSpeed_);
 		changed |= DrawAxisAngle("終了回転速度", endSpeedAxis_, endQuaternionSpeed_);
 	}
-	changed |= ParticleGui::SelectEasing(speedEasingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(speedEasingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useSpeedCurve_);
 	if (useSpeedCurve_) {
 
@@ -494,7 +494,7 @@ bool Engine::ParticleRotationModule::DrawInterpolationSettings() {
 		changed |= DrawAxisAngle("開始角度", startAxis_, startQuaternionAngle_);
 		changed |= DrawAxisAngle("終了角度", endAxis_, endQuaternionAngle_);
 	}
-	changed |= ParticleGui::SelectEasing(angleEasingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(angleEasingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useAngleCurve_);
 	if (useAngleCurve_) {
 

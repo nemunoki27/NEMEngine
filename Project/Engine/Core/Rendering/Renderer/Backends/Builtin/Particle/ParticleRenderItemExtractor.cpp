@@ -58,7 +58,6 @@ void Engine::ParticleRenderItemExtractor::Extract(
 				item.cameraDomain = RenderCameraDomain::Perspective;
 				if (group.renderSettings.space == PrimitiveRenderSpace::Screen2D) {
 					item.cameraDomain = RenderCameraDomain::Orthographic;
-					item.renderPhase = RenderPhase::ScreenUI;
 				}
 				item.payload = batch.PushPayload(payload);
 				batch.Add(std::move(item));

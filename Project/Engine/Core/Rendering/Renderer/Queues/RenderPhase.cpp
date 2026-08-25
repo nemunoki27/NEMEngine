@@ -40,6 +40,13 @@ Engine::RenderPhase Engine::RenderPhaseFromString(std::string_view value, Render
 Engine::RenderPhase Engine::ResolveMaterialRenderPhase(
 	MaterialSurfaceMode surfaceMode, RenderPhase fallback) {
 
+	// UIとEditorの合成位置はRendererの明示指定を優先する
+	if (fallback != RenderPhase::Opaque &&
+		fallback != RenderPhase::Transparent) {
+
+		return fallback;
+	}
+
 	switch (surfaceMode) {
 	case MaterialSurfaceMode::Opaque:
 	case MaterialSurfaceMode::Masked:

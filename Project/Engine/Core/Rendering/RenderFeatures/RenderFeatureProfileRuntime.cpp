@@ -54,8 +54,17 @@ namespace {
 			if (item.type ==
 				Engine::RenderFeatureHierarchyItemType::Pass) {
 
-				if (parentSelection) {
-					outGroups[item.id.value] = parentSelection;
+				const Engine::RenderFeatureHierarchyItem* selection =
+					item.selection.mode ==
+						Engine::RenderFeatureSelectionMode::Organization ?
+							parentSelection : &item;
+				if (selection) {
+					outGroups[item.id.value] = selection;
+				}
+				if (item.selection.mode ==
+					Engine::RenderFeatureSelectionMode::IsolatedLayer) {
+
+					outIsolated.emplace_back(&item);
 				}
 				outPassLineages[item.id.value] = lineage;
 				continue;
@@ -297,14 +306,29 @@ bool Engine::RenderFeatureProfileRuntime::IsItemIsolated(
 	if (!diagnostic_.empty()) {
 		return false;
 	}
-	for (const RenderFeatureHierarchyItem* group : isolatedGroups_) {
-		if (group && MatchesRenderFeatureSelection(item, group->selection) &&
-			IsGroupEnabled(*group)) {
+	for (const RenderFeatureHierarchyItem* selection : isolatedGroups_) {
+		if (selection && MatchesRenderFeatureSelection(
+			item, selection->selection) && IsSelectionEnabled(*selection)) {
 
 			return true;
 		}
 	}
 	return false;
+}
+
+bool Engine::RenderFeatureProfileRuntime::IsSelectionEnabled(
+	const RenderFeatureHierarchyItem& item) const {
+
+	if (item.type == RenderFeatureHierarchyItemType::Group) {
+		return IsGroupEnabled(item);
+	}
+	const auto pass = std::find_if(profile_.passes.begin(),
+		profile_.passes.end(), [&item](const RenderFeaturePassSettings& value) {
+
+			return value.id == item.id;
+		});
+	return pass != profile_.passes.end() && pass->enabled &&
+		IsPassHierarchyEnabled(pass->id);
 }
 
 bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(
@@ -357,16 +381,17 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 	std::unordered_set<std::string> passNames{};
 	std::unordered_map<uint32_t, uint32_t> sceneColorCounts{};
 	std::unordered_set<std::string> groupNames{};
-	std::vector<const RenderFeatureHierarchyItem*> isolatedGroups{};
+	std::vector<const RenderFeatureHierarchyItem*> isolatedSelections{};
 	std::function<bool(const std::vector<RenderFeatureHierarchyItem>&, bool)>
-		validateGroups = [&](const std::vector<RenderFeatureHierarchyItem>& items,
+		validateItems = [&](const std::vector<RenderFeatureHierarchyItem>& items,
 			bool insideSelection) {
 
 		for (const RenderFeatureHierarchyItem& item : items) {
-			if (item.type == RenderFeatureHierarchyItemType::Pass) {
-				continue;
-			}
-			if (item.name.empty() || !groupNames.emplace(item.name).second) {
+			const bool group =
+				item.type == RenderFeatureHierarchyItemType::Group;
+			if (group && (item.name.empty() ||
+				!groupNames.emplace(item.name).second)) {
+
 				diagnostic_ =
 					"RenderFeatureのグループ名が重複または未設定です";
 				return false;
@@ -375,7 +400,7 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 				RenderFeatureSelectionMode::Organization;
 			if (selective && insideSelection) {
 				diagnostic_ =
-					"選択グループの中へ別のグループは配置できません";
+					"選択適用の中へ別の選択適用は配置できません";
 				return false;
 			}
 			if (selective) {
@@ -389,7 +414,7 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 						RenderFeatureRendererMask::All) == 0u) {
 
 					diagnostic_ =
-						"選択グループの抽出条件が空です";
+						"選択適用の抽出条件が空です";
 					return false;
 				}
 				if (selection.mode ==
@@ -401,13 +426,17 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 						"OpaqueはMaskedSceneColor方式でのみ選択できます";
 					return false;
 				}
-				std::vector<UUID> groupPasses{};
-				CollectGroupPasses(item, groupPasses);
-				if (groupPasses.empty()) {
-					diagnostic_ = "選択グループにPassがありません";
+				std::vector<UUID> selectedPasses{};
+				if (group) {
+					CollectGroupPasses(item, selectedPasses);
+				} else {
+					selectedPasses.emplace_back(item.id);
+				}
+				if (selectedPasses.empty()) {
+					diagnostic_ = "選択適用にPassがありません";
 					return false;
 				}
-				for (UUID passID : groupPasses) {
+				for (UUID passID : selectedPasses) {
 					const auto pass = std::find_if(profile_.passes.begin(),
 						profile_.passes.end(), [passID](const auto& value) {
 
@@ -417,17 +446,17 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 						pass->anchor != selection.anchor) {
 
 						diagnostic_ =
-							"選択グループと子Passの実行位置が一致していません";
+							"選択適用とPassの実行位置が一致していません";
 						return false;
 					}
 				}
 				if (selection.mode ==
 					RenderFeatureSelectionMode::IsolatedLayer) {
 
-					isolatedGroups.emplace_back(&item);
+					isolatedSelections.emplace_back(&item);
 				}
 			}
-			if (!validateGroups(item.children,
+			if (group && !validateItems(item.children,
 				insideSelection || selective)) {
 
 				return false;
@@ -435,23 +464,24 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 		}
 		return true;
 	};
-	if (!validateGroups(profile_.hierarchy, false)) {
+	if (!validateItems(profile_.hierarchy, false)) {
 		return false;
 	}
-	for (size_t left = 0; left < isolatedGroups.size(); ++left) {
-		for (size_t right = left + 1; right < isolatedGroups.size(); ++right) {
+	for (size_t left = 0; left < isolatedSelections.size(); ++left) {
+		for (size_t right = left + 1;
+			right < isolatedSelections.size(); ++right) {
 
 			const RenderFeatureSelectionSettings& a =
-				isolatedGroups[left]->selection;
+				isolatedSelections[left]->selection;
 			const RenderFeatureSelectionSettings& b =
-				isolatedGroups[right]->selection;
+				isolatedSelections[right]->selection;
 			if (a.anchor == b.anchor &&
 				(a.renderingLayerMask & b.renderingLayerMask) != 0u &&
 				(a.phaseMask & b.phaseMask) != 0u &&
 				(a.rendererMask & b.rendererMask) != 0u) {
 
 				diagnostic_ =
-					"IsolatedLayerグループの抽出条件が重複しています";
+					"IsolatedLayerの抽出条件が重複しています";
 				return false;
 			}
 		}

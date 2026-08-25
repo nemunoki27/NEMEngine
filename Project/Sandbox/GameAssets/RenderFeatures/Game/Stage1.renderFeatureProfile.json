@@ -55,8 +55,200 @@
             "whiteClip": 0.0
         }
     },
-    "hierarchy": [],
+    "hierarchy": [
+        {
+            "id": "a431b19a836761b5",
+            "type": "Pass"
+        },
+        {
+            "id": "ef2e061d575c709d",
+            "type": "Pass"
+        },
+        {
+            "id": "27bbe6cf17feaad9",
+            "type": "Pass"
+        },
+        {
+            "id": "53ea683b23d057d8",
+            "type": "Pass"
+        }
+    ],
     "name": "Stage1.renderFeatureProfile",
-    "passes": [],
-    "version": 2
+    "passes": [
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterPostProcessUI",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "a431b19a836761b5",
+            "material": "4e454d4153534554d6510fca56bb6fed",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "bloomPrefilter",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": {
+                "intensity": 1.0,
+                "knee": 1.0
+            },
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {},
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterPostProcessUI",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "ef2e061d575c709d",
+            "material": "4e454d415353455496fa0c48a1012083",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "blurVertical",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": {
+                "radius": 16.0
+            },
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {},
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterPostProcessUI",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "27bbe6cf17feaad9",
+            "material": "4e454d415353455446d1a9bef477a686",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "blurHorizontalMaterial",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": {
+                "radius": 16.0
+            },
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {},
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterPostProcessUI",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "53ea683b23d057d8",
+            "material": "4e454d415353455418f1950926579eaa",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "bloomCompositeMaterial",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": {
+                "intensity": 1.4800000190734863
+            },
+            "passInputs": {
+                "gSceneColor": {
+                    "output": "Color",
+                    "pass": "27bbe6cf17feaad9"
+                }
+            },
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": true,
+            "sceneInputs": {},
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        }
+    ],
+    "version": 3
 }

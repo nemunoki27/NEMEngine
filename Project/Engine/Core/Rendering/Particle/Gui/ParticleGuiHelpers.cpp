@@ -105,10 +105,17 @@ bool Engine::ParticleGui::DrawLoopSettings(ParticleLoopSettings& loop) {
 	return changed;
 }
 
-bool Engine::ParticleGui::SelectEasing(EasingType& easing) {
+bool Engine::ParticleGui::DrawInterpolationEasing(EasingType& easing) {
+
+	if (!MyGUI::BeginPropertyRow("イージング")) {
+		return false;
+	}
 
 	const EasingType previous = easing;
-	Easing::SelectEasingType(easing, "easing");
+	const float width = ImGui::GetContentRegionAvail().x;
+	Easing::SelectEasingType(easing, "Value", width <= 1.0f ? 1.0f : width);
+	MyGUI::EndPropertyRow();
+	ImGui::Separator();
 	return easing != previous;
 }
 

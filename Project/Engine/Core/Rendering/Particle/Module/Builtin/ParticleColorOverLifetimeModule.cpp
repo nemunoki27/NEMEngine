@@ -65,7 +65,7 @@ bool Engine::ParticleColorOverLifetimeModule::DrawImGui() {
 	bool changed = false;
 	changed |= MyGUI::ColorEdit("開始色", startColor_).valueChanged;
 	changed |= MyGUI::ColorEdit("終了色", endColor_).valueChanged;
-	changed |= ParticleGui::SelectEasing(easingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(easingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useCurve_);
 	if (useCurve_) {
 

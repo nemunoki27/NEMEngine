@@ -151,7 +151,7 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 		ImGui::GetContentRegionAvail().x * 0.28f);
 	if (ImGui::BeginChild("RenderFeaturePassList", ImVec2(listWidth, 0.0f),
 		ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX)) {
-		DrawPassList();
+		DrawPassList(context);
 	}
 	ImGui::EndChild();
 	ImGui::SameLine();
@@ -266,6 +266,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	changed |= MyGUI::InputText("名前", editablePass.name).valueChanged;
 	changed |= MyGUI::EnumCombo("種類", editablePass.type).valueChanged;
 	changed |= MyGUI::EnumCombo("実行位置", editablePass.anchor).valueChanged;
+	changed |= DrawSelectedPassApplicationSettings(profile, editablePass);
 	changed |= MyGUI::Checkbox("Game View", editablePass.gameView);
 	changed |= MyGUI::Checkbox("Scene View", editablePass.sceneView);
 	const bool sceneColorOutputChanged = MyGUI::Checkbox(

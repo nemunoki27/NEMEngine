@@ -252,7 +252,8 @@
                     "y": 71.760009765625
                 }
             },
-            "queue": "ScreenUI",
+            "queue": "PostProcessUI",
+            "renderingLayerMask": 1,
             "ring": {
                 "divide": 16,
                 "endAngle": 360.0,

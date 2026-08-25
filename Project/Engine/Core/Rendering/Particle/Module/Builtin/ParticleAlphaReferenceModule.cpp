@@ -43,7 +43,7 @@ bool Engine::ParticleAlphaReferenceModule::DrawImGui() {
 	bool changed = false;
 	changed |= MyGUI::DragFloat("開始閾値", startReference_, ParticleGui::MakeDragSetting(0.0f, 1.0f, 0.005f)).valueChanged;
 	changed |= MyGUI::DragFloat("終了閾値", endReference_, ParticleGui::MakeDragSetting(0.0f, 1.0f, 0.005f)).valueChanged;
-	changed |= ParticleGui::SelectEasing(easingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(easingType_);
 	return changed;
 #else
 	return false;

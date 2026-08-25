@@ -72,14 +72,17 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		bool IsSelectionEnabled(
+			const RenderFeatureHierarchyItem& item) const;
+
 		//--------- variables ----------------------------------------------------
 
 		RenderFeatureProfileAsset profile_{};
 		std::string diagnostic_{};
-		// Passから選択グループへの参照を再構築時に解決する
+		// Passから選択適用項目への参照を再構築時に解決する
 		std::unordered_map<uint64_t,
 			const RenderFeatureHierarchyItem*> selectionGroupsByPass_{};
-		// 通常描画から除外する有効な分離グループ
+		// 通常描画から除外する分離適用項目
 		std::vector<const RenderFeatureHierarchyItem*> isolatedGroups_{};
 		// Group自身を含む祖先Group列を有効判定へ使う
 		std::unordered_map<const RenderFeatureHierarchyItem*,
@@ -92,7 +95,7 @@ namespace Engine {
 		bool ValidateProfile();
 	};
 
-	// RenderItemを選択グループの3条件で判定する
+	// RenderItemを選択適用の3条件で判定する
 	bool MatchesRenderFeatureSelection(const RenderItem& item,
 		const RenderFeatureSelectionSettings& selection);
 } // Engine

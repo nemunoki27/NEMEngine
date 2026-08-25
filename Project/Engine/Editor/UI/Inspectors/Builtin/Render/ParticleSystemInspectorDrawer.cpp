@@ -93,6 +93,9 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 
 	ParticleSystemComponent& draft = GetDraft();
 	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
+		});
+	DrawField(anyItemActive, [&]() {
 		AssetEditSetting setting{};
 		setting.defaultAssetID = BuiltinAssets::Effects::DefaultParticle;
 		return MyGUI::AssetReferenceField("エフェクト", draft.effect,
@@ -134,9 +137,6 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::DragInt("描画順", draft.order);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField(

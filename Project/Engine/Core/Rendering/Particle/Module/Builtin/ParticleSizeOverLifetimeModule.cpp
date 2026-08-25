@@ -55,7 +55,7 @@ bool Engine::ParticleSizeOverLifetimeModule::DrawImGui() {
 	bool changed = false;
 	changed |= MyGUI::DragFloat("開始倍率", startScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
 	changed |= MyGUI::DragFloat("終了倍率", endScale_, ParticleGui::MakeDragSetting(0.0f, 100.0f)).valueChanged;
-	changed |= ParticleGui::SelectEasing(easingType_);
+	changed |= ParticleGui::DrawInterpolationEasing(easingType_);
 	changed |= MyGUI::Checkbox("カーブを使用", useCurve_);
 	if (useCurve_) {
 

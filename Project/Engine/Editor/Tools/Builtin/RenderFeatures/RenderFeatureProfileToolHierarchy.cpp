@@ -4,15 +4,19 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 
 // imgui
 #include <imgui.h>
+#include <imgui_internal.h>
 
 // c++
 #include <algorithm>
+#include <cctype>
 #include <functional>
 #include <string_view>
 #include <unordered_set>
@@ -53,6 +57,23 @@ namespace {
 		Engine::UUID item{};
 		Engine::UUID targetGroup{};
 	};
+
+	std::string MakeMaterialPassName(const Engine::MaterialAsset& material) {
+
+		std::string name = material.name;
+		constexpr std::string_view suffix = "Material";
+		const auto equalsIgnoreCase = [](char left, char right) {
+
+			return std::tolower(static_cast<unsigned char>(left)) ==
+				std::tolower(static_cast<unsigned char>(right));
+		};
+		if (suffix.size() <= name.size() && std::equal(
+			suffix.rbegin(), suffix.rend(), name.rbegin(), equalsIgnoreCase)) {
+
+			name.erase(name.size() - suffix.size());
+		}
+		return name.empty() ? "Render Feature" : name;
+	}
 
 	bool IsSelected(const std::vector<Engine::UUID>& selected,
 		Engine::UUID id) {
@@ -319,24 +340,114 @@ namespace {
 		Engine::SynchronizeRenderFeaturePassOrder(profile);
 		return true;
 	}
+
+	bool DrawApplicationSettings(
+		Engine::RenderFeatureSelectionSettings& selection,
+		bool drawAnchor) {
+
+		bool changed = false;
+		const Engine::RenderFeatureSelectionMode previousMode = selection.mode;
+		changed |= Engine::MyGUI::EnumCombo(
+			"適用方式", selection.mode).valueChanged;
+		if (selection.mode ==
+			Engine::RenderFeatureSelectionMode::Organization) {
+
+			return changed;
+		}
+		if (previousMode ==
+			Engine::RenderFeatureSelectionMode::Organization) {
+
+			selection.renderingLayerMask = 1u;
+			selection.phaseMask = Engine::MakeRenderFeaturePhaseMask(
+				Engine::RenderPhase::Transparent);
+			selection.rendererMask = Engine::RenderFeatureRendererMask::All;
+		}
+		if (drawAnchor) {
+			changed |= Engine::MyGUI::EnumCombo(
+				"実行位置", selection.anchor).valueChanged;
+		}
+		changed |= Engine::InspectorDrawerCommon::DrawLayerMaskField(
+			"Rendering Layer", selection.renderingLayerMask).valueChanged;
+
+		const auto drawPhase = [&](const char* label,
+			Engine::RenderPhase phase) {
+
+			const uint32_t bit = Engine::MakeRenderFeaturePhaseMask(phase);
+			bool enabled = (selection.phaseMask & bit) != 0u;
+			if (Engine::MyGUI::Checkbox(label, enabled)) {
+				if (enabled) {
+					selection.phaseMask |= bit;
+				} else {
+					selection.phaseMask &= ~bit;
+				}
+				changed = true;
+			}
+		};
+		ImGui::BeginDisabled(selection.mode ==
+			Engine::RenderFeatureSelectionMode::IsolatedLayer);
+		drawPhase("Opaque", Engine::RenderPhase::Opaque);
+		ImGui::EndDisabled();
+		drawPhase("Transparent", Engine::RenderPhase::Transparent);
+		drawPhase("PostProcess UI",
+			Engine::RenderPhase::PostProcessUI);
+
+		const auto drawRenderer = [&](const char* label, uint32_t bit) {
+
+			bool enabled = (selection.rendererMask & bit) != 0u;
+			if (Engine::MyGUI::Checkbox(label, enabled)) {
+				if (enabled) {
+					selection.rendererMask |= bit;
+				} else {
+					selection.rendererMask &= ~bit;
+				}
+				changed = true;
+			}
+		};
+		drawRenderer("Mesh", Engine::RenderFeatureRendererMask::Mesh);
+		drawRenderer("Primitive", Engine::RenderFeatureRendererMask::Primitive);
+		drawRenderer("Sprite", Engine::RenderFeatureRendererMask::Sprite);
+		drawRenderer("Text", Engine::RenderFeatureRendererMask::Text);
+		drawRenderer("Line", Engine::RenderFeatureRendererMask::Line);
+		drawRenderer("Particle", Engine::RenderFeatureRendererMask::Particle);
+
+		if (selection.mode ==
+			Engine::RenderFeatureSelectionMode::IsolatedLayer) {
+
+			selection.phaseMask &= ~Engine::MakeRenderFeaturePhaseMask(
+				Engine::RenderPhase::Opaque);
+			changed |= Engine::MyGUI::DragInt(
+				"合成レイヤー", selection.sortingLayer).valueChanged;
+			changed |= Engine::MyGUI::DragInt(
+				"合成順", selection.sortingOrder).valueChanged;
+			changed |= Engine::MyGUI::EnumCombo(
+				"合成方式", selection.compositeMode).valueChanged;
+		}
+		return changed;
+	}
 }
 
 //============================================================================
 //	RenderFeatureProfileTool classMethods
 //============================================================================
-void Engine::RenderFeatureProfileTool::DrawPassList() {
+void Engine::RenderFeatureProfileTool::DrawPassList(
+	const EditorToolContext& context) {
 
 	RenderFeatureProfileAsset& profile =
 		RenderFeatureProfileService::GetInstance().GetProfile();
 	NormalizeRenderFeatureHierarchy(profile);
-	const auto addPass = [&](RenderFeaturePassType type, const char* label) {
+	const auto addPass = [&](RenderFeaturePassType type,
+		std::string_view label, AssetID material = {},
+		MaterialPassKind materialPass = MaterialPassKind::Invalid) {
 
 		RenderFeaturePassSettings pass{};
 		pass.id = UUID::New();
 		pass.name = label;
 		pass.type = type;
-		pass.materialPass = type == RenderFeaturePassType::Compute ?
-			MaterialPassKind::PostProcess : MaterialPassKind::RayTracing;
+		pass.material = material;
+		pass.materialPass = materialPass == MaterialPassKind::Invalid ?
+			(type == RenderFeaturePassType::Compute ?
+				MaterialPassKind::PostProcess : MaterialPassKind::RayTracing) :
+			materialPass;
 		pass.outputs.emplace_back();
 		selectedPass_ = pass.id;
 		selectedGroup_ = {};
@@ -347,6 +458,57 @@ void Engine::RenderFeatureProfileTool::DrawPassList() {
 		});
 		profile.passes.emplace_back(std::move(pass));
 		SetDirty();
+	};
+	const auto addMaterialPass = [&](AssetID materialID) {
+
+		if (!context.panelContext ||
+			!context.panelContext->renderPipeline || !materialID) {
+
+			statusMessage_ = "マテリアルを読み込めません";
+			statusError_ = true;
+			return;
+		}
+		RenderAssetLibrary& assetLibrary = context.panelContext->
+			renderPipeline->GetRenderAssetLibrary();
+		assetLibrary.InvalidateMaterial(materialID);
+		const MaterialAsset* material = assetLibrary.LoadMaterial(materialID);
+		if (!material) {
+			statusMessage_ = "マテリアルを読み込めません";
+			statusError_ = true;
+			return;
+		}
+
+		const MaterialPassBinding* postProcess = FindPass(
+			*material, MaterialPassKind::PostProcess);
+		const MaterialPassBinding* rayTracing = FindPass(
+			*material, MaterialPassKind::RayTracing);
+		const bool validPostProcess = postProcess &&
+			postProcess->preferredVariant == PipelineVariantKind::Compute;
+		const bool validRayTracing = rayTracing &&
+			rayTracing->preferredVariant == PipelineVariantKind::Raytracing;
+		const std::string name = MakeMaterialPassName(*material);
+		if (material->domain == MaterialDomain::RayTracing &&
+			validRayTracing) {
+
+			addPass(RenderFeaturePassType::RayTracing, name, materialID,
+				MaterialPassKind::RayTracing);
+		} else if (validPostProcess) {
+
+			addPass(RenderFeaturePassType::Compute, name, materialID,
+				MaterialPassKind::PostProcess);
+		} else if (validRayTracing) {
+
+			addPass(RenderFeaturePassType::RayTracing, name, materialID,
+				MaterialPassKind::RayTracing);
+		} else {
+
+			statusMessage_ =
+				"ComputeまたはRayTracingパスがありません";
+			statusError_ = true;
+			return;
+		}
+		statusMessage_ = "マテリアルからパスを追加しました";
+		statusError_ = false;
 	};
 
 	PendingAction pending{};
@@ -522,6 +684,39 @@ void Engine::RenderFeatureProfileTool::DrawPassList() {
 		ImGui::EndPopup();
 	}
 
+	const ImGuiPayload* dragging = ImGui::GetDragDropPayload();
+	if (dragging && dragging->IsDataType(
+		IEditorPanel::kProjectAssetDragDropPayloadType) &&
+		dragging->DataSize == sizeof(EditorAssetDragDropPayload)) {
+
+		const auto* asset = static_cast<const EditorAssetDragDropPayload*>(
+			dragging->Data);
+		ImGuiWindow* window = ImGui::GetCurrentWindow();
+		if (asset && !asset->isDirectory && asset->assetID &&
+			asset->assetType == AssetType::Material && window &&
+			ImGui::BeginDragDropTargetCustom(window->InnerRect,
+				window->GetID("##RenderFeatureMaterialDropTarget"))) {
+
+			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+				IEditorPanel::kProjectAssetDragDropPayloadType)) {
+
+				if (payload->IsDelivery() && payload->DataSize ==
+					sizeof(EditorAssetDragDropPayload)) {
+
+					const auto* dropped =
+						static_cast<const EditorAssetDragDropPayload*>(
+							payload->Data);
+					if (dropped && dropped->assetType == AssetType::Material &&
+						!dropped->isDirectory) {
+
+						addMaterialPass(dropped->assetID);
+					}
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+	}
+
 	switch (pending.type) {
 	case PendingActionType::GroupSelection:
 		selectedGroup_ = GroupSelection(profile, selectedPasses_);
@@ -608,84 +803,35 @@ void Engine::RenderFeatureProfileTool::DrawSelectedGroupDetail(
 	changed |= MyGUI::InputText("名前", group.name).valueChanged;
 	changed |= MyGUI::Checkbox("有効", group.enabled);
 	RenderFeatureSelectionSettings& selection = group.selection;
-	const RenderFeatureSelectionMode previousMode = selection.mode;
-	changed |= MyGUI::EnumCombo(
-		"グループ方式", selection.mode).valueChanged;
-	if (selection.mode != RenderFeatureSelectionMode::Organization) {
+	const RenderFeatureAnchor previousAnchor = selection.anchor;
+	changed |= DrawApplicationSettings(selection, true);
+	if (selection.mode != RenderFeatureSelectionMode::Organization &&
+		previousAnchor != selection.anchor) {
 
-		if (previousMode == RenderFeatureSelectionMode::Organization) {
-			selection.renderingLayerMask = 1u;
-			selection.phaseMask = MakeRenderFeaturePhaseMask(
-				RenderPhase::Transparent);
-			selection.rendererMask = RenderFeatureRendererMask::All;
-		}
-		const RenderFeatureAnchor previousAnchor = selection.anchor;
-		changed |= MyGUI::EnumCombo(
-			"実行位置", selection.anchor).valueChanged;
-		if (previousAnchor != selection.anchor) {
-			std::unordered_set<uint64_t> passIDs{};
-			CollectPassIDs(group, passIDs);
-			for (RenderFeaturePassSettings& pass : profile.passes) {
-				if (passIDs.contains(pass.id.value)) {
-					pass.anchor = selection.anchor;
-				}
+		std::unordered_set<uint64_t> passIDs{};
+		CollectPassIDs(group, passIDs);
+		for (RenderFeaturePassSettings& pass : profile.passes) {
+			if (passIDs.contains(pass.id.value)) {
+				pass.anchor = selection.anchor;
 			}
-		}
-		changed |= InspectorDrawerCommon::DrawLayerMaskField(
-			"Rendering Layer", selection.renderingLayerMask).valueChanged;
-
-		const auto drawPhase = [&](const char* label, RenderPhase phase) {
-
-			const uint32_t bit = MakeRenderFeaturePhaseMask(phase);
-			bool enabled = (selection.phaseMask & bit) != 0u;
-			if (MyGUI::Checkbox(label, enabled)) {
-				if (enabled) {
-					selection.phaseMask |= bit;
-				} else {
-					selection.phaseMask &= ~bit;
-				}
-				changed = true;
-			}
-		};
-		ImGui::BeginDisabled(selection.mode ==
-			RenderFeatureSelectionMode::IsolatedLayer);
-		drawPhase("Opaque", RenderPhase::Opaque);
-		ImGui::EndDisabled();
-		drawPhase("Transparent", RenderPhase::Transparent);
-		drawPhase("PostProcess Masked UI",
-			RenderPhase::PostProcessMaskedUI);
-
-		const auto drawRenderer = [&](const char* label, uint32_t bit) {
-
-			bool enabled = (selection.rendererMask & bit) != 0u;
-			if (MyGUI::Checkbox(label, enabled)) {
-				if (enabled) {
-					selection.rendererMask |= bit;
-				} else {
-					selection.rendererMask &= ~bit;
-				}
-				changed = true;
-			}
-		};
-		drawRenderer("Mesh", RenderFeatureRendererMask::Mesh);
-		drawRenderer("Primitive", RenderFeatureRendererMask::Primitive);
-		drawRenderer("Sprite", RenderFeatureRendererMask::Sprite);
-		drawRenderer("Text", RenderFeatureRendererMask::Text);
-		drawRenderer("Line", RenderFeatureRendererMask::Line);
-		drawRenderer("Particle", RenderFeatureRendererMask::Particle);
-
-		if (selection.mode == RenderFeatureSelectionMode::IsolatedLayer) {
-			selection.phaseMask &= ~MakeRenderFeaturePhaseMask(
-				RenderPhase::Opaque);
-			changed |= MyGUI::DragInt(
-				"合成レイヤー", selection.sortingLayer).valueChanged;
-			changed |= MyGUI::DragInt(
-				"合成順", selection.sortingOrder).valueChanged;
-			changed |= MyGUI::EnumCombo(
-				"合成方式", selection.compositeMode).valueChanged;
 		}
 	}
 	if (changed) {
 		SetDirty();
 	}
+}
+
+bool Engine::RenderFeatureProfileTool::DrawSelectedPassApplicationSettings(
+	RenderFeatureProfileAsset& profile, RenderFeaturePassSettings& pass) {
+
+	HierarchyItemLocation location{};
+	if (!FindItemLocation(profile.hierarchy, HierarchyItemType::Pass,
+		pass.id, location)) {
+
+		return false;
+	}
+	RenderFeatureSelectionSettings& selection =
+		(*location.siblings)[location.index].selection;
+	selection.anchor = pass.anchor;
+	return DrawApplicationSettings(selection, false);
 }

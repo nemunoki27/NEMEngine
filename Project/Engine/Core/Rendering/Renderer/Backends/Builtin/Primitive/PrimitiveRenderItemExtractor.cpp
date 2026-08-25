@@ -52,7 +52,6 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 		item.cameraDomain = RenderCameraDomain::Perspective;
 		// Plane/Ringのみ2D描画に対応し、Canvas配下ではスクリーン行列と描画順を使う
 		if (IsPrimitiveScreen2D(renderer)) {
-			item.renderPhase = RenderPhase::ScreenUI;
 			if (uiRuntime) {
 				if (!item.sceneInstanceID) {
 					const SceneInstance* activeScene =

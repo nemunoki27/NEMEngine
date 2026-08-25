@@ -24,7 +24,7 @@ namespace Engine {
 		InvertedHullOutline,
 		Transparent,
 		RuntimeScreenSpaceOutline,
-		PostProcessMaskedUI,
+		PostProcessUI,
 		EditorSelectionScreenSpaceOutline,
 		BlitToView,
 		ScreenUI,

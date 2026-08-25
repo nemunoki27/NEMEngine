@@ -1429,7 +1429,19 @@ namespace {
 			std::abs(restoredSubMesh.alphaCutoff - 0.37f) < 1e-6f &&
 			Engine::ResolveMaterialRenderPhase(
 				Engine::MaterialSurfaceMode::Masked) ==
-				Engine::RenderPhase::Opaque;
+				Engine::RenderPhase::Opaque &&
+			Engine::ResolveMaterialRenderPhase(
+				Engine::MaterialSurfaceMode::Transparent,
+				Engine::RenderPhase::Opaque) ==
+				Engine::RenderPhase::Transparent &&
+			Engine::ResolveMaterialRenderPhase(
+				Engine::MaterialSurfaceMode::Transparent,
+				Engine::RenderPhase::ScreenUI) ==
+				Engine::RenderPhase::ScreenUI &&
+			Engine::ResolveMaterialRenderPhase(
+				Engine::MaterialSurfaceMode::Masked,
+				Engine::RenderPhase::PostProcessUI) ==
+				Engine::RenderPhase::PostProcessUI;
 	}
 
 	bool TestTransformDimensionSerialization() {
@@ -2581,6 +2593,21 @@ namespace {
 			Engine::RenderFeatureProfileSerializer::ToJson(profile);
 		Engine::RenderFeatureProfileAsset selectiveProfile =
 			Engine::RenderFeatureProfileSerializer::FromJson(selectiveData);
+		Engine::RenderFeatureProfileAsset postProcessUISource = profile;
+		postProcessUISource.passes[0].anchor =
+			Engine::RenderFeatureAnchor::AfterPostProcessUI;
+		const nlohmann::json postProcessUIData =
+			Engine::RenderFeatureProfileSerializer::ToJson(postProcessUISource);
+		const Engine::RenderFeatureProfileAsset postProcessUIProfile =
+			Engine::RenderFeatureProfileSerializer::FromJson(postProcessUIData);
+		if (postProcessUIProfile.passes.empty() ||
+			postProcessUIProfile.passes[0].anchor !=
+				Engine::RenderFeatureAnchor::AfterPostProcessUI ||
+			postProcessUIData["passes"][0].value(
+				"anchor", std::string{}) != "AfterPostProcessUI") {
+
+			return false;
+		}
 		runtime.Rebuild(selectiveProfile);
 		const Engine::RenderFeatureExecutionPlan selectivePlan =
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
@@ -2603,6 +2630,35 @@ namespace {
 
 			return false;
 		}
+
+		Engine::RenderFeatureProfileAsset standaloneProfile = profile;
+		standaloneProfile.hierarchy[0].selection =
+			Engine::RenderFeatureSelectionSettings{
+				.mode = Engine::RenderFeatureSelectionMode::MaskedSceneColor,
+				.anchor = Engine::RenderFeatureAnchor::BeforeLighting,
+				.renderingLayerMask = 1u << 4,
+				.phaseMask = Engine::MakeRenderFeaturePhaseMask(
+					Engine::RenderPhase::Opaque),
+				.rendererMask = Engine::RenderFeatureRendererMask::Mesh,
+			};
+		standaloneProfile = Engine::RenderFeatureProfileSerializer::FromJson(
+			Engine::RenderFeatureProfileSerializer::ToJson(standaloneProfile));
+		runtime.Rebuild(standaloneProfile);
+		const Engine::RenderFeatureExecutionPlan standalonePlan =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::BeforeLighting,
+				Engine::RenderViewKind::Game);
+		if (!standalonePlan.IsValid() || standalonePlan.nodes.size() != 1u ||
+			!standalonePlan.nodes.front().selectionGroup ||
+			standalonePlan.nodes.front().selectionGroup->type !=
+				Engine::RenderFeatureHierarchyItemType::Pass ||
+			!standalonePlan.nodes.front().selectionBegin ||
+			!standalonePlan.nodes.front().selectionEnd ||
+			standaloneProfile.hierarchy[0].selection.mode !=
+				Engine::RenderFeatureSelectionMode::MaskedSceneColor) {
+
+			return false;
+		}
+
 		selectiveProfile.hierarchy[1].selection.mode =
 			Engine::RenderFeatureSelectionMode::IsolatedLayer;
 		selectiveProfile.hierarchy[1].selection.phaseMask =
@@ -2726,6 +2782,16 @@ int main(int argc, char* argv[]) {
 			return 22;
 		}
 		std::cout << "Render Feature test passed\n";
+		return 0;
+	}
+	if (1 < argc &&
+		std::string_view(argv[1]) == "--render-feature-profile") {
+
+		if (!TestRenderFeatureProfile()) {
+			std::cerr << "Render Feature profile test failed\n";
+			return 28;
+		}
+		std::cout << "Render Feature profile test passed\n";
 		return 0;
 	}
 

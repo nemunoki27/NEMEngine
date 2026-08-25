@@ -354,7 +354,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 						continue;
 					}
 					DepthTexture2D* depth = phase ==
-						RenderPhase::PostProcessMaskedUI ? nullptr :
+						RenderPhase::PostProcessUI ? nullptr :
 							context.resources->GetSceneMain()->
 								GetDepthTexture();
 					const MaterialPassKind passKind = phase ==

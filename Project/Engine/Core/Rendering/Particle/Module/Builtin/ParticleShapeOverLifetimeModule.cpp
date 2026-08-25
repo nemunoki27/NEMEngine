@@ -280,7 +280,7 @@ bool Engine::ParticleShapeOverLifetimeModule::DrawParameter(
 
 			changed |= MyGUI::DragFloat("開始", parameter.start.x, editSetting).valueChanged;
 			changed |= MyGUI::DragFloat("終了", parameter.end.x, editSetting).valueChanged;
-			changed |= ParticleGui::SelectEasing(parameter.easingType);
+			changed |= ParticleGui::DrawInterpolationEasing(parameter.easingType);
 			changed |= MyGUI::Checkbox("カーブを使用", parameter.useCurve);
 			if (parameter.useCurve) {
 
@@ -336,7 +336,7 @@ bool Engine::ParticleShapeOverLifetimeModule::DrawColorParameter(
 
 			changed |= drawColor("開始", parameter.start);
 			changed |= drawColor("終了", parameter.end);
-			changed |= ParticleGui::SelectEasing(parameter.easingType);
+			changed |= ParticleGui::DrawInterpolationEasing(parameter.easingType);
 			changed |= MyGUI::Checkbox("カーブを使用", parameter.useCurve);
 			if (parameter.useCurve) {
 

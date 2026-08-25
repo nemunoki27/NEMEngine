@@ -331,6 +331,7 @@
                                 "y": 0.5
                             },
                             "queue": "ScreenUI",
+                            "renderingLayerMask": 1,
                             "size": {
                                 "x": 64.0,
                                 "y": 64.0
@@ -460,238 +461,137 @@
             "InstanceID": "d84666cf4c40a6d6",
             "Modifications": [
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "18ae0b405ee984b4",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "18ae0b405ee984b4",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "18ae0b405ee984b4",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "18ae0b405ee984b4",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "1f0939324c8e8404",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "1f0939324c8e8404",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "1f0939324c8e8404",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "1f0939324c8e8404",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "213ea6fa45c686b7",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "213ea6fa45c686b7",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "213ea6fa45c686b7",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "213ea6fa45c686b7",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "25c9a8c6790211ef",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "25c9a8c6790211ef",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "25c9a8c6790211ef",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "25c9a8c6790211ef",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "72b32aecee5047fd",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "72b32aecee5047fd",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "72b32aecee5047fd",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "72b32aecee5047fd",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "9084f9787413636f",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
+                },
+                {
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "9084f9787413636f",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "9084f9787413636f",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
                 },
                 {
                     "Path": "SpriteRenderer/order",
@@ -699,43 +599,32 @@
                     "Value": 10
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "9084f9787413636f",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "91ebbfbda4325a51",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
+                },
+                {
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "91ebbfbda4325a51",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "91ebbfbda4325a51",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "91ebbfbda4325a51",
+                    "Value": 1
                 },
                 {
                     "Path": "Transform/localPos/x",
@@ -743,277 +632,165 @@
                     "Value": 127.99999237060547
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "980e1e524f40cae0",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "980e1e524f40cae0",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "980e1e524f40cae0",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "980e1e524f40cae0",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "9922e98aa16d484a",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "9922e98aa16d484a",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "9922e98aa16d484a",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "9922e98aa16d484a",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "b77416aca2605681",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "b77416aca2605681",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "b77416aca2605681",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "b77416aca2605681",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "cacd816b3f48b188",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "cacd816b3f48b188",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "cacd816b3f48b188",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "cacd816b3f48b188",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "ddc5ba946cd1d217",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "ddc5ba946cd1d217",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "ddc5ba946cd1d217",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "ddc5ba946cd1d217",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "f1b44f03cd79f077",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
                 },
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "f1b44f03cd79f077",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "f1b44f03cd79f077",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "f1b44f03cd79f077",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "f8321e62c2f0cb25",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 32.00006103515625,
-                                "y": 32.00006103515625
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "radius": 25.500001907348633,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
+                },
+                {
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "f8321e62c2f0cb25",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "f8321e62c2f0cb25",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "f8321e62c2f0cb25",
+                    "Value": 1
                 }
             ],
             "PrefabAsset": "d77374aa1eab5ff2252634f2684a9d51",
@@ -1032,7 +809,13 @@
             ],
             "HierarchyMods": [],
             "InstanceID": "fac5506d63222b89",
-            "Modifications": [],
+            "Modifications": [
+                {
+                    "Path": "TextRenderer/renderingLayerMask",
+                    "Target": "54394e65da04ed12",
+                    "Value": 1
+                }
+            ],
             "PrefabAsset": "da6102152e5b2dc13fea837bdad60fbd",
             "RemovedComponents": [],
             "RemovedEntities": [],
@@ -1075,43 +858,27 @@
             "InstanceID": "fafc90ea2cd99e04",
             "Modifications": [
                 {
-                    "Path": "Collision/shapes",
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "2d9065923997e93a",
+                    "Value": 1
+                },
+                {
+                    "Path": "Collision/shape/capsuleAxis",
                     "Target": "3d7e83e18622e67b",
-                    "Value": [
-                        {
-                            "capsuleAxis": "Y",
-                            "capsuleHeight": 2.0,
-                            "capsuleSize2D": {
-                                "x": 1.0,
-                                "y": 2.0
-                            },
-                            "enabled": true,
-                            "halfExtents3D": {
-                                "x": 0.5,
-                                "y": 0.5,
-                                "z": 0.5
-                            },
-                            "halfSize2D": {
-                                "x": 40.500022888183594,
-                                "y": 40.500022888183594
-                            },
-                            "isTrigger": false,
-                            "offset": {
-                                "x": 0.0,
-                                "y": 12.649999618530273,
-                                "z": 0.0
-                            },
-                            "radius": 51.60000228881836,
-                            "rotatedQuad": false,
-                            "rotationDegrees": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "type": "Quad2D",
-                            "useTransformRotation": true
-                        }
-                    ]
+                    "Value": "Y"
+                },
+                {
+                    "Path": "Collision/shape/capsuleHeight",
+                    "Target": "3d7e83e18622e67b",
+                    "Value": 2.0
+                },
+                {
+                    "Path": "Collision/shape/capsuleSize2D",
+                    "Target": "3d7e83e18622e67b",
+                    "Value": {
+                        "x": 1.0,
+                        "y": 2.0
+                    }
                 },
                 {
                     "Path": "Transform/localPos/x",
@@ -1122,6 +889,16 @@
                     "Path": "Transform/localPos/y",
                     "Target": "3d7e83e18622e67b",
                     "Value": 712.5283813476563
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "431e7ed45be18541",
+                    "Value": 1
+                },
+                {
+                    "Path": "SpriteRenderer/renderingLayerMask",
+                    "Target": "67e8635b540420ed",
+                    "Value": 1
                 }
             ],
             "PrefabAsset": "7f18a45444e83120b2d38a81d1e96cea",

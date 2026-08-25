@@ -82,6 +82,63 @@ namespace {
 		};
 	}
 
+	Engine::RenderFeatureSelectionSettings ParseSelectionSettings(
+		const nlohmann::json& data) {
+
+		Engine::RenderFeatureSelectionSettings selection{};
+		if (!data.is_object()) {
+			return selection;
+		}
+		selection.mode = Engine::EnumAdapter<
+			Engine::RenderFeatureSelectionMode>::FromString(
+				data.value("mode", "Organization")).value_or(
+					Engine::RenderFeatureSelectionMode::Organization);
+		selection.anchor = Engine::EnumAdapter<
+			Engine::RenderFeatureAnchor>::FromString(
+				data.value("anchor", "AfterTransparent")).value_or(
+					Engine::RenderFeatureAnchor::AfterTransparent);
+		selection.renderingLayerMask = data.value(
+			"renderingLayerMask", selection.renderingLayerMask) &
+			Engine::kRenderingLayerMaskBits;
+		selection.phaseMask = data.value(
+			"phaseMask", selection.phaseMask) &
+			Engine::kRenderFeatureSelectablePhaseMask;
+		selection.rendererMask = data.value(
+			"rendererMask", selection.rendererMask) &
+			Engine::RenderFeatureRendererMask::All;
+		selection.sortingLayer = data.value(
+			"sortingLayer", selection.sortingLayer);
+		selection.sortingOrder = data.value(
+			"sortingOrder", selection.sortingOrder);
+		selection.compositeMode = Engine::EnumAdapter<
+			Engine::RenderFeatureCompositeMode>::FromString(
+				data.value("compositeMode", "Auto")).value_or(
+					Engine::RenderFeatureCompositeMode::Auto);
+		return selection;
+	}
+
+	nlohmann::json WriteSelectionSettings(
+		const Engine::RenderFeatureSelectionSettings& selection) {
+
+		return {
+			{ "mode", Engine::EnumAdapter<
+				Engine::RenderFeatureSelectionMode>::ToString(selection.mode) },
+			{ "anchor", Engine::EnumAdapter<
+				Engine::RenderFeatureAnchor>::ToString(selection.anchor) },
+			{ "renderingLayerMask", selection.renderingLayerMask &
+				Engine::kRenderingLayerMaskBits },
+			{ "phaseMask", selection.phaseMask &
+				Engine::kRenderFeatureSelectablePhaseMask },
+			{ "rendererMask", selection.rendererMask &
+				Engine::RenderFeatureRendererMask::All },
+			{ "sortingLayer", selection.sortingLayer },
+			{ "sortingOrder", selection.sortingOrder },
+			{ "compositeMode", Engine::EnumAdapter<
+				Engine::RenderFeatureCompositeMode>::ToString(
+					selection.compositeMode) },
+		};
+	}
+
 	std::vector<Engine::RenderFeatureHierarchyItem> ParseHierarchyItems(
 		const nlohmann::json& data) {
 
@@ -101,34 +158,9 @@ namespace {
 				itemJson.value("id", std::string{}));
 			item.name = itemJson.value("name", item.name);
 			item.enabled = itemJson.value("enabled", item.enabled);
+			item.selection = ParseSelectionSettings(itemJson.value(
+				"selection", nlohmann::json::object()));
 			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
-				const nlohmann::json selection = itemJson.value(
-					"selection", nlohmann::json::object());
-				item.selection.mode = Engine::EnumAdapter<
-					Engine::RenderFeatureSelectionMode>::FromString(
-						selection.value("mode", "Organization")).value_or(
-							Engine::RenderFeatureSelectionMode::Organization);
-				item.selection.anchor = Engine::EnumAdapter<
-					Engine::RenderFeatureAnchor>::FromString(
-						selection.value("anchor", "AfterTransparent")).value_or(
-							Engine::RenderFeatureAnchor::AfterTransparent);
-				item.selection.renderingLayerMask = selection.value(
-					"renderingLayerMask", item.selection.renderingLayerMask) &
-					Engine::kRenderingLayerMaskBits;
-				item.selection.phaseMask = selection.value(
-					"phaseMask", item.selection.phaseMask) &
-					Engine::kRenderFeatureSelectablePhaseMask;
-				item.selection.rendererMask = selection.value(
-					"rendererMask", item.selection.rendererMask) &
-					Engine::RenderFeatureRendererMask::All;
-				item.selection.sortingLayer = selection.value(
-					"sortingLayer", item.selection.sortingLayer);
-				item.selection.sortingOrder = selection.value(
-					"sortingOrder", item.selection.sortingOrder);
-				item.selection.compositeMode = Engine::EnumAdapter<
-					Engine::RenderFeatureCompositeMode>::FromString(
-						selection.value("compositeMode", "Auto")).value_or(
-							Engine::RenderFeatureCompositeMode::Auto);
 				item.children = ParseHierarchyItems(
 					itemJson.value("children", nlohmann::json::array()));
 			}
@@ -151,27 +183,12 @@ namespace {
 			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
 				itemJson["name"] = item.name;
 				itemJson["enabled"] = item.enabled;
-				itemJson["selection"] = {
-					{ "mode", Engine::EnumAdapter<
-						Engine::RenderFeatureSelectionMode>::ToString(
-							item.selection.mode) },
-					{ "anchor", Engine::EnumAdapter<
-						Engine::RenderFeatureAnchor>::ToString(
-							item.selection.anchor) },
-					{ "renderingLayerMask",
-						item.selection.renderingLayerMask &
-						Engine::kRenderingLayerMaskBits },
-					{ "phaseMask", item.selection.phaseMask &
-						Engine::kRenderFeatureSelectablePhaseMask },
-					{ "rendererMask", item.selection.rendererMask &
-						Engine::RenderFeatureRendererMask::All },
-					{ "sortingLayer", item.selection.sortingLayer },
-					{ "sortingOrder", item.selection.sortingOrder },
-					{ "compositeMode", Engine::EnumAdapter<
-						Engine::RenderFeatureCompositeMode>::ToString(
-							item.selection.compositeMode) },
-				};
+				itemJson["selection"] = WriteSelectionSettings(item.selection);
 				itemJson["children"] = WriteHierarchyItems(item.children);
+			} else if (item.selection.mode !=
+				Engine::RenderFeatureSelectionMode::Organization) {
+
+				itemJson["selection"] = WriteSelectionSettings(item.selection);
 			}
 			data.push_back(std::move(itemJson));
 		}

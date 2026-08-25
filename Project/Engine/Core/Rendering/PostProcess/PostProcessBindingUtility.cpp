@@ -79,24 +79,23 @@ namespace Engine {
 		const PostProcessExecutionDesc& desc,
 		MultiRenderTarget& source) {
 
-		if (DepthTexture2D* depth = source.GetDepthTexture()) {
-			return depth;
-		}
-		if (!context.targetRegistry) {
-			return nullptr;
-		}
-		const auto found = desc.extraSources.find(kSourceDepthName);
-		if (found == desc.extraSources.end()) {
-			return nullptr;
-		}
-		if (DepthTexture2D* depth =
-			context.targetRegistry->FindDepthByName(found->second)) {
+		// 明示入力を優先し、中間Color Targetに付随する未描画Depthを誤って使わない
+		if (context.targetRegistry) {
+			const auto found = desc.extraSources.find(kSourceDepthName);
+			if (found != desc.extraSources.end()) {
+				if (DepthTexture2D* depth =
+					context.targetRegistry->FindDepthByName(found->second)) {
 
-			return depth;
+					return depth;
+				}
+				MultiRenderTarget* target = ResolveExtraSource(
+					context, found->second);
+				if (target && target->GetDepthTexture()) {
+					return target->GetDepthTexture();
+				}
+			}
 		}
-		MultiRenderTarget* target = ResolveExtraSource(
-			context, found->second);
-		return target ? target->GetDepthTexture() : nullptr;
+		return source.GetDepthTexture();
 	}
 
 	bool AppendSRVBinding(const ShaderResourceBinding& binding,

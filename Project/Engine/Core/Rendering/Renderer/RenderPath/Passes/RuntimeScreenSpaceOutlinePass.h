@@ -29,7 +29,7 @@ namespace Engine {
 			uint8_t {
 
 			Scene,
-			PostProcessMaskedUI,
+			PostProcessUI,
 			ScreenUI,
 		};
 
@@ -50,8 +50,8 @@ namespace Engine {
 		RenderPathPassKind GetKind() const override {
 
 			switch (scope_) {
-			case Scope::PostProcessMaskedUI:
-				return RenderPathPassKind::PostProcessMaskedUI;
+			case Scope::PostProcessUI:
+				return RenderPathPassKind::PostProcessUI;
 			case Scope::ScreenUI:
 				return RenderPathPassKind::ScreenUI;
 			default:
