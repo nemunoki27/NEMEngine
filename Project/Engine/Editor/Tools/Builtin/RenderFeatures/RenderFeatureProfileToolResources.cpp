@@ -51,16 +51,8 @@ bool Engine::RenderFeatureProfileTool::DrawOutputReferenceCombo(
 	const RenderFeaturePassSettings& owner,
 	RenderFeatureOutputReference& reference, const char* emptyLabel) {
 
-	bool changed = false;
-	const std::string preview = MakeReferenceLabel(
-		profile, reference, emptyLabel);
-	if (!ImGui::BeginCombo(label, preview.c_str())) {
-		return false;
-	}
-	if (ImGui::Selectable(emptyLabel, !reference.pass)) {
-		reference = {};
-		changed = true;
-	}
+	std::vector<std::string> items{};
+	std::vector<RenderFeatureOutputReference> references{};
 	for (const RenderFeaturePassSettings& candidate : profile.passes) {
 
 		if (!candidate.enabled || candidate.id == owner.id ||
@@ -75,18 +67,31 @@ bool Engine::RenderFeatureProfileTool::DrawOutputReferenceCombo(
 					RenderFeatureOutputSettings{} } : candidate.outputs;
 		for (const RenderFeatureOutputSettings& output : outputs) {
 
-			const bool selected = reference.pass == candidate.id &&
-				reference.output == output.name;
-			const std::string item = candidate.name + " / " + output.name;
-			if (ImGui::Selectable(item.c_str(), selected)) {
-				reference.pass = candidate.id;
-				reference.output = output.name;
-				changed = true;
-			}
+			items.emplace_back(candidate.name + " / " + output.name);
+			references.emplace_back(RenderFeatureOutputReference{
+				.pass = candidate.id,
+				.output = output.name,
+			});
 		}
 	}
-	ImGui::EndCombo();
-	return changed;
+
+	std::string selected = reference.pass ?
+		MakeReferenceLabel(profile, reference, emptyLabel) : std::string{};
+	if (!MyGUI::StringCombo(label, selected, items,
+		emptyLabel, true).valueChanged) {
+
+		return false;
+	}
+	if (selected.empty()) {
+		reference = {};
+		return true;
+	}
+	const auto found = std::find(items.begin(), items.end(), selected);
+	if (found == items.end()) {
+		return false;
+	}
+	reference = references[static_cast<size_t>(found - items.begin())];
+	return true;
 }
 
 bool Engine::RenderFeatureProfileTool::DrawSamplerSettings(
@@ -227,8 +232,13 @@ void Engine::RenderFeatureProfileTool::DrawResources(
 		ImVec2(ImGui::GetContentRegionAvail().x, 0.0f)) &&
 		pass.material && renderPipeline) {
 
-		service.ClearReflection(pass.material);
-		renderPipeline->ReloadMaterial(pass.material);
+		AssetDatabase* assetDatabase = context.panelContext &&
+			context.panelContext->editorContext ?
+			context.panelContext->editorContext->assetDatabase : nullptr;
+		if (assetDatabase) {
+			renderPipeline->ReloadMaterialDependencies(
+				*assetDatabase, pass.material);
+		}
 	}
 
 	bool changed = false;

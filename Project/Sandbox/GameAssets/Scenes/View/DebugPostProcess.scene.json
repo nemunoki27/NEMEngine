@@ -1,0 +1,168 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "DirectionalLight": {
+                    "affectLayerMask": 4294967295,
+                    "color": {
+                        "a": 1.0,
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
+                    },
+                    "direction": {
+                        "x": 0.33374014496803284,
+                        "y": -0.9295400977134705,
+                        "z": 0.15675705671310425
+                    },
+                    "enabled": true,
+                    "intensity": 8.390000343322754,
+                    "shadowAngularRadius": 0.27000001072883606,
+                    "shadowStrength": 0.9200000166893005
+                },
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "DirectionalLight"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "4a3caedc8fbbe1d0",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "4a3caedc8fbbe1d0"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Camera3D"
+                },
+                "PerspectiveCamera": {
+                    "cullingMask": -1,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": true,
+                    "nearClip": 0.009999999776482582,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "832eaba08118bd46",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 7.809802055358887,
+                        "y": 11.472025871276855,
+                        "z": -4.64422082901001
+                    },
+                    "localRotation": {
+                        "w": 0.7046268582344055,
+                        "x": 0.05916916951537132,
+                        "y": 0.7046268582344055,
+                        "z": -0.05916916951537132
+                    },
+                    "localScale": {
+                        "x": 1.0000720024108887,
+                        "y": 1.0000720024108887,
+                        "z": 1.0000720024108887
+                    }
+                }
+            },
+            "LocalFileID": "832eaba08118bd46"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 2
+                },
+                "Name": {
+                    "name": "Sky"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a987fda577ea8d3a",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "SkyboxRenderer": {
+                    "color": {
+                        "a": 1.0,
+                        "b": 0.09633316099643707,
+                        "g": 0.10740122199058533,
+                        "r": 0.11914891004562378
+                    },
+                    "cubemapTexture": "4e454d4153534554da18161c5ffe1aba",
+                    "iblIntensity": 0.029999999329447746,
+                    "visible": true
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a987fda577ea8d3a"
+        }
+    ],
+    "Header": {
+        "name": "DebugPostProcess",
+        "renderFeatureProfile": "59e361770f3759eeb925dd7f27469b14",
+        "subScenes": [
+            {
+                "enabled": false,
+                "sceneAsset": "4e454d41535345543f455ec2e83f5ff6",
+                "slotID": "40d30752ecbbb074",
+                "slotName": "SubScene1"
+            }
+        ]
+    },
+    "PrefabInstances": [],
+    "SchemaVersion": 3
+}

@@ -1,6 +1,6 @@
 {
     "allowContributionCulling": true,
-    "allowDispatchRays": false,
+    "allowDispatchRays": true,
     "allowFrustumCulling": false,
     "allowInlineRayTracing": true,
     "allowMeshShader": true,

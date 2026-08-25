@@ -89,12 +89,12 @@
                 "coneAngle": 25.0,
                 "coneRadius": 0.5,
                 "emitCount": {
-                    "constant": 4,
+                    "constant": 76,
                     "max": 4,
                     "min": 4,
                     "type": "Constant"
                 },
-                "emitInterval": 0.010999999940395355,
+                "emitInterval": 0.0010000000474974513,
                 "emitOffset": {
                     "constant": {
                         "x": 0.0,
@@ -113,7 +113,7 @@
                     },
                     "type": "Constant"
                 },
-                "maxParticles": 1024,
+                "maxParticles": 8000,
                 "pointDirection": {
                     "x": 0.0,
                     "y": 1.0,
@@ -130,9 +130,9 @@
                 "shape": "Cone",
                 "speed": {
                     "constant": 3.8099987506866455,
-                    "max": 1.600000023841858,
+                    "max": 16.0,
                     "min": 1.600000023841858,
-                    "type": "Constant"
+                    "type": "Random"
                 },
                 "sphereRadius": 0.5,
                 "torusRadius": 1.0,
@@ -166,24 +166,6 @@
                     },
                     "modules": [
                         {
-                            "id": "SizeOverLifetime",
-                            "params": {
-                                "curve": {
-                                    "defaultValue": 0.0,
-                                    "keys": [],
-                                    "name": "Value"
-                                },
-                                "easingType": "EaseOutSine",
-                                "endScale": 0.9199997186660767,
-                                "loop": {
-                                    "loopCount": 1,
-                                    "type": "Repeat"
-                                },
-                                "startScale": 1.0,
-                                "useCurve": false
-                            }
-                        },
-                        {
                             "id": "ColorOverLifetime",
                             "params": {
                                 "curveChannels": [
@@ -211,9 +193,9 @@
                                 "easingType": "EaseOutSine",
                                 "endColor": {
                                     "a": 0.0,
-                                    "b": 0.03369061276316643,
-                                    "g": 0.2668972611427307,
-                                    "r": 0.8725868463516235
+                                    "b": 0.7851343750953674,
+                                    "g": 0.8725868463516235,
+                                    "r": 0.03369061276316643
                                 },
                                 "loop": {
                                     "loopCount": 1,
@@ -248,11 +230,12 @@
                     "y": 0.5
                 },
                 "size": {
-                    "x": 1.1000003814697266,
-                    "y": 1.1000003814697266
+                    "x": 0.34000062942504883,
+                    "y": 0.34000062942504883
                 }
             },
             "queue": "Transparent",
+            "renderingLayerMask": 2,
             "ring": {
                 "divide": 16,
                 "endAngle": 360.0,
@@ -285,7 +268,7 @@
                 },
                 "maxPoints": 16,
                 "minDistance": 0.05000000074505806,
-                "pointLifetime": 0.0,
+                "pointLifetime": 0.800000011920929,
                 "startColor": {
                     "a": 1.0,
                     "b": 1.0,

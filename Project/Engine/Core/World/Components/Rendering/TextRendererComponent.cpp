@@ -33,6 +33,9 @@ namespace {
 			in.value("uvPerCharacter", component.uvPerCharacter);
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		component.renderingLayerMask = in.value(
+			"renderingLayerMask", component.renderingLayerMask) &
+			Engine::kRenderingLayerMaskBits;
 		component.dimension = static_cast<Engine::Dimension>(
 			in.value("dimension", static_cast<int>(component.dimension)));
 		component.worldScale = in.value("worldScale", component.worldScale);
@@ -52,6 +55,8 @@ namespace {
 		out["uvPerCharacter"] = component.uvPerCharacter;
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		out["renderingLayerMask"] = component.renderingLayerMask &
+			Engine::kRenderingLayerMaskBits;
 		out["dimension"] = static_cast<int>(component.dimension);
 		out["worldScale"] = component.worldScale;
 	}

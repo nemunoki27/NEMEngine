@@ -97,11 +97,22 @@ namespace Engine {
 		inline constexpr std::string_view EmissiveIntensity = "emissiveIntensity";
 		inline constexpr std::string_view Opacity = "opacity";
 		inline constexpr std::string_view AlphaClip = "alphaClip";
-		inline constexpr std::string_view TargetMask = "targetMask";
+		inline constexpr std::string_view SelectionMode = "selectionMode";
+		inline constexpr std::string_view CompositeMode = "compositeMode";
+		inline constexpr std::string_view RenderingLayerMask =
+			"renderingLayerMask";
 	}
 
 	// 標準PBRパラメータID
 	namespace MaterialParameterIDs {
+
+		inline constexpr MaterialParameterID SelectionMode =
+			MaterialParameterID::FromName(MaterialParameterNames::SelectionMode);
+		inline constexpr MaterialParameterID CompositeMode =
+			MaterialParameterID::FromName(MaterialParameterNames::CompositeMode);
+		inline constexpr MaterialParameterID RenderingLayerMask =
+			MaterialParameterID::FromName(
+				MaterialParameterNames::RenderingLayerMask);
 
 		inline constexpr MaterialParameterID BaseColor =
 			MaterialParameterID::FromName(MaterialParameterNames::BaseColor);
@@ -141,8 +152,6 @@ namespace Engine {
 			MaterialParameterID::FromName(MaterialParameterNames::Opacity);
 		inline constexpr MaterialParameterID AlphaClip =
 			MaterialParameterID::FromName(MaterialParameterNames::AlphaClip);
-		inline constexpr MaterialParameterID TargetMask =
-			MaterialParameterID::FromName(MaterialParameterNames::TargetMask);
 	}
 
 	// マテリアルのパラメータ値

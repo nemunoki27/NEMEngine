@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 
 //============================================================================
 //	QueueRenderPass classMethods
@@ -46,15 +47,32 @@ void Engine::QueueRenderPass::Execute(GraphicsCore& graphicsCore,
 				*graphicsCore.GetDXObject().GetDxCommand());
 	}
 
-	if (!desc_.usePhaseExecution) {
-		const RenderPassItemList& items = passBuckets.Get(desc_.phase);
-		RenderPassExecutionHelper::Execute(graphicsCore, context, items.items, deps_, target);
-		return;
-	}
-
 	DepthTexture2D* depth = nullptr;
 	if (desc_.reuseSceneDepth && context.resources) {
 		depth = context.resources->GetSceneMain()->GetDepthTexture();
+	}
+	const RenderPassItemList& items = passBuckets.Get(desc_.phase);
+	RenderFeatureProfileService& featureService =
+		RenderFeatureProfileService::GetInstance();
+	featureService.EnsureLoaded();
+	itemScratch_.clear();
+	itemScratch_.reserve(items.items.size());
+	for (const RenderItem* item : items.items) {
+		if (item && !featureService.GetRuntime().IsItemIsolated(*item)) {
+			itemScratch_.emplace_back(item);
+		}
+	}
+	if (itemScratch_.size() != items.items.size() ||
+		!desc_.usePhaseExecution) {
+
+		RenderPassExecutionHelper::Execute(graphicsCore, context,
+			itemScratch_, deps_, RenderPassSurfaceBinding{
+				.colorSurface = target,
+				.depthOverride = depth,
+			}, desc_.usePhaseExecution ? desc_.materialPass :
+				MaterialPassKind::Draw,
+			desc_.forceVertexMeshVariant);
+		return;
 	}
 	RenderPassExecutionHelper::Execute(graphicsCore, context, passBuckets, deps_,
 		desc_.phase, target, desc_.materialPass, desc_.forceVertexMeshVariant, depth);

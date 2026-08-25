@@ -578,24 +578,44 @@
       "managedType": "delegate* unmanaged[Cdecl]<int>"
     },
     {
+      "name": "resolveRenderFeaturePass",
+      "nativeType": "ResolveRenderFeaturePassCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong*, ulong*, int>"
+    },
+    {
+      "name": "validateRenderFeaturePass",
+      "nativeType": "ValidateRenderFeaturePassCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int>"
+    },
+    {
       "name": "setRenderFeaturePassEnabled",
       "nativeType": "SetRenderFeaturePassEnabledCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int, int>"
+    },
+    {
+      "name": "setRenderFeatureGroupEnabled",
+      "nativeType": "SetRenderFeatureGroupEnabledCallback",
       "managedType": "delegate* unmanaged[Cdecl]<byte*, int, int>"
     },
     {
       "name": "setRenderFeaturePassParameter",
       "nativeType": "SetRenderFeaturePassParameterCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong, byte*, NativeMaterialParameterValue*, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, ulong, byte*, NativeMaterialParameterValue*, int>"
+    },
+    {
+      "name": "getRenderFeaturePassParameter",
+      "nativeType": "GetRenderFeaturePassParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, ulong, NativeMaterialParameterValue*, int>"
     },
     {
       "name": "clearRenderFeaturePassParameter",
       "nativeType": "ClearRenderFeaturePassParameterCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<byte*, ulong, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, ulong, int>"
     },
     {
       "name": "resetRenderFeaturePass",
       "nativeType": "ResetRenderFeaturePassCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<byte*, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int>"
     },
     {
       "name": "resetRenderFeatureOverrides",

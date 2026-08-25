@@ -16844,58 +16844,6 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 11
-                },
-                "Name": {
-                    "name": "Particle"
-                },
-                "ParticleSystem": {
-                    "customSimulationTarget": "",
-                    "drawEmitterShape": false,
-                    "effect": "b3f31f9cba02eb212102fc0a25270161",
-                    "enabled": true,
-                    "layer": 0,
-                    "order": 0,
-                    "playInEditMode": true,
-                    "playOnAwake": true,
-                    "playbackSpeed": 0.6299999952316284,
-                    "simulationSpace": "EffectAsset",
-                    "stopAction": "None",
-                    "useUnscaledTime": false,
-                    "visible": true
-                },
-                "SceneObject": {
-                    "activeSelf": true,
-                    "localFileId": "b0741ba9e783b6d5",
-                    "tag": "Untagged",
-                    "visibilityLayerMask": 4294967295
-                },
-                "Transform": {
-                    "dimension": 1,
-                    "localPos": {
-                        "x": 42.262367248535156,
-                        "y": 0.7073707580566406,
-                        "z": -1.8068721294403076
-                    },
-                    "localRotation": {
-                        "w": 1.0,
-                        "x": 0.0,
-                        "y": 0.0,
-                        "z": 0.0
-                    },
-                    "localScale": {
-                        "x": 1.0,
-                        "y": 1.0,
-                        "z": 1.0
-                    }
-                }
-            },
-            "LocalFileID": "b0741ba9e783b6d5"
-        },
-        {
-            "Components": {
-                "Hierarchy": {
-                    "parentLocalFileID": "",
                     "siblingOrder": 8
                 },
                 "MeshRenderer": {

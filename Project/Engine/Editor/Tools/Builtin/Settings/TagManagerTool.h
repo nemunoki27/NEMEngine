@@ -49,7 +49,7 @@ namespace Engine {
 		// ToolPanelへ登録する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.tag_manager",
-			.name = "タグ",
+			.name = "タグ・描画レイヤー",
 			.category = "プロジェクト設定",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::EditOnly,
@@ -66,5 +66,9 @@ namespace Engine {
 		char renameBuffer_[128]{};
 		// 未保存の編集があるか
 		bool dirty_ = false;
+		// Rendering Layerに未保存の編集があるか
+		bool renderingLayersDirty_ = false;
+		// 追加するRendering Layer名の入力
+		char addRenderingLayerBuffer_[128]{};
 	};
 } // Engine

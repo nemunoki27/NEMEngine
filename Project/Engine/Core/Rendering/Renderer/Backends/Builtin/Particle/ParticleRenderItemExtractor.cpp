@@ -48,6 +48,9 @@ void Engine::ParticleRenderItemExtractor::Extract(
 				item.sortingLayer = component.layer;
 				item.sortingOrder = component.order;
 				item.blendMode = group.renderSettings.blendMode;
+				item.renderingLayerMask =
+					group.renderSettings.renderingLayerMask &
+					kRenderingLayerMaskBits;
 				item.worldMatrix = RenderItemExtract::GetWorldMatrix(world, entity);
 				item.backendID = RenderBackendID::Particle;
 				item.batchKey = static_cast<uint64_t>(entity.index + 1) *

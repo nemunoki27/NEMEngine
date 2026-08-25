@@ -22,6 +22,8 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Physics/Collision/CollisionRaycast.h>
@@ -1602,28 +1604,102 @@ namespace {
 		overrides.ResetAll();
 		Engine::MaterialParameterValue value{};
 		value.value = 0.75f;
+		const Engine::UUID passID{ 101 };
 		const Engine::MaterialParameterID parameterID =
 			Engine::MaterialParameterID::FromName("ReflectionStrength");
-		if (!overrides.SetEnabled("Reflection", false) ||
-			!overrides.SetParameter("Reflection", parameterID,
+		if (!overrides.SetEnabled(passID, false) ||
+			!overrides.SetParameter(passID, parameterID,
 				"ReflectionStrength", value)) {
+
+			return false;
+		}
+		Engine::MaterialParameterValue textureValue{};
+		textureValue.value = Engine::AssetID{ 1, 2 };
+		const Engine::MaterialParameterID textureID =
+			Engine::MaterialParameterID::FromName("gNoiseTexture");
+		if (!overrides.SetParameter(passID, textureID,
+			"gNoiseTexture", textureValue)) {
 
 			return false;
 		}
 
 		const Engine::RenderFeaturePassRuntimeOverride* effect =
-			overrides.Find("Reflection");
+			overrides.Find(passID);
 		const Engine::MaterialParameterValue* parameter = effect ?
 			effect->parameters.Find(parameterID) : nullptr;
 		const bool valid = effect && effect->enabled.has_value() &&
 			!*effect->enabled && parameter &&
 			std::holds_alternative<float>(parameter->value) &&
-			std::get<float>(parameter->value) == 0.75f;
+			std::get<float>(parameter->value) == 0.75f &&
+			effect->textureOverrides.contains("gNoiseTexture") &&
+			effect->textureOverrides.at("gNoiseTexture") ==
+				Engine::AssetID{ 1, 2 };
 		const bool cleared = overrides.ClearParameter(
-			"Reflection", parameterID) &&
-			overrides.ResetPass("Reflection");
+			passID, textureID) &&
+			!effect->textureOverrides.contains("gNoiseTexture") &&
+			overrides.ClearParameter(passID, parameterID) &&
+			overrides.ResetPass(passID) &&
+			overrides.SetGroupEnabled("Selective", false) &&
+			!overrides.IsGroupEnabled("Selective", true);
 		overrides.ResetAll();
-		return valid && cleared && overrides.Find("Reflection") == nullptr;
+		return valid && cleared && overrides.Find(passID) == nullptr;
+	}
+
+	bool TestShaderPathDependencies() {
+
+		const std::filesystem::path testRoot =
+			Engine::RuntimePaths::GetGameAssetsRoot() /
+			"Tests" / "RenderFeatureDependencies";
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+
+		const std::filesystem::path sourcePath = testRoot / "reload.CS.hlsl";
+		{
+			std::ofstream source(sourcePath, std::ios::binary);
+			source << "[numthreads(1, 1, 1)] void main() {}";
+		}
+		const std::filesystem::path shaderPath = testRoot / "reload.shader.json";
+		const nlohmann::json shader = {
+			{ "name", "ReloadTest" },
+			{ "sourceShader",
+				"GameAssets/Tests/RenderFeatureDependencies/reload.CS.hlsl" },
+			{ "stages", nlohmann::json::array({ {
+				{ "stage", "CS" },
+				{ "file",
+					"GameAssets/Tests/RenderFeatureDependencies/reload.CS.hlsl" },
+				{ "entry", "main" },
+				{ "profile", "cs_6_0" },
+			} }) },
+		};
+		if (!Engine::JsonAdapter::SaveCanonical(shaderPath, shader)) {
+			std::filesystem::remove_all(testRoot, ec);
+			return false;
+		}
+
+		Engine::AssetDatabase database{};
+		database.Init();
+		const Engine::AssetID sourceID = database.ImportOrGet(
+			"GameAssets/Tests/RenderFeatureDependencies/reload.CS.hlsl",
+			Engine::AssetType::Shader);
+		const Engine::AssetID shaderID = database.ImportOrGet(
+			"GameAssets/Tests/RenderFeatureDependencies/reload.shader.json",
+			Engine::AssetType::Shader);
+		database.RefreshDependencies(shaderID);
+		const std::vector<Engine::AssetID>& dependencies =
+			database.FindDependencies(shaderID);
+		const std::vector<Engine::AssetID>& referencers =
+			database.FindReferencers(sourceID);
+		const bool passed = sourceID && shaderID &&
+			std::find(dependencies.begin(), dependencies.end(), sourceID) !=
+				dependencies.end() &&
+			std::find(referencers.begin(), referencers.end(), shaderID) !=
+				referencers.end();
+		std::filesystem::remove_all(testRoot, ec);
+		return passed && !ec;
 	}
 
 	bool TestRayTracingPipelineSerialization() {
@@ -2465,11 +2541,17 @@ namespace {
 		Engine::RenderFeatureProfileRuntime runtime{};
 		runtime.Rebuild(restored);
 		const Engine::RenderFeatureExecutionPlan beforeLighting =
-			runtime.BuildPlan(Engine::RenderFeatureAnchor::BeforeLighting);
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::BeforeLighting,
+				Engine::RenderViewKind::Game);
 		const Engine::RenderFeatureExecutionPlan afterLighting =
-			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting);
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
+				Engine::RenderViewKind::Game);
 		if (!beforeLighting.IsValid() || beforeLighting.nodes.size() != 1 ||
 			!afterLighting.IsValid() || afterLighting.nodes.size() != 2 ||
+			afterLighting.nodes.front().selectionGroup ||
+			afterLighting.nodes.back().selectionGroup ||
+			afterLighting.nodes.front().selectionBegin ||
+			afterLighting.nodes.back().selectionEnd ||
 			afterLighting.nodes.back().source.pass ||
 			afterLighting.sceneColorOutput.pass != composite.id) {
 
@@ -2477,8 +2559,88 @@ namespace {
 		}
 		restored.hierarchy[1].enabled = false;
 		runtime.Rebuild(restored);
-		if (!runtime.BuildPlan(
-			Engine::RenderFeatureAnchor::AfterLighting).nodes.empty()) {
+		const Engine::RenderFeatureExecutionPlan disabledHierarchyPlan =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
+				Engine::RenderViewKind::Game);
+		if (!disabledHierarchyPlan.nodes.empty() ||
+			disabledHierarchyPlan.sceneColorOutput.pass) {
+
+			return false;
+		}
+
+		profile.hierarchy[1].selection =
+			Engine::RenderFeatureSelectionSettings{
+				.mode = Engine::RenderFeatureSelectionMode::MaskedSceneColor,
+				.anchor = Engine::RenderFeatureAnchor::AfterLighting,
+				.renderingLayerMask = 1u << 3,
+				.phaseMask = Engine::MakeRenderFeaturePhaseMask(
+					Engine::RenderPhase::Opaque),
+				.rendererMask = Engine::RenderFeatureRendererMask::Mesh,
+			};
+		const nlohmann::json selectiveData =
+			Engine::RenderFeatureProfileSerializer::ToJson(profile);
+		Engine::RenderFeatureProfileAsset selectiveProfile =
+			Engine::RenderFeatureProfileSerializer::FromJson(selectiveData);
+		runtime.Rebuild(selectiveProfile);
+		const Engine::RenderFeatureExecutionPlan selectivePlan =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
+				Engine::RenderViewKind::Game);
+		Engine::RenderItem selectedItem{};
+		selectedItem.backendID = Engine::RenderBackendID::Mesh;
+		selectedItem.renderPhase = Engine::RenderPhase::Opaque;
+		selectedItem.renderingLayerMask = 1u << 3;
+		if (!selectivePlan.IsValid() || selectivePlan.nodes.size() != 2u ||
+			!selectivePlan.nodes.front().selectionBegin ||
+			!selectivePlan.nodes.back().selectionEnd ||
+			!Engine::MatchesRenderFeatureSelection(selectedItem,
+				selectiveProfile.hierarchy[1].selection)) {
+
+			return false;
+		}
+		selectedItem.renderPhase = Engine::RenderPhase::ScreenUI;
+		if (Engine::MatchesRenderFeatureSelection(selectedItem,
+			selectiveProfile.hierarchy[1].selection)) {
+
+			return false;
+		}
+		selectiveProfile.hierarchy[1].selection.mode =
+			Engine::RenderFeatureSelectionMode::IsolatedLayer;
+		selectiveProfile.hierarchy[1].selection.phaseMask =
+			Engine::MakeRenderFeaturePhaseMask(
+				Engine::RenderPhase::Transparent);
+		selectedItem.renderPhase = Engine::RenderPhase::Transparent;
+		runtime.Rebuild(selectiveProfile);
+		if (!runtime.IsItemIsolated(selectedItem)) {
+			return false;
+		}
+		Engine::RenderFeatureRuntimeOverrides::GetInstance().SetGroupEnabled(
+			"Reflection", false);
+		const Engine::RenderFeatureExecutionPlan disabledRuntimePlan =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
+				Engine::RenderViewKind::Game);
+		if (runtime.IsItemIsolated(selectedItem) ||
+			runtime.IsPassHierarchyEnabled(reflection.id) ||
+			!disabledRuntimePlan.nodes.empty() ||
+			disabledRuntimePlan.sceneColorOutput.pass) {
+
+			return false;
+		}
+		Engine::RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
+
+		selectiveProfile.passes[1].sceneView = false;
+		runtime.Rebuild(selectiveProfile);
+		if (runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
+			Engine::RenderViewKind::Scene).IsValid()) {
+
+			return false;
+		}
+		selectiveProfile.passes[2].sceneView = false;
+		runtime.Rebuild(selectiveProfile);
+		const Engine::RenderFeatureExecutionPlan disabledSceneViewPlan =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
+				Engine::RenderViewKind::Scene);
+		if (!disabledSceneViewPlan.nodes.empty() ||
+			disabledSceneViewPlan.sceneColorOutput.pass) {
 
 			return false;
 		}
@@ -2486,7 +2648,8 @@ namespace {
 		profile.passes[0].anchor = Engine::RenderFeatureAnchor::AfterTransparent;
 		runtime.Rebuild(profile);
 		return !runtime.BuildPlan(
-			Engine::RenderFeatureAnchor::AfterLighting).IsValid();
+			Engine::RenderFeatureAnchor::AfterLighting,
+			Engine::RenderViewKind::Game).IsValid();
 	}
 }
 
@@ -2551,6 +2714,18 @@ int main(int argc, char* argv[]) {
 			return 17;
 		}
 		std::cout << "Material parameter storage passed\n";
+		return 0;
+	}
+	if (1 < argc &&
+		std::string_view(argv[1]) == "--render-features") {
+
+		if (!TestRenderFeatureRuntimeOverrides() ||
+			!TestShaderPathDependencies() ||
+			!TestRenderFeatureProfile()) {
+			std::cerr << "Render Feature test failed\n";
+			return 22;
+		}
+		std::cout << "Render Feature test passed\n";
 		return 0;
 	}
 
@@ -2661,6 +2836,10 @@ int main(int argc, char* argv[]) {
 	if (!TestRenderFeatureRuntimeOverrides()) {
 		std::cerr << "Render Feature runtime overrides failed\n";
 		return 20;
+	}
+	if (!TestShaderPathDependencies()) {
+		std::cerr << "Shader path dependencies failed\n";
+		return 32;
 	}
 	if (!TestRayTracingPipelineSerialization()) {
 		std::cerr << "Ray Tracing pipeline serialization failed\n";

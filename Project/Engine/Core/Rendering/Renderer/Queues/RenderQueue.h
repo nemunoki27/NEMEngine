@@ -115,6 +115,8 @@ namespace Engine {
 
 		// 描画の可視レイヤーマスク
 		uint32_t visibilityLayerMask = 0xFFFFFFFFu;
+		// RenderFeatureとLightが参照する描画レイヤーマスク
+		uint32_t renderingLayerMask = 1u;
 		// 描画のソートレイヤーと順序
 		int32_t sortingLayer = 0;
 		int32_t sortingOrder = 0;

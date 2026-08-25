@@ -96,6 +96,7 @@ namespace {
 			{ "effect", Engine::AssetType::ParticleEffect },
 			{ "shader", Engine::AssetType::Shader },
 			{ "shaderOverride", Engine::AssetType::Shader },
+			{ "sourceShader", Engine::AssetType::Shader },
 			{ "functionFileAsset", Engine::AssetType::Shader },
 			{ "file", Engine::AssetType::Shader },
 			{ "pipeline", Engine::AssetType::RenderPipeline },
@@ -110,23 +111,33 @@ namespace {
 	}
 
 	// 1つのJSON値を参照候補として登録する(UID形式のときだけ)
-	void TryCollectReference(const nlohmann::json& value, Engine::AssetType expectedType,
-		std::unordered_map<Engine::AssetID, Engine::AssetType>& out) {
+	void TryCollectReference(const nlohmann::json& value,
+		Engine::AssetType expectedType,
+		std::unordered_map<Engine::AssetID, Engine::AssetType>& outIDs,
+		std::unordered_map<std::string, Engine::AssetType>& outPaths) {
 
 		if (!value.is_string()) {
 			return;
 		}
-		const std::optional<Engine::AssetID> parsed = Engine::TryParseAssetGUID32Hex(value.get<std::string>());
-		if (!parsed) {
+		const std::string reference = value.get<std::string>();
+		const std::optional<Engine::AssetID> parsed =
+			Engine::TryParseAssetGUID32Hex(reference);
+		if (parsed) {
+			// 同一IDが複数キーで現れた場合は最初の期待型を維持する
+			outIDs.emplace(*parsed, expectedType);
 			return;
 		}
-		// 同一IDが複数キーで現れた場合は最初の期待型を維持する
-		out.emplace(*parsed, expectedType);
+		if (expectedType != Engine::AssetType::Unknown &&
+			!reference.empty()) {
+
+			outPaths.emplace(reference, expectedType);
+		}
 	}
 
-	// JSONを再帰走査し、既知の参照キー配下のUIDだけを収集する
+	// JSONを再帰走査し、既知の参照キー配下のUIDと論理パスを収集する
 	void ScanReferences(const nlohmann::json& node,
-		std::unordered_map<Engine::AssetID, Engine::AssetType>& out) {
+		std::unordered_map<Engine::AssetID, Engine::AssetType>& outIDs,
+		std::unordered_map<std::string, Engine::AssetType>& outPaths) {
 
 		if (node.is_object()) {
 
@@ -138,7 +149,7 @@ namespace {
 				TryCollectReference(
 					node["value"],
 					Engine::AssetType::Texture,
-					out);
+					outIDs, outPaths);
 			}
 			// Shader GraphのTexture2D既定値も生成Material作成前から依存として保持する
 			if (node.value("type", std::string{}) == "Texture2D" &&
@@ -147,7 +158,7 @@ namespace {
 				TryCollectReference(
 					node["defaultValue"],
 					Engine::AssetType::Texture,
-					out);
+					outIDs, outPaths);
 			}
 
 			const auto& keyMap = ReferenceKeyMap();
@@ -158,19 +169,21 @@ namespace {
 
 					if (it->is_array()) {
 						for (const auto& element : *it) {
-							TryCollectReference(element, found->second, out);
+							TryCollectReference(element, found->second,
+								outIDs, outPaths);
 						}
 					} else {
-						TryCollectReference(*it, found->second, out);
+						TryCollectReference(*it, found->second,
+							outIDs, outPaths);
 					}
 				}
 				// 参照キーでなくても、ネストした参照を拾うため再帰する
-				ScanReferences(*it, out);
+				ScanReferences(*it, outIDs, outPaths);
 			}
 		} else if (node.is_array()) {
 
 			for (const auto& element : node) {
-				ScanReferences(element, out);
+				ScanReferences(element, outIDs, outPaths);
 			}
 		}
 	}
@@ -525,9 +538,21 @@ std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const As
 		return dependencies;
 	}
 
-	// 既知の参照キー配下のUIDのみを収集する(重複IDは自然に1つへ畳まれる)
+	// 既知の参照キー配下からGUIDとシェーダー等の論理パスを収集する
 	std::unordered_map<AssetID, AssetType> candidates;
-	ScanReferences(data, candidates);
+	std::unordered_map<std::string, AssetType> pathCandidates;
+	ScanReferences(data, candidates, pathCandidates);
+	for (const auto& [assetPath, expectedType] : pathCandidates) {
+
+		const AssetMeta* referenced = FindByPath(assetPath);
+		if (!referenced) {
+			AddIssue({ AssetDatabaseIssueType::MissingReference, meta.guid, {},
+				expectedType, AssetType::Unknown, meta.assetPath, assetPath,
+				"missing path reference" });
+			continue;
+		}
+		candidates.emplace(referenced->guid, expectedType);
+	}
 
 	dependencies.reserve(candidates.size());
 	for (const auto& [referencedID, expectedType] : candidates) {

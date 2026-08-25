@@ -6,6 +6,10 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
+
+// c++
+#include <algorithm>
 
 //============================================================================
 //	RenderFeatureProfileService classMethods
@@ -41,6 +45,7 @@ void Engine::RenderFeatureProfileService::Load() {
 
 void Engine::RenderFeatureProfileService::Reload() {
 
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	loaded_ = false;
 	Load();
 }
@@ -68,6 +73,7 @@ void Engine::RenderFeatureProfileService::SetActiveProfilePath(
 	if (profilePath_ == normalized && loaded_) {
 		return;
 	}
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	profilePath_ = normalized;
 	loaded_ = false;
 	dirty_ = false;
@@ -120,6 +126,35 @@ void Engine::RenderFeatureProfileService::ClearReflectionCache() {
 	reflectionVariables_.clear();
 	reflectionResources_.clear();
 	reflectionSamplers_.clear();
+}
+
+const Engine::RenderFeaturePassSettings*
+Engine::RenderFeatureProfileService::FindPassByID(UUID passID) const {
+
+	if (!passID) {
+		return nullptr;
+	}
+	const auto found = std::find_if(profile_.passes.begin(),
+		profile_.passes.end(), [passID](const RenderFeaturePassSettings& pass) {
+
+		return pass.id == passID;
+	});
+	return found == profile_.passes.end() ? nullptr : &*found;
+}
+
+const Engine::RenderFeaturePassSettings*
+Engine::RenderFeatureProfileService::FindPassByName(
+	std::string_view passName) const {
+
+	if (passName.empty()) {
+		return nullptr;
+	}
+	const auto found = std::find_if(profile_.passes.begin(),
+		profile_.passes.end(), [passName](const RenderFeaturePassSettings& pass) {
+
+		return pass.name == passName;
+	});
+	return found == profile_.passes.end() ? nullptr : &*found;
 }
 
 const std::vector<Engine::ShaderConstantBufferVariable>*

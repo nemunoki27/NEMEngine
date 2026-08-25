@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 
 // imgui
 #include <imgui.h>
@@ -606,6 +607,84 @@ void Engine::RenderFeatureProfileTool::DrawSelectedGroupDetail(
 	bool changed = false;
 	changed |= MyGUI::InputText("名前", group.name).valueChanged;
 	changed |= MyGUI::Checkbox("有効", group.enabled);
+	RenderFeatureSelectionSettings& selection = group.selection;
+	const RenderFeatureSelectionMode previousMode = selection.mode;
+	changed |= MyGUI::EnumCombo(
+		"グループ方式", selection.mode).valueChanged;
+	if (selection.mode != RenderFeatureSelectionMode::Organization) {
+
+		if (previousMode == RenderFeatureSelectionMode::Organization) {
+			selection.renderingLayerMask = 1u;
+			selection.phaseMask = MakeRenderFeaturePhaseMask(
+				RenderPhase::Transparent);
+			selection.rendererMask = RenderFeatureRendererMask::All;
+		}
+		const RenderFeatureAnchor previousAnchor = selection.anchor;
+		changed |= MyGUI::EnumCombo(
+			"実行位置", selection.anchor).valueChanged;
+		if (previousAnchor != selection.anchor) {
+			std::unordered_set<uint64_t> passIDs{};
+			CollectPassIDs(group, passIDs);
+			for (RenderFeaturePassSettings& pass : profile.passes) {
+				if (passIDs.contains(pass.id.value)) {
+					pass.anchor = selection.anchor;
+				}
+			}
+		}
+		changed |= InspectorDrawerCommon::DrawLayerMaskField(
+			"Rendering Layer", selection.renderingLayerMask).valueChanged;
+
+		const auto drawPhase = [&](const char* label, RenderPhase phase) {
+
+			const uint32_t bit = MakeRenderFeaturePhaseMask(phase);
+			bool enabled = (selection.phaseMask & bit) != 0u;
+			if (MyGUI::Checkbox(label, enabled)) {
+				if (enabled) {
+					selection.phaseMask |= bit;
+				} else {
+					selection.phaseMask &= ~bit;
+				}
+				changed = true;
+			}
+		};
+		ImGui::BeginDisabled(selection.mode ==
+			RenderFeatureSelectionMode::IsolatedLayer);
+		drawPhase("Opaque", RenderPhase::Opaque);
+		ImGui::EndDisabled();
+		drawPhase("Transparent", RenderPhase::Transparent);
+		drawPhase("PostProcess Masked UI",
+			RenderPhase::PostProcessMaskedUI);
+
+		const auto drawRenderer = [&](const char* label, uint32_t bit) {
+
+			bool enabled = (selection.rendererMask & bit) != 0u;
+			if (MyGUI::Checkbox(label, enabled)) {
+				if (enabled) {
+					selection.rendererMask |= bit;
+				} else {
+					selection.rendererMask &= ~bit;
+				}
+				changed = true;
+			}
+		};
+		drawRenderer("Mesh", RenderFeatureRendererMask::Mesh);
+		drawRenderer("Primitive", RenderFeatureRendererMask::Primitive);
+		drawRenderer("Sprite", RenderFeatureRendererMask::Sprite);
+		drawRenderer("Text", RenderFeatureRendererMask::Text);
+		drawRenderer("Line", RenderFeatureRendererMask::Line);
+		drawRenderer("Particle", RenderFeatureRendererMask::Particle);
+
+		if (selection.mode == RenderFeatureSelectionMode::IsolatedLayer) {
+			selection.phaseMask &= ~MakeRenderFeaturePhaseMask(
+				RenderPhase::Opaque);
+			changed |= MyGUI::DragInt(
+				"合成レイヤー", selection.sortingLayer).valueChanged;
+			changed |= MyGUI::DragInt(
+				"合成順", selection.sortingOrder).valueChanged;
+			changed |= MyGUI::EnumCombo(
+				"合成方式", selection.compositeMode).valueChanged;
+		}
+	}
 	if (changed) {
 		SetDirty();
 	}

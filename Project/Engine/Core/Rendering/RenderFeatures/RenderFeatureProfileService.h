@@ -10,6 +10,7 @@
 // c++
 #include <cstdint>
 #include <filesystem>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -55,6 +56,9 @@ namespace Engine {
 		const RenderFeatureProfileAsset& GetProfile() const { return profile_; }
 		const RenderFeatureProfileRuntime& GetRuntime() const { return runtime_; }
 		uint64_t GetRuntimeGeneration() const { return runtimeGeneration_; }
+		const RenderFeaturePassSettings* FindPassByID(UUID passID) const;
+		const RenderFeaturePassSettings* FindPassByName(
+			std::string_view passName) const;
 		const std::filesystem::path& GetCurrentPath() const { return profilePath_; }
 		bool IsDirty() const { return dirty_; }
 		void MarkDirty() { dirty_ = true; }

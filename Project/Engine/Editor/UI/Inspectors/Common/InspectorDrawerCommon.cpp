@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
+#include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
@@ -21,6 +22,7 @@
 
 // c++
 #include <algorithm>
+#include <bit>
 
 //============================================================================
 //	InspectorDrawerCommon classMethods
@@ -49,12 +51,47 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawCheckboxField(const c
 
 Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const char* label, uint32_t& value) {
 
-	// DragIntはint32を扱うため、編集中だけ符号付きに変換する
-	int32_t layerMask = static_cast<int32_t>(value);
-	ValueEditResult result = MyGUI::DragInt(label, layerMask, { .dragSpeed = 1,.minValue = 0,.maxValue = 0xfffffff });
-	if (result.valueChanged) {
-		value = static_cast<uint32_t>(layerMask);
+	ValueEditResult result{};
+	if (!MyGUI::BeginPropertyRow(label)) {
+		return result;
 	}
+	value &= kRenderingLayerMaskBits;
+	const auto& names = ProjectRenderingLayerSettings::GetNames();
+	const uint32_t definedMask =
+		ProjectRenderingLayerSettings::GetDefinedMask();
+	const uint32_t visibleValue = value & definedMask;
+	std::string preview = "なし";
+	if (visibleValue != 0u && visibleValue == definedMask) {
+		preview = "すべて";
+	} else if (visibleValue != 0u) {
+		const uint32_t count = std::popcount(visibleValue);
+		if (count == 1u) {
+			preview = names[std::countr_zero(visibleValue)];
+		} else {
+			preview = std::to_string(count) + "個選択";
+		}
+	}
+	if (ImGui::BeginCombo("##Value", preview.c_str())) {
+		for (uint32_t index = 0u;
+			index < ProjectRenderingLayerSettings::kLayerCount; ++index) {
+
+			if (names[index].empty()) {
+				continue;
+			}
+			const uint32_t bit = 1u << index;
+			bool selected = (value & bit) != 0u;
+			ImGui::PushID(static_cast<int>(index));
+			if (ImGui::Checkbox(names[index].c_str(), &selected)) {
+				value = selected ? value | bit : value & ~bit;
+				result.valueChanged = true;
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+	result.anyItemActive = ImGui::IsItemActive();
+	result.editFinished = result.valueChanged;
+	MyGUI::EndPropertyRow();
 	return result;
 }
 

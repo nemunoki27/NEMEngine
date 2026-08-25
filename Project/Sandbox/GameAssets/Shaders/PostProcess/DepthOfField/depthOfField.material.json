@@ -2,14 +2,18 @@
     "domain": "Compute",
     "generated": true,
     "generatedBy": "PostProcessAssetGenerator",
-    "name": "grayscaleMaterial",
+    "name": "depthOfFieldMaterial",
     "parameters": {
-        "strength": 1.0
+        "blurStartDistance": 10.0,
+        "blurStrength": 1.0,
+        "blurTransition": 12.0,
+        "maxBlurRadius": 8.0,
+        "sampleCount": 12
     },
     "passes": [
         {
             "passKind": "PostProcess",
-            "pipeline": "4e454d4153534554ac49febfafced4eb",
+            "pipeline": "4e454d41535345547cc465a7adef411a",
             "preferredVariant": "Compute"
         }
     ]

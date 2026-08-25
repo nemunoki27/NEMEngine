@@ -44,7 +44,8 @@ internal static class ManagedAbi {
     // v44: 廃止した描画、画面遷移APIを削除
     // v45: RenderFeatureProfileの実行時パラメータAPIを追加
     // v46: ParticleSystemのUnity準拠再生操作と実行状態APIを追加
-    internal const uint Version = 46;
+    // v47: RenderFeatureグループの有効状態APIを追加
+    internal const uint Version = 47;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -415,10 +416,17 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int> ClearRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<int> IsRayTracingSupported;
     internal static delegate* unmanaged[Cdecl]<int> IsRayTracingActive;
-    internal static delegate* unmanaged[Cdecl]<byte*, int, int> SetRenderFeaturePassEnabled;
-    internal static delegate* unmanaged[Cdecl]<byte*, ulong, byte*, NativeMaterialParameterValue*, int> SetRenderFeaturePassParameter;
-    internal static delegate* unmanaged[Cdecl]<byte*, ulong, int> ClearRenderFeaturePassParameter;
-    internal static delegate* unmanaged[Cdecl]<byte*, int> ResetRenderFeaturePass;
+    // v48: RenderFeaturePassのProfile世代付きUUIDハンドル
+    internal static delegate* unmanaged[Cdecl]<byte*, ulong*, ulong*, int> ResolveRenderFeaturePass;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, int> ValidateRenderFeaturePass;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassEnabled;
+    internal static delegate* unmanaged[Cdecl]<byte*, int, int> SetRenderFeatureGroupEnabled;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, byte*,
+        NativeMaterialParameterValue*, int> SetRenderFeaturePassParameter;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong,
+        NativeMaterialParameterValue*, int> GetRenderFeaturePassParameter;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, int> ClearRenderFeaturePassParameter;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, int> ResetRenderFeaturePass;
     internal static delegate* unmanaged[Cdecl]<void> ResetRenderFeatureOverrides;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
@@ -581,8 +589,12 @@ internal static unsafe class NativeApi {
         ClearRendererMaterialParameter = callbacks->clearRendererMaterialParameter;
         IsRayTracingSupported = callbacks->isRayTracingSupported;
         IsRayTracingActive = callbacks->isRayTracingActive;
+        ResolveRenderFeaturePass = callbacks->resolveRenderFeaturePass;
+        ValidateRenderFeaturePass = callbacks->validateRenderFeaturePass;
         SetRenderFeaturePassEnabled = callbacks->setRenderFeaturePassEnabled;
+        SetRenderFeatureGroupEnabled = callbacks->setRenderFeatureGroupEnabled;
         SetRenderFeaturePassParameter = callbacks->setRenderFeaturePassParameter;
+        GetRenderFeaturePassParameter = callbacks->getRenderFeaturePassParameter;
         ClearRenderFeaturePassParameter = callbacks->clearRenderFeaturePassParameter;
         ResetRenderFeaturePass = callbacks->resetRenderFeaturePass;
         ResetRenderFeatureOverrides = callbacks->resetRenderFeatureOverrides;
@@ -840,11 +852,14 @@ internal static unsafe class NativeApi {
     internal static bool ReadRayTracingActive() =>
         IsRayTracingActive != null && IsRayTracingActive() != 0;
 
-    internal static bool WriteRenderFeaturePassEnabled(
-		string passName, bool enabled) {
+    internal static bool ResolveRenderFeaturePassValue(
+		string passName, out ulong passID, out ulong generation) {
 
-		if (SetRenderFeaturePassEnabled == null ||
+		passID = 0ul;
+		generation = 0ul;
+		if (ResolveRenderFeaturePass == null ||
 			string.IsNullOrEmpty(passName)) {
+
 			return false;
 		}
 		int byteCount = Encoding.UTF8.GetByteCount(passName);
@@ -853,74 +868,94 @@ internal static unsafe class NativeApi {
 			: new byte[byteCount + 1];
 		Encoding.UTF8.GetBytes(passName, bytes);
 		bytes[byteCount] = 0;
-		fixed (byte* passNamePtr = bytes) {
-			return SetRenderFeaturePassEnabled(
-				passNamePtr, enabled ? 1 : 0) != 0;
+		fixed (byte* passNamePtr = bytes)
+		fixed (ulong* passIDPtr = &passID)
+		fixed (ulong* generationPtr = &generation) {
+			return ResolveRenderFeaturePass(
+				passNamePtr, passIDPtr, generationPtr) != 0;
 		}
 	}
 
+	internal static bool ValidateRenderFeaturePassValue(
+		ulong passID, ulong generation) =>
+		ValidateRenderFeaturePass != null && passID != 0ul &&
+		generation != 0ul &&
+		ValidateRenderFeaturePass(passID, generation) != 0;
+
+	internal static bool WriteRenderFeaturePassEnabled(
+		ulong passID, ulong generation, bool enabled) =>
+		SetRenderFeaturePassEnabled != null && passID != 0ul &&
+		generation != 0ul && SetRenderFeaturePassEnabled(
+			passID, generation, enabled ? 1 : 0) != 0;
+
 	internal static bool WriteRenderFeaturePassParameter(
-		string passName, ulong parameterID, string parameterName,
+		ulong passID, ulong generation, ulong parameterID,
+		string parameterName,
 		NativeMaterialParameterValue value) {
 
 		if (SetRenderFeaturePassParameter == null || parameterID == 0ul ||
-			string.IsNullOrEmpty(passName) || string.IsNullOrEmpty(parameterName)) {
+			passID == 0ul || generation == 0ul ||
+			string.IsNullOrEmpty(parameterName)) {
+
 			return false;
 		}
-		int passByteCount = Encoding.UTF8.GetByteCount(passName);
-		Span<byte> passBytes = passByteCount < 256
-			? stackalloc byte[passByteCount + 1]
-			: new byte[passByteCount + 1];
-		Encoding.UTF8.GetBytes(passName, passBytes);
-		passBytes[passByteCount] = 0;
-
         int parameterByteCount = Encoding.UTF8.GetByteCount(parameterName);
         Span<byte> parameterBytes = parameterByteCount < 256
             ? stackalloc byte[parameterByteCount + 1]
             : new byte[parameterByteCount + 1];
         Encoding.UTF8.GetBytes(parameterName, parameterBytes);
         parameterBytes[parameterByteCount] = 0;
-		fixed (byte* passNamePtr = passBytes)
 		fixed (byte* parameterNamePtr = parameterBytes) {
 			return SetRenderFeaturePassParameter(
-				passNamePtr, parameterID, parameterNamePtr, &value) != 0;
+				passID, generation, parameterID,
+				parameterNamePtr, &value) != 0;
+		}
+	}
+
+	internal static bool ReadRenderFeaturePassParameter(
+		ulong passID, ulong generation, ulong parameterID,
+		out NativeMaterialParameterValue value) {
+
+		NativeMaterialParameterValue result = default;
+		bool found = GetRenderFeaturePassParameter != null &&
+			passID != 0ul && generation != 0ul && parameterID != 0ul &&
+			GetRenderFeaturePassParameter(
+				passID, generation, parameterID, &result) != 0;
+		value = result;
+		return found;
+	}
+
+	internal static bool WriteRenderFeatureGroupEnabled(
+		string groupName, bool enabled) {
+
+		if (SetRenderFeatureGroupEnabled == null ||
+			string.IsNullOrEmpty(groupName)) {
+			return false;
+		}
+		int byteCount = Encoding.UTF8.GetByteCount(groupName);
+		Span<byte> bytes = byteCount < 256
+			? stackalloc byte[byteCount + 1]
+			: new byte[byteCount + 1];
+		Encoding.UTF8.GetBytes(groupName, bytes);
+		bytes[byteCount] = 0;
+		fixed (byte* groupNamePtr = bytes) {
+			return SetRenderFeatureGroupEnabled(
+				groupNamePtr, enabled ? 1 : 0) != 0;
 		}
 	}
 
 	internal static bool ClearRenderFeaturePassParameterValue(
-		string passName, ulong parameterID) {
+		ulong passID, ulong generation, ulong parameterID) =>
+		ClearRenderFeaturePassParameter != null && passID != 0ul &&
+		generation != 0ul && parameterID != 0ul &&
+		ClearRenderFeaturePassParameter(
+			passID, generation, parameterID) != 0;
 
-		if (ClearRenderFeaturePassParameter == null || parameterID == 0ul ||
-			string.IsNullOrEmpty(passName)) {
-			return false;
-		}
-		int byteCount = Encoding.UTF8.GetByteCount(passName);
-		Span<byte> bytes = byteCount < 256
-			? stackalloc byte[byteCount + 1]
-			: new byte[byteCount + 1];
-		Encoding.UTF8.GetBytes(passName, bytes);
-		bytes[byteCount] = 0;
-		fixed (byte* passNamePtr = bytes) {
-			return ClearRenderFeaturePassParameter(
-				passNamePtr, parameterID) != 0;
-		}
-	}
-
-	internal static bool ResetRenderFeaturePassValue(string passName) {
-
-		if (ResetRenderFeaturePass == null || string.IsNullOrEmpty(passName)) {
-			return false;
-		}
-		int byteCount = Encoding.UTF8.GetByteCount(passName);
-		Span<byte> bytes = byteCount < 256
-			? stackalloc byte[byteCount + 1]
-			: new byte[byteCount + 1];
-		Encoding.UTF8.GetBytes(passName, bytes);
-		bytes[byteCount] = 0;
-		fixed (byte* passNamePtr = bytes) {
-			return ResetRenderFeaturePass(passNamePtr) != 0;
-		}
-	}
+	internal static bool ResetRenderFeaturePassValue(
+		ulong passID, ulong generation) =>
+		ResetRenderFeaturePass != null && passID != 0ul &&
+		generation != 0ul &&
+		ResetRenderFeaturePass(passID, generation) != 0;
 
 	internal static void ResetAllRenderFeatureOverrides() {
 

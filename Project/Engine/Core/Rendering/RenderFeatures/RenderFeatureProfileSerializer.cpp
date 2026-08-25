@@ -102,6 +102,33 @@ namespace {
 			item.name = itemJson.value("name", item.name);
 			item.enabled = itemJson.value("enabled", item.enabled);
 			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
+				const nlohmann::json selection = itemJson.value(
+					"selection", nlohmann::json::object());
+				item.selection.mode = Engine::EnumAdapter<
+					Engine::RenderFeatureSelectionMode>::FromString(
+						selection.value("mode", "Organization")).value_or(
+							Engine::RenderFeatureSelectionMode::Organization);
+				item.selection.anchor = Engine::EnumAdapter<
+					Engine::RenderFeatureAnchor>::FromString(
+						selection.value("anchor", "AfterTransparent")).value_or(
+							Engine::RenderFeatureAnchor::AfterTransparent);
+				item.selection.renderingLayerMask = selection.value(
+					"renderingLayerMask", item.selection.renderingLayerMask) &
+					Engine::kRenderingLayerMaskBits;
+				item.selection.phaseMask = selection.value(
+					"phaseMask", item.selection.phaseMask) &
+					Engine::kRenderFeatureSelectablePhaseMask;
+				item.selection.rendererMask = selection.value(
+					"rendererMask", item.selection.rendererMask) &
+					Engine::RenderFeatureRendererMask::All;
+				item.selection.sortingLayer = selection.value(
+					"sortingLayer", item.selection.sortingLayer);
+				item.selection.sortingOrder = selection.value(
+					"sortingOrder", item.selection.sortingOrder);
+				item.selection.compositeMode = Engine::EnumAdapter<
+					Engine::RenderFeatureCompositeMode>::FromString(
+						selection.value("compositeMode", "Auto")).value_or(
+							Engine::RenderFeatureCompositeMode::Auto);
 				item.children = ParseHierarchyItems(
 					itemJson.value("children", nlohmann::json::array()));
 			}
@@ -124,6 +151,26 @@ namespace {
 			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
 				itemJson["name"] = item.name;
 				itemJson["enabled"] = item.enabled;
+				itemJson["selection"] = {
+					{ "mode", Engine::EnumAdapter<
+						Engine::RenderFeatureSelectionMode>::ToString(
+							item.selection.mode) },
+					{ "anchor", Engine::EnumAdapter<
+						Engine::RenderFeatureAnchor>::ToString(
+							item.selection.anchor) },
+					{ "renderingLayerMask",
+						item.selection.renderingLayerMask &
+						Engine::kRenderingLayerMaskBits },
+					{ "phaseMask", item.selection.phaseMask &
+						Engine::kRenderFeatureSelectablePhaseMask },
+					{ "rendererMask", item.selection.rendererMask &
+						Engine::RenderFeatureRendererMask::All },
+					{ "sortingLayer", item.selection.sortingLayer },
+					{ "sortingOrder", item.selection.sortingOrder },
+					{ "compositeMode", Engine::EnumAdapter<
+						Engine::RenderFeatureCompositeMode>::ToString(
+							item.selection.compositeMode) },
+				};
 				itemJson["children"] = WriteHierarchyItems(item.children);
 			}
 			data.push_back(std::move(itemJson));
@@ -345,8 +392,6 @@ Engine::RenderFeatureProfileSerializer::FromJson(
 		pass.source = ParseOutputReference(sourceJson);
 		pass.sceneColorOutput = passJson.value(
 			"sceneColorOutput", false);
-		pass.targetMask = passJson.value("targetMask", 0u) &
-			kRenderingLayerMaskBits;
 		pass.rayGenerationIndex = passJson.value(
 			"rayGenerationIndex", 0u);
 		pass.adaptiveResolution = passJson.value(
@@ -443,7 +488,7 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(
 	RenderFeatureProfileAsset normalized = profile;
 	SynchronizeRenderFeaturePassOrder(normalized);
 	nlohmann::json data{
-		{ "version", 2u },
+		{ "version", 3u },
 		{ "name", normalized.name },
 		{ "colorPipeline", WriteColorPipeline(normalized.colorPipeline) },
 		{ "passes", nlohmann::json::array() },
@@ -467,7 +512,6 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(
 				pass.materialPass) },
 			{ "source", std::move(sourceJson) },
 			{ "sceneColorOutput", pass.sceneColorOutput },
-			{ "targetMask", pass.targetMask & kRenderingLayerMaskBits },
 			{ "rayGenerationIndex", pass.rayGenerationIndex },
 			{ "adaptiveResolution", pass.adaptiveResolution },
 			{ "gpuBudgetMs", pass.gpuBudgetMs },

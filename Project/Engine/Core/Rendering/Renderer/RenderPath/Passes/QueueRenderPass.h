@@ -6,6 +6,9 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
+// c++
+#include <vector>
+
 namespace Engine {
 
 	//============================================================================
@@ -55,5 +58,6 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 		Desc desc_{};
+		std::vector<const RenderItem*> itemScratch_{};
 	};
 } // Engine

@@ -67,7 +67,8 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	// 描画パラメータ
 	InspectorDrawerCommon::DrawCommonRenderFields(
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+		draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue,
+		&draft.renderingLayerMask);
 	// 影/反射などのフラグ
 	{
 		const auto drawFlag = [&](const char* label, MeshRenderFlags flag) {
@@ -85,22 +86,6 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 		drawFlag("影を受ける", MeshRenderFlags::ReceiveShadow);
 		drawFlag("反射に映る", MeshRenderFlags::CastReflection);
 		drawFlag("反射を受ける", MeshRenderFlags::ReceiveReflection);
-		DrawField(anyItemActive, [&]() {
-			int32_t mask =
-				static_cast<int32_t>(
-					draft.renderingLayerMask);
-			ValueEditResult result =
-				MyGUI::DragInt(
-					"描画対象マスク", mask,
-					{ .minValue = 0,
-					  .maxValue = static_cast<int32_t>(
-						  kRenderingLayerMaskBits) });
-			if (result.valueChanged) {
-				draft.renderingLayerMask =
-					static_cast<uint32_t>(mask);
-			}
-			return result;
-			});
 	}
 
 	ImGui::SeparatorText("形状別パラメータ");

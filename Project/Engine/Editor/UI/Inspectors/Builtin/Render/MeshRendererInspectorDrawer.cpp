@@ -195,6 +195,11 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("既定キュー", draft.queue);
 			});
+		DrawField(anyItemActive, [&]() {
+
+			return InspectorDrawerCommon::DrawLayerMaskField(
+				"Rendering Layer", draft.renderingLayerMask);
+			});
 
 		// ライティングや影の適用フラグ、ビット単位で持つためboolへ写してから書き戻す
 		auto drawRenderFlagField = [&](const char* label, MeshRenderFlags flag) {
@@ -214,22 +219,6 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		drawRenderFlagField("IBLを受ける", MeshRenderFlags::ReceiveIBL);
 		drawRenderFlagField("反射に映す", MeshRenderFlags::CastReflection);
 		drawRenderFlagField("反射を受ける", MeshRenderFlags::ReceiveReflection);
-		DrawField(anyItemActive, [&]() {
-			int32_t mask =
-				static_cast<int32_t>(
-					draft.renderingLayerMask);
-			ValueEditResult result =
-				MyGUI::DragInt(
-					"描画対象マスク", mask,
-					{ .minValue = 0,
-					  .maxValue = static_cast<int32_t>(
-						  kRenderingLayerMaskBits) });
-			if (result.valueChanged) {
-				draft.renderingLayerMask =
-					static_cast<uint32_t>(mask);
-			}
-			return result;
-			});
 	}
 
 	// 一番下に全サブメッシュ同時編集UIを置く

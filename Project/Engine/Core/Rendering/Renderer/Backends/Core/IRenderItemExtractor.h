@@ -52,6 +52,10 @@ namespace Engine {
 			item.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 			item.renderPhase = renderer.queue;
 			item.visibilityLayerMask = sceneObject ? sceneObject->visibilityLayerMask : 0xFFFFFFFFu;
+			if constexpr (requires { renderer.renderingLayerMask; }) {
+				item.renderingLayerMask = renderer.renderingLayerMask &
+					kRenderingLayerMaskBits;
+			}
 			item.sortingLayer = renderer.layer;
 			item.sortingOrder = renderer.order;
 			item.blendMode = renderer.blendMode;

@@ -28,7 +28,16 @@ namespace {
 
 	Engine::AssetID ResolveTextureAsset(
 		const Engine::RenderFeaturePassSettings& pass,
+		const Engine::RenderFeaturePassRuntimeOverride* runtimeOverride,
 		std::string_view shaderResource) {
+
+		if (runtimeOverride) {
+			const auto runtime = runtimeOverride->textureOverrides.find(
+				std::string(shaderResource));
+			if (runtime != runtimeOverride->textureOverrides.end()) {
+				return runtime->second;
+			}
+		}
 
 		const auto found = pass.textureOverrides.find(
 			std::string(shaderResource));
@@ -202,7 +211,8 @@ bool Engine::RayTracingExecutor::Execute(
 			}
 		}
 
-		const AssetID textureAsset = ResolveTextureAsset(pass, binding.name);
+		const AssetID textureAsset = ResolveTextureAsset(
+			pass, runtimeOverride, binding.name);
 		const GPUTextureResource* texture = RuntimeTextureResolver::Resolve(
 			graphicsCore, context.assetDatabase, textureAsset);
 		if (!texture || !texture->valid) {

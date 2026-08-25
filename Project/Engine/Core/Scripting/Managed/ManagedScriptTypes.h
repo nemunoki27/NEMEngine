@@ -50,7 +50,9 @@ namespace Engine {
 	// v44: 廃止した描画、画面遷移APIを削除
 	// v45: RenderFeatureProfileの実行時パラメータAPIを追加
 	// v46: ParticleSystemの再生操作と実行状態APIを追加し旧エフェクトAPIを削除
-	inline constexpr uint32_t kManagedAbiVersion = 46;
+	// v47: RenderFeatureグループの有効状態APIを追加
+	// v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
+	inline constexpr uint32_t kManagedAbiVersion = 48;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -455,11 +457,22 @@ namespace Engine {
 		using ClearRendererMaterialParameterCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, uint64_t);
 		// RenderFeatureProfileへ実行時オーバーライドを設定する
-		using SetRenderFeaturePassEnabledCallback = int32_t(__cdecl*)(const char*, int32_t);
+		using ResolveRenderFeaturePassCallback = int32_t(__cdecl*)(
+			const char*, uint64_t*, uint64_t*);
+		using ValidateRenderFeaturePassCallback = int32_t(__cdecl*)(
+			uint64_t, uint64_t);
+		using SetRenderFeaturePassEnabledCallback = int32_t(__cdecl*)(
+			uint64_t, uint64_t, int32_t);
+		using SetRenderFeatureGroupEnabledCallback = int32_t(__cdecl*)(const char*, int32_t);
 		using SetRenderFeaturePassParameterCallback = int32_t(__cdecl*)(
-			const char*, uint64_t, const char*, const ManagedMaterialParameterValue*);
-		using ClearRenderFeaturePassParameterCallback = int32_t(__cdecl*)(const char*, uint64_t);
-		using ResetRenderFeaturePassCallback = int32_t(__cdecl*)(const char*);
+			uint64_t, uint64_t, uint64_t, const char*,
+			const ManagedMaterialParameterValue*);
+		using GetRenderFeaturePassParameterCallback = int32_t(__cdecl*)(
+			uint64_t, uint64_t, uint64_t, ManagedMaterialParameterValue*);
+		using ClearRenderFeaturePassParameterCallback = int32_t(__cdecl*)(
+			uint64_t, uint64_t, uint64_t);
+		using ResetRenderFeaturePassCallback = int32_t(__cdecl*)(
+			uint64_t, uint64_t);
 		using ResetRenderFeatureOverridesCallback = void(__cdecl*)();
 		// CollisionComponentの単一形状をpropIdで読み書きする
 		using CollisionGetShapeCallback = int32_t(__cdecl*)(

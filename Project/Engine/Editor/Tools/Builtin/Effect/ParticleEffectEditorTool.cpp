@@ -24,6 +24,7 @@ using namespace Engine;
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -720,6 +721,8 @@ bool ParticleEffectEditorTool::DrawBasicSection(
 			}
 			changed |= MyGUI::EnumCombo("ブレンドモード", group.blendMode).valueChanged;
 			changed |= MyGUI::EnumCombo("キュー", group.queue).valueChanged;
+			changed |= InspectorDrawerCommon::DrawLayerMaskField(
+				"Rendering Layer", group.renderingLayerMask).valueChanged;
 			// ビルボード軸
 			{
 				const Axis axes[] = { Axis::X, Axis::Y, Axis::Z };

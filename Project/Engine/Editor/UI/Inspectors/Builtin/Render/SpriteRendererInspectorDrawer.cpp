@@ -99,7 +99,8 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 
 		InspectorDrawerCommon::DrawCommonRenderFields(
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue,
+			&draft.renderingLayerMask);
 		// シェーダーパラメータ
 		materialParameterDrawer_.Draw(context, draft.material, defaultMaterialID, draft.materialInstance,
 			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });

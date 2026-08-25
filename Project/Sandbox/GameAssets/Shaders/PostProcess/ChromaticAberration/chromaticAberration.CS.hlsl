@@ -42,7 +42,8 @@ void main(uint3 DTid : SV_DispatchThreadID) {
 	float2 aspectCorrected = float2(fromCenter.x * aspect, fromCenter.y);
 
 	float dist = length(aspectCorrected);
-	float dist01 = saturate(dist / 0.7071f);
+	float maxDist = length(float2(0.5f * aspect, 0.5f));
+	float dist01 = saturate(dist / max(maxDist, 0.0001f));
 
 	float2 dir = float2(0.0f, 0.0f);
 	if (dist > 0.0001f) {
@@ -50,7 +51,7 @@ void main(uint3 DTid : SV_DispatchThreadID) {
 	}
 
 	// ピクセル単位のズレ量
-	float amountPixel = strength * pow(dist01, falloff);
+	float amountPixel = strength * pow(dist01, max(falloff, 0.0001f));
 
 	// UV単位に変換
 	float2 offsetUV = dir * amountPixel * invScreenSize;

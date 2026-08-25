@@ -1,12 +1,12 @@
 {
     "generated": true,
     "generatedBy": "PostProcessAssetGenerator",
-    "name": "bloomPipeline",
+    "name": "scanlinePipeline",
     "variants": [
         {
             "kind": "Compute",
             "pipelineType": "Compute",
-            "shader": "4e454d4153534554ca7e01aebbc9b32d"
+            "shader": "4e454d4153534554b74a5218fd2a4507"
         }
     ]
 }

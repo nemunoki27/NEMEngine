@@ -1,0 +1,25 @@
+{
+    "domain": "Compute",
+    "generated": true,
+    "generatedBy": "PostProcessAssetGenerator",
+    "name": "scanlineMaterial",
+    "parameters": {
+        "intensity": 0.35,
+        "lineColor": {
+            "a": 1.0,
+            "b": 0.08,
+            "g": 0.08,
+            "r": 0.08
+        },
+        "lineDensity": 240.0,
+        "speed": 0.15,
+        "thickness": 0.45
+    },
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "4e454d415353455405d147ee040f403b",
+            "preferredVariant": "Compute"
+        }
+    ]
+}

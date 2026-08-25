@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
+#include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Editor/Commands/Entity/RemapEntityTagsCommand.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
@@ -37,7 +38,7 @@ void Engine::TagManagerTool::RequestRemap(const EditorToolContext& context, cons
 
 void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("Tag Manager", &openWindow_)) {
+	if (!ImGui::Begin("タグ・描画レイヤー", &openWindow_)) {
 		ImGui::End();
 		return;
 	}
@@ -82,7 +83,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	const bool canEditScene = context.CanEditScene();
 
 	const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg
-		| ImGuiTableFlags_ScrollY | ImGuiTableFlags_SizingStretchProp;
+		| ImGuiTableFlags_SizingStretchProp;
 	if (ImGui::BeginTable("##TagTable", 2, tableFlags)) {
 
 		ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthStretch);
@@ -156,6 +157,79 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
 	if (!canEditScene) {
 		ImGui::TextDisabled("削除リネームはシーン編集中のみ行えます。");
+	}
+
+	ImGui::Separator();
+	if (ImGui::CollapsingHeader("Rendering Layer")) {
+		if (ImGui::Button("Layer設定を保存")) {
+			if (ProjectRenderingLayerSettings::Save()) {
+				renderingLayersDirty_ = false;
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Layer設定を再読込")) {
+			ProjectRenderingLayerSettings::Reload();
+			renderingLayersDirty_ = false;
+		}
+		if (renderingLayersDirty_) {
+			ImGui::SameLine();
+			ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f),
+				"未保存の変更があります");
+		}
+
+		ImGui::SetNextItemWidth(220.0f);
+		ImGui::InputTextWithHint("##AddRenderingLayer",
+			"新しいLayer名", addRenderingLayerBuffer_,
+			sizeof(addRenderingLayerBuffer_));
+		ImGui::SameLine();
+		const bool canAddLayer =
+			ProjectRenderingLayerSettings::IsValidNewLayer(
+				addRenderingLayerBuffer_);
+		ImGui::BeginDisabled(!canAddLayer);
+		if (ImGui::Button("追加##RenderingLayer")) {
+			if (ProjectRenderingLayerSettings::AddLayer(
+				addRenderingLayerBuffer_)) {
+
+				addRenderingLayerBuffer_[0] = '\0';
+				renderingLayersDirty_ = true;
+			}
+		}
+		ImGui::EndDisabled();
+
+		const auto& layerNames = ProjectRenderingLayerSettings::GetNames();
+		for (uint32_t index = 0u;
+			index < ProjectRenderingLayerSettings::kLayerCount; ++index) {
+
+			if (layerNames[index].empty()) {
+				continue;
+			}
+			char nameBuffer[128]{};
+			std::snprintf(nameBuffer, sizeof(nameBuffer), "%s",
+				layerNames[index].c_str());
+			ImGui::PushID(static_cast<int>(index));
+			ImGui::Text("%u", index);
+			ImGui::SameLine();
+			const float deleteButtonWidth = 56.0f;
+			ImGui::SetNextItemWidth(index == 0u ? -FLT_MIN :
+				ImGui::GetContentRegionAvail().x - deleteButtonWidth);
+			ImGui::BeginDisabled(index == 0u);
+			if (ImGui::InputText("##LayerName", nameBuffer,
+				sizeof(nameBuffer)) &&
+				ProjectRenderingLayerSettings::SetName(index, nameBuffer)) {
+
+				renderingLayersDirty_ = true;
+			}
+			ImGui::EndDisabled();
+			if (index != 0u) {
+				ImGui::SameLine();
+				if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f)) &&
+					ProjectRenderingLayerSettings::RemoveLayer(index)) {
+
+					renderingLayersDirty_ = true;
+				}
+			}
+			ImGui::PopID();
+		}
 	}
 
 	ImGui::End();

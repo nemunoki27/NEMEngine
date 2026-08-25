@@ -200,6 +200,7 @@ namespace {
 			AddAsset(Engine::BuiltinAssets::Pipelines::AutoExposure);
 			AddAsset(Engine::BuiltinAssets::Materials::OutputTransform);
 			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
+			AddAsset(Engine::BuiltinAssets::Materials::PostProcessMaskComposite);
 			AddAsset(Engine::BuiltinAssets::Materials::RaytracingReflection);
 			AddAsset(Engine::BuiltinAssets::RenderFeatureProfiles::Default);
 
@@ -717,9 +718,10 @@ namespace {
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/skyboxIrradiance.CS.hlsl");
 
 			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
-			const std::array<const char*, 2> gameProjectSettings = {
+			const std::array<const char*, 3> gameProjectSettings = {
 				"InputActions.json",
 				"TagSettings.json",
+				"RenderingLayers.json",
 			};
 			for (const char* setting : gameProjectSettings) {
 

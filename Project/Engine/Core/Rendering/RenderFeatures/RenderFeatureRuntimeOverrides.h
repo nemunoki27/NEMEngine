@@ -18,6 +18,7 @@ namespace Engine {
 
 		std::optional<bool> enabled{};
 		MaterialParameterSet parameters{};
+		std::unordered_map<std::string, AssetID> textureOverrides{};
 	};
 
 	//============================================================================
@@ -35,18 +36,21 @@ namespace Engine {
 		RenderFeatureRuntimeOverrides& operator=(
 			const RenderFeatureRuntimeOverrides&) = delete;
 
-		bool SetEnabled(std::string_view passName, bool enabled);
-		bool SetParameter(std::string_view passName,
+		bool SetEnabled(UUID passID, bool enabled);
+		bool SetGroupEnabled(std::string_view groupName, bool enabled);
+		bool SetParameter(UUID passID,
 			MaterialParameterID parameterID,
 			std::string_view parameterName,
 			const MaterialParameterValue& value);
-		bool ClearParameter(std::string_view passName,
+		bool ClearParameter(UUID passID,
 			MaterialParameterID parameterID);
-		bool ResetPass(std::string_view passName);
+		bool ResetPass(UUID passID);
 		void ResetAll();
 
 		const RenderFeaturePassRuntimeOverride* Find(
-			std::string_view passName) const;
+			UUID passID) const;
+		bool IsGroupEnabled(std::string_view groupName,
+			bool fallback) const;
 		static RenderFeatureRuntimeOverrides& GetInstance();
 
 	private:
@@ -57,7 +61,8 @@ namespace Engine {
 		RenderFeatureRuntimeOverrides() = default;
 		~RenderFeatureRuntimeOverrides() = default;
 
-		std::unordered_map<std::string,
+		std::unordered_map<UUID,
 			RenderFeaturePassRuntimeOverride> overrides_{};
+		std::unordered_map<std::string, bool> groupEnabledOverrides_{};
 	};
 } // Engine

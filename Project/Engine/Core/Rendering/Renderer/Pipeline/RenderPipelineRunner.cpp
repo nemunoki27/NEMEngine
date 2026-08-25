@@ -51,6 +51,8 @@ using namespace Engine;
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <functional>
+#include <unordered_set>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
@@ -590,6 +592,77 @@ void RenderPipelineRunner::ReloadPipeline(AssetID pipelineAssetID) {
 	postProcessExecutor_.ClearParameterLayoutCache();
 	rayTracingExecutor_.ClearParameterLayoutCache();
 	RenderFeatureProfileService::GetInstance().ClearReflectionCache();
+}
+
+bool RenderPipelineRunner::ReloadMaterialDependencies(
+	AssetDatabase& assetDatabase, AssetID materialAssetID) {
+
+	const AssetMeta* materialMeta = assetDatabase.Find(materialAssetID);
+	if (!materialMeta || materialMeta->type != AssetType::Material) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[レンダー機能] 再読み込み対象のMaterialが見つかりません ID={}",
+			ToString(materialAssetID));
+		return false;
+	}
+
+	std::unordered_set<AssetID> visiting{};
+	std::unordered_set<AssetID> completed{};
+	size_t shaderCount = 0;
+	size_t pipelineCount = 0;
+	size_t materialCount = 0;
+	const std::function<bool(AssetID)> reloadDependency =
+		[&](AssetID assetID) {
+
+		if (completed.contains(assetID)) {
+			return true;
+		}
+		if (!visiting.emplace(assetID).second) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[レンダー機能] 再読み込み依存関係が循環しています ID={}",
+				ToString(assetID));
+			return false;
+		}
+
+		assetDatabase.RefreshDependencies(assetID);
+		for (AssetID dependency : assetDatabase.FindDependencies(assetID)) {
+			if (!reloadDependency(dependency)) {
+				return false;
+			}
+		}
+
+		const AssetMeta* meta = assetDatabase.Find(assetID);
+		if (!meta) {
+			return false;
+		}
+		if (meta->type == AssetType::Shader) {
+			const std::filesystem::path path =
+				Algorithm::PathFromUTF8(meta->assetPath);
+			if (Algorithm::ToLower(
+				Algorithm::PathToUTF8(path.extension())) == ".json") {
+
+				ReloadShader(assetID);
+				++shaderCount;
+			}
+		} else if (meta->type == AssetType::RenderPipeline) {
+			ReloadPipeline(assetID);
+			++pipelineCount;
+		} else if (meta->type == AssetType::Material) {
+			ReloadMaterial(assetID);
+			++materialCount;
+		}
+
+		visiting.erase(assetID);
+		completed.emplace(assetID);
+		return true;
+	};
+
+	const bool reloaded = reloadDependency(materialAssetID);
+	if (reloaded) {
+		Logger::Output(LogType::Engine,
+			"[レンダー機能] シェーダーを再読み込みしました Material={} Shader={} Pipeline={}",
+			materialCount, shaderCount, pipelineCount);
+	}
+	return reloaded;
 }
 
 void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID) {

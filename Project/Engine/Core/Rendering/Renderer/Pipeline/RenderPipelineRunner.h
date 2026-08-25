@@ -181,6 +181,9 @@ namespace Engine {
 		void ReloadPipeline(AssetID pipelineAssetID);
 		// 種別と依存関係を解決して描画アセットを再ロードする
 		void ReloadAsset(AssetDatabase& assetDatabase, AssetID assetID);
+		// Materialの依存ShaderとPipelineを依存先から順に再ロードする
+		bool ReloadMaterialDependencies(AssetDatabase& assetDatabase,
+			AssetID materialAssetID);
 
 		// 構築済みグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// マテリアルインスペクタがシェーダーの要求パラメータを自動列挙するために使う

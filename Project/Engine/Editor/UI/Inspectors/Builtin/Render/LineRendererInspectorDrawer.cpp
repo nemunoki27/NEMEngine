@@ -135,7 +135,8 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			});
 		InspectorDrawerCommon::DrawCommonRenderFields(
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
-			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue);
+			draft.layer, draft.order, draft.visible, draft.blendMode, draft.queue,
+			&draft.renderingLayerMask);
 	}
 	//============================================================================
 	//	点列

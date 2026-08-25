@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 3,
   "name": "Default Render Feature Profile",
   "passes": [
     {
@@ -14,7 +14,6 @@
       "materialPass": "RayTracing",
       "source": { "kind": "SceneColor", "pass": "", "output": "Color" },
       "sceneColorOutput": false,
-      "targetMask": 0,
       "rayGenerationIndex": 0,
       "adaptiveResolution": false,
       "gpuBudgetMs": 2.0,

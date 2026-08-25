@@ -368,14 +368,26 @@ namespace Engine {
 		// RenderFeatureProfileの実行可否と実行時オーバーライドを操作する
 		static int32_t __cdecl IsRayTracingSupportedCallback();
 		static int32_t __cdecl IsRayTracingActiveCallback();
+		static int32_t __cdecl ResolveRenderFeaturePassCallback(
+			const char* passName, uint64_t* outPassID,
+			uint64_t* outGeneration);
+		static int32_t __cdecl ValidateRenderFeaturePassCallback(
+			uint64_t passID, uint64_t generation);
 		static int32_t __cdecl SetRenderFeaturePassEnabledCallback(
-			const char* passName, int32_t enabled);
+			uint64_t passID, uint64_t generation, int32_t enabled);
+		static int32_t __cdecl SetRenderFeatureGroupEnabledCallback(
+			const char* groupName, int32_t enabled);
 		static int32_t __cdecl SetRenderFeaturePassParameterCallback(
-			const char* passName, uint64_t parameterID, const char* parameterName,
+			uint64_t passID, uint64_t generation, uint64_t parameterID,
+			const char* parameterName,
 			const ManagedMaterialParameterValue* value);
+		static int32_t __cdecl GetRenderFeaturePassParameterCallback(
+			uint64_t passID, uint64_t generation, uint64_t parameterID,
+			ManagedMaterialParameterValue* outValue);
 		static int32_t __cdecl ClearRenderFeaturePassParameterCallback(
-			const char* passName, uint64_t parameterID);
-		static int32_t __cdecl ResetRenderFeaturePassCallback(const char* passName);
+			uint64_t passID, uint64_t generation, uint64_t parameterID);
+		static int32_t __cdecl ResetRenderFeaturePassCallback(
+			uint64_t passID, uint64_t generation);
 		static void __cdecl ResetRenderFeatureOverridesCallback();
 		// CollisionComponentの単一形状をpropId指定で読み書きする
 		static int32_t __cdecl CollisionGetShapePropertyCallback(ManagedNativeEntity entity,

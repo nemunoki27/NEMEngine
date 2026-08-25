@@ -263,10 +263,18 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::IsRayTracingSupportedCallback;
 	callbacks.isRayTracingActive =
 		&ManagedScriptRuntime::IsRayTracingActiveCallback;
+	callbacks.resolveRenderFeaturePass =
+		&ManagedScriptRuntime::ResolveRenderFeaturePassCallback;
+	callbacks.validateRenderFeaturePass =
+		&ManagedScriptRuntime::ValidateRenderFeaturePassCallback;
 	callbacks.setRenderFeaturePassEnabled =
 		&ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback;
+	callbacks.setRenderFeatureGroupEnabled =
+		&ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback;
 	callbacks.setRenderFeaturePassParameter =
 		&ManagedScriptRuntime::SetRenderFeaturePassParameterCallback;
+	callbacks.getRenderFeaturePassParameter =
+		&ManagedScriptRuntime::GetRenderFeaturePassParameterCallback;
 	callbacks.clearRenderFeaturePassParameter =
 		&ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback;
 	callbacks.resetRenderFeaturePass =

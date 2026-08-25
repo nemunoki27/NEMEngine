@@ -32,6 +32,9 @@ namespace {
 			in.value("ignoreParentRotation", component.ignoreParentRotation);
 		Engine::ReadRenderCommonFields(in, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		component.renderingLayerMask = in.value(
+			"renderingLayerMask", component.renderingLayerMask) &
+			Engine::kRenderingLayerMaskBits;
 	}
 
 	void WriteLineRendererSettings(nlohmann::json& out,
@@ -48,6 +51,8 @@ namespace {
 		out["ignoreParentRotation"] = component.ignoreParentRotation;
 		Engine::WriteRenderCommonFields(out, component.layer, component.order,
 			component.visible, component.blendMode, component.queue);
+		out["renderingLayerMask"] = component.renderingLayerMask &
+			Engine::kRenderingLayerMaskBits;
 	}
 
 	std::vector<Engine::LinePoint> ReadLinePoints(const nlohmann::json& in) {

@@ -26,6 +26,7 @@
 #include <Engine/Core/World/UI/UIRuntimeService.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -720,6 +721,21 @@ namespace Engine {
 			Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
 			return collision ? &collision->shape : nullptr;
 		}
+
+		// Profile世代とPass UUIDを検証して現在のPassを返す
+		const Engine::RenderFeaturePassSettings* ResolveRenderFeaturePass(
+			uint64_t passID, uint64_t generation) {
+
+			Engine::RenderFeatureProfileService& service =
+				Engine::RenderFeatureProfileService::GetInstance();
+			service.EnsureLoaded();
+			if (generation == 0 ||
+				generation != service.GetRuntimeGeneration()) {
+
+				return nullptr;
+			}
+			return service.FindPassByID(Engine::UUID{ passID });
+		}
 	}
 
 	int32_t ManagedScriptRuntime::SetRendererMaterialParameterCallback(
@@ -836,20 +852,57 @@ namespace Engine {
 			context->graphicsPlatform->ShouldUseDispatchRays() ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback(
-		const char* passName, int32_t enabled) {
+	int32_t ManagedScriptRuntime::ResolveRenderFeaturePassCallback(
+		const char* passName, uint64_t* outPassID,
+		uint64_t* outGeneration) {
 
-		return passName &&
+		if (!passName || passName[0] == '\0' || !outPassID ||
+			!outGeneration) {
+
+			return 0;
+		}
+		RenderFeatureProfileService& service =
+			RenderFeatureProfileService::GetInstance();
+		service.EnsureLoaded();
+		const RenderFeaturePassSettings* pass =
+			service.FindPassByName(passName);
+		if (!pass) {
+			return 0;
+		}
+		*outPassID = pass->id.value;
+		*outGeneration = service.GetRuntimeGeneration();
+		return 1;
+	}
+
+	int32_t ManagedScriptRuntime::ValidateRenderFeaturePassCallback(
+		uint64_t passID, uint64_t generation) {
+
+		return ResolveRenderFeaturePass(passID, generation) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback(
+		uint64_t passID, uint64_t generation, int32_t enabled) {
+
+		return ResolveRenderFeaturePass(passID, generation) &&
 			RenderFeatureRuntimeOverrides::GetInstance().SetEnabled(
-				passName, enabled != 0) ? 1 : 0;
+				UUID{ passID }, enabled != 0) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback(
+		const char* groupName, int32_t enabled) {
+
+		return groupName && RenderFeatureRuntimeOverrides::GetInstance().
+			SetGroupEnabled(groupName, enabled != 0) ? 1 : 0;
 	}
 
 	int32_t ManagedScriptRuntime::SetRenderFeaturePassParameterCallback(
-		const char* passName, uint64_t parameterID,
+		uint64_t passID, uint64_t generation, uint64_t parameterID,
 		const char* parameterName,
 		const ManagedMaterialParameterValue* value) {
 
-		if (!passName || !parameterName || !value || parameterID == 0) {
+		if (!ResolveRenderFeaturePass(passID, generation) ||
+			!parameterName || !value || parameterID == 0) {
+
 			return 0;
 		}
 		MaterialParameterValue decoded{};
@@ -857,23 +910,41 @@ namespace Engine {
 			return 0;
 		}
 		return RenderFeatureRuntimeOverrides::GetInstance().SetParameter(
-			passName, MaterialParameterID{ parameterID },
+			UUID{ passID }, MaterialParameterID{ parameterID },
 			parameterName, decoded) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback(
-		const char* passName, uint64_t parameterID) {
+	int32_t ManagedScriptRuntime::GetRenderFeaturePassParameterCallback(
+		uint64_t passID, uint64_t generation, uint64_t parameterID,
+		ManagedMaterialParameterValue* outValue) {
 
-		return passName && parameterID != 0 &&
+		if (!outValue || parameterID == 0 ||
+			!ResolveRenderFeaturePass(passID, generation)) {
+
+			return 0;
+		}
+		const RenderFeaturePassRuntimeOverride* pass =
+			RenderFeatureRuntimeOverrides::GetInstance().Find(UUID{ passID });
+		const MaterialParameterValue* value = pass ?
+			pass->parameters.Find(MaterialParameterID{ parameterID }) : nullptr;
+		return value && EncodeMaterialParameterValue(*value, *outValue) ? 1 : 0;
+	}
+
+	int32_t ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback(
+		uint64_t passID, uint64_t generation, uint64_t parameterID) {
+
+		return ResolveRenderFeaturePass(passID, generation) &&
+			parameterID != 0 &&
 			RenderFeatureRuntimeOverrides::GetInstance().ClearParameter(
-				passName, MaterialParameterID{ parameterID }) ? 1 : 0;
+				UUID{ passID }, MaterialParameterID{ parameterID }) ? 1 : 0;
 	}
 
 	int32_t ManagedScriptRuntime::ResetRenderFeaturePassCallback(
-		const char* passName) {
+		uint64_t passID, uint64_t generation) {
 
-		return passName &&
-			RenderFeatureRuntimeOverrides::GetInstance().ResetPass(passName) ? 1 : 0;
+		return ResolveRenderFeaturePass(passID, generation) &&
+			RenderFeatureRuntimeOverrides::GetInstance().ResetPass(
+				UUID{ passID }) ? 1 : 0;
 	}
 
 	void ManagedScriptRuntime::ResetRenderFeatureOverridesCallback() {

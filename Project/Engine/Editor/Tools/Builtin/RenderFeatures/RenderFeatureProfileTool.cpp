@@ -271,8 +271,6 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	const bool sceneColorOutputChanged = MyGUI::Checkbox(
 		"Scene Colorへ出力", editablePass.sceneColorOutput);
 	changed |= sceneColorOutputChanged;
-	changed |= InspectorDrawerCommon::DrawLayerMaskField(
-		"対象レイヤー", editablePass.targetMask).valueChanged;
 	if (sceneColorOutputChanged && editablePass.sceneColorOutput) {
 		for (RenderFeaturePassSettings& candidate : profile.passes) {
 			if (candidate.id != editablePass.id &&

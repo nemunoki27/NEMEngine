@@ -3,6 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+
 // c++
 #include <algorithm>
 #include <functional>
@@ -33,6 +37,88 @@ namespace {
 				return output.name == outputName;
 			});
 	}
+
+	void CollectSelectionGroups(
+		const std::vector<Engine::RenderFeatureHierarchyItem>& items,
+		const Engine::RenderFeatureHierarchyItem* parentSelection,
+		std::unordered_map<uint64_t,
+			const Engine::RenderFeatureHierarchyItem*>& outGroups,
+		std::vector<const Engine::RenderFeatureHierarchyItem*>& outIsolated,
+		std::unordered_map<const Engine::RenderFeatureHierarchyItem*,
+			std::vector<const Engine::RenderFeatureHierarchyItem*>>& outLineages,
+		std::unordered_map<uint64_t,
+			std::vector<const Engine::RenderFeatureHierarchyItem*>>& outPassLineages,
+		std::vector<const Engine::RenderFeatureHierarchyItem*> lineage = {}) {
+
+		for (const Engine::RenderFeatureHierarchyItem& item : items) {
+			if (item.type ==
+				Engine::RenderFeatureHierarchyItemType::Pass) {
+
+				if (parentSelection) {
+					outGroups[item.id.value] = parentSelection;
+				}
+				outPassLineages[item.id.value] = lineage;
+				continue;
+			}
+			const Engine::RenderFeatureHierarchyItem* selection =
+				item.selection.mode ==
+					Engine::RenderFeatureSelectionMode::Organization ?
+						parentSelection : &item;
+			lineage.emplace_back(&item);
+			outLineages[&item] = lineage;
+			if (item.selection.mode ==
+				Engine::RenderFeatureSelectionMode::IsolatedLayer) {
+
+				outIsolated.emplace_back(&item);
+			}
+			CollectSelectionGroups(item.children, selection, outGroups,
+				outIsolated, outLineages, outPassLineages, lineage);
+			lineage.pop_back();
+		}
+	}
+
+	void CollectGroupPasses(
+		const Engine::RenderFeatureHierarchyItem& group,
+		std::vector<Engine::UUID>& outPasses) {
+
+		for (const Engine::RenderFeatureHierarchyItem& child : group.children) {
+			if (child.type ==
+				Engine::RenderFeatureHierarchyItemType::Pass) {
+
+				outPasses.emplace_back(child.id);
+				continue;
+			}
+			CollectGroupPasses(child, outPasses);
+		}
+	}
+
+	uint32_t GetRendererMaskBit(uint32_t backendID) {
+
+		switch (backendID) {
+		case Engine::RenderBackendID::Mesh:
+			return Engine::RenderFeatureRendererMask::Mesh;
+		case Engine::RenderBackendID::Primitive:
+			return Engine::RenderFeatureRendererMask::Primitive;
+		case Engine::RenderBackendID::Sprite:
+			return Engine::RenderFeatureRendererMask::Sprite;
+		case Engine::RenderBackendID::Text:
+			return Engine::RenderFeatureRendererMask::Text;
+		case Engine::RenderBackendID::Line:
+			return Engine::RenderFeatureRendererMask::Line;
+		case Engine::RenderBackendID::Particle:
+			return Engine::RenderFeatureRendererMask::Particle;
+		default:
+			return 0u;
+		}
+	}
+
+	bool IsEnabledForView(
+		const Engine::RenderFeaturePassSettings& pass,
+		Engine::RenderViewKind viewKind) {
+
+		return (viewKind == Engine::RenderViewKind::Game && pass.gameView) ||
+			(viewKind == Engine::RenderViewKind::Scene && pass.sceneView);
+	}
 }
 
 //============================================================================
@@ -43,13 +129,20 @@ void Engine::RenderFeatureProfileRuntime::Rebuild(
 
 	profile_ = profile;
 	ApplyRenderFeatureHierarchy(profile_);
+	selectionGroupsByPass_.clear();
+	isolatedGroups_.clear();
+	groupLineages_.clear();
+	passLineages_.clear();
+	CollectSelectionGroups(profile_.hierarchy, nullptr,
+		selectionGroupsByPass_, isolatedGroups_, groupLineages_,
+		passLineages_);
 	diagnostic_.clear();
 	ValidateProfile();
 }
 
 Engine::RenderFeatureExecutionPlan
 Engine::RenderFeatureProfileRuntime::BuildPlan(
-	RenderFeatureAnchor anchor) const {
+	RenderFeatureAnchor anchor, RenderViewKind viewKind) const {
 
 	RenderFeatureExecutionPlan plan{};
 	if (!diagnostic_.empty()) {
@@ -61,11 +154,17 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 	std::unordered_map<uint64_t, RenderFeatureOutputReference>
 		sources{};
 	RenderFeatureOutputReference previous{};
+	const auto isActive = [&](const RenderFeaturePassSettings& pass) {
+
+		return pass.enabled && pass.material && pass.anchor == anchor &&
+			IsEnabledForView(pass, viewKind) &&
+			IsPassHierarchyEnabled(pass.id);
+	};
 
 	// 同じAnchor内の省略入力は直前Passの主出力へ接続する
 	for (const RenderFeaturePassSettings& pass : profile_.passes) {
 
-		if (!pass.enabled || !pass.material || pass.anchor != anchor) {
+		if (!isActive(pass)) {
 			continue;
 		}
 		if (!pass.id ||
@@ -144,6 +243,9 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 					return candidate.id.value == dependencyID;
 				});
 			if (external == profile_.passes.end() || !external->enabled ||
+				!external->material ||
+				!IsEnabledForView(*external, viewKind) ||
+				!IsPassHierarchyEnabled(external->id) ||
 				GetRenderFeatureAnchorOrder(anchor) <=
 				GetRenderFeatureAnchorOrder(external->anchor)) {
 
@@ -154,8 +256,11 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		}
 
 		state = 2u;
+		const auto selection = selectionGroupsByPass_.find(pass.id.value);
 		plan.nodes.emplace_back(RenderFeaturePlanNode{
 			.pass = &pass,
+			.selectionGroup = selection == selectionGroupsByPass_.end() ?
+				nullptr : selection->second,
 			.source = source,
 		});
 		return true;
@@ -164,7 +269,7 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 	// 出力未接続のPassも副作用を持てるためすべて実行計画へ含める
 	for (const RenderFeaturePassSettings& pass : profile_.passes) {
 
-		if (!pass.enabled || !pass.material || pass.anchor != anchor) {
+		if (!isActive(pass)) {
 			continue;
 		}
 		if (!visit(pass)) {
@@ -172,7 +277,78 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 			return plan;
 		}
 	}
+	for (size_t index = 0; index < plan.nodes.size(); ++index) {
+
+		RenderFeaturePlanNode& node = plan.nodes[index];
+		if (!node.selectionGroup) {
+			continue;
+		}
+		node.selectionBegin = index == 0 ||
+			plan.nodes[index - 1].selectionGroup != node.selectionGroup;
+		node.selectionEnd = index + 1 == plan.nodes.size() ||
+			plan.nodes[index + 1].selectionGroup != node.selectionGroup;
+	}
 	return plan;
+}
+
+bool Engine::RenderFeatureProfileRuntime::IsItemIsolated(
+	const RenderItem& item) const {
+
+	if (!diagnostic_.empty()) {
+		return false;
+	}
+	for (const RenderFeatureHierarchyItem* group : isolatedGroups_) {
+		if (group && MatchesRenderFeatureSelection(item, group->selection) &&
+			IsGroupEnabled(*group)) {
+
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(
+	const RenderFeatureHierarchyItem& group) const {
+
+	const auto lineage = groupLineages_.find(&group);
+	if (lineage == groupLineages_.end()) {
+		return false;
+	}
+	for (const RenderFeatureHierarchyItem* entry : lineage->second) {
+		if (!entry || !entry->enabled ||
+			!RenderFeatureRuntimeOverrides::GetInstance().IsGroupEnabled(
+				entry->name, true)) {
+
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Engine::RenderFeatureProfileRuntime::IsPassHierarchyEnabled(
+	UUID passID) const {
+
+	const auto lineage = passLineages_.find(passID.value);
+	if (lineage == passLineages_.end()) {
+		return true;
+	}
+	for (const RenderFeatureHierarchyItem* group : lineage->second) {
+		if (!group || !IsGroupEnabled(*group)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Engine::MatchesRenderFeatureSelection(const RenderItem& item,
+	const RenderFeatureSelectionSettings& selection) {
+
+	return (item.renderingLayerMask &
+		selection.renderingLayerMask) != 0u &&
+		(selection.phaseMask & MakeRenderFeaturePhaseMask(
+			item.renderPhase)) != 0u &&
+		(selection.rendererMask &
+			GetRendererMaskBit(item.backendID)) != 0u;
 }
 
 bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
@@ -180,6 +356,106 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 	std::unordered_map<uint64_t, const RenderFeaturePassSettings*> passes{};
 	std::unordered_set<std::string> passNames{};
 	std::unordered_map<uint32_t, uint32_t> sceneColorCounts{};
+	std::unordered_set<std::string> groupNames{};
+	std::vector<const RenderFeatureHierarchyItem*> isolatedGroups{};
+	std::function<bool(const std::vector<RenderFeatureHierarchyItem>&, bool)>
+		validateGroups = [&](const std::vector<RenderFeatureHierarchyItem>& items,
+			bool insideSelection) {
+
+		for (const RenderFeatureHierarchyItem& item : items) {
+			if (item.type == RenderFeatureHierarchyItemType::Pass) {
+				continue;
+			}
+			if (item.name.empty() || !groupNames.emplace(item.name).second) {
+				diagnostic_ =
+					"RenderFeatureのグループ名が重複または未設定です";
+				return false;
+			}
+			const bool selective = item.selection.mode !=
+				RenderFeatureSelectionMode::Organization;
+			if (selective && insideSelection) {
+				diagnostic_ =
+					"選択グループの中へ別のグループは配置できません";
+				return false;
+			}
+			if (selective) {
+				const RenderFeatureSelectionSettings& selection =
+					item.selection;
+				if ((selection.renderingLayerMask &
+					kRenderingLayerMaskBits) == 0u ||
+					(selection.phaseMask &
+						kRenderFeatureSelectablePhaseMask) == 0u ||
+					(selection.rendererMask &
+						RenderFeatureRendererMask::All) == 0u) {
+
+					diagnostic_ =
+						"選択グループの抽出条件が空です";
+					return false;
+				}
+				if (selection.mode ==
+					RenderFeatureSelectionMode::IsolatedLayer &&
+					(selection.phaseMask & MakeRenderFeaturePhaseMask(
+						RenderPhase::Opaque)) != 0u) {
+
+					diagnostic_ =
+						"OpaqueはMaskedSceneColor方式でのみ選択できます";
+					return false;
+				}
+				std::vector<UUID> groupPasses{};
+				CollectGroupPasses(item, groupPasses);
+				if (groupPasses.empty()) {
+					diagnostic_ = "選択グループにPassがありません";
+					return false;
+				}
+				for (UUID passID : groupPasses) {
+					const auto pass = std::find_if(profile_.passes.begin(),
+						profile_.passes.end(), [passID](const auto& value) {
+
+							return value.id == passID;
+						});
+					if (pass != profile_.passes.end() &&
+						pass->anchor != selection.anchor) {
+
+						diagnostic_ =
+							"選択グループと子Passの実行位置が一致していません";
+						return false;
+					}
+				}
+				if (selection.mode ==
+					RenderFeatureSelectionMode::IsolatedLayer) {
+
+					isolatedGroups.emplace_back(&item);
+				}
+			}
+			if (!validateGroups(item.children,
+				insideSelection || selective)) {
+
+				return false;
+			}
+		}
+		return true;
+	};
+	if (!validateGroups(profile_.hierarchy, false)) {
+		return false;
+	}
+	for (size_t left = 0; left < isolatedGroups.size(); ++left) {
+		for (size_t right = left + 1; right < isolatedGroups.size(); ++right) {
+
+			const RenderFeatureSelectionSettings& a =
+				isolatedGroups[left]->selection;
+			const RenderFeatureSelectionSettings& b =
+				isolatedGroups[right]->selection;
+			if (a.anchor == b.anchor &&
+				(a.renderingLayerMask & b.renderingLayerMask) != 0u &&
+				(a.phaseMask & b.phaseMask) != 0u &&
+				(a.rendererMask & b.rendererMask) != 0u) {
+
+				diagnostic_ =
+					"IsolatedLayerグループの抽出条件が重複しています";
+				return false;
+			}
+		}
+	}
 
 	for (const RenderFeaturePassSettings& pass : profile_.passes) {
 
@@ -210,9 +486,7 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 			}
 		}
 		if (!pass.sceneColorOutput) {
-			if (pass.targetMask == 0u) {
-				continue;
-			}
+			continue;
 		}
 
 		const RenderFeatureOutputSettings& output = defaultOutputs.front();
@@ -220,11 +494,8 @@ bool Engine::RenderFeatureProfileRuntime::ValidateProfile() {
 			output.widthScale != 1.0f || output.heightScale != 1.0f) {
 
 			diagnostic_ =
-				"SceneColor出力と対象マスクは継承形式かつ等倍が必要です";
+				"SceneColor出力は継承形式かつ等倍が必要です";
 			return false;
-		}
-		if (!pass.sceneColorOutput) {
-			continue;
 		}
 		uint32_t& count = sceneColorCounts[
 			GetRenderFeatureAnchorOrder(pass.anchor)];

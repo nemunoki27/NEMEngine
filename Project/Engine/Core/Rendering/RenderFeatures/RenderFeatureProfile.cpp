@@ -76,6 +76,52 @@ namespace {
 				return leftOrder->second < rightOrder->second;
 			});
 	}
+
+	void SortSelectionGroups(
+		std::vector<Engine::RenderFeatureHierarchyItem>& items) {
+
+		for (Engine::RenderFeatureHierarchyItem& item : items) {
+			if (item.type == Engine::RenderFeatureHierarchyItemType::Group) {
+				SortSelectionGroups(item.children);
+			}
+		}
+		for (uint32_t anchorIndex = 0u;
+			anchorIndex <= static_cast<uint32_t>(
+				Engine::RenderFeatureAnchor::BeforeBlit); ++anchorIndex) {
+
+			const Engine::RenderFeatureAnchor anchor =
+				static_cast<Engine::RenderFeatureAnchor>(anchorIndex);
+			std::vector<size_t> slots{};
+			std::vector<Engine::RenderFeatureHierarchyItem> groups{};
+			for (size_t index = 0u; index < items.size(); ++index) {
+				const Engine::RenderFeatureHierarchyItem& item = items[index];
+				if (item.type == Engine::RenderFeatureHierarchyItemType::Group &&
+					item.selection.mode ==
+						Engine::RenderFeatureSelectionMode::IsolatedLayer &&
+					item.selection.anchor == anchor) {
+
+					slots.emplace_back(index);
+					groups.emplace_back(item);
+				}
+			}
+			std::stable_sort(groups.begin(), groups.end(),
+				[](const Engine::RenderFeatureHierarchyItem& left,
+					const Engine::RenderFeatureHierarchyItem& right) {
+
+					if (left.selection.sortingLayer !=
+						right.selection.sortingLayer) {
+
+						return left.selection.sortingLayer <
+							right.selection.sortingLayer;
+					}
+					return left.selection.sortingOrder <
+						right.selection.sortingOrder;
+				});
+			for (size_t index = 0u; index < slots.size(); ++index) {
+				items[slots[index]] = std::move(groups[index]);
+			}
+		}
+	}
 }
 
 //============================================================================
@@ -117,6 +163,7 @@ void Engine::ApplyRenderFeatureHierarchy(
 	RenderFeatureProfileAsset& profile) {
 
 	NormalizeRenderFeatureHierarchy(profile);
+	SortSelectionGroups(profile.hierarchy);
 	std::vector<UUID> order{};
 	std::unordered_map<uint64_t, bool> effectiveEnabled{};
 	CollectPassOrder(profile.hierarchy, true, order, effectiveEnabled);
@@ -133,6 +180,7 @@ void Engine::SynchronizeRenderFeaturePassOrder(
 	RenderFeatureProfileAsset& profile) {
 
 	NormalizeRenderFeatureHierarchy(profile);
+	SortSelectionGroups(profile.hierarchy);
 	std::vector<UUID> order{};
 	std::unordered_map<uint64_t, bool> effectiveEnabled{};
 	CollectPassOrder(profile.hierarchy, true, order, effectiveEnabled);

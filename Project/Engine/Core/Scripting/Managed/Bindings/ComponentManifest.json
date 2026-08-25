@@ -1093,6 +1093,12 @@
       "allowRemove": true,
       "properties": [
         {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
           "managedName": "Material",
           "nativeMember": "material",
           "kind": "AssetRef",
@@ -1175,6 +1181,12 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "Mesh",
           "nativeMember": "mesh",
@@ -1420,6 +1432,12 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "Material",
           "nativeMember": "material",
@@ -2115,6 +2133,12 @@
       "allowRemove": true,
       "properties": [
         {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
+        {
           "managedName": "Material",
           "nativeMember": "material",
           "kind": "AssetRef",
@@ -2179,6 +2203,12 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "Font",
           "nativeMember": "font",

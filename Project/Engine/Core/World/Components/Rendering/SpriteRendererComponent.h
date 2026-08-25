@@ -41,6 +41,8 @@ namespace Engine {
 		int32_t order = 0;
 		// 表示フラグ
 		bool visible = true;
+		// RenderFeatureとLightが参照する描画レイヤー
+		uint32_t renderingLayerMask = 1u;
 
 		// ブレンドモード
 		BlendMode blendMode = BlendMode::Normal;

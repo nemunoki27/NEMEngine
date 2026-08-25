@@ -163,6 +163,8 @@ Engine::ParticleRenderSettings Engine::MakeParticleRenderSettings(
 	settings.material = group.material;
 	settings.blendMode = group.blendMode;
 	settings.queue = group.queue;
+	settings.renderingLayerMask = group.renderingLayerMask &
+		kRenderingLayerMaskBits;
 	settings.billboardAxes = group.billboardAxes;
 	settings.trail = group.trail;
 	settings.emitter = group.emitter;
@@ -314,6 +316,9 @@ bool Engine::FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset)
 		group.blendMode = EnumAdapter<BlendMode>::FromString(
 			groupJson.value("blendMode", "Add")).value_or(BlendMode::Add);
 		group.queue = RenderPhaseFromString(groupJson.value("queue", "Transparent"), RenderPhase::Transparent);
+		group.renderingLayerMask = groupJson.value(
+			"renderingLayerMask", group.renderingLayerMask) &
+			kRenderingLayerMaskBits;
 		if (const auto it = groupJson.find("billboardAxes"); it != groupJson.end() && it->is_array()) {
 
 			group.billboardAxes.clear();
@@ -458,6 +463,8 @@ nlohmann::json Engine::ToJson(const ParticleEffectAsset& asset) {
 		groupJson["material"] = ToAssetReferenceJson(group.material);
 		groupJson["blendMode"] = EnumAdapter<BlendMode>::ToString(group.blendMode);
 		groupJson["queue"] = std::string(ToString(group.queue));
+		groupJson["renderingLayerMask"] = group.renderingLayerMask &
+			kRenderingLayerMaskBits;
 		groupJson["billboardAxes"] = nlohmann::json::array();
 		for (Axis axis : group.billboardAxes) {
 			groupJson["billboardAxes"].push_back(EnumAdapter<Axis>::ToString(axis));

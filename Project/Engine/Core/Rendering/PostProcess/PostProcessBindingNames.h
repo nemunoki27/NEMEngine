@@ -17,6 +17,8 @@ namespace Engine::PostProcessBindingNames {
 	inline constexpr const char* kDestColor = "gDestColor";
 	// 選択対象へ適用する前のPostProcess結果
 	inline constexpr const char* kEffectColor = "gEffectColor";
+	// 選択グループを再描画したカラーとαマスク
+	inline constexpr const char* kSelectionMask = "gSelectionMask";
 	// GBufferに保存したMaterial/描画対象フラグ
 	inline constexpr const char* kSourceFlags = "gSourceFlags";
 	// GBufferの現在UVから前フレームUVへの移動量

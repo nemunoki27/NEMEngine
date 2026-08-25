@@ -91,6 +91,47 @@ namespace Engine {
 		Group,
 	};
 
+	// グループの子Passへ適用する描画対象の分離方法
+	enum class RenderFeatureSelectionMode : uint8_t {
+
+		Organization,
+		MaskedSceneColor,
+		IsolatedLayer,
+	};
+
+	// 分離描画した結果をシーンへ戻す方法
+	enum class RenderFeatureCompositeMode : uint8_t {
+
+		Auto,
+		Alpha,
+		Add,
+		Screen,
+		Replace,
+	};
+
+	// Renderer種別フィルターのbit
+	namespace RenderFeatureRendererMask {
+
+		inline constexpr uint32_t Mesh = 1u << 0;
+		inline constexpr uint32_t Primitive = 1u << 1;
+		inline constexpr uint32_t Sprite = 1u << 2;
+		inline constexpr uint32_t Text = 1u << 3;
+		inline constexpr uint32_t Line = 1u << 4;
+		inline constexpr uint32_t Particle = 1u << 5;
+		inline constexpr uint32_t All = Mesh | Primitive | Sprite |
+			Text | Line | Particle;
+	}
+
+	// 描画フェーズフィルターのbit
+	constexpr uint32_t MakeRenderFeaturePhaseMask(RenderPhase phase) {
+
+		return 1u << static_cast<uint32_t>(phase);
+	}
+	inline constexpr uint32_t kRenderFeatureSelectablePhaseMask =
+		MakeRenderFeaturePhaseMask(RenderPhase::Opaque) |
+		MakeRenderFeaturePhaseMask(RenderPhase::Transparent) |
+		MakeRenderFeaturePhaseMask(RenderPhase::PostProcessMaskedUI);
+
 	// 固定RenderPathへFeatureを差し込む位置
 	enum class RenderFeatureAnchor : uint8_t {
 
@@ -161,7 +202,6 @@ namespace Engine {
 			RenderFeatureSourceKind::PreviousPass;
 		RenderFeatureOutputReference source{};
 		bool sceneColorOutput = false;
-		uint32_t targetMask = 0u;
 		uint32_t rayGenerationIndex = 0u;
 		// GPU時間を予算内へ収めるため出力解像度を段階的に調整する
 		bool adaptiveResolution = false;
@@ -180,6 +220,22 @@ namespace Engine {
 			samplerOverrides{};
 	};
 
+	// 選択グループの抽出条件と合成位置
+	struct RenderFeatureSelectionSettings {
+
+		RenderFeatureSelectionMode mode =
+			RenderFeatureSelectionMode::Organization;
+		RenderFeatureAnchor anchor = RenderFeatureAnchor::AfterTransparent;
+		uint32_t renderingLayerMask = 1u;
+		uint32_t phaseMask =
+			MakeRenderFeaturePhaseMask(RenderPhase::Transparent);
+		uint32_t rendererMask = RenderFeatureRendererMask::All;
+		int32_t sortingLayer = 0;
+		int32_t sortingOrder = 0;
+		RenderFeatureCompositeMode compositeMode =
+			RenderFeatureCompositeMode::Auto;
+	};
+
 	// パス本体をUUID参照し、表示順とグループ状態だけを保持する
 	struct RenderFeatureHierarchyItem {
 
@@ -188,6 +244,7 @@ namespace Engine {
 		UUID id{};
 		std::string name = "グループ";
 		bool enabled = true;
+		RenderFeatureSelectionSettings selection{};
 		std::vector<RenderFeatureHierarchyItem> children{};
 	};
 
@@ -196,7 +253,7 @@ namespace Engine {
 
 		AssetID guid{};
 		std::string name = "Render Feature Profile";
-		uint32_t version = 1u;
+		uint32_t version = 3u;
 		ColorPipelineSettings colorPipeline{};
 		std::vector<RenderFeaturePassSettings> passes{};
 		std::vector<RenderFeatureHierarchyItem> hierarchy{};

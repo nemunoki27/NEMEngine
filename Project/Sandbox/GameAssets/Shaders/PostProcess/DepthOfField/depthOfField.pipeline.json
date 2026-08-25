@@ -1,12 +1,12 @@
 {
     "generated": true,
     "generatedBy": "PostProcessAssetGenerator",
-    "name": "normalEdgePipeline",
+    "name": "depthOfFieldPipeline",
     "variants": [
         {
             "kind": "Compute",
             "pipelineType": "Compute",
-            "shader": "4e454d4153534554cf5ab4dfbc38363f"
+            "shader": "4e454d41535345543277dc95c23f4901"
         }
     ]
 }

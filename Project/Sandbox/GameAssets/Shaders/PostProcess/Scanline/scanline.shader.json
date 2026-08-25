@@ -1,12 +1,12 @@
 {
     "generated": true,
     "generatedBy": "PostProcessAssetGenerator",
-    "name": "bloomShader",
-    "sourceShader": "GameAssets/Shaders/PostProcess/Bloom/bloom.CS.hlsl",
+    "name": "scanlineShader",
+    "sourceShader": "GameAssets/Shaders/PostProcess/Scanline/scanline.CS.hlsl",
     "stages": [
         {
             "entry": "main",
-            "file": "GameAssets/Shaders/PostProcess/Bloom/bloom.CS.hlsl",
+            "file": "GameAssets/Shaders/PostProcess/Scanline/scanline.CS.hlsl",
             "profile": "cs_6_0",
             "stage": "CS"
         }

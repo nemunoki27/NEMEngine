@@ -20,6 +20,8 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPassExecutionHelper.h>
+#include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
@@ -106,9 +108,43 @@ namespace {
 				std::string(kDefaultOutputName) : reference.output);
 	}
 
-	std::string MakeMaskOutputAlias(Engine::UUID passID) {
+	std::string MakeSelectionOutputAlias(Engine::UUID groupID) {
 
-		return "RenderFeatureMask_" + std::to_string(passID.value);
+		return "RenderFeatureSelection_" + std::to_string(groupID.value);
+	}
+
+	std::string MakeSelectionEffectAlias(Engine::UUID groupID) {
+
+		return "RenderFeatureSelectionEffect_" +
+			std::to_string(groupID.value);
+	}
+
+	void CollectSelectionItems(
+		const Engine::RenderPassPhaseBuckets& passBuckets,
+		const Engine::RenderFeatureSelectionSettings& selection,
+		std::vector<const Engine::RenderItem*>& outItems) {
+
+		outItems.clear();
+		for (uint32_t index = 0;
+			index < static_cast<uint32_t>(Engine::RenderPhase::Count);
+			++index) {
+
+			const Engine::RenderPhase phase =
+				static_cast<Engine::RenderPhase>(index);
+			if ((selection.phaseMask &
+				Engine::MakeRenderFeaturePhaseMask(phase)) == 0u) {
+
+				continue;
+			}
+			for (const Engine::RenderItem* item :
+				passBuckets.Get(phase).items) {
+
+				if (item && Engine::MatchesRenderFeatureSelection(
+					*item, selection)) {
+					outItems.emplace_back(item);
+				}
+			}
+		}
 	}
 
 	Engine::RenderFeatureOutputSettings GetPrimaryOutput(
@@ -125,13 +161,6 @@ namespace {
 		const Engine::RenderFeatureOutputReference& reference) {
 
 		return registry.Find(MakeOutputAlias(reference));
-	}
-
-	bool IsEnabledForView(const Engine::RenderFeaturePassSettings& pass,
-		Engine::RenderViewKind kind) {
-
-		return (kind == Engine::RenderViewKind::Game && pass.gameView) ||
-			(kind == Engine::RenderViewKind::Scene && pass.sceneView);
 	}
 
 	void ApplyDefaultSceneInputs(
@@ -209,7 +238,7 @@ namespace {
 //	RenderFeaturePass classMethods
 //============================================================================
 void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
-	[[maybe_unused]] const RenderPassPhaseBuckets& passBuckets,
+	const RenderPassPhaseBuckets& passBuckets,
 	SceneExecutionContext& context) {
 
 	if (!context.resources || !context.targetRegistry ||
@@ -229,7 +258,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		RenderFeatureProfileService::GetInstance();
 	service.EnsureLoaded();
 	const RenderFeatureExecutionPlan plan =
-		service.GetRuntime().BuildPlan(anchor_);
+		service.GetRuntime().BuildPlan(anchor_, context.kind);
 	if (!plan.IsValid()) {
 		if (lastDiagnostic_ != plan.diagnostic) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
@@ -238,17 +267,116 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		}
 		return;
 	}
-	lastDiagnostic_.clear();
-
 	const DXGI_FORMAT sceneFormat =
 		sceneFinal->GetColorTexture(0)->GetFormat();
 	const GraphicsRuntimeFeatures& runtimeFeatures = graphicsCore.
 		GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	std::unordered_map<uint64_t, float> resolutionScales{};
 	std::unordered_map<uint64_t, bool> raytracingChains{};
-	for (const RenderFeaturePlanNode& node : plan.nodes) {
+	const RenderFeatureHierarchyItem* skippedSelection = nullptr;
+	MultiRenderTarget* selectionTarget = nullptr;
+	std::string selectionAlias{};
+	std::vector<const RenderItem*> selectionItems{};
+	std::vector<const RenderItem*> phaseItems{};
+	for (size_t nodeIndex = 0; nodeIndex < plan.nodes.size(); ++nodeIndex) {
 
-		if (!node.pass || !IsEnabledForView(*node.pass, context.kind)) {
+		const RenderFeaturePlanNode& node = plan.nodes[nodeIndex];
+
+		if (!node.pass) {
+			continue;
+		}
+		const RenderFeatureHierarchyItem* selectionGroup =
+			node.selectionGroup;
+		const bool selectionBegin = node.selectionBegin;
+		const bool selectionEnd = node.selectionEnd;
+		if (selectionBegin) {
+
+			const RenderFeatureSelectionSettings& selection =
+				selectionGroup->selection;
+			const bool groupEnabled = service.GetRuntime().IsGroupEnabled(
+				*selectionGroup);
+			if (groupEnabled) {
+				CollectSelectionItems(passBuckets, selection, selectionItems);
+			} else {
+				selectionItems.clear();
+			}
+			if (selectionItems.empty()) {
+				skippedSelection = selectionGroup;
+			}
+			if (!skippedSelection) {
+				PostProcessTemporaryTargetDesc desc{};
+				desc.name = MakeSelectionOutputAlias(selectionGroup->id);
+				desc.format = sceneFormat;
+				selectionTarget = deps_.postProcessTargetPool->Acquire(
+					graphicsCore, *context.targetRegistry, desc, *sceneFinal);
+				if (!selectionTarget ||
+					!selectionTarget->GetColorTexture(0)) {
+
+					Logger::Output(LogType::Engine, spdlog::level::err,
+						"[レンダー機能] 選択描画先を作成できません グループ={}",
+						selectionGroup->name);
+					return;
+				}
+				selectionAlias = desc.name;
+				context.targetRegistry->Register(selectionAlias,
+					selectionTarget, { selectionAlias }, std::nullopt);
+				selectionTarget->TransitionForRender(
+					*graphicsCore.GetDXObject().GetDxCommand());
+				selectionTarget->Clear(
+					*graphicsCore.GetDXObject().GetDxCommand(),
+					MultiRenderTargetClearDesc{
+						.clearColor = true,
+						.clearColorValue = Color4::Black(0.0f),
+					});
+
+				for (uint32_t phaseIndex = 0;
+					phaseIndex < static_cast<uint32_t>(RenderPhase::Count);
+					++phaseIndex) {
+
+					const RenderPhase phase =
+						static_cast<RenderPhase>(phaseIndex);
+					// Opaqueは既存GBufferのRendering Layerから抽出する
+					if (phase == RenderPhase::Opaque) {
+						continue;
+					}
+					if ((selection.phaseMask &
+						MakeRenderFeaturePhaseMask(phase)) == 0u) {
+
+						continue;
+					}
+					phaseItems.clear();
+					for (const RenderItem* item : selectionItems) {
+						if (item && item->renderPhase == phase) {
+							phaseItems.emplace_back(item);
+						}
+					}
+					if (phaseItems.empty()) {
+						continue;
+					}
+					DepthTexture2D* depth = phase ==
+						RenderPhase::PostProcessMaskedUI ? nullptr :
+							context.resources->GetSceneMain()->
+								GetDepthTexture();
+					const MaterialPassKind passKind = phase ==
+						RenderPhase::Transparent ?
+							MaterialPassKind::Transparent :
+							MaterialPassKind::Draw;
+					RenderPassExecutionHelper::Execute(graphicsCore,
+						context, phaseItems, deps_, RenderPassSurfaceBinding{
+							.colorSurface = selectionTarget,
+							.depthOverride = depth,
+						}, passKind);
+				}
+				selectionTarget->TransitionForShaderRead(
+					*graphicsCore.GetDXObject().GetDxCommand());
+			}
+		}
+		if (skippedSelection && skippedSelection == selectionGroup) {
+			if (selectionEnd) {
+				skippedSelection = nullptr;
+				selectionTarget = nullptr;
+				selectionAlias.clear();
+			}
 			continue;
 		}
 		const RenderFeaturePassSettings& pass = *node.pass;
@@ -440,17 +568,22 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 
 		MultiRenderTarget* primaryTarget =
 			ResolveOutputTarget(*context.targetRegistry, primaryReference);
-		MultiRenderTarget* sourceTarget = node.source.pass ?
-			ResolveOutputTarget(*context.targetRegistry, node.source) : sceneFinal;
+		const bool isolatedSource = selectionBegin && selectionGroup &&
+			selectionGroup->selection.mode ==
+				RenderFeatureSelectionMode::IsolatedLayer;
+		MultiRenderTarget* sourceTarget = isolatedSource ? selectionTarget :
+			(node.source.pass ? ResolveOutputTarget(
+				*context.targetRegistry, node.source) : sceneFinal);
 		if (!primaryTarget || !sourceTarget) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
 				"[レンダー機能] グラフリソースを解決できません パス={}", pass.name);
 			return;
 		}
-		const std::string sourceAlias = node.source.pass ?
-			MakeOutputAlias(node.source) : RenderTargetNames::kSceneColorFinal;
+		const std::string sourceAlias = isolatedSource ? selectionAlias :
+			(node.source.pass ? MakeOutputAlias(node.source) :
+				RenderTargetNames::kSceneColorFinal);
 		const RenderFeaturePassRuntimeOverride* runtimeOverride =
-			RenderFeatureRuntimeOverrides::GetInstance().Find(pass.name);
+			RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
 		const bool rayTracingUnavailable =
 			pass.type == RenderFeaturePassType::RayTracing &&
 			(!graphicsCore.GetDXObject().ShouldUseDispatchRays() ||
@@ -458,34 +591,14 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		const bool rayTracingMaterialsPending =
 			pass.type == RenderFeaturePassType::RayTracing &&
 			!context.raytracing.materialTexturesReady;
-		if ((runtimeOverride && runtimeOverride->enabled == false) ||
-			rayTracingUnavailable || rayTracingMaterialsPending) {
-
-			// DXR未使用時は黒の反射結果を後段へ渡す
-			if (rayTracingUnavailable || rayTracingMaterialsPending) {
-				ClearOutputTargets(graphicsCore, outputTargets);
-			} else {
-				// 無効化した通常パスは同一形式なら入力をそのまま引き継ぐ
-				ClearOutputTargets(graphicsCore, outputTargets);
-				if (CanCopyColor(sourceTarget, primaryTarget) &&
-					!MultiRenderTargetCopy::CopyColor0Resource(
-						graphicsCore, sourceTarget, primaryTarget)) {
-
-					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[レンダー機能] パスのバイパスに失敗しました パス={}",
-						pass.name);
-					return;
-				}
-			}
-			continue;
-		}
-		const bool useTargetMask = pass.targetMask != 0u;
+		const bool useSelectionComposite =
+			selectionGroup && selectionEnd;
 		MultiRenderTarget* executionPrimaryTarget = primaryTarget;
 		std::string executionPrimaryAlias = MakeOutputAlias(primaryReference);
-		if (useTargetMask) {
+		if (useSelectionComposite) {
 
 			PostProcessTemporaryTargetDesc desc{};
-			desc.name = MakeMaskOutputAlias(pass.id);
+			desc.name = MakeSelectionEffectAlias(selectionGroup->id);
 			desc.format = sceneFormat;
 			executionPrimaryTarget = deps_.postProcessTargetPool->Acquire(
 				graphicsCore, *context.targetRegistry, desc, *sceneFinal);
@@ -493,7 +606,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 				!executionPrimaryTarget->GetColorTexture(0)) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[レンダー機能] マスク出力の作成に失敗しました パス={}",
+					"[レンダー機能] 選択効果出力を作成できません パス={}",
 					pass.name);
 				return;
 			}
@@ -501,46 +614,75 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			outputTargets[primaryOutput.shaderResource] =
 				executionPrimaryTarget;
 		}
+		const bool bypassPass =
+			(runtimeOverride && runtimeOverride->enabled == false) ||
+			rayTracingUnavailable || rayTracingMaterialsPending;
+		if (bypassPass) {
 
-		std::unordered_map<std::string, std::string> inputs{};
-		ApplyDefaultSceneInputs(inputs);
-		for (const auto& [resourceName, targetName] : pass.sceneInputs) {
-			inputs.insert_or_assign(resourceName, targetName);
-		}
-		for (const auto& [resourceName, targetName] : historyInputs) {
-			inputs.insert_or_assign(resourceName, targetName);
-		}
-		inputs[PostProcessBindingNames::kSourceColor] = sourceAlias;
-		for (const auto& [name, reference] : pass.passInputs) {
+			ClearOutputTargets(graphicsCore, outputTargets);
+			// 無効化した通常パスは同一形式なら入力をそのまま引き継ぐ
+			if (!rayTracingUnavailable && !rayTracingMaterialsPending &&
+				CanCopyColor(sourceTarget, executionPrimaryTarget) &&
+				!MultiRenderTargetCopy::CopyColor0Resource(
+					graphicsCore, sourceTarget, executionPrimaryTarget)) {
 
-			inputs[name] = MakeOutputAlias(reference);
-		}
-		if (pass.type == RenderFeaturePassType::Compute) {
-			PostProcessExecutionDesc desc{};
-			desc.material = pass.material;
-			desc.passKind = pass.materialPass;
-			desc.source.colors = { sourceAlias };
-			desc.dest.colors = { executionPrimaryAlias };
-			desc.extraSources = inputs;
-			desc.parameterOverrides = pass.parameterOverrides;
-			if (runtimeOverride) {
-				for (const MaterialParameterRecord& parameter :
-					runtimeOverride->parameters.GetRecords()) {
-
-					desc.parameterOverrides.Set(parameter.id,
-						parameter.namedValue.first, parameter.semantic,
-						parameter.namedValue.second);
-				}
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[レンダー機能] パスのバイパスに失敗しました パス={}",
+					pass.name);
+				return;
 			}
-			desc.textureOverrides = pass.textureOverrides;
-			desc.samplerOverrides = pass.samplerOverrides;
-			desc.dispatchMode = ComputeDispatchMode::FromDestSize;
-			for (const auto& [resourceName, target] : outputTargets) {
+			if (!useSelectionComposite) {
+				continue;
+			}
+		}
 
-				if (target == executionPrimaryTarget) {
-					desc.outputTargets[resourceName] = executionPrimaryAlias;
-					continue;
+		if (!bypassPass) {
+			std::unordered_map<std::string, std::string> inputs{};
+			ApplyDefaultSceneInputs(inputs);
+			for (const auto& [resourceName, targetName] : pass.sceneInputs) {
+				inputs.insert_or_assign(resourceName, targetName);
+			}
+			for (const auto& [resourceName, targetName] : historyInputs) {
+				inputs.insert_or_assign(resourceName, targetName);
+			}
+			inputs[PostProcessBindingNames::kSourceColor] = sourceAlias;
+			for (const auto& [name, reference] : pass.passInputs) {
+
+				inputs[name] = MakeOutputAlias(reference);
+			}
+			if (pass.type == RenderFeaturePassType::Compute) {
+				PostProcessExecutionDesc desc{};
+				desc.material = pass.material;
+				desc.passKind = pass.materialPass;
+				desc.source.colors = { sourceAlias };
+				desc.dest.colors = { executionPrimaryAlias };
+				desc.extraSources = inputs;
+				desc.parameterOverrides = pass.parameterOverrides;
+				if (runtimeOverride) {
+					for (const MaterialParameterRecord& parameter :
+						runtimeOverride->parameters.GetRecords()) {
+
+						desc.parameterOverrides.Set(parameter.id,
+							parameter.namedValue.first, parameter.semantic,
+							parameter.namedValue.second);
+					}
 				}
+				desc.textureOverrides = pass.textureOverrides;
+				if (runtimeOverride) {
+					for (const auto& [name, texture] :
+						runtimeOverride->textureOverrides) {
+
+						desc.textureOverrides[name] = texture;
+					}
+				}
+				desc.samplerOverrides = pass.samplerOverrides;
+				desc.dispatchMode = ComputeDispatchMode::FromDestSize;
+				for (const auto& [resourceName, target] : outputTargets) {
+
+					if (target == executionPrimaryTarget) {
+						desc.outputTargets[resourceName] = executionPrimaryAlias;
+						continue;
+					}
 					const auto output = std::find_if(defaultOutputs.begin(),
 						defaultOutputs.end(),
 						[&](const RenderFeatureOutputSettings& settings) {
@@ -555,107 +697,175 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 							.pass = pass.id,
 							.output = output->name,
 						});
-			}
-			if (!deps_.postProcessExecutor->Execute(graphicsCore,
-				RenderFrameRequest{}, context, *deps_.assetLibrary,
-				*deps_.pipelineCache, desc)) {
+				}
+				if (!deps_.postProcessExecutor->Execute(graphicsCore,
+					RenderFrameRequest{}, context, *deps_.assetLibrary,
+					*deps_.pipelineCache, desc)) {
 
-				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[レンダー機能] Computeパスに失敗しました パス={}", pass.name);
-				return;
-			}
-			const MaterialParameterLayout* layout =
-				deps_.postProcessExecutor->GetLastExecutedLayout();
-			if (layout) {
-				service.CacheReflection(pass.material, pass.materialPass,
-					layout->GetVariables(),
-					deps_.postProcessExecutor->GetLastExecutedSRVBindings(),
-					deps_.postProcessExecutor->GetLastExecutedSamplerBindings());
-			}
-		} else {
-			RayTracingExecutionResources resources{};
-			resources.inputs = std::move(inputs);
-			resources.dispatchTarget =
-				executionPrimaryTarget->GetColorTexture(0);
-			for (const auto& [resourceName, target] : outputTargets) {
+					Logger::Output(LogType::Engine, spdlog::level::err,
+						"[レンダー機能] Computeパスに失敗しました パス={}",
+						pass.name);
+					return;
+				}
+				const MaterialParameterLayout* layout =
+					deps_.postProcessExecutor->GetLastExecutedLayout();
+				if (layout) {
+					service.CacheReflection(pass.material, pass.materialPass,
+						layout->GetVariables(),
+						deps_.postProcessExecutor->GetLastExecutedSRVBindings(),
+						deps_.postProcessExecutor->GetLastExecutedSamplerBindings());
+				}
+			} else {
+				RayTracingExecutionResources resources{};
+				resources.inputs = std::move(inputs);
+				resources.dispatchTarget =
+					executionPrimaryTarget->GetColorTexture(0);
+				for (const auto& [resourceName, target] : outputTargets) {
 
-				resources.outputs[resourceName] = target->GetColorTexture(0);
-			}
-			if (!deps_.rayTracingExecutor->Execute(graphicsCore, context,
-				*deps_.assetLibrary, *deps_.raytracingPipelineCache,
-				pass, resources, runtimeOverride)) {
+					resources.outputs[resourceName] = target->GetColorTexture(0);
+				}
+				if (!deps_.rayTracingExecutor->Execute(graphicsCore, context,
+					*deps_.assetLibrary, *deps_.raytracingPipelineCache,
+					pass, resources, runtimeOverride)) {
 
-				return;
-			}
-			if (const ShaderReflectionInfo* reflection =
-				deps_.rayTracingExecutor->GetLastReflection()) {
+					return;
+				}
+				if (const ShaderReflectionInfo* reflection =
+					deps_.rayTracingExecutor->GetLastReflection()) {
 
-				std::vector<ShaderConstantBufferVariable> variables{};
-				std::vector<ShaderResourceBinding> resourceBindings{};
-				std::vector<ShaderResourceBinding> samplers{};
-				for (const ShaderConstantBufferInfo& buffer :
-					reflection->constantBuffers) {
+					std::vector<ShaderConstantBufferVariable> variables{};
+					std::vector<ShaderResourceBinding> resourceBindings{};
+					std::vector<ShaderResourceBinding> samplers{};
+					for (const ShaderConstantBufferInfo& buffer :
+						reflection->constantBuffers) {
 
-					if (buffer.name == "RayTracingParameters") {
-						variables = buffer.variables;
-						break;
+						if (buffer.name == "RayTracingParameters") {
+							variables = buffer.variables;
+							break;
+						}
 					}
-				}
-				for (const ShaderResourceBinding& binding :
-					reflection->resources) {
+					for (const ShaderResourceBinding& binding :
+						reflection->resources) {
 
-					(binding.kind == ShaderBindingKind::Sampler ?
-						samplers : resourceBindings).emplace_back(binding);
+						(binding.kind == ShaderBindingKind::Sampler ?
+							samplers : resourceBindings).emplace_back(binding);
+					}
+					service.CacheReflection(pass.material, pass.materialPass,
+						variables, resourceBindings, samplers);
 				}
-				service.CacheReflection(pass.material, pass.materialPass, variables,
-					resourceBindings, samplers);
 			}
 		}
 		for (const std::string& historyKey : writtenHistoryKeys) {
 			historyStates_[historyKey].valid = true;
 		}
 
-		if (useTargetMask) {
+		if (useSelectionComposite) {
 
 			PostProcessExecutionDesc composite{};
 			composite.material =
 				BuiltinAssets::Materials::PostProcessMaskComposite;
 			composite.passKind = MaterialPassKind::PostProcess;
-			composite.source.colors = { sourceAlias };
+			composite.source.colors = {
+				RenderTargetNames::kSceneColorFinal };
 			composite.dest.colors = { MakeOutputAlias(primaryReference) };
 			composite.extraSources[PostProcessBindingNames::kEffectColor] =
 				executionPrimaryAlias;
+			composite.extraSources[PostProcessBindingNames::kSelectionMask] =
+				selectionAlias;
 			composite.extraSources[PostProcessBindingNames::kSourceFlags] =
 				RenderTargetNames::kSceneFlagsMain;
 
-			MaterialParameterValue targetMask{};
-			targetMask.value = pass.targetMask & kRenderingLayerMaskBits;
-			composite.parameterOverrides.Set(MaterialParameterIDs::TargetMask,
-				MaterialParameterNames::TargetMask,
-				MaterialParameterSemantic::None, targetMask);
+			MaterialParameterValue selectionMode{};
+			selectionMode.value = static_cast<uint32_t>(
+				selectionGroup->selection.mode);
+			composite.parameterOverrides.Set(
+				MaterialParameterIDs::SelectionMode,
+				MaterialParameterNames::SelectionMode,
+				MaterialParameterSemantic::None, selectionMode);
+			MaterialParameterValue compositeMode{};
+			compositeMode.value = static_cast<uint32_t>(
+				selectionGroup->selection.compositeMode);
+			composite.parameterOverrides.Set(
+				MaterialParameterIDs::CompositeMode,
+				MaterialParameterNames::CompositeMode,
+				MaterialParameterSemantic::None, compositeMode);
+			MaterialParameterValue renderingLayerMask{};
+			renderingLayerMask.value = selectionGroup->selection.
+				renderingLayerMask & kRenderingLayerMaskBits;
+			composite.parameterOverrides.Set(
+				MaterialParameterIDs::RenderingLayerMask,
+				MaterialParameterNames::RenderingLayerMask,
+				MaterialParameterSemantic::None, renderingLayerMask);
 			if (!deps_.postProcessExecutor->Execute(graphicsCore,
 				RenderFrameRequest{}, context, *deps_.assetLibrary,
 				*deps_.pipelineCache, composite)) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[レンダー機能] 対象マスクの合成に失敗しました パス={}",
+					"[レンダー機能] 選択描画の合成に失敗しました パス={}",
 					pass.name);
 				return;
 			}
+			if (!MultiRenderTargetCopy::CopyColor0Resource(
+				graphicsCore, primaryTarget, sceneFinal)) {
+
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[レンダー機能] 選択描画をScene Colorへ反映できません グループ={}",
+					selectionGroup->name);
+				return;
+			}
+			selectionTarget = nullptr;
+			selectionAlias.clear();
 		}
 	}
 
 	if (plan.sceneColorOutput.pass) {
 		MultiRenderTarget* output = ResolveOutputTarget(
 			*context.targetRegistry, plan.sceneColorOutput);
+		if (!output || !output->GetColorTexture(0)) {
+
+			constexpr std::string_view diagnostic =
+				"SceneColorOutputMissing";
+			if (lastDiagnostic_ != diagnostic) {
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[レンダー機能] SceneColor出力が生成されていません "
+					"PassID={} 実行ノード数={}",
+					plan.sceneColorOutput.pass.value, plan.nodes.size());
+				lastDiagnostic_ = diagnostic;
+			}
+			return;
+		}
+		if (!CanCopyColor(output, sceneFinal)) {
+
+			constexpr std::string_view diagnostic =
+				"SceneColorOutputMismatch";
+			if (lastDiagnostic_ != diagnostic) {
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[レンダー機能] SceneColor出力のサイズまたは形式が一致しません "
+					"出力={}x{} 形式={} View={}x{} 形式={}",
+					output->GetWidth(), output->GetHeight(),
+					EnumAdapter<DXGI_FORMAT>::ToString(
+						output->GetColorTexture(0)->GetFormat()),
+					sceneFinal->GetWidth(), sceneFinal->GetHeight(),
+					EnumAdapter<DXGI_FORMAT>::ToString(
+						sceneFinal->GetColorTexture(0)->GetFormat()));
+				lastDiagnostic_ = diagnostic;
+			}
+			return;
+		}
 		if (!MultiRenderTargetCopy::CopyColor0Resource(
 			graphicsCore, output, sceneFinal)) {
 
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[レンダー機能] シーンカラー出力はViewと同じサイズと形式である必要があります");
+			constexpr std::string_view diagnostic =
+				"SceneColorOutputCopyFailed";
+			if (lastDiagnostic_ != diagnostic) {
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[レンダー機能] SceneColor出力のコピーに失敗しました");
+				lastDiagnostic_ = diagnostic;
+			}
 			return;
 		}
 		sceneFinal->TransitionForShaderRead(
 			*graphicsCore.GetDXObject().GetDxCommand());
 	}
+	lastDiagnostic_.clear();
 }
