@@ -47,6 +47,28 @@ function Remove-PartialGame([string]$root) {
     Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
 }
 
+function New-ProjectDescriptor([string]$appRoot, [string]$name) {
+
+    $descriptorPath = Join-Path $appRoot ($name + ".nemproject")
+    $descriptor = [ordered]@{
+        schemaVersion = 1
+        projectGuid = [Guid]::NewGuid().ToString("N")
+        name = $name
+        sceneStorage = "ExternalActors"
+        assetsDirectory = "GameAssets"
+        packagesDirectory = "Packages"
+        projectSettingsDirectory = "ProjectSettings"
+    }
+    $json = $descriptor | ConvertTo-Json
+    [System.IO.File]::WriteAllText(
+        $descriptorPath, $json + [Environment]::NewLine,
+        [System.Text.UTF8Encoding]::new($false))
+
+    foreach ($directoryName in @("GameAssets", "Packages", "ProjectSettings")) {
+        New-Item -ItemType Directory -Force -Path (Join-Path $appRoot $directoryName) | Out-Null
+    }
+}
+
 try {
     Write-Host "[1/5] ゲームフォルダを作成中: $gameRoot"
     $appRoot = Join-Path $gameRoot "Project\$Name"
@@ -72,6 +94,9 @@ try {
     Get-ChildItem -Recurse -File $gameRoot | Where-Object { $_.Name -match '__GAME_NAME__' } | ForEach-Object {
         Rename-Item -LiteralPath $_.FullName -NewName ($_.Name.Replace('__GAME_NAME__', $Name))
     }
+
+    # RuntimePathsがゲームルートを確定するためのdescriptorをプロジェクトごとに生成する
+    New-ProjectDescriptor $appRoot $Name
 
     Write-Host "[3/5] エンジンSDKを External\NEMEngine に設定中"
     $externalEngine = Join-Path $gameRoot "External\NEMEngine"

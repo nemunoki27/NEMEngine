@@ -7,12 +7,15 @@
 
 // c++
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <mutex>
 #include <stdexcept>
 #include <vector>
+// windows
+#include <Windows.h>
 // json
 #include <json.hpp>
 
@@ -152,6 +155,53 @@ namespace {
 			}
 			if (std::filesystem::path descriptor = FindProjectDescriptorIn(entry.path()); !descriptor.empty()) {
 				return descriptor;
+			}
+		}
+		return {};
+	}
+
+	// 実行ファイルの配置からゲーム名を取得できるように絶対パスを返す
+	std::filesystem::path GetExecutablePath() {
+
+		std::vector<wchar_t> buffer(MAX_PATH);
+		for (;;) {
+
+			const DWORD length = ::GetModuleFileNameW(
+				nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+			if (length == 0) {
+				return {};
+			}
+			if (length < buffer.size() - 1) {
+				return NormalizePath(std::filesystem::path(buffer.data(), buffer.data() + length));
+			}
+			buffer.resize(buffer.size() * 2);
+		}
+	}
+
+	// Generated/Output配下から起動した場合もProject/<game>/<game>.nemprojectを解決する
+	std::filesystem::path FindNamedProjectDescriptor(
+		const std::filesystem::path& start, const std::wstring& projectName) {
+
+		if (start.empty() || projectName.empty()) {
+			return {};
+		}
+		const std::filesystem::path fileName = projectName + L".nemproject";
+		for (std::filesystem::path current = start; !current.empty(); current = current.parent_path()) {
+
+			const std::array candidates{
+				current / fileName,
+				current / projectName / fileName,
+				current / "Project" / projectName / fileName,
+			};
+			for (const std::filesystem::path& candidate : candidates) {
+
+				std::error_code ec;
+				if (std::filesystem::is_regular_file(candidate, ec)) {
+					return NormalizePath(candidate);
+				}
+			}
+			if (current == current.parent_path()) {
+				break;
 			}
 		}
 		return {};
@@ -595,11 +645,25 @@ Engine::RuntimePaths::PathState Engine::RuntimePaths::BuildState() {
 
 	PathState state{};
 	const std::filesystem::path launchRoot = NormalizePath(std::filesystem::current_path());
+	const std::filesystem::path executablePath = GetExecutablePath();
+	const std::filesystem::path executableRoot = executablePath.parent_path();
 	state.projectDescriptorPath = FindProjectDescriptor(launchRoot);
+	if (state.projectDescriptorPath.empty() && executableRoot != launchRoot) {
+		state.projectDescriptorPath = FindProjectDescriptor(executableRoot);
+	}
+	if (state.projectDescriptorPath.empty()) {
+		state.projectDescriptorPath = FindNamedProjectDescriptor(
+			launchRoot, executablePath.stem().wstring());
+	}
+	if (state.projectDescriptorPath.empty() && executableRoot != launchRoot) {
+		state.projectDescriptorPath = FindNamedProjectDescriptor(
+			executableRoot, executablePath.stem().wstring());
+	}
 	state.gameRoot = FindGameRoot(state.projectDescriptorPath);
 	if (state.projectDescriptorPath.empty() || state.gameRoot.empty()) {
-		throw std::runtime_error(
-			"NEM project descriptor was not found from the current directory");
+		throw std::runtime_error("NEM project descriptor was not found. current=" +
+			Algorithm::PathToUTF8(launchRoot) + " executable=" +
+			Algorithm::PathToUTF8(executablePath));
 	}
 	state.engineProjectRoot = FindEngineProjectRoot(launchRoot);
 	state.projectRoot = state.gameRoot;

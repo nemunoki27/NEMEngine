@@ -43,6 +43,10 @@ if (-not $SkipBuild) {
         # GameProjectsはSandboxの依存に含まれないため巻き込まれない。
         & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:Sandbox -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
         if ($LASTEXITCODE -ne 0) { throw "エンジンビルドに失敗しました（$cfg）。" }
+
+        # SDK利用者はゲームSolutionのF5から構成別NEMEditorを直接起動する
+        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:NEMEditor -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
+        if ($LASTEXITCODE -ne 0) { throw "エディタービルドに失敗しました（$cfg）。" }
     }
 }
 
@@ -61,6 +65,14 @@ if (Test-Path -LiteralPath $engineAssetsSrc) {
     $editorShaderAssets = Join-Path $engineAssetsSrc "Shaders\Builtin\Editor"
     $editorTextureAssets = Join-Path $engineAssetsSrc "Textures\Editor"
     robocopy $engineAssetsSrc $sdkAssets /MIR /XD $editorShaderAssets $editorTextureAssets /NFL /NDL /NJH /NJS /NP | Out-Null
+
+    # SDKのVisual Studio起動ではNEMEditorも使用するためEditor専用Assetも同梱する
+    if (Test-Path -LiteralPath $editorShaderAssets) {
+        robocopy $editorShaderAssets (Join-Path $sdkAssets "Shaders\Builtin\Editor") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    }
+    if (Test-Path -LiteralPath $editorTextureAssets) {
+        robocopy $editorTextureAssets (Join-Path $sdkAssets "Textures\Editor") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    }
 }
 
 # ゲーム生成に必要なpremakeヘルパ/exe/パッチ（エンジンソースのpremakeは含めない）
@@ -125,7 +137,8 @@ foreach ($cfg in $Configurations) {
     $sdkBin     = Join-Path $OutDir "Bin\$cfg"
     $sdkRuntime = Join-Path $OutDir "Runtime\$cfg"
     $sdkManaged = Join-Path $sdkRuntime "Managed"
-    foreach ($d in @($sdkBin, $sdkRuntime, $sdkManaged)) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+    $sdkEditor  = Join-Path $OutDir "Editor\$cfg"
+    foreach ($d in @($sdkBin, $sdkRuntime, $sdkManaged, $sdkEditor)) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
 
     # リンク用（import lib + DLL）
     Copy-Item -Force (Join-Path $binSrc "NEMRuntime.dll") (Join-Path $sdkBin "NEMRuntime.dll")
@@ -138,6 +151,20 @@ foreach ($cfg in $Configurations) {
         -RuntimeDllPath (Join-Path $binSrc "NEMRuntime.dll")
     # managed（NEM.ScriptCore.dll/pdb等）。pdbも入れてC#ブレークポイントを成立させる
     if (Test-Path $managedSrc) { Copy-Item -Force -Recurse (Join-Path $managedSrc "*") $sdkManaged }
+
+    # Editorは製品Runtimeと別実行ファイルのまま配布し、ゲーム側F5の起動先にする
+    $editorSrc = Join-Path $generated "Output\$cfg\NEMEditor"
+    $editorExe = Join-Path $editorSrc "NEMEditor.exe"
+    if (-not (Test-Path -LiteralPath $editorExe)) {
+        throw "NEMEditorがビルドされていません（$cfg）: $editorExe"
+    }
+    Copy-Item -Force -LiteralPath $editorExe -Destination $sdkEditor
+    $editorPdb = Join-Path $editorSrc "NEMEditor.pdb"
+    if (Test-Path -LiteralPath $editorPdb) {
+        Copy-Item -Force -LiteralPath $editorPdb -Destination $sdkEditor
+    }
+    & $runtimeDeployScript -TargetDirectory $sdkEditor -Configuration $cfg
+    Copy-Item -Force -Recurse $managedSrc (Join-Path $sdkEditor "Managed")
     $packaged += $cfg
 }
 

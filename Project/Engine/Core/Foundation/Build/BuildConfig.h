@@ -8,7 +8,7 @@
 //============================================================================
 namespace Engine::BuildConfig {
 
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+#if defined(NEM_EDITOR_UI_ENABLED) || defined(_DEBUG) || defined(_DEVELOPBUILD)
 
 	inline constexpr bool kEditorEnabled = true;
 #else
