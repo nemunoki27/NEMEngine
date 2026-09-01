@@ -88,13 +88,20 @@ void Engine::ToolbarPanel::Draw(const EditorPanelContext& context) {
 		}
 
 		// Play押下後はGameScriptsのbuild/reload完了までPlayモードに入らないので、その間は進行中であることを示す
-		bool playBuildPending = context.editorContext && context.editorContext->scriptBuildService &&
-			context.editorContext->scriptBuildService->PollPlayBuild() == ManagedScriptBuildService::PlayBuildResult::Pending;
-		if (playBuildPending) {
+		const ManagedScriptBuildService::PlayBuildResult playBuildResult =
+			context.editorContext && context.editorContext->scriptBuildService ?
+			context.editorContext->scriptBuildService->PollPlayBuild() :
+			ManagedScriptBuildService::PlayBuildResult::Succeeded;
+		if (playBuildResult == ManagedScriptBuildService::PlayBuildResult::Pending) {
 
 			ImGui::SameLine(0.0f, 8.0f);
 			ImGui::AlignTextToFramePadding();
 			ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "ビルド中...");
+		} else if (playBuildResult == ManagedScriptBuildService::PlayBuildResult::Failed) {
+
+			ImGui::SameLine(0.0f, 8.0f);
+			ImGui::AlignTextToFramePadding();
+			ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "ビルドに失敗しました");
 		}
 	} else {
 

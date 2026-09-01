@@ -56,9 +56,34 @@ try {
     git read-tree refs/remotes/origin/main
     if ($LASTEXITCODE -ne 0) { throw "Gitのインデックス更新に失敗しました。" }
 
-    Write-Host "SDKの変更を確認します..."
-    git add -A
-    if ($LASTEXITCODE -ne 0) { throw "SDKの変更をステージできませんでした。" }
+    # NEMEditorのネイティブC++デバッグシンボルはSDK公開対象にしない。
+# PackageEngineSDK.ps1 側でも除外しているが、
+# 過去の生成物や手動コピーが残っていた場合に備えて公開直前にも削除する。
+$editorRoot = Join-Path $sdk "Editor"
+
+if (Test-Path -LiteralPath $editorRoot) {
+    $editorPdbFiles = @(
+        Get-ChildItem `
+            -LiteralPath $editorRoot `
+            -Recurse `
+            -File `
+            -Filter "NEMEditor.pdb" `
+            -ErrorAction SilentlyContinue
+    )
+
+    foreach ($pdb in $editorPdbFiles) {
+        Write-Host "SDK公開対象から除外します: $($pdb.FullName)"
+        Remove-Item `
+            -Force `
+            -LiteralPath $pdb.FullName
+    }
+}
+
+Write-Host "SDKの変更を確認します..."
+git add -A
+if ($LASTEXITCODE -ne 0) {
+    throw "SDKの変更をステージできませんでした。"
+}
 
     git diff --cached --quiet
     $diffResult = $LASTEXITCODE

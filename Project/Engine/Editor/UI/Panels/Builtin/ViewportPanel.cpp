@@ -797,18 +797,12 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 		return;
 	}
 
-	// 編集不可の場合はギズモセッションを終了して何もしない
-	if (!context.CanEditScene() || !context.sceneRenderView || !context.sceneRenderView->valid ||
+	// SceneViewを描画できない場合はギズモセッションを終了して何もしない
+	if (!context.sceneRenderView || !context.sceneRenderView->valid ||
 		context.editorState->sceneViewManipulatorMode == SceneViewManipulatorMode::None) {
 		FinalizeEntityGizmoSession(context, world);
 		return;
 	}
-	// シーンビューのマニピュレーター選択が「なし」の場合はギズモセッションを終了して何もしない
-	if (context.editorState->sceneViewManipulatorMode == SceneViewManipulatorMode::None) {
-		FinalizeEntityGizmoSession(context, world);
-		return;
-	}
-
 	// 現在のマニピュレーター操作を取得
 	const ImVec2 rectMin = ImGui::GetItemRectMin();
 	const ImVec2 rectMax = ImGui::GetItemRectMax();
@@ -893,6 +887,7 @@ void Engine::ViewportPanel::DrawSceneGizmo(const EditorPanelContext& context) {
 		if (result.isUsing && !entityGizmoSession_.active) {
 
 			entityGizmoSession_.active = true;
+			entityGizmoSession_.runtimeOnly = context.IsPlaying();
 			entityGizmoSession_.entityUUID = world.GetUUID(entity);
 			entityGizmoSession_.beforeTransform = world.GetComponent<TransformComponent>(entity);
 		}
@@ -920,7 +915,8 @@ void Engine::ViewportPanel::FinalizeEntityGizmoSession(const EditorPanelContext&
 		return;
 	}
 
-	if (context.host) {
+	// Play中はPlayWorldだけを変更し、EditWorldのUndo履歴には記録しない
+	if (!entityGizmoSession_.runtimeOnly && !context.IsPlaying() && context.host) {
 		const Entity entity = world.FindByUUID(entityGizmoSession_.entityUUID);
 		if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
 
@@ -1008,6 +1004,7 @@ void Engine::ViewportPanel::DrawMultiEntityGizmo(const EditorPanelContext& conte
 	if (result.isUsing && !multiGizmoSession_.active) {
 
 		multiGizmoSession_.active = true;
+		multiGizmoSession_.runtimeOnly = context.IsPlaying();
 		multiGizmoSession_.beforeTransforms.clear();
 		for (const Entity& entity : targets) {
 			multiGizmoSession_.beforeTransforms.emplace_back(
@@ -1062,7 +1059,8 @@ void Engine::ViewportPanel::FinalizeMultiEntityGizmoSession(const EditorPanelCon
 	if (!multiGizmoSession_.active) {
 		return;
 	}
-	if (context.host && context.editorState) {
+	// Play中はPlayWorldだけを変更し、EditWorldのUndo履歴には記録しない
+	if (!multiGizmoSession_.runtimeOnly && !context.IsPlaying() && context.host && context.editorState) {
 
 		// SetTransformCommandは非アクティブ対象を単一選択へ戻すため、複数選択を退避して後で復元する
 		const std::vector<Entity> savedSelection = context.editorState->GetSelectedEntities();

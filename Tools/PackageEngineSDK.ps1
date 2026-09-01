@@ -152,20 +152,56 @@ foreach ($cfg in $Configurations) {
     # managed（NEM.ScriptCore.dll/pdb等）。pdbも入れてC#ブレークポイントを成立させる
     if (Test-Path $managedSrc) { Copy-Item -Force -Recurse (Join-Path $managedSrc "*") $sdkManaged }
 
-    # Editorは製品Runtimeと別実行ファイルのまま配布し、ゲーム側F5の起動先にする
-    $editorSrc = Join-Path $generated "Output\$cfg\NEMEditor"
-    $editorExe = Join-Path $editorSrc "NEMEditor.exe"
-    if (-not (Test-Path -LiteralPath $editorExe)) {
-        throw "NEMEditorがビルドされていません（$cfg）: $editorExe"
-    }
-    Copy-Item -Force -LiteralPath $editorExe -Destination $sdkEditor
-    $editorPdb = Join-Path $editorSrc "NEMEditor.pdb"
-    if (Test-Path -LiteralPath $editorPdb) {
-        Copy-Item -Force -LiteralPath $editorPdb -Destination $sdkEditor
-    }
-    & $runtimeDeployScript -TargetDirectory $sdkEditor -Configuration $cfg
-    Copy-Item -Force -Recurse $managedSrc (Join-Path $sdkEditor "Managed")
-    $packaged += $cfg
+    # Editorは製品Runtimeと別実行ファイルのまま配布し、ゲーム側F5の起動先にする。
+#
+# NEMEditor.exe 自体はゲーム側からEditorを起動するために必要なのでSDKへ含める。
+#
+# NEMEditor.pdb は NEMEditor のネイティブC++内部をデバッグするためのシンボルであり、
+# SDK利用者には不要なので配布しない。
+#
+# PackageEngineSDK.ps1 は Generated\SDK を毎回全削除しているわけではないため、
+# 過去のSDK作成時にコピーされた NEMEditor.pdb が残っている可能性がある。
+# そのため「コピーしない」だけではなく、SDK側に既存PDBがあれば明示的に削除する。
+
+$editorSrc = Join-Path $generated "Output\$cfg\NEMEditor"
+$editorExe = Join-Path $editorSrc "NEMEditor.exe"
+
+if (-not (Test-Path -LiteralPath $editorExe)) {
+    throw "NEMEditorがビルドされていません（$cfg）: $editorExe"
+}
+
+# NEMEditor.exe はSDK利用者がEditorを起動するために必要
+Copy-Item `
+    -Force `
+    -LiteralPath $editorExe `
+    -Destination $sdkEditor
+
+# ネイティブC++デバッグ用 NEMEditor.pdb はSDKに配布しない。
+# 以前のSDK作成で残っているファイルも削除する。
+$sdkEditorPdb = Join-Path $sdkEditor "NEMEditor.pdb"
+
+if (Test-Path -LiteralPath $sdkEditorPdb) {
+    Write-Host "  [除外] NEMEditor.pdb をSDKから削除します（$cfg）"
+    Remove-Item `
+        -Force `
+        -LiteralPath $sdkEditorPdb
+}
+
+# Editor実行時に必要なランタイムDLLを配置
+& $runtimeDeployScript `
+    -TargetDirectory $sdkEditor `
+    -Configuration $cfg
+
+# C#スクリプト側のデバッグにはManaged側のPDBが必要なので、これは残す
+if (Test-Path -LiteralPath $managedSrc) {
+    Copy-Item `
+        -Force `
+        -Recurse `
+        -LiteralPath $managedSrc `
+        -Destination (Join-Path $sdkEditor "Managed")
+}
+
+$packaged += $cfg
 }
 
 if ($packaged.Count -eq 0) { throw "書き出せた構成がありません。先にエンジンをビルドしてください。" }

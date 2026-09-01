@@ -67,6 +67,7 @@ namespace Engine {
 		struct EntityGizmoSession {
 
 			bool active = false;
+			bool runtimeOnly = false;
 			UUID entityUUID{};
 			TransformComponent beforeTransform{};
 		};
@@ -74,6 +75,7 @@ namespace Engine {
 		struct MultiEntityGizmoSession {
 
 			bool active = false;
+			bool runtimeOnly = false;
 			// ドラッグ中フレーム間で持続する中心ピボット
 			TransformComponent pivot{};
 			// undo用の操作前トランスフォーム
