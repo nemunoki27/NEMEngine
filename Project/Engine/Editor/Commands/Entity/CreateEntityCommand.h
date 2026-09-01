@@ -37,6 +37,10 @@ namespace Engine {
 		UIImageButton,
 		UITextButton,
 		UIProgress,
+		DirectionalLight,
+		PointLight,
+		SpotLight,
+		RectLight,
 	};
 
 	//============================================================================

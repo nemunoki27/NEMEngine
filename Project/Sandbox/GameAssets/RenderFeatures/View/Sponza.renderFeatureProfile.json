@@ -121,7 +121,7 @@
                     "type": "Pass"
                 }
             ],
-            "enabled": true,
+            "enabled": false,
             "id": "6df9d138fa1c0ffb",
             "name": "Bloom",
             "selection": {
@@ -750,11 +750,11 @@
                 "falloff": -0.009999999776482582,
                 "fogColor": [
                     0.837837815284729,
-                    0.5661816000938416,
+                    0.35260358452796936,
                     0.35260358452796936
                 ],
                 "fogEnd": 0.10000000149011612,
-                "fogMaxAmount": 1.0800000429153442,
+                "fogMaxAmount": 0.2199999988079071,
                 "fogStart": 0.009999999776482582,
                 "strength": 6.650000095367432
             },
@@ -768,9 +768,9 @@
             },
             "sceneView": true,
             "source": {
-                "kind": "PassOutput",
+                "kind": "PreviousPass",
                 "output": "Color",
-                "pass": "1e6fa23fe2933034"
+                "pass": ""
             },
             "textures": {},
             "type": "Compute"

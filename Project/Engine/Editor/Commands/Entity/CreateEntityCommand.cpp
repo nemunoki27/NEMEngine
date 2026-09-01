@@ -18,6 +18,10 @@
 #include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
 #include <Engine/Core/World/Components/UI/UITextButtonComponent.h>
 #include <Engine/Core/World/Components/UI/UIProgressComponent.h>
+#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
+#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
@@ -95,8 +99,7 @@ namespace {
 
 Engine::CreateEntityCommand::CreateEntityCommand(const std::string& name, UUID parentStableUUID,
 	EntityCreationPreset preset, Dimension dimension) :
-	name_(name), parentStableUUID_(parentStableUUID), preset_(preset), dimension_(dimension) {
-}
+	name_(name), parentStableUUID_(parentStableUUID), preset_(preset), dimension_(dimension) {}
 
 void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& entity) {
 
@@ -206,6 +209,26 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 		primitive.blendMode = BlendMode::Normal;
 		primitive.queue = RenderPhase::ScreenUI;
 		world.AddComponent<UIProgressComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::DirectionalLight: {
+
+		world.AddComponent<DirectionalLightComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::PointLight: {
+
+		world.AddComponent<PointLightComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::SpotLight: {
+
+		world.AddComponent<SpotLightComponent>(entity);
+		break;
+	}
+	case EntityCreationPreset::RectLight: {
+
+		world.AddComponent<RectLightComponent>(entity);
 		break;
 	}
 	case EntityCreationPreset::Empty:

@@ -216,6 +216,31 @@ namespace {
 		ImGui::EndMenu();
 	}
 
+	void DrawLightCreationMenu(const Engine::EditorPanelContext& context,
+		Engine::UUID parentStableUUID) {
+
+		if (!ImGui::BeginMenu("Light", context.CanEditScene())) {
+			return;
+		}
+		if (ImGui::MenuItem("Directional")) {
+			CreateEntityFromMenu(context, parentStableUUID, "Directional",
+				Engine::EntityCreationPreset::DirectionalLight, Engine::Dimension::Type3D);
+		}
+		if (ImGui::MenuItem("Point")) {
+			CreateEntityFromMenu(context, parentStableUUID, "Point",
+				Engine::EntityCreationPreset::PointLight, Engine::Dimension::Type3D);
+		}
+		if (ImGui::MenuItem("Spot")) {
+			CreateEntityFromMenu(context, parentStableUUID, "Spot",
+				Engine::EntityCreationPreset::SpotLight, Engine::Dimension::Type3D);
+		}
+		if (ImGui::MenuItem("Rect")) {
+			CreateEntityFromMenu(context, parentStableUUID, "Rect",
+				Engine::EntityCreationPreset::RectLight, Engine::Dimension::Type3D);
+		}
+		ImGui::EndMenu();
+	}
+
 	void DrawEntityCreationMenu(const Engine::EditorPanelContext& context,
 		Engine::UUID parentStableUUID, const char* label,
 		Engine::Dimension defaultDimension) {
@@ -232,6 +257,7 @@ namespace {
 		DrawMeshCreationMenu(context, parentStableUUID);
 		DrawPrimitiveCreationMenu(context, parentStableUUID);
 		DrawParticleCreationMenu(context, parentStableUUID);
+		DrawLightCreationMenu(context, parentStableUUID);
 		DrawUICreationMenu(context, parentStableUUID);
 		ImGui::EndMenu();
 	}
