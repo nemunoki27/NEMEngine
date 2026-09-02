@@ -73,8 +73,8 @@ namespace Engine {
 		const MeshGPUResource* FindMeshResource(AssetID meshAssetID) const { return meshResourceManager_.Find(meshAssetID); }
 		uint64_t GetMeshResourceRevision() const { return meshResourceManager_.GetResourceRevision(); }
 
-		// 静的バッチキャッシュを即時クリアする
-		void ClearStaticBatchCache();
+		// Worldに紐づくバッチキャッシュを即時クリアする
+		void ClearWorldBatchCaches();
 
 		uint32_t GetID() const override { return RenderBackendID::Mesh; }
 	private:

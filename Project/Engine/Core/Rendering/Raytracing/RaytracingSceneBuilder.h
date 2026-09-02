@@ -306,9 +306,11 @@ namespace Engine {
 
 		// 1フレームで二重構築しないための制御フラグ
 		bool builtThisFrame_ = false;
+		const ECSWorld* builtWorld_ = nullptr;
 		UUID builtSceneInstanceID_{};
 		// 静的シーンはWorldとMesh GPUリソースが変わるまでCPU構築結果を再利用する
 		bool cachedStaticScene_ = false;
+		const ECSWorld* cachedWorld_ = nullptr;
 		UUID cachedSceneInstanceID_{};
 		uint64_t cachedRenderRevision_ = 0;
 		uint64_t cachedTransformRevision_ = 0;

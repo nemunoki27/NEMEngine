@@ -491,8 +491,10 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	consecutiveTLASRefitCount_ = 0;
 	initialized_ = false;
 	builtThisFrame_ = false;
+	builtWorld_ = nullptr;
 	builtSceneInstanceID_ = {};
 	cachedStaticScene_ = false;
+	cachedWorld_ = nullptr;
 	cachedSceneInstanceID_ = {};
 	cachedRenderRevision_ = 0;
 	cachedTransformRevision_ = 0;
@@ -511,6 +513,7 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 
 	// フラグリセット
 	builtThisFrame_ = false;
+	builtWorld_ = nullptr;
 	builtSceneInstanceID_ = {};
 
 	const uint64_t currentFrame =
@@ -547,7 +550,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	}
 
 	// すでに同一シーンインスタンスで構築している場合は、構築済みのシーン情報を渡す
-	if (builtThisFrame_ && builtSceneInstanceID_ == context.sceneInstance->instanceID) {
+	if (builtThisFrame_ && builtWorld_ == context.world &&
+		builtSceneInstanceID_ == context.sceneInstance->instanceID) {
 		PublishBuiltScene(context);
 		return;
 	}
@@ -654,6 +658,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	const bool matchesStaticScene =
 		cachedStaticScene_ &&
 		!hasPendingTextureDescriptors_ &&
+		cachedWorld_ == context.world &&
 		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
 		cachedRenderRevision_ ==
 			renderBatch.GetSourceRenderRevision() &&
@@ -706,6 +711,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		FrameProfiler::GetInstance().AddBLASSkip(cachedBLASGeometryCount_);
 		FrameProfiler::GetInstance().SetTLASInstanceCount(cachedTLASInstanceCount_);
 		builtThisFrame_ = true;
+		builtWorld_ = context.world;
 		builtSceneInstanceID_ = context.sceneInstance->instanceID;
 		PublishBuiltScene(context);
 		return;
@@ -809,6 +815,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		FrameProfiler::GetInstance().SetTLASInstanceCount(
 			cachedTLASInstanceCount_);
 		builtThisFrame_ = true;
+		builtWorld_ = context.world;
 		builtSceneInstanceID_ =
 			context.sceneInstance->instanceID;
 		PublishBuiltScene(context);
@@ -1556,8 +1563,10 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 	}
 	builtThisFrame_ = true;
+	builtWorld_ = context.world;
 	builtSceneInstanceID_ = context.sceneInstance->instanceID;
 	cachedStaticScene_ = staticScene;
+	cachedWorld_ = context.world;
 	cachedSceneInstanceID_ = context.sceneInstance->instanceID;
 	cachedRenderRevision_ =
 		renderBatch.GetSourceRenderRevision();

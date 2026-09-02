@@ -920,18 +920,21 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	postProcessExecutor_.BeginFrame(request.systemContext->unscaledDeltaTime);
 	rayTracingExecutor_.BeginFrame();
 	colorPipelineProcessor_.BeginFrame();
-	backendRegistry_.BeginFrame(graphicsCore);
 
-	// ワールドが切り替わった場合は静的バッチキャッシュを即時破棄してSRV重複確保を防ぐ
+	// World切替前の描画が参照中のGPUリソースを解放しないよう完了を待ってからキャッシュを破棄する
 	if (request.world != lastRenderedWorld_) {
+		if (lastRenderedWorld_) {
+			graphicsCore.GetDXObject().WaitForGPU();
+		}
 		if (meshBackend_) {
-			meshBackend_->ClearStaticBatchCache();
+			meshBackend_->ClearWorldBatchCaches();
 		}
 		if (previewMeshBackend_) {
-			previewMeshBackend_->ClearStaticBatchCache();
+			previewMeshBackend_->ClearWorldBatchCaches();
 		}
 		lastRenderedWorld_ = request.world;
 	}
+	backendRegistry_.BeginFrame(graphicsCore);
 
 	// レイトレシーンフレーム開始処理
 	raytracingSceneBuilder_.BeginFrame(graphicsCore);

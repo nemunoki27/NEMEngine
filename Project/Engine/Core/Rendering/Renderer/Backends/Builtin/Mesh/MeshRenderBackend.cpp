@@ -153,9 +153,7 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 
 	meshResourceManager_.Finalize();
 	resourcePool_.Clear();
-	ClearStaticBatchCache();
-	ClearSkinnedBatchCache();
-	skinnedSourceLookup_.clear();
+	ClearWorldBatchCaches();
 	for (auto& drawPath : drawPaths_) {
 		drawPath.reset();
 	}
@@ -163,13 +161,15 @@ Engine::MeshRenderBackend::~MeshRenderBackend() {
 	initialized_ = false;
 }
 
-void Engine::MeshRenderBackend::ClearStaticBatchCache() {
+void Engine::MeshRenderBackend::ClearWorldBatchCaches() {
 
 	// StaticBatchCacheEntry内のunique_ptr<MeshBatchResources>を明示resetしてからキャッシュを破棄する
 	for (auto& entry : staticBatchCache_) {
 		entry.second.resources.reset();
 	}
 	staticBatchCache_.clear();
+	ClearSkinnedBatchCache();
+	skinnedSourceLookup_.clear();
 }
 
 void Engine::MeshRenderBackend::ClearSkinnedBatchCache() {
@@ -226,9 +226,7 @@ void Engine::MeshRenderBackend::RequestMeshReload(AssetID meshAssetID) {
 	// メッシュを破棄して再インポートし、旧gpuMeshを参照していたバッチキャッシュを作り直させる
 	// バッチは毎フレームgpuMeshを引き直すので、キャッシュclearで新しいリソースとサブメッシュ構成に追従する
 	meshResourceManager_.RequestReload(meshAssetID);
-	ClearStaticBatchCache();
-	ClearSkinnedBatchCache();
-	skinnedSourceLookup_.clear();
+	ClearWorldBatchCaches();
 }
 
 void Engine::MeshRenderBackend::PreDispatchSkinningBatch(const RenderDrawContext& context,

@@ -21,7 +21,7 @@ public sealed class Test : ScriptBehaviour {
 	//========================================================================
 	public override void Update() {
 
-		testA
+		//testA
 
 		testA += 0.01f * Time.DeltaTime;
 	}

@@ -1,0 +1,35 @@
+{
+  "guid": "e9e68d1775f2445896ddfc8446a21141",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "GJ4Scripts.Player3D",
+      "scriptTypeId": "2d76dd05-c78b-4323-9e43-4b58120e2f85",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "5e1c5f9e-35f9-4dc0-9a71-4219af09b2b7",
+          "name": "stickDeadZone",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "d280b0b0-cd27-4b48-bf7a-3e9d5939f88c",
+          "name": "jumpForce",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "d8713ab7-18fa-4241-88b7-685a2d139b52",
+          "name": "moveSpeed",
+          "type": "float",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}
