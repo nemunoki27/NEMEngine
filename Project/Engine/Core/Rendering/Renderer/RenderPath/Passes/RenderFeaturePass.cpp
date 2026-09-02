@@ -659,13 +659,8 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 				desc.extraSources = inputs;
 				desc.parameterOverrides = pass.parameterOverrides;
 				if (runtimeOverride) {
-					for (const MaterialParameterRecord& parameter :
-						runtimeOverride->parameters.GetRecords()) {
-
-						desc.parameterOverrides.Set(parameter.id,
-							parameter.namedValue.first, parameter.semantic,
-							parameter.namedValue.second);
-					}
+					desc.parameterOverrides.MergeFrom(
+						runtimeOverride->parameters);
 				}
 				desc.textureOverrides = pass.textureOverrides;
 				if (runtimeOverride) {

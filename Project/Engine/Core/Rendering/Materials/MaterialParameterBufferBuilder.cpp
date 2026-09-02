@@ -299,6 +299,27 @@ namespace {
 		return parameters.FindByName(variable.name);
 	}
 
+	const Engine::MaterialParameterValue* FindOverrideParameterValue(
+		const Engine::MaterialParameterSet& defaults,
+		const Engine::MaterialParameterSet& overrides,
+		const Engine::ShaderConstantBufferVariable& variable) {
+
+		if (const Engine::MaterialParameterValue* value =
+			FindParameterValue(overrides, variable)) {
+
+			return value;
+		}
+		for (const Engine::MaterialParameterRecord& parameter :
+			defaults.GetRecords()) {
+
+			if (parameter.id != variable.parameterID) {
+				continue;
+			}
+			return overrides.FindByName(parameter.namedValue.first);
+		}
+		return nullptr;
+	}
+
 	size_t HashCombine(size_t seed, size_t value) {
 
 		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
@@ -420,7 +441,7 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 
 		// 上書きを優先しなければマテリアル既定値を使う
 		if (const MaterialParameterValue* overrideValue =
-			FindParameterValue(overrides, variable)) {
+			FindOverrideParameterValue(defaults, overrides, variable)) {
 			writeOne(variable, *overrideValue);
 			continue;
 		}

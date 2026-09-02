@@ -1,0 +1,31 @@
+{
+  "guid": "6ef089f78b1cfec39deebd750bc574a0",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.ControlIrisTransition",
+      "scriptTypeId": "0d51c63b-a573-4adf-b917-2e9b6beee383",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "01a40922-e6ef-42a5-98e9-4dd91ab2f54e",
+          "name": "effectEnabled",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
+          "fieldId": "0c9e65a1-8a30-4b41-ad72-c392ec09ee46",
+          "name": "threshold",
+          "type": "float",
+          "formerNames": [
+            "thleshold"
+          ]
+        }
+      ]
+    }
+  ]
+}

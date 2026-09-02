@@ -73,7 +73,8 @@ namespace Engine {
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 			const GraphicsRuntimeFeatures& runtimeFeatures,
 			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false,
-			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
+			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr,
+			AssetID shaderOverrideAssetID = {});
 		// 状態、形状ステージ、Materialステージを合成して取得する
 		const PipelineState* GetORCreateComposed(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,

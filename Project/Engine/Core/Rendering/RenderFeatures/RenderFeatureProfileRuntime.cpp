@@ -165,7 +165,11 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 	RenderFeatureOutputReference previous{};
 	const auto isActive = [&](const RenderFeaturePassSettings& pass) {
 
-		return pass.enabled && pass.material && pass.anchor == anchor &&
+		const RenderFeaturePassRuntimeOverride* runtimeOverride =
+			RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
+		const bool enabled = pass.enabled ||
+			(runtimeOverride && runtimeOverride->enabled == true);
+		return enabled && pass.material && pass.anchor == anchor &&
 			IsEnabledForView(pass, viewKind) &&
 			IsPassHierarchyEnabled(pass.id);
 	};

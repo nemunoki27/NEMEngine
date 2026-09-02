@@ -236,6 +236,8 @@ namespace Engine {
 		// IDとSemanticを明示してShaderGraph公開パラメータを設定する
 		void Set(MaterialParameterID id, std::string_view name,
 			MaterialParameterSemantic semantic, const MaterialParameterValue& value);
+		// 同名の既存安定IDを維持したまま別のパラメータ集合で上書きする
+		void MergeFrom(const MaterialParameterSet& overrides);
 		// 標準Semanticから設定済みパラメータを検索する
 		MaterialParameterValue* Find(MaterialParameterSemantic semantic);
 		const MaterialParameterValue* Find(MaterialParameterSemantic semantic) const;

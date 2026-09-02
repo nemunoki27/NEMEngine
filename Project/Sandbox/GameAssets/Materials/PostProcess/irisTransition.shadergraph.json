@@ -1,0 +1,574 @@
+{
+    "defaultPrecision": "Float",
+    "domain": "PostProcess",
+    "groups": [],
+    "keywords": [],
+    "links": [
+        {
+            "id": "c27e4363f93197b3",
+            "inputNode": "a16acd19a2f3b95e",
+            "inputSlot": 0,
+            "outputNode": "07ecb968c4ae0516",
+            "outputSlot": 0
+        },
+        {
+            "id": "415c5cc5d4105098",
+            "inputNode": "f90b13682f9d4633",
+            "inputSlot": 0,
+            "outputNode": "3f762a6ab684e5ff",
+            "outputSlot": 0
+        },
+        {
+            "id": "8b09ebb16438621f",
+            "inputNode": "f90b13682f9d4633",
+            "inputSlot": 1,
+            "outputNode": "7d3faee9dd7aa3dc",
+            "outputSlot": 0
+        },
+        {
+            "id": "8bacfb0679266f25",
+            "inputNode": "e6295d08e19a435b",
+            "inputSlot": 0,
+            "outputNode": "f90b13682f9d4633",
+            "outputSlot": 0
+        },
+        {
+            "id": "ff386860df8ae50f",
+            "inputNode": "07ecb968c4ae0516",
+            "inputSlot": 1,
+            "outputNode": "e6295d08e19a435b",
+            "outputSlot": 0
+        },
+        {
+            "id": "e1b152c47d1124d8",
+            "inputNode": "07ecb968c4ae0516",
+            "inputSlot": 0,
+            "outputNode": "f8235be837ec8833",
+            "outputSlot": 0
+        },
+        {
+            "id": "2bea4e1de5a70093",
+            "inputNode": "3f762a6ab684e5ff",
+            "inputSlot": 1,
+            "outputNode": "157e7e855ea80706",
+            "outputSlot": 0
+        },
+        {
+            "id": "54d7fc8f42bf51b1",
+            "inputNode": "98c576559deb3168",
+            "inputSlot": 0,
+            "outputNode": "273dfe5a339b3a8a",
+            "outputSlot": 0
+        },
+        {
+            "id": "896b28d18b0dfb7d",
+            "inputNode": "b47324ca185a7ad2",
+            "inputSlot": 0,
+            "outputNode": "fc59604c5ef6f5ad",
+            "outputSlot": 0
+        },
+        {
+            "id": "13bcea7219428b43",
+            "inputNode": "b47324ca185a7ad2",
+            "inputSlot": 1,
+            "outputNode": "98c576559deb3168",
+            "outputSlot": 0
+        },
+        {
+            "id": "bcc4e118db31c15b",
+            "inputNode": "3f762a6ab684e5ff",
+            "inputSlot": 0,
+            "outputNode": "b47324ca185a7ad2",
+            "outputSlot": 2
+        },
+        {
+            "id": "068aba481fb9f1b3",
+            "inputNode": "053826c4630cdd1e",
+            "inputSlot": 2,
+            "outputNode": "a16acd19a2f3b95e",
+            "outputSlot": 0
+        },
+        {
+            "id": "9b22de198171476d",
+            "inputNode": "053826c4630cdd1e",
+            "inputSlot": 0,
+            "outputNode": "e2e9d743cf0d8756",
+            "outputSlot": 0
+        },
+        {
+            "id": "24513ef59c364c6f",
+            "inputNode": "053826c4630cdd1e",
+            "inputSlot": 1,
+            "outputNode": "03d79ed034282ead",
+            "outputSlot": 0
+        },
+        {
+            "id": "af29b837e0d1c4b2",
+            "inputNode": "466bf4588dbeb61b",
+            "inputSlot": 0,
+            "outputNode": "053826c4630cdd1e",
+            "outputSlot": 0
+        }
+    ],
+    "name": "irisTransition",
+    "nodes": [
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "466bf4588dbeb61b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "PostProcessOutput",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 623.0,
+                "y": -64.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "03d79ed034282ead",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SceneColor",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 267.0,
+                "y": -44.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "157e7e855ea80706",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "UV",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -673.0,
+                "y": 200.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "07ecb968c4ae0516",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Step",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 99.0,
+                "y": 112.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a16acd19a2f3b95e",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "OneMinus",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 267.0,
+                "y": 116.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "3f762a6ab684e5ff",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Subtract",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -465.0,
+                "y": 138.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f90b13682f9d4633",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Multiply",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -265.0,
+                "y": 200.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "e6295d08e19a435b",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Length",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -81.0,
+                "y": 204.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "7d3faee9dd7aa3dc",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -469.0,
+                "y": 304.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": [
+                1.7769999504089355,
+                1.0
+            ],
+            "valueType": "Float2"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "f8235be837ec8833",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "94d20ddddf0f9c93",
+            "position": {
+                "x": -85.0,
+                "y": 90.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "fc59604c5ef6f5ad",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "56ab8b0a45ad1d1b",
+            "position": {
+                "x": -1029.0,
+                "y": 70.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "b47324ca185a7ad2",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Combine",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -669.0,
+                "y": 84.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "98c576559deb3168",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "OneMinus",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -845.0,
+                "y": 152.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "273dfe5a339b3a8a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "095ce8aed4e3330f",
+            "position": {
+                "x": -1025.0,
+                "y": 142.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "053826c4630cdd1e",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Lerp",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 455.0,
+                "y": -70.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "e2e9d743cf0d8756",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "ebd9b024c479b889",
+            "position": {
+                "x": 267.0,
+                "y": -130.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Color"
+        }
+    ],
+    "outputNode": "466bf4588dbeb61b",
+    "parameters": [
+        {
+            "defaultValue": 0.5,
+            "exposed": true,
+            "id": "94d20ddddf0f9c93",
+            "name": "Threshold",
+            "precision": "Inherit",
+            "referenceName": "Threshold",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "exposed": true,
+            "id": "ebd9b024c479b889",
+            "name": "Color",
+            "precision": "Inherit",
+            "referenceName": "Color",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Color"
+        },
+        {
+            "defaultValue": 0.5,
+            "exposed": true,
+            "id": "56ab8b0a45ad1d1b",
+            "name": "CenterX",
+            "precision": "Inherit",
+            "referenceName": "CenterX",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        },
+        {
+            "defaultValue": 0.5,
+            "exposed": true,
+            "id": "095ce8aed4e3330f",
+            "name": "CenterY",
+            "precision": "Inherit",
+            "referenceName": "CenterY",
+            "scope": "PerMaterial",
+            "semantic": "None",
+            "type": "Float"
+        }
+    ],
+    "renderState": {
+        "alphaClipping": false,
+        "blendMode": "Normal",
+        "castShadows": true,
+        "cullMode": "D3D12_CULL_MODE_BACK",
+        "depthClipEnable": true,
+        "depthFunc": "D3D12_COMPARISON_FUNC_LESS_EQUAL",
+        "depthTest": true,
+        "depthWrite": true,
+        "fillMode": "D3D12_FILL_MODE_SOLID",
+        "frontCounterClockwise": false,
+        "receiveShadows": true,
+        "stencilEnable": false,
+        "twoSided": false
+    },
+    "schemaVersion": 8,
+    "surfaceMode": "Opaque",
+    "target": "Mesh",
+    "vertexOutputNode": ""
+}

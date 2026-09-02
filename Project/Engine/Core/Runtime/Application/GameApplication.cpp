@@ -15,6 +15,7 @@
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -193,6 +194,7 @@ void Engine::GameApplication::StartPlayWorld() {
 void Engine::GameApplication::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	runtimeWorldBaker_.Detach();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
 		ManagedWorldRegistry::GetInstance().Unregister(

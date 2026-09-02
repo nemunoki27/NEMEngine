@@ -8,6 +8,7 @@
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 
@@ -56,6 +57,7 @@ void Engine::EngineApplication::HandlePlayToggle() {
 void Engine::EngineApplication::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	runtimeWorldBaker_.Detach();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
 		ManagedWorldRegistry::GetInstance().Unregister(

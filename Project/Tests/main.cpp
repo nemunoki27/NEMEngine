@@ -19,6 +19,7 @@
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
@@ -55,6 +56,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -1459,6 +1461,59 @@ namespace {
 			return false;
 		}
 
+		// Shader GraphのUUID由来IDへ名前指定の実行時値を重ねられることを確認する
+		const Engine::MaterialParameterID graphParameterID{
+			0x94d20ddddf0f9c93ull };
+		Engine::MaterialParameterSet graphDefaults{};
+		Engine::MaterialParameterValue defaultThreshold{};
+		defaultThreshold.value = 0.5f;
+		graphDefaults.Set(graphParameterID, "Threshold",
+			Engine::MaterialParameterSemantic::None, defaultThreshold);
+		Engine::MaterialParameterSet scriptOverrides{};
+		Engine::MaterialParameterValue scriptThreshold{};
+		scriptThreshold.value = 0.75f;
+		scriptOverrides.Set(
+			Engine::MaterialParameterID::FromName("Threshold"),
+			"Threshold", Engine::MaterialParameterSemantic::None,
+			scriptThreshold);
+
+		Engine::MaterialParameterSet merged = graphDefaults;
+		merged.MergeFrom(scriptOverrides);
+		const Engine::MaterialParameterValue* mergedThreshold =
+			merged.Find(graphParameterID);
+		if (merged.size() != 1 || !mergedThreshold ||
+			!std::holds_alternative<float>(mergedThreshold->value) ||
+			std::get<float>(mergedThreshold->value) != 0.75f) {
+
+			return false;
+		}
+
+		Engine::ShaderConstantBufferVariable thresholdVariable{};
+		thresholdVariable.name = "p_Threshold_df0f9c93";
+		thresholdVariable.parameterID = graphParameterID;
+		thresholdVariable.size = sizeof(float);
+		thresholdVariable.valueClass = D3D_SVC_SCALAR;
+		thresholdVariable.valueType = D3D_SVT_FLOAT;
+		Engine::ShaderConstantBufferInfo parameterBuffer{};
+		parameterBuffer.name = Engine::MaterialParameterCBuffer::kSurface;
+		parameterBuffer.size = 16;
+		parameterBuffer.variables.emplace_back(thresholdVariable);
+		Engine::ShaderReflectionInfo parameterReflection{};
+		parameterReflection.constantBuffers.emplace_back(parameterBuffer);
+		Engine::MaterialParameterLayout parameterLayout{};
+		parameterLayout.Build(parameterReflection);
+		const std::vector<uint8_t> packed =
+			Engine::MaterialParameterBufferBuilder::BuildElement(
+				graphDefaults, scriptOverrides, parameterLayout, {});
+		float packedThreshold = 0.0f;
+		if (packed.size() < sizeof(packedThreshold)) {
+			return false;
+		}
+		std::memcpy(&packedThreshold, packed.data(), sizeof(packedThreshold));
+		if (packedThreshold != 0.75f) {
+			return false;
+		}
+
 		// Materialとサブメッシュの表面方式がJSON往復後も維持されることを確認する
 		Engine::MaterialAsset material{};
 		material.renderState.overridesRenderer = true;
@@ -1711,8 +1766,30 @@ namespace {
 			overrides.ResetPass(passID) &&
 			overrides.SetGroupEnabled("Selective", false) &&
 			!overrides.IsGroupEnabled("Selective", true);
+
+		Engine::RenderFeatureProfileAsset profile{};
+		Engine::RenderFeaturePassSettings profilePass{};
+		profilePass.id = passID;
+		profilePass.name = "RuntimeToggle";
+		profilePass.material = Engine::AssetID{ 1, 2 };
+		profilePass.anchor = Engine::RenderFeatureAnchor::AfterTransparent;
+		profilePass.enabled = false;
+		profile.passes.emplace_back(profilePass);
+		Engine::RenderFeatureProfileRuntime runtime{};
+		runtime.Rebuild(profile);
+		const bool enabledByScript = overrides.SetEnabled(passID, true) &&
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterTransparent,
+				Engine::RenderViewKind::Game).nodes.size() == 1;
+		profile.passes.front().enabled = true;
+		runtime.Rebuild(profile);
+		const bool disabledPassKeepsBypassNode =
+			overrides.SetEnabled(passID, false) &&
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterTransparent,
+				Engine::RenderViewKind::Game).nodes.size() == 1;
 		overrides.ResetAll();
-		return valid && cleared && overrides.Find(passID) == nullptr;
+		return valid && cleared && enabledByScript &&
+			disabledPassKeepsBypassNode &&
+			overrides.Find(passID) == nullptr;
 	}
 
 	bool TestShaderPathDependencies() {
@@ -2569,6 +2646,12 @@ namespace {
 		composite.outputs.emplace_back(
 			Engine::RenderFeatureOutputSettings{});
 		composite.sceneColorOutput = true;
+		const Engine::MaterialParameterID thresholdID =
+			Engine::MaterialParameterID::FromUUID(Engine::UUID{ 31 });
+		Engine::MaterialParameterValue threshold{};
+		threshold.value = 0.25f;
+		composite.parameterOverrides.Set(thresholdID, "Threshold",
+			Engine::MaterialParameterSemantic::None, threshold);
 		profile.passes = { ao, reflection, composite };
 		profile.hierarchy = {
 			Engine::RenderFeatureHierarchyItem{
@@ -2596,6 +2679,9 @@ namespace {
 			Engine::RenderFeatureProfileSerializer::ToJson(profile);
 		Engine::RenderFeatureProfileAsset restored =
 			Engine::RenderFeatureProfileSerializer::FromJson(data);
+		const Engine::MaterialParameterValue* restoredThreshold =
+			restored.passes.size() == 3 ?
+				restored.passes[2].parameterOverrides.Find(thresholdID) : nullptr;
 		if (restored.name != profile.name || restored.passes.size() != 3 ||
 			restored.hierarchy.size() != 2 ||
 			restored.hierarchy[1].children.size() != 2 ||
@@ -2603,7 +2689,10 @@ namespace {
 				Engine::RenderFeatureTextureFormat::R16_FLOAT ||
 			restored.passes[1].passInputs.at("gAmbientOcclusion").pass !=
 				ao.id || restored.passes[2].sourceKind !=
-				Engine::RenderFeatureSourceKind::SceneColor) {
+				Engine::RenderFeatureSourceKind::SceneColor ||
+			!restoredThreshold ||
+			!std::holds_alternative<float>(restoredThreshold->value) ||
+			std::get<float>(restoredThreshold->value) != 0.25f) {
 
 			return false;
 		}

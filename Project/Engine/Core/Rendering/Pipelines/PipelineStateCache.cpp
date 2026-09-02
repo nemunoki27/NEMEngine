@@ -296,7 +296,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 	const GraphicsRuntimeFeatures& runtimeFeatures,
 	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
-	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
+	const PipelineStaticSamplerOverrideSet* samplerOverrides,
+	AssetID shaderOverrideAssetID) {
 
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
@@ -319,6 +320,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	PipelineCacheKey key{};
 	key.pipelineAsset = pipelineAssetID;
 	key.pipelineShaderAsset = variant->shader;
+	key.shaderOverrideAsset = shaderOverrideAssetID;
 	key.resolvedKind = variant->kind;
 	key.meshEnabled = runtimeFeatures.useMeshShader;
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
@@ -349,6 +351,17 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	const ShaderAsset* shaderAsset = assetLibrary.LoadShader(variant->shader);
 	if (!shaderAsset) {
 		return restoreFallback();
+	}
+	ShaderAsset composedShader{};
+	if (shaderOverrideAssetID) {
+		const ShaderAsset* shaderOverride =
+			assetLibrary.LoadShader(shaderOverrideAssetID);
+		if (!shaderOverride) {
+			return restoreFallback();
+		}
+		composedShader = *shaderAsset;
+		OverlayShaderExports(composedShader, *shaderOverride);
+		shaderAsset = &composedShader;
 	}
 
 	std::unique_ptr<PipelineState> pipelineState = std::make_unique<PipelineState>();

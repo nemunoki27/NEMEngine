@@ -20,6 +20,41 @@ namespace {
 
 		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
 	}
+
+	const Engine::MaterialParameterValue* FindTextureParameter(
+		const Engine::MaterialParameterSet& parameters,
+		const Engine::ShaderResourceBinding& resource,
+		const Engine::MaterialParameterSet* defaults = nullptr) {
+
+		if (const Engine::MaterialParameterValue* value =
+			parameters.Find(resource.parameterID)) {
+
+			return value;
+		}
+		if (resource.semantic != Engine::MaterialParameterSemantic::None) {
+			if (const Engine::MaterialParameterValue* value =
+				parameters.Find(resource.semantic)) {
+
+				return value;
+			}
+		}
+		if (const Engine::MaterialParameterValue* value =
+			parameters.FindByName(resource.name)) {
+
+			return value;
+		}
+		if (!defaults) {
+			return nullptr;
+		}
+		for (const Engine::MaterialParameterRecord& parameter :
+			defaults->GetRecords()) {
+
+			if (parameter.id == resource.parameterID) {
+				return parameters.FindByName(parameter.namedValue.first);
+			}
+		}
+		return nullptr;
+	}
 }
 
 size_t Engine::MaterialParameterBinder::CacheKeyHasher::operator()(const CacheKey& key) const noexcept {
@@ -182,17 +217,20 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 		}
 
 		AssetID textureID{};
+		bool textureOverridden = false;
 		if (overrides) {
 			if (const MaterialParameterValue* value =
-				overrides->Find(resource.parameterID)) {
+				FindTextureParameter(*overrides, resource,
+					&material.parameters)) {
 				if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
 					textureID = *id;
+					textureOverridden = true;
 				}
 			}
 		}
-		if (!textureID) {
+		if (!textureOverridden) {
 			if (const MaterialParameterValue* value =
-				material.parameters.Find(resource.parameterID)) {
+				FindTextureParameter(material.parameters, resource)) {
 				if (const AssetID* id = std::get_if<AssetID>(&value->value)) {
 					textureID = *id;
 				}

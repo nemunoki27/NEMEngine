@@ -448,15 +448,9 @@ Engine::RenderFeatureProfileSerializer::FromJson(
 			pass.outputs.emplace_back(std::move(settings));
 		}
 
-		const nlohmann::json parameters = passJson.value(
-			"parameters", nlohmann::json::object());
-		for (auto it = parameters.begin(); it != parameters.end(); ++it) {
-
-			MaterialParameterValue value{};
-			if (ParseMaterialParameterValue(it.value(), value)) {
-				pass.parameterOverrides[it.key()] = std::move(value);
-			}
-		}
+		ReadMaterialInstance(passJson.value(
+			"parameters", nlohmann::json::object()),
+			pass.parameterOverrides);
 		const nlohmann::json textures = passJson.value(
 			"textures", nlohmann::json::object());
 		for (auto it = textures.begin(); it != textures.end(); ++it) {
@@ -505,7 +499,7 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(
 	RenderFeatureProfileAsset normalized = profile;
 	SynchronizeRenderFeaturePassOrder(normalized);
 	nlohmann::json data{
-		{ "version", 3u },
+		{ "version", 4u },
 		{ "name", normalized.name },
 		{ "colorPipeline", WriteColorPipeline(normalized.colorPipeline) },
 		{ "passes", nlohmann::json::array() },
@@ -537,7 +531,7 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(
 			{ "resolutionStep", pass.resolutionStep },
 			{ "adjustmentIntervalFrames", pass.adjustmentIntervalFrames },
 			{ "outputs", nlohmann::json::array() },
-			{ "parameters", nlohmann::json::object() },
+			{ "parameters", WriteMaterialInstance(pass.parameterOverrides) },
 			{ "textures", nlohmann::json::object() },
 			{ "sceneInputs", pass.sceneInputs },
 			{ "passInputs", nlohmann::json::object() },
@@ -560,10 +554,6 @@ nlohmann::json Engine::RenderFeatureProfileSerializer::ToJson(
 					outputJson, "clearColor", *output.clearColor);
 			}
 			passJson["outputs"].push_back(std::move(outputJson));
-		}
-		for (const auto& [name, value] : pass.parameterOverrides) {
-			passJson["parameters"][name] =
-				SerializeMaterialParameterValue(value);
 		}
 		for (const auto& [name, texture] : pass.textureOverrides) {
 			passJson["textures"][name] = ToAssetReferenceJson(texture);

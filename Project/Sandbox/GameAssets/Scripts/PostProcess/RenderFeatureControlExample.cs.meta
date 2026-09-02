@@ -1,0 +1,53 @@
+{
+  "guid": "2f0df6de96ce40be87a8182b01c78904",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.RenderFeatureControlExample",
+      "scriptTypeId": "1702b200-cb93-4e10-9d4a-0f7daffd369a",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "27fea97d-048d-4943-a096-7a041a1c2204",
+          "name": "threshold",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "3a0d7608-75bd-42e6-aa07-c6963ac725b5",
+          "name": "customComputePassName",
+          "type": "string",
+          "formerNames": []
+        },
+        {
+          "fieldId": "3e9895c9-eb1c-46cb-b494-e258aeeabaf4",
+          "name": "passEnabled",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
+          "fieldId": "50ee6b91-0fdc-49f4-8d0c-c9dd9d58dddc",
+          "name": "customComputeEnabled",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
+          "fieldId": "51211fb2-5027-44e6-9fbe-2279035b5c38",
+          "name": "customComputeStrength",
+          "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "7234b970-c4bc-4c04-8178-310b74e7b03c",
+          "name": "passName",
+          "type": "string",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

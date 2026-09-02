@@ -233,17 +233,9 @@ bool Engine::RayTracingExecutor::Execute(
 	}
 	if (layout->second.IsValid()) {
 		MaterialAsset merged = *material;
-		for (const auto& [name, value] : pass.parameterOverrides) {
-			merged.parameters[name] = value;
-		}
+		merged.parameters.MergeFrom(pass.parameterOverrides);
 		if (runtimeOverride) {
-			for (const MaterialParameterRecord& parameter :
-				runtimeOverride->parameters.GetRecords()) {
-
-				merged.parameters.Set(parameter.id,
-					parameter.namedValue.first, parameter.semantic,
-					parameter.namedValue.second);
-			}
+			merged.parameters.MergeFrom(runtimeOverride->parameters);
 		}
 		const auto resolveTexture = [&](MaterialParameterSemantic semantic,
 			const AssetID& textureAssetID) {

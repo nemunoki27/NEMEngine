@@ -581,10 +581,10 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 				(std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
 			systemContext_.smoothDeltaTime =
 				systemContext_.smoothDeltaTime <= 0.0f ?
-					timeDelta :
-					systemContext_.smoothDeltaTime +
-					(timeDelta - systemContext_.smoothDeltaTime) *
-					smoothWeight;
+				timeDelta :
+				systemContext_.smoothDeltaTime +
+				(timeDelta - systemContext_.smoothDeltaTime) *
+				smoothWeight;
 		}
 	}
 
@@ -629,14 +629,12 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		const uint64_t scriptExceptionVersion = playingThisTick ?
 			ManagedScriptExceptionStore::GetInstance().Version() : 0;
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
-		if (playingThisTick &&
-			sceneRevisionBeforeTick != playScenes_.GetRevision()) {
+		if (playingThisTick && sceneRevisionBeforeTick != playScenes_.GetRevision()) {
 
 			// 同期シーン読み込みに使った時間を次のPlayフレームへ持ち越さない
 			requestFrameDeltaReset_ = true;
 		}
-		if (playingThisTick &&
-			ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
+		if (playingThisTick && ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
 				"EngineApplication: Play中のScript例外を検出したためEditへ戻ります");

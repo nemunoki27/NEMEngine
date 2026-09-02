@@ -143,6 +143,10 @@
         {
             "id": "3696ea5cd82e2224",
             "type": "Pass"
+        },
+        {
+            "id": "f31b19460badf8f3",
+            "type": "Pass"
         }
     ],
     "name": "Sponza Render Features",
@@ -189,7 +193,7 @@
                     "widthScale": 0.5
                 }
             ],
-            "parameters": {},
+            "parameters": [],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
@@ -236,9 +240,14 @@
                     "widthScale": 0.5
                 }
             ],
-            "parameters": {
-                "antiFirefly": 1.0
-            },
+            "parameters": [
+                {
+                    "id": "369142d617754306",
+                    "name": "antiFirefly",
+                    "semantic": "None",
+                    "value": 1.0
+                }
+            ],
             "passInputs": {
                 "gReflectionHitDistance": {
                     "output": "HitDistance",
@@ -288,7 +297,7 @@
                     "widthScale": 0.5
                 }
             ],
-            "parameters": {},
+            "parameters": [],
             "passInputs": {
                 "gReflectionHitDistance": {
                     "output": "HitDistance",
@@ -338,9 +347,14 @@
                     "widthScale": 0.5
                 }
             ],
-            "parameters": {
-                "stepWidth": 2.0
-            },
+            "parameters": [
+                {
+                    "id": "136fe631fc724741",
+                    "name": "stepWidth",
+                    "semantic": "None",
+                    "value": 2.0
+                }
+            ],
             "passInputs": {
                 "gReflectionHitDistance": {
                     "output": "HitDistance",
@@ -390,9 +404,14 @@
                     "widthScale": 0.5
                 }
             ],
-            "parameters": {
-                "stepWidth": 2.0
-            },
+            "parameters": [
+                {
+                    "id": "136fe631fc724741",
+                    "name": "stepWidth",
+                    "semantic": "None",
+                    "value": 2.0
+                }
+            ],
             "passInputs": {
                 "gReflectionHitDistance": {
                     "output": "HitDistance",
@@ -469,7 +488,7 @@
                     "widthScale": 0.5
                 }
             ],
-            "parameters": {},
+            "parameters": [],
             "passInputs": {
                 "gCurrentHitGeometry": {
                     "output": "HitGeometry",
@@ -519,7 +538,7 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {},
+            "parameters": [],
             "passInputs": {
                 "gReflectionColor": {
                     "output": "Temporal",
@@ -570,11 +589,26 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {
-                "intensity": 1.2000000476837158,
-                "knee": 1.0399999618530273,
-                "threshold": 0.49000000953674316
-            },
+            "parameters": [
+                {
+                    "id": "1b9a034624b9a4aa",
+                    "name": "intensity",
+                    "semantic": "None",
+                    "value": 1.2000000476837158
+                },
+                {
+                    "id": "7c314e706d951238",
+                    "name": "threshold",
+                    "semantic": "None",
+                    "value": 0.49000000953674316
+                },
+                {
+                    "id": "f68fb2d724dac52a",
+                    "name": "knee",
+                    "semantic": "None",
+                    "value": 1.0399999618530273
+                }
+            ],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
@@ -614,9 +648,14 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {
-                "radius": 4.0
-            },
+            "parameters": [
+                {
+                    "id": "a293b946d5782cf3",
+                    "name": "radius",
+                    "semantic": "None",
+                    "value": 4.0
+                }
+            ],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
@@ -656,9 +695,14 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {
-                "radius": 4.0
-            },
+            "parameters": [
+                {
+                    "id": "a293b946d5782cf3",
+                    "name": "radius",
+                    "semantic": "None",
+                    "value": 4.0
+                }
+            ],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
@@ -698,9 +742,14 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {
-                "intensity": 6.090000152587891
-            },
+            "parameters": [
+                {
+                    "id": "1b9a034624b9a4aa",
+                    "name": "intensity",
+                    "semantic": "None",
+                    "value": 6.090000152587891
+                }
+            ],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
@@ -742,22 +791,57 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {
-                "center": [
-                    0.4999997615814209,
-                    0.4999997615814209
-                ],
-                "falloff": -0.009999999776482582,
-                "fogColor": [
-                    0.837837815284729,
-                    0.35260358452796936,
-                    0.35260358452796936
-                ],
-                "fogEnd": 0.10000000149011612,
-                "fogMaxAmount": 0.2199999988079071,
-                "fogStart": 0.009999999776482582,
-                "strength": 6.650000095367432
-            },
+            "parameters": [
+                {
+                    "id": "06e14cd141e121ce",
+                    "name": "fogColor",
+                    "semantic": "None",
+                    "value": [
+                        0.837837815284729,
+                        0.35260358452796936,
+                        0.35260358452796936
+                    ]
+                },
+                {
+                    "id": "22c00d61dcd03393",
+                    "name": "fogMaxAmount",
+                    "semantic": "None",
+                    "value": 0.2199999988079071
+                },
+                {
+                    "id": "6f4b7ec4dcaa8ac4",
+                    "name": "center",
+                    "semantic": "None",
+                    "value": [
+                        0.4999997615814209,
+                        0.4999997615814209
+                    ]
+                },
+                {
+                    "id": "80c5182fd3ace92c",
+                    "name": "fogEnd",
+                    "semantic": "None",
+                    "value": 0.10000000149011612
+                },
+                {
+                    "id": "a0b7a41c866fb625",
+                    "name": "falloff",
+                    "semantic": "None",
+                    "value": -0.009999999776482582
+                },
+                {
+                    "id": "d395fda651867350",
+                    "name": "strength",
+                    "semantic": "None",
+                    "value": 6.650000095367432
+                },
+                {
+                    "id": "d65c571103d74155",
+                    "name": "fogStart",
+                    "semantic": "None",
+                    "value": 0.009999999776482582
+                }
+            ],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
@@ -799,15 +883,93 @@
                     "widthScale": 1.0
                 }
             ],
-            "parameters": {
-                "strength": 0.3199999928474426
+            "parameters": [
+                {
+                    "id": "d395fda651867350",
+                    "name": "strength",
+                    "semantic": "None",
+                    "value": 0.3199999928474426
+                }
+            ],
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": false,
+            "sceneInputs": {},
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
             },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "f31b19460badf8f3",
+            "material": "e518f2b14b2d27facf29de8dac83fce8",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "irisTransition",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": [
+                {
+                    "id": "095ce8aed4e3330f",
+                    "name": "CenterY",
+                    "semantic": "None",
+                    "value": 0.5
+                },
+                {
+                    "id": "56ab8b0a45ad1d1b",
+                    "name": "CenterX",
+                    "semantic": "None",
+                    "value": 0.5
+                },
+                {
+                    "id": "94d20ddddf0f9c93",
+                    "name": "Threshold",
+                    "semantic": "None",
+                    "value": 0.5
+                },
+                {
+                    "id": "ebd9b024c479b889",
+                    "name": "Color",
+                    "semantic": "None",
+                    "value": {
+                        "a": 1.0,
+                        "b": 0.0,
+                        "g": 0.0,
+                        "r": 0.0
+                    }
+                }
+            ],
             "passInputs": {},
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
             "samplers": {},
             "sceneColorOutput": true,
-            "sceneInputs": {},
+            "sceneInputs": {
+                "gEffectColor": "SceneColorMain",
+                "gSourceFlags": "SceneFlagsMain"
+            },
             "sceneView": true,
             "source": {
                 "kind": "PreviousPass",
@@ -818,5 +980,5 @@
             "type": "Compute"
         }
     ],
-    "version": 3
+    "version": 4
 }

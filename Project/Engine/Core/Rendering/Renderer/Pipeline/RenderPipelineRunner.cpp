@@ -322,7 +322,8 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 			samplerOverrides.fillMissingSamplers = true;
 			pipeline = pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
 				pass.pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
-				runtimeFeatures, nullptr, false, &samplerOverrides);
+				runtimeFeatures, nullptr, false, &samplerOverrides,
+				pass.shaderOverride);
 		} else if (pass.shaderOverride) {
 			pipeline = pipelineStateCache_.GetORCreateComposed(graphicsCore.GetDXObject(), renderAssetLibrary_,
 				pass.pipeline, pass.pipeline, pass.shaderOverride, pass.preferredVariant,
@@ -466,7 +467,8 @@ void RenderPipelineRunner::PreloadRuntimeAssets(GraphicsCore& graphicsCore, Asse
 			samplerOverrides.byName = featurePass.samplerOverrides;
 			if (pipelineStateCache_.GetORCreate(graphicsCore.GetDXObject(), renderAssetLibrary_,
 				materialPass->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
-				runtimeFeatures, nullptr, false, &samplerOverrides)) {
+				runtimeFeatures, nullptr, false, &samplerOverrides,
+				materialPass->shaderOverride)) {
 				++pipelineCount;
 			}
 		}

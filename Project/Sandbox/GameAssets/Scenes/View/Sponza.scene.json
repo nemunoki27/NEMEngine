@@ -14001,6 +14001,68 @@
         },
         {
             "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 13
+                },
+                "Name": {
+                    "name": "PostProcessControl"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "32819b4f5adb8872",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.ControlIrisTransition",
+                        "scriptAsset": "6ef089f78b1cfec39deebd750bc574a0",
+                        "scriptSlotId": "1af3a4b1b5e27e85",
+                        "scriptTypeId": "0d51c63b-a573-4adf-b917-2e9b6beee383",
+                        "serializedFields": {
+                            "fields": {
+                                "01a40922-e6ef-42a5-98e9-4dd91ab2f54e": {
+                                    "name": "effectEnabled",
+                                    "type": "bool",
+                                    "value": true
+                                },
+                                "0c9e65a1-8a30-4b41-ad72-c392ec09ee46": {
+                                    "name": "threshold",
+                                    "type": "float",
+                                    "value": 0.0
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "32819b4f5adb8872"
+        },
+        {
+            "Components": {
                 "Collision": {
                     "enablePushback": true,
                     "enabled": true,

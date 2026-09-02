@@ -295,6 +295,32 @@ void Engine::MaterialParameterSet::Set(
 	data.contentHashDirty = true;
 }
 
+void Engine::MaterialParameterSet::MergeFrom(
+	const MaterialParameterSet& overrides) {
+
+	for (const MaterialParameterRecord& parameter : overrides.GetRecords()) {
+		MaterialParameterID targetID = parameter.id;
+		MaterialParameterSemantic targetSemantic = parameter.semantic;
+		if (!FindRecord(targetID) && data_) {
+			const auto sameName = std::find_if(
+				data_->records.begin(), data_->records.end(),
+				[&parameter](const MaterialParameterRecord& current) {
+
+					return current.namedValue.first ==
+						parameter.namedValue.first;
+				});
+			if (sameName != data_->records.end()) {
+				targetID = sameName->id;
+				if (targetSemantic == MaterialParameterSemantic::None) {
+					targetSemantic = sameName->semantic;
+				}
+			}
+		}
+		Set(targetID, parameter.namedValue.first,
+			targetSemantic, parameter.namedValue.second);
+	}
+}
+
 Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
 	MaterialParameterSemantic semantic) {
 

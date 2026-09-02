@@ -101,8 +101,10 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	samplerOverrides.fillMissingSamplers = true;
 	samplerOverrides.byName = desc.samplerOverrides;
 	const PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
-		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
-		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(), nullptr, false, &samplerOverrides);
+		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {},
+		DXGI_FORMAT_UNKNOWN,
+		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(),
+		nullptr, false, &samplerOverrides, passBinding->shaderOverride);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
 		Logger::Output(LogType::Engine, logHeader + "Pipelineがないかコンパイルに失敗しました");
 		return false;
@@ -219,9 +221,7 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 		if (!desc.parameterOverrides.empty()) {
 
 			MaterialAsset merged = *materialAsset;
-			for (const auto& [name, val] : desc.parameterOverrides) {
-				merged.parameters[name] = val;
-			}
+			merged.parameters.MergeFrom(desc.parameterOverrides);
 			bytes = MaterialParameterBufferBuilder::Build(
 				merged, parameterLayout, resolveTexture);
 		} else {
@@ -315,8 +315,10 @@ bool Engine::PostProcessExecutor::TryGetReflection(GraphicsCore& graphicsCore,
 	PipelineStaticSamplerOverrideSet samplerOverrides{};
 	samplerOverrides.fillMissingSamplers = true;
 	const PipelineState* pipelineState = pipelineCache.GetORCreate(graphicsCore.GetDXObject(),
-		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
-		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(), nullptr, false, &samplerOverrides);
+		assetLibrary, passBinding->pipeline, PipelineVariantKind::Compute, {},
+		DXGI_FORMAT_UNKNOWN,
+		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures(),
+		nullptr, false, &samplerOverrides, passBinding->shaderOverride);
 	if (!pipelineState || !pipelineState->GetComputePipeline()) {
 		return false;
 	}

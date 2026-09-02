@@ -1,0 +1,45 @@
+{
+    "domain": "Compute",
+    "name": "irisTransition",
+    "parameters": [
+        {
+            "id": "095ce8aed4e3330f",
+            "name": "CenterY",
+            "semantic": "None",
+            "value": 0.5
+        },
+        {
+            "id": "56ab8b0a45ad1d1b",
+            "name": "CenterX",
+            "semantic": "None",
+            "value": 0.5
+        },
+        {
+            "id": "94d20ddddf0f9c93",
+            "name": "Threshold",
+            "semantic": "None",
+            "value": 0.5
+        },
+        {
+            "id": "ebd9b024c479b889",
+            "name": "Color",
+            "semantic": "None",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "PostProcess",
+            "pipeline": "946f6ca16e11a5478aac384295aaab08",
+            "preferredVariant": "Compute",
+            "shaderOverride": "abf7c8d08c4542631594963c1efcc598"
+        }
+    ],
+    "shaderGraph": "6a67557dd85f1c013fb9f079e8936e99",
+    "usage": "Generic"
+}
