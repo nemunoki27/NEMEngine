@@ -55,6 +55,8 @@ namespace Engine {
 		std::filesystem::path GameScriptProjectPath() const;
 		// 現在ロード中のGameScripts.dllのパスでlast-known-goodのseed等に使う
 		const std::filesystem::path& ActiveAssemblyPath() const { return gameAssemblyPath_; }
+		// GameScripts.dllの読み込みが完了し、型情報を参照できる状態か
+		bool HasLoadedGameAssembly() const { return gameAssemblyLoaded_; }
 		// 直近のRefreshScriptTypesで反映したmanaged script型数でreload診断用
 		int32_t ManagedScriptTypeCount() const { return lastManagedTypeCount_; }
 
@@ -158,6 +160,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		bool initialized_ = false;
+		bool gameAssemblyLoaded_ = false;
 
 		// hostfxrの探索・ロード・デリゲート取得をRAIIで管理するサービス
 		DotnetHostResolver dotnetHost_;

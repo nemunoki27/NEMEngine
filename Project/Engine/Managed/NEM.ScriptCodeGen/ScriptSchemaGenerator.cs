@@ -75,6 +75,12 @@ namespace NEM.ScriptCodeGen
             "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, asset/Entity/component/ScriptBehaviour reference, array, List, or Nullable.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
+        private static readonly DiagnosticDescriptor MissingSerializeReferenceRule = new DiagnosticDescriptor(
+            "NEMSG015",
+            "Polymorphic field requires SerializeReference",
+            "シリアライズ対象 '{0}.{1}' は派生型を保持できる型 '{2}' です。実際の派生型を保持するには [SerializeReference] を指定してください。",
+            "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
         private sealed class TypeSchema
         {
             public string ScriptTypeId = string.Empty;       // Analyze 時点では attr or 決定的（Emit で meta 上書き）
@@ -106,6 +112,8 @@ namespace NEM.ScriptCodeGen
             public bool Multiline;
             public bool RawIdInvalid;
             public string RawId = string.Empty;
+            public string DeclaredType = string.Empty;
+            public bool MissingSerializeReference;
             public Location Location = Location.None;
         }
 
@@ -214,6 +222,7 @@ namespace NEM.ScriptCodeGen
             {
                 Name = field.Name,
                 DeclaringType = declaringType,
+                DeclaredType = FullTypeName(field.Type),
                 IsPublic = field.DeclaredAccessibility == Accessibility.Public,
                 Location = field.Locations.FirstOrDefault() ?? Location.None,
             };
@@ -226,6 +235,7 @@ namespace NEM.ScriptCodeGen
             schema.Kind = serializeReference
                 ? ResolveSerializeReferenceKind(field.Type, compilation)
                 : ResolveKind(field.Type);
+            schema.MissingSerializeReference = !serializeReference && HasSerializableDerivedType(field.Type, compilation);
 
             // origin name は rename を跨いで安定させるため、最も古い FormerlySerializedAs を優先する
             string originName = schema.FormerNames.Count > 0 ? schema.FormerNames[0] : schema.Name;
@@ -489,6 +499,32 @@ namespace NEM.ScriptCodeGen
             return ResolveManagedReferenceKind(type, compilation);
         }
 
+        // 宣言型とは異なる[Serializable]具象型を保持し得るか調べる
+        private static bool HasSerializableDerivedType(ITypeSymbol type, Compilation compilation)
+        {
+            ITypeSymbol elementType = type;
+            if (type is IArrayTypeSymbol arrayType)
+            {
+                elementType = arrayType.ElementType;
+            }
+            else if (type is INamedTypeSymbol listType && listType.IsGenericType &&
+                listType.ConstructedFrom.ToDisplayString() == "System.Collections.Generic.List<T>")
+            {
+                elementType = listType.TypeArguments[0];
+            }
+
+            if (elementType is not INamedTypeSymbol namedType ||
+                (namedType.TypeKind != TypeKind.Class && namedType.TypeKind != TypeKind.Interface))
+            {
+                return false;
+            }
+
+            KindInfo managedReference = ResolveManagedReferenceKind(namedType, compilation);
+            string declaredType = FullTypeName(namedType);
+            return managedReference.Candidates.Any(candidate =>
+                !string.Equals(candidate.ObjectType, declaredType, StringComparison.Ordinal));
+        }
+
         // 基底型に代入できるコンパイル内の[Serializable]具象型を候補として列挙する
         private static KindInfo ResolveManagedReferenceKind(ITypeSymbol baseType, Compilation compilation)
         {
@@ -659,6 +695,11 @@ namespace NEM.ScriptCodeGen
                     if (field.Kind.Kind == "Unsupported")
                     {
                         spc.ReportDiagnostic(Diagnostic.Create(UnsupportedFieldRule, field.Location, type.FullTypeName, field.Name, "unsupported"));
+                    }
+                    if (field.MissingSerializeReference)
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(MissingSerializeReferenceRule, field.Location,
+                            type.FullTypeName, field.Name, field.DeclaredType));
                     }
                     if (seen.TryGetValue(field.FieldId, out string? otherName))
                     {

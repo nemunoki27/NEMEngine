@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
+using NEM.ScriptCodeGen;
 using NEMEngine.ScriptAnalyzers;
 
 namespace NEM.ScriptAnalyzers.Tests;
@@ -45,6 +46,26 @@ public sealed class AnalyzerBadExample : ScriptBehaviour {
     }
     private IEnumerator FixtureRoutine() { yield break; }
     private void HandleTick() { }
+}";
+
+	private const string MissingSerializeReferenceFixture = @"
+using System;
+using NEMEngine;
+namespace SandboxScripts;
+[Serializable] public class StageUpdater { public float value = 0.0f; }
+[Serializable] public sealed class TubeUpdater : StageUpdater { }
+public sealed class StageManager : ScriptBehaviour {
+    [SerializeField] private StageUpdater stageUpdater = new TubeUpdater();
+}";
+
+	private const string SerializeReferenceFixture = @"
+using System;
+using NEMEngine;
+namespace SandboxScripts;
+[Serializable] public class StageUpdater { public float value = 0.0f; }
+[Serializable] public sealed class TubeUpdater : StageUpdater { }
+public sealed class StageManager : ScriptBehaviour {
+    [SerializeReference] private StageUpdater stageUpdater = new TubeUpdater();
 }";
 
 	private static int Main() {
@@ -92,6 +113,22 @@ public sealed class AnalyzerBadExample : ScriptBehaviour {
 			}
 		}
 
+		ImmutableArray<Diagnostic> missingReferenceDiags = GenerateSchema(MissingSerializeReferenceFixture);
+		if (!missingReferenceDiags.Any(d => d.Id == "NEMSG015")) {
+			++failures;
+			Console.Error.WriteLine("[FAIL] polymorphic [SerializeField] did not produce NEMSG015.");
+		} else {
+			Console.WriteLine("[PASS] polymorphic [SerializeField] produced NEMSG015.");
+		}
+
+		ImmutableArray<Diagnostic> serializeReferenceDiags = GenerateSchema(SerializeReferenceFixture);
+		if (serializeReferenceDiags.Any(d => d.Id == "NEMSG015")) {
+			++failures;
+			Console.Error.WriteLine("[FAIL] [SerializeReference] unexpectedly produced NEMSG015.");
+		} else {
+			Console.WriteLine("[PASS] [SerializeReference] suppressed NEMSG015.");
+		}
+
 		Console.WriteLine(failures == 0 ? "ALL TESTS PASSED" : $"{failures} TEST FAILURE(S)");
 		return failures == 0 ? 0 : 1;
 	}
@@ -99,9 +136,28 @@ public sealed class AnalyzerBadExample : ScriptBehaviour {
 	// fixture source を compile し、analyzer 診断 + compile 診断を返す
 	private static ImmutableArray<Diagnostic> Analyze(string source) {
 
-		SyntaxTree tree = CSharpSyntaxTree.ParseText(source);
+		CSharpCompilation compilation = CreateCompilation(source);
 
-		// 参照は実行プロセスの TPA（framework + ScriptCore 等を含む）を全て渡す
+		var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(new ScriptConstructorAnalyzer());
+		CompilationWithAnalyzers withAnalyzers = compilation.WithAnalyzers(analyzers);
+
+		// analyzer 診断 + 通常 compile 診断（compile error 検出用）を結合して返す
+		ImmutableArray<Diagnostic> analyzerDiags = withAnalyzers.GetAnalyzerDiagnosticsAsync().GetAwaiter().GetResult();
+		ImmutableArray<Diagnostic> compileDiags = compilation.GetDiagnostics();
+		return analyzerDiags.AddRange(compileDiags);
+	}
+
+	private static ImmutableArray<Diagnostic> GenerateSchema(string source) {
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new ScriptSchemaGenerator());
+		driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out Compilation output, out _);
+		return driver.GetRunResult().Diagnostics.AddRange(output.GetDiagnostics());
+	}
+
+	private static CSharpCompilation CreateCompilation(string source) {
+
+		SyntaxTree tree = CSharpSyntaxTree.ParseText(source);
 		var references = new List<MetadataReference>();
 		string? tpa = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
 		if (tpa != null) {
@@ -111,19 +167,11 @@ public sealed class AnalyzerBadExample : ScriptBehaviour {
 				}
 			}
 		}
-
-		var compilation = CSharpCompilation.Create(
-			"FixtureAssembly",
+		return CSharpCompilation.Create(
+			"SchemaFixtureAssembly",
 			new[] { tree },
 			references,
-			new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
-
-		var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(new ScriptConstructorAnalyzer());
-		CompilationWithAnalyzers withAnalyzers = compilation.WithAnalyzers(analyzers);
-
-		// analyzer 診断 + 通常 compile 診断（compile error 検出用）を結合して返す
-		ImmutableArray<Diagnostic> analyzerDiags = withAnalyzers.GetAnalyzerDiagnosticsAsync().GetAwaiter().GetResult();
-		ImmutableArray<Diagnostic> compileDiags = compilation.GetDiagnostics();
-		return analyzerDiags.AddRange(compileDiags);
+			new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
+				nullableContextOptions: NullableContextOptions.Enable));
 	}
 }

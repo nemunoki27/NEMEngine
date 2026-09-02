@@ -26,6 +26,8 @@
     <ProjectReference Include="..\NEM.ScriptCore\NEM.ScriptCore.csproj" />
     <!-- analyzer 本体をクラスとして直接 new するため通常参照（Analyzer 参照ではない） -->
     <ProjectReference Include="..\NEM.ScriptAnalyzers\NEM.ScriptAnalyzers.csproj" />
+    <!-- schema generatorのSerializeReference診断をin-memory compileで検証する -->
+    <ProjectReference Include="..\NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj" />
   </ItemGroup>
 
 </Project>

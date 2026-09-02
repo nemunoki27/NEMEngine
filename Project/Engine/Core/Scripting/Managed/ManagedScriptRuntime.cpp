@@ -505,6 +505,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesyste
 
 void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 
+	gameAssemblyLoaded_ = false;
 	schemaCache_.clear();
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
 
@@ -886,6 +887,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 			"ManagedScriptRuntime: GameScripts.dllの読み込みに失敗しました path={}", path);
 		return false;
 	}
+	gameAssemblyLoaded_ = true;
 	return true;
 }
 

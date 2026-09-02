@@ -154,6 +154,11 @@ void Engine::ManagedScriptBuildService::Initialize(ManagedScriptRuntime* runtime
 	PollSourceChanges();
 	dirty_ = false;
 
+	// 現行Assemblyより新しい正常版があれば優先し、なければ現行Assemblyを復旧用へ保存する
+	if (!RestoreLastKnownGoodOnStartup() && runtime_ && runtime_->HasLoadedGameAssembly()) {
+		SeedLastKnownGood();
+	}
+
 	// ただしロード済みアセンブリよりソースが新しければEdit中に再ビルドさせる
 	// エディタ起動前に編集した.csを、Playを押さずにインスペクターへ反映するため
 	if (IsSourceNewerThanLoadedAssembly()) {
@@ -162,9 +167,6 @@ void Engine::ManagedScriptBuildService::Initialize(ManagedScriptRuntime* runtime
 		// すぐにビルドへ進ませるためデバウンス済み扱いにする
 		lastChangeTime_ = std::chrono::steady_clock::now() - debounce_;
 	}
-
-	// 現在ロード中の正常DLLを最後の正常版として確保する、初回リロード失敗時の復旧用
-	SeedLastKnownGood();
 }
 
 void Engine::ManagedScriptBuildService::Shutdown() {
@@ -956,7 +958,7 @@ void Engine::ManagedScriptBuildService::UpdateLastKnownGood(const std::filesyste
 
 void Engine::ManagedScriptBuildService::SeedLastKnownGood() {
 
-	if (!runtime_) {
+	if (!runtime_ || !runtime_->HasLoadedGameAssembly()) {
 		return;
 	}
 	const std::filesystem::path active = runtime_->ActiveAssemblyPath();
@@ -968,12 +970,66 @@ void Engine::ManagedScriptBuildService::SeedLastKnownGood() {
 		return;
 	}
 	const std::filesystem::path lkg = LastKnownGoodDirectory();
-	// 既にLKGがあるならseedしない、過去の正常ビルドを優先する
+	// 既存LKGが同じか新しければ書き換えず、起動中の正常Assemblyが新しい場合だけ更新する
 	std::error_code lkgExists{};
 	if (std::filesystem::exists(lkg / kAssemblyFileName, lkgExists) && !lkgExists) {
-		return;
+		std::error_code activeTimeError{};
+		std::error_code lkgTimeError{};
+		const auto activeTime = std::filesystem::last_write_time(active, activeTimeError);
+		const auto lkgTime = std::filesystem::last_write_time(lkg / kAssemblyFileName, lkgTimeError);
+		if (!activeTimeError && !lkgTimeError && lkgTime >= activeTime) {
+			return;
+		}
 	}
-	CopyArtifacts(active.parent_path(), lkg);
+	UpdateLastKnownGood(active.parent_path());
+}
+
+bool Engine::ManagedScriptBuildService::RestoreLastKnownGoodOnStartup() {
+
+	if (!runtime_ || !runtime_->IsInitialized()) {
+		return false;
+	}
+	const std::filesystem::path lastKnownGoodDll = LastKnownGoodDirectory() / kAssemblyFileName;
+	std::error_code existsError{};
+	if (!std::filesystem::exists(lastKnownGoodDll, existsError) || existsError) {
+		return false;
+	}
+
+	const std::filesystem::path activeDll = runtime_->ActiveAssemblyPath();
+	const bool hadLoadedActive = runtime_->HasLoadedGameAssembly();
+	if (hadLoadedActive && !activeDll.empty()) {
+
+		std::error_code activeTimeError{};
+		std::error_code lkgTimeError{};
+		const auto activeTime = std::filesystem::last_write_time(activeDll, activeTimeError);
+		const auto lkgTime = std::filesystem::last_write_time(lastKnownGoodDll, lkgTimeError);
+		// 比較できない場合はロード済みAssemblyを維持し、正常版を不必要に差し替えない
+		if (activeTimeError || lkgTimeError || lkgTime <= activeTime) {
+			return false;
+		}
+	}
+
+	if (!runtime_->LoadGameAssemblyFromPath(lastKnownGoodDll)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: 起動時のLastKnownGood Assembly読み込みに失敗しました path={}",
+			ToUtf8Path(lastKnownGoodDll));
+		// LastKnownGoodが破損していても、直前まで利用できていた現行Assemblyへ戻す
+		if (hadLoadedActive && !activeDll.empty() && runtime_->LoadGameAssemblyFromPath(activeDll)) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"ManagedScriptBuildService: 起動時の現行Assemblyへ戻しました path={}", ToUtf8Path(activeDll));
+		}
+		return false;
+	}
+	if (hadLoadedActive) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptBuildService: 現行Assemblyより新しいLastKnownGoodを読み込みました path={}",
+			ToUtf8Path(lastKnownGoodDll));
+	} else {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"ManagedScriptBuildService: 起動時のAssemblyを読み込めなかったためLastKnownGoodで復旧しました path={}",
+			ToUtf8Path(lastKnownGoodDll));
+	}
+	return true;
 }
 
 std::filesystem::path Engine::ManagedScriptBuildService::ManagedRoot() const {

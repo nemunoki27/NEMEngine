@@ -177,6 +177,8 @@ namespace Engine {
 		void PruneDirectories(const std::filesystem::path& parent) const;
 		void UpdateLastKnownGood(const std::filesystem::path& shadowDirectory);
 		void SeedLastKnownGood();
+		// 初期Assemblyを読み込めなかった場合に、保存済みの正常版から型登録を復旧する
+		bool RestoreLastKnownGoodOnStartup();
 
 		// パス計算
 		std::filesystem::path ManagedRoot() const;

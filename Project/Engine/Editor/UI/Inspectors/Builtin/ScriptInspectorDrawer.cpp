@@ -9,6 +9,8 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedBuildDiagnosticStore.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Core/EditorContext.h>
@@ -21,6 +23,7 @@
 // c++
 #include <charconv>
 #include <chrono>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -40,30 +43,80 @@ namespace {
 
 		Resolved,          // 型が登録済みで解決済み
 		Unassigned,        // 型ID未設定の空スロット
+		BuildFailed,       // 最新ビルド失敗により型を更新できない
 		TypeNotRegistered, // 型IDはあるが未登録の欠落スクリプト
 		SchemaUnavailable, // 解決済みだがスキーマ未取得
 	};
 
 	// 型IDから登録レジストリで解決状態を求める
-	ManagedScriptResolutionReason ResolveScriptReason(const Engine::ScriptEntry& entry) {
+	ManagedScriptResolutionReason ResolveScriptReason(const Engine::ScriptEntry& entry,
+		bool sourceBuildFailed, bool globalBuildFailed) {
 
 		if (entry.scriptTypeID.empty()) {
 			return ManagedScriptResolutionReason::Unassigned;
 		}
+		if (sourceBuildFailed) {
+			return ManagedScriptResolutionReason::BuildFailed;
+		}
 		const Engine::BehaviorTypeInfo* info =
 			Engine::BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(entry.scriptTypeID);
 		// 未登録なら欠落扱い、値は保持して削除しない
-		return info ? ManagedScriptResolutionReason::Resolved
+		if (info) {
+			return ManagedScriptResolutionReason::Resolved;
+		}
+		return globalBuildFailed ? ManagedScriptResolutionReason::BuildFailed
 			: ManagedScriptResolutionReason::TypeNotRegistered;
+	}
+
+	// 最新ビルドのうち、このスクリプトファイルを指している最初のエラーを返す
+	const Engine::ManagedBuildDiagnostic* FindSourceBuildError(const Engine::ScriptEntry& entry,
+		const Engine::AssetDatabase* assetDatabase, uint64_t buildID) {
+
+		if (!assetDatabase || !entry.scriptAsset || buildID == 0) {
+			return nullptr;
+		}
+		const std::filesystem::path scriptPath = assetDatabase->ResolveFullPath(entry.scriptAsset);
+		if (scriptPath.empty()) {
+			return nullptr;
+		}
+		for (const Engine::ManagedBuildDiagnostic& diagnostic :
+			Engine::ManagedBuildDiagnosticStore::GetInstance().Entries()) {
+
+			if (diagnostic.buildID != buildID || diagnostic.severity != Engine::DiagnosticSeverity::Error ||
+				diagnostic.file.empty()) {
+				continue;
+			}
+			std::error_code pathError{};
+			if (std::filesystem::equivalent(scriptPath, std::filesystem::path(diagnostic.file), pathError) &&
+				!pathError) {
+				return &diagnostic;
+			}
+		}
+		return nullptr;
+	}
+
+	// ファイルを特定できない最新ビルドエラーがあるか
+	const Engine::ManagedBuildDiagnostic* FindGlobalBuildError(uint64_t buildID) {
+
+		for (const Engine::ManagedBuildDiagnostic& diagnostic :
+			Engine::ManagedBuildDiagnosticStore::GetInstance().Entries()) {
+
+			if (diagnostic.buildID == buildID && diagnostic.severity == Engine::DiagnosticSeverity::Error &&
+				diagnostic.file.empty()) {
+				return &diagnostic;
+			}
+		}
+		return nullptr;
 	}
 
 	const char* ResolutionReasonLabel(ManagedScriptResolutionReason reason) {
 		switch (reason) {
-		case ManagedScriptResolutionReason::Resolved:          return "Resolved";
-		case ManagedScriptResolutionReason::Unassigned:        return "Unassigned (scriptTypeID 未設定)";
-		case ManagedScriptResolutionReason::TypeNotRegistered: return "TypeNotRegistered (registry に型が無い)";
-		case ManagedScriptResolutionReason::SchemaUnavailable: return "SchemaUnavailable";
-		default:                                               return "Unknown";
+		case ManagedScriptResolutionReason::Resolved:          return "解決済み";
+		case ManagedScriptResolutionReason::Unassigned:        return "スクリプトが未設定です";
+		case ManagedScriptResolutionReason::BuildFailed:       return "スクリプトのビルドに失敗しています";
+		case ManagedScriptResolutionReason::TypeNotRegistered: return "登録されている型が見つかりません";
+		case ManagedScriptResolutionReason::SchemaUnavailable: return "型情報を取得できません";
+		default:                                               return "原因を特定できません";
 		}
 	}
 
@@ -1129,24 +1182,37 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 	int32_t removeIndex = -1;
 	int32_t moveUpIndex = -1;
 	int32_t moveDownIndex = -1;
+	ManagedScriptBuildService::Snapshot buildSnapshot{};
+	const bool hasBuildService = context.editorContext && context.editorContext->scriptBuildService;
+	if (hasBuildService) {
+		buildSnapshot = context.editorContext->scriptBuildService->GetSnapshot();
+	}
+	const ManagedBuildDiagnostic* globalBuildError = FindGlobalBuildError(buildSnapshot.buildID);
 	for (size_t i = 0; i < draftScripts_.size(); ++i) {
 
 		ImGui::PushID(static_cast<int32_t>(i));
 		ScriptEntry& entry = draftScripts_[i];
 
 		// 型の解決状態はレジストリで判定する
-		const ManagedScriptResolutionReason resolutionReason = ResolveScriptReason(entry);
+		const ManagedBuildDiagnostic* sourceBuildError = FindSourceBuildError(entry,
+			context.editorContext ? context.editorContext->assetDatabase : nullptr, buildSnapshot.buildID);
+		const ManagedScriptResolutionReason resolutionReason = ResolveScriptReason(
+			entry, sourceBuildError != nullptr, globalBuildError != nullptr);
 
 		// 未登録のときだけ欠落表示にする
 		std::string headerText;
-		if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered) {
+		if (resolutionReason == ManagedScriptResolutionReason::BuildFailed) {
 			headerText = entry.lastKnownTypeName.empty()
-				? "Missing Script"
-				: ("Missing Script (" + ScriptTypeShortName(entry.lastKnownTypeName) + ")");
+				? "スクリプト読込失敗"
+				: ("スクリプト読込失敗 (" + ScriptTypeShortName(entry.lastKnownTypeName) + ")");
+		} else if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered) {
+			headerText = entry.lastKnownTypeName.empty()
+				? "スクリプトなし"
+				: ("スクリプトなし (" + ScriptTypeShortName(entry.lastKnownTypeName) + ")");
 		} else if (!entry.lastKnownTypeName.empty()) {
 			headerText = ScriptTypeShortName(entry.lastKnownTypeName);
 		} else if (resolutionReason == ManagedScriptResolutionReason::Unassigned) {
-			headerText = "Missing Script";
+			headerText = "スクリプト未設定";
 		} else {
 			headerText = "Script " + std::to_string(i);
 		}
@@ -1208,16 +1274,27 @@ void Engine::ScriptInspectorDrawer::DrawFields(const EditorPanelContext& context
 						RequestCommit();
 					}
 				}
-			} else if (resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered ||
+			} else if (resolutionReason == ManagedScriptResolutionReason::BuildFailed ||
+				resolutionReason == ManagedScriptResolutionReason::TypeNotRegistered ||
 				resolutionReason == ManagedScriptResolutionReason::Unassigned) {
 				// 未登録のときだけ欠落表示し値は保持する
-				ImGui::TextDisabled("型を解決できません (Missing Script)。値は保持されます。");
-				ImGui::BulletText("last known type: %s",
-					entry.lastKnownTypeName.empty() ? "(unknown)" : entry.lastKnownTypeName.c_str());
-				ImGui::BulletText("scriptTypeID: %s", entry.scriptTypeID.c_str());
-				ImGui::BulletText("source asset: %s", ToString(entry.scriptAsset).c_str());
-				ImGui::BulletText("slot id: %016llx", static_cast<unsigned long long>(entry.scriptSlotID.value));
-				ImGui::BulletText("reason: %s", ResolutionReasonLabel(resolutionReason));
+				ImGui::TextDisabled("スクリプト型を読み込めません。保存済みの値は保持されます。");
+				ImGui::BulletText("直前の型: %s",
+					entry.lastKnownTypeName.empty() ? "不明" : entry.lastKnownTypeName.c_str());
+				ImGui::BulletText("スクリプト型ID: %s", entry.scriptTypeID.c_str());
+				ImGui::BulletText("ソースアセット: %s", ToString(entry.scriptAsset).c_str());
+				ImGui::BulletText("スロットID: %016llx", static_cast<unsigned long long>(entry.scriptSlotID.value));
+				ImGui::BulletText("理由: %s", ResolutionReasonLabel(resolutionReason));
+				if (resolutionReason == ManagedScriptResolutionReason::BuildFailed) {
+					const ManagedBuildDiagnostic* diagnostic = sourceBuildError ? sourceBuildError : globalBuildError;
+					if (diagnostic) {
+						ImGui::TextWrapped("ビルドエラー %s (%d:%d): %s",
+							diagnostic->code.c_str(), diagnostic->line, diagnostic->column,
+							diagnostic->message.c_str());
+					} else {
+						ImGui::TextWrapped("ビルドエラー: %s", buildSnapshot.lastFailureSummary.c_str());
+					}
+				}
 				if (ImGui::SmallButton("GUID をコピー")) {
 					ImGui::SetClipboardText(entry.scriptTypeID.c_str());
 				}
