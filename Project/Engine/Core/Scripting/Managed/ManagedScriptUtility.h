@@ -51,7 +51,4 @@ namespace Engine {
 	// Transformを再計算対象として変更済みにする
 	void MarkDirty(ECSWorld& world, const Entity& entity);
 
-	// スクリプトからのアクティブ階層の再計算で判定はSceneObjectComponent.hのIsEntityActiveInHierarchyを使う、自動追加はWorldCommandBuffer経由のためここでは既存コンポーネント前提のツリー更新だけを提供する
-	void RefreshScriptActiveTree(ECSWorld& world, const Entity& entity);
-
 } // Engine

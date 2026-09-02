@@ -137,10 +137,19 @@ namespace Engine {
 		// runtime設定を優先してscriptの有効状態を取得する
 		bool IsParticipantEnabled(ECSWorld& world, const SyncParticipant& participant,
 			const BehaviorRecord& record) const;
+		// 現在のEntityとScript状態からコールバックを実行できるか確認する
+		bool CanInvokeParticipant(ECSWorld& world, const SyncParticipant& participant,
+			const BehaviorRecord& record) const;
+		// コールバック後にハンドルからレコードを取り直して例外状態を反映する
+		void RefreshFaultState(const BehaviorHandle& handle);
+		// Active変更で発生したAwakeとOnEnableとOnDisableを安定するまで反映する
+		void FlushActiveTransitions(ECSWorld& world, SystemContext& context);
+		// ScriptまたはActive変更が残っていればライフサイクルを同期する
+		void SynchronizeLifecycleIfDirty(ECSWorld& world, SystemContext& context);
 		// Pass3: OnEnable/OnDisableの遷移を全件反映
 		void ApplyEnableTransitions(ECSWorld& world, SystemContext& context);
-		// Pass5: Startを全件実行
-		void InvokePendingStart(ECSWorld& world, SystemContext& context);
+		// Pass5: Startを全件実行し実行したものがあればtrueを返す
+		bool InvokePendingStart(ECSWorld& world, SystemContext& context);
 
 		// 衝突イベントを対象Entityのビヘイビアへ渡す
 		void DispatchCollision(ECSWorld& world, SystemContext& context, const CollisionContact& collision, int32_t phase);

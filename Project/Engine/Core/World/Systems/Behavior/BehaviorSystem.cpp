@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <algorithm>
@@ -19,6 +20,7 @@
 Engine::BehaviorSystem* Engine::BehaviorSystem::activeSystem_ = nullptr;
 
 namespace {
+	constexpr uint32_t kMaxLifecycleTransitionPassCount = 64;
 
 	// ScriptEntryをGUID優先でランタイム型IDへ解決する
 	bool TryResolveTypeID(Engine::ScriptEntry& entry, uint32_t& outTypeID) {
@@ -81,21 +83,22 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 	// fixedステップごとにライフサイクルを同期してから更新する
 	SynchronizeLifecycle(world, context, false);
 
-	// 確定済みのparticipantを決定的な順序で実行する
-	for (const SyncParticipant& participant : participants_) {
+	// コールバック中のScript追加で元の配列が変わっても反復を継続できるようにする
+	const std::vector<SyncParticipant> participants = participants_;
+	for (const SyncParticipant& participant : participants) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
-		if (!record || !record->instance || !record->enabled || record->faulted) {
+		if (!record || !CanInvokeParticipant(world, participant, *record)) {
 			continue;
 		}
 		record->instance->FixedUpdate(world, context, record->owner);
-		if (record->instance->IsFaulted()) {
-			record->faulted = true;
-		}
+		RefreshFaultState(participant.handle);
+		SynchronizeLifecycleIfDirty(world, context);
 	}
 
 	// FixedUpdate末でWaitForFixedUpdateのコルーチンをresumeする
 	ManagedScriptRuntime::GetInstance().TickFrame(1, context);
+	SynchronizeLifecycleIfDirty(world, context);
 }
 
 void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -109,21 +112,23 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 	// Update前にライフサイクルを同期し、不要なビヘイビアをsweepする
 	SynchronizeLifecycle(world, context, true);
 
-	for (const SyncParticipant& participant : participants_) {
+	// コールバック中のScript追加で元の配列が変わっても反復を継続できるようにする
+	const std::vector<SyncParticipant> participants = participants_;
+	for (const SyncParticipant& participant : participants) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
-		if (!record || !record->instance || !record->enabled || record->faulted) {
+		if (!record || !CanInvokeParticipant(world, participant, *record)) {
 			continue;
 		}
 		lateUpdateParticipants_.emplace_back(participant);
 		record->instance->Update(world, context, record->owner);
-		if (record->instance->IsFaulted()) {
-			record->faulted = true;
-		}
+		RefreshFaultState(participant.handle);
+		SynchronizeLifecycleIfDirty(world, context);
 	}
 
 	// Update末でTimerとコルーチンを駆動する
 	ManagedScriptRuntime::GetInstance().TickFrame(0, context);
+	SynchronizeLifecycleIfDirty(world, context);
 }
 
 void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
@@ -136,19 +141,17 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 	for (const SyncParticipant& participant : lateUpdateParticipants_) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
-		if (!record || !record->instance || !record->enabled || record->faulted ||
-			!world.IsAlive(record->owner) || !IsEntityActiveInHierarchy(world, record->owner) ||
-			!IsParticipantEnabled(world, participant, *record)) {
+		if (!record || !CanInvokeParticipant(world, participant, *record)) {
 			continue;
 		}
 		record->instance->LateUpdate(world, context, record->owner);
-		if (record->instance->IsFaulted()) {
-			record->faulted = true;
-		}
+		RefreshFaultState(participant.handle);
+		SynchronizeLifecycleIfDirty(world, context);
 	}
 
 	// LateUpdate末でWaitForEndOfFrameのコルーチンをresumeする
 	ManagedScriptRuntime::GetInstance().TickFrame(2, context);
+	SynchronizeLifecycleIfDirty(world, context);
 }
 
 void Engine::BehaviorSystem::OnSceneInstancesChanged(ECSWorld& world,
@@ -197,17 +200,21 @@ void Engine::BehaviorSystem::DispatchAnimationEvent(ECSWorld& world, SystemConte
 		return;
 	}
 
-	// 対象Entityのビヘイビアだけへ通知する
-	activeSystem_->runtime_.ForEachAliveByOwner(entity, [&](BehaviorRecord& record) {
+	// 実行順を保ったスナップショットから対象Entityだけへ通知する
+	const std::vector<SyncParticipant> participants = activeSystem_->participants_;
+	for (const SyncParticipant& participant : participants) {
 
-		if (!record.enabled || !record.instance || record.faulted) {
-			return;
+		if (participant.owner != entity) {
+			continue;
 		}
-		record.instance->OnAnimationEvent(world, context, entity, name, floatParam, intParam, stringParam);
-		if (record.instance->IsFaulted()) {
-			record.faulted = true;
+		BehaviorRecord* record = activeSystem_->runtime_.GetRecord(participant.handle);
+		if (!record || !activeSystem_->CanInvokeParticipant(world, participant, *record)) {
+			continue;
 		}
-		});
+		record->instance->OnAnimationEvent(world, context, entity, name, floatParam, intParam, stringParam);
+		activeSystem_->RefreshFaultState(participant.handle);
+		activeSystem_->SynchronizeLifecycleIfDirty(world, context);
+	}
 }
 
 nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle handle) {
@@ -442,20 +449,17 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 	}
 
 	// ScriptかActive状態が変わった場合だけライフサイクル遷移を再評価する
-	const bool updateLifecycle = enableTransitionsDirty_;
-	enableTransitionsDirty_ = false;
-	if (updateLifecycle) {
-		// Pass2 activeなものだけAwake
-		InvokePendingAwake(world, context);
-		// Pass3 OnEnable/OnDisable遷移
-		ApplyEnableTransitions(world, context);
-	}
+	FlushActiveTransitions(world, context);
 	// Pass4 全Awake/OnEnable後Startより前にSceneLoaded/Unloadedを発火する
 	ManagedScriptRuntime::GetInstance().PumpSceneEvents();
+	FlushActiveTransitions(world, context);
 
-	if (updateLifecycle) {
-		// Pass5 全件Start
-		InvokePendingStart(world, context);
+	// Start中に先行順のScriptが有効化された場合も同じ同期内で開始する
+	for (uint32_t pass = 0; pass < kMaxLifecycleTransitionPassCount; ++pass) {
+
+		if (!InvokePendingStart(world, context)) {
+			break;
+		}
 	}
 }
 
@@ -669,7 +673,8 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& context) {
 
 	// activeかつ未AwakeのrecordにAwakeを1回呼ぶ
-	for (const SyncParticipant& participant : participants_) {
+	const std::vector<SyncParticipant> participants = participants_;
+	for (const SyncParticipant& participant : participants) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
 		if (!record || !record->instance || record->faulted || record->awakeCalled) {
@@ -679,11 +684,9 @@ void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& 
 		if (!IsEntityActiveInHierarchy(world, participant.owner)) {
 			continue;
 		}
-		record->instance->Awake(world, context, participant.owner);
 		record->awakeCalled = true;
-		if (record->instance->IsFaulted()) {
-			record->faulted = true;
-		}
+		record->instance->Awake(world, context, participant.owner);
+		RefreshFaultState(participant.handle);
 	}
 }
 
@@ -699,15 +702,62 @@ bool Engine::BehaviorSystem::IsParticipantEnabled(ECSWorld& world,
 	if (entries.size() <= static_cast<size_t>(participant.slot)) {
 		return false;
 	}
+	if (entries[participant.slot].scriptSlotID != record.scriptSlotID) {
+		return false;
+	}
 	if (record.hasRuntimeEnabledOverride) {
 		return record.runtimeEnabledOverride;
 	}
 	return entries[participant.slot].enabled;
 }
 
+bool Engine::BehaviorSystem::CanInvokeParticipant(ECSWorld& world,
+	const SyncParticipant& participant, const BehaviorRecord& record) const {
+
+	return record.instance && !record.faulted && record.enabled &&
+		world.IsAlive(record.owner) && record.owner == participant.owner &&
+		IsEntityActiveInHierarchy(world, record.owner) &&
+		IsParticipantEnabled(world, participant, record);
+}
+
+void Engine::BehaviorSystem::RefreshFaultState(const BehaviorHandle& handle) {
+
+	BehaviorRecord* record = runtime_.GetRecord(handle);
+	if (record && record->instance && record->instance->IsFaulted()) {
+		record->faulted = true;
+	}
+}
+
+void Engine::BehaviorSystem::FlushActiveTransitions(ECSWorld& world, SystemContext& context) {
+
+	uint32_t pass = 0;
+	while (enableTransitionsDirty_ && pass < kMaxLifecycleTransitionPassCount) {
+
+		enableTransitionsDirty_ = false;
+		InvokePendingAwake(world, context);
+		ApplyEnableTransitions(world, context);
+		++pass;
+	}
+	if (enableTransitionsDirty_) {
+		enableTransitionsDirty_ = false;
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ScriptのActive状態が収束しませんでした OnEnableまたはOnDisable内のActive変更を確認してください");
+	}
+}
+
+void Engine::BehaviorSystem::SynchronizeLifecycleIfDirty(ECSWorld& world, SystemContext& context) {
+
+	if (!fullSyncRequested_ && dirtyScriptEntities_.empty() &&
+		!participantsDirty_ && !enableTransitionsDirty_) {
+		return;
+	}
+	SynchronizeLifecycle(world, context, false);
+}
+
 void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemContext& context) {
 
-	for (const SyncParticipant& participant : participants_) {
+	const std::vector<SyncParticipant> participants = participants_;
+	for (const SyncParticipant& participant : participants) {
 
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
 		if (!record || !record->instance || record->faulted) {
@@ -721,38 +771,40 @@ void Engine::BehaviorSystem::ApplyEnableTransitions(ECSWorld& world, SystemConte
 
 		if (shouldBeEnabled && !record->enabled) {
 
-			record->instance->OnEnable(world, context, participant.owner);
 			record->enabled = true;
+			record->instance->OnEnable(world, context, participant.owner);
 		} else if (!shouldBeEnabled && record->enabled) {
 
 			// 有効から無効への遷移時のみOnDisableを呼ぶ
-			record->instance->OnDisable(world, context, participant.owner);
 			record->enabled = false;
+			record->instance->OnDisable(world, context, participant.owner);
 		}
-		if (record->instance->IsFaulted()) {
-			record->faulted = true;
-		}
+		RefreshFaultState(participant.handle);
 	}
 }
 
-void Engine::BehaviorSystem::InvokePendingStart(ECSWorld& world, SystemContext& context) {
+bool Engine::BehaviorSystem::InvokePendingStart(ECSWorld& world, SystemContext& context) {
 
 	// 有効かつ未StartのrecordにStartを1回呼ぶ、再有効化では再実行しない
-	for (const SyncParticipant& participant : participants_) {
+	const std::vector<SyncParticipant> participants = participants_;
+	bool invoked = false;
+	for (const SyncParticipant& participant : participants) {
 
+		FlushActiveTransitions(world, context);
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
-		if (!record || !record->instance || record->faulted) {
+		if (!record || !CanInvokeParticipant(world, participant, *record)) {
 			continue;
 		}
-		if (record->enabled && record->awakeCalled && !record->startCalled) {
+		if (record->awakeCalled && !record->startCalled) {
 
-			record->instance->Start(world, context, participant.owner);
 			record->startCalled = true;
-			if (record->instance->IsFaulted()) {
-				record->faulted = true;
-			}
+			record->instance->Start(world, context, participant.owner);
+			RefreshFaultState(participant.handle);
+			invoked = true;
 		}
 	}
+	FlushActiveTransitions(world, context);
+	return invoked;
 }
 
 void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
@@ -762,27 +814,31 @@ void Engine::BehaviorSystem::DispatchCollision(ECSWorld& world,
 		return;
 	}
 
-	// Contactのselfに一致するEntityのビヘイビアだけへ通知する
-	runtime_.ForEachAliveByOwner(collision.self, [&](BehaviorRecord& record) {
+	// 実行順を保ったスナップショットからContactのselfに一致するScriptだけへ通知する
+	const std::vector<SyncParticipant> participants = participants_;
+	for (const SyncParticipant& participant : participants) {
 
-		if (!record.enabled || !record.instance || record.faulted) {
-			return;
+		if (participant.owner != collision.self) {
+			continue;
+		}
+		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
+		if (!record || !CanInvokeParticipant(world, participant, *record)) {
+			continue;
 		}
 		switch (phase) {
 		case 0:
-			record.instance->OnCollisionEnter(world, context, collision);
+			record->instance->OnCollisionEnter(world, context, collision);
 			break;
 		case 1:
-			record.instance->OnCollisionStay(world, context, collision);
+			record->instance->OnCollisionStay(world, context, collision);
 			break;
 		case 2:
-			record.instance->OnCollisionExit(world, context, collision);
+			record->instance->OnCollisionExit(world, context, collision);
 			break;
 		default:
 			break;
 		}
-		if (record.instance->IsFaulted()) {
-			record.faulted = true;
-		}
-		});
+		RefreshFaultState(participant.handle);
+		SynchronizeLifecycleIfDirty(world, context);
+	}
 }

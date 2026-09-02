@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 //============================================================================
 //	UVTransformSystem classMethods
@@ -11,8 +12,11 @@
 
 void Engine::UVTransformSystem::LateUpdate(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
-	world.ForEach<UVTransformComponent>([&]([[maybe_unused]] Entity entity, UVTransformComponent& uvTransform) {
+	world.ForEach<UVTransformComponent>([&](Entity entity, UVTransformComponent& uvTransform) {
 
+		if (!IsEntityActiveInHierarchy(world, entity)) {
+			return;
+		}
 		// 変更があったかどうかを判定
 		if (uvTransform.pos != uvTransform.prePos ||
 			uvTransform.rotation != uvTransform.preRotation ||

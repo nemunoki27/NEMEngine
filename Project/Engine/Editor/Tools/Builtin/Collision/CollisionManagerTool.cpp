@@ -7,6 +7,7 @@
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
@@ -523,7 +524,7 @@ void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld&
 	world.ForEach<CollisionComponent, TransformComponent>([&world](
 		Entity entity, CollisionComponent& collision, TransformComponent& transform) {
 
-			if (!collision.enabled) {
+			if (!collision.enabled || !IsEntityActiveInHierarchy(world, entity)) {
 				return;
 			}
 			if (!collision.shape.enabled) {

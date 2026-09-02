@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
 // c++
@@ -83,6 +84,9 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 		[&](const Entity& entity, MeshRendererComponent& renderer,
 			SkinnedAnimationComponent& anim, [[maybe_unused]] SkinnedAnimationRuntimeComponent& runtimeComponent) {
 
+			if (!IsEntityActiveInHierarchy(world, entity)) {
+				return;
+			}
 			// 重いスケルトンとパレットはチャンク外Storageから一度だけ解決する
 			SkinnedAnimationRuntimeData* runtime =
 				TryGetSkinnedAnimationRuntime(world, entity);

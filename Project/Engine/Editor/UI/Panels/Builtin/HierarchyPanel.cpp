@@ -17,6 +17,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
@@ -52,6 +53,19 @@ namespace {
 			return 0;
 		}
 		return world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder;
+	}
+
+	bool SetEntityActiveFromHierarchy(const Engine::EditorPanelContext& context,
+		Engine::ECSWorld& world, const Engine::Entity& entity, bool active) {
+
+		if (!world.IsAlive(entity)) {
+			return false;
+		}
+		if (context.IsPlaying()) {
+			return Engine::SceneObjectUtility::SetActiveSelf(world, entity, active);
+		}
+		return context.host && context.host->ExecuteEditorCommand(
+			std::make_unique<Engine::SetEntityActiveCommand>(entity, active));
 	}
 
 	// プロジェクトからドロップされたアセットをエンティティとして原点に作成する、parentがあればその子にする
@@ -461,10 +475,6 @@ void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& cont
 	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
 	const ImVec2 buttonSize(iconSize, iconSize);
 
-	if (!context.CanEditScene()) {
-		ImGui::BeginDisabled();
-	}
-
 	bool toggled = false;
 	if (textureID != ImTextureID{}) {
 
@@ -484,10 +494,6 @@ void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& cont
 	leftClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
 	rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
 
-	if (!context.CanEditScene()) {
-		ImGui::EndDisabled();
-	}
-
 	if (toggled && world.IsAlive(entity)) {
 
 		// 選択中のエンティティなら全選択へ同じ状態を適用する
@@ -495,11 +501,11 @@ void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& cont
 		if (context.editorState && context.editorState->IsEntitySelected(entity)) {
 			for (const Entity& target : context.editorState->GetSelectedEntities()) {
 				if (world.IsAlive(target)) {
-					context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(target, newActive));
+					SetEntityActiveFromHierarchy(context, world, target, newActive);
 				}
 			}
 		} else {
-			context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, newActive));
+			SetEntityActiveFromHierarchy(context, world, entity, newActive);
 		}
 	}
 }
@@ -750,17 +756,18 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		}
 
 		// アクティブ切り替え、選択中なら全選択へ同じ状態を適用する
-		if (ImGui::MenuItem(activeSelf ? "非アクティブにする" : "アクティブにする", nullptr, false, context.CanEditScene())) {
+		if (ImGui::MenuItem(activeSelf ? "非アクティブにする" : "アクティブにする",
+			nullptr, false, context.CanEditScene() || context.IsPlaying())) {
 
 			const bool newActive = !activeSelf;
 			if (context.editorState->IsEntitySelected(entity)) {
 				for (const Entity& target : context.editorState->GetSelectedEntities()) {
 					if (world.IsAlive(target)) {
-						context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(target, newActive));
+						SetEntityActiveFromHierarchy(context, world, target, newActive);
 					}
 				}
 			} else {
-				context.host->ExecuteEditorCommand(std::make_unique<SetEntityActiveCommand>(entity, newActive));
+				SetEntityActiveFromHierarchy(context, world, entity, newActive);
 			}
 		}
 

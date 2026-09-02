@@ -189,15 +189,9 @@ void Engine::ParticleSystem::ApplyStopAction(ECSWorld& world,
 		return;
 	}
 	switch (component.stopAction) {
-	case ParticleSystemStopAction::Disable: {
-
-		SceneObjectComponent* sceneObject =
-			world.TryGetComponent<SceneObjectComponent>(entity);
-		if (sceneObject) {
-			sceneObject->activeSelf = false;
-		}
+	case ParticleSystemStopAction::Disable:
+		world.GetCommandBuffer().EnqueueSetActiveSelfEnsuringComponent(entity, false);
 		break;
-	}
 	case ParticleSystemStopAction::Destroy:
 		world.DestroyEntity(entity);
 		break;

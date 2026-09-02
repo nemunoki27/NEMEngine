@@ -15,6 +15,8 @@ namespace Engine {
 
 		// SceneObjectComponentが無ければ付与し、localFileIDが無ければ生成して返す
 		SceneObjectComponent& EnsureSceneObject(ECSWorld& world, Entity entity);
+		// activeSelfを変更し、親子階層のactiveInHierarchyへ反映する
+		bool SetActiveSelf(ECSWorld& world, Entity entity, bool active);
 
 		// Entityが所属するシーンインスタンスIDを取得する
 		UUID GetSceneInstanceID(ECSWorld& world, Entity entity);

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/FlipbookAnimationComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Utility/Flipbook/FlipbookFrame.h>
 
 // c++
@@ -20,6 +21,9 @@ void Engine::FlipbookAnimationSystem::Update(ECSWorld& world, SystemContext& con
 		[&](const Entity& entity, FlipbookAnimationComponent& flipbook,
 			FlipbookAnimationRuntimeComponent& runtime) {
 
+		if (!IsEntityActiveInHierarchy(world, entity)) {
+			return;
+		}
 		// UVTransform必須、無ければ何もしない
 		auto* uvTransform = world.TryGetComponent<UVTransformComponent>(entity);
 		if (!uvTransform) {

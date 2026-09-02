@@ -6,7 +6,7 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 //============================================================================
 //	RenameEntityCommand classMethods
@@ -114,10 +114,7 @@ bool Engine::SetEntityActiveCommand::Apply(EditorCommandContext& context, bool a
 		sceneObject.activeInHierarchy = true;
 	}
 
-	world->GetComponent<SceneObjectComponent>(target).activeSelf = activeSelf;
-
-	HierarchySystem hierarchySystem;
-	hierarchySystem.RefreshActiveTree(*world, target);
+	SceneObjectUtility::SetActiveSelf(*world, target, activeSelf);
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);
 	}

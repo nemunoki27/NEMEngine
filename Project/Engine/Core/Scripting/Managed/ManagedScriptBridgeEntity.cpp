@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 namespace Engine {
 
@@ -74,9 +75,8 @@ namespace Engine {
 		}
 
 		// 既にSceneObjectComponentがあれば即時反映する値変更とアクティブ伝播は非構造、無い場合の自動追加は構造変更になるためコマンドバッファへ積む
-		if (SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved)) {
-			sceneObject->activeSelf = active != 0;
-			RefreshScriptActiveTree(*world, resolved);
+		if (world->TryGetComponent<SceneObjectComponent>(resolved)) {
+			SceneObjectUtility::SetActiveSelf(*world, resolved, active != 0);
 		} else {
 			world->GetCommandBuffer().EnqueueSetActiveSelfEnsuringComponent(resolved, active != 0);
 		}

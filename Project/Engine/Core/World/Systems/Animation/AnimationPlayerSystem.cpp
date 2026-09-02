@@ -7,6 +7,7 @@
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 
 // c++
@@ -672,6 +673,9 @@ void Engine::AnimationPlayerSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]
 void Engine::AnimationPlayerSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	world.ForEach<AnimationPlayerComponent>([&](Entity entity, AnimationPlayerComponent& player) {
+		if (!IsEntityActiveInHierarchy(world, entity)) {
+			return;
+		}
 		UpdatePlayer(world, entity, player, context);
 		});
 }

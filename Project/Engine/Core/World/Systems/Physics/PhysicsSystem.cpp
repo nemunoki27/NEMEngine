@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Physics/RigidbodyComponent.h>
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 
 // c++
@@ -42,6 +43,11 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 	world.ForEach<RigidbodyComponent, TransformComponent>(
 		[&](Entity entity, RigidbodyComponent& body, TransformComponent& transform) {
 
+			if (!IsEntityActiveInHierarchy(world, entity)) {
+				body.accumulatedForce = Vector3::AnyInit(0.0f);
+				body.accumulatedTorque = Vector3::AnyInit(0.0f);
+				return;
+			}
 			// Dynamic以外は積分せず蓄積力とトルクだけ消費する
 			if (body.bodyType != RigidbodyType::Dynamic) {
 				body.accumulatedForce = Vector3::AnyInit(0.0f);
@@ -84,6 +90,11 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 	world.ForEach<Rigidbody2DComponent, TransformComponent>(
 		[&](Entity entity, Rigidbody2DComponent& body, TransformComponent& transform) {
 
+			if (!IsEntityActiveInHierarchy(world, entity)) {
+				body.accumulatedForce = Vector2::AnyInit(0.0f);
+				body.accumulatedTorque = 0.0f;
+				return;
+			}
 			if (body.bodyType != RigidbodyType::Dynamic) {
 				body.accumulatedForce = Vector2::AnyInit(0.0f);
 				body.accumulatedTorque = 0.0f;

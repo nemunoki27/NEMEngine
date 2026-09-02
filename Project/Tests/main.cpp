@@ -39,10 +39,13 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/RigidbodyComponent.h>
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
@@ -910,6 +913,61 @@ namespace {
 		collisionSystem.OnWorldExit(world, context);
 		transformSystem.OnWorldExit(world, context);
 		return passed;
+	}
+
+	bool TestInactivePhysicsSystems() {
+
+		Engine::ECSWorld world(Engine::ECSWorldKind::Runtime);
+		const Engine::Entity parent =
+			Engine::SceneAuthoring::CreateGameObject(world, "Inactive3D");
+		const Engine::Entity child =
+			Engine::SceneAuthoring::CreateGameObject(world, "Inactive2D");
+
+		Engine::HierarchySystem hierarchySystem{};
+		hierarchySystem.SetParent(world, child, parent);
+
+		auto& body3D = world.AddComponent<Engine::RigidbodyComponent>(parent);
+		body3D.bodyType = Engine::RigidbodyType::Dynamic;
+		body3D.accumulatedForce = Engine::Vector3(3.0f, 4.0f, 5.0f);
+		auto& body2D = world.AddComponent<Engine::Rigidbody2DComponent>(child);
+		body2D.bodyType = Engine::RigidbodyType::Dynamic;
+		body2D.accumulatedForce = Engine::Vector2(3.0f, 4.0f);
+
+		const Engine::Vector3 parentPosition =
+			world.GetComponent<Engine::TransformComponent>(parent).localPos;
+		const Engine::Vector3 childPosition =
+			world.GetComponent<Engine::TransformComponent>(child).localPos;
+		if (!Engine::SceneObjectUtility::SetActiveSelf(world, parent, false) ||
+			Engine::IsEntityActiveInHierarchy(world, parent) ||
+			Engine::IsEntityActiveInHierarchy(world, child)) {
+			return false;
+		}
+
+		Engine::SystemContext context{};
+		context.mode = Engine::WorldMode::Play;
+		context.fixedDeltaTime = 1.0f / 60.0f;
+		Engine::PhysicsSystem physicsSystem{};
+		physicsSystem.FixedUpdate(world, context);
+
+		const auto& inactiveBody3D =
+			world.GetComponent<Engine::RigidbodyComponent>(parent);
+		const auto& inactiveBody2D =
+			world.GetComponent<Engine::Rigidbody2DComponent>(child);
+		if (world.GetComponent<Engine::TransformComponent>(parent).localPos != parentPosition ||
+			world.GetComponent<Engine::TransformComponent>(child).localPos != childPosition ||
+			inactiveBody3D.accumulatedForce != Engine::Vector3::AnyInit(0.0f) ||
+			inactiveBody2D.accumulatedForce != Engine::Vector2::AnyInit(0.0f)) {
+			return false;
+		}
+
+		if (!Engine::SceneObjectUtility::SetActiveSelf(world, parent, true) ||
+			!Engine::IsEntityActiveInHierarchy(world, parent) ||
+			!Engine::IsEntityActiveInHierarchy(world, child)) {
+			return false;
+		}
+		physicsSystem.FixedUpdate(world, context);
+		return world.GetComponent<Engine::TransformComponent>(parent).localPos.y < parentPosition.y &&
+			childPosition.y < world.GetComponent<Engine::TransformComponent>(child).localPos.y;
 	}
 
 	bool TestEditCollisionState() {
@@ -2712,7 +2770,8 @@ namespace {
 int main(int argc, char* argv[]) {
 
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
-		if (!TestRigidbody2DRestingContact() || !TestEditCollisionState() ||
+		if (!TestRigidbody2DRestingContact() || !TestInactivePhysicsSystems() ||
+			!TestEditCollisionState() ||
 			!TestCapsuleCollisions()) {
 			std::cerr << "Physics collision test failed\n";
 			return 27;
@@ -2870,6 +2929,10 @@ int main(int argc, char* argv[]) {
 	if (!TestRigidbody2DRestingContact()) {
 		std::cerr << "Rigidbody2D resting contact failed\n";
 		return 27;
+	}
+	if (!TestInactivePhysicsSystems()) {
+		std::cerr << "Inactive physics systems failed\n";
+		return 32;
 	}
 	if (!TestEditCollisionState()) {
 		std::cerr << "Edit collision state failed\n";

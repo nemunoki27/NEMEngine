@@ -379,11 +379,7 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 	}
 	case CommandKind::SetActiveSelfEnsuringComponent: {
 
-		SceneObjectComponent& sceneObject = SceneObjectUtility::EnsureSceneObject(world, command.target);
-		sceneObject.activeSelf = command.boolValue;
-		// アクティブ状態を親子階層全体へ伝播させる
-		HierarchySystem hierarchySystem{};
-		hierarchySystem.UpdateActiveInHierarchy(world, command.target);
+		SceneObjectUtility::SetActiveSelf(world, command.target, command.boolValue);
 		break;
 	}
 	case CommandKind::SetParent: {

@@ -10,7 +10,6 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
 // c++
@@ -113,11 +112,6 @@ namespace Engine {
 		}
 		// 自身と子孫のワールド行列を再計算対象にする
 		MarkTransformSubtreeDirty(world, entity);
-	}
-
-	void RefreshScriptActiveTree(ECSWorld& world, const Entity& entity) {
-		HierarchySystem hierarchySystem{};
-		hierarchySystem.UpdateActiveInHierarchy(world, entity);
 	}
 
 } // Engine

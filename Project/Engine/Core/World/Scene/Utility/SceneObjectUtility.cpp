@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 
 namespace Engine::SceneObjectUtility {
 
@@ -25,6 +26,34 @@ namespace Engine::SceneObjectUtility {
 			sceneObject.localFileID = UUID::New();
 		}
 		return sceneObject;
+	}
+
+	bool SetActiveSelf(ECSWorld& world, Entity entity, bool active) {
+
+		if (!world.IsAlive(entity)) {
+			return false;
+		}
+
+		const bool hadSceneObject = world.HasComponent<SceneObjectComponent>(entity);
+		SceneObjectComponent& sceneObject = EnsureSceneObject(world, entity);
+		if (hadSceneObject && sceneObject.activeSelf == active) {
+			return false;
+		}
+
+		const bool previousActiveInHierarchy = sceneObject.activeInHierarchy;
+		sceneObject.activeSelf = active;
+
+		HierarchySystem hierarchySystem{};
+		hierarchySystem.UpdateActiveInHierarchy(world, entity);
+
+		// 親が非アクティブでactiveInHierarchyが変化しない場合もactiveSelfの変更を通知する
+		const SceneObjectComponent* updatedSceneObject =
+			world.TryGetComponent<SceneObjectComponent>(entity);
+		if (updatedSceneObject &&
+			updatedSceneObject->activeInHierarchy == previousActiveInHierarchy) {
+			world.MarkComponentModified<SceneObjectComponent>(entity);
+		}
+		return true;
 	}
 
 	UUID GetSceneInstanceID(ECSWorld& world, Entity entity) {

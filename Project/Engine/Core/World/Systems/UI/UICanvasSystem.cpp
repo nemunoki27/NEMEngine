@@ -260,6 +260,9 @@ void Engine::UICanvasSystem::Update(ECSWorld& world, SystemContext& context) {
 		if (!runtime) {
 			return;
 		}
+		if (!IsEntityActiveInHierarchy(world, entity)) {
+			return;
+		}
 		if (!progress.enabled || (!isPlay && !progress.previewInEditMode)) {
 			if (runtime->initialized ||
 				runtime->fillTarget.valid || runtime->delayedTarget.valid) {

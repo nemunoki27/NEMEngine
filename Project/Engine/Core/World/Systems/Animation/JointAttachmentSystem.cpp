@@ -87,6 +87,9 @@ void Engine::JointAttachmentSystem::LateUpdate(ECSWorld& world, [[maybe_unused]]
 			// スキンメッシュの非アクティブを親子付けエンティティと子へも伝える、エンティティ親子付けと同じ挙動にする
 			const bool skinnedActive = IsEntityActiveInHierarchy(world, skinned);
 			hierarchySystem.RefreshActiveRecursive(world, entity, skinnedActive);
+			if (!sceneObject.activeInHierarchy) {
+				return;
+			}
 
 			const SkinnedAnimationRuntimeData* runtime =
 				TryGetSkinnedAnimationRuntime(world, skinned);
