@@ -424,6 +424,13 @@ const std::filesystem::path& Engine::RuntimePaths::GetSavedRoot() {
 	return GetState().savedRoot;
 }
 
+bool Engine::RuntimePaths::IsProductBuild() {
+
+	std::error_code ec;
+	return std::filesystem::is_regular_file(
+		GetGameRoot() / ".nemBuildManifest.json", ec);
+}
+
 const std::filesystem::path& Engine::RuntimePaths::GetPackagesRoot() {
 
 	return GetState().packagesRoot;

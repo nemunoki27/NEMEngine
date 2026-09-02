@@ -20,6 +20,7 @@
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
@@ -2854,6 +2855,16 @@ namespace {
 			Engine::RenderFeatureAnchor::AfterLighting,
 			Engine::RenderViewKind::Game).IsValid();
 	}
+
+	bool TestPostProcessSourceExtension() {
+
+		return Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(
+			"GameAssets/PostProcess/Test.CS.hlsl") &&
+			Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(
+				"GameAssets/PostProcess/Test.cs.hlsl") &&
+			!Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(
+				"GameAssets/PostProcess/Test.PS.hlsl");
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -2925,7 +2936,8 @@ int main(int argc, char* argv[]) {
 
 		if (!TestRenderFeatureRuntimeOverrides() ||
 			!TestShaderPathDependencies() ||
-			!TestRenderFeatureProfile()) {
+			!TestRenderFeatureProfile() ||
+			!TestPostProcessSourceExtension()) {
 			std::cerr << "Render Feature test failed\n";
 			return 22;
 		}
@@ -3067,7 +3079,8 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Shader Graph compilation failed\n";
 		return 18;
 	}
-	if (!TestRenderFeatureProfile()) {
+	if (!TestRenderFeatureProfile() ||
+		!TestPostProcessSourceExtension()) {
 		std::cerr << "RenderFeature profile failed\n";
 		return 22;
 	}

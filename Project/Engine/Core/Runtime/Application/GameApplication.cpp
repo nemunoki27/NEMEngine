@@ -46,7 +46,8 @@ namespace {
 
 	constexpr const char* kStartupSceneConfigPath = Engine::ConfigPaths::kStartupScene;
 	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
-	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
+	constexpr const char* kDefaultMaterialConfigPath =
+		"GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
 
 	bool RequestGameApplicationClose() {
 
@@ -81,32 +82,49 @@ void Engine::GameApplication::InitSystems() {
 
 void Engine::GameApplication::LoadActiveSceneConfig() {
 
-	const std::filesystem::path configPath = RuntimePaths::GetProjectSettingsPath(kStartupSceneConfigPath);
-	if (!JsonAdapter::Check(configPath, false)) {
-		return;
-	}
+	std::filesystem::path selectedConfigPath;
+	const auto loadSceneConfig = [&](const std::filesystem::path& configPath) {
 
-	const nlohmann::json data = JsonAdapter::Load(configPath, false);
-	if (!data.is_object()) {
-		return;
-	}
+		if (!JsonAdapter::Check(configPath, false)) {
+			return;
+		}
+		const nlohmann::json data = JsonAdapter::Load(configPath, false);
+		if (!data.is_object()) {
+			return;
+		}
 
-	AssetID sceneAsset = ParseAssetReference(data, "activeScene", &assetDataBase_, AssetType::Scene);
-	if (!sceneAsset) {
-		return;
-	}
+		const AssetID sceneAsset =
+			ParseAssetReference(data, "activeScene", &assetDataBase_, AssetType::Scene);
+		const std::filesystem::path fullPath =
+			assetDataBase_.ResolveFullPath(sceneAsset);
+		if (!sceneAsset || fullPath.empty() || !std::filesystem::exists(fullPath)) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"GameApplication: 設定が存在しないシーンを参照しています config={}",
+				Algorithm::PathToUTF8(configPath));
+			return;
+		}
+		activeScene_ = sceneAsset;
+		selectedConfigPath = configPath;
+	};
 
-	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"GameApplication: 設定が存在しないアクティブシーンを参照しています GUID={}", ToString(sceneAsset));
-		return;
+	// 製品ビルドはビルド設定を固定し、ローカル実行だけEditorの最終シーンを優先する
+	loadSceneConfig(RuntimePaths::GetProjectSettingsPath(kStartupSceneConfigPath));
+	if (!RuntimePaths::IsProductBuild()) {
+		loadSceneConfig(RuntimePaths::GetUserSettingsPath(ConfigPaths::kActiveScene));
 	}
-	activeScene_ = sceneAsset;
+	if (activeScene_) {
+		Logger::Output(LogType::Engine, spdlog::level::info,
+			"GameApplication: 起動シーンを決定しました GUID={} config={}",
+			ToString(activeScene_), Algorithm::PathToUTF8(selectedConfigPath));
+	}
 }
 
 void Engine::GameApplication::SaveActiveSceneConfig() const {
 
+	// 製品版の終了で開発中のEditor設定を上書きしない
+	if (RuntimePaths::IsProductBuild()) {
+		return;
+	}
 	nlohmann::json data = nlohmann::json::object();
 	data["activeScene"] = ToAssetReferenceJson(activeScene_);
 	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(ConfigPaths::kActiveScene), data);

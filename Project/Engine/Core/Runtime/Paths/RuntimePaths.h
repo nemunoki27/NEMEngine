@@ -62,6 +62,8 @@ namespace Engine {
 		static const std::filesystem::path& GetLibraryRoot();
 		// ログや一時ビルド成果物のルートを取得
 		static const std::filesystem::path& GetSavedRoot();
+		// 製品ビルドから実行しているか
+		static bool IsProductBuild();
 		// パッケージmanifestと埋め込みパッケージのルートを取得
 		static const std::filesystem::path& GetPackagesRoot();
 		// 解決済みパッケージのマウント一覧を取得

@@ -6,6 +6,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
@@ -40,6 +41,53 @@ namespace {
 //============================================================================
 //	RenderFeatureProfileTool classMethods
 //============================================================================
+bool Engine::RenderFeatureProfileTool::IsPassMaterialSource(
+	AssetType assetType, std::string_view assetPath) {
+
+	return assetType == AssetType::Material ||
+		(assetType == AssetType::Shader &&
+			PostProcessAssetGenerator::IsComputeShaderSourcePath(assetPath));
+}
+
+Engine::AssetID Engine::RenderFeatureProfileTool::ResolvePassMaterial(
+	const EditorToolContext& context, AssetID assetID,
+	AssetType assetType, std::string_view assetPath) {
+
+	AssetDatabase* database = context.toolContext.assetDatabase;
+	if (!database || !assetID) {
+		statusMessage_ = "アセットを読み込めません";
+		statusError_ = true;
+		return {};
+	}
+
+	const AssetMeta* meta = database->Find(assetID);
+	if (assetType == AssetType::Unknown && meta) {
+		assetType = meta->type;
+	}
+	if (assetPath.empty() && meta) {
+		assetPath = meta->assetPath;
+	}
+	if (assetType == AssetType::Material) {
+		return assetID;
+	}
+	if (!IsPassMaterialSource(assetType, assetPath)) {
+		statusMessage_ = "Materialまたは.cs.hlslを指定してください";
+		statusError_ = true;
+		return {};
+	}
+
+	const AssetID materialID = PostProcessAssetGenerator::EnsureUserAsset(
+		database, std::string(assetPath));
+	if (!materialID) {
+		statusMessage_ = "Compute Shader用アセットを生成できません";
+		statusError_ = true;
+		return {};
+	}
+	statusMessage_ = "Compute Shader用アセットを生成しました";
+	statusError_ = false;
+	return materialID;
+}
+
 void Engine::RenderFeatureProfileTool::Tick(ToolContext& context) {
 
 	if (requestedProfile_) {
@@ -282,9 +330,32 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	}
 
 	AssetEditSetting setting{};
-	changed |= MyGUI::AssetReferenceField("マテリアル", editablePass.material,
+	AssetID selectedAsset = editablePass.material;
+	if (MyGUI::AssetReferenceField("マテリアル", selectedAsset,
 		context.toolContext.assetDatabase,
-		{ AssetType::Material }, setting).valueChanged;
+		{ AssetType::Material, AssetType::Shader }, setting).valueChanged) {
+
+		if (!selectedAsset) {
+			editablePass.material = {};
+			changed = true;
+		} else {
+			const AssetMeta* meta = context.toolContext.assetDatabase ?
+				context.toolContext.assetDatabase->Find(selectedAsset) : nullptr;
+			const AssetType assetType = meta ? meta->type : AssetType::Unknown;
+			const std::string_view assetPath = meta ?
+				std::string_view(meta->assetPath) : std::string_view{};
+			const AssetID materialID = ResolvePassMaterial(
+				context, selectedAsset, assetType, assetPath);
+			if (materialID) {
+				editablePass.material = materialID;
+				if (assetType == AssetType::Shader) {
+					editablePass.type = RenderFeaturePassType::Compute;
+					editablePass.materialPass = MaterialPassKind::PostProcess;
+				}
+				changed = true;
+			}
+		}
+	}
 	changed |= MyGUI::EnumCombo("マテリアルパス",
 		editablePass.materialPass).valueChanged;
 	if (editablePass.type == RenderFeaturePassType::RayTracing) {

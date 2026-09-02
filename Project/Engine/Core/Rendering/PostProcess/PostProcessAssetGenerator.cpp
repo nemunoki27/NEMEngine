@@ -232,8 +232,10 @@ namespace {
 			source.sourceShaderPath = "Engine/Assets/Shaders/Builtin/PostProcess/" + relative.generic_string();
 			source.hlslPath = entry.path();
 			source.shaderJsonPath = shaderRoot / relativeFolder / (baseName + ".shader.json");
-			source.pipelineJsonPath = assetRoot / "Pipelines/Builtin/PostProcess" / relativeFolder / (baseName + ".pipeline.json");
-			source.materialJsonPath = assetRoot / "Materials/Builtin/PostProcess" / relativeFolder / (baseName + ".material.json");
+			source.pipelineJsonPath = assetRoot / "Pipelines/Builtin/PostProcess" /
+				relativeFolder / (baseName + ".pipeline.json");
+			source.materialJsonPath = assetRoot / "Materials/Builtin/PostProcess" /
+				relativeFolder / (baseName + ".material.json");
 			sources.emplace_back(std::move(source));
 		}
 		return sources;
@@ -294,6 +296,12 @@ Engine::AssetID Engine::PostProcessAssetGenerator::FindBuiltinMaterial(std::stri
 
 	auto found = materialTable_.find(std::string(name));
 	return found == materialTable_.end() ? AssetID{} : found->second;
+}
+
+bool Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(
+	std::string_view assetPath) {
+
+	return EndsWith(ToLower(std::string(assetPath)), ".cs.hlsl");
 }
 
 void Engine::PostProcessAssetGenerator::Clear() {
@@ -386,7 +394,7 @@ namespace {
 Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase* database,
 	const std::string& csHlslAssetPath) {
 
-	if (!database || csHlslAssetPath.empty()) {
+	if (!database || !IsComputeShaderSourcePath(csHlslAssetPath)) {
 		return {};
 	}
 

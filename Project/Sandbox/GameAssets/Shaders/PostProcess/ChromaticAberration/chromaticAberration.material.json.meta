@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 2,
-  "guid": "4e454d4153534554fb40f75540af8f8d",
-  "type": "Material",
+  "guid": "13dbba3eb9d309671b3313ac174ff8c0",
   "importer": "MaterialImporter",
   "importerVersion": 1,
-  "settings": {}
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Material"
 }

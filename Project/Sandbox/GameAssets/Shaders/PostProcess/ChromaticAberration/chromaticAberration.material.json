@@ -3,18 +3,11 @@
     "generated": true,
     "generatedBy": "PostProcessAssetGenerator",
     "name": "chromaticAberrationMaterial",
-    "parameters": {
-        "center": [
-            0.5,
-            0.5
-        ],
-        "falloff": 1.5,
-        "strength": 4.0
-    },
+    "parameters": {},
     "passes": [
         {
             "passKind": "PostProcess",
-            "pipeline": "4e454d41535345541eb5b695a0b85554",
+            "pipeline": "ccf28ea3555cad80de307a36d284416b",
             "preferredVariant": "Compute"
         }
     ]

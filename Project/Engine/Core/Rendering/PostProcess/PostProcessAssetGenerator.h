@@ -34,6 +34,8 @@ namespace Engine {
 
 		// 指定した.CS.hlslの論理アセットパスからPostProcessアセット一式を生成または検索してMaterialのAssetIDを返す
 		static AssetID EnsureUserAsset(AssetDatabase* database, const std::string& csHlslAssetPath);
+		// Compute Shaderのソースパスか判定する
+		static bool IsComputeShaderSourcePath(std::string_view assetPath);
 		// 指定した.shader.jsonの論理アセットパスから対応するMaterialのAssetIDを返し、なければ生成する
 		static AssetID FindOrCreateMaterialForShader(AssetDatabase* database, const std::string& shaderAssetPath);
 

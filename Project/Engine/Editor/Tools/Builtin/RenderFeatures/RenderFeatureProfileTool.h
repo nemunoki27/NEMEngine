@@ -9,6 +9,7 @@
 // c++
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Engine {
@@ -72,6 +73,12 @@ namespace Engine {
 		void DrawOutputs(RenderFeaturePassSettings& pass);
 		void DrawResources(const EditorToolContext& context,
 			RenderFeaturePassSettings& pass);
+		// パスへ設定できるアセットか判定する
+		static bool IsPassMaterialSource(
+			AssetType assetType, std::string_view assetPath);
+		// MaterialまたはCompute Shaderからパス用Materialを解決する
+		AssetID ResolvePassMaterial(const EditorToolContext& context,
+			AssetID assetID, AssetType assetType, std::string_view assetPath);
 		static std::string MakeReferenceLabel(
 			const RenderFeatureProfileAsset& profile,
 			const RenderFeatureOutputReference& reference,

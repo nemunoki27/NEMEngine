@@ -596,9 +596,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 
 bool Engine::ShaderCook::IsCookedProduct() {
 
-	std::error_code ec;
-	return std::filesystem::is_regular_file(
-		RuntimePaths::GetGameRoot() / ".nemBuildManifest.json", ec);
+	return RuntimePaths::IsProductBuild();
 }
 
 bool Engine::ShaderCook::LoadShaderAsset(AssetID shaderID,

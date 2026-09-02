@@ -459,13 +459,19 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 		profile.passes.emplace_back(std::move(pass));
 		SetDirty();
 	};
-	const auto addMaterialPass = [&](AssetID materialID) {
+	const auto addMaterialPass = [&](AssetID sourceAsset,
+		AssetType assetType = AssetType::Material,
+		std::string_view assetPath = {}) {
 
+		const AssetID materialID = ResolvePassMaterial(
+			context, sourceAsset, assetType, assetPath);
 		if (!context.panelContext ||
 			!context.panelContext->renderPipeline || !materialID) {
 
-			statusMessage_ = "マテリアルを読み込めません";
-			statusError_ = true;
+			if (materialID) {
+				statusMessage_ = "マテリアルを読み込めません";
+				statusError_ = true;
+			}
 			return;
 		}
 		RenderAssetLibrary& assetLibrary = context.panelContext->
@@ -693,9 +699,9 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 			dragging->Data);
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if (asset && !asset->isDirectory && asset->assetID &&
-			asset->assetType == AssetType::Material && window &&
+			IsPassMaterialSource(asset->assetType, asset->assetPath) && window &&
 			ImGui::BeginDragDropTargetCustom(window->InnerRect,
-				window->GetID("##RenderFeatureMaterialDropTarget"))) {
+				window->GetID("##RenderFeatureAssetDropTarget"))) {
 
 			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
 				IEditorPanel::kProjectAssetDragDropPayloadType)) {
@@ -706,10 +712,12 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 					const auto* dropped =
 						static_cast<const EditorAssetDragDropPayload*>(
 							payload->Data);
-					if (dropped && dropped->assetType == AssetType::Material &&
-						!dropped->isDirectory) {
+					if (dropped && !dropped->isDirectory &&
+						IsPassMaterialSource(
+							dropped->assetType, dropped->assetPath)) {
 
-						addMaterialPass(dropped->assetID);
+						addMaterialPass(dropped->assetID,
+							dropped->assetType, dropped->assetPath);
 					}
 				}
 			}

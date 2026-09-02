@@ -147,6 +147,10 @@
         {
             "id": "f31b19460badf8f3",
             "type": "Pass"
+        },
+        {
+            "id": "70b4a8c1740e3079",
+            "type": "Pass"
         }
     ],
     "name": "Sponza Render Features",
@@ -965,11 +969,73 @@
             "rayGenerationIndex": 0,
             "resolutionStep": 0.25,
             "samplers": {},
-            "sceneColorOutput": true,
+            "sceneColorOutput": false,
             "sceneInputs": {
                 "gEffectColor": "SceneColorMain",
                 "gSourceFlags": "SceneFlagsMain"
             },
+            "sceneView": true,
+            "source": {
+                "kind": "PreviousPass",
+                "output": "Color",
+                "pass": ""
+            },
+            "textures": {},
+            "type": "Compute"
+        },
+        {
+            "adaptiveResolution": false,
+            "adjustmentIntervalFrames": 30,
+            "anchor": "AfterTransparent",
+            "enabled": true,
+            "gameView": true,
+            "gpuBudgetMs": 2.0,
+            "id": "70b4a8c1740e3079",
+            "material": "13dbba3eb9d309671b3313ac174ff8c0",
+            "materialPass": "PostProcess",
+            "maxResolutionScale": 1.0,
+            "minResolutionScale": 0.5,
+            "name": "chromaticAberration",
+            "outputs": [
+                {
+                    "format": "Inherit",
+                    "heightScale": 1.0,
+                    "history": false,
+                    "historyShaderResource": "",
+                    "name": "Color",
+                    "shaderResource": "gDestColor",
+                    "widthScale": 1.0
+                }
+            ],
+            "parameters": [
+                {
+                    "id": "6f4b7ec4dcaa8ac4",
+                    "name": "center",
+                    "semantic": "None",
+                    "value": [
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "id": "a0b7a41c866fb625",
+                    "name": "falloff",
+                    "semantic": "None",
+                    "value": 1.940000057220459
+                },
+                {
+                    "id": "d395fda651867350",
+                    "name": "strength",
+                    "semantic": "None",
+                    "value": 5.710000038146973
+                }
+            ],
+            "passInputs": {},
+            "rayGenerationIndex": 0,
+            "resolutionStep": 0.25,
+            "samplers": {},
+            "sceneColorOutput": true,
+            "sceneInputs": {},
             "sceneView": true,
             "source": {
                 "kind": "PreviousPass",
