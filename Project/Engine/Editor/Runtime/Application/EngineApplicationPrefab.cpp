@@ -97,6 +97,7 @@ bool Engine::EngineApplication::MaterializePrefabForEdit(ECSWorld& world, AssetI
 	desc.ownerSceneInstanceID = sceneInstanceID;
 	desc.forcedInstanceID = instanceID;
 	desc.localFileIDRemap = &identityRemap;
+	desc.preserveNestedLocalFileIDs = true;
 	return prefabSystem.InstantiatePrefab(assetDataBase_, hierarchySystem, world, prefabAsset, outResult, desc) &&
 		world.IsAlive(outResult.root);
 }
@@ -142,10 +143,10 @@ void Engine::EngineApplication::CopyPrefabEditEnvironment(ECSWorld& targetWorld,
 	copyEnvironment(sourceLight);
 }
 
-void Engine::EngineApplication::ExitPrefabEdit() {
+bool Engine::EngineApplication::ExitPrefabEdit() {
 
 	if (prefabStages_.empty()) {
-		return;
+		return false;
 	}
 	// 退出処理と伝播に必要な情報を退出前に控える
 	PrefabEditStage& top = prefabStages_.back();
@@ -156,7 +157,9 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 	const UUID editInstanceID = top.instanceID;
 
 	// 退出時は現在の編集内容を元の.prefabへ自動保存する
-	SaveCurrentPrefab();
+	if (!SaveCurrentPrefab()) {
+		return false;
+	}
 
 	if (wasInContext) {
 
@@ -179,18 +182,24 @@ void Engine::EngineApplication::ExitPrefabEdit() {
 
 	// 戻り先の元シーンのインスタンスへ編集を反映する、再生成失敗時はバックアップ復元で実体を失わない
 	if (ECSWorld* targetWorld = GetActiveWorld()) {
-		PropagatePrefabToInstances(*targetWorld, editedAsset, oldBase);
+		if (!PropagatePrefabToInstances(*targetWorld, editedAsset, oldBase)) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[Prefab] 編集結果をシーンへ反映できませんでした AssetID={}", ToString(editedAsset));
+		}
 	}
 
 	// 破棄したワールドのエンティティを指す選択や履歴を片付ける
 	editorManager_.ResetSceneEditingState();
+	return true;
 }
 
 void Engine::EngineApplication::ExitAllPrefabEdit() {
 
 	// 各階層を保存・伝播しながら全て抜け、一回の操作で元のシーン編集へ戻す
 	while (!prefabStages_.empty()) {
-		ExitPrefabEdit();
+		if (!ExitPrefabEdit()) {
+			break;
+		}
 	}
 }
 
@@ -202,7 +211,9 @@ void Engine::EngineApplication::TogglePrefabInContextMode() {
 	PrefabEditStage& top = prefabStages_.back();
 
 	// 切り替え前に現在の編集内容を.prefabへ保存して、置き場が変わっても編集が失われないようにする
-	SaveCurrentPrefab();
+	if (!SaveCurrentPrefab()) {
+		return;
+	}
 
 	const AssetID asset = top.asset;
 	const UUID instanceID = top.instanceID;
@@ -249,10 +260,10 @@ void Engine::EngineApplication::TogglePrefabInContextMode() {
 	editorManager_.ResetSceneEditingState();
 }
 
-void Engine::EngineApplication::SaveCurrentPrefab() {
+bool Engine::EngineApplication::SaveCurrentPrefab() {
 
 	if (prefabStages_.empty()) {
-		return;
+		return false;
 	}
 	// 保存前に新規作成エンティティをプレファブのサブツリーへ取り込み、保存漏れを防ぐ
 	SyncPrefabEditedEntities();
@@ -263,7 +274,7 @@ void Engine::EngineApplication::SaveCurrentPrefab() {
 	ECSWorld* editWorld = stage.inContext ? stage.hostWorld : stage.world.get();
 	// rootが削除されていても保存できるようにする、root健在チェックは保存ルート確定後に行う
 	if (!meta || !editWorld) {
-		return;
+		return false;
 	}
 
 	auto entityKey = [](const Entity& e) { return (static_cast<uint64_t>(e.generation) << 32) | e.index; };
@@ -315,7 +326,9 @@ void Engine::EngineApplication::SaveCurrentPrefab() {
 	}
 	if (!editWorld->IsAlive(stage.root)) {
 		// プレファブが完全に空、ヘッダのrootを決められないので保存しない
-		return;
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] ルートEntityが無いためPrefabを保存できません AssetID={}", ToString(stage.asset));
+		return false;
 	}
 
 	// 各保存ルートのサブツリー(追加した子も含む)を重複なく集める
@@ -335,7 +348,14 @@ void Engine::EngineApplication::SaveCurrentPrefab() {
 	}
 
 	PrefabSystem prefabSystem{};
-	prefabSystem.SavePrefabFromEntities(assetDataBase_, *editWorld, stage.root, saveEntities, meta->assetPath);
+	if (!prefabSystem.SavePrefabFromEntities(
+		assetDataBase_, *editWorld, stage.root, saveEntities, meta->assetPath)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] Prefabアセットを保存できません path={}", meta->assetPath);
+		return false;
+	}
+	return true;
 }
 
 void Engine::EngineApplication::SyncPrefabEditedEntities() {
@@ -390,11 +410,11 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 			hierarchySystem.SetParent(world, entity, stage.root);
 		}
 
-		// 新規作成と追加Prefabの実体を編集中プレファブのメンバーへ揃える
+		// 新規作成Entityだけを編集中Prefabのメンバーへ揃える
 		const bool belongsToStage = world.HasComponent<PrefabLinkComponent>(entity) &&
 			world.GetComponent<PrefabLinkComponent>(entity).prefabAsset == stage.asset &&
 			world.GetComponent<PrefabLinkComponent>(entity).prefabInstanceID == rootInstanceID;
-		if (!belongsToStage) {
+		if (!belongsToStage && !world.HasComponent<PrefabLinkComponent>(entity)) {
 
 			UUID prefabLocalFileID{};
 			if (world.HasComponent<SceneObjectComponent>(entity)) {
@@ -405,12 +425,13 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 	}
 }
 
-void Engine::EngineApplication::PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
+bool Engine::EngineApplication::PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
 	const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
 
 	// シーンロード時の展開と同じ経路を再利用する
 	HierarchySystem hierarchySystem{};
-	PrefabOverrideUtility::PropagateToInstances(world, assetDataBase_, hierarchySystem, prefabAsset, oldBase);
+	return PrefabOverrideUtility::PropagateToInstances(
+		world, assetDataBase_, hierarchySystem, prefabAsset, oldBase);
 }
 
 

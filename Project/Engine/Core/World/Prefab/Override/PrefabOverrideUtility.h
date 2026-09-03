@@ -81,20 +81,25 @@ namespace Engine {
 		// LoadPrefabBaseEntitiesをファイル更新時刻でキャッシュして返す、毎フレーム呼ばれても更新が無ければ再読込しない
 		const std::unordered_map<UUID, PrefabBaseEntity>& LoadPrefabBaseEntitiesCached(
 			AssetDatabase& database, AssetID prefabAsset);
+		// 保存直後に更新時刻が変化しない場合へ備えてキャッシュを破棄する
+		void InvalidatePrefabBaseCache(AssetID prefabAsset);
 
 		// インスタンスに属する全エンティティを集める
 		std::vector<Entity> CollectInstanceEntities(ECSWorld& world, UUID instanceID);
 
 		// ライブなインスタンスからベースとの差分を抽出する
-		PrefabInstanceData CaptureInstance(ECSWorld& world, UUID instanceID,
+		PrefabInstanceData CaptureInstance(ECSWorld& world, AssetDatabase& database, UUID instanceID,
 			const std::unordered_map<UUID, PrefabBaseEntity>& base);
+
+		// 階層からネストPrefabの所有関係を更新する
+		void SynchronizeNestedPrefabOwnership(ECSWorld& world);
 
 		// 薄いデータからインスタンスを生成または再生成し、生成したルートを返す
 		Entity RebuildInstance(ECSWorld& world, AssetDatabase& database, HierarchySystem& hierarchySystem,
-			const PrefabInstanceData& data, UUID sceneInstanceID);
+			const PrefabInstanceData& data, UUID sceneInstanceID, uint32_t nestedDepth = 0);
 
 		// 指定ワールドの該当プレファブインスタンスを、oldBaseとの差分を保持しつつ現在のプレファブで作り直す
-		void PropagateToInstances(ECSWorld& world, AssetDatabase& database, HierarchySystem& hierarchySystem,
+		bool PropagateToInstances(ECSWorld& world, AssetDatabase& database, HierarchySystem& hierarchySystem,
 			AssetID prefabAsset, const std::unordered_map<UUID, PrefabBaseEntity>& oldBase);
 
 		// 追加EntityのサブツリーをPrefabへ反映できるか

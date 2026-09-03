@@ -86,7 +86,18 @@ namespace Engine {
 				"}}\n", assetName);
 		case ProjectAssetFileKind::Prefab:
 			// プレファイルでシーンと同様だがPrefab固有のメタ情報を含む
-			return std::format("{{\n  \"Entities\": [],\n  \"Header\": {{\n    \"guid\": \"\",\n    \"name\": \"{}\",\n    \"rootLocalFileID\": \"\",\n    \"version\": 1\n  }},\n  \"SchemaVersion\": 1\n}}\n", assetName);
+			return std::format(
+				"{{\n"
+				"  \"Entities\": [],\n"
+				"  \"Header\": {{\n"
+				"    \"guid\": \"\",\n"
+				"    \"name\": \"{}\",\n"
+				"    \"rootLocalFileID\": \"\",\n"
+				"    \"version\": 2\n"
+				"  }},\n"
+				"  \"NestedPrefabInstances\": [],\n"
+				"  \"SchemaVersion\": 2\n"
+				"}}\n", assetName);
 		case ProjectAssetFileKind::Material:
 		{
 			// 標準PBRの型付き既定値からマテリアル雛形を生成する

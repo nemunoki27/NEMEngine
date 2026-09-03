@@ -1351,11 +1351,13 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	if (!database || !world.HasComponent<PrefabLinkComponent>(entity)) {
 		return;
 	}
-	const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+	const PrefabLinkComponent link = world.GetComponent<PrefabLinkComponent>(entity);
 
 	// インスタンス全体の差分を抽出する、ベースはファイル更新時刻でキャッシュして毎フレームの再読込を避ける
 	const auto& base = PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(*database, link.prefabAsset);
-	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, link.prefabInstanceID, base);
+	PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(world);
+	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(
+		world, *database, link.prefabInstanceID, base);
 	data.prefabAsset = link.prefabAsset;
 	const UUID sceneInstanceID = world.HasComponent<SceneObjectComponent>(entity) ?
 		world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID : UUID{};
@@ -1490,6 +1492,16 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	// 適用ボタンで各差分の選択を反映する
 	if (applyClicked) {
 
+		std::vector<UUID> selectedUUIDs;
+		if (context.editorState) {
+			selectedUUIDs.reserve(context.editorState->selectedEntities.size());
+			for (const Entity& selected : context.editorState->selectedEntities) {
+				if (world.IsAlive(selected)) {
+					selectedUUIDs.emplace_back(world.GetUUID(selected));
+				}
+			}
+		}
+
 		// インスタンス内の対象エンティティを引く
 		auto findInstanceEntity = [&](UUID target) -> Entity {
 
@@ -1507,6 +1519,9 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		const auto oldBase = base;
 		bool prefabChanged = false;
 		bool instanceHierarchyChanged = false;
+		std::vector<PrefabPropertyModification> propertiesToRevert;
+		std::vector<PrefabComponentModification> addedComponentsToRevert;
+		std::vector<PrefabComponentModification> removedComponentsToRevert;
 
 		for (const auto& mod : data.modifications) {
 
@@ -1516,24 +1531,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 
 				prefabChanged |= PrefabOverrideUtility::SetPrefabEntityLeaf(prefabFileJson, mod.target, mod.path, mod.value);
 			} else if (choice == 2) {
-
-				// インスタンスの値をベースへ戻す、伝播時に差分が消えて元に戻る
-				const Entity target = findInstanceEntity(mod.target);
-				auto baseIt = base.find(mod.target);
-				if (world.IsAlive(target) && baseIt != base.end()) {
-
-					const nlohmann::json* baseValue = PrefabJsonDiff::GetAtPath(baseIt->second.components, mod.path);
-					if (baseValue) {
-
-						const size_t slash = mod.path.find('/');
-						const std::string type = (slash == std::string::npos) ? mod.path : mod.path.substr(0, slash);
-						const std::string leaf = (slash == std::string::npos) ? std::string{} : mod.path.substr(slash + 1);
-						nlohmann::json current;
-						world.SerializeComponentToJson(target, type, current);
-						PrefabJsonDiff::SetAtPath(current, leaf, *baseValue);
-						world.AddComponentFromJson(target, type, current);
-					}
-				}
+				propertiesToRevert.emplace_back(mod);
 			}
 		}
 		for (const auto& added : data.addedComponents) {
@@ -1544,9 +1542,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 
 				prefabChanged |= PrefabOverrideUtility::SetPrefabEntityComponent(prefabFileJson, added.target, added.type, added.value);
 			} else if (choice == 2) {
-
-				const Entity target = findInstanceEntity(added.target);
-				if (world.IsAlive(target)) { world.RemoveComponentByName(target, added.type); }
+				addedComponentsToRevert.emplace_back(added);
 			}
 		}
 		for (const auto& removed : data.removedComponents) {
@@ -1557,12 +1553,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 
 				prefabChanged |= PrefabOverrideUtility::RemovePrefabEntityComponent(prefabFileJson, removed.target, removed.type);
 			} else if (choice == 2) {
-
-				const Entity target = findInstanceEntity(removed.target);
-				auto baseIt = base.find(removed.target);
-				if (world.IsAlive(target) && baseIt != base.end() && baseIt->second.components.contains(removed.type)) {
-					world.AddComponentFromJson(target, removed.type, baseIt->second.components[removed.type]);
-				}
+				removedComponentsToRevert.emplace_back(removed);
 			}
 		}
 
@@ -1589,18 +1580,77 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 			prefabChanged |= PrefabOverrideUtility::PromoteAddedEntitySubtrees(
 				prefabFileJson, world, link.prefabAsset, link.prefabInstanceID, addedRootsToApply);
 		}
-		for (const Entity& addedRoot : addedRootsToRevert) {
-
-			if (world.IsAlive(addedRoot)) {
-				EditorEntitySnapshotUtility::DestroySubtree(world, addedRoot);
-				instanceHierarchyChanged = true;
-			}
-		}
-
+		bool applySucceeded = true;
 		if (prefabChanged) {
 			PrefabReferenceRemapper::NormalizePrefabFileHierarchy(prefabFileJson);
 			PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(prefabFileJson);
-			JsonAdapter::Save(prefabPath.string(), prefabFileJson);
+			applySucceeded = JsonAdapter::SaveCanonical(prefabPath, prefabFileJson);
+			if (applySucceeded) {
+				PrefabOverrideUtility::InvalidatePrefabBaseCache(link.prefabAsset);
+			}
+			if (!applySucceeded) {
+
+				for (const Entity& addedRoot : addedRootsToApply) {
+					for (const Entity& promoted :
+						EditorEntitySnapshotUtility::CollectSubtreeEntities(world, addedRoot)) {
+
+						if (world.IsAlive(promoted) && world.HasComponent<PrefabLinkComponent>(promoted)) {
+							world.RemoveComponentByName(promoted, "PrefabLink");
+						}
+					}
+				}
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[Prefab] Prefabアセットを保存できなかったため反映を中止しました path={}",
+					prefabPath.string());
+			}
+		}
+		if (applySucceeded) {
+
+			// ファイル保存が必要な操作は保存成功後にだけライブEntityへ反映する
+			for (const auto& mod : propertiesToRevert) {
+
+				const Entity target = findInstanceEntity(mod.target);
+				auto baseIt = oldBase.find(mod.target);
+				if (!world.IsAlive(target) || baseIt == oldBase.end()) {
+					continue;
+				}
+				const nlohmann::json* baseValue =
+					PrefabJsonDiff::GetAtPath(baseIt->second.components, mod.path);
+				if (!baseValue) {
+					continue;
+				}
+				const size_t slash = mod.path.find('/');
+				const std::string type = slash == std::string::npos ? mod.path : mod.path.substr(0, slash);
+				const std::string leaf = slash == std::string::npos ? std::string{} : mod.path.substr(slash + 1);
+				nlohmann::json current;
+				world.SerializeComponentToJson(target, type, current);
+				PrefabJsonDiff::SetAtPath(current, leaf, *baseValue);
+				world.AddComponentFromJson(target, type, current);
+			}
+			for (const auto& added : addedComponentsToRevert) {
+
+				const Entity target = findInstanceEntity(added.target);
+				if (world.IsAlive(target)) {
+					world.RemoveComponentByName(target, added.type);
+				}
+			}
+			for (const auto& removed : removedComponentsToRevert) {
+
+				const Entity target = findInstanceEntity(removed.target);
+				auto baseIt = oldBase.find(removed.target);
+				if (world.IsAlive(target) && baseIt != oldBase.end() &&
+					baseIt->second.components.contains(removed.type)) {
+
+					world.AddComponentFromJson(target, removed.type, baseIt->second.components[removed.type]);
+				}
+			}
+			for (const Entity& addedRoot : addedRootsToRevert) {
+
+				if (world.IsAlive(addedRoot)) {
+					EditorEntitySnapshotUtility::DestroySubtree(world, addedRoot);
+					instanceHierarchyChanged = true;
+				}
+			}
 		}
 		if (instanceHierarchyChanged && !prefabChanged) {
 
@@ -1609,14 +1659,29 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 			HierarchySystem hierarchySystem{};
 			hierarchySystem.RebuildRuntimeLinks(world, hierarchyScope);
 		}
-		if (prefabChanged) {
+		if (prefabChanged && applySucceeded) {
 
 			// 変更を全インスタンスへ伝播し、関係ないOverrideは保持する
 			HierarchySystem hierarchySystem{};
-			PrefabOverrideUtility::PropagateToInstances(world, *database, hierarchySystem, link.prefabAsset, oldBase);
+			applySucceeded = PrefabOverrideUtility::PropagateToInstances(
+				world, *database, hierarchySystem, link.prefabAsset, oldBase);
+		}
+		if (context.editorState && !selectedUUIDs.empty()) {
+
+			std::vector<Entity> restoredSelection;
+			restoredSelection.reserve(selectedUUIDs.size());
+			for (UUID stableUUID : selectedUUIDs) {
+				const Entity selected = world.FindByUUID(stableUUID);
+				if (world.IsAlive(selected)) {
+					restoredSelection.emplace_back(selected);
+				}
+			}
+			context.editorState->SetSelectedEntities(restoredSelection);
 		}
 
-		ImGui::CloseCurrentPopup();
+		if (applySucceeded) {
+			ImGui::CloseCurrentPopup();
+		}
 	}
 
 	ImGui::EndPopup();

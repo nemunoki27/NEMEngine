@@ -21,6 +21,12 @@ namespace Engine {
 		UUID prefabLocalFileID{};
 		// 同じ生成呼び出しで生成されたエンティティ群を束ねるID
 		UUID prefabInstanceID{};
+		// ネスト元のPrefabインスタンスID、Scene直下では空
+		UUID ownerPrefabInstanceID{};
+		// 親Prefabアセット内のネスト位置を識別するID
+		UUID nestedSlotID{};
+		// 親Prefabアセットに定義されたネストPrefabか
+		bool isPrefabAssetNested = false;
 
 		// プレファブのルートかどうか
 		bool isPrefabRoot = false;

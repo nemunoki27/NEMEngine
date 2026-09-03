@@ -196,6 +196,19 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 	if (!world.IsAlive(child)) {
 		return;
 	}
+	if (world.IsAlive(newParent)) {
+
+		Entity ancestor = newParent;
+		size_t remaining = world.GetRecordCount() + 1;
+		while (world.IsAlive(ancestor) && remaining-- > 0) {
+
+			if (ancestor == child) {
+				return;
+			}
+			const HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(ancestor);
+			ancestor = hierarchy ? hierarchy->parent : Entity::Null();
+		}
+	}
 
 	// 必要なコンポーネントの確保
 	if (!world.HasComponent<HierarchyComponent>(child)) {
@@ -244,8 +257,9 @@ void Engine::HierarchySystem::Detach(ECSWorld& world, const Entity& child) {
 	auto& childComponent = world.GetComponent<HierarchyComponent>(child);
 
 	Entity parent = childComponent.parent;
-	if (!parent.IsValid()) {
+	if (!world.IsAlive(parent) || !world.HasComponent<HierarchyComponent>(parent)) {
 		// すでにルート
+		childComponent.parent = Entity::Null();
 		childComponent.parentLocalFileID = UUID{};
 		childComponent.prevSibling = Entity::Null();
 		childComponent.nextSibling = Entity::Null();
@@ -263,10 +277,12 @@ void Engine::HierarchySystem::Detach(ECSWorld& world, const Entity& child) {
 	}
 
 	// 兄弟間のリンクを繋ぎ替える
-	if (childComponent.prevSibling.IsValid()) {
+	if (world.IsAlive(childComponent.prevSibling) &&
+		world.HasComponent<HierarchyComponent>(childComponent.prevSibling)) {
 		world.GetComponent<HierarchyComponent>(childComponent.prevSibling).nextSibling = childComponent.nextSibling;
 	}
-	if (childComponent.nextSibling.IsValid()) {
+	if (world.IsAlive(childComponent.nextSibling) &&
+		world.HasComponent<HierarchyComponent>(childComponent.nextSibling)) {
 		world.GetComponent<HierarchyComponent>(childComponent.nextSibling).prevSibling = childComponent.prevSibling;
 	}
 
@@ -288,6 +304,12 @@ void Engine::HierarchySystem::AttachLast(ECSWorld& world, const Entity& child, c
 	childComponent.parent = parent;
 	childComponent.prevSibling = Entity::Null();
 	childComponent.nextSibling = Entity::Null();
+	if (!world.IsAlive(parentComponent.firstChild) ||
+		!world.HasComponent<HierarchyComponent>(parentComponent.firstChild)) {
+
+		parentComponent.firstChild = Entity::Null();
+		parentComponent.lastChild = Entity::Null();
+	}
 
 	// 親に子が一人もいない場合は先頭かつ末尾として登録
 	if (!parentComponent.firstChild.IsValid()) {
@@ -298,15 +320,22 @@ void Engine::HierarchySystem::AttachLast(ECSWorld& world, const Entity& child, c
 
 	// 親の子リストの末尾に追加する、lastChildがキャッシュされていれば高速でなければ辿る
 	Entity last = parentComponent.lastChild;
-	if (!last.IsValid()) {
+	if (!world.IsAlive(last) || !world.HasComponent<HierarchyComponent>(last)) {
 		last = parentComponent.firstChild;
-		while (true) {
+		while (world.IsAlive(last) && world.HasComponent<HierarchyComponent>(last)) {
 			auto& lastComponent = world.GetComponent<HierarchyComponent>(last);
-			if (!lastComponent.nextSibling.IsValid()) {
+			if (!world.IsAlive(lastComponent.nextSibling) ||
+				!world.HasComponent<HierarchyComponent>(lastComponent.nextSibling)) {
 				break;
 			}
 			last = lastComponent.nextSibling;
 		}
+	}
+	if (!world.IsAlive(last) || !world.HasComponent<HierarchyComponent>(last)) {
+
+		parentComponent.firstChild = child;
+		parentComponent.lastChild = child;
+		return;
 	}
 
 	auto& lastComponent = world.GetComponent<HierarchyComponent>(last);

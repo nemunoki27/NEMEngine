@@ -34,6 +34,24 @@ namespace {
 		const auto& link = world.GetComponent<Engine::PrefabLinkComponent>(entity);
 		return link.isPrefabRoot && link.prefabInstanceID == editorContext->prefabEditInstanceID;
 	}
+
+	// Prefabの構造を直接変更できるEntityか
+	bool CanEditPrefabStructure(const Engine::EditorContext* editorContext,
+		Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+		if (!world.IsAlive(entity) || !world.HasComponent<Engine::PrefabLinkComponent>(entity)) {
+			return world.IsAlive(entity);
+		}
+
+		const auto& link = world.GetComponent<Engine::PrefabLinkComponent>(entity);
+		if (!editorContext || !editorContext->isPrefabEditing) {
+			return link.isPrefabRoot;
+		}
+		if (link.prefabInstanceID == editorContext->prefabEditInstanceID) {
+			return !link.isPrefabRoot;
+		}
+		return link.isPrefabRoot;
+	}
 }
 
 bool Engine::PrefabInstanceEditUtility::IsPrefabEntity(ECSWorld& world, const Entity& entity) {
@@ -65,8 +83,8 @@ bool Engine::PrefabInstanceEditUtility::CanDelete(
 	if (!world.IsAlive(entity)) {
 		return false;
 	}
-	// Prefab編集では編集対象のルートだけ削除できない
-	return !IsPrefabEditRoot(editorContext, world, entity);
+	return CanEditPrefabStructure(editorContext, world, entity) &&
+		!IsPrefabEditRoot(editorContext, world, entity);
 }
 
 bool Engine::PrefabInstanceEditUtility::CanChangeParent(const EditorContext* editorContext,
@@ -78,9 +96,16 @@ bool Engine::PrefabInstanceEditUtility::CanChangeParent(const EditorContext* edi
 	if (world.IsAlive(newParent) && entity == newParent) {
 		return false;
 	}
+	if (editorContext && editorContext->isPrefabEditing && world.IsAlive(newParent) &&
+		world.HasComponent<PrefabLinkComponent>(newParent) &&
+		world.GetComponent<PrefabLinkComponent>(newParent).prefabInstanceID !=
+		editorContext->prefabEditInstanceID) {
 
-	// Prefab編集の対象ルート以外はSceneと同じく親を変更できる
-	return !IsPrefabEditRoot(editorContext, world, entity);
+		return false;
+	}
+
+	return CanEditPrefabStructure(editorContext, world, entity) &&
+		!IsPrefabEditRoot(editorContext, world, entity);
 }
 
 bool Engine::PrefabInstanceEditUtility::CanChangeSiblingOrder(const EditorContext* editorContext,
@@ -89,7 +114,8 @@ bool Engine::PrefabInstanceEditUtility::CanChangeSiblingOrder(const EditorContex
 	if (!world.IsAlive(entity) || !world.IsAlive(anchor)) {
 		return false;
 	}
-	// Prefab編集の対象ルート以外は同じ親の中で並び替えられる
-	return !IsPrefabEditRoot(editorContext, world, entity) &&
+	return CanEditPrefabStructure(editorContext, world, entity) &&
+		CanEditPrefabStructure(editorContext, world, anchor) &&
+		!IsPrefabEditRoot(editorContext, world, entity) &&
 		!IsPrefabEditRoot(editorContext, world, anchor);
 }

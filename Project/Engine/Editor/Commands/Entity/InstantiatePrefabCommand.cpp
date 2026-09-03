@@ -8,7 +8,6 @@
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 //============================================================================
 //	InstantiatePrefabCommand classMethods
@@ -64,21 +63,6 @@ bool Engine::InstantiatePrefabCommand::InstantiateInternal(EditorCommandContext&
 	if (!world->IsAlive(result.root)) {
 		return false;
 	}
-	// Prefab編集では追加Prefabを別インスタンスにせず現在のPrefabへ取り込む
-	if (context.editorContext->isPrefabEditing && context.editorContext->prefabEditAsset &&
-		context.editorContext->prefabEditInstanceID) {
-
-		for (const Entity& entity : result.createdEntities) {
-
-			if (!world->IsAlive(entity) || !world->HasComponent<SceneObjectComponent>(entity)) {
-				continue;
-			}
-			const UUID localFileID = world->GetComponent<SceneObjectComponent>(entity).localFileID;
-			prefabSystem.SetPrefabLink(*world, entity, context.editorContext->prefabEditAsset,
-				localFileID, context.editorContext->prefabEditInstanceID, false);
-		}
-	}
-
 	instantiatedRootStableUUID_ = world->GetUUID(result.root);
 	context.RebuildHierarchyAll();
 

@@ -1268,7 +1268,8 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 	}
 
 	PrefabSystem prefabSystem{};
-	if (!prefabSystem.SavePrefab(database, world, entity, result.assetPath)) {
+	const UUID prefabInstanceID = UUID::New();
+	if (!prefabSystem.SavePrefab(database, world, entity, result.assetPath, prefabInstanceID)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ProjectPanel: Prefabの保存に失敗しました path={}", result.assetPath);
@@ -1276,7 +1277,7 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 	}
 
 	const AssetID prefabAsset = database.ImportOrGet(result.assetPath, AssetType::Prefab);
-	prefabSystem.SetPrefabLinkToSubtree(world, entity, prefabAsset);
+	prefabSystem.SetPrefabLinkToSubtree(world, entity, prefabAsset, prefabInstanceID);
 
 	RefreshAfterFileOperation(database, result);
 	return true;

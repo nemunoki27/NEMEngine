@@ -779,8 +779,8 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			break;
 		case EditorSceneRequestType::EnterPrefabEdit:
 			// 既にPrefab編集中なら、現在の編集内容を保存してから次のPrefabを開く
-			if (IsPrefabEditing()) {
-				SaveCurrentPrefab();
+			if (IsPrefabEditing() && !SaveCurrentPrefab()) {
+				break;
 			}
 			// プレファブを隔離ワールドへ展開して編集モードへ入る、ネストも可
 			EnterPrefabEdit(request.sceneAsset);

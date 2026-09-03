@@ -252,12 +252,12 @@ namespace Engine {
 
 		// プレファブ編集の開始/終了/保存、隔離ワールドへの展開と.prefab保存を行う
 		void EnterPrefabEdit(AssetID prefabAsset);
-		void ExitPrefabEdit();
+		bool ExitPrefabEdit();
 		// プレファブ編集を一括で抜けて元のシーン編集へ戻る、各階層を保存しながら戻る
 		void ExitAllPrefabEdit();
 		// In-Context編集のオンオフを切り替える、現在の編集内容を保存してから置き場を変える
 		void TogglePrefabInContextMode();
-		void SaveCurrentPrefab();
+		bool SaveCurrentPrefab();
 		// プレファブを指定ワールドへ編集用に展開する、localFileIDは恒等で保存往復が壊れないようにする
 		bool MaterializePrefabForEdit(ECSWorld& world, AssetID prefabAsset, UUID sceneInstanceID,
 			UUID instanceID, PrefabInstantiateResult& outResult);
@@ -267,7 +267,7 @@ namespace Engine {
 		// プレファブ編集中に新規作成されたエンティティを、プレファブの一部(rootの子+PrefabLink)へ取り込む
 		void SyncPrefabEditedEntities();
 		// 編集後のプレファブを、指定ワールドの該当インスタンスへ伝播する、オーバーライドは保持する
-		void PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
+		bool PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
 			const std::unordered_map<UUID, PrefabBaseEntity>& oldBase);
 
 		// エディタ状態を描画要求へ変換する

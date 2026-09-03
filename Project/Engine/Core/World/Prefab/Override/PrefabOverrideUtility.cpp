@@ -16,6 +16,7 @@
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 // c++
@@ -34,6 +35,14 @@ namespace Engine {
 
 		// 差分の対象外にするコンポーネント、Prefab同一性と階層は別経路で扱う
 		const std::vector<std::string> kExcludedDiffTypes = { "PrefabLink", "Hierarchy" };
+
+		struct PrefabBaseCacheEntry {
+
+			bool loaded = false;
+			std::filesystem::file_time_type writeTime{};
+			std::unordered_map<UUID, PrefabBaseEntity> base;
+		};
+		std::unordered_map<AssetID, PrefabBaseCacheEntry> prefabBaseCache;
 
 		// SceneObjectのうちPrefab/Scene内同一性に使う値は比較から外し、編集値だけ差分対象にする
 		void NormalizeSceneObjectForDiff(nlohmann::json& components) {
@@ -122,6 +131,7 @@ namespace Engine {
 			}
 
 			PrefabAddedEntity added{};
+			added.stableUUID = world.GetUUID(entity);
 			added.sceneLocalFileID = SceneLocalOf(world, entity);
 			added.parentSceneLocalFileID = SceneLocalOf(world, ParentOf(world, entity));
 			world.SerializeEntityComponents(entity, added.components);
@@ -193,8 +203,15 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	if (fullPath.empty()) {
 		return result;
 	}
-	nlohmann::json fileJson = JsonAdapter::Load(fullPath, true);
-	if (!fileJson.is_object() || !fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
+	nlohmann::json fileJson = JsonAdapter::Load(fullPath);
+	const uint32_t schemaVersion = fileJson.is_object() ? fileJson.value("SchemaVersion", 0u) : 0u;
+	if (!fileJson.is_object() || schemaVersion < 1u || schemaVersion > 2u ||
+		!fileJson.contains("Header") || !fileJson["Header"].is_object() ||
+		!fileJson.contains("Entities") || !fileJson["Entities"].is_array() || fileJson["Entities"].empty()) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] Prefabアセットの形式が不正です AssetID={} path={}",
+			ToString(prefabAsset), fullPath.string());
 		return result;
 	}
 	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
@@ -210,12 +227,27 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	if (outRootLocalFileID) {
 		*outRootLocalFileID = rootLocalFileID;
 	}
+	if (!rootLocalFileID) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] PrefabのルートIDが不正です AssetID={}", ToString(prefabAsset));
+		return {};
+	}
 
 	// 実体ごとにベース情報を構築する
+	std::unordered_set<UUID> localFileIDs;
 	for (const auto& entityJson : fileJson["Entities"]) {
 
 		const std::string localStr = entityJson.value("LocalFileID", std::string{});
 		const UUID localFileID = localStr.empty() ? UUID{} : FromString16Hex(localStr);
+		if (!localFileID || !entityJson.contains("Components") ||
+			!entityJson["Components"].is_object() || !localFileIDs.insert(localFileID).second) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[Prefab] Prefab内に不正または重複したEntity IDがあります AssetID={}",
+				ToString(prefabAsset));
+			return {};
+		}
 
 		PrefabBaseEntity base{};
 		base.localFileID = localFileID;
@@ -232,23 +264,19 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 		}
 		result.emplace(localFileID, std::move(base));
 	}
+	if (!result.contains(rootLocalFileID)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] Prefab内にルートEntityがありません AssetID={}", ToString(prefabAsset));
+		return {};
+	}
 	return result;
 }
 
 const std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity>&
 Engine::PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(AssetDatabase& database, AssetID prefabAsset) {
 
-	// プレファブアセットごとに、最後に読み込んだ時刻と内容を保持する
-	struct CacheEntry {
-
-		bool loaded = false;
-		std::filesystem::file_time_type writeTime{};
-		std::unordered_map<UUID, PrefabBaseEntity> base;
-	};
-	// エディタは単一スレッドなので関数ローカルstaticで十分
-	static std::unordered_map<AssetID, CacheEntry> cache;
-
-	CacheEntry& entry = cache[prefabAsset];
+	PrefabBaseCacheEntry& entry = prefabBaseCache[prefabAsset];
 
 	// ファイルの更新時刻を見て、変化が無ければ読み直さずキャッシュを返す
 	const auto fullPath = database.ResolveFullPath(prefabAsset);
@@ -265,6 +293,13 @@ Engine::PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(AssetDatabase& datab
 	entry.writeTime = currentTime;
 	entry.loaded = true;
 	return entry.base;
+}
+
+void Engine::PrefabOverrideUtility::InvalidatePrefabBaseCache(AssetID prefabAsset) {
+
+	if (prefabAsset) {
+		prefabBaseCache.erase(prefabAsset);
+	}
 }
 
 std::vector<Engine::Entity> Engine::PrefabOverrideUtility::CollectInstanceEntities(ECSWorld& world, UUID instanceID) {
@@ -285,7 +320,64 @@ std::vector<Engine::Entity> Engine::PrefabOverrideUtility::CollectInstanceEntiti
 	return entities;
 }
 
-Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWorld& world, UUID instanceID,
+void Engine::PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(ECSWorld& world) {
+
+	std::vector<Entity> roots;
+	world.ForEachAliveEntity([&](Entity entity) {
+
+		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+			return;
+		}
+		if (world.GetComponent<PrefabLinkComponent>(entity).isPrefabRoot) {
+			roots.emplace_back(entity);
+		}
+		});
+
+	for (const Entity& root : roots) {
+
+		if (!world.IsAlive(root)) {
+			continue;
+		}
+		auto& rootLink = world.GetComponent<PrefabLinkComponent>(root);
+		UUID ownerInstanceID{};
+
+		Entity ancestor = ParentOf(world, root);
+		size_t remaining = world.GetRecordCount() + 1;
+		while (world.IsAlive(ancestor) && remaining-- > 0) {
+
+			if (world.HasComponent<PrefabLinkComponent>(ancestor)) {
+
+				const auto& ancestorLink = world.GetComponent<PrefabLinkComponent>(ancestor);
+				if (ancestorLink.prefabInstanceID != rootLink.prefabInstanceID) {
+					ownerInstanceID = ancestorLink.prefabInstanceID;
+					break;
+				}
+			}
+			ancestor = ParentOf(world, ancestor);
+		}
+
+		UUID nestedSlotID = rootLink.nestedSlotID;
+		bool isPrefabAssetNested = rootLink.isPrefabAssetNested;
+		if (!ownerInstanceID) {
+			nestedSlotID = UUID{};
+			isPrefabAssetNested = false;
+		} else if (rootLink.ownerPrefabInstanceID != ownerInstanceID || !nestedSlotID) {
+			nestedSlotID = UUID::New();
+			isPrefabAssetNested = false;
+		}
+
+		for (const Entity& member : CollectInstanceEntities(world, rootLink.prefabInstanceID)) {
+
+			auto& memberLink = world.GetComponent<PrefabLinkComponent>(member);
+			memberLink.ownerPrefabInstanceID = ownerInstanceID;
+			memberLink.nestedSlotID = nestedSlotID;
+			memberLink.isPrefabAssetNested = isPrefabAssetNested;
+		}
+	}
+}
+
+Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWorld& world, AssetDatabase& database,
+	UUID instanceID,
 	const std::unordered_map<UUID, PrefabBaseEntity>& base) {
 
 	PrefabInstanceData data{};
@@ -299,6 +391,11 @@ Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWor
 		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
 		instanceByPrefabLocal.emplace(link.prefabLocalFileID, entity);
 		data.prefabAsset = link.prefabAsset;
+		if (link.isPrefabRoot) {
+			data.ownerPrefabInstanceID = link.ownerPrefabInstanceID;
+			data.nestedSlotID = link.nestedSlotID;
+			data.isPrefabAssetNested = link.isPrefabAssetNested;
+		}
 	}
 	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
 		BuildSceneToPrefabLocalMap(world, instanceEntities);
@@ -309,6 +406,7 @@ Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWor
 		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
 		const UUID localID = link.prefabLocalFileID;
 		data.entityMap.emplace_back(localID, SceneLocalOf(world, entity));
+		data.stableUUIDMap.emplace_back(localID, world.GetUUID(entity));
 
 		auto baseIt = base.find(localID);
 		// プレファブ側に存在しないインスタンスエンティティはv1では対象外として無視する
@@ -422,6 +520,56 @@ Engine::PrefabInstanceData Engine::PrefabOverrideUtility::CaptureInstance(ECSWor
 			child = next;
 		}
 	}
+
+	// 親Prefabが所有する別Prefabを差分のまま再帰保存する
+	std::vector<Entity> nestedRoots;
+	world.ForEachAliveEntity([&](Entity entity) {
+
+		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
+			return;
+		}
+		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
+		if (link.isPrefabRoot && link.ownerPrefabInstanceID == instanceID &&
+			link.prefabInstanceID != instanceID) {
+			nestedRoots.emplace_back(entity);
+		}
+		});
+	std::sort(nestedRoots.begin(), nestedRoots.end(), [&](const Entity& lhs, const Entity& rhs) {
+		return world.GetComponent<PrefabLinkComponent>(lhs).nestedSlotID.value <
+			world.GetComponent<PrefabLinkComponent>(rhs).nestedSlotID.value;
+		});
+	for (const Entity& nestedRoot : nestedRoots) {
+
+		const auto& nestedLink = world.GetComponent<PrefabLinkComponent>(nestedRoot);
+		const auto nestedBase = LoadPrefabBaseEntities(database, nestedLink.prefabAsset);
+		if (nestedBase.empty()) {
+			continue;
+		}
+		data.nestedInstances.emplace_back(
+			CaptureInstance(world, database, nestedLink.prefabInstanceID, nestedBase));
+	}
+
+	// 親Prefabアセットに存在するがシーンから消えたネストスロットを削除差分として記録する
+	std::unordered_set<UUID> existingNestedSlots;
+	for (const auto& nested : data.nestedInstances) {
+		existingNestedSlots.insert(nested.nestedSlotID);
+	}
+	const auto prefabPath = database.ResolveFullPath(data.prefabAsset);
+	const nlohmann::json prefabJson = prefabPath.empty() ?
+		nlohmann::json{} : JsonAdapter::Load(prefabPath);
+	if (prefabJson.is_object() && prefabJson.contains("NestedPrefabInstances") &&
+		prefabJson["NestedPrefabInstances"].is_array()) {
+
+		for (const auto& nestedJson : prefabJson["NestedPrefabInstances"]) {
+
+			PrefabInstanceData nested{};
+			if (FromJson(nestedJson, nested) && nested.nestedSlotID &&
+				!existingNestedSlots.contains(nested.nestedSlotID)) {
+
+				data.removedNestedSlots.emplace_back(nested.nestedSlotID);
+			}
+		}
+	}
 	return data;
 }
 
@@ -471,7 +619,8 @@ Engine::EntityOverrideInfo Engine::PrefabOverrideUtility::CaptureEntityOverride(
 }
 
 Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, AssetDatabase& database,
-	HierarchySystem& hierarchySystem, const PrefabInstanceData& data, UUID sceneInstanceID) {
+	HierarchySystem& hierarchySystem, const PrefabInstanceData& data, UUID sceneInstanceID,
+	uint32_t nestedDepth) {
 
 	if (!data.prefabAsset) {
 		return Entity::Null();
@@ -484,6 +633,13 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	desc.ownerSceneInstanceID = sceneInstanceID;
 	desc.forcedInstanceID = data.instanceID;
 	desc.localFileIDRemap = &data.entityMap;
+	desc.stableUUIDRemap = &data.stableUUIDMap;
+	desc.nestedInstanceRemap = &data.nestedInstances;
+	desc.removedNestedSlots = &data.removedNestedSlots;
+	desc.ownerPrefabInstanceID = data.ownerPrefabInstanceID;
+	desc.nestedSlotID = data.nestedSlotID;
+	desc.isPrefabAssetNested = data.isPrefabAssetNested;
+	desc.nestedDepth = nestedDepth;
 	if (!prefabSystem.InstantiatePrefab(database, hierarchySystem, world, data.prefabAsset, result, desc)) {
 		return Entity::Null();
 	}
@@ -586,7 +742,7 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	std::vector<Entity> addedEntities;
 	for (const auto& added : data.addedEntities) {
 
-		const Entity entity = world.CreateEntity();
+		const Entity entity = world.CreateEntity(added.stableUUID);
 		if (added.components.is_object()) {
 			for (auto it = added.components.begin(); it != added.components.end(); ++it) {
 				world.AddComponentFromJson(entity, it.key(), it.value());
@@ -791,11 +947,60 @@ namespace {
 	// 破棄→再生成の安全策、インスタンス実体の完全な状態を控えて再生成失敗時に元へ戻せるようにする
 	struct InstanceEntityBackup {
 
+		Engine::UUID stableUUID{};
 		Engine::UUID localFileID{};
 		Engine::UUID parentLocalFileID{};
 		int32_t siblingOrder = 0;
 		nlohmann::json components;
 	};
+
+	uint64_t EntityKey(const Engine::Entity& entity) {
+
+		return (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	}
+
+	// 別Prefabを境界としてインスタンスが所有する通常階層だけを収集する
+	void CollectOwnedHierarchy(Engine::ECSWorld& world, const Engine::Entity& entity,
+		std::unordered_set<Engine::UUID>& ownedInstances, std::vector<Engine::Entity>& out,
+		std::unordered_set<uint64_t>& collected) {
+
+		if (!world.IsAlive(entity) || !collected.insert(EntityKey(entity)).second) {
+			return;
+		}
+		if (world.HasComponent<Engine::PrefabLinkComponent>(entity)) {
+
+			const auto& link = world.GetComponent<Engine::PrefabLinkComponent>(entity);
+			if (!ownedInstances.contains(link.prefabInstanceID)) {
+
+				if (!ownedInstances.contains(link.ownerPrefabInstanceID)) {
+					return;
+				}
+				ownedInstances.insert(link.prefabInstanceID);
+			}
+		}
+		out.emplace_back(entity);
+		if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
+			return;
+		}
+
+		Engine::Entity child = world.GetComponent<Engine::HierarchyComponent>(entity).firstChild;
+		while (world.IsAlive(child)) {
+
+			const Engine::Entity next = world.HasComponent<Engine::HierarchyComponent>(child) ?
+				world.GetComponent<Engine::HierarchyComponent>(child).nextSibling : Engine::Entity::Null();
+			CollectOwnedHierarchy(world, child, ownedInstances, out, collected);
+			child = next;
+		}
+	}
+
+	// ワールド全体の保存階層からランタイムリンクを再構築する
+	void RebuildAllHierarchy(Engine::ECSWorld& world, Engine::HierarchySystem& hierarchySystem) {
+
+		std::vector<Engine::Entity> scope;
+		scope.reserve(world.GetRecordCount());
+		world.ForEachAliveEntity([&](Engine::Entity entity) { scope.emplace_back(entity); });
+		hierarchySystem.RebuildRuntimeLinks(world, scope);
+	}
 
 	// 破棄前に各実体のローカルID/親/兄弟順と全コンポーネントを控える
 	std::vector<InstanceEntityBackup> CaptureInstanceBackup(Engine::ECSWorld& world, const std::vector<Engine::Entity>& entities) {
@@ -808,6 +1013,7 @@ namespace {
 				continue;
 			}
 			InstanceEntityBackup state{};
+			state.stableUUID = world.GetUUID(entity);
 			if (world.HasComponent<Engine::SceneObjectComponent>(entity)) {
 				state.localFileID = world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID;
 			}
@@ -822,14 +1028,14 @@ namespace {
 	}
 
 	// 控えた状態から実体を作り直し、ローカルIDと親子付けを復元する
-	void RestoreInstanceBackup(Engine::ECSWorld& world, Engine::HierarchySystem& hierarchySystem,
+	void RestoreInstanceBackup(Engine::ECSWorld& world,
 		const std::vector<InstanceEntityBackup>& backup, Engine::UUID sceneInstanceID) {
 
 		std::vector<Engine::Entity> restored;
 		restored.reserve(backup.size());
 		for (const InstanceEntityBackup& state : backup) {
 
-			const Engine::Entity entity = world.CreateEntity();
+			const Engine::Entity entity = world.CreateEntity(state.stableUUID);
 			if (state.components.is_object()) {
 				for (auto it = state.components.begin(); it != state.components.end(); ++it) {
 					world.AddComponentFromJson(entity, it.key(), it.value());
@@ -848,7 +1054,6 @@ namespace {
 			hierarchy.siblingOrder = state.siblingOrder;
 			restored.emplace_back(entity);
 		}
-		hierarchySystem.RebuildRuntimeLinks(world, restored);
 	}
 
 	// オーバーライド判定用にベースを正規化する
@@ -881,11 +1086,11 @@ namespace {
 	}
 }
 
-void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetDatabase& database,
+bool Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetDatabase& database,
 	HierarchySystem& hierarchySystem, AssetID prefabAsset, const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
 
 	if (!prefabAsset) {
-		return;
+		return false;
 	}
 
 	// 伝播対象のインスタンスごとに、所属シーンとルートを集める
@@ -895,6 +1100,7 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		Entity root = Entity::Null();
 	};
 	std::unordered_map<UUID, InstanceTarget> targets;
+	SynchronizeNestedPrefabOwnership(world);
 	world.ForEachAliveEntity([&](Entity entity) {
 
 		if (!world.HasComponent<PrefabLinkComponent>(entity)) {
@@ -916,56 +1122,119 @@ void Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 	// 再生成元のプレファブが読めない時は壊さず温存する、再生成失敗でインスタンスを失わないための前段ガード
 	const auto prefabFullPath = database.ResolveFullPath(prefabAsset);
 	if (prefabFullPath.empty()) {
-		return;
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] 反映元のPrefabアセットが見つかりません AssetID={}", ToString(prefabAsset));
+		return false;
 	}
-	const nlohmann::json prefabProbe = JsonAdapter::Load(prefabFullPath, true);
+	const nlohmann::json prefabProbe = JsonAdapter::Load(prefabFullPath);
 	if (!prefabProbe.is_object() || !prefabProbe.contains("Entities") ||
 		!prefabProbe["Entities"].is_array() || prefabProbe["Entities"].empty()) {
-		return;
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] 反映元のPrefabデータが不正です path={}", prefabFullPath.string());
+		return false;
 	}
 
 	// ベースをインスタンスと同じ表現へ正規化し、ラウンドトリップ由来の誤オーバーライド検出を防ぐ
 	const std::unordered_map<UUID, PrefabBaseEntity> normalizedBase = NormalizeBaseForDiff(database, oldBase);
 
-	// 各インスタンスを、現在のオーバーライドを保持したまま新しいプレファブで作り直す
-	for (auto& [instanceID, target] : targets) {
+	// 全対象を破棄前に退避し、同一Prefabのネストでも親情報を失わないようにする
+	struct TransactionTarget {
 
-		const bool hadRoot = world.IsAlive(target.root);
-		PrefabInstanceData data = CaptureInstance(world, instanceID, normalizedBase);
-		data.prefabAsset = prefabAsset;
+		UUID instanceID{};
+		UUID sceneInstanceID{};
+		PrefabInstanceData data;
+		std::vector<InstanceEntityBackup> backup;
+	};
+	std::vector<TransactionTarget> transaction;
+	transaction.reserve(targets.size());
+	for (const auto& [instanceID, target] : targets) {
 
-		// 置換前の全メンバーをサブツリーごと破棄し追加した子も残さない
-		std::vector<Entity> toDestroy;
+		if (!world.IsAlive(target.root)) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[Prefab] ルートを失ったPrefabインスタンスは反映できません InstanceID={}",
+				ToString(instanceID));
+			return false;
+		}
+		const auto& rootLink = world.GetComponent<PrefabLinkComponent>(target.root);
+		if (rootLink.ownerPrefabInstanceID && targets.contains(rootLink.ownerPrefabInstanceID)) {
+			continue;
+		}
+
+		TransactionTarget state{};
+		state.instanceID = instanceID;
+		state.sceneInstanceID = target.sceneInstanceID;
+		state.data = CaptureInstance(world, database, instanceID, normalizedBase);
+		state.data.prefabAsset = prefabAsset;
+
+		std::vector<Entity> ownedEntities;
+		std::unordered_set<UUID> ownedInstances = { instanceID };
 		std::unordered_set<uint64_t> collected;
 		for (const Entity& member : CollectInstanceEntities(world, instanceID)) {
-			const std::vector<Entity> subtree = HierarchyUtility::CollectLogicalSubtree(world, member);
-			for (const Entity& entity : subtree) {
+			CollectOwnedHierarchy(world, member, ownedInstances, ownedEntities, collected);
+		}
+		state.backup = CaptureInstanceBackup(world, ownedEntities);
+		transaction.emplace_back(std::move(state));
+	}
+	std::sort(transaction.begin(), transaction.end(), [](const auto& lhs, const auto& rhs) {
+		return lhs.instanceID.value < rhs.instanceID.value;
+		});
 
-				const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-				if (collected.insert(key).second) {
-					toDestroy.emplace_back(entity);
+	// 所有Entityだけを破棄し、別Prefabの子はその場に残す
+	for (const TransactionTarget& state : transaction) {
+		for (auto it = state.backup.rbegin(); it != state.backup.rend(); ++it) {
+
+			const Entity entity = world.FindByUUID(it->stableUUID);
+			if (world.IsAlive(entity)) {
+				world.DestroyEntity(entity);
+			}
+		}
+	}
+	world.FlushPendingDestroyEntities();
+	RebuildAllHierarchy(world, hierarchySystem);
+
+	bool rebuilt = true;
+	for (const TransactionTarget& state : transaction) {
+
+		const Entity root = RebuildInstance(
+			world, database, hierarchySystem, state.data, state.sceneInstanceID);
+		if (!world.IsAlive(root)) {
+			rebuilt = false;
+			break;
+		}
+	}
+
+	if (!rebuilt) {
+
+		// 一部成功も含めて新しい実体を全て除去し、伝播前の状態へ戻す
+		for (const TransactionTarget& state : transaction) {
+
+			std::vector<Entity> created;
+			std::unordered_set<UUID> ownedInstances = { state.instanceID };
+			std::unordered_set<uint64_t> collected;
+			for (const Entity& member : CollectInstanceEntities(world, state.instanceID)) {
+				CollectOwnedHierarchy(world, member, ownedInstances, created, collected);
+			}
+			for (auto it = created.rbegin(); it != created.rend(); ++it) {
+				if (world.IsAlive(*it)) {
+					world.DestroyEntity(*it);
 				}
 			}
 		}
-
-		// 破棄前に完全な状態を控える、再生成が失敗してもインスタンスを失わないための安全策
-		const std::vector<InstanceEntityBackup> backup = CaptureInstanceBackup(world, toDestroy);
-
-		for (auto it = toDestroy.rbegin(); it != toDestroy.rend(); ++it) {
-
-			if (world.IsAlive(*it)) {
-				world.DestroyEntity(*it);
-			}
-		}
 		world.FlushPendingDestroyEntities();
-
-		RebuildInstance(world, database, hierarchySystem, data, target.sceneInstanceID);
-
-		// 有効なルートを持っていたインスタンスの再生成だけ、失敗時に元の状態へ戻す
-		if (hadRoot && CollectInstanceEntities(world, instanceID).empty()) {
-			RestoreInstanceBackup(world, hierarchySystem, backup, target.sceneInstanceID);
+		RebuildAllHierarchy(world, hierarchySystem);
+		for (const TransactionTarget& state : transaction) {
+			RestoreInstanceBackup(world, state.backup, state.sceneInstanceID);
 		}
+		RebuildAllHierarchy(world, hierarchySystem);
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] Prefab反映に失敗したため全インスタンスを元に戻しました AssetID={}",
+			ToString(prefabAsset));
+		return false;
 	}
+
+	RebuildAllHierarchy(world, hierarchySystem);
+	return true;
 }
 
 //============================================================================
@@ -1085,11 +1354,20 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 		[](const auto& lhs, const auto& rhs) {
 		return lhs.sceneLocalFileID.value < rhs.sceneLocalFileID.value;
 		});
+	std::sort(canonical.nestedInstances.begin(), canonical.nestedInstances.end(),
+		[](const auto& lhs, const auto& rhs) {
+		return lhs.nestedSlotID.value < rhs.nestedSlotID.value;
+		});
+	std::sort(canonical.removedNestedSlots.begin(), canonical.removedNestedSlots.end(),
+		[](UUID lhs, UUID rhs) { return lhs.value < rhs.value; });
 
 	nlohmann::json json = nlohmann::json::object();
 	json["PrefabAsset"] = AssetGUIDToStringOrEmpty(canonical.prefabAsset);
 	json["InstanceID"] = UUIDToStringOrEmpty(canonical.instanceID);
 	json["RootParent"] = UUIDToStringOrEmpty(canonical.rootParentSceneLocalFileID);
+	json["OwnerPrefabInstanceID"] = UUIDToStringOrEmpty(canonical.ownerPrefabInstanceID);
+	json["NestedSlotID"] = UUIDToStringOrEmpty(canonical.nestedSlotID);
+	json["IsPrefabAssetNested"] = canonical.isPrefabAssetNested;
 
 	nlohmann::json entityMap = nlohmann::json::array();
 	for (const auto& [prefabLocal, sceneLocal] : canonical.entityMap) {
@@ -1164,10 +1442,34 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	}
 	json["AddedEntities"] = std::move(addedEntities);
 
+	nlohmann::json nestedInstances = nlohmann::json::array();
+	for (const auto& nested : canonical.nestedInstances) {
+		nestedInstances.push_back(ToJson(nested));
+	}
+	json["NestedInstances"] = std::move(nestedInstances);
+
+	nlohmann::json removedNestedSlots = nlohmann::json::array();
+	for (UUID nestedSlotID : canonical.removedNestedSlots) {
+		removedNestedSlots.push_back(UUIDToStringOrEmpty(nestedSlotID));
+	}
+	json["RemovedNestedSlots"] = std::move(removedNestedSlots);
+
 	return json;
 }
 
 bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
+
+	static thread_local uint32_t readDepth = 0;
+	if (readDepth >= 32) {
+		return false;
+	}
+	struct ReadDepthGuard {
+
+		uint32_t& depth;
+		~ReadDepthGuard() { --depth; }
+	};
+	++readDepth;
+	const ReadDepthGuard readDepthGuard{ readDepth };
 
 	if (!json.is_object()) {
 		return false;
@@ -1177,6 +1479,9 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 	data.prefabAsset = StringToAssetGUIDOrZero(json.value("PrefabAsset", ""));
 	data.instanceID = StringToUUIDOrZero(json.value("InstanceID", ""));
 	data.rootParentSceneLocalFileID = StringToUUIDOrZero(json.value("RootParent", ""));
+	data.ownerPrefabInstanceID = StringToUUIDOrZero(json.value("OwnerPrefabInstanceID", ""));
+	data.nestedSlotID = StringToUUIDOrZero(json.value("NestedSlotID", ""));
+	data.isPrefabAssetNested = json.value("IsPrefabAssetNested", false);
 
 	if (json.contains("EntityMap") && json["EntityMap"].is_array()) {
 		for (const auto& pair : json["EntityMap"]) {
@@ -1228,6 +1533,9 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 	}
 	if (json.contains("RemovedEntities") && json["RemovedEntities"].is_array()) {
 		for (const auto& item : json["RemovedEntities"]) {
+			if (!item.is_string()) {
+				return false;
+			}
 			data.removedEntities.push_back(StringToUUIDOrZero(item.get<std::string>()));
 		}
 	}
@@ -1239,6 +1547,59 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 			added.parentSceneLocalFileID = StringToUUIDOrZero(item.value("Parent", ""));
 			added.components = item.contains("Components") ? item["Components"] : nlohmann::json::object();
 			data.addedEntities.push_back(std::move(added));
+		}
+	}
+	if (json.contains("NestedInstances") && json["NestedInstances"].is_array()) {
+		for (const auto& item : json["NestedInstances"]) {
+
+			PrefabInstanceData nested{};
+			if (!FromJson(item, nested)) {
+				return false;
+			}
+			data.nestedInstances.emplace_back(std::move(nested));
+		}
+	}
+	if (json.contains("RemovedNestedSlots") && json["RemovedNestedSlots"].is_array()) {
+		for (const auto& item : json["RemovedNestedSlots"]) {
+
+			if (!item.is_string()) {
+				return false;
+			}
+			data.removedNestedSlots.emplace_back(StringToUUIDOrZero(item.get<std::string>()));
+		}
+	}
+	if (!data.prefabAsset || !data.instanceID || data.entityMap.empty()) {
+		return false;
+	}
+
+	std::unordered_set<UUID> prefabLocalFileIDs;
+	std::unordered_set<UUID> sceneLocalFileIDs;
+	for (const auto& [prefabLocalFileID, sceneLocalFileID] : data.entityMap) {
+		if (!prefabLocalFileID || !sceneLocalFileID ||
+			!prefabLocalFileIDs.insert(prefabLocalFileID).second ||
+			!sceneLocalFileIDs.insert(sceneLocalFileID).second) {
+			return false;
+		}
+	}
+	for (const auto& added : data.addedEntities) {
+		if (!added.sceneLocalFileID || !added.components.is_object() ||
+			!sceneLocalFileIDs.insert(added.sceneLocalFileID).second) {
+			return false;
+		}
+	}
+	std::unordered_set<UUID> nestedSlotIDs;
+	for (const auto& nested : data.nestedInstances) {
+		if (!nested.nestedSlotID ||
+			(nested.ownerPrefabInstanceID && nested.ownerPrefabInstanceID != data.instanceID) ||
+			!nestedSlotIDs.insert(nested.nestedSlotID).second) {
+			return false;
+		}
+	}
+	std::unordered_set<UUID> removedNestedSlotIDs;
+	for (UUID nestedSlotID : data.removedNestedSlots) {
+		if (!nestedSlotID || nestedSlotIDs.contains(nestedSlotID) ||
+			!removedNestedSlotIDs.insert(nestedSlotID).second) {
+			return false;
 		}
 	}
 	return true;

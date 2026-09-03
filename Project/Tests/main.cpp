@@ -35,6 +35,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
@@ -50,6 +51,7 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
 #include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
@@ -539,6 +541,7 @@ namespace {
 
 	bool TestPrefabImmediateHierarchy() {
 
+		Engine::RuntimePaths::Refresh();
 		const std::filesystem::path testRoot =
 			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/PrefabImmediate";
 		std::error_code ec;
@@ -588,6 +591,240 @@ namespace {
 			rootHierarchy && rootHierarchy->parent == targetParent &&
 			targetWorld.IsAlive(child) && childHierarchy && childHierarchy->parent == result.root &&
 			childName && childName->name == "ImmediateChild";
+
+		std::filesystem::remove_all(testRoot, ec);
+		return passed && !ec;
+	}
+
+	bool TestPrefabPropagationAndNestedInstances() {
+
+		Engine::RuntimePaths::Refresh();
+		const std::filesystem::path testRoot =
+			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/PrefabPropagation";
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+
+		Engine::AssetDatabase database;
+		database.Init();
+		Engine::HierarchySystem hierarchySystem;
+		Engine::PrefabSystem prefabSystem;
+		const std::string nestedPath =
+			"game://Tests/PrefabPropagation/Nested.prefab.json";
+		const std::string outerPath =
+			"game://Tests/PrefabPropagation/Outer.prefab.json";
+
+		Engine::ECSWorld nestedSourceWorld;
+		const Engine::Entity nestedSourceRoot =
+			Engine::SceneAuthoring::CreateGameObject(nestedSourceWorld, "NestedRoot");
+		const Engine::Entity nestedSourceChild =
+			Engine::SceneAuthoring::CreateGameObject(nestedSourceWorld, "NestedChild");
+		hierarchySystem.SetParent(nestedSourceWorld, nestedSourceChild, nestedSourceRoot);
+		bool passed = prefabSystem.SavePrefab(
+			database, nestedSourceWorld, nestedSourceRoot, nestedPath);
+		const Engine::AssetID nestedAsset = database.ImportOrGet(
+			nestedPath, Engine::AssetType::Prefab);
+
+		Engine::ECSWorld outerSourceWorld;
+		const Engine::Entity outerSourceRoot =
+			Engine::SceneAuthoring::CreateGameObject(outerSourceWorld, "OuterRoot");
+		const Engine::Entity outerSourceChild =
+			Engine::SceneAuthoring::CreateGameObject(outerSourceWorld, "OuterChild");
+		hierarchySystem.SetParent(outerSourceWorld, outerSourceChild, outerSourceRoot);
+		Engine::PrefabInstantiateDesc nestedDesc{};
+		nestedDesc.parent = outerSourceChild;
+		Engine::PrefabInstantiateResult nestedSourceResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, outerSourceWorld, nestedAsset, nestedSourceResult, nestedDesc);
+		const Engine::UUID outerSourceInstanceID = Engine::UUID::New();
+		passed &= prefabSystem.SavePrefab(
+			database, outerSourceWorld, outerSourceRoot, outerPath, outerSourceInstanceID);
+		const Engine::AssetID outerAsset = database.ImportOrGet(
+			outerPath, Engine::AssetType::Prefab);
+		prefabSystem.SetPrefabLinkToSubtree(
+			outerSourceWorld, outerSourceRoot, outerAsset, outerSourceInstanceID);
+
+		const nlohmann::json outerJson = Engine::JsonAdapter::Load(
+			database.ResolveFullPath(outerAsset));
+		passed &= outerJson.is_object() && outerJson.value("SchemaVersion", 0u) == 2u &&
+			outerJson.contains("Entities") && outerJson["Entities"].size() == 2 &&
+			outerJson.contains("NestedPrefabInstances") &&
+			outerJson["NestedPrefabInstances"].size() == 1;
+
+		Engine::ECSWorld targetWorld;
+		const Engine::Entity externalParent =
+			Engine::SceneAuthoring::CreateGameObject(targetWorld, "ExternalParent");
+		Engine::PrefabInstantiateDesc outerDesc{};
+		outerDesc.parent = externalParent;
+		Engine::PrefabInstantiateResult outerResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, targetWorld, outerAsset, outerResult, outerDesc);
+
+		Engine::Entity nestedTargetRoot = Engine::Entity::Null();
+		targetWorld.ForEach<Engine::PrefabLinkComponent>(
+			[&](const Engine::Entity& entity, Engine::PrefabLinkComponent& link) {
+
+				if (link.prefabAsset == nestedAsset && link.isPrefabRoot &&
+					link.ownerPrefabInstanceID == outerResult.prefabInstanceID) {
+					nestedTargetRoot = entity;
+				}
+			});
+		const Engine::Entity addedChild =
+			Engine::SceneAuthoring::CreateGameObject(targetWorld, "AddedChild");
+		hierarchySystem.SetParent(targetWorld, addedChild, outerResult.root);
+
+		const Engine::UUID outerStableUUID = targetWorld.IsAlive(outerResult.root) ?
+			targetWorld.GetUUID(outerResult.root) : Engine::UUID{};
+		const Engine::UUID nestedStableUUID = targetWorld.IsAlive(nestedTargetRoot) ?
+			targetWorld.GetUUID(nestedTargetRoot) : Engine::UUID{};
+		const Engine::UUID addedStableUUID = targetWorld.IsAlive(addedChild) ?
+			targetWorld.GetUUID(addedChild) : Engine::UUID{};
+		const Engine::HierarchyComponent* nestedHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(nestedTargetRoot);
+		passed &= targetWorld.IsAlive(nestedTargetRoot) && nestedHierarchy &&
+			nestedHierarchy->parent.IsValid();
+
+		const auto oldNestedBase = Engine::PrefabOverrideUtility::LoadPrefabBaseEntities(
+			database, nestedAsset);
+		nestedSourceWorld.GetComponent<Engine::NameComponent>(nestedSourceChild).name =
+			"NestedChildUpdated";
+		passed &= prefabSystem.SavePrefab(
+			database, nestedSourceWorld, nestedSourceRoot, nestedPath);
+		passed &= Engine::PrefabOverrideUtility::PropagateToInstances(
+			targetWorld, database, hierarchySystem, nestedAsset, oldNestedBase);
+		passed &= Engine::PrefabOverrideUtility::PropagateToInstances(
+			outerSourceWorld, database, hierarchySystem, nestedAsset, oldNestedBase);
+		nestedTargetRoot = targetWorld.FindByUUID(nestedStableUUID);
+		nestedHierarchy = targetWorld.TryGetComponent<Engine::HierarchyComponent>(nestedTargetRoot);
+		passed &= targetWorld.IsAlive(nestedTargetRoot) && nestedHierarchy &&
+			targetWorld.IsAlive(nestedHierarchy->parent);
+
+		const auto oldBase = Engine::PrefabOverrideUtility::LoadPrefabBaseEntities(
+			database, outerAsset);
+		outerSourceWorld.GetComponent<Engine::NameComponent>(outerSourceChild).name = "OuterChildUpdated";
+		passed &= prefabSystem.SavePrefab(
+			database, outerSourceWorld, outerSourceRoot, outerPath);
+		passed &= Engine::PrefabOverrideUtility::PropagateToInstances(
+			targetWorld, database, hierarchySystem, outerAsset, oldBase);
+
+		const Engine::Entity rebuiltRoot = targetWorld.FindByUUID(outerStableUUID);
+		const Engine::Entity rebuiltNestedRoot = targetWorld.FindByUUID(nestedStableUUID);
+		const Engine::Entity rebuiltAddedChild = targetWorld.FindByUUID(addedStableUUID);
+		const Engine::HierarchyComponent* rebuiltRootHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(rebuiltRoot);
+		const Engine::HierarchyComponent* externalHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(externalParent);
+		passed &= targetWorld.IsAlive(rebuiltRoot) && targetWorld.IsAlive(rebuiltNestedRoot) &&
+			targetWorld.IsAlive(rebuiltAddedChild) && rebuiltRootHierarchy &&
+			rebuiltRootHierarchy->parent == externalParent && externalHierarchy &&
+			externalHierarchy->firstChild == rebuiltRoot;
+
+		bool updatedChildFound = false;
+		for (const Engine::Entity& entity :
+			Engine::HierarchyUtility::CollectLogicalSubtree(targetWorld, rebuiltRoot)) {
+
+			if (targetWorld.HasComponent<Engine::NameComponent>(entity) &&
+				targetWorld.GetComponent<Engine::NameComponent>(entity).name == "OuterChildUpdated") {
+				updatedChildFound = true;
+			}
+		}
+		passed &= updatedChildFound;
+
+		const std::filesystem::path scenePath = testRoot / "NestedRoundTrip.scene.json";
+		Engine::SceneHeader sceneHeader{};
+		sceneHeader.name = "NestedRoundTrip";
+		Engine::SceneSystem sceneSystem;
+		Engine::SceneSaveSnapshot sceneSnapshot{};
+		passed &= sceneSystem.CaptureSaveSnapshot(
+			scenePath, targetWorld, sceneHeader, database, sceneSnapshot);
+		if (passed) {
+			sceneSnapshot.useExternalActors = false;
+			passed &= Engine::SceneSystem::WriteSaveSnapshot(std::move(sceneSnapshot));
+		}
+		Engine::ECSWorld loadedSceneWorld;
+		std::vector<Engine::Entity> loadedSceneEntities;
+		passed &= sceneSystem.LoadScene(
+			scenePath, loadedSceneWorld, &database, Engine::AssetID{},
+			Engine::UUID{ 700 }, nullptr, &loadedSceneEntities);
+		Engine::UUID loadedOuterInstanceID{};
+		bool loadedNestedInstance = false;
+		loadedSceneWorld.ForEach<Engine::PrefabLinkComponent>(
+			[&](const Engine::Entity&, Engine::PrefabLinkComponent& link) {
+
+				if (link.prefabAsset == outerAsset && link.isPrefabRoot &&
+					!link.ownerPrefabInstanceID) {
+					loadedOuterInstanceID = link.prefabInstanceID;
+				}
+			});
+		loadedSceneWorld.ForEach<Engine::PrefabLinkComponent>(
+			[&](const Engine::Entity&, Engine::PrefabLinkComponent& link) {
+
+				if (link.prefabAsset == nestedAsset && link.isPrefabRoot &&
+					link.ownerPrefabInstanceID == loadedOuterInstanceID) {
+					loadedNestedInstance = true;
+				}
+			});
+		passed &= loadedOuterInstanceID && loadedNestedInstance;
+
+		const std::vector<Engine::Entity> nestedSubtree =
+			Engine::HierarchyUtility::CollectLogicalSubtree(targetWorld, rebuiltNestedRoot);
+		for (auto it = nestedSubtree.rbegin(); it != nestedSubtree.rend(); ++it) {
+
+			if (targetWorld.IsAlive(*it)) {
+				targetWorld.DestroyEntity(*it);
+			}
+		}
+		targetWorld.FlushPendingDestroyEntities();
+		std::vector<Engine::Entity> hierarchyScope;
+		targetWorld.ForEachAliveEntity([&](Engine::Entity entity) {
+			hierarchyScope.emplace_back(entity);
+			});
+		hierarchySystem.RebuildRuntimeLinks(targetWorld, hierarchyScope);
+
+		const auto currentBase = Engine::PrefabOverrideUtility::LoadPrefabBaseEntities(
+			database, outerAsset);
+		Engine::PrefabInstanceData removedNestedData =
+			Engine::PrefabOverrideUtility::CaptureInstance(
+				targetWorld, database, outerResult.prefabInstanceID, currentBase);
+		passed &= removedNestedData.removedNestedSlots.size() == 1;
+
+		Engine::ECSWorld restoredWorld;
+		const Engine::Entity restoredParent =
+			Engine::SceneAuthoring::CreateGameObject(restoredWorld, "RestoredParent");
+		restoredWorld.GetComponent<Engine::SceneObjectComponent>(restoredParent).localFileID =
+			targetWorld.GetComponent<Engine::SceneObjectComponent>(externalParent).localFileID;
+		const Engine::Entity restoredRoot = Engine::PrefabOverrideUtility::RebuildInstance(
+			restoredWorld, database, hierarchySystem, removedNestedData, Engine::UUID{});
+		bool nestedRestored = false;
+		restoredWorld.ForEach<Engine::PrefabLinkComponent>(
+			[&](const Engine::Entity&, Engine::PrefabLinkComponent& link) {
+				if (link.ownerPrefabInstanceID == removedNestedData.instanceID) {
+					nestedRestored = true;
+				}
+			});
+		passed &= restoredWorld.IsAlive(restoredRoot) && !nestedRestored;
+
+		const std::string invalidPath =
+			"game://Tests/PrefabPropagation/Invalid.prefab.json";
+		passed &= Engine::JsonAdapter::SaveCanonical(
+			database.ResolveAssetPath(invalidPath), nlohmann::json::object());
+		const Engine::AssetID invalidAsset = database.ImportOrGet(
+			invalidPath, Engine::AssetType::Prefab);
+		size_t entityCount = 0;
+		targetWorld.ForEachAliveEntity([&](const Engine::Entity&) {
+			++entityCount;
+			});
+		Engine::PrefabInstantiateResult invalidResult{};
+		passed &= !prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, targetWorld, invalidAsset, invalidResult);
+		size_t entityCountAfterFailure = 0;
+		targetWorld.ForEachAliveEntity([&](const Engine::Entity&) {
+			++entityCountAfterFailure;
+			});
+		passed &= entityCount == entityCountAfterFailure;
 
 		std::filesystem::remove_all(testRoot, ec);
 		return passed && !ec;
@@ -2927,6 +3164,20 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--prefab-immediate") {
+		return TestPrefabImmediateHierarchy() ? 0 : 33;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--prefab-nested") {
+		return TestPrefabPropagationAndNestedInstances() ? 0 : 34;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--prefab") {
+		if (!TestPrefabImmediateHierarchy() || !TestPrefabPropagationAndNestedInstances()) {
+			std::cerr << "Prefab test failed\n";
+			return 34;
+		}
+		std::cout << "Prefab test passed\n";
+		return 0;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
 		if (!TestRigidbody2DRestingContact() || !TestInactivePhysicsSystems() ||
 			!TestEditCollisionState() ||
@@ -2957,6 +3208,7 @@ int main(int argc, char* argv[]) {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
 			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
 			!TestPrefabImmediateHierarchy() ||
+			!TestPrefabPropagationAndNestedInstances() ||
 			!TestTransformDirtyHierarchy() ||
 			!TestTransformDimensionSerialization() ||
 			!TestScreenSpaceOutlineSerialization()) {
@@ -3065,6 +3317,10 @@ int main(int argc, char* argv[]) {
 	if (!TestPrefabImmediateHierarchy()) {
 		std::cerr << "Prefab immediate hierarchy failed\n";
 		return 33;
+	}
+	if (!TestPrefabPropagationAndNestedInstances()) {
+		std::cerr << "Prefab propagation and nested instances failed\n";
+		return 34;
 	}
 	if (!TestECSExternalStorage()) {
 		std::cerr << "ECS external storage failed\n";

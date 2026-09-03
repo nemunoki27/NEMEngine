@@ -62,6 +62,8 @@ namespace Engine {
 	// プレファブ由来でない追加実体
 	struct PrefabAddedEntity {
 
+		// 実行中の再構築で維持するEntityの安定UUID、シーンファイルには保存しない
+		UUID stableUUID{};
 		// シーン内ローカルID
 		UUID sceneLocalFileID{};
 		// ぶら下げ先の親のシーン内ローカルID
@@ -82,9 +84,17 @@ namespace Engine {
 		UUID instanceID{};
 		// インスタンスrootを別実体の子にしている場合の親シーンローカルID
 		UUID rootParentSceneLocalFileID{};
+		// 親Prefabインスタンス、Scene直下のPrefabでは空
+		UUID ownerPrefabInstanceID{};
+		// 親Prefabアセット内でネストPrefabを識別するID
+		UUID nestedSlotID{};
+		// 親Prefabアセットに定義されたネストPrefabか
+		bool isPrefabAssetNested = false;
 
 		// プレファブ内ローカルIDからシーン内ローカルIDへの対応
 		std::vector<std::pair<UUID, UUID>> entityMap;
+		// プレファブ内ローカルIDからEntityの安定UUIDへの対応、シーンファイルには保存しない
+		std::vector<std::pair<UUID, UUID>> stableUUIDMap;
 
 		// プロパティ値のオーバーライド
 		std::vector<PrefabPropertyModification> modifications;
@@ -98,11 +108,16 @@ namespace Engine {
 		std::vector<UUID> removedEntities;
 		// 追加された実体
 		std::vector<PrefabAddedEntity> addedEntities;
+		// このPrefabが所有するネストPrefabインスタンス
+		std::vector<PrefabInstanceData> nestedInstances;
+		// シーン上で削除された親Prefabアセット由来のネストスロット
+		std::vector<UUID> removedNestedSlots;
 
 		// オーバーライドが何も無いか、薄い保存の要否判定に使う
 		bool IsEmpty() const {
 			return modifications.empty() && addedComponents.empty() && removedComponents.empty() &&
 				hierarchyModifications.empty() && removedEntities.empty() && addedEntities.empty() &&
+				nestedInstances.empty() && removedNestedSlots.empty() &&
 				!rootParentSceneLocalFileID;
 		}
 	};

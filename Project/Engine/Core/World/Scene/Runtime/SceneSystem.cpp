@@ -491,7 +491,25 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 		EnsureSceneRenderFeatureProfile(*outHeader,
 			Algorithm::PathToUTF8(scenePath), assetDatabase);
 	}
-	return LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities);
+	if (LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities)) {
+		return true;
+	}
+
+	// 読込途中のEntityを残さず、呼び出し元が同じWorldを継続利用できる状態へ戻す
+	std::vector<Entity> failedEntities;
+	world.ForEach<SceneObjectComponent>([&](const Entity& entity, SceneObjectComponent& sceneObject) {
+		if (sceneObject.sceneInstanceID == sceneInstanceID) {
+			failedEntities.emplace_back(entity);
+		}
+		});
+	for (auto it = failedEntities.rbegin(); it != failedEntities.rend(); ++it) {
+		world.DestroyEntity(*it);
+	}
+	world.FlushPendingDestroyEntities();
+	if (outCreatedEntities) {
+		outCreatedEntities->clear();
+	}
+	return false;
 }
 
 bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,
@@ -531,6 +549,8 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 	// インスタンスに取り込まれた実体のシーンローカルIDを覚えておき、fat側の重複保存を防ぐ
 	std::unordered_set<UUID> consumedSceneLocalIDs;
 	std::unordered_map<UUID, AssetID> instanceToPrefab;
+	bool invalidPrefabLink = false;
+	PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(world);
 
 	auto collectInstanceIDs = [&](const Entity& entity) {
 
@@ -538,7 +558,17 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 			return;
 		}
 		const auto& link = world.GetComponent<PrefabLinkComponent>(entity);
-		instanceToPrefab[link.prefabInstanceID] = link.prefabAsset;
+		if (!link.prefabAsset || !link.prefabInstanceID || !link.prefabLocalFileID) {
+			invalidPrefabLink = true;
+			return;
+		}
+		if (link.ownerPrefabInstanceID) {
+			return;
+		}
+		auto [it, inserted] = instanceToPrefab.emplace(link.prefabInstanceID, link.prefabAsset);
+		if (!inserted && it->second != link.prefabAsset) {
+			invalidPrefabLink = true;
+		}
 		};
 	if (entitiesSubset) {
 		for (const Entity& entity : *entitiesSubset) {
@@ -548,6 +578,12 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 		}
 	} else {
 		world.ForEachAliveEntity(collectInstanceIDs);
+	}
+	if (invalidPrefabLink) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[SceneSystem] 不正なPrefabLinkがあるためシーンを保存できません");
+		return false;
 	}
 
 	// プレファブインスタンスごとに差分を抽出する
@@ -561,34 +597,52 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 
 		const std::vector<Entity> instanceEntities =
 			PrefabOverrideUtility::CollectInstanceEntities(world, instanceID);
-		const bool hasRoot = std::any_of(instanceEntities.begin(), instanceEntities.end(), [&](const Entity& entity) {
-			return world.IsAlive(entity) && world.HasComponent<PrefabLinkComponent>(entity) &&
-				world.GetComponent<PrefabLinkComponent>(entity).isPrefabRoot;
-			});
-		if (!hasRoot) {
+		const size_t rootCount = static_cast<size_t>(std::count_if(
+			instanceEntities.begin(), instanceEntities.end(), [&](const Entity& entity) {
+				return world.IsAlive(entity) && world.HasComponent<PrefabLinkComponent>(entity) &&
+					world.GetComponent<PrefabLinkComponent>(entity).isPrefabRoot;
+				}));
+		if (rootCount != 1) {
 
-			// ルートを失ったPrefabの残存実体をfat側へ保存しない
-			for (const Entity& member : instanceEntities) {
-				for (const Entity& entity : HierarchyUtility::CollectLogicalSubtree(world, member)) {
-					if (world.HasComponent<SceneObjectComponent>(entity)) {
-						consumedSceneLocalIDs.insert(
-							world.GetComponent<SceneObjectComponent>(entity).localFileID);
-					}
-				}
-			}
-			continue;
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SceneSystem] Prefabインスタンスのルート数が不正です InstanceID={} RootCount={}",
+				ToString(instanceID), rootCount);
+			return false;
 		}
 
 		const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(database, prefabAsset);
-		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, instanceID, base);
-		data.prefabAsset = prefabAsset;
+		if (base.empty()) {
 
-		// このインスタンスが取り込んだ実体のシーンローカルIDを記録する
-		for (const auto& [prefabLocal, sceneLocal] : data.entityMap) {
-			consumedSceneLocalIDs.insert(sceneLocal);
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SceneSystem] Prefabアセットを読み込めないためシーンを保存できません AssetID={}",
+				ToString(prefabAsset));
+			return false;
 		}
-		for (const auto& added : data.addedEntities) {
-			consumedSceneLocalIDs.insert(added.sceneLocalFileID);
+		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, database, instanceID, base);
+		data.prefabAsset = prefabAsset;
+		if (data.entityMap.empty()) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SceneSystem] PrefabインスタンスのEntity対応が空です InstanceID={}",
+				ToString(instanceID));
+			return false;
+		}
+
+		// 親Prefabが所有するネストPrefabを含めてfat側から除外する
+		std::vector<const PrefabInstanceData*> pendingInstances = { &data };
+		while (!pendingInstances.empty()) {
+
+			const PrefabInstanceData* current = pendingInstances.back();
+			pendingInstances.pop_back();
+			for (const auto& [prefabLocal, sceneLocal] : current->entityMap) {
+				consumedSceneLocalIDs.insert(sceneLocal);
+			}
+			for (const auto& added : current->addedEntities) {
+				consumedSceneLocalIDs.insert(added.sceneLocalFileID);
+			}
+			for (const auto& nested : current->nestedInstances) {
+				pendingInstances.emplace_back(&nested);
+			}
 		}
 		prefabInstances.push_back(ToJson(data));
 	}
@@ -765,12 +819,19 @@ bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& wor
 
 			PrefabInstanceData data{};
 			if (!FromJson(instanceJson, data)) {
-				continue;
+
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[SceneSystem] Prefabインスタンスの保存データが不正です");
+				return false;
 			}
 			const Entity instanceRoot =
 				PrefabOverrideUtility::RebuildInstance(world, *assetDatabase, hierarchySystem, data, sceneInstanceID);
 			if (!world.IsAlive(instanceRoot)) {
-				continue;
+
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[SceneSystem] Prefabインスタンスを復元できません AssetID={} InstanceID={}",
+					ToString(data.prefabAsset), ToString(data.instanceID));
+				return false;
 			}
 			// 生成したインスタンスの実体を作成リストへ加える、追加実体はsceneInstanceIDで保存時に回収される
 			if (outCreatedEntities) {

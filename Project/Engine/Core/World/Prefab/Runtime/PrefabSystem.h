@@ -7,6 +7,7 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Prefab/Override/PrefabOverrideTypes.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabHeader.h>
 
 // c++
@@ -36,6 +37,20 @@ namespace Engine {
 		// プレファブ内ローカルIDからシーンローカルIDへの対応で、薄い保存からの復元時に同一性を保つ
 		// 非所有ポインタで参照、対応が無いローカルIDは従来通り新規採番する
 		const std::vector<std::pair<UUID, UUID>>* localFileIDRemap = nullptr;
+		// プレファブ内ローカルIDからEntityの安定UUIDへの対応、インスタンス再構築時だけ使用する
+		const std::vector<std::pair<UUID, UUID>>* stableUUIDRemap = nullptr;
+		// シーン保存から復元するネストPrefab差分、指定が無ければPrefabアセットの初期値を使う
+		const std::vector<PrefabInstanceData>* nestedInstanceRemap = nullptr;
+		// シーン上で削除された親Prefab由来のネストスロット
+		const std::vector<UUID>* removedNestedSlots = nullptr;
+		// ネスト元のPrefabインスタンスとスロット
+		UUID ownerPrefabInstanceID{};
+		UUID nestedSlotID{};
+		bool isPrefabAssetNested = false;
+		// 循環参照で無限生成しないためのネスト深度
+		uint32_t nestedDepth = 0;
+		// Prefab編集時にネストPrefabの保存IDを維持するか
+		bool preserveNestedLocalFileIDs = false;
 	};
 	// プレファブ生成の結果
 	struct PrefabInstantiateResult {
@@ -67,15 +82,19 @@ namespace Engine {
 
 		// プレファブ保存、rootサブツリーを保存する
 		bool SavePrefab(AssetDatabase& database, ECSWorld& world,
-			const Entity& root, const std::string& prefabAssetPath) const;
+			const Entity& root, const std::string& prefabAssetPath,
+			UUID prefabInstanceID = UUID{}) const;
 		// 明示したエンティティ集合を保存する、複数ルートのプレファブ編集で使う
 		// headerのrootLocalFileIDにはrootのlocalFileIDを使う
 		bool SavePrefabFromEntities(AssetDatabase& database, ECSWorld& world, const Entity& root,
-			const std::vector<Entity>& entities, const std::string& prefabAssetPath) const;
+			const std::vector<Entity>& entities, const std::string& prefabAssetPath,
+			UUID prefabInstanceID = UUID{}) const;
 
 		// EntityへPrefabLinkを設定する
 		void SetPrefabLink(ECSWorld& world, const Entity& entity, AssetID prefabAsset,
-			UUID prefabLocalFileID, UUID prefabInstanceID, bool isPrefabRoot) const;
+			UUID prefabLocalFileID, UUID prefabInstanceID, bool isPrefabRoot,
+			UUID ownerPrefabInstanceID = UUID{}, UUID nestedSlotID = UUID{},
+			bool isPrefabAssetNested = false) const;
 		// サブツリーを1つのプレファブインスタンスとして設定し、使用したインスタンスIDを返す
 		UUID SetPrefabLinkToSubtree(ECSWorld& world, const Entity& root, AssetID prefabAsset,
 			UUID prefabInstanceID = UUID{}) const;
