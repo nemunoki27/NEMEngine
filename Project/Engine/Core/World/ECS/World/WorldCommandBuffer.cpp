@@ -13,7 +13,6 @@
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
-#include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -151,24 +150,6 @@ void Engine::WorldCommandBuffer::EnqueueCreateEntity(const Entity& reserved, std
 	createCommandIndex_[EntityKey(reserved)] = commands_.size() - 1;
 }
 
-void Engine::WorldCommandBuffer::EnqueueInstantiatePrefab(const Entity& reservedRoot, AssetID prefabAsset,
-	const Vector3& position, const Quaternion& rotation, bool useTransform, const Entity& parent) {
-
-	Command command{};
-	command.kind = CommandKind::InstantiatePrefab;
-	command.target = reservedRoot;
-	command.parent = parent;
-	command.assetID = prefabAsset;
-	command.position = position;
-	command.rotation = rotation;
-	if (useTransform) {
-		command.flags |= FlagUseTransform;
-	}
-	commands_.emplace_back(std::move(command));
-	// 予約ルートEntityからこのコマンドのindexを引けるよう記録する
-	createCommandIndex_[EntityKey(reservedRoot)] = commands_.size() - 1;
-}
-
 void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset) {
 
 	Command command{};
@@ -203,8 +184,7 @@ Engine::WorldCommandBuffer::Command* Engine::WorldCommandBuffer::FindPendingCrea
 	}
 	// indexのコマンドが目的の予約Entityと種別か念のため再確認する
 	Command& command = commands_[it->second];
-	if ((command.kind == CommandKind::CreateEntity || command.kind == CommandKind::InstantiatePrefab)
-		&& command.target == reserved) {
+	if (command.kind == CommandKind::CreateEntity && command.target == reserved) {
 		return &command;
 	}
 	return nullptr;
@@ -218,8 +198,7 @@ const Engine::WorldCommandBuffer::Command* Engine::WorldCommandBuffer::FindPendi
 	}
 	// indexのコマンドが目的の予約Entityと種別か念のため再確認する
 	const Command& command = commands_[it->second];
-	if ((command.kind == CommandKind::CreateEntity || command.kind == CommandKind::InstantiatePrefab)
-		&& command.target == reserved) {
+	if (command.kind == CommandKind::CreateEntity && command.target == reserved) {
 		return &command;
 	}
 	return nullptr;
@@ -449,49 +428,6 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 		if (world.IsAlive(command.parent) && !WouldCreateCycle(world, command.target, command.parent)) {
 			HierarchySystem hierarchySystem{};
 			hierarchySystem.SetParent(world, command.target, command.parent);
-		}
-		break;
-	}
-	case CommandKind::InstantiatePrefab: {
-
-		const WorldCommandServices& services = world.GetCommandServices();
-		if (!services.assetDatabase) {
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: WorldにCommandServiceが未設定のためPrefabを生成できません");
-			break;
-		}
-		HierarchySystem hierarchySystem{};
-		PrefabSystem prefabSystem{};
-		PrefabInstantiateResult result{};
-		PrefabInstantiateDesc desc{};
-		desc.parent = world.IsAlive(command.parent) ? command.parent : Entity::Null();
-		// 予約済みルートをPrefabSystemのルートとして使わせる、deferredでも実root handleを返せるようにする
-		desc.reservedRoot = command.target;
-		// 生成インスタンスをsceneInstanceへ所属させる、未設定だとsceneInstanceIDが空のままになり
-		// RenderPassItemCollectorのscene振り分けで除外されてDrawが発行されない
-		// 親があれば親のsceneを継ぎ、無ければアクティブsceneへ所属させる
-		if (world.IsAlive(desc.parent)) {
-			if (const SceneObjectComponent* parentSceneObject = world.TryGetComponent<SceneObjectComponent>(desc.parent)) {
-				desc.ownerSceneInstanceID = parentSceneObject->sceneInstanceID;
-			}
-		}
-		if (!desc.ownerSceneInstanceID && services.sceneInstances) {
-			if (const SceneInstance* activeScene = services.sceneInstances->GetActive()) {
-				desc.ownerSceneInstanceID = activeScene->instanceID;
-			}
-		}
-		if (!prefabSystem.InstantiatePrefab(*services.assetDatabase, hierarchySystem, world,
-			command.assetID, result, desc)) {
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: Prefabが存在しないか不正なため生成に失敗しました");
-			break;
-		}
-		// 初期transformの適用で指定された場合のみrootのlocal SRTを上書きする
-		if ((command.flags & FlagUseTransform) && world.IsAlive(result.root)) {
-			if (TransformComponent* transform = world.TryGetComponent<TransformComponent>(result.root)) {
-				transform->localPos = command.position;
-				transform->localRotation = Quaternion::Normalize(command.rotation);
-			}
 		}
 		break;
 	}

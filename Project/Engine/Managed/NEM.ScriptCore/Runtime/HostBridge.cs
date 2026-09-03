@@ -420,6 +420,15 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int FlushPendingReferences() {
+
+        return (int)Guard(nameof(FlushPendingReferences), () => {
+            FlushPendingReferenceFields();
+            return ManagedStatus.Ok;
+        });
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int DestroyInstance(NativeScriptInstanceHandle handle) {
 
         return (int)Guard(nameof(DestroyInstance), () => {

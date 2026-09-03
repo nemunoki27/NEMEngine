@@ -10,6 +10,7 @@
 
 // c++
 #include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -50,6 +51,9 @@ namespace Engine {
 		// OnAnimationEventを対象Entityのビヘイビアへ渡す
 		static void DispatchAnimationEvent(ECSWorld& world, SystemContext& context, const Entity& entity,
 			const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam);
+		// Prefab生成中にScript実体とAwakeとOnEnableを返却前まで同期する
+		static void SynchronizeInstantiatedEntities(ECSWorld& world, SystemContext& context,
+			std::span<const Entity> entities);
 
 		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);

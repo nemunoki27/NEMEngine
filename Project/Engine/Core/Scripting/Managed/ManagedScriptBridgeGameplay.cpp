@@ -6,9 +6,13 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -31,6 +35,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
@@ -47,8 +52,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ゲームプレイの構造変更コールバック
-	//	Entity生成とPrefabとSceneとSetParent、構造変更はWorldCommandBuffer経由で遅延適用する
-	//	生成系は空Entityを即時予約してハンドルを返しコンポーネントと名前とparentはflushで適用する
+	//	Prefabは返却前に実体化し、その他の走査を壊す構造変更はWorldCommandBufferへ積む
 	//============================================================================
 	namespace {
 
@@ -1261,19 +1265,60 @@ namespace Engine {
 	ManagedNativeEntity ManagedScriptRuntime::InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID,
 		ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent) {
 
+		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = ResolveTargetWorld(parent);
 		const AssetID prefabAsset = ToAssetID(prefabAssetID);
-		if (!world || !prefabAsset) {
+		if (!context || !world || !prefabAsset) {
 			return MakeNullNativeEntity();
 		}
-		// ルートEntityを即時予約しPrefabSystemにはreservedRootを渡して実体化させる、遅延でも実rootを返す
-		const Entity reservedRoot = world->CreateEntity();
+		const WorldCommandServices& services = world->GetCommandServices();
+		if (!services.assetDatabase) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"Prefab.Instantiate: AssetDatabaseが未設定のためPrefabを生成できません");
+			return MakeNullNativeEntity();
+		}
+
 		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
-		world->GetCommandBuffer().EnqueueInstantiatePrefab(reservedRoot, prefabAsset,
-			Vector3(position.x, position.y, position.z),
-			Quaternion(rotation.x, rotation.y, rotation.z, rotation.w),
-			useTransform != 0, parentEntity);
-		return MakeNativeEntity(*world, reservedRoot);
+		PrefabInstantiateDesc desc{};
+		desc.parent = parentEntity;
+		if (world->IsAlive(parentEntity)) {
+			if (const SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(parentEntity)) {
+				desc.ownerSceneInstanceID = sceneObject->sceneInstanceID;
+			}
+		}
+		if (!desc.ownerSceneInstanceID && services.sceneInstances) {
+			if (const SceneInstance* activeScene = services.sceneInstances->GetActive()) {
+				desc.ownerSceneInstanceID = activeScene->instanceID;
+			}
+		}
+
+		HierarchySystem hierarchySystem{};
+		PrefabSystem prefabSystem{};
+		PrefabInstantiateResult result{};
+		if (!prefabSystem.InstantiatePrefab(*services.assetDatabase, hierarchySystem, *world,
+			prefabAsset, result, desc)) {
+
+			for (auto it = result.createdEntities.rbegin(); it != result.createdEntities.rend(); ++it) {
+				if (world->IsAlive(*it)) {
+					world->DestroyEntity(*it);
+				}
+			}
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"Prefab.Instantiate: Prefabが存在しないかデータが不正です AssetID={}", ToString(prefabAsset));
+			return MakeNullNativeEntity();
+		}
+		if (useTransform != 0) {
+			if (TransformComponent* transform = world->TryGetComponent<TransformComponent>(result.root)) {
+				transform->localPos = Vector3(position.x, position.y, position.z);
+				transform->localRotation = Quaternion::Normalize(
+					Quaternion(rotation.x, rotation.y, rotation.z, rotation.w));
+			}
+		}
+
+		// 呼び出し元はSystemSchedulerが所有する可変ContextのためLifecycle同期へ戻す
+		BehaviorSystem::SynchronizeInstantiatedEntities(
+			*world, *const_cast<SystemContext*>(context), result.createdEntities);
+		return MakeNativeEntity(*world, result.root);
 	}
 
 	uint64_t ManagedScriptRuntime::LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID) {

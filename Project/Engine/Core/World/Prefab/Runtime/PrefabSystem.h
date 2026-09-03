@@ -28,10 +28,6 @@ namespace Engine {
 		// 生成したルートをぶら下げたい親
 		Entity parent = Entity::Null();
 
-		// 予約済みルートEntityで有効なら新規生成せずこのEntityをルートとして使う
-		// deferred Prefab.Instantiateが即時にroot handleを返すための仕組み
-		Entity reservedRoot = Entity::Null();
-
 		// 有効ならインスタンスIDを新規採番せずこの値を使う、薄い保存からの復元で同一性を保つ
 		UUID forcedInstanceID{};
 

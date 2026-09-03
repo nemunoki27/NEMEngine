@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -33,6 +34,7 @@
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
@@ -533,6 +535,62 @@ namespace {
 			destroyed.allocatedChunkCount == 0 &&
 			destroyed.allocatedChunkBytes == 0 &&
 			destroyed.payloadBytes == 0;
+	}
+
+	bool TestPrefabImmediateHierarchy() {
+
+		const std::filesystem::path testRoot =
+			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/PrefabImmediate";
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+
+		Engine::AssetDatabase database;
+		database.Init();
+		Engine::HierarchySystem hierarchySystem;
+		Engine::PrefabSystem prefabSystem;
+		Engine::ECSWorld sourceWorld;
+		const Engine::Entity sourceRoot =
+			Engine::SceneAuthoring::CreateGameObject(sourceWorld, "ImmediateRoot");
+		const Engine::Entity sourceChild =
+			Engine::SceneAuthoring::CreateGameObject(sourceWorld, "ImmediateChild");
+		sourceWorld.AddComponent<Engine::CollisionComponent>(sourceRoot).enabled = false;
+		hierarchySystem.SetParent(sourceWorld, sourceChild, sourceRoot);
+
+		const std::string prefabPath =
+			"game://Tests/PrefabImmediate/Immediate.prefab.json";
+		bool passed = prefabSystem.SavePrefab(
+			database, sourceWorld, sourceRoot, prefabPath);
+		const Engine::AssetID prefabAsset = database.ImportOrGet(
+			prefabPath, Engine::AssetType::Prefab);
+
+		Engine::ECSWorld targetWorld;
+		const Engine::Entity targetParent =
+			Engine::SceneAuthoring::CreateGameObject(targetWorld, "Parent");
+		Engine::PrefabInstantiateDesc desc{};
+		desc.parent = targetParent;
+		Engine::PrefabInstantiateResult result{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, targetWorld, prefabAsset, result, desc);
+
+		const Engine::HierarchyComponent* rootHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(result.root);
+		const Engine::Entity child = rootHierarchy ? rootHierarchy->firstChild : Engine::Entity::Null();
+		const Engine::HierarchyComponent* childHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(child);
+		const Engine::NameComponent* childName =
+			targetWorld.TryGetComponent<Engine::NameComponent>(child);
+		passed &= targetWorld.IsAlive(result.root) && result.createdEntities.size() == 2 &&
+			targetWorld.HasComponent<Engine::CollisionComponent>(result.root) &&
+			rootHierarchy && rootHierarchy->parent == targetParent &&
+			targetWorld.IsAlive(child) && childHierarchy && childHierarchy->parent == result.root &&
+			childName && childName->name == "ImmediateChild";
+
+		std::filesystem::remove_all(testRoot, ec);
+		return passed && !ec;
 	}
 
 	bool TestECSExternalStorage() {
@@ -2898,6 +2956,7 @@ int main(int argc, char* argv[]) {
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
 			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
+			!TestPrefabImmediateHierarchy() ||
 			!TestTransformDirtyHierarchy() ||
 			!TestTransformDimensionSerialization() ||
 			!TestScreenSpaceOutlineSerialization()) {
@@ -3002,6 +3061,10 @@ int main(int argc, char* argv[]) {
 	if (!TestECSChunkStorage()) {
 		std::cerr << "ECS chunk storage failed\n";
 		return 10;
+	}
+	if (!TestPrefabImmediateHierarchy()) {
+		std::cerr << "Prefab immediate hierarchy failed\n";
+		return 33;
 	}
 	if (!TestECSExternalStorage()) {
 		std::cerr << "ECS external storage failed\n";

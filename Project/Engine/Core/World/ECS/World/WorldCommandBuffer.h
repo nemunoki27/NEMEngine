@@ -65,9 +65,6 @@ namespace Engine {
 
 		// 予約済みEntityをmaterializeしてTransform/SceneObject/Nameを付与しstaged SRTとparentを適用する
 		void EnqueueCreateEntity(const Entity& reserved, std::string_view name, const Entity& parent);
-		// 予約済みルートへPrefabをPrefabSystem経由でmaterializeする
-		void EnqueueInstantiatePrefab(const Entity& reservedRoot, AssetID prefabAsset,
-			const Vector3& position, const Quaternion& rotation, bool useTransform, const Entity& parent);
 		// Sceneをadditive load / unloadする、instanceはUUID
 		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset);
 		void EnqueueUnloadScene(const UUID& sceneInstanceID);
@@ -75,7 +72,7 @@ namespace Engine {
 		void EnqueueLoadSceneSingle(const UUID& sceneInstanceID, AssetID sceneAsset);
 
 		// 予約直後のEntityへのtransform書き込みをstagingする、flush前は実componentが無いため
-		// 対象がpending CreateEntity / InstantiatePrefabコマンドに無ければfalseで呼び出し側は通常処理へ
+		// 対象がpending CreateEntityコマンドに無ければfalseで呼び出し側は通常処理へ
 		bool StageCreatePosition(const Entity& reserved, const Vector3& position);
 		bool StageCreateRotation(const Entity& reserved, const Quaternion& rotation);
 		bool StageCreateScale(const Entity& reserved, const Vector3& scale);
@@ -109,7 +106,6 @@ namespace Engine {
 			SetActiveSelfEnsuringComponent,
 			SetParent,
 			CreateEntity,
-			InstantiatePrefab,
 			LoadSceneAdditive,
 			LoadSceneSingle,
 			UnloadScene,
@@ -119,10 +115,9 @@ namespace Engine {
 		enum CommandFlags : uint8_t {
 
 			FlagWorldPositionStays = 1 << 0,
-			FlagUseTransform = 1 << 1, // Prefab 生成時に position/rotation を適用するか
-			FlagHasPosition = 1 << 2,
-			FlagHasRotation = 1 << 3,
-			FlagHasScale = 1 << 4,
+			FlagHasPosition = 1 << 1,
+			FlagHasRotation = 1 << 2,
+			FlagHasScale = 1 << 3,
 		};
 
 		// 1コマンド分のデータで値はすべてコピー保持する
@@ -133,10 +128,10 @@ namespace Engine {
 			Entity parent = Entity::Null();
 			bool boolValue = false;
 			uint8_t flags = 0;
-			// Prefab / Sceneのasset、Scene instanceのUUID
+			// Sceneのasset、Scene instanceのUUID
 			AssetID assetID{};
 			UUID sceneInstanceID{};
-			// CreateEntity / InstantiatePrefabの初期SRTでstagingで確定する
+			// CreateEntityの初期SRTでstagingされた値を保持する
 			Vector3 position{};
 			Quaternion rotation = Quaternion::Identity();
 			Vector3 scale = Vector3::AnyInit(1.0f);
@@ -147,7 +142,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::vector<Command> commands_;
-		// 予約Entityからpending CreateEntity / InstantiatePrefabコマンドのindexを引くmapで線形走査を避ける
+		// 予約Entityからpending CreateEntityコマンドのindexを引くmapで線形走査を避ける
 		std::unordered_map<uint64_t, size_t> createCommandIndex_;
 		// Flush再入を防ぐ
 		bool flushing_ = false;
@@ -160,7 +155,7 @@ namespace Engine {
 		void Apply(ECSWorld& world, const Command& command);
 		// 予約Entityをmapキーへ変換する
 		static uint64_t EntityKey(const Entity& entity) { return (static_cast<uint64_t>(entity.index) << 32) | entity.generation; }
-		// 予約Entityを対象にするpending CreateEntity / InstantiatePrefabコマンドを探す
+		// 予約Entityを対象にするpending CreateEntityコマンドを探す
 		Command* FindPendingCreateCommand(const Entity& reserved);
 		const Command* FindPendingCreateCommand(const Entity& reserved) const;
 	};

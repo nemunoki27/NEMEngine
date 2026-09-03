@@ -67,6 +67,8 @@ namespace Engine {
 		ManagedStatus GenerateScriptManifest(const std::filesystem::path& assemblyPath,
 			const std::filesystem::path& manifestOutputPath);
 		void SetSerializedFields(ManagedScriptInstanceHandle handle, const nlohmann::json& serializedFields);
+		// 生成済みScriptの保留参照をLifecycleより前に解決する
+		void FlushPendingReferences(ECSWorld& world);
 		void DestroyInstance(ManagedScriptInstanceHandle handle);
 
 		// ライフサイクル呼び出しで、C#側で例外を封じ込めた結果をManagedStatusで返す
@@ -188,6 +190,7 @@ namespace Engine {
 		SetRuntimeFieldFn setRuntimeField_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;
 		SetSerializedFieldsFn setSerializedFields_ = nullptr;
+		UnloadGameAssemblyFn flushPendingReferences_ = nullptr;
 		DestroyInstanceFn destroyInstance_ = nullptr;
 		InvokeFn invokeAwake_ = nullptr;
 		InvokeFn invokeStart_ = nullptr;

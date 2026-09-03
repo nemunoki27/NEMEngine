@@ -217,6 +217,40 @@ void Engine::BehaviorSystem::DispatchAnimationEvent(ECSWorld& world, SystemConte
 	}
 }
 
+void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(ECSWorld& world, SystemContext& context,
+	std::span<const Entity> entities) {
+
+	if (!activeSystem_ || context.mode != WorldMode::Play ||
+		activeSystem_->activeWorld_ != &world || entities.empty()) {
+		return;
+	}
+
+	// Prefab追加通知を通常同期へ残すと返却後にSerializeFieldを再適用するため先に消費する
+	auto& dirtyEntities = activeSystem_->dirtyScriptEntities_;
+	dirtyEntities.erase(std::remove_if(dirtyEntities.begin(), dirtyEntities.end(),
+		[entities](const Entity& dirty) {
+
+			return std::find(entities.begin(), entities.end(), dirty) != entities.end();
+		}), dirtyEntities.end());
+
+	// 全Script実体を先に作りPrefab内参照をAwakeより前に解決できる状態へ揃える
+	for (const Entity& entity : entities) {
+
+		if (world.IsAlive(entity) && world.HasComponent<ScriptComponent>(entity)) {
+			activeSystem_->SynchronizeEntityRecords(world, context, entity, true);
+		}
+	}
+	ManagedScriptRuntime::GetInstance().FlushPendingReferences(world);
+	activeSystem_->participantsDirty_ = true;
+	activeSystem_->enableTransitionsDirty_ = true;
+	activeSystem_->RebuildParticipants(world);
+	activeSystem_->participantsDirty_ = false;
+	activeSystem_->FlushActiveTransitions(world, context);
+
+	// Startは呼び出し元のコールバック終了後に通常Lifecycle同期で実行する
+	activeSystem_->participantsDirty_ = true;
+}
+
 nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle handle) {
 
 	// Play中のinstanceの現在値を返す、無効なら空

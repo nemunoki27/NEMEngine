@@ -1317,7 +1317,7 @@ internal static unsafe class NativeApi {
         }
     }
 
-    // 予約済みルート Entity を即時返す。実体化(component 追加)は flush で行われる。
+    // 子階層とcomponentとscriptを実体化したPrefabのルートEntityを返す。
     internal static Entity SpawnPrefab(AssetGUID prefabAssetId, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
         if (InstantiatePrefab == null) {
             return Entity.nullEntity;

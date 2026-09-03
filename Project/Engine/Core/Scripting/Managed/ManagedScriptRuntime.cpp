@@ -423,6 +423,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	setRuntimeField_ = nullptr;
 	createInstance_ = nullptr;
 	setSerializedFields_ = nullptr;
+	flushPendingReferences_ = nullptr;
 	destroyInstance_ = nullptr;
 	invokeAwake_ = nullptr;
 	invokeStart_ = nullptr;
@@ -543,6 +544,15 @@ void Engine::ManagedScriptRuntime::SetSerializedFields(ManagedScriptInstanceHand
 
 	const std::string json = serializedFields.is_object() ? serializedFields.dump() : std::string("{}");
 	setSerializedFields_(handle, json.c_str());
+}
+
+void Engine::ManagedScriptRuntime::FlushPendingReferences(ECSWorld& world) {
+
+	if (!initialized_ || !flushPendingReferences_) {
+		return;
+	}
+	ScopedReferenceWorld worldScope(world);
+	flushPendingReferences_();
 }
 
 void Engine::ManagedScriptRuntime::DestroyInstance(ManagedScriptInstanceHandle handle) {
@@ -852,6 +862,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= LoadBridgeFunction(setRuntimeField_, L"SetRuntimeSerializedField");
 	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");
 	success &= LoadBridgeFunction(setSerializedFields_, L"SetSerializedFields");
+	success &= LoadBridgeFunction(flushPendingReferences_, L"FlushPendingReferences");
 	success &= LoadBridgeFunction(destroyInstance_, L"DestroyInstance");
 	success &= LoadBridgeFunction(invokeAwake_, L"InvokeAwake");
 	success &= LoadBridgeFunction(invokeStart_, L"InvokeStart");

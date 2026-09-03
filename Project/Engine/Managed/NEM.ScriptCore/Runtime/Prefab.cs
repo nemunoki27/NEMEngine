@@ -1,9 +1,7 @@
 namespace NEMEngine;
 
-// Prefabアセット参照。実体化はWorldCommandBuffer経由(callback中の即時ECS mutationはしない)。
-// ルートEntityは即時予約して返し、PrefabSystemによる実体化(component付与)は次のflushで行われる。
+// Prefabアセット参照。Instantiateは子階層とcomponentとscriptを実体化してからルートEntityを返す。
 // prefab-localな参照のinstanceへの再マップはPrefabSystemのsourceLocalToEntity / prefabInstanceIDが担う。
-// 返り値のEntityの可視性規則はWorld.CreateEntityと同じ(flush前は予約済み、flush後に通常Entity)。
 [NativeAssetType("Prefab")]
 public sealed class Prefab : Asset {
 

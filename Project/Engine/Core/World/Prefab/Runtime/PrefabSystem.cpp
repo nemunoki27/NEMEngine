@@ -289,33 +289,26 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 		// プレファブファイル内のローカルIDを読み取る
 		UUID prefabLocalFileID = ReadEntityLocalFileID(entityJson);
 
-		// エンティティを作成しルートかつ予約済みEntityがあればそれをルートとしてmaterializeしIDを保つ
-		Entity entity;
-		if (world.IsAlive(desc.reservedRoot) && prefabLocalFileID == header.rootLocalFileID) {
-			entity = desc.reservedRoot;
-			SceneAuthoring::EnsureGameObjectDefaults(world, entity);
-		} else {
+		// 最終シグネチャで作成しPrefab生成中の構造移動を抑える
+		std::vector<uint32_t> componentTypeIDs;
+		const auto& prefabComponents = entityJson["Components"];
+		componentTypeIDs.reserve(prefabComponents.size() + 1);
+		componentTypeIDs.emplace_back(
+			ComponentTypeRegistry::GetInstance().GetID<PrefabLinkComponent>());
+		for (auto it = prefabComponents.begin(); it != prefabComponents.end(); ++it) {
 
-			std::vector<uint32_t> componentTypeIDs;
-			const auto& components = entityJson["Components"];
-			componentTypeIDs.reserve(components.size() + 1);
-			componentTypeIDs.emplace_back(
-				ComponentTypeRegistry::GetInstance().GetID<PrefabLinkComponent>());
-			for (auto it = components.begin(); it != components.end(); ++it) {
-
-				// JointAttachmentは参照先を解決できたエンティティだけ後から追加する
-				if (it.key() == "JointAttachment") {
-					continue;
-				}
-				const ComponentTypeInfo* info =
-					ComponentTypeRegistry::GetInstance().FindByName(it.key());
-				if (!info) {
-					return false;
-				}
-				componentTypeIDs.emplace_back(info->id);
+			// JointAttachmentは参照先を解決できたエンティティだけ後から追加する
+			if (it.key() == "JointAttachment") {
+				continue;
 			}
-			entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs);
+			const ComponentTypeInfo* info =
+				ComponentTypeRegistry::GetInstance().FindByName(it.key());
+			if (!info) {
+				return false;
+			}
+			componentTypeIDs.emplace_back(info->id);
 		}
+		const Entity entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs);
 		// 復元時は保存済みのシーンローカルIDを使い、無ければ新規採番する
 		UUID newSceneLocalFileID{};
 		if (auto remapIt = remapLookup.find(prefabLocalFileID); remapIt != remapLookup.end() && remapIt->second) {
