@@ -72,17 +72,15 @@ function New-ProjectDescriptor([string]$appRoot, [string]$name) {
 try {
     Write-Host "[1/5] ゲームフォルダを作成中: $gameRoot"
     $appRoot = Join-Path $gameRoot "Project\$Name"
-    New-Item -ItemType Directory -Force -Path (Join-Path $gameRoot "Premake"), $appRoot, (Join-Path $gameRoot "External") | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $gameRoot "Premake"),
+        (Join-Path $gameRoot "Tools"), $appRoot, (Join-Path $gameRoot "External") | Out-Null
 
     Write-Host "[2/5] テンプレートをコピー中（__GAME_NAME__ -> $Name に置換）"
     Copy-Item -Recurse -Force (Join-Path $template "Premake\*") (Join-Path $gameRoot "Premake")
+    Copy-Item -Recurse -Force (Join-Path $template "Tools\*") (Join-Path $gameRoot "Tools")
     Copy-Item -Recurse -Force (Join-Path $template "Project\__GAME_NAME__\*") $appRoot
     if (Test-Path (Join-Path $template ".gitignore")) { Copy-Item -Force (Join-Path $template ".gitignore") (Join-Path $gameRoot ".gitignore") }
     if (Test-Path (Join-Path $template ".gitattributes")) { Copy-Item -Force (Join-Path $template ".gitattributes") (Join-Path $gameRoot ".gitattributes") }
-    # ゲームルート直下のツール(SDK更新.bat / UpdateSdk.ps1 等)をコピーする
-    Get-ChildItem -LiteralPath $template -File | Where-Object { $_.Extension -in '.bat','.ps1' } | ForEach-Object {
-        Copy-Item -Force $_.FullName (Join-Path $gameRoot $_.Name)
-    }
 
     # テンプレ内の __GAME_NAME__ トークンを置換し、ファイル名のトークンもリネームする
     Get-ChildItem -Recurse -File $gameRoot | Where-Object { $_.Extension -in '.lua','.csproj','.cs','.json','.txt','.md','.bat' -or $_.Name -eq '.gitattributes' } | ForEach-Object {

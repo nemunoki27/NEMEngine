@@ -1,8 +1,6 @@
-# NEMEngine SDK support: repair/sync game-project side files.
+﻿# NEMEngine SDK support: repair/sync game-project side files.
 # Can be run from a game root:
 #   powershell -ExecutionPolicy Bypass -File .\External\NEMEngine\GameProject\RepairGameProject.ps1
-# Or from NEMEngine:
-#   powershell -ExecutionPolicy Bypass -File .\Tools\RepairGameProject.ps1 -GameRoot C:\path\to\Game
 
 param(
     [string]$GameRoot = "",
@@ -150,17 +148,33 @@ function Sync-PremakeFiles([string]$ResolvedGameRoot, [string]$ResolvedSupportRo
     }
 }
 
-function Sync-RootSupportFiles([string]$ResolvedGameRoot, [string]$ResolvedSupportRoot) {
-    foreach ($fileName in @("UpdateSdk.ps1", "RepairGameProject.ps1")) {
-        if (Copy-TemplateFile (Join-Path $ResolvedSupportRoot $fileName) (Join-Path $ResolvedGameRoot $fileName)) {
-            Write-Host "  Updated: $fileName"
+function Sync-ToolSupportFiles([string]$ResolvedGameRoot, [string]$ResolvedSupportRoot) {
+    $sourceTools = Join-Path $ResolvedSupportRoot "Tools"
+    $gameTools = Join-Path $ResolvedGameRoot "Tools"
+    $toolFiles = @("SDK更新.bat", "UpdateSdk.ps1", "FinalizeSdkToolMigration.ps1")
+    foreach ($fileName in $toolFiles) {
+        if (Copy-TemplateFile (Join-Path $sourceTools $fileName) (Join-Path $gameTools $fileName)) {
+            Write-Host "  Updated: Tools\$fileName"
         }
     }
 
-    Get-ChildItem -LiteralPath $ResolvedSupportRoot -File -Filter "*.bat" -ErrorAction SilentlyContinue | ForEach-Object {
-        if (Copy-TemplateFile $_.FullName (Join-Path $ResolvedGameRoot $_.Name)) {
-            Write-Host "  Updated: $($_.Name)"
+    foreach ($fileName in $toolFiles) {
+        if (-not (Test-Path -LiteralPath (Join-Path $gameTools $fileName) -PathType Leaf)) {
+            throw "ゲーム用ツールを配置できませんでした: Tools\$fileName"
         }
+    }
+
+    $legacyFiles = @("SDK更新.bat", "UpdateSdk.ps1", "RepairGameProject.ps1", "ゲームプロジェクト修復.bat")
+    $hasLegacyFile = $legacyFiles | Where-Object {
+        Test-Path -LiteralPath (Join-Path $ResolvedGameRoot $_) -PathType Leaf
+    }
+    if ($hasLegacyFile.Count -gt 0) {
+        # 実行中の旧更新バッチは削除できないため、呼び出し元終了後に別プロセスで除去する
+        $finalizer = Join-Path $gameTools "FinalizeSdkToolMigration.ps1"
+        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$finalizer`" " +
+            "-GameRoot `"$ResolvedGameRoot`" -WaitForProcessID $PID"
+        Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -WindowStyle Hidden
+        Write-Host "  Scheduled: 旧ルートツールはSDK更新終了後に削除されます"
     }
 
     $gitIgnorePath = Join-Path $ResolvedGameRoot ".gitignore"
@@ -191,7 +205,7 @@ Write-Host ""
 
 Ensure-ProjectDescriptor $resolvedGameRoot $gameName
 Sync-PremakeFiles $resolvedGameRoot $resolvedSupportRoot $gameName
-Sync-RootSupportFiles $resolvedGameRoot $resolvedSupportRoot
+Sync-ToolSupportFiles $resolvedGameRoot $resolvedSupportRoot
 
 Write-Host ""
 Write-Host "[Done] Synced game-project SDK support files and Git settings."

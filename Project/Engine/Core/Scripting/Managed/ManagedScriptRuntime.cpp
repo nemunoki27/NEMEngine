@@ -168,6 +168,9 @@ bool Engine::ManagedScriptRuntime::Init() {
 			"ManagedScriptRuntime: NEM.ScriptCore.dllが見つかりません");
 		return false;
 	}
+	Logger::Output(LogType::Engine, spdlog::level::info,
+		"ManagedScriptRuntime: NEM.ScriptCore.dllを読み込みます path={}",
+		ToUtf8Path(scriptCoreAssemblyPath_));
 
 	if (!LoadHostfxr()) {
 		// LoadHostfxr内で確保したネイティブリソースは同関数内で解放済み
@@ -844,38 +847,49 @@ bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 
 bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 
+	auto loadRequired = [this](auto& function, const wchar_t* methodName) {
+
+		if (LoadBridgeFunction(function, methodName)) {
+			return true;
+		}
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptRuntime: 必須Bridge関数が見つかりません method={} assembly={}",
+			Algorithm::ConvertString(methodName), ToUtf8Path(scriptCoreAssemblyPath_));
+		return false;
+	};
+
 	bool success = true;
-	success &= LoadBridgeFunction(initializeNativeApi_, L"InitializeNativeApi");
-	success &= LoadBridgeFunction(loadGameAssembly_, L"LoadGameAssembly");
-	success &= LoadBridgeFunction(unloadGameAssembly_, L"UnloadGameAssembly");
-	success &= LoadBridgeFunction(pumpSceneEvents_, L"PumpSceneEvents");
-	success &= LoadBridgeFunction(raiseApplicationQuitting_, L"RaiseApplicationQuitting");
-	success &= LoadBridgeFunction(tickFrame_, L"TickFrame");
-	success &= LoadBridgeFunction(getLastAlcUnloadStatus_, L"GetLastAlcUnloadStatus");
-	success &= LoadBridgeFunction(getScriptTypeCount_, L"GetScriptTypeCount");
-	success &= LoadBridgeFunction(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
-	success &= LoadBridgeFunction(generateScriptManifest_, L"GenerateScriptManifest");
-	success &= LoadBridgeFunction(getScriptSchemaJsonSize_, L"GetScriptSchemaJsonSize");
-	success &= LoadBridgeFunction(copyScriptSchemaJson_, L"CopyScriptSchemaJson");
-	success &= LoadBridgeFunction(getRuntimeStateSize_, L"GetRuntimeSerializedStateSize");
-	success &= LoadBridgeFunction(copyRuntimeState_, L"CopyRuntimeSerializedState");
-	success &= LoadBridgeFunction(setRuntimeField_, L"SetRuntimeSerializedField");
-	success &= LoadBridgeFunction(createInstance_, L"CreateInstance");
-	success &= LoadBridgeFunction(setSerializedFields_, L"SetSerializedFields");
-	success &= LoadBridgeFunction(flushPendingReferences_, L"FlushPendingReferences");
-	success &= LoadBridgeFunction(destroyInstance_, L"DestroyInstance");
-	success &= LoadBridgeFunction(invokeAwake_, L"InvokeAwake");
-	success &= LoadBridgeFunction(invokeStart_, L"InvokeStart");
-	success &= LoadBridgeFunction(invokeOnEnable_, L"InvokeOnEnable");
-	success &= LoadBridgeFunction(invokeOnDisable_, L"InvokeOnDisable");
-	success &= LoadBridgeFunction(invokeOnDestroy_, L"InvokeOnDestroy");
-	success &= LoadBridgeFunction(invokeFixedUpdate_, L"InvokeFixedUpdate");
-	success &= LoadBridgeFunction(invokeUpdate_, L"InvokeUpdate");
-	success &= LoadBridgeFunction(invokeLateUpdate_, L"InvokeLateUpdate");
-	success &= LoadBridgeFunction(invokeCollisionEnter_, L"InvokeCollisionEnter");
-	success &= LoadBridgeFunction(invokeCollisionStay_, L"InvokeCollisionStay");
-	success &= LoadBridgeFunction(invokeCollisionExit_, L"InvokeCollisionExit");
-	success &= LoadBridgeFunction(invokeAnimationEvent_, L"InvokeAnimationEvent");
+	success &= loadRequired(initializeNativeApi_, L"InitializeNativeApi");
+	success &= loadRequired(loadGameAssembly_, L"LoadGameAssembly");
+	success &= loadRequired(unloadGameAssembly_, L"UnloadGameAssembly");
+	success &= loadRequired(pumpSceneEvents_, L"PumpSceneEvents");
+	success &= loadRequired(raiseApplicationQuitting_, L"RaiseApplicationQuitting");
+	success &= loadRequired(tickFrame_, L"TickFrame");
+	success &= loadRequired(getLastAlcUnloadStatus_, L"GetLastAlcUnloadStatus");
+	success &= loadRequired(getScriptTypeCount_, L"GetScriptTypeCount");
+	success &= loadRequired(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
+	success &= loadRequired(generateScriptManifest_, L"GenerateScriptManifest");
+	success &= loadRequired(getScriptSchemaJsonSize_, L"GetScriptSchemaJsonSize");
+	success &= loadRequired(copyScriptSchemaJson_, L"CopyScriptSchemaJson");
+	success &= loadRequired(getRuntimeStateSize_, L"GetRuntimeSerializedStateSize");
+	success &= loadRequired(copyRuntimeState_, L"CopyRuntimeSerializedState");
+	success &= loadRequired(setRuntimeField_, L"SetRuntimeSerializedField");
+	success &= loadRequired(createInstance_, L"CreateInstance");
+	success &= loadRequired(setSerializedFields_, L"SetSerializedFields");
+	success &= loadRequired(flushPendingReferences_, L"FlushPendingReferences");
+	success &= loadRequired(destroyInstance_, L"DestroyInstance");
+	success &= loadRequired(invokeAwake_, L"InvokeAwake");
+	success &= loadRequired(invokeStart_, L"InvokeStart");
+	success &= loadRequired(invokeOnEnable_, L"InvokeOnEnable");
+	success &= loadRequired(invokeOnDisable_, L"InvokeOnDisable");
+	success &= loadRequired(invokeOnDestroy_, L"InvokeOnDestroy");
+	success &= loadRequired(invokeFixedUpdate_, L"InvokeFixedUpdate");
+	success &= loadRequired(invokeUpdate_, L"InvokeUpdate");
+	success &= loadRequired(invokeLateUpdate_, L"InvokeLateUpdate");
+	success &= loadRequired(invokeCollisionEnter_, L"InvokeCollisionEnter");
+	success &= loadRequired(invokeCollisionStay_, L"InvokeCollisionStay");
+	success &= loadRequired(invokeCollisionExit_, L"InvokeCollisionExit");
+	success &= loadRequired(invokeAnimationEvent_, L"InvokeAnimationEvent");
 	return success;
 }
 

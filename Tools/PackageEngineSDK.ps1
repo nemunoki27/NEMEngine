@@ -24,6 +24,35 @@ if ([string]::IsNullOrEmpty($OutDir)) {
     $OutDir = Join-Path $engineRoot "Generated\SDK"
 }
 
+function Sync-DirectoryContents([string]$Source, [string]$Destination) {
+    if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
+        throw "同期元フォルダーが見つかりません: $Source"
+    }
+
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    robocopy $Source $Destination /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) {
+        throw "フォルダーの同期に失敗しました: $Source -> $Destination code=$LASTEXITCODE"
+    }
+}
+
+function Assert-ManagedDeployment([string]$Source, [string]$Destination, [string]$Configuration) {
+    $sourceDll = Join-Path $Source "NEM.ScriptCore.dll"
+    $destinationDll = Join-Path $Destination "NEM.ScriptCore.dll"
+    if (-not (Test-Path -LiteralPath $destinationDll -PathType Leaf)) {
+        throw "NEM.ScriptCore.dllを配置できませんでした: $destinationDll"
+    }
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sourceDll).Hash -ne
+        (Get-FileHash -Algorithm SHA256 -LiteralPath $destinationDll).Hash) {
+        throw "NEM.ScriptCore.dllの配置結果がビルド成果物と一致しません: $destinationDll"
+    }
+
+    $nestedConfiguration = Join-Path $Destination $Configuration
+    if (Test-Path -LiteralPath $nestedConfiguration) {
+        throw "Managedフォルダーが二重階層になっています: $nestedConfiguration"
+    }
+}
+
 $msbuild = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
 if (-not $msbuild) { throw "MSBuild が見つかりません（vswhere）。Visual Studio をインストールしてください。" }
 
@@ -97,9 +126,19 @@ foreach ($f in @("premake5.lua","generate_vs2026.bat")) {
     $src = Join-Path $gameTemplate "Premake\$f"
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGamePremake $f) }
 }
-foreach ($f in @(".gitignore",".gitattributes","SDK更新.bat","UpdateSdk.ps1","RepairGameProject.ps1","ゲームプロジェクト修復.bat")) {
+foreach ($f in @(".gitignore", ".gitattributes", "RepairGameProject.ps1")) {
     $src = Join-Path $gameTemplate $f
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGameProject $f) }
+}
+$sdkGameTools = Join-Path $sdkGameProject "Tools"
+Sync-DirectoryContents (Join-Path $gameTemplate "Tools") $sdkGameTools
+
+# 旧SDKに残っているゲームルート用入口を公開物から除去する
+foreach ($f in @("SDK更新.bat", "UpdateSdk.ps1", "ゲームプロジェクト修復.bat")) {
+    $legacyPath = Join-Path $sdkGameProject $f
+    if (Test-Path -LiteralPath $legacyPath) {
+        Remove-Item -Force -LiteralPath $legacyPath
+    }
 }
 
 # C#ゲームビルド用ツールチェーン（参照DLL / Roslynアナライザ / メタ同期ツール）
@@ -149,8 +188,9 @@ foreach ($cfg in $Configurations) {
         -TargetDirectory $sdkRuntime `
         -Configuration $cfg `
         -RuntimeDllPath (Join-Path $binSrc "NEMRuntime.dll")
-    # managed（NEM.ScriptCore.dll/pdb等）。pdbも入れてC#ブレークポイントを成立させる
-    if (Test-Path $managedSrc) { Copy-Item -Force -Recurse (Join-Path $managedSrc "*") $sdkManaged }
+    # managedは構成フォルダーの中身だけを同期し、旧DLLや二重の構成フォルダーを残さない
+    Sync-DirectoryContents $managedSrc $sdkManaged
+    Assert-ManagedDeployment $managedSrc $sdkManaged $cfg
 
     # Editorは製品Runtimeと別実行ファイルのまま配布し、ゲーム側F5の起動先にする。
 #
@@ -192,14 +232,10 @@ if (Test-Path -LiteralPath $sdkEditorPdb) {
     -TargetDirectory $sdkEditor `
     -Configuration $cfg
 
-# C#スクリプト側のデバッグにはManaged側のPDBが必要なので、これは残す
-if (Test-Path -LiteralPath $managedSrc) {
-    Copy-Item `
-        -Force `
-        -Recurse `
-        -LiteralPath $managedSrc `
-        -Destination (Join-Path $sdkEditor "Managed")
-}
+# C#スクリプト側のデバッグにはManaged側のPDBが必要なので、構成フォルダーの中身を同期する
+$sdkEditorManaged = Join-Path $sdkEditor "Managed"
+Sync-DirectoryContents $managedSrc $sdkEditorManaged
+Assert-ManagedDeployment $managedSrc $sdkEditorManaged $cfg
 
 $packaged += $cfg
 }
@@ -216,3 +252,4 @@ $version | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutDir "sdk_ver
 Write-Host ""
 Write-Host "[完了] NEMEngine SDK を書き出しました: $OutDir"
 Write-Host "        構成: $($packaged -join ', ')"
+exit 0
