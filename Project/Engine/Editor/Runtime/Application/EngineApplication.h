@@ -31,6 +31,7 @@ namespace Engine {
 
 	// front
 	struct PrefabInstantiateResult;
+	class UIInputSystem;
 
 	//============================================================================
 	//	EngineApplication class
@@ -91,6 +92,8 @@ namespace Engine {
 		RuntimeWorldBaker runtimeWorldBaker_;
 		SystemScheduler scheduler_;
 		SystemContext systemContext_;
+		// Schedulerが所有するUI入力Systemへの非所有参照
+		UIInputSystem* uiInputSystem_ = nullptr;
 
 		// プレファブ編集の1階層分、隔離ワールドにプレファブだけを展開して編集する
 		struct PrefabEditStage {
@@ -204,6 +207,8 @@ namespace Engine {
 		bool SaveActiveEditScene();
 		// エディタワールドで読み込み中のシーンを全て保存する
 		bool SaveAllEditScenes();
+		// シーン保存前に編集モードのUI遷移表示を元へ戻す
+		void RestoreEditModeUIVisuals();
 		// 非同期保存の完了をメインスレッドへ反映する
 		bool FinishSceneSave(bool wait, bool* outSucceeded = nullptr);
 		void UpdateSceneSave();

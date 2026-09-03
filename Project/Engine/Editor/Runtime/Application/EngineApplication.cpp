@@ -87,7 +87,9 @@ void Engine::EngineApplication::InitSystems() {
 	// システムの追加、orderが小さいほど先に処理される
 	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
 	// UI入力はBehaviorより先に確定し、C#のUpdateから同フレームのクリックを参照できるようにする
-	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
+	auto uiInputSystem = std::make_unique<UIInputSystem>();
+	uiInputSystem_ = uiInputSystem.get();
+	scheduler_.AddSystem(std::move(uiInputSystem), ++order);
 	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
 	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
@@ -890,6 +892,7 @@ bool Engine::EngineApplication::SaveActiveEditScene() {
 		sceneSaveQueued_ = true;
 		return true;
 	}
+	RestoreEditModeUIVisuals();
 
 	const auto captureStartedAt =
 		std::chrono::steady_clock::now();
@@ -940,6 +943,7 @@ bool Engine::EngineApplication::SaveAllEditScenes() {
 	if (!WaitForSceneSave()) {
 		return false;
 	}
+	RestoreEditModeUIVisuals();
 
 	std::unordered_set<AssetID> savedAssets;
 	for (const SceneInstance& scene : editScenes_.GetAll()) {
@@ -963,6 +967,16 @@ bool Engine::EngineApplication::SaveAllEditScenes() {
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"EngineApplication: 読み込み済みシーンを保存しました 数={}", savedAssets.size());
 	return true;
+}
+
+void Engine::EngineApplication::RestoreEditModeUIVisuals() {
+
+	// PlayとPrefabへの切り替え時はOnWorldExitですでに復元済み
+	if (!uiInputSystem_ || worldManager_.IsPlaying() || IsPrefabEditing()) {
+		return;
+	}
+	uiInputSystem_->RestoreEditModeVisuals(
+		worldManager_.GetEditWorld());
 }
 
 bool Engine::EngineApplication::FinishSceneSave(

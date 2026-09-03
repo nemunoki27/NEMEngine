@@ -46,6 +46,8 @@ namespace Engine {
 
 		void Update(ECSWorld& world, SystemContext& context) override;
 		void OnWorldExit(ECSWorld& world, SystemContext& context) override;
+		// 編集中の入力遷移を元の表示へ戻す
+		void RestoreEditModeVisuals(ECSWorld& world);
 
 		//--------- accessor -----------------------------------------------------
 

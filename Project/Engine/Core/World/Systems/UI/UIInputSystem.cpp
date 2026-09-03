@@ -376,6 +376,26 @@ namespace {
 		return nullptr;
 	}
 
+	bool SetMaterialParameter(Engine::MaterialParameterSet& parameters,
+		Engine::MaterialParameterID id, std::string_view name,
+		Engine::MaterialParameterSemantic semantic,
+		const Engine::MaterialParameterValue& value) {
+
+		const Engine::MaterialParameterSet& readOnly = parameters;
+		const Engine::MaterialParameterValue* current = readOnly.Find(id);
+		if (current && current->value == value.value) {
+			return false;
+		}
+		parameters.Set(id, name, semantic, value);
+		return true;
+	}
+
+	void NotifyRendererMaterialModified(Engine::ECSWorld& world) {
+
+		// UI遷移は保存対象の編集ではないため描画キャッシュだけを更新する
+		world.MarkRenderDataModified();
+	}
+
 	const Engine::UITransitionStyle& ResolveStyle(
 		const Engine::UISelectableComponent& selectable,
 		const Engine::UISelectableRuntimeComponent& runtime) {
@@ -423,28 +443,33 @@ namespace {
 			return;
 		}
 		if (auto* parameters = ResolveMaterialParameters(world, entity)) {
+			bool materialChanged = false;
 			if (runtime.hadBaseColor) {
 				Engine::MaterialParameterValue value{};
 				value.value = runtime.baseColor;
-				parameters->Set(
+				materialChanged |= SetMaterialParameter(*parameters,
 					Engine::MaterialParameterIDs::BaseColor,
 					Engine::MaterialParameterNames::BaseColor,
 					Engine::MaterialParameterSemantic::BaseColor,
 					value);
 			} else {
-				parameters->erase(
-					Engine::MaterialParameterIDs::BaseColor);
+				materialChanged |= parameters->erase(
+					Engine::MaterialParameterIDs::BaseColor) != 0;
 			}
 			if (runtime.hadBaseTexture) {
 				Engine::MaterialParameterValue value{};
 				value.value = runtime.baseTexture;
-				parameters->Set(
+				materialChanged |= SetMaterialParameter(*parameters,
 					Engine::MaterialParameterIDs::BaseColorTexture,
 					Engine::MaterialParameterNames::BaseColorTexture,
 					Engine::MaterialParameterSemantic::BaseColorTexture,
 					value);
 			} else {
-				parameters->erase(Engine::MaterialParameterIDs::BaseColorTexture);
+				materialChanged |= parameters->erase(
+					Engine::MaterialParameterIDs::BaseColorTexture) != 0;
+			}
+			if (materialChanged) {
+				NotifyRendererMaterialModified(world);
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
@@ -824,11 +849,13 @@ namespace {
 				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
 					Engine::MaterialParameterValue value{};
 					value.value = style.texture;
-					parameters->Set(
+					if (SetMaterialParameter(*parameters,
 						Engine::MaterialParameterIDs::BaseColorTexture,
 						Engine::MaterialParameterNames::BaseColorTexture,
 						Engine::MaterialParameterSemantic::BaseColorTexture,
-						value);
+						value)) {
+						NotifyRendererMaterialModified(world);
+					}
 				}
 			}
 			return;
@@ -855,9 +882,10 @@ namespace {
 			EasedValue(style.scaleEasing, scaleProgress));
 
 		if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
+			bool materialChanged = false;
 			Engine::MaterialParameterValue color{};
 			color.value = runtime.currentColor;
-			parameters->Set(
+			materialChanged |= SetMaterialParameter(*parameters,
 				Engine::MaterialParameterIDs::BaseColor,
 				Engine::MaterialParameterNames::BaseColor,
 				Engine::MaterialParameterSemantic::BaseColor,
@@ -865,7 +893,7 @@ namespace {
 			if (style.overrideTexture) {
 				Engine::MaterialParameterValue texture{};
 				texture.value = style.texture;
-				parameters->Set(
+				materialChanged |= SetMaterialParameter(*parameters,
 					Engine::MaterialParameterIDs::BaseColorTexture,
 					Engine::MaterialParameterNames::BaseColorTexture,
 					Engine::MaterialParameterSemantic::BaseColorTexture,
@@ -873,13 +901,17 @@ namespace {
 			} else if (runtime.hadBaseTexture) {
 				Engine::MaterialParameterValue texture{};
 				texture.value = runtime.baseTexture;
-				parameters->Set(
+				materialChanged |= SetMaterialParameter(*parameters,
 					Engine::MaterialParameterIDs::BaseColorTexture,
 					Engine::MaterialParameterNames::BaseColorTexture,
 					Engine::MaterialParameterSemantic::BaseColorTexture,
 					texture);
 			} else {
-				parameters->erase(Engine::MaterialParameterIDs::BaseColorTexture);
+				materialChanged |= parameters->erase(
+					Engine::MaterialParameterIDs::BaseColorTexture) != 0;
+			}
+			if (materialChanged) {
+				NotifyRendererMaterialModified(world);
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entry.entity)) {
@@ -1236,6 +1268,12 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 
 void Engine::UIInputSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
+	RestoreEditModeVisuals(world);
+	UIRuntimeService::GetInstance().Clear(world);
+}
+
+void Engine::UIInputSystem::RestoreEditModeVisuals(ECSWorld& world) {
+
 	for (const auto& [uuid, runtime] : animationRuntimes_) {
 
 		const Entity entity = world.FindByUUID(uuid);
@@ -1252,5 +1290,5 @@ void Engine::UIInputSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] System
 		[](Entity, CanvasRuntimeComponent& runtime) {
 			ResetCanvasInputRuntime(runtime);
 			});
-	UIRuntimeService::GetInstance().Clear(world);
+	UIRuntimeService::GetInstance().SetGameplayInputBlocked(false);
 }

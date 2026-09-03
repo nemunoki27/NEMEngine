@@ -4,7 +4,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 9
+                    "siblingOrder": 7
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -4435,7 +4435,52 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 3
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Camera2D"
+                },
+                "OrthographicCamera": {
+                    "cullingMask": -1,
+                    "enabled": true,
+                    "farClip": 1000.0,
+                    "isMain": true,
+                    "nearClip": 0.0,
+                    "priority": 0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "063c97369eedf210",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "063c97369eedf210"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 4
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -14003,7 +14048,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 13
+                    "siblingOrder": 12
                 },
                 "Name": {
                     "name": "PostProcessControl"
@@ -14104,7 +14149,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 11
+                    "siblingOrder": 9
                 },
                 "Name": {
                     "name": "Cube"
@@ -14316,7 +14361,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 1
+                    "siblingOrder": 2
                 },
                 "Name": {
                     "name": "DirectionalLight"
@@ -14351,9 +14396,122 @@
         },
         {
             "Components": {
+                "Canvas": {
+                    "blockGameplayInput": true,
+                    "blockInputAfterSubmit": false,
+                    "enabled": true,
+                    "firstSelected": {
+                        "kind": "Scene",
+                        "localFileId": "a0c8b2836b93f7ab",
+                        "sourceAsset": ""
+                    },
+                    "inputInEditMode": false,
+                    "inputSettings": {
+                        "gamepadEnabled": true,
+                        "gamepadLeftStickEnabled": true,
+                        "keyboardEnabled": true,
+                        "navigationDownGamepadButtons": [
+                            1
+                        ],
+                        "navigationDownKeys": [
+                            31,
+                            208
+                        ],
+                        "navigationLeftGamepadButtons": [
+                            2
+                        ],
+                        "navigationLeftKeys": [
+                            30,
+                            203
+                        ],
+                        "navigationRightGamepadButtons": [
+                            3
+                        ],
+                        "navigationRightKeys": [
+                            32,
+                            205
+                        ],
+                        "navigationUpGamepadButtons": [
+                            0
+                        ],
+                        "navigationUpKeys": [
+                            17,
+                            200
+                        ],
+                        "submitGamepadButtons": [
+                            12
+                        ],
+                        "submitKeys": [
+                            57
+                        ]
+                    },
+                    "matchWidthOrHeight": 0.5,
+                    "navigationMode": "TransitionTable",
+                    "navigationTable": {
+                        "cells": [
+                            {
+                                "kind": "Scene",
+                                "localFileId": "a0c8b2836b93f7ab",
+                                "sourceAsset": ""
+                            },
+                            {
+                                "kind": "Scene",
+                                "localFileId": "d7ef44cd6bb12c06",
+                                "sourceAsset": ""
+                            }
+                        ],
+                        "columns": 1,
+                        "rows": 2
+                    },
+                    "order": 0,
+                    "repeatDelay": 0.3499999940395355,
+                    "repeatInterval": 0.11999999731779099,
+                    "scaleFactor": 1.0,
+                    "scaleMode": "ScaleWithScreenSize",
+                    "sortingLayer": 0,
+                    "stickThreshold": 0.5,
+                    "wrapNavigation": true
+                },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 4
+                    "siblingOrder": 13
+                },
+                "Name": {
+                    "name": "Canvas"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "4a9686642d3804e3",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 960.0,
+                        "y": 522.9295654296875,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "4a9686642d3804e3"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 5
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
@@ -16926,7 +17084,7 @@
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 12
+                    "siblingOrder": 11
                 },
                 "Name": {
                     "name": "GroundCollision"
@@ -16963,7 +17121,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 11
+                    "siblingOrder": 10
                 },
                 "Name": {
                     "name": "Cube_1"
@@ -17172,7 +17330,7 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 10
+                    "siblingOrder": 8
                 },
                 "Name": {
                     "name": "Primitive"
@@ -17358,8 +17516,203 @@
         {
             "Components": {
                 "Hierarchy": {
+                    "parentLocalFileID": "4a9686642d3804e3",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Start"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a0c8b2836b93f7ab",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "TextRenderer": {
+                    "blendMode": "Normal",
+                    "charSpacing": 0.0,
+                    "charTransforms": [
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        }
+                    ],
+                    "dimension": 0,
+                    "font": "4e454d415353455482699d49374109f2",
+                    "fontSize": 128.0,
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            }
+                        }
+                    ],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "renderingLayerMask": 1,
+                    "text": "スタート",
+                    "uvPerCharacter": true,
+                    "visible": true,
+                    "worldScale": 0.009999999776482582
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                },
+                "UISelectable": {
+                    "disabled": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 0.6499999761581421,
+                            "b": 0.550000011920929,
+                            "g": 0.550000011920929,
+                            "r": 0.550000011920929
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    },
+                    "interactable": true,
+                    "normal": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 0.16500000655651093,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    },
+                    "selected": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 1.0,
+                            "b": 0.061131756752729416,
+                            "g": 0.7447665929794312,
+                            "r": 0.8978723287582397
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    },
+                    "submitted": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 1.0,
+                            "b": 0.800000011920929,
+                            "g": 0.800000011920929,
+                            "r": 0.800000011920929
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 0.9599999785423279,
+                            "y": 0.9599999785423279
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    }
+                },
+                "UITextButton": {
+                    "actionName": "Start",
+                    "enabled": true
+                }
+            },
+            "LocalFileID": "a0c8b2836b93f7ab"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 2
+                    "siblingOrder": 3
                 },
                 "Name": {
                     "name": "Sky"
@@ -17406,8 +17759,189 @@
         {
             "Components": {
                 "Hierarchy": {
+                    "parentLocalFileID": "4a9686642d3804e3",
+                    "siblingOrder": 1
+                },
+                "Name": {
+                    "name": "Exit"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "d7ef44cd6bb12c06",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "TextRenderer": {
+                    "blendMode": "Normal",
+                    "charSpacing": 0.0,
+                    "charTransforms": [
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        },
+                        {
+                            "rotation": 0.0,
+                            "sx": 1.0,
+                            "sy": 1.0,
+                            "tx": 0.0,
+                            "ty": 0.0
+                        }
+                    ],
+                    "dimension": 0,
+                    "font": "4e454d415353455482699d49374109f2",
+                    "fontSize": 128.0,
+                    "layer": 0,
+                    "material": "",
+                    "materialInstance": [
+                        {
+                            "id": "77f5c18e246c6638",
+                            "name": "color",
+                            "semantic": "BaseColor",
+                            "value": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            }
+                        }
+                    ],
+                    "order": 0,
+                    "pivot": {
+                        "x": 0.5,
+                        "y": 0.5
+                    },
+                    "queue": "ScreenUI",
+                    "renderingLayerMask": 1,
+                    "text": "終了",
+                    "uvPerCharacter": true,
+                    "visible": true,
+                    "worldScale": 0.009999999776482582
+                },
+                "Transform": {
+                    "dimension": 0,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 159.93341064453125,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                },
+                "UISelectable": {
+                    "disabled": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 0.6499999761581421,
+                            "b": 0.550000011920929,
+                            "g": 0.550000011920929,
+                            "r": 0.550000011920929
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    },
+                    "interactable": true,
+                    "normal": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 0.16500000655651093,
+                            "b": 1.0,
+                            "g": 1.0,
+                            "r": 1.0
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    },
+                    "selected": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 1.0,
+                            "b": 0.061131756752729416,
+                            "g": 0.7447665929794312,
+                            "r": 0.8978723287582397
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    },
+                    "submitted": {
+                        "animationClip": "",
+                        "color": {
+                            "a": 1.0,
+                            "b": 0.800000011920929,
+                            "g": 0.800000011920929,
+                            "r": 0.800000011920929
+                        },
+                        "colorEasing": "Linear",
+                        "colorTransitionDuration": 0.07999999821186066,
+                        "overrideTexture": false,
+                        "scale": {
+                            "x": 0.9599999785423279,
+                            "y": 0.9599999785423279
+                        },
+                        "scaleEasing": "Linear",
+                        "scaleTransitionDuration": 0.07999999821186066,
+                        "sound": "",
+                        "soundVolume": 1.0,
+                        "texture": "",
+                        "useAnimationClip": false
+                    }
+                },
+                "UITextButton": {
+                    "actionName": "Start",
+                    "enabled": true
+                }
+            },
+            "LocalFileID": "d7ef44cd6bb12c06"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
                     "parentLocalFileID": "",
-                    "siblingOrder": 8
+                    "siblingOrder": 6
                 },
                 "MeshRenderer": {
                     "blendMode": "Normal",
