@@ -132,6 +132,20 @@ uint32_t Engine::GetRenderFeatureAnchorOrder(
 	return static_cast<uint32_t>(anchor);
 }
 
+void Engine::CopyRenderFeatureProfileSettings(
+	RenderFeatureProfileAsset& destination,
+	const RenderFeatureProfileAsset& source) {
+
+	const AssetID guid = destination.guid;
+	const std::string name = destination.name;
+	const uint32_t version = destination.version;
+	destination = source;
+	destination.guid = guid;
+	destination.name = name;
+	destination.version = version;
+	SynchronizeRenderFeaturePassOrder(destination);
+}
+
 void Engine::NormalizeRenderFeatureHierarchy(
 	RenderFeatureProfileAsset& profile) {
 

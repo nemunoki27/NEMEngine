@@ -31,8 +31,9 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 
 		// 描画アイテムの構築
 		RenderItem item{};
-		const UIElementRuntime* uiRuntime =
-			UIRuntimeService::GetInstance().Find(world, entity);
+		const bool isScreen2D = IsPrimitiveScreen2D(renderer);
+		const UIElementRuntime* uiRuntime = isScreen2D ?
+			UIRuntimeService::GetInstance().Find(world, entity) : nullptr;
 		const Matrix4x4 worldMatrix = uiRuntime ?
 			uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(world, entity);
 		RenderItemExtract::FillCommonFields(
@@ -51,7 +52,7 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 				(shapeHash << 6) + (shapeHash >> 2));
 		item.cameraDomain = RenderCameraDomain::Perspective;
 		// Plane/Ringのみ2D描画に対応し、Canvas配下ではスクリーン行列と描画順を使う
-		if (IsPrimitiveScreen2D(renderer)) {
+		if (isScreen2D) {
 			if (uiRuntime) {
 				if (!item.sceneInstanceID) {
 					const SceneInstance* activeScene =

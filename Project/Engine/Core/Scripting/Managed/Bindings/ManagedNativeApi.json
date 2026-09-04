@@ -733,6 +733,26 @@
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void>"
     },
     {
+      "name": "canvasGetNavigationTableSize",
+      "nativeType": "CanvasGetNavigationTableSizeCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int*, int*, int>"
+    },
+    {
+      "name": "canvasResizeNavigationTable",
+      "nativeType": "CanvasResizeNavigationTableCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int>"
+    },
+    {
+      "name": "canvasGetNavigationCell",
+      "nativeType": "CanvasGetNavigationCellCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeEntity*, int>"
+    },
+    {
+      "name": "canvasSetNavigationCell",
+      "nativeType": "CanvasSetNavigationCellCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeEntity, int>"
+    },
+    {
       "name": "requestApplicationQuit",
       "nativeType": "ApplicationQuitCallback",
       "managedType": "delegate* unmanaged[Cdecl]<void>"

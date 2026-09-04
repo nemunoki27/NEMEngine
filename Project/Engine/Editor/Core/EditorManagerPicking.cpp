@@ -120,14 +120,12 @@ Engine::Entity Engine::EditorManager::Execute2DPick(const Vector2& inputPixel, c
 		if (!IsScenePickDimensionAllowed(*world, entity, editorState_.sceneViewPickDimension)) {
 			return;
 		}
-		if (!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
+		if (renderer.dimension != Dimension::Type2D ||
+			!RenderItemExtract::IsVisible(*world, entity, renderer.visible)) {
 			return;
 		}
 		const UIElementRuntime* uiRuntime =
 			UIRuntimeService::GetInstance().Find(*world, entity);
-		if (!uiRuntime && renderer.dimension != Dimension::Type2D) {
-			return;
-		}
 		const TextLayoutRuntimeComponent* layout =
 			world->TryGetComponent<TextLayoutRuntimeComponent>(entity);
 		const std::span<const TextLayoutGlyph> glyphs =

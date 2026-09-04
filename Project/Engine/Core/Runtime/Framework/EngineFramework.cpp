@@ -7,7 +7,6 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
-#include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
@@ -79,7 +78,7 @@ void Framework::Tick() {
 
 	// 入力更新
 	Input::GetInstance()->Update();
-	if constexpr (!BuildConfig::kEditorEnabled) {
+	if (!engineApplication_->UsesEditorUI()) {
 
 		// 製品実行中はF11でウィンドウとフルスクリーンを切り替える
 		if (Input::GetInstance()->TriggerKey(DIK_F11)) {

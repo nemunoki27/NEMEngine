@@ -90,11 +90,20 @@ namespace Engine {
 	// InspectorとJSON変換で使用する非ECSの編集データ
 	struct CanvasNavigationTable {
 
-		static constexpr int32_t kMaxSize = 12;
-
 		int32_t rows = 3;
 		int32_t columns = 3;
 		std::vector<UUID> cells = std::vector<UUID>(9);
+	};
+
+	enum class CanvasNavigationTableResult :
+		uint8_t {
+
+		Success,
+		InvalidCanvas,
+		InvalidSize,
+		OutOfRange,
+		InvalidTarget,
+		AllocationFailed,
 	};
 
 	struct CanvasComponent {
@@ -143,8 +152,23 @@ namespace Engine {
 			const CanvasComponent& component, nlohmann::json& out);
 	};
 
-	// 遷移テーブルの行列数を変更する
-	void ResizeCanvasNavigationTable(CanvasNavigationTable& table, int32_t rows, int32_t columns);
+	// 遷移テーブルのセル数を安全に計算する
+	bool TryGetCanvasNavigationCellCount(int32_t rows, int32_t columns, size_t& outCellCount);
+	// 編集用遷移テーブルの行列数を変更する
+	bool ResizeCanvasNavigationTable(CanvasNavigationTable& table, int32_t rows, int32_t columns);
+	// 編集用遷移テーブルのセルへ重複なく設定する
+	bool SetCanvasNavigationCell(CanvasNavigationTable& table, size_t index, UUID localFileID);
+	// Canvas配下の遷移対象か判定する
+	bool IsCanvasNavigationTarget(ECSWorld& world, const Entity& canvas, const Entity& target);
+	// Canvasの遷移テーブルを変更する
+	CanvasNavigationTableResult ResizeCanvasNavigationTable(
+		ECSWorld& world, const Entity& canvas, int32_t rows, int32_t columns);
+	// Canvasの遷移セルからEntityを取得する
+	CanvasNavigationTableResult GetCanvasNavigationCell(
+		ECSWorld& world, const Entity& canvas, int32_t row, int32_t column, Entity& outTarget);
+	// Canvasの遷移セルへEntityを設定する
+	CanvasNavigationTableResult SetCanvasNavigationCell(
+		ECSWorld& world, const Entity& canvas, int32_t row, int32_t column, const Entity& target);
 
 	void from_json(const nlohmann::json& in, CanvasComponent& component);
 	void to_json(nlohmann::json& out, const CanvasComponent& component);

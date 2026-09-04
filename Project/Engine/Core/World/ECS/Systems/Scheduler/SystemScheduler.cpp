@@ -107,6 +107,9 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 			syncCount < kMaxSceneSyncCount) {
 
 			sceneRevision = sceneInstances->GetRevision();
+			// Scene切り替えで無効になったHeader参照をLifecycle処理より先に更新する
+			const SceneInstance* activeScene = sceneInstances->GetActive();
+			context.activeSceneHeader = activeScene ? &activeScene->header : nullptr;
 			// 新しいシーンを描画する前にスクリプト初期化と遷移要求を反映する
 			for (size_t i = 0; i < systems_.size(); ++i) {
 

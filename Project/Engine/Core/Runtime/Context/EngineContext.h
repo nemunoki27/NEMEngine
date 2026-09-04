@@ -56,7 +56,7 @@ namespace Engine {
 		~EngineContext() = default;
 
 		// 初期化
-		void Init();
+		void Init(bool usesEditorUI);
 
 		// 終了
 		void Finalize();
@@ -87,6 +87,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 各コア設定の初期化
-		void InitCoreSettings();
+		void InitCoreSettings(bool usesEditorUI);
 	};
 } // Engine

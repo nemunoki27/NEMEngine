@@ -368,6 +368,85 @@ namespace Engine {
 		SetCanvasInputBindings(*world, resolved, replaced);
 	}
 
+	int32_t ManagedScriptRuntime::CanvasGetNavigationTableSizeCallback(
+		ManagedNativeEntity entity, int32_t* outRows, int32_t* outColumns) {
+
+		if (!outRows || !outColumns) {
+			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidSize);
+		}
+		*outRows = 0;
+		*outColumns = 0;
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world || !world->IsAlive(resolved) ||
+			!world->HasComponent<CanvasComponent>(resolved)) {
+			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidCanvas);
+		}
+		const auto& canvas = world->GetComponent<CanvasComponent>(resolved);
+		*outRows = canvas.navigationRows;
+		*outColumns = canvas.navigationColumns;
+		return static_cast<int32_t>(CanvasNavigationTableResult::Success);
+	}
+
+	int32_t ManagedScriptRuntime::CanvasResizeNavigationTableCallback(
+		ManagedNativeEntity entity, int32_t rows, int32_t columns) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidCanvas);
+		}
+		return static_cast<int32_t>(
+			ResizeCanvasNavigationTable(*world, resolved, rows, columns));
+	}
+
+	int32_t ManagedScriptRuntime::CanvasGetNavigationCellCallback(
+		ManagedNativeEntity entity, int32_t row, int32_t column,
+		ManagedNativeEntity* outTarget) {
+
+		if (!outTarget) {
+			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidTarget);
+		}
+		*outTarget = MakeNullNativeEntity();
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidCanvas);
+		}
+
+		Entity target = Entity::Null();
+		const CanvasNavigationTableResult result =
+			GetCanvasNavigationCell(*world, resolved, row, column, target);
+		if (result == CanvasNavigationTableResult::Success && world->IsAlive(target)) {
+			*outTarget = MakeNativeEntity(*world, target);
+		}
+		return static_cast<int32_t>(result);
+	}
+
+	int32_t ManagedScriptRuntime::CanvasSetNavigationCellCallback(
+		ManagedNativeEntity entity, int32_t row, int32_t column,
+		ManagedNativeEntity target) {
+
+		ECSWorld* world = ResolveWorld(entity);
+		const Entity resolved = ResolveEntity(entity);
+		if (!world) {
+			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidCanvas);
+		}
+
+		Entity resolvedTarget = Entity::Null();
+		if (target.IsValid()) {
+			ECSWorld* targetWorld = ResolveWorld(target);
+			resolvedTarget = ResolveEntity(target);
+			if (targetWorld != world || !world->IsAlive(resolvedTarget)) {
+				return static_cast<int32_t>(CanvasNavigationTableResult::InvalidTarget);
+			}
+		}
+		return static_cast<int32_t>(
+			SetCanvasNavigationCell(*world, resolved, row, column, resolvedTarget));
+	}
+
 	int32_t ManagedScriptRuntime::CanvasScreenToLocalPointCallback(
 		ManagedNativeEntity entity, ManagedVector2 screenPosition,
 		ManagedVector2* outLocalPosition) {

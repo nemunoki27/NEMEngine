@@ -16,6 +16,7 @@ namespace {
 		if (!in.is_object()) {
 			return;
 		}
+		style.animationEnabled = in.value("animationEnabled", style.animationEnabled);
 		if (in.contains("color")) {
 			style.color = Engine::Color4::FromJson(in["color"]);
 		}
@@ -39,6 +40,7 @@ namespace {
 	nlohmann::json WriteStyle(const Engine::UITransitionStyle& style) {
 
 		return {
+			{ "animationEnabled",style.animationEnabled },
 			{ "color",style.color.ToJson() },
 			{ "colorTransitionDuration",style.colorTransitionDuration },
 			{ "colorEasing",Engine::EnumAdapter<EasingType>::ToString(style.colorEasing) },

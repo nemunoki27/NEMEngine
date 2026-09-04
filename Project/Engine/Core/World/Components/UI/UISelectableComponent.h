@@ -27,6 +27,7 @@ namespace Engine {
 
 	struct UITransitionStyle {
 
+		bool animationEnabled = true;
 		Color4 color = Color4::White();
 		Vector2 scale = Vector2::AnyInit(1.0f);
 		float colorTransitionDuration = 0.08f;
@@ -74,9 +75,18 @@ namespace Engine {
 		bool interactable = true;
 
 		UITransitionStyle normal{};
-		UITransitionStyle selected{ Color4(1.1f, 1.1f, 1.1f, 1.0f), Vector2::AnyInit(1.0f) };
-		UITransitionStyle submitted{ Color4(0.8f, 0.8f, 0.8f, 1.0f), Vector2::AnyInit(0.96f) };
-		UITransitionStyle disabled{ Color4(0.55f, 0.55f, 0.55f, 0.65f), Vector2::AnyInit(1.0f) };
+		UITransitionStyle selected{
+			.color = Color4(1.1f, 1.1f, 1.1f, 1.0f),
+			.scale = Vector2::AnyInit(1.0f)
+		};
+		UITransitionStyle submitted{
+			.color = Color4(0.8f, 0.8f, 0.8f, 1.0f),
+			.scale = Vector2::AnyInit(0.96f)
+		};
+		UITransitionStyle disabled{
+			.color = Color4(0.55f, 0.55f, 0.55f, 0.65f),
+			.scale = Vector2::AnyInit(1.0f)
+		};
 
 		// Registryから呼ばれるRuntime状態のライフサイクル
 		static void OnAdded(

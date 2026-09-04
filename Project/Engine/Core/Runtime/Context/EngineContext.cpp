@@ -8,7 +8,6 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
-#include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
@@ -84,7 +83,7 @@ namespace {
 Engine::EngineContext::WindowSetting Engine::EngineContext::windowSetting_ = {};
 Engine::EngineContext::GraphicsSetting Engine::EngineContext::graphicsSetting_ = {};
 
-void Engine::EngineContext::InitCoreSettings() {
+void Engine::EngineContext::InitCoreSettings(bool usesEditorUI) {
 
 	nlohmann::json data = JsonAdapter::Load(
 		RuntimePaths::GetEngineAssetPath("Config/windowSettings.exeConfig.json"));
@@ -93,9 +92,9 @@ void Engine::EngineContext::InitCoreSettings() {
 	windowSetting_.title = Algorithm::ConvertString(windowTitle);
 	windowSetting_.startupFullscreen = false;
 
-	if constexpr (!BuildConfig::kEditorEnabled) {
+	if (!usesEditorUI) {
 
-		// 製品ビルドではビルド設定の製品名と起動状態を優先する
+		// 製品実行ではビルド設定の製品名と起動状態を優先する
 		const nlohmann::json gameBuild = JsonAdapter::Load(
 			RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild), false);
 		if (gameBuild.is_object()) {
@@ -127,10 +126,10 @@ void Engine::EngineContext::InitCoreSettings() {
 		graphicsSetting_.kWindowClearColor[2], graphicsSetting_.kWindowClearColor[3]);
 }
 
-void Engine::EngineContext::Init() {
+void Engine::EngineContext::Init(bool usesEditorUI) {
 
 	// 各コア設定の初期化
-	InitCoreSettings();
+	InitCoreSettings(usesEditorUI);
 
 	// 表示ウィンドウ作成
 	winApp_ = std::make_unique<WinApp>();

@@ -52,7 +52,8 @@ namespace Engine {
 	// v46: ParticleSystemの再生操作と実行状態APIを追加し旧エフェクトAPIを削除
 	// v47: RenderFeatureグループの有効状態APIを追加
 	// v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
-	inline constexpr uint32_t kManagedAbiVersion = 48;
+	// v49: Canvas遷移テーブルの取得と変更APIを追加
+	inline constexpr uint32_t kManagedAbiVersion = 49;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -209,6 +210,10 @@ namespace Engine {
 
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
+
+		constexpr bool IsValid() const noexcept {
+			return index != 0xFFFFFFFFu && generation != 0;
+		}
 	};
 
 	// managed script instanceを指す世代付きハンドルで、単純なint indexを境界で公開しない
@@ -228,6 +233,11 @@ namespace Engine {
 		ManagedWorldHandle world{};
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
+
+		// ECS Entityは初回世代0が有効なためworldとindexでNullを判定する
+		constexpr bool IsValid() const noexcept {
+			return world.IsValid() && index != 0xFFFFFFFFu;
+		}
 	};
 
 	// C#と共有するVector3
@@ -582,6 +592,15 @@ namespace Engine {
 			ManagedNativeEntity, int32_t, int32_t, int32_t*, int32_t);
 		using CanvasSetInputBindingsCallback = void(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t, const int32_t*, int32_t);
+		// Canvasの遷移テーブルを取得設定する
+		using CanvasGetNavigationTableSizeCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t*, int32_t*);
+		using CanvasResizeNavigationTableCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t);
+		using CanvasGetNavigationCellCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, ManagedNativeEntity*);
+		using CanvasSetNavigationCellCallback = int32_t(__cdecl*)(
+			ManagedNativeEntity, int32_t, int32_t, ManagedNativeEntity);
 		// Canvasローカル座標への変換
 		using CanvasScreenToLocalPointCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, ManagedVector2, ManagedVector2*);

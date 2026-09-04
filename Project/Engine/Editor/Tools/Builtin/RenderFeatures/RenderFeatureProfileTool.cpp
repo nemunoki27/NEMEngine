@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
@@ -166,6 +167,16 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 		return;
 	}
 
+	AssetID importSource{};
+	AssetEditSetting importSetting{};
+	importSetting.allowDelete = false;
+	if (MyGUI::AssetReferenceField("設定をインポート", importSource,
+		context.toolContext.assetDatabase,
+		{ AssetType::RenderFeatureProfile }, importSetting).valueChanged) {
+
+		ImportProfileSettings(context, importSource);
+	}
+
 	const float buttonWidth = ImGui::GetContentRegionAvail().x * 0.5f - 2.0f;
 	if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) {
 		service.RebuildRuntime();
@@ -209,6 +220,50 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 	}
 	ImGui::EndChild();
 	ImGui::End();
+}
+
+bool Engine::RenderFeatureProfileTool::ImportProfileSettings(
+	const EditorToolContext& context, AssetID sourceProfile) {
+
+	AssetDatabase* database = context.toolContext.assetDatabase;
+	if (!database || !observedProfile_ || !sourceProfile) {
+		statusMessage_ = "取り込み元プロファイルを読み込めません";
+		statusError_ = true;
+		return false;
+	}
+	if (sourceProfile == observedProfile_) {
+		statusMessage_ = "現在のプロファイルは取り込めません";
+		statusError_ = true;
+		return false;
+	}
+
+	const AssetMeta* sourceMeta = database->Find(sourceProfile);
+	if (!sourceMeta || sourceMeta->type != AssetType::RenderFeatureProfile) {
+		statusMessage_ = "Render Feature Profileを指定してください";
+		statusError_ = true;
+		return false;
+	}
+
+	RenderFeatureProfileAsset source{};
+	const std::filesystem::path sourcePath =
+		database->ResolveFullPath(sourceProfile);
+	if (sourcePath.empty() ||
+		!RenderFeatureProfileSerializer::Load(sourcePath, source)) {
+
+		statusMessage_ = "取り込み元プロファイルを読み込めません";
+		statusError_ = true;
+		return false;
+	}
+
+	RenderFeatureProfileService& service =
+		RenderFeatureProfileService::GetInstance();
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
+	CopyRenderFeatureProfileSettings(service.GetProfile(), source);
+	ClearSelection();
+	SetDirty();
+	statusMessage_ = "設定をインポートしました。保存してください";
+	statusError_ = false;
+	return true;
 }
 
 bool Engine::RenderFeatureProfileTool::EnsureProfile(

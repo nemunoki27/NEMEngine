@@ -261,6 +261,10 @@ namespace Engine {
 
 	// Anchorの固定RenderPath上の順序を取得する
 	uint32_t GetRenderFeatureAnchorOrder(RenderFeatureAnchor anchor);
+	// 保存先の識別情報を維持してProfile設定をコピーする
+	void CopyRenderFeatureProfileSettings(
+		RenderFeatureProfileAsset& destination,
+		const RenderFeatureProfileAsset& source);
 	// 階層内の不正参照を除き、未登録Passをルート末尾へ追加する
 	void NormalizeRenderFeatureHierarchy(RenderFeatureProfileAsset& profile);
 	// 親Groupの有効状態を変えず、Pass配列だけを階層順へ同期する

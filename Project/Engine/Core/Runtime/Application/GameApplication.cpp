@@ -17,26 +17,14 @@
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
+#include <Engine/Core/Runtime/Application/RuntimeSystemRegistration.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
-#include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
-#include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
-#include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
-#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
-#include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
-#include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
-#include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
-#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
-#include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
-#include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
-#include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
-#include <Engine/Core/World/Systems/UI/UIInputSystem.h>
 
 // c++
 #include <algorithm>
@@ -62,22 +50,7 @@ namespace {
 
 void Engine::GameApplication::InitSystems() {
 
-	int32_t order = 0;
-	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<UIInputSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<UICanvasSystem>(), ++order);
+	RegisterRuntimeSystems(scheduler_);
 }
 
 void Engine::GameApplication::LoadActiveSceneConfig() {

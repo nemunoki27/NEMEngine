@@ -32,7 +32,8 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		payload.materialInstance = &renderer.materialInstance.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
-		const UIElementRuntime* uiRuntime = UIRuntimeService::GetInstance().Find(world, entity);
+		const UIElementRuntime* uiRuntime = renderer.dimension == Dimension::Type2D ?
+			UIRuntimeService::GetInstance().Find(world, entity) : nullptr;
 		const Matrix4x4 worldMatrix = uiRuntime ? uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(world, entity);
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Text;

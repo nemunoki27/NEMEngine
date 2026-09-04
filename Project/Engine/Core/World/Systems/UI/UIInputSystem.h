@@ -18,6 +18,7 @@ namespace Engine {
 	struct UISelectableAnimationRuntime {
 
 		std::array<AssetID, 4> configuredClips{};
+		std::array<bool, 4> configuredAnimations{};
 		std::array<bool, 4> configuredUseClips{};
 		std::vector<AnimationPreviewBaseValue> baseValues;
 		AssetID activeClip{};

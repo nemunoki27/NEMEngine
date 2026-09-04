@@ -307,6 +307,14 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::GetUIButtonClickedCallback;
 	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
 	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
+	callbacks.canvasGetNavigationTableSize =
+		&ManagedScriptRuntime::CanvasGetNavigationTableSizeCallback;
+	callbacks.canvasResizeNavigationTable =
+		&ManagedScriptRuntime::CanvasResizeNavigationTableCallback;
+	callbacks.canvasGetNavigationCell =
+		&ManagedScriptRuntime::CanvasGetNavigationCellCallback;
+	callbacks.canvasSetNavigationCell =
+		&ManagedScriptRuntime::CanvasSetNavigationCellCallback;
 	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
 	callbacks.worldToScreenPoint = &ManagedScriptRuntime::WorldToScreenPointCallback;
 	callbacks.canvasScreenToLocalPoint = &ManagedScriptRuntime::CanvasScreenToLocalPointCallback;

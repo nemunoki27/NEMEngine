@@ -96,32 +96,8 @@ namespace {
 		return sceneObject ? sceneObject->localFileID : Engine::UUID{};
 	}
 
-	bool IsCanvasButton(Engine::ECSWorld& world, Engine::Entity canvas, Engine::Entity entity) {
-
-		if (!world.IsAlive(entity) || entity == canvas ||
-			!world.HasComponent<Engine::UISelectableComponent>(entity) ||
-			(!world.HasComponent<Engine::UIImageButtonComponent>(entity) &&
-				!world.HasComponent<Engine::UITextButtonComponent>(entity))) {
-			return false;
-		}
-
-		Engine::Entity current = entity;
-		while (world.IsAlive(current)) {
-
-			if (current == canvas) {
-				return true;
-			}
-			if (current != entity && world.HasComponent<Engine::CanvasComponent>(current)) {
-				return false;
-			}
-			const auto* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(current);
-			current = hierarchy ? hierarchy->parent : Engine::Entity::Null();
-		}
-		return false;
-	}
-
-	void CollectCanvasButtons(Engine::ECSWorld& world, Engine::Entity canvas,
-		Engine::Entity parent, std::vector<Engine::Entity>& buttons) {
+	void CollectCanvasSelectables(Engine::ECSWorld& world, Engine::Entity canvas,
+		Engine::Entity parent, std::vector<Engine::Entity>& selectables) {
 
 		const auto* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(parent);
 		Engine::Entity child = hierarchy ? hierarchy->firstChild : Engine::Entity::Null();
@@ -130,21 +106,27 @@ namespace {
 			const auto& childHierarchy = world.GetComponent<Engine::HierarchyComponent>(child);
 			const Engine::Entity next = childHierarchy.nextSibling;
 			if (!world.HasComponent<Engine::CanvasComponent>(child)) {
-				if (IsCanvasButton(world, canvas, child)) {
-					buttons.emplace_back(child);
+				if (Engine::IsCanvasNavigationTarget(world, canvas, child)) {
+					selectables.emplace_back(child);
 				}
-				CollectCanvasButtons(world, canvas, child, buttons);
+				CollectCanvasSelectables(world, canvas, child, selectables);
 			}
 			child = next;
 		}
 	}
 
-	std::string GetNavigationCellLabel(Engine::ECSWorld& world, Engine::UUID localFileID) {
+	std::string GetNavigationCellLabel(
+		Engine::ECSWorld& world, Engine::Entity canvas, Engine::UUID localFileID) {
 
 		if (!localFileID) {
 			return "(Empty)";
 		}
-		const Engine::Entity entity = Engine::SceneObjectUtility::FindByLocalFileID(world, localFileID);
+		Engine::Entity entity = Engine::Entity::Null();
+		const auto* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(canvas);
+		if (sceneObject) {
+			entity = Engine::SceneObjectUtility::FindByLocalFileID(
+				world, sceneObject->sceneInstanceID, localFileID);
+		}
 		if (!world.IsAlive(entity)) {
 			return "Missing Entity";
 		}
@@ -152,33 +134,25 @@ namespace {
 		return name ? name->name : "Entity";
 	}
 
-	void AssignNavigationCell(Engine::CanvasNavigationTable& table, size_t index,
-		Engine::UUID localFileID) {
-
-		if (table.cells.size() <= index) {
-			return;
-		}
-		if (localFileID) {
-			for (Engine::UUID& cell : table.cells) {
-				if (cell == localFileID) {
-					cell = {};
-				}
-			}
-		}
-		table.cells[index] = localFileID;
-	}
-
 	Engine::ValueEditResult DrawNavigationCell(Engine::ECSWorld& world, Engine::Entity canvas,
-		Engine::CanvasNavigationTable& table, size_t index, const std::vector<Engine::Entity>& buttons) {
+		Engine::CanvasNavigationTable& table, size_t index,
+		const std::vector<Engine::Entity>& selectables, Engine::UUID selectedLocalFileID) {
 
 		Engine::ValueEditResult result{};
 		Engine::UUID& cell = table.cells[index];
-		const std::string cellLabel = GetNavigationCellLabel(world, cell);
+		const std::string cellLabel = GetNavigationCellLabel(world, canvas, cell);
 		const std::string label = cellLabel + "##cell";
 		const float buttonWidth = (std::max)(1.0f, ImGui::GetContentRegionAvail().x);
 
 		ImGui::PushID(static_cast<int32_t>(index));
+		const bool selected = cell && cell == selectedLocalFileID;
+		if (selected) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+		}
 		ImGui::Button(label.c_str(), ImVec2(buttonWidth, ImGui::GetFrameHeight()));
+		if (selected) {
+			ImGui::PopStyleColor();
+		}
 		result.anyItemActive = ImGui::IsItemActive();
 		if (ImGui::IsItemHovered() &&
 			buttonWidth < ImGui::CalcTextSize(cellLabel.c_str()).x + ImGui::GetStyle().FramePadding.x * 2.0f) {
@@ -188,7 +162,7 @@ namespace {
 		if (cell && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 			const int32_t sourceIndex = static_cast<int32_t>(index);
 			ImGui::SetDragDropPayload(kNavigationCellDragDropType, &sourceIndex, sizeof(sourceIndex));
-			ImGui::TextUnformatted(GetNavigationCellLabel(world, cell).c_str());
+			ImGui::TextUnformatted(GetNavigationCellLabel(world, canvas, cell).c_str());
 			ImGui::EndDragDropSource();
 		}
 		if (ImGui::BeginDragDropTarget()) {
@@ -207,8 +181,8 @@ namespace {
 				if (payload->IsDelivery() && payload->DataSize == sizeof(Engine::UUID)) {
 					const Engine::UUID stableUUID = *static_cast<const Engine::UUID*>(payload->Data);
 					const Engine::Entity target = world.FindByUUID(stableUUID);
-					if (IsCanvasButton(world, canvas, target)) {
-						AssignNavigationCell(table, index, GetLocalFileID(world, target));
+					if (Engine::IsCanvasNavigationTarget(world, canvas, target)) {
+						Engine::SetCanvasNavigationCell(table, index, GetLocalFileID(world, target));
 						result.valueChanged = true;
 						result.editFinished = true;
 					}
@@ -224,13 +198,13 @@ namespace {
 				result.editFinished = true;
 			}
 			ImGui::Separator();
-			for (Engine::Entity button : buttons) {
+			for (Engine::Entity selectable : selectables) {
 
-				const Engine::UUID localFileID = GetLocalFileID(world, button);
-				const std::string buttonLabel = GetNavigationCellLabel(world, localFileID);
+				const Engine::UUID localFileID = GetLocalFileID(world, selectable);
+				const std::string buttonLabel = GetNavigationCellLabel(world, canvas, localFileID);
 				ImGui::PushID(Engine::ToString(localFileID).c_str());
 				if (ImGui::MenuItem(buttonLabel.c_str(), nullptr, cell == localFileID)) {
-					AssignNavigationCell(table, index, localFileID);
+					Engine::SetCanvasNavigationCell(table, index, localFileID);
 					result.valueChanged = true;
 					result.editFinished = true;
 				}
@@ -248,13 +222,17 @@ namespace {
 		Engine::ValueEditResult result{};
 		Engine::ResizeCanvasNavigationTable(table, table.rows, table.columns);
 
-		std::vector<Engine::Entity> buttons;
-		CollectCanvasButtons(world, canvas, canvas, buttons);
+		std::vector<Engine::Entity> selectables;
+		CollectCanvasSelectables(world, canvas, canvas, selectables);
+		Engine::UUID selectedLocalFileID{};
+		if (const auto* runtime = world.TryGetComponent<Engine::CanvasRuntimeComponent>(canvas)) {
+			selectedLocalFileID = runtime->selectedLocalFileID;
+		}
 
-		if (ImGui::Button("配下のボタンを自動配置")) {
+		if (ImGui::Button("配下のUIを自動配置")) {
 			std::fill(table.cells.begin(), table.cells.end(), Engine::UUID{});
-			for (size_t i = 0; i < buttons.size() && i < table.cells.size(); ++i) {
-				table.cells[i] = GetLocalFileID(world, buttons[i]);
+			for (size_t i = 0; i < selectables.size() && i < table.cells.size(); ++i) {
+				table.cells[i] = GetLocalFileID(world, selectables[i]);
 			}
 			result.valueChanged = true;
 			result.editFinished = true;
@@ -266,11 +244,20 @@ namespace {
 			result.editFinished = true;
 		}
 
-		const ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame;
-		const float height = ImGui::GetFrameHeightWithSpacing() * table.rows;
+		const ImGuiTableFlags flags = ImGuiTableFlags_Borders |
+			ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;
+		const int32_t visibleRows = (std::min)(table.rows, 8);
+		const ImGuiStyle& style = ImGui::GetStyle();
+		const float availableWidth = ImGui::GetContentRegionAvail().x -
+			(table.rows > visibleRows ? style.ScrollbarSize : 0.0f);
+		const bool hasHorizontalScrollbar =
+			availableWidth < static_cast<float>(table.columns) * 120.0f;
+		const float height = ImGui::GetFrameHeightWithSpacing() *
+			static_cast<float>(visibleRows) +
+			(hasHorizontalScrollbar ? style.ScrollbarSize : 0.0f);
 		if (ImGui::BeginTable("##CanvasNavigationTable", table.columns, flags, ImVec2(0.0f, height))) {
 			for (int32_t column = 0; column < table.columns; ++column) {
-				ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch, 1.0f);
+				ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, 120.0f);
 			}
 			for (int32_t row = 0; row < table.rows; ++row) {
 
@@ -278,9 +265,11 @@ namespace {
 				for (int32_t column = 0; column < table.columns; ++column) {
 
 					ImGui::TableSetColumnIndex(column);
-					const size_t index = static_cast<size_t>(row * table.columns + column);
+					const size_t index = static_cast<size_t>(row) *
+						static_cast<size_t>(table.columns) + static_cast<size_t>(column);
 					const Engine::ValueEditResult cellResult =
-						DrawNavigationCell(world, canvas, table, index, buttons);
+						DrawNavigationCell(world, canvas, table, index,
+							selectables, selectedLocalFileID);
 					result.valueChanged |= cellResult.valueChanged;
 					result.anyItemActive |= cellResult.anyItemActive;
 					result.editFinished |= cellResult.editFinished;
@@ -469,6 +458,13 @@ namespace {
 		const Engine::EditorPanelContext& context,
 		Engine::UITransitionStyle& style, bool& anyItemActive) {
 
+		drawField(anyItemActive, [&]() {
+			return Engine::InspectorDrawerCommon::DrawCheckboxField(
+				"アニメーションを使用", style.animationEnabled);
+			});
+		if (!style.animationEnabled) {
+			return;
+		}
 		drawField(anyItemActive, [&]() {
 			return Engine::InspectorDrawerCommon::DrawCheckboxField("アニメーションクリップを使用", style.useAnimationClip);
 			});
@@ -717,20 +713,24 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 				DrawField(anyItemActive, [&]() {
 					int32_t rows = navigationTable_.rows;
 					ValueEditResult result = MyGUI::DragInt("縦", rows,
-						{ .dragSpeed = 1.0f,.minValue = 1,.maxValue = CanvasNavigationTable::kMaxSize });
+						{ .dragSpeed = 1.0f,.minValue = 1 });
 					if (result.valueChanged) {
-						ResizeCanvasNavigationTable(
-							navigationTable_, rows, navigationTable_.columns);
+						if (!ResizeCanvasNavigationTable(
+							navigationTable_, rows, navigationTable_.columns)) {
+							result.valueChanged = false;
+						}
 					}
 					return result;
 					});
 				DrawField(anyItemActive, [&]() {
 					int32_t columns = navigationTable_.columns;
 					ValueEditResult result = MyGUI::DragInt("横", columns,
-						{ .dragSpeed = 1.0f,.minValue = 1,.maxValue = CanvasNavigationTable::kMaxSize });
+						{ .dragSpeed = 1.0f,.minValue = 1 });
 					if (result.valueChanged) {
-						ResizeCanvasNavigationTable(
-							navigationTable_, navigationTable_.rows, columns);
+						if (!ResizeCanvasNavigationTable(
+							navigationTable_, navigationTable_.rows, columns)) {
+							result.valueChanged = false;
+						}
 					}
 					return result;
 					});

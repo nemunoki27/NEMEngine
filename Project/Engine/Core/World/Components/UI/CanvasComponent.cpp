@@ -4,12 +4,19 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/UI/UIComponentSerialization.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
 #include <algorithm>
 #include <array>
+#include <limits>
+#include <new>
+#include <stdexcept>
 #include <utility>
 
 //============================================================================
@@ -117,26 +124,36 @@ namespace {
 			CanvasAction::Submit, CanvasDevice::Gamepad, bindings);
 	}
 
-	void ReadCanvasNavigationCells(
+	bool ReadCanvasNavigationCells(
 		const nlohmann::json& in, const Engine::CanvasComponent& component,
 		std::vector<Engine::UUID>& cells) {
 
-		const size_t cellCount = static_cast<size_t>(
-			component.navigationRows * component.navigationColumns);
-		cells.assign(cellCount, Engine::UUID{});
+		size_t cellCount = 0;
+		if (!Engine::TryGetCanvasNavigationCellCount(
+			component.navigationRows, component.navigationColumns, cellCount)) {
+			return false;
+		}
+		try {
+			cells.assign(cellCount, Engine::UUID{});
+		} catch (const std::bad_alloc&) {
+			return false;
+		} catch (const std::length_error&) {
+			return false;
+		}
 		const auto table = in.find("navigationTable");
 		if (table == in.end() || !table->is_object()) {
-			return;
+			return true;
 		}
 		const auto values = table->find("cells");
 		if (values == table->end() || !values->is_array()) {
-			return;
+			return true;
 		}
 		const size_t count = (std::min)(values->size(), cells.size());
 		for (size_t index = 0; index < count; ++index) {
 			cells[index] =
 				Engine::UIComponentSerialization::ReadEntityReference((*values)[index]);
 		}
+		return true;
 	}
 }
 
@@ -200,7 +217,11 @@ void Engine::CanvasComponent::DeserializeECS(
 	SetCanvasInputBindings(world, entity, bindings);
 
 	std::vector<UUID> cells;
-	ReadCanvasNavigationCells(in, component, cells);
+	if (!ReadCanvasNavigationCells(in, component, cells)) {
+		component.navigationRows = 3;
+		component.navigationColumns = 3;
+		cells.assign(9, UUID{});
+	}
 	SetCanvasNavigationCells(world, entity, cells);
 }
 
@@ -213,17 +234,43 @@ void Engine::CanvasComponent::SerializeECS(
 		GetCanvasNavigationCells(world, entity), out);
 }
 
-void Engine::ResizeCanvasNavigationTable(
-	CanvasNavigationTable& table, int32_t rows, int32_t columns) {
+bool Engine::TryGetCanvasNavigationCellCount(
+	int32_t rows, int32_t columns, size_t& outCellCount) {
 
-	rows = std::clamp(rows, 1, CanvasNavigationTable::kMaxSize);
-	columns = std::clamp(columns, 1, CanvasNavigationTable::kMaxSize);
-	if (table.rows == rows && table.columns == columns &&
-		table.cells.size() == static_cast<size_t>(rows * columns)) {
-		return;
+	outCellCount = 0;
+	if (rows <= 0 || columns <= 0) {
+		return false;
 	}
 
-	std::vector<UUID> resized(static_cast<size_t>(rows * columns));
+	const size_t rowCount = static_cast<size_t>(rows);
+	const size_t columnCount = static_cast<size_t>(columns);
+	if (rowCount > static_cast<size_t>((std::numeric_limits<uint32_t>::max)()) / columnCount) {
+		return false;
+	}
+	outCellCount = rowCount * columnCount;
+	return true;
+}
+
+bool Engine::ResizeCanvasNavigationTable(
+	CanvasNavigationTable& table, int32_t rows, int32_t columns) {
+
+	size_t cellCount = 0;
+	if (!TryGetCanvasNavigationCellCount(rows, columns, cellCount)) {
+		return false;
+	}
+	if (table.rows == rows && table.columns == columns &&
+		table.cells.size() == cellCount) {
+		return true;
+	}
+
+	std::vector<UUID> resized;
+	try {
+		resized.resize(cellCount);
+	} catch (const std::bad_alloc&) {
+		return false;
+	} catch (const std::length_error&) {
+		return false;
+	}
 	const int32_t copyRows = (std::min)(table.rows, rows);
 	const int32_t copyColumns = (std::min)(table.columns, columns);
 	for (int32_t row = 0; row < copyRows; ++row) {
@@ -231,9 +278,11 @@ void Engine::ResizeCanvasNavigationTable(
 
 			// 行列数変更前のセル位置を保ったまま重なる範囲だけ移す
 			const size_t source =
-				static_cast<size_t>(row * table.columns + column);
+				static_cast<size_t>(row) * static_cast<size_t>(table.columns) +
+				static_cast<size_t>(column);
 			const size_t destination =
-				static_cast<size_t>(row * columns + column);
+				static_cast<size_t>(row) * static_cast<size_t>(columns) +
+				static_cast<size_t>(column);
 			if (source < table.cells.size()) {
 				resized[destination] = table.cells[source];
 			}
@@ -243,6 +292,171 @@ void Engine::ResizeCanvasNavigationTable(
 	table.rows = rows;
 	table.columns = columns;
 	table.cells = std::move(resized);
+	return true;
+}
+
+bool Engine::SetCanvasNavigationCell(
+	CanvasNavigationTable& table, size_t index, UUID localFileID) {
+
+	if (table.cells.size() <= index) {
+		return false;
+	}
+	if (localFileID) {
+		for (UUID& cell : table.cells) {
+			if (cell == localFileID) {
+				cell = {};
+			}
+		}
+	}
+	table.cells[index] = localFileID;
+	return true;
+}
+
+bool Engine::IsCanvasNavigationTarget(
+	ECSWorld& world, const Entity& canvas, const Entity& target) {
+
+	if (!world.IsAlive(canvas) || !world.IsAlive(target) || canvas == target ||
+		!world.HasComponent<CanvasComponent>(canvas) ||
+		!world.HasComponent<UISelectableComponent>(target)) {
+		return false;
+	}
+
+	Entity current = target;
+	while (world.IsAlive(current)) {
+
+		if (current == canvas) {
+			return true;
+		}
+		if (current != target && world.HasComponent<CanvasComponent>(current)) {
+			return false;
+		}
+		const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(current);
+		current = hierarchy ? hierarchy->parent : Entity::Null();
+	}
+	return false;
+}
+
+Engine::CanvasNavigationTableResult Engine::ResizeCanvasNavigationTable(
+	ECSWorld& world, const Entity& canvas, int32_t rows, int32_t columns) {
+
+	if (!world.IsAlive(canvas) || !world.HasComponent<CanvasComponent>(canvas)) {
+		return CanvasNavigationTableResult::InvalidCanvas;
+	}
+
+	size_t cellCount = 0;
+	if (!TryGetCanvasNavigationCellCount(rows, columns, cellCount)) {
+		return CanvasNavigationTableResult::InvalidSize;
+	}
+
+	const auto& component = world.GetComponent<CanvasComponent>(canvas);
+	const std::span<const CanvasNavigationCell> current =
+		GetCanvasNavigationCells(world, canvas);
+	std::vector<UUID> resized;
+	try {
+		resized.resize(cellCount);
+	} catch (const std::bad_alloc&) {
+		return CanvasNavigationTableResult::AllocationFailed;
+	} catch (const std::length_error&) {
+		return CanvasNavigationTableResult::AllocationFailed;
+	}
+
+	const int32_t copyRows = (std::min)(component.navigationRows, rows);
+	const int32_t copyColumns = (std::min)(component.navigationColumns, columns);
+	for (int32_t row = 0; row < copyRows; ++row) {
+		for (int32_t column = 0; column < copyColumns; ++column) {
+
+			const size_t source = static_cast<size_t>(
+				row) * static_cast<size_t>(component.navigationColumns) + static_cast<size_t>(column);
+			const size_t destination = static_cast<size_t>(
+				row) * static_cast<size_t>(columns) + static_cast<size_t>(column);
+			if (source < current.size()) {
+				resized[destination] = current[source].localFileID;
+			}
+		}
+	}
+
+	try {
+		SetCanvasNavigationCells(world, canvas, resized);
+	} catch (const std::bad_alloc&) {
+		return CanvasNavigationTableResult::AllocationFailed;
+	} catch (const std::length_error&) {
+		return CanvasNavigationTableResult::AllocationFailed;
+	}
+	auto& resizedComponent = world.GetComponent<CanvasComponent>(canvas);
+	resizedComponent.navigationRows = rows;
+	resizedComponent.navigationColumns = columns;
+	world.MarkComponentModified<CanvasComponent>(canvas);
+	return CanvasNavigationTableResult::Success;
+}
+
+Engine::CanvasNavigationTableResult Engine::GetCanvasNavigationCell(
+	ECSWorld& world, const Entity& canvas, int32_t row, int32_t column, Entity& outTarget) {
+
+	outTarget = Entity::Null();
+	if (!world.IsAlive(canvas) || !world.HasComponent<CanvasComponent>(canvas)) {
+		return CanvasNavigationTableResult::InvalidCanvas;
+	}
+
+	const auto& component = world.GetComponent<CanvasComponent>(canvas);
+	if (row < 0 || component.navigationRows <= row ||
+		column < 0 || component.navigationColumns <= column) {
+		return CanvasNavigationTableResult::OutOfRange;
+	}
+	const size_t index = static_cast<size_t>(row) *
+		static_cast<size_t>(component.navigationColumns) + static_cast<size_t>(column);
+	const std::span<const CanvasNavigationCell> cells =
+		GetCanvasNavigationCells(world, canvas);
+	if (cells.size() <= index || !cells[index].localFileID) {
+		return CanvasNavigationTableResult::Success;
+	}
+
+	const auto* sceneObject = world.TryGetComponent<SceneObjectComponent>(canvas);
+	outTarget = SceneObjectUtility::FindByLocalFileID(
+		world, sceneObject ? sceneObject->sceneInstanceID : UUID{}, cells[index].localFileID);
+	if (!IsCanvasNavigationTarget(world, canvas, outTarget)) {
+		outTarget = Entity::Null();
+	}
+	return CanvasNavigationTableResult::Success;
+}
+
+Engine::CanvasNavigationTableResult Engine::SetCanvasNavigationCell(
+	ECSWorld& world, const Entity& canvas, int32_t row, int32_t column, const Entity& target) {
+
+	if (!world.IsAlive(canvas) || !world.HasComponent<CanvasComponent>(canvas)) {
+		return CanvasNavigationTableResult::InvalidCanvas;
+	}
+	const auto& component = world.GetComponent<CanvasComponent>(canvas);
+	if (row < 0 || component.navigationRows <= row ||
+		column < 0 || component.navigationColumns <= column) {
+		return CanvasNavigationTableResult::OutOfRange;
+	}
+	if (target.IsValid() && !IsCanvasNavigationTarget(world, canvas, target)) {
+		return CanvasNavigationTableResult::InvalidTarget;
+	}
+
+	std::span<CanvasNavigationCell> cells = GetCanvasNavigationCells(world, canvas);
+	const size_t index = static_cast<size_t>(row) *
+		static_cast<size_t>(component.navigationColumns) + static_cast<size_t>(column);
+	if (cells.size() <= index) {
+		return CanvasNavigationTableResult::OutOfRange;
+	}
+
+	UUID localFileID{};
+	if (target.IsValid()) {
+		const auto* sceneObject = world.TryGetComponent<SceneObjectComponent>(target);
+		if (!sceneObject || !sceneObject->localFileID) {
+			return CanvasNavigationTableResult::InvalidTarget;
+		}
+		localFileID = sceneObject->localFileID;
+		for (CanvasNavigationCell& cell : cells) {
+			if (cell.localFileID == localFileID) {
+				cell.localFileID = {};
+			}
+		}
+	}
+	cells[index].localFileID = localFileID;
+	world.MarkComponentModified<CanvasNavigationCell>(canvas);
+	return CanvasNavigationTableResult::Success;
 }
 
 void Engine::from_json(
@@ -279,12 +493,13 @@ void Engine::from_json(
 		in.value("navigationMode", "Automatic")).value_or(component.navigationMode);
 	if (const auto table = in.find("navigationTable");
 		table != in.end() && table->is_object()) {
-		component.navigationRows = std::clamp(
-			table->value("rows", component.navigationRows),
-			1, CanvasNavigationTable::kMaxSize);
-		component.navigationColumns = std::clamp(
-			table->value("columns", component.navigationColumns),
-			1, CanvasNavigationTable::kMaxSize);
+		const int32_t rows = table->value("rows", component.navigationRows);
+		const int32_t columns = table->value("columns", component.navigationColumns);
+		size_t cellCount = 0;
+		if (TryGetCanvasNavigationCellCount(rows, columns, cellCount)) {
+			component.navigationRows = rows;
+			component.navigationColumns = columns;
+		}
 	}
 	component.repeatDelay = in.value("repeatDelay", component.repeatDelay);
 	component.repeatInterval =

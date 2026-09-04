@@ -90,6 +90,8 @@ namespace Engine {
 			const char* emptyLabel);
 		static bool DrawSamplerSettings(
 			PipelineStaticSamplerSettings& settings);
+		bool ImportProfileSettings(const EditorToolContext& context,
+			AssetID sourceProfile);
 		bool EnsureProfile(const EditorToolContext& context);
 		void ClearSelection();
 		void SetDirty();

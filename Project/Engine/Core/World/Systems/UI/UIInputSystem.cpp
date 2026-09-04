@@ -429,7 +429,7 @@ namespace {
 	bool HasStateTransitionRuntime(const Engine::UISelectableComponent& selectable) {
 
 		for (const Engine::UITransitionStyle* style : GetStyles(selectable)) {
-			if (style->useAnimationClip || style->sound) {
+			if ((style->animationEnabled && style->useAnimationClip) || style->sound) {
 				return true;
 			}
 		}
@@ -473,8 +473,10 @@ namespace {
 			}
 		}
 		if (auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {
-			transform->localScale = runtime.baseScale;
-			Engine::MarkTransformSubtreeDirty(world, entity);
+			if (transform->localScale != runtime.baseScale) {
+				transform->localScale = runtime.baseScale;
+				Engine::MarkTransformSubtreeDirty(world, entity);
+			}
 		}
 		runtime.currentColor = runtime.baseColor;
 		runtime.startColor = runtime.baseColor;
@@ -520,7 +522,7 @@ namespace {
 		}
 		for (const Engine::UITransitionStyle* style : GetStyles(selectable)) {
 
-			if (!style->useAnimationClip || !style->animationClip) {
+			if (!style->animationEnabled || !style->useAnimationClip || !style->animationClip) {
 				continue;
 			}
 			const Engine::AnimationClipAsset* clip =
@@ -709,15 +711,18 @@ namespace {
 		Engine::UISelectableAnimationRuntime& animationRuntime) {
 
 		std::array<Engine::AssetID, 4> clips{};
+		std::array<bool, 4> animations{};
 		std::array<bool, 4> useClips{};
 		const auto styles = GetStyles(selectable);
 		for (size_t index = 0; index < styles.size(); ++index) {
 			clips[index] = styles[index]->animationClip;
+			animations[index] = styles[index]->animationEnabled;
 			useClips[index] = styles[index]->useAnimationClip;
 		}
 
 		const bool changed = !animationRuntime.configured ||
 			animationRuntime.configuredClips != clips ||
+			animationRuntime.configuredAnimations != animations ||
 			animationRuntime.configuredUseClips != useClips;
 		if (changed) {
 
@@ -727,6 +732,7 @@ namespace {
 			}
 			ApplySelectableBaseVisual(world, entity, selectableRuntime);
 			animationRuntime.configuredClips = clips;
+			animationRuntime.configuredAnimations = animations;
 			animationRuntime.configuredUseClips = useClips;
 			animationRuntime.baseValues.clear();
 			animationRuntime.activeClip = {};
@@ -773,16 +779,18 @@ namespace {
 				RestoreAnimationBaseValues(
 					world, entity, animationRuntime.baseValues);
 			}
-			if (animationRuntime.applied || style.useAnimationClip) {
+			if (animationRuntime.applied ||
+				(style.animationEnabled && style.useAnimationClip)) {
 				ApplySelectableBaseVisual(world, entity, selectableRuntime);
 			}
 			animationRuntime.activeClip =
-				style.useAnimationClip ? style.animationClip : Engine::AssetID{};
+				style.animationEnabled && style.useAnimationClip ?
+				style.animationClip : Engine::AssetID{};
 			animationRuntime.time = 0.0f;
 			animationRuntime.state = currentState;
 			animationRuntime.stateInitialized = true;
 			animationRuntime.playing =
-				style.useAnimationClip &&
+				style.animationEnabled && style.useAnimationClip &&
 				static_cast<bool>(animationRuntime.activeClip);
 			animationRuntime.applied = false;
 
@@ -791,7 +799,7 @@ namespace {
 				PlayStateSound(style, context);
 			}
 		}
-		if (!style.useAnimationClip) {
+		if (!style.animationEnabled || !style.useAnimationClip) {
 			return false;
 		}
 		if (!animationRuntime.activeClip ||
@@ -844,6 +852,23 @@ namespace {
 		}
 		const Engine::UITransitionStyle& style =
 			ResolveStyle(selectable, runtime);
+		if (!style.animationEnabled) {
+			ApplySelectableBaseVisual(world, entry.entity, runtime);
+			if (style.overrideTexture) {
+				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
+					Engine::MaterialParameterValue value{};
+					value.value = style.texture;
+					if (SetMaterialParameter(*parameters,
+						Engine::MaterialParameterIDs::BaseColorTexture,
+						Engine::MaterialParameterNames::BaseColorTexture,
+						Engine::MaterialParameterSemantic::BaseColorTexture,
+						value)) {
+						NotifyRendererMaterialModified(world);
+					}
+				}
+			}
+			return;
+		}
 		if (style.useAnimationClip) {
 			if (style.overrideTexture) {
 				if (auto* parameters = ResolveMaterialParameters(world, entry.entity)) {
@@ -926,6 +951,9 @@ namespace {
 		const Engine::UISelectableRuntimeComponent& selectableRuntime,
 		const Engine::UISelectableAnimationRuntime* animationRuntime) {
 
+		if (!selectable.submitted.animationEnabled) {
+			return true;
+		}
 		if (selectable.submitted.useAnimationClip) {
 			return animationRuntime && animationRuntime->stateInitialized &&
 				animationRuntime->state == GetStyleIndex(Engine::UISelectableState::Submitted) &&

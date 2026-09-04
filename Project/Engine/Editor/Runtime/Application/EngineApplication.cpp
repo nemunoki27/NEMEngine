@@ -19,6 +19,7 @@
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
+#include <Engine/Core/Runtime/Application/RuntimeSystemRegistration.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -29,27 +30,14 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
-// ECSシステム
-#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Transform/TransformSystem.h>
-#include <Engine/Core/World/Systems/Rendering/UVTransformSystem.h>
-#include <Engine/Core/World/Systems/Rendering/FlipbookAnimationSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/UI/UIInputSystem.h>
-#include <Engine/Core/World/Systems/UI/UICanvasSystem.h>
 // c++
 #include <algorithm>
 #include <chrono>
 #include <exception>
 #include <unordered_set>
-#include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
-#include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
-#include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
-#include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
-#include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
-#include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
-#include <Engine/Core/World/Systems/Physics/PhysicsSystem.h>
-#include <Engine/Core/World/Systems/Effect/ParticleSystem.h>
 
 //============================================================================
 //	EngineApplication classMethods
@@ -83,28 +71,7 @@ namespace {
 
 void Engine::EngineApplication::InitSystems() {
 
-	int32_t order = 0;
-	// システムの追加、orderが小さいほど先に処理される
-	scheduler_.AddSystem(std::make_unique<HierarchySystem>(), ++order);
-	// UI入力はBehaviorより先に確定し、C#のUpdateから同フレームのクリックを参照できるようにする
-	auto uiInputSystem = std::make_unique<UIInputSystem>();
-	uiInputSystem_ = uiInputSystem.get();
-	scheduler_.AddSystem(std::move(uiInputSystem), ++order);
-	scheduler_.AddSystem(std::make_unique<BehaviorSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<PhysicsSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<AudioSourceSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<CameraControllerSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<CameraShakeSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<TransformSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<ParticleSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<CollisionSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<FlipbookAnimationSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<UVTransformSystem>(), ++order);
-	scheduler_.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
-	// ジョイント追従はスケルトン更新の後でないとジョイントのワールド行列が確定しないため、最後に動かす
-	scheduler_.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
-	// Canvas行列は全Transform更新後に確定する
-	scheduler_.AddSystem(std::make_unique<UICanvasSystem>(), ++order);
+	uiInputSystem_ = RegisterRuntimeSystems(scheduler_);
 }
 
 void Engine::EngineApplication::InitFirstScene() {
@@ -411,8 +378,11 @@ void Engine::EngineApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, E
 	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録を開始します");
 	renderPipeline_->Render(graphicsCore, request);
 	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録が完了しました");
+	// Scene固有Bufferが破棄される前にCopy Queueを提出し、描画Queueとの依存を確定する
+	graphicsCore.GetBufferUploadService().SubmitBatch();
 	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機を開始します");
 	graphicsCore.GetDXObject().WaitForGPU();
+	graphicsCore.GetBufferUploadService().FlushAndWait();
 	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機が完了しました");
 }
 

@@ -464,6 +464,20 @@ namespace Engine {
 		static void __cdecl CanvasSetInputBindingsCallback(
 			ManagedNativeEntity entity, int32_t action, int32_t device,
 			const int32_t* bindings, int32_t count);
+		// Canvasの遷移テーブル行列数を取得する
+		static int32_t __cdecl CanvasGetNavigationTableSizeCallback(
+			ManagedNativeEntity entity, int32_t* outRows, int32_t* outColumns);
+		// Canvasの遷移テーブル行列数を変更する
+		static int32_t __cdecl CanvasResizeNavigationTableCallback(
+			ManagedNativeEntity entity, int32_t rows, int32_t columns);
+		// Canvasの遷移セルからEntityを取得する
+		static int32_t __cdecl CanvasGetNavigationCellCallback(
+			ManagedNativeEntity entity, int32_t row, int32_t column,
+			ManagedNativeEntity* outTarget);
+		// Canvasの遷移セルへEntityを設定する
+		static int32_t __cdecl CanvasSetNavigationCellCallback(
+			ManagedNativeEntity entity, int32_t row, int32_t column,
+			ManagedNativeEntity target);
 		// スクリーン座標をCanvasローカル座標へ変換する
 		static int32_t __cdecl CanvasScreenToLocalPointCallback(
 			ManagedNativeEntity entity, ManagedVector2 screenPosition,

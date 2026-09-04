@@ -10,7 +10,7 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// 各コアの初期化
 	engineContext_ = std::make_unique<EngineContext>();
-	engineContext_->Init();
+	engineContext_->Init(usesEditorUI);
 	graphicsPlatform_ = std::make_unique<GraphicsPlatform>();
 	graphicsPlatform_->Init();
 

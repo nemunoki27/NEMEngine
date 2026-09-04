@@ -48,10 +48,14 @@
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Physics/RigidbodyComponent.h>
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/World/Components/UI/CanvasComponent.h>
+#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
+#include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Systems/Physics/CollisionSystem.h>
@@ -91,6 +95,22 @@ namespace {
 
 		uint32_t id = 0;
 		Engine::BlobArray<int32_t> values{};
+	};
+
+	class SceneContextObserverSystem final :
+		public Engine::ISystem {
+	public:
+		void OnSceneInstancesChanged([[maybe_unused]] Engine::ECSWorld& world,
+			Engine::SystemContext& context, [[maybe_unused]] Engine::SceneChangePhase phase) override {
+
+			observedHeader = context.activeSceneHeader;
+			++notificationCount;
+		}
+
+		const char* GetName() const override { return "SceneContextObserverSystem"; }
+
+		const Engine::SceneHeader* observedHeader = nullptr;
+		uint32_t notificationCount = 0;
 	};
 
 	void to_json(nlohmann::json& out, const TestEnableableComponent& component) {
@@ -658,6 +678,48 @@ namespace {
 
 		std::filesystem::remove_all(testRoot, ec);
 		return passed && !ec;
+	}
+
+	bool TestSceneLifecycleContext() {
+
+		Engine::ECSWorld world;
+		Engine::AssetDatabase database;
+		Engine::SceneSystem sceneSystem;
+		Engine::SceneInstanceManager scenes;
+		Engine::SceneHeader firstHeader{};
+		firstHeader.name = "First";
+		const Engine::UUID firstScene = scenes.CreateScratchScene(firstHeader);
+		Engine::SceneHeader secondHeader{};
+		secondHeader.name = "Second";
+		const Engine::UUID secondScene = scenes.CreateScratchScene(secondHeader);
+		scenes.SetActive(firstScene);
+
+		Engine::WorldCommandServices services{};
+		services.assetDatabase = &database;
+		services.sceneInstances = &scenes;
+		services.sceneSystem = &sceneSystem;
+		world.SetCommandServices(services);
+
+		Engine::SystemContext context{};
+		context.world = &world;
+		context.assetDatabase = &database;
+		context.mode = Engine::WorldMode::Play;
+		context.activeSceneHeader = &scenes.GetActive()->header;
+
+		auto observer = std::make_unique<SceneContextObserverSystem>();
+		SceneContextObserverSystem* observerPtr = observer.get();
+		Engine::SystemScheduler scheduler;
+		scheduler.AddSystem(std::move(observer), 0);
+		scheduler.Tick(&world, context);
+
+		world.GetCommandBuffer().EnqueueUnloadScene(firstScene);
+		scheduler.Tick(&world, context);
+
+		const Engine::SceneInstance* activeScene = scenes.GetActive();
+		return activeScene && activeScene->instanceID == secondScene &&
+			context.activeSceneHeader == &activeScene->header &&
+			observerPtr->observedHeader == &activeScene->header &&
+			context.activeSceneHeader->name == "Second" && observerPtr->notificationCount == 1;
 	}
 
 	bool TestPrefabPropagationAndNestedInstances() {
@@ -3127,6 +3189,27 @@ namespace {
 
 		Engine::RenderFeatureProfileRuntime runtime{};
 		runtime.Rebuild(restored);
+
+		Engine::RenderFeatureProfileAsset destination{};
+		destination.guid = Engine::AssetID{ 91, 92 };
+		destination.name = "DestinationProfile";
+		destination.version = 9u;
+		destination.colorPipeline.exposure.manualEV100 = -2.0f;
+		Engine::RenderFeatureProfileAsset expectedCopy = restored;
+		expectedCopy.guid = destination.guid;
+		expectedCopy.name = destination.name;
+		expectedCopy.version = destination.version;
+		Engine::SynchronizeRenderFeaturePassOrder(expectedCopy);
+		Engine::CopyRenderFeatureProfileSettings(destination, restored);
+		if (destination.guid != Engine::AssetID{ 91, 92 } ||
+			destination.name != "DestinationProfile" ||
+			destination.version != 9u ||
+			Engine::RenderFeatureProfileSerializer::ToJson(destination) !=
+				Engine::RenderFeatureProfileSerializer::ToJson(expectedCopy)) {
+
+			return false;
+		}
+
 		const Engine::RenderFeatureExecutionPlan beforeLighting =
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::BeforeLighting,
 				Engine::RenderViewKind::Game);
@@ -3292,10 +3375,106 @@ namespace {
 			!Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(
 				"GameAssets/PostProcess/Test.PS.hlsl");
 	}
+
+	bool TestCanvasNavigationTable() {
+
+		Engine::ManagedNativeEntity firstGenerationEntity{};
+		firstGenerationEntity.world = Engine::ManagedWorldHandle{ 0, 1 };
+		firstGenerationEntity.index = 0;
+		firstGenerationEntity.generation = 0;
+		if (!firstGenerationEntity.IsValid()) {
+			return false;
+		}
+
+		Engine::CanvasNavigationTable draft{};
+		const Engine::UUID first = Engine::UUID::New();
+		const Engine::UUID second = Engine::UUID::New();
+		if (!Engine::SetCanvasNavigationCell(draft, 0, first) ||
+			!Engine::SetCanvasNavigationCell(draft, 1, second) ||
+			!Engine::ResizeCanvasNavigationTable(draft, 20, 20) ||
+			draft.rows != 20 || draft.columns != 20 ||
+			draft.cells.size() != 400 || draft.cells[0] != first || draft.cells[1] != second) {
+			return false;
+		}
+		if (!Engine::SetCanvasNavigationCell(draft, 399, first) ||
+			draft.cells[0] || draft.cells[399] != first ||
+			Engine::ResizeCanvasNavigationTable(draft, 0, 20)) {
+			return false;
+		}
+
+		Engine::ECSWorld world;
+		Engine::HierarchySystem hierarchySystem;
+		const Engine::Entity canvas =
+			Engine::SceneAuthoring::CreateGameObject(world, "Canvas");
+		const Engine::Entity selectable =
+			Engine::SceneAuthoring::CreateGameObject(world, "Selectable");
+		const Engine::Entity outside =
+			Engine::SceneAuthoring::CreateGameObject(world, "Outside");
+		world.AddComponent<Engine::CanvasComponent>(canvas);
+		world.AddComponent<Engine::UISelectableComponent>(selectable);
+		world.AddComponent<Engine::UISelectableComponent>(outside);
+		hierarchySystem.SetParent(world, selectable, canvas);
+
+		if (Engine::ResizeCanvasNavigationTable(world, canvas, 20, 20) !=
+			Engine::CanvasNavigationTableResult::Success ||
+			Engine::SetCanvasNavigationCell(world, canvas, 19, 19, selectable) !=
+			Engine::CanvasNavigationTableResult::Success ||
+			Engine::SetCanvasNavigationCell(world, canvas, 0, 0, outside) !=
+			Engine::CanvasNavigationTableResult::InvalidTarget) {
+			return false;
+		}
+
+		Engine::Entity resolved = Engine::Entity::Null();
+		if (Engine::GetCanvasNavigationCell(world, canvas, 19, 19, resolved) !=
+			Engine::CanvasNavigationTableResult::Success || resolved != selectable) {
+			return false;
+		}
+
+		nlohmann::json canvasJson;
+		Engine::CanvasComponent::SerializeECS(
+			world, canvas, world.GetComponent<Engine::CanvasComponent>(canvas), canvasJson);
+		if (canvasJson["navigationTable"].value("rows", 0) != 20 ||
+			canvasJson["navigationTable"].value("columns", 0) != 20 ||
+			canvasJson["navigationTable"]["cells"].size() != 400) {
+			return false;
+		}
+
+		Engine::UISelectableComponent selectableSettings{};
+		Engine::from_json(nlohmann::json{
+			{ "normal",{
+				{ "animationEnabled",false },
+				{ "overrideTexture",true }
+			} }
+			}, selectableSettings);
+		if (selectableSettings.normal.animationEnabled ||
+			!selectableSettings.normal.overrideTexture ||
+			!selectableSettings.selected.animationEnabled) {
+			return false;
+		}
+		const nlohmann::json selectableJson = selectableSettings;
+		return !selectableJson["normal"].value("animationEnabled", true) &&
+			selectableJson["selected"].value("animationEnabled", false);
+	}
 }
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--scene-lifecycle") {
+		if (!TestSceneLifecycleContext()) {
+			std::cerr << "Scene lifecycle context test failed\n";
+			return 36;
+		}
+		std::cout << "Scene lifecycle context test passed\n";
+		return 0;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--canvas-ui") {
+		if (!TestCanvasNavigationTable()) {
+			std::cerr << "Canvas UI test failed\n";
+			return 35;
+		}
+		std::cout << "Canvas UI test passed\n";
+		return 0;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--prefab-immediate") {
 		return TestPrefabImmediateHierarchy() ? 0 : 33;
 	}
@@ -3344,7 +3523,8 @@ int main(int argc, char* argv[]) {
 			!TestTransformDirtyHierarchy() ||
 			!TestTransformDimensionSerialization() ||
 			!TestScreenSpaceOutlineSerialization() ||
-			!TestScriptExecutionOrderSettings()) {
+			!TestScriptExecutionOrderSettings() ||
+			!TestCanvasNavigationTable()) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
 		}
@@ -3434,6 +3614,10 @@ int main(int argc, char* argv[]) {
 	if (!TestSubScenes()) {
 		std::cerr << "SubScene failed\n";
 		return 7;
+	}
+	if (!TestSceneLifecycleContext()) {
+		std::cerr << "Scene lifecycle context failed\n";
+		return 36;
 	}
 	if (!TestExternalActors()) {
 		std::cerr << "ExternalActors failed\n";

@@ -17,6 +17,12 @@ public sealed unsafe partial class Canvas {
     private const int KeyboardInputDevice = 0;
     private const int GamepadInputDevice = 1;
 
+    private CanvasTransitionTable? transitionTable;
+
+    // 行列形式のUI遷移テーブル
+    public CanvasTransitionTable TransitionTable =>
+        transitionTable ??= new CanvasTransitionTable(entity);
+
     // 決定後にCanvas入力がロックされているか
     public bool InputLocked =>
         NativeApi.GetCanvasInputLocked != null &&
@@ -128,5 +134,135 @@ public sealed unsafe partial class Canvas {
     // 指定操作のゲームパッド入力をすべて削除する
     public void ClearGamepadInputs(CanvasInputAction action) {
         SetGamepadInputs(action, Array.Empty<GamepadButton>());
+    }
+}
+
+// Canvas遷移テーブルを行列で操作する
+public sealed class CanvasTransitionTable {
+
+    private enum Result {
+
+        Success,
+        InvalidCanvas,
+        InvalidSize,
+        OutOfRange,
+        InvalidTarget,
+        AllocationFailed
+    }
+
+    private readonly Entity canvas;
+
+    internal CanvasTransitionTable(Entity canvas) {
+        this.canvas = canvas;
+    }
+
+    public int Rows {
+        get {
+            GetSize(out int rows, out _);
+            return rows;
+        }
+    }
+
+    public int Columns {
+        get {
+            GetSize(out _, out int columns);
+            return columns;
+        }
+    }
+
+    public CanvasTransitionRow this[int row] {
+        get {
+            GetSize(out int rows, out _);
+            if (row < 0 || rows <= row) {
+                throw new ArgumentOutOfRangeException(nameof(row));
+            }
+            return new CanvasTransitionRow(this, row);
+        }
+    }
+
+    public Entity this[int row, int column] {
+        get {
+            ValidateIndices(row, column);
+            int result = NativeApi.ReadCanvasNavigationCell(
+                canvas.native, row, column, out Entity target);
+            ThrowIfFailed(result, nameof(row), nameof(column));
+            return target;
+        }
+        set {
+            ValidateIndices(row, column);
+            int result = NativeApi.WriteCanvasNavigationCell(
+                canvas.native, row, column, value);
+            ThrowIfFailed(result, nameof(row), nameof(value));
+        }
+    }
+
+    public void Resize(int rows, int columns) {
+
+        if (rows <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(rows));
+        }
+        if (columns <= 0) {
+            throw new ArgumentOutOfRangeException(nameof(columns));
+        }
+        int result = NativeApi.ResizeCanvasNavigationTableValue(
+            canvas.native, rows, columns);
+        ThrowIfFailed(result, nameof(rows), nameof(columns));
+    }
+
+    private void GetSize(out int rows, out int columns) {
+
+        int result = NativeApi.ReadCanvasNavigationTableSize(
+            canvas.native, out rows, out columns);
+        ThrowIfFailed(result, nameof(canvas), nameof(canvas));
+    }
+
+    private void ValidateIndices(int row, int column) {
+
+        GetSize(out int rows, out int columns);
+        if (row < 0 || rows <= row) {
+            throw new ArgumentOutOfRangeException(nameof(row));
+        }
+        if (column < 0 || columns <= column) {
+            throw new ArgumentOutOfRangeException(nameof(column));
+        }
+    }
+
+    private static void ThrowIfFailed(
+        int result, string rangeParameterName, string targetParameterName) {
+
+        switch ((Result)result) {
+        case Result.Success:
+            return;
+        case Result.InvalidCanvas:
+            throw new InvalidOperationException("Canvasが無効か、既に破棄されています");
+        case Result.InvalidSize:
+        case Result.OutOfRange:
+            throw new ArgumentOutOfRangeException(rangeParameterName);
+        case Result.InvalidTarget:
+            throw new ArgumentException(
+                "遷移先は同じCanvas配下のUISelectableを持つEntityにしてください",
+                targetParameterName);
+        case Result.AllocationFailed:
+            throw new OutOfMemoryException("Canvas遷移テーブルの領域を確保できませんでした");
+        default:
+            throw new InvalidOperationException("Canvas遷移テーブルの操作に失敗しました");
+        }
+    }
+}
+
+// Canvas遷移テーブルの1行を操作する
+public sealed class CanvasTransitionRow {
+
+    private readonly CanvasTransitionTable table;
+    private readonly int row;
+
+    internal CanvasTransitionRow(CanvasTransitionTable table, int row) {
+        this.table = table;
+        this.row = row;
+    }
+
+    public Entity this[int column] {
+        get => table[row, column];
+        set => table[row, column] = value;
     }
 }

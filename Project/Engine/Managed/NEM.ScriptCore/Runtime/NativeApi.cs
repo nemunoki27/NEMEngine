@@ -46,7 +46,8 @@ internal static class ManagedAbi {
     // v46: ParticleSystemのUnity準拠再生操作と実行状態APIを追加
     // v47: RenderFeatureグループの有効状態APIを追加
     // v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
-    internal const uint Version = 48;
+    // v49: Canvas遷移テーブルの取得と変更APIを追加
+    internal const uint Version = 49;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -466,6 +467,10 @@ internal static unsafe class NativeApi {
     // v28: Canvasの操作別入力配列
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> CanvasCopyInputBindings;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int*, int*, int> CanvasGetNavigationTableSize;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> CanvasResizeNavigationTable;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeEntity*, int> CanvasGetNavigationCell;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeEntity, int> CanvasSetNavigationCell;
     // v29: Application終了要求
     internal static delegate* unmanaged[Cdecl]<void> RequestApplicationQuit;
     // v30: GameViewとCanvas座標変換
@@ -624,6 +629,10 @@ internal static unsafe class NativeApi {
         GetUIButtonClicked = callbacks->getUIButtonClicked;
         CanvasCopyInputBindings = callbacks->canvasCopyInputBindings;
         CanvasSetInputBindings = callbacks->canvasSetInputBindings;
+        CanvasGetNavigationTableSize = callbacks->canvasGetNavigationTableSize;
+        CanvasResizeNavigationTable = callbacks->canvasResizeNavigationTable;
+        CanvasGetNavigationCell = callbacks->canvasGetNavigationCell;
+        CanvasSetNavigationCell = callbacks->canvasSetNavigationCell;
         RequestApplicationQuit = callbacks->requestApplicationQuit;
         WorldToScreenPoint = callbacks->worldToScreenPoint;
         CanvasScreenToLocalPoint = callbacks->canvasScreenToLocalPoint;
@@ -1482,6 +1491,51 @@ internal static unsafe class NativeApi {
             CanvasSetInputBindings(
                 entity, action, device, values, bindings.Length);
         }
+    }
+
+    // Canvasの遷移テーブル行列数を取得する
+    internal static int ReadCanvasNavigationTableSize(
+        NativeEntity entity, out int rows, out int columns) {
+
+        int rowValue = 0;
+        int columnValue = 0;
+        if (CanvasGetNavigationTableSize == null) {
+            rows = 0;
+            columns = 0;
+            return 1;
+        }
+        int result = CanvasGetNavigationTableSize(
+            entity, &rowValue, &columnValue);
+        rows = rowValue;
+        columns = columnValue;
+        return result;
+    }
+
+    // Canvasの遷移テーブル行列数を変更する
+    internal static int ResizeCanvasNavigationTableValue(
+        NativeEntity entity, int rows, int columns) {
+
+        return CanvasResizeNavigationTable != null ?
+            CanvasResizeNavigationTable(entity, rows, columns) : 1;
+    }
+
+    // Canvasの遷移セルからEntityを取得する
+    internal static int ReadCanvasNavigationCell(
+        NativeEntity entity, int row, int column, out Entity target) {
+
+        NativeEntity nativeTarget = NativeEntity.Null;
+        int result = CanvasGetNavigationCell != null ?
+            CanvasGetNavigationCell(entity, row, column, &nativeTarget) : 1;
+        target = new Entity(nativeTarget);
+        return result;
+    }
+
+    // Canvasの遷移セルへEntityを設定する
+    internal static int WriteCanvasNavigationCell(
+        NativeEntity entity, int row, int column, Entity target) {
+
+        return CanvasSetNavigationCell != null ?
+            CanvasSetNavigationCell(entity, row, column, target.native) : 1;
     }
 
     // スクリーン座標をCanvasローカル座標へ変換する
