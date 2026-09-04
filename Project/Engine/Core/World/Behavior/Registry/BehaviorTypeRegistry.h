@@ -36,6 +36,8 @@ namespace Engine {
 		std::string sourcePath;
 		// [DefaultExecutionOrder]の既定実行順でEditor overrideが無いときのdefault、未指定は0
 		int32_t defaultExecutionOrder = 0;
+		// ProjectSettingsの上書きを反映した実行順
+		int32_t executionOrder = 0;
 
 		// ビヘイビアのインスタンスを生成する関数
 		std::function<std::unique_ptr<MonoBehavior>()> construct;
@@ -69,8 +71,11 @@ namespace Engine {
 		const BehaviorTypeInfo* FindByName(const std::string_view& name) const;
 		// 指定.csのパスやファイル名に定義されたmanaged script候補をdrag&drop用に返す
 		std::vector<const BehaviorTypeInfo*> FindManagedBySourceFile(const std::string_view& sourceFilePath) const;
+		// ProjectSettingsの上書き値からManaged Scriptの実行順を更新する
+		void RefreshManagedExecutionOrders();
 
 		uint32_t GetBehaviorTypeCount() const { return static_cast<uint32_t>(infos_.size()); }
+		uint64_t GetExecutionOrderRevision() const { return executionOrderRevision_; }
 
 		// シングルトン
 		static BehaviorTypeRegistry& GetInstance();
@@ -85,5 +90,7 @@ namespace Engine {
 		std::unordered_map<std::string, uint32_t> nameToID_;
 		// Stable Script Type GUIDからIDへ、runtime解決の正
 		std::unordered_map<std::string, uint32_t> guidToID_;
+		// 実行順変更をBehaviorSystemのソート済みキャッシュへ通知する
+		uint64_t executionOrderRevision_ = 1;
 	};
 } // Engine

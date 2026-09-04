@@ -1,0 +1,159 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_2"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "927ba753623ceb34",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "927ba753623ceb34"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "927ba753623ceb34",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_4"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "5745c14c3ecc1ec3",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "5745c14c3ecc1ec3"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "927ba753623ceb34",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_3"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "f8a8f9334f8ee6d1",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "f8a8f9334f8ee6d1"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "927ba753623ceb34",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "317b605c819bed66",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "317b605c819bed66"
+        }
+    ],
+    "Header": {
+        "name": "Child_2",
+        "rootLocalFileID": "927ba753623ceb34",
+        "version": 2
+    },
+    "NestedPrefabInstances": [],
+    "SchemaVersion": 2
+}

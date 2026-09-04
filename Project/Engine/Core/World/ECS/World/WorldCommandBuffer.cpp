@@ -28,9 +28,11 @@ namespace {
 	void DestroyEntitySubtree(ECSWorld& world, const Entity& entity) {
 
 		const std::vector<Entity> entities = HierarchyUtility::CollectLogicalSubtree(world, entity);
+		HierarchySystem hierarchySystem{};
 		for (auto it = entities.rbegin(); it != entities.rend(); ++it) {
 
 			if (world.IsAlive(*it)) {
+				hierarchySystem.SetParent(world, *it, Entity::Null());
 				world.DestroyEntity(*it);
 			}
 		}
@@ -331,6 +333,9 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 	if (!world.IsAlive(command.target)) {
 		return;
 	}
+	if (world.IsPendingDestroy(command.target)) {
+		return;
+	}
 
 	switch (command.kind) {
 	case CommandKind::DestroyEntity:
@@ -363,6 +368,12 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 	}
 	case CommandKind::SetParent: {
 
+		if (world.IsAlive(command.parent) && world.IsPendingDestroy(command.parent)) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"WorldCommandBuffer: 破棄予約済みEntityは親に設定できません");
+			break;
+		}
 		// 親が破棄済みならルート化する
 		Entity parent = world.IsAlive(command.parent) ? command.parent : Entity::Null();
 		// 循環を作る付け替えは拒否する、childがparentの祖先になるケース

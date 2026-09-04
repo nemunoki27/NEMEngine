@@ -308,6 +308,9 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl GetFirstChildCallback(ManagedNativeEntity entity);
 		static ManagedNativeEntity __cdecl GetNextSiblingCallback(ManagedNativeEntity entity);
 		static void __cdecl SetParentCallback(ManagedNativeEntity entity, ManagedNativeEntity parent);
+		// SetParentの共通検証とCommand登録
+		static void EnqueueSetParentCommand(
+			ManagedNativeEntity child, ManagedNativeEntity parent, bool worldPositionStays);
 		static ManagedVector3 __cdecl GetPositionCallback(ManagedNativeEntity entity);
 		static void __cdecl SetPositionCallback(ManagedNativeEntity entity, ManagedVector3 value);
 		static ManagedVector3 __cdecl GetLocalPositionCallback(ManagedNativeEntity entity);

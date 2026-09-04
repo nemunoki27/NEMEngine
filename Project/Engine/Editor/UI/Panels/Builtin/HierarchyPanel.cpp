@@ -10,6 +10,7 @@
 #include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
+#include <Engine/Editor/Commands/Entity/UnpackPrefabCommand.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -777,6 +778,25 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		DrawEntityCreationMenu(context, world.GetUUID(entity),
 			"子にオブジェクトを作成", ResolveSceneViewCameraDimension(
 				context.editorState->sceneViewPickDimension));
+		if (PrefabInstanceEditUtility::IsPrefabRoot(world, entity)) {
+
+			const bool canUnpack = context.CanEditScene() &&
+				PrefabInstanceEditUtility::CanUnpack(context.editorContext, world, entity);
+			if (ImGui::BeginMenu("プレファブ", canUnpack)) {
+
+				if (ImGui::MenuItem("リンクを解除")) {
+
+					context.host->ExecuteEditorCommand(std::make_unique<UnpackPrefabCommand>(
+						entity, PrefabUnpackMode::OutermostRoot));
+				}
+				if (ImGui::MenuItem("リンクを完全解除")) {
+
+					context.host->ExecuteEditorCommand(std::make_unique<UnpackPrefabCommand>(
+						entity, PrefabUnpackMode::Completely));
+				}
+				ImGui::EndMenu();
+			}
+		}
 		// エンティティを複製
 		if (ImGui::MenuItem("複製", "Ctrl+D", false, context.CanEditScene())) {
 

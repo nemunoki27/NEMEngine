@@ -1380,13 +1380,7 @@ namespace Engine {
 
 	void ManagedScriptRuntime::SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays) {
 
-		ECSWorld* world = ResolveWorld(child);
-		if (!world) {
-			return;
-		}
-		const Entity childEntity = ResolveEntity(child);
-		const Entity parentEntity = ResolveEntity(parent);
-		world->GetCommandBuffer().EnqueueSetParent(childEntity, parentEntity, worldPositionStays != 0);
+		EnqueueSetParentCommand(child, parent, worldPositionStays != 0);
 	}
 
 	//============================================================================

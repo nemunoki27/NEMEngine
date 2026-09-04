@@ -16,6 +16,7 @@
 #include <Engine/Editor/Tools/Builtin/Performance/PerformanceCheckTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptBuildDiagnosticsTool.h>
 #include <Engine/Editor/Tools/Builtin/Scripting/ScriptExceptionListTool.h>
+#include <Engine/Editor/Tools/Builtin/Scripting/ScriptExecutionOrderTool.h>
 #include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 
 // c++
@@ -53,6 +54,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<SceneCompositionTool>();
 	RegisterBuiltinEditorTool<TagManagerTool>();
 	RegisterBuiltinEditorTool<PerformanceCheckTool>();
+	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
 	// 動作が不安定なため、処理しない
 	//RegisterBuiltinEditorTool<InputDeviceTool>();
 }

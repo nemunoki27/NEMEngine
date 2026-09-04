@@ -718,10 +718,11 @@ namespace {
 			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/skyboxIrradiance.CS.hlsl");
 
 			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
-			const std::array<const char*, 3> gameProjectSettings = {
+			const std::array<const char*, 4> gameProjectSettings = {
 				"InputActions.json",
 				"TagSettings.json",
 				"RenderingLayers.json",
+				Engine::ConfigPaths::kScriptExecutionOrder,
 			};
 			for (const char* setting : gameProjectSettings) {
 

@@ -23,6 +23,8 @@ namespace Engine {
 		bool IsPrefabRoot(ECSWorld& world, const Entity& entity);
 		// Prefabインスタンスの階層内か
 		bool IsInPrefabInstance(ECSWorld& world, const Entity& entity);
+		// Prefabインスタンスのリンクを解除できるか
+		bool CanUnpack(const EditorContext* editorContext, ECSWorld& world, const Entity& entity);
 		// Entityを削除できるか
 		bool CanDelete(const EditorContext* editorContext, ECSWorld& world, const Entity& entity);
 		// 親を変更できるか

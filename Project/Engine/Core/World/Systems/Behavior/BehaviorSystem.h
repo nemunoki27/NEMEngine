@@ -100,6 +100,8 @@ namespace Engine {
 		// ソート済みparticipantキャッシュと、その再構築要否
 		std::vector<SyncParticipant> participants_;
 		bool participantsDirty_ = true;
+		// participantへ反映済みの実行順リビジョン
+		uint64_t executionOrderRevision_ = 0;
 		// 同じフレームでUpdateを実行したparticipant
 		std::vector<SyncParticipant> lateUpdateParticipants_;
 		// ScriptComponentが変更されたEntity、通知時に積んで同期前に重複除去する

@@ -9,6 +9,11 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabHeader.h>
 
 // c++
 #include <fstream>
@@ -85,19 +90,36 @@ namespace Engine {
 				"  \"SchemaVersion\": 3\n"
 				"}}\n", assetName);
 		case ProjectAssetFileKind::Prefab:
-			// プレファイルでシーンと同様だがPrefab固有のメタ情報を含む
-			return std::format(
-				"{{\n"
-				"  \"Entities\": [],\n"
-				"  \"Header\": {{\n"
-				"    \"guid\": \"\",\n"
-				"    \"name\": \"{}\",\n"
-				"    \"rootLocalFileID\": \"\",\n"
-				"    \"version\": 2\n"
-				"  }},\n"
-				"  \"NestedPrefabInstances\": [],\n"
-				"  \"SchemaVersion\": 2\n"
-				"}}\n", assetName);
+		{
+			// 新規Prefabは編集可能な空GameObjectをルートとして持つ
+			const UUID localFileID = UUID::New();
+			NameComponent name{};
+			name.name = assetName;
+			SceneObjectComponent sceneObject{};
+			sceneObject.localFileID = localFileID;
+
+			nlohmann::json components = nlohmann::json::object();
+			components["Hierarchy"] = HierarchyComponent{};
+			components["Name"] = name;
+			components["SceneObject"] = sceneObject;
+			components["Transform"] = TransformComponent{};
+
+			nlohmann::json entity = nlohmann::json::object();
+			entity["Components"] = std::move(components);
+			entity["LocalFileID"] = ToString(localFileID);
+
+			PrefabHeader header{};
+			header.name = assetName;
+			header.rootLocalFileID = localFileID;
+			header.version = 2;
+
+			nlohmann::json prefab = nlohmann::json::object();
+			prefab["Entities"] = nlohmann::json::array({ std::move(entity) });
+			prefab["Header"] = ToJson(header);
+			prefab["NestedPrefabInstances"] = nlohmann::json::array();
+			prefab["SchemaVersion"] = 2;
+			return JsonAdapter::SerializeCanonical(prefab, 2);
+		}
 		case ProjectAssetFileKind::Material:
 		{
 			// 標準PBRの型付き既定値からマテリアル雛形を生成する

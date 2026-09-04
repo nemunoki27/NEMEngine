@@ -450,6 +450,7 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 	// participantキャッシュを破棄し、次のsynchronizeで作り直す
 	participants_.clear();
 	participantsDirty_ = true;
+	executionOrderRevision_ = 0;
 	dirtyScriptEntities_.clear();
 	enableTransitionsDirty_ = true;
 	fullSyncRequested_ = true;
@@ -464,6 +465,13 @@ void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext
 	// プレイモードでない、もしくはアクティブなワールドでないときは何もしない
 	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
 		return;
+	}
+
+	// 実行順設定が変わった場合はScript構造が同じでも並びを更新する
+	if (executionOrderRevision_ !=
+		BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision()) {
+
+		participantsDirty_ = true;
 	}
 
 	// 初回とHot Reloadだけ全走査し、通常フレームは変更されたEntityだけ同期する
@@ -678,9 +686,9 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 			if (!record || !record->seen || !record->instance) {
 				continue;
 			}
-			// 型へ設定された既定実行順を使う
+			// ProjectSettingsの上書きを反映した型の実行順を使う
 			const int32_t executionOrder =
-				typeRegistry.GetInfo(record->typeID).defaultExecutionOrder;
+				typeRegistry.GetInfo(record->typeID).executionOrder;
 			participants_.emplace_back(SyncParticipant{
 				handle, entity, static_cast<int32_t>(slot), executionOrder
 				});
@@ -702,6 +710,7 @@ void Engine::BehaviorSystem::RebuildParticipants(ECSWorld& world) {
 			}
 			return lhs.slot < rhs.slot;
 		});
+	executionOrderRevision_ = typeRegistry.GetExecutionOrderRevision();
 }
 
 void Engine::BehaviorSystem::InvokePendingAwake(ECSWorld& world, SystemContext& context) {
@@ -781,8 +790,10 @@ void Engine::BehaviorSystem::FlushActiveTransitions(ECSWorld& world, SystemConte
 
 void Engine::BehaviorSystem::SynchronizeLifecycleIfDirty(ECSWorld& world, SystemContext& context) {
 
+	const bool executionOrderChanged = executionOrderRevision_ !=
+		BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision();
 	if (!fullSyncRequested_ && dirtyScriptEntities_.empty() &&
-		!participantsDirty_ && !enableTransitionsDirty_) {
+		!participantsDirty_ && !enableTransitionsDirty_ && !executionOrderChanged) {
 		return;
 	}
 	SynchronizeLifecycle(world, context, false);

@@ -1,0 +1,357 @@
+{
+    "Entities": [
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 13
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "4e454d4153534554a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "4e454d4153534554c2ea9f4498073ab3"
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                }
+                            ],
+                            "name": "Mesh_0",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "30d6ab3c29213362",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Cube"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a51fb6e4ef9ac03f",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": -17.102354049682617,
+                        "y": 3.216280937194824,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "a51fb6e4ef9ac03f"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "a51fb6e4ef9ac03f",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_2"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "927ba753623ceb34",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "927ba753623ceb34"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "927ba753623ceb34",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_4"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "5745c14c3ecc1ec3",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "5745c14c3ecc1ec3"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "927ba753623ceb34",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_3"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "f8a8f9334f8ee6d1",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "f8a8f9334f8ee6d1"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "927ba753623ceb34",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "317b605c819bed66",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "317b605c819bed66"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "a51fb6e4ef9ac03f",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child_1"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "01ba7a72380bbf44",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "01ba7a72380bbf44"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "a51fb6e4ef9ac03f",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "Child"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "cb2c812bd5a3251d",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "cb2c812bd5a3251d"
+        }
+    ],
+    "Header": {
+        "name": "Cube",
+        "rootLocalFileID": "a51fb6e4ef9ac03f",
+        "version": 2
+    },
+    "NestedPrefabInstances": [],
+    "SchemaVersion": 2
+}

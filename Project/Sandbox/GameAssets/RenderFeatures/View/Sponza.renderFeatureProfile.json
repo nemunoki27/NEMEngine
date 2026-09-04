@@ -951,7 +951,7 @@
                     "id": "94d20ddddf0f9c93",
                     "name": "Threshold",
                     "semantic": "None",
-                    "value": 0.5
+                    "value": 0.9200000166893005
                 },
                 {
                     "id": "ebd9b024c479b889",

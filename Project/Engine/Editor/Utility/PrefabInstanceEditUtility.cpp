@@ -77,6 +77,12 @@ bool Engine::PrefabInstanceEditUtility::IsInPrefabInstance(ECSWorld& world, cons
 	return false;
 }
 
+bool Engine::PrefabInstanceEditUtility::CanUnpack(
+	const EditorContext* editorContext, ECSWorld& world, const Entity& entity) {
+
+	return IsPrefabRoot(world, entity) && !IsPrefabEditRoot(editorContext, world, entity);
+}
+
 bool Engine::PrefabInstanceEditUtility::CanDelete(
 	const EditorContext* editorContext, ECSWorld& world, const Entity& entity) {
 

@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedBehavior.h>
+#include <Engine/Core/Scripting/Managed/ScriptExecutionOrderSettings.h>
 
 // c++
 #include <filesystem>
@@ -20,7 +21,14 @@ uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& s
 	auto existing = guidToID_.find(std::string(scriptTypeID));
 	if (existing != guidToID_.end()) {
 		// 既存登録でもdefault orderは最新を反映する、reloadでattribute値が変わり得る
-		infos_[existing->second].defaultExecutionOrder = defaultExecutionOrder;
+		BehaviorTypeInfo& info = infos_[existing->second];
+		const int32_t executionOrder =
+			ScriptExecutionOrderSettings::Resolve(scriptTypeID, defaultExecutionOrder);
+		if (info.defaultExecutionOrder != defaultExecutionOrder || info.executionOrder != executionOrder) {
+			++executionOrderRevision_;
+		}
+		info.defaultExecutionOrder = defaultExecutionOrder;
+		info.executionOrder = executionOrder;
 		return existing->second;
 	}
 
@@ -31,6 +39,7 @@ uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& s
 	info.displayName = displayName.empty() ? info.name : std::string(displayName);
 	info.sourcePath = std::string(sourcePath);
 	info.defaultExecutionOrder = defaultExecutionOrder;
+	info.executionOrder = ScriptExecutionOrderSettings::Resolve(scriptTypeID, defaultExecutionOrder);
 	info.id = static_cast<uint32_t>(infos_.size());
 	info.managed = true;
 	info.construct = [id = info.scriptTypeID, name = info.displayName]() -> std::unique_ptr<MonoBehavior> {
@@ -47,17 +56,20 @@ uint32_t Engine::BehaviorTypeRegistry::RegisterManaged(const std::string_view& s
 		slot = std::move(info);
 		nameToID_[slot.name] = slot.id;
 		guidToID_[slot.scriptTypeID] = slot.id;
+		++executionOrderRevision_;
 		return slot.id;
 	}
 
 	infos_.emplace_back(info);
 	nameToID_[info.name] = info.id;
 	guidToID_[info.scriptTypeID] = info.id;
+	++executionOrderRevision_;
 	return info.id;
 }
 
 void Engine::BehaviorTypeRegistry::ClearManaged() {
 
+	bool removed = false;
 	for (auto& info : infos_) {
 
 		if (!info.managed) {
@@ -72,6 +84,10 @@ void Engine::BehaviorTypeRegistry::ClearManaged() {
 		info.sourcePath.clear();
 		info.managed = false;
 		info.construct = nullptr;
+		removed = true;
+	}
+	if (removed) {
+		++executionOrderRevision_;
 	}
 }
 
@@ -120,6 +136,26 @@ std::vector<const Engine::BehaviorTypeInfo*> Engine::BehaviorTypeRegistry::FindM
 		}
 	}
 	return candidates;
+}
+
+void Engine::BehaviorTypeRegistry::RefreshManagedExecutionOrders() {
+
+	bool changed = false;
+	for (BehaviorTypeInfo& info : infos_) {
+
+		if (!info.managed || info.scriptTypeID.empty()) {
+			continue;
+		}
+		const int32_t executionOrder = ScriptExecutionOrderSettings::Resolve(
+			info.scriptTypeID, info.defaultExecutionOrder);
+		if (info.executionOrder != executionOrder) {
+			info.executionOrder = executionOrder;
+			changed = true;
+		}
+	}
+	if (changed) {
+		++executionOrderRevision_;
+	}
 }
 
 Engine::BehaviorTypeRegistry& Engine::BehaviorTypeRegistry::GetInstance() {

@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 namespace Engine {
 
@@ -66,23 +67,39 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::SetParentCallback(ManagedNativeEntity entity, ManagedNativeEntity parent) {
-		ECSWorld* world = ResolveWorld(entity);
-		const Entity child = ResolveEntity(entity);
+
+		EnqueueSetParentCommand(entity, parent, false);
+	}
+
+	void ManagedScriptRuntime::EnqueueSetParentCommand(
+		ManagedNativeEntity childEntity, ManagedNativeEntity parentEntity, bool worldPositionStays) {
+
+		ECSWorld* world = ResolveWorld(childEntity);
+		const Entity child = ResolveEntity(childEntity);
 		// 子が無効なら何もしない
 		if (!world || !world->IsAlive(child)) {
 			return;
 		}
 
 		Entity newParent = Entity::Null();
-		// 親の指定があれば、同一ワールドに存在するか確認した上で取得
-		if (ResolveWorld(parent) == world) {
-			const Entity candidate = ResolveEntity(parent);
+		const bool hasParent = parentEntity.world.index != 0xFFFFFFFFu &&
+			parentEntity.world.generation != 0 && parentEntity.index != 0xFFFFFFFFu;
+		if (hasParent) {
+
+			ECSWorld* parentWorld = ResolveWorld(parentEntity);
+			if (parentWorld != world) {
+
+				Logger::Output(LogType::Engine, spdlog::level::warn,
+					"ManagedScript: 別WorldのEntityは親に設定できません");
+				return;
+			}
+			const Entity candidate = ResolveEntity(parentEntity);
 			if (world->IsAlive(candidate)) {
 				newParent = candidate;
 			}
 		}
 		// 親子付けはHierarchyComponentの追加やリンク繋ぎ替えを伴う構造変更のためForEach走査を壊さないようコマンドバッファへ積み安全地点でまとめて適用する
-		world->GetCommandBuffer().EnqueueSetParent(child, newParent);
+		world->GetCommandBuffer().EnqueueSetParent(child, newParent, worldPositionStays);
 	}
 
 } // Engine

@@ -12,10 +12,21 @@
 
 // c++
 #include <filesystem>
+#include <cstdint>
 #include <vector>
 #include <utility>
 
 namespace Engine {
+
+	//============================================================================
+	//	PrefabUnpackMode enum class
+	//============================================================================
+	enum class PrefabUnpackMode :
+		uint8_t {
+
+		OutermostRoot,
+		Completely,
+	};
 
 	//============================================================================
 	//	PrefabSystem structures
@@ -98,6 +109,8 @@ namespace Engine {
 		// サブツリーを1つのプレファブインスタンスとして設定し、使用したインスタンスIDを返す
 		UUID SetPrefabLinkToSubtree(ECSWorld& world, const Entity& root, AssetID prefabAsset,
 			UUID prefabInstanceID = UUID{}) const;
+		// Prefabインスタンスのリンクを解除する
+		bool UnpackPrefabInstance(ECSWorld& world, const Entity& root, PrefabUnpackMode mode) const;
 
 		// プレファブ生成
 		bool InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem, ECSWorld& world,

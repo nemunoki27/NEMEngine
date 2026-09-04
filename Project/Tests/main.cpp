@@ -33,6 +33,8 @@
 #include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Scripting/Managed/ScriptExecutionOrderSettings.h>
+#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
@@ -592,6 +594,68 @@ namespace {
 			targetWorld.IsAlive(child) && childHierarchy && childHierarchy->parent == result.root &&
 			childName && childName->name == "ImmediateChild";
 
+		const Engine::Entity runtimeParent =
+			Engine::SceneAuthoring::CreateGameObject(targetWorld, "RuntimeParent");
+		targetWorld.GetCommandBuffer().EnqueueSetParent(child, runtimeParent, false);
+		targetWorld.GetCommandBuffer().Flush(targetWorld);
+		childHierarchy = targetWorld.TryGetComponent<Engine::HierarchyComponent>(child);
+		passed &= childHierarchy && childHierarchy->parent == runtimeParent &&
+			targetWorld.HasComponent<Engine::PrefabLinkComponent>(child);
+
+		Engine::PrefabInstantiateResult destroyResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, targetWorld, prefabAsset, destroyResult, desc);
+		const Engine::Entity destroyedRoot = destroyResult.root;
+		targetWorld.GetCommandBuffer().EnqueueDestroyEntity(destroyedRoot);
+		targetWorld.GetCommandBuffer().Flush(targetWorld);
+		targetWorld.FlushPendingDestroyEntities();
+		const Engine::HierarchyComponent* targetParentHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(targetParent);
+		passed &= !targetWorld.IsAlive(destroyedRoot) && targetParentHierarchy &&
+			(!targetParentHierarchy->firstChild.IsValid() ||
+				targetWorld.IsAlive(targetParentHierarchy->firstChild)) &&
+			(!targetParentHierarchy->lastChild.IsValid() ||
+				targetWorld.IsAlive(targetParentHierarchy->lastChild));
+
+		Engine::PrefabInstantiateResult childDestroyResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, targetWorld, prefabAsset, childDestroyResult, desc);
+		const Engine::HierarchyComponent* childDestroyRootHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(childDestroyResult.root);
+		const Engine::Entity destroyedChild = childDestroyRootHierarchy ?
+			childDestroyRootHierarchy->firstChild : Engine::Entity::Null();
+		targetWorld.GetCommandBuffer().EnqueueDestroyEntity(destroyedChild);
+		targetWorld.GetCommandBuffer().Flush(targetWorld);
+		targetWorld.FlushPendingDestroyEntities();
+		childDestroyRootHierarchy =
+			targetWorld.TryGetComponent<Engine::HierarchyComponent>(childDestroyResult.root);
+		passed &= !targetWorld.IsAlive(destroyedChild) && childDestroyRootHierarchy &&
+			!childDestroyRootHierarchy->firstChild.IsValid() &&
+			!childDestroyRootHierarchy->lastChild.IsValid();
+
+		const std::string emptyPrefabPath =
+			"game://Tests/PrefabImmediate/Empty.prefab.json";
+		nlohmann::json emptyPrefab = nlohmann::json::object();
+		emptyPrefab["Entities"] = nlohmann::json::array();
+		emptyPrefab["Header"] = {
+			{ "name", "EmptyPrefab" },
+			{ "rootLocalFileID", "" },
+			{ "version", 2 }
+		};
+		emptyPrefab["NestedPrefabInstances"] = nlohmann::json::array();
+		emptyPrefab["SchemaVersion"] = 2;
+		passed &= Engine::JsonAdapter::SaveCanonical(
+			database.ResolveAssetPath(emptyPrefabPath), emptyPrefab);
+		const Engine::AssetID emptyPrefabAsset = database.ImportOrGet(
+			emptyPrefabPath, Engine::AssetType::Prefab);
+		Engine::PrefabInstantiateResult emptyResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, targetWorld, emptyPrefabAsset, emptyResult);
+		passed &= targetWorld.IsAlive(emptyResult.root) &&
+			emptyResult.createdEntities.size() == 1 &&
+			targetWorld.HasComponent<Engine::PrefabLinkComponent>(emptyResult.root) &&
+			targetWorld.GetComponent<Engine::NameComponent>(emptyResult.root).name == "EmptyPrefab";
+
 		std::filesystem::remove_all(testRoot, ec);
 		return passed && !ec;
 	}
@@ -806,6 +870,49 @@ namespace {
 				}
 			});
 		passed &= restoredWorld.IsAlive(restoredRoot) && !nestedRestored;
+
+		Engine::ECSWorld unpackWorld;
+		const Engine::Entity unpackParent =
+			Engine::SceneAuthoring::CreateGameObject(unpackWorld, "UnpackParent");
+		Engine::PrefabInstantiateDesc unpackDesc{};
+		unpackDesc.parent = unpackParent;
+		Engine::PrefabInstantiateResult unpackResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, unpackWorld, outerAsset, unpackResult, unpackDesc);
+		unpackWorld.GetComponent<Engine::NameComponent>(unpackResult.root).name = "OverrideName";
+		passed &= prefabSystem.UnpackPrefabInstance(
+			unpackWorld, unpackResult.root, Engine::PrefabUnpackMode::OutermostRoot);
+		bool outerLinkRemains = false;
+		bool nestedLinkRemains = false;
+		bool nestedOwnerRemains = false;
+		unpackWorld.ForEach<Engine::PrefabLinkComponent>(
+			[&](const Engine::Entity&, Engine::PrefabLinkComponent& link) {
+
+				outerLinkRemains |= link.prefabInstanceID == unpackResult.prefabInstanceID;
+				if (link.prefabAsset == nestedAsset) {
+					nestedLinkRemains = true;
+					nestedOwnerRemains |= static_cast<bool>(link.ownerPrefabInstanceID);
+				}
+			});
+		const Engine::HierarchyComponent* unpackHierarchy =
+			unpackWorld.TryGetComponent<Engine::HierarchyComponent>(unpackResult.root);
+		passed &= !outerLinkRemains && nestedLinkRemains && !nestedOwnerRemains &&
+			unpackWorld.GetComponent<Engine::NameComponent>(unpackResult.root).name == "OverrideName" &&
+			unpackHierarchy && unpackHierarchy->parent == unpackParent;
+
+		Engine::ECSWorld completeWorld;
+		Engine::PrefabInstantiateResult completeResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, completeWorld, outerAsset, completeResult);
+		passed &= prefabSystem.UnpackPrefabInstance(
+			completeWorld, completeResult.root, Engine::PrefabUnpackMode::Completely);
+		bool completeLinkRemains = false;
+		for (const Engine::Entity& entity :
+			Engine::HierarchyUtility::CollectLogicalSubtree(completeWorld, completeResult.root)) {
+
+			completeLinkRemains |= completeWorld.HasComponent<Engine::PrefabLinkComponent>(entity);
+		}
+		passed &= !completeLinkRemains;
 
 		const std::string invalidPath =
 			"game://Tests/PrefabPropagation/Invalid.prefab.json";
@@ -1895,6 +2002,31 @@ namespace {
 				Engine::ScreenSpaceOutlineAlphaSource::TextureColor &&
 			restored.uiOcclusionMode ==
 				Engine::ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible;
+	}
+
+	bool TestScriptExecutionOrderSettings() {
+
+		constexpr std::string_view scriptTypeID =
+			"00000000000000000000000000000001";
+		Engine::BehaviorTypeRegistry& registry =
+			Engine::BehaviorTypeRegistry::GetInstance();
+		Engine::ScriptExecutionOrderSettings::RemoveOverride(scriptTypeID);
+		const uint32_t typeID = registry.RegisterManaged(
+			scriptTypeID, "Tests.ExecutionOrder", "ExecutionOrder", {}, 25);
+
+		bool passed = registry.GetInfo(typeID).defaultExecutionOrder == 25 &&
+			registry.GetInfo(typeID).executionOrder == 25;
+		const uint64_t revision = registry.GetExecutionOrderRevision();
+		passed &= Engine::ScriptExecutionOrderSettings::SetOverride(scriptTypeID, -100);
+		registry.RefreshManagedExecutionOrders();
+		passed &= registry.GetInfo(typeID).executionOrder == -100 &&
+			registry.GetExecutionOrderRevision() != revision;
+
+		passed &= Engine::ScriptExecutionOrderSettings::RemoveOverride(scriptTypeID);
+		registry.RefreshManagedExecutionOrders();
+		passed &= registry.GetInfo(typeID).executionOrder == 25;
+		registry.ClearManaged();
+		return passed;
 	}
 
 	bool TestUTF8Path() {
@@ -3211,7 +3343,8 @@ int main(int argc, char* argv[]) {
 			!TestPrefabPropagationAndNestedInstances() ||
 			!TestTransformDirtyHierarchy() ||
 			!TestTransformDimensionSerialization() ||
-			!TestScreenSpaceOutlineSerialization()) {
+			!TestScreenSpaceOutlineSerialization() ||
+			!TestScriptExecutionOrderSettings()) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
 		}
@@ -3345,6 +3478,10 @@ int main(int argc, char* argv[]) {
 	if (!TestScreenSpaceOutlineSerialization()) {
 		std::cerr << "Screen space outline serialization failed\n";
 		return 29;
+	}
+	if (!TestScriptExecutionOrderSettings()) {
+		std::cerr << "Script execution order settings failed\n";
+		return 35;
 	}
 	if (!TestRigidbody2DRestingContact()) {
 		std::cerr << "Rigidbody2D resting contact failed\n";

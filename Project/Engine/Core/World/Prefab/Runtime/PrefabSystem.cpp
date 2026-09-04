@@ -21,6 +21,7 @@
 // c++
 #include <algorithm>
 #include <functional>
+#include <unordered_map>
 #include <unordered_set>
 
 //============================================================================
@@ -196,6 +197,76 @@ Engine::UUID Engine::PrefabSystem::SetPrefabLinkToSubtree(ECSWorld& world, const
 		};
 	linkSubtree(linkSubtree, root, true);
 	return resolvedInstanceID;
+}
+
+bool Engine::PrefabSystem::UnpackPrefabInstance(
+	ECSWorld& world, const Entity& root, PrefabUnpackMode mode) const {
+
+	if (!world.IsAlive(root) || !world.HasComponent<PrefabLinkComponent>(root)) {
+		return false;
+	}
+	const PrefabLinkComponent rootLink = world.GetComponent<PrefabLinkComponent>(root);
+	if (!rootLink.isPrefabRoot || !rootLink.prefabInstanceID) {
+		return false;
+	}
+
+	if (mode == PrefabUnpackMode::Completely) {
+
+		const std::vector<Entity> entities = HierarchyUtility::CollectLogicalSubtree(world, root);
+		for (const Entity& entity : entities) {
+
+			if (world.IsAlive(entity) && world.HasComponent<PrefabLinkComponent>(entity)) {
+				world.RemoveComponent<PrefabLinkComponent>(entity);
+			}
+		}
+		return true;
+	}
+
+	std::vector<Entity> instanceEntities;
+	std::vector<std::pair<Entity, PrefabLinkComponent>> nestedUpdates;
+	std::unordered_map<UUID, UUID> nestedSlots;
+	world.ForEach<PrefabLinkComponent>([&](const Entity& entity, PrefabLinkComponent& link) {
+
+		if (link.prefabInstanceID == rootLink.prefabInstanceID) {
+			instanceEntities.emplace_back(entity);
+			return;
+		}
+		if (link.ownerPrefabInstanceID != rootLink.prefabInstanceID) {
+			return;
+		}
+
+		PrefabLinkComponent updated = link;
+		updated.ownerPrefabInstanceID = rootLink.ownerPrefabInstanceID;
+		if (rootLink.ownerPrefabInstanceID) {
+
+			auto [it, inserted] = nestedSlots.try_emplace(link.prefabInstanceID, UUID{});
+			if (inserted) {
+				it->second = UUID::New();
+			}
+			updated.nestedSlotID = it->second;
+			updated.isPrefabAssetNested = false;
+		} else {
+
+			updated.nestedSlotID = UUID{};
+			updated.isPrefabAssetNested = false;
+		}
+		nestedUpdates.emplace_back(entity, updated);
+		});
+
+	for (const auto& [entity, link] : nestedUpdates) {
+
+		if (world.IsAlive(entity) && world.HasComponent<PrefabLinkComponent>(entity)) {
+			world.GetComponent<PrefabLinkComponent>(entity) = link;
+			world.MarkComponentModified<PrefabLinkComponent>(entity);
+		}
+	}
+	for (const Entity& entity : instanceEntities) {
+
+		if (world.IsAlive(entity) && world.HasComponent<PrefabLinkComponent>(entity)) {
+			world.RemoveComponent<PrefabLinkComponent>(entity);
+		}
+	}
+	return !instanceEntities.empty();
 }
 
 bool Engine::PrefabSystem::SavePrefab(AssetDatabase& database, ECSWorld& world,
@@ -395,10 +466,38 @@ bool Engine::PrefabSystem::InstantiatePrefab(AssetDatabase& database, HierarchyS
 
 	// ファイルからプレファブ読み込み
 	PrefabHeader header{};
-	if (!FromJson(fileJson["Header"], header) || !header.rootLocalFileID) {
+	if (!FromJson(fileJson["Header"], header)) {
 		return false;
 	}
 	header.guid = prefabAsset;
+	if (!header.rootLocalFileID) {
+
+		const bool hasNestedPrefab = fileJson.contains("NestedPrefabInstances") &&
+			(!fileJson["NestedPrefabInstances"].is_array() || !fileJson["NestedPrefabInstances"].empty());
+		if (!fileJson["Entities"].empty() || hasNestedPrefab) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[PrefabSystem] Prefabのルート情報が不正です AssetID={}", ToString(prefabAsset));
+			return false;
+		}
+
+		outResult.prefabInstanceID = desc.forcedInstanceID ? desc.forcedInstanceID : UUID::New();
+		const std::string rootName = header.name.empty() ? "NewPrefab" : header.name;
+		outResult.root = SceneAuthoring::CreateGameObject(world, rootName);
+		auto& sceneObject = world.GetComponent<SceneObjectComponent>(outResult.root);
+		sceneObject.localFileID = AllocateUniqueLocalFileID(world);
+		sceneObject.sourceAsset = prefabAsset;
+		sceneObject.sceneInstanceID = desc.ownerSceneInstanceID;
+		SetPrefabLink(world, outResult.root, prefabAsset, sceneObject.localFileID,
+			outResult.prefabInstanceID, true, desc.ownerPrefabInstanceID,
+			desc.nestedSlotID, desc.isPrefabAssetNested);
+		outResult.createdEntities.emplace_back(outResult.root);
+		outResult.sourceLocalToEntity.emplace(sceneObject.localFileID, outResult.root);
+		if (world.IsAlive(desc.parent)) {
+			hierarchySystem.SetParent(world, outResult.root, desc.parent);
+		}
+		return true;
+	}
 
 	std::unordered_set<UUID> prefabLocalFileIDs;
 	for (const auto& entityJson : fileJson["Entities"]) {
