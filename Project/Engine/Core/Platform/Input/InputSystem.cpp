@@ -333,7 +333,7 @@ bool Input::ReleaseMouse(MouseButton button, const std::source_location& locatio
 }
 void Input::SetDeadZone(float deadZone) {
 
-	deadZone_ = std::clamp(deadZone, 0.0f, 1.0f);
+	deadZone_ = std::clamp(deadZone, 0.0f, maxStickValue_);
 }
 
 void Input::Init(WinApp* winApp) {
@@ -375,12 +375,6 @@ void Input::Init(WinApp* winApp) {
 	// マウスの取得開始
 	hr = mouse_->Acquire();
 
-	// 入力タイプ切替の既定トリガ、スティック/マウス移動と主要ボタンで切り替える
-	detectTriggers_ = {
-		{ InputType::GamePad, true, 0 },
-		{ InputType::GamePad, false, static_cast<int32_t>(GamePadButtons::A) },
-		{ InputType::Keyboard, true, 0 },
-	};
 	// 保存済み設定があれば上書きする
 	LoadConfig();
 }
@@ -402,20 +396,7 @@ void Input::LoadConfig() {
 	}
 
 	deadZone_ = data.value("deadZone", deadZone_);
-	autoUpdateInputType_ = data.value("autoUpdateInputType", autoUpdateInputType_);
-	movementThreshold_ = data.value("movementThreshold", movementThreshold_);
-
-	// 検知トリガを復元する
-	if (data.contains("detectTriggers") && data["detectTriggers"].is_array()) {
-		detectTriggers_.clear();
-		for (const nlohmann::json& node : data["detectTriggers"]) {
-			InputDetectTrigger trigger{};
-			trigger.device = static_cast<InputType>(node.value("device", 0));
-			trigger.isMovement = node.value("isMovement", false);
-			trigger.code = node.value("code", 0);
-			detectTriggers_.push_back(trigger);
-		}
-	}
+	SetDeadZone(deadZone_);
 
 	// マウス範囲制御を復元する
 	mouseRangeControl_ = data.value("mouseRangeControl", mouseRangeControl_);
@@ -431,18 +412,6 @@ void Input::SaveConfig() const {
 
 	nlohmann::json data{};
 	data["deadZone"] = deadZone_;
-	data["autoUpdateInputType"] = autoUpdateInputType_;
-	data["movementThreshold"] = movementThreshold_;
-
-	nlohmann::json triggers = nlohmann::json::array();
-	for (const InputDetectTrigger& trigger : detectTriggers_) {
-		nlohmann::json node{};
-		node["device"] = static_cast<int32_t>(trigger.device);
-		node["isMovement"] = trigger.isMovement;
-		node["code"] = trigger.code;
-		triggers.push_back(node);
-	}
-	data["detectTriggers"] = triggers;
 
 	data["mouseRangeControl"] = mouseRangeControl_;
 	data["mouseAreaPosX"] = mouseAreaPos_.x;
@@ -457,34 +426,11 @@ void Input::SaveConfig() const {
 
 void Input::UpdateInputDevice() {
 
-	// マウス移動の判定しきい値、ピクセル単位
-	constexpr float kMouseMoveThreshold = 2.0f;
-
-	// 検知トリガから入力タイプを自動更新する、最初に成立したトリガのデバイスへ切り替える
-	if (autoUpdateInputType_) {
-		for (const InputDetectTrigger& trigger : detectTriggers_) {
-
-			bool active = false;
-			if (trigger.isMovement) {
-				// 切替先がパッドなら右スティック、それ以外はマウス移動量で判定する
-				if (trigger.device == InputType::GamePad) {
-					const Vector2 stick = GetRightStickVal();
-					const float magnitude = std::sqrt(stick.x * stick.x + stick.y * stick.y) / maxStickValue_;
-					active = magnitude > movementThreshold_;
-				} else {
-					const Vector2 move = GetMouseMoveValue();
-					active = std::sqrt(move.x * move.x + move.y * move.y) > kMouseMoveThreshold;
-				}
-			} else if (trigger.device == InputType::GamePad) {
-				active = PushGamepadButton(static_cast<GamePadButtons>(trigger.code));
-			} else {
-				active = PushKey(static_cast<BYTE>(trigger.code));
-			}
-			if (active) {
-				inputType_ = trigger.device;
-				break;
-			}
-		}
+	// 同一フレームではキーボードとマウスの操作を優先する
+	if (HasKeyboardMouseInput()) {
+		inputType_ = InputType::Keyboard;
+	} else if (HasGamepadInput()) {
+		inputType_ = InputType::GamePad;
 	}
 
 	// 範囲制御中はショートカット(modKey押下+triggerKey)で解除できるようにする
@@ -501,6 +447,72 @@ void Input::UpdateInputDevice() {
 		WinApp::ReleaseCursorClip();
 	}
 	mouseRangeControlPrev_ = mouseRangeControl_;
+}
+
+bool Input::HasKeyboardMouseInput() const {
+
+	// 任意キーが押されたフレームをPC操作として扱う
+	for (size_t i = 0; i < key_.size(); ++i) {
+		if (key_[i] && !keyPre_[i]) {
+			return true;
+		}
+	}
+
+	// マウスボタンが押されたフレームをPC操作として扱う
+	for (size_t i = 0; i < mouseButtons_.size(); ++i) {
+		if (mouseButtons_[i] && !mousePreButtons_[i]) {
+			return true;
+		}
+	}
+
+	// 微小な揺れを除いたマウス移動とホイール操作を検出する
+	constexpr float kMouseMoveThreshold = 2.0f;
+	const Vector2 move = GetMouseMoveValue();
+	if (std::sqrt(move.x * move.x + move.y * move.y) > kMouseMoveThreshold) {
+		return true;
+	}
+	return wheelValue_ != 0.0f;
+}
+
+bool Input::HasGamepadInput() const {
+
+	// 接続状態では切り替えず、ボタンとアナログ入力の開始だけを操作として扱う
+	for (int i = 0; i < kMaxGamepads; ++i) {
+		const size_t index = static_cast<size_t>(i);
+		if (!padConnected_[index]) {
+			continue;
+		}
+
+		const XINPUT_GAMEPAD& current = pads_[index].Gamepad;
+		const XINPUT_GAMEPAD previous = padConnectedPre_[index]
+			? padsPre_[index].Gamepad : XINPUT_GAMEPAD{};
+		if ((current.wButtons & ~previous.wButtons) != 0) {
+			return true;
+		}
+		if ((current.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD &&
+			previous.bLeftTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD) ||
+			(current.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD &&
+				previous.bRightTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD)) {
+			return true;
+		}
+
+		const auto stickStarted = [this](SHORT x, SHORT y, SHORT previousX, SHORT previousY) {
+			const float currentX = static_cast<float>(x);
+			const float currentY = static_cast<float>(y);
+			const float preX = static_cast<float>(previousX);
+			const float preY = static_cast<float>(previousY);
+			const float currentLength = std::sqrt(currentX * currentX + currentY * currentY);
+			const float previousLength = std::sqrt(preX * preX + preY * preY);
+			return currentLength > deadZone_ && previousLength <= deadZone_;
+		};
+		if (stickStarted(current.sThumbLX, current.sThumbLY,
+			previous.sThumbLX, previous.sThumbLY) ||
+			stickStarted(current.sThumbRX, current.sThumbRY,
+				previous.sThumbRX, previous.sThumbRY)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Input::Update() {
@@ -620,7 +632,9 @@ void Input::Update() {
 
 	if (FAILED(hr)) {
 		// 取得失敗時の処理
+		ZeroMemory(&mouseState_, sizeof(DIMOUSESTATE));
 		std::fill(mouseButtons_.begin(), mouseButtons_.end(), false);
+		wheelValue_ = 0.0f;
 	} else {
 
 		// マウスボタンの状態を保存

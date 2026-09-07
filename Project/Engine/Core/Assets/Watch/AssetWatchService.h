@@ -68,7 +68,7 @@ namespace Engine {
 		TextureUploadService* textureUploadService_ = nullptr;
 		// モデル変更時に呼ぶリロードでmesh管理がbackend内にあるため間接化する
 		std::function<void(AssetID)> meshReloadCallback_;
-		// Material/Shader/Pipeline変更時に描画側へ通知する
+		// Material/Shader/Pipeline/Font変更時に描画側へ通知する
 		std::function<void(AssetID)> renderAssetReloadCallback_;
 
 		// 変更検知の間引き用フレームカウンタ

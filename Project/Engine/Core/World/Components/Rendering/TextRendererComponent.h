@@ -57,6 +57,7 @@ namespace Engine {
 
 		// キャッシュ生成時の設定
 		AssetID font{};
+		uint64_t fontContentRevision = 0;
 		uint64_t textHash = 0;
 		float fontSize = 32.0f;
 		float charSpacing = 0.0f;

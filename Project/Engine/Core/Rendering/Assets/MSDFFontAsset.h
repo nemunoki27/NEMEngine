@@ -57,6 +57,8 @@ namespace Engine {
 
 		// アセットID
 		AssetID guid{};
+		// 読み直すたびに変わるランタイム専用の内容リビジョン
+		uint64_t contentRevision = 0;
 		// フォントの名前
 		std::string name = "UnnamedMSDFFont";
 

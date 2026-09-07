@@ -1,4 +1,4 @@
-[CmdletBinding(DefaultParameterSetName = "TargetDirectory")]
+﻿[CmdletBinding(DefaultParameterSetName = "TargetDirectory")]
 param(
     [Parameter(Mandatory = $true, ParameterSetName = "TargetPath")]
     [string]$TargetPath,
@@ -16,8 +16,6 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
-[Console]::OutputEncoding = $OutputEncoding
 
 function Resolve-TargetDirectory {
     if ($PSCmdlet.ParameterSetName -eq "TargetPath") {
@@ -32,7 +30,7 @@ function Find-WindowsSdkBinaryDirectory {
         $explicitDirectory = [System.IO.Path]::GetFullPath($WindowsSdkBinaryDirectory)
         if (-not (Test-Path -LiteralPath (Join-Path $explicitDirectory "dxcompiler.dll")) -or
             -not (Test-Path -LiteralPath (Join-Path $explicitDirectory "dxil.dll"))) {
-            throw "DirectX Shader Compiler runtime was not found: $explicitDirectory"
+            throw "DirectX Shader Compilerのランタイムが見つかりません: $explicitDirectory"
         }
         return $explicitDirectory
     }
@@ -77,7 +75,7 @@ function Find-WindowsSdkBinaryDirectory {
         }
     }
 
-    throw "DirectX Shader Compiler runtime was not found in the Windows SDK"
+    throw "Windows SDKにDirectX Shader Compilerのランタイムが見つかりません"
 }
 
 function Copy-RequiredFile {
@@ -89,7 +87,7 @@ function Copy-RequiredFile {
     )
 
     if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) {
-        throw "Runtime dependency was not found: $Source"
+        throw "依存するランタイムファイルが見つかりません: $Source"
     }
 
     $destination = Join-Path $resolvedTargetDirectory $DestinationName
@@ -137,4 +135,4 @@ $manifestJson = $manifest | ConvertTo-Json -Depth 4
     $manifestJson,
     [System.Text.UTF8Encoding]::new($false))
 
-Write-Host "[RuntimeDeploy] configuration=$Configuration target=$resolvedTargetDirectory files=$($deployedFiles.Count)"
+Write-Host "[ランタイム配置] 構成=$Configuration 配置先=$resolvedTargetDirectory ファイル数=$($deployedFiles.Count)"

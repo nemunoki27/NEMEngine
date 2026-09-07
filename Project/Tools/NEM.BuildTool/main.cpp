@@ -26,14 +26,14 @@ namespace {
 		std::error_code ec;
 		std::filesystem::current_path(projectPath, ec);
 		if (ec) {
-			std::cerr << "Failed to set project directory\n";
+			std::cerr << "プロジェクトの作業フォルダーを設定できません\n";
 			return 2;
 		}
 
 		Engine::RuntimePaths::Refresh();
 		Engine::AssetDatabase database;
 		if (!database.Init() || !database.RebuildMeta()) {
-			std::cerr << "Failed to build AssetDatabase\n";
+			std::cerr << "アセットデータベースを構築できません\n";
 			return 3;
 		}
 
@@ -144,7 +144,7 @@ namespace {
 				continue;
 			}
 			if (!CanonicalizeSceneFile(it->path())) {
-				std::cerr << "Failed to canonicalize: " << it->path() << '\n';
+				std::cerr << "シーンの正規化に失敗しました: " << it->path() << '\n';
 				return false;
 			}
 			++sceneCount;
@@ -157,7 +157,7 @@ namespace {
 		std::error_code ec;
 		std::filesystem::current_path(projectPath, ec);
 		if (ec) {
-			std::cerr << "Failed to set project directory\n";
+			std::cerr << "プロジェクトの作業フォルダーを設定できません\n";
 			return 2;
 		}
 		Engine::RuntimePaths::Refresh();
@@ -170,7 +170,7 @@ namespace {
 			!CanonicalizeSceneRoot(Engine::RuntimePaths::GetEngineAssetsRoot(), sceneCount)) {
 			return 5;
 		}
-		std::cout << "Canonicalized scenes: " << sceneCount << '\n';
+		std::cout << "正規化したシーン数: " << sceneCount << '\n';
 		return 0;
 	}
 
@@ -183,14 +183,14 @@ namespace {
 		const nlohmann::json ours = Engine::JsonAdapter::Load(ourPath);
 		const nlohmann::json theirs = Engine::JsonAdapter::Load(theirPath);
 		if (base.is_null() || ours.is_null() || theirs.is_null()) {
-			std::cerr << "Failed to load merge input\n";
+			std::cerr << "マージ元ファイルを読み込めません\n";
 			return 6;
 		}
 
 		const Engine::JsonMergeResult result =
 			Engine::JsonSemanticMerge::Merge(base, ours, theirs);
 		if (!Engine::JsonAdapter::SaveCanonical(outputPath, result.merged)) {
-			std::cerr << "Failed to save merge output\n";
+			std::cerr << "マージ結果を保存できません\n";
 			return 6;
 		}
 
@@ -216,7 +216,7 @@ namespace {
 		if (!Engine::JsonAdapter::SaveCanonical(conflictPath, conflictReport)) {
 			return 6;
 		}
-		std::cerr << "Semantic merge conflicts: " <<
+		std::cerr << "構造化マージの競合数: " <<
 			result.conflicts.size() << '\n';
 		return 7;
 	}
@@ -229,7 +229,7 @@ namespace {
 		if (!manifest.is_object() ||
 			manifest.value("schemaVersion", 0) != 1 ||
 			!manifest.contains("files") || !manifest["files"].is_array()) {
-			std::cerr << "Cook manifest is invalid\n";
+			std::cerr << "Cookマニフェストが不正です\n";
 			return 9;
 		}
 
@@ -237,7 +237,7 @@ namespace {
 		const std::filesystem::path normalizedRoot =
 			std::filesystem::weakly_canonical(contentRoot, ec);
 		if (ec || !std::filesystem::is_directory(normalizedRoot, ec)) {
-			std::cerr << "Cook root was not found\n";
+			std::cerr << "Cookの検証対象フォルダーが見つかりません\n";
 			return 9;
 		}
 
@@ -262,13 +262,13 @@ namespace {
 				Engine::ContentHash::FileSHA256(fullPath) !=
 				entry.value("sha256", std::string{})) {
 
-				std::cerr << "Cook verification failed: " <<
+				std::cerr << "Cookの検証に失敗しました: " <<
 					Engine::Algorithm::PathToUTF8(relative) << '\n';
 				return 10;
 			}
 			++fileCount;
 		}
-		std::cout << "Cook verified: " << fileCount << " files\n";
+		std::cout << "Cookの検証が完了しました: " << fileCount << "ファイル\n";
 		return 0;
 	}
 
@@ -279,12 +279,12 @@ namespace {
 		std::string error;
 		if (!Engine::ShaderCook::Cook(
 			manifestPath, outputRoot, result, error)) {
-			std::cerr << "[ShaderCook] " << error << '\n';
+			std::cerr << "[シェーダーCook] " << error << '\n';
 			return 11;
 		}
-		std::cout << "[ShaderCook] shaders=" << result.shaderCount <<
-			" stages=" << result.stageCount <<
-			" dxilBytes=" << result.bytecodeSize << '\n';
+		std::cout << "[シェーダーCook] シェーダー数=" << result.shaderCount <<
+			" ステージ数=" << result.stageCount <<
+			" DXILバイト数=" << result.bytecodeSize << '\n';
 		return 0;
 	}
 }
@@ -311,10 +311,10 @@ int main(int argc, char** argv) {
 		return CookShaders(argv[2], argv[3]);
 	}
 
-	std::cout << "NEMBuildTool --validate-project <project-directory>\n"
-		"NEMBuildTool --canonicalize-scenes <project-directory> [--include-engine]\n"
-		"NEMBuildTool --merge-json <base> <ours> <theirs> <output>\n"
-		"NEMBuildTool --verify-cook <manifest> <content-root>\n"
-		"NEMBuildTool --cook-shaders <game-build-manifest> <output-root>\n";
+	std::cout << "使い方:\nNEMBuildTool --validate-project <プロジェクトフォルダー>\n"
+		"NEMBuildTool --canonicalize-scenes <プロジェクトフォルダー> [--include-engine]\n"
+		"NEMBuildTool --merge-json <共通祖先> <自分側> <相手側> <出力先>\n"
+		"NEMBuildTool --verify-cook <マニフェスト> <検証対象フォルダー>\n"
+		"NEMBuildTool --cook-shaders <製品ビルドマニフェスト> <出力先>\n";
 	return argc == 1 ? 0 : 1;
 }

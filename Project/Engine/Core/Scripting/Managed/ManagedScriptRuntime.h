@@ -358,9 +358,8 @@ namespace Engine {
 		// C#のApplication.Quitを安全なフレーム終端へ遅延する
 		static void __cdecl RequestApplicationQuitCallback();
 
-		// v17の入力デバイス、入力タイプとマウス範囲制御の取得設定
+		// 入力デバイス、入力タイプの取得とマウス範囲制御の取得、設定
 		static int32_t __cdecl GetInputTypeCallback();
-		static void __cdecl SetInputTypeCallback(int32_t type);
 		static int32_t __cdecl GetMouseRangeControlCallback();
 		static void __cdecl SetMouseRangeControlCallback(int32_t enabled);
 		// RendererのMaterial Instanceへ型付きパラメータを読み書きする
@@ -383,6 +382,8 @@ namespace Engine {
 		static int32_t __cdecl ValidateRenderFeaturePassCallback(
 			uint64_t passID, uint64_t generation);
 		static int32_t __cdecl SetRenderFeaturePassEnabledCallback(
+			uint64_t passID, uint64_t generation, int32_t enabled);
+		static int32_t __cdecl SetRenderFeaturePassSceneColorOutputCallback(
 			uint64_t passID, uint64_t generation, int32_t enabled);
 		static int32_t __cdecl SetRenderFeatureGroupEnabledCallback(
 			const char* groupName, int32_t enabled);
@@ -433,6 +434,7 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
 		static uint64_t __cdecl LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl LoadSceneSingleCallback(ManagedAssetGUID sceneAssetID);
+		static uint64_t __cdecl ReloadActiveSceneCallback();
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
 		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(ManagedAssetGUID sourceAsset, uint64_t localFileID);
 		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う

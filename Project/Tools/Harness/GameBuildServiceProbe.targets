@@ -1,0 +1,13 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- NEMTestsの依存ライブラリを再利用し、検証用の出力だけを隔離する -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'NEMTests'">
+    <OutDir>$(MSBuildThisFileDirectory)..\..\..\Generated\Output\$(Configuration)\GameBuildServiceProbe\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)..\..\..\Generated\Intermediate\GameBuildServiceProbe\$(Configuration)\</IntDir>
+    <TargetName>GameBuildServiceProbe</TargetName>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'NEMTests'">
+    <ClCompile Remove="main.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)GameBuildServiceProbe.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Engine\Editor\Build\GameBuildService.cpp" />
+  </ItemGroup>
+</Project>

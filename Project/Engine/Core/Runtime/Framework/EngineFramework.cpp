@@ -85,7 +85,7 @@ void Framework::Tick() {
 			WinApp::SetFullscreen(!WinApp::IsFullscreen());
 		}
 	}
-	// 検知トリガから入力タイプを自動更新し、マウス範囲制御も適用する
+	// 実際の入力操作から入力タイプを更新し、マウス範囲制御も適用する
 	Input::GetInstance()->UpdateInputDevice();
 
 	// エンジン機能更新

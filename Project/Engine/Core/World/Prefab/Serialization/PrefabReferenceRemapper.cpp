@@ -145,6 +145,31 @@ namespace {
 		}
 	}
 
+	// JSONツリー内に残ったScene参照を空にする
+	void ClearSceneReferenceTree(nlohmann::json& value) {
+
+		if (value.is_object()) {
+
+			if (IsEntityRefObject(value)) {
+				if (value.value("kind", std::string{}) == "Scene") {
+					value["kind"] = "Null";
+					value["sourceAsset"] = std::string{};
+					value["localFileId"] = std::string{};
+				}
+				return;
+			}
+			for (auto it = value.begin(); it != value.end(); ++it) {
+				ClearSceneReferenceTree(it.value());
+			}
+			return;
+		}
+		if (value.is_array()) {
+			for (auto& element : value) {
+				ClearSceneReferenceTree(element);
+			}
+		}
+	}
+
 	// カメラ制御設定内のtargetをリマップする
 	void RemapCameraTarget(nlohmann::json& component, const char* group,
 		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
@@ -254,6 +279,11 @@ void Engine::PrefabReferenceRemapper::RemapValue(nlohmann::json& value, const st
 		return;
 	}
 	RemapTree(value, localFileIDMap, referenceSpace, sourceAsset);
+}
+
+void Engine::PrefabReferenceRemapper::ClearExternalSceneReferences(nlohmann::json& value) {
+
+	ClearSceneReferenceTree(value);
 }
 
 void Engine::PrefabReferenceRemapper::NormalizePrefabFileHierarchy(nlohmann::json& prefabFileJson) {

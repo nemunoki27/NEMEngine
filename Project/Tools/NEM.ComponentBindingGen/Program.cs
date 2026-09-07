@@ -7,7 +7,7 @@ namespace NEM.ComponentBindingGen;
 // 同じ入力からは byte 単位で安定した出力（sorted・LF・UTF-8 no BOM）。
 internal static class Program {
 
-    private const string GeneratorVersion = "3";
+    private const string GeneratorVersion = "4";
     private const int SupportedSchemaVersion = 2;
 
     private sealed class EnumMember { public string Name = ""; public long Value; }
@@ -208,6 +208,8 @@ internal static class Program {
                 File.ReadAllText(Path.Combine(csDir, "ComponentBindings.generated.cs")).Contains("public Entity Target"));
             Expect("native registration generated",
                 File.ReadAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.cpp")).Contains("Register<TestComponent>(0"));
+            Expect("component mutation notification generated",
+                File.ReadAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp")).Contains("world.MarkComponentModified<TestComponent>(entity);"));
             Expect("managed ABI generated",
                 File.ReadAllText(Path.Combine(csDir, "NativeApiTable.generated.cs")).Contains("delegate* unmanaged[Cdecl]<int> test"));
 
@@ -562,7 +564,7 @@ internal static class Program {
             sb.Append("\t\t\tswitch (propertyId) {\n");
             foreach (int p in podSet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
-                EmitCppSet(sb, comp.Properties[p], enumByName);
+                EmitCppSet(sb, comp.Properties[p], enumByName, nt);
                 sb.Append("\t\t\t}\n");
             }
             sb.Append("\t\t\tdefault: return ManagedStatus::InvalidArgument;\n");
@@ -604,6 +606,7 @@ internal static class Program {
             foreach (int p in strSet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
                 sb.Append($"\t\t\t\tc->{comp.Properties[p].NativeMember} = (utf8 && length > 0) ? std::string(utf8, static_cast<size_t>(length)) : std::string();\n");
+                sb.Append($"\t\t\t\tworld.MarkComponentModified<{nt}>(entity);\n");
                 sb.Append("\t\t\t\treturn ManagedStatus::Ok;\n");
                 sb.Append("\t\t\t}\n");
             }
@@ -645,7 +648,8 @@ internal static class Program {
         sb.Append("\t\t\t\treturn ManagedStatus::Ok;\n");
     }
 
-    private static void EmitCppSet(StringBuilder sb, PropertyModel prop, Dictionary<string, EnumModel> enumByName) {
+    private static void EmitCppSet(StringBuilder sb, PropertyModel prop,
+        Dictionary<string, EnumModel> enumByName, string nativeType) {
         string m = prop.NativeMember;
         switch (prop.Kind) {
             case "Bool":
@@ -676,6 +680,7 @@ internal static class Program {
                 break;
             }
         }
+        sb.Append($"\t\t\t\tworld.MarkComponentModified<{nativeType}>(entity);\n");
         sb.Append("\t\t\t\treturn ManagedStatus::Ok;\n");
     }
 

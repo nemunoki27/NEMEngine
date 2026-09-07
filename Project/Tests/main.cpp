@@ -410,6 +410,80 @@ namespace {
 		return passed && !ec;
 	}
 
+	bool TestSingleSceneLoadReservation() {
+
+		const std::filesystem::path testRoot =
+			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/SingleSceneLoad";
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+		Engine::AssetDatabase database;
+		database.Init();
+		std::array<Engine::AssetID, 3> sceneAssets{};
+		for (size_t i = 0; i < sceneAssets.size(); ++i) {
+
+			Engine::SceneHeader header{};
+			header.name = "Single" + std::to_string(i + 1);
+			const std::filesystem::path path = testRoot /
+				(header.name + ".scene.json");
+			const nlohmann::json root = {
+				{ "SchemaVersion", 3 },
+				{ "Header", Engine::ToJson(header) },
+				{ "ExternalActors", nlohmann::json::array() },
+				{ "PrefabInstances", nlohmann::json::array() },
+			};
+			if (!Engine::JsonAdapter::SaveCanonical(path, root)) {
+				std::filesystem::remove_all(testRoot, ec);
+				return false;
+			}
+			sceneAssets[i] = database.ImportOrGet(
+				Engine::RuntimePaths::ToAssetPath(path), Engine::AssetType::Scene);
+			if (!sceneAssets[i]) {
+				std::filesystem::remove_all(testRoot, ec);
+				return false;
+			}
+		}
+
+		Engine::ECSWorld world;
+		Engine::SceneSystem sceneSystem;
+		Engine::SceneInstanceManager scenes;
+		Engine::WorldCommandServices services{};
+		services.sceneInstances = &scenes;
+		world.SetCommandServices(services);
+
+		// Scene用Service不足で処理できない場合も予約を残さない
+		bool passed = scenes.TryBeginSingleLoadRequest();
+		world.GetCommandBuffer().EnqueueLoadSceneSingle(Engine::UUID::New(), sceneAssets.front());
+		world.GetCommandBuffer().Flush(world);
+		passed &= scenes.TryBeginSingleLoadRequest();
+		scenes.ClearSingleLoadRequest();
+
+		services.assetDatabase = &database;
+		services.sceneSystem = &sceneSystem;
+		world.SetCommandServices(services);
+		for (const Engine::AssetID sceneAsset : sceneAssets) {
+
+			if (!scenes.TryBeginSingleLoadRequest()) {
+				passed = false;
+				break;
+			}
+			const Engine::UUID instanceID = Engine::UUID::New();
+			world.GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, sceneAsset);
+			world.GetCommandBuffer().Flush(world);
+			const Engine::SceneInstance* active = scenes.GetActive();
+			passed &= active && active->instanceID == instanceID &&
+				active->sceneAsset == sceneAsset && scenes.GetAll().size() == 1;
+		}
+		passed &= scenes.TryBeginSingleLoadRequest();
+		scenes.ClearSingleLoadRequest();
+
+		std::filesystem::remove_all(testRoot, ec);
+		return passed && !ec;
+	}
+
 	bool TestExternalActors() {
 
 		const std::filesystem::path testRoot =
@@ -512,6 +586,159 @@ namespace {
 		ec.clear();
 		std::filesystem::remove_all(actorRoot, ec);
 		return passed && !ec;
+	}
+
+	bool TestSceneAssetCopy() {
+
+		const std::filesystem::path testRoot = Engine::RuntimePaths::GetGameAssetsRoot() /
+			"Tests" / ("SceneCopy-" + Engine::ToString(Engine::UUID::New()));
+		std::filesystem::create_directories(testRoot / "Folder");
+		Engine::ECSWorld world;
+		const Engine::Entity parent = Engine::SceneAuthoring::CreateGameObject(world, "Parent");
+		const Engine::Entity child = Engine::SceneAuthoring::CreateGameObject(world, "Child");
+		Engine::HierarchySystem hierarchy;
+		hierarchy.SetParent(world, child, parent);
+		const Engine::UUID parentID = world.GetComponent<Engine::SceneObjectComponent>(parent).localFileID;
+		const Engine::UUID childID = world.GetComponent<Engine::SceneObjectComponent>(child).localFileID;
+		Engine::SceneSystem system;
+		std::vector<std::filesystem::path> actorRoots;
+		bool passed = true;
+		std::string error;
+
+		// 両方の保存形式で参照と階層を維持した独立コピーを確認する
+		for (bool external : { false, true }) {
+
+			const std::filesystem::path source = testRoot / (external ? "External.scene.json" : "Single.scene.json");
+			const std::filesystem::path target = testRoot / "Folder" / source.filename();
+			Engine::AssetMeta meta{};
+			meta.guid = Engine::AssetGUID::New();
+			meta.type = Engine::AssetType::Scene;
+			const Engine::AssetID otherAsset = Engine::AssetGUID::New();
+			const nlohmann::json selfReference = {
+				{ "kind", "Scene" }, { "sourceAsset", Engine::ToString(meta.guid) },
+				{ "localFileId", Engine::ToString(childID) },
+			};
+			nlohmann::json otherReference = selfReference;
+			otherReference["sourceAsset"] = Engine::ToString(otherAsset);
+			nlohmann::json implicitReference = selfReference;
+			implicitReference["sourceAsset"] = "";
+			nlohmann::json prefabReference = selfReference;
+			prefabReference["kind"] = "Prefab";
+			nlohmann::json root = {
+				{ "SchemaVersion", 3 }, { "Header", Engine::ToJson(Engine::SceneHeader{}) },
+				{ "Entities", system.SerializeEntities(world) },
+				{ "PrefabInstances", nlohmann::json::array() },
+				{ "CopyReferences", { selfReference, otherReference, implicitReference, prefabReference } },
+			};
+			// 任意のシリアライズ領域でも型付き参照だけを書き換える
+			root["Entities"][0]["CopyReference"] = selfReference;
+			root["Header"]["sharedAsset"] = Engine::ToString(meta.guid);
+			passed &= Engine::AssetDatabase::WriteMetaFile(source.wstring() + L".meta", meta) &&
+				Engine::SceneSystem::WriteSaveSnapshot({ source, meta.guid, root, external });
+			const std::filesystem::path sourceActors = Engine::RuntimePaths::GetGameAssetsRoot() /
+				"ExternalActors" / Engine::ToString(meta.guid);
+			actorRoots.push_back(sourceActors);
+			const nlohmann::json sourceBefore = Engine::JsonAdapter::Load(source, false);
+			passed &= Engine::SceneSystem::CopySceneAssets({ { source, target } }, error);
+			Engine::AssetMeta copiedMeta{};
+			passed &= Engine::AssetDatabase::ReadMetaFile(target.wstring() + L".meta", copiedMeta) &&
+				copiedMeta.guid && copiedMeta.guid != meta.guid;
+			const std::filesystem::path copiedActors = Engine::RuntimePaths::GetGameAssetsRoot() /
+				"ExternalActors" / Engine::ToString(copiedMeta.guid);
+			actorRoots.push_back(copiedActors);
+			const nlohmann::json copied = Engine::JsonAdapter::Load(target, false);
+			if (!copied.is_object()) {
+				passed = false;
+				break;
+			}
+			passed &= copied.contains("ExternalActors") == external &&
+				copied["CopyReferences"][0]["sourceAsset"] == Engine::ToString(copiedMeta.guid) &&
+				copied["CopyReferences"][1] == otherReference &&
+				copied["CopyReferences"][2] == implicitReference &&
+				copied["CopyReferences"][3] == prefabReference &&
+				copied["Header"]["sharedAsset"] == Engine::ToString(meta.guid);
+			nlohmann::json expected = sourceBefore;
+			expected["Header"]["name"] = external ? "External" : "Single";
+			expected["CopyReferences"][0]["sourceAsset"] = Engine::ToString(copiedMeta.guid);
+			if (!external) {
+				expected["Entities"][0]["CopyReference"]["sourceAsset"] = Engine::ToString(copiedMeta.guid);
+			}
+			passed &= copied == expected;
+			Engine::ECSWorld loaded;
+			std::vector<Engine::Entity> entities;
+			passed &= system.LoadScene(target, loaded, nullptr, copiedMeta.guid,
+				Engine::UUID{ 500 }, nullptr, &entities) && entities.size() == 2;
+			bool childFound = false;
+			for (Engine::Entity entity : entities) {
+
+				if (loaded.GetComponent<Engine::SceneObjectComponent>(entity).localFileID == childID) {
+					childFound = loaded.GetComponent<Engine::HierarchyComponent>(entity).parentLocalFileID == parentID;
+				}
+			}
+			passed &= childFound;
+			passed &= !Engine::SceneSystem::CopySceneAssets({ { source, target } }, error) &&
+				Engine::JsonAdapter::Load(target, false) == copied;
+			if (external) {
+
+				const std::string actorName = copied["ExternalActors"][0].get<std::string>() + ".actor.json";
+				nlohmann::json copiedActor = Engine::JsonAdapter::Load(copiedActors / actorName, false);
+				nlohmann::json expectedActor = Engine::JsonAdapter::Load(sourceActors / actorName, false);
+				const nlohmann::json originalActor = expectedActor;
+				expectedActor["CopyReference"]["sourceAsset"] = Engine::ToString(copiedMeta.guid);
+				passed &= copiedActor == expectedActor;
+				copiedActor["Components"]["Name"]["name"] = "Changed";
+				passed &= Engine::JsonAdapter::SaveCanonical(copiedActors / actorName, copiedActor) &&
+					Engine::JsonAdapter::Load(sourceActors / actorName, false) == originalActor;
+				// Actor欠損時はバッチ全体を作成しない
+				std::filesystem::remove(sourceActors / actorName);
+				const std::filesystem::path rejected = testRoot / "Rejected.scene.json";
+				const std::filesystem::path first = testRoot / "First.scene.json";
+				passed &= !Engine::SceneSystem::CopySceneAssets({
+					{ testRoot / "Single.scene.json", first }, { source, rejected } }, error) &&
+					!std::filesystem::exists(first) && !std::filesystem::exists(rejected) &&
+					!std::filesystem::exists(rejected.wstring() + L".meta");
+			}
+			passed &= Engine::JsonAdapter::Load(source, false) == sourceBefore;
+		}
+		// 空シーンと日本語ファイル名も同じ形式で複製する
+		for (bool external : { false, true }) {
+
+			const auto source = testRoot / (external ? L"空の外部.scene.json" : L"空の単一.scene.json");
+			const auto target = testRoot / "Folder" / source.filename();
+			Engine::AssetMeta meta{};
+			meta.type = Engine::AssetType::Scene;
+			meta.guid = Engine::AssetGUID::New();
+			const nlohmann::json root = {
+				{ "SchemaVersion", 3 }, { "Header", Engine::ToJson(Engine::SceneHeader{}) },
+				{ "Entities", nlohmann::json::array() }, { "PrefabInstances", nlohmann::json::array() },
+			};
+			passed &= Engine::AssetDatabase::WriteMetaFile(source.wstring() + L".meta", meta) &&
+				Engine::SceneSystem::WriteSaveSnapshot({ source, meta.guid, root, external }) &&
+				Engine::SceneSystem::CopySceneAssets({ { source, target } }, error);
+			Engine::AssetMeta copiedMeta{};
+			passed &= Engine::AssetDatabase::ReadMetaFile(target.wstring() + L".meta", copiedMeta);
+			Engine::ECSWorld loaded;
+			std::vector<Engine::Entity> created;
+			passed &= system.LoadScene(target, loaded, nullptr, copiedMeta.guid,
+				Engine::UUID{ 501 }, nullptr, &created) && created.empty() &&
+				Engine::JsonAdapter::Load(target, false).contains("ExternalActors") == external;
+			// JSONの型が壊れている場合も例外を外へ出さず複製を中止する
+			nlohmann::json invalid = root;
+			invalid["SchemaVersion"] = "invalid";
+			const auto rejected = testRoot / "Invalid.scene.json";
+			passed &= Engine::JsonAdapter::SaveCanonical(source, invalid) &&
+				!Engine::SceneSystem::CopySceneAssets({ { source, rejected } }, error) &&
+				!std::filesystem::exists(rejected) && !std::filesystem::exists(rejected.wstring() + L".meta");
+			actorRoots.push_back(Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" / Engine::ToString(meta.guid));
+			actorRoots.push_back(Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" / Engine::ToString(copiedMeta.guid));
+		}
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		for (const auto& actorRoot : actorRoots) {
+
+			std::filesystem::remove_all(actorRoot, ec);
+		}
+		return passed;
 	}
 
 	bool TestECSChunkStorage() {
@@ -765,6 +992,17 @@ namespace {
 		Engine::PrefabInstantiateResult nestedSourceResult{};
 		passed &= prefabSystem.InstantiatePrefab(
 			database, hierarchySystem, outerSourceWorld, nestedAsset, nestedSourceResult, nestedDesc);
+		Engine::PrefabInstantiateResult secondNestedSourceResult{};
+		passed &= prefabSystem.InstantiatePrefab(
+			database, hierarchySystem, outerSourceWorld, nestedAsset, secondNestedSourceResult, nestedDesc);
+		auto& sourceCanvas = outerSourceWorld.AddComponent<Engine::CanvasComponent>(outerSourceRoot);
+		sourceCanvas.firstSelectedLocalFileID =
+			outerSourceWorld.GetComponent<Engine::SceneObjectComponent>(nestedSourceResult.root).localFileID;
+		const std::array<Engine::UUID, 2> sourceNavigation = {
+			sourceCanvas.firstSelectedLocalFileID,
+			outerSourceWorld.GetComponent<Engine::SceneObjectComponent>(secondNestedSourceResult.root).localFileID
+		};
+		Engine::SetCanvasNavigationCells(outerSourceWorld, outerSourceRoot, sourceNavigation);
 		const Engine::UUID outerSourceInstanceID = Engine::UUID::New();
 		passed &= prefabSystem.SavePrefab(
 			database, outerSourceWorld, outerSourceRoot, outerPath, outerSourceInstanceID);
@@ -778,7 +1016,7 @@ namespace {
 		passed &= outerJson.is_object() && outerJson.value("SchemaVersion", 0u) == 2u &&
 			outerJson.contains("Entities") && outerJson["Entities"].size() == 2 &&
 			outerJson.contains("NestedPrefabInstances") &&
-			outerJson["NestedPrefabInstances"].size() == 1;
+			outerJson["NestedPrefabInstances"].size() == 2;
 
 		Engine::ECSWorld targetWorld;
 		const Engine::Entity externalParent =
@@ -790,14 +1028,31 @@ namespace {
 			database, hierarchySystem, targetWorld, outerAsset, outerResult, outerDesc);
 
 		Engine::Entity nestedTargetRoot = Engine::Entity::Null();
+		std::vector<Engine::UUID> nestedTargetLocalFileIDs;
 		targetWorld.ForEach<Engine::PrefabLinkComponent>(
 			[&](const Engine::Entity& entity, Engine::PrefabLinkComponent& link) {
 
 				if (link.prefabAsset == nestedAsset && link.isPrefabRoot &&
 					link.ownerPrefabInstanceID == outerResult.prefabInstanceID) {
 					nestedTargetRoot = entity;
+					nestedTargetLocalFileIDs.emplace_back(
+						targetWorld.GetComponent<Engine::SceneObjectComponent>(entity).localFileID);
 				}
 			});
+		const Engine::CanvasComponent* targetCanvas =
+			targetWorld.TryGetComponent<Engine::CanvasComponent>(outerResult.root);
+		const std::span<const Engine::CanvasNavigationCell> targetNavigation =
+			Engine::GetCanvasNavigationCells(targetWorld, outerResult.root);
+		passed &= targetCanvas && nestedTargetLocalFileIDs.size() == 2 &&
+			nestedTargetLocalFileIDs[0] != nestedTargetLocalFileIDs[1] &&
+			std::find(nestedTargetLocalFileIDs.begin(), nestedTargetLocalFileIDs.end(),
+				targetCanvas->firstSelectedLocalFileID) != nestedTargetLocalFileIDs.end() &&
+			targetNavigation.size() == 2 &&
+			targetNavigation[0].localFileID != targetNavigation[1].localFileID &&
+			std::find(nestedTargetLocalFileIDs.begin(), nestedTargetLocalFileIDs.end(),
+				targetNavigation[0].localFileID) != nestedTargetLocalFileIDs.end() &&
+			std::find(nestedTargetLocalFileIDs.begin(), nestedTargetLocalFileIDs.end(),
+				targetNavigation[1].localFileID) != nestedTargetLocalFileIDs.end();
 		const Engine::Entity addedChild =
 			Engine::SceneAuthoring::CreateGameObject(targetWorld, "AddedChild");
 		hierarchySystem.SetParent(targetWorld, addedChild, outerResult.root);
@@ -862,6 +1117,11 @@ namespace {
 		const std::filesystem::path scenePath = testRoot / "NestedRoundTrip.scene.json";
 		Engine::SceneHeader sceneHeader{};
 		sceneHeader.name = "NestedRoundTrip";
+		sceneHeader.guid = Engine::AssetGUID::New();
+		Engine::AssetMeta sceneMeta{};
+		sceneMeta.guid = sceneHeader.guid;
+		sceneMeta.type = Engine::AssetType::Scene;
+		passed &= Engine::AssetDatabase::WriteMetaFile(scenePath.wstring() + L".meta", sceneMeta);
 		Engine::SceneSystem sceneSystem;
 		Engine::SceneSaveSnapshot sceneSnapshot{};
 		passed &= sceneSystem.CaptureSaveSnapshot(
@@ -875,6 +1135,42 @@ namespace {
 		passed &= sceneSystem.LoadScene(
 			scenePath, loadedSceneWorld, &database, Engine::AssetID{},
 			Engine::UUID{ 700 }, nullptr, &loadedSceneEntities);
+		// 入れ子Prefabと追加エンティティを含むシーンも両形式で複製できる
+		for (bool external : { false, true }) {
+
+			Engine::SceneSaveSnapshot copySource{};
+			passed &= sceneSystem.CaptureSaveSnapshot(
+				scenePath, targetWorld, sceneHeader, database, copySource);
+			copySource.useExternalActors = external;
+			passed &= Engine::SceneSystem::WriteSaveSnapshot(copySource);
+			const auto copyPath = testRoot / (external ? "NestedCopyExternal.scene.json" : "NestedCopy.scene.json");
+			std::string copyError;
+			if (!Engine::SceneSystem::CopySceneAssets({ { scenePath, copyPath } }, copyError)) {
+
+				passed = false;
+				break;
+			}
+			const Engine::AssetID copyAsset = database.ImportOrGet(
+				Engine::RuntimePaths::ToAssetPath(copyPath), Engine::AssetType::Scene);
+			Engine::ECSWorld copyWorld;
+			std::vector<Engine::Entity> copyEntities;
+			passed &= sceneSystem.LoadScene(copyPath, copyWorld, &database, copyAsset,
+				Engine::UUID{ 701 }, nullptr, &copyEntities) && copyEntities.size() == loadedSceneEntities.size();
+			bool copyNested = false;
+			bool copyAdded = false;
+			copyWorld.ForEachAliveEntity([&](Engine::Entity entity) {
+
+				const auto* link = copyWorld.TryGetComponent<Engine::PrefabLinkComponent>(entity);
+				copyNested |= link && link->prefabAsset == nestedAsset;
+				const auto& sceneObject = copyWorld.GetComponent<Engine::SceneObjectComponent>(entity);
+				copyAdded |= sceneObject.localFileID ==
+					targetWorld.GetComponent<Engine::SceneObjectComponent>(rebuiltAddedChild).localFileID;
+				});
+			passed &= copyNested && copyAdded;
+			const auto actors = Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors";
+			std::filesystem::remove_all(actors / Engine::ToString(copyAsset), ec);
+			std::filesystem::remove_all(actors / Engine::ToString(copySource.sceneAsset), ec);
+		}
 		Engine::UUID loadedOuterInstanceID{};
 		bool loadedNestedInstance = false;
 		loadedSceneWorld.ForEach<Engine::PrefabLinkComponent>(
@@ -2276,9 +2572,55 @@ namespace {
 			overrides.SetEnabled(passID, false) &&
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterTransparent,
 				Engine::RenderViewKind::Game).nodes.size() == 1;
+		const bool visibleEnabled = !overrides.IsEnabled(passID, true) &&
+			overrides.SetEnabled(passID, true) && overrides.IsEnabled(passID, false);
+		overrides.ResetAll();
+
+		// SceneColor出力の切り替えは保存値とパスの有効状態を変更しない
+		profile.passes.front().sceneColorOutput = true;
+		Engine::RenderFeaturePassSettings second = profile.passes.front();
+		second.id = Engine::UUID{ 102 };
+		second.name = "RuntimeOutput";
+		second.sceneColorOutput = false;
+		profile.passes.emplace_back(second);
+		Engine::RenderFeaturePassSettings other = second;
+		other.id = Engine::UUID{ 103 };
+		other.name = "OtherAnchor";
+		other.anchor = Engine::RenderFeatureAnchor::BeforeBlit;
+		other.sceneColorOutput = true;
+		profile.passes.emplace_back(other);
+		runtime.Rebuild(profile);
+		const bool switched = overrides.SetSceneColorOutput(profile, second.id, true) &&
+			!overrides.IsSceneColorOutput(passID, true) &&
+			overrides.IsSceneColorOutput(second.id, false) &&
+			overrides.IsSceneColorOutput(other.id, true) &&
+			overrides.IsEnabled(passID, true) && profile.passes.front().sceneColorOutput &&
+			!profile.passes[1].sceneColorOutput &&
+			runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass == second.id &&
+			runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Scene).sceneColorOutput.pass == second.id;
+
+		// パラメータの削除後も出力指定を保持する
+		const bool retained = overrides.SetParameter(second.id, parameterID, "ReflectionStrength", value) &&
+			overrides.ClearParameter(second.id, parameterID) &&
+			overrides.IsSceneColorOutput(second.id, false);
+		const bool outputOff = overrides.SetSceneColorOutput(profile, second.id, false) &&
+			!runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).sceneColorOutput.pass &&
+			runtime.BuildPlan(second.anchor, Engine::RenderViewKind::Game).nodes.size() == 2;
+
+		// 出力設定が不正な要求は現在の指定を維持して拒否する
+		overrides.SetSceneColorOutput(profile, second.id, true);
+		profile.passes.front().outputs.emplace_back(Engine::RenderFeatureOutputSettings{});
+		profile.passes.front().outputs.front().widthScale = 0.5f;
+		const bool rejected = !overrides.SetSceneColorOutput(profile, passID, true) &&
+			!overrides.SetSceneColorOutput(profile, Engine::UUID{ 999 }, true) &&
+			overrides.IsSceneColorOutput(second.id, false) &&
+			!overrides.IsSceneColorOutput(passID, true);
+		const bool resetPass = overrides.ResetPass(second.id) &&
+			!overrides.IsSceneColorOutput(second.id, false);
 		overrides.ResetAll();
 		return valid && cleared && enabledByScript &&
-			disabledPassKeepsBypassNode &&
+			disabledPassKeepsBypassNode && visibleEnabled && switched && retained &&
+			outputOff && rejected && resetPass && overrides.IsSceneColorOutput(passID, true) &&
 			overrides.Find(passID) == nullptr;
 	}
 
@@ -2871,6 +3213,12 @@ namespace {
 					"NEMVertexTargetTest.surface.hlsli");
 			const bool expectsMeshShader =
 				target != Engine::ShaderGraphTarget::Primitive2D;
+			// Primitiveの生成PSも標準描画と同じRingのUV補正を使う
+			if (target != Engine::ShaderGraphTarget::Mesh &&
+				(vertexOutputResult.opaquePixelHLSL.find("ResolvePrimitivePixelUV") == std::string::npos ||
+					vertexOutputResult.transparentPixelHLSL.find("ResolvePrimitivePixelUV") == std::string::npos)) {
+				return false;
+			}
 			const std::string expectedFunction =
 				target == Engine::ShaderGraphTarget::Mesh ?
 					"EvaluateShaderGraphVertex" :
@@ -3266,6 +3614,34 @@ namespace {
 
 			return false;
 		}
+		// トーンマッピング後の実行位置を保存し、既存の位置から独立して実行する
+		Engine::RenderFeatureProfileAsset afterToneMapSource{};
+		Engine::RenderFeaturePassSettings afterToneMapPass = profile.passes[0];
+		afterToneMapPass.anchor = Engine::RenderFeatureAnchor::AfterToneMap;
+		afterToneMapPass.type = Engine::RenderFeaturePassType::Compute;
+		afterToneMapPass.materialPass = Engine::MaterialPassKind::PostProcess;
+		afterToneMapPass.outputs = { Engine::RenderFeatureOutputSettings{} };
+		afterToneMapPass.sceneColorOutput = true;
+		afterToneMapSource.passes = { afterToneMapPass };
+		const nlohmann::json afterToneMapData =
+			Engine::RenderFeatureProfileSerializer::ToJson(afterToneMapSource);
+		const Engine::RenderFeatureProfileAsset afterToneMapProfile =
+			Engine::RenderFeatureProfileSerializer::FromJson(afterToneMapData);
+		if (afterToneMapProfile.passes.size() != 1u ||
+			afterToneMapProfile.passes[0].anchor != Engine::RenderFeatureAnchor::AfterToneMap ||
+			afterToneMapData["passes"][0].value("anchor", std::string{}) != "AfterToneMap") {
+			return false;
+		}
+		runtime.Rebuild(afterToneMapProfile);
+		const Engine::RenderFeatureExecutionPlan afterToneMapPlan =
+			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterToneMap,
+				Engine::RenderViewKind::Game);
+		if (!afterToneMapPlan.IsValid() || afterToneMapPlan.nodes.size() != 1u ||
+			afterToneMapPlan.sceneColorOutput.pass != afterToneMapPass.id ||
+			!runtime.BuildPlan(Engine::RenderFeatureAnchor::BeforeBlit,
+				Engine::RenderViewKind::Game).nodes.empty()) {
+			return false;
+		}
 		runtime.Rebuild(selectiveProfile);
 		const Engine::RenderFeatureExecutionPlan selectivePlan =
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting,
@@ -3459,6 +3835,26 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--scene-single-load") {
+
+		if (!TestSingleSceneLoadReservation()) {
+			std::cerr << "Single scene load reservation test failed\n";
+			return 38;
+		}
+		std::cout << "Single scene load reservation test passed\n";
+		return 0;
+	}
+
+	if (1 < argc && std::string_view(argv[1]) == "--scene-copy") {
+
+		if (!TestSceneAssetCopy() || !TestExternalActors() || !TestPrefabPropagationAndNestedInstances()) {
+			std::cerr << "Scene asset copy test failed\n";
+			return 37;
+		}
+		std::cout << "Scene asset copy test passed\n";
+		return 0;
+	}
+
 	if (1 < argc && std::string_view(argv[1]) == "--scene-lifecycle") {
 		if (!TestSceneLifecycleContext()) {
 			std::cerr << "Scene lifecycle context test failed\n";
@@ -3615,11 +4011,15 @@ int main(int argc, char* argv[]) {
 		std::cerr << "SubScene failed\n";
 		return 7;
 	}
+	if (!TestSingleSceneLoadReservation()) {
+		std::cerr << "Single scene load reservation failed\n";
+		return 38;
+	}
 	if (!TestSceneLifecycleContext()) {
 		std::cerr << "Scene lifecycle context failed\n";
 		return 36;
 	}
-	if (!TestExternalActors()) {
+	if (!TestExternalActors() || !TestSceneAssetCopy()) {
 		std::cerr << "ExternalActors failed\n";
 		return 8;
 	}

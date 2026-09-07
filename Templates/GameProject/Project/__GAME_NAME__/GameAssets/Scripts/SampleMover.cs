@@ -31,7 +31,7 @@ public sealed class SampleMover : ScriptBehaviour
         // ECS側のTransformをC#から操作して、フレーム時間に応じて移動する
         float moveSpeed = Input.GetKey(KeyCode.LeftShift) ? speed * 3.0f : speed;
         Vector3 position = transform.localPosition;
-        position += direction * (moveSpeed * Time.deltaTime);
+        position += direction * (moveSpeed * Time.DeltaTime);
         transform.localPosition = position;
 
         if (!logDebugInput) {

@@ -71,7 +71,7 @@ namespace {
 	};
 
 	// MeshShaderの1グループが担当する三角形数
-	constexpr uint32_t kMeshGroupTriangles = 64;
+	constexpr uint32_t kMeshGroupTriangles = 32;
 
 	bool ResolvePrimitivePass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
 		bool is2D, Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
@@ -188,6 +188,13 @@ void Engine::PrimitiveRenderBackend::CollectInstances(const RenderDrawContext& c
 			instance.flags = ToInstanceFlags(
 				renderFlags,
 				payload->renderer->renderingLayerMask);
+		}
+		if (payload->renderer && payload->renderer->type == PrimitiveType::Ring) {
+
+			const PrimitiveRingParams& ring = payload->renderer->ring;
+			instance.shapeParams0 = Vector4(
+				ring.outerRadius, ring.innerRadius, ring.startAngle, ring.endAngle - ring.startAngle);
+			instance.shapeParams1.z = 1.0f;
 		}
 		if (payload->renderer && payload->renderer->type == PrimitiveType::Cylinder) {
 

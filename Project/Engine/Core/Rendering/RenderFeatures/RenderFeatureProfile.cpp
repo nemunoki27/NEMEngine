@@ -87,7 +87,7 @@ namespace {
 		}
 		for (uint32_t anchorIndex = 0u;
 			anchorIndex <= static_cast<uint32_t>(
-				Engine::RenderFeatureAnchor::BeforeBlit); ++anchorIndex) {
+				Engine::RenderFeatureAnchor::AfterToneMap); ++anchorIndex) {
 
 			const Engine::RenderFeatureAnchor anchor =
 				static_cast<Engine::RenderFeatureAnchor>(anchorIndex);

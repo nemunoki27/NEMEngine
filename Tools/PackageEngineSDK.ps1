@@ -18,7 +18,7 @@ $engineRoot = Split-Path -Parent $PSScriptRoot
 $generated  = Join-Path $engineRoot "Generated"
 $runtimeDeployScript = Join-Path $engineRoot "Tools\DeployRuntimeDependencies.ps1"
 if (-not (Test-Path -LiteralPath $runtimeDeployScript)) {
-    throw "Runtime dependency deploy script was not found: $runtimeDeployScript"
+    throw "ランタイム配置スクリプトが見つかりません: $runtimeDeployScript"
 }
 if ([string]::IsNullOrEmpty($OutDir)) {
     $OutDir = Join-Path $engineRoot "Generated\SDK"
@@ -36,14 +36,29 @@ function Sync-DirectoryContents([string]$Source, [string]$Destination) {
     }
 }
 
+function Get-FileSHA256([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return [System.BitConverter]::ToString($sha256.ComputeHash($stream)).Replace("-", "")
+        }
+        finally {
+            $sha256.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
 function Assert-ManagedDeployment([string]$Source, [string]$Destination, [string]$Configuration) {
     $sourceDll = Join-Path $Source "NEM.ScriptCore.dll"
     $destinationDll = Join-Path $Destination "NEM.ScriptCore.dll"
     if (-not (Test-Path -LiteralPath $destinationDll -PathType Leaf)) {
         throw "NEM.ScriptCore.dllを配置できませんでした: $destinationDll"
     }
-    if ((Get-FileHash -Algorithm SHA256 -LiteralPath $sourceDll).Hash -ne
-        (Get-FileHash -Algorithm SHA256 -LiteralPath $destinationDll).Hash) {
+    if ((Get-FileSHA256 $sourceDll) -ne (Get-FileSHA256 $destinationDll)) {
         throw "NEM.ScriptCore.dllの配置結果がビルド成果物と一致しません: $destinationDll"
     }
 
@@ -77,6 +92,16 @@ if (-not $SkipBuild) {
         & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:NEMEditor -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
         if ($LASTEXITCODE -ne 0) { throw "エディタービルドに失敗しました（$cfg）。" }
     }
+
+    # 製品ビルドツールはゲーム側の構成にかかわらずReleaseを配布する
+    Write-Host "[2/4] 製品ビルドツールをビルド中（Release）..."
+    & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:NEMBuildTool -p:Configuration=Release -p:Platform=x64 -m -nodeReuse:false -v:m -nologo
+    if ($LASTEXITCODE -ne 0) { throw "製品ビルドツールのビルドに失敗しました（Release）" }
+}
+
+$buildToolExe = Join-Path $generated "Output\Release\NEMBuildTool\NEMBuildTool.exe"
+if (-not (Test-Path -LiteralPath $buildToolExe -PathType Leaf)) {
+    throw "製品ビルドツールがビルドされていません（Release）: $buildToolExe"
 }
 
 # 2) 構成に依存しない共有部分を一度だけ書き出す
@@ -112,10 +137,24 @@ foreach ($f in @("premake5.exe","nem_game.lua","patch_script_slnx.ps1","patch_vc
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkPremake $f) }
 }
 
+$gameScriptsTargets = Join-Path $engineRoot "Premake\NEM.GameScripts.targets"
+$sdkManagedTools = Join-Path $OutDir "Managed\Tools"
+New-Item -ItemType Directory -Force -Path $sdkManagedTools | Out-Null
+if (-not (Test-Path -LiteralPath $gameScriptsTargets -PathType Leaf)) {
+    throw "C#ゲームスクリプトの配置設定が見つかりません: $gameScriptsTargets"
+}
+Copy-Item -Force -LiteralPath $gameScriptsTargets -Destination $sdkManagedTools
+
 # エディターの製品ビルドで使用するスクリプト
 $sdkTools = Join-Path $OutDir "Tools"
 New-Item -ItemType Directory -Force -Path $sdkTools | Out-Null
 Copy-Item -Force (Join-Path $engineRoot "Tools\BuildGame.ps1") (Join-Path $sdkTools "BuildGame.ps1")
+
+# SDKだけでシェーダーをCookできるようにツールと依存DLLを配置する
+$sdkBuildTool = Join-Path $sdkTools "NEMBuildTool"
+New-Item -ItemType Directory -Force -Path $sdkBuildTool | Out-Null
+Copy-Item -Force -LiteralPath $buildToolExe -Destination $sdkBuildTool
+& $runtimeDeployScript -TargetDirectory $sdkBuildTool -Configuration Release
 
 # 既存ゲーム側の Premake / 更新ツールを SDK 更新時に同期できるよう、ゲームプロジェクト用サポートファイルも同梱する
 $gameTemplate = Join-Path $engineRoot "Templates\GameProject"

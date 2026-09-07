@@ -9,7 +9,7 @@ namespace Engine {
 
 	//============================================================================
 	//	InputDeviceTool class
-	//	入力タイプの自動更新、検知入力、デッドゾーン、マウス範囲制御を編集するツール
+	//	入力タイプ、デッドゾーン、マウス範囲制御を確認、編集するツール
 	//============================================================================
 	class InputDeviceTool :
 		public IEditorTool {
@@ -45,11 +45,6 @@ namespace Engine {
 
 		// ウィンドウ表示状態
 		bool openWindow_ = false;
-
-		// 検知入力の追加用ドラフト
-		int draftDevice_ = 0;
-		bool draftIsMovement_ = false;
-		int32_t draftCode_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

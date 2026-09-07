@@ -971,6 +971,20 @@ namespace Engine {
 				UUID{ passID }, enabled != 0) ? 1 : 0;
 	}
 
+	int32_t ManagedScriptRuntime::SetRenderFeaturePassSceneColorOutputCallback(
+		uint64_t passID, uint64_t generation, int32_t enabled) {
+
+		if (!ResolveRenderFeaturePass(passID, generation)) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[レンダー機能] SceneColor出力のパスハンドルが無効です");
+			return 0;
+		}
+		return RenderFeatureRuntimeOverrides::GetInstance().SetSceneColorOutput(
+			RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(),
+			UUID{ passID }, enabled != 0) ? 1 : 0;
+	}
+
 	int32_t ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback(
 		const char* groupName, int32_t enabled) {
 
@@ -1419,15 +1433,63 @@ namespace Engine {
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
 		const AssetID sceneAsset = ToAssetID(sceneAssetID);
-		if (!world || !sceneAsset) {
+		if (!world) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.LoadScene: 実行中のWorldを取得できないため単一Sceneロードを拒否しました");
+			return 0;
+		}
+		if (!sceneAsset) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.LoadScene: SceneAssetが無効なため単一Sceneロードを拒否しました");
 			return 0;
 		}
 		SceneInstanceManager* sceneInstances =
 			world->GetCommandServices().sceneInstances;
-		if (!sceneInstances || !sceneInstances->TryBeginSingleLoadRequest()) {
+		if (!sceneInstances) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.LoadScene: SceneInstanceManagerが未設定のため単一Sceneロードを拒否しました");
+			return 0;
+		}
+		if (!sceneInstances->TryBeginSingleLoadRequest()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.LoadScene: 単一Sceneロード要求を処理中のため新しい要求を拒否しました");
 			return 0;
 		}
 		// 単一ロード、新sceneをactiveにし旧sceneを全てアンロードする処理はflushで行う
+		const UUID instanceID = UUID::New();
+		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, sceneAsset);
+		return instanceID.value;
+	}
+
+	uint64_t ManagedScriptRuntime::ReloadActiveSceneCallback() {
+
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = context ? context->world : nullptr;
+		if (!world) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.ReloadActiveScene: 実行中のWorldを取得できないため再読み込みを拒否しました");
+			return 0;
+		}
+		SceneInstanceManager* sceneInstances =
+			world->GetCommandServices().sceneInstances;
+		if (!sceneInstances) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.ReloadActiveScene: SceneInstanceManagerが未設定のため再読み込みを拒否しました");
+			return 0;
+		}
+		const SceneInstance* activeScene = sceneInstances->GetActive();
+		const AssetID sceneAsset = activeScene ? activeScene->sceneAsset : AssetID{};
+		if (!sceneAsset) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.ReloadActiveScene: アクティブSceneを取得できないため再読み込みを拒否しました");
+			return 0;
+		}
+		if (!sceneInstances->TryBeginSingleLoadRequest()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"SceneManager.ReloadActiveScene: 単一Sceneロード要求を処理中のため再読み込みを拒否しました");
+			return 0;
+		}
+
 		const UUID instanceID = UUID::New();
 		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, sceneAsset);
 		return instanceID.value;

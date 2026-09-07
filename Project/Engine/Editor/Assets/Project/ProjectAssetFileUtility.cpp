@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -158,22 +160,30 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 	// 元のアセットパスを解決し存在しなければ中断
 	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
 	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
-		result.message = "Source asset was not found.";
+		result.message = "複製元のアセットが見つかりません";
 		return result;
 	}
 
 	// 複製先のパスを既存アセットとの競合回避で決定する
 	const std::filesystem::path targetPath = MakeUniquePath(sourcePath);
 	if (targetPath.empty()) {
-		result.message = "Failed to build duplicate file path.";
+		result.message = "アセットの複製先を決定できません";
 		return result;
 	}
 
+	// シーンは外部Actorと内部参照も合わせて複製する
+	if (asset.type == AssetType::Scene) {
+
+		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message);
+		result.fullPath = targetPath;
+		result.assetPath = ToAssetPath(targetPath);
+		return result;
+	}
 	// ファイルをコピー
 	std::error_code ec;
 	std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::none, ec);
 	if (ec) {
-		result.message = "Failed to copy asset file.";
+		result.message = "アセットファイルを複製できません";
 		return result;
 	}
 
@@ -209,7 +219,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const 
 	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
 	const std::filesystem::path targetDirectory = ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
 	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || targetDirectory.empty()) {
-		result.message = "Source asset or target folder was not found.";
+		result.message = "コピー元のアセットまたはコピー先フォルダーが見つかりません";
 		return result;
 	}
 
@@ -217,21 +227,29 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const 
 	std::error_code ec;
 	std::filesystem::create_directories(targetDirectory, ec);
 	if (ec) {
-		result.message = "Failed to create target folder.";
+		result.message = "コピー先フォルダーを作成できません";
 		return result;
 	}
 
 	// コピー先のパスを既存アセットとの競合回避で決定する
 	const std::filesystem::path targetPath = MakeUniquePath(targetDirectory / sourcePath.filename());
 	if (targetPath.empty()) {
-		result.message = "Failed to build copy file path.";
+		result.message = "アセットのコピー先を決定できません";
 		return result;
 	}
 
+	// コピペでも単体複製と同じシーン保存処理を使う
+	if (asset.type == AssetType::Scene) {
+
+		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message);
+		result.fullPath = targetPath;
+		result.assetPath = ToAssetPath(targetPath);
+		return result;
+	}
 	// ファイルをコピー
 	std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::none, ec);
 	if (ec) {
-		result.message = "Failed to copy asset file.";
+		result.message = "アセットファイルを複製できません";
 		return result;
 	}
 
@@ -413,55 +431,73 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirecto
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = true;
-
 	const std::filesystem::path sourcePath = ResolveVirtualDirectory(source, directoryVirtualPath);
-	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
-		result.message = "Source folder was not found.";
+	if (sourcePath.empty() || sourcePath == GetSourceRoot(source) ||
+		!std::filesystem::is_directory(sourcePath)) {
+
+		result.message = "複製元フォルダーが存在しないかルートフォルダーです";
 		return result;
 	}
-
 	const std::filesystem::path targetPath = MakeUniquePath(sourcePath);
 	if (targetPath.empty()) {
-		result.message = "Failed to build duplicate folder path.";
+
+		result.message = "フォルダーの複製先を決定できません";
 		return result;
 	}
-
 	std::error_code ec;
-	std::filesystem::create_directories(targetPath, ec);
-	if (ec) {
-		result.message = "Failed to create duplicate folder.";
+	if (!std::filesystem::create_directory(targetPath, ec) || ec) {
+
+		result.message = "複製先フォルダーを作成できません";
 		return result;
 	}
+	// 新規作成した複製先だけを取り消す
+	const auto fail = [&](const char* message) {
 
-	// フォルダ内を再帰的にコピー
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(sourcePath, ec)) {
+		result.message = message;
+		std::filesystem::remove_all(targetPath, ec);
 		if (ec) {
-			result.message = "Failed to scan source folder.";
-			return result;
-		}
 
-		const std::filesystem::path relative = std::filesystem::relative(entry.path(), sourcePath, ec);
-		if (ec || !IsSafeRelativePath(relative)) {
-			continue;
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"ProjectPanel: 複製途中のフォルダーを削除できません path={}", Algorithm::PathToUTF8(targetPath));
 		}
+		return result;
+	};
+	std::vector<SceneAssetCopy> sceneCopies;
+	try {
 
-		const std::filesystem::path destination = targetPath / relative;
-		if (entry.is_directory()) {
-			std::filesystem::create_directories(destination, ec);
+		// シーン本体は後でActorと一括複製し、その他のファイルは従来どおりコピーする
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(sourcePath)) {
+
+			const std::filesystem::path relative = std::filesystem::relative(entry.path(), sourcePath);
+			if (!IsSafeRelativePath(relative)) {
+
+				return fail("複製元フォルダーに不正な相対パスがあります");
+			}
+			const std::filesystem::path destination = targetPath / relative;
+			if (entry.is_directory()) {
+
+				std::filesystem::create_directories(destination);
+			} else if (entry.is_regular_file() && !ShouldSkipCopyFile(entry.path())) {
+
+				if (AssetTypeResolver::GuessByPath(entry.path()) == AssetType::Scene) {
+
+					sceneCopies.push_back({ entry.path(), destination });
+					continue;
+				}
+				std::filesystem::copy_file(entry.path(), destination);
+			}
 		}
-		else if (entry.is_regular_file() && !ShouldSkipCopyFile(entry.path())) {
-			std::filesystem::create_directories(destination.parent_path(), ec);
-			std::filesystem::copy_file(entry.path(), destination, std::filesystem::copy_options::none, ec);
-		}
-		if (ec) {
-			result.message = "Failed to copy folder contents.";
-			return result;
-		}
+		PatchDuplicatedDirectoryAssets(targetPath);
+	} catch (const std::exception&) {
+
+		return fail("フォルダーの内容を複製できません");
 	}
+	// Actorはフォルダー外に保存されるため、失敗時の取り消しもシーン側でまとめて行う
+	std::string sceneError;
+	if (!SceneSystem::CopySceneAssets(sceneCopies, sceneError)) {
 
-	// コピーされた全アセットの名前とGUIDを修正
-	PatchDuplicatedDirectoryAssets(targetPath);
-
+		return fail(sceneError.c_str());
+	}
 	result.success = true;
 	result.fullPath = targetPath;
 	result.assetPath = ToAssetPath(targetPath);

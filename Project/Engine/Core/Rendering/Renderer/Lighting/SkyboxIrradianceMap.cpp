@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -30,6 +31,7 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	// 畳み込みコンピュートパイプラインを生成
 	ComputePipelineDesc desc{};
 	desc.compute.file = "Builtin/Lighting/skyboxIrradiance.CS.hlsl";
+	desc.compute.shader = BuiltinAssets::Shaders::SkyboxIrradiance;
 	desc.compute.entry = "main";
 	desc.compute.profile = "cs_6_6";
 

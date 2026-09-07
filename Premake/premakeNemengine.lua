@@ -69,6 +69,9 @@ project "NEMEditor"
     NEM_AddEngineDllLinkSettings()
     NEM_ApplyDefaultConfigFilters()
     defines { "NEM_EDITOR_UI_ENABLED" }
+    includedirs {
+        path.join(NEM_OUTPUT_ROOT, "BuildInfo/%{cfg.buildcfg}"),
+    }
     links {
         "NEMCore",
         "imgui",
@@ -77,10 +80,17 @@ project "NEMEditor"
     dependson { "NEMCore", "imgui-node-editor" }
     debugdir (path.join(NEM_PROJECT_ROOT, "Sandbox"))
 
+    -- Editor固有のビルド情報を構成ごとに生成する
+    local buildInfoScript = path.translate(path.join(
+        NEMENGINE_ROOT, "Tools/GenerateEditorBuildInfo.ps1"), "\\")
+    local buildInfoOutput = path.translate(path.join(
+        NEM_OUTPUT_ROOT, "BuildInfo/$(Configuration)/EditorBuildInfo.generated.h"), "\\")
     -- Native Callback ABIとManaged側のテーブルを同じ構成で揃える
     local scriptCoreProject = path.translate(path.join(
         NEM_PROJECT_ROOT, "Engine/Managed/NEM.ScriptCore/NEM.ScriptCore.csproj"), "\\")
     prebuildcommands {
+        'powershell -NoProfile -ExecutionPolicy Bypass -File "' .. buildInfoScript ..
+        '" -OutputPath "' .. buildInfoOutput .. '" -Configuration "$(Configuration)"',
         "set DOTNET_CLI_UI_LANGUAGE=en",
         'dotnet build "' .. scriptCoreProject .. '" -c "$(Configuration)"',
     }

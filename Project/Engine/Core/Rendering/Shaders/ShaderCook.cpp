@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -399,7 +400,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 	const std::filesystem::path resolvedOutputRoot =
 		std::filesystem::absolute(outputRoot, outputError);
 	if (outputError || resolvedOutputRoot.empty()) {
-		outError = "ShaderCook output directory is invalid";
+		outError = "シェーダーCookの出力先が不正です";
 		return false;
 	}
 	const nlohmann::json buildManifest = JsonAdapter::Load(manifestPath, true);
@@ -407,7 +408,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 		buildManifest.value("schemaVersion", 0u) != 2u ||
 		!buildManifest.contains("files") ||
 		!buildManifest["files"].is_array()) {
-		outError = "GameBuild manifest is invalid";
+		outError = "製品ビルドのマニフェストが不正です";
 		return false;
 	}
 
@@ -416,13 +417,13 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 	std::error_code ec;
 	std::filesystem::current_path(gameRoot, ec);
 	if (ec) {
-		outError = "Game project directory was not found";
+		outError = "ゲームプロジェクトのフォルダーが見つかりません";
 		return false;
 	}
 	RuntimePaths::Refresh();
 	AssetDatabase database{};
 	if (!database.Init() || !database.RebuildMeta()) {
-		outError = "AssetDatabase initialization failed";
+		outError = "アセットデータベースの初期化に失敗しました";
 		return false;
 	}
 
@@ -442,6 +443,12 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			continue;
 		}
 		if (meta.type == AssetType::Shader) {
+			// HLSLソースは定義ファイルのステージからコンパイルする
+			const std::string extension = Algorithm::ToLower(
+				Algorithm::PathToUTF8(Algorithm::PathFromUTF8(meta.assetPath).extension()));
+			if (extension == ".hlsl" || extension == ".hlsli") {
+				continue;
+			}
 			shaderMetas.emplace_back(&meta);
 		} else if (meta.type == AssetType::ShaderGraph) {
 			graphMetas.emplace_back(&meta);
@@ -453,6 +460,13 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 		};
 	std::sort(shaderMetas.begin(), shaderMetas.end(), sortByPath);
 	std::sort(graphMetas.begin(), graphMetas.end(), sortByPath);
+	for (const AssetID shaderID : BuiltinAssets::Shaders::FixedRuntime) {
+		if (std::none_of(shaderMetas.begin(), shaderMetas.end(),
+			[shaderID](const AssetMeta* meta) { return meta->guid == shaderID; })) {
+			outError = "製品描画に必須のシェーダーが含まれていません: " + ToString(shaderID);
+			return false;
+		}
+	}
 
 	DxShaderCompiler compiler{};
 	compiler.Init();
@@ -465,6 +479,10 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 	const auto cookShader = [&](ShaderAsset shader,
 		std::string_view sourceName) -> bool {
 
+		if (shader.stages.empty()) {
+			outError = "シェーダーに有効なステージがありません: " + std::string(sourceName);
+			return false;
+		}
 		nlohmann::json shaderRecord = {
 			{ "asset", WriteShaderMetadata(shader) },
 			{ "stages", nlohmann::json::array() },
@@ -488,7 +506,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 				sourcePath.wstring(), Algorithm::ConvertString(profile).c_str(),
 				Algorithm::ConvertString(entry).c_str(), stage.stage);
 			if (!compiled.IsValid()) {
-				outError = "Shader compile failed: " + std::string(sourceName) + " [" +
+				outError = "シェーダーのコンパイルに失敗しました: " + std::string(sourceName) + " [" +
 					std::string(EnumAdapter<ShaderStage>::ToString(stage.stage)) + "]";
 				return false;
 			}
@@ -501,7 +519,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 				Algorithm::PathFromUTF8(fileName);
 			if (!WriteBinary(bytecodePath, compiled.GetBytecodePointer(),
 				compiled.GetBytecodeSize())) {
-				outError = "Cooked shader write failed: " + fileName;
+				outError = "Cook済みシェーダーの書き込みに失敗しました: " + fileName;
 				return false;
 			}
 			shaderRecord["stages"].push_back({
@@ -522,7 +540,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 	for (const AssetMeta* meta : shaderMetas) {
 		ShaderAsset shader{};
 		if (!FromJson(JsonAdapter::Load(database.ResolveFullPath(meta->guid), true), shader)) {
-			outError = "Shader Asset load failed: " + meta->assetPath;
+			outError = "シェーダーアセットの読み込みに失敗しました: " + meta->assetPath;
 			return false;
 		}
 		shader.guid = meta->guid;
@@ -533,13 +551,13 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 	for (const AssetMeta* meta : graphMetas) {
 		ShaderGraphAsset graph{};
 		if (!FromJson(JsonAdapter::Load(database.ResolveFullPath(meta->guid), true), graph)) {
-			outError = "Shader Graph load failed: " + meta->assetPath;
+			outError = "Shader Graphの読み込みに失敗しました: " + meta->assetPath;
 			return false;
 		}
 		ShaderGraphArtifact artifact{};
 		if (!ShaderGraphArtifactCache::Compile(
 			graph, meta->guid, artifact, &database)) {
-			outError = "Shader Graph compile failed: " + meta->assetPath;
+			outError = "Shader Graphのコンパイルに失敗しました: " + meta->assetPath;
 			return false;
 		}
 		if (artifact.opaqueShader.guid &&
@@ -583,12 +601,12 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 		}
 	}
 	if (outResult.stageCount == 0) {
-		outError = "No Shader Assets were included in the product build";
+		outError = "製品ビルドにシェーダーアセットが含まれていません";
 		return false;
 	}
 	if (!JsonAdapter::SaveCanonical(resolvedOutputRoot / "ShaderCookManifest.json",
 		cookedManifest)) {
-		outError = "ShaderCook manifest write failed";
+		outError = "シェーダーCookのマニフェストの書き込みに失敗しました";
 		return false;
 	}
 	return true;

@@ -183,7 +183,15 @@ const Engine::MaterialAsset* Engine::RenderAssetLibrary::LoadMaterial(AssetID as
 
 const Engine::MSDFFontAsset* Engine::RenderAssetLibrary::LoadFont(AssetID assetID) {
 
-	return LoadCachedAsset(fontCache_, assetID);
+	const MSDFFontAsset* font = LoadCachedAsset(fontCache_, assetID);
+	if (!font || font->contentRevision != 0) {
+		return font;
+	}
+
+	// 新しく読み込んだフォントへ内容リビジョンを割り当てる
+	MSDFFontAsset& loadedFont = fontCache_.at(assetID);
+	loadedFont.contentRevision = nextFontContentRevision_++;
+	return &loadedFont;
 }
 
 const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffect(AssetID assetID) {

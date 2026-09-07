@@ -53,7 +53,10 @@ namespace Engine {
 	// v47: RenderFeatureグループの有効状態APIを追加
 	// v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
 	// v49: Canvas遷移テーブルの取得と変更APIを追加
-	inline constexpr uint32_t kManagedAbiVersion = 49;
+	// v50: RenderFeatureのSceneColor出力切り替えAPIを追加
+	// v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
+	// v52: アクティブSceneの再読み込みAPIを追加
+	inline constexpr uint32_t kManagedAbiVersion = 52;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {

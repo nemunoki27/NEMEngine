@@ -47,7 +47,10 @@ internal static class ManagedAbi {
     // v47: RenderFeatureグループの有効状態APIを追加
     // v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
     // v49: Canvas遷移テーブルの取得と変更APIを追加
-    internal const uint Version = 49;
+    // v50: RenderFeatureのSceneColor出力切り替えAPIを追加
+    // v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
+    // v52: アクティブSceneの再読み込みAPIを追加
+    internal const uint Version = 52;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -361,6 +364,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneAdditive;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneSingle;
+    internal static delegate* unmanaged[Cdecl]<ulong> ReloadActiveScene;
     internal static delegate* unmanaged[Cdecl]<ulong, void> UnloadScene;
     internal static delegate* unmanaged[Cdecl]<ulong, int> IsSceneInstanceAlive;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> SetParentKeepWorld;
@@ -410,9 +414,8 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetIgnoreParentScale;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetIgnoreParentScale;
 
-    // v17: 入力デバイス
+    // 入力デバイス
     internal static delegate* unmanaged[Cdecl]<int> GetInputType;
-    internal static delegate* unmanaged[Cdecl]<int, void> SetInputType;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*, int> SetRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*, int> GetRendererMaterialParameter;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int> ClearRendererMaterialParameter;
@@ -422,6 +425,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<byte*, ulong*, ulong*, int> ResolveRenderFeaturePass;
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int> ValidateRenderFeaturePass;
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassEnabled;
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassSceneColorOutput;
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> SetRenderFeatureGroupEnabled;
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, byte*,
         NativeMaterialParameterValue*, int> SetRenderFeaturePassParameter;
@@ -545,6 +549,7 @@ internal static unsafe class NativeApi {
         InstantiatePrefab = callbacks->instantiatePrefab;
         LoadSceneAdditive = callbacks->loadSceneAdditive;
         LoadSceneSingle = callbacks->loadSceneSingle;
+        ReloadActiveScene = callbacks->reloadActiveScene;
         UnloadScene = callbacks->unloadScene;
         IsSceneInstanceAlive = callbacks->isSceneInstanceAlive;
         SetParentKeepWorld = callbacks->setParentKeepWorld;
@@ -587,7 +592,6 @@ internal static unsafe class NativeApi {
         GetIgnoreParentScale = callbacks->getIgnoreParentScale;
         SetIgnoreParentScale = callbacks->setIgnoreParentScale;
         GetInputType = callbacks->getInputType;
-        SetInputType = callbacks->setInputType;
         GetMouseRangeControl = callbacks->getMouseRangeControl;
         SetMouseRangeControl = callbacks->setMouseRangeControl;
         SetRendererMaterialParameter = callbacks->setRendererMaterialParameter;
@@ -598,6 +602,7 @@ internal static unsafe class NativeApi {
         ResolveRenderFeaturePass = callbacks->resolveRenderFeaturePass;
         ValidateRenderFeaturePass = callbacks->validateRenderFeaturePass;
         SetRenderFeaturePassEnabled = callbacks->setRenderFeaturePassEnabled;
+        SetRenderFeaturePassSceneColorOutput = callbacks->setRenderFeaturePassSceneColorOutput;
         SetRenderFeatureGroupEnabled = callbacks->setRenderFeatureGroupEnabled;
         SetRenderFeaturePassParameter = callbacks->setRenderFeaturePassParameter;
         GetRenderFeaturePassParameter = callbacks->getRenderFeaturePassParameter;
@@ -807,7 +812,6 @@ internal static unsafe class NativeApi {
     }
 
     internal static int ReadInputType() => GetInputType != null ? GetInputType() : 0;
-    internal static void WriteInputType(int type) { if (SetInputType != null) { SetInputType(type); } }
     internal static bool ReadMouseRangeControl() => GetMouseRangeControl != null && GetMouseRangeControl() != 0;
     internal static void WriteMouseRangeControl(bool enabled) { if (SetMouseRangeControl != null) { SetMouseRangeControl(enabled ? 1 : 0); } }
     // パラメータ名は保存用、IDは描画時の高速検索用として両方を境界へ渡す
@@ -897,6 +901,11 @@ internal static unsafe class NativeApi {
 		SetRenderFeaturePassEnabled != null && passID != 0ul &&
 		generation != 0ul && SetRenderFeaturePassEnabled(
 			passID, generation, enabled ? 1 : 0) != 0;
+
+	internal static bool WriteRenderFeaturePassSceneColorOutput(
+		ulong passID, ulong generation, bool enabled) =>
+		SetRenderFeaturePassSceneColorOutput != null &&
+		SetRenderFeaturePassSceneColorOutput(passID, generation, enabled ? 1 : 0) != 0;
 
 	internal static bool WriteRenderFeaturePassParameter(
 		ulong passID, ulong generation, ulong parameterID,
@@ -1599,6 +1608,7 @@ internal static unsafe class NativeApi {
 
     internal static ulong SceneLoadAdditive(AssetGUID sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
     internal static ulong SceneLoadSingle(AssetGUID sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
+    internal static ulong SceneReloadActive() => ReloadActiveScene != null ? ReloadActiveScene() : 0ul;
     internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
     internal static bool SceneInstanceAlive(ulong sceneInstanceId) => IsSceneInstanceAlive != null && IsSceneInstanceAlive(sceneInstanceId) != 0;
     internal static void ReparentKeepWorld(NativeEntity child, NativeEntity parent, bool worldPositionStays) {

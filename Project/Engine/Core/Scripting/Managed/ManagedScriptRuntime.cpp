@@ -253,7 +253,6 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getTimeScale = &ManagedScriptRuntime::GetTimeScaleCallback;
 	callbacks.setTimeScale = &ManagedScriptRuntime::SetTimeScaleCallback;
 	callbacks.getInputType = &ManagedScriptRuntime::GetInputTypeCallback;
-	callbacks.setInputType = &ManagedScriptRuntime::SetInputTypeCallback;
 	callbacks.getMouseRangeControl = &ManagedScriptRuntime::GetMouseRangeControlCallback;
 	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
 	callbacks.setRendererMaterialParameter =
@@ -272,6 +271,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 		&ManagedScriptRuntime::ValidateRenderFeaturePassCallback;
 	callbacks.setRenderFeaturePassEnabled =
 		&ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback;
+	callbacks.setRenderFeaturePassSceneColorOutput =
+		&ManagedScriptRuntime::SetRenderFeaturePassSceneColorOutputCallback;
 	callbacks.setRenderFeatureGroupEnabled =
 		&ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback;
 	callbacks.setRenderFeaturePassParameter =
@@ -337,6 +338,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
 	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
+	callbacks.reloadActiveScene = &ManagedScriptRuntime::ReloadActiveSceneCallback;
 	callbacks.resolveEntityRef = &ManagedScriptRuntime::ResolveEntityRefCallback;
 	// ライン描画v12のcomponent点列設定と即時描画
 	callbacks.lineSetPoints = &ManagedScriptRuntime::LineSetPointsCallback;

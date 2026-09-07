@@ -2307,11 +2307,13 @@ namespace {
 			"\tMeshVertex vertex = gVertices[vertexID];\n"
 			"\tPrimitiveInstance instance = gInstances[instanceID];\n"
 			"\tShaderGraphPrimitiveVertexResult graph = EvaluatePrimitiveShaderGraphVertex(vertex, instance);\n"
-			"\treturn BuildPrimitiveVertexOutput(\n"
+			"\tVSOutput output = BuildPrimitiveVertexOutput(\n"
 			"\t\tgraph.position, graph.normal, graph.tangent,\n"
 			"\t\tvertex.tangentSign, vertex.uv,\n"
 			"\t\tResolvePrimitiveVertexColor(vertex.position.xyz, instance),\n"
 			"\t\tinstance);\n"
+			"\toutput.uvCoordinates.xy = vertex.position.xy;\n"
+			"\treturn output;\n"
 			"}\n";
 		return source;
 	}
@@ -2329,7 +2331,7 @@ namespace {
 			"\tuint3 _pad;\n"
 			"};\n"
 			"StructuredBuffer<uint> gIndices : register(t2);\n\n"
-			"#define PRIMITIVE_GROUP_TRIANGLES 64\n\n"
+			"#define PRIMITIVE_GROUP_TRIANGLES 32\n\n"
 			"[numthreads(PRIMITIVE_GROUP_TRIANGLES, 1, 1)]\n"
 			"[outputtopology(\"triangle\")]\n"
 			"void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, out vertices VSOutput verts[PRIMITIVE_GROUP_TRIANGLES * 3], out indices uint3 tris[PRIMITIVE_GROUP_TRIANGLES]) {\n\n"
@@ -2348,6 +2350,7 @@ namespace {
 			"\t\t\tvertex.tangentSign, vertex.uv,\n"
 			"\t\t\tResolvePrimitiveVertexColor(vertex.position.xyz, instance),\n"
 			"\t\t\tinstance);\n"
+			"\t\tverts[groupThreadID * 3u + index].uvCoordinates.xy = vertex.position.xy;\n"
 			"\t}\n"
 			"\ttris[groupThreadID] = uint3(groupThreadID * 3u, groupThreadID * 3u + 1u, groupThreadID * 3u + 2u);\n"
 			"}\n";
@@ -2421,7 +2424,9 @@ namespace {
 			"\tMeshVertex vertex = gVertices[vertexID];\n"
 			"\tPrimitiveInstance instance = gInstances[instanceID];\n"
 			"\tShaderGraphPrimitive2DVertexResult graph = EvaluatePrimitive2DShaderGraphVertex(vertex, instance);\n"
-			"\treturn BuildPrimitive2DVertexOutput(graph.position, vertex.uv, instance);\n"
+			"\tVSOutput output = BuildPrimitive2DVertexOutput(graph.position, vertex.uv, instance);\n"
+			"\toutput.uvCoordinates.xy = vertex.position.xy;\n"
+			"\treturn output;\n"
 			"}\n";
 		return source;
 	}
@@ -2444,7 +2449,7 @@ namespace {
 			"\tfloat3 N = normalize(input.normal);\n"
 			"\tfloat3 T = normalize(input.tangent - N * dot(N, input.tangent));\n"
 			"\tShaderGraphSurfaceInput graphInput;\n"
-			"\tgraphInput.uv = input.texcoord;\n"
+			"\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, input.uvBasis);\n"
 			"\tgraphInput.worldNormal = N;\n"
 			"\tgraphInput.worldPosition = input.worldPos;\n"
 			"\tgraphInput.objectPosition = input.worldPos;\n"
@@ -2546,7 +2551,7 @@ namespace {
 				"\tPSInstance instance = gPSInstances[input.instanceID];\n"
 				"\tgraphInput.uv = mul(float4(input.materialTexcoord, 0.0f, 1.0f), instance.uvMatrix).xy;\n";
 		} else {
-			source += "\tgraphInput.uv = input.texcoord;\n";
+			source += "\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, input.uvBasis);\n";
 		}
 		source +=
 			"\tgraphInput.worldNormal = float3(0.0f, 0.0f, -1.0f);\n"

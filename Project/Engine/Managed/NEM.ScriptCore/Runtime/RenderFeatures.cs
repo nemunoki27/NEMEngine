@@ -22,6 +22,10 @@ public readonly struct RenderFeaturePass {
         NativeApi.WriteRenderFeaturePassEnabled(
             passID, generation, enabled);
 
+    // 同じ実行位置のSceneColor出力をこのパスへ切り替える
+    public bool SetSceneColorOutput(bool enabled) =>
+        NativeApi.WriteRenderFeaturePassSceneColorOutput(passID, generation, enabled);
+
     public bool SetFloat(string name, float value) =>
         SetFloat(MaterialParameterID.FromName(name), name, value);
 
@@ -247,6 +251,9 @@ public static class RenderFeatures {
             ? new RenderFeaturePass(passID, generation)
             : default;
     }
+
+    public static bool SetSceneColorOutput(string passName, bool enabled) =>
+        FindPass(passName).SetSceneColorOutput(enabled);
 
     public static bool SetEnabled(string passName, bool enabled) =>
         FindPass(passName).SetEnabled(enabled);

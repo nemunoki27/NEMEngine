@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -43,11 +44,13 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 
 	// 画面全体を覆う共通VSを使い回す
 	desc.preRaster.file = "Builtin/FullscreenCopy/fullscreenCopy.VS.hlsl";
+	desc.preRaster.shader = BuiltinAssets::Shaders::FullscreenCopy;
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
 	// cubemapをbindlessで引くためPixelはSM6_6を使う
 	desc.pixel.file = "Builtin/Lighting/deferredLighting.PS.hlsl";
+	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLighting;
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_6";
 
@@ -86,6 +89,7 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 
 	// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
 	desc.pixel.entry = "mainShadowed";
+	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
 	shadowedAvailable_ = pipelineShadowed_.CreateGraphics(device, compiler, desc);
 }
 

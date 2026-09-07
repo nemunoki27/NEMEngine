@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -33,11 +34,13 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.type = PipelineType::Vertex;
 
 	desc.preRaster.file = BuiltinShaderSource::Skybox::VS;
+	desc.preRaster.shader = BuiltinAssets::Shaders::Skybox;
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
 	// cubemapをbindlessで引くためPixelはSM6_6を使う
 	desc.pixel.file = BuiltinShaderSource::Skybox::PS;
+	desc.pixel.shader = BuiltinAssets::Shaders::Skybox;
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_6";
 

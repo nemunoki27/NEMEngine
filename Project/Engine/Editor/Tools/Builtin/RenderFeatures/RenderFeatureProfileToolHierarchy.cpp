@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
@@ -531,8 +532,20 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 					ImGui::PopID();
 					continue;
 				}
-				if (ImGui::Checkbox("##Enabled", &pass->enabled)) {
-					SetDirty();
+				// Play中は保存値を変更せず実行時の設定を表示する
+				RenderFeatureRuntimeOverrides& overrides = RenderFeatureRuntimeOverrides::GetInstance();
+				bool enabled = context.IsPlaying() ?
+					overrides.IsEnabled(pass->id, pass->enabled) : pass->enabled;
+				if (ImGui::Checkbox("##Enabled", &enabled)) {
+
+					if (context.IsPlaying()) {
+
+						overrides.SetEnabled(pass->id, enabled);
+					} else {
+
+						pass->enabled = enabled;
+						SetDirty();
+					}
 				}
 				ImGui::SameLine();
 				const bool selected = IsSelected(selectedPasses_, item.id);

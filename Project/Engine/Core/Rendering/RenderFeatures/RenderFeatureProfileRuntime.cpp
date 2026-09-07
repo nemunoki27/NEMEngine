@@ -202,7 +202,8 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 			.output = pass.outputs.empty() ?
 				"Color" : pass.outputs.front().name,
 		};
-		if (pass.sceneColorOutput) {
+		if (RenderFeatureRuntimeOverrides::GetInstance().IsSceneColorOutput(
+			pass.id, pass.sceneColorOutput)) {
 			if (plan.sceneColorOutput.pass) {
 				plan.diagnostic =
 					"同じ実行位置にSceneColor出力が複数あります";

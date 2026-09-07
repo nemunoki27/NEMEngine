@@ -56,6 +56,8 @@ namespace Engine {
 		// シェーダーとパイプラインのアセットキャッシュを破棄する
 		void InvalidateShader(AssetID assetID) { shaderCache_.erase(assetID); }
 		void InvalidatePipeline(AssetID assetID) { pipelineCache_.erase(assetID); }
+		// フォントのキャッシュを破棄して次回ロードで内容リビジョンを進める
+		void InvalidateFont(AssetID assetID) { fontCache_.erase(assetID); }
 		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
 		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
 		void InvalidateRenderFeatureProfile(AssetID assetID) {
@@ -86,6 +88,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		AssetDatabase* database_ = nullptr;
+		// フォントレイアウトキャッシュの世代判定に使うリビジョン
+		uint64_t nextFontContentRevision_ = 1;
 
 		// アセットIDからデータへのマップ
 		std::unordered_map<AssetID, ShaderAsset> shaderCache_;

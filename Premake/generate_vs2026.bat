@@ -78,7 +78,7 @@ if "%FINDSTR_RC%"=="0" (
 
 del /q "%~dp0premake_error.log" >nul 2>&1
 echo [OK] Premake generation succeeded.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -ScriptCoreProject "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -GameScriptsProject "%ENGINE_ROOT%\Project\Sandbox\Scripts\GameScripts.csproj"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -ScriptCoreProject "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" -GameScriptsProject "%ENGINE_ROOT%\Project\Sandbox\Scripts\GameScripts.csproj" -DependentProject "%ENGINE_ROOT%\Project\Sandbox\Sandbox.vcxproj"
 if errorlevel 1 (
     echo [ERROR] Failed to patch C# projects into the solution.
     popd
@@ -146,7 +146,7 @@ echo --- Game project: %GP_NAME% ---
 
 rem Add GameScripts.csproj to the game-specific solution folder.
 if exist "%GP_APP%\Scripts\GameScripts.csproj" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -GameScriptsProject "%GP_APP%\Scripts\GameScripts.csproj" -GameScriptsSolutionFolder "GameProjects\%GP_NAME%"
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch_script_slnx.ps1" -SlnxPath "%ENGINE_ROOT%\Project\NEMEngine.slnx" -GameScriptsProject "%GP_APP%\Scripts\GameScripts.csproj" -GameScriptsSolutionFolder "GameProjects\%GP_NAME%" -DependentProject "%GP_APP%\%GP_NAME%.vcxproj"
     if errorlevel 1 (
         echo [ERROR] Failed to add C# project to solution: %GP_NAME%
         endlocal

@@ -211,7 +211,8 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		meshReloadCallback_(meta->guid);
 		Logger::Output(LogType::Engine, "[AssetWatch] Model変更により再読み込みを要求します: {}", assetPath);
 	} else if ((meta->type == AssetType::Material || meta->type == AssetType::Shader ||
-		meta->type == AssetType::RenderPipeline) && renderAssetReloadCallback_) {
+		meta->type == AssetType::RenderPipeline || meta->type == AssetType::Font) &&
+		renderAssetReloadCallback_) {
 
 		// 描画アセットは依存関係を含めてRenderPipelineRunner側で再ロードする
 		renderAssetReloadCallback_(meta->guid);

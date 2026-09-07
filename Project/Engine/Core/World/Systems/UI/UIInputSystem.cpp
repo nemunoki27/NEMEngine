@@ -345,7 +345,7 @@ namespace {
 			canvas.stickThreshold <= std::abs(stick.y)) {
 			return std::abs(stick.x) > std::abs(stick.y) ?
 				Engine::Vector2(stick.x < 0.0f ? -1.0f : 1.0f, 0.0f) :
-				Engine::Vector2(0.0f, stick.y < 0.0f ? -1.0f : 1.0f);
+				Engine::Vector2(0.0f, stick.y < 0.0f ? 1.0f : -1.0f);
 		}
 		return {};
 	}

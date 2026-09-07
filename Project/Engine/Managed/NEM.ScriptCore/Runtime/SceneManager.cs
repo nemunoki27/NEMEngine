@@ -85,6 +85,17 @@ public static class SceneManager {
         return handle;
     }
 
+    // 現在のアクティブシーンを単一ロードで読み直す
+    public static SceneHandle ReloadActiveScene() {
+        ulong id = NativeApi.SceneReloadActive();
+        if (id == 0) {
+            return default;
+        }
+        var handle = new SceneHandle(id);
+        pendingLoad.Add((handle, default));
+        return handle;
+    }
+
     // シーンインスタンスを unload する。stale/invalid handle は false。
     public static bool Unload(SceneHandle scene) {
         if (scene.instanceId == 0) {

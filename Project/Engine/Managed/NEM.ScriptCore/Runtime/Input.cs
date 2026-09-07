@@ -159,11 +159,8 @@ public static class Input {
     public static float mouseWheel => NativeApi.ReadMouseWheel();
     public static bool isGamepadConnected => NativeApi.ReadIsGamepadConnected();
 
-    // 現在の入力タイプ、取得と設定ができる
-    public static InputType inputType {
-        get => (InputType)NativeApi.ReadInputType();
-        set => NativeApi.WriteInputType((int)value);
-    }
+    // 最後に操作された入力デバイスタイプ
+    public static InputType inputType => (InputType)NativeApi.ReadInputType();
     // マウス移動範囲制御のON/OFF
     public static bool mouseRangeControl {
         get => NativeApi.ReadMouseRangeControl();

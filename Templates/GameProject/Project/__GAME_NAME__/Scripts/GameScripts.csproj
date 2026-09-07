@@ -58,4 +58,8 @@
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptCodeGen.dll" />
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptAnalyzers.dll" />
   </ItemGroup>
+
+  <!-- 通常ビルドの成果物をゲーム実行フォルダーへ配置する -->
+  <Import Project="$(NEMEngineSdkManaged)\Tools\NEM.GameScripts.targets"
+          Condition="Exists('$(NEMEngineSdkManaged)\Tools\NEM.GameScripts.targets')" />
 </Project>

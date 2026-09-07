@@ -1,6 +1,15 @@
 #include "RenderFeatureRuntimeOverrides.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
+
+// c++
+#include <algorithm>
+
+//============================================================================
 //	RenderFeatureRuntimeOverrides classMethods
 //============================================================================
 bool Engine::RenderFeatureRuntimeOverrides::SetEnabled(
@@ -11,6 +20,56 @@ bool Engine::RenderFeatureRuntimeOverrides::SetEnabled(
 	}
 	overrides_[passID].enabled = enabled;
 	return true;
+}
+
+bool Engine::RenderFeatureRuntimeOverrides::SetSceneColorOutput(
+	const RenderFeatureProfileAsset& profile, UUID passID, bool enabled) {
+
+	const auto selected = std::find_if(profile.passes.begin(), profile.passes.end(),
+		[passID](const RenderFeaturePassSettings& pass) { return pass.id == passID; });
+	if (!passID || selected == profile.passes.end()) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[レンダー機能] SceneColor出力を変更するパスが存在しません");
+		return false;
+	}
+	if (enabled) {
+
+		// 不正な出力では現在の出力指定を変更しない
+		const RenderFeatureOutputSettings output = selected->outputs.empty() ?
+			RenderFeatureOutputSettings{} : selected->outputs.front();
+		if (output.format != RenderFeatureTextureFormat::Inherit ||
+			output.widthScale != 1.0f || output.heightScale != 1.0f) {
+
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[レンダー機能] SceneColor出力は継承形式かつ等倍が必要です パス={}", selected->name);
+			return false;
+		}
+		// 出力指定だけを切り替え、各パスの有効状態は保持
+		for (const RenderFeaturePassSettings& pass : profile.passes) {
+
+			if (pass.id != passID && pass.anchor == selected->anchor) {
+
+				overrides_[pass.id].sceneColorOutput = false;
+			}
+		}
+	}
+	overrides_[passID].sceneColorOutput = enabled;
+	return true;
+}
+
+bool Engine::RenderFeatureRuntimeOverrides::IsEnabled(
+	UUID passID, bool savedValue) const {
+
+	const RenderFeaturePassRuntimeOverride* value = Find(passID);
+	return value ? value->enabled.value_or(savedValue) : savedValue;
+}
+
+bool Engine::RenderFeatureRuntimeOverrides::IsSceneColorOutput(
+	UUID passID, bool savedValue) const {
+
+	const RenderFeaturePassRuntimeOverride* value = Find(passID);
+	return value ? value->sceneColorOutput.value_or(savedValue) : savedValue;
 }
 
 bool Engine::RenderFeatureRuntimeOverrides::SetGroupEnabled(
@@ -71,6 +130,7 @@ bool Engine::RenderFeatureRuntimeOverrides::ClearParameter(
 		return false;
 	}
 	if (!pass->second.enabled.has_value() &&
+		!pass->second.sceneColorOutput.has_value() &&
 		pass->second.parameters.empty() &&
 		pass->second.textureOverrides.empty()) {
 

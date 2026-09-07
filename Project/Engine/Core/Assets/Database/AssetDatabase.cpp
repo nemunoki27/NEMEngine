@@ -389,7 +389,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 
 	if (std::filesystem::exists(metaFull)) {
 
-		if (!TryLoadMeta(metaFull, meta)) {
+		if (!ReadMetaFile(metaFull, meta)) {
 
 			// 壊れた.metaは静かに新UIDで上書きせず診断に残してスキップする
 			AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
@@ -407,7 +407,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 		if (meta.type == AssetType::Unknown && guessedType != AssetType::Unknown) {
 
 			meta.type = guessedType;
-			SaveMeta(metaFull, meta);
+			WriteMetaFile(metaFull, meta);
 		} else if (meta.type == AssetType::Unknown) {
 
 			AddIssue({ AssetDatabaseIssueType::UnknownAssetType, meta.guid, {},
@@ -419,7 +419,7 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 		meta.guid = AssetGUID::New();
 		meta.type = guessedType;
 		meta.importer = ResolveImporterName(guessedType);
-		SaveMeta(metaFull, meta);
+		WriteMetaFile(metaFull, meta);
 	}
 
 	if (!meta.guid) {
@@ -506,7 +506,7 @@ bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id,
 	meta.importerVersion = importerVersion;
 
 	const std::filesystem::path fullPath = ResolveAssetPath(meta.assetPath);
-	if (!SaveMeta(MetaPathOf(fullPath), meta)) {
+	if (!WriteMetaFile(MetaPathOf(fullPath), meta)) {
 
 		meta.importerSettings = previousSettings;
 		meta.importerVersion = previousVersion;
@@ -533,9 +533,25 @@ std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const As
 		return dependencies;
 	}
 
-	const nlohmann::json data = LoadJsonFileNoThrow(fullPath);
+	nlohmann::json data = LoadJsonFileNoThrow(fullPath);
 	if (!data.is_object() && !data.is_array()) {
 		return dependencies;
+	}
+	if (RuntimePaths::IsProductBuild() && data.is_object()) {
+		// 製品のシェーダーソース参照はCook済みデータが所有する
+		if (meta.type == AssetType::Shader) {
+			data.erase("stages");
+			data.erase("sourceShader");
+		}
+		// 製品では編集用ピッキングの依存先を使用しない
+		if (meta.type == AssetType::Material &&
+			data.contains("passes") && data["passes"].is_array()) {
+			auto& passes = data["passes"];
+			passes.erase(std::remove_if(passes.begin(), passes.end(),
+				[](const nlohmann::json& pass) {
+					return pass.is_object() && pass.value("passKind", "") == "EditorPicking";
+				}), passes.end());
+		}
 	}
 
 	// 既知の参照キー配下からGUIDとシェーダー等の論理パスを収集する
@@ -723,7 +739,7 @@ std::filesystem::path Engine::AssetDatabase::MetaPathOf(const std::filesystem::p
 	return metaPath;
 }
 
-bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPath, AssetMeta& out) const {
+bool Engine::AssetDatabase::ReadMetaFile(const std::filesystem::path& metaFullPath, AssetMeta& out) {
 
 	const nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
 	if (!data.is_object() || data.value("schemaVersion", 0u) != kAssetMetaSchemaVersion) {
@@ -758,7 +774,7 @@ bool Engine::AssetDatabase::TryLoadMeta(const std::filesystem::path& metaFullPat
 	return true;
 }
 
-bool Engine::AssetDatabase::SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const {
+bool Engine::AssetDatabase::WriteMetaFile(const std::filesystem::path& metaFullPath, const AssetMeta& meta) {
 
 	// 既存の .meta を読み、script importer が書く "scripts" 等の未知キーを保持したまま
 	// 既知キーだけ更新し、AssetDatabaseがguid採番で書き直してもsidecarの追加情報を壊さない
@@ -784,6 +800,6 @@ bool Engine::AssetDatabase::SaveMeta(const std::filesystem::path& metaFullPath, 
 
 	// ファイルに書き込む
 	ofs << data.dump(2);
-
-	return true;
+	ofs.flush();
+	return ofs.good();
 }

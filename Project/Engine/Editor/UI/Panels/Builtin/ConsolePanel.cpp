@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 // c++
@@ -378,6 +379,12 @@ namespace {
 
 		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
 		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));
+
+		ImGui::Separator();
+
+		const InputType inputType = Engine::Input::GetInstance()->GetType();
+		ImGui::Text("入力デバイスタイプ: %s",
+			inputType == InputType::GamePad ? "ゲームパッド" : "キーボード");
 
 		//ImGui::Separator();
 

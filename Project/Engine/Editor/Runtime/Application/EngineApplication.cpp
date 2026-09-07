@@ -201,7 +201,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 				renderPipeline_->ReloadMesh(meshAssetID);
 			}
 			});
-		// Material/Shader/Pipeline変更時は依存PSOを含めて再ロードする
+		// 描画アセット変更時は種別に応じたランタイムキャッシュを再ロードする
 		assetWatchService_.SetRenderAssetReloadCallback([this](AssetID assetID) {
 			if (renderPipeline_) {
 				renderPipeline_->ReloadAsset(assetDataBase_, assetID);

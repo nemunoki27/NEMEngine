@@ -66,7 +66,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		RenderFeatureAnchor anchor;
 		RenderPathPassKind after;
 	};
-	const std::array<AnchorPoint, 6> kAnchorPoints = { {
+	const std::array<AnchorPoint, 7> kAnchorPoints = { {
 		{ RenderFeatureAnchor::BeforeLighting, RenderPathPassKind::Opaque },
 		{ RenderFeatureAnchor::AfterLighting, RenderPathPassKind::Lighting },
 		{ RenderFeatureAnchor::BeforeTransparent, RenderPathPassKind::InvertedHullOutline },
@@ -74,6 +74,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		{ RenderFeatureAnchor::AfterPostProcessUI,
 			RenderPathPassKind::PostProcessUI },
 		{ RenderFeatureAnchor::BeforeBlit, RenderPathPassKind::EditorSelectionScreenSpaceOutline },
+		{ RenderFeatureAnchor::AfterToneMap, RenderPathPassKind::BlitToView },
 	} };
 
 	// 固定パスを順に積みつつ、対応する位置へ共通Feature実行パスを挿入する

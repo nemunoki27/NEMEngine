@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -36,10 +37,12 @@ void Engine::DepthVisualizer::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FO
 
 	// 画面全体を覆う共通VSを使い回す
 	desc.preRaster.file = "Builtin/FullscreenCopy/fullscreenCopy.VS.hlsl";
+	desc.preRaster.shader = BuiltinAssets::Shaders::FullscreenCopy;
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
 	desc.pixel.file = "Builtin/Debug/depthVisualize.PS.hlsl";
+	desc.pixel.shader = BuiltinAssets::Shaders::DepthVisualize;
 	desc.pixel.entry = "main";
 	desc.pixel.profile = "ps_6_0";
 

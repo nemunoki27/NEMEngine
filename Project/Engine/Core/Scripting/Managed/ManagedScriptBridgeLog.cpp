@@ -96,10 +96,6 @@ namespace Engine {
 		return static_cast<int32_t>(Input::GetInstance()->GetType());
 	}
 
-	void ManagedScriptRuntime::SetInputTypeCallback(int32_t type) {
-		Input::GetInstance()->SetInputType(static_cast<InputType>(type));
-	}
-
 	int32_t ManagedScriptRuntime::GetMouseRangeControlCallback() {
 		return Input::GetInstance()->GetMouseRangeControl() ? 1 : 0;
 	}

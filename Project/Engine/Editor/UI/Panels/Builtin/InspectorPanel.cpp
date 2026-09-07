@@ -1343,7 +1343,7 @@ void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext&
 void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
 	// プレファブ編集中はUIを表示しない
-	if (context.editorContext->isPrefabEditing) {
+	if (!context.editorContext || context.editorContext->isPrefabEditing) {
 		return;
 	}
 
@@ -1351,9 +1351,26 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	if (!database || !world.HasComponent<PrefabLinkComponent>(entity)) {
 		return;
 	}
+	// Play中は実行状態をプレファブ差分として計算しない
+	if (context.IsPlaying()) {
+		ImGui::TextDisabled("Prefab上書きはPlay停止後に操作できます");
+		ImGui::Spacing();
+		return;
+	}
+
+	// 差分一覧を開くまで所属同期と差分計算を行わない
+	if (ImGui::Button("Prefab 上書きパラメータ###PrefabOverrideButton", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		overrideChoices_.clear();
+		ImGui::OpenPopup("PrefabOverridesPopup");
+	}
+	ImGui::Spacing();
+	if (!ImGui::BeginPopup("PrefabOverridesPopup")) {
+		return;
+	}
+
 	const PrefabLinkComponent link = world.GetComponent<PrefabLinkComponent>(entity);
 
-	// インスタンス全体の差分を抽出する、ベースはファイル更新時刻でキャッシュして毎フレームの再読込を避ける
+	// 一覧表示に必要なインスタンス差分を取得
 	const auto& base = PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(*database, link.prefabAsset);
 	PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(world);
 	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(
@@ -1396,19 +1413,8 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	const int overrideCount = static_cast<int>(data.modifications.size() + data.addedComponents.size() +
 		data.removedComponents.size() + addedEntityRoots.size() + data.removedEntities.size());
 
-	// オーバーライド一覧を開くボタン、件数も出す
-	const std::string buttonLabel = overrideCount > 0 ?
-		("Prefab 上書きパラメータ (" + std::to_string(overrideCount) + ")###PrefabOverrideButton") :
-		std::string("Prefab : 差分なし###PrefabOverrideButton");
-	if (ImGui::Button(buttonLabel.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		overrideChoices_.clear();
-		ImGui::OpenPopup("PrefabOverridesPopup");
-	}
-	ImGui::Spacing();
-
-	if (!ImGui::BeginPopup("PrefabOverridesPopup")) {
-		return;
-	}
+	// 件数は差分を計算した一覧内だけに表示
+	ImGui::TextDisabled("上書きパラメータ: %d", overrideCount);
 
 	const bool applyClicked = ImGui::Button("設定を適用");
 	ImGui::Separator();

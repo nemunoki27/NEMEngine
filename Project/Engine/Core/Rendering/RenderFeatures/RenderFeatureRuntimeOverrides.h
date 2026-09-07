@@ -13,10 +13,13 @@
 
 namespace Engine {
 
+	struct RenderFeatureProfileAsset;
+
 	// Profileの保存値へ重ねるPass単位の実行時変更
 	struct RenderFeaturePassRuntimeOverride {
 
 		std::optional<bool> enabled{};
+		std::optional<bool> sceneColorOutput{};
 		MaterialParameterSet parameters{};
 		std::unordered_map<std::string, AssetID> textureOverrides{};
 	};
@@ -37,6 +40,11 @@ namespace Engine {
 			const RenderFeatureRuntimeOverrides&) = delete;
 
 		bool SetEnabled(UUID passID, bool enabled);
+		// 同じ実行位置のSceneColor出力を切り替える
+		bool SetSceneColorOutput(const RenderFeatureProfileAsset& profile,
+			UUID passID, bool enabled);
+		bool IsEnabled(UUID passID, bool savedValue) const;
+		bool IsSceneColorOutput(UUID passID, bool savedValue) const;
 		bool SetGroupEnabled(std::string_view groupName, bool enabled);
 		bool SetParameter(UUID passID,
 			MaterialParameterID parameterID,

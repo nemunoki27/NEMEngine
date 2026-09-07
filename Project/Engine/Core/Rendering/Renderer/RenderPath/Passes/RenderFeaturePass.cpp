@@ -249,7 +249,12 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	MultiRenderTarget* sceneFinal = context.resources->GetSceneFinal();
+	// トーンマッピング後はHDRシーンではなくUIと同じビューを入出力に使う
+	const bool afterToneMap = anchor_ == RenderFeatureAnchor::AfterToneMap;
+	const std::string sceneColorAlias = afterToneMap ?
+		"View" : RenderTargetNames::kSceneColorFinal;
+	MultiRenderTarget* sceneFinal = afterToneMap ?
+		context.defaultSurface : context.resources->GetSceneFinal();
 	if (!sceneFinal || !sceneFinal->GetColorTexture(0)) {
 		return;
 	}
@@ -581,7 +586,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		}
 		const std::string sourceAlias = isolatedSource ? selectionAlias :
 			(node.source.pass ? MakeOutputAlias(node.source) :
-				RenderTargetNames::kSceneColorFinal);
+				sceneColorAlias);
 		const RenderFeaturePassRuntimeOverride* runtimeOverride =
 			RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
 		const bool rayTracingUnavailable =
@@ -648,7 +653,8 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			inputs[PostProcessBindingNames::kSourceColor] = sourceAlias;
 			for (const auto& [name, reference] : pass.passInputs) {
 
-				inputs[name] = MakeOutputAlias(reference);
+				inputs[name] = reference.pass ?
+					MakeOutputAlias(reference) : sceneColorAlias;
 			}
 			if (pass.type == RenderFeaturePassType::Compute) {
 				PostProcessExecutionDesc desc{};
@@ -760,8 +766,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			composite.material =
 				BuiltinAssets::Materials::PostProcessMaskComposite;
 			composite.passKind = MaterialPassKind::PostProcess;
-			composite.source.colors = {
-				RenderTargetNames::kSceneColorFinal };
+			composite.source.colors = { sceneColorAlias };
 			composite.dest.colors = { MakeOutputAlias(primaryReference) };
 			composite.extraSources[PostProcessBindingNames::kEffectColor] =
 				executionPrimaryAlias;

@@ -15,6 +15,13 @@ namespace Engine {
 	// front
 	class AssetDatabase;
 
+	// シーン本体と外部Actorの複製先
+	struct SceneAssetCopy {
+
+		std::filesystem::path sourcePath;
+		std::filesystem::path targetPath;
+	};
+
 	// 保存要求時点のWorldから確定したシーン保存データ
 	struct SceneSaveSnapshot {
 
@@ -51,6 +58,8 @@ namespace Engine {
 			const std::vector<Entity>* entitiesSubset = nullptr) const;
 		// 確定済みスナップショットをプロジェクト指定の保存形式で書き込む
 		static bool WriteSaveSnapshot(SceneSaveSnapshot snapshot);
+		// 保存済みシーンを新しいGUIDで複製し失敗時は作成分だけを取り消す
+		static bool CopySceneAssets(const std::vector<SceneAssetCopy>& copies, std::string& error);
 
 		// nlohmann::jsonスナップショット
 		nlohmann::json SerializeEntities(ECSWorld& world, const std::vector<Entity>* subset = nullptr) const;

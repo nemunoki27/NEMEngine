@@ -83,6 +83,9 @@ namespace Engine {
 		// Importer設定をメモリと.metaへ反映する
 		bool UpdateImporterSettings(AssetID id, const nlohmann::json& settings,
 			uint32_t importerVersion);
+		// 索引を変更せずメタデータファイルを読み書きする
+		static bool ReadMetaFile(const std::filesystem::path& metaFullPath, AssetMeta& out);
+		static bool WriteMetaFile(const std::filesystem::path& metaFullPath, const AssetMeta& meta);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -138,10 +141,6 @@ namespace Engine {
 		static std::string NormalizeLookupKey(const std::filesystem::path& path);
 		// アセットファイルのフルパスからメタファイルのフルパスを取得
 		static std::filesystem::path MetaPathOf(const std::filesystem::path& assetFullPath);
-
-		// メタデータの読み書き
-		bool TryLoadMeta(const std::filesystem::path& metaFullPath, AssetMeta& out) const;
-		bool SaveMeta(const std::filesystem::path& metaFullPath, const AssetMeta& meta) const;
 
 		// ファイル走査とUID索引の構築で重複や破損や孤立を検出する
 		void RebuildIndex(const std::vector<std::filesystem::path>& scanRoots);

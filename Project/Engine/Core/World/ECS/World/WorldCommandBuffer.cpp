@@ -293,6 +293,9 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 
 		const WorldCommandServices& services = world.GetCommandServices();
 		if (!services.sceneInstances || !services.assetDatabase || !services.sceneSystem) {
+			if (command.kind == CommandKind::LoadSceneSingle && services.sceneInstances) {
+				services.sceneInstances->ClearSingleLoadRequest();
+			}
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"WorldCommandBuffer: WorldにCommandServiceが未設定のためScene Commandを処理できません");
 			return;
@@ -309,11 +312,14 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 			for (const SceneInstance& scene : services.sceneInstances->GetAll()) {
 				previousScenes.emplace_back(scene.instanceID);
 			}
-			if (!services.sceneInstances->LoadAdditive(*services.assetDatabase,
+			const bool loaded = services.sceneInstances->LoadAdditive(*services.assetDatabase,
 				*services.sceneSystem, world, command.assetID,
-				command.sceneInstanceID)) {
-
-				services.sceneInstances->ClearSingleLoadRequest();
+				command.sceneInstanceID);
+			services.sceneInstances->ClearSingleLoadRequest();
+			if (!loaded) {
+				Logger::Output(LogType::Engine, spdlog::level::warn,
+					"WorldCommandBuffer: SceneAssetを読み込めないため単一Sceneロードを拒否しました AssetID={}",
+					ToString(command.assetID));
 				return;
 			}
 			services.sceneInstances->SetActive(command.sceneInstanceID);

@@ -132,7 +132,9 @@ namespace {
 
 		return StartsWith(assetPath, "Engine/Assets/Textures/Editor/") ||
 			StartsWith(assetPath, "Engine/Assets/Shaders/Builtin/Editor/") ||
-			StartsWith(assetPath, "Engine/Assets/Config/");
+			(StartsWith(assetPath, "Engine/Assets/Config/") &&
+				assetPath != "Engine/Assets/Config/windowSettings.exeConfig.json" &&
+				assetPath != "Engine/Assets/Config/windowSettings.exeConfig.json.meta");
 	}
 
 	// 製品実行では使用しないGameAssets内の編集用ファイルか
@@ -713,9 +715,9 @@ namespace {
 		void AddFixedRuntimeFiles() {
 
 			AddLogicalFile("Engine/Assets/Config/windowSettings.exeConfig.json");
-			AddLogicalFile("Engine/Assets/Shaders/Builtin/FullscreenCopy/fullscreenCopy.VS.hlsl");
-			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/deferredLighting.PS.hlsl");
-			AddLogicalFile("Engine/Assets/Shaders/Builtin/Lighting/skyboxIrradiance.CS.hlsl");
+			for (const Engine::AssetID shaderID : Engine::BuiltinAssets::Shaders::FixedRuntime) {
+				AddAsset(shaderID);
+			}
 
 			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
 			const std::array<const char*, 4> gameProjectSettings = {
@@ -984,12 +986,19 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	manifest["schemaVersion"] = 2;
 	manifest["projectPath"] = Algorithm::ConvertString(projectPath.generic_wstring());
 	manifest["gameRoot"] = Algorithm::PathToUTF8(gameRoot);
-	manifest["buildToolProject"] = Algorithm::PathToUTF8(
-		RuntimePaths::GetEngineProjectRoot() /
-		"Tools/NEM.BuildTool/NEMBuildTool.vcxproj");
-	manifest["buildToolExecutable"] = Algorithm::PathToUTF8(
-		RuntimePaths::GetEngineProjectRoot().parent_path() /
-		"Generated/Output/Release/NEMBuildTool/NEMBuildTool.exe");
+	const std::filesystem::path engineProjectRoot = RuntimePaths::GetEngineProjectRoot();
+	if (std::filesystem::is_regular_file(engineProjectRoot / "Include/NEMEngineRuntime.h", ec)) {
+		// SDKでは同梱済みツールを使い、エンジンソースをビルドしない
+		manifest["buildToolProject"] = "";
+		manifest["buildToolExecutable"] = Algorithm::PathToUTF8(
+			engineProjectRoot / "Tools/NEMBuildTool/NEMBuildTool.exe");
+	} else {
+		manifest["buildToolProject"] = Algorithm::PathToUTF8(
+			engineProjectRoot / "Tools/NEM.BuildTool/NEMBuildTool.vcxproj");
+		manifest["buildToolExecutable"] = Algorithm::PathToUTF8(
+			engineProjectRoot.parent_path() /
+			"Generated/Output/Release/NEMBuildTool/NEMBuildTool.exe");
+	}
 	manifest["sourceRuntime"] = Algorithm::ConvertString(sourceRuntime.generic_wstring());
 	manifest["runtimeExecutable"] = projectName + ".exe";
 	manifest["outputRoot"] = Algorithm::ConvertString(settings.outputRoot.generic_wstring());

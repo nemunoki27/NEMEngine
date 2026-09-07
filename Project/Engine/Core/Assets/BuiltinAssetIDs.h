@@ -92,6 +92,18 @@ namespace Engine::BuiltinAssets {
 
 	namespace Shaders {
 
+		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x8ed3590f7d583b7aull };
+		inline constexpr AssetID DeferredLighting{ 0x4e454d4153534554ull, 0x4c49474854000001ull };
+		inline constexpr AssetID DeferredLightingShadowed{ 0x4e454d4153534554ull, 0x4c49474854000002ull };
+		inline constexpr AssetID SkyboxIrradiance{ 0x4e454d4153534554ull, 0x4c49474854000003ull };
+		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
+		inline constexpr AssetID Skybox{ 0x4e454d4153534554ull, 0x4c49474854000005ull };
+		// 固定描画パスが製品実行で必要とするシェーダー
+		inline constexpr AssetID FixedRuntime[] = {
+			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
+			SkyboxIrradiance, DepthVisualize, Skybox,
+		};
+
 		inline constexpr AssetID MeshGeometryVS{ 0x4e454d4153534554ull, 0xf6485468f3b0f105ull };
 		inline constexpr AssetID MeshGeometryAS{ 0x4e454d4153534554ull, 0x06811f98f605bb52ull };
 		inline constexpr AssetID MeshGeometryMS{ 0x4e454d4153534554ull, 0x109772a2d84dd757ull };

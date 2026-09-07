@@ -74,25 +74,14 @@ namespace Engine {
 		Vector2 GetMouseMoveValue() const;
 		float GetMouseWheel();
 
-		void SetInputType(InputType type) { inputType_ = type; }
 		InputType GetType() const { return inputType_; }
 
 		// deadZone
 		void SetDeadZone(float deadZone);
 		float GetDeadZone() const { return deadZone_; }
 
-		// 入力デバイス自動更新、検知トリガから入力タイプを更新しマウス範囲制御も行う
+		// 実際の入力操作から入力タイプを更新しマウス範囲制御も行う
 		void UpdateInputDevice();
-
-		// 入力タイプ自動更新フラグ
-		void SetAutoUpdateInputType(bool enabled) { autoUpdateInputType_ = enabled; }
-		bool GetAutoUpdateInputType() const { return autoUpdateInputType_; }
-		// 入力タイプ切替の検知トリガ、ツールから追加削除する
-		std::vector<InputDetectTrigger>& DetectTriggers() { return detectTriggers_; }
-		const std::vector<InputDetectTrigger>& DetectTriggers() const { return detectTriggers_; }
-		// アナログ移動の判定しきい値
-		void SetMovementThreshold(float threshold) { movementThreshold_ = threshold; }
-		float GetMovementThreshold() const { return movementThreshold_; }
 
 		// マウス移動範囲制御
 		void SetMouseRangeControl(bool enabled) { mouseRangeControl_ = enabled; }
@@ -242,12 +231,6 @@ namespace Engine {
 		// スティック入力の最大値
 		const float maxStickValue_ = 32767.0f;
 
-		// 入力タイプ自動更新
-		bool autoUpdateInputType_ = true;
-		std::vector<InputDetectTrigger> detectTriggers_{};
-		// アナログ移動の判定しきい値、スティックは正規化値0-1、マウスはピクセル換算で使う
-		float movementThreshold_ = 0.3f;
-
 		// マウス移動範囲制御
 		bool mouseRangeControl_ = false;
 		bool mouseRangeControlPrev_ = false;
@@ -300,6 +283,8 @@ namespace Engine {
 		// helper
 		bool PushMouseButton(size_t index, const std::source_location& location) const;
 		float ApplyDeadZone(float value);
+		bool HasKeyboardMouseInput() const;
+		bool HasGamepadInput() const;
 
 		// ゲームパッド
 		void UpdateVibration();

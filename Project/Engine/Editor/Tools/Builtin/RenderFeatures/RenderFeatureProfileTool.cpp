@@ -369,17 +369,41 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	changed |= MyGUI::InputText("名前", editablePass.name).valueChanged;
 	changed |= MyGUI::EnumCombo("種類", editablePass.type).valueChanged;
 	changed |= MyGUI::EnumCombo("実行位置", editablePass.anchor).valueChanged;
+	if (editablePass.anchor == RenderFeatureAnchor::AfterToneMap) {
+		ImGui::TextDisabled("トーンマッピング後、ScreenUIの前にビューへ描画します");
+	}
 	changed |= DrawSelectedPassApplicationSettings(profile, editablePass);
 	changed |= MyGUI::Checkbox("Game View", editablePass.gameView);
 	changed |= MyGUI::Checkbox("Scene View", editablePass.sceneView);
-	const bool sceneColorOutputChanged = MyGUI::Checkbox(
-		"Scene Colorへ出力", editablePass.sceneColorOutput);
-	changed |= sceneColorOutputChanged;
-	if (sceneColorOutputChanged && editablePass.sceneColorOutput) {
-		for (RenderFeaturePassSettings& candidate : profile.passes) {
-			if (candidate.id != editablePass.id &&
-				candidate.anchor == editablePass.anchor) {
-				candidate.sceneColorOutput = false;
+	// Play中の出力切り替えはスクリプトと同じ実行時設定を使う
+	RenderFeatureRuntimeOverrides& overrides = RenderFeatureRuntimeOverrides::GetInstance();
+	bool sceneColorOutput = context.IsPlaying() ?
+		overrides.IsSceneColorOutput(editablePass.id, editablePass.sceneColorOutput) :
+		editablePass.sceneColorOutput;
+	if (MyGUI::Checkbox("Scene Colorへ出力", sceneColorOutput)) {
+
+		if (context.IsPlaying()) {
+
+			if (!overrides.SetSceneColorOutput(
+				RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(),
+				editablePass.id, sceneColorOutput)) {
+
+				statusMessage_ = "SceneColor出力を変更できません。出力形式とサイズを確認してください";
+				statusError_ = true;
+			}
+		} else {
+
+			editablePass.sceneColorOutput = sceneColorOutput;
+			changed = true;
+			if (sceneColorOutput) {
+
+				for (RenderFeaturePassSettings& candidate : profile.passes) {
+
+					if (candidate.id != editablePass.id && candidate.anchor == editablePass.anchor) {
+
+						candidate.sceneColorOutput = false;
+					}
+				}
 			}
 		}
 	}

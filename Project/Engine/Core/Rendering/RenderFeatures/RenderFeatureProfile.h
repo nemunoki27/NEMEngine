@@ -141,6 +141,7 @@ namespace Engine {
 		AfterTransparent,
 		AfterPostProcessUI,
 		BeforeBlit,
+		AfterToneMap,
 	};
 
 	// Feature出力テクスチャの形式

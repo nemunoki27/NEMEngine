@@ -12,6 +12,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <EditorBuildInfo.generated.h>
 
 // c++
 #include <algorithm>
@@ -19,20 +20,6 @@
 #include <string>
 
 namespace {
-
-	// エンジンDLLのビルド時刻を "Mmm dd hh:mm" で返す、SDK(エンジン)を作り直すと更新される
-	const char* GetEngineBuildVersion() {
-
-		static const std::string version = []() {
-			const std::string date = __DATE__; // "Mmm dd yyyy"
-			const std::string time = __TIME__; // "hh:mm:ss"
-			std::string day = date.substr(4, 2);
-			// 1桁の日はスペース埋めされるので0埋めへ直す
-			if (!day.empty() && day[0] == ' ') { day[0] = '0'; }
-			return date.substr(0, 3) + " " + day + " " + time.substr(0, 5);
-			}();
-		return version.c_str();
-	}
 
 	// 直前のグラフィックス設定項目に説明を表示する
 	void DrawGraphicsTooltip(const char* text) {
@@ -480,8 +467,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	DrawEditorLayoutMenu(context);
 
-	// 一番右にエンジンのビルド時刻をバージョンとして表示する
-	ImGui::TextDisabled("エンジンのバージョン: %s", GetEngineBuildVersion());
+	// 使用中のSDK情報を表示
+	ImGui::TextDisabled("SDKバージョン: %s / ビルド構成: %s",
+		EditorBuildInfo::kVersion, EditorBuildInfo::kConfiguration);
 
 	ImGui::SetWindowFontScale(1.0f);
 

@@ -25,6 +25,8 @@ namespace Engine {
 			bool success = false;
 			AssetID fontAssetID{};        // 生成された.font.jsonの識別ID
 			std::string fontAssetPath;    // 生成された.font.jsonの論理アセットパス
+			AssetID atlasAssetID{};       // 生成されたアトラスの識別ID
+			std::string atlasAssetPath;   // 生成されたアトラスの論理アセットパス
 			std::string message;          // 失敗時の理由
 		};
 

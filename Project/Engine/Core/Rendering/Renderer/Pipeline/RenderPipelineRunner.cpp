@@ -689,6 +689,10 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 		RenderFeatureProfileService::GetInstance().Reload();
 		return;
 	}
+	if (meta->type == AssetType::Font) {
+		renderAssetLibrary_.InvalidateFont(assetID);
+		return;
+	}
 	if (meta->type == AssetType::ShaderGraph) {
 		std::vector<AssetID> affectedGraphs{ assetID };
 		const std::vector<AssetID> referencers =

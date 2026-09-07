@@ -953,7 +953,21 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 			if (!result.success) {
 
 				Logger::Output(LogType::Engine, spdlog::level::warn,
-					"ProjectPanel: Fontの再生成に失敗しました {}", result.message);
+					"ProjectPanel: フォントの再生成に失敗しました {}", result.message);
+			} else {
+
+				// 新しいアトラスのGPU転送後にフォント情報を読み直してUVの世代を揃える
+				const std::filesystem::path atlasPath =
+					database.ResolveFullPath(result.atlasAssetID);
+				TextureUploadService& textureUploadService =
+					context.graphicsCore->GetTextureUploadService();
+				textureUploadService.RequestReloadByFile(atlasPath);
+				textureUploadService.WaitAll();
+				context.renderPipeline->ReloadAsset(database, result.fontAssetID);
+
+				Logger::Output(LogType::Engine, spdlog::level::info,
+					"ProjectPanel: フォントデータを再生成しました path={}",
+					result.fontAssetPath);
 			}
 		}
 	}

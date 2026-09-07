@@ -43,11 +43,13 @@ namespace {
 	// 現在のレンダラー状態に対してレイアウトキャッシュを作り直す必要があるか
 	bool NeedsTextLayoutRebuild(const Engine::ECSWorld& world,
 		const Engine::Entity& entity,
-		const Engine::TextRendererComponent& renderer) {
+		const Engine::TextRendererComponent& renderer,
+		const Engine::MSDFFontAsset& font) {
 
 		const auto* cache =
 			world.TryGetComponent<Engine::TextLayoutRuntimeComponent>(entity);
 		return !cache || !cache->valid || cache->font != renderer.font ||
+			cache->fontContentRevision != font.contentRevision ||
 			cache->textHash != Engine::HashTextLayoutString(renderer.text) ||
 			cache->fontSize != renderer.fontSize ||
 			cache->charSpacing != renderer.charSpacing;
@@ -72,6 +74,7 @@ namespace {
 		// キャッシュをクリアして必要な情報を保存する
 		cache->valid = false;
 		cache->font = renderer.font;
+		cache->fontContentRevision = font.contentRevision;
 		cache->textHash = Engine::HashTextLayoutString(renderer.text);
 		cache->fontSize = renderer.fontSize;
 		cache->charSpacing = renderer.charSpacing;
@@ -307,7 +310,7 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 		}
 
 		// テキストやサイズが変わった時だけレイアウトを再構築する
-		if (NeedsTextLayoutRebuild(*item->world, item->entity, *renderer)) {
+		if (NeedsTextLayoutRebuild(*item->world, item->entity, *renderer, *font)) {
 			if (!RebuildTextLayoutCache(
 				*font, *item->world, item->entity, *renderer)) {
 				continue;

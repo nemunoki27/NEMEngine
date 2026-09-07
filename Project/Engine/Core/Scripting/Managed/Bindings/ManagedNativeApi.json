@@ -418,6 +418,11 @@
       "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"
     },
     {
+      "name": "reloadActiveScene",
+      "nativeType": "GetUInt64Callback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong>"
+    },
+    {
       "name": "resolveEntityRef",
       "nativeType": "ResolveEntityRefCallback",
       "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity>"
@@ -538,11 +543,6 @@
       "managedType": "delegate* unmanaged[Cdecl]<int>"
     },
     {
-      "name": "setInputType",
-      "nativeType": "SetNativeIntCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<int, void>"
-    },
-    {
       "name": "getMouseRangeControl",
       "nativeType": "GetNativeBoolCallback",
       "managedType": "delegate* unmanaged[Cdecl]<int>"
@@ -589,6 +589,11 @@
     },
     {
       "name": "setRenderFeaturePassEnabled",
+      "nativeType": "SetRenderFeaturePassEnabledCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int, int>"
+    },
+    {
+      "name": "setRenderFeaturePassSceneColorOutput",
       "nativeType": "SetRenderFeaturePassEnabledCallback",
       "managedType": "delegate* unmanaged[Cdecl]<ulong, ulong, int, int>"
     },
