@@ -1,0 +1,23 @@
+{
+  "guid": "f566d15ebfa5b34abbbbb7d4e78e71e8",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.MeshMaterialTest",
+      "scriptTypeId": "51aa4085-6c69-4267-94e6-147a4e2eede1",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "31a43c49-57d2-46e1-b7ab-7012b472b259",
+          "name": "strength",
+          "type": "float",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

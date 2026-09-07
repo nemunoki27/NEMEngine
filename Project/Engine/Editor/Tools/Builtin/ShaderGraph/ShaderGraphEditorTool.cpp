@@ -458,6 +458,7 @@ namespace {
 			break;
 		}
 		case NodeKind::OneMinus:
+		case NodeKind::Dither:
 		case NodeKind::Saturate:
 		case NodeKind::Sine:
 		case NodeKind::Remap:

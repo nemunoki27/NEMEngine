@@ -1,0 +1,481 @@
+{
+    "defaultPrecision": "Float",
+    "domain": "Surface",
+    "groups": [],
+    "keywords": [],
+    "links": [
+        {
+            "id": "ba4cacbe079de572",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 0,
+            "outputNode": "a993626dcd861d2c",
+            "outputSlot": 0
+        },
+        {
+            "id": "49de2065c1fe046d",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 2,
+            "outputNode": "725ee4c05351b0d1",
+            "outputSlot": 0
+        },
+        {
+            "id": "5814ffc76545016f",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 3,
+            "outputNode": "253f98a60deace7a",
+            "outputSlot": 0
+        },
+        {
+            "id": "b4d6baf7ee7e49e9",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 4,
+            "outputNode": "8e96b479c90473a2",
+            "outputSlot": 0
+        },
+        {
+            "id": "4736972703977c5e",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 5,
+            "outputNode": "b06553b08950f4ee",
+            "outputSlot": 0
+        },
+        {
+            "id": "6f7ba91d174e494c",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 7,
+            "outputNode": "cca8566207ed7faf",
+            "outputSlot": 0
+        },
+        {
+            "id": "fcac91004b1a7ac3",
+            "inputNode": "ab4ba8fe48e373a4",
+            "inputSlot": 0,
+            "outputNode": "5bdc0dc647d5d412",
+            "outputSlot": 0
+        },
+        {
+            "id": "3d042aab2c7c6347",
+            "inputNode": "95c5410a837a35b1",
+            "inputSlot": 0,
+            "outputNode": "ab4ba8fe48e373a4",
+            "outputSlot": 0
+        },
+        {
+            "id": "95718cf38f34e798",
+            "inputNode": "8346a0cda2325a33",
+            "inputSlot": 0,
+            "outputNode": "95c5410a837a35b1",
+            "outputSlot": 0
+        },
+        {
+            "id": "31540e54af0d49e4",
+            "inputNode": "60f29c9719a4ede1",
+            "inputSlot": 0,
+            "outputNode": "1f578692a3c540fa",
+            "outputSlot": 0
+        },
+        {
+            "id": "79576c14de5f267d",
+            "inputNode": "60f29c9719a4ede1",
+            "inputSlot": 1,
+            "outputNode": "8346a0cda2325a33",
+            "outputSlot": 0
+        },
+        {
+            "id": "16c2a668e71ef70e",
+            "inputNode": "af63236c4090b3f8",
+            "inputSlot": 6,
+            "outputNode": "60f29c9719a4ede1",
+            "outputSlot": 0
+        },
+        {
+            "id": "87cd1ec7c8b20164",
+            "inputNode": "8346a0cda2325a33",
+            "inputSlot": 1,
+            "outputNode": "0e2544dd18d1fe59",
+            "outputSlot": 0
+        }
+    ],
+    "name": "ditherMesh",
+    "nodes": [
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "af63236c4090b3f8",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "SurfaceOutput",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": 159.0,
+                "y": 122.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": true,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "a993626dcd861d2c",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -165.0,
+                "y": -116.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "valueType": "Color"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "725ee4c05351b0d1",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -161.0,
+                "y": 0.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 1.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "253f98a60deace7a",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -161.0,
+                "y": 114.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.1899999976158142,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "8e96b479c90473a2",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -165.0,
+                "y": 220.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 1.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "b06553b08950f4ee",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -161.0,
+                "y": 328.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 0.0
+            },
+            "valueType": "Color"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "cca8566207ed7faf",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -157.0,
+                "y": 512.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.5,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "5bdc0dc647d5d412",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Parameter",
+            "outputPorts": [],
+            "parameterID": "934214824cf435c0",
+            "position": {
+                "x": -877.0,
+                "y": 482.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "ab4ba8fe48e373a4",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Saturate",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -722.0,
+                "y": 500.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "95c5410a837a35b1",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "OneMinus",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -545.0,
+                "y": 500.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "8346a0cda2325a33",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Dither",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -382.0,
+                "y": 502.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "60f29c9719a4ede1",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Step",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -165.0,
+                "y": 436.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "1f578692a3c540fa",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "Constant",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -377.0,
+                "y": 378.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        },
+        {
+            "customFunctionSource": "Inline",
+            "functionBody": "",
+            "functionFile": "",
+            "functionFileAsset": "",
+            "functionName": "",
+            "groupID": "",
+            "id": "0e2544dd18d1fe59",
+            "inputPorts": [],
+            "keywordID": "",
+            "kind": "ScreenPosition",
+            "outputPorts": [],
+            "parameterID": "",
+            "position": {
+                "x": -549.0,
+                "y": 564.0
+            },
+            "precision": "Inherit",
+            "previewExpanded": false,
+            "stage": "Any",
+            "subGraph": "",
+            "value": 0.0,
+            "valueType": "Float"
+        }
+    ],
+    "outputNode": "af63236c4090b3f8",
+    "parameters": [
+        {
+            "defaultValue": 0.7200000286102295,
+            "exposed": true,
+            "id": "934214824cf435c0",
+            "name": "strength",
+            "precision": "Inherit",
+            "referenceName": "strength",
+            "scope": "PerInstance",
+            "semantic": "None",
+            "type": "Float"
+        }
+    ],
+    "renderState": {
+        "alphaClipping": false,
+        "blendMode": "Normal",
+        "castShadows": true,
+        "cullMode": "D3D12_CULL_MODE_BACK",
+        "depthClipEnable": true,
+        "depthFunc": "D3D12_COMPARISON_FUNC_LESS_EQUAL",
+        "depthTest": true,
+        "depthWrite": true,
+        "fillMode": "D3D12_FILL_MODE_SOLID",
+        "frontCounterClockwise": false,
+        "receiveShadows": true,
+        "stencilEnable": false,
+        "twoSided": false
+    },
+    "schemaVersion": 8,
+    "surfaceMode": "Transparent",
+    "target": "Mesh",
+    "vertexOutputNode": ""
+}

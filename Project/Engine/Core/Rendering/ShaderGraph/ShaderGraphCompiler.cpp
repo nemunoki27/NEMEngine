@@ -1248,6 +1248,13 @@ namespace {
 				return { ShaderGraphValueType::Float,
 					"pow(1.0f - saturate(dot(normalize(" + normal.code + "), normalize(" + view.code + "))), " + power.code + ")" };
 			}
+			case ShaderGraphNodeKind::Dither: {
+				const GraphExpression input = EmitDynamicInput(node, 0, "0.0f");
+				const GraphExpression position = EmitInput(node, 1,
+					ShaderGraphValueType::Float4, "graphInput.screenPosition");
+				return { input.type,
+					"(" + input.code + " - ShaderGraphDitherThreshold((" + position.code + ").xy))" };
+			}
 			case ShaderGraphNodeKind::SimpleNoise: {
 				const GraphExpression uv = EmitInput(node, 0,
 					ShaderGraphValueType::Float2, "graphInput.uv");
@@ -1758,6 +1765,18 @@ namespace {
 		const bool particleTarget =
 			graph.target == ShaderGraphTarget::Particle ||
 			graph.target == ShaderGraphTarget::Trail;
+		// 画面座標はピクセル単位で4x4のしきい値を繰り返す
+		source +=
+			"float ShaderGraphDitherThreshold(float2 pixelPosition) {\n\n"
+			"\tstatic const float thresholds[16] = {\n"
+			"\t\t1.0f, 9.0f, 3.0f, 11.0f,\n"
+			"\t\t13.0f, 5.0f, 15.0f, 7.0f,\n"
+			"\t\t4.0f, 12.0f, 2.0f, 10.0f,\n"
+			"\t\t16.0f, 8.0f, 14.0f, 6.0f\n"
+			"\t};\n"
+			"\tuint2 cell = uint2(floor(frac(pixelPosition / 4.0f) * 4.0f));\n"
+			"\treturn thresholds[cell.x * 4u + cell.y] / 17.0f;\n"
+			"}\n\n";
 		if (particleTarget) {
 			uint32_t textureRegister = 1;
 			for (const ShaderGraphParameter& parameter : graph.parameters) {
@@ -1849,7 +1868,9 @@ namespace {
 		std::string_view surfaceIncludeFile,
 		bool transparent) {
 
-		std::string source = "// Shader Graph generated file\n";
+		std::string source =
+			"// Shader Graph generated file\n"
+			"#define NEM_SHADER_GRAPH_MATERIAL\n";
 		if (transparent) {
 			source +=
 				"#include \"Builtin/Mesh/Common/meshSurfaceLighting.hlsli\"\n";
@@ -2043,6 +2064,7 @@ namespace {
 
 		std::string source =
 			"// Shader Graph generated Mesh auxiliary file\n"
+			"#define NEM_SHADER_GRAPH_MATERIAL\n"
 			"#include \"Builtin/Mesh/Common/defaultMesh.hlsli\"\n"
 			"SamplerState gSampler : register(s0);\n"
 			"#include \"" + std::string(surfaceIncludeFile) + "\"\n\n"
@@ -2093,10 +2115,15 @@ namespace {
 
 		const ShaderGraphNode* output =
 			context.FindNode(graph.vertexOutputNode);
-		if (!output || output->kind != ShaderGraphNodeKind::VertexOutput) {
+		if (graph.vertexOutputNode && (!output || output->kind != ShaderGraphNodeKind::VertexOutput)) {
 			context.AddDiagnostic(graph.vertexOutputNode,
 				"Vertex出力ノードが見つかりません");
 			return {};
+		}
+		// 頂点出力がないグラフは元の頂点をそのまま使用する
+		const ShaderGraphNode defaultOutput{};
+		if (!output) {
+			output = &defaultOutput;
 		}
 		const GraphExpression position = context.EmitInput(
 			*output, 0, ShaderGraphValueType::Float3,
@@ -2110,6 +2137,7 @@ namespace {
 
 		std::string source =
 			"// Shader Graph generated Mesh vertex file\n"
+			"#define NEM_SHADER_GRAPH_MATERIAL\n"
 			"#include \"Builtin/Mesh/Common/defaultMesh.hlsli\"\n"
 			"SamplerState gSampler : register(s0);\n"
 			"#include \"" + std::string(surfaceIncludeFile) + "\"\n\n"
@@ -3017,14 +3045,12 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(
 				surfaceIncludeFile, false);
 			output.pickingPixelHLSL = BuildMeshAuxiliaryPixelSource(
 				surfaceIncludeFile, true);
-			if (expandedGraph.vertexOutputNode) {
-				CompilerContext vertexContext(expandedGraph, output);
-				output.vertexHLSL = BuildMeshVertexSource(
-					expandedGraph, surfaceIncludeFile, vertexContext);
-				CompilerContext meshContext(expandedGraph, output);
-				output.meshHLSL = BuildMeshShaderSource(
-					expandedGraph, surfaceIncludeFile, meshContext);
-			}
+			CompilerContext vertexContext(expandedGraph, output);
+			output.vertexHLSL = BuildMeshVertexSource(
+				expandedGraph, surfaceIncludeFile, vertexContext);
+			CompilerContext meshContext(expandedGraph, output);
+			output.meshHLSL = BuildMeshShaderSource(
+				expandedGraph, surfaceIncludeFile, meshContext);
 		} else if (expandedGraph.target ==
 			ShaderGraphTarget::Primitive3D &&
 			expandedGraph.vertexOutputNode) {

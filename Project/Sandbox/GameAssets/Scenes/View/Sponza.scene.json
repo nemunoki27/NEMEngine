@@ -17404,6 +17404,150 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
+                    "siblingOrder": 13
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "da5738758d5925d2b7f5efd169402da8",
+                    "mesh": "4e454d41535345544195d8a0c7815abd",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderingLayerMask": 1,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "934214824cf435c0",
+                                    "name": "strength",
+                                    "semantic": "None",
+                                    "value": 0.0
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                }
+                            ],
+                            "name": "球",
+                            "sourcePivot": {
+                                "x": 5.066394805908203e-07,
+                                "y": 0.0,
+                                "z": 5.066394805908203e-07
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "b2649b1cd7329d83",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            }
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "Sphere"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "a4bb6a1bd7fa7082",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Script": [
+                    {
+                        "enabled": true,
+                        "lastKnownTypeName": "SandboxScripts.MeshMaterialTest",
+                        "scriptAsset": "f566d15ebfa5b34abbbbb7d4e78e71e8",
+                        "scriptSlotId": "e6ab5725283b1185",
+                        "scriptTypeId": "51aa4085-6c69-4267-94e6-147a4e2eede1",
+                        "serializedFields": {
+                            "fields": {
+                                "31a43c49-57d2-46e1-b7ab-7012b472b259": {
+                                    "name": "strength",
+                                    "type": "float",
+                                    "value": 0.0
+                                }
+                            },
+                            "schemaVersion": 2,
+                            "unresolvedFields": {}
+                        }
+                    }
+                ],
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 19.924665451049805,
+                        "y": 2.6570558547973633,
+                        "z": 6.404857635498047
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 2.0,
+                        "y": 2.0,
+                        "z": 2.0
+                    }
+                }
+            },
+            "LocalFileID": "a4bb6a1bd7fa7082"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
                     "siblingOrder": 3
                 },
                 "Name": {

@@ -128,6 +128,9 @@ namespace {
 	constexpr std::array kNoiseInputs{
 		Port{ "UV", Type::Float2 }, Port{ "Scale", Type::Float },
 	};
+	constexpr std::array kDitherInputs{
+		Port{ "In", Type::Invalid }, Port{ "Screen Position", Type::Float4 },
+	};
 	constexpr std::array kVoronoiInputs{
 		Port{ "UV", Type::Float2 }, Port{ "Angle Offset", Type::Float },
 		Port{ "Cell Density", Type::Float },
@@ -224,6 +227,7 @@ namespace {
 		Node{ Kind::RayTrace, "Trace Scene", "レイトレーシング", Stage::RayGeneration, Ports(kRayTraceInputs), Ports(kRayTraceOutputs), false, false },
 		Node{ Kind::Fresnel, "Fresnel Effect", "入力", Stage::Fragment, Ports(kFresnelInputs), Ports(kValueOutput) },
 		Node{ Kind::SimpleNoise, "Simple Noise", "プロシージャル", Stage::Any, Ports(kNoiseInputs), Ports(kValueOutput) },
+		Node{ Kind::Dither, "Dither", "プロシージャル", Stage::Fragment, Ports(kDitherInputs), Ports(kValueOutput) },
 		Node{ Kind::Voronoi, "Voronoi", "プロシージャル", Stage::Any, Ports(kVoronoiInputs), Ports(kVoronoiOutputs) },
 		Node{ Kind::SubGraph, "Sub Graph", "グラフ", Stage::Any, EmptyPorts(), EmptyPorts(), true },
 		Node{ Kind::CustomFunction, "Custom Function", "グラフ", Stage::Any, EmptyPorts(), EmptyPorts(), true },

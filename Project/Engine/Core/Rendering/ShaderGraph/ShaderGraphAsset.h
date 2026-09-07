@@ -166,6 +166,7 @@ namespace Engine {
 		CustomFunction,
 		Keyword,
 		VertexOutput,
+		Dither,
 	};
 
 	struct ShaderGraphPort {

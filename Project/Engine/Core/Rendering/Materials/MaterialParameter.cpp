@@ -39,6 +39,7 @@ namespace {
 		SemanticAlias{ "ambientocclusion", Engine::MaterialParameterSemantic::AmbientOcclusion },
 		SemanticAlias{ "ao", Engine::MaterialParameterSemantic::AmbientOcclusion },
 		SemanticAlias{ "ambientocclusiontexture", Engine::MaterialParameterSemantic::AmbientOcclusionTexture },
+		SemanticAlias{ "occlusiontexture", Engine::MaterialParameterSemantic::AmbientOcclusionTexture },
 		SemanticAlias{ "aotexture", Engine::MaterialParameterSemantic::AmbientOcclusionTexture },
 		SemanticAlias{ "emissivecolor", Engine::MaterialParameterSemantic::EmissiveColor },
 		SemanticAlias{ "emissioncolor", Engine::MaterialParameterSemantic::EmissiveColor },

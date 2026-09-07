@@ -1,0 +1,111 @@
+{
+    "domain": "Surface",
+    "name": "ditherMesh",
+    "parameters": [
+        {
+            "id": "01e6363c4c61eeb4",
+            "name": "displacementScale",
+            "semantic": "DisplacementScale",
+            "value": 0.0
+        },
+        {
+            "id": "31d4f90ec37c453f",
+            "name": "emissiveIntensity",
+            "semantic": "EmissiveIntensity",
+            "value": 0.0
+        },
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "BaseColor",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
+            "id": "934214824cf435c0",
+            "name": "strength",
+            "semantic": "None",
+            "value": 0.7200000286102295
+        },
+        {
+            "id": "c4617cc0ecd319d1",
+            "name": "emissiveColor",
+            "semantic": "EmissiveColor",
+            "value": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 0.0
+            }
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "Roughness",
+            "value": 0.5
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "Metallic",
+            "value": 0.0
+        },
+        {
+            "id": "e021b96b50184d6a",
+            "name": "displacementMidpoint",
+            "semantic": "DisplacementMidpoint",
+            "value": 0.5
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "ZPrepass",
+            "pipeline": "83ad87a9442ed1054e76ce8f80fdf9be",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "39a41920fa0510f2aa6a3acd4f1f42b1"
+        },
+        {
+            "passKind": "EditorPicking",
+            "pipeline": "7d00c850a4e440b407c6664cfd158653",
+            "preferredVariant": "GraphicsVertex",
+            "shaderOverride": "7d00c850a4e440b407c6664cfd158653"
+        },
+        {
+            "passKind": "Draw",
+            "pipeline": "aa74b8fbb20b7513e17efa52b0e29398",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "66587c83b51262e7e250e7f0c127778c"
+        },
+        {
+            "passKind": "Masked",
+            "pipeline": "4e454d4153534554966f3e8a34595314",
+            "preferredVariant": "GraphicsMesh"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "457c53afb3eb0d82b14deca48795f679",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "1e9145beb53cfa41d2c28e996395034a"
+        },
+        {
+            "passKind": "RayTracing",
+            "pipeline": "c4473032ab4020d57da717aaed1e2652",
+            "preferredVariant": "Raytracing",
+            "shaderOverride": "d97aeac2ec45a8ac4abaeb340ae30cf3"
+        }
+    ],
+    "renderState": {
+        "blendMode": "Normal",
+        "castShadows": true,
+        "overridesRenderer": true,
+        "phase": "Transparent",
+        "receiveShadows": true,
+        "surfaceMode": "Transparent"
+    },
+    "shaderGraph": "1541e2e3e2221438feffe801266293ac",
+    "usage": "Mesh"
+}
