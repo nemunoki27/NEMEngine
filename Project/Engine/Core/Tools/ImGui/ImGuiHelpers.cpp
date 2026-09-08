@@ -16,6 +16,7 @@
 // c++
 #include <algorithm>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 //============================================================================
@@ -39,6 +40,7 @@ namespace {
 	};
 	std::vector<PropertyLabelWidthState> propertyLabelWidthStack{};
 	std::unordered_map<ImGuiID, float> propertyLabelWidthCache{};
+	const std::function<void()>* propertyLabelContextMenu = nullptr;
 
 	// プロパティグループのラベル幅計測を開始する
 	void BeginPropertyLabelWidth(const char* id) {
@@ -369,6 +371,17 @@ Engine::MyGUI::ScopedPropertyLabelWidth::~ScopedPropertyLabelWidth() {
 	EndPropertyLabelWidth();
 }
 
+Engine::MyGUI::ScopedPropertyLabelContextMenu::ScopedPropertyLabelContextMenu(std::function<void()> callback)
+	: callback_(std::move(callback)), previous_(propertyLabelContextMenu) {
+
+	propertyLabelContextMenu = &callback_;
+}
+
+Engine::MyGUI::ScopedPropertyLabelContextMenu::~ScopedPropertyLabelContextMenu() {
+
+	propertyLabelContextMenu = previous_;
+}
+
 bool Engine::MyGUI::CollapsingHeader(const char* label, bool stratOpen) {
 
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6.0f, 0.0f));
@@ -449,6 +462,15 @@ bool Engine::MyGUI::BeginPropertyRow(const char* label, const PropertyRowSetting
 	ImGui::TableSetColumnIndex(0);
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted(label);
+	if (propertyLabelContextMenu && *propertyLabelContextMenu) {
+
+		ImGui::PushID(label);
+		if (ImGui::BeginPopupContextItem("##PropertyLabelContextMenu")) {
+			(*propertyLabelContextMenu)();
+			ImGui::EndPopup();
+		}
+		ImGui::PopID();
+	}
 
 	ImGui::TableSetColumnIndex(1);
 	ImGui::PushID(label);

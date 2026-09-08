@@ -603,6 +603,8 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 	// 1変数分の編集行を描画する、混在時は - 表示にして上書き許可ボタンを出す
 	auto drawVar = [&](const ShaderConstantBufferVariable& var) {
 
+		const auto labelContextMenu = MaterialParameterEditor::MakeLabelContextMenu(var.parameterID, var.name);
+
 		// 全サブメッシュで値が一致しているか調べ、混在していれば既定では編集無効にする
 		MaterialParameterValue common =
 			ResolveSubMeshParamValue(subMeshDraft_.front(), var);
@@ -774,6 +776,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
+			const auto labelContextMenu = MaterialParameterEditor::MakeLabelContextMenu(var->parameterID, var->name);
 			auto result = MyGUI::AssetReferenceField(var->name.c_str(), textureID,
 				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			if (result.valueChanged) {

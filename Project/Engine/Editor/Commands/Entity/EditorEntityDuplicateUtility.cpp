@@ -125,13 +125,6 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 	stableUUIDMap.reserve(sourceSnapshot.entities.size());
 	localFileIDMap.reserve(sourceSnapshot.entities.size());
 	prefabInstanceIDMap.reserve(sourceSnapshot.entities.size());
-	bool preservePrefabInstance = false;
-	if (sourceSnapshot.entities.front().components.contains("PrefabLink")) {
-
-		const PrefabLinkComponent rootPrefabLink =
-			sourceSnapshot.entities.front().components["PrefabLink"].get<PrefabLinkComponent>();
-		preservePrefabInstance = rootPrefabLink.isPrefabRoot;
-	}
 
 	// 複製後に使用するUUID、ローカルファイルID、プレファブインスタンスIDを生成
 	for (const auto& sourceEntity : sourceSnapshot.entities) {
@@ -142,7 +135,7 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 
 			localFileIDMap[oldLocalFileID] = UUID::New();
 		}
-		if (preservePrefabInstance && sourceEntity.components.contains("PrefabLink")) {
+		if (sourceEntity.components.contains("PrefabLink")) {
 
 			const PrefabLinkComponent prefabLink =
 				sourceEntity.components["PrefabLink"].get<PrefabLinkComponent>();
@@ -181,17 +174,24 @@ void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEn
 				attachment["skinnedEntityLocalFileID"] = ToString(localFileIDMap.at(oldTarget));
 			}
 		}
-		if (!preservePrefabInstance) {
-
-			// Prefabの子を複製した場合は追加Entityとして扱う
-			duplicatedEntity.components.erase("PrefabLink");
-		} else if (duplicatedEntity.components.contains("PrefabLink")) {
+		if (duplicatedEntity.components.contains("PrefabLink")) {
 
 			PrefabLinkComponent prefabLink = duplicatedEntity.components["PrefabLink"].get<PrefabLinkComponent>();
 			if (prefabLink.prefabInstanceID && prefabInstanceIDMap.contains(prefabLink.prefabInstanceID)) {
 
 				prefabLink.prefabInstanceID = prefabInstanceIDMap.at(prefabLink.prefabInstanceID);
+				// 複製範囲外の所有者やスロットを新しいルートへ持ち込まない
+				if (prefabInstanceIDMap.contains(prefabLink.ownerPrefabInstanceID)) {
+					prefabLink.ownerPrefabInstanceID = prefabInstanceIDMap.at(prefabLink.ownerPrefabInstanceID);
+				} else {
+					prefabLink.ownerPrefabInstanceID = {};
+					prefabLink.nestedSlotID = {};
+					prefabLink.isPrefabAssetNested = false;
+				}
 				duplicatedEntity.components["PrefabLink"] = prefabLink;
+			} else {
+				// ルートを含まない部分複製は追加Entityとして扱う
+				duplicatedEntity.components.erase("PrefabLink");
 			}
 		}
 

@@ -23,6 +23,21 @@
 //============================================================================
 namespace Engine::MaterialParameterEditor {
 
+	// 値編集と同じ名前とIDをクリップボードへコピーする
+	inline MyGUI::ScopedPropertyLabelContextMenu MakeLabelContextMenu(
+		MaterialParameterID parameterID, std::string_view name) {
+
+		return MyGUI::ScopedPropertyLabelContextMenu([parameterID, name]() {
+
+			if (ImGui::MenuItem("バッファ名をコピー")) {
+				ImGui::SetClipboardText(std::string(name).c_str());
+			}
+			if (ImGui::MenuItem("マテリアルIDをコピー", nullptr, false, static_cast<bool>(parameterID))) {
+				ImGui::SetClipboardText(Engine::ToString(UUID{ parameterID.value }).c_str());
+			}
+			});
+	}
+
 	// 標準PBRスカラーをインスペクターで扱いやすい順に並べる
 	inline size_t GetScalarDisplayRank(
 		const ShaderConstantBufferVariable& var) {
@@ -331,6 +346,7 @@ namespace Engine::MaterialParameterEditor {
 			return ValueEditResult{};
 		}
 		const char* label = var.name.c_str();
+		const auto labelContextMenu = MakeLabelContextMenu(var.parameterID, var.name);
 		const bool isColor = IsColorParameter(var);
 		const uint32_t componentCount = Engine::GetVariableComponentCount(var);
 

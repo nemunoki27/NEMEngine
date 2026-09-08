@@ -386,6 +386,16 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 	}
 	PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
 		BuildSceneToPrefabLocalMap(world, directEntities, prefabAsset);
+	std::unordered_set<UUID> directLocalIDs;
+	for (const Entity& entity : directEntities) {
+		const UUID localID = ResolvePrefabLocalFileID(world, entity, prefabAsset);
+		if (!localID || !directLocalIDs.insert(localID).second) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[PrefabSystem] IDが重複または不正なため保存を中止します AssetID={} PrefabID={} Entity={}",
+				ToString(prefabAsset), ToString(localID), ToString(world.GetUUID(entity)));
+			return false;
+		}
+	}
 	std::vector<PrefabInstanceData> nestedInstances;
 	nestedInstances.reserve(nestedRoots.size());
 	for (const Entity& nestedRoot : nestedRoots) {
@@ -401,6 +411,8 @@ bool Engine::PrefabSystem::SavePrefabFromEntities(AssetDatabase& database, ECSWo
 			world, database, link.prefabInstanceID, base);
 		data.ownerPrefabInstanceID = UUID{};
 		data.isPrefabAssetNested = true;
+		PrefabInstanceData validated;
+		if (!FromJson(ToJson(data), validated)) return false;
 		AppendNestedSceneLocalFileIDs(data, sceneToPrefabLocal);
 		nestedInstances.emplace_back(std::move(data));
 	}

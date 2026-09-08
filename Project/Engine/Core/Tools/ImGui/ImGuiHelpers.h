@@ -12,6 +12,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
+#include <functional>
 #include <initializer_list>
 #include <span>
 #include <string>
@@ -200,6 +201,26 @@ namespace Engine {
 
 			ScopedPropertyLabelWidth(const ScopedPropertyLabelWidth&) = delete;
 			ScopedPropertyLabelWidth& operator=(const ScopedPropertyLabelWidth&) = delete;
+		};
+
+		//============================================================================
+		//	ScopedPropertyLabelContextMenu class
+		//============================================================================
+
+		// プロパティのラベルだけに右クリックメニューを設定する
+		class ScopedPropertyLabelContextMenu {
+		public:
+
+			explicit ScopedPropertyLabelContextMenu(std::function<void()> callback);
+			~ScopedPropertyLabelContextMenu();
+
+			ScopedPropertyLabelContextMenu(const ScopedPropertyLabelContextMenu&) = delete;
+			ScopedPropertyLabelContextMenu& operator=(const ScopedPropertyLabelContextMenu&) = delete;
+
+		private:
+
+			std::function<void()> callback_;
+			const std::function<void()>* previous_ = nullptr;
 		};
 
 		//============================================================================

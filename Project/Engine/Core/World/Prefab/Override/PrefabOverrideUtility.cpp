@@ -622,6 +622,13 @@ Engine::Entity Engine::PrefabOverrideUtility::RebuildInstance(ECSWorld& world, A
 	HierarchySystem& hierarchySystem, const PrefabInstanceData& data, UUID sceneInstanceID,
 	uint32_t nestedDepth) {
 
+	PrefabInstanceData validated;
+	if (!FromJson(ToJson(data), validated)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[Prefab] 不正な対応表の復元を中止します AssetID={} InstanceID={}",
+			ToString(data.prefabAsset), ToString(data.instanceID));
+		return Entity::Null();
+	}
 	if (!data.prefabAsset) {
 		return Entity::Null();
 	}
@@ -1166,6 +1173,13 @@ bool Engine::PrefabOverrideUtility::PropagateToInstances(ECSWorld& world, AssetD
 		state.sceneInstanceID = target.sceneInstanceID;
 		state.data = CaptureInstance(world, database, instanceID, normalizedBase);
 		state.data.prefabAsset = prefabAsset;
+		PrefabInstanceData validated;
+		if (!FromJson(ToJson(state.data), validated)) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[Prefab] 対応表が不正なため伝播を中止します AssetID={} InstanceID={}",
+				ToString(prefabAsset), ToString(instanceID));
+			return false;
+		}
 
 		std::vector<Entity> ownedEntities;
 		std::unordered_set<UUID> ownedInstances = { instanceID };
@@ -1578,6 +1592,9 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 		if (!prefabLocalFileID || !sceneLocalFileID ||
 			!prefabLocalFileIDs.insert(prefabLocalFileID).second ||
 			!sceneLocalFileIDs.insert(sceneLocalFileID).second) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[Prefab] Entity対応が不正です AssetID={} InstanceID={} PrefabID={} SceneID={}",
+				ToString(data.prefabAsset), ToString(data.instanceID), ToString(prefabLocalFileID), ToString(sceneLocalFileID));
 			return false;
 		}
 	}

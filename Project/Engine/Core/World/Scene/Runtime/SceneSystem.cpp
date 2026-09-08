@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
@@ -776,6 +777,13 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 		}
 		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, database, instanceID, base);
 		data.prefabAsset = prefabAsset;
+		PrefabInstanceData validated;
+		if (!FromJson(ToJson(data), validated)) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SceneSystem] Prefab対応が不正なため保存を中止します AssetID={} InstanceID={}",
+				ToString(prefabAsset), ToString(instanceID));
+			return false;
+		}
 		if (data.entityMap.empty()) {
 
 			Logger::Output(LogType::Engine, spdlog::level::err,
@@ -825,6 +833,14 @@ bool Engine::SceneSystem::CaptureSaveSnapshot(
 		world.ForEachAliveEntity(appendFatEntity);
 	}
 	root["Entities"] = SerializeEntities(world, &fatEntities);
+	std::string diagnostic;
+	if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(root, header.guid, diagnostic, &database) ||
+		!diagnostic.empty()) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[SceneSystem] シーン内のID競合により保存を中止します path={} 詳細={}",
+			Algorithm::PathToUTF8(scenePath), diagnostic);
+		return false;
+	}
 
 	outSnapshot.scenePath = scenePath;
 	outSnapshot.sceneAsset = header.guid;
@@ -889,9 +905,34 @@ nlohmann::json Engine::SceneSystem::SerializeEntities(ECSWorld& world, const std
 	return array;
 }
 
-bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& root, ECSWorld& world,
+bool Engine::SceneSystem::LoadFromJson(const nlohmann::json& sourceRoot, ECSWorld& world,
 	AssetDatabase* assetDatabase, AssetID sourceAsset, UUID sceneInstanceID,
 	std::vector<Entity>* outCreatedEntities) const {
+
+	auto root = sourceRoot;
+	std::string recoveryDiagnostic;
+	if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(root, sourceAsset, recoveryDiagnostic, assetDatabase)) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[SceneSystem] Prefab旧データを復旧できません Scene={} 詳細={}", ToString(sourceAsset), recoveryDiagnostic);
+		return false;
+	}
+	// 生成を始める前に全インスタンスを検証する
+	if (root.contains("PrefabInstances") && root["PrefabInstances"].is_array()) {
+		for (const auto& instance : root["PrefabInstances"]) {
+			PrefabInstanceData validated;
+			if (!FromJson(instance, validated)) {
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[SceneSystem] Prefabインスタンスの保存データが不正です Scene={} InstanceID={}",
+					ToString(sourceAsset), instance.value("InstanceID", ""));
+				return false;
+			}
+		}
+	}
+	if (!recoveryDiagnostic.empty()) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"[SceneSystem] 旧Prefab対応を先頭IDへ統合しました Scene={} 通常保存で確定します 詳細={}",
+			ToString(sourceAsset), recoveryDiagnostic);
+	}
 
 	// ルートがオブジェクトでなければ失敗
 	if (!root.is_object()) {

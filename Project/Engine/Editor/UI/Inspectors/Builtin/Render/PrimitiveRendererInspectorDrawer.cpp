@@ -272,6 +272,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
+			const auto labelContextMenu = MaterialParameterEditor::MakeLabelContextMenu(parameterID, displayName);
 			ValueEditResult result = MyGUI::AssetReferenceField(
 				displayName.data(), textureID,
 				context.editorContext->assetDatabase,

@@ -41,6 +41,7 @@
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -795,6 +796,71 @@ namespace {
 
 	bool TestPrefabImmediateHierarchy() {
 
+		// 旧対応表は先頭を維持し、参照先と参照空間を混同しない
+		{
+			using namespace Engine;
+			PrefabInstanceData instance;
+			using Engine::UUID;
+			instance.prefabAsset = AssetID{ 1, 2 };
+			instance.instanceID = UUID{ 1 };
+			instance.entityMap = { { UUID{ 10 }, UUID{ 20 } }, { UUID{ 10 }, UUID{ 21 } },
+				{ UUID{ 11 }, UUID{ 22 } }, { UUID{ 11 }, UUID{ 23 } },
+				{ UUID{ 12 }, UUID{ 24 } }, { UUID{ 12 }, UUID{ 25 } } };
+			const auto sceneRef = nlohmann::json{ { "kind", "Scene" }, { "sourceAsset", "" },
+				{ "localFileId", ToString(UUID{ 21 }) } };
+			auto prefabRef = sceneRef;
+			prefabRef["kind"] = "Prefab";
+			auto foreignRef = sceneRef;
+			foreignRef["sourceAsset"] = ToString(AssetID{ 9, 9 });
+			nlohmann::json scene = {
+				{ "Entities", nlohmann::json::array({ {
+					{ "LocalFileID", ToString(UUID{ 30 }) },
+					{ "Components", { { "Hierarchy", { { "parentLocalFileID", ToString(UUID{ 23 }) } } },
+						{ "ScriptComponent", { { "sceneRef", sceneRef }, { "prefabRef", prefabRef },
+							{ "foreignRef", foreignRef }, { "text", ToString(UUID{ 25 }) } } } } },
+				} }) },
+				{ "PrefabInstances", nlohmann::json::array({ ToJson(instance) }) },
+			};
+			const auto original = scene;
+			std::string diagnostic;
+			if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(scene, {}, diagnostic) || diagnostic.empty() ||
+				scene["PrefabInstances"][0]["EntityMap"].size() != 3 ||
+				scene["Entities"][0]["Components"]["Hierarchy"]["parentLocalFileID"] != ToString(UUID{ 22 }) ||
+				scene["Entities"][0]["Components"]["ScriptComponent"]["sceneRef"]["localFileId"] != ToString(UUID{ 20 }) ||
+				scene["Entities"][0]["Components"]["ScriptComponent"]["prefabRef"] != prefabRef ||
+				scene["Entities"][0]["Components"]["ScriptComponent"]["foreignRef"] != foreignRef ||
+				scene["Entities"][0]["Components"]["ScriptComponent"]["text"] != ToString(UUID{ 25 })) return false;
+			PrefabInstanceData restored;
+			if (!FromJson(scene["PrefabInstances"][0], restored)) return false;
+			const auto normalized = scene;
+			if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(scene, {}, diagnostic) ||
+				!diagnostic.empty() || scene != normalized) return false;
+			auto conflict = original;
+			conflict["Entities"][0]["LocalFileID"] = ToString(UUID{ 21 });
+			const auto unchanged = conflict;
+			if (PrefabReferenceRemapper::NormalizeLegacySceneInstances(conflict, {}, diagnostic) ||
+				conflict != unchanged) return false;
+			auto leafScene = original;
+			leafScene["PrefabInstances"][0]["Modifications"] = nlohmann::json::array({
+				{ { "Target", ToString(UUID{ 10 }) }, { "Path", "ScriptComponent/ref/kind" }, { "Value", "Scene" } },
+				{ { "Target", ToString(UUID{ 10 }) }, { "Path", "ScriptComponent/ref/sourceAsset" }, { "Value", "" } },
+				{ { "Target", ToString(UUID{ 10 }) }, { "Path", "ScriptComponent/ref/localFileId" }, { "Value", ToString(UUID{ 21 }) } },
+			});
+			if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(leafScene, {}, diagnostic) ||
+				leafScene["PrefabInstances"][0]["Modifications"][2]["Value"] != ToString(UUID{ 20 })) return false;
+			auto nestedScene = original;
+			auto nested = instance;
+			nested.instanceID = UUID{ 2 };
+			nested.ownerPrefabInstanceID = instance.instanceID;
+			nested.nestedSlotID = UUID{ 3 };
+			nested.entityMap = { { UUID{ 10 }, UUID{ 40 } }, { UUID{ 10 }, UUID{ 41 } } };
+			nested.rootParentSceneLocalFileID = UUID{ 21 };
+			nestedScene["PrefabInstances"][0]["NestedInstances"].push_back(ToJson(nested));
+			if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(nestedScene, {}, diagnostic) ||
+				nestedScene["PrefabInstances"][0]["NestedInstances"][0]["RootParent"] != ToString(UUID{ 20 }) ||
+				!FromJson(nestedScene["PrefabInstances"][0], restored)) return false;
+		}
+
 		Engine::RuntimePaths::Refresh();
 		const std::filesystem::path testRoot =
 			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/PrefabImmediate";
@@ -845,6 +911,51 @@ namespace {
 			rootHierarchy && rootHierarchy->parent == targetParent &&
 			targetWorld.IsAlive(child) && childHierarchy && childHierarchy->parent == result.root &&
 			childName && childName->name == "ImmediateChild";
+
+		// 旧シーンをロードし、別名を参照する通常Entityの親も復旧する
+		{
+			using namespace Engine;
+			const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(database, prefabAsset);
+			using Engine::UUID;
+			auto data = PrefabOverrideUtility::CaptureInstance(targetWorld, database, result.prefabInstanceID, base);
+			data.rootParentSceneLocalFileID = {};
+			const UUID localID = targetWorld.GetComponent<PrefabLinkComponent>(child).prefabLocalFileID;
+			const UUID canonical = targetWorld.GetComponent<SceneObjectComponent>(child).localFileID;
+			auto legacy = ToJson(data);
+			legacy["EntityMap"].push_back({ { "P", ToString(localID) }, { "S", ToString(UUID{ 999 }) } });
+			nlohmann::json scene = { { "PrefabInstances", nlohmann::json::array({ legacy }) },
+				{ "Entities", nlohmann::json::array({ { { "LocalFileID", ToString(UUID{ 998 }) },
+					{ "Components", { { "Hierarchy", { { "parentLocalFileID", ToString(UUID{ 999 }) } } } } } } }) } };
+			SceneSystem scenes;
+			ECSWorld restored;
+			passed &= scenes.LoadFromJson(scene, restored, &database, {}, UUID{ 701 });
+			const Entity observer = SceneObjectUtility::FindByLocalFileID(restored, UUID{ 998 });
+			const Entity restoredChild = SceneObjectUtility::FindByLocalFileID(restored, canonical);
+			passed &= restored.IsAlive(observer) && restored.IsAlive(restoredChild) &&
+				restored.GetComponent<HierarchyComponent>(observer).parent == restoredChild;
+			SceneHeader header;
+			header.guid = AssetGUID::New();
+			SceneSaveSnapshot snapshot;
+			passed &= scenes.CaptureSaveSnapshot(testRoot / "Recovered.scene.json", restored, header, database, snapshot);
+			std::string diagnostic;
+			passed &= PrefabReferenceRemapper::NormalizeLegacySceneInstances(snapshot.root, header.guid, diagnostic) &&
+				diagnostic.empty();
+			ECSWorld reloaded;
+			passed &= scenes.LoadFromJson(snapshot.root, reloaded, &database, header.guid, UUID{ 702 });
+			snapshot.useExternalActors = false;
+			passed &= SceneSystem::WriteSaveSnapshot(snapshot);
+			const auto savedScene = JsonAdapter::Load(testRoot / "Recovered.scene.json", false);
+
+			// 生存中の重複は旧データ扱いせず、保存と伝播を中止して実体を保持する
+			const Entity duplicate = SceneAuthoring::CreateGameObject(restored, "Duplicate");
+			restored.AddComponent<PrefabLinkComponent>(duplicate) = restored.GetComponent<PrefabLinkComponent>(restoredChild);
+			hierarchySystem.SetParent(restored, duplicate, restoredChild);
+			passed &= !scenes.CaptureSaveSnapshot(testRoot / "Recovered.scene.json", restored, header, database, snapshot);
+			passed &= !scenes.SaveScene(testRoot / "Recovered.scene.json", restored, header, database) &&
+				JsonAdapter::Load(testRoot / "Recovered.scene.json", false) == savedScene;
+			passed &= !PrefabOverrideUtility::PropagateToInstances(restored, database, hierarchySystem, prefabAsset, base) &&
+				restored.IsAlive(duplicate) && restored.IsAlive(restoredChild);
+		}
 
 		const Engine::Entity runtimeParent =
 			Engine::SceneAuthoring::CreateGameObject(targetWorld, "RuntimeParent");
@@ -1001,6 +1112,8 @@ namespace {
 		passed &= prefabSystem.InstantiatePrefab(
 			database, hierarchySystem, outerSourceWorld, nestedAsset, secondNestedSourceResult, nestedDesc);
 		auto& sourceCanvas = outerSourceWorld.AddComponent<Engine::CanvasComponent>(outerSourceRoot);
+		sourceCanvas.navigationRows = 1;
+		sourceCanvas.navigationColumns = 2;
 		sourceCanvas.firstSelectedLocalFileID =
 			outerSourceWorld.GetComponent<Engine::SceneObjectComponent>(nestedSourceResult.root).localFileID;
 		const std::array<Engine::UUID, 2> sourceNavigation = {
@@ -1022,6 +1135,7 @@ namespace {
 			outerJson.contains("Entities") && outerJson["Entities"].size() == 2 &&
 			outerJson.contains("NestedPrefabInstances") &&
 			outerJson["NestedPrefabInstances"].size() == 2;
+		if (!passed) { std::cerr << "Nested prefab save failed\n"; return false; }
 
 		Engine::ECSWorld targetWorld;
 		const Engine::Entity externalParent =
@@ -1058,6 +1172,7 @@ namespace {
 				targetNavigation[0].localFileID) != nestedTargetLocalFileIDs.end() &&
 			std::find(nestedTargetLocalFileIDs.begin(), nestedTargetLocalFileIDs.end(),
 				targetNavigation[1].localFileID) != nestedTargetLocalFileIDs.end();
+		if (!passed) { std::cerr << "Nested prefab references failed\n"; return false; }
 		const Engine::Entity addedChild =
 			Engine::SceneAuthoring::CreateGameObject(targetWorld, "AddedChild");
 		hierarchySystem.SetParent(targetWorld, addedChild, outerResult.root);
@@ -1118,6 +1233,7 @@ namespace {
 			}
 		}
 		passed &= updatedChildFound;
+		if (!passed) { std::cerr << "Nested prefab propagation failed\n"; return false; }
 
 		const std::filesystem::path scenePath = testRoot / "NestedRoundTrip.scene.json";
 		Engine::SceneHeader sceneHeader{};
@@ -1225,14 +1341,17 @@ namespace {
 			targetWorld.GetComponent<Engine::SceneObjectComponent>(externalParent).localFileID;
 		const Engine::Entity restoredRoot = Engine::PrefabOverrideUtility::RebuildInstance(
 			restoredWorld, database, hierarchySystem, removedNestedData, Engine::UUID{});
-		bool nestedRestored = false;
+		size_t nestedRestored = 0;
+		bool removedSlotRestored = false;
 		restoredWorld.ForEach<Engine::PrefabLinkComponent>(
 			[&](const Engine::Entity&, Engine::PrefabLinkComponent& link) {
-				if (link.ownerPrefabInstanceID == removedNestedData.instanceID) {
-					nestedRestored = true;
+				if (link.ownerPrefabInstanceID == removedNestedData.instanceID && link.isPrefabRoot) {
+					++nestedRestored;
+					removedSlotRestored |= std::find(removedNestedData.removedNestedSlots.begin(),
+						removedNestedData.removedNestedSlots.end(), link.nestedSlotID) != removedNestedData.removedNestedSlots.end();
 				}
 			});
-		passed &= restoredWorld.IsAlive(restoredRoot) && !nestedRestored;
+		passed &= restoredWorld.IsAlive(restoredRoot) && nestedRestored == 1 && !removedSlotRestored;
 
 		Engine::ECSWorld unpackWorld;
 		const Engine::Entity unpackParent =
@@ -2247,6 +2366,13 @@ namespace {
 		// Shader GraphのUUID由来IDへ名前指定の実行時値を重ねられることを確認する
 		const Engine::MaterialParameterID graphParameterID{
 			0x94d20ddddf0f9c93ull };
+		// コピー用のIDが小文字16桁で先頭の0を保持することを確認する
+		if (Engine::ToString(Engine::UUID{ graphParameterID.value }) != "94d20ddddf0f9c93" ||
+			Engine::ToString(Engine::UUID{ 1 }) != "0000000000000001" ||
+			Engine::ToString(Engine::UUID{ 0xffffffffffffffffull }) != "ffffffffffffffff") {
+
+			return false;
+		}
 		Engine::MaterialParameterSet graphDefaults{};
 		Engine::MaterialParameterValue defaultThreshold{};
 		defaultThreshold.value = 0.5f;
@@ -4167,6 +4293,23 @@ namespace {
 }
 
 int main(int argc, char* argv[]) {
+
+	// 実シーンの互換復旧をファイル変更なしで検証する
+	if (2 < argc && std::string_view(argv[1]) == "--prefab-recovery") {
+		std::ifstream file(Engine::Algorithm::PathFromUTF8(argv[2]));
+		auto scene = nlohmann::json::parse(file, nullptr, false);
+		std::string diagnostic;
+		if (!scene.is_object() || !Engine::PrefabReferenceRemapper::NormalizeLegacySceneInstances(scene, {}, diagnostic)) {
+			std::cerr << "Prefab recovery failed: " << diagnostic << '\n';
+			return 39;
+		}
+		for (const auto& instance : scene.value("PrefabInstances", nlohmann::json::array())) {
+			Engine::PrefabInstanceData validated;
+			if (!Engine::FromJson(instance, validated)) return 39;
+		}
+		std::cout << "Prefab recovery passed\n" << diagnostic;
+		return 0;
+	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-single-load") {
 

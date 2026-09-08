@@ -13,6 +13,7 @@
 #include <json.hpp>
 
 namespace Engine {
+	class AssetDatabase;
 namespace PrefabReferenceRemapper {
 
 	//============================================================================
@@ -26,6 +27,10 @@ namespace PrefabReferenceRemapper {
 	};
 
 	using LocalFileIDMap = std::unordered_map<UUID, UUID>;
+
+	// 旧シーンの重複対応を先頭へ統合し、シーン参照だけを張り替える
+	bool NormalizeLegacySceneInstances(nlohmann::json& scene, AssetID sourceAsset, std::string& diagnostic,
+		AssetDatabase* database = nullptr);
 
 	// コンポーネントマップ内のEntity参照を変換する
 	void RemapComponents(nlohmann::json& components, const LocalFileIDMap& localFileIDMap,
