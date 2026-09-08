@@ -201,6 +201,8 @@ namespace Engine {
 			const EditorToolContext& context);
 
 		bool LoadGraph(const EditorToolContext& context, AssetID assetID);
+		// 別アセットの設定を検証して一括置換する
+		void ImportGraphSettings(const EditorToolContext& context, AssetID source);
 		bool CreateGraph(const EditorToolContext& context);
 		bool SaveAndCompile(const EditorToolContext& context);
 		bool ApplyPreviewMaterial(

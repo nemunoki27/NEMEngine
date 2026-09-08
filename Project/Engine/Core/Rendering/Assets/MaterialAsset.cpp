@@ -35,6 +35,11 @@ namespace {
 		}
 		if (data.is_string()) {
 			const std::string text = data.get<std::string>();
+			// 未設定のアセット参照も型を維持する
+			if (text.empty()) {
+				outValue.value = Engine::AssetID{};
+				return true;
+			}
 			if (text.size() == 32) {
 				outValue.value = Engine::FromString32Hex(text);
 				return true;

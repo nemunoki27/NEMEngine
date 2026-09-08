@@ -631,7 +631,8 @@ namespace {
 				return lhs->id.value < rhs->id.value;
 			});
 
-		uint32_t shaderRegister = 1;
+		// s0は既定サンプラー、s1はレイトレーシングの環境サンプラー
+		uint32_t shaderRegister = 2;
 		for (const ShaderGraphNode* node : samplerNodes) {
 			output.samplers.emplace_back(ShaderGraphSamplerBinding{
 				.node = node->id,

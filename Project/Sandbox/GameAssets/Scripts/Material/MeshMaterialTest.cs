@@ -10,7 +10,7 @@ public sealed class MeshMaterialTest : ScriptBehaviour {
 	[SerializeField]
 	private float strength = 0.0f;
 
-	private MaterialParameterID id = MaterialParameterID.FromHex("934214824cf435c0");
+	private MaterialParameterID id = MaterialParameterID.FromHex("e1e686f24797ab03");
 
 	private MeshRenderer? meshRenderer;
 

@@ -77,6 +77,9 @@ namespace Engine {
 		// 生成ShaderをMaterialの描画パスへ適用
 		static void ApplyToMaterial(
 			const ShaderGraphArtifact& artifact, MaterialAsset& material);
+		// コンパイルせずに生成予定の参照IDを取得
+		static ShaderGraphArtifact DescribeReferences(
+			const ShaderGraphAsset& graph, AssetID graphID);
 		// グラフと用途から決定的な派生IDを生成
 		static AssetID MakeDerivedID(AssetID graphID, uint64_t discriminator);
 	};

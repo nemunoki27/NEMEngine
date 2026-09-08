@@ -18,6 +18,7 @@
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphNodeRegistry.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSettingsImporter.h>
 #include <Engine/Core/Rendering/Textures/BuiltinTextureLibrary.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
@@ -1430,6 +1431,16 @@ void Engine::ShaderGraphEditorTool::DrawToolbar(
 		RestorePreviewMaterial(context);
 		LoadGraph(context, selected);
 	}
+
+	AssetID importSource{};
+	AssetEditSetting importSetting{};
+	importSetting.allowDelete = false;
+	ImGui::BeginDisabled(!graphLoaded_);
+	if (MyGUI::AssetReferenceField("設定をインポート", importSource, assetDatabase,
+		{ AssetType::Material, AssetType::ShaderGraph }, importSetting).valueChanged) {
+		ImportGraphSettings(context, importSource);
+	}
+	ImGui::EndDisabled();
 
 	MyGUI::EnumCombo("作成種類", createDomain_);
 	if (createDomain_ == ShaderGraphDomain::Surface) {
@@ -4139,6 +4150,57 @@ void Engine::ShaderGraphEditorTool::DrawNodeCreationMenu() {
 		ImGui::EndMenu();
 	}
 	ImGui::EndPopup();
+}
+
+void Engine::ShaderGraphEditorTool::ImportGraphSettings(
+	const EditorToolContext& context, AssetID source) {
+
+	AssetDatabase* database = context.toolContext.assetDatabase;
+	const AssetMeta* meta = database ? database->Find(source) : nullptr;
+	if (!graphLoaded_ || !meta || source == selectedAsset_) {
+		statusMessage_ = "別のMaterialまたはShaderGraphを指定してください";
+		return;
+	}
+	ShaderGraphAsset imported;
+	const auto resolver = [database](AssetID id, AssetType type, nlohmann::json& data) {
+		const AssetMeta* dependency = database->Find(id);
+		if (!dependency || (type != AssetType::Unknown && dependency->type != type)) {
+			return false;
+		}
+		const auto path = database->ResolveFullPath(id);
+		if (path.empty() || !std::filesystem::exists(path)) {
+			return false;
+		}
+		if (type == AssetType::Texture || type == AssetType::Unknown) {
+			data = { { "path", Algorithm::PathToUTF8(path) } };
+			return true;
+		}
+		data = JsonAdapter::Load(path, false);
+		return !data.is_null();
+	};
+	if (!ShaderGraphSettingsImporter::Import(graph_, source, meta->type,
+		resolver, imported, statusMessage_)) {
+		return;
+	}
+	CaptureNodePositions();
+	history_.Commit(graph_);
+	RestorePreviewMaterial(context);
+	// プレビューの自動保存で取り込み直後の内容を確定しない
+	previewEntityUUID_ = {};
+	previewCompileDeadline_ = 0.0;
+	ClearNodePreviews();
+	graph_ = std::move(imported);
+	history_.Commit(graph_);
+	graphDirty_ = true;
+	previewCompileDirty_ = true;
+	compiledGraphState_.clear();
+	latestDiagnostics_.clear();
+	selectedParameter_ = -1;
+	editingGroup_ = {};
+	contextNode_ = {};
+	ResetNodeEditor();
+	restoreNodePositions_ = true;
+	statusMessage_ = "設定をインポートしました。保存してください";
 }
 
 bool Engine::ShaderGraphEditorTool::LoadGraph(

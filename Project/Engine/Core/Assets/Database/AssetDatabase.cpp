@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 
 // c++
 #include <algorithm>
@@ -558,6 +559,40 @@ std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const As
 	std::unordered_map<AssetID, AssetType> candidates;
 	std::unordered_map<std::string, AssetType> pathCandidates;
 	ScanReferences(data, candidates, pathCandidates);
+	// 編集時の派生参照は元グラフから再生成され、通常アセットには登録されない
+	if (!RuntimePaths::IsProductBuild() && meta.type == AssetType::Material) {
+		const AssetID graphID = ParseAssetReference(data, "shaderGraph", nullptr, AssetType::ShaderGraph);
+		const AssetMeta* graphMeta = Find(graphID);
+		if (graphMeta && graphMeta->type == AssetType::ShaderGraph) {
+			const auto graphData = LoadJsonFileNoThrow(ResolveFullPath(graphID));
+			if (graphData.is_object() && graphData.contains("domain") && graphData["domain"].is_string() &&
+				graphData.contains("target") && graphData["target"].is_string()) {
+				// 参照IDに必要な種別だけを読み、ノードの解析はインポーターへ任せる
+				ShaderGraphAsset graph;
+				graph.domain = EnumAdapter<ShaderGraphDomain>::FromString(
+					graphData["domain"].get<std::string>()).value_or(ShaderGraphDomain::Surface);
+				graph.target = EnumAdapter<ShaderGraphTarget>::FromString(
+					graphData["target"].get<std::string>()).value_or(ShaderGraphTarget::Mesh);
+				const auto artifact = ShaderGraphArtifactCache::DescribeReferences(graph, graphID);
+				const auto removeGenerated = [&](AssetID id, AssetType type) {
+					const auto found = candidates.find(id);
+					if (id && found != candidates.end() && found->second == type) {
+						candidates.erase(found);
+					}
+				};
+				for (const AssetID id : { artifact.opaqueShaderID, artifact.transparentShaderID,
+					artifact.depthShaderID, artifact.pickingShaderID, artifact.computeShaderID,
+					artifact.rayTracingShaderID }) {
+					removeGenerated(id, AssetType::Shader);
+				}
+				for (const AssetID id : { artifact.opaquePipelineID, artifact.transparentPipelineID,
+					artifact.depthPipelineID, artifact.pickingPipelineID, artifact.computePipelineID,
+					artifact.rayTracingPipelineID }) {
+					removeGenerated(id, AssetType::RenderPipeline);
+				}
+			}
+		}
+	}
 	for (const auto& [assetPath, expectedType] : pathCandidates) {
 
 		const AssetMeta* referenced = FindByPath(assetPath);

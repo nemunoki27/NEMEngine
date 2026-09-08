@@ -740,12 +740,14 @@ void Engine::ShaderGraphArtifactCache::ApplyToMaterial(
 		}
 		pass->shaderOverride = artifact.pickingShaderID;
 	}
-	if (MaterialPassBinding* pass =
-		FindPass(material, MaterialPassKind::Draw)) {
-		if (artifact.opaquePipelineID) {
-			pass->pipeline = artifact.opaquePipelineID;
+	// 切り抜きも通常描画と同じグラフで評価する
+	for (const auto kind : { MaterialPassKind::Draw, MaterialPassKind::Masked }) {
+		if (MaterialPassBinding* pass = FindPass(material, kind)) {
+			if (artifact.opaquePipelineID) {
+				pass->pipeline = artifact.opaquePipelineID;
+			}
+			pass->shaderOverride = artifact.opaqueShaderID;
 		}
-		pass->shaderOverride = artifact.opaqueShaderID;
 	}
 	if (MaterialPassBinding* pass =
 		FindPass(material, MaterialPassKind::Transparent)) {
@@ -768,6 +770,41 @@ void Engine::ShaderGraphArtifactCache::ApplyToMaterial(
 		}
 		pass->shaderOverride = artifact.rayTracingShaderID;
 	}
+}
+
+Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences(
+	const ShaderGraphAsset& graph, AssetID graphID) {
+
+	ShaderGraphArtifact artifact;
+	const auto derived = [&](uint64_t discriminator) {
+		return MakeDerivedID(graphID, discriminator);
+	};
+	const auto target = static_cast<uint64_t>(graph.target);
+	if (graph.domain == ShaderGraphDomain::PostProcess) {
+		artifact.computePipelineID = derived(0x504f535450495045ull);
+		artifact.computeShaderID = derived(0x504f535450524f43ull);
+		return artifact;
+	}
+	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
+		artifact.rayTracingPipelineID = derived(0x5241595452414350ull);
+		artifact.rayTracingShaderID = derived(0x5241594645415455ull);
+		return artifact;
+	}
+	artifact.opaquePipelineID = derived(0x4f50415155455f4cull ^ target);
+	artifact.opaqueShaderID = derived(0x4f50415155455f50ull ^ target);
+	artifact.transparentPipelineID = derived(0x5452414e535f504cull ^ target);
+	artifact.transparentShaderID = derived(0x5452414e535f5053ull ^ target);
+	if (graph.target == ShaderGraphTarget::Mesh) {
+		artifact.depthPipelineID = derived(0x44455054485f504cull);
+		artifact.depthShaderID = derived(0x44455054485f5053ull);
+		artifact.pickingPipelineID = derived(0x5049434b494e4750ull);
+		artifact.pickingShaderID = artifact.pickingPipelineID;
+	}
+	if (IsShaderGraph3DTarget(graph.target)) {
+		artifact.rayTracingPipelineID = derived(0x5241595452414350ull);
+		artifact.rayTracingShaderID = derived(0x5241595452414345ull ^ target);
+	}
+	return artifact;
 }
 
 Engine::AssetID Engine::ShaderGraphArtifactCache::MakeDerivedID(

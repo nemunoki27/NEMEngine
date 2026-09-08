@@ -1,0 +1,200 @@
+{
+    "domain": "Surface",
+    "name": "ditherMeshPBR",
+    "parameters": [
+        {
+            "id": "01e6363c4c61eeb4",
+            "name": "displacementScale",
+            "semantic": "DisplacementScale",
+            "value": 0.0
+        },
+        {
+            "id": "0da76bdbc1e3bc5b",
+            "name": "metallicTexture",
+            "semantic": "MetallicTexture",
+            "value": ""
+        },
+        {
+            "id": "31d4f90ec37c453f",
+            "name": "emissiveIntensity",
+            "semantic": "EmissiveIntensity",
+            "value": 0.0
+        },
+        {
+            "id": "3380eed872e528a8",
+            "name": "normalTexture",
+            "semantic": "NormalTexture",
+            "value": ""
+        },
+        {
+            "id": "4f6d438648540a8b",
+            "name": "roughness",
+            "semantic": "Roughness",
+            "value": 0.5
+        },
+        {
+            "id": "5530581630b8073b",
+            "name": "ditherSize ",
+            "semantic": "None",
+            "value": 1.0
+        },
+        {
+            "id": "77f5c18e246c6638",
+            "name": "color",
+            "semantic": "BaseColor",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
+            "id": "869bf25550c0e745",
+            "name": "emissiveColor",
+            "semantic": "EmissiveColor",
+            "value": {
+                "a": 0.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 0.0
+            }
+        },
+        {
+            "id": "888ad0c697ffc249",
+            "name": "roughnessTexture",
+            "semantic": "RoughnessTexture",
+            "value": ""
+        },
+        {
+            "id": "b1a9242396b316d1",
+            "name": "color",
+            "semantic": "BaseColor",
+            "value": {
+                "a": 1.0,
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            }
+        },
+        {
+            "id": "b8cff5576bca4505",
+            "name": "emissiveTexture",
+            "semantic": "EmissiveTexture",
+            "value": ""
+        },
+        {
+            "id": "c1cfddc074148d62",
+            "name": "metallicRoughnessTexture",
+            "semantic": "MetallicRoughnessTexture",
+            "value": ""
+        },
+        {
+            "id": "c4617cc0ecd319d1",
+            "name": "emissiveColor",
+            "semantic": "EmissiveColor",
+            "value": {
+                "a": 1.0,
+                "b": 0.0,
+                "g": 0.0,
+                "r": 0.0
+            }
+        },
+        {
+            "id": "c65b493a4e9d7f55",
+            "name": "roughness",
+            "semantic": "Roughness",
+            "value": 0.5
+        },
+        {
+            "id": "c924c95229ac36e4",
+            "name": "metallic",
+            "semantic": "Metallic",
+            "value": 0.0
+        },
+        {
+            "id": "d6f93c3bbd723dd8",
+            "name": "occlusionTexture",
+            "semantic": "AmbientOcclusionTexture",
+            "value": ""
+        },
+        {
+            "id": "dcb8577fa156df4e",
+            "name": "emissiveIntensity",
+            "semantic": "EmissiveIntensity",
+            "value": 0.0
+        },
+        {
+            "id": "df9e0c473a8555c8",
+            "name": "metallic",
+            "semantic": "Metallic",
+            "value": 0.0
+        },
+        {
+            "id": "e021b96b50184d6a",
+            "name": "displacementMidpoint",
+            "semantic": "DisplacementMidpoint",
+            "value": 0.5
+        },
+        {
+            "id": "e1e686f24797ab03",
+            "name": "strength",
+            "semantic": "None",
+            "value": 0.0
+        },
+        {
+            "id": "f65f6bb07dd677ed",
+            "name": "baseColorTexture",
+            "semantic": "BaseColorTexture",
+            "value": ""
+        }
+    ],
+    "passes": [
+        {
+            "passKind": "ZPrepass",
+            "pipeline": "1df18af47cb3609af04cedf7fa15ff8d",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "ee9324ae6aa62f7de86876268c8e4c22"
+        },
+        {
+            "passKind": "EditorPicking",
+            "pipeline": "665e0d6961575d637ebc9d765a578518",
+            "preferredVariant": "GraphicsVertex",
+            "shaderOverride": "665e0d6961575d637ebc9d765a578518"
+        },
+        {
+            "passKind": "Draw",
+            "pipeline": "e7b60b07e72d0cf440d2bc9f038373db",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "05e89217e0778b701df12da8a19fa38f"
+        },
+        {
+            "passKind": "Masked",
+            "pipeline": "e7b60b07e72d0cf440d2bc9f038373db",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "05e89217e0778b701df12da8a19fa38f"
+        },
+        {
+            "passKind": "Transparent",
+            "pipeline": "36c9ff12433ba8691a705108eab18b7e",
+            "preferredVariant": "GraphicsMesh",
+            "shaderOverride": "ff9318525e8f26dade815358bd9dbcf5"
+        },
+        {
+            "passKind": "RayTracing",
+            "pipeline": "b90efe24560e6da6f8ece43bb4fc3eb5",
+            "preferredVariant": "Raytracing",
+            "shaderOverride": "8ab1073ee9040907584ec3b71845e21c"
+        }
+    ],
+    "renderState": {
+        "blendMode": "Normal",
+        "castShadows": true,
+        "overridesRenderer": true,
+        "phase": "Opaque",
+        "receiveShadows": true,
+        "surfaceMode": "Masked"
+    },
+    "shaderGraph": "3f6b731448ed040d9f649990f99145b5",
+    "usage": "Mesh"
+}

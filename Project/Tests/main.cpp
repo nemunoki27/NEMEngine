@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Rendering/Assets/RenderPipelineAsset.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -19,6 +20,8 @@
 #include <Engine/Core/Rendering/Pipelines/BuiltinShaderSource.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderReflectionParser.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSettingsImporter.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
@@ -2171,6 +2174,16 @@ namespace {
 
 	bool TestMaterialParameters() {
 
+		// 空のアセット参照も保存前の型で復元する
+		Engine::MaterialParameterValue emptyTexture{ .value = Engine::AssetID{} };
+		Engine::MaterialParameterValue restoredTexture{};
+		if (!Engine::ParseMaterialParameterValue(
+			Engine::SerializeMaterialParameterValue(emptyTexture), restoredTexture) ||
+			!std::holds_alternative<Engine::AssetID>(restoredTexture.value) ||
+			std::get<Engine::AssetID>(restoredTexture.value)) {
+			return false;
+		}
+
 		if (Engine::ResolveMaterialParameterSemantic("occlusionTexture") !=
 			Engine::MaterialParameterSemantic::AmbientOcclusionTexture ||
 			Engine::ResolveMaterialParameterSemantic("sampleCount") !=
@@ -2681,11 +2694,44 @@ namespace {
 			database.FindDependencies(shaderID);
 		const std::vector<Engine::AssetID>& referencers =
 			database.FindReferencers(sourceID);
-		const bool passed = sourceID && shaderID &&
+		bool passed = sourceID && shaderID &&
 			std::find(dependencies.begin(), dependencies.end(), sourceID) !=
 				dependencies.end() &&
 			std::find(referencers.begin(), referencers.end(), shaderID) !=
-				referencers.end();
+					referencers.end();
+		// 派生IDは元グラフへ依存し、独自の参照切れは隠さない
+		const auto graph = Engine::CreateDefaultSurfaceShaderGraph("Dependencies");
+		passed &= Engine::JsonAdapter::SaveCanonical(testRoot / "test.shadergraph.json", Engine::ToJson(graph));
+		const auto graphID = database.ImportOrGet(
+			"GameAssets/Tests/RenderFeatureDependencies/test.shadergraph.json", Engine::AssetType::ShaderGraph);
+		auto material = Engine::ShaderGraphArtifactCache::CreateMaterial(graph, graphID);
+		const auto artifact = Engine::ShaderGraphArtifactCache::DescribeReferences(graph, graphID);
+		Engine::ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
+		const Engine::AssetID missingID{ 123, 456 };
+		Engine::FindPass(material, Engine::MaterialPassKind::Transparent)->pipeline = missingID;
+		passed &= Engine::JsonAdapter::SaveCanonical(testRoot / "test.material.json", Engine::ToJson(material));
+		const auto materialID = database.ImportOrGet(
+			"GameAssets/Tests/RenderFeatureDependencies/test.material.json", Engine::AssetType::Material);
+		database.RefreshDependencies(materialID);
+		const auto& graphDependencies = database.FindDependencies(materialID);
+		passed &= std::find(graphDependencies.begin(), graphDependencies.end(), graphID) != graphDependencies.end() &&
+			std::find(graphDependencies.begin(), graphDependencies.end(), missingID) != graphDependencies.end() &&
+			std::find(graphDependencies.begin(), graphDependencies.end(), artifact.opaquePipelineID) == graphDependencies.end() &&
+			std::find(graphDependencies.begin(), graphDependencies.end(), artifact.opaqueShaderID) == graphDependencies.end();
+		passed &= std::any_of(database.GetIssues().begin(), database.GetIssues().end(), [&](const auto& issue) {
+			return issue.assetID == materialID && issue.referencedAssetID == missingID &&
+				issue.type == Engine::AssetDatabaseIssueType::MissingReference;
+		});
+		passed &= std::none_of(database.GetIssues().begin(), database.GetIssues().end(), [&](const auto& issue) {
+			return issue.assetID == materialID && issue.referencedAssetID != missingID;
+		});
+		// 元グラフが欠損していれば派生参照も再生成できない
+		material.shaderGraph = Engine::AssetID{ 123, 789 };
+		passed &= Engine::JsonAdapter::SaveCanonical(testRoot / "test.material.json", Engine::ToJson(material));
+		database.RefreshDependencies(materialID);
+		const auto& missingDependencies = database.FindDependencies(materialID);
+		passed &= std::find(missingDependencies.begin(), missingDependencies.end(), artifact.opaqueShaderID) !=
+			missingDependencies.end();
 		std::filesystem::remove_all(testRoot, ec);
 		return passed && !ec;
 	}
@@ -2804,6 +2850,115 @@ namespace {
 			}
 			return true;
 		};
+
+		// アセット取り込みは保存先を維持し、失敗時に編集内容を変更しない
+		{
+			using namespace Engine;
+			const AssetID graphID{ 1, 2 }, materialID{ 1, 3 };
+			auto destination = CreateDefaultSurfaceShaderGraph("Destination");
+			auto source = CreateDefaultSurfaceShaderGraph("Source");
+			source.renderState.cullMode = D3D12_CULL_MODE_NONE;
+			MaterialAsset material;
+			std::ifstream materialFile("Project/Engine/Assets/Shaders/Builtin/Mesh/MeshPBR/meshPBR.material.json");
+			nlohmann::json materialData;
+			materialFile >> materialData;
+			if (!FromJson(materialData, material)) return false;
+			const auto resolver = [&](AssetID id, AssetType type, nlohmann::json& data) {
+				if (id == AssetID{ 2, 1 } && type == AssetType::Texture) { data = nlohmann::json::object(); return true; }
+				if (id == graphID && type == AssetType::ShaderGraph) { data = ToJson(source); return true; }
+				if (id == materialID && type == AssetType::Material) { data = ToJson(material); return true; }
+				if (id == BuiltinAssets::Materials::DefaultMesh && type == AssetType::Material) { data = materialData; return true; }
+				std::string path;
+				if (id == BuiltinAssets::Pipelines::DefaultMesh) path = "meshPBR.pipeline.json";
+				if (id == BuiltinAssets::Pipelines::DefaultMeshMasked) path = "meshPBRMasked.pipeline.json";
+				if (id == BuiltinAssets::Pipelines::DefaultMeshTransparent) path = "meshPBRTransparent.pipeline.json";
+				if (path.empty() || type != AssetType::RenderPipeline) return false;
+				std::ifstream stream("Project/Engine/Assets/Shaders/Builtin/Mesh/MeshPBR/" + path);
+				if (!stream) return false;
+				stream >> data;
+				return true;
+			};
+			ShaderGraphAsset imported;
+			std::string error;
+			if (!ShaderGraphSettingsImporter::Import(destination, graphID, AssetType::ShaderGraph,
+				resolver, imported, error) || imported.name != destination.name ||
+				imported.renderState.cullMode != D3D12_CULL_MODE_NONE || imported.nodes.size() != source.nodes.size()) {
+				std::cerr << "Graph import: " << error << '\n';
+				return false;
+			}
+			if (!ShaderGraphSettingsImporter::Import(destination, materialID, AssetType::Material,
+				resolver, imported, error) || !writeGeneratedGraph(imported, "ImportedPBR")) {
+				std::cerr << "PBR import: " << error << '\n';
+				return false;
+			}
+			// 空のテクスチャも公開入力と接続を維持する
+			const auto validateTextures = [](const ShaderGraphAsset& graph, AssetID expected) {
+				for (const auto* name : { "baseColorTexture", "normalTexture", "metallicRoughnessTexture",
+					"metallicTexture", "roughnessTexture", "occlusionTexture", "emissiveTexture" }) {
+					const auto parameter = std::find_if(graph.parameters.begin(), graph.parameters.end(),
+						[name](const auto& value) { return value.name == name; });
+					if (parameter == graph.parameters.end() || parameter->type != ShaderGraphValueType::Texture2D ||
+						!parameter->exposed || !std::holds_alternative<AssetID>(parameter->defaultValue.value) ||
+						std::get<AssetID>(parameter->defaultValue.value) != expected) return false;
+					const auto node = std::find_if(graph.nodes.begin(), graph.nodes.end(),
+						[&](const auto& value) { return value.kind == ShaderGraphNodeKind::Parameter && value.parameterID == parameter->id; });
+					if (node == graph.nodes.end()) return false;
+					const auto connection = std::find_if(graph.links.begin(), graph.links.end(),
+						[&](const auto& link) { return link.outputNode == node->id && link.inputSlot == 0; });
+					if (connection == graph.links.end()) return false;
+					const auto sample = std::find_if(graph.nodes.begin(), graph.nodes.end(),
+						[&](const auto& value) { return value.id == connection->inputNode; });
+					if (sample == graph.nodes.end() || sample->kind != ShaderGraphNodeKind::TextureSample ||
+						!std::holds_alternative<Vector4>(sample->value.value)) return false;
+					const auto fallback = std::get<Vector4>(sample->value.value);
+					const bool normal = parameter->name == "normalTexture";
+					if (fallback.x != (normal ? 0.5f : 1.0f) || fallback.y != (normal ? 0.5f : 1.0f) ||
+						fallback.z != 1.0f || fallback.w != 1.0f) return false;
+					if (std::none_of(graph.links.begin(), graph.links.end(),
+						[&](const auto& link) { return link.inputNode == sample->id && link.inputSlot == 2; })) return false;
+				}
+				return true;
+			};
+			ShaderGraphAsset restoredImport;
+			if (!validateTextures(imported, {}) || !FromJson(ToJson(imported), restoredImport) ||
+				!validateTextures(restoredImport, {})) return false;
+			const auto before = ToJson(imported);
+			material.parameters.Set(MaterialParameterID::FromName("displacementScale"), "displacementScale",
+				MaterialParameterSemantic::DisplacementScale, MaterialParameterValue{ .value = 1.0f });
+			if (ShaderGraphSettingsImporter::Import(destination, materialID, AssetType::Material,
+				resolver, imported, error) || error.empty() || ToJson(imported) != before) return false;
+			material.parameters.Set(MaterialParameterID::FromName("displacementScale"), "displacementScale",
+				MaterialParameterSemantic::DisplacementScale, MaterialParameterValue{ .value = 0.0f });
+			for (const auto* name : { "baseColorTexture", "normalTexture", "metallicRoughnessTexture",
+				"metallicTexture", "roughnessTexture", "occlusionTexture", "emissiveTexture" }) {
+				material.parameters.Set(MaterialParameterID::FromName(name), name,
+					ResolveMaterialParameterSemantic(name), MaterialParameterValue{ .value = AssetID{ 2, 1 } });
+			}
+			if (!ShaderGraphSettingsImporter::Import(destination, materialID, AssetType::Material,
+				resolver, imported, error) || !writeGeneratedGraph(imported, "ImportedPBRTextures")) {
+				std::cerr << "PBR texture import: " << error << '\n';
+				return false;
+			}
+			if (!validateTextures(imported, AssetID{ 2, 1 })) return false;
+			source = imported;
+			material = ShaderGraphArtifactCache::CreateMaterial(source, graphID);
+			const auto sourceMetallic = std::find_if(source.parameters.begin(), source.parameters.end(),
+				[](const auto& parameter) { return parameter.semantic == MaterialParameterSemantic::Metallic; });
+			material.parameters.Set(MaterialParameterID::FromUUID(sourceMetallic->id), "metallic",
+				MaterialParameterSemantic::Metallic, MaterialParameterValue{ .value = 0.7f });
+			if (!ShaderGraphSettingsImporter::Import(destination, materialID, AssetType::Material,
+				resolver, imported, error)) {
+				std::cerr << "Graph material import: " << error << '\n';
+				return false;
+			}
+			const auto metallic = std::find_if(imported.parameters.begin(), imported.parameters.end(),
+				[](const auto& parameter) { return parameter.semantic == MaterialParameterSemantic::Metallic; });
+			if (metallic == imported.parameters.end() || std::get<float>(metallic->defaultValue.value) != 0.7f) return false;
+			const auto unchanged = ToJson(imported);
+			material.passes.front().shaderOverride = AssetID{ 10, 20 };
+			if (ShaderGraphSettingsImporter::Import(destination, materialID, AssetType::Material,
+				resolver, imported, error) || ToJson(imported) != unchanged) return false;
+		}
 
 		Engine::ShaderGraphAsset graph =
 			Engine::CreateDefaultSurfaceShaderGraph("NEMTest");
@@ -3091,11 +3246,11 @@ namespace {
 			if (!samplerOutput.Succeeded() ||
 				samplerOutput.samplers.size() != 1 ||
 				samplerOutput.samplers.front().node != samplerNode ||
-				samplerOutput.samplers.front().shaderRegister != 1 ||
+				samplerOutput.samplers.front().shaderRegister != 2 ||
 				samplerOutput.samplers.front().settings.filter !=
 					D3D12_FILTER_ANISOTROPIC ||
 				samplerOutput.surfaceHLSL.find(
-					"register(s1)") == std::string::npos ||
+					"register(s2)") == std::string::npos ||
 				samplerOutput.surfaceHLSL.find(
 					samplerOutput.samplers.front().shaderName) ==
 					std::string::npos) {
@@ -3361,6 +3516,15 @@ namespace {
 				const auto threshold = addNode(Engine::ShaderGraphNodeKind::Constant);
 				ditherGraph.nodes.back().value.value = 0.5f;
 				connect(threshold, ditherGraph.outputNode, 7);
+				// Maskedパスにもディザを含む生成シェーダーを適用する
+				const Engine::AssetID ditherID{ 71, 82 };
+				auto ditherMaterial = Engine::ShaderGraphArtifactCache::CreateMaterial(ditherGraph, ditherID);
+				const auto ditherArtifact = Engine::ShaderGraphArtifactCache::DescribeReferences(ditherGraph, ditherID);
+				Engine::ShaderGraphArtifactCache::ApplyToMaterial(ditherArtifact, ditherMaterial);
+				const auto* masked = Engine::FindPass(ditherMaterial, Engine::MaterialPassKind::Masked);
+				if (ditherMaterial.renderState.surfaceMode != Engine::MaterialSurfaceMode::Masked ||
+					!masked || masked->pipeline != ditherArtifact.opaquePipelineID ||
+					masked->shaderOverride != ditherArtifact.opaqueShaderID) return false;
 				if (explicitPosition) {
 					connect(addNode(Engine::ShaderGraphNodeKind::ScreenPosition), dither, 1);
 				}
