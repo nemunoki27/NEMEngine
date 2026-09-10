@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -87,47 +88,7 @@ namespace {
 	std::filesystem::path ResolveExternalActorsRoot(
 		const std::filesystem::path& scenePath, Engine::AssetID sceneAsset) {
 
-		if (!sceneAsset) {
-			return {};
-		}
-
-		std::vector<std::filesystem::path> roots = {
-			Engine::RuntimePaths::GetGameAssetsRoot(),
-			Engine::RuntimePaths::GetEngineAssetsRoot(),
-		};
-		for (const Engine::ResolvedPackage& package :
-			Engine::RuntimePaths::GetPackages()) {
-			roots.emplace_back(package.root);
-		}
-		for (const std::filesystem::path& root : roots) {
-
-			if (!root.empty() && IsPathInside(scenePath, root)) {
-				return root / "ExternalActors" / Engine::ToString(sceneAsset);
-			}
-		}
-		return {};
-	}
-
-	void RemoveExternalActors(
-		const std::filesystem::path& scenePath,
-		Engine::AssetID sceneAsset) {
-
-		const std::filesystem::path actorRoot =
-			ResolveExternalActorsRoot(scenePath, sceneAsset);
-		if (actorRoot.empty()) {
-			return;
-		}
-
-		std::error_code ec;
-		std::filesystem::remove_all(actorRoot, ec);
-		if (ec) {
-			Engine::Logger::Output(
-				Engine::LogType::Engine, spdlog::level::warn,
-				"[SceneSystem] ExternalActorを削除できません path={}",
-				Engine::Algorithm::PathToUTF8(actorRoot));
-			return;
-		}
-		std::filesystem::remove(actorRoot.parent_path(), ec);
+		return Engine::SceneAssetStorage::ResolveActorRoot(scenePath, sceneAsset);
 	}
 
 	std::filesystem::path MakeExternalActorPath(
@@ -240,123 +201,7 @@ namespace {
 		return true;
 	}
 
-	bool SaveExternalActors(const std::filesystem::path& scenePath,
-		Engine::AssetID sceneAsset, nlohmann::json& root) {
 
-		if (!sceneAsset || !root.contains("Entities") ||
-			!root["Entities"].is_array()) {
-			return true;
-		}
-
-		const std::filesystem::path actorRoot =
-			ResolveExternalActorsRoot(scenePath, sceneAsset);
-		if (actorRoot.empty()) {
-			return false;
-		}
-
-		struct ActorSaveEntry {
-
-			std::filesystem::path path;
-			nlohmann::json data;
-		};
-
-		nlohmann::json actorIDs = nlohmann::json::array();
-		std::unordered_set<std::string> actorFileNames;
-		std::vector<ActorSaveEntry> actorEntries;
-		actorEntries.reserve(root["Entities"].size());
-		for (const nlohmann::json& entity : root["Entities"]) {
-
-			const std::optional<Engine::UUID> localFileID =
-				Engine::TryParseUUID16Hex(
-					entity.value("LocalFileID", std::string{}));
-			if (!localFileID) {
-				return false;
-			}
-
-			nlohmann::json actor = entity;
-			actor["SchemaVersion"] = kExternalActorSchemaVersion;
-			const std::filesystem::path actorPath =
-				MakeExternalActorPath(actorRoot, *localFileID);
-			actorIDs.push_back(Engine::ToString(*localFileID));
-			actorFileNames.insert(actorPath.filename().string());
-			actorEntries.push_back({
-				.path = actorPath,
-				.data = std::move(actor),
-				});
-		}
-
-		// ExternalActorは互いに独立しているため固定数のワーカーで正規化と書き込みを進める
-		std::atomic_size_t nextActorIndex = 0;
-		std::atomic_size_t failedActorIndex = actorEntries.size();
-		const size_t hardwareThreads = static_cast<size_t>(
-			(std::max)(1u, std::thread::hardware_concurrency()));
-		const size_t workerCount = (std::min)(
-			actorEntries.size(), (std::min)(hardwareThreads, size_t(8)));
-		std::vector<std::thread> workers;
-		workers.reserve(workerCount);
-		for (size_t workerIndex = 0;
-			workerIndex < workerCount; ++workerIndex) {
-
-			workers.emplace_back([&]() {
-				while (failedActorIndex.load(
-					std::memory_order_relaxed) == actorEntries.size()) {
-
-					const size_t actorIndex = nextActorIndex.fetch_add(
-						1, std::memory_order_relaxed);
-					if (actorEntries.size() <= actorIndex) {
-						return;
-					}
-					const ActorSaveEntry& entry =
-						actorEntries[actorIndex];
-					if (!Engine::JsonAdapter::SaveCanonical(
-						entry.path, entry.data)) {
-
-						size_t expected = actorEntries.size();
-						failedActorIndex.compare_exchange_strong(
-							expected, actorIndex,
-							std::memory_order_relaxed);
-						return;
-					}
-				}
-				});
-		}
-		for (std::thread& worker : workers) {
-			worker.join();
-		}
-
-		const size_t failedIndex =
-			failedActorIndex.load(std::memory_order_relaxed);
-		if (failedIndex != actorEntries.size()) {
-
-			Engine::Logger::Output(
-				Engine::LogType::Engine, spdlog::level::err,
-				"[SceneSystem] ExternalActorを保存できません path={}",
-				Engine::Algorithm::PathToUTF8(
-					actorEntries[failedIndex].path));
-			return false;
-		}
-
-		root.erase("Entities");
-		root["ExternalActors"] = std::move(actorIDs);
-		if (!Engine::JsonAdapter::SaveCanonical(scenePath, root)) {
-			return false;
-		}
-
-		std::error_code ec;
-		for (auto it = std::filesystem::directory_iterator(actorRoot, ec);
-			!ec && it != std::filesystem::directory_iterator{}; it.increment(ec)) {
-
-			if (!it->is_regular_file(ec) ||
-				!Engine::Algorithm::EndsWith(
-					Engine::Algorithm::ToLower(it->path().filename().string()), ".actor.json") ||
-				actorFileNames.contains(it->path().filename().string())) {
-				continue;
-			}
-			std::filesystem::remove(it->path(), ec);
-			ec.clear();
-		}
-		return true;
-	}
 
 	// 同じシーンを明示した参照だけを複製先へ向ける
 	void RemapCopiedSceneReferences(nlohmann::json& value,
@@ -620,6 +465,16 @@ bool Engine::SceneSystem::CopySceneAssets(const std::vector<SceneAssetCopy>& cop
 bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSWorld& world, AssetDatabase* assetDatabase,
 	AssetID sourceAsset, UUID sceneInstanceID, SceneHeader* outHeader, std::vector<Entity>* outCreatedEntities) const {
 
+	// 読み込み開始時の状態を基準にし、途中の外部変更も保存時に検出する
+	try {
+		if (world.GetKind() == ECSWorldKind::Authoring) {
+			SceneAssetStorage::TrackLoaded(scenePath, sourceAsset);
+		}
+	} catch (const std::exception& exception) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[SceneSystem] 保存状態を確認できません scene={} 詳細={}", Algorithm::PathToUTF8(scenePath), exception.what());
+		return false;
+	}
 	// ファイルからnlohmann::jsonをロード
 	nlohmann::json root = JsonAdapter::Load(scenePath, true);
 	if (!ValidateSceneFileRoot(root)) {
@@ -857,19 +712,10 @@ bool Engine::SceneSystem::WriteSaveSnapshot(
 		!snapshot.root.is_object()) {
 		return false;
 	}
-	if (snapshot.sceneAsset &&
-		snapshot.useExternalActors) {
-		return SaveExternalActors(snapshot.scenePath,
-			snapshot.sceneAsset, snapshot.root);
-	}
-	snapshot.root.erase("ExternalActors");
-	if (!JsonAdapter::SaveCanonical(
-		snapshot.scenePath, snapshot.root)) {
+	std::string error;
+	if (!SceneAssetStorage::Save(std::move(snapshot), error)) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] 保存を中断しました: {}", error);
 		return false;
-	}
-	if (snapshot.sceneAsset) {
-		RemoveExternalActors(
-			snapshot.scenePath, snapshot.sceneAsset);
 	}
 	return true;
 }

@@ -70,6 +70,8 @@ namespace Engine {
 		// 生成済みScriptの保留参照をLifecycleより前に解決する
 		void FlushPendingReferences(ECSWorld& world);
 		void DestroyInstance(ManagedScriptInstanceHandle handle);
+		// 詳細計測の対象変更をManaged側へ通知する
+		void ConfigureProfiler(const char* typeName, ManagedNativeEntity entity, uint64_t slotID);
 
 		// ライフサイクル呼び出しで、C#側で例外を封じ込めた結果をManagedStatusで返す
 		ManagedStatus InvokeAwake(ManagedScriptInstanceHandle handle, const SystemContext& context);
@@ -155,6 +157,7 @@ namespace Engine {
 		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, uint64_t, ManagedScriptInstanceHandle*);
 		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*);
 		using DestroyInstanceFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
+		using ConfigureProfilerFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, uint64_t);
 		using InvokeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
 		using InvokeCollisionFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, ManagedCollisionEvent);
 		using InvokeAnimationEventFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, float, int32_t, const char*);
@@ -168,6 +171,7 @@ namespace Engine {
 		DotnetHostResolver dotnetHost_;
 
 		InitializeNativeApiFn initializeNativeApi_ = nullptr;
+		ConfigureProfilerFn configureProfiler_ = nullptr;
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
 		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
 		// SceneイベントpumpのPumpSceneEventsでUnloadGameAssemblyFnと同じ無引数シグネチャ
@@ -435,6 +439,7 @@ namespace Engine {
 		static uint64_t __cdecl LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl LoadSceneSingleCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl ReloadActiveSceneCallback();
+		static int32_t __cdecl DontDestroyOnLoadCallback(ManagedNativeEntity entity);
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
 		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(ManagedAssetGUID sourceAsset, uint64_t localFileID);
 		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う

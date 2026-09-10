@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 
 // c++
@@ -141,6 +142,11 @@ namespace {
 		std::unordered_map<std::string, Engine::AssetType>& outPaths) {
 
 		if (node.is_object()) {
+
+			// EntityRefの所有アセットもシーン削除時の参照保護に含める
+			if (node.contains("kind") && node.contains("sourceAsset") && node.contains("localFileId")) {
+				TryCollectReference(node["sourceAsset"], Engine::AssetType::Unknown, outIDs, outPaths);
+			}
 
 			// Material Instanceのrecord形式ではTexture GUIDがvalue配下に保存される
 			if (node.contains("id") &&
@@ -559,6 +565,14 @@ std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const As
 	std::unordered_map<AssetID, AssetType> candidates;
 	std::unordered_map<std::string, AssetType> pathCandidates;
 	ScanReferences(data, candidates, pathCandidates);
+	// シーンから分離したActor内のスクリプト参照も依存先へ含める
+	if (meta.type == AssetType::Scene && data.contains("ExternalActors") && data["ExternalActors"].is_array()) {
+		const auto actorRoot = SceneAssetStorage::ResolveActorRoot(fullPath, meta.guid);
+		for (const auto& actorID : data["ExternalActors"]) {
+			if (!actorID.is_string() || !TryParseUUID16Hex(actorID.get<std::string>())) continue;
+			ScanReferences(LoadJsonFileNoThrow(actorRoot / (actorID.get<std::string>() + ".actor.json")), candidates, pathCandidates);
+		}
+	}
 	// 編集時の派生参照は元グラフから再生成され、通常アセットには登録されない
 	if (!RuntimePaths::IsProductBuild() && meta.type == AssetType::Material) {
 		const AssetID graphID = ParseAssetReference(data, "shaderGraph", nullptr, AssetType::ShaderGraph);
@@ -761,8 +775,10 @@ bool Engine::AssetDatabase::HasReferencers(AssetID id) const {
 	return it != referencersByGuid_.end() && !it->second.empty();
 }
 
-std::string Engine::AssetDatabase::NormalizeLookupKey(const std::filesystem::path& path) {
+std::string Engine::AssetDatabase::NormalizeLookupKey(const std::string& assetPath) {
 
+	// 論理パスはUTF-8なのでWindowsの既定コードページを経由させない
+	const std::filesystem::path path = Algorithm::PathFromUTF8(assetPath);
 	// Windowsの大文字小文字差で別キーにならないよう、正規化+小文字化する
 	return Algorithm::ToLower(Algorithm::ConvertString(path.lexically_normal().generic_wstring()));
 }

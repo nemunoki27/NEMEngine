@@ -3,6 +3,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -30,6 +31,7 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchResources.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
@@ -38,11 +40,16 @@
 #include <Engine/Core/Runtime/Packages/PackageResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Scripting/Managed/ScriptExecutionOrderSettings.h>
+#include <Engine/Core/Scripting/Managed/Generated/ManagedComponentBindings.generated.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
+#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
+#include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
@@ -486,8 +493,207 @@ namespace {
 		passed &= scenes.TryBeginSingleLoadRequest();
 		scenes.ClearSingleLoadRequest();
 
+		// 常駐化は親子の実体と音声Runtimeを保持し、Singleの破棄対象から外す
+		if (!passed || !scenes.GetActive()) {
+			std::filesystem::remove_all(testRoot, ec);
+			return false;
+		}
+		const Engine::Entity music = Engine::SceneAuthoring::CreateGameObject(world, "Music");
+		const Engine::Entity source = Engine::SceneAuthoring::CreateGameObject(world, "Source");
+		Engine::HierarchySystem hierarchy;
+		hierarchy.SetParent(world, source, music);
+		const Engine::UUID owner = scenes.GetActive()->instanceID;
+		for (Engine::Entity entity : { music, source }) {
+			world.GetComponent<Engine::SceneObjectComponent>(entity).sceneInstanceID = owner;
+			scenes.Find(owner)->createdEntities.emplace_back(entity);
+		}
+		world.AddComponent<Engine::AudioSourceComponent>(source);
+		const auto* audioRuntime = Engine::TryGetAudioSourceRuntime(world, source);
+		passed &= audioRuntime != nullptr;
+		passed &= !scenes.DontDestroyOnLoad(world, source);
+		passed &= scenes.DontDestroyOnLoad(world, music);
+		passed &= scenes.DontDestroyOnLoad(world, music);
+		const Engine::UUID persistentID = world.GetComponent<Engine::SceneObjectComponent>(music).sceneInstanceID;
+		passed &= persistentID != owner && scenes.Find(persistentID)->persistent;
+		passed &= scenes.Find(owner)->createdEntities.empty();
+		passed &= !scenes.Unload(world, persistentID);
+		scenes.SetActive(persistentID);
+		passed &= scenes.GetActive()->instanceID == owner;
+		for (Engine::AssetID asset : sceneAssets) {
+			passed &= scenes.TryBeginSingleLoadRequest();
+			world.GetCommandBuffer().EnqueueLoadSceneSingle(Engine::UUID::New(), asset);
+			world.GetCommandBuffer().Flush(world);
+			passed &= world.IsAlive(music) && world.IsAlive(source) && scenes.GetAll().size() == 2;
+			passed &= Engine::TryGetAudioSourceRuntime(world, source) == audioRuntime;
+		}
+		passed &= scenes.SerializeSnapshot(sceneSystem, world)["Scenes"].size() == 1;
+		world.GetCommandBuffer().EnqueueDestroyEntity(music);
+		world.GetCommandBuffer().Flush(world);
+		world.FlushPendingDestroyEntities();
+		passed &= !world.IsAlive(music) && !world.IsAlive(source);
+		passed &= !scenes.DontDestroyOnLoad(world, music);
+		const Engine::Entity second = Engine::SceneAuthoring::CreateGameObject(world, "Second");
+		passed &= scenes.DontDestroyOnLoad(world, second);
+		scenes.UnloadAll(world);
+		passed &= !world.IsAlive(second) && scenes.GetAll().empty();
+
 		std::filesystem::remove_all(testRoot, ec);
 		return passed && !ec;
+	}
+
+	bool TestSceneAssetStorage() {
+
+		using Storage = Engine::SceneAssetStorage;
+		const auto testRoot = Engine::RuntimePaths::GetGameAssetsRoot() / "Tests" / ("Storage_" + Engine::ToString(Engine::UUID::New()));
+		const auto scenePath = testRoot / "Source.scene.json";
+		const auto referencerPath = testRoot / "Referencer.scene.json";
+		const auto recoveriesBefore = Storage::GetRecoveries();
+		std::filesystem::create_directories(testRoot);
+		bool passed = true;
+		std::string error;
+		auto check = [&](bool condition, const char* name) {
+			if (!condition) std::cerr << "Scene storage: " << name << " / " << error << '\n';
+			passed &= condition;
+		};
+		const nlohmann::json emptyScene = {{ "SchemaVersion", 3 }, { "Header", Engine::ToJson(Engine::SceneHeader{}) },
+			{ "Entities", nlohmann::json::array() }, { "PrefabInstances", nlohmann::json::array() }};
+		Engine::JsonAdapter::SaveCanonical(scenePath, emptyScene);
+		Engine::AssetDatabase database;
+		database.Init();
+		const Engine::AssetID id = database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(scenePath), Engine::AssetType::Scene);
+		const Engine::UUID parentID = Engine::UUID::New();
+		const Engine::UUID childID = Engine::UUID::New();
+		const auto actorRoot = Storage::ResolveActorRoot(scenePath, id);
+		const auto parentPath = actorRoot / (Engine::ToString(parentID) + ".actor.json");
+		const auto childPath = actorRoot / (Engine::ToString(childID) + ".actor.json");
+		auto actor = [](Engine::UUID actorID, Engine::UUID parent) {
+			return nlohmann::json{{ "LocalFileID", Engine::ToString(actorID) }, { "Components", {
+				{ "Hierarchy", {{ "parentLocalFileID", parent ? Engine::ToString(parent) : "" }} },
+				{ "Name", {{ "name", "StorageActor" }} } } }};
+		};
+		Engine::SceneSaveSnapshot snapshot;
+		snapshot.scenePath = scenePath;
+		snapshot.sceneAsset = id;
+		snapshot.useExternalActors = true;
+		snapshot.root = emptyScene;
+		snapshot.root["Entities"] = { actor(parentID, {}), actor(childID, parentID) };
+		check(Storage::Save(snapshot, error), "initial save");
+		if (!passed) return false;
+		check(Storage::Validate(scenePath, id).empty(), "validate saved actors");
+		const auto validScene = Engine::JsonAdapter::Load(scenePath, false);
+		auto duplicateScene = validScene;
+		duplicateScene["ExternalActors"].push_back(Engine::ToString(parentID));
+		Engine::JsonAdapter::SaveCanonical(scenePath, duplicateScene);
+		check(!Storage::Validate(scenePath, id).empty(), "duplicate actor rejected");
+		duplicateScene["ExternalActors"][0] = "../outside";
+		Engine::JsonAdapter::SaveCanonical(scenePath, duplicateScene);
+		check(!Storage::Validate(scenePath, id).empty(), "invalid actor path rejected");
+		Engine::JsonAdapter::SaveCanonical(scenePath, validScene);
+		const auto undoSnapshot = snapshot;
+		snapshot.root["Entities"] = nlohmann::json::array({ actor(childID, {}) });
+		check(Storage::Save(snapshot, error) && !std::filesystem::exists(parentPath), "delete and save");
+		check(Storage::Save(undoSnapshot, error) && std::filesystem::exists(parentPath), "undo and save");
+		check(Storage::Save(snapshot, error) && !std::filesystem::exists(parentPath), "redo and save");
+		const auto beforeFailure = Engine::ContentHash::FileSHA256(childPath);
+		auto failing = snapshot;
+		failing.root["Entities"][0]["Components"]["Name"]["name"] = "Changed";
+		failing.root["Header"]["name"] = "Changed";
+		const auto blockedTemp = std::filesystem::path(scenePath.wstring() + L".tmp");
+		std::filesystem::create_directory(blockedTemp);
+		Engine::JsonAdapter::SaveCanonical(blockedTemp / "block.json", {{ "block", true }});
+		Storage::SetProtectedScenes({ id });
+		check(!Storage::Save(failing, error), "save failure is reported");
+		check(Engine::ContentHash::FileSHA256(childPath) == beforeFailure, "rollback restores changed actor");
+		Storage::SetProtectedScenes({});
+		std::filesystem::remove_all(blockedTemp);
+		const auto actorBackup = testRoot / "Original.actor.json";
+		std::filesystem::copy_file(childPath, actorBackup);
+		std::filesystem::remove(childPath);
+		check(Storage::Validate(scenePath, id).size() == 1, "missing actor detected");
+		check(!Storage::Save(snapshot, error), "external deletion blocks save");
+		check(Storage::RestoreActor(scenePath, childID, actorBackup, error), "restore original actor");
+		check(!Storage::RestoreActor(scenePath, childID, actorBackup, error), "do not overwrite actor");
+		check(Storage::Save(undoSnapshot, error), "restore parent and child");
+		std::filesystem::remove(parentPath);
+		auto child = Engine::JsonAdapter::Load(childPath, false);
+		child["Components"]["UnknownReference"] = Engine::ToString(parentID);
+		Engine::JsonAdapter::SaveCanonical(childPath, child);
+		check(!Storage::RemoveMissingActor(scenePath, parentID, error), "unknown reference blocks removal");
+		child["Components"].erase("UnknownReference");
+		const auto otherScene = Engine::AssetGUID::New();
+		const nlohmann::json targetReference = {{ "kind", "Scene" }, { "sourceAsset", Engine::ToString(id) }, { "localFileId", Engine::ToString(parentID) }};
+		child["Components"]["TargetReference"] = targetReference;
+		child["Components"]["OtherReference"] = {{ "kind", "Scene" }, { "sourceAsset", Engine::ToString(otherScene) }, { "localFileId", Engine::ToString(parentID) }};
+		Engine::JsonAdapter::SaveCanonical(childPath, child);
+		const auto prefabPath = testRoot / "References.prefab.json";
+		Engine::JsonAdapter::SaveCanonical(prefabPath, {{ "reference", targetReference }});
+		std::vector<std::filesystem::path> affectedFiles;
+		check(Storage::PreviewMissingActorRemoval(scenePath, parentID, affectedFiles, error), "preview missing actor removal");
+		check(affectedFiles.size() == 3, "preview lists scene child and external reference");
+		check(Engine::JsonAdapter::Load(childPath, false) == child, "preview does not change files");
+		check(Storage::RemoveMissingActor(scenePath, parentID, error), "confirm missing parent deletion");
+		check(Engine::JsonAdapter::Load(childPath)["Components"]["Hierarchy"]["parentLocalFileID"] == "", "preserve child at root");
+		const auto repairedChild = Engine::JsonAdapter::Load(childPath, false);
+		check(repairedChild["Components"]["TargetReference"]["kind"] == "Null", "clear typed scene reference");
+		check(repairedChild["Components"]["OtherReference"]["kind"] == "Scene", "preserve other scene reference");
+		check(Engine::JsonAdapter::Load(prefabPath, false)["reference"]["kind"] == "Null", "clear cross asset reference");
+		check(Storage::Validate(scenePath, id).empty(), "validate repaired scene");
+		const auto repairedScene = Engine::JsonAdapter::Load(scenePath, false);
+		Storage::TrackLoaded(scenePath, id);
+		std::filesystem::remove(scenePath);
+		check(!Storage::Save(snapshot, error), "external scene deletion blocks save");
+		Engine::JsonAdapter::SaveCanonical(scenePath, repairedScene);
+		Storage::SetProtectedScenes({ id });
+		check(!Storage::Delete(scenePath, database, error), "loaded scene protected");
+		Storage::SetProtectedScenes({});
+		auto referencedScene = emptyScene;
+		referencedScene["Header"]["subScenes"] = {{{ "scene", Engine::ToString(id) }}};
+		Engine::JsonAdapter::SaveCanonical(referencerPath, referencedScene);
+		const auto referencerID = database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(referencerPath), Engine::AssetType::Scene);
+		check(!Storage::Delete(scenePath, database, error), "referenced scene protected");
+		Engine::SceneSaveSnapshot referenceSnapshot;
+		referenceSnapshot.scenePath = referencerPath;
+		referenceSnapshot.sceneAsset = referencerID;
+		referenceSnapshot.useExternalActors = true;
+		referenceSnapshot.root = emptyScene;
+		auto referenceActor = actor(Engine::UUID::New(), {});
+		referenceActor["Components"]["Script"] = nlohmann::json::array({ {{ "serializedFields", {{ "type", "AssetRef" }, { "value", {{ "assetId", Engine::ToString(id) }} }} }} });
+		referenceSnapshot.root["Entities"] = nlohmann::json::array({ referenceActor });
+		check(Storage::Save(referenceSnapshot, error), "save external actor reference");
+		check(!Storage::Delete(scenePath, database, error), "external actor scene reference protected");
+		const auto referencerActorRoot = Storage::ResolveActorRoot(referencerPath, referencerID);
+		check(!Storage::Delete(Engine::RuntimePaths::GetGameAssetsRoot(), database, error), "asset root protected");
+		check(Storage::Delete(testRoot, database, error), "delete containing directory and owned actors");
+		check(!std::filesystem::exists(scenePath) && !std::filesystem::exists(actorRoot) && !std::filesystem::exists(referencerActorRoot), "no remaining owned actors");
+		const auto records = Storage::GetRecoveries();
+		bool recoveredDeletion = false;
+		for (const auto& directory : records) {
+			if (std::find(recoveriesBefore.begin(), recoveriesBefore.end(), directory) != recoveriesBefore.end()) continue;
+			const auto record = Engine::JsonAdapter::Load(directory / "operation.json", false);
+			if (record.value("label", "") == "アセット削除" && record.value("state", "") == "completed") {
+				Storage::SetProtectedScenes({ id });
+				check(!Storage::Recover(directory, error), "deleted loaded scene protected during recovery");
+				Storage::SetProtectedScenes({});
+				auto interrupted = record;
+				interrupted["state"] = "pending";
+				Engine::JsonAdapter::SaveCanonical(directory / "operation.json", interrupted);
+				std::filesystem::rename(directory / "operation.json", directory / "operation.json.bak");
+				check(!Storage::GetRecoveries(true).empty(), "interrupted operation detected");
+				check(!Storage::Delete(testRoot, database, error), "pending recovery blocks new operations");
+				check(Storage::Recover(directory, error), "recover deleted scene directory");
+				recoveredDeletion = true;
+				check(std::filesystem::exists(scenePath) && std::filesystem::exists(childPath), "recovery includes external actors");
+			}
+		}
+		check(recoveredDeletion, "deletion recovery record exists");
+		std::error_code ec;
+		std::filesystem::remove_all(testRoot, ec);
+		std::filesystem::remove_all(actorRoot, ec);
+		std::filesystem::remove_all(referencerActorRoot, ec);
+		for (const auto& directory : records) {
+			if (std::find(recoveriesBefore.begin(), recoveriesBefore.end(), directory) == recoveriesBefore.end()) std::filesystem::remove_all(directory, ec);
+		}
+		return passed;
 	}
 
 	bool TestExternalActors() {
@@ -911,6 +1117,61 @@ namespace {
 			rootHierarchy && rootHierarchy->parent == targetParent &&
 			targetWorld.IsAlive(child) && childHierarchy && childHierarchy->parent == result.root &&
 			childName && childName->name == "ImmediateChild";
+
+		// 生成予約中の親へ複数のPrefabを生成し、予約反映後も階層を維持する
+		for (int parentState = 0; parentState < 3; ++parentState) {
+
+			using namespace Engine;
+			ECSWorld pendingWorld;
+			const Entity pendingParent = pendingWorld.CreateEntity();
+			if (parentState == 1) {
+				SceneObjectUtility::EnsureSceneObject(pendingWorld, pendingParent);
+			} else if (parentState == 2) {
+				pendingWorld.AddComponent<HierarchyComponent>(pendingParent);
+			}
+			auto& commands = pendingWorld.GetCommandBuffer();
+			commands.EnqueueCreateEntity(pendingParent, "RainVisuals", Entity::Null());
+			passed &= commands.StageCreatePosition(pendingParent, Vector3{ 2.0f, 3.0f, 4.0f });
+
+			PrefabInstantiateDesc pendingDesc{};
+			pendingDesc.parent = pendingParent;
+			PrefabInstantiateResult firstResult{};
+			PrefabInstantiateResult secondResult{};
+			passed &= prefabSystem.InstantiatePrefab(
+				database, hierarchySystem, pendingWorld, prefabAsset, firstResult, pendingDesc);
+			passed &= prefabSystem.InstantiatePrefab(
+				database, hierarchySystem, pendingWorld, prefabAsset, secondResult, pendingDesc);
+			const SceneObjectComponent* parentSceneObject =
+				pendingWorld.TryGetComponent<SceneObjectComponent>(pendingParent);
+			const Engine::UUID parentLocalFileID = parentSceneObject ? parentSceneObject->localFileID : Engine::UUID{};
+
+			// 構造変更をまたいでコンポーネント参照を保持しない
+			const auto checkHierarchy = [&]() {
+
+				const auto* parentHierarchy = pendingWorld.TryGetComponent<HierarchyComponent>(pendingParent);
+				const auto* firstHierarchy = pendingWorld.TryGetComponent<HierarchyComponent>(firstResult.root);
+				const auto* secondHierarchy = pendingWorld.TryGetComponent<HierarchyComponent>(secondResult.root);
+				const auto* sceneObject = pendingWorld.TryGetComponent<SceneObjectComponent>(pendingParent);
+				return parentHierarchy && firstHierarchy && secondHierarchy && sceneObject && parentLocalFileID &&
+					sceneObject->localFileID == parentLocalFileID &&
+					parentHierarchy->firstChild == firstResult.root && parentHierarchy->lastChild == secondResult.root &&
+					firstHierarchy->parent == pendingParent && secondHierarchy->parent == pendingParent &&
+					firstHierarchy->parentLocalFileID == parentLocalFileID &&
+					secondHierarchy->parentLocalFileID == parentLocalFileID &&
+					firstHierarchy->prevSibling == Entity::Null() && firstHierarchy->nextSibling == secondResult.root &&
+					secondHierarchy->prevSibling == firstResult.root && secondHierarchy->nextSibling == Entity::Null() &&
+					firstResult.createdEntities.size() == 2 && secondResult.createdEntities.size() == 2 &&
+					pendingWorld.IsAlive(firstHierarchy->firstChild) && pendingWorld.IsAlive(secondHierarchy->firstChild);
+			};
+			passed &= commands.IsPendingCreate(pendingParent) && checkHierarchy();
+			commands.Flush(pendingWorld);
+			passed &= !commands.IsPendingCreate(pendingParent) && checkHierarchy();
+			const auto* parentName = pendingWorld.TryGetComponent<NameComponent>(pendingParent);
+			const auto* parentTransform = pendingWorld.TryGetComponent<TransformComponent>(pendingParent);
+			passed &= parentName && parentName->name == "RainVisuals" && parentTransform &&
+				parentTransform->localPos.x == 2.0f && parentTransform->localPos.y == 3.0f &&
+				parentTransform->localPos.z == 4.0f;
+		}
 
 		// 旧シーンをロードし、別名を参照する通常Entityの親も復旧する
 		{
@@ -1733,6 +1994,343 @@ namespace {
 			std::abs(childTransform.worldMatrix.GetTranslationValue().x - 10.0f) <= 0.0001f;
 	}
 
+	// 通常の重なり判定を保ち、応答だけから箱の内部面を除く
+	bool TestBoxInternalFaces() {
+
+		using namespace Engine;
+		CollisionShapeInstance lower{}, upper{}, player{};
+		lower.type = upper.type = ColliderShapeType::OBB3D;
+		lower.halfExtents = upper.halfExtents = Vector3(0.5f, 0.5f, 4.0f);
+		upper.center.y = 1.0f;
+		player.type = ColliderShapeType::AABB3D;
+		player.halfExtents = Vector3::AnyInit(0.225f);
+		player.center = Vector3(-0.70f, 0.28f, 0.0f);
+		std::array<CollisionBoxSurface, 2> surfaces{ CollisionBoxSurface{ &lower, 1 }, { &upper, 1 } };
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces != 8 || surfaces[1].internalFaces != 4) {
+			return false;
+		}
+		CollisionContact raw{}, corrected{}, swapped{};
+		if (!TestCollision(player, upper, raw) || std::abs(raw.normal.y) < 0.99f ||
+			!TestCollisionWithBoxInternalFaces(player, upper, 0, surfaces[1].internalFaces, corrected) ||
+			!TestCollisionWithBoxInternalFaces(upper, player, surfaces[1].internalFaces, 0, swapped) ||
+			corrected.normal.x < 0.99f || std::abs(corrected.normal.y) > 0.0001f ||
+			(corrected.normal + swapped.normal).Length() > 0.0001f ||
+			std::abs(corrected.penetration - 0.025f) > 0.0001f ||
+			std::abs(corrected.point.x + 0.5f) > 0.0001f) {
+			return false;
+		}
+		// 内部面方向に離れている場合は応答候補の有無に関係なく非接触にする
+		player.center.y = 0.0f;
+		if (TestCollisionWithBoxInternalFaces(player, upper, 0, surfaces[1].internalFaces, corrected)) {
+			return false;
+		}
+		// 列の本当の上端と下端は床と天井として残す
+		player.center = Vector3(0.0f, 1.70f, 0.0f);
+		if (!TestCollisionWithBoxInternalFaces(player, upper, 0, surfaces[1].internalFaces, corrected) ||
+			corrected.normal.y > -0.99f) {
+			return false;
+		}
+		player.center.y = -0.70f;
+		if (!TestCollisionWithBoxInternalFaces(player, lower, 0, surfaces[0].internalFaces, corrected) ||
+			corrected.normal.y < 0.99f) {
+			return false;
+		}
+		// 部分的な段差は露出する面を残す
+		upper.halfExtents.x = 0.25f;
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces != 0 || surfaces[1].internalFaces != 4) {
+			return false;
+		}
+		upper.halfExtents.x = 0.5f;
+		upper.center.y = 1.001f;
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces || surfaces[1].internalFaces) {
+			return false;
+		}
+		// 異なるタイプとTriggerは隣の面を覆わない
+		upper.center.y = 1.0f;
+		surfaces[1].typeMask = 2;
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces || surfaces[1].internalFaces) {
+			return false;
+		}
+		surfaces[1].typeMask = 1;
+		upper.trigger = true;
+		BuildBoxInternalFaces(surfaces);
+		player.center = Vector3(-0.70f, 0.28f, 0.0f);
+		if (surfaces[0].internalFaces || surfaces[1].internalFaces ||
+			!TestCollisionWithBoxInternalFaces(player, upper, 0, 4, corrected) ||
+			!corrected.trigger || corrected.normal.y < 0.99f) {
+			return false;
+		}
+		upper.trigger = false;
+		// フィルム移動後も前の面情報を残さず、復帰時に再構築する
+		upper.center.z = 10.0f;
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces || surfaces[1].internalFaces) {
+			return false;
+		}
+		upper.center.z = 0.0f;
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces != 8 || surfaces[1].internalFaces != 4) {
+			return false;
+		}
+		// 軸が揃った回転箱も同じ内部面を持つ
+		const float c = std::sqrt(0.5f);
+		lower.axes[0] = upper.axes[0] = Vector3(c, c, 0.0f);
+		lower.axes[1] = upper.axes[1] = Vector3(-c, c, 0.0f);
+		upper.center = upper.axes[1];
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces != 8 || surfaces[1].internalFaces != 4) {
+			return false;
+		}
+		// 向きの異なるPlayerは通常判定を維持する
+		player.center = upper.center + Vector3(-0.5f, 0.0f, 0.0f);
+		if (!TestCollision(player, upper, raw) ||
+			!TestCollisionWithBoxInternalFaces(player, upper, 0, 4, corrected) ||
+			(raw.normal - corrected.normal).Length() > 0.0001f) {
+			return false;
+		}
+		upper.axes[0] = Vector3(1.0f, 0.0f, 0.0f);
+		upper.axes[1] = Vector3(0.0f, 1.0f, 0.0f);
+		BuildBoxInternalFaces(surfaces);
+		if (surfaces[0].internalFaces || surfaces[1].internalFaces) {
+			return false;
+		}
+		// 安全な代替面がない場合も、通常の接触を消さない
+		player.center = upper.center;
+		if (!TestCollision(player, upper, raw) ||
+			!TestCollisionWithBoxInternalFaces(player, upper, 0, 63, corrected) ||
+			(raw.normal - corrected.normal).Length() > 0.0001f ||
+			std::abs(raw.penetration - corrected.penetration) > 0.0001f) {
+			return false;
+		}
+		// 格子の角でX/Yが内部面でも、遠いZ面まで押し出さない
+		upper.center = Vector3(1.0f, 1.0f, 0.0f);
+		upper.halfExtents = Vector3(0.5f, 0.5f, 2.0f);
+		player.center = Vector3(0.28f, 0.28f, 0.0f);
+		if (!TestCollisionWithBoxInternalFaces(player, upper, 0, 5, corrected) ||
+			!TestCollisionWithBoxInternalFaces(upper, player, 5, 0, swapped) ||
+			std::abs(corrected.normal.z) > 0.0001f || corrected.penetration > 0.01f ||
+			(corrected.normal + swapped.normal).Length() > 0.0001f) {
+			return false;
+		}
+		// 内部面を持つ床でも、上面への通常接触は点も含めて維持する
+		player.center = Vector3(1.0f, 1.70f, 0.0f);
+		if (!TestCollision(player, upper, raw) ||
+			!TestCollisionWithBoxInternalFaces(player, upper, 0, 5, corrected) ||
+			(raw.normal - corrected.normal).Length() > 0.0001f ||
+			(raw.point - corrected.point).Length() > 0.0001f ||
+			std::abs(raw.penetration - corrected.penetration) > 0.0001f) {
+			return false;
+		}
+		// 分散配置で全組み合わせを追加走査しない
+		std::vector<CollisionShapeInstance> boxes(256);
+		std::vector<CollisionBoxSurface> sparse;
+		for (size_t i = 0; i < boxes.size(); ++i) {
+			boxes[i].type = ColliderShapeType::AABB3D;
+			boxes[i].center.y = static_cast<float>(i) * 3.0f;
+			sparse.push_back({ &boxes[i], 1 });
+		}
+		return BuildBoxInternalFaces(sparse) == 0;
+	}
+
+	// マス境界で上下速度を失わないことを実際の押し戻し経路で確認する
+	bool TestRigidbodyBoxSeams() {
+
+		using namespace Engine;
+		for (bool reverse : { false, true }) {
+			for (bool horizontal : { false, true }) {
+				ECSWorld world(ECSWorldKind::Runtime);
+				auto createBox = [&](Vector3 position, Vector3 halfSize) {
+					const Entity entity = SceneAuthoring::CreateGameObject(world, "BoxSeam");
+					auto& transform = world.GetComponent<TransformComponent>(entity);
+					transform.localPos = position;
+					MarkTransformSubtreeDirty(world, entity);
+					auto& collision = world.AddComponent<CollisionComponent>(entity);
+					collision.enabled = true;
+					collision.enablePushback = true;
+					collision.isStatic = false;
+					collision.shape.type = ColliderShapeType::OBB3D;
+					collision.shape.halfExtents3D = halfSize;
+					return entity;
+				};
+				Entity player = Entity::Null();
+				auto createPlayer = [&]() {
+					player = createBox(Vector3::AnyInit(0.0f), Vector3::AnyInit(0.225f));
+					auto& body = world.AddComponent<RigidbodyComponent>(player);
+					body.bodyType = RigidbodyType::Dynamic;
+					body.friction = 0.0f;
+					body.restitution = 0.0f;
+					body.allowTopple = false;
+				};
+				if (!reverse) { createPlayer(); }
+				for (int i = 0; i < 4; ++i) {
+					const float offset = static_cast<float>(reverse ? 3 - i : i);
+					createBox(horizontal ? Vector3(offset, 0.0f, 0.0f) : Vector3(0.0f, offset, 0.0f),
+						Vector3(0.5f, 0.5f, 4.0f));
+				}
+				if (reverse) { createPlayer(); }
+				SystemContext context{};
+				context.mode = WorldMode::Play;
+				context.fixedDeltaTime = 1.0f / 60.0f;
+				TransformSystem transforms;
+				CollisionSystem collisions;
+				transforms.OnWorldEnter(world, context);
+				bool passed = true;
+				for (float side : { -1.0f, 1.0f }) {
+					for (float direction : { -1.0f, 1.0f }) {
+						for (int step = 0; step < 151; ++step) {
+							const float travel = direction > 0.0f ? step * 0.02f : 3.0f - step * 0.02f;
+							auto& transform = world.GetComponent<TransformComponent>(player);
+							transform.localPos = horizontal ? Vector3(travel, side * 0.70f, 0.0f) :
+								Vector3(side * 0.70f, travel, 0.0f);
+							MarkTransformSubtreeDirty(world, player);
+							auto& body = world.GetComponent<RigidbodyComponent>(player);
+							body.linearVelocity = horizontal ? Vector3(direction * 3.0f, -side, 0.0f) :
+								Vector3(-side, direction * 3.0f, 0.0f);
+							transforms.FixedUpdate(world, context);
+							collisions.FixedUpdate(world, context);
+							const auto position = world.GetComponent<TransformComponent>(player).localPos;
+							const auto velocity = world.GetComponent<RigidbodyComponent>(player).linearVelocity;
+							passed &= std::abs((horizontal ? position.x : position.y) - travel) <= 0.0001f &&
+								std::abs((horizontal ? velocity.x : velocity.y) - direction * 3.0f) <= 0.0001f &&
+								(horizontal ? position.y : position.x) * side > 0.70f;
+						}
+					}
+				}
+				collisions.OnWorldExit(world, context);
+				transforms.OnWorldExit(world, context);
+				if (!passed) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	// 隣接Colliderの有効切り替えや移動を次の固定ステップへ反映する
+	bool TestBoxSeamNeighborState() {
+
+		using namespace Engine;
+		ECSWorld world(ECSWorldKind::Runtime);
+		auto createBox = [&](float y) {
+			const Entity entity = SceneAuthoring::CreateGameObject(world, "SeamNeighbor");
+			world.GetComponent<TransformComponent>(entity).localPos.y = y;
+			MarkTransformSubtreeDirty(world, entity);
+			auto& collision = world.AddComponent<CollisionComponent>(entity);
+			collision.shape.type = ColliderShapeType::AABB3D;
+			collision.shape.halfExtents3D = Vector3(0.5f, 0.5f, 4.0f);
+			return entity;
+		};
+		createBox(1.0f);
+		const Entity lower = createBox(0.0f);
+		const Entity player = createBox(0.0f);
+		world.GetComponent<CollisionComponent>(player).shape.halfExtents3D = Vector3::AnyInit(0.225f);
+		auto& initialBody = world.AddComponent<RigidbodyComponent>(player);
+		initialBody.friction = 0.0f;
+		initialBody.restitution = 0.0f;
+		initialBody.allowTopple = false;
+		SystemContext context{};
+		context.mode = WorldMode::Play;
+		TransformSystem transforms;
+		CollisionSystem collisions;
+		transforms.OnWorldEnter(world, context);
+		auto step = [&](bool seamExpected) {
+			world.GetComponent<TransformComponent>(player).localPos = Vector3(-0.70f, 0.28f, 0.0f);
+			MarkTransformSubtreeDirty(world, player);
+			world.GetComponent<RigidbodyComponent>(player).linearVelocity = Vector3(1.0f, 3.0f, 0.0f);
+			transforms.FixedUpdate(world, context);
+			collisions.FixedUpdate(world, context);
+			const float velocity = world.GetComponent<RigidbodyComponent>(player).linearVelocity.y;
+			return std::abs(velocity - (seamExpected ? 3.0f : 0.0f)) <= 0.0001f;
+		};
+		bool passed = step(true);
+		world.GetComponent<CollisionComponent>(lower).enabled = false;
+		passed &= step(false);
+		world.GetComponent<CollisionComponent>(lower).enabled = true;
+		passed &= step(true);
+		world.GetComponent<CollisionComponent>(lower).shape.isTrigger = true;
+		passed &= step(false);
+		world.GetComponent<CollisionComponent>(lower).shape.isTrigger = false;
+		world.GetComponent<TransformComponent>(lower).localPos.z = 20.0f;
+		MarkTransformSubtreeDirty(world, lower);
+		passed &= step(false);
+		world.GetComponent<TransformComponent>(lower).localPos.z = 0.0f;
+		MarkTransformSubtreeDirty(world, lower);
+		passed &= step(true);
+		world.AddComponent<RigidbodyComponent>(lower).bodyType = RigidbodyType::Kinematic;
+		passed &= step(false);
+		world.GetComponent<RigidbodyComponent>(lower).bodyType = RigidbodyType::Static;
+		passed &= step(true);
+		collisions.OnWorldExit(world, context);
+		transforms.OnWorldExit(world, context);
+		return passed;
+	}
+
+	// 格子床への着地を重力込みで継続し、奥行きへ押し出されないことを確認する
+	bool TestBoxSeamLanding() {
+
+		using namespace Engine;
+		for (bool reverse : { false, true }) {
+			ECSWorld world(ECSWorldKind::Runtime);
+			auto createBox = [&](Vector3 position, Vector3 halfSize) {
+				const Entity entity = SceneAuthoring::CreateGameObject(world, "SeamLanding");
+				world.GetComponent<TransformComponent>(entity).localPos = position;
+				MarkTransformSubtreeDirty(world, entity);
+				auto& collision = world.AddComponent<CollisionComponent>(entity);
+				collision.shape.type = ColliderShapeType::AABB3D;
+				collision.shape.halfExtents3D = halfSize;
+				return entity;
+			};
+			Entity player = Entity::Null();
+			auto createPlayer = [&]() {
+				player = createBox(Vector3(0.5f, 3.0f, 0.0f), Vector3::AnyInit(0.225f));
+				auto& body = world.AddComponent<RigidbodyComponent>(player);
+				body.bodyType = RigidbodyType::Dynamic;
+				body.friction = 0.0f;
+				body.restitution = 0.0f;
+				body.allowTopple = false;
+				body.useGravity = true;
+			};
+			if (!reverse) { createPlayer(); }
+			for (int i = 0; i < 4; ++i) {
+				const int cell = reverse ? 3 - i : i;
+				createBox(Vector3(static_cast<float>(cell % 2), static_cast<float>(cell / 2), 0.0f),
+					Vector3(0.5f, 0.5f, 2.0f));
+			}
+			if (reverse) { createPlayer(); }
+			SystemContext context{};
+			context.mode = WorldMode::Play;
+			context.fixedDeltaTime = 1.0f / 60.0f;
+			TransformSystem transforms;
+			PhysicsSystem physics;
+			CollisionSystem collisions;
+			transforms.OnWorldEnter(world, context);
+			bool passed = true;
+			for (int step = 0; step < 300; ++step) {
+				physics.FixedUpdate(world, context);
+				transforms.FixedUpdate(world, context);
+				collisions.FixedUpdate(world, context);
+				const auto position = world.GetComponent<TransformComponent>(player).localPos;
+				passed &= position.y > 1.70f && std::abs(position.z) < 0.0001f;
+			}
+			passed &= world.GetComponent<TransformComponent>(player).localPos.y < 1.73f;
+			passed &= std::abs(world.GetComponent<RigidbodyComponent>(player).linearVelocity.y) < 0.0001f;
+			// 深く重なった格子内でも、内部面を除いた結果Z方向へ脱落させない
+			world.GetComponent<TransformComponent>(player).localPos = Vector3(0.28f, 0.28f, 0.0f);
+			MarkTransformSubtreeDirty(world, player);
+			transforms.FixedUpdate(world, context);
+			collisions.FixedUpdate(world, context);
+			passed &= std::abs(world.GetComponent<TransformComponent>(player).localPos.z) < 0.0001f;
+			collisions.OnWorldExit(world, context);
+			transforms.OnWorldExit(world, context);
+			if (!passed) { return false; }
+		}
+		return true;
+	}
+
 	bool TestRigidbody2DRestingContact() {
 
 		Engine::ECSWorld world(Engine::ECSWorldKind::Runtime);
@@ -2291,6 +2889,90 @@ namespace {
 		return true;
 	}
 
+	// 色変更と構成変更を分け、無関係なMeshの再構築を防ぐ
+	bool TestMeshBatchInvalidation() {
+
+		using namespace Engine;
+		ECSWorld world(ECSWorldKind::Runtime);
+		const Entity rain = SceneAuthoring::CreateGameObject(world, "Rain");
+		const Entity stage = SceneAuthoring::CreateGameObject(world, "Stage");
+		const Entity middle = SceneAuthoring::CreateGameObject(world, "Middle");
+		const Entity other = SceneAuthoring::CreateGameObject(world, "Other");
+		RenderSceneBatch batch;
+		MeshRenderPayload payload{};
+		RenderItem a{}, b{}, c{}, d{};
+		a.world = b.world = c.world = d.world = &world;
+		a.entity = rain; b.entity = middle; c.entity = stage; d.entity = other;
+		a.payload = b.payload = c.payload = d.payload = batch.PushPayload(payload);
+		std::array<const RenderItem*, 3> items{ &a, &b, &c };
+		std::array<const RenderItem*, 1> stageItems{ &c };
+		MeshGPUResource mesh;
+		MeshBatchResources rainCache, stageCache;
+		rainCache.CaptureBatchIdentity(batch, items, mesh);
+		stageCache.CaptureBatchIdentity(batch, stageItems, mesh);
+		const uint64_t renderRevision = world.GetRenderDataRevision();
+		world.MarkMeshColorModified(rain);
+		const uint64_t colorRevision = world.GetMeshColorRevision(rain);
+		world.MarkMeshColorModified(rain);
+		if (world.GetRenderDataRevision() != renderRevision || world.GetMeshColorRevision(rain) <= colorRevision ||
+			world.GetMeshColorRevision(stage) != 0 || !rainCache.MatchesBatch(batch, items, mesh) ||
+			!stageCache.MatchesBatch(batch, stageItems, mesh)) {
+			return false;
+		}
+		// 先頭と末尾が同じでも中央のEntityやサブメッシュが異なれば再構築する
+		items[1] = &d;
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		items[1] = &b;
+		payload.subMeshIndex = 1;
+		b.payload = batch.PushPayload(payload);
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		b.payload = a.payload;
+		// 描画設定、順序、Worldの違いも同じバッチとして扱わない
+		b.material = AssetGUID::New();
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		b.material = {};
+		b.receiveShadows = false;
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		b.receiveShadows = true;
+		b.surfaceMode = MaterialSurfaceMode::Transparent;
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		b.surfaceMode = MaterialSurfaceMode::Opaque;
+		std::swap(items[0], items[1]);
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		std::swap(items[0], items[1]);
+		ECSWorld otherWorld(ECSWorldKind::Runtime);
+		b.world = &otherWorld;
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		b.world = &world;
+		if (!rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		world.MarkRenderDataModified(rain);
+		if (rainCache.MatchesBatch(batch, items, mesh) || !stageCache.MatchesBatch(batch, stageItems, mesh)) {
+			return false;
+		}
+		// 全体通知とMeshの再読み込みは確実にキャッシュを無効化する
+		rainCache.CaptureBatchIdentity(batch, items, mesh);
+		world.MarkRenderDataModified();
+		if (rainCache.MatchesBatch(batch, items, mesh) || stageCache.MatchesBatch(batch, stageItems, mesh)) {
+			return false;
+		}
+		rainCache.CaptureBatchIdentity(batch, items, mesh);
+		++mesh.reloadGeneration;
+		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		--mesh.reloadGeneration;
+		// 色だけの更新もRaytracingが参照する内容世代へ伝える
+		batch.SetMaterialSource(world.GetMeshColorRevision());
+		const uint64_t contents = batch.GetSourceRevision();
+		world.MarkMeshColorModified(rain);
+		batch.SetMaterialSource(world.GetMeshColorRevision());
+		if (batch.GetSourceRevision() == contents) { return false; }
+		const uint64_t unchanged = batch.GetSourceRevision();
+		batch.SetMaterialSource(world.GetMeshColorRevision());
+		if (batch.GetSourceRevision() != unchanged) { return false; }
+		world.DestroyEntity(rain);
+		world.FlushPendingDestroyEntities();
+		return world.GetMeshColorRevision(rain) == 0 && world.GetEntityRenderRevision(rain) == 0;
+	}
+
 	bool TestMaterialParameters() {
 
 		// 空のアセット参照も保存前の型で復元する
@@ -2487,6 +3169,57 @@ namespace {
 			legacyRestored.dimension == Engine::Dimension::Type3D;
 	}
 
+	// C#と同じ経路で輪郭線のRGBAと描画更新通知を確認
+	bool TestScreenSpaceOutlineBinding() {
+
+		using namespace Engine;
+		using namespace Engine::GeneratedComponentBindings;
+		ECSWorld world(ECSWorldKind::Runtime);
+		auto& registry = ManagedWorldRegistry::GetInstance();
+		const ManagedWorldHandle handle = registry.Register(world);
+		const Entity entity = SceneAuthoring::CreateGameObject(world, "OutlineBinding");
+		world.AddComponent<ScreenSpaceOutlineComponent>(entity);
+		const ManagedNativeEntity native = MakeNativeEntity(world, entity);
+		constexpr int32_t typeID = 24;
+		constexpr int32_t colorProperty = 0;
+		constexpr int32_t enabledProperty = 1;
+		bool passed = true;
+
+		for (float alpha : { 1.0f, 0.5f, 0.0f, 1.0f }) {
+			const Color4 color(0.25f, 0.5f, 0.75f, alpha);
+			Color4 restored{};
+			const uint64_t revision = world.GetRenderDataRevision();
+			passed &= SetComponentProperty(native, typeID, colorProperty, &color, sizeof(color)) == ManagedStatus::Ok;
+			passed &= world.GetRenderDataRevision() > revision;
+			passed &= GetComponentProperty(native, typeID, colorProperty, &restored, sizeof(restored)) == ManagedStatus::Ok;
+			passed &= std::memcmp(&color, &restored, sizeof(color)) == 0;
+		}
+
+		for (int32_t enabled : { 0, 1 }) {
+			int32_t restored = -1;
+			passed &= SetComponentProperty(native, typeID, enabledProperty, &enabled, sizeof(enabled)) == ManagedStatus::Ok;
+			passed &= GetComponentProperty(native, typeID, enabledProperty, &restored, sizeof(restored)) == ManagedStatus::Ok;
+			passed &= restored == enabled;
+		}
+
+		// 不正な書き込みで既存の色を壊さない
+		const Color4 color = world.GetComponent<ScreenSpaceOutlineComponent>(entity).color;
+		Color4 restored{};
+		passed &= SetComponentProperty(native, typeID, colorProperty, &restored, 4) == ManagedStatus::InvalidArgument;
+		passed &= GetComponentProperty(native, typeID, colorProperty, &restored, sizeof(restored)) == ManagedStatus::Ok;
+		passed &= std::memcmp(&color, &restored, sizeof(color)) == 0;
+		passed &= GetComponentProperty(native, typeID, 99, &restored, sizeof(restored)) == ManagedStatus::InvalidArgument;
+
+		// コンポーネントの再追加後もハンドルから引き直す
+		world.RemoveComponent<ScreenSpaceOutlineComponent>(entity);
+		passed &= GetComponentProperty(native, typeID, colorProperty, &restored, sizeof(restored)) == ManagedStatus::InvalidArgument;
+		world.AddComponent<ScreenSpaceOutlineComponent>(entity);
+		passed &= SetComponentProperty(native, typeID, colorProperty, &color, sizeof(color)) == ManagedStatus::Ok;
+		registry.Unregister(handle);
+		passed &= GetComponentProperty(native, typeID, colorProperty, &restored, sizeof(restored)) != ManagedStatus::Ok;
+		return passed;
+	}
+
 	bool TestScreenSpaceOutlineSerialization() {
 
 		Engine::ScreenSpaceOutlineComponent source{};
@@ -2510,6 +3243,71 @@ namespace {
 				Engine::ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible;
 	}
 
+
+	// 区間の入れ子と対象選択を実時間の大小に依存せず確認する
+	bool TestScriptProfiler() {
+		using namespace Engine;
+		auto& profiler = ScriptProfiler::GetInstance();
+		profiler.ResetOwners();
+		ManagedScriptInstanceHandle first{ 7, 1 }, second{ 8, 1 };
+		ManagedNativeEntity entity{ { 1, 1 }, 2, 0 };
+		profiler.Register({ ScriptProfiler::OwnerID(first), entity, 11, "type-a", "Example.Rain" });
+		profiler.Register({ ScriptProfiler::OwnerID(second), entity, 12, "type-a", "Example.Rain" });
+		profiler.Configure(false, {}, 0);
+		bool passed = profiler.BeginCallback(first, "Update") == 0 && profiler.Rows().empty();
+		profiler.Configure(true, "Example.Rain", ScriptProfiler::OwnerID(first));
+		profiler.BeginFrame();
+		passed &= profiler.BeginDetail(entity, 12, "対象外") == 0;
+		const uint64_t callback = profiler.BeginCallback(second, "LateUpdate");
+		const uint64_t outer = profiler.BeginDetail(entity, 11, "更新");
+		const uint64_t inner = profiler.BeginDetail(entity, 11, "移動");
+		profiler.End(inner, true);
+		profiler.End(outer, true);
+		profiler.End(callback, false);
+		try {
+			ScriptProfileScope scope(first, "例外");
+			throw 1;
+		} catch (int) {
+		}
+		profiler.EndFrame();
+		bool foundChild = false, foundException = false;
+		for (const auto& row : profiler.Rows()) {
+			const auto& value = row.history[profiler.LastFrame()];
+			passed &= value.selfMs <= value.inclusiveMs && value.calls == 1;
+			foundChild |= row.detail && row.parent >= 0 && row.name == "移動";
+			foundException |= row.name == "例外";
+		}
+		passed &= foundChild && foundException;
+		const size_t rows = profiler.Rows().size();
+		profiler.Configure(false, "Example.Rain", ScriptProfiler::OwnerID(first));
+		passed &= profiler.Rows().size() == rows && profiler.BeginDetail(entity, 11, "停止") == 0;
+		profiler.Configure(true, "Example.Rain", 0);
+		const uint64_t stale = profiler.BeginDetail(entity, 11, "古い区間");
+		profiler.Clear();
+		profiler.BeginFrame();
+		const uint64_t current = profiler.BeginDetail(entity, 12, "新しい区間");
+		profiler.End(stale, true);
+		profiler.End(current, true);
+		profiler.EndFrame();
+		passed &= profiler.Rows().size() == 1 &&
+			profiler.Rows()[0].history[profiler.LastFrame()].calls == 1;
+		for (int i = 0; i < 305; ++i) {
+			profiler.BeginFrame();
+			profiler.EndFrame();
+		}
+		passed &= profiler.FrameCount() == 300 &&
+			profiler.Rows()[0].history[profiler.LastFrame()].calls == 0;
+		profiler.Clear();
+		for (int i = 0; i < 4100; ++i) {
+			const std::string name = std::to_string(i);
+			profiler.End(profiler.BeginDetail(entity, 11, name.c_str()), true);
+		}
+		passed &= profiler.Rows().size() == 4096 && profiler.IsOverflowed();
+		profiler.Configure(false, {}, 0);
+		profiler.ResetOwners();
+		passed &= profiler.Owners().empty() && profiler.Rows().empty();
+		return passed;
+	}
 	bool TestScriptExecutionOrderSettings() {
 
 		constexpr std::string_view scriptTypeID =
@@ -4294,6 +5092,12 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--scene-storage") {
+		if (!TestSceneAssetStorage()) return 40;
+		std::cout << "Scene storage tests passed\n";
+		return 0;
+	}
+
 	// 実シーンの互換復旧をファイル変更なしで検証する
 	if (2 < argc && std::string_view(argv[1]) == "--prefab-recovery") {
 		std::ifstream file(Engine::Algorithm::PathFromUTF8(argv[2]));
@@ -4323,7 +5127,7 @@ int main(int argc, char* argv[]) {
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-copy") {
 
-		if (!TestSceneAssetCopy() || !TestExternalActors() || !TestPrefabPropagationAndNestedInstances()) {
+		if (!TestSceneAssetStorage() || !TestSceneAssetCopy() || !TestExternalActors() || !TestPrefabPropagationAndNestedInstances()) {
 			std::cerr << "Scene asset copy test failed\n";
 			return 37;
 		}
@@ -4362,7 +5166,8 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
-		if (!TestRigidbody2DRestingContact() || !TestInactivePhysicsSystems() ||
+		if (!TestBoxInternalFaces() || !TestRigidbodyBoxSeams() || !TestBoxSeamNeighborState() || !TestBoxSeamLanding() ||
+			!TestRigidbody2DRestingContact() || !TestInactivePhysicsSystems() ||
 			!TestEditCollisionState() ||
 			!TestCapsuleCollisions()) {
 			std::cerr << "Physics collision test failed\n";
@@ -4387,6 +5192,14 @@ int main(int argc, char* argv[]) {
 		std::cout << "Texture import settings passed\n";
 		return 0;
 	}
+	if (1 < argc && std::string_view(argv[1]) == "--screen-space-outline") {
+		if (!TestScreenSpaceOutlineSerialization() || !TestScreenSpaceOutlineBinding()) {
+			std::cerr << "Screen space outline binding failed\n";
+			return 10;
+		}
+		std::cout << "Screen space outline binding passed\n";
+		return 0;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
 		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
 			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
@@ -4394,8 +5207,8 @@ int main(int argc, char* argv[]) {
 			!TestPrefabPropagationAndNestedInstances() ||
 			!TestTransformDirtyHierarchy() ||
 			!TestTransformDimensionSerialization() ||
-			!TestScreenSpaceOutlineSerialization() ||
-			!TestScriptExecutionOrderSettings() ||
+			!TestScreenSpaceOutlineSerialization() || !TestScreenSpaceOutlineBinding() ||
+			!TestScriptExecutionOrderSettings() || !TestScriptProfiler() ||
 			!TestCanvasNavigationTable()) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
@@ -4419,6 +5232,7 @@ int main(int argc, char* argv[]) {
 		std::string_view(argv[1]) == "--materials") {
 
 		if (!TestBlendStates() ||
+			!TestMeshBatchInvalidation() ||
 			!TestMaterialParameters() ||
 			!TestShaderReflectionMerge()) {
 			std::cerr << "Material parameter storage failed\n";
@@ -4495,7 +5309,7 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Scene lifecycle context failed\n";
 		return 36;
 	}
-	if (!TestExternalActors() || !TestSceneAssetCopy()) {
+	if (!TestSceneAssetStorage() || !TestExternalActors() || !TestSceneAssetCopy()) {
 		std::cerr << "ExternalActors failed\n";
 		return 8;
 	}
@@ -4535,13 +5349,17 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Transform dimension serialization failed\n";
 		return 26;
 	}
-	if (!TestScreenSpaceOutlineSerialization()) {
+	if (!TestScreenSpaceOutlineSerialization() || !TestScreenSpaceOutlineBinding()) {
 		std::cerr << "Screen space outline serialization failed\n";
 		return 29;
 	}
-	if (!TestScriptExecutionOrderSettings()) {
+	if (!TestScriptExecutionOrderSettings() || !TestScriptProfiler()) {
 		std::cerr << "Script execution order settings failed\n";
 		return 35;
+	}
+	if (!TestBoxInternalFaces() || !TestRigidbodyBoxSeams() || !TestBoxSeamNeighborState() || !TestBoxSeamLanding()) {
+		std::cerr << "Box collider seam contact failed\n";
+		return 27;
 	}
 	if (!TestRigidbody2DRestingContact()) {
 		std::cerr << "Rigidbody2D resting contact failed\n";
@@ -4571,7 +5389,7 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Blend state failed\n";
 		return 30;
 	}
-	if (!TestMaterialParameters()) {
+	if (!TestMeshBatchInvalidation() || !TestMaterialParameters()) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
 	}

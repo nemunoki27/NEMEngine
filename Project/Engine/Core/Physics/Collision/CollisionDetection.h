@@ -5,6 +5,10 @@
 //============================================================================
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 
+// c++
+#include <cstddef>
+#include <span>
+
 namespace Engine {
 
 	//============================================================================
@@ -36,6 +40,20 @@ namespace Engine {
 		Vector3 segmentStart = Vector3::AnyInit(0.0f);
 		Vector3 segmentEnd = Vector3::AnyInit(0.0f);
 	};
+
+	// 隣接する地形の内部面を固定ステップ中だけ保持する
+	struct CollisionBoxSurface {
+
+		const CollisionShapeInstance* shape = nullptr;
+		uint32_t typeMask = 0;
+		uint8_t internalFaces = 0;
+	};
+
+	// 地形の隣接面を構築し、広域候補の比較回数を返す
+	size_t BuildBoxInternalFaces(std::span<CollisionBoxSurface> surfaces);
+	// 内部面の接触だけを近傍の外側面へ補正し、通常の接触は保持する
+	bool TestCollisionWithBoxInternalFaces(const CollisionShapeInstance& a, const CollisionShapeInstance& b,
+		uint8_t facesA, uint8_t facesB, CollisionContact& outContact);
 
 	// 2D用の衝突形状か
 	bool IsCollisionShape2D(ColliderShapeType type);

@@ -458,27 +458,19 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 				context.batch->GetSourceRenderRevision();
 			const uint64_t transformRevision =
 				context.batch->GetSourceTransformRevision();
-			if (it->second.renderRevision != renderRevision) {
-
-				// 描画値変更時は同じGPUリソースへ再構築し旧世代のキャッシュ増殖を防ぐ
-				resources->UploadBatchData(context, *context.batch,
-					outPrepared.items, *outPrepared.gpuMesh);
-				it->second.renderRevision = renderRevision;
-				it->second.transformRevision = transformRevision;
-				it->second.persistent =
-					!resources->UsesFallbackTexture();
-			} else if (it->second.transformRevision !=
-				transformRevision) {
-
-				if (!context.batch->HasCompleteTransformChanges() ||
-					!resources->RefreshInstanceTransforms(
-						context.batch->GetTransformChanges())) {
-					resources->UploadBatchData(context, *context.batch,
-						outPrepared.items, *outPrepared.gpuMesh);
+			if (!resources->MatchesBatch(*context.batch, outPrepared.items, *outPrepared.gpuMesh)) {
+				resources->UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
+				it->second.persistent = !resources->UsesFallbackTexture();
+			} else {
+				FrameProfiler::GetInstance().AddMeshUpdate(0, 0, 0, 1, 0);
+				resources->RefreshMaterialColors();
+				if (it->second.renderRevision != renderRevision || it->second.transformRevision != transformRevision) {
+					resources->RefreshBatchTransforms(outPrepared.items);
 				}
-				it->second.transformRevision = transformRevision;
+				resources->UploadCachedBatchData();
 			}
-			resources->UploadCachedBatchData();
+			it->second.renderRevision = renderRevision;
+			it->second.transformRevision = transformRevision;
 			it->second.lastUsedFrame = frameIndex_;
 		} else {
 
@@ -746,18 +738,8 @@ uint64_t Engine::MeshRenderBackend::BuildStaticBatchHash(
 	// バッチ識別子だけを使い、Render/Transform世代変更時も同じGPUリソースを再利用する
 	HashCombine(h, static_cast<uint64_t>(items.size()));
 	HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(gpuMesh.assetID)));
-	if (const RenderItem* first = items.front()) {
-		HashCombine(h, static_cast<uint64_t>(std::hash<AssetID>{}(first->material)));
-		HashCombine(h, first->batchKey);
-		HashCombine(h, static_cast<uint64_t>(first->renderPhase));
-		HashCombine(h, static_cast<uint64_t>(first->blendMode));
-		HashCombine(h, first->entity.index);
-		HashCombine(h, first->entity.generation);
-	}
-	if (const RenderItem* last = items.back()) {
-		HashCombine(h, last->entity.index);
-		HashCombine(h, last->entity.generation);
-	}
+	// 透明ソートで中央の順序だけが変わる場合も別のバッチとして識別する
+	HashCombine(h, BuildBatchHash(items));
 	return h;
 }
 

@@ -14,6 +14,7 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 	const uint64_t renderRevision = world.GetRenderDataRevision();
 	const uint64_t transformRevision = world.GetRenderTransformRevision();
 	if (batch.MatchesStructure(&world, renderRevision)) {
+		batch.SetMaterialSource(world.GetMeshColorRevision());
 
 		if (batch.MatchesTransforms(transformRevision)) {
 			return;
@@ -46,4 +47,5 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 	// 描画アイテムをソートする
 	batch.Sort();
 	batch.SetSource(&world, renderRevision, transformRevision);
+	batch.SetMaterialSource(world.GetMeshColorRevision());
 }

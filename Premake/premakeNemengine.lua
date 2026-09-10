@@ -136,5 +136,5 @@ project "NEMTests"
     NEM_AddEngineIncludeSettings()
     NEM_AddEngineDllLinkSettings()
     NEM_ApplyDefaultConfigFilters()
-    links { "NEMCore" }
+    links { "NEMCore", "d3d12" }
     dependson { "NEMCore" }

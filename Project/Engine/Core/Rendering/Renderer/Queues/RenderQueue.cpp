@@ -24,6 +24,7 @@ void Engine::RenderSceneBatch::Clear() {
 	payloadArena_.Clear();
 	sourceWorld_ = nullptr;
 	sourceRenderRevision_ = 0;
+	sourceMaterialRevision_ = 0;
 	sourceTransformRevision_ = 0;
 	completeTransformChanges_ = false;
 }
@@ -102,6 +103,14 @@ void Engine::RenderSceneBatch::SetSource(const ECSWorld* world,
 	if (contentRevision_ == 0) {
 		contentRevision_ = 1;
 	}
+}
+
+void Engine::RenderSceneBatch::SetMaterialSource(uint64_t revision) {
+
+	if (sourceMaterialRevision_ == revision) { return; }
+	sourceMaterialRevision_ = revision;
+	++contentRevision_;
+	if (contentRevision_ == 0) { contentRevision_ = 1; }
 }
 
 void Engine::RenderSceneBatch::SetTransformSource(

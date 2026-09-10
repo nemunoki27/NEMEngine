@@ -56,6 +56,16 @@ void Engine::FrameProfiler::SetEcsSystemTimes(const std::vector<NamedTime>& syst
 	ecsSystemTimes_ = systems;
 }
 
+void Engine::FrameProfiler::AddMeshUpdate(uint32_t rebuilds, uint32_t transforms, uint32_t parameters,
+	uint32_t reused, uint64_t instances) {
+
+	renderingStatistics_.meshRebuildCount += rebuilds;
+	renderingStatistics_.meshTransformUpdateCount += transforms;
+	renderingStatistics_.meshParameterUpdateCount += parameters;
+	renderingStatistics_.meshReuseCount += reused;
+	renderingStatistics_.meshUpdatedInstances += instances;
+}
+
 void Engine::FrameProfiler::AddSkinningDispatch(uint32_t instanceCount) {
 
 	++renderingStatistics_.skinningDispatchCount;

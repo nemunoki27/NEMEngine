@@ -310,7 +310,9 @@ void Engine::WorldCommandBuffer::Apply(ECSWorld& world, const Command& command) 
 			std::vector<UUID> previousScenes;
 			previousScenes.reserve(services.sceneInstances->GetAll().size());
 			for (const SceneInstance& scene : services.sceneInstances->GetAll()) {
-				previousScenes.emplace_back(scene.instanceID);
+				if (!scene.persistent) {
+					previousScenes.emplace_back(scene.instanceID);
+				}
 			}
 			const bool loaded = services.sceneInstances->LoadAdditive(*services.assetDatabase,
 				*services.sceneSystem, world, command.assetID,

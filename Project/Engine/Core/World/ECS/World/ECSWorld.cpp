@@ -114,7 +114,7 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 		GetChangeChannels(entity);
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Render)) {
-		MarkRenderDataModified();
+		MarkRenderDataModified(entity);
 	}
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Lighting)) {
@@ -326,6 +326,40 @@ void Engine::ECSWorld::MarkDataModified() {
 void Engine::ECSWorld::MarkRenderDataModified() {
 
 	IncrementRevision(renderDataRevision_);
+	renderResetRevision_ = renderDataRevision_;
+	entityRenderRevisions_.clear();
+	meshColorRevisions_.clear();
+	IncrementRevision(meshColorRevision_);
+}
+
+void Engine::ECSWorld::MarkRenderDataModified(const Entity& entity) {
+
+	IncrementRevision(renderDataRevision_);
+	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	entityRenderRevisions_[key] = renderDataRevision_;
+}
+
+void Engine::ECSWorld::MarkMeshColorModified(const Entity& entity) {
+
+	if (!IsAlive(entity)) { return; }
+	IncrementRevision(meshColorRevision_);
+	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	meshColorRevisions_[key] = meshColorRevision_;
+	MarkDataModified();
+}
+
+uint64_t Engine::ECSWorld::GetEntityRenderRevision(const Entity& entity) const {
+
+	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	const auto found = entityRenderRevisions_.find(key);
+	return found == entityRenderRevisions_.end() ? 0 : found->second;
+}
+
+uint64_t Engine::ECSWorld::GetMeshColorRevision(const Entity& entity) const {
+
+	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+	const auto found = meshColorRevisions_.find(key);
+	return found == meshColorRevisions_.end() ? 0 : found->second;
 }
 
 void Engine::ECSWorld::MarkTransformConsumersModified(
@@ -463,11 +497,17 @@ void Engine::ECSWorld::NotifyComponentMutation(
 	}
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Render)) {
-		MarkRenderDataModified();
+		MarkRenderDataModified(entity);
 	}
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Lighting)) {
 		IncrementRevision(lightDataRevision_);
+	}
+	// 破棄通知で作られた世代記録もここで回収する
+	if (kind == ComponentMutationKind::EntityDestroyed) {
+		const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
+		meshColorRevisions_.erase(key);
+		entityRenderRevisions_.erase(key);
 	}
 	// 購読の追加削除はWorldEnter/Exitだけで行い、通知中の割り当てを避ける
 	for (const ComponentMutationListener& listener : componentMutationListeners_) {
@@ -881,7 +921,7 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	// 構造移動で保持Componentのアドレスが変わるため、外部キャッシュを再抽出する
 	if (HasComponentChangeChannel(
 		relocatedChannels, ComponentChangeChannel::Render)) {
-		MarkRenderDataModified();
+		MarkRenderDataModified(entity);
 	}
 	if (HasComponentChangeChannel(
 		relocatedChannels, ComponentChangeChannel::Lighting)) {

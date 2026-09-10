@@ -8,6 +8,7 @@
 //============================================================================
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -186,6 +187,12 @@ bool Engine::ManagedScriptRuntime::Init() {
 	// ネイティブ側APIつまりC++側の機能をC#から呼ぶための関数群を初期化する
 	ManagedNativeApiTable callbacks{};
 	// ABIヘッダを先頭に設定する、C#側はバージョンとサイズと機能を検証し不一致なら初期化を拒否する
+	callbacks.beginScriptSample = [](ManagedNativeEntity entity, uint64_t slotID, const char* name) -> uint64_t {
+		return ScriptProfiler::GetInstance().BeginDetail(entity, slotID, name);
+	};
+	callbacks.endScriptSample = [](uint64_t token) {
+		ScriptProfiler::GetInstance().End(token, true);
+	};
 	callbacks.header.abiVersion = kManagedAbiVersion;
 	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeApiTable));
 	callbacks.header.capabilities = kManagedCapabilitiesAll;
@@ -339,6 +346,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
 	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
 	callbacks.reloadActiveScene = &ManagedScriptRuntime::ReloadActiveSceneCallback;
+	callbacks.dontDestroyOnLoad = &ManagedScriptRuntime::DontDestroyOnLoadCallback;
 	callbacks.resolveEntityRef = &ManagedScriptRuntime::ResolveEntityRefCallback;
 	// ライン描画v12のcomponent点列設定と即時描画
 	callbacks.lineSetPoints = &ManagedScriptRuntime::LineSetPointsCallback;
@@ -425,6 +433,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	pumpSceneEvents_ = nullptr;
 	raiseApplicationQuitting_ = nullptr;
 	tickFrame_ = nullptr;
+	configureProfiler_ = nullptr;
 	getLastAlcUnloadStatus_ = nullptr;
 	getScriptTypeCount_ = nullptr;
 	copyScriptTypeInfo_ = nullptr;
@@ -519,6 +528,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesyste
 
 void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 
+	ScriptProfiler::GetInstance().ResetOwners();
 	gameAssemblyLoaded_ = false;
 	schemaCache_.clear();
 	BehaviorTypeRegistry::GetInstance().ClearManaged();
@@ -545,6 +555,11 @@ Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance
 	ScopedReferenceWorld worldScope(world);
 	const ManagedStatus status = createInstance_(scriptTypeID.c_str(), MakeNativeEntity(world, entity), json.c_str(),
 		scriptSlotID, &createdHandle);
+	if (status == ManagedStatus::Ok && createdHandle.IsValid()) {
+		ScriptProfiler::GetInstance().Register({
+			ScriptProfiler::OwnerID(createdHandle), MakeNativeEntity(world, entity), scriptSlotID,
+			scriptTypeID, GetScriptSchema(scriptTypeID).fullTypeName });
+	}
 	// 生成失敗時は無効ハンドルを返す
 	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
 }
@@ -574,57 +589,77 @@ void Engine::ManagedScriptRuntime::DestroyInstance(ManagedScriptInstanceHandle h
 		return;
 	}
 	destroyInstance_(handle);
+	ScriptProfiler::GetInstance().Unregister(handle);
+}
+
+void Engine::ManagedScriptRuntime::ConfigureProfiler(const char* typeName, ManagedNativeEntity entity, uint64_t slotID) {
+
+	if (configureProfiler_) {
+		configureProfiler_(typeName, entity, slotID);
+	}
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAwake(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "Awake");
 	return Invoke(invokeAwake_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeStart(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "Start");
 	return Invoke(invokeStart_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnEnable(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "OnEnable");
 	return Invoke(invokeOnEnable_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDisable(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "OnDisable");
 	return Invoke(invokeOnDisable_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeOnDestroy(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "OnDestroy");
 	return Invoke(invokeOnDestroy_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeFixedUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "FixedUpdate");
 	return Invoke(invokeFixedUpdate_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "Update");
 	return Invoke(invokeUpdate_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeLateUpdate(ManagedScriptInstanceHandle handle, const SystemContext& context) {
+	ScriptProfileScope profile(handle, "LateUpdate");
 	return Invoke(invokeLateUpdate_, handle, context);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionEnter(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
+	ScriptProfileScope profile(handle, "CollisionEnter");
 	return InvokeCollision(invokeCollisionEnter_, handle, context, collision);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionStay(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
+	ScriptProfileScope profile(handle, "CollisionStay");
 	return InvokeCollision(invokeCollisionStay_, handle, context, collision);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeCollisionExit(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const ManagedCollisionEvent& collision) {
+	ScriptProfileScope profile(handle, "CollisionExit");
 	return InvokeCollision(invokeCollisionExit_, handle, context, collision);
 }
 
 Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAnimationEvent(ManagedScriptInstanceHandle handle,
 	const SystemContext& context, const char* name, float floatParam, int32_t intParam, const char* stringParam) {
+	ScriptProfileScope profile(handle, "AnimationEvent");
 
 	if (!initialized_ || !invokeAnimationEvent_ || !handle.IsValid()) {
 		return ManagedStatus::InvalidInstanceHandle;
@@ -875,6 +910,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	success &= loadRequired(pumpSceneEvents_, L"PumpSceneEvents");
 	success &= loadRequired(raiseApplicationQuitting_, L"RaiseApplicationQuitting");
 	success &= loadRequired(tickFrame_, L"TickFrame");
+	success &= loadRequired(configureProfiler_, L"ConfigureScriptProfiler");
 	success &= loadRequired(getLastAlcUnloadStatus_, L"GetLastAlcUnloadStatus");
 	success &= loadRequired(getScriptTypeCount_, L"GetScriptTypeCount");
 	success &= loadRequired(copyScriptTypeInfo_, L"CopyScriptTypeInfo");

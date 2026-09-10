@@ -149,6 +149,11 @@ void Engine::MeshBatchResources::Finalize() {
 	}
 	activeSubMeshParamBuffer_ = nullptr;
 	subMeshParamScratch_.clear();
+	subMeshParamGenerations_.clear();
+	cachedInstances_.clear();
+	cachedMesh_ = {};
+	cachedMeshGeneration_ = 0;
+	parameterGeneration_ = 1;
 	displacementMetricMaterial_ = nullptr;
 	displacementMetricMaterialHash_ = 0;
 	cachedMaxDisplacement_ = 0.0f;
@@ -214,6 +219,10 @@ void Engine::MeshBatchResources::ReleaseSubMeshMaterialParamBuffer(
 	buffer.handles = {};
 	buffer.retiredSrvIndices.clear();
 	buffer.packedScratch.clear();
+	buffer.sourceGenerations.clear();
+	buffer.packedSourceGeneration = 0;
+	buffer.elementGenerations.clear();
+	buffer.uploadedElements = {};
 	buffer.layoutHash = 0;
 	buffer.materialHash = 0;
 	buffer.material = nullptr;
@@ -512,8 +521,17 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, cons
 void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawContext,
 	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh) {
 
-	// staticキャッシュMISS時やSkinned/Billboardで毎フレーム走るバッチ構築のCPUコストを計測する
+	BuildBatchData(drawContext, batch, items, gpuMesh);
+	UploadCachedBatchData();
+}
+
+void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawContext,
+	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh) {
+
+	// バッチ再構築と転送を別の区間で計測する
 	FrameProfiler::ScopedSample profileSample(FrameProfiler::Category::MeshBatchUpload);
+	FrameProfiler::ScopedSample buildSample(FrameProfiler::Category::MeshBatchBuild);
+	FrameProfiler::GetInstance().AddMeshUpdate(1, 0, 0, 0, items.size());
 
 	// データクリア
 	meshScratch_.clear();
@@ -836,12 +854,133 @@ void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawCo
 			skinning_->skinningConstants.Upload(skinningConstants);
 		}
 	}
-	UploadCachedBatchData();
+	subMeshParamGenerations_.assign(subMeshParamScratch_.size(), ++parameterGeneration_);
+	CaptureBatchIdentity(batch, items, gpuMesh);
+}
+
+Engine::MeshBatchResources::CachedInstance Engine::MeshBatchResources::MakeCachedInstance(
+	const RenderSceneBatch& batch, const RenderItem& item) {
+
+	CachedInstance result{};
+	result.world = item.world;
+	result.entity = item.entity;
+	result.material = item.material;
+	result.batchKey = item.batchKey;
+	if (item.world) {
+		result.renderRevision = item.world->GetEntityRenderRevision(item.entity);
+		result.resetRevision = item.world->GetRenderResetRevision();
+	}
+	if (const auto* payload = batch.GetPayload<MeshRenderPayload>(item)) {
+		result.subMeshIndex = payload->subMeshIndex;
+		result.subMeshGroupIndex = payload->subMeshGroupIndex;
+	}
+	result.surfaceMode = item.surfaceMode;
+	result.phase = item.renderPhase;
+	result.blend = item.blendMode;
+	result.receiveShadows = item.receiveShadows;
+	return result;
+}
+
+bool Engine::MeshBatchResources::MatchesBatch(const RenderSceneBatch& batch,
+	std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) const {
+
+	if (items.size() != cachedInstances_.size() || cachedMesh_ != gpuMesh.assetID ||
+		cachedMeshGeneration_ != gpuMesh.reloadGeneration) {
+		return false;
+	}
+	for (size_t i = 0; i < items.size(); ++i) {
+		auto expected = cachedInstances_[i];
+		expected.colorRevision = 0;
+		if (expected != MakeCachedInstance(batch, *items[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void Engine::MeshBatchResources::CaptureBatchIdentity(const RenderSceneBatch& batch,
+	std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) {
+
+	cachedMesh_ = gpuMesh.assetID;
+	cachedMeshGeneration_ = gpuMesh.reloadGeneration;
+	cachedInstances_.clear();
+	for (const auto* item : items) {
+		auto entry = MakeCachedInstance(batch, *item);
+		entry.colorRevision = item->world ? item->world->GetMeshColorRevision(item->entity) : 0;
+		cachedInstances_.push_back(entry);
+	}
+}
+
+uint32_t Engine::MeshBatchResources::RefreshMaterialColors() {
+
+	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
+	FrameProfiler::ScopedSample build(FrameProfiler::Category::MeshMaterialBuild);
+
+	uint32_t changed = 0;
+	for (size_t i = 0; i < cachedInstances_.size(); ++i) {
+		auto& cached = cachedInstances_[i];
+		if (!cached.world || !cached.world->IsAlive(cached.entity)) {
+			continue;
+		}
+		const uint64_t revision = cached.world->GetMeshColorRevision(cached.entity);
+		if (revision == cached.colorRevision) {
+			continue;
+		}
+		const auto subMeshes = GetMeshSubMeshes(*cached.world, cached.entity);
+		const auto& instance = meshScratch_[i];
+		for (uint32_t local = 0; local < instance.subMeshCount; ++local) {
+			const uint32_t source = cached.subMeshIndex == kAllMeshSubMeshes ? local : cached.subMeshIndex;
+			if (source >= subMeshes.size()) {
+				continue;
+			}
+			const auto* value = subMeshes[source].materialInstance.Find(MaterialParameterIDs::BaseColor);
+			if (!value) {
+				continue;
+			}
+			const uint32_t destination = instance.subMeshDataOffset + local;
+			subMeshParamScratch_[destination].Set(MaterialParameterIDs::BaseColor,
+				MaterialParameterNames::BaseColor, MaterialParameterSemantic::BaseColor, *value);
+			subMeshParamGenerations_[destination] = ++parameterGeneration_;
+		}
+		cached.colorRevision = revision;
+		++changed;
+	}
+	if (changed) {
+		FrameProfiler::GetInstance().AddMeshUpdate(0, 0, 1, 0, changed);
+	}
+	return changed;
+}
+
+void Engine::MeshBatchResources::RefreshBatchTransforms(std::span<const RenderItem* const> items) {
+
+	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
+	FrameProfiler::ScopedSample build(FrameProfiler::Category::MeshBatchBuild);
+
+	uint32_t changed = 0;
+	for (size_t i = 0; i < items.size(); ++i) {
+		auto& instance = meshScratch_[i];
+		const auto& item = *items[i];
+		if (instance.worldMatrix == item.worldMatrix) {
+			continue;
+		}
+		instance.worldMatrix = item.worldMatrix;
+		instance.previousWorldMatrix = item.previousWorldMatrix;
+		instance.motionFrameSerial = item.motionFrameSerial;
+		const auto normal = BuildSafeMeshNormalMatrix(instance.worldMatrix);
+		instance.normalMatrix = normal.matrix;
+		instance.orientationSign = normal.orientationSign;
+		meshData_.MarkDirtyRange(static_cast<uint32_t>(i), 1);
+		++changed;
+	}
+	if (changed) {
+		FrameProfiler::GetInstance().AddMeshUpdate(0, 1, 0, 0, changed);
+	}
 }
 
 bool Engine::MeshBatchResources::RefreshInstanceTransforms(
 	std::span<const RenderTransformChange> changes) {
 
+	uint32_t changed = 0;
 	for (const RenderTransformChange& change : changes) {
 
 		MeshEntityLookupKey key{};
@@ -868,22 +1007,30 @@ bool Engine::MeshBatchResources::RefreshInstanceTransforms(
 				normal.orientationSign;
 			meshData_.MarkDirtyRange(
 				it->second, 1);
+			++changed;
 		}
+	}
+	if (changed) {
+		FrameProfiler::GetInstance().AddMeshUpdate(0, 1, 0, 0, changed);
 	}
 	return true;
 }
 
 void Engine::MeshBatchResources::UploadCachedBatchData() {
 
+	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
+
+	FrameProfiler::ScopedSample transfer(FrameProfiler::Category::MeshBufferTransfer);
 	// 各Frame Contextへ未反映の範囲だけ転送する
-	meshData_.UploadCurrentFrame(meshScratch_);
-	subMeshData_.UploadCurrentFrame(subMeshScratch_);
-	outlineData_.UploadCurrentFrame(outlineScratch_);
+	const uint64_t bytes = meshData_.UploadCurrentFrame(meshScratch_) +
+		subMeshData_.UploadCurrentFrame(subMeshScratch_) + outlineData_.UploadCurrentFrame(outlineScratch_);
+	FrameProfiler::GetInstance().AddMeshTransferBytes(bytes);
 }
 
 void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset* material,
 	const MaterialParameterLayout& layout, const RenderDrawContext& drawContext) {
 
+	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
 	// シェーダーがMaterialParameters構造化バッファを宣言していないバッチはここで早期に無効化する
 	activeSubMeshParamBuffer_ = nullptr;
 	if (!layout.IsValid() || subMeshParamScratch_.empty() || !device_ || !srvDescriptor_) {
@@ -917,37 +1064,43 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	const uint64_t layoutHash = ComputeMaterialLayoutHash(layout);
 	const uint64_t materialHash = material ?
 		material->parameters.GetContentHash() : 0;
-	const bool rebuildPacked = buffer.dirty ||
-		buffer.layoutHash != layoutHash ||
-		buffer.materialHash != materialHash ||
-		buffer.material != material;
-	if (rebuildPacked) {
-
-		buffer.packedScratch.assign(
-			static_cast<size_t>(stride) * elementCount, 0);
+	const bool rebuildPacked = buffer.dirty || buffer.layoutHash != layoutHash ||
+		buffer.materialHash != materialHash || buffer.material != material ||
+		buffer.sourceGenerations.size() != elementCount;
+	if (rebuildPacked || buffer.packedSourceGeneration != parameterGeneration_) {
+		FrameProfiler::ScopedSample build(FrameProfiler::Category::MeshMaterialBuild);
+		if (rebuildPacked) {
+			buffer.packedScratch.assign(static_cast<size_t>(stride) * elementCount, 0);
+			buffer.sourceGenerations.assign(elementCount, 0);
+			buffer.elementGenerations.resize(elementCount);
+		}
+		bool changed = false;
 		for (uint32_t i = 0; i < elementCount; ++i) {
-
-			const std::vector<uint8_t> element =
-				MaterialParameterBufferBuilder::BuildElement(
-					defaults, subMeshParamScratch_[i], layout, resolveTexture);
-			const size_t copyBytes = (std::min)(
-				static_cast<size_t>(stride), element.size());
-			std::memcpy(
-				buffer.packedScratch.data() +
-					static_cast<size_t>(stride) * i,
-				element.data(), copyBytes);
+			if (!rebuildPacked && buffer.sourceGenerations[i] == subMeshParamGenerations_[i]) { continue; }
+			const size_t offset = static_cast<size_t>(stride) * i;
+			// 小さいstrideもBuilderの最小領域を満たし、要素ごとのヒープ確保を避ける
+			std::array<uint8_t, 16> smallElement{};
+			const std::span<uint8_t> destination(buffer.packedScratch.data() + offset, stride);
+			const std::span<uint8_t> element = stride < smallElement.size() ?
+				std::span<uint8_t>(smallElement) : destination;
+			MaterialParameterBufferBuilder::BuildElementInto(
+				element, defaults, subMeshParamScratch_[i], layout, resolveTexture);
+			if (stride < smallElement.size()) {
+				std::memcpy(destination.data(), element.data(), stride);
+			}
+			buffer.sourceGenerations[i] = subMeshParamGenerations_[i];
+			buffer.elementGenerations[i] = ++buffer.dataGeneration;
+			changed = true;
 		}
-		buffer.layoutHash = layoutHash;
-		buffer.materialHash = materialHash;
-		buffer.material = material;
-		// 非同期読込中のErrorTextureを固定せず、実テクスチャへ切り替わるまで再解決する
-		buffer.dirty = usedFallbackTexture;
-		usesFallbackTexture_ |= usedFallbackTexture;
-		++buffer.dataGeneration;
-		if (buffer.dataGeneration == 0) {
-			buffer.dataGeneration = 1;
-			buffer.uploadedGenerations = { 0, 0, 0 };
+		if (changed) {
+			buffer.layoutHash = layoutHash;
+			buffer.materialHash = materialHash;
+			buffer.material = material;
+			// 読込中のテクスチャだけは次回も再解決する
+			buffer.dirty = usedFallbackTexture;
+			usesFallbackTexture_ |= usedFallbackTexture;
 		}
+		buffer.packedSourceGeneration = parameterGeneration_;
 	}
 
 	// 容量不足時は全フレーム分を拡張し、stride変更時はSRVだけを更新する
@@ -987,6 +1140,7 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		}
 		buffer.stride = stride;
 		buffer.uploadedGenerations = { 0, 0, 0 };
+		buffer.uploadedElements = {};
 	}
 
 	const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
@@ -994,9 +1148,21 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 		buffer.uploadedGenerations[frameIndex] !=
 			buffer.dataGeneration) {
 
-		buffer.buffer.Write(
-			buffer.packedScratch.data(),
-			buffer.packedScratch.size());
+		FrameProfiler::ScopedSample transfer(FrameProfiler::Category::MeshBufferTransfer);
+		auto& uploaded = buffer.uploadedElements[frameIndex];
+		uploaded.resize(elementCount, 0);
+		uint32_t first = 0;
+		while (first < elementCount) {
+			if (uploaded[first] == buffer.elementGenerations[first]) { ++first; continue; }
+			uint32_t end = first + 1;
+			while (end < elementCount && uploaded[end] != buffer.elementGenerations[end]) { ++end; }
+			const size_t offset = static_cast<size_t>(first) * stride;
+			const size_t bytes = static_cast<size_t>(end - first) * stride;
+			buffer.buffer.Write(buffer.packedScratch.data() + offset, bytes, offset);
+			FrameProfiler::GetInstance().AddMeshTransferBytes(bytes);
+			for (uint32_t i = first; i < end; ++i) { uploaded[i] = buffer.elementGenerations[i]; }
+			first = end;
+		}
 		buffer.uploadedGenerations[frameIndex] =
 			buffer.dataGeneration;
 	}

@@ -215,6 +215,13 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 		world.AddComponent<HierarchyComponent>(child);
 	}
 	SceneObjectUtility::EnsureSceneObject(world, child);
+	// 生成予約中の親にも階層を確保し、参照取得前に構造変更を終える
+	if (world.IsAlive(newParent)) {
+		if (!world.HasComponent<HierarchyComponent>(newParent)) {
+			world.AddComponent<HierarchyComponent>(newParent);
+		}
+		SceneObjectUtility::EnsureSceneObject(world, newParent);
+	}
 
 	// 現在の親から切り離し
 	Detach(world, child);
@@ -228,8 +235,6 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 	
 	// 新しい親へのアタッチ
 	if (world.IsAlive(newParent)) {
-
-		SceneObjectUtility::EnsureSceneObject(world, newParent);
 
 		const auto& parentSceneObject = world.GetComponent<SceneObjectComponent>(newParent);
 		hierarchy.parentLocalFileID = parentSceneObject.localFileID;

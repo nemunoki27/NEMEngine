@@ -6,10 +6,13 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 
 // c++
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <utility>
 #include <unordered_map>
 #include <unordered_set>
@@ -90,6 +93,64 @@ void Engine::SceneInstanceManager::ClearSingleLoadRequest() {
 	singleLoadRequestPending_ = false;
 }
 
+bool Engine::SceneInstanceManager::DontDestroyOnLoad(ECSWorld& world, Entity root) {
+
+	if (!world.IsAlive(root) || world.IsPendingDestroy(root)) {
+		return false;
+	}
+	const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(root);
+	if (hierarchy && world.IsAlive(hierarchy->parent)) {
+		return false;
+	}
+	const std::vector<Entity> entities = HierarchyUtility::CollectLogicalSubtree(world, root);
+	for (Entity entity : entities) {
+		if (!world.HasComponent<SceneObjectComponent>(entity) || world.IsPendingDestroy(entity)) {
+			return false;
+		}
+	}
+	const UUID owner = world.GetComponent<SceneObjectComponent>(root).sceneInstanceID;
+	if (const SceneInstance* scene = Find(owner); scene && scene->persistent) {
+		return true;
+	}
+	auto persistent = std::find_if(scenes_.begin(), scenes_.end(),
+		[](const SceneInstance& scene) { return scene.persistent; });
+	if (persistent == scenes_.end()) {
+		SceneInstance scene{};
+		scene.instanceID = UUID::New();
+		scene.persistent = true;
+		scene.header.name = "DontDestroyOnLoad";
+		scenes_.emplace_back(std::move(scene));
+		persistent = std::prev(scenes_.end());
+	}
+	const UUID destination = persistent->instanceID;
+	persistent->createdEntities.reserve(persistent->createdEntities.size() + entities.size());
+	std::unordered_set<std::uint64_t> moved;
+	for (Entity entity : entities) {
+		moved.emplace(MakeEntityKey(entity));
+		world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID = destination;
+		world.MarkComponentModified<SceneObjectComponent>(entity);
+		persistent->createdEntities.emplace_back(entity);
+	}
+	for (SceneInstance& scene : scenes_) {
+		if (!scene.persistent) {
+			std::erase_if(scene.createdEntities,
+				[&](Entity entity) { return moved.contains(MakeEntityKey(entity)); });
+		}
+	}
+	++revision_;
+	return true;
+}
+
+Engine::UUID Engine::SceneInstanceManager::FindFirstRegularScene() const {
+
+	for (const SceneInstance& scene : scenes_) {
+		if (!scene.persistent) {
+			return scene.instanceID;
+		}
+	}
+	return UUID{};
+}
+
 Engine::UUID Engine::SceneInstanceManager::CreateScratchScene(const SceneHeader& header) {
 
 	SceneInstance instance{};
@@ -111,7 +172,7 @@ Engine::UUID Engine::SceneInstanceManager::CreateScratchScene(const SceneHeader&
 bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 
 	const SceneInstance* instance = Find(instanceID);
-	if (!instance) {
+	if (!instance || instance->persistent) {
 		return false;
 	}
 	const UUID fallback = instance->parentInstanceID;
@@ -119,7 +180,7 @@ bool Engine::SceneInstanceManager::Unload(ECSWorld& world, UUID instanceID) {
 		return false;
 	}
 	if (active_ == instanceID || !Find(active_)) {
-		active_ = Find(fallback) ? fallback : (scenes_.empty() ? UUID{} : scenes_.front().instanceID);
+		active_ = Find(fallback) ? fallback : FindFirstRegularScene();
 	}
 	++revision_;
 	return true;
@@ -129,7 +190,8 @@ void Engine::SceneInstanceManager::UnloadAll(ECSWorld& world) {
 
 	while (!scenes_.empty()) {
 
-		Unload(world, scenes_.back().instanceID);
+		UnloadInternal(world, scenes_.back().instanceID);
+		++revision_;
 	}
 	active_ = UUID{};
 	singleLoadRequestPending_ = false;
@@ -189,6 +251,9 @@ nlohmann::json Engine::SceneInstanceManager::SerializeSnapshot(const SceneSystem
 
 	for (const auto& scene : scenes_) {
 
+		if (scene.persistent) {
+			continue;
+		}
 		nlohmann::json sceneJson = nlohmann::json::object();
 
 		sceneJson["InstanceID"] = ToString(scene.instanceID);
@@ -478,7 +543,7 @@ bool Engine::SceneInstanceManager::UnloadInternal(ECSWorld& world, UUID instance
 	}
 	if (active_ == instanceID || !Find(active_)) {
 		active_ = Find(parentInstanceID) ? parentInstanceID :
-			(scenes_.empty() ? UUID{} : scenes_.front().instanceID);
+			FindFirstRegularScene();
 	}
 	return true;
 }
@@ -486,7 +551,8 @@ bool Engine::SceneInstanceManager::UnloadInternal(ECSWorld& world, UUID instance
 void Engine::SceneInstanceManager::SetActive(UUID instanceID) {
 
 	// インスタンスIDからシーンインスタンスを探して、存在すればアクティブにする
-	if (active_ != instanceID && Find(instanceID)) {
+	const SceneInstance* scene = Find(instanceID);
+	if (active_ != instanceID && scene && !scene->persistent) {
 
 		active_ = instanceID;
 		++revision_;

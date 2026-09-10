@@ -4,6 +4,8 @@
     <OutDir>$(MSBuildThisFileDirectory)..\..\..\Generated\Output\$(Configuration)\GameBuildServiceProbe\</OutDir>
     <IntDir>$(MSBuildThisFileDirectory)..\..\..\Generated\Intermediate\GameBuildServiceProbe\$(Configuration)\</IntDir>
     <TargetName>GameBuildServiceProbe</TargetName>
+    <TargetPath>$(OutDir)$(TargetName)$(TargetExt)</TargetPath>
+    <TLogLocation>$(IntDir)$(TargetName).tlog\</TLogLocation>
   </PropertyGroup>
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'NEMTests'">
     <ClCompile Remove="main.cpp" />

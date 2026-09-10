@@ -20,6 +20,13 @@ namespace Engine {
 		inline constexpr const char* kFrameRate = "Runtime/FrameRate.json";
 		// C#スクリプト型ごとの実行順上書き
 		inline constexpr const char* kScriptExecutionOrder = "ScriptExecutionOrder.json";
+		// 全シーン共通の衝突タイプと組み合わせ
+		inline constexpr const char* kCollisionSettings = "CollisionSettings.json";
+		// 製品へ引き継ぐプロジェクト設定
+		inline constexpr const char* ProductSettings[] = {
+			"InputActions.json", "TagSettings.json", "RenderingLayers.json",
+			kScriptExecutionOrder, kCollisionSettings, kFrameRate,
+		};
 		// ビューポートパネルの表示状態
 		inline constexpr const char* kViewportPanel = "Editor/ViewportPanel.json";
 		// インスペクターのモデルプレビューカメラ

@@ -111,6 +111,25 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID Particle{ 0x4e454d4153534554ull, 0xeff0000000000004ull };
 	}
 
+	// 製品実行時に直接参照されるアセットは動的生成の有無にかかわらず同梱する
+	namespace Runtime {
+
+		inline constexpr AssetID Assets[] = {
+			Materials::DefaultSprite, Materials::DefaultText, Materials::DefaultMesh,
+			Materials::DefaultMeshOutline, Materials::DefaultLine, Materials::DefaultPrimitive,
+			Materials::DefaultPrimitive2D, Materials::ProgressPrimitive, Materials::FullscreenCopy,
+			Materials::ToneMapToView, Materials::OutputTransform, Materials::RaytracingReflection,
+			Materials::ReflectionSpatial, Materials::ReflectionTemporal, Materials::ReflectionComposite,
+			Materials::PostProcessMaskComposite, Materials::ScreenSpaceOutlineMask,
+			Materials::ScreenSpaceOutlineDilate, Materials::ScreenSpaceOutlineComposite,
+			Materials::SpriteOutlineMask, Materials::Primitive2DOutlineMask, Materials::PrimitiveOutlineMask,
+			Materials::DefaultParticle, Materials::DefaultParticle2D, Effects::DefaultParticle,
+			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
+			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
+			Pipelines::ParticleTrail, RenderFeatureProfiles::Default,
+		};
+	}
+
 	namespace EditorTextures {
 
 		inline constexpr AssetID DirectionalLightIcon{ 0x4e454d4153534554ull, 0xa0e16f0b78050650ull };

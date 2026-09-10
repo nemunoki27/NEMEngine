@@ -212,6 +212,8 @@ namespace Engine {
 		}
 		// Raytracing等が描画内容の変更検知に使用する世代
 		uint64_t GetSourceRevision() const { return contentRevision_; }
+		// 色の変更もRaytracing等の内容更新へ伝える
+		void SetMaterialSource(uint64_t revision);
 		uint64_t GetSourceRenderRevision() const { return sourceRenderRevision_; }
 		uint64_t GetSourceTransformRevision() const { return sourceTransformRevision_; }
 		bool MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const {
@@ -238,6 +240,7 @@ namespace Engine {
 		RenderPayloadArena payloadArena_{};
 		const ECSWorld* sourceWorld_ = nullptr;
 		uint64_t sourceRenderRevision_ = 0;
+		uint64_t sourceMaterialRevision_ = 0;
 		uint64_t sourceTransformRevision_ = 0;
 		uint64_t contentRevision_ = 0;
 		bool completeTransformChanges_ = false;

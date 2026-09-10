@@ -15,6 +15,7 @@
 #include <deque>
 #include <span>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -163,6 +164,14 @@ namespace Engine {
 		void MarkDataModified();
 		// 描画構成と描画Transformの変更世代を個別に進める
 		void MarkRenderDataModified();
+		// 対象が分かる描画変更はEntity単位で記録する
+		void MarkRenderDataModified(const Entity& entity);
+		// 色だけの変更は描画構成と分離する
+		void MarkMeshColorModified(const Entity& entity);
+		uint64_t GetEntityRenderRevision(const Entity& entity) const;
+		uint64_t GetMeshColorRevision(const Entity& entity) const;
+		uint64_t GetMeshColorRevision() const { return meshColorRevision_; }
+		uint64_t GetRenderResetRevision() const { return renderResetRevision_; }
 		void MarkTransformConsumersModified(
 			ComponentChangeChannel channels,
 			std::span<const Entity> changedTransforms);
@@ -323,6 +332,11 @@ namespace Engine {
 		// 0を未構築値として扱えるよう1から開始する
 		uint64_t dataRevision_ = 1;
 		uint64_t renderDataRevision_ = 1;
+		uint64_t renderResetRevision_ = 1;
+		uint64_t meshColorRevision_ = 1;
+		// Entityの世代を含むキーで再利用後の変更を区別する
+		std::unordered_map<uint64_t, uint64_t> entityRenderRevisions_;
+		std::unordered_map<uint64_t, uint64_t> meshColorRevisions_;
 		uint64_t renderTransformRevision_ = 1;
 		uint64_t lightDataRevision_ = 1;
 		// フレーム内の構造変更統計

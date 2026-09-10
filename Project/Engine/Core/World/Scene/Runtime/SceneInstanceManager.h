@@ -32,6 +32,9 @@ namespace Engine {
 	// シーンインスタンスの情報
 	struct SceneInstance {
 
+		// Singleロードで破棄せず、保存対象にも含めない実行時シーン
+		bool persistent = false;
+
 		// インスタンスID
 		UUID instanceID{};
 		// 親シーンのインスタンスID
@@ -66,6 +69,8 @@ namespace Engine {
 		bool TryBeginSingleLoadRequest();
 		// 単一シーン読み込み要求の予約を解除する
 		void ClearSingleLoadRequest();
+		// ルートと子孫を実体を変えずに常駐シーンへ移す
+		bool DontDestroyOnLoad(ECSWorld& world, Entity root);
 		// シーンアセットを持たない一時シーンインスタンスを作成してアクティブにする、プレファブ編集の隔離ワールド用
 		// headerは環境(スカイボックス/ライティング等)の流用元、新規IDを採番して返す
 		UUID CreateScratchScene(const SceneHeader& header);
@@ -125,6 +130,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 常駐シーンを除く先頭のインスタンスを返す
+		UUID FindFirstRegularScene() const;
 		// シーンインスタンスが所持しているエンティティを収集する
 		static std::vector<Entity> CollectSceneEntities(ECSWorld& world, const SceneInstance& scene);
 		// シーンとサブシーンの枝を再帰的にロード

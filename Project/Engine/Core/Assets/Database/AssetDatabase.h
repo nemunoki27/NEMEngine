@@ -138,7 +138,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 検索用のパスキーでWindowsの大文字小文字差を吸収する、保存表記とは別
-		static std::string NormalizeLookupKey(const std::filesystem::path& path);
+		static std::string NormalizeLookupKey(const std::string& assetPath);
 		// アセットファイルのフルパスからメタファイルのフルパスを取得
 		static std::filesystem::path MetaPathOf(const std::filesystem::path& assetFullPath);
 

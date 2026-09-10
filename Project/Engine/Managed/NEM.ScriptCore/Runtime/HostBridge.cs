@@ -89,6 +89,8 @@ public static unsafe class HostBridge {
         internal bool inUse;
         // generation枯渇でこの枠を永久欠番にした（再利用しない）
         internal bool retired;
+        // サイズ取得とコピーで共有する実行時データ
+        internal byte[]? runtimeStateSnapshot;
     }
 
     // slot配列とfree list。slot解放時にgenerationを進め、indexはfree listで再利用する
@@ -111,6 +113,8 @@ public static unsafe class HostBridge {
         internal string schemaJson = string.Empty;
         // Stable Field GUID -> FieldInfo。runtime get/set と authoring 適用に使う（hot path では reflection しない）
         internal Dictionary<string, FieldInfo> fieldMap = new(StringComparer.Ordinal);
+        // Inspectorで表示できるフィールドだけを取得する
+        internal Dictionary<string, FieldInfo> runtimeFieldMap = new(StringComparer.Ordinal);
         // 参照解決を全インスタンス生成後まで遅らせるフィールドのGUID集合(Entity/Component/ScriptBehaviour参照)
         internal HashSet<string> deferredFields = new(StringComparer.Ordinal);
     }
@@ -323,7 +327,7 @@ public static unsafe class HostBridge {
             if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
                 return ManagedStatus.InvalidInstanceHandle;
             }
-            *outSize = Encoding.UTF8.GetByteCount(BuildRuntimeStateJson(script));
+            *outSize = GetRuntimeStateSnapshot(slots[(int)handle.index], true).Length;
             return ManagedStatus.Ok;
         });
     }
@@ -335,7 +339,13 @@ public static unsafe class HostBridge {
             if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
                 return ManagedStatus.InvalidInstanceHandle;
             }
-            return WriteUtf8Blob(BuildRuntimeStateJson(script), buffer, capacity, written);
+            ScriptInstanceSlot slot = slots[(int)handle.index];
+            byte[] snapshot = GetRuntimeStateSnapshot(slot, false);
+            ManagedStatus status = WriteUtf8Blob(snapshot, buffer, capacity, written);
+            if (status == ManagedStatus.Ok) {
+                slot.runtimeStateSnapshot = null;
+            }
+            return status;
         });
     }
 
@@ -353,6 +363,7 @@ public static unsafe class HostBridge {
                 return ManagedStatus.InvalidArgument;
             }
             ApplyFieldValue(script, field, PtrToString(valueJson));
+            slots[(int)handle.index].runtimeStateSnapshot = null;
             return ManagedStatus.Ok;
         });
     }
@@ -563,6 +574,14 @@ public static unsafe class HostBridge {
         }
     }
 
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ConfigureScriptProfiler(byte* typeName, NativeEntity entity, ulong slotID) {
+        return (int)Guard(nameof(ConfigureScriptProfiler), () => {
+            ScriptProfiler.Configure(Marshal.PtrToStringUTF8((nint)typeName) ?? string.Empty, entity, slotID);
+            return ManagedStatus.Ok;
+        });
+    }
+
     // script callback専用ラッパー。例外時は対象instanceのみScriptExceptionを返し、診断情報を残す
     private static ManagedStatus GuardInstance(NativeScriptInstanceHandle handle, string callbackName, Action<ScriptBehaviour> body) {
 
@@ -721,6 +740,7 @@ public static unsafe class HostBridge {
             EventOwnerTracker.CancelOwnedBy(slot.instance);
         }
         slot.instance = null;
+        slot.runtimeStateSnapshot = null;
         slot.inUse = false;
         RetireOrRecycle(slot, handle.index);
     }
@@ -884,6 +904,9 @@ public static unsafe class HostBridge {
                     FieldInfo? info = ResolveFieldInfo(entry.type, declaringType, fieldName);
                     if (info != null && !string.IsNullOrEmpty(fieldId)) {
                         entry.fieldMap[fieldId] = info;
+                        if (CanReadRuntimeField(fieldObj)) {
+                            entry.runtimeFieldMap[fieldId] = info;
+                        }
                         // 参照解決を伴うフィールドは適用を遅延させる([SerializeReference]は候補型に参照が含まれ得る)
                         if (info.GetCustomAttribute<SerializeReferenceAttribute>() != null ||
                             IsDeferredReferenceType(info.FieldType, null)) {
@@ -891,7 +914,8 @@ public static unsafe class HostBridge {
                         }
                     }
                     // 既定値（authoring 未設定時の初期値）を埋める
-                    fieldObj["defaultValueJson"] = SerializeFieldDefault(info, defaults);
+                    fieldObj["defaultValueJson"] = IsUnsupportedField(fieldObj)
+                        ? "null" : SerializeFieldDefault(info, defaults);
                 }
             }
 
@@ -1254,6 +1278,7 @@ public static unsafe class HostBridge {
                 continue;
             }
             slot.instance = null;
+            slot.runtimeStateSnapshot = null;
             slot.inUse = false;
             RetireOrRecycle(slot, (uint)i);
         }
@@ -1471,6 +1496,28 @@ public static unsafe class HostBridge {
         SetFieldFromElement(script, field, document.RootElement);
     }
 
+    // 非対応型と非表示フィールドは実行時の値取得から除外する
+    private static bool CanReadRuntimeField(JsonObject field) {
+
+        return !IsUnsupportedField(field) &&
+            field["isHidden"]?.GetValue<bool>() != true;
+    }
+
+    // スキーマの表記にかかわらず非対応型を判定する
+    private static bool IsUnsupportedField(JsonObject field) {
+
+        return string.Equals(field["kind"]?.GetValue<string>(), "Unsupported", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // サイズ取得時に生成しコピー完了まで同じバイト列を保持する
+    private static byte[] GetRuntimeStateSnapshot(ScriptInstanceSlot slot, bool refresh) {
+
+        if (refresh || slot.runtimeStateSnapshot == null) {
+            slot.runtimeStateSnapshot = Encoding.UTF8.GetBytes(BuildRuntimeStateJson(slot.instance!));
+        }
+        return slot.runtimeStateSnapshot;
+    }
+
     // runtime instance の現在値を { "<fieldGuid>": <value> } で返す（runtime Inspector 用）
     private static string BuildRuntimeStateJson(ScriptBehaviour script) {
 
@@ -1481,7 +1528,7 @@ public static unsafe class HostBridge {
             return "{}";
         }
         var obj = new JsonObject();
-        foreach (KeyValuePair<string, FieldInfo> kv in entry.fieldMap) {
+        foreach (KeyValuePair<string, FieldInfo> kv in entry.runtimeFieldMap) {
             try {
                 object? value = kv.Value.GetValue(script);
                 obj[kv.Key] = kv.Value.GetCustomAttribute<SerializeReferenceAttribute>() != null
@@ -1559,7 +1606,12 @@ public static unsafe class HostBridge {
     // 二段階 blob API の出力。buffer 不足は BufferTooSmall。written に必要 byte 数を返す
     private static ManagedStatus WriteUtf8Blob(string text, byte* buffer, int capacity, int* written) {
 
-        byte[] bytes = Encoding.UTF8.GetBytes(text);
+        return WriteUtf8Blob(Encoding.UTF8.GetBytes(text), buffer, capacity, written);
+    }
+
+    // 生成済みのUTF-8データを再変換せずコピーする
+    private static ManagedStatus WriteUtf8Blob(byte[] bytes, byte* buffer, int capacity, int* written) {
+
         if (written != null) {
             *written = bytes.Length;
         }

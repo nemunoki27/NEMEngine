@@ -50,7 +50,9 @@ internal static class ManagedAbi {
     // v50: RenderFeatureのSceneColor出力切り替えAPIを追加
     // v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
     // v52: アクティブSceneの再読み込みAPIを追加
-    internal const uint Version = 52;
+    // v53: スクリプトの詳細計測区間を追加
+    // v54: シーンを越えてルートEntityを保持するAPIを追加
+    internal const uint Version = 54;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -481,7 +483,14 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> WorldToScreenPoint;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> CanvasScreenToLocalPoint;
 
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, ulong> BeginScriptSample;
+    internal static delegate* unmanaged[Cdecl]<ulong, void> EndScriptSample;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int> DontDestroyOnLoad;
+
     internal static void SetCallbacks(NativeApiTable* callbacks) {
+        BeginScriptSample = callbacks->beginScriptSample;
+        EndScriptSample = callbacks->endScriptSample;
+        DontDestroyOnLoad = callbacks->dontDestroyOnLoad;
 
         // C++側から渡されたECSアクセス用の関数テーブルを保持する
         GetDeltaTime = callbacks->getDeltaTime;

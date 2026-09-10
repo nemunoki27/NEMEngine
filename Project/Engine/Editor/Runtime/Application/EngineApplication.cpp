@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
@@ -600,11 +601,15 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			playScenes_.GetRevision() : 0;
 		const uint64_t scriptExceptionVersion = playingThisTick ?
 			ManagedScriptExceptionStore::GetInstance().Version() : 0;
+		auto& scriptProfiler = ScriptProfiler::GetInstance();
+		scriptProfiler.BeginFrame();
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
+		scriptProfiler.EndFrame();
 		if (playingThisTick && sceneRevisionBeforeTick != playScenes_.GetRevision()) {
 
 			// 同期シーン読み込みに使った時間を次のPlayフレームへ持ち越さない
 			requestFrameDeltaReset_ = true;
+			scriptProfiler.Configure(scriptProfiler.IsEnabled(), {}, 0);
 		}
 		if (playingThisTick && ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
 

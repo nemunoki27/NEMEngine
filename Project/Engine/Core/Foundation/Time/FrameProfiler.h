@@ -33,7 +33,10 @@ namespace Engine {
 			Script,  // C#スクリプトの処理
 			Draw,    // 描画処理
 			GPUWait, // GPU完了待ちでCPUがブロックした時間
-			MeshBatchUpload, // Meshバッチデータ構築とGPU転送のCPUコストでstaticキャッシュMISSやSkinned/Billboardで走る
+			MeshBatchUpload, // Meshバッチ構築、差分更新、転送のCPU時間
+			MeshBatchBuild,
+			MeshBufferTransfer,
+			MeshMaterialBuild,
 			Count
 		};
 
@@ -63,6 +66,14 @@ namespace Engine {
 		};
 		// 描画更新量とフレーム多重化の統計
 		struct RenderingStatistics {
+
+			// Mesh更新量は1フレーム中の全ViewとPassを合算する
+			uint32_t meshRebuildCount = 0;
+			uint32_t meshTransformUpdateCount = 0;
+			uint32_t meshParameterUpdateCount = 0;
+			uint32_t meshReuseCount = 0;
+			uint64_t meshUpdatedInstances = 0;
+			uint64_t meshTransferBytes = 0;
 
 			// スキニング更新量
 			uint32_t skinningDispatchCount = 0;
@@ -104,6 +115,10 @@ namespace Engine {
 		void SetArchetypeCount(uint32_t count) { archetypeCount_ = count; }
 		// ECSのチャンクメモリと構造変更統計を設定する
 		void SetECSStatistics(const ECSStatistics& statistics) { ecsStatistics_ = statistics; }
+		// Mesh更新の理由と対象数を加算する
+		void AddMeshUpdate(uint32_t rebuilds, uint32_t transforms, uint32_t parameters,
+			uint32_t reused, uint64_t instances);
+		void AddMeshTransferBytes(uint64_t bytes) { renderingStatistics_.meshTransferBytes += bytes; }
 		// スキニングDispatchを加算する
 		void AddSkinningDispatch(uint32_t instanceCount);
 		// BLAS構築を加算する

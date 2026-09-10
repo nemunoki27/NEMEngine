@@ -52,7 +52,7 @@ namespace Engine {
 		// 指定範囲だけを更新対象にする
 		void MarkDirtyRange(uint32_t firstElement, uint32_t elementCount);
 		// 現在のFrame Contextが未反映の差分をDEFAULT heapへ転送する
-		void UploadCurrentFrame(std::span<const T> data);
+		size_t UploadCurrentFrame(std::span<const T> data);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -193,13 +193,13 @@ namespace Engine {
 	}
 
 	template<typename T>
-	void DefaultStructuredInstanceBuffer<T>::UploadCurrentFrame(
+	size_t DefaultStructuredInstanceBuffer<T>::UploadCurrentFrame(
 		std::span<const T> data) {
 
 		elementCount_ = static_cast<uint32_t>(data.size());
 		EnsureCapacity(elementCount_);
 		if (data.empty() || !uploadService_) {
-			return;
+			return 0;
 		}
 
 		const uint32_t frameIndex =
@@ -207,7 +207,7 @@ namespace Engine {
 		uint64_t& uploadedGeneration =
 			uploadedGenerations_[frameIndex];
 		if (uploadedGeneration == generation_) {
-			return;
+			return 0;
 		}
 
 		uint32_t firstElement = 0;
@@ -248,6 +248,7 @@ namespace Engine {
 		}
 		uploadedGeneration = generation_;
 		PruneDirtyRanges();
+		return endElement > firstElement ? static_cast<size_t>(endElement - firstElement) * sizeof(T) : 0;
 	}
 
 	template<typename T>

@@ -844,17 +844,33 @@ namespace Engine {
 			parameterID != 0 ?
 			parameterID : MaterialParameterID::FromName(parameterName).value
 		};
+		const Color4* color = std::get_if<Color4>(&decoded.value);
+		const bool colorOnly = target == static_cast<int32_t>(ManagedRendererMaterialTarget::Mesh) &&
+			id == MaterialParameterIDs::BaseColor && parameterName == MaterialParameterNames::BaseColor && color;
+		bool changed = false;
 		const int32_t updated = VisitRendererMaterialInstances(
 			*world, resolved,
 			static_cast<ManagedRendererMaterialTarget>(target), subMeshIndex,
 			[&](MaterialParameterSet& materialInstance) {
+				if (colorOnly) {
+					const auto* previous = materialInstance.Find(id);
+					const auto* oldColor = previous ? std::get_if<Color4>(&previous->value) : nullptr;
+					if (oldColor && oldColor->r == color->r && oldColor->g == color->g &&
+						oldColor->b == color->b && oldColor->a == color->a) {
+						return;
+					}
+				}
 				materialInstance.Set(
 					id, parameterName,
 					ResolveMaterialParameterSemantic(parameterName), decoded);
+				changed = true;
 			});
-		if (updated != 0) {
-			// 外部ストレージを含むRenderer変更を描画バッチへ通知する
-			world->MarkRenderDataModified();
+		if (changed) {
+			if (colorOnly) {
+				world->MarkMeshColorModified(resolved);
+			} else {
+				world->MarkRenderDataModified(resolved);
+			}
 		}
 		return updated;
 	}
@@ -1412,6 +1428,20 @@ namespace Engine {
 		BehaviorSystem::SynchronizeInstantiatedEntities(
 			*world, *const_cast<SystemContext*>(context), result.createdEntities);
 		return MakeNativeEntity(*world, result.root);
+	}
+
+	int32_t ManagedScriptRuntime::DontDestroyOnLoadCallback(ManagedNativeEntity entity) {
+
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = ResolveWorld(entity);
+		SceneInstanceManager* scenes = world ? world->GetCommandServices().sceneInstances : nullptr;
+		if (!context || context->mode != WorldMode::Play || !scenes ||
+			!scenes->DontDestroyOnLoad(*world, ResolveEntity(entity))) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"DontDestroyOnLoad: Play中の有効なルートEntityを指定してください");
+			return 0;
+		}
+		return 1;
 	}
 
 	uint64_t ManagedScriptRuntime::LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID) {

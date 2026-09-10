@@ -23,6 +23,14 @@ namespace Engine {
 		std::string assetPath;
 		std::string displayName;
 	};
+	// 製品へ配置するファイル
+	struct GameBuildFileEntry {
+
+		std::filesystem::path source;
+		std::string destination;
+		uintmax_t size = 0;
+		std::string sha256;
+	};
 	// 製品ビルド設定
 	struct GameBuildSettings {
 
@@ -61,6 +69,9 @@ namespace Engine {
 
 		// GameAssets内のシーン一覧を更新
 		void RefreshScenes(const AssetDatabase& database);
+		// 実行ファイルを構築せず製品へ配置する依存ファイルを検証する
+		static bool CollectFiles(AssetID startupScene, const AssetDatabase& database,
+			std::vector<GameBuildFileEntry>& outFiles, std::string& outError);
 		// 製品ビルドを開始
 		bool Start(const GameBuildSettings& settings, const AssetDatabase& database, std::string& outError);
 		// 子プロセスの進行を更新

@@ -68,9 +68,40 @@ public sealed class StageManager : ScriptBehaviour {
     [SerializeReference] private StageUpdater stageUpdater = new TubeUpdater();
 }";
 
+	private sealed class ProfileFixture : NEMEngine.ScriptBehaviour { }
+
+	// 計測OFF時の区間はNativeを使わず、繰り返してもヒープを確保しない
+	private static void TestDisabledScriptProfiler() {
+		var owner = new ProfileFixture();
+		for (int i = 0; i < 100; ++i) {
+			using var sample = NEMEngine.ScriptProfiler.Sample(owner, "warmup");
+		}
+		long before = GC.GetAllocatedBytesForCurrentThread();
+		for (int i = 0; i < 1000; ++i) {
+			using var sample = NEMEngine.ScriptProfiler.Sample(owner, "disabled");
+		}
+		if (GC.GetAllocatedBytesForCurrentThread() != before) {
+			throw new InvalidOperationException("Disabled profiler allocated memory");
+		}
+	}
+
 	private static int Main() {
 
 		int failures = 0;
+		try {
+			TestDisabledScriptProfiler();
+			Console.WriteLine("[PASS] disabled script profiler has no allocations.");
+		} catch (Exception ex) {
+			++failures;
+			Console.Error.WriteLine($"[FAIL] script profiler: {ex}");
+		}
+		try {
+			TestRuntimeInspector();
+			Console.WriteLine("[PASS] runtime Inspector filtering and snapshot lifecycle.");
+		} catch (Exception ex) {
+			++failures;
+			Console.Error.WriteLine($"[FAIL] runtime Inspector: {ex}");
+		}
 
 		// good: NEMSC 診断 0 件
 		ImmutableArray<Diagnostic> goodDiags = Analyze(GoodFixture);
@@ -131,6 +162,107 @@ public sealed class StageManager : ScriptBehaviour {
 
 		Console.WriteLine(failures == 0 ? "ALL TESTS PASSED" : $"{failures} TEST FAILURE(S)");
 		return failures == 0 ? 0 : 1;
+	}
+
+	// Native境界も含めて取得回数とスナップショットの寿命を確認する
+	private static void TestRuntimeInspector() {
+
+		const string source = """
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
+using System.Text.Json.Nodes;
+using NEMEngine;
+
+public sealed class RuntimeFixture : ScriptBehaviour {
+    public int speed = 3;
+    public int[] values = new[] { 1, 2 };
+    public Entity missing = Entity.nullEntity;
+    public UnsupportedGrid unsupported = new UnsupportedGrid();
+    public int hidden = 9;
+}
+
+public sealed class UnsupportedGrid {
+    public static int reads;
+    public Entity?[,] cells = new Entity?[6, 8];
+    public int probe { get { ++reads; throw new Exception("Unsupported value was read"); } set { } }
+}
+
+public static unsafe class RuntimeTest {
+    const BindingFlags PrivateStatic = BindingFlags.NonPublic | BindingFlags.Static;
+    const BindingFlags Fields = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
+    static object Call(string name, params object[] args) =>
+        typeof(HostBridge).GetMethod(name, PrivateStatic)!.Invoke(null, args)!;
+    static void Check(bool value, [System.Runtime.CompilerServices.CallerArgumentExpression("value")] string expression = "") {
+        if (!value) throw new Exception("Runtime Inspector assertion failed: " + expression);
+    }
+
+    public static void Run() {
+        var fixture = new RuntimeFixture();
+        Type entryType = typeof(HostBridge).GetNestedType("ScriptTypeEntry", BindingFlags.NonPublic)!;
+        object entry = Activator.CreateInstance(entryType, true)!;
+        var map = (Dictionary<string, FieldInfo>)entryType.GetField("runtimeFieldMap", Fields)!.GetValue(entry)!;
+        var fields = (Dictionary<string, FieldInfo>)entryType.GetField("fieldMap", Fields)!.GetValue(entry)!;
+        foreach (string name in new[] { "speed", "values", "missing", "unsupported", "hidden" }) {
+            var schema = new JsonObject { ["kind"] = name == "unsupported" ? "Unsupported" : "Int",
+                ["isHidden"] = name == "hidden", ["isReadOnly"] = name == "values" };
+            bool readable = (bool)Call("CanReadRuntimeField", schema);
+            Check(readable == (name != "unsupported" && name != "hidden"));
+            if (readable) map.Add(name, typeof(RuntimeFixture).GetField(name)!);
+            fields.Add(name, typeof(RuntimeFixture).GetField(name)!);
+        }
+        Check((bool)Call("IsUnsupportedField", new JsonObject { ["kind"] = "unsupported" }));
+        var registry = (IDictionary)typeof(HostBridge).GetField("typeToEntry", PrivateStatic)!.GetValue(null)!;
+        registry.Add(typeof(RuntimeFixture), entry);
+        NativeScriptInstanceHandle handle = (NativeScriptInstanceHandle)Call("AllocateSlot", fixture);
+        delegate* unmanaged[Cdecl]<NativeScriptInstanceHandle, int*, int> size = &HostBridge.GetRuntimeSerializedStateSize;
+        delegate* unmanaged[Cdecl]<NativeScriptInstanceHandle, byte*, int, int*, int> copy = &HostBridge.CopyRuntimeSerializedState;
+        delegate* unmanaged[Cdecl]<NativeScriptInstanceHandle, byte*, byte*, int> edit = &HostBridge.SetRuntimeSerializedField;
+        try {
+            int length = 0, written = 0;
+            Check(size(handle, &length) == 0 && length > 0);
+            fixture.speed = 7;
+            Check(copy(handle, null, 0, &written) != 0 && written == length);
+            byte[] bytes = new byte[length];
+            fixed (byte* buffer = bytes) { Check(copy(handle, buffer, length, &written) == 0); }
+            var state = JsonNode.Parse(Encoding.UTF8.GetString(bytes))!;
+            Check((int)state["speed"]! == 3 && state["values"]!.AsArray().Count == 2);
+            Check(state["missing"] != null && state["unsupported"] == null && state["hidden"] == null);
+            Check(UnsupportedGrid.reads == 0);
+            fixed (byte* buffer = bytes) { Check(copy(handle, buffer, length, &written) == 0); }
+            Check((int)JsonNode.Parse(Encoding.UTF8.GetString(bytes))!["speed"]! == 7);
+            Check(size(handle, &length) == 0);
+            byte[] field = Encoding.UTF8.GetBytes("speed\0"), value = Encoding.UTF8.GetBytes("5\0");
+            fixed (byte* f = field) fixed (byte* v = value) { Check(edit(handle, f, v) == 0); }
+            fixed (byte* buffer = bytes) { Check(copy(handle, buffer, bytes.Length, &written) == 0); }
+            Check((int)JsonNode.Parse(Encoding.UTF8.GetString(bytes))!["speed"]! == 5);
+            Check(size(handle, &length) == 0);
+            Call("ReleaseSlot", handle);
+            Check(size(handle, &length) != 0);
+            handle = (NativeScriptInstanceHandle)Call("AllocateSlot", new RuntimeFixture());
+            fixed (byte* buffer = bytes) { Check(copy(handle, buffer, bytes.Length, &written) == 0); }
+            Check((int)JsonNode.Parse(Encoding.UTF8.GetString(bytes))!["speed"]! == 3);
+            Check(size(handle, &length) == 0);
+            Call("ReleaseAllSlots");
+            Check(size(handle, &length) != 0);
+        } finally {
+            Call("ReleaseSlot", handle);
+            registry.Remove(typeof(RuntimeFixture));
+        }
+    }
+}
+""";
+		CSharpCompilation compilation = CreateCompilation(source);
+		compilation = compilation.WithOptions(compilation.Options.WithAllowUnsafe(true));
+		using var stream = new MemoryStream();
+		var result = compilation.Emit(stream);
+		if (!result.Success) {
+			throw new InvalidOperationException(string.Join(Environment.NewLine, result.Diagnostics));
+		}
+		var assembly = System.Reflection.Assembly.Load(stream.ToArray());
+		assembly.GetType("RuntimeTest")!.GetMethod("Run")!.Invoke(null, null);
 	}
 
 	// fixture source を compile し、analyzer 診断 + compile 診断を返す

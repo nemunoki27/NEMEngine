@@ -12,6 +12,7 @@
 #include <Engine/Editor/UI/Common/TextSearchFilter.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
 #include <memory>
 #include <unordered_map>
@@ -187,6 +188,20 @@ namespace Engine {
 		ProjectAssetEntry pendingDeleteAsset_{};
 		// 削除対象を参照しているアセットのパス一覧(確認表示用)
 		std::vector<std::string> pendingDeleteReferencers_;
+		std::string deleteErrorMessage_;
+		// ファイル変更時と明示操作時だけシーンの整合性を検査する
+		uint64_t sceneStorageRevision_ = 0;
+		std::vector<SceneStorageIssue> sceneStorageIssues_;
+		std::vector<std::filesystem::path> sceneRecoveries_;
+		std::vector<std::string> sceneRecoveryLabels_;
+		std::string sceneStorageMessage_;
+		std::string actorRestorePath_;
+		int selectedSceneIssue_ = -1;
+		bool confirmActorRemoval_ = false;
+		std::vector<std::filesystem::path> sceneRemovalPreview_;
+		bool requestSceneStoragePopup_ = false;
+		// シーンの検証結果と明示的な修復操作を表示する
+		void DrawSceneStoragePopup(const EditorPanelContext& context, AssetDatabase& database);
 		// 削除確認ポップアップを次の描画で開くか
 		bool requestOpenDeletePopup_ = false;
 		// ファイル操作結果の遅延反映用キャッシュ

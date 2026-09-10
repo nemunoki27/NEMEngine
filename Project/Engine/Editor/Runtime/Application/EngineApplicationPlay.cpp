@@ -3,7 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -98,6 +100,13 @@ bool Engine::EngineApplication::HandleApplicationQuitRequest() {
 
 void Engine::EngineApplication::RefreshActiveWorldContext() {
 
+	if constexpr (BuildConfig::kEditorEnabled) {
+		std::vector<AssetID> protectedAssets;
+		for (const auto& scene : editScenes_.GetAll()) protectedAssets.push_back(scene.sceneAsset);
+		for (const auto& scene : GetActiveScenes().GetAll()) protectedAssets.push_back(scene.sceneAsset);
+		SceneAssetStorage::SetProtectedScenes(protectedAssets);
+	}
+
 	ECSWorld* world = GetActiveWorld();
 	const SceneHeader* header = GetActiveSceneHeader();
 	SceneInstanceManager& activeScenes = GetActiveScenes();
@@ -179,6 +188,8 @@ void Engine::EngineApplication::ProcessPendingPlayStart() {
 }
 
 void Engine::EngineApplication::StartPlayWorld() {
+
+	ScriptProfiler::GetInstance().Configure(ScriptProfiler::GetInstance().IsEnabled(), {}, 0);
 
 	auto& scriptRuntime = ManagedScriptRuntime::GetInstance();
 

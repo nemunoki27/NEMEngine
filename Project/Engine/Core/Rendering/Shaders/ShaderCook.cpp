@@ -438,6 +438,29 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 
 	std::vector<const AssetMeta*> shaderMetas;
 	std::vector<const AssetMeta*> graphMetas;
+	// 必須の組み込みアセットと依存先が収集一覧から欠けていればCookを開始しない
+	std::vector<AssetID> requiredAssets(
+		std::begin(BuiltinAssets::Runtime::Assets), std::end(BuiltinAssets::Runtime::Assets));
+	std::unordered_set<AssetID> checkedRequiredAssets;
+	for (size_t index = 0; index < requiredAssets.size(); ++index) {
+		const AssetID assetID = requiredAssets[index];
+		if (!checkedRequiredAssets.insert(assetID).second) continue;
+		const AssetMeta* meta = database.Find(assetID);
+		if (meta && meta->assetPath.starts_with("Engine/Assets/Shaders/Builtin/Editor/")) continue;
+		const std::filesystem::path path = database.ResolveFullPath(assetID);
+		std::filesystem::path metaPath = path;
+		metaPath += L".meta";
+		if (!meta || !includedFiles.contains(MakePathKey(path)) ||
+			!includedFiles.contains(MakePathKey(metaPath)) ||
+			!std::filesystem::is_regular_file(path, ec) || ec) {
+			outError = "製品に必須のアセットが含まれていません GUID=" + ToString(assetID) +
+				" path=" + Algorithm::PathToUTF8(path);
+			return false;
+		}
+		for (const AssetID dependency : database.FindDependencies(assetID)) {
+			requiredAssets.push_back(dependency);
+		}
+	}
 	for (const auto& [assetID, meta] : database.GetAssets()) {
 		if (!includedFiles.contains(MakePathKey(database.ResolveFullPath(assetID)))) {
 			continue;
@@ -603,6 +626,35 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 	if (outResult.stageCount == 0) {
 		outError = "製品ビルドにシェーダーアセットが含まれていません";
 		return false;
+	}
+
+	// 必須Pipelineの製品用ステージもCook結果と照合する
+	std::unordered_set<AssetID> cookedShaders;
+	for (const auto& shader : cookedManifest["shaders"]) {
+		cookedShaders.insert(FromString32Hex(shader.at("asset").at("guid").get<std::string>()));
+	}
+	for (const auto& [assetID, meta] : database.GetAssets()) {
+
+		if (!checkedRequiredAssets.contains(assetID) || meta.type != AssetType::RenderPipeline ||
+			!includedFiles.contains(MakePathKey(database.ResolveFullPath(assetID)))) {
+			continue;
+		}
+		RenderPipelineAsset pipeline{};
+		if (!FromJson(JsonAdapter::Load(database.ResolveFullPath(assetID), false), pipeline)) {
+			outError = "配置するPipelineを読み込めません: " + meta.assetPath;
+			return false;
+		}
+		for (const auto& variant : pipeline.variants) {
+			const AssetMeta* shaderMeta = database.Find(variant.shader);
+			if (shaderMeta && shaderMeta->assetPath.starts_with("Engine/Assets/Shaders/Builtin/Editor/")) {
+				continue;
+			}
+			if (!cookedShaders.contains(variant.shader)) {
+				outError = "PipelineのShaderがCookされていません: " + meta.assetPath +
+					" Shader=" + ToString(variant.shader);
+				return false;
+			}
+		}
 	}
 	if (!JsonAdapter::SaveCanonical(resolvedOutputRoot / "ShaderCookManifest.json",
 		cookedManifest)) {

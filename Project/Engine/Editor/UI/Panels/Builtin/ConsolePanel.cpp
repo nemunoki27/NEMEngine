@@ -374,8 +374,24 @@ namespace {
 			DrawGPUPassTooltip(gpuPassTooltip);
 		}
 
-		// Meshバッチ構築/GPU転送のCPUコストで描画処理の内訳、staticキャッシュMISSやSkinned/Billboardで増える
-		ImGui::Text("  Meshバッチ転送  : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
+		// Mesh更新のCPU時間を表示し、内訳と更新量はツールチップで確認する
+		ImGui::Text("  Meshバッチ構築・転送 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchUpload));
+		if (ImGui::IsItemHovered()) {
+			ImGui::BeginTooltip();
+			const auto& meshStats = profiler.GetRenderingStatistics();
+			ImGui::Text("CPUバッチ構築 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBatchBuild));
+			ImGui::Text("バッファ転送CPU : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshBufferTransfer));
+			ImGui::Text("パラメータ構築 : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::MeshMaterialBuild));
+			ImGui::Text("完全再構築 %u / Transform更新 %u / パラメータ更新 %u / 再利用 %u",
+				meshStats.meshRebuildCount, meshStats.meshTransformUpdateCount,
+				meshStats.meshParameterUpdateCount, meshStats.meshReuseCount);
+			ImGui::Text("更新対象 %llu instances / 転送 %.2f KiB",
+				static_cast<unsigned long long>(meshStats.meshUpdatedInstances), meshStats.meshTransferBytes / 1024.0);
+			ImGui::TextUnformatted("時間は平均CPU時間、件数は直前フレームの全View・Pass合計です");
+			ImGui::TextUnformatted("再利用は構成の再利用を表し、Transform・パラメータ更新を含みます");
+			ImGui::TextUnformatted("親区間と内訳は加算しません。GPU実行時間ではありません");
+			ImGui::EndTooltip();
+		}
 
 		// GPU完了待ちでCPUがブロックした時間、大きいほどフレームコンテキスト多重化の効果が見込める
 		ImGui::Text("GPU待ち           : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::GPUWait));

@@ -412,6 +412,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
+	DrawSceneStoragePopup(context, database);
 	DrawSearchBar(context);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
@@ -888,7 +889,11 @@ void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const 
 	}
 	if (ImGui::MenuItem("削除")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath);
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath, database);
+		if (!result.success) {
+			sceneStorageMessage_ = result.message;
+			requestSceneStoragePopup_ = true;
+		}
 		RefreshAfterFileOperation(database, result);
 	}
 	ImGui::EndPopup();
@@ -927,6 +932,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 
 		// 削除前に参照元を集めて確認ポップアップを開く
 		pendingDeleteAsset_ = asset;
+		deleteErrorMessage_.clear();
 		pendingDeleteReferencers_.clear();
 		for (const AssetID& referencer : database.FindReferencers(asset.assetID)) {
 
@@ -1106,14 +1112,19 @@ void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
 
 	ImGui::Text("アセット削除");
 	ImGui::TextDisabled("%s", pendingDeleteAsset_.assetPath.c_str());
+	for (const auto& referencer : pendingDeleteReferencers_) ImGui::TextWrapped("参照元: %s", referencer.c_str());
+	if (!deleteErrorMessage_.empty()) ImGui::TextWrapped("%s", deleteErrorMessage_.c_str());
 	ImGui::Separator();
 
 	if (ImGui::Button("削除")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(pendingDeleteAsset_);
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(pendingDeleteAsset_, database);
+		deleteErrorMessage_ = result.message;
 		RefreshAfterFileOperation(database, result);
-		pendingDeleteReferencers_.clear();
-		ImGui::CloseCurrentPopup();
+		if (result.success) {
+			pendingDeleteReferencers_.clear();
+			ImGui::CloseCurrentPopup();
+		}
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("キャンセル")) {

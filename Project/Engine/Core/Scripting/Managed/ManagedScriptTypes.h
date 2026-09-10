@@ -56,7 +56,8 @@ namespace Engine {
 	// v50: RenderFeatureのSceneColor出力切り替えAPIを追加
 	// v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
 	// v52: アクティブSceneの再読み込みAPIを追加
-	inline constexpr uint32_t kManagedAbiVersion = 52;
+	// v53: スクリプトの詳細計測区間を追加
+	inline constexpr uint32_t kManagedAbiVersion = 54;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -450,6 +451,9 @@ namespace Engine {
 		// 互換性検証用ヘッダで必ず先頭に置く
 		ManagedAbiHeader header{};
 
+		using BeginScriptSampleCallback = uint64_t(__cdecl*)(ManagedNativeEntity, uint64_t, const char*);
+		using EndScriptSampleCallback = void(__cdecl*)(uint64_t);
+		using DontDestroyOnLoadCallback = int32_t(__cdecl*)(ManagedNativeEntity);
 		using GetDeltaTimeCallback = float(__cdecl*)();
 		using GetVector2Callback = ManagedVector2(__cdecl*)();
 		using GetVector3Callback = ManagedVector3(__cdecl*)(ManagedNativeEntity);

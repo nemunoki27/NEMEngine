@@ -57,6 +57,9 @@ namespace Engine {
 			TransformComponent* transform = nullptr;
 			CollisionShapeInstance shape{};
 			bool hasShape = false;
+			bool dynamicBody = false;
+			bool surfaceBox = false;
+			uint8_t internalFaces = 0;
 		};
 
 		//--------- variables ----------------------------------------------------

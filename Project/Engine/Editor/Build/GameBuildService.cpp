@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <deque>
+#include <exception>
 #include <fstream>
 #include <iomanip>
 #include <map>
@@ -162,27 +164,7 @@ namespace {
 			Engine::Algorithm::EndsWith(lower, ".otf");
 	}
 
-	// 製品へ配置する1ファイル
-	struct BuildFileEntry {
-
-		std::filesystem::path source;
-		std::string destination;
-		uintmax_t size = 0;
-		std::string sha256;
-	};
-
-	// シーン内で使用される描画機能
-	struct BuildUsage {
-
-		bool mesh = false;
-		bool sprite = false;
-		bool text = false;
-		bool line = false;
-		bool primitive = false;
-		bool primitive2D = false;
-		bool progress = false;
-		bool particle = false;
-	};
+	using BuildFileEntry = Engine::GameBuildFileEntry;
 
 	// GameAssets全体と参照されるEngineアセットを収集する
 	class GameBuildAssetCollector {
@@ -195,20 +177,19 @@ namespace {
 		// GameAssets全体を起点に依存ファイルを収集
 		bool Collect(Engine::AssetID startupScene, std::vector<BuildFileEntry>& outFiles, std::string& outError) {
 
+			if (!Engine::SceneAssetStorage::GetRecoveries(true).empty()) {
+				outError = "未完了のシーン操作があります、Projectパネルのシーンデータ検証・修復から復旧してください";
+				return false;
+			}
 			AddAllGameAssets();
 			AddPackageFiles();
 			AddAsset(startupScene);
-			AddAsset(Engine::BuiltinAssets::Materials::ToneMapToView);
-			AddAsset(Engine::BuiltinAssets::Pipelines::AutoExposure);
-			AddAsset(Engine::BuiltinAssets::Materials::OutputTransform);
-			AddAsset(Engine::BuiltinAssets::Materials::FullscreenCopy);
-			AddAsset(Engine::BuiltinAssets::Materials::PostProcessMaskComposite);
-			AddAsset(Engine::BuiltinAssets::Materials::RaytracingReflection);
-			AddAsset(Engine::BuiltinAssets::RenderFeatureProfiles::Default);
+			for (const Engine::AssetID assetID : Engine::BuiltinAssets::Runtime::Assets) {
+				AddAsset(assetID, true);
+			}
 
 			AddFixedRuntimeFiles();
-			ProcessAssets();
-			AddUsageAssets();
+			AddDefaultMaterialAssets();
 			ProcessAssets();
 
 			if (!errors_.empty()) {
@@ -235,20 +216,23 @@ namespace {
 	private:
 
 		// AssetIDを処理待ちへ追加
-		void AddAsset(Engine::AssetID assetID) {
+		void AddAsset(Engine::AssetID assetID, bool required = false) {
 
-			if (!assetID || !queuedAssets_.insert(assetID).second) {
-				return;
+			if (!assetID) return;
+			const bool newlyRequired = required && requiredAssets_.insert(assetID).second;
+			if (queuedAssets_.insert(assetID).second || newlyRequired) {
+				assetQueue_.push_back(assetID);
 			}
-			assetQueue_.push_back(assetID);
 		}
 
 		// 物理ファイルを配置一覧へ追加
-		void AddFile(const std::filesystem::path& source, const std::string& destination) {
+		void AddFile(const std::filesystem::path& source, const std::string& destination, bool required = false) {
 
 			std::error_code ec;
 			if (source.empty() || destination.empty() ||
 				!std::filesystem::is_regular_file(source, ec) || ec) {
+				if (required) errors_.push_back("製品に必要なファイルを読み込めません: " +
+					Engine::Algorithm::PathToUTF8(source));
 				return;
 			}
 			if (IsEditorOnlyAsset(destination) || IsGameEditorOnlyAsset(destination)) {
@@ -282,11 +266,11 @@ namespace {
 
 			const std::filesystem::path source = database_.ResolveFullPath(meta.guid);
 			const std::string destination = ToBuildDestination(meta.assetPath);
-			AddFile(source, destination);
+			AddFile(source, destination, requiredAssets_.contains(meta.guid));
 
 			std::filesystem::path metaPath = source;
 			metaPath += L".meta";
-			AddFile(metaPath, destination + ".meta");
+			AddFile(metaPath, destination + ".meta", requiredAssets_.contains(meta.guid));
 		}
 
 		// 論理アセットパスのファイルと.metaを追加
@@ -315,7 +299,7 @@ namespace {
 				if (it->is_directory(ec)) {
 
 					if (Engine::Algorithm::ToLower(
-						it->path().filename().string()) == "externalactors") {
+						Engine::Algorithm::PathToUTF8(it->path().filename())) == "externalactors") {
 						it.disable_recursion_pending();
 					}
 					continue;
@@ -401,6 +385,10 @@ namespace {
 
 				const Engine::AssetMeta* meta = database_.Find(assetID);
 				if (!meta) {
+					if (requiredAssets_.contains(assetID)) {
+						errors_.push_back("製品に必須のアセットが登録されていません GUID=" + Engine::ToString(assetID));
+						continue;
+					}
 					Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
 						"[ゲームビルド] 参照アセットが見つからないため出力対象から除外します GUID={}",
 						Engine::ToString(assetID));
@@ -413,7 +401,7 @@ namespace {
 
 				AddAssetFile(*meta);
 				for (const Engine::AssetID dependency : database_.FindDependencies(assetID)) {
-					AddAsset(dependency);
+					AddAsset(dependency, requiredAssets_.contains(assetID));
 				}
 
 				const std::filesystem::path source = database_.ResolveFullPath(assetID);
@@ -424,7 +412,7 @@ namespace {
 		// JSON参照やシェーダーincludeやモデル付属ファイルを調べる
 		void InspectFile(const Engine::AssetMeta& meta, const std::filesystem::path& source) {
 
-			const std::string extension = Engine::Algorithm::ToLower(source.extension().string());
+			const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(source.extension()));
 			if (extension == ".json" || extension == ".effect" || extension == ".prefab" || extension == ".scene") {
 
 				const nlohmann::json data = LoadJson(source);
@@ -441,9 +429,6 @@ namespace {
 			if (meta.type == Engine::AssetType::Mesh) {
 				CollectModelSidecars(source);
 			}
-			if (meta.type == Engine::AssetType::ParticleEffect) {
-				usage_.particle = true;
-			}
 		}
 
 		// シーンが列挙するExternalActorsだけを収集
@@ -456,43 +441,15 @@ namespace {
 				return;
 			}
 
-			std::filesystem::path assetRoot;
-			const std::array<std::filesystem::path, 2> roots = {
-				Engine::RuntimePaths::GetGameAssetsRoot(),
-				Engine::RuntimePaths::GetEngineAssetsRoot(),
-			};
-			for (const std::filesystem::path& root : roots) {
-				const std::filesystem::path relative =
-					NormalizeBuildPath(scenePath).lexically_relative(
-						NormalizeBuildPath(root));
-				if (!relative.empty() &&
-					!relative.native().starts_with(L"..")) {
-					assetRoot = root;
-					break;
+			const auto issues = Engine::SceneAssetStorage::Validate(scenePath, sceneMeta.guid);
+			if (!issues.empty()) {
+				for (const auto& issue : issues) {
+					errors_.push_back(issue.detail + " scene=" + sceneMeta.assetPath + " path=" +
+						Engine::Algorithm::PathToUTF8(issue.actorPath) + " / Projectパネルのシーンデータ検証・修復を確認してください");
 				}
-			}
-			if (assetRoot.empty()) {
-				for (const Engine::ResolvedPackage& package :
-					Engine::RuntimePaths::GetPackages()) {
-					const std::filesystem::path relative =
-						NormalizeBuildPath(scenePath).lexically_relative(
-							NormalizeBuildPath(package.root));
-					if (!relative.empty() &&
-						!relative.native().starts_with(L"..")) {
-						assetRoot = package.root;
-						break;
-					}
-				}
-			}
-			if (assetRoot.empty()) {
-				errors_.push_back("ExternalActorsの配置先を解決できません: " +
-					sceneMeta.assetPath);
 				return;
 			}
-
-			const std::filesystem::path actorRoot =
-				assetRoot / "ExternalActors" /
-				Engine::ToString(sceneMeta.guid);
+			const std::filesystem::path actorRoot = Engine::SceneAssetStorage::ResolveActorRoot(scenePath, sceneMeta.guid);
 			for (const nlohmann::json& actorID : sceneData["ExternalActors"]) {
 
 				if (!actorID.is_string() ||
@@ -521,7 +478,7 @@ namespace {
 			}
 		}
 
-		// JSON内のアセット参照と使用コンポーネントを再帰収集
+		// JSON内のアセット参照を再帰収集
 		void InspectJson(const nlohmann::json& node) {
 
 			if (node.is_object()) {
@@ -529,21 +486,6 @@ namespace {
 				for (auto it = node.begin(); it != node.end(); ++it) {
 
 					const std::string& key = it.key();
-					if (key == "MeshRenderer") usage_.mesh = true;
-					else if (key == "SpriteRenderer") usage_.sprite = true;
-					else if (key == "TextRenderer") usage_.text = true;
-					else if (key == "LineRenderer") usage_.line = true;
-					else if (key == "PrimitiveRenderer") {
-						usage_.primitive = true;
-						usage_.primitive2D = true;
-					}
-					else if (key == "UIProgress") {
-						usage_.primitive2D = true;
-						usage_.progress = true;
-					} else if (key == "ParticleSystem") {
-						usage_.particle = true;
-					}
-
 					if (it->is_string()) {
 
 						const std::string value = it->get<std::string>();
@@ -591,7 +533,7 @@ namespace {
 					continue;
 				}
 
-				const std::filesystem::path includeName = match[1].str();
+				const std::filesystem::path includeName = Engine::Algorithm::PathFromUTF8(match[1].str());
 				const std::array<std::filesystem::path, 3> candidates = {
 					shaderPath.parent_path() / includeName,
 					Engine::RuntimePaths::GetEngineAssetPath("Shaders") / includeName,
@@ -614,7 +556,7 @@ namespace {
 		// glTFとOBJが外部参照するファイルを収集
 		void CollectModelSidecars(const std::filesystem::path& modelPath) {
 
-			const std::string extension = Engine::Algorithm::ToLower(modelPath.extension().string());
+			const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(modelPath.extension()));
 			if (extension == ".gltf") {
 
 				const nlohmann::json data = LoadJson(modelPath);
@@ -716,66 +658,42 @@ namespace {
 
 			AddLogicalFile("Engine/Assets/Config/windowSettings.exeConfig.json");
 			for (const Engine::AssetID shaderID : Engine::BuiltinAssets::Shaders::FixedRuntime) {
-				AddAsset(shaderID);
+				AddAsset(shaderID, true);
 			}
 
-			const std::filesystem::path gameRoot = Engine::RuntimePaths::GetGameRoot();
-			const std::array<const char*, 4> gameProjectSettings = {
-				"InputActions.json",
-				"TagSettings.json",
-				"RenderingLayers.json",
-				Engine::ConfigPaths::kScriptExecutionOrder,
-			};
-			for (const char* setting : gameProjectSettings) {
-
+			for (const char* setting : Engine::ConfigPaths::ProductSettings) {
+				const auto source = Engine::RuntimePaths::GetProjectSettingsPath(setting);
+				std::error_code ec;
+				const bool exists = std::filesystem::exists(source, ec);
+				if (ec) {
+					errors_.push_back("プロジェクト設定を確認できません: " + Engine::Algorithm::PathToUTF8(source));
+					continue;
+				}
+				// 未設定は実行時の既定値を使い、存在する設定は省略を許さない
+				if (!exists) continue;
 				const std::string destination = std::string("ProjectSettings/") + setting;
-				AddFile(gameRoot / destination, destination);
-			}
-
-			const std::array<const char*, 1> runtimeSettings = {
-				Engine::ConfigPaths::kFrameRate,
-			};
-			for (const char* setting : runtimeSettings) {
-				const std::string destination = std::string("ProjectSettings/") + setting;
-				AddFile(Engine::RuntimePaths::GetProjectSettingsPath(setting), destination);
+				AddFile(source, destination, true);
 			}
 		}
 
-		// 使用コンポーネントに対応する既定アセットを追加
-		void AddUsageAssets() {
+		// プロジェクトで差し替えた既定マテリアルも動的生成に備えて同梱する
+		void AddDefaultMaterialAssets() {
 
 			const Engine::DefaultMaterialSettings& defaults = Engine::DefaultMaterialSettings::GetInstance();
-			if (usage_.mesh) {
-				AddAsset(defaults.GetMeshOrBuiltin());
-				AddAsset(Engine::BuiltinAssets::Pipelines::Skinning);
-				AddAsset(Engine::BuiltinAssets::Pipelines::BuildIndexedIndirectArgs);
-			}
-			if (usage_.sprite) AddAsset(defaults.GetSpriteOrBuiltin());
-			if (usage_.text) AddAsset(defaults.GetTextOrBuiltin());
-			if (usage_.line) AddAsset(defaults.GetLineOrBuiltin());
-			if (usage_.primitive) AddAsset(defaults.GetPrimitiveOrBuiltin());
-			if (usage_.primitive2D) AddAsset(defaults.GetPrimitive2DOrBuiltin());
-			AddAsset(
-				defaults.
-				GetRaytracingReflectionOrBuiltin());
-			if (usage_.progress) AddAsset(Engine::BuiltinAssets::Materials::ProgressPrimitive);
-			if (usage_.particle) {
-				AddAsset(Engine::BuiltinAssets::Effects::DefaultParticle);
-				AddAsset(Engine::BuiltinAssets::Materials::DefaultParticle);
-				AddAsset(Engine::BuiltinAssets::Materials::DefaultParticle2D);
-				AddAsset(Engine::BuiltinAssets::Pipelines::ParticleTrail);
-				AddAsset(Engine::BuiltinAssets::Pipelines::ParticleRingMS);
-				AddAsset(Engine::BuiltinAssets::Pipelines::ParticleCylinderMS);
+			for (const auto assetID : { defaults.GetMeshOrBuiltin(), defaults.GetSpriteOrBuiltin(),
+				defaults.GetTextOrBuiltin(), defaults.GetLineOrBuiltin(), defaults.GetPrimitiveOrBuiltin(),
+				defaults.GetPrimitive2DOrBuiltin(), defaults.GetRaytracingReflectionOrBuiltin() }) {
+				AddAsset(assetID, true);
 			}
 		}
 
 		const Engine::AssetDatabase& database_;
 		std::deque<Engine::AssetID> assetQueue_;
 		std::unordered_set<Engine::AssetID> queuedAssets_;
+		std::unordered_set<Engine::AssetID> requiredAssets_;
 		std::unordered_set<std::string> scannedShaderFiles_;
 		std::map<std::string, std::filesystem::path> files_;
 		std::vector<std::string> errors_;
-		BuildUsage usage_{};
 	};
 
 	// PowerShellへ渡す引数を二重引用符で囲む
@@ -846,7 +764,15 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 
 	RemoveManifest();
 	std::filesystem::path scriptPath;
-	if (!WriteManifest(settings, database, scriptPath, outError)) {
+	bool manifestWritten = false;
+	try {
+		manifestWritten = WriteManifest(settings, database, scriptPath, outError);
+	} catch (const std::exception& exception) {
+		// ファイル操作の失敗でEditorを終了させず、ビルド画面へ理由を返す
+		outError = std::string("製品ビルドの準備中に例外が発生しました: ") + exception.what();
+		Logger::Output(LogType::Engine, spdlog::level::err, "[ゲームビルド] {}", outError);
+	}
+	if (!manifestWritten) {
 		RemoveManifest();
 		state_ = GameBuildState::Failed;
 		statusMessage_ = "失敗しました";
@@ -930,6 +856,23 @@ void Engine::GameBuildService::ResetStatus() {
 	failureDetail_.clear();
 }
 
+bool Engine::GameBuildService::CollectFiles(AssetID startupScene, const AssetDatabase& database,
+	std::vector<GameBuildFileEntry>& outFiles, std::string& outError) {
+
+	outFiles.clear();
+	outError.clear();
+	try {
+		GameBuildAssetCollector collector(database);
+		return collector.Collect(startupScene, outFiles, outError);
+	} catch (const std::exception& exception) {
+		// 収集中の例外はビルド失敗として扱い、不完全な一覧を渡さない
+		outFiles.clear();
+		outError = std::string("製品ファイルの収集中に例外が発生しました: ") + exception.what();
+		Logger::Output(LogType::Engine, spdlog::level::err, "[ゲームビルド] {}", outError);
+		return false;
+	}
+}
+
 bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	const AssetDatabase& database, std::filesystem::path& outScriptPath, std::string& outError) {
 
@@ -977,8 +920,7 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	}
 
 	std::vector<BuildFileEntry> files;
-	GameBuildAssetCollector collector(database);
-	if (!collector.Collect(settings.startupScene, files, outError)) {
+	if (!CollectFiles(settings.startupScene, database, files, outError)) {
 		return false;
 	}
 

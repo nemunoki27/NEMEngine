@@ -1983,8 +1983,26 @@
       "registryName": "ScreenSpaceOutline",
       "nativeType": "ScreenSpaceOutlineComponent",
       "nativeHeader": "Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h",
-      "exposure": "InternalOnly",
-      "reason": "screen space outline effect。gameplay 公開不要のため internal。"
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.ScreenSpaceOutline",
+      "reason": "輪郭線の有効状態とRGBAをゲーム側から制御する",
+      "managedType": "ScreenSpaceOutline",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Color",
+          "nativeMember": "color",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        }
+      ]
     },
     {
       "id": 25,

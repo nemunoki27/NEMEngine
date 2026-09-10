@@ -14,6 +14,9 @@ public static class Application {
     // runtime pause 状態。既存の application pause state が無いため TimeScale==0 を pause とみなす。
     public static bool IsPaused => NativeApi.ReadTimeScale() == 0.0f;
 
+    // 実行中プロジェクトの絶対パスを返す、製品ビルドでは製品フォルダーを指す
+    public static string ProjectRoot => NativeApi.ReadProjectRoot();
+
     public static event Action<bool>? FocusChanged;
     public static event Action<bool>? PauseChanged;
     public static event Action? Quitting;

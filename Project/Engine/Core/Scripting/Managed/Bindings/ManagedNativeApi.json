@@ -796,6 +796,21 @@
       "name": "dynamicBufferMutate",
       "nativeType": "DynamicBufferMutateCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int>"
+    },
+    {
+      "name": "beginScriptSample",
+      "nativeType": "BeginScriptSampleCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, ulong>"
+    },
+    {
+      "name": "endScriptSample",
+      "nativeType": "EndScriptSampleCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<ulong, void>"
+    },
+    {
+      "name": "dontDestroyOnLoad",
+      "nativeType": "DontDestroyOnLoadCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
     }
   ]
 }

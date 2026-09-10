@@ -166,6 +166,15 @@ namespace Engine {
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+		// 順序付きの描画構成とEntityの更新世代を照合する
+		bool MatchesBatch(const RenderSceneBatch& batch, std::span<const RenderItem* const> items,
+			const MeshGPUResource& gpuMesh) const;
+		void CaptureBatchIdentity(const RenderSceneBatch& batch, std::span<const RenderItem* const> items,
+			const MeshGPUResource& gpuMesh);
+		// 色だけが変わったインスタンスのパラメータを更新する
+		uint32_t RefreshMaterialColors();
+		// 構成再抽出後も一致するバッチは行列だけ同期する
+		void RefreshBatchTransforms(std::span<const RenderItem* const> items);
 		// 静的バッチの構成を維持したままインスタンス行列だけを更新する
 		bool RefreshInstanceTransforms(
 			std::span<const RenderTransformChange> changes);
@@ -313,6 +322,10 @@ namespace Engine {
 				srvIndices = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
 			std::vector<uint32_t> retiredSrvIndices{};
 			std::vector<uint8_t> packedScratch{};
+			std::vector<uint64_t> sourceGenerations;
+			uint64_t packedSourceGeneration = 0;
+			std::vector<uint64_t> elementGenerations;
+			std::array<std::vector<uint64_t>, kGraphicsFrameContextCount> uploadedElements;
 			uint64_t layoutHash = 0;
 			uint64_t materialHash = 0;
 			const MaterialAsset* material = nullptr;
@@ -374,6 +387,29 @@ namespace Engine {
 		// スキニング用バッファ
 		std::unique_ptr<OptionalSkinningResources> skinning_{};
 
+		// キャッシュへECSのComponentポインターを保持しない
+		struct CachedInstance {
+			ECSWorld* world = nullptr;
+			Entity entity{};
+			AssetID material{};
+			uint64_t batchKey = 0;
+			uint64_t renderRevision = 0;
+			uint64_t resetRevision = 0;
+			uint64_t colorRevision = 0;
+			uint32_t subMeshIndex = kAllMeshSubMeshes;
+			uint32_t subMeshGroupIndex = UINT32_MAX;
+			MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
+			RenderPhase phase = RenderPhase::Opaque;
+			BlendMode blend = BlendMode::Normal;
+			bool receiveShadows = true;
+			bool operator==(const CachedInstance&) const = default;
+		};
+		std::vector<CachedInstance> cachedInstances_;
+		AssetID cachedMesh_{};
+		uint32_t cachedMeshGeneration_ = 0;
+		uint64_t parameterGeneration_ = 1;
+		std::vector<uint64_t> subMeshParamGenerations_;
+
 		// 毎バッチ再利用するデータ
 		std::vector<MeshInstanceData> meshScratch_{};
 		std::unordered_multimap<MeshEntityLookupKey, uint32_t,
@@ -416,6 +452,11 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		void BuildBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
+			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+
+		// CPU側のキャッシュ識別情報を取得する
+		static CachedInstance MakeCachedInstance(const RenderSceneBatch& batch, const RenderItem& item);
 		// 現在のフレームスロットを再利用する前にper-draw定数の切り出し位置を戻す
 		void BeginDynamicConstantsFrame();
 		// マテリアルとサブメッシュ上書きから最大頂点変位量を求める

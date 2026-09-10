@@ -108,6 +108,15 @@ namespace {
 			world.HasComponent<Engine::Rigidbody2DComponent>(entity);
 	}
 
+	// 剛体なしとStatic剛体だけを継ぎ目補正の地形にする
+	bool IsBoxSurfaceBody(Engine::ECSWorld& world, const Engine::Entity& entity) {
+
+		if (const auto* body = world.TryGetComponent<Engine::RigidbodyComponent>(entity)) {
+			return body->bodyType == Engine::RigidbodyType::Static;
+		}
+		return !world.HasComponent<Engine::Rigidbody2DComponent>(entity);
+	}
+
 	// 慣性半径の近似、回転の効きを決める
 	constexpr float kInertiaRadius = 0.5f;
 	// 数値暴走を防ぐ角速度の上限 rad/s
@@ -575,12 +584,33 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 			runtime.collision = &collision;
 			runtime.state = world.TryGetComponent<CollisionRuntimeStateComponent>(entity);
 			runtime.transform = &transform;
+			runtime.dynamicBody = IsDynamicRigidbody(world, entity);
+			runtime.surfaceBox = collision.enablePushback && IsBoxSurfaceBody(world, entity) &&
+				(collision.shape.type == ColliderShapeType::AABB3D || collision.shape.type == ColliderShapeType::OBB3D) &&
+				!collision.shape.isTrigger;
 			RebuildRuntimeShape(world, runtime);
 			if (runtime.hasShape) {
 				entities.emplace_back(std::move(runtime));
 			}
 		});
 
+	// 地形の面情報は固定ステップごとに構築し、接触ペア間で共有する
+	const bool hasDynamicBox = std::any_of(entities.begin(), entities.end(), [](const CollisionRuntimeEntity& runtime) {
+		return runtime.dynamicBody && (runtime.shape.type == ColliderShapeType::AABB3D ||
+			runtime.shape.type == ColliderShapeType::OBB3D) && !runtime.shape.trigger;
+		});
+	if (applyResponse && hasDynamicBox) {
+		std::vector<CollisionBoxSurface> surfaces;
+		surfaces.reserve(entities.size());
+		for (const auto& runtime : entities) {
+			surfaces.push_back({ runtime.surfaceBox ? &runtime.shape : nullptr, runtime.collision->typeMask, 0 });
+		}
+		BuildBoxInternalFaces(surfaces);
+		for (size_t i = 0; i < entities.size(); ++i) {
+			entities[i].internalFaces = surfaces[i].internalFaces;
+		}
+	}
+	bool surfaceGeometryChanged = false;
 	std::unordered_map<CollisionPairKey, CollisionContact, CollisionPairKeyHash> currentContacts{};
 	for (uint32_t aIndex = 0; aIndex < static_cast<uint32_t>(entities.size()); ++aIndex) {
 		for (uint32_t bIndex = aIndex + 1; bIndex < static_cast<uint32_t>(entities.size()); ++bIndex) {
@@ -591,8 +621,14 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 				continue;
 			}
 
+			// 剛体なし同士の押し戻しが起きた後は古い隣接情報を使わない
+			const uint8_t facesA = !surfaceGeometryChanged && b.dynamicBody ? a.internalFaces : 0;
+			const uint8_t facesB = !surfaceGeometryChanged && a.dynamicBody ? b.internalFaces : 0;
 			CollisionContact contact{};
-			if (!TestCollision(a.shape, b.shape, contact)) {
+			const bool colliding = (facesA | facesB) ?
+				TestCollisionWithBoxInternalFaces(a.shape, b.shape, facesA, facesB, contact) :
+				TestCollision(a.shape, b.shape, contact);
+			if (!colliding) {
 				continue;
 			}
 
@@ -609,7 +645,11 @@ void Engine::CollisionSystem::UpdateCollisions(ECSWorld& world, SystemContext& c
 
 			// 押し戻しとEnter / Stayの分配は固定ステップのみ行う
 			if (applyResponse) {
+				const Vector3 centerA = a.shape.center;
+				const Vector3 centerB = b.shape.center;
 				ApplyPushback(world, a, b, contact);
+				surfaceGeometryChanged |= (a.surfaceBox && (a.shape.center - centerA).Length() > 0.0f) ||
+					(b.surfaceBox && (b.shape.center - centerB).Length() > 0.0f);
 				if (previousContacts_.contains(key)) {
 					DispatchCollisionStay(world, context, contact);
 				} else {

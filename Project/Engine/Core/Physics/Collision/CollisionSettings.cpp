@@ -5,15 +5,10 @@
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // c++
 #include <algorithm>
-
-namespace {
-
-	// 全シーン共通のCollision設定ファイルのプロジェクト相対パス
-	constexpr const char* kGlobalCollisionSettingsPath = "CollisionSettings.json";
-}
 
 //============================================================================
 //	CollisionSettings classMethods
@@ -114,7 +109,7 @@ void Engine::CollisionSettings::Save() const {
 
 void Engine::CollisionSettings::BindGlobal() {
 
-	SetActiveSettingsPath(RuntimePaths::GetProjectSettingsPath(kGlobalCollisionSettingsPath));
+	SetActiveSettingsPath(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kCollisionSettings));
 }
 
 void Engine::CollisionSettings::SetActiveSettingsPath(const std::filesystem::path& settingsPath) {

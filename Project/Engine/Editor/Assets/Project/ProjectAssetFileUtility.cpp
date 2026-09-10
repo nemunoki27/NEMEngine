@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -504,13 +505,20 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirecto
 	return result;
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(const ProjectAssetEntry& asset) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(const ProjectAssetEntry& asset, const AssetDatabase& database) {
 
 	ProjectAssetFileResult result{};
 
 	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
 	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
 		result.message = "Source asset was not found.";
+		return result;
+	}
+
+	if (asset.type == AssetType::Scene || asset.assetPath.find("ExternalActors/") != std::string::npos) {
+		result.success = SceneAssetStorage::Delete(sourcePath, database, result.message);
+		result.assetPath = asset.assetPath;
+		result.fullPath = sourcePath;
 		return result;
 	}
 
@@ -536,7 +544,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(cons
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(ProjectAssetSource source,
-	const std::string& directoryVirtualPath) {
+	const std::string& directoryVirtualPath, const AssetDatabase& database) {
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = true;
@@ -549,11 +557,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(
 		return result;
 	}
 
-	// フォルダツリーを再帰的に全て削除
-	std::error_code ec;
-	std::filesystem::remove_all(sourcePath, ec);
-	if (ec) {
-		result.message = "Failed to delete folder.";
+	// フォルダー外にある所有Actorもまとめて退避する
+	if (!SceneAssetStorage::Delete(sourcePath, database, result.message)) {
 		return result;
 	}
 
