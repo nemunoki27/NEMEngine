@@ -1,23 +1,59 @@
-#include "EngineApplication.h"
+#include "EditorPlaySession.h"
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/ECS/World/WorldManager.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
+#include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
+#include <Engine/Core/World/ECS/Baking/RuntimeWorldBaker.h>
+#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
+#include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 
-//============================================================================
-//	EngineApplication play methods
-//============================================================================
-void Engine::EngineApplication::HandlePlayToggle() {
+using namespace Engine;
+
+Engine::EditorPlaySession::EditorPlaySession(AssetDatabase& assetDatabase,
+	WorldManager& worldManager,
+	SceneInstanceManager& editScenes,
+	SceneInstanceManager& playScenes,
+	SceneSystem& sceneSystem,
+	SystemScheduler& scheduler,
+	SystemContext& systemContext,
+	EditorManager& editorManager,
+	RuntimeWorldBaker& runtimeWorldBaker,
+	ManagedScriptBuildService& scriptBuildService,
+	bool& requestFrameDeltaReset,
+	std::function<bool()> isPrefabEditing,
+	std::function<bool()> saveAllEditScenes,
+	std::function<void()> refreshActiveWorldContext) :
+	assetDatabase_(assetDatabase),
+	worldManager_(worldManager),
+	editScenes_(editScenes),
+	playScenes_(playScenes),
+	sceneSystem_(sceneSystem),
+	scheduler_(scheduler),
+	systemContext_(systemContext),
+	editorManager_(editorManager),
+	runtimeWorldBaker_(runtimeWorldBaker),
+	scriptBuildService_(scriptBuildService),
+	requestFrameDeltaReset_(requestFrameDeltaReset),
+	isPrefabEditing_(isPrefabEditing),
+	saveAllEditScenes_(saveAllEditScenes),
+	refreshActiveWorldContext_(refreshActiveWorldContext) {
+}
+
+void Engine::EditorPlaySession::HandlePlayToggle() {
 
 	if constexpr (!BuildConfig::kEditorEnabled) {
 		return;
@@ -56,7 +92,7 @@ void Engine::EngineApplication::HandlePlayToggle() {
 	}
 }
 
-void Engine::EngineApplication::StopPlayWorld() {
+void Engine::EditorPlaySession::StopPlayWorld() {
 
 	scheduler_.DetachCurrentWorld(systemContext_);
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
@@ -70,10 +106,10 @@ void Engine::EngineApplication::StopPlayWorld() {
 	playPaused_ = false;
 	playFrameStepRequested_ = false;
 	(void)ManagedScriptRuntime::GetInstance().ConsumeApplicationQuitRequest();
-	RefreshActiveWorldContext();
+	refreshActiveWorldContext_();
 }
 
-bool Engine::EngineApplication::HandleApplicationQuitRequest() {
+bool Engine::EditorPlaySession::HandleApplicationQuitRequest() {
 
 	if (!ManagedScriptRuntime::GetInstance().ConsumeApplicationQuitRequest()) {
 		return false;
@@ -98,72 +134,7 @@ bool Engine::EngineApplication::HandleApplicationQuitRequest() {
 	}
 }
 
-void Engine::EngineApplication::RefreshActiveWorldContext() {
-
-	if constexpr (BuildConfig::kEditorEnabled) {
-		std::vector<AssetID> protectedAssets;
-		for (const auto& scene : editScenes_.GetAll()) protectedAssets.push_back(scene.sceneAsset);
-		for (const auto& scene : GetActiveScenes().GetAll()) protectedAssets.push_back(scene.sceneAsset);
-		SceneAssetStorage::SetProtectedScenes(protectedAssets);
-	}
-
-	ECSWorld* world = GetActiveWorld();
-	const SceneHeader* header = GetActiveSceneHeader();
-	SceneInstanceManager& activeScenes = GetActiveScenes();
-	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
-	if (activeSceneInstance) {
-		if (const AssetMeta* meta =
-			assetDataBase_.Find(activeSceneInstance->sceneAsset)) {
-			activeScenePath_ = meta->assetPath;
-		}
-	}
-
-	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
-	systemContext_.world = world;
-
-	if (world) {
-
-		WorldCommandServices services{};
-		services.assetDatabase = &assetDataBase_;
-		services.sceneInstances = &activeScenes;
-		services.sceneSystem = &sceneSystem_;
-		world->SetCommandServices(services);
-	}
-
-	systemContext_.activeSceneHeader = header;
-	CollisionSettings::GetInstance().BindGlobal();
-
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		editorContext_.isPlaying = worldManager_.IsPlaying();
-		editorContext_.isPlayPaused = playPaused_;
-		editorContext_.activeScenePath = activeScenePath_;
-		editorContext_.activeSceneHeader = header;
-		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
-		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
-		editorContext_.activeSceneDirty =
-			editorManager_.IsSceneDirty(editorContext_.activeSceneAsset);
-		editorContext_.sceneInstances = &activeScenes;
-		editorContext_.activeWorld = world;
-		editorContext_.editWorld = &worldManager_.GetEditWorld();
-		editorContext_.assetDatabase = &assetDataBase_;
-		editorContext_.scriptBuildService = &scriptBuildService_;
-
-		editorContext_.isPrefabEditing = IsPrefabEditing();
-		editorContext_.prefabEditDepth = static_cast<int>(prefabStages_.size());
-		editorContext_.prefabEditName = prefabStages_.empty() ? std::string{} : prefabStages_.back().name;
-		editorContext_.prefabEditAsset = prefabStages_.empty() ? AssetID{} : prefabStages_.back().asset;
-		editorContext_.prefabEditInstanceID = prefabStages_.empty() ? UUID{} : prefabStages_.back().instanceID;
-		editorContext_.isPrefabInContext = !prefabStages_.empty() && prefabStages_.back().inContext;
-		editorContext_.prefabInContextInstanceID =
-			editorContext_.isPrefabInContext ? prefabStages_.back().instanceID : UUID{};
-		editorContext_.prefabEnvironmentEntities =
-			(!prefabStages_.empty() && !prefabStages_.back().inContext) ?
-			&prefabStages_.back().environmentEntities : nullptr;
-	}
-}
-
-void Engine::EngineApplication::ProcessPendingPlayStart() {
+void Engine::EditorPlaySession::ProcessPendingPlayStart() {
 
 	const ManagedScriptBuildService::PlayBuildResult result = scriptBuildService_.PollPlayBuild();
 	if (result == ManagedScriptBuildService::PlayBuildResult::Pending) {
@@ -177,7 +148,7 @@ void Engine::EngineApplication::ProcessPendingPlayStart() {
 			"EngineApplication: GameScriptsのビルドまたは再読み込みに失敗したためPlayを中止します");
 		return;
 	}
-	if (!IsPrefabEditing() && !SaveAllEditScenes()) {
+	if (!isPrefabEditing_() && !saveAllEditScenes_()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"EngineApplication: シーン保存に失敗したためPlayを中止します");
@@ -187,7 +158,7 @@ void Engine::EngineApplication::ProcessPendingPlayStart() {
 	StartPlayWorld();
 }
 
-void Engine::EngineApplication::StartPlayWorld() {
+void Engine::EditorPlaySession::StartPlayWorld() {
 
 	ScriptProfiler::GetInstance().Configure(ScriptProfiler::GetInstance().IsEnabled(), {}, 0);
 
@@ -205,7 +176,7 @@ void Engine::EngineApplication::StartPlayWorld() {
 
 	worldManager_.CreatePlayWorld();
 	if (!worldManager_.GetPlayWorld() ||
-		!playScenes_.LoadSnapshot(assetDataBase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
+		!playScenes_.LoadSnapshot(assetDatabase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"EngineApplication: シーンSnapshotを読み込めないためPlayを開始できません");
@@ -217,7 +188,7 @@ void Engine::EngineApplication::StartPlayWorld() {
 		return;
 	}
 	// Play最初のLifecycleより先にRuntime派生データを完成させる
-	runtimeWorldBaker_.Attach(*worldManager_.GetPlayWorld(), &assetDataBase_);
+	runtimeWorldBaker_.Attach(*worldManager_.GetPlayWorld(), &assetDatabase_);
 	runtimeWorldBaker_.BakeAll();
 	ManagedWorldRegistry::GetInstance().Register(*worldManager_.GetPlayWorld());
 	ManagedScriptRuntime::BeginPlayTime(worldManager_.GetPlayWorld());
@@ -230,7 +201,7 @@ void Engine::EngineApplication::StartPlayWorld() {
 	playWorldJustStarted_ = true;
 }
 
-void Engine::EngineApplication::HandlePlayPauseRequests() {
+void Engine::EditorPlaySession::HandlePlayPauseRequests() {
 
 	if constexpr (!BuildConfig::kEditorEnabled) {
 		return;
@@ -257,7 +228,14 @@ void Engine::EngineApplication::HandlePlayPauseRequests() {
 	}
 }
 
-bool Engine::EngineApplication::ShouldAdvanceActiveWorld() const {
+bool Engine::EditorPlaySession::ShouldAdvanceActiveWorld() const {
 
 	return !worldManager_.IsPlaying() || !playPaused_ || playFrameStepRequested_;
+}
+
+bool Engine::EditorPlaySession::ConsumeJustStarted() {
+
+	const bool started = playWorldJustStarted_;
+	playWorldJustStarted_ = false;
+	return started;
 }

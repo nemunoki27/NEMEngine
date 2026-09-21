@@ -5,6 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -1214,7 +1215,7 @@ void AnimationClipTool::DrawKeyInspectorUI(const EditorToolContext& context) {
 	if (!(IsQuaternionAxisAngleTrack(track) && selection.channelIndex == 0u) && MyGUI::BeginPropertyRow("補間方法")) {
 		if (quaternionTrack) {
 
-			if (EnumAdapter<CurveInterpolationMode>::Combo("##Value", &interpolation)) {
+			if (Engine::ImGuiUtility::EnumCombo<CurveInterpolationMode>("##Value", &interpolation)) {
 				key.interpolation = interpolation;
 				changed = true;
 			}

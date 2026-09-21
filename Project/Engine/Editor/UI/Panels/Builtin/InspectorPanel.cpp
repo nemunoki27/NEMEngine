@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
 #include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
@@ -119,7 +120,7 @@ namespace {
 		}
 
 		Engine::MaterialDomain edited = value;
-		result.valueChanged = Engine::EnumAdapter<Engine::MaterialDomain>::Combo("##Value", &edited);
+		result.valueChanged = Engine::ImGuiUtility::EnumCombo<Engine::MaterialDomain>("##Value", &edited);
 		if (result.valueChanged) {
 			value = edited;
 		}
@@ -138,7 +139,7 @@ namespace {
 		}
 
 		Engine::PipelineVariantKind edited = value;
-		result.valueChanged = Engine::EnumAdapter<Engine::PipelineVariantKind>::Combo("##Value", &edited);
+		result.valueChanged = Engine::ImGuiUtility::EnumCombo<Engine::PipelineVariantKind>("##Value", &edited);
 		if (result.valueChanged) {
 			value = edited;
 		}
@@ -157,7 +158,7 @@ namespace {
 		}
 
 		Engine::MaterialPassKind edited = value;
-		result.valueChanged = Engine::EnumAdapter<Engine::MaterialPassKind>::Combo("##Value", &edited);
+		result.valueChanged = Engine::ImGuiUtility::EnumCombo<Engine::MaterialPassKind>("##Value", &edited);
 		if (result.valueChanged) {
 			value = edited;
 		}

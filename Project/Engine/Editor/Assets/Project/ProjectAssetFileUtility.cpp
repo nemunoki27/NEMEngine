@@ -154,7 +154,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 	return result;
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(const ProjectAssetEntry& asset) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(const ProjectAssetEntry& asset,
+	const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 
@@ -175,7 +176,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 	// シーンは外部Actorと内部参照も合わせて複製する
 	if (asset.type == AssetType::Scene) {
 
-		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message);
+		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message, storage);
 		result.fullPath = targetPath;
 		result.assetPath = ToAssetPath(targetPath);
 		return result;
@@ -212,7 +213,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(c
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const ProjectAssetEntry& asset,
-	ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath) {
+	ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath,
+	const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 
@@ -242,7 +244,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const 
 	// コピペでも単体複製と同じシーン保存処理を使う
 	if (asset.type == AssetType::Scene) {
 
-		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message);
+		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message, storage);
 		result.fullPath = targetPath;
 		result.assetPath = ToAssetPath(targetPath);
 		return result;
@@ -428,7 +430,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameDirectory(
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirectory(ProjectAssetSource source,
-	const std::string& directoryVirtualPath) {
+	const std::string& directoryVirtualPath,
+	const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = true;
@@ -495,7 +498,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirecto
 	}
 	// Actorはフォルダー外に保存されるため、失敗時の取り消しもシーン側でまとめて行う
 	std::string sceneError;
-	if (!SceneSystem::CopySceneAssets(sceneCopies, sceneError)) {
+	if (!SceneSystem::CopySceneAssets(sceneCopies, sceneError, storage)) {
 
 		return fail(sceneError.c_str());
 	}
@@ -505,7 +508,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirecto
 	return result;
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(const ProjectAssetEntry& asset, const AssetDatabase& database) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(const ProjectAssetEntry& asset, const AssetDatabase& database,
+	const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 
@@ -516,7 +520,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(cons
 	}
 
 	if (asset.type == AssetType::Scene || asset.assetPath.find("ExternalActors/") != std::string::npos) {
-		result.success = SceneAssetStorage::Delete(sourcePath, database, result.message);
+		result.success = storage->Delete(sourcePath, database, result.message);
 		result.assetPath = asset.assetPath;
 		result.fullPath = sourcePath;
 		return result;
@@ -544,7 +548,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(cons
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(ProjectAssetSource source,
-	const std::string& directoryVirtualPath, const AssetDatabase& database) {
+	const std::string& directoryVirtualPath, const AssetDatabase& database,
+	const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = true;
@@ -558,7 +563,7 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(
 	}
 
 	// フォルダー外にある所有Actorもまとめて退避する
-	if (!SceneAssetStorage::Delete(sourcePath, database, result.message)) {
+	if (!storage->Delete(sourcePath, database, result.message)) {
 		return result;
 	}
 

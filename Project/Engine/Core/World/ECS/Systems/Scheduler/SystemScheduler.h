@@ -76,6 +76,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 構造変更とSceneのLifecycle通知を安全地点で同期する
+		void FlushWorldCommands(SystemContext& context, SceneChangePhase phase);
 		// システムの処理順をソートする
 		void SortIfNeeded();
 		// ワールドを切り替える

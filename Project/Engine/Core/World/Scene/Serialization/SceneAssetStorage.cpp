@@ -3,65 +3,28 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneStorageFiles.h>
+#include <Engine/Core/World/Scene/Serialization/SceneStorageJournal.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <algorithm>
-#include <chrono>
-#include <format>
-#include <fstream>
 #include <mutex>
 #include <set>
-#include <unordered_map>
 #include <unordered_set>
+
+using namespace Engine::SceneStorageFiles;
 
 namespace {
 
 	using namespace Engine;
 	using Path = std::filesystem::path;
-	std::recursive_mutex storageMutex;
-	std::unordered_map<std::string, std::string> loadedRevisions;
-	std::unordered_map<std::string, AssetID> loadedAssets;
-	std::unordered_set<AssetID> protectedScenes;
-	thread_local bool rollingBack = false;
-
-	// 大文字小文字と相対要素を除いてパスを比較する
-	std::string PathKey(const Path& path) {
-
-		return Algorithm::ToLower(Algorithm::PathToUTF8(std::filesystem::weakly_canonical(path)));
-	}
-
-	// シンボリックリンクの解決後も所有ルート内に収まることを確認する
-	bool IsInside(const Path& path, const Path& root) {
-
-		if (path.empty() || root.empty()) return false;
-		const std::string key = PathKey(path);
-		const std::string parent = PathKey(root);
-		return key.size() > parent.size() && key.starts_with(parent) &&
-			(key[parent.size()] == '/' || key[parent.size()] == '\\');
-	}
-
-	// 編集可能なルート配下だけを変更対象にする
-	bool IsWritable(const Path& path) {
-
-		return IsInside(path, RuntimePaths::GetGameAssetsRoot()) || IsInside(path, RuntimePaths::GetEngineAssetsRoot());
-	}
-
-	// 存在しないファイルと読み込み不能なファイルを区別する
-	std::string FileRevision(const Path& path) {
-
-		if (!std::filesystem::exists(path)) return "missing";
-		const std::string hash = ContentHash::FileSHA256(path);
-		if (hash.empty()) throw std::runtime_error("ファイルを読み込めません: " + Algorithm::PathToUTF8(path));
-		return hash;
-	}
 
 	// シーン本体と参照中Actorの内容をまとめて比較する
 	std::string Revision(const Path& path, AssetID id) {
@@ -86,26 +49,6 @@ namespace {
 			throw std::runtime_error("シーンのメタデータを読めません: " + Algorithm::PathToUTF8(path));
 		}
 		return meta.guid;
-	}
-
-	struct Change {
-
-		Path path;
-		nlohmann::json data;
-		bool remove = false;
-	};
-
-	// 操作記録自体の置換が中断した場合も未完了として復旧する
-	nlohmann::json ReadJournal(const Path& directory) {
-
-		for (const char* name : { "operation.json", "operation.json.bak", "operation.json.tmp" }) {
-			auto journal = JsonAdapter::Load(directory / name, false);
-			if (!journal.is_object() || !journal.contains("files") || !journal["files"].is_array() ||
-				!journal.contains("state") || !journal["state"].is_string()) continue;
-			if (std::string_view(name) != "operation.json") journal["state"] = "pending";
-			return journal;
-		}
-		return {};
 	}
 
 	// 参照空間と所有シーンが一致するEntityRefだけを空にする
@@ -133,85 +76,6 @@ namespace {
 		return true;
 	}
 
-	// 退避の準備が終わってから変更し、失敗時は記録を使って戻す
-	bool Commit(const std::vector<Change>& changes, const std::string& label, std::string& error) {
-
-		if (!SceneAssetStorage::GetRecoveries(true).empty()) {
-			error = "未完了のシーン操作があります、Projectパネルの検証・修復から先に復旧してください";
-			return false;
-		}
-		if (changes.empty()) return true;
-		std::vector<const Change*> effective;
-		for (const Change& change : changes) {
-			if (change.remove && !std::filesystem::exists(change.path)) continue;
-			if (!change.remove && JsonAdapter::Load(change.path, false) == change.data) continue;
-			effective.push_back(&change);
-		}
-		if (effective.empty()) return true;
-		const Path recovery = RuntimePaths::GetSavedRoot() / "SceneAssetRecovery" / ToString(Engine::UUID::New());
-		std::filesystem::create_directories(recovery);
-		nlohmann::json journal = {{ "state", "preparing" }, { "label", label }, { "files", nlohmann::json::array() }};
-		journal["createdAtUtc"] = std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
-		std::unordered_set<std::string> paths;
-		for (const Change* entry : effective) {
-			const Change& change = *entry;
-			if (!IsWritable(change.path) || !paths.insert(PathKey(change.path)).second) {
-				error = "変更対象のパスが不正または重複しています";
-				return false;
-			}
-			const std::string before = FileRevision(change.path);
-			const size_t index = journal["files"].size();
-			const std::string backup = std::to_string(index) + ".before";
-			const Path staged = recovery / (std::to_string(index) + ".after");
-			if (before != "missing") {
-				std::filesystem::copy_file(change.path, recovery / backup);
-				if (FileRevision(recovery / backup) != before) throw std::runtime_error("退避中に外部変更を検出しました");
-			}
-			if (!change.remove && !JsonAdapter::SaveCanonical(staged, change.data)) {
-				error = "保存データを準備できません";
-				return false;
-			}
-			journal["files"].push_back({{ "path", Algorithm::PathToUTF8(std::filesystem::absolute(change.path)) },
-				{ "backup", backup }, { "before", before }, { "after", change.remove ? "missing" : FileRevision(staged) }});
-		}
-		journal["state"] = "pending";
-		if (!JsonAdapter::SaveCanonical(recovery / "operation.json", journal)) {
-			error = "操作記録を保存できません";
-			return false;
-		}
-		try {
-			for (size_t i = 0; i < effective.size(); ++i) {
-				const Change& change = *effective[i];
-				if (FileRevision(change.path) != journal["files"][i]["before"].get<std::string>()) {
-					throw std::runtime_error("操作中に外部変更を検出しました");
-				}
-				if (change.remove) {
-					std::filesystem::remove(change.path);
-				} else if (!JsonAdapter::SaveCanonical(change.path, change.data)) {
-					throw std::runtime_error("ファイルを保存できません");
-				}
-			}
-			journal["state"] = "completed";
-			if (!JsonAdapter::SaveCanonical(recovery / "operation.json", journal)) {
-				throw std::runtime_error("操作の完了を記録できません");
-			}
-			return true;
-		} catch (const std::exception& exception) {
-			error = exception.what();
-			std::string rollbackError;
-			rollingBack = true;
-			const bool recovered = SceneAssetStorage::Recover(recovery, rollbackError);
-			rollingBack = false;
-			if (!recovered) error += " / 復旧が必要です: " + rollbackError;
-			return false;
-		}
-	}
-
-	// 読み込み中のシーンをディスク操作から保護する
-	void RequireClosed(AssetID id) {
-
-		if (protectedScenes.contains(id)) throw std::runtime_error("読み込み中のシーンです、先に閉じるかアンロードしてください");
-	}
 }
 
 std::filesystem::path Engine::SceneAssetStorage::ResolveActorRoot(const Path& scenePath, AssetID sceneAsset) {
@@ -227,7 +91,7 @@ std::filesystem::path Engine::SceneAssetStorage::ResolveActorRoot(const Path& sc
 
 std::vector<Engine::SceneStorageIssue> Engine::SceneAssetStorage::Validate(const Path& scenePath, AssetID sceneAsset) {
 
-	std::lock_guard lock(storageMutex);
+	std::lock_guard lock(storageMutex_);
 	std::vector<SceneStorageIssue> issues;
 	try {
 		const auto scene = JsonAdapter::Load(scenePath, false);
@@ -261,7 +125,7 @@ std::vector<Engine::SceneStorageIssue> Engine::SceneAssetStorage::Validate(const
 
 std::vector<Engine::SceneStorageIssue> Engine::SceneAssetStorage::Inspect(const AssetDatabase& database) {
 
-	std::lock_guard lock(storageMutex);
+	std::lock_guard lock(storageMutex_);
 	std::vector<SceneStorageIssue> issues;
 	std::unordered_set<std::string> roots;
 	for (const auto& [id, meta] : database.GetAssets()) {
@@ -285,33 +149,33 @@ std::vector<Engine::SceneStorageIssue> Engine::SceneAssetStorage::Inspect(const 
 
 void Engine::SceneAssetStorage::TrackLoaded(const Path& scenePath, AssetID sceneAsset) {
 
-	std::lock_guard lock(storageMutex);
-	loadedRevisions[PathKey(scenePath)] = Revision(scenePath, sceneAsset);
-	loadedAssets[PathKey(scenePath)] = sceneAsset;
+	std::lock_guard lock(storageMutex_);
+	loadedRevisions_[PathKey(scenePath)] = Revision(scenePath, sceneAsset);
+	loadedAssets_[PathKey(scenePath)] = sceneAsset;
 }
 
 void Engine::SceneAssetStorage::SetProtectedScenes(const std::vector<AssetID>& sceneAssets) {
 
-	std::unique_lock lock(storageMutex, std::try_to_lock);
+	std::unique_lock lock(storageMutex_, std::try_to_lock);
 	if (!lock.owns_lock()) return;
-	protectedScenes = { sceneAssets.begin(), sceneAssets.end() };
+	protectedScenes_ = { sceneAssets.begin(), sceneAssets.end() };
 }
 
 bool Engine::SceneAssetStorage::Save(SceneSaveSnapshot snapshot, std::string& error) {
 
-	std::unique_lock lock(storageMutex, std::try_to_lock);
+	std::unique_lock lock(storageMutex_, std::try_to_lock);
 	if (!lock.owns_lock()) { error = "シーンの保存・削除・修復処理中です"; return false; }
 	try {
-		const auto tracked = loadedRevisions.find(PathKey(snapshot.scenePath));
+		const auto tracked = loadedRevisions_.find(PathKey(snapshot.scenePath));
 		const std::string originalRevision = Revision(snapshot.scenePath, snapshot.sceneAsset);
-		if (tracked != loadedRevisions.end() && tracked->second != originalRevision) {
+		if (tracked != loadedRevisions_.end() && tracked->second != originalRevision) {
 			throw std::runtime_error("シーンまたはActorが外部で変更・削除されています、再読み込みまたは修復してください");
 		}
 		if (std::filesystem::exists(snapshot.scenePath)) {
 			const auto issues = Validate(snapshot.scenePath, snapshot.sceneAsset);
 			if (!issues.empty()) throw std::runtime_error(issues.front().detail);
 		}
-		std::vector<Change> changes;
+		std::vector<SceneStorageChange> changes;
 		std::set<std::string> used;
 		const Path actorRoot = ResolveActorRoot(snapshot.scenePath, snapshot.sceneAsset);
 		if (snapshot.useExternalActors) {
@@ -339,8 +203,8 @@ bool Engine::SceneAssetStorage::Save(SceneSaveSnapshot snapshot, std::string& er
 		}
 		if (Revision(snapshot.scenePath, snapshot.sceneAsset) != originalRevision) throw std::runtime_error("保存準備中に外部変更を検出しました");
 		if (!Commit(changes, "シーン保存", error)) return false;
-		loadedRevisions[PathKey(snapshot.scenePath)] = Revision(snapshot.scenePath, snapshot.sceneAsset);
-		loadedAssets[PathKey(snapshot.scenePath)] = snapshot.sceneAsset;
+		loadedRevisions_[PathKey(snapshot.scenePath)] = Revision(snapshot.scenePath, snapshot.sceneAsset);
+		loadedAssets_[PathKey(snapshot.scenePath)] = snapshot.sceneAsset;
 		if (!actorRoot.empty()) std::filesystem::remove(actorRoot, ec);
 		return true;
 	} catch (const std::exception& exception) { error = exception.what(); return false; }
@@ -348,7 +212,7 @@ bool Engine::SceneAssetStorage::Save(SceneSaveSnapshot snapshot, std::string& er
 
 bool Engine::SceneAssetStorage::Delete(const Path& path, const AssetDatabase& database, std::string& error) {
 
-	std::unique_lock lock(storageMutex, std::try_to_lock);
+	std::unique_lock lock(storageMutex_, std::try_to_lock);
 	if (!lock.owns_lock()) { error = "シーンの保存・削除・修復処理中です"; return false; }
 	try {
 		if (!IsWritable(path)) throw std::runtime_error("アセットルートの外側は削除できません");
@@ -392,7 +256,7 @@ bool Engine::SceneAssetStorage::Delete(const Path& path, const AssetDatabase& da
 				if (IsInside(file, root)) throw std::runtime_error("参照中Actorの直接削除はできません、シーンの修復操作を使用してください");
 			}
 		}
-		std::vector<Change> changes;
+		std::vector<SceneStorageChange> changes;
 		for (const Path& file : files) changes.push_back({ file, {}, true });
 		if (!Commit(changes, "アセット削除", error)) return false;
 		for (auto it = directories.rbegin(); it != directories.rend(); ++it) {
@@ -405,7 +269,7 @@ bool Engine::SceneAssetStorage::Delete(const Path& path, const AssetDatabase& da
 
 bool Engine::SceneAssetStorage::RestoreActor(const Path& scenePath, UUID actorID, const Path& source, std::string& error) {
 
-	std::unique_lock lock(storageMutex, std::try_to_lock);
+	std::unique_lock lock(storageMutex_, std::try_to_lock);
 	if (!lock.owns_lock()) { error = "シーンの保存・削除・修復処理中です"; return false; }
 	try {
 		const AssetID id = ReadSceneID(scenePath);
@@ -419,7 +283,7 @@ bool Engine::SceneAssetStorage::RestoreActor(const Path& scenePath, UUID actorID
 		const Path target = ResolveActorRoot(scenePath, id) / (ToString(actorID) + ".actor.json");
 		if (std::filesystem::exists(target)) throw std::runtime_error("復元先にファイルが存在します、上書きは行いません");
 		if (!Commit({ { target, actor } }, "Actor復元", error)) return false;
-		loadedRevisions.erase(PathKey(scenePath));
+		loadedRevisions_.erase(PathKey(scenePath));
 		return true;
 	} catch (const std::exception& exception) { error = exception.what(); return false; }
 }
@@ -439,7 +303,7 @@ bool Engine::SceneAssetStorage::PreviewMissingActorRemoval(const Path& scenePath
 bool Engine::SceneAssetStorage::UpdateMissingActor(const Path& scenePath, UUID actorID,
 	std::string& error, std::vector<Path>* preview) {
 
-	std::unique_lock lock(storageMutex, std::try_to_lock);
+	std::unique_lock lock(storageMutex_, std::try_to_lock);
 	if (!lock.owns_lock()) { error = "シーンの保存・削除・修復処理中です"; return false; }
 	try {
 		const AssetID id = ReadSceneID(scenePath);
@@ -454,7 +318,7 @@ bool Engine::SceneAssetStorage::UpdateMissingActor(const Path& scenePath, UUID a
 		const std::string token = ToString(actorID);
 		ids.erase(found);
 		if (!ClearActorReferences(scene, id, id, token)) throw std::runtime_error("シーン本体に型を確定できないActor参照が残っています、先に参照元を修正してください");
-		std::vector<Change> changes;
+		std::vector<SceneStorageChange> changes;
 		for (const auto& actor : ids) {
 			const Path path = actorRoot / (actor.get<std::string>() + ".actor.json");
 			auto data = JsonAdapter::Load(path, false);
@@ -492,69 +356,47 @@ bool Engine::SceneAssetStorage::UpdateMissingActor(const Path& scenePath, UUID a
 			return true;
 		}
 		if (!Commit(changes, "欠損Actorの削除確定", error)) return false;
-		loadedRevisions.erase(PathKey(scenePath));
+		loadedRevisions_.erase(PathKey(scenePath));
 		return true;
 	} catch (const std::exception& exception) { error = exception.what(); return false; }
 }
 
 std::vector<std::filesystem::path> Engine::SceneAssetStorage::GetRecoveries(bool unfinishedOnly) {
 
-	std::lock_guard lock(storageMutex);
-	std::vector<Path> result;
-	std::error_code ec;
-	for (std::filesystem::directory_iterator it(RuntimePaths::GetSavedRoot() / "SceneAssetRecovery", ec), end;
-		!ec && it != end; it.increment(ec)) {
-		const auto journal = ReadJournal(it->path());
-		const bool invalid = !journal.is_object() && (std::filesystem::exists(it->path() / "operation.json") ||
-			std::filesystem::exists(it->path() / "operation.json.bak") || std::filesystem::exists(it->path() / "operation.json.tmp"));
-		if (invalid || (journal.is_object() && (!unfinishedOnly || journal.value("state", std::string{}) == "pending"))) result.push_back(it->path());
-	}
-	return result;
+	std::lock_guard lock(storageMutex_);
+	return SceneStorageJournal::GetRecoveries(unfinishedOnly);
+}
+
+bool Engine::SceneAssetStorage::RecoverInternal(const Path& directory, std::string& error, bool rollingBack) {
+
+	std::unique_lock lock(storageMutex_, std::try_to_lock);
+	if (!lock.owns_lock()) { error = "シーンの保存・削除・修復処理中です"; return false; }
+	return SceneStorageJournal::Recover(directory, error, [&](const Path& target) {
+		const auto loaded = loadedAssets_.find(PathKey(target));
+		if (!rollingBack && loaded != loadedAssets_.end()) RequireClosed(loaded->second);
+		for (AssetID id : protectedScenes_) {
+			if (!rollingBack && (Algorithm::PathToUTF8(target).find(ToString(id)) != std::string::npos ||
+				(AssetTypeResolver::GuessByPath(target) == AssetType::Scene && std::filesystem::exists(Path(target.wstring() + L".meta")) && ReadSceneID(target) == id))) {
+				throw std::runtime_error("読み込み中シーンの復旧はできません");
+			}
+		}
+	});
+}
+
+bool Engine::SceneAssetStorage::Commit(const std::vector<SceneStorageChange>& changes, const std::string& label, std::string& error) {
+
+	return SceneStorageJournal::Commit(changes, label, error, [this](const Path& directory, std::string& rollbackError) {
+		const bool recovered = RecoverInternal(directory, rollbackError, true);
+		return recovered;
+	});
+}
+
+void Engine::SceneAssetStorage::RequireClosed(AssetID id) {
+
+	if (protectedScenes_.contains(id)) throw std::runtime_error("読み込み中のシーンです、先に閉じるかアンロードしてください");
 }
 
 bool Engine::SceneAssetStorage::Recover(const Path& directory, std::string& error) {
 
-	std::unique_lock lock(storageMutex, std::try_to_lock);
-	if (!lock.owns_lock()) { error = "シーンの保存・削除・修復処理中です"; return false; }
-	try {
-		if (!IsInside(directory, RuntimePaths::GetSavedRoot() / "SceneAssetRecovery")) throw std::runtime_error("退避先が不正です");
-		auto journal = ReadJournal(directory);
-		if (!journal.is_object()) throw std::runtime_error("操作記録を読み込めません、退避フォルダーを確認してください");
-		const auto& files = journal.at("files");
-		for (const auto& entry : files) {
-			const Path target = Algorithm::PathFromUTF8(entry.at("path").get<std::string>());
-			if (!IsWritable(target)) throw std::runtime_error("復旧対象がアセットルートの外側です");
-			const auto loaded = loadedAssets.find(PathKey(target));
-			if (!rollingBack && loaded != loadedAssets.end()) RequireClosed(loaded->second);
-			for (AssetID id : protectedScenes) {
-				if (!rollingBack && (Algorithm::PathToUTF8(target).find(ToString(id)) != std::string::npos ||
-					(AssetTypeResolver::GuessByPath(target) == AssetType::Scene && std::filesystem::exists(Path(target.wstring() + L".meta")) && ReadSceneID(target) == id))) {
-					throw std::runtime_error("読み込み中シーンの復旧はできません");
-				}
-			}
-			const std::string current = FileRevision(target);
-			// ファイル置換の途中で終了した場合は、元ファイルの退避を照合する
-			const bool interruptedReplace = current == "missing" && journal.value("state", "") == "pending" &&
-				entry.at("before") != "missing" && FileRevision(Path(target.wstring() + L".bak")) == entry.at("before").get<std::string>();
-			if (!interruptedReplace && current != entry.at("before").get<std::string>() && current != entry.at("after").get<std::string>()) throw std::runtime_error("操作後の外部変更を検出しました: " + Algorithm::PathToUTF8(target));
-			const Path backup = directory / entry.at("backup").get<std::string>();
-			if (!IsInside(backup, directory) || (entry.at("before") != "missing" && FileRevision(backup) != entry.at("before").get<std::string>())) throw std::runtime_error("退避データが不正です");
-		}
-		// 復旧自体が中断しても次回起動で再開を案内する
-		journal["state"] = "pending";
-		if (!JsonAdapter::SaveCanonical(directory / "operation.json", journal)) throw std::runtime_error("復旧開始を記録できません");
-		for (auto it = files.rbegin(); it != files.rend(); ++it) {
-			const Path target = Algorithm::PathFromUTF8(it->at("path").get<std::string>());
-			if (FileRevision(target) == it->at("before").get<std::string>()) continue;
-			if (it->at("before") == "missing") {
-				std::filesystem::remove(target);
-			} else {
-				std::filesystem::create_directories(target.parent_path());
-				std::filesystem::copy_file(directory / it->at("backup").get<std::string>(), target, std::filesystem::copy_options::overwrite_existing);
-			}
-		}
-		journal["state"] = "recovered";
-		if (!JsonAdapter::SaveCanonical(directory / "operation.json", journal)) throw std::runtime_error("復旧完了を記録できません");
-		return true;
-	} catch (const std::exception& exception) { error = exception.what(); return false; }
+	return RecoverInternal(directory, error, false);
 }

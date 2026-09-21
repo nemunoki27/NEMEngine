@@ -81,9 +81,3 @@ enum class EasingType {
 };
 
 float EasedValue(EasingType easingType, float t);
-
-namespace Easing {
-
-	// imgui選択
-	void SelectEasingType(EasingType& easingType, const std::string& label = "label", float itemWidth = 200.0f);
-}

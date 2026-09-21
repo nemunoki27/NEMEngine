@@ -6,6 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/World/ECS/World/ECSWorldSerialization.h>
 
 // c++
 #include <algorithm>
@@ -118,7 +119,7 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 	}
 	if (HasComponentChangeChannel(
 		channels, ComponentChangeChannel::Lighting)) {
-		IncrementRevision(lightDataRevision_);
+		changes_.MarkLightDataModified();
 	}
 	return entity;
 }
@@ -254,60 +255,13 @@ bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, const std::st
 
 void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
 
-	// エンティティが有効でなければ追加できない
-	AssertAlive(entity);
-
-	const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
-	if (!info) {
-		Assert::Call(false, "シーンファイルに未登録のComponentType名があります");
-		return;
-	}
-	Assert::Call(CanStoreComponent(*info),
-		"ComponentTypeをこのWorldへ格納できません");
-
-	// 既に持っているなら上書きする
-	const bool added = !records_[entity.index].location.archetype->Has(info->id);
-	if (added) {
-
-		// シグネチャを更新してアーキタイプを移動する
-		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
-		EntitySignature newSignature = oldSignature;
-		newSignature.Set(info->id);
-		// 新しいアーキタイプへ移動する
-		MigrateEntity(entity, oldSignature, newSignature);
-		{
-			const EntityLocation& current = records_[entity.index].location;
-			void* ptr = current.archetype->GetRaw(
-				current.chunkIndex, current.row, info->id);
-			info->onAdded(*this, entity, ptr);
-		}
-		NotifyComponentMutation(entity, info->id, ComponentMutationKind::Added);
-	}
-
-	ApplyComponentJson(entity, typeName, data);
+	ECSWorldSerialization::AddComponentFromJson(*this, entity, typeName, data);
 }
 
 bool Engine::ECSWorld::ApplyComponentJson(
 	const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
 
-	if (!IsAlive(entity)) {
-		return false;
-	}
-
-	const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
-	if (!info) {
-		return false;
-	}
-
-	auto& location = records_[entity.index].location;
-	if (!location.archetype->Has(info->id)) {
-		return false;
-	}
-
-	void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, info->id);
-	info->fromJson(*this, entity, ptr, data);
-	NotifyComponentMutation(entity, info->id, ComponentMutationKind::Modified);
-	return true;
+	return ECSWorldSerialization::ApplyComponentJson(*this, entity, typeName, data);
 }
 
 void Engine::ECSWorld::MarkComponentModified(const Entity& entity, uint32_t typeID) {
@@ -320,107 +274,46 @@ void Engine::ECSWorld::MarkComponentModified(const Entity& entity, uint32_t type
 
 void Engine::ECSWorld::MarkDataModified() {
 
-	IncrementRevision(dataRevision_);
+	changes_.MarkDataModified();
 }
 
 void Engine::ECSWorld::MarkRenderDataModified() {
 
-	IncrementRevision(renderDataRevision_);
-	renderResetRevision_ = renderDataRevision_;
-	entityRenderRevisions_.clear();
-	meshColorRevisions_.clear();
-	IncrementRevision(meshColorRevision_);
+	changes_.MarkRenderDataModified();
 }
 
 void Engine::ECSWorld::MarkRenderDataModified(const Entity& entity) {
 
-	IncrementRevision(renderDataRevision_);
-	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-	entityRenderRevisions_[key] = renderDataRevision_;
+	changes_.MarkRenderDataModified(entity);
 }
 
 void Engine::ECSWorld::MarkMeshColorModified(const Entity& entity) {
 
 	if (!IsAlive(entity)) { return; }
-	IncrementRevision(meshColorRevision_);
-	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-	meshColorRevisions_[key] = meshColorRevision_;
-	MarkDataModified();
+	changes_.MarkMeshColorModified(entity);
 }
 
 uint64_t Engine::ECSWorld::GetEntityRenderRevision(const Entity& entity) const {
 
-	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-	const auto found = entityRenderRevisions_.find(key);
-	return found == entityRenderRevisions_.end() ? 0 : found->second;
+	return changes_.GetEntityRenderRevision(entity);
 }
 
 uint64_t Engine::ECSWorld::GetMeshColorRevision(const Entity& entity) const {
 
-	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-	const auto found = meshColorRevisions_.find(key);
-	return found == meshColorRevisions_.end() ? 0 : found->second;
+	return changes_.GetMeshColorRevision(entity);
 }
 
 void Engine::ECSWorld::MarkTransformConsumersModified(
 	ComponentChangeChannel channels,
 	std::span<const Entity> changedTransforms) {
 
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Render)) {
-		IncrementRevision(renderTransformRevision_);
-
-		RenderTransformChangeBatch batch{};
-		batch.revision = renderTransformRevision_;
-		batch.entities.assign(
-			changedTransforms.begin(), changedTransforms.end());
-		renderTransformChangeHistory_.emplace_back(std::move(batch));
-		while (kRenderTransformHistoryCount <
-			renderTransformChangeHistory_.size()) {
-			renderTransformChangeHistory_.pop_front();
-		}
-	}
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Lighting)) {
-		IncrementRevision(lightDataRevision_);
-	}
+	changes_.MarkTransformConsumersModified(channels, changedTransforms);
 }
 
 bool Engine::ECSWorld::CollectRenderTransformChanges(
 	uint64_t afterRevision, std::vector<Entity>& outEntities) const {
 
-	outEntities.clear();
-	if (afterRevision == renderTransformRevision_) {
-		return true;
-	}
-	if (renderTransformRevision_ < afterRevision) {
-		return false;
-	}
-	if (renderTransformChangeHistory_.empty() ||
-		afterRevision + 1 <
-		renderTransformChangeHistory_.front().revision) {
-		return false;
-	}
-
-	for (const RenderTransformChangeBatch& batch :
-		renderTransformChangeHistory_) {
-		if (batch.revision <= afterRevision) {
-			continue;
-		}
-		outEntities.insert(outEntities.end(),
-			batch.entities.begin(), batch.entities.end());
-	}
-	std::sort(outEntities.begin(), outEntities.end(),
-		[](const Entity& lhs, const Entity& rhs) {
-			if (lhs.index != rhs.index) {
-				return lhs.index < rhs.index;
-			}
-			return lhs.generation < rhs.generation;
-		});
-	outEntities.erase(
-		std::unique(outEntities.begin(), outEntities.end()),
-		outEntities.end());
-	return true;
+	return changes_.CollectRenderTransformChanges(afterRevision, outEntities);
 }
 
 ComponentChangeChannel Engine::ECSWorld::GetTransformChangeChannels(
@@ -455,30 +348,12 @@ bool Engine::ECSWorld::CanStoreComponent(const ComponentTypeInfo& info) const {
 uint64_t Engine::ECSWorld::AddComponentMutationListener(
 	ComponentMutationCallback callback, void* userData) {
 
-	if (!callback) {
-		return 0;
-	}
-
-	const uint64_t listenerID = nextComponentMutationListenerID_++;
-	componentMutationListeners_.emplace_back(ComponentMutationListener{
-		.id = listenerID,
-		.callback = callback,
-		.userData = userData,
-		});
-	return listenerID;
+	return changes_.AddComponentMutationListener(callback, userData);
 }
 
 void Engine::ECSWorld::RemoveComponentMutationListener(uint64_t listenerID) {
 
-	if (listenerID == 0) {
-		return;
-	}
-	componentMutationListeners_.erase(
-		std::remove_if(componentMutationListeners_.begin(), componentMutationListeners_.end(),
-			[listenerID](const ComponentMutationListener& listener) {
-				return listener.id == listenerID;
-			}),
-		componentMutationListeners_.end());
+	changes_.RemoveComponentMutationListener(listenerID);
 }
 
 void Engine::ECSWorld::NotifyComponentMutation(
@@ -495,26 +370,7 @@ void Engine::ECSWorld::NotifyComponentMutation(
 	} else if (kind == ComponentMutationKind::EntityDestroyed) {
 		channels = GetChangeChannels(entity);
 	}
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Render)) {
-		MarkRenderDataModified(entity);
-	}
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Lighting)) {
-		IncrementRevision(lightDataRevision_);
-	}
-	// 破棄通知で作られた世代記録もここで回収する
-	if (kind == ComponentMutationKind::EntityDestroyed) {
-		const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
-		meshColorRevisions_.erase(key);
-		entityRenderRevisions_.erase(key);
-	}
-	// 購読の追加削除はWorldEnter/Exitだけで行い、通知中の割り当てを避ける
-	for (const ComponentMutationListener& listener : componentMutationListeners_) {
-		if (listener.callback) {
-			listener.callback(*this, entity, typeID, kind, listener.userData);
-		}
-	}
+	changes_.Notify(*this, entity, typeID, kind, channels);
 }
 
 ComponentChangeChannel Engine::ECSWorld::GetChangeChannels(
@@ -535,195 +391,20 @@ ComponentChangeChannel Engine::ECSWorld::GetChangeChannels(
 	return channels;
 }
 
-void Engine::ECSWorld::IncrementRevision(uint64_t& revision) {
-
-	++revision;
-	if (revision == 0) {
-		revision = 1;
-	}
-}
-
 std::unique_ptr<Engine::ECSWorld>
 Engine::ECSWorld::CloneForSerialization() const {
 
-	auto snapshot = std::make_unique<ECSWorld>(kind_);
-	snapshot->records_.resize(records_.size());
-	snapshot->free_ = free_;
-	snapshot->uuidToEntity_.reserve(uuidToEntity_.size());
-	snapshot->dataRevision_ = dataRevision_;
-	snapshot->renderDataRevision_ = renderDataRevision_;
-	snapshot->renderTransformRevision_ =
-		renderTransformRevision_;
-	snapshot->lightDataRevision_ = lightDataRevision_;
-
-	ComponentTypeRegistry& registry =
-		ComponentTypeRegistry::GetInstance();
-	for (uint32_t index = 0;
-		index < static_cast<uint32_t>(
-			records_.size()); ++index) {
-		snapshot->records_[index].generation =
-			records_[index].generation;
-	}
-
-	// 同じArchetypeの列解決を行ごとに繰り返さず、Chunkを連続走査する
-	for (const auto& [sourceSignature,
-		sourceArchetypeOwner] : archetypes_) {
-
-		const EntityArchetype& sourceArchetype =
-			*sourceArchetypeOwner;
-		EntitySignature signature{};
-		std::vector<const ComponentTypeInfo*> infos{};
-		std::vector<uint32_t> sourceColumns{};
-		std::vector<uint32_t> destinationColumns{};
-		for (uint32_t typeID :
-			sourceArchetype.GetTypes()) {
-
-			const ComponentTypeInfo& info =
-				registry.GetInfo(typeID);
-			// custom serializerが参照する従属Bufferも保存用Worldへ複製する
-			if (!info.serializable &&
-				info.storageKind !=
-				ComponentStorageKind::Buffer) {
-				continue;
-			}
-			signature.Set(typeID);
-			infos.emplace_back(&info);
-			sourceColumns.emplace_back(
-				sourceArchetype.GetColumnIndex(typeID));
-		}
-
-		EntityArchetype* destinationArchetype =
-			snapshot->GetOrCreateArchetype(signature);
-		destinationColumns.reserve(infos.size());
-		for (const ComponentTypeInfo* info : infos) {
-			destinationColumns.emplace_back(
-				destinationArchetype->
-					GetColumnIndex(info->id));
-		}
-
-		for (const std::unique_ptr<EntityChunk>&
-			sourceChunkOwner :
-			sourceArchetype.GetChunks()) {
-
-			const EntityChunk& sourceChunk =
-				*sourceChunkOwner;
-			const std::span<const Entity> entities =
-				sourceChunk.GetEntities();
-			for (uint32_t sourceRow = 0;
-				sourceRow <
-					static_cast<uint32_t>(
-						entities.size()); ++sourceRow) {
-
-				const Entity entity =
-					entities[sourceRow];
-				const EntityRecord& sourceRecord =
-					records_[entity.index];
-				EntityRecord& destinationRecord =
-					snapshot->records_[entity.index];
-				const auto [destinationChunkIndex,
-					destinationRow] =
-					destinationArchetype->
-						AddUninitialized(entity);
-				EntityChunk& destinationChunk =
-					*destinationArchetype->GetChunks()[
-						destinationChunkIndex];
-
-				destinationRecord.alive = true;
-				destinationRecord.pendingDestroy =
-					sourceRecord.pendingDestroy;
-				destinationRecord.uuid =
-					sourceRecord.uuid;
-				destinationRecord.location = {
-					destinationArchetype,
-					destinationChunkIndex,
-					destinationRow
-				};
-				snapshot->uuidToEntity_[
-					destinationRecord.uuid] = entity;
-
-				for (size_t column = 0;
-					column < infos.size(); ++column) {
-
-					const ComponentTypeInfo& info =
-						*infos[column];
-					void* destination =
-						destinationChunk.
-							GetRawByColumnIndex(
-								destinationColumns[column],
-								destinationRow);
-					const void* source =
-						sourceChunk.
-							GetRawByColumnIndex(
-								sourceColumns[column],
-								sourceRow);
-					info.copyConstruct(
-						destination, source);
-					if (info.enableable) {
-						destinationChunk.
-							SetEnabledByColumnIndex(
-								destinationColumns[column],
-								destinationRow,
-								sourceChunk.
-									IsEnabledByColumnIndex(
-										sourceColumns[column],
-										sourceRow));
-					}
-				}
-			}
-		}
-	}
-	return snapshot;
+	return ECSWorldSerialization::CloneForSerialization(*this);
 }
 
 void ECSWorld::SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const {
 
-	Assert::Call(IsAlive(entity), "Entityが有効ではありません");
-
-	// アーキタイプから持っているコンポーネントの種類を取得
-	const EntityArchetype* archetype = records_[entity.index].location.archetype;
-	const auto& types = archetype->GetTypes();
-
-	outComponents = nlohmann::json::object();
-	for (auto typeID : types) {
-
-		const auto& info = ComponentTypeRegistry::GetInstance().GetInfo(typeID);
-		if (!info.serializable) {
-			continue;
-		}
-
-		// アーキタイプからコンポーネントデータを取得
-		auto& location = records_[entity.index].location;
-		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
-
-		// jsonに変換して出力
-		info.toJson(*this, entity, ptr, outComponents[info.name]);
-	}
+	ECSWorldSerialization::SerializeEntityComponents(*this, entity, outComponents);
 }
 
 bool Engine::ECSWorld::SerializeComponentToJson(const Entity& entity, const std::string_view& typeName, nlohmann::json& outData) const {
 
-	// エンティティが有効でなければシリアライズできない
-	if (!IsAlive(entity)) {
-		return false;
-	}
-
-	// コンポーネントの種類IDを取得
-	const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
-	if (!info) {
-		return false;
-	}
-	if (!info->serializable) {
-		return false;
-	}
-
-	const auto& location = records_[entity.index].location;
-	if (!location.archetype->Has(info->id)) {
-		return false;
-	}
-	// アーキタイプからコンポーネントデータを取得
-	void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, info->id);
-	info->toJson(*this, entity, ptr, outData);
-	return true;
+	return ECSWorldSerialization::SerializeComponentToJson(*this, entity, typeName, outData);
 }
 
 bool ECSWorld::IsAlive(const Entity& entity) const {
@@ -924,7 +605,7 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	}
 	if (HasComponentChangeChannel(
 		relocatedChannels, ComponentChangeChannel::Lighting)) {
-		IncrementRevision(lightDataRevision_);
+		changes_.MarkLightDataModified();
 	}
 }
 

@@ -45,7 +45,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		AssetID activeScene_{};
-		AssetDatabase assetDataBase_;
+		AssetDatabase assetDatabase_;
 
 		SceneInstanceManager editScenes_;
 		SceneInstanceManager playScenes_;
@@ -65,20 +65,29 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 実行用システムを登録する
 		void InitSystems();
+		// 起動シーンの設定を読み込む
 		void LoadActiveSceneConfig();
+		// 最後に開いたシーンを保存する
 		void SaveActiveSceneConfig() const;
+		// 起動シーンを編集ワールドへ読み込む
 		void InitFirstScene();
+		// 保存用データから実行ワールドを開始する
 		void StartPlayWorld();
+		// 実行ワールドを切り離して破棄する
 		void StopPlayWorld();
+		// 実行対象をシステムへ接続する
 		void RefreshActiveWorldContext();
+		// スクリプトからの終了要求を処理する
 		bool HandleApplicationQuitRequest();
 
+		// 実行対象シーンのヘッダを取得する
 		const SceneHeader* GetActiveSceneHeader() const;
+		// ゲームビューの描画要求を構築する
 		RenderFrameRequest BuildRenderFrameRequest(GraphicsCore& graphicsCore);
 
+		// Release起動時の事前読み込みを実行する
 		void PreloadReleaseResources(GraphicsCore& graphicsCore);
-		void WarmupReleaseWorld(GraphicsCore& graphicsCore, ECSWorld& world,
-			SceneInstanceManager& scenes, SystemContext& context);
 	};
 } // Engine

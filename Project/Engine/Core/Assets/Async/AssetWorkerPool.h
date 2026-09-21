@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 // c++
+#include <algorithm>
+#include <cstdint>
 #include <deque>
 #include <mutex>
 #include <thread>
@@ -47,12 +49,12 @@ namespace Engine {
 
 		// 開始
 		void Start(uint32_t threadCount, ProcessFn process);
-		// 停止
+		// 待機中のジョブを処理し、全ワーカーの終了を待つ
 		void Stop();
 
 		// ジョブの追加
 		void Enqueue(T job);
-		// 全てのジョブの完了を待機
+		// 全ジョブの処理関数が戻るまで待つ
 		void WaitIdle();
 
 		//--------- accessor -----------------------------------------------------
@@ -90,6 +92,10 @@ namespace Engine {
 
 		// ワーカースレッドのループ関数
 		void WorkerLoop(uint32_t workerIndex);
+		// 次のジョブを取得し、停止条件なら終了する
+		bool TakeJob(T& job);
+		// 実行中件数を戻し、待機者へ完了を通知する
+		void CompleteJob();
 	};
 
 	//============================================================================
@@ -103,7 +109,6 @@ namespace Engine {
 
 	template<typename T>
 	inline void AssetWorkerPool<T>::Start(uint32_t threadCount, ProcessFn process) {
-
 
 		// 処理前に停止
 		Stop();
@@ -203,32 +208,39 @@ namespace Engine {
 		for (;;) {
 
 			T job{};
-			// ジョブが利用可能になるまで待機
-			{
-				std::unique_lock lock(mutex_);
-				cv_.wait(lock, [this]() {
-					return stopping_ || !jobs_.empty();
-					});
-				if (stopping_ && jobs_.empty()) {
-					return;
-				}
-
-				job = std::move(jobs_.front());
-				jobs_.pop_front();
-				++inFlight_;
+			if (!TakeJob(job)) {
+				return;
 			}
 
 			// ジョブを処理
 			process_(std::move(job), workerIndex);
-			{
-				std::scoped_lock lock(mutex_);
-				if (0 < inFlight_) {
-					--inFlight_;
-				}
-				if (jobs_.empty() && inFlight_ == 0) {
-					idleCv_.notify_all();
-				}
-			}
+			CompleteJob();
+		}
+	}
+
+	template<typename T>
+	inline bool AssetWorkerPool<T>::TakeJob(T& job) {
+
+		std::unique_lock lock(mutex_);
+		cv_.wait(lock, [this]() { return stopping_ || !jobs_.empty(); });
+		if (stopping_ && jobs_.empty()) {
+			return false;
+		}
+		job = std::move(jobs_.front());
+		jobs_.pop_front();
+		++inFlight_;
+		return true;
+	}
+
+	template<typename T>
+	inline void AssetWorkerPool<T>::CompleteJob() {
+
+		std::scoped_lock lock(mutex_);
+		if (0 < inFlight_) {
+			--inFlight_;
+		}
+		if (jobs_.empty() && inFlight_ == 0) {
+			idleCv_.notify_all();
 		}
 	}
 } // Engine

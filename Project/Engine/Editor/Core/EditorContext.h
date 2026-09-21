@@ -16,6 +16,7 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	class SceneAssetStorage;
 	class SceneInstanceManager;
 	class ManagedScriptBuildService;
 
@@ -63,6 +64,8 @@ namespace Engine {
 		ECSWorld* editWorld = nullptr;
 		// アセットデータベース
 		AssetDatabase* assetDatabase = nullptr;
+		// 編集セッションが所有するScene保存状態
+		std::shared_ptr<SceneAssetStorage> sceneStorage;
 		// managed scriptingのEditor向けサービス境界でread-only snapshot + request interface
 		// panelはEngineApplicationのprivate memberやLoggerを直接見ず、これ経由で観測・操作する
 		ManagedScriptBuildService* scriptBuildService = nullptr;

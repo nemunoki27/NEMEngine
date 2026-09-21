@@ -1,3 +1,7 @@
+#include "ApplicationPlatformTests.h"
+#include "FoundationTests.h"
+#include "SceneStorageTests.h"
+
 //============================================================================
 //	include
 //============================================================================
@@ -543,10 +547,11 @@ namespace {
 	bool TestSceneAssetStorage() {
 
 		using Storage = Engine::SceneAssetStorage;
+		Storage storage;
 		const auto testRoot = Engine::RuntimePaths::GetGameAssetsRoot() / "Tests" / ("Storage_" + Engine::ToString(Engine::UUID::New()));
 		const auto scenePath = testRoot / "Source.scene.json";
 		const auto referencerPath = testRoot / "Referencer.scene.json";
-		const auto recoveriesBefore = Storage::GetRecoveries();
+		const auto recoveriesBefore = storage.GetRecoveries();
 		std::filesystem::create_directories(testRoot);
 		bool passed = true;
 		std::string error;
@@ -576,23 +581,23 @@ namespace {
 		snapshot.useExternalActors = true;
 		snapshot.root = emptyScene;
 		snapshot.root["Entities"] = { actor(parentID, {}), actor(childID, parentID) };
-		check(Storage::Save(snapshot, error), "initial save");
+		check(storage.Save(snapshot, error), "initial save");
 		if (!passed) return false;
-		check(Storage::Validate(scenePath, id).empty(), "validate saved actors");
+		check(storage.Validate(scenePath, id).empty(), "validate saved actors");
 		const auto validScene = Engine::JsonAdapter::Load(scenePath, false);
 		auto duplicateScene = validScene;
 		duplicateScene["ExternalActors"].push_back(Engine::ToString(parentID));
 		Engine::JsonAdapter::SaveCanonical(scenePath, duplicateScene);
-		check(!Storage::Validate(scenePath, id).empty(), "duplicate actor rejected");
+		check(!storage.Validate(scenePath, id).empty(), "duplicate actor rejected");
 		duplicateScene["ExternalActors"][0] = "../outside";
 		Engine::JsonAdapter::SaveCanonical(scenePath, duplicateScene);
-		check(!Storage::Validate(scenePath, id).empty(), "invalid actor path rejected");
+		check(!storage.Validate(scenePath, id).empty(), "invalid actor path rejected");
 		Engine::JsonAdapter::SaveCanonical(scenePath, validScene);
 		const auto undoSnapshot = snapshot;
 		snapshot.root["Entities"] = nlohmann::json::array({ actor(childID, {}) });
-		check(Storage::Save(snapshot, error) && !std::filesystem::exists(parentPath), "delete and save");
-		check(Storage::Save(undoSnapshot, error) && std::filesystem::exists(parentPath), "undo and save");
-		check(Storage::Save(snapshot, error) && !std::filesystem::exists(parentPath), "redo and save");
+		check(storage.Save(snapshot, error) && !std::filesystem::exists(parentPath), "delete and save");
+		check(storage.Save(undoSnapshot, error) && std::filesystem::exists(parentPath), "undo and save");
+		check(storage.Save(snapshot, error) && !std::filesystem::exists(parentPath), "redo and save");
 		const auto beforeFailure = Engine::ContentHash::FileSHA256(childPath);
 		auto failing = snapshot;
 		failing.root["Entities"][0]["Components"]["Name"]["name"] = "Changed";
@@ -600,24 +605,24 @@ namespace {
 		const auto blockedTemp = std::filesystem::path(scenePath.wstring() + L".tmp");
 		std::filesystem::create_directory(blockedTemp);
 		Engine::JsonAdapter::SaveCanonical(blockedTemp / "block.json", {{ "block", true }});
-		Storage::SetProtectedScenes({ id });
-		check(!Storage::Save(failing, error), "save failure is reported");
+		storage.SetProtectedScenes({ id });
+		check(!storage.Save(failing, error), "save failure is reported");
 		check(Engine::ContentHash::FileSHA256(childPath) == beforeFailure, "rollback restores changed actor");
-		Storage::SetProtectedScenes({});
+		storage.SetProtectedScenes({});
 		std::filesystem::remove_all(blockedTemp);
 		const auto actorBackup = testRoot / "Original.actor.json";
 		std::filesystem::copy_file(childPath, actorBackup);
 		std::filesystem::remove(childPath);
-		check(Storage::Validate(scenePath, id).size() == 1, "missing actor detected");
-		check(!Storage::Save(snapshot, error), "external deletion blocks save");
-		check(Storage::RestoreActor(scenePath, childID, actorBackup, error), "restore original actor");
-		check(!Storage::RestoreActor(scenePath, childID, actorBackup, error), "do not overwrite actor");
-		check(Storage::Save(undoSnapshot, error), "restore parent and child");
+		check(storage.Validate(scenePath, id).size() == 1, "missing actor detected");
+		check(!storage.Save(snapshot, error), "external deletion blocks save");
+		check(storage.RestoreActor(scenePath, childID, actorBackup, error), "restore original actor");
+		check(!storage.RestoreActor(scenePath, childID, actorBackup, error), "do not overwrite actor");
+		check(storage.Save(undoSnapshot, error), "restore parent and child");
 		std::filesystem::remove(parentPath);
 		auto child = Engine::JsonAdapter::Load(childPath, false);
 		child["Components"]["UnknownReference"] = Engine::ToString(parentID);
 		Engine::JsonAdapter::SaveCanonical(childPath, child);
-		check(!Storage::RemoveMissingActor(scenePath, parentID, error), "unknown reference blocks removal");
+		check(!storage.RemoveMissingActor(scenePath, parentID, error), "unknown reference blocks removal");
 		child["Components"].erase("UnknownReference");
 		const auto otherScene = Engine::AssetGUID::New();
 		const nlohmann::json targetReference = {{ "kind", "Scene" }, { "sourceAsset", Engine::ToString(id) }, { "localFileId", Engine::ToString(parentID) }};
@@ -627,29 +632,29 @@ namespace {
 		const auto prefabPath = testRoot / "References.prefab.json";
 		Engine::JsonAdapter::SaveCanonical(prefabPath, {{ "reference", targetReference }});
 		std::vector<std::filesystem::path> affectedFiles;
-		check(Storage::PreviewMissingActorRemoval(scenePath, parentID, affectedFiles, error), "preview missing actor removal");
+		check(storage.PreviewMissingActorRemoval(scenePath, parentID, affectedFiles, error), "preview missing actor removal");
 		check(affectedFiles.size() == 3, "preview lists scene child and external reference");
 		check(Engine::JsonAdapter::Load(childPath, false) == child, "preview does not change files");
-		check(Storage::RemoveMissingActor(scenePath, parentID, error), "confirm missing parent deletion");
+		check(storage.RemoveMissingActor(scenePath, parentID, error), "confirm missing parent deletion");
 		check(Engine::JsonAdapter::Load(childPath)["Components"]["Hierarchy"]["parentLocalFileID"] == "", "preserve child at root");
 		const auto repairedChild = Engine::JsonAdapter::Load(childPath, false);
 		check(repairedChild["Components"]["TargetReference"]["kind"] == "Null", "clear typed scene reference");
 		check(repairedChild["Components"]["OtherReference"]["kind"] == "Scene", "preserve other scene reference");
 		check(Engine::JsonAdapter::Load(prefabPath, false)["reference"]["kind"] == "Null", "clear cross asset reference");
-		check(Storage::Validate(scenePath, id).empty(), "validate repaired scene");
+		check(storage.Validate(scenePath, id).empty(), "validate repaired scene");
 		const auto repairedScene = Engine::JsonAdapter::Load(scenePath, false);
-		Storage::TrackLoaded(scenePath, id);
+		storage.TrackLoaded(scenePath, id);
 		std::filesystem::remove(scenePath);
-		check(!Storage::Save(snapshot, error), "external scene deletion blocks save");
+		check(!storage.Save(snapshot, error), "external scene deletion blocks save");
 		Engine::JsonAdapter::SaveCanonical(scenePath, repairedScene);
-		Storage::SetProtectedScenes({ id });
-		check(!Storage::Delete(scenePath, database, error), "loaded scene protected");
-		Storage::SetProtectedScenes({});
+		storage.SetProtectedScenes({ id });
+		check(!storage.Delete(scenePath, database, error), "loaded scene protected");
+		storage.SetProtectedScenes({});
 		auto referencedScene = emptyScene;
 		referencedScene["Header"]["subScenes"] = {{{ "scene", Engine::ToString(id) }}};
 		Engine::JsonAdapter::SaveCanonical(referencerPath, referencedScene);
 		const auto referencerID = database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(referencerPath), Engine::AssetType::Scene);
-		check(!Storage::Delete(scenePath, database, error), "referenced scene protected");
+		check(!storage.Delete(scenePath, database, error), "referenced scene protected");
 		Engine::SceneSaveSnapshot referenceSnapshot;
 		referenceSnapshot.scenePath = referencerPath;
 		referenceSnapshot.sceneAsset = referencerID;
@@ -658,28 +663,28 @@ namespace {
 		auto referenceActor = actor(Engine::UUID::New(), {});
 		referenceActor["Components"]["Script"] = nlohmann::json::array({ {{ "serializedFields", {{ "type", "AssetRef" }, { "value", {{ "assetId", Engine::ToString(id) }} }} }} });
 		referenceSnapshot.root["Entities"] = nlohmann::json::array({ referenceActor });
-		check(Storage::Save(referenceSnapshot, error), "save external actor reference");
-		check(!Storage::Delete(scenePath, database, error), "external actor scene reference protected");
+		check(storage.Save(referenceSnapshot, error), "save external actor reference");
+		check(!storage.Delete(scenePath, database, error), "external actor scene reference protected");
 		const auto referencerActorRoot = Storage::ResolveActorRoot(referencerPath, referencerID);
-		check(!Storage::Delete(Engine::RuntimePaths::GetGameAssetsRoot(), database, error), "asset root protected");
-		check(Storage::Delete(testRoot, database, error), "delete containing directory and owned actors");
+		check(!storage.Delete(Engine::RuntimePaths::GetGameAssetsRoot(), database, error), "asset root protected");
+		check(storage.Delete(testRoot, database, error), "delete containing directory and owned actors");
 		check(!std::filesystem::exists(scenePath) && !std::filesystem::exists(actorRoot) && !std::filesystem::exists(referencerActorRoot), "no remaining owned actors");
-		const auto records = Storage::GetRecoveries();
+		const auto records = storage.GetRecoveries();
 		bool recoveredDeletion = false;
 		for (const auto& directory : records) {
 			if (std::find(recoveriesBefore.begin(), recoveriesBefore.end(), directory) != recoveriesBefore.end()) continue;
 			const auto record = Engine::JsonAdapter::Load(directory / "operation.json", false);
 			if (record.value("label", "") == "アセット削除" && record.value("state", "") == "completed") {
-				Storage::SetProtectedScenes({ id });
-				check(!Storage::Recover(directory, error), "deleted loaded scene protected during recovery");
-				Storage::SetProtectedScenes({});
+				storage.SetProtectedScenes({ id });
+				check(!storage.Recover(directory, error), "deleted loaded scene protected during recovery");
+				storage.SetProtectedScenes({});
 				auto interrupted = record;
 				interrupted["state"] = "pending";
 				Engine::JsonAdapter::SaveCanonical(directory / "operation.json", interrupted);
 				std::filesystem::rename(directory / "operation.json", directory / "operation.json.bak");
-				check(!Storage::GetRecoveries(true).empty(), "interrupted operation detected");
-				check(!Storage::Delete(testRoot, database, error), "pending recovery blocks new operations");
-				check(Storage::Recover(directory, error), "recover deleted scene directory");
+				check(!storage.GetRecoveries(true).empty(), "interrupted operation detected");
+				check(!storage.Delete(testRoot, database, error), "pending recovery blocks new operations");
+				check(storage.Recover(directory, error), "recover deleted scene directory");
 				recoveredDeletion = true;
 				check(std::filesystem::exists(scenePath) && std::filesystem::exists(childPath), "recovery includes external actors");
 			}
@@ -692,7 +697,7 @@ namespace {
 		for (const auto& directory : records) {
 			if (std::find(recoveriesBefore.begin(), recoveriesBefore.end(), directory) == recoveriesBefore.end()) std::filesystem::remove_all(directory, ec);
 		}
-		return passed;
+		return passed && TestSceneStorageSession();
 	}
 
 	bool TestExternalActors() {
@@ -5091,6 +5096,12 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--foundation") {
+		if (!TestFoundationContracts()) return 41;
+		std::cout << "Foundation tests passed\n";
+		return 0;
+	}
+
 	if (1 < argc && std::string_view(argv[1]) == "--scene-storage") {
 		if (!TestSceneAssetStorage()) return 40;
 		std::cout << "Scene storage tests passed\n";
@@ -5264,6 +5275,12 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
+	if (!TestWindowFileDropConversion()) {
+		return 42;
+	}
+	if (!TestFoundationContracts()) {
+		return 41;
+	}
 	if (!TestAssetGUIDRoundTrip()) {
 		std::cerr << "AssetGUID round-trip failed\n";
 		return 1;

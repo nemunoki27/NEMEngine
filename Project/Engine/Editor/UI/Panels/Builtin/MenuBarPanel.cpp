@@ -570,7 +570,8 @@ void Engine::MenuBarPanel::DrawGameBuildPopup(const EditorPanelContext& context)
 		settings.outputRoot = Algorithm::PathFromUTF8(buildOutputPath_);
 		settings.startupFullscreen = buildStartupFullscreen_;
 		if (!context.editorContext || !context.editorContext->assetDatabase ||
-			!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_)) {
+			!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
+				context.editorContext->sceneStorage.get())) {
 
 			if (buildError_.empty()) {
 				buildError_ = "製品ビルドを開始できませんでした";

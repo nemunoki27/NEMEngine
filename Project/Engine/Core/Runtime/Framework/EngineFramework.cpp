@@ -1,10 +1,9 @@
 #include "EngineFramework.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -12,12 +11,16 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
+using namespace Engine;
+
 //============================================================================
 //	Framework classMethods
 //============================================================================
 Framework::Framework(std::unique_ptr<IEngineApplication> application) :
 	engineApplication_(std::move(application)) {
 }
+
+Framework::~Framework() = default;
 
 void Framework::Run() {
 

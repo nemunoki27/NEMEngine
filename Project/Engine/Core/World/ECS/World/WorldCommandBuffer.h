@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/World/ECS/World/WorldCommand.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
@@ -96,52 +96,9 @@ namespace Engine {
 
 		//--------- types --------------------------------------------------------
 
-		// コマンド種別
-		enum class CommandKind : uint8_t {
-
-			DestroyEntity,
-			AddComponentByName,
-			RemoveComponentByName,
-			SetNameEnsuringComponent,
-			SetActiveSelfEnsuringComponent,
-			SetParent,
-			CreateEntity,
-			LoadSceneAdditive,
-			LoadSceneSingle,
-			UnloadScene,
-		};
-
-		// transform stagingのどの成分が指定されたか
-		enum CommandFlags : uint8_t {
-
-			FlagWorldPositionStays = 1 << 0,
-			FlagHasPosition = 1 << 1,
-			FlagHasRotation = 1 << 2,
-			FlagHasScale = 1 << 3,
-		};
-
-		// 1コマンド分のデータで値はすべてコピー保持する
-		struct Command {
-
-			CommandKind kind;
-			Entity target = Entity::Null();
-			Entity parent = Entity::Null();
-			bool boolValue = false;
-			uint8_t flags = 0;
-			// Sceneのasset、Scene instanceのUUID
-			AssetID assetID{};
-			UUID sceneInstanceID{};
-			// CreateEntityの初期SRTでstagingされた値を保持する
-			Vector3 position{};
-			Quaternion rotation = Quaternion::Identity();
-			Vector3 scale = Vector3::AnyInit(1.0f);
-			// AddComponent/RemoveComponent/SetName/CreateEntity(name)用の文字列
-			std::string text;
-		};
-
 		//--------- variables ----------------------------------------------------
 
-		std::vector<Command> commands_;
+		std::vector<WorldCommand> commands_;
 		// 予約Entityからpending CreateEntityコマンドのindexを引くmapで線形走査を避ける
 		std::unordered_map<uint64_t, size_t> createCommandIndex_;
 		// Flush再入を防ぐ
@@ -151,12 +108,10 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 1コマンドを適用する、適用前にentity/worldを再検証する
-		void Apply(ECSWorld& world, const Command& command);
 		// 予約Entityをmapキーへ変換する
 		static uint64_t EntityKey(const Entity& entity) { return (static_cast<uint64_t>(entity.index) << 32) | entity.generation; }
 		// 予約Entityを対象にするpending CreateEntityコマンドを探す
-		Command* FindPendingCreateCommand(const Entity& reserved);
-		const Command* FindPendingCreateCommand(const Entity& reserved) const;
+		WorldCommand* FindPendingCreateCommand(const Entity& reserved);
+		const WorldCommand* FindPendingCreateCommand(const Entity& reserved) const;
 	};
 } // Engine

@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Math/AffineDecompose.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 
@@ -182,93 +183,6 @@ namespace {
 			break;
 		}
 		return static_cast<ImGuizmo::OPERATION>(0);
-	}
-	Engine::Quaternion QuaternionFromRotationMatrixRowVector(const Engine::Matrix4x4& rowVectorMatrix) {
-
-		// row-vector行列なので、標準的なcolumn-vector変換式を使うために転置して読む
-		const float m00 = rowVectorMatrix.m[0][0];
-		const float m01 = rowVectorMatrix.m[1][0];
-		const float m02 = rowVectorMatrix.m[2][0];
-
-		const float m10 = rowVectorMatrix.m[0][1];
-		const float m11 = rowVectorMatrix.m[1][1];
-		const float m12 = rowVectorMatrix.m[2][1];
-
-		const float m20 = rowVectorMatrix.m[0][2];
-		const float m21 = rowVectorMatrix.m[1][2];
-		const float m22 = rowVectorMatrix.m[2][2];
-
-		Engine::Quaternion q{};
-
-		const float trace = m00 + m11 + m22;
-		if (0.0f < trace) {
-
-			const float s = std::sqrt(trace + 1.0f) * 2.0f;
-			q.w = 0.25f * s;
-			q.x = (m21 - m12) / s;
-			q.y = (m02 - m20) / s;
-			q.z = (m10 - m01) / s;
-		} else if (m00 > m11 && m00 > m22) {
-
-			const float s = std::sqrt(1.0f + m00 - m11 - m22) * 2.0f;
-			q.w = (m21 - m12) / s;
-			q.x = 0.25f * s;
-			q.y = (m01 + m10) / s;
-			q.z = (m02 + m20) / s;
-		} else if (m11 > m22) {
-
-			const float s = std::sqrt(1.0f + m11 - m00 - m22) * 2.0f;
-			q.w = (m02 - m20) / s;
-			q.x = (m01 + m10) / s;
-			q.y = 0.25f * s;
-			q.z = (m12 + m21) / s;
-		} else {
-
-			const float s = std::sqrt(1.0f + m22 - m00 - m11) * 2.0f;
-			q.w = (m10 - m01) / s;
-			q.x = (m02 + m20) / s;
-			q.y = (m12 + m21) / s;
-			q.z = 0.25f * s;
-		}
-		return Engine::Quaternion::Normalize(q);
-	}
-	// 3Dアフィン行列を平行移動、回転、拡縮に分解する
-	bool DecomposeAffine3D(const Engine::Matrix4x4& matrix, Engine::Vector3& outPos, Engine::Quaternion& outRotation, Engine::Vector3& outScale) {
-
-		constexpr float kEps = 1e-6f;
-
-		outPos = matrix.GetTranslationValue();
-
-		Engine::Vector3 axisX(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2]);
-		Engine::Vector3 axisY(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2]);
-		Engine::Vector3 axisZ(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2]);
-
-		outScale.x = axisX.Length();
-		outScale.y = axisY.Length();
-		outScale.z = axisZ.Length();
-
-		if (outScale.x <= kEps || outScale.y <= kEps || outScale.z <= kEps) {
-			return false;
-		}
-
-		axisX /= outScale.x;
-		axisY /= outScale.y;
-		axisZ /= outScale.z;
-
-		// 負スケール補正
-		const float handedness = Engine::Vector3::Dot(Engine::Vector3::Cross(axisX, axisY), axisZ);
-		if (handedness < 0.0f) {
-			outScale.z = -outScale.z;
-			axisZ = -axisZ;
-		}
-
-		Engine::Matrix4x4 rotationMatrix = Engine::Matrix4x4::Identity();
-		rotationMatrix.m[0][0] = axisX.x; rotationMatrix.m[0][1] = axisX.y; rotationMatrix.m[0][2] = axisX.z;
-		rotationMatrix.m[1][0] = axisY.x; rotationMatrix.m[1][1] = axisY.y; rotationMatrix.m[1][2] = axisY.z;
-		rotationMatrix.m[2][0] = axisZ.x; rotationMatrix.m[2][1] = axisZ.y; rotationMatrix.m[2][2] = axisZ.z;
-
-		outRotation = QuaternionFromRotationMatrixRowVector(rotationMatrix);
-		return true;
 	}
 	// 2Dアフィン行列を平行移動とZ軸のみの回転と拡縮に分解する
 	bool DecomposeAffine2D(const Engine::Matrix4x4& matrix, Engine::Vector3& outPos, float& outRotationZ, Engine::Vector3& outScale) {
@@ -707,7 +621,7 @@ Engine::GizmoEditResult Engine::MyGUI::Manipulate3D(const char* id,
 	Vector3 pos{};
 	Vector3 scale{};
 	Quaternion rotation{};
-	if (!DecomposeAffine3D(editedLocal, pos, rotation, scale)) {
+	if (!Engine::DecomposeAffine3D(editedLocal, pos, rotation, scale)) {
 		result.valueChanged = false;
 		return result;
 	}

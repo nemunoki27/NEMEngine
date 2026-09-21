@@ -7,12 +7,15 @@
 
 // c++
 #include <cstdint>
+#include <memory>
 #include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace Engine {
+
+	class SceneAssetStorage;
 
 	//============================================================================
 	//	ProjectAssetFileKind enum class
@@ -72,10 +75,12 @@ namespace Engine {
 		static ProjectAssetFileResult Create(ProjectAssetSource source,
 			const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName);
 		// 指定アセットを同じディレクトリに複製する
-		static ProjectAssetFileResult DuplicateAsset(const ProjectAssetEntry& asset);
+		static ProjectAssetFileResult DuplicateAsset(const ProjectAssetEntry& asset,
+			const std::shared_ptr<SceneAssetStorage>& storage);
 		// 指定アセットを別ディレクトリへコピーする、コピペ操作で使う
 		static ProjectAssetFileResult CopyAsset(const ProjectAssetEntry& asset, ProjectAssetSource targetSource,
-			const std::string& targetDirectoryVirtualPath);
+			const std::string& targetDirectoryVirtualPath,
+			const std::shared_ptr<SceneAssetStorage>& storage);
 		// 外部エクスプローラーからドロップされたファイルを指定ディレクトリへ取り込む
 		static ProjectAssetFileResult ImportExternalFile(ProjectAssetSource targetSource,
 			const std::string& targetDirectoryVirtualPath, const std::filesystem::path& externalFilePath);
@@ -88,11 +93,14 @@ namespace Engine {
 		static ProjectAssetFileResult RenameDirectory(ProjectAssetSource source,
 			const std::string& directoryVirtualPath, const std::string& requestedName);
 		// 指定ディレクトリを同じ階層に複製する
-		static ProjectAssetFileResult DuplicateDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath);
+		static ProjectAssetFileResult DuplicateDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath,
+			const std::shared_ptr<SceneAssetStorage>& storage);
 		// 指定アセットを削除する
-		static ProjectAssetFileResult DeleteAsset(const ProjectAssetEntry& asset, const AssetDatabase& database);
+		static ProjectAssetFileResult DeleteAsset(const ProjectAssetEntry& asset, const AssetDatabase& database,
+			const std::shared_ptr<SceneAssetStorage>& storage);
 		// 指定ディレクトリを削除する
-		static ProjectAssetFileResult DeleteDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath, const AssetDatabase& database);
+		static ProjectAssetFileResult DeleteDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath, const AssetDatabase& database,
+			const std::shared_ptr<SceneAssetStorage>& storage);
 		// 指定アセットを別ディレクトリへ移動する
 		static ProjectAssetFileResult MoveAsset(const ProjectAssetEntry& asset, ProjectAssetSource targetSource,
 			const std::string& targetDirectoryVirtualPath);

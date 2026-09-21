@@ -7,6 +7,8 @@
 #include <Engine/Core/World/ECS/Entity/EntityArchetype.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/World/ECS/World/WorldCommandBuffer.h>
+#include <Engine/Core/World/ECS/World/ECSQueryCache.h>
+#include <Engine/Core/World/ECS/World/ECSChangeTracker.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
@@ -28,18 +30,6 @@ namespace Engine {
 
 		Authoring,
 		Runtime,
-	};
-
-	//============================================================================
-	//	ECSWorld component mutation
-	//============================================================================
-	enum class ComponentMutationKind :
-		uint8_t {
-
-		Added,
-		Removed,
-		Modified,
-		EntityDestroyed,
 	};
 
 	//============================================================================
@@ -91,7 +81,10 @@ namespace Engine {
 	//	ECSWorld class
 	//	シーンを構成するエンティティとコンポーネントを管理するクラス
 	//============================================================================
+	class ECSWorldSerialization;
+
 	class ECSWorld {
+		friend class ECSWorldSerialization;
 	public:
 		//============================================================================
 		//	public Methods
@@ -129,8 +122,7 @@ namespace Engine {
 		//============================================================================
 		//	コンポーネントに対して行う操作
 		//============================================================================
-		using ComponentMutationCallback = void(*)(
-			ECSWorld&, const Entity&, uint32_t, ComponentMutationKind, void*);
+		using ComponentMutationCallback = ECSChangeTracker::ComponentMutationCallback;
 
 		// エンティティにコンポーネントを追加
 		template <typename T>
@@ -170,8 +162,8 @@ namespace Engine {
 		void MarkMeshColorModified(const Entity& entity);
 		uint64_t GetEntityRenderRevision(const Entity& entity) const;
 		uint64_t GetMeshColorRevision(const Entity& entity) const;
-		uint64_t GetMeshColorRevision() const { return meshColorRevision_; }
-		uint64_t GetRenderResetRevision() const { return renderResetRevision_; }
+		uint64_t GetMeshColorRevision() const { return changes_.GetMeshColorRevision(); }
+		uint64_t GetRenderResetRevision() const { return changes_.GetRenderResetRevision(); }
 		void MarkTransformConsumersModified(
 			ComponentChangeChannel channels,
 			std::span<const Entity> changedTransforms);
@@ -242,11 +234,11 @@ namespace Engine {
 
 		ECSWorldKind GetKind() const { return kind_; }
 		// 構造またはComponent値が変わるたびに進む世代
-		uint64_t GetDataRevision() const { return dataRevision_; }
+		uint64_t GetDataRevision() const { return changes_.GetDataRevision(); }
 		// 描画構成、描画Transform、ライト抽出の変更世代
-		uint64_t GetRenderDataRevision() const { return renderDataRevision_; }
-		uint64_t GetRenderTransformRevision() const { return renderTransformRevision_; }
-		uint64_t GetLightDataRevision() const { return lightDataRevision_; }
+		uint64_t GetRenderDataRevision() const { return changes_.GetRenderDataRevision(); }
+		uint64_t GetRenderTransformRevision() const { return changes_.GetRenderTransformRevision(); }
+		uint64_t GetLightDataRevision() const { return changes_.GetLightDataRevision(); }
 		// 指定世代より後に描画へ影響したTransform一覧を取得
 		bool CollectRenderTransformChanges(
 			uint64_t afterRevision, std::vector<Entity>& outEntities) const;
@@ -294,45 +286,13 @@ namespace Engine {
 		// 空のArchetypeでコンポーネントを持たないエンティティはここにまとめる
 		EntityArchetype* emptyArchetype_ = nullptr;
 
-		// クエリsignatureごとにマッチするarchetypeをキャッシュする計画
-		struct ArchetypeMatchPlan {
-
-			std::vector<EntityArchetype*> archetypes;
-			uint32_t builtArchetypeVersion = 0xFFFFFFFFu;
-		};
-		// クエリsignatureからマッチするarchetype一覧を引くキャッシュ
-		std::unordered_map<EntitySignature, ArchetypeMatchPlan, EntitySignatureHash> matchPlans_;
-		// archetypeが増えるたびに進むversionでmatchPlans_の無効化に使う
+		// クエリに一致するアーキタイプの検索計画
+		ECSQueryCache queryCache_;
+		// アーキタイプ追加時の検索計画更新に使う世代
 		uint32_t archetypeVersion_ = 0;
 
-		// Component変更通知の購読情報
-		struct ComponentMutationListener {
-
-			uint64_t id = 0;
-			ComponentMutationCallback callback = nullptr;
-			void* userData = nullptr;
-		};
-		// 描画Transformの世代ごとの差分
-		struct RenderTransformChangeBatch {
-
-			uint64_t revision = 0;
-			std::vector<Entity> entities;
-		};
-		std::vector<ComponentMutationListener> componentMutationListeners_;
-		std::deque<RenderTransformChangeBatch>
-			renderTransformChangeHistory_;
-		uint64_t nextComponentMutationListenerID_ = 1;
-		static constexpr size_t kRenderTransformHistoryCount = 8;
-		// 0を未構築値として扱えるよう1から開始する
-		uint64_t dataRevision_ = 1;
-		uint64_t renderDataRevision_ = 1;
-		uint64_t renderResetRevision_ = 1;
-		uint64_t meshColorRevision_ = 1;
-		// Entityの世代を含むキーで再利用後の変更を区別する
-		std::unordered_map<uint64_t, uint64_t> entityRenderRevisions_;
-		std::unordered_map<uint64_t, uint64_t> meshColorRevisions_;
-		uint64_t renderTransformRevision_ = 1;
-		uint64_t lightDataRevision_ = 1;
+		// 変更世代と購読通知の状態
+		ECSChangeTracker changes_;
 		// フレーム内の構造変更統計
 		uint64_t structuralMigrationCount_ = 0;
 		uint64_t relocatedComponentCount_ = 0;
@@ -358,8 +318,6 @@ namespace Engine {
 		// Entityが持つComponentの値変更先をまとめる
 		ComponentChangeChannel GetChangeChannels(
 			const Entity& entity) const;
-		// 0を飛ばして変更世代を進める
-		static void IncrementRevision(uint64_t& revision);
 		// 指定エンティティから外れるチャンク外データを解放する
 		void ReleaseExternalComponents(const Entity& entity, const EntitySignature* retainedSignature);
 		// コンポーネントをこのワールドへ格納できるか
@@ -522,25 +480,11 @@ namespace Engine {
 		}
 
 		// signatureにマッチするarchetype一覧をキャッシュし、毎回の全archetype走査を避ける
-		ArchetypeMatchPlan& plan = matchPlans_[required];
-		if (plan.builtArchetypeVersion != archetypeVersion_) {
-
-			// archetypeが増えた時だけ作り直す、archetypeは破棄されないのでpointerは有効なまま
-			plan.archetypes.clear();
-			for (auto& [signature, archPtr] : archetypes_) {
-
-				EntityArchetype* archetype = archPtr.get();
-				// シグネチャが必要なコンポーネントを全て含んでいるか
-				if (archetype->GetSignature().Contains(required)) {
-					plan.archetypes.emplace_back(archetype);
-				}
-			}
-			plan.builtArchetypeVersion = archetypeVersion_;
-		}
+		const auto& matchingArchetypes = queryCache_.Resolve(required, archetypes_, archetypeVersion_);
 
 		// 関数を同一実体のまま全チャンクで再利用する
 		Fn& fnRef = fn;
-		for (EntityArchetype* archetype : plan.archetypes) {
+		for (EntityArchetype* archetype : matchingArchetypes) {
 
 			// このArchetypeに対する列番号を一度だけ解決する
 			const std::array<uint32_t, sizeof...(T)> columnIndices = ResolveColumnIndices(
@@ -582,22 +526,10 @@ namespace Engine {
 		EntitySignature required{};
 		required.Set(typeID);
 
-		ArchetypeMatchPlan& plan = matchPlans_[required];
-		if (plan.builtArchetypeVersion != archetypeVersion_) {
-
-			plan.archetypes.clear();
-			for (auto& [signature, archPtr] : archetypes_) {
-
-				EntityArchetype* archetype = archPtr.get();
-				if (archetype->GetSignature().Contains(required)) {
-					plan.archetypes.emplace_back(archetype);
-				}
-			}
-			plan.builtArchetypeVersion = archetypeVersion_;
-		}
+		const auto& matchingArchetypes = queryCache_.Resolve(required, archetypes_, archetypeVersion_);
 
 		Fn& fnRef = fn;
-		for (EntityArchetype* archetype : plan.archetypes) {
+		for (EntityArchetype* archetype : matchingArchetypes) {
 			for (auto& chunk : archetype->GetChunks()) {
 
 				const auto entities = chunk->GetEntities();

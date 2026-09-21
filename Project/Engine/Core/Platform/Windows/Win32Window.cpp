@@ -1,164 +1,42 @@
 #include "Win32Window.h"
 
-#include <Engine/Core/Platform/Input/InputSystem.h>
-
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Math/Math.h>
+#include "WindowFileDrop.h"
+#include "WindowInputBridge.h"
+
+// c++
+#include <algorithm>
+
+// windows
+#include <mmsystem.h>
+#include <shellapi.h>
+
+using namespace Engine;
 
 #pragma comment(lib,"winmm.lib")
 
 // 外部ファイルドロップ用
-#include <shellapi.h>
-#include <vector>
 #pragma comment(lib,"shell32.lib")
 
 //============================================================================
 //	WinApp classMethods
 //============================================================================
-namespace {
-
-	// クライアント座標系の矩形を作成する
-	RECT MakeClientRect(const Vector2& size, const Vector2& pos) {
-
-		const float halfX = size.x * 0.5f;
-		const float halfY = size.y * 0.5f;
-
-		const LONG left = static_cast<LONG>(std::floor(pos.x - halfX));
-		const LONG top = static_cast<LONG>(std::floor(pos.y - halfY));
-		const LONG right = static_cast<LONG>(std::ceil(pos.x + halfX));
-		const LONG bottom = static_cast<LONG>(std::ceil(pos.y + halfY));
-
-		RECT rect{ left, top, right, bottom };
-		return rect;
-	}
-}
 
 HWND WinApp::hwnd_ = nullptr;
-bool WinApp::cursorClipEnabled_ = false;
-bool WinApp::useCustomClipRect_ = false;
-bool WinApp::cursorVisible_ = true;
-RECT WinApp::customClientClipRect_{};
-RECT WinApp::windowRect_{};
+WindowCursor WinApp::cursor_;
+WindowPlacement WinApp::placement_;
 bool (*WinApp::closeRequestCallback_)() = nullptr;
 WinApp::MessageHandler WinApp::messageHandler_ = nullptr;
-bool WinApp::fullscreen_ = false;
-
-void WinApp::ForceShowCursor(bool show) {
-
-	// ShowCursorは内部カウンタ方式なので、目標状態まで回す
-	if (show) {
-
-		while (ShowCursor(TRUE) < 0) {}
-	} else {
-
-		while (ShowCursor(FALSE) >= 0) {}
-	}
-
-}
-
-void WinApp::ApplyCursorVisibilityIfNeeded() {
-
-	if (!hwnd_) {
-		return;
-	}
-	if (GetForegroundWindow() != hwnd_) {
-
-		ForceShowCursor(true);
-		return;
-	}
-	ForceShowCursor(cursorVisible_);
-}
-
-void WinApp::SetCursorVisible(bool visible) {
-
-	cursorVisible_ = visible;
-	ApplyCursorVisibilityIfNeeded();
-
-	// ついでにクライアント上のカーソル形状も消す
-	if (!cursorVisible_) {
-
-		::SetCursor(nullptr);
-	}
-}
-
-void WinApp::ApplyCursorClipIfNeeded() {
-
-	if (!cursorClipEnabled_ || hwnd_ == nullptr) {
-		ClipCursor(nullptr);
-		return;
-	}
-
-	if (!cursorClipEnabled_) {
-		ClipCursor(nullptr);
-		return;
-	}
-
-	// 非アクティブなら解除
-	if (GetForegroundWindow() != hwnd_) {
-		ClipCursor(nullptr);
-		return;
-	}
-
-	RECT client{};
-	if (useCustomClipRect_) {
-
-		client = customClientClipRect_;
-	} else {
-
-		GetClientRect(hwnd_, &client);
-	}
-
-	// 念のため正規化
-	if (client.left > client.right) {
-		std::swap(client.left, client.right);
-	}
-	if (client.top > client.bottom) {
-		std::swap(client.top, client.bottom);
-	}
-
-	// クライアント範囲にクランプ
-	RECT full{};
-	GetClientRect(hwnd_, &full);
-	client.left = (std::max)(client.left, full.left);
-	client.top = (std::max)(client.top, full.top);
-	client.right = (std::min)(client.right, full.right);
-	client.bottom = (std::min)(client.bottom, full.bottom);
-	RECT screenRect = ClientRectToScreenRect(hwnd_, client);
-	ClipCursor(&screenRect);
-}
-
-RECT WinApp::ClientRectToScreenRect(HWND hwnd, const RECT& clientRect) {
-
-	POINT lt{ clientRect.left,  clientRect.top };
-	POINT rb{ clientRect.right, clientRect.bottom };
-	ClientToScreen(hwnd, &lt);
-	ClientToScreen(hwnd, &rb);
-
-	RECT screenRect{};
-	screenRect.left = lt.x;
-	screenRect.top = lt.y;
-	screenRect.right = rb.x;
-	screenRect.bottom = rb.y;
-	return screenRect;
-}
 
 void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 
 	timeBeginPeriod(1);
 	EnablePerMonitorDpiAwareness();
 	RegisterWindowClass();
-	fullscreen_ = false;
-
-	windowRect_.right = sizeX;
-	windowRect_.bottom = sizeY;
-
 	windowStyle_ = WS_OVERLAPPEDWINDOW;
-
-	AdjustWindowRect(&windowRect_, windowStyle_, false);
+	const RECT windowRect = placement_.Prepare(sizeX, sizeY, windowStyle_);
 
 	hwnd_ = CreateWindow(
 		L"WindowClass",
@@ -166,8 +44,8 @@ void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 		windowStyle_,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		windowRect_.right - windowRect_.left,
-		windowRect_.bottom - windowRect_.top,
+		windowRect.right - windowRect.left,
+		windowRect.bottom - windowRect.top,
 		nullptr,
 		nullptr,
 		GetModuleHandle(nullptr),
@@ -178,53 +56,15 @@ void WinApp::Create(uint32_t sizeX, uint32_t sizeY, const wchar_t* title) {
 
 	ShowWindow(hwnd_, SW_MAXIMIZE);
 
-	ApplyCursorVisibilityIfNeeded();
-	ApplyCursorClipIfNeeded();
+	cursor_.ApplyCursorVisibilityIfNeeded();
+	cursor_.ApplyCursorClipIfNeeded();
 }
 
 bool WinApp::HandleExternalFileDrop(HWND hwnd, WPARAM wparam) {
 
-	HDROP drop = reinterpret_cast<HDROP>(wparam);
-	POINT dropPoint{};
-	DragQueryPoint(drop, &dropPoint);
-	ClientToScreen(hwnd, &dropPoint);
-
-	const UINT fileCount = DragQueryFileW(drop, 0xFFFFFFFFu, nullptr, 0);
-	std::vector<std::string> paths;
-	paths.reserve(fileCount);
-	for (UINT i = 0; i < fileCount; ++i) {
-
-		const UINT length = DragQueryFileW(drop, i, nullptr, 0);
-		if (length == 0) {
-			continue;
-		}
-		std::wstring wide(static_cast<size_t>(length) + 1, L'\0');
-		const UINT copiedLength = DragQueryFileW(drop, i, wide.data(), length + 1);
-		if (copiedLength == 0) {
-			continue;
-		}
-		wide.resize(copiedLength);
-
-		const int utf8Size = ::WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide.data(),
-			static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
-		if (utf8Size <= 0) {
-			continue;
-		}
-		std::string utf8(static_cast<size_t>(utf8Size), '\0');
-		if (::WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide.data(),
-			static_cast<int>(wide.size()), utf8.data(), utf8Size, nullptr, nullptr) != utf8Size) {
-
-			continue;
-		}
-		paths.emplace_back(std::move(utf8));
-	}
-	DragFinish(drop);
-
-	if (Input* input = Input::GetInstance()) {
-		input->PushDroppedFiles(paths,
-			Vector2(static_cast<float>(dropPoint.x), static_cast<float>(dropPoint.y)));
-	}
-	return !paths.empty();
+	WindowFileDrop drop = WindowFileDrop::Read(hwnd, wparam);
+	WindowInputBridge::PushDrop(drop);
+	return !drop.paths.empty();
 }
 
 void WinApp::EnablePerMonitorDpiAwareness() {
@@ -287,108 +127,19 @@ void WinApp::RequestCloseWindow() {
 
 void WinApp::SetFullscreen(bool fullscreen) {
 
-	if (!hwnd_ || fullscreen_ == fullscreen) {
+	if (!hwnd_ || placement_.IsFullscreen() == fullscreen) {
 		return;
 	}
-
-	if (fullscreen) {
-
-		// 現在のウィンドウ情報を復元用に保存する
-		GetWindowRect(hwnd_, &windowRect_);
-
-		// ウィンドウがあるモニターの領域を取得
-		HMONITOR hMon = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
-		MONITORINFO mi{};
-		mi.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(hMon, &mi);
-
-		// 境界線なしスタイルに変更
-		SetWindowLong(hwnd_, GWL_STYLE, WS_POPUP);
-		SetWindowLong(hwnd_, GWL_EXSTYLE, 0);
-
-		// モニターサイズに合わせて最大化
-		SetWindowPos(
-			hwnd_,
-			HWND_TOP,
-			mi.rcMonitor.left,
-			mi.rcMonitor.top,
-			mi.rcMonitor.right - mi.rcMonitor.left,
-			mi.rcMonitor.bottom - mi.rcMonitor.top,
-			SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_SHOWWINDOW
-		);
-
-		ShowWindow(hwnd_, SW_SHOWNORMAL);
-		SetForegroundWindow(hwnd_);
-		SetFocus(hwnd_);
-	} else {
-
-		// 通常のウィンドウスタイルに戻す
-		SetWindowLong(hwnd_, GWL_STYLE, WS_OVERLAPPEDWINDOW);
-		SetWindowLong(hwnd_, GWL_EXSTYLE, 0);
-
-		// 保存していたウィンドウの位置とサイズに復元
-		SetWindowPos(
-			hwnd_,
-			HWND_NOTOPMOST,
-			windowRect_.left,
-			windowRect_.top,
-			windowRect_.right - windowRect_.left,
-			windowRect_.bottom - windowRect_.top,
-			SWP_FRAMECHANGED | SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_SHOWWINDOW);
-
-		ShowWindow(hwnd_, SW_SHOWNORMAL);
-		SetForegroundWindow(hwnd_);
-		SetFocus(hwnd_);
-	}
-	fullscreen_ = fullscreen;
-	ApplyCursorVisibilityIfNeeded();
-	ApplyCursorClipIfNeeded();
-}
-
-void WinApp::SetCursorClipEnabled(bool enabled) {
-
-	cursorClipEnabled_ = enabled;
-	if (!enabled) {
-		useCustomClipRect_ = false;
-	}
-	ApplyCursorClipIfNeeded();
-}
-
-void WinApp::ClipCursorToClient() {
-
-	useCustomClipRect_ = false;
-	cursorClipEnabled_ = true;
-	ApplyCursorClipIfNeeded();
-}
-
-void WinApp::ClipCursorToClientRect(const Vector2& size, const Vector2& pos) {
-
-	// Rectを設定
-	SetCursorClipRect(size, pos);
-	useCustomClipRect_ = true;
-	cursorClipEnabled_ = true;
-	ApplyCursorClipIfNeeded();
-}
-
-void WinApp::ReleaseCursorClip() {
-
-	cursorClipEnabled_ = false;
-	useCustomClipRect_ = false;
-	ClipCursor(nullptr);
-}
-
-void Engine::WinApp::SetCursorClipRect(const Vector2& size, const Vector2& pos) {
-
-	// Rectを作成
-	RECT clientRect = MakeClientRect(size, pos);
-	customClientClipRect_ = clientRect;
+	placement_.SetFullscreen(hwnd_, fullscreen);
+	cursor_.ApplyCursorVisibilityIfNeeded();
+	cursor_.ApplyCursorClipIfNeeded();
 }
 
 LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 	// WM_SETCURSOR：非表示時はクライアント内だけNULLカーソルにする
 	if (msg == WM_SETCURSOR) {
-		if (!cursorVisible_ && LOWORD(lparam) == HTCLIENT) {
+		if (!cursor_.IsCursorVisible() && LOWORD(lparam) == HTCLIENT) {
 			::SetCursor(nullptr);
 			return TRUE;
 		}
@@ -401,51 +152,39 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 			// 非アクティブ：必ず解除＆表示
 			ClipCursor(nullptr);
-			ForceShowCursor(true);
-			if (Input* input = Input::GetInstance()) {
-				input->SetWindowFocus(false);
-			}
+			cursor_.ForceShowCursor(true);
+			WindowInputBridge::NotifyFocus(false);
 		} else {
 
-			ApplyCursorVisibilityIfNeeded();
-			ApplyCursorClipIfNeeded();
-			if (Input* input = Input::GetInstance()) {
-				input->SetWindowFocus(true);
-			}
+			cursor_.ApplyCursorVisibilityIfNeeded();
+			cursor_.ApplyCursorClipIfNeeded();
+			WindowInputBridge::NotifyFocus(true);
 		}
 		return 0;
 	case WM_SETFOCUS:
 
-		ApplyCursorVisibilityIfNeeded();
-		ApplyCursorClipIfNeeded();
-		if (Input* input = Input::GetInstance()) {
-			input->SetWindowFocus(true);
-		}
+		cursor_.ApplyCursorVisibilityIfNeeded();
+		cursor_.ApplyCursorClipIfNeeded();
+		WindowInputBridge::NotifyFocus(true);
 		return 0;
 
 	case WM_KILLFOCUS:
 
 		ClipCursor(nullptr);
-		ForceShowCursor(true);
-		if (Input* input = Input::GetInstance()) {
-			input->SetWindowFocus(false);
-		}
+		cursor_.ForceShowCursor(true);
+		WindowInputBridge::NotifyFocus(false);
 		return 0;
 
 	case WM_CHAR:
 
 		// gameplay向け文字入力で制御文字以外をframe-localテキストへ溜める、ImGuiとは独立
-		if (wparam >= 0x20 || wparam == L'\t' || wparam == L'\n' || wparam == L'\r') {
-			if (Input* input = Input::GetInstance()) {
-				input->AppendTextInputUtf16(static_cast<wchar_t>(wparam));
-			}
-		}
+		WindowInputBridge::AppendCharacter(wparam);
 		break;
 	case WM_SIZE:
 	case WM_MOVE:
 
 		// ウィンドウ移動・サイズ変更後は再適用
-		ApplyCursorClipIfNeeded();
+		cursor_.ApplyCursorClipIfNeeded();
 		return 0;
 
 	case WM_DROPFILES:
@@ -474,7 +213,7 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 
 		// 念のため安全復帰
 		ClipCursor(nullptr);
-		ForceShowCursor(true);
+		cursor_.ForceShowCursor(true);
 		if (hwnd == hwnd_) {
 			hwnd_ = nullptr;
 		}
@@ -499,4 +238,34 @@ void WinApp::RegisterWindowClass() {
 
 	// ウィンドウクラスを登録する
 	RegisterClass(&wc);
+}
+
+void WinApp::SetCursorVisible(bool visible) {
+
+	cursor_.SetCursorVisible(visible);
+}
+
+void WinApp::SetCursorClipEnabled(bool enabled) {
+
+	cursor_.SetCursorClipEnabled(enabled);
+}
+
+void WinApp::ClipCursorToClient() {
+
+	cursor_.ClipCursorToClient();
+}
+
+void WinApp::ClipCursorToClientRect(const Vector2& size, const Vector2& pos) {
+
+	cursor_.ClipCursorToClientRect(size, pos);
+}
+
+void WinApp::ReleaseCursorClip() {
+
+	cursor_.ReleaseCursorClip();
+}
+
+void WinApp::SetCursorClipRect(const Vector2& size, const Vector2& pos) {
+
+	cursor_.SetCursorClipRect(size, pos);
 }

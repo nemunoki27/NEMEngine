@@ -8,8 +8,6 @@
 #include <cstdint>
 #include <optional>
 #include <type_traits>
-// imgui
-#include <imgui.h>
 // magic_enum
 #include <magic_enum.hpp>
 
@@ -84,16 +82,5 @@ namespace Engine {
 			return magic_enum::enum_cast<T>(name);
 		}
 
-		static bool Combo(const char* label, Enum* current) noexcept {
-
-			int idx = static_cast<int>(GetIndex(*current));
-			bool changed = ImGui::Combo(label, &idx, GetEnumArray().data(),
-				static_cast<int>(GetEnumCount()));
-			if (changed) {
-
-				*current = GetValue(static_cast<std::uint32_t>(idx));
-			}
-			return changed;
-		}
 	};
 }; // Engine

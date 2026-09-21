@@ -17,8 +17,8 @@
 void Engine::ProjectPanel::DrawSceneStoragePopup(const EditorPanelContext& context, AssetDatabase& database) {
 
 	auto inspect = [&]() {
-		sceneStorageIssues_ = SceneAssetStorage::Inspect(database);
-		sceneRecoveries_ = SceneAssetStorage::GetRecoveries();
+		sceneStorageIssues_ = context.editorContext->sceneStorage->Inspect(database);
+		sceneRecoveries_ = context.editorContext->sceneStorage->GetRecoveries();
 		sceneRecoveryLabels_.clear();
 		for (const auto& recovery : sceneRecoveries_) {
 			const auto journal = JsonAdapter::Load(recovery / "operation.json", false);
@@ -37,7 +37,7 @@ void Engine::ProjectPanel::DrawSceneStoragePopup(const EditorPanelContext& conte
 	};
 	if (sceneStorageRevision_ != database.GetStructureRevision()) {
 		inspect();
-		if (!SceneAssetStorage::GetRecoveries(true).empty()) {
+		if (!context.editorContext->sceneStorage->GetRecoveries(true).empty()) {
 			sceneStorageMessage_ = "完了していない保存・削除・修復があります、退避した操作を確認してください";
 			requestSceneStoragePopup_ = true;
 		}
@@ -87,7 +87,7 @@ void Engine::ProjectPanel::DrawSceneStoragePopup(const EditorPanelContext& conte
 		ImGui::BeginDisabled(!editing || !issue.missing || !issue.actorID);
 		ImGui::InputText("復元元のActorファイル", &actorRestorePath_);
 		if (ImGui::Button("指定ファイルから復元")) {
-			if (SceneAssetStorage::RestoreActor(issue.scenePath, issue.actorID,
+			if (context.editorContext->sceneStorage->RestoreActor(issue.scenePath, issue.actorID,
 				Algorithm::PathFromUTF8(actorRestorePath_), sceneStorageMessage_)) {
 				sceneStorageMessage_ = "Actorを復元しました";
 				database.RebuildMeta();
@@ -97,7 +97,7 @@ void Engine::ProjectPanel::DrawSceneStoragePopup(const EditorPanelContext& conte
 		ImGui::TextWrapped("削除確定では子Actorをローカル座標のままルートへ移します。型を確認できるEntity参照は解除し、不明な参照が残る場合は中断します。元の親のTransformは失われているため、復元できる場合は復元を推奨します。");
 		if (ImGui::Button("削除確定の変更対象を確認")) {
 			confirmActorRemoval_ = false;
-			if (SceneAssetStorage::PreviewMissingActorRemoval(issue.scenePath, issue.actorID, sceneRemovalPreview_, sceneStorageMessage_)) {
+			if (context.editorContext->sceneStorage->PreviewMissingActorRemoval(issue.scenePath, issue.actorID, sceneRemovalPreview_, sceneStorageMessage_)) {
 				sceneStorageMessage_ = "変更対象を確認しました、内容を確認してから削除を確定してください";
 			}
 		}
@@ -109,7 +109,7 @@ void Engine::ProjectPanel::DrawSceneStoragePopup(const EditorPanelContext& conte
 		ImGui::Checkbox("このActorの削除と子のルート移動を確定する", &confirmActorRemoval_);
 		ImGui::BeginDisabled(!confirmActorRemoval_);
 		if (ImGui::Button("欠損Actorの削除を確定")) {
-			if (SceneAssetStorage::RemoveMissingActor(issue.scenePath, issue.actorID, sceneStorageMessage_)) {
+			if (context.editorContext->sceneStorage->RemoveMissingActor(issue.scenePath, issue.actorID, sceneStorageMessage_)) {
 				sceneStorageMessage_ = "削除を確定しました、操作前のデータは退避フォルダーに残しています";
 				database.RebuildMeta();
 				inspect();
@@ -131,7 +131,7 @@ void Engine::ProjectPanel::DrawSceneStoragePopup(const EditorPanelContext& conte
 			ImGui::TextWrapped("この操作が変更した全ファイルを操作前へ戻します。操作後の変更がある場合は中断します。");
 			ImGui::TextWrapped("%s", actorRestorePath_.c_str());
 			if (ImGui::Button("戻す")) {
-				if (SceneAssetStorage::Recover(Algorithm::PathFromUTF8(actorRestorePath_), sceneStorageMessage_)) {
+				if (context.editorContext->sceneStorage->Recover(Algorithm::PathFromUTF8(actorRestorePath_), sceneStorageMessage_)) {
 					sceneStorageMessage_ = "操作前のファイルへ復旧しました";
 					database.RebuildMeta();
 					inspect();

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
@@ -1310,7 +1311,7 @@ namespace {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &keyR.interpolation)) {
+			if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &keyR.interpolation)) {
 				keyG.interpolation = keyR.interpolation;
 				keyB.interpolation = keyR.interpolation;
 				result.valueChanged = true;
@@ -1338,7 +1339,7 @@ namespace {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &key.interpolation)) {
+			if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &key.interpolation)) {
 				result.valueChanged = true;
 			}
 			if (result.valueChanged) {
@@ -1389,7 +1390,7 @@ namespace {
 				for (uint32_t axisIndex = 0; axisIndex < axisSetting->axes.size(); ++axisIndex) {
 					ImGui::PushID(static_cast<int>(axisIndex));
 					ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-					if (Engine::EnumAdapter<Engine::Axis>::Combo("Axis", &axisSetting->axes[axisIndex])) {
+					if (Engine::ImGuiUtility::EnumCombo<Engine::Axis>("Axis", &axisSetting->axes[axisIndex])) {
 						result.valueChanged = true;
 					}
 					ImGui::SameLine();
@@ -1435,7 +1436,7 @@ namespace {
 				result.valueChanged = true;
 			}
 			ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-			if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &key.interpolation)) {
+			if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &key.interpolation)) {
 				result.valueChanged = true;
 			}
 			if (result.valueChanged) {
@@ -1467,7 +1468,7 @@ namespace {
 			result.valueChanged = true;
 		}
 		ImGui::SetNextItemWidth(kCurveInspectorItemWidth);
-		if (Engine::EnumAdapter<Engine::CurveInterpolationMode>::Combo("Interp", &key.interpolation)) {
+		if (Engine::ImGuiUtility::EnumCombo<Engine::CurveInterpolationMode>("Interp", &key.interpolation)) {
 			result.valueChanged = true;
 		}
 		if (result.valueChanged) {

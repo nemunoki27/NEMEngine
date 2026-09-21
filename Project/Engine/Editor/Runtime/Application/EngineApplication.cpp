@@ -3,495 +3,41 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Pipelines/PipelineState.h>
+#include "EditorRenderRequestBuilder.h"
+#include "EditorPlaySession.h"
+#include "SceneSaveController.h"
+#include "PrefabEditSession.h"
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
-#include <Engine/Core/Foundation/Time/FrameRateSettings.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
-#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Outline/EditorSelectionOutlineRequestService.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
-#include <Engine/Core/Physics/Collision/CollisionSettings.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
-#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
-#include <Engine/Core/Audio/AudioSystem.h>
-#include <Engine/Core/Runtime/Application/RuntimeSystemRegistration.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-#include <Engine/Core/Platform/Windows/Win32Window.h>
-#include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
-#include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
+#include <Engine/Core/Runtime/Application/ApplicationPreloader.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
-#include <Engine/Core/World/Systems/Transform/TransformSystem.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Systems/UI/UIInputSystem.h>
 // c++
 #include <algorithm>
-#include <chrono>
-#include <exception>
-#include <unordered_set>
+
+using namespace Engine;
 
 //============================================================================
 //	EngineApplication classMethods
 //============================================================================
-namespace {
 
-	constexpr const char* kActiveSceneConfigPath = Engine::ConfigPaths::kActiveScene;
-	constexpr const char* kStartupSceneConfigPath = Engine::ConfigPaths::kStartupScene;
-	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
-	// デフォルトマテリアル設定はチームで共有したいのでgit管理されるGameAssets配下へ置く
-	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
+void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {
 
-	Engine::EngineApplication* g_activeEngineApplication = nullptr;
-
-	bool RequestEngineApplicationClose() {
-
-		if (!g_activeEngineApplication) {
-			return true;
-		}
-		return g_activeEngineApplication->RequestClose();
+	ApplicationPreloadContext context{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
+		[this]() { RefreshActiveWorldContext(); } };
+	if (ApplicationPreloader::Run(graphicsCore, context, true)) {
+		requestFrameDeltaReset_ = true;
+		playSession_->SetJustStarted();
 	}
-
-	void NotifyEngineApplicationAssert() {
-
-		if (!g_activeEngineApplication) {
-			return;
-		}
-		g_activeEngineApplication->NotifyAssertBeforeAbort();
-	}
-}
-
-void Engine::EngineApplication::InitSystems() {
-
-	uiInputSystem_ = RegisterRuntimeSystems(scheduler_);
-}
-
-void Engine::EngineApplication::InitFirstScene() {
-
-	if (!activeScene_) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: アクティブシーンが設定されていません");
-		return;
-	}
-	// アクティブなシーンの表示・保存用パスはGUIDから引き直す
-	if (const AssetMeta* meta = assetDataBase_.Find(activeScene_)) {
-		activeScenePath_ = meta->assetPath;
-	}
-	// シーンをロードしてエディタワールドにインスタンスを作成
-	if (!editScenes_.LoadSceneTree(
-		assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: アクティブシーンを読み込めません GUID={}",
-			ToString(activeScene_));
-	}
-}
-
-void Engine::EngineApplication::LoadActiveSceneConfig() {
-
-	const auto loadSceneConfig = [&](const std::filesystem::path& configPath) {
-
-		if (!JsonAdapter::Check(configPath, false)) {
-			return;
-		}
-		const nlohmann::json data = JsonAdapter::Load(configPath, false);
-		if (!data.is_object()) {
-			return;
-		}
-
-		const AssetID sceneAsset =
-			ParseAssetReference(data, "activeScene", &assetDataBase_, AssetType::Scene);
-		const std::filesystem::path fullPath =
-			assetDataBase_.ResolveFullPath(sceneAsset);
-		if (!sceneAsset || fullPath.empty() || !std::filesystem::exists(fullPath)) {
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: 設定が存在しないシーンを参照しています config={}",
-				Algorithm::PathToUTF8(configPath));
-			return;
-		}
-		activeScene_ = sceneAsset;
-		if (const AssetMeta* meta = assetDataBase_.Find(sceneAsset)) {
-			activeScenePath_ = meta->assetPath;
-		}
-		};
-
-	// 共有の起動シーンを基準にし、ユーザーが最後に開いていたシーンがあれば上書きする
-	loadSceneConfig(RuntimePaths::GetProjectSettingsPath(kStartupSceneConfigPath));
-	loadSceneConfig(RuntimePaths::GetUserSettingsPath(kActiveSceneConfigPath));
-}
-
-void Engine::EngineApplication::SaveActiveSceneConfig() const {
-
-	// SDK更新で消えないよう、ゲームルート配下のConfigへ小さなJSONで保存する
-	nlohmann::json data = nlohmann::json::object();
-	data["activeScene"] = ToAssetReferenceJson(activeScene_);
-
-	const std::filesystem::path configPath = RuntimePaths::GetUserSettingsPath(kActiveSceneConfigPath);
-	JsonAdapter::Save(configPath, data);
-}
-
-void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
-
-	g_activeEngineApplication = this;
-	WinApp::SetCloseRequestCallback(RequestEngineApplicationClose);
-	Assert::SetPreAssertHandler(NotifyEngineApplicationAssert);
-
-	// アセットデータベース初期化
-	assetDataBase_.Init();
-	assetDataBase_.RebuildMeta();
-	LoadActiveSceneConfig();
-
-	// フレームレート上限を設定ファイルから読み込む
-	FrameRateSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
-	FrameRateSettings::GetInstance().SetUseEditorTargetFps(true);
-	// 描画タイプごとのデフォルトマテリアル設定をGameAssets配下から読み込む
-	DefaultMaterialSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
-	// AnimationClipの評価に必要なPropertyをEditorの有無に関係なく登録する
-	RegisterBuiltinAnimationProperties();
-
-	// 骨アニメーション管理の初期化
-	skinnedAnimationManager_.Init();
-	// Audio管理の初期化
-	Audio::GetInstance()->Init();
-
-	// 最初のシーンを作成
-	InitFirstScene();
-	// C#スクリプトランタイム初期化
-	ManagedScriptRuntime::GetInstance().Init();
-	// EditWorldをスクリプトから参照可能にし生ポインタの代わりに世代付きハンドルを使う
-	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// Editモードの非同期build/reloadサービスを初期化しsource baselineとlast-known-goodを整える
-		scriptBuildService_.Initialize(&ManagedScriptRuntime::GetInstance());
-	}
-	// システムの初期化
-	InitSystems();
-
-	// 描画パイプライン初期化
-	renderPipeline_ = std::make_unique<RenderPipelineRunner>();
-	renderPipeline_->Init();
-
-	// ライン描画初期化
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	LineRenderer::GetInstance()->Init(graphicsCore);
-#endif
-
-	// エディタの初期化
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		editorManager_.Init(graphicsCore);
-
-		// アセットの外部編集を非同期監視し、texture/modelを自動でホットリロードする
-		assetWatchService_.Start(&assetDataBase_, &graphicsCore.GetTextureUploadService(),
-			{ RuntimePaths::GetGameRoot() / "GameAssets", RuntimePaths::GetEngineAssetsRoot() });
-		// モデル変更時のリロードは描画バックエンドのメッシュ管理へ委譲する
-		assetWatchService_.SetMeshReloadCallback([this](AssetID meshAssetID) {
-			MeshSubMeshAuthoring::InvalidateCachedLayout(meshAssetID);
-			if (renderPipeline_) {
-				renderPipeline_->ReloadMesh(meshAssetID);
-			}
-			});
-		// 描画アセット変更時は種別に応じたランタイムキャッシュを再ロードする
-		assetWatchService_.SetRenderAssetReloadCallback([this](AssetID assetID) {
-			if (renderPipeline_) {
-				renderPipeline_->ReloadAsset(assetDataBase_, assetID);
-			}
-			});
-	} else {
-
-		// Releaseはエディタ操作を待たず、起動時のシーンからPlayWorldを開始する
-		StartPlayWorld();
-		PreloadReleaseResources(graphicsCore);
-	}
-}
-
-void Engine::EngineApplication::PreloadReleaseResources([[maybe_unused]] GraphicsCore& graphicsCore) {
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	return;
-#else
-	const auto startTime = std::chrono::steady_clock::now();
-	Logger::Output(LogType::Engine, "[RuntimePreload] Release起動時の事前読み込みを開始します");
-
-	// ファイル単位で列挙できる描画アセットとPSOを先に作成する
-	renderPipeline_->PreloadRuntimeAssets(graphicsCore, assetDataBase_);
-
-	std::vector<const AssetMeta*> assets{};
-	assets.reserve(assetDataBase_.GetAssets().size());
-	for (const auto& [assetID, meta] : assetDataBase_.GetAssets()) {
-		assets.emplace_back(&meta);
-	}
-	std::sort(assets.begin(), assets.end(), [](const AssetMeta* lhs, const AssetMeta* rhs) {
-		return lhs->assetPath < rhs->assetPath;
-		});
-
-	std::vector<AssetID> sceneAssets{};
-	for (const AssetMeta* meta : assets) {
-
-		switch (meta->type) {
-		case AssetType::Mesh:
-			skinnedAnimationManager_.RequestLoadAsync(assetDataBase_, meta->guid);
-			break;
-		case AssetType::AnimationClip:
-			animationClipManager_.GetOrLoad(assetDataBase_, meta->guid);
-			break;
-		case AssetType::Audio:
-		{
-			const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(meta->guid);
-			if (!fullPath.empty()) {
-				Audio::GetInstance()->EnsureLoaded(fullPath);
-			}
-			break;
-		}
-		case AssetType::Scene:
-			if (meta->assetPath.starts_with("GameAssets/")) {
-				sceneAssets.emplace_back(meta->guid);
-			}
-			break;
-		default:
-			break;
-		}
-	}
-	skinnedAnimationManager_.WaitAll();
-
-	// 各シーンを一時ワールドへ展開し、ECS更新を行わず描画リソースだけ作成する
-	for (AssetID sceneAsset : sceneAssets) {
-
-		if (sceneAsset == activeScene_) {
-			continue;
-		}
-		const AssetMeta* sceneMeta = assetDataBase_.Find(sceneAsset);
-		Logger::Output(LogType::Engine, "[RuntimePreload] シーンのWarmupを開始します path={}",
-			sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
-		ECSWorld warmupWorld{};
-		SceneInstanceManager warmupScenes{};
-		if (!warmupScenes.LoadSceneTree(assetDataBase_, sceneSystem_, warmupWorld, sceneAsset)) {
-
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[RuntimePreload] シーンの読み込みに失敗しました GUID={}", ToString(sceneAsset));
-			continue;
-		}
-
-		SystemContext warmupContext{};
-		warmupContext.engineContext = &graphicsCore.GetContext();
-		warmupContext.graphicsPlatform = &graphicsCore.GetDXObject();
-		warmupContext.assetDatabase = &assetDataBase_;
-		warmupContext.skinnedAnimationManager = &skinnedAnimationManager_;
-		warmupContext.animationClipManager = &animationClipManager_;
-		warmupContext.world = &warmupWorld;
-		if (const SceneInstance* activeScene = warmupScenes.GetActive()) {
-			warmupContext.activeSceneHeader = &activeScene->header;
-		}
-		warmupContext.mode = WorldMode::Play;
-
-		WorldCommandServices services{};
-		services.assetDatabase = &assetDataBase_;
-		services.sceneInstances = &warmupScenes;
-		services.sceneSystem = &sceneSystem_;
-		warmupWorld.SetCommandServices(services);
-
-		HierarchySystem hierarchySystem{};
-		hierarchySystem.OnWorldEnter(warmupWorld, warmupContext);
-		TransformSystem transformSystem{};
-		transformSystem.LateUpdate(warmupWorld, warmupContext);
-		WarmupReleaseWorld(graphicsCore, warmupWorld, warmupScenes, warmupContext);
-		Logger::Output(LogType::Engine, "[RuntimePreload] シーンのWarmupが完了しました path={}",
-			sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
-	}
-
-	// 最後に実際の開始シーンを描画し、カメラとPostProcessの共有状態も開始シーンへ戻す
-	systemContext_.engineContext = &graphicsCore.GetContext();
-	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
-	systemContext_.assetDatabase = &assetDataBase_;
-	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
-	systemContext_.animationClipManager = &animationClipManager_;
-	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
-	systemContext_.deltaTime = 0.0f;
-	systemContext_.unscaledDeltaTime = 0.0f;
-	RefreshActiveWorldContext();
-	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
-		Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupを開始します");
-		WarmupReleaseWorld(graphicsCore, *playWorld, playScenes_, systemContext_);
-		Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupが完了しました");
-	}
-
-	graphicsCore.GetTextureUploadService().WaitAll();
-	graphicsCore.GetBufferUploadService().FlushAndWait();
-	graphicsCore.GetDXObject().WaitForGPU();
-	requestFrameDeltaReset_ = true;
-	playWorldJustStarted_ = true;
-
-	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-		std::chrono::steady_clock::now() - startTime).count();
-	Logger::Output(LogType::Engine,
-		"[RuntimePreload] Release起動時の事前読み込みが完了しました Scene数={} 経過={}ms",
-		sceneAssets.size(), elapsed);
-	Logger::Flush(LogType::Engine);
-#endif
-}
-
-void Engine::EngineApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, ECSWorld& world,
-	SceneInstanceManager& scenes, SystemContext& context) {
-
-	const SceneInstance* activeScene = scenes.GetActive();
-	if (!activeScene) {
-		return;
-	}
-	context.world = &world;
-	context.activeSceneHeader = &activeScene->header;
-	context.deltaTime = 0.0f;
-	context.unscaledDeltaTime = 0.0f;
-
-	RenderFrameRequest request{};
-	request.sceneInstances = &scenes;
-	request.header = &activeScene->header;
-	request.activeSceneInstanceID = activeScene->instanceID;
-	request.world = &world;
-	request.systemContext = &context;
-	request.assetDatabase = &assetDataBase_;
-
-	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
-	RenderViewRequest& gameView = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
-	gameView.kind = RenderViewKind::Game;
-	gameView.enabled = true;
-	gameView.width = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.x));
-	gameView.height = static_cast<uint32_t>((std::max)(1, windowSetting.gameSize.y));
-	gameView.sourceKind = RenderViewSourceKind::WorldCamera;
-
-	RenderViewRequest& sceneView = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
-	sceneView.kind = RenderViewKind::Scene;
-	sceneView.enabled = false;
-	sceneView.width = 0;
-	sceneView.height = 0;
-
-	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録を開始します");
-	renderPipeline_->Render(graphicsCore, request);
-	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録が完了しました");
-	// Scene固有Bufferが破棄される前にCopy Queueを提出し、描画Queueとの依存を確定する
-	graphicsCore.GetBufferUploadService().SubmitBatch();
-	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機を開始します");
-	graphicsCore.GetDXObject().WaitForGPU();
-	graphicsCore.GetBufferUploadService().FlushAndWait();
-	Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機が完了しました");
-}
-
-Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
-	GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header) {
-
-	// エディタの状態を描画要求へ変換する
-	RenderFrameRequest request{};
-	request.header = header;
-	request.world = world;
-	// 描画側がECSシステムと同じフレーム情報を参照できるように渡す
-	request.systemContext = &systemContext_;
-	request.assetDatabase = &assetDataBase_;
-
-	// Play->プレファブ編集->Editの順でシーンインスタンスを切り替える
-	SceneInstanceManager* activeScenes = &GetActiveScenes();
-	const SceneInstance* activeInstance = activeScenes->GetActive();
-	request.sceneInstances = activeScenes;
-	request.activeSceneInstanceID = activeInstance ? activeInstance->instanceID : UUID{};
-
-	const auto& windowSetting = graphicsCore.GetContext().GetWindowSetting();
-	// GameView/SceneViewは同じ固定解像度を基準に描画サーフェイスを作る
-	uint32_t fixedRenderWidth = windowSetting.gameSize.x;
-	uint32_t fixedRenderHeight = windowSetting.gameSize.y;
-
-	// エディタの状態に応じて描画ビューの要求を構築する
-	bool showGameView = true;
-	bool showSceneView = false;
-	bool renderGameView = true;
-	bool renderSceneView = false;
-	SceneViewCameraSelection sceneViewCameraSelection{};
-	ManualRenderCameraState manualSceneCamera{};
-
-	// エディタが有効な場合はエディタのレイアウト状態に応じてビューの要求を構築する
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		const EditorLayoutState& layout = editorManager_.GetLayoutState();
-		if (layout.hidePanels) {
-
-			// HidePanels中はReleaseと同じくGameViewだけを描画対象にする
-			showGameView = true;
-			showSceneView = false;
-		} else {
-
-			showGameView = layout.showGameView;
-			showSceneView = layout.showSceneView;
-			sceneViewCameraSelection = editorManager_.GetSceneViewCameraSelection();
-			manualSceneCamera = editorManager_.GetSceneViewCameraState();
-			request.drawSceneViewDefaultGrid = editorManager_.ShouldDrawSceneViewDefaultGrid();
-			request.drawSceneView2DCameraBounds = editorManager_.ShouldDrawSceneView2DCameraBounds();
-		}
-
-		// 2つのViewを表示中は操作対象を毎フレーム、副Viewを30Hzで更新してGPUの熱飽和を防ぐ
-		renderGameView = showGameView;
-		renderSceneView = showSceneView;
-		if (showGameView && showSceneView && !layout.hidePanels) {
-
-			const bool renderSecondaryView =
-				(renderFrameSerial_ % 2) == 0;
-			const EditorState& editorState =
-				editorManager_.GetEditorState();
-			if (worldManager_.IsPlaying()) {
-				renderSceneView = renderSecondaryView ||
-					editorState.sceneViewportHovered;
-			} else {
-				renderGameView = renderSecondaryView ||
-					editorState.gameViewportHovered;
-			}
-		}
-		++renderFrameSerial_;
-	}
-	// ゲームビューの要求を構築
-	{
-		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Game)];
-		viewRequest.kind = RenderViewKind::Game;
-		viewRequest.enabled = showGameView;
-		viewRequest.renderThisFrame = renderGameView;
-		viewRequest.width = showGameView ? fixedRenderWidth : 0;
-		viewRequest.height = showGameView ? fixedRenderHeight : 0;
-		viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
-		viewRequest.preferredOrthographicCameraUUID = UUID{};
-		viewRequest.preferredPerspectiveCameraUUID = UUID{};
-	}
-	// シーンビューの要求を構築
-	{
-		RenderViewRequest& viewRequest = request.views[static_cast<uint32_t>(RenderViewKind::Scene)];
-		viewRequest.kind = RenderViewKind::Scene;
-		viewRequest.enabled = showSceneView;
-		viewRequest.renderThisFrame = renderSceneView;
-		viewRequest.width = showSceneView ? fixedRenderWidth : 0;
-		viewRequest.height = showSceneView ? fixedRenderHeight : 0;
-		viewRequest.manualCamera = manualSceneCamera;
-
-		// Entity Cameraが指定されている場合だけWorld側のカメラを使う
-		if (sceneViewCameraSelection.mode == SceneViewCameraMode::SelectedEntityCamera &&
-			sceneViewCameraSelection.HasAnyAssignedCamera()) {
-
-			viewRequest.sourceKind = RenderViewSourceKind::WorldCamera;
-			viewRequest.preferredOrthographicCameraUUID = sceneViewCameraSelection.orthographicCameraUUID;
-			viewRequest.preferredPerspectiveCameraUUID = sceneViewCameraSelection.perspectiveCameraUUID;
-		} else {
-
-			// 通常はエディタ用の手動カメラを使う
-			viewRequest.sourceKind = RenderViewSourceKind::ManualCamera;
-			viewRequest.preferredOrthographicCameraUUID = UUID{};
-			viewRequest.preferredPerspectiveCameraUUID = UUID{};
-		}
-	}
-	return request;
 }
 
 void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) {
@@ -516,7 +62,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.engineContext = &graphicsCore.GetContext();
 	systemContext_.graphicsPlatform = &graphicsCore.GetDXObject();
 	systemContext_.deltaTime = deltaTime;
-	systemContext_.assetDatabase = &assetDataBase_;
+	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
@@ -537,8 +83,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	RefreshActiveWorldContext();
 	{
 		// Play開始直後の最初の1フレームは進めず、貫通の原因になる大きなdeltaを捨てる
-		const bool skipFirstAdvance = playWorldJustStarted_;
-		playWorldJustStarted_ = false;
+		const bool skipFirstAdvance = playSession_->ConsumeJustStarted();
 
 		bool advancePlayTime = !skipFirstAdvance && ShouldAdvanceActiveWorld() && systemContext_.mode == WorldMode::Play;
 		float rawDelta = (!skipFirstAdvance && ShouldAdvanceActiveWorld()) ? deltaTime : 0.0f;
@@ -624,9 +169,9 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		world = systemContext_.world;
 		header = systemContext_.activeSceneHeader;
 	}
-	if (playFrameStepRequested_) {
+	if (playSession_->IsFrameStepRequested()) {
 
-		playFrameStepRequested_ = false;
+		playSession_->FinishFrameStep();
 		systemContext_.deltaTime = 0.0f;
 	}
 
@@ -636,7 +181,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 			ToolContext toolContext{};
 			toolContext.world = world;
-			toolContext.assetDatabase = &assetDataBase_;
+			toolContext.assetDatabase = &assetDatabase_;
 			toolContext.systemContext = &systemContext_;
 			toolContext.sceneInstances = editorContext_.sceneInstances;
 			toolContext.activeSceneHeader = header;
@@ -708,494 +253,6 @@ void Engine::EngineApplication::RenderPlatformWindows([[maybe_unused]] GraphicsC
 	}
 }
 
-void Engine::EngineApplication::HandleEditorSceneRequests() {
-
-	if constexpr (!BuildConfig::kEditorEnabled) {
-		return;
-	} else {
-
-		// EditorManagerに溜まっているシーン操作要求を1件取り出す
-		EditorSceneRequest request = editorManager_.ConsumeSceneRequest();
-		if (request.type == EditorSceneRequestType::None) {
-			return;
-		}
-		// Play中はEditWorldを書き換えない
-		if (worldManager_.IsPlaying()) {
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: Play中のためシーン操作を無視しました");
-			return;
-		}
-
-		switch (request.type) {
-		case EditorSceneRequestType::NewScene:
-			// 空のGameシーンを作成して開く
-			CreateNewEditScene();
-			break;
-		case EditorSceneRequestType::OpenScene:
-			// Project上の既存シーンを開く
-			OpenEditScene(request.sceneAsset);
-			break;
-		case EditorSceneRequestType::SaveScene:
-			// 現在のEditシーンを保存する
-			SaveActiveEditScene();
-			break;
-		case EditorSceneRequestType::SaveAndNewScene:
-			// 読み込み中の全シーンの保存に成功した場合だけ新規シーン作成へ進む
-			if (SaveAllEditScenes()) {
-				CreateNewEditScene();
-			}
-			break;
-		case EditorSceneRequestType::SaveAndOpenScene:
-			// 読み込み中の全シーンの保存に成功した場合だけ別シーンを開く
-			if (SaveAllEditScenes()) {
-				OpenEditScene(request.sceneAsset);
-			}
-			break;
-		case EditorSceneRequestType::EnterPrefabEdit:
-			// 既にPrefab編集中なら、現在の編集内容を保存してから次のPrefabを開く
-			if (IsPrefabEditing() && !SaveCurrentPrefab()) {
-				break;
-			}
-			// プレファブを隔離ワールドへ展開して編集モードへ入る、ネストも可
-			EnterPrefabEdit(request.sceneAsset);
-			break;
-		case EditorSceneRequestType::ExitPrefabEdit:
-			// 現在のプレファブ編集を保存して1階層戻る
-			ExitPrefabEdit();
-			break;
-		case EditorSceneRequestType::ExitPrefabEditAll:
-			// プレファブ編集を一括で抜けて元のシーン編集へ戻る
-			ExitAllPrefabEdit();
-			break;
-		case EditorSceneRequestType::TogglePrefabInContext:
-			// In-Context編集のオンオフを切り替える
-			TogglePrefabInContextMode();
-			break;
-		case EditorSceneRequestType::SavePrefab:
-			// 現在のプレファブ編集を保存する、退出はしない
-			SaveCurrentPrefab();
-			break;
-		case EditorSceneRequestType::None:
-		default:
-			break;
-		}
-	}
-}
-
-bool Engine::EngineApplication::CreateNewEditScene() {
-
-	// GameAssets/Scenes配下に重複しないシーンファイルを作成する
-	ProjectAssetFileResult result = ProjectAssetFileUtility::Create(
-		ProjectAssetSource::Game,
-		"GameAssets/Scenes",
-		ProjectAssetFileKind::Scene,
-		"NewScene");
-	if (!result.success) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: 新規シーンの作成に失敗しました 内容={}", result.message);
-		return false;
-	}
-
-	// 作成したシーンをAssetDatabaseへ登録し、開く処理へ渡す
-	const AssetID sceneAsset = assetDataBase_.ImportOrGet(result.assetPath, AssetType::Scene);
-	assetDataBase_.RebuildMeta();
-	return OpenEditScene(sceneAsset);
-}
-
-bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
-
-	// AssetDatabase上のメタ情報を取得し見つからなければ再走査する
-	const AssetMeta* meta = assetDataBase_.Find(sceneAsset);
-	if (!meta) {
-
-		assetDataBase_.RebuildMeta();
-		meta = assetDataBase_.Find(sceneAsset);
-	}
-	if (!meta || meta->type != AssetType::Scene) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: 指定Assetはシーンではありません");
-		return false;
-	}
-
-	// 実ファイルが存在するシーンだけ開く
-	const std::filesystem::path fullPath = assetDataBase_.ResolveFullPath(sceneAsset);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: シーンファイルが見つかりません path={}", meta->assetPath);
-		return false;
-	}
-
-	// 既存のEditWorldを空にしてから、新しいシーンツリーをロードする
-	scheduler_.DetachCurrentWorld(systemContext_);
-	editScenes_.UnloadAll(worldManager_.GetEditWorld());
-
-	// アクティブシーン情報を先に差し替える
-	activeScene_ = sceneAsset;
-	activeScenePath_ = meta->assetPath;
-
-	// SceneSystemを通してEntity/Componentを復元する
-	if (!editScenes_.LoadSceneTree(assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: シーンを開けません path={}", activeScenePath_);
-		return false;
-	}
-
-	// シーン切り替え直後の大きな処理でdeltaTimeが跳ねないようにする
-	requestFrameDeltaReset_ = true;
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// 選択状態やUndo履歴は新しいシーンへ持ち越さない
-		editorManager_.ResetSceneEditingState();
-		editorManager_.ResetSceneDirtyState();
-	}
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: シーンを開きました path={}", activeScenePath_);
-	return true;
-}
-
-bool Engine::EngineApplication::SaveActiveEditScene() {
-
-	const SceneInstance* activeScene = editScenes_.GetActive();
-	const AssetID sceneAsset = activeScene ? activeScene->sceneAsset : AssetID{};
-	if (!activeScene || !sceneAsset) {
-		return false;
-	}
-	if (sceneSaveJob_) {
-
-		// 保存中の再要求は完了直後に最新ワールドをもう一度取得する
-		sceneSaveQueued_ = true;
-		return true;
-	}
-	RestoreEditModeUIVisuals();
-
-	const auto captureStartedAt =
-		std::chrono::steady_clock::now();
-	std::unique_ptr<ECSWorld> worldSnapshot =
-		worldManager_.GetEditWorld().
-		CloneForSerialization();
-	SceneInstanceManager scenesSnapshot =
-		editScenes_;
-	AssetDatabase databaseSnapshot =
-		assetDataBase_;
-
-	const auto captureElapsed =
-		std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::steady_clock::now() -
-			captureStartedAt).count();
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: シーン保存用Snapshotを複製しました path={} 経過={}ms",
-		activeScenePath_, captureElapsed);
-
-	SceneSaveJob job{};
-	job.sceneAsset = sceneAsset;
-	job.dirtyRevision =
-		editorManager_.GetSceneDirtyRevision(sceneAsset);
-	job.scenePath = activeScenePath_;
-	job.startedAt = captureStartedAt;
-	job.result = std::async(std::launch::async,
-		[worldSnapshot = std::move(worldSnapshot),
-		scenesSnapshot = std::move(scenesSnapshot),
-		databaseSnapshot = std::move(databaseSnapshot),
-		sceneAsset]() mutable {
-
-			SceneSystem sceneSystem{};
-			SceneSaveSnapshot snapshot{};
-			if (!scenesSnapshot.CaptureSave(
-				databaseSnapshot, sceneSystem,
-				*worldSnapshot, sceneAsset, snapshot)) {
-				return false;
-			}
-			return SceneSystem::WriteSaveSnapshot(
-				std::move(snapshot));
-		});
-	sceneSaveJob_.emplace(std::move(job));
-	return true;
-}
-
-bool Engine::EngineApplication::SaveAllEditScenes() {
-
-	if (!WaitForSceneSave()) {
-		return false;
-	}
-	RestoreEditModeUIVisuals();
-
-	std::unordered_set<AssetID> savedAssets;
-	for (const SceneInstance& scene : editScenes_.GetAll()) {
-
-		if (!scene.sceneAsset || !savedAssets.insert(scene.sceneAsset).second) {
-			continue;
-		}
-		if (!editScenes_.Save(
-			assetDataBase_, sceneSystem_, worldManager_.GetEditWorld(), scene.sceneAsset)) {
-
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: シーン保存に失敗しました Asset={}", ToString(scene.sceneAsset));
-			return false;
-		}
-	}
-
-	assetDataBase_.RebuildMeta();
-	if constexpr (BuildConfig::kEditorEnabled) {
-		editorManager_.MarkAllScenesSaved();
-	}
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: 読み込み済みシーンを保存しました 数={}", savedAssets.size());
-	return true;
-}
-
-void Engine::EngineApplication::RestoreEditModeUIVisuals() {
-
-	// PlayとPrefabへの切り替え時はOnWorldExitですでに復元済み
-	if (!uiInputSystem_ || worldManager_.IsPlaying() || IsPrefabEditing()) {
-		return;
-	}
-	uiInputSystem_->RestoreEditModeVisuals(
-		worldManager_.GetEditWorld());
-}
-
-bool Engine::EngineApplication::FinishSceneSave(
-	bool wait, bool* outSucceeded) {
-
-	if (outSucceeded) {
-		*outSucceeded = true;
-	}
-	if (!sceneSaveJob_) {
-		return true;
-	}
-
-	std::future<bool>& result = sceneSaveJob_->result;
-	if (!wait && result.wait_for(
-		std::chrono::milliseconds(0)) !=
-		std::future_status::ready) {
-		return false;
-	}
-	if (wait) {
-		result.wait();
-	}
-
-	const AssetID sceneAsset =
-		sceneSaveJob_->sceneAsset;
-	const uint64_t dirtyRevision =
-		sceneSaveJob_->dirtyRevision;
-	const std::string scenePath =
-		sceneSaveJob_->scenePath;
-	const auto elapsed =
-		std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::steady_clock::now() -
-			sceneSaveJob_->startedAt).count();
-	bool succeeded = false;
-	try {
-		succeeded = result.get();
-	}
-	catch (const std::exception& exception) {
-
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: シーン保存Workerが失敗しました path={} 内容={}",
-			scenePath, exception.what());
-	}
-	sceneSaveJob_.reset();
-
-	if (succeeded) {
-
-		// AssetDatabaseとEditor状態はメインスレッドだけで更新する
-		assetDataBase_.RebuildMeta();
-		editorManager_.MarkSceneSaved(
-			sceneAsset, dirtyRevision);
-		Logger::Output(LogType::Engine, spdlog::level::info,
-			"EngineApplication: アクティブシーンを保存しました path={} 経過={}ms",
-			scenePath, elapsed);
-	} else {
-
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"EngineApplication: アクティブシーンの保存に失敗しました path={}",
-			scenePath);
-	}
-	if (outSucceeded) {
-		*outSucceeded = succeeded;
-	}
-	return true;
-}
-
-void Engine::EngineApplication::UpdateSceneSave() {
-
-	bool succeeded = true;
-	if (!FinishSceneSave(false, &succeeded)) {
-		return;
-	}
-	if (!sceneSaveQueued_) {
-		return;
-	}
-
-	sceneSaveQueued_ = false;
-	SaveActiveEditScene();
-}
-
-bool Engine::EngineApplication::WaitForSceneSave() {
-
-	bool allSucceeded = true;
-	while (sceneSaveJob_) {
-
-		bool succeeded = true;
-		FinishSceneSave(true, &succeeded);
-		allSucceeded = allSucceeded && succeeded;
-		if (sceneSaveQueued_) {
-
-			sceneSaveQueued_ = false;
-			if (!SaveActiveEditScene()) {
-				return false;
-			}
-		}
-	}
-	return allSucceeded;
-}
-
-void Engine::EngineApplication::AcceptCloseRequest(bool destroyWindow) {
-
-	SaveActiveSceneConfig();
-	shutdownAccepted_ = true;
-	closeRequestPending_ = false;
-
-	if (destroyWindow) {
-		WinApp::RequestCloseWindow();
-	}
-}
-
-void Engine::EngineApplication::HandleCloseRequestResult() {
-
-	if constexpr (!BuildConfig::kEditorEnabled) {
-		return;
-	} else {
-
-		if (!closeRequestPending_) {
-			return;
-		}
-
-		const EditorUnsavedScenePopupResult result = editorManager_.ConsumeCloseUnsavedScenePopupResult();
-		switch (result) {
-		case EditorUnsavedScenePopupResult::Save:
-			if (SaveAllEditScenes()) {
-				AcceptCloseRequest(true);
-			} else {
-				closeRequestPending_ = false;
-			}
-			break;
-		case EditorUnsavedScenePopupResult::DontSave:
-			AcceptCloseRequest(true);
-			break;
-		case EditorUnsavedScenePopupResult::Cancel:
-			closeRequestPending_ = false;
-			break;
-		case EditorUnsavedScenePopupResult::None:
-		default:
-			break;
-		}
-	}
-}
-
-bool Engine::EngineApplication::RequestClose() {
-
-	if (shutdownAccepted_) {
-		return true;
-	}
-
-	if constexpr (!BuildConfig::kEditorEnabled) {
-
-		AcceptCloseRequest(false);
-		return true;
-	} else {
-
-		if (!editorManager_.HasDirtyScenes()) {
-			AcceptCloseRequest(false);
-			return true;
-		}
-
-		// WM_CLOSE中にはImGuiを描画できないため、次のEditorフレームでモーダルを開く
-		if (!closeRequestPending_) {
-			closeRequestPending_ = true;
-			editorManager_.RequestCloseUnsavedScenePopup();
-		}
-		return false;
-	}
-}
-
-void Engine::EngineApplication::NotifyAssertBeforeAbort() {
-
-	if (handlingAssertAbort_) {
-		return;
-	}
-
-	handlingAssertAbort_ = true;
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// Assert停止直前はImGuiの入力待ちができないため、未保存なら落ちる前に保存しておく
-		if (editorManager_.HasDirtyScenes()) {
-			SaveAllEditScenes();
-		}
-	}
-	SaveActiveSceneConfig();
-	handlingAssertAbort_ = false;
-}
-
-void Engine::EngineApplication::Finalize() {
-
-	if (!shutdownAccepted_) {
-
-		// WM_CLOSE以外の終了経路でも、最後に開いていたシーンだけは残す
-		SaveActiveSceneConfig();
-		shutdownAccepted_ = true;
-	}
-	WinApp::SetCloseRequestCallback(nullptr);
-	Assert::SetPreAssertHandler(nullptr);
-
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// WorldとAssetDatabaseを破棄する前に書き込み中のシーン保存を回収する
-		WaitForSceneSave();
-	}
-
-	// アセット監視スレッドを止めてから他のリソースを解放する
-	assetWatchService_.Stop();
-
-	// 終了時点のWorldに合わせてSystemContextを更新してから切り離す
-	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
-	if (worldManager_.IsPlaying()) {
-		StopPlayWorld();
-	} else {
-		scheduler_.DetachCurrentWorld(systemContext_);
-	}
-
-	// ランタイム管理クラスを描画パイプラインより先に終了する
-	skinnedAnimationManager_.Finalize();
-
-	// GPUリソースを持つ描画パイプラインを解放する
-	renderPipeline_->Finalize();
-	renderPipeline_.reset();
-
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		editorManager_.Finalize();
-	}
-
-	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
-	ToolRegistry::GetInstance().Clear();
-
-	if constexpr (BuildConfig::kEditorEnabled) {
-
-		// Editモードのbuild/reloadサービスを停止し、実行中の子プロセスを安全に回収する
-		scriptBuildService_.Shutdown();
-	}
-	// EditWorldの登録を解除してからC#ホストを解放する
-	ManagedWorldRegistry::GetInstance().Unregister(
-		ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
-	// C#ホストと読み込んだアセンブリを解放する
-	ManagedScriptRuntime::GetInstance().Finalize();
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// デバッグライン描画リソースを解放する
-	LineRenderer::GetInstance()->Finalize();
-#endif
-}
-
 int Engine::RunEditorApplication() {
 
 	Framework framework(std::make_unique<EngineApplication>());
@@ -1207,35 +264,141 @@ int Engine::RunEditorApplication() {
 //	EngineApplication classMethods
 //============================================================================
 
-namespace Engine {
+void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
 
-	ECSWorld* EngineApplication::GetActiveWorld() {
-
-		if (worldManager_.IsPlaying()) { return worldManager_.GetPlayWorld(); }
-		if (!prefabStages_.empty()) {
-			PrefabEditStage& top = prefabStages_.back();
-			return top.inContext ? top.hostWorld : top.world.get();
-		}
-		return &worldManager_.GetEditWorld();
-	}
-
-	SceneInstanceManager& EngineApplication::GetActiveScenes() {
-
-		if (worldManager_.IsPlaying()) { return playScenes_; }
-		if (!prefabStages_.empty()) {
-			PrefabEditStage& top = prefabStages_.back();
-			if (top.inContext) { return ResolveHostScenes(top); }
-			return top.scenes;
-		}
-		return editScenes_;
-	}
-
-	SceneInstanceManager& EngineApplication::ResolveHostScenes(PrefabEditStage& stage) {
-
-		if (stage.hostWorld == &worldManager_.GetEditWorld()) { return editScenes_; }
-		for (size_t i = prefabStages_.size(); i-- > 0; ) {
-			if (prefabStages_[i].world.get() == stage.hostWorld) { return prefabStages_[i].scenes; }
-		}
-		return editScenes_;
-	}
+	prefabSession_->EnterPrefabEdit(prefabAsset);
 }
+
+bool Engine::EngineApplication::ExitPrefabEdit() {
+
+	return prefabSession_->ExitPrefabEdit();
+}
+
+void Engine::EngineApplication::ExitAllPrefabEdit() {
+
+	prefabSession_->ExitAllPrefabEdit();
+}
+
+void Engine::EngineApplication::TogglePrefabInContextMode() {
+
+	prefabSession_->TogglePrefabInContextMode();
+}
+
+bool Engine::EngineApplication::SaveCurrentPrefab() {
+
+	return prefabSession_->SaveCurrentPrefab();
+}
+
+void Engine::EngineApplication::SyncPrefabEditedEntities() {
+
+	prefabSession_->SyncPrefabEditedEntities();
+}
+
+ECSWorld* EngineApplication::GetActiveWorld() {
+
+	return prefabSession_->GetActiveWorld();
+}
+
+SceneInstanceManager& EngineApplication::GetActiveScenes() {
+
+	return prefabSession_->GetActiveScenes();
+}
+
+bool Engine::EngineApplication::IsPrefabEditing() const {
+
+	return prefabSession_->IsEditing();
+}
+
+bool Engine::EngineApplication::SaveActiveEditScene() {
+
+	return sceneSaveController_->SaveActiveEditScene();
+}
+
+bool Engine::EngineApplication::SaveAllEditScenes() {
+
+	return sceneSaveController_->SaveAllEditScenes();
+}
+
+void Engine::EngineApplication::UpdateSceneSave() {
+
+	sceneSaveController_->UpdateSceneSave();
+}
+
+bool Engine::EngineApplication::WaitForSceneSave() {
+
+	return sceneSaveController_->WaitForSceneSave();
+}
+
+void Engine::EngineApplication::HandlePlayToggle() {
+
+	playSession_->HandlePlayToggle();
+}
+
+void Engine::EngineApplication::StopPlayWorld() {
+
+	playSession_->StopPlayWorld();
+}
+
+bool Engine::EngineApplication::HandleApplicationQuitRequest() {
+
+	return playSession_->HandleApplicationQuitRequest();
+}
+
+void Engine::EngineApplication::StartPlayWorld() {
+
+	playSession_->StartPlayWorld();
+}
+
+void Engine::EngineApplication::HandlePlayPauseRequests() {
+
+	playSession_->HandlePlayPauseRequests();
+}
+
+bool Engine::EngineApplication::ShouldAdvanceActiveWorld() const {
+
+	return playSession_->ShouldAdvanceActiveWorld();
+}
+
+Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
+	GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header) {
+
+	return renderRequestBuilder_->BuildRenderFrameRequest(graphicsCore, world, header, GetActiveScenes());
+}
+
+Engine::EngineApplication::EngineApplication() {
+
+	prefabSession_ = std::make_unique<PrefabEditSession>(assetDatabase_,
+		worldManager_,
+		editScenes_,
+		playScenes_,
+		scheduler_,
+		systemContext_,
+		editorManager_);
+	sceneSaveController_ = std::make_unique<SceneSaveController>(assetDatabase_,
+		worldManager_,
+		editScenes_,
+		sceneSystem_,
+		editorManager_,
+		activeScenePath_,
+		[this]() { RestoreEditModeUIVisuals(); });
+	playSession_ = std::make_unique<EditorPlaySession>(assetDatabase_,
+		worldManager_,
+		editScenes_,
+		playScenes_,
+		sceneSystem_,
+		scheduler_,
+		systemContext_,
+		editorManager_,
+		runtimeWorldBaker_,
+		scriptBuildService_,
+		requestFrameDeltaReset_,
+		[this]() { return IsPrefabEditing(); },
+		[this]() { return SaveAllEditScenes(); },
+		[this]() { RefreshActiveWorldContext(); });
+	renderRequestBuilder_ = std::make_unique<EditorRenderRequestBuilder>(systemContext_,
+		assetDatabase_,
+		editorManager_,
+		worldManager_);
+}
+
+Engine::EngineApplication::~EngineApplication() = default;

@@ -265,7 +265,7 @@ namespace Engine {
 		// 空白部分の右クリックメニューを描画する
 		void DrawDirectoryContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node);
 		// フォルダ右クリックメニューを描画する
-		void DrawFolderContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node);
+		void DrawFolderContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// アセット右クリックメニューを描画する
 		void DrawAssetContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset);
 		// 新規作成用の名前入力ポップアップを描画する
@@ -274,7 +274,7 @@ namespace Engine {
 		void DrawRenameAssetPopup(const EditorPanelContext& context,
 			AssetDatabase& database);
 		// 削除確認ポップアップを描画する(参照元があれば警告する)
-		void DrawDeleteAssetPopup(AssetDatabase& database);
+		void DrawDeleteAssetPopup(const EditorPanelContext& context, AssetDatabase& database);
 		// アセット種別ごとの操作をRegistryへ登録する
 		void RegisterAssetActions();
 		// アセットのダブルクリック操作を処理する

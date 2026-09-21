@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Animation/Curves/AnimationCurve.h>
@@ -336,7 +337,7 @@ namespace Engine {
 
 		const float width = ImGui::GetContentRegionAvail().x - setting.reserveRightWidth;
 		ImGui::SetNextItemWidth(width <= 1.0f ? 1.0f : width);
-		result.valueChanged = EnumAdapter<T>::Combo("##Value", &currentValue);
+		result.valueChanged = Engine::ImGuiUtility::EnumCombo<T>("##Value", &currentValue);
 		result.anyItemActive = ImGui::IsItemActive();
 		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
 

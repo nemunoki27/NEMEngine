@@ -437,7 +437,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	DrawCreateAssetPopup(database);
 	DrawRenameAssetPopup(context, database);
-	DrawDeleteAssetPopup(database);
+	DrawDeleteAssetPopup(context, database);
 	ApplyPendingFileOperationRefresh(database);
 
 	ImGui::End();
@@ -611,7 +611,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 		// 控えたアセットを現在ディレクトリへコピーする、ペースト先は元と別フォルダでもよい
 		if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false) && hasCopiedAsset_) {
 
-			ProjectAssetFileResult result = ProjectAssetFileUtility::CopyAsset(copiedAsset_, assetSource_, selectedDirectory_);
+			ProjectAssetFileResult result = ProjectAssetFileUtility::CopyAsset(copiedAsset_, assetSource_, selectedDirectory_, context.editorContext->sceneStorage);
 			RefreshAfterFileOperation(database, result);
 		}
 	}
@@ -655,7 +655,7 @@ void Engine::ProjectPanel::DrawFolderGridItem(const EditorPanelContext& context,
 	}
 	DrawProjectItemMoveDropTarget(database, node.virtualPath);
 	DrawPrefabCreateDropTarget(context, database, node.virtualPath);
-	DrawFolderContextMenu(database, node);
+	DrawFolderContextMenu(context, database, node);
 	ImGui::PopID();
 }
 
@@ -858,7 +858,7 @@ void Engine::ProjectPanel::DrawDirectoryContextMenu([[maybe_unused]] AssetDataba
 	ImGui::EndPopup();
 }
 
-void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node) {
+void Engine::ProjectPanel::DrawFolderContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	if (!ImGui::BeginPopupContextItem("ProjectFolderContextMenu", ImGuiPopupFlags_MouseButtonRight)) {
 		return;
@@ -880,12 +880,12 @@ void Engine::ProjectPanel::DrawFolderContextMenu(AssetDatabase& database, const 
 	}
 	if (ImGui::MenuItem("複製")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateDirectory(assetSource_, node.virtualPath);
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateDirectory(assetSource_, node.virtualPath, context.editorContext->sceneStorage);
 		RefreshAfterFileOperation(database, result);
 	}
 	if (ImGui::MenuItem("削除")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath, database);
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath, database, context.editorContext->sceneStorage);
 		if (!result.success) {
 			sceneStorageMessage_ = result.message;
 			requestSceneStoragePopup_ = true;
@@ -921,7 +921,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(const EditorPanelContext& contex
 	}
 	if (ImGui::MenuItem("複製")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset);
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DuplicateAsset(asset, context.editorContext->sceneStorage);
 		RefreshAfterFileOperation(database, result);
 	}
 	if (ImGui::MenuItem("削除")) {
@@ -1094,7 +1094,7 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(
 	ImGui::EndPopup();
 }
 
-void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
+void Engine::ProjectPanel::DrawDeleteAssetPopup(const EditorPanelContext& context, AssetDatabase& database) {
 
 	if (requestOpenDeletePopup_) {
 
@@ -1114,7 +1114,7 @@ void Engine::ProjectPanel::DrawDeleteAssetPopup(AssetDatabase& database) {
 
 	if (ImGui::Button("削除")) {
 
-		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(pendingDeleteAsset_, database);
+		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteAsset(pendingDeleteAsset_, database, context.editorContext->sceneStorage);
 		deleteErrorMessage_ = result.message;
 		RefreshAfterFileOperation(database, result);
 		if (result.success) {

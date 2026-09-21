@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
+#include <Engine/Core/World/Scene/Serialization/SceneStorageJournal.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
@@ -170,14 +171,14 @@ namespace {
 	class GameBuildAssetCollector {
 	public:
 
-		explicit GameBuildAssetCollector(const Engine::AssetDatabase& database) :
-			database_(database) {
+		explicit GameBuildAssetCollector(const Engine::AssetDatabase& database, Engine::SceneAssetStorage* sceneStorage) :
+			database_(database), sceneStorage_(sceneStorage ? sceneStorage : &standaloneStorage_) {
 		}
 
 		// GameAssets全体を起点に依存ファイルを収集
 		bool Collect(Engine::AssetID startupScene, std::vector<BuildFileEntry>& outFiles, std::string& outError) {
 
-			if (!Engine::SceneAssetStorage::GetRecoveries(true).empty()) {
+			if (!sceneStorage_->GetRecoveries(true).empty()) {
 				outError = "未完了のシーン操作があります、Projectパネルのシーンデータ検証・修復から復旧してください";
 				return false;
 			}
@@ -441,7 +442,7 @@ namespace {
 				return;
 			}
 
-			const auto issues = Engine::SceneAssetStorage::Validate(scenePath, sceneMeta.guid);
+			const auto issues = sceneStorage_->Validate(scenePath, sceneMeta.guid);
 			if (!issues.empty()) {
 				for (const auto& issue : issues) {
 					errors_.push_back(issue.detail + " scene=" + sceneMeta.assetPath + " path=" +
@@ -688,6 +689,8 @@ namespace {
 		}
 
 		const Engine::AssetDatabase& database_;
+		Engine::SceneAssetStorage standaloneStorage_;
+		Engine::SceneAssetStorage* sceneStorage_ = nullptr;
 		std::deque<Engine::AssetID> assetQueue_;
 		std::unordered_set<Engine::AssetID> queuedAssets_;
 		std::unordered_set<Engine::AssetID> requiredAssets_;
@@ -755,7 +758,7 @@ void Engine::GameBuildService::RefreshScenes(const AssetDatabase& database) {
 }
 
 bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
-	const AssetDatabase& database, std::string& outError) {
+	const AssetDatabase& database, std::string& outError, SceneAssetStorage* sceneStorage) {
 
 	if (IsBuilding()) {
 		outError = "ビルドは既に実行中です";
@@ -766,7 +769,7 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	std::filesystem::path scriptPath;
 	bool manifestWritten = false;
 	try {
-		manifestWritten = WriteManifest(settings, database, scriptPath, outError);
+		manifestWritten = WriteManifest(settings, database, scriptPath, outError, sceneStorage);
 	} catch (const std::exception& exception) {
 		// ファイル操作の失敗でEditorを終了させず、ビルド画面へ理由を返す
 		outError = std::string("製品ビルドの準備中に例外が発生しました: ") + exception.what();
@@ -857,12 +860,12 @@ void Engine::GameBuildService::ResetStatus() {
 }
 
 bool Engine::GameBuildService::CollectFiles(AssetID startupScene, const AssetDatabase& database,
-	std::vector<GameBuildFileEntry>& outFiles, std::string& outError) {
+	std::vector<GameBuildFileEntry>& outFiles, std::string& outError, SceneAssetStorage* sceneStorage) {
 
 	outFiles.clear();
 	outError.clear();
 	try {
-		GameBuildAssetCollector collector(database);
+		GameBuildAssetCollector collector(database, sceneStorage);
 		return collector.Collect(startupScene, outFiles, outError);
 	} catch (const std::exception& exception) {
 		// 収集中の例外はビルド失敗として扱い、不完全な一覧を渡さない
@@ -874,7 +877,7 @@ bool Engine::GameBuildService::CollectFiles(AssetID startupScene, const AssetDat
 }
 
 bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
-	const AssetDatabase& database, std::filesystem::path& outScriptPath, std::string& outError) {
+	const AssetDatabase& database, std::filesystem::path& outScriptPath, std::string& outError, SceneAssetStorage* sceneStorage) {
 
 	const AssetMeta* sceneMeta = database.Find(settings.startupScene);
 	if (!sceneMeta || sceneMeta->type != AssetType::Scene ||
@@ -920,7 +923,7 @@ bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings,
 	}
 
 	std::vector<BuildFileEntry> files;
-	if (!CollectFiles(settings.startupScene, database, files, outError)) {
+	if (!CollectFiles(settings.startupScene, database, files, outError, sceneStorage)) {
 		return false;
 	}
 

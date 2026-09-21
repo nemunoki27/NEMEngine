@@ -1,9 +1,14 @@
-#include "EngineApplication.h"
+#include "PrefabEditSession.h"
+#include <Engine/Editor/Core/EditorContext.h>
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Build/BuildConfig.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/ECS/World/WorldManager.h>
+#include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
+#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
@@ -13,27 +18,35 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
-#include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 
 // c++
 #include <algorithm>
 #include <unordered_set>
 
-//============================================================================
-//	EngineApplication prefab methods
-//============================================================================
-const Engine::SceneHeader* Engine::EngineApplication::GetActiveSceneHeader() {
+using namespace Engine;
 
-	// In-Context編集ではhostシーンを参照する
-	const SceneInstance* instance = GetActiveScenes().GetActive();
-	return instance ? &instance->header : nullptr;
+Engine::PrefabEditSession::PrefabEditSession(AssetDatabase& assetDatabase,
+	WorldManager& worldManager,
+	SceneInstanceManager& editScenes,
+	SceneInstanceManager& playScenes,
+	SystemScheduler& scheduler,
+	SystemContext& systemContext,
+	EditorManager& editorManager) :
+	assetDatabase_(assetDatabase),
+	worldManager_(worldManager),
+	editScenes_(editScenes),
+	playScenes_(playScenes),
+	scheduler_(scheduler),
+	systemContext_(systemContext),
+	editorManager_(editorManager) {
 }
 
-void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
+void Engine::PrefabEditSession::EnterPrefabEdit(AssetID prefabAsset) {
 
 	// プレファブ以外や無効IDは無視する、Play中は呼ばれない前提
-	const AssetMeta* meta = assetDataBase_.Find(prefabAsset);
+	const AssetMeta* meta = assetDatabase_.Find(prefabAsset);
 	if (!meta || meta->type != AssetType::Prefab) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"EngineApplication: Prefabではないため編集開始要求を無視しました");
@@ -48,7 +61,7 @@ void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
 		Algorithm::PathFromUTF8(meta->assetPath).stem());
 	stage.inContext = false;
 	// 編集前のベースを控えておき、退出時にインスタンスへ伝播する際のオーバーライド判定に使う
-	stage.baseAtEnter = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDataBase_, prefabAsset);
+	stage.baseAtEnter = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDatabase_, prefabAsset);
 	// 編集セッションを束ねるインスタンスID、In-Context切替後もヒエラルキー絞り込みに使う
 	stage.instanceID = UUID::New();
 
@@ -79,12 +92,12 @@ void Engine::EngineApplication::EnterPrefabEdit(AssetID prefabAsset) {
 	prefabStages_.emplace_back(std::move(stage));
 }
 
-bool Engine::EngineApplication::MaterializePrefabForEdit(ECSWorld& world, AssetID prefabAsset,
+bool Engine::PrefabEditSession::MaterializePrefabForEdit(ECSWorld& world, AssetID prefabAsset,
 	UUID sceneInstanceID, UUID instanceID, PrefabInstantiateResult& outResult) {
 
 	// プレファブ自身のlocalFileIDをそのまま使う恒等remapを作る
 	// これで編集→保存でlocalFileIDが変わらず、既存インスタンスのオーバーライド参照が壊れない
-	const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDataBase_, prefabAsset);
+	const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(assetDatabase_, prefabAsset);
 	std::vector<std::pair<UUID, UUID>> identityRemap;
 	identityRemap.reserve(base.size());
 	for (const auto& [localID, baseEntity] : base) {
@@ -98,11 +111,11 @@ bool Engine::EngineApplication::MaterializePrefabForEdit(ECSWorld& world, AssetI
 	desc.forcedInstanceID = instanceID;
 	desc.localFileIDRemap = &identityRemap;
 	desc.preserveNestedLocalFileIDs = true;
-	return prefabSystem.InstantiatePrefab(assetDataBase_, hierarchySystem, world, prefabAsset, outResult, desc) &&
+	return prefabSystem.InstantiatePrefab(assetDatabase_, hierarchySystem, world, prefabAsset, outResult, desc) &&
 		world.IsAlive(outResult.root);
 }
 
-void Engine::EngineApplication::CopyPrefabEditEnvironment(ECSWorld& targetWorld, ECSWorld* sourceWorld,
+void Engine::PrefabEditSession::CopyPrefabEditEnvironment(ECSWorld& targetWorld, ECSWorld* sourceWorld,
 	UUID sceneInstanceID, std::vector<Entity>& outEnvironmentEntities) {
 
 	if (!sourceWorld) {
@@ -143,7 +156,7 @@ void Engine::EngineApplication::CopyPrefabEditEnvironment(ECSWorld& targetWorld,
 	copyEnvironment(sourceLight);
 }
 
-bool Engine::EngineApplication::ExitPrefabEdit() {
+bool Engine::PrefabEditSession::ExitPrefabEdit() {
 
 	if (prefabStages_.empty()) {
 		return false;
@@ -193,7 +206,7 @@ bool Engine::EngineApplication::ExitPrefabEdit() {
 	return true;
 }
 
-void Engine::EngineApplication::ExitAllPrefabEdit() {
+void Engine::PrefabEditSession::ExitAllPrefabEdit() {
 
 	// 各階層を保存・伝播しながら全て抜け、一回の操作で元のシーン編集へ戻す
 	while (!prefabStages_.empty()) {
@@ -203,7 +216,7 @@ void Engine::EngineApplication::ExitAllPrefabEdit() {
 	}
 }
 
-void Engine::EngineApplication::TogglePrefabInContextMode() {
+void Engine::PrefabEditSession::TogglePrefabInContextMode() {
 
 	if (prefabStages_.empty()) {
 		return;
@@ -260,7 +273,7 @@ void Engine::EngineApplication::TogglePrefabInContextMode() {
 	editorManager_.ResetSceneEditingState();
 }
 
-bool Engine::EngineApplication::SaveCurrentPrefab() {
+bool Engine::PrefabEditSession::SaveCurrentPrefab() {
 
 	if (prefabStages_.empty()) {
 		return false;
@@ -269,7 +282,7 @@ bool Engine::EngineApplication::SaveCurrentPrefab() {
 	SyncPrefabEditedEntities();
 
 	PrefabEditStage& stage = prefabStages_.back();
-	const AssetMeta* meta = assetDataBase_.Find(stage.asset);
+	const AssetMeta* meta = assetDatabase_.Find(stage.asset);
 	// In-Context編集ではhostWorld、隔離編集では隔離ワールドの実体を書き戻す
 	ECSWorld* editWorld = stage.inContext ? stage.hostWorld : stage.world.get();
 	// rootが削除されていても保存できるようにする、root健在チェックは保存ルート確定後に行う
@@ -349,7 +362,7 @@ bool Engine::EngineApplication::SaveCurrentPrefab() {
 
 	PrefabSystem prefabSystem{};
 	if (!prefabSystem.SavePrefabFromEntities(
-		assetDataBase_, *editWorld, stage.root, saveEntities, meta->assetPath)) {
+		assetDatabase_, *editWorld, stage.root, saveEntities, meta->assetPath)) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[Prefab] Prefabアセットを保存できません path={}", meta->assetPath);
@@ -358,7 +371,7 @@ bool Engine::EngineApplication::SaveCurrentPrefab() {
 	return true;
 }
 
-void Engine::EngineApplication::SyncPrefabEditedEntities() {
+void Engine::PrefabEditSession::SyncPrefabEditedEntities() {
 
 	if (prefabStages_.empty()) {
 		return;
@@ -425,13 +438,56 @@ void Engine::EngineApplication::SyncPrefabEditedEntities() {
 	}
 }
 
-bool Engine::EngineApplication::PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
+bool Engine::PrefabEditSession::PropagatePrefabToInstances(ECSWorld& world, AssetID prefabAsset,
 	const std::unordered_map<UUID, PrefabBaseEntity>& oldBase) {
 
 	// シーンロード時の展開と同じ経路を再利用する
 	HierarchySystem hierarchySystem{};
 	return PrefabOverrideUtility::PropagateToInstances(
-		world, assetDataBase_, hierarchySystem, prefabAsset, oldBase);
+		world, assetDatabase_, hierarchySystem, prefabAsset, oldBase);
 }
 
+	ECSWorld* Engine::PrefabEditSession::GetActiveWorld() {
 
+		if (worldManager_.IsPlaying()) { return worldManager_.GetPlayWorld(); }
+		if (!prefabStages_.empty()) {
+			PrefabEditStage& top = prefabStages_.back();
+			return top.inContext ? top.hostWorld : top.world.get();
+		}
+		return &worldManager_.GetEditWorld();
+	}
+
+	SceneInstanceManager& Engine::PrefabEditSession::GetActiveScenes() {
+
+		if (worldManager_.IsPlaying()) { return playScenes_; }
+		if (!prefabStages_.empty()) {
+			PrefabEditStage& top = prefabStages_.back();
+			if (top.inContext) { return ResolveHostScenes(top); }
+			return top.scenes;
+		}
+		return editScenes_;
+	}
+
+	SceneInstanceManager& Engine::PrefabEditSession::ResolveHostScenes(PrefabEditStage& stage) {
+
+		if (stage.hostWorld == &worldManager_.GetEditWorld()) { return editScenes_; }
+		for (size_t i = prefabStages_.size(); i-- > 0; ) {
+			if (prefabStages_[i].world.get() == stage.hostWorld) { return prefabStages_[i].scenes; }
+		}
+		return editScenes_;
+	}
+
+void Engine::PrefabEditSession::ApplyEditorContext(EditorContext& context) const {
+
+	context.isPrefabEditing = IsEditing();
+	context.prefabEditDepth = static_cast<int>(prefabStages_.size());
+	context.prefabEditName = prefabStages_.empty() ? std::string{} : prefabStages_.back().name;
+	context.prefabEditAsset = prefabStages_.empty() ? AssetID{} : prefabStages_.back().asset;
+	context.prefabEditInstanceID = prefabStages_.empty() ? UUID{} : prefabStages_.back().instanceID;
+	context.isPrefabInContext = !prefabStages_.empty() && prefabStages_.back().inContext;
+	context.prefabInContextInstanceID =
+		context.isPrefabInContext ? prefabStages_.back().instanceID : UUID{};
+	context.prefabEnvironmentEntities =
+		(!prefabStages_.empty() && !prefabStages_.back().inContext) ?
+		&prefabStages_.back().environmentEntities : nullptr;
+}

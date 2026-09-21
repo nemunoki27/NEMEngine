@@ -89,6 +89,13 @@ public sealed class StageManager : ScriptBehaviour {
 
 		int failures = 0;
 		try {
+			MathLayoutTests.Run();
+			Console.WriteLine("[PASS] math ABI layout and values.");
+		} catch (Exception ex) {
+			++failures;
+			Console.Error.WriteLine($"[FAIL] math ABI: {ex}");
+		}
+		try {
 			TestDisabledScriptProfiler();
 			Console.WriteLine("[PASS] disabled script profiler has no allocations.");
 		} catch (Exception ex) {

@@ -50,6 +50,7 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	class SceneAssetStorage;
 
 	//============================================================================
 	//	GameBuildService class
@@ -71,9 +72,9 @@ namespace Engine {
 		void RefreshScenes(const AssetDatabase& database);
 		// 実行ファイルを構築せず製品へ配置する依存ファイルを検証する
 		static bool CollectFiles(AssetID startupScene, const AssetDatabase& database,
-			std::vector<GameBuildFileEntry>& outFiles, std::string& outError);
+			std::vector<GameBuildFileEntry>& outFiles, std::string& outError, SceneAssetStorage* sceneStorage = nullptr);
 		// 製品ビルドを開始
-		bool Start(const GameBuildSettings& settings, const AssetDatabase& database, std::string& outError);
+		bool Start(const GameBuildSettings& settings, const AssetDatabase& database, std::string& outError, SceneAssetStorage* sceneStorage = nullptr);
 		// 子プロセスの進行を更新
 		void Update();
 		// 完了表示を待機状態へ戻す
@@ -106,7 +107,7 @@ namespace Engine {
 
 		// ビルド設定とアセット一覧を一時マニフェストへ保存
 		bool WriteManifest(const GameBuildSettings& settings, const AssetDatabase& database,
-			std::filesystem::path& outScriptPath, std::string& outError);
+			std::filesystem::path& outScriptPath, std::string& outError, SceneAssetStorage* sceneStorage);
 		// 一時マニフェストを削除
 		void RemoveManifest();
 	};

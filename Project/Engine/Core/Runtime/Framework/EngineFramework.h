@@ -3,10 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Time/FrameTimer.h>
 
+// c++
+#include <memory>
+
 namespace Engine {
+
+	class GraphicsCore;
 
 	//============================================================================
 	//	IEngineApplication class
@@ -14,6 +18,9 @@ namespace Engine {
 	//============================================================================
 	class IEngineApplication {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
 
 		virtual ~IEngineApplication() = default;
 
@@ -37,13 +44,20 @@ namespace Engine {
 		//============================================================================
 
 		explicit Framework(std::unique_ptr<IEngineApplication> application);
-		~Framework() = default;
+		~Framework();
 
 		void Run();
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
+		//--------- structure ----------------------------------------------------
+
+		struct LeakChecker {
+
+			~LeakChecker();
+		};
 
 		//--------- variables ----------------------------------------------------
 
@@ -58,6 +72,7 @@ namespace Engine {
 
 		// エンジンコアアプリケーション
 		std::unique_ptr<IEngineApplication> engineApplication_;
+		LeakChecker leakChecker_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -74,12 +89,5 @@ namespace Engine {
 		// 終了処理
 		void Finalize();
 
-		//--------- LeakChecker ----------------------------------------------------
-
-		struct LeakChecker {
-
-			~LeakChecker();
-		};
-		LeakChecker leakChecker_;
 	};
 }; // Engine

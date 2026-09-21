@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -38,7 +39,7 @@ namespace Engine::InspectorDrawerCommon {
 			return result;
 		}
 
-		result.valueChanged = EnumAdapter<Enum>::Combo("##Value", &value);
+		result.valueChanged = Engine::ImGuiUtility::EnumCombo<Enum>("##Value", &value);
 		result.anyItemActive = ImGui::IsItemActive();
 		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
 

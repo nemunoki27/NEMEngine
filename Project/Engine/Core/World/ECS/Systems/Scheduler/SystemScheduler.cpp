@@ -89,48 +89,6 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		const std::chrono::duration<float, std::milli> elapsed = std::chrono::high_resolution_clock::now() - begin;
 		systemMs[index] += elapsed.count();
 		};
-	auto flushWorldCommands = [&](SceneChangePhase phase) {
-
-		SceneInstanceManager* sceneInstances =
-			currentWorld_->GetCommandServices().sceneInstances;
-		uint64_t sceneRevision = sceneInstances ?
-			sceneInstances->GetRevision() : 0;
-
-		currentWorld_->FlushWorldCommands();
-		// SceneやPrefabの構造変更を次のLifecycle処理より先にBakeする
-		if (context.runtimeWorldBaker) {
-			context.runtimeWorldBaker->Flush();
-		}
-		uint32_t syncCount = 0;
-		while (sceneInstances &&
-			sceneRevision != sceneInstances->GetRevision() &&
-			syncCount < kMaxSceneSyncCount) {
-
-			sceneRevision = sceneInstances->GetRevision();
-			// Scene切り替えで無効になったHeader参照をLifecycle処理より先に更新する
-			const SceneInstance* activeScene = sceneInstances->GetActive();
-			context.activeSceneHeader = activeScene ? &activeScene->header : nullptr;
-			// 新しいシーンを描画する前にスクリプト初期化と遷移要求を反映する
-			for (size_t i = 0; i < systems_.size(); ++i) {
-
-				measure(i, [&] {
-					systems_[i].system->OnSceneInstancesChanged(
-						*currentWorld_, context, phase);
-					});
-			}
-			// AwakeやStartから積まれた構造変更を同じ安全地点で確定する
-			currentWorld_->FlushWorldCommands();
-			if (context.runtimeWorldBaker) {
-				context.runtimeWorldBaker->Flush();
-			}
-			++syncCount;
-		}
-		if (sceneInstances && sceneRevision != sceneInstances->GetRevision()) {
-
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"SystemScheduler: Scene Lifecycleの同期回数が上限を超えました");
-		}
-		};
 
 	uint32_t steps = 0;
 	// 蓄積した時間が固定更新の時間以上で、サブステップの最大数に達していない限り、固定更新を繰り返す
@@ -140,7 +98,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 			measure(i, [&] { systems_[i].system->FixedUpdate(*currentWorld_, context); });
 		}
 		// 各サブステップ後に、スクリプト由来の構造変更コマンドを安全地点で適用する
-		flushWorldCommands(SceneChangePhase::FixedUpdate);
+		FlushWorldCommands(context, SceneChangePhase::FixedUpdate);
 		// 蓄積した時間から固定更新の時間を引く
 		accumulator_ -= fixedDeltaTime_;
 		++steps;
@@ -152,7 +110,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		measure(i, [&] { systems_[i].system->Update(*currentWorld_, context); });
 	}
 	// Update中に積まれた構造変更コマンドを適用する
-	flushWorldCommands(SceneChangePhase::Update);
+	FlushWorldCommands(context, SceneChangePhase::Update);
 
 	// 後更新処理
 	for (size_t i = 0; i < systems_.size(); ++i) {
@@ -160,7 +118,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		measure(i, [&] { systems_[i].system->LateUpdate(*currentWorld_, context); });
 	}
 	// LateUpdate中に積まれた構造変更コマンドを適用する
-	flushWorldCommands(SceneChangePhase::LateUpdate);
+	FlushWorldCommands(context, SceneChangePhase::LateUpdate);
 
 	// 計測結果を処理順のままプロファイラへ渡す
 	systemTimesScratch_.clear();
@@ -236,3 +194,47 @@ void Engine::SystemScheduler::DetachWorld(ECSWorld& world, SystemContext& contex
 		entry.system->OnWorldExit(world, context);
 	}
 }
+
+void Engine::SystemScheduler::FlushWorldCommands(SystemContext& context, SceneChangePhase phase) {
+
+
+	SceneInstanceManager* sceneInstances =
+		currentWorld_->GetCommandServices().sceneInstances;
+	uint64_t sceneRevision = sceneInstances ?
+		sceneInstances->GetRevision() : 0;
+
+	currentWorld_->FlushWorldCommands();
+	// SceneやPrefabの構造変更を次のLifecycle処理より先にBakeする
+	if (context.runtimeWorldBaker) {
+		context.runtimeWorldBaker->Flush();
+	}
+	uint32_t syncCount = 0;
+	while (sceneInstances &&
+		sceneRevision != sceneInstances->GetRevision() &&
+		syncCount < kMaxSceneSyncCount) {
+
+		sceneRevision = sceneInstances->GetRevision();
+		// Scene切り替えで無効になったHeader参照をLifecycle処理より先に更新する
+		const SceneInstance* activeScene = sceneInstances->GetActive();
+		context.activeSceneHeader = activeScene ? &activeScene->header : nullptr;
+		// 新しいシーンを描画する前にスクリプト初期化と遷移要求を反映する
+		for (size_t i = 0; i < systems_.size(); ++i) {
+
+			const auto begin = std::chrono::high_resolution_clock::now();
+			systems_[i].system->OnSceneInstancesChanged(*currentWorld_, context, phase);
+			const std::chrono::duration<float, std::milli> elapsed = std::chrono::high_resolution_clock::now() - begin;
+			systemMsScratch_[i] += elapsed.count();
+		}
+		// AwakeやStartから積まれた構造変更を同じ安全地点で確定する
+		currentWorld_->FlushWorldCommands();
+		if (context.runtimeWorldBaker) {
+			context.runtimeWorldBaker->Flush();
+		}
+		++syncCount;
+	}
+	if (sceneInstances && sceneRevision != sceneInstances->GetRevision()) {
+
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"SystemScheduler: Scene Lifecycleの同期回数が上限を超えました");
+	}
+	}
