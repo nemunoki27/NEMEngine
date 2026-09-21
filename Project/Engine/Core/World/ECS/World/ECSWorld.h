@@ -244,15 +244,9 @@ namespace Engine {
 		// 構造またはComponent値が変わるたびに進む世代
 		uint64_t GetDataRevision() const { return dataRevision_; }
 		// 描画構成、描画Transform、ライト抽出の変更世代
-		uint64_t GetRenderDataRevision() const {
-			return renderDataRevision_;
-		}
-		uint64_t GetRenderTransformRevision() const {
-			return renderTransformRevision_;
-		}
-		uint64_t GetLightDataRevision() const {
-			return lightDataRevision_;
-		}
+		uint64_t GetRenderDataRevision() const { return renderDataRevision_; }
+		uint64_t GetRenderTransformRevision() const { return renderTransformRevision_; }
+		uint64_t GetLightDataRevision() const { return lightDataRevision_; }
 		// 指定世代より後に描画へ影響したTransform一覧を取得
 		bool CollectRenderTransformChanges(
 			uint64_t afterRevision, std::vector<Entity>& outEntities) const;

@@ -78,3 +78,15 @@ void Engine::CurveEditorState::RemoveInvalidSelections(uint32_t channelCount, co
 			return channelCount <= selection.channelIndex || keyCounts[selection.channelIndex] <= selection.keyIndex;
 		}), selectedKeys.end());
 }
+
+//============================================================================
+//	CurveEditorState classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool CurveKeySelection::operator==(const CurveKeySelection& other) const {
+
+		return channelIndex == other.channelIndex && keyIndex == other.keyIndex;
+	}
+}

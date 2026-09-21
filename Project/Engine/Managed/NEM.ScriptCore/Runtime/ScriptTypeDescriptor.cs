@@ -6,27 +6,27 @@ namespace NEMEngine;
 public readonly struct ScriptTypeDescriptor {
 
 	public ScriptTypeDescriptor(
-		string scriptTypeId,
+		string scriptTypeID,
 		string fullTypeName,
 		string displayName,
 		string sourcePath,
-		bool hasExplicitId) {
+		bool hasExplicitID) {
 
-		ScriptTypeId = scriptTypeId;
+		ScriptTypeID = scriptTypeID;
 		FullTypeName = fullTypeName;
 		DisplayName = displayName;
 		SourcePath = sourcePath;
-		HasExplicitId = hasExplicitId;
+		HasExplicitID = hasExplicitID;
 	}
 
 	// 正規化済み Stable Script Type GUID
-	public string ScriptTypeId { get; }
+	public string ScriptTypeID { get; }
 	// 完全修飾型名
 	public string FullTypeName { get; }
 	// 表示名
 	public string DisplayName { get; }
 	// 定義元 .cs のパス（drag&drop の source 照合用。永続識別には使わない）
 	public string SourcePath { get; }
-	// [ScriptTypeId]またはmetadataから安定IDを解決できたか
-	public bool HasExplicitId { get; }
+	// [ScriptTypeID]またはmetadataから安定IDを解決できたか
+	public bool HasExplicitID { get; }
 }

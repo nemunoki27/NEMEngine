@@ -58,7 +58,7 @@ internal sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
         writer.WriteStartObject();
         writer.WriteString("kind", value.kind.ToString());
         writer.WriteString("sourceAsset", value.sourceAsset.isValid ? value.sourceAsset.ToString() : string.Empty);
-        writer.WriteString("localFileId", value.localFileId.isValid ? value.localFileId.ToString() : string.Empty);
+        writer.WriteString("localFileId", value.localFileID.isValid ? value.localFileID.ToString() : string.Empty);
         writer.WriteEndObject();
     }
 }
@@ -78,7 +78,7 @@ internal sealed class EntityJsonConverter : JsonConverter<Entity> {
     public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) {
 
         EntityRef identity = value.isAlive
-            ? NativeApi.ReadEntityReferenceIdentity(value.native)
+            ? NativeAPI.ReadEntityReferenceIdentity(value.native)
             : EntityRef.Null;
         EntityRefJsonConverter.WriteIdentity(writer, identity);
     }
@@ -115,8 +115,8 @@ internal sealed class AssetJsonConverter<TAsset> : JsonConverter<TAsset> where T
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("assetId", out JsonElement id)) {
             return null;
         }
-        AssetGUID assetId = AssetGUID.Parse(id.GetString());
-        return assetId.isValid && ctor != null ? (TAsset)ctor.Invoke(new object[] { assetId }) : null;
+        AssetGUID assetID = AssetGUID.Parse(id.GetString());
+        return assetID.isValid && ctor != null ? (TAsset)ctor.Invoke(new object[] { assetID }) : null;
     }
 
     public override void Write(Utf8JsonWriter writer, TAsset? value, JsonSerializerOptions options) {
@@ -157,7 +157,7 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
             return null;
         }
         Entity owner = EntityRefJsonConverter.ReadIdentity(entityElement).Resolve();
-        if (!owner.isAlive || ComponentType<T>.Id < 0 || !NativeApi.ReadHasComponent(owner.native, ComponentType<T>.Id)) {
+        if (!owner.isAlive || ComponentType<T>.ID < 0 || !NativeAPI.ReadHasComponent(owner.native, ComponentType<T>.ID)) {
             return null;
         }
         return T.FromEntity(owner);
@@ -166,7 +166,7 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
 
         EntityRef identity = value != null && value.entity.isAlive
-            ? NativeApi.ReadEntityReferenceIdentity(value.entity.native)
+            ? NativeAPI.ReadEntityReferenceIdentity(value.entity.native)
             : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");
@@ -176,7 +176,7 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
 }
 
 // ScriptBehaviour派生クラス <-> { "entity":{...}, "scriptSlotId":"hex", "scriptTypeId":"guid" }
-// 読み込みは保存されたscriptTypeId(無ければフィールド宣言型のGUID)でnative registryから生きたinstanceを引く
+// 読み込みは保存されたscriptTypeID(無ければフィールド宣言型のGUID)でnative registryから生きたinstanceを引く
 internal sealed class ScriptBehaviourJsonConverterFactory : JsonConverterFactory {
 
     public override bool CanConvert(Type typeToConvert) {
@@ -211,23 +211,23 @@ internal sealed class ScriptBehaviourJsonConverter<T> : JsonConverter<T> where T
         }
 
         // 保存された型GUIDを優先し、無ければ宣言型のGUIDで引く（宣言型がabstractでも保存GUIDで解決できる）
-        string typeId = root.TryGetProperty("scriptTypeId", out JsonElement t) ? (t.GetString() ?? string.Empty) : string.Empty;
-        if (string.IsNullOrEmpty(typeId)) {
-            typeId = HostBridge.GetScriptTypeGuid(typeof(T)) ?? string.Empty;
+        string typeID = root.TryGetProperty("scriptTypeId", out JsonElement t) ? (t.GetString() ?? string.Empty) : string.Empty;
+        if (string.IsNullOrEmpty(typeID)) {
+            typeID = HostBridge.GetScriptTypeGuid(typeof(T)) ?? string.Empty;
         }
-        return HostBridge.FindScriptByGuid(owner.native, typeId) as T;
+        return HostBridge.FindScriptByGuid(owner.native, typeID) as T;
     }
 
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
 
         bool alive = value != null && value.entity.isAlive;
         EntityRef identity = alive
-            ? NativeApi.ReadEntityReferenceIdentity(value!.entity.native)
+            ? NativeAPI.ReadEntityReferenceIdentity(value!.entity.native)
             : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");
         EntityRefJsonConverter.WriteIdentity(writer, identity);
-        writer.WriteString("scriptSlotId", alive && value!.scriptSlotId != 0 ? new UUID(value.scriptSlotId).ToString() : string.Empty);
+        writer.WriteString("scriptSlotId", alive && value!.scriptSlotID != 0 ? new UUID(value.scriptSlotID).ToString() : string.Empty);
         writer.WriteString("scriptTypeId", alive ? HostBridge.GetScriptTypeGuid(value!.GetType()) ?? string.Empty : string.Empty);
         writer.WriteEndObject();
     }

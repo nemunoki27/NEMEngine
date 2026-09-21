@@ -5,9 +5,9 @@ namespace NEMEngine;
 // 決定的な GUID を生成する（[FormerlySerializedAs] の origin を維持する）。
 // 12_editor_scripting_tooling の script template はこの属性で GUID を自動挿入できる。
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-public sealed class SerializedFieldIdAttribute : Attribute {
+public sealed class SerializedFieldIDAttribute : Attribute {
 
-    public SerializedFieldIdAttribute(string value) {
+    public SerializedFieldIDAttribute(string value) {
         Value = value;
     }
 

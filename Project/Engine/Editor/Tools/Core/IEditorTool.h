@@ -12,14 +12,14 @@
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
-// imgui
-#include <imgui.h>
 // c++
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <imgui.h>
 
 namespace Engine {
 

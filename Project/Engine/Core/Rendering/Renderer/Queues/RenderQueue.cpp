@@ -239,3 +239,16 @@ void Engine::RenderSceneBatch::RebuildEntityLookup() {
 			BuildEntityKey(items_[index].entity), index);
 	}
 }
+
+//============================================================================
+//	RenderQueue classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool RenderSceneBatch::MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const {
+
+		return sourceWorld_ == world &&
+			sourceRenderRevision_ == renderRevision;
+	}
+}

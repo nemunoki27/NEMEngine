@@ -7,13 +7,14 @@
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <array>
 #include <cstdint>
 #include <vector>
 #include <optional>
+
+// directX
+#include <d3d12.h>
 
 //============================================================================
 //	DxCommand class
@@ -81,11 +82,7 @@ public:
 
 	ID3D12GraphicsCommandList6* GetCommandList() const { return commandList_.Get(); }
 	uint32_t GetCurrentFrameIndex() const { return currentFrameIndex_; }
-	uint64_t GetFrameFenceValue(uint32_t frameIndex) const {
-		return frameContexts_[
-			frameIndex %
-			GraphicsFrameState::GetActiveCount()].fenceValue;
-	}
+	uint64_t GetFrameFenceValue(uint32_t frameIndex) const;
 	bool IsRecording() const { return recording_; }
 private:
 	//============================================================================

@@ -10,14 +10,14 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
-// windows
-#include <windows.h>
-#include <windef.h>
 // c++
 #include <cmath>
 #include <numbers>
 #include <vector>
 #include <algorithm>
+
+#include <windows.h>
+#include <windef.h>
 
 //============================================================================
 //	Math namespace

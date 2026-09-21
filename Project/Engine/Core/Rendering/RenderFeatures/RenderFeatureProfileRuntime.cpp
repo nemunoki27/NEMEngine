@@ -234,7 +234,6 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		}
 		for (const auto& [name, input] : pass.passInputs) {
 
-			(void)name;
 			if (input.pass) {
 				dependencies.insert(input.pass.value);
 			}

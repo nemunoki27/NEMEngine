@@ -5,11 +5,8 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/Axis.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
-
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
 
-// imgui
-#include <imgui_internal.h>
 // c++
 #include <algorithm>
 #include <array>
@@ -17,6 +14,8 @@
 #include <format>
 #include <limits>
 #include <vector>
+
+#include <imgui_internal.h>
 
 //============================================================================
 //	MyGUI Curve classMethods

@@ -91,18 +91,11 @@ namespace Engine {
 			AssetID mesh{};
 			uint64_t hash = 0;
 
-			bool operator==(const SkinnedBatchCacheKey& rhs) const noexcept {
-				return world == rhs.world && mesh == rhs.mesh && hash == rhs.hash;
-			}
+			bool operator==(const SkinnedBatchCacheKey& rhs) const noexcept;
 		};
 		// ハッシュ関数
 		struct SkinnedBatchCacheKeyHash {
-			size_t operator()(const SkinnedBatchCacheKey& key) const noexcept {
-				size_t h = std::hash<void*>{}(key.world);
-				h ^= (std::hash<AssetID>{}(key.mesh) << 1);
-				h ^= (std::hash<uint64_t>{}(key.hash) << 2);
-				return h;
-			}
+			size_t operator()(const SkinnedBatchCacheKey& key) const noexcept;
 		};
 		struct SkinnedBatchCacheEntry {
 
@@ -117,19 +110,10 @@ namespace Engine {
 			Entity entity = Entity::Null();
 			AssetID mesh{};
 
-			bool operator==(const SkinnedSourceLookupKey& rhs) const noexcept {
-				return world == rhs.world && entity.index == rhs.entity.index &&
-					entity.generation == rhs.entity.generation && mesh == rhs.mesh;
-			}
+			bool operator==(const SkinnedSourceLookupKey& rhs) const noexcept;
 		};
 		struct SkinnedSourceLookupKeyHash {
-			size_t operator()(const SkinnedSourceLookupKey& key) const noexcept {
-				size_t h = std::hash<void*>{}(key.world);
-				h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
-				h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
-				h ^= (std::hash<AssetID>{}(key.mesh) << 3);
-				return h;
-			}
+			size_t operator()(const SkinnedSourceLookupKey& key) const noexcept;
 		};
 	struct StaticBatchCacheKey {
 
@@ -138,17 +122,10 @@ namespace Engine {
 		AssetID mesh{};
 		uint64_t hash = 0;
 
-			bool operator==(const StaticBatchCacheKey& rhs) const noexcept {
-				return world == rhs.world && mesh == rhs.mesh && hash == rhs.hash;
-			}
+			bool operator==(const StaticBatchCacheKey& rhs) const noexcept;
 		};
 		struct StaticBatchCacheKeyHash {
-			size_t operator()(const StaticBatchCacheKey& key) const noexcept {
-				size_t h = std::hash<void*>{}(key.world);
-				h ^= (std::hash<AssetID>{}(key.mesh) << 1);
-				h ^= (std::hash<uint64_t>{}(key.hash) << 2);
-				return h;
-			}
+			size_t operator()(const StaticBatchCacheKey& key) const noexcept;
 		};
 	struct StaticBatchCacheEntry {
 

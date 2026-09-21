@@ -261,3 +261,29 @@ Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const SubMe
 		-subMesh.sourcePivot.x, -subMesh.sourcePivot.y, -subMesh.sourcePivot.z));
 	return invPivot * BuildLocalMatrix(subMesh) * pivot;
 }
+
+//============================================================================
+//	MeshRendererComponent classMethods
+//============================================================================
+
+namespace Engine {
+
+	MeshRenderFlags operator|(MeshRenderFlags lhs, MeshRenderFlags rhs) {
+
+		return static_cast<MeshRenderFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+	}
+
+	bool HasMeshRenderFlag(MeshRenderFlags flags, MeshRenderFlags target) {
+
+		return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(target)) != 0;
+	}
+
+	void SetMeshRenderFlag(MeshRenderFlags& flags, MeshRenderFlags target, bool enabled) {
+
+		if (enabled) {
+			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) | static_cast<uint32_t>(target));
+		} else {
+			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) & ~static_cast<uint32_t>(target));
+		}
+	}
+}

@@ -8,16 +8,15 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 
-// assimp
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-
 // c++
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <filesystem>
+
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 //============================================================================
 //	ModelPreviewUtility functions

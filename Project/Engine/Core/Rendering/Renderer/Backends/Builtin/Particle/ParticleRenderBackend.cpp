@@ -804,3 +804,22 @@ void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawConte
 	commandList->IASetIndexBuffer(&indexBufferView);
 	commandList->DrawIndexedInstanced(geometry->indexCount, instanceCount, 0, 0, 0);
 }
+
+//============================================================================
+//	ParticleRenderBackend classMethods
+//============================================================================
+
+namespace Engine {
+
+	ParticleRenderBackend::ParticleRenderBackend() {
+
+		shapeConstantsCBVSlot_ = perDrawBindCache_.AddSlot("ParticleShapeConstants", ShaderBindingKind::CBV);
+		trailConstantsCBVSlot_ = perDrawBindCache_.AddSlot("ParticleTrailConstants", ShaderBindingKind::CBV);
+		verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
+		geometrySRVSlot_ = perDrawBindCache_.AddSlot("gParticleGeometry", ShaderBindingKind::SRV);
+		materialsSRVSlot_ = perDrawBindCache_.AddSlot("gParticleMaterials", ShaderBindingKind::SRV);
+		customParametersSRVSlot_ = perDrawBindCache_.AddSlot("gParticleCustomParameters", ShaderBindingKind::SRV);
+		trailPointsSRVSlot_ = perDrawBindCache_.AddSlot("gTrailPoints", ShaderBindingKind::SRV);
+		trailSegmentsSRVSlot_ = perDrawBindCache_.AddSlot("gTrailSegments", ShaderBindingKind::SRV);
+	}
+}

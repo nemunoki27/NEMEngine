@@ -46,6 +46,8 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+
 // c++
 #include <algorithm>
 #include <array>
@@ -54,7 +56,6 @@ using namespace Engine;
 #include <functional>
 #include <unordered_set>
 
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
 namespace {
 
@@ -1502,4 +1503,21 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		break;
 	}
 	return context;
+}
+
+//============================================================================
+//	RenderPipelineRunner classMethods
+//============================================================================
+
+namespace Engine {
+
+	const ShaderReflectionInfo* RenderPipelineRunner::FindPipelineGraphicsReflection(AssetID pipelineAssetID) const {
+
+		return pipelineStateCache_.FindGraphicsReflection(pipelineAssetID);
+	}
+
+	const PerViewLightSet& RenderPipelineRunner::GetResolvedViewLightSet(RenderViewKind kind) const {
+
+		return (kind == RenderViewKind::Game) ? gameViewState_.lightSet : sceneViewState_.lightSet;
+	}
 }

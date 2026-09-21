@@ -166,14 +166,9 @@ namespace Engine {
 		uint32_t GetPointCount() const { return static_cast<uint32_t>(pointLights_.size()); }
 		uint32_t GetRectCount() const { return static_cast<uint32_t>(rectLights_.size()); }
 		uint32_t GetSpotCount() const { return static_cast<uint32_t>(spotLights_.size()); }
-		uint32_t GetTotalCount() const {
-			return GetDirectionalCount() + GetPointCount() +
-				GetRectCount() + GetSpotCount();
-		}
+		uint32_t GetTotalCount() const { return GetDirectionalCount() + GetPointCount() + GetRectCount() + GetSpotCount(); }
 		uint64_t GetSourceRevision() const { return sourceRevision_; }
-		bool MatchesSource(const ECSWorld* world, uint64_t revision) const {
-			return sourceWorld_ == world && sourceRevision_ == revision;
-		}
+		bool MatchesSource(const ECSWorld* world, uint64_t revision) const;
 	private:
 		//============================================================================
 		//	private Methods

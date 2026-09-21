@@ -4,12 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
-#include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h> 
+#include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 
-// directX
-#include <d3d12.h> 
 // c++
 #include <span>
+
+// directX
+#include <d3d12.h>
 
 namespace Engine {
 

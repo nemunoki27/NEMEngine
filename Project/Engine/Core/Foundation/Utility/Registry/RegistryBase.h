@@ -55,7 +55,6 @@ namespace Engine {
 		virtual void Clear() {
 			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する
 			for (auto& [key, item] : items_) {
-				(void)key;
 				item.reset();
 			}
 			items_.clear();

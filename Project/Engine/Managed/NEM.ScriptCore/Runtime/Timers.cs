@@ -140,7 +140,7 @@ public static class Timers {
                 callback();
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"[Timers] callback threw\n{ex}");
+                NativeAPI.WriteLog(2, $"[Timers] callback threw\n{ex}");
             }
         }
     }

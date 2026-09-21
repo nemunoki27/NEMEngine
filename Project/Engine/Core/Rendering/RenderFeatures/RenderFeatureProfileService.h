@@ -91,12 +91,7 @@ namespace Engine {
 
 		struct ReflectionKeyHash {
 
-			size_t operator()(const ReflectionKey& key) const noexcept {
-
-				return std::hash<AssetID>{}(key.material) ^
-					(std::hash<uint8_t>{}(
-						static_cast<uint8_t>(key.passKind)) << 1);
-			}
+			size_t operator()(const ReflectionKey& key) const noexcept;
 		};
 
 		//--------- variables ----------------------------------------------------

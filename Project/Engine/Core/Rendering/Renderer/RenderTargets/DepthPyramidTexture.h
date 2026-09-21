@@ -48,23 +48,11 @@ namespace Engine {
 		uint32_t GetWidth() const { return width_; }
 		uint32_t GetHeight() const { return height_; }
 		uint32_t GetMipCount() const { return mipCount_; }
-		void MarkBuilt(uint64_t frameSerial) {
-			lastBuiltFrameSerial_ = frameSerial;
-		}
-		bool IsBuiltForFrame(uint64_t frameSerial) const {
-			return lastBuiltFrameSerial_ == frameSerial;
-		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const {
-			return srvGPUHandle_;
-		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipSRVGPUHandle(
-			uint32_t mipIndex) const {
-			return mipSRVGPUHandles_[mipIndex];
-		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipUAVGPUHandle(
-			uint32_t mipIndex) const {
-			return mipUAVGPUHandles_[mipIndex];
-		}
+		void MarkBuilt(uint64_t frameSerial) { lastBuiltFrameSerial_ = frameSerial; }
+		bool IsBuiltForFrame(uint64_t frameSerial) const { return lastBuiltFrameSerial_ == frameSerial; }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const { return srvGPUHandle_; }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipSRVGPUHandle( uint32_t mipIndex) const { return mipSRVGPUHandles_[mipIndex]; }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipUAVGPUHandle( uint32_t mipIndex) const { return mipUAVGPUHandles_[mipIndex]; }
 		static constexpr std::string_view kBindingName =
 			"gOcclusionDepthPyramid";
 	private:

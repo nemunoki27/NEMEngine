@@ -15,7 +15,7 @@ echo ===== Generate Component Bindings =====
 rem Generate registration, bindings, and ABI from the component manifests.
 dotnet run --project "%ENGINE_ROOT%\Project\Tools\NEM.ComponentBindingGen\NEM.ComponentBindingGen.csproj" -c Release -- ^
     --manifest "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ComponentManifest.json" ^
-    --abi "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ManagedNativeApi.json" ^
+    --abi "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ManagedNativeAPI.json" ^
     --out-native-dir "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Generated" ^
     --out-cs-dir "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\Generated"
 if errorlevel 1 (
@@ -28,7 +28,7 @@ echo ===== Verify Generated Bindings =====
 dotnet run --project "%ENGINE_ROOT%\Project\Tools\NEM.ComponentBindingGen\NEM.ComponentBindingGen.csproj" -c Release -- ^
     --verify ^
     --manifest "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ComponentManifest.json" ^
-    --abi "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ManagedNativeApi.json" ^
+    --abi "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Bindings\ManagedNativeAPI.json" ^
     --out-native-dir "%ENGINE_ROOT%\Project\Engine\Core\Scripting\Managed\Generated" ^
     --out-cs-dir "%ENGINE_ROOT%\Project\Engine\Managed\NEM.ScriptCore\Generated"
 if errorlevel 1 (

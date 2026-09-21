@@ -11,16 +11,15 @@
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 
-// imgui
-#include <imgui.h>
-#include <imgui_internal.h>
-
 // c++
 #include <algorithm>
 #include <cctype>
 #include <functional>
 #include <string_view>
 #include <unordered_set>
+
+#include <imgui.h>
+#include <imgui_internal.h>
 
 namespace {
 

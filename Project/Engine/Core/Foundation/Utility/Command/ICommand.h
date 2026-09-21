@@ -28,14 +28,11 @@ namespace Engine {
 		virtual bool Redo(T& context) { return Execute(context); }
 
 		// 直前コマンドへ連続操作をまとめられるか
-		virtual bool CanCoalesce(const ICommand<T>& next) const {
-			(void)next;
+		virtual bool CanCoalesce([[maybe_unused]] const ICommand<T>& next) const {
 			return false;
 		}
 		// 直前コマンドのUndo基準を維持したまま次の操作を実行
-		virtual bool ExecuteCoalesced(ICommand<T>& next, T& context) {
-			(void)next;
-			(void)context;
+		virtual bool ExecuteCoalesced([[maybe_unused]] ICommand<T>& next, [[maybe_unused]] T& context) {
 			return false;
 		}
 

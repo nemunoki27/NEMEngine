@@ -18,12 +18,13 @@
 #endif
 
 // imgui
-#include <imgui.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
 #include <string>
+
+#include <imgui.h>
 
 //============================================================================
 //	CollisionManagerTool classMethods

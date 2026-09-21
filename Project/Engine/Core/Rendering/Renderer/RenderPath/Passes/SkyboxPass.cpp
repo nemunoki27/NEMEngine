@@ -176,3 +176,15 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawInstanced(3, 1, 0, 0);
 }
+
+//============================================================================
+//	SkyboxPass classMethods
+//============================================================================
+
+namespace Engine {
+
+	SkyboxPass::SkyboxPass(const RenderPipelineDeps& deps) : deps_(deps) {
+
+		cbvSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
+	}
+}

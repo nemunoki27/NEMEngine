@@ -11,12 +11,11 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <algorithm>
 #include <string>
+
+#include <imgui.h>
 
 //============================================================================
 //	ParticleSystemInspectorDrawer internal

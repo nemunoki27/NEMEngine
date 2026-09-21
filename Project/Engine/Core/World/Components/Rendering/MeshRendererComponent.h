@@ -40,24 +40,11 @@ namespace Engine {
 		Default = Lighting | CastShadow | ReceiveShadow | ReceiveIBL | CastReflection | ReceiveReflection,
 	};
 
-	inline MeshRenderFlags operator|(MeshRenderFlags lhs, MeshRenderFlags rhs) {
+	MeshRenderFlags operator|(MeshRenderFlags lhs, MeshRenderFlags rhs);
 
-		return static_cast<MeshRenderFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
-	}
+	bool HasMeshRenderFlag(MeshRenderFlags flags, MeshRenderFlags target);
 
-	inline bool HasMeshRenderFlag(MeshRenderFlags flags, MeshRenderFlags target) {
-
-		return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(target)) != 0;
-	}
-
-	inline void SetMeshRenderFlag(MeshRenderFlags& flags, MeshRenderFlags target, bool enabled) {
-
-		if (enabled) {
-			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) | static_cast<uint32_t>(target));
-		} else {
-			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) & ~static_cast<uint32_t>(target));
-		}
-	}
+	void SetMeshRenderFlag(MeshRenderFlags& flags, MeshRenderFlags target, bool enabled);
 
 	// MeshRenderFlagsのjson入出力、名前付きbool群で保存しMesh/Primitiveで共用する
 	void ReadMeshRenderFlags(const nlohmann::json& in, MeshRenderFlags& flags);

@@ -36,7 +36,7 @@ public abstract class ScriptBehaviour : Component {
 
     // owner Entity 内で自身の runtime entry を識別する scriptSlotID（CreateInstance 時に native から渡される）。
     // runtime managed instance handle ではない（混同しない）。Enabled 制御の identity に使う
-    internal ulong scriptSlotId;
+    internal ulong scriptSlotID;
     // record 未生成時のフォールバック用。runtime entry があればそちらが正
     private bool enabledFallback = true;
 
@@ -48,12 +48,12 @@ public abstract class ScriptBehaviour : Component {
     // authoring の ScriptEntry.enabled へは書き戻さない（Play終了で authoring に戻る）
     public bool Enabled {
         get {
-            int state = NativeApi.ReadScriptEnabled(entity.native, scriptSlotId);
+            int state = NativeAPI.ReadScriptEnabled(entity.native, scriptSlotID);
             return state >= 0 ? state != 0 : enabledFallback;
         }
         set {
             enabledFallback = value;
-            NativeApi.WriteScriptEnabled(entity.native, scriptSlotId, value);
+            NativeAPI.WriteScriptEnabled(entity.native, scriptSlotID, value);
         }
     }
 

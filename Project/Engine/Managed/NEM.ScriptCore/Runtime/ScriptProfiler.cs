@@ -25,7 +25,7 @@ public static unsafe class ScriptProfiler {
     public static SampleScope Sample(ScriptBehaviour owner, string name) {
         if (selectedType.Length == 0 || Environment.CurrentManagedThreadId != mainThreadID ||
             ReferenceEquals(owner, null) || owner.GetType().FullName != selectedType ||
-            string.IsNullOrEmpty(name) || NativeApi.BeginScriptSample == null) {
+            string.IsNullOrEmpty(name) || NativeAPI.BeginScriptSample == null) {
             return default;
         }
         NativeEntity entity = owner.entity.native;
@@ -33,7 +33,7 @@ public static unsafe class ScriptProfiler {
             (entity.world.index != selectedEntity.world.index ||
              entity.world.generation != selectedEntity.world.generation ||
              entity.index != selectedEntity.index || entity.generation != selectedEntity.generation ||
-             owner.scriptSlotId != selectedSlotID)) {
+             owner.scriptSlotID != selectedSlotID)) {
             return default;
         }
         int size = Encoding.UTF8.GetByteCount(name);
@@ -43,7 +43,7 @@ public static unsafe class ScriptProfiler {
         byte* text = stackalloc byte[512];
         Encoding.UTF8.GetBytes(name.AsSpan(), new Span<byte>(text, size));
         text[size] = 0;
-        return new SampleScope(NativeApi.BeginScriptSample(entity, owner.scriptSlotId, text));
+        return new SampleScope(NativeAPI.BeginScriptSample(entity, owner.scriptSlotID, text));
     }
 
     // usingで早期returnや例外時にも終了通知を行う
@@ -55,8 +55,8 @@ public static unsafe class ScriptProfiler {
         }
 
         public void Dispose() {
-            if (token != 0 && Environment.CurrentManagedThreadId == mainThreadID && NativeApi.EndScriptSample != null) {
-                NativeApi.EndScriptSample(token);
+            if (token != 0 && Environment.CurrentManagedThreadId == mainThreadID && NativeAPI.EndScriptSample != null) {
+                NativeAPI.EndScriptSample(token);
             }
         }
     }

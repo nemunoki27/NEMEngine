@@ -97,7 +97,7 @@ void Engine::ParticleRectEmitterShape::DrawShape(const ParticleEmitterSettings& 
 #endif
 }
 
-bool Engine::ParticleRectEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+bool Engine::ParticleRectEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
 #if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
@@ -110,7 +110,6 @@ bool Engine::ParticleRectEmitterShape::DrawImGui(ParticleEmitterSettings& settin
 	changed |= MyGUI::Checkbox("-Y辺", settings.rect.edgeNegY);
 	return changed;
 #else
-	(void)settings;
 	return false;
 #endif
 }

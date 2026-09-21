@@ -22,9 +22,9 @@ namespace NEM.ScriptCodeGen
         private const string ScriptBehaviourFullName = "NEMEngine.ScriptBehaviour";
         private const string AssetFullName = "NEMEngine.Asset";
         private const string ComponentFullName = "NEMEngine.Component";
-        private const string ScriptTypeIdAttributeName = "NEMEngine.ScriptTypeIdAttribute";
+        private const string ScriptTypeIDAttributeName = "NEMEngine.ScriptTypeIDAttribute";
         private const string SerializeFieldAttributeName = "NEMEngine.SerializeFieldAttribute";
-        private const string SerializedFieldIdAttributeName = "NEMEngine.SerializedFieldIdAttribute";
+        private const string SerializedFieldIDAttributeName = "NEMEngine.SerializedFieldIDAttribute";
         private const string FormerlySerializedAsAttributeName = "NEMEngine.FormerlySerializedAsAttribute";
         private const string HideInInspectorAttributeName = "NEMEngine.HideInInspectorAttribute";
         private const string RangeAttributeName = "NEMEngine.RangeAttribute";
@@ -45,25 +45,25 @@ namespace NEM.ScriptCodeGen
         // [Serializable]型のメンバ展開の深さ上限。自己参照型はここで打ち切る(Unityの入れ子上限と同等)
         private const int MaxObjectDepth = 7;
 
-        private static readonly DiagnosticDescriptor MissingFieldIdRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor MissingFieldIDRule = new DiagnosticDescriptor(
             "NEMSG010",
             "Serialized field has no stable id",
-            "Serialized field '{0}.{1}' has no stable Field GUID (no [SerializedFieldId] and no .cs.meta entry); a deterministic fallback GUID was generated. Run Editor metadata sync.",
+            "Serialized field '{0}.{1}' has no stable Field GUID (no [SerializedFieldID] and no .cs.meta entry); a deterministic fallback GUID was generated. Run Editor metadata sync.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
-        private static readonly DiagnosticDescriptor MissingFieldIdValidateRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor MissingFieldIDValidateRule = new DiagnosticDescriptor(
             "NEMSG014",
             "Serialized field metadata is missing",
             "Serialized field '{0}.{1}' has no stable Field GUID and metadata mode is ValidateOnly. Run Editor metadata sync to generate .cs.meta.",
             "NEMScript", DiagnosticSeverity.Error, isEnabledByDefault: true);
 
-        private static readonly DiagnosticDescriptor InvalidFieldIdRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor InvalidFieldIDRule = new DiagnosticDescriptor(
             "NEMSG011",
-            "Invalid [SerializedFieldId] value",
-            "Serialized field '{0}.{1}' has an invalid [SerializedFieldId] value '{2}'. It must be a GUID.",
+            "Invalid [SerializedFieldID] value",
+            "Serialized field '{0}.{1}' has an invalid [SerializedFieldID] value '{2}'. It must be a GUID.",
             "NEMScript", DiagnosticSeverity.Error, isEnabledByDefault: true);
 
-        private static readonly DiagnosticDescriptor DuplicateFieldIdRule = new DiagnosticDescriptor(
+        private static readonly DiagnosticDescriptor DuplicateFieldIDRule = new DiagnosticDescriptor(
             "NEMSG012",
             "Duplicate Serialized Field GUID",
             "Script type '{0}' has duplicate Serialized Field GUID '{1}' on fields '{2}' and '{3}'.",
@@ -83,15 +83,15 @@ namespace NEM.ScriptCodeGen
 
         private sealed class TypeSchema
         {
-            public string ScriptTypeId = string.Empty;       // Analyze 時点では attr or 決定的（Emit で meta 上書き）
-            public bool HasExplicitScriptId;                  // [ScriptTypeId] が明示・有効か
+            public string ScriptTypeID = string.Empty;       // Analyze 時点では attr or 決定的（Emit で meta 上書き）
+            public bool HasExplicitScriptID;                  // [ScriptTypeID] が明示・有効か
             public string FullTypeName = string.Empty;
             public List<FieldSchema> Fields = new List<FieldSchema>();
         }
 
         private sealed class FieldSchema
         {
-            public string FieldId = string.Empty;
+            public string FieldID = string.Empty;
             public string Name = string.Empty;
             public string DeclaringType = string.Empty;
             public List<string> FormerNames = new List<string>();
@@ -110,8 +110,8 @@ namespace NEM.ScriptCodeGen
             public string? Header;
             public string? Label;
             public bool Multiline;
-            public bool RawIdInvalid;
-            public string RawId = string.Empty;
+            public bool RawIDInvalid;
+            public string RawID = string.Empty;
             public string DeclaredType = string.Empty;
             public bool MissingSerializeReference;
             public Location Location = Location.None;
@@ -168,9 +168,9 @@ namespace NEM.ScriptCodeGen
 
             string fullName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat
                 .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
-            string scriptTypeId = ResolveScriptTypeId(symbol, fullName, out bool hasExplicitScriptId);
+            string scriptTypeID = ResolveScriptTypeID(symbol, fullName, out bool hasExplicitScriptID);
 
-            var schema = new TypeSchema { ScriptTypeId = scriptTypeId, HasExplicitScriptId = hasExplicitScriptId, FullTypeName = fullName };
+            var schema = new TypeSchema { ScriptTypeID = scriptTypeID, HasExplicitScriptID = hasExplicitScriptID, FullTypeName = fullName };
 
             // 継承を含めた field 集合（base から先に、宣言順）を集める
             var declaring = new List<INamedTypeSymbol>();
@@ -194,7 +194,7 @@ namespace NEM.ScriptCodeGen
                     {
                         continue;
                     }
-                    FieldSchema? fieldSchema = AnalyzeField(field, ownerName, scriptTypeId, ctx.SemanticModel.Compilation);
+                    FieldSchema? fieldSchema = AnalyzeField(field, ownerName, scriptTypeID, ctx.SemanticModel.Compilation);
                     if (fieldSchema != null)
                     {
                         schema.Fields.Add(fieldSchema);
@@ -216,7 +216,7 @@ namespace NEM.ScriptCodeGen
             return field.DeclaredAccessibility == Accessibility.Public || hasSerializeField;
         }
 
-        private static FieldSchema? AnalyzeField(IFieldSymbol field, string declaringType, string scriptTypeId, Compilation compilation)
+        private static FieldSchema? AnalyzeField(IFieldSymbol field, string declaringType, string scriptTypeID, Compilation compilation)
         {
             var schema = new FieldSchema
             {
@@ -239,21 +239,21 @@ namespace NEM.ScriptCodeGen
 
             // origin name は rename を跨いで安定させるため、最も古い FormerlySerializedAs を優先する
             string originName = schema.FormerNames.Count > 0 ? schema.FormerNames[0] : schema.Name;
-            if (!string.IsNullOrWhiteSpace(schema.RawId))
+            if (!string.IsNullOrWhiteSpace(schema.RawID))
             {
-                if (TryNormalizeGuid(schema.RawId, out string normalized))
+                if (TryNormalizeGuid(schema.RawID, out string normalized))
                 {
-                    schema.FieldId = normalized;
+                    schema.FieldID = normalized;
                 }
                 else
                 {
-                    schema.RawIdInvalid = true;
-                    schema.FieldId = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeId + "/" + declaringType + "/" + originName);
+                    schema.RawIDInvalid = true;
+                    schema.FieldID = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeID + "/" + declaringType + "/" + originName);
                 }
             }
             else
             {
-                schema.FieldId = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeId + "/" + declaringType + "/" + originName);
+                schema.FieldID = DeterministicGuid("NEMEngine.ScriptField:" + scriptTypeID + "/" + declaringType + "/" + originName);
             }
             return schema;
         }
@@ -265,10 +265,10 @@ namespace NEM.ScriptCodeGen
             {
                 switch (attr.AttributeClass?.ToDisplayString())
                 {
-                    case SerializedFieldIdAttributeName:
+                    case SerializedFieldIDAttributeName:
                         if (attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is string idValue)
                         {
-                            schema.RawId = idValue;
+                            schema.RawID = idValue;
                         }
                         break;
                     case FormerlySerializedAsAttributeName:
@@ -656,18 +656,18 @@ namespace NEM.ScriptCodeGen
             // ID 解決の優先順: 明示属性 → sidecar metadata → 決定的 fallback
             foreach (TypeSchema type in schemas)
             {
-                if (!type.HasExplicitScriptId && meta.TryGetScriptId(type.FullTypeName, out string metaScriptId) &&
-                    TryNormalizeGuid(metaScriptId, out string normalizedScriptId))
+                if (!type.HasExplicitScriptID && meta.TryGetScriptID(type.FullTypeName, out string metaScriptID) &&
+                    TryNormalizeGuid(metaScriptID, out string normalizedScriptID))
                 {
-                    type.ScriptTypeId = normalizedScriptId;
+                    type.ScriptTypeID = normalizedScriptID;
                 }
                 foreach (FieldSchema field in type.Fields)
                 {
-                    bool explicitField = !string.IsNullOrWhiteSpace(field.RawId) && !field.RawIdInvalid;
-                    if (!explicitField && meta.TryGetFieldId(type.FullTypeName, field.Name, out string metaFieldId) &&
-                        TryNormalizeGuid(metaFieldId, out string normalizedFieldId))
+                    bool explicitField = !string.IsNullOrWhiteSpace(field.RawID) && !field.RawIDInvalid;
+                    if (!explicitField && meta.TryGetFieldID(type.FullTypeName, field.Name, out string metaFieldID) &&
+                        TryNormalizeGuid(metaFieldID, out string normalizedFieldID))
                     {
-                        field.FieldId = normalizedFieldId;
+                        field.FieldID = normalizedFieldID;
                     }
                     foreach (string former in meta.GetFieldFormerNames(type.FullTypeName, field.Name))
                     {
@@ -681,16 +681,16 @@ namespace NEM.ScriptCodeGen
                 var seen = new Dictionary<string, string>(StringComparer.Ordinal);
                 foreach (FieldSchema field in type.Fields)
                 {
-                    bool explicitField = !string.IsNullOrWhiteSpace(field.RawId) && !field.RawIdInvalid;
-                    bool fromMeta = meta.TryGetFieldId(type.FullTypeName, field.Name, out _);
-                    if (field.RawIdInvalid)
+                    bool explicitField = !string.IsNullOrWhiteSpace(field.RawID) && !field.RawIDInvalid;
+                    bool fromMeta = meta.TryGetFieldID(type.FullTypeName, field.Name, out _);
+                    if (field.RawIDInvalid)
                     {
-                        spc.ReportDiagnostic(Diagnostic.Create(InvalidFieldIdRule, field.Location, type.FullTypeName, field.Name, field.RawId));
+                        spc.ReportDiagnostic(Diagnostic.Create(InvalidFieldIDRule, field.Location, type.FullTypeName, field.Name, field.RawID));
                     }
                     else if (!explicitField && !fromMeta)
                     {
                         spc.ReportDiagnostic(Diagnostic.Create(
-                            validateOnly ? MissingFieldIdValidateRule : MissingFieldIdRule, field.Location, type.FullTypeName, field.Name));
+                            validateOnly ? MissingFieldIDValidateRule : MissingFieldIDRule, field.Location, type.FullTypeName, field.Name));
                     }
                     if (field.Kind.Kind == "Unsupported")
                     {
@@ -701,13 +701,13 @@ namespace NEM.ScriptCodeGen
                         spc.ReportDiagnostic(Diagnostic.Create(MissingSerializeReferenceRule, field.Location,
                             type.FullTypeName, field.Name, field.DeclaredType));
                     }
-                    if (seen.TryGetValue(field.FieldId, out string? otherName))
+                    if (seen.TryGetValue(field.FieldID, out string? otherName))
                     {
-                        spc.ReportDiagnostic(Diagnostic.Create(DuplicateFieldIdRule, field.Location, type.FullTypeName, field.FieldId, otherName, field.Name));
+                        spc.ReportDiagnostic(Diagnostic.Create(DuplicateFieldIDRule, field.Location, type.FullTypeName, field.FieldID, otherName, field.Name));
                     }
                     else
                     {
-                        seen[field.FieldId] = field.Name;
+                        seen[field.FieldID] = field.Name;
                     }
                 }
             }
@@ -718,12 +718,12 @@ namespace NEM.ScriptCodeGen
             json.Append("\"schemaVersion\":").Append(SchemaVersion).Append(',');
             json.Append("\"scripts\":[");
             bool firstType = true;
-            foreach (TypeSchema type in schemas.OrderBy(s => s.ScriptTypeId, StringComparer.Ordinal))
+            foreach (TypeSchema type in schemas.OrderBy(s => s.ScriptTypeID, StringComparer.Ordinal))
             {
                 if (!firstType) json.Append(',');
                 firstType = false;
                 json.Append('{');
-                json.Append("\"scriptTypeId\":").Append(JsonString(type.ScriptTypeId)).Append(',');
+                json.Append("\"scriptTypeId\":").Append(JsonString(type.ScriptTypeID)).Append(',');
                 json.Append("\"fullTypeName\":").Append(JsonString(type.FullTypeName)).Append(',');
                 json.Append("\"fields\":[");
                 bool firstField = true;
@@ -759,7 +759,7 @@ namespace NEM.ScriptCodeGen
         private static void EmitField(StringBuilder json, FieldSchema field)
         {
             json.Append('{');
-            json.Append("\"fieldId\":").Append(JsonString(field.FieldId)).Append(',');
+            json.Append("\"fieldId\":").Append(JsonString(field.FieldID)).Append(',');
             json.Append("\"name\":").Append(JsonString(field.Name)).Append(',');
             json.Append("\"declaringType\":").Append(JsonString(field.DeclaringType)).Append(',');
             json.Append("\"isPublic\":").Append(field.IsPublic ? "true" : "false").Append(',');
@@ -885,11 +885,11 @@ namespace NEM.ScriptCodeGen
             return false;
         }
 
-        private static string ResolveScriptTypeId(INamedTypeSymbol symbol, string fullName, out bool hasExplicit)
+        private static string ResolveScriptTypeID(INamedTypeSymbol symbol, string fullName, out bool hasExplicit)
         {
             foreach (AttributeData attr in symbol.GetAttributes())
             {
-                if (attr.AttributeClass?.ToDisplayString() == ScriptTypeIdAttributeName &&
+                if (attr.AttributeClass?.ToDisplayString() == ScriptTypeIDAttributeName &&
                     attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is string idValue &&
                     TryNormalizeGuid(idValue, out string normalized))
                 {

@@ -80,12 +80,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 有効か
-		bool IsValid() const {
-
-			return sceneMain_ && sceneMain_->IsValid() &&
-				sceneFinal_ && sceneFinal_->IsValid() &&
-				sceneColorOpaque_ && sceneColorOpaque_->IsValid();
-		}
+		bool IsValid() const;
 
 		// DeferredのGBufferサーフェス、color並びはGBufferAttachmentと一致させる
 		// color0 albedo / color1 normal / color2 worldPosition / color3 material / color4 emissive / color5 flags + 深度
@@ -139,14 +134,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// GBufferの指定アタッチメントを取得する、未生成や範囲外はnullptr
-		RenderTexture2D* GetGBufferColor(GBufferAttachment attachment) const {
-
-			const uint32_t index = static_cast<uint32_t>(attachment);
-			if (!sceneMain_ || index >= sceneMain_->GetColorCount()) {
-				return nullptr;
-			}
-			return sceneMain_->GetColorTexture(index);
-		}
+		RenderTexture2D* GetGBufferColor(GBufferAttachment attachment) const;
 
 		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
 		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);

@@ -22,9 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		LineRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Line Renderer", "LineRenderer") {
-		}
+		LineRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Line Renderer", "LineRenderer") {}
 		~LineRendererInspectorDrawer() = default;
 	private:
 		//============================================================================

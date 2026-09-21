@@ -293,7 +293,6 @@ void Engine::MeshSubMeshAuthoring::InvalidateCachedLayout(
 	}
 	std::scoped_lock lock(gLayoutCacheMutex);
 	for (auto& [database, cache] : gLayoutCaches) {
-		(void)database;
 		cache.erase(meshAssetID);
 	}
 }

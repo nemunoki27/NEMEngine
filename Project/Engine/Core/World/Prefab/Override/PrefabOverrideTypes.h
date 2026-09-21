@@ -114,11 +114,6 @@ namespace Engine {
 		std::vector<UUID> removedNestedSlots;
 
 		// オーバーライドが何も無いか、薄い保存の要否判定に使う
-		bool IsEmpty() const {
-			return modifications.empty() && addedComponents.empty() && removedComponents.empty() &&
-				hierarchyModifications.empty() && removedEntities.empty() && addedEntities.empty() &&
-				nestedInstances.empty() && removedNestedSlots.empty() &&
-				!rootParentSceneLocalFileID;
-		}
+		bool IsEmpty() const;
 	};
 } // Engine

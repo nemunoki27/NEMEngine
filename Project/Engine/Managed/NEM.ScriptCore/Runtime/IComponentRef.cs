@@ -19,5 +19,5 @@ public interface IComponentRef<TSelf> : IComponentRef where TSelf : Component, I
 // Manifestの固定IDを型ごとに保持する。
 internal static class ComponentType<T> where T : Component, IComponentRef<T> {
 
-    internal static int Id => T.componentTypeID;
+    internal static int ID => T.componentTypeID;
 }

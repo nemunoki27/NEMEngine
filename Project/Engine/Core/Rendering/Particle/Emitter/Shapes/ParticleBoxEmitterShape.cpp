@@ -72,7 +72,7 @@ void Engine::ParticleBoxEmitterShape::DrawShape(const ParticleEmitterSettings& s
 #endif
 }
 
-bool Engine::ParticleBoxEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+bool Engine::ParticleBoxEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
 #if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
@@ -87,7 +87,6 @@ bool Engine::ParticleBoxEmitterShape::DrawImGui(ParticleEmitterSettings& setting
 	changed |= MyGUI::Checkbox("-Z面", settings.box.faceNegZ);
 	return changed;
 #else
-	(void)settings;
 	return false;
 #endif
 }

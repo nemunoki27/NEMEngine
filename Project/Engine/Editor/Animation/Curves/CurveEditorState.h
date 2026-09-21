@@ -21,9 +21,7 @@ namespace Engine {
 		uint32_t channelIndex = 0;
 		uint32_t keyIndex = 0;
 
-		bool operator==(const CurveKeySelection& other) const {
-			return channelIndex == other.channelIndex && keyIndex == other.keyIndex;
-		}
+		bool operator==(const CurveKeySelection& other) const;
 	};
 	// カーブエディター上で現在行っているドラッグ操作
 	enum class CurveEditorDragMode :

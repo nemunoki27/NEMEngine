@@ -6,12 +6,11 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <string>
 #include <vector>
+
+#include <imgui.h>
 
 //============================================================================
 //	AnimationPlayerInspectorDrawer helpers

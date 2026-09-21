@@ -313,3 +313,26 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildScreenSpac
 
 	return desc;
 }
+
+//============================================================================
+//	RenderPathResources classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool RenderPathResources::IsValid() const {
+
+		return sceneMain_ && sceneMain_->IsValid() &&
+			sceneFinal_ && sceneFinal_->IsValid() &&
+			sceneColorOpaque_ && sceneColorOpaque_->IsValid();
+	}
+
+	RenderTexture2D* RenderPathResources::GetGBufferColor(GBufferAttachment attachment) const {
+
+		const uint32_t index = static_cast<uint32_t>(attachment);
+		if (!sceneMain_ || index >= sceneMain_->GetColorCount()) {
+			return nullptr;
+		}
+		return sceneMain_->GetColorTexture(index);
+	}
+}

@@ -1953,3 +1953,73 @@ void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& co
 	context.raytracing.materialTexturesReady =
 		!hasPendingTextureDescriptors_;
 }
+
+//============================================================================
+//	RaytracingSceneBuilder classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool RaytracingSceneBuilder::BLASKey::operator==(const BLASKey& rhs) const noexcept {
+
+		return meshAssetID == rhs.meshAssetID &&
+			reloadGeneration == rhs.reloadGeneration &&
+			lodIndex == rhs.lodIndex &&
+			geometryLayoutHash == rhs.geometryLayoutHash;
+	}
+
+	size_t RaytracingSceneBuilder::BLASKeyHash::operator()(const BLASKey& key) const noexcept {
+
+		const size_t h0 = std::hash<AssetID>{}(key.meshAssetID);
+		const size_t h1 = std::hash<uint32_t>{}(key.reloadGeneration);
+		const size_t h2 = std::hash<uint32_t>{}(key.lodIndex);
+		const size_t h3 = std::hash<uint64_t>{}(key.geometryLayoutHash);
+		size_t h = h0 ^ (h1 + 0x9e3779b9u + (h0 << 6) + (h0 >> 2));
+		h ^= h2 + 0x9e3779b9u + (h << 6) + (h >> 2);
+		return h ^ (h3 + 0x9e3779b9u + (h << 6) + (h >> 2));
+	}
+
+	bool RaytracingSceneBuilder::StaticInstanceBLASKey::operator==(const StaticInstanceBLASKey& rhs) const noexcept {
+
+		return world == rhs.world && entity == rhs.entity &&
+			meshAssetID == rhs.meshAssetID &&
+			reloadGeneration == rhs.reloadGeneration;
+	}
+
+	size_t RaytracingSceneBuilder::StaticInstanceBLASKeyHash::operator()(const StaticInstanceBLASKey& key) const noexcept {
+
+		size_t hash = std::hash<void*>{}(key.world);
+		hash ^= std::hash<uint32_t>{}(key.entity.index) << 1;
+		hash ^= std::hash<uint32_t>{}(key.entity.generation) << 2;
+		hash ^= std::hash<AssetID>{}(key.meshAssetID) << 3;
+		hash ^= std::hash<uint32_t>{}(key.reloadGeneration) << 4;
+		return hash;
+	}
+
+	size_t RaytracingSceneBuilder::SceneEntityKeyHash::operator()(
+		const SceneEntityKey& key) const noexcept {
+
+		size_t h = std::hash<void*>{}(key.world);
+		h ^= (std::hash<uint32_t>{}(
+			key.entity.index) << 1);
+		h ^= (std::hash<uint32_t>{}(
+			key.entity.generation) << 2);
+		return h;
+	}
+
+	bool RaytracingSceneBuilder::DynamicBLASKey::operator==(const DynamicBLASKey& rhs) const noexcept {
+
+		return world == rhs.world && entity.index == rhs.entity.index && entity.generation == rhs.entity.generation &&
+			meshAssetID == rhs.meshAssetID && reloadGeneration == rhs.reloadGeneration;
+	}
+
+	size_t RaytracingSceneBuilder::DynamicBLASKeyHash::operator()(const DynamicBLASKey& key) const noexcept {
+
+		size_t h = std::hash<void*>{}(key.world);
+		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
+		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
+		h ^= (std::hash<AssetID>{}(key.meshAssetID) << 3);
+		h ^= (std::hash<uint32_t>{}(key.reloadGeneration) << 4);
+		return h;
+	}
+}

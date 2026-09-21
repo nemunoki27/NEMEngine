@@ -445,7 +445,7 @@ void Engine::BehaviorSystem::EnsureActiveWorld(ECSWorld& world, SystemContext& c
 		&BehaviorSystem::OnComponentMutation, this);
 }
 
-void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
+void Engine::BehaviorSystem::ResetRuntimeState([[maybe_unused]] ECSWorld& world) {
 
 	// participantキャッシュを破棄し、次のsynchronizeで作り直す
 	participants_.clear();
@@ -455,7 +455,6 @@ void Engine::BehaviorSystem::ResetRuntimeState(ECSWorld& world) {
 	enableTransitionsDirty_ = true;
 	fullSyncRequested_ = true;
 	// 実行時対応はBehaviorWorldが所有し、Script設定側へキャッシュしない
-	(void)world;
 }
 
 void Engine::BehaviorSystem::SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep) {
@@ -509,8 +508,7 @@ void Engine::BehaviorSystem::SynchronizeRecords(ECSWorld& world, SystemContext& 
 
 	// 全同期はWorld開始、Scene構成変更、Hot Reloadだけで実行する
 	runtime_.ClearSeenFlags();
-	world.ForEach<ScriptComponent>([&](Entity entity, ScriptComponent& component) {
-		(void)component;
+	world.ForEach<ScriptComponent>([&](Entity entity, [[maybe_unused]] ScriptComponent& component) {
 		SynchronizeEntityRecords(world, context, entity, false);
 		});
 

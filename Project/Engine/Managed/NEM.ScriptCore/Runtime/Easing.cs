@@ -44,6 +44,6 @@ public static class Easing {
 
     // 指定タイプでtをイージングした値を返す。
     public static float Evaluate(EasingType type, float t) {
-        return NativeApi.ReadEasedValue((int)type, t);
+        return NativeAPI.ReadEasedValue((int)type, t);
     }
 }

@@ -30,12 +30,6 @@
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 
-// imgui
-#include <imgui.h>
-#include <imgui_internal.h>
-#include <imgui_stdlib.h>
-#include <imgui_node_editor.h>
-
 // c++
 #include <algorithm>
 #include <array>
@@ -49,6 +43,11 @@
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
+
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+#include <imgui_node_editor.h>
 
 namespace {
 

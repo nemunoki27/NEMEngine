@@ -22,9 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		ScriptInspectorDrawer() :
-			SerializedComponentInspectorDrawer("", ScriptComponent::kTypeName, false) {
-		}
+		ScriptInspectorDrawer() : SerializedComponentInspectorDrawer("", ScriptComponent::kTypeName, false) {}
 		~ScriptInspectorDrawer() = default;
 	private:
 		//============================================================================

@@ -141,7 +141,7 @@ namespace Engine {
 			const wchar_t*, const wchar_t*, void*, void**);
 
 		// 全exportは例外を境界外へ出さずManagedStatusで返し、値を返すAPIはout parameter形式にする
-		using InitializeNativeApiFn = ManagedStatus(__cdecl*)(ManagedNativeApiTable*);
+		using InitializeNativeAPIFn = ManagedStatus(__cdecl*)(ManagedNativeAPITable*);
 		using LoadGameAssemblyFn = ManagedStatus(__cdecl*)(const char*);
 		using UnloadGameAssemblyFn = ManagedStatus(__cdecl*)();
 		using GetScriptTypeCountFn = ManagedStatus(__cdecl*)(int32_t*);
@@ -170,7 +170,7 @@ namespace Engine {
 		// hostfxrの探索・ロード・デリゲート取得をRAIIで管理するサービス
 		DotnetHostResolver dotnetHost_;
 
-		InitializeNativeApiFn initializeNativeApi_ = nullptr;
+		InitializeNativeAPIFn initializeNativeAPI_ = nullptr;
 		ConfigureProfilerFn configureProfiler_ = nullptr;
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
 		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
@@ -403,11 +403,11 @@ namespace Engine {
 		static int32_t __cdecl ResetRenderFeaturePassCallback(
 			uint64_t passID, uint64_t generation);
 		static void __cdecl ResetRenderFeatureOverridesCallback();
-		// CollisionComponentの単一形状をpropId指定で読み書きする
+		// CollisionComponentの単一形状をpropID指定で読み書きする
 		static int32_t __cdecl CollisionGetShapePropertyCallback(ManagedNativeEntity entity,
-			int32_t propertyId, void* out, int32_t size);
+			int32_t propertyID, void* out, int32_t size);
 		static int32_t __cdecl CollisionSetShapePropertyCallback(ManagedNativeEntity entity,
-			int32_t propertyId, const void* value, int32_t size);
+			int32_t propertyID, const void* value, int32_t size);
 		// 指定クリップ名のアニメーション合計長を返す、見つからなければ0
 		static float __cdecl GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName);
 		// 指定クリップを頭から再生する、clip/enabledを設定し終了フラグを同フレームで下ろす

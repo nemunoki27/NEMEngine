@@ -80,3 +80,15 @@ void Engine::MarkTransformSubtreeDirty(ECSWorld& world, const Entity& entity) {
 	// 変更通知は部分木ごとに1回だけ発行しTransformSystemへルートを渡す
 	world.MarkComponentModified<TransformComponent>(entity);
 }
+
+//============================================================================
+//	TransformComponent classMethods
+//============================================================================
+
+namespace Engine {
+
+	Matrix4x4 MakeLocalMatrix(const TransformComponent& transform) {
+
+		return Matrix4x4::MakeAffineMatrix(transform.localScale, transform.localRotation, transform.localPos);
+	}
+}

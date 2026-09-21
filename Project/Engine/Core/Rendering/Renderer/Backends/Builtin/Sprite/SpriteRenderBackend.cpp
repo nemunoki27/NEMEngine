@@ -201,3 +201,20 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// インスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
 }
+
+//============================================================================
+//	SpriteRenderBackend classMethods
+//============================================================================
+
+namespace Engine {
+
+	SpriteRenderBackend::SpriteRenderBackend() {
+
+		vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances", ShaderBindingKind::SRV);
+		psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances", ShaderBindingKind::SRV);
+		outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(
+			ShaderBindingKind::CBV,
+			kScreenSpaceOutlineMaskCBVRegister,
+			kScreenSpaceOutlineMaskCBVSpace);
+	}
+}

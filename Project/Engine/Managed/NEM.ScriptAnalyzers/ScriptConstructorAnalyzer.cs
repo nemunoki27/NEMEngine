@@ -19,7 +19,7 @@ public sealed class ScriptConstructorAnalyzer : DiagnosticAnalyzer {
 	private const string ScriptBehaviourFullName = "NEMEngine.ScriptBehaviour";
 
 	// 各 rule。message は「何を / なぜ避けるか」を簡潔に示す。
-	private static readonly DiagnosticDescriptor NativeApiRule = new(
+	private static readonly DiagnosticDescriptor NativeAPIRule = new(
 		"NEMSC001", "ScriptBehaviour constructor で native API を呼んでいる",
 		"ScriptBehaviour の constructor で engine API '{0}' を呼んでいます。Awake/Start へ移動してください",
 		Category, DiagnosticSeverity.Warning, isEnabledByDefault: true,
@@ -56,7 +56,7 @@ public sealed class ScriptConstructorAnalyzer : DiagnosticAnalyzer {
 		description: "constructor で購読すると解除契機（OnDisable/OnDestroy）と対にならず、リークやコールバック多重登録になります。");
 
 	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-		ImmutableArray.Create(NativeApiRule, EntitySceneRule, CoroutineRule, ThreadingRule, FileIoRule, EventSubscribeRule);
+		ImmutableArray.Create(NativeAPIRule, EntitySceneRule, CoroutineRule, ThreadingRule, FileIoRule, EventSubscribeRule);
 
 	// engine facade（NEMEngine 名前空間の static API 型）。これらの呼び出しは native API 扱い。
 	private static readonly string[] EngineFacadeTypes = {
@@ -144,7 +144,7 @@ public sealed class ScriptConstructorAnalyzer : DiagnosticAnalyzer {
 		}
 		// engine facade（native API 扱い）
 		if (EngineFacadeTypes.Contains(containingType)) {
-			context.ReportDiagnostic(Diagnostic.Create(NativeApiRule, invocation.GetLocation(), display));
+			context.ReportDiagnostic(Diagnostic.Create(NativeAPIRule, invocation.GetLocation(), display));
 			return;
 		}
 	}

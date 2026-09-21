@@ -56,9 +56,7 @@ namespace Engine {
 		// レイアウトからパネル固有状態を復元
 		virtual void LoadLayoutState([[maybe_unused]] const nlohmann::json& state) {}
 		// 複製先へ渡すパネル固有状態を取得
-		virtual nlohmann::json MakeDuplicateState([[maybe_unused]] const EditorPanelContext& context) const {
-			return SaveLayoutState();
-		}
+		virtual nlohmann::json MakeDuplicateState([[maybe_unused]] const EditorPanelContext& context) const;
 
 		//--------- accessor -----------------------------------------------------
 

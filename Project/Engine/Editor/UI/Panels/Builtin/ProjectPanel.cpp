@@ -39,15 +39,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-
-// assimp
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-
-// windows
-#include <windows.h>
-#include <shellapi.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 
 // c++
 #include <algorithm>
@@ -64,7 +56,11 @@
 #include <system_error>
 #include <vector>
 
-#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <windows.h>
+#include <shellapi.h>
 
 //============================================================================
 //	ProjectPanel classMethods

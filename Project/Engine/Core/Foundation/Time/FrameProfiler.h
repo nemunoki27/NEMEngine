@@ -169,15 +169,8 @@ namespace Engine {
 		//============================================================================
 		class ScopedSample {
 		public:
-			explicit ScopedSample(Category category) :
-				category_(category), start_(std::chrono::high_resolution_clock::now()) {
-			}
-			~ScopedSample() {
-
-				const std::chrono::duration<float, std::milli> elapsed =
-					std::chrono::high_resolution_clock::now() - start_;
-				FrameProfiler::GetInstance().AddSample(category_, elapsed.count());
-			}
+			explicit ScopedSample(Category category) : category_(category), start_(std::chrono::high_resolution_clock::now()) {}
+			~ScopedSample();
 
 			ScopedSample(const ScopedSample&) = delete;
 			ScopedSample& operator=(const ScopedSample&) = delete;

@@ -11,13 +11,12 @@
 #include <Engine/Core/Rendering/Renderer/Debug/DepthVisualizer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 
-// json
-#include <json.hpp>
-
 // c++
 #include <memory>
 #include <utility>
 #include <vector>
+
+#include <json.hpp>
 
 namespace Engine {
 

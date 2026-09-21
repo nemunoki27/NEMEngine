@@ -203,26 +203,16 @@ namespace Engine {
 
 		const std::vector<RenderItem>& GetItems() const { return items_; }
 		std::vector<RenderItem>& GetMutableItems() { return items_; }
-		std::span<const RenderTransformChange>
-			GetTransformChanges() const {
-			return transformChanges_;
-		}
-		bool HasCompleteTransformChanges() const {
-			return completeTransformChanges_;
-		}
+		std::span<const RenderTransformChange> GetTransformChanges() const { return transformChanges_; }
+		bool HasCompleteTransformChanges() const { return completeTransformChanges_; }
 		// Raytracing等が描画内容の変更検知に使用する世代
 		uint64_t GetSourceRevision() const { return contentRevision_; }
 		// 色の変更もRaytracing等の内容更新へ伝える
 		void SetMaterialSource(uint64_t revision);
 		uint64_t GetSourceRenderRevision() const { return sourceRenderRevision_; }
 		uint64_t GetSourceTransformRevision() const { return sourceTransformRevision_; }
-		bool MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const {
-			return sourceWorld_ == world &&
-				sourceRenderRevision_ == renderRevision;
-		}
-		bool MatchesTransforms(uint64_t transformRevision) const {
-			return sourceTransformRevision_ == transformRevision;
-		}
+		bool MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const;
+		bool MatchesTransforms(uint64_t transformRevision) const { return sourceTransformRevision_ == transformRevision; }
 
 		template<class T>
 		const T* GetPayload(const RenderItem& item) const { return payloadArena_.Get<T>(item.payload); }

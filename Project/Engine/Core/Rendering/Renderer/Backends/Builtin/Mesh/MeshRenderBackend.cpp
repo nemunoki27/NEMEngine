@@ -934,3 +934,51 @@ bool Engine::MeshRenderBackend::CanBatch(const RenderItem& first,
 
 	return BackendDrawCommon::CanBatchBasic(first, next);
 }
+
+//============================================================================
+//	MeshRenderBackend classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool MeshRenderBackend::SkinnedBatchCacheKey::operator==(const SkinnedBatchCacheKey& rhs) const noexcept {
+
+		return world == rhs.world && mesh == rhs.mesh && hash == rhs.hash;
+	}
+
+	size_t MeshRenderBackend::SkinnedBatchCacheKeyHash::operator()(const SkinnedBatchCacheKey& key) const noexcept {
+
+		size_t h = std::hash<void*>{}(key.world);
+		h ^= (std::hash<AssetID>{}(key.mesh) << 1);
+		h ^= (std::hash<uint64_t>{}(key.hash) << 2);
+		return h;
+	}
+
+	bool MeshRenderBackend::SkinnedSourceLookupKey::operator==(const SkinnedSourceLookupKey& rhs) const noexcept {
+
+		return world == rhs.world && entity.index == rhs.entity.index &&
+			entity.generation == rhs.entity.generation && mesh == rhs.mesh;
+	}
+
+	size_t MeshRenderBackend::SkinnedSourceLookupKeyHash::operator()(const SkinnedSourceLookupKey& key) const noexcept {
+
+		size_t h = std::hash<void*>{}(key.world);
+		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
+		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
+		h ^= (std::hash<AssetID>{}(key.mesh) << 3);
+		return h;
+	}
+
+	bool MeshRenderBackend::StaticBatchCacheKey::operator==(const StaticBatchCacheKey& rhs) const noexcept {
+
+		return world == rhs.world && mesh == rhs.mesh && hash == rhs.hash;
+	}
+
+	size_t MeshRenderBackend::StaticBatchCacheKeyHash::operator()(const StaticBatchCacheKey& key) const noexcept {
+
+		size_t h = std::hash<void*>{}(key.world);
+		h ^= (std::hash<AssetID>{}(key.mesh) << 1);
+		h ^= (std::hash<uint64_t>{}(key.hash) << 2);
+		return h;
+	}
+}

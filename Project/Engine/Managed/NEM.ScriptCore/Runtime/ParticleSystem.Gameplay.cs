@@ -25,44 +25,44 @@ public sealed partial class ParticleSystem {
 
     // 停止中は先頭から再生し、一時停止中は続きから再開する
     public void Play(bool withChildren = true) =>
-        NativeApi.ParticleSystemControlCall(entity.native, PlayOperation,
+        NativeAPI.ParticleSystemControlCall(entity.native, PlayOperation,
             ParticleSystemStopBehavior.StopEmitting, withChildren);
 
     // 現在の再生を先頭へ戻し、ループ設定を無視して1回だけ再生する
     public void PlayOneShot(bool withChildren = true) =>
-        NativeApi.ParticleSystemControlCall(entity.native, PlayOneShotOperation,
+        NativeAPI.ParticleSystemControlCall(entity.native, PlayOneShotOperation,
             ParticleSystemStopBehavior.StopEmitting, withChildren);
 
     // 現在位置を保持して更新を一時停止する
     public void Pause(bool withChildren = true) =>
-        NativeApi.ParticleSystemControlCall(entity.native, PauseOperation,
+        NativeAPI.ParticleSystemControlCall(entity.native, PauseOperation,
             ParticleSystemStopBehavior.StopEmitting, withChildren);
 
     // 発生だけを止めるか、既存粒子も同時に消して停止する
     public void Stop(bool withChildren = true,
         ParticleSystemStopBehavior stopBehavior =
             ParticleSystemStopBehavior.StopEmitting) =>
-        NativeApi.ParticleSystemControlCall(entity.native, StopOperation,
+        NativeAPI.ParticleSystemControlCall(entity.native, StopOperation,
             stopBehavior, withChildren);
 
     // 再生状態を変えずに既存粒子をすべて消す
     public void Clear(bool withChildren = true) =>
-        NativeApi.ParticleSystemControlCall(entity.native, ClearOperation,
+        NativeAPI.ParticleSystemControlCall(entity.native, ClearOperation,
             ParticleSystemStopBehavior.StopEmitting, withChildren);
 
     public bool isPlaying =>
-        NativeApi.ParticleSystemStateCall(entity.native, PlayingState) != 0;
+        NativeAPI.ParticleSystemStateCall(entity.native, PlayingState) != 0;
     public bool isEmitting =>
-        NativeApi.ParticleSystemStateCall(entity.native, EmittingState) != 0;
+        NativeAPI.ParticleSystemStateCall(entity.native, EmittingState) != 0;
     public bool isPaused =>
-        NativeApi.ParticleSystemStateCall(entity.native, PausedState) != 0;
+        NativeAPI.ParticleSystemStateCall(entity.native, PausedState) != 0;
     public bool isStopped =>
-        NativeApi.ParticleSystemStateCall(entity.native, StoppedState) != 0;
+        NativeAPI.ParticleSystemStateCall(entity.native, StoppedState) != 0;
     public int particleCount =>
-        NativeApi.ParticleSystemStateCall(entity.native, ParticleCountState);
+        NativeAPI.ParticleSystemStateCall(entity.native, ParticleCountState);
 
     // 子階層を含めて生存粒子または再生中のSystemがあるか返す
     public bool IsAlive(bool withChildren = true) =>
-        NativeApi.ParticleSystemStateCall(
+        NativeAPI.ParticleSystemStateCall(
             entity.native, AliveState, withChildren) != 0;
 }

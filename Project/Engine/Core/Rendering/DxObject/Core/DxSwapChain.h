@@ -8,11 +8,12 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 
+// c++
+#include <array>
+
 // directX
 #include <d3d12.h>
 #include <dxgi1_6.h>
-// c++
-#include <array>
 
 namespace Engine {
 
@@ -51,15 +52,11 @@ namespace Engine {
 		// 現在のバックバッファリソースを取得する
 		ID3D12Resource* GetCurrentResource() const;
 		// 現在のバックバッファインデックスを取得する
-		uint32_t GetCurrentBackBufferIndex() const {
-			return swapChain_->GetCurrentBackBufferIndex();
-		}
+		uint32_t GetCurrentBackBufferIndex() const { return swapChain_->GetCurrentBackBufferIndex(); }
 		// 現在のレンダーターゲット情報を取得する
 		const RenderTarget& GetRenderTarget();
 		const DXGI_SWAP_CHAIN_DESC1& GetDesc() const { return desc_; }
-		const DisplayOutputSettings& GetDisplayOutputSettings() const {
-			return displayOutput_;
-		}
+		const DisplayOutputSettings& GetDisplayOutputSettings() const { return displayOutput_; }
 	private:
 		//============================================================================
 		//	private Methods

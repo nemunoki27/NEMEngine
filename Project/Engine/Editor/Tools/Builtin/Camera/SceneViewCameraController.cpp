@@ -506,3 +506,16 @@ void Engine::SceneViewCameraController::DrawEditorTool([[maybe_unused]] const Ed
 		ImGui::End();
 	}
 }
+
+//============================================================================
+//	SceneViewCameraController classMethods
+//============================================================================
+
+namespace Engine {
+
+	void SceneViewCameraController::SetSavePath(const std::string& savePath) {
+
+		savePath_ = savePath;
+		persistSettings_ = !savePath_.empty();
+	}
+}

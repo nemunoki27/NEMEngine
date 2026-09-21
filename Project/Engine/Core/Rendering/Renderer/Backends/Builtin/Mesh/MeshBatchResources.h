@@ -130,18 +130,10 @@ namespace Engine {
 		ECSWorld* world = nullptr;
 		Entity entity = Entity::Null();
 
-		bool operator==(const MeshEntityLookupKey& rhs) const noexcept {
-			return world == rhs.world && entity.index == rhs.entity.index &&
-				entity.generation == rhs.entity.generation;
-		}
+		bool operator==(const MeshEntityLookupKey& rhs) const noexcept;
 	};
 	struct MeshEntityLookupKeyHash {
-		size_t operator()(const MeshEntityLookupKey& key) const noexcept {
-			size_t h = std::hash<void*>{}(key.world);
-			h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
-			h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
-			return h;
-		}
+		size_t operator()(const MeshEntityLookupKey& key) const noexcept;
 	};
 
 	//============================================================================
@@ -200,11 +192,7 @@ namespace Engine {
 		bool FindSkinnedVertexOffset(ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const;
 
 		// 現在のポーズに対するスキニング処理完了を記録する
-		void MarkSkinningDispatched() {
-			skinningDispatched_ = true;
-			skinningOutputValid_ = true;
-			dispatchedSkinningPoseHash_ = currentSkinningPoseHash_;
-		}
+		void MarkSkinningDispatched();
 		// スキニング頂点のリソース状態をセット
 		void SetSkinnedVertexState(D3D12_RESOURCE_STATES state) { skinning_->skinnedVertexState = state; }
 		// 圧縮頂点側のスキニング結果も通常頂点とは別に状態管理する
@@ -226,19 +214,9 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgsGPUAddress_; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
 		// reflection駆動のサブメッシュ単位マテリアルパラメータバッファ
-		bool HasSubMeshMaterialParams() const {
-			return activeSubMeshParamBuffer_ &&
-				activeSubMeshParamBuffer_->available;
-		}
-		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const {
-			return activeSubMeshParamBuffer_ ?
-				activeSubMeshParamBuffer_->buffer.GetGPUAddress() : 0;
-		}
-		D3D12_GPU_DESCRIPTOR_HANDLE GetSubMeshMaterialParamGPUHandle() const {
-			return activeSubMeshParamBuffer_ ?
-				activeSubMeshParamBuffer_->handles[GraphicsFrameState::GetCurrentIndex()] :
-				D3D12_GPU_DESCRIPTOR_HANDLE{};
-		}
+		bool HasSubMeshMaterialParams() const { return activeSubMeshParamBuffer_ && activeSubMeshParamBuffer_->available; }
+		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const;
+		D3D12_GPU_DESCRIPTOR_HANDLE GetSubMeshMaterialParamGPUHandle() const;
 		std::string_view GetSubMeshMaterialParamBindingName() const { return MaterialParameterCBuffer::kMesh; }
 		// 背面法アウトラインのインスタンス別GPUデータ
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }

@@ -5,15 +5,14 @@
 //============================================================================
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
-// assimp
+// c++
+#include <algorithm>
+#include <string_view>
+
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
 #include <assimp/material.h>
 #include <assimp/GltfMaterial.h>
-
-// c++
-#include <algorithm>
-#include <string_view>
 
 //============================================================================
 //	MeshImportUtility functions

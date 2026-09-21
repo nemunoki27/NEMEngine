@@ -524,3 +524,27 @@ uint64_t Engine::PipelineStateCache::HashStaticSamplerOverrides(
 
 	return HashPipelineStaticSamplerOverrides(samplerOverrides);
 }
+
+//============================================================================
+//	PipelineStateCache classMethods
+//============================================================================
+
+namespace Engine {
+
+	size_t PipelineStateCache::PipelineCacheKeyHash::operator()(const PipelineCacheKey& key) const noexcept {
+
+		size_t h = std::hash<AssetID>{}(key.pipelineAsset);
+		h ^= (std::hash<AssetID>{}(key.geometryPipelineAsset) << 1);
+		h ^= (std::hash<AssetID>{}(key.pipelineShaderAsset) << 2);
+		h ^= (std::hash<AssetID>{}(key.geometryShaderAsset) << 3);
+		h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 4);
+		h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 5);
+		h ^= (std::hash<uint64_t>{}(key.formatHash) << 6);
+		h ^= (std::hash<bool>{}(key.meshEnabled) << 7);
+		h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 8);
+		h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 9);
+		h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 10);
+		h ^= (std::hash<uint64_t>{}(key.samplerHash) << 11);
+		return h;
+	}
+}

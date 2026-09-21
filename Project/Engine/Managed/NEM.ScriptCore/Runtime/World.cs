@@ -10,11 +10,11 @@ public static class World {
     //             Name は flush まで空。
     //   flush 後: 通常 Entity と同じ。lifecycle(script)は次の SynchronizeLifecycle から開始する。
     public static Entity CreateEntity(string? name = null) {
-        return NativeApi.SpawnEntity(name, Entity.nullEntity);
+        return NativeAPI.SpawnEntity(name, Entity.nullEntity);
     }
 
     public static Entity CreateEntity(string? name, Entity parent) {
-        return NativeApi.SpawnEntity(name, parent);
+        return NativeAPI.SpawnEntity(name, parent);
     }
 
     //========================================================================
@@ -22,13 +22,13 @@ public static class World {
     //========================================================================
 
     // 名前が一致する最初のEntityを返す、未発見はnull Entity
-    public static Entity Find(string name) => NativeApi.FindByName(name);
+    public static Entity Find(string name) => NativeAPI.FindByName(name);
 
     // タグが一致する最初のEntityを返す、未発見はnull Entity
-    public static Entity FindWithTag(string tag) => NativeApi.FindByTag(tag);
+    public static Entity FindWithTag(string tag) => NativeAPI.FindByTag(tag);
 
     // タグが一致する全Entityを返す
-    public static Entity[] FindEntitiesWithTag(string tag) => NativeApi.FindManyByTag(tag);
+    public static Entity[] FindEntitiesWithTag(string tag) => NativeAPI.FindManyByTag(tag);
 
     // 指定型のスクリプトを1つ返す、未発見はnull。Unityの FindObjectOfType 相当
     public static T? FindObjectOfType<T>() where T : ScriptBehaviour => HostBridge.FindScriptOfType<T>();
@@ -42,7 +42,7 @@ public static class World {
             ScriptBehaviour? script = HostBridge.FindScriptOfTypeByType(typeof(T));
             return script != null ? script.entity : Entity.nullEntity;
         }
-        return ComponentKind<T>.typeId >= 0 ? NativeApi.FindByComponent(ComponentKind<T>.typeId) : Entity.nullEntity;
+        return ComponentKind<T>.typeID >= 0 ? NativeAPI.FindByComponent(ComponentKind<T>.typeID) : Entity.nullEntity;
     }
 
     // 指定componentを持つ全Entityを返す
@@ -55,6 +55,6 @@ public static class World {
             }
             return entities;
         }
-        return ComponentKind<T>.typeId >= 0 ? NativeApi.FindManyByComponent(ComponentKind<T>.typeId) : Array.Empty<Entity>();
+        return ComponentKind<T>.typeID >= 0 ? NativeAPI.FindManyByComponent(ComponentKind<T>.typeID) : Array.Empty<Entity>();
     }
 }

@@ -25,21 +25,21 @@ public sealed unsafe partial class Canvas {
 
     // 決定後にCanvas入力がロックされているか
     public bool InputLocked =>
-        NativeApi.GetCanvasInputLocked != null &&
-        NativeApi.GetCanvasInputLocked(entity.native) != 0;
+        NativeAPI.GetCanvasInputLocked != null &&
+        NativeAPI.GetCanvasInputLocked(entity.native) != 0;
 
     // GameViewピクセル座標をCanvasローカル座標へ変換する
     public bool TryScreenToLocalPoint(
         Vector2 screenPosition, out Vector2 localPosition) {
 
-        return NativeApi.ReadCanvasScreenToLocalPoint(
+        return NativeAPI.ReadCanvasScreenToLocalPoint(
             entity.native, screenPosition, out localPosition);
     }
 
     // 指定操作に割り当てたキーボード入力を取得する
     public IReadOnlyList<KeyCode> GetKeyboardInputs(CanvasInputAction action) {
 
-        int[] codes = NativeApi.CanvasGetInputBindings(
+        int[] codes = NativeAPI.CanvasGetInputBindings(
             entity.native, (int)action, KeyboardInputDevice);
         KeyCode[] bindings = new KeyCode[codes.Length];
         for (int i = 0; i < codes.Length; ++i) {
@@ -51,7 +51,7 @@ public sealed unsafe partial class Canvas {
     // 指定操作に割り当てたゲームパッド入力を取得する
     public IReadOnlyList<GamepadButton> GetGamepadInputs(CanvasInputAction action) {
 
-        int[] codes = NativeApi.CanvasGetInputBindings(
+        int[] codes = NativeAPI.CanvasGetInputBindings(
             entity.native, (int)action, GamepadInputDevice);
         GamepadButton[] bindings = new GamepadButton[codes.Length];
         for (int i = 0; i < codes.Length; ++i) {
@@ -68,7 +68,7 @@ public sealed unsafe partial class Canvas {
         for (int i = 0; i < keys.Length; ++i) {
             bindings[i] = (int)keys[i];
         }
-        NativeApi.CanvasSetInputBindingsValue(
+        NativeAPI.CanvasSetInputBindingsValue(
             entity.native, (int)action, KeyboardInputDevice, bindings);
     }
 
@@ -80,7 +80,7 @@ public sealed unsafe partial class Canvas {
         for (int i = 0; i < buttons.Length; ++i) {
             bindings[i] = (int)buttons[i];
         }
-        NativeApi.CanvasSetInputBindingsValue(
+        NativeAPI.CanvasSetInputBindingsValue(
             entity.native, (int)action, GamepadInputDevice, bindings);
     }
 
@@ -183,14 +183,14 @@ public sealed class CanvasTransitionTable {
     public Entity this[int row, int column] {
         get {
             ValidateIndices(row, column);
-            int result = NativeApi.ReadCanvasNavigationCell(
+            int result = NativeAPI.ReadCanvasNavigationCell(
                 canvas.native, row, column, out Entity target);
             ThrowIfFailed(result, nameof(row), nameof(column));
             return target;
         }
         set {
             ValidateIndices(row, column);
-            int result = NativeApi.WriteCanvasNavigationCell(
+            int result = NativeAPI.WriteCanvasNavigationCell(
                 canvas.native, row, column, value);
             ThrowIfFailed(result, nameof(row), nameof(value));
         }
@@ -204,14 +204,14 @@ public sealed class CanvasTransitionTable {
         if (columns <= 0) {
             throw new ArgumentOutOfRangeException(nameof(columns));
         }
-        int result = NativeApi.ResizeCanvasNavigationTableValue(
+        int result = NativeAPI.ResizeCanvasNavigationTableValue(
             canvas.native, rows, columns);
         ThrowIfFailed(result, nameof(rows), nameof(columns));
     }
 
     private void GetSize(out int rows, out int columns) {
 
-        int result = NativeApi.ReadCanvasNavigationTableSize(
+        int result = NativeAPI.ReadCanvasNavigationTableSize(
             canvas.native, out rows, out columns);
         ThrowIfFailed(result, nameof(canvas), nameof(canvas));
     }

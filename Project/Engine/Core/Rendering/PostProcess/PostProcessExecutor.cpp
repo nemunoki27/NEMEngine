@@ -276,7 +276,6 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	std::unordered_set<RenderTexture2D*> outputTextures{ destColor };
 	for (const auto& [name, targetName] : desc.outputTargets) {
 
-		(void)name;
 		if (RenderTexture2D* output =
 			context.targetRegistry->FindColorByName(targetName)) {
 

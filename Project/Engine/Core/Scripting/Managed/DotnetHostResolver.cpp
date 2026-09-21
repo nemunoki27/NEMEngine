@@ -6,21 +6,19 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
-// .NET公式native hosting
-#include <nethost.h>
-#include <hostfxr.h>
-#include <coreclr_delegates.h>
-
-// windows
-#include <windows.h>
 // c++
 #include <cstdio>
 #include <vector>
 
+#include <nethost.h>
+#include <hostfxr.h>
+#include <coreclr_delegates.h>
+#include <windows.h>
+
 namespace {
 
 	// get_hostfxr_pathがバッファ不足を示す戻り値、詳細はnethost.hのRemarks参照
-	constexpr int32_t kHostApiBufferTooSmall = 0x80008098;
+	constexpr int32_t kHostAPIBufferTooSmall = 0x80008098;
 
 	// nethost.dllのget_hostfxr_pathシグネチャで動的ロード用
 	using GetHostfxrPathFn = int(NETHOST_CALLTYPE*)(char_t*, size_t*, const get_hostfxr_parameters*);
@@ -150,7 +148,7 @@ namespace {
 		// まず必要バッファサイズを問い合わせる
 		size_t bufferSize = 0;
 		int32_t result = getHostfxrPath(nullptr, &bufferSize, &parameters);
-		if (result != kHostApiBufferTooSmall) {
+		if (result != kHostAPIBufferTooSmall) {
 
 			// サイズ問い合わせ以外で失敗した場合はnethostがhostfxrを特定できない、.NET runtime未導入など
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,

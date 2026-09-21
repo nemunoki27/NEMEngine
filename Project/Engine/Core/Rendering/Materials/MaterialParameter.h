@@ -44,10 +44,7 @@ namespace Engine {
 		}
 
 		// ShaderGraphの公開パラメータUUIDをそのままIDとして使う
-		static constexpr MaterialParameterID FromUUID(UUID uuid) noexcept {
-
-			return MaterialParameterID{ uuid.value };
-		}
+		static constexpr MaterialParameterID FromUUID(UUID uuid) noexcept { return MaterialParameterID{ uuid.value }; }
 	};
 
 	// 標準マテリアルが持つ意味
@@ -307,8 +304,6 @@ namespace std {
 	template<>
 	struct hash<Engine::MaterialParameterID> {
 
-		size_t operator()(const Engine::MaterialParameterID& id) const noexcept {
-			return std::hash<uint64_t>{}(id.value);
-		}
+		size_t operator()(const Engine::MaterialParameterID& id) const noexcept { return std::hash<uint64_t>{}(id.value); }
 	};
 }

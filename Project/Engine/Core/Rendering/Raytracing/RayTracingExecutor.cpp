@@ -294,7 +294,6 @@ bool Engine::RayTracingExecutor::Execute(
 	commandList->DispatchRays(&dispatch);
 	for (const auto& [name, output] : resources.outputs) {
 
-		(void)name;
 		if (!output) {
 			continue;
 		}
@@ -305,4 +304,17 @@ bool Engine::RayTracingExecutor::Execute(
 				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 	}
 	return true;
+}
+
+//============================================================================
+//	RayTracingExecutor classMethods
+//============================================================================
+
+namespace Engine {
+
+	void RayTracingExecutor::ClearParameterLayoutCache() {
+
+		parameterLayoutCache_.clear();
+		diagnostics_.clear();
+	}
 }

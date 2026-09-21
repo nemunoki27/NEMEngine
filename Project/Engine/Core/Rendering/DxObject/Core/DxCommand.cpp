@@ -253,3 +253,17 @@ void DxCommand::CopyTexture(ID3D12Resource* dstResource, D3D12_RESOURCE_STATES d
 	TransitionBarriers(srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE, srcState);
 	TransitionBarriers(dstResource, D3D12_RESOURCE_STATE_COPY_DEST, dstState);
 }
+
+//============================================================================
+//	DxCommand classMethods
+//============================================================================
+
+namespace Engine {
+
+	uint64_t DxCommand::GetFrameFenceValue(uint32_t frameIndex) const {
+
+		return frameContexts_[
+			frameIndex %
+			GraphicsFrameState::GetActiveCount()].fenceValue;
+	}
+}

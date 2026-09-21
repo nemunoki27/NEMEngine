@@ -272,7 +272,7 @@ void Engine::ParticleCircleEmitterShape::DrawShape(const ParticleEmitterSettings
 #endif
 }
 
-bool Engine::ParticleCircleEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+bool Engine::ParticleCircleEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
 #if defined(NEM_EDITOR_UI_ENABLED)
 
 	ParticleEmitterCircleParams& circle = settings.circle;
@@ -293,7 +293,6 @@ bool Engine::ParticleCircleEmitterShape::DrawImGui(ParticleEmitterSettings& sett
 	}
 	return changed;
 #else
-	(void)settings;
 	return false;
 #endif
 }

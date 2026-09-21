@@ -60,9 +60,7 @@ namespace Engine {
 		void InvalidateFont(AssetID assetID) { fontCache_.erase(assetID); }
 		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
 		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
-		void InvalidateRenderFeatureProfile(AssetID assetID) {
-			renderFeatureProfileCache_.erase(assetID);
-		}
+		void InvalidateRenderFeatureProfile(AssetID assetID) { renderFeatureProfileCache_.erase(assetID); }
 
 		//--------- accessor -----------------------------------------------------
 

@@ -21,14 +21,14 @@ internal static class Program {
     private sealed class FieldModel {
         public string Name = string.Empty;
         public string TypeText = string.Empty;
-        public string? ExplicitId;            // [SerializedFieldId]
+        public string? ExplicitID;            // [SerializedFieldID]
         public List<string> FormerlySerializedAs = new();
     }
 
     // 検出した 1 script 型
     private sealed class ScriptModel {
         public string FullTypeName = string.Empty;
-        public string? ExplicitId;            // [ScriptTypeId]
+        public string? ExplicitID;            // [ScriptTypeID]
         public List<string> FormerlyKnown = new();   // [FormerlyKnownScriptType]
         public List<FieldModel> Fields = new();
     }
@@ -102,12 +102,12 @@ internal static class Program {
             }
         }
 
-        // GUID の正規化・重複検出（scriptTypeId は全体一意、fieldId は型内一意）
-        var seenScriptIds = new Dictionary<string, string>(StringComparer.Ordinal);
+        // GUID の正規化・重複検出（scriptTypeID は全体一意、fieldID は型内一意）
+        var seenScriptIDs = new Dictionary<string, string>(StringComparer.Ordinal);
 
         bool anyChange = false;
         foreach ((string file, List<ScriptModel> models) in perFile) {
-            anyChange |= SyncFile(file, models, mode, seenScriptIds);
+            anyChange |= SyncFile(file, models, mode, seenScriptIDs);
         }
 
         if (errorCount > 0) {
@@ -116,10 +116,10 @@ internal static class Program {
         }
         if (ambiguousCount > 0) {
             // 曖昧 rename は build/reload を止めない（非破壊で新規 UUID を採番し、旧 entry は orphan として保持＝
-            // 旧値は Scene 側で unresolved として残る）。rename を意図する場合は [SerializedFieldId] か
-            // .cs.meta の fieldId 手当てで対応する。iteration を妨げないため警告にとどめる。
+            // 旧値は Scene 側で unresolved として残る）。rename を意図する場合は [SerializedFieldID] か
+            // .cs.meta の fieldID 手当てで対応する。iteration を妨げないため警告にとどめる。
             Console.WriteLine($"[ScriptMetaSync] {ambiguousCount} ambiguous rename(s) treated as new fields " +
-                "(previous values preserved as unresolved). Add [SerializedFieldId] or edit .cs.meta to map a rename.");
+                "(previous values preserved as unresolved). Add [SerializedFieldID] or edit .cs.meta to map a rename.");
         }
         Console.WriteLine($"[ScriptMetaSync] done. files={perFile.Count} changed={anyChange}");
         return 0;
@@ -180,21 +180,21 @@ internal static class Program {
             var model = new ScriptModel {
                 FullTypeName = string.IsNullOrEmpty(ns) ? cls.Identifier.Text : ns + "." + cls.Identifier.Text,
             };
-            model.ExplicitId = AttributeStringArg(cls.AttributeLists, "ScriptTypeId");
+            model.ExplicitID = AttributeStringArg(cls.AttributeLists, "ScriptTypeID");
             model.FormerlyKnown = AttributeStringArgs(cls.AttributeLists, "FormerlyKnownScriptType");
 
             foreach (FieldDeclarationSyntax field in cls.Members.OfType<FieldDeclarationSyntax>()) {
 
                 if (!IsSerializedField(field)) { continue; }
                 string typeText = field.Declaration.Type.ToString();
-                string? explicitId = AttributeStringArg(field.AttributeLists, "SerializedFieldId");
+                string? explicitID = AttributeStringArg(field.AttributeLists, "SerializedFieldID");
                 List<string> formerly = AttributeStringArgs(field.AttributeLists, "FormerlySerializedAs");
 
                 foreach (VariableDeclaratorSyntax v in field.Declaration.Variables) {
                     model.Fields.Add(new FieldModel {
                         Name = v.Identifier.Text,
                         TypeText = typeText,
-                        ExplicitId = explicitId,
+                        ExplicitID = explicitID,
                         FormerlySerializedAs = new List<string>(formerly),
                     });
                 }
@@ -267,7 +267,7 @@ internal static class Program {
 
     // 1 ファイルの .cs.meta を同期する。変更があれば true
     private static bool SyncFile(string csPath, List<ScriptModel> models, Mode mode,
-        Dictionary<string, string> seenScriptIds) {
+        Dictionary<string, string> seenScriptIDs) {
 
         string metaPath = csPath + ".meta";
         JsonObject meta = LoadMeta(metaPath);
@@ -290,7 +290,7 @@ internal static class Program {
             }
 
             if (existing != null) { matchedExisting.Add(existing); }
-            newScripts.Add(BuildScriptEntry(model, existing, renamedFrom, mode, seenScriptIds));
+            newScripts.Add(BuildScriptEntry(model, existing, renamedFrom, mode, seenScriptIDs));
         }
 
         // 2. source から消えた script type の単純 rename 推定（1 消失 + 1 新規・既存と未対応）
@@ -304,7 +304,7 @@ internal static class Program {
             }
         }
 
-        // scriptTypeId で安定ソート
+        // scriptTypeID で安定ソート
         var sorted = newScripts.OfType<JsonObject>().OrderBy(s => (string?)s["scriptTypeId"] ?? "", StringComparer.Ordinal).ToList();
         var sortedArray = new JsonArray();
         foreach (JsonObject s in sorted) { sortedArray.Add(s.DeepClone()); }
@@ -327,7 +327,7 @@ internal static class Program {
     private static void ResolveScriptRenames(string csPath, JsonArray existingScripts,
         HashSet<JsonObject> matchedExisting, List<ScriptModel> models, JsonArray newScripts, Mode mode) {
 
-        // newScripts のうち、scriptTypeId が新規採番された(=既存対応が無かった)もの
+        // newScripts のうち、scriptTypeID が新規採番された(=既存対応が無かった)もの
         var unresolvedNew = newScripts.OfType<JsonObject>()
             .Where(s => s["__isNew"]?.GetValue<bool>() == true).ToList();
         var unmatchedExisting = existingScripts.OfType<JsonObject>()
@@ -335,13 +335,13 @@ internal static class Program {
 
         if (unresolvedNew.Count == 1 && unmatchedExisting.Count == 1) {
 
-            // 安全な単純 rename：旧 scriptTypeId を維持し formerNames へ旧名を追加
+            // 安全な単純 rename：旧 scriptTypeID を維持し formerNames へ旧名を追加
             JsonObject newEntry = unresolvedNew[0];
             JsonObject oldEntry = unmatchedExisting[0];
             string oldName = (string?)oldEntry["fullTypeName"] ?? "";
-            string oldId = (string?)oldEntry["scriptTypeId"] ?? "";
-            if (!string.IsNullOrEmpty(oldId)) {
-                newEntry["scriptTypeId"] = oldId;
+            string oldID = (string?)oldEntry["scriptTypeId"] ?? "";
+            if (!string.IsNullOrEmpty(oldID)) {
+                newEntry["scriptTypeId"] = oldID;
                 AddFormerName(newEntry, oldName);
                 MergeFieldsFromRenamedScript(newEntry, oldEntry);
                 matchedExisting.Add(oldEntry);
@@ -379,38 +379,38 @@ internal static class Program {
     }
 
     private static JsonObject BuildScriptEntry(ScriptModel model, JsonObject? existing,
-        string? renamedFrom, Mode mode, Dictionary<string, string> seenScriptIds) {
+        string? renamedFrom, Mode mode, Dictionary<string, string> seenScriptIDs) {
 
         var entry = new JsonObject();
         entry["fullTypeName"] = model.FullTypeName;
 
-        // scriptTypeId: explicit attribute → existing meta → 新規 UUID
-        string? scriptId = NormalizeOrError(model.ExplicitId, $"{model.FullTypeName} [ScriptTypeId]");
+        // scriptTypeID: explicit attribute → existing meta → 新規 UUID
+        string? scriptID = NormalizeOrError(model.ExplicitID, $"{model.FullTypeName} [ScriptTypeID]");
         bool isNew = false;
-        if (scriptId == null) {
-            scriptId = (string?)existing?["scriptTypeId"];
-            scriptId = NormalizeOrError(scriptId, $"{model.FullTypeName} meta scriptTypeId");
+        if (scriptID == null) {
+            scriptID = (string?)existing?["scriptTypeId"];
+            scriptID = NormalizeOrError(scriptID, $"{model.FullTypeName} meta scriptTypeId");
         }
-        if (scriptId == null) {
+        if (scriptID == null) {
             if (mode == Mode.ValidateOnly) {
                 errorCount++;
                 Console.Error.WriteLine($"[ScriptMetaSync] missing scriptTypeId for '{model.FullTypeName}'. Run Editor metadata sync.");
-                scriptId = "00000000-0000-0000-0000-000000000000";
+                scriptID = "00000000-0000-0000-0000-000000000000";
             } else {
-                scriptId = Guid.NewGuid().ToString("D");
+                scriptID = Guid.NewGuid().ToString("D");
                 isNew = true;
             }
         }
 
-        // 全体での scriptTypeId 重複検出
-        if (seenScriptIds.TryGetValue(scriptId, out string? owner) && owner != model.FullTypeName) {
+        // 全体での scriptTypeID 重複検出
+        if (seenScriptIDs.TryGetValue(scriptID, out string? owner) && owner != model.FullTypeName) {
             errorCount++;
-            Console.Error.WriteLine($"[ScriptMetaSync] duplicate scriptTypeId '{scriptId}' on '{model.FullTypeName}' and '{owner}'.");
+            Console.Error.WriteLine($"[ScriptMetaSync] duplicate scriptTypeId '{scriptID}' on '{model.FullTypeName}' and '{owner}'.");
         } else {
-            seenScriptIds[scriptId] = model.FullTypeName;
+            seenScriptIDs[scriptID] = model.FullTypeName;
         }
 
-        entry["scriptTypeId"] = scriptId;
+        entry["scriptTypeId"] = scriptID;
         if (isNew) { entry["__isNew"] = true; }
 
         // formerNames（既存 + [FormerlyKnownScriptType] + rename 由来）
@@ -431,7 +431,7 @@ internal static class Program {
 
         var existingFields = existingScript?["fields"] as JsonArray ?? new JsonArray();
         var usedExisting = new HashSet<JsonObject>();
-        var seenFieldIds = new Dictionary<string, string>(StringComparer.Ordinal);
+        var seenFieldIDs = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // 1) 名前 / formerNames / 明示 ID で対応付け
         var resolved = new List<(FieldModel model, JsonObject? existing, string? id)>();
@@ -447,7 +447,7 @@ internal static class Program {
             }
             if (match != null) { usedExisting.Add(match); }
 
-            string? id = NormalizeOrError(f.ExplicitId, $"{model.FullTypeName}.{f.Name} [SerializedFieldId]");
+            string? id = NormalizeOrError(f.ExplicitID, $"{model.FullTypeName}.{f.Name} [SerializedFieldID]");
             if (id == null) { id = NormalizeOrError((string?)match?["fieldId"], $"{model.FullTypeName}.{f.Name} meta fieldId"); }
             resolved.Add((f, match, id));
             if (id == null) { needAssign.Add(resolved.Count - 1); }
@@ -460,9 +460,9 @@ internal static class Program {
             int idx = needAssign[0];
             JsonObject old = unmatchedExisting[0];
             string oldName = (string?)old["name"] ?? "";
-            string? oldId = NormalizeOrError((string?)old["fieldId"], "rename fieldId");
-            if (oldId != null) {
-                resolved[idx] = (resolved[idx].model, old, oldId);
+            string? oldID = NormalizeOrError((string?)old["fieldId"], "rename fieldId");
+            if (oldID != null) {
+                resolved[idx] = (resolved[idx].model, old, oldID);
                 resolved[idx].model.FormerlySerializedAs.Add(oldName);
                 usedExisting.Add(old);
                 needAssign.Clear();
@@ -488,11 +488,11 @@ internal static class Program {
                     id = Guid.NewGuid().ToString("D");
                 }
             }
-            if (seenFieldIds.TryGetValue(id, out string? owner) && owner != f.Name) {
+            if (seenFieldIDs.TryGetValue(id, out string? owner) && owner != f.Name) {
                 errorCount++;
                 Console.Error.WriteLine($"[ScriptMetaSync] duplicate fieldId '{id}' on '{model.FullTypeName}.{f.Name}' and '.{owner}'.");
             } else {
-                seenFieldIds[id] = f.Name;
+                seenFieldIDs[id] = f.Name;
             }
 
             var fieldNode = new JsonObject {
@@ -515,7 +515,7 @@ internal static class Program {
         // 旧 field の Scene 保存値は scene 側 serializedFields に unresolvedFields として GUID 単位で残るため、
         // meta からの除去は非破壊（識別子は Scene 内に保持される）。
 
-        // fieldId で安定ソート
+        // fieldID で安定ソート
         var sorted = fields.OfType<JsonObject>().OrderBy(f => (string?)f["fieldId"] ?? "", StringComparer.Ordinal).ToList();
         var sortedArray = new JsonArray();
         foreach (JsonObject f in sorted) { sortedArray.Add(f.DeepClone()); }

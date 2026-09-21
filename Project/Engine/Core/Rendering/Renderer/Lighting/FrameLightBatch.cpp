@@ -110,3 +110,15 @@ void Engine::FrameLightBatch::SetSource(const ECSWorld* world, uint64_t revision
 	sourceWorld_ = world;
 	sourceRevision_ = revision;
 }
+
+//============================================================================
+//	FrameLightBatch classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool FrameLightBatch::MatchesSource(const ECSWorld* world, uint64_t revision) const {
+
+		return sourceWorld_ == world && sourceRevision_ == revision;
+	}
+}

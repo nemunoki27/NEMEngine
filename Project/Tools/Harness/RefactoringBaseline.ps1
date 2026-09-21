@@ -583,7 +583,7 @@ function Invoke-AbiCheck {
 
     $messages = & dotnet run --project $generator -c Release -- --verify `
         --manifest (Join-Path $bindings "ComponentManifest.json") `
-        --abi (Join-Path $bindings "ManagedNativeApi.json") `
+        --abi (Join-Path $bindings "ManagedNativeAPI.json") `
         --out-native-dir $nativeOutput `
         --out-cs-dir $managedOutput 2>&1
     $exitCode = $LASTEXITCODE

@@ -44,12 +44,7 @@ namespace Engine {
 
 		UntypedDynamicBuffer() = default;
 		UntypedDynamicBuffer(DynamicBufferHeader* header,
-			size_t elementSize, size_t elementAlign, bool triviallyCopyable) :
-			header_(header),
-			elementSize_(elementSize),
-			elementAlign_(elementAlign),
-			triviallyCopyable_(triviallyCopyable) {
-		}
+			size_t elementSize, size_t elementAlign, bool triviallyCopyable);
 		~UntypedDynamicBuffer() = default;
 
 		// 要素列を同一レイアウトのデータで置き換える
@@ -66,9 +61,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		bool IsValid() const {
-			return header_ && elementSize_ != 0 && elementAlign_ != 0;
-		}
+		bool IsValid() const { return header_ && elementSize_ != 0 && elementAlign_ != 0; }
 		bool IsTriviallyCopyable() const { return triviallyCopyable_; }
 		uint32_t GetSize() const { return header_ ? header_->size : 0; }
 		size_t GetElementSize() const { return elementSize_; }
@@ -88,8 +81,11 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 必要な要素数を格納する領域を確保する
 		bool Reserve(uint32_t capacity);
+		// チャンク内の要素領域を取得する
 		void* GetInternalData() const;
+		// 現在の要素領域がチャンク内か判定する
 		bool UsesInternalStorage() const;
 	};
 
@@ -182,125 +178,8 @@ namespace Engine {
 //============================================================================
 //	UntypedDynamicBuffer classMethods
 //============================================================================
-inline bool Engine::UntypedDynamicBuffer::SetData(
-	const void* data, uint32_t count) {
 
-	if ((count != 0 && !data) || !Resize(count)) {
-		return false;
-	}
-	if (count != 0) {
-		std::memcpy(GetData(), data, elementSize_ * count);
-	}
-	return true;
-}
-
-inline bool Engine::UntypedDynamicBuffer::SetElement(
-	uint32_t index, const void* data) {
-
-	if (!IsValid() || !triviallyCopyable_ || !data ||
-		index >= header_->size) {
-		return false;
-	}
-	std::memcpy(
-		static_cast<std::byte*>(header_->data) + elementSize_ * index,
-		data, elementSize_);
-	return true;
-}
-
-inline bool Engine::UntypedDynamicBuffer::RemoveAt(uint32_t index) {
-
-	if (!IsValid() || !triviallyCopyable_ || index >= header_->size) {
-		return false;
-	}
-	const uint32_t moveCount = header_->size - index - 1;
-	if (moveCount != 0) {
-		std::memmove(
-			static_cast<std::byte*>(header_->data) + elementSize_ * index,
-			static_cast<std::byte*>(header_->data) + elementSize_ * (index + 1),
-			elementSize_ * moveCount);
-	}
-	--header_->size;
-	return true;
-}
-
-inline bool Engine::UntypedDynamicBuffer::Resize(uint32_t size) {
-
-	if (!IsValid() || !triviallyCopyable_) {
-		return false;
-	}
-	const uint32_t oldSize = header_->size;
-	if (size > header_->capacity && !Reserve(size)) {
-		return false;
-	}
-	if (size > oldSize) {
-		// C#側へ未初期化メモリを公開しないよう追加領域を初期化する
-		std::memset(
-			static_cast<std::byte*>(header_->data) + elementSize_ * oldSize,
-			0, elementSize_ * (size - oldSize));
-	}
-	header_->size = size;
-	return true;
-}
-
-inline uint32_t Engine::UntypedDynamicBuffer::CopyTo(
-	void* destination, uint32_t capacity, uint32_t startIndex) const {
-
-	if (!IsValid() || !triviallyCopyable_ ||
-		startIndex >= header_->size) {
-		return 0;
-	}
-	const uint32_t copyCount =
-		(std::min)(header_->size - startIndex, capacity);
-	if (copyCount != 0 && destination) {
-		std::memcpy(
-			destination,
-			static_cast<const std::byte*>(GetData()) +
-			elementSize_ * startIndex,
-			elementSize_ * copyCount);
-	}
-	return copyCount;
-}
-
-inline bool Engine::UntypedDynamicBuffer::Reserve(uint32_t capacity) {
-
-	if (!IsValid() || !triviallyCopyable_) {
-		return false;
-	}
-	if (capacity <= header_->capacity) {
-		return true;
-	}
-
-	void* destination = ::operator new(
-		elementSize_ * capacity, std::align_val_t(elementAlign_));
-	if (header_->size != 0) {
-		std::memcpy(
-			destination, header_->data, elementSize_ * header_->size);
-	}
-	if (!UsesInternalStorage()) {
-		::operator delete(header_->data, std::align_val_t(elementAlign_));
-	}
-	header_->data = destination;
-	header_->capacity = capacity;
-	return true;
-}
-
-inline void* Engine::UntypedDynamicBuffer::GetInternalData() const {
-
-	if (!header_) {
-		return nullptr;
-	}
-	const uintptr_t headerEnd =
-		reinterpret_cast<uintptr_t>(header_) + sizeof(DynamicBufferHeader);
-	const uintptr_t aligned =
-		(headerEnd + elementAlign_ - 1) &
-		~(static_cast<uintptr_t>(elementAlign_) - 1);
-	return reinterpret_cast<void*>(aligned);
-}
-
-inline bool Engine::UntypedDynamicBuffer::UsesInternalStorage() const {
-
-	return header_ && header_->data == GetInternalData();
-}
+inline bool Engine::UntypedDynamicBuffer::UsesInternalStorage() const { return header_ && header_->data == GetInternalData(); }
 
 //============================================================================
 //	DynamicBuffer classTemplateMethods

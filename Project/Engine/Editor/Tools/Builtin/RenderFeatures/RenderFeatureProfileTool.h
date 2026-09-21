@@ -33,10 +33,7 @@ namespace Engine {
 		void DrawEditorTool(const EditorToolContext& context) override;
 		void OpenAsset(AssetID assetID);
 
-		const ToolDescriptor& GetDescriptor() const override {
-
-			return descriptor_;
-		}
+		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
 
 	private:
 		//========================================================================

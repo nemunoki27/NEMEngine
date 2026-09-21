@@ -5,13 +5,14 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <array>
 #include <cstdint>
 #include <utility>
 #include <vector>
+
+// directX
+#include <d3d12.h>
 
 namespace Engine {
 
@@ -33,19 +34,9 @@ namespace Engine {
 	//============================================================================
 	class GraphicsFrameState {
 	public:
-		static void SetActiveCount(uint32_t count) {
-			activeCount_ = count < 1 ? 1 :
-				(count > kGraphicsFrameContextCount ?
-					kGraphicsFrameContextCount : count);
-			currentIndex_ %= activeCount_;
-		}
-		static void SetCurrentIndex(uint32_t index) {
-			currentIndex_ = index % activeCount_;
-		}
-		static void BeginFrame(uint32_t index) {
-			SetCurrentIndex(index);
-			++frameSerial_;
-		}
+		static void SetActiveCount(uint32_t count);
+		static void SetCurrentIndex(uint32_t index) { currentIndex_ = index % activeCount_; }
+		static void BeginFrame(uint32_t index);
 		static uint32_t GetCurrentIndex() { return currentIndex_; }
 		static uint32_t GetActiveCount() { return activeCount_; }
 		static uint64_t GetFrameSerial() { return frameSerial_; }
@@ -63,37 +54,13 @@ namespace Engine {
 	class GraphicsDeferredReleaseQueue {
 	public:
 		// 現在フレームで不要になったリソースを遅延解放する
-		void Retire(ComPtr<ID3D12Resource> resource) {
-
-			if (!resource) {
-				return;
-			}
-			Collect();
-			resources_[GraphicsFrameState::GetCurrentIndex()].emplace_back(
-				std::move(resource));
-		}
+		void Retire(ComPtr<ID3D12Resource> resource);
 
 		// 再利用可能になったフレームスロットのリソースを解放する
-		void Collect() {
-
-			const uint32_t frameIndex =
-				GraphicsFrameState::GetCurrentIndex();
-			const uint64_t frameSerial =
-				GraphicsFrameState::GetFrameSerial();
-			if (frameSerials_[frameIndex] == frameSerial) {
-				return;
-			}
-
-			resources_[frameIndex].clear();
-			frameSerials_[frameIndex] = frameSerial;
-		}
+		void Collect();
 
 		// 保持中の全リソースを解放する
-		void Clear() {
-
-			resources_ = {};
-			frameSerials_ = {};
-		}
+		void Clear();
 	private:
 		std::array<std::vector<ComPtr<ID3D12Resource>>,
 			kGraphicsFrameContextCount> resources_{};

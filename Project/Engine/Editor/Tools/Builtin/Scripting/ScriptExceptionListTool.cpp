@@ -12,13 +12,12 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <algorithm>
 #include <cctype>
 #include <string>
+
+#include <imgui.h>
 
 namespace {
 

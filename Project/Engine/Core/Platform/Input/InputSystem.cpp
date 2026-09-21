@@ -166,41 +166,36 @@ void Input::Finalize() {
 	}
 }
 
-bool Input::PushKey(BYTE keyNumber, const std::source_location& location) {
+bool Input::PushKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
 
-	(void)location;
 	return key_[keyNumber];
 }
 
-bool Input::TriggerKey(BYTE keyNumber, const std::source_location& location) {
+bool Input::TriggerKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
 
 	// 現在のフレームで押されていて、前のフレームで押されていなかった場合にtrueを返す
-	(void)location;
 	return key_[keyNumber] && !keyPre_[keyNumber];
 }
-bool Input::ReleaseKey(BYTE keyNumber, const std::source_location& location) {
+bool Input::ReleaseKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
 
-	(void)location;
 	return !key_[keyNumber] && keyPre_[keyNumber];
 }
-bool Input::PushGamepadButton(GamePadButtons button, const std::source_location& location) {
+bool Input::PushGamepadButton(GamePadButtons button, [[maybe_unused]] const std::source_location& location) {
 
 	const size_t index = static_cast<size_t>(button);
-	(void)location;
 	if (gamepadButtons_.size() <= index) {
 		Assert::Call(false, "GamePad Button番号が範囲外です");
 		return false;
 	}
 	return gamepadButtons_[index];
 }
-bool Input::TriggerGamepadButton(GamePadButtons button, const std::source_location& location) {
+bool Input::TriggerGamepadButton(GamePadButtons button, [[maybe_unused]] const std::source_location& location) {
 
 	// ボタン番号が範囲外の場合はfalseを返す
 	if (gamepadButtons_.size() <= static_cast<size_t>(button)) {
 		return false;
 	}
 
-	(void)location;
 	return gamepadButtons_[static_cast<size_t>(button)] &&
 		!gamepadButtonsPre_[static_cast<size_t>(button)];
 }
@@ -241,9 +236,8 @@ float Input::GetMouseWheel() {
 
 	return wheelValue_;
 }
-bool Input::PushMouseButton(size_t index, const std::source_location& location) const {
+bool Input::PushMouseButton(size_t index, [[maybe_unused]] const std::source_location& location) const {
 
-	(void)location;
 	Assert::Call(index < mouseButtons_.size(), "Mouse Button番号が範囲外です");
 	return index < mouseButtons_.size() && mouseButtons_[index];
 }
@@ -269,19 +263,16 @@ bool Input::PushMouse(MouseButton button, const std::source_location& location) 
 	}
 	return push;
 }
-bool Input::TriggerMouseLeft(const std::source_location& location) const {
+bool Input::TriggerMouseLeft([[maybe_unused]] const std::source_location& location) const {
 
-	(void)location;
 	return !mousePreButtons_[0] && mouseButtons_[0];
 }
-bool Input::TriggerMouseRight(const std::source_location& location) const {
+bool Input::TriggerMouseRight([[maybe_unused]] const std::source_location& location) const {
 
-	(void)location;
 	return !mousePreButtons_[1] && mouseButtons_[1];
 }
-bool Input::TriggerMouseCenter(const std::source_location& location) const {
+bool Input::TriggerMouseCenter([[maybe_unused]] const std::source_location& location) const {
 
-	(void)location;
 	return !mousePreButtons_[2] && mouseButtons_[2];
 }
 bool Input::TriggerMouse(MouseButton button, const std::source_location& location) const {
@@ -306,25 +297,22 @@ bool Input::TriggerMouse(MouseButton button, const std::source_location& locatio
 	}
 	return trigger;
 }
-bool Input::ReleaseMouse(MouseButton button, const std::source_location& location) const {
+bool Input::ReleaseMouse(MouseButton button, [[maybe_unused]] const std::source_location& location) const {
 
 	bool released = false;
 	switch (button) {
 	case MouseButton::Left: {
 
-		(void)location;
 		released = !mouseButtons_[0] && mousePreButtons_[0];
 		break;
 	}
 	case MouseButton::Right: {
 
-		(void)location;
 		released = !mouseButtons_[1] && mousePreButtons_[1];
 		break;
 	}
 	case MouseButton::Center: {
 
-		(void)location;
 		released = !mouseButtons_[2] && mousePreButtons_[2];
 		break;
 	}
@@ -819,5 +807,38 @@ float Input::GamepadAxisByIndex(int index, int axis) const {
 	case 4:  return static_cast<float>(pad.bLeftTrigger) / 255.0f;
 	case 5:  return static_cast<float>(pad.bRightTrigger) / 255.0f;
 	default: return 0.0f;
+	}
+}
+
+//============================================================================
+//	InputSystem classMethods
+//============================================================================
+
+namespace Engine {
+
+	void Input::PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint) {
+
+		if (paths.empty()) { return; }
+		droppedFiles_ = paths;
+		droppedFilesPoint_ = screenPoint;
+		hasDroppedFiles_ = true;
+	}
+
+	bool Input::TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) {
+
+		if (!hasDroppedFiles_) { return false; }
+		outPaths = std::move(droppedFiles_);
+		outClientPoint = droppedFilesPoint_;
+		droppedFiles_.clear();
+		hasDroppedFiles_ = false;
+		return true;
+	}
+
+	bool Input::PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const {
+
+		if (!hasDroppedFiles_) { return false; }
+		outPaths = droppedFiles_;
+		outClientPoint = droppedFilesPoint_;
+		return true;
 	}
 }

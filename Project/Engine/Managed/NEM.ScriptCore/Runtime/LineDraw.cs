@@ -29,7 +29,7 @@ public static class LineDraw {
         Span<LinePoint> points = stackalloc LinePoint[2];
         points[0] = new LinePoint(start, color, thickness);
         points[1] = new LinePoint(end, color, thickness);
-        NativeApi.LineDrawImmediatePolyline(points, false, false, AssetGUID.None);
+        NativeAPI.LineDrawImmediatePolyline(points, false, false, AssetGUID.None);
     }
 
     // 2点を結ぶ2Dライン。座標は2Dワールド基準
@@ -37,17 +37,17 @@ public static class LineDraw {
         Span<LinePoint> points = stackalloc LinePoint[2];
         points[0] = new LinePoint(new Vector3(start.x, start.y, 0.0f), color, thickness);
         points[1] = new LinePoint(new Vector3(end.x, end.y, 0.0f), color, thickness);
-        NativeApi.LineDrawImmediatePolyline(points, false, true, AssetGUID.None);
+        NativeAPI.LineDrawImmediatePolyline(points, false, true, AssetGUID.None);
     }
 
     // 任意のポリラインを描く。loopで始点と終点をつなぐ
     public static void DrawPolyline(ReadOnlySpan<LinePoint> points, bool loop = false, bool is2D = false) {
-        NativeApi.LineDrawImmediatePolyline(points, loop, is2D, AssetGUID.None);
+        NativeAPI.LineDrawImmediatePolyline(points, loop, is2D, AssetGUID.None);
     }
 
     // 組み込みのワイヤーフレーム球を描く
     public static void DrawSphere(Vector3 center, float radius, Color4 color, int division = 8, float thickness = 0.05f) {
-        NativeApi.LineDrawImmediateSphere(center, radius, color, division, thickness, AssetGUID.None);
+        NativeAPI.LineDrawImmediateSphere(center, radius, color, division, thickness, AssetGUID.None);
     }
 
     // 形状記述子の共通既定を作る
@@ -73,7 +73,7 @@ public static class LineDraw {
         shape.a = NativeVector3.From(new Vector3(center.x, center.y, 0.0f));
         shape.radius = radius;
         shape.division = division;
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // 2D矩形、rotationDegreesはZ回転
@@ -83,7 +83,7 @@ public static class LineDraw {
         shape.a = NativeVector3.From(new Vector3(center.x, center.y, 0.0f));
         shape.b = NativeVector3.From(new Vector3(size.x, size.y, 0.0f));
         shape.rotation = NativeQuaternion.From(Quaternion.FromEulerDegrees(new Vector3(0.0f, 0.0f, rotationDegrees)));
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // 半球
@@ -93,7 +93,7 @@ public static class LineDraw {
         shape.radius = radius;
         shape.rotation = NativeQuaternion.From(rotation);
         shape.division = division;
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // 軸平行ボックス
@@ -101,7 +101,7 @@ public static class LineDraw {
         NativeLineShape shape = MakeShape(LineShapeType.AABB, color, thickness);
         shape.a = NativeVector3.From(min);
         shape.b = NativeVector3.From(max);
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // 有向ボックス、sizeは各軸の半径
@@ -110,7 +110,7 @@ public static class LineDraw {
         shape.a = NativeVector3.From(center);
         shape.b = NativeVector3.From(size);
         shape.rotation = NativeQuaternion.From(rotation);
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // 円錐台
@@ -122,7 +122,7 @@ public static class LineDraw {
         shape.height = height;
         shape.rotation = NativeQuaternion.From(rotation);
         shape.division = division;
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // 方向矢印
@@ -131,7 +131,7 @@ public static class LineDraw {
         shape.a = NativeVector3.From(pos);
         shape.height = length;
         shape.rotation = NativeQuaternion.From(rotation);
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 
     // XYZ軸、色はX赤Y青Z緑で固定
@@ -140,6 +140,6 @@ public static class LineDraw {
         shape.a = NativeVector3.From(pos);
         shape.height = length;
         shape.rotation = NativeQuaternion.From(rotation);
-        NativeApi.LineDrawShapeImmediate(shape);
+        NativeAPI.LineDrawShapeImmediate(shape);
     }
 }

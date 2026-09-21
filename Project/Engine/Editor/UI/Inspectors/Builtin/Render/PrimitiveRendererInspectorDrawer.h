@@ -24,9 +24,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		PrimitiveRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Primitive Renderer", "PrimitiveRenderer") {
-		}
+		PrimitiveRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Primitive Renderer", "PrimitiveRenderer") {}
 		~PrimitiveRendererInspectorDrawer() = default;
 	private:
 		//============================================================================

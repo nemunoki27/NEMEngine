@@ -5,7 +5,7 @@ public sealed partial class SkinnedAnimation {
 
     // 指定クリップへ遷移再生する
     public void Play(string stateName) {
-        NativeApi.PlaySkinnedAnimationClip(entity.native, stateName);
+        NativeAPI.PlaySkinnedAnimationClip(entity.native, stateName);
     }
 
     // クリップ状態を保持したまま時間更新を止める
@@ -15,27 +15,27 @@ public sealed partial class SkinnedAnimation {
 
     // 現在の再生クリップ
     public string CurrentState =>
-        NativeApi.ReadSkinnedAnimationCurrentClip(entity.native);
+        NativeAPI.ReadSkinnedAnimationCurrentClip(entity.native);
 
     // 現在の再生時間
     public float CurrentTime =>
-        NativeApi.ReadSkinnedAnimationRuntimeState(entity.native).currentTime;
+        NativeAPI.ReadSkinnedAnimationRuntimeState(entity.native).currentTime;
 
     // 非ループ再生が終端へ到達したか
     public bool Finished =>
-        NativeApi.ReadSkinnedAnimationRuntimeState(entity.native).finished != 0;
+        NativeAPI.ReadSkinnedAnimationRuntimeState(entity.native).finished != 0;
 
     // クリップをブレンド中か
     public bool InTransition =>
-        NativeApi.ReadSkinnedAnimationRuntimeState(entity.native).inTransition != 0;
+        NativeAPI.ReadSkinnedAnimationRuntimeState(entity.native).inTransition != 0;
 
     // ループした回数
     public int RepeatCount =>
-        NativeApi.ReadSkinnedAnimationRuntimeState(entity.native).repeatCount;
+        NativeAPI.ReadSkinnedAnimationRuntimeState(entity.native).repeatCount;
 
     // 有効かつ自然終了していないか
     public bool IsPlaying => Enabled && !Finished;
 
     // 指定クリップの再生時間を返す
-    public float GetDuration(string clipName) => NativeApi.ReadSkinnedAnimationDuration(entity.native, clipName);
+    public float GetDuration(string clipName) => NativeAPI.ReadSkinnedAnimationDuration(entity.native, clipName);
 }

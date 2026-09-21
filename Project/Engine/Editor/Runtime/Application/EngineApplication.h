@@ -223,31 +223,10 @@ namespace Engine {
 
 		// アクティブなワールドとシーンの取得、優先度はPlay > プレファブ編集 > Edit
 		// In-Context編集中は隔離ワールドではなく遷移元のhostWorldを使う
-		ECSWorld* GetActiveWorld() {
-			if (worldManager_.IsPlaying()) { return worldManager_.GetPlayWorld(); }
-			if (!prefabStages_.empty()) {
-				PrefabEditStage& top = prefabStages_.back();
-				return top.inContext ? top.hostWorld : top.world.get();
-			}
-			return &worldManager_.GetEditWorld();
-		}
-		SceneInstanceManager& GetActiveScenes() {
-			if (worldManager_.IsPlaying()) { return playScenes_; }
-			if (!prefabStages_.empty()) {
-				PrefabEditStage& top = prefabStages_.back();
-				if (top.inContext) { return ResolveHostScenes(top); }
-				return top.scenes;
-			}
-			return editScenes_;
-		}
+		ECSWorld* GetActiveWorld();
+		SceneInstanceManager& GetActiveScenes();
 		// In-Context編集のhostWorldが属するシーン管理を引く
-		SceneInstanceManager& ResolveHostScenes(PrefabEditStage& stage) {
-			if (stage.hostWorld == &worldManager_.GetEditWorld()) { return editScenes_; }
-			for (size_t i = prefabStages_.size(); i-- > 0; ) {
-				if (prefabStages_[i].world.get() == stage.hostWorld) { return prefabStages_[i].scenes; }
-			}
-			return editScenes_;
-		}
+		SceneInstanceManager& ResolveHostScenes(PrefabEditStage& stage);
 		const SceneHeader* GetActiveSceneHeader();
 
 		// プレファブ編集の開始/終了/保存、隔離ワールドへの展開と.prefab保存を行う

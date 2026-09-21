@@ -139,28 +139,11 @@ namespace Engine {
 		void SetWindowFocus(bool focused) { hasFocus_ = focused; }
 
 		// 外部エクスプローラーからのファイルドロップを画面座標で積む
-		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint) {
-			if (paths.empty()) { return; }
-			droppedFiles_ = paths;
-			droppedFilesPoint_ = screenPoint;
-			hasDroppedFiles_ = true;
-		}
+		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint);
 		// 溜めたファイルドロップを取り出して消費する、未着なら何もせずfalse
-		bool TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) {
-			if (!hasDroppedFiles_) { return false; }
-			outPaths = std::move(droppedFiles_);
-			outClientPoint = droppedFilesPoint_;
-			droppedFiles_.clear();
-			hasDroppedFiles_ = false;
-			return true;
-		}
+		bool TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint);
 		// 溜めたファイルドロップを消費せず取得する
-		bool PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const {
-			if (!hasDroppedFiles_) { return false; }
-			outPaths = droppedFiles_;
-			outClientPoint = droppedFilesPoint_;
-			return true;
-		}
+		bool PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const;
 
 		// singleton
 		static Input* GetInstance();

@@ -6,12 +6,13 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 #include <Engine/Core/Assets/RenderComponentTypes.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <cstdint>
 #include <string>
 #include <array>
+
+// directX
+#include <d3d12.h>
 
 //============================================================================
 //	DxStructures

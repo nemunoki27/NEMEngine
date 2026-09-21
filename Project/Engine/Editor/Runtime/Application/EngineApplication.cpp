@@ -216,10 +216,9 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	}
 }
 
-void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {
+void Engine::EngineApplication::PreloadReleaseResources([[maybe_unused]] GraphicsCore& graphicsCore) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	(void)graphicsCore;
 	return;
 #else
 	const auto startTime = std::chrono::steady_clock::now();
@@ -1028,7 +1027,6 @@ void Engine::EngineApplication::UpdateSceneSave() {
 	}
 
 	sceneSaveQueued_ = false;
-	(void)succeeded;
 	SaveActiveEditScene();
 }
 
@@ -1203,4 +1201,41 @@ int Engine::RunEditorApplication() {
 	Framework framework(std::make_unique<EngineApplication>());
 	framework.Run();
 	return 0;
+}
+
+//============================================================================
+//	EngineApplication classMethods
+//============================================================================
+
+namespace Engine {
+
+	ECSWorld* EngineApplication::GetActiveWorld() {
+
+		if (worldManager_.IsPlaying()) { return worldManager_.GetPlayWorld(); }
+		if (!prefabStages_.empty()) {
+			PrefabEditStage& top = prefabStages_.back();
+			return top.inContext ? top.hostWorld : top.world.get();
+		}
+		return &worldManager_.GetEditWorld();
+	}
+
+	SceneInstanceManager& EngineApplication::GetActiveScenes() {
+
+		if (worldManager_.IsPlaying()) { return playScenes_; }
+		if (!prefabStages_.empty()) {
+			PrefabEditStage& top = prefabStages_.back();
+			if (top.inContext) { return ResolveHostScenes(top); }
+			return top.scenes;
+		}
+		return editScenes_;
+	}
+
+	SceneInstanceManager& EngineApplication::ResolveHostScenes(PrefabEditStage& stage) {
+
+		if (stage.hostWorld == &worldManager_.GetEditWorld()) { return editScenes_; }
+		for (size_t i = prefabStages_.size(); i-- > 0; ) {
+			if (prefabStages_[i].world.get() == stage.hostWorld) { return prefabStages_[i].scenes; }
+		}
+		return editScenes_;
+	}
 }

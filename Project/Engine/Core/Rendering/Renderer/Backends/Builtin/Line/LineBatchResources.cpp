@@ -47,3 +47,22 @@ void Engine::LineBatchResources::UpdateView(const ResolvedCameraView& camera, co
 	viewBuffers_[GraphicsFrameState::GetCurrentIndex()]
 		.TransferData(constants);
 }
+
+//============================================================================
+//	LineBatchResources classMethods
+//============================================================================
+
+namespace Engine {
+
+	const D3D12_VERTEX_BUFFER_VIEW& LineBatchResources::GetVBV() const {
+
+		return vertexBuffers_[GraphicsFrameState::GetCurrentIndex()]
+			.GetVertexBufferView();
+	}
+
+	D3D12_GPU_VIRTUAL_ADDRESS LineBatchResources::GetViewGPUAddress() const {
+
+		return viewBuffers_[GraphicsFrameState::GetCurrentIndex()]
+			.GetResource()->GetGPUVirtualAddress();
+	}
+}

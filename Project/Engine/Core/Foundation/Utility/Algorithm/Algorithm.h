@@ -93,11 +93,7 @@ namespace Engine {
 		//	Hash
 		//============================================================================
 		// FNV系の混合でhashへvalueを畳み込む、複数値からハッシュを積み上げる用途
-		inline void HashCombine(uint64_t& hash, uint64_t value) {
-
-			hash ^= value;
-			hash *= 1099511628211ull;
-		}
+		void HashCombine(uint64_t& hash, uint64_t value);
 
 		//============================================================================
 		//	Find

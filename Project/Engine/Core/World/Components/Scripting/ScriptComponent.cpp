@@ -133,3 +133,23 @@ void Engine::SerializeScriptEntries(
 		out.emplace_back(entry);
 	}
 }
+
+//============================================================================
+//	ScriptComponent classMethods
+//============================================================================
+
+namespace Engine {
+
+	ScriptEntry MakeScriptEntry(const std::string& scriptTypeID,
+		const std::string& lastKnownTypeName, AssetID scriptAsset) {
+
+		ScriptEntry entry{};
+		entry.scriptTypeID = scriptTypeID;
+		entry.lastKnownTypeName = lastKnownTypeName;
+		entry.scriptSlotID = UUID::New();
+		entry.scriptAsset = scriptAsset;
+		entry.enabled = true;
+		entry.serializedFields = nlohmann::json::object();
+		return entry;
+	}
+}

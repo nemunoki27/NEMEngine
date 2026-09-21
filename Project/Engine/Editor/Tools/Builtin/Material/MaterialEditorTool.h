@@ -7,10 +7,11 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <string>
+
+// directX
+#include <d3d12.h>
 
 namespace Engine {
 

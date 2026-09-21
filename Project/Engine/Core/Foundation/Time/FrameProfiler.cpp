@@ -161,3 +161,17 @@ float Engine::FrameProfiler::FindGPUPassMs(std::string_view name) const {
 	}
 	return 0.0f;
 }
+
+//============================================================================
+//	FrameProfiler classMethods
+//============================================================================
+
+namespace Engine {
+
+	FrameProfiler::ScopedSample::~ScopedSample() {
+
+		const std::chrono::duration<float, std::milli> elapsed =
+			std::chrono::high_resolution_clock::now() - start_;
+		FrameProfiler::GetInstance().AddSample(category_, elapsed.count());
+	}
+}

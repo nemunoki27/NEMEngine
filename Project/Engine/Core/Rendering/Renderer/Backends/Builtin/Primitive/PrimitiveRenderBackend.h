@@ -25,16 +25,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		PrimitiveRenderBackend() {
-
-			meshConstantsCBVSlot_ = perDrawBindCache_.AddSlot("PrimitiveMeshConstants", ShaderBindingKind::CBV);
-			verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
-			instancesSRVSlot_ = perDrawBindCache_.AddSlot("gInstances", ShaderBindingKind::SRV);
-			indicesSRVSlot_ = perDrawBindCache_.AddSlot("gIndices", ShaderBindingKind::SRV);
-			// 選択アウトラインのマスク描画で使うStyle ID
-			outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,
-				kScreenSpaceOutlineMaskCBVRegister, kScreenSpaceOutlineMaskCBVSpace);
-		}
+		PrimitiveRenderBackend();
 		~PrimitiveRenderBackend() override;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;

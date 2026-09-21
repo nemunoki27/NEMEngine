@@ -63,7 +63,7 @@ void Engine::ParticleConeEmitterShape::DrawShape(const ParticleEmitterSettings& 
 #endif
 }
 
-bool Engine::ParticleConeEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+bool Engine::ParticleConeEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
 #if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool changed = false;
@@ -71,7 +71,6 @@ bool Engine::ParticleConeEmitterShape::DrawImGui(ParticleEmitterSettings& settin
 	changed |= MyGUI::DragFloat("底面半径", settings.cone.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 	return changed;
 #else
-	(void)settings;
 	return false;
 #endif
 }

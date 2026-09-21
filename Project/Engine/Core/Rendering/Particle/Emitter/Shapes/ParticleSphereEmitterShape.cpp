@@ -39,14 +39,13 @@ void Engine::ParticleSphereEmitterShape::DrawShape(const ParticleEmitterSettings
 #endif
 }
 
-bool Engine::ParticleSphereEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+bool Engine::ParticleSphereEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
 #if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool result = MyGUI::DragFloat("半径", settings.sphere.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 
 	return result;
 #else
-	(void)settings;
 	return false;
 #endif
 }

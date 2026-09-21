@@ -22,7 +22,7 @@ internal static class EventDispatch {
                 handler();
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"[{tag}] event handler threw\n{ex}");
+                NativeAPI.WriteLog(2, $"[{tag}] event handler threw\n{ex}");
             }
         }
     }
@@ -36,7 +36,7 @@ internal static class EventDispatch {
                 handler(arg);
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"[{tag}] event handler threw\n{ex}");
+                NativeAPI.WriteLog(2, $"[{tag}] event handler threw\n{ex}");
             }
         }
     }
@@ -60,7 +60,7 @@ internal static class EventDispatch {
                 deferred[i]();
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"[EventDispatch] deferred dispatch threw\n{ex}");
+                NativeAPI.WriteLog(2, $"[EventDispatch] deferred dispatch threw\n{ex}");
             }
         }
         // 開始時の件数だけを前方から取り除く。flush 中に追加された分(index >= count)は残す

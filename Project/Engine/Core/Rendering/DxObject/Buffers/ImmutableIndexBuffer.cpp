@@ -37,3 +37,15 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 	indexBufferView_.Format = DXGI_FORMAT_R16_UINT;
 	indexBufferView_.SizeInBytes = sizeInBytes;
 }
+
+//============================================================================
+//	ImmutableIndexBuffer classMethods
+//============================================================================
+
+namespace Engine {
+
+	uint32_t ImmutableIndexBuffer::GetIndexSizeInBytes() const {
+
+		return (indexBufferView_.Format == DXGI_FORMAT_R16_UINT) ? sizeof(uint16_t) : sizeof(uint32_t);
+	}
+}

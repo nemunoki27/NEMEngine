@@ -186,9 +186,7 @@ namespace Engine {
 		const SceneViewCameraSelection& GetSceneViewCameraSelection() const { return editorState_.sceneViewCamera; }
 		SceneViewCameraSelection& GetSceneViewCameraSelection() { return editorState_.sceneViewCamera; }
 		bool ShouldDrawSceneViewDefaultGrid() const { return editorState_.drawSceneViewDefaultGrid; }
-		bool ShouldDrawSceneView2DCameraBounds() const {
-			return editorState_.sceneViewPickDimension == SceneViewPickDimension::Type2D;
-		}
+		bool ShouldDrawSceneView2DCameraBounds() const { return editorState_.sceneViewPickDimension == SceneViewPickDimension::Type2D; }
 	private:
 		//============================================================================
 		//	private Methods

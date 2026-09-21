@@ -68,3 +68,18 @@ void Engine::BuiltinRenderBackendBase::BindMaterial(const RenderDrawContext& con
 	BackendDrawCommon::BindMaterialTextures(context, pipelineState, materialParamBinder_,
 		material, commandList, overrides);
 }
+
+//============================================================================
+//	BuiltinRenderBackendBase classMethods
+//============================================================================
+
+namespace Engine {
+
+	BuiltinRenderBackendBase::BuiltinRenderBackendBase() {
+
+		viewCBVSlot_ = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
+		shaderGraphTimeCBVSlot_ = perDrawBindCache_.AddSlot(
+			"ShaderGraphTimeConstants", ShaderBindingKind::CBV);
+		materialParamsCBVSlot_ = perDrawBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
+	}
+}

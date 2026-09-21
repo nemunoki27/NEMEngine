@@ -22,9 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		TextRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Text Renderer", "TextRenderer") {
-		}
+		TextRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Text Renderer", "TextRenderer") {}
 		~TextRendererInspectorDrawer() = default;
 	private:
 		//============================================================================

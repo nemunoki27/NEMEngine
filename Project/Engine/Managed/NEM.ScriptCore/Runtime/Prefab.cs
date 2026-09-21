@@ -8,14 +8,14 @@ public sealed class Prefab : Asset {
     internal Prefab(AssetGUID id) : base(id) { }
 
     public Entity Instantiate() {
-        return NativeApi.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, Entity.nullEntity);
+        return NativeAPI.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, Entity.nullEntity);
     }
 
     public Entity Instantiate(Vector3 position, Quaternion rotation) {
-        return NativeApi.SpawnPrefab(id, position, rotation, true, Entity.nullEntity);
+        return NativeAPI.SpawnPrefab(id, position, rotation, true, Entity.nullEntity);
     }
 
     public Entity Instantiate(Vector3 position, Quaternion rotation, Entity parent) {
-        return NativeApi.SpawnPrefab(id, position, rotation, true, parent);
+        return NativeAPI.SpawnPrefab(id, position, rotation, true, parent);
     }
 }

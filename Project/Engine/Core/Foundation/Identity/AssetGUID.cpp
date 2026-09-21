@@ -103,3 +103,17 @@ Engine::AssetGUID Engine::FromString32Hex(std::string_view text) noexcept {
 	const std::optional<AssetGUID> parsed = TryParseAssetGUID32Hex(text);
 	return parsed ? *parsed : AssetGUID{};
 }
+
+//============================================================================
+//	AssetGUID classMethods
+//============================================================================
+
+namespace std {
+
+	size_t hash<Engine::AssetGUID>::operator()(const Engine::AssetGUID& guid) const noexcept {
+
+		const size_t highHash = std::hash<uint64_t>{}(guid.high);
+		const size_t lowHash = std::hash<uint64_t>{}(guid.low);
+		return highHash ^ (lowHash + 0x9e3779b97f4a7c15ull + (highHash << 6) + (highHash >> 2));
+	}
+}

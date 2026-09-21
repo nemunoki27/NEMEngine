@@ -6,12 +6,11 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 
-// json
-#include <json.hpp>
-
 // c++
 #include <string>
 #include <cstdint>
+
+#include <json.hpp>
 
 namespace Engine {
 

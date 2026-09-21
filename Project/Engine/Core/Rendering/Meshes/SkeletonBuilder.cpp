@@ -6,16 +6,15 @@
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
-// assimp
-#include <assimp/scene.h>
-#include <assimp/mesh.h>
-
 // c++
 #include <algorithm>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+
+#include <assimp/scene.h>
+#include <assimp/mesh.h>
 
 namespace {
 

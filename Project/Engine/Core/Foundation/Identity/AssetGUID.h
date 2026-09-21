@@ -51,11 +51,6 @@ namespace std {
 
 	template<>
 	struct hash<Engine::AssetGUID> {
-		size_t operator()(const Engine::AssetGUID& guid) const noexcept {
-
-			const size_t highHash = std::hash<uint64_t>{}(guid.high);
-			const size_t lowHash = std::hash<uint64_t>{}(guid.low);
-			return highHash ^ (lowHash + 0x9e3779b97f4a7c15ull + (highHash << 6) + (highHash >> 2));
-		}
+		size_t operator()(const Engine::AssetGUID& guid) const noexcept;
 	};
 }

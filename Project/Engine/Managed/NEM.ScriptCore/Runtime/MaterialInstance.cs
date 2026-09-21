@@ -192,7 +192,7 @@ public readonly struct MaterialInstance {
 
     public bool SetTexture(MaterialParameterID id, string name, Texture? value) {
         NativeMaterialParameterValue native = new() {
-            assetID = value?.assetId ?? AssetGUID.None,
+            assetID = value?.assetID ?? AssetGUID.None,
             type = NativeMaterialParameterValueType.Texture
         };
         return Set(id, name, native);
@@ -304,7 +304,7 @@ public readonly struct MaterialInstance {
         Clear(MaterialParameterID.FromName(name));
 
     public bool Clear(MaterialParameterID id) {
-        return NativeApi.ClearRendererMaterialParameterValue(
+        return NativeAPI.ClearRendererMaterialParameterValue(
             entity.native, target, subMeshIndex, id.value);
     }
 
@@ -313,7 +313,7 @@ public readonly struct MaterialInstance {
         NativeMaterialParameterValue value) {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
-        return NativeApi.WriteRendererMaterialParameter(
+        return NativeAPI.WriteRendererMaterialParameter(
             entity.native, target, subMeshIndex, id.value, name, value);
     }
 
@@ -321,7 +321,7 @@ public readonly struct MaterialInstance {
         MaterialParameterID id,
         out NativeMaterialParameterValue value) {
 
-        return NativeApi.ReadRendererMaterialParameter(
+        return NativeAPI.ReadRendererMaterialParameter(
             entity.native, target, subMeshIndex, id.value, out value);
     }
 }

@@ -394,3 +394,17 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 	// 文字をインスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
 }
+
+//============================================================================
+//	TextRenderBackend classMethods
+//============================================================================
+
+namespace Engine {
+
+	TextRenderBackend::TextRenderBackend() {
+
+		vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
+		psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
+		atlasSRVSlot_  = perDrawBindCache_.AddSlot("gAtlas",        ShaderBindingKind::SRV);
+	}
+}

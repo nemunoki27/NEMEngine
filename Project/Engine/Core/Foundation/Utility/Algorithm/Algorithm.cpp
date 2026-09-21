@@ -248,3 +248,15 @@ std::string Algorithm::CodepointToUtf8(char32_t cp) {
 	return out;
 }
 
+//============================================================================
+//	Algorithm classMethods
+//============================================================================
+
+namespace Engine::Algorithm {
+
+	void HashCombine(uint64_t& hash, uint64_t value) {
+
+		hash ^= value;
+		hash *= 1099511628211ull;
+	}
+}

@@ -3,15 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-// spdlog
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#if defined(_MSC_VER)
-#include <spdlog/sinks/msvc_sink.h>
-#endif
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/fmt/fmt.h>
-
 // c++
 #include <filesystem>
 #include <cstdint>
@@ -22,6 +13,15 @@
 #include <chrono>
 #include <string>
 #include <string_view>
+
+// spdlog
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#if defined(_MSC_VER)
+#include <spdlog/sinks/msvc_sink.h>
+#endif
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/fmt/fmt.h>
 
 namespace Engine {
 
@@ -110,15 +110,10 @@ namespace Engine {
 		static ScopedOutput Scoped(LogType type, fmt::format_string<Args...> fmtStr, Args&&... args) {
 			return ScopedOutput(type, fmtStr, std::forward<Args>(args)...);
 		}
-		static ScopedOutput Scoped(LogType type, std::string label) {
-			return ScopedOutput(type, std::move(label));
-		}
+		static ScopedOutput Scoped(LogType type, std::string label) { return ScopedOutput(type, std::move(label)); }
 
 		// accessor
-		static std::shared_ptr<spdlog::logger>& Get(LogType type) {
-			const std::size_t index = static_cast<std::size_t>(type);
-			return index < loggers_.size() ? loggers_[index] : invalidLogger_;
-		}
+		static std::shared_ptr<spdlog::logger>& Get(LogType type);
 		static const std::filesystem::path& GetLogDir() { return logDir_; }
 
 	private:

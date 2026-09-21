@@ -206,7 +206,6 @@ namespace {
 			Engine::MultiRenderTarget*>& outputTargets) {
 
 		for (const auto& [name, target] : outputTargets) {
-			(void)name;
 			if (!target || !target->GetColorTexture(0)) {
 				continue;
 			}
@@ -399,7 +398,6 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		extendRaytracingChain(node.source.pass);
 		for (const auto& [shaderResource, input] : pass.passInputs) {
 
-			(void)shaderResource;
 			extendRaytracingChain(input.pass);
 		}
 		raytracingChains[pass.id.value] = raytracingChain;
@@ -438,14 +436,14 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 					pass.resolutionStep, 0.05f, 0.5f);
 				if (gpuMs > 0.0f) {
 
-					state.filteredGpuMs = state.filteredGpuMs <= 0.0f ?
-						gpuMs : state.filteredGpuMs +
-						(gpuMs - state.filteredGpuMs) * 0.25f;
-					if (state.filteredGpuMs > pass.gpuBudgetMs * 1.10f) {
+					state.filteredGPUMs = state.filteredGPUMs <= 0.0f ?
+						gpuMs : state.filteredGPUMs +
+						(gpuMs - state.filteredGPUMs) * 0.25f;
+					if (state.filteredGPUMs > pass.gpuBudgetMs * 1.10f) {
 
 						++state.overBudgetSamples;
 						state.underBudgetSamples = 0;
-					} else if (state.filteredGpuMs < pass.gpuBudgetMs * 0.55f) {
+					} else if (state.filteredGPUMs < pass.gpuBudgetMs * 0.55f) {
 
 						++state.underBudgetSamples;
 						state.overBudgetSamples = 0;

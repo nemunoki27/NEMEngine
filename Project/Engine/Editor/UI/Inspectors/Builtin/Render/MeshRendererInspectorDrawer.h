@@ -29,9 +29,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		MeshRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Mesh Renderer", "MeshRenderer") {
-		}
+		MeshRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Mesh Renderer", "MeshRenderer") {}
 		~MeshRendererInspectorDrawer() = default;
 	private:
 		//============================================================================

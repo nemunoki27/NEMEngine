@@ -94,23 +94,10 @@ namespace Engine {
 			// サブメッシュローカル行列を含むジオメトリ配置
 			uint64_t geometryLayoutHash = 0;
 
-			bool operator==(const BLASKey& rhs) const noexcept {
-				return meshAssetID == rhs.meshAssetID &&
-					reloadGeneration == rhs.reloadGeneration &&
-					lodIndex == rhs.lodIndex &&
-					geometryLayoutHash == rhs.geometryLayoutHash;
-			}
+			bool operator==(const BLASKey& rhs) const noexcept;
 		};
 		struct BLASKeyHash {
-			size_t operator()(const BLASKey& key) const noexcept {
-				const size_t h0 = std::hash<AssetID>{}(key.meshAssetID);
-				const size_t h1 = std::hash<uint32_t>{}(key.reloadGeneration);
-				const size_t h2 = std::hash<uint32_t>{}(key.lodIndex);
-				const size_t h3 = std::hash<uint64_t>{}(key.geometryLayoutHash);
-				size_t h = h0 ^ (h1 + 0x9e3779b9u + (h0 << 6) + (h0 >> 2));
-				h ^= h2 + 0x9e3779b9u + (h << 6) + (h >> 2);
-				return h ^ (h3 + 0x9e3779b9u + (h << 6) + (h >> 2));
-			}
+			size_t operator()(const BLASKey& key) const noexcept;
 		};
 		// サブメッシュ固有変換を持つ静的メッシュはEntity単位でrefitする
 		struct StaticInstanceBLASKey {
@@ -120,22 +107,11 @@ namespace Engine {
 			AssetID meshAssetID{};
 			uint32_t reloadGeneration = 0;
 
-			bool operator==(const StaticInstanceBLASKey& rhs) const noexcept {
-				return world == rhs.world && entity == rhs.entity &&
-					meshAssetID == rhs.meshAssetID &&
-					reloadGeneration == rhs.reloadGeneration;
-			}
+			bool operator==(const StaticInstanceBLASKey& rhs) const noexcept;
 		};
 		struct StaticInstanceBLASKeyHash {
 
-			size_t operator()(const StaticInstanceBLASKey& key) const noexcept {
-				size_t hash = std::hash<void*>{}(key.world);
-				hash ^= std::hash<uint32_t>{}(key.entity.index) << 1;
-				hash ^= std::hash<uint32_t>{}(key.entity.generation) << 2;
-				hash ^= std::hash<AssetID>{}(key.meshAssetID) << 3;
-				hash ^= std::hash<uint32_t>{}(key.reloadGeneration) << 4;
-				return hash;
-			}
+			size_t operator()(const StaticInstanceBLASKey& key) const noexcept;
 		};
 		struct StaticInstanceBLASEntry {
 
@@ -196,21 +172,11 @@ namespace Engine {
 			ECSWorld* world = nullptr;
 			Entity entity = Entity::Null();
 
-			bool operator==(const SceneEntityKey& rhs) const noexcept {
-				return world == rhs.world &&
-					entity == rhs.entity;
-			}
+			bool operator==(const SceneEntityKey& rhs) const noexcept { return world == rhs.world && entity == rhs.entity; }
 		};
 		struct SceneEntityKeyHash {
 			size_t operator()(
-				const SceneEntityKey& key) const noexcept {
-				size_t h = std::hash<void*>{}(key.world);
-				h ^= (std::hash<uint32_t>{}(
-					key.entity.index) << 1);
-				h ^= (std::hash<uint32_t>{}(
-					key.entity.generation) << 2);
-				return h;
-			}
+				const SceneEntityKey& key) const noexcept;
 		};
 		// 動的BLASのキー
 		struct DynamicBLASKey {
@@ -221,20 +187,10 @@ namespace Engine {
 			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
 			uint32_t reloadGeneration = 0;
 
-			bool operator==(const DynamicBLASKey& rhs) const noexcept {
-				return world == rhs.world && entity.index == rhs.entity.index && entity.generation == rhs.entity.generation &&
-					meshAssetID == rhs.meshAssetID && reloadGeneration == rhs.reloadGeneration;
-			}
+			bool operator==(const DynamicBLASKey& rhs) const noexcept;
 		};
 		struct DynamicBLASKeyHash {
-			size_t operator()(const DynamicBLASKey& key) const noexcept {
-				size_t h = std::hash<void*>{}(key.world);
-				h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
-				h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
-				h ^= (std::hash<AssetID>{}(key.meshAssetID) << 3);
-				h ^= (std::hash<uint32_t>{}(key.reloadGeneration) << 4);
-				return h;
-			}
+			size_t operator()(const DynamicBLASKey& key) const noexcept;
 		};
 		struct DynamicBLASEntry {
 

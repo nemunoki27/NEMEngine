@@ -5,13 +5,14 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
-// directX
-#include <d3d12.h>
-#include <dxgi1_6.h>
 // c++
 #include <string>
 #include <cassert>
 #include <cstdint>
+
+// directX
+#include <d3d12.h>
+#include <dxgi1_6.h>
 
 namespace Engine {
 

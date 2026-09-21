@@ -60,9 +60,7 @@ namespace Engine {
 		std::vector<std::string> removedComponentTypes;
 
 		// オーバーライドが何か在るか
-		bool HasAnyOverride() const {
-			return !modifiedPaths.empty() || !addedComponentTypes.empty() || !removedComponentTypes.empty();
-		}
+		bool HasAnyOverride() const { return !modifiedPaths.empty() || !addedComponentTypes.empty() || !removedComponentTypes.empty(); }
 	};
 
 	//============================================================================

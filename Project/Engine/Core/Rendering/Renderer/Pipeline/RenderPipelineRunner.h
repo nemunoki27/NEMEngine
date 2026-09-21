@@ -187,9 +187,7 @@ namespace Engine {
 
 		// 構築済みグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// マテリアルインスペクタがシェーダーの要求パラメータを自動列挙するために使う
-		const ShaderReflectionInfo* FindPipelineGraphicsReflection(AssetID pipelineAssetID) const {
-			return pipelineStateCache_.FindGraphicsReflection(pipelineAssetID);
-		}
+		const ShaderReflectionInfo* FindPipelineGraphicsReflection(AssetID pipelineAssetID) const;
 
 		// マテリアルの構築済みDraw/Transparentパスからグラフィックスreflectionを引く
 		const ShaderReflectionInfo* FindMaterialDrawReflection(const MaterialAsset& material) const;
@@ -221,9 +219,7 @@ namespace Engine {
 		//今フレームの全ライト
 		const FrameLightBatch& GetFrameLightBatch() const { return frameLightBatch_; }
 		// ルートシーン用のビュー別ライト集合
-		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const {
-			return (kind == RenderViewKind::Game) ? gameViewState_.lightSet : sceneViewState_.lightSet;
-		}
+		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const;
 
 		// ピック用のTLASリソースとサブメッシュ情報の取得
 		ID3D12Resource* GetGameViewTLASResource() const { return tlasResource_; }

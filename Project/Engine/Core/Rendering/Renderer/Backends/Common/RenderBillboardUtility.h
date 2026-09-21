@@ -13,11 +13,7 @@
 
 namespace Engine::RenderBillboard {
 
-	inline bool HasBillboard(const RenderItem& item) {
-
-		return item.world && item.world->IsAlive(item.entity) &&
-			item.world->HasComponent<BillboardComponent>(item.entity);
-	}
+	bool HasBillboard(const RenderItem& item);
 
 	Matrix4x4 ResolveParentWorldMatrix(ECSWorld& world, const Entity& entity);
 	Quaternion QuaternionFromRotationMatrix(const Matrix4x4& matrix);

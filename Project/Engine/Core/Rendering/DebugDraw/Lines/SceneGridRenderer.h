@@ -33,9 +33,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SceneGridRenderer() {
-			gridCBVSlot_ = gridBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
-		}
+		SceneGridRenderer() { gridCBVSlot_ = gridBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0); }
 		~SceneGridRenderer();
 
 		void Init(GraphicsCore& graphicsCore);

@@ -19,7 +19,7 @@ public static unsafe class HostBridge {
     // C++側へ渡す名前文字列の最大バイト数（ScriptTypeDescriptor の displayName 用）
     private const int MaxNameBytes = 128;
     // ManagedScriptTypeDescriptor の固定長フィールド（C++側と一致させる）
-    private const int ScriptTypeIdBytes = 40;
+    private const int ScriptTypeIDBytes = 40;
     private const int FullTypeNameBytes = 256;
     private const int SourcePathBytes = 260;
     // manifest schema version
@@ -100,12 +100,12 @@ public static unsafe class HostBridge {
     // 1 つの concrete ScriptBehaviour 型の登録情報（Stable GUID 主キー）
     private sealed class ScriptTypeEntry {
 
-        internal string scriptTypeId = string.Empty;   // 正規化済み GUID
+        internal string scriptTypeID = string.Empty;   // 正規化済み GUID
         internal Type type = null!;
         internal string fullTypeName = string.Empty;
         internal string displayName = string.Empty;
         internal string sourcePath = string.Empty;
-        internal bool hasExplicitId;
+        internal bool hasExplicitID;
         internal int defaultExecutionOrder;   // [DefaultExecutionOrder] の値（未指定は 0）
 
         // serialized field schema（defaultValueJson を含む完成形 JSON）。C++ へ blob で渡す。
@@ -143,7 +143,7 @@ public static unsafe class HostBridge {
     //========================================================================
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int InitializeNativeApi(NativeApiTable* callbacks) {
+    public static int InitializeNativeAPI(NativeAPITable* callbacks) {
 
         // ここでは例外を境界外へ出さない。log callbackは未設定の可能性があるためtry内で使わない
         try {
@@ -156,7 +156,7 @@ public static unsafe class HostBridge {
             if (header.abiVersion != ManagedAbi.Version) {
                 return (int)ManagedStatus.AbiMismatch;
             }
-            if (header.structSize < (uint)sizeof(NativeApiTable)) {
+            if (header.structSize < (uint)sizeof(NativeAPITable)) {
                 return (int)ManagedStatus.AbiMismatch;
             }
             if ((header.capabilities & ManagedAbi.RequiredCapabilities) != ManagedAbi.RequiredCapabilities) {
@@ -164,7 +164,7 @@ public static unsafe class HostBridge {
             }
 
             // C++から渡されたECSアクセス関数をScriptCore全体で使えるようにする
-            NativeApi.SetCallbacks(callbacks);
+            NativeAPI.SetCallbacks(callbacks);
             return (int)ManagedStatus.Ok;
         }
         catch {
@@ -193,11 +193,11 @@ public static unsafe class HostBridge {
                 RebuildScriptTypes();
                 // 新しい assembly の寿命を開始する（unload 前に停止/解放するための起点）
                 ScriptRuntimeLifetime.BeginAssemblyLifetime();
-                NativeApi.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypeEntries.Count}");
+                NativeAPI.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={scriptTypeEntries.Count}");
                 return ManagedStatus.Ok;
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"Failed to load GameScripts: {path}\n{ex}");
+                NativeAPI.WriteLog(2, $"Failed to load GameScripts: {path}\n{ex}");
                 ReleaseGameAssembly(collect: true);
                 return ManagedStatus.InternalError;
             }
@@ -283,34 +283,34 @@ public static unsafe class HostBridge {
             ScriptTypeEntry entry = scriptTypeEntries[index];
 
             // native registry へ Stable GUID と表示用情報・source path を渡す
-            CopyFixed(entry.scriptTypeId, outInfo->scriptTypeId, ScriptTypeIdBytes);
+            CopyFixed(entry.scriptTypeID, outInfo->scriptTypeID, ScriptTypeIDBytes);
             CopyFixed(entry.fullTypeName, outInfo->fullTypeName, FullTypeNameBytes);
             CopyFixed(entry.displayName, outInfo->displayName, MaxNameBytes);
             CopyFixed(entry.sourcePath, outInfo->sourcePath, SourcePathBytes);
-            outInfo->hasExplicitId = entry.hasExplicitId ? 1 : 0;
+            outInfo->hasExplicitID = entry.hasExplicitID ? 1 : 0;
             outInfo->defaultExecutionOrder = entry.defaultExecutionOrder;
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int GetScriptSchemaJsonSize(byte* scriptTypeId, int* outSize) {
+    public static int GetScriptSchemaJsonSize(byte* scriptTypeID, int* outSize) {
 
         return (int)Guard(nameof(GetScriptSchemaJsonSize), () => {
             if (outSize == null) {
                 return ManagedStatus.InvalidArgument;
             }
-            *outSize = TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)
+            *outSize = TryGetEntry(PtrToString(scriptTypeID), out ScriptTypeEntry entry)
                 ? Encoding.UTF8.GetByteCount(entry.schemaJson) : 0;
             return ManagedStatus.Ok;
         });
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CopyScriptSchemaJson(byte* scriptTypeId, byte* buffer, int capacity, int* written) {
+    public static int CopyScriptSchemaJson(byte* scriptTypeID, byte* buffer, int capacity, int* written) {
 
         return (int)Guard(nameof(CopyScriptSchemaJson), () => {
-            if (!TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)) {
+            if (!TryGetEntry(PtrToString(scriptTypeID), out ScriptTypeEntry entry)) {
                 return ManagedStatus.InvalidArgument;
             }
             return WriteUtf8Blob(entry.schemaJson, buffer, capacity, written);
@@ -350,7 +350,7 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int SetRuntimeSerializedField(NativeScriptInstanceHandle handle, byte* fieldId, byte* valueJson) {
+    public static int SetRuntimeSerializedField(NativeScriptInstanceHandle handle, byte* fieldID, byte* valueJson) {
 
         return (int)Guard(nameof(SetRuntimeSerializedField), () => {
 
@@ -358,7 +358,7 @@ public static unsafe class HostBridge {
             if (!TryResolveSlot(handle, out ScriptBehaviour script)) {
                 return ManagedStatus.InvalidInstanceHandle;
             }
-            string? guid = PtrToString(fieldId);
+            string? guid = PtrToString(fieldID);
             if (string.IsNullOrEmpty(guid) || !TryGetFieldInfo(script.GetType(), guid!, out FieldInfo field)) {
                 return ManagedStatus.InvalidArgument;
             }
@@ -369,8 +369,8 @@ public static unsafe class HostBridge {
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CreateInstance(byte* scriptTypeId, NativeEntity entity, byte* serializedJson,
-        ulong scriptSlotId, NativeScriptInstanceHandle* outHandle) {
+    public static int CreateInstance(byte* scriptTypeID, NativeEntity entity, byte* serializedJson,
+        ulong scriptSlotID, NativeScriptInstanceHandle* outHandle) {
 
         return (int)Guard(nameof(CreateInstance), () => {
 
@@ -380,7 +380,7 @@ public static unsafe class HostBridge {
             *outHandle = NativeScriptInstanceHandle.Null;
 
             // Stable GUID から型を解決し、ECSのEntity参照を持つScriptBehaviourを生成する
-            if (!TryGetEntry(PtrToString(scriptTypeId), out ScriptTypeEntry entry)) {
+            if (!TryGetEntry(PtrToString(scriptTypeID), out ScriptTypeEntry entry)) {
                 return ManagedStatus.InvalidArgument;
             }
 
@@ -390,7 +390,7 @@ public static unsafe class HostBridge {
 
             // serialized field 適用 / Awake より前に Entity と scriptSlotID を設定する
             script.entity = new Entity(entity);
-            script.scriptSlotId = scriptSlotId;
+            script.scriptSlotID = scriptSlotID;
             ApplySerializedFields(script, PtrToString(serializedJson));
 
             // 世代付きhandleを発行する。C++側はこのhandleを保持して以後のイベント呼び出しに使う
@@ -569,7 +569,7 @@ public static unsafe class HostBridge {
             return body();
         }
         catch (Exception ex) {
-            NativeApi.WriteLog(2, $"[NativeExport:{apiName}] unhandled managed exception\n{ex}");
+            NativeAPI.WriteLog(2, $"[NativeExport:{apiName}] unhandled managed exception\n{ex}");
             return ManagedStatus.InternalError;
         }
     }
@@ -633,23 +633,23 @@ public static unsafe class HostBridge {
         if (!typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
             return null;
         }
-        NativeScriptInstanceHandle handle = NativeApi.FindScriptInstance(owner, entry.scriptTypeId);
+        NativeScriptInstanceHandle handle = NativeAPI.FindScriptInstance(owner, entry.scriptTypeID);
         return TryResolveSlot(handle, out ScriptBehaviour script) ? script as T : null;
     }
 
     // Stable GUID 指定で同 Entity 上の script instance を引く（参照フィールドの復元用）
-    internal static ScriptBehaviour? FindScriptByGuid(NativeEntity owner, string scriptTypeId) {
+    internal static ScriptBehaviour? FindScriptByGuid(NativeEntity owner, string scriptTypeID) {
 
-        if (string.IsNullOrEmpty(scriptTypeId)) {
+        if (string.IsNullOrEmpty(scriptTypeID)) {
             return null;
         }
-        NativeScriptInstanceHandle handle = NativeApi.FindScriptInstance(owner, scriptTypeId);
+        NativeScriptInstanceHandle handle = NativeAPI.FindScriptInstance(owner, scriptTypeID);
         return TryResolveSlot(handle, out ScriptBehaviour script) ? script : null;
     }
 
     // 型の Stable Script Type GUID を返す。未登録型は null（参照フィールドの保存用）
     internal static string? GetScriptTypeGuid(Type type) {
-        return typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry.scriptTypeId : null;
+        return typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry.scriptTypeID : null;
     }
 
     // AddComponent<Script>用に owner Entity へ T を runtime attach し、生成した managed instance を返す。未登録/失敗は null
@@ -658,7 +658,7 @@ public static unsafe class HostBridge {
         if (!typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
             return null;
         }
-        return NativeApi.TryAttachScript(owner, entry.scriptTypeId) ? FindScriptAs<T>(owner) : null;
+        return NativeAPI.TryAttachScript(owner, entry.scriptTypeID) ? FindScriptAs<T>(owner) : null;
     }
 
     // 生存する全script instanceから指定型の最初の1件を返す（World.FindEntityWithComponent<Script>用）
@@ -769,7 +769,7 @@ public static unsafe class HostBridge {
         string entityHandle = $"{owner.native.index}:{owner.native.generation}";
         string entityName = owner.isValid ? owner.name : string.Empty;
 
-        NativeApi.WriteLog(2,
+        NativeAPI.WriteLog(2,
             $"[ScriptException] callback={callbackName} type={typeName} entity={entityHandle} name=\"{entityName}\"\n{ex}");
 
         // Console ログとは別に、構造化 DTO を native の exception store へ 1 件報告する。
@@ -781,13 +781,13 @@ public static unsafe class HostBridge {
     private static void ReportScriptExceptionDto(ScriptBehaviour script, Type type, string typeName,
         string callbackName, Exception ex, Entity owner, string entityName) {
 
-        // canonical identity は .cs.meta 由来の scriptTypeId。登録 entry から引く（表示名には使わない）。
-        string scriptTypeId = typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry!.scriptTypeId : string.Empty;
+        // canonical identity は .cs.meta 由来の scriptTypeID。登録 entry から引く（表示名には使わない）。
+        string scriptTypeID = typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry!.scriptTypeID : string.Empty;
 
         var dto = new JsonObject {
             ["callback"] = callbackName,
-            ["slotId"] = script.scriptSlotId,
-            ["scriptTypeId"] = scriptTypeId,
+            ["slotId"] = script.scriptSlotID,
+            ["scriptTypeId"] = scriptTypeID,
             ["typeName"] = typeName,
             ["exceptionType"] = ex.GetType().FullName ?? ex.GetType().Name,
             ["message"] = ex.Message ?? string.Empty,
@@ -819,7 +819,7 @@ public static unsafe class HostBridge {
         }
         dto["frames"] = frames;
 
-        NativeApi.ReportScriptExceptionJson(dto.ToJsonString());
+        NativeAPI.ReportScriptExceptionJson(dto.ToJsonString());
     }
 
     private static void RebuildScriptTypes() {
@@ -838,7 +838,7 @@ public static unsafe class HostBridge {
         // 生成 registryから型を登録する
         ScriptTypeDescriptor[]? generated = TryReadGeneratedManifest(gameAssembly);
         if (generated == null) {
-            NativeApi.WriteLog(2,
+            NativeAPI.WriteLog(2,
                 "GeneratedScriptManifest was not found. Add the NEM.ScriptCodeGen analyzer to GameScripts.");
             return;
         }
@@ -846,11 +846,11 @@ public static unsafe class HostBridge {
 
             Type? type = gameAssembly.GetType(descriptor.FullTypeName, throwOnError: false);
             if (type == null) {
-                NativeApi.WriteLog(2, $"Generated manifest type not found in assembly: {descriptor.FullTypeName}");
+                NativeAPI.WriteLog(2, $"Generated manifest type not found in assembly: {descriptor.FullTypeName}");
                 continue;
             }
-            AddScriptTypeEntry(descriptor.ScriptTypeId, type, descriptor.FullTypeName,
-                descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitId);
+            AddScriptTypeEntry(descriptor.ScriptTypeID, type, descriptor.FullTypeName,
+                descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitID);
         }
 
         // 表示・登録順を安定させる（full type name 昇順）
@@ -865,7 +865,7 @@ public static unsafe class HostBridge {
         }
 
         if (scriptTypeEntries.Count == 0) {
-            NativeApi.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
+            NativeAPI.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
         }
     }
 
@@ -874,7 +874,7 @@ public static unsafe class HostBridge {
 
         JsonObject? generatedByType = TryReadGeneratedSchema(gameAssembly!);
         if (generatedByType == null) {
-            NativeApi.WriteLog(2,
+            NativeAPI.WriteLog(2,
                 "GeneratedScriptSchema was not found. Add the NEM.ScriptCodeGen analyzer to GameScripts.");
             return false;
         }
@@ -882,12 +882,12 @@ public static unsafe class HostBridge {
         foreach (ScriptTypeEntry entry in scriptTypeEntries) {
 
             JsonObject? typeNode = null;
-            if (generatedByType != null && generatedByType.TryGetPropertyValue(entry.scriptTypeId, out JsonNode? n) && n is JsonObject obj) {
+            if (generatedByType != null && generatedByType.TryGetPropertyValue(entry.scriptTypeID, out JsonNode? n) && n is JsonObject obj) {
                 typeNode = obj;
             }
 
             if (typeNode == null) {
-                NativeApi.WriteLog(2, $"Generated script schema was not found: {entry.fullTypeName}");
+                NativeAPI.WriteLog(2, $"Generated script schema was not found: {entry.fullTypeName}");
                 return false;
             }
 
@@ -898,19 +898,19 @@ public static unsafe class HostBridge {
                     if (fieldNode is not JsonObject fieldObj) {
                         continue;
                     }
-                    string fieldId = fieldObj["fieldId"]?.GetValue<string>() ?? string.Empty;
+                    string fieldID = fieldObj["fieldId"]?.GetValue<string>() ?? string.Empty;
                     string fieldName = fieldObj["name"]?.GetValue<string>() ?? string.Empty;
                     string declaringType = fieldObj["declaringType"]?.GetValue<string>() ?? string.Empty;
                     FieldInfo? info = ResolveFieldInfo(entry.type, declaringType, fieldName);
-                    if (info != null && !string.IsNullOrEmpty(fieldId)) {
-                        entry.fieldMap[fieldId] = info;
+                    if (info != null && !string.IsNullOrEmpty(fieldID)) {
+                        entry.fieldMap[fieldID] = info;
                         if (CanReadRuntimeField(fieldObj)) {
-                            entry.runtimeFieldMap[fieldId] = info;
+                            entry.runtimeFieldMap[fieldID] = info;
                         }
                         // 参照解決を伴うフィールドは適用を遅延させる([SerializeReference]は候補型に参照が含まれ得る)
                         if (info.GetCustomAttribute<SerializeReferenceAttribute>() != null ||
                             IsDeferredReferenceType(info.FieldType, null)) {
-                            entry.deferredFields.Add(fieldId);
+                            entry.deferredFields.Add(fieldID);
                         }
                     }
                     // 既定値（authoring 未設定時の初期値）を埋める
@@ -924,7 +924,7 @@ public static unsafe class HostBridge {
         return true;
     }
 
-    // 生成 schema JSON を scriptTypeId -> typeNode の JsonObject へ変換する。無ければ null
+    // 生成 schema JSON を scriptTypeID -> typeNode の JsonObject へ変換する。無ければ null
     private static JsonObject? TryReadGeneratedSchema(Assembly assembly) {
 
         Type? schemaType = assembly.GetType("NEMEngine.GeneratedScriptSchema", throwOnError: false);
@@ -950,25 +950,25 @@ public static unsafe class HostBridge {
             return byType;
         }
         catch (Exception ex) {
-            NativeApi.WriteLog(2, $"Failed to read GeneratedScriptSchema\n{ex}");
+            NativeAPI.WriteLog(2, $"Failed to read GeneratedScriptSchema\n{ex}");
             return null;
         }
     }
 
     // 1 型分の entry を登録する。GUID 重複は warning を出して後勝ちを避ける（先勝ち維持）
     private static void AddScriptTypeEntry(string rawGuid, Type type, string fullName, string displayName,
-        string sourcePath, bool hasExplicitId) {
+        string sourcePath, bool hasExplicitID) {
 
         string? normalized = NormalizeGuid(rawGuid);
         if (normalized == null) {
-            NativeApi.WriteLog(2, $"Invalid Script Type GUID for '{fullName}'.");
+            NativeAPI.WriteLog(2, $"Invalid Script Type GUID for '{fullName}'.");
             return;
         }
 
         if (guidToEntry.ContainsKey(normalized)) {
 
             // 重複 GUID。最初の型を維持し、後続は登録しない（manifest validation でも検出する）
-            NativeApi.WriteLog(2,
+            NativeAPI.WriteLog(2,
                 $"Duplicate Script Type GUID '{normalized}' for '{fullName}'. Skipping the duplicate registration.");
             return;
         }
@@ -982,12 +982,12 @@ public static unsafe class HostBridge {
         }
 
         var entry = new ScriptTypeEntry {
-            scriptTypeId = normalized,
+            scriptTypeID = normalized,
             type = type,
             fullTypeName = fullName,
             displayName = string.IsNullOrEmpty(displayName) ? type.Name : displayName,
             sourcePath = sourcePath ?? string.Empty,
-            hasExplicitId = hasExplicitId,
+            hasExplicitID = hasExplicitID,
             defaultExecutionOrder = defaultExecutionOrder,
         };
         scriptTypeEntries.Add(entry);
@@ -1020,11 +1020,11 @@ public static unsafe class HostBridge {
         public List<ManifestScript> scripts { get; set; } = new();
     }
     private sealed class ManifestScript {
-        public string scriptTypeId { get; set; } = string.Empty;
+        public string scriptTypeID { get; set; } = string.Empty;
         public string fullTypeName { get; set; } = string.Empty;
         public string displayName { get; set; } = string.Empty;
         public string sourcePath { get; set; } = string.Empty;
-        public string sourceAssetId { get; set; } = string.Empty;
+        public string sourceAssetID { get; set; } = string.Empty;
     }
 
     private static ManagedStatus GenerateManifestIsolated(string dllPath, string outPath) {
@@ -1046,16 +1046,16 @@ public static unsafe class HostBridge {
         try {
             string json = JsonSerializer.Serialize(root, manifestJsonOptions);
             File.WriteAllText(outPath, json);
-            NativeApi.WriteLog(0, $"Generated script manifest: {outPath} (assembly={assemblyName} scripts={root.scripts.Count})");
+            NativeAPI.WriteLog(0, $"Generated script manifest: {outPath} (assembly={assemblyName} scripts={root.scripts.Count})");
 
             // companion: serialized field schema を manifest と同じディレクトリへ出力する（staging artifact）
             string schemaPath = Path.Combine(Path.GetDirectoryName(outPath) ?? string.Empty, "GameScripts.scriptschema.json");
             File.WriteAllText(schemaPath, string.IsNullOrEmpty(schemaJson) ? "{\"schemaVersion\":2,\"scripts\":[]}" : schemaJson);
-            NativeApi.WriteLog(0, $"Generated script schema: {schemaPath}");
+            NativeAPI.WriteLog(0, $"Generated script schema: {schemaPath}");
             return ManagedStatus.Ok;
         }
         catch (Exception ex) {
-            NativeApi.WriteLog(2, $"Failed to write script manifest/schema: {outPath}\n{ex}");
+            NativeAPI.WriteLog(2, $"Failed to write script manifest/schema: {outPath}\n{ex}");
             return ManagedStatus.SerializationError;
         }
     }
@@ -1087,31 +1087,31 @@ public static unsafe class HostBridge {
 
                 string? normalized = NormalizeGuid(rawGuid);
                 if (normalized == null) {
-                    NativeApi.WriteLog(2, $"manifest: invalid Script Type GUID for '{fullName}'.");
+                    NativeAPI.WriteLog(2, $"manifest: invalid Script Type GUID for '{fullName}'.");
                     valid = false;
                     return;
                 }
                 if (!seenGuids.Add(normalized)) {
-                    NativeApi.WriteLog(2, $"manifest: duplicate Script Type GUID '{normalized}' ('{fullName}').");
+                    NativeAPI.WriteLog(2, $"manifest: duplicate Script Type GUID '{normalized}' ('{fullName}').");
                     valid = false;
                     return;
                 }
                 root.scripts.Add(new ManifestScript {
-                    scriptTypeId = normalized,
+                    scriptTypeID = normalized,
                     fullTypeName = fullName,
                     displayName = string.IsNullOrEmpty(displayName) ? fullName : displayName,
                     sourcePath = sourcePath ?? string.Empty,
-                    sourceAssetId = string.Empty,
+                    sourceAssetID = string.Empty,
                 });
             }
 
             ScriptTypeDescriptor[]? generated = TryReadGeneratedManifest(assembly);
             if (generated != null) {
                 foreach (ScriptTypeDescriptor descriptor in generated) {
-                    AddScript(descriptor.ScriptTypeId, descriptor.FullTypeName, descriptor.DisplayName, descriptor.SourcePath);
+                    AddScript(descriptor.ScriptTypeID, descriptor.FullTypeName, descriptor.DisplayName, descriptor.SourcePath);
                 }
             } else {
-                NativeApi.WriteLog(2,
+                NativeAPI.WriteLog(2,
                     $"manifest: GeneratedScriptManifest was not found in '{dllPath}'");
                 valid = false;
             }
@@ -1120,7 +1120,7 @@ public static unsafe class HostBridge {
             return (root, valid, schemaJson);
         }
         catch (Exception ex) {
-            NativeApi.WriteLog(2, $"manifest: failed to inspect assembly '{dllPath}'\n{ex}");
+            NativeAPI.WriteLog(2, $"manifest: failed to inspect assembly '{dllPath}'\n{ex}");
             return (new ManifestRoot { schemaVersion = ManifestSchemaVersion, assemblyName = assemblyName }, false, schemaJson);
         }
         finally {
@@ -1137,7 +1137,7 @@ public static unsafe class HostBridge {
         }
 
         if (IsDebuggerPresent()) {
-            NativeApi.WriteLog(1,
+            NativeAPI.WriteLog(1,
                 "Managed debugger wait skipped: process is already debugged. " +
                 "If you want C# breakpoints in GameScripts Visual Studio, run Sandbox without native C++ debugging and then Attach to Process.");
             return;
@@ -1152,7 +1152,7 @@ public static unsafe class HostBridge {
             timeoutMs = parsedTimeout;
         }
 
-        NativeApi.WriteLog(0, $"Waiting for managed debugger attach... timeout={timeoutMs}ms");
+        NativeAPI.WriteLog(0, $"Waiting for managed debugger attach... timeout={timeoutMs}ms");
 
         // C++側の実行を止めすぎないよう、タイムアウト付きでAttachを待つ
         Stopwatch stopwatch = Stopwatch.StartNew();
@@ -1161,9 +1161,9 @@ public static unsafe class HostBridge {
         }
 
         if (Debugger.IsAttached) {
-            NativeApi.WriteLog(0, "Managed debugger attached.");
+            NativeAPI.WriteLog(0, "Managed debugger attached.");
         } else {
-            NativeApi.WriteLog(1, "Managed debugger was not attached before timeout. Continue execution.");
+            NativeAPI.WriteLog(1, "Managed debugger was not attached before timeout. Continue execution.");
         }
     }
 
@@ -1194,7 +1194,7 @@ public static unsafe class HostBridge {
         }
 
         // ALC への strong reference を scope 外へ追い出してから unload する（回収可能にするため）。
-        int reloadId = ++reloadCounter;
+        int reloadID = ++reloadCounter;
         string contextName = loadContext.Name ?? "GameScripts";
         WeakReference weakContext = UnloadContextForCollection(loadContext);
         loadContext = null;
@@ -1217,15 +1217,15 @@ public static unsafe class HostBridge {
 
             // 回収できなかった = どこかに古い assembly への strong reference が残っている
             lastAlcUnloadStatus = 2; // LeakSuspected
-            NativeApi.WriteLog(1,
-                $"[ALC leak] GameScripts load context was not collected. reloadId={reloadId} " +
+            NativeAPI.WriteLog(1,
+                $"[ALC leak] GameScripts load context was not collected. reloadId={reloadID} " +
                 $"context=\"{contextName}\" attempts={attempts}. " +
                 "A static field, running Task/Timer, or unmanaged callback may still reference the old assembly. " +
                 "Register disposables / unsubscribes via ScriptRuntimeLifetime so they are released on reload.");
         } else {
 
             lastAlcUnloadStatus = 1; // UnloadSucceeded
-            NativeApi.WriteLog(0, $"GameScripts load context unloaded. reloadId={reloadId} attempts={attempts}");
+            NativeAPI.WriteLog(0, $"GameScripts load context unloaded. reloadId={reloadID} attempts={attempts}");
         }
     }
 
@@ -1247,10 +1247,10 @@ public static unsafe class HostBridge {
     }
 
     // 正規化済み Stable GUID から登録 entry を引く
-    private static bool TryGetEntry(string? scriptTypeId, out ScriptTypeEntry entry) {
+    private static bool TryGetEntry(string? scriptTypeID, out ScriptTypeEntry entry) {
 
         entry = null!;
-        string? normalized = NormalizeGuid(scriptTypeId);
+        string? normalized = NormalizeGuid(scriptTypeID);
         if (normalized == null) {
             return false;
         }
@@ -1405,7 +1405,7 @@ public static unsafe class HostBridge {
         }
         catch (Exception ex) {
             // 型不一致などはその field だけ skip し、他 field と instance を壊さない
-            NativeApi.WriteLog(1, $"Failed to apply field '{field.Name}' on '{script.GetType().FullName}': {ex.Message}");
+            NativeAPI.WriteLog(1, $"Failed to apply field '{field.Name}' on '{script.GetType().FullName}': {ex.Message}");
         }
     }
 
@@ -1542,11 +1542,11 @@ public static unsafe class HostBridge {
         return obj.ToJsonString();
     }
 
-    private static bool TryGetFieldInfo(Type type, string fieldId, out FieldInfo field) {
+    private static bool TryGetFieldInfo(Type type, string fieldID, out FieldInfo field) {
 
         field = null!;
         if (typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) &&
-            entry.fieldMap.TryGetValue(fieldId, out FieldInfo? info)) {
+            entry.fieldMap.TryGetValue(fieldID, out FieldInfo? info)) {
             field = info;
             return true;
         }
@@ -1579,7 +1579,7 @@ public static unsafe class HostBridge {
             instance = Activator.CreateInstance(type);
         }
         catch (Exception ex) {
-            NativeApi.WriteLog(1, $"Failed to create default instance for '{type.FullName}': {ex.Message}");
+            NativeAPI.WriteLog(1, $"Failed to create default instance for '{type.FullName}': {ex.Message}");
         }
         defaultInstanceCache[type] = instance;
         return instance;
@@ -1689,15 +1689,15 @@ public static unsafe class HostBridge {
 public unsafe struct NativeScriptTypeInfo {
 
     // 正規化済み Stable Script Type GUID
-    public fixed byte scriptTypeId[40];
+    public fixed byte scriptTypeID[40];
     // 完全修飾型名
     public fixed byte fullTypeName[256];
     // 表示名
     public fixed byte displayName[128];
     // 定義元 .cs パス（drag&drop の source 照合用）
     public fixed byte sourcePath[260];
-    // [ScriptTypeId] が明示されていたか
-    public int hasExplicitId;
+    // [ScriptTypeID] が明示されていたか
+    public int hasExplicitID;
     // [DefaultExecutionOrder] の値（未指定は 0）
     public int defaultExecutionOrder;
 }

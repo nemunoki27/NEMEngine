@@ -25,10 +25,7 @@ namespace Engine {
 		All = Colliders,
 	};
 
-	inline bool HasRaycastTarget(RaycastTargets targets, RaycastTargets target) {
-
-		return (static_cast<uint32_t>(targets) & static_cast<uint32_t>(target)) != 0;
-	}
+	bool HasRaycastTarget(RaycastTargets targets, RaycastTargets target);
 
 	//============================================================================
 	//	CollisionQuery class

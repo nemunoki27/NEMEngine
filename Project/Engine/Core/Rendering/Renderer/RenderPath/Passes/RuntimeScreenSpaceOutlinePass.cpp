@@ -73,6 +73,18 @@ void Engine::RuntimeScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
 		compositeTarget, depthOverride);
 }
 
+Engine::RenderPathPassKind Engine::RuntimeScreenSpaceOutlinePass::GetKind() const {
+
+	switch (scope_) {
+	case Scope::PostProcessUI:
+		return RenderPathPassKind::PostProcessUI;
+	case Scope::ScreenUI:
+		return RenderPathPassKind::ScreenUI;
+	default:
+		return RenderPathPassKind::RuntimeScreenSpaceOutline;
+	}
+}
+
 void Engine::RuntimeScreenSpaceOutlinePass::ExecuteOrderedUI(
 	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
 	SceneExecutionContext& context) {

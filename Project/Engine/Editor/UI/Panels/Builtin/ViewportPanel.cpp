@@ -508,13 +508,12 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 }
 
 void Engine::ViewportPanel::HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind,
-	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, bool imageHovered) {
+	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, [[maybe_unused]] bool imageHovered) {
 
 	ECSWorld* world = context.GetWorld();
 	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
 
 	// ドラッグ中はIsItemHoveredがアクティブアイテムにブロックされてfalseになるため、矩形内判定で重なりを見る
-	(void)imageHovered;
 	const ImVec2 mousePos = ImGui::GetMousePos();
 	const bool overImage = mousePos.x >= imagePos.x && mousePos.x <= imagePos.x + viewSize_.x &&
 		mousePos.y >= imagePos.y && mousePos.y <= imagePos.y + viewSize_.y;

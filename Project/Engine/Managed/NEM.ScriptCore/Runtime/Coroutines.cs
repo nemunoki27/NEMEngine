@@ -161,7 +161,7 @@ internal static class Coroutines {
         int steps = 0;
         while (r.stack.Count > 0) {
             if (++steps > MaxStepsPerResume) {
-                NativeApi.WriteLog(2, "[Coroutines] step budget exceeded (possible runaway nested yield). stopping routine.");
+                NativeAPI.WriteLog(2, "[Coroutines] step budget exceeded (possible runaway nested yield). stopping routine.");
                 return true;
             }
             IEnumerator top = r.stack.Peek();
@@ -170,7 +170,7 @@ internal static class Coroutines {
                 moved = top.MoveNext();
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"[Coroutines] routine threw\n{ex}");
+                NativeAPI.WriteLog(2, $"[Coroutines] routine threw\n{ex}");
                 return true; // この routine を停止（他は継続）
             }
             if (!moved) {

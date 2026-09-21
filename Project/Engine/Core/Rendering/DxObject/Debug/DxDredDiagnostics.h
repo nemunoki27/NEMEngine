@@ -1,10 +1,12 @@
 #pragma once
 
-// directX
-#include <d3d12.h>
-#include <wrl/client.h>
 // c++
 #include <string_view>
+
+// directX
+#include <d3d12.h>
+
+#include <wrl/client.h>
 
 namespace Engine::DxDredDiagnostics {
 

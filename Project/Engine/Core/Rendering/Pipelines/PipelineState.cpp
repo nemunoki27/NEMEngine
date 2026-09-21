@@ -333,7 +333,6 @@ uint64_t Engine::HashPipelineStaticSamplerOverrides(
 	names.reserve(samplerOverrides->byName.size());
 	for (const auto& [name, settings] : samplerOverrides->byName) {
 
-		(void)settings;
 		names.emplace_back(name);
 	}
 	std::sort(names.begin(), names.end());
@@ -622,5 +621,28 @@ void Engine::PipelineState::RebuildBindingLookupTables() {
 		// register/space/kindから引くためのテーブルと、名前から引くためのテーブルの両方に登録する
 		registerBindingTable_[BindingRegisterKey{ bind.kind, bind.bindPoint, bind.space }] = i;
 		nameBindingTables_[static_cast<size_t>(bind.kind)][bind.name] = i;
+	}
+}
+
+//============================================================================
+//	PipelineState classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool PipelineState::BindingRegisterKey::operator==(const BindingRegisterKey& rhs) const noexcept {
+
+		return kind == rhs.kind && bindPoint == rhs.bindPoint && space == rhs.space;
+	}
+
+	size_t PipelineState::BindingRegisterKeyHash::operator()(const BindingRegisterKey& key) const noexcept {
+
+		size_t h1 = std::hash<uint32_t>{}(static_cast<uint32_t>(key.kind));
+		size_t h2 = std::hash<UINT>{}(key.bindPoint);
+		size_t h3 = std::hash<UINT>{}(key.space);
+		size_t result = h1;
+		result ^= h2 + 0x9e3779b9 + (result << 6) + (result >> 2);
+		result ^= h3 + 0x9e3779b9 + (result << 6) + (result >> 2);
+		return result;
 	}
 }

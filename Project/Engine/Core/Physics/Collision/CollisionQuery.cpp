@@ -81,3 +81,15 @@ void Engine::CollisionQuery::RaycastColliders(ECSWorld& world, const Ray& ray, f
 		outHits.emplace_back(hit);
 		});
 }
+
+//============================================================================
+//	CollisionQuery classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool HasRaycastTarget(RaycastTargets targets, RaycastTargets target) {
+
+		return (static_cast<uint32_t>(targets) & static_cast<uint32_t>(target)) != 0;
+	}
+}

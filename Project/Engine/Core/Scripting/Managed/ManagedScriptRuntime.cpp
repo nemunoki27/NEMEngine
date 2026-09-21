@@ -185,7 +185,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 	}
 
 	// ネイティブ側APIつまりC++側の機能をC#から呼ぶための関数群を初期化する
-	ManagedNativeApiTable callbacks{};
+	ManagedNativeAPITable callbacks{};
 	// ABIヘッダを先頭に設定する、C#側はバージョンとサイズと機能を検証し不一致なら初期化を拒否する
 	callbacks.beginScriptSample = [](ManagedNativeEntity entity, uint64_t slotID, const char* name) -> uint64_t {
 		return ScriptProfiler::GetInstance().BeginDetail(entity, slotID, name);
@@ -194,7 +194,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 		ScriptProfiler::GetInstance().End(token, true);
 	};
 	callbacks.header.abiVersion = kManagedAbiVersion;
-	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeApiTable));
+	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeAPITable));
 	callbacks.header.capabilities = kManagedCapabilitiesAll;
 	callbacks.log = &ManagedScriptRuntime::LogCallback;
 	callbacks.getDeltaTime = &ManagedScriptRuntime::GetDeltaTimeCallback;
@@ -394,8 +394,8 @@ bool Engine::ManagedScriptRuntime::Init() {
 	callbacks.getIgnoreParentScale = &ManagedScriptRuntime::GetIgnoreParentScaleCallback;
 	callbacks.setIgnoreParentScale = &ManagedScriptRuntime::SetIgnoreParentScaleCallback;
 
-	const ManagedStatus initializeStatus = initializeNativeApi_ ?
-		initializeNativeApi_(&callbacks) : ManagedStatus::Unsupported;
+	const ManagedStatus initializeStatus = initializeNativeAPI_ ?
+		initializeNativeAPI_(&callbacks) : ManagedStatus::Unsupported;
 	if (initializeStatus != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: Native Callbackを初期化できません Status={} NativeABI={} APIサイズ={}",
@@ -427,7 +427,7 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	initialized_ = false;
 
 	// 関数ポインタのリセット
-	initializeNativeApi_ = nullptr;
+	initializeNativeAPI_ = nullptr;
 	loadGameAssembly_ = nullptr;
 	unloadGameAssembly_ = nullptr;
 	pumpSceneEvents_ = nullptr;
@@ -904,7 +904,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 	};
 
 	bool success = true;
-	success &= loadRequired(initializeNativeApi_, L"InitializeNativeApi");
+	success &= loadRequired(initializeNativeAPI_, L"InitializeNativeAPI");
 	success &= loadRequired(loadGameAssembly_, L"LoadGameAssembly");
 	success &= loadRequired(unloadGameAssembly_, L"UnloadGameAssembly");
 	success &= loadRequired(pumpSceneEvents_, L"PumpSceneEvents");

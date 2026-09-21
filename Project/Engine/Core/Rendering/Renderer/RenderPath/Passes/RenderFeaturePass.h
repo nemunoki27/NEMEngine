@@ -24,20 +24,14 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		RenderFeaturePass(const RenderPipelineDeps& deps,
-			RenderFeatureAnchor anchor) :
-			deps_(deps), anchor_(anchor) {
-		}
+		RenderFeaturePass(const RenderPipelineDeps& deps, RenderFeatureAnchor anchor) : deps_(deps), anchor_(anchor) {}
 		~RenderFeaturePass() override = default;
 
 		void Execute(GraphicsCore& graphicsCore,
 			const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;
 
-		RenderPathPassKind GetKind() const override {
-
-			return RenderPathPassKind::RenderFeature;
-		}
+		RenderPathPassKind GetKind() const override { return RenderPathPassKind::RenderFeature; }
 
 	private:
 		//========================================================================
@@ -59,7 +53,7 @@ namespace Engine {
 		struct AdaptiveResolutionState {
 
 			float scale = 1.0f;
-			float filteredGpuMs = 0.0f;
+			float filteredGPUMs = 0.0f;
 			uint64_t lastAdjustmentFrame = 0;
 			uint32_t overBudgetSamples = 0;
 			uint32_t underBudgetSamples = 0;

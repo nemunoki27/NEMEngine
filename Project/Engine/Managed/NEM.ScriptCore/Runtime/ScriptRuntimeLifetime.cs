@@ -68,7 +68,7 @@ public static class ScriptRuntimeLifetime {
 			toCancel.Cancel();
 		}
 		catch (Exception ex) {
-			NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] cancel failed\n{ex}");
+			NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] cancel failed\n{ex}");
 		}
 
 		// 購読解除 → dispose。例外が出ても残りの cleanup を継続する
@@ -77,7 +77,7 @@ public static class ScriptRuntimeLifetime {
 				unsubscribe();
 			}
 			catch (Exception ex) {
-				NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] unsubscribe failed\n{ex}");
+				NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] unsubscribe failed\n{ex}");
 			}
 		}
 		foreach (IDisposable disposable in pendingDisposables) {
@@ -85,7 +85,7 @@ public static class ScriptRuntimeLifetime {
 				disposable.Dispose();
 			}
 			catch (Exception ex) {
-				NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] dispose failed\n{ex}");
+				NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] dispose failed\n{ex}");
 			}
 		}
 
@@ -102,7 +102,7 @@ public static class ScriptRuntimeLifetime {
 			EventDispatch.ResetForReload();
 		}
 		catch (Exception ex) {
-			NativeApi.WriteLog(2, $"[ScriptRuntimeLifetime] gameplay reset failed\n{ex}");
+			NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] gameplay reset failed\n{ex}");
 		}
 	}
 

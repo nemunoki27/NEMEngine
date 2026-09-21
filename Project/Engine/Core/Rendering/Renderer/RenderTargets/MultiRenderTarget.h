@@ -51,7 +51,7 @@ namespace Engine {
 	};
 	// レンダーターゲットのクリア情報
 	struct MultiRenderTargetClearDesc {
-		
+
 		// 色情報をクリアするか
 		bool clearColor = true;
 		std::optional<Color4> clearColorValue;
@@ -101,10 +101,7 @@ namespace Engine {
 		uint32_t GetHeight() const { return height_; }
 
 		// 色レンダーテクスチャの取得
-		RenderTexture2D* GetColorTexture(size_t index) const {
-
-			return index < colors_.size() ? colors_[index].get() : nullptr;
-		}
+		RenderTexture2D* GetColorTexture(size_t index) const { return index < colors_.size() ? colors_[index].get() : nullptr; }
 		uint32_t GetColorCount() const { return static_cast<uint32_t>(colors_.size()); }
 		// 深度レンダーテクスチャの取得
 		DepthTexture2D* GetDepthTexture() const { return depth_.get(); }

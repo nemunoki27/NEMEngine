@@ -23,7 +23,7 @@ public sealed partial class LineRenderer {
 
     // 末尾へ1点追加し、indexを採番したLinePointを返す。後でUpdatePointに渡して更新できる
     public LinePoint AddPoint(LinePoint point) {
-        point.index = NativeApi.LineAddComponentPoint(entity.native, point);
+        point.index = NativeAPI.LineAddComponentPoint(entity.native, point);
         return point;
     }
 
@@ -34,16 +34,16 @@ public sealed partial class LineRenderer {
 
     // AddPointで得たLinePointのindexの点を、座標・色・太さごと更新する
     public void UpdatePoint(LinePoint point) {
-        NativeApi.LineUpdateComponentPoint(entity.native, point);
+        NativeAPI.LineUpdateComponentPoint(entity.native, point);
     }
 
     // 点列を差し替える。loopで始点と終点をつなぐ
     public void SetPoints(ReadOnlySpan<LinePoint> points, bool loop = false) {
-        NativeApi.LineSetComponentPoints(entity.native, points, loop);
+        NativeAPI.LineSetComponentPoints(entity.native, points, loop);
     }
 
     // 点列をクリアする
     public void Clear() {
-        NativeApi.LineSetComponentPoints(entity.native, ReadOnlySpan<LinePoint>.Empty, false);
+        NativeAPI.LineSetComponentPoints(entity.native, ReadOnlySpan<LinePoint>.Empty, false);
     }
 }

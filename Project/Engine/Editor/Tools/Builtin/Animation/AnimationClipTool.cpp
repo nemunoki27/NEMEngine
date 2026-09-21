@@ -20,7 +20,6 @@ using namespace Engine;
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
 
 // imgui
-#include <imgui.h>
 // c++
 #include <algorithm>
 #include <array>
@@ -30,6 +29,8 @@ using namespace Engine;
 #include <string>
 #include <string_view>
 #include <unordered_map>
+
+#include <imgui.h>
 
 //============================================================================
 //	AnimationClipTool classMethods

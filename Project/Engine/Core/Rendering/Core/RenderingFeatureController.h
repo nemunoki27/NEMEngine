@@ -60,9 +60,7 @@ namespace Engine {
 		// 描画側はPreferencesではなくRuntimeFeaturesを参照して最終状態だけを見る
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }
 		bool ShouldUseOcclusionCulling() const { return runtimeFeatures_.useOcclusionCulling; }
-		bool ShouldUseGameViewCameraForSceneCulling() const {
-			return preferences_.useGameViewCameraForSceneCulling;
-		}
+		bool ShouldUseGameViewCameraForSceneCulling() const { return preferences_.useGameViewCameraForSceneCulling; }
 		bool ShouldUseContributionCulling() const { return runtimeFeatures_.useContributionCulling; }
 		bool ShouldUseNormalConeCulling() const { return runtimeFeatures_.useNormalConeCulling; }
 		bool ShouldBuildRaytracingScene() const { return runtimeFeatures_.UsesAnyRayTracing(); }

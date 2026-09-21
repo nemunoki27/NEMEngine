@@ -43,9 +43,7 @@ namespace Engine {
 		ID3D12Resource* GetResource() const { return buffer_.GetResource(); }
 		DXGI_FORMAT GetFormat() const { return indexBufferView_.Format; }
 		// 1インデックスのバイト数(R16なら2、R32なら4)
-		uint32_t GetIndexSizeInBytes() const {
-			return (indexBufferView_.Format == DXGI_FORMAT_R16_UINT) ? sizeof(uint16_t) : sizeof(uint32_t);
-		}
+		uint32_t GetIndexSizeInBytes() const;
 		bool IsCreatedResource() const { return buffer_.IsCreatedResource(); }
 	private:
 		//============================================================================

@@ -47,17 +47,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		RenderPathPassKind GetKind() const override {
-
-			switch (scope_) {
-			case Scope::PostProcessUI:
-				return RenderPathPassKind::PostProcessUI;
-			case Scope::ScreenUI:
-				return RenderPathPassKind::ScreenUI;
-			default:
-				return RenderPathPassKind::RuntimeScreenSpaceOutline;
-			}
-		}
+		RenderPathPassKind GetKind() const override;
 	private:
 		//============================================================================
 		//	private Methods
@@ -100,6 +90,7 @@ namespace Engine {
 			SceneExecutionContext& context,
 			RenderPhase phase, MultiRenderTarget* target,
 			std::span<const ScreenSpaceOutlineRequest> requests);
+		// 指定描画段階の有効なアウトライン要求を収集する
 		void CollectRequests(const SceneExecutionContext& context,
 			const RenderPassPhaseBuckets& passBuckets,
 			std::span<const RenderPhase> phases);

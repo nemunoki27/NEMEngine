@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		ParticleSystemInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Particle System", "ParticleSystem") {
-		}
+		ParticleSystemInspectorDrawer() : SerializedComponentInspectorDrawer("Particle System", "ParticleSystem") {}
 		~ParticleSystemInspectorDrawer() = default;
 	private:
 		//========================================================================

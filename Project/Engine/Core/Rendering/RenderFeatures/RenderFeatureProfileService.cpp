@@ -183,3 +183,17 @@ Engine::RenderFeatureProfileService::FindReflectionSamplers(
 		ReflectionKey{ materialID, passKind });
 	return found == reflectionSamplers_.end() ? nullptr : &found->second;
 }
+
+//============================================================================
+//	RenderFeatureProfileService classMethods
+//============================================================================
+
+namespace Engine {
+
+	size_t RenderFeatureProfileService::ReflectionKeyHash::operator()(const ReflectionKey& key) const noexcept {
+
+		return std::hash<AssetID>{}(key.material) ^
+			(std::hash<uint8_t>{}(
+				static_cast<uint8_t>(key.passKind)) << 1);
+	}
+}

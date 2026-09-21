@@ -3,14 +3,15 @@
 //============================================================================
 //	include
 //============================================================================
-// windows
-#include <Windows.h>
-// directX
-#include <d3d12.h>
 // c++
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+
+// directX
+#include <d3d12.h>
+
+#include <Windows.h>
 
 struct ImGui_ImplDX12_InitInfo;
 

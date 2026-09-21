@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace NEM.ComponentBindingGen;
 
-// ComponentManifest.json と ManagedNativeApi.json から C++ / C# の登録情報を決定的に生成する。
+// ComponentManifest.json と ManagedNativeAPI.json から C++ / C# の登録情報を決定的に生成する。
 // 同じ入力からは byte 単位で安定した出力（sorted・LF・UTF-8 no BOM）。
 internal static class Program {
 
@@ -29,7 +29,7 @@ internal static class Program {
         public string CsVisibility => string.Equals(Visibility, "Internal", StringComparison.Ordinal) ? "internal" : "public";
     }
     private sealed class ComponentModel {
-        public int Id = -1;
+        public int ID = -1;
         public string RegistryName = "";
         public string NativeType = "";
         public string NativeHeader = "";
@@ -100,7 +100,7 @@ internal static class Program {
 
         // 決定的にするため安定ソート
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
-        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        components.Sort((a, b) => a.ID.CompareTo(b.ID));
         bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
         foreach (ComponentModel c in bindings) {
             c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
@@ -115,9 +115,9 @@ internal static class Program {
         WriteIfChanged(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(bindings, enumByName));
         WriteIfChanged(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader());
         WriteIfChanged(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components));
-        WriteIfChanged(Path.Combine(outNativeDir, "ManagedNativeApiFields.generated.inl"), EmitNativeApiFields(abiFields));
+        WriteIfChanged(Path.Combine(outNativeDir, "ManagedNativeAPIFields.generated.inl"), EmitNativeAPIFields(abiFields));
         WriteIfChanged(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums));
-        WriteIfChanged(Path.Combine(outCsDir, "NativeApiTable.generated.cs"), EmitManagedApiTable(abiFields));
+        WriteIfChanged(Path.Combine(outCsDir, "NativeAPITable.generated.cs"), EmitManagedAPITable(abiFields));
 
         Console.WriteLine($"[ComponentBindingGen] done. enums={enums.Count} components={components.Count} bindings={bindings.Count} abi={abiFields.Count}");
         return 0;
@@ -137,7 +137,7 @@ internal static class Program {
         void Fail(string message) { ++problems; Console.Error.WriteLine($"[verify] {message}"); }
 
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
-        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        components.Sort((a, b) => a.ID.CompareTo(b.ID));
         bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
         foreach (ComponentModel c in bindings) {
             c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
@@ -149,9 +149,9 @@ internal static class Program {
         CheckDrift(Path.Combine(outNativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(bindings, enumByName), Fail);
         CheckDrift(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader(), Fail);
         CheckDrift(Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components), Fail);
-        CheckDrift(Path.Combine(outNativeDir, "ManagedNativeApiFields.generated.inl"), EmitNativeApiFields(abiFields), Fail);
+        CheckDrift(Path.Combine(outNativeDir, "ManagedNativeAPIFields.generated.inl"), EmitNativeAPIFields(abiFields), Fail);
         CheckDrift(Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums), Fail);
-        CheckDrift(Path.Combine(outCsDir, "NativeApiTable.generated.cs"), EmitManagedApiTable(abiFields), Fail);
+        CheckDrift(Path.Combine(outCsDir, "NativeAPITable.generated.cs"), EmitManagedAPITable(abiFields), Fail);
 
         foreach (ComponentModel c in bindings) {
             for (int p = 0; p < c.Properties.Count; ++p) {
@@ -211,7 +211,7 @@ internal static class Program {
             Expect("component mutation notification generated",
                 File.ReadAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp")).Contains("world.MarkComponentModified<TestComponent>(entity);"));
             Expect("managed ABI generated",
-                File.ReadAllText(Path.Combine(csDir, "NativeApiTable.generated.cs")).Contains("delegate* unmanaged[Cdecl]<int> test"));
+                File.ReadAllText(Path.Combine(csDir, "NativeAPITable.generated.cs")).Contains("delegate* unmanaged[Cdecl]<int> test"));
 
             Expect("positive verify passes", RunVerify(manifestPath, abiPath, nativeDir, csDir) == 0);
 
@@ -247,7 +247,7 @@ internal static class Program {
         List<AbiFieldModel> abiFields = LoadAndValidateAbi(abiPath);
         List<ComponentModel> bindings = components.Where(component => component.Exposure == "GeneratedBinding").ToList();
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
-        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        components.Sort((a, b) => a.ID.CompareTo(b.ID));
         bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
         foreach (ComponentModel c in bindings) c.Properties.Sort((a, b) => string.CompareOrdinal(a.ManagedName, b.ManagedName));
         var enumByName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
@@ -256,9 +256,9 @@ internal static class Program {
         File.WriteAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), EmitNativeCpp(bindings, enumByName).Replace("\n", Environment.NewLine));
         File.WriteAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader().Replace("\n", Environment.NewLine));
         File.WriteAllText(Path.Combine(nativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components).Replace("\n", Environment.NewLine));
-        File.WriteAllText(Path.Combine(nativeDir, "ManagedNativeApiFields.generated.inl"), EmitNativeApiFields(abiFields).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(nativeDir, "ManagedNativeAPIFields.generated.inl"), EmitNativeAPIFields(abiFields).Replace("\n", Environment.NewLine));
         File.WriteAllText(Path.Combine(csDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums).Replace("\n", Environment.NewLine));
-        File.WriteAllText(Path.Combine(csDir, "NativeApiTable.generated.cs"), EmitManagedApiTable(abiFields).Replace("\n", Environment.NewLine));
+        File.WriteAllText(Path.Combine(csDir, "NativeAPITable.generated.cs"), EmitManagedAPITable(abiFields).Replace("\n", Environment.NewLine));
     }
 
     private static int RunVerify(string manifestPath, string abiPath, string nativeDir, string csDir) {
@@ -317,11 +317,11 @@ internal static class Program {
 
         var componentKeys = new HashSet<string>(StringComparer.Ordinal);
         var managedTypes = new HashSet<string>(StringComparer.Ordinal);
-        var componentIds = new HashSet<int>();
+        var componentIDs = new HashSet<int>();
         if (root.TryGetProperty("components", out JsonElement compsEl) && compsEl.ValueKind == JsonValueKind.Array) {
             foreach (JsonElement c in compsEl.EnumerateArray()) {
                 var model = new ComponentModel {
-                    Id = c.TryGetProperty("id", out JsonElement id) ? id.GetInt32() : -1,
+                    ID = c.TryGetProperty("id", out JsonElement id) ? id.GetInt32() : -1,
                     RegistryName = Str(c, "registryName"),
                     NativeType = Str(c, "nativeType"),
                     NativeHeader = Str(c, "nativeHeader"),
@@ -331,8 +331,8 @@ internal static class Program {
                     AllowAdd = !c.TryGetProperty("allowAdd", out JsonElement aa) || aa.GetBoolean(),
                     AllowRemove = !c.TryGetProperty("allowRemove", out JsonElement ar) || ar.GetBoolean(),
                 };
-                if (model.Id < 0) Error($"{model.RegistryName}: component id must be non-negative.");
-                if (!componentIds.Add(model.Id)) Error($"duplicate component id '{model.Id}'.");
+                if (model.ID < 0) Error($"{model.RegistryName}: component id must be non-negative.");
+                if (!componentIDs.Add(model.ID)) Error($"duplicate component id '{model.ID}'.");
                 if (string.IsNullOrEmpty(model.RegistryName)) Error("component missing registryName.");
                 if (string.IsNullOrEmpty(model.NativeType)) Error($"{model.RegistryName}: nativeType is required.");
                 if (string.IsNullOrEmpty(model.NativeHeader)) Error($"{model.RegistryName}: nativeHeader is required.");
@@ -371,10 +371,10 @@ internal static class Program {
             }
         }
 
-        components.Sort((a, b) => a.Id.CompareTo(b.Id));
+        components.Sort((a, b) => a.ID.CompareTo(b.ID));
         for (int i = 0; i < components.Count; ++i) {
-            if (components[i].Id != i) {
-                Error($"component ids must be contiguous from 0. expected={i} actual={components[i].Id}.");
+            if (components[i].ID != i) {
+                Error($"component ids must be contiguous from 0. expected={i} actual={components[i].ID}.");
             }
         }
         return (enums, components);
@@ -461,10 +461,10 @@ internal static class Program {
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>\n\n");
         sb.Append("namespace Engine::GeneratedComponentBindings {\n\n");
         sb.Append("\t// 自動生成 component wrapper の typed property dispatch。ManagedScriptRuntime が table へ結線する。\n");
-        sb.Append("\tManagedStatus GetComponentProperty(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, void* outValue, int32_t valueSize);\n");
-        sb.Append("\tManagedStatus SetComponentProperty(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, const void* value, int32_t valueSize);\n");
-        sb.Append("\tManagedStatus GetComponentStringProperty(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, char* buffer, int32_t capacity, int32_t* written);\n");
-        sb.Append("\tManagedStatus SetComponentStringProperty(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, const char* utf8, int32_t length);\n\n");
+        sb.Append("\tManagedStatus GetComponentProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, void* outValue, int32_t valueSize);\n");
+        sb.Append("\tManagedStatus SetComponentProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, const void* value, int32_t valueSize);\n");
+        sb.Append("\tManagedStatus GetComponentStringProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, char* buffer, int32_t capacity, int32_t* written);\n");
+        sb.Append("\tManagedStatus SetComponentStringProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, const char* utf8, int32_t length);\n\n");
         sb.Append("} // namespace Engine::GeneratedComponentBindings\n");
         return sb.ToString();
     }
@@ -492,7 +492,7 @@ internal static class Program {
         sb.Append("\t\tint32_t BindingIndexOf(int32_t typeID) {\n");
         sb.Append("\t\t\tswitch (typeID) {\n");
         for (int i = 0; i < components.Count; ++i) {
-            sb.Append($"\t\t\tcase {components[i].Id}: return {i};\n");
+            sb.Append($"\t\t\tcase {components[i].ID}: return {i};\n");
         }
         sb.Append("\t\t\tdefault: return -1;\n");
         sb.Append("\t\t\t}\n");
@@ -517,8 +517,7 @@ internal static class Program {
 
         string nt = comp.NativeType;
 
-        // 適用対象 property を先に振り分ける。対象ゼロの handler は
-        // 空 switch(C4065) や未使用パラメータ(C4100) を出さず、void cast で閉じる。
+        // 対象のない処理は未使用引数を明示して不正引数を返す
         var podGet = new List<int>();
         var podSet = new List<int>();
         var strGet = new List<int>();
@@ -536,14 +535,15 @@ internal static class Program {
         }
 
         // --- POD get ---
-        sb.Append($"\t\tManagedStatus {comp.ManagedType}_GetProp(ECSWorld& world, const Entity& entity, int32_t propertyId, void* out, int32_t size) {{\n");
+        string unused = podGet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
+        sb.Append($"\t\tManagedStatus {comp.ManagedType}_GetProp({unused}ECSWorld& world, {unused}const Entity& entity, " +
+            $"{unused}int32_t propertyID, {unused}void* out, {unused}int32_t size) {{\n");
         if (podGet.Count == 0) {
-            sb.Append("\t\t\t(void)world; (void)entity; (void)propertyId; (void)out; (void)size;\n");
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
             sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
-            sb.Append("\t\t\tswitch (propertyId) {\n");
+            sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podGet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
                 EmitCppGet(sb, comp.Properties[p], enumByName);
@@ -554,14 +554,15 @@ internal static class Program {
         }
 
         // --- POD set ---
-        sb.Append($"\t\tManagedStatus {comp.ManagedType}_SetProp(ECSWorld& world, const Entity& entity, int32_t propertyId, const void* value, int32_t size) {{\n");
+        unused = podSet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
+        sb.Append($"\t\tManagedStatus {comp.ManagedType}_SetProp({unused}ECSWorld& world, {unused}const Entity& entity, " +
+            $"{unused}int32_t propertyID, {unused}const void* value, {unused}int32_t size) {{\n");
         if (podSet.Count == 0) {
-            sb.Append("\t\t\t(void)world; (void)entity; (void)propertyId; (void)value; (void)size;\n");
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
             sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
-            sb.Append("\t\t\tswitch (propertyId) {\n");
+            sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podSet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
                 EmitCppSet(sb, comp.Properties[p], enumByName, nt);
@@ -572,14 +573,15 @@ internal static class Program {
         }
 
         // --- string get ---
-        sb.Append($"\t\tManagedStatus {comp.ManagedType}_GetStr(ECSWorld& world, const Entity& entity, int32_t propertyId, char* buffer, int32_t capacity, int32_t* written) {{\n");
+        unused = strGet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
+        sb.Append($"\t\tManagedStatus {comp.ManagedType}_GetStr({unused}ECSWorld& world, {unused}const Entity& entity, " +
+            $"{unused}int32_t propertyID, {unused}char* buffer, {unused}int32_t capacity, {unused}int32_t* written) {{\n");
         if (strGet.Count == 0) {
-            sb.Append("\t\t\t(void)world; (void)entity; (void)propertyId; (void)buffer; (void)capacity; (void)written;\n");
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
             sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
-            sb.Append("\t\t\tswitch (propertyId) {\n");
+            sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in strGet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
                 sb.Append($"\t\t\t\tconst std::string& s = c->{comp.Properties[p].NativeMember};\n");
@@ -595,14 +597,15 @@ internal static class Program {
         }
 
         // --- string set ---
-        sb.Append($"\t\tManagedStatus {comp.ManagedType}_SetStr(ECSWorld& world, const Entity& entity, int32_t propertyId, const char* utf8, int32_t length) {{\n");
+        unused = strSet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
+        sb.Append($"\t\tManagedStatus {comp.ManagedType}_SetStr({unused}ECSWorld& world, {unused}const Entity& entity, " +
+            $"{unused}int32_t propertyID, {unused}const char* utf8, {unused}int32_t length) {{\n");
         if (strSet.Count == 0) {
-            sb.Append("\t\t\t(void)world; (void)entity; (void)propertyId; (void)utf8; (void)length;\n");
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
             sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
-            sb.Append("\t\t\tswitch (propertyId) {\n");
+            sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in strSet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
                 sb.Append($"\t\t\t\tc->{comp.Properties[p].NativeMember} = (utf8 && length > 0) ? std::string(utf8, static_cast<size_t>(length)) : std::string();\n");
@@ -687,7 +690,7 @@ internal static class Program {
     private static void EmitCppDispatch(StringBuilder sb, List<ComponentModel> components, string fnName, string handler,
         string extraParams, string extraArgs, bool checkOut, string? valueArg = null) {
 
-        sb.Append($"\tManagedStatus {fnName}(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, {extraParams}) {{\n");
+        sb.Append($"\tManagedStatus {fnName}(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, {extraParams}) {{\n");
         sb.Append("\t\tECSWorld* world = ResolveWorld(entity);\n");
         sb.Append("\t\tconst Entity resolved = ResolveEntity(entity);\n");
         sb.Append("\t\tif (!world || !world->IsAlive(resolved)) { return ManagedStatus::InvalidEntityHandle; }\n");
@@ -696,33 +699,33 @@ internal static class Program {
         } else if (valueArg != null) {
             sb.Append($"\t\tif (!{valueArg}) {{ return ManagedStatus::InvalidArgument; }}\n");
         }
-        sb.Append("\t\tswitch (BindingIndexOf(typeId)) {\n");
+        sb.Append("\t\tswitch (BindingIndexOf(typeID)) {\n");
         for (int i = 0; i < components.Count; ++i) {
-            sb.Append($"\t\tcase {i}: return {components[i].ManagedType}_{handler}(*world, resolved, propertyId, {extraArgs});\n");
+            sb.Append($"\t\tcase {i}: return {components[i].ManagedType}_{handler}(*world, resolved, propertyID, {extraArgs});\n");
         }
         sb.Append("\t\tdefault: return ManagedStatus::InvalidArgument;\n");
         sb.Append("\t\t}\n\t}\n\n");
     }
 
     private static void EmitCppStringDispatch(StringBuilder sb, List<ComponentModel> components) {
-        sb.Append("\tManagedStatus GetComponentStringProperty(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, char* buffer, int32_t capacity, int32_t* written) {\n");
+        sb.Append("\tManagedStatus GetComponentStringProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, char* buffer, int32_t capacity, int32_t* written) {\n");
         sb.Append("\t\tECSWorld* world = ResolveWorld(entity);\n");
         sb.Append("\t\tconst Entity resolved = ResolveEntity(entity);\n");
         sb.Append("\t\tif (!world || !world->IsAlive(resolved)) { return ManagedStatus::InvalidEntityHandle; }\n");
-        sb.Append("\t\tswitch (BindingIndexOf(typeId)) {\n");
+        sb.Append("\t\tswitch (BindingIndexOf(typeID)) {\n");
         for (int i = 0; i < components.Count; ++i) {
-            sb.Append($"\t\tcase {i}: return {components[i].ManagedType}_GetStr(*world, resolved, propertyId, buffer, capacity, written);\n");
+            sb.Append($"\t\tcase {i}: return {components[i].ManagedType}_GetStr(*world, resolved, propertyID, buffer, capacity, written);\n");
         }
         sb.Append("\t\tdefault: return ManagedStatus::InvalidArgument;\n");
         sb.Append("\t\t}\n\t}\n\n");
 
-        sb.Append("\tManagedStatus SetComponentStringProperty(ManagedNativeEntity entity, int32_t typeId, int32_t propertyId, const char* utf8, int32_t length) {\n");
+        sb.Append("\tManagedStatus SetComponentStringProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, const char* utf8, int32_t length) {\n");
         sb.Append("\t\tECSWorld* world = ResolveWorld(entity);\n");
         sb.Append("\t\tconst Entity resolved = ResolveEntity(entity);\n");
         sb.Append("\t\tif (!world || !world->IsAlive(resolved)) { return ManagedStatus::InvalidEntityHandle; }\n");
-        sb.Append("\t\tswitch (BindingIndexOf(typeId)) {\n");
+        sb.Append("\t\tswitch (BindingIndexOf(typeID)) {\n");
         for (int i = 0; i < components.Count; ++i) {
-            sb.Append($"\t\tcase {i}: return {components[i].ManagedType}_SetStr(*world, resolved, propertyId, utf8, length);\n");
+            sb.Append($"\t\tcase {i}: return {components[i].ManagedType}_SetStr(*world, resolved, propertyID, utf8, length);\n");
         }
         sb.Append("\t\tdefault: return ManagedStatus::InvalidArgument;\n");
         sb.Append("\t\t}\n\t}\n\n");
@@ -751,28 +754,28 @@ internal static class Program {
         }
         sb.Append("\nvoid Engine::RegisterBuiltinComponents(ComponentTypeRegistry& registry) {\n\n");
         foreach (ComponentModel component in components) {
-            sb.Append($"\tregistry.Register<{component.NativeType}>({component.Id}, \"{component.RegistryName}\");\n");
+            sb.Append($"\tregistry.Register<{component.NativeType}>({component.ID}, \"{component.RegistryName}\");\n");
         }
         sb.Append("}\n");
         return sb.ToString();
     }
 
-    private static string EmitNativeApiFields(List<AbiFieldModel> fields) {
+    private static string EmitNativeAPIFields(List<AbiFieldModel> fields) {
         var sb = new StringBuilder();
-        sb.Append("// AUTO-GENERATED FROM ManagedNativeApi.json\n");
+        sb.Append("// AUTO-GENERATED FROM ManagedNativeAPI.json\n");
         foreach (AbiFieldModel field in fields) {
             sb.Append($"\t\t{field.NativeType} {field.Name} = nullptr;\n");
         }
         return sb.ToString();
     }
 
-    private static string EmitManagedApiTable(List<AbiFieldModel> fields) {
+    private static string EmitManagedAPITable(List<AbiFieldModel> fields) {
         var sb = new StringBuilder();
         sb.Append(CsBanner());
         sb.Append("using System.Runtime.InteropServices;\n\n");
         sb.Append("namespace NEMEngine;\n\n");
         sb.Append("[StructLayout(LayoutKind.Sequential)]\n");
-        sb.Append("public unsafe struct NativeApiTable {\n\n");
+        sb.Append("public unsafe struct NativeAPITable {\n\n");
         sb.Append("    public ManagedAbiHeader header;\n");
         foreach (AbiFieldModel field in fields) {
             sb.Append($"    public {field.ManagedType} {field.Name};\n");
@@ -804,9 +807,9 @@ internal static class Program {
             sb.Append($"// {comp.NativeType} の調整可能 property を公開する wrapper（owner Entity の opaque handle のみ保持）\n");
             sb.Append($"public sealed unsafe partial class {comp.ManagedType} : Component, IComponentRef<{comp.ManagedType}> {{\n\n");
             sb.Append($"    internal {comp.ManagedType}(Entity entity) {{ this.entity = entity; }}\n\n");
-            sb.Append($"    public static int componentTypeID => {comp.Id};\n");
+            sb.Append($"    public static int componentTypeID => {comp.ID};\n");
             sb.Append($"    public static {comp.ManagedType} FromEntity(Entity entity) => new(entity);\n\n");
-            sb.Append($"    private const int TypeId = {comp.Id};\n\n");
+            sb.Append($"    private const int TypeID = {comp.ID};\n\n");
             for (int p = 0; p < comp.Properties.Count; ++p) {
                 EmitCsProperty(sb, comp.Properties[p], p);
             }
@@ -816,13 +819,13 @@ internal static class Program {
         List<ComponentModel> factories = allComponents
             .Where(component => !string.IsNullOrEmpty(component.ManagedType) &&
                 (component.Exposure == "GeneratedBinding" || component.ManagedFactory))
-            .OrderBy(component => component.Id)
+            .OrderBy(component => component.ID)
             .ToList();
 
         sb.Append("internal static class GeneratedComponentTypeMap {\n\n");
         sb.Append("    internal static int GetTypeID<T>() where T : Component {\n");
         foreach (ComponentModel component in factories) {
-            sb.Append($"        if (typeof(T) == typeof({component.ManagedType})) return {component.Id};\n");
+            sb.Append($"        if (typeof(T) == typeof({component.ManagedType})) return {component.ID};\n");
         }
         sb.Append("        return -1;\n");
         sb.Append("    }\n\n");
@@ -836,50 +839,50 @@ internal static class Program {
         return sb.ToString();
     }
 
-    private static void EmitCsProperty(StringBuilder sb, PropertyModel prop, int propId) {
+    private static void EmitCsProperty(StringBuilder sb, PropertyModel prop, int propID) {
         switch (prop.Kind) {
             case "Bool": {
                 sb.Append($"    {prop.CsVisibility} bool {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ int v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 4); return v != 0; }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ int v = value ? 1 : 0; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 4); }}\n");
+                sb.Append($"        get {{ int v = 0; NativeAPI.ComponentGet(entity.native, TypeID, {propID}, &v, 4); return v != 0; }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ int v = value ? 1 : 0; NativeAPI.ComponentSet(entity.native, TypeID, {propID}, &v, 4); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "Enum": {
                 string t = prop.EnumType!;
                 sb.Append($"    {prop.CsVisibility} {t} {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ int v = 0; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 4); return ({t})v; }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ int v = (int)value; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 4); }}\n");
+                sb.Append($"        get {{ int v = 0; NativeAPI.ComponentGet(entity.native, TypeID, {propID}, &v, 4); return ({t})v; }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ int v = (int)value; NativeAPI.ComponentSet(entity.native, TypeID, {propID}, &v, 4); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "AssetRef": {
                 string t = prop.AssetType!;
                 sb.Append($"    {prop.CsVisibility} {t}? {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ AssetGUID v = AssetGUID.None; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, 16); return v.isValid ? new {t}(v) : null; }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ AssetGUID v = value != null ? value.assetId : AssetGUID.None; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, 16); }}\n");
+                sb.Append($"        get {{ AssetGUID v = AssetGUID.None; NativeAPI.ComponentGet(entity.native, TypeID, {propID}, &v, 16); return v.isValid ? new {t}(v) : null; }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ AssetGUID v = value != null ? value.assetID : AssetGUID.None; NativeAPI.ComponentSet(entity.native, TypeID, {propID}, &v, 16); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "EntityRef": {
                 sb.Append($"    {prop.CsVisibility} Entity {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ NativeEntity v = NativeEntity.Null; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, sizeof(NativeEntity)); return new Entity(v); }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ NativeEntity v = value.native; NativeApi.ComponentSet(entity.native, TypeId, {propId}, &v, sizeof(NativeEntity)); }}\n");
+                sb.Append($"        get {{ NativeEntity v = NativeEntity.Null; NativeAPI.ComponentGet(entity.native, TypeID, {propID}, &v, sizeof(NativeEntity)); return new Entity(v); }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ NativeEntity v = value.native; NativeAPI.ComponentSet(entity.native, TypeID, {propID}, &v, sizeof(NativeEntity)); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "String": {
                 sb.Append($"    {prop.CsVisibility} string {prop.ManagedName} {{\n");
-                sb.Append($"        get => NativeApi.ComponentGetString(entity.native, TypeId, {propId});\n");
-                if (!prop.ReadOnly) sb.Append($"        set => NativeApi.ComponentSetString(entity.native, TypeId, {propId}, value);\n");
+                sb.Append($"        get => NativeAPI.ComponentGetString(entity.native, TypeID, {propID});\n");
+                if (!prop.ReadOnly) sb.Append($"        set => NativeAPI.ComponentSetString(entity.native, TypeID, {propID}, value);\n");
                 sb.Append("    }\n\n");
                 break;
             }
             default: {
                 (string csType, int size) = PodInfo(prop.Kind);
                 sb.Append($"    {prop.CsVisibility} {csType} {prop.ManagedName} {{\n");
-                sb.Append($"        get {{ {csType} v = default; NativeApi.ComponentGet(entity.native, TypeId, {propId}, &v, {size}); return v; }}\n");
-                if (!prop.ReadOnly) sb.Append($"        set {{ NativeApi.ComponentSet(entity.native, TypeId, {propId}, &value, {size}); }}\n");
+                sb.Append($"        get {{ {csType} v = default; NativeAPI.ComponentGet(entity.native, TypeID, {propID}, &v, {size}); return v; }}\n");
+                if (!prop.ReadOnly) sb.Append($"        set {{ NativeAPI.ComponentSet(entity.native, TypeID, {propID}, &value, {size}); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
@@ -894,7 +897,7 @@ internal static class Program {
                "//\tAUTO-GENERATED FILE - DO NOT EDIT MANUALLY\n" +
                $"//\tgenerator: NEM.ComponentBindingGen v{GeneratorVersion}\n" +
                $"//\tmetadata schemaVersion: {SupportedSchemaVersion}\n" +
-               "//\t編集する場合は ComponentManifest.json または ManagedNativeApi.json を更新して再生成する\n" +
+               "//\t編集する場合は ComponentManifest.json または ManagedNativeAPI.json を更新して再生成する\n" +
                "//============================================================================\n";
     }
     private static string CsBanner() {

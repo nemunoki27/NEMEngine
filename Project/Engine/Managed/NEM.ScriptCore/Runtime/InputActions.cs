@@ -3,19 +3,19 @@ using System.Text.Json;
 
 namespace NEMEngine;
 
-// gameplay hot path で使う compact action ID。name 解決は GetActionId で一度だけ行う。
-public readonly struct InputActionId : IEquatable<InputActionId> {
+// gameplay hot path で使う compact action ID。name 解決は GetActionID で一度だけ行う。
+public readonly struct InputActionID : IEquatable<InputActionID> {
 
     internal readonly int index;
 
-    internal InputActionId(int index) {
+    internal InputActionID(int index) {
         this.index = index;
     }
 
     public bool IsValid => index >= 0;
 
-    public bool Equals(InputActionId other) => index == other.index;
-    public override bool Equals(object? obj) => obj is InputActionId other && Equals(other);
+    public bool Equals(InputActionID other) => index == other.index;
+    public override bool Equals(object? obj) => obj is InputActionID other && Equals(other);
     public override int GetHashCode() => index;
 }
 
@@ -50,7 +50,7 @@ public static class InputActions {
     // UI が入力を消費しているフレームは gameplay クエリを抑止する層（editor / UI が設定する）。
     public static bool BlockGameplayInput { get; set; }
 
-	private static bool IsGameplayInputBlocked => BlockGameplayInput || NativeApi.ReadUIBlocksGameplayInput();
+	private static bool IsGameplayInputBlocked => BlockGameplayInput || NativeAPI.ReadUIBlocksGameplayInput();
 
     private enum ActionType { Button, Axis1D, Vector2 }
     private enum BindingKind { Button, Composite1D, Axis1D, Composite2D, Stick2D }
@@ -87,14 +87,14 @@ public static class InputActions {
     //========================================================================
     //	public API
     //========================================================================
-    public static InputActionId GetActionId(string name) {
+    public static InputActionID GetActionID(string name) {
         EnsureLoaded();
         lock (gate) {
-            return nameToIndex.TryGetValue(name, out int index) ? new InputActionId(index) : new InputActionId(-1);
+            return nameToIndex.TryGetValue(name, out int index) ? new InputActionID(index) : new InputActionID(-1);
         }
     }
 
-    public static bool IsPressed(InputActionId action) {
+    public static bool IsPressed(InputActionID action) {
         if (IsGameplayInputBlocked) {
             return false;
         }
@@ -110,7 +110,7 @@ public static class InputActions {
         return false;
     }
 
-    public static bool WasPressed(InputActionId action) {
+    public static bool WasPressed(InputActionID action) {
         if (IsGameplayInputBlocked) {
             return false;
         }
@@ -126,7 +126,7 @@ public static class InputActions {
         return false;
     }
 
-    public static bool WasReleased(InputActionId action) {
+    public static bool WasReleased(InputActionID action) {
         if (IsGameplayInputBlocked) {
             return false;
         }
@@ -142,7 +142,7 @@ public static class InputActions {
         return false;
     }
 
-    public static float ReadAxis(InputActionId action) {
+    public static float ReadAxis(InputActionID action) {
         if (IsGameplayInputBlocked) {
             return 0.0f;
         }
@@ -161,7 +161,7 @@ public static class InputActions {
         return Math.Clamp(value, -1.0f, 1.0f);
     }
 
-    public static Vector2 ReadVector2(InputActionId action) {
+    public static Vector2 ReadVector2(InputActionID action) {
         if (IsGameplayInputBlocked) {
             return Vector2.zero;
         }
@@ -180,7 +180,7 @@ public static class InputActions {
     }
 
     // 単一 binding へ rebind する（compact ID 経由）。保存は SaveBindings で行う。
-    public static bool Rebind(InputActionId action, InputBinding binding) {
+    public static bool Rebind(InputActionID action, InputBinding binding) {
         ActionDef? def = Resolve(action);
         if (def == null) {
             return false;
@@ -220,7 +220,7 @@ public static class InputActions {
             return true;
         }
         catch (Exception e) {
-            NativeApi.WriteLog(2, $"[InputActions] SaveBindings failed\n{e}");
+            NativeAPI.WriteLog(2, $"[InputActions] SaveBindings failed\n{e}");
             return false;
         }
     }
@@ -234,31 +234,31 @@ public static class InputActions {
     }
 
     // string convenience overload（初回に compact ID を解決して以降は cache）。hot path では ID 版を推奨。
-    public static bool IsPressed(string action) => IsPressed(CachedId(action));
-    public static bool WasPressed(string action) => WasPressed(CachedId(action));
-    public static bool WasReleased(string action) => WasReleased(CachedId(action));
-    public static float ReadAxis(string action) => ReadAxis(CachedId(action));
-    public static Vector2 ReadVector2(string action) => ReadVector2(CachedId(action));
+    public static bool IsPressed(string action) => IsPressed(CachedID(action));
+    public static bool WasPressed(string action) => WasPressed(CachedID(action));
+    public static bool WasReleased(string action) => WasReleased(CachedID(action));
+    public static float ReadAxis(string action) => ReadAxis(CachedID(action));
+    public static Vector2 ReadVector2(string action) => ReadVector2(CachedID(action));
 
     //========================================================================
     //	internal
     //========================================================================
-    private static readonly Dictionary<string, InputActionId> stringIdCache = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, InputActionID> stringIDCache = new(StringComparer.Ordinal);
 
-    private static InputActionId CachedId(string action) {
+    private static InputActionID CachedID(string action) {
         lock (gate) {
-            if (stringIdCache.TryGetValue(action, out InputActionId id)) {
+            if (stringIDCache.TryGetValue(action, out InputActionID id)) {
                 return id;
             }
         }
-        InputActionId resolved = GetActionId(action);
+        InputActionID resolved = GetActionID(action);
         lock (gate) {
-            stringIdCache[action] = resolved;
+            stringIDCache[action] = resolved;
         }
         return resolved;
     }
 
-    private static ActionDef? Resolve(InputActionId action) {
+    private static ActionDef? Resolve(InputActionID action) {
         EnsureLoaded();
         ActionDef[] snapshot = actions;
         return (action.index >= 0 && action.index < snapshot.Length) ? snapshot[action.index] : null;
@@ -383,13 +383,13 @@ public static class InputActions {
                 return;
             }
             loaded = true;
-            stringIdCache.Clear();
+            stringIDCache.Clear();
             LoadFromDisk();
         }
     }
 
     private static string? ProjectSettingsDirectory() {
-        string root = NativeApi.ReadProjectRoot();
+        string root = NativeAPI.ReadProjectRoot();
         if (string.IsNullOrEmpty(root)) {
             return null;
         }
@@ -397,7 +397,7 @@ public static class InputActions {
     }
 
     private static string? UserSettingsDirectory() {
-        string root = NativeApi.ReadUserSettingsRoot();
+        string root = NativeAPI.ReadUserSettingsRoot();
         if (string.IsNullOrEmpty(root)) {
             return null;
         }
@@ -421,7 +421,7 @@ public static class InputActions {
             if (!nameToIndex.ContainsKey(actions[i].name)) {
                 nameToIndex[actions[i].name] = i;
             } else {
-                NativeApi.WriteLog(1, $"[InputActions] duplicate action name ignored: {actions[i].name}");
+                NativeAPI.WriteLog(1, $"[InputActions] duplicate action name ignored: {actions[i].name}");
             }
         }
     }
@@ -454,7 +454,7 @@ public static class InputActions {
         }
         catch (Exception e) {
             // parse 失敗は crash させず、空のまま続行（last-known-good を壊さない）
-            NativeApi.WriteLog(2, $"[InputActions] parse failed: {path}\n{e}");
+            NativeAPI.WriteLog(2, $"[InputActions] parse failed: {path}\n{e}");
         }
     }
 
@@ -501,7 +501,7 @@ public static class InputActions {
             binding.b = ParsePath(Str(b, "y"), actionName);
             break;
         default:
-            NativeApi.WriteLog(1, $"[InputActions] unknown binding kind '{kind}' in action '{actionName}'");
+            NativeAPI.WriteLog(1, $"[InputActions] unknown binding kind '{kind}' in action '{actionName}'");
             return null;
         }
         return binding;
@@ -542,7 +542,7 @@ public static class InputActions {
     }
 
     private static ResolvedInput Invalid(string path, string actionName) {
-        NativeApi.WriteLog(1, $"[InputActions] invalid binding path '{path}' in action '{actionName}'");
+        NativeAPI.WriteLog(1, $"[InputActions] invalid binding path '{path}' in action '{actionName}'");
         return new ResolvedInput(InputDeviceKind.Keyboard, -1);
     }
 
@@ -609,7 +609,7 @@ public static class InputActions {
     internal static void ResetForReload() {
         lock (gate) {
             loaded = false;
-            stringIdCache.Clear();
+            stringIDCache.Clear();
             BlockGameplayInput = false;
         }
     }

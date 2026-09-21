@@ -102,6 +102,13 @@ public sealed class StageManager : ScriptBehaviour {
 			++failures;
 			Console.Error.WriteLine($"[FAIL] runtime Inspector: {ex}");
 		}
+		try {
+			TestStableIdentifiers();
+			Console.WriteLine("[PASS] explicit script and field IDs preserve manifest and schema keys.");
+		} catch (Exception ex) {
+			++failures;
+			Console.Error.WriteLine($"[FAIL] stable identifiers: {ex}");
+		}
 
 		// good: NEMSC 診断 0 件
 		ImmutableArray<Diagnostic> goodDiags = Analyze(GoodFixture);
@@ -118,17 +125,17 @@ public sealed class StageManager : ScriptBehaviour {
 
 		// bad: NEMSC001-006 が全て出る
 		ImmutableArray<Diagnostic> badDiags = Analyze(BadFixture);
-		var badIds = badDiags.Where(d => d.Id.StartsWith("NEMSC", StringComparison.Ordinal))
+		var badIDs = badDiags.Where(d => d.Id.StartsWith("NEMSC", StringComparison.Ordinal))
 			.Select(d => d.Id).ToHashSet(StringComparer.Ordinal);
 		string[] expected = { "NEMSC001", "NEMSC002", "NEMSC003", "NEMSC004", "NEMSC005", "NEMSC006" };
 		foreach (string id in expected) {
-			if (!badIds.Contains(id)) {
+			if (!badIDs.Contains(id)) {
 				++failures;
 				Console.Error.WriteLine($"[FAIL] bad fixture missing expected diagnostic {id}.");
 			}
 		}
 		if (failures == 0) {
-			Console.WriteLine($"[PASS] bad fixture: all of {string.Join(",", expected)} present (got {badIds.Count} NEMSC ids).");
+			Console.WriteLine($"[PASS] bad fixture: all of {string.Join(",", expected)} present (got {badIDs.Count} NEMSC ids).");
 		}
 
 		// compile error が混ざっていないことも確認（fixture 自体が壊れていないか）
@@ -200,6 +207,11 @@ public static unsafe class RuntimeTest {
     }
 
     public static void Run() {
+        var initialize = (delegate* unmanaged[Cdecl]<NativeAPITable*, int>)
+            typeof(HostBridge).GetMethod("InitializeNativeAPI")!.MethodHandle.GetFunctionPointer();
+        Check(initialize(null) == (int)ManagedStatus.InvalidArgument);
+        NativeAPITable invalidCallbacks = default;
+        Check(initialize(&invalidCallbacks) == (int)ManagedStatus.AbiMismatch);
         var fixture = new RuntimeFixture();
         Type entryType = typeof(HostBridge).GetNestedType("ScriptTypeEntry", BindingFlags.NonPublic)!;
         object entry = Activator.CreateInstance(entryType, true)!;
@@ -263,6 +275,42 @@ public static unsafe class RuntimeTest {
 		}
 		var assembly = System.Reflection.Assembly.Load(stream.ToArray());
 		assembly.GetType("RuntimeTest")!.GetMethod("Run")!.Invoke(null, null);
+	}
+
+	// 明示IDが生成結果へ引き継がれ保存キーも維持されることを確認する
+	private static void TestStableIdentifiers() {
+
+		const string source = """
+using NEMEngine;
+[ScriptTypeID("12345678-1234-1234-1234-123456789abc")]
+public sealed class StableIdentifierFixture : ScriptBehaviour {
+    [SerializeField, SerializedFieldID("abcdef01-1234-1234-1234-123456789abc")]
+    public float speed = 2.0f;
+}
+""";
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(
+			new ScriptManifestGenerator().AsSourceGenerator(), new ScriptSchemaGenerator().AsSourceGenerator());
+		driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out Compilation output, out _);
+		using var stream = new MemoryStream();
+		var result = output.Emit(stream);
+		if (!result.Success || driver.GetRunResult().Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error)) {
+			throw new InvalidOperationException(string.Join(Environment.NewLine, result.Diagnostics));
+		}
+		var assembly = System.Reflection.Assembly.Load(stream.ToArray());
+		var descriptors = (NEMEngine.ScriptTypeDescriptor[])assembly.GetType("NEMEngine.GeneratedScriptManifest")!
+			.GetMethod("GetDescriptors")!.Invoke(null, null)!;
+		string json = (string)assembly.GetType("NEMEngine.GeneratedScriptSchema")!
+			.GetMethod("GetSchemaJson")!.Invoke(null, null)!;
+		using var document = System.Text.Json.JsonDocument.Parse(json);
+		var script = document.RootElement.GetProperty("scripts")[0];
+		var field = script.GetProperty("fields")[0];
+		if (descriptors.Length != 1 || !descriptors[0].HasExplicitID ||
+			descriptors[0].ScriptTypeID != "12345678-1234-1234-1234-123456789abc" ||
+			script.GetProperty("scriptTypeId").GetString() != descriptors[0].ScriptTypeID ||
+			field.GetProperty("fieldId").GetString() != "abcdef01-1234-1234-1234-123456789abc" ||
+			field.GetProperty("name").GetString() != "speed") {
+			throw new InvalidOperationException("Stable identifiers or serialized keys changed");
+		}
 	}
 
 	// fixture source を compile し、analyzer 診断 + compile 診断を返す

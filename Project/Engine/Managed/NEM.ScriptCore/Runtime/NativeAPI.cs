@@ -15,7 +15,7 @@ internal static class ManagedAbi {
     // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
     // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, Entity生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
     // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
-    // v9: GetComponent<Script> 用に entity の script instance を scriptTypeId で引く getScriptInstance を追加
+    // v9: GetComponent<Script> 用に entity の script instance を scriptTypeID で引く getScriptInstance を追加
     // v10: Scene 単一load用の loadSceneSingle を追加
     // v11: EntityRef を runtime entity へ解決する resolveEntityRef を追加
     // v12: ライン描画の lineSetPoints と即時描画の lineDrawImmediate lineDrawSphereImmediate を追加
@@ -295,7 +295,7 @@ public struct NativeLineShape {
     public NativeColor4 color;
 }
 
-internal static unsafe class NativeApi {
+internal static unsafe class NativeAPI {
 
     private const int NameBufferSize = 256;
 
@@ -390,7 +390,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioUnPause;
     // Diagnostics(v8): script callback 例外の構造化報告
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
-    // v11: EntityRef(sourceAsset, localFileId) を runtime entity へ解決する
+    // v11: EntityRef(sourceAsset, localFileID) を runtime entity へ解決する
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity> ResolveEntityRef;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> LineSetPoints;
     internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, AssetGUID, void> LineDrawImmediate;
@@ -487,7 +487,7 @@ internal static unsafe class NativeApi {
     internal static delegate* unmanaged[Cdecl]<ulong, void> EndScriptSample;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> DontDestroyOnLoad;
 
-    internal static void SetCallbacks(NativeApiTable* callbacks) {
+    internal static void SetCallbacks(NativeAPITable* callbacks) {
         BeginScriptSample = callbacks->beginScriptSample;
         EndScriptSample = callbacks->endScriptSample;
         DontDestroyOnLoad = callbacks->dontDestroyOnLoad;
@@ -993,37 +993,37 @@ internal static unsafe class NativeApi {
 	}
 
     // Collision形状操作のマネージドラッパー、未登録時は安全な既定値を返す
-    internal static int CollisionGetShapeInt(NativeEntity entity, int propertyId) {
+    internal static int CollisionGetShapeInt(NativeEntity entity, int propertyID) {
         int v = 0;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyId, &v, 4); }
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 4); }
         return v;
     }
-    internal static void CollisionSetShapeInt(NativeEntity entity, int propertyId, int value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyId, &value, 4); }
+    internal static void CollisionSetShapeInt(NativeEntity entity, int propertyID, int value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 4); }
     }
-    internal static float CollisionGetShapeFloat(NativeEntity entity, int propertyId) {
+    internal static float CollisionGetShapeFloat(NativeEntity entity, int propertyID) {
         float v = 0.0f;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyId, &v, 4); }
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 4); }
         return v;
     }
-    internal static void CollisionSetShapeFloat(NativeEntity entity, int propertyId, float value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyId, &value, 4); }
+    internal static void CollisionSetShapeFloat(NativeEntity entity, int propertyID, float value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 4); }
     }
-    internal static Vector2 CollisionGetShapeVector2(NativeEntity entity, int propertyId) {
+    internal static Vector2 CollisionGetShapeVector2(NativeEntity entity, int propertyID) {
         Vector2 v = default;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyId, &v, 8); }
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 8); }
         return v;
     }
-    internal static void CollisionSetShapeVector2(NativeEntity entity, int propertyId, Vector2 value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyId, &value, 8); }
+    internal static void CollisionSetShapeVector2(NativeEntity entity, int propertyID, Vector2 value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 8); }
     }
-    internal static Vector3 CollisionGetShapeVector3(NativeEntity entity, int propertyId) {
+    internal static Vector3 CollisionGetShapeVector3(NativeEntity entity, int propertyID) {
         Vector3 v = default;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyId, &v, 12); }
+        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 12); }
         return v;
     }
-    internal static void CollisionSetShapeVector3(NativeEntity entity, int propertyId, Vector3 value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyId, &value, 12); }
+    internal static void CollisionSetShapeVector3(NativeEntity entity, int propertyID, Vector3 value) {
+        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 12); }
     }
 
     // 指定クリップ名のアニメーション合計長を返す、未登録や未ロードは0
@@ -1132,19 +1132,19 @@ internal static unsafe class NativeApi {
         return GetLossyScale != null ? GetLossyScale(entity).ToVector3() : Vector3.one;
     }
 
-    internal static bool ReadHasComponent(NativeEntity entity, int typeId) {
-        return HasComponent != null && typeId >= 0 && HasComponent(entity, typeId) != 0;
+    internal static bool ReadHasComponent(NativeEntity entity, int typeID) {
+        return HasComponent != null && typeID >= 0 && HasComponent(entity, typeID) != 0;
     }
 
-    internal static void EnqueueAddComponent(NativeEntity entity, int typeId) {
-        if (AddComponent != null && typeId >= 0) {
-            AddComponent(entity, typeId);
+    internal static void EnqueueAddComponent(NativeEntity entity, int typeID) {
+        if (AddComponent != null && typeID >= 0) {
+            AddComponent(entity, typeID);
         }
     }
 
-    internal static void EnqueueRemoveComponent(NativeEntity entity, int typeId) {
-        if (RemoveComponent != null && typeId >= 0) {
-            RemoveComponent(entity, typeId);
+    internal static void EnqueueRemoveComponent(NativeEntity entity, int typeID) {
+        if (RemoveComponent != null && typeID >= 0) {
+            RemoveComponent(entity, typeID);
         }
     }
 
@@ -1202,29 +1202,29 @@ internal static unsafe class NativeApi {
     }
 
     internal static int ReadDynamicBufferLength(
-        NativeEntity entity, int typeId, int elementSize) {
+        NativeEntity entity, int typeID, int elementSize) {
 
         return DynamicBufferLength != null ?
-            DynamicBufferLength(entity, typeId, elementSize) : -1;
+            DynamicBufferLength(entity, typeID, elementSize) : -1;
     }
 
     internal static int CopyDynamicBuffer(
-        NativeEntity entity, int typeId, int elementSize,
+        NativeEntity entity, int typeID, int elementSize,
         int startIndex, void* destination, int capacity) {
 
         return DynamicBufferCopy != null ?
             DynamicBufferCopy(
-                entity, typeId, elementSize,
+                entity, typeID, elementSize,
                 startIndex, destination, capacity) : -1;
     }
 
     internal static bool MutateDynamicBuffer(
-        NativeEntity entity, int typeId, int elementSize,
+        NativeEntity entity, int typeID, int elementSize,
         int operation, int index, void* data, int count) {
 
         return DynamicBufferMutate != null &&
             DynamicBufferMutate(
-                entity, typeId, elementSize,
+                entity, typeID, elementSize,
                 operation, index, data, count) != 0;
     }
 
@@ -1235,35 +1235,35 @@ internal static unsafe class NativeApi {
     }
 
     // -1 = 未解決（record 無し）/ 0 / 1
-    internal static int ReadScriptEnabled(NativeEntity owner, ulong scriptSlotId) {
-        return GetScriptEnabled != null ? GetScriptEnabled(owner, scriptSlotId) : -1;
+    internal static int ReadScriptEnabled(NativeEntity owner, ulong scriptSlotID) {
+        return GetScriptEnabled != null ? GetScriptEnabled(owner, scriptSlotID) : -1;
     }
 
-    internal static void WriteScriptEnabled(NativeEntity owner, ulong scriptSlotId, bool enabled) {
+    internal static void WriteScriptEnabled(NativeEntity owner, ulong scriptSlotID, bool enabled) {
         if (SetScriptEnabled != null) {
-            SetScriptEnabled(owner, scriptSlotId, enabled ? 1 : 0);
+            SetScriptEnabled(owner, scriptSlotID, enabled ? 1 : 0);
         }
     }
 
-    // entity 上で scriptTypeId 一致の script instance ハンドルを引く。未解決は Null
-    internal static NativeScriptInstanceHandle FindScriptInstance(NativeEntity owner, string scriptTypeId) {
-        if (GetScriptInstance == null || string.IsNullOrEmpty(scriptTypeId)) {
+    // entity 上で scriptTypeID 一致の script instance ハンドルを引く。未解決は Null
+    internal static NativeScriptInstanceHandle FindScriptInstance(NativeEntity owner, string scriptTypeID) {
+        if (GetScriptInstance == null || string.IsNullOrEmpty(scriptTypeID)) {
             return NativeScriptInstanceHandle.Null;
         }
-        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeId) + 1];
-        Encoding.UTF8.GetBytes(scriptTypeId, 0, scriptTypeId.Length, bytes, 0);
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeID) + 1];
+        Encoding.UTF8.GetBytes(scriptTypeID, 0, scriptTypeID.Length, bytes, 0);
         fixed (byte* ptr = bytes) {
             return GetScriptInstance(owner, ptr);
         }
     }
 
-    // entity へ scriptTypeId の script を runtime attach する。生成成否を返す
-    internal static bool TryAttachScript(NativeEntity owner, string scriptTypeId) {
-        if (AttachScript == null || string.IsNullOrEmpty(scriptTypeId)) {
+    // entity へ scriptTypeID の script を runtime attach する。生成成否を返す
+    internal static bool TryAttachScript(NativeEntity owner, string scriptTypeID) {
+        if (AttachScript == null || string.IsNullOrEmpty(scriptTypeID)) {
             return false;
         }
-        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeId) + 1];
-        Encoding.UTF8.GetBytes(scriptTypeId, 0, scriptTypeId.Length, bytes, 0);
+        byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeID) + 1];
+        Encoding.UTF8.GetBytes(scriptTypeID, 0, scriptTypeID.Length, bytes, 0);
         fixed (byte* ptr = bytes) {
             return AttachScript(owner, ptr) != 0;
         }
@@ -1274,45 +1274,45 @@ internal static unsafe class NativeApi {
     //========================================================================
 
     // POD property を outValue へ取得する。失敗時は outValue を変更しない
-    internal static void ComponentGet(NativeEntity entity, int typeId, int propertyId, void* outValue, int valueSize) {
+    internal static void ComponentGet(NativeEntity entity, int typeID, int propertyID, void* outValue, int valueSize) {
         if (GetComponentProperty != null) {
-            GetComponentProperty(entity, typeId, propertyId, outValue, valueSize);
+            GetComponentProperty(entity, typeID, propertyID, outValue, valueSize);
         }
     }
 
-    internal static void ComponentSet(NativeEntity entity, int typeId, int propertyId, void* value, int valueSize) {
+    internal static void ComponentSet(NativeEntity entity, int typeID, int propertyID, void* value, int valueSize) {
         if (SetComponentProperty != null) {
-            SetComponentProperty(entity, typeId, propertyId, value, valueSize);
+            SetComponentProperty(entity, typeID, propertyID, value, valueSize);
         }
     }
 
     // string property を length query + buffer で取得する（固定長 buffer を使わない）
-    internal static string ComponentGetString(NativeEntity entity, int typeId, int propertyId) {
+    internal static string ComponentGetString(NativeEntity entity, int typeID, int propertyID) {
         if (GetComponentStringProperty == null) {
             return string.Empty;
         }
         // まず必要 byte 数を問い合わせる（buffer=null, capacity=0 → written に必要量）
         int needed = 0;
-        GetComponentStringProperty(entity, typeId, propertyId, null, 0, &needed);
+        GetComponentStringProperty(entity, typeID, propertyID, null, 0, &needed);
         if (needed <= 0) {
             return string.Empty;
         }
         byte[] bytes = new byte[needed];
         int written = 0;
         fixed (byte* ptr = bytes) {
-            GetComponentStringProperty(entity, typeId, propertyId, ptr, needed, &written);
+            GetComponentStringProperty(entity, typeID, propertyID, ptr, needed, &written);
         }
         return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
     }
 
-    internal static void ComponentSetString(NativeEntity entity, int typeId, int propertyId, string value) {
+    internal static void ComponentSetString(NativeEntity entity, int typeID, int propertyID, string value) {
         if (SetComponentStringProperty == null) {
             return;
         }
         string safe = value ?? string.Empty;
         byte[] bytes = Encoding.UTF8.GetBytes(safe);
         fixed (byte* ptr = bytes) {
-            SetComponentStringProperty(entity, typeId, propertyId, ptr, bytes.Length);
+            SetComponentStringProperty(entity, typeID, propertyID, ptr, bytes.Length);
         }
     }
 
@@ -1327,8 +1327,8 @@ internal static unsafe class NativeApi {
     internal static void WriteTimeScale(float value) { if (SetTimeScale != null) { SetTimeScale(value); } }
     internal static ulong ReadFrameCount() => GetFrameCount != null ? GetFrameCount() : 0ul;
 
-    internal static bool ReadAssetExists(AssetGUID assetId) =>
-        AssetExists != null && AssetExists(assetId) != 0;
+    internal static bool ReadAssetExists(AssetGUID assetID) =>
+        AssetExists != null && AssetExists(assetID) != 0;
 
     //========================================================================
     //	gameplay structural helpers（Entity 生成 / Prefab / Scene / 親子）
@@ -1345,17 +1345,17 @@ internal static unsafe class NativeApi {
     }
 
     // 子階層とcomponentとscriptを実体化したPrefabのルートEntityを返す。
-    internal static Entity SpawnPrefab(AssetGUID prefabAssetId, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
+    internal static Entity SpawnPrefab(AssetGUID prefabAssetID, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
         if (InstantiatePrefab == null) {
             return Entity.nullEntity;
         }
-        return new Entity(InstantiatePrefab(prefabAssetId, NativeVector3.From(position),
+        return new Entity(InstantiatePrefab(prefabAssetID, NativeVector3.From(position),
             NativeQuaternion.From(rotation), useTransform ? 1 : 0, parent.native));
     }
 
     // EntityRefをruntime entityへ解決する、未解決はnull。結果はスクリプト側でキャッシュ推奨
-    internal static Entity ResolveEntityReference(AssetGUID sourceAsset, ulong localFileId)
-        => (ResolveEntityRef != null && localFileId != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileId)) : Entity.nullEntity;
+    internal static Entity ResolveEntityReference(AssetGUID sourceAsset, ulong localFileID)
+        => (ResolveEntityRef != null && localFileID != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileID)) : Entity.nullEntity;
 
     // レイキャストの最近ヒットを取得する、ヒット無しはfalse
     internal static bool RaycastClosest(Vector3 origin, Vector3 direction, float maxDistance,
@@ -1450,10 +1450,10 @@ internal static unsafe class NativeApi {
             return EntityRef.Null;
         }
         AssetGUID sourceAsset = AssetGUID.None;
-        ulong localFileId = 0;
+        ulong localFileID = 0;
         int kind = 0;
-        GetEntityReferenceIdentity(entity, &sourceAsset, &localFileId, &kind);
-        return new EntityRef((EntityRefKind)kind, sourceAsset, new UUID(localFileId));
+        GetEntityReferenceIdentity(entity, &sourceAsset, &localFileID, &kind);
+        return new EntityRef((EntityRefKind)kind, sourceAsset, new UUID(localFileID));
     }
 
     // LineRendererComponent の点列を差し替える、count0でクリア
@@ -1615,11 +1615,11 @@ internal static unsafe class NativeApi {
         LineDrawShape(&shape);
     }
 
-    internal static ulong SceneLoadAdditive(AssetGUID sceneAssetId) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetId) : 0ul;
-    internal static ulong SceneLoadSingle(AssetGUID sceneAssetId) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetId) : 0ul;
+    internal static ulong SceneLoadAdditive(AssetGUID sceneAssetID) => LoadSceneAdditive != null ? LoadSceneAdditive(sceneAssetID) : 0ul;
+    internal static ulong SceneLoadSingle(AssetGUID sceneAssetID) => LoadSceneSingle != null ? LoadSceneSingle(sceneAssetID) : 0ul;
     internal static ulong SceneReloadActive() => ReloadActiveScene != null ? ReloadActiveScene() : 0ul;
-    internal static void SceneUnload(ulong sceneInstanceId) { if (UnloadScene != null) { UnloadScene(sceneInstanceId); } }
-    internal static bool SceneInstanceAlive(ulong sceneInstanceId) => IsSceneInstanceAlive != null && IsSceneInstanceAlive(sceneInstanceId) != 0;
+    internal static void SceneUnload(ulong sceneInstanceID) { if (UnloadScene != null) { UnloadScene(sceneInstanceID); } }
+    internal static bool SceneInstanceAlive(ulong sceneInstanceID) => IsSceneInstanceAlive != null && IsSceneInstanceAlive(sceneInstanceID) != 0;
     internal static void ReparentKeepWorld(NativeEntity child, NativeEntity parent, bool worldPositionStays) {
         if (SetParentKeepWorld != null) { SetParentKeepWorld(child, parent, worldPositionStays ? 1 : 0); }
     }
@@ -1699,17 +1699,17 @@ internal static unsafe class NativeApi {
     }
 
     // asset 表示名を可変長で取得する（固定 buffer で truncate しない）。length query → caller buffer。
-    internal static string ReadAssetDisplayName(AssetGUID assetId) {
-        if (CopyAssetDisplayName == null || !assetId.isValid) {
+    internal static string ReadAssetDisplayName(AssetGUID assetID) {
+        if (CopyAssetDisplayName == null || !assetID.isValid) {
             return string.Empty;
         }
-        int needed = CopyAssetDisplayName(assetId, null, 0);
+        int needed = CopyAssetDisplayName(assetID, null, 0);
         if (needed <= 0) {
             return string.Empty;
         }
         byte[] bytes = new byte[needed + 1];
         fixed (byte* ptr = bytes) {
-            int written = CopyAssetDisplayName(assetId, ptr, needed + 1);
+            int written = CopyAssetDisplayName(assetID, ptr, needed + 1);
             return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
         }
     }
@@ -1793,24 +1793,24 @@ internal static unsafe class NativeApi {
         }
     }
 
-    internal static Entity FindByComponent(int typeId) {
-        if (FindEntityByComponent == null || typeId < 0) {
+    internal static Entity FindByComponent(int typeID) {
+        if (FindEntityByComponent == null || typeID < 0) {
             return Entity.nullEntity;
         }
-        return new Entity(FindEntityByComponent(typeId));
+        return new Entity(FindEntityByComponent(typeID));
     }
 
-    internal static Entity[] FindManyByComponent(int typeId) {
-        if (FindEntitiesByComponent == null || typeId < 0) {
+    internal static Entity[] FindManyByComponent(int typeID) {
+        if (FindEntitiesByComponent == null || typeID < 0) {
             return System.Array.Empty<Entity>();
         }
-        int count = FindEntitiesByComponent(typeId, null, 0);
+        int count = FindEntitiesByComponent(typeID, null, 0);
         if (count <= 0) {
             return System.Array.Empty<Entity>();
         }
         var buffer = new NativeEntity[count];
         fixed (NativeEntity* bp = buffer) {
-            int written = FindEntitiesByComponent(typeId, bp, count);
+            int written = FindEntitiesByComponent(typeID, bp, count);
             return MakeEntityArray(buffer, written < count ? written : count);
         }
     }

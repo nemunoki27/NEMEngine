@@ -569,7 +569,6 @@ Engine::ECSWorld::CloneForSerialization() const {
 	for (const auto& [sourceSignature,
 		sourceArchetypeOwner] : archetypes_) {
 
-		(void)sourceSignature;
 		const EntityArchetype& sourceArchetype =
 			*sourceArchetypeOwner;
 		EntitySignature signature{};

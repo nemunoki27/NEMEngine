@@ -156,15 +156,12 @@ namespace Engine {
 		// シェーダーのリフレクション情報
 		ShaderReflectionInfo reflection;
 
-		bool IsValid() const noexcept {
-			return object || !bytecode.empty();
-		}
-		const void* GetBytecodePointer() const noexcept {
-			return object ? object->GetBufferPointer() : bytecode.data();
-		}
-		size_t GetBytecodeSize() const noexcept {
-			return object ? object->GetBufferSize() : bytecode.size();
-		}
+		// 使用できるバイナリを保持しているか
+		bool IsValid() const noexcept;
+		// コンパイル結果を優先してバイナリの先頭を取得する
+		const void* GetBytecodePointer() const noexcept;
+		// コンパイル結果を優先してバイナリのサイズを取得する
+		size_t GetBytecodeSize() const noexcept;
 	};
 
 	// reflectionから指定名の定数バッファを探す、無ければnullptr

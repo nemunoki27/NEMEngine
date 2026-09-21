@@ -24,10 +24,8 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-
-// windows
-#include <windows.h>
-#include <shellapi.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 // c++
 #include <algorithm>
@@ -44,8 +42,8 @@
 #include <system_error>
 #include <vector>
 
-#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
-#include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
+#include <windows.h>
+#include <shellapi.h>
 
 //============================================================================
 //	ProjectPanel modelPreview classMethods

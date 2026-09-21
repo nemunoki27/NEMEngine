@@ -13,26 +13,22 @@
 
 namespace Engine {
 
-	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, std::string_view label)
+	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, [[maybe_unused]] std::string_view label)
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
 			const std::string text(label);
 			PIXBeginEvent(commandList_, PIX_COLOR_DEFAULT, "%s", text.c_str());
 		}
-#else
-		(void)label;
 #endif
 	}
 
-	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, const wchar_t* label)
+	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, [[maybe_unused]] const wchar_t* label)
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
 			PIXBeginEvent(commandList_, PIX_COLOR_DEFAULT, L"%ls", label);
 		}
-#else
-		(void)label;
 #endif
 	}
 

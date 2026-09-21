@@ -15,16 +15,16 @@ public readonly struct RenderFeaturePass {
     }
 
     // Profile切替後の古いハンドルを含めて現在操作可能な場合にtrueを返す
-    public bool isValid => NativeApi.ValidateRenderFeaturePassValue(
+    public bool isValid => NativeAPI.ValidateRenderFeaturePassValue(
         passID, generation);
 
     public bool SetEnabled(bool enabled) =>
-        NativeApi.WriteRenderFeaturePassEnabled(
+        NativeAPI.WriteRenderFeaturePassEnabled(
             passID, generation, enabled);
 
     // 同じ実行位置のSceneColor出力をこのパスへ切り替える
     public bool SetSceneColorOutput(bool enabled) =>
-        NativeApi.WriteRenderFeaturePassSceneColorOutput(passID, generation, enabled);
+        NativeAPI.WriteRenderFeaturePassSceneColorOutput(passID, generation, enabled);
 
     public bool SetFloat(string name, float value) =>
         SetFloat(MaterialParameterID.FromName(name), name, value);
@@ -91,7 +91,7 @@ public readonly struct RenderFeaturePass {
     public bool SetTexture(
         MaterialParameterID id, string name, Texture? value) =>
         Set(id, name, new NativeMaterialParameterValue {
-            assetID = value?.assetId ?? AssetGUID.None,
+            assetID = value?.assetID ?? AssetGUID.None,
             type = NativeMaterialParameterValueType.Texture
         });
 
@@ -207,25 +207,25 @@ public readonly struct RenderFeaturePass {
         ClearParameter(MaterialParameterID.FromName(name));
 
     public bool ClearParameter(MaterialParameterID id) =>
-        NativeApi.ClearRenderFeaturePassParameterValue(
+        NativeAPI.ClearRenderFeaturePassParameterValue(
             passID, generation, id.value);
 
     public bool Reset() =>
-        NativeApi.ResetRenderFeaturePassValue(passID, generation);
+        NativeAPI.ResetRenderFeaturePassValue(passID, generation);
 
     private bool Set(
         MaterialParameterID id, string name,
         NativeMaterialParameterValue value) {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
-        return NativeApi.WriteRenderFeaturePassParameter(
+        return NativeAPI.WriteRenderFeaturePassParameter(
             passID, generation, id.value, name, value);
     }
 
     private bool TryGet(
         MaterialParameterID id,
         out NativeMaterialParameterValue value) =>
-        NativeApi.ReadRenderFeaturePassParameter(
+        NativeAPI.ReadRenderFeaturePassParameter(
             passID, generation, id.value, out value);
 }
 
@@ -237,16 +237,16 @@ public static class RenderFeatures {
 
     // GPUがDXRをサポートしている場合にtrueを返す
     public static bool IsRayTracingSupported =>
-        NativeApi.ReadRayTracingSupported();
+        NativeAPI.ReadRayTracingSupported();
 
     // グラフィック設定を含めDispatchRaysが現在使用可能な場合にtrueを返す
     public static bool IsRayTracingActive =>
-        NativeApi.ReadRayTracingActive();
+        NativeAPI.ReadRayTracingActive();
 
     // Profile内の表示名からPassハンドルを取得する
     public static RenderFeaturePass FindPass(string passName) {
         ArgumentException.ThrowIfNullOrEmpty(passName);
-        return NativeApi.ResolveRenderFeaturePassValue(
+        return NativeAPI.ResolveRenderFeaturePassValue(
             passName, out ulong passID, out ulong generation)
             ? new RenderFeaturePass(passID, generation)
             : default;
@@ -260,7 +260,7 @@ public static class RenderFeatures {
 
     // Profile内の表示名と一致するグループの有効状態を変更する
     public static bool SetGroupEnabled(string groupName, bool enabled) =>
-        NativeApi.WriteRenderFeatureGroupEnabled(groupName, enabled);
+        NativeAPI.WriteRenderFeatureGroupEnabled(groupName, enabled);
 
     public static bool SetFloat(string passName, string name, float value) =>
         FindPass(passName).SetFloat(name, value);
@@ -336,5 +336,5 @@ public static class RenderFeatures {
 
     // 全Passの実行時変更をProfileの保存値へ戻す
     public static void ResetAll() =>
-        NativeApi.ResetAllRenderFeatureOverrides();
+        NativeAPI.ResetAllRenderFeatureOverrides();
 }

@@ -43,7 +43,7 @@ public abstract class Component : Object {
 internal static class ComponentKind<T> where T : Component {
 
     internal static readonly bool isScript = typeof(ScriptBehaviour).IsAssignableFrom(typeof(T));
-    internal static readonly int typeId = isScript ? -1 : GeneratedComponentTypeMap.GetTypeID<T>();
+    internal static readonly int typeID = isScript ? -1 : GeneratedComponentTypeMap.GetTypeID<T>();
 
     // owner Entityからwrapperを生成する。FromEntityを持たない型はnull
     internal static T? CreateWrapper(Entity entity) =>

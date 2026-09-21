@@ -74,7 +74,7 @@ Check "build recovers after fixing source" ($LASTEXITCODE -eq 0)
 # --- 3. generator verify + selftest ---
 dotnet run --project $gen -c Release -- --verify `
     --manifest (Join-Path $bindings "ComponentManifest.json") `
-    --abi (Join-Path $bindings "ManagedNativeApi.json") `
+    --abi (Join-Path $bindings "ManagedNativeAPI.json") `
     --out-native-dir (Join-Path $root "Project\Engine\Core\Scripting\Managed\Generated") `
     --out-cs-dir     (Join-Path $root "Project\Engine\Managed\NEM.ScriptCore\Generated") | Out-Null
 Check "generator --verify" ($LASTEXITCODE -eq 0)

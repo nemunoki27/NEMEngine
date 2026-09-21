@@ -33,13 +33,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		BuiltinRenderBackendBase() {
-
-			viewCBVSlot_ = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
-			shaderGraphTimeCBVSlot_ = perDrawBindCache_.AddSlot(
-				"ShaderGraphTimeConstants", ShaderBindingKind::CBV);
-			materialParamsCBVSlot_ = perDrawBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
-		}
+		BuiltinRenderBackendBase();
 		~BuiltinRenderBackendBase() override = default;
 
 		// 既定は基本条件でのバッチ判定、特殊なbackendだけoverrideする

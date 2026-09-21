@@ -376,10 +376,9 @@ void Engine::GameApplication::WarmupReleaseWorld(GraphicsCore& graphicsCore, ECS
 	graphicsCore.GetBufferUploadService().FlushAndWait();
 }
 
-void Engine::GameApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {
+void Engine::GameApplication::PreloadReleaseResources([[maybe_unused]] GraphicsCore& graphicsCore) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	(void)graphicsCore;
 	return;
 #else
 	const auto startTime = std::chrono::steady_clock::now();

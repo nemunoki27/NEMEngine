@@ -35,10 +35,7 @@ namespace Engine {
 		RenderFeatureOutputReference sceneColorOutput{};
 		std::string diagnostic{};
 
-		bool IsValid() const {
-
-			return diagnostic.empty();
-		}
+		bool IsValid() const { return diagnostic.empty(); }
 	};
 
 	// Profileを検証して実行順へ変換する
@@ -61,10 +58,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const RenderFeatureProfileAsset& GetProfile() const {
-
-			return profile_;
-		}
+		const RenderFeatureProfileAsset& GetProfile() const { return profile_; }
 		const std::string& GetDiagnostic() const { return diagnostic_; }
 
 	private:

@@ -12,11 +12,10 @@
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <algorithm>
+
+#include <imgui.h>
 
 namespace {
 

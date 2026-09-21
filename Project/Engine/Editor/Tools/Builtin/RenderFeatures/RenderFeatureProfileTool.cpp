@@ -15,12 +15,11 @@
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <algorithm>
 #include <filesystem>
+
+#include <imgui.h>
 
 namespace {
 

@@ -53,9 +53,7 @@ namespace std {
 
 	template<>
 	struct hash<Engine::UUID> {
-		size_t operator()(const Engine::UUID& id) const noexcept {
-			return std::hash<uint64_t>{}(id.value);
-		}
+		size_t operator()(const Engine::UUID& id) const noexcept { return std::hash<uint64_t>{}(id.value); }
 	};
 
 }

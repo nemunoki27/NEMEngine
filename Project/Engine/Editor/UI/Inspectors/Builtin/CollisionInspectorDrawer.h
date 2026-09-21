@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		CollisionInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Collision", "Collision") {
-		}
+		CollisionInspectorDrawer() : SerializedComponentInspectorDrawer("Collision", "Collision") {}
 		~CollisionInspectorDrawer() override = default;
 	private:
 		//============================================================================

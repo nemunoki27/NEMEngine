@@ -1066,7 +1066,7 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::CollisionGetShapePropertyCallback(ManagedNativeEntity entity,
-		int32_t propertyId, void* out, int32_t size) {
+		int32_t propertyID, void* out, int32_t size) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
@@ -1077,8 +1077,8 @@ namespace Engine {
 			return 0;
 		}
 
-		// propertyIdはC#側のCollisionShapeRefと対応する
-		switch (propertyId) {
+		// propertyIDはC#側のCollisionShapeRefと対応する
+		switch (propertyID) {
 		case 0: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = static_cast<int32_t>(shape->type); return 1;
 		case 1: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->enabled ? 1 : 0; return 1;
 		case 2: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->isTrigger ? 1 : 0; return 1;
@@ -1100,7 +1100,7 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::CollisionSetShapePropertyCallback(ManagedNativeEntity entity,
-		int32_t propertyId, const void* value, int32_t size) {
+		int32_t propertyID, const void* value, int32_t size) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		if (!world) {
@@ -1112,7 +1112,7 @@ namespace Engine {
 			return 0;
 		}
 
-		switch (propertyId) {
+		switch (propertyID) {
 		case 0:
 			if (size < 4) { return 0; }
 			shape->type = static_cast<ColliderShapeType>(

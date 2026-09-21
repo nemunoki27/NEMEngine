@@ -6,6 +6,24 @@
 using namespace Engine;
 
 //============================================================================
+//	CompiledShader classMethods
+//============================================================================
+bool Engine::CompiledShader::IsValid() const noexcept {
+
+	return object || !bytecode.empty();
+}
+
+const void* Engine::CompiledShader::GetBytecodePointer() const noexcept {
+
+	return object ? object->GetBufferPointer() : bytecode.data();
+}
+
+size_t Engine::CompiledShader::GetBytecodeSize() const noexcept {
+
+	return object ? object->GetBufferSize() : bytecode.size();
+}
+
+//============================================================================
 //	ShaderReflection internal
 //============================================================================
 namespace {

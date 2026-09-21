@@ -59,13 +59,12 @@ void Engine::ParticlePointEmitterShape::DrawShape(const ParticleEmitterSettings&
 #endif
 }
 
-bool Engine::ParticlePointEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
+bool Engine::ParticlePointEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
 #if defined(NEM_EDITOR_UI_ENABLED)
 
 	bool result = MyGUI::DragVector3("射出方向", settings.point.direction, ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;;
 	return result;
 #else
-	(void)settings;
 	return false;
 #endif
 }

@@ -5,11 +5,12 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <cstdint>
 #include <string_view>
+
+// directX
+#include <d3d12.h>
 
 //============================================================================
 //	DxUploadCommand class

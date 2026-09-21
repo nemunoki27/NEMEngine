@@ -25,11 +25,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		TextRenderBackend() {
-			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances",  ShaderBindingKind::SRV);
-			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances",  ShaderBindingKind::SRV);
-			atlasSRVSlot_  = perDrawBindCache_.AddSlot("gAtlas",        ShaderBindingKind::SRV);
-		}
+		TextRenderBackend();
 		~TextRenderBackend() override;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;

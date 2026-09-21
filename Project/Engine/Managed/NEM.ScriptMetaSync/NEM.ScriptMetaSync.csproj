@@ -4,7 +4,7 @@
     Editor が Edit モードで実行する script metadata 同期ツール。
     GameScripts の .cs を Roslyn(syntax) で解析し、concrete ScriptBehaviour 型と serialized field を検出して
     各 .cs.meta の "scripts" ブロックへ Stable ID(UUID v4) を採番・維持する。
-    通常開発では .cs へ [ScriptTypeId]/[SerializedFieldId] を手入力させないための機構。
+    通常開発では .cs へ [ScriptTypeID]/[SerializedFieldID] を手入力させないための機構。
     EditorSync: 不足を自動採番して .cs.meta を更新。ValidateOnly(CI): 不足を変更せず error 終了。
   -->
   <PropertyGroup>

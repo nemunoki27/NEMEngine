@@ -10,12 +10,11 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <algorithm>
 #include <string>
+
+#include <imgui.h>
 
 //============================================================================
 //	CameraControllerInspectorDrawer classMethods

@@ -52,16 +52,10 @@ namespace Engine {
 			const RayTracingExecutionResources& resources,
 			const RenderFeaturePassRuntimeOverride* runtimeOverride = nullptr);
 
-		void ClearParameterLayoutCache() {
-			parameterLayoutCache_.clear();
-			diagnostics_.clear();
-		}
+		void ClearParameterLayoutCache();
 
 		// 最後に実行したDXRシェーダーのReflectionを取得する
-		const ShaderReflectionInfo* GetLastReflection() const {
-
-			return lastReflection_;
-		}
+		const ShaderReflectionInfo* GetLastReflection() const { return lastReflection_; }
 
 	private:
 		//============================================================================

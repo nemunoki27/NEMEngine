@@ -281,3 +281,16 @@ Logger::ScopedOutput& Logger::ScopedOutput::operator=(ScopedOutput&& other) noex
 	other.active_ = false;
 	return *this;
 }
+
+//============================================================================
+//	Log classMethods
+//============================================================================
+
+namespace Engine {
+
+	std::shared_ptr<spdlog::logger>& Logger::Get(LogType type) {
+
+		const std::size_t index = static_cast<std::size_t>(type);
+		return index < loggers_.size() ? loggers_[index] : invalidLogger_;
+	}
+}

@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		AudioSourceInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Audio Source", "AudioSource") {
-		}
+		AudioSourceInspectorDrawer() : SerializedComponentInspectorDrawer("Audio Source", "AudioSource") {}
 		~AudioSourceInspectorDrawer() = default;
 	private:
 		//============================================================================

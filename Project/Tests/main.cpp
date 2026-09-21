@@ -148,7 +148,7 @@ namespace {
 
 	void RegisterTestComponents() {
 
-		static const bool registered = [] {
+		[[maybe_unused]] static const bool registered = [] {
 
 			Engine::ComponentTypeRegistry& registry =
 				Engine::ComponentTypeRegistry::GetInstance();
@@ -158,7 +158,6 @@ namespace {
 				registry.GetComponentTypeCount(), "TestBuffer");
 			return true;
 			}();
-		(void)registered;
 	}
 
 	bool TestAssetGUIDRoundTrip() {

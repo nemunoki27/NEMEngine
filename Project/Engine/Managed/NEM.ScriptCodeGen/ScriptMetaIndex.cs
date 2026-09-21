@@ -10,10 +10,10 @@ namespace NEM.ScriptCodeGen
     {
         private sealed class ScriptMeta
         {
-            public string ScriptTypeId = string.Empty;
+            public string ScriptTypeID = string.Empty;
             public List<string> FormerNames = new List<string>();
-            // 現在名と formerNames の両方を key にして fieldId を引けるようにする
-            public Dictionary<string, string> FieldIdByName = new Dictionary<string, string>(StringComparer.Ordinal);
+            // 現在名と formerNames の両方を key にして fieldID を引けるようにする
+            public Dictionary<string, string> FieldIDByName = new Dictionary<string, string>(StringComparer.Ordinal);
             public Dictionary<string, List<string>> FieldFormerNamesByName = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         }
 
@@ -32,10 +32,10 @@ namespace NEM.ScriptCodeGen
                 {
                     if (scriptObj is not Dictionary<string, object?> script) { continue; }
                     string fullName = AsString(script, "fullTypeName");
-                    string scriptId = AsString(script, "scriptTypeId");
-                    if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(scriptId)) { continue; }
+                    string scriptID = AsString(script, "scriptTypeId");
+                    if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(scriptID)) { continue; }
 
-                    var meta = new ScriptMeta { ScriptTypeId = scriptId };
+                    var meta = new ScriptMeta { ScriptTypeID = scriptID };
                     meta.FormerNames = AsStringList(script, "formerNames");
 
                     if (script.TryGetValue("fields", out object? fieldsObj) && fieldsObj is List<object?> fields)
@@ -44,16 +44,16 @@ namespace NEM.ScriptCodeGen
                         {
                             if (fieldObj is not Dictionary<string, object?> field) { continue; }
                             string name = AsString(field, "name");
-                            string fieldId = AsString(field, "fieldId");
-                            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fieldId)) { continue; }
+                            string fieldID = AsString(field, "fieldId");
+                            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(fieldID)) { continue; }
 
-                            meta.FieldIdByName[name] = fieldId;
+                            meta.FieldIDByName[name] = fieldID;
                             List<string> formers = AsStringList(field, "formerNames");
                             meta.FieldFormerNamesByName[name] = formers;
-                            // rename後も同じfieldIdを引けるようにする
+                            // rename後も同じfieldIDを引けるようにする
                             foreach (string former in formers)
                             {
-                                if (!meta.FieldIdByName.ContainsKey(former)) { meta.FieldIdByName[former] = fieldId; }
+                                if (!meta.FieldIDByName.ContainsKey(former)) { meta.FieldIDByName[former] = fieldID; }
                             }
                         }
                     }
@@ -63,14 +63,14 @@ namespace NEM.ScriptCodeGen
             return index;
         }
 
-        public bool TryGetScriptId(string fullTypeName, out string scriptTypeId)
+        public bool TryGetScriptID(string fullTypeName, out string scriptTypeID)
         {
             if (byFullName.TryGetValue(fullTypeName, out ScriptMeta? meta))
             {
-                scriptTypeId = meta.ScriptTypeId;
+                scriptTypeID = meta.ScriptTypeID;
                 return true;
             }
-            scriptTypeId = string.Empty;
+            scriptTypeID = string.Empty;
             return false;
         }
 
@@ -79,15 +79,15 @@ namespace NEM.ScriptCodeGen
             return byFullName.TryGetValue(fullTypeName, out ScriptMeta? meta) ? meta.FormerNames : new List<string>();
         }
 
-        public bool TryGetFieldId(string fullTypeName, string fieldName, out string fieldId)
+        public bool TryGetFieldID(string fullTypeName, string fieldName, out string fieldID)
         {
             if (byFullName.TryGetValue(fullTypeName, out ScriptMeta? meta) &&
-                meta.FieldIdByName.TryGetValue(fieldName, out string? id))
+                meta.FieldIDByName.TryGetValue(fieldName, out string? id))
             {
-                fieldId = id;
+                fieldID = id;
                 return true;
             }
-            fieldId = string.Empty;
+            fieldID = string.Empty;
             return false;
         }
 

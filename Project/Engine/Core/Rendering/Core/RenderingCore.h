@@ -71,9 +71,7 @@ namespace Engine {
 		const RenderTarget& GetBackBufferRenderTarget() const { return swapChain_->GetRenderTarget(); }
 		ID3D12Resource* GetBackBufferResource() const { return swapChain_->GetCurrentResource(); }
 		const DXGI_SWAP_CHAIN_DESC1& GetSwapChainDesc() const { return swapChain_->GetDesc(); }
-		const DisplayOutputSettings& GetDisplayOutputSettings() const {
-			return swapChain_->GetDisplayOutputSettings();
-		}
+		const DisplayOutputSettings& GetDisplayOutputSettings() const { return swapChain_->GetDisplayOutputSettings(); }
 
 		// フレームバッファのDSVを取得
 		const D3D12_CPU_DESCRIPTOR_HANDLE& GetFrameDepthHandle() const { return dsvDescriptor_->GetFrameCPUHandle(); }

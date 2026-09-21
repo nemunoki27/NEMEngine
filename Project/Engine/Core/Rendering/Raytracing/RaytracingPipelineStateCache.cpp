@@ -324,3 +324,19 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 		"[レイトレーシングパイプライン] ホットリロード用ビルドを開始しました");
 	return fallback;
 }
+
+//============================================================================
+//	RaytracingPipelineStateCache classMethods
+//============================================================================
+
+namespace Engine {
+
+	size_t RaytracingPipelineStateCache::RaytracingPipelineCacheKeyHash::operator()(const RaytracingPipelineCacheKey& key) const noexcept {
+
+		size_t hash = std::hash<AssetID>{}(key.pipelineAsset);
+		hash ^= std::hash<AssetID>{}(key.pipelineShaderAsset) << 1;
+		hash ^= std::hash<AssetID>{}(key.shaderOverrideAsset) << 2;
+		hash ^= std::hash<uint64_t>{}(key.samplerHash) << 3;
+		return hash;
+	}
+}

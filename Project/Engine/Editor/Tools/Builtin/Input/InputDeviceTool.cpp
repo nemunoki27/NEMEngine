@@ -6,12 +6,11 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
-// magic_enum
-#include <magic_enum.hpp>
-// imgui
-#include <imgui.h>
 // c++
 #include <array>
+
+#include <magic_enum.hpp>
+#include <imgui.h>
 
 //============================================================================
 //	InputDeviceTool helpers
@@ -43,10 +42,9 @@ namespace {
 //	InputDeviceTool classMethods
 //============================================================================
 
-void Engine::InputDeviceTool::Tick(ToolContext& context) {
+void Engine::InputDeviceTool::Tick([[maybe_unused]] ToolContext& context) {
 
 	// 入力更新自体はEngineFrameworkで毎フレーム行うためここでは何もしない
-	(void)context;
 }
 
 void Engine::InputDeviceTool::OpenEditorTool() {
@@ -54,9 +52,8 @@ void Engine::InputDeviceTool::OpenEditorTool() {
 	openWindow_ = true;
 }
 
-void Engine::InputDeviceTool::DrawEditorTool(const EditorToolContext& context) {
+void Engine::InputDeviceTool::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	(void)context;
 	if (openWindow_) {
 		DrawWindow();
 	}

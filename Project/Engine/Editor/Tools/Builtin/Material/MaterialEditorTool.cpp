@@ -14,14 +14,12 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
-// imgui
-#include <imgui.h>
-
 // c++
 #include <filesystem>
 #include <optional>
 #include <string>
-// json
+
+#include <imgui.h>
 #include <json.hpp>
 
 //============================================================================

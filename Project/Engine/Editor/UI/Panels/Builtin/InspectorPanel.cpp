@@ -60,6 +60,8 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/BuiltinComponentEditorRegistration.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 // c++
 #include <algorithm>
@@ -73,9 +75,6 @@
 #include <unordered_set>
 #include <vector>
 #include <span>
-
-#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
-#include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 //============================================================================
 //	InspectorPanel classMethods

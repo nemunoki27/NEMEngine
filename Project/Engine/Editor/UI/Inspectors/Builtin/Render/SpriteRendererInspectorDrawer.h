@@ -20,9 +20,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SpriteRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Sprite Renderer", "SpriteRenderer") {
-		}
+		SpriteRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Sprite Renderer", "SpriteRenderer") {}
 		~SpriteRendererInspectorDrawer() = default;
 	private:
 		//============================================================================

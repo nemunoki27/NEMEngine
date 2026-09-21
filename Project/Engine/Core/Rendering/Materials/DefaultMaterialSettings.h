@@ -38,9 +38,7 @@ namespace Engine {
 		AssetID GetLine() const { return line_; }
 		AssetID GetPrimitive() const { return primitive_; }
 		AssetID GetPrimitive2D() const { return primitive2D_; }
-		AssetID GetRaytracingReflection() const {
-			return raytracingReflection_;
-		}
+		AssetID GetRaytracingReflection() const { return raytracingReflection_; }
 
 		// 設定値の更新
 		void SetMesh(AssetID id) { mesh_ = id; }
@@ -49,9 +47,7 @@ namespace Engine {
 		void SetLine(AssetID id) { line_ = id; }
 		void SetPrimitive(AssetID id) { primitive_ = id; }
 		void SetPrimitive2D(AssetID id) { primitive2D_ = id; }
-		void SetRaytracingReflection(AssetID id) {
-			raytracingReflection_ = id;
-		}
+		void SetRaytracingReflection(AssetID id) { raytracingReflection_ = id; }
 
 		// 未設定ならbuiltinデフォルトへフォールバックした実効値を返す
 		AssetID GetMeshOrBuiltin() const;

@@ -46,11 +46,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		void SetSavePath(const std::string& savePath) {
-
-			savePath_ = savePath;
-			persistSettings_ = !savePath_.empty();
-		}
+		void SetSavePath(const std::string& savePath);
 
 		// ツール情報を取得する
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }

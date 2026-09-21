@@ -215,9 +215,7 @@ namespace Engine {
 		uint32_t index = 0xFFFFFFFF;
 		uint32_t generation = 0;
 
-		constexpr bool IsValid() const noexcept {
-			return index != 0xFFFFFFFFu && generation != 0;
-		}
+		constexpr bool IsValid() const noexcept { return index != 0xFFFFFFFFu && generation != 0; }
 	};
 
 	// managed script instanceを指す世代付きハンドルで、単純なint indexを境界で公開しない
@@ -239,9 +237,7 @@ namespace Engine {
 		uint32_t generation = 0;
 
 		// ECS Entityは初回世代0が有効なためworldとindexでNullを判定する
-		constexpr bool IsValid() const noexcept {
-			return world.IsValid() && index != 0xFFFFFFFFu;
-		}
+		constexpr bool IsValid() const noexcept { return world.IsValid() && index != 0xFFFFFFFFu; }
 	};
 
 	// C#と共有するVector3
@@ -446,7 +442,7 @@ namespace Engine {
 	};
 
 	// C#へ渡すネイティブAPI
-	struct ManagedNativeApiTable {
+	struct ManagedNativeAPITable {
 
 		// 互換性検証用ヘッダで必ず先頭に置く
 		ManagedAbiHeader header{};
@@ -491,7 +487,7 @@ namespace Engine {
 		using ResetRenderFeaturePassCallback = int32_t(__cdecl*)(
 			uint64_t, uint64_t);
 		using ResetRenderFeatureOverridesCallback = void(__cdecl*)();
-		// CollisionComponentの単一形状をpropIdで読み書きする
+		// CollisionComponentの単一形状をpropIDで読み書きする
 		using CollisionGetShapeCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t, void*, int32_t);
 		using CollisionSetShapeCallback = int32_t(__cdecl*)(
@@ -624,7 +620,7 @@ namespace Engine {
 		char fullTypeName[256]{};
 		char displayName[128]{};
 		char sourcePath[260]{};    // 定義元 .cs パスで drag&drop source 照合用
-		int32_t hasExplicitId = 0; // ScriptTypeId 属性が明示されていたか
+		int32_t hasExplicitID = 0; // ScriptTypeID 属性が明示されていたか
 		int32_t defaultExecutionOrder = 0; // DefaultExecutionOrder 属性の値で未指定は 0
 	};
 
@@ -636,7 +632,7 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedScriptInstanceHandle>);
 	static_assert(std::is_standard_layout_v<ManagedNativeEntity>);
 	static_assert(std::is_standard_layout_v<ManagedAbiHeader>);
-	static_assert(std::is_standard_layout_v<ManagedNativeApiTable>);
+	static_assert(std::is_standard_layout_v<ManagedNativeAPITable>);
 	static_assert(std::is_standard_layout_v<ManagedMaterialParameterValue>);
 	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
 	static_assert(std::is_standard_layout_v<ManagedScriptTypeDescriptor>);

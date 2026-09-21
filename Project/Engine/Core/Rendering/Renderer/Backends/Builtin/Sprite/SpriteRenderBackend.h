@@ -22,14 +22,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SpriteRenderBackend() {
-			vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances", ShaderBindingKind::SRV);
-			psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances", ShaderBindingKind::SRV);
-			outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(
-				ShaderBindingKind::CBV,
-				kScreenSpaceOutlineMaskCBVRegister,
-				kScreenSpaceOutlineMaskCBVSpace);
-		}
+		SpriteRenderBackend();
 		~SpriteRenderBackend() override;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;

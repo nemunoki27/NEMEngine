@@ -1169,3 +1169,44 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 	buffer.available = true;
 	activeSubMeshParamBuffer_ = &buffer;
 }
+
+//============================================================================
+//	MeshBatchResources classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool MeshEntityLookupKey::operator==(const MeshEntityLookupKey& rhs) const noexcept {
+
+		return world == rhs.world && entity.index == rhs.entity.index &&
+			entity.generation == rhs.entity.generation;
+	}
+
+	size_t MeshEntityLookupKeyHash::operator()(const MeshEntityLookupKey& key) const noexcept {
+
+		size_t h = std::hash<void*>{}(key.world);
+		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
+		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
+		return h;
+	}
+
+	void MeshBatchResources::MarkSkinningDispatched() {
+
+		skinningDispatched_ = true;
+		skinningOutputValid_ = true;
+		dispatchedSkinningPoseHash_ = currentSkinningPoseHash_;
+	}
+
+	D3D12_GPU_VIRTUAL_ADDRESS MeshBatchResources::GetSubMeshMaterialParamGPUAddress() const {
+
+		return activeSubMeshParamBuffer_ ?
+			activeSubMeshParamBuffer_->buffer.GetGPUAddress() : 0;
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE MeshBatchResources::GetSubMeshMaterialParamGPUHandle() const {
+
+		return activeSubMeshParamBuffer_ ?
+			activeSubMeshParamBuffer_->handles[GraphicsFrameState::GetCurrentIndex()] :
+			D3D12_GPU_DESCRIPTOR_HANDLE{};
+	}
+}
