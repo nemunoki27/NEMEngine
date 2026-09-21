@@ -614,7 +614,7 @@ namespace Engine {
 		// Application.Quitの終了要求
 		using ApplicationQuitCallback = void(__cdecl*)();
 
-#include <Engine/Core/Scripting/Managed/Generated/ManagedNativeApiFields.generated.inl>
+#include <Engine/Core/Scripting/Managed/Generated/ManagedNativeAPIFields.generated.inl>
 	};
 
 	// C#側から受け取るscript typeのメタdataでStable GUID主キーの固定長ABI
