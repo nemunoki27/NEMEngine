@@ -207,8 +207,16 @@ public sealed class UnsupportedGrid {
 public static unsafe class RuntimeTest {
     const BindingFlags PrivateStatic = BindingFlags.NonPublic | BindingFlags.Static;
     const BindingFlags Fields = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
-    static object Call(string name, params object[] args) =>
-        typeof(HostBridge).GetMethod(name, PrivateStatic)!.Invoke(null, args)!;
+    static object Instances => typeof(HostBridge).GetField("instances", PrivateStatic)!.GetValue(null)!;
+    static object Session => typeof(HostBridge).GetField("session", PrivateStatic)!.GetValue(null)!;
+    static object Registry => Session.GetType().GetField("registry", Fields)!.GetValue(Session)!;
+    static object Call(string name, params object[] args) {
+        if (name == "CanReadRuntimeField" || name == "IsUnsupportedField") {
+            Type codec = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptFieldCodec")!;
+            return codec.GetMethod(name, PrivateStatic)!.Invoke(null, args)!;
+        }
+        return Instances.GetType().GetMethod(name, Fields)!.Invoke(Instances, args)!;
+    }
     static void Check(bool value, [System.Runtime.CompilerServices.CallerArgumentExpression("value")] string expression = "") {
         if (!value) throw new Exception("Runtime Inspector assertion failed: " + expression);
     }
@@ -220,7 +228,7 @@ public static unsafe class RuntimeTest {
         NativeAPITable invalidCallbacks = default;
         Check(initialize(&invalidCallbacks) == (int)ManagedStatus.AbiMismatch);
         var fixture = new RuntimeFixture();
-        Type entryType = typeof(HostBridge).GetNestedType("ScriptTypeEntry", BindingFlags.NonPublic)!;
+        Type entryType = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptTypeEntry")!;
         object entry = Activator.CreateInstance(entryType, true)!;
         var map = (Dictionary<string, FieldInfo>)entryType.GetField("runtimeFieldMap", Fields)!.GetValue(entry)!;
         var fields = (Dictionary<string, FieldInfo>)entryType.GetField("fieldMap", Fields)!.GetValue(entry)!;
@@ -233,7 +241,7 @@ public static unsafe class RuntimeTest {
             fields.Add(name, typeof(RuntimeFixture).GetField(name)!);
         }
         Check((bool)Call("IsUnsupportedField", new JsonObject { ["kind"] = "unsupported" }));
-        var registry = (IDictionary)typeof(HostBridge).GetField("typeToEntry", PrivateStatic)!.GetValue(null)!;
+        var registry = (IDictionary)Registry.GetType().GetField("typeToEntry", Fields)!.GetValue(Registry)!;
         registry.Add(typeof(RuntimeFixture), entry);
         NativeScriptInstanceHandle handle = (NativeScriptInstanceHandle)Call("AllocateSlot", fixture);
         delegate* unmanaged[Cdecl]<NativeScriptInstanceHandle, int*, int> size = &HostBridge.GetRuntimeSerializedStateSize;
@@ -266,6 +274,26 @@ public static unsafe class RuntimeTest {
             Check(size(handle, &length) == 0);
             Call("ReleaseAllSlots");
             Check(size(handle, &length) != 0);
+            var oldHandle = handle;
+            handle = (NativeScriptInstanceHandle)Call("AllocateSlot", new RuntimeFixture());
+            Check(size(oldHandle, &length) != 0 && size(handle, &length) == 0);
+            var slots = (IList)Instances.GetType().GetField("slots", Fields)!.GetValue(Instances)!;
+            object slot = slots[(int)handle.index]!;
+            slot.GetType().GetField("generation", Fields)!.SetValue(slot, uint.MaxValue);
+            var exhausted = new NativeScriptInstanceHandle(handle.index, uint.MaxValue);
+            Call("ReleaseSlot", exhausted);
+            Check(size(exhausted, &length) != 0);
+            handle = (NativeScriptInstanceHandle)Call("AllocateSlot", new RuntimeFixture());
+            Check(handle.index != exhausted.index);
+
+            var scheduleOwned = Array.Find(typeof(Timers).GetMethods(PrivateStatic),
+                m => m.Name == "Schedule" && m.GetParameters().Length == 3)!;
+            var owned = (TimerHandle)scheduleOwned.Invoke(null, new object[] { 1f, (Action)(() => {}), fixture })!;
+            var global = Timers.Schedule(1f, () => {});
+            Type services = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptServiceLifetime")!;
+            services.GetMethod("EndOwner", PrivateStatic)!.Invoke(null, new object[] { fixture });
+            Check(!owned.IsValid && global.IsValid);
+            Check(Timers.Cancel(global));
         } finally {
             Call("ReleaseSlot", handle);
             registry.Remove(typeof(RuntimeFixture));

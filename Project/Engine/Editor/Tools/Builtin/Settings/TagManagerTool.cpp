@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
-#include <Engine/Editor/Commands/Entity/RemapEntityTagsCommand.h>
+#include <Engine/Editor/Settings/ProjectSettingsOperations.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 
@@ -27,15 +27,6 @@ void Engine::TagManagerTool::DrawEditorTool(const EditorToolContext& context) {
 	}
 }
 
-void Engine::TagManagerTool::RequestRemap(const EditorToolContext& context, const std::string& from, const std::string& to) {
-
-	// 開いているシーンのタグ文字列だけ付け替える、コマンド経由でUndoできる
-	if (!context.CanEditScene() || !context.panelContext || !context.panelContext->host) {
-		return;
-	}
-	context.panelContext->host->ExecuteEditorCommand(std::make_unique<RemapEntityTagsCommand>(from, to));
-}
-
 void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
 	if (!ImGui::Begin("タグ・描画レイヤー", &openWindow_)) {
@@ -48,16 +39,13 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 
 	// 保存は明示操作で行い、編集済み状態はdirtyで知らせる
 	if (ImGui::Button("保存")) {
-		if (ProjectTagSettings::Save()) {
-			dirty_ = false;
-		}
+		context.panelContext->tagSettings->Save();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("再読込")) {
-		ProjectTagSettings::Reload();
-		dirty_ = false;
+		context.panelContext->tagSettings->Reload();
 	}
-	if (dirty_) {
+	if (context.panelContext->tagSettings->IsDirty()) {
 		ImGui::SameLine();
 		ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f), "未保存の変更があります");
 	}
@@ -66,12 +54,11 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	ImGui::SetNextItemWidth(220.0f);
 	ImGui::InputTextWithHint("##AddTag", "新しいタグ名", addBuffer_, sizeof(addBuffer_));
 	ImGui::SameLine();
-	const bool canAdd = ProjectTagSettings::IsValidNewTag(addBuffer_);
+	const bool canAdd = context.panelContext->tagSettings->IsValidNewTag(addBuffer_);
 	ImGui::BeginDisabled(!canAdd);
 	if (ImGui::Button("追加")) {
-		if (ProjectTagSettings::AddTag(addBuffer_)) {
+		if (context.panelContext->tagSettings->AddTag(addBuffer_)) {
 			addBuffer_[0] = '\0';
-			dirty_ = true;
 		}
 	}
 	ImGui::EndDisabled();
@@ -79,7 +66,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	ImGui::Separator();
 
 	// 編集中にg_tagsが変化してもよいように一覧は複製して走査する
-	const std::vector<std::string> tags = ProjectTagSettings::GetTags();
+	const std::vector<std::string> tags = context.panelContext->tagSettings->GetTags();
 	const bool canEditScene = context.CanEditScene();
 
 	const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg
@@ -107,9 +94,8 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 				const bool committed = ImGui::InputText("##RenameTag", renameBuffer_, sizeof(renameBuffer_),
 					ImGuiInputTextFlags_EnterReturnsTrue);
 				if (committed) {
-					if (ProjectTagSettings::RenameTag(tag, renameBuffer_)) {
-						RequestRemap(context, tag, renameBuffer_);
-						dirty_ = true;
+					if (context.panelContext->tagSettings->RenameTag(tag, renameBuffer_)) {
+						ProjectSettingsOperations::RemapTags(context, tag, renameBuffer_);
 					}
 					renamingTag_.clear();
 				}
@@ -121,9 +107,8 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 			if (renamingTag_ == tag) {
 
 				if (ImGui::SmallButton("確定")) {
-					if (ProjectTagSettings::RenameTag(tag, renameBuffer_)) {
-						RequestRemap(context, tag, renameBuffer_);
-						dirty_ = true;
+					if (context.panelContext->tagSettings->RenameTag(tag, renameBuffer_)) {
+						ProjectSettingsOperations::RemapTags(context, tag, renameBuffer_);
 					}
 					renamingTag_.clear();
 				}
@@ -141,10 +126,9 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 				}
 				ImGui::SameLine();
 				if (ImGui::SmallButton("削除")) {
-					if (ProjectTagSettings::RemoveTag(tag)) {
+					if (context.panelContext->tagSettings->RemoveTag(tag)) {
 						// 使用中のエンティティはUntaggedへ戻す
-						RequestRemap(context, tag, "Untagged");
-						dirty_ = true;
+						ProjectSettingsOperations::RemapTags(context, tag, "Untagged");
 					}
 				}
 				ImGui::EndDisabled();
@@ -162,16 +146,13 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 	ImGui::Separator();
 	if (ImGui::CollapsingHeader("Rendering Layer")) {
 		if (ImGui::Button("Layer設定を保存")) {
-			if (ProjectRenderingLayerSettings::Save()) {
-				renderingLayersDirty_ = false;
-			}
+			context.panelContext->renderingLayerSettings->Save();
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Layer設定を再読込")) {
-			ProjectRenderingLayerSettings::Reload();
-			renderingLayersDirty_ = false;
+			context.panelContext->renderingLayerSettings->Reload();
 		}
-		if (renderingLayersDirty_) {
+		if (context.panelContext->renderingLayerSettings->IsDirty()) {
 			ImGui::SameLine();
 			ImGui::TextColored(ImVec4(0.95f, 0.80f, 0.25f, 1.0f),
 				"未保存の変更があります");
@@ -183,20 +164,19 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 			sizeof(addRenderingLayerBuffer_));
 		ImGui::SameLine();
 		const bool canAddLayer =
-			ProjectRenderingLayerSettings::IsValidNewLayer(
+			context.panelContext->renderingLayerSettings->IsValidNewLayer(
 				addRenderingLayerBuffer_);
 		ImGui::BeginDisabled(!canAddLayer);
 		if (ImGui::Button("追加##RenderingLayer")) {
-			if (ProjectRenderingLayerSettings::AddLayer(
+			if (context.panelContext->renderingLayerSettings->AddLayer(
 				addRenderingLayerBuffer_)) {
 
 				addRenderingLayerBuffer_[0] = '\0';
-				renderingLayersDirty_ = true;
 			}
 		}
 		ImGui::EndDisabled();
 
-		const auto& layerNames = ProjectRenderingLayerSettings::GetNames();
+		const auto& layerNames = context.panelContext->renderingLayerSettings->GetNames();
 		for (uint32_t index = 0u;
 			index < ProjectRenderingLayerSettings::kLayerCount; ++index) {
 
@@ -215,17 +195,13 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 			ImGui::BeginDisabled(index == 0u);
 			if (ImGui::InputText("##LayerName", nameBuffer,
 				sizeof(nameBuffer)) &&
-				ProjectRenderingLayerSettings::SetName(index, nameBuffer)) {
-
-				renderingLayersDirty_ = true;
+				context.panelContext->renderingLayerSettings->SetName(index, nameBuffer)) {
 			}
 			ImGui::EndDisabled();
 			if (index != 0u) {
 				ImGui::SameLine();
 				if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f)) &&
-					ProjectRenderingLayerSettings::RemoveLayer(index)) {
-
-					renderingLayersDirty_ = true;
+					context.panelContext->renderingLayerSettings->RemoveLayer(index)) {
 				}
 			}
 			ImGui::PopID();

@@ -1,16 +1,14 @@
 #include "ProjectTagSettings.h"
+#include "ProjectSettingsStorage.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
-#include <fstream>
 #include <algorithm>
 #include <filesystem>
-#include <system_error>
 
 // json
 #include <json.hpp>
@@ -28,9 +26,6 @@ namespace {
 		"Untagged", "Player"
 	};
 
-	std::vector<std::string> g_tags;
-	bool g_loaded = false;
-
 	std::filesystem::path TagSettingsPath() {
 		return Engine::RuntimePaths::GetProjectSettingsPath("TagSettings.json");
 	}
@@ -46,43 +41,6 @@ namespace {
 		return text.substr(begin, end - begin + 1);
 	}
 
-	// 既に同名タグを持っているか、完全一致で判定する
-	bool ContainsTag(const std::string& tag) {
-		return std::find(g_tags.begin(), g_tags.end(), tag) != g_tags.end();
-	}
-
-	void LoadFromDisk() {
-
-		g_tags.clear();
-		std::ifstream ifs(TagSettingsPath(), std::ios::binary);
-		if (ifs.is_open()) {
-
-			nlohmann::json data = nlohmann::json::parse(ifs, nullptr, false);
-			if (data.is_object() && data.contains("tags") && data["tags"].is_array()) {
-				for (const auto& tag : data["tags"]) {
-					if (tag.is_string()) {
-						g_tags.push_back(tag.get<std::string>());
-					}
-				}
-			}
-		}
-
-		// 読み込めなかった、もしくはUntaggedが無い場合は既定で補う
-		if (g_tags.empty()) {
-			g_tags = kDefaultTags;
-		} else if (!ContainsTag(kUntagged)) {
-			g_tags.insert(g_tags.begin(), kUntagged);
-		}
-		g_loaded = true;
-	}
-
-	// 未ロードならファイルから読み込む、編集系から呼ぶ
-	void EnsureLoaded() {
-
-		if (!g_loaded) {
-			LoadFromDisk();
-		}
-	}
 }
 
 //============================================================================
@@ -90,15 +48,16 @@ namespace {
 //============================================================================
 const std::vector<std::string>& Engine::ProjectTagSettings::GetTags() {
 
-	if (!g_loaded) {
+	if (!loaded_) {
 		LoadFromDisk();
 	}
-	return g_tags;
+	return tags_;
 }
 
 void Engine::ProjectTagSettings::Reload() {
 
-	g_loaded = false;
+	dirty_ = false;
+	loaded_ = false;
 	LoadFromDisk();
 }
 
@@ -119,7 +78,8 @@ bool Engine::ProjectTagSettings::AddTag(const std::string& tag) {
 	if (!IsValidNewTag(tag)) {
 		return false;
 	}
-	g_tags.push_back(Trim(tag));
+	tags_.push_back(Trim(tag));
+	dirty_ = true;
 	return true;
 }
 
@@ -131,11 +91,12 @@ bool Engine::ProjectTagSettings::RemoveTag(const std::string& tag) {
 	if (tag == kUntagged) {
 		return false;
 	}
-	const auto it = std::find(g_tags.begin(), g_tags.end(), tag);
-	if (it == g_tags.end()) {
+	const auto it = std::find(tags_.begin(), tags_.end(), tag);
+	if (it == tags_.end()) {
 		return false;
 	}
-	g_tags.erase(it);
+	tags_.erase(it);
+	dirty_ = true;
 	return true;
 }
 
@@ -147,82 +108,56 @@ bool Engine::ProjectTagSettings::RenameTag(const std::string& from, const std::s
 	if (from == kUntagged || !IsValidNewTag(to)) {
 		return false;
 	}
-	const auto it = std::find(g_tags.begin(), g_tags.end(), from);
-	if (it == g_tags.end()) {
+	const auto it = std::find(tags_.begin(), tags_.end(), from);
+	if (it == tags_.end()) {
 		return false;
 	}
 	// 順序を維持したまま名前だけ置き換える
 	*it = Trim(to);
+	dirty_ = true;
 	return true;
 }
 
 bool Engine::ProjectTagSettings::Save() {
 
 	EnsureLoaded();
-
-	nlohmann::json root;
-	root["tags"] = g_tags;
-
-	const std::filesystem::path target = TagSettingsPath();
-	std::error_code ec;
-	std::filesystem::create_directories(target.parent_path(), ec);
-
-	// 一時ファイルへ書き出してからバックアップと安全な置換とロールバックで置換する
-	const std::filesystem::path temp = target.string() + ".tmp";
-	{
-		std::ofstream file(temp, std::ios::binary | std::ios::trunc);
-		if (!file.is_open()) {
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectTagSettings: 保存用一時ファイルを開けません: {}", temp.string());
-			return false;
-		}
-		file << root.dump(2);
-		file.flush();
-		if (!file.good()) {
-			file.close();
-			std::filesystem::remove(temp, ec);
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectTagSettings: 一時ファイルへ書き込めません: {}", temp.string());
-			return false;
-		}
-	}
-
-	const bool targetExists = std::filesystem::exists(target, ec);
-	const std::filesystem::path backup = target.string() + ".bak";
-	if (targetExists) {
-		// 既存をバックアップへ退避する、Windowsで一時から対象への直接renameが失敗しても元を失わない
-		std::filesystem::remove(backup, ec);
-		std::filesystem::rename(target, backup, ec);
-		if (ec) {
-			std::filesystem::remove(temp, ec);
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectTagSettings: Backup作成に失敗したため既存ファイルを維持します path={} 内容={}",
-				target.string(), ec.message());
-			return false;
-		}
-	}
-
-	std::filesystem::rename(temp, target, ec);
-	if (ec) {
-		// 置換失敗時はバックアップからロールバックして元の有効なファイルを復元する
-		std::error_code rollbackEc;
-		if (targetExists) {
-			std::filesystem::rename(backup, target, rollbackEc);
-		}
-		std::filesystem::remove(temp, rollbackEc);
-	Logger::Output(LogType::Engine, spdlog::level::err,
-			"ProjectTagSettings: ファイル置換に失敗したため元へ戻しました path={} 内容={}",
-			target.string(), ec.message());
+	if (!ProjectSettingsStorage::SaveTags(TagSettingsPath(), tags_)) {
 		return false;
 	}
+	dirty_ = false;
+	return true;
+}
 
-	// 置換成功、バックアップの掃除失敗は警告に留める、有効なファイルは既に正
-	if (targetExists) {
-		std::filesystem::remove(backup, ec);
-		if (ec) {
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"ProjectTagSettings: Backupを削除できません path={} 内容={}", backup.string(), ec.message());
+bool Engine::ProjectTagSettings::ContainsTag(const std::string& tag) {
+	return std::find(tags_.begin(), tags_.end(), tag) != tags_.end();
+}
+
+void Engine::ProjectTagSettings::LoadFromDisk() {
+
+	tags_.clear();
+	const nlohmann::json data = ProjectSettingsStorage::Load(TagSettingsPath());
+	if (!data.is_discarded()) {
+		if (data.is_object() && data.contains("tags") && data["tags"].is_array()) {
+			for (const auto& tag : data["tags"]) {
+				if (tag.is_string()) {
+					tags_.push_back(tag.get<std::string>());
+				}
+			}
 		}
 	}
-	return true;
+
+	// 読み込めなかった、もしくはUntaggedが無い場合は既定で補う
+	if (tags_.empty()) {
+		tags_ = kDefaultTags;
+	} else if (!ContainsTag(kUntagged)) {
+		tags_.insert(tags_.begin(), kUntagged);
+	}
+	loaded_ = true;
+}
+
+void Engine::ProjectTagSettings::EnsureLoaded() {
+
+	if (!loaded_) {
+		LoadFromDisk();
+	}
 }

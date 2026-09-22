@@ -5,7 +5,8 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxUploadContext.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
-#include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
+#include "TextureDecoder.h"
+#include "TextureGPUUploader.h"
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 
 // c++
@@ -31,23 +32,6 @@ namespace Engine {
 		Queued,
 		Ready,
 		Failed,
-	};
-	// テクスチャのアップロード要求を表す構造体
-	struct TextureFileRequestDesc {
-
-		std::string key;
-		std::string assetPath;
-
-		// .metaから解決した取り込み設定
-		TextureImportSettings importSettings{};
-		// 描画用途から要求する色空間、.metaの明示色空間が優先される
-		TextureColorSpace requestedColorSpace = TextureColorSpace::Auto;
-		// InspectorプレビューでImporter設定より表示色空間を優先する
-		bool overrideImportColorSpace = false;
-		// エディタプレビュー用のチャンネル変換
-		TexturePreviewChannel previewChannel = TexturePreviewChannel::Color;
-		// ホットリロードでの再アップロードか、trueなら既存SRVインデックスへ上書きする
-		bool reload = false;
 	};
 
 	//============================================================================
@@ -96,38 +80,17 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// アップロード待ちのジョブを表す構造体
-		struct PendingUploadJob {
-
-			// テクスチャキー
-			std::string key;
-
-			// 単色設定
-			bool isSolidColor = false;
-			uint8_t solidRGBA[4]{};
-			// アップロードするテクスチャデータ
-			DirectX::ScratchImage image;
-			DirectX::TexMetadata metadata{};
-
-			// アップロードの成功フラグ
-			bool success = false;
-			// ホットリロードでの再アップロードか
-			bool reload = false;
-		};
-
 		//--------- variables ----------------------------------------------------
 
-		ID3D12Device* device_ = nullptr;
-		ID3D12CommandQueue* graphicsQueue_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
-		std::unique_ptr<DxUploadCommand> uploadCommand_;
+		TextureGPUUploader uploader_;
 
 		// 記録されたアップロードジョブ
 		AssetWorkerPool<TextureFileRequestDesc> decodeWorkers_;
 
 		// アップロードジョブのキューと完了したテクスチャのマップを保護するミューテックス
 		mutable std::mutex mutex_;
-		std::deque<PendingUploadJob> pendingUploads_;
+		std::deque<DecodedTexture> pendingUploads_;
 		// キーとGPUテクスチャリソースのマップ
 		std::unordered_map<std::string, GPUTextureResource> readyTextures_;
 		std::unordered_set<std::string> queuedKeys_;
@@ -140,10 +103,5 @@ namespace Engine {
 
 		// アップロードジョブの記録
 		void DecodeTextureWorker(TextureFileRequestDesc&& job, uint32_t workerIndex);
-		// アップロードジョブの処理
-		GPUTextureResource UploadSolidColor1x1(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-		GPUTextureResource UploadScratchImage(const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta,
-			uint32_t reuseSrvIndex = UINT32_MAX);
 	};
 } // Engine
-

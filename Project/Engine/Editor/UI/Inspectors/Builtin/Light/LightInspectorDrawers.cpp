@@ -37,7 +37,7 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
+		return InspectorDrawerCommon::DrawLayerMaskField(context, "レイヤーマスク", draft.affectLayerMask);
 		});
 }
 
@@ -84,7 +84,7 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
+		return InspectorDrawerCommon::DrawLayerMaskField(context, "レイヤーマスク", draft.affectLayerMask);
 	});
 }
 
@@ -137,7 +137,7 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(
+		return InspectorDrawerCommon::DrawLayerMaskField(context,
 			"レイヤーマスク", draft.affectLayerMask);
 		});
 }
@@ -190,7 +190,7 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
 	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
+		return InspectorDrawerCommon::DrawLayerMaskField(context, "レイヤーマスク", draft.affectLayerMask);
 		});
 }
 

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -85,12 +86,12 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 
 	// シャドウ無し版、gSceneTLASを参照しない
 	desc.pixel.entry = "main";
-	initialized_ = pipeline_.CreateGraphics(device, compiler, desc);
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
 
 	// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
 	desc.pixel.entry = "mainShadowed";
 	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
-	shadowedAvailable_ = pipelineShadowed_.CreateGraphics(device, compiler, desc);
+	shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
 }
 
 Engine::DxConstBuffer<Engine::LightingPass::LightingConstants>& Engine::LightingPass::AllocateConstantBuffer(
@@ -171,7 +172,7 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 	const bool useShadow = context.hasShadowCastingLight &&
 		shadowedAvailable_ && runtimeFeatures.useInlineRayTracing &&
 		tlasAvailable;
-	PipelineState& activePipeline = useShadow ? pipelineShadowed_ : pipeline_;
+	PipelineState& activePipeline = useShadow ? *pipelineShadowed_ : *pipeline_;
 
 	commandList->SetGraphicsRootSignature(activePipeline.GetRootSignature());
 	commandList->SetPipelineState(activePipeline.GetGraphicsPipeline(BlendMode::Normal));

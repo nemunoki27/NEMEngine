@@ -342,6 +342,7 @@ namespace {
 	}
 
 	bool DrawApplicationSettings(
+		const Engine::EditorToolContext& context,
 		Engine::RenderFeatureSelectionSettings& selection,
 		bool drawAnchor) {
 
@@ -366,7 +367,7 @@ namespace {
 			changed |= Engine::MyGUI::EnumCombo(
 				"実行位置", selection.anchor).valueChanged;
 		}
-		changed |= Engine::InspectorDrawerCommon::DrawLayerMaskField(
+		changed |= Engine::InspectorDrawerCommon::DrawLayerMaskField(*context.panelContext,
 			"Rendering Layer", selection.renderingLayerMask).valueChanged;
 
 		const auto drawPhase = [&](const char* label,
@@ -429,8 +430,7 @@ namespace {
 //============================================================================
 //	RenderFeatureProfileTool classMethods
 //============================================================================
-void Engine::RenderFeatureProfileTool::DrawPassList(
-	const EditorToolContext& context) {
+void Engine::RenderFeatureProfileTool::DrawPassList(const EditorToolContext& context) {
 
 	RenderFeatureProfileAsset& profile =
 		RenderFeatureProfileService::GetInstance().GetProfile();
@@ -457,20 +457,19 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 			.id = pass.id,
 		});
 		profile.passes.emplace_back(std::move(pass));
-		SetDirty();
+		editSession_.SetDirty();
 	};
 	const auto addMaterialPass = [&](AssetID sourceAsset,
 		AssetType assetType = AssetType::Material,
 		std::string_view assetPath = {}) {
 
-		const AssetID materialID = ResolvePassMaterial(
+		const AssetID materialID = editSession_.ResolvePassMaterial(
 			context, sourceAsset, assetType, assetPath);
 		if (!context.panelContext ||
 			!context.panelContext->renderPipeline || !materialID) {
 
 			if (materialID) {
-				statusMessage_ = "マテリアルを読み込めません";
-				statusError_ = true;
+				editSession_.SetStatusMessage("マテリアルを読み込めません", true);
 			}
 			return;
 		}
@@ -479,8 +478,7 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 		assetLibrary.InvalidateMaterial(materialID);
 		const MaterialAsset* material = assetLibrary.LoadMaterial(materialID);
 		if (!material) {
-			statusMessage_ = "マテリアルを読み込めません";
-			statusError_ = true;
+			editSession_.SetStatusMessage("マテリアルを読み込めません", true);
 			return;
 		}
 
@@ -508,13 +506,10 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 				MaterialPassKind::RayTracing);
 		} else {
 
-			statusMessage_ =
-				"ComputeまたはRayTracingパスがありません";
-			statusError_ = true;
+			editSession_.SetStatusMessage("ComputeまたはRayTracingパスがありません", true);
 			return;
 		}
-		statusMessage_ = "マテリアルからパスを追加しました";
-		statusError_ = false;
+		editSession_.SetStatusMessage("マテリアルからパスを追加しました", false);
 	};
 
 	PendingAction pending{};
@@ -543,7 +538,7 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 					} else {
 
 						pass->enabled = enabled;
-						SetDirty();
+						editSession_.SetDirty();
 					}
 				}
 				ImGui::SameLine();
@@ -617,7 +612,7 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 			}
 
 			if (ImGui::Checkbox("##Enabled", &item.enabled)) {
-				SetDirty();
+				editSession_.SetDirty();
 			}
 			ImGui::SameLine();
 			ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
@@ -711,7 +706,7 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 			dragging->Data);
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if (asset && !asset->isDirectory && asset->assetID &&
-			IsPassMaterialSource(asset->assetType, asset->assetPath) && window &&
+			editSession_.IsPassMaterialSource(asset->assetType, asset->assetPath) && window &&
 			ImGui::BeginDragDropTargetCustom(window->InnerRect,
 				window->GetID("##RenderFeatureAssetDropTarget"))) {
 
@@ -725,7 +720,7 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 						static_cast<const EditorAssetDragDropPayload*>(
 							payload->Data);
 					if (dropped && !dropped->isDirectory &&
-						IsPassMaterialSource(
+						editSession_.IsPassMaterialSource(
 							dropped->assetType, dropped->assetPath)) {
 
 						addMaterialPass(dropped->assetID,
@@ -743,25 +738,25 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 		if (selectedGroup_) {
 			selectedPass_ = {};
 			selectedPasses_.clear();
-			SetDirty();
+			editSession_.SetDirty();
 		}
 		break;
 	case PendingActionType::UngroupPass:
 		if (UngroupPass(profile, pending.item)) {
-			SetDirty();
+			editSession_.SetDirty();
 		}
 		break;
 	case PendingActionType::DeleteItem:
 		if (DeleteItem(profile, pending.itemType, pending.item)) {
 			ClearSelection();
-			SetDirty();
+			editSession_.SetDirty();
 		}
 		break;
 	case PendingActionType::MoveToGroup:
 		if (MoveItemToGroup(profile, pending.itemType,
 			pending.item, pending.targetGroup)) {
 
-			SetDirty();
+			editSession_.SetDirty();
 		}
 		break;
 	case PendingActionType::None:
@@ -769,8 +764,7 @@ void Engine::RenderFeatureProfileTool::DrawPassList(
 	}
 }
 
-bool Engine::RenderFeatureProfileTool::DrawSelectedPassControls(
-	RenderFeatureProfileAsset& profile) {
+bool Engine::RenderFeatureProfileTool::DrawSelectedPassControls(RenderFeatureProfileAsset& profile) {
 
 	HierarchyItemLocation location{};
 	if (!FindItemLocation(profile.hierarchy, HierarchyItemType::Pass,
@@ -785,7 +779,7 @@ bool Engine::RenderFeatureProfileTool::DrawSelectedPassControls(
 		std::swap((*location.siblings)[location.index],
 			(*location.siblings)[location.index - 1]);
 		SynchronizeRenderFeaturePassOrder(profile);
-		SetDirty();
+		editSession_.SetDirty();
 	}
 	ImGui::EndDisabled();
 	ImGui::SameLine();
@@ -794,7 +788,7 @@ bool Engine::RenderFeatureProfileTool::DrawSelectedPassControls(
 		std::swap((*location.siblings)[location.index],
 			(*location.siblings)[location.index + 1]);
 		SynchronizeRenderFeaturePassOrder(profile);
-		SetDirty();
+		editSession_.SetDirty();
 	}
 	ImGui::EndDisabled();
 	if (ImGui::Button("パスを削除",
@@ -802,14 +796,14 @@ bool Engine::RenderFeatureProfileTool::DrawSelectedPassControls(
 
 		DeleteItem(profile, HierarchyItemType::Pass, selectedPass_);
 		ClearSelection();
-		SetDirty();
+		editSession_.SetDirty();
 		return false;
 	}
 	return true;
 }
 
 void Engine::RenderFeatureProfileTool::DrawSelectedGroupDetail(
-	RenderFeatureProfileAsset& profile) {
+	const EditorToolContext& context, RenderFeatureProfileAsset& profile) {
 
 	HierarchyItemLocation location{};
 	if (!FindItemLocation(profile.hierarchy, HierarchyItemType::Group,
@@ -824,7 +818,7 @@ void Engine::RenderFeatureProfileTool::DrawSelectedGroupDetail(
 	changed |= MyGUI::Checkbox("有効", group.enabled);
 	RenderFeatureSelectionSettings& selection = group.selection;
 	const RenderFeatureAnchor previousAnchor = selection.anchor;
-	changed |= DrawApplicationSettings(selection, true);
+	changed |= DrawApplicationSettings(context, selection, true);
 	if (selection.mode != RenderFeatureSelectionMode::Organization &&
 		previousAnchor != selection.anchor) {
 
@@ -837,12 +831,12 @@ void Engine::RenderFeatureProfileTool::DrawSelectedGroupDetail(
 		}
 	}
 	if (changed) {
-		SetDirty();
+		editSession_.SetDirty();
 	}
 }
 
 bool Engine::RenderFeatureProfileTool::DrawSelectedPassApplicationSettings(
-	RenderFeatureProfileAsset& profile, RenderFeaturePassSettings& pass) {
+	const EditorToolContext& context, RenderFeatureProfileAsset& profile, RenderFeaturePassSettings& pass) {
 
 	HierarchyItemLocation location{};
 	if (!FindItemLocation(profile.hierarchy, HierarchyItemType::Pass,
@@ -853,5 +847,5 @@ bool Engine::RenderFeatureProfileTool::DrawSelectedPassApplicationSettings(
 	RenderFeatureSelectionSettings& selection =
 		(*location.siblings)[location.index].selection;
 	selection.anchor = pass.anchor;
-	return DrawApplicationSettings(selection, false);
+	return DrawApplicationSettings(context, selection, false);
 }

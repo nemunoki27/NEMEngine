@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RenderFeatureTemporalState.h"
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 
@@ -42,25 +43,6 @@ namespace Engine {
 		RenderFeatureAnchor anchor_ = RenderFeatureAnchor::AfterTransparent;
 		std::string lastDiagnostic_{};
 
-		struct HistoryState {
-
-			uint32_t width = 0;
-			uint32_t height = 0;
-			uint64_t runtimeGeneration = 0;
-			uint64_t raytracingMaterialGeneration = 0;
-			bool valid = false;
-		};
-		struct AdaptiveResolutionState {
-
-			float scale = 1.0f;
-			float filteredGPUMs = 0.0f;
-			uint64_t lastAdjustmentFrame = 0;
-			uint32_t overBudgetSamples = 0;
-			uint32_t underBudgetSamples = 0;
-		};
-
-		std::unordered_map<std::string, HistoryState> historyStates_{};
-		std::unordered_map<std::string, AdaptiveResolutionState>
-			adaptiveResolutionStates_{};
+		RenderFeatureTemporalState temporalState_{};
 	};
 } // Engine

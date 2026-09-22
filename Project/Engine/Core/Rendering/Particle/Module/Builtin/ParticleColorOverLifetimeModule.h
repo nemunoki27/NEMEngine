@@ -7,8 +7,6 @@
 #include <Engine/Core/Rendering/Particle/Structures/ParticleLoopSettings.h>
 #include <Engine/Core/Animation/Curves/AnimationCurve.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
-#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
-#include <Engine/Editor/Animation/Curves/CurveGenerator.h>
 
 namespace Engine {
 
@@ -19,6 +17,24 @@ namespace Engine {
 	class ParticleColorOverLifetimeModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// 発生時の色に掛ける色の始点と終点
+			Color4 startColor = Color4::White();
+			Color4 endColor = Color4(1.0f, 1.0f, 1.0f, 0.0f);
+			// イージング
+			EasingType easingType = EasingType::EaseOutSine;
+			// 進行度のループ
+			ParticleLoopSettings loop{};
+
+			// カーブで色を制御するか
+			bool useCurve = false;
+			// 進行度から色を返すカーブ
+			CurveColor4 curve{};
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -28,10 +44,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -39,22 +59,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 発生時の色に掛ける色の始点と終点
-		Color4 startColor_ = Color4::White();
-		Color4 endColor_ = Color4(1.0f, 1.0f, 1.0f, 0.0f);
-		// イージング
-		EasingType easingType_ = EasingType::EaseOutSine;
-		// 進行度のループ
-		ParticleLoopSettings loop_{};
+		Settings settings_{};
 
-		// カーブで色を制御するか
-		bool useCurve_ = false;
-		// 進行度から色を返すカーブ
-		CurveColor4 curve_{};
-		// カーブ編集の状態、編集UIでのみ使用する
-		CurveEditorState curveState_{};
-		// カーブ生成の設定、キー時刻は0~1に制限する
-		CurveGeneratorState generatorState_{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
 	};
 
 } // Engine

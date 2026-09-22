@@ -11,6 +11,15 @@
 
 namespace Engine {
 
+	ScriptProfileSnapshot ScriptProfiler::Capture() const {
+
+		ScriptProfileSnapshot snapshot{ rows_, frameCount_, LastFrame(), overflowed_ };
+		for (auto& row : snapshot.rows) {
+			row.current = row.history[snapshot.lastFrame];
+		}
+		return snapshot;
+	}
+
 	ScriptProfiler& ScriptProfiler::GetInstance() {
 		static ScriptProfiler profiler;
 		return profiler;

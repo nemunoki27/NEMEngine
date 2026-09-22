@@ -114,3 +114,11 @@ project (GAME_NAME)
 
     NEM_GameLinkEngine()
     NEM_GameApplyConfigFilters()
+
+    -- ゲーム所有の設定は共通設定の後に適用する
+    filter {}
+    local gameSettings = path.join(GAME_ROOT, "Premake/game_settings.lua")
+    if os.isfile(gameSettings) then
+        dofile(gameSettings)
+    end
+    filter {}

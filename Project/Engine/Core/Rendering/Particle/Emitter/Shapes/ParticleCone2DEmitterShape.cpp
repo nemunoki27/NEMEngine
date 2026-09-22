@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
@@ -85,17 +84,5 @@ void Engine::ParticleCone2DEmitterShape::DrawShape(const ParticleEmitterSettings
 		center + Vector3::Transform(base0 + Vector3(std::sin(-tilt), std::cos(-tilt), 0.0f), rotationMatrix), color);
 	renderer->DrawLine(center + Vector3::Transform(base1, rotationMatrix),
 		center + Vector3::Transform(base1 + Vector3(std::sin(tilt), std::cos(tilt), 0.0f), rotationMatrix), color);
-#endif
-}
-
-bool Engine::ParticleCone2DEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool changed = false;
-	changed |= MyGUI::DragFloat("開き角", settings.cone.angle, ParticleGui::MakeDragSetting(0.0f, 89.0f, 0.5f)).valueChanged;
-	changed |= MyGUI::DragFloat("底辺半径", settings.cone.radius, ParticleGui::MakeDragSetting(0.0f, 100000.0f)).valueChanged;
-	return changed;
-#else
-	return false;
 #endif
 }

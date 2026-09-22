@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "MaterialParameterLookup.h"
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -26,34 +27,7 @@ namespace {
 		const Engine::ShaderResourceBinding& resource,
 		const Engine::MaterialParameterSet* defaults = nullptr) {
 
-		if (const Engine::MaterialParameterValue* value =
-			parameters.Find(resource.parameterID)) {
-
-			return value;
-		}
-		if (resource.semantic != Engine::MaterialParameterSemantic::None) {
-			if (const Engine::MaterialParameterValue* value =
-				parameters.Find(resource.semantic)) {
-
-				return value;
-			}
-		}
-		if (const Engine::MaterialParameterValue* value =
-			parameters.FindByName(resource.name)) {
-
-			return value;
-		}
-		if (!defaults) {
-			return nullptr;
-		}
-		for (const Engine::MaterialParameterRecord& parameter :
-			defaults->GetRecords()) {
-
-			if (parameter.id == resource.parameterID) {
-				return parameters.FindByName(parameter.namedValue.first);
-			}
-		}
-		return nullptr;
+		return Engine::MaterialParameterLookup::Find(parameters, resource.parameterID, resource.semantic, resource.name, defaults);
 	}
 }
 

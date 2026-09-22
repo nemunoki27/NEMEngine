@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
@@ -56,15 +55,5 @@ void Engine::ParticlePointEmitterShape::DrawShape(const ParticleEmitterSettings&
 	// 射出方向を線で表す
 	renderer->DrawSphere(center, 0.05f, color, 1.0f);
 	renderer->DrawLine(center, center + Vector3::Transform(direction, rotationMatrix), color);
-#endif
-}
-
-bool Engine::ParticlePointEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool result = MyGUI::DragVector3("射出方向", settings.point.direction, ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;;
-	return result;
-#else
-	return false;
 #endif
 }

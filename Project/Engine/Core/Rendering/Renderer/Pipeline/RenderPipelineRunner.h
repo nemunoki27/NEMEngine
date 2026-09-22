@@ -3,6 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RenderPreviewResources.h"
+#include "RenderPickingState.h"
+#include "RenderAssetReloadService.h"
+#include "RenderPipelineViewResources.h"
+#include "RenderScenePreparation.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
@@ -217,17 +222,17 @@ namespace Engine {
 		const ResolvedRenderView& GetResolvedView(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewState_.view : sceneViewState_.view; }
 
 		//今フレームの全ライト
-		const FrameLightBatch& GetFrameLightBatch() const { return frameLightBatch_; }
+		const FrameLightBatch& GetFrameLightBatch() const { return scenePreparation_.frameLightBatch_; }
 		// ルートシーン用のビュー別ライト集合
 		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const;
 
 		// ピック用のTLASリソースとサブメッシュ情報の取得
-		ID3D12Resource* GetGameViewTLASResource() const { return tlasResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickRecords_; }
-		const std::vector<uint32_t>& GetGameViewPickRecordOffsets() const { return pickRecordOffsets_; }
-		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
-		const std::vector<uint32_t>& GetSceneViewPickRecordOffsets() const { return pickRecordOffsets_; }
+		ID3D12Resource* GetGameViewTLASResource() const { return pickingState_.tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickingState_.pickRecords_; }
+		const std::vector<uint32_t>& GetGameViewPickRecordOffsets() const { return pickingState_.pickRecordOffsets_; }
+		ID3D12Resource* GetSceneViewTLASResource() const { return pickingState_.tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickingState_.pickRecords_; }
+		const std::vector<uint32_t>& GetSceneViewPickRecordOffsets() const { return pickingState_.pickRecordOffsets_; }
 
 		// 指定ピクセルだけを1x1整数RTへ描画する
 		bool RenderMeshPicking(GraphicsCore& graphicsCore,
@@ -245,28 +250,17 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// 描画ビュー1つ分の状態をまとめる、ゲーム/シーンの2ビューで同型を使う
-		struct PerViewRenderState {
-
-			ResolvedRenderView view{};
-			RenderPathResources resources{};
-			RaytracingViewBufferSet raytracingBuffers{};
-			RenderTargetRegistry targetRegistry{};
-			PerViewLightSet lightSet{};
-			ViewLightBufferSet lightBuffers{};
-		};
-
 		//--------- variables ----------------------------------------------------
 
-		// 描画バッチ
-		RenderSceneBatch renderBatch_;
-		// ライトバッチ
-		FrameLightBatch frameLightBatch_{};
+		RenderScenePreparation scenePreparation_{};
+		RenderPreviewResources previewResources_{};
+		RenderPickingState pickingState_{};
+
 		// ビューポート描画サービス
 		std::unique_ptr<ViewportRenderService> viewportRenderService_;
 		// 描画ビューごとの状態、ゲーム/シーンで同型
-		PerViewRenderState gameViewState_{};
-		PerViewRenderState sceneViewState_{};
+		RenderPipelineViewResources gameViewState_{};
+		RenderPipelineViewResources sceneViewState_{};
 
 		// 固定RenderPath
 		DeferredRenderPath renderPath_{};
@@ -276,11 +270,6 @@ namespace Engine {
 		// レイトレシーンの構築でBillboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
 		RayTracingExecutor rayTracingExecutor_{};
-
-		// ピック用のTLASリソースとサブメッシュ情報
-		ID3D12Resource* tlasResource_ = nullptr;
-		std::vector<MeshSubMeshPickRecord> pickRecords_{};
-		std::vector<uint32_t> pickRecordOffsets_{};
 
 		// 描画アイテム抽出器のレジストリ
 		RenderExtractorRegistry extractorRegistry_{};
@@ -303,34 +292,19 @@ namespace Engine {
 		PostProcessDebugInjector postProcessDebugInjector_{};
 		PostProcessAssetGenerator postProcessAssetGenerator_{};
 
-		// ツールプレビュー専用のライト集合
-		PerViewLightSet previewLightSet_{};
-		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける
-		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
-
-		// ツールプレビュー専用の描画バックエンドでメインビューのGPUバッファを上書きしないため分離する
-		RenderBackendRegistry previewBackendRegistry_{};
-		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
-		bool previewBackendFrameStarted_ = false;
+		RenderAssetReloadService assetReloadService_{ renderAssetLibrary_, pipelineStateCache_,
+			raytracingPipelineStateCache_, postProcessExecutor_, rayTracingExecutor_ };
 
 		// 前回通知したProfileでシーン切り替え時の再ロードを検出する
 		AssetID lastNotifiedRenderFeatureProfile_{};
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;
-		// メイン描画後のエディターピックで同じシーン情報を使う
-		RenderFrameRequest lastRenderRequest_{};
-		const SceneInstance* lastActiveScene_ = nullptr;
 
 		// 毎フレーム使い回すスクラッチで再確保を避ける
-		std::unordered_set<AssetID> visibleMeshSet_{};
-		std::vector<AssetID> visibleMeshes_{};
-		std::unordered_map<AssetID, MaterialRenderState>
-			materialRenderStateCache_{};
 		RenderPassPhaseBuckets passBuckets_{};
 		// 型付きMeshバックエンドのキャッシュで毎フレームのdynamic_castを避ける
 		MeshRenderBackend* meshBackend_ = nullptr;
-		MeshRenderBackend* previewMeshBackend_ = nullptr;
 		PrimitiveRenderBackend* primitiveBackend_ = nullptr;
 		ParticleRenderBackend* particleBackend_ = nullptr;
 
@@ -340,8 +314,6 @@ namespace Engine {
 		void SyncRequestedSurfaces(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 		// 描画ビューの情報を要求に応じて確定させる
 		void ResolveViews(const RenderFrameRequest& request);
-		// Materialが描画状態を所有する場合にRendererの抽出値へ反映する
-		void ApplyMaterialRenderStates();
 
 		// ビューの情報に応じたコンテキストを構築
 		SceneExecutionContext BuildViewExecutionContext(GraphicsCore& graphicsCore,
@@ -349,4 +321,3 @@ namespace Engine {
 			RenderViewKind kind, const ResolvedRenderView& view);
 	};
 } // Engine
-

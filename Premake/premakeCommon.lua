@@ -311,7 +311,6 @@ function NEM_AddCoreProjectFiles()
 
     removefiles {
         path.join(coreRoot, "Tools/ImGui/**"),
-        path.join(coreRoot, "Rendering/Particle/Gui/**"),
     }
 end
 
@@ -341,16 +340,12 @@ function NEM_AddEditorProjectFiles()
         ["EditorAssets/*"] = editorAssets,
     }
 
-    -- ParticleのEditor UIは現在Core実装と同居しているためEditor構成でのみ再コンパイルする
+    -- 発生形状の補助描画はEditor構成で有効にする
     local editorOwnedCore = {
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.h"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Gui/**.h"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Gui/**.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Emitter/Shapes/**.h"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Emitter/Shapes/**.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Module/**.h"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Module/**.cpp"),
     }
     files(editorOwnedCore)
     vpaths {

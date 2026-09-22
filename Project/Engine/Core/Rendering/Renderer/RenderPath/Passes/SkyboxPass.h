@@ -60,7 +60,7 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		bool initialized_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ

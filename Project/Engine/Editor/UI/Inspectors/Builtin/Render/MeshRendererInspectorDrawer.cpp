@@ -198,7 +198,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 			});
 		DrawField(anyItemActive, [&]() {
 
-			return InspectorDrawerCommon::DrawLayerMaskField(
+			return InspectorDrawerCommon::DrawLayerMaskField(context,
 				"Rendering Layer", draft.renderingLayerMask);
 			});
 
@@ -477,67 +477,6 @@ Engine::MaterialSurfaceMode Engine::MeshRendererInspectorDrawer::ResolveSubMeshS
 		MaterialSurfaceMode::Transparent : MaterialSurfaceMode::Opaque;
 }
 
-const Engine::ShaderReflectionInfo* Engine::MeshRendererInspectorDrawer::EnsureMaterialReflection(
-	const EditorPanelContext& context, AssetID materialID) {
-
-	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
-		return nullptr;
-	}
-	// 空マテリアルは描画時にデフォルトへ解決されるので、reflectionも実効デフォルトから引く
-	if (!materialID) {
-		materialID = DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
-	}
-	// マテリアルが変わったときだけファイルを読み直す
-	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
-
-		cachedMaterialValid_ = false;
-		cachedMaterialID_ = materialID;
-		cachedMaterial_ = MaterialAsset{};
-		const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(materialID);
-		if (!path.empty()) {
-
-			nlohmann::json data = JsonAdapter::Load(path.string(), false);
-			cachedMaterialValid_ = FromJson(data, cachedMaterial_);
-		}
-	}
-	if (!cachedMaterialValid_) {
-		return nullptr;
-	}
-	return context.renderPipeline->FindMaterialDrawReflection(cachedMaterial_);
-}
-
-Engine::MaterialParameterValue Engine::MeshRendererInspectorDrawer::ResolveSubMeshParamValue(
-	const SubMeshMaterial& subMesh, const ShaderConstantBufferVariable& var) const {
-
-	if (const MaterialParameterValue* value =
-		subMesh.materialInstance.Find(var.parameterID)) {
-
-		return *value;
-	}
-	if (var.semantic != MaterialParameterSemantic::None) {
-
-		if (const MaterialParameterValue* value =
-			subMesh.materialInstance.Find(var.semantic)) {
-
-			return *value;
-		}
-	}
-	if (const MaterialParameterValue* value =
-		cachedMaterial_.parameters.Find(var.parameterID)) {
-
-		return *value;
-	}
-	if (var.semantic != MaterialParameterSemantic::None) {
-
-		if (const MaterialParameterValue* value =
-			cachedMaterial_.parameters.Find(var.semantic)) {
-
-			return *value;
-		}
-	}
-	return MaterialParameterEditor::DefaultValueForVariable(var);
-}
-
 void Engine::MeshRendererInspectorDrawer::ApplyModelMaterialParameters(
 	const EditorPanelContext& context, MeshRendererComponent& draft) {
 
@@ -579,7 +518,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 		}
 	}
 
-	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, commonMaterial);
+	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(context, commonMaterial, DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin());
 	if (!reflection) {
 		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
 		return;
@@ -607,10 +546,10 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 
 		// 全サブメッシュで値が一致しているか調べ、混在していれば既定では編集無効にする
 		MaterialParameterValue common =
-			ResolveSubMeshParamValue(subMeshDraft_.front(), var);
+			materialReflection_.ResolveValue(subMeshDraft_.front().materialInstance, var);
 		bool mixed = false;
 		for (size_t i = 1; i < subMeshDraft_.size(); ++i) {
-			if (!ParamValueEqual(ResolveSubMeshParamValue(subMeshDraft_[i], var), common)) {
+			if (!ParamValueEqual(materialReflection_.ResolveValue(subMeshDraft_[i].materialInstance, var), common)) {
 				mixed = true;
 				break;
 			}
@@ -711,7 +650,7 @@ void Engine::MeshRendererInspectorDrawer::DrawBatchSubMeshMaterialEditor(
 void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 	const EditorPanelContext& context, AssetID materialID, SubMeshMaterial& subMesh, bool& anyItemActive) {
 
-	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, materialID);
+	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(context, materialID, DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin());
 	if (!reflection) {
 		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
 		return;
@@ -749,7 +688,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 
 	for (const ShaderConstantBufferVariable* var : scalarVariables) {
 
-		MaterialParameterValue value = ResolveSubMeshParamValue(subMesh, *var);
+		MaterialParameterValue value = materialReflection_.ResolveValue(subMesh.materialInstance, *var);
 		const Engine::FloatEditSetting floatSetting{};
 		DrawField(anyItemActive, [&]() {
 
@@ -768,7 +707,7 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshReflectedParameters(
 
 		AssetID textureID{};
 		const MaterialParameterValue value =
-			ResolveSubMeshParamValue(subMesh, *var);
+			materialReflection_.ResolveValue(subMesh.materialInstance, *var);
 		if (std::holds_alternative<AssetID>(value.value)) {
 			textureID = std::get<AssetID>(value.value);
 		}

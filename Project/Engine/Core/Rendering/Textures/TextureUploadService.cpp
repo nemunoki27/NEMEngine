@@ -22,348 +22,15 @@
 namespace {
 
 	constexpr uint32_t kMaxDecodeWorkerCount = 4;
-
-	// 読み込み要求に応じたWICフラグを取得する
-	DirectX::WIC_FLAGS ResolveWICFlags(Engine::TextureColorSpace colorSpace) {
-
-		switch (colorSpace) {
-		case Engine::TextureColorSpace::SRGB:
-			return DirectX::WIC_FLAGS_FORCE_SRGB;
-		case Engine::TextureColorSpace::Linear:
-			return DirectX::WIC_FLAGS_IGNORE_SRGB;
-		case Engine::TextureColorSpace::Auto:
-		default:
-			return DirectX::WIC_FLAGS_NONE;
-		}
-	}
-
-	// DDSやTGAのフォーマットへ明示色空間を反映する
-	void OverrideColorSpace(DirectX::ScratchImage& image,
-		Engine::TextureColorSpace colorSpace) {
-
-		if (colorSpace == Engine::TextureColorSpace::Auto) {
-			return;
-		}
-		const DXGI_FORMAT source = image.GetMetadata().format;
-		const DXGI_FORMAT target = colorSpace == Engine::TextureColorSpace::SRGB ?
-			DirectX::MakeSRGB(source) : DirectX::MakeLinear(source);
-		if (target != DXGI_FORMAT_UNKNOWN && target != source) {
-			image.OverrideFormat(target);
-		}
-	}
-
-	// 近傍の不透明色を透明ピクセルへ伝播して線形補間時の色滲みを防ぐ
-	bool BleedTransparentPixels(DirectX::ScratchImage& image) {
-
-		const DirectX::TexMetadata& metadata = image.GetMetadata();
-		if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE2D ||
-			metadata.arraySize != 1 || metadata.mipLevels != 1) {
-			return false;
-		}
-
-		const bool sRGB = DirectX::IsSRGB(metadata.format);
-		DirectX::ScratchImage converted{};
-		const DXGI_FORMAT format = sRGB ?
-			DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM;
-		DirectX::ScratchImage* workingImage = &image;
-		if (metadata.format != format) {
-
-			const HRESULT hr = DirectX::Convert(
-				image.GetImages(), image.GetImageCount(), metadata,
-				format, DirectX::TEX_FILTER_DEFAULT,
-				DirectX::TEX_THRESHOLD_DEFAULT, converted);
-			if (FAILED(hr)) {
-				return false;
-			}
-			workingImage = &converted;
-		}
-
-		const DirectX::Image* base = workingImage->GetImage(0, 0, 0);
-		if (!base || base->width == 0 || base->height == 0) {
-			return false;
-		}
-
-		const size_t pixelCount = base->width * base->height;
-		std::vector<int32_t> source(pixelCount, -1);
-		std::deque<size_t> pending{};
-		for (size_t y = 0; y < base->height; ++y) {
-
-			const uint8_t* row = base->pixels + y * base->rowPitch;
-			for (size_t x = 0; x < base->width; ++x) {
-
-				const size_t index = y * base->width + x;
-				if (row[x * 4 + 3] != 0) {
-					source[index] = static_cast<int32_t>(index);
-					pending.emplace_back(index);
-				}
-			}
-		}
-		if (pending.empty() || pending.size() == pixelCount) {
-			if (workingImage == &converted) {
-				image = std::move(converted);
-			}
-			return true;
-		}
-
-		constexpr int32_t kOffsetX[4]{ -1, 1, 0, 0 };
-		constexpr int32_t kOffsetY[4]{ 0, 0, -1, 1 };
-		while (!pending.empty()) {
-
-			const size_t index = pending.front();
-			pending.pop_front();
-			const int32_t x = static_cast<int32_t>(index % base->width);
-			const int32_t y = static_cast<int32_t>(index / base->width);
-			for (uint32_t direction = 0; direction < 4; ++direction) {
-
-				const int32_t nextX = x + kOffsetX[direction];
-				const int32_t nextY = y + kOffsetY[direction];
-				if (nextX < 0 || nextY < 0 ||
-					nextX >= static_cast<int32_t>(base->width) ||
-					nextY >= static_cast<int32_t>(base->height)) {
-					continue;
-				}
-
-				const size_t next = static_cast<size_t>(nextY) * base->width +
-					static_cast<size_t>(nextX);
-				if (source[next] >= 0) {
-					continue;
-				}
-				source[next] = source[index];
-				pending.emplace_back(next);
-			}
-		}
-
-		for (size_t y = 0; y < base->height; ++y) {
-
-			uint8_t* row = base->pixels + y * base->rowPitch;
-			for (size_t x = 0; x < base->width; ++x) {
-
-				uint8_t* pixel = row + x * 4;
-				if (pixel[3] != 0) {
-					continue;
-				}
-				const size_t index = y * base->width + x;
-				const size_t colorIndex = static_cast<size_t>(source[index]);
-				const size_t colorX = colorIndex % base->width;
-				const size_t colorY = colorIndex / base->width;
-				const uint8_t* color = base->pixels + colorY * base->rowPitch + colorX * 4;
-				pixel[0] = color[0];
-				pixel[1] = color[1];
-				pixel[2] = color[2];
-			}
-		}
-		if (workingImage == &converted) {
-			image = std::move(converted);
-		}
-		return true;
-	}
-
-	// 法線を正規化し必要ならOpenGLのY成分をDirectX規約へ変換する
-	bool NormalizeNormalMap(DirectX::ScratchImage& image, bool invertGreen) {
-
-		const DirectX::TexMetadata& metadata = image.GetMetadata();
-		DirectX::ScratchImage normalized{};
-		const HRESULT hr = DirectX::TransformImage(
-			image.GetImages(), image.GetImageCount(), metadata,
-			[invertGreen](DirectX::XMVECTOR* output, const DirectX::XMVECTOR* input,
-				size_t width, size_t) {
-
-				const DirectX::XMVECTOR one = DirectX::XMVectorReplicate(1.0f);
-				const DirectX::XMVECTOR half = DirectX::XMVectorReplicate(0.5f);
-				for (size_t x = 0; x < width; ++x) {
-
-					DirectX::XMVECTOR normal = DirectX::XMVectorSubtract(
-						DirectX::XMVectorScale(input[x], 2.0f), one);
-					if (invertGreen) {
-						normal = DirectX::XMVectorSetY(normal,
-							-DirectX::XMVectorGetY(normal));
-					}
-					normal = DirectX::XMVector3Normalize(normal);
-					DirectX::XMVECTOR encoded = DirectX::XMVectorMultiplyAdd(
-						normal, half, half);
-					output[x] = DirectX::XMVectorSetW(
-						encoded, DirectX::XMVectorGetW(input[x]));
-				}
-			}, normalized);
-		if (FAILED(hr)) {
-			return false;
-		}
-		image = std::move(normalized);
-		return true;
-	}
-
-	// 2D画像へフルMipチェーンを生成する
-	bool GenerateMipChain(DirectX::ScratchImage& image) {
-
-		const DirectX::TexMetadata& metadata = image.GetMetadata();
-		if (metadata.dimension != DirectX::TEX_DIMENSION_TEXTURE2D ||
-			metadata.mipLevels != 1 ||
-			(metadata.width == 1 && metadata.height == 1)) {
-			return false;
-		}
-
-		DirectX::ScratchImage mipChain{};
-		DirectX::TEX_FILTER_FLAGS filter = DirectX::TEX_FILTER_DEFAULT;
-		if (DirectX::IsSRGB(metadata.format)) {
-			filter = static_cast<DirectX::TEX_FILTER_FLAGS>(
-				filter | DirectX::TEX_FILTER_SRGB);
-		}
-		const HRESULT hr = DirectX::GenerateMipMaps(
-			image.GetImages(), image.GetImageCount(), metadata,
-			filter, 0, mipChain);
-		if (FAILED(hr)) {
-			return false;
-		}
-		image = std::move(mipChain);
-		return true;
-	}
-
-	// インスペクター向けに指定チャンネルだけを可視化する
-	bool ApplyPreviewChannel(DirectX::ScratchImage& image,
-		Engine::TexturePreviewChannel channel) {
-
-		if (channel == Engine::TexturePreviewChannel::Color) {
-			return true;
-		}
-
-		DirectX::ScratchImage preview{};
-		const HRESULT hr = DirectX::TransformImage(
-			image.GetImages(), image.GetImageCount(), image.GetMetadata(),
-			[channel](DirectX::XMVECTOR* output, const DirectX::XMVECTOR* input,
-				size_t width, size_t) {
-
-				for (size_t x = 0; x < width; ++x) {
-
-					float value = 0.0f;
-					switch (channel) {
-					case Engine::TexturePreviewChannel::Red:
-						value = DirectX::XMVectorGetX(input[x]);
-						break;
-					case Engine::TexturePreviewChannel::Green:
-						value = DirectX::XMVectorGetY(input[x]);
-						break;
-					case Engine::TexturePreviewChannel::Blue:
-						value = DirectX::XMVectorGetZ(input[x]);
-						break;
-					case Engine::TexturePreviewChannel::Alpha:
-						value = DirectX::XMVectorGetW(input[x]);
-						break;
-					case Engine::TexturePreviewChannel::Normal:
-						output[x] = DirectX::XMVectorSetW(input[x], 1.0f);
-						continue;
-					case Engine::TexturePreviewChannel::Color:
-					default:
-						output[x] = input[x];
-						continue;
-					}
-					output[x] = DirectX::XMVectorSet(value, value, value, 1.0f);
-				}
-			}, preview);
-		if (FAILED(hr)) {
-			return false;
-		}
-		image = std::move(preview);
-		return true;
-	}
-
-	// テクスチャメタからSRV記述子を構築する
-	D3D12_SHADER_RESOURCE_VIEW_DESC BuildSRVDesc(const DirectX::TexMetadata& meta) {
-
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-		srvDesc.Format = meta.format;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		switch (meta.dimension) {
-		case DirectX::TEX_DIMENSION_TEXTURE1D: {
-			//============================================================================
-			//	1Dテクスチャ
-			//============================================================================
-			if (1 < meta.arraySize) {
-
-				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1DARRAY;
-				srvDesc.Texture1DArray.MostDetailedMip = 0;
-				srvDesc.Texture1DArray.MipLevels = static_cast<UINT>(meta.mipLevels);
-				srvDesc.Texture1DArray.FirstArraySlice = 0;
-				srvDesc.Texture1DArray.ArraySize = static_cast<UINT>(meta.arraySize);
-				srvDesc.Texture1DArray.ResourceMinLODClamp = 0.0f;
-			} else {
-
-				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE1D;
-				srvDesc.Texture1D.MostDetailedMip = 0;
-				srvDesc.Texture1D.MipLevels = static_cast<UINT>(meta.mipLevels);
-				srvDesc.Texture1D.ResourceMinLODClamp = 0.0f;
-			}
-			break;
-		}
-		case DirectX::TEX_DIMENSION_TEXTURE2D: {
-			//============================================================================
-			//	2Dテクスチャ
-			//============================================================================
-			if (meta.IsCubemap()) {
-				if (6 < meta.arraySize) {
-					srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBEARRAY;
-					srvDesc.TextureCubeArray.MostDetailedMip = 0;
-					srvDesc.TextureCubeArray.MipLevels = static_cast<UINT>(meta.mipLevels);
-					srvDesc.TextureCubeArray.First2DArrayFace = 0;
-					srvDesc.TextureCubeArray.NumCubes = static_cast<UINT>(meta.arraySize / 6);
-					srvDesc.TextureCubeArray.ResourceMinLODClamp = 0.0f;
-				} else {
-					srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-					srvDesc.TextureCube.MostDetailedMip = 0;
-					srvDesc.TextureCube.MipLevels = static_cast<UINT>(meta.mipLevels);
-					srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-				}
-			} else if (1 < meta.arraySize) {
-				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
-				srvDesc.Texture2DArray.MostDetailedMip = 0;
-				srvDesc.Texture2DArray.MipLevels = static_cast<UINT>(meta.mipLevels);
-				srvDesc.Texture2DArray.FirstArraySlice = 0;
-				srvDesc.Texture2DArray.ArraySize = static_cast<UINT>(meta.arraySize);
-				srvDesc.Texture2DArray.PlaneSlice = 0;
-				srvDesc.Texture2DArray.ResourceMinLODClamp = 0.0f;
-			} else {
-				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-				srvDesc.Texture2D.MostDetailedMip = 0;
-				srvDesc.Texture2D.MipLevels = static_cast<UINT>(meta.mipLevels);
-				srvDesc.Texture2D.PlaneSlice = 0;
-				srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-			}
-			break;
-		}
-		case DirectX::TEX_DIMENSION_TEXTURE3D: {
-			//============================================================================
-			//	3Dテクスチャ
-			//============================================================================
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D;
-			srvDesc.Texture3D.MostDetailedMip = 0;
-			srvDesc.Texture3D.MipLevels = static_cast<UINT>(meta.mipLevels);
-			srvDesc.Texture3D.ResourceMinLODClamp = 0.0f;
-			break;
-		}
-		default:
-			//============================================================================
-			//	その他
-			//============================================================================
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.MipLevels = static_cast<UINT>(meta.mipLevels);
-			srvDesc.Texture2D.PlaneSlice = 0;
-			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-			break;
-		}
-		return srvDesc;
-	}
 }
 
 void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* graphicsQueue) {
 
 	Finalize();
 
-	device_ = device;
-	graphicsQueue_ = graphicsQueue;
 	srvDescriptor_ = srvDescriptor;
 
-	uploadCommand_ = std::make_unique<DxUploadCommand>();
-	uploadCommand_->Create(device_);
+	uploader_.Init(device, srvDescriptor, graphicsQueue);
 
 	const uint32_t hardwareThreadCount = (std::max)(1u, std::thread::hardware_concurrency());
 	const uint32_t threadCount = (std::min)(kMaxDecodeWorkerCount, hardwareThreadCount);
@@ -380,7 +47,7 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 void Engine::TextureUploadService::TickFinalize() {
 
 	// アップロードジョブをスワップしてロックを解放する
-	std::deque<PendingUploadJob> jobs{};
+	std::deque<DecodedTexture> jobs{};
 	{
 		std::scoped_lock lock(mutex_);
 		jobs.swap(pendingUploads_);
@@ -403,12 +70,12 @@ void Engine::TextureUploadService::TickFinalize() {
 		// 単色テクスチャのアップロード
 		if (job.isSolidColor) {
 
-			uploaded = UploadSolidColor1x1(job.solidRGBA[0], job.solidRGBA[1], job.solidRGBA[2], job.solidRGBA[3]);
+			uploaded = uploader_.UploadSolidColor1x1(job.solidRGBA[0], job.solidRGBA[1], job.solidRGBA[2], job.solidRGBA[3]);
 
 		}
 		// 画像テクスチャのアップロード
 		else if (job.success) {
-			uploaded = UploadScratchImage(job.image, job.metadata, reuseSrvIndex);
+			uploaded = uploader_.UploadScratchImage(job.image, job.metadata, reuseSrvIndex);
 		}
 
 		// アップロード結果を反映する
@@ -504,7 +171,7 @@ void Engine::TextureUploadService::RequestSolidColor1x1(
 		queuedKeys_.insert(key);
 
 		// アップロードジョブを記録する
-		PendingUploadJob job{};
+		DecodedTexture job{};
 		job.key = key;
 		job.isSolidColor = true;
 		job.solidRGBA[0] = r;
@@ -657,10 +324,8 @@ void Engine::TextureUploadService::Finalize() {
 		keyRequests_.clear();
 	}
 
-	uploadCommand_.reset();
+	uploader_.Finalize();
 	srvDescriptor_ = nullptr;
-	graphicsQueue_ = nullptr;
-	device_ = nullptr;
 }
 
 const Engine::GPUTextureResource* Engine::TextureUploadService::GetTexture(const std::string& key) const {
@@ -693,100 +358,7 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	Logger::Output(LogType::Engine, "[TextureLoad][開始] Worker[{}/{}] processing={} queued={} key={} path={}",
 		workerIndex + 1, startStats.threadCount, startStats.inFlightCount, startStats.queuedCount, job.key, job.assetPath);
 
-	PendingUploadJob result{};
-	result.key = job.key;
-	result.reload = job.reload;
-
-	// ファイルパスからテクスチャをデコードする
-	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(job.assetPath);
-	const std::string extension = Algorithm::ToLower(
-		Algorithm::PathToUTF8(fullPath.extension()));
-	const std::wstring fullPathW = fullPath.wstring();
-	const TextureColorSpace colorSpace = job.overrideImportColorSpace &&
-		job.requestedColorSpace != TextureColorSpace::Auto ?
-		job.requestedColorSpace : ResolveTextureColorSpace(
-			job.importSettings, job.requestedColorSpace);
-
-	DirectX::ScratchImage loaded{};
-	HRESULT hr = E_FAIL;
-	const char* failureStage = "Decode";
-	DirectX::TexMetadata loadedMeta{};
-	if (extension == ".dds") {
-
-		hr = DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded);
-	} else if (extension == ".tga") {
-
-		hr = DirectX::LoadFromTGAFile(fullPathW.c_str(), &loadedMeta, loaded);
-	} else if (extension == ".hdr") {
-
-		hr = DirectX::LoadFromHDRFile(fullPathW.c_str(), &loadedMeta, loaded);
-	} else {
-
-		hr = DirectX::LoadFromWICFile(fullPathW.c_str(), ResolveWICFlags(colorSpace),
-			&loadedMeta, loaded);
-	}
-	if (SUCCEEDED(hr)) {
-
-		OverrideColorSpace(loaded, colorSpace);
-		bool processingSucceeded = true;
-		const bool isNormalMap = job.importSettings.preset == TextureImportPreset::NormalMap;
-		if (isNormalMap) {
-
-			failureStage = "NormalConvert";
-			if (loaded.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM) {
-
-				DirectX::ScratchImage linearImage{};
-				hr = DirectX::Convert(loaded.GetImages(), loaded.GetImageCount(), loaded.GetMetadata(),
-					DXGI_FORMAT_R8G8B8A8_UNORM, DirectX::TEX_FILTER_DEFAULT,
-					DirectX::TEX_THRESHOLD_DEFAULT, linearImage);
-				if (SUCCEEDED(hr)) {
-					loaded = std::move(linearImage);
-				} else {
-					processingSucceeded = false;
-				}
-			}
-			if (processingSucceeded) {
-
-				failureStage = "NormalNormalize";
-				processingSucceeded = NormalizeNormalMap(loaded,
-					job.importSettings.normalConvention == TextureNormalConvention::OpenGL);
-			}
-		} else if (job.importSettings.alphaColorBleed &&
-			(job.importSettings.preset == TextureImportPreset::Color ||
-				job.importSettings.preset == TextureImportPreset::UI)) {
-
-			BleedTransparentPixels(loaded);
-		}
-
-		const DirectX::TexMetadata& metadata = loaded.GetMetadata();
-		const bool authoredDDSMips = extension == ".dds" && 1 < metadata.mipLevels;
-		const bool needsMipChain = job.importSettings.generateMipmaps &&
-			!authoredDDSMips && metadata.dimension == DirectX::TEX_DIMENSION_TEXTURE2D &&
-			metadata.mipLevels == 1 && (1 < metadata.width || 1 < metadata.height);
-		if (processingSucceeded && needsMipChain) {
-
-			failureStage = "MipGeneration";
-			processingSucceeded = GenerateMipChain(loaded);
-		}
-		if (processingSucceeded && isNormalMap) {
-
-			// Mip補間後に各法線を再正規化する、Y反転は基底Mipで完了している
-			failureStage = "NormalMipNormalize";
-			processingSucceeded = NormalizeNormalMap(loaded, false);
-		}
-		if (processingSucceeded) {
-			failureStage = "PreviewChannel";
-			processingSucceeded = ApplyPreviewChannel(loaded, job.previewChannel);
-		}
-
-		if (processingSucceeded) {
-			result.image = std::move(loaded);
-			result.metadata = result.image.GetMetadata();
-			result.success = true;
-		} else {
-			hr = E_FAIL;
-		}
-	}
+	DecodedTexture result = TextureDecoder::Decode(job);
 	const auto finishStats = decodeWorkers_.GetStats();
 	uint32_t remainingProcessing = (0 < finishStats.inFlightCount) ? (finishStats.inFlightCount - 1) : 0;
 
@@ -804,193 +376,9 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 			"[TextureLoad][完了] Worker[{}/{}] processing={} queued={} "
 			"key={} status=失敗 stage={} hr=0x{:08X} path={}",
 			workerIndex + 1, finishStats.threadCount, remainingProcessing,
-			finishStats.queuedCount, job.key, failureStage,
-			static_cast<uint32_t>(hr), job.assetPath);
+			finishStats.queuedCount, job.key, result.failureStage,
+			static_cast<uint32_t>(result.result), job.assetPath);
 	}
 	std::scoped_lock lock(mutex_);
 	pendingUploads_.emplace_back(std::move(result));
-}
-
-Engine::GPUTextureResource Engine::TextureUploadService::UploadSolidColor1x1(
-	uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-
-	GPUTextureResource result{};
-	const uint8_t pixel[4] = { r, g, b, a };
-
-	// 1x1のテクスチャリソースを作成する
-	D3D12_RESOURCE_DESC desc{};
-	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	desc.Width = 1;
-	desc.Height = 1;
-	desc.DepthOrArraySize = 1;
-	desc.MipLevels = 1;
-	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	desc.SampleDesc.Count = 1;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	D3D12_HEAP_PROPERTIES defaultHeap{};
-	defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-	// デフォルトヒープにテクスチャリソースを作成する
-	HRESULT hr = device_->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &desc,
-		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&result.resource));
-	if (FAILED(hr)) {
-		return result;
-	}
-
-	// ピクセルデータをサブリソース構造体にセットする
-	D3D12_SUBRESOURCE_DATA subResource{};
-	subResource.pData = pixel;
-	subResource.RowPitch = 4;
-	subResource.SlicePitch = 4;
-	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(result.resource.Get(), 0, 1);
-
-	// アップロード用のバッファを作成する
-	ComPtr<ID3D12Resource> uploadBuffer = nullptr;
-	D3D12_HEAP_PROPERTIES uploadHeap{};
-	uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
-	D3D12_RESOURCE_DESC bufferDesc{};
-	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	bufferDesc.Width = uploadBufferSize;
-	bufferDesc.Height = 1;
-	bufferDesc.DepthOrArraySize = 1;
-	bufferDesc.MipLevels = 1;
-	bufferDesc.SampleDesc.Count = 1;
-	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	// アップロード用バッファをコミットリソースとして作成する
-	hr = device_->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &bufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadBuffer));
-	if (FAILED(hr)) {
-		return result;
-	}
-
-	// コマンドリストを取得して、サブリソースデータをアップロードする
-	ID3D12GraphicsCommandList* commandList = uploadCommand_->GetCommandList();
-	UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(), 0, 0, 1, &subResource);
-
-	// コピー後のリソースバリアを設定する
-	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = result.resource.Get();
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	commandList->ResourceBarrier(1, &barrier);
-
-	// コマンドを実行する
-	uploadCommand_->ExecuteCommands(graphicsQueue_);
-
-	// SRVを作成する
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = 1;
-	srvDescriptor_->CreateSRV(result.srvIndex, result.resource.Get(), srvDesc);
-	result.gpuHandle = srvDescriptor_->GetGPUHandle(result.srvIndex);
-	result.valid = true;
-	return result;
-}
-
-Engine::GPUTextureResource Engine::TextureUploadService::UploadScratchImage(
-	const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta, uint32_t reuseSrvIndex) {
-
-	GPUTextureResource result{};
-	if (!image.GetImages() || image.GetImageCount() == 0) {
-		return result;
-	}
-
-	// テクスチャリソースを作成する
-	D3D12_RESOURCE_DESC desc{};
-	switch (meta.dimension) {
-	case DirectX::TEX_DIMENSION_TEXTURE1D:
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-		desc.DepthOrArraySize = static_cast<UINT16>(meta.arraySize);
-		break;
-	case DirectX::TEX_DIMENSION_TEXTURE2D:
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		desc.DepthOrArraySize = static_cast<UINT16>(meta.arraySize);
-		break;
-	case DirectX::TEX_DIMENSION_TEXTURE3D:
-		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
-		desc.DepthOrArraySize = static_cast<UINT16>(meta.depth);
-		break;
-	default:
-		return result;
-	}
-	desc.Width = static_cast<UINT64>(meta.width);
-	desc.Height = static_cast<UINT>(meta.height);
-	desc.MipLevels = static_cast<UINT16>(meta.mipLevels);
-	desc.Format = meta.format;
-	desc.SampleDesc.Count = 1;
-	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	D3D12_HEAP_PROPERTIES defaultHeap{};
-	defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
-
-	// デフォルトヒープにテクスチャリソースを作成する
-	HRESULT hr = device_->CreateCommittedResource(&defaultHeap, D3D12_HEAP_FLAG_NONE, &desc,
-		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&result.resource));
-	if (FAILED(hr)) {
-		return result;
-	}
-
-	// サブリソース構造体の配列を作成して、画像データをセットする
-	std::vector<D3D12_SUBRESOURCE_DATA> subResources{};
-	DirectX::PrepareUpload(device_, image.GetImages(), image.GetImageCount(), meta, subResources);
-
-	// アップロードに必要なバッファサイズを取得する
-	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(result.resource.Get(), 0, static_cast<UINT>(subResources.size()));
-
-	// アップロード用のバッファを作成する
-	ComPtr<ID3D12Resource> uploadBuffer = nullptr;
-	D3D12_HEAP_PROPERTIES uploadHeap{};
-	uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
-	D3D12_RESOURCE_DESC bufferDesc{};
-	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	bufferDesc.Width = uploadBufferSize;
-	bufferDesc.Height = 1;
-	bufferDesc.DepthOrArraySize = 1;
-	bufferDesc.MipLevels = 1;
-	bufferDesc.SampleDesc.Count = 1;
-	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-
-	// アップロード用バッファをコミットリソースとして作成する
-	hr = device_->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &bufferDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&uploadBuffer));
-	if (FAILED(hr)) {
-		return result;
-	}
-
-	// コマンドリストを取得して、サブリソースデータをアップロードする
-	ID3D12GraphicsCommandList* commandList = uploadCommand_->GetCommandList();
-	UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(),
-		0, 0, static_cast<UINT>(subResources.size()), subResources.data());
-
-	// コピー後のリソースバリアを設定する
-	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
-	D3D12_RESOURCE_BARRIER barrier{};
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Transition.pResource = result.resource.Get();
-	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	commandList->ResourceBarrier(1, &barrier);
-
-	// コマンドを実行する
-	uploadCommand_->ExecuteCommands(graphicsQueue_);
-
-	// SRVを作成する、reload時は既存indexへ上書きしてgpuHandleを変えない
-	const D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = BuildSRVDesc(meta);
-	if (reuseSrvIndex != UINT32_MAX) {
-
-		result.srvIndex = reuseSrvIndex;
-		srvDescriptor_->RecreateSRV(reuseSrvIndex, result.resource.Get(), srvDesc);
-	} else {
-
-		srvDescriptor_->CreateSRV(result.srvIndex, result.resource.Get(), srvDesc);
-	}
-	result.gpuHandle = srvDescriptor_->GetGPUHandle(result.srvIndex);
-	result.valid = true;
-	return result;
 }

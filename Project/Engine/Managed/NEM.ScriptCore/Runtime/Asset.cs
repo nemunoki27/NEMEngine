@@ -26,7 +26,7 @@ public abstract class Asset : Object {
     public AssetGUID assetID => id;
 
     // assetが現在のAssetDatabaseに存在するか。hot pathで繰り返す場合は結果を呼び出し側でcacheする想定
-    public bool exists => id.isValid && NativeAPI.ReadAssetExists(id);
+    public bool exists => id.isValid && NativeApplicationAPI.ReadAssetExists(id);
 
     // 表示名(拡張子なしファイル名)。Missing/未設定はnull。path文字列そのものは返さない
     public string? name {
@@ -34,7 +34,7 @@ public abstract class Asset : Object {
             if (!id.isValid) {
                 return null;
             }
-            string displayName = NativeAPI.ReadAssetDisplayName(id);
+            string displayName = NativeApplicationAPI.ReadAssetDisplayName(id);
             return string.IsNullOrEmpty(displayName) ? null : displayName;
         }
     }

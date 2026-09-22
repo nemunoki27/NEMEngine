@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "MeshGraphicsBinding.h"
+#include "MeshSkinningDispatcher.h"
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderBackend.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchResources.h>
@@ -150,42 +152,14 @@ namespace Engine {
 		MeshGPUResourceManager meshResourceManager_{};
 
 		// バッファレジストリ→ Graphicsパイプラインスロットの対応キャッシュ
-		RegistryAutoBindTable registryAutoBindTable_{};
-		// メッシュ固有GraphicsバインドのパイプラインスロットID
-		PipelineBindingCache sharedBindCache_{};
-		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID drawCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID packedVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID vtxSubMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID skinnedVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID skinnedPkdVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID meshInstSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID subMeshSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID occlusionDepthSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID outlineSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID screenSpaceOutlineMaskCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID shaderGraphTimeCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		// reflection駆動のマテリアルパラメータcbuffer、カスタムマテリアル用でBuiltinには存在しない
-		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		MaterialParameterBinder materialParamBinder_{};
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
-		D3D12_GPU_VIRTUAL_ADDRESS shaderGraphTimeGPUAddress_ = 0;
-		// reflection駆動のサブメッシュ単位マテリアルパラメータ構造化バッファのスロット
-		PipelineBindingCache::SlotID subMeshMaterialParamSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		MeshGraphicsBinding graphicsBinding_{};
 		// スキニングComputeバインドのパイプラインスロットID
-		PipelineBindingCache skinningBindCache_{};
-		PipelineBindingCache::SlotID skinConstCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID inputVtxSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID vtxInflSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID skinPaletteSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID skinnedVtxUAVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID skinnedPkdVtxUAVSlot_ = PipelineBindingCache::kInvalidSlot;
+		MeshSkinningDispatcher skinningDispatcher_{};
 
 		// 描画パス
 		std::vector<std::unique_ptr<IMeshDrawPath>> drawPaths_{};
 
 		// スキニング処理に使用するパイプライン
-		AssetID skinningPipeline_{};
 		// スキンメッシュのバッチキャッシュ
 		std::unordered_map<SkinnedBatchCacheKey,
 			SkinnedBatchCacheEntry, SkinnedBatchCacheKeyHash> skinnedBatchCache_{};
@@ -203,16 +177,19 @@ namespace Engine {
 		// 初期化されていない場合は初期化する
 		void EnsureInitialized(GraphicsCore& graphicsCore);
 
+		// 再利用条件に応じてバッチ資源を準備する
 		bool PrepareBatchResources(const RenderDrawContext& context,
 			std::span<const RenderItem* const> items, MeshPreparedBatch& outPrepared);
+		// Materialと描画経路を確定する
 		bool PrepareBatch(const RenderDrawContext& context, std::span<const RenderItem* const> items,
 			MeshPreparedBatch& outPrepared);
-		void BindSharedResources(const RenderDrawContext& context, const MeshPreparedBatch& prepared,
-			ID3D12GraphicsCommandList6* commandList);
+
+		// Pipelineの描画経路を選択する
 		IMeshDrawPath& SelectDrawPath(const PipelineVariantDesc& variant);
 
 		// スキンメッシュのバッチキャッシュを構築するためのハッシュを計算する
 		uint64_t BuildBatchHash(std::span<const RenderItem* const> items) const;
+		// 静的バッチの同一性を計算する
 		uint64_t BuildStaticBatchHash(
 			std::span<const RenderItem* const> items,
 			const MeshGPUResource& gpuMesh) const;
@@ -220,13 +197,11 @@ namespace Engine {
 		void PruneStaticBatchCache();
 		// 長時間使われていないスキニングバッチを破棄する
 		void PruneSkinnedBatchCache();
+		// Skinningの参照とバッチを破棄する
 		void ClearSkinnedBatchCache();
-		// スキンメッシュのGPUディスパッチ
-		void DispatchSkinning(const RenderDrawContext& context, const MeshPreparedBatch& prepared);
 
 		// スキンメッシュのリソースをキャッシュに登録する
 		void RegisterSkinnedSources(AssetID meshAssetID, MeshBatchResources& resources,
 			std::span<const RenderItem* const> items);
 	};
 } // Engine
-

@@ -100,7 +100,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		// 同じコマンドリスト内で複数回描画しても、後のカメラ定数で上書きしないためのバッファ
 		std::array<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>,
 			kGraphicsFrameContextCount> passBuffers_{};
@@ -195,9 +195,10 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 表示範囲からGrid描画定数を作成する
 		GridPassConstants BuildPassConstants(const ResolvedCameraView& camera, uint32_t width, uint32_t height,
 			float fixedMinorStep) const;
+		// 描画回数に対応する定数Bufferを確保する
 		DxConstBuffer<GridPassConstants>& AllocatePassBuffer(GraphicsCore& graphicsCore);
 	};
 } // Engine
-

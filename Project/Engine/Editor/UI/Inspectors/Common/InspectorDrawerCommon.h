@@ -6,6 +6,7 @@
 #include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -29,7 +30,7 @@ namespace Engine::InspectorDrawerCommon {
 	// チェックボックスフィールドを描画する
 	ValueEditResult DrawCheckboxField(const char* label, bool& value);
 	// uint32のレイヤーマスクをDragIntで描画する、内部はint32経由で編集する
-	ValueEditResult DrawLayerMaskField(const char* label, uint32_t& value);
+	ValueEditResult DrawLayerMaskField(const EditorPanelContext& context, const char* label, uint32_t& value);
 	// enum型のコンボボックスフィールドを描画する
 	template <typename Enum>
 	ValueEditResult DrawEnumComboField(const char* label, Enum& value) {
@@ -51,7 +52,7 @@ namespace Engine::InspectorDrawerCommon {
 
 	// 各Rendererコンポーネントが共通で持つ描画フィールドを描く、drawFieldは各Drawerのラップを渡す
 	template <typename DrawFieldFn>
-	void DrawCommonRenderFields(DrawFieldFn&& drawField,
+	void DrawCommonRenderFields(const EditorPanelContext& context, DrawFieldFn&& drawField,
 		int32_t& layer, int32_t& order, BlendMode& blendMode,
 		RenderPhase& queue, uint32_t* renderingLayerMask = nullptr) {
 
@@ -62,7 +63,7 @@ namespace Engine::InspectorDrawerCommon {
 		if (renderingLayerMask) {
 			drawField([&]() {
 
-				return DrawLayerMaskField(
+				return DrawLayerMaskField(context,
 					"Rendering Layer", *renderingLayerMask);
 			});
 		}

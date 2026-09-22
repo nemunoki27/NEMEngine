@@ -68,7 +68,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 			});
 	}
 	// 描画パラメータ
-	InspectorDrawerCommon::DrawCommonRenderFields(
+	InspectorDrawerCommon::DrawCommonRenderFields(context,
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 		draft.layer, draft.order, draft.blendMode, draft.queue,
 		&draft.renderingLayerMask);
@@ -151,71 +151,10 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	DrawReflectedParameters(context, draft, anyItemActive);
 }
 
-const Engine::ShaderReflectionInfo* Engine::PrimitiveRendererInspectorDrawer::EnsureMaterialReflection(
-	const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID) {
-
-	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
-		return nullptr;
-	}
-	// 空マテリアルは描画時にデフォルトへ解決されるので、reflectionも実効デフォルトから引く
-	if (!materialID) {
-		materialID = defaultMaterialID;
-	}
-	// マテリアルが変わったときだけファイルを読み直す
-	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
-
-		cachedMaterialValid_ = false;
-		cachedMaterialID_ = materialID;
-		cachedMaterial_ = MaterialAsset{};
-		const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(materialID);
-		if (!path.empty()) {
-
-			nlohmann::json data = JsonAdapter::Load(path.string(), false);
-			cachedMaterialValid_ = FromJson(data, cachedMaterial_);
-		}
-	}
-	if (!cachedMaterialValid_) {
-		return nullptr;
-	}
-	return context.renderPipeline->FindMaterialDrawReflection(cachedMaterial_);
-}
-
-Engine::MaterialParameterValue Engine::PrimitiveRendererInspectorDrawer::ResolveParamValue(
-	const PrimitiveRendererComponent& draft, const ShaderConstantBufferVariable& var) const {
-
-	if (const MaterialParameterValue* value =
-		draft.materialInstance.Find(var.parameterID)) {
-
-		return *value;
-	}
-	if (var.semantic != MaterialParameterSemantic::None) {
-
-		if (const MaterialParameterValue* value =
-			draft.materialInstance.Find(var.semantic)) {
-
-			return *value;
-		}
-	}
-	if (const MaterialParameterValue* value =
-		cachedMaterial_.parameters.Find(var.parameterID)) {
-
-		return *value;
-	}
-	if (var.semantic != MaterialParameterSemantic::None) {
-
-		if (const MaterialParameterValue* value =
-			cachedMaterial_.parameters.Find(var.semantic)) {
-
-			return *value;
-		}
-	}
-	return MaterialParameterEditor::DefaultValueForVariable(var);
-}
-
 void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	const EditorPanelContext& context, PrimitiveRendererComponent& draft, bool& anyItemActive) {
 
-	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, draft.material, EffectiveDefaultMaterial(draft));
+	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(context, draft.material, EffectiveDefaultMaterial(draft));
 	if (!reflection) {
 		return;
 	}
@@ -250,7 +189,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 
 	for (const ShaderConstantBufferVariable* var : scalarVariables) {
 
-		MaterialParameterValue value = ResolveParamValue(draft, *var);
+		MaterialParameterValue value = materialReflection_.ResolveValue(draft.materialInstance, *var);
 		const FloatEditSetting floatSetting{};
 		DrawField(anyItemActive, [&]() {
 
@@ -290,7 +229,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	for (const ShaderConstantBufferVariable* variable : textureVariables) {
 		AssetID textureID{};
 		const MaterialParameterValue value =
-			ResolveParamValue(draft, *variable);
+			materialReflection_.ResolveValue(draft.materialInstance, *variable);
 		if (const AssetID* resolved =
 			std::get_if<AssetID>(&value.value)) {
 			textureID = *resolved;
@@ -356,7 +295,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			};
 		AssetID textureID = resolveTexture(draft.materialInstance);
 		if (!textureID) {
-			textureID = resolveTexture(cachedMaterial_.parameters);
+			textureID = resolveTexture(materialReflection_.GetMaterial().parameters);
 		}
 		drawTexture(parameterID, semantic, displayName, textureID);
 	}

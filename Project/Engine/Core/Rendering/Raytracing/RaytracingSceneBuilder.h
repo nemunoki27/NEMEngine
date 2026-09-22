@@ -3,6 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RaytracingTLASState.h"
+#include "RaytracingMaterialResolver.h"
+#include "RaytracingSceneResult.h"
+#include "RaytracingBLASCache.h"
+#include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
@@ -35,12 +40,6 @@ namespace Engine {
 	//	RaytracingSceneBuilder structures
 	//============================================================================
 	// メッシピック記録用
-	struct MeshSubMeshPickRecord {
-
-		Entity entity = Entity::Null();
-		uint32_t subMeshIndex = 0;
-		UUID subMeshStableID{};
-	};
 
 	//============================================================================
 	//	RaytracingSceneBuilder class
@@ -72,58 +71,30 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		ID3D12Resource* GetTLASResource() const { return tlas_.GetResource(); }
+		ID3D12Resource* GetTLASResource() const { return tlasState_.GetResource(); }
 
-		const std::vector<MeshSubMeshPickRecord>& GetPickRecords() const { return scenePickRecords_; }
-		const std::vector<uint32_t>& GetPickRecordOffsets() const { return scenePickRecordOffsets_; }
+		const std::vector<MeshSubMeshPickRecord>& GetPickRecords() const { return result_.scenePickRecords_; }
+		const std::vector<uint32_t>& GetPickRecordOffsets() const { return result_.scenePickRecordOffsets_; }
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
+		using BLASKey = RaytracingBLASCache::BLASKey;
+		using BLASKeyHash = RaytracingBLASCache::BLASKeyHash;
+		using StaticInstanceBLASKey = RaytracingBLASCache::StaticInstanceBLASKey;
+		using StaticInstanceBLASKeyHash = RaytracingBLASCache::StaticInstanceBLASKeyHash;
+		using StaticInstanceBLASEntry = RaytracingBLASCache::StaticInstanceBLASEntry;
+		using DynamicBLASKey = RaytracingBLASCache::DynamicBLASKey;
+		using DynamicBLASKeyHash = RaytracingBLASCache::DynamicBLASKeyHash;
+		using DynamicBLASEntry = RaytracingBLASCache::DynamicBLASEntry;
+
 		//--------- stricture ----------------------------------------------------
 
 		// BLASのキー
-		struct BLASKey {
 
-			AssetID meshAssetID{};
-			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
-			uint32_t reloadGeneration = 0;
-			// 静的メッシュのLODごとにBLASを共有する
-			uint32_t lodIndex = 0;
-			// サブメッシュローカル行列を含むジオメトリ配置
-			uint64_t geometryLayoutHash = 0;
-
-			bool operator==(const BLASKey& rhs) const noexcept;
-		};
-		struct BLASKeyHash {
-			size_t operator()(const BLASKey& key) const noexcept;
-		};
 		// サブメッシュ固有変換を持つ静的メッシュはEntity単位でrefitする
-		struct StaticInstanceBLASKey {
 
-			ECSWorld* world = nullptr;
-			Entity entity = Entity::Null();
-			AssetID meshAssetID{};
-			uint32_t reloadGeneration = 0;
-
-			bool operator==(const StaticInstanceBLASKey& rhs) const noexcept;
-		};
-		struct StaticInstanceBLASKeyHash {
-
-			size_t operator()(const StaticInstanceBLASKey& key) const noexcept;
-		};
-		struct StaticInstanceBLASEntry {
-
-			std::array<BottomLevelAccelerationStructure,
-				kMeshLODCount> lodBLASes{};
-			std::array<uint64_t, kMeshLODCount>
-				lodGeometryLayoutHashes{};
-			uint64_t geometryLayoutHash = 0;
-			uint64_t lastUsedFrame = 0;
-			bool layoutInitialized = false;
-			bool dedicated = false;
-		};
 		// 静的メッシュのLOD差分更新に必要なインスタンス情報
 		struct CachedMeshLODInstance {
 
@@ -178,77 +149,45 @@ namespace Engine {
 			size_t operator()(
 				const SceneEntityKey& key) const noexcept;
 		};
-		// 動的BLASのキー
-		struct DynamicBLASKey {
 
-			ECSWorld* world = nullptr;
-			Entity entity = Entity::Null();
-			AssetID meshAssetID{};
-			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
-			uint32_t reloadGeneration = 0;
+		struct SceneBuildWork {
 
-			bool operator==(const DynamicBLASKey& rhs) const noexcept;
-		};
-		struct DynamicBLASKeyHash {
-			size_t operator()(const DynamicBLASKey& key) const noexcept;
-		};
-		struct DynamicBLASEntry {
-
-			BottomLevelAccelerationStructure blas{};
-			uint64_t poseGeneration = 0;
-			uint64_t bufferGeneration = 0;
-			uint64_t geometryLayoutHash = 0;
-			D3D12_GPU_VIRTUAL_ADDRESS vertexAddress = 0;
-			uint64_t lastUsedFrame = 0;
-			uint32_t consecutiveRefitCount = 0;
+			GraphicsCore& graphicsCore;
+			AssetDatabase& assetDatabase;
+			RenderAssetLibrary& assetLibrary;
+			MaterialResolver& materialResolver;
+			MeshRenderBackend* meshBackend;
+			PrimitiveGeometryManager* primitiveGeometryManager;
+			const GraphicsRuntimeFeatures& runtimeFeatures;
+			const ResolvedRenderView* lodView;
+			ID3D12Device8* device;
+			ID3D12GraphicsCommandList6* commandList;
+			std::vector<RaytracingTLASInstance>& tlasInstances;
+			std::vector<SceneEntityKey>& tlasEntityKeys;
+			std::vector<CachedMeshLODInstance>& meshLODInstances;
+			std::vector<uint32_t>& meshLODRecordIndices;
+			bool& requireTlasRebuild;
+			bool& staticScene;
+			uint32_t& blasGeometryCount;
 		};
 
 		//--------- variables ----------------------------------------------------
 
 		// BLAS
-		std::unordered_map<BLASKey, BottomLevelAccelerationStructure, BLASKeyHash> blases_;
-		std::unordered_map<StaticInstanceBLASKey, StaticInstanceBLASEntry,
-			StaticInstanceBLASKeyHash> staticInstanceBLASes_{};
-		std::unordered_map<DynamicBLASKey,
-			DynamicBLASEntry, DynamicBLASKeyHash> dynamicBlases_{};
-		// メッシュごとに最後に構築したリロード世代、変化時に旧世代BLASを破棄する
-		std::unordered_map<AssetID, uint32_t> meshBlasGeneration_;
+		RaytracingBLASCache blasCache_{};
 		// TLAS
-		TopLevelAccelerationStructure tlas_;
+		RaytracingTLASState tlasState_{};
 
-		// シーンインスタンスバッファ
-		StructuredInstanceBuffer<RaytracingInstanceShaderData> sceneInstances_{ "gRaytracingSceneInstances" };
-		// BLAS内ジオメトリバッファ
-		StructuredInstanceBuffer<RaytracingGeometryShaderData> sceneGeometries_{ "gRaytracingGeometries" };
-		// サブメッシュインスタンスバッファ
-		StructuredInstanceBuffer<MeshSubMeshShaderData> sceneSubMeshes_{ "gRaytracingSubMeshes" };
-
-		// インスタンスデータ
-		std::vector<RaytracingInstanceShaderData> sceneInstanceScratch_{};
-		std::vector<RaytracingGeometryShaderData> sceneGeometryScratch_{};
-		std::vector<MeshSubMeshShaderData> sceneSubMeshScratch_{};
-
-		// メッシュピック用のサブメッシュ情報
-		std::vector<MeshSubMeshPickRecord> scenePickRecords_{};
-		// TLASインスタンスごとのピック記録先頭
-		std::vector<uint32_t> scenePickRecordOffsets_{};
+		RaytracingSceneResult result_{};
 
 		// テクスチャ解決キャッシュ
-		std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
-		std::unordered_map<AssetID, uint32_t> sRGBTextureDescriptorIndexCache_{};
-		// 非同期読込中は静的シーンのマテリアルバッファを次フレームも再構築する
-		bool hasPendingTextureDescriptors_ = false;
+		RaytracingMaterialResolver materialResolver_{};
 		// 反射履歴の無効化に使うマテリアル内容の世代
 		uint64_t sceneMaterialGeneration_ = 0;
 		uint64_t cachedSceneMaterialHash_ = 0;
-		SRVDescriptor* srvDescriptor_ = nullptr;
 
 		// 初期化済みか
 		bool initialized_ = false;
-		// 初回のTLAS構築か
-		bool firstTLASBuild_ = true;
-		// 前回TLASへ渡したインスタンス配置のハッシュ
-		uint64_t tlasInstanceHash_ = 0;
 		// 静的シーンのTransform差分更新に使うTLAS配置
 		std::vector<RaytracingTLASInstance>
 			cachedTLASInstances_{};
@@ -274,12 +213,13 @@ namespace Engine {
 		uint64_t cachedLODViewHash_ = 0;
 		uint32_t cachedBLASGeometryCount_ = 0;
 		uint32_t cachedTLASInstanceCount_ = 0;
-		// 連続refitによるBVH品質低下を抑えるための回数
-		uint32_t consecutiveTLASRefitCount_ = 0;
-		std::array<uint64_t, kGraphicsFrameContextCount>
-			sceneUploadFrameSerials_ = { 0, 0, 0 };
 
 		//--------- functions ----------------------------------------------------
+
+		// MeshのBLASとインスタンスを構築する
+		void BuildMeshInstances(std::span<const CollectedMeshInstance> sceneMeshes, SceneBuildWork& work);
+		// PrimitiveのBLASとインスタンスを構築する
+		void BuildPrimitiveInstances(std::span<const CollectedPrimitiveInstance> scenePrimitives, SceneBuildWork& work);
 
 		// 可視メッシュインスタンスの収集
 		void CollectSceneMeshInstances(const RenderSceneBatch& renderBatch,
@@ -287,25 +227,9 @@ namespace Engine {
 		// 可視Primitiveインスタンスの収集
 		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch,
 			const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances);
-		// Primitiveの標準PBRマテリアルをレイトレーシング用固定データへ変換する
-		MeshSubMeshShaderData BuildPrimitiveSubMeshData(GraphicsCore& graphicsCore,
-			AssetDatabase& assetDatabase, const MaterialAsset& material,
-			const MaterialParameterSet* materialInstance, const Matrix4x4& uvMatrix);
-		// テクスチャデスクリプタインデックスの解決
-		uint32_t ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
-			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB);
-		// TLAS更新が必要か判定するためインスタンス配置をハッシュ化する
-		static uint64_t ComputeTLASInstanceHash(
-			std::span<const RaytracingTLASInstance> instances);
-		// TLASを更新し、連続refit上限では同一バッファへ完全再構築する
-		void RefitORRebuildTLAS(GraphicsCore& graphicsCore,
-			const std::vector<RaytracingTLASInstance>& instances,
-			bool forceRebuild);
+
 		// 既に構築済みのシーン情報を各ビューコンテキストに渡す
 		void PublishBuiltScene(SceneExecutionContext& context) const;
-		// 構築済みCPU配列を現在のフレームスロットへ一度だけ転送する
-		void UploadCachedSceneBuffers();
 
 	};
 } // Engine
-

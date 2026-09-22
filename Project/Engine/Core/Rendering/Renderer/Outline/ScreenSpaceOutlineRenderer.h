@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "ScreenSpaceOutlinePostProcess.h"
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineTypes.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
@@ -67,23 +68,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		StructuredInstanceBuffer<ScreenSpaceOutlineStyleGPU> styleBuffer_{ "gOutlineStyles" };
-		ViewConstantBuffer<ScreenSpaceOutlineDilateConstants> dilateConstants_{ "DilateConstants" };
-		ViewConstantBuffer<ScreenSpaceOutlineCompositeConstants> compositeConstants_{ "CompositeConstants" };
-
-		// Horizontal/Vertical Dilationは同じbinding schemaなのでcacheを共有する
-		PipelineBindingCache dilateBindCache_{};
-		PipelineBindingCache::SlotID dilateConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID dilateInputMaskSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID dilateStylesSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID dilateOutputUAVSlot_ = PipelineBindingCache::kInvalidSlot;
-
-		PipelineBindingCache compositeBindCache_{};
-		PipelineBindingCache::SlotID compositeConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID compositeMaskSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID compositeDilatedMaskSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID compositeProjectedCoverageMaskSRVSlot_ = PipelineBindingCache::kInvalidSlot;
-		PipelineBindingCache::SlotID compositeStylesSRVSlot_ = PipelineBindingCache::kInvalidSlot;
+		ScreenSpaceOutlinePostProcess postProcess_{};
 
 		std::vector<ScreenSpaceOutlineStyleGPU> styleScratch_{};
 		std::vector<DrawRecord> drawScratch_{};
@@ -94,6 +79,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 要求ごとのStyleと描画対象を確定する
 		bool BuildDrawRecords(std::span<const ScreenSpaceOutlineRequest> requests,
 			uint32_t& outMaxRadiusPixels);
 		// Visible MaskとProjected Coverage Maskの両方をClearする
@@ -104,19 +90,6 @@ namespace Engine {
 			ScreenSpaceOutlineViewResources& resources,
 			std::span<const RenderPhase> phases,
 			DepthTexture2D* depthOverride);
-		// Mask/HorizontalDilated/Dilatedが全て有効か
-		static bool ValidateDilationResources(const ScreenSpaceOutlineViewResources& resources);
-		bool ExecuteDilation(GraphicsCore& graphicsCore, const RenderPipelineDeps& deps,
-			ScreenSpaceOutlineViewResources& resources, uint32_t maxRadiusPixels);
-		// 1段ぶんのDilation Computeでinput SRVからoutput UAVへ、bindingが揃わなければDispatchしない
-		bool ExecuteDilationPass(GraphicsCore& graphicsCore, const RenderPipelineDeps& deps,
-			AssetID pipelineID, ScreenSpaceOutlineViewResources& resources,
-			RenderTexture2D* inputMask, RenderTexture2D* outputMask, uint32_t safeRadius,
-			bool finalToPixelShader, const wchar_t* label);
 
-		bool ExecuteComposite(GraphicsCore& graphicsCore, SceneExecutionContext& context,
-			const RenderPipelineDeps& deps, ScreenSpaceOutlineViewResources& resources,
-			MultiRenderTarget* compositeTarget);
 	};
 } // Engine
-

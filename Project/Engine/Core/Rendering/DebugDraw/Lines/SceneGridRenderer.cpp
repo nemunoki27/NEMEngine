@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -453,14 +454,14 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-	bool created = pipeline_.CreateGraphics(device, compiler, desc);
+	bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
 	Assert::Call(created, "SceneGridRendererの解析グリッドPipeline作成に失敗しました");
 
 	for (auto& buffers : passBuffers_) {
 		buffers.reserve(4);
 	}
 
-	initialized_ = true;
+	initialized_ = created;
 }
 
 void Engine::SceneGridRenderer::BeginFrame() {
@@ -674,11 +675,11 @@ void Engine::SceneGridRenderer::Render(GraphicsCore& graphicsCore,
 	DxConstBuffer<GridPassConstants>& passBuffer = AllocatePassBuffer(graphicsCore);
 	passBuffer.TransferData(constants);
 
-	commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
-	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
+	commandList->SetGraphicsRootSignature(pipeline_->GetRootSignature());
+	commandList->SetPipelineState(pipeline_->GetGraphicsPipeline(BlendMode::Normal));
 
 	// パイプラインが変わった時だけスロットを再解決する
-	gridBindCache_.Sync(pipeline_);
+	gridBindCache_.Sync(*pipeline_);
 	if (gridBindCache_.Has(gridCBVSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, gridBindCache_.Get(gridCBVSlot_),
 			passBuffer.GetResource()->GetGPUVirtualAddress());

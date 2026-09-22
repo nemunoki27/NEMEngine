@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Editor/UI/Inspectors/Common/MaterialReflectionCache.h>
 
 namespace Engine {
 
@@ -34,24 +34,15 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// マテリアル既定値とreflection解決のためのキャッシュ
-		AssetID cachedMaterialID_{};
-		MaterialAsset cachedMaterial_{};
-		bool cachedMaterialValid_ = false;
+		MaterialReflectionCache materialReflection_;
 
 		//--------- functions ----------------------------------------------------
 
+		// Componentの編集項目を表示する
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
 
-		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
-		// 空マテリアルはdefaultMaterialIDへ解決してからreflectionを引く
-		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context,
-			AssetID materialID, AssetID defaultMaterialID);
-		// param最終値を解決する、上書き無しはマテリアル既定値か型既定値
-		MaterialParameterValue ResolveParamValue(const PrimitiveRendererComponent& draft,
-			const ShaderConstantBufferVariable& var) const;
 		// シェーダーreflection駆動でマテリアルパラメータを編集する
-		void DrawReflectedParameters(const EditorPanelContext& context,
-			PrimitiveRendererComponent& draft, bool& anyItemActive);
+		void DrawReflectedParameters(const EditorPanelContext& context, PrimitiveRendererComponent& draft, bool& anyItemActive);
 	};
 } // Engine

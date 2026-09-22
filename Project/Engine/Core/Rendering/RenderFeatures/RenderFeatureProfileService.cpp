@@ -23,39 +23,29 @@ Engine::RenderFeatureProfileService::GetInstance() {
 
 void Engine::RenderFeatureProfileService::EnsureLoaded() {
 
-	if (!loaded_) {
+	if (!document_.loaded_) {
 		Load();
 	}
 }
 
 void Engine::RenderFeatureProfileService::Load() {
 
-	profile_ = RenderFeatureProfileAsset{};
-	if (!profilePath_.empty() &&
-		!RenderFeatureProfileSerializer::Load(profilePath_, profile_)) {
-
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[レンダー機能] プロファイルの読み込みに失敗しました path={}",
-			profilePath_.string());
-	}
+	document_.Read();
 	RebuildRuntime();
-	dirty_ = false;
-	loaded_ = true;
+	document_.dirty_ = false;
+	document_.loaded_ = true;
 }
 
 void Engine::RenderFeatureProfileService::Reload() {
 
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
-	loaded_ = false;
+	document_.loaded_ = false;
 	Load();
 }
 
 bool Engine::RenderFeatureProfileService::Save() const {
 
-	if (profilePath_.empty()) {
-		return false;
-	}
-	return RenderFeatureProfileSerializer::Save(profilePath_, profile_);
+	return document_.Save();
 }
 
 void Engine::RenderFeatureProfileService::SetActiveProfileAsset(
@@ -70,19 +60,19 @@ void Engine::RenderFeatureProfileService::SetActiveProfilePath(
 
 	const std::filesystem::path normalized = path.empty() ?
 		std::filesystem::path{} : path.lexically_normal();
-	if (profilePath_ == normalized && loaded_) {
+	if (document_.profilePath_ == normalized && document_.loaded_) {
 		return;
 	}
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
-	profilePath_ = normalized;
-	loaded_ = false;
-	dirty_ = false;
+	document_.profilePath_ = normalized;
+	document_.loaded_ = false;
+	document_.dirty_ = false;
 	Load();
 }
 
 void Engine::RenderFeatureProfileService::RebuildRuntime() {
 
-	runtime_.Rebuild(profile_);
+	runtime_.Rebuild(document_.profile_);
 	++runtimeGeneration_;
 	if (runtimeGeneration_ == 0) {
 		runtimeGeneration_ = 1;
@@ -95,37 +85,18 @@ void Engine::RenderFeatureProfileService::CacheReflection(
 	const std::vector<ShaderResourceBinding>& resources,
 	const std::vector<ShaderResourceBinding>& samplers) {
 
-	const ReflectionKey key{ materialID, passKind };
-	reflectionVariables_[key] = variables;
-	reflectionResources_[key] = resources;
-	reflectionSamplers_[key] = samplers;
+	reflectionCache_.CacheReflection(materialID, passKind, variables, resources, samplers);
 }
 
 void Engine::RenderFeatureProfileService::ClearReflection(
 	AssetID materialID) {
 
-	std::erase_if(reflectionVariables_,
-		[materialID](const auto& entry) {
-
-			return entry.first.material == materialID;
-		});
-	std::erase_if(reflectionResources_,
-		[materialID](const auto& entry) {
-
-			return entry.first.material == materialID;
-		});
-	std::erase_if(reflectionSamplers_,
-		[materialID](const auto& entry) {
-
-			return entry.first.material == materialID;
-		});
+	reflectionCache_.ClearReflection(materialID);
 }
 
 void Engine::RenderFeatureProfileService::ClearReflectionCache() {
 
-	reflectionVariables_.clear();
-	reflectionResources_.clear();
-	reflectionSamplers_.clear();
+	reflectionCache_.ClearReflectionCache();
 }
 
 const Engine::RenderFeaturePassSettings*
@@ -134,12 +105,12 @@ Engine::RenderFeatureProfileService::FindPassByID(UUID passID) const {
 	if (!passID) {
 		return nullptr;
 	}
-	const auto found = std::find_if(profile_.passes.begin(),
-		profile_.passes.end(), [passID](const RenderFeaturePassSettings& pass) {
+	const auto found = std::find_if(document_.profile_.passes.begin(),
+		document_.profile_.passes.end(), [passID](const RenderFeaturePassSettings& pass) {
 
 		return pass.id == passID;
 	});
-	return found == profile_.passes.end() ? nullptr : &*found;
+	return found == document_.profile_.passes.end() ? nullptr : &*found;
 }
 
 const Engine::RenderFeaturePassSettings*
@@ -149,51 +120,35 @@ Engine::RenderFeatureProfileService::FindPassByName(
 	if (passName.empty()) {
 		return nullptr;
 	}
-	const auto found = std::find_if(profile_.passes.begin(),
-		profile_.passes.end(), [passName](const RenderFeaturePassSettings& pass) {
+	const auto found = std::find_if(document_.profile_.passes.begin(),
+		document_.profile_.passes.end(), [passName](const RenderFeaturePassSettings& pass) {
 
 		return pass.name == passName;
 	});
-	return found == profile_.passes.end() ? nullptr : &*found;
+	return found == document_.profile_.passes.end() ? nullptr : &*found;
 }
 
 const std::vector<Engine::ShaderConstantBufferVariable>*
 Engine::RenderFeatureProfileService::FindReflectionVariables(
 	AssetID materialID, MaterialPassKind passKind) const {
 
-	const auto found = reflectionVariables_.find(
-		ReflectionKey{ materialID, passKind });
-	return found == reflectionVariables_.end() ? nullptr : &found->second;
+	return reflectionCache_.FindReflectionVariables(materialID, passKind);
 }
 
 const std::vector<Engine::ShaderResourceBinding>*
 Engine::RenderFeatureProfileService::FindReflectionResources(
 	AssetID materialID, MaterialPassKind passKind) const {
 
-	const auto found = reflectionResources_.find(
-		ReflectionKey{ materialID, passKind });
-	return found == reflectionResources_.end() ? nullptr : &found->second;
+	return reflectionCache_.FindReflectionResources(materialID, passKind);
 }
 
 const std::vector<Engine::ShaderResourceBinding>*
 Engine::RenderFeatureProfileService::FindReflectionSamplers(
 	AssetID materialID, MaterialPassKind passKind) const {
 
-	const auto found = reflectionSamplers_.find(
-		ReflectionKey{ materialID, passKind });
-	return found == reflectionSamplers_.end() ? nullptr : &found->second;
+	return reflectionCache_.FindReflectionSamplers(materialID, passKind);
 }
 
 //============================================================================
 //	RenderFeatureProfileService classMethods
 //============================================================================
-
-namespace Engine {
-
-	size_t RenderFeatureProfileService::ReflectionKeyHash::operator()(const ReflectionKey& key) const noexcept {
-
-		return std::hash<AssetID>{}(key.material) ^
-			(std::hash<uint8_t>{}(
-				static_cast<uint8_t>(key.passKind)) << 1);
-	}
-}

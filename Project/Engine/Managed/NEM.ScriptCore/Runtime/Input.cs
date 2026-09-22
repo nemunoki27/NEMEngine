@@ -154,72 +154,72 @@ public enum InputType {
 
 public static class Input {
 
-    public static Vector2 mousePosition => NativeAPI.ReadMousePosition();
-    public static Vector2 mouseDelta => NativeAPI.ReadMouseDelta();
-    public static float mouseWheel => NativeAPI.ReadMouseWheel();
-    public static bool isGamepadConnected => NativeAPI.ReadIsGamepadConnected();
+    public static Vector2 mousePosition => NativeInputAPI.ReadMousePosition();
+    public static Vector2 mouseDelta => NativeInputAPI.ReadMouseDelta();
+    public static float mouseWheel => NativeInputAPI.ReadMouseWheel();
+    public static bool isGamepadConnected => NativeInputAPI.ReadIsGamepadConnected();
 
     // 最後に操作された入力デバイスタイプ
-    public static InputType inputType => (InputType)NativeAPI.ReadInputType();
+    public static InputType inputType => (InputType)NativeInputAPI.ReadInputType();
     // マウス移動範囲制御のON/OFF
     public static bool mouseRangeControl {
-        get => NativeAPI.ReadMouseRangeControl();
-        set => NativeAPI.WriteMouseRangeControl(value);
+        get => NativeInputAPI.ReadMouseRangeControl();
+        set => NativeInputAPI.WriteMouseRangeControl(value);
     }
-    public static Vector2 leftStick => NativeAPI.ReadLeftStick();
-    public static Vector2 rightStick => NativeAPI.ReadRightStick();
-    public static float leftTrigger => NativeAPI.ReadLeftTrigger();
-    public static float rightTrigger => NativeAPI.ReadRightTrigger();
+    public static Vector2 leftStick => NativeInputAPI.ReadLeftStick();
+    public static Vector2 rightStick => NativeInputAPI.ReadRightStick();
+    public static float leftTrigger => NativeInputAPI.ReadLeftTrigger();
+    public static float rightTrigger => NativeInputAPI.ReadRightTrigger();
 
     public static bool GetKey(KeyCode key) {
-        return NativeAPI.ReadKey((int)key);
+        return NativeInputAPI.ReadKey((int)key);
     }
 
     public static bool GetKeyDown(KeyCode key) {
-        return NativeAPI.ReadKeyDown((int)key);
+        return NativeInputAPI.ReadKeyDown((int)key);
     }
 
     public static bool GetKeyUp(KeyCode key) {
-        return NativeAPI.ReadKeyUp((int)key);
+        return NativeInputAPI.ReadKeyUp((int)key);
     }
 
     public static bool GetMouseButton(MouseButton button) {
-        return NativeAPI.ReadMouseButton((int)button);
+        return NativeInputAPI.ReadMouseButton((int)button);
     }
 
     public static bool GetMouseButtonDown(MouseButton button) {
-        return NativeAPI.ReadMouseButtonDown((int)button);
+        return NativeInputAPI.ReadMouseButtonDown((int)button);
     }
 
     public static bool GetMouseButtonUp(MouseButton button) {
-        return NativeAPI.ReadMouseButtonUp((int)button);
+        return NativeInputAPI.ReadMouseButtonUp((int)button);
     }
 
     // int overload（0=Left, 1=Right, 2=Middle）
-    public static bool GetMouseButton(int button) => NativeAPI.ReadMouseButton(button);
-    public static bool GetMouseButtonDown(int button) => NativeAPI.ReadMouseButtonDown(button);
-    public static bool GetMouseButtonUp(int button) => NativeAPI.ReadMouseButtonUp(button);
+    public static bool GetMouseButton(int button) => NativeInputAPI.ReadMouseButton(button);
+    public static bool GetMouseButtonDown(int button) => NativeInputAPI.ReadMouseButtonDown(button);
+    public static bool GetMouseButtonUp(int button) => NativeInputAPI.ReadMouseButtonUp(button);
 
     // 単一 gamepad（index 0）向け convenience。
-    public static bool GetGamepadButton(GamepadButton button) => NativeAPI.ReadGamepadButton(0, (int)button);
-    public static bool GetGamepadButtonDown(GamepadButton button) => NativeAPI.ReadGamepadButtonDown(0, (int)button);
-    public static bool GetGamepadButtonUp(GamepadButton button) => NativeAPI.ReadGamepadButtonUp(0, (int)button);
+    public static bool GetGamepadButton(GamepadButton button) => NativeInputAPI.ReadGamepadButton(0, (int)button);
+    public static bool GetGamepadButtonDown(GamepadButton button) => NativeInputAPI.ReadGamepadButtonDown(0, (int)button);
+    public static bool GetGamepadButtonUp(GamepadButton button) => NativeInputAPI.ReadGamepadButtonUp(0, (int)button);
 
     //--------- 多 gamepad（最大4台）/ text / focus ----------------------------
 
-    public static bool IsGamepadConnected(int index) => NativeAPI.ReadGamepadConnected(index);
-    public static int ConnectedGamepadCount => NativeAPI.ReadConnectedGamepadCount();
+    public static bool IsGamepadConnected(int index) => NativeInputAPI.ReadGamepadConnected(index);
+    public static int ConnectedGamepadCount => NativeInputAPI.ReadConnectedGamepadCount();
 
-    public static bool GetGamepadButton(int index, GamepadButton button) => NativeAPI.ReadGamepadButton(index, (int)button);
-    public static bool GetGamepadButtonDown(int index, GamepadButton button) => NativeAPI.ReadGamepadButtonDown(index, (int)button);
-    public static bool GetGamepadButtonUp(int index, GamepadButton button) => NativeAPI.ReadGamepadButtonUp(index, (int)button);
+    public static bool GetGamepadButton(int index, GamepadButton button) => NativeInputAPI.ReadGamepadButton(index, (int)button);
+    public static bool GetGamepadButtonDown(int index, GamepadButton button) => NativeInputAPI.ReadGamepadButtonDown(index, (int)button);
+    public static bool GetGamepadButtonUp(int index, GamepadButton button) => NativeInputAPI.ReadGamepadButtonUp(index, (int)button);
 
     // dead zone 未適用の raw 軸値（stick は [-1,1]、trigger は [0,1]）。dead zone は InputActions 側で適用する。
-    public static float GetGamepadAxis(int index, GamepadAxis axis) => NativeAPI.ReadGamepadAxis(index, (int)axis);
+    public static float GetGamepadAxis(int index, GamepadAxis axis) => NativeInputAPI.ReadGamepadAxis(index, (int)axis);
 
     // ウィンドウがフォーカスを持っているか
-    public static bool HasFocus => NativeAPI.ReadHasFocus();
+    public static bool HasFocus => NativeApplicationAPI.ReadHasFocus();
 
     // このフレームに入力された文字列（frame-local。確定文字のみ）
-    public static string TextInput => NativeAPI.ReadTextInput();
+    public static string TextInput => NativeInputAPI.ReadTextInput();
 }

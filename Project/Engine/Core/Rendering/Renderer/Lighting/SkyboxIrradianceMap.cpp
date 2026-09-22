@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -48,7 +49,8 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	desc.staticSamplers.push_back(sampler);
 
-	if (!pipeline_.CreateCompute(device, platform.GetDxShaderCompiler(), desc)) {
+	pipeline_ = PipelineStateBuilder::CreateCompute(device, platform.GetDxShaderCompiler(), desc);
+	if (!pipeline_) {
 		return;
 	}
 
@@ -130,11 +132,11 @@ void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
 	}
 
 	// パイプラインを設定
-	commandList->SetComputeRootSignature(pipeline_.GetRootSignature());
-	commandList->SetPipelineState(pipeline_.GetComputePipeline());
+	commandList->SetComputeRootSignature(pipeline_->GetRootSignature());
+	commandList->SetPipelineState(pipeline_->GetComputePipeline());
 
 	// 定数と出力UAVをバインド
-	bindCache_.Sync(pipeline_);
+	bindCache_.Sync(*pipeline_);
 	if (bindCache_.Has(constantsSlot_)) {
 		RootBindingCommand::SetComputeCBV(commandList, bindCache_.Get(constantsSlot_),
 			constants_.GetResource()->GetGPUVirtualAddress());

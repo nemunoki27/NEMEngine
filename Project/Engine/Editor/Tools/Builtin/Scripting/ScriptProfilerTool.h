@@ -7,6 +7,8 @@
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 
 // c++
+#include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfileSummary.h>
+
 #include <map>
 #include <vector>
 
@@ -23,20 +25,6 @@ namespace Engine {
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
 
 	private:
-		struct ViewRow {
-			ScriptProfileOwner owner;
-			std::string name;
-			int32_t id = -1;
-			int32_t parent = -1;
-			bool detail = false;
-			bool grouped = false;
-			double latest = 0;
-			double average = 0;
-			double maximum = 0;
-			double self = 0;
-			uint32_t calls = 0;
-			double averageCalls = 0;
-		};
 
 		// 履歴を表示用の小さな行へ集計する
 		void RefreshRows();
@@ -53,7 +41,7 @@ namespace Engine {
 			.flags = ToolFlags::AllowPlayMode,
 			.order = 1,
 		};
-		std::vector<ViewRow> rows_;
+		std::vector<ScriptProfileSummary> rows_;
 		std::map<int32_t, std::vector<size_t>> detailChildren_;
 		char filter_[128]{};
 		double lastRefresh_ = -1;

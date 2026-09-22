@@ -44,7 +44,7 @@ public readonly unsafe struct DynamicBuffer<T>
         get {
             ValidateIndex(index);
             T value = default;
-            int copied = NativeAPI.CopyDynamicBuffer(
+            int copied = NativeEntityAPI.CopyDynamicBuffer(
                 owner.native, T.componentTypeID, sizeof(T),
                 index, &value, 1);
             if (copied != 1) {
@@ -56,7 +56,7 @@ public readonly unsafe struct DynamicBuffer<T>
         set {
             ValidateIndex(index);
             T copy = value;
-            if (!NativeAPI.MutateDynamicBuffer(
+            if (!NativeEntityAPI.MutateDynamicBuffer(
                 owner.native, T.componentTypeID, sizeof(T),
                 OperationSetElement, index, &copy, 1)) {
                 throw new InvalidOperationException(
@@ -67,7 +67,7 @@ public readonly unsafe struct DynamicBuffer<T>
 
     // 末尾へ1要素追加する
     public void Add(T value) {
-        if (!NativeAPI.MutateDynamicBuffer(
+        if (!NativeEntityAPI.MutateDynamicBuffer(
             owner.native, T.componentTypeID, sizeof(T),
             OperationAppend, 0, &value, 1)) {
             throw new InvalidOperationException(
@@ -81,7 +81,7 @@ public readonly unsafe struct DynamicBuffer<T>
             return;
         }
         fixed (T* data = values) {
-            if (!NativeAPI.MutateDynamicBuffer(
+            if (!NativeEntityAPI.MutateDynamicBuffer(
                 owner.native, T.componentTypeID, sizeof(T),
                 OperationAppend, 0, data, values.Length)) {
                 throw new InvalidOperationException(
@@ -93,7 +93,7 @@ public readonly unsafe struct DynamicBuffer<T>
     // 要素列全体を置き換える
     public void SetAll(ReadOnlySpan<T> values) {
         fixed (T* data = values) {
-            if (!NativeAPI.MutateDynamicBuffer(
+            if (!NativeEntityAPI.MutateDynamicBuffer(
                 owner.native, T.componentTypeID, sizeof(T),
                 OperationReplace, 0, data, values.Length)) {
                 throw new InvalidOperationException(
@@ -104,7 +104,7 @@ public readonly unsafe struct DynamicBuffer<T>
 
     public void RemoveAt(int index) {
         ValidateIndex(index);
-        if (!NativeAPI.MutateDynamicBuffer(
+        if (!NativeEntityAPI.MutateDynamicBuffer(
             owner.native, T.componentTypeID, sizeof(T),
             OperationRemoveAt, index, null, 0)) {
             throw new InvalidOperationException(
@@ -116,7 +116,7 @@ public readonly unsafe struct DynamicBuffer<T>
         if (count < 0) {
             throw new ArgumentOutOfRangeException(nameof(count));
         }
-        if (!NativeAPI.MutateDynamicBuffer(
+        if (!NativeEntityAPI.MutateDynamicBuffer(
             owner.native, T.componentTypeID, sizeof(T),
             OperationResize, 0, null, count)) {
             throw new InvalidOperationException(
@@ -125,7 +125,7 @@ public readonly unsafe struct DynamicBuffer<T>
     }
 
     public void Clear() {
-        if (!NativeAPI.MutateDynamicBuffer(
+        if (!NativeEntityAPI.MutateDynamicBuffer(
             owner.native, T.componentTypeID, sizeof(T),
             OperationClear, 0, null, 0)) {
             throw new InvalidOperationException(
@@ -138,7 +138,7 @@ public readonly unsafe struct DynamicBuffer<T>
             throw new ArgumentOutOfRangeException(nameof(sourceIndex));
         }
         fixed (T* data = destination) {
-            int copied = NativeAPI.CopyDynamicBuffer(
+            int copied = NativeEntityAPI.CopyDynamicBuffer(
                 owner.native, T.componentTypeID, sizeof(T),
                 sourceIndex, data, destination.Length);
             if (copied < 0) {
@@ -165,7 +165,7 @@ public readonly unsafe struct DynamicBuffer<T>
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int ReadLength() {
-        return NativeAPI.ReadDynamicBufferLength(
+        return NativeEntityAPI.ReadDynamicBufferLength(
             owner.native, T.componentTypeID, sizeof(T));
     }
 

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -117,9 +118,9 @@ namespace Engine {
 		static constexpr float kLineAAFeather_ = 1.25f;
 
 		// パイプライン
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		// 深度オクルージョン用パイプライン、シーン深度でテストし書き込みはしない
-		PipelineState occludedPipeline_{};
+		std::unique_ptr<PipelineState> occludedPipeline_{};
 
 		// ラインパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache lineBindCache_{};
@@ -207,12 +208,12 @@ namespace Engine {
 		desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		// パイプラインの生成
-		bool created = pipeline_.CreateGraphics(device, compiler, desc);
+		bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
 		Assert::Call(created, "DebugLineRendererのPipeline作成に失敗しました");
 
 		// 深度オクルージョン用パイプライン、シーン深度でテストするが書き込みはしないので深度を壊さない
 		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-		bool occludedCreated = occludedPipeline_.CreateGraphics(device, compiler, desc);
+		bool occludedCreated = (occludedPipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
 		Assert::Call(occludedCreated, "DebugLineRendererの遮蔽Pipeline作成に失敗しました");
 
 		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
@@ -252,9 +253,13 @@ namespace Engine {
 		}
 
 		// 通常のオーバーレイ線はサーフェスの深度に従う、基本は常に手前に描く
-		RenderLineBatch(graphicsCore, camera, surface, vertices_, pipeline_, nullptr);
+		if (pipeline_) {
+			RenderLineBatch(graphicsCore, camera, surface, vertices_, *pipeline_, nullptr);
+		}
 		// 深度オクルージョン対象の線はシーン深度でテストしてメッシュに隠す
-		RenderLineBatch(graphicsCore, camera, surface, occludedVertices_, occludedPipeline_, occlusionDepth_);
+		if (occludedPipeline_) {
+			RenderLineBatch(graphicsCore, camera, surface, occludedVertices_, *occludedPipeline_, occlusionDepth_);
+		}
 	}
 
 	template<typename T>
@@ -354,4 +359,3 @@ namespace Engine {
 		return *resources[resourceIndex++];
 	}
 } // Engine
-

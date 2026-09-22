@@ -135,7 +135,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("始点と終点を閉じる", draft.loop);
 			});
-		InspectorDrawerCommon::DrawCommonRenderFields(
+		InspectorDrawerCommon::DrawCommonRenderFields(context,
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 			draft.layer, draft.order, draft.blendMode, draft.queue,
 			&draft.renderingLayerMask);

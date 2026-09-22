@@ -24,49 +24,7 @@ if ([string]::IsNullOrEmpty($OutDir)) {
     $OutDir = Join-Path $engineRoot "Generated\SDK"
 }
 
-function Sync-DirectoryContents([string]$Source, [string]$Destination) {
-    if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
-        throw "同期元フォルダーが見つかりません: $Source"
-    }
-
-    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-    robocopy $Source $Destination /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
-    if ($LASTEXITCODE -ge 8) {
-        throw "フォルダーの同期に失敗しました: $Source -> $Destination code=$LASTEXITCODE"
-    }
-}
-
-function Get-FileSHA256([string]$Path) {
-    $stream = [System.IO.File]::OpenRead($Path)
-    try {
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
-        try {
-            return [System.BitConverter]::ToString($sha256.ComputeHash($stream)).Replace("-", "")
-        }
-        finally {
-            $sha256.Dispose()
-        }
-    }
-    finally {
-        $stream.Dispose()
-    }
-}
-
-function Assert-ManagedDeployment([string]$Source, [string]$Destination, [string]$Configuration) {
-    $sourceDll = Join-Path $Source "NEM.ScriptCore.dll"
-    $destinationDll = Join-Path $Destination "NEM.ScriptCore.dll"
-    if (-not (Test-Path -LiteralPath $destinationDll -PathType Leaf)) {
-        throw "NEM.ScriptCore.dllを配置できませんでした: $destinationDll"
-    }
-    if ((Get-FileSHA256 $sourceDll) -ne (Get-FileSHA256 $destinationDll)) {
-        throw "NEM.ScriptCore.dllの配置結果がビルド成果物と一致しません: $destinationDll"
-    }
-
-    $nestedConfiguration = Join-Path $Destination $Configuration
-    if (Test-Path -LiteralPath $nestedConfiguration) {
-        throw "Managedフォルダーが二重階層になっています: $nestedConfiguration"
-    }
-}
+. (Join-Path $PSScriptRoot "SDK\SDKFileOperations.ps1")
 
 $msbuild = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
 if (-not $msbuild) { throw "MSBuild が見つかりません（vswhere）。Visual Studio をインストールしてください。" }
@@ -149,6 +107,7 @@ Copy-Item -Force -LiteralPath $gameScriptsTargets -Destination $sdkManagedTools
 $sdkTools = Join-Path $OutDir "Tools"
 New-Item -ItemType Directory -Force -Path $sdkTools | Out-Null
 Copy-Item -Force (Join-Path $engineRoot "Tools\BuildGame.ps1") (Join-Path $sdkTools "BuildGame.ps1")
+Copy-Item -Recurse -Force (Join-Path $engineRoot "Tools\ProductBuild") $sdkTools
 
 # SDKだけでシェーダーをCookできるようにツールと依存DLLを配置する
 $sdkBuildTool = Join-Path $sdkTools "NEMBuildTool"
@@ -161,7 +120,7 @@ $gameTemplate = Join-Path $engineRoot "Templates\GameProject"
 $sdkGameProject = Join-Path $OutDir "GameProject"
 $sdkGamePremake = Join-Path $sdkGameProject "Premake"
 New-Item -ItemType Directory -Force -Path $sdkGamePremake | Out-Null
-foreach ($f in @("premake5.lua","generate_vs2026.bat")) {
+foreach ($f in @("premake5.lua","generate_vs2026.bat","game_settings.lua")) {
     $src = Join-Path $gameTemplate "Premake\$f"
     if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkGamePremake $f) }
 }

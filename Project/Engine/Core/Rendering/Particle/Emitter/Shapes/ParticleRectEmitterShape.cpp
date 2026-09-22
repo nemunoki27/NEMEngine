@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
@@ -94,22 +93,5 @@ void Engine::ParticleRectEmitterShape::DrawShape(const ParticleEmitterSettings& 
 		renderer->DrawLine(center + Vector3::Transform(corners[i], rotationMatrix),
 			center + Vector3::Transform(corners[(i + 1) % 4], rotationMatrix), color);
 	}
-#endif
-}
-
-bool Engine::ParticleRectEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool changed = false;
-	changed |= MyGUI::DragVector2("大きさ", settings.rect.size, ParticleGui::MakeDragSetting(0.0f, 100000.0f)).valueChanged;
-	changed |= MyGUI::Checkbox("+X辺", settings.rect.edgePosX);
-	ImGui::SameLine();
-	changed |= MyGUI::Checkbox("-X辺", settings.rect.edgeNegX);
-	changed |= MyGUI::Checkbox("+Y辺", settings.rect.edgePosY);
-	ImGui::SameLine();
-	changed |= MyGUI::Checkbox("-Y辺", settings.rect.edgeNegY);
-	return changed;
-#else
-	return false;
 #endif
 }

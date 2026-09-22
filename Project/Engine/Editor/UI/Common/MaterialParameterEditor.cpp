@@ -426,7 +426,7 @@ namespace Engine::MaterialParameterEditor {
 					continue;
 				}
 
-				MaterialParameterValue* value =
+				const MaterialParameterValue* value =
 					parameters.Find(var.parameterID);
 				if (!value) {
 					// シェーダーが要求するパラメータをUIへ出すため既定値で補完する
@@ -435,8 +435,12 @@ namespace Engine::MaterialParameterEditor {
 						DefaultValueForVariable(var));
 					value = parameters.Find(var.parameterID);
 				}
-				if (value && DrawValueEdit(var, *value).valueChanged) {
-					valueChanged = true;
+				if (value) {
+					MaterialParameterValue draft = *value;
+					if (DrawValueEdit(var, draft).valueChanged) {
+						parameters.Set(var.parameterID, var.name, var.semantic, draft);
+						valueChanged = true;
+					}
 				}
 			}
 		}

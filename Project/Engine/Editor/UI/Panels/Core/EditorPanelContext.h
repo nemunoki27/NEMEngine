@@ -12,6 +12,9 @@ namespace Engine {
 
 	// front
 	class IEditorPanelHost;
+	class EditorGameBuildSession;
+	class ProjectTagSettings;
+	class ProjectRenderingLayerSettings;
 	class ViewportRenderService;
 	class GraphicsCore;
 	class GraphicsPlatform;
@@ -43,6 +46,10 @@ namespace Engine {
 		const ResolvedRenderView* sceneRenderView = nullptr;
 		// SceneViewのカメラ状態、プレファブ編集プレビューの描画に流用する
 		ManualRenderCameraState sceneViewCamera{};
+		// Panelの破棄を越えて維持する製品ビルド
+		EditorGameBuildSession* gameBuildSession = nullptr;
+		ProjectTagSettings* tagSettings = nullptr;
+		ProjectRenderingLayerSettings* renderingLayerSettings = nullptr;
 
 		ECSWorld* GetWorld() const { return editorContext ? editorContext->activeWorld : nullptr; }
 

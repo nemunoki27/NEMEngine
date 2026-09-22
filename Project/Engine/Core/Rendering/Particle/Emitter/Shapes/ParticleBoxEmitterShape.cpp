@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 //============================================================================
@@ -69,24 +68,5 @@ void Engine::ParticleBoxEmitterShape::DrawShape(const ParticleEmitterSettings& s
 		return;
 	}
 	renderer->DrawOBB(center, settings.box.size * 0.5f, rotation, Color4::Red());
-#endif
-}
-
-bool Engine::ParticleBoxEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool changed = false;
-	changed |= MyGUI::DragVector3("大きさ", settings.box.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-	changed |= MyGUI::Checkbox("+X面", settings.box.facePosX);
-	changed |= MyGUI::Checkbox("-X面", settings.box.faceNegX);
-	ImGui::Spacing();
-	changed |= MyGUI::Checkbox("+Y面", settings.box.facePosY);
-	changed |= MyGUI::Checkbox("-Y面", settings.box.faceNegY);
-	ImGui::Spacing();
-	changed |= MyGUI::Checkbox("+Z面", settings.box.facePosZ);
-	changed |= MyGUI::Checkbox("-Z面", settings.box.faceNegZ);
-	return changed;
-#else
-	return false;
 #endif
 }

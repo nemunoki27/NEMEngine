@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 // c++
@@ -60,17 +59,5 @@ void Engine::ParticleConeEmitterShape::DrawShape(const ParticleEmitterSettings& 
 	const float displayHeight = 1.0f;
 	const float topRadius = settings.cone.radius + std::tan(settings.cone.angle * degToRad) * displayHeight;
 	renderer->DrawCone(center, settings.cone.radius, topRadius, displayHeight, rotation, Color4::Red());
-#endif
-}
-
-bool Engine::ParticleConeEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool changed = false;
-	changed |= MyGUI::DragFloat("開き角", settings.cone.angle, ParticleGui::MakeDragSetting(0.0f, 89.0f, 0.5f)).valueChanged;
-	changed |= MyGUI::DragFloat("底面半径", settings.cone.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-	return changed;
-#else
-	return false;
 #endif
 }

@@ -4,6 +4,9 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include "ViewportGizmoSession.h"
+#include "ViewportDepthSurface.h"
+#include "ViewportPlacementSession.h"
 #include <Engine/Core/Platform/Input/InputTypes.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
@@ -63,23 +66,9 @@ namespace Engine {
 		//--------- structure ----------------------------------------------------
 
 		// ギズモ操作セッションの情報をまとめた構造体
-		struct EntityGizmoSession {
 
-			bool active = false;
-			bool runtimeOnly = false;
-			UUID entityUUID{};
-			TransformComponent beforeTransform{};
-		};
 		// 複数選択ギズモのセッション、中心ピボットを保持し各エンティティへ相対適用する
-		struct MultiEntityGizmoSession {
 
-			bool active = false;
-			bool runtimeOnly = false;
-			// ドラッグ中フレーム間で持続する中心ピボット
-			TransformComponent pivot{};
-			// undo用の操作前トランスフォーム
-			std::vector<std::pair<UUID, TransformComponent>> beforeTransforms{};
-		};
 		// アイコン
 		struct IconSet {
 
@@ -115,15 +104,20 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// ギズモの開始値と編集確定を管理する
+		ViewportGizmoSession gizmoSession_;
+
+		// 深度表示の描画資源を所有する
+		ViewportDepthSurface depthSurface_;
+
+		// 配置プレビューの仮エンティティを管理する
+		ViewportPlacementSession placementSession_;
+
 		std::string windowName_;
 		std::string label_;
 		ViewportPanelKind kind_ = ViewportPanelKind::Scene;
 
 		ImVec2 viewSize_ = ImVec2(768.0f, 432.0f);
-
-		// ギズモ操作セッションの情報
-		EntityGizmoSession entityGizmoSession_{};
-		MultiEntityGizmoSession multiGizmoSession_{};
 
 		TextureUploadService* textureUploadService_ = nullptr;
 
@@ -133,62 +127,27 @@ namespace Engine {
 		// アイコンボタンのサイズ
 		const ImVec2 buttonSize_ = ImVec2(24.0f, 24.0f);
 
-		// プロジェクトからのドラッグ&ドロップ配置のプレビュー状態
-		// ドラッグ中に仮エンティティを作って実際に置きながら見せ、ドロップで確定する
-		Entity dropPreviewEntity_ = Entity::Null();
-		bool dropPreviewActive_ = false;
-		bool dropPreviewIsThreeD_ = false;
-		AssetID dropPreviewAsset_{};
-		ECSWorld* dropPreviewWorld_ = nullptr;
-		// 右クリックで一度キャンセルしたら、そのドラッグが終わるまでプレビューを作らない
-		bool dropPreviewCanceled_ = false;
-
-		// GBufferデバッグのDepth表示用、深度を線形化グレースケールへ変換して表示する
-		DepthVisualizer depthVisualizer_{};
-		std::unique_ptr<MultiRenderTarget> depthVisualizeSurface_;
-		uint32_t depthVisualizeWidth_ = 0;
-		uint32_t depthVisualizeHeight_ = 0;
-
 		//--------- functions ----------------------------------------------------
 
+		// Viewport画像と操作を表示する
 		void DrawViewportContent(const EditorPanelContext& context, const char* id, const ImVec2& size);
-
-		// プロジェクトからのドラッグ&ドロップ配置を処理する、ドラッグ中プレビューとドロップ確定を扱う
-		void HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind,
-			const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, bool imageHovered);
-		// マウス位置から配置先のワールド座標を求める、3Dはカメラ光線と地面、2Dは画面のピクセル空間
-		Vector3 ComputeDropPosition(const EditorPanelContext& context, RenderViewKind viewKind, bool isThreeD,
-			const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight) const;
-		// スナップ有効時に配置座標を現在の座標スナップ設定の間隔へ吸着させる、isThreeDで2D/3Dの設定を切り替える
-		void ApplyDropSnap(const EditorPanelContext& context, Vector3& position, bool isThreeD) const;
-		// 配置プレビューの仮エンティティを破棄する
-		void DestroyDropPreview();
-
-		// GBufferデバッグのDepth表示で、ビューの深度を可視化サーフェスへ描いて表示用テクスチャを返す
-		const RenderTexture2D* RenderDepthVisualization(const EditorPanelContext& context,
-			RenderViewKind viewKind, uint32_t width, uint32_t height);
-
-		// シーンギズモの描画
-		void DrawSceneGizmo(const EditorPanelContext& context);
-		// 複数選択ギズモの描画、中心ピボットの差分を各エンティティへ個別原点で適用する
-		void DrawMultiEntityGizmo(const EditorPanelContext& context, ECSWorld& world,
-			const GizmoViewportRect& rect);
-		// ギズモ終了
-		void FinalizeEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
-		void FinalizeMultiEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
 
 		// アイコン読み込み
 		void RequestIcons();
 		// アイコンのテクスチャIDを取得
 		ImTextureID GetTextureID(const std::string& key) const;
 
+		// 状態を示すアイコンボタンを表示する
 		bool DrawIconButton(const char* id, ImTextureID textureID, bool active, const ImVec2& size) const;
+		// Cameraの操作設定を表示する
 		void DrawCameraSection(const EditorPanelContext& context);
+		// Gizmoの操作設定を表示する
 		void DrawManipulatorSection(const EditorPanelContext& context);
 		// スナップ設定の右クリックポップアップ、SRTのグリッド単位と絶対スナップ、グリッド表示を編集する
 		void DrawSnapSettingsPopup(const EditorPanelContext& context);
+		// Gridの表示設定を表示する
 		void DrawGridSection(const EditorPanelContext& context);
+		// 表示するEntity Cameraを選択する
 		void DrawEntityCameraPopup(const EditorPanelContext& context);
 	};
 } // Engine
-

@@ -68,7 +68,7 @@ public static class ScriptRuntimeLifetime {
 			toCancel.Cancel();
 		}
 		catch (Exception ex) {
-			NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] cancel failed\n{ex}");
+			NativeApplicationAPI.WriteLog(2, $"[ScriptRuntimeLifetime] cancel failed\n{ex}");
 		}
 
 		// 購読解除 → dispose。例外が出ても残りの cleanup を継続する
@@ -77,7 +77,7 @@ public static class ScriptRuntimeLifetime {
 				unsubscribe();
 			}
 			catch (Exception ex) {
-				NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] unsubscribe failed\n{ex}");
+				NativeApplicationAPI.WriteLog(2, $"[ScriptRuntimeLifetime] unsubscribe failed\n{ex}");
 			}
 		}
 		foreach (IDisposable disposable in pendingDisposables) {
@@ -85,24 +85,17 @@ public static class ScriptRuntimeLifetime {
 				disposable.Dispose();
 			}
 			catch (Exception ex) {
-				NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] dispose failed\n{ex}");
+				NativeApplicationAPI.WriteLog(2, $"[ScriptRuntimeLifetime] dispose failed\n{ex}");
 			}
 		}
 
 		// gameplay service の static event / pending 状態を解放し、古い GameScripts assembly の delegate を手放す。
 		// （これらの static は ScriptCore 側にあり、登録された delegate が GameScripts 型を参照するため、unload 前に必ずクリアする）
 		try {
-			SceneManager.ResetForReload();
-			Application.ResetForReload();
-			InputActions.ResetForReload();
-			Timers.ResetForReload();
-			Coroutines.ResetForReload();
-			EventBus.ResetForReload();
-			EventOwnerTracker.ResetForReload();
-			EventDispatch.ResetForReload();
+			ScriptServiceLifetime.ResetForReload();
 		}
 		catch (Exception ex) {
-			NativeAPI.WriteLog(2, $"[ScriptRuntimeLifetime] gameplay reset failed\n{ex}");
+			NativeApplicationAPI.WriteLog(2, $"[ScriptRuntimeLifetime] gameplay reset failed\n{ex}");
 		}
 	}
 

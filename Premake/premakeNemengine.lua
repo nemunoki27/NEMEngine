@@ -132,6 +132,11 @@ project "NEMTests"
     files {
         path.join(NEM_PROJECT_ROOT, "Tests/**.h"),
         path.join(NEM_PROJECT_ROOT, "Tests/**.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorSceneDirtyState.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/Layout/EditorLayoutSerialization.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Settings/ProjectTagSettings.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Settings/ProjectRenderingLayerSettings.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Settings/ProjectSettingsStorage.cpp"),
     }
     NEM_AddEngineIncludeSettings()
     NEM_AddEngineDllLinkSettings()

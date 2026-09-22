@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -73,7 +74,7 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 
-	initialized_ = pipeline_.CreateGraphics(device, compiler, desc);
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
 }
 
 Engine::DxConstBuffer<Engine::SkyboxPass::SkyboxConstants>& Engine::SkyboxPass::AllocateConstantBuffer(
@@ -164,10 +165,10 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 	DxConstBuffer<SkyboxConstants>& buffer = AllocateConstantBuffer(graphicsCore);
 	buffer.TransferData(constants);
 
-	commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
-	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
+	commandList->SetGraphicsRootSignature(pipeline_->GetRootSignature());
+	commandList->SetPipelineState(pipeline_->GetGraphicsPipeline(BlendMode::Normal));
 
-	bindCache_.Sync(pipeline_);
+	bindCache_.Sync(*pipeline_);
 	if (bindCache_.Has(cbvSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, bindCache_.Get(cbvSlot_),
 			buffer.GetResource()->GetGPUVirtualAddress());

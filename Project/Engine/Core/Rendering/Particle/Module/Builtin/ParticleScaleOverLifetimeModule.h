@@ -6,8 +6,6 @@
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleLoopSettings.h>
 #include <Engine/Core/Animation/Curves/AnimationCurve.h>
-#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
-#include <Engine/Editor/Animation/Curves/CurveGenerator.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 
 namespace Engine {
@@ -19,6 +17,24 @@ namespace Engine {
 	class ParticleScaleOverLifetimeModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// 軸別スケールの始点と終点
+			Vector3 startScale = Vector3::AnyInit(1.0f);
+			Vector3 endScale = Vector3::AnyInit(0.0f);
+			// イージング
+			EasingType easingType = EasingType::EaseOutSine;
+			// 進行度のループ
+			ParticleLoopSettings loop{};
+
+			// カーブでスケールを制御するか
+			bool useCurve = false;
+			// 進行度から軸別スケールを返すカーブ
+			CurveVector3 curve{};
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -28,10 +44,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -39,22 +59,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 軸別スケールの始点と終点
-		Vector3 startScale_ = Vector3::AnyInit(1.0f);
-		Vector3 endScale_ = Vector3::AnyInit(0.0f);
-		// イージング
-		EasingType easingType_ = EasingType::EaseOutSine;
-		// 進行度のループ
-		ParticleLoopSettings loop_{};
+		Settings settings_{};
 
-		// カーブでスケールを制御するか
-		bool useCurve_ = false;
-		// 進行度から軸別スケールを返すカーブ
-		CurveVector3 curve_{};
-		// カーブ編集の状態、編集UIでのみ使用する
-		CurveEditorState curveState_{};
-		// カーブ生成の設定、キー時刻は0~1に制限する
-		CurveGeneratorState generatorState_{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
 	};
 
 } // Engine

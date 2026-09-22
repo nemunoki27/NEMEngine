@@ -237,16 +237,16 @@ public static class RenderFeatures {
 
     // GPUがDXRをサポートしている場合にtrueを返す
     public static bool IsRayTracingSupported =>
-        NativeAPI.ReadRayTracingSupported();
+        NativeRenderingAPI.ReadRayTracingSupported();
 
     // グラフィック設定を含めDispatchRaysが現在使用可能な場合にtrueを返す
     public static bool IsRayTracingActive =>
-        NativeAPI.ReadRayTracingActive();
+        NativeRenderingAPI.ReadRayTracingActive();
 
     // Profile内の表示名からPassハンドルを取得する
     public static RenderFeaturePass FindPass(string passName) {
         ArgumentException.ThrowIfNullOrEmpty(passName);
-        return NativeAPI.ResolveRenderFeaturePassValue(
+        return NativeRenderingAPI.ResolveRenderFeaturePassValue(
             passName, out ulong passID, out ulong generation)
             ? new RenderFeaturePass(passID, generation)
             : default;

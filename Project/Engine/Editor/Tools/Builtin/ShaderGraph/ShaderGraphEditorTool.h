@@ -4,9 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include "ShaderGraphAppearance.h"
+#include "ShaderGraphScenePreview.h"
+#include "ShaderGraphNodePreviews.h"
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphIR.h>
-#include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphHistory.h>
+#include "ShaderGraphEditSession.h"
 
 // c++
 #include <memory>
@@ -57,45 +60,6 @@ namespace Engine {
 			ValueType,
 			Color,
 		};
-		struct PreviewState;
-		// Node Editorへ適用するユーザー外観設定
-		struct NodeAppearanceSetting {
-
-			Color4 canvasBackground{};
-			Color4 grid{};
-			Color4 nodeBackground{};
-			Color4 nodeBorder{};
-			Color4 hoveredNodeBorder{};
-			Color4 selectedNodeBorder{};
-			Color4 nodeSelection{};
-			Color4 nodeSelectionBorder{};
-			Color4 link{};
-			Color4 hoveredLinkBorder{};
-			Color4 selectedLinkBorder{};
-			Color4 highlightedLinkBorder{};
-			Color4 linkSelection{};
-			Color4 linkSelectionBorder{};
-			Color4 pinSelection{};
-			Color4 pinSelectionBorder{};
-
-			Vector4 nodePadding{};
-			Vector2 linkStartOffset{};
-			Vector2 linkEndOffset{};
-			float nodeMinimumWidth = 180.0f;
-			float nodePreviewDisplaySize = 144.0f;
-			float nodeRounding = 0.0f;
-			float nodeBorderWidth = 0.0f;
-			float hoveredNodeBorderWidth = 0.0f;
-			float selectedNodeBorderWidth = 0.0f;
-			float nodeTextScale = 1.0f;
-			float gridSpacing = 32.0f;
-			float nodeSnapGridSize = 16.0f;
-			float pinRounding = 0.0f;
-			float pinBorderWidth = 0.0f;
-			float linkStrength = 0.0f;
-			float linkThickness = 0.0f;
-			int32_t nodePreviewTextureSize = 128;
-		};
 
 		//--------- variables ----------------------------------------------------
 
@@ -109,14 +73,8 @@ namespace Engine {
 		};
 
 		bool openWindow_ = false;
-		AssetID selectedAsset_{};
 		AssetID pendingAsset_{};
-		AssetID previewMaterial_{};
-		ShaderGraphAsset graph_{};
-		ShaderGraphHistory history_{};
-		bool graphLoaded_ = false;
-		bool graphDirty_ = false;
-		bool previewCompileDirty_ = false;
+		ShaderGraphEditSession editSession_;
 		bool commandPanelFocused_ = false;
 		bool restoreNodePositions_ = false;
 		int32_t selectedParameter_ = -1;
@@ -125,7 +83,6 @@ namespace Engine {
 			"GameAssets/Materials/NewShader.shadergraph.json";
 		ShaderGraphDomain createDomain_ = ShaderGraphDomain::Surface;
 		ShaderGraphTarget createTarget_ = ShaderGraphTarget::Mesh;
-		std::string statusMessage_{};
 		std::string nodeSearch_{};
 		Vector2 createNodePosition_{};
 		UUID contextNode_{};
@@ -133,7 +90,7 @@ namespace Engine {
 		bool requestGroupNameFocus_ = false;
 		ax::NodeEditor::EditorContext* nodeEditor_ = nullptr;
 		std::unordered_map<uintptr_t, PinAddress> pinAddresses_{};
-		NodeAppearanceSetting appearanceSetting_{};
+		ShaderGraphAppearanceSetting appearanceSetting_{};
 		UUID nodeValuePopupNode_{};
 		NodeValuePopupKind nodeValuePopupKind_ =
 			NodeValuePopupKind::None;
@@ -141,104 +98,124 @@ namespace Engine {
 		float nodeValuePopupWidth_ = 0.0f;
 		uint32_t nodeValuePopupViewportID_ = 0;
 		bool requestNodeValuePopup_ = false;
-		std::unique_ptr<PreviewState> previewState_{};
-		UUID previewEntityUUID_{};
-		UUID appliedPreviewEntityUUID_{};
-		ShaderGraphTarget appliedPreviewTarget_ =
-			ShaderGraphTarget::Mesh;
-		AssetID previewOriginalMaterial_{};
-		bool previewMaterialApplied_ = false;
-		double previewCompileDeadline_ = 0.0;
-		std::string compiledGraphState_{};
-		std::vector<ShaderGraphDiagnostic> latestDiagnostics_{};
+		ShaderGraphNodePreviews nodePreviews_;
+		// シーン上のMaterialプレビュー
+		ShaderGraphScenePreview scenePreview_;
 
 		//--------- functions ----------------------------------------------------
 
+		// ツールの編集画面を表示する
 		void DrawWindow(const EditorToolContext& context);
+		// 保存と履歴操作を表示する
 		void DrawToolbar(const EditorToolContext& context);
+		// 公開Parameterの一覧を表示する
 		void DrawParameterPanel(const EditorToolContext& context);
+		// Node Editorの外観を編集する
 		void DrawAppearancePanel();
+		// GraphのNodeと接続を表示する
 		void DrawGraph(const EditorToolContext& context);
+		// Groupの範囲と名前を表示する
 		void DrawGroup(ShaderGraphGroup& group);
+		// Nodeの本体を表示する
 		void DrawNode(ShaderGraphNode& node);
-		void DrawNodePreview(
-			ShaderGraphNode& node,
-			float nodeWidth);
-		void DrawNodePins(
-			const ShaderGraphNode& node,
-			float nodeWidth);
+		// Nodeの入出力Pinを表示する
+		void DrawNodePins(const ShaderGraphNode& node, float nodeWidth);
+		// Node内の区切り線を描く
 		void DrawNodeSeparator(float nodeWidth) const;
+		// Nodeの内容から表示幅を求める
 		float CalculateNodeWidth(
 			const ShaderGraphNode& node) const;
-		void DrawNodeValue(
-			ShaderGraphNode& node,
-			float nodeWidth);
+		// Nodeの値を編集する
+		void DrawNodeValue(ShaderGraphNode& node, float nodeWidth);
+		// Nodeの値編集popupを表示する
 		void DrawNodeValuePopup();
+		// Nodeの値編集popupを予約する
 		void RequestNodeValuePopup(
 			UUID nodeID,
 			NodeValuePopupKind kind,
 			const Vector2& anchor,
 			float width,
 			uint32_t viewportID);
-		void DrawNodeValueTypeButton(
-			ShaderGraphNode& node,
-			float nodeWidth);
-		void DrawNodeColorButton(
-			const ShaderGraphNode& node,
-			const char* label,
-			const Color4& value,
-			float nodeWidth);
+		// Nodeの値の型を選択する
+		void DrawNodeValueTypeButton(ShaderGraphNode& node, float nodeWidth);
+		// Nodeの色編集ボタンを表示する
+		void DrawNodeColorButton(const ShaderGraphNode& node, const char* label, const Color4& value, float nodeWidth);
+		// 右クリック操作を表示する
 		void DrawContextMenus();
+		// 追加するNodeを選択する
 		void DrawNodeCreationMenu();
+		// Graphの描画設定を編集する
 		void DrawGraphSettings(const EditorToolContext& context);
+		// Keywordを編集する
 		void DrawKeywordEditor();
+		// 選択Nodeの詳細を編集する
 		void DrawSelectedNodeEditor(const EditorToolContext& context);
+		// コンパイル診断を表示する
 		void DrawDiagnostics();
-		void DrawParameterEditor(
-			const EditorToolContext& context,
-			ShaderGraphParameter& parameter);
-		void DrawPreviewSetting(
-			const EditorToolContext& context);
+		// 公開Parameterの設定を編集する
+		void DrawParameterEditor(const EditorToolContext& context, ShaderGraphParameter& parameter);
+		// Sceneへのプレビュー設定を編集する
+		void DrawPreviewSetting(const EditorToolContext& context);
 
+		// Graphを読み編集画面を切り替える
 		bool LoadGraph(const EditorToolContext& context, AssetID assetID);
 		// 別アセットの設定を検証して一括置換する
 		void ImportGraphSettings(const EditorToolContext& context, AssetID source);
+		// 初期Graphを作成して開く
 		bool CreateGraph(const EditorToolContext& context);
+		// 位置を確定してGraphの保存とコンパイルを要求する
 		bool SaveAndCompile(const EditorToolContext& context);
-		bool ApplyPreviewMaterial(
-			const EditorToolContext& context);
-		void RestorePreviewMaterial(
-			const EditorToolContext& context);
-		void UpdateMaterialPreview(
-			const EditorToolContext& context);
+		// SceneへプレビューMaterialを適用する
+		bool ApplyPreviewMaterial(const EditorToolContext& context);
+		// Sceneの元のMaterialを復元する
+		void RestorePreviewMaterial(const EditorToolContext& context);
+		// 編集内容をプレビューへ反映する
+		void UpdateMaterialPreview(const EditorToolContext& context);
+		// 外観設定を読み込む
 		bool LoadAppearanceSettings();
+		// 外観設定を保存する
 		void SaveAppearanceSettings() const;
+		// 外観設定をNode Editorへ適用する
 		void ApplyAppearanceSettings();
+		// 既定の外観へ戻す
 		void RestoreDefaultAppearance();
+		// 外観設定を有効範囲へ収める
 		void ClampAppearanceSettings();
+		// Node Editorの位置をGraphへ取り込む
 		void CaptureNodePositions();
+		// Node Editorの表示状態を再作成する
 		void ResetNodeEditor();
-		void UpdateNodePreviews(
-			const EditorToolContext& context);
-		void InvalidateNodePreviews();
-		void ClearNodePreviews();
+		// Nodeと関連する接続を削除する
 		void RemoveNode(UUID nodeID);
+		// Groupの所属を解除して削除する
 		void RemoveGroup(UUID groupID);
+		// Nodeを複製して配置する
 		void DuplicateNode(UUID nodeID);
+		// Group内のNodeを複製して配置する
 		void DuplicateGroup(UUID groupID);
+		// 選択Nodeをクリップボードへコピーする
 		void CopySelection();
+		// クリップボードのNodeを配置する
 		void PasteSelection();
+		// Graphの編集を元に戻す
 		void UndoGraph();
+		// Graphの編集をやり直す
 		void RedoGraph();
+		// 編集内容をGraphの履歴へ確定する
 		void CommitGraphHistory();
+		// Parameterと参照Nodeを削除する
 		void RemoveParameter(uint32_t index);
+		// 選択しているNodeを取得する
 		std::vector<UUID> GetSelectedGraphNodes() const;
+		// 選択NodeをGroupへまとめる
 		void GroupSelectedNodes();
+		// 指定種類のNodeを追加する
 		void AddNode(ShaderGraphNodeKind kind, Vector2 position);
-		void AddConstantNode(
-			ShaderGraphValueType type,
-			Vector2 position);
+		// 定数Nodeを追加する
+		void AddConstantNode(ShaderGraphValueType type, Vector2 position);
+		// Parameter参照Nodeを追加する
 		void AddParameterNode(UUID parameterID, Vector2 position);
+		// Keyword参照Nodeを追加する
 		void AddKeywordNode(UUID keywordID, Vector2 position);
 	};
 } // Engine

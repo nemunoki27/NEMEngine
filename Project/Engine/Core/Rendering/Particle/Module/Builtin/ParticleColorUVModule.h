@@ -6,8 +6,6 @@
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleLoopSettings.h>
 #include <Engine/Core/Animation/Curves/AnimationCurve.h>
-#include <Engine/Editor/Animation/Curves/CurveEditorState.h>
-#include <Engine/Editor/Animation/Curves/CurveGenerator.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 
 namespace Engine {
@@ -27,6 +25,48 @@ namespace Engine {
 	class ParticleColorUVModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// UV座標の更新方法
+			ParticleUVUpdateType updateType = ParticleUVUpdateType::Lerp;
+			// UV座標の始点と終点
+			Vector2 startOffset = Vector2::AnyInit(0.0f);
+			Vector2 endOffset = Vector2::AnyInit(0.0f);
+			// 1秒あたりのUV移動量
+			Vector2 scrollSpeed = Vector2::AnyInit(0.0f);
+			// UV座標のイージングとループ
+			EasingType offsetEasingType = EasingType::EaseOutSine;
+			ParticleLoopSettings offsetLoop{};
+			// UV座標のカーブ設定
+			bool useOffsetCurve = false;
+			CurveVector3 offsetCurve{};
+
+			// UVスケールの始点と終点
+			Vector2 startScale = Vector2::AnyInit(1.0f);
+			Vector2 endScale = Vector2::AnyInit(1.0f);
+			// UVスケールのイージングとループ
+			EasingType scaleEasingType = EasingType::EaseOutSine;
+			ParticleLoopSettings scaleLoop{};
+			// UVスケールのカーブ設定
+			bool useScaleCurve = false;
+			CurveVector3 scaleCurve{};
+
+			// UV回転の始点と終点
+			float startRotation = 0.0f;
+			float endRotation = 0.0f;
+			// UV回転の中心
+			Vector2 pivot = Vector2::AnyInit(0.5f);
+			// UV回転のイージングとループ
+			EasingType rotationEasingType = EasingType::EaseOutSine;
+			ParticleLoopSettings rotationLoop{};
+			// UV回転のカーブ設定
+			bool useRotationCurve = false;
+			CurveFloat rotationCurve{};
+
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -36,10 +76,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -47,56 +91,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// UV座標の更新方法
-		ParticleUVUpdateType updateType_ = ParticleUVUpdateType::Lerp;
-		// UV座標の始点と終点
-		Vector2 startOffset_ = Vector2::AnyInit(0.0f);
-		Vector2 endOffset_ = Vector2::AnyInit(0.0f);
-		// 1秒あたりのUV移動量
-		Vector2 scrollSpeed_ = Vector2::AnyInit(0.0f);
-		// UV座標のイージングとループ
-		EasingType offsetEasingType_ = EasingType::EaseOutSine;
-		ParticleLoopSettings offsetLoop_{};
-		// UV座標のカーブ設定
-		bool useOffsetCurve_ = false;
-		CurveVector3 offsetCurve_{};
-		CurveEditorState offsetCurveState_{};
-		CurveGeneratorState offsetGeneratorState_{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
+		Settings settings_{};
 
-		// UVスケールの始点と終点
-		Vector2 startScale_ = Vector2::AnyInit(1.0f);
-		Vector2 endScale_ = Vector2::AnyInit(1.0f);
-		// UVスケールのイージングとループ
-		EasingType scaleEasingType_ = EasingType::EaseOutSine;
-		ParticleLoopSettings scaleLoop_{};
-		// UVスケールのカーブ設定
-		bool useScaleCurve_ = false;
-		CurveVector3 scaleCurve_{};
-		CurveEditorState scaleCurveState_{};
-		CurveGeneratorState scaleGeneratorState_{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
-
-		// UV回転の始点と終点
-		float startRotation_ = 0.0f;
-		float endRotation_ = 0.0f;
-		// UV回転の中心
-		Vector2 pivot_ = Vector2::AnyInit(0.5f);
-		// UV回転のイージングとループ
-		EasingType rotationEasingType_ = EasingType::EaseOutSine;
-		ParticleLoopSettings rotationLoop_{};
-		// UV回転のカーブ設定
-		bool useRotationCurve_ = false;
-		CurveFloat rotationCurve_{};
-		CurveEditorState rotationCurveState_{};
-		CurveGeneratorState rotationGeneratorState_{ .fixedTimeRange = true, .maxKeyTime = 1.0f };
-
-		//--------- functions ----------------------------------------------------
-
-		// UV座標の編集UIを描画する
-		bool DrawOffsetSettings();
-		// UVスケールの編集UIを描画する
-		bool DrawScaleSettings();
-		// UV回転の編集UIを描画する
-		bool DrawRotationSettings();
 	};
 
 } // Engine

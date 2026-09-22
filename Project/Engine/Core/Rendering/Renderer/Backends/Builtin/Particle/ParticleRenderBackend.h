@@ -74,11 +74,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// バッチのインスタンスデータをフェーズごとに集める、粒子ごとにビルボードのワールド行列を作る
-		void CollectInstances(const RenderDrawContext& context, std::span<const RenderItem* const> items,
-			const std::vector<ParticleCustomParameterLayout>& customLayouts,
-			std::vector<ParticleDrawInstanceData>& outInstances, std::vector<uint32_t>& outPhaseCounts,
-			std::vector<uint8_t>& outCustomParameters, std::vector<uint32_t>& outCustomOffsets) const;
 		// パラメトリックMS生成で描画する、パイプラインを解決できなければfalse
 		bool DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,
 			const IParticleParametricShape& parametric, const ParticleRenderSettings& settings,

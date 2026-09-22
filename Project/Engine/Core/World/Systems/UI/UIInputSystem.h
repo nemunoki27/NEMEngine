@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "UIVisualSession.h"
 #include <Engine/Core/World/ECS/Systems/Core/ISystem.h>
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
 #include <Engine/Core/Assets/AssetTypes.h>
@@ -14,22 +15,6 @@
 #include <vector>
 
 namespace Engine {
-
-	struct UISelectableAnimationRuntime {
-
-		std::array<AssetID, 4> configuredClips{};
-		std::array<bool, 4> configuredAnimations{};
-		std::array<bool, 4> configuredUseClips{};
-		std::vector<AnimationPreviewBaseValue> baseValues;
-		AssetID activeClip{};
-		float time = 0.0f;
-		uint8_t state = 0;
-		bool configured = false;
-		bool baseCaptured = false;
-		bool stateInitialized = false;
-		bool playing = false;
-		bool applied = false;
-	};
 
 	//============================================================================
 	//	UIInputSystem class
@@ -55,10 +40,11 @@ namespace Engine {
 		const char* GetName() const override { return "UIInputSystem"; }
 	private:
 		//============================================================================
-		//	private variables
+		//	private Methods
 		//============================================================================
 
-		// UI状態クリップの再生時間と復元値
-		std::unordered_map<UUID, UISelectableAnimationRuntime> animationRuntimes_;
+		//--------- variables ----------------------------------------------------
+
+		UIVisualSession visuals_;
 	};
 } // Engine

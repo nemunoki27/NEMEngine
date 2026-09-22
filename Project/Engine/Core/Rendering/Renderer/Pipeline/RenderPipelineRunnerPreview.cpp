@@ -1,11 +1,9 @@
 #include "RenderPipelineRunner.h"
-#include "RenderPipelineUtility.h"
-
-using namespace Engine;
 
 //============================================================================
 //	include
 //============================================================================
+#include "RenderPipelineUtility.h"
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewResolver.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
@@ -18,6 +16,8 @@ using namespace Engine;
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #endif
+
+using namespace Engine;
 
 //============================================================================
 //	RenderPipelineRunner classMethods (Preview)
@@ -33,14 +33,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 
 	// メインのScene/Gameとは別に、ツール用サーフェイスだけを描画対象にする
 	renderAssetLibrary_.Init(request.assetDatabase);
-	if (!previewBackendFrameStarted_) {
-
-		previewBackendRegistry_.BeginFrame(graphicsCore);
-		previewLightBufferPool_.BeginFrame();
-		previewBackendFrameStarted_ = true;
-	}
-	extractorRegistry_.BuildBatch(*request.world, renderBatch_);
-	lightExtractorRegistry_.BuildBatch(*request.world, frameLightBatch_);
+	previewResources_.BeginFrame(graphicsCore);
+	scenePreparation_.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, nullptr);
 
 	RenderViewRequest viewRequest{};
 	viewRequest.kind = RenderViewKind::Scene;
@@ -63,7 +57,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 
 	RenderPassPhaseBuckets passBuckets{};
 	std::vector<AssetID> meshAssets{};
-	BuildPreviewPassBuckets(*request.world, request.rootEntity, renderBatch_, previewView, passBuckets, meshAssets);
+	BuildPreviewPassBuckets(*request.world, request.rootEntity, scenePreparation_.renderBatch_, previewView, passBuckets, meshAssets);
 
 	RenderTargetRegistry previewTargetRegistry{};
 	previewTargetRegistry.BeginFrame();
@@ -89,16 +83,16 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	context.assetDatabase = request.assetDatabase;
 
 	// プレビュー用のライトバッファを更新しSceneView/GameViewのGPUバッファは触らない
-	previewLightSet_.Clear();
-	ViewLightCollector::CollectForView(frameLightBatch_, &previewScene, previewView, previewLightSet_);
-	ViewLightBufferSet& previewLightBuffers = previewLightBufferPool_.Acquire(graphicsCore,
+	previewResources_.previewLightSet_.Clear();
+	ViewLightCollector::CollectForView(scenePreparation_.frameLightBatch_, &previewScene, previewView, previewResources_.previewLightSet_);
+	ViewLightBufferSet& previewLightBuffers = previewResources_.previewLightBufferPool_.Acquire(graphicsCore,
 		[](ViewLightBufferSet& buffers, GraphicsCore& core) {
 			buffers.Init(core);
 		});
-	previewLightBuffers.Upload(previewLightSet_);
+	previewLightBuffers.Upload(previewResources_.previewLightSet_);
 	previewLightBuffers.RegisterTo(context.bufferRegistry);
 
-	auto* meshBackendBase = previewBackendRegistry_.Find(RenderBackendID::Mesh);
+	auto* meshBackendBase = previewResources_.previewBackendRegistry_.Find(RenderBackendID::Mesh);
 	auto* meshBackend = dynamic_cast<MeshRenderBackend*>(meshBackendBase);
 	if (meshBackend && !meshAssets.empty()) {
 
@@ -108,7 +102,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 			return false;
 		}
 		PreDispatchVisibleMeshSkinning(graphicsCore, context,
-			renderBatch_, previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
+			scenePreparation_.renderBatch_, previewResources_.previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 	}
 
 	// プレビュー:クリア→全フェーズを描画サーフェスへ直接描画
@@ -145,7 +139,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		} else {
 			dxCommand->SetViewportAndScissor(request.surface->GetWidth(), request.surface->GetHeight());
 		}
-		batchDispatcher_.Dispatch(graphicsCore, context, renderBatch_, previewBackendRegistry_,
+		batchDispatcher_.Dispatch(graphicsCore, context, scenePreparation_.renderBatch_, previewResources_.previewBackendRegistry_,
 			renderAssetLibrary_, pipelineStateCache_, materialResolver_,
 			list.items, request.surface, nullptr, MaterialPassKind::Draw, false);
 	}

@@ -83,8 +83,8 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// シャドウ無しPSOと、TLASによる平行光源シャドウ付きPSO
-		PipelineState pipeline_{};
-		PipelineState pipelineShadowed_{};
+		std::unique_ptr<PipelineState> pipeline_{};
+		std::unique_ptr<PipelineState> pipelineShadowed_{};
 		bool initialized_ = false;
 		// shadow版PSOが構築できたか、inlineRT非対応環境では作れないので分けて持つ
 		bool shadowedAvailable_ = false;

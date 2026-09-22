@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include "AnimationClipEditSession.h"
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
@@ -18,23 +19,6 @@ namespace Engine {
 
 	// front
 	struct CurveChannelRef;
-
-	enum class AnimationClipEditDimension :
-		uint8_t {
-
-		Auto,
-		Mode2D,
-		Mode3D,
-	};
-
-	enum class AnimationClipDetectedDimension :
-		uint8_t {
-
-		Unknown,
-		Mode2D,
-		Mode3D,
-		Mixed,
-	};
 
 	//============================================================================
 	//	AnimationClipTool class
@@ -64,8 +48,6 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		//--------- structure ----------------------------------------------------
-
 		//--------- variables ----------------------------------------------------
 
 		ToolDescriptor descriptor_{
@@ -79,88 +61,28 @@ namespace Engine {
 
 		bool openWindow_ = false;
 
-		// 編集対象のAnimationClipアセット
-		// Target Entityとは独立させ、Clip側にはEntity UUIDを書き込まない
-		AssetID clipAssetID_{};
-		AssetID loadedClipAssetID_{};
-		AnimationClipAsset clip_{};
-		bool hasClip_ = false;
-		bool clipDirty_ = false;
-		std::string clipErrorText_;
-
-		// プレビュー適用先でHierarchyからD&Dで指定するがClip保存対象には含めない
-		UUID targetEntityUUID_{};
-
-		// 複数Trackを同じCurveEditorで見るための状態
-		CurveEditorState curveState_{};
-		// CurveEditorに表示しているTrackで複数PropertyのCurveが重ならないよう選択中Trackだけを表示する
-		int selectedTrackIndex_ = -1;
-		int editorViewTrackIndex_ = -1;
-
-		// Preview再生状態でpreviewActive_はScrub中もtrueになりStop/Closeで必ず復元する
-		bool previewActive_ = false;
-		bool previewPlaying_ = false;
-		float previewTime_ = 0.0f;
-		float previewSpeed_ = 1.0f;
-		std::vector<AnimationPreviewBaseValue> previewBaseValues_;
-		// Previewでtoolが最後に書き込んだ値、Entityの現在値とズレていたら外部編集とみなす検知に使う
-		std::vector<AnimationPreviewBaseValue> lastAppliedValues_;
-		// 編集が起きたフレームだけ検知するため、前フレームのUndo/Redoカウントを覚えておく
-		size_t lastUndoCount_ = 0;
-		size_t lastRedoCount_ = 0;
-
-		// Transform系Propertyの2D/3D候補を絞るための表示フィルタ
-		AnimationClipEditDimension editDimension_ = AnimationClipEditDimension::Auto;
-
-		// カーブ生成の設定
-		CurveGeneratorState generatorState_{};
+		// Clipの編集とプレビューのセッション
+		AnimationClipEditSession session_;
 
 		//--------- functions ----------------------------------------------------
 
 		// アセット、編集設定UI
 		void DrawToolbarUI(const EditorToolContext& context);
+		// Clipの選択と保存を表示する
 		void DrawClipAssetUI(const EditorToolContext& context);
+		// 編集対象と再生操作を表示する
 		void DrawEditAssetUI(const EditorToolContext& context);
 
+		// 追加できるPropertyを表示する
 		void DrawPropertyTreeUI(const EditorToolContext& context);
+		// 選択TrackのCurveを編集する
 		void DrawCurveEditorUI(const EditorToolContext& context);
+		// 選択Keyの値を編集する
 		void DrawKeyInspectorUI(const EditorToolContext& context);
+		// Curve生成設定を編集する
 		void DrawGeneratorUI(const EditorToolContext& context);
+		// ClipのEventを編集する
 		void DrawEventListUI(const EditorToolContext& context);
 
-		void LoadClipFromSelectedAsset(const EditorToolContext& context);
-		void SaveClipToSelectedAsset(const EditorToolContext& context);
-		// Propertyを追加した時点ではキーを作らず、現在値をdefaultValueとして保持する
-		void AddPropertyTrack(const AnimationPropertyDescriptor& desc, ECSWorld& world, const Entity& entity);
-		void RevertClipFromSelectedAsset(const EditorToolContext& context);
-
-		Entity GetTargetEntity(const EditorToolContext& context) const;
-		AnimationClipDetectedDimension DetectTargetDimension(const EditorToolContext& context) const;
-		AnimationClipEditDimension GetEffectiveEditDimension(const EditorToolContext& context) const;
-		void NormalizeSelectedTrackIndex();
-		void StoreSelectedTrackEditorView();
-		void LoadSelectedTrackEditorView();
-		void SyncCurveStateTime();
-		void UpdatePreviewPlayback(const EditorToolContext& context);
-		// 現在時刻のClip評価値をTarget Entityへ直接反映する
-		void ApplyPreviewAtCurrentTime(const EditorToolContext& context, bool keepActive);
-		void BeginPreview(const EditorToolContext& context);
-		void EndPreviewAndRestore(const EditorToolContext& context);
-		// Target設定時やProperty追加時に、そのpropertyがアニメで動く前のクリーンな値を基準として捕捉する
-		// 既に捕捉済みのpropertyは上書きせず、未捕捉のtrackだけ現在値から追加する
-		void CachePreviewBaseValues(ECSWorld& world, const Entity& entity);
-		void RestorePreviewBaseValues(ECSWorld& world, const Entity& entity);
-		// Track削除時に、そのPropertyだけを元のシーン値へ戻しbaseからも取り除く
-		void RestoreAndDropPreviewBaseValue(const EditorToolContext& context, const AnimationPropertyBinding& binding);
-		// 指定bindingの基準値を既に保持しているか
-		bool HasPreviewBaseValue(const AnimationPropertyBinding& binding) const;
-		// Previewでtoolが書き込んだ現在値を退避する、外部編集検知の基準にする
-		void CaptureLastAppliedValues(ECSWorld& world, const Entity& entity);
-		// マニピュレータ/インスペクタでの編集を検知する
-		// 停止中はbaseを更新し、再生中は自動停止して編集値を新baseへ採用する
-		void SyncPreviewBaseFromEntityEdits(const EditorToolContext& context);
-		void AddKeyToChannel(AnimationCurveTrack& track, uint32_t channelIndex, float time);
-		void UpdateAutoDurationAndPreview(const EditorToolContext& context);
 	};
 } // Engine
-

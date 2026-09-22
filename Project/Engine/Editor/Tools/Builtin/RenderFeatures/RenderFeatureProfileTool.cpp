@@ -21,98 +21,9 @@
 
 #include <imgui.h>
 
-namespace {
-
-	Engine::SceneHeader* ResolveActiveSceneHeader(
-		const Engine::ToolContext& context) {
-
-		if (context.sceneInstances && context.activeSceneInstanceID) {
-			Engine::SceneInstance* scene = context.sceneInstances->Find(
-				context.activeSceneInstanceID);
-			if (scene) {
-				return &scene->header;
-			}
-		}
-		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
-	}
-
-}
-
 //============================================================================
 //	RenderFeatureProfileTool classMethods
 //============================================================================
-bool Engine::RenderFeatureProfileTool::IsPassMaterialSource(
-	AssetType assetType, std::string_view assetPath) {
-
-	return assetType == AssetType::Material ||
-		(assetType == AssetType::Shader &&
-			PostProcessAssetGenerator::IsComputeShaderSourcePath(assetPath));
-}
-
-Engine::AssetID Engine::RenderFeatureProfileTool::ResolvePassMaterial(
-	const EditorToolContext& context, AssetID assetID,
-	AssetType assetType, std::string_view assetPath) {
-
-	AssetDatabase* database = context.toolContext.assetDatabase;
-	if (!database || !assetID) {
-		statusMessage_ = "アセットを読み込めません";
-		statusError_ = true;
-		return {};
-	}
-
-	const AssetMeta* meta = database->Find(assetID);
-	if (assetType == AssetType::Unknown && meta) {
-		assetType = meta->type;
-	}
-	if (assetPath.empty() && meta) {
-		assetPath = meta->assetPath;
-	}
-	if (assetType == AssetType::Material) {
-		return assetID;
-	}
-	if (!IsPassMaterialSource(assetType, assetPath)) {
-		statusMessage_ = "Materialまたは.cs.hlslを指定してください";
-		statusError_ = true;
-		return {};
-	}
-
-	const AssetID materialID = PostProcessAssetGenerator::EnsureUserAsset(
-		database, std::string(assetPath));
-	if (!materialID) {
-		statusMessage_ = "Compute Shader用アセットを生成できません";
-		statusError_ = true;
-		return {};
-	}
-	statusMessage_ = "Compute Shader用アセットを生成しました";
-	statusError_ = false;
-	return materialID;
-}
-
-void Engine::RenderFeatureProfileTool::Tick(ToolContext& context) {
-
-	if (requestedProfile_) {
-		RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(
-			requestedProfile_, context.assetDatabase);
-		observedProfile_ = requestedProfile_;
-		requestedProfile_ = {};
-		ClearSelection();
-		return;
-	}
-	if (!context.activeSceneHeader) {
-		return;
-	}
-	const AssetID profile = context.activeSceneHeader->renderFeatureProfile;
-	if (profile == observedProfile_) {
-		return;
-	}
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
-	if (!service.IsDirty()) {
-		service.SetActiveProfileAsset(profile, context.assetDatabase);
-		observedProfile_ = profile;
-		ClearSelection();
-	}
-}
 
 void Engine::RenderFeatureProfileTool::OpenEditorTool() {
 
@@ -121,20 +32,18 @@ void Engine::RenderFeatureProfileTool::OpenEditorTool() {
 
 void Engine::RenderFeatureProfileTool::OpenAsset(AssetID assetID) {
 
-	requestedProfile_ = assetID;
+	editSession_.RequestProfile(assetID);
 	openWindow_ = true;
 }
 
-void Engine::RenderFeatureProfileTool::DrawEditorTool(
-	const EditorToolContext& context) {
+void Engine::RenderFeatureProfileTool::DrawEditorTool(const EditorToolContext& context) {
 
 	if (openWindow_) {
 		DrawWindow(context);
 	}
 }
 
-void Engine::RenderFeatureProfileTool::DrawWindow(
-	const EditorToolContext& context) {
+void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& context) {
 
 	if (!ImGui::Begin("レンダー機能設定", &openWindow_)) {
 		ImGui::End();
@@ -144,23 +53,17 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 	RenderFeatureProfileService& service =
 		RenderFeatureProfileService::GetInstance();
 	service.EnsureLoaded();
-	AssetID profileAsset = observedProfile_;
+	AssetID profileAsset = editSession_.GetProfileID();
 	AssetEditSetting assetSetting{};
 	if (MyGUI::AssetReferenceField("プロファイル", profileAsset,
 		context.toolContext.assetDatabase,
 		{ AssetType::RenderFeatureProfile }, assetSetting).valueChanged) {
 
-		SceneHeader* header = ResolveActiveSceneHeader(context.toolContext);
-		if (header) {
-			header->renderFeatureProfile = profileAsset;
-		}
-		service.SetActiveProfileAsset(
-			profileAsset, context.toolContext.assetDatabase);
-		observedProfile_ = profileAsset;
+		editSession_.SelectProfile(context, profileAsset);
 		ClearSelection();
 	}
 
-	if (!observedProfile_ && !EnsureProfile(context)) {
+	if (!editSession_.GetProfileID() && !EnsureProfile(context)) {
 		ImGui::TextDisabled("シーンまたは保存先を確認してください");
 		ImGui::End();
 		return;
@@ -178,25 +81,16 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 
 	const float buttonWidth = ImGui::GetContentRegionAvail().x * 0.5f - 2.0f;
 	if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) {
-		service.RebuildRuntime();
-		statusError_ = !service.GetRuntime().GetDiagnostic().empty() ||
-			!service.Save();
-		if (!statusError_) {
-			service.ClearDirty();
-		}
-		statusMessage_ = statusError_ ?
-			"保存できませんでした" : "保存しました";
+		editSession_.Save();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("再読み込み", ImVec2(buttonWidth, 0.0f))) {
-		service.Reload();
+		editSession_.Reload();
 		ClearSelection();
-		statusMessage_ = "再読み込みしました";
-		statusError_ = false;
 	}
-	if (!statusMessage_.empty()) {
-		ImGui::TextColored(statusError_ ? ImVec4(1.0f, 0.35f, 0.35f, 1.0f) :
-			ImVec4(0.45f, 0.9f, 0.55f, 1.0f), "%s", statusMessage_.c_str());
+	if (!editSession_.GetStatusMessage().empty()) {
+		ImGui::TextColored(editSession_.HasError() ? ImVec4(1.0f, 0.35f, 0.35f, 1.0f) :
+			ImVec4(0.45f, 0.9f, 0.55f, 1.0f), "%s", editSession_.GetStatusMessage().c_str());
 	}
 	if (!service.GetRuntime().GetDiagnostic().empty()) {
 		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s",
@@ -219,84 +113,6 @@ void Engine::RenderFeatureProfileTool::DrawWindow(
 	}
 	ImGui::EndChild();
 	ImGui::End();
-}
-
-bool Engine::RenderFeatureProfileTool::ImportProfileSettings(
-	const EditorToolContext& context, AssetID sourceProfile) {
-
-	AssetDatabase* database = context.toolContext.assetDatabase;
-	if (!database || !observedProfile_ || !sourceProfile) {
-		statusMessage_ = "取り込み元プロファイルを読み込めません";
-		statusError_ = true;
-		return false;
-	}
-	if (sourceProfile == observedProfile_) {
-		statusMessage_ = "現在のプロファイルは取り込めません";
-		statusError_ = true;
-		return false;
-	}
-
-	const AssetMeta* sourceMeta = database->Find(sourceProfile);
-	if (!sourceMeta || sourceMeta->type != AssetType::RenderFeatureProfile) {
-		statusMessage_ = "Render Feature Profileを指定してください";
-		statusError_ = true;
-		return false;
-	}
-
-	RenderFeatureProfileAsset source{};
-	const std::filesystem::path sourcePath =
-		database->ResolveFullPath(sourceProfile);
-	if (sourcePath.empty() ||
-		!RenderFeatureProfileSerializer::Load(sourcePath, source)) {
-
-		statusMessage_ = "取り込み元プロファイルを読み込めません";
-		statusError_ = true;
-		return false;
-	}
-
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
-	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
-	CopyRenderFeatureProfileSettings(service.GetProfile(), source);
-	ClearSelection();
-	SetDirty();
-	statusMessage_ = "設定をインポートしました。保存してください";
-	statusError_ = false;
-	return true;
-}
-
-bool Engine::RenderFeatureProfileTool::EnsureProfile(
-	const EditorToolContext& context) {
-
-	AssetDatabase* database = context.toolContext.assetDatabase;
-	SceneHeader* header = ResolveActiveSceneHeader(context.toolContext);
-	if (!database || !header || context.toolContext.activeScenePath.empty()) {
-		return false;
-	}
-	if (!ImGui::Button("現在のシーン用プロファイルを作成",
-		ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		return false;
-	}
-
-	const std::string assetPath = MakeDefaultRenderFeatureProfilePath(
-		std::string(context.toolContext.activeScenePath));
-	const std::filesystem::path fullPath = database->ResolveAssetPath(assetPath);
-	std::error_code ec;
-	std::filesystem::create_directories(fullPath.parent_path(), ec);
-	RenderFeatureProfileAsset profile{};
-	profile.name = Algorithm::PathToUTF8(
-		Algorithm::PathFromUTF8(assetPath).stem());
-	if (!RenderFeatureProfileSerializer::Save(fullPath, profile)) {
-		statusMessage_ = "プロファイル作成に失敗しました";
-		statusError_ = true;
-		return false;
-	}
-	header->renderFeatureProfile = database->ImportOrGet(
-		assetPath, AssetType::RenderFeatureProfile);
-	observedProfile_ = header->renderFeatureProfile;
-	RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(
-		observedProfile_, database);
-	return true;
 }
 
 void Engine::RenderFeatureProfileTool::DrawColorPipeline() {
@@ -333,18 +149,17 @@ void Engine::RenderFeatureProfileTool::DrawColorPipeline() {
 	}
 	ImGui::Unindent();
 	if (changed) {
-		SetDirty();
+		editSession_.SetDirty();
 	}
 }
 
-void Engine::RenderFeatureProfileTool::DrawPassDetail(
-	const EditorToolContext& context) {
+void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& context) {
 
 	RenderFeatureProfileAsset& profile =
 		RenderFeatureProfileService::GetInstance().GetProfile();
 	if (!selectedPass_) {
 		if (selectedGroup_) {
-			DrawSelectedGroupDetail(profile);
+			DrawSelectedGroupDetail(context, profile);
 			return;
 		}
 		ImGui::TextDisabled("編集するパスを選択してください");
@@ -371,7 +186,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	if (editablePass.anchor == RenderFeatureAnchor::AfterToneMap) {
 		ImGui::TextDisabled("トーンマッピング後、ScreenUIの前にビューへ描画します");
 	}
-	changed |= DrawSelectedPassApplicationSettings(profile, editablePass);
+	changed |= DrawSelectedPassApplicationSettings(context, profile, editablePass);
 	changed |= MyGUI::Checkbox("Game View", editablePass.gameView);
 	changed |= MyGUI::Checkbox("Scene View", editablePass.sceneView);
 	// Play中の出力切り替えはスクリプトと同じ実行時設定を使う
@@ -387,8 +202,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 				RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(),
 				editablePass.id, sceneColorOutput)) {
 
-				statusMessage_ = "SceneColor出力を変更できません。出力形式とサイズを確認してください";
-				statusError_ = true;
+				editSession_.SetStatusMessage("SceneColor出力を変更できません。出力形式とサイズを確認してください", true);
 			}
 		} else {
 
@@ -422,7 +236,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 			const AssetType assetType = meta ? meta->type : AssetType::Unknown;
 			const std::string_view assetPath = meta ?
 				std::string_view(meta->assetPath) : std::string_view{};
-			const AssetID materialID = ResolvePassMaterial(
+			const AssetID materialID = editSession_.ResolvePassMaterial(
 				context, selectedAsset, assetType, assetPath);
 			if (materialID) {
 				editablePass.material = materialID;
@@ -484,7 +298,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 	}
 
 	if (changed) {
-		SetDirty();
+		editSession_.SetDirty();
 	}
 	ImGui::Separator();
 	DrawOutputs(editablePass);
@@ -516,7 +330,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(
 		}
 	}
 	if (gpuChanged) {
-		SetDirty();
+		editSession_.SetDirty();
 	}
 }
 
@@ -527,10 +341,30 @@ void Engine::RenderFeatureProfileTool::ClearSelection() {
 	selectedPasses_.clear();
 }
 
-void Engine::RenderFeatureProfileTool::SetDirty() {
+void Engine::RenderFeatureProfileTool::Tick(ToolContext& context) {
 
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
-	service.MarkDirty();
-	service.RebuildRuntime();
+	if (editSession_.Tick(context)) {
+		ClearSelection();
+	}
+}
+
+bool Engine::RenderFeatureProfileTool::ImportProfileSettings(const EditorToolContext& context, AssetID sourceProfile) {
+
+	if (!editSession_.ImportProfileSettings(context, sourceProfile)) {
+		return false;
+	}
+	ClearSelection();
+	return true;
+}
+
+bool Engine::RenderFeatureProfileTool::EnsureProfile(const EditorToolContext& context) {
+
+	if (!editSession_.CanCreateProfile(context)) {
+		return false;
+	}
+	if (!ImGui::Button("現在のシーン用プロファイルを作成",
+		ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+		return false;
+	}
+	return editSession_.CreateProfile(context);
 }

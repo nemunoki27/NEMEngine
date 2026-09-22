@@ -79,7 +79,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 	//============================================================================
 	{
 		// 描画設定
-		InspectorDrawerCommon::DrawCommonRenderFields(
+		InspectorDrawerCommon::DrawCommonRenderFields(context,
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 			draft.layer, draft.order, draft.blendMode, draft.queue,
 			&draft.renderingLayerMask);

@@ -105,6 +105,7 @@ namespace Engine {
 	//	パイプラインステートオブジェクトの生成に必要な情報を保持するクラス
 	//============================================================================
 	class PipelineState {
+		friend class PipelineStateBuilder;
 	public:
 		//============================================================================
 		//	public Methods
@@ -113,11 +114,8 @@ namespace Engine {
 		PipelineState() = default;
 		~PipelineState() = default;
 
-		// パイプラインステートオブジェクトの生成
-		bool CreateGraphics(ID3D12Device8* device, DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc);
-		bool CreateCompute(ID3D12Device8* device, DxShaderCompiler* compiler, const ComputePipelineDesc& desc);
-		// Asset側の安定IDと表示情報をReflectionへ適用する
-		void ApplyShaderMetadata(const ShaderAsset& asset);
+		PipelineState(const PipelineState&) = delete;
+		PipelineState& operator=(const PipelineState&) = delete;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -200,4 +198,3 @@ namespace Engine {
 		static uint64_t NextUniqueID();
 	};
 } // Engine
-

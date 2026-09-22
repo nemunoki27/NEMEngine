@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
+#include "ParticleEffectEditSession.h"
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
@@ -44,24 +45,10 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
-		//--------- structure ----------------------------------------------------
-
-		// モジュールごとの編集用インスタンス、draft_.modulesと同じ並びで持つ
-		struct ModuleCacheEntry {
-
-			std::string id;
-			ParticleModuleRegistry::TypeID typeID = ParticleModuleRegistry::kInvalidTypeID;
-			std::unique_ptr<IParticleModule> module;
-		};
-
-		// グループごとのPhaseとModule編集状態
-		struct GroupEditorState {
-
-			int32_t selectedPhase = 0;
-			std::vector<std::vector<ModuleCacheEntry>> moduleCache;
-			std::vector<int32_t> selectedModules;
-		};
 		//--------- variables ----------------------------------------------------
+
+		// Effectの編集セッション
+		ParticleEffectEditSession session_;
 
 		ToolDescriptor descriptor_{
 			.id = "engine.particle_effect_editor",
@@ -77,21 +64,13 @@ namespace Engine {
 
 		// 編集中のエフェクト
 		AssetID pendingAsset_{};
-		AssetID editingID_{};
-		ParticleEffectAsset draft_{};
-		bool loaded_ = false;
 
 		// 新規作成のファイル名入力
 		std::string createNameBuffer_{};
 		// 追加モジュールの検索
 		TextSearchFilter addModuleSearchFilter_{};
-		// 選択中のグループ
-		UUID selectedGroupID_{};
 		// ステータスメッセージ
 		std::string statusMessage_{};
-
-		// グループごとの編集状態
-		std::unordered_map<UUID, GroupEditorState> groupEditorStates_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -107,38 +86,17 @@ namespace Engine {
 		bool DrawBasicSection(const EditorToolContext& context, ParticleEffectGroup& group);
 		// フェーズ一覧と選択フェーズの編集を描画する、変更があればtrue
 		bool DrawPhaseSection(const EditorToolContext& context,
-			ParticleEffectGroup& group, GroupEditorState& editorState);
+			ParticleEffectGroup& group, ParticleGroupEditState& editorState);
 		// 選択フェーズのモジュール一覧を描画する、変更があればtrue
 		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectGroup& group,
-			GroupEditorState& editorState, ParticleEffectPhase& phase);
+			ParticleGroupEditState& editorState, ParticleEffectPhase& phase);
 		// 選択フェーズのマテリアル設定を描画する、変更があればtrue
-		bool DrawPhaseMaterialSection(const EditorToolContext& context,
-			ParticleEffectGroup& group, ParticleEffectPhase& phase);
+		bool DrawPhaseMaterialSection(const EditorToolContext& context, ParticleEffectGroup& group, ParticleEffectPhase& phase);
 		// トレイルマテリアルのテクスチャ設定を描画する、変更があればtrue
 		bool DrawTrailMaterialSection(const EditorToolContext& context, ParticleEffectGroup& group);
 		// 選択フェーズのペアレント設定を描画する、変更があればtrue
 		bool DrawPhaseParentSection(const EditorToolContext& context,
 			ParticleEffectGroup& group, ParticleEffectPhase& phase, int32_t selectedPhase);
-		// 選択中のグループを取得する
-		ParticleEffectGroup* GetSelectedGroup();
-		// グループの編集状態を取得する
-		GroupEditorState& GetGroupEditorState(UUID groupID);
-		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
-		IParticleModule* ResolveModuleCache(ModuleCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 
-		// 対象エフェクトを使っているParticleSystemを再生する、oneShotはループを無視する
-		void RestartParticleSystems(
-			const EditorToolContext& context, bool oneShot);
-		// 対象エフェクトを使っているParticleSystemを停止して粒子を消す
-		void StopParticleSystems(const EditorToolContext& context);
-
-		// エフェクトをファイルから読み込む
-		void LoadEffect(const EditorToolContext& context, AssetID effectID);
-		// エフェクトをファイルへ保存する
-		void SaveEffect(const EditorToolContext& context);
-		// 新規エフェクトを作成する
-		void CreateEffect(const EditorToolContext& context);
-		// 編集内容をランタイムへ即反映する
-		void ApplyToRuntime();
 	};
 } // Engine

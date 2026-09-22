@@ -212,7 +212,7 @@ namespace {
 				if (!map) {
 					return false;
 				}
-				(*map)[paramName] = AnimationValueToMaterial(value);
+				map->Set(paramName, AnimationValueToMaterial(value));
 				world.MarkRenderDataModified();
 				return true;
 			};
@@ -452,7 +452,7 @@ namespace {
 				const Engine::MaterialParameterValue materialValue = AnimationValueToMaterial(value);
 				for (Engine::SubMeshMaterial& subMesh :
 					Engine::GetMeshSubMeshes(world, entity)) {
-					subMesh.materialInstance[paramName] = materialValue;
+					subMesh.materialInstance.Set(paramName, materialValue);
 				}
 				world.MarkRenderDataModified();
 				return true;

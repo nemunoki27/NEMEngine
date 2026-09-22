@@ -46,46 +46,46 @@ public readonly struct Entity : IEquatable<Entity> {
     // ハンドルが非nullかの構造チェックのみ。破棄済みでもtrueを返すので破棄判定には使わない
     public bool isValid => native.world.isValid && native.index != 0xffffffffu;
     // world上に生存しているか。破棄済み / 世代不一致はfalse。破棄判定はこちらを使う
-    public bool isAlive => isValid && NativeAPI.ReadIsAlive(native);
+    public bool isAlive => isValid && NativeEntityAPI.ReadIsAlive(native);
 
     public string name {
-        get => NativeAPI.ReadName(native);
-        set => NativeAPI.WriteName(native, value);
+        get => NativeEntityAPI.ReadName(native);
+        set => NativeEntityAPI.WriteName(native, value);
     }
 
     public bool activeSelf {
-        get => NativeAPI.ReadActiveSelf(native);
-        set => NativeAPI.WriteActiveSelf(native, value);
+        get => NativeEntityAPI.ReadActiveSelf(native);
+        set => NativeEntityAPI.WriteActiveSelf(native, value);
     }
 
-    public bool activeInHierarchy => NativeAPI.ReadActiveInHierarchy(native);
+    public bool activeInHierarchy => NativeEntityAPI.ReadActiveInHierarchy(native);
     public Entity parent {
-        get => NativeAPI.ReadParent(native);
-        set => NativeAPI.WriteParent(native, value.native);
+        get => NativeTransformAPI.ReadParent(native);
+        set => NativeTransformAPI.WriteParent(native, value.native);
     }
-    public Entity firstChild => NativeAPI.ReadFirstChild(native);
-    public Entity nextSibling => NativeAPI.ReadNextSibling(native);
+    public Entity firstChild => NativeTransformAPI.ReadFirstChild(native);
+    public Entity nextSibling => NativeTransformAPI.ReadNextSibling(native);
     public Transform transform => new(this);
 
     // ゲームプレイ用タグから選ぶ
     public string tag {
-        get => NativeAPI.ReadTag(native);
-        set => NativeAPI.WriteTag(native, value);
+        get => NativeEntityAPI.ReadTag(native);
+        set => NativeEntityAPI.WriteTag(native, value);
     }
 
     // 指定タグと一致するか
-    public bool CompareTag(string other) => NativeAPI.ReadTag(native) == other;
+    public bool CompareTag(string other) => NativeEntityAPI.ReadTag(native) == other;
 
     // 描画カリング用のレイヤーマスク、カメラのcullingMaskと照合される
     public uint visibilityLayerMask {
-        get => NativeAPI.ReadVisibilityLayerMask(native);
-        set => NativeAPI.WriteVisibilityLayerMask(native, value);
+        get => NativeEntityAPI.ReadVisibilityLayerMask(native);
+        set => NativeEntityAPI.WriteVisibilityLayerMask(native, value);
     }
 
     // 衝突フィルタ用のタイプビットマスク、CollisionComponentが無ければ0
     public uint collisionTypeMask {
-        get => NativeAPI.ReadCollisionTypeMask(native);
-        set => NativeAPI.WriteCollisionTypeMask(native, value);
+        get => NativePhysicsAPI.ReadCollisionTypeMask(native);
+        set => NativePhysicsAPI.WriteCollisionTypeMask(native, value);
     }
 
     // gameplay 向け PascalCase エイリアス（既存 lowercase へ委譲。二重ロジックは持たない）
@@ -125,7 +125,7 @@ public readonly struct Entity : IEquatable<Entity> {
         if (ComponentKind<T>.isScript) {
             return HostBridge.FindScriptAs<T>(native);
         }
-        if (ComponentKind<T>.typeID < 0 || !NativeAPI.ReadHasComponent(native, ComponentKind<T>.typeID)) {
+        if (ComponentKind<T>.typeID < 0 || !NativeEntityAPI.ReadHasComponent(native, ComponentKind<T>.typeID)) {
             return null;
         }
         return ComponentKind<T>.CreateWrapper(this);
@@ -154,14 +154,14 @@ public readonly struct Entity : IEquatable<Entity> {
         if (ComponentKind<T>.typeID < 0) {
             return null;
         }
-        NativeAPI.EnqueueAddComponent(native, ComponentKind<T>.typeID);
+        NativeEntityAPI.EnqueueAddComponent(native, ComponentKind<T>.typeID);
         return ComponentKind<T>.CreateWrapper(this);
     }
 
     // component削除。同じく遅延適用（missing removeは安全にno-op）
     public void RemoveComponent<T>() where T : Component {
         if (isValid && !ComponentKind<T>.isScript && ComponentKind<T>.typeID >= 0) {
-            NativeAPI.EnqueueRemoveComponent(native, ComponentKind<T>.typeID);
+            NativeEntityAPI.EnqueueRemoveComponent(native, ComponentKind<T>.typeID);
         }
     }
 
@@ -183,7 +183,7 @@ public readonly struct Entity : IEquatable<Entity> {
         where T : unmanaged, IBufferElementData<T> {
 
         if (isValid) {
-            NativeAPI.EnqueueAddComponent(native, T.componentTypeID);
+            NativeEntityAPI.EnqueueAddComponent(native, T.componentTypeID);
         }
         return new DynamicBuffer<T>(this);
     }
@@ -192,7 +192,7 @@ public readonly struct Entity : IEquatable<Entity> {
         where T : unmanaged, IBufferElementData<T> {
 
         if (isValid) {
-            NativeAPI.EnqueueRemoveComponent(native, T.componentTypeID);
+            NativeEntityAPI.EnqueueRemoveComponent(native, T.componentTypeID);
         }
     }
 
@@ -200,7 +200,7 @@ public readonly struct Entity : IEquatable<Entity> {
     // flush 後に isAlive == false。invalid / 二重破棄は安全に扱われる
     public void Destroy() {
         if (isValid) {
-            NativeAPI.EnqueueDestroyEntity(native);
+            NativeEntityAPI.EnqueueDestroyEntity(native);
         }
     }
 

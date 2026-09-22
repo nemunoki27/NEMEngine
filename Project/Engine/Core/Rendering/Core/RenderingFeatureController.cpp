@@ -3,11 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
+#include "GraphicsPreferenceStorage.h"
+#include "GraphicsFeatureSelection.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // c++
 #include <algorithm>
@@ -18,74 +17,9 @@
 //============================================================================
 namespace {
 
-	constexpr const char* kGraphicsFeatureConfigPath = Engine::ConfigPaths::kGraphicsFeatureSettings;
-
 	const char* GetEnabledText(bool enabled) {
 
 		return enabled ? "有効" : "無効";
-	}
-
-	bool ReadBoolSetting(const nlohmann::json& data, const char* key,
-		bool fallback) {
-
-		auto found = data.find(key);
-		if (found == data.end()) {
-			return fallback;
-		}
-		if (found->is_boolean()) {
-			return found->get<bool>();
-		}
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
-		return fallback;
-	}
-
-	uint32_t ReadUIntSetting(const nlohmann::json& data, const char* key,
-		uint32_t fallback) {
-
-		auto found = data.find(key);
-		if (found == data.end()) {
-			return fallback;
-		}
-		if (found->is_number_unsigned()) {
-			return found->get<uint32_t>();
-		}
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
-		return fallback;
-	}
-
-	float ReadFloatSetting(const nlohmann::json& data, const char* key,
-		float fallback) {
-
-		auto found = data.find(key);
-		if (found == data.end()) {
-			return fallback;
-		}
-		if (found->is_number()) {
-			const float value = found->get<float>();
-			if (std::isfinite(value)) {
-				return value;
-			}
-		}
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-			"グラフィックス設定{}の値が不正なため既定値を使用します", key);
-		return fallback;
-	}
-
-	std::string ReadStringSetting(const nlohmann::json& data, const char* key,
-		std::string_view fallback) {
-
-		auto found = data.find(key);
-		if (found == data.end()) {
-			return std::string(fallback);
-		}
-		if (found->is_string()) {
-			return found->get<std::string>();
-		}
-		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-			"グラフィックス設定{}の型が不正なため既定値を使用します", key);
-		return std::string(fallback);
 	}
 }
 
@@ -352,25 +286,7 @@ void Engine::GraphicsFeatureController::ClampPreferencesToSupport() {
 
 void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {
 
-	// GPU対応が必要な機能はsupportで絞り、カリング系は描画側で安全側に倒せるよう設定を直で反映する
-	runtimeFeatures_.useMeshShader = support_.SupportsMeshShaderPath() && preferences_.allowMeshShader;
-	runtimeFeatures_.useInlineRayTracing = support_.SupportsRayTracingPath() && preferences_.allowInlineRayTracing;
-	runtimeFeatures_.useDispatchRays = support_.SupportsRayTracingPath() && preferences_.allowDispatchRays;
-	runtimeFeatures_.useRaytracingDownsampling =
-		preferences_.allowRaytracingDownsampling;
-	runtimeFeatures_.softShadowSampleCount =
-		preferences_.softShadowSampleCount;
-	runtimeFeatures_.useFrustumCulling = preferences_.allowFrustumCulling;
-	runtimeFeatures_.useOcclusionCulling = preferences_.allowOcclusionCulling;
-	runtimeFeatures_.useContributionCulling = preferences_.allowContributionCulling;
-	runtimeFeatures_.useNormalConeCulling = preferences_.allowNormalConeCulling;
-	runtimeFeatures_.useMeshLOD = preferences_.allowMeshLOD;
-	runtimeFeatures_.meshLOD0PixelThreshold =
-		preferences_.meshLOD0PixelThreshold;
-	runtimeFeatures_.meshLOD1PixelThreshold =
-		preferences_.meshLOD1PixelThreshold;
-	runtimeFeatures_.meshLOD2PixelThreshold =
-		preferences_.meshLOD2PixelThreshold;
+	runtimeFeatures_ = GraphicsFeatureSelection::Resolve(support_, preferences_);
 }
 
 void Engine::GraphicsFeatureController::LogCurrentState() const {
@@ -419,110 +335,10 @@ void Engine::GraphicsFeatureController::LogCurrentState() const {
 
 void Engine::GraphicsFeatureController::LoadPreferencesFromConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath);
-	if (!JsonAdapter::Check(path)) {
-		return;
-	}
-
-	const nlohmann::json data = JsonAdapter::Load(path);
-	if (!data.is_object()) {
-		return;
-	}
-
-	preferences_.allowMeshShader = ReadBoolSetting(data,
-		"allowMeshShader", preferences_.allowMeshShader);
-	preferences_.allowInlineRayTracing = ReadBoolSetting(data,
-		"allowInlineRayTracing", preferences_.allowInlineRayTracing);
-	preferences_.allowDispatchRays = ReadBoolSetting(data,
-		"allowDispatchRays", preferences_.allowDispatchRays);
-	preferences_.allowRaytracingDownsampling = ReadBoolSetting(data,
-		"allowRaytracingDownsampling",
-		preferences_.allowRaytracingDownsampling);
-	const uint32_t shadowSamples = ReadUIntSetting(data,
-		"softShadowSampleCount", preferences_.softShadowSampleCount);
-	preferences_.softShadowSampleCount = shadowSamples <= 1u ?
-		1u : shadowSamples <= 2u ? 2u : 4u;
-	preferences_.allowFrustumCulling = ReadBoolSetting(data,
-		"allowFrustumCulling", preferences_.allowFrustumCulling);
-	preferences_.allowOcclusionCulling = ReadBoolSetting(data,
-		"allowOcclusionCulling",
-		preferences_.allowOcclusionCulling);
-	preferences_.useGameViewCameraForSceneCulling = ReadBoolSetting(data,
-		"useGameViewCameraForSceneCulling", preferences_.useGameViewCameraForSceneCulling);
-	preferences_.allowContributionCulling = ReadBoolSetting(data,
-		"allowContributionCulling", preferences_.allowContributionCulling);
-	preferences_.allowNormalConeCulling = ReadBoolSetting(data,
-		"allowNormalConeCulling", preferences_.allowNormalConeCulling);
-	preferences_.allowMeshLOD = ReadBoolSetting(data,
-		"allowMeshLOD", preferences_.allowMeshLOD);
-	const float lod0 = ReadFloatSetting(data,
-		"meshLOD0PixelThreshold",
-		preferences_.meshLOD0PixelThreshold);
-	const float lod1 = ReadFloatSetting(data,
-		"meshLOD1PixelThreshold",
-		preferences_.meshLOD1PixelThreshold);
-	const float lod2 = ReadFloatSetting(data,
-		"meshLOD2PixelThreshold",
-		preferences_.meshLOD2PixelThreshold);
-	if (GraphicsMeshLOD::ArePixelThresholdsValid(
-		lod0, lod1, lod2)) {
-
-		preferences_.meshLOD0PixelThreshold = lod0;
-		preferences_.meshLOD1PixelThreshold = lod1;
-		preferences_.meshLOD2PixelThreshold = lod2;
-	} else {
-
-		preferences_.meshLOD0PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[0];
-		preferences_.meshLOD1PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[1];
-		preferences_.meshLOD2PixelThreshold =
-			GraphicsMeshLOD::kDefaultPixelThresholds[2];
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"メッシュLODの閾値が不正なため既定値へ戻しました");
-	}
-	preferences_.frameContextCount = std::clamp(
-		ReadUIntSetting(data, "frameContextCount",
-			preferences_.frameContextCount), 1u, 3u);
-	preferences_.displayOutput.mode =
-		EnumAdapter<DisplayOutputMode>::FromString(
-			ReadStringSetting(data, "displayOutputMode", "SDR"))
-		.value_or(DisplayOutputMode::SDR);
-	preferences_.displayOutput.paperWhiteNits = std::clamp(
-		ReadFloatSetting(data, "paperWhiteNits", 200.0f), 80.0f, 1000.0f);
-	preferences_.displayOutput.maxLuminanceNits = std::clamp(
-		ReadFloatSetting(data, "maxLuminanceNits", 1000.0f),
-		preferences_.displayOutput.paperWhiteNits, 10000.0f);
+	GraphicsPreferenceStorage::Load(preferences_);
 }
 
 void Engine::GraphicsFeatureController::SavePreferencesToConfig() const {
 
-	nlohmann::json data{};
-	data["allowMeshShader"] = preferences_.allowMeshShader;
-	data["allowInlineRayTracing"] = preferences_.allowInlineRayTracing;
-	data["allowDispatchRays"] = preferences_.allowDispatchRays;
-	data["allowRaytracingDownsampling"] =
-		preferences_.allowRaytracingDownsampling;
-	data["softShadowSampleCount"] =
-		preferences_.softShadowSampleCount;
-	data["allowFrustumCulling"] = preferences_.allowFrustumCulling;
-	data["allowOcclusionCulling"] = preferences_.allowOcclusionCulling;
-	data["useGameViewCameraForSceneCulling"] = preferences_.useGameViewCameraForSceneCulling;
-	data["allowContributionCulling"] = preferences_.allowContributionCulling;
-	data["allowNormalConeCulling"] = preferences_.allowNormalConeCulling;
-	data["allowMeshLOD"] = preferences_.allowMeshLOD;
-	data["meshLOD0PixelThreshold"] =
-		preferences_.meshLOD0PixelThreshold;
-	data["meshLOD1PixelThreshold"] =
-		preferences_.meshLOD1PixelThreshold;
-	data["meshLOD2PixelThreshold"] =
-		preferences_.meshLOD2PixelThreshold;
-	data["frameContextCount"] =
-		preferences_.frameContextCount;
-	data["displayOutputMode"] = EnumAdapter<DisplayOutputMode>::ToString(
-		preferences_.displayOutput.mode);
-	data["paperWhiteNits"] = preferences_.displayOutput.paperWhiteNits;
-	data["maxLuminanceNits"] = preferences_.displayOutput.maxLuminanceNits;
-
-	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kGraphicsFeatureConfigPath), data);
+	GraphicsPreferenceStorage::Save(preferences_);
 }

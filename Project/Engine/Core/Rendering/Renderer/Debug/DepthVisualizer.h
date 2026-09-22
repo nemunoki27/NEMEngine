@@ -54,7 +54,7 @@ namespace Engine {
 			uint32_t _pad[3] = {};
 		};
 
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		PipelineBindingCache bindCache_{};
 		std::array<DxConstBuffer<DepthVisualizeConstants>,
 			kGraphicsFrameContextCount> constantBuffers_{};

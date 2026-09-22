@@ -28,6 +28,8 @@ namespace Engine {
 
 		RaytracingPipelineState() = default;
 		~RaytracingPipelineState() = default;
+		RaytracingPipelineState(const RaytracingPipelineState&) = delete;
+		RaytracingPipelineState& operator=(const RaytracingPipelineState&) = delete;
 
 		//--------- constants ----------------------------------------------------
 
@@ -40,9 +42,6 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// パイプライン作成
-		bool Create(ID3D12Device8* device, DxShaderCompiler* compiler,
-			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
-			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
 		// レイトレーシングのディスパッチ記述子を構築
 		D3D12_DISPATCH_RAYS_DESC BuildDispatchDesc(uint32_t width,
@@ -61,6 +60,7 @@ namespace Engine {
 		uint32_t GetRayGenerationCount() const { return rayGenerationCount_; }
 		bool IsValid() const { return stateObject_ && stateProps_ && shaderTable_; }
 	private:
+		friend class RaytracingPipelineBuilder;
 		//============================================================================
 		//	private Methods
 		//============================================================================
@@ -90,20 +90,12 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// グローバルルートシグネチャの構築
-		bool BuildGlobalRootSignature(ID3D12Device8* device,
-			const std::vector<const CompiledShader*>& shaders,
-			const std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers);
-		// レイトレーシングパイプラインステートの構築
-		bool BuildStateObject(ID3D12Device8* device, DxShaderCompiler* compiler,
-			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
-			const PipelineStaticSamplerOverrideSet* samplerOverrides);
-		// シェーダーテーブルの構築
-		bool BuildShaderTable(ID3D12Device8* device,
-			const std::vector<std::wstring>& rayGenerationExports,
-			const std::vector<std::wstring>& missExports,
-			const std::vector<std::wstring>& hitGroupExports,
-			const std::vector<std::wstring>& callableExports);
 
+		// レイトレーシングパイプラインステートの構築
+
+		// シェーダーテーブルの構築
+
+		// Pipelineの識別番号を採番する
 		static uint64_t NextUniqueID();
 	};
 } // Engine

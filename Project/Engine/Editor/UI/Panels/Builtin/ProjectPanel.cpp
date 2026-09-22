@@ -1,4 +1,5 @@
 #include "ProjectPanel.h"
+#include <Engine/Editor/Assets/Project/ProjectAssetOperations.h>
 
 //============================================================================
 //	include
@@ -90,7 +91,6 @@ namespace {
 			}
 		}
 	}
-
 
 	// アイテムの幅に基づいて利用可能な幅に収まる列数を計算する
 	int32_t CalcGridColumnCount(float availableWidth, float itemWidth) {
@@ -408,7 +408,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
-	DrawSceneStoragePopup(context, database);
+	sceneStorageInspector_.DrawSceneStoragePopup(context, database);
 	DrawSearchBar(context);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();
@@ -442,8 +442,6 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	ImGui::End();
 }
-
-void Engine::ProjectPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {}
 
 nlohmann::json Engine::ProjectPanel::SaveLayoutState() const {
 
@@ -561,7 +559,7 @@ void Engine::ProjectPanel::DrawDirectoryContents(const EditorPanelContext& conte
 	AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	float iconSize = 64.0f;
-	PrepareModelPreviewAtlas(context, database, node);
+	modelPreview_.PrepareModelPreviewAtlas(context, database, node);
 
 	int32_t columnCount = CalcGridColumnCount(ImGui::GetContentRegionAvail().x, iconSize + 8.0f);
 
@@ -680,7 +678,7 @@ ImTextureID Engine::ProjectPanel::ResolveAssetIconTextureID(const ProjectAssetEn
 		ImTextureID previewTextureID = static_cast<ImTextureID>(0);
 		ImVec2 previewUV0{};
 		ImVec2 previewUV1{};
-		if (TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
+		if (modelPreview_.TryGetModelPreviewImage(asset.assetID, previewTextureID, previewUV0, previewUV1)) {
 			textureID = previewTextureID;
 			outUV0 = previewUV0;
 			outUV1 = previewUV1;
@@ -729,9 +727,7 @@ void Engine::ProjectPanel::DrawAssetGridItem(const EditorPanelContext& context, 
 		} else {
 			imageSize.x = iconSize * aspect;
 		}
-		const ImVec2 imageMin(
-			buttonMin.x + (iconSize - imageSize.x) * 0.5f,
-			buttonMin.y + (iconSize - imageSize.y) * 0.5f);
+		const ImVec2 imageMin(buttonMin.x + (iconSize - imageSize.x) * 0.5f, buttonMin.y + (iconSize - imageSize.y) * 0.5f);
 		const ImVec2 imageMax(imageMin.x + imageSize.x, imageMin.y + imageSize.y);
 		DrawTextureCheckerboard(drawList, imageMin, imageMax);
 
@@ -887,8 +883,7 @@ void Engine::ProjectPanel::DrawFolderContextMenu(const EditorPanelContext& conte
 
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(assetSource_, node.virtualPath, database, context.editorContext->sceneStorage);
 		if (!result.success) {
-			sceneStorageMessage_ = result.message;
-			requestSceneStoragePopup_ = true;
+			sceneStorageInspector_.ReportFailure(result.message);
 		}
 		RefreshAfterFileOperation(database, result);
 	}
@@ -1029,8 +1024,7 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 	ImGui::EndPopup();
 }
 
-void Engine::ProjectPanel::DrawRenameAssetPopup(
-	const EditorPanelContext& context, AssetDatabase& database) {
+void Engine::ProjectPanel::DrawRenameAssetPopup(const EditorPanelContext& context, AssetDatabase& database) {
 
 	if (requestOpenRenamePopup_) {
 
@@ -1063,21 +1057,8 @@ void Engine::ProjectPanel::DrawRenameAssetPopup(
 
 			renameErrorMessage_.clear();
 			RefreshAfterFileOperation(database, result);
-			if (!pendingRenameIsDirectory_ &&
-				pendingRenameAsset_.type == AssetType::Scene &&
-				context.editorContext && context.editorContext->sceneInstances) {
-
-				const std::string sceneName =
-					MakeSceneAssetName(result.fullPath);
-				SceneInstanceManager& scenes = *context.editorContext->sceneInstances;
-				for (const SceneInstance& scene : scenes.GetAll()) {
-					if (scene.sceneAsset != pendingRenameAsset_.assetID) {
-						continue;
-					}
-					if (SceneInstance* loadedScene = scenes.Find(scene.instanceID)) {
-						loadedScene->header.name = sceneName;
-					}
-				}
+			if (!pendingRenameIsDirectory_ && pendingRenameAsset_.type == AssetType::Scene) {
+				ProjectAssetOperations::UpdateLoadedSceneName(context, pendingRenameAsset_.assetID, result.fullPath);
 			}
 			ImGui::CloseCurrentPopup();
 		} else {
@@ -1266,40 +1247,10 @@ bool Engine::ProjectPanel::SaveDroppedEntityAsPrefab(const EditorPanelContext& c
 		return false;
 	}
 
-	// Prefab名はEntity名を優先し、名前がなければNewPrefabにする
-	std::string prefabName = "NewPrefab";
-	if (world.HasComponent<NameComponent>(entity)) {
-
-		const std::string& entityName = world.GetComponent<NameComponent>(entity).name;
-		if (!entityName.empty()) {
-			prefabName = entityName;
-		}
-	}
-
-	ProjectAssetFileResult result = ProjectAssetFileUtility::Create(
-		assetSource_,
-		directoryVirtualPath,
-		ProjectAssetFileKind::Prefab,
-		prefabName);
-	if (!result.success) {
-
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ProjectPanel: Prefab Assetの作成に失敗しました 内容={}", result.message);
+	ProjectAssetFileResult result;
+	if (!ProjectAssetOperations::SavePrefab(database, world, entity, assetSource_, directoryVirtualPath, result)) {
 		return false;
 	}
-
-	PrefabSystem prefabSystem{};
-	const UUID prefabInstanceID = UUID::New();
-	if (!prefabSystem.SavePrefab(database, world, entity, result.assetPath, prefabInstanceID)) {
-
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ProjectPanel: Prefabの保存に失敗しました path={}", result.assetPath);
-		return false;
-	}
-
-	const AssetID prefabAsset = database.ImportOrGet(result.assetPath, AssetType::Prefab);
-	prefabSystem.SetPrefabLinkToSubtree(world, entity, prefabAsset, prefabInstanceID);
-
 	RefreshAfterFileOperation(database, result);
 	return true;
 }

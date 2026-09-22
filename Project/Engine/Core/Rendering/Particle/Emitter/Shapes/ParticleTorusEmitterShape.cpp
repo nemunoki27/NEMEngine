@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
@@ -69,17 +68,5 @@ void Engine::ParticleTorusEmitterShape::DrawShape(const ParticleEmitterSettings&
 			renderer->DrawLine(p0, p1, color);
 		}
 	}
-#endif
-}
-
-bool Engine::ParticleTorusEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool changed = false;
-	changed |= MyGUI::DragFloat("主半径", settings.torus.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-	changed |= MyGUI::DragFloat("管半径", settings.torus.thickness, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-	return changed;
-#else
-	return false;
 #endif
 }

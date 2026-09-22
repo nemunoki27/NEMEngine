@@ -49,16 +49,16 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawCheckboxField(const c
 	return result;
 }
 
-Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const char* label, uint32_t& value) {
+Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const EditorPanelContext& context, const char* label, uint32_t& value) {
 
 	ValueEditResult result{};
 	if (!MyGUI::BeginPropertyRow(label)) {
 		return result;
 	}
 	value &= kRenderingLayerMaskBits;
-	const auto& names = ProjectRenderingLayerSettings::GetNames();
+	const auto& names = context.renderingLayerSettings->GetNames();
 	const uint32_t definedMask =
-		ProjectRenderingLayerSettings::GetDefinedMask();
+		context.renderingLayerSettings->GetDefinedMask();
 	const uint32_t visibleValue = value & definedMask;
 	std::string preview = "なし";
 	if (visibleValue != 0u && visibleValue == definedMask) {

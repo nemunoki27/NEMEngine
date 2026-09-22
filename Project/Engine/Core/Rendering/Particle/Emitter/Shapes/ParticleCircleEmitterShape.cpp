@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Math.h>
@@ -269,30 +268,5 @@ void Engine::ParticleCircleEmitterShape::DrawShape(const ParticleEmitterSettings
 			center + Vector3::Transform(AngleToDirection(angle0, false) * circle.radius, rotationMatrix),
 			center + Vector3::Transform(AngleToDirection(angle1, false) * circle.radius, rotationMatrix), color);
 	}
-#endif
-}
-
-bool Engine::ParticleCircleEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	ParticleEmitterCircleParams& circle = settings.circle;
-	bool changed = false;
-	changed |= MyGUI::DragFloat("半径", circle.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-	changed |= MyGUI::DragFloat("最小角", circle.angleMin, ParticleGui::MakeDragSetting(-360.0f, 360.0f, 0.5f)).valueChanged;
-	changed |= MyGUI::DragFloat("最大角", circle.angleMax, ParticleGui::MakeDragSetting(-360.0f, 360.0f, 0.5f)).valueChanged;
-	changed |= MyGUI::Checkbox("時計回り", circle.clockwise);
-
-	changed |= MyGUI::EnumCombo("発生方法", circle.spawnMode).valueChanged;
-	if (circle.spawnMode == ParticleEmitterSpawnMode::Progressive) {
-		changed |= MyGUI::DragFloat("ステップ角度", circle.stepAngle, ParticleGui::MakeDragSetting(0.0f, 360.0f, 0.5f)).valueChanged;
-	}
-
-	changed |= MyGUI::EnumCombo("速度の向き", circle.velocityMode).valueChanged;
-	if (circle.velocityMode == ParticleEmitterVelocityMode::NextPoint) {
-		changed |= MyGUI::Checkbox("折り返しで前の向きを使う", circle.usePrevSegmentDirectionOnWrap);
-	}
-	return changed;
-#else
-	return false;
 #endif
 }

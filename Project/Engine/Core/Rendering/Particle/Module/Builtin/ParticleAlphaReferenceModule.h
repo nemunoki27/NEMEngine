@@ -15,6 +15,17 @@ namespace Engine {
 	class ParticleAlphaReferenceModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// 閾値の始点と終点
+			float startReference = 0.0f;
+			float endReference = 0.5f;
+			// イージング
+			EasingType easingType = EasingType::EaseOutSine;
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -24,10 +35,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -35,11 +50,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 閾値の始点と終点
-		float startReference_ = 0.0f;
-		float endReference_ = 0.5f;
-		// イージング
-		EasingType easingType_ = EasingType::EaseOutSine;
+		Settings settings_{};
+
 	};
 
 } // Engine

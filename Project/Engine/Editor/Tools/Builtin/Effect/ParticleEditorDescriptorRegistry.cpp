@@ -1,28 +1,24 @@
 #include "ParticleEditorDescriptorRegistry.h"
+#include "ParticleEmitterShapeDrawers.h"
+#include "Modules/ParticleShapeOverLifetimeModuleDrawer.h"
+#include "Modules/ParticleCustomShaderParameterModuleDrawer.h"
+#include "Modules/ParticlePendulumMovementModuleDrawer.h"
+#include "Modules/ParticleSpiralMovementModuleDrawer.h"
+#include "Modules/ParticleColorUVModuleDrawer.h"
+#include "Modules/ParticleRotationModuleDrawer.h"
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleAlphaReferenceModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleColorUVModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleCustomShaderParameterModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleEmissiveModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleFlipbookModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleGravityForceModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleLookToVelocityModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseForceModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleNoiseUVModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticlePendulumMovementModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleRotationModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleScaleOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleShapeOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSizeOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleSpiralMovementModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorOverLifetimeModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailColorUVModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailCustomShaderParameterModule.h>
-#include <Engine/Core/Rendering/Particle/Module/Builtin/ParticleTrailSizeOverLifetimeModule.h>
+#include "Modules/ParticleAlphaReferenceModuleDrawer.h"
+#include "Modules/ParticleColorOverLifetimeModuleDrawer.h"
+#include "Modules/ParticleEmissiveModuleDrawer.h"
+#include "Modules/ParticleFlipbookModuleDrawer.h"
+#include "Modules/ParticleGravityForceModuleDrawer.h"
+#include "Modules/ParticleNoiseForceModuleDrawer.h"
+#include "Modules/ParticleNoiseUVModuleDrawer.h"
+#include "Modules/ParticleScaleOverLifetimeModuleDrawer.h"
+#include "Modules/ParticleSizeOverLifetimeModuleDrawer.h"
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleBoxEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCircleEmitterShape.h>
 #include <Engine/Core/Rendering/Particle/Emitter/Shapes/ParticleCone2DEmitterShape.h>
@@ -38,73 +34,103 @@
 //============================================================================
 namespace {
 
-	template<typename T>
-	bool DrawParticleModule(Engine::IParticleModule& module) {
-
-		auto* concrete = dynamic_cast<T*>(&module);
-		return concrete ? concrete->DrawImGui() : false;
-	}
-
-	template<typename T>
+	template<typename T, bool(*Draw)(Engine::ParticleEmitterSettings&)>
 	bool DrawParticleEmitterShape(const Engine::IParticleEmitterShape& emitterShape,
 		Engine::ParticleEmitterSettings& settings) {
 
 		const auto* concrete = dynamic_cast<const T*>(&emitterShape);
-		return concrete ? concrete->DrawImGui(settings) : false;
+		return concrete ? Draw(settings) : false;
 	}
 }
 
 Engine::ParticleEditorDescriptorRegistry::ParticleEditorDescriptorRegistry() {
 
 	ParticleModuleRegistry& registry = ParticleModuleRegistry::GetInstance();
-	moduleDrawers_.resize(registry.GetDescriptors().size(), nullptr);
-	auto registerModule = [&](const char* id, ModuleDrawFunc draw) {
+	moduleDrawerFactories_.resize(registry.GetDescriptors().size(), nullptr);
+	auto registerModule = [&](const char* id, ModuleDrawerFactory draw) {
 
 		const ParticleModuleRegistry::TypeID typeID = registry.FindTypeID(id);
-		if (typeID != ParticleModuleRegistry::kInvalidTypeID && typeID < moduleDrawers_.size()) {
-			moduleDrawers_[typeID] = draw;
+		if (typeID != ParticleModuleRegistry::kInvalidTypeID && typeID < moduleDrawerFactories_.size()) {
+			moduleDrawerFactories_[typeID] = draw;
 		}
 		};
 
-	registerModule("AlphaReference", &DrawParticleModule<ParticleAlphaReferenceModule>);
-	registerModule("ColorOverLifetime", &DrawParticleModule<ParticleColorOverLifetimeModule>);
-	registerModule("ColorUV", &DrawParticleModule<ParticleColorUVModule>);
-	registerModule("CustomShaderParameter", &DrawParticleModule<ParticleCustomShaderParameterModule>);
-	registerModule("Emissive", &DrawParticleModule<ParticleEmissiveModule>);
-	registerModule("Flipbook", &DrawParticleModule<ParticleFlipbookModule>);
-	registerModule("GravityForce", &DrawParticleModule<ParticleGravityForceModule>);
-	registerModule("LookToVelocity", &DrawParticleModule<ParticleLookToVelocityModule>);
-	registerModule("NoiseForce", &DrawParticleModule<ParticleNoiseForceModule>);
-	registerModule("NoiseUV", &DrawParticleModule<ParticleNoiseUVModule>);
-	registerModule("PendulumMovement", &DrawParticleModule<ParticlePendulumMovementModule>);
-	registerModule("Rotation", &DrawParticleModule<ParticleRotationModule>);
-	registerModule("ScaleOverLifetime", &DrawParticleModule<ParticleScaleOverLifetimeModule>);
-	registerModule("ShapeOverLifetime", &DrawParticleModule<ParticleShapeOverLifetimeModule>);
-	registerModule("SizeOverLifetime", &DrawParticleModule<ParticleSizeOverLifetimeModule>);
-	registerModule("SpiralMovement", &DrawParticleModule<ParticleSpiralMovementModule>);
-	registerModule("TrailColorOverLifetime", &DrawParticleModule<ParticleTrailColorOverLifetimeModule>);
-	registerModule("TrailColorUV", &DrawParticleModule<ParticleTrailColorUVModule>);
-	registerModule("TrailCustomShaderParameter", &DrawParticleModule<ParticleTrailCustomShaderParameterModule>);
-	registerModule("TrailSizeOverLifetime", &DrawParticleModule<ParticleTrailSizeOverLifetimeModule>);
+	registerModule("AlphaReference", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleAlphaReferenceModuleDrawer>();
+	});
+	registerModule("ColorOverLifetime", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleColorOverLifetimeModuleDrawer>();
+	});
+	registerModule("ColorUV", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleColorUVModuleDrawer>();
+	});
+	registerModule("CustomShaderParameter", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleCustomShaderParameterModuleDrawer>();
+	});
+	registerModule("Emissive", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleEmissiveModuleDrawer>();
+	});
+	registerModule("Flipbook", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleFlipbookModuleDrawer>();
+	});
+	registerModule("GravityForce", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleGravityForceModuleDrawer>();
+	});
+	registerModule("NoiseForce", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleNoiseForceModuleDrawer>();
+	});
+	registerModule("NoiseUV", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleNoiseUVModuleDrawer>();
+	});
+	registerModule("PendulumMovement", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticlePendulumMovementModuleDrawer>();
+	});
+	registerModule("Rotation", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleRotationModuleDrawer>();
+	});
+	registerModule("ScaleOverLifetime", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleScaleOverLifetimeModuleDrawer>();
+	});
+	registerModule("ShapeOverLifetime", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleShapeOverLifetimeModuleDrawer>();
+	});
+	registerModule("SizeOverLifetime", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleSizeOverLifetimeModuleDrawer>();
+	});
+	registerModule("SpiralMovement", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleSpiralMovementModuleDrawer>();
+	});
+	registerModule("TrailColorOverLifetime", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleColorOverLifetimeModuleDrawer>();
+	});
+	registerModule("TrailColorUV", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleColorUVModuleDrawer>();
+	});
+	registerModule("TrailCustomShaderParameter", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleCustomShaderParameterModuleDrawer>();
+	});
+	registerModule("TrailSizeOverLifetime", []() -> std::unique_ptr<IParticleModuleDrawer> {
+		return std::make_unique<ParticleSizeOverLifetimeModuleDrawer>();
+	});
 
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Sphere)] =
-		&DrawParticleEmitterShape<ParticleSphereEmitterShape>;
+		&DrawParticleEmitterShape<ParticleSphereEmitterShape, ParticleEmitterShapeDrawers::DrawSphere>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Hemisphere)] =
-		&DrawParticleEmitterShape<ParticleHemisphereEmitterShape>;
+		&DrawParticleEmitterShape<ParticleHemisphereEmitterShape, ParticleEmitterShapeDrawers::DrawHemisphere>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Box)] =
-		&DrawParticleEmitterShape<ParticleBoxEmitterShape>;
+		&DrawParticleEmitterShape<ParticleBoxEmitterShape, ParticleEmitterShapeDrawers::DrawBox>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Torus)] =
-		&DrawParticleEmitterShape<ParticleTorusEmitterShape>;
+		&DrawParticleEmitterShape<ParticleTorusEmitterShape, ParticleEmitterShapeDrawers::DrawTorus>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Circle)] =
-		&DrawParticleEmitterShape<ParticleCircleEmitterShape>;
+		&DrawParticleEmitterShape<ParticleCircleEmitterShape, ParticleEmitterShapeDrawers::DrawCircle>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Cone)] =
-		&DrawParticleEmitterShape<ParticleConeEmitterShape>;
+		&DrawParticleEmitterShape<ParticleConeEmitterShape, ParticleEmitterShapeDrawers::DrawCone>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Point)] =
-		&DrawParticleEmitterShape<ParticlePointEmitterShape>;
+		&DrawParticleEmitterShape<ParticlePointEmitterShape, ParticleEmitterShapeDrawers::DrawPoint>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Rect)] =
-		&DrawParticleEmitterShape<ParticleRectEmitterShape>;
+		&DrawParticleEmitterShape<ParticleRectEmitterShape, ParticleEmitterShapeDrawers::DrawRect>;
 	emitterDrawers_[static_cast<size_t>(ParticleEmitterShape::Cone2D)] =
-		&DrawParticleEmitterShape<ParticleCone2DEmitterShape>;
+		&DrawParticleEmitterShape<ParticleCone2DEmitterShape, ParticleEmitterShapeDrawers::DrawCone2D>;
 }
 
 Engine::ParticleEditorDescriptorRegistry& Engine::ParticleEditorDescriptorRegistry::GetInstance() {
@@ -114,13 +140,12 @@ Engine::ParticleEditorDescriptorRegistry& Engine::ParticleEditorDescriptorRegist
 }
 
 bool Engine::ParticleEditorDescriptorRegistry::DrawModule(
-	ParticleModuleRegistry::TypeID typeID, IParticleModule& module) const {
+	ParticleModuleRegistry::TypeID typeID, IParticleModule& module, IParticleModuleDrawer* drawer) const {
 
-	if (typeID == ParticleModuleRegistry::kInvalidTypeID || typeID >= moduleDrawers_.size()) {
+	if (typeID >= moduleDrawerFactories_.size()) {
 		return false;
 	}
-	const ModuleDrawFunc draw = moduleDrawers_[typeID];
-	return draw ? draw(module) : false;
+	return drawer ? drawer->Draw(module) : false;
 }
 
 bool Engine::ParticleEditorDescriptorRegistry::DrawEmitterShape(ParticleEmitterShape shape,
@@ -132,4 +157,13 @@ bool Engine::ParticleEditorDescriptorRegistry::DrawEmitterShape(ParticleEmitterS
 	}
 	const EmitterDrawFunc draw = emitterDrawers_[index];
 	return draw ? draw(emitterShape, settings) : false;
+}
+
+std::unique_ptr<Engine::IParticleModuleDrawer> Engine::ParticleEditorDescriptorRegistry::CreateModuleDrawer(
+	ParticleModuleRegistry::TypeID typeID) const {
+
+	if (typeID >= moduleDrawerFactories_.size() || !moduleDrawerFactories_[typeID]) {
+		return nullptr;
+	}
+	return moduleDrawerFactories_[typeID]();
 }

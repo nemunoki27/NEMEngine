@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -61,9 +62,9 @@ void Engine::DepthVisualizer::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FO
 	desc.rtvFormats[0] = colorFormat;
 	desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 
-	initialized_ = pipeline_.CreateGraphics(
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(
 		graphicsCore.GetDXObject().GetDevice(),
-		graphicsCore.GetDXObject().GetDxShaderCompiler(), desc);
+		graphicsCore.GetDXObject().GetDxShaderCompiler(), desc)) != nullptr;
 	if (initialized_) {
 		for (DxConstBuffer<DepthVisualizeConstants>& buffer : constantBuffers_) {
 			buffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
@@ -113,10 +114,10 @@ Engine::RenderTexture2D* Engine::DepthVisualizer::Render(
 	output.Bind(*dxCommand);
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 
-	commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
-	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
+	commandList->SetGraphicsRootSignature(pipeline_->GetRootSignature());
+	commandList->SetPipelineState(pipeline_->GetGraphicsPipeline(BlendMode::Normal));
 
-	bindCache_.Sync(pipeline_);
+	bindCache_.Sync(*pipeline_);
 	if (!bindCache_.Has(constantsSlot_) || !bindCache_.Has(depthSlot_)) {
 		return nullptr;
 	}

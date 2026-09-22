@@ -3,10 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include "AudioDevice.h"
+#include "AudioSoundCache.h"
 
-// directX
-#include <xaudio2.h>
 // c++
 #include <string>
 #include <unordered_map>
@@ -14,23 +13,12 @@
 #include <mutex>
 #include <filesystem>
 #include <cstdint>
-#include <cassert>
-#include <fstream>
-#include <algorithm>
 
 namespace Engine {
-
-	// 音源タイプ
-	enum class AudioType {
-
-		SE,
-		BGM,
-	};
 
 	//============================================================================
 	//	Audio class
 	//	音の管理を行い、再生と停止を提供するクラス
-	//	対応フォーマット: WAVE、MP3
 	//============================================================================
 	class Audio {
 	public:
@@ -90,38 +78,6 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// チャンク
-		struct ChunkHeader {
-			char id[4];
-			int32_t size;
-		};
-
-		// RIFFチャンク
-		struct RiffHeader {
-			ChunkHeader chunk;
-			char type[4];
-		};
-
-		// 音声データ
-		struct SoundData {
-
-			// フォーマット情報
-			std::vector<uint8_t> formatBlob;
-
-			// PCMデータ
-			std::vector<uint8_t> pcmBuffer;
-
-			// 音源タイプ
-			AudioType type{};
-			// サウンドの基準音量
-			float volume = 1.0f;
-
-			// キャスト用関数
-			const WAVEFORMATEX* GetFormat() const { return reinterpret_cast<const WAVEFORMATEX*>(formatBlob.data()); }
-			const BYTE* GetPCM() const { return reinterpret_cast<const BYTE*>(pcmBuffer.data()); }
-			uint32_t GetPCMBytes() const { return static_cast<uint32_t>(pcmBuffer.size()); }
-		};
-
 		// 再生中インスタンス
 		struct VoiceInstance {
 
@@ -142,11 +98,10 @@ namespace Engine {
 		float masterVolume_ = 1.0f;
 
 		// XAudio2
-		ComPtr<IXAudio2> xAudio2_{};
-		IXAudio2MasteringVoice* masteringVoice_ = nullptr;
+		AudioDevice device_;
 
 		// 読み込んだサウンド
-		std::unordered_map<std::string, SoundData> sounds_{};
+		AudioSoundCache soundCache_;
 
 		// 再生中の音リソース
 		std::unordered_map<std::string, std::vector<VoiceInstance>> activeVoices_{};
@@ -155,16 +110,8 @@ namespace Engine {
 		// 排他
 		std::mutex mutex_;
 
-		// COM、MFを自分で初期化したか
-		bool mfStarted_ = false;
-
 		//--------- functions ----------------------------------------------------
 
-		// Sounds/配下のファイルを全て走査して読み込み
-		void LoadAllSounds();
-
-		// サウンドデータを読み込み
-		void Load(const std::filesystem::path& filename, AudioType type);
 		// サウンドデータを解放
 		void Unload();
 
@@ -177,23 +124,10 @@ namespace Engine {
 		// 全てのVoiceを掃除
 		void CleanupAllFinishedVoicesLocked();
 
-		// キー正規化
-		std::string NormalizeKey(const std::string& nameOrPath) const;
-
-		// ローダ
-		SoundData LoadWaveFile(const std::filesystem::path& filename);
-		SoundData LoadMp3FileWithMediaFoundation(const std::filesystem::path& filename);
-
 		// そのvoiceに最終音量を適用
 		void ApplyVoiceVolumeLocked(const std::string& key, VoiceInstance& inst);
 		// そのvoiceの再生位置からbufferを積み直す
-		void RebuildVoiceBufferLocked(const SoundData& sound, VoiceInstance& inst, bool loop);
-
-		// 名前からサウンドデータを取得
-		SoundData* FindSoundLocked(const std::string& key);
-
-		// 拡張子から音源タイプを推測
-		AudioType GuessAudioTypeFromPath(const std::filesystem::path& p) const;
+		void RebuildVoiceBufferLocked(const AudioSoundData& sound, VoiceInstance& inst, bool loop);
 
 		Audio() = default;
 		~Audio() = default;
@@ -201,4 +135,3 @@ namespace Engine {
 		Audio& operator=(const Audio&) = delete;
 	};
 }
-

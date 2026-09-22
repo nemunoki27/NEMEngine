@@ -1,4 +1,5 @@
 #include "MenuBarPanel.h"
+#include <Engine/Editor/Build/EditorGameBuildMenu.h>
 
 //============================================================================
 //	include
@@ -35,7 +36,6 @@ namespace {
 //============================================================================
 void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
-	gameBuildService_.Update();
 	if (!ImGui::BeginMainMenuBar()) {
 		return;
 	}
@@ -45,7 +45,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	//	製品ビルド
 	//============================================================================
-	DrawGameBuildMenu(context);
+	EditorGameBuildMenu::DrawMenu(context, *context.gameBuildSession);
 
 	//============================================================================
 	//	編集操作
@@ -474,162 +474,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::EndMainMenuBar();
-	DrawGameBuildPopup(context);
+	EditorGameBuildMenu::DrawPopup(context, *context.gameBuildSession);
 	DrawLayoutSavePopup(context);
-}
-
-void Engine::MenuBarPanel::DrawGameBuildMenu(const EditorPanelContext& context) {
-
-	if (!ImGui::BeginMenu("ビルド")) {
-		return;
-	}
-
-	ImGui::SetWindowFontScale(0.72f);
-	const bool canBuild = context.editorContext && context.editorContext->assetDatabase &&
-		!context.IsPlaying() && !gameBuildService_.IsBuilding();
-	if (ImGui::MenuItem("ビルド", nullptr, false, canBuild)) {
-
-		PrepareGameBuildPopup(context);
-		requestOpenBuildPopup_ = true;
-	}
-	ImGui::SetWindowFontScale(1.0f);
-	ImGui::EndMenu();
-}
-
-void Engine::MenuBarPanel::DrawGameBuildPopup(const EditorPanelContext& context) {
-
-	constexpr const char* popupName = "ゲームのビルド";
-	std::optional<std::filesystem::path> selectedDirectory;
-	if (buildDirectoryDialog_.Poll(selectedDirectory) && selectedDirectory) {
-		buildOutputPath_ = Algorithm::PathToUTF8(*selectedDirectory);
-	}
-	if (requestOpenBuildPopup_) {
-
-		ImGui::OpenPopup(popupName);
-		requestOpenBuildPopup_ = false;
-	}
-
-	ImGui::SetNextWindowSizeConstraints(ImVec2(1000.0f, 0.0f), ImVec2(1000.0f, FLT_MAX));
-	if (!ImGui::BeginPopupModal(popupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		return;
-	}
-
-	const bool isBuilding = gameBuildService_.IsBuilding();
-	ImGui::BeginDisabled(isBuilding);
-	{
-		MyGUI::ScopedPropertyLabelWidth labelWidth("GameBuildSettings");
-		MyGUI::StringCombo("最初のシーン", buildSceneName_, buildSceneNames_, "<シーンがありません>");
-		MyGUI::InputText("Exeの名前", buildExecutableName_);
-
-		if (MyGUI::BeginPropertyRow("出力先")) {
-
-			const float buttonWidth = ImGui::CalcTextSize("参照").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-			const float inputWidth = (std::max)(80.0f,
-				ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x);
-			ImGui::SetNextItemWidth(inputWidth);
-			ImGui::InputText("##GameBuildOutputPath", &buildOutputPath_, ImGuiInputTextFlags_ReadOnly);
-			ImGui::SameLine();
-			ImGui::BeginDisabled(buildDirectoryDialog_.IsOpen());
-			if (ImGui::Button("参照")) {
-				buildDirectoryDialog_.Open(Algorithm::PathFromUTF8(buildOutputPath_));
-			}
-			ImGui::EndDisabled();
-			MyGUI::EndPropertyRow();
-		}
-		MyGUI::Checkbox("起動時にフルスクリーン", buildStartupFullscreen_);
-	}
-	ImGui::EndDisabled();
-
-	ImGui::Separator();
-	const GameBuildState state = gameBuildService_.GetState();
-	if (state == GameBuildState::Building) {
-		ImGui::TextDisabled("ビルド中...");
-	} else if (state == GameBuildState::Completed) {
-		ImGui::TextColored(ImVec4(0.35f, 0.85f, 0.45f, 1.0f), "完了しました");
-		const std::string outputDirectory =
-			Algorithm::PathToUTF8(gameBuildService_.GetOutputDirectory());
-		ImGui::TextWrapped("%s", outputDirectory.c_str());
-	} else if (state == GameBuildState::Failed) {
-		ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "失敗しました");
-		if (!gameBuildService_.GetFailureDetail().empty()) {
-			ImGui::TextWrapped("%s", gameBuildService_.GetFailureDetail().c_str());
-		}
-	} else if (!buildError_.empty()) {
-		ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "%s", buildError_.c_str());
-	}
-
-	const float spacing = ImGui::GetStyle().ItemSpacing.x;
-	const float buttonWidth = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
-	ImGui::BeginDisabled(isBuilding || buildSceneNames_.empty());
-	if (ImGui::Button("ビルド", ImVec2(buttonWidth, 0.0f))) {
-
-		buildError_.clear();
-		GameBuildSettings settings{};
-		settings.startupScene = ResolveBuildScene();
-		settings.executableName = buildExecutableName_;
-		settings.outputRoot = Algorithm::PathFromUTF8(buildOutputPath_);
-		settings.startupFullscreen = buildStartupFullscreen_;
-		if (!context.editorContext || !context.editorContext->assetDatabase ||
-			!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
-				context.editorContext->sceneStorage.get())) {
-
-			if (buildError_.empty()) {
-				buildError_ = "製品ビルドを開始できませんでした";
-			}
-		}
-	}
-	ImGui::EndDisabled();
-
-	ImGui::SameLine();
-	ImGui::BeginDisabled(isBuilding);
-	if (ImGui::Button("キャンセル", ImVec2(buttonWidth, 0.0f))) {
-
-		buildError_.clear();
-		gameBuildService_.ResetStatus();
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::EndDisabled();
-
-	ImGui::EndPopup();
-}
-
-void Engine::MenuBarPanel::PrepareGameBuildPopup(const EditorPanelContext& context) {
-
-	buildError_.clear();
-	gameBuildService_.ResetStatus();
-	gameBuildService_.RefreshScenes(*context.editorContext->assetDatabase);
-
-	buildSceneNames_.clear();
-	buildSceneNames_.reserve(gameBuildService_.GetScenes().size());
-	for (const GameBuildSceneEntry& scene : gameBuildService_.GetScenes()) {
-		buildSceneNames_.push_back(scene.displayName);
-	}
-
-	const AssetID activeScene = context.editorContext->activeSceneAsset;
-	const auto active = std::find_if(gameBuildService_.GetScenes().begin(), gameBuildService_.GetScenes().end(),
-		[activeScene](const GameBuildSceneEntry& scene) { return scene.assetID == activeScene; });
-	if (active != gameBuildService_.GetScenes().end()) {
-		buildSceneName_ = active->displayName;
-	} else if (!buildSceneNames_.empty()) {
-		buildSceneName_ = buildSceneNames_.front();
-	} else {
-		buildSceneName_.clear();
-	}
-
-	if (buildExecutableName_.empty()) {
-		buildExecutableName_ = Algorithm::PathToUTF8(RuntimePaths::GetGameRoot().filename());
-	}
-	if (buildOutputPath_.empty()) {
-		buildOutputPath_ = Algorithm::PathToUTF8(
-			RuntimePaths::GetEngineProjectRoot().parent_path() / "Build");
-	}
-}
-
-Engine::AssetID Engine::MenuBarPanel::ResolveBuildScene() const {
-
-	const auto found = std::find_if(gameBuildService_.GetScenes().begin(), gameBuildService_.GetScenes().end(),
-		[this](const GameBuildSceneEntry& scene) { return scene.displayName == buildSceneName_; });
-	return found != gameBuildService_.GetScenes().end() ? found->assetID : AssetID{};
 }
 
 void Engine::MenuBarPanel::DrawEditorLayoutMenu(const EditorPanelContext& context) {

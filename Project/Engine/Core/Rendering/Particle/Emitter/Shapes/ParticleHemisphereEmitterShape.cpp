@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 // c++
@@ -40,14 +39,5 @@ void Engine::ParticleHemisphereEmitterShape::DrawShape(const ParticleEmitterSett
 		return;
 	}
 	renderer->DrawHemisphere(center, settings.sphere.radius, rotation, Color4::Red());
-#endif
-}
-
-bool Engine::ParticleHemisphereEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	return MyGUI::DragFloat("半径", settings.sphere.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-#else
-	return false;
 #endif
 }

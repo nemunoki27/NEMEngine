@@ -1,4 +1,5 @@
 #include "EditorManager.h"
+#include "EditorSelectionOperations.h"
 
 //============================================================================
 //	include
@@ -11,11 +12,8 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
-#include <Engine/Editor/Commands/Entity/EditorEntityDuplicateUtility.h>
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/PasteEntityTreeCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -41,8 +39,6 @@ namespace {
 	// ドッキングスペースのホストウィンドウ名
 	constexpr const char* kDockSpaceHostWindow = "##EditorDockSpaceHost";
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
-	constexpr const char* kUnsavedScenePopupName = "シーン未保存通知";
-	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	bool IsHidePanelsShortcutTriggered() {
 
 		Engine::Input* input = Engine::Input::GetInstance();
@@ -88,18 +84,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 
 	// レイアウト構築フラグをリセット
 	initialized_ = true;
-	requestTogglePlay_ = false;
-	requestResumePlay_ = false;
-	requestPausePlay_ = false;
-	requestPlayFrameStep_ = false;
-	sceneRequest_ = {};
-	pendingSceneRequest_ = {};
-	requestOpenUnsavedPopup_ = false;
-	requestOpenCloseUnsavedPopup_ = false;
-	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-	dirtySceneAssets_.clear();
-	dirtySceneRevisions_.clear();
-	dirtySceneRevision_ = 0;
+	requests_ = {};
+	dirtyState_ = {};
 	pendingDuplicatePanelID_.clear();
 	pendingEditorLayout_.reset();
 	requestBuildDefaultDockLayout_ = false;
@@ -110,6 +96,8 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	sceneViewCameraController_ = static_cast<SceneViewCameraController*>(
 		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
 	LoadViewportPanelState();
+
+	gameBuildSession_ = std::make_unique<EditorGameBuildSession>();
 
 	// 各パネルの生成と登録
 	EditorPanelCreateContext panelCreateContext{ graphicsCore.GetTextureUploadService() };
@@ -181,70 +169,12 @@ bool Engine::EditorManager::RedoEditorCommand() {
 
 bool Engine::EditorManager::DuplicateSelection() {
 
-	if (!currentRenderContext_) {
-		return false;
-	}
-	if (!editorState_.HasValidSelection(currentRenderContext_->activeWorld) || currentRenderContext_->isPlaying) {
-		return false;
-	}
-	// 複数選択を順に複製する、選択や生存が変わるため対象を先にコピーしておく
-	ECSWorld* world = currentRenderContext_->activeWorld;
-	const std::vector<Entity> targets = editorState_.GetSelectedEntities();
-	std::vector<Entity> duplicated;
-	for (const Entity& target : targets) {
-		if (world && world->IsAlive(target)) {
-			// 各コマンドは複製ルートをselectedEntityへ入れるので実行後に集約する
-			if (ExecuteEditorCommand(std::make_unique<DuplicateEntityCommand>(target))) {
-				duplicated.push_back(editorState_.selectedEntity);
-			}
-		}
-	}
-	if (duplicated.empty()) {
-		return false;
-	}
-	// 複製した分をまとめて選択し直す
-	editorState_.SetSelectedEntities(duplicated);
-	return true;
+	return EditorSelectionOperations::Duplicate(currentRenderContext_, editorState_, *this);
 }
 
 bool Engine::EditorManager::CopySelectionToClipboardInternal(const EditorContext& context) {
 
-	if (!editorState_.HasValidSelection(context.activeWorld) || context.isPlaying) {
-		return false;
-	}
-
-	ECSWorld& world = *context.activeWorld;
-
-	// 複数選択をそれぞれ独立スナップショットとしてクリップボードへ保存する
-	editorState_.clipboardSnapshots.clear();
-	editorState_.clipboardParentUUIDs.clear();
-	const std::vector<Entity> targets = editorState_.GetSelectedEntities();
-	for (const Entity& selected : targets) {
-
-		if (!world.IsAlive(selected)) {
-			continue;
-		}
-		EditorEntityTreeSnapshot snapshot{};
-		EditorEntitySnapshotUtility::CaptureSubtree(world, selected, snapshot);
-		if (snapshot.IsEmpty()) {
-			continue;
-		}
-
-		// 各エンティティの親UUIDも控えておき、貼り付けは元の親付近へ行う
-		UUID parentUUID{};
-		if (world.HasComponent<HierarchyComponent>(selected)) {
-
-			const auto& hierarchy = world.GetComponent<HierarchyComponent>(selected);
-			if (world.IsAlive(hierarchy.parent)) {
-				parentUUID = world.GetUUID(hierarchy.parent);
-			}
-		}
-		// クリップボードは外部親を持たない独立スナップショットにしておく
-		EditorEntityDuplicateUtility::ClearRootParentLink(snapshot);
-		editorState_.clipboardSnapshots.emplace_back(std::move(snapshot));
-		editorState_.clipboardParentUUIDs.emplace_back(parentUUID);
-	}
-	return !editorState_.clipboardSnapshots.empty();
+	return EditorSelectionOperations::Copy(context, editorState_);
 }
 
 bool Engine::EditorManager::CopySelectionToClipboard() {
@@ -257,240 +187,12 @@ bool Engine::EditorManager::CopySelectionToClipboard() {
 
 bool Engine::EditorManager::PasteClipboard() {
 
-	if (!currentRenderContext_) {
-		return false;
-	}
-	if (currentRenderContext_->isPlaying || !editorState_.HasClipboard()) {
-		return false;
-	}
-	// クリップボードの各スナップショットを順に貼り付け、貼り付け先をまとめて選択する
-	std::vector<Entity> pasted;
-	for (size_t i = 0; i < editorState_.clipboardSnapshots.size(); ++i) {
-
-		const UUID parentUUID = i < editorState_.clipboardParentUUIDs.size() ?
-			editorState_.clipboardParentUUIDs[i] : UUID{};
-		if (ExecuteEditorCommand(std::make_unique<PasteEntityTreeCommand>(
-			editorState_.clipboardSnapshots[i], parentUUID))) {
-			pasted.push_back(editorState_.selectedEntity);
-		}
-	}
-	if (pasted.empty()) {
-		return false;
-	}
-	editorState_.SetSelectedEntities(pasted);
-	return true;
-}
-
-void Engine::EditorManager::RequestPlayToggle() {
-
-	// プレイ要求フラグを立てる
-	requestTogglePlay_ = true;
-}
-
-void Engine::EditorManager::RequestPlayResume() {
-
-	requestResumePlay_ = true;
-}
-
-void Engine::EditorManager::RequestPlayPause() {
-
-	requestPausePlay_ = true;
-}
-
-void Engine::EditorManager::RequestPlayFrameStep() {
-
-	requestPlayFrameStep_ = true;
-}
-
-void Engine::EditorManager::RequestNewScene() {
-
-	QueueSceneRequest({ EditorSceneRequestType::NewScene, AssetID{} });
-}
-
-void Engine::EditorManager::RequestOpenScene(AssetID sceneAsset) {
-
-	if (!sceneAsset) {
-		return;
-	}
-	QueueSceneRequest({ EditorSceneRequestType::OpenScene, sceneAsset });
-}
-
-void Engine::EditorManager::RequestSaveScene() {
-
-	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
+	return EditorSelectionOperations::Paste(currentRenderContext_, editorState_, *this);
 }
 
 void Engine::EditorManager::RequestMarkSceneDirty() {
 
 	MarkCurrentSceneDirty();
-}
-
-void Engine::EditorManager::RequestEnterPrefabEdit(AssetID prefabAsset) {
-
-	if (!prefabAsset) {
-		return;
-	}
-	sceneRequest_ = { EditorSceneRequestType::EnterPrefabEdit, prefabAsset };
-}
-
-void Engine::EditorManager::RequestExitPrefabEdit() {
-
-	sceneRequest_ = { EditorSceneRequestType::ExitPrefabEdit, AssetID{} };
-}
-
-void Engine::EditorManager::RequestExitPrefabEditAll() {
-
-	sceneRequest_ = { EditorSceneRequestType::ExitPrefabEditAll, AssetID{} };
-}
-
-void Engine::EditorManager::RequestTogglePrefabInContext() {
-
-	sceneRequest_ = { EditorSceneRequestType::TogglePrefabInContext, AssetID{} };
-}
-
-void Engine::EditorManager::RequestSavePrefab() {
-
-	sceneRequest_ = { EditorSceneRequestType::SavePrefab, AssetID{} };
-}
-
-void Engine::EditorManager::RequestCloseUnsavedScenePopup() {
-
-	requestOpenCloseUnsavedPopup_ = true;
-	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-}
-
-Engine::EditorUnsavedScenePopupResult Engine::EditorManager::ConsumeCloseUnsavedScenePopupResult() {
-
-	EditorUnsavedScenePopupResult result = closeUnsavedScenePopupResult_;
-	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-	return result;
-}
-
-void Engine::EditorManager::QueueSceneRequest(const EditorSceneRequest& request) {
-
-	if (request.type == EditorSceneRequestType::NewScene ||
-		request.type == EditorSceneRequestType::OpenScene) {
-
-		if (HasDirtyScenes()) {
-
-			pendingSceneRequest_ = request;
-			requestOpenUnsavedPopup_ = true;
-			return;
-		}
-	}
-	sceneRequest_ = request;
-}
-
-const char* Engine::EditorManager::GetSceneRequestActionName(EditorSceneRequestType type) const {
-
-	switch (type) {
-	case EditorSceneRequestType::NewScene:
-		return "新しいシーンを作成する";
-	case EditorSceneRequestType::OpenScene:
-		return "別のシーンを開く";
-	default:
-		return "シーンを切り替える";
-	}
-}
-
-void Engine::EditorManager::SubmitPendingSceneRequest(bool saveBeforeSubmit) {
-
-	if (pendingSceneRequest_.type == EditorSceneRequestType::None) {
-		return;
-	}
-
-	if (saveBeforeSubmit) {
-
-		switch (pendingSceneRequest_.type) {
-		case EditorSceneRequestType::NewScene:
-			sceneRequest_ = { EditorSceneRequestType::SaveAndNewScene, AssetID{} };
-			break;
-		case EditorSceneRequestType::OpenScene:
-			sceneRequest_ = { EditorSceneRequestType::SaveAndOpenScene, pendingSceneRequest_.sceneAsset };
-			break;
-		default:
-			sceneRequest_ = pendingSceneRequest_;
-			break;
-		}
-	} else {
-
-		sceneRequest_ = pendingSceneRequest_;
-	}
-	pendingSceneRequest_ = {};
-}
-
-void Engine::EditorManager::DrawUnsavedScenePopup() {
-
-	if (requestOpenUnsavedPopup_) {
-
-		ImGui::OpenPopup(kUnsavedScenePopupName);
-		requestOpenUnsavedPopup_ = false;
-	}
-
-	if (!ImGui::BeginPopupModal(kUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		return;
-	}
-
-	ImGui::TextUnformatted("読み込み中のシーンに未保存の変更があります");
-	ImGui::Text("%s前に保存しますか？", GetSceneRequestActionName(pendingSceneRequest_.type));
-	ImGui::Separator();
-
-	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
-
-		SubmitPendingSceneRequest(true);
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("保存しない", ImVec2(120.0f, 0.0f))) {
-
-		SubmitPendingSceneRequest(false);
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
-
-		pendingSceneRequest_ = {};
-		ImGui::CloseCurrentPopup();
-	}
-
-	ImGui::EndPopup();
-}
-
-void Engine::EditorManager::DrawCloseUnsavedScenePopup() {
-
-	if (requestOpenCloseUnsavedPopup_) {
-
-		ImGui::OpenPopup(kCloseUnsavedScenePopupName);
-		requestOpenCloseUnsavedPopup_ = false;
-	}
-
-	if (!ImGui::BeginPopupModal(kCloseUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		return;
-	}
-
-	ImGui::TextUnformatted("読み込み中のシーンに未保存の変更があります");
-	ImGui::TextUnformatted("保存しますか？");
-	ImGui::Separator();
-
-	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
-
-		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::Save;
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("保存しない", ImVec2(120.0f, 0.0f))) {
-
-		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::DontSave;
-		ImGui::CloseCurrentPopup();
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
-
-		closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::Cancel;
-		ImGui::CloseCurrentPopup();
-	}
-
-	ImGui::EndPopup();
 }
 
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
@@ -615,6 +317,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 		return;
 	}
 
+	gameBuildSession_->Update();
+
 	// 現在のレンダリングコンテキストを保存
 	currentRenderContext_ = &context;
 
@@ -706,13 +410,16 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	panelContext.editorState = &editorState_;
 	panelContext.layoutState = &layoutState_;
 	panelContext.host = this;
+	panelContext.gameBuildSession = gameBuildSession_.get();
+	panelContext.tagSettings = &tagSettings_;
+	panelContext.renderingLayerSettings = &renderingLayerSettings_;
 	panelContext.viewportRenderService = nullptr;
 	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
-	DrawUnsavedScenePopup();
-	DrawCloseUnsavedScenePopup();
+	requests_.DrawUnsavedScenePopup();
+	requests_.DrawCloseUnsavedScenePopup();
 }
 
 void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorContext& context) {
@@ -781,6 +488,9 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	panelContext.editorState = &editorState_;
 	panelContext.layoutState = &layoutState_;
 	panelContext.host = this;
+	panelContext.gameBuildSession = gameBuildSession_.get();
+	panelContext.tagSettings = &tagSettings_;
+	panelContext.renderingLayerSettings = &renderingLayerSettings_;
 	panelContext.viewportRenderService = viewportRenderService;
 	panelContext.graphicsCore = &graphicsCore;
 	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
@@ -837,103 +547,25 @@ void Engine::EditorManager::Finalize() {
 
 	imguiManager_.Finalize();
 	initialized_ = false;
-	requestTogglePlay_ = false;
-	requestResumePlay_ = false;
-	requestPausePlay_ = false;
-	requestPlayFrameStep_ = false;
+	requests_.ResetPlay();
 	pendingDuplicatePanelID_.clear();
 	pendingEditorLayout_.reset();
 	requestBuildDefaultDockLayout_ = false;
 
 	panels_.clear();
+	gameBuildSession_.reset();
+	tagSettings_ = {};
+	renderingLayerSettings_ = {};
 
 	meshSubMeshPicker_->Finalize();
 	meshSubMeshPicker_.reset();
-}
-
-bool Engine::EditorManager::ConsumePlayToggleRequest() {
-
-	const bool requested = requestTogglePlay_;
-	requestTogglePlay_ = false;
-	return requested;
-}
-
-bool Engine::EditorManager::ConsumePlayResumeRequest() {
-
-	const bool requested = requestResumePlay_;
-	requestResumePlay_ = false;
-	return requested;
-}
-
-bool Engine::EditorManager::ConsumePlayPauseRequest() {
-
-	const bool requested = requestPausePlay_;
-	requestPausePlay_ = false;
-	return requested;
-}
-
-bool Engine::EditorManager::ConsumePlayFrameStepRequest() {
-
-	const bool requested = requestPlayFrameStep_;
-	requestPlayFrameStep_ = false;
-	return requested;
-}
-
-Engine::EditorSceneRequest Engine::EditorManager::ConsumeSceneRequest() {
-
-	EditorSceneRequest request = sceneRequest_;
-	sceneRequest_ = {};
-	return request;
-}
-
-void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset) {
-
-	dirtySceneAssets_.erase(sceneAsset);
-	dirtySceneRevisions_.erase(sceneAsset);
-}
-
-void Engine::EditorManager::MarkSceneSaved(
-	AssetID sceneAsset, uint64_t dirtyRevision) {
-
-	if (GetSceneDirtyRevision(sceneAsset) != dirtyRevision) {
-		return;
-	}
-	MarkSceneSaved(sceneAsset);
-}
-
-void Engine::EditorManager::MarkAllScenesSaved() {
-
-	dirtySceneAssets_.clear();
-	dirtySceneRevisions_.clear();
 }
 
 void Engine::EditorManager::ResetSceneEditingState() {
 
 	editorState_.ClearSelection();
 	editorState_.commandHistory.Clear();
-	pendingSceneRequest_ = {};
-	requestOpenUnsavedPopup_ = false;
-	requestOpenCloseUnsavedPopup_ = false;
-	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-}
-
-void Engine::EditorManager::ResetSceneDirtyState() {
-
-	dirtySceneAssets_.clear();
-	dirtySceneRevisions_.clear();
-}
-
-bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset) const {
-
-	return sceneAsset && dirtySceneAssets_.contains(sceneAsset);
-}
-
-uint64_t Engine::EditorManager::GetSceneDirtyRevision(
-	AssetID sceneAsset) const {
-
-	const auto it = dirtySceneRevisions_.find(sceneAsset);
-	return it != dirtySceneRevisions_.end() ?
-		it->second : 0;
+	requests_.ResetPending();
 }
 
 void Engine::EditorManager::MarkCurrentSceneDirty() {
@@ -942,10 +574,7 @@ void Engine::EditorManager::MarkCurrentSceneDirty() {
 		currentRenderContext_->isPrefabEditing || !currentRenderContext_->activeSceneAsset) {
 		return;
 	}
-	dirtySceneAssets_.insert(currentRenderContext_->activeSceneAsset);
-	dirtySceneRevisions_[
-		currentRenderContext_->activeSceneAsset] =
-		++dirtySceneRevision_;
+	dirtyState_.MarkDirty(currentRenderContext_->activeSceneAsset);
 }
 
 void Engine::EditorManager::DrawDockSpace() {
@@ -1009,4 +638,129 @@ void Engine::EditorManager::BuildDefaultDockLayout(ImGuiID dockSpaceID, const Im
 	ImGui::DockBuilderDockWindow("SceneView", mainDockID);
 	ImGui::DockBuilderDockWindow("GameView", mainDockID);
 	ImGui::DockBuilderFinish(dockSpaceID);
+}
+
+void Engine::EditorManager::RequestPlayToggle() {
+
+	requests_.RequestPlayToggle();
+}
+
+void Engine::EditorManager::RequestPlayResume() {
+
+	requests_.RequestPlayResume();
+}
+
+void Engine::EditorManager::RequestPlayPause() {
+
+	requests_.RequestPlayPause();
+}
+
+void Engine::EditorManager::RequestPlayFrameStep() {
+
+	requests_.RequestPlayFrameStep();
+}
+
+void Engine::EditorManager::RequestNewScene() {
+
+	requests_.RequestNewScene(HasDirtyScenes());
+}
+
+void Engine::EditorManager::RequestOpenScene(AssetID sceneAsset) {
+
+	requests_.RequestOpenScene(sceneAsset, HasDirtyScenes());
+}
+
+void Engine::EditorManager::RequestSaveScene() {
+
+	requests_.RequestSaveScene();
+}
+
+void Engine::EditorManager::RequestEnterPrefabEdit(AssetID prefabAsset) {
+
+	requests_.RequestEnterPrefabEdit(prefabAsset);
+}
+
+void Engine::EditorManager::RequestExitPrefabEdit() {
+
+	requests_.RequestExitPrefabEdit();
+}
+
+void Engine::EditorManager::RequestExitPrefabEditAll() {
+
+	requests_.RequestExitPrefabEditAll();
+}
+
+void Engine::EditorManager::RequestTogglePrefabInContext() {
+
+	requests_.RequestTogglePrefabInContext();
+}
+
+void Engine::EditorManager::RequestSavePrefab() {
+
+	requests_.RequestSavePrefab();
+}
+
+void Engine::EditorManager::RequestCloseUnsavedScenePopup() {
+
+	requests_.RequestCloseUnsavedScenePopup();
+}
+
+Engine::EditorUnsavedScenePopupResult Engine::EditorManager::ConsumeCloseUnsavedScenePopupResult() {
+
+	return requests_.ConsumeCloseUnsavedScenePopupResult();
+}
+
+bool Engine::EditorManager::ConsumePlayToggleRequest() {
+
+	return requests_.ConsumePlayToggleRequest();
+}
+
+bool Engine::EditorManager::ConsumePlayResumeRequest() {
+
+	return requests_.ConsumePlayResumeRequest();
+}
+
+bool Engine::EditorManager::ConsumePlayPauseRequest() {
+
+	return requests_.ConsumePlayPauseRequest();
+}
+
+bool Engine::EditorManager::ConsumePlayFrameStepRequest() {
+
+	return requests_.ConsumePlayFrameStepRequest();
+}
+
+Engine::EditorSceneRequest Engine::EditorManager::ConsumeSceneRequest() {
+
+	return requests_.ConsumeSceneRequest();
+}
+
+void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset) {
+
+	dirtyState_.MarkSceneSaved(sceneAsset);
+}
+
+void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision) {
+
+	dirtyState_.MarkSceneSaved(sceneAsset, dirtyRevision);
+}
+
+void Engine::EditorManager::MarkAllScenesSaved() {
+
+	dirtyState_.MarkAllScenesSaved();
+}
+
+void Engine::EditorManager::ResetSceneDirtyState() {
+
+	dirtyState_.ResetSceneDirtyState();
+}
+
+bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset) const {
+
+	return dirtyState_.IsSceneDirty(sceneAsset);
+}
+
+uint64_t Engine::EditorManager::GetSceneDirtyRevision(AssetID sceneAsset) const {
+
+	return dirtyState_.GetSceneDirtyRevision(sceneAsset);
 }

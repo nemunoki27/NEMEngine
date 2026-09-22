@@ -1,4 +1,5 @@
 #include "SceneCompositionTool.h"
+#include "SceneCompositionOperations.h"
 
 //============================================================================
 //	include
@@ -50,12 +51,13 @@ void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) 
 	ImGui::Text("シーン: %s", activeScene->header.name.c_str());
 	ImGui::Separator();
 
+	std::vector<SubSceneSlotDesc> draft = activeScene->header.subScenes;
 	int32_t removeIndex = -1;
 	int32_t moveFrom = -1;
 	int32_t moveTo = -1;
-	for (size_t index = 0; index < activeScene->header.subScenes.size(); ++index) {
+	for (size_t index = 0; index < draft.size(); ++index) {
 
-		SubSceneSlotDesc& slot = activeScene->header.subScenes[index];
+		SubSceneSlotDesc& slot = draft[index];
 		ImGui::PushID(static_cast<int>(index));
 		const std::string headerLabel =
 			(slot.slotName.empty() ? std::string("SubScene") : slot.slotName) + "##Slot";
@@ -75,7 +77,7 @@ void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) 
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("v", ImVec2(buttonSize, buttonSize)) &&
-			index + 1 < activeScene->header.subScenes.size()) {
+			index + 1 < draft.size()) {
 			moveFrom = static_cast<int32_t>(index);
 			moveTo = moveFrom + 1;
 		}
@@ -91,8 +93,6 @@ void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) 
 		}
 
 		if (open) {
-
-			const std::vector<SubSceneSlotDesc> previous = activeScene->header.subScenes;
 			bool changed = false;
 			{
 				MyGUI::ScopedPropertyLabelWidth labelWidth("SubSceneSlot");
@@ -102,7 +102,7 @@ void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) 
 				changed |= MyGUI::Checkbox("有効", slot.enabled);
 			}
 			if (changed) {
-				ApplyChanges(context, *activeScene, previous);
+				SceneCompositionOperations::ApplyChanges(context, *activeScene, draft, statusMessage_, statusError_);
 				ImGui::PopID();
 				ImGui::End();
 				return;
@@ -112,36 +112,32 @@ void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) 
 	}
 
 	if (removeIndex >= 0) {
-		const std::vector<SubSceneSlotDesc> previous = activeScene->header.subScenes;
-		activeScene->header.subScenes.erase(
-			activeScene->header.subScenes.begin() + removeIndex);
-		ApplyChanges(context, *activeScene, previous);
+		draft.erase(
+			draft.begin() + removeIndex);
+		SceneCompositionOperations::ApplyChanges(context, *activeScene, draft, statusMessage_, statusError_);
 		ImGui::End();
 		return;
 	} else if (moveFrom >= 0 && moveTo >= 0) {
-		const std::vector<SubSceneSlotDesc> previous = activeScene->header.subScenes;
-		std::swap(activeScene->header.subScenes[moveFrom],
-			activeScene->header.subScenes[moveTo]);
-		ApplyChanges(context, *activeScene, previous);
+		std::swap(draft[moveFrom],
+			draft[moveTo]);
+		SceneCompositionOperations::ApplyChanges(context, *activeScene, draft, statusMessage_, statusError_);
 		ImGui::End();
 		return;
 	}
 
 	ImGui::Spacing();
 	if (ImGui::Button("サブシーンを追加", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-		const std::vector<SubSceneSlotDesc> previous = activeScene->header.subScenes;
 		SubSceneSlotDesc slot{};
 		slot.slotID = UUID::New();
-		size_t nameIndex = activeScene->header.subScenes.size() + 1;
+		size_t nameIndex = draft.size() + 1;
 		do {
 			slot.slotName = "SubScene" + std::to_string(nameIndex++);
-		} while (std::any_of(activeScene->header.subScenes.begin(),
-			activeScene->header.subScenes.end(), [&slot](const SubSceneSlotDesc& existing) {
+		} while (std::any_of(draft.begin(),
+			draft.end(), [&slot](const SubSceneSlotDesc& existing) {
 				return existing.slotName == slot.slotName;
 			}));
-		activeScene->header.subScenes.emplace_back(std::move(slot));
-		ApplyChanges(context, *activeScene, previous);
+		draft.emplace_back(std::move(slot));
+		SceneCompositionOperations::ApplyChanges(context, *activeScene, draft, statusMessage_, statusError_);
 	}
 
 	if (!statusMessage_.empty()) {
@@ -153,47 +149,4 @@ void Engine::SceneCompositionTool::DrawWindow(const EditorToolContext& context) 
 		}
 	}
 	ImGui::End();
-}
-
-bool Engine::SceneCompositionTool::ApplyChanges(const EditorToolContext& context,
-	SceneInstance& instance, const std::vector<SubSceneSlotDesc>& previous) {
-
-	const UUID instanceID = instance.instanceID;
-	std::unordered_set<UUID> slotIDs;
-	std::unordered_set<std::string> slotNames;
-	bool valid = true;
-	for (const SubSceneSlotDesc& slot : instance.header.subScenes) {
-
-		if (!slot.slotID || !slotIDs.insert(slot.slotID).second ||
-			slot.slotName.empty() || !slotNames.insert(slot.slotName).second ||
-			(slot.sceneAsset && slot.sceneAsset == instance.sceneAsset)) {
-			valid = false;
-			break;
-		}
-	}
-
-	SceneInstanceManager* scenes = context.toolContext.sceneInstances;
-	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
-	ECSWorld* world = context.GetWorld();
-	if (!valid || !scenes || !assetDatabase || !world ||
-		!scenes->SynchronizeSubScenes(
-			*assetDatabase, SceneSystem{}, *world, instanceID)) {
-
-		SceneInstance* current = scenes ? scenes->Find(instanceID) : nullptr;
-		if (current) {
-			current->header.subScenes = previous;
-		}
-		if (scenes && assetDatabase && world) {
-			scenes->SynchronizeSubScenes(
-				*assetDatabase, SceneSystem{}, *world, instanceID);
-		}
-		statusMessage_ = "SubScene設定を適用できません";
-		statusError_ = true;
-		return false;
-	}
-
-	context.panelContext->host->RequestMarkSceneDirty();
-	statusMessage_ = "SubScene設定を更新しました";
-	statusError_ = false;
-	return true;
 }

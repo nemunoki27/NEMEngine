@@ -10,6 +10,6 @@
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'NEMTests'">
     <ClCompile Remove="main.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)GameBuildServiceProbe.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Engine\Editor\Build\GameBuildService.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Engine\Editor\Build\GameBuild*.cpp" />
   </ItemGroup>
 </Project>

@@ -65,14 +65,14 @@ public static class Physics {
     // 最近ヒットの有無だけを返す
     public static bool Raycast(Vector3 origin, Vector3 direction,
         float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
-        return NativeAPI.RaycastClosest(origin, direction, maxDistance, layerMask, (uint)targets, out _);
+        return NativePhysicsAPI.RaycastClosest(origin, direction, maxDistance, layerMask, (uint)targets, out _);
     }
 
     // 最近ヒットを取得する、ヒット無しはfalse
     public static bool Raycast(Vector3 origin, Vector3 direction, out RaycastHit hit,
         float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
 
-        if (NativeAPI.RaycastClosest(origin, direction, maxDistance, layerMask, (uint)targets, out NativeRaycastHit native)) {
+        if (NativePhysicsAPI.RaycastClosest(origin, direction, maxDistance, layerMask, (uint)targets, out NativeRaycastHit native)) {
             hit = RaycastHit.From(native);
             return true;
         }
@@ -104,10 +104,10 @@ public static class Physics {
 
         // 総数がbufferを超えた場合だけ広げて取り直す
         var buffer = new NativeRaycastHit[64];
-        int total = NativeAPI.RaycastMany(origin, direction, maxDistance, layerMask, (uint)targets, buffer);
+        int total = NativePhysicsAPI.RaycastMany(origin, direction, maxDistance, layerMask, (uint)targets, buffer);
         if (buffer.Length < total) {
             buffer = new NativeRaycastHit[total];
-            total = NativeAPI.RaycastMany(origin, direction, maxDistance, layerMask, (uint)targets, buffer);
+            total = NativePhysicsAPI.RaycastMany(origin, direction, maxDistance, layerMask, (uint)targets, buffer);
         }
 
         int count = total < buffer.Length ? total : buffer.Length;
@@ -128,7 +128,7 @@ public static class Physics {
 
         uint mask = 0;
         foreach (string name in typeNames) {
-            mask |= NativeAPI.ReadCollisionTypeMask(name);
+            mask |= NativePhysicsAPI.ReadCollisionTypeMask(name);
         }
         return mask;
     }

@@ -179,28 +179,9 @@ namespace Engine {
 
 		using value_type = std::pair<std::string, MaterialParameterValue>;
 
-		class const_iterator;
-		class iterator {
-		public:
-			iterator() = default;
-
-			value_type& operator*() const { return record_->namedValue; }
-			value_type* operator->() const { return &record_->namedValue; }
-			iterator& operator++() { ++record_; return *this; }
-			iterator operator++(int) { const iterator current = *this; ++record_; return current; }
-			bool operator==(const iterator&) const noexcept = default;
-		private:
-			friend class MaterialParameterSet;
-			friend class const_iterator;
-			explicit iterator(MaterialParameterRecord* record) : record_(record) {}
-
-			MaterialParameterRecord* record_ = nullptr;
-		};
-
 		class const_iterator {
 		public:
 			const_iterator() = default;
-			const_iterator(iterator other) : record_(other.record_) {}
 
 			const value_type& operator*() const { return record_->namedValue; }
 			const value_type* operator->() const { return &record_->namedValue; }
@@ -221,14 +202,15 @@ namespace Engine {
 		MaterialParameterSet& operator=(const MaterialParameterSet& other);
 		MaterialParameterSet& operator=(MaterialParameterSet&& other) noexcept = default;
 
-		MaterialParameterValue& operator[](const std::string& name);
-		MaterialParameterValue& operator[](const char* name);
-		std::pair<iterator, bool> try_emplace(const std::string& name, MaterialParameterValue value);
-		std::pair<iterator, bool> emplace(const std::string& name, MaterialParameterValue value);
+		std::pair<const_iterator, bool> try_emplace(const std::string& name, MaterialParameterValue value);
+		std::pair<const_iterator, bool> emplace(const std::string& name, MaterialParameterValue value);
 		void clear();
 		size_t erase(const std::string& name);
 		size_t erase(MaterialParameterID id);
-		iterator erase(iterator position);
+		const_iterator erase(const_iterator position);
+
+		// 名前から既存値を更新し未登録なら追加する
+		void Set(std::string_view name, const MaterialParameterValue& value);
 
 		// IDとSemanticを明示してShaderGraph公開パラメータを設定する
 		void Set(MaterialParameterID id, std::string_view name,
@@ -236,13 +218,10 @@ namespace Engine {
 		// 同名の既存安定IDを維持したまま別のパラメータ集合で上書きする
 		void MergeFrom(const MaterialParameterSet& overrides);
 		// 標準Semanticから設定済みパラメータを検索する
-		MaterialParameterValue* Find(MaterialParameterSemantic semantic);
 		const MaterialParameterValue* Find(MaterialParameterSemantic semantic) const;
 		// 安定IDから設定済みパラメータを検索する
-		MaterialParameterValue* Find(MaterialParameterID id);
 		const MaterialParameterValue* Find(MaterialParameterID id) const;
 		// Shader Graphの表示名からUUID付きパラメータを解決する低頻度フォールバック
-		MaterialParameterValue* FindByName(std::string_view name);
 		const MaterialParameterValue* FindByName(std::string_view name) const;
 
 		//--------- accessor -----------------------------------------------------
@@ -251,11 +230,8 @@ namespace Engine {
 		size_t size() const { return data_ ? data_->records.size() : 0; }
 		size_t count(const std::string& name) const;
 		bool contains(const std::string& name) const;
-		iterator begin();
-		iterator end();
 		const_iterator begin() const;
 		const_iterator end() const;
-		iterator find(const std::string& name);
 		const_iterator find(const std::string& name) const;
 		std::span<const MaterialParameterRecord> GetRecords() const;
 		uint64_t GetRevision() const { return data_ ? data_->revision : 0; }
@@ -276,18 +252,25 @@ namespace Engine {
 			mutable bool contentHashDirty = true;
 		};
 
-		//--------- functions ----------------------------------------------------
-
-		Data& EnsureData();
-		void Touch();
-		MaterialParameterRecord* FindRecord(MaterialParameterID id);
-		const MaterialParameterRecord* FindRecord(MaterialParameterID id) const;
-		MaterialParameterRecord* FindRecord(MaterialParameterID id, std::string_view name);
-		const MaterialParameterRecord* FindRecord(MaterialParameterID id, std::string_view name) const;
-
 		//--------- variables ----------------------------------------------------
 
 		std::unique_ptr<Data> data_{};
+
+		//--------- functions ----------------------------------------------------
+
+		// 書き込み用の領域を確保する
+		Data& EnsureData();
+		// 変更世代とHashの失効を記録する
+		void Touch();
+		// IDに一致する書き込み先を取得する
+		MaterialParameterRecord* FindRecord(MaterialParameterID id);
+		// IDに一致する値を取得する
+		const MaterialParameterRecord* FindRecord(MaterialParameterID id) const;
+		// IDまたは名前に一致する書き込み先を取得する
+		MaterialParameterRecord* FindRecord(MaterialParameterID id, std::string_view name);
+		// IDまたは名前に一致する値を取得する
+		const MaterialParameterRecord* FindRecord(MaterialParameterID id, std::string_view name) const;
+
 	};
 
 	// 既存HLSL名を標準Semanticへ解決する

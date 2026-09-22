@@ -48,12 +48,12 @@ public abstract class ScriptBehaviour : Component {
     // authoring の ScriptEntry.enabled へは書き戻さない（Play終了で authoring に戻る）
     public bool Enabled {
         get {
-            int state = NativeAPI.ReadScriptEnabled(entity.native, scriptSlotID);
+            int state = NativeEntityAPI.ReadScriptEnabled(entity.native, scriptSlotID);
             return state >= 0 ? state != 0 : enabledFallback;
         }
         set {
             enabledFallback = value;
-            NativeAPI.WriteScriptEnabled(entity.native, scriptSlotID, value);
+            NativeEntityAPI.WriteScriptEnabled(entity.native, scriptSlotID, value);
         }
     }
 

@@ -192,6 +192,7 @@ if ($Product) {
     New-Item -ItemType Directory -Path $sdkToolRoot, (Join-Path $gameRoot "Include") | Out-Null
     Copy-Item -LiteralPath (Join-Path $SdkRoot "Include\NEMEngineRuntime.h") -Destination (Join-Path $gameRoot "Include")
     Copy-Item -LiteralPath (Join-Path $engineRoot "Tools\BuildGame.ps1") -Destination (Join-Path $gameRoot "Tools")
+    Copy-Item -Recurse -LiteralPath (Join-Path $engineRoot "Tools\ProductBuild") -Destination (Join-Path $gameRoot "Tools")
     Get-ChildItem -LiteralPath (Split-Path -Parent $BuildTool) -File | Where-Object {
         $_.Extension -in @(".exe", ".dll", ".json")
     } | Copy-Item -Destination $sdkToolRoot

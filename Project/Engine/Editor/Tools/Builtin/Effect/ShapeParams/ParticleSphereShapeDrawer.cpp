@@ -3,12 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
+#include <Engine/Editor/Tools/Builtin/Effect/GUI/ParticleGUIHelpers.h>
 
 //============================================================================
 //	ParticleSphereShapeDrawer classMethods
 //============================================================================
 bool Engine::ParticleSphereShapeDrawer::DrawImGui(ParticleEffectGroup& group) const {
 
-	return MyGUI::DragFloat("半径", group.sphere.radius, ParticleGui::MakeDragSetting(0.001f, 10000.0f)).valueChanged;
+	return MyGUI::DragFloat("半径", group.sphere.radius, ParticleGUI::MakeDragSetting(0.001f, 10000.0f)).valueChanged;
 }

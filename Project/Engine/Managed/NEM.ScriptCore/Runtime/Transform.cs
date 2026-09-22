@@ -20,46 +20,46 @@ public sealed class Transform : Component, IComponentRef<Transform> {
     public Vector3 position {
 
         // world positionは現在のlocal値と親の継承設定から取得し、書き込み時は同じ親Transformでlocalへ変換される
-        get => NativeAPI.ReadPosition(entity.native);
-        set => NativeAPI.WritePosition(entity.native, value);
+        get => NativeTransformAPI.ReadPosition(entity.native);
+        set => NativeTransformAPI.WritePosition(entity.native, value);
     }
 
     public Vector3 localPosition {
 
         // local SRTはTransformComponentの値を直接読み書きする
-        get => NativeAPI.ReadLocalPosition(entity.native);
-        set => NativeAPI.WriteLocalPosition(entity.native, value);
+        get => NativeTransformAPI.ReadLocalPosition(entity.native);
+        set => NativeTransformAPI.WriteLocalPosition(entity.native, value);
     }
 
     public Vector3 localScale {
-        get => NativeAPI.ReadLocalScale(entity.native);
-        set => NativeAPI.WriteLocalScale(entity.native, value);
+        get => NativeTransformAPI.ReadLocalScale(entity.native);
+        set => NativeTransformAPI.WriteLocalScale(entity.native, value);
     }
 
     public Quaternion localRotation {
-        get => NativeAPI.ReadLocalRotation(entity.native);
-        set => NativeAPI.WriteLocalRotation(entity.native, value);
+        get => NativeTransformAPI.ReadLocalRotation(entity.native);
+        set => NativeTransformAPI.WriteLocalRotation(entity.native, value);
     }
 
     // world回転。親階層の継承設定を反映し、setも同じ親回転でlocalへ変換される
     public Quaternion rotation {
-        get => NativeAPI.ReadRotation(entity.native);
-        set => NativeAPI.WriteRotation(entity.native, value);
+        get => NativeTransformAPI.ReadRotation(entity.native);
+        set => NativeTransformAPI.WriteRotation(entity.native, value);
     }
 
     // world(lossy) scale。親階層の継承設定を反映した成分積の近似値（読み取り専用）
-    public Vector3 lossyScale => NativeAPI.ReadLossyScale(entity.native);
+    public Vector3 lossyScale => NativeTransformAPI.ReadLossyScale(entity.native);
 
     // 親(エンティティ階層 / スキンメッシュのジョイント)追従で回転を無視するか。座標は常に追従する
     public bool ignoreParentRotation {
-        get => NativeAPI.ReadIgnoreParentRotation(entity.native);
-        set => NativeAPI.WriteIgnoreParentRotation(entity.native, value);
+        get => NativeTransformAPI.ReadIgnoreParentRotation(entity.native);
+        set => NativeTransformAPI.WriteIgnoreParentRotation(entity.native, value);
     }
 
     // 親追従でスケールを無視するか
     public bool ignoreParentScale {
-        get => NativeAPI.ReadIgnoreParentScale(entity.native);
-        set => NativeAPI.WriteIgnoreParentScale(entity.native, value);
+        get => NativeTransformAPI.ReadIgnoreParentScale(entity.native);
+        set => NativeTransformAPI.WriteIgnoreParentScale(entity.native, value);
     }
 
     // world 回転を基準にした各方向ベクトル
@@ -82,7 +82,7 @@ public sealed class Transform : Component, IComponentRef<Transform> {
     // 親を付け替える。worldPositionStays=true なら付け替え前後で world transform を維持する（native の deferred 適用）。
     // default Entity を渡すと root 化する。循環/invalid parent は native 側で安全に拒否される。
     public void SetParent(Entity parent, bool worldPositionStays = true) {
-        NativeAPI.ReparentKeepWorld(entity.native, parent.native, worldPositionStays);
+        NativeEntityAPI.ReparentKeepWorld(entity.native, parent.native, worldPositionStays);
     }
 
     // 子の数。firstChild / nextSibling を辿って数える（hierarchy は native 側が一貫管理）

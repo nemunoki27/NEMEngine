@@ -78,7 +78,7 @@ internal sealed class EntityJsonConverter : JsonConverter<Entity> {
     public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) {
 
         EntityRef identity = value.isAlive
-            ? NativeAPI.ReadEntityReferenceIdentity(value.native)
+            ? NativeEntityAPI.ReadEntityReferenceIdentity(value.native)
             : EntityRef.Null;
         EntityRefJsonConverter.WriteIdentity(writer, identity);
     }
@@ -157,7 +157,7 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
             return null;
         }
         Entity owner = EntityRefJsonConverter.ReadIdentity(entityElement).Resolve();
-        if (!owner.isAlive || ComponentType<T>.ID < 0 || !NativeAPI.ReadHasComponent(owner.native, ComponentType<T>.ID)) {
+        if (!owner.isAlive || ComponentType<T>.ID < 0 || !NativeEntityAPI.ReadHasComponent(owner.native, ComponentType<T>.ID)) {
             return null;
         }
         return T.FromEntity(owner);
@@ -166,7 +166,7 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
 
         EntityRef identity = value != null && value.entity.isAlive
-            ? NativeAPI.ReadEntityReferenceIdentity(value.entity.native)
+            ? NativeEntityAPI.ReadEntityReferenceIdentity(value.entity.native)
             : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");
@@ -222,7 +222,7 @@ internal sealed class ScriptBehaviourJsonConverter<T> : JsonConverter<T> where T
 
         bool alive = value != null && value.entity.isAlive;
         EntityRef identity = alive
-            ? NativeAPI.ReadEntityReferenceIdentity(value!.entity.native)
+            ? NativeEntityAPI.ReadEntityReferenceIdentity(value!.entity.native)
             : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");

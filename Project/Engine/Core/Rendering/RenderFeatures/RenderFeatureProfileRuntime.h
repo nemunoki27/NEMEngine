@@ -7,6 +7,7 @@
 
 // c++
 #include <string>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -30,6 +31,9 @@ namespace Engine {
 
 	// Anchor単位で依存順に並べた実行計画
 	struct RenderFeatureExecutionPlan {
+
+		// Nodeが参照するProfileの寿命を保持する
+		std::shared_ptr<const RenderFeatureProfileAsset> profileSnapshot;
 
 		std::vector<RenderFeaturePlanNode> nodes{};
 		RenderFeatureOutputReference sceneColorOutput{};
@@ -58,7 +62,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const RenderFeatureProfileAsset& GetProfile() const { return profile_; }
+		const RenderFeatureProfileAsset& GetProfile() const { return *profile_; }
 		const std::string& GetDiagnostic() const { return diagnostic_; }
 
 	private:
@@ -66,12 +70,10 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
-		bool IsSelectionEnabled(
-			const RenderFeatureHierarchyItem& item) const;
-
 		//--------- variables ----------------------------------------------------
 
-		RenderFeatureProfileAsset profile_{};
+		std::shared_ptr<const RenderFeatureProfileAsset> profile_ =
+			std::make_shared<const RenderFeatureProfileAsset>();
 		std::string diagnostic_{};
 		// Passから選択適用項目への参照を再構築時に解決する
 		std::unordered_map<uint64_t,
@@ -85,8 +87,11 @@ namespace Engine {
 		std::unordered_map<uint64_t,
 			std::vector<const RenderFeatureHierarchyItem*>> passLineages_{};
 
-		// Profile全体のIDと入出力参照を検証する
-		bool ValidateProfile();
+		//--------- functions ----------------------------------------------------
+
+		// 選択適用の有効条件を判定する
+		bool IsSelectionEnabled(const RenderFeatureHierarchyItem& item) const;
+
 	};
 
 	// RenderItemを選択適用の3条件で判定する

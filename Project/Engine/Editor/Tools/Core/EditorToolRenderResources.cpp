@@ -1,0 +1,179 @@
+#include "EditorToolRenderResources.h"
+
+using namespace Engine;
+
+void Engine::EditorToolRenderResources::BeginEditorToolFrame(const EditorToolContext& context) {
+
+	currentToolContext_ = &context;
+	currentGraphicsCore_ = context.panelContext ? context.panelContext->graphicsCore : nullptr;
+}
+
+void Engine::EditorToolRenderResources::EndEditorToolFrame() {
+
+	currentToolContext_ = nullptr;
+	currentGraphicsCore_ = nullptr;
+}
+
+EditorToolRenderTexture* Engine::EditorToolRenderResources::CreateRenderTexture(const std::string& name,
+	const Vector2I& size, const Color4& clearColor, uint32_t colorCount,
+	bool withDepth) {
+
+	if (EditorToolRenderTexture* texture = FindRenderTexture(name)) {
+		return texture;
+	}
+
+	if (!currentGraphicsCore_) {
+		return nullptr;
+	}
+	colorCount = std::clamp(colorCount, 1u, 8u);
+	const auto hasCapacity = [](const BaseDescriptor& descriptor,
+		uint32_t requiredCount) {
+
+		return descriptor.GetUseDescriptorCount() <=
+			descriptor.GetMaxDescriptorCount() &&
+			requiredCount <= descriptor.GetMaxDescriptorCount() -
+				descriptor.GetUseDescriptorCount();
+	};
+	const uint32_t srvCount = colorCount + (withDepth ? 1u : 0u);
+	if (!hasCapacity(currentGraphicsCore_->GetRTVDescriptor(), colorCount) ||
+		!hasCapacity(currentGraphicsCore_->GetSRVDescriptor(), srvCount) ||
+		(withDepth &&
+		 !hasCapacity(currentGraphicsCore_->GetDSVDescriptor(), 1u))) {
+
+		return nullptr;
+	}
+
+	// テクスチャ設定
+	EditorToolRenderTexture texture{};
+	texture.name = name;
+	texture.size = size;
+	texture.colorCount = colorCount;
+	texture.clearColor = clearColor;
+	texture.renderTarget = std::make_unique<MultiRenderTarget>();
+	// レンダーターゲット記述子の作成
+	MultiRenderTargetCreateDesc createDesc{};
+	createDesc.width = size.x;
+	createDesc.height = size.y;
+	createDesc.colors.reserve(texture.colorCount);
+	for (uint32_t i = 0; i < texture.colorCount; ++i) {
+
+		// Meshの標準PSはMRTを使うため、プレビュー側も必要枚数分のRTVを作成する
+		const std::string colorName = i == 0 ? name + "_Color" :
+			name + "_Color" + std::to_string(i);
+		createDesc.colors.push_back(ColorAttachmentDesc{ .name = colorName,
+			.format = DXGI_FORMAT_R32G32B32A32_FLOAT,.clearColor = clearColor,.createUAV = false, });
+	}
+
+	if (withDepth) {
+
+		DepthTextureCreateDesc depthDesc{};
+		depthDesc.width = size.x;
+		depthDesc.height = size.y;
+		depthDesc.debugName =
+			std::wstring(name.begin(), name.end()) + L"_Depth";
+		createDesc.depth = depthDesc;
+	}
+
+	// レンダーターゲット作成
+	texture.renderTarget->Create(currentGraphicsCore_->GetDXObject().GetDevice(),
+		&currentGraphicsCore_->GetRTVDescriptor(), &currentGraphicsCore_->GetDSVDescriptor(),
+		&currentGraphicsCore_->GetSRVDescriptor(), createDesc);
+
+	// ツール上で使うレンダーターゲットを追加
+	renderTextures_.emplace_back(std::move(texture));
+	return &renderTextures_.back();
+}
+
+EditorToolRenderTexture* Engine::EditorToolRenderResources::FindRenderTexture(const std::string& name) {
+
+	auto it = std::find_if(renderTextures_.begin(), renderTextures_.end(),
+		[&name](const EditorToolRenderTexture& texture) {
+			return texture.name == name;
+		});
+	return it != renderTextures_.end() ? &(*it) : nullptr;
+}
+
+const EditorToolRenderTexture* Engine::EditorToolRenderResources::FindRenderTexture(const std::string& name) const {
+
+	auto it = std::find_if(renderTextures_.begin(), renderTextures_.end(),
+		[&name](const EditorToolRenderTexture& texture) {
+			return texture.name == name;
+		});
+	return it != renderTextures_.end() ? &(*it) : nullptr;
+}
+
+void Engine::EditorToolRenderResources::DestroyRenderTexture(const std::string& name) {
+
+	auto it = std::find_if(renderTextures_.begin(), renderTextures_.end(),
+		[&name](const EditorToolRenderTexture& texture) {
+			return texture.name == name;
+		});
+	if (it == renderTextures_.end()) {
+		return;
+	}
+
+	it->Destroy();
+	renderTextures_.erase(it);
+}
+
+void Engine::EditorToolRenderResources::ClearRenderTextures() {
+
+	for (EditorToolRenderTexture& texture : renderTextures_) {
+
+		texture.Destroy();
+	}
+	renderTextures_.clear();
+}
+
+bool Engine::EditorToolRenderResources::AcceptPreviewEntityDragDrop(EditorToolRenderTexture& texture) const {
+
+	if (!currentToolContext_) {
+		return false;
+	}
+	return AcceptPreviewEntityDragDrop(*currentToolContext_, texture);
+}
+
+bool Engine::EditorToolRenderResources::AcceptPreviewEntityDragDrop(const EditorToolContext& context,
+	EditorToolRenderTexture& texture) const {
+
+	if (!ImGui::BeginDragDropTarget()) {
+		return false;
+	}
+
+	bool changed = false;
+	if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kHierarchyDragDropPayloadType)) {
+		if (payload->IsDelivery() && payload->DataSize == sizeof(UUID)) {
+
+			const UUID droppedUUID = *static_cast<const UUID*>(payload->Data);
+			ECSWorld* world = context.GetWorld();
+			const Entity entity = world ? world->FindByUUID(droppedUUID) : Entity::Null();
+			if (world && world->IsAlive(entity)) {
+
+				// 元のEntityは操作せず、プレビュー対象のUUIDだけを更新する
+				texture.previewEntityUUID = droppedUUID;
+				changed = true;
+			}
+		}
+	}
+	ImGui::EndDragDropTarget();
+
+	return changed;
+}
+
+Entity Engine::EditorToolRenderResources::GetPreviewEntity(const EditorToolRenderTexture& texture) const {
+	if (!currentToolContext_) {
+		return Entity::Null();
+	}
+	return GetPreviewEntity(*currentToolContext_, texture);
+}
+
+Entity Engine::EditorToolRenderResources::GetPreviewEntity(const EditorToolContext& context, const EditorToolRenderTexture& texture) const {
+
+	ECSWorld* world = context.GetWorld();
+	if (!world) {
+		return Entity::Null();
+	}
+
+	const Entity entity = world->FindByUUID(texture.previewEntityUUID);
+	return world->IsAlive(entity) ? entity : Entity::Null();
+}

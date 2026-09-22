@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/Animation/Clips/AnimationClipAsset.h>
 #include <Engine/Core/Animation/Curves/QuaternionAxisKeyUtility.h>
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 
@@ -129,85 +128,6 @@ namespace {
 			axis, speed * Math::radian * deltaTime) * particle.rotation);
 	}
 
-#if defined(NEM_EDITOR_UI_ENABLED)
-	// 回転モードを日本語で選択する
-	bool DrawRotationMode(Engine::ParticleRotationMode& mode) {
-
-		const char* labels[] = { "固定角度", "角度加算", "角度補間" };
-		int32_t current = static_cast<int32_t>(mode);
-		if (!Engine::MyGUI::BeginPropertyRow("回転モード")) {
-			return false;
-		}
-		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		const bool changed = ImGui::Combo("##Value", &current, labels, IM_ARRAYSIZE(labels));
-		Engine::MyGUI::EndPropertyRow();
-		if (changed) {
-			mode = static_cast<Engine::ParticleRotationMode>(current);
-		}
-		return changed;
-	}
-
-	// 回転速度モードを日本語で選択する
-	bool DrawRotationSpeedMode(Engine::ParticleRotationSpeedMode& mode) {
-
-		const char* labels[] = { "定数", "オーバーライフタイム" };
-		int32_t current = static_cast<int32_t>(mode);
-		if (!Engine::MyGUI::BeginPropertyRow("回転速度")) {
-			return false;
-		}
-		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		const bool changed = ImGui::Combo("##Value", &current, labels, IM_ARRAYSIZE(labels));
-		Engine::MyGUI::EndPropertyRow();
-		if (changed) {
-			mode = static_cast<Engine::ParticleRotationSpeedMode>(current);
-		}
-		return changed;
-	}
-
-	// 角度の入力形式を日本語で選択する
-	bool DrawRotationValueType(Engine::ParticleRotationValueType& type) {
-
-		const char* labels[] = { "オイラー角", "Quaternion" };
-		int32_t current = static_cast<int32_t>(type);
-		if (!Engine::MyGUI::BeginPropertyRow("角度形式")) {
-			return false;
-		}
-		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-		const bool changed = ImGui::Combo("##Value", &current, labels, IM_ARRAYSIZE(labels));
-		Engine::MyGUI::EndPropertyRow();
-		if (changed) {
-			type = static_cast<Engine::ParticleRotationValueType>(current);
-		}
-		return changed;
-	}
-
-	// ランダム範囲を持つAxisとAngleを編集する
-	bool DrawAxisAngleValue(const char* label, Engine::Vector3& axis,
-		Engine::ParticleValue<float>& angle) {
-
-		ImGui::PushID(label);
-		ImGui::SeparatorText(label);
-		bool changed = Engine::MyGUI::DragVector3("Axis", axis,
-			Engine::ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
-		changed |= Engine::ParticleGui::DrawParticleValueFloat("Angle", angle,
-			Engine::ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
-		ImGui::PopID();
-		return changed;
-	}
-
-	// AxisとAngleを編集する
-	bool DrawAxisAngle(const char* label, Engine::Vector3& axis, float& angle) {
-
-		ImGui::PushID(label);
-		ImGui::SeparatorText(label);
-		bool changed = Engine::MyGUI::DragVector3("Axis", axis,
-			Engine::ParticleGui::MakeDragSetting(-1.0f, 1.0f)).valueChanged;
-		changed |= Engine::MyGUI::DragFloat("Angle", angle,
-			Engine::ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f)).valueChanged;
-		ImGui::PopID();
-		return changed;
-	}
-#endif
 }
 
 //============================================================================
@@ -215,315 +135,176 @@ namespace {
 //============================================================================
 void Engine::ParticleRotationModule::FromJson(const nlohmann::json& params) {
 
-	mode_ = EnumAdapter<ParticleRotationMode>::FromString(
+	settings_.mode = EnumAdapter<ParticleRotationMode>::FromString(
 		params.value("mode", "Fixed")).value_or(ParticleRotationMode::Fixed);
-	valueType_ = EnumAdapter<ParticleRotationValueType>::FromString(
+	settings_.valueType = EnumAdapter<ParticleRotationValueType>::FromString(
 		params.value("valueType", "Euler")).value_or(ParticleRotationValueType::Euler);
-	if (const auto it = params.find("fixedAngle"); it != params.end()) { from_json(*it, fixedAngle_); }
-	if (const auto it = params.find("fixedAxis"); it != params.end()) { fixedAxis_ = Vector3::FromJson(*it); }
+	if (const auto it = params.find("fixedAngle"); it != params.end()) { from_json(*it, settings_.fixedAngle); }
+	if (const auto it = params.find("fixedAxis"); it != params.end()) { settings_.fixedAxis = Vector3::FromJson(*it); }
 	if (const auto it = params.find("fixedQuaternionAngle"); it != params.end()) {
-		from_json(*it, fixedQuaternionAngle_);
+		from_json(*it, settings_.fixedQuaternionAngle);
 	}
-	if (const auto it = params.find("addAngle"); it != params.end()) { from_json(*it, addAngle_); }
-	if (const auto it = params.find("addAxis"); it != params.end()) { addAxis_ = Vector3::FromJson(*it); }
+	if (const auto it = params.find("addAngle"); it != params.end()) { from_json(*it, settings_.addAngle); }
+	if (const auto it = params.find("addAxis"); it != params.end()) { settings_.addAxis = Vector3::FromJson(*it); }
 	if (const auto it = params.find("addQuaternionAngle"); it != params.end()) {
-		from_json(*it, addQuaternionAngle_);
+		from_json(*it, settings_.addQuaternionAngle);
 	}
-	speedMode_ = EnumAdapter<ParticleRotationSpeedMode>::FromString(
+	settings_.speedMode = EnumAdapter<ParticleRotationSpeedMode>::FromString(
 		params.value("speedMode", "Constant")).value_or(ParticleRotationSpeedMode::Constant);
-	if (const auto it = params.find("rotationSpeed"); it != params.end()) { from_json(*it, rotationSpeed_); }
+	if (const auto it = params.find("rotationSpeed"); it != params.end()) { from_json(*it, settings_.rotationSpeed); }
 	if (const auto it = params.find("rotationSpeedAxis"); it != params.end()) {
-		rotationSpeedAxis_ = Vector3::FromJson(*it);
+		settings_.rotationSpeedAxis = Vector3::FromJson(*it);
 	}
 	if (const auto it = params.find("rotationQuaternionSpeed"); it != params.end()) {
-		from_json(*it, rotationQuaternionSpeed_);
+		from_json(*it, settings_.rotationQuaternionSpeed);
 	}
-	if (const auto it = params.find("startSpeed"); it != params.end()) { startSpeed_ = Vector3::FromJson(*it); }
-	if (const auto it = params.find("endSpeed"); it != params.end()) { endSpeed_ = Vector3::FromJson(*it); }
-	if (const auto it = params.find("startSpeedAxis"); it != params.end()) { startSpeedAxis_ = Vector3::FromJson(*it); }
-	if (const auto it = params.find("endSpeedAxis"); it != params.end()) { endSpeedAxis_ = Vector3::FromJson(*it); }
-	startQuaternionSpeed_ = params.value("startQuaternionSpeed", startQuaternionSpeed_);
-	endQuaternionSpeed_ = params.value("endQuaternionSpeed", endQuaternionSpeed_);
-	speedEasingType_ = EnumAdapter<EasingType>::FromString(
+	if (const auto it = params.find("startSpeed"); it != params.end()) { settings_.startSpeed = Vector3::FromJson(*it); }
+	if (const auto it = params.find("endSpeed"); it != params.end()) { settings_.endSpeed = Vector3::FromJson(*it); }
+	if (const auto it = params.find("startSpeedAxis"); it != params.end()) { settings_.startSpeedAxis = Vector3::FromJson(*it); }
+	if (const auto it = params.find("endSpeedAxis"); it != params.end()) { settings_.endSpeedAxis = Vector3::FromJson(*it); }
+	settings_.startQuaternionSpeed = params.value("startQuaternionSpeed", settings_.startQuaternionSpeed);
+	settings_.endQuaternionSpeed = params.value("endQuaternionSpeed", settings_.endQuaternionSpeed);
+	settings_.speedEasingType = EnumAdapter<EasingType>::FromString(
 		params.value("speedEasingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
-	if (const auto it = params.find("speedLoop"); it != params.end()) { from_json(*it, speedLoop_); }
-	useSpeedCurve_ = params.value("useSpeedCurve", useSpeedCurve_);
-	ReadCurveChannels(params, "speedCurveChannels", speedCurve_);
+	if (const auto it = params.find("speedLoop"); it != params.end()) { from_json(*it, settings_.speedLoop); }
+	settings_.useSpeedCurve = params.value("useSpeedCurve", settings_.useSpeedCurve);
+	ReadCurveChannels(params, "speedCurveChannels", settings_.speedCurve);
 	ReadQuaternionCurve(params, "speedQuaternionCurveChannels",
-		"speedQuaternionCurveAxisKeys", speedQuaternionCurve_);
+		"speedQuaternionCurveAxisKeys", settings_.speedQuaternionCurve);
 
-	if (const auto it = params.find("startAngle"); it != params.end()) { startAngle_ = Vector3::FromJson(*it); }
-	if (const auto it = params.find("endAngle"); it != params.end()) { endAngle_ = Vector3::FromJson(*it); }
-	if (const auto it = params.find("startAxis"); it != params.end()) { startAxis_ = Vector3::FromJson(*it); }
-	if (const auto it = params.find("endAxis"); it != params.end()) { endAxis_ = Vector3::FromJson(*it); }
-	startQuaternionAngle_ = params.value("startQuaternionAngle", startQuaternionAngle_);
-	endQuaternionAngle_ = params.value("endQuaternionAngle", endQuaternionAngle_);
-	angleEasingType_ = EnumAdapter<EasingType>::FromString(
+	if (const auto it = params.find("startAngle"); it != params.end()) { settings_.startAngle = Vector3::FromJson(*it); }
+	if (const auto it = params.find("endAngle"); it != params.end()) { settings_.endAngle = Vector3::FromJson(*it); }
+	if (const auto it = params.find("startAxis"); it != params.end()) { settings_.startAxis = Vector3::FromJson(*it); }
+	if (const auto it = params.find("endAxis"); it != params.end()) { settings_.endAxis = Vector3::FromJson(*it); }
+	settings_.startQuaternionAngle = params.value("startQuaternionAngle", settings_.startQuaternionAngle);
+	settings_.endQuaternionAngle = params.value("endQuaternionAngle", settings_.endQuaternionAngle);
+	settings_.angleEasingType = EnumAdapter<EasingType>::FromString(
 		params.value("angleEasingType", "EaseOutSine")).value_or(EasingType::EaseOutSine);
-	if (const auto it = params.find("angleLoop"); it != params.end()) { from_json(*it, angleLoop_); }
-	useAngleCurve_ = params.value("useAngleCurve", useAngleCurve_);
-	ReadCurveChannels(params, "angleCurveChannels", angleCurve_);
+	if (const auto it = params.find("angleLoop"); it != params.end()) { from_json(*it, settings_.angleLoop); }
+	settings_.useAngleCurve = params.value("useAngleCurve", settings_.useAngleCurve);
+	ReadCurveChannels(params, "angleCurveChannels", settings_.angleCurve);
 	ReadQuaternionCurve(params, "quaternionCurveChannels",
-		"quaternionCurveAxisKeys", quaternionCurve_);
+		"quaternionCurveAxisKeys", settings_.quaternionCurve);
 }
 
 nlohmann::json Engine::ParticleRotationModule::ToJson() const {
 
 	nlohmann::json params = nlohmann::json::object();
-	params["mode"] = EnumAdapter<ParticleRotationMode>::ToString(mode_);
-	params["valueType"] = EnumAdapter<ParticleRotationValueType>::ToString(valueType_);
-	to_json(params["fixedAngle"], fixedAngle_);
-	params["fixedAxis"] = fixedAxis_.ToJson();
-	to_json(params["fixedQuaternionAngle"], fixedQuaternionAngle_);
-	to_json(params["addAngle"], addAngle_);
-	params["addAxis"] = addAxis_.ToJson();
-	to_json(params["addQuaternionAngle"], addQuaternionAngle_);
-	params["speedMode"] = EnumAdapter<ParticleRotationSpeedMode>::ToString(speedMode_);
-	to_json(params["rotationSpeed"], rotationSpeed_);
-	params["rotationSpeedAxis"] = rotationSpeedAxis_.ToJson();
-	to_json(params["rotationQuaternionSpeed"], rotationQuaternionSpeed_);
-	params["startSpeed"] = startSpeed_.ToJson();
-	params["endSpeed"] = endSpeed_.ToJson();
-	params["startSpeedAxis"] = startSpeedAxis_.ToJson();
-	params["endSpeedAxis"] = endSpeedAxis_.ToJson();
-	params["startQuaternionSpeed"] = startQuaternionSpeed_;
-	params["endQuaternionSpeed"] = endQuaternionSpeed_;
-	params["speedEasingType"] = EnumAdapter<EasingType>::ToString(speedEasingType_);
-	to_json(params["speedLoop"], speedLoop_);
-	params["useSpeedCurve"] = useSpeedCurve_;
-	params["speedCurveChannels"] = WriteCurveChannels(speedCurve_);
+	params["mode"] = EnumAdapter<ParticleRotationMode>::ToString(settings_.mode);
+	params["valueType"] = EnumAdapter<ParticleRotationValueType>::ToString(settings_.valueType);
+	to_json(params["fixedAngle"], settings_.fixedAngle);
+	params["fixedAxis"] = settings_.fixedAxis.ToJson();
+	to_json(params["fixedQuaternionAngle"], settings_.fixedQuaternionAngle);
+	to_json(params["addAngle"], settings_.addAngle);
+	params["addAxis"] = settings_.addAxis.ToJson();
+	to_json(params["addQuaternionAngle"], settings_.addQuaternionAngle);
+	params["speedMode"] = EnumAdapter<ParticleRotationSpeedMode>::ToString(settings_.speedMode);
+	to_json(params["rotationSpeed"], settings_.rotationSpeed);
+	params["rotationSpeedAxis"] = settings_.rotationSpeedAxis.ToJson();
+	to_json(params["rotationQuaternionSpeed"], settings_.rotationQuaternionSpeed);
+	params["startSpeed"] = settings_.startSpeed.ToJson();
+	params["endSpeed"] = settings_.endSpeed.ToJson();
+	params["startSpeedAxis"] = settings_.startSpeedAxis.ToJson();
+	params["endSpeedAxis"] = settings_.endSpeedAxis.ToJson();
+	params["startQuaternionSpeed"] = settings_.startQuaternionSpeed;
+	params["endQuaternionSpeed"] = settings_.endQuaternionSpeed;
+	params["speedEasingType"] = EnumAdapter<EasingType>::ToString(settings_.speedEasingType);
+	to_json(params["speedLoop"], settings_.speedLoop);
+	params["useSpeedCurve"] = settings_.useSpeedCurve;
+	params["speedCurveChannels"] = WriteCurveChannels(settings_.speedCurve);
 	params["speedQuaternionCurveChannels"] = nlohmann::json::array();
-	for (const CurveChannel& channel : speedQuaternionCurve_.channels) {
+	for (const CurveChannel& channel : settings_.speedQuaternionCurve.channels) {
 		params["speedQuaternionCurveChannels"].push_back(channel);
 	}
-	params["speedQuaternionCurveAxisKeys"] = WriteQuaternionAxisKeys(speedQuaternionCurve_);
-	params["startAngle"] = startAngle_.ToJson();
-	params["endAngle"] = endAngle_.ToJson();
-	params["startAxis"] = startAxis_.ToJson();
-	params["endAxis"] = endAxis_.ToJson();
-	params["startQuaternionAngle"] = startQuaternionAngle_;
-	params["endQuaternionAngle"] = endQuaternionAngle_;
-	params["angleEasingType"] = EnumAdapter<EasingType>::ToString(angleEasingType_);
-	to_json(params["angleLoop"], angleLoop_);
-	params["useAngleCurve"] = useAngleCurve_;
-	params["angleCurveChannels"] = WriteCurveChannels(angleCurve_);
+	params["speedQuaternionCurveAxisKeys"] = WriteQuaternionAxisKeys(settings_.speedQuaternionCurve);
+	params["startAngle"] = settings_.startAngle.ToJson();
+	params["endAngle"] = settings_.endAngle.ToJson();
+	params["startAxis"] = settings_.startAxis.ToJson();
+	params["endAxis"] = settings_.endAxis.ToJson();
+	params["startQuaternionAngle"] = settings_.startQuaternionAngle;
+	params["endQuaternionAngle"] = settings_.endQuaternionAngle;
+	params["angleEasingType"] = EnumAdapter<EasingType>::ToString(settings_.angleEasingType);
+	to_json(params["angleLoop"], settings_.angleLoop);
+	params["useAngleCurve"] = settings_.useAngleCurve;
+	params["angleCurveChannels"] = WriteCurveChannels(settings_.angleCurve);
 	params["quaternionCurveChannels"] = nlohmann::json::array();
-	for (const CurveChannel& channel : quaternionCurve_.channels) {
+	for (const CurveChannel& channel : settings_.quaternionCurve.channels) {
 		params["quaternionCurveChannels"].push_back(channel);
 	}
-	params["quaternionCurveAxisKeys"] = WriteQuaternionAxisKeys(quaternionCurve_);
+	params["quaternionCurveAxisKeys"] = WriteQuaternionAxisKeys(settings_.quaternionCurve);
 	return params;
 }
 
 void Engine::ParticleRotationModule::OnSpawn(Particle& particle) {
 
-	switch (mode_) {
+	switch (settings_.mode) {
 	case ParticleRotationMode::Fixed:
-		particle.rotation = valueType_ == ParticleRotationValueType::Euler ?
-			Quaternion::FromEulerDegrees(fixedAngle_.Sample()) :
-			MakeAxisRotation(fixedAxis_, fixedQuaternionAngle_.Sample());
+		particle.rotation = settings_.valueType == ParticleRotationValueType::Euler ?
+			Quaternion::FromEulerDegrees(settings_.fixedAngle.Sample()) :
+			MakeAxisRotation(settings_.fixedAxis, settings_.fixedQuaternionAngle.Sample());
 		break;
 	case ParticleRotationMode::Additive:
-		particle.rotation = Quaternion::Normalize((valueType_ == ParticleRotationValueType::Euler ?
-			Quaternion::FromEulerDegrees(addAngle_.Sample()) :
-			MakeAxisRotation(addAxis_, addQuaternionAngle_.Sample())) * particle.rotation);
+		particle.rotation = Quaternion::Normalize((settings_.valueType == ParticleRotationValueType::Euler ?
+			Quaternion::FromEulerDegrees(settings_.addAngle.Sample()) :
+			MakeAxisRotation(settings_.addAxis, settings_.addQuaternionAngle.Sample())) * particle.rotation);
 		particle.rotationSpeed = Vector3::AnyInit(0.0f);
-		if (speedMode_ == ParticleRotationSpeedMode::Constant) {
-			particle.rotationSpeed = valueType_ == ParticleRotationValueType::Euler ?
-				rotationSpeed_.Sample() :
-				GetAxisDirection(rotationSpeedAxis_) * rotationQuaternionSpeed_.Sample();
+		if (settings_.speedMode == ParticleRotationSpeedMode::Constant) {
+			particle.rotationSpeed = settings_.valueType == ParticleRotationValueType::Euler ?
+				settings_.rotationSpeed.Sample() :
+				GetAxisDirection(settings_.rotationSpeedAxis) * settings_.rotationQuaternionSpeed.Sample();
 		}
 		break;
 	case ParticleRotationMode::Interpolate:
-		particle.rotation = valueType_ == ParticleRotationValueType::Euler ?
-			Quaternion::FromEulerDegrees(startAngle_) :
-			MakeAxisRotation(startAxis_, startQuaternionAngle_);
+		particle.rotation = settings_.valueType == ParticleRotationValueType::Euler ?
+			Quaternion::FromEulerDegrees(settings_.startAngle) :
+			MakeAxisRotation(settings_.startAxis, settings_.startQuaternionAngle);
 		break;
 	}
 }
 
 void Engine::ParticleRotationModule::OnUpdate(Particle& particle, float deltaTime) {
 
-	if (mode_ == ParticleRotationMode::Fixed) {
+	if (settings_.mode == ParticleRotationMode::Fixed) {
 		return;
 	}
-	if (mode_ == ParticleRotationMode::Additive) {
+	if (settings_.mode == ParticleRotationMode::Additive) {
 
 		Vector3 speed = particle.rotationSpeed;
-		if (speedMode_ == ParticleRotationSpeedMode::OverLifetime) {
+		if (settings_.speedMode == ParticleRotationSpeedMode::OverLifetime) {
 
-			const float progress = speedLoop_.LoopedT(particle.age / particle.lifetime);
-			if (valueType_ == ParticleRotationValueType::Euler) {
-				speed = useSpeedCurve_ ? speedCurve_.Evaluate(progress) :
-					Vector3::Lerp(startSpeed_, endSpeed_, EasedValue(speedEasingType_, progress));
-			} else if (useSpeedCurve_) {
-				speed = speedQuaternionCurve_.EvaluateAxis(progress) *
-					speedQuaternionCurve_.EvaluateAngle(progress);
+			const float progress = settings_.speedLoop.LoopedT(particle.age / particle.lifetime);
+			if (settings_.valueType == ParticleRotationValueType::Euler) {
+				speed = settings_.useSpeedCurve ? settings_.speedCurve.Evaluate(progress) :
+					Vector3::Lerp(settings_.startSpeed, settings_.endSpeed, EasedValue(settings_.speedEasingType, progress));
+			} else if (settings_.useSpeedCurve) {
+				speed = settings_.speedQuaternionCurve.EvaluateAxis(progress) *
+					settings_.speedQuaternionCurve.EvaluateAngle(progress);
 			} else {
 
-				const float easedT = EasedValue(speedEasingType_, progress);
-				const Vector3 axis = GetAxisDirection(Vector3::Lerp(startSpeedAxis_, endSpeedAxis_, easedT));
-				speed = axis * std::lerp(startQuaternionSpeed_, endQuaternionSpeed_, easedT);
+				const float easedT = EasedValue(settings_.speedEasingType, progress);
+				const Vector3 axis = GetAxisDirection(Vector3::Lerp(settings_.startSpeedAxis, settings_.endSpeedAxis, easedT));
+				speed = axis * std::lerp(settings_.startQuaternionSpeed, settings_.endQuaternionSpeed, easedT);
 			}
 		}
 		AddRotation(particle, speed, deltaTime);
 		return;
 	}
 
-	const float progress = angleLoop_.LoopedT(particle.age / particle.lifetime);
-	if (valueType_ == ParticleRotationValueType::Quaternion) {
+	const float progress = settings_.angleLoop.LoopedT(particle.age / particle.lifetime);
+	if (settings_.valueType == ParticleRotationValueType::Quaternion) {
 
-		if (useAngleCurve_) {
-			particle.rotation = quaternionCurve_.Evaluate(progress);
+		if (settings_.useAngleCurve) {
+			particle.rotation = settings_.quaternionCurve.Evaluate(progress);
 		} else {
 
-			const Quaternion start = MakeAxisRotation(startAxis_, startQuaternionAngle_);
-			const Quaternion end = MakeAxisRotation(endAxis_, endQuaternionAngle_);
-			particle.rotation = Quaternion::Lerp(start, end, EasedValue(angleEasingType_, progress));
+			const Quaternion start = MakeAxisRotation(settings_.startAxis, settings_.startQuaternionAngle);
+			const Quaternion end = MakeAxisRotation(settings_.endAxis, settings_.endQuaternionAngle);
+			particle.rotation = Quaternion::Lerp(start, end, EasedValue(settings_.angleEasingType, progress));
 		}
 		return;
 	}
 
-	const Vector3 angle = useAngleCurve_ ? angleCurve_.Evaluate(progress) :
-		Vector3::Lerp(startAngle_, endAngle_, EasedValue(angleEasingType_, progress));
+	const Vector3 angle = settings_.useAngleCurve ? settings_.angleCurve.Evaluate(progress) :
+		Vector3::Lerp(settings_.startAngle, settings_.endAngle, EasedValue(settings_.angleEasingType, progress));
 	particle.rotation = Quaternion::FromEulerDegrees(angle);
 }
-
-bool Engine::ParticleRotationModule::DrawImGui() {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool changed = DrawRotationMode(mode_);
-	changed |= DrawRotationValueType(valueType_);
-	if (mode_ == ParticleRotationMode::Fixed) {
-
-		if (valueType_ == ParticleRotationValueType::Euler) {
-			changed |= ParticleGui::DrawParticleValueVector3("固定角度", fixedAngle_,
-				ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
-		} else {
-			changed |= DrawAxisAngleValue("固定角度", fixedAxis_, fixedQuaternionAngle_);
-		}
-	} else if (mode_ == ParticleRotationMode::Additive) {
-		changed |= DrawAdditiveSettings();
-	} else {
-		changed |= DrawInterpolationSettings();
-	}
-	return changed;
-#else
-	return false;
-#endif
-}
-
-#if defined(NEM_EDITOR_UI_ENABLED)
-bool Engine::ParticleRotationModule::DrawAdditiveSettings() {
-
-	bool changed = false;
-	if (valueType_ == ParticleRotationValueType::Euler) {
-		changed |= ParticleGui::DrawParticleValueVector3("加算角度", addAngle_,
-			ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
-	} else {
-		changed |= DrawAxisAngleValue("加算角度", addAxis_, addQuaternionAngle_);
-	}
-	changed |= DrawRotationSpeedMode(speedMode_);
-	if (speedMode_ == ParticleRotationSpeedMode::Constant) {
-
-		if (valueType_ == ParticleRotationValueType::Euler) {
-			changed |= ParticleGui::DrawParticleValueVector3("回転速度", rotationSpeed_,
-				ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f));
-		} else {
-			changed |= DrawAxisAngleValue(
-				"回転速度", rotationSpeedAxis_, rotationQuaternionSpeed_);
-		}
-		return changed;
-	}
-
-	if (valueType_ == ParticleRotationValueType::Euler) {
-
-		changed |= MyGUI::DragVector3("開始回転速度", startSpeed_,
-			ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f)).valueChanged;
-		changed |= MyGUI::DragVector3("終了回転速度", endSpeed_,
-			ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f)).valueChanged;
-	} else {
-
-		changed |= DrawAxisAngle("開始回転速度", startSpeedAxis_, startQuaternionSpeed_);
-		changed |= DrawAxisAngle("終了回転速度", endSpeedAxis_, endQuaternionSpeed_);
-	}
-	changed |= ParticleGui::DrawInterpolationEasing(speedEasingType_);
-	changed |= MyGUI::Checkbox("カーブを使用", useSpeedCurve_);
-	if (useSpeedCurve_) {
-
-		CurveEditSetting setting{};
-		setting.size = ImVec2(0.0f, 260.0f);
-		setting.fixedTimeRange = true;
-		if (valueType_ == ParticleRotationValueType::Euler) {
-			changed |= MyGUI::CurveEditor("RotationSpeedCurve", speedCurve_, speedCurveState_, setting).valueChanged;
-		} else {
-			changed |= MyGUI::CurveEditor("RotationSpeedQuaternionCurve",
-				speedQuaternionCurve_, speedQuaternionCurveState_, setting).valueChanged;
-		}
-
-		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
-
-			if (valueType_ == ParticleRotationValueType::Euler) {
-
-				static const CurveBakeTarget targets[] = {
-					{ "XYZ", { 0u, 1u, 2u } }, { "X", { 0u } }, { "Y", { 1u } }, { "Z", { 2u } } };
-				changed |= DrawCurveGenerator(speedGeneratorState_, speedCurve_.channels, targets);
-			} else {
-
-				static const CurveBakeTarget targets[] = { { "Angle", { 1u } } };
-				changed |= DrawCurveGenerator(speedQuaternionGeneratorState_,
-					speedQuaternionCurve_.channels, targets);
-			}
-		}
-	}
-	changed |= ParticleGui::DrawLoopSettings(speedLoop_);
-	return changed;
-}
-
-bool Engine::ParticleRotationModule::DrawInterpolationSettings() {
-
-	bool changed = false;
-	if (valueType_ == ParticleRotationValueType::Euler) {
-
-		changed |= MyGUI::DragVector3("開始角度", startAngle_,
-			ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f)).valueChanged;
-		changed |= MyGUI::DragVector3("終了角度", endAngle_,
-			ParticleGui::MakeDragSetting(-3600.0f, 3600.0f, 0.5f)).valueChanged;
-	} else {
-
-		changed |= DrawAxisAngle("開始角度", startAxis_, startQuaternionAngle_);
-		changed |= DrawAxisAngle("終了角度", endAxis_, endQuaternionAngle_);
-	}
-	changed |= ParticleGui::DrawInterpolationEasing(angleEasingType_);
-	changed |= MyGUI::Checkbox("カーブを使用", useAngleCurve_);
-	if (useAngleCurve_) {
-
-		CurveEditSetting setting{};
-		setting.size = ImVec2(0.0f, 260.0f);
-		setting.fixedTimeRange = true;
-		if (valueType_ == ParticleRotationValueType::Euler) {
-			changed |= MyGUI::CurveEditor("RotationAngleCurve", angleCurve_, angleCurveState_, setting).valueChanged;
-		} else {
-			changed |= MyGUI::CurveEditor(
-				"RotationQuaternionCurve", quaternionCurve_, quaternionCurveState_, setting).valueChanged;
-		}
-
-		if (MyGUI::CollapsingHeader("カーブ生成", false)) {
-
-			if (valueType_ == ParticleRotationValueType::Euler) {
-
-				static const CurveBakeTarget targets[] = {
-					{ "XYZ", { 0u, 1u, 2u } }, { "X", { 0u } }, { "Y", { 1u } }, { "Z", { 2u } } };
-				changed |= DrawCurveGenerator(angleGeneratorState_, angleCurve_.channels, targets);
-			} else {
-
-				static const CurveBakeTarget targets[] = { { "Angle", { 1u } } };
-				changed |= DrawCurveGenerator(
-					quaternionGeneratorState_, quaternionCurve_.channels, targets);
-			}
-		}
-	}
-	changed |= ParticleGui::DrawLoopSettings(angleLoop_);
-	return changed;
-}
-#endif

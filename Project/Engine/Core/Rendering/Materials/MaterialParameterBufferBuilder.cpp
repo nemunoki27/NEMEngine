@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "MaterialParameterLookup.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
@@ -52,7 +53,6 @@ namespace {
 		}
 		return std::clamp<uint32_t>(count, 1u, 4u);
 	}
-
 
 	const char* GetParameterValueTypeName(const Engine::MaterialParameterValue& parameter) {
 
@@ -282,21 +282,7 @@ namespace {
 		const Engine::MaterialParameterSet& parameters,
 		const Engine::ShaderConstantBufferVariable& variable) {
 
-		if (const Engine::MaterialParameterValue* value =
-			parameters.Find(variable.parameterID)) {
-
-			return value;
-		}
-		if (variable.semantic !=
-			Engine::MaterialParameterSemantic::None) {
-
-			if (const Engine::MaterialParameterValue* value =
-				parameters.Find(variable.semantic)) {
-
-				return value;
-			}
-		}
-		return parameters.FindByName(variable.name);
+		return Engine::MaterialParameterLookup::Find(parameters, variable.parameterID, variable.semantic, variable.name);
 	}
 
 	const Engine::MaterialParameterValue* FindOverrideParameterValue(
@@ -304,60 +290,9 @@ namespace {
 		const Engine::MaterialParameterSet& overrides,
 		const Engine::ShaderConstantBufferVariable& variable) {
 
-		if (const Engine::MaterialParameterValue* value =
-			FindParameterValue(overrides, variable)) {
-
-			return value;
-		}
-		for (const Engine::MaterialParameterRecord& parameter :
-			defaults.GetRecords()) {
-
-			if (parameter.id != variable.parameterID) {
-				continue;
-			}
-			return overrides.FindByName(parameter.namedValue.first);
-		}
-		return nullptr;
+		return Engine::MaterialParameterLookup::Find(overrides, variable.parameterID, variable.semantic, variable.name, &defaults);
 	}
 
-	size_t HashCombine(size_t seed, size_t value) {
-
-		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
-	}
-
-	size_t HashParameterValue(const Engine::MaterialParameterValue& parameter) {
-
-		size_t seed = parameter.value.index();
-		std::visit([&](const auto& value) {
-			using ValueType = std::decay_t<decltype(value)>;
-
-			if constexpr (std::is_same_v<ValueType, float>) {
-				seed = HashCombine(seed, std::hash<float>{}(value));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.x));
-				seed = HashCombine(seed, std::hash<float>{}(value.y));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.x));
-				seed = HashCombine(seed, std::hash<float>{}(value.y));
-				seed = HashCombine(seed, std::hash<float>{}(value.z));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.x));
-				seed = HashCombine(seed, std::hash<float>{}(value.y));
-				seed = HashCombine(seed, std::hash<float>{}(value.z));
-				seed = HashCombine(seed, std::hash<float>{}(value.w));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.r));
-				seed = HashCombine(seed, std::hash<float>{}(value.g));
-				seed = HashCombine(seed, std::hash<float>{}(value.b));
-				seed = HashCombine(seed, std::hash<float>{}(value.a));
-			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-				seed = HashCombine(seed, std::hash<Engine::AssetID>{}(value));
-			} else {
-				seed = HashCombine(seed, std::hash<ValueType>{}(value));
-			}
-			}, parameter.value);
-		return seed;
-	}
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(

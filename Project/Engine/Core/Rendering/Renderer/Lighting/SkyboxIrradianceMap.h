@@ -55,7 +55,7 @@ namespace Engine {
 		static constexpr uint32_t kFaceSize = 32;
 
 		// 畳み込みコンピュートパイプライン
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		bool initialized_ = false;
 
 		// 放射照度cubemap

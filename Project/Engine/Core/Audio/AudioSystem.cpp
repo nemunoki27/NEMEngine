@@ -6,20 +6,10 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
-// windows
-#include <Windows.h>
-#include <mfapi.h>
-#include <mfidl.h>
-#include <mfreadwrite.h>
-#include <mferror.h>
-
-#pragma comment(lib, "xaudio2.lib")
-#pragma comment(lib, "mfplat.lib")
-#pragma comment(lib, "mfreadwrite.lib")
-#pragma comment(lib, "mfuuid.lib")
+// c++
+#include <algorithm>
 
 Audio* Audio::instance_ = nullptr;
 
@@ -36,33 +26,12 @@ void Audio::Finalize() {
 	if (!instance_) {
 		return;
 	}
-
 	{
-		// 排他
 		std::lock_guard<std::mutex> lock(instance_->mutex_);
-		// サウンドデータを解放
 		instance_->Unload();
-
-		// XAudio2voiceを破棄
-		if (instance_->masteringVoice_) {
-
-			instance_->masteringVoice_->DestroyVoice();
-			instance_->masteringVoice_ = nullptr;
-		}
-		if (instance_->xAudio2_) {
-
-			instance_->xAudio2_->StopEngine();
-			instance_->xAudio2_.Reset();
-		}
-
-		// MediaFoundation終了
-		if (instance_->mfStarted_) {
-
-			MFShutdown();
-			instance_->mfStarted_ = false;
-		}
+		instance_->device_.Finalize();
+		instance_->soundCache_.Finalize();
 	}
-
 	delete instance_;
 	instance_ = nullptr;
 }
@@ -70,108 +39,12 @@ void Audio::Finalize() {
 void Audio::Init() {
 
 	std::lock_guard<std::mutex> lock(mutex_);
-
-	// 既に初期化済みなら何もしない
-	if (xAudio2_ && masteringVoice_) {
+	if (device_.IsInitialized()) {
 		return;
 	}
-
-	// MediaFoundation初期化
-	HRESULT hr = MFStartup(MF_VERSION);
-	if (SUCCEEDED(hr)) {
-		mfStarted_ = true;
-	} else {
-		Assert::Call(false, "Media Foundationの開始に失敗しました");
-	}
-
-	// XAudio2初期化
-	hr = XAudio2Create(&xAudio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	Assert::Call(SUCCEEDED(hr), "XAudio2の初期化に失敗しました");
-
-	hr = xAudio2_->CreateMasteringVoice(&masteringVoice_);
-	Assert::Call(SUCCEEDED(hr), "XAudio2のマスタリングボイス作成に失敗しました");
-
-	hr = xAudio2_->StartEngine();
-	Assert::Call(SUCCEEDED(hr), "XAudio2の再生エンジン開始に失敗しました");
-
-	// Sounds/配下のファイルをすべて読み込み
-	LoadAllSounds();
-}
-
-void Audio::LoadAllSounds() {
-
-	// Engine側とGame側のSounds配下を読み込む
-	std::vector<std::filesystem::path> roots = {
-		RuntimePaths::GetEngineAssetPath("Sounds"),
-		RuntimePaths::GetGameRoot() / "GameAssets" / "Sounds",
-	};
-
-	for (const std::filesystem::path& root : roots) {
-
-		std::error_code ec;
-		if (!std::filesystem::exists(root, ec)) {
-			// 無いなら何もしない
-			continue;
-		}
-
-		// recursiveに走査
-		for (std::filesystem::recursive_directory_iterator it(root, ec), end;
-			it != end && !ec; it.increment(ec)) {
-
-			const auto& entry = *it;
-
-			// ディレクトリはスキップ
-			if (!entry.is_regular_file(ec)) {
-				continue;
-			}
-
-			const std::filesystem::path filePath = entry.path();
-			std::string ext = Algorithm::ToLower(filePath.extension().string());
-
-			// 対応拡張子のみ
-			const bool supported =
-				(ext == ".wav") || (ext == ".wave") || (ext == ".mp3");
-
-			if (!supported) {
-				continue;
-			}
-
-			AudioType type = GuessAudioTypeFromPath(filePath);
-			Load(filePath, type);
-		}
-	}
-}
-
-void Audio::Load(const std::filesystem::path& filename, AudioType type) {
-
-	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Loadより先にAudio::Initを呼び出してください");
-
-	const std::string key = Algorithm::PathToUTF8(filename.stem());
-
-	// 既に読み込み済みなら上書きしない
-	if (sounds_.find(key) != sounds_.end()) {
-		return;
-	}
-
-	const std::string ext = Algorithm::ToLower(filename.extension().string());
-
-	SoundData data{};
-	// 語尾で判別して読み込み
-	if (ext == ".wav" || ext == ".wave") {
-
-		data = LoadWaveFile(filename);
-	} else if (ext == ".mp3") {
-
-		data = LoadMp3FileWithMediaFoundation(filename);
-	} else {
-
-		Assert::Call(false, "未対応の音声形式です。WAVまたはMP3を使用してください");
-	}
-
-	// タイプと基準音量を設定して登録
-	data.type = type;
-	data.volume = 1.0f;
-	sounds_.emplace(key, std::move(data));
+	soundCache_.Init();
+	device_.Init();
+	soundCache_.LoadAllSounds();
 }
 
 bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
@@ -182,18 +55,18 @@ bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
 bool Audio::EnsureLoaded(const std::filesystem::path& filename, AudioType type) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
-	Assert::Call(xAudio2_ && masteringVoice_, "Audio::EnsureLoadedより先にAudio::Initを呼び出してください");
+	Assert::Call(device_.IsInitialized(), "Audio::EnsureLoadedより先にAudio::Initを呼び出してください");
 
 	const std::string key = Algorithm::PathToUTF8(filename.stem());
-	if (sounds_.find(key) != sounds_.end()) {
+	if (soundCache_.Find(key) != nullptr) {
 		return true;
 	}
 	if (!std::filesystem::exists(filename)) {
 		return false;
 	}
 
-	Load(filename, type);
-	return sounds_.find(key) != sounds_.end();
+	soundCache_.Load(filename, type);
+	return soundCache_.Find(key) != nullptr;
 }
 
 void Audio::Unload() {
@@ -214,7 +87,7 @@ void Audio::Unload() {
 	activeVoices_.clear();
 
 	// サウンド解放
-	sounds_.clear();
+	soundCache_.Clear();
 }
 
 //============================================================================
@@ -238,11 +111,11 @@ uint64_t Audio::PlayManaged(const std::string& name, bool loop, float volume) {
 uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
-	Assert::Call(xAudio2_ && masteringVoice_, "Audio::Playより先にAudio::Initを呼び出してください");
+	Assert::Call(device_.IsInitialized(), "Audio::Playより先にAudio::Initを呼び出してください");
 
-	const std::string key = NormalizeKey(name);
+	const std::string key = AudioSoundCache::NormalizeKey(name);
 
-	SoundData* sound = FindSoundLocked(key);
+	AudioSoundData* sound = soundCache_.Find(key);
 	if (!sound) {
 		return 0;
 	}
@@ -253,8 +126,7 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	// SourceVoiceを新規作成
 	IXAudio2SourceVoice* srcVoice = nullptr;
 
-	HRESULT hr = xAudio2_->CreateSourceVoice(&srcVoice, sound->GetFormat(),
-		0, XAUDIO2_DEFAULT_FREQ_RATIO, nullptr, nullptr, nullptr);
+	HRESULT hr = device_.CreateSourceVoice(&srcVoice, sound->GetFormat());
 	Assert::Call(SUCCEEDED(hr), "XAudio2のソースボイス作成に失敗しました");
 	Assert::Call(srcVoice != nullptr, "XAudio2のソースボイスが作成されていません");
 
@@ -286,516 +158,4 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	const uint64_t voiceID = inst.voiceID;
 	activeVoices_[key].push_back(inst);
 	return voiceID;
-}
-
-//============================================================================
-//	停止処理
-//============================================================================
-void Audio::Stop(const std::string& name) {
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	const std::string key = NormalizeKey(name);
-
-	auto it = activeVoices_.find(key);
-	if (it == activeVoices_.end()) {
-		return;
-	}
-
-	for (auto& inst : it->second) {
-		if (!inst.voice) {
-			continue;
-		}
-
-		inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
-		inst.voice->FlushSourceBuffers();
-		inst.voice->DestroyVoice();
-		inst.voice = nullptr;
-	}
-	it->second.clear();
-	activeVoices_.erase(it);
-}
-
-void Audio::StopVoice(uint64_t voiceID) {
-
-	if (voiceID == 0) {
-		return;
-	}
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	for (auto it = activeVoices_.begin(); it != activeVoices_.end();) {
-
-		auto& voices = it->second;
-		for (auto& inst : voices) {
-			if (inst.voiceID != voiceID || !inst.voice) {
-				continue;
-			}
-
-			inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
-			inst.voice->FlushSourceBuffers();
-			inst.voice->DestroyVoice();
-			inst.voice = nullptr;
-		}
-
-		voices.erase(std::remove_if(voices.begin(), voices.end(), [](const VoiceInstance& inst) {
-			return inst.voice == nullptr;
-			}), voices.end());
-		if (voices.empty()) {
-			it = activeVoices_.erase(it);
-		} else {
-			++it;
-		}
-	}
-}
-
-void Audio::PauseVoice(uint64_t voiceID) {
-
-	if (voiceID == 0) {
-		return;
-	}
-	std::lock_guard<std::mutex> lock(mutex_);
-	for (auto& [key, voices] : activeVoices_) {
-		for (auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice && !inst.paused) {
-				// 再生位置を保持したまま停止する、buffer flush / destroyはしない
-				inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
-				inst.paused = true;
-			}
-		}
-	}
-}
-
-void Audio::ResumeVoice(uint64_t voiceID) {
-
-	if (voiceID == 0) {
-		return;
-	}
-	std::lock_guard<std::mutex> lock(mutex_);
-	for (auto& [key, voices] : activeVoices_) {
-		for (auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice && inst.paused) {
-				inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
-				inst.paused = false;
-			}
-		}
-	}
-}
-
-void Audio::SetVoiceVolume(uint64_t voiceID, float volume) {
-
-	if (voiceID == 0) {
-		return;
-	}
-	std::lock_guard<std::mutex> lock(mutex_);
-	for (auto& [key, voices] : activeVoices_) {
-		for (auto& inst : voices) {
-			if (inst.voiceID != voiceID || !inst.voice) {
-				continue;
-			}
-			inst.instanceVolume = std::clamp(volume, 0.0f, 1.0f);
-			ApplyVoiceVolumeLocked(key, inst);
-			return;
-		}
-	}
-}
-
-void Audio::SetVoiceLoop(uint64_t voiceID, bool loop) {
-
-	if (voiceID == 0) {
-		return;
-	}
-	std::lock_guard<std::mutex> lock(mutex_);
-	for (auto& [key, voices] : activeVoices_) {
-		for (auto& inst : voices) {
-			if (inst.voiceID != voiceID || !inst.voice || inst.loop == loop) {
-				continue;
-			}
-			SoundData* sound = FindSoundLocked(key);
-			if (!sound) {
-				return;
-			}
-			RebuildVoiceBufferLocked(*sound, inst, loop);
-			return;
-		}
-	}
-}
-
-//============================================================================
-//	マスター音量、状態取得
-//============================================================================
-void Audio::SetVolume(const std::string& name, float volume) {
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	const std::string key = NormalizeKey(name);
-
-	SoundData* sound = FindSoundLocked(key);
-	if (!sound) {
-		return;
-	}
-
-	sound->volume = std::clamp(volume, 0.0f, 1.0f);
-
-	// 再生中の全インスタンスにも反映
-	CleanupFinishedVoicesLocked(key);
-
-	auto it = activeVoices_.find(key);
-	if (it == activeVoices_.end()) {
-		return;
-	}
-	for (auto& inst : it->second) {
-		ApplyVoiceVolumeLocked(key, inst);
-	}
-}
-
-bool Audio::IsPlaying(const std::string& name) {
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	const std::string key = NormalizeKey(name);
-
-	auto it = activeVoices_.find(key);
-	if (it == activeVoices_.end()) {
-		return false;
-	}
-
-	CleanupFinishedVoicesLocked(key);
-
-	// まだインスタンスが残っていれば再生中とみなす
-	it = activeVoices_.find(key);
-	return (it != activeVoices_.end() && !it->second.empty());
-}
-
-bool Audio::IsVoicePlaying(uint64_t voiceID) {
-
-	if (voiceID == 0) {
-		return false;
-	}
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	CleanupAllFinishedVoicesLocked();
-	for (const auto& [key, voices] : activeVoices_) {
-		for (const auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice) {
-				return !inst.paused;
-			}
-		}
-	}
-	return false;
-}
-
-bool Audio::IsVoiceAlive(uint64_t voiceID) {
-
-	if (voiceID == 0) {
-		return false;
-	}
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	for (const auto& [key, voices] : activeVoices_) {
-		for (const auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-void Audio::CleanupFinishedVoices() {
-
-	std::lock_guard<std::mutex> lock(mutex_);
-	CleanupAllFinishedVoicesLocked();
-}
-
-//============================================================================
-//	Cleanup、終了したサウンドを破棄
-//============================================================================
-void Audio::CleanupFinishedVoicesLocked(const std::string& key) {
-
-	auto it = activeVoices_.find(key);
-	if (it == activeVoices_.end()) {
-		return;
-	}
-
-	auto& vec = it->second;
-
-	vec.erase(std::remove_if(vec.begin(), vec.end(),
-		[](VoiceInstance& inst) {
-			if (!inst.voice) return true;
-
-			XAUDIO2_VOICE_STATE st{};
-			inst.voice->GetState(&st);
-
-			// BuffersQueued == 0なら再生完了
-			if (st.BuffersQueued == 0) {
-				inst.voice->DestroyVoice();
-				inst.voice = nullptr;
-				return true;
-			}
-			return false;
-		}),
-		vec.end()
-	);
-
-	if (vec.empty()) {
-		activeVoices_.erase(it);
-	}
-}
-
-void Audio::CleanupAllFinishedVoicesLocked() {
-
-	std::vector<std::string> keys;
-	keys.reserve(activeVoices_.size());
-	for (auto& [k, _] : activeVoices_) {
-		keys.push_back(k);
-	}
-
-	for (auto& k : keys) {
-		CleanupFinishedVoicesLocked(k);
-	}
-}
-
-//============================================================================
-//	音量適用
-//============================================================================
-void Audio::ApplyVoiceVolumeLocked(const std::string& key, VoiceInstance& inst) {
-
-	if (!inst.voice) {
-		return;
-	}
-
-	SoundData* sound = FindSoundLocked(key);
-	if (!sound) {
-		return;
-	}
-
-	const float mv = std::clamp(masterVolume_, 0.0f, 1.0f);
-	const float sv = std::clamp(sound->volume, 0.0f, 1.0f);
-	const float iv = std::clamp(inst.instanceVolume, 0.0f, 1.0f);
-
-	const float finalVol = mv * sv * iv;
-	inst.voice->SetVolume(finalVol, XAUDIO2_COMMIT_NOW);
-}
-
-void Audio::RebuildVoiceBufferLocked(const SoundData& sound, VoiceInstance& inst, bool loop) {
-
-	const WAVEFORMATEX* format = sound.GetFormat();
-	if (!inst.voice || !format || format->nBlockAlign == 0) {
-		return;
-	}
-
-	XAUDIO2_VOICE_STATE state{};
-	inst.voice->GetState(&state);
-	const uint32_t sampleCount = sound.GetPCMBytes() / format->nBlockAlign;
-	if (sampleCount == 0) {
-		return;
-	}
-	const uint32_t currentSample = static_cast<uint32_t>(state.SamplesPlayed % sampleCount);
-
-	inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
-	inst.voice->FlushSourceBuffers();
-
-	XAUDIO2_BUFFER remaining{};
-	remaining.pAudioData = sound.GetPCM();
-	remaining.AudioBytes = sound.GetPCMBytes();
-	remaining.PlayBegin = currentSample;
-	remaining.PlayLength = sampleCount - currentSample;
-	remaining.Flags = loop ? 0 : XAUDIO2_END_OF_STREAM;
-	HRESULT result = inst.voice->SubmitSourceBuffer(&remaining);
-	Assert::Call(SUCCEEDED(result), "XAudio2へ再開位置の音声バッファを送信できませんでした");
-
-	if (loop) {
-		XAUDIO2_BUFFER loopBuffer{};
-		loopBuffer.pAudioData = sound.GetPCM();
-		loopBuffer.AudioBytes = sound.GetPCMBytes();
-		loopBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
-		loopBuffer.Flags = XAUDIO2_END_OF_STREAM;
-		result = inst.voice->SubmitSourceBuffer(&loopBuffer);
-		Assert::Call(SUCCEEDED(result), "XAudio2へループ音声バッファを送信できませんでした");
-	}
-
-	inst.loop = loop;
-	if (!inst.paused) {
-		result = inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
-		Assert::Call(SUCCEEDED(result), "XAudio2の音声再開に失敗しました");
-	}
-}
-
-Audio::SoundData* Audio::FindSoundLocked(const std::string& key) {
-	auto it = sounds_.find(key);
-	if (it == sounds_.end()) {
-		return nullptr;
-	}
-	return &it->second;
-}
-
-AudioType Audio::GuessAudioTypeFromPath(const std::filesystem::path& p) const {
-
-	// パスの構成要素に "BGM" or "SE" が含まれているかで判定
-	for (const auto& part : p) {
-
-		std::string s = Algorithm::PathToUTF8(part);
-		s = Algorithm::ToLower(s);
-
-		if (s == "bgm") {
-			return AudioType::BGM;
-		}
-		if (s == "se") {
-			return AudioType::SE;
-		}
-	}
-	return AudioType::SE;
-}
-
-std::string Audio::NormalizeKey(const std::string& nameOrPath) const {
-
-	const std::filesystem::path p = Algorithm::PathFromUTF8(nameOrPath);
-	if (p.has_extension() || nameOrPath.find('/') != std::string::npos || nameOrPath.find('\\') != std::string::npos) {
-		return Algorithm::PathToUTF8(p.stem());
-	}
-	return nameOrPath;
-}
-
-Audio::SoundData Audio::LoadWaveFile(const std::filesystem::path& filename) {
-
-	std::ifstream file(filename, std::ios::binary);
-	Assert::Call(file.is_open(), "WAVファイルを開けません: " + Algorithm::PathToUTF8(filename));
-
-	RiffHeader riff{};
-	file.read(reinterpret_cast<char*>(&riff), sizeof(riff));
-
-	Assert::Call(std::strncmp(riff.chunk.id, "RIFF", 4) == 0,
-		"WAVファイルのRIFFヘッダーが不正です");
-	Assert::Call(std::strncmp(riff.type, "WAVE", 4) == 0,
-		"WAVファイルの形式識別子が不正です");
-
-	ChunkHeader ch{};
-	bool fmtFound = false;
-	bool dataFound = false;
-
-	std::vector<uint8_t> fmtBlob;
-	std::vector<uint8_t> pcm;
-
-	while (file.read(reinterpret_cast<char*>(&ch), sizeof(ch))) {
-		if (std::strncmp(ch.id, "fmt ", 4) == 0) {
-			Assert::Call(16 <= ch.size, "WAVファイルのfmtチャンクが短すぎます");
-
-			fmtBlob.resize(static_cast<size_t>(ch.size));
-			file.read(reinterpret_cast<char*>(fmtBlob.data()), ch.size);
-			fmtFound = true;
-		} else if (std::strncmp(ch.id, "data", 4) == 0) {
-			pcm.resize(static_cast<size_t>(ch.size));
-			file.read(reinterpret_cast<char*>(pcm.data()), ch.size);
-			dataFound = true;
-		} else {
-			// それ以外はスキップ
-			file.seekg(ch.size, std::ios_base::cur);
-		}
-
-		if (fmtFound && dataFound) break;
-	}
-
-	file.close();
-	Assert::Call(fmtFound && dataFound, "WAVファイルにfmtまたはdataチャンクがありません");
-	Assert::Call(!fmtBlob.empty(), "WAVファイルの音声形式が空です");
-	Assert::Call(!pcm.empty(), "WAVファイルのPCMデータが空です");
-
-	SoundData sd{};
-	sd.formatBlob = std::move(fmtBlob);
-	sd.pcmBuffer = std::move(pcm);
-	return sd;
-}
-
-Audio::SoundData Audio::LoadMp3FileWithMediaFoundation(const std::filesystem::path& filename) {
-
-	Assert::Call(mfStarted_, "Audio::InitでMedia Foundationを開始してください");
-
-	const std::wstring wpath = filename.wstring();
-	Assert::Call(!wpath.empty(), "音声ファイルのパスが空です");
-
-	ComPtr<IMFSourceReader> reader;
-	HRESULT hr = MFCreateSourceReaderFromURL(wpath.c_str(), nullptr, &reader);
-	Assert::Call(SUCCEEDED(hr), "Media Foundationの音声リーダー作成に失敗しました");
-
-	// 出力をPCMに指定
-	ComPtr<IMFMediaType> outType;
-	hr = MFCreateMediaType(&outType);
-	Assert::Call(SUCCEEDED(hr), "Media Foundationの音声形式作成に失敗しました");
-
-	hr = outType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
-	Assert::Call(SUCCEEDED(hr), "Media Foundationへ音声の主形式を設定できませんでした");
-
-	hr = outType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
-	Assert::Call(SUCCEEDED(hr), "Media FoundationへPCM形式を設定できませんでした");
-
-	hr = outType->SetUINT32(MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
-	Assert::Call(SUCCEEDED(hr), "Media Foundationへ量子化ビット数を設定できませんでした");
-
-	constexpr DWORD kAudioStream = static_cast<DWORD>(MF_SOURCE_READER_FIRST_AUDIO_STREAM);
-
-	// SetCurrentMediaType
-	hr = reader->SetCurrentMediaType(kAudioStream, nullptr, outType.Get());
-	Assert::Call(SUCCEEDED(hr), "Media Foundationへ出力音声形式を設定できませんでした");
-
-	// GetCurrentMediaType
-	ComPtr<IMFMediaType> currentType;
-	hr = reader->GetCurrentMediaType(kAudioStream, &currentType);
-	Assert::Call(SUCCEEDED(hr), "Media Foundationから音声形式を取得できませんでした");
-
-	WAVEFORMATEX* wfx = nullptr;
-	UINT32 wfxSize = 0;
-	hr = MFCreateWaveFormatExFromMFMediaType(currentType.Get(), &wfx, &wfxSize, MFWaveFormatExConvertFlag_Normal);
-	Assert::Call(SUCCEEDED(hr), "Media Foundationの音声形式変換に失敗しました");
-	Assert::Call(wfx != nullptr && 0 < wfxSize, "変換後のWAVEFORMATEXが不正です");
-
-	std::vector<uint8_t> fmtBlob;
-	fmtBlob.resize(static_cast<size_t>(wfxSize));
-	std::memcpy(fmtBlob.data(), wfx, wfxSize);
-	CoTaskMemFree(wfx);
-
-	// サンプルを最後まで読む
-	std::vector<uint8_t> pcm;
-	for (;;) {
-
-		DWORD streamIndex = 0;
-		DWORD flags = 0;
-		LONGLONG timestamp = 0;
-		ComPtr<IMFSample> sample;
-
-			hr = reader->ReadSample(
-			kAudioStream,
-			0,
-			&streamIndex,
-			&flags,
-			&timestamp,
-				&sample
-			);
-		Assert::Call(SUCCEEDED(hr), "Media Foundationから音声サンプルを取得できませんでした");
-		if (flags & static_cast<DWORD>(MF_SOURCE_READERF_ENDOFSTREAM)) {
-			break;
-		}
-
-		if (!sample) continue;
-
-		ComPtr<IMFMediaBuffer> buffer;
-		hr = sample->ConvertToContiguousBuffer(&buffer);
-		Assert::Call(SUCCEEDED(hr), "音声サンプルを連続バッファへ変換できませんでした");
-
-		BYTE* data = nullptr;
-		DWORD maxLen = 0;
-		DWORD curLen = 0;
-		hr = buffer->Lock(&data, &maxLen, &curLen);
-		Assert::Call(SUCCEEDED(hr), "Media Foundationの音声バッファをロックできませんでした");
-
-		const size_t oldSize = pcm.size();
-		pcm.resize(oldSize + curLen);
-		std::memcpy(pcm.data() + oldSize, data, curLen);
-
-		buffer->Unlock();
-	}
-
-	Assert::Call(!fmtBlob.empty(), "Media Foundationから取得した音声形式が空です");
-	Assert::Call(!pcm.empty(), "Media Foundationから取得したPCMデータが空です");
-
-	SoundData sd{};
-	sd.formatBlob = std::move(fmtBlob);
-	sd.pcmBuffer = std::move(pcm);
-	return sd;
 }

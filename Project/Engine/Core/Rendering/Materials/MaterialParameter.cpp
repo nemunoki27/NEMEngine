@@ -12,6 +12,25 @@
 
 namespace {
 
+	template<typename Records>
+	auto FindParameterRecord(Records& records, Engine::MaterialParameterID id) {
+
+		const auto position = std::lower_bound(records.begin(), records.end(), id.value,
+			[](const Engine::MaterialParameterRecord& record, uint64_t target) { return record.id.value < target; });
+		return position != records.end() && position->id == id ? &*position : nullptr;
+	}
+
+	template<typename Records>
+	auto FindParameterRecord(Records& records, Engine::MaterialParameterID id, std::string_view name) {
+
+		auto position = std::lower_bound(records.begin(), records.end(), id.value,
+			[](const Engine::MaterialParameterRecord& record, uint64_t target) { return record.id.value < target; });
+		for (; position != records.end() && position->id == id; ++position) {
+			if (position->namedValue.first == name) { return &*position; }
+		}
+		return static_cast<decltype(&*position)>(nullptr);
+	}
+
 	struct SemanticAlias {
 
 		std::string_view name;
@@ -141,42 +160,13 @@ Engine::MaterialParameterSet& Engine::MaterialParameterSet::operator=(
 	return *this;
 }
 
-Engine::MaterialParameterValue& Engine::MaterialParameterSet::operator[](
-	const std::string& name) {
-
-	const MaterialParameterID id = MaterialParameterID::FromName(name);
-	if (MaterialParameterRecord* record = FindRecord(id, name)) {
-		Touch();
-		return record->namedValue.second;
-	}
-
-	Data& data = EnsureData();
-	const auto position = std::lower_bound(data.records.begin(), data.records.end(), id.value,
-		[](const MaterialParameterRecord& record, uint64_t value) {
-			return record.id.value < value;
-		});
-	const auto inserted = data.records.insert(position, MaterialParameterRecord{
-		.id = id,
-		.semantic = ResolveMaterialParameterSemantic(name),
-		.namedValue = { name, MaterialParameterValue{} },
-		});
-	++data.revision;
-	data.contentHashDirty = true;
-	return inserted->namedValue.second;
-}
-
-Engine::MaterialParameterValue& Engine::MaterialParameterSet::operator[](const char* name) {
-
-	return operator[](std::string(name));
-}
-
-std::pair<Engine::MaterialParameterSet::iterator, bool>
+std::pair<Engine::MaterialParameterSet::const_iterator, bool>
 Engine::MaterialParameterSet::try_emplace(
 	const std::string& name, MaterialParameterValue value) {
 
 	const MaterialParameterID id = MaterialParameterID::FromName(name);
 	if (MaterialParameterRecord* record = FindRecord(id, name)) {
-		return { iterator(record), false };
+		return { const_iterator(record), false };
 	}
 
 	Data& data = EnsureData();
@@ -191,10 +181,10 @@ Engine::MaterialParameterSet::try_emplace(
 		});
 	++data.revision;
 	data.contentHashDirty = true;
-	return { iterator(&*inserted), true };
+	return { const_iterator(&*inserted), true };
 }
 
-std::pair<Engine::MaterialParameterSet::iterator, bool>
+std::pair<Engine::MaterialParameterSet::const_iterator, bool>
 Engine::MaterialParameterSet::emplace(
 	const std::string& name, MaterialParameterValue value) {
 
@@ -208,7 +198,7 @@ void Engine::MaterialParameterSet::clear() {
 
 size_t Engine::MaterialParameterSet::erase(const std::string& name) {
 
-	iterator position = find(name);
+	const_iterator position = find(name);
 	if (position == end()) {
 		return 0;
 	}
@@ -246,7 +236,7 @@ size_t Engine::MaterialParameterSet::erase(MaterialParameterID id) {
 	return count;
 }
 
-Engine::MaterialParameterSet::iterator Engine::MaterialParameterSet::erase(iterator position) {
+Engine::MaterialParameterSet::const_iterator Engine::MaterialParameterSet::erase(const_iterator position) {
 
 	if (!data_ || position.record_ == nullptr) {
 		return end();
@@ -264,7 +254,18 @@ Engine::MaterialParameterSet::iterator Engine::MaterialParameterSet::erase(itera
 		data_.reset();
 		return end();
 	}
-	return iterator(next == data_->records.end() ? data_->records.data() + data_->records.size() : &*next);
+	return const_iterator(next == data_->records.end() ? data_->records.data() + data_->records.size() : &*next);
+}
+
+void Engine::MaterialParameterSet::Set(std::string_view name, const MaterialParameterValue& value) {
+
+	const MaterialParameterID id = MaterialParameterID::FromName(name);
+	if (MaterialParameterRecord* record = FindRecord(id, name)) {
+		record->namedValue.second = value;
+		Touch();
+		return;
+	}
+	try_emplace(std::string(name), value);
 }
 
 void Engine::MaterialParameterSet::Set(
@@ -322,21 +323,6 @@ void Engine::MaterialParameterSet::MergeFrom(
 	}
 }
 
-Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
-	MaterialParameterSemantic semantic) {
-
-	if (!data_) {
-		return nullptr;
-	}
-	for (MaterialParameterRecord& record : data_->records) {
-		if (record.semantic == semantic) {
-			Touch();
-			return &record.namedValue.second;
-		}
-	}
-	return nullptr;
-}
-
 const Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
 	MaterialParameterSemantic semantic) const {
 
@@ -351,35 +337,11 @@ const Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
 	return nullptr;
 }
 
-Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(MaterialParameterID id) {
-
-	MaterialParameterRecord* record = FindRecord(id);
-	if (!record) {
-		return nullptr;
-	}
-	Touch();
-	return &record->namedValue.second;
-}
-
 const Engine::MaterialParameterValue* Engine::MaterialParameterSet::Find(
 	MaterialParameterID id) const {
 
 	const MaterialParameterRecord* record = FindRecord(id);
 	return record ? &record->namedValue.second : nullptr;
-}
-
-Engine::MaterialParameterValue*
-Engine::MaterialParameterSet::FindByName(
-	std::string_view name) {
-
-	MaterialParameterValue* value =
-		const_cast<MaterialParameterValue*>(
-		static_cast<const MaterialParameterSet*>(this)->
-		FindByName(name));
-	if (value) {
-		Touch();
-	}
-	return value;
 }
 
 const Engine::MaterialParameterValue*
@@ -409,18 +371,6 @@ bool Engine::MaterialParameterSet::contains(const std::string& name) const {
 	return FindRecord(MaterialParameterID::FromName(name), name) != nullptr;
 }
 
-Engine::MaterialParameterSet::iterator Engine::MaterialParameterSet::begin() {
-
-	Touch();
-	return data_ && !data_->records.empty() ? iterator(data_->records.data()) : iterator{};
-}
-
-Engine::MaterialParameterSet::iterator Engine::MaterialParameterSet::end() {
-
-	return data_ && !data_->records.empty() ?
-		iterator(data_->records.data() + data_->records.size()) : iterator{};
-}
-
 Engine::MaterialParameterSet::const_iterator Engine::MaterialParameterSet::begin() const {
 
 	return data_ && !data_->records.empty() ? const_iterator(data_->records.data()) : const_iterator{};
@@ -430,15 +380,6 @@ Engine::MaterialParameterSet::const_iterator Engine::MaterialParameterSet::end()
 
 	return data_ && !data_->records.empty() ?
 		const_iterator(data_->records.data() + data_->records.size()) : const_iterator{};
-}
-
-Engine::MaterialParameterSet::iterator Engine::MaterialParameterSet::find(
-	const std::string& name) {
-
-	Touch();
-	MaterialParameterRecord* record =
-		FindRecord(MaterialParameterID::FromName(name), name);
-	return record ? iterator(record) : end();
 }
 
 Engine::MaterialParameterSet::const_iterator Engine::MaterialParameterSet::find(
@@ -498,48 +439,25 @@ void Engine::MaterialParameterSet::Touch() {
 Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(
 	MaterialParameterID id) {
 
-	return const_cast<MaterialParameterRecord*>(
-		static_cast<const MaterialParameterSet*>(this)->FindRecord(id));
+	return data_ && id ? FindParameterRecord(data_->records, id) : nullptr;
 }
 
 const Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(
 	MaterialParameterID id) const {
 
-	if (!data_ || !id) {
-		return nullptr;
-	}
-	const auto position = std::lower_bound(
-		data_->records.begin(), data_->records.end(), id.value,
-		[](const MaterialParameterRecord& record, uint64_t target) {
-			return record.id.value < target;
-		});
-	return position != data_->records.end() && position->id == id ?
-		&*position : nullptr;
+	return data_ && id ? FindParameterRecord(std::as_const(data_->records), id) : nullptr;
 }
 
 Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(
 	MaterialParameterID id, std::string_view name) {
 
-	return const_cast<MaterialParameterRecord*>(
-		static_cast<const MaterialParameterSet*>(this)->FindRecord(id, name));
+	return data_ ? FindParameterRecord(data_->records, id, name) : nullptr;
 }
 
 const Engine::MaterialParameterRecord* Engine::MaterialParameterSet::FindRecord(
 	MaterialParameterID id, std::string_view name) const {
 
-	if (!data_) {
-		return nullptr;
-	}
-	auto position = std::lower_bound(data_->records.begin(), data_->records.end(), id.value,
-		[](const MaterialParameterRecord& record, uint64_t target) {
-			return record.id.value < target;
-		});
-	for (; position != data_->records.end() && position->id == id; ++position) {
-		if (position->namedValue.first == name) {
-			return &*position;
-		}
-	}
-	return nullptr;
+	return data_ ? FindParameterRecord(std::as_const(data_->records), id, name) : nullptr;
 }
 
 Engine::MaterialParameterSemantic Engine::ResolveMaterialParameterSemantic(

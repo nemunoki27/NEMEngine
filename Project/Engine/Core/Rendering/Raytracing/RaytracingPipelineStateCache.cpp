@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RaytracingPipelineBuilder.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -88,10 +89,9 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 			*variant, composedShader, samplerOverrides);
 	}
 	// パイプラインステートを作成してキャッシュする
-	std::unique_ptr<RaytracingPipelineState> state = std::make_unique<RaytracingPipelineState>();
-	if (!state->Create(graphicsPlatform.GetDevice(),
-		graphicsPlatform.GetDxShaderCompiler(), *variant, composedShader,
-		samplerOverrides)) {
+	auto state = RaytracingPipelineBuilder::Create(graphicsPlatform.GetDevice(),
+		graphicsPlatform.GetDxShaderCompiler(), *variant, composedShader, samplerOverrides);
+	if (!state) {
 
 		failedRevisions_[key] = revisions_[key];
 		return FindFallback(pipelineAssetID, shaderOverrideAssetID,
@@ -310,14 +310,8 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 
 			DxShaderCompiler compiler{};
 			compiler.Init();
-			auto state = std::make_unique<RaytracingPipelineState>();
-			if (!state->Create(retainedDevice.Get(), &compiler,
-				variant, shader,
-				hasSamplerOverrides ? &samplerCopy : nullptr)) {
-
-				return std::unique_ptr<RaytracingPipelineState>{};
-			}
-			return state;
+			return RaytracingPipelineBuilder::Create(retainedDevice.Get(), &compiler,
+				variant, shader, hasSamplerOverrides ? &samplerCopy : nullptr);
 		});
 	pendingBuilds_.emplace(key, std::move(build));
 	Logger::Output(LogType::Engine,

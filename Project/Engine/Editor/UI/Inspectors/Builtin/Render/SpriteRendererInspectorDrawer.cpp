@@ -13,8 +13,7 @@
 //============================================================================
 namespace {
 
-	const std::string kBaseColorTextureParameter(
-		Engine::MaterialParameterNames::BaseColorTexture);
+	const std::string kBaseColorTextureParameter(Engine::MaterialParameterNames::BaseColorTexture);
 
 	// 設定中テクスチャの実サイズを取得する、未ロードや未設定ならfalse
 	bool TryResolveTextureSize(const Engine::EditorPanelContext& context,
@@ -100,7 +99,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 		const AssetID previousTexture = materialParameterDrawer_.ResolveTextureParameter(context,
 			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 
-		InspectorDrawerCommon::DrawCommonRenderFields(
+		InspectorDrawerCommon::DrawCommonRenderFields(context,
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 			draft.layer, draft.order, draft.blendMode, draft.queue,
 			&draft.renderingLayerMask);

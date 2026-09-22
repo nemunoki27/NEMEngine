@@ -3,11 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
+#include "FrameProfileHistory.h"
+
 // c++
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <list>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -16,8 +17,7 @@ namespace Engine {
 
 	//============================================================================
 	//	FrameProfiler class
-	// フレームごとのCPU/GPU処理時間を集計し、エディタへ提供するシングルトン
-	// 各フェーズの計測値を1フレーム分累積し、フレーム開始で確定して平均化する
+	//	フレームのCPUとGPUの計測結果を集計して公開する
 	//============================================================================
 	class FrameProfiler {
 	public:
@@ -183,26 +183,12 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		//--------- structure ----------------------------------------------------
-
-		// カテゴリごとの計測情報
-		struct Measure {
-
-			// 今フレームの累積時間(ms)
-			float accumulator = 0.0f;
-			// 確定済みフレームの計測履歴
-			std::list<float> samples;
-		};
-
 		//--------- variables ----------------------------------------------------
-
-		// 平均化するサンプル数
-		static constexpr size_t kSmoothingSample = 8;
 
 		float deltaTimeSec_ = 0.0f;
 		float totalTimeSec_ = 0.0f;
 
-		std::array<Measure, static_cast<size_t>(Category::Count)> measures_{};
+		std::array<FrameProfileHistory, static_cast<size_t>(Category::Count)> measures_{};
 		std::vector<NamedTime> gpuPassTimes_{};
 		std::vector<NamedTime> ecsSystemTimes_{};
 		// ECSのarchetype数の最新値

@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/Scripting/Managed/ManagedBridgeExports.h>
+#include <Engine/Core/Scripting/Managed/ManagedSchemaCache.h>
 #include <Engine/Core/Scripting/Managed/DotnetHostResolver.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedAlcStatus.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
@@ -136,121 +138,8 @@ namespace Engine {
 
 		//--------- types --------------------------------------------------------
 
-		// load_assembly_and_get_function_pointerデリゲートのシグネチャ、x64では__stdcallと__cdeclが同一ABIで呼び出し可能
-		using LoadAssemblyAndGetFunctionPointerFn = int32_t(__cdecl*)(const wchar_t*, const wchar_t*,
-			const wchar_t*, const wchar_t*, void*, void**);
-
-		// 全exportは例外を境界外へ出さずManagedStatusで返し、値を返すAPIはout parameter形式にする
-		using InitializeNativeAPIFn = ManagedStatus(__cdecl*)(ManagedNativeAPITable*);
-		using LoadGameAssemblyFn = ManagedStatus(__cdecl*)(const char*);
-		using UnloadGameAssemblyFn = ManagedStatus(__cdecl*)();
-		using GetScriptTypeCountFn = ManagedStatus(__cdecl*)(int32_t*);
-		using CopyScriptTypeInfoFn = ManagedStatus(__cdecl*)(int32_t, ManagedScriptTypeDescriptor*);
-		using GenerateScriptManifestFn = ManagedStatus(__cdecl*)(const char*, const char*);
-		// 二段階blob schema APIで固定長bufferを使わない
-		using GetScriptSchemaJsonSizeFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
-		using CopyScriptSchemaJsonFn = ManagedStatus(__cdecl*)(const char*, char*, int32_t, int32_t*);
-		// Play中runtime Inspectorのためのinstance値readback / set
-		using GetRuntimeStateSizeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, int32_t*);
-		using CopyRuntimeStateFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, char*, int32_t, int32_t*);
-		using SetRuntimeFieldFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, const char*);
-		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, uint64_t, ManagedScriptInstanceHandle*);
-		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*);
-		using DestroyInstanceFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
-		using ConfigureProfilerFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, uint64_t);
-		using InvokeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
-		using InvokeCollisionFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, ManagedCollisionEvent);
-		using InvokeAnimationEventFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, float, int32_t, const char*);
-
-		//--------- variables ----------------------------------------------------
-
-		bool initialized_ = false;
-		bool gameAssemblyLoaded_ = false;
-
-		// hostfxrの探索・ロード・デリゲート取得をRAIIで管理するサービス
-		DotnetHostResolver dotnetHost_;
-
-		InitializeNativeAPIFn initializeNativeAPI_ = nullptr;
-		ConfigureProfilerFn configureProfiler_ = nullptr;
-		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
-		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
-		// SceneイベントpumpのPumpSceneEventsでUnloadGameAssemblyFnと同じ無引数シグネチャ
-		UnloadGameAssemblyFn pumpSceneEvents_ = nullptr;
-		// application終了通知のRaiseApplicationQuittingで同じ無引数シグネチャ
-		UnloadGameAssemblyFn raiseApplicationQuitting_ = nullptr;
-		// per-frame tickのTickFrameでphaseを引数に取る
-		using TickFrameFn = ManagedStatus(__cdecl*)(int32_t);
-		TickFrameFn tickFrame_ = nullptr;
-		// 直近ALC unload statusのGetLastAlcUnloadStatusでintを返す無引数
-		using IntNoArgFn = int32_t(__cdecl*)();
-		IntNoArgFn getLastAlcUnloadStatus_ = nullptr;
-		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
-		CopyScriptTypeInfoFn copyScriptTypeInfo_ = nullptr;
-		GenerateScriptManifestFn generateScriptManifest_ = nullptr;
-		GetScriptSchemaJsonSizeFn getScriptSchemaJsonSize_ = nullptr;
-		CopyScriptSchemaJsonFn copyScriptSchemaJson_ = nullptr;
-		GetRuntimeStateSizeFn getRuntimeStateSize_ = nullptr;
-		CopyRuntimeStateFn copyRuntimeState_ = nullptr;
-		SetRuntimeFieldFn setRuntimeField_ = nullptr;
-		CreateInstanceFn createInstance_ = nullptr;
-		SetSerializedFieldsFn setSerializedFields_ = nullptr;
-		UnloadGameAssemblyFn flushPendingReferences_ = nullptr;
-		DestroyInstanceFn destroyInstance_ = nullptr;
-		InvokeFn invokeAwake_ = nullptr;
-		InvokeFn invokeStart_ = nullptr;
-		InvokeFn invokeOnEnable_ = nullptr;
-		InvokeFn invokeOnDisable_ = nullptr;
-		InvokeFn invokeOnDestroy_ = nullptr;
-		InvokeFn invokeFixedUpdate_ = nullptr;
-		InvokeFn invokeUpdate_ = nullptr;
-		InvokeFn invokeLateUpdate_ = nullptr;
-
-		// Collisionイベント呼び出し関数
-		InvokeCollisionFn invokeCollisionEnter_ = nullptr;
-		InvokeCollisionFn invokeCollisionStay_ = nullptr;
-		InvokeCollisionFn invokeCollisionExit_ = nullptr;
-
-		// アニメーションイベント呼び出し関数
-		InvokeAnimationEventFn invokeAnimationEvent_ = nullptr;
-
-		// ライフサイクル呼び出し中だけ有効なthread_localコンテキストで、ネストや例外や早期returnでも確実に復元する
-		static thread_local const SystemContext* currentContext_;
-		// 実行時Inspectorの参照デシリアライズ中だけ有効なWorld
-		static thread_local ECSWorld* currentReferenceWorld_;
-
-		// gameplay time serviceの状態でmain threadのみ更新、scaleはserviceがauthorityでTimeScaleComponentはseedのみ
-		static float timeScale_;
-		static float scaledDeltaTime_;
-		static float unscaledDeltaTime_;
-		static float fixedDeltaTime_;
-		static double timeSinceStartup_;
-		static double unscaledTime_;
-		static uint64_t frameCount_;
-
-		std::filesystem::path scriptCoreAssemblyPath_;
-		std::filesystem::path gameAssemblyPath_;
-		// Stable Script Type GUIDからparse済みschemaへのマップでreloadで破棄する
-		std::unordered_map<std::string, ManagedScriptSchema> schemaCache_;
-		// 直近のRefreshScriptTypesで反映したmanaged script型数
-		int32_t lastManagedTypeCount_ = 0;
-		// C#のApplication.Quitから受けた遅延終了要求
-		bool applicationQuitRequested_ = false;
-
-		//--------- functions ----------------------------------------------------
-
-		bool LoadHostfxr();
-		bool LoadBridgeFunctions();
-		bool LoadGameAssembly();
-		void ReleaseHostfxr();
-
-		template <typename T>
-		bool LoadBridgeFunction(T& outFunction, const wchar_t* methodName);
-
-		ManagedStatus Invoke(InvokeFn function, ManagedScriptInstanceHandle handle, const SystemContext& context);
-		// C#側のCollisionイベント関数を呼び出す
-		ManagedStatus InvokeCollision(InvokeCollisionFn function, ManagedScriptInstanceHandle handle,
-			const SystemContext& context, const ManagedCollisionEvent& collision);
-
+		using InvokeFn = ManagedBridgeExports::InvokeFn;
+		using InvokeCollisionFn = ManagedBridgeExports::InvokeCollisionFn;
 		//============================================================================
 		//	ScopedInvocationContext
 		//	currentContext_をRAIIで一時設定し、scope離脱時に必ず元へ戻す
@@ -280,6 +169,58 @@ namespace Engine {
 		private:
 			ECSWorld* previous_;
 		};
+
+		//--------- variables ----------------------------------------------------
+
+		bool initialized_ = false;
+		bool gameAssemblyLoaded_ = false;
+
+		// hostfxrの探索・ロード・デリゲート取得をRAIIで管理するサービス
+		DotnetHostResolver dotnetHost_;
+
+		ManagedBridgeExports bridge_;
+
+		// ライフサイクル呼び出し中だけ有効なthread_localコンテキストで、ネストや例外や早期returnでも確実に復元する
+		static thread_local const SystemContext* currentContext_;
+		// 実行時Inspectorの参照デシリアライズ中だけ有効なWorld
+		static thread_local ECSWorld* currentReferenceWorld_;
+
+		// gameplay time serviceの状態でmain threadのみ更新、scaleはserviceがauthorityでTimeScaleComponentはseedのみ
+		static float timeScale_;
+		static float scaledDeltaTime_;
+		static float unscaledDeltaTime_;
+		static float fixedDeltaTime_;
+		static double timeSinceStartup_;
+		static double unscaledTime_;
+		static uint64_t frameCount_;
+
+		std::filesystem::path scriptCoreAssemblyPath_;
+		std::filesystem::path gameAssemblyPath_;
+		// Stable Script Type GUIDからparse済みschemaへのマップでreloadで破棄する
+		ManagedSchemaCache schemaCache_;
+		// 直近のRefreshScriptTypesで反映したmanaged script型数
+		int32_t lastManagedTypeCount_ = 0;
+		// C#のApplication.Quitから受けた遅延終了要求
+		bool applicationQuitRequested_ = false;
+
+		//--------- functions ----------------------------------------------------
+
+		// Nativeのcallback表を構築する
+		static ManagedNativeAPITable CreateNativeCallbacks();
+		// .NETホストを初期化する
+		bool LoadHostfxr();
+		// 必須Managed関数を取得する
+		bool LoadBridgeFunctions();
+		// 起動時のゲームAssemblyを読み込む
+		bool LoadGameAssembly();
+		// .NETホストを解放する
+		void ReleaseHostfxr();
+
+		// 呼出contextを保持してScriptを実行する
+		ManagedStatus Invoke(InvokeFn function, ManagedScriptInstanceHandle handle, const SystemContext& context);
+		// C#側のCollisionイベント関数を呼び出す
+		ManagedStatus InvokeCollision(InvokeCollisionFn function, ManagedScriptInstanceHandle handle,
+			const SystemContext& context, const ManagedCollisionEvent& collision);
 
 		// C#へ渡すコールバック
 		static float __cdecl GetDeltaTimeCallback();
@@ -544,30 +485,4 @@ namespace Engine {
 		static float __cdecl EasedValueCallback(int32_t easingType, float t);
 	};
 
-	//============================================================================
-	//	ManagedScriptRuntime templateMethods
-	//============================================================================
-	template <typename T>
-	inline bool ManagedScriptRuntime::LoadBridgeFunction(T& outFunction, const wchar_t* methodName) {
-
-		auto loadAssemblyAndGetFunctionPointer =
-			reinterpret_cast<LoadAssemblyAndGetFunctionPointerFn>(dotnetHost_.GetLoadAssemblyDelegate());
-		if (!loadAssemblyAndGetFunctionPointer) {
-			outFunction = nullptr;
-			return false;
-		}
-
-		void* function = nullptr;
-		const wchar_t* typeName = L"NEMEngine.HostBridge, NEM.ScriptCore";
-		const wchar_t* unmanagedCallersOnly = reinterpret_cast<const wchar_t*>(-1);
-
-		int32_t result = loadAssemblyAndGetFunctionPointer(
-			scriptCoreAssemblyPath_.c_str(), typeName, methodName, unmanagedCallersOnly, nullptr, &function);
-		if (result != 0 || !function) {
-			outFunction = nullptr;
-			return false;
-		}
-		outFunction = reinterpret_cast<T>(function);
-		return true;
-	}
 } // Engine

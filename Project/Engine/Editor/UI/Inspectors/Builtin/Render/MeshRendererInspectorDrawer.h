@@ -6,7 +6,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
-#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Editor/UI/Inspectors/Common/MaterialReflectionCache.h>
 
 // c++
 #include <string>
@@ -44,9 +44,7 @@ namespace Engine {
 		bool cachedSubMeshLayoutResolved_ = false;
 
 		// マテリアル既定値とreflection解決のためのキャッシュ
-		AssetID cachedMaterialID_{};
-		MaterialAsset cachedMaterial_{};
-		bool cachedMaterialValid_ = false;
+		MaterialReflectionCache materialReflection_;
 
 		// サブメッシュのマテリアルパラメータをまとめて編集するモードと上書き許可済みparam
 		bool batchEditSubMeshMaterials_ = false;
@@ -58,6 +56,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// Componentの編集項目を表示する
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
 		// ワールドのDynamicBufferから編集用配列を同期する
@@ -91,11 +90,6 @@ namespace Engine {
 			const EditorPanelContext& context,
 			const MeshRendererComponent& renderer,
 			const SubMeshMaterial& subMesh) const;
-		// マテリアルのDrawパスreflectionを解決しキャッシュする、失敗時はnullptr
-		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context, AssetID materialID);
-		// サブメッシュのparam最終値を解決する、上書き無しはマテリアル既定値か型既定値
-		MaterialParameterValue ResolveSubMeshParamValue(const SubMeshMaterial& subMesh,
-			const ShaderConstantBufferVariable& var) const;
 		// モデルファイルのマテリアル係数とテクスチャを現shaderのmaterialInstanceへ再適用する
 		void ApplyModelMaterialParameters(const EditorPanelContext& context, MeshRendererComponent& draft);
 		// シェーダーreflection駆動でサブメッシュ単位のマテリアルパラメータを編集する
@@ -106,4 +100,3 @@ namespace Engine {
 			MeshRendererComponent& draft, bool& anyItemActive);
 	};
 } // Engine
-

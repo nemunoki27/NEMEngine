@@ -10,12 +10,12 @@ public static class Application {
     private static bool initialized;
 
     // ウィンドウがフォーカスを持っているか（Win32 WM_SETFOCUS/KILLFOCUS/ACTIVATE 由来）
-    public static bool HasFocus => NativeAPI.ReadHasFocus();
+    public static bool HasFocus => NativeApplicationAPI.ReadHasFocus();
     // runtime pause 状態。既存の application pause state が無いため TimeScale==0 を pause とみなす。
-    public static bool IsPaused => NativeAPI.ReadTimeScale() == 0.0f;
+    public static bool IsPaused => NativeApplicationAPI.ReadTimeScale() == 0.0f;
 
     // 実行中プロジェクトの絶対パスを返す、製品ビルドでは製品フォルダーを指す
-    public static string ProjectRoot => NativeAPI.ReadProjectRoot();
+    public static string ProjectRoot => NativeApplicationAPI.ReadProjectRoot();
 
     public static event Action<bool>? FocusChanged;
     public static event Action<bool>? PauseChanged;
@@ -23,7 +23,7 @@ public static class Application {
 
     // DebugとDevelopではPlayを終了し、Releaseではアプリケーションを終了する。
     public static void Quit() {
-        NativeAPI.RequestApplicationQuitCall();
+        NativeApplicationAPI.RequestApplicationQuitCall();
     }
 
     // 毎フレーム（Pass4）pump され、focus / pause 状態の変化を検出して通知する。

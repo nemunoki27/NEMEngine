@@ -43,22 +43,5 @@ namespace Engine {
 		static ResolvedRenderView BuildFromManualCamera(RenderViewKind kind,
 			const ManualRenderCameraState& state, uint32_t width, uint32_t height);
 
-		//-------- orthographic --------------------------------------------------
-
-		static ResolvedCameraView ResolveBestOrthographicCamera(ECSWorld& world, uint32_t width, uint32_t height);
-		static ResolvedCameraView BuildFromOrthographicCamera(const Entity& entity,
-			const TransformComponent& transform, OrthographicCameraComponent& camera);
-		static ResolvedCameraView BuildManualOrthographic(const ManualRenderCameraState& state, uint32_t width, uint32_t height);
-		static ResolvedCameraView ResolvePreferredOrthographicCamera(ECSWorld& world, UUID preferredCameraUUID,
-			uint32_t width, uint32_t height);
-
-		//-------- perspective ---------------------------------------------------
-
-		static ResolvedCameraView ResolveBestPerspectiveCamera(ECSWorld& world, uint32_t width, uint32_t height);
-		static ResolvedCameraView BuildFromPerspectiveCamera(const Entity& entity,
-			const TransformComponent& transform, PerspectiveCameraComponent& camera);
-		static ResolvedCameraView BuildManualPerspective(const ManualRenderCameraState& state, uint32_t width, uint32_t height);
-		static ResolvedCameraView ResolvePreferredPerspectiveCamera(ECSWorld& world, UUID preferredCameraUUID,
-			uint32_t width, uint32_t height);
 	};
 } // Engine

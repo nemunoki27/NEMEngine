@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include "MeshMaterialBuffers.h"
+#include "MeshBatchViewResources.h"
+#include "MeshSkinningBufferSet.h"
 #include <Engine/Core/Rendering/Renderer/Backends/Common/DefaultStructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
@@ -42,40 +45,9 @@ namespace Engine {
 	//	MeshBatchResources structures
 	//============================================================================
 	// 定数バッファ
-	struct MeshViewConstants {
 
-		// 実際に描画するビューの行列
-		Matrix4x4 viewProjection = Matrix4x4::Identity();
-		Matrix4x4 previousViewProjection = Matrix4x4::Identity();
-		// カリング判定に使うビューの行列でSceneViewではGameViewの行列になる
-		Matrix4x4 cullingViewProjection = Matrix4x4::Identity();
-		// Contribution CullingでカリングカメラのView空間へ変換する
-		Matrix4x4 cullingView = Matrix4x4::Identity();
-		// NormalCone判定で使用するカリングカメラ位置
-		Vector3 cullingCameraPos = Vector3::AnyInit(0.0f);
-		// Nearより手前に球がかかる場合はContribution判定を安全側で無効にする
-		float cullingNearClip = 0.001f;
-		// Hi-Z判定で球の最前面を求めるカリングカメラ前方
-		Vector3 cullingCameraForward = Vector3(0.0f, 0.0f, 1.0f);
-		float _cullingPad0 = 0.0f;
-		// 描画先Viewportサイズ
-		Vector2 viewSize = Vector2::AnyInit(1.0f);
-		// カリング対象ViewportサイズでSceneView表示時もGameViewサイズを使う
-		Vector2 cullingViewSize = Vector2::AnyInit(1.0f);
-		// Projection行列のX/Y倍率でViewProjectionから取るとカメラ回転で値が崩れる
-		Vector2 cullingProjectionScale = Vector2::AnyInit(1.0f);
-		Vector2 _pad0 = Vector2::AnyInit(0.0f);
-		// PBRライト計算に使う、実際に描画しているビューのカメラ位置
-		Vector3 renderCameraPos = Vector3::AnyInit(0.0f);
-		uint32_t frameSerial = 0;
-	};
 	static_assert(sizeof(MeshViewConstants) % 16 == 0);
-	struct MeshIndirectArgsConstants {
 
-		// ExecuteIndirectのDrawIndexedInstancedに渡すIndex数
-		uint32_t indexCount = 0;
-		uint32_t _pad[3] = { 0, 0, 0 };
-	};
 	// 頂点/メッシュシェーダインスタンスデータ
 	struct MeshInstanceData {
 
@@ -206,15 +178,15 @@ namespace Engine {
 		ID3D12Resource* GetSkinnedPackedVerticesResource() const { return  skinning_->skinnedPackedVertices.GetResource(); }
 
 		// GPUアドレスを取得する
-		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress(RenderViewKind kind) const { return view_[ToViewIndex(kind)].GetGPUAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress(RenderViewKind kind) const { return viewResources_.GetViewGPUAddress(kind); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetInstanceMeshGPUAddress() const { return meshData_.GetGPUAddress(); }
 		// カリングComputeが書き込み、ExecuteIndirect/ASが読む可視インスタンス配列
 		D3D12_GPU_VIRTUAL_ADDRESS GetVisibleInstanceMeshGPUAddress() const { return visibleMeshData_.GetGPUAddress(); }
-		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return drawGPUAddress_; }
-		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return indirectArgsGPUAddress_; }
+		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return viewResources_.GetDrawGPUAddress(); }
+		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return viewResources_.GetIndirectGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
 		// reflection駆動のサブメッシュ単位マテリアルパラメータバッファ
-		bool HasSubMeshMaterialParams() const { return activeSubMeshParamBuffer_ && activeSubMeshParamBuffer_->available; }
+		bool HasSubMeshMaterialParams() const { return materialBuffers_.IsAvailable(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const;
 		D3D12_GPU_DESCRIPTOR_HANDLE GetSubMeshMaterialParamGPUHandle() const;
 		std::string_view GetSubMeshMaterialParamBindingName() const { return MaterialParameterCBuffer::kMesh; }
@@ -222,7 +194,7 @@ namespace Engine {
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
 		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }
 		// ScreenSpaceOutline Mask描画用のper-draw定数(Style ID / SubMesh制限)
-		D3D12_GPU_VIRTUAL_ADDRESS GetScreenSpaceOutlineMaskGPUAddress() const { return screenSpaceOutlineMaskGPUAddress_; }
+		D3D12_GPU_VIRTUAL_ADDRESS GetScreenSpaceOutlineMaskGPUAddress() const { return viewResources_.GetMaskGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningPaletteGPUAddress() const { return skinning_->skinningPalette.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningConstantsGPUAddress() const { return skinning_->skinningConstants.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedVerticesGPUAddress() const { return skinning_->skinnedVertices.GetGPUAddress(); }
@@ -278,66 +250,20 @@ namespace Engine {
 		//--------- structure ----------------------------------------------------
 
 		// スキニング用のリソースをまとめた構造体
-		struct OptionalSkinningResources {
 
-			StructuredInstanceBuffer<WellForGPU> skinningPalette{ "gSkinningPalette" };
-			StructuredRWBuffer<MeshVertex> skinnedVertices{ "gSkinnedVertices" };
-			// MeshShader用に法線をOct圧縮したスキニング結果を保持する
-			StructuredRWBuffer<MeshPackedVertex> skinnedPackedVertices{ "gSkinnedPackedVertices" };
-			ViewConstantBuffer<MeshSkinningDispatchConstants> skinningConstants{ "SkinningConstants" };
-
-			D3D12_RESOURCE_STATES skinnedVertexState = D3D12_RESOURCE_STATE_COMMON;
-			D3D12_RESOURCE_STATES skinnedPackedVertexState = D3D12_RESOURCE_STATE_COMMON;
-		};
 		// 同一フレーム内で別パスが通常描画のUpload Heapを書き換えないよう、
 		// MaterialPass単位で独立した可変strideバッファを保持する
-		struct SubMeshMaterialParamBuffer {
-
-			DxFrameMappedUploadBuffer buffer{};
-			std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
-				kGraphicsFrameContextCount> handles{};
-			std::array<uint32_t, kGraphicsFrameContextCount>
-				srvIndices = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
-			std::vector<uint32_t> retiredSrvIndices{};
-			std::vector<uint8_t> packedScratch{};
-			std::vector<uint64_t> sourceGenerations;
-			uint64_t packedSourceGeneration = 0;
-			std::vector<uint64_t> elementGenerations;
-			std::array<std::vector<uint64_t>, kGraphicsFrameContextCount> uploadedElements;
-			uint64_t layoutHash = 0;
-			uint64_t materialHash = 0;
-			const MaterialAsset* material = nullptr;
-			uint64_t dataGeneration = 1;
-			std::array<uint64_t, kGraphicsFrameContextCount>
-				uploadedGenerations = { 0, 0, 0 };
-			uint32_t stride = 0;
-			bool available = false;
-			bool dirty = true;
-		};
 
 		//--------- variables ----------------------------------------------------
 
 		// ビューバッファ
-		std::array<ViewConstantBuffer<MeshViewConstants>, 2> view_ = {
-			ViewConstantBuffer<MeshViewConstants>{ "ViewConstants" },
-			ViewConstantBuffer<MeshViewConstants>{ "ViewConstants" }
-		};
-
+		MeshBatchViewResources viewResources_{};
 		// バッファ
 		DefaultStructuredInstanceBuffer<MeshInstanceData> meshData_{ "gMeshInstances" };
 		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
 		// 同一フレーム内の複数パスで上書きしないper-draw定数領域
-		PostProcessConstantBufferAllocator dynamicConstantAllocator_{};
-		uint64_t dynamicConstantFrameSerial_ = 0;
-		std::array<uint64_t, 2> viewUploadFrameSerials_ = { 0, 0 };
-		std::array<Matrix4x4, 2> previousViewProjections_ = {
-			Matrix4x4::Identity(), Matrix4x4::Identity()
-		};
-		std::array<bool, 2> previousViewValid_ = { false, false };
-		D3D12_GPU_VIRTUAL_ADDRESS drawGPUAddress_ = 0;
-		D3D12_GPU_VIRTUAL_ADDRESS screenSpaceOutlineMaskGPUAddress_ = 0;
-		D3D12_GPU_VIRTUAL_ADDRESS indirectArgsGPUAddress_ = 0;
+
 		DefaultStructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
 		// 背面法アウトラインのインスタンス別GPUデータ
 		DefaultStructuredInstanceBuffer<MeshOutlineGPUData> outlineData_{ "gMeshOutlines" };
@@ -347,11 +273,7 @@ namespace Engine {
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		// UploadBatchDataで集めるインスタンス×サブメッシュ単位の上書きパラメータ
 		std::vector<MaterialParameterSet> subMeshParamScratch_{};
-		static constexpr size_t kSubMeshMaterialPassBufferCount =
-			static_cast<size_t>(MaterialPassKind::RayTracing) + 1;
-		std::array<std::unique_ptr<SubMeshMaterialParamBuffer>,
-			kSubMeshMaterialPassBufferCount> subMeshParamBuffers_{};
-		SubMeshMaterialParamBuffer* activeSubMeshParamBuffer_ = nullptr;
+		MeshMaterialBuffers materialBuffers_{};
 		// 頂点変位Boundsのマテリアル別キャッシュ
 		const MaterialAsset* displacementMetricMaterial_ = nullptr;
 		uint64_t displacementMetricMaterialHash_ = 0;
@@ -363,7 +285,7 @@ namespace Engine {
 		D3D12_RESOURCE_STATES visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 
 		// スキニング用バッファ
-		std::unique_ptr<OptionalSkinningResources> skinning_{};
+		std::unique_ptr<MeshSkinningBufferSet> skinning_{};
 
 		// キャッシュへECSのComponentポインターを保持しない
 		struct CachedInstance {
@@ -396,12 +318,7 @@ namespace Engine {
 		std::vector<MeshOutlineGPUData> outlineScratch_{};
 
 		// upload済みアウトラインデータから計算した保守的メトリクス
-		struct OutlineBatchMetrics {
 
-			float maxModelExpansion = 0.0f;
-			float maxAbsCameraZOffset = 0.0f;
-			bool hasScreenPixelWidth = false;
-		};
 		OutlineBatchMetrics outlineMetrics_{};
 
 		// スキニング用の毎バッチ再利用するデータ
@@ -430,22 +347,14 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 描画対象からCPU転送データを構築する
 		void BuildBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
 
 		// CPU側のキャッシュ識別情報を取得する
 		static CachedInstance MakeCachedInstance(const RenderSceneBatch& batch, const RenderItem& item);
 		// 現在のフレームスロットを再利用する前にper-draw定数の切り出し位置を戻す
-		void BeginDynamicConstantsFrame();
 		// マテリアルとサブメッシュ上書きから最大頂点変位量を求める
 		float ResolveMaxDisplacement(const MaterialAsset* material);
-		// 描画パス専用のサブメッシュマテリアルバッファを遅延生成する
-		SubMeshMaterialParamBuffer& GetSubMeshMaterialParamBuffer(
-			MaterialPassKind passKind);
-		// SRV Descriptorを含めてパス専用バッファを解放する
-		void ReleaseSubMeshMaterialParamBuffer(
-			SubMeshMaterialParamBuffer& buffer);
-		static constexpr size_t ToViewIndex(RenderViewKind kind) { return static_cast<size_t>(kind); }
 	};
 } // Engine
-

@@ -31,7 +31,6 @@ namespace Engine {
 			const ParticleSpawnIndex& spawnIndex) const override;
 		void DrawShape(const ParticleEmitterSettings& settings,
 			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
-		bool DrawImGui(ParticleEmitterSettings& settings) const;
 
 		//--------- accessor -----------------------------------------------------
 

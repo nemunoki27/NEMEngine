@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 //============================================================================
@@ -36,16 +35,5 @@ void Engine::ParticleSphereEmitterShape::DrawShape(const ParticleEmitterSettings
 		return;
 	}
 	renderer->DrawSphere(center, settings.sphere.radius, Color4::Red(), 1.0f);
-#endif
-}
-
-bool Engine::ParticleSphereEmitterShape::DrawImGui([[maybe_unused]] ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool result = MyGUI::DragFloat("半径", settings.sphere.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-
-	return result;
-#else
-	return false;
 #endif
 }

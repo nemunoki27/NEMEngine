@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Core/IInspectorComponentDrawer.h>
+#include "SerializedComponentEditSession.h"
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Commands/Components/SetSerializedComponentCommand.h>
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
@@ -26,7 +27,8 @@ namespace Engine {
 	//============================================================================
 	template <typename T>
 	class SerializedComponentInspectorDrawer :
-		public IInspectorComponentDrawer {
+		public IInspectorComponentDrawer,
+		protected SerializedComponentEditHooks<T> {
 	public:
 		//============================================================================
 		//	public Methods
@@ -34,7 +36,7 @@ namespace Engine {
 
 		SerializedComponentInspectorDrawer(const std::string_view& headerLabel,
 			const std::string_view& componentTypeName, bool drawHeader = true) :
-			headerLabel_(headerLabel), componentTypeName_(componentTypeName), drawHeader_(drawHeader) {}
+			headerLabel_(headerLabel), drawHeader_(drawHeader), session_(componentTypeName) {}
 		~SerializedComponentInspectorDrawer() = default;
 
 		// インスペクター描画
@@ -76,11 +78,11 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// コミットを要求する
-		void RequestCommit() { commitRequested_ = true; }
+		void RequestCommit() { session_.RequestCommit(); }
 
 		// ドラフトのコンポーネントを返す
-		T& GetDraft() { return draftComponent_; }
-		const T& GetDraft() const { return draftComponent_; }
+		T& GetDraft() { return session_.GetDraft(); }
+		const T& GetDraft() const { return session_.GetDraft(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -90,35 +92,21 @@ namespace Engine {
 
 		// インスペクターのヘッダのラベル
 		std::string headerLabel_{};
-		std::string componentTypeName_{};
 		// falseなら派生Drawerが最上位ヘッダーを描画する
 		bool drawHeader_ = true;
 
-		// 編集中のエンティティのUUID
-		UUID editingEntityStableUUID_{};
-		T draftComponent_{};
-
-		// 編集中か
-		bool isEditing_ = false;
-		// コミットが必要な状態か
-		bool commitRequested_ = false;
-
-		// プレビューがアクティブか
-		bool previewActive_ = false;
-		bool previewRequested_ = false;
-		// プレビュー開始時のコンポーネントの状態
-		T previewBeginComponent_{};
-		nlohmann::json previewBeginData_{};
+		// ドラフトとプレビューの編集セッション
+		SerializedComponentEditSession<T> session_;
 
 		//--------- functions ----------------------------------------------------
 
-		// 現在のドラフトをワールドから更新する
-		void SyncDraftFromWorld(ECSWorld& world, const Entity& entity);
-		// ドラフトの内容をワールドに反映する
-		void CommitIfNeeded(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
-		// プレビューが必要なら適用する
-		void ApplyPreviewIfNeeded(ECSWorld& world, const Entity& entity);
 	};
+
+	template<typename T>
+	inline void SerializedComponentInspectorDrawer<T>::PushEditResult(const ValueEditResult& result, bool& anyItemActive) {
+
+		session_.PushEditResult(result, anyItemActive);
+	}
 
 	//============================================================================
 	//	SerializedComponentInspectorDrawer templateMethods
@@ -134,8 +122,8 @@ namespace Engine {
 
 		// エンティティが変わった、または編集中でない場合はワールドからドラフトを同期
 		const UUID stableUUID = world.GetUUID(entity);
-		if (editingEntityStableUUID_ != stableUUID || !isEditing_) {
-			SyncDraftFromWorld(world, entity);
+		if (session_.NeedsSync(stableUUID)) {
+			session_.SyncDraftFromWorld(world, entity, *this);
 		}
 
 		if (drawHeader_) {
@@ -147,7 +135,7 @@ namespace Engine {
 				if (ImGui::MenuItem("Remove Component")) {
 					if (context.host) {
 						context.host->ExecuteEditorCommand(
-							std::make_unique<RemoveComponentCommand>(entity, componentTypeName_));
+							std::make_unique<RemoveComponentCommand>(entity, session_.GetComponentTypeName()));
 					}
 				}
 				ImGui::EndPopup();
@@ -163,29 +151,19 @@ namespace Engine {
 		DrawFields(context, world, entity, anyItemActive);
 
 		// 編集結果を適用
-		ApplyPreviewIfNeeded(world, entity);
+		session_.ApplyPreviewIfNeeded(world, entity, *this);
 
 		// 編集中状態を更新
-		isEditing_ = anyItemActive;
+		session_.SetEditing(anyItemActive);
 
 		// 必要ならコミット
-		CommitIfNeeded(context, world, entity);
+		session_.CommitIfNeeded(context, world, entity, *this);
 	}
 
 	template<typename T>
 	inline bool SerializedComponentInspectorDrawer<T>::CanDraw(ECSWorld& world, const Entity& entity) const {
 
 		return world.HasComponent<T>(entity);
-	}
-
-	template<typename T>
-	inline void SerializedComponentInspectorDrawer<T>::PushEditResult(const ValueEditResult& result, bool& anyItemActive) {
-
-		InspectorDrawerCommon::AccumulateEditResult(result, anyItemActive, commitRequested_);
-
-		if (result.valueChanged) {
-			previewRequested_ = true;
-		}
 	}
 
 	template<typename T>
@@ -216,105 +194,6 @@ namespace Engine {
 			SerializeComponentDraft(component, out);
 		} else {
 			out = component;
-		}
-	}
-
-	template<typename T>
-	inline void SerializedComponentInspectorDrawer<T>::SyncDraftFromWorld(ECSWorld& world, const Entity& entity) {
-
-		// エンティティが存在しない、またはコンポーネントがない場合は何もしない
-		if (!world.IsAlive(entity) || !world.HasComponent<T>(entity)) {
-			return;
-		}
-
-		// ワールドからドラフトを更新
-		draftComponent_ = world.GetComponent<T>(entity);
-		editingEntityStableUUID_ = world.GetUUID(entity);
-
-		// ドラフトをワールドから同期したのでプレビュー状態をリセット
-		previewActive_ = false;
-		previewRequested_ = false;
-		previewBeginComponent_ = T{};
-		previewBeginData_ = nlohmann::json{};
-
-		// ドラフトをワールドから同期した後の追加処理
-		OnSyncDraftFromWorld(world, entity, draftComponent_);
-	}
-
-	template<typename T>
-	inline void SerializedComponentInspectorDrawer<T>::CommitIfNeeded(const EditorPanelContext& context,
-		ECSWorld& world, const Entity& entity) {
-
-		if (!commitRequested_) {
-			return;
-		}
-		commitRequested_ = false;
-
-		if (!world.IsAlive(entity) || !world.HasComponent<T>(entity)) {
-			return;
-		}
-
-		const T beforeComponent = previewActive_ ? previewBeginComponent_ : world.GetComponent<T>(entity);
-
-		T afterComponent = draftComponent_;
-		OnBeforeCommit(beforeComponent, afterComponent);
-
-		nlohmann::json beforeData;
-		if (previewActive_) {
-			beforeData = previewBeginData_;
-		} else if (!world.SerializeComponentToJson(entity, componentTypeName_, beforeData)) {
-			return;
-		}
-		nlohmann::json afterData;
-		SerializeDraft(world, entity, afterComponent, afterData);
-
-		// シリアライズ後のデータが同じならコミットしない
-		if (beforeData == afterData) {
-			previewActive_ = false;
-			SyncDraftFromWorld(world, entity);
-			return;
-		}
-
-		// コマンドを実行して変更をコミット
-		context.host->ExecuteEditorCommand(std::make_unique<SetSerializedComponentCommand>(
-			entity, componentTypeName_, beforeData, afterData));
-
-		previewActive_ = false;
-		SyncDraftFromWorld(world, entity);
-	}
-
-	template<typename T>
-	inline void SerializedComponentInspectorDrawer<T>::ApplyPreviewIfNeeded(ECSWorld& world, const Entity& entity) {
-
-		if (!previewRequested_) {
-			return;
-		}
-		previewRequested_ = false;
-
-		if (!world.IsAlive(entity) || !world.HasComponent<T>(entity)) {
-			return;
-		}
-
-		if (!previewActive_) {
-			previewBeginComponent_ = world.GetComponent<T>(entity);
-			if (!world.SerializeComponentToJson(entity, componentTypeName_, previewBeginData_)) {
-				return;
-			}
-			previewActive_ = true;
-		}
-
-		T previewComponent = draftComponent_;
-		OnBeforeCommit(previewBeginComponent_, previewComponent);
-
-		// プレビューを適用
-		ApplyPreview(world, entity, previewComponent);
-		OnAfterPreviewApplied(world, entity, previewComponent);
-
-		// プレビュー適用後のワールド状態へドラフトを再同期
-		if (world.IsAlive(entity) && world.HasComponent<T>(entity)) {
-
-			draftComponent_ = world.GetComponent<T>(entity);
-			OnSyncDraftFromWorld(world, entity, draftComponent_);
 		}
 	}
 

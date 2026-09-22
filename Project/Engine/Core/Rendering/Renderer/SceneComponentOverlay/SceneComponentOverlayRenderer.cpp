@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -128,7 +129,6 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 	DxShaderCompiler* compiler = graphicsCore.GetDXObject().GetDxShaderCompiler();
 
 	PipelinePair pair{};
-	pair.sprite = std::make_unique<PipelineState>();
 	{
 		GraphicsPipelineDesc desc{};
 		desc.type = PipelineType::Vertex;
@@ -146,7 +146,8 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 		desc.numRenderTargets = 1;
 		desc.rtvFormats[0] = rtvFormat;
 		desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
-		if (!pair.sprite->CreateGraphics(device, compiler, desc)) {
+		pair.sprite = PipelineStateBuilder::CreateGraphics(device, compiler, desc);
+		if (!pair.sprite) {
 			return nullptr;
 		}
 	}
