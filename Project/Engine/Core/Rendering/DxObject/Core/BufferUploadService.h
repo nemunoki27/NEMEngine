@@ -69,11 +69,11 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// Submit済みでGPU完了待ちのstaging一式
+		// Submit済みでGPU完了待ちの転送元と転送先
 		struct PendingBufferUploadBatch {
 
 			uint64_t fenceValue = 0;
-			std::vector<ComPtr<ID3D12Resource>> stagingResources;
+			std::vector<ComPtr<ID3D12Resource>> retainedResources;
 		};
 
 		// アロケータ/リストを使い回すためのリングコンテキスト
@@ -83,8 +83,8 @@ namespace Engine {
 			ComPtr<ID3D12GraphicsCommandList> commandList;
 			// このコンテキストで最後に積んだBatchのFence値(Reset安全性の判定に使う)
 			uint64_t lastFenceValue = 0;
-			// Submitまで保持するstaging
-			std::vector<ComPtr<ID3D12Resource>> stagingResources;
+			// Submitまで保持する転送元と転送先
+			std::vector<ComPtr<ID3D12Resource>> retainedResources;
 		};
 
 		//--------- variables ----------------------------------------------------

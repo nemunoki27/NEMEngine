@@ -16,6 +16,7 @@ namespace Engine {
 		ID3D12Device* device, size_t requiredSize,
 		std::string_view resourceName, size_t minimumCapacity) {
 
+		Assert::Call(retirementQueue_ != nullptr, "Upload Bufferの回収窓口が設定されていません");
 		requiredSize = (std::max)(requiredSize, minimumCapacity);
 		if (requiredSize <= capacity_) {
 			return false;
@@ -30,7 +31,7 @@ namespace Engine {
 			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
 			if (resources_[frameIndex]) {
-				retiredResources_.Retire(std::move(resources_[frameIndex]));
+				retirementQueue_->Retire(std::move(resources_[frameIndex]));
 			}
 			mappedData_[frameIndex] = nullptr;
 			DxUtils::CreateBufferResource(
@@ -53,7 +54,6 @@ namespace Engine {
 	void DxFrameMappedUploadBuffer::Write(
 		const void* data, size_t sizeInBytes, size_t offset) {
 
-		retiredResources_.Collect();
 		if (!data || sizeInBytes == 0) {
 			return;
 		}
@@ -68,9 +68,44 @@ namespace Engine {
 
 	void DxFrameMappedUploadBuffer::Release() {
 
-		resources_ = {};
+		for (auto& resource : resources_) {
+			if (resource) retirementQueue_->Retire(std::move(resource));
+		}
 		mappedData_ = {};
-		retiredResources_.Clear();
 		capacity_ = 0;
 	}
+}
+
+Engine::DxFrameMappedUploadBuffer::~DxFrameMappedUploadBuffer() {
+
+	Release();
+}
+
+Engine::DxFrameMappedUploadBuffer::DxFrameMappedUploadBuffer(DxFrameMappedUploadBuffer&& other) noexcept {
+
+	Swap(other);
+}
+
+Engine::DxFrameMappedUploadBuffer& Engine::DxFrameMappedUploadBuffer::operator=(
+	DxFrameMappedUploadBuffer&& other) noexcept {
+
+	if (this != &other) {
+		Release();
+		Swap(other);
+	}
+	return *this;
+}
+
+void Engine::DxFrameMappedUploadBuffer::Swap(DxFrameMappedUploadBuffer& other) noexcept {
+
+	std::swap(resources_, other.resources_);
+	std::swap(mappedData_, other.mappedData_);
+	std::swap(retirementQueue_, other.retirementQueue_);
+	std::swap(capacity_, other.capacity_);
+}
+
+void Engine::DxFrameMappedUploadBuffer::SetRetirementQueue(GraphicsResourceRetirement& queue) {
+
+	Assert::Call(capacity_ == 0 || retirementQueue_ == &queue, "使用中のUpload Bufferの回収窓口は変更できません");
+	retirementQueue_ = &queue;
 }

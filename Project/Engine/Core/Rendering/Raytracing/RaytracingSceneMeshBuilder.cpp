@@ -355,6 +355,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				GraphicsFrameState::GetFrameSerial();
 			if (!entry.blas.IsBuilt()) {
 
+				entry.blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());
 				entry.blas.Build(work.device, work.commandList, input);
 				FrameProfiler::GetInstance().AddBLASBuild(
 					static_cast<uint32_t>(geometries.size()));
@@ -405,6 +406,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				geometryLayoutHash;
 			if (!blas.IsBuilt()) {
 
+				blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());
 				blas.Build(work.device, work.commandList, lodInput);
 				FrameProfiler::GetInstance().AddBLASBuild(
 					static_cast<uint32_t>(lodGeometries.size()));
@@ -462,6 +464,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 
 				BottomLevelAccelerationStructure& blas =
 					blasCache_.blases_[key];
+				blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());
 				blas.Build(work.device, work.commandList, lodInput);
 				FrameProfiler::GetInstance().
 					AddBLASBuild(

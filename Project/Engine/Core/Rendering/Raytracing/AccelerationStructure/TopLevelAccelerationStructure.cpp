@@ -6,7 +6,8 @@
 void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances, bool allowUpdate) {
 
-	retiredResources_.Collect();
+	Assert::Call(retirementQueue_ != nullptr, "ASの回収窓口が設定されていません");
+
 	device_ = device;
 	allowUpdate_ = allowUpdate;
 
@@ -35,10 +36,10 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 
 	// 再構築前のASは実行中フレームから参照されるため所有を保持する
 	if (scratch_.GetResource()) {
-		retiredResources_.Retire(scratch_.TakeResource());
+		retirementQueue_->Retire(scratch_.TakeResource());
 	}
 	if (result_.GetResource()) {
-		retiredResources_.Retire(result_.TakeResource());
+		retirementQueue_->Retire(result_.TakeResource());
 	}
 	// スクラッチと結果のバッファを作成
 	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
@@ -64,7 +65,6 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 void Engine::TopLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances) {
 
-	retiredResources_.Collect();
 	// 更新が許可されていない、またはASが構築されていない場合は何もしない
 	if (!allowUpdate_ || !result_.GetResource()) {
 		return;
@@ -97,7 +97,6 @@ void Engine::TopLevelAccelerationStructure::Rebuild(
 	ID3D12GraphicsCommandList6* commandList,
 	const std::vector<RaytracingTLASInstance>& instances) {
 
-	retiredResources_.Collect();
 	if (!result_.GetResource() ||
 		instances.size() != inputs_.NumDescs) {
 		Build(device_, commandList, instances, allowUpdate_);
@@ -160,4 +159,56 @@ void Engine::TopLevelAccelerationStructure::CopyMatrix3x4(float(&dst)[3][4], con
 			dst[r][c] = src.m[r][c];
 		}
 	}
+}
+
+Engine::TopLevelAccelerationStructure::~TopLevelAccelerationStructure() {
+
+	Release();
+}
+
+Engine::TopLevelAccelerationStructure::TopLevelAccelerationStructure(TopLevelAccelerationStructure&& other) noexcept {
+
+	Swap(other);
+}
+
+Engine::TopLevelAccelerationStructure& Engine::TopLevelAccelerationStructure::operator=(
+	TopLevelAccelerationStructure&& other) noexcept {
+
+	if (this != &other) {
+		Release();
+		Swap(other);
+	}
+	return *this;
+}
+
+void Engine::TopLevelAccelerationStructure::Swap(TopLevelAccelerationStructure& other) noexcept {
+
+	std::swap(scratch_, other.scratch_);
+	std::swap(result_, other.result_);
+	std::swap(instanceDescBuffer_, other.instanceDescBuffer_);
+	std::swap(retirementQueue_, other.retirementQueue_);
+	std::swap(inputs_, other.inputs_);
+	std::swap(buildDesc_, other.buildDesc_);
+	std::swap(device_, other.device_);
+	std::swap(allowUpdate_, other.allowUpdate_);
+	std::swap(instanceDescScratch_, other.instanceDescScratch_);
+}
+
+void Engine::TopLevelAccelerationStructure::SetRetirementQueue(GraphicsResourceRetirement& queue) {
+
+	Assert::Call(!IsBuilt() || retirementQueue_ == &queue, "使用中のASの回収窓口は変更できません");
+	instanceDescBuffer_.SetRetirementQueue(queue);
+	retirementQueue_ = &queue;
+}
+
+void Engine::TopLevelAccelerationStructure::Release() {
+
+	if (scratch_.GetResource()) retirementQueue_->Retire(scratch_.TakeResource());
+	if (result_.GetResource()) retirementQueue_->Retire(result_.TakeResource());
+	instanceDescBuffer_.Release();
+	inputs_ = {};
+	buildDesc_ = {};
+	device_ = nullptr;
+	allowUpdate_ = false;
+	instanceDescScratch_.clear();
 }

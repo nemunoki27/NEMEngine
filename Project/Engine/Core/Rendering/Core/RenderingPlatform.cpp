@@ -168,6 +168,8 @@ void GraphicsPlatform::SubmitFrame() {
 void GraphicsPlatform::PresentFrame(IDXGISwapChain4* swapChain) {
 
 	framePresenter_->Present(swapChain);
+	resourceRetirement_.Seal(dxCommand_->GetFrameFenceValue(dxCommand_->GetCurrentFrameIndex()));
+	resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
 }
 
 void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
@@ -191,6 +193,7 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 	dxCommand_->BeginFrame(frameIndex);
 	const uint64_t completedFenceValue =
 		dxCommandQueue_->GetCompletedFenceValue();
+	resourceRetirement_.Collect(completedFenceValue);
 	const uint64_t lastFenceValue =
 		dxCommandQueue_->GetLastSignaledFenceValue();
 	FrameProfiler::GetInstance().SetFrameContextStatistics(
@@ -207,6 +210,8 @@ void GraphicsPlatform::WaitForGPU() {
 		const uint64_t fenceValue = dxCommandQueue_->Signal();
 		dxCommandQueue_->WaitForFenceValue(
 			fenceValue, "GraphicsPlatform::WaitForGPU/Drain");
+		resourceRetirement_.Seal(fenceValue);
+		resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
 		dxCommand_->SetCurrentFrameFenceValue(fenceValue);
 		dxCommand_->ResetCommandList();
 		return;
@@ -215,4 +220,6 @@ void GraphicsPlatform::WaitForGPU() {
 	const uint64_t fenceValue = dxCommandQueue_->Signal();
 	dxCommandQueue_->WaitForFenceValue(
 		fenceValue, "GraphicsPlatform::WaitForGPU/QueueDrain");
+	resourceRetirement_.Seal(fenceValue);
+	resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
 }

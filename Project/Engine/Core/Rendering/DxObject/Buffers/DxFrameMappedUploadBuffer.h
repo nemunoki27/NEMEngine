@@ -29,7 +29,14 @@ namespace Engine {
 		//============================================================================
 
 		DxFrameMappedUploadBuffer() = default;
-		~DxFrameMappedUploadBuffer() = default;
+		~DxFrameMappedUploadBuffer();
+		DxFrameMappedUploadBuffer(const DxFrameMappedUploadBuffer&) = delete;
+		DxFrameMappedUploadBuffer& operator=(const DxFrameMappedUploadBuffer&) = delete;
+		DxFrameMappedUploadBuffer(DxFrameMappedUploadBuffer&& other) noexcept;
+		DxFrameMappedUploadBuffer& operator=(DxFrameMappedUploadBuffer&& other) noexcept;
+
+		// 回収窓口を接続する
+		void SetRetirementQueue(GraphicsResourceRetirement& queue);
 
 		// 必要容量まで全フレーム分のバッファを拡張する
 		bool EnsureCapacity(ID3D12Device* device, size_t requiredSize,
@@ -56,8 +63,13 @@ namespace Engine {
 			kGraphicsFrameContextCount> resources_{};
 		std::array<uint8_t*, kGraphicsFrameContextCount> mappedData_{};
 		// 容量拡張前のリソースは使用中のGPUから切り離されるまで保持する
-		GraphicsDeferredReleaseQueue retiredResources_{};
+		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 		size_t capacity_ = 0;
+
+		//--------- functions ----------------------------------------------------
+
+		// 所有と参照を一組で交換する
+		void Swap(DxFrameMappedUploadBuffer& other) noexcept;
 	};
 
 } // Engine

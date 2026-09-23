@@ -53,17 +53,13 @@ void Engine::MeshMaterialBuffers::ReleaseSubMeshMaterialParamBuffer(
 		for (uint32_t& index : buffer.srvIndices) {
 
 			if (index != UINT32_MAX) {
-				srvDescriptor->Free(index);
+				srvDescriptor->Retire(index, {});
 				index = UINT32_MAX;
 			}
-		}
-		for (const uint32_t index : buffer.retiredSrvIndices) {
-			srvDescriptor->Free(index);
 		}
 	}
 	buffer.buffer.Release();
 	buffer.handles = {};
-	buffer.retiredSrvIndices.clear();
 	buffer.packedScratch.clear();
 	buffer.sourceGenerations.clear();
 	buffer.packedSourceGeneration = 0;
@@ -163,6 +159,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	const std::string resourceName =
 		"gMeshSubMeshMaterialParameters[" +
 		std::to_string(static_cast<uint32_t>(drawContext.passKind)) + "]";
+	buffer.buffer.SetRetirementQueue(srvDescriptor->GetRetirementQueue());
 	const bool reallocated = buffer.buffer.EnsureCapacity(
 		device, requiredBytes, resourceName, 4096);
 	if (reallocated || stride != buffer.stride ||
@@ -181,8 +178,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
 			if (buffer.srvIndices[frameIndex] != UINT32_MAX) {
-				buffer.retiredSrvIndices.emplace_back(
-					buffer.srvIndices[frameIndex]);
+				srvDescriptor->Retire(buffer.srvIndices[frameIndex], {});
 				buffer.srvIndices[frameIndex] = UINT32_MAX;
 			}
 			srvDescriptor->CreateSRV(

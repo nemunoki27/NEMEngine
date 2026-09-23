@@ -79,7 +79,7 @@ bool Engine::UntypedDynamicBuffer::Resize(uint32_t size) {
 	return true;
 }
 
-uint32_t Engine::UntypedDynamicBuffer::CopyTo(
+uint32_t Engine::ReadOnlyUntypedDynamicBuffer::CopyTo(
 	void* destination, uint32_t capacity, uint32_t startIndex) const {
 
 	if (!IsValid() || !triviallyCopyable_ ||
@@ -132,4 +132,19 @@ void* Engine::UntypedDynamicBuffer::GetInternalData() const {
 		(headerEnd + elementAlign_ - 1) &
 		~(static_cast<uintptr_t>(elementAlign_) - 1);
 	return reinterpret_cast<void*>(aligned);
+}
+
+Engine::ReadOnlyUntypedDynamicBuffer::ReadOnlyUntypedDynamicBuffer(const DynamicBufferHeader* header,
+	size_t elementSize, size_t elementAlign, bool triviallyCopyable) :
+	header_(header), elementSize_(elementSize), elementAlign_(elementAlign), triviallyCopyable_(triviallyCopyable) {
+}
+
+Engine::ReadOnlyUntypedDynamicBuffer Engine::UntypedDynamicBuffer::GetReadOnly() const {
+
+	return { header_, elementSize_, elementAlign_, triviallyCopyable_ };
+}
+
+uint32_t Engine::UntypedDynamicBuffer::CopyTo(void* destination, uint32_t capacity, uint32_t startIndex) const {
+
+	return GetReadOnly().CopyTo(destination, capacity, startIndex);
 }

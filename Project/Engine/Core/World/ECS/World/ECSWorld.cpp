@@ -491,37 +491,48 @@ bool Engine::ECSWorld::HasComponent(const Entity& entity, const std::string_view
 	return records_[entity.index].location.archetype->Has(info->id);
 }
 
-Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(
-	const Entity& entity, uint32_t typeID) {
+const Engine::ComponentTypeInfo* Engine::ECSWorld::FindBufferType(const Entity& entity, uint32_t typeID) const {
 
 	if (!IsAlive(entity)) {
-		return {};
+		return nullptr;
 	}
 	ComponentTypeRegistry& registry =
 		ComponentTypeRegistry::GetInstance();
 	if (typeID >= registry.GetComponentTypeCount()) {
-		return {};
+		return nullptr;
 	}
 	const ComponentTypeInfo& info = registry.GetInfo(typeID);
 	if (info.storageKind != ComponentStorageKind::Buffer ||
 		!HasComponent(entity, typeID)) {
-		return {};
+		return nullptr;
 	}
 
-	EntityLocation& location = records_[entity.index].location;
-	void* storage = location.archetype->GetRaw(
-		location.chunkIndex, location.row, typeID);
-	return UntypedDynamicBuffer(
-		static_cast<DynamicBufferHeader*>(storage),
-		info.elementSize, info.elementAlign,
-		info.bufferElementTriviallyCopyable);
+	return &info;
 }
 
-Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(
-	const Entity& entity, uint32_t typeID) const {
+Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(const Entity& entity, uint32_t typeID) {
 
-	return const_cast<ECSWorld*>(this)->TryGetUntypedBuffer(
-		entity, typeID);
+	const ComponentTypeInfo* info = FindBufferType(entity, typeID);
+	if (!info) {
+		return {};
+	}
+	EntityLocation& location = records_[entity.index].location;
+	void* storage = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
+	return UntypedDynamicBuffer(static_cast<DynamicBufferHeader*>(storage),
+		info->elementSize, info->elementAlign, info->bufferElementTriviallyCopyable);
+}
+
+Engine::ReadOnlyUntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(const Entity& entity, uint32_t typeID) const {
+
+	const ComponentTypeInfo* info = FindBufferType(entity, typeID);
+	if (!info) {
+		return {};
+	}
+	const EntityLocation& location = records_[entity.index].location;
+	const EntityArchetype& archetype = *location.archetype;
+	const void* storage = archetype.GetRaw(location.chunkIndex, location.row, typeID);
+	return ReadOnlyUntypedDynamicBuffer(static_cast<const DynamicBufferHeader*>(storage),
+		info->elementSize, info->elementAlign, info->bufferElementTriviallyCopyable);
 }
 
 uint32_t ECSWorld::AllocateIndex() {

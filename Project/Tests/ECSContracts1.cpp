@@ -33,9 +33,45 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace NEMTests {
+
+	template <typename T>
+	concept CanResizeBuffer = requires(T buffer) { buffer.Resize(1); };
+	template <typename T>
+	concept CanAddBufferElement = requires(T buffer) { buffer.Add(TestBufferElement{}); };
+	template <typename T>
+	concept CanEmplaceBufferElement = requires(T buffer) { buffer.EmplaceBack(); };
+	template <typename T>
+	concept CanClearBuffer = requires(T buffer) { buffer.Clear(); };
+	template <typename T>
+	concept CanReserveBuffer = requires(T buffer) { buffer.Reserve(1); };
+	template <typename T>
+	concept CanRemoveBufferElement = requires(T buffer) { buffer.RemoveAt(0); };
+	template <typename T>
+	concept CanSetBufferData = requires(T buffer) { buffer.SetData(nullptr, 0); };
+	template <typename T>
+	concept CanSetBufferElement = requires(T buffer) { buffer.SetElement(0, nullptr); };
+
+	using ReadOnlyTestBuffer = Engine::DynamicBuffer<const TestBufferElement>;
+	static_assert(!CanResizeBuffer<ReadOnlyTestBuffer> && !CanAddBufferElement<ReadOnlyTestBuffer> &&
+		!CanEmplaceBufferElement<ReadOnlyTestBuffer> && !CanClearBuffer<ReadOnlyTestBuffer> &&
+		!CanReserveBuffer<ReadOnlyTestBuffer> && !CanRemoveBufferElement<ReadOnlyTestBuffer>);
+	static_assert(CanResizeBuffer<Engine::DynamicBuffer<TestBufferElement>>);
+	static_assert(std::is_same_v<decltype(std::declval<ReadOnlyTestBuffer>().GetData()), const TestBufferElement*>);
+	static_assert(std::is_same_v<decltype(std::declval<ReadOnlyTestBuffer>()[0]), const TestBufferElement&>);
+	static_assert(std::is_same_v<decltype(std::declval<ReadOnlyTestBuffer>().GetSpan()), std::span<const TestBufferElement>>);
+	static_assert(std::is_same_v<decltype(std::declval<Engine::ReadOnlyUntypedDynamicBuffer>().GetData()), const void*>);
+	static_assert(!std::is_constructible_v<Engine::DynamicBuffer<TestBufferElement>, const Engine::DynamicBufferHeader*>);
+	static_assert(!CanResizeBuffer<Engine::ReadOnlyUntypedDynamicBuffer> &&
+		!CanRemoveBufferElement<Engine::ReadOnlyUntypedDynamicBuffer> && !CanSetBufferData<Engine::ReadOnlyUntypedDynamicBuffer> &&
+		!CanSetBufferElement<Engine::ReadOnlyUntypedDynamicBuffer>);
+	static_assert(std::is_same_v<decltype(std::declval<const Engine::ECSWorld&>().TryGetUntypedBuffer({}, 0)),
+		Engine::ReadOnlyUntypedDynamicBuffer>);
+	static_assert(std::is_same_v<decltype(std::declval<const Engine::ECSWorld&>().GetBuffer<TestBufferElement>({})),
+		ReadOnlyTestBuffer>);
 
 	bool TestECSChunkStorage() {
 
@@ -178,6 +214,37 @@ namespace NEMTests {
 				static_cast<uint32_t>(replacement.size()))) {
 			return false;
 		}
+
+		// const Worldの参照は型付きと型なしの両方で読取専用になる
+		const Engine::ECSWorld& readWorld = world;
+		auto readBuffer = readWorld.GetBuffer<TestBufferElement>(entity);
+		auto readUntyped = readWorld.TryGetUntypedBuffer(entity, bufferTypeID);
+		std::array<TestBufferElement, 2> readCopy{};
+		if (!readBuffer.IsValid() || readBuffer.GetSize() != replacement.size() ||
+			readBuffer[0].value != 13 || readBuffer.GetSpan()[2].value != 19 ||
+			readWorld.GetBufferSpan<TestBufferElement>(entity).data() != readBuffer.GetData() ||
+			readUntyped.CopyTo(readCopy.data(), 2, 1) != 2 || readCopy[0].value != 17 || readCopy[1].value != 19 ||
+			readUntyped.CopyTo(nullptr, 2, 1) != 2 || readUntyped.CopyTo(readCopy.data(), 2, 3) != 0) {
+			return false;
+		}
+		const Engine::Entity missing{};
+		const Engine::Entity noBuffer = world.CreateEntity();
+		const uint32_t nameTypeID = Engine::ComponentTypeRegistry::GetInstance().GetID<Engine::NameComponent>();
+		if (readWorld.TryGetBuffer<TestBufferElement>(missing).IsValid() ||
+			readWorld.TryGetBuffer<TestBufferElement>(noBuffer).IsValid() ||
+			!readWorld.GetBufferSpan<TestBufferElement>(noBuffer).empty() ||
+			readWorld.TryGetUntypedBuffer(noBuffer, bufferTypeID).IsValid() ||
+			readWorld.TryGetUntypedBuffer(missing, bufferTypeID).IsValid() ||
+			readWorld.TryGetUntypedBuffer(entity, nameTypeID).IsValid() ||
+			readWorld.TryGetUntypedBuffer(entity, UINT32_MAX).IsValid() ||
+			Engine::ReadOnlyUntypedDynamicBuffer{}.CopyTo(readCopy.data(), 2) != 0) {
+			return false;
+		}
+		nlohmann::json savedBuffer;
+		if (!readWorld.SerializeComponentToJson(entity, "TestBuffer", savedBuffer) ||
+			savedBuffer != nlohmann::json::array({ 13, 17, 19 }) || readBuffer[0].value != 13) {
+			return false;
+		}
 		std::array<TestBufferElement, 2> copied{};
 		if (untyped.CopyTo(copied.data(),
 			static_cast<uint32_t>(copied.size()), 1) != copied.size() ||
@@ -218,6 +285,12 @@ namespace NEMTests {
 			"type-guid-b", "Game.PlayerEffects"));
 		expected.back().serializedFields["enabled"] = true;
 		Engine::SetScriptEntries(world, source, expected);
+
+		const auto readUntyped = std::as_const(world).TryGetUntypedBuffer(source,
+			Engine::ComponentTypeRegistry::GetInstance().GetID<Engine::ScriptEntry>());
+		if (!readUntyped.IsValid() || readUntyped.IsTriviallyCopyable() || readUntyped.CopyTo(nullptr, 1) != 0) {
+			return false;
+		}
 
 		// stringとJSONを持つBufferもArchetype移動後に所有権と順序を維持する
 		world.AddComponent<Engine::NameComponent>(source).name = "ScriptOwner";

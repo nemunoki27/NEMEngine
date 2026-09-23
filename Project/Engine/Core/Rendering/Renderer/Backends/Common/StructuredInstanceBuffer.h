@@ -83,14 +83,12 @@ namespace Engine {
 		std::array<uint32_t, kGraphicsFrameContextCount> srvIndices_ = {
 			UINT32_MAX, UINT32_MAX, UINT32_MAX
 		};
-		// 容量拡張前のリソースとDescriptorはGPU完了前に破棄しない
-		std::vector<std::unique_ptr<DxStructuredBuffer<T>>> retiredBuffers_{};
-		std::vector<uint32_t> retiredSrvIndices_{};
-
 		//--------- functions ----------------------------------------------------
 
 		// バッファの容量を必要な要素数に合わせて増やす
 		uint32_t RoundUpCapacity(uint32_t value) const;
+		// 現在の資源とDescriptorを描画完了まで預ける
+		void RetireFrame(uint32_t frameIndex);
 	};
 
 	//============================================================================
@@ -106,23 +104,9 @@ namespace Engine {
 	template<typename T>
 	inline void StructuredInstanceBuffer<T>::Release() {
 
-		// SRVを解放する
-		if (srvDescriptor_) {
-			for (uint32_t& index : srvIndices_) {
-				if (index != UINT32_MAX) {
-					srvDescriptor_->Free(index);
-					index = UINT32_MAX;
-				}
-			}
-			for (uint32_t index : retiredSrvIndices_) {
-				srvDescriptor_->Free(index);
-			}
+		for (uint32_t frameIndex = 0; frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
+			RetireFrame(frameIndex);
 		}
-		for (std::unique_ptr<DxStructuredBuffer<T>>& buffer : buffers_) {
-			buffer.reset();
-		}
-		retiredBuffers_.clear();
-		retiredSrvIndices_.clear();
 		capacity_ = 0;
 		srvGPUHandles_ = {};
 		device_ = nullptr;
@@ -160,13 +144,7 @@ namespace Engine {
 		for (uint32_t frameIndex = 0;
 			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
-			if (buffers_[frameIndex]) {
-				retiredBuffers_.emplace_back(std::move(buffers_[frameIndex]));
-			}
-			if (srvIndices_[frameIndex] != UINT32_MAX) {
-				retiredSrvIndices_.emplace_back(srvIndices_[frameIndex]);
-				srvIndices_[frameIndex] = UINT32_MAX;
-			}
+			RetireFrame(frameIndex);
 
 			// 各フレームでCPU更新領域を分離する
 			buffers_[frameIndex] = std::make_unique<DxStructuredBuffer<T>>();
@@ -197,5 +175,15 @@ namespace Engine {
 			capacity *= 2;
 		}
 		return capacity;
+	}
+	template<typename T>
+	void StructuredInstanceBuffer<T>::RetireFrame(uint32_t frameIndex) {
+
+		if (srvIndices_[frameIndex] != UINT32_MAX) {
+			ComPtr<ID3D12Resource> resource = buffers_[frameIndex]->GetResource();
+			srvDescriptor_->Retire(srvIndices_[frameIndex], std::move(resource));
+			srvIndices_[frameIndex] = UINT32_MAX;
+		}
+		buffers_[frameIndex].reset();
 	}
 } // Engine

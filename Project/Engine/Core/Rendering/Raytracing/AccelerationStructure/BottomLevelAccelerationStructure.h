@@ -23,7 +23,17 @@ namespace Engine {
 		//============================================================================
 
 		BottomLevelAccelerationStructure() = default;
-		~BottomLevelAccelerationStructure() = default;
+		~BottomLevelAccelerationStructure();
+		BottomLevelAccelerationStructure(const BottomLevelAccelerationStructure&) = delete;
+		BottomLevelAccelerationStructure& operator=(const BottomLevelAccelerationStructure&) = delete;
+		BottomLevelAccelerationStructure(BottomLevelAccelerationStructure&& other) noexcept;
+		BottomLevelAccelerationStructure& operator=(BottomLevelAccelerationStructure&& other) noexcept;
+
+		// 回収窓口を接続する
+		void SetRetirementQueue(GraphicsResourceRetirement& queue);
+
+		// 所有資源をGPU完了まで退避する
+		void Release();
 
 		// BLASの構築
 		void Build(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
@@ -52,7 +62,7 @@ namespace Engine {
 		AccelerationStructureBuffer result_;
 		// ジオメトリローカル行列のアップロードバッファ
 		DxFrameMappedUploadBuffer geometryTransformBuffer_;
-		GraphicsDeferredReleaseQueue retiredResources_{};
+		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 
 		// ジオメトリ記述
 		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs_{};
@@ -67,6 +77,9 @@ namespace Engine {
 		uint64_t layoutHash_ = 0;
 
 		//--------- functions ----------------------------------------------------
+
+		// 所有と構築状態を一組で交換する
+		void Swap(BottomLevelAccelerationStructure& other) noexcept;
 
 		// ジオメトリ記述とローカル行列の設定
 		void FillGeometryDescs(const RaytracingBLASInput& input);

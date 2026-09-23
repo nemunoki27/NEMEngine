@@ -89,6 +89,7 @@ void Engine::RaytracingTLASState::BuildORUpdate(GraphicsCore& graphicsCore, cons
 		requireTlasRebuild || instanceCountChanged ||
 		rebuildForTraceQuality) {
 
+		tlas_.SetRetirementQueue(graphicsCore.GetDXObject().GetResourceRetirement());
 		tlas_.Build(device, commandList, tlasInstances, true);
 		consecutiveTLASRefitCount_ = 0;
 		firstTLASBuild_ = false;

@@ -1,5 +1,7 @@
 #include "GraphicsFrameContext.h"
 
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxDescriptor.h>
+
 //============================================================================
 //	GraphicsFrameContext classMethods
 //============================================================================
@@ -20,33 +22,40 @@ namespace Engine {
 		++frameSerial_;
 	}
 
-	void GraphicsDeferredReleaseQueue::Retire(ComPtr<ID3D12Resource> resource) {
+}
 
-		if (!resource) {
-			return;
-		}
-		Collect();
-		resources_[GraphicsFrameState::GetCurrentIndex()].emplace_back(
-			std::move(resource));
+void Engine::GraphicsResourceRetirement::Retire(ComPtr<ID3D12Resource> resource,
+	BaseDescriptor* descriptor, uint32_t index) {
+
+	if (!resource && !descriptor) {
+		return;
 	}
+	pending_.push_back({ std::move(resource), descriptor, index });
+	++pendingCount_;
+}
 
-	void GraphicsDeferredReleaseQueue::Collect() {
+void Engine::GraphicsResourceRetirement::Seal(uint64_t fenceValue) {
 
-		const uint32_t frameIndex =
-			GraphicsFrameState::GetCurrentIndex();
-		const uint64_t frameSerial =
-			GraphicsFrameState::GetFrameSerial();
-		if (frameSerials_[frameIndex] == frameSerial) {
-			return;
-		}
-
-		resources_[frameIndex].clear();
-		frameSerials_[frameIndex] = frameSerial;
+	if (pending_.empty() || fenceValue == 0) {
+		return;
 	}
+	batches_.push_back({ fenceValue, std::move(pending_) });
+	pending_.clear();
+}
 
-	void GraphicsDeferredReleaseQueue::Clear() {
+void Engine::GraphicsResourceRetirement::Collect(uint64_t completedFenceValue) {
 
-		resources_ = {};
-		frameSerials_ = {};
+	// Device Lostの値を正常な完了として扱わない
+	if (completedFenceValue == UINT64_MAX) {
+		return;
+	}
+	while (!batches_.empty() && batches_.front().fenceValue <= completedFenceValue) {
+		for (const Entry& entry : batches_.front().entries) {
+			if (entry.descriptor) {
+				entry.descriptor->Free(entry.index);
+			}
+		}
+		pendingCount_ -= batches_.front().entries.size();
+		batches_.pop_front();
 	}
 }

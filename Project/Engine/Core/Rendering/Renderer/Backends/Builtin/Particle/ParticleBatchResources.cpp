@@ -29,6 +29,9 @@ void Engine::ParticleBatchResources::Init(GraphicsCore& graphicsCore) {
 		return;
 	}
 	device_ = graphicsCore.GetDXObject().GetDevice();
+	auto& retirement = graphicsCore.GetDXObject().GetResourceRetirement();
+	customParameterBuffer_.SetRetirementQueue(retirement);
+	trailCustomParameterBuffer_.SetRetirementQueue(retirement);
 	geometry_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	materials_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());
 	trailPoints_.Init(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetSRVDescriptor());

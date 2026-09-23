@@ -30,6 +30,10 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	dsvDescriptor_->Init(device, DescriptorType(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
 	srvDescriptor_ = std::make_unique<SRVDescriptor>();
 	srvDescriptor_->Init(device, DescriptorType(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
+	auto& retirement = graphicsPlatform_->GetResourceRetirement();
+	rtvDescriptor_->SetRetirementQueue(retirement);
+	dsvDescriptor_->SetRetirementQueue(retirement);
+	srvDescriptor_->SetRetirementQueue(retirement);
 	// フレームバッファ用のDSVを初期化
 	dsvDescriptor_->InitFrameBufferDSV(frameWidth, frameHeight);
 
@@ -129,7 +133,10 @@ void Engine::GraphicsCore::EndRenderFrame() {
 
 void Engine::GraphicsCore::Finalize() {
 
-	// GPUが完了するまで待機
+	// 未提出の転送を確定してから描画キューを待つ
+	if (bufferUploadService_) {
+		bufferUploadService_->FlushAndWait();
+	}
 	graphicsPlatform_->WaitForGPU();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
@@ -146,6 +153,9 @@ void Engine::GraphicsCore::Finalize() {
 	builtinTextureLibrary_.reset();
 	textureUploadService_.reset();
 	bufferUploadService_.reset();
+
+	// サービス終了中の退避もDescriptor破棄前に回収する
+	graphicsPlatform_->WaitForGPU();
 
 	// 描画リソースとDescriptor heapをDevice破棄前に解放する
 	swapChain_.reset();

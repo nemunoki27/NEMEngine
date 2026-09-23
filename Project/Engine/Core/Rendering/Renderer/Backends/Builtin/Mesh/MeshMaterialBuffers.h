@@ -50,7 +50,6 @@ namespace Engine {
 				kGraphicsFrameContextCount> handles{};
 			std::array<uint32_t, kGraphicsFrameContextCount>
 				srvIndices = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
-			std::vector<uint32_t> retiredSrvIndices{};
 			std::vector<uint8_t> packedScratch{};
 			std::vector<uint64_t> sourceGenerations;
 			uint64_t packedSourceGeneration = 0;

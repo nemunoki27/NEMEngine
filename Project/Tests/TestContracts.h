@@ -52,4 +52,5 @@ namespace NEMTests {
 	bool TestRenderFeatureProfile();
 	bool TestPostProcessSourceExtension();
 	bool TestCanvasNavigationTable();
+	bool TestGPURetirement(bool hardware = false);
 }

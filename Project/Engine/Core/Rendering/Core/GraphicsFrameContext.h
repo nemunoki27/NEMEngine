@@ -7,7 +7,9 @@
 
 // c++
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <utility>
 #include <vector>
 
@@ -15,6 +17,8 @@
 #include <d3d12.h>
 
 namespace Engine {
+
+	class BaseDescriptor;
 
 	// GPUリソース配列が確保する最大フレーム数
 	constexpr uint32_t kGraphicsFrameContextCount = 3;
@@ -48,23 +52,52 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	GraphicsDeferredReleaseQueue class
-	// GPUが参照中のリソースをフレームコンテキスト再利用まで保持する
+	//	GraphicsResourceRetirement class
+	//	描画提出後のFence完了まで資源とDescriptorを保持する
 	//============================================================================
-	class GraphicsDeferredReleaseQueue {
+	class GraphicsResourceRetirement {
 	public:
-		// 現在フレームで不要になったリソースを遅延解放する
-		void Retire(ComPtr<ID3D12Resource> resource);
+		//========================================================================
+		//	public Methods
+		//========================================================================
 
-		// 再利用可能になったフレームスロットのリソースを解放する
-		void Collect();
+		GraphicsResourceRetirement() = default;
+		GraphicsResourceRetirement(const GraphicsResourceRetirement&) = delete;
+		GraphicsResourceRetirement& operator=(const GraphicsResourceRetirement&) = delete;
 
-		// 保持中の全リソースを解放する
-		void Clear();
+		// 次の描画提出に対応する回収候補を登録する
+		void Retire(ComPtr<ID3D12Resource> resource, BaseDescriptor* descriptor = nullptr, uint32_t index = UINT32_MAX);
+		// 登録済み候補へ描画キューの提出Fenceを対応付ける
+		void Seal(uint64_t fenceValue);
+		// 描画キューの完了済み候補を回収する
+		void Collect(uint64_t completedFenceValue);
+
+		//--------- accessor -----------------------------------------------------
+
+		size_t GetPendingCount() const { return pendingCount_; }
 	private:
-		std::array<std::vector<ComPtr<ID3D12Resource>>,
-			kGraphicsFrameContextCount> resources_{};
-		std::array<uint64_t,
-			kGraphicsFrameContextCount> frameSerials_{};
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- structure ----------------------------------------------------
+
+		struct Entry {
+
+			ComPtr<ID3D12Resource> resource;
+			BaseDescriptor* descriptor = nullptr;
+			uint32_t index = UINT32_MAX;
+		};
+		struct Batch {
+
+			uint64_t fenceValue = 0;
+			std::vector<Entry> entries;
+		};
+
+		//--------- variables ----------------------------------------------------
+
+		std::vector<Entry> pending_;
+		std::deque<Batch> batches_;
+		size_t pendingCount_ = 0;
 	};
 } // Engine

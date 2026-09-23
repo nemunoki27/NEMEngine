@@ -300,8 +300,7 @@ namespace Engine {
 				[[maybe_unused]] const Entity& entity,
 				const void* obj, nlohmann::json& out) {
 
-				DynamicBuffer<T> buffer(
-					const_cast<DynamicBufferHeader*>(static_cast<const DynamicBufferHeader*>(obj)));
+				DynamicBuffer<const T> buffer(static_cast<const DynamicBufferHeader*>(obj));
 				out = nlohmann::json::array();
 				for (const T& element : buffer.GetSpan()) {
 					out.push_back(element);

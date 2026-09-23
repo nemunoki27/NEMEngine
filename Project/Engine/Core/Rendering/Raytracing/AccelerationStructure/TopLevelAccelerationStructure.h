@@ -23,7 +23,17 @@ namespace Engine {
 		//============================================================================
 
 		TopLevelAccelerationStructure() = default;
-		~TopLevelAccelerationStructure() = default;
+		~TopLevelAccelerationStructure();
+		TopLevelAccelerationStructure(const TopLevelAccelerationStructure&) = delete;
+		TopLevelAccelerationStructure& operator=(const TopLevelAccelerationStructure&) = delete;
+		TopLevelAccelerationStructure(TopLevelAccelerationStructure&& other) noexcept;
+		TopLevelAccelerationStructure& operator=(TopLevelAccelerationStructure&& other) noexcept;
+
+		// 回収窓口を接続する
+		void SetRetirementQueue(GraphicsResourceRetirement& queue);
+
+		// 所有資源をGPU完了まで退避する
+		void Release();
 
 		// TLASの構築
 		void Build(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
@@ -54,7 +64,7 @@ namespace Engine {
 		DxFrameMappedUploadBuffer instanceDescBuffer_;
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
-		GraphicsDeferredReleaseQueue retiredResources_{};
+		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 		// 毎更新で再確保しないTLAS記述作業領域
 		std::vector<D3D12_RAYTRACING_INSTANCE_DESC>
 			instanceDescScratch_{};
@@ -67,6 +77,9 @@ namespace Engine {
 		bool allowUpdate_ = false;
 
 		//--------- functions ----------------------------------------------------
+
+		// 所有と構築状態を一組で交換する
+		void Swap(TopLevelAccelerationStructure& other) noexcept;
 
 		// TLASインスタンス記述のアップロード
 		void UploadInstanceDescs(const std::vector<RaytracingTLASInstance>& instances);

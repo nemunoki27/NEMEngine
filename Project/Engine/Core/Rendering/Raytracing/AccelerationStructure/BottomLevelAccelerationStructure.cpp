@@ -80,8 +80,9 @@ uint64_t Engine::BottomLevelAccelerationStructure::ComputeLayoutHash(
 void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
+	Assert::Call(retirementQueue_ != nullptr, "ASの回収窓口が設定されていません");
+
 	Assert::Call(!input.geometries.empty(), "BLASにGeometryが必要です");
-	retiredResources_.Collect();
 
 	device_ = device;
 	allowUpdate_ = input.allowUpdate;
@@ -109,10 +110,10 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
 	if (scratch_.GetResource()) {
-		retiredResources_.Retire(scratch_.TakeResource());
+		retirementQueue_->Retire(scratch_.TakeResource());
 	}
 	if (result_.GetResource()) {
-		retiredResources_.Retire(result_.TakeResource());
+		retirementQueue_->Retire(result_.TakeResource());
 	}
 	// スクラッチと結果のバッファを作成
 	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
@@ -137,7 +138,6 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 
 void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
-	retiredResources_.Collect();
 	// 更新が許可されていない場合やASが構築されていない場合は何もしない
 	if (!allowUpdate_ || !result_.GetResource()) {
 		return;
@@ -166,7 +166,6 @@ void Engine::BottomLevelAccelerationStructure::Rebuild(
 	ID3D12GraphicsCommandList6* commandList,
 	const RaytracingBLASInput& input) {
 
-	retiredResources_.Collect();
 	if (!result_.GetResource() ||
 		layoutHash_ != ComputeLayoutHash(input)) {
 		Build(device_, commandList, input);
@@ -194,4 +193,58 @@ void Engine::BottomLevelAccelerationStructure::Rebuild(
 	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	uavBarrier.UAV.pResource = result_.GetResource();
 	commandList->ResourceBarrier(1, &uavBarrier);
+}
+
+Engine::BottomLevelAccelerationStructure::~BottomLevelAccelerationStructure() {
+
+	Release();
+}
+
+Engine::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(BottomLevelAccelerationStructure&& other) noexcept {
+
+	Swap(other);
+}
+
+Engine::BottomLevelAccelerationStructure& Engine::BottomLevelAccelerationStructure::operator=(
+	BottomLevelAccelerationStructure&& other) noexcept {
+
+	if (this != &other) {
+		Release();
+		Swap(other);
+	}
+	return *this;
+}
+
+void Engine::BottomLevelAccelerationStructure::Swap(BottomLevelAccelerationStructure& other) noexcept {
+
+	std::swap(scratch_, other.scratch_);
+	std::swap(result_, other.result_);
+	std::swap(geometryTransformBuffer_, other.geometryTransformBuffer_);
+	std::swap(retirementQueue_, other.retirementQueue_);
+	std::swap(inputs_, other.inputs_);
+	std::swap(buildDesc_, other.buildDesc_);
+	std::swap(device_, other.device_);
+	std::swap(allowUpdate_, other.allowUpdate_);
+	std::swap(geometryDescs_, other.geometryDescs_);
+	std::swap(layoutHash_, other.layoutHash_);
+}
+
+void Engine::BottomLevelAccelerationStructure::SetRetirementQueue(GraphicsResourceRetirement& queue) {
+
+	Assert::Call(!IsBuilt() || retirementQueue_ == &queue, "使用中のASの回収窓口は変更できません");
+	geometryTransformBuffer_.SetRetirementQueue(queue);
+	retirementQueue_ = &queue;
+}
+
+void Engine::BottomLevelAccelerationStructure::Release() {
+
+	if (scratch_.GetResource()) retirementQueue_->Retire(scratch_.TakeResource());
+	if (result_.GetResource()) retirementQueue_->Retire(result_.TakeResource());
+	geometryTransformBuffer_.Release();
+	inputs_ = {};
+	buildDesc_ = {};
+	device_ = nullptr;
+	allowUpdate_ = false;
+	geometryDescs_.clear();
+	layoutHash_ = 0;
 }

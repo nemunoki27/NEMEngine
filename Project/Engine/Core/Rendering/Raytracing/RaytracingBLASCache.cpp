@@ -22,7 +22,7 @@ void Engine::RaytracingBLASCache::CollectExpired() {
 			lastUsedFrame + kGraphicsFrameContextCount;
 	};
 
-	// 削除済みEntityの動的BLASはGPU参照が切れる3フレーム後に破棄する
+	// 未使用cacheを間引き、GPU資源は描画Fence完了後に回収する
 	std::erase_if(dynamicBlases_, [&](const auto& pair) {
 		return expired(pair.second.lastUsedFrame);
 	});

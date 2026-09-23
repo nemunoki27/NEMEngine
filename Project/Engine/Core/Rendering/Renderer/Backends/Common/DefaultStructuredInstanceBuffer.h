@@ -25,8 +25,7 @@ namespace Engine {
 
 	//============================================================================
 	//	DefaultStructuredInstanceBuffer class
-	// GPUで繰り返し読む構造化データをDEFAULT heapへ保持し
-	// Frame Contextごとの差分だけを非同期転送する
+	//	構造化データをDEFAULT heapへ保持してフレームごとの差分を転送する
 	//============================================================================
 	template<typename T>
 	class DefaultStructuredInstanceBuffer {
@@ -103,19 +102,15 @@ namespace Engine {
 		uint64_t generation_ = 1;
 		std::deque<DirtyRange> dirtyRanges_{};
 
-		// 容量拡張前のGPU参照をFrame Context再利用まで生存させる
-		GraphicsDeferredReleaseQueue retiredResources_{};
-		std::array<std::vector<uint32_t>,
-			kGraphicsFrameContextCount> retiredSrvIndices_{};
-		std::array<uint64_t, kGraphicsFrameContextCount>
-			retiredSrvFrameSerials_ = { 0, 0, 0 };
-
 		//--------- functions ----------------------------------------------------
 
+		// 全フレームの容量を必要な要素数まで拡張する
 		void EnsureCapacity(uint32_t requiredCount);
-		void CollectRetiredDescriptors();
-		void RetireDescriptor(uint32_t descriptorIndex);
+		// 現在の資源とDescriptorを描画完了まで預ける
+		void RetireFrame(uint32_t frameIndex);
+		// 全フレームへ反映済みの変更範囲を除く
 		void PruneDirtyRanges();
+		// 確保容量を段階的に切り上げる
 		static uint32_t RoundUpCapacity(uint32_t value);
 	};
 
@@ -135,25 +130,11 @@ namespace Engine {
 	template<typename T>
 	void DefaultStructuredInstanceBuffer<T>::Release() {
 
-		if (srvDescriptor_) {
-			for (uint32_t& index : srvIndices_) {
-				if (index != UINT32_MAX) {
-					srvDescriptor_->Free(index);
-					index = UINT32_MAX;
-				}
-			}
-			for (auto& indices : retiredSrvIndices_) {
-				for (uint32_t index : indices) {
-					srvDescriptor_->Free(index);
-				}
-			}
+		for (uint32_t frameIndex = 0; frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
+			RetireFrame(frameIndex);
 		}
-		resources_ = {};
 		srvGPUHandles_ = {};
 		uploadedGenerations_ = { 0, 0, 0 };
-		retiredResources_.Clear();
-		retiredSrvIndices_ = {};
-		retiredSrvFrameSerials_ = { 0, 0, 0 };
 		dirtyRanges_.clear();
 		capacity_ = 0;
 		elementCount_ = 0;
@@ -260,21 +241,12 @@ namespace Engine {
 			return;
 		}
 
-		retiredResources_.Collect();
-		CollectRetiredDescriptors();
 		const uint32_t newCapacity =
 			RoundUpCapacity(requiredCount);
 		for (uint32_t frameIndex = 0;
 			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 
-			if (resources_[frameIndex]) {
-				retiredResources_.Retire(
-					std::move(resources_[frameIndex]));
-			}
-			if (srvIndices_[frameIndex] != UINT32_MAX) {
-				RetireDescriptor(srvIndices_[frameIndex]);
-				srvIndices_[frameIndex] = UINT32_MAX;
-			}
+			RetireFrame(frameIndex);
 
 			DxUtils::CreateDefaultBufferResource(
 				device_, resources_[frameIndex],
@@ -312,35 +284,12 @@ namespace Engine {
 	}
 
 	template<typename T>
-	void DefaultStructuredInstanceBuffer<T>::CollectRetiredDescriptors() {
+	void DefaultStructuredInstanceBuffer<T>::RetireFrame(uint32_t frameIndex) {
 
-		if (!srvDescriptor_) {
-			return;
+		if (srvIndices_[frameIndex] != UINT32_MAX) {
+			srvDescriptor_->Retire(srvIndices_[frameIndex], std::move(resources_[frameIndex]));
+			srvIndices_[frameIndex] = UINT32_MAX;
 		}
-
-		const uint32_t frameIndex =
-			GraphicsFrameState::GetCurrentIndex();
-		const uint64_t frameSerial =
-			GraphicsFrameState::GetFrameSerial();
-		if (retiredSrvFrameSerials_[frameIndex] == frameSerial) {
-			return;
-		}
-
-		for (uint32_t index : retiredSrvIndices_[frameIndex]) {
-			srvDescriptor_->Free(index);
-		}
-		retiredSrvIndices_[frameIndex].clear();
-		retiredSrvFrameSerials_[frameIndex] = frameSerial;
-	}
-
-	template<typename T>
-	void DefaultStructuredInstanceBuffer<T>::RetireDescriptor(
-		uint32_t descriptorIndex) {
-
-		CollectRetiredDescriptors();
-		retiredSrvIndices_[
-			GraphicsFrameState::GetCurrentIndex()].emplace_back(
-				descriptorIndex);
 	}
 
 	template<typename T>

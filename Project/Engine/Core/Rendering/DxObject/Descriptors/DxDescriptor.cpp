@@ -1,4 +1,5 @@
 #include "DxDescriptor.h"
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 using namespace Engine;
 
@@ -176,4 +177,16 @@ void Engine::BaseDescriptor::UpdateResourceName(uint32_t index, ID3D12Resource* 
 	if (!wideName.empty()) {
 		resourceNames_[index] = Algorithm::ConvertString(wideName);
 	}
+}
+
+void Engine::BaseDescriptor::Retire(uint32_t index, ComPtr<ID3D12Resource> resource) {
+
+	Assert::Call(IsAllocated(index), "未確保のDescriptorは退避できません");
+	GetRetirementQueue().Retire(std::move(resource), this, index);
+}
+
+Engine::GraphicsResourceRetirement& Engine::BaseDescriptor::GetRetirementQueue() const {
+
+	Assert::Call(retirementQueue_ != nullptr, "Descriptorの回収窓口が設定されていません");
+	return *retirementQueue_;
 }

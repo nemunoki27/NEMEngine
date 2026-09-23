@@ -218,13 +218,17 @@ namespace Engine {
 		template <typename T>
 		DynamicBuffer<T> GetBuffer(const Entity& entity);
 		template <typename T>
+		DynamicBuffer<const T> GetBuffer(const Entity& entity) const;
+		template <typename T>
 		DynamicBuffer<T> TryGetBuffer(const Entity& entity);
+		template <typename T>
+		DynamicBuffer<const T> TryGetBuffer(const Entity& entity) const;
 		template <typename T>
 		std::span<const T> GetBufferSpan(const Entity& entity) const;
 		// 実行時ComponentType IDからPOD Bufferを操作する
 		UntypedDynamicBuffer TryGetUntypedBuffer(
 			const Entity& entity, uint32_t typeID);
-		UntypedDynamicBuffer TryGetUntypedBuffer(
+		ReadOnlyUntypedDynamicBuffer TryGetUntypedBuffer(
 			const Entity& entity, uint32_t typeID) const;
 		// Enableable Componentの有効状態
 		template <typename T>
@@ -299,6 +303,9 @@ namespace Engine {
 		uint64_t relocatedComponentBytes_ = 0;
 
 		//--------- functions ----------------------------------------------------
+
+		// Entityが持つBufferの型情報を検証して返す
+		const ComponentTypeInfo* FindBufferType(const Entity& entity, uint32_t typeID) const;
 
 		// 新しいエンティティIDを割り当てる
 		uint32_t AllocateIndex();
@@ -656,22 +663,28 @@ namespace Engine {
 	}
 
 	template <typename T>
-	inline std::span<const T> ECSWorld::GetBufferSpan(const Entity& entity) const {
+	inline DynamicBuffer<const T> ECSWorld::GetBuffer(const Entity& entity) const {
 
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() == ComponentStorageKind::Buffer,
 			"DynamicBuffer要素へkStorageKindを設定してください");
-		if (!IsAlive(entity)) {
-			return {};
-		}
+		AssertAlive(entity);
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		const auto& location = records_[entity.index].location;
-		if (!location.archetype->Has(typeID)) {
-			return {};
-		}
-		const auto* header = static_cast<const DynamicBufferHeader*>(
-			location.archetype->GetRaw(
-				location.chunkIndex, location.row, typeID));
-		return { static_cast<const T*>(header->data), header->size };
+		const EntityArchetype& archetype = *location.archetype;
+		const void* storage = archetype.GetRaw(location.chunkIndex, location.row, typeID);
+		return DynamicBuffer<const T>(static_cast<const DynamicBufferHeader*>(storage));
+	}
+
+	template <typename T>
+	inline DynamicBuffer<const T> ECSWorld::TryGetBuffer(const Entity& entity) const {
+
+		return HasBuffer<T>(entity) ? GetBuffer<T>(entity) : DynamicBuffer<const T>{};
+	}
+
+	template <typename T>
+	inline std::span<const T> ECSWorld::GetBufferSpan(const Entity& entity) const {
+
+		return TryGetBuffer<T>(entity).GetSpan();
 	}
 
 	template <typename T>

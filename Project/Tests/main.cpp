@@ -100,6 +100,12 @@ using namespace NEMTests;
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && (std::string_view(argv[1]) == "--gpu-retirement" ||
+		std::string_view(argv[1]) == "--gpu-retirement-hardware")) {
+		if (!TestGPURetirement(std::string_view(argv[1]) == "--gpu-retirement-hardware")) return 44;
+		std::cout << "GPU retirement tests passed\n";
+		return 0;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor") {
 		if (!TestEditorContracts()) return 43;
 		std::cout << "Editor tests passed\n";

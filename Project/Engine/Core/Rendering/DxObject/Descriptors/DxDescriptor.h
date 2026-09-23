@@ -15,6 +15,8 @@
 
 namespace Engine {
 
+	class GraphicsResourceRetirement;
+
 	//============================================================================
 	//	BaseDescriptor structures
 	//============================================================================
@@ -50,6 +52,8 @@ namespace Engine {
 		uint32_t Allocate();
 		// 確保済みスロットを解放
 		void Free(uint32_t index);
+		// GPU完了まで資源とスロットを回収窓口へ預ける
+		void Retire(uint32_t index, ComPtr<ID3D12Resource> resource);
 		//--------- accessor -----------------------------------------------------
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(uint32_t index) const;
@@ -58,6 +62,8 @@ namespace Engine {
 		ID3D12DescriptorHeap* GetDescriptorHeap() const { return descriptorHeap_.Get(); }
 
 		bool IsAllocated(uint32_t index) const;
+		void SetRetirementQueue(GraphicsResourceRetirement& queue) { retirementQueue_ = &queue; }
+		GraphicsResourceRetirement& GetRetirementQueue() const;
 
 		// 現在生きているデスクリプタ数
 		uint32_t GetUseDescriptorCount() const { return allocatedCount_; }
@@ -73,6 +79,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 		uint32_t descriptorSize_;
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType_ = D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 

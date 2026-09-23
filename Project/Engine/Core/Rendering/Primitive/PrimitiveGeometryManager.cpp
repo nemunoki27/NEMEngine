@@ -89,6 +89,7 @@ bool Engine::PrimitiveGeometryManager::EnsureBLAS(ID3D12Device8* device,
 	input.geometries = std::span(&geometryInput, 1);
 	input.allowUpdate = false;
 
+	geometry.blas.SetRetirementQueue(srvDescriptor_->GetRetirementQueue());
 	geometry.blas.Build(device, commandList, input);
 	geometry.blasBuilt = geometry.blas.IsBuilt();
 	return geometry.blasBuilt;

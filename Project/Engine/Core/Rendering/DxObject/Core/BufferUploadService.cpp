@@ -76,7 +76,7 @@ void Engine::BufferUploadService::Finalize() {
 	}
 	pendingBatches_.clear();
 	for (UploadFrameContext& context : contexts_) {
-		context.stagingResources.clear();
+		context.retainedResources.clear();
 	}
 
 	if (fenceEvent_) {
@@ -191,7 +191,9 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 		currentContext_->commandList->ResourceBarrier(1, &barrier);
 	}
 
-	currentContext_->stagingResources.emplace_back(std::move(staging));
+	// 未提出期間を含め転送先もFence完了まで保持する
+	currentContext_->retainedResources.emplace_back(destination);
+	currentContext_->retainedResources.emplace_back(std::move(staging));
 	hasCommands_ = true;
 }
 
@@ -228,11 +230,11 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 		graphicsQueue_->Wait(fence_.Get(), submittedFenceValue);
 	}
 
-	// stagingはFence完了まで保持する
+	// 転送元と転送先はFence完了まで保持する
 	PendingBufferUploadBatch pending{};
 	pending.fenceValue = submittedFenceValue;
-	pending.stagingResources = std::move(currentContext_->stagingResources);
-	currentContext_->stagingResources.clear();
+	pending.retainedResources = std::move(currentContext_->retainedResources);
+	currentContext_->retainedResources.clear();
 	pendingBatches_.emplace_back(std::move(pending));
 
 	// 次回は別コンテキストを使う
