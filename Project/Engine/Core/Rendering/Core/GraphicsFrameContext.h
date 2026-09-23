@@ -66,7 +66,7 @@ namespace Engine {
 		GraphicsResourceRetirement& operator=(const GraphicsResourceRetirement&) = delete;
 
 		// 次の描画提出に対応する回収候補を登録する
-		void Retire(ComPtr<ID3D12Resource> resource, BaseDescriptor* descriptor = nullptr, uint32_t index = UINT32_MAX);
+		void Retire(ComPtr<ID3D12Object> object, BaseDescriptor* descriptor = nullptr, uint32_t index = UINT32_MAX);
 		// 登録済み候補へ描画キューの提出Fenceを対応付ける
 		void Seal(uint64_t fenceValue);
 		// 描画キューの完了済み候補を回収する
@@ -84,7 +84,7 @@ namespace Engine {
 
 		struct Entry {
 
-			ComPtr<ID3D12Resource> resource;
+			ComPtr<ID3D12Object> object;
 			BaseDescriptor* descriptor = nullptr;
 			uint32_t index = UINT32_MAX;
 		};

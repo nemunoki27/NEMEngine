@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -109,21 +110,23 @@ void Engine::RenderTexture2D::Destroy() {
 
 	if (rtvDescriptor_ && rtvIndex_ != UINT32_MAX) {
 
-		rtvDescriptor_->Free(rtvIndex_);
+		rtvDescriptor_->Retire(rtvIndex_, {});
 	}
 	if (srvDescriptor_) {
 
 		if (srvIndex_ != UINT32_MAX) {
 
-			srvDescriptor_->Free(srvIndex_);
+			srvDescriptor_->Retire(srvIndex_, {});
 		}
 		if (uavIndex_ != UINT32_MAX) {
 
-			srvDescriptor_->Free(uavIndex_);
+			srvDescriptor_->Retire(uavIndex_, {});
 		}
 	}
 
-	resource_.Reset();
+	if (resource_) {
+		srvDescriptor_->GetRetirementQueue().Retire(std::move(resource_));
+	}
 	renderTarget_ = RenderTarget{};
 	srvGPUHandle_ = {};
 	uavGPUHandle_ = {};

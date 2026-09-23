@@ -31,7 +31,7 @@ namespace Engine {
 		//========================================================================
 
 		DepthVisualizer();
-		~DepthVisualizer() = default;
+		~DepthVisualizer();
 
 		// 深度を可視化用レンダーターゲットへ描画する
 		RenderTexture2D* Render(GraphicsCore& graphicsCore,
@@ -54,6 +54,7 @@ namespace Engine {
 			uint32_t _pad[3] = {};
 		};
 
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::unique_ptr<PipelineState> pipeline_{};
 		PipelineBindingCache bindCache_{};
 		std::array<DxConstBuffer<DepthVisualizeConstants>,

@@ -74,6 +74,7 @@ namespace Engine {
 			uint64_t revision = 0;
 		};
 
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::unordered_map<RaytracingPipelineCacheKey,
 			std::unique_ptr<RaytracingPipelineState>,
 			RaytracingPipelineCacheKeyHash> cache_{};

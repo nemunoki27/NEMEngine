@@ -27,11 +27,25 @@ Engine::DepthVisualizer::DepthVisualizer() {
 	depthSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::SRV, 0, 0);
 }
 
+Engine::DepthVisualizer::~DepthVisualizer() {
+
+	if (!retirement_) {
+		return;
+	}
+	for (const auto& buffer : constantBuffers_) {
+		retirement_->Retire(ComPtr<ID3D12Resource>(buffer.GetResource()));
+	}
+	if (pipeline_) {
+		pipeline_->RetireGPUObjects(*retirement_);
+	}
+}
+
 void Engine::DepthVisualizer::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat) {
 
 	if (initialized_) {
 		return;
 	}
+	retirement_ = &graphicsCore.GetDXObject().GetResourceRetirement();
 
 	GraphicsPipelineDesc desc{};
 	desc.type = PipelineType::Vertex;

@@ -119,6 +119,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 		return restoreFallback();
 	}
 
+	pipelineState->SetRetirementQueue(graphicsPlatform.GetResourceRetirement());
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
 	graphicsReflectionByPipeline_[pipelineAssetID] =
@@ -253,6 +254,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		return restoreFallback();
 	}
 	// キャッシュに保存
+	pipelineState->SetRetirementQueue(graphicsPlatform.GetResourceRetirement());
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
 	// マテリアルインスペクタ等がエディタ側でPSOを再生成せず、reflectionを引けるようpipelineAsset別に保存する

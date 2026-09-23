@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
@@ -65,4 +67,24 @@ Engine::RaytracingPipelineState::FindBindingByName(
 			return binding.kind == kind && binding.name == name;
 		});
 	return found != bindings_.end() ? &*found : nullptr;
+}
+
+Engine::RaytracingPipelineState::~RaytracingPipelineState() {
+
+	if (retirement_) {
+		RetireGPUObjects(*retirement_);
+	}
+}
+
+void Engine::RaytracingPipelineState::SetRetirementQueue(GraphicsResourceRetirement& retirement) {
+
+	Assert::Call(!retirement_ || retirement_ == &retirement, "使用中のPipelineの回収窓口は変更できません");
+	retirement_ = &retirement;
+}
+
+void Engine::RaytracingPipelineState::RetireGPUObjects(GraphicsResourceRetirement& retirement) const {
+
+	retirement.Retire(stateObject_);
+	retirement.Retire(globalRootSignature_);
+	retirement.Retire(shaderTable_);
 }

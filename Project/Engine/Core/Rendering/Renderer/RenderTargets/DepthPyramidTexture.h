@@ -30,6 +30,8 @@ namespace Engine {
 
 		DepthPyramidTexture() = default;
 		~DepthPyramidTexture();
+		DepthPyramidTexture(const DepthPyramidTexture&) = delete;
+		DepthPyramidTexture& operator=(const DepthPyramidTexture&) = delete;
 
 		// サイズに合わせて全MipのSRV/UAVを生成する
 		void Create(ID3D12Device* device, SRVDescriptor* srvDescriptor,

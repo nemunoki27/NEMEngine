@@ -24,13 +24,13 @@ namespace Engine {
 
 }
 
-void Engine::GraphicsResourceRetirement::Retire(ComPtr<ID3D12Resource> resource,
+void Engine::GraphicsResourceRetirement::Retire(ComPtr<ID3D12Object> object,
 	BaseDescriptor* descriptor, uint32_t index) {
 
-	if (!resource && !descriptor) {
+	if (!object && !descriptor) {
 		return;
 	}
-	pending_.push_back({ std::move(resource), descriptor, index });
+	pending_.push_back({ std::move(object), descriptor, index });
 	++pendingCount_;
 }
 

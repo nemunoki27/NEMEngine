@@ -16,6 +16,8 @@
 
 namespace Engine {
 
+	class GraphicsResourceRetirement;
+
 	//============================================================================
 	//	RaytracingPipelineState class
 	//	レイトレーシング実行に必要なパイプラインステートを管理するクラス
@@ -27,7 +29,7 @@ namespace Engine {
 		//============================================================================
 
 		RaytracingPipelineState() = default;
-		~RaytracingPipelineState() = default;
+		~RaytracingPipelineState();
 		RaytracingPipelineState(const RaytracingPipelineState&) = delete;
 		RaytracingPipelineState& operator=(const RaytracingPipelineState&) = delete;
 
@@ -41,12 +43,18 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// GPU完了までState ObjectとShader Tableを保持する
+		void RetireGPUObjects(GraphicsResourceRetirement& retirement) const;
+
 		// パイプライン作成
 
 		// レイトレーシングのディスパッチ記述子を構築
 		D3D12_DISPATCH_RAYS_DESC BuildDispatchDesc(uint32_t width,
 			uint32_t height, uint32_t depth = 1,
 			uint32_t rayGenerationIndex = 0) const;
+
+		// GPU使用後の回収先を設定する
+		void SetRetirementQueue(GraphicsResourceRetirement& retirement);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -66,6 +74,8 @@ namespace Engine {
 		//============================================================================
 
 		//--------- variables ----------------------------------------------------
+
+		GraphicsResourceRetirement* retirement_ = nullptr;
 
 		// パイプライン
 		ComPtr<ID3D12StateObject> stateObject_;

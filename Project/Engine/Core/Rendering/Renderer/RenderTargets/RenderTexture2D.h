@@ -48,6 +48,8 @@ namespace Engine {
 
 		RenderTexture2D() = default;
 		~RenderTexture2D();
+		RenderTexture2D(const RenderTexture2D&) = delete;
+		RenderTexture2D& operator=(const RenderTexture2D&) = delete;
 
 		// リソース作成
 		void Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,

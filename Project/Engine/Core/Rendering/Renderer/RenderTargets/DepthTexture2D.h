@@ -48,6 +48,8 @@ namespace Engine {
 
 		DepthTexture2D() = default;
 		~DepthTexture2D();
+		DepthTexture2D(const DepthTexture2D&) = delete;
+		DepthTexture2D& operator=(const DepthTexture2D&) = delete;
 
 		// リソース作成
 		void Create(DSVDescriptor* dsvDescriptor, SRVDescriptor* srvDescriptor, const DepthTextureCreateDesc& desc);

@@ -55,6 +55,9 @@ struct Engine::ShaderGraphNodePreviews::PreviewState {
 				ShaderBindingKind::CBV, 0, 0);
 	}
 
+	~PreviewState();
+
+	GraphicsResourceRetirement* retirement = nullptr;
 	std::unique_ptr<PipelineState> pipeline{};
 	PipelineBindingCache bindCache{};
 	bool pipelineInitialized = false;
@@ -112,6 +115,21 @@ struct Engine::ShaderGraphNodePreviews::PreviewState {
 	}
 };
 
+Engine::ShaderGraphNodePreviews::PreviewState::~PreviewState() {
+
+	if (!retirement) {
+		return;
+	}
+	for (const auto& buffers : constantBuffers) {
+		for (const auto& buffer : buffers) {
+			retirement->Retire(ComPtr<ID3D12Resource>(buffer->GetResource()));
+		}
+	}
+	if (pipeline) {
+		pipeline->RetireGPUObjects(*retirement);
+	}
+}
+
 Engine::ShaderGraphNodePreviews::ShaderGraphNodePreviews() = default;
 
 Engine::ShaderGraphNodePreviews::~ShaderGraphNodePreviews() {
@@ -145,6 +163,7 @@ void Engine::ShaderGraphNodePreviews::UpdateResources(const EditorToolContext& c
 	GraphicsCore& graphicsCore =
 		*context.panelContext->graphicsCore;
 	PreviewState& state = *previewState_;
+	state.retirement = &graphicsCore.GetDXObject().GetResourceRetirement();
 	if (!state.pipelineAttempted) {
 
 		state.pipelineAttempted = true;

@@ -1,4 +1,5 @@
 #include "TestContracts.h"
+#include "GPUPipelineRetirementTests.h"
 
 //============================================================================
 //	include
@@ -11,6 +12,10 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/TopLevelAccelerationStructure.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/DepthPyramidTexture.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
+#include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
 
 // c++
 #include <array>
@@ -28,6 +33,56 @@ namespace {
 	static_assert(!std::is_copy_constructible_v<Engine::DxFrameMappedUploadBuffer>);
 	static_assert(!std::is_copy_constructible_v<Engine::BottomLevelAccelerationStructure>);
 	static_assert(!std::is_copy_constructible_v<Engine::TopLevelAccelerationStructure>);
+	static_assert(!std::is_copy_constructible_v<Engine::RenderTexture2D>);
+	static_assert(!std::is_copy_constructible_v<Engine::DepthTexture2D>);
+	static_assert(!std::is_copy_constructible_v<Engine::DepthPyramidTexture>);
+
+	bool RecordViewOwnerRetirement(ID3D12Device* device, ID3D12GraphicsCommandList6* commands,
+		Engine::RTVDescriptor& renderTargets, Engine::DSVDescriptor& depths,
+		Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback) {
+
+		DxUtils::CreateReadbackBufferResource(device, readback, 3072);
+		Engine::MultiRenderTarget surface;
+		Engine::DepthPyramidTexture pyramid;
+		for (uint32_t generation = 0; generation < 3; ++generation) {
+			Engine::MultiRenderTargetCreateDesc desc{};
+			desc.width = 1u << generation;
+			desc.height = 4;
+			desc.colors.push_back({ .name = "ViewRetirement", .createUAV = true });
+			desc.depth = Engine::DepthTextureCreateDesc{ .width = 4, .height = 4 };
+			surface.Create(device, &renderTargets, &depths, &descriptors, desc);
+			pyramid.Create(device, &descriptors, desc.width, desc.height);
+			Engine::RenderTexture2D* color = surface.GetColorTexture(0);
+			const float clearColor[]{ 1.0f, 0.0f, 0.0f, 1.0f };
+			commands->ClearRenderTargetView(color->GetRenderTarget().rtvHandle, clearColor, 0, nullptr);
+			commands->ClearDepthStencilView(surface.GetDepthTexture()->GetDSVCPUHandle(),
+				D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Transition.pResource = color->GetResource();
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			commands->ResourceBarrier(1, &barrier);
+			D3D12_TEXTURE_COPY_LOCATION source{};
+			source.pResource = color->GetResource();
+			source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+			D3D12_TEXTURE_COPY_LOCATION destination{};
+			destination.pResource = readback.Get();
+			destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+			const D3D12_RESOURCE_DESC resourceDesc = color->GetResource()->GetDesc();
+			device->GetCopyableFootprints(&resourceDesc, 0, 1, generation * 1024,
+				&destination.PlacedFootprint, nullptr, nullptr, nullptr);
+			commands->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+		}
+		surface.Destroy();
+		pyramid.Destroy();
+		surface.Destroy();
+		pyramid.Destroy();
+		return renderTargets.GetUseDescriptorCount() == 3 && depths.GetUseDescriptorCount() == 3 &&
+			descriptors.GetUseDescriptorCount() == 33;
+	}
+
 
 	bool RecordASOwnerRetirement(ID3D12Device* device, ID3D12GraphicsCommandList6* commands,
 		Engine::GraphicsResourceRetirement& retirement) {
@@ -103,6 +158,12 @@ namespace {
 		descriptors.Init(device, { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE });
 		Engine::GraphicsResourceRetirement retirement;
 		descriptors.SetRetirementQueue(retirement);
+		Engine::RTVDescriptor renderTargets;
+		Engine::DSVDescriptor depths;
+		renderTargets.Init(device, { D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE });
+		depths.Init(device, { D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE });
+		renderTargets.SetRetirementQueue(retirement);
+		depths.SetRetirementQueue(retirement);
 		ComPtr<ID3D12Resource> readback;
 		const std::array<uint32_t, 3> values{ 23, 29, 31 };
 		DxUtils::CreateReadbackBufferResource(device, readback, sizeof(values));
@@ -137,7 +198,13 @@ namespace {
 			source.Release();
 		}
 		valid &= retirement.GetPendingCount() == 30;
+		ComPtr<ID3D12Resource> viewReadback;
+		valid &= RecordViewOwnerRetirement(device, commands.Get(), renderTargets, depths, descriptors, viewReadback);
 		valid &= RecordASOwnerRetirement(device, commands.Get(), retirement);
+		ComPtr<ID3D12Resource> pipelineReadback;
+		ID3D12DescriptorHeap* heaps[]{ descriptors.GetDescriptorHeap() };
+		commands->SetDescriptorHeaps(1, heaps);
+		valid &= NEMTests::RecordPipelineOwnerRetirement(device, commands.Get(), retirement, pipelineReadback);
 		const size_t pendingCount = retirement.GetPendingCount();
 		commands->Close();
 		// 描画実行を止めたままOwnerを破棄し、完了前の回収を試す
@@ -147,7 +214,8 @@ namespace {
 		valid &= SUCCEEDED(queue->Signal(completed.Get(), 1));
 		retirement.Seal(1);
 		retirement.Collect(completed->GetCompletedValue());
-		valid &= retirement.GetPendingCount() == pendingCount && descriptors.GetUseDescriptorCount() == 3;
+		valid &= retirement.GetPendingCount() == pendingCount && descriptors.GetUseDescriptorCount() == 33 &&
+			renderTargets.GetUseDescriptorCount() == 3 && depths.GetUseDescriptorCount() == 3;
 		valid &= SUCCEEDED(gate->Signal(1));
 		const HRESULT eventResult = completed->SetEventOnCompletion(1, completion);
 		const DWORD waitResult = SUCCEEDED(eventResult) ? WaitForSingleObject(completion, 30000) : WAIT_FAILED;
@@ -166,8 +234,25 @@ namespace {
 				values.data(), sizeof(values)) == 0;
 		}
 		frameReadback->Unmap(0, &writtenRange);
+		readRange.End = 3072;
+		if (FAILED(viewReadback->Map(0, &readRange, &mapped))) return false;
+		const std::array<uint8_t, 4> expectedPixel{ 255, 0, 0, 255 };
+		for (uint32_t generation = 0; generation < 3; ++generation) {
+			for (uint32_t row = 0; row < 4; ++row) {
+				for (uint32_t column = 0; column < (1u << generation); ++column) {
+					valid &= std::memcmp(static_cast<std::byte*>(mapped) + generation * 1024 + row * 256 + column * 4,
+						expectedPixel.data(), expectedPixel.size()) == 0;
+				}
+			}
+		}
+		viewReadback->Unmap(0, &writtenRange);
+		readRange.End = sizeof(uint32_t);
+		if (FAILED(pipelineReadback->Map(0, &readRange, &mapped))) return false;
+		valid &= *static_cast<const uint32_t*>(mapped) == 73;
+		pipelineReadback->Unmap(0, &writtenRange);
 		retirement.Collect(completed->GetCompletedValue());
-		return valid && retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0;
+		return valid && retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0 &&
+			renderTargets.GetUseDescriptorCount() == 0 && depths.GetUseDescriptorCount() == 0;
 	}
 
 	bool CheckOwnerRetirement(ID3D12Device* device, Engine::BufferUploadService& uploads) {

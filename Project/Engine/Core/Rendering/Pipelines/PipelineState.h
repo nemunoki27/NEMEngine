@@ -20,6 +20,8 @@
 
 namespace Engine {
 
+	class GraphicsResourceRetirement;
+
 	//============================================================================
 	//	PipelineState structures
 	//============================================================================
@@ -112,10 +114,16 @@ namespace Engine {
 		//============================================================================
 
 		PipelineState() = default;
-		~PipelineState() = default;
+		~PipelineState();
 
 		PipelineState(const PipelineState&) = delete;
 		PipelineState& operator=(const PipelineState&) = delete;
+
+		// GPU完了までRoot Signatureと全PSOを回収窓口へ保持する
+		void RetireGPUObjects(GraphicsResourceRetirement& retirement) const;
+
+		// GPU使用後の回収先を設定する
+		void SetRetirementQueue(GraphicsResourceRetirement& retirement);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -159,6 +167,8 @@ namespace Engine {
 		};
 
 		//--------- variables ----------------------------------------------------
+
+		GraphicsResourceRetirement* retirement_ = nullptr;
 
 		// ルートバインドの種類の数
 		static constexpr size_t kBindingKindCount = static_cast<size_t>(ShaderBindingKind::AccelStruct) + 1;

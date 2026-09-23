@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
@@ -100,21 +101,23 @@ void Engine::DepthPyramidTexture::Destroy() {
 
 	if (srvDescriptor_) {
 		if (srvIndex_ != UINT32_MAX) {
-			srvDescriptor_->Free(srvIndex_);
+			srvDescriptor_->Retire(srvIndex_, {});
 		}
 		for (uint32_t index : mipSRVIndices_) {
 			if (index != UINT32_MAX) {
-				srvDescriptor_->Free(index);
+				srvDescriptor_->Retire(index, {});
 			}
 		}
 		for (uint32_t index : mipUAVIndices_) {
 			if (index != UINT32_MAX) {
-				srvDescriptor_->Free(index);
+				srvDescriptor_->Retire(index, {});
 			}
 		}
 	}
 
-	resource_.Reset();
+	if (resource_) {
+		srvDescriptor_->GetRetirementQueue().Retire(std::move(resource_));
+	}
 	width_ = 0;
 	height_ = 0;
 	mipCount_ = 0;

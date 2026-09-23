@@ -4,7 +4,9 @@
 //	include
 //============================================================================
 #include "PipelineShaderLoader.h"
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -32,6 +34,15 @@ uint64_t Engine::PipelineState::NextUniqueID() {
 	// 生成のたびに増える、0は未設定を表すため1から始める
 	static std::atomic<uint64_t> counter{ 0 };
 	return ++counter;
+}
+
+void Engine::PipelineState::RetireGPUObjects(GraphicsResourceRetirement& retirement) const {
+
+	retirement.Retire(rootSignature_);
+	for (const auto& pipeline : graphicsPipelines_) {
+		retirement.Retire(pipeline);
+	}
+	retirement.Retire(computePipeline_);
 }
 
 const RootBindingLocation* PipelineState::FindBinding(
@@ -101,4 +112,17 @@ namespace Engine {
 		result ^= h3 + 0x9e3779b9 + (result << 6) + (result >> 2);
 		return result;
 	}
+}
+
+Engine::PipelineState::~PipelineState() {
+
+	if (retirement_) {
+		RetireGPUObjects(*retirement_);
+	}
+}
+
+void Engine::PipelineState::SetRetirementQueue(GraphicsResourceRetirement& retirement) {
+
+	Assert::Call(!retirement_ || retirement_ == &retirement, "使用中のPipelineの回収窓口は変更できません");
+	retirement_ = &retirement;
 }

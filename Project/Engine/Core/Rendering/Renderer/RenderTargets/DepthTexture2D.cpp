@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================
@@ -58,13 +59,15 @@ void Engine::DepthTexture2D::Destroy() {
 
 	if (dsvDescriptor_ && dsvIndex_ != UINT32_MAX) {
 
-		dsvDescriptor_->Free(dsvIndex_);
+		dsvDescriptor_->Retire(dsvIndex_, {});
 	}
 	if (srvDescriptor_ && srvIndex_ != UINT32_MAX) {
 
-		srvDescriptor_->Free(srvIndex_);
+		srvDescriptor_->Retire(srvIndex_, {});
 	}
-	resource_.Reset();
+	if (resource_) {
+		srvDescriptor_->GetRetirementQueue().Retire(std::move(resource_));
+	}
 	dsvCPUHandle_ = {};
 	srvGPUHandle_ = {};
 	width_ = 0;

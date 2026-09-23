@@ -27,6 +27,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	AssetID shaderOverrideAssetID,
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
+	retirement_ = &graphicsPlatform.GetResourceRetirement();
 	CollectRetiredStates();
 
 	// 無効なIDの場合はnullptrを返す
@@ -97,6 +98,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 		return FindFallback(pipelineAssetID, shaderOverrideAssetID,
 			key.samplerHash);
 	}
+	state->SetRetirementQueue(*retirement_);
 	auto [it, inserted] = cache_.emplace(key, std::move(state));
 	failedRevisions_.erase(key);
 	RetireFallbacks(pipelineAssetID, shaderOverrideAssetID,
@@ -274,6 +276,7 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 		if (completedRevision != revisions_[key]) {
 			RetireState(std::move(state));
 		} else if (state) {
+			state->SetRetirementQueue(*retirement_);
 			auto [created, inserted] = cache_.emplace(key, std::move(state));
 			RetireFallbacks(key.pipelineAsset, key.shaderOverrideAsset,
 				key.samplerHash);
