@@ -24,13 +24,19 @@ namespace {
 	constexpr uint32_t kMaxDecodeWorkerCount = 4;
 }
 
-void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* graphicsQueue) {
+Engine::TextureUploadService::~TextureUploadService() {
+
+	// 結果の保存先を破棄する前にワーカーを終了する
+	Finalize();
+}
+
+void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 
 	Finalize();
 
 	srvDescriptor_ = srvDescriptor;
 
-	uploader_.Init(device, srvDescriptor, graphicsQueue);
+	uploader_.Init(device, srvDescriptor);
 
 	const uint32_t hardwareThreadCount = (std::max)(1u, std::thread::hardware_concurrency());
 	const uint32_t threadCount = (std::min)(kMaxDecodeWorkerCount, hardwareThreadCount);
@@ -56,16 +62,6 @@ void Engine::TextureUploadService::TickFinalize() {
 	// 記録されたジョブを処理する
 	for (auto& job : jobs) {
 
-		// reload時は既存のSRVインデックスを再利用して差し替える、index据え置きなのでバッチキャッシュ等の参照を壊さない
-		uint32_t reuseSrvIndex = UINT32_MAX;
-		if (job.reload) {
-			std::scoped_lock lock(mutex_);
-			auto existing = readyTextures_.find(job.key);
-			if (existing != readyTextures_.end() && existing->second.srvIndex != UINT32_MAX) {
-				reuseSrvIndex = existing->second.srvIndex;
-			}
-		}
-
 		GPUTextureResource uploaded{};
 		// 単色テクスチャのアップロード
 		if (job.isSolidColor) {
@@ -75,7 +71,7 @@ void Engine::TextureUploadService::TickFinalize() {
 		}
 		// 画像テクスチャのアップロード
 		else if (job.success) {
-			uploaded = uploader_.UploadScratchImage(job.image, job.metadata, reuseSrvIndex);
+			uploaded = uploader_.UploadScratchImage(job.image, job.metadata);
 		}
 
 		// アップロード結果を反映する
@@ -87,33 +83,34 @@ void Engine::TextureUploadService::TickFinalize() {
 			continue;
 		}
 
-		failedKeys_.erase(job.key);
-		auto it = readyTextures_.find(job.key);
-		if (it != readyTextures_.end()) {
-			// 再利用indexで上書きした時は同じindexなのでFreeしない、別indexになった時のみ旧indexを解放する
-			if (srvDescriptor_ && it->second.srvIndex != UINT32_MAX && it->second.srvIndex != uploaded.srvIndex) {
-				srvDescriptor_->Free(it->second.srvIndex);
-			}
-			readyTextures_.erase(it);
+		if (!uploaded.valid) {
+			failedKeys_.insert(job.key);
+			continue;
 		}
-		// アップロードに成功していればマップに追加する
-		if (uploaded.valid) {
-
+		try {
+			// 名前の準備も差し替え前に完了する
+			uploaded.textureName = job.key;
+			uploaded.resource->SetName(Algorithm::ConvertString(job.key).c_str());
+			srvDescriptor_->UpdateResourceName(uploaded.srvIndex, uploaded.resource.Get());
 			const auto desc = uploaded.resource->GetDesc();
 			Logger::Output(LogType::Engine,
 				"[TextureLoad][GPU] key={} srvIndex={} size={}x{} format={} status=準備完了",
 				job.key, uploaded.srvIndex, static_cast<uint32_t>(desc.Width), desc.Height, static_cast<uint32_t>(desc.Format));
-
-			uploaded.textureName = job.key;
-			uploaded.resource->SetName(Algorithm::ConvertString(job.key).c_str());
-			if (srvDescriptor_ && uploaded.srvIndex != UINT32_MAX) {
-				srvDescriptor_->UpdateResourceName(uploaded.srvIndex, uploaded.resource.Get());
+			auto existing = readyTextures_.find(job.key);
+			if (existing != readyTextures_.end()) {
+				// 使用中の旧DescriptorとResourceを一組で保持する
+				srvDescriptor_->Retire(existing->second.srvIndex, existing->second.resource);
+				existing->second = std::move(uploaded);
+			} else {
+				readyTextures_.emplace(job.key, std::move(uploaded));
 			}
-			readyTextures_.emplace(job.key, std::move(uploaded));
-		} else {
-
-			failedKeys_.insert(job.key);
+		} catch (...) {
+			// 公開前の新Descriptorだけを戻す
+			srvDescriptor_->Free(uploaded.srvIndex);
+			throw;
 		}
+		failedKeys_.erase(job.key);
+		++contentRevision_;
 	}
 
 	// 読み込み中にImporter設定が変わったキーは初回転送直後に最新設定で再読込する
@@ -143,7 +140,9 @@ void Engine::TextureUploadService::TickFinalize() {
 	}
 	for (TextureFileRequestDesc& desc : deferredReloads) {
 
-		decodeWorkers_.Enqueue(desc);
+		if (!QueueDecode(desc)) {
+			continue;
+		}
 		Logger::Output(LogType::Engine,
 			"[TextureReload][遅延] key={} path={}", desc.key, desc.assetPath);
 	}
@@ -213,7 +212,9 @@ void Engine::TextureUploadService::RequestTextureFile(const TextureFileRequestDe
 		return;
 	}
 
-	decodeWorkers_.Enqueue(desc);
+	if (!QueueDecode(desc)) {
+		return;
+	}
 
 	const auto stats = decodeWorkers_.GetStats();
 	Logger::Output(LogType::Engine, "[TextureLoad][待機列] key={} workers={} processing={} queued={} path={}",
@@ -249,7 +250,9 @@ void Engine::TextureUploadService::RequestReload(const std::string& key) {
 		queuedKeys_.insert(key);
 	}
 
-	decodeWorkers_.Enqueue(desc);
+	if (!QueueDecode(desc)) {
+		return;
+	}
 	Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}", desc.key, desc.assetPath);
 }
 
@@ -298,7 +301,9 @@ void Engine::TextureUploadService::RequestReloadByFile(
 
 	for (TextureFileRequestDesc& desc : toEnqueue) {
 
-		decodeWorkers_.Enqueue(desc);
+		if (!QueueDecode(desc)) {
+			continue;
+		}
 		Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}", desc.key, desc.assetPath);
 	}
 }
@@ -310,13 +315,14 @@ void Engine::TextureUploadService::Finalize() {
 	if (srvDescriptor_) {
 		for (auto& [key, texture] : readyTextures_) {
 			if (texture.srvIndex != UINT32_MAX) {
-				srvDescriptor_->Free(texture.srvIndex);
+				srvDescriptor_->Retire(texture.srvIndex, texture.resource);
 			}
 		}
 	}
 	{
 		std::scoped_lock lock(mutex_);
 		pendingUploads_.clear();
+		if (!readyTextures_.empty()) ++contentRevision_;
 		readyTextures_.clear();
 		queuedKeys_.clear();
 		failedKeys_.clear();
@@ -381,4 +387,19 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 	}
 	std::scoped_lock lock(mutex_);
 	pendingUploads_.emplace_back(std::move(result));
+}
+
+bool Engine::TextureUploadService::QueueDecode(const TextureFileRequestDesc& desc) {
+
+	if (decodeWorkers_.Enqueue(desc)) {
+		return true;
+	}
+	// 受付失敗を待機中として残さず旧Textureは保持する
+	{
+		std::scoped_lock lock(mutex_);
+		queuedKeys_.erase(desc.key);
+		failedKeys_.insert(desc.key);
+	}
+	Logger::Output(LogType::Engine, spdlog::level::err, "[TextureLoad][受付失敗] key={}", desc.key);
+	return false;
 }

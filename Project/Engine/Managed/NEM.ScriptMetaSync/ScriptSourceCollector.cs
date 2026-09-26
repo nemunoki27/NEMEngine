@@ -1,54 +1,105 @@
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using NEM.ScriptAnalysis;
 
 namespace NEM.ScriptMetaSync;
 
-// スクリプトmetaのソース解析
+// 実際の型と属性を解決して保存Fieldを収集する
 internal static class ScriptSourceCollector {
 
-    private const string ScriptBehaviourName = "ScriptBehaviour";
-
     internal static Dictionary<string, List<ScriptModel>> Collect(string root) {
-        // .cs を収集（生成物・VCS・reload 作業領域は除外）
-        var csFiles = new List<string>();
-        foreach (string file in Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)) {
-            if (IsExcluded(file)) { continue; }
-            csFiles.Add(file);
+#if DEBUG
+        string[] symbols = ["TRACE", "DEBUG"];
+#elif DEVELOP
+        string[] symbols = ["TRACE", "DEVELOP"];
+#else
+        string[] symbols = ["TRACE"];
+#endif
+        var options = CSharpParseOptions.Default.WithPreprocessorSymbols(symbols);
+        var trees = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsExcluded(file)).OrderBy(file => file, StringComparer.Ordinal)
+            .Select(file => CSharpSyntaxTree.ParseText(File.ReadAllText(file), options, path: file)).ToList();
+        return Collect(trees);
+    }
+
+    internal static Dictionary<string, List<ScriptModel>> Collect(IReadOnlyList<SyntaxTree> trees) {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string? trusted = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
+        if (trusted != null) {
+            foreach (string path in trusted.Split(Path.PathSeparator)) { paths.Add(path); }
         }
+        paths.Add(typeof(NEMEngine.MonoBehaviour).Assembly.Location);
+        var references = paths.Select(path => MetadataReference.CreateFromFile(path));
+        SyntaxTree globals = CSharpSyntaxTree.ParseText("""
+            global using NEMEngine;
+            global using System;
+            global using System.Collections.Generic;
+            global using System.IO;
+            global using System.Linq;
+            global using System.Net.Http;
+            global using System.Threading;
+            global using System.Threading.Tasks;
+            """, trees.FirstOrDefault()?.Options as CSharpParseOptions);
+        var compilation = CSharpCompilation.Create("ScriptMetadataInput", trees.Append(globals), references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, allowUnsafe: true));
+        return Collect(compilation);
+    }
 
-        // 全 class の継承マップ（transitive に ScriptBehaviour 派生を判定するため）
-        var classMap = new Dictionary<string, ClassInfo>(StringComparer.Ordinal);
-        var perFile = new Dictionary<string, List<ScriptModel>>(StringComparer.OrdinalIgnoreCase);
-        var parsedRoots = new Dictionary<string, CompilationUnitSyntax>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (string file in csFiles) {
-            string text = File.ReadAllText(file);
-            SyntaxTree tree = CSharpSyntaxTree.ParseText(text);
-            var unit = (CompilationUnitSyntax)tree.GetRoot();
-            parsedRoots[file] = unit;
-            foreach (ClassDeclarationSyntax cls in unit.DescendantNodes().OfType<ClassDeclarationSyntax>()) {
-                ClassInfo info = new() {
-                    SimpleName = cls.Identifier.Text,
-                    BaseSimpleName = FirstBaseSimpleName(cls),
-                    IsAbstract = cls.Modifiers.Any(m => m.IsKind(SyntaxKind.AbstractKeyword)),
-                };
-                classMap[info.SimpleName] = info;
+    internal static Dictionary<string, List<ScriptModel>> Collect(CSharpCompilation compilation) {
+        Diagnostic[] errors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToArray();
+        if (errors.Length != 0) {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, errors.Select(error => error.ToString())));
+        }
+        var result = new Dictionary<string, List<ScriptModel>>(StringComparer.OrdinalIgnoreCase);
+        var visited = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+        foreach (SyntaxTree tree in compilation.SyntaxTrees.OrderBy(tree => tree.FilePath, StringComparer.Ordinal)) {
+            SemanticModel semantic = compilation.GetSemanticModel(tree);
+            foreach (ClassDeclarationSyntax declaration in tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()) {
+                if (semantic.GetDeclaredSymbol(declaration) is not INamedTypeSymbol type ||
+                    !visited.Add(type) || !ScriptSymbolRules.IsScript(type)) { continue; }
+                ScriptModel model = ReadScript(type);
+                if (!result.TryGetValue(tree.FilePath, out List<ScriptModel>? scripts)) {
+                    scripts = new();
+                    result.Add(tree.FilePath, scripts);
+                }
+                scripts.Add(model);
             }
         }
+        return result;
+    }
 
-        // 各ファイルから script 型を抽出する
-        foreach (string file in csFiles) {
-            var models = ExtractScripts(parsedRoots[file], classMap);
-            if (models.Count > 0) {
-                perFile[file] = models;
+    private static ScriptModel ReadScript(INamedTypeSymbol type) {
+        var result = new ScriptModel {
+            FullTypeName = FullName(type),
+            ExplicitID = AttributeStrings(type, "NEMEngine.ScriptTypeIDAttribute").FirstOrDefault(),
+            FormerlyKnown = AttributeStrings(type, "NEMEngine.FormerlyKnownScriptTypeAttribute"),
+        };
+        var hierarchy = new Stack<INamedTypeSymbol>();
+        for (INamedTypeSymbol? owner = type; owner != null && FullName(owner) != "NEMEngine.MonoBehaviour"; owner = owner.BaseType) {
+            hierarchy.Push(owner);
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (INamedTypeSymbol owner in hierarchy) {
+            foreach (IFieldSymbol field in owner.GetMembers().OfType<IFieldSymbol>().Where(ScriptSymbolRules.IsSerializedField)) {
+                if (!names.Add(field.Name)) { throw new InvalidOperationException($"Duplicate serialized field: {result.FullTypeName}.{field.Name}"); }
+                result.Fields.Add(new FieldModel {
+                    Name = field.Name,
+                    TypeText = field.Type.ToDisplayString(),
+                    ExplicitID = AttributeStrings(field, "NEMEngine.SerializedFieldIDAttribute").FirstOrDefault(),
+                    FormerlySerializedAs = AttributeStrings(field, "NEMEngine.FormerlySerializedAsAttribute"),
+                });
             }
         }
+        return result;
+    }
 
-        return perFile;
+    private static string FullName(INamedTypeSymbol type) => type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat
+        .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
+
+    private static List<string> AttributeStrings(ISymbol symbol, string name) {
+        return symbol.GetAttributes().Where(attribute => attribute.AttributeClass?.ToDisplayString() == name)
+            .Select(attribute => attribute.ConstructorArguments.FirstOrDefault().Value).OfType<string>().ToList();
     }
 
     internal static bool IsExcluded(string path) {
@@ -61,129 +112,4 @@ internal static class ScriptSourceCollector {
             || norm.EndsWith(".generated.cs", StringComparison.OrdinalIgnoreCase);
     }
 
-    internal static string? FirstBaseSimpleName(ClassDeclarationSyntax cls) {
-        if (cls.BaseList == null) { return null; }
-        foreach (BaseTypeSyntax baseType in cls.BaseList.Types) {
-            // 最初の base を基底クラス候補とする（interface でも simple 名で照合する）
-            return SimpleNameOf(baseType.Type);
-        }
-        return null;
-    }
-
-    internal static string SimpleNameOf(TypeSyntax type) {
-        return type switch {
-            IdentifierNameSyntax id => id.Identifier.Text,
-            QualifiedNameSyntax q => q.Right.Identifier.Text,
-            GenericNameSyntax g => g.Identifier.Text,
-            _ => type.ToString(),
-        };
-    }
-
-    internal static bool DerivesFromScriptBehaviour(string? simpleName, Dictionary<string, ClassInfo> map) {
-        int guard = 0;
-        string? current = simpleName;
-        while (!string.IsNullOrEmpty(current) && guard++ < 64) {
-            if (current == ScriptBehaviourName) { return true; }
-            if (!map.TryGetValue(current!, out ClassInfo? info)) { return false; }
-            current = info.BaseSimpleName;
-        }
-        return false;
-    }
-
-    internal static List<ScriptModel> ExtractScripts(CompilationUnitSyntax unit, Dictionary<string, ClassInfo> map) {
-
-        var result = new List<ScriptModel>();
-        foreach (ClassDeclarationSyntax cls in unit.DescendantNodes().OfType<ClassDeclarationSyntax>()) {
-
-            if (cls.Modifiers.Any(m => m.IsKind(SyntaxKind.AbstractKeyword))) { continue; }
-            if (!DerivesFromScriptBehaviour(FirstBaseSimpleName(cls), map)) { continue; }
-
-            string ns = NamespaceOf(cls);
-            var model = new ScriptModel {
-                FullTypeName = string.IsNullOrEmpty(ns) ? cls.Identifier.Text : ns + "." + cls.Identifier.Text,
-            };
-            model.ExplicitID = AttributeStringArg(cls.AttributeLists, "ScriptTypeID");
-            model.FormerlyKnown = AttributeStringArgs(cls.AttributeLists, "FormerlyKnownScriptType");
-
-            foreach (FieldDeclarationSyntax field in cls.Members.OfType<FieldDeclarationSyntax>()) {
-
-                if (!IsSerializedField(field)) { continue; }
-                string typeText = field.Declaration.Type.ToString();
-                string? explicitID = AttributeStringArg(field.AttributeLists, "SerializedFieldID");
-                List<string> formerly = AttributeStringArgs(field.AttributeLists, "FormerlySerializedAs");
-
-                foreach (VariableDeclaratorSyntax v in field.Declaration.Variables) {
-                    model.Fields.Add(new FieldModel {
-                        Name = v.Identifier.Text,
-                        TypeText = typeText,
-                        ExplicitID = explicitID,
-                        FormerlySerializedAs = new List<string>(formerly),
-                    });
-                }
-            }
-            result.Add(model);
-        }
-        return result;
-    }
-
-    internal static string NamespaceOf(SyntaxNode node) {
-        for (SyntaxNode? n = node.Parent; n != null; n = n.Parent) {
-            if (n is FileScopedNamespaceDeclarationSyntax fs) { return fs.Name.ToString(); }
-            if (n is NamespaceDeclarationSyntax ns) { return ns.Name.ToString(); }
-        }
-        return string.Empty;
-    }
-
-    internal static bool IsSerializedField(FieldDeclarationSyntax field) {
-        bool isStatic = field.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword));
-        bool isConst = field.Modifiers.Any(m => m.IsKind(SyntaxKind.ConstKeyword));
-        bool isReadonly = field.Modifiers.Any(m => m.IsKind(SyntaxKind.ReadOnlyKeyword));
-        if (isStatic || isConst || isReadonly) { return false; }
-        bool isPublic = field.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword));
-        bool hasSerializeField = HasAttribute(field.AttributeLists, "SerializeField");
-        return isPublic || hasSerializeField;
-    }
-
-    internal static bool HasAttribute(SyntaxList<AttributeListSyntax> lists, string name) {
-        foreach (AttributeListSyntax list in lists) {
-            foreach (AttributeSyntax attr in list.Attributes) {
-                if (MatchesAttributeName(attr, name)) { return true; }
-            }
-        }
-        return false;
-    }
-
-    internal static string? AttributeStringArg(SyntaxList<AttributeListSyntax> lists, string name) {
-        foreach (AttributeListSyntax list in lists) {
-            foreach (AttributeSyntax attr in list.Attributes) {
-                if (MatchesAttributeName(attr, name) && attr.ArgumentList?.Arguments.Count >= 1) {
-                    return LiteralString(attr.ArgumentList.Arguments[0].Expression);
-                }
-            }
-        }
-        return null;
-    }
-
-    internal static List<string> AttributeStringArgs(SyntaxList<AttributeListSyntax> lists, string name) {
-        var values = new List<string>();
-        foreach (AttributeListSyntax list in lists) {
-            foreach (AttributeSyntax attr in list.Attributes) {
-                if (MatchesAttributeName(attr, name) && attr.ArgumentList?.Arguments.Count >= 1) {
-                    string? s = LiteralString(attr.ArgumentList.Arguments[0].Expression);
-                    if (!string.IsNullOrWhiteSpace(s)) { values.Add(s!); }
-                }
-            }
-        }
-        return values;
-    }
-
-    internal static bool MatchesAttributeName(AttributeSyntax attr, string name) {
-        string text = SimpleNameOf(attr.Name);
-        return text == name || text == name + "Attribute";
-    }
-
-    internal static string? LiteralString(ExpressionSyntax expr) {
-        return expr is LiteralExpressionSyntax lit && lit.IsKind(SyntaxKind.StringLiteralExpression)
-            ? lit.Token.ValueText : null;
-    }
 }

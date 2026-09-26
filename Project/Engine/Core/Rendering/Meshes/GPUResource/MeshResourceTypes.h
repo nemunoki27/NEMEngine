@@ -17,6 +17,7 @@
 
 // c++
 #include <array>
+#include <utility>
 
 namespace Engine {
 
@@ -268,23 +269,76 @@ namespace Engine {
 		uint32_t boneCount = 0;
 		std::vector<VertexInfluence> vertexInfluences{};
 	};
-	// 静的メッシュSRVリソース(DEFAULT heap、ロード後は更新しない)
+	// 静的メッシュのBufferとSRV番号を所有する
 	template <typename T>
 	struct MeshStructuredHandle {
+
+		MeshStructuredHandle() = default;
+		~MeshStructuredHandle() { Release(); }
+		MeshStructuredHandle(const MeshStructuredHandle&) = delete;
+		MeshStructuredHandle& operator=(const MeshStructuredHandle&) = delete;
+		MeshStructuredHandle(MeshStructuredHandle&& other) noexcept { Swap(other); }
+		MeshStructuredHandle& operator=(MeshStructuredHandle&& other) noexcept {
+
+			if (this != &other) {
+				Release();
+				Swap(other);
+			}
+			return *this;
+		}
 
 		std::unique_ptr<DxImmutableStructuredBuffer<T>> buffer;
 		uint32_t srvIndex = UINT32_MAX;
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle{};
 
-		// リソース解放
-		void Release(SRVDescriptor* srvDescriptor) {
+		// BufferとSRVの作成後に公開する
+		void Create(ID3D12Device* device, BufferUploadService& uploadService, SRVDescriptor& descriptor,
+			std::span<const T> data, const wchar_t* debugName) {
 
-			if (srvDescriptor && srvIndex != UINT32_MAX) {
-				srvDescriptor->Free(srvIndex);
+			if (data.empty()) return;
+			// 途中失敗した候補も所有元の破棄で回収する
+			MeshStructuredHandle candidate;
+			candidate.descriptor_ = &descriptor;
+			candidate.buffer = std::make_unique<DxImmutableStructuredBuffer<T>>();
+			candidate.buffer->Create(device, uploadService, data);
+			candidate.buffer->GetResource()->SetName(debugName);
+			descriptor.CreateSRV(candidate.srvIndex, candidate.buffer->GetResource(), candidate.buffer->GetSRVDesc());
+			candidate.srvGPUHandle = descriptor.GetGPUHandle(candidate.srvIndex);
+			Swap(candidate);
+		}
+
+		// GPU完了までBufferとSRV番号を保持する
+		void Release() {
+
+			if (srvIndex != UINT32_MAX) {
+				// 番号とBuffer本体を回収する領域を先に確保する
+				descriptor_->GetRetirementQueue().ReservePending(2);
+				descriptor_->Retire(srvIndex, {});
 			}
 			srvIndex = UINT32_MAX;
 			srvGPUHandle = {};
 			buffer.reset();
+			descriptor_ = nullptr;
+		}
+	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		SRVDescriptor* descriptor_ = nullptr;
+
+		//--------- functions ----------------------------------------------------
+
+		// Bufferと番号の所有をまとめて交換する
+		void Swap(MeshStructuredHandle& other) noexcept {
+
+			using std::swap;
+			swap(buffer, other.buffer);
+			swap(srvIndex, other.srvIndex);
+			swap(srvGPUHandle, other.srvGPUHandle);
+			swap(descriptor_, other.descriptor_);
 		}
 	};
 	// GPU上のメッシュリソース

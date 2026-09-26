@@ -182,47 +182,26 @@ internal sealed class ScriptMetaPlanner {
 
         // 1) 名前 / formerNames / 明示 ID で対応付け
         var resolved = new List<(FieldModel model, JsonObject? existing, string? id)>();
-        var needAssign = new List<int>();
 
         foreach (FieldModel f in model.Fields) {
-            JsonObject? match = FindFieldByName(existingFields, f.Name, usedExisting);
-            if (match == null) {
-                foreach (string former in f.FormerlySerializedAs) {
-                    match = FindFieldByName(existingFields, former, usedExisting);
-                    if (match != null) { break; }
-                }
+            var names = new HashSet<string>(f.FormerlySerializedAs, StringComparer.Ordinal) { f.Name };
+            string? explicitID = diagnostics.NormalizeOrError(f.ExplicitID, $"{model.FullTypeName}.{f.Name} [SerializedFieldID]");
+            var candidates = existingFields.OfType<JsonObject>().Where(existing =>
+                names.Contains((string?)existing["name"] ?? string.Empty) ||
+                (existing["formerNames"] is JsonArray former && former.Any(name => names.Contains((string?)name ?? string.Empty))) ||
+                (explicitID != null && Guid.TryParse((string?)existing["fieldId"], out Guid oldID) && oldID.ToString("D") == explicitID)).ToList();
+            JsonObject? match = candidates.Count == 1 ? candidates[0] : null;
+            string? matchedID = diagnostics.NormalizeOrError((string?)match?["fieldId"], $"{model.FullTypeName}.{f.Name} meta fieldId");
+            if (candidates.Count > 1 || (match != null && !usedExisting.Add(match)) ||
+                (explicitID != null && matchedID != null && explicitID != matchedID)) {
+                ++diagnostics.errorCount;
+                Console.Error.WriteLine($"[ScriptMetaSync] ambiguous field identity for '{model.FullTypeName}.{f.Name}'.");
             }
-            if (match != null) { usedExisting.Add(match); }
-
-            string? id = diagnostics.NormalizeOrError(f.ExplicitID, $"{model.FullTypeName}.{f.Name} [SerializedFieldID]");
-            if (id == null) { id = diagnostics.NormalizeOrError((string?)match?["fieldId"], $"{model.FullTypeName}.{f.Name} meta fieldId"); }
+            string? id = explicitID ?? matchedID;
             resolved.Add((f, match, id));
-            if (id == null) { needAssign.Add(resolved.Count - 1); }
         }
 
-        // 2) 未割当 field と、未対応の既存 field（削除）で単純 rename 推定
-        var unmatchedExisting = existingFields.OfType<JsonObject>().Where(e => !usedExisting.Contains(e)).ToList();
-        if (needAssign.Count == 1 && unmatchedExisting.Count == 1) {
-
-            int idx = needAssign[0];
-            JsonObject old = unmatchedExisting[0];
-            string oldName = (string?)old["name"] ?? "";
-            string? oldID = diagnostics.NormalizeOrError((string?)old["fieldId"], "rename fieldId");
-            if (oldID != null) {
-                resolved[idx] = (resolved[idx].model, old, oldID);
-                resolved[idx].model.FormerlySerializedAs.Add(oldName);
-                usedExisting.Add(old);
-                needAssign.Clear();
-                Console.WriteLine($"[ScriptMetaSync] field rename: {model.FullTypeName}.{oldName} -> {resolved[idx].model.Name} (id kept).");
-            }
-        } else if (needAssign.Count > 0 && unmatchedExisting.Count > 0) {
-            diagnostics.ambiguousCount++;
-            Console.Error.WriteLine($"[ScriptMetaSync] ambiguous field rename in {model.FullTypeName}: " +
-                $"new=[{string.Join(",", needAssign.Select(i => resolved[i].model.Name))}] " +
-                $"removed=[{string.Join(",", unmatchedExisting.Select(e => (string?)e["name"]))}]. Resolve manually.");
-        }
-
-        // 3) 残りの未割当は新規 UUID（EditorSync）/ error（ValidateOnly）
+        // 明示的な対応がないFieldには新しいIDを割り当てる
         var fields = new JsonArray();
         foreach ((FieldModel f, JsonObject? existing, string? idIn) in resolved) {
             string? id = idIn;
@@ -235,7 +214,7 @@ internal sealed class ScriptMetaPlanner {
                     id = Guid.NewGuid().ToString("D");
                 }
             }
-            if (seenFieldIDs.TryGetValue(id, out string? owner) && owner != f.Name) {
+            if (seenFieldIDs.TryGetValue(id, out string? owner)) {
                 diagnostics.errorCount++;
                 Console.Error.WriteLine($"[ScriptMetaSync] duplicate fieldId '{id}' on '{model.FullTypeName}.{f.Name}' and '.{owner}'.");
             } else {
@@ -256,26 +235,13 @@ internal sealed class ScriptMetaPlanner {
             fields.Add(fieldNode);
         }
 
-        // 4) source から消えた field（rename にも該当しない）は meta から外す。
-        // meta は「現在の source field の ID 台帳」。orphan を残すと rename 検出を汚染し、
-        // 正当な単純 rename まで曖昧扱いになって reload が止まる原因になる。
-        // 旧 field の Scene 保存値は scene 側 serializedFields に unresolvedFields として GUID 単位で残るため、
-        // meta からの除去は非破壊（識別子は Scene 内に保持される）。
+        // 削除Fieldの保存値はScene側で旧GUIDのまま保持する
 
         // fieldID で安定ソート
         var sorted = fields.OfType<JsonObject>().OrderBy(f => (string?)f["fieldId"] ?? "", StringComparer.Ordinal).ToList();
         var sortedArray = new JsonArray();
         foreach (JsonObject f in sorted) { sortedArray.Add(f.DeepClone()); }
         return sortedArray;
-    }
-
-    internal JsonObject? FindFieldByName(JsonArray fields, string name, HashSet<JsonObject> used) {
-        foreach (JsonNode? node in fields) {
-            if (node is JsonObject obj && !used.Contains(obj) && (string?)obj["name"] == name) {
-                return obj;
-            }
-        }
-        return null;
     }
 
     internal void AddFormerName(JsonObject entry, string name) {

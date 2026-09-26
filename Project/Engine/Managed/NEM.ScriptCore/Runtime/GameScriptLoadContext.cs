@@ -16,7 +16,7 @@ internal sealed class GameScriptLoadContext : AssemblyLoadContext {
     // ゲームDLLの依存関係解決に使うResolver
     private readonly AssemblyDependencyResolver resolver;
     // ScriptCore本体はホスト側で読み込まれているものを共有する
-    private readonly Assembly scriptCoreAssembly = typeof(ScriptBehaviour).Assembly;
+    private readonly Assembly scriptCoreAssembly = typeof(MonoBehaviour).Assembly;
 
     public GameScriptLoadContext(string mainAssemblyPath) : base("NEMEngine.GameScripts", isCollectible: true) {
         resolver = new AssemblyDependencyResolver(mainAssemblyPath);

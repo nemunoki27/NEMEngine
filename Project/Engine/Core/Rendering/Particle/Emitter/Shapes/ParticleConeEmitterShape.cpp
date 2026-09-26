@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 // c++
 #include <cmath>
@@ -43,21 +42,4 @@ void Engine::ParticleConeEmitterShape::InitParticle(Vector3& position, Vector3& 
 	} else {
 		direction = Vector3(0.0f, 1.0f, 0.0f);
 	}
-}
-
-void Engine::ParticleConeEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
-
-	// 開き角に沿った上面半径で高さ1の円錐を表す
-	const float displayHeight = 1.0f;
-	const float topRadius = settings.cone.radius + std::tan(settings.cone.angle * degToRad) * displayHeight;
-	renderer->DrawCone(center, settings.cone.radius, topRadius, displayHeight, rotation, Color4::Red());
-#endif
 }

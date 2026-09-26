@@ -1,4 +1,6 @@
 #include "EditorManager.h"
+
+#include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include "EditorSelectionOperations.h"
 
 //============================================================================
@@ -537,6 +539,9 @@ void Engine::EditorManager::RenderPlatformWindows() {
 
 void Engine::EditorManager::Finalize() {
 
+	// Editor終了後の補助描画を切り離す
+	ParticleEmitterShapeRegistry::GetInstance().SetDebugDrawFunction(nullptr);
+
 	if (!initialized_) {
 		return;
 	}
@@ -557,8 +562,10 @@ void Engine::EditorManager::Finalize() {
 	tagSettings_ = {};
 	renderingLayerSettings_ = {};
 
-	meshSubMeshPicker_->Finalize();
-	meshSubMeshPicker_.reset();
+	if (meshSubMeshPicker_) {
+		meshSubMeshPicker_->Finalize();
+		meshSubMeshPicker_.reset();
+	}
 }
 
 void Engine::EditorManager::ResetSceneEditingState() {

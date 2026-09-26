@@ -13,6 +13,16 @@ namespace NEMEngine;
 // 生成済みの型情報を読み取る
 internal static unsafe class ScriptGeneratedMetadata {
 
+    // C#表記の入れ子型名も実行型へ解決する
+    internal static Type? ResolveType(Assembly assembly, string name) {
+        Type? type = assembly.GetType(name, throwOnError: false);
+        for (int separator = name.LastIndexOf('.'); type == null && separator >= 0; separator = name.LastIndexOf('.')) {
+            name = name[..separator] + "+" + name[(separator + 1)..];
+            type = assembly.GetType(name, throwOnError: false);
+        }
+        return type;
+    }
+
     internal static JsonObject? TryReadGeneratedSchema(Assembly assembly) {
 
         Type? schemaType = assembly.GetType("NEMEngine.GeneratedScriptSchema", throwOnError: false);
@@ -27,13 +37,16 @@ internal static unsafe class ScriptGeneratedMetadata {
             }
             JsonNode? root = JsonNode.Parse(json!);
             var byType = new JsonObject();
-            if (root?["scripts"] is JsonArray scripts) {
-                foreach (JsonNode? scriptNode in scripts) {
-                    if (scriptNode is JsonObject scriptObj &&
-                        scriptObj["scriptTypeId"]?.GetValue<string>() is string id && !string.IsNullOrEmpty(id)) {
-                        byType[id] = scriptObj.DeepClone();
-                    }
+            if (root?["scripts"] is not JsonArray scripts) {
+                throw new InvalidOperationException("Generated schema has no scripts array.");
+            }
+            foreach (JsonNode? scriptNode in scripts) {
+                if (scriptNode is not JsonObject scriptObj ||
+                    scriptObj["scriptTypeId"]?.GetValue<string>() is not string rawID ||
+                    NormalizeGuid(rawID) is not string id || byType.ContainsKey(id)) {
+                    throw new InvalidOperationException("Generated schema contains an invalid or duplicate script ID.");
                 }
+                byType.Add(id, scriptObj.DeepClone());
             }
             return byType;
         }
@@ -67,7 +80,10 @@ internal static unsafe class ScriptGeneratedMetadata {
         for (Type? t = rootType; t != null && t != typeof(object); t = t.BaseType) {
             FieldInfo? f = t.GetField(fieldName, flags);
             if (f != null) {
-                if (string.IsNullOrEmpty(declaringTypeName) || (f.DeclaringType?.FullName ?? string.Empty) == declaringTypeName) {
+                string owner = f.DeclaringType?.FullName ?? string.Empty;
+                string definition = t.IsGenericType ? t.GetGenericTypeDefinition().FullName ?? string.Empty : owner;
+                if (string.IsNullOrEmpty(declaringTypeName) || owner == declaringTypeName || owner.Replace('+', '.') == declaringTypeName ||
+                    definition == declaringTypeName) {
                     return f;
                 }
             }

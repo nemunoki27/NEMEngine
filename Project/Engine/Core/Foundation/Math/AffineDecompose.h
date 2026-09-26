@@ -17,6 +17,16 @@ namespace Engine {
 	// 行ベクトル規約の回転行列からクォータニオンを取り出す
 	Quaternion QuaternionFromRotationMatrixRowVector(const Matrix4x4& rowVectorMatrix);
 
+	enum class AffineDecompositionResult {
+		Failed,
+		Exact,
+		Approximate
+	};
+
+	// TRSでの再現とせん断を含む近似を区別する
+	AffineDecompositionResult DecomposeAffine3DResult(
+		const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale);
+
 	// 3Dアフィン行列を平行移動、回転、拡縮に分解する、スケールが潰れている場合はfalse
 	bool DecomposeAffine3D(const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale);
 

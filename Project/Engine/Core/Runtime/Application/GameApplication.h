@@ -44,6 +44,11 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 初期化途中の終了で未作成のサービスを呼ばない
+		bool initializationComplete_ = false;
+		bool managedStarted_ = false;
+		bool debugDrawingStarted_ = false;
+
 		AssetID activeScene_{};
 		AssetDatabase assetDatabase_;
 

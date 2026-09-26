@@ -5,7 +5,7 @@ namespace SandboxScripts;
 //============================================================================
 //	RenderFeatureControlExample
 //============================================================================
-public sealed class RenderFeatureControlExample : ScriptBehaviour {
+public sealed class RenderFeatureControlExample : MonoBehaviour {
 
 	private const string ThresholdName = "Threshold";
 	private static readonly MaterialParameterID ThresholdID =
@@ -39,7 +39,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	//========================================================================
 	//	開始時処理
 	//========================================================================
-	public override void Start() {
+	private void Start() {
 
 		ResolvePass();
 	}
@@ -47,7 +47,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	//========================================================================
 	//	毎フレーム更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
 		if (!shaderGraphPass.isValid || !customComputePass.isValid) {
 			ResolvePass();
@@ -69,7 +69,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	//========================================================================
 	//	無効化時処理
 	//========================================================================
-	public override void OnDisable() {
+	private void OnDisable() {
 
 		if (shaderGraphPass.isValid) {
 			shaderGraphPass.Reset();

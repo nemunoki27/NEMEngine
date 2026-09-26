@@ -6,7 +6,7 @@ void Engine::MeshSkinningBufferSet::Init(ID3D12Device* device, SRVDescriptor* sr
 	skinnedVertices.Init(device, srvDescriptor);
 	// MeshShader経路のため、スキニング結果も圧縮頂点として保持する
 	skinnedPackedVertices.Init(device, srvDescriptor);
-	skinningConstants.Init(device);
+	skinningConstants.Init(srvDescriptor->GetRetirementQueue(), device);
 
 	skinningPalette.EnsureCapacity(256);
 	skinnedVertices.EnsureCapacity(256);

@@ -48,6 +48,7 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> SetRotation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetLossyScale;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> HasComponent;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, ulong> GetComponentInstanceID;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> AddComponent;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> RemoveComponent;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> DestroyEntity;
@@ -69,7 +70,7 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<ulong> GetFrameCount;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, int> AssetExists;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int> CopyAssetDisplayName;
-    // Gameplay(v7): Entity 生成 / Prefab / Scene / SetParent(worldPositionStays)
+    // Gameplay(v7): GameObject 生成 / Prefab / Scene / SetParent(worldPositionStays)
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> CreateEntity;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneAdditive;
@@ -105,7 +106,7 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID, void> LineDrawSphereImmediate;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int> LineAddPoint;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> LineUpdatePoint;
-    // v14: Tag / Layerマスク / Entity検索
+    // v14: Tag / Layerマスク / GameObject検索
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopyTag;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> SetTag;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetVisibilityLayerMask;
@@ -146,7 +147,7 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<void> ResetRenderFeatureOverrides;
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
-    // v20: Entityの保存identityを逆引きする
+    // v20: GameObjectの保存identityを逆引きする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void> GetEntityReferenceIdentity;
     // v21: レイキャストとカメラレイとCollisionタイプ名解決
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int> PhysicsRaycast;
@@ -168,7 +169,7 @@ internal static unsafe class NativeAPI {
     // v46: ParticleSystemの再生操作と実行状態
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void> ParticleSystemControl;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> ParticleSystemState;
-    // v37: POD BufferをEntityと固定Type IDから解決して操作する
+    // v37: POD BufferをGameObjectと固定Type IDから解決して操作する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> DynamicBufferLength;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> DynamicBufferCopy;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int> DynamicBufferMutate;
@@ -242,6 +243,7 @@ internal static unsafe class NativeAPI {
         SetRotation = callbacks->setRotation;
         GetLossyScale = callbacks->getLossyScale;
         HasComponent = callbacks->hasComponent;
+        GetComponentInstanceID = callbacks->getComponentInstanceID;
         AddComponent = callbacks->addComponent;
         RemoveComponent = callbacks->removeComponent;
         DestroyEntity = callbacks->destroyEntity;
@@ -457,45 +459,52 @@ internal static unsafe class NativeAPI {
 
     // POD property を outValue へ取得する。失敗時は outValue を変更しない
     internal static void ComponentGet(NativeEntity entity, int typeID, int propertyID, void* outValue, int valueSize) {
-        if (GetComponentProperty != null) {
-            GetComponentProperty(entity, typeID, propertyID, outValue, valueSize);
-        }
+        if (GetComponentProperty == null) { throw new NotSupportedException("Component getter is not connected."); }
+        RequireComponentStatus(GetComponentProperty(entity, typeID, propertyID, outValue, valueSize));
     }
 
     internal static void ComponentSet(NativeEntity entity, int typeID, int propertyID, void* value, int valueSize) {
-        if (SetComponentProperty != null) {
-            SetComponentProperty(entity, typeID, propertyID, value, valueSize);
-        }
+        if (SetComponentProperty == null) { throw new NotSupportedException("Component setter is not connected."); }
+        RequireComponentStatus(SetComponentProperty(entity, typeID, propertyID, value, valueSize));
     }
 
     // string property を length query + buffer で取得する（固定長 buffer を使わない）
     internal static string ComponentGetString(NativeEntity entity, int typeID, int propertyID) {
-        if (GetComponentStringProperty == null) {
-            return string.Empty;
-        }
+        if (GetComponentStringProperty == null) { throw new NotSupportedException("Component string getter is not connected."); }
         // まず必要 byte 数を問い合わせる（buffer=null, capacity=0 → written に必要量）
         int needed = 0;
-        GetComponentStringProperty(entity, typeID, propertyID, null, 0, &needed);
+        int status = GetComponentStringProperty(entity, typeID, propertyID, null, 0, &needed);
+        if (status != (int)ManagedStatus.BufferTooSmall) { RequireComponentStatus(status); }
+        if (needed < 0) { throw new InvalidOperationException("Invalid component string size."); }
         if (needed <= 0) {
             return string.Empty;
         }
         byte[] bytes = new byte[needed];
         int written = 0;
         fixed (byte* ptr = bytes) {
-            GetComponentStringProperty(entity, typeID, propertyID, ptr, needed, &written);
+            RequireComponentStatus(GetComponentStringProperty(entity, typeID, propertyID, ptr, needed, &written));
+            if (written < 0 || written > needed) { throw new InvalidOperationException("Invalid component string length."); }
         }
         return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
     }
 
     internal static void ComponentSetString(NativeEntity entity, int typeID, int propertyID, string value) {
-        if (SetComponentStringProperty == null) {
-            return;
-        }
+        if (SetComponentStringProperty == null) { throw new NotSupportedException("Component string setter is not connected."); }
         string safe = value ?? string.Empty;
         byte[] bytes = Encoding.UTF8.GetBytes(safe);
         fixed (byte* ptr = bytes) {
-            SetComponentStringProperty(entity, typeID, propertyID, ptr, bytes.Length);
+            RequireComponentStatus(SetComponentStringProperty(entity, typeID, propertyID, ptr, bytes.Length));
         }
+    }
+
+    // Native側の失敗を値の取得成功として扱わない
+    private static void RequireComponentStatus(int result) {
+        ManagedStatus status = (ManagedStatus)result;
+        if (status == ManagedStatus.Ok) { return; }
+        if (status is ManagedStatus.InvalidEntityHandle or ManagedStatus.InvalidWorldHandle or ManagedStatus.InvalidInstanceHandle) {
+            throw new MissingReferenceException($"Component access failed: {status}");
+        }
+        throw new InvalidOperationException($"Component access failed: {status}");
     }
 
 	internal static bool ReadUIBlocksGameplayInput() {

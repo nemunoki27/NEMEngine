@@ -1,5 +1,8 @@
 #include "ImmutableIndexBuffer.h"
 
+// c++
+#include <stdexcept>
+
 using namespace Engine;
 
 //============================================================================
@@ -13,6 +16,8 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 		return;
 	}
 
+	if (format != DXGI_FORMAT_R32_UINT) throw std::invalid_argument("32bit IndexにはR32_UINT形式が必要です");
+	if (data.size() > UINT32_MAX / sizeof(uint32_t)) throw std::length_error("Index Bufferの容量が大きすぎます");
 	const UINT sizeInBytes = static_cast<UINT>(sizeof(uint32_t) * data.size());
 
 	buffer_.Create(device, uploadService, std::as_bytes(data), finalState);
@@ -29,6 +34,7 @@ void ImmutableIndexBuffer::Create(ID3D12Device* device, BufferUploadService& upl
 		return;
 	}
 
+	if (data.size() > UINT32_MAX / sizeof(uint16_t)) throw std::length_error("Index Bufferの容量が大きすぎます");
 	const UINT sizeInBytes = static_cast<UINT>(sizeof(uint16_t) * data.size());
 
 	buffer_.Create(device, uploadService, std::as_bytes(data), finalState);

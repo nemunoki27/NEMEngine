@@ -8,10 +8,13 @@
 #include <cstdint>
 #include <deque>
 #include <mutex>
+#include <memory>
 #include <thread>
 #include <vector>
 #include <functional>
 #include <condition_variable>
+#include <exception>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -53,7 +56,7 @@ namespace Engine {
 		void Stop();
 
 		// ジョブの追加
-		void Enqueue(T job);
+		bool Enqueue(T job);
 		// 全ジョブの処理関数が戻るまで待つ
 		void WaitIdle();
 
@@ -72,12 +75,16 @@ namespace Engine {
 
 		// ワーカープールの状態を保護するミューテックス
 		mutable std::mutex mutex_;
+		// 開始と停止の手順を直列化する
+		std::mutex lifecycleMutex_;
+		// このスレッドが実行しているプール
+		static inline thread_local const AssetWorkerPool* activeWorker_ = nullptr;
 		// ワーカーの待機と通知のための条件変数
 		std::condition_variable cv_;
 		std::condition_variable idleCv_;
 
 		// 処理待ちのジョブキュー
-		std::deque<T> jobs_;
+		std::deque<std::unique_ptr<T>> jobs_;
 		// ワーカースレッドのコンテナ
 		std::vector<std::thread> workers_;
 		// ジョブ処理関数オブジェクト
@@ -86,14 +93,22 @@ namespace Engine {
 		// 実行中のジョブ数
 		uint32_t inFlight_ = 0;
 		// 停止フラグ
-		bool stopping_ = false;
+		bool stopping_ = true;
+		// 全ワーカーの起動後だけ投入を許可する
+		bool accepting_ = false;
+		// 呼出し側へ伝える最初の処理例外
+		std::exception_ptr failure_;
 
 		//--------- functions ----------------------------------------------------
 
 		// ワーカースレッドのループ関数
 		void WorkerLoop(uint32_t workerIndex);
 		// 次のジョブを取得し、停止条件なら終了する
-		bool TakeJob(T& job);
+		bool TakeJob(std::unique_ptr<T>& job);
+		// 自分のcallbackから完了待ちへ入らない
+		void CheckControlThread() const;
+		// lifecycleMutexの所有中にワーカーを終了する
+		void StopWorkers();
 		// 実行中件数を戻し、待機者へ完了を通知する
 		void CompleteJob();
 	};
@@ -110,34 +125,66 @@ namespace Engine {
 	template<typename T>
 	inline void AssetWorkerPool<T>::Start(uint32_t threadCount, ProcessFn process) {
 
+		if (!process) {
+			throw std::invalid_argument("AssetWorkerPool process is empty");
+		}
 		// 処理前に停止
-		Stop();
+		CheckControlThread();
+		std::scoped_lock lifecycleLock(lifecycleMutex_);
+		StopWorkers();
 		{
 			std::scoped_lock lock(mutex_);
 			stopping_ = false;
 			process_ = std::move(process);
+			failure_ = nullptr;
 		}
 
 		// スレッド数は1以上
 		threadCount = (std::max)(1u, threadCount);
-		workers_.reserve(threadCount);
-		for (uint32_t i = 0; i < threadCount; ++i) {
-
-			workers_.emplace_back([this, i]() { WorkerLoop(i); });
+		try {
+			std::scoped_lock lock(mutex_);
+			workers_.reserve(threadCount);
+			for (uint32_t i = 0; i < threadCount; ++i) {
+				workers_.emplace_back([this, i]() { WorkerLoop(i); });
+			}
+			accepting_ = true;
+		} catch (...) {
+			// 起動途中のスレッドも終了させてから失敗を返す
+			StopWorkers();
+			throw;
 		}
 	}
 
 	template<typename T>
 	inline void AssetWorkerPool<T>::Stop() {
 
+		CheckControlThread();
+		std::scoped_lock lifecycleLock(lifecycleMutex_);
+		StopWorkers();
+	}
+
+	template<typename T>
+	inline void AssetWorkerPool<T>::CheckControlThread() const {
+
+		if (activeWorker_ == this) {
+			throw std::logic_error("AssetWorkerPool cannot wait for its own worker");
+		}
+	}
+
+	template<typename T>
+	inline void AssetWorkerPool<T>::StopWorkers() {
+
 		// すでに停止している場合は何もしない
 		{
 			std::scoped_lock lock(mutex_);
+			accepting_ = false;
 			if (workers_.empty()) {
 
 				jobs_.clear();
 				inFlight_ = 0;
-				stopping_ = false;
+				stopping_ = true;
+				process_ = nullptr;
+				idleCv_.notify_all();
 				return;
 			}
 			stopping_ = true;
@@ -150,37 +197,48 @@ namespace Engine {
 				worker.join();
 			}
 		}
-		workers_.clear();
 
 		// 状態をリセット
 		{
 			std::scoped_lock lock(mutex_);
+			workers_.clear();
 			jobs_.clear();
 			inFlight_ = 0;
 			process_ = nullptr;
-			stopping_ = false;
+			stopping_ = true;
 		}
 		idleCv_.notify_all();
 	}
 
 	template<typename T>
-	inline void AssetWorkerPool<T>::Enqueue(T job) {
+	inline bool AssetWorkerPool<T>::Enqueue(T job) {
 
 		// ジョブをキューに追加してワーカーに通知
 		{
 			std::scoped_lock lock(mutex_);
-			jobs_.push_back(std::move(job));
+			// 停止中や処理失敗後には新しい要求を受け付けない
+			if (!accepting_ || stopping_ || failure_) {
+				return false;
+			}
+			// 取得時は所有だけを移し、Tの移動例外をワーカーへ持ち込まない
+			jobs_.push_back(std::make_unique<T>(std::move(job)));
 		}
 		cv_.notify_one();
+		return true;
 	}
 
 	template<typename T>
 	inline void AssetWorkerPool<T>::WaitIdle() {
 
+		CheckControlThread();
 		std::unique_lock lock(mutex_);
 		idleCv_.wait(lock, [this]() {
 			return jobs_.empty() && inFlight_ == 0;
 			});
+		// 完了数を戻してから呼出し側へ失敗を伝える
+		if (failure_) {
+			std::rethrow_exception(failure_);
+		}
 	}
 
 	template<typename T>
@@ -205,21 +263,33 @@ namespace Engine {
 	template<typename T>
 	inline void AssetWorkerPool<T>::WorkerLoop(uint32_t workerIndex) {
 
+		activeWorker_ = this;
 		for (;;) {
 
-			T job{};
+			std::unique_ptr<T> job;
 			if (!TakeJob(job)) {
+				activeWorker_ = nullptr;
 				return;
 			}
 
 			// ジョブを処理
-			process_(std::move(job), workerIndex);
+			try {
+				process_(std::move(*job), workerIndex);
+			} catch (...) {
+				// 例外でもスレッドと完了待ちを取り残さない
+				std::scoped_lock lock(mutex_);
+				if (!failure_) {
+					failure_ = std::current_exception();
+				}
+			}
+			// ジョブの所有も返してから完了を通知する
+			job.reset();
 			CompleteJob();
 		}
 	}
 
 	template<typename T>
-	inline bool AssetWorkerPool<T>::TakeJob(T& job) {
+	inline bool AssetWorkerPool<T>::TakeJob(std::unique_ptr<T>& job) {
 
 		std::unique_lock lock(mutex_);
 		cv_.wait(lock, [this]() { return stopping_ || !jobs_.empty(); });

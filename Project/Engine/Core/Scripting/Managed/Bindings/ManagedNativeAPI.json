@@ -811,6 +811,271 @@
       "name": "dontDestroyOnLoad",
       "nativeType": "DontDestroyOnLoadCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int>"
+    },
+    {
+      "name": "getComponentInstanceID",
+      "nativeType": "GetComponentInstanceIDCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, ulong>"
+    }
+  ],
+  "layouts": [
+    {
+      "nativeType": "ManagedAssetGUID",
+      "managedType": "AssetGUID",
+      "size": 16,
+      "members": {
+        "high": 0,
+        "low": 8
+      }
+    },
+    {
+      "nativeType": "ManagedWorldHandle",
+      "managedType": "ManagedWorldHandle",
+      "size": 8,
+      "members": {
+        "index": 0,
+        "generation": 4
+      }
+    },
+    {
+      "nativeType": "ManagedScriptInstanceHandle",
+      "managedType": "NativeScriptInstanceHandle",
+      "size": 8,
+      "members": {
+        "index": 0,
+        "generation": 4
+      }
+    },
+    {
+      "nativeType": "ManagedNativeEntity",
+      "managedType": "NativeEntity",
+      "size": 16,
+      "members": {
+        "world": 0,
+        "index": 8,
+        "generation": 12
+      }
+    },
+    {
+      "nativeType": "ManagedVector2",
+      "managedType": "NativeVector2",
+      "size": 8,
+      "members": {
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "nativeType": "ManagedVector2",
+      "managedType": "Vector2",
+      "size": 8,
+      "members": {
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "nativeType": "ManagedVector3",
+      "managedType": "NativeVector3",
+      "size": 12,
+      "members": {
+        "x": 0,
+        "y": 4,
+        "z": 8
+      }
+    },
+    {
+      "nativeType": "ManagedVector3",
+      "managedType": "Vector3",
+      "size": 12,
+      "members": {
+        "x": 0,
+        "y": 4,
+        "z": 8
+      }
+    },
+    {
+      "nativeType": "ManagedQuaternion",
+      "managedType": "NativeQuaternion",
+      "size": 16,
+      "members": {
+        "x": 0,
+        "y": 4,
+        "z": 8,
+        "w": 12
+      }
+    },
+    {
+      "nativeType": "ManagedQuaternion",
+      "managedType": "Quaternion",
+      "size": 16,
+      "members": {
+        "x": 0,
+        "y": 4,
+        "z": 8,
+        "w": 12
+      }
+    },
+    {
+      "nativeType": "ManagedColor3",
+      "managedType": "Color3",
+      "size": 12,
+      "members": {
+        "r": 0,
+        "g": 4,
+        "b": 8
+      }
+    },
+    {
+      "nativeType": "ManagedColor4",
+      "managedType": "NativeColor4",
+      "size": 16,
+      "members": {
+        "r": 0,
+        "g": 4,
+        "b": 8,
+        "a": 12
+      }
+    },
+    {
+      "nativeType": "ManagedColor4",
+      "managedType": "Color4",
+      "size": 16,
+      "members": {
+        "r": 0,
+        "g": 4,
+        "b": 8,
+        "a": 12
+      }
+    },
+    {
+      "nativeType": "ManagedCollisionEvent",
+      "managedType": "NativeCollisionEvent",
+      "size": 72,
+      "members": {
+        "self": 0,
+        "other": 16,
+        "normal": 32,
+        "point": 44,
+        "penetration": 56,
+        "selfShapeIndex": 60,
+        "otherShapeIndex": 64,
+        "isTrigger": 68
+      }
+    },
+    {
+      "nativeType": "ManagedRaycastHit",
+      "managedType": "NativeRaycastHit",
+      "size": 52,
+      "members": {
+        "entity": 0,
+        "point": 16,
+        "normal": 28,
+        "distance": 40,
+        "shapeIndex": 44,
+        "trigger": 48
+      }
+    },
+    {
+      "nativeType": "ManagedLinePoint",
+      "managedType": "LinePoint",
+      "size": 36,
+      "members": {
+        "position": 0,
+        "color": 12,
+        "thickness": 28,
+        "index": 32
+      }
+    },
+    {
+      "nativeType": "ManagedSkinnedAnimationRuntimeState",
+      "managedType": "NativeSkinnedAnimationRuntimeState",
+      "size": 28,
+      "members": {
+        "currentTime": 0,
+        "currentDuration": 4,
+        "blendTime": 8,
+        "repeatCount": 12,
+        "initialized": 16,
+        "finished": 20,
+        "inTransition": 24
+      }
+    },
+    {
+      "nativeType": "ManagedUISelectableRuntimeState",
+      "managedType": "NativeUISelectableRuntimeState",
+      "size": 20,
+      "members": {
+        "state": 0,
+        "normalThisFrame": 4,
+        "selectedThisFrame": 8,
+        "submittedThisFrame": 12,
+        "disabledThisFrame": 16
+      }
+    },
+    {
+      "nativeType": "ManagedUIProgressRuntimeState",
+      "managedType": "NativeUIProgressRuntimeState",
+      "size": 12,
+      "members": {
+        "displayedValue": 0,
+        "delayedValue": 4,
+        "initialized": 8
+      }
+    },
+    {
+      "nativeType": "ManagedLineShape",
+      "managedType": "NativeLineShape",
+      "size": 104,
+      "members": {
+        "materialID": 0,
+        "shapeType": 16,
+        "division": 20,
+        "is2D": 24,
+        "radius": 28,
+        "radius2": 32,
+        "height": 36,
+        "thickness": 40,
+        "a": 44,
+        "b": 56,
+        "rotation": 68,
+        "color": 84
+      }
+    },
+    {
+      "nativeType": "ManagedMaterialParameterValue",
+      "managedType": "NativeMaterialParameterValue",
+      "size": 24,
+      "members": {
+        "data0": 0,
+        "data1": 8,
+        "type": 16,
+        "reserved": 20
+      }
+    },
+    {
+      "nativeType": "ManagedAbiHeader",
+      "managedType": "ManagedAbiHeader",
+      "size": 24,
+      "members": {
+        "abiVersion": 0,
+        "structSize": 4,
+        "capabilities": 8,
+        "bindingFingerprint": 16
+      }
+    },
+    {
+      "nativeType": "ManagedScriptTypeDescriptor",
+      "managedType": "NativeScriptTypeInfo",
+      "size": 692,
+      "members": {
+        "scriptTypeID": 0,
+        "fullTypeName": 40,
+        "displayName": 296,
+        "sourcePath": 424,
+        "hasExplicitID": 684,
+        "defaultExecutionOrder": 688
+      }
     }
   ]
 }

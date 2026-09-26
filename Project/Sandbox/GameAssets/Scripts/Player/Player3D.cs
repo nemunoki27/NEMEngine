@@ -7,7 +7,7 @@ namespace GJ4Scripts;
 //============================================================================
 //	Player
 //============================================================================
-public sealed class Player3D : ScriptBehaviour {
+public sealed class Player3D : MonoBehaviour {
 
 	[Min(0.0f)]
 	[Label("移動速度")]
@@ -27,14 +27,14 @@ public sealed class Player3D : ScriptBehaviour {
 	// 物理コンポーネント
 	private Rigidbody? rigidbody = null;
 	// 衝突相手のエンティティ
-	private readonly HashSet<Entity> groundContacts = new();
+	private readonly HashSet<GameObject> groundContacts = new();
 	// ジャンプ入力されたか
 	private bool jumpRequested = false;
 
 	//========================================================================
 	//	開始時処理
 	//========================================================================
-	public override void Start() {
+	private void Start() {
 
 		rigidbody = GetComponent<Rigidbody>();
 	}
@@ -42,7 +42,7 @@ public sealed class Player3D : ScriptBehaviour {
 	//========================================================================
 	//	毎フレーム更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
 		// ジャンプ入力を受け付け
 		if (Input.GetGamepadButtonDown(0, GamepadButton.A) || Input.GetKeyDown(KeyCode.Space)) {
@@ -53,7 +53,7 @@ public sealed class Player3D : ScriptBehaviour {
 	//========================================================================
 	//	毎後フレーム更新処理
 	//========================================================================
-	public override void FixedUpdate() {
+	private void FixedUpdate() {
 
 		// 移動処理
 		// ジャンプ
@@ -106,7 +106,7 @@ public sealed class Player3D : ScriptBehaviour {
 		}
 
 		// 閾値以下なら入力を0.0fにする
-		if (input.length <= stickDeadZone) {
+		if (input.magnitude <= stickDeadZone) {
 			input = Vector2.zero;
 		}
 
@@ -118,22 +118,22 @@ public sealed class Player3D : ScriptBehaviour {
 	//========================================================================
 	//	衝突処理
 	//========================================================================
-	public override void OnCollisionEnter(Collision collision) {
+	private void OnCollisionEnter(Collision collision) {
 
 		// 衝突したら対象を登録
 		RegisterGroundContact(collision);
 	}
 
-	public override void OnCollisionStay(Collision collision) {
+	private void OnCollisionStay(Collision collision) {
 
 		// 衝突したら対象を登録
 		RegisterGroundContact(collision);
 	}
 
-	public override void OnCollisionExit(Collision collision) {
+	private void OnCollisionExit(Collision collision) {
 
 		// 離れたら削除
-		groundContacts.Remove(collision.entity);
+		groundContacts.Remove(collision.gameObject);
 	}
 
 	private void RegisterGroundContact(Collision collision) {
@@ -149,6 +149,6 @@ public sealed class Player3D : ScriptBehaviour {
 		if (0.01f < rigidbody.LinearVelocity.y) {
 			return;
 		}
-		groundContacts.Add(collision.entity);
+		groundContacts.Add(collision.gameObject);
 	}
 }

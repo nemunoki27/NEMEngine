@@ -105,6 +105,7 @@ namespace Engine {
 		std::array<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>,
 			kGraphicsFrameContextCount> passBuffers_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> passBufferIndices_{};
+		uint64_t passFrameSerial_ = UINT64_MAX;
 
 		// グリッドパス定数バッファb0のスロットキャッシュ
 		PipelineBindingCache gridBindCache_{};

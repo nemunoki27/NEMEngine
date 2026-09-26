@@ -51,11 +51,11 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// 静的GPUバッファ転送サービスの初期化(テクスチャ用とは独立)
 	bufferUploadService_ = std::make_unique<BufferUploadService>();
-	bufferUploadService_->Init(device, graphicsPlatform_->GetCommandQueue()->GetQueue());
+	bufferUploadService_->Init(graphicsPlatform_->GetResourceRetirement(), device, graphicsPlatform_->GetCommandQueue()->GetQueue());
 
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
-	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetCommandQueue()->GetQueue());
+	textureUploadService_->Init(device, srvDescriptor_.get());
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 }
@@ -133,11 +133,17 @@ void Engine::GraphicsCore::EndRenderFrame() {
 
 void Engine::GraphicsCore::Finalize() {
 
-	// 未提出の転送を確定してから描画キューを待つ
-	if (bufferUploadService_) {
-		bufferUploadService_->FlushAndWait();
-	}
-	graphicsPlatform_->WaitForGPU();
+	// Device消失後は待機せず、所有元の終了を続ける
+	auto drain = [&] {
+		if (graphicsPlatform_ && graphicsPlatform_->IsDeviceRemoved()) return;
+		try {
+			if (bufferUploadService_) bufferUploadService_->FlushAndWait();
+			if (graphicsPlatform_) graphicsPlatform_->WaitForGPU();
+		} catch (...) {
+			if (!graphicsPlatform_ || !graphicsPlatform_->IsDeviceRemoved()) throw;
+		}
+	};
+	drain();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
 	if (builtinTextureLibrary_) {
@@ -155,7 +161,10 @@ void Engine::GraphicsCore::Finalize() {
 	bufferUploadService_.reset();
 
 	// サービス終了中の退避もDescriptor破棄前に回収する
-	graphicsPlatform_->WaitForGPU();
+	drain();
+	if (graphicsPlatform_ && graphicsPlatform_->IsDeviceRemoved()) {
+		graphicsPlatform_->GetResourceRetirement().ReleaseAfterDeviceRemoval(graphicsPlatform_->GetDevice());
+	}
 
 	// 描画リソースとDescriptor heapをDevice破棄前に解放する
 	swapChain_.reset();

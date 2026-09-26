@@ -60,17 +60,9 @@ namespace NEMTests {
 
 	bool TestPackageResolver() {
 
-		const std::filesystem::path root =
-			std::filesystem::temp_directory_path() / "NEMEngineTests/PackageResolver";
+		TestDirectory directory("PackageResolver");
+		const auto& normalizedRoot = directory.GetPath();
 		std::error_code ec;
-		const std::filesystem::path normalizedRoot =
-			std::filesystem::weakly_canonical(root.parent_path(), ec) / root.filename();
-		if (normalizedRoot.parent_path() !=
-			std::filesystem::weakly_canonical(std::filesystem::temp_directory_path(), ec) /
-			"NEMEngineTests") {
-			return false;
-		}
-		std::filesystem::remove_all(normalizedRoot, ec);
 		std::filesystem::create_directories(normalizedRoot / "Packages/com.nem.test", ec);
 		if (ec) {
 			return false;
@@ -104,8 +96,7 @@ namespace NEMTests {
 			result.packages.front().version == "1.0.0" &&
 			result.packages.front().contentHash != 0 &&
 			std::filesystem::exists(normalizedRoot / "Packages/packages-lock.json");
-		std::filesystem::remove_all(normalizedRoot, ec);
-		return passed;
+		return directory.Remove() && passed;
 	}
 
 	bool TestVirtualPath() {
@@ -148,9 +139,34 @@ namespace NEMTests {
 		theirs["Entities"][0]["Components"]["Transform"]["x"] = 30;
 		const Engine::JsonMergeResult conflicted =
 			Engine::JsonSemanticMerge::Merge(base, ours, theirs);
-		return conflicted.conflicts.size() == 1 &&
-			conflicted.conflicts.front().path ==
-			"/Entities/0000000000000001/Components/Transform/x";
+		if (conflicted.conflicts.size() != 1 || conflicted.conflicts.front().path !=
+			"/Entities/0000000000000001/Components/Transform/x") {
+			return false;
+		}
+		// Nestedの別要素に対する変更を併合する
+		for (const char* member : { "NestedPrefabInstances", "NestedInstances" }) {
+			const nlohmann::json nested = {{ member, {
+				{{ "NestedSlotID", "01" }, { "value", 0 }}, {{ "NestedSlotID", "02" }, { "value", 0 }}
+			}}};
+			auto left = nested;
+			auto right = nested;
+			left[member][0]["value"] = 10;
+			right[member][1]["value"] = 20;
+			const auto combined = Engine::JsonSemanticMerge::Merge(nested, left, right);
+			if (!combined.Succeeded() || combined.merged[member][0]["value"] != 10 || combined.merged[member][1]["value"] != 20) {
+				return false;
+			}
+			// 不正なkeyは例外でなく配列単位の競合にする
+			left[member][0]["NestedSlotID"] = 42;
+			if (Engine::JsonSemanticMerge::Merge(nested, left, right).Succeeded()) return false;
+		}
+		const nlohmann::json removed = {{ "RemovedNestedSlots", nlohmann::json::array({ "01" }) }};
+		auto left = removed;
+		auto right = removed;
+		left["RemovedNestedSlots"].push_back("02");
+		right["RemovedNestedSlots"].push_back("03");
+		const auto combined = Engine::JsonSemanticMerge::Merge(removed, left, right);
+		return combined.Succeeded() && combined.merged["RemovedNestedSlots"].size() == 3;
 	}
 
 	bool TestTransformDimensionSerialization() {
@@ -178,14 +194,12 @@ namespace NEMTests {
 
 		const std::string directoryName =
 			Engine::Algorithm::ConvertString(L"NEMEngineTests_日本語");
-		const std::filesystem::path testRoot = std::filesystem::temp_directory_path() /
-			Engine::Algorithm::PathFromUTF8(directoryName);
+		TestDirectory directory(directoryName);
+		const auto& testRoot = directory.GetPath();
 		const std::filesystem::path texturePath = testRoot / L"normalBlock.png";
 
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
-		ec.clear();
-		std::filesystem::create_directories(testRoot, ec);
+		// 所有済みの作業先へ日本語pathを保存する
 		if (ec) {
 			return false;
 		}
@@ -198,10 +212,9 @@ namespace NEMTests {
 		const std::filesystem::path restoredPath =
 			Engine::Algorithm::PathFromUTF8(serializedPath);
 		const bool passed = std::filesystem::exists(restoredPath, ec) && !ec &&
-			Engine::Algorithm::PathToUTF8(testRoot.filename()) == directoryName &&
+			Engine::Algorithm::PathToUTF8(testRoot.filename()).starts_with(directoryName + "_") &&
 			Engine::AssetTypeResolver::GuessByPath(restoredPath) == Engine::AssetType::Texture;
-		std::filesystem::remove_all(testRoot, ec);
-		return passed;
+		return directory.Remove() && passed;
 	}
 
 	bool TestRayTracingPipelineSerialization() {

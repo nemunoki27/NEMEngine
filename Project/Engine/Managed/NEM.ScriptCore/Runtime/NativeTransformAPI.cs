@@ -25,16 +25,16 @@ internal static unsafe class NativeTransformAPI {
         }
     }
 
-    internal static Entity ReadParent(NativeEntity entity) {
-        return new Entity(GetParent != null ? GetParent(entity) : NativeEntity.Null);
+    internal static GameObject? ReadParent(NativeEntity entity) {
+        return GameObject.FromNative(GetParent != null ? GetParent(entity) : NativeEntity.Null);
     }
 
-    internal static Entity ReadFirstChild(NativeEntity entity) {
-        return new Entity(GetFirstChild != null ? GetFirstChild(entity) : NativeEntity.Null);
+    internal static GameObject? ReadFirstChild(NativeEntity entity) {
+        return GameObject.FromNative(GetFirstChild != null ? GetFirstChild(entity) : NativeEntity.Null);
     }
 
-    internal static Entity ReadNextSibling(NativeEntity entity) {
-        return new Entity(GetNextSibling != null ? GetNextSibling(entity) : NativeEntity.Null);
+    internal static GameObject? ReadNextSibling(NativeEntity entity) {
+        return GameObject.FromNative(GetNextSibling != null ? GetNextSibling(entity) : NativeEntity.Null);
     }
 
     internal static void WriteParent(NativeEntity entity, NativeEntity parent) {

@@ -8,7 +8,10 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+
+// c++
+#include <stdexcept>
 
 //============================================================================
 //	SkyboxIrradianceMap classMethods
@@ -18,6 +21,13 @@ Engine::SkyboxIrradianceMap::SkyboxIrradianceMap() {
 
 	constantsSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
 	outputUAVSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::UAV, 0, 0);
+}
+
+Engine::SkyboxIrradianceMap::~SkyboxIrradianceMap() {
+
+	// 描画中のCubemapと両Descriptorを回収窓口へ渡す
+	if (srvIndex_ != UINT32_MAX) descriptor_->Retire(srvIndex_, cubemap_);
+	if (uavIndex_ != UINT32_MAX) descriptor_->Retire(uavIndex_, {});
 }
 
 void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
@@ -49,7 +59,7 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	desc.staticSamplers.push_back(sampler);
 
-	pipeline_ = PipelineStateBuilder::CreateCompute(device, platform.GetDxShaderCompiler(), desc);
+	pipeline_ = PipelineStateBuilder::CreateCompute(platform.GetResourceRetirement(), device, platform.GetDxShaderCompiler(), desc);
 	if (!pipeline_) {
 		return;
 	}
@@ -68,10 +78,13 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	D3D12_HEAP_PROPERTIES heapProperties{};
 	heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
 
+	ComPtr<ID3D12Resource> candidate;
 	HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-		&resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&cubemap_));
-	Assert::Call(SUCCEEDED(hr), "SkyboxのIrradiance Cubemap作成に失敗しました");
-	cubemap_->SetName(L"SkyboxIrradianceMap");
+		&resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&candidate));
+	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "SkyboxIrradianceMap::Create")) {
+		throw std::runtime_error("SkyboxのIrradiance Cubemap作成に失敗しました");
+	}
+	candidate->SetName(L"SkyboxIrradianceMap");
 	cubemapState_ = D3D12_RESOURCE_STATE_COMMON;
 
 	SRVDescriptor& srvDescriptor = graphicsCore.GetSRVDescriptor();
@@ -84,7 +97,8 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	srvDesc.TextureCube.MostDetailedMip = 0;
 	srvDesc.TextureCube.MipLevels = 1;
 	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
-	srvDescriptor.CreateSRV(srvIndex_, cubemap_.Get(), srvDesc);
+	uint32_t srv = UINT32_MAX;
+	uint32_t uav = UINT32_MAX;
 
 	// UAVは6面のTexture2DArrayとして生成
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
@@ -93,10 +107,20 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	uavDesc.Texture2DArray.MipSlice = 0;
 	uavDesc.Texture2DArray.FirstArraySlice = 0;
 	uavDesc.Texture2DArray.ArraySize = 6;
-	srvDescriptor.CreateUAV(uavIndex_, cubemap_.Get(), uavDesc);
-
-	// 畳み込み定数バッファを生成
-	constants_.CreateBuffer(device);
+	// 作成が揃うまで番号とResourceを公開しない
+	try {
+		srvDescriptor.CreateSRV(srv, candidate.Get(), srvDesc);
+		srvDescriptor.CreateUAV(uav, candidate.Get(), uavDesc);
+		constants_.Init(platform.GetResourceRetirement(), device);
+	} catch (...) {
+		if (srv != UINT32_MAX) srvDescriptor.Free(srv);
+		if (uav != UINT32_MAX) srvDescriptor.Free(uav);
+		throw;
+	}
+	cubemap_ = std::move(candidate);
+	descriptor_ = &srvDescriptor;
+	srvIndex_ = srv;
+	uavIndex_ = uav;
 
 	initialized_ = true;
 }
@@ -121,7 +145,7 @@ void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
 	IrradianceConstants constants{};
 	constants.sourceCubemapIndex = sourceSRVIndex;
 	constants.faceSize = kFaceSize;
-	constants_.TransferData(constants);
+	constants_.Upload(constants);
 
 	// 出力cubemapをUAV状態へ遷移
 	if (cubemapState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
@@ -139,7 +163,7 @@ void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
 	bindCache_.Sync(*pipeline_);
 	if (bindCache_.Has(constantsSlot_)) {
 		RootBindingCommand::SetComputeCBV(commandList, bindCache_.Get(constantsSlot_),
-			constants_.GetResource()->GetGPUVirtualAddress());
+			constants_.GetGPUAddress());
 	}
 	if (bindCache_.Has(outputUAVSlot_)) {
 		RootBindingCommand::SetComputeUAV(commandList, bindCache_.Get(outputUAVSlot_),

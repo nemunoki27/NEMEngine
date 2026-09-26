@@ -27,7 +27,8 @@ namespace NEM.ScriptCodeGen
             {
                 return null;
             }
-            if (symbol.IsAbstract || !DerivesFromScriptBehaviour(symbol))
+            if (!NEM.ScriptAnalysis.ScriptSymbolRules.IsScript(symbol) ||
+                !NEM.ScriptAnalysis.ScriptSymbolRules.IsPrimaryDeclaration(symbol, classDecl))
             {
                 return null;
             }
@@ -40,7 +41,7 @@ namespace NEM.ScriptCodeGen
 
             // 継承を含めた field 集合（base から先に、宣言順）を集める
             var declaring = new List<INamedTypeSymbol>();
-            for (INamedTypeSymbol? cur = symbol; cur != null && cur.ToDisplayString() != ScriptBehaviourFullName; cur = cur.BaseType)
+            for (INamedTypeSymbol? cur = symbol; cur != null && cur.ToDisplayString() != MonoBehaviourFullName; cur = cur.BaseType)
             {
                 declaring.Add(cur);
             }
@@ -52,7 +53,7 @@ namespace NEM.ScriptCodeGen
                     .WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
                 foreach (ISymbol member in owner.GetMembers())
                 {
-                    if (member is not IFieldSymbol field || field.IsImplicitlyDeclared)
+                    if (member is not IFieldSymbol field)
                     {
                         continue;
                     }
@@ -70,23 +71,14 @@ namespace NEM.ScriptCodeGen
             return schema;
         }
 
-        internal static bool IsSerializedField(IFieldSymbol field)
-        {
-            if (field.IsStatic || field.IsConst || field.IsReadOnly)
-            {
-                return false;
-            }
-            bool hasSerializeField = field.GetAttributes()
-                .Any(a => a.AttributeClass?.ToDisplayString() is SerializeFieldAttributeName or SerializeReferenceAttributeName);
-            return field.DeclaredAccessibility == Accessibility.Public || hasSerializeField;
-        }
+        internal static bool IsSerializedField(IFieldSymbol field) => NEM.ScriptAnalysis.ScriptSymbolRules.IsSerializedField(field);
 
         internal static FieldSchema? AnalyzeField(IFieldSymbol field, string declaringType, string scriptTypeID, Compilation compilation)
         {
             var schema = new FieldSchema
             {
                 Name = field.Name,
-                DeclaringType = declaringType,
+                DeclaringType = MetadataTypeName(field.ContainingType),
                 DeclaredType = FullTypeName(field.Type),
                 IsPublic = field.DeclaredAccessibility == Accessibility.Public,
                 Location = field.Locations.FirstOrDefault() ?? Location.None,
@@ -99,7 +91,7 @@ namespace NEM.ScriptCodeGen
                 .Any(a => a.AttributeClass?.ToDisplayString() == SerializeReferenceAttributeName);
             schema.Kind = serializeReference
                 ? ResolveSerializeReferenceKind(field.Type, compilation)
-                : ResolveKind(field.Type);
+                : ResolveKind(field.Type, compilation: compilation);
             schema.MissingSerializeReference = !serializeReference && HasSerializableDerivedType(field.Type, compilation);
 
             // origin name は rename を跨いで安定させるため、最も古い FormerlySerializedAs を優先する
@@ -123,11 +115,18 @@ namespace NEM.ScriptCodeGen
             return schema;
         }
 
-        internal static bool DerivesFromScriptBehaviour(INamedTypeSymbol symbol)
+        // Reflectionで解決できる型名を保存する
+        private static string MetadataTypeName(INamedTypeSymbol type)
+        {
+            if (type.ContainingType != null) { return MetadataTypeName(type.ContainingType) + "+" + type.MetadataName; }
+            return type.ContainingNamespace.IsGlobalNamespace ? type.MetadataName : type.ContainingNamespace.ToDisplayString() + "." + type.MetadataName;
+        }
+
+        internal static bool DerivesFromMonoBehaviour(INamedTypeSymbol symbol)
         {
             for (INamedTypeSymbol? current = symbol.BaseType; current != null; current = current.BaseType)
             {
-                if (current.ToDisplayString() == ScriptBehaviourFullName)
+                if (current.ToDisplayString() == MonoBehaviourFullName)
                 {
                     return true;
                 }

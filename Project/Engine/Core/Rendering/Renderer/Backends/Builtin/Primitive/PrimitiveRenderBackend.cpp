@@ -296,8 +296,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		viewConstants.frameSerial = static_cast<uint32_t>(frameSerial);
 		viewConstants.cameraPosition = camera->cameraPos;
 	}
-	const PostProcessConstantBufferAllocation viewAlloc =
-		constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+	const FrameConstantBufferAllocation viewAlloc =
+		constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, viewConstants);
 
 	// パイプラインを設定する
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
@@ -329,8 +329,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		maskConstants.styleID = context.screenSpaceOutlineMaskStyleID;
 		maskConstants.restrictSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 		maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
-		const PostProcessConstantBufferAllocation maskAlloc =
-			constantBufferAllocator_.AllocateAndUpload(device, maskConstants);
+		const FrameConstantBufferAllocation maskAlloc =
+			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, maskConstants);
 		RootBindingCommand::SetGraphicsCBV(
 			commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_),
 			maskAlloc.gpuAddress);
@@ -341,8 +341,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		// MeshShader経路、インデックスSRVと三角形数を渡してDispatchMeshする
 		PrimitiveMeshConstants meshConstants{};
 		meshConstants.indexCount = geometry->indexCount;
-		const PostProcessConstantBufferAllocation meshAlloc =
-			constantBufferAllocator_.AllocateAndUpload(device, meshConstants);
+		const FrameConstantBufferAllocation meshAlloc =
+			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, meshConstants);
 		if (perDrawBindCache_.Has(meshConstantsCBVSlot_)) {
 			RootBindingCommand::SetGraphicsCBV(
 				commandList, perDrawBindCache_.Get(meshConstantsCBVSlot_),

@@ -9,14 +9,14 @@
 
 using namespace Engine;
 
-void JsonAdapter::Save(const std::string& directoryFilePath, const nlohmann::json& data) {
+bool JsonAdapter::Save(const std::string& directoryFilePath, const nlohmann::json& data) {
 
-	JsonFile::Save(directoryFilePath, data);
+	return JsonFile::Save(directoryFilePath, data);
 }
 
-void JsonAdapter::Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data) {
+bool JsonAdapter::Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data) {
 
-	JsonFile::Save(directoryFilePath, data);
+	return JsonFile::Save(directoryFilePath, data);
 }
 
 bool JsonAdapter::SaveCanonical(const std::filesystem::path& directoryFilePath,
@@ -33,6 +33,11 @@ nlohmann::json JsonAdapter::Load(const std::string& directoryFilePath, bool asse
 nlohmann::json JsonAdapter::Load(const std::filesystem::path& directoryFilePath, bool assertion) {
 
 	return JsonFile::Load(directoryFilePath, assertion);
+}
+
+bool JsonAdapter::TryLoad(const std::filesystem::path& path, nlohmann::json& output, std::string* diagnostic) {
+
+	return JsonFile::TryLoad(path, output, diagnostic);
 }
 
 bool JsonAdapter::Check(const std::string& directoryFilePath, bool assertion) {

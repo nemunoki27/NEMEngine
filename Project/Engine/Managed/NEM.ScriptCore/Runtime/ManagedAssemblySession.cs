@@ -67,6 +67,7 @@ internal sealed unsafe class ManagedAssemblySession {
         registry.typeToEntry.Clear();
         registry.defaultInstanceCache.Clear();
         registry.gameAssembly = null;
+        codec.ResetAssemblyState();
 
         GameScriptLoadContext? loadContext = gameLoadContext;
         gameLoadContext = null;

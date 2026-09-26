@@ -104,6 +104,8 @@ namespace Engine {
 		std::deque<RenderTransformChangeBatch>
 			renderTransformChangeHistory_;
 		uint64_t nextComponentMutationListenerID_ = 1;
+		// 通知中は購読列の並びを変えない
+		size_t notificationDepth_ = 0;
 		// 0を未構築値として扱えるよう1から開始する
 		uint64_t dataRevision_ = 1;
 		uint64_t renderDataRevision_ = 1;

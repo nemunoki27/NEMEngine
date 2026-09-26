@@ -232,6 +232,56 @@ namespace Engine::DxDredDiagnostics {
 		return false;
 	}
 
+	bool WaitForFence(ID3D12Device* device, ID3D12Fence* fence, UINT64 expectedValue,
+		HANDLE completionEvent, std::string_view operation) {
+
+		if (!device || !fence || expectedValue == UINT64_MAX) {
+			return false;
+		}
+		bool eventRegistered = false;
+		bool useEvent = completionEvent != nullptr;
+		for (;;) {
+			const UINT64 completed = fence->GetCompletedValue();
+			// 消失時の最大値を通常の完了値と比較しない
+			if (completed == UINT64_MAX || !CheckDeviceState(device, operation)) {
+				DumpDeviceRemovedData(device, operation);
+				return false;
+			}
+			if (completed >= expectedValue) {
+				return true;
+			}
+			if (useEvent && !eventRegistered) {
+				useEvent = CheckHRESULT(device, fence->SetEventOnCompletion(expectedValue, completionEvent), operation);
+				eventRegistered = useEvent;
+			}
+			constexpr DWORD kWaitSliceMilliseconds = 250;
+			if (useEvent) {
+				const DWORD result = WaitForSingleObject(completionEvent, kWaitSliceMilliseconds);
+				if (result != WAIT_OBJECT_0 && result != WAIT_TIMEOUT) {
+					CheckHRESULT(device, HRESULT_FROM_WIN32(GetLastError()), operation);
+					useEvent = false;
+				}
+			} else {
+				// イベントを使えなくても完了前に資源を解放しない
+				Sleep(kWaitSliceMilliseconds);
+			}
+		}
+	}
+
+	bool WaitForEvent(ID3D12Device* device, HANDLE event, std::string_view operation) {
+
+		if (!event) return false;
+		while (CheckDeviceState(device, operation)) {
+			const DWORD result = WaitForSingleObject(event, 250);
+			if (result == WAIT_OBJECT_0) return CheckDeviceState(device, operation);
+			if (result != WAIT_TIMEOUT) {
+				CheckHRESULT(device, HRESULT_FROM_WIN32(GetLastError()), operation);
+				return false;
+			}
+		}
+		return false;
+	}
+
 	void ResetForNewDevice() {
 		g_dumped.store(false);
 	}

@@ -95,7 +95,7 @@ internal static class NativeBindingEmitter {
         if (podGet.Count == 0) {
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
-            sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
+            sb.Append($"\t\t\t{nt}* c = world.TryGetComponentForBinding<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podGet) {
@@ -114,7 +114,7 @@ internal static class NativeBindingEmitter {
         if (podSet.Count == 0) {
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
-            sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
+            sb.Append($"\t\t\t{nt}* c = world.TryGetComponentForBinding<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podSet) {
@@ -133,7 +133,7 @@ internal static class NativeBindingEmitter {
         if (strGet.Count == 0) {
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
-            sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
+            sb.Append($"\t\t\t{nt}* c = world.TryGetComponentForBinding<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in strGet) {
@@ -157,7 +157,7 @@ internal static class NativeBindingEmitter {
         if (strSet.Count == 0) {
             sb.Append("\t\t\treturn ManagedStatus::InvalidArgument;\n\t\t}\n\n");
         } else {
-            sb.Append($"\t\t\t{nt}* c = world.TryGetComponent<{nt}>(entity);\n");
+            sb.Append($"\t\t\t{nt}* c = world.TryGetComponentForBinding<{nt}>(entity);\n");
             sb.Append("\t\t\tif (!c) { return ManagedStatus::InvalidArgument; }\n");
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in strSet) {
@@ -314,9 +314,10 @@ internal static class NativeBindingEmitter {
         return sb.ToString();
     }
 
-    internal static string EmitNativeAPIFields(List<AbiFieldModel> fields) {
+    internal static string EmitNativeAPIFields(List<AbiFieldModel> fields, ulong fingerprint = 0) {
         var sb = new StringBuilder();
         sb.Append("// AUTO-GENERATED FROM ManagedNativeAPI.json\n");
+        sb.Append($"\t\tinline static constexpr uint64_t kBindingFingerprint = 0x{fingerprint:x16}ull;\n");
         foreach (AbiFieldModel field in fields) {
             sb.Append($"\t\t{field.NativeType} {field.Name} = nullptr;\n");
         }

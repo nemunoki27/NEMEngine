@@ -29,8 +29,11 @@ namespace Engine {
 		void InitParticle(Vector3& position, Vector3& direction,
 			const ParticleEmitterSettings& settings, bool is2D,
 			const ParticleSpawnIndex& spawnIndex) const override;
-		void DrawShape(const ParticleEmitterSettings& settings,
-			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
+
+		// 円弧の長さを度数法で取得する
+		static float GetArcSpan(const ParticleEmitterCircleParams& circle);
+		// 円周上の単位方向を取得する
+		static Vector3 GetDirection(float radianAngle, bool is2D);
 
 		//--------- accessor -----------------------------------------------------
 

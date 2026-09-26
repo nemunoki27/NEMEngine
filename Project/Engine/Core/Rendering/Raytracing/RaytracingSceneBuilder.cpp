@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include "RaytracingSceneGeometryUtility.h"
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -117,6 +118,15 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 	}
 	if (!context.sceneInstance) {
 		return;
+	}
+
+	// Texture差し替え後は静的Sceneも新しい番号で再構築する
+	const uint64_t textureRevision = graphicsCore.GetTextureUploadService().GetContentRevision();
+	if (textureRevision_ != textureRevision) {
+		textureRevision_ = textureRevision;
+		materialResolver_.Clear();
+		cachedStaticScene_ = false;
+		builtThisFrame_ = false;
 	}
 
 	// すでに同一シーンインスタンスで構築している場合は、構築済みのシーン情報を渡す

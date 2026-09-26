@@ -5,10 +5,12 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 // c++
 #include <vector>
 #include <cstring>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -68,8 +70,8 @@ namespace Engine {
 		ComPtr<ID3D12Resource> resource_;
 		T* mappedData_ = nullptr;
 
-		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle_;
-		D3D12_GPU_DESCRIPTOR_HANDLE uavGPUHandle_;
+		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle_{};
+		D3D12_GPU_DESCRIPTOR_HANDLE uavGPUHandle_{};
 
 		bool isCreated_ = false;
 		// 確保した要素数、転送時の容量超過チェックに使う
@@ -82,22 +84,32 @@ namespace Engine {
 	template<typename T>
 	inline void DxStructuredBuffer<T>::CreateSRVBuffer(ID3D12Device* device, UINT instanceCount) {
 
+		if (instanceCount > SIZE_MAX / sizeof(T)) throw std::length_error("StructuredBufferの容量が大きすぎます");
+		ComPtr<ID3D12Resource> candidate;
+		DxUtils::CreateUploadBufferResource(device, candidate, sizeof(T) * instanceCount);
+		void* mapped = nullptr;
+		if (!DxDredDiagnostics::CheckHRESULT(device, candidate->Map(0, nullptr, &mapped), "DxStructuredBuffer::Map")) {
+			throw std::runtime_error("StructuredBufferのMapに失敗しました");
+		}
+		// 新しいMap先を作成後に切り替える
+		if (resource_ && mappedData_) resource_->Unmap(0, nullptr);
+		resource_ = std::move(candidate);
+		mappedData_ = static_cast<T*>(mapped);
 		capacity_ = instanceCount;
-		DxUtils::CreateBufferResource(device, resource_, sizeof(T) * instanceCount);
-
-		// マッピング
-		HRESULT hr = resource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
-		Assert::Call(SUCCEEDED(hr), "DxStructuredBufferのMapに失敗しました");
-
 		isCreated_ = true;
 	}
 
 	template<typename T>
 	inline void DxStructuredBuffer<T>::CreateUAVBuffer(ID3D12Device* device, UINT instanceCount) {
 
+		if (instanceCount > SIZE_MAX / sizeof(T)) throw std::length_error("StructuredBufferの容量が大きすぎます");
+		ComPtr<ID3D12Resource> candidate;
+		DxUtils::CreateUavBufferResource(device, candidate, sizeof(T) * instanceCount);
+		// UAVへ変更した後は旧SRVのMap先へ書き込まない
+		if (resource_ && mappedData_) resource_->Unmap(0, nullptr);
+		resource_ = std::move(candidate);
+		mappedData_ = nullptr;
 		capacity_ = instanceCount;
-		DxUtils::CreateUavBufferResource(device, resource_, sizeof(T) * instanceCount);
-		// マッピング処理は行わない
 		isCreated_ = true;
 	}
 
@@ -106,7 +118,7 @@ namespace Engine {
 
 		if (mappedData_) {
 
-			Assert::Call(data.size() <= capacity_, "DxStructuredBufferの容量を超えて書き込もうとしました");
+			if (data.size() > capacity_) throw std::out_of_range("StructuredBufferの容量を超えています");
 			std::memcpy(mappedData_, data.data(), sizeof(T) * data.size());
 		}
 	}
@@ -116,8 +128,8 @@ namespace Engine {
 
 		if (mappedData_) {
 
-			Assert::Call(count <= capacity_, "DxStructuredBufferの容量を超えて書き込もうとしました");
-			Assert::Call(count <= data.size(), "DxStructuredBufferの転送数が入力要素数を超えています");
+			if (count > capacity_) throw std::out_of_range("StructuredBufferの容量を超えています");
+			if (count > data.size()) throw std::out_of_range("StructuredBufferの入力要素数が不足しています");
 			std::memcpy(mappedData_, data.data(), sizeof(T) * count);
 		}
 	}
@@ -129,7 +141,7 @@ namespace Engine {
 			return;
 		}
 
-		Assert::Call(count <= capacity_, "DxStructuredBufferの容量を超えて書き込もうとしました");
+		if (count > capacity_) throw std::out_of_range("StructuredBufferの容量を超えています");
 		std::memcpy(mappedData_, data, sizeof(T) * count);
 	}
 

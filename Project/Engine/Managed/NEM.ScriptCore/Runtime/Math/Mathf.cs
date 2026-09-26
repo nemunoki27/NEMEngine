@@ -3,18 +3,20 @@ using System.Runtime.InteropServices;
 namespace NEMEngine;
 
 //============================================================================
-//	Math class
+//	Mathf class
 //============================================================================
-public static class Math {
+public static class Mathf {
 
     // 円周率
-    public const float pi = System.MathF.PI;
-    // degreeからradianへ変換する係数
-    public const float radian = pi / 180.0f;
+    public const float PI = System.MathF.PI;
+    // degreeからDeg2Radへ変換する係数
+    public const float Deg2Rad = PI / 180.0f;
+    // ラジアンから度へ変換する係数
+    public const float Rad2Deg = 180.0f / PI;
     // 正の無限大
-    public const float infinity = float.PositiveInfinity;
+    public const float Infinity = float.PositiveInfinity;
     // 表現可能な最小の正の値
-    public const float epsilon = float.Epsilon;
+    public const float Epsilon = float.Epsilon;
 
     //--------- wrapper ------------------------------------------------------
 
@@ -36,7 +38,10 @@ public static class Math {
     //--------- functions ----------------------------------------------------
 
     // 線形補間
-    public static float Lerp(float lhs, float rhs, float t) => lhs + (rhs - lhs) * t;
+    public static float Lerp(float lhs, float rhs, float t) => LerpUnclamped(lhs, rhs, Clamp01(t));
+
+    // 範囲外へ外挿する線形補間
+    public static float LerpUnclamped(float lhs, float rhs, float t) => lhs + (rhs - lhs) * t;
 
     // 0..1へ収める
     public static float Clamp01(float value) => System.Math.Clamp(value, 0.0f, 1.0f);
@@ -87,19 +92,19 @@ public static class Math {
     }
 
     // 角度(度)を最短経路で補間する
-    public static float LerpAngle(float lhs, float rhs, float t) => lhs + DeltaAngle(lhs, rhs) * t;
+    public static float LerpAngle(float lhs, float rhs, float t) => lhs + DeltaAngle(lhs, rhs) * Clamp01(t);
 
     // 近似比較のUnity互換エイリアス
-    public static bool Approximately(float lhs, float rhs) => NearlyEqual(lhs, rhs);
+    public static bool Approximately(float lhs, float rhs) => Abs(lhs - rhs) < Max(1e-6f * Max(Abs(lhs), Abs(rhs)), Epsilon * 8.0f);
 
     // ラジアンから度に変換する
-    public static float RadToDeg(float rad) => rad * (180.0f / pi);
+    public static float RadToDeg(float rad) => rad * (180.0f / PI);
     public static Vector2 RadToDeg(Vector2 rad) => new(RadToDeg(rad.x), RadToDeg(rad.y));
     public static Vector3 RadToDeg(Vector3 rad) => new(RadToDeg(rad.x), RadToDeg(rad.y), RadToDeg(rad.z));
     public static Vector4 RadToDeg(Vector4 rad) => new(RadToDeg(rad.x), RadToDeg(rad.y), RadToDeg(rad.z), RadToDeg(rad.w));
 
     // 度からラジアンに変換する
-    public static float DegToRad(float deg) => deg * radian;
+    public static float DegToRad(float deg) => deg * Deg2Rad;
     public static Vector2 DegToRad(Vector2 deg) => new(DegToRad(deg.x), DegToRad(deg.y));
     public static Vector3 DegToRad(Vector3 deg) => new(DegToRad(deg.x), DegToRad(deg.y), DegToRad(deg.z));
     public static Vector4 DegToRad(Vector4 deg) => new(DegToRad(deg.x), DegToRad(deg.y), DegToRad(deg.z), DegToRad(deg.w));

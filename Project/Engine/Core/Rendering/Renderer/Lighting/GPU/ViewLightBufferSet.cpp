@@ -27,12 +27,12 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 	SRVDescriptor* srvDescriptor = &graphicsCore.GetSRVDescriptor();
 
 	// バッファを初期化
-	lightCounts_.Init(device);
+	lightCounts_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 	directionalLights_.Init(device, srvDescriptor);
 	pointLights_.Init(device, srvDescriptor);
 	rectLights_.Init(device, srvDescriptor);
 	spotLights_.Init(device, srvDescriptor);
-	clusterConstants_.Init(device);
+	clusterConstants_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 	clusterHeaders_.Init(device, srvDescriptor);
 	clusterLightIndices_.Init(device, srvDescriptor);
 
@@ -54,6 +54,9 @@ void Engine::ViewLightBufferSet::Init(GraphicsCore& graphicsCore) {
 
 void Engine::ViewLightBufferSet::Release() {
 
+	// 定数と構造化Bufferをまとめて返す
+	lightCounts_.Release();
+	clusterConstants_.Release();
 	directionalLights_.Release();
 	pointLights_.Release();
 	rectLights_.Release();

@@ -57,6 +57,7 @@ namespace Engine {
 			std::array<std::vector<uint64_t>, kGraphicsFrameContextCount> uploadedElements;
 			uint64_t layoutHash = 0;
 			uint64_t materialHash = 0;
+			uint64_t textureRevision = 0;
 			const MaterialAsset* material = nullptr;
 			uint64_t dataGeneration = 1;
 			std::array<uint64_t, kGraphicsFrameContextCount>

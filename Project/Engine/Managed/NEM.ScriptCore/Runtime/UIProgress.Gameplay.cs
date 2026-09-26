@@ -5,9 +5,9 @@ public sealed partial class UIProgress {
 
     // 補間後の現在表示値
     public float DisplayedNormalizedValue =>
-        NativeUIAPI.ReadUIProgressRuntimeState(entity.native).displayedValue;
+        NativeUIAPI.ReadUIProgressRuntimeState(native).displayedValue;
 
     // 遅延表示側の現在値
     public float DelayedNormalizedValue =>
-        NativeUIAPI.ReadUIProgressRuntimeState(entity.native).delayedValue;
+        NativeUIAPI.ReadUIProgressRuntimeState(native).delayedValue;
 }

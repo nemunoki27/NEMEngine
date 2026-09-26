@@ -8,6 +8,7 @@
 // c++
 #include <cstdint>
 #include <span>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -26,6 +27,10 @@ namespace Engine {
 
 		DxImmutableStructuredBuffer() = default;
 		~DxImmutableStructuredBuffer() = default;
+		DxImmutableStructuredBuffer(const DxImmutableStructuredBuffer&) = delete;
+		DxImmutableStructuredBuffer& operator=(const DxImmutableStructuredBuffer&) = delete;
+		DxImmutableStructuredBuffer(DxImmutableStructuredBuffer&&) noexcept = default;
+		DxImmutableStructuredBuffer& operator=(DxImmutableStructuredBuffer&&) noexcept = default;
 
 		// DEFAULT heap本体を作成し、初期データ転送をBufferUploadServiceへ依頼する
 		void Create(ID3D12Device* device, BufferUploadService& uploadService,
@@ -64,9 +69,10 @@ namespace Engine {
 			return;
 		}
 
-		elementCount_ = static_cast<uint32_t>(data.size());
+		if (data.size() > UINT32_MAX) throw std::length_error("静的StructuredBufferの要素数が多すぎます");
 
 		buffer_.Create(device, uploadService, std::as_bytes(data), finalState);
+		elementCount_ = static_cast<uint32_t>(data.size());
 	}
 
 	template<typename T>

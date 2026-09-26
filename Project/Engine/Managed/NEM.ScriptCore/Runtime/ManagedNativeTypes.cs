@@ -10,22 +10,22 @@ internal static class ManagedAbi {
     // v2: managed script instance handle を int32 から NativeScriptInstanceHandle へ変更
     // v3: 型登録を CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
     // v4: 固定長フィールドABIを撤廃し、二段階blob schema/runtime state API へ移行
-    // v5: object model(generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale)を追加
+    // v5: object model(generic component access / GameObject.Destroy / MonoBehaviour.Enabled / world rotation・lossyScale)を追加
     // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
-    // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, Entity生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
+    // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, GameObject生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
     // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
     // v9: GetComponent<Script> 用に entity の script instance を scriptTypeID で引く getScriptInstance を追加
     // v10: Scene 単一load用の loadSceneSingle を追加
     // v11: EntityRef を runtime entity へ解決する resolveEntityRef を追加
     // v12: ライン描画の lineSetPoints と即時描画の lineDrawImmediate lineDrawSphereImmediate を追加
     // v13: LineRendererComponent へ1点追加する lineAddPoint を追加
-    // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とEntity検索(byName/byTag/byComponent)を追加
+    // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とGameObject検索(byName/byTag/byComponent)を追加
     // v15: 即時形状描画の汎用 lineDrawShape を追加
     // v16: Transform 親追従の継承フラグ(ignoreParentRotation/ignoreParentScale)を追加
     // v17: 入力タイプとマウス範囲制御の get/set を追加
     // v18: MeshRenderer のマテリアル color 上書き setMeshMaterialColor を追加
     // v19: Mesh/Sprite/Text のマテリアル color の get/set(setRendererMaterialColor/getRendererMaterialColor)を追加
-    // v20: Entityの保存identityを逆引きする getEntityReferenceIdentity を追加
+    // v20: GameObjectの保存identityを逆引きする getEntityReferenceIdentity を追加
     // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
     // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
     // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
@@ -50,8 +50,8 @@ internal static class ManagedAbi {
     // v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
     // v52: アクティブSceneの再読み込みAPIを追加
     // v53: スクリプトの詳細計測区間を追加
-    // v54: シーンを越えてルートEntityを保持するAPIを追加
-    internal const uint Version = 54;
+    // v54: シーンを越えてルートGameObjectを保持するAPIを追加
+    internal const uint Version = 56;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -117,6 +117,7 @@ public struct ManagedAbiHeader {
     public uint abiVersion;
     public uint structSize;
     public ulong capabilities;
+    public ulong bindingFingerprint;
 }
 
 // C++側 ManagedScriptInstanceHandle と同一レイアウト。単純なint indexを境界で公開しない

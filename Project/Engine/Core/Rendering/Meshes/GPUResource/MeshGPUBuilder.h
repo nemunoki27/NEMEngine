@@ -17,6 +17,6 @@ namespace Engine {
 		MeshGPUResource Create(const ImportedMeshAsset& imported, AssetDatabase* assetDatabase,
 			ID3D12Device* device, BufferUploadService* uploadService, SRVDescriptor* srvDescriptor);
 		// Meshが所有するSRVを解放する
-		void Release(MeshGPUResource& mesh, SRVDescriptor* srvDescriptor);
+		void Release(MeshGPUResource& mesh);
 	}
 }

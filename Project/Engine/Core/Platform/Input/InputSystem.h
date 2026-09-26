@@ -150,6 +150,8 @@ namespace Engine {
 
 		// singleton
 		static Input* GetInstance();
+		// 生存中の入力だけを取得し、新規作成しない
+		static Input* TryGetInstance();
 		static void Finalize();
 	private:
 		//============================================================================

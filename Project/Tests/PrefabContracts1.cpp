@@ -114,10 +114,9 @@ namespace NEMTests {
 		}
 
 		Engine::RuntimePaths::Refresh();
-		const std::filesystem::path testRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/PrefabImmediate";
+		TestDirectory directory("PrefabImmediate", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
 		std::filesystem::create_directories(testRoot, ec);
 		if (ec) {
 			return false;
@@ -136,7 +135,7 @@ namespace NEMTests {
 		hierarchySystem.SetParent(sourceWorld, sourceChild, sourceRoot);
 
 		const std::string prefabPath =
-			"game://Tests/PrefabImmediate/Immediate.prefab.json";
+			Engine::RuntimePaths::ToAssetPath(testRoot / "Immediate.prefab.json");
 		bool passed = prefabSystem.SavePrefab(
 			database, sourceWorld, sourceRoot, prefabPath);
 		const Engine::AssetID prefabAsset = database.ImportOrGet(
@@ -176,8 +175,9 @@ namespace NEMTests {
 				pendingWorld.AddComponent<HierarchyComponent>(pendingParent);
 			}
 			auto& commands = pendingWorld.GetCommandBuffer();
-			commands.EnqueueCreateEntity(pendingParent, "RainVisuals", Entity::Null());
-			passed &= commands.StageCreatePosition(pendingParent, Vector3{ 2.0f, 3.0f, 4.0f });
+			commands.EnqueueCreateEntity(pendingWorld, pendingParent, "RainVisuals", Entity::Null());
+			pendingWorld.TryGetComponentForBinding<TransformComponent>(pendingParent)->localPos = Vector3{ 2.0f, 3.0f, 4.0f };
+			const auto transformID = ComponentTypeRegistry::GetInstance().GetID<TransformComponent>();
 
 			PrefabInstantiateDesc pendingDesc{};
 			pendingDesc.parent = pendingParent;
@@ -209,9 +209,9 @@ namespace NEMTests {
 					firstResult.createdEntities.size() == 2 && secondResult.createdEntities.size() == 2 &&
 					pendingWorld.IsAlive(firstHierarchy->firstChild) && pendingWorld.IsAlive(secondHierarchy->firstChild);
 			};
-			passed &= commands.IsPendingCreate(pendingParent) && checkHierarchy();
+			passed &= (commands.FindPendingComponent(pendingParent, transformID) != nullptr) && checkHierarchy();
 			commands.Flush(pendingWorld);
-			passed &= !commands.IsPendingCreate(pendingParent) && checkHierarchy();
+			passed &= commands.FindPendingComponent(pendingParent, transformID) == nullptr && checkHierarchy();
 			const auto* parentName = pendingWorld.TryGetComponent<NameComponent>(pendingParent);
 			const auto* parentTransform = pendingWorld.TryGetComponent<TransformComponent>(pendingParent);
 			passed &= parentName && parentName->name == "RainVisuals" && parentTransform &&
@@ -304,7 +304,7 @@ namespace NEMTests {
 			!childDestroyRootHierarchy->lastChild.IsValid();
 
 		const std::string emptyPrefabPath =
-			"game://Tests/PrefabImmediate/Empty.prefab.json";
+			Engine::RuntimePaths::ToAssetPath(testRoot / "Empty.prefab.json");
 		nlohmann::json emptyPrefab = nlohmann::json::object();
 		emptyPrefab["Entities"] = nlohmann::json::array();
 		emptyPrefab["Header"] = {
@@ -326,7 +326,7 @@ namespace NEMTests {
 			targetWorld.HasComponent<Engine::PrefabLinkComponent>(emptyResult.root) &&
 			targetWorld.GetComponent<Engine::NameComponent>(emptyResult.root).name == "EmptyPrefab";
 
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		return passed && !ec;
 	}
 }

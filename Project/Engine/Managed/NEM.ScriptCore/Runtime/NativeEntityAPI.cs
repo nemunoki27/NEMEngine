@@ -7,8 +7,6 @@ using static NEMEngine.NativeAPI;
 // 接続済みcallbackを用途別に呼び出す
 internal static unsafe class NativeEntityAPI {
 
-    private const int NameBufferSize = 256;
-
     internal static bool ReadIsAlive(NativeEntity entity) {
         return IsAlive != null && IsAlive(entity) != 0;
     }
@@ -18,9 +16,7 @@ internal static unsafe class NativeEntityAPI {
             return string.Empty;
         }
 
-        byte* buffer = stackalloc byte[NameBufferSize];
-        int length = CopyName(entity, buffer, NameBufferSize);
-        return length <= 0 ? string.Empty : Encoding.UTF8.GetString(buffer, length);
+        return ManagedUTF8Transfer.ReadEntityString(CopyName, entity);
     }
 
     internal static void WriteName(NativeEntity entity, string value) {
@@ -52,6 +48,11 @@ internal static unsafe class NativeEntityAPI {
 
     internal static bool ReadHasComponent(NativeEntity entity, int typeID) {
         return HasComponent != null && typeID >= 0 && HasComponent(entity, typeID) != 0;
+    }
+
+    internal static ulong ReadComponentInstanceID(NativeEntity entity, int typeID) {
+
+        return GetComponentInstanceID != null && typeID >= 0 ? GetComponentInstanceID(entity, typeID) : 0;
     }
 
     internal static void EnqueueAddComponent(NativeEntity entity, int typeID) {
@@ -131,26 +132,36 @@ internal static unsafe class NativeEntityAPI {
         }
     }
 
-    internal static Entity SpawnEntity(string? name, Entity parent) {
+    internal static NativeEntity CreateGameObjectHandle(string name) {
         if (CreateEntity == null) {
-            return Entity.nullEntity;
+            throw new InvalidOperationException("Native APIが接続されていません");
+        }
+        byte[] bytes = Encoding.UTF8.GetBytes(name + "\0");
+        fixed (byte* ptr = bytes) {
+            return CreateEntity(ptr, NativeEntity.Null);
+        }
+    }
+
+    internal static GameObject? SpawnEntity(string? name, GameObject? parent) {
+        if (CreateEntity == null) {
+            return null;
         }
         byte[] bytes = Encoding.UTF8.GetBytes((name ?? string.Empty) + "\0");
         fixed (byte* ptr = bytes) {
-            return new Entity(CreateEntity(ptr, parent.native));
+            return GameObject.FromNative(CreateEntity(ptr, GameObject.RawNative(parent)));
         }
     }
 
-    internal static Entity SpawnPrefab(AssetGUID prefabAssetID, Vector3 position, Quaternion rotation, bool useTransform, Entity parent) {
+    internal static GameObject? SpawnPrefab(AssetGUID prefabAssetID, Vector3 position, Quaternion rotation, bool useTransform, GameObject? parent) {
         if (InstantiatePrefab == null) {
-            return Entity.nullEntity;
+            return null;
         }
-        return new Entity(InstantiatePrefab(prefabAssetID, NativeVector3.From(position),
-            NativeQuaternion.From(rotation), useTransform ? 1 : 0, parent.native));
+        return GameObject.FromNative(InstantiatePrefab(prefabAssetID, NativeVector3.From(position),
+            NativeQuaternion.From(rotation), useTransform ? 1 : 0, GameObject.RawNative(parent)));
     }
 
-    internal static Entity ResolveEntityReference(AssetGUID sourceAsset, ulong localFileID)
-        => (ResolveEntityRef != null && localFileID != 0) ? new Entity(ResolveEntityRef(sourceAsset, localFileID)) : Entity.nullEntity;
+    internal static GameObject? ResolveEntityReference(AssetGUID sourceAsset, ulong localFileID)
+        => (ResolveEntityRef != null && localFileID != 0) ? GameObject.FromNative(ResolveEntityRef(sourceAsset, localFileID)) : null;
 
     internal static EntityRef ReadEntityReferenceIdentity(NativeEntity entity) {
         if (GetEntityReferenceIdentity == null) {
@@ -181,9 +192,8 @@ internal static unsafe class NativeEntityAPI {
         if (CopyTag == null) {
             return "Untagged";
         }
-        byte* buffer = stackalloc byte[NameBufferSize];
-        int length = CopyTag(entity, buffer, NameBufferSize);
-        return length <= 0 ? "Untagged" : Encoding.UTF8.GetString(buffer, length);
+        string tag = ManagedUTF8Transfer.ReadEntityString(CopyTag, entity);
+        return tag.Length == 0 ? "Untagged" : tag;
     }
 
     internal static void WriteTag(NativeEntity entity, string value) {
@@ -205,36 +215,36 @@ internal static unsafe class NativeEntityAPI {
         if (SetVisibilityLayerMask != null) { SetVisibilityLayerMask(entity, (int)mask); }
     }
 
-    internal static Entity FindByName(string name) {
+    internal static GameObject? FindByName(string name) {
         if (FindEntityByName == null || string.IsNullOrEmpty(name)) {
-            return Entity.nullEntity;
+            return null;
         }
         byte[] bytes = Encoding.UTF8.GetBytes(name + "\0");
         fixed (byte* ptr = bytes) {
-            return new Entity(FindEntityByName(ptr));
+            return GameObject.FromNative(FindEntityByName(ptr));
         }
     }
 
-    internal static Entity FindByTag(string tag) {
+    internal static GameObject? FindByTag(string tag) {
         if (FindEntityByTag == null || string.IsNullOrEmpty(tag)) {
-            return Entity.nullEntity;
+            return null;
         }
         byte[] bytes = Encoding.UTF8.GetBytes(tag + "\0");
         fixed (byte* ptr = bytes) {
-            return new Entity(FindEntityByTag(ptr));
+            return GameObject.FromNative(FindEntityByTag(ptr));
         }
     }
 
-    internal static Entity[] FindManyByTag(string tag) {
+    internal static GameObject[] FindManyByTag(string tag) {
         if (FindEntitiesByTag == null || string.IsNullOrEmpty(tag)) {
-            return System.Array.Empty<Entity>();
+            return System.Array.Empty<GameObject>();
         }
         byte[] bytes = Encoding.UTF8.GetBytes(tag + "\0");
         fixed (byte* ptr = bytes) {
             // length-query で総数を得てから確保し、再取得して詰める
             int count = FindEntitiesByTag(ptr, null, 0);
             if (count <= 0) {
-                return System.Array.Empty<Entity>();
+                return System.Array.Empty<GameObject>();
             }
             var buffer = new NativeEntity[count];
             fixed (NativeEntity* bp = buffer) {
@@ -244,20 +254,20 @@ internal static unsafe class NativeEntityAPI {
         }
     }
 
-    internal static Entity FindByComponent(int typeID) {
+    internal static GameObject? FindByComponent(int typeID) {
         if (FindEntityByComponent == null || typeID < 0) {
-            return Entity.nullEntity;
+            return null;
         }
-        return new Entity(FindEntityByComponent(typeID));
+        return GameObject.FromNative(FindEntityByComponent(typeID));
     }
 
-    internal static Entity[] FindManyByComponent(int typeID) {
+    internal static GameObject[] FindManyByComponent(int typeID) {
         if (FindEntitiesByComponent == null || typeID < 0) {
-            return System.Array.Empty<Entity>();
+            return System.Array.Empty<GameObject>();
         }
         int count = FindEntitiesByComponent(typeID, null, 0);
         if (count <= 0) {
-            return System.Array.Empty<Entity>();
+            return System.Array.Empty<GameObject>();
         }
         var buffer = new NativeEntity[count];
         fixed (NativeEntity* bp = buffer) {
@@ -266,11 +276,17 @@ internal static unsafe class NativeEntityAPI {
         }
     }
 
-    private static Entity[] MakeEntityArray(NativeEntity[] buffer, int count) {
-        var result = new Entity[count];
-        for (int i = 0; i < count; ++i) {
-            result[i] = new Entity(buffer[i]);
+    private static GameObject[] MakeEntityArray(NativeEntity[] buffer, int count) {
+        if (count < 0 || count > buffer.Length) {
+            throw new InvalidOperationException("GameObjectの検索件数が不正です");
         }
+        var result = new GameObject[count];
+        int written = 0;
+        for (int i = 0; i < count; ++i) {
+            GameObject? target = GameObject.FromNative(buffer[i]);
+            if (target is not null) { result[written++] = target; }
+        }
+        if (written != count) { Array.Resize(ref result, written); }
         return result;
     }
 }

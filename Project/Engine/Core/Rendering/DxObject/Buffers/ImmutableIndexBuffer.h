@@ -25,6 +25,10 @@ namespace Engine {
 
 		ImmutableIndexBuffer() = default;
 		~ImmutableIndexBuffer() = default;
+		ImmutableIndexBuffer(const ImmutableIndexBuffer&) = delete;
+		ImmutableIndexBuffer& operator=(const ImmutableIndexBuffer&) = delete;
+		ImmutableIndexBuffer(ImmutableIndexBuffer&&) noexcept = default;
+		ImmutableIndexBuffer& operator=(ImmutableIndexBuffer&&) noexcept = default;
 
 		// 32bitインデックスでDEFAULT heap本体を作成し、転送を依頼する
 		// BLAS入力など別用途でも読む場合はfinalStateにGENERIC_READを指定する

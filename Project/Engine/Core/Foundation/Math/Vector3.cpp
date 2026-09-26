@@ -7,6 +7,9 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Math/Math.h>
 
+// c++
+#include <cmath>
+
 //============================================================================
 //	Vector3 structMethods
 //============================================================================
@@ -124,8 +127,8 @@ Vector3 Vector3::FromJson(const nlohmann::json& data) {
 	Vector3 v{};
 	if (data.is_array() && data.size() == 3) {
 		v.x = data[0].get<float>();
-		v.y = data[2].get<float>();
-		v.z = data[1].get<float>();
+		v.y = data[1].get<float>();
+		v.z = data[2].get<float>();
 	} else if (data.contains("x") && data.contains("y") && data.contains("z")) {
 		v.x = data["x"].get<float>();
 		v.y = data["y"].get<float>();
@@ -159,27 +162,22 @@ float Vector3::Length() const {
 }
 
 Vector3 Vector3::Normalize(const Vector3& v) {
-	float length = Length(v);
-	if (length <= 0.001f) {
-		return Vector3(0.0f, 0.0f, 0.0f);
-	}
-	return Vector3(v.x / length, v.y / length, v.z / length);
+
+	return NormalizeOr(v, {}, 0.001f);
 }
 
 Vector3 Vector3::Normalize() const {
-	float length = this->Length();
-	if (length <= 0.001f) {
-		return Vector3(0.0f, 0.0f, 0.0f);
-	}
-	return Vector3(x / length, y / length, z / length);
+
+	return Normalize(*this);
 }
 
 Vector3 Vector3::NormalizeOr(const Vector3& value, const Vector3& fallback, float epsilon) {
-	float length = Length(value);
-	if (length <= epsilon) {
+	const double length = std::hypot(static_cast<double>(value.x), value.y, value.z);
+	if (!std::isfinite(length) || length == 0.0 || length <= epsilon) {
 		return fallback;
 	}
-	return Vector3(value.x / length, value.y / length, value.z / length);
+	return Vector3(static_cast<float>(value.x / length), static_cast<float>(value.y / length),
+		static_cast<float>(value.z / length));
 }
 
 float Vector3::Dot(const Vector3& v0, const Vector3& v1) {

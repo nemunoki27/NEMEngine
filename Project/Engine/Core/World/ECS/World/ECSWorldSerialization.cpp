@@ -21,8 +21,7 @@ void ECSWorldSerialization::AddComponentFromJson(ECSWorld& world,
 		Assert::Call(false, "シーンファイルに未登録のComponentType名があります");
 		return;
 	}
-	Assert::Call(world.CanStoreComponent(*info),
-		"ComponentTypeをこのWorldへ格納できません");
+	world.ValidateComponentStorage(*info);
 
 	// 既に持っているなら上書きする
 	const bool added = !world.records_[entity.index].location.archetype->Has(info->id);
@@ -34,13 +33,7 @@ void ECSWorldSerialization::AddComponentFromJson(ECSWorld& world,
 		newSignature.Set(info->id);
 		// 新しいアーキタイプへ移動する
 		world.MigrateEntity(entity, oldSignature, newSignature);
-		{
-			const EntityLocation& current = world.records_[entity.index].location;
-			void* ptr = current.archetype->GetRaw(
-				current.chunkIndex, current.row, info->id);
-			info->onAdded(world, entity, ptr);
-		}
-		world.NotifyComponentMutation(entity, info->id, ComponentMutationKind::Added);
+		world.CompleteComponentChange(entity, info->id, ComponentMutationKind::Added);
 	}
 
 	world.ApplyComponentJson(entity, typeName, data);
@@ -71,9 +64,11 @@ bool ECSWorldSerialization::ApplyComponentJson(ECSWorld& world,
 
 std::unique_ptr<ECSWorld> ECSWorldSerialization::CloneForSerialization(const ECSWorld& world) {
 
+	ECSWorld::QueryScope query(world);
 	auto snapshot = std::make_unique<ECSWorld>(world.kind_);
 	snapshot->records_.resize(world.records_.size());
-	snapshot->free_ = world.free_;
+	snapshot->freeHead_ = world.freeHead_;
+	snapshot->nextComponentInstanceID_ = world.nextComponentInstanceID_;
 	snapshot->uuidToEntity_.reserve(world.uuidToEntity_.size());
 	snapshot->changes_.CopySerializationRevisionsFrom(world.changes_);
 
@@ -84,6 +79,7 @@ std::unique_ptr<ECSWorld> ECSWorldSerialization::CloneForSerialization(const ECS
 			world.records_.size()); ++index) {
 		snapshot->records_[index].generation =
 			world.records_[index].generation;
+		snapshot->records_[index].nextFree = world.records_[index].nextFree;
 	}
 
 	// 同じArchetypeの列解決を行ごとに繰り返さず、Chunkを連続走査する
@@ -167,18 +163,13 @@ std::unique_ptr<ECSWorld> ECSWorldSerialization::CloneForSerialization(const ECS
 
 					const ComponentTypeInfo& info =
 						*infos[column];
-					void* destination =
-						destinationChunk.
-							GetRawByColumnIndex(
-								destinationColumns[column],
-								destinationRow);
 					const void* source =
 						sourceChunk.
 							GetRawByColumnIndex(
 								sourceColumns[column],
 								sourceRow);
-					info.copyConstruct(
-						destination, source);
+					destinationChunk.CopyConstructByColumnIndex(destinationColumns[column], destinationRow, source,
+						sourceChunk.GetComponentInstanceID(sourceColumns[column], sourceRow));
 					if (info.enableable) {
 						destinationChunk.
 							SetEnabledByColumnIndex(

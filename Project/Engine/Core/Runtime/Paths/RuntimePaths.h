@@ -7,6 +7,8 @@
 
 // c++
 #include <filesystem>
+#include <memory>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -37,39 +39,39 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 実行中プロジェクトのルートを取得
-		static const std::filesystem::path& GetProjectRoot();
+		static std::filesystem::path GetProjectRoot();
 		// ゲームソースのルートを取得
-		static const std::filesystem::path& GetGameRoot();
+		static std::filesystem::path GetGameRoot();
 		// NEMEngine/Projectのルートを取得
-		static const std::filesystem::path& GetEngineProjectRoot();
+		static std::filesystem::path GetEngineProjectRoot();
 		// Engine/Assetsのルートを取得
-		static const std::filesystem::path& GetEngineAssetsRoot();
+		static std::filesystem::path GetEngineAssetsRoot();
 		// ゲームアセットのルートを取得
-		static const std::filesystem::path& GetGameAssetsRoot();
+		static std::filesystem::path GetGameAssetsRoot();
 		// プロジェクト記述子を取得
-		static const std::filesystem::path& GetProjectDescriptorPath();
+		static std::filesystem::path GetProjectDescriptorPath();
 		// プロジェクトGUIDを取得
-		static const std::string& GetProjectGUID();
+		static std::string GetProjectGUID();
 		// プロジェクト名を取得
-		static const std::string& GetProjectName();
+		static std::string GetProjectName();
 		// ゲームシーンの保存形式を取得
 		static SceneStorageMode GetSceneStorageMode();
 		// 共有プロジェクト設定のルートを取得
-		static const std::filesystem::path& GetProjectSettingsRoot();
+		static std::filesystem::path GetProjectSettingsRoot();
 		// ユーザー固有設定のルートを取得
-		static const std::filesystem::path& GetUserSettingsRoot();
+		static std::filesystem::path GetUserSettingsRoot();
 		// 再生成可能なインポートキャッシュのルートを取得
-		static const std::filesystem::path& GetLibraryRoot();
+		static std::filesystem::path GetLibraryRoot();
 		// ログや一時ビルド成果物のルートを取得
-		static const std::filesystem::path& GetSavedRoot();
+		static std::filesystem::path GetSavedRoot();
 		// 製品ビルドから実行しているか
 		static bool IsProductBuild();
 		// パッケージmanifestと埋め込みパッケージのルートを取得
-		static const std::filesystem::path& GetPackagesRoot();
+		static std::filesystem::path GetPackagesRoot();
 		// 解決済みパッケージのマウント一覧を取得
-		static const std::vector<ResolvedPackage>& GetPackages();
+		static std::vector<ResolvedPackage> GetPackages();
 		// パッケージ解決時の問題一覧を取得
-		static const std::vector<PackageResolveIssue>& GetPackageIssues();
+		static std::vector<PackageResolveIssue> GetPackageIssues();
 
 		// Engine/Assets配下のパスを取得
 		static std::filesystem::path GetEngineAssetPath(const std::filesystem::path& relativePath);
@@ -94,6 +96,9 @@ namespace Engine {
 
 		struct PathState {
 
+			// 公開したパス集合の世代
+			uint64_t revision = 0;
+
 			std::filesystem::path projectRoot;
 			std::filesystem::path gameRoot;
 			std::filesystem::path engineProjectRoot;
@@ -112,6 +117,8 @@ namespace Engine {
 			std::vector<ResolvedPackage> packages;
 			std::vector<PackageResolveIssue> packageIssues;
 		};
+		// 複数パスを同じ世代で参照する
+		static std::shared_ptr<const PathState> GetSnapshot();
 	private:
 		//============================================================================
 		//	private Methods
@@ -119,8 +126,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// パス情報を取得
-		static const PathState& GetState();
 		// パス情報を構築
 		static PathState BuildState();
 	};

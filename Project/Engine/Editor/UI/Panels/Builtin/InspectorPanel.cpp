@@ -53,7 +53,7 @@
 #include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
-#include <Engine/Editor/Utility/JointAttachmentUtility.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>

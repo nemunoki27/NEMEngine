@@ -13,6 +13,7 @@ internal sealed class BindingInputReader {
 
     private const int SupportedSchemaVersion = 2;
     internal int errorCount;
+    internal List<AbiLayoutModel> layouts = new();
     private static readonly string[] AllowedExposure = {
         "GeneratedBinding", "HandwrittenFacade", "RuntimeCommand", "RuntimeEvent", "InternalOnly",
     };
@@ -86,6 +87,10 @@ internal sealed class BindingInputReader {
                             Access = p.TryGetProperty("access", out JsonElement ac) ? (ac.GetString() ?? "ReadWrite") : "ReadWrite",
                             Visibility = p.TryGetProperty("visibility", out JsonElement vis) ? (vis.GetString() ?? "Public") : "Public",
                         };
+                        if (string.IsNullOrWhiteSpace(pm.ManagedName) || string.IsNullOrWhiteSpace(pm.NativeMember))
+                            Error($"{model.ManagedType}: property requires managedName and nativeMember.");
+                        if (pm.Access != "ReadOnly" && pm.Access != "ReadWrite")
+                            Error($"{model.ManagedType}.{pm.ManagedName}: invalid access '{pm.Access}'.");
                         if (!propNames.Add(pm.ManagedName)) Error($"{model.ManagedType}: duplicate property '{pm.ManagedName}'.");
                         if (!IsKnownKind(pm.Kind)) Error($"{model.ManagedType}.{pm.ManagedName}: unknown kind '{pm.Kind}'.");
                         if (pm.Visibility != "Public" && pm.Visibility != "Internal")
@@ -101,6 +106,7 @@ internal sealed class BindingInputReader {
             }
         }
 
+        if (components.Count == 0) { Error("Component manifest has no components."); }
         components.Sort((a, b) => a.ID.CompareTo(b.ID));
         for (int i = 0; i < components.Count; ++i) {
             if (components[i].ID != i) {
@@ -141,6 +147,25 @@ internal sealed class BindingInputReader {
         }
         if (fields.Count == 0) {
             Error("ABI schema has no functions.");
+        }
+        layouts.Clear();
+        if (root.TryGetProperty("layouts", out JsonElement layoutEntries)) {
+            var layoutNames = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonElement entry in layoutEntries.EnumerateArray()) {
+                var layout = new AbiLayoutModel {
+                    NativeType = Str(entry, "nativeType"), ManagedType = Str(entry, "managedType"),
+                    Size = entry.GetProperty("size").GetInt32(),
+                };
+                if (layout.NativeType.Length == 0 || layout.ManagedType.Length == 0 || layout.Size <= 0 ||
+                    !layoutNames.Add(layout.ManagedType)) { Error("Invalid or duplicate ABI layout."); }
+                foreach (JsonProperty member in entry.GetProperty("members").EnumerateObject()) {
+                    int offset = member.Value.GetInt32();
+                    if (offset < 0 || offset >= layout.Size || !layout.Members.TryAdd(member.Name, offset)) {
+                        Error("Invalid or duplicate ABI member offset.");
+                    }
+                }
+                layouts.Add(layout);
+            }
         }
         return fields;
     }

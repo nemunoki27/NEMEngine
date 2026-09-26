@@ -340,12 +340,10 @@ function NEM_AddEditorProjectFiles()
         ["EditorAssets/*"] = editorAssets,
     }
 
-    -- 発生形状の補助描画はEditor構成で有効にする
+    -- ImGuiの実装はEditorだけで構築する
     local editorOwnedCore = {
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.h"),
         path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.cpp"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Emitter/Shapes/**.h"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Rendering/Particle/Emitter/Shapes/**.cpp"),
     }
     files(editorOwnedCore)
     vpaths {

@@ -5,6 +5,7 @@
 //============================================================================
 // c++
 #include <cstdint>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -57,7 +58,7 @@ namespace Engine {
 	// v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
 	// v52: アクティブSceneの再読み込みAPIを追加
 	// v53: スクリプトの詳細計測区間を追加
-	inline constexpr uint32_t kManagedAbiVersion = 54;
+	inline constexpr uint32_t kManagedAbiVersion = 56;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -439,6 +440,7 @@ namespace Engine {
 		uint32_t abiVersion = 0;
 		uint32_t structSize = 0;
 		uint64_t capabilities = 0;
+		uint64_t bindingFingerprint = 0;
 	};
 
 	// C#へ渡すネイティブAPI
@@ -513,6 +515,7 @@ namespace Engine {
 		using SetParentCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity);
 		// ObjectModel: generic component access / Entity.Destroy / ScriptBehaviour.Enabled / world rotation・lossyScale
 		using HasComponentCallback = int32_t(__cdecl*)(ManagedNativeEntity, int32_t);
+		using GetComponentInstanceIDCallback = uint64_t(__cdecl*)(ManagedNativeEntity, int32_t);
 		using ComponentMutateCallback = void(__cdecl*)(ManagedNativeEntity, int32_t);
 		using DynamicBufferLengthCallback = int32_t(__cdecl*)(
 			ManagedNativeEntity, int32_t, int32_t);
@@ -641,6 +644,7 @@ namespace Engine {
 	static_assert(sizeof(ManagedWorldHandle) == 8);
 	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);
 	static_assert(sizeof(ManagedNativeEntity) == 16);
-	static_assert(sizeof(ManagedAbiHeader) == 16);
+	static_assert(sizeof(ManagedAbiHeader) == 24);
 	static_assert(sizeof(ManagedMaterialParameterValue) == 24);
+#include <Engine/Core/Scripting/Managed/Generated/ManagedABILayout.generated.inl>
 } // Engine

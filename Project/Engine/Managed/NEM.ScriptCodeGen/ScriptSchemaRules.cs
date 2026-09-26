@@ -20,7 +20,7 @@ namespace NEM.ScriptCodeGen
     // スクリプト生成の定数と診断
     internal static class ScriptSchemaRules
     {
-        internal const string ScriptBehaviourFullName = "NEMEngine.ScriptBehaviour";
+        internal const string MonoBehaviourFullName = "NEMEngine.MonoBehaviour";
         internal const string AssetFullName = "NEMEngine.Asset";
         internal const string ComponentFullName = "NEMEngine.Component";
         internal const string ScriptTypeIDAttributeName = "NEMEngine.ScriptTypeIDAttribute";
@@ -73,7 +73,7 @@ namespace NEM.ScriptCodeGen
         internal static readonly DiagnosticDescriptor UnsupportedFieldRule = new DiagnosticDescriptor(
             "NEMSG013",
             "Unsupported serialized field type",
-            "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, asset/Entity/component/ScriptBehaviour reference, array, List, or Nullable.",
+            "Serialized field '{0}.{1}' has unsupported type '{2}' and will be skipped. Use a supported scalar, enum, math type, asset/GameObject/component/MonoBehaviour reference, array, List, or Nullable.",
             "NEMScript", DiagnosticSeverity.Warning, isEnabledByDefault: true);
 
         internal static readonly DiagnosticDescriptor MissingSerializeReferenceRule = new DiagnosticDescriptor(

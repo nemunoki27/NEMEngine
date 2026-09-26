@@ -9,28 +9,43 @@
 //============================================================================
 //	BlobStore classMethods
 //============================================================================
-Engine::BlobStore::Handle Engine::BlobStore::Acquire(std::span<const std::byte> bytes) {
+Engine::BlobStore::Handle Engine::BlobStore::Acquire(std::span<const std::byte> bytes, size_t alignment) {
 
+	if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
+		throw std::invalid_argument("Blobのアライメントが不正です");
+	}
 	const uint64_t hash = Hash(bytes);
 	const auto [begin, end] = hashToHandle_.equal_range(hash);
 	for (auto it = begin; it != end; ++it) {
 
 		// Hash衝突時は内容まで比較し、異なるBlobを誤共有しない
 		Entry* entry = entries_.TryGet(it->second);
-		if (entry && entry->bytes.size() == bytes.size() &&
-			std::equal(entry->bytes.begin(), entry->bytes.end(), bytes.begin())) {
+		if (entry && entry->bytes.bytes == bytes.size() && entry->bytes.align >= alignment &&
+			std::equal(bytes.begin(), bytes.end(), entry->bytes.ptr)) {
 
+			if (entry->referenceCount == (std::numeric_limits<uint32_t>::max)()) {
+				throw std::overflow_error("Blobの参照数が上限に達しました");
+			}
 			++entry->referenceCount;
 			return it->second;
 		}
 	}
 
 	Entry entry{};
-	entry.bytes.assign(bytes.begin(), bytes.end());
+	entry.bytes.Reset(bytes.size(), alignment);
+	if (!bytes.empty()) {
+		std::memcpy(entry.bytes.ptr, bytes.data(), bytes.size());
+	}
 	entry.hash = hash;
 	entry.referenceCount = 1;
 	const Handle handle = entries_.Emplace(std::move(entry));
-	hashToHandle_.emplace(hash, handle);
+	// 索引の追加に失敗した候補は公開せず解放する
+	try {
+		hashToHandle_.emplace(hash, handle);
+	} catch (...) {
+		entries_.Release(handle);
+		throw;
+	}
 	return handle;
 }
 
@@ -66,7 +81,7 @@ void Engine::BlobStore::Clear() {
 std::span<const std::byte> Engine::BlobStore::Get(Handle handle) const {
 
 	const Entry* entry = entries_.TryGet(handle);
-	return entry ? std::span<const std::byte>(entry->bytes) : std::span<const std::byte>{};
+	return entry ? std::span<const std::byte>(entry->bytes.ptr, entry->bytes.bytes) : std::span<const std::byte>{};
 }
 
 bool Engine::BlobStore::IsAlive(Handle handle) const {
@@ -94,7 +109,23 @@ uint64_t Engine::BlobStore::Hash(std::span<const std::byte> bytes) {
 //============================================================================
 //	ECSStorageRegistry classMethods
 //============================================================================
+Engine::ECSStorageRegistry::~ECSStorageRegistry() {
+
+	Clear();
+}
+
 void Engine::ECSStorageRegistry::Clear() {
 
-	storages_.clear();
+	if (clearing_) {
+		return;
+	}
+	if (constructionDepth_ != 0) {
+		throw std::logic_error("構築中のStorageを全解放できません");
+	}
+	// 破棄中のStorageを検索対象から外す
+	clearing_ = true;
+	decltype(storages_) retired;
+	retired.swap(storages_);
+	retired.clear();
+	clearing_ = false;
 }

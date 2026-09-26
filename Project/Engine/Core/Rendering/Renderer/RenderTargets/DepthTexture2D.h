@@ -112,6 +112,9 @@ namespace Engine {
 		// デスクリプタヒープのインデックス
 		uint32_t dsvIndex_ = UINT32_MAX;
 		uint32_t srvIndex_ = UINT32_MAX;
+		// 完成した資源と管理状態を交換する
+		void Swap(DepthTexture2D& other) noexcept;
+
 	};
 } // Engine
 

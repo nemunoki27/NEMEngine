@@ -43,7 +43,7 @@ public struct Color4 {
     //--------- functions ----------------------------------------------------
 
     // 線形補間
-    public static Color4 Lerp(Color4 lhs, Color4 rhs, float t) => new(Math.Lerp(lhs.r, rhs.r, t), Math.Lerp(lhs.g, rhs.g, t), Math.Lerp(lhs.b, rhs.b, t), Math.Lerp(lhs.a, rhs.a, t));
+    public static Color4 Lerp(Color4 lhs, Color4 rhs, float t) => new(Mathf.Lerp(lhs.r, rhs.r, t), Mathf.Lerp(lhs.g, rhs.g, t), Mathf.Lerp(lhs.b, rhs.b, t), Mathf.Lerp(lhs.a, rhs.a, t));
 
     // 0xRRGGBBAAをリニアRGB + alphaに変換する
     public static Color4 FromHex(uint hex) {
@@ -56,7 +56,7 @@ public struct Color4 {
     }
 
     // sRGBからリニアRGBに変換する
-    public static float SRGBToLinear(float value) => value <= 0.04045f ? value / 12.92f : Math.Pow((value + 0.055f) / 1.055f, 2.4f);
+    public static float SRGBToLinear(float value) => value <= 0.04045f ? value / 12.92f : Mathf.Pow((value + 0.055f) / 1.055f, 2.4f);
 
     public override readonly string ToString() => $"({r}, {g}, {b}, {a})";
 }

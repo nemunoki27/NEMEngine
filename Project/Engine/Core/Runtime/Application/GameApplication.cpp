@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+// c++
+#include <stdexcept>
+
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
@@ -71,6 +74,8 @@ void Engine::GameApplication::InitFirstScene() {
 			assetDatabase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"GameApplication: 起動シーンを読み込めません");
+		// 起動に失敗したWorldを更新せず終了処理へ戻す
+		throw std::runtime_error("Startup scene loading failed");
 	}
 }
 
@@ -94,6 +99,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	Audio::GetInstance()->Init();
 
 	InitFirstScene();
+	managedStarted_ = true;
 	ManagedScriptRuntime::GetInstance().Init();
 	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
 	InitSystems();
@@ -102,6 +108,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	renderPipeline_->Init();
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	debugDrawingStarted_ = true;
 	LineRenderer::GetInstance()->Init(graphicsCore);
 #endif
 
@@ -113,6 +120,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
 	StartPlayWorld();
 	PreloadReleaseResources(graphicsCore);
+	initializationComplete_ = true;
 }
 
 void Engine::GameApplication::StartPlayWorld() {
@@ -314,7 +322,9 @@ void Engine::GameApplication::Finalize() {
 
 	WinApp::SetCloseRequestCallback(nullptr);
 	Assert::SetPreAssertHandler(nullptr);
-	SaveActiveSceneConfig();
+	if (initializationComplete_) {
+		SaveActiveSceneConfig();
+	}
 	if (worldManager_.IsPlaying()) {
 		StopPlayWorld();
 	} else {
@@ -327,11 +337,19 @@ void Engine::GameApplication::Finalize() {
 		renderPipeline_.reset();
 	}
 
-	ManagedWorldRegistry::GetInstance().Unregister(
-		ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
-	ManagedScriptRuntime::GetInstance().Finalize();
+	if (managedStarted_) {
+		ManagedWorldRegistry::GetInstance().Unregister(
+			ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
+	}
+	if (managedStarted_) {
+		ManagedScriptRuntime::GetInstance().Finalize();
+		managedStarted_ = false;
+	}
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	LineRenderer::GetInstance()->Finalize();
+	if (debugDrawingStarted_) {
+		LineRenderer::GetInstance()->Finalize();
+		debugDrawingStarted_ = false;
+	}
 #endif
 }

@@ -62,7 +62,7 @@ internal static class InputActionEvaluation {
         if (binding.invert) {
             v = -v;
         }
-        return Math.Clamp(v, -1.0f, 1.0f);
+        return Mathf.Clamp(v, -1.0f, 1.0f);
     }
 
     internal static float EvalAxis1D(InputActionBinding binding) {
@@ -95,12 +95,12 @@ internal static class InputActionEvaluation {
         case InputActionBindingKind.Stick2D: {
             // a=axisX, b=axisY。radial dead zone を適用する
             Vector2 v = new(ResolvedAxis(binding.a), ResolvedAxis(binding.b));
-            float mag = Vector2.Length(v);
+            float mag = Vector2.Magnitude(v);
             if (mag < binding.deadZone || mag <= 0.0f) {
                 return Vector2.zero;
             }
             // dead zone 境界から [0,1] へ再スケールし、sensitivity / invert を適用
-            float scaled = Math.Clamp((mag - binding.deadZone) / (1.0f - binding.deadZone), 0.0f, 1.0f) * binding.sensitivity;
+            float scaled = Mathf.Clamp((mag - binding.deadZone) / (1.0f - binding.deadZone), 0.0f, 1.0f) * binding.sensitivity;
             Vector2 dir = v / mag;
             Vector2 result = dir * scaled;
             return binding.invert ? new Vector2(-result.x, -result.y) : result;

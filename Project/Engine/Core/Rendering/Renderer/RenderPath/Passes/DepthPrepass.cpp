@@ -186,8 +186,8 @@ void Engine::DepthPrepass::BuildDepthPyramid(
 		constants.destinationHeight = destinationHeight;
 		constants.copySource = (mipIndex == 0) ? 1u : 0u;
 		const auto allocation =
-			constantAllocator_.AllocateAndUpload(
-				graphicsCore.GetDXObject().GetDevice(),
+			constantAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(),
 				constants);
 
 		pyramid.TransitionMip(

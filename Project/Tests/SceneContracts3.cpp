@@ -39,8 +39,8 @@ namespace NEMTests {
 
 	bool TestSceneAssetCopy() {
 
-		const std::filesystem::path testRoot = Engine::RuntimePaths::GetGameAssetsRoot() /
-			"Tests" / ("SceneCopy-" + Engine::ToString(Engine::UUID::New()));
+		TestDirectory directory("SceneCopy", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		std::filesystem::create_directories(testRoot / "Folder");
 		Engine::ECSWorld world;
 		const Engine::Entity parent = Engine::SceneAuthoring::CreateGameObject(world, "Parent");
@@ -182,7 +182,7 @@ namespace NEMTests {
 			actorRoots.push_back(Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" / Engine::ToString(copiedMeta.guid));
 		}
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		for (const auto& actorRoot : actorRoots) {
 
 			std::filesystem::remove_all(actorRoot, ec);

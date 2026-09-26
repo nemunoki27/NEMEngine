@@ -1,5 +1,7 @@
 #include "RenderingPlatform.h"
 
+#include <stdexcept>
+
 using namespace Engine;
 
 //============================================================================
@@ -183,8 +185,9 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 	const uint64_t fenceValue = dxCommand_->GetFrameFenceValue(frameIndex);
 	const std::chrono::high_resolution_clock::time_point waitStart =
 		std::chrono::high_resolution_clock::now();
-	dxCommandQueue_->WaitForFenceValue(
-		fenceValue, "GraphicsPlatform::BeginFrame/FrameContextReuse");
+	if (!dxCommandQueue_->WaitForFenceValue(fenceValue, "GraphicsPlatform::BeginFrame/FrameContextReuse")) {
+		throw std::runtime_error("GPUの完了を確認できませんでした");
+	}
 	const std::chrono::duration<float, std::milli> waitElapsed =
 		std::chrono::high_resolution_clock::now() - waitStart;
 	FrameProfiler::GetInstance().AddSample(
@@ -203,13 +206,22 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 
 void GraphicsPlatform::WaitForGPU() {
 
+	if (IsDeviceRemoved()) {
+		throw std::runtime_error("Deviceが失われたため描画を継続できません");
+	}
+
+	// 初期化途中でQueueを作れなかった場合は提出対象がない
+	if (!dxCommandQueue_ || !dxCommandQueue_->IsInitialized()) {
+		return;
+	}
 	// 現在積んでいるリストを実行してGPU完了まで待つ、終了時のドレイン用
-	if (dxCommand_->IsRecording()) {
+	if (dxCommand_ && dxCommand_->IsRecording()) {
 		dxCommand_->CloseCommandList();
 		dxCommandQueue_->ExecuteCommandList(dxCommand_->GetCommandList());
 		const uint64_t fenceValue = dxCommandQueue_->Signal();
-		dxCommandQueue_->WaitForFenceValue(
-			fenceValue, "GraphicsPlatform::WaitForGPU/Drain");
+		if (!dxCommandQueue_->WaitForFenceValue(fenceValue, "GraphicsPlatform::WaitForGPU/Drain")) {
+			throw std::runtime_error("GPUの完了を確認できませんでした");
+		}
 		resourceRetirement_.Seal(fenceValue);
 		resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
 		dxCommand_->SetCurrentFrameFenceValue(fenceValue);
@@ -218,8 +230,14 @@ void GraphicsPlatform::WaitForGPU() {
 	}
 
 	const uint64_t fenceValue = dxCommandQueue_->Signal();
-	dxCommandQueue_->WaitForFenceValue(
-		fenceValue, "GraphicsPlatform::WaitForGPU/QueueDrain");
+	if (!dxCommandQueue_->WaitForFenceValue(fenceValue, "GraphicsPlatform::WaitForGPU/QueueDrain")) {
+		throw std::runtime_error("GPUの完了を確認できませんでした");
+	}
 	resourceRetirement_.Seal(fenceValue);
 	resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
+}
+
+bool Engine::GraphicsPlatform::IsDeviceRemoved() const {
+
+	return dxDevice_ && dxDevice_->Get() && FAILED(dxDevice_->Get()->GetDeviceRemovedReason());
 }

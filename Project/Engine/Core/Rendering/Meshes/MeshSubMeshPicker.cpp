@@ -40,7 +40,7 @@ void Engine::MeshSubMeshPicker::Init(GraphicsCore& graphicsCore) {
 		&graphicsCore.GetRTVDescriptor(), &graphicsCore.GetDSVDescriptor(),
 		&graphicsCore.GetSRVDescriptor(), desc);
 	for (ReadbackSlot& slot : readbackSlots_) {
-		slot.buffer.CreateBuffer(
+		slot.buffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice());
 		slot.requestID = 0;
 		slot.fenceValue = 0;

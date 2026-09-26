@@ -6,11 +6,14 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
 // c++
 #include <filesystem>
+#include <stdexcept>
 
 // windows
 #include <shellapi.h>
@@ -63,7 +66,7 @@ ImGuiManager* ImGuiManager::instance_ = nullptr;
 //	ImGuiManager classMethods
 //============================================================================
 void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D12CommandQueue* commandQueue,
-	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) {
+	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) try {
 
 	if (initialized_) {
 		return;
@@ -75,6 +78,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	contextCreated_ = true;
 
 	// コンフィグ設定
 	ImGuiIO& io = ImGui::GetIO();
@@ -88,7 +92,10 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 
 	ImGui::StyleColorsDark();
 	//Win32初期化
-	ImGui_ImplWin32_Init(hwnd);
+	platformInitialized_ = ImGui_ImplWin32_Init(hwnd);
+	if (!platformInitialized_) {
+		throw std::runtime_error("ImGuiのWindow初期化に失敗しました");
+	}
 	WinApp::SetMessageHandler(ForwardImGuiMessage);
 
 	// DX12初期化
@@ -100,9 +107,14 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.DSVFormat = dsvFormat;
 	dxInitInfo.SrvDescriptorHeap = srvDescriptor->GetDescriptorHeap();
 	dxInitInfo.UserData = this;
+	dxInitInfo.WaitForGPUFn = &ImGuiManager::WaitForGPU;
+	dxInitInfo.ResourceRetireFn = &ImGuiManager::RetireResource;
 	dxInitInfo.SrvDescriptorAllocFn = &ImGuiManager::AllocateSRVDescriptor;
 	dxInitInfo.SrvDescriptorFreeFn = &ImGuiManager::FreeSRVDescriptor;
-	ImGui_ImplDX12_Init(&dxInitInfo);
+	rendererInitialized_ = ImGui_ImplDX12_Init(&dxInitInfo);
+	if (!rendererInitialized_) {
+		throw std::runtime_error("ImGuiの描画初期化に失敗しました");
+	}
 
 	//============================================================================
 	//	imguiConfig
@@ -257,6 +269,11 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	}
 
 	initialized_ = true;
+} catch (...) {
+
+	// 初期化途中の接続と資源を戻す
+	Finalize();
+	throw;
 }
 
 void ImGuiManager::Begin() {
@@ -266,6 +283,7 @@ void ImGuiManager::Begin() {
 	}
 
 	ImGui_ImplDX12_NewFrame();
+	CheckGPUFailure();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 }
@@ -279,6 +297,7 @@ void ImGuiManager::End() {
 	ImGui::Render();
 	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		ImGui::UpdatePlatformWindows();
+		CheckGPUFailure();
 		RegisterPlatformWindows();
 	}
 }
@@ -293,6 +312,7 @@ void ImGuiManager::Draw(ID3D12GraphicsCommandList* commandList) {
 	commandList->SetDescriptorHeaps(1, heaps);
 
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+	CheckGPUFailure();
 }
 
 void ImGuiManager::DrawPlatformWindows() {
@@ -302,26 +322,57 @@ void ImGuiManager::DrawPlatformWindows() {
 		return;
 	}
 	ImGui::RenderPlatformWindowsDefault();
+	CheckGPUFailure();
 }
 
 void ImGuiManager::Finalize() {
 
-	if (!initialized_) {
+	if (!contextCreated_) {
 		return;
 	}
 
 	// 外部ViewportのWndProcを戻してから各Backendに所有資源を破棄させる
 	RestorePlatformWindowProcedures();
 	WinApp::SetMessageHandler(nullptr);
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
+	if (rendererInitialized_) {
+		ImGui_ImplDX12_Shutdown();
+		rendererInitialized_ = false;
+	}
+	if (platformInitialized_) {
+		ImGui_ImplWin32_Shutdown();
+		platformInitialized_ = false;
+	}
 	ImGui::DestroyContext();
+	contextCreated_ = false;
 
 	imguiSRVIndices_.clear();
 	platformWindowProcedures_.clear();
 	srvDescriptor_ = nullptr;
 	instance_ = nullptr;
 	initialized_ = false;
+	gpuFailed_ = false;
+}
+
+bool ImGuiManager::WaitForGPU(ImGui_ImplDX12_InitInfo* info, ID3D12Fence* fence, UINT64 value, HANDLE event) {
+
+	auto& manager = *static_cast<ImGuiManager*>(info->UserData);
+	const bool completed = fence ? DxDredDiagnostics::WaitForFence(info->Device, fence, value, event, "ImGui::Fence") :
+		event ? DxDredDiagnostics::WaitForEvent(info->Device, event, "ImGui::Present") :
+		DxDredDiagnostics::CheckDeviceState(info->Device, "ImGui::Device");
+	manager.gpuFailed_ |= !completed;
+	return completed;
+}
+
+void ImGuiManager::CheckGPUFailure() const {
+
+	if (gpuFailed_) throw std::runtime_error("ImGuiのGPU処理を継続できません");
+}
+
+void ImGuiManager::RetireResource(ImGui_ImplDX12_InitInfo* info, ID3D12Object* resource) {
+
+	// Backendの解放後も提出済みdrawの参照を保持する
+	auto& manager = *static_cast<ImGuiManager*>(info->UserData);
+	manager.srvDescriptor_->GetRetirementQueue().Retire(ComPtr<ID3D12Object>(resource));
 }
 
 void ImGuiManager::AllocateSRVDescriptor(ImGui_ImplDX12_InitInfo* info,
@@ -369,7 +420,7 @@ void ImGuiManager::FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
 	}
 
 	if (srvDescriptor_) {
-		srvDescriptor_->Free(it->second);
+		srvDescriptor_->Retire(it->second, {});
 	}
 	imguiSRVIndices_.erase(it);
 }
@@ -428,12 +479,12 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message,
 
 	switch (message) {
 	case WM_SETFOCUS:
-		if (Input* input = Input::GetInstance()) {
+		if (Input* input = Input::TryGetInstance()) {
 			input->SetWindowFocus(true);
 		}
 		break;
 	case WM_KILLFOCUS:
-		if (Input* input = Input::GetInstance()) {
+		if (Input* input = Input::TryGetInstance()) {
 			input->SetWindowFocus(
 				instance_->IsEditorWindow(reinterpret_cast<HWND>(wparam)));
 		}

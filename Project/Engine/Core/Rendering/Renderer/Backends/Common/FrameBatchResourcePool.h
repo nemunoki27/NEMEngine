@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 #include <memory>
 #include <vector>
@@ -45,10 +46,18 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct Entry {
+
+			std::unique_ptr<T> resource;
+			uint64_t lastUsedSerial = UINT64_MAX;
+		};
 		//--------- variables ----------------------------------------------------
 
-		std::vector<std::unique_ptr<T>> resources_{};
+		std::vector<Entry> resources_{};
 		size_t usedCount_ = 0;
+		uint64_t frameSerial_ = UINT64_MAX;
 	};
 
 	//============================================================================
@@ -57,7 +66,14 @@ namespace Engine {
 	template<typename T>
 	inline void FrameBatchResourcePool<T>::BeginFrame() {
 
-		// フレーム開始時に使用数をリセット
+		// 同じframeのView切替では先行Batchを再利用しない
+		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+		if (frameSerial_ == serial) return;
+		// 長期間使っていない末尾のBatchを所有元から外す
+		while (!resources_.empty() && HasExpiredGraphicsResource(resources_.back().lastUsedSerial, serial)) {
+			resources_.pop_back();
+		}
+		frameSerial_ = serial;
 		usedCount_ = 0;
 	}
 
@@ -66,6 +82,7 @@ namespace Engine {
 
 		resources_.clear();
 		usedCount_ = 0;
+		frameSerial_ = UINT64_MAX;
 	}
 
 	template<typename T>
@@ -77,11 +94,13 @@ namespace Engine {
 
 			std::unique_ptr<T> resource = std::make_unique<T>();
 			fn(*resource, graphicsCore);
-			resources_.emplace_back(std::move(resource));
+			resources_.push_back({ std::move(resource), GraphicsFrameState::GetFrameSerial() });
 		}
 
 		// 使用数をインクリメントしてリソースを返す
-		T& resource = *resources_[usedCount_];
+		auto& entry = resources_[usedCount_];
+		entry.lastUsedSerial = GraphicsFrameState::GetFrameSerial();
+		T& resource = *entry.resource;
 		++usedCount_;
 		return resource;
 	}

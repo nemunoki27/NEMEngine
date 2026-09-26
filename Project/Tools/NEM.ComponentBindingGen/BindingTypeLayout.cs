@@ -41,7 +41,7 @@ internal static class BindingTypeLayout {
             case "Quaternion": return ("Quaternion", 16);
             case "Color3": return ("Color3", 12);
             case "Color4": return ("Color4", 16);
-            case "EntityRef": return ("Entity", 16);
+            case "EntityRef": return ("GameObject", 16);
             default: return ("", 0);
         }
     }

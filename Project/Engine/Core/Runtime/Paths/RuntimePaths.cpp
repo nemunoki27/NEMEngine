@@ -8,81 +8,93 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 #include <mutex>
+#include <limits>
+#include <stdexcept>
 
 namespace {
 
-	Engine::RuntimePaths::PathState g_pathState{};
+	std::shared_ptr<const Engine::RuntimePaths::PathState> g_pathState;
+	std::mutex g_pathMutex;
 	std::once_flag g_initializeOnce;
 }
 
 void Engine::RuntimePaths::Refresh() {
 
-	g_pathState = BuildState();
+	// 初期化を終えてから新しい集合を組み立てる
+	GetSnapshot();
+	auto next = std::make_shared<PathState>(BuildState());
+	std::scoped_lock lock(g_pathMutex);
+	if (g_pathState->revision == std::numeric_limits<uint64_t>::max()) {
+		throw std::overflow_error("RuntimePaths revision exhausted");
+	}
+	// 古い集合は借用中の利用側が解放するまで保持する
+	next->revision = g_pathState->revision + 1;
+	g_pathState = std::move(next);
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetProjectRoot() {
+std::filesystem::path Engine::RuntimePaths::GetProjectRoot() {
 
-	return GetState().projectRoot;
+	return GetSnapshot()->projectRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetGameRoot() {
+std::filesystem::path Engine::RuntimePaths::GetGameRoot() {
 
-	return GetState().gameRoot;
+	return GetSnapshot()->gameRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetEngineProjectRoot() {
+std::filesystem::path Engine::RuntimePaths::GetEngineProjectRoot() {
 
-	return GetState().engineProjectRoot;
+	return GetSnapshot()->engineProjectRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetEngineAssetsRoot() {
+std::filesystem::path Engine::RuntimePaths::GetEngineAssetsRoot() {
 
-	return GetState().engineAssetsRoot;
+	return GetSnapshot()->engineAssetsRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetGameAssetsRoot() {
+std::filesystem::path Engine::RuntimePaths::GetGameAssetsRoot() {
 
-	return GetState().gameAssetsRoot;
+	return GetSnapshot()->gameAssetsRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetProjectDescriptorPath() {
+std::filesystem::path Engine::RuntimePaths::GetProjectDescriptorPath() {
 
-	return GetState().projectDescriptorPath;
+	return GetSnapshot()->projectDescriptorPath;
 }
 
-const std::string& Engine::RuntimePaths::GetProjectGUID() {
+std::string Engine::RuntimePaths::GetProjectGUID() {
 
-	return GetState().projectGUID;
+	return GetSnapshot()->projectGUID;
 }
 
-const std::string& Engine::RuntimePaths::GetProjectName() {
+std::string Engine::RuntimePaths::GetProjectName() {
 
-	return GetState().projectName;
+	return GetSnapshot()->projectName;
 }
 
 Engine::SceneStorageMode Engine::RuntimePaths::GetSceneStorageMode() {
 
-	return GetState().sceneStorageMode;
+	return GetSnapshot()->sceneStorageMode;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetProjectSettingsRoot() {
+std::filesystem::path Engine::RuntimePaths::GetProjectSettingsRoot() {
 
-	return GetState().projectSettingsRoot;
+	return GetSnapshot()->projectSettingsRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetUserSettingsRoot() {
+std::filesystem::path Engine::RuntimePaths::GetUserSettingsRoot() {
 
-	return GetState().userSettingsRoot;
+	return GetSnapshot()->userSettingsRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetLibraryRoot() {
+std::filesystem::path Engine::RuntimePaths::GetLibraryRoot() {
 
-	return GetState().libraryRoot;
+	return GetSnapshot()->libraryRoot;
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetSavedRoot() {
+std::filesystem::path Engine::RuntimePaths::GetSavedRoot() {
 
-	return GetState().savedRoot;
+	return GetSnapshot()->savedRoot;
 }
 
 bool Engine::RuntimePaths::IsProductBuild() {
@@ -92,19 +104,19 @@ bool Engine::RuntimePaths::IsProductBuild() {
 		GetGameRoot() / ".nemBuildManifest.json", ec);
 }
 
-const std::filesystem::path& Engine::RuntimePaths::GetPackagesRoot() {
+std::filesystem::path Engine::RuntimePaths::GetPackagesRoot() {
 
-	return GetState().packagesRoot;
+	return GetSnapshot()->packagesRoot;
 }
 
-const std::vector<Engine::ResolvedPackage>& Engine::RuntimePaths::GetPackages() {
+std::vector<Engine::ResolvedPackage> Engine::RuntimePaths::GetPackages() {
 
-	return GetState().packages;
+	return GetSnapshot()->packages;
 }
 
-const std::vector<Engine::PackageResolveIssue>& Engine::RuntimePaths::GetPackageIssues() {
+std::vector<Engine::PackageResolveIssue> Engine::RuntimePaths::GetPackageIssues() {
 
-	return GetState().packageIssues;
+	return GetSnapshot()->packageIssues;
 }
 
 std::filesystem::path Engine::RuntimePaths::GetEngineAssetPath(const std::filesystem::path& relativePath) {
@@ -139,7 +151,7 @@ std::filesystem::path Engine::RuntimePaths::ResolveVirtualPath(std::string_view 
 		!virtualPath.starts_with("package://")) {
 		return {};
 	}
-	return RuntimePathDetail::ResolveVirtualPath(GetState(), virtualPath);
+	return RuntimePathDetail::ResolveVirtualPath(*GetSnapshot(), virtualPath);
 }
 
 std::string Engine::RuntimePaths::ToVirtualPath(const std::filesystem::path& fullPath) {
@@ -147,7 +159,7 @@ std::string Engine::RuntimePaths::ToVirtualPath(const std::filesystem::path& ful
 	if (fullPath.empty()) {
 		return {};
 	}
-	return RuntimePathDetail::ToVirtualPath(GetState(), fullPath);
+	return RuntimePathDetail::ToVirtualPath(*GetSnapshot(), fullPath);
 }
 
 std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesystem::path& assetPath) {
@@ -155,7 +167,7 @@ std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::filesyst
 	if (assetPath.empty()) {
 		return {};
 	}
-	return RuntimePathDetail::ResolveAssetPath(GetState(), assetPath);
+	return RuntimePathDetail::ResolveAssetPath(*GetSnapshot(), assetPath);
 }
 
 std::filesystem::path Engine::RuntimePaths::ResolveAssetPath(const std::string& assetPath) {
@@ -173,15 +185,20 @@ std::string Engine::RuntimePaths::ToAssetPath(const std::filesystem::path& fullP
 	if (fullPath.empty()) {
 		return {};
 	}
-	return RuntimePathDetail::ToAssetPath(GetState(), fullPath);
+	return RuntimePathDetail::ToAssetPath(*GetSnapshot(), fullPath);
 }
 
-const Engine::RuntimePaths::PathState& Engine::RuntimePaths::GetState() {
+std::shared_ptr<const Engine::RuntimePaths::PathState> Engine::RuntimePaths::GetSnapshot() {
 
 	std::call_once(g_initializeOnce, []() {
 
-		g_pathState = BuildState();
+		// 初回だけ構築し、不変の集合として公開する
+		auto initial = std::make_shared<PathState>(BuildState());
+		initial->revision = 1;
+		std::scoped_lock lock(g_pathMutex);
+		g_pathState = std::move(initial);
 		});
+	std::scoped_lock lock(g_pathMutex);
 	return g_pathState;
 }
 

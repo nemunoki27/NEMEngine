@@ -15,6 +15,8 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+#include <map>
+#include <tuple>
 
 namespace Engine {
 
@@ -63,21 +65,18 @@ namespace Engine {
 		// 親子付けでworldPositionStays=trueなら親変更前後でworld transformを維持する
 		void EnqueueSetParent(const Entity& child, const Entity& parent, bool worldPositionStays = false);
 
-		// 予約済みEntityをmaterializeしてTransform/SceneObject/Nameを付与しstaged SRTとparentを適用する
-		void EnqueueCreateEntity(const Entity& reserved, std::string_view name, const Entity& parent);
+		// 初期Componentを予約し、安全地点でScene所属と親子関係を確定する
+		void EnqueueCreateEntity(ECSWorld& world, const Entity& reserved, std::string_view name, const Entity& parent);
 		// Sceneをadditive load / unloadする、instanceはUUID
 		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset);
 		void EnqueueUnloadScene(const UUID& sceneInstanceID);
 		// Sceneを単一loadする、新sceneをloadしてactiveにし、それまでの全sceneをunloadする
 		void EnqueueLoadSceneSingle(const UUID& sceneInstanceID, AssetID sceneAsset);
 
-		// 予約直後のEntityへのtransform書き込みをstagingする、flush前は実componentが無いため
-		// 対象がpending CreateEntityコマンドに無ければfalseで呼び出し側は通常処理へ
-		bool StageCreatePosition(const Entity& reserved, const Vector3& position);
-		bool StageCreateRotation(const Entity& reserved, const Quaternion& rotation);
-		bool StageCreateScale(const Entity& reserved, const Vector3& scale);
-		// 対象が予約中の未materialize Entityか
-		bool IsPendingCreate(const Entity& reserved) const;
+		// 追加前に読み書きできるComponentを予約する
+		uint64_t StageAddComponent(ECSWorld& world, const Entity& entity, uint32_t typeID);
+		// 予約したComponentの値を取得する
+		PendingComponent* FindPendingComponent(const Entity& entity, uint32_t typeID) const;
 
 		//--------- flush --------------------------------------------------------
 
@@ -88,7 +87,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		bool IsEmpty() const { return commands_.empty(); }
+		bool IsEmpty() const { return commands_.empty() && activeCommandIndex_ == activeBatch_.size(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -98,9 +97,13 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// Entityの世代と型で追加予約を区別する
+		using ComponentKey = std::tuple<uint32_t, uint32_t, uint32_t>;
+		std::map<ComponentKey, std::shared_ptr<PendingComponent>> pendingComponents_;
 		std::vector<WorldCommand> commands_;
-		// 予約Entityからpending CreateEntityコマンドのindexを引くmapで線形走査を避ける
-		std::unordered_map<uint64_t, size_t> createCommandIndex_;
+		// 失敗後も未処理のCommandを保持する
+		std::vector<WorldCommand> activeBatch_;
+		size_t activeCommandIndex_ = 0;
 		// Flush再入を防ぐ
 		bool flushing_ = false;
 		// 1回のFlushで許容する最大batch数でコマンドが自分自身を再生産し続ける無限ループを防ぐ
@@ -108,10 +111,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 予約Entityをmapキーへ変換する
-		static uint64_t EntityKey(const Entity& entity) { return (static_cast<uint64_t>(entity.index) << 32) | entity.generation; }
-		// 予約Entityを対象にするpending CreateEntityコマンドを探す
-		WorldCommand* FindPendingCreateCommand(const Entity& reserved);
-		const WorldCommand* FindPendingCreateCommand(const Entity& reserved) const;
+		// 適用を開始する予約を索引から外す
+		void RemovePendingComponent(const WorldCommand& command);
+
 	};
 } // Engine

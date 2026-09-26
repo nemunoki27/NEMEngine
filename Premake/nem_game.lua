@@ -73,7 +73,7 @@ function NEM_GameLinkEngine()
     prebuildcommands {
         'set DOTNET_CLI_UI_LANGUAGE=en',
         'if "%NEMScriptMetadataMode%"=="" set NEMScriptMetadataMode=EditorSync',
-        'if exist "' .. metaSyncDll .. '" if exist "$(ProjectDir)GameAssets" dotnet "' .. metaSyncDll .. '" --root "$(ProjectDir)GameAssets" --mode "%NEMScriptMetadataMode%"',
+        'if exist "' .. metaSyncDll .. '" if exist "$(ProjectDir)GameAssets" dotnet "' .. metaSyncDll .. '" --root "$(ProjectDir)GameAssets" --configuration "$(Configuration)" --mode "%NEMScriptMetadataMode%"',
         'if not exist "$(ProjectDir)Scripts\\GameScripts.csproj" (echo [エラー] C#ゲームスクリプトのプロジェクトが見つかりません: $(ProjectDir)Scripts\\GameScripts.csproj & exit /b 1)',
         'if not "$(BuildingSolutionFile)"=="true" dotnet build "$(ProjectDir)Scripts\\GameScripts.csproj" -c "$(Configuration)" -p:NEMScriptMetadataMode=%NEMScriptMetadataMode%',
     }

@@ -22,7 +22,7 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 
-		HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
+		HierarchyComponent* hierarchy = world->TryGetComponentForBinding<HierarchyComponent>(resolved);
 		if (!hierarchy) {
 			return MakeNullNativeEntity();
 		}
@@ -39,7 +39,7 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 
-		HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
+		HierarchyComponent* hierarchy = world->TryGetComponentForBinding<HierarchyComponent>(resolved);
 		if (!hierarchy) {
 			return MakeNullNativeEntity();
 		}
@@ -56,7 +56,7 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 
-		HierarchyComponent* hierarchy = world->TryGetComponent<HierarchyComponent>(resolved);
+		HierarchyComponent* hierarchy = world->TryGetComponentForBinding<HierarchyComponent>(resolved);
 		if (!hierarchy) {
 			return MakeNullNativeEntity();
 		}

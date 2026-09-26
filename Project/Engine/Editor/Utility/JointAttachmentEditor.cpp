@@ -1,4 +1,4 @@
-#include "JointAttachmentUtility.h"
+#include "JointAttachmentEditor.h"
 
 //============================================================================
 //	include
@@ -14,7 +14,7 @@
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 //============================================================================
-//	JointAttachmentUtility internalMethods
+//	JointAttachmentEditor internalMethods
 //============================================================================
 namespace {
 
@@ -60,9 +60,9 @@ namespace {
 }
 
 //============================================================================
-//	JointAttachmentUtility classMethods
+//	JointAttachmentEditor classMethods
 //============================================================================
-void Engine::JointAttachmentUtility::Attach(ECSWorld& world, HierarchySystem& hierarchySystem,
+void Engine::JointAttachmentEditor::Attach(ECSWorld& world, HierarchySystem& hierarchySystem,
 	const Entity& entity, const Entity& skinnedEntity, const std::string& jointName) {
 
 	// 自分自身や無効な対象には付けない
@@ -84,7 +84,7 @@ void Engine::JointAttachmentUtility::Attach(ECSWorld& world, HierarchySystem& hi
 	}
 	// ジョイントが存在するか確認しておく、無効なジョイントには付けない
 	Matrix4x4 jointWorld{};
-	if (!GetJointWorldMatrix(world, skinnedEntity, jointName, jointWorld)) {
+	if (!JointAttachmentUtility::GetJointWorldMatrix(world, skinnedEntity, jointName, jointWorld)) {
 		return;
 	}
 
@@ -107,7 +107,7 @@ void Engine::JointAttachmentUtility::Attach(ECSWorld& world, HierarchySystem& hi
 	MarkTransformSubtreeDirty(world, entity);
 }
 
-void Engine::JointAttachmentUtility::Detach(ECSWorld& world, const Entity& entity) {
+void Engine::JointAttachmentEditor::Detach(ECSWorld& world, const Entity& entity) {
 
 	if (!world.IsAlive(entity) || !world.HasComponent<JointAttachmentComponent>(entity)) {
 		return;

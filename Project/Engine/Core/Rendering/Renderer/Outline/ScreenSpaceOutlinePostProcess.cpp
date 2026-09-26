@@ -81,12 +81,15 @@ void Engine::ScreenSpaceOutlinePostProcess::Init(GraphicsCore& graphicsCore) {
 
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 	styleBuffer_.Init(device, &graphicsCore.GetSRVDescriptor());
-	dilateConstants_.Init(device);
-	compositeConstants_.Init(device);
+	dilateConstants_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
+	compositeConstants_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 }
 
 void Engine::ScreenSpaceOutlinePostProcess::Release() {
 
+	// 膨張と合成の定数もGPU完了まで保持する
+	dilateConstants_.Release();
+	compositeConstants_.Release();
 	styleBuffer_.Release();
 }
 

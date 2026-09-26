@@ -22,7 +22,7 @@ void Engine::SpriteBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	// バッファ作成
 	CreateQuadBuffers(device, graphicsCore.GetBufferUploadService());
-	view_.Init(device);
+	view_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 	vsData_.Init(device, srvDescriptor);
 	psData_.Init(device, srvDescriptor);
 	vsData_.EnsureCapacity(256);

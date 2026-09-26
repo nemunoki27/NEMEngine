@@ -7,7 +7,7 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 
 namespace Engine {
 
@@ -51,7 +51,7 @@ namespace Engine {
 		// reflection駆動のマテリアルパラメータcbuffer、カスタムマテリアル用でBuiltinには存在しない
 		PipelineBindingCache::SlotID materialParamsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		MaterialParameterBinder materialParamBinder_{};
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		FrameConstantBufferAllocator constantBufferAllocator_{};
 		D3D12_GPU_VIRTUAL_ADDRESS shaderGraphTimeGPUAddress_ = 0;
 		// reflection駆動のサブメッシュ単位マテリアルパラメータ構造化バッファのスロット
 		PipelineBindingCache::SlotID subMeshMaterialParamSRVSlot_ = PipelineBindingCache::kInvalidSlot;

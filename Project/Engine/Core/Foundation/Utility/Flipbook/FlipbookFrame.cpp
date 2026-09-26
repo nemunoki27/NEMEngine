@@ -6,6 +6,7 @@
 
 // c++
 #include <algorithm>
+#include <cmath>
 
 //============================================================================
 //	FlipbookFrame functions
@@ -14,10 +15,10 @@
 Engine::FlipbookFrame Engine::CalcFlipbookFrame(std::span<const int32_t> tilesX, int32_t tilesY, float progress) {
 
 	tilesY = (std::max)(tilesY, 1);
-	progress = std::clamp(progress, 0.0f, 1.0f);
+	progress = std::isfinite(progress) ? std::clamp(progress, 0.0f, 1.0f) : 0.0f;
 
 	// 有効な行数
-	int32_t rowCount = (std::min)(tilesY, static_cast<int32_t>(tilesX.size()));
+	int32_t rowCount = static_cast<int32_t>((std::min)(static_cast<size_t>(tilesY), tilesX.size()));
 
 	if (rowCount <= 0) {
 		return {
@@ -27,21 +28,18 @@ Engine::FlipbookFrame Engine::CalcFlipbookFrame(std::span<const int32_t> tilesX,
 	}
 
 	// 全フレーム数を求める
-	uint32_t frameCount = 0;
+	uint64_t frameCount = 0;
 
 	for (int32_t y = 0; y < rowCount; ++y) {
 		frameCount += static_cast<uint32_t>((std::max)(tilesX[y], 1));
 	}
 
 	// 進行度から全体のフレーム番号を求める
-	const uint32_t index = (std::min)(
-		static_cast<uint32_t>(
-			progress * static_cast<float>(frameCount)),
-		frameCount - 1
-		);
+	const uint64_t index = progress >= 1.0f ? frameCount - 1 : (std::min)(
+		static_cast<uint64_t>(static_cast<double>(progress) * static_cast<double>(frameCount)), frameCount - 1);
 
 	// 全体のフレーム番号から、行と行内の列を求める
-	uint32_t remainingIndex = index;
+	uint64_t remainingIndex = index;
 	int32_t rowIndex = 0;
 	uint32_t columnIndex = 0;
 
@@ -51,7 +49,7 @@ Engine::FlipbookFrame Engine::CalcFlipbookFrame(std::span<const int32_t> tilesX,
 
 		if (remainingIndex < columns) {
 			rowIndex = y;
-			columnIndex = remainingIndex;
+			columnIndex = static_cast<uint32_t>(remainingIndex);
 			break;
 		}
 

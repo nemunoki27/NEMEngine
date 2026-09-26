@@ -5,7 +5,7 @@ namespace NEMEngine;
 public sealed partial class SpriteRenderer {
 
     public MaterialInstance MaterialInstance =>
-        new(entity, RendererMaterialTarget.Sprite);
+        new(gameObject, RendererMaterialTarget.Sprite);
 
     // マテリアル color を上書きする。
     public void SetColor(Color4 color) {

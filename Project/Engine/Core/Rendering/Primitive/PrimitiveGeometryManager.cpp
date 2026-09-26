@@ -30,8 +30,8 @@ void Engine::PrimitiveGeometryManager::BeginFrame() {
 	for (auto it = geometries_.begin(); it != geometries_.end();) {
 
 		if (it->second.lastUsedFrame + kEvictionFrames < frameIndex_) {
-			it->second.vertexBuffer.Release(srvDescriptor_);
-			it->second.indexSRV.Release(srvDescriptor_);
+			it->second.vertexBuffer.Release();
+			it->second.indexSRV.Release();
 			it = geometries_.erase(it);
 		} else {
 			++it;
@@ -98,8 +98,8 @@ bool Engine::PrimitiveGeometryManager::EnsureBLAS(ID3D12Device8* device,
 void Engine::PrimitiveGeometryManager::Clear() {
 
 	for (auto& pair : geometries_) {
-		pair.second.vertexBuffer.Release(srvDescriptor_);
-		pair.second.indexSRV.Release(srvDescriptor_);
+		pair.second.vertexBuffer.Release();
+		pair.second.indexSRV.Release();
 	}
 	geometries_.clear();
 	frameIndex_ = 0;

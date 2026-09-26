@@ -23,11 +23,18 @@ namespace Engine {
 		//============================================================================
 
 		DxImmutableBuffer() = default;
-		~DxImmutableBuffer() = default;
+		~DxImmutableBuffer();
+		DxImmutableBuffer(const DxImmutableBuffer&) = delete;
+		DxImmutableBuffer& operator=(const DxImmutableBuffer&) = delete;
+		DxImmutableBuffer(DxImmutableBuffer&& other) noexcept;
+		DxImmutableBuffer& operator=(DxImmutableBuffer&& other) noexcept;
 
 		// DEFAULT heap本体を作成し、初期データ転送をBufferUploadServiceへ依頼する
 		void Create(ID3D12Device* device, BufferUploadService& uploadService,
 			std::span<const std::byte> data, D3D12_RESOURCE_STATES finalState);
+
+		// 使用中の資源を描画完了まで保持する
+		void Release();
 
 		//--------- accessor -----------------------------------------------------
 
@@ -46,6 +53,10 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;
+		GraphicsResourceRetirement* retirement_ = nullptr;
+
+		// Resourceと回収先を交換する
+		void Swap(DxImmutableBuffer& other) noexcept;
 	};
 
 } // Engine

@@ -7,7 +7,7 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
-#include <Engine/Editor/Utility/JointAttachmentUtility.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 
 // c++

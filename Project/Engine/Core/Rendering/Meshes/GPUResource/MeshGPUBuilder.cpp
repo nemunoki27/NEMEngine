@@ -160,21 +160,8 @@ namespace {
 		Engine::SRVDescriptor& srvDescriptor, Engine::MeshStructuredHandle<T>& out,
 		const std::vector<T>& data, const wchar_t* debugName) {
 
-		// 空データはWidth 0のD3D12 bufferを作れないため、SRV自体を未生成として扱う
-		if (data.empty()) {
-			return;
-		}
-
-		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceで行う
-		out.buffer = std::make_unique<Engine::DxImmutableStructuredBuffer<T>>();
-		out.buffer->Create(device, uploadService, std::span<const T>(data.data(), data.size()));
-		if (ID3D12Resource* resource = out.buffer->GetResource()) {
-			resource->SetName(debugName);
-		}
-		// DescriptorはMeshStructuredHandle::Releaseで解放するため、handle側にindex/handleを保持する
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = out.buffer->GetSRVDesc();
-		srvDescriptor.CreateSRV(out.srvIndex, out.buffer->GetResource(), srvDesc);
-		out.srvGPUHandle = srvDescriptor.GetGPUHandle(out.srvIndex);
+		// MeshとPrimitiveでBufferと番号の所有を揃える
+		out.Create(device, uploadService, srvDescriptor, std::span<const T>(data), debugName);
 	}
 
 	bool CanPackMeshletVertexIndices(const std::vector<uint32_t>& indices) {
@@ -362,17 +349,17 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 	return mesh;
 }
 
-void Engine::MeshGPUBuilder::Release(MeshGPUResource& mesh, SRVDescriptor* srvDescriptor) {
+void Engine::MeshGPUBuilder::Release(MeshGPUResource& mesh) {
 
-	mesh.vertexSRV.Release(srvDescriptor);
-	mesh.packedVertexSRV.Release(srvDescriptor);
-	mesh.indexSRV.Release(srvDescriptor);
-	mesh.vertexSubMeshIndexSRV.Release(srvDescriptor);
-	mesh.primitiveSubMeshIndexSRV.Release(srvDescriptor);
-	mesh.meshletDrawSRV.Release(srvDescriptor);
-	mesh.meshletBoundsSRV.Release(srvDescriptor);
-	mesh.meshletVertexIndexSRV.Release(srvDescriptor);
-	mesh.packedMeshletVertexIndexSRV.Release(srvDescriptor);
-	mesh.meshletPrimitiveIndexSRV.Release(srvDescriptor);
-	mesh.skinInfluenceSRV.Release(srvDescriptor);
+	mesh.vertexSRV.Release();
+	mesh.packedVertexSRV.Release();
+	mesh.indexSRV.Release();
+	mesh.vertexSubMeshIndexSRV.Release();
+	mesh.primitiveSubMeshIndexSRV.Release();
+	mesh.meshletDrawSRV.Release();
+	mesh.meshletBoundsSRV.Release();
+	mesh.meshletVertexIndexSRV.Release();
+	mesh.packedMeshletVertexIndexSRV.Release();
+	mesh.meshletPrimitiveIndexSRV.Release();
+	mesh.skinInfluenceSRV.Release();
 }

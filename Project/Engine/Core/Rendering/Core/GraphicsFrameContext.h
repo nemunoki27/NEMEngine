@@ -22,6 +22,11 @@ namespace Engine {
 
 	// GPUリソース配列が確保する最大フレーム数
 	constexpr uint32_t kGraphicsFrameContextCount = 3;
+	// 未使用領域を再利用候補として残すframe数
+	constexpr uint64_t kGraphicsResourceReuseFrames = 120;
+
+	// 再利用の猶予を過ぎた領域か調べる
+	bool HasExpiredGraphicsResource(uint64_t lastUsedSerial, uint64_t frameSerial);
 
 	//============================================================================
 	//	GraphicsFrameContext structure
@@ -65,12 +70,17 @@ namespace Engine {
 		GraphicsResourceRetirement(const GraphicsResourceRetirement&) = delete;
 		GraphicsResourceRetirement& operator=(const GraphicsResourceRetirement&) = delete;
 
+		// 複数資源の登録前に保持領域を確保する
+		void ReservePending(size_t additionalCount);
 		// 次の描画提出に対応する回収候補を登録する
 		void Retire(ComPtr<ID3D12Object> object, BaseDescriptor* descriptor = nullptr, uint32_t index = UINT32_MAX);
 		// 登録済み候補へ描画キューの提出Fenceを対応付ける
 		void Seal(uint64_t fenceValue);
 		// 描画キューの完了済み候補を回収する
 		void Collect(uint64_t completedFenceValue);
+
+		// Device消失を確認して終了時の保持を解除する
+		void ReleaseAfterDeviceRemoval(ID3D12Device* device);
 
 		//--------- accessor -----------------------------------------------------
 

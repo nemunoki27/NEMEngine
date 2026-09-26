@@ -1,109 +1,98 @@
 using System.Reflection;
-
-
-
-
-
 using System.Text.Json.Nodes;
-
-
 
 namespace NEMEngine;
 
 // Assemblyの型とスキーマを登録する
 internal sealed unsafe class ScriptTypeRegistry {
 
-    internal readonly List<ScriptTypeEntry> scriptTypeEntries = new();
-    // Stable GUID -> entry（instance 作成・field 取得の解決に使う）
-    internal readonly Dictionary<string, ScriptTypeEntry> guidToEntry = new(StringComparer.Ordinal);
-    // Type -> entry（runtime instance から schema / field map を引く）
-    internal readonly Dictionary<Type, ScriptTypeEntry> typeToEntry = new();
-    // authoring default 抽出用の一時 instance キャッシュ（型ごと。reload で破棄）
-    internal readonly Dictionary<Type, object?> defaultInstanceCache = new();
+    internal List<ScriptTypeEntry> scriptTypeEntries = new();
+    // 保存IDから型を解決する
+    internal Dictionary<string, ScriptTypeEntry> guidToEntry = new(StringComparer.Ordinal);
+    // 実行型からField情報を解決する
+    internal Dictionary<Type, ScriptTypeEntry> typeToEntry = new();
+    // 編集用の既定値を型ごとに保持する
+    internal Dictionary<Type, object?> defaultInstanceCache = new();
 
     internal Assembly? gameAssembly;
 
+    // 全候補を検証してから登録結果を公開する
     internal void RebuildScriptTypes(ScriptFieldCodec codec) {
 
-        scriptTypeEntries.Clear();
-        guidToEntry.Clear();
-        typeToEntry.Clear();
-        defaultInstanceCache.Clear();
-        // 旧assemblyのinstanceを指す保留参照はreloadで無効になるため破棄する
-        codec.pendingReferences.Clear();
-
-        if (gameAssembly == null) {
-            return;
-        }
-
-        // 生成 registryから型を登録する
-        ScriptTypeDescriptor[]? generated = ScriptGeneratedMetadata.TryReadGeneratedManifest(gameAssembly);
-        if (generated == null) {
-            NativeApplicationAPI.WriteLog(2,
-                "GeneratedScriptManifest was not found. Add the NEM.ScriptCodeGen analyzer to GameScripts.");
-            return;
-        }
-        foreach (ScriptTypeDescriptor descriptor in generated) {
-
-            Type? type = gameAssembly.GetType(descriptor.FullTypeName, throwOnError: false);
-            if (type == null) {
-                NativeApplicationAPI.WriteLog(2, $"Generated manifest type not found in assembly: {descriptor.FullTypeName}");
-                continue;
-            }
-            AddScriptTypeEntry(descriptor.ScriptTypeID, type, descriptor.FullTypeName,
-                descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitID);
-        }
-
-        // 表示・登録順を安定させる（full type name 昇順）
-        scriptTypeEntries.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
-
-        // 型登録が確定したので serialized field schema と field map を一度だけ構築する（hot path 外）
-        if (!BuildSchemaRegistry(codec)) {
-            scriptTypeEntries.Clear();
-            guidToEntry.Clear();
-            typeToEntry.Clear();
-            return;
-        }
-
-        if (scriptTypeEntries.Count == 0) {
-            NativeApplicationAPI.WriteLog(1, "GameScripts loaded, but no ScriptBehaviour types were found.");
-        }
+        Assembly assembly = gameAssembly ?? throw new InvalidOperationException("GameScripts assembly is not loaded.");
+        ScriptTypeDescriptor[] generated = ScriptGeneratedMetadata.TryReadGeneratedManifest(assembly)
+            ?? throw new InvalidOperationException("GeneratedScriptManifest was not found.");
+        JsonObject schema = ScriptGeneratedMetadata.TryReadGeneratedSchema(assembly)
+            ?? throw new InvalidOperationException("GeneratedScriptSchema was not found.");
+        RegisterScriptTypes(assembly, generated, schema, codec);
     }
 
-    internal bool BuildSchemaRegistry(ScriptFieldCodec codec) {
+    // 読込候補と公開済みの登録を分ける
+    internal void RegisterScriptTypes(Assembly assembly, ScriptTypeDescriptor[] generated, JsonObject schema,
+        ScriptFieldCodec codec) {
 
-        JsonObject? generatedByType = ScriptGeneratedMetadata.TryReadGeneratedSchema(gameAssembly!);
-        if (generatedByType == null) {
-            NativeApplicationAPI.WriteLog(2,
-                "GeneratedScriptSchema was not found. Add the NEM.ScriptCodeGen analyzer to GameScripts.");
-            return false;
+        var candidate = new ScriptTypeRegistry { gameAssembly = assembly };
+        var candidateCodec = new ScriptFieldCodec(candidate);
+        foreach (ScriptTypeDescriptor descriptor in generated) {
+            Type type = ScriptGeneratedMetadata.ResolveType(assembly, descriptor.FullTypeName)
+                ?? throw new InvalidOperationException($"Generated manifest type not found: {descriptor.FullTypeName}");
+            candidate.AddScriptTypeEntry(descriptor.ScriptTypeID, type, descriptor.FullTypeName,
+                descriptor.DisplayName, descriptor.SourcePath, descriptor.HasExplicitID);
         }
+        candidate.scriptTypeEntries.Sort((a, b) => string.CompareOrdinal(a.fullTypeName, b.fullTypeName));
+        candidate.BuildSchemaRegistry(candidateCodec, schema.DeepClone().AsObject());
 
+        // 型とFieldの対応を一組で差し替える
+        codec.ResetAssemblyState();
+        scriptTypeEntries = candidate.scriptTypeEntries;
+        guidToEntry = candidate.guidToEntry;
+        typeToEntry = candidate.typeToEntry;
+        defaultInstanceCache = candidate.defaultInstanceCache;
+        gameAssembly = assembly;
+    }
+
+    private void BuildSchemaRegistry(ScriptFieldCodec codec, JsonObject generatedByType) {
+
+        if (generatedByType.Count != scriptTypeEntries.Count) {
+            throw new InvalidOperationException("Generated manifest and schema contain different script types.");
+        }
         foreach (ScriptTypeEntry entry in scriptTypeEntries) {
 
             JsonObject? typeNode = null;
-            if (generatedByType != null && generatedByType.TryGetPropertyValue(entry.scriptTypeID, out JsonNode? n) && n is JsonObject obj) {
+            if (generatedByType.TryGetPropertyValue(entry.scriptTypeID, out JsonNode? n) && n is JsonObject obj) {
                 typeNode = obj;
             }
 
             if (typeNode == null) {
-                NativeApplicationAPI.WriteLog(2, $"Generated script schema was not found: {entry.fullTypeName}");
-                return false;
+                throw new InvalidOperationException($"Generated script schema was not found: {entry.fullTypeName}");
             }
 
             // field map を作りつつ defaultValueJson を埋める
             object? defaults = CreateDefaultInstance(entry.type);
-            if (typeNode["fields"] is JsonArray fields) {
+            ScriptReferenceGraph defaultGraph = codec.CreateReferenceGraph(entry.type.Assembly);
+            if (typeNode["fields"] is not JsonArray fields) {
+                throw new InvalidOperationException($"Missing field schema: {entry.fullTypeName}");
+            }
+            var registeredFields = new HashSet<FieldInfo>();
+            {
                 foreach (JsonNode? fieldNode in fields) {
                     if (fieldNode is not JsonObject fieldObj) {
-                        continue;
+                        throw new InvalidOperationException($"Invalid field schema: {entry.fullTypeName}");
                     }
                     string fieldID = fieldObj["fieldId"]?.GetValue<string>() ?? string.Empty;
                     string fieldName = fieldObj["name"]?.GetValue<string>() ?? string.Empty;
                     string declaringType = fieldObj["declaringType"]?.GetValue<string>() ?? string.Empty;
                     FieldInfo? info = ScriptGeneratedMetadata.ResolveFieldInfo(entry.type, declaringType, fieldName);
-                    if (info != null && !string.IsNullOrEmpty(fieldID)) {
-                        entry.fieldMap[fieldID] = info;
+                    string? normalizedID = ScriptGeneratedMetadata.NormalizeGuid(fieldID);
+                    if (info == null || normalizedID != fieldID || info.IsStatic || info.IsInitOnly || info.IsLiteral ||
+                        !registeredFields.Add(info) || !entry.fieldMap.TryAdd(fieldID, info)) {
+                        throw new InvalidOperationException($"Invalid or duplicate field: {entry.fullTypeName}.{fieldName}");
+                    }
+                    {
+
+                        if (ScriptFieldCodec.IsUnsupportedField(fieldObj)) {
+                            entry.unsupportedFields.Add(fieldID);
+                        }
                         if (ScriptFieldCodec.CanReadRuntimeField(fieldObj)) {
                             entry.runtimeFieldMap[fieldID] = info;
                         }
@@ -115,30 +104,23 @@ internal sealed unsafe class ScriptTypeRegistry {
                     }
                     // 既定値（authoring 未設定時の初期値）を埋める
                     fieldObj["defaultValueJson"] = ScriptFieldCodec.IsUnsupportedField(fieldObj)
-                        ? "null" : codec.SerializeFieldDefault(info, defaults);
+                        ? "null" : codec.SerializeFieldDefault(info, defaults, defaultGraph);
                 }
             }
 
             entry.schemaJson = typeNode.ToJsonString();
         }
-        return true;
     }
 
     internal void AddScriptTypeEntry(string rawGuid, Type type, string fullName, string displayName,
         string sourcePath, bool hasExplicitID) {
 
         string? normalized = ScriptGeneratedMetadata.NormalizeGuid(rawGuid);
-        if (normalized == null) {
-            NativeApplicationAPI.WriteLog(2, $"Invalid Script Type GUID for '{fullName}'.");
-            return;
+        if (normalized == null || guidToEntry.ContainsKey(normalized) || typeToEntry.ContainsKey(type)) {
+            throw new InvalidOperationException($"Invalid or duplicate Script Type GUID: {rawGuid}, type: {fullName}");
         }
-
-        if (guidToEntry.ContainsKey(normalized)) {
-
-            // 重複 GUID。最初の型を維持し、後続は登録しない（manifest validation でも検出する）
-            NativeApplicationAPI.WriteLog(2,
-                $"Duplicate Script Type GUID '{normalized}' for '{fullName}'. Skipping the duplicate registration.");
-            return;
+        if (!typeof(MonoBehaviour).IsAssignableFrom(type) || type.IsAbstract || type.ContainsGenericParameters) {
+            throw new InvalidOperationException($"Invalid MonoBehaviour type: {fullName}");
         }
 
         // [DefaultExecutionOrder] を load 時に一度だけ反射で読む（hot path では参照しない）。
@@ -152,6 +134,7 @@ internal sealed unsafe class ScriptTypeRegistry {
         var entry = new ScriptTypeEntry {
             scriptTypeID = normalized,
             type = type,
+            callbacks = new ScriptCallbacks(type),
             fullTypeName = fullName,
             displayName = string.IsNullOrEmpty(displayName) ? type.Name : displayName,
             sourcePath = sourcePath ?? string.Empty,
@@ -189,13 +172,8 @@ internal sealed unsafe class ScriptTypeRegistry {
         if (defaultInstanceCache.TryGetValue(type, out object? cached)) {
             return cached;
         }
-        object? instance = null;
-        try {
-            instance = Activator.CreateInstance(type);
-        }
-        catch (Exception ex) {
-            NativeApplicationAPI.WriteLog(1, $"Failed to create default instance for '{type.FullName}': {ex.Message}");
-        }
+        object instance = Activator.CreateInstance(type)
+            ?? throw new InvalidOperationException($"Failed to create default instance: {type.FullName}");
         defaultInstanceCache[type] = instance;
         return instance;
     }

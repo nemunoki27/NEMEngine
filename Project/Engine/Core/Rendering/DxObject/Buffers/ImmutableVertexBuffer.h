@@ -7,6 +7,7 @@
 
 // c++
 #include <span>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -25,6 +26,10 @@ namespace Engine {
 
 		ImmutableVertexBuffer() = default;
 		~ImmutableVertexBuffer() = default;
+		ImmutableVertexBuffer(const ImmutableVertexBuffer&) = delete;
+		ImmutableVertexBuffer& operator=(const ImmutableVertexBuffer&) = delete;
+		ImmutableVertexBuffer(ImmutableVertexBuffer&&) noexcept = default;
+		ImmutableVertexBuffer& operator=(ImmutableVertexBuffer&&) noexcept = default;
 
 		// DEFAULT heap本体を作成し、初期データ転送をBufferUploadServiceへ依頼する
 		void Create(ID3D12Device* device, BufferUploadService& uploadService,
@@ -59,6 +64,7 @@ namespace Engine {
 			return;
 		}
 
+		if (data.size() > UINT32_MAX / sizeof(T)) throw std::length_error("頂点Bufferの容量が大きすぎます");
 		const UINT sizeInBytes = static_cast<UINT>(sizeof(T) * data.size());
 
 		buffer_.Create(device, uploadService, std::as_bytes(data), finalState);

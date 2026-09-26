@@ -6,6 +6,8 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -114,7 +116,8 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	const uint64_t layoutHash = ComputeMaterialLayoutHash(layout);
 	const uint64_t materialHash = material ?
 		material->parameters.GetContentHash() : 0;
-	const bool rebuildPacked = buffer.dirty || buffer.layoutHash != layoutHash ||
+	const uint64_t textureRevision = drawContext.graphicsCore->GetTextureUploadService().GetContentRevision();
+	const bool rebuildPacked = buffer.textureRevision != textureRevision || buffer.dirty || buffer.layoutHash != layoutHash ||
 		buffer.materialHash != materialHash || buffer.material != material ||
 		buffer.sourceGenerations.size() != elementCount;
 	if (rebuildPacked || buffer.packedSourceGeneration != parameterGeneration) {
@@ -145,6 +148,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 		if (changed) {
 			buffer.layoutHash = layoutHash;
 			buffer.materialHash = materialHash;
+			buffer.textureRevision = textureRevision;
 			buffer.material = material;
 			// 読込中のテクスチャだけは次回も再解決する
 			buffer.dirty = usedFallbackTexture;

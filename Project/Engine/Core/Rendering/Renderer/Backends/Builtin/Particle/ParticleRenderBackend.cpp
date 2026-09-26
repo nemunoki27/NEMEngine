@@ -126,11 +126,14 @@ void Engine::ParticleRenderBackend::DrawTrails(const RenderDrawContext& context,
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
 		viewConstants.cameraPosition = camera->cameraPos;
 	}
-	const PostProcessConstantBufferAllocation viewAlloc = constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+	const FrameConstantBufferAllocation viewAlloc =
+		constantBufferAllocator_.AllocateAndUpload(
+			context.graphicsCore->GetDXObject().GetResourceRetirement(),
+			device, viewConstants);
 	ParticleTrailConstants trailConstants{};
 	trailConstants.segmentCount = resources.GetTrailSegmentCount();
-	const PostProcessConstantBufferAllocation trailAlloc =
-		constantBufferAllocator_.AllocateAndUpload(device, trailConstants);
+	const FrameConstantBufferAllocation trailAlloc =
+		constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, trailConstants);
 
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
 		context, *pipelineState, item->blendMode);
@@ -257,8 +260,8 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 			viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
 			viewConstants.cameraPosition = camera->cameraPos;
 		}
-		const PostProcessConstantBufferAllocation viewAlloc =
-			constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+		const FrameConstantBufferAllocation viewAlloc =
+			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, viewConstants);
 
 		// フェーズごとにマテリアルを解決して連続範囲を描画する、未設定はエフェクト共通へ落とす
 		// 形状アニメはパラメトリックMS、Model粒子はメッシュ、他は共有ジオメトリで描画する

@@ -22,7 +22,7 @@ public sealed class GameEvent {
     }
 
     // owner 破棄時に自動解除される購読。owner の Awake/OnEnable から張る用途
-    public EventSubscription Subscribe(ScriptBehaviour owner, Action handler) {
+    public EventSubscription Subscribe(MonoBehaviour owner, Action handler) {
         EventSubscription sub = Subscribe(handler);
         EventOwnerTracker.Track(owner, sub);
         return sub;
@@ -74,7 +74,7 @@ public sealed class GameEvent<T> {
         return new EventSubscription(() => handlers -= handler);
     }
 
-    public EventSubscription Subscribe(ScriptBehaviour owner, Action<T> handler) {
+    public EventSubscription Subscribe(MonoBehaviour owner, Action<T> handler) {
         EventSubscription sub = Subscribe(handler);
         EventOwnerTracker.Track(owner, sub);
         return sub;

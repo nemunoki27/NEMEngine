@@ -70,7 +70,7 @@ void Easing::SelectEasingType(EasingType& easingType,
 		previewLabel = easeInOptions[easingIndex - baseIn];
 	} else if (easingIndex >= baseOut && easingIndex < baseInOut) {
 		previewLabel = easeOutOptions[easingIndex - baseOut];
-	} else if (easingIndex >= baseInOut) {
+	} else if (easingIndex >= baseInOut && easingIndex < baseInOut + IM_ARRAYSIZE(easeInOutOptions)) {
 		previewLabel = easeInOutOptions[easingIndex - baseInOut];
 	}
 

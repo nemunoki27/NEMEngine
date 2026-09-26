@@ -25,9 +25,3 @@ namespace NEM.ScriptMetaSync;
         public List<FieldModel> Fields = new();
     }
 
-    internal sealed class ClassInfo {
-        public string SimpleName = string.Empty;
-        public string? BaseSimpleName;
-        public bool IsAbstract;
-    }
-

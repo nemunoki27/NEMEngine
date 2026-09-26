@@ -20,7 +20,7 @@
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++

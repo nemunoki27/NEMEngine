@@ -6,34 +6,57 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 // c++
 #include <string>
+#include <stdexcept>
+#include <utility>
 
 //============================================================================
 //	DxCommand classMethods
 //============================================================================
+namespace {
+
+	// コマンドの失敗時に所属Deviceの診断を残す
+	bool CheckCommandResult(ID3D12DeviceChild* object, HRESULT result, const char* operation) {
+
+		if (SUCCEEDED(result)) return true;
+		ComPtr<ID3D12Device> device;
+		object->GetDevice(IID_PPV_ARGS(&device));
+		return DxDredDiagnostics::CheckHRESULT(device.Get(), result, operation);
+	}
+}
+
 void DxCommand::Create(ID3D12Device* device) {
 
-	for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+	if (!device) throw std::invalid_argument("描画コマンドのDeviceが指定されていません");
+	if (commandList_) throw std::logic_error("描画コマンドは作成済みです");
 
-		GraphicsFrameContext& context = frameContexts_[index];
-		HRESULT hr = device->CreateCommandAllocator(
-			D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.commandAllocator));
-		Assert::Call(SUCCEEDED(hr), "描画コマンドアロケータの作成に失敗しました");
-		context.commandAllocator->SetName(
-			(L"MainGraphicsCommandAllocator[" + std::to_wstring(index) + L"]").c_str());
-		context.fenceValue = 0;
+	// 全frameのアロケータを候補として作る
+	std::array<GraphicsFrameContext, kGraphicsFrameContextCount> contexts{};
+	for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+		auto& context = contexts[index];
+		const HRESULT result = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.commandAllocator));
+		if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/Allocator")) {
+			throw std::runtime_error("描画コマンドアロケータの作成に失敗しました");
+		}
+		context.commandAllocator->SetName((L"MainGraphicsCommandAllocator[" + std::to_wstring(index) + L"]").c_str());
 	}
 
+	ComPtr<ID3D12GraphicsCommandList6> commands;
+	const HRESULT result = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, contexts[0].commandAllocator.Get(),
+		nullptr, IID_PPV_ARGS(&commands));
+	if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/List")) {
+		throw std::runtime_error("描画コマンドリストの作成に失敗しました");
+	}
+	commands->SetName(L"MainGraphicsCommandList");
+
+	// 作成に成功した組だけを公開する
+	frameContexts_ = std::move(contexts);
+	commandList_ = std::move(commands);
 	currentFrameIndex_ = 0;
 	GraphicsFrameState::SetCurrentIndex(currentFrameIndex_);
-	commandList_ = nullptr;
-	HRESULT hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-		frameContexts_[currentFrameIndex_].commandAllocator.Get(), nullptr,
-		IID_PPV_ARGS(&commandList_));
-	Assert::Call(SUCCEEDED(hr), "描画コマンドリストの作成に失敗しました");
-	commandList_->SetName(L"MainGraphicsCommandList");
 	recording_ = true;
 }
 
@@ -42,8 +65,7 @@ void DxCommand::BeginFrame(uint32_t frameIndex) {
 	frameIndex %= GraphicsFrameState::GetActiveCount();
 	GraphicsFrameState::BeginFrame(frameIndex);
 	if (recording_) {
-		Assert::Call(currentFrameIndex_ == frameIndex,
-			"記録中のGraphicsFrameContextと開始要求が一致しません");
+		if (currentFrameIndex_ != frameIndex) throw std::logic_error("記録中のGraphicsFrameContextと開始要求が一致しません");
 		return;
 	}
 
@@ -57,17 +79,32 @@ void DxCommand::CloseCommandList() {
 		return;
 	}
 	HRESULT hr = commandList_->Close();
-	Assert::Call(SUCCEEDED(hr), "描画コマンドリストを閉じられませんでした");
 	recording_ = false;
+	if (!CheckCommandResult(commandList_.Get(), hr, "DxCommand::Close")) {
+		throw std::runtime_error("描画コマンドリストを閉じられませんでした");
+	}
 }
 
 void DxCommand::ResetCommandList() {
 
+	if (!commandList_) throw std::logic_error("描画コマンドが作成されていません");
+	recording_ = false;
+	// Resetが成功を返す環境でもDevice消失後は記録しない
+	ComPtr<ID3D12Device> device;
+	commandList_->GetDevice(IID_PPV_ARGS(&device));
+	if (!DxDredDiagnostics::CheckDeviceState(device.Get(), "DxCommand::Reset/Device")) {
+		throw std::runtime_error("Deviceが失われたため描画を再開できません");
+	}
+	// アロケータとリストの両方が再利用できた場合だけ記録を許可する
 	GraphicsFrameContext& context = frameContexts_[currentFrameIndex_];
 	HRESULT hr = context.commandAllocator->Reset();
-	Assert::Call(SUCCEEDED(hr), "描画コマンドアロケータのリセットに失敗しました");
+	if (!CheckCommandResult(context.commandAllocator.Get(), hr, "DxCommand::Reset/Allocator")) {
+		throw std::runtime_error("描画コマンドアロケータのリセットに失敗しました");
+	}
 	hr = commandList_->Reset(context.commandAllocator.Get(), nullptr);
-	Assert::Call(SUCCEEDED(hr), "描画コマンドリストのリセットに失敗しました");
+	if (!CheckCommandResult(commandList_.Get(), hr, "DxCommand::Reset/List")) {
+		throw std::runtime_error("描画コマンドリストのリセットに失敗しました");
+	}
 	recording_ = true;
 }
 

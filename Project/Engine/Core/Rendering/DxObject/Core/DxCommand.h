@@ -30,6 +30,8 @@ public:
 
 	DxCommand() = default;
 	~DxCommand() = default;
+	DxCommand(const DxCommand&) = delete;
+	DxCommand& operator=(const DxCommand&) = delete;
 
 	// デバイスからアロケータ/リストを生成し初期化する
 	void Create(ID3D12Device* device);

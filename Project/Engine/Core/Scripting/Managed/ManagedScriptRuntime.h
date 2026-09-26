@@ -274,6 +274,7 @@ namespace Engine {
 		static void __cdecl SetIgnoreParentScaleCallback(ManagedNativeEntity entity, int32_t value);
 		// generic component access / Entity破棄/ ScriptBehaviour.Enabled
 		static int32_t __cdecl HasComponentCallback(ManagedNativeEntity entity, int32_t typeID);
+		static uint64_t __cdecl GetComponentInstanceIDCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl AddComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		static void __cdecl RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID);
 		// Buffer参照は保持せず呼び出しごとにEntityとType IDから解決する

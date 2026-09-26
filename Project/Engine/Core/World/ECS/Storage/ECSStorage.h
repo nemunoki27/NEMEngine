@@ -3,15 +3,19 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/AlignedBuffer.h>
+
 // c++
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -54,6 +58,13 @@ namespace Engine {
 
 		using Handle = StorageHandle<Tag>;
 
+		GenerationalPool() = default;
+		~GenerationalPool() { Clear(); }
+		GenerationalPool(const GenerationalPool&) = delete;
+		GenerationalPool& operator=(const GenerationalPool&) = delete;
+		GenerationalPool(GenerationalPool&&) = delete;
+		GenerationalPool& operator=(GenerationalPool&&) = delete;
+
 		// データを構築してハンドルを返す
 		template <typename... Args>
 		Handle Emplace(Args&&... args);
@@ -84,6 +95,8 @@ namespace Engine {
 
 			// 所有するデータ
 			std::optional<T> value;
+			// 構築済みで参照を公開しているか
+			bool alive = false;
 			// 解放、再利用を区別する世代
 			uint32_t generation = 1;
 			// 次の空きスロット
@@ -95,11 +108,20 @@ namespace Engine {
 		static constexpr uint32_t kInvalidIndex = (std::numeric_limits<uint32_t>::max)();
 
 		// データを保持するスロット
-		std::vector<Slot> slots_;
+		std::deque<Slot> slots_;
 		// 最初の空きスロット
 		uint32_t freeHead_ = kInvalidIndex;
 		// 生存データ数
 		uint32_t aliveCount_ = 0;
+		// 構築と破棄の再入深度
+		size_t operationDepth_ = 0;
+		// 全解放中の再生成を拒否する
+		bool clearing_ = false;
+
+		//--------- functions ----------------------------------------------------
+
+		// 参照を無効化してからデータを破棄する
+		void DestroySlot(uint32_t index);
 	};
 
 	//============================================================================
@@ -166,7 +188,7 @@ namespace Engine {
 		~BlobStore() = default;
 
 		// バイト列を取得または作成して参照数を増やす
-		Handle Acquire(std::span<const std::byte> bytes);
+		Handle Acquire(std::span<const std::byte> bytes, size_t alignment = alignof(std::max_align_t));
 		// オブジェクトをバイト列として取得または作成する
 		template <typename T>
 		Handle AcquireObject(const T& value);
@@ -196,7 +218,7 @@ namespace Engine {
 		struct Entry {
 
 			// 変更不可のバイト列
-			std::vector<std::byte> bytes;
+			AlignedBuffer bytes;
 			// 内容のハッシュ値
 			uint64_t hash = 0;
 			// 共有している参照数
@@ -236,7 +258,7 @@ namespace Engine {
 		uint32_t offset = 0;
 		uint32_t count = 0;
 
-		std::span<const T> Get(const void* root) const;
+		std::span<const T> Get(std::span<const std::byte> bytes) const;
 	};
 
 	//============================================================================
@@ -252,6 +274,10 @@ namespace Engine {
 
 		BlobBuilder();
 		~BlobBuilder() = default;
+		BlobBuilder(const BlobBuilder& other);
+		BlobBuilder& operator=(const BlobBuilder& other);
+		BlobBuilder(BlobBuilder&& other) noexcept;
+		BlobBuilder& operator=(BlobBuilder&& other) noexcept;
 
 		// ルート構造体を設定する
 		void SetRoot(const Root& root);
@@ -265,6 +291,7 @@ namespace Engine {
 
 		Root& GetRoot();
 		const Root& GetRoot() const;
+		std::span<const std::byte> GetBytes() const { return { bytes_.ptr, size_ }; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -272,7 +299,11 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::vector<std::byte> bytes_;
+		AlignedBuffer bytes_;
+		size_t size_ = 0;
+
+		// 移動後のBuilderを空のルートから再利用する
+		void EnsureRoot();
 	};
 
 	//============================================================================
@@ -286,7 +317,7 @@ namespace Engine {
 		//============================================================================
 
 		ECSStorageRegistry() = default;
-		~ECSStorageRegistry() = default;
+		~ECSStorageRegistry();
 
 		// 全ストレージを解放する
 		void Clear();
@@ -324,6 +355,8 @@ namespace Engine {
 
 		// 型ごとのストレージ
 		std::unordered_map<const void*, std::unique_ptr<IStorage>> storages_;
+		size_t constructionDepth_ = 0;
+		bool clearing_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -355,24 +388,42 @@ template <typename T, typename Tag>
 template <typename... Args>
 inline Engine::GenerationalPool<T, Tag>::Handle Engine::GenerationalPool<T, Tag>::Emplace(Args&&... args) {
 
-	uint32_t index = 0;
-	if (freeHead_ != kInvalidIndex) {
-
-		// 解放済みスロットを再利用し、ハンドルのindexを安定した小整数に保つ
-		index = freeHead_;
-		Slot& slot = slots_[index];
-		freeHead_ = slot.nextFree;
-		slot.nextFree = kInvalidIndex;
-		slot.value.emplace(std::forward<Args>(args)...);
-	} else {
-
-		index = static_cast<uint32_t>(slots_.size());
-		Slot& slot = slots_.emplace_back();
-		slot.value.emplace(std::forward<Args>(args)...);
+	static_assert(std::is_nothrow_destructible_v<T>);
+	if (clearing_) {
+		throw std::logic_error("全解放中のストレージへ追加できません");
 	}
 
+	uint32_t index = freeHead_;
+	if (index != kInvalidIndex) {
+
+		// 構築中の再入から予約枠を隠す
+		freeHead_ = slots_[index].nextFree;
+		slots_[index].nextFree = kInvalidIndex;
+	} else {
+
+		if (slots_.size() >= kInvalidIndex) {
+			throw std::length_error("ストレージの枠数が上限に達しました");
+		}
+		index = static_cast<uint32_t>(slots_.size());
+		slots_.emplace_back();
+	}
+
+	Slot& slot = slots_[index];
+	++operationDepth_;
+	try {
+		slot.value.emplace(std::forward<Args>(args)...);
+	} catch (...) {
+
+		// 生成失敗の枠を現在の空き列へ戻す
+		--operationDepth_;
+		slot.nextFree = freeHead_;
+		freeHead_ = index;
+		throw;
+	}
+	--operationDepth_;
+	slot.alive = true;
 	++aliveCount_;
-	return Handle{ index, slots_[index].generation };
+	return Handle{ index, slot.generation };
 }
 
 template <typename T, typename Tag>
@@ -381,26 +432,47 @@ inline bool Engine::GenerationalPool<T, Tag>::Release(Handle handle) {
 	if (!IsAlive(handle)) {
 		return false;
 	}
-
-	Slot& slot = slots_[handle.index];
-	slot.value.reset();
-	// 同じindexを再利用しても古いハンドルが通らないよう世代を進める
-	++slot.generation;
-	if (slot.generation == 0) {
-		++slot.generation;
-	}
-	slot.nextFree = freeHead_;
-	freeHead_ = handle.index;
-	--aliveCount_;
+	DestroySlot(handle.index);
 	return true;
+}
+
+template <typename T, typename Tag>
+inline void Engine::GenerationalPool<T, Tag>::DestroySlot(uint32_t index) {
+
+	Slot& slot = slots_[index];
+	// 破棄処理から古い参照を取得させない
+	slot.alive = false;
+	--aliveCount_;
+	slot.generation = slot.generation == kInvalidIndex ? 0 : slot.generation + 1;
+	++operationDepth_;
+	slot.value.reset();
+	--operationDepth_;
+
+	// 世代を使い切った枠は再利用しない
+	if (slot.generation != 0) {
+		slot.nextFree = freeHead_;
+		freeHead_ = index;
+	}
 }
 
 template <typename T, typename Tag>
 inline void Engine::GenerationalPool<T, Tag>::Clear() {
 
-	slots_.clear();
-	freeHead_ = kInvalidIndex;
-	aliveCount_ = 0;
+	if (clearing_) {
+		return;
+	}
+	if (operationDepth_ != 0) {
+		throw std::logic_error("構築または破棄の途中でストレージを全解放できません");
+	}
+
+	// 世代履歴を残し、全解放後の再接続を防ぐ
+	clearing_ = true;
+	for (uint32_t index = 0; index < slots_.size(); ++index) {
+		if (slots_[index].alive) {
+			DestroySlot(index);
+		}
+	}
+	clearing_ = false;
 }
 
 template <typename T, typename Tag>
@@ -418,10 +490,10 @@ inline const T* Engine::GenerationalPool<T, Tag>::TryGet(Handle handle) const {
 template <typename T, typename Tag>
 inline bool Engine::GenerationalPool<T, Tag>::IsAlive(Handle handle) const {
 
-	return handle.IsValid() &&
+	return !clearing_ && handle.IsValid() &&
 		handle.index < slots_.size() &&
 		slots_[handle.index].generation == handle.generation &&
-		slots_[handle.index].value.has_value();
+		slots_[handle.index].alive;
 }
 
 //============================================================================
@@ -444,7 +516,9 @@ template <typename T, typename Tag>
 inline void Engine::RuntimeBufferPool<T, Tag>::Assign(Handle handle, std::span<const T> values) {
 
 	if (std::vector<T>* buffer = pool_.TryGet(handle)) {
-		buffer->assign(values.begin(), values.end());
+		// コピー完了まで旧配列と自己参照の入力を保持する
+		std::vector<T> candidate(values.begin(), values.end());
+		buffer->swap(candidate);
 	}
 }
 
@@ -501,14 +575,14 @@ template <typename T>
 inline Engine::BlobStore::Handle Engine::BlobStore::AcquireObject(const T& value) {
 
 	static_assert(std::is_trivially_copyable_v<T>);
-	return Acquire(std::as_bytes(std::span<const T>(&value, 1)));
+	return Acquire(std::as_bytes(std::span<const T>(&value, 1)), alignof(T));
 }
 
 template <typename T>
 inline const T* Engine::BlobStore::TryGetObject(Handle handle) const {
 
 	const std::span<const std::byte> bytes = Get(handle);
-	if (bytes.size() < sizeof(T)) {
+	if (bytes.size() < sizeof(T) || reinterpret_cast<uintptr_t>(bytes.data()) % alignof(T) != 0) {
 		return nullptr;
 	}
 	return reinterpret_cast<const T*>(bytes.data());
@@ -518,13 +592,16 @@ inline const T* Engine::BlobStore::TryGetObject(Handle handle) const {
 //	BlobAsset structuresTemplateMethods
 //============================================================================
 template <typename T>
-inline std::span<const T> Engine::BlobArray<T>::Get(const void* root) const {
+inline std::span<const T> Engine::BlobArray<T>::Get(std::span<const std::byte> bytes) const {
 
-	if (!root || count == 0) {
+	if (count == 0 || offset > bytes.size() || count > (bytes.size() - offset) / sizeof(T)) {
 		return {};
 	}
-	const std::byte* base = static_cast<const std::byte*>(root);
-	return { reinterpret_cast<const T*>(base + offset), count };
+	const std::byte* data = bytes.data() + offset;
+	if (reinterpret_cast<uintptr_t>(data) % alignof(T) != 0) {
+		return {};
+	}
+	return { reinterpret_cast<const T*>(data), count };
 }
 
 //============================================================================
@@ -533,15 +610,62 @@ inline std::span<const T> Engine::BlobArray<T>::Get(const void* root) const {
 template <typename Root>
 inline Engine::BlobBuilder<Root>::BlobBuilder() {
 
-	static_assert(std::is_trivially_copyable_v<Root>);
-	bytes_.resize(sizeof(Root));
-	std::fill(bytes_.begin(), bytes_.end(), std::byte{ 0 });
+	static_assert(std::is_trivially_copyable_v<Root> && sizeof(Root) <= UINT32_MAX);
+	EnsureRoot();
+}
+
+template <typename Root>
+inline Engine::BlobBuilder<Root>::BlobBuilder(const BlobBuilder& other) :
+	bytes_((std::max)(sizeof(Root), other.size_), (std::max)(alignof(Root), other.bytes_.align)),
+	size_((std::max)(sizeof(Root), other.size_)) {
+
+	if (other.size_ != 0) {
+		std::memcpy(bytes_.ptr, other.bytes_.ptr, size_);
+	} else {
+		std::memset(bytes_.ptr, 0, size_);
+	}
+}
+
+template <typename Root>
+inline Engine::BlobBuilder<Root>::BlobBuilder(BlobBuilder&& other) noexcept :
+	bytes_(std::move(other.bytes_)), size_(std::exchange(other.size_, 0)) {
+}
+
+template <typename Root>
+inline Engine::BlobBuilder<Root>& Engine::BlobBuilder<Root>::operator=(BlobBuilder&& other) noexcept {
+
+	if (this != &other) {
+		bytes_ = std::move(other.bytes_);
+		size_ = std::exchange(other.size_, 0);
+	}
+	return *this;
+}
+
+template <typename Root>
+inline void Engine::BlobBuilder<Root>::EnsureRoot() {
+
+	if (size_ == 0) {
+		bytes_.Reset(sizeof(Root), alignof(Root));
+		size_ = sizeof(Root);
+		std::memset(bytes_.ptr, 0, size_);
+	}
+}
+
+template <typename Root>
+inline Engine::BlobBuilder<Root>& Engine::BlobBuilder<Root>::operator=(const BlobBuilder& other) {
+
+	if (this != &other) {
+		BlobBuilder candidate(other);
+		*this = std::move(candidate);
+	}
+	return *this;
 }
 
 template <typename Root>
 inline void Engine::BlobBuilder<Root>::SetRoot(const Root& root) {
 
-	std::memcpy(bytes_.data(), &root, sizeof(Root));
+	EnsureRoot();
+	std::memmove(bytes_.ptr, &root, sizeof(Root));
 }
 
 template <typename Root>
@@ -550,13 +674,29 @@ inline Engine::BlobArray<T> Engine::BlobBuilder<Root>::AddArray(
 	std::span<const T> values) {
 
 	static_assert(std::is_trivially_copyable_v<T>);
-	const size_t alignedOffset =
-		(bytes_.size() + alignof(T) - 1) & ~(alignof(T) - 1);
-	bytes_.resize(alignedOffset + values.size_bytes());
-	if (!values.empty()) {
-		std::memcpy(bytes_.data() + alignedOffset,
-			values.data(), values.size_bytes());
+	EnsureRoot();
+	const size_t padding = (alignof(T) - size_ % alignof(T)) % alignof(T);
+	if (padding > UINT32_MAX - size_ || values.size() > UINT32_MAX ||
+		values.size() > (UINT32_MAX - size_ - padding) / sizeof(T)) {
+		throw std::length_error("Blob配列のサイズが上限を超えています");
 	}
+	const size_t alignedOffset = size_ + padding;
+	const size_t newSize = alignedOffset + values.size_bytes();
+	const uintptr_t sourceAddress = reinterpret_cast<uintptr_t>(values.data());
+	const uintptr_t beginAddress = reinterpret_cast<uintptr_t>(bytes_.ptr);
+	const bool internalSource = !values.empty() && sourceAddress >= beginAddress && sourceAddress - beginAddress < size_;
+	const size_t sourceOffset = internalSource ? sourceAddress - beginAddress : 0;
+	if (internalSource && values.size_bytes() > size_ - sourceOffset) {
+		throw std::out_of_range("Blob配列のコピー元が領域を超えています");
+	}
+	bytes_.Reserve(newSize, alignof(T), size_);
+	// 再確保した内部入力を引き直して末尾へ追加する
+	if (!values.empty()) {
+		const void* source = internalSource ? bytes_.ptr + sourceOffset : static_cast<const void*>(values.data());
+		std::memcpy(bytes_.ptr + alignedOffset, source, values.size_bytes());
+	}
+	std::memset(bytes_.ptr + size_, 0, padding);
+	size_ = newSize;
 
 	BlobArray<T> result{};
 	result.offset = static_cast<uint32_t>(alignedOffset);
@@ -568,20 +708,27 @@ template <typename Root>
 inline Engine::BlobAssetReference<Root> Engine::BlobBuilder<Root>::Build(
 	BlobStore& store) const {
 
+	if (size_ == 0) {
+		throw std::logic_error("移動済みのBlobBuilderは公開できません");
+	}
 	// 内容Hashが一致するBlobは共有され、同じColliderやRender配列の重複を避ける
-	return BlobAssetReference<Root>{ store.Acquire(bytes_) };
+	return BlobAssetReference<Root>{ store.Acquire(std::span<const std::byte>(bytes_.ptr, size_), bytes_.align) };
 }
 
 template <typename Root>
 inline Root& Engine::BlobBuilder<Root>::GetRoot() {
 
-	return *reinterpret_cast<Root*>(bytes_.data());
+	EnsureRoot();
+	return *reinterpret_cast<Root*>(bytes_.ptr);
 }
 
 template <typename Root>
 inline const Root& Engine::BlobBuilder<Root>::GetRoot() const {
 
-	return *reinterpret_cast<const Root*>(bytes_.data());
+	if (size_ == 0) {
+		throw std::logic_error("移動済みのBlobBuilderは参照できません");
+	}
+	return *reinterpret_cast<const Root*>(bytes_.ptr);
 }
 
 //============================================================================
@@ -590,16 +737,31 @@ inline const Root& Engine::BlobBuilder<Root>::GetRoot() const {
 template <typename Storage>
 inline Storage& Engine::ECSStorageRegistry::Get() {
 
-	const void* typeKey = GetTypeKey<Storage>();
-	auto it = storages_.find(typeKey);
-	if (it == storages_.end()) {
-
-		auto entry = std::make_unique<StorageEntry<Storage>>();
-		Storage* value = &entry->value;
-		storages_.emplace(typeKey, std::move(entry));
-		return *value;
+	static_assert(std::is_nothrow_destructible_v<Storage>);
+	if (clearing_) {
+		throw std::logic_error("終了中のStorageは作成できません");
 	}
-	return static_cast<StorageEntry<Storage>*>(it->second.get())->value;
+	const void* typeKey = GetTypeKey<Storage>();
+	const auto [entry, inserted] = storages_.try_emplace(typeKey);
+	if (!inserted) {
+		if (!entry->second) {
+			throw std::logic_error("同じStorageを構築中に再取得できません");
+		}
+		return static_cast<StorageEntry<Storage>*>(entry->second.get())->value;
+	}
+
+	// 構築中の別型登録で索引が再配置されても予約を維持する
+	auto& reserved = entry->second;
+	++constructionDepth_;
+	try {
+		reserved = std::make_unique<StorageEntry<Storage>>();
+	} catch (...) {
+		--constructionDepth_;
+		storages_.erase(typeKey);
+		throw;
+	}
+	--constructionDepth_;
+	return static_cast<StorageEntry<Storage>*>(reserved.get())->value;
 }
 
 template <typename Storage>
@@ -607,7 +769,7 @@ inline Storage* Engine::ECSStorageRegistry::TryGet() {
 
 	const void* typeKey = GetTypeKey<Storage>();
 	auto it = storages_.find(typeKey);
-	return it != storages_.end() ?
+	return it != storages_.end() && it->second ?
 		&static_cast<StorageEntry<Storage>*>(it->second.get())->value : nullptr;
 }
 
@@ -616,7 +778,7 @@ inline const Storage* Engine::ECSStorageRegistry::TryGet() const {
 
 	const void* typeKey = GetTypeKey<Storage>();
 	auto it = storages_.find(typeKey);
-	return it != storages_.end() ?
+	return it != storages_.end() && it->second ?
 		&static_cast<const StorageEntry<Storage>*>(it->second.get())->value : nullptr;
 }
 

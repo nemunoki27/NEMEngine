@@ -18,8 +18,8 @@ public struct Ray {
 // レイキャストのヒット結果
 public struct RaycastHit {
 
-    // ヒットしたコライダーの所有Entity
-    public Entity entity;
+    // ヒットしたコライダーの所有GameObject
+    public GameObject? gameObject;
 
     // ワールド空間のヒット点と法線
     public Vector3 point;
@@ -32,11 +32,11 @@ public struct RaycastHit {
     // Trigger形状へのヒットか
     public bool isTrigger;
 
-    public Transform transform => entity.transform;
+    public Transform? transform => gameObject?.transform;
 
     internal static RaycastHit From(NativeRaycastHit native) {
         return new RaycastHit {
-            entity = new Entity(native.entity),
+            gameObject = GameObject.FromNative(native.entity),
             point = native.point.ToVector3(),
             normal = native.normal.ToVector3(),
             distance = native.distance,
@@ -90,7 +90,7 @@ public static class Physics {
         uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
 
         Vector3 delta = end - start;
-        float length = Vector3.Length(delta);
+        float length = Vector3.Magnitude(delta);
         if (length <= 0.0001f) {
             hit = default;
             return false;

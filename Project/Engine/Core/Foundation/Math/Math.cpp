@@ -13,13 +13,16 @@ namespace {
 			return value;
 		}
 
-		while (value < minValue) {
-			value += range;
+		// 非有限値でループせず、無効な角度をそのまま伝える
+		if (!std::isfinite(value)) {
+			return value;
 		}
-		while (value >= maxValue) {
-			value -= range;
+		// 大きな角度も剰余で一度に折り返す
+		float wrapped = std::fmod(value - minValue, range);
+		if (wrapped < 0.0f) {
+			wrapped += range;
 		}
-		return value;
+		return wrapped < range ? minValue + wrapped : minValue;
 	}
 }
 

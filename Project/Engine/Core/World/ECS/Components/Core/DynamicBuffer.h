@@ -11,6 +11,9 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 #include <span>
 #include <type_traits>
 
@@ -236,8 +239,17 @@ inline T& Engine::DynamicBuffer<T>::EmplaceBack(Args&&... args) requires (!std::
 
 	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (header_->size == header_->capacity) {
-		// チャンク内領域を使い切った時だけ外部領域へ拡張する
-		Reserve((std::max)(1u, header_->capacity * 2u));
+		if (header_->size == UINT32_MAX) {
+			throw std::length_error("DynamicBufferの要素数が上限に達しました");
+		}
+		// 追加元が同じBufferでも拡張前に値を保持する
+		T value(std::forward<Args>(args)...);
+		const uint32_t capacity = header_->capacity > UINT32_MAX / 2 ? UINT32_MAX : (std::max)(1u, header_->capacity * 2u);
+		Reserve(capacity);
+		T* destination = GetData() + header_->size;
+		new (destination) T(std::move_if_noexcept(value));
+		++header_->size;
+		return *destination;
 	}
 	T* destination = GetData() + header_->size;
 	new (destination) T(std::forward<Args>(args)...);
@@ -288,8 +300,16 @@ inline void Engine::DynamicBuffer<T>::Resize(uint32_t size) requires (!std::is_c
 		Reserve(size);
 	}
 	T* data = GetData();
-	for (uint32_t i = header_->size; i < size; ++i) {
-		new (data + i) T();
+	uint32_t constructed = header_->size;
+	try {
+		for (; constructed < size; ++constructed) {
+			new (data + constructed) T();
+		}
+	} catch (...) {
+		while (constructed > header_->size) {
+			data[--constructed].~T();
+		}
+		throw;
 	}
 	header_->size = size;
 }
@@ -302,13 +322,28 @@ inline void Engine::DynamicBuffer<T>::Reserve(uint32_t capacity) requires (!std:
 		return;
 	}
 
-	T* destination = static_cast<T*>(::operator new(
-		sizeof(T) * capacity, std::align_val_t(alignof(T))));
+	if (capacity > (std::numeric_limits<size_t>::max)() / sizeof(T)) {
+		throw std::length_error("DynamicBufferの容量が上限を超えています");
+	}
+	static_assert(std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>);
+	T* destination = static_cast<T*>(::operator new(sizeof(T) * capacity, std::align_val_t(alignof(T))));
 	T* source = GetData();
-	// 要素の順序を維持したまま新しい連続領域へ移動する
-	for (uint32_t i = 0; i < header_->size; ++i) {
-		new (destination + i) T(std::move(source[i]));
-		source[i].~T();
+	uint32_t constructed = 0;
+	try {
+
+		// 失敗し得る移動はコピーに替え、旧データを保持する
+		for (; constructed < header_->size; ++constructed) {
+			new (destination + constructed) T(std::move_if_noexcept(source[constructed]));
+		}
+	} catch (...) {
+		while (constructed != 0) {
+			destination[--constructed].~T();
+		}
+		::operator delete(destination, std::align_val_t(alignof(T)));
+		throw;
+	}
+	for (uint32_t index = 0; index < header_->size; ++index) {
+		source[index].~T();
 	}
 	if (!UsesInternalStorage()) {
 		::operator delete(source, std::align_val_t(alignof(T)));
@@ -415,8 +450,15 @@ inline void Engine::DynamicBufferStorage::Copy(
 	DynamicBuffer<const T> sourceBuffer(sourceHeader);
 	DynamicBuffer<T> destinationBuffer(
 		static_cast<DynamicBufferHeader*>(destination));
-	destinationBuffer.Reserve(sourceHeader->size);
-	for (const T& value : sourceBuffer.GetSpan()) {
-		destinationBuffer.EmplaceBack(value);
+	try {
+		destinationBuffer.Reserve(sourceHeader->size);
+		for (const T& value : sourceBuffer.GetSpan()) {
+			destinationBuffer.EmplaceBack(value);
+		}
+	} catch (...) {
+
+		// 複製途中の要素と外部領域を解放する
+		Destroy<T>(destination);
+		throw;
 	}
 }

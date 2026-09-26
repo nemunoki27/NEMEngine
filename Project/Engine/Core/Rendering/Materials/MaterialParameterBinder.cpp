@@ -89,7 +89,7 @@ Engine::MaterialParameterBinder::CachedBindingData& Engine::MaterialParameterBin
 	return cache;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
+D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(GraphicsResourceRetirement& retirement, ID3D12Device* device,
 	const PipelineState& pipeline, const MaterialAsset& material,
 	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
@@ -118,20 +118,20 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 		return cache.gpuAddress;
 	}
 
-	const PostProcessConstantBufferAllocation allocation =
-		allocator_.AllocateAndUploadBytes(device, cache.packedParameters);
+	const FrameConstantBufferAllocation allocation =
+		allocator_.AllocateAndUploadBytes(retirement, device, cache.packedParameters);
 	cache.uploadedFrame = frameIndex_;
 	cache.gpuAddress = allocation.gpuAddress;
 	return cache.gpuAddress;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
+D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(GraphicsResourceRetirement& retirement, ID3D12Device* device,
 	const PipelineState& pipeline, const MaterialAsset& material,
 	const MaterialParameterSet& overrides,
 	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
 	if (overrides.empty()) {
-		return ResolveAndUpload(device, pipeline, material, resolveTexture);
+		return ResolveAndUpload(retirement, device, pipeline, material, resolveTexture);
 	}
 
 	const MaterialParameterLayout& layout = ResolveLayout(pipeline);
@@ -160,8 +160,8 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 		return cache.gpuAddress;
 	}
 
-	const PostProcessConstantBufferAllocation allocation =
-		allocator_.AllocateAndUploadBytes(device, cache.packedParameters);
+	const FrameConstantBufferAllocation allocation =
+		allocator_.AllocateAndUploadBytes(retirement, device, cache.packedParameters);
 	cache.uploadedFrame = frameIndex_;
 	cache.gpuAddress = allocation.gpuAddress;
 	return cache.gpuAddress;
@@ -218,4 +218,16 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 	}
 	cache.texturesValid = true;
 	return cache.textures;
+}
+
+void Engine::MaterialParameterBinder::SetTextureRevision(uint64_t revision) {
+
+	if (textureRevision_ == revision) return;
+	textureRevision_ = revision;
+	// 旧drawの転送先を保持し、次のdrawで新しい番号を詰める
+	for (auto& [key, cache] : bindingCache_) {
+		cache.parametersValid = false;
+		cache.packedFrame = UINT64_MAX;
+		cache.uploadedFrame = UINT64_MAX;
+	}
 }

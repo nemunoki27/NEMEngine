@@ -11,6 +11,11 @@ namespace Engine::Algorithm {
 
 	std::string RemoveSubstring(const std::string& input, const std::string& toRemove) {
 
+		// 空文字は削除しても検索位置が進まない
+		if (toRemove.empty()) {
+			return input;
+		}
+
 		std::string result = input;
 		size_t pos;
 
@@ -40,7 +45,7 @@ namespace Engine::Algorithm {
 
 		std::transform(s.begin(), s.end(), s.begin(),
 			[](wchar_t c) -> wchar_t {
-				return static_cast<wchar_t>(std::tolower(static_cast<wint_t>(c)));
+				return static_cast<wchar_t>(std::towlower(static_cast<wint_t>(c)));
 		});
 		return s;
 	}

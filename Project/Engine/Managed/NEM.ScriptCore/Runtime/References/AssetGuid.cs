@@ -26,9 +26,9 @@ public readonly struct AssetGUID : IEquatable<AssetGUID> {
     public static AssetGUID Parse(string? text) {
 
         if (string.IsNullOrWhiteSpace(text) || text.Length != 32 ||
-            !ulong.TryParse(text.AsSpan(0, 16), NumberStyles.HexNumber,
+            !ulong.TryParse(text.AsSpan(0, 16), NumberStyles.AllowHexSpecifier,
                 CultureInfo.InvariantCulture, out ulong high) ||
-            !ulong.TryParse(text.AsSpan(16, 16), NumberStyles.HexNumber,
+            !ulong.TryParse(text.AsSpan(16, 16), NumberStyles.AllowHexSpecifier,
                 CultureInfo.InvariantCulture, out ulong low)) {
             return None;
         }

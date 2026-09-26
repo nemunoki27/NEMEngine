@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 //============================================================================
 //	ParticleBoxEmitterShape classMethods
@@ -57,16 +56,4 @@ void Engine::ParticleBoxEmitterShape::InitParticle(Vector3& position, Vector3& d
 	case 4: position.z = half.z; direction = Vector3(0.0f, 0.0f, 1.0f); break;
 	case 5: position.z = -half.z; direction = Vector3(0.0f, 0.0f, -1.0f); break;
 	}
-}
-
-void Engine::ParticleBoxEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	renderer->DrawOBB(center, settings.box.size * 0.5f, rotation, Color4::Red());
-#endif
 }

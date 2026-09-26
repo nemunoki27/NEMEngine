@@ -7,6 +7,10 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Math/Math.h>
 
+// c++
+#include <cmath>
+#include <limits>
+
 //============================================================================
 //	Quaternion structMethods
 //============================================================================
@@ -25,19 +29,16 @@ Quaternion Quaternion::operator*(const Quaternion& other) const {
 	return result;
 }
 Quaternion Quaternion::operator/(const Quaternion& other) const {
-	Quaternion result;
-	result.w = this->w / other.w - this->x / other.x - this->y / other.y - this->z / other.z;
-	result.x = this->w / other.x + this->x / other.w + this->y / other.z - this->z / other.y;
-	result.y = this->w / other.y - this->x / other.z + this->y / other.w + this->z / other.x;
-	result.z = this->w / other.z + this->x / other.y - this->y / other.x + this->z / other.w;
-	return result;
+
+	// 逆回転との積で右側の回転を取り除く
+	return *this * Inverse(other);
 }
 
 Quaternion Quaternion::operator+(float scalar) const {
 	return { x + scalar, y + scalar, z + scalar, w + scalar };
 }
 Quaternion Quaternion::operator-(float scalar) const {
-	return { x - scalar, y - scalar, -scalar, w - scalar };
+	return { x - scalar, y - scalar, z - scalar, w - scalar };
 }
 Quaternion Quaternion::operator*(float scalar) const {
 	return { x * scalar, y * scalar, z * scalar, w * scalar };
@@ -67,10 +68,11 @@ Quaternion Quaternion::FromJson(const nlohmann::json& data) {
 	}
 	Quaternion quaternion = Quaternion::Identity();
 	if (data.is_array() && data.size() == 4) {
-		quaternion.x = data[1].get<float>();
-		quaternion.y = -data[3].get<float>();
-		quaternion.z = -data[2].get<float>();
-		quaternion.w = data[0].get<float>();
+		// 配列もobjectと同じxyzw順で読み込む
+		quaternion.x = data[0].get<float>();
+		quaternion.y = data[1].get<float>();
+		quaternion.z = data[2].get<float>();
+		quaternion.w = data[3].get<float>();
 	} else if (data.contains("x") && data.contains("y") &&
 		data.contains("z") && data.contains("w")) {
 		quaternion.x = data.value("x", 0.0f);
@@ -98,13 +100,20 @@ float Quaternion::Length() const {
 }
 
 Quaternion Quaternion::Normalize(const Quaternion& quaternion) {
-	float norm = Length(quaternion);
-	return { quaternion.x / norm, quaternion.y / norm, quaternion.z / norm, quaternion.w / norm };
+
+	// 二乗の桁あふれを避けて回転の長さを求める
+	double norm = std::hypot(std::hypot(static_cast<double>(quaternion.x), quaternion.y),
+		std::hypot(static_cast<double>(quaternion.z), quaternion.w));
+	if (!(norm > 0.0) || !std::isfinite(norm)) {
+		return Identity();
+	}
+	return { static_cast<float>(quaternion.x / norm), static_cast<float>(quaternion.y / norm),
+		static_cast<float>(quaternion.z / norm), static_cast<float>(quaternion.w / norm) };
 }
 
 Quaternion Quaternion::Normalize() const {
-	float norm = Length(*this);
-	return { this->x / norm, this->y / norm, this->z / norm, this->w / norm };
+
+	return Normalize(*this);
 }
 
 float Quaternion::Dot(const Quaternion& q0, const Quaternion& q1) {
@@ -116,9 +125,30 @@ Quaternion Quaternion::Conjugate(const Quaternion& q) {
 }
 
 Quaternion Quaternion::Inverse(const Quaternion& q) {
-	Quaternion conjugate = Conjugate(q);
-	float normSq = Length(q) * Length(q);
-	return { conjugate.x / normSq, conjugate.y / normSq, conjugate.z / normSq, conjugate.w / normSq };
+
+	Quaternion result = Identity();
+	TryInverse(q, result);
+	return result;
+}
+
+bool Quaternion::TryInverse(const Quaternion& q, Quaternion& output) {
+
+	// 二乗和をdoubleで計算し、巨大値のoverflowを避ける
+	const double normSquared = static_cast<double>(q.x) * q.x + static_cast<double>(q.y) * q.y +
+		static_cast<double>(q.z) * q.z + static_cast<double>(q.w) * q.w;
+	if (!std::isfinite(normSquared) || normSquared == 0.0) {
+		return false;
+	}
+	const double values[] = { -q.x / normSquared, -q.y / normSquared, -q.z / normSquared, q.w / normSquared };
+	for (double value : values) {
+		if (std::abs(value) > (std::numeric_limits<float>::max)()) {
+			return false;
+		}
+	}
+	// 全成分を変換できる場合だけ出力する
+	output = { static_cast<float>(values[0]), static_cast<float>(values[1]),
+		static_cast<float>(values[2]), static_cast<float>(values[3]) };
+	return true;
 }
 
 Quaternion Quaternion::MakeAxisAngle(const Vector3& axis, float angle) {
@@ -164,8 +194,12 @@ Matrix4x4 Quaternion::MakeRotateMatrix(const Quaternion& q) {
 }
 
 Quaternion Quaternion::Lerp(Quaternion q0, const Quaternion& q1, float lerpT) {
+
+	// 入力を単位回転へ揃えて最短側を補間する
+	q0 = Normalize(q0);
+	const Quaternion end = Normalize(q1);
 	// q0とq1の内積
-	float dot = Dot(q0, q1);
+	float dot = std::clamp(Dot(q0, end), -1.0f, 1.0f);
 	// 内積が負の場合、もう片方の回転を利用する
 	if (dot < 0.0f) {
 		q0 = -q0;
@@ -173,7 +207,7 @@ Quaternion Quaternion::Lerp(Quaternion q0, const Quaternion& q1, float lerpT) {
 	}
 	if (dot >= 1.0f - FLT_EPSILON) {
 
-		return q0 * (1.0f - lerpT) + q1 * lerpT;
+		return Normalize(q0 * (1.0f - lerpT) + end * lerpT);
 	}
 	// なす角を求める
 	float theta = std::acos(dot);
@@ -182,7 +216,7 @@ Quaternion Quaternion::Lerp(Quaternion q0, const Quaternion& q1, float lerpT) {
 	float scale0 = std::sin((1.0f - lerpT) * theta) / sinTheta;
 	float scale1 = std::sin(lerpT * theta) / sinTheta;
 	// 補完後のクォータニオンを求める
-	return q0 * scale0 + q1 * scale1;
+	return Normalize(q0 * scale0 + end * scale1);
 }
 
 Quaternion Engine::Quaternion::FromToY(const Vector3& direction) {

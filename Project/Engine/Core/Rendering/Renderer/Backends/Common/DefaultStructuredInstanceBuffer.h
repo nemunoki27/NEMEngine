@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
@@ -56,14 +57,16 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		ID3D12Resource* GetResource() const {
-			return resources_[GraphicsFrameState::GetCurrentIndex()].Get();
+			const uint32_t index = GraphicsFrameState::GetCurrentIndex();
+			return transientActive_[index] ? transient_.GetResource() : resources_[index].Get();
 		}
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const {
 			ID3D12Resource* resource = GetResource();
 			return resource ? resource->GetGPUVirtualAddress() : 0;
 		}
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetGPUHandle() const {
-			return srvGPUHandles_[GraphicsFrameState::GetCurrentIndex()];
+			const uint32_t index = GraphicsFrameState::GetCurrentIndex();
+			return transientActive_[index] ? transient_.GetGPUHandle() : srvGPUHandles_[index];
 		}
 		std::string_view GetBindingName() const { return bindingName_; }
 	private:
@@ -97,6 +100,13 @@ namespace Engine {
 		std::array<uint64_t, kGraphicsFrameContextCount>
 			uploadedGenerations_ = { 0, 0, 0 };
 
+		// 同frameの再更新だけ別領域へ転送する
+		StructuredInstanceBuffer<T> transient_;
+		std::array<bool, kGraphicsFrameContextCount> transientActive_{};
+		std::array<uint64_t, kGraphicsFrameContextCount> publishedSerials_{ UINT64_MAX, UINT64_MAX, UINT64_MAX };
+		std::array<uint64_t, kGraphicsFrameContextCount> publishedGenerations_{};
+		std::array<size_t, kGraphicsFrameContextCount> publishedCounts_{};
+		std::array<size_t, kGraphicsFrameContextCount> uploadedCounts_{};
 		uint32_t capacity_ = 0;
 		uint32_t elementCount_ = 0;
 		uint64_t generation_ = 1;
@@ -122,6 +132,11 @@ namespace Engine {
 		ID3D12Device* device, SRVDescriptor* srvDescriptor,
 		BufferUploadService* uploadService) {
 
+		if (!device || !srvDescriptor || !uploadService || (device_ &&
+			(device_ != device || srvDescriptor_ != srvDescriptor || uploadService_ != uploadService))) {
+			throw std::logic_error("差分Bufferの初期化条件が不正です");
+		}
+		transient_.Init(device, srvDescriptor);
 		device_ = device;
 		srvDescriptor_ = srvDescriptor;
 		uploadService_ = uploadService;
@@ -133,6 +148,12 @@ namespace Engine {
 		for (uint32_t frameIndex = 0; frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
 			RetireFrame(frameIndex);
 		}
+		transient_.Release();
+		transientActive_ = {};
+		publishedSerials_.fill(UINT64_MAX);
+		publishedGenerations_ = {};
+		publishedCounts_ = {};
+		uploadedCounts_ = {};
 		srvGPUHandles_ = {};
 		uploadedGenerations_ = { 0, 0, 0 };
 		dirtyRanges_.clear();
@@ -160,40 +181,52 @@ namespace Engine {
 			return;
 		}
 
-		++generation_;
-		if (generation_ == 0) {
-			generation_ = 1;
-			uploadedGenerations_ = { 0, 0, 0 };
-			dirtyRanges_.clear();
+		if (firstElement > UINT32_MAX - elementCount) throw std::out_of_range("差分Bufferの更新範囲が大きすぎます");
+		const uint64_t next = generation_ == UINT64_MAX ? 1 : generation_ + 1;
+		const DirtyRange range{ next, firstElement, elementCount };
+		if (generation_ == UINT64_MAX) {
+			std::deque<DirtyRange> replacement{ range };
+			dirtyRanges_.swap(replacement);
+			uploadedGenerations_ = {};
+			publishedGenerations_ = {};
+		} else {
+			dirtyRanges_.push_back(range);
 		}
-		dirtyRanges_.push_back({
-			.generation = generation_,
-			.firstElement = firstElement,
-			.elementCount = elementCount
-			});
+		// 変更範囲を保持できてから世代を進める
+		generation_ = next;
 	}
 
 	template<typename T>
 	size_t DefaultStructuredInstanceBuffer<T>::UploadCurrentFrame(
 		std::span<const T> data) {
 
+		if (data.size() > UINT32_MAX) throw std::length_error("差分Bufferの要素数が多すぎます");
+		const uint32_t frameIndex = GraphicsFrameState::GetCurrentIndex();
+		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+		if (publishedSerials_[frameIndex] == serial) {
+			if (publishedGenerations_[frameIndex] == generation_ && publishedCounts_[frameIndex] == data.size()) return 0;
+			// 先行描画のDEFAULT領域には上書きしない
+			transient_.Upload(data);
+			transientActive_[frameIndex] = true;
+			publishedGenerations_[frameIndex] = generation_;
+			publishedCounts_[frameIndex] = data.size();
+			return data.size_bytes();
+		}
 		elementCount_ = static_cast<uint32_t>(data.size());
 		EnsureCapacity(elementCount_);
-		if (data.empty() || !uploadService_) {
-			return 0;
-		}
-
-		const uint32_t frameIndex =
-			GraphicsFrameState::GetCurrentIndex();
-		uint64_t& uploadedGeneration =
-			uploadedGenerations_[frameIndex];
-		if (uploadedGeneration == generation_) {
+		if (data.empty()) return 0;
+		uint64_t& uploadedGeneration = uploadedGenerations_[frameIndex];
+		if (uploadedGeneration == generation_ && uploadedCounts_[frameIndex] == data.size()) {
+			transientActive_[frameIndex] = false;
+			publishedSerials_[frameIndex] = serial;
+			publishedGenerations_[frameIndex] = generation_;
+			publishedCounts_[frameIndex] = data.size();
 			return 0;
 		}
 
 		uint32_t firstElement = 0;
 		uint32_t endElement = elementCount_;
-		bool foundRange = uploadedGeneration == 0;
+		bool foundRange = uploadedGeneration == 0 || uploadedCounts_[frameIndex] != data.size();
 		if (!foundRange) {
 			firstElement = elementCount_;
 			endElement = 0;
@@ -228,6 +261,11 @@ namespace Engine {
 				D3D12_RESOURCE_STATE_GENERIC_READ);
 		}
 		uploadedGeneration = generation_;
+		uploadedCounts_[frameIndex] = data.size();
+		transientActive_[frameIndex] = false;
+		publishedSerials_[frameIndex] = serial;
+		publishedGenerations_[frameIndex] = generation_;
+		publishedCounts_[frameIndex] = data.size();
 		PruneDirtyRanges();
 		return endElement > firstElement ? static_cast<size_t>(endElement - firstElement) * sizeof(T) : 0;
 	}
@@ -241,46 +279,36 @@ namespace Engine {
 			return;
 		}
 
-		const uint32_t newCapacity =
-			RoundUpCapacity(requiredCount);
-		for (uint32_t frameIndex = 0;
-			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
-
-			RetireFrame(frameIndex);
-
-			DxUtils::CreateDefaultBufferResource(
-				device_, resources_[frameIndex],
-				static_cast<size_t>(newCapacity) * sizeof(T),
-				D3D12_RESOURCE_STATE_GENERIC_READ);
-			if (!bindingName_.empty()) {
-				const std::string resourceName =
-					bindingName_ + "[" +
-					std::to_string(frameIndex) + "]";
-				resources_[frameIndex]->SetName(
-					Algorithm::ConvertString(
-						resourceName).c_str());
+		const uint32_t newCapacity = RoundUpCapacity(requiredCount);
+		std::array<ComPtr<ID3D12Resource>, kGraphicsFrameContextCount> candidates;
+		std::array<uint32_t, kGraphicsFrameContextCount> indices;
+		indices.fill(UINT32_MAX);
+		// 全frameのResourceとSRVを作成してから交換する
+		try {
+			for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+				DxUtils::CreateDefaultBufferResource(device_, candidates[index], static_cast<size_t>(newCapacity) * sizeof(T));
+				if (!bindingName_.empty()) candidates[index]->SetName(Algorithm::ConvertString(bindingName_).c_str());
+				D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+				desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+				desc.Format = DXGI_FORMAT_UNKNOWN;
+				desc.Buffer.NumElements = newCapacity;
+				desc.Buffer.StructureByteStride = sizeof(T);
+				srvDescriptor_->CreateSRV(indices[index], candidates[index].Get(), desc);
 			}
-
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-			srvDesc.Shader4ComponentMapping =
-				D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-			srvDesc.ViewDimension =
-				D3D12_SRV_DIMENSION_BUFFER;
-			srvDesc.Buffer.FirstElement = 0;
-			srvDesc.Buffer.NumElements = newCapacity;
-			srvDesc.Buffer.StructureByteStride = sizeof(T);
-			srvDesc.Buffer.Flags =
-				D3D12_BUFFER_SRV_FLAG_NONE;
-			srvDescriptor_->CreateSRV(
-				srvIndices_[frameIndex],
-				resources_[frameIndex].Get(), srvDesc);
-			srvGPUHandles_[frameIndex] =
-				srvDescriptor_->GetGPUHandle(
-					srvIndices_[frameIndex]);
+			srvDescriptor_->GetRetirementQueue().ReservePending(kGraphicsFrameContextCount);
+		} catch (...) {
+			for (uint32_t index : indices) if (index != UINT32_MAX) srvDescriptor_->Free(index);
+			throw;
+		}
+		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) RetireFrame(index);
+		resources_ = std::move(candidates);
+		srvIndices_ = indices;
+		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+			srvGPUHandles_[index] = srvDescriptor_->GetGPUHandle(indices[index]);
 		}
 		capacity_ = newCapacity;
-		uploadedGenerations_ = { 0, 0, 0 };
+		uploadedGenerations_ = {};
 	}
 
 	template<typename T>
@@ -316,7 +344,7 @@ namespace Engine {
 
 		uint32_t capacity = 64;
 		while (capacity < value) {
-			capacity *= 2;
+			capacity = capacity > UINT32_MAX / 2 ? value : capacity * 2;
 		}
 		return capacity;
 	}

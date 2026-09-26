@@ -76,7 +76,10 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 	if ((shapeConstants.heightDivide & 1u) != 0u && shapeConstants.heightDivide < kMaxPrimitiveDivide) {
 		++shapeConstants.heightDivide;
 	}
-	const PostProcessConstantBufferAllocation shapeAlloc = constantBufferAllocator_.AllocateAndUpload(device, shapeConstants);
+	const FrameConstantBufferAllocation shapeAlloc =
+		constantBufferAllocator_.AllocateAndUpload(
+			context.graphicsCore->GetDXObject().GetResourceRetirement(),
+			device, shapeConstants);
 
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
 		context, *pipelineState, item->blendMode);

@@ -43,7 +43,7 @@ internal static unsafe class NativeUIAPI {
                 entity, action, device, values, count);
         }
         if (currentCount < count) {
-            Array.Resize(ref bindings, Math.Max(currentCount, 0));
+            Array.Resize(ref bindings, Mathf.Max(currentCount, 0));
         }
         return bindings;
     }
@@ -89,20 +89,20 @@ internal static unsafe class NativeUIAPI {
     }
 
     internal static int ReadCanvasNavigationCell(
-        NativeEntity entity, int row, int column, out Entity target) {
+        NativeEntity entity, int row, int column, out GameObject? target) {
 
         NativeEntity nativeTarget = NativeEntity.Null;
         int result = CanvasGetNavigationCell != null ?
             CanvasGetNavigationCell(entity, row, column, &nativeTarget) : 1;
-        target = new Entity(nativeTarget);
+        target = GameObject.FromNative(nativeTarget);
         return result;
     }
 
     internal static int WriteCanvasNavigationCell(
-        NativeEntity entity, int row, int column, Entity target) {
+        NativeEntity entity, int row, int column, GameObject? target) {
 
         return CanvasSetNavigationCell != null ?
-            CanvasSetNavigationCell(entity, row, column, target.native) : 1;
+            CanvasSetNavigationCell(entity, row, column, GameObject.RawNative(target)) : 1;
     }
 
     internal static bool ReadCanvasScreenToLocalPoint(

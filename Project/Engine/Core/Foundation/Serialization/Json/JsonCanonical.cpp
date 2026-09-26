@@ -47,5 +47,10 @@ std::string JsonCanonical::SerializeCanonical(const nlohmann::json& data, int32_
 	if (!CanonicalizeJson(canonical)) {
 		return {};
 	}
-	return canonical.dump(indent) + '\n';
+	try {
+		return canonical.dump(indent) + '\n';
+	} catch (const nlohmann::json::exception&) {
+		// 不正UTF等を保存成功へ置き換えない
+		return {};
+	}
 }

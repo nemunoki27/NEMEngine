@@ -2,7 +2,7 @@ namespace NEMEngine;
 
 //============================================================================
 //	EventBus
-//	型をキーにしたグローバル pub/sub。Entity に依存しないゲーム全体イベント向け。
+//	型をキーにしたグローバル pub/sub。GameObject に依存しないゲーム全体イベント向け。
 //	イベント型は readonly struct 推奨。typeof(T) 完全一致で配信し、基底/派生への
 //	fan-out は行わない。例外隔離・owner 破棄での自動解除・次フレーム遅延発火を備える。
 //============================================================================
@@ -34,7 +34,7 @@ public static class EventBus {
     }
 
     // owner 破棄時に自動解除される購読
-    public static EventSubscription Subscribe<T>(ScriptBehaviour owner, Action<T> handler) {
+    public static EventSubscription Subscribe<T>(MonoBehaviour owner, Action<T> handler) {
         EventSubscription sub = Subscribe(handler);
         EventOwnerTracker.Track(owner, sub);
         return sub;

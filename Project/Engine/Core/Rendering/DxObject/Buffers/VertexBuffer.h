@@ -7,6 +7,7 @@
 
 // c++
 #include <vector>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -25,7 +26,7 @@ namespace Engine {
 		virtual ~VertexBuffer() = default;
 
 		// 指定頂点数でVBリソースを確保し、ビュー情報を初期化する
-		void CreateBuffer(ID3D12Device* device, UINT vertexCount);
+		void CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device, UINT vertexCount);
 
 		// CPU側の頂点配列をGPUへ転送する
 		void TransferData(const std::vector<T>& data);
@@ -54,15 +55,16 @@ namespace Engine {
 	//	VertexBuffer templateMethods
 	//============================================================================
 	template<typename T>
-	inline void VertexBuffer<T>::CreateBuffer(ID3D12Device* device, UINT vertexCount) {
+	inline void VertexBuffer<T>::CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device, UINT vertexCount) {
 
 		if (vertexCount > 0) {
 
 			// 頂点データサイズ
+			if (vertexCount > UINT32_MAX / sizeof(T)) throw std::length_error("頂点Bufferの容量が大きすぎます");
 			UINT sizeVB = static_cast<UINT>(sizeof(T) * vertexCount);
 
 			// VBリソースを確保しマップする
-			buffer_.Create(device, sizeVB);
+			buffer_.Create(retirement, device, sizeVB);
 
 			// 頂点バッファビューの作成
 			vertexBufferView_.BufferLocation = buffer_.GetGPUVirtualAddress();

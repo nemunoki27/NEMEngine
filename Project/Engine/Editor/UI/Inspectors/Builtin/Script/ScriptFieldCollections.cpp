@@ -164,6 +164,22 @@ namespace Engine::ScriptFieldInspector {
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx) {
 
 		Engine::ValueEditResult result{};
+		// 共有先の値を空の個体で上書きしない
+		if (value.is_object() && value.contains("$ref")) {
+			ImGui::PushID(label);
+			if (Engine::MyGUI::BeginPropertyRow(label)) {
+				ImGui::TextUnformatted("Shared reference");
+				ImGui::SameLine();
+				if (ImGui::SmallButton("None")) {
+					value = nlohmann::json{ {"type", ""}, {"value", nlohmann::json::object()} };
+					result.valueChanged = true;
+					result.editFinished = true;
+				}
+				Engine::MyGUI::EndPropertyRow();
+			}
+			ImGui::PopID();
+			return result;
+		}
 		if (!value.is_object()) { value = nlohmann::json{ {"type", ""}, {"value", nlohmann::json::object()} }; }
 		if (!value.contains("type") || !value["type"].is_string()) { value["type"] = ""; }
 		if (!value.contains("value") || !value["value"].is_object()) { value["value"] = nlohmann::json::object(); }

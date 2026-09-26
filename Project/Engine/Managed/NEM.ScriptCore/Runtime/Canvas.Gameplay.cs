@@ -21,26 +21,26 @@ public sealed unsafe partial class Canvas {
 
     // 行列形式のUI遷移テーブル
     public CanvasTransitionTable TransitionTable =>
-        transitionTable ??= new CanvasTransitionTable(entity);
+        transitionTable ??= new CanvasTransitionTable(gameObject);
 
     // 決定後にCanvas入力がロックされているか
     public bool InputLocked =>
         NativeAPI.GetCanvasInputLocked != null &&
-        NativeAPI.GetCanvasInputLocked(entity.native) != 0;
+        NativeAPI.GetCanvasInputLocked(native) != 0;
 
     // GameViewピクセル座標をCanvasローカル座標へ変換する
     public bool TryScreenToLocalPoint(
         Vector2 screenPosition, out Vector2 localPosition) {
 
         return NativeUIAPI.ReadCanvasScreenToLocalPoint(
-            entity.native, screenPosition, out localPosition);
+            native, screenPosition, out localPosition);
     }
 
     // 指定操作に割り当てたキーボード入力を取得する
     public IReadOnlyList<KeyCode> GetKeyboardInputs(CanvasInputAction action) {
 
         int[] codes = NativeUIAPI.CanvasGetInputBindings(
-            entity.native, (int)action, KeyboardInputDevice);
+            native, (int)action, KeyboardInputDevice);
         KeyCode[] bindings = new KeyCode[codes.Length];
         for (int i = 0; i < codes.Length; ++i) {
             bindings[i] = (KeyCode)codes[i];
@@ -52,7 +52,7 @@ public sealed unsafe partial class Canvas {
     public IReadOnlyList<GamepadButton> GetGamepadInputs(CanvasInputAction action) {
 
         int[] codes = NativeUIAPI.CanvasGetInputBindings(
-            entity.native, (int)action, GamepadInputDevice);
+            native, (int)action, GamepadInputDevice);
         GamepadButton[] bindings = new GamepadButton[codes.Length];
         for (int i = 0; i < codes.Length; ++i) {
             bindings[i] = (GamepadButton)codes[i];
@@ -69,7 +69,7 @@ public sealed unsafe partial class Canvas {
             bindings[i] = (int)keys[i];
         }
         NativeUIAPI.CanvasSetInputBindingsValue(
-            entity.native, (int)action, KeyboardInputDevice, bindings);
+            native, (int)action, KeyboardInputDevice, bindings);
     }
 
     // 指定操作のゲームパッド入力を置き換える
@@ -81,7 +81,7 @@ public sealed unsafe partial class Canvas {
             bindings[i] = (int)buttons[i];
         }
         NativeUIAPI.CanvasSetInputBindingsValue(
-            entity.native, (int)action, GamepadInputDevice, bindings);
+            native, (int)action, GamepadInputDevice, bindings);
     }
 
     // 指定操作へキーボード入力を追加する
@@ -150,9 +150,9 @@ public sealed class CanvasTransitionTable {
         AllocationFailed
     }
 
-    private readonly Entity canvas;
+    private readonly GameObject canvas;
 
-    internal CanvasTransitionTable(Entity canvas) {
+    internal CanvasTransitionTable(GameObject canvas) {
         this.canvas = canvas;
     }
 
@@ -180,11 +180,11 @@ public sealed class CanvasTransitionTable {
         }
     }
 
-    public Entity this[int row, int column] {
+    public GameObject? this[int row, int column] {
         get {
             ValidateIndices(row, column);
             int result = NativeUIAPI.ReadCanvasNavigationCell(
-                canvas.native, row, column, out Entity target);
+                canvas.native, row, column, out GameObject? target);
             ThrowIfFailed(result, nameof(row), nameof(column));
             return target;
         }
@@ -240,7 +240,7 @@ public sealed class CanvasTransitionTable {
             throw new ArgumentOutOfRangeException(rangeParameterName);
         case Result.InvalidTarget:
             throw new ArgumentException(
-                "遷移先は同じCanvas配下のUISelectableを持つEntityにしてください",
+                "遷移先は同じCanvas配下のUISelectableを持つGameObjectにしてください",
                 targetParameterName);
         case Result.AllocationFailed:
             throw new OutOfMemoryException("Canvas遷移テーブルの領域を確保できませんでした");
@@ -261,7 +261,7 @@ public sealed class CanvasTransitionRow {
         this.row = row;
     }
 
-    public Entity this[int column] {
+    public GameObject? this[int column] {
         get => table[row, column];
         set => table[row, column] = value;
     }

@@ -7,7 +7,7 @@
 
 // c++
 #include <unordered_set>
-#include <vector>
+#include <deque>
 
 namespace Engine {
 
@@ -26,6 +26,8 @@ namespace Engine {
 
 		RuntimeWorldBaker() = default;
 		~RuntimeWorldBaker();
+		RuntimeWorldBaker(const RuntimeWorldBaker&) = delete;
+		RuntimeWorldBaker& operator=(const RuntimeWorldBaker&) = delete;
 
 		// Runtime Worldへ接続して変更通知を購読する
 		void Attach(ECSWorld& world, AssetDatabase* assetDatabase);
@@ -40,7 +42,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// Runtime Worldへ接続されているか
-		bool IsAttached() const { return world_ != nullptr; }
+		bool IsAttached() const { return worldLifetime_ && worldLifetime_->IsAlive(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -50,12 +52,14 @@ namespace Engine {
 
 		// 変換対象のRuntime World
 		ECSWorld* world_ = nullptr;
+		// Worldを保持せず終了状態を確認する
+		std::shared_ptr<const ECSWorldLifetime> worldLifetime_;
 		// Mesh等のアセット依存変換で参照するDatabase
 		AssetDatabase* assetDatabase_ = nullptr;
 		// Component変更通知の購読ID
 		uint64_t mutationListenerID_ = 0;
 		// 差分変換を待つEntity
-		std::vector<Entity> dirtyEntities_;
+		std::deque<Entity> dirtyEntities_;
 		// 同じEntityを一度だけ積むためのキー
 		std::unordered_set<uint64_t> dirtyEntityKeys_;
 		// Bake中の内部変更を再登録しないためのフラグ

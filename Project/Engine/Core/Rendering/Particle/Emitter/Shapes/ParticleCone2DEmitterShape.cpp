@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
@@ -36,53 +35,4 @@ void Engine::ParticleCone2DEmitterShape::InitParticle(Vector3& position, Vector3
 	const float tilt = RandomGenerator::Generate(
 		-settings.cone.angle * degToRad, settings.cone.angle * degToRad);
 	direction = Vector3(std::sin(tilt), std::cos(tilt), 0.0f);
-}
-
-void Engine::ParticleCone2DEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	constexpr float degToRad = std::numbers::pi_v<float> / 180.0f;
-
-	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
-	const Color4 color = Color4::Red();
-
-	// 底辺と開き角の2本の線で扇を表す
-	const float tilt = settings.cone.angle * degToRad;
-	const Vector3 base0(-settings.cone.radius, 0.0f, 0.0f);
-	const Vector3 base1(settings.cone.radius, 0.0f, 0.0f);
-
-	// 2Dはスクリーン空間の2Dレンダラーで描く
-	if (is2D) {
-
-		LineRenderer2D* renderer2D = LineRenderer::GetInstance()->Get2D();
-		if (!renderer2D) {
-			return;
-		}
-		// ローカル点をエンティティの回転と位置でスクリーン座標へ変換する
-		auto toScreen = [&](const Vector3& local) {
-			const Vector3 world = center + Vector3::Transform(local, rotationMatrix);
-			return Vector2(world.x, world.y);
-			};
-		// スクリーン単位なので見やすい長さにする
-		const float rayLength = (std::max)(settings.cone.radius, 32.0f);
-		renderer2D->DrawLine(toScreen(base0), toScreen(base1), color);
-		renderer2D->DrawLine(toScreen(base0),
-			toScreen(base0 + Vector3(std::sin(-tilt), std::cos(-tilt), 0.0f) * rayLength), color);
-		renderer2D->DrawLine(toScreen(base1),
-			toScreen(base1 + Vector3(std::sin(tilt), std::cos(tilt), 0.0f) * rayLength), color);
-		return;
-	}
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	renderer->DrawLine(center + Vector3::Transform(base0, rotationMatrix),
-		center + Vector3::Transform(base1, rotationMatrix), color);
-	renderer->DrawLine(center + Vector3::Transform(base0, rotationMatrix),
-		center + Vector3::Transform(base0 + Vector3(std::sin(-tilt), std::cos(-tilt), 0.0f), rotationMatrix), color);
-	renderer->DrawLine(center + Vector3::Transform(base1, rotationMatrix),
-		center + Vector3::Transform(base1 + Vector3(std::sin(tilt), std::cos(tilt), 0.0f), rotationMatrix), color);
-#endif
 }

@@ -13,7 +13,7 @@ namespace NEM.ScriptCodeGen
 {
     internal static class ScriptManifestRules
     {
-        internal const string ScriptBehaviourFullName = "NEMEngine.ScriptBehaviour";
+        internal const string MonoBehaviourFullName = "NEMEngine.MonoBehaviour";
         internal const string ScriptTypeIDAttributeName = "NEMEngine.ScriptTypeIDAttribute";
 
         internal static readonly DiagnosticDescriptor MissingIDRule = new DiagnosticDescriptor(

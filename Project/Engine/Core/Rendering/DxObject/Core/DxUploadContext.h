@@ -7,7 +7,8 @@
 
 // c++
 #include <cstdint>
-#include <string_view>
+#include <span>
+#include <vector>
 
 // directX
 #include <d3d12.h>
@@ -25,24 +26,29 @@ public:
 	//============================================================================
 
 	DxUploadCommand() = default;
-	~DxUploadCommand() = default;
+	~DxUploadCommand();
+	DxUploadCommand(const DxUploadCommand&) = delete;
+	DxUploadCommand& operator=(const DxUploadCommand&) = delete;
 
 	// アップロード用のキュー/アロケータ/リスト/フェンスを作成する
 	void Create(ID3D12Device* device);
 
 	// 転送用コマンドをキューへ提出し完了させる
-	void ExecuteCommands(ID3D12CommandQueue* waitQueue = nullptr);
+	void ExecuteCommands(std::span<const ComPtr<ID3D12Resource>> resources);
+
+	// 提出済みの転送を完了させる
+	void FlushAndWait();
 
 	//--------- accessor -----------------------------------------------------
 
 	// コマンドリストを取得する
-	ID3D12GraphicsCommandList* GetCommandList() const { return commandList_.Get(); }
+	ID3D12GraphicsCommandList* GetCommandList() const;
 private:
 	//============================================================================
 	//	private Methods
 	//============================================================================
 
-		//--------- variables ----------------------------------------------------
+	//--------- variables ----------------------------------------------------
 
 	ComPtr<ID3D12Device> device_;
 
@@ -52,8 +58,13 @@ private:
 	ComPtr<ID3D12CommandQueue> commandQueue_;
 
 	ComPtr<ID3D12Fence> fence_;
-	uint64_t fenceValue_;
-	HANDLE fenceEvent_;
+	uint64_t fenceValue_ = 0;
+	HANDLE fenceEvent_ = nullptr;
+
+	std::vector<ComPtr<ID3D12Resource>> retainedResources_;
+	bool recording_ = false;
+	bool submitted_ = false;
+	bool signaled_ = false;
 
 	//--------- functions ----------------------------------------------------
 

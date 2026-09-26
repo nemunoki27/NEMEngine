@@ -27,6 +27,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $OutputEncoding
+. (Join-Path $PSScriptRoot 'HarnessProcess.ps1')
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\.."))
 $engineRoot = Join-Path $repoRoot "Project\Engine"
@@ -523,9 +524,10 @@ function Invoke-BuildChecks {
     foreach ($configuration in $Configurations) {
         Write-Host "=== Build: $Target $configuration ==="
         $watch = [System.Diagnostics.Stopwatch]::StartNew()
-        $messages = & $msbuild $solution "/t:$Target" "/p:Configuration=$configuration" "/p:Platform=x64" `
-            "/m:1" "/nodeReuse:false" "/v:minimal" 2>&1
-        $exitCode = $LASTEXITCODE
+        $process = Invoke-HarnessProcess $msbuild @($solution, "/t:$Target", "/p:Configuration=$configuration",
+            '/p:Platform=x64', '/m:1', '/nodeReuse:false', '/v:minimal')
+        $messages = $process.output
+        $exitCode = $process.exitCode
         $messages | ForEach-Object { Write-Host $_ }
         $watch.Stop()
 
@@ -562,8 +564,9 @@ function Invoke-ManagedChecks {
     $pwsh = (Get-Command "pwsh.exe" -ErrorAction Stop).Source
     Write-Host "=== Managed scripting regression ==="
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
-    $messages = & $pwsh -NoProfile -File $script -Mode quick 2>&1
-    $exitCode = $LASTEXITCODE
+    $process = Invoke-HarnessProcess $pwsh @('-NoProfile', '-File', $script, '-Mode', 'quick')
+    $messages = $process.output
+    $exitCode = $process.exitCode
     $messages | ForEach-Object { Write-Host $_ }
     $watch.Stop()
 
@@ -581,12 +584,12 @@ function Invoke-AbiCheck {
     $nativeOutput = Join-Path $engineRoot "Core\Scripting\Managed\Generated"
     $managedOutput = Join-Path $engineRoot "Managed\NEM.ScriptCore\Generated"
 
-    $messages = & dotnet run --project $generator -c Release -- --verify `
-        --manifest (Join-Path $bindings "ComponentManifest.json") `
-        --abi (Join-Path $bindings "ManagedNativeAPI.json") `
-        --out-native-dir $nativeOutput `
-        --out-cs-dir $managedOutput 2>&1
-    $exitCode = $LASTEXITCODE
+    $process = Invoke-HarnessProcess 'dotnet' @('run', '--project', $generator, '-c', 'Release', '--', '--verify',
+        '--manifest', (Join-Path $bindings 'ComponentManifest.json'),
+        '--abi', (Join-Path $bindings 'ManagedNativeAPI.json'), '--out-native-dir', $nativeOutput,
+        '--out-cs-dir', $managedOutput)
+    $messages = $process.output
+    $exitCode = $process.exitCode
     $messages | ForEach-Object { Write-Host $_ }
     return [pscustomobject]@{
         failures = if ($exitCode -eq 0) { 0 } else { 1 }
@@ -607,9 +610,9 @@ function Get-ComparableMetrics {
         shaderIncludeCaseMismatches = @($Report.risks.shaderIncludeCaseMismatches).Count
         coreEditorIncludeFiles = [int]$Report.risks.coreEditorIncludeFiles
         coreGuiFiles = [int]$Report.risks.coreGuiFiles
-        shaderCompileFailures = if ($null -eq $Report.shaderCompile) { 0 } else { [int]$Report.shaderCompile.failures }
-        managedFailures = if ($null -eq $Report.managed) { 0 } else { [int]$Report.managed.failures }
-        buildFailures = if ($null -eq $Report.build) { 0 } else { [int]$Report.build.failures }
+        shaderCompileFailures = if ($null -eq $Report.shaderCompile) { $null } else { [int]$Report.shaderCompile.failures }
+        managedFailures = if ($null -eq $Report.managed) { $null } else { [int]$Report.managed.failures }
+        buildFailures = if ($null -eq $Report.build) { $null } else { [int]$Report.build.failures }
     }
 }
 
@@ -652,6 +655,16 @@ function Test-Baseline {
     foreach ($property in $Baseline.limits.PSObject.Properties) {
         $name = $property.Name
         $limit = [int]$property.Value
+        # 未実行は比較から除外し、全検証では失敗にする
+        if (-not $metrics.Contains($name)) {
+            throw "未対応の検証項目: $name"
+        }
+        if ($null -eq $metrics[$name]) {
+            if ($Report.scope -eq "Full") {
+                $failures.Add([pscustomobject]@{ metric = $name; actual = "NotRun"; limit = $limit })
+            }
+            continue
+        }
         $actual = [int]$metrics[$name]
         if ($actual -gt $limit) {
             $failures.Add([pscustomobject]@{
@@ -686,6 +699,14 @@ $report = [ordered]@{
     generatedUtc = [DateTime]::UtcNow.ToString("o")
     mode = $Mode
     scope = $Scope
+    execution = [ordered]@{
+        static = "Executed"
+        abi = "Executed"
+        shaderCompile = if ($null -eq $shaderCompile) { "NotRun" } else { "Executed" }
+        managed = if ($null -eq $managed) { "NotRun" } else { "Executed" }
+        build = if ($null -eq $build) { "NotRun" } else { "Executed" }
+        gui = "NotRun"
+    }
     source = $sourceMetrics
     risks = $riskMetrics
     assets = $jsonMetrics
@@ -705,7 +726,19 @@ Write-Utf8Json -Path $ReportPath -Value $report
 Write-Host "Report: $ReportPath"
 
 if ($Mode -eq "Capture") {
+    # 全検証が成功した場合だけ基準を置き換える
+    if ($Scope -ne "Full") {
+        throw "基準の保存にはScope Fullが必要です"
+    }
     $baseline = New-Baseline $report
+    $captureFailures = @(Test-Baseline -Report $report -Baseline ([pscustomobject]@{
+        limits = [pscustomobject]$baseline.limits
+    }))
+    if ($captureFailures.Count -gt 0) {
+        $captureFailures | ForEach-Object { Write-Host "[FAIL] $($_.metric): $($_.actual)" }
+        Write-Host "検証に失敗したため既存の基準を保持します" -ForegroundColor Red
+        exit 1
+    }
     Write-Utf8Json -Path $BaselinePath -Value $baseline
     Write-Host "Baseline: $BaselinePath"
     exit 0
@@ -726,5 +759,8 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host "=== Refactoring baseline passed ==="
+Write-Host "=== Refactoring baseline passed: Scope=$Scope ==="
+if ($Scope -eq "Static") {
+    Write-Host "[NotRun] Shader compile / Managed stress / Native build / GUI"
+}
 exit 0

@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/WorldCommandExecutor.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/ECS/World/PendingComponent.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
@@ -33,6 +35,17 @@ void Engine::WorldCommandBuffer::EnqueueRemoveComponentByName(const Entity& enti
 	command.target = entity;
 	command.text.assign(typeName);
 	commands_.emplace_back(std::move(command));
+
+	// 削除予約の成功後に、未適用の追加を取り消す
+	const auto* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
+	if (info) {
+		const auto entry = pendingComponents_.find({ entity.index, entity.generation, info->id });
+		if (entry != pendingComponents_.end()) {
+			auto cancelled = std::move(entry->second);
+			pendingComponents_.erase(entry);
+			cancelled->Cancel();
+		}
+	}
 }
 
 void Engine::WorldCommandBuffer::EnqueueSetNameEnsuringComponent(const Entity& entity, std::string_view name) {
@@ -63,18 +76,6 @@ void Engine::WorldCommandBuffer::EnqueueSetParent(const Entity& child, const Ent
 	commands_.emplace_back(std::move(command));
 }
 
-void Engine::WorldCommandBuffer::EnqueueCreateEntity(const Entity& reserved, std::string_view name, const Entity& parent) {
-
-	WorldCommand command{};
-	command.kind = WorldCommandKind::CreateEntity;
-	command.target = reserved;
-	command.parent = parent;
-	command.text.assign(name);
-	commands_.emplace_back(std::move(command));
-	// 予約Entityからこのコマンドのindexを引けるよう記録する
-	createCommandIndex_[EntityKey(reserved)] = commands_.size() - 1;
-}
-
 void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset) {
 
 	WorldCommand command{};
@@ -101,109 +102,46 @@ void Engine::WorldCommandBuffer::EnqueueLoadSceneSingle(const UUID& sceneInstanc
 	commands_.emplace_back(std::move(command));
 }
 
-Engine::WorldCommand* Engine::WorldCommandBuffer::FindPendingCreateCommand(const Entity& reserved) {
-
-	auto it = createCommandIndex_.find(EntityKey(reserved));
-	if (it == createCommandIndex_.end() || commands_.size() <= it->second) {
-		return nullptr;
-	}
-	// indexのコマンドが目的の予約Entityと種別か念のため再確認する
-	WorldCommand& command = commands_[it->second];
-	if (command.kind == WorldCommandKind::CreateEntity && command.target == reserved) {
-		return &command;
-	}
-	return nullptr;
-}
-
-const Engine::WorldCommand* Engine::WorldCommandBuffer::FindPendingCreateCommand(const Entity& reserved) const {
-
-	auto it = createCommandIndex_.find(EntityKey(reserved));
-	if (it == createCommandIndex_.end() || commands_.size() <= it->second) {
-		return nullptr;
-	}
-	// indexのコマンドが目的の予約Entityと種別か念のため再確認する
-	const WorldCommand& command = commands_[it->second];
-	if (command.kind == WorldCommandKind::CreateEntity && command.target == reserved) {
-		return &command;
-	}
-	return nullptr;
-}
-
-bool Engine::WorldCommandBuffer::IsPendingCreate(const Entity& reserved) const {
-
-	return FindPendingCreateCommand(reserved) != nullptr;
-}
-
-bool Engine::WorldCommandBuffer::StageCreatePosition(const Entity& reserved, const Vector3& position) {
-
-	WorldCommand* command = FindPendingCreateCommand(reserved);
-	if (!command) {
-		return false;
-	}
-	command->position = position;
-	command->flags |= FlagHasPosition;
-	return true;
-}
-
-bool Engine::WorldCommandBuffer::StageCreateRotation(const Entity& reserved, const Quaternion& rotation) {
-
-	WorldCommand* command = FindPendingCreateCommand(reserved);
-	if (!command) {
-		return false;
-	}
-	command->rotation = rotation;
-	command->flags |= FlagHasRotation;
-	return true;
-}
-
-bool Engine::WorldCommandBuffer::StageCreateScale(const Entity& reserved, const Vector3& scale) {
-
-	WorldCommand* command = FindPendingCreateCommand(reserved);
-	if (!command) {
-		return false;
-	}
-	command->scale = scale;
-	command->flags |= FlagHasScale;
-	return true;
-}
-
 void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 
 	// 再入時はネストせず、外側のbatchループに任せる
-	if (flushing_) {
+	if (flushing_ || world.IsStructuralChangeDeferred()) {
 		return;
 	}
 	flushing_ = true;
 
 	int32_t batchCount = 0;
-	while (!commands_.empty()) {
+	try {
+		while (!IsEmpty()) {
+			if (activeCommandIndex_ == activeBatch_.size()) {
+				if (batchCount == kMaxFlushBatches) {
+					Logger::Output(LogType::Engine, spdlog::level::warn,
+						"WorldCommandBuffer: 1回の反映上限を超えたため{}件のCommandを次回へ延期します", commands_.size());
+					break;
+				}
 
-		// 上限を超えたら残りは次フレームのFlushへ回す、破棄はしない
-		if (kMaxFlushBatches <= batchCount) {
-
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: 1回の反映上限を超えたため{}件のCommandを次回へ延期します",
-				commands_.size());
-			break;
-		}
-
-		// 現batchを切り離してから適用する、適用中に積まれた分は次batchへ回る
-		std::vector<WorldCommand> batch;
-		batch.swap(commands_);
-		// commands_を切り離したのでindex mapも無効化する
-		createCommandIndex_.clear();
-		for (const WorldCommand& command : batch) {
-
+				// 現在の予約を切り離し、新しい予約と分ける
+				activeBatch_.clear();
+				activeBatch_.swap(commands_);
+				activeCommandIndex_ = 0;
+				++batchCount;
+			}
+			// 失敗したCommandは再実行せず、残りを次回へ保持する
+			WorldCommand command = std::move(activeBatch_[activeCommandIndex_++]);
+			RemovePendingComponent(command);
 			WorldCommandExecutor::Apply(world, command);
 		}
-		++batchCount;
+	} catch (...) {
+		flushing_ = false;
+		throw;
 	}
-
 	flushing_ = false;
 }
 
 void Engine::WorldCommandBuffer::Clear() {
 
+	pendingComponents_.clear();
+	activeBatch_.clear();
+	activeCommandIndex_ = 0;
 	commands_.clear();
-	createCommandIndex_.clear();
 }

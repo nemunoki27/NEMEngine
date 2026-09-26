@@ -20,7 +20,8 @@ namespace NEM.ScriptCodeGen
             ImmutableArray<string> metaContents, bool validateOnly)
         {
             var models = items.Where(m => m != null).Select(m => m!).ToList();
-            ScriptMetaIndex meta = ScriptMetaIndex.Build(metaContents);
+            ScriptMetaIndex? meta = ScriptMetaIndex.Read(spc, metaContents);
+            if (meta == null) { return; }
 
             // ID 解決の優先順: 明示属性 → sidecar metadata → 決定的 fallback。
             foreach (ScriptTypeModel model in models)

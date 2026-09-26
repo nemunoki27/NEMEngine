@@ -1,6 +1,7 @@
 #include "Log.h"
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <fstream>
+#include <cstdio>
 #if defined(_MSC_VER)
 #include <spdlog/sinks/base_sink.h>
 #include <windows.h>
@@ -54,6 +55,12 @@ namespace {
 void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) {
 
 	std::scoped_lock lock(mutex_);
+	finalized_ = false;
+	CreateLogFilesLocked(logDir, truncate);
+}
+
+void Logger::CreateLogFilesLocked(const std::filesystem::path& logDir, bool truncate) {
+
 	if (initialized_) return;
 
 #if defined(_MSC_VER)
@@ -107,7 +114,9 @@ void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) 
 			spdlog::register_logger(lg);
 			loggers_[i] = std::move(lg);
 		}
-		catch (const spdlog::spdlog_ex&) {
+		catch (const spdlog::spdlog_ex& error) {
+			// Loggerを再入せず標準エラーへ作成失敗を残す
+			std::fprintf(stderr, "Logger initialization failed: %s\n", error.what());
 			loggers_[i].reset();
 		}
 	}
@@ -122,6 +131,7 @@ void Logger::CreateLogFiles(const std::filesystem::path& logDir, bool truncate) 
 void Logger::Finalize() {
 
 	std::scoped_lock lock(mutex_);
+	finalized_ = true;
 	if (!initialized_) return;
 
 	for (std::size_t i = 0; i < loggers_.size(); ++i) {
@@ -137,8 +147,11 @@ void Logger::Finalize() {
 }
 
 void Logger::EnsureInitialized() {
-	// 初期化判定もCreateLogFiles内のMutexで保護する
-	CreateLogFiles();
+	// 終了後の出力要求ではファイルを作り直さない
+	std::scoped_lock lock(mutex_);
+	if (!finalized_) {
+		CreateLogFilesLocked(logDir_, true);
+	}
 }
 
 std::string_view Logger::TypeToFileName(LogType type) {
@@ -152,7 +165,7 @@ std::string_view Logger::TypeToLoggerName(LogType type) {
 
 void Logger::Output(LogType type, std::string_view message, spdlog::level::level_enum level) {
 	EnsureInitialized();
-	auto& lg = Get(type);
+	auto lg = Get(type);
 	if (!lg) return;
 	AppendRecentLog(type, level, std::string(message));
 	lg->log(level, "{}", message);
@@ -160,8 +173,11 @@ void Logger::Output(LogType type, std::string_view message, spdlog::level::level
 
 void Logger::BlankLine(LogType type, std::uint32_t lines) {
 	EnsureInitialized();
+	auto lg = Get(type);
 
 	std::scoped_lock lock(mutex_);
+
+	if (!initialized_ || !lg) return;
 
 	// ファイル側へ「何も付かない空行」を直接追記
 	const auto filePath = (logDir_ / std::string(TypeToFileName(type))).string();
@@ -175,7 +191,6 @@ void Logger::BlankLine(LogType type, std::uint32_t lines) {
 
 #if defined(_MSC_VER)
 	// Visual Studio出力ウィンドウにも空行を出す
-	auto& lg = Get(type);
 	if (HasDebugSink(lg)) {
 		for (std::uint32_t i = 0; i < lines; ++i) {
 			::OutputDebugStringW(L"\r\n");
@@ -187,7 +202,7 @@ void Logger::BlankLine(LogType type, std::uint32_t lines) {
 void Engine::Logger::DrawLine(LogType type, std::uint32_t length, char ch) {
 
 	EnsureInitialized();
-	auto& lg = Get(type);
+	auto lg = Get(type);
 	if (!lg) return;
 	lg->log(spdlog::level::info, std::string(length, ch));
 }
@@ -204,14 +219,20 @@ void Engine::Logger::EndSection(LogType type) {
 
 void Logger::Flush(LogType type) {
 	EnsureInitialized();
-	auto& lg = Get(type);
+	auto lg = Get(type);
 	if (!lg) return;
 	lg->flush();
 }
 
 void Logger::FlushAll() {
 	EnsureInitialized();
-	for (auto& lg : loggers_) if (lg) lg->flush();
+	// 終了処理による配列解放から各Loggerを保持する
+	std::vector<std::shared_ptr<spdlog::logger>> loggers;
+	{
+		std::scoped_lock lock(mutex_);
+		loggers = loggers_;
+	}
+	for (auto& logger : loggers) if (logger) logger->flush();
 }
 
 std::vector<Logger::LogEntry> Logger::GetRecentLogs(LogType type) {
@@ -227,6 +248,7 @@ std::vector<Logger::LogEntry> Logger::GetRecentLogs(LogType type) {
 void Logger::AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message) {
 
 	std::scoped_lock lock(mutex_);
+	if (!initialized_) return;
 	const auto index = static_cast<std::size_t>(type);
 	if (recentLogs_.size() <= index) {
 		return;
@@ -288,9 +310,11 @@ Logger::ScopedOutput& Logger::ScopedOutput::operator=(ScopedOutput&& other) noex
 
 namespace Engine {
 
-	std::shared_ptr<spdlog::logger>& Logger::Get(LogType type) {
+	std::shared_ptr<spdlog::logger> Logger::Get(LogType type) {
 
+		// 取得したLoggerの寿命を呼出し側でも保持する
+		std::scoped_lock lock(mutex_);
 		const std::size_t index = static_cast<std::size_t>(type);
-		return index < loggers_.size() ? loggers_[index] : invalidLogger_;
+		return index < loggers_.size() ? loggers_[index] : nullptr;
 	}
 }

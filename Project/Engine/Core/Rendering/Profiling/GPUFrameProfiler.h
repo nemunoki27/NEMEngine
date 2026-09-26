@@ -30,7 +30,7 @@ namespace Engine {
 		static GPUFrameProfiler& GetInstance();
 
 		// フレーム開始で初回は遅延初期化し前フレームの計測結果をFrameProfilerへ反映してから記録をリセットする
-		void BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue);
+		void BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue, GraphicsResourceRetirement& retirement);
 		// パス計測(BeginFrame～Resolveの間のみ有効)
 		void BeginPass(ID3D12GraphicsCommandList* commandList, const std::string& name);
 		void EndPass(ID3D12GraphicsCommandList* commandList);
@@ -60,6 +60,7 @@ namespace Engine {
 			ComPtr<ID3D12QueryHeap> queryHeap{};
 			ComPtr<ID3D12Resource> readbackBuffer{};
 
+			uint64_t frameSerial = UINT64_MAX;
 			bool active = false;
 			uint32_t nextTimestamp = 0;
 			std::vector<PassRecord> passes{};
@@ -79,6 +80,7 @@ namespace Engine {
 		static constexpr uint32_t kMaxTimestamps = 512;
 
 		std::array<FrameQueryState, kGraphicsFrameContextCount> frameStates_{};
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		uint64_t frequency_ = 0;
 		bool initialized_ = false;
 

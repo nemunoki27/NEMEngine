@@ -3,7 +3,60 @@
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
 
+// c++
+#include <filesystem>
+#include <string_view>
+#include <vector>
+
 namespace NEMTests {
+
+	//============================================================================
+	//	TestDirectory class
+	//	検証専用ディレクトリを所有し終了時に片付ける
+	//============================================================================
+	class TestDirectory {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		explicit TestDirectory(std::string_view name, const std::filesystem::path& parent = {});
+		~TestDirectory();
+		TestDirectory(const TestDirectory&) = delete;
+		TestDirectory& operator=(const TestDirectory&) = delete;
+
+		// 所有ディレクトリを削除する
+		bool Remove();
+		// Scene削除前に外部Actorの所有を保持する
+		void CaptureSceneAssets();
+		std::vector<std::filesystem::path> GetSceneRecoveries() const;
+
+		//--------- accessor -----------------------------------------------------
+
+		const std::filesystem::path& GetPath() const { return path_; }
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// この検証だけが所有する作業先
+		std::filesystem::path path_;
+		std::filesystem::path recoveryRoot_;
+		std::vector<std::filesystem::path> actorRoots_;
+	};
+
+	// 読込は許可し、置換と書込を失敗させる
+	class TestFileReadLock {
+	public:
+		explicit TestFileReadLock(const std::filesystem::path& path);
+		~TestFileReadLock();
+		TestFileReadLock(const TestFileReadLock&) = delete;
+		TestFileReadLock& operator=(const TestFileReadLock&) = delete;
+	private:
+		void* handle_ = nullptr;
+	};
 
 	struct TestEnableableComponent {
 

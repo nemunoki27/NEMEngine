@@ -48,13 +48,15 @@ namespace Engine {
 
 		// 内部リソースを取得する
 		ID3D12Resource* GetResource() const {
-			return buffers_[GraphicsFrameState::GetCurrentIndex()]->GetResource();
+			const auto& frame = frames_[GraphicsFrameState::GetCurrentIndex()];
+			return frame.slots.empty() ? nullptr : frame.slots[frame.current].buffer->GetResource();
 		}
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const {
-			return GetResource()->GetGPUVirtualAddress();
+			auto* resource = GetResource();
+			return resource ? resource->GetGPUVirtualAddress() : 0;
 		}
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetGPUHandle() const {
-			return srvGPUHandles_[GraphicsFrameState::GetCurrentIndex()];
+			return frames_[GraphicsFrameState::GetCurrentIndex()].handle;
 		}
 
 		// 描画バウンディング名を取得する
@@ -64,31 +66,36 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct Slot {
+
+			std::unique_ptr<DxStructuredBuffer<T>> buffer;
+			uint32_t index = UINT32_MAX;
+			uint32_t capacity = 0;
+			uint64_t lastUsedSerial = UINT64_MAX;
+			uint64_t lowUsageSerial = UINT64_MAX;
+		};
+		struct FrameState {
+
+			std::vector<Slot> slots;
+			size_t current = 0;
+			uint64_t serial = UINT64_MAX;
+			D3D12_GPU_DESCRIPTOR_HANDLE handle{};
+		};
 		//--------- variables ----------------------------------------------------
 
 		ID3D12Device* device_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
-
-		// 描画バウンディング名
 		std::string bindingName_{};
+		std::array<FrameState, kGraphicsFrameContextCount> frames_{};
 
-		// バッファ
-		std::array<std::unique_ptr<DxStructuredBuffer<T>>,
-			kGraphicsFrameContextCount> buffers_{};
-		std::array<D3D12_GPU_DESCRIPTOR_HANDLE,
-			kGraphicsFrameContextCount> srvGPUHandles_{};
-
-		// SRVの最大容量
-		uint32_t capacity_ = 0;
-		std::array<uint32_t, kGraphicsFrameContextCount> srvIndices_ = {
-			UINT32_MAX, UINT32_MAX, UINT32_MAX
-		};
 		//--------- functions ----------------------------------------------------
 
-		// バッファの容量を必要な要素数に合わせて増やす
-		uint32_t RoundUpCapacity(uint32_t value) const;
-		// 現在の資源とDescriptorを描画完了まで預ける
-		void RetireFrame(uint32_t frameIndex);
+		// 完成したBufferとSRVだけを公開する
+		void EnsureSlot(Slot& slot, uint32_t requiredCount);
+		// 使用中の組を回収窓口へ渡す
+		void RetireSlot(Slot& slot);
 	};
 
 	//============================================================================
@@ -97,6 +104,9 @@ namespace Engine {
 	template<typename T>
 	inline void StructuredInstanceBuffer<T>::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 
+		if (!device || !srvDescriptor || (device_ && (device_ != device || srvDescriptor_ != srvDescriptor))) {
+			throw std::logic_error("StructuredBufferのDeviceまたはDescriptorが不正です");
+		}
 		device_ = device;
 		srvDescriptor_ = srvDescriptor;
 	}
@@ -104,11 +114,10 @@ namespace Engine {
 	template<typename T>
 	inline void StructuredInstanceBuffer<T>::Release() {
 
-		for (uint32_t frameIndex = 0; frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
-			RetireFrame(frameIndex);
+		for (auto& frame : frames_) {
+			for (auto& slot : frame.slots) RetireSlot(slot);
+			frame = {};
 		}
-		capacity_ = 0;
-		srvGPUHandles_ = {};
 		device_ = nullptr;
 		srvDescriptor_ = nullptr;
 	}
@@ -122,68 +131,75 @@ namespace Engine {
 	template<typename T>
 	inline void StructuredInstanceBuffer<T>::Upload(const std::span<const T>& data) {
 
-		EnsureCapacity(static_cast<uint32_t>(data.size()));
-		if (data.empty()) {
-			return;
+		if (data.size() > UINT32_MAX) throw std::length_error("StructuredBufferの要素数が多すぎます");
+		auto& frame = frames_[GraphicsFrameState::GetCurrentIndex()];
+		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+		const size_t next = frame.serial == serial ? frame.current + 1 : 0;
+		// 同じframeの先行描画には別の領域を残す
+		if (next == frame.slots.size()) frame.slots.emplace_back();
+		EnsureSlot(frame.slots[next], static_cast<uint32_t>(data.size()));
+		frame.slots[next].buffer->TransferData(data.data(), data.size());
+		frame.current = next;
+		frame.serial = serial;
+		frame.handle = srvDescriptor_->GetGPUHandle(frame.slots[next].index);
+		// 同frameの公開領域を残し、未使用の末尾だけを回収する
+		while (frame.slots.size() > frame.current + 1 && HasExpiredGraphicsResource(frame.slots.back().lastUsedSerial, serial)) {
+			RetireSlot(frame.slots.back());
+			frame.slots.pop_back();
 		}
-		buffers_[GraphicsFrameState::GetCurrentIndex()]->TransferData(
-			data.data(), static_cast<uint32_t>(data.size()));
 	}
 
 	template<typename T>
 	inline void StructuredInstanceBuffer<T>::EnsureCapacity(uint32_t requiredCount) {
 
+		auto& frame = frames_[GraphicsFrameState::GetCurrentIndex()];
+		if (frame.slots.empty()) frame.slots.emplace_back();
+		EnsureSlot(frame.slots[frame.current], requiredCount);
+		frame.handle = srvDescriptor_->GetGPUHandle(frame.slots[frame.current].index);
+	}
+
+	template<typename T>
+	void StructuredInstanceBuffer<T>::EnsureSlot(Slot& slot, uint32_t requiredCount) {
+
+		if (!device_) throw std::logic_error("StructuredBufferが初期化されていません");
 		requiredCount = (std::max)(requiredCount, 1u);
-		// 現在の容量で足りているならなにもしない
-		if (requiredCount <= capacity_) {
-			return;
-		}
-
-		// 新しい容量を計算する
-		uint32_t newCapacity = RoundUpCapacity(requiredCount);
-		for (uint32_t frameIndex = 0;
-			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
-
-			RetireFrame(frameIndex);
-
-			// 各フレームでCPU更新領域を分離する
-			buffers_[frameIndex] = std::make_unique<DxStructuredBuffer<T>>();
-			buffers_[frameIndex]->CreateSRVBuffer(device_, newCapacity);
-			if (!bindingName_.empty()) {
-				const std::string resourceName = bindingName_ +
-					"[" + std::to_string(frameIndex) + "]";
-				buffers_[frameIndex]->GetResource()->SetName(
-					Algorithm::ConvertString(resourceName).c_str());
+		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+		slot.lastUsedSerial = serial;
+		if (slot.capacity >= requiredCount) {
+			// 使用量が小さい状態が続いた場合だけ容量を戻す
+			if (requiredCount > slot.capacity / 4 || slot.capacity <= 64) {
+				slot.lowUsageSerial = UINT64_MAX;
+				return;
 			}
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc =
-				buffers_[frameIndex]->GetSRVDesc(newCapacity);
-			srvDescriptor_->CreateSRV(srvIndices_[frameIndex],
-				buffers_[frameIndex]->GetResource(), srvDesc);
-			srvGPUHandles_[frameIndex] =
-				srvDescriptor_->GetGPUHandle(srvIndices_[frameIndex]);
-			buffers_[frameIndex]->SetSRVGPUHandle(
-				srvGPUHandles_[frameIndex]);
+			if (slot.lowUsageSerial == UINT64_MAX) slot.lowUsageSerial = serial;
+			if (!HasExpiredGraphicsResource(slot.lowUsageSerial, serial)) return;
 		}
-		// 容量を更新する
-		capacity_ = newCapacity;
-	}
-
-	template<typename T>
-	inline uint32_t StructuredInstanceBuffer<T>::RoundUpCapacity(uint32_t value) const {
 		uint32_t capacity = 64;
-		while (capacity < value) {
-			capacity *= 2;
+		while (capacity < requiredCount) {
+			capacity = capacity > UINT32_MAX / 2 ? requiredCount : capacity * 2;
 		}
-		return capacity;
+		Slot candidate;
+		candidate.buffer = std::make_unique<DxStructuredBuffer<T>>();
+		candidate.buffer->CreateSRVBuffer(device_, capacity);
+		if (!bindingName_.empty()) {
+			candidate.buffer->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
+		}
+		srvDescriptor_->CreateSRV(candidate.index, candidate.buffer->GetResource(), candidate.buffer->GetSRVDesc(capacity));
+		candidate.capacity = capacity;
+		candidate.lastUsedSerial = serial;
+		// 未公開のDescriptorは失敗時にその場で返す
+		try { RetireSlot(slot); }
+		catch (...) { srvDescriptor_->Free(candidate.index); throw; }
+		slot = std::move(candidate);
 	}
-	template<typename T>
-	void StructuredInstanceBuffer<T>::RetireFrame(uint32_t frameIndex) {
 
-		if (srvIndices_[frameIndex] != UINT32_MAX) {
-			ComPtr<ID3D12Resource> resource = buffers_[frameIndex]->GetResource();
-			srvDescriptor_->Retire(srvIndices_[frameIndex], std::move(resource));
-			srvIndices_[frameIndex] = UINT32_MAX;
+	template<typename T>
+	void StructuredInstanceBuffer<T>::RetireSlot(Slot& slot) {
+
+		if (slot.index != UINT32_MAX) {
+			ComPtr<ID3D12Resource> resource = slot.buffer->GetResource();
+			srvDescriptor_->Retire(slot.index, std::move(resource));
 		}
-		buffers_[frameIndex].reset();
+		slot = {};
 	}
 } // Engine

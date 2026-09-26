@@ -24,11 +24,8 @@ namespace NEM.ScriptCodeGen
                 return null;
             }
             // abstract / non-concrete は対象外
-            if (symbol.IsAbstract)
-            {
-                return null;
-            }
-            if (!DerivesFromScriptBehaviour(symbol))
+            if (!NEM.ScriptAnalysis.ScriptSymbolRules.IsScript(symbol) ||
+                !NEM.ScriptAnalysis.ScriptSymbolRules.IsPrimaryDeclaration(symbol, classDecl))
             {
                 return null;
             }
@@ -75,11 +72,11 @@ namespace NEM.ScriptCodeGen
             return model;
         }
 
-        internal static bool DerivesFromScriptBehaviour(INamedTypeSymbol symbol)
+        internal static bool DerivesFromMonoBehaviour(INamedTypeSymbol symbol)
         {
             for (INamedTypeSymbol? current = symbol.BaseType; current != null; current = current.BaseType)
             {
-                if (current.ToDisplayString() == ScriptBehaviourFullName)
+                if (current.ToDisplayString() == MonoBehaviourFullName)
                 {
                     return true;
                 }

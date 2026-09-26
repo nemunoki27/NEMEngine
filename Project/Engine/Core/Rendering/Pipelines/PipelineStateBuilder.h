@@ -19,9 +19,9 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		static std::unique_ptr<PipelineState> CreateGraphics(ID3D12Device8* device, DxShaderCompiler* compiler,
+		static std::unique_ptr<PipelineState> CreateGraphics(GraphicsResourceRetirement& retirement, ID3D12Device8* device, DxShaderCompiler* compiler,
 			const GraphicsPipelineDesc& desc, const ShaderAsset* metadata = nullptr);
-		static std::unique_ptr<PipelineState> CreateCompute(ID3D12Device8* device, DxShaderCompiler* compiler,
+		static std::unique_ptr<PipelineState> CreateCompute(GraphicsResourceRetirement& retirement, ID3D12Device8* device, DxShaderCompiler* compiler,
 			const ComputePipelineDesc& desc, const ShaderAsset* metadata = nullptr);
 	private:
 		//========================================================================

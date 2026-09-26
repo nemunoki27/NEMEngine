@@ -14,7 +14,8 @@ namespace Engine {
 
 	class AssetDatabase;
 	struct SceneSaveSnapshot;
-	struct SceneStorageChange;
+	struct JsonFileChange;
+	using SceneStorageChange = JsonFileChange;
 
 	// シーン保存データの検証結果
 	struct SceneStorageIssue {

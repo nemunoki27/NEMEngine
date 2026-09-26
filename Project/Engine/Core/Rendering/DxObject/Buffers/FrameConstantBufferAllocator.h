@@ -3,15 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
-#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include "FrameUploadBufferAllocator.h"
 
 // c++
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
-#include <vector>
 
 // directX
 #include <d3d12.h>
@@ -19,26 +16,30 @@
 namespace Engine {
 
 	//============================================================================
-	//	PostProcessConstantBufferAllocation structure
+	//	FrameConstantBufferAllocation structure
 	//============================================================================
-	struct PostProcessConstantBufferAllocation {
+	struct FrameConstantBufferAllocation {
 
 		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress = 0;
 		size_t sizeInBytes = 0;
 	};
 
 	//============================================================================
-	//	PostProcessConstantBufferAllocator class
-	// PostProcessのDispatchごとに別のCBV領域を切り出すUploadAllocator
+	//	FrameConstantBufferAllocator class
+	// 描画ごとに定数領域を切り出し、GPU完了まで保持する
 	//============================================================================
-	class PostProcessConstantBufferAllocator {
+	class FrameConstantBufferAllocator {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		PostProcessConstantBufferAllocator() = default;
-		~PostProcessConstantBufferAllocator() = default;
+		explicit FrameConstantBufferAllocator(size_t initialCapacity = 64 * 1024);
+		~FrameConstantBufferAllocator() = default;
+		FrameConstantBufferAllocator(const FrameConstantBufferAllocator&) = delete;
+		FrameConstantBufferAllocator& operator=(const FrameConstantBufferAllocator&) = delete;
+		FrameConstantBufferAllocator(FrameConstantBufferAllocator&& other) noexcept = default;
+		FrameConstantBufferAllocator& operator=(FrameConstantBufferAllocator&& other) noexcept = default;
 
 		// フレーム開始時に切り出し位置を戻す
 		void BeginFrame();
@@ -47,9 +48,10 @@ namespace Engine {
 
 		// 構造体をCBV用に転送してGPUアドレスを返す
 		template<typename T>
-		PostProcessConstantBufferAllocation AllocateAndUpload(ID3D12Device* device, const T& data);
+		FrameConstantBufferAllocation AllocateAndUpload(GraphicsResourceRetirement& retirement, ID3D12Device* device, const T& data);
 		// 可変長データをCBV用に転送してGPUアドレスを返す
-		PostProcessConstantBufferAllocation AllocateAndUploadBytes(ID3D12Device* device, std::span<const uint8_t> bytes);
+		FrameConstantBufferAllocation AllocateAndUploadBytes(GraphicsResourceRetirement& retirement,
+			ID3D12Device* device, std::span<const uint8_t> bytes);
 	private:
 		//============================================================================
 		//	private Methods
@@ -57,31 +59,18 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		struct FrameAllocationState {
+		FrameUploadBufferAllocator allocator_;
 
-			ComPtr<ID3D12Resource> resource{};
-			std::vector<ComPtr<ID3D12Resource>> retiredResources{};
-			uint8_t* mappedData = nullptr;
-			size_t capacity = 0;
-			size_t offset = 0;
-		};
-		std::array<FrameAllocationState, kGraphicsFrameContextCount> frameStates_{};
-
-		//--------- functions ----------------------------------------------------
-
-		void EnsureCapacity(ID3D12Device* device,
-			FrameAllocationState& state, size_t requiredSize);
-		static size_t AlignCBV(size_t sizeInBytes);
 	};
 
 	//============================================================================
-	//	PostProcessConstantBufferAllocator templateMethods
+	//	FrameConstantBufferAllocator templateMethods
 	//============================================================================
 	template<typename T>
-	PostProcessConstantBufferAllocation PostProcessConstantBufferAllocator::AllocateAndUpload(
-		ID3D12Device* device, const T& data) {
+	FrameConstantBufferAllocation FrameConstantBufferAllocator::AllocateAndUpload(
+		GraphicsResourceRetirement& retirement, ID3D12Device* device, const T& data) {
 
-		return AllocateAndUploadBytes(device,
+		return AllocateAndUploadBytes(retirement, device,
 			std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(&data), sizeof(T)));
 	}
 } // Engine

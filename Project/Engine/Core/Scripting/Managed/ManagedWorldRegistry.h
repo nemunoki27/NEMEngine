@@ -4,15 +4,17 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 
 // c++
 #include <cstdint>
-#include <vector>
+#include <unordered_map>
 
 namespace Engine {
 
 	// front
 	class ECSWorld;
+	class ECSWorldLifetime;
 
 	//============================================================================
 	//	ManagedWorldRegistry class
@@ -47,19 +49,21 @@ namespace Engine {
 		ManagedWorldRegistry() = default;
 		~ManagedWorldRegistry() = default;
 
-		//--------- types --------------------------------------------------------
+		//--------- structure ----------------------------------------------------
 
-		// 登録枠、free listで再利用し解除時にgenerationを進める
-		struct Slot {
+		struct WorldSlotTag;
+		struct WorldSlot {
 
 			ECSWorld* world = nullptr;
-			uint32_t generation = 1; // 1始まりでゼロ初期化Entityのworldハンドルと衝突させない
-			bool inUse = false;
+			std::shared_ptr<const ECSWorldLifetime> lifetime;
 		};
 
 		//--------- variables ----------------------------------------------------
 
-		std::vector<Slot> slots_;
-		std::vector<uint32_t> free_;
+		// Worldの参照を世代付きで登録する
+		GenerationalPool<WorldSlot, WorldSlotTag> worlds_;
+		// 登録済みWorldから公開ハンドルを引く
+		std::unordered_map<const ECSWorld*, ManagedWorldHandle> handles_;
+
 	};
 } // Engine

@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <array>
@@ -65,7 +65,7 @@ namespace Engine {
 		//========================================================================
 
 		// View用の定数領域を初期化する
-		void Init(ID3D12Device* device);
+		void Init(GraphicsResourceRetirement& retirement, ID3D12Device* device);
 		// 描画ごとの定数領域を解放する
 		void Release();
 		// Viewの行列と履歴を更新する
@@ -90,7 +90,8 @@ namespace Engine {
 			ViewConstantBuffer<MeshViewConstants>{ "ViewConstants" }
 		};
 
-		PostProcessConstantBufferAllocator dynamicConstantAllocator_{};
+		GraphicsResourceRetirement* retirement_ = nullptr;
+		FrameConstantBufferAllocator dynamicConstantAllocator_{};
 		uint64_t dynamicConstantFrameSerial_ = 0;
 		std::array<uint64_t, 2> viewUploadFrameSerials_ = { 0, 0 };
 		std::array<Matrix4x4, 2> previousViewProjections_ = {

@@ -8,7 +8,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 
 // c++
@@ -62,7 +62,7 @@ namespace Engine {
 		PipelineBindingCache perDrawBindCache_{};
 		MaterialParameterBinder materialParamBinder_{};
 		// 描画ごとに別のCBV領域を切り出すアロケータ
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		FrameConstantBufferAllocator constantBufferAllocator_{};
 
 		PipelineBindingCache::SlotID viewCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID shaderGraphTimeCBVSlot_ = PipelineBindingCache::kInvalidSlot;

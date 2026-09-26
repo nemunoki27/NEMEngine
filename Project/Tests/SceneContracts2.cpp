@@ -40,10 +40,10 @@ namespace NEMTests {
 
 		using Storage = Engine::SceneAssetStorage;
 		Storage storage;
-		const auto testRoot = Engine::RuntimePaths::GetGameAssetsRoot() / "Tests" / ("Storage_" + Engine::ToString(Engine::UUID::New()));
+		TestDirectory directory("Storage", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		const auto scenePath = testRoot / "Source.scene.json";
 		const auto referencerPath = testRoot / "Referencer.scene.json";
-		const auto recoveriesBefore = storage.GetRecoveries();
 		std::filesystem::create_directories(testRoot);
 		bool passed = true;
 		std::string error;
@@ -94,14 +94,13 @@ namespace NEMTests {
 		auto failing = snapshot;
 		failing.root["Entities"][0]["Components"]["Name"]["name"] = "Changed";
 		failing.root["Header"]["name"] = "Changed";
-		const auto blockedTemp = std::filesystem::path(scenePath.wstring() + L".tmp");
-		std::filesystem::create_directory(blockedTemp);
-		Engine::JsonAdapter::SaveCanonical(blockedTemp / "block.json", {{ "block", true }});
-		storage.SetProtectedScenes({ id });
-		check(!storage.Save(failing, error), "save failure is reported");
-		check(Engine::ContentHash::FileSHA256(childPath) == beforeFailure, "rollback restores changed actor");
-		storage.SetProtectedScenes({});
-		std::filesystem::remove_all(blockedTemp);
+		{
+			TestFileReadLock lockedScene(scenePath);
+			storage.SetProtectedScenes({ id });
+			check(!storage.Save(failing, error), "save failure is reported");
+			check(Engine::ContentHash::FileSHA256(childPath) == beforeFailure, "rollback restores changed actor");
+			storage.SetProtectedScenes({});
+		}
 		const auto actorBackup = testRoot / "Original.actor.json";
 		std::filesystem::copy_file(childPath, actorBackup);
 		std::filesystem::remove(childPath);
@@ -159,43 +158,36 @@ namespace NEMTests {
 		check(!storage.Delete(scenePath, database, error), "external actor scene reference protected");
 		const auto referencerActorRoot = Storage::ResolveActorRoot(referencerPath, referencerID);
 		check(!storage.Delete(Engine::RuntimePaths::GetGameAssetsRoot(), database, error), "asset root protected");
+		directory.CaptureSceneAssets();
 		check(storage.Delete(testRoot, database, error), "delete containing directory and owned actors");
 		check(!std::filesystem::exists(scenePath) && !std::filesystem::exists(actorRoot) && !std::filesystem::exists(referencerActorRoot), "no remaining owned actors");
-		const auto records = storage.GetRecoveries();
+		const auto records = directory.GetSceneRecoveries();
 		bool recoveredDeletion = false;
-		for (const auto& directory : records) {
-			if (std::find(recoveriesBefore.begin(), recoveriesBefore.end(), directory) != recoveriesBefore.end()) continue;
-			const auto record = Engine::JsonAdapter::Load(directory / "operation.json", false);
+		for (const auto& recovery : records) {
+			const auto record = Engine::JsonAdapter::Load(recovery / "operation.json", false);
 			if (record.value("label", "") == "アセット削除" && record.value("state", "") == "completed") {
 				storage.SetProtectedScenes({ id });
-				check(!storage.Recover(directory, error), "deleted loaded scene protected during recovery");
+				check(!storage.Recover(recovery, error), "deleted loaded scene protected during recovery");
 				storage.SetProtectedScenes({});
 				auto interrupted = record;
 				interrupted["state"] = "pending";
-				Engine::JsonAdapter::SaveCanonical(directory / "operation.json", interrupted);
-				std::filesystem::rename(directory / "operation.json", directory / "operation.json.bak");
+				Engine::JsonAdapter::SaveCanonical(recovery / "operation.json", interrupted);
+				std::filesystem::rename(recovery / "operation.json", recovery / "operation.json.bak");
 				check(!storage.GetRecoveries(true).empty(), "interrupted operation detected");
 				check(!storage.Delete(testRoot, database, error), "pending recovery blocks new operations");
-				check(storage.Recover(directory, error), "recover deleted scene directory");
+				check(storage.Recover(recovery, error), "recover deleted scene recovery");
 				recoveredDeletion = true;
 				check(std::filesystem::exists(scenePath) && std::filesystem::exists(childPath), "recovery includes external actors");
 			}
 		}
 		check(recoveredDeletion, "deletion recovery record exists");
-		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
-		std::filesystem::remove_all(actorRoot, ec);
-		std::filesystem::remove_all(referencerActorRoot, ec);
-		for (const auto& directory : records) {
-			if (std::find(recoveriesBefore.begin(), recoveriesBefore.end(), directory) == recoveriesBefore.end()) std::filesystem::remove_all(directory, ec);
-		}
-		return passed && TestSceneStorageSession();
+		return directory.Remove() && passed && TestSceneStorageSession();
 	}
 
 	bool TestExternalActors() {
 
-		const std::filesystem::path testRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests";
+		TestDirectory directory("ExternalActors", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		std::error_code ec;
 		std::filesystem::create_directories(testRoot, ec);
 		if (ec) {
@@ -218,7 +210,7 @@ namespace NEMTests {
 			}
 		}
 		const Engine::AssetID sceneAsset = database.ImportOrGet(
-			"game://Tests/ExternalActors.scene.json", Engine::AssetType::Scene);
+			Engine::RuntimePaths::ToAssetPath(testRoot / "ExternalActors.scene.json"), Engine::AssetType::Scene);
 
 		Engine::ECSWorld sourceWorld;
 		const Engine::Entity sourceEntity = sourceWorld.CreateEntity();
@@ -290,7 +282,7 @@ namespace NEMTests {
 			!monolithicScene.contains("ExternalActors") &&
 			!std::filesystem::exists(actorRoot);
 
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		ec.clear();
 		std::filesystem::remove_all(actorRoot, ec);
 		return passed && !ec;

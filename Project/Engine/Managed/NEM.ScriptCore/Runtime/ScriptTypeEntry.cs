@@ -15,6 +15,7 @@ internal sealed class ScriptTypeEntry {
 
     internal string scriptTypeID = string.Empty;   // 正規化済み GUID
     internal Type type = null!;
+    internal ScriptCallbacks callbacks = null!;
     internal string fullTypeName = string.Empty;
     internal string displayName = string.Empty;
     internal string sourcePath = string.Empty;
@@ -26,8 +27,10 @@ internal sealed class ScriptTypeEntry {
     internal string schemaJson = string.Empty;
     // Stable Field GUID -> FieldInfo。runtime get/set と authoring 適用に使う（hot path では reflection しない）
     internal Dictionary<string, FieldInfo> fieldMap = new(StringComparer.Ordinal);
+    // 未対応の保存値は変換せず保持する
+    internal HashSet<string> unsupportedFields = new(StringComparer.Ordinal);
     // Inspectorで表示できるフィールドだけを取得する
     internal Dictionary<string, FieldInfo> runtimeFieldMap = new(StringComparer.Ordinal);
-    // 参照解決を全インスタンス生成後まで遅らせるフィールドのGUID集合(Entity/Component/ScriptBehaviour参照)
+    // 参照解決を全インスタンス生成後まで遅らせるフィールドのGUID集合(GameObject/Component/MonoBehaviour参照)
     internal HashSet<string> deferredFields = new(StringComparer.Ordinal);
 }

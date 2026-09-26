@@ -15,6 +15,7 @@
 // c++
 #include <array>
 #include <deque>
+#include <memory>
 #include <span>
 #include <tuple>
 #include <unordered_map>
@@ -35,6 +36,15 @@ namespace Engine {
 	//============================================================================
 	//	ECSWorld structures
 	//============================================================================
+	// World終了を外部から確認する状態
+	class ECSWorldLifetime {
+	public:
+		bool IsAlive() const { return alive_; }
+	private:
+		friend class ECSWorld;
+		bool alive_ = true;
+	};
+
 	// エンティティの位置を表す構造体
 	struct EntityLocation {
 
@@ -48,6 +58,8 @@ namespace Engine {
 		uint32_t generation = 0;
 		bool alive = false;
 		bool pendingDestroy = false;
+		bool destroying = false;
+		uint32_t nextFree = UINT32_MAX;
 
 		// シーン側の永続UUID
 		UUID uuid{};
@@ -77,6 +89,13 @@ namespace Engine {
 		uint64_t relocatedComponentBytes = 0;
 	};
 
+	// 無効Componentを走査へ含めるか
+	enum class ECSQueryMode : uint8_t {
+
+		EnabledOnly,
+		IncludeDisabled,
+	};
+
 	//============================================================================
 	//	ECSWorld class
 	//	シーンを構成するエンティティとコンポーネントを管理するクラス
@@ -85,6 +104,7 @@ namespace Engine {
 
 	class ECSWorld {
 		friend class ECSWorldSerialization;
+		friend class WorldCommandBuffer;
 	public:
 		//============================================================================
 		//	public Methods
@@ -183,7 +203,7 @@ namespace Engine {
 		void ForEachBuffer(Fn&& fn);
 		// 固定ComponentType IDに一致するエンティティをアーキタイプ単位で走査
 		template <typename Fn>
-		void ForEach(uint32_t typeID, Fn&& fn);
+		void ForEach(uint32_t typeID, Fn&& fn, ECSQueryMode mode = ECSQueryMode::EnabledOnly);
 		template <typename Fn>
 		void ForEachAliveEntity(Fn&& fn);
 
@@ -236,7 +256,22 @@ namespace Engine {
 		template <typename T>
 		bool IsComponentEnabled(const Entity& entity) const;
 
+		// Componentの削除再追加を識別する番号を返す
+		uint64_t GetComponentInstanceID(const Entity& entity, uint32_t typeID) const;
+		// 追加待ちも含めたScript用の個体番号を返す
+		uint64_t GetBindingComponentInstanceID(const Entity& entity, uint32_t typeID) const;
+		// 追加前の設定値を保持したままChunkへ反映する
+		void ApplyPendingComponent(const Entity& entity, const PendingComponent& component);
+		// Scriptからは追加待ちの値も読み書きする
+		template <typename T>
+		T* TryGetComponentForBinding(const Entity& entity);
+		UntypedDynamicBuffer TryGetBufferForBinding(const Entity& entity, uint32_t typeID);
+
+		// 走査または構造変更が終わるまでCommandを保留する
+		bool IsStructuralChangeDeferred() const { return queryDepth_ != 0 || structuralChange_; }
 		ECSWorldKind GetKind() const { return kind_; }
+		// Worldを所有せず終了状態だけを保持する
+		std::shared_ptr<const ECSWorldLifetime> GetLifetime() const { return lifetime_; }
 		// 構造またはComponent値が変わるたびに進む世代
 		uint64_t GetDataRevision() const { return changes_.GetDataRevision(); }
 		// 描画構成、描画Transform、ライト抽出の変更世代
@@ -265,16 +300,48 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		class StructuralScope {
+		public:
+			explicit StructuralScope(ECSWorld& world);
+			~StructuralScope();
+			StructuralScope(const StructuralScope&) = delete;
+			StructuralScope& operator=(const StructuralScope&) = delete;
+		private:
+			ECSWorld& world_;
+		};
+
+		class QueryScope {
+		public:
+			explicit QueryScope(const ECSWorld& world);
+			~QueryScope();
+			QueryScope(const QueryScope&) = delete;
+			QueryScope& operator=(const QueryScope&) = delete;
+		private:
+			const ECSWorld& world_;
+		};
+
 		//--------- variables ----------------------------------------------------
 
+		// 構造変更中の再入を検出する
+		bool structuralChange_ = false;
+		// Chunkを借用している走査の深度
+		mutable size_t queryDepth_ = 0;
+		// 新しいComponentへ割り当てる個体番号
+		uint64_t nextComponentInstanceID_ = 1;
+		// 登録先へWorld終了を伝える状態
+		std::shared_ptr<ECSWorldLifetime> lifetime_ = std::make_shared<ECSWorldLifetime>();
 		// エンティティIDからエンティティの位置や世代を管理する配列
-		std::vector<EntityRecord> records_;
+		std::deque<EntityRecord> records_;
 		// 編集用または実行用ワールドの種別
 		ECSWorldKind kind_ = ECSWorldKind::Authoring;
-		// 破棄されたエンティティIDの再利用のための空きIDのスタック
-		std::vector<uint32_t> free_;
+		// 再利用するEntity枠の先頭
+		uint32_t freeHead_ = UINT32_MAX;
 		// フレーム終端でまとめて破棄するエンティティ
-		std::vector<Entity> pendingDestroyEntities_;
+		std::deque<Entity> pendingDestroyEntities_;
+		// 破棄通知からのFlush再入を防ぐ
+		bool flushingDestroy_ = false;
 		// スクリプト由来の構造変更を遅延適用するコマンドバッファでworld破棄時に未処理分は安全に破棄される
 		WorldCommandBuffer commandBuffer_;
 		// Prefab/SceneコマンドがFlushで参照する外部サービスで非所有ポインタ、EngineApplicationが設定する
@@ -309,6 +376,10 @@ namespace Engine {
 
 		// 新しいエンティティIDを割り当てる
 		uint32_t AllocateIndex();
+		// Entity枠を無効化し世代を進める
+		void RecycleIndex(uint32_t index);
+		// 連続したComponent個体番号を予約する
+		uint64_t ReserveComponentInstanceIDs(size_t count);
 		// 指定アーキタイプへエンティティを作成する本体
 		Entity CreateEntityInArchetype(EntityArchetype* archetype, UUID stableUUID);
 		// エンティティが存在することを確認する、存在しない場合はアサート
@@ -317,9 +388,12 @@ namespace Engine {
 		void DestroyEntityImmediate(const Entity& entity);
 
 		// エンティティが所属するArchetypeを移動する本体
-		void MigrateEntity(const Entity& entity, const EntitySignature& oldSignature, const EntitySignature& newSignature);
+		void MigrateEntity(const Entity& entity, const EntitySignature& oldSignature,
+			const EntitySignature& newSignature, const PendingComponent* pending = nullptr);
 		// シグネチャにマッチするArchetypeがあれば返し、なければ作成して返す
 		EntityArchetype* GetOrCreateArchetype(const EntitySignature& signature);
+		// 関連Component処理の成否にかかわらず変更を通知する
+		void CompleteComponentChange(const Entity& entity, uint32_t typeID, ComponentMutationKind kind);
 		// Component変更を購読側へ通知する
 		void NotifyComponentMutation(const Entity& entity, uint32_t typeID, ComponentMutationKind kind);
 		// Entityが持つComponentの値変更先をまとめる
@@ -329,6 +403,10 @@ namespace Engine {
 		void ReleaseExternalComponents(const Entity& entity, const EntitySignature* retainedSignature);
 		// コンポーネントをこのワールドへ格納できるか
 		bool CanStoreComponent(const ComponentTypeInfo& info) const;
+		// Worldの格納条件に合わないComponentを拒否する
+		void ValidateComponentStorage(const ComponentTypeInfo& info) const;
+		// 有効なEntityの追加予約から値を取得する
+		void* TryGetPendingComponentData(const Entity& entity, uint32_t typeID);
 
 		// Archetype上のtypeID配列から列番号配列を一度だけ解決する
 		template <size_t N, size_t... I>
@@ -356,9 +434,7 @@ namespace Engine {
 
 		// 型をタイプIDに変換
 		uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
-		Assert::Call(CanStoreComponent(
-			ComponentTypeRegistry::GetInstance().GetInfo(typeID)),
-			"ComponentTypeをこのWorldへ格納できません");
+		ValidateComponentStorage(ComponentTypeRegistry::GetInstance().GetInfo(typeID));
 
 		// 新しいシグネチャを作るために古いシグネチャを取ってくる
 		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
@@ -375,16 +451,14 @@ namespace Engine {
 		// シグネチャを更新してArchetypeを移動する
 		MigrateEntity(entity, oldSignature, newSignature);
 
-		// 関連Buffer等を最終構築した後に現在位置から参照を引き直す
-		auto& addedLocation = records_[entity.index].location;
-		void* addedPtr = addedLocation.archetype->GetRaw(
-			addedLocation.chunkIndex, addedLocation.row, typeID);
-		ComponentTypeRegistry::GetInstance().GetInfo(typeID).onAdded(
-			*this, entity, addedPtr);
-		auto& location = records_[entity.index].location;
-		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
-		NotifyComponentMutation(entity, typeID, ComponentMutationKind::Added);
-		return *(T*)ptr;
+		// 通知中の構造移動後も同じ個体だけを返す
+		const uint64_t instanceID = GetComponentInstanceID(entity, typeID);
+		CompleteComponentChange(entity, typeID, ComponentMutationKind::Added);
+		T* result = TryGetComponent<T>(entity);
+		if (!result || GetComponentInstanceID(entity, typeID) != instanceID) {
+			throw std::runtime_error("追加通知中にComponentが削除されました");
+		}
+		return *result;
 	}
 
 	template <typename T>
@@ -411,9 +485,7 @@ namespace Engine {
 		// シグネチャを更新してArchetypeを移動する
 		MigrateEntity(entity, oldSignature, newSignature);
 		// 本体削除後に関連BufferやRuntime Componentを連動して外す
-		ComponentTypeRegistry::GetInstance().GetInfo(typeID).onRemoved(
-			*this, entity);
-		NotifyComponentMutation(entity, typeID, ComponentMutationKind::Removed);
+		CompleteComponentChange(entity, typeID, ComponentMutationKind::Removed);
 	}
 
 	template <typename T>
@@ -424,9 +496,7 @@ namespace Engine {
 		AssertAlive(entity);
 
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
-		Assert::Call(CanStoreComponent(
-			ComponentTypeRegistry::GetInstance().GetInfo(typeID)),
-			"ComponentTypeをこのWorldへ格納できません");
+		ValidateComponentStorage(ComponentTypeRegistry::GetInstance().GetInfo(typeID));
 		EntitySignature oldSignature =
 			records_[entity.index].location.archetype->GetSignature();
 		if (!oldSignature.Test(typeID)) {
@@ -478,6 +548,7 @@ namespace Engine {
 			"Tagを値として取得できません");
 
 		// 必要な型IDは最初に一度だけ取得する
+		QueryScope query(*this);
 		ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
 		const std::array<uint32_t, sizeof...(T)> requiredTypeIDs = { registry.GetID<T>()... };
 
@@ -516,16 +587,14 @@ namespace Engine {
 			"DynamicBuffer要素へkStorageKindを設定してください");
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		ForEach(typeID, [&](const Entity& entity) {
-			if (!IsComponentEnabled<T>(entity)) {
-				return;
-			}
 			fn(entity, GetBuffer<T>(entity));
 			});
 	}
 
 	template <typename Fn>
-	inline void ECSWorld::ForEach(uint32_t typeID, Fn&& fn) {
+	inline void ECSWorld::ForEach(uint32_t typeID, Fn&& fn, ECSQueryMode mode) {
 
+		QueryScope query(*this);
 		if (ComponentTypeRegistry::GetInstance().GetComponentTypeCount() <= typeID) {
 			return;
 		}
@@ -541,7 +610,11 @@ namespace Engine {
 
 				const auto entities = chunk->GetEntities();
 				const uint32_t count = chunk->GetCount();
+				const uint32_t column = archetype->GetColumnIndex(typeID);
 				for (uint32_t row = 0; row < count; ++row) {
+					if (mode == ECSQueryMode::EnabledOnly && !chunk->IsEnabledByColumnIndex(column, row)) {
+						continue;
+					}
 					fnRef(entities[row]);
 				}
 			}
@@ -551,14 +624,21 @@ namespace Engine {
 	template <typename Fn>
 	inline void ECSWorld::ForEachAliveEntity(Fn&& fn) {
 
-		for (uint32_t i = 0; i < records_.size(); ++i) {
-			if (!records_[i].alive) {
-				continue;
+		if (structuralChange_) {
+			throw std::logic_error("構造変更途中のEntityを走査できません");
+		}
+		// Entity一覧だけを保持し、呼出し中の構造変更を許可する
+		std::vector<Entity> entities;
+		entities.reserve(records_.size());
+		for (uint32_t index = 0; index < records_.size(); ++index) {
+			if (records_[index].alive) {
+				entities.push_back({ index, records_[index].generation });
 			}
-			Entity entity{ i, records_[i].generation };
-
-			// 関数を呼び出す
-			fn(entity);
+		}
+		for (const Entity& entity : entities) {
+			if (IsAlive(entity)) {
+				fn(entity);
+			}
 		}
 	}
 
@@ -580,6 +660,8 @@ namespace Engine {
 	template <typename T>
 	inline T& ECSWorld::GetComponent(const Entity& entity) {
 
+		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Tag,
+			"Tagは値を持たないAPIを使用してください");
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Buffer,
 			"DynamicBuffer要素はGetBufferを使用してください");
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Tag,
@@ -598,6 +680,8 @@ namespace Engine {
 	template <typename T>
 	inline T* ECSWorld::TryGetComponent(const Entity& entity) {
 
+		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Tag,
+			"Tagは値を持たないAPIを使用してください");
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Buffer,
 			"DynamicBuffer要素はTryGetBufferを使用してください");
 
@@ -616,6 +700,8 @@ namespace Engine {
 	template <typename T>
 	inline const T* ECSWorld::TryGetComponent(const Entity& entity) const {
 
+		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Tag,
+			"Tagは値を持たないAPIを使用してください");
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Buffer,
 			"DynamicBuffer要素はGetBufferSpanを使用してください");
 		if (!IsAlive(entity)) {
@@ -746,5 +832,16 @@ namespace Engine {
 			fn(entities[row], (std::get<I>(columns)[row])...);
 		}
 	}
-} // Engine
 
+	template <typename T>
+	inline T* ECSWorld::TryGetComponentForBinding(const Entity& entity) {
+
+		if (!IsAlive(entity) || IsPendingDestroy(entity)) {
+			return nullptr;
+		}
+		if (T* component = TryGetComponent<T>(entity)) {
+			return component;
+		}
+		return static_cast<T*>(TryGetPendingComponentData(entity, ComponentTypeRegistry::GetInstance().GetID<T>()));
+	}
+}

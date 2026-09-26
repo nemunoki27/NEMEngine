@@ -9,6 +9,7 @@
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
+#include <Engine/Editor/Tools/Builtin/Effect/ParticleEmitterDebugDraw.h>
 #include <Engine/Editor/Tools/Builtin/Scene/SceneCompositionTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Settings/TagManagerTool.h>
@@ -44,6 +45,9 @@ namespace {
 }
 
 void Engine::RegisterBuiltinEditorTools() {
+
+	// 発生形状の補助描画をEditorへ接続する
+	ParticleEmitterShapeRegistry::GetInstance().SetDebugDrawFunction(&ParticleEmitterDebugDraw::Draw);
 
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();

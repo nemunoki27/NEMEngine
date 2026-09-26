@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
@@ -11,6 +11,9 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+
+// c++
+#include <stdexcept>
 
 //============================================================================
 //	RenderTexture2D classMethods
@@ -23,19 +26,21 @@ Engine::RenderTexture2D::~RenderTexture2D() {
 void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,
 	SRVDescriptor* srvDescriptor, const RenderTextureCreateDesc& desc) {
 
-	// 既にリソースが存在している場合は破棄する
-	Destroy();
+	if (!device || !rtvDescriptor || !srvDescriptor || desc.width == 0 || desc.height == 0) {
+		throw std::invalid_argument("RenderTexture2Dの作成条件が不正です");
+	}
+	RenderTexture2D candidate;
 
-	rtvDescriptor_ = rtvDescriptor;
-	srvDescriptor_ = srvDescriptor;
+	candidate.rtvDescriptor_ = rtvDescriptor;
+	candidate.srvDescriptor_ = srvDescriptor;
 
 	// 描画レンダーテクスチャの情報を保存する
-	format_ = desc.format;
-	hasUAV_ = desc.createUAV;
-	renderTarget_.width = desc.width;
-	renderTarget_.height = desc.height;
-	renderTarget_.format = desc.format;
-	renderTarget_.clearColor = desc.clearColor;
+	candidate.format_ = desc.format;
+	candidate.hasUAV_ = desc.createUAV;
+	candidate.renderTarget_.width = desc.width;
+	candidate.renderTarget_.height = desc.height;
+	candidate.renderTarget_.format = desc.format;
+	candidate.renderTarget_.clearColor = desc.clearColor;
 
 	// リソースデスクリプションの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
@@ -57,25 +62,27 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 	// クリア値の設定
 	D3D12_CLEAR_VALUE clearValue{};
 	clearValue.Format = desc.format;
-	clearValue.Color[0] = renderTarget_.clearColor.r;
-	clearValue.Color[1] = renderTarget_.clearColor.g;
-	clearValue.Color[2] = renderTarget_.clearColor.b;
-	clearValue.Color[3] = renderTarget_.clearColor.a;
+	clearValue.Color[0] = candidate.renderTarget_.clearColor.r;
+	clearValue.Color[1] = candidate.renderTarget_.clearColor.g;
+	clearValue.Color[2] = candidate.renderTarget_.clearColor.b;
+	clearValue.Color[3] = candidate.renderTarget_.clearColor.a;
 
 	// リソースの生成
 	HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-		&resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, IID_PPV_ARGS(&resource_));
-	Assert::Call(SUCCEEDED(hr), "RenderTexture2D用リソースの作成に失敗しました");
+		&resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, IID_PPV_ARGS(&candidate.resource_));
+	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "RenderTexture2D::Create")) {
+		throw std::runtime_error("RenderTexture2D用リソースの作成に失敗しました");
+	}
 	if (!desc.debugName.empty()) {
 
-		resource_->SetName(desc.debugName.c_str());
+		candidate.resource_->SetName(desc.debugName.c_str());
 	}
 
 	// RTVの生成
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	rtvDesc.Format = desc.format;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-	rtvDescriptor->Create(rtvIndex_, renderTarget_.rtvHandle, resource_.Get(), rtvDesc);
+	rtvDescriptor->Create(candidate.rtvIndex_, candidate.renderTarget_.rtvHandle, candidate.resource_.Get(), rtvDesc);
 
 	// SRVの生成
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -83,8 +90,8 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
-	srvDescriptor->CreateSRV(srvIndex_, resource_.Get(), srvDesc);
-	srvGPUHandle_ = srvDescriptor->GetGPUHandle(srvIndex_);
+	srvDescriptor->CreateSRV(candidate.srvIndex_, candidate.resource_.Get(), srvDesc);
+	candidate.srvGPUHandle_ = srvDescriptor->GetGPUHandle(candidate.srvIndex_);
 
 	// UAVの生成
 	if (desc.createUAV) {
@@ -93,8 +100,8 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 		uavDesc.Format = desc.format;
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 		uavDesc.Texture2D.MipSlice = 0;
-		srvDescriptor->CreateUAV(uavIndex_, resource_.Get(), uavDesc);
-		uavGPUHandle_ = srvDescriptor->GetGPUHandle(uavIndex_);
+		srvDescriptor->CreateUAV(candidate.uavIndex_, candidate.resource_.Get(), uavDesc);
+		candidate.uavGPUHandle_ = srvDescriptor->GetGPUHandle(candidate.uavIndex_);
 	}
 
 	Logger::Output(LogType::Engine, "RenderTexture2Dを作成しました: {}x{}", desc.width, desc.height);
@@ -103,7 +110,10 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 	Logger::Output(LogType::Engine, "UAVを使用: {}", desc.createUAV ? "はい" : "いいえ");
 
 	// 現在のリソース状態をレンダーターゲットに設定する
-	currentState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	candidate.currentState_ = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+	// 作成途中の失敗では旧描画先を維持する
+	Swap(candidate);
 }
 
 void Engine::RenderTexture2D::Destroy() {
@@ -148,4 +158,20 @@ void Engine::RenderTexture2D::Transition(DxCommand& dxCommand, D3D12_RESOURCE_ST
 	}
 	dxCommand.TransitionBarriers({ resource_.Get() }, currentState_, newState);
 	currentState_ = newState;
+}
+
+void Engine::RenderTexture2D::Swap(RenderTexture2D& other) noexcept {
+
+	std::swap(rtvDescriptor_, other.rtvDescriptor_);
+	std::swap(srvDescriptor_, other.srvDescriptor_);
+	std::swap(renderTarget_, other.renderTarget_);
+	std::swap(resource_, other.resource_);
+	std::swap(srvGPUHandle_, other.srvGPUHandle_);
+	std::swap(uavGPUHandle_, other.uavGPUHandle_);
+	std::swap(currentState_, other.currentState_);
+	std::swap(format_, other.format_);
+	std::swap(hasUAV_, other.hasUAV_);
+	std::swap(rtvIndex_, other.rtvIndex_);
+	std::swap(srvIndex_, other.srvIndex_);
+	std::swap(uavIndex_, other.uavIndex_);
 }

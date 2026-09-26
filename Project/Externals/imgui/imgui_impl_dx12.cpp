@@ -311,6 +311,49 @@ static inline void SafeRelease(T*& res)
     res = nullptr;
 }
 
+// NEM: Engineへ参照を渡してからBackendの所有を解除する
+template<typename T>
+static void ImGui_ImplDX12_RetireResource(T*& resource)
+{
+    ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
+    if (resource && bd->InitInfo.ResourceRetireFn)
+        bd->InitInfo.ResourceRetireFn(&bd->InitInfo, resource);
+    SafeRelease(resource);
+}
+
+// NEM: Fenceと表示待機をEngineの消失検出へ接続する
+static bool ImGui_ImplDX12_WaitForGPU(ID3D12Fence* fence, UINT64 value, HANDLE event)
+{
+    ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
+    if (bd->InitInfo.WaitForGPUFn)
+        return bd->InitInfo.WaitForGPUFn(&bd->InitInfo, fence, value, event);
+    bool registered = false;
+    for (;;)
+    {
+        if (FAILED(bd->pd3dDevice->GetDeviceRemovedReason())) return false;
+        if (!fence && !event) return true;
+        if (fence)
+        {
+            const UINT64 completed = fence->GetCompletedValue();
+            if (completed == ~UINT64(0)) return false;
+            if (completed >= value) return true;
+            if (event && !registered)
+            {
+                if (FAILED(fence->SetEventOnCompletion(value, event))) event = nullptr;
+                registered = event != nullptr;
+            }
+        }
+        if (event)
+        {
+            const DWORD result = WaitForSingleObject(event, 250);
+            if (result == WAIT_OBJECT_0 && !fence) return SUCCEEDED(bd->pd3dDevice->GetDeviceRemovedReason());
+            if (result != WAIT_OBJECT_0 && result != WAIT_TIMEOUT) return false;
+        }
+        else
+            Sleep(250);
+    }
+}
+
 // Draw callbacks
 static void ImGui_ImplDX12_DrawCallback_ResetRenderState(const ImDrawList*, const ImDrawCmd*)   {} // Intentionally empty. Used as an identifier for rendering loop to call its code. Simpler to implement this way.
 static void ImGui_ImplDX12_DrawCallback_SetSamplerLinear(const ImDrawList*, const ImDrawCmd*)   { ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData(); ImGui_ImplDX12_SetupSamplerLinear(bd->RenderState->CommandList); }
@@ -319,6 +362,7 @@ static void ImGui_ImplDX12_DrawCallback_SetSamplerNearest(const ImDrawList*, con
 // Render function
 void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list)
 {
+    if (!ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     // Avoid rendering when minimized
     if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
         return;
@@ -339,7 +383,7 @@ void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandL
     // Create and grow vertex/index buffers if needed
     if (fr->VertexBuffer == nullptr || fr->VertexBufferSize < draw_data->TotalVtxCount)
     {
-        SafeRelease(fr->VertexBuffer);
+        ImGui_ImplDX12_RetireResource(fr->VertexBuffer);
         fr->VertexBufferSize = draw_data->TotalVtxCount + 5000;
         D3D12_HEAP_PROPERTIES props = {};
         props.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -360,7 +404,7 @@ void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandL
     }
     if (fr->IndexBuffer == nullptr || fr->IndexBufferSize < draw_data->TotalIdxCount)
     {
-        SafeRelease(fr->IndexBuffer);
+        ImGui_ImplDX12_RetireResource(fr->IndexBuffer);
         fr->IndexBufferSize = draw_data->TotalIdxCount + 10000;
         D3D12_HEAP_PROPERTIES props = {};
         props.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -468,7 +512,7 @@ static void ImGui_ImplDX12_DestroyTexture(ImTextureData* tex)
         IM_ASSERT(backend_tex->hFontSrvGpuDescHandle.ptr == (UINT64)tex->TexID);
         ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
         bd->InitInfo.SrvDescriptorFreeFn(&bd->InitInfo, backend_tex->hFontSrvCpuDescHandle, backend_tex->hFontSrvGpuDescHandle);
-        SafeRelease(backend_tex->pTextureResource);
+        ImGui_ImplDX12_RetireResource(backend_tex->pTextureResource);
         backend_tex->hFontSrvCpuDescHandle.ptr = 0;
         backend_tex->hFontSrvGpuDescHandle.ptr = 0;
         IM_DELETE(backend_tex);
@@ -526,7 +570,7 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         srvDesc.Texture2D.MostDetailedMip = 0;
         srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
         bd->pd3dDevice->CreateShaderResourceView(pTexture, &srvDesc, backend_tex->hFontSrvCpuDescHandle);
-        SafeRelease(backend_tex->pTextureResource);
+        ImGui_ImplDX12_RetireResource(backend_tex->pTextureResource);
         backend_tex->pTextureResource = pTexture;
 
         // Store identifiers
@@ -564,7 +608,7 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
                 bd->pTexUploadBuffer->Unmap(0, &range);
                 bd->pTexUploadBufferMapped = nullptr;
             }
-            SafeRelease(bd->pTexUploadBuffer);
+            ImGui_ImplDX12_RetireResource(bd->pTexUploadBuffer);
 
             D3D12_RESOURCE_DESC desc;
             ZeroMemory(&desc, sizeof(desc));
@@ -588,10 +632,12 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
 
             HRESULT hr = bd->pd3dDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
                 D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&bd->pTexUploadBuffer));
+            if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
             IM_ASSERT(SUCCEEDED(hr));
 
             D3D12_RANGE range = {0, upload_size};
             hr = bd->pTexUploadBuffer->Map(0, &range, &bd->pTexUploadBufferMapped);
+            if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
             IM_ASSERT(SUCCEEDED(hr));
             bd->pTexUploadBufferSize = upload_size;
         }
@@ -644,18 +690,19 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         }
 
         HRESULT hr = cmdList->Close();
+        if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
         IM_ASSERT(SUCCEEDED(hr));
         ID3D12CommandQueue* cmdQueue = bd->pCommandQueue;
         cmdQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&cmdList);
         hr = cmdQueue->Signal(bd->Fence, ++bd->FenceLastSignaledValue);
+        if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
         IM_ASSERT(SUCCEEDED(hr));
 
         // FIXME-OPT: Suboptimal?
         // - To remove this may need to create NumFramesInFlight x ImGui_ImplDX12_FrameContext in backend data (mimick docking version)
         // - Store per-frame in flight: upload buffer?
         // - Where do cmdList and cmdAlloc fit?
-        bd->Fence->SetEventOnCompletion(bd->FenceLastSignaledValue, bd->FenceEvent);
-        ::WaitForSingleObject(bd->FenceEvent, INFINITE);
+        if (!ImGui_ImplDX12_WaitForGPU(bd->Fence, bd->FenceLastSignaledValue, bd->FenceEvent)) return;
 
         tex->SetStatus(ImTextureStatus_OK);
     }
@@ -673,6 +720,7 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
         ImGui_ImplDX12_InvalidateDeviceObjects();
 
     HRESULT hr = ::CreateDXGIFactory1(IID_PPV_ARGS(&bd->pdxgiFactory));
+    if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return false;
     IM_ASSERT(hr == S_OK);
 
     BOOL allow_tearing = FALSE;
@@ -920,14 +968,18 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
 
     // Create command allocator and command list for ImGui_ImplDX12_UpdateTexture()
     hr = bd->pd3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&bd->pTexCmdAllocator));
+    if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return false;
     IM_ASSERT(SUCCEEDED(hr));
     hr = bd->pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, bd->pTexCmdAllocator, nullptr, IID_PPV_ARGS(&bd->pTexCmdList));
+    if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return false;
     IM_ASSERT(SUCCEEDED(hr));
     hr = bd->pTexCmdList->Close();
+    if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return false;
     IM_ASSERT(SUCCEEDED(hr));
 
     // Create fence.
     hr = bd->pd3dDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&bd->Fence));
+    if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return false;
     IM_ASSERT(hr == S_OK);
     bd->FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     IM_ASSERT(bd->FenceEvent != nullptr);
@@ -937,8 +989,8 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
 
 static void ImGui_ImplDX12_DestroyRenderBuffers(ImGui_ImplDX12_RenderBuffers* render_buffers)
 {
-    SafeRelease(render_buffers->IndexBuffer);
-    SafeRelease(render_buffers->VertexBuffer);
+    ImGui_ImplDX12_RetireResource(render_buffers->IndexBuffer);
+    ImGui_ImplDX12_RetireResource(render_buffers->VertexBuffer);
     render_buffers->IndexBufferSize = render_buffers->VertexBufferSize = 0;
 }
 
@@ -952,10 +1004,10 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
     if (bd->commandQueueOwned)
         SafeRelease(bd->pCommandQueue);
     bd->commandQueueOwned = false;
-    SafeRelease(bd->pRootSignatureLinear);
-    SafeRelease(bd->pRootSignatureNearest);
-    SafeRelease(bd->pPipelineStateLinear);
-    SafeRelease(bd->pPipelineStateNearest);
+    ImGui_ImplDX12_RetireResource(bd->pRootSignatureLinear);
+    ImGui_ImplDX12_RetireResource(bd->pRootSignatureNearest);
+    ImGui_ImplDX12_RetireResource(bd->pPipelineStateLinear);
+    ImGui_ImplDX12_RetireResource(bd->pPipelineStateNearest);
 
     if (bd->pTexUploadBufferMapped)
     {
@@ -963,7 +1015,7 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
         bd->pTexUploadBuffer->Unmap(0, &range);
         bd->pTexUploadBufferMapped = nullptr;
     }
-    SafeRelease(bd->pTexUploadBuffer);
+    ImGui_ImplDX12_RetireResource(bd->pTexUploadBuffer);
     SafeRelease(bd->pTexCmdList);
     SafeRelease(bd->pTexCmdAllocator);
     SafeRelease(bd->Fence);
@@ -1107,12 +1159,16 @@ void ImGui_ImplDX12_Shutdown()
 
 void ImGui_ImplDX12_NewFrame()
 {
+    if (!ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
     IM_ASSERT(bd != nullptr && "Context or backend not initialized! Did you call ImGui_ImplDX12_Init()?");
 
     if (!bd->pPipelineStateLinear)
         if (!ImGui_ImplDX12_CreateDeviceObjects())
+        {
+            if (!ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
             IM_ASSERT(0 && "ImGui_ImplDX12_CreateDeviceObjects() failed!");
+        }
 }
 
 //--------------------------------------------------------------------------------------------------------
@@ -1141,11 +1197,13 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
     for (UINT i = 0; i < bd->numFramesInFlight; ++i)
     {
         res = bd->pd3dDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&vd->FrameCtx[i].CommandAllocator));
+        if (FAILED(res) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
         IM_ASSERT(res == S_OK);
     }
 
     // Create command list.
     res = bd->pd3dDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, vd->FrameCtx[0].CommandAllocator, nullptr, IID_PPV_ARGS(&vd->CommandList));
+    if (FAILED(res) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     IM_ASSERT(res == S_OK);
     vd->CommandList->Close();
 
@@ -1171,8 +1229,10 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
 
     IDXGISwapChain1* swap_chain = nullptr;
     res = bd->pdxgiFactory->CreateSwapChainForHwnd(vd->CommandQueue, hwnd, &sd1, nullptr, nullptr, &swap_chain);
+    if (FAILED(res) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     IM_ASSERT(res == S_OK);
     res = bd->pdxgiFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_WINDOW_CHANGES); // Disable e.g. Alt+Enter
+    if (FAILED(res) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     IM_ASSERT(res == S_OK);
 
     // Or swapChain.As(&mSwapChain)
@@ -1190,6 +1250,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
         desc.NodeMask = 1;
 
         HRESULT hr = bd->pd3dDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&vd->RtvDescHeap));
+        if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
         IM_ASSERT(hr == S_OK);
 
         SIZE_T rtv_descriptor_size = bd->pd3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -1210,6 +1271,7 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
         }
 
         hr = vd->SwapChain->SetMaximumFrameLatency(bd->numFramesInFlight);
+        if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
         IM_ASSERT(hr == S_OK);
         vd->SwapChainWaitableObject = vd->SwapChain->GetFrameLatencyWaitableObject();
     }
@@ -1218,32 +1280,22 @@ static void ImGui_ImplDX12_CreateWindow(ImGuiViewport* viewport)
         ImGui_ImplDX12_DestroyRenderBuffers(&vd->FrameRenderBuffers[i]);
 }
 
-static void ImGui_WaitForPendingOperations(ImGui_ImplDX12_ViewportData* vd)
+static bool ImGui_WaitForPendingOperations(ImGui_ImplDX12_ViewportData* vd)
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
-    HRESULT hr = vd->CommandQueue->Signal(bd->Fence, ++bd->FenceLastSignaledValue);
-    IM_ASSERT(hr == S_OK);
-
-    hr = bd->Fence->SetEventOnCompletion(bd->FenceLastSignaledValue, bd->FenceEvent);
-    IM_ASSERT(hr == S_OK);
-    ::WaitForSingleObject(bd->FenceEvent, INFINITE);
+    if (!ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return false;
+    if (!vd->CommandQueue || !bd->Fence) return true;
+    const HRESULT result = vd->CommandQueue->Signal(bd->Fence, ++bd->FenceLastSignaledValue);
+    if (FAILED(result)) return false;
+    return ImGui_ImplDX12_WaitForGPU(bd->Fence, bd->FenceLastSignaledValue, bd->FenceEvent);
 }
 
 static ImGui_ImplDX12_FrameContext* ImGui_WaitForNextFrameContext(ImGui_ImplDX12_ViewportData* vd)
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
     ImGui_ImplDX12_FrameContext* frame_context = &vd->FrameCtx[vd->FrameIndex % vd->NumFramesInFlight];
-    if (bd->Fence->GetCompletedValue() < frame_context->FenceValue)
-    {
-        HRESULT hr = bd->Fence->SetEventOnCompletion(frame_context->FenceValue, bd->FenceEvent);
-        IM_ASSERT(hr == S_OK);
-        HANDLE waitableObjects[] = { vd->SwapChainWaitableObject, bd->FenceEvent };
-        ::WaitForMultipleObjects(2, waitableObjects, TRUE, INFINITE);
-    }
-    else
-    {
-        ::WaitForSingleObject(vd->SwapChainWaitableObject, INFINITE);
-    }
+    if (!ImGui_ImplDX12_WaitForGPU(bd->Fence, frame_context->FenceValue, bd->FenceEvent)) return nullptr;
+    if (!ImGui_ImplDX12_WaitForGPU(nullptr, 0, vd->SwapChainWaitableObject)) return nullptr;
     return frame_context;
 }
 
@@ -1278,7 +1330,7 @@ static void ImGui_ImplDX12_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
     ImGui_ImplDX12_ViewportData* vd = (ImGui_ImplDX12_ViewportData*)viewport->RendererUserData;
 
-    ImGui_WaitForPendingOperations(vd);
+    if (!ImGui_WaitForPendingOperations(vd)) return;
 
     for (UINT i = 0; i < bd->numFramesInFlight; i++)
         SafeRelease(vd->FrameCtx[i].RenderTarget);
@@ -1304,6 +1356,7 @@ static void ImGui_ImplDX12_RenderWindow(ImGuiViewport* viewport, void*)
     ImGui_ImplDX12_ViewportData* vd = (ImGui_ImplDX12_ViewportData*)viewport->RendererUserData;
 
     ImGui_ImplDX12_FrameContext* frame_context = ImGui_WaitForNextFrameContext(vd);
+    if (!frame_context) return;
     UINT back_buffer_idx = vd->SwapChain->GetCurrentBackBufferIndex();
 
     const ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1336,6 +1389,7 @@ static void ImGui_ImplDX12_RenderWindow(ImGuiViewport* viewport, void*)
     vd->CommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&cmd_list);
 
     HRESULT hr = vd->CommandQueue->Signal(bd->Fence, ++bd->FenceLastSignaledValue);
+    if (FAILED(hr) && !ImGui_ImplDX12_WaitForGPU(nullptr, 0, nullptr)) return;
     IM_ASSERT(hr == S_OK);
     frame_context->FenceValue = bd->FenceLastSignaledValue;
 }

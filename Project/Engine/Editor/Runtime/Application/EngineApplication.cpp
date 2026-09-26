@@ -255,9 +255,15 @@ void Engine::EngineApplication::RenderPlatformWindows([[maybe_unused]] GraphicsC
 
 int Engine::RunEditorApplication() {
 
-	Framework framework(std::make_unique<EngineApplication>());
-	framework.Run();
-	return 0;
+	try {
+		Framework framework(std::make_unique<EngineApplication>());
+		framework.Run();
+		return 0;
+	} catch (const std::exception& error) {
+		return Framework::ReportFailure(error.what());
+	} catch (...) {
+		return Framework::ReportFailure("C++例外の詳細を取得できませんでした");
+	}
 }
 
 //============================================================================

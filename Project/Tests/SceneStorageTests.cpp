@@ -1,4 +1,5 @@
 #include "SceneStorageTests.h"
+#include "TestFixtures.h"
 
 //============================================================================
 //	include
@@ -13,8 +14,8 @@
 
 bool TestSceneStorageSession() {
 
-	const auto root = Engine::RuntimePaths::GetGameAssetsRoot() / "Tests" /
-		("StorageSession_" + Engine::ToString(Engine::UUID::New()));
+	NEMTests::TestDirectory directory("StorageSession", Engine::RuntimePaths::GetGameAssetsRoot());
+	const auto& root = directory.GetPath();
 	const auto path = root / "Session.scene.json";
 	std::filesystem::create_directories(root);
 	nlohmann::json document = { { "SchemaVersion", 3 }, { "Header", Engine::ToJson(Engine::SceneHeader{}) },
@@ -53,9 +54,7 @@ bool TestSceneStorageSession() {
 	}
 	snapshot = {};
 	passed &= retained.expired();
-	std::error_code error;
-	std::filesystem::remove_all(root, error);
-	passed &= !error;
+	passed &= directory.Remove();
 	if (!passed) {
 		std::cerr << "Scene storage session lifetime or isolation failed\n";
 	}

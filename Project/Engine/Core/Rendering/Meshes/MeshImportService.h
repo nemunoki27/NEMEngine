@@ -31,7 +31,7 @@ namespace Engine {
 		//============================================================================
 
 		MeshImportService() = default;
-		~MeshImportService() = default;
+		~MeshImportService();
 
 		// 初期化
 		void Init(uint32_t threadCount);

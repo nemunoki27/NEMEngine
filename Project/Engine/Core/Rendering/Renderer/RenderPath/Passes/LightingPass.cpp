@@ -86,12 +86,13 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 
 	// シャドウ無し版、gSceneTLASを参照しない
 	desc.pixel.entry = "main";
-	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 
 	// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
 	desc.pixel.entry = "mainShadowed";
 	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
-	shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
+	shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
+		graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 }
 
 Engine::DxConstBuffer<Engine::LightingPass::LightingConstants>& Engine::LightingPass::AllocateConstantBuffer(
@@ -108,7 +109,7 @@ Engine::DxConstBuffer<Engine::LightingPass::LightingConstants>& Engine::Lighting
 	if (buffers.size() <= bufferIndex) {
 
 		auto buffer = std::make_unique<DxConstBuffer<LightingConstants>>();
-		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+		buffer->CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 		buffers.push_back(std::move(buffer));
 	}
 	return *buffers[bufferIndex++];

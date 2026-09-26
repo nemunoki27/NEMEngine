@@ -25,14 +25,14 @@ namespace Engine {
 		~EntityArchetype() = default;
 
 		// 新しいエンティティを追加し追加したエンティティのチャンク番号と行番号を返す
-		std::pair<uint32_t, uint32_t> Add(const Entity& entity);
+		std::pair<uint32_t, uint32_t> Add(const Entity& entity, uint64_t firstInstanceID);
 		// 行だけ確保して、コンポーネントはまだ構築しない
 		std::pair<uint32_t, uint32_t> AddUninitialized(const Entity& entity);
 		// row番目のエンティティを削除し最後の行と入れ替えて入れ替えたエンティティを返す
 		Entity RemoveSwap(uint32_t chunkIndex, uint32_t row);
 
 		// 指定コンポーネントだけデフォルト構築する
-		void ConstructDefault(uint32_t chunkIndex, uint32_t row, uint32_t typeID);
+		void ConstructDefault(uint32_t chunkIndex, uint32_t row, uint32_t typeID, uint64_t instanceID);
 
 		//--------- accessor -----------------------------------------------------
 

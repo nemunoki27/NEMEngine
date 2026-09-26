@@ -42,6 +42,8 @@ namespace Engine {
 
 		// 逆/転置行列
 		static Matrix4x4 Inverse(const Matrix4x4& m);
+		// 逆行列を求め、失敗時は出力を変更しない
+		static bool TryInverse(const Matrix4x4& matrix, Matrix4x4& inverse);
 		static Matrix4x4 Transpose(const Matrix4x4& m);
 
 		// 拡縮行列

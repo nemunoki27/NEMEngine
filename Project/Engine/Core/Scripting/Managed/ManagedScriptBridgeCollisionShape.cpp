@@ -20,7 +20,7 @@ namespace Engine {
 			if (!world.IsAlive(entity)) {
 				return nullptr;
 			}
-			Engine::CollisionComponent* collision = world.TryGetComponent<Engine::CollisionComponent>(entity);
+			Engine::CollisionComponent* collision = world.TryGetComponentForBinding<Engine::CollisionComponent>(entity);
 			return collision ? &collision->shape : nullptr;
 		}
 	}

@@ -1,5 +1,8 @@
 #include "DxFrameMappedUploadBuffer.h"
 
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <stdexcept>
+
 //============================================================================
 //	DxFrameMappedUploadBuffer classMethods
 //============================================================================
@@ -16,37 +19,39 @@ namespace Engine {
 		ID3D12Device* device, size_t requiredSize,
 		std::string_view resourceName, size_t minimumCapacity) {
 
-		Assert::Call(retirementQueue_ != nullptr, "Upload Bufferの回収窓口が設定されていません");
+		if (!retirementQueue_) throw std::logic_error("Upload Bufferの回収窓口が設定されていません");
 		requiredSize = (std::max)(requiredSize, minimumCapacity);
 		if (requiredSize <= capacity_) {
 			return false;
 		}
 
-		size_t newCapacity = (std::max)(capacity_, minimumCapacity);
+		size_t newCapacity = (std::max)({ capacity_, minimumCapacity, size_t{ 1 } });
 		while (newCapacity < requiredSize) {
-			newCapacity *= 2;
+			newCapacity = newCapacity > SIZE_MAX / 2 ? requiredSize : newCapacity * 2;
 		}
-
-		for (uint32_t frameIndex = 0;
-			frameIndex < kGraphicsFrameContextCount; ++frameIndex) {
-
-			if (resources_[frameIndex]) {
-				retirementQueue_->Retire(std::move(resources_[frameIndex]));
+		std::array<ComPtr<ID3D12Resource>, kGraphicsFrameContextCount> resources;
+		std::array<uint8_t*, kGraphicsFrameContextCount> mapped{};
+		// 全frameの確保とMapを済ませてから公開する
+		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
+			DxUtils::CreateUploadBufferResource(device, resources[index], newCapacity);
+			const HRESULT result = resources[index]->Map(0, nullptr, reinterpret_cast<void**>(&mapped[index]));
+			if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxFrameMappedUploadBuffer::Map")) {
+				throw std::runtime_error("Upload BufferのMapに失敗しました");
 			}
-			mappedData_[frameIndex] = nullptr;
-			DxUtils::CreateBufferResource(
-				device, resources_[frameIndex], newCapacity);
-			const HRESULT hr = resources_[frameIndex]->Map(0, nullptr,
-				reinterpret_cast<void**>(&mappedData_[frameIndex]));
-			Assert::Call(SUCCEEDED(hr),
-				"DxFrameMappedUploadBufferのMapに失敗しました");
 			if (!resourceName.empty()) {
-				const std::string name = std::string(resourceName) +
-					"[" + std::to_string(frameIndex) + "]";
-				resources_[frameIndex]->SetName(
-					Algorithm::ConvertString(name).c_str());
+				const std::string name = std::string(resourceName) + "[" + std::to_string(index) + "]";
+				resources[index]->SetName(Algorithm::ConvertString(name).c_str());
 			}
 		}
+		retirementQueue_->ReservePending(kGraphicsFrameContextCount);
+		for (auto& resource : resources_) {
+			if (resource) retirementQueue_->Retire(resource);
+		}
+		for (auto& resource : resources_) {
+			if (resource) resource->Unmap(0, nullptr);
+		}
+		resources_ = std::move(resources);
+		mappedData_ = mapped;
 		capacity_ = newCapacity;
 		return true;
 	}
@@ -57,12 +62,12 @@ namespace Engine {
 		if (!data || sizeInBytes == 0) {
 			return;
 		}
-		Assert::Call(offset + sizeInBytes <= capacity_,
-			"DxFrameMappedUploadBufferの書き込みが容量を超えています");
+		if (offset > capacity_ || sizeInBytes > capacity_ - offset) {
+			throw std::out_of_range("Upload Bufferの書き込みが容量を超えています");
+		}
 		uint8_t* mapped =
 			mappedData_[GraphicsFrameState::GetCurrentIndex()];
-		Assert::Call(mapped != nullptr,
-			"DxFrameMappedUploadBufferが作成されていません");
+		if (!mapped) throw std::logic_error("Upload Bufferが作成されていません");
 		std::memcpy(mapped + offset, data, sizeInBytes);
 	}
 
@@ -106,6 +111,6 @@ void Engine::DxFrameMappedUploadBuffer::Swap(DxFrameMappedUploadBuffer& other) n
 
 void Engine::DxFrameMappedUploadBuffer::SetRetirementQueue(GraphicsResourceRetirement& queue) {
 
-	Assert::Call(capacity_ == 0 || retirementQueue_ == &queue, "使用中のUpload Bufferの回収窓口は変更できません");
+	if (capacity_ != 0 && retirementQueue_ != &queue) throw std::logic_error("使用中のUpload Bufferの回収窓口は変更できません");
 	retirementQueue_ = &queue;
 }

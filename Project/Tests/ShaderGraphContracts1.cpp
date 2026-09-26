@@ -13,6 +13,7 @@
 #include "GameplayRefactoringTests.h"
 #include "SceneStorageTests.h"
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -43,9 +44,9 @@ namespace NEMTests {
 
 	bool TestShaderGraphCompile() {
 
-		const std::filesystem::path generatedRoot =
-			std::filesystem::current_path() /
-			"Generated/Temp/ShaderGraphTests";
+		TestDirectory directory("ShaderGraph");
+		const auto& generatedRoot = directory.GetPath();
+		const auto shaderRoot = Engine::RuntimePaths::GetEngineAssetsRoot() / "Shaders";
 		std::error_code ec{};
 		std::filesystem::create_directories(
 			generatedRoot, ec);
@@ -128,9 +129,8 @@ namespace NEMTests {
 			auto source = CreateDefaultSurfaceShaderGraph("Source");
 			source.renderState.cullMode = D3D12_CULL_MODE_NONE;
 			MaterialAsset material;
-			std::ifstream materialFile("Project/Engine/Assets/Shaders/Builtin/Mesh/MeshPBR/meshPBR.material.json");
 			nlohmann::json materialData;
-			materialFile >> materialData;
+			if (!JsonAdapter::TryLoad(shaderRoot / "Builtin/Mesh/MeshPBR/meshPBR.material.json", materialData)) return false;
 			if (!FromJson(materialData, material)) return false;
 			const auto resolver = [&](AssetID id, AssetType type, nlohmann::json& data) {
 				if (id == AssetID{ 2, 1 } && type == AssetType::Texture) { data = nlohmann::json::object(); return true; }
@@ -142,10 +142,7 @@ namespace NEMTests {
 				if (id == BuiltinAssets::Pipelines::DefaultMeshMasked) path = "meshPBRMasked.pipeline.json";
 				if (id == BuiltinAssets::Pipelines::DefaultMeshTransparent) path = "meshPBRTransparent.pipeline.json";
 				if (path.empty() || type != AssetType::RenderPipeline) return false;
-				std::ifstream stream("Project/Engine/Assets/Shaders/Builtin/Mesh/MeshPBR/" + path);
-				if (!stream) return false;
-				stream >> data;
-				return true;
+				return JsonAdapter::TryLoad(shaderRoot / "Builtin/Mesh/MeshPBR" / path, data);
 			};
 			ShaderGraphAsset imported;
 			std::string error;
@@ -843,8 +840,9 @@ namespace NEMTests {
 						return false;
 					}
 					const auto graphInclude = (generatedRoot / "DitherFloatDefault").wstring();
+					const auto engineInclude = shaderRoot.wstring();
 					std::array arguments{ L"-T", L"ps_6_6", L"-E", L"main",
-						L"-I", L"Project/Engine/Assets/Shaders", L"-I", graphInclude.c_str() };
+						L"-I", engineInclude.c_str(), L"-I", graphInclude.c_str() };
 					const DxcBuffer input{ source->GetBufferPointer(), source->GetBufferSize(), DXC_CP_UTF8 };
 					ComPtr<IDxcResult> result;
 					HRESULT status = E_FAIL;

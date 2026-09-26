@@ -19,6 +19,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.header.abiVersion = kManagedAbiVersion;
 	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeAPITable));
 	callbacks.header.capabilities = kManagedCapabilitiesAll;
+	callbacks.header.bindingFingerprint = ManagedNativeAPITable::kBindingFingerprint;
 	callbacks.log = &ManagedScriptRuntime::LogCallback;
 	callbacks.getDeltaTime = &ManagedScriptRuntime::GetDeltaTimeCallback;
 	callbacks.getFixedDeltaTime = &ManagedScriptRuntime::GetFixedDeltaTimeCallback;
@@ -60,6 +61,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.setRotation = &ManagedScriptRuntime::SetRotationCallback;
 	callbacks.getLossyScale = &ManagedScriptRuntime::GetLossyScaleCallback;
 	callbacks.hasComponent = &ManagedScriptRuntime::HasComponentCallback;
+	callbacks.getComponentInstanceID = &ManagedScriptRuntime::GetComponentInstanceIDCallback;
 	callbacks.addComponent = &ManagedScriptRuntime::AddComponentCallback;
 	callbacks.removeComponent = &ManagedScriptRuntime::RemoveComponentCallback;
 	callbacks.dynamicBufferLength = &ManagedScriptRuntime::DynamicBufferLengthCallback;

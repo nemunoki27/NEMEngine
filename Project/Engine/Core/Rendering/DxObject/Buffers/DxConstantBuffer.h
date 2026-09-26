@@ -22,7 +22,7 @@ namespace Engine {
 		~DxConstBuffer() = default;
 
 		// 必要なサイズでCBV用リソースを確保し、永続マップを行う
-		void CreateBuffer(ID3D12Device* device);
+		void CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device);
 
 		// 定数データを即時にマップ領域へコピーする
 		void TransferData(const T& data);
@@ -49,9 +49,9 @@ namespace Engine {
 	//	DxConstBuffer templateMethods
 	//============================================================================
 	template<typename T>
-	inline void DxConstBuffer<T>::CreateBuffer(ID3D12Device* device) {
+	inline void DxConstBuffer<T>::CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device) {
 
-		buffer_.Create(device, sizeof(T));
+		buffer_.Create(retirement, device, sizeof(T));
 	}
 
 	template<typename T>

@@ -210,6 +210,7 @@ namespace Engine {
 		uint64_t cachedRenderRevision_ = 0;
 		uint64_t cachedTransformRevision_ = 0;
 		uint64_t cachedMeshResourceRevision_ = 0;
+		uint64_t textureRevision_ = 0;
 		uint64_t cachedLODViewHash_ = 0;
 		uint32_t cachedBLASGeometryCount_ = 0;
 		uint32_t cachedTLASInstanceCount_ = 0;

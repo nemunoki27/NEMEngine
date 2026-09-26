@@ -5,108 +5,31 @@
 //============================================================================
 #include "JsonCanonical.h"
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <fstream>
-#include <iterator>
 
 using namespace Engine;
 
-void JsonFile::Save(const std::string& directoryFilePath, const nlohmann::json& data) {
+bool JsonFile::Save(const std::string& directoryFilePath, const nlohmann::json& data) {
 
-	Save(Algorithm::PathFromUTF8(directoryFilePath), data);
+	return Save(Algorithm::PathFromUTF8(directoryFilePath), data);
 }
 
-void JsonFile::Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data) {
+bool JsonFile::Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data) {
 
-	// 親ディレクトリが無ければ作成する、ゲーム側Configなど初回保存でも失敗しないようにする
-	const std::filesystem::path parentPath = directoryFilePath.parent_path();
-	if (!parentPath.empty()) {
-		std::error_code ec;
-		std::filesystem::create_directories(parentPath, ec);
+	// 非有限値をnullへ置き換えず保存失敗として返す
+	if (JsonCanonical::SerializeCanonical(data, 4).empty()) {
+		return false;
 	}
-
-	std::ofstream file(directoryFilePath);
-
-	// 書き込めなかった場合
-	if (!file.is_open()) {
-
-		Assert::Call(false, "JSONファイルの保存に失敗しました: " + Algorithm::PathToUTF8(directoryFilePath));
-		return;
-	}
-
-	file << data.dump(4); // インデント4で保存
+	return StorageFileUtility::WriteBytes(directoryFilePath, data.dump(4));
 }
 
 bool JsonFile::SaveCanonical(const std::filesystem::path& directoryFilePath,
 	const nlohmann::json& data, int32_t indent) {
 
 	const std::string serialized = JsonCanonical::SerializeCanonical(data, indent);
-	if (serialized.empty()) {
-		return false;
-	}
-
-	std::ifstream currentFile(directoryFilePath, std::ios::binary);
-	const std::string current((std::istreambuf_iterator<char>(currentFile)),
-		std::istreambuf_iterator<char>());
-	currentFile.close();
-	if (current == serialized) {
-		return true;
-	}
-
-	const std::filesystem::path parentPath = directoryFilePath.parent_path();
-	std::error_code ec;
-	if (!parentPath.empty()) {
-		std::filesystem::create_directories(parentPath, ec);
-		if (ec) {
-			return false;
-		}
-	}
-
-	std::filesystem::path tempPath = directoryFilePath;
-	tempPath += L".tmp";
-	{
-		std::ofstream file(tempPath, std::ios::binary | std::ios::trunc);
-		if (!file.is_open()) {
-			return false;
-		}
-		file.write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
-		file.flush();
-		if (!file.good()) {
-			file.close();
-			std::filesystem::remove(tempPath, ec);
-			return false;
-		}
-	}
-
-	const bool targetExists = std::filesystem::exists(directoryFilePath, ec);
-	std::filesystem::path backupPath = directoryFilePath;
-	backupPath += L".bak";
-	if (targetExists) {
-
-		std::filesystem::remove(backupPath, ec);
-		ec.clear();
-		std::filesystem::rename(directoryFilePath, backupPath, ec);
-		if (ec) {
-			std::filesystem::remove(tempPath, ec);
-			return false;
-		}
-	}
-
-	ec.clear();
-	std::filesystem::rename(tempPath, directoryFilePath, ec);
-	if (ec) {
-
-		std::error_code rollbackError;
-		if (targetExists) {
-			std::filesystem::rename(backupPath, directoryFilePath, rollbackError);
-		}
-		std::filesystem::remove(tempPath, rollbackError);
-		return false;
-	}
-	if (targetExists) {
-		std::filesystem::remove(backupPath, ec);
-	}
-	return true;
+	return !serialized.empty() && StorageFileUtility::WriteBytes(directoryFilePath, serialized);
 }
 
 nlohmann::json JsonFile::Load(const std::string& directoryFilePath, bool assertion) {
@@ -116,31 +39,43 @@ nlohmann::json JsonFile::Load(const std::string& directoryFilePath, bool asserti
 
 nlohmann::json JsonFile::Load(const std::filesystem::path& directoryFilePath, bool assertion) {
 
-	std::ifstream file(directoryFilePath);
+	nlohmann::json output;
+	std::string diagnostic;
+	if (!TryLoad(directoryFilePath, output, &diagnostic) && assertion) {
+		Assert::Call(false, diagnostic);
+	}
+	return output;
+}
 
-	// 読み込めなかった場合
+bool JsonFile::TryLoad(const std::filesystem::path& path, nlohmann::json& output, std::string* diagnostic) {
+
+	if (diagnostic) {
+		diagnostic->clear();
+	}
+	std::ifstream file(path, std::ios::binary);
 	if (!file.is_open()) {
-		if (assertion) {
-
-			Assert::Call(false, "JSONファイルの読み込みに失敗しました: " + Algorithm::PathToUTF8(directoryFilePath));
+		if (diagnostic) {
+			*diagnostic = "JSONファイルの読み込みに失敗しました: " + Algorithm::PathToUTF8(path);
 		}
-		return nlohmann::json();
+		return false;
 	}
-
-	nlohmann::json data;
 	try {
-		file >> data;
-	}
-	catch (const nlohmann::json::parse_error& e) {
-		if (assertion) {
-
-			Assert::Call(false, "JSONファイルの解析に失敗しました: " +
-				Algorithm::PathToUTF8(directoryFilePath) + "\n" + e.what());
+		// 解析完了まで呼出し元のデータを変更しない
+		nlohmann::json parsed = nlohmann::json::parse(file);
+		if (file.bad()) {
+			if (diagnostic) {
+				*diagnostic = "JSONファイルの読み込みが中断されました: " + Algorithm::PathToUTF8(path);
+			}
+			return false;
 		}
-		return nlohmann::json();
+		output = std::move(parsed);
+		return true;
+	} catch (const nlohmann::json::exception& error) {
+		if (diagnostic) {
+			*diagnostic = "JSONファイルの解析に失敗しました: " + Algorithm::PathToUTF8(path) + "\n" + error.what();
+		}
+		return false;
 	}
-
-	return data;
 }
 
 bool JsonFile::Check(const std::string& directoryFilePath, bool assertion) {

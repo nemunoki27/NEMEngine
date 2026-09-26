@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <cmath>
 
@@ -130,8 +131,10 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 	}
 
 	BeginDynamicConstantsFrame();
-	drawGPUAddress_ = dynamicConstantAllocator_.AllocateAndUpload(
-		device, drawConstants).gpuAddress;
+	drawGPUAddress_ =
+		dynamicConstantAllocator_.AllocateAndUpload(
+			*retirement_,
+			device, drawConstants).gpuAddress;
 
 	if (drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineMask ||
 		drawContext.passKind == MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
@@ -141,8 +144,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		params.restrictSubMeshIndex = drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
 		params.alphaSource = drawContext.screenSpaceOutlineMaskAlphaSource;
 		screenSpaceOutlineMaskGPUAddress_ =
-			dynamicConstantAllocator_.AllocateAndUpload(
-				device, params).gpuAddress;
+			dynamicConstantAllocator_.AllocateAndUpload(*retirement_, device, params).gpuAddress;
 	}
 }
 
@@ -153,8 +155,7 @@ void Engine::MeshBatchViewResources::UpdateIndexedIndirectArgsConstants(uint32_t
 	constants.indexCount = indexCount;
 	BeginDynamicConstantsFrame();
 	indirectArgsGPUAddress_ =
-		dynamicConstantAllocator_.AllocateAndUpload(
-			device, constants).gpuAddress;
+		dynamicConstantAllocator_.AllocateAndUpload(*retirement_, device, constants).gpuAddress;
 }
 
 void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView) {
@@ -203,10 +204,13 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view, 
 	view_[viewIndex].Upload(constants);
 }
 
-void Engine::MeshBatchViewResources::Init(ID3D12Device* device) {
+void Engine::MeshBatchViewResources::Init(GraphicsResourceRetirement& retirement, ID3D12Device* device) {
+
+	if (retirement_ && retirement_ != &retirement) throw std::logic_error("Mesh定数Bufferの回収先は変更できません");
+	retirement_ = &retirement;
 
 	for (auto& viewBuffer : view_) {
-		viewBuffer.Init(device);
+		viewBuffer.Init(retirement, device);
 	}
 }
 

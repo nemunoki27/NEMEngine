@@ -60,32 +60,48 @@ Engine::Quaternion Engine::QuaternionFromRotationMatrixRowVector(const Matrix4x4
 	return Quaternion::Normalize(q);
 }
 
-bool Engine::DecomposeAffine3D(const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale) {
+Engine::AffineDecompositionResult Engine::DecomposeAffine3DResult(
+	const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale) {
 
 	constexpr float kEps = 1e-6f;
 
-	outPos = matrix.GetTranslationValue();
+	// 非有限値と透視変換はTRSとして扱わない
+	for (const auto& row : matrix.m) {
+		for (float value : row) {
+			if (!std::isfinite(value)) {
+				return AffineDecompositionResult::Failed;
+			}
+		}
+	}
+	if (matrix.m[0][3] != 0.0f || matrix.m[1][3] != 0.0f || matrix.m[2][3] != 0.0f || matrix.m[3][3] != 1.0f) {
+		return AffineDecompositionResult::Failed;
+	}
 
 	Vector3 axisX(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2]);
 	Vector3 axisY(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2]);
 	Vector3 axisZ(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2]);
 
-	outScale.x = axisX.Length();
-	outScale.y = axisY.Length();
-	outScale.z = axisZ.Length();
+	Vector3 scale;
+	scale.x = std::hypot(axisX.x, axisX.y, axisX.z);
+	scale.y = std::hypot(axisY.x, axisY.y, axisY.z);
+	scale.z = std::hypot(axisZ.x, axisZ.y, axisZ.z);
 
-	if (outScale.x <= kEps || outScale.y <= kEps || outScale.z <= kEps) {
-		return false;
+	if (!std::isfinite(scale.x) || !std::isfinite(scale.y) || !std::isfinite(scale.z) ||
+		scale.x <= kEps || scale.y <= kEps || scale.z <= kEps) {
+		return AffineDecompositionResult::Failed;
 	}
 
-	axisX /= outScale.x;
-	axisY /= outScale.y;
-	axisZ /= outScale.z;
+	axisX /= scale.x;
+	axisY /= scale.y;
+	axisZ /= scale.z;
 
 	// 負スケール補正
 	const float handedness = Vector3::Dot(Vector3::Cross(axisX, axisY), axisZ);
+	if (std::abs(handedness) <= kEps) {
+		return AffineDecompositionResult::Failed;
+	}
 	if (handedness < 0.0f) {
-		outScale.z = -outScale.z;
+		scale.z = -scale.z;
 		axisZ = -axisZ;
 	}
 
@@ -94,8 +110,18 @@ bool Engine::DecomposeAffine3D(const Matrix4x4& matrix, Vector3& outPos, Quatern
 	rotationMatrix.m[1][0] = axisY.x; rotationMatrix.m[1][1] = axisY.y; rotationMatrix.m[1][2] = axisY.z;
 	rotationMatrix.m[2][0] = axisZ.x; rotationMatrix.m[2][1] = axisZ.y; rotationMatrix.m[2][2] = axisZ.z;
 
+	// 分解が成立してから出力を更新する
 	outRotation = QuaternionFromRotationMatrixRowVector(rotationMatrix);
-	return true;
+	outPos = matrix.GetTranslationValue();
+	outScale = scale;
+	const bool approximate = std::abs(Vector3::Dot(axisX, axisY)) > kEps ||
+		std::abs(Vector3::Dot(axisY, axisZ)) > kEps || std::abs(Vector3::Dot(axisZ, axisX)) > kEps;
+	return approximate ? AffineDecompositionResult::Approximate : AffineDecompositionResult::Exact;
+}
+
+bool Engine::DecomposeAffine3D(const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale) {
+
+	return DecomposeAffine3DResult(matrix, outPos, outRotation, outScale) != AffineDecompositionResult::Failed;
 }
 
 Engine::Matrix4x4 Engine::BuildParentFollowMatrix(const Matrix4x4& parentWorld, bool ignoreScale, bool ignoreRotation) {

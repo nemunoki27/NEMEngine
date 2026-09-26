@@ -108,6 +108,10 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 		// 同一エンティティへの重複Destroyはpendingで安全に無視される
 		DestroyEntitySubtree(world, command.target);
 		break;
+	case WorldCommandKind::AddComponentValue:
+
+		world.ApplyPendingComponent(command.target, *command.component);
+		break;
 	case WorldCommandKind::AddComponentByName:
 
 		// 同一componentのAdd/Removeが混在しても、enqueue順(=呼び出し順)で決定的に適用する
@@ -179,25 +183,6 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 				if (const SceneInstance* activeScene = services.sceneInstances->GetActive()) {
 					sceneObject->sceneInstanceID = activeScene->instanceID;
 				}
-			}
-		}
-		if (!command.text.empty()) {
-			NameComponent* nameComponent = world.TryGetComponent<NameComponent>(command.target);
-			if (!nameComponent) {
-				nameComponent = &world.AddComponent<NameComponent>(command.target);
-			}
-			nameComponent->name = command.text;
-		}
-		// callback中にstagingされた初期SRTを適用する、pending中のTransform書き込み
-		if (TransformComponent* transform = world.TryGetComponent<TransformComponent>(command.target)) {
-			if (command.flags & FlagHasPosition) {
-				transform->localPos = command.position;
-			}
-			if (command.flags & FlagHasRotation) {
-				transform->localRotation = Quaternion::Normalize(command.rotation);
-			}
-			if (command.flags & FlagHasScale) {
-				transform->localScale = command.scale;
 			}
 		}
 		// 親付けはTransform確定後に行う

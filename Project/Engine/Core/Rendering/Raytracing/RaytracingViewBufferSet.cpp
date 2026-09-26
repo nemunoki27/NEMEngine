@@ -18,7 +18,7 @@ void Engine::RaytracingViewBufferSet::Init(GraphicsCore& graphicsCore) {
 	}
 
 	// 定数バッファを初期化
-	params_.Init(graphicsCore.GetDXObject().GetDevice());
+	params_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 	initialized_ = true;
 }
 
@@ -61,4 +61,11 @@ void Engine::RaytracingViewBufferSet::RegisterTo(RenderBufferRegistry& registry)
 		.srvGPUHandle = {},.uavGPUHandle = {},.elementCount = 1,.stride = sizeof(RaytracingViewConstantsGPU) });
 	registry.Register({ .alias = "gRaytracingViewConstants",.resource = nullptr,.gpuAddress = params_.GetGPUAddress(),
 		.srvGPUHandle = {},.uavGPUHandle = {},.elementCount = 1,.stride = sizeof(RaytracingViewConstantsGPU) });
+}
+
+void Engine::RaytracingViewBufferSet::Release() {
+
+	// Viewの定数を返して再初期化に備える
+	params_.Release();
+	initialized_ = false;
 }

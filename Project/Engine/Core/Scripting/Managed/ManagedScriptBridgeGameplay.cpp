@@ -54,8 +54,10 @@ namespace Engine {
 
 		ECSWorld* ResolveTargetWorld(ManagedNativeEntity parent) {
 
-			if (ECSWorld* fromParent = ResolveWorld(parent)) {
-				return fromParent;
+			// 親が指定された場合、失効を別Worldで補わない
+			if (parent.world.index != 0xFFFFFFFFu || parent.index != 0xFFFFFFFFu || parent.world.generation != 0) {
+				ECSWorld* fromParent = ResolveWorld(parent);
+				return fromParent && fromParent->IsAlive(ResolveEntity(parent)) ? fromParent : nullptr;
 			}
 			const SystemContext* context = ManagedScriptRuntime::GetCurrentContext();
 			return context ? context->world : nullptr;
@@ -144,11 +146,21 @@ namespace Engine {
 		if (!world) {
 			return MakeNullNativeEntity();
 		}
-		// 空Entityを即時予約する、emptyArchetypeへの行追加のみでコンポーネント追加つまりarchetype移行はflushへ
-		const Entity reserved = world->CreateEntity();
-		const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
-		world->GetCommandBuffer().EnqueueCreateEntity(reserved, name ? name : "", parentEntity);
-		return MakeNativeEntity(*world, reserved);
+		Entity reserved = Entity::Null();
+		try {
+
+			// 初期Componentの予約が完成してからC#へ公開する
+			reserved = world->CreateEntity();
+			const Entity parentEntity = world->IsAlive(ResolveEntity(parent)) ? ResolveEntity(parent) : Entity::Null();
+			world->GetCommandBuffer().EnqueueCreateEntity(*world, reserved, name ? name : "", parentEntity);
+			return MakeNativeEntity(*world, reserved);
+		} catch (...) {
+			if (world->IsAlive(reserved)) {
+				world->DestroyEntity(reserved);
+			}
+			Logger::Output(LogType::Engine, spdlog::level::err, "GameObjectの初期Componentを予約できません");
+			return MakeNullNativeEntity();
+		}
 	}
 
 	ManagedNativeEntity ManagedScriptRuntime::InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID,

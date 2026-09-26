@@ -108,7 +108,7 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 			return;
 		}
 
-		// 旧GPUリソースを解放して破棄する、呼び出しは描画前のフレーム先頭で前フレームのGPU使用は完了している
+		// 旧GPU資源とDescriptorは描画完了まで回収窓口に残す
 		ReleaseMeshResource(it->second);
 		gpuMeshes_.erase(it);
 		requested_.erase(meshAssetID);
@@ -127,7 +127,7 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 
 void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) {
 
-	MeshGPUBuilder::Release(mesh, srvDescriptor_);
+	MeshGPUBuilder::Release(mesh);
 }
 
 void Engine::MeshGPUResourceManager::FlushUploads() {

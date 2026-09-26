@@ -17,10 +17,10 @@ namespace Engine {
 	class HierarchySystem;
 
 	//============================================================================
-	//	JointAttachmentUtility namespace
+	//	JointAttachmentEditor namespace
 	//	エンティティとスキンメッシュのジョイントの親子付け操作
 	//============================================================================
-	namespace JointAttachmentUtility {
+	namespace JointAttachmentEditor {
 
 		// GetJointWorldMatrix / GetAttachedJointWorldMatrix はCore側へ移設済み
 

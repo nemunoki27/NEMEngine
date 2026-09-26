@@ -5,7 +5,7 @@ internal sealed class ScriptInstanceSlot {
 
     // 1始まりの世代。0は無効handleを表す
     internal uint generation;
-    internal ScriptBehaviour? instance;
+    internal MonoBehaviour? instance;
     internal bool inUse;
     // generation枯渇でこの枠を永久欠番にした（再利用しない）
     internal bool retired;

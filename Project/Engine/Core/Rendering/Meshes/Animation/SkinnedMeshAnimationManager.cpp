@@ -90,7 +90,11 @@ void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(
 	}
 
 	// ジョブをワーカープールに追加
-	workerPool_.Enqueue(LoadJob{ .meshAssetID = meshAssetID,.fullPath = fullPath, });
+	if (!workerPool_.Enqueue(LoadJob{ .meshAssetID = meshAssetID,.fullPath = fullPath, })) {
+		// 終了中に受け付けなかった要求を取り除く
+		std::scoped_lock lock(mutex_);
+		queued_.erase(meshAssetID);
+	}
 }
 
 void Engine::SkinnedMeshAnimationManager::WaitAll() {

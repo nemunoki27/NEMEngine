@@ -44,8 +44,6 @@
 
   <ItemGroup>
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- sidecar metadata を source generator へ AdditionalFiles として渡す（Stable ID の正） -->
-    <AdditionalFiles Include="..\GameAssets\**\*.cs.meta" />
     <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
 
     <!-- gameplay API はSDK同梱のDLLを参照する -->

@@ -62,7 +62,7 @@ namespace Engine {
 		}
 		const Entity resolved = ResolveEntity(entity);
 		SkinnedAnimationComponent* anim = world->IsAlive(resolved) ?
-			world->TryGetComponent<SkinnedAnimationComponent>(resolved) : nullptr;
+			world->TryGetComponentForBinding<SkinnedAnimationComponent>(resolved) : nullptr;
 		if (!anim) {
 			return;
 		}
@@ -72,8 +72,14 @@ namespace Engine {
 		anim->enabled = true;
 		if (SkinnedAnimationRuntimeData* runtime =
 			TryGetSkinnedAnimationRuntime(*world, resolved)) {
+			// 終了した同じClipは先頭へ戻し、再生中なら時刻を維持する
+			if (runtime->currentClip == clipName && runtime->animationFinished) {
+				runtime->time = 0.0f;
+				runtime->repeatCount = 0;
+			}
 			runtime->animationFinished = false;
 		}
+		world->MarkComponentModified<SkinnedAnimationComponent>(resolved);
 	}
 
 	int32_t ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback(

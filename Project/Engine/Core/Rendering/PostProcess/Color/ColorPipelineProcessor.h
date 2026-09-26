@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -133,7 +133,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::array<ViewExposureState, 2> viewStates_{};
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		FrameConstantBufferAllocator constantBufferAllocator_{};
 		bool outputTransformLogged_ = false;
 
 		PipelineBindingCache exposureBindingCache_{};

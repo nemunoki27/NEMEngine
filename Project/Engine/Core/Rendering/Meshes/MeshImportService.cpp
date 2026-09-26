@@ -55,6 +55,12 @@ namespace {
 	}
 }
 
+Engine::MeshImportService::~MeshImportService() {
+
+	// 結果の保存先を破棄する前にワーカーを終了する
+	Finalize();
+}
+
 void Engine::MeshImportService::Init(uint32_t threadCount) {
 
 	// ワーカープールの開始
@@ -102,7 +108,12 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 	}
 
 	// ジョブをワーカープールに追加
-	workerPool_.Enqueue(MeshLoadJob{ .assetID = meshAssetID,.fullPath = std::move(fullPath), });
+	if (!workerPool_.Enqueue(MeshLoadJob{ .assetID = meshAssetID,.fullPath = std::move(fullPath), })) {
+		// 受付を断った要求を待機中として残さない
+		std::scoped_lock lock(mutex_);
+		queued_.erase(meshAssetID);
+		return false;
+	}
 
 	return true;
 }

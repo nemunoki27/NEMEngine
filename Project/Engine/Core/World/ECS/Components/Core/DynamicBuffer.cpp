@@ -22,11 +22,24 @@ namespace Engine {
 bool Engine::UntypedDynamicBuffer::SetData(
 	const void* data, uint32_t count) {
 
-	if ((count != 0 && !data) || !Resize(count)) {
+	if (!IsValid() || !triviallyCopyable_ || (count != 0 && !data)) {
+		return false;
+	}
+	// 自分の要素列を指定した場合は範囲と重なりを保護する
+	const uintptr_t source = reinterpret_cast<uintptr_t>(data);
+	const uintptr_t begin = reinterpret_cast<uintptr_t>(GetData());
+	const size_t bytes = elementSize_ * header_->size;
+	const bool internalSource = data && GetData() && source >= begin && source - begin <= bytes;
+	const size_t offset = internalSource ? source - begin : 0;
+	if (internalSource && (offset % elementSize_ != 0 || count > (bytes - offset) / elementSize_)) {
+		return false;
+	}
+	if (!Resize(count)) {
 		return false;
 	}
 	if (count != 0) {
-		std::memcpy(GetData(), data, elementSize_ * count);
+		const void* sourceData = internalSource ? static_cast<const std::byte*>(GetData()) + offset : data;
+		std::memmove(GetData(), sourceData, elementSize_ * count);
 	}
 	return true;
 }
@@ -38,7 +51,7 @@ bool Engine::UntypedDynamicBuffer::SetElement(
 		index >= header_->size) {
 		return false;
 	}
-	std::memcpy(
+	std::memmove(
 		static_cast<std::byte*>(header_->data) + elementSize_ * index,
 		data, elementSize_);
 	return true;
@@ -89,7 +102,8 @@ uint32_t Engine::ReadOnlyUntypedDynamicBuffer::CopyTo(
 	const uint32_t copyCount =
 		(std::min)(header_->size - startIndex, capacity);
 	if (copyCount != 0 && destination) {
-		std::memcpy(
+		// 同じBuffer内への重なったコピーも保護する
+		std::memmove(
 			destination,
 			static_cast<const std::byte*>(GetData()) +
 			elementSize_ * startIndex,
@@ -107,8 +121,20 @@ bool Engine::UntypedDynamicBuffer::Reserve(uint32_t capacity) {
 		return true;
 	}
 
-	void* destination = ::operator new(
-		elementSize_ * capacity, std::align_val_t(elementAlign_));
+	// 逐次追加で毎回確保せず、積算サイズのあふれも拒否する
+	const size_t maxCapacity = (std::min)((std::numeric_limits<size_t>::max)() / elementSize_,
+		static_cast<size_t>((std::numeric_limits<uint32_t>::max)()));
+	if (capacity > maxCapacity) {
+		return false;
+	}
+	const size_t doubled = static_cast<size_t>(header_->capacity) * 2;
+	capacity = static_cast<uint32_t>((std::max)(static_cast<size_t>(capacity), (std::min)(doubled, maxCapacity)));
+	void* destination = nullptr;
+	try {
+		destination = ::operator new(elementSize_ * capacity, std::align_val_t(elementAlign_));
+	} catch (const std::bad_alloc&) {
+		return false;
+	}
 	if (header_->size != 0) {
 		std::memcpy(
 			destination, header_->data, elementSize_ * header_->size);

@@ -97,7 +97,7 @@ void Engine::SceneComponentOverlayRenderer::Init(GraphicsCore& graphicsCore) {
 
 	// 通常RenderBatchとは別に、Overlay専用の小さなGPUバッファを持つ
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
-	spriteView_.Init(device);
+	spriteView_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 
 	initialized_ = true;
 }
@@ -146,7 +146,7 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 		desc.numRenderTargets = 1;
 		desc.rtvFormats[0] = rtvFormat;
 		desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
-		pair.sprite = PipelineStateBuilder::CreateGraphics(device, compiler, desc);
+		pair.sprite = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc);
 		if (!pair.sprite) {
 			return nullptr;
 		}

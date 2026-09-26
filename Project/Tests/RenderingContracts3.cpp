@@ -154,11 +154,9 @@ namespace NEMTests {
 
 	bool TestShaderPathDependencies() {
 
-		const std::filesystem::path testRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() /
-			"Tests" / "RenderFeatureDependencies";
+		TestDirectory directory("RenderFeatureDependencies", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
 		std::filesystem::create_directories(testRoot, ec);
 		if (ec) {
 			return false;
@@ -173,27 +171,27 @@ namespace NEMTests {
 		const nlohmann::json shader = {
 			{ "name", "ReloadTest" },
 			{ "sourceShader",
-				"GameAssets/Tests/RenderFeatureDependencies/reload.CS.hlsl" },
+				Engine::RuntimePaths::ToAssetPath(testRoot / "reload.CS.hlsl") },
 			{ "stages", nlohmann::json::array({ {
 				{ "stage", "CS" },
 				{ "file",
-					"GameAssets/Tests/RenderFeatureDependencies/reload.CS.hlsl" },
+					Engine::RuntimePaths::ToAssetPath(testRoot / "reload.CS.hlsl") },
 				{ "entry", "main" },
 				{ "profile", "cs_6_0" },
 			} }) },
 		};
 		if (!Engine::JsonAdapter::SaveCanonical(shaderPath, shader)) {
-			std::filesystem::remove_all(testRoot, ec);
+			directory.Remove();
 			return false;
 		}
 
 		Engine::AssetDatabase database{};
 		database.Init();
 		const Engine::AssetID sourceID = database.ImportOrGet(
-			"GameAssets/Tests/RenderFeatureDependencies/reload.CS.hlsl",
+			Engine::RuntimePaths::ToAssetPath(testRoot / "reload.CS.hlsl"),
 			Engine::AssetType::Shader);
 		const Engine::AssetID shaderID = database.ImportOrGet(
-			"GameAssets/Tests/RenderFeatureDependencies/reload.shader.json",
+			Engine::RuntimePaths::ToAssetPath(testRoot / "reload.shader.json"),
 			Engine::AssetType::Shader);
 		database.RefreshDependencies(shaderID);
 		const std::vector<Engine::AssetID>& dependencies =
@@ -209,7 +207,7 @@ namespace NEMTests {
 		const auto graph = Engine::CreateDefaultSurfaceShaderGraph("Dependencies");
 		passed &= Engine::JsonAdapter::SaveCanonical(testRoot / "test.shadergraph.json", Engine::ToJson(graph));
 		const auto graphID = database.ImportOrGet(
-			"GameAssets/Tests/RenderFeatureDependencies/test.shadergraph.json", Engine::AssetType::ShaderGraph);
+			Engine::RuntimePaths::ToAssetPath(testRoot / "test.shadergraph.json"), Engine::AssetType::ShaderGraph);
 		auto material = Engine::ShaderGraphArtifactCache::CreateMaterial(graph, graphID);
 		const auto artifact = Engine::ShaderGraphArtifactCache::DescribeReferences(graph, graphID);
 		Engine::ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
@@ -217,7 +215,7 @@ namespace NEMTests {
 		Engine::FindPass(material, Engine::MaterialPassKind::Transparent)->pipeline = missingID;
 		passed &= Engine::JsonAdapter::SaveCanonical(testRoot / "test.material.json", Engine::ToJson(material));
 		const auto materialID = database.ImportOrGet(
-			"GameAssets/Tests/RenderFeatureDependencies/test.material.json", Engine::AssetType::Material);
+			Engine::RuntimePaths::ToAssetPath(testRoot / "test.material.json"), Engine::AssetType::Material);
 		database.RefreshDependencies(materialID);
 		const auto& graphDependencies = database.FindDependencies(materialID);
 		passed &= std::find(graphDependencies.begin(), graphDependencies.end(), graphID) != graphDependencies.end() &&
@@ -238,7 +236,7 @@ namespace NEMTests {
 		const auto& missingDependencies = database.FindDependencies(materialID);
 		passed &= std::find(missingDependencies.begin(), missingDependencies.end(), artifact.opaqueShaderID) !=
 			missingDependencies.end();
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		return passed && !ec;
 	}
 }

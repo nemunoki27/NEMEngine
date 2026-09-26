@@ -34,10 +34,11 @@ namespace Engine {
 	namespace TransformWorldUtility {
 
 		// エンティティ自身のワールドTransformを解決する
-		bool ResolveWorldTransform(ECSWorld& world, const Entity& entity, ResolvedWorldTransform& outTransform);
+		bool ResolveWorldTransform(ECSWorld& world, const Entity& entity,
+			ResolvedWorldTransform& outTransform, bool includePending = false);
 
 		// エンティティの継承設定を反映した親追従Transformを解決する
 		bool ResolveParentFollowTransform(ECSWorld& world, const Entity& entity,
-			ResolvedWorldTransform& outTransform);
+			ResolvedWorldTransform& outTransform, bool includePending = false);
 	}
 } // Engine

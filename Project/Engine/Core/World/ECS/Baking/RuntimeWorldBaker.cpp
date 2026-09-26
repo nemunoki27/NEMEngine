@@ -23,18 +23,20 @@ void Engine::RuntimeWorldBaker::Attach(
 		return;
 	}
 
+	// 購読が成立してから接続先を公開する
+	mutationListenerID_ = world.AddComponentMutationListener(&RuntimeWorldBaker::OnComponentMutation, this);
 	world_ = &world;
+	worldLifetime_ = world.GetLifetime();
 	assetDatabase_ = assetDatabase;
-	mutationListenerID_ = world_->AddComponentMutationListener(
-		&RuntimeWorldBaker::OnComponentMutation, this);
 }
 
 void Engine::RuntimeWorldBaker::Detach() {
 
-	if (world_ && mutationListenerID_ != 0) {
+	if (IsAttached() && mutationListenerID_ != 0) {
 		world_->RemoveComponentMutationListener(mutationListenerID_);
 	}
 	world_ = nullptr;
+	worldLifetime_.reset();
 	assetDatabase_ = nullptr;
 	mutationListenerID_ = 0;
 	dirtyEntities_.clear();
@@ -44,34 +46,41 @@ void Engine::RuntimeWorldBaker::Detach() {
 
 void Engine::RuntimeWorldBaker::BakeAll() {
 
-	if (!world_) {
+	if (!IsAttached() || baking_) {
 		return;
 	}
 
-	// 初回は全Entityを一巡し、最初のSystem更新前に派生データを完成させる
-	baking_ = true;
+	// 全体変換も差分と同じ待機列へ積む
 	world_->ForEachAliveEntity([this](const Entity& entity) {
-		BakeEntity(entity);
-		});
-	baking_ = false;
-	dirtyEntities_.clear();
-	dirtyEntityKeys_.clear();
+		MarkDirty(entity);
+	});
+	Flush();
 }
 
 void Engine::RuntimeWorldBaker::Flush() {
 
-	if (!world_ || dirtyEntities_.empty()) {
+	if (!IsAttached() || baking_) {
 		return;
 	}
 
-	// 通知中に積まれる次回分と分離して安全に差分を処理する
-	std::vector<Entity> entities{};
-	entities.swap(dirtyEntities_);
-	dirtyEntityKeys_.clear();
-
 	baking_ = true;
-	for (const Entity& entity : entities) {
-		BakeEntity(entity);
+	const uint64_t listenerID = mutationListenerID_;
+	try {
+		while (!dirtyEntities_.empty()) {
+
+			// 変換に成功した対象だけ待機列から外す
+			const Entity entity = dirtyEntities_.front();
+			BakeEntity(entity);
+			if (listenerID != mutationListenerID_ || !IsAttached()) {
+				baking_ = false;
+				return;
+			}
+			dirtyEntityKeys_.erase(MakeEntityKey(entity));
+			dirtyEntities_.pop_front();
+		}
+	} catch (...) {
+		baking_ = false;
+		throw;
 	}
 	baking_ = false;
 }
@@ -101,12 +110,17 @@ void Engine::RuntimeWorldBaker::MarkDirty(const Entity& entity) {
 	if (!dirtyEntityKeys_.emplace(key).second) {
 		return;
 	}
-	dirtyEntities_.emplace_back(entity);
+	try {
+		dirtyEntities_.emplace_back(entity);
+	} catch (...) {
+		dirtyEntityKeys_.erase(key);
+		throw;
+	}
 }
 
 void Engine::RuntimeWorldBaker::BakeEntity(const Entity& entity) {
 
-	if (!world_ || !world_->IsAlive(entity)) {
+	if (!IsAttached() || !world_->IsAlive(entity)) {
 		return;
 	}
 

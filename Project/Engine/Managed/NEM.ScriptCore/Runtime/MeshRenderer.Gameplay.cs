@@ -6,10 +6,10 @@ public sealed partial class MeshRenderer {
 
     // subMeshIndex -1は全サブメッシュへ同じ値を設定する
     public MaterialInstance MaterialInstance =>
-        new(entity, RendererMaterialTarget.Mesh);
+        new(gameObject, RendererMaterialTarget.Mesh);
 
     public MaterialInstance GetMaterialInstance(int subMeshIndex) =>
-        new(entity, RendererMaterialTarget.Mesh, subMeshIndex);
+        new(gameObject, RendererMaterialTarget.Mesh, subMeshIndex);
 
     // 全サブメッシュのマテリアル color を上書きする。
     public void SetColor(Color4 color) {

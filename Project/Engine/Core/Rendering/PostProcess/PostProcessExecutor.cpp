@@ -191,7 +191,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			}
 		}
 
-		auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetDevice(), constants);
+		auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), constants);
 		binds.push_back({ cacheEntry.hasFrameConstantsByName ? std::string_view(kFrameConstantsName) : std::string_view{},
 			ComputeBindValueType::CBV, allocation.gpuAddress, {}, 0, 0 });
 	}
@@ -229,7 +230,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 				*materialAsset, parameterLayout, resolveTexture);
 		}
 
-		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetDevice(), bytes);
+		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), bytes);
 
 		binds.push_back({ kParameterConstantsName, ComputeBindValueType::CBV,
 			allocation.gpuAddress, {}, parameterLayout.GetBindPoint(), parameterLayout.GetSpace() });

@@ -49,7 +49,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 	srvDescriptor_ = srvDescriptor;
 
 	// バッファ作成
-	viewResources_.Init(device);
+	viewResources_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 	BufferUploadService* uploadService =
 		&graphicsCore.GetBufferUploadService();
 	meshData_.Init(device, srvDescriptor, uploadService);

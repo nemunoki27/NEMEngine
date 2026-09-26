@@ -82,5 +82,8 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		static uint32_t CalculateMipCount(uint32_t width, uint32_t height);
+		// 完成した資源と管理状態を交換する
+		void Swap(DepthPyramidTexture& other) noexcept;
+
 	};
 } // Engine

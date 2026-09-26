@@ -25,7 +25,8 @@ namespace NEM.ScriptCodeGen
             ImmutableArray<string> metaContents, bool validateOnly)
         {
             var schemas = items.Where(s => s != null).Select(s => s!).ToList();
-            ScriptMetaIndex meta = ScriptMetaIndex.Build(metaContents);
+            ScriptMetaIndex? meta = ScriptMetaIndex.Read(spc, metaContents);
+            if (meta == null) { return; }
 
             ScriptSchemaIdentity.Resolve(spc, schemas, meta, validateOnly);
 
@@ -42,6 +43,7 @@ namespace NEM.ScriptCodeGen
                 json.Append('{');
                 json.Append("\"scriptTypeId\":").Append(JsonString(type.ScriptTypeID)).Append(',');
                 json.Append("\"fullTypeName\":").Append(JsonString(type.FullTypeName)).Append(',');
+                EmitFormerNames(json, meta.GetScriptFormerNames(type.FullTypeName));
                 json.Append("\"fields\":[");
                 bool firstField = true;
                 // Inspector 表示はソース宣言順にする（base→derived、宣言順）。
@@ -78,6 +80,7 @@ namespace NEM.ScriptCodeGen
             json.Append('{');
             json.Append("\"fieldId\":").Append(JsonString(field.FieldID)).Append(',');
             json.Append("\"name\":").Append(JsonString(field.Name)).Append(',');
+            EmitFormerNames(json, field.FormerNames);
             json.Append("\"declaringType\":").Append(JsonString(field.DeclaringType)).Append(',');
             json.Append("\"isPublic\":").Append(field.IsPublic ? "true" : "false").Append(',');
             json.Append("\"isReadOnly\":").Append(field.IsReadOnly ? "true" : "false").Append(',');
@@ -111,6 +114,20 @@ namespace NEM.ScriptCodeGen
             json.Append(',');
             EmitKind(json, field.Kind);
             json.Append('}');
+        }
+
+        // 現在名と合わせて旧名の対応を成果物へ残す
+        private static void EmitFormerNames(StringBuilder json, IEnumerable<string> names)
+        {
+            json.Append("\"formerNames\":[");
+            bool first = true;
+            foreach (string name in names.Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal))
+            {
+                if (!first) { json.Append(','); }
+                first = false;
+                json.Append(JsonString(name));
+            }
+            json.Append("],");
         }
 
         internal static void EmitKind(StringBuilder json, KindInfo kind)

@@ -10,6 +10,7 @@
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 
 // c++
+#include <atomic>
 #include <filesystem>
 #include <unordered_map>
 #include <unordered_set>
@@ -45,10 +46,10 @@ namespace Engine {
 		//============================================================================
 
 		TextureUploadService() = default;
-		~TextureUploadService() = default;
+		~TextureUploadService();
 
 		// 初期化
-		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor, ID3D12CommandQueue* graphicsQueue);
+		void Init(ID3D12Device* device, SRVDescriptor* srvDescriptor);
 
 		// 毎フレーム主スレッド更新
 		void TickFinalize();
@@ -73,6 +74,7 @@ namespace Engine {
 
 		const GPUTextureResource* GetTexture(const std::string& key) const;
 		TextureRequestState GetState(const std::string& key) const;
+		uint64_t GetContentRevision() const { return contentRevision_.load(std::memory_order_relaxed); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -82,6 +84,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		std::atomic<uint64_t> contentRevision_ = 0;
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		TextureGPUUploader uploader_;
 
@@ -103,5 +106,7 @@ namespace Engine {
 
 		// アップロードジョブの記録
 		void DecodeTextureWorker(TextureFileRequestDesc&& job, uint32_t workerIndex);
+		// デコード要求を投入し、受付失敗を状態へ戻す
+		bool QueueDecode(const TextureFileRequestDesc& desc);
 	};
 } // Engine

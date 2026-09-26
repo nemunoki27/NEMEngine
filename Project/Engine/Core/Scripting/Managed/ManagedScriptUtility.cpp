@@ -99,7 +99,7 @@ namespace Engine {
 
 		// 継承設定を反映した親追従行列の逆行列でワールド座標をローカルへ落とす
 		ResolvedWorldTransform parentFollow{};
-		if (!TransformWorldUtility::ResolveParentFollowTransform(world, entity, parentFollow)) {
+		if (!TransformWorldUtility::ResolveParentFollowTransform(world, entity, parentFollow, true)) {
 			return position;
 		}
 		return Vector3::Transform(position, Matrix4x4::Inverse(parentFollow.matrix));

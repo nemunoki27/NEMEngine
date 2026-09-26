@@ -30,7 +30,7 @@ public static class Timers {
         public bool repeating;
         public bool unscaled;
         public Action? callback;
-        public ScriptBehaviour? owner; // null = global（owner 破棄では cancel されない）
+        public MonoBehaviour? owner; // null = global（owner 破棄では cancel されない）
     }
 
     private static readonly List<Entry> entries = new();
@@ -55,16 +55,16 @@ public static class Timers {
     //========================================================================
     //	internal（owner 紐付け / tick / lifecycle）
     //========================================================================
-    internal static TimerHandle Schedule(float delaySeconds, Action callback, ScriptBehaviour owner) => Add(delaySeconds, false, false, callback, owner);
-    internal static TimerHandle ScheduleRepeating(float intervalSeconds, Action callback, ScriptBehaviour owner) => Add(intervalSeconds, true, false, callback, owner);
-    internal static TimerHandle ScheduleUnscaled(float delaySeconds, Action callback, ScriptBehaviour owner) => Add(delaySeconds, false, true, callback, owner);
+    internal static TimerHandle Schedule(float delaySeconds, Action callback, MonoBehaviour owner) => Add(delaySeconds, false, false, callback, owner);
+    internal static TimerHandle ScheduleRepeating(float intervalSeconds, Action callback, MonoBehaviour owner) => Add(intervalSeconds, true, false, callback, owner);
+    internal static TimerHandle ScheduleUnscaled(float delaySeconds, Action callback, MonoBehaviour owner) => Add(delaySeconds, false, true, callback, owner);
 
     internal static bool IsAlive(TimerHandle handle) {
         return handle.index >= 0 && handle.index < entries.Count
             && entries[handle.index].active && entries[handle.index].generation == handle.generation;
     }
 
-    private static TimerHandle Add(float seconds, bool repeating, bool unscaled, Action callback, ScriptBehaviour? owner) {
+    private static TimerHandle Add(float seconds, bool repeating, bool unscaled, Action callback, MonoBehaviour? owner) {
         if (callback == null || seconds < 0.0f || float.IsNaN(seconds) || float.IsInfinity(seconds)) {
             return default;
         }
@@ -106,8 +106,8 @@ public static class Timers {
 
     // BehaviorSystem の Update phase から main thread で呼ばれる。
     internal static void Tick() {
-        float scaledDelta = Time.DeltaTime;
-        float unscaledDelta = Time.UnscaledDeltaTime;
+        float scaledDelta = Time.deltaTime;
+        float unscaledDelta = Time.unscaledDeltaTime;
         // 走査中に追加された timer（index >= count）は次フレームから。cancel は active=false で安全。
         int count = entries.Count;
         for (int i = 0; i < count && i < entries.Count; ++i) {
@@ -116,7 +116,7 @@ public static class Timers {
                 continue;
             }
             // owner 紐付け timer は owner が生存していなければ cancel
-            if (e.owner != null && !e.owner.entity.isAlive) {
+            if (e.owner is not null && !e.owner.objectAlive) {
                 Free(i);
                 continue;
             }
@@ -146,7 +146,7 @@ public static class Timers {
     }
 
     // owner script 破棄時に、その owner に紐づく timer を cancel する（ReleaseSlot から呼ぶ）。
-    internal static void CancelOwnedBy(ScriptBehaviour owner) {
+    internal static void CancelOwnedBy(MonoBehaviour owner) {
         for (int i = 0; i < entries.Count; ++i) {
             if (entries[i].active && ReferenceEquals(entries[i].owner, owner)) {
                 Free(i);

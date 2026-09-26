@@ -5,7 +5,7 @@ namespace SandboxScripts;
 //============================================================================
 //	MeshMaterialTest
 //============================================================================
-public sealed class MeshMaterialTest : ScriptBehaviour {
+public sealed class MeshMaterialTest : MonoBehaviour {
 
 	[SerializeField]
 	private float strength = 0.0f;
@@ -17,7 +17,7 @@ public sealed class MeshMaterialTest : ScriptBehaviour {
 	//========================================================================
 	//	開始時処理
 	//========================================================================
-	public override void Start() {
+	private void Start() {
 
 		meshRenderer = GetComponent<MeshRenderer>();
 	}
@@ -25,7 +25,7 @@ public sealed class MeshMaterialTest : ScriptBehaviour {
 	//========================================================================
 	//	毎フレーム更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
 		if (meshRenderer == null) {
 			return;

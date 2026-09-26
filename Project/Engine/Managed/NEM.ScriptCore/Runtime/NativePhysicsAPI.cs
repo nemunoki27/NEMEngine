@@ -7,45 +7,29 @@ using static NEMEngine.NativeAPI;
 // 接続済みcallbackを用途別に呼び出す
 internal static unsafe class NativePhysicsAPI {
 
-    internal static int CollisionGetShapeInt(NativeEntity entity, int propertyID) {
-        int v = 0;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 4); }
-        return v;
+    // 取得・設定に失敗した形状値を既定値で隠さない
+    private static T ReadShape<T>(NativeEntity entity, int propertyID) where T : unmanaged {
+        T value = default;
+        if (CollisionGetShapeProperty == null || CollisionGetShapeProperty(entity, propertyID, &value, sizeof(T)) == 0) {
+            throw new InvalidOperationException($"Collision形状を取得できません: property={propertyID}");
+        }
+        return value;
     }
 
-    internal static void CollisionSetShapeInt(NativeEntity entity, int propertyID, int value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 4); }
+    private static void WriteShape<T>(NativeEntity entity, int propertyID, T value) where T : unmanaged {
+        if (CollisionSetShapeProperty == null || CollisionSetShapeProperty(entity, propertyID, &value, sizeof(T)) == 0) {
+            throw new InvalidOperationException($"Collision形状を設定できません: property={propertyID}");
+        }
     }
 
-    internal static float CollisionGetShapeFloat(NativeEntity entity, int propertyID) {
-        float v = 0.0f;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 4); }
-        return v;
-    }
-
-    internal static void CollisionSetShapeFloat(NativeEntity entity, int propertyID, float value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 4); }
-    }
-
-    internal static Vector2 CollisionGetShapeVector2(NativeEntity entity, int propertyID) {
-        Vector2 v = default;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 8); }
-        return v;
-    }
-
-    internal static void CollisionSetShapeVector2(NativeEntity entity, int propertyID, Vector2 value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 8); }
-    }
-
-    internal static Vector3 CollisionGetShapeVector3(NativeEntity entity, int propertyID) {
-        Vector3 v = default;
-        if (CollisionGetShapeProperty != null) { CollisionGetShapeProperty(entity, propertyID, &v, 12); }
-        return v;
-    }
-
-    internal static void CollisionSetShapeVector3(NativeEntity entity, int propertyID, Vector3 value) {
-        if (CollisionSetShapeProperty != null) { CollisionSetShapeProperty(entity, propertyID, &value, 12); }
-    }
+    internal static int CollisionGetShapeInt(NativeEntity entity, int propertyID) => ReadShape<int>(entity, propertyID);
+    internal static float CollisionGetShapeFloat(NativeEntity entity, int propertyID) => ReadShape<float>(entity, propertyID);
+    internal static Vector2 CollisionGetShapeVector2(NativeEntity entity, int propertyID) => ReadShape<Vector2>(entity, propertyID);
+    internal static Vector3 CollisionGetShapeVector3(NativeEntity entity, int propertyID) => ReadShape<Vector3>(entity, propertyID);
+    internal static void CollisionSetShapeInt(NativeEntity entity, int propertyID, int value) => WriteShape(entity, propertyID, value);
+    internal static void CollisionSetShapeFloat(NativeEntity entity, int propertyID, float value) => WriteShape(entity, propertyID, value);
+    internal static void CollisionSetShapeVector2(NativeEntity entity, int propertyID, Vector2 value) => WriteShape(entity, propertyID, value);
+    internal static void CollisionSetShapeVector3(NativeEntity entity, int propertyID, Vector3 value) => WriteShape(entity, propertyID, value);
 
     internal static bool RaycastClosest(Vector3 origin, Vector3 direction, float maxDistance,
         uint layerMask, uint targets, out NativeRaycastHit hit) {

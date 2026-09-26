@@ -4,7 +4,7 @@ namespace NEMEngine;
 internal static class ScriptServiceLifetime {
 
     // 個別Scriptが所有する処理を終了する
-    internal static void EndOwner(ScriptBehaviour owner) {
+    internal static void EndOwner(MonoBehaviour owner) {
 
         Coroutines.StopAllForOwner(owner);
         Timers.CancelOwnedBy(owner);

@@ -5,6 +5,8 @@
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -174,51 +176,77 @@ namespace {
 		return 0;
 	}
 
+	Engine::JsonFileJournal::Scope MakeMergeScope(const std::filesystem::path& outputPath) {
+
+		const auto outputKey = Engine::StorageFileUtility::PathKey(outputPath);
+		auto reportPath = outputPath;
+		reportPath += L".merge-conflicts.json";
+		const auto reportKey = Engine::StorageFileUtility::PathKey(reportPath);
+		return {
+			std::filesystem::absolute(outputPath).parent_path() / ".NEMMergeRecovery",
+			[outputKey, reportKey](const std::filesystem::path& path) {
+				const auto key = Engine::StorageFileUtility::PathKey(path);
+				return key == outputKey || key == reportKey;
+			}
+		};
+	}
+
+	int RecoverMergeJson(const std::filesystem::path& outputPath, const std::filesystem::path& recovery) {
+
+		try {
+			std::string error;
+			if (!Engine::JsonFileJournal::Recover(MakeMergeScope(outputPath), recovery, error, [](const std::filesystem::path&) {})) {
+				std::cerr << "マージ結果を復旧できません: " << error << '\n';
+				return 6;
+			}
+			return 0;
+		} catch (const std::exception& exception) {
+			std::cerr << "マージ結果を復旧できません: " << exception.what() << '\n';
+			return 6;
+		}
+	}
+
 	int MergeJsonFiles(const std::filesystem::path& basePath,
 		const std::filesystem::path& ourPath,
 		const std::filesystem::path& theirPath,
 		const std::filesystem::path& outputPath) {
 
-		const nlohmann::json base = Engine::JsonAdapter::Load(basePath);
-		const nlohmann::json ours = Engine::JsonAdapter::Load(ourPath);
-		const nlohmann::json theirs = Engine::JsonAdapter::Load(theirPath);
-		if (base.is_null() || ours.is_null() || theirs.is_null()) {
-			std::cerr << "マージ元ファイルを読み込めません\n";
+		try {
+			nlohmann::json base, ours, theirs;
+			if (!Engine::JsonAdapter::TryLoad(basePath, base) || !Engine::JsonAdapter::TryLoad(ourPath, ours) ||
+				!Engine::JsonAdapter::TryLoad(theirPath, theirs)) {
+				std::cerr << "マージ元ファイルを読み込めません\n";
+				return 6;
+			}
+			const auto result = Engine::JsonSemanticMerge::Merge(base, ours, theirs);
+			std::filesystem::path conflictPath = outputPath;
+			conflictPath += L".merge-conflicts.json";
+			nlohmann::json report = {{ "conflicts", nlohmann::json::array() }};
+			for (const auto& conflict : result.conflicts) {
+				report["conflicts"].push_back({{ "path", conflict.path }, { "base", conflict.base },
+					{ "ours", conflict.ours }, { "theirs", conflict.theirs }});
+			}
+
+			// 2文書の退避と準備が終わってから結果を公開する
+			const auto scope = MakeMergeScope(outputPath);
+			const std::vector<Engine::JsonFileChange> changes{
+				{ conflictPath, report, result.Succeeded() }, { outputPath, result.merged, false }
+			};
+			std::string error;
+			if (!Engine::JsonFileJournal::Commit(scope, changes, "JSON Merge", error,
+				[&scope](const std::filesystem::path& directory, std::string& rollbackError) {
+					return Engine::JsonFileJournal::Recover(scope, directory, rollbackError, [](const std::filesystem::path&) {});
+				})) {
+				std::cerr << "マージ結果を保存できません: " << error << '\n';
+				return 6;
+			}
+			if (result.Succeeded()) return 0;
+			std::cerr << "構造化マージの競合数: " << result.conflicts.size() << '\n';
+			return 7;
+		} catch (const std::exception& error) {
+			std::cerr << "マージ処理に失敗しました: " << error.what() << '\n';
 			return 6;
 		}
-
-		const Engine::JsonMergeResult result =
-			Engine::JsonSemanticMerge::Merge(base, ours, theirs);
-		if (!Engine::JsonAdapter::SaveCanonical(outputPath, result.merged)) {
-			std::cerr << "マージ結果を保存できません\n";
-			return 6;
-		}
-
-		std::filesystem::path conflictPath = outputPath;
-		conflictPath += L".merge-conflicts.json";
-		if (result.Succeeded()) {
-
-			std::error_code ec;
-			std::filesystem::remove(conflictPath, ec);
-			return 0;
-		}
-
-		nlohmann::json conflictReport = nlohmann::json::object();
-		conflictReport["conflicts"] = nlohmann::json::array();
-		for (const Engine::JsonMergeConflict& conflict : result.conflicts) {
-			conflictReport["conflicts"].push_back({
-				{ "path", conflict.path },
-				{ "base", conflict.base },
-				{ "ours", conflict.ours },
-				{ "theirs", conflict.theirs },
-				});
-		}
-		if (!Engine::JsonAdapter::SaveCanonical(conflictPath, conflictReport)) {
-			return 6;
-		}
-		std::cerr << "構造化マージの競合数: " <<
-			result.conflicts.size() << '\n';
-		return 7;
 	}
 
 	int VerifyCook(const std::filesystem::path& manifestPath,
@@ -301,6 +329,9 @@ int main(int argc, char** argv) {
 		std::string_view(argv[3]) == "--include-engine") {
 		return CanonicalizeScenes(std::filesystem::path(argv[2]), true);
 	}
+	if (argc == 4 && std::string_view(argv[1]) == "--recover-json-merge") {
+		return RecoverMergeJson(argv[2], argv[3]);
+	}
 	if (argc == 6 && std::string_view(argv[1]) == "--merge-json") {
 		return MergeJsonFiles(argv[2], argv[3], argv[4], argv[5]);
 	}
@@ -314,6 +345,7 @@ int main(int argc, char** argv) {
 	std::cout << "使い方:\nNEMBuildTool --validate-project <プロジェクトフォルダー>\n"
 		"NEMBuildTool --canonicalize-scenes <プロジェクトフォルダー> [--include-engine]\n"
 		"NEMBuildTool --merge-json <共通祖先> <自分側> <相手側> <出力先>\n"
+		"NEMBuildTool --recover-json-merge <出力先> <復旧記録ディレクトリ>\n"
 		"NEMBuildTool --verify-cook <マニフェスト> <検証対象フォルダー>\n"
 		"NEMBuildTool --cook-shaders <製品ビルドマニフェスト> <出力先>\n";
 	return argc == 1 ? 0 : 1;

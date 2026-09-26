@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <cstring>
 #include <type_traits>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -105,6 +106,8 @@ namespace Engine {
 
 		ComponentTypeRegistry();
 		~ComponentTypeRegistry() = default;
+		ComponentTypeRegistry(const ComponentTypeRegistry&) = delete;
+		ComponentTypeRegistry& operator=(const ComponentTypeRegistry&) = delete;
 
 		// Manifestで指定された固定IDへコンポーネントの種類を登録
 		template <typename T>
@@ -134,6 +137,10 @@ namespace Engine {
 		std::unordered_map<std::string, uint32_t> nameToID_;
 		std::unordered_map<const void*, uint32_t> typeKeyToID_;
 
+		// 型情報と検索表を一組で登録する
+		void RegisterInfo(ComponentTypeInfo info, const void* typeKey);
+
+		// C++型を識別するアドレスを返す
 		template <typename T>
 		static const void* GetTypeKey();
 	};
@@ -144,12 +151,9 @@ namespace Engine {
 	template <typename T>
 	inline void ComponentTypeRegistry::Register(uint32_t id, const std::string_view& name) {
 
-		Assert::Call(id == GetComponentTypeCount(), "ComponentManifestのIDは0から連続させてください");
-		Assert::Call(id < kMaxComponentTypes, "kMaxComponentTypesを増やしてください");
-		Assert::Call(!nameToID_.contains(std::string(name)), "同名のComponentTypeが既に登録されています");
-		Assert::Call(!typeKeyToID_.contains(GetTypeKey<T>()), "同じC++型が既に登録されています");
 
 		// コンポーネントの情報を作成
+		static_assert(std::is_nothrow_destructible_v<T>);
 		ComponentTypeInfo info{};
 		info.name = std::string(name);
 		info.id = id;
@@ -177,7 +181,7 @@ namespace Engine {
 			info.align = (std::max)(alignof(DynamicBufferHeader), alignof(T));
 			info.triviallyRelocatable = false;
 			info.triviallyDestructible = false;
-			info.nothrowMoveConstructible = true;
+			info.nothrowMoveConstructible = std::is_nothrow_move_constructible_v<T>;
 		} else {
 
 			info.size = info.storageKind == ComponentStorageKind::Tag ? 0 : sizeof(T);
@@ -281,7 +285,8 @@ namespace Engine {
 				}
 			}
 			};
-		if constexpr (!ComponentTypeTraits::ResolveSerializable<T>()) {
+		if constexpr (!ComponentTypeTraits::ResolveSerializable<T>() ||
+			ComponentTypeTraits::ResolveStorageKind<T>() == ComponentStorageKind::Tag) {
 
 			// Runtime専用Componentは保存経路を生成せず、JSON変換要件を持たせない
 			info.toJson = []([[maybe_unused]] const ECSWorld& world,
@@ -360,21 +365,32 @@ namespace Engine {
 				};
 		}
 
+		if constexpr (ComponentTypeTraits::ResolveStorageKind<T>() == ComponentStorageKind::Tag) {
+
+			static_assert(std::is_empty_v<T> && std::is_trivially_destructible_v<T>, "Tagへ値や所有資源を保持できません");
+			// Tagは存在だけを管理し、値領域へアクセスしない
+			info.constructDefault = [](void*) {};
+			info.destroy = [](void*) {};
+			info.copyConstruct = [](void*, const void*) {};
+			info.moveConstruct = [](void*, void*) {};
+			info.initializeStorage = [](ECSWorld&, const Entity&, void*) {};
+			info.releaseExternal = [](ECSWorld&, const Entity&, void*) {};
+			info.onAdded = [](ECSWorld&, const Entity&, void*) {};
+			info.onRemoved = [](ECSWorld&, const Entity&) {};
+		}
+
 		// Manifestの固定順で追加
-		infos_.emplace_back(info);
-		nameToID_[info.name] = info.id;
-		typeKeyToID_[GetTypeKey<T>()] = info.id;
+		RegisterInfo(std::move(info), GetTypeKey<T>());
 	}
 
 	template <typename T>
 	inline uint32_t ComponentTypeRegistry::GetID() const {
 
-		static const uint32_t cachedID = [&]() {
-			auto it = typeKeyToID_.find(GetTypeKey<T>());
-			Assert::Call(it != typeKeyToID_.end(), "ComponentManifestへ型を登録してください");
-			return it->second;
-			}();
-		return cachedID;
+		auto it = typeKeyToID_.find(GetTypeKey<T>());
+		if (it == typeKeyToID_.end()) {
+			throw std::out_of_range("ComponentManifestへ型を登録してください");
+		}
+		return it->second;
 	}
 
 	template <typename T>

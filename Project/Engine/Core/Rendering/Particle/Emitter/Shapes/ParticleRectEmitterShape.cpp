@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 //============================================================================
@@ -52,46 +51,4 @@ void Engine::ParticleRectEmitterShape::InitParticle(Vector3& position, Vector3& 
 	case 2: position.y = half.y; direction = Vector3(0.0f, 1.0f, 0.0f); break;
 	case 3: position.y = -half.y; direction = Vector3(0.0f, -1.0f, 0.0f); break;
 	}
-}
-
-void Engine::ParticleRectEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
-	const Color4 color = Color4::Red();
-
-	// 矩形の外周を線で表す
-	const Vector2 half = settings.rect.size * 0.5f;
-	const Vector3 corners[4] = {
-		Vector3(-half.x, -half.y, 0.0f), Vector3(half.x, -half.y, 0.0f),
-		Vector3(half.x, half.y, 0.0f), Vector3(-half.x, half.y, 0.0f) };
-
-	// 2Dはスクリーン空間の2Dレンダラーで描く
-	if (is2D) {
-
-		LineRenderer2D* renderer2D = LineRenderer::GetInstance()->Get2D();
-		if (!renderer2D) {
-			return;
-		}
-		// ローカル点をエンティティの回転と位置でスクリーン座標へ変換する
-		auto toScreen = [&](const Vector3& local) {
-			const Vector3 world = center + Vector3::Transform(local, rotationMatrix);
-			return Vector2(world.x, world.y);
-			};
-		for (int32_t i = 0; i < 4; ++i) {
-			renderer2D->DrawLine(toScreen(corners[i]), toScreen(corners[(i + 1) % 4]), color);
-		}
-		return;
-	}
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	for (int32_t i = 0; i < 4; ++i) {
-		renderer->DrawLine(center + Vector3::Transform(corners[i], rotationMatrix),
-			center + Vector3::Transform(corners[(i + 1) % 4], rotationMatrix), color);
-	}
-#endif
 }

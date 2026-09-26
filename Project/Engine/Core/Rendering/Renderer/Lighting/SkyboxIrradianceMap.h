@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
@@ -13,6 +13,7 @@ namespace Engine {
 
 	// front
 	class GraphicsCore;
+	class SRVDescriptor;
 
 	//============================================================================
 	//	SkyboxIrradianceMap class
@@ -25,7 +26,7 @@ namespace Engine {
 		//============================================================================
 
 		SkyboxIrradianceMap();
-		~SkyboxIrradianceMap() = default;
+		~SkyboxIrradianceMap();
 
 		// 元cubemapが変わった時だけ畳み込みを実行して放射照度cubemapを更新する
 		void Update(GraphicsCore& graphicsCore, AssetID sourceAssetID, uint32_t sourceSRVIndex);
@@ -60,12 +61,13 @@ namespace Engine {
 
 		// 放射照度cubemap
 		ComPtr<ID3D12Resource> cubemap_{};
+		SRVDescriptor* descriptor_ = nullptr;
 		uint32_t srvIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
 		D3D12_RESOURCE_STATES cubemapState_ = D3D12_RESOURCE_STATE_COMMON;
 
 		// 畳み込み定数バッファ
-		DxConstBuffer<IrradianceConstants> constants_{};
+		ViewConstantBuffer<IrradianceConstants> constants_{};
 
 		// 構築済みの元cubemap、変化した時だけ再畳み込みする
 		AssetID builtAssetID_{};

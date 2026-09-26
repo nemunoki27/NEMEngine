@@ -47,6 +47,8 @@ namespace Engine {
 		~Framework();
 
 		void Run();
+		// 終了処理後に実行エラーを通知する
+		static int ReportFailure(const char* detail) noexcept;
 	private:
 		//============================================================================
 		//	private Methods
@@ -63,6 +65,8 @@ namespace Engine {
 
 		// 処理が続いているか
 		bool isRunning_ = false;
+		// Applicationの初期化を開始したか
+		bool applicationStarted_ = false;
 
 		// フレーム計測
 		FrameTimer frameTimer_;

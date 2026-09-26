@@ -36,3 +36,10 @@ internal sealed class AbiFieldModel {
         public string ManagedType = "";
     }
 
+internal sealed class AbiLayoutModel {
+    public string NativeType = "";
+    public string ManagedType = "";
+    public int Size;
+    public Dictionary<string, int> Members = new();
+}
+

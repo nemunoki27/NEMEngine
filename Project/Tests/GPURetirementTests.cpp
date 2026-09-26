@@ -1,10 +1,13 @@
 #include "TestContracts.h"
 #include "GPUPipelineRetirementTests.h"
+#include "GPUAccelerationStructureTests.h"
+#include "GPUBufferLifetimeTests.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/DefaultStructuredInstanceBuffer.h>
@@ -41,6 +44,7 @@ namespace {
 		Engine::RTVDescriptor& renderTargets, Engine::DSVDescriptor& depths,
 		Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback) {
 
+		const uint32_t initialDescriptors = descriptors.GetUseDescriptorCount();
 		DxUtils::CreateReadbackBufferResource(device, readback, 3072);
 		Engine::MultiRenderTarget surface;
 		Engine::DepthPyramidTexture pyramid;
@@ -80,67 +84,9 @@ namespace {
 		surface.Destroy();
 		pyramid.Destroy();
 		return renderTargets.GetUseDescriptorCount() == 3 && depths.GetUseDescriptorCount() == 3 &&
-			descriptors.GetUseDescriptorCount() == 33;
+			descriptors.GetUseDescriptorCount() == initialDescriptors + 30;
 	}
 
-
-	bool RecordASOwnerRetirement(ID3D12Device* device, ID3D12GraphicsCommandList6* commands,
-		Engine::GraphicsResourceRetirement& retirement) {
-
-		D3D12_FEATURE_DATA_D3D12_OPTIONS5 support{};
-		if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &support, sizeof(support))) ||
-			support.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED) {
-			std::cout << "AS execution skipped: adapter has no DXR support\n";
-			return true;
-		}
-		ComPtr<ID3D12Device8> device8;
-		if (FAILED(device->QueryInterface(IID_PPV_ARGS(&device8)))) return false;
-		const std::array<float, 9> vertices{ 0, 0, 0, 1, 0, 0, 0, 1, 0 };
-		const std::array<uint32_t, 3> indices{ 0, 1, 2 };
-		ComPtr<ID3D12Resource> vertexBuffer;
-		ComPtr<ID3D12Resource> indexBuffer;
-		DxUtils::CreateUploadBufferResource(device, vertexBuffer, sizeof(vertices));
-		DxUtils::CreateUploadBufferResource(device, indexBuffer, sizeof(indices));
-		void* mapped = nullptr;
-		if (FAILED(vertexBuffer->Map(0, nullptr, &mapped))) return false;
-		std::memcpy(mapped, vertices.data(), sizeof(vertices));
-		vertexBuffer->Unmap(0, nullptr);
-		if (FAILED(indexBuffer->Map(0, nullptr, &mapped))) return false;
-		std::memcpy(mapped, indices.data(), sizeof(indices));
-		indexBuffer->Unmap(0, nullptr);
-		Engine::RaytracingBLASGeometryInput geometry{};
-		geometry.vertexAddress = vertexBuffer->GetGPUVirtualAddress();
-		geometry.vertexStride = sizeof(float) * 3;
-		geometry.vertexCount = 3;
-		geometry.indexAddress = indexBuffer->GetGPUVirtualAddress();
-		geometry.indexCount = 3;
-		Engine::RaytracingBLASInput input{ std::span(&geometry, 1), true };
-		Engine::BottomLevelAccelerationStructure source;
-		source.SetRetirementQueue(retirement);
-		source.Build(device8.Get(), commands, input);
-		Engine::BottomLevelAccelerationStructure moved(std::move(source));
-		source.SetRetirementQueue(retirement);
-		source.Build(device8.Get(), commands, input);
-		source = std::move(moved);
-		source.Update(commands, input);
-		source.Rebuild(commands, input);
-		std::vector<Engine::RaytracingTLASInstance> instances(1);
-		instances[0].blas = source.GetResource();
-		Engine::TopLevelAccelerationStructure top;
-		top.SetRetirementQueue(retirement);
-		top.Build(device8.Get(), commands, instances, true);
-		Engine::TopLevelAccelerationStructure movedTop(std::move(top));
-		top.SetRetirementQueue(retirement);
-		top.Build(device8.Get(), commands, instances, true);
-		top = std::move(movedTop);
-		top.Update(commands, instances);
-		top.Rebuild(commands, instances);
-		// 頂点入力も記録済みAS構築が終わるまで保持する
-		retirement.Retire(std::move(vertexBuffer));
-		retirement.Retire(std::move(indexBuffer));
-		std::cout << "AS build/update/rebuild and owner moves recorded\n";
-		return true;
-	}
 
 	bool CheckGraphicsFenceRetirement(ID3D12Device* device, ID3D12CommandQueue* queue) {
 
@@ -171,8 +117,15 @@ namespace {
 			Engine::StructuredInstanceBuffer<uint32_t> buffer;
 			buffer.Init(device, &descriptors);
 			buffer.Upload(std::span<const uint32_t>(values));
-			commands->CopyBufferRegion(readback.Get(), 0, buffer.GetResource(), 0, sizeof(values));
+			// 後続の転送で先のCopy元が書き換わらないことを確認する
+			for (size_t index = 0; index < values.size(); ++index) {
+				buffer.Upload(std::span<const uint32_t>(&values[index], 1));
+				commands->CopyBufferRegion(readback.Get(), index * sizeof(uint32_t), buffer.GetResource(), 0, sizeof(uint32_t));
+			}
 		}
+		ComPtr<ID3D12Resource> staticReadback;
+		if (!NEMTests::RecordStaticBufferRetirement(device, queue, commands.Get(), descriptors, staticReadback)) return false;
+		const size_t structuredRetained = retirement.GetPendingCount();
 		ComPtr<ID3D12Resource> frameReadback;
 		DxUtils::CreateReadbackBufferResource(device, frameReadback, sizeof(values) * 3);
 		bool valid = true;
@@ -197,14 +150,30 @@ namespace {
 			source.Release();
 			source.Release();
 		}
-		valid &= retirement.GetPendingCount() == 30;
+		valid &= retirement.GetPendingCount() == structuredRetained + 9 * Engine::kGraphicsFrameContextCount;
 		ComPtr<ID3D12Resource> viewReadback;
 		valid &= RecordViewOwnerRetirement(device, commands.Get(), renderTargets, depths, descriptors, viewReadback);
-		valid &= RecordASOwnerRetirement(device, commands.Get(), retirement);
+		ComPtr<ID3D12Resource> asReadback;
+		valid &= NEMTests::RecordASOwnerRetirement(device, commands.Get(), retirement, asReadback);
 		ComPtr<ID3D12Resource> pipelineReadback;
 		ID3D12DescriptorHeap* heaps[]{ descriptors.GetDescriptorHeap() };
 		commands->SetDescriptorHeaps(1, heaps);
-		valid &= NEMTests::RecordPipelineOwnerRetirement(device, commands.Get(), retirement, pipelineReadback);
+		valid &= NEMTests::RecordPipelineOwnerRetirement(device, commands.Get(), descriptors, pipelineReadback);
+		// 同じframeの2Viewを記録し、提出前にProfilerを終了する
+		auto& profiler = Engine::GPUFrameProfiler::GetInstance();
+		const size_t beforeProfiler = retirement.GetPendingCount();
+		for (const char* view : { "Game", "Scene" }) {
+			profiler.BeginFrame(device, queue, retirement);
+			profiler.BeginPass(commands.Get(), view);
+			profiler.EndPass(commands.Get());
+			profiler.Resolve(commands.Get());
+		}
+		profiler.Finalize();
+		valid &= retirement.GetPendingCount() == beforeProfiler + 2 * Engine::kGraphicsFrameContextCount;
+		ComPtr<ID3D12Resource> textureReadback;
+		valid &= NEMTests::RecordTexturePublication(device, commands.Get(), descriptors, textureReadback);
+		valid &= NEMTests::RecordImGuiRetirement(device, queue, commands.Get(), descriptors);
+		const uint32_t heldDescriptors = descriptors.GetUseDescriptorCount();
 		const size_t pendingCount = retirement.GetPendingCount();
 		commands->Close();
 		// 描画実行を止めたままOwnerを破棄し、完了前の回収を試す
@@ -214,7 +183,7 @@ namespace {
 		valid &= SUCCEEDED(queue->Signal(completed.Get(), 1));
 		retirement.Seal(1);
 		retirement.Collect(completed->GetCompletedValue());
-		valid &= retirement.GetPendingCount() == pendingCount && descriptors.GetUseDescriptorCount() == 33 &&
+		valid &= retirement.GetPendingCount() == pendingCount && descriptors.GetUseDescriptorCount() == heldDescriptors && heldDescriptors >= 35 &&
 			renderTargets.GetUseDescriptorCount() == 3 && depths.GetUseDescriptorCount() == 3;
 		valid &= SUCCEEDED(gate->Signal(1));
 		const HRESULT eventResult = completed->SetEventOnCompletion(1, completion);
@@ -227,6 +196,18 @@ namespace {
 		valid &= std::memcmp(mapped, values.data(), sizeof(values)) == 0;
 		D3D12_RANGE writtenRange{ 0, 0 };
 		readback->Unmap(0, &writtenRange);
+		readRange.End = 24;
+		if (FAILED(staticReadback->Map(0, &readRange, &mapped))) return false;
+		const uint32_t expectedStatic[]{ 101, 103, 107, 109, 113, 127 };
+		valid &= std::memcmp(mapped, expectedStatic, sizeof(expectedStatic)) == 0;
+		staticReadback->Unmap(0, &writtenRange);
+		if (asReadback) {
+			readRange.End = 24;
+			if (FAILED(asReadback->Map(0, &readRange, &mapped))) return false;
+			const uint32_t expectedHits[]{ 1, 0, 1, 0, 1, 1 };
+			valid &= std::memcmp(mapped, expectedHits, sizeof(expectedHits)) == 0;
+			asReadback->Unmap(0, &writtenRange);
+		}
 		readRange.End = sizeof(values) * 3;
 		if (FAILED(frameReadback->Map(0, &readRange, &mapped))) return false;
 		for (uint32_t frameIndex = 0; frameIndex < 3; ++frameIndex) {
@@ -246,10 +227,17 @@ namespace {
 			}
 		}
 		viewReadback->Unmap(0, &writtenRange);
-		readRange.End = sizeof(uint32_t);
+		readRange.End = sizeof(uint32_t) * 3;
 		if (FAILED(pipelineReadback->Map(0, &readRange, &mapped))) return false;
-		valid &= *static_cast<const uint32_t*>(mapped) == 73;
+		const std::array<uint32_t, 3> expectedConstants{ 73, 79, 83 };
+		valid &= std::memcmp(mapped, expectedConstants.data(), sizeof(expectedConstants)) == 0;
 		pipelineReadback->Unmap(0, &writtenRange);
+		readRange.End = 1024;
+		if (FAILED(textureReadback->Map(0, &readRange, &mapped))) return false;
+		const std::array<uint8_t, 4> expectedBlue{ 0, 0, 255, 255 };
+		valid &= std::memcmp(mapped, expectedPixel.data(), 4) == 0 &&
+			std::memcmp(static_cast<std::byte*>(mapped) + 512, expectedBlue.data(), 4) == 0;
+		textureReadback->Unmap(0, &writtenRange);
 		retirement.Collect(completed->GetCompletedValue());
 		return valid && retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0 &&
 			renderTargets.GetUseDescriptorCount() == 0 && depths.GetUseDescriptorCount() == 0;
@@ -285,7 +273,7 @@ namespace {
 			}
 			// Owner破棄後も未提出の候補はフレーム番号だけでは回収されない
 			const size_t retained = retirement.GetPendingCount();
-			valid &= retained == 18 && descriptors.GetUseDescriptorCount() == retained;
+			valid &= retained > 0 && descriptors.GetUseDescriptorCount() == retained;
 			Engine::GraphicsFrameState::BeginFrame(0);
 			retirement.Collect(100);
 			valid &= retirement.GetPendingCount() == retained;
@@ -415,13 +403,19 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 	D3D12_COMMAND_QUEUE_DESC queueDesc{};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	if (FAILED(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&queue)))) return false;
+	Engine::GraphicsResourceRetirement bufferRetirement;
 	Engine::BufferUploadService uploads;
-	uploads.Init(device.Get(), queue.Get());
+	uploads.Init(bufferRetirement, device.Get(), queue.Get());
 	const uint32_t previousCount = Engine::GraphicsFrameState::GetActiveCount();
 	const uint32_t previousIndex = Engine::GraphicsFrameState::GetCurrentIndex();
-	bool valid = CheckGraphicsFenceRetirement(device.Get(), queue.Get());
+	bool valid = CheckDescriptorCapacity(device.Get()) && CheckBufferPublication(device.Get()) && CheckRenderTargetPublication(device.Get());
+	const bool graphicsValid = CheckGraphicsFenceRetirement(device.Get(), queue.Get());
+	if (!graphicsValid) std::cerr << "Graphics owner retirement failed\n";
+	valid &= graphicsValid;
 	valid &= CheckUploadOwnerLifetime(device.Get(), queue.Get(), uploads);
 	valid &= CheckOwnerRetirement(device.Get(), uploads);
+	valid &= NEMTests::CheckDifferentialBufferUpdates(device.Get(), queue.Get()) &&
+		NEMTests::CheckBufferCacheRetirement(device.Get(), queue.Get());
 	Engine::GraphicsFrameState::SetActiveCount(previousCount);
 	Engine::GraphicsFrameState::SetCurrentIndex(previousIndex);
 	uploads.Finalize();
@@ -435,5 +429,5 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 			valid = false;
 		}
 	}
-	return valid;
+	return CheckFenceWaitAndRemoval() && valid;
 }

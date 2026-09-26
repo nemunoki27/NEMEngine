@@ -105,6 +105,9 @@ namespace Engine {
 		uint32_t rtvIndex_ = UINT32_MAX;
 		uint32_t srvIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
+		// 完成した資源と管理状態を交換する
+		void Swap(RenderTexture2D& other) noexcept;
+
 	};
 } // Engine
 

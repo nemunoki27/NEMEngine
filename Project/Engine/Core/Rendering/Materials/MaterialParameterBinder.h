@@ -6,7 +6,7 @@
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/AutoRootSignatureBuilder.h>
 
 // c++
@@ -49,18 +49,20 @@ namespace Engine {
 
 		// フレーム開始時にアップロード位置を戻す
 		void BeginFrame();
+		// Texture公開世代が変わった時だけ番号を再解決する
+		void SetTextureRevision(uint64_t revision);
 		// アップロードヒープを破棄する
 		void Release();
 
 		// 指定パイプラインのMaterialParameters cbufferへmaterialの値を詰めてアップロードする
 		// cbufferが無ければ0を返し、呼び出し側はバインドをスキップすればよい
-		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(ID3D12Device* device,
+		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(GraphicsResourceRetirement& retirement, ID3D12Device* device,
 			const PipelineState& pipeline, const MaterialAsset& material,
 			const MaterialParameterBufferBuilder::TextureResolver& resolveTexture);
 
 		// マテリアル既定値にエンティティごとのparameterOverridesを重ねてアップロードする
 		// Sprite/Text等の個別マテリアル対応で使う、overridesが空なら既定値のみと同じになる
-		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(ID3D12Device* device,
+		D3D12_GPU_VIRTUAL_ADDRESS ResolveAndUpload(GraphicsResourceRetirement& retirement, ID3D12Device* device,
 			const PipelineState& pipeline, const MaterialAsset& material,
 			const MaterialParameterSet& overrides,
 			const MaterialParameterBufferBuilder::TextureResolver& resolveTexture);
@@ -112,7 +114,8 @@ namespace Engine {
 		std::unordered_map<uint64_t, MaterialParameterLayout> layoutCache_{};
 		// パラメータとテクスチャの解決済みデータ、内容変更時だけ作り直す
 		std::unordered_map<CacheKey, CachedBindingData, CacheKeyHasher> bindingCache_{};
+		uint64_t textureRevision_ = 0;
 		uint64_t frameIndex_ = 0;
-		PostProcessConstantBufferAllocator allocator_{};
+		FrameConstantBufferAllocator allocator_{};
 	};
 } // Engine

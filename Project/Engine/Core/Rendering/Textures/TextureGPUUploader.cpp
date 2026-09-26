@@ -5,7 +5,10 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 
+#include <array>
+#include <stdexcept>
 #include <vector>
+#include <limits>
 #include <d3dx12.h>
 
 namespace {
@@ -97,20 +100,24 @@ namespace {
 	}
 }
 
-void Engine::TextureGPUUploader::Init(ID3D12Device* device, SRVDescriptor* descriptor, ID3D12CommandQueue* graphicsQueue) {
+void Engine::TextureGPUUploader::Init(ID3D12Device* device, SRVDescriptor* descriptor) {
 
+	if (!descriptor) throw std::invalid_argument("TextureのDescriptorが指定されていません");
+	if (uploadCommand_) throw std::logic_error("TextureGPUUploaderは初期化済みです");
+
+	// 転送用資源の作成後に初期化状態を公開する
+	auto command = std::make_unique<DxUploadCommand>();
+	command->Create(device);
 	device_ = device;
 	srvDescriptor_ = descriptor;
-	graphicsQueue_ = graphicsQueue;
-	uploadCommand_ = std::make_unique<DxUploadCommand>();
-	uploadCommand_->Create(device_);
+	uploadCommand_ = std::move(command);
 }
 
 void Engine::TextureGPUUploader::Finalize() {
 
+	// 転送の完了後に所有を解除する
 	uploadCommand_.reset();
 	srvDescriptor_ = nullptr;
-	graphicsQueue_ = nullptr;
 	device_ = nullptr;
 }
 
@@ -169,7 +176,9 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadSolidColor1x1(
 
 	// コマンドリストを取得して、サブリソースデータをアップロードする
 	ID3D12GraphicsCommandList* commandList = uploadCommand_->GetCommandList();
-	UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(), 0, 0, 1, &subResource);
+	if (UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(), 0, 0, 1, &subResource) == 0) {
+		return result;
+	}
 
 	// コピー後のリソースバリアを設定する
 	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
@@ -181,8 +190,9 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadSolidColor1x1(
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &barrier);
 
-	// コマンドを実行する
-	uploadCommand_->ExecuteCommands(graphicsQueue_);
+	// 転送完了までTextureと転送元を保持する
+	const std::array<ComPtr<ID3D12Resource>, 2> resources = { result.resource, uploadBuffer };
+	uploadCommand_->ExecuteCommands(resources);
 
 	// SRVを作成する
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -197,10 +207,12 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadSolidColor1x1(
 }
 
 Engine::GPUTextureResource Engine::TextureGPUUploader::UploadScratchImage(
-	const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta, uint32_t reuseSrvIndex) {
+	const DirectX::ScratchImage& image, const DirectX::TexMetadata& meta) {
 
 	GPUTextureResource result{};
-	if (!image.GetImages() || image.GetImageCount() == 0) {
+	if (!image.GetImages() || image.GetImageCount() == 0 || meta.width == 0 || meta.height == 0 ||
+		meta.depth == 0 || meta.arraySize == 0 || meta.mipLevels == 0 ||
+		meta.height > UINT32_MAX || meta.depth > UINT16_MAX || meta.arraySize > UINT16_MAX || meta.mipLevels > UINT16_MAX) {
 		return result;
 	}
 
@@ -240,7 +252,10 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadScratchImage(
 
 	// サブリソース構造体の配列を作成して、画像データをセットする
 	std::vector<D3D12_SUBRESOURCE_DATA> subResources{};
-	DirectX::PrepareUpload(device_, image.GetImages(), image.GetImageCount(), meta, subResources);
+	if (FAILED(DirectX::PrepareUpload(device_, image.GetImages(), image.GetImageCount(), meta, subResources)) ||
+		subResources.empty() || subResources.size() > UINT32_MAX) {
+		return result;
+	}
 
 	// アップロードに必要なバッファサイズを取得する
 	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(result.resource.Get(), 0, static_cast<UINT>(subResources.size()));
@@ -267,8 +282,10 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadScratchImage(
 
 	// コマンドリストを取得して、サブリソースデータをアップロードする
 	ID3D12GraphicsCommandList* commandList = uploadCommand_->GetCommandList();
-	UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(),
-		0, 0, static_cast<UINT>(subResources.size()), subResources.data());
+	if (UpdateSubresources(commandList, result.resource.Get(), uploadBuffer.Get(),
+		0, 0, static_cast<UINT>(subResources.size()), subResources.data()) == 0) {
+		return result;
+	}
 
 	// コピー後のリソースバリアを設定する
 	// COMMONにすることでグラフィクスキューへのクロスキュー受け渡しを正しく行う
@@ -280,19 +297,13 @@ Engine::GPUTextureResource Engine::TextureGPUUploader::UploadScratchImage(
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	commandList->ResourceBarrier(1, &barrier);
 
-	// コマンドを実行する
-	uploadCommand_->ExecuteCommands(graphicsQueue_);
+	// 転送完了までTextureと転送元を保持する
+	const std::array<ComPtr<ID3D12Resource>, 2> resources = { result.resource, uploadBuffer };
+	uploadCommand_->ExecuteCommands(resources);
 
-	// SRVを作成する、reload時は既存indexへ上書きしてgpuHandleを変えない
+	// 新しいDescriptorへ公開し、使用中の旧番号は上書きしない
 	const D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = BuildSRVDesc(meta);
-	if (reuseSrvIndex != UINT32_MAX) {
-
-		result.srvIndex = reuseSrvIndex;
-		srvDescriptor_->RecreateSRV(reuseSrvIndex, result.resource.Get(), srvDesc);
-	} else {
-
-		srvDescriptor_->CreateSRV(result.srvIndex, result.resource.Get(), srvDesc);
-	}
+	srvDescriptor_->CreateSRV(result.srvIndex, result.resource.Get(), srvDesc);
 	result.gpuHandle = srvDescriptor_->GetGPUHandle(result.srvIndex);
 	result.valid = true;
 	return result;

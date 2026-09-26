@@ -14,7 +14,7 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBinder.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 
 // c++
 #include <memory>

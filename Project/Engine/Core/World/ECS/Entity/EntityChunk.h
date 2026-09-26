@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Core/ComponentType.h>
+#include <Engine/Core/Foundation/Utility/AlignedBuffer.h>
 #include <Engine/Core/World/ECS/Config/ECSConfig.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
@@ -20,35 +21,6 @@
 namespace Engine {
 
 	//============================================================================
-	//	AlignedBuffer struct
-	//	指定されたバイト数、アライメントのバッファを管理
-	//============================================================================
-	struct AlignedBuffer {
-
-		AlignedBuffer() = default;
-		AlignedBuffer(size_t argBytes, size_t argAlign) { Reset(argBytes, argAlign); }
-		~AlignedBuffer() { Release(); }
-
-		// バッファへのポインタ
-		std::byte* ptr = nullptr;
-		// バイト数、アライメント
-		size_t bytes = 0;
-		size_t align = 0;
-
-		// バッファを指定されたバイト数、アライメントで再確保する
-		void Reset(size_t argBytes, size_t argAlign);
-		// バッファを解放して、状態をリセットする
-		void Release();
-
-		// コピー禁止
-		AlignedBuffer(const AlignedBuffer&) = delete;
-		AlignedBuffer& operator=(const AlignedBuffer&) = delete;
-		// ムーブ許可
-		AlignedBuffer(AlignedBuffer&& other) noexcept { *this = std::move(other); }
-		AlignedBuffer& operator=(AlignedBuffer&& other) noexcept;
-	};
-
-	//============================================================================
 	//	EntityColumnLayout struct
 	//	チャンク内のコンポーネント列配置
 	//============================================================================
@@ -60,6 +32,8 @@ namespace Engine {
 		const ComponentTypeInfo* info = nullptr;
 		// チャンク先頭から列先頭までのオフセット
 		size_t offset = 0;
+		// Component個体番号の列先頭
+		size_t instanceOffset = 0;
 		// 有効状態ビット列の先頭、無効なら最大値
 		size_t enabledOffset = (std::numeric_limits<size_t>::max)();
 	};
@@ -100,14 +74,18 @@ namespace Engine {
 		~EntityChunk();
 
 		// 新しいエンティティを追加する
-		uint32_t AddEntity(const Entity& entity);
+		uint32_t AddEntity(const Entity& entity, uint64_t firstInstanceID);
 		// 行だけ確保して、コンポーネントはまだ構築しない
 		uint32_t AddEntityUninitialized(const Entity& entity);
 		// 指定行を削除し最後の行と入れ替えたエンティティを返す
 		Entity RemoveSwap(uint32_t row);
 
 		// 指定列だけデフォルト構築する
-		void ConstructDefaultByColumnIndex(uint32_t columnIndex, uint32_t row);
+		void ConstructDefaultByColumnIndex(uint32_t columnIndex, uint32_t row, uint64_t instanceID);
+		// 指定列を複製し構築済みとして公開する
+		void CopyConstructByColumnIndex(uint32_t columnIndex, uint32_t row, const void* source, uint64_t instanceID);
+		// 指定列へ所有権と個体番号を移す
+		void MoveConstructByColumnIndex(uint32_t columnIndex, uint32_t row, void* source, uint64_t instanceID);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -123,6 +101,9 @@ namespace Engine {
 		void SetEnabledByColumnIndex(uint32_t columnIndex, uint32_t row, bool enabled);
 		// 指定行列が有効か
 		bool IsEnabledByColumnIndex(uint32_t columnIndex, uint32_t row) const;
+
+		// 指定列のComponent個体番号を返す
+		uint64_t GetComponentInstanceID(uint32_t columnIndex, uint32_t row) const;
 
 		// 所持しているエンティティ数
 		uint32_t GetCount() const { return count_; }
@@ -150,6 +131,10 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 構築済みのセルだけを破棄する
+		void DestroyCell(uint32_t columnIndex, uint32_t row);
+		// Component個体番号を設定する
+		void SetComponentInstanceID(uint32_t columnIndex, uint32_t row, uint64_t instanceID);
 		// 指定行列のセルへのポインタを返す
 		void* GetPtr(const EntityColumnLayout& column, uint32_t row);
 		const void* GetPtr(const EntityColumnLayout& column, uint32_t row) const;

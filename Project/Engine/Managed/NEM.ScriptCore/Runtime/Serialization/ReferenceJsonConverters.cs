@@ -3,11 +3,11 @@ using System.Text.Json.Serialization;
 
 namespace NEMEngine;
 
-// Asset / Entity / Component / ScriptBehaviour 参照フィールドを authoring / runtime JSON へ相互変換する。
+// Asset / GameObject / Component / MonoBehaviour 参照フィールドを authoring / runtime JSON へ相互変換する。
 // runtime pointer / index は一切保存せず、UUID と identity だけを round-trip する。
 // AssetRef={"assetId"} / EntityRef={"kind","sourceAsset","localFileId"}形式で保存する。
 // C++側のInspector / PrefabReferenceRemapperも同じidentity形式を扱う。
-// 読み込みはidentityを現在のworldの生きた参照へ解決する（未解決はnull / null Entity）。
+// 読み込みはidentityを現在のworldの生きた参照へ解決する（未解決はnull / null GameObject）。
 
 // UUID <-> 16桁hex 文字列（"" は None）
 public sealed class UUIDJsonConverter : JsonConverter<UUID> {
@@ -37,7 +37,7 @@ internal sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
         WriteIdentity(writer, value);
     }
 
-    // JsonElementからidentityを読む（Entity/Component/Scriptコンバータと共用）
+    // JsonElementからidentityを読む（GameObject/Component/Scriptコンバータと共用）
     internal static EntityRef ReadIdentity(JsonElement root) {
 
         if (root.ValueKind != JsonValueKind.Object) {
@@ -63,21 +63,23 @@ internal sealed class EntityRefJsonConverter : JsonConverter<EntityRef> {
     }
 }
 
-// Entity <-> identity JSON。読み込みは現在のworldの生きたEntityへ解決し、書き込みはSceneObjectのidentityへ逆引きする
-internal sealed class EntityJsonConverter : JsonConverter<Entity> {
+// GameObject <-> identity JSON。読み込みは現在のworldの生きたGameObjectへ解決し、書き込みはSceneObjectのidentityへ逆引きする
+internal sealed class GameObjectJsonConverter : JsonConverter<GameObject> {
 
-    public override Entity Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+    public override bool HandleNull => true;
+
+    public override GameObject? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
 
         if (reader.TokenType == JsonTokenType.Null) {
-            return Entity.nullEntity;
+            return null;
         }
         using JsonDocument doc = JsonDocument.ParseValue(ref reader);
         return EntityRefJsonConverter.ReadIdentity(doc.RootElement).Resolve();
     }
 
-    public override void Write(Utf8JsonWriter writer, Entity value, JsonSerializerOptions options) {
+    public override void Write(Utf8JsonWriter writer, GameObject value, JsonSerializerOptions options) {
 
-        EntityRef identity = value.isAlive
+        EntityRef identity = value != null
             ? NativeEntityAPI.ReadEntityReferenceIdentity(value.native)
             : EntityRef.Null;
         EntityRefJsonConverter.WriteIdentity(writer, identity);
@@ -132,7 +134,7 @@ internal sealed class ComponentJsonConverterFactory : JsonConverterFactory {
 
     public override bool CanConvert(Type typeToConvert) {
         return typeof(Component).IsAssignableFrom(typeToConvert)
-            && !typeof(ScriptBehaviour).IsAssignableFrom(typeToConvert)
+            && !typeof(MonoBehaviour).IsAssignableFrom(typeToConvert)
             && !typeToConvert.IsAbstract
             && typeof(IComponentRef<>).MakeGenericType(typeToConvert).IsAssignableFrom(typeToConvert);
     }
@@ -156,8 +158,8 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("entity", out JsonElement entityElement)) {
             return null;
         }
-        Entity owner = EntityRefJsonConverter.ReadIdentity(entityElement).Resolve();
-        if (!owner.isAlive || ComponentType<T>.ID < 0 || !NativeEntityAPI.ReadHasComponent(owner.native, ComponentType<T>.ID)) {
+        GameObject? owner = EntityRefJsonConverter.ReadIdentity(entityElement).Resolve();
+        if (owner == null || ComponentType<T>.ID < 0 || !NativeEntityAPI.ReadHasComponent(owner.native, ComponentType<T>.ID)) {
             return null;
         }
         return T.FromEntity(owner);
@@ -165,8 +167,8 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
 
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
 
-        EntityRef identity = value != null && value.entity.isAlive
-            ? NativeEntityAPI.ReadEntityReferenceIdentity(value.entity.native)
+        EntityRef identity = value != null && value.gameObject != null
+            ? NativeEntityAPI.ReadEntityReferenceIdentity(value.gameObject.native)
             : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");
@@ -175,20 +177,20 @@ internal sealed class ComponentJsonConverter<T> : JsonConverter<T> where T : Com
     }
 }
 
-// ScriptBehaviour派生クラス <-> { "entity":{...}, "scriptSlotId":"hex", "scriptTypeId":"guid" }
+// MonoBehaviour派生クラス <-> { "entity":{...}, "scriptSlotId":"hex", "scriptTypeId":"guid" }
 // 読み込みは保存されたscriptTypeID(無ければフィールド宣言型のGUID)でnative registryから生きたinstanceを引く
-internal sealed class ScriptBehaviourJsonConverterFactory : JsonConverterFactory {
+internal sealed class MonoBehaviourJsonConverterFactory : JsonConverterFactory {
 
     public override bool CanConvert(Type typeToConvert) {
-        return typeof(ScriptBehaviour).IsAssignableFrom(typeToConvert);
+        return typeof(MonoBehaviour).IsAssignableFrom(typeToConvert);
     }
 
     public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options) {
-        return (JsonConverter)Activator.CreateInstance(typeof(ScriptBehaviourJsonConverter<>).MakeGenericType(typeToConvert))!;
+        return (JsonConverter)Activator.CreateInstance(typeof(MonoBehaviourJsonConverter<>).MakeGenericType(typeToConvert))!;
     }
 }
 
-internal sealed class ScriptBehaviourJsonConverter<T> : JsonConverter<T> where T : ScriptBehaviour {
+internal sealed class MonoBehaviourJsonConverter<T> : JsonConverter<T> where T : MonoBehaviour {
 
     public override bool HandleNull => true;
 
@@ -203,10 +205,10 @@ internal sealed class ScriptBehaviourJsonConverter<T> : JsonConverter<T> where T
             return null;
         }
 
-        Entity owner = root.TryGetProperty("entity", out JsonElement entityElement)
+        GameObject? owner = root.TryGetProperty("entity", out JsonElement entityElement)
             ? EntityRefJsonConverter.ReadIdentity(entityElement).Resolve()
-            : Entity.nullEntity;
-        if (!owner.isAlive) {
+            : null;
+        if (owner == null) {
             return null;
         }
 
@@ -220,9 +222,9 @@ internal sealed class ScriptBehaviourJsonConverter<T> : JsonConverter<T> where T
 
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options) {
 
-        bool alive = value != null && value.entity.isAlive;
+        bool alive = value != null && value.gameObject != null;
         EntityRef identity = alive
-            ? NativeEntityAPI.ReadEntityReferenceIdentity(value!.entity.native)
+            ? NativeEntityAPI.ReadEntityReferenceIdentity(GameObject.RawNative(value!.gameObject))
             : EntityRef.Null;
         writer.WriteStartObject();
         writer.WritePropertyName("entity");

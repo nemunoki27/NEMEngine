@@ -53,6 +53,12 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		// 待機結果を保持し、描画処理から失敗を伝える
+		static bool WaitForGPU(::ImGui_ImplDX12_InitInfo* info, ID3D12Fence* fence, UINT64 value, HANDLE event);
+		void CheckGPUFailure() const;
+
+		// GPU使用中のBackend資源を回収窓口へ渡す
+		static void RetireResource(::ImGui_ImplDX12_InitInfo* info, ID3D12Object* resource);
 		static void AllocateSRVDescriptor(::ImGui_ImplDX12_InitInfo* info,
 			D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle);
 		static void FreeSRVDescriptor(::ImGui_ImplDX12_InitInfo* info,
@@ -77,6 +83,11 @@ namespace Engine {
 
 		// 初期化済みか
 		bool initialized_ = false;
+		// 初期化できた段階だけ終了する
+		bool contextCreated_ = false;
+		bool platformInitialized_ = false;
+		bool rendererInitialized_ = false;
+		bool gpuFailed_ = false;
 
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		std::unordered_map<uint64_t, uint32_t> imguiSRVIndices_;

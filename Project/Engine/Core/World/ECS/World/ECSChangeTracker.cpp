@@ -6,6 +6,8 @@
 
 // c++
 #include <algorithm>
+#include <exception>
+#include <stdexcept>
 
 using namespace Engine;
 
@@ -119,12 +121,16 @@ uint64_t ECSChangeTracker::AddComponentMutationListener(ComponentMutationCallbac
 		return 0;
 	}
 
-	const uint64_t listenerID = nextComponentMutationListenerID_++;
+	if (nextComponentMutationListenerID_ == UINT64_MAX) {
+		throw std::overflow_error("Component通知の購読IDが上限に達しました");
+	}
+	const uint64_t listenerID = nextComponentMutationListenerID_;
 	componentMutationListeners_.emplace_back(ComponentMutationListener{
 		.id = listenerID,
 		.callback = callback,
 		.userData = userData,
 		});
+	++nextComponentMutationListenerID_;
 	return listenerID;
 }
 
@@ -133,20 +139,24 @@ void ECSChangeTracker::RemoveComponentMutationListener(uint64_t listenerID) {
 	if (listenerID == 0) {
 		return;
 	}
-	componentMutationListeners_.erase(
-		std::remove_if(componentMutationListeners_.begin(), componentMutationListeners_.end(),
-			[listenerID](const ComponentMutationListener& listener) {
-				return listener.id == listenerID;
-			}),
-		componentMutationListeners_.end());
+	for (auto& listener : componentMutationListeners_) {
+		if (listener.id == listenerID) {
+			listener.callback = nullptr;
+			listener.userData = nullptr;
+			break;
+		}
+	}
+	if (notificationDepth_ == 0) {
+		std::erase_if(componentMutationListeners_, [](const auto& listener) { return !listener.callback; });
+	}
 }
 
 void ECSChangeTracker::IncrementRevision(uint64_t& revision) {
 
-	++revision;
-	if (revision == 0) {
-		revision = 1;
+	if (revision == UINT64_MAX) {
+		throw std::overflow_error("Worldの変更世代が上限に達しました");
 	}
+	++revision;
 }
 
 void ECSChangeTracker::Notify(ECSWorld& world, const Entity& entity, uint32_t typeID,
@@ -166,11 +176,31 @@ void ECSChangeTracker::Notify(ECSWorld& world, const Entity& entity, uint32_t ty
 		meshColorRevisions_.erase(key);
 		entityRenderRevisions_.erase(key);
 	}
-	// 購読の追加削除はWorldEnter/Exitだけで行い、通知中の割り当てを避ける
-	for (const ComponentMutationListener& listener : componentMutationListeners_) {
-		if (listener.callback) {
-			listener.callback(world, entity, typeID, kind, listener.userData);
+	// 通知開始時の件数までを対象にし、削除済み購読は呼ばない
+	const size_t count = componentMutationListeners_.size();
+	++notificationDepth_;
+	std::exception_ptr failure;
+	for (size_t index = 0; index < count; ++index) {
+		const ComponentMutationListener listener = componentMutationListeners_[index];
+		if (!listener.callback) {
+			continue;
 		}
+		try {
+			listener.callback(world, entity, typeID, kind, listener.userData);
+		} catch (...) {
+
+			// 内部キャッシュへの通知を済ませてから失敗を返す
+			if (!failure) {
+				failure = std::current_exception();
+			}
+		}
+	}
+	--notificationDepth_;
+	if (notificationDepth_ == 0) {
+		std::erase_if(componentMutationListeners_, [](const auto& listener) { return !listener.callback; });
+	}
+	if (failure) {
+		std::rethrow_exception(failure);
 	}
 }
 

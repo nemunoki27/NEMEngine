@@ -111,7 +111,8 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	}
 
 	const std::wstring syncCommand =
-		L"dotnet \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() + L"\" --mode EditorSync";
+		L"dotnet \"" + syncToolDll.wstring() + L"\" --root \"" + scriptsRoot.wstring() +
+		L"\" --project \"" + projectPath.wstring() + L"\" --configuration " + Widen(BuildProfile()) + L" --mode EditorSync";
 
 	Logger::Output(LogType::Engine, spdlog::level::info,
 		"ManagedScriptBuildService: ビルドを開始します BuildID={} Play用={} Staging={}",

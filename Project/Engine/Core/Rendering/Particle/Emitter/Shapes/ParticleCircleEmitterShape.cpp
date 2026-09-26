@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -19,14 +18,6 @@ namespace {
 
 	constexpr float kEpsilon = 0.001f;
 
-	// 角度からローカルの半径方向を取得する、3DはXZ平面で2DはXY平面
-	Engine::Vector3 AngleToDirection(float radianAngle, bool is2D) {
-
-		return is2D ?
-			Engine::Vector3(std::cos(radianAngle), std::sin(radianAngle), 0.0f) :
-			Engine::Vector3(std::cos(radianAngle), 0.0f, std::sin(radianAngle));
-	}
-
 	// 円弧の情報、0度跨ぎと全周に対応する
 	struct CircleArc {
 
@@ -41,7 +32,7 @@ namespace {
 		arc.full = 360.0f - kEpsilon <= std::fabs(circle.angleMax - circle.angleMin);
 		const float angleMin = Math::WrapDegree360(circle.angleMin);
 		const float angleMax = Math::WrapDegree360(circle.angleMax);
-		arc.span = arc.full ? 360.0f : Math::WrapDegree360(angleMax - angleMin);
+		arc.span = Engine::ParticleCircleEmitterShape::GetArcSpan(circle);
 		arc.base = circle.clockwise ? angleMax : angleMin;
 		arc.sign = circle.clockwise ? -1.0f : 1.0f;
 		return arc;
@@ -101,7 +92,7 @@ namespace {
 
 		// Normalはそのまま法線方向を返す
 		if (circle.velocityMode == VelocityMode::Normal) {
-			return AngleToDirection(angleDegree * Math::radian, is2D);
+			return Engine::ParticleCircleEmitterShape::GetDirection(angleDegree * Math::radian, is2D);
 		}
 		// Randomは隣接点が無いので接線方向にする
 		const bool wantNext = circle.velocityMode == VelocityMode::NextPoint;
@@ -147,7 +138,7 @@ namespace {
 				const uint32_t prevBatch = 0 < spawnIndex.batchIndex ? spawnIndex.batchIndex - 1 : 0u;
 				const float prevAngle = GetSpawnAngle(circle, arc, prevGlobal, prevBatch, spawnIndex.batchCount);
 				const Engine::Vector3 prevPosition =
-					AngleToDirection(prevAngle * Math::radian, is2D) * circle.radius;
+					Engine::ParticleCircleEmitterShape::GetDirection(prevAngle * Math::radian, is2D) * circle.radius;
 				const Engine::Vector3 diff = position - prevPosition;
 				if (kEpsilon < Engine::Vector3::Length(diff)) {
 					return Engine::Vector3::Normalize(diff);
@@ -159,7 +150,7 @@ namespace {
 		// 隣接点と発生位置の差分を向きにする、ほぼ同じ位置なら接線方向にする
 		const float neighborAngle = GetSpawnAngle(circle, arc, neighborGlobal, neighborBatch, spawnIndex.batchCount);
 		const Engine::Vector3 neighborPosition =
-			AngleToDirection(neighborAngle * Math::radian, is2D) * circle.radius;
+			Engine::ParticleCircleEmitterShape::GetDirection(neighborAngle * Math::radian, is2D) * circle.radius;
 		const Engine::Vector3 diff = neighborPosition - position;
 		if (Engine::Vector3::Length(diff) <= kEpsilon) {
 			return GetTangent(angleDegree, circle.clockwise, wantNext, is2D);
@@ -214,59 +205,22 @@ void Engine::ParticleCircleEmitterShape::InitParticle(Vector3& position, Vector3
 	const CircleArc arc = MakeArc(circle);
 
 	const float angle = GetSpawnAngle(circle, arc, spawnIndex.global, spawnIndex.batchIndex, spawnIndex.batchCount);
-	position = AngleToDirection(angle * Math::radian, is2D) * circle.radius;
+	position = Engine::ParticleCircleEmitterShape::GetDirection(angle * Math::radian, is2D) * circle.radius;
 	direction = GetSpawnDirection(circle, arc, spawnIndex, angle, position, is2D);
 }
 
-void Engine::ParticleCircleEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+float Engine::ParticleCircleEmitterShape::GetArcSpan(const ParticleEmitterCircleParams& circle) {
 
-	constexpr uint32_t kDivision = 24;
-
-	const ParticleEmitterCircleParams& circle = settings.circle;
-	const CircleArc arc = MakeArc(circle);
-	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
-	const Color4 color = Color4::Red();
-
-	// 弧の範囲だけ線を張る
-	const float startAngle = Math::WrapDegree360(circle.angleMin) * Math::radian;
-	const float step = arc.span * Math::radian / static_cast<float>(kDivision);
-
-	// 2Dはスクリーン空間の2Dレンダラーで描く
-	if (is2D) {
-
-		LineRenderer2D* renderer2D = LineRenderer::GetInstance()->Get2D();
-		if (!renderer2D) {
-			return;
-		}
-		// ローカル点をエンティティの回転と位置でスクリーン座標へ変換する
-		auto toScreen = [&](const Vector3& local) {
-			const Vector3 world = center + Vector3::Transform(local, rotationMatrix);
-			return Vector2(world.x, world.y);
-			};
-		for (uint32_t i = 0; i < kDivision; ++i) {
-
-			const float angle0 = startAngle + step * static_cast<float>(i);
-			const float angle1 = startAngle + step * static_cast<float>(i + 1);
-			renderer2D->DrawLine(
-				toScreen(AngleToDirection(angle0, true) * circle.radius),
-				toScreen(AngleToDirection(angle1, true) * circle.radius), color);
-		}
-		return;
+	// 一周以上の指定は全周として扱う
+	if (360.0f - kEpsilon <= std::fabs(circle.angleMax - circle.angleMin)) {
+		return 360.0f;
 	}
+	return Math::WrapDegree360(Math::WrapDegree360(circle.angleMax) - Math::WrapDegree360(circle.angleMin));
+}
 
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	for (uint32_t i = 0; i < kDivision; ++i) {
+Engine::Vector3 Engine::ParticleCircleEmitterShape::GetDirection(float radianAngle, bool is2D) {
 
-		const float angle0 = startAngle + step * static_cast<float>(i);
-		const float angle1 = startAngle + step * static_cast<float>(i + 1);
-		renderer->DrawLine(
-			center + Vector3::Transform(AngleToDirection(angle0, false) * circle.radius, rotationMatrix),
-			center + Vector3::Transform(AngleToDirection(angle1, false) * circle.radius, rotationMatrix), color);
-	}
-#endif
+	// 2DはXY平面、3DはXZ平面へ展開する
+	return is2D ? Vector3(std::cos(radianAngle), std::sin(radianAngle), 0.0f) :
+		Vector3(std::cos(radianAngle), 0.0f, std::sin(radianAngle));
 }

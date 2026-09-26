@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
+#include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
@@ -31,12 +32,12 @@ namespace Engine {
 		const ManagedLinePoint* points, int32_t count, int32_t loop) {
 
 		ECSWorld* world = ResolveWorld(entity);
-		if (!world) {
+		if (!world || count < 0 || (count > 0 && !points)) {
 			return;
 		}
 		const Entity resolved = ResolveEntity(entity);
 		LineRendererComponent* line = world->IsAlive(resolved) ?
-			world->TryGetComponent<LineRendererComponent>(resolved) : nullptr;
+			world->TryGetComponentForBinding<LineRendererComponent>(resolved) : nullptr;
 		if (!line) {
 			return;
 		}
@@ -50,8 +51,15 @@ namespace Engine {
 				converted.emplace_back(ToLinePoint(points[i]));
 			}
 		}
-		SetLinePoints(*world, resolved, converted);
+		// Bufferの追加も予約し、Componentのアドレスを移動させない
+		const int32_t typeID = static_cast<int32_t>(ComponentTypeRegistry::GetInstance().GetID<LinePoint>());
+		AddComponentCallback(entity, typeID);
+		if (!DynamicBufferMutateCallback(entity, typeID, sizeof(LinePoint),
+			static_cast<int32_t>(ManagedDynamicBufferOperation::Replace), 0, converted.data(), count)) {
+			return;
+		}
 		line->loop = (loop != 0);
+		world->MarkComponentModified<LineRendererComponent>(resolved);
 	}
 
 	int32_t ManagedScriptRuntime::LineAddPointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
@@ -62,18 +70,19 @@ namespace Engine {
 		}
 		const Entity resolved = ResolveEntity(entity);
 		LineRendererComponent* line = world->IsAlive(resolved) ?
-			world->TryGetComponent<LineRendererComponent>(resolved) : nullptr;
+			world->TryGetComponentForBinding<LineRendererComponent>(resolved) : nullptr;
 		if (!line) {
 			return -1;
 		}
-		DynamicBuffer<LinePoint> points = world->TryGetBuffer<LinePoint>(resolved);
-		if (!points.IsValid()) {
-			points = world->AddBuffer<LinePoint>(resolved);
+		const int32_t typeID = static_cast<int32_t>(ComponentTypeRegistry::GetInstance().GetID<LinePoint>());
+		AddComponentCallback(entity, typeID);
+		const LinePoint converted = ToLinePoint(point);
+		if (!DynamicBufferMutateCallback(entity, typeID, sizeof(LinePoint),
+			static_cast<int32_t>(ManagedDynamicBufferOperation::Append), 0, &converted, 1)) {
+			return -1;
 		}
-		points.Add(ToLinePoint(point));
-		world->MarkComponentModified<LinePoint>(resolved);
 		// 追加した点の位置をC#へ返す、UpdatePointの対象指定に使う
-		return static_cast<int32_t>(points.GetSize() - 1);
+		return DynamicBufferLengthCallback(entity, typeID, sizeof(LinePoint)) - 1;
 	}
 
 	void ManagedScriptRuntime::LineUpdatePointCallback(ManagedNativeEntity entity, ManagedLinePoint point) {
@@ -84,18 +93,15 @@ namespace Engine {
 		}
 		const Entity resolved = ResolveEntity(entity);
 		LineRendererComponent* line = world->IsAlive(resolved) ?
-			world->TryGetComponent<LineRendererComponent>(resolved) : nullptr;
+			world->TryGetComponentForBinding<LineRendererComponent>(resolved) : nullptr;
 		if (!line) {
 			return;
 		}
-		DynamicBuffer<LinePoint> points = world->TryGetBuffer<LinePoint>(resolved);
 		// ClearやSetPoints後に残った古いindexを弾く
-		if (!points.IsValid() || point.index < 0 ||
-			points.GetSize() <= static_cast<uint32_t>(point.index)) {
-			return;
-		}
-		points[static_cast<uint32_t>(point.index)] = ToLinePoint(point);
-		world->MarkComponentModified<LinePoint>(resolved);
+		const int32_t typeID = static_cast<int32_t>(ComponentTypeRegistry::GetInstance().GetID<LinePoint>());
+		const LinePoint converted = ToLinePoint(point);
+		DynamicBufferMutateCallback(entity, typeID, sizeof(LinePoint),
+			static_cast<int32_t>(ManagedDynamicBufferOperation::SetElement), point.index, &converted, 1);
 	}
 
 	void ManagedScriptRuntime::LineDrawImmediateCallback(const ManagedLinePoint* points,

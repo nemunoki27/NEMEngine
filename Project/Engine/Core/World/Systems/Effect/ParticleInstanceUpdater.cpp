@@ -406,7 +406,7 @@ void Engine::ParticleInstanceUpdater::DrawEmitterShape(const Matrix4x4& emitterW
 			renderer->SetOccludedMode(true);
 		}
 	}
-	shape->DrawShape(settings, center, rotation, is2D);
+	ParticleEmitterShapeRegistry::GetInstance().DrawDebugShape(settings, center, rotation, is2D);
 	if (renderer) {
 		renderer->SetOccludedMode(false);
 	}

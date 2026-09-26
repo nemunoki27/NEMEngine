@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 //============================================================================
 //	ParticleSphereEmitterShape classMethods
@@ -24,16 +23,4 @@ void Engine::ParticleSphereEmitterShape::InitParticle(Vector3& position, Vector3
 	// 球面上から外向きに飛ばす
 	direction = Vector3::Normalize(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)));
 	position = direction * settings.sphere.radius;
-}
-
-void Engine::ParticleSphereEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, [[maybe_unused]] const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	renderer->DrawSphere(center, settings.sphere.radius, Color4::Red(), 1.0f);
-#endif
 }

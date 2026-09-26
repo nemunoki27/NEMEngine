@@ -9,7 +9,7 @@ public interface IBufferElementData<TSelf>
     static abstract int componentTypeID { get; }
 }
 
-// EntityとBuffer種別だけを保持し、操作時に現在のECS格納先を解決する
+// GameObjectとBuffer種別だけを保持し、操作時に現在のECS格納先を解決する
 public readonly unsafe struct DynamicBuffer<T>
     where T : unmanaged, IBufferElementData<T> {
 
@@ -20,21 +20,36 @@ public readonly unsafe struct DynamicBuffer<T>
     private const int OperationResize = 4;
     private const int OperationClear = 5;
 
-    private readonly Entity owner;
+    private readonly GameObject owner;
+    private readonly ulong instanceID;
 
-    internal DynamicBuffer(Entity owner) {
+    internal DynamicBuffer(GameObject owner) {
         this.owner = owner;
+        instanceID = NativeEntityAPI.ReadComponentInstanceID(owner.native, T.componentTypeID);
+    }
+
+    // 削除と再追加で別のBufferへ接続しない
+    private bool MatchesInstance() => instanceID != 0 &&
+        NativeEntityAPI.ReadComponentInstanceID(owner.native, T.componentTypeID) == instanceID;
+
+    private NativeEntity nativeEntity {
+        get {
+            if (!MatchesInstance()) {
+                throw new MissingReferenceException("DynamicBufferの参照先は破棄されています");
+            }
+            return owner.native;
+        }
     }
 
     public bool IsCreated =>
-        owner.isAlive && ReadLength() >= 0;
+        MatchesInstance() && ReadLength() >= 0;
 
     public int Count {
         get {
             int count = ReadLength();
             if (count < 0) {
                 throw new InvalidOperationException(
-                    "DynamicBuffer is not attached to the Entity.");
+                    "DynamicBuffer is not attached to the GameObject.");
             }
             return count;
         }
@@ -45,7 +60,7 @@ public readonly unsafe struct DynamicBuffer<T>
             ValidateIndex(index);
             T value = default;
             int copied = NativeEntityAPI.CopyDynamicBuffer(
-                owner.native, T.componentTypeID, sizeof(T),
+                nativeEntity, T.componentTypeID, sizeof(T),
                 index, &value, 1);
             if (copied != 1) {
                 throw new InvalidOperationException(
@@ -57,7 +72,7 @@ public readonly unsafe struct DynamicBuffer<T>
             ValidateIndex(index);
             T copy = value;
             if (!NativeEntityAPI.MutateDynamicBuffer(
-                owner.native, T.componentTypeID, sizeof(T),
+                nativeEntity, T.componentTypeID, sizeof(T),
                 OperationSetElement, index, &copy, 1)) {
                 throw new InvalidOperationException(
                     "DynamicBuffer element could not be written.");
@@ -68,7 +83,7 @@ public readonly unsafe struct DynamicBuffer<T>
     // 末尾へ1要素追加する
     public void Add(T value) {
         if (!NativeEntityAPI.MutateDynamicBuffer(
-            owner.native, T.componentTypeID, sizeof(T),
+            nativeEntity, T.componentTypeID, sizeof(T),
             OperationAppend, 0, &value, 1)) {
             throw new InvalidOperationException(
                 "DynamicBuffer element could not be added.");
@@ -82,7 +97,7 @@ public readonly unsafe struct DynamicBuffer<T>
         }
         fixed (T* data = values) {
             if (!NativeEntityAPI.MutateDynamicBuffer(
-                owner.native, T.componentTypeID, sizeof(T),
+                nativeEntity, T.componentTypeID, sizeof(T),
                 OperationAppend, 0, data, values.Length)) {
                 throw new InvalidOperationException(
                     "DynamicBuffer elements could not be added.");
@@ -94,7 +109,7 @@ public readonly unsafe struct DynamicBuffer<T>
     public void SetAll(ReadOnlySpan<T> values) {
         fixed (T* data = values) {
             if (!NativeEntityAPI.MutateDynamicBuffer(
-                owner.native, T.componentTypeID, sizeof(T),
+                nativeEntity, T.componentTypeID, sizeof(T),
                 OperationReplace, 0, data, values.Length)) {
                 throw new InvalidOperationException(
                     "DynamicBuffer could not be replaced.");
@@ -105,7 +120,7 @@ public readonly unsafe struct DynamicBuffer<T>
     public void RemoveAt(int index) {
         ValidateIndex(index);
         if (!NativeEntityAPI.MutateDynamicBuffer(
-            owner.native, T.componentTypeID, sizeof(T),
+            nativeEntity, T.componentTypeID, sizeof(T),
             OperationRemoveAt, index, null, 0)) {
             throw new InvalidOperationException(
                 "DynamicBuffer element could not be removed.");
@@ -117,7 +132,7 @@ public readonly unsafe struct DynamicBuffer<T>
             throw new ArgumentOutOfRangeException(nameof(count));
         }
         if (!NativeEntityAPI.MutateDynamicBuffer(
-            owner.native, T.componentTypeID, sizeof(T),
+            nativeEntity, T.componentTypeID, sizeof(T),
             OperationResize, 0, null, count)) {
             throw new InvalidOperationException(
                 "DynamicBuffer could not be resized.");
@@ -126,7 +141,7 @@ public readonly unsafe struct DynamicBuffer<T>
 
     public void Clear() {
         if (!NativeEntityAPI.MutateDynamicBuffer(
-            owner.native, T.componentTypeID, sizeof(T),
+            nativeEntity, T.componentTypeID, sizeof(T),
             OperationClear, 0, null, 0)) {
             throw new InvalidOperationException(
                 "DynamicBuffer could not be cleared.");
@@ -139,7 +154,7 @@ public readonly unsafe struct DynamicBuffer<T>
         }
         fixed (T* data = destination) {
             int copied = NativeEntityAPI.CopyDynamicBuffer(
-                owner.native, T.componentTypeID, sizeof(T),
+                nativeEntity, T.componentTypeID, sizeof(T),
                 sourceIndex, data, destination.Length);
             if (copied < 0) {
                 throw new InvalidOperationException(
@@ -166,7 +181,7 @@ public readonly unsafe struct DynamicBuffer<T>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int ReadLength() {
         return NativeEntityAPI.ReadDynamicBufferLength(
-            owner.native, T.componentTypeID, sizeof(T));
+            nativeEntity, T.componentTypeID, sizeof(T));
     }
 
     private void ValidateIndex(int index) {

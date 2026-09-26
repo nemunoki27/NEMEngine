@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+// c++
+#include <stdexcept>
+
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
@@ -71,6 +74,8 @@ void Engine::EngineApplication::InitFirstScene() {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"EngineApplication: アクティブシーンを読み込めません GUID={}",
 			ToString(activeScene_));
+		// 起動に失敗したWorldを更新せず終了処理へ戻す
+		throw std::runtime_error("Startup scene loading failed");
 	}
 }
 
@@ -113,6 +118,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 	// 最初のシーンを作成
 	InitFirstScene();
 	// C#スクリプトランタイム初期化
+	managedStarted_ = true;
 	ManagedScriptRuntime::GetInstance().Init();
 	// EditWorldをスクリプトから参照可能にし生ポインタの代わりに世代付きハンドルを使う
 	ManagedWorldRegistry::GetInstance().Register(worldManager_.GetEditWorld());
@@ -130,6 +136,7 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 
 	// ライン描画初期化
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	debugDrawingStarted_ = true;
 	LineRenderer::GetInstance()->Init(graphicsCore);
 #endif
 
@@ -160,11 +167,12 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 		StartPlayWorld();
 		PreloadReleaseResources(graphicsCore);
 	}
+	initializationComplete_ = true;
 }
 
 void Engine::EngineApplication::Finalize() {
 
-	if (!shutdownAccepted_) {
+	if (initializationComplete_ && !shutdownAccepted_) {
 
 		// WM_CLOSE以外の終了経路でも、最後に開いていたシーンだけは残す
 		SaveActiveSceneConfig();
@@ -194,8 +202,10 @@ void Engine::EngineApplication::Finalize() {
 	skinnedAnimationManager_.Finalize();
 
 	// GPUリソースを持つ描画パイプラインを解放する
-	renderPipeline_->Finalize();
-	renderPipeline_.reset();
+	if (renderPipeline_) {
+		renderPipeline_->Finalize();
+		renderPipeline_.reset();
+	}
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
@@ -211,13 +221,21 @@ void Engine::EngineApplication::Finalize() {
 		scriptBuildService_.Shutdown();
 	}
 	// EditWorldの登録を解除してからC#ホストを解放する
-	ManagedWorldRegistry::GetInstance().Unregister(
-		ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
+	if (managedStarted_) {
+		ManagedWorldRegistry::GetInstance().Unregister(
+			ManagedWorldRegistry::GetInstance().TryGetHandle(worldManager_.GetEditWorld()));
+	}
 	// C#ホストと読み込んだアセンブリを解放する
-	ManagedScriptRuntime::GetInstance().Finalize();
+	if (managedStarted_) {
+		ManagedScriptRuntime::GetInstance().Finalize();
+		managedStarted_ = false;
+	}
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// デバッグライン描画リソースを解放する
-	LineRenderer::GetInstance()->Finalize();
+	if (debugDrawingStarted_) {
+		LineRenderer::GetInstance()->Finalize();
+		debugDrawingStarted_ = false;
+	}
 #endif
 }

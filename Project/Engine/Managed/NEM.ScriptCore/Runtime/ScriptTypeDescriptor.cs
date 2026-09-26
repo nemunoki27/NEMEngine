@@ -1,6 +1,6 @@
 namespace NEMEngine;
 
-// 1 つの concrete ScriptBehaviour 型のメタデータ。
+// 1 つの concrete MonoBehaviour 型のメタデータ。
 // Roslyn source generator が compile 時に GeneratedScriptManifest として埋め込み、
 // HostBridge が load 時に読み取って GUID ベースの登録・manifest 生成に使う。
 public readonly struct ScriptTypeDescriptor {

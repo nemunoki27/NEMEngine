@@ -17,6 +17,7 @@ namespace NEMTests {
 	bool TestExternalActors();
 	bool TestSceneAssetCopy();
 	bool TestECSChunkStorage();
+	bool TestECSStructureSafety();
 	bool TestPrefabImmediateHierarchy();
 	bool TestSceneLifecycleContext();
 	bool TestPrefabPropagationAndNestedInstances();

@@ -26,8 +26,6 @@ namespace Engine {
 
 		void InitParticle(Vector3& position, Vector3& direction,
 			const ParticleEmitterSettings& settings, bool is2D) const override;
-		void DrawShape(const ParticleEmitterSettings& settings,
-			const Vector3& center, const Quaternion& rotation, bool is2D) const override;
 	};
 
 } // Engine

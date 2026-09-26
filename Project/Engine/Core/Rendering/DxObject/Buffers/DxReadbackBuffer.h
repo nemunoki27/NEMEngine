@@ -3,7 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <stdexcept>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
 // directX
@@ -23,10 +25,12 @@ namespace Engine {
 		//============================================================================
 
 		DxReadbackBuffer() = default;
-		~DxReadbackBuffer() = default;
+		~DxReadbackBuffer() { if (resource_) retirement_->Retire(std::move(resource_)); }
+		DxReadbackBuffer(const DxReadbackBuffer&) = delete;
+		DxReadbackBuffer& operator=(const DxReadbackBuffer&) = delete;
 
 		// リードバック用のリソースを確保し、CPUアクセス可能にする
-		void CreateBuffer(ID3D12Device* device);
+		void CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -43,6 +47,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		T* mappedData_ = nullptr;
 	};
 
@@ -50,12 +55,20 @@ namespace Engine {
 	//	DxReadbackBuffer templateMethods
 	//============================================================================
 	template<typename T>
-	inline void DxReadbackBuffer<T>::CreateBuffer(ID3D12Device* device) {
+	inline void DxReadbackBuffer<T>::CreateBuffer(GraphicsResourceRetirement& retirement, ID3D12Device* device) {
 
-		DxUtils::CreateReadbackBufferResource(device, resource_, sizeof(T));
-
-		// マッピング
-		HRESULT hr = resource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
-		Assert::Call(SUCCEEDED(hr), "DxReadbackBufferのMapに失敗しました");
+		if (retirement_ && retirement_ != &retirement) throw std::logic_error("Readback Bufferの回収先は変更できません");
+		ComPtr<ID3D12Resource> candidate;
+		DxUtils::CreateReadbackBufferResource(device, candidate, sizeof(T));
+		T* mapped = nullptr;
+		const HRESULT result = candidate->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+		if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxReadbackBuffer::Map")) {
+			throw std::runtime_error("Readback BufferのMapに失敗しました");
+		}
+		// 読み戻し途中の旧ResourceはGPU完了まで保持する
+		if (resource_) retirement.Retire(resource_);
+		retirement_ = &retirement;
+		resource_ = std::move(candidate);
+		mappedData_ = mapped;
 	}
 }; // Engine

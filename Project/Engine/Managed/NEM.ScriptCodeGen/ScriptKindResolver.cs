@@ -20,12 +20,13 @@ namespace NEM.ScriptCodeGen
     // スクリプト生成の値種別の解析
     internal static class ScriptKindResolver
     {
-        internal static KindInfo ResolveKind(ITypeSymbol type, int depth = 0)
+        internal static KindInfo ResolveKind(ITypeSymbol type, int depth = 0, Compilation? compilation = null, HashSet<string>? referencePath = null)
         {
             // 配列
             if (type is IArrayTypeSymbol arrayType)
             {
-                return new KindInfo { Kind = "Array", Element = ResolveKind(arrayType.ElementType, depth) };
+                return arrayType.Rank == 1 ? CollectionKind("Array", ResolveKind(arrayType.ElementType, depth, compilation, referencePath)) :
+                    new KindInfo { Kind = "Unsupported" };
             }
 
             if (type is INamedTypeSymbol named)
@@ -33,23 +34,23 @@ namespace NEM.ScriptCodeGen
                 // Nullable<T>
                 if (named.IsGenericType && named.ConstructedFrom.SpecialType == SpecialType.System_Nullable_T)
                 {
-                    return new KindInfo { Kind = "Nullable", Element = ResolveKind(named.TypeArguments[0], depth) };
+                    return new KindInfo { Kind = "Unsupported" };
                 }
 
                 string constructed = named.ConstructedFrom.ToDisplayString();
                 if (constructed == "System.Collections.Generic.List<T>")
                 {
-                    return new KindInfo { Kind = "List", Element = ResolveKind(named.TypeArguments[0], depth) };
+                    return CollectionKind("List", ResolveKind(named.TypeArguments[0], depth, compilation, referencePath));
                 }
 
-                // 参照型は型宣言の基底クラスだけで判定する（ScriptBehaviourはComponent派生なので先に判定）
+                // 参照型は型宣言の基底クラスだけで判定する（MonoBehaviourはComponent派生なので先に判定）
                 if (named.TypeKind == TypeKind.Class)
                 {
                     if (DerivesFrom(named, AssetFullName))
                     {
                         return new KindInfo { Kind = "AssetRef", AssetType = ResolveAssetType(named) };
                     }
-                    if (DerivesFrom(named, ScriptBehaviourFullName))
+                    if (DerivesFrom(named, MonoBehaviourFullName))
                     {
                         return new KindInfo
                         {
@@ -69,6 +70,9 @@ namespace NEM.ScriptCodeGen
             // enum
             if (type.TypeKind == TypeKind.Enum && type is INamedTypeSymbol enumType)
             {
+                if (enumType.EnumUnderlyingType?.SpecialType is SpecialType.System_Int64 or SpecialType.System_UInt64) {
+                    return new KindInfo { Kind = "Unsupported" };
+                }
                 var info = new KindInfo
                 {
                     Kind = "Enum",
@@ -96,9 +100,16 @@ namespace NEM.ScriptCodeGen
             // 既知の型に該当しない[Serializable]クラス/構造体はメンバ展開して編集対象にする
             if (type is INamedTypeSymbol objectType && IsSerializableObjectType(objectType))
             {
-                return ResolveObjectKind(objectType, depth);
+                return ResolveObjectKind(objectType, depth, compilation, referencePath);
             }
             return new KindInfo { Kind = "Unsupported" };
+        }
+
+        // 多重コンテナと未対応要素を保存対象へ混ぜない
+        private static KindInfo CollectionKind(string kind, KindInfo element)
+        {
+            return element.Kind is "Unsupported" or "Array" or "List" or "Nullable" ? new KindInfo { Kind = "Unsupported" } :
+                new KindInfo { Kind = kind, Element = element };
         }
 
         internal static bool IsSerializableObjectType(INamedTypeSymbol type)
@@ -119,7 +130,7 @@ namespace NEM.ScriptCodeGen
             return type.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == SerializableAttributeName);
         }
 
-        internal static KindInfo ResolveObjectKind(INamedTypeSymbol type, int depth)
+        internal static KindInfo ResolveObjectKind(INamedTypeSymbol type, int depth, Compilation? compilation = null, HashSet<string>? referencePath = null)
         {
             var info = new KindInfo { Kind = "Object", ObjectType = FullTypeName(type) };
 
@@ -141,17 +152,17 @@ namespace NEM.ScriptCodeGen
             {
                 foreach (ISymbol member in owner.GetMembers())
                 {
-                    if (member is not IFieldSymbol field || field.IsImplicitlyDeclared || !IsSerializedField(field))
+                    if (member is not IFieldSymbol field || !IsSerializedField(field))
                     {
                         continue;
                     }
-                    info.Members.Add(AnalyzeMemberField(field, depth + 1));
+                    info.Members.Add(AnalyzeMemberField(field, depth + 1, compilation, referencePath));
                 }
             }
             return info;
         }
 
-        internal static FieldSchema AnalyzeMemberField(IFieldSymbol field, int depth)
+        internal static FieldSchema AnalyzeMemberField(IFieldSymbol field, int depth, Compilation? compilation = null, HashSet<string>? referencePath = null)
         {
             var schema = new FieldSchema
             {
@@ -160,22 +171,26 @@ namespace NEM.ScriptCodeGen
                 Location = field.Locations.FirstOrDefault() ?? Location.None,
             };
             ParseFieldAttributes(field, schema);
-            schema.Kind = ResolveKind(field.Type, depth);
+            bool managedReference = field.GetAttributes().Any(a => a.AttributeClass?.ToDisplayString() == SerializeReferenceAttributeName);
+            schema.Kind = managedReference && compilation != null
+                ? ResolveSerializeReferenceKind(field.Type, compilation, depth, referencePath)
+                : ResolveKind(field.Type, depth, compilation, referencePath);
             return schema;
         }
 
-        internal static KindInfo ResolveSerializeReferenceKind(ITypeSymbol type, Compilation compilation)
+        internal static KindInfo ResolveSerializeReferenceKind(ITypeSymbol type, Compilation compilation, int depth = 0, HashSet<string>? referencePath = null)
         {
             if (type is IArrayTypeSymbol arrayType)
             {
-                return new KindInfo { Kind = "Array", Element = ResolveManagedReferenceKind(arrayType.ElementType, compilation) };
+                return arrayType.Rank == 1 ? CollectionKind("Array", ResolveManagedReferenceKind(arrayType.ElementType, compilation, depth, referencePath)) :
+                    new KindInfo { Kind = "Unsupported" };
             }
             if (type is INamedTypeSymbol named && named.IsGenericType &&
                 named.ConstructedFrom.ToDisplayString() == "System.Collections.Generic.List<T>")
             {
-                return new KindInfo { Kind = "List", Element = ResolveManagedReferenceKind(named.TypeArguments[0], compilation) };
+                return CollectionKind("List", ResolveManagedReferenceKind(named.TypeArguments[0], compilation, depth, referencePath));
             }
-            return ResolveManagedReferenceKind(type, compilation);
+            return ResolveManagedReferenceKind(type, compilation, depth, referencePath);
         }
 
         internal static bool HasSerializableDerivedType(ITypeSymbol type, Compilation compilation)
@@ -203,45 +218,51 @@ namespace NEM.ScriptCodeGen
                 !string.Equals(candidate.ObjectType, declaredType, StringComparison.Ordinal));
         }
 
-        internal static KindInfo ResolveManagedReferenceKind(ITypeSymbol baseType, Compilation compilation)
+        internal static KindInfo ResolveManagedReferenceKind(ITypeSymbol baseType, Compilation compilation, int depth = 0, HashSet<string>? referencePath = null)
         {
             if (baseType is not INamedTypeSymbol namedBase ||
+                namedBase.IsGenericType || namedBase.SpecialType == SpecialType.System_String || DerivesFrom(namedBase, "NEMEngine.Object") ||
                 (namedBase.TypeKind != TypeKind.Class && namedBase.TypeKind != TypeKind.Interface))
             {
                 return new KindInfo { Kind = "Unsupported" };
             }
 
             var info = new KindInfo { Kind = "ManagedReference", ObjectType = FullTypeName(namedBase) };
-            CollectManagedReferenceCandidates(compilation.Assembly.GlobalNamespace, namedBase, info);
+            if (depth >= MaxObjectDepth) { return info; }
+            referencePath ??= new HashSet<string>(StringComparer.Ordinal);
+            string referenceType = FullTypeName(namedBase);
+            if (!referencePath.Add(referenceType)) { return info; }
+            try { CollectManagedReferenceCandidates(compilation.Assembly.GlobalNamespace, namedBase, info, compilation, depth, referencePath); }
+            finally { referencePath.Remove(referenceType); }
             // 表示と出力を安定させるため型名でソートする
             info.Candidates.Sort((a, b) => string.CompareOrdinal(a.ObjectType, b.ObjectType));
             return info;
         }
 
-        internal static void CollectManagedReferenceCandidates(INamespaceSymbol ns, INamedTypeSymbol baseType, KindInfo info)
+        internal static void CollectManagedReferenceCandidates(INamespaceSymbol ns, INamedTypeSymbol baseType, KindInfo info, Compilation compilation, int depth, HashSet<string> referencePath)
         {
             foreach (INamespaceOrTypeSymbol member in ns.GetMembers())
             {
                 if (member is INamespaceSymbol childNamespace)
                 {
-                    CollectManagedReferenceCandidates(childNamespace, baseType, info);
+                    CollectManagedReferenceCandidates(childNamespace, baseType, info, compilation, depth, referencePath);
                 }
                 else if (member is INamedTypeSymbol candidate)
                 {
-                    CollectManagedReferenceCandidateType(candidate, baseType, info);
+                    CollectManagedReferenceCandidateType(candidate, baseType, info, compilation, depth, referencePath);
                 }
             }
         }
 
-        internal static void CollectManagedReferenceCandidateType(INamedTypeSymbol candidate, INamedTypeSymbol baseType, KindInfo info)
+        internal static void CollectManagedReferenceCandidateType(INamedTypeSymbol candidate, INamedTypeSymbol baseType, KindInfo info, Compilation compilation, int depth, HashSet<string> referencePath)
         {
             if (IsSerializableObjectType(candidate) && IsAssignableTo(candidate, baseType))
             {
-                info.Candidates.Add(ResolveObjectKind(candidate, 0));
+                info.Candidates.Add(ResolveObjectKind(candidate, depth, compilation, referencePath));
             }
             foreach (INamedTypeSymbol nested in candidate.GetTypeMembers())
             {
-                CollectManagedReferenceCandidateType(nested, baseType, info);
+                CollectManagedReferenceCandidateType(nested, baseType, info, compilation, depth, referencePath);
             }
         }
 
@@ -292,7 +313,7 @@ namespace NEM.ScriptCodeGen
                 case "NEMEngine.Quaternion": return "Quaternion";
                 case "NEMEngine.Color3": return "Color3";
                 case "NEMEngine.Color4": return "Color4";
-                case "NEMEngine.Entity": return "EntityRef";
+                case "NEMEngine.GameObject": return "EntityRef";
             }
             return null;
         }

@@ -50,7 +50,8 @@ Engine::PackageResolveResult Engine::PackageResolver::Resolve(
 	std::unordered_map<std::string, size_t> resolvedByName;
 	for (size_t index = 0; index < pending.size(); ++index) {
 
-		const DependencySpec& spec = pending[index];
+		// 推移依存の追加によるvector再確保から現在の要求を守る
+		const DependencySpec spec = pending[index];
 		const std::filesystem::path root = ResolvePackageRoot(spec, packagesRoot);
 		const nlohmann::json packageManifest = LoadJson(root / "package.json");
 		if (!packageManifest.is_object()) {
@@ -82,9 +83,15 @@ Engine::PackageResolveResult Engine::PackageResolver::Resolve(
 			continue;
 		}
 
+		// 全ファイルを読み取れたPackageだけを登録する
+		const auto contentHash = ComputePackageHash(root);
+		if (!contentHash) {
+			AddIssue(result, spec.name, "failed to read package content");
+			continue;
+		}
 		resolvedByName.emplace(spec.name, result.packages.size());
 		result.packages.emplace_back(
-			spec.name, actualVersion, spec.source, root, ComputePackageHash(root));
+			spec.name, actualVersion, spec.source, root, *contentHash);
 
 		const auto transitiveIt = packageManifest.find("dependencies");
 		if (transitiveIt == packageManifest.end()) {
@@ -117,6 +124,9 @@ Engine::PackageResolveResult Engine::PackageResolver::Resolve(
 
 	std::error_code ec;
 	std::filesystem::create_directories(libraryRoot / "Packages", ec);
+	if (ec) {
+		AddIssue(result, {}, "failed to create Library/Packages");
+	}
 	if (result.Succeeded() &&
 		!SaveLockFile(packagesRoot / "packages-lock.json", projectRoot, result.packages)) {
 		AddIssue(result, {}, "failed to write Packages/packages-lock.json");

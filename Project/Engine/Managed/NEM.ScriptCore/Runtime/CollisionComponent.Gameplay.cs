@@ -6,10 +6,10 @@ public sealed partial class CollisionComponent {
     private CollisionShapeRef? shape_;
     public CollisionShapeRef Shape => shape_ ??= new CollisionShapeRef(this);
 
-    internal NativeEntity NativeHandle => entity.native;
+    internal NativeEntity NativeHandle => native;
 
     // 現在フレームに接触しているか
-    public bool IsColliding => NativePhysicsAPI.ReadCollisionRuntimeState(entity.native);
+    public bool IsColliding => NativePhysicsAPI.ReadCollisionRuntimeState(native);
 
     // propertyIDはnative側のCollisionGetShapePropertyと対応する
     public sealed class CollisionShapeRef {

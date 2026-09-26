@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
 #include <cstddef>
@@ -30,10 +31,12 @@ namespace Engine {
 		//============================================================================
 
 		BufferUploadService() = default;
-		~BufferUploadService() = default;
+		~BufferUploadService();
+		BufferUploadService(const BufferUploadService&) = delete;
+		BufferUploadService& operator=(const BufferUploadService&) = delete;
 
 		// アップロード専用のキュー/アロケータ/リスト/フェンスを作成する
-		void Init(ID3D12Device* device, ID3D12CommandQueue* graphicsQueue);
+		void Init(GraphicsResourceRetirement& retirement, ID3D12Device* device, ID3D12CommandQueue* graphicsQueue);
 		// GPU利用中のstagingを安全に解放してから破棄する
 		void Finalize();
 
@@ -60,6 +63,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
+		GraphicsResourceRetirement& GetResourceRetirement() const;
 		bool HasOpenBatch() const { return batchOpened_; }
 		bool HasPendingUploads() const { return !pendingBatches_.empty(); }
 	private:
@@ -93,6 +97,7 @@ namespace Engine {
 		static constexpr uint32_t kUploadContextCount = 3;
 
 		ID3D12Device* device_ = nullptr;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		ID3D12CommandQueue* graphicsQueue_ = nullptr;
 
 		ComPtr<ID3D12CommandQueue> uploadQueue_;
@@ -116,6 +121,8 @@ namespace Engine {
 		void EnsureBatchOpened();
 		// 指定Fence値の完了をCPUで待つ
 		void WaitForFenceValue(uint64_t fenceValue);
+		// 提出済みBatchへFenceを対応付ける
+		uint64_t SignalSubmittedBatch();
 		// 全Submit分の完了を待つ
 		void WaitForAllUploads();
 	};

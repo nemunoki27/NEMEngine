@@ -45,10 +45,9 @@ namespace NEMTests {
 	bool TestPrefabPropagationAndNestedInstances() {
 
 		Engine::RuntimePaths::Refresh();
-		const std::filesystem::path testRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/PrefabPropagation";
+		TestDirectory directory("PrefabPropagation", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
 		std::filesystem::create_directories(testRoot, ec);
 		if (ec) {
 			return false;
@@ -59,9 +58,9 @@ namespace NEMTests {
 		Engine::HierarchySystem hierarchySystem;
 		Engine::PrefabSystem prefabSystem;
 		const std::string nestedPath =
-			"game://Tests/PrefabPropagation/Nested.prefab.json";
+			Engine::RuntimePaths::ToAssetPath(testRoot / "Nested.prefab.json");
 		const std::string outerPath =
-			"game://Tests/PrefabPropagation/Outer.prefab.json";
+			Engine::RuntimePaths::ToAssetPath(testRoot / "Outer.prefab.json");
 
 		Engine::ECSWorld nestedSourceWorld;
 		const Engine::Entity nestedSourceRoot =
@@ -374,7 +373,7 @@ namespace NEMTests {
 		passed &= !completeLinkRemains;
 
 		const std::string invalidPath =
-			"game://Tests/PrefabPropagation/Invalid.prefab.json";
+			Engine::RuntimePaths::ToAssetPath(testRoot / "Invalid.prefab.json");
 		passed &= Engine::JsonAdapter::SaveCanonical(
 			database.ResolveAssetPath(invalidPath), nlohmann::json::object());
 		const Engine::AssetID invalidAsset = database.ImportOrGet(
@@ -392,7 +391,7 @@ namespace NEMTests {
 			});
 		passed &= entityCount == entityCountAfterFailure;
 
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		return passed && !ec;
 	}
 }

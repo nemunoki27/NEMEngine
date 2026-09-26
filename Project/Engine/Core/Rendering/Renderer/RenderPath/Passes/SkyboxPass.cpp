@@ -74,7 +74,7 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 
-	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 }
 
 Engine::DxConstBuffer<Engine::SkyboxPass::SkyboxConstants>& Engine::SkyboxPass::AllocateConstantBuffer(
@@ -91,7 +91,7 @@ Engine::DxConstBuffer<Engine::SkyboxPass::SkyboxConstants>& Engine::SkyboxPass::
 	if (buffers.size() <= bufferIndex) {
 
 		auto buffer = std::make_unique<DxConstBuffer<SkyboxConstants>>();
-		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+		buffer->CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 		buffers.push_back(std::move(buffer));
 	}
 	return *buffers[bufferIndex++];

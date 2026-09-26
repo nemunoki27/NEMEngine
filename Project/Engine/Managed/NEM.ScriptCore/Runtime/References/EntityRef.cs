@@ -9,7 +9,7 @@ internal enum EntityRefKind
     Prefab,
 }
 
-// Entity参照の保存identity。ゲームコードへは公開せず、Entity型フィールドのシリアライズ内部表現として使う
+// GameObject参照の保存identity。ゲームコードへは公開せず、GameObject型フィールドのシリアライズ内部表現として使う
 internal readonly struct EntityRef
 {
 
@@ -30,7 +30,7 @@ internal readonly struct EntityRef
     public bool isValid => kind != EntityRefKind.Null && localFileID.isValid;
 
     // 参照先の現在のランタイムワールドエンティティを取得する
-    public Entity Resolve() => isValid ? NativeEntityAPI.ResolveEntityReference(sourceAsset, localFileID.value) : Entity.nullEntity;
+    public GameObject? Resolve() => isValid ? NativeEntityAPI.ResolveEntityReference(sourceAsset, localFileID.value) : null;
 
     public static EntityRef Null => new(EntityRefKind.Null, AssetGUID.None, UUID.None);
 

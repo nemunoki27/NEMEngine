@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/AccelerationStructureBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameUploadBufferAllocator.h>
 
 // c++
 #include <vector>
@@ -61,7 +61,7 @@ namespace Engine {
 		ID3D12Device8* device_ = nullptr;
 
 		// 加速化構造バッファ
-		DxFrameMappedUploadBuffer instanceDescBuffer_;
+		FrameUploadBufferAllocator instanceDescBuffer_{ 256 };
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
 		GraphicsResourceRetirement* retirementQueue_ = nullptr;
@@ -78,11 +78,15 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 未公開の候補へAS構築を記録する
+		void BuildResources(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
+			const std::vector<RaytracingTLASInstance>& instances, bool allowUpdate);
+
 		// 所有と構築状態を一組で交換する
 		void Swap(TopLevelAccelerationStructure& other) noexcept;
 
 		// TLASインスタンス記述のアップロード
-		void UploadInstanceDescs(const std::vector<RaytracingTLASInstance>& instances);
+		D3D12_GPU_VIRTUAL_ADDRESS UploadInstanceDescs(const std::vector<RaytracingTLASInstance>& instances);
 		// Matrix4x4行列を3x4行列に変換してコピー
 		static void CopyMatrix3x4(float(&dst)[3][4], const Matrix4x4& src);
 	};

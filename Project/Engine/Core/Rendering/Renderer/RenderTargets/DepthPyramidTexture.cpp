@@ -6,10 +6,11 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 // c++
 #include <algorithm>
+#include <stdexcept>
 
 //============================================================================
 //	DepthPyramidTexture classMethods
@@ -22,22 +23,22 @@ Engine::DepthPyramidTexture::~DepthPyramidTexture() {
 void Engine::DepthPyramidTexture::Create(ID3D12Device* device,
 	SRVDescriptor* srvDescriptor, uint32_t width, uint32_t height) {
 
-	Destroy();
 	if (!device || !srvDescriptor || width == 0 || height == 0) {
-		return;
+		throw std::invalid_argument("DepthPyramidTextureの作成条件が不正です");
 	}
+	DepthPyramidTexture candidate;
 
-	srvDescriptor_ = srvDescriptor;
-	width_ = width;
-	height_ = height;
-	mipCount_ = CalculateMipCount(width, height);
+	candidate.srvDescriptor_ = srvDescriptor;
+	candidate.width_ = width;
+	candidate.height_ = height;
+	candidate.mipCount_ = CalculateMipCount(width, height);
 
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	resourceDesc.Width = width;
 	resourceDesc.Height = height;
 	resourceDesc.DepthOrArraySize = 1;
-	resourceDesc.MipLevels = static_cast<UINT16>(mipCount_);
+	resourceDesc.MipLevels = static_cast<UINT16>(candidate.mipCount_);
 	resourceDesc.Format = DXGI_FORMAT_R32_FLOAT;
 	resourceDesc.SampleDesc.Count = 1;
 	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -48,14 +49,11 @@ void Engine::DepthPyramidTexture::Create(ID3D12Device* device,
 	const HRESULT result = device->CreateCommittedResource(
 		&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		D3D12_RESOURCE_STATE_COMMON, nullptr,
-		IID_PPV_ARGS(&resource_));
-	if (FAILED(result)) {
-		Assert::Call(false,
-			"DepthPyramidTexture用リソースの作成に失敗しました");
-		Destroy();
-		return;
+		IID_PPV_ARGS(&candidate.resource_));
+	if (!DxDredDiagnostics::CheckHRESULT(device, result, "DepthPyramidTexture::Create")) {
+		throw std::runtime_error("DepthPyramidTexture用リソースの作成に失敗しました");
 	}
-	resource_->SetName(L"SceneDepthPyramid");
+	candidate.resource_->SetName(L"SceneDepthPyramid");
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
@@ -63,38 +61,41 @@ void Engine::DepthPyramidTexture::Create(ID3D12Device* device,
 		D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = mipCount_;
-	srvDescriptor_->CreateSRV(srvIndex_, resource_.Get(), srvDesc);
-	srvGPUHandle_ = srvDescriptor_->GetGPUHandle(srvIndex_);
+	srvDesc.Texture2D.MipLevels = candidate.mipCount_;
+	candidate.srvDescriptor_->CreateSRV(candidate.srvIndex_, candidate.resource_.Get(), srvDesc);
+	candidate.srvGPUHandle_ = candidate.srvDescriptor_->GetGPUHandle(candidate.srvIndex_);
 
-	mipSRVIndices_.resize(mipCount_, UINT32_MAX);
-	mipUAVIndices_.resize(mipCount_, UINT32_MAX);
-	mipSRVGPUHandles_.resize(mipCount_);
-	mipUAVGPUHandles_.resize(mipCount_);
-	mipStates_.resize(mipCount_, D3D12_RESOURCE_STATE_COMMON);
-	for (uint32_t mipIndex = 0; mipIndex < mipCount_; ++mipIndex) {
+	candidate.mipSRVIndices_.resize(candidate.mipCount_, UINT32_MAX);
+	candidate.mipUAVIndices_.resize(candidate.mipCount_, UINT32_MAX);
+	candidate.mipSRVGPUHandles_.resize(candidate.mipCount_);
+	candidate.mipUAVGPUHandles_.resize(candidate.mipCount_);
+	candidate.mipStates_.resize(candidate.mipCount_, D3D12_RESOURCE_STATE_COMMON);
+	for (uint32_t mipIndex = 0; mipIndex < candidate.mipCount_; ++mipIndex) {
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC mipSRVDesc = srvDesc;
 		mipSRVDesc.Texture2D.MostDetailedMip = mipIndex;
 		mipSRVDesc.Texture2D.MipLevels = 1;
-		srvDescriptor_->CreateSRV(
-			mipSRVIndices_[mipIndex],
-			resource_.Get(), mipSRVDesc);
-		mipSRVGPUHandles_[mipIndex] =
-			srvDescriptor_->GetGPUHandle(
-				mipSRVIndices_[mipIndex]);
+		candidate.srvDescriptor_->CreateSRV(
+			candidate.mipSRVIndices_[mipIndex],
+			candidate.resource_.Get(), mipSRVDesc);
+		candidate.mipSRVGPUHandles_[mipIndex] =
+			candidate.srvDescriptor_->GetGPUHandle(
+				candidate.mipSRVIndices_[mipIndex]);
 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 		uavDesc.Format = DXGI_FORMAT_R32_FLOAT;
 		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 		uavDesc.Texture2D.MipSlice = mipIndex;
-		srvDescriptor_->CreateUAV(
-			mipUAVIndices_[mipIndex],
-			resource_.Get(), uavDesc);
-		mipUAVGPUHandles_[mipIndex] =
-			srvDescriptor_->GetGPUHandle(
-				mipUAVIndices_[mipIndex]);
+		candidate.srvDescriptor_->CreateUAV(
+			candidate.mipUAVIndices_[mipIndex],
+			candidate.resource_.Get(), uavDesc);
+		candidate.mipUAVGPUHandles_[mipIndex] =
+			candidate.srvDescriptor_->GetGPUHandle(
+				candidate.mipUAVIndices_[mipIndex]);
 	}
+
+	// 作成途中の失敗では旧描画先を維持する
+	Swap(candidate);
 }
 
 void Engine::DepthPyramidTexture::Destroy() {
@@ -161,4 +162,21 @@ uint32_t Engine::DepthPyramidTexture::CalculateMipCount(
 		++count;
 	}
 	return count;
+}
+
+void Engine::DepthPyramidTexture::Swap(DepthPyramidTexture& other) noexcept {
+
+	std::swap(srvDescriptor_, other.srvDescriptor_);
+	std::swap(resource_, other.resource_);
+	std::swap(width_, other.width_);
+	std::swap(height_, other.height_);
+	std::swap(mipCount_, other.mipCount_);
+	std::swap(lastBuiltFrameSerial_, other.lastBuiltFrameSerial_);
+	std::swap(srvIndex_, other.srvIndex_);
+	std::swap(srvGPUHandle_, other.srvGPUHandle_);
+	std::swap(mipSRVIndices_, other.mipSRVIndices_);
+	std::swap(mipUAVIndices_, other.mipUAVIndices_);
+	std::swap(mipSRVGPUHandles_, other.mipSRVGPUHandles_);
+	std::swap(mipUAVGPUHandles_, other.mipUAVGPUHandles_);
+	std::swap(mipStates_, other.mipStates_);
 }

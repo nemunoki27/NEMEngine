@@ -98,6 +98,21 @@
 
 using namespace NEMTests;
 
+namespace {
+
+	bool RunTest(const char* name, bool (*test)()) {
+
+		// 異常終了した場合も実行中の検証名を残す
+		std::cout << "[RUN] " << name << std::endl;
+		try {
+			return test();
+		} catch (const std::exception& error) {
+			std::cerr << "[FAIL] " << name << ": " << error.what() << '\n';
+			return false;
+		}
+	}
+}
+
 int main(int argc, char* argv[]) {
 
 	if (1 < argc && (std::string_view(argv[1]) == "--gpu-retirement" ||
@@ -107,24 +122,24 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--editor") {
-		if (!TestEditorContracts()) return 43;
+		if (!RunTest("TestEditorContracts", TestEditorContracts)) return 43;
 		std::cout << "Editor tests passed\n";
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--gameplay") {
-		if (!TestGameplayContracts()) return 42;
+		if (!RunTest("TestGameplayContracts", TestGameplayContracts)) return 42;
 		std::cout << "Gameplay tests passed\n";
 		return 0;
 	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--foundation") {
-		if (!TestFoundationContracts()) return 41;
+		if (!RunTest("TestFoundationContracts", TestFoundationContracts)) return 41;
 		std::cout << "Foundation tests passed\n";
 		return 0;
 	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-storage") {
-		if (!TestSceneAssetStorage()) return 40;
+		if (!RunTest("TestSceneAssetStorage", TestSceneAssetStorage)) return 40;
 		std::cout << "Scene storage tests passed\n";
 		return 0;
 	}
@@ -148,7 +163,7 @@ int main(int argc, char* argv[]) {
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-single-load") {
 
-		if (!TestSingleSceneLoadReservation()) {
+		if (!RunTest("TestSingleSceneLoadReservation", TestSingleSceneLoadReservation)) {
 			std::cerr << "Single scene load reservation test failed\n";
 			return 38;
 		}
@@ -158,7 +173,7 @@ int main(int argc, char* argv[]) {
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-copy") {
 
-		if (!TestSceneAssetStorage() || !TestSceneAssetCopy() || !TestExternalActors() || !TestPrefabPropagationAndNestedInstances()) {
+		if (!RunTest("TestSceneAssetStorage", TestSceneAssetStorage) || !RunTest("TestSceneAssetCopy", TestSceneAssetCopy) || !RunTest("TestExternalActors", TestExternalActors) || !RunTest("TestPrefabPropagationAndNestedInstances", TestPrefabPropagationAndNestedInstances)) {
 			std::cerr << "Scene asset copy test failed\n";
 			return 37;
 		}
@@ -167,7 +182,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (1 < argc && std::string_view(argv[1]) == "--scene-lifecycle") {
-		if (!TestSceneLifecycleContext()) {
+		if (!RunTest("TestSceneLifecycleContext", TestSceneLifecycleContext)) {
 			std::cerr << "Scene lifecycle context test failed\n";
 			return 36;
 		}
@@ -175,7 +190,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--canvas-ui") {
-		if (!TestCanvasNavigationTable()) {
+		if (!RunTest("TestCanvasNavigationTable", TestCanvasNavigationTable)) {
 			std::cerr << "Canvas UI test failed\n";
 			return 35;
 		}
@@ -189,7 +204,7 @@ int main(int argc, char* argv[]) {
 		return TestPrefabPropagationAndNestedInstances() ? 0 : 34;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--prefab") {
-		if (!TestPrefabImmediateHierarchy() || !TestPrefabPropagationAndNestedInstances()) {
+		if (!RunTest("TestPrefabImmediateHierarchy", TestPrefabImmediateHierarchy) || !RunTest("TestPrefabPropagationAndNestedInstances", TestPrefabPropagationAndNestedInstances)) {
 			std::cerr << "Prefab test failed\n";
 			return 34;
 		}
@@ -197,10 +212,10 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--physics") {
-		if (!TestBoxInternalFaces() || !TestRigidbodyBoxSeams() || !TestBoxSeamNeighborState() || !TestBoxSeamLanding() ||
-			!TestRigidbody2DRestingContact() || !TestInactivePhysicsSystems() ||
-			!TestEditCollisionState() ||
-			!TestCapsuleCollisions()) {
+		if (!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) || !RunTest("TestRigidbodyBoxSeams", TestRigidbodyBoxSeams) || !RunTest("TestBoxSeamNeighborState", TestBoxSeamNeighborState) || !RunTest("TestBoxSeamLanding", TestBoxSeamLanding) ||
+			!RunTest("TestRigidbody2DRestingContact", TestRigidbody2DRestingContact) || !RunTest("TestInactivePhysicsSystems", TestInactivePhysicsSystems) ||
+			!RunTest("TestEditCollisionState", TestEditCollisionState) ||
+			!RunTest("TestCapsuleCollisions", TestCapsuleCollisions)) {
 			std::cerr << "Physics collision test failed\n";
 			return 27;
 		}
@@ -208,7 +223,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--paths") {
-		if (!TestUTF8Path()) {
+		if (!RunTest("TestUTF8Path", TestUTF8Path)) {
 			std::cerr << "UTF-8 path failed\n";
 			return 24;
 		}
@@ -216,7 +231,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--texture-import") {
-		if (!TestTextureImportSettings()) {
+		if (!RunTest("TestTextureImportSettings", TestTextureImportSettings)) {
 			std::cerr << "Texture import settings failed\n";
 			return 25;
 		}
@@ -224,7 +239,7 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--screen-space-outline") {
-		if (!TestScreenSpaceOutlineSerialization() || !TestScreenSpaceOutlineBinding()) {
+		if (!RunTest("TestScreenSpaceOutlineSerialization", TestScreenSpaceOutlineSerialization) || !RunTest("TestScreenSpaceOutlineBinding", TestScreenSpaceOutlineBinding)) {
 			std::cerr << "Screen space outline binding failed\n";
 			return 10;
 		}
@@ -232,15 +247,15 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 	if (1 < argc && std::string_view(argv[1]) == "--ecs") {
-		if (!TestECSChunkStorage() || !TestECSExternalStorage() ||
-			!TestECSRuntimeData() || !TestNonTrivialDynamicBuffer() ||
-			!TestPrefabImmediateHierarchy() ||
-			!TestPrefabPropagationAndNestedInstances() ||
-			!TestTransformDirtyHierarchy() ||
-			!TestTransformDimensionSerialization() ||
-			!TestScreenSpaceOutlineSerialization() || !TestScreenSpaceOutlineBinding() ||
-			!TestScriptExecutionOrderSettings() || !TestScriptProfiler() ||
-			!TestCanvasNavigationTable()) {
+		if ((!RunTest("TestECSChunkStorage", TestECSChunkStorage) || !RunTest("TestECSStructureSafety", TestECSStructureSafety)) || !RunTest("TestECSExternalStorage", TestECSExternalStorage) ||
+			!RunTest("TestECSRuntimeData", TestECSRuntimeData) || !RunTest("TestNonTrivialDynamicBuffer", TestNonTrivialDynamicBuffer) ||
+			!RunTest("TestPrefabImmediateHierarchy", TestPrefabImmediateHierarchy) ||
+			!RunTest("TestPrefabPropagationAndNestedInstances", TestPrefabPropagationAndNestedInstances) ||
+			!RunTest("TestTransformDirtyHierarchy", TestTransformDirtyHierarchy) ||
+			!RunTest("TestTransformDimensionSerialization", TestTransformDimensionSerialization) ||
+			!RunTest("TestScreenSpaceOutlineSerialization", TestScreenSpaceOutlineSerialization) || !RunTest("TestScreenSpaceOutlineBinding", TestScreenSpaceOutlineBinding) ||
+			!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) || !RunTest("TestScriptProfiler", TestScriptProfiler) ||
+			!RunTest("TestCanvasNavigationTable", TestCanvasNavigationTable)) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
 		}
@@ -250,9 +265,9 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--shader-graph") {
 
-		if (!TestShaderGraphCompile() ||
-			!TestRenderFeatureRuntimeOverrides() ||
-			!TestRayTracingPipelineSerialization()) {
+		if (!RunTest("TestShaderGraphCompile", TestShaderGraphCompile) ||
+			!RunTest("TestRenderFeatureRuntimeOverrides", TestRenderFeatureRuntimeOverrides) ||
+			!RunTest("TestRayTracingPipelineSerialization", TestRayTracingPipelineSerialization)) {
 			std::cerr << "Shader Graph compilation failed\n";
 			return 18;
 		}
@@ -262,10 +277,10 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--materials") {
 
-		if (!TestBlendStates() ||
-			!TestMeshBatchInvalidation() ||
-			!TestMaterialParameters() ||
-			!TestShaderReflectionMerge()) {
+		if (!RunTest("TestBlendStates", TestBlendStates) ||
+			!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) ||
+			!RunTest("TestMaterialParameters", TestMaterialParameters) ||
+			!RunTest("TestShaderReflectionMerge", TestShaderReflectionMerge)) {
 			std::cerr << "Material parameter storage failed\n";
 			return 17;
 		}
@@ -275,10 +290,10 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--render-features") {
 
-		if (!TestRenderFeatureRuntimeOverrides() ||
-			!TestShaderPathDependencies() ||
-			!TestRenderFeatureProfile() ||
-			!TestPostProcessSourceExtension()) {
+		if (!RunTest("TestRenderFeatureRuntimeOverrides", TestRenderFeatureRuntimeOverrides) ||
+			!RunTest("TestShaderPathDependencies", TestShaderPathDependencies) ||
+			!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile) ||
+			!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension)) {
 			std::cerr << "Render Feature test failed\n";
 			return 22;
 		}
@@ -288,7 +303,7 @@ int main(int argc, char* argv[]) {
 	if (1 < argc &&
 		std::string_view(argv[1]) == "--render-feature-profile") {
 
-		if (!TestRenderFeatureProfile()) {
+		if (!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile)) {
 			std::cerr << "Render Feature profile test failed\n";
 			return 28;
 		}
@@ -296,172 +311,172 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	if (!TestEditorContracts()) {
+	if (!RunTest("TestEditorContracts", TestEditorContracts)) {
 		return 43;
 	}
-	if (!TestWindowFileDropConversion()) {
+	if (!RunTest("TestWindowFileDropConversion", TestWindowFileDropConversion)) {
 		return 42;
 	}
-	if (!TestGameplayContracts()) {
+	if (!RunTest("TestGameplayContracts", TestGameplayContracts)) {
 		return 42;
 	}
-	if (!TestFoundationContracts()) {
+	if (!RunTest("TestFoundationContracts", TestFoundationContracts)) {
 		return 41;
 	}
-	if (!TestAssetGUIDRoundTrip()) {
+	if (!RunTest("TestAssetGUIDRoundTrip", TestAssetGUIDRoundTrip)) {
 		std::cerr << "AssetGUID round-trip failed\n";
 		return 1;
 	}
-	if (!TestContentHash()) {
+	if (!RunTest("TestContentHash", TestContentHash)) {
 		std::cerr << "Content hash failed\n";
 		return 2;
 	}
-	if (!TestPackageResolver()) {
+	if (!RunTest("TestPackageResolver", TestPackageResolver)) {
 		std::cerr << "Package resolver failed\n";
 		return 3;
 	}
-	if (!TestVirtualPath()) {
+	if (!RunTest("TestVirtualPath", TestVirtualPath)) {
 		std::cerr << "Virtual path failed\n";
 		return 4;
 	}
-	if (!TestUTF8Path()) {
+	if (!RunTest("TestUTF8Path", TestUTF8Path)) {
 		std::cerr << "UTF-8 path failed\n";
 		return 24;
 	}
-	if (!TestTextureImportSettings()) {
+	if (!RunTest("TestTextureImportSettings", TestTextureImportSettings)) {
 		std::cerr << "Texture import settings failed\n";
 		return 25;
 	}
-	if (!TestCanonicalSceneData()) {
+	if (!RunTest("TestCanonicalSceneData", TestCanonicalSceneData)) {
 		std::cerr << "Canonical scene data failed\n";
 		return 5;
 	}
-	if (!TestJsonSemanticMerge()) {
+	if (!RunTest("TestJsonSemanticMerge", TestJsonSemanticMerge)) {
 		std::cerr << "Semantic JSON merge failed\n";
 		return 6;
 	}
-	if (!TestSubScenes()) {
+	if (!RunTest("TestSubScenes", TestSubScenes)) {
 		std::cerr << "SubScene failed\n";
 		return 7;
 	}
-	if (!TestSingleSceneLoadReservation()) {
+	if (!RunTest("TestSingleSceneLoadReservation", TestSingleSceneLoadReservation)) {
 		std::cerr << "Single scene load reservation failed\n";
 		return 38;
 	}
-	if (!TestSceneLifecycleContext()) {
+	if (!RunTest("TestSceneLifecycleContext", TestSceneLifecycleContext)) {
 		std::cerr << "Scene lifecycle context failed\n";
 		return 36;
 	}
-	if (!TestSceneAssetStorage() || !TestExternalActors() || !TestSceneAssetCopy()) {
+	if (!RunTest("TestSceneAssetStorage", TestSceneAssetStorage) || !RunTest("TestExternalActors", TestExternalActors) || !RunTest("TestSceneAssetCopy", TestSceneAssetCopy)) {
 		std::cerr << "ExternalActors failed\n";
 		return 8;
 	}
-	if (!TestBuiltinShaderSources()) {
+	if (!RunTest("TestBuiltinShaderSources", TestBuiltinShaderSources)) {
 		std::cerr << "Builtin shader source resolution failed\n";
 		return 9;
 	}
-	if (!TestECSChunkStorage()) {
+	if ((!RunTest("TestECSChunkStorage", TestECSChunkStorage) || !RunTest("TestECSStructureSafety", TestECSStructureSafety))) {
 		std::cerr << "ECS chunk storage failed\n";
 		return 10;
 	}
-	if (!TestPrefabImmediateHierarchy()) {
+	if (!RunTest("TestPrefabImmediateHierarchy", TestPrefabImmediateHierarchy)) {
 		std::cerr << "Prefab immediate hierarchy failed\n";
 		return 33;
 	}
-	if (!TestPrefabPropagationAndNestedInstances()) {
+	if (!RunTest("TestPrefabPropagationAndNestedInstances", TestPrefabPropagationAndNestedInstances)) {
 		std::cerr << "Prefab propagation and nested instances failed\n";
 		return 34;
 	}
-	if (!TestECSExternalStorage()) {
+	if (!RunTest("TestECSExternalStorage", TestECSExternalStorage)) {
 		std::cerr << "ECS external storage failed\n";
 		return 11;
 	}
-	if (!TestECSRuntimeData()) {
+	if (!RunTest("TestECSRuntimeData", TestECSRuntimeData)) {
 		std::cerr << "ECS runtime data failed\n";
 		return 12;
 	}
-	if (!TestNonTrivialDynamicBuffer()) {
+	if (!RunTest("TestNonTrivialDynamicBuffer", TestNonTrivialDynamicBuffer)) {
 		std::cerr << "ECS non-trivial buffer failed\n";
 		return 13;
 	}
-	if (!TestTransformDirtyHierarchy()) {
+	if (!RunTest("TestTransformDirtyHierarchy", TestTransformDirtyHierarchy)) {
 		std::cerr << "Transform dirty hierarchy failed\n";
 		return 14;
 	}
-	if (!TestTransformDimensionSerialization()) {
+	if (!RunTest("TestTransformDimensionSerialization", TestTransformDimensionSerialization)) {
 		std::cerr << "Transform dimension serialization failed\n";
 		return 26;
 	}
-	if (!TestScreenSpaceOutlineSerialization() || !TestScreenSpaceOutlineBinding()) {
+	if (!RunTest("TestScreenSpaceOutlineSerialization", TestScreenSpaceOutlineSerialization) || !RunTest("TestScreenSpaceOutlineBinding", TestScreenSpaceOutlineBinding)) {
 		std::cerr << "Screen space outline serialization failed\n";
 		return 29;
 	}
-	if (!TestScriptExecutionOrderSettings() || !TestScriptProfiler()) {
+	if (!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) || !RunTest("TestScriptProfiler", TestScriptProfiler)) {
 		std::cerr << "Script execution order settings failed\n";
 		return 35;
 	}
-	if (!TestBoxInternalFaces() || !TestRigidbodyBoxSeams() || !TestBoxSeamNeighborState() || !TestBoxSeamLanding()) {
+	if (!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) || !RunTest("TestRigidbodyBoxSeams", TestRigidbodyBoxSeams) || !RunTest("TestBoxSeamNeighborState", TestBoxSeamNeighborState) || !RunTest("TestBoxSeamLanding", TestBoxSeamLanding)) {
 		std::cerr << "Box collider seam contact failed\n";
 		return 27;
 	}
-	if (!TestRigidbody2DRestingContact()) {
+	if (!RunTest("TestRigidbody2DRestingContact", TestRigidbody2DRestingContact)) {
 		std::cerr << "Rigidbody2D resting contact failed\n";
 		return 27;
 	}
-	if (!TestInactivePhysicsSystems()) {
+	if (!RunTest("TestInactivePhysicsSystems", TestInactivePhysicsSystems)) {
 		std::cerr << "Inactive physics systems failed\n";
 		return 32;
 	}
-	if (!TestEditCollisionState()) {
+	if (!RunTest("TestEditCollisionState", TestEditCollisionState)) {
 		std::cerr << "Edit collision state failed\n";
 		return 31;
 	}
-	if (!TestCapsuleCollisions()) {
+	if (!RunTest("TestCapsuleCollisions", TestCapsuleCollisions)) {
 		std::cerr << "Capsule collision failed\n";
 		return 28;
 	}
-	if (!TestSerializationClone()) {
+	if (!RunTest("TestSerializationClone", TestSerializationClone)) {
 		std::cerr << "Serialization clone failed\n";
 		return 15;
 	}
-	if (!TestMeshLODGeneration()) {
+	if (!RunTest("TestMeshLODGeneration", TestMeshLODGeneration)) {
 		std::cerr << "Mesh LOD generation failed\n";
 		return 16;
 	}
-	if (!TestBlendStates()) {
+	if (!RunTest("TestBlendStates", TestBlendStates)) {
 		std::cerr << "Blend state failed\n";
 		return 30;
 	}
-	if (!TestMeshBatchInvalidation() || !TestMaterialParameters()) {
+	if (!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) || !RunTest("TestMaterialParameters", TestMaterialParameters)) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
 	}
-	if (!TestShaderReflectionMerge()) {
+	if (!RunTest("TestShaderReflectionMerge", TestShaderReflectionMerge)) {
 		std::cerr << "Shader reflection merge failed\n";
 		return 23;
 	}
-	if (!TestRenderFeatureRuntimeOverrides()) {
+	if (!RunTest("TestRenderFeatureRuntimeOverrides", TestRenderFeatureRuntimeOverrides)) {
 		std::cerr << "Render Feature runtime overrides failed\n";
 		return 20;
 	}
-	if (!TestShaderPathDependencies()) {
+	if (!RunTest("TestShaderPathDependencies", TestShaderPathDependencies)) {
 		std::cerr << "Shader path dependencies failed\n";
 		return 32;
 	}
-	if (!TestRayTracingPipelineSerialization()) {
+	if (!RunTest("TestRayTracingPipelineSerialization", TestRayTracingPipelineSerialization)) {
 		std::cerr << "Ray Tracing pipeline serialization failed\n";
 		return 21;
 	}
-	if (!TestShaderGraphCompile()) {
+	if (!RunTest("TestShaderGraphCompile", TestShaderGraphCompile)) {
 		std::cerr << "Shader Graph compilation failed\n";
 		return 18;
 	}
-	if (!TestRenderFeatureProfile() ||
-		!TestPostProcessSourceExtension()) {
+	if (!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile) ||
+		!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension)) {
 		std::cerr << "RenderFeature profile failed\n";
 		return 22;
 	}
-	if (!TestProfilerContracts()) {
+	if (!RunTest("TestProfilerContracts", TestProfilerContracts)) {
 		std::cerr << "Profiler contracts failed\n";
 		return 44;
 	}

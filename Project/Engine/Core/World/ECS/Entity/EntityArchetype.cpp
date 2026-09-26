@@ -22,10 +22,10 @@ Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const
 	}
 }
 
-std::pair<uint32_t, uint32_t> Engine::EntityArchetype::Add(const Entity& entity) {
+std::pair<uint32_t, uint32_t> Engine::EntityArchetype::Add(const Entity& entity, uint64_t firstInstanceID) {
 
 	const uint32_t chunkIndex = FindWritableChunkIndex();
-	uint32_t row = chunks_[chunkIndex]->AddEntity(entity);
+	uint32_t row = chunks_[chunkIndex]->AddEntity(entity, firstInstanceID);
 	if (!chunks_[chunkIndex]->HasSpace()) {
 
 		++firstWritableChunkIndex_;
@@ -55,10 +55,10 @@ Engine::Entity Engine::EntityArchetype::RemoveSwap(uint32_t chunkIndex, uint32_t
 	return moved;
 }
 
-void Engine::EntityArchetype::ConstructDefault(uint32_t chunkIndex, uint32_t row, uint32_t typeID) {
+void Engine::EntityArchetype::ConstructDefault(uint32_t chunkIndex, uint32_t row, uint32_t typeID, uint64_t instanceID) {
 
 	Assert::Call(chunkIndex < GetChunkCount(), "EntityArchetypeのChunk番号が範囲外です");
-	chunks_[chunkIndex]->ConstructDefaultByColumnIndex(GetColumnIndex(typeID), row);
+	chunks_[chunkIndex]->ConstructDefaultByColumnIndex(GetColumnIndex(typeID), row, instanceID);
 }
 
 bool Engine::EntityArchetype::Has(uint32_t typeID) const {

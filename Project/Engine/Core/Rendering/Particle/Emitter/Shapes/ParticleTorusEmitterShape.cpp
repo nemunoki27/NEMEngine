@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
@@ -38,35 +37,4 @@ void Engine::ParticleTorusEmitterShape::InitParticle(Vector3& position, Vector3&
 	const Vector3 tubeDir = radial * std::cos(tubeAngle) + Vector3(0.0f, std::sin(tubeAngle), 0.0f);
 	position = radial * settings.torus.radius + tubeDir * tubeRadius;
 	direction = tubeDir;
-}
-
-void Engine::ParticleTorusEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	const Matrix4x4 rotationMatrix = Quaternion::MakeRotateMatrix(rotation);
-	const Color4 color = Color4::Red();
-
-	// 主円周を管の内外2本の円で表す
-	constexpr uint32_t kDivision = 24;
-	constexpr float kStep = 2.0f * std::numbers::pi_v<float> / static_cast<float>(kDivision);
-	for (uint32_t i = 0; i < kDivision; ++i) {
-
-		const float angle0 = kStep * static_cast<float>(i);
-		const float angle1 = kStep * static_cast<float>(i + 1);
-		for (const float radius : { settings.torus.radius - settings.torus.thickness,
-			settings.torus.radius + settings.torus.thickness }) {
-
-			const Vector3 p0 = center + Vector3::Transform(
-				Vector3(std::cos(angle0) * radius, 0.0f, std::sin(angle0) * radius), rotationMatrix);
-			const Vector3 p1 = center + Vector3::Transform(
-				Vector3(std::cos(angle1) * radius, 0.0f, std::sin(angle1) * radius), rotationMatrix);
-			renderer->DrawLine(p0, p1, color);
-		}
-	}
-#endif
 }

@@ -113,13 +113,12 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 		runtimeRTVFormats, runtimeDSVFormat, nullptr, desc)) {
 		return restoreFallback();
 	}
-	std::unique_ptr<PipelineState> pipelineState = PipelineStateBuilder::CreateGraphics(
+	std::unique_ptr<PipelineState> pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(),
 		graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc, &composedShader);
 	if (!pipelineState) {
 		return restoreFallback();
 	}
 
-	pipelineState->SetRetirementQueue(graphicsPlatform.GetResourceRetirement());
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
 	graphicsReflectionByPipeline_[pipelineAssetID] =
@@ -230,7 +229,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		}
 		// パイプラインステートオブジェクトを生成
-		pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetDevice(),
+		pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(), graphicsPlatform.GetDevice(),
 			graphicsPlatform.GetDxShaderCompiler(), desc, shaderAsset);
 		break;
 	}
@@ -242,7 +241,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 			return restoreFallback();
 		}
 		// パイプラインステートオブジェクトを生成
-		pipelineState = PipelineStateBuilder::CreateCompute(graphicsPlatform.GetDevice(),
+		pipelineState = PipelineStateBuilder::CreateCompute(graphicsPlatform.GetResourceRetirement(), graphicsPlatform.GetDevice(),
 			graphicsPlatform.GetDxShaderCompiler(), desc, shaderAsset);
 		break;
 	}
@@ -254,7 +253,6 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		return restoreFallback();
 	}
 	// キャッシュに保存
-	pipelineState->SetRetirementQueue(graphicsPlatform.GetResourceRetirement());
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
 	// マテリアルインスペクタ等がエディタ側でPSOを再生成せず、reflectionを引けるようpipelineAsset別に保存する

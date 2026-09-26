@@ -34,12 +34,18 @@ namespace {
 		return value ? *value : MissingValue();
 	}
 
+	std::string ReadString(const Json& item, const char* name) {
+
+		const auto found = item.find(name);
+		return found != item.end() && found->is_string() ? found->get<std::string>() : std::string{};
+	}
+
 	std::optional<std::string> ArrayItemKey(
 		std::string_view memberName, const Json& item) {
 
 		if (item.is_string() &&
 			(memberName == "ExternalActors" ||
-				memberName == "RemovedEntities")) {
+				memberName == "RemovedEntities" || memberName == "RemovedNestedSlots")) {
 			return item.get<std::string>();
 		}
 		if (!item.is_object()) {
@@ -48,41 +54,45 @@ namespace {
 
 		if (memberName == "Entities") {
 			const std::string key =
-				item.value("LocalFileID", std::string{});
+				ReadString(item, "LocalFileID");
+			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
+		}
+		if (memberName == "NestedPrefabInstances" || memberName == "NestedInstances") {
+			const std::string key = ReadString(item, "NestedSlotID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "PrefabInstances") {
-			const std::string key = item.value("InstanceID", std::string{});
+			const std::string key = ReadString(item, "InstanceID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "EntityMap") {
-			const std::string key = item.value("S", std::string{});
+			const std::string key = ReadString(item, "S");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "Modifications") {
-			const std::string target = item.value("Target", std::string{});
-			const std::string path = item.value("Path", std::string{});
+			const std::string target = ReadString(item, "Target");
+			const std::string path = ReadString(item, "Path");
 			return target.empty() || path.empty() ? std::nullopt :
 				std::optional<std::string>{ target + "/" + path };
 		}
 		if (memberName == "AddedComponents" ||
 			memberName == "RemovedComponents") {
-			const std::string target = item.value("Target", std::string{});
-			const std::string type = item.value("Type", std::string{});
+			const std::string target = ReadString(item, "Target");
+			const std::string type = ReadString(item, "Type");
 			return target.empty() || type.empty() ? std::nullopt :
 				std::optional<std::string>{ target + "/" + type };
 		}
 		if (memberName == "HierarchyMods") {
-			const std::string key = item.value("Target", std::string{});
+			const std::string key = ReadString(item, "Target");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "AddedEntities") {
 			const std::string key =
-				item.value("SceneLocalFileID", std::string{});
+				ReadString(item, "SceneLocalFileID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "subScenes") {
-			const std::string key = item.value("slotID", std::string{});
+			const std::string key = ReadString(item, "slotID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		return std::nullopt;

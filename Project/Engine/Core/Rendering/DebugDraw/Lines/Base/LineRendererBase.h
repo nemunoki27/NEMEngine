@@ -131,6 +131,7 @@ namespace Engine {
 			kGraphicsFrameContextCount> renderResources_{};
 		std::array<uint32_t,
 			kGraphicsFrameContextCount> renderResourceIndices_{};
+		uint64_t resourceFrameSerial_ = UINT64_MAX;
 
 		// 描画するラインの頂点情報、常に手前に描くオーバーレイ線
 		std::vector<LineVertex> vertices_{};
@@ -208,12 +209,14 @@ namespace Engine {
 		desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 		// パイプラインの生成
-		bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
+		bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(
+			graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 		Assert::Call(created, "DebugLineRendererのPipeline作成に失敗しました");
 
 		// 深度オクルージョン用パイプライン、シーン深度でテストするが書き込みはしないので深度を壊さない
 		desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-		bool occludedCreated = (occludedPipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
+		bool occludedCreated = (occludedPipeline_ = PipelineStateBuilder::CreateGraphics(
+			graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 		Assert::Call(occludedCreated, "DebugLineRendererの遮蔽Pipeline作成に失敗しました");
 
 		// 描画用バッファは同じフレーム内の描画回数に応じて確保する
@@ -232,7 +235,12 @@ namespace Engine {
 		occludedVertices_.clear();
 		occludedMode_ = false;
 		occlusionDepth_ = nullptr;
-		renderResourceIndices_[GraphicsFrameState::GetCurrentIndex()] = 0;
+		// 同frameの別Viewから参照する領域を残す
+		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+		if (resourceFrameSerial_ != serial) {
+			resourceFrameSerial_ = serial;
+			renderResourceIndices_[GraphicsFrameState::GetCurrentIndex()] = 0;
+		}
 	}
 
 	template<typename T>
@@ -352,8 +360,8 @@ namespace Engine {
 
 			// GPU実行前のコマンドが参照しているバッファを、後続の描画で上書きしない
 			auto resource = std::make_unique<RenderResource>();
-			resource->vertexBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice(), kMaxVertexCount_);
-			resource->passBuffer.CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+			resource->vertexBuffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice(), kMaxVertexCount_);
+			resource->passBuffer.CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 			resources.emplace_back(std::move(resource));
 		}
 		return *resources[resourceIndex++];

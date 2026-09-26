@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
-#include <Engine/Editor/Utility/JointAttachmentUtility.h>
+#include <Engine/Editor/Utility/JointAttachmentEditor.h>
 #include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -167,7 +167,7 @@ bool Engine::ReparentEntityCommand::ApplyState(EditorCommandContext& context, co
 		if (!world->IsAlive(skinnedEntity) || state.jointName.empty()) {
 			return false;
 		}
-		JointAttachmentUtility::Attach(*world, hierarchySystem, child, skinnedEntity, state.jointName);
+		JointAttachmentEditor::Attach(*world, hierarchySystem, child, skinnedEntity, state.jointName);
 		if (!world->HasComponent<JointAttachmentComponent>(child)) {
 			return false;
 		}
@@ -192,7 +192,7 @@ bool Engine::ReparentEntityCommand::ApplyState(EditorCommandContext& context, co
 		}
 
 		// ジョイント親子付けを解除して通常階層へ戻す
-		JointAttachmentUtility::Detach(*world, child);
+		JointAttachmentEditor::Detach(*world, child);
 		hierarchySystem.SetParent(*world, child, newParent);
 	}
 	if (state.hasTransform) {

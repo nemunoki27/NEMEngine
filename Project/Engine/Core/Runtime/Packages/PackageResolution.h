@@ -42,7 +42,7 @@ namespace Engine::PackageDetail {
 
 	uint64_t HashBytes(uint64_t hash, const void* data, size_t size);
 
-	uint64_t ComputePackageHash(const std::filesystem::path& root);
+	std::optional<uint64_t> ComputePackageHash(const std::filesystem::path& root);
 
 	std::string ToHex(uint64_t value);
 

@@ -66,7 +66,7 @@ namespace {
 
 }
 
-std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateGraphics(ID3D12Device8* device,
+std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateGraphics(GraphicsResourceRetirement& retirement, ID3D12Device8* device,
 	DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc, const ShaderAsset* metadata) {
 
 	auto state = std::make_unique<PipelineState>();
@@ -77,10 +77,12 @@ std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateGraph
 		ApplyShaderParameterMetadata(state->graphicsReflection_, *metadata);
 		ApplyShaderParameterMetadata(state->computeReflection_, *metadata);
 	}
+	// 完成したPSOへ回収先を接続してから公開する
+	state->SetRetirementQueue(retirement);
 	return state;
 }
 
-std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateCompute(ID3D12Device8* device,
+std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateCompute(GraphicsResourceRetirement& retirement, ID3D12Device8* device,
 	DxShaderCompiler* compiler, const ComputePipelineDesc& desc, const ShaderAsset* metadata) {
 
 	auto state = std::make_unique<PipelineState>();
@@ -91,6 +93,8 @@ std::unique_ptr<Engine::PipelineState> Engine::PipelineStateBuilder::CreateCompu
 		ApplyShaderParameterMetadata(state->graphicsReflection_, *metadata);
 		ApplyShaderParameterMetadata(state->computeReflection_, *metadata);
 	}
+	// 完成したPSOへ回収先を接続してから公開する
+	state->SetRetirementQueue(retirement);
 	return state;
 }
 

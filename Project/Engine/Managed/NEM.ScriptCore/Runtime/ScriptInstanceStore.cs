@@ -6,7 +6,7 @@ internal sealed unsafe class ScriptInstanceStore {
     internal readonly List<ScriptInstanceSlot> slots = new();
     internal readonly Stack<uint> freeSlots = new();
 
-    internal NativeScriptInstanceHandle AllocateSlot(ScriptBehaviour script) {
+    internal NativeScriptInstanceHandle AllocateSlot(MonoBehaviour script) {
 
         if (freeSlots.Count > 0) {
 
@@ -15,16 +15,18 @@ internal sealed unsafe class ScriptInstanceStore {
             // generationはrelease時に進めた値（必ず1以上、retiredは積まれない）
             reused.instance = script;
             reused.inUse = true;
+            script.instanceAttached = true;
             return new NativeScriptInstanceHandle(index, reused.generation);
         }
 
         // 空きが無ければ新しい枠を追加する。generationは1始まり
         var slot = new ScriptInstanceSlot { generation = 1, instance = script, inUse = true, retired = false };
         slots.Add(slot);
+        script.instanceAttached = true;
         return new NativeScriptInstanceHandle((uint)(slots.Count - 1), slot.generation);
     }
 
-    internal bool TryResolveSlot(NativeScriptInstanceHandle handle, out ScriptBehaviour script) {
+    internal bool TryResolveSlot(NativeScriptInstanceHandle handle, out MonoBehaviour script) {
 
         script = null!;
         if (!handle.IsValid || handle.index >= (uint)slots.Count) {
@@ -48,14 +50,18 @@ internal sealed unsafe class ScriptInstanceStore {
             return;
         }
 
-        // owner script 破棄時に、その owner に紐づく coroutine / timer / event 購読を停止・解除する
-        if (slot.instance != null) {
-            ScriptServiceLifetime.EndOwner(slot.instance);
+        // 枠を無効化してから所有サービスを終了する
+        MonoBehaviour? released = slot.instance;
+        if (released is not null) {
+            released.instanceAttached = false;
         }
         slot.instance = null;
         slot.runtimeStateSnapshot = null;
         slot.inUse = false;
         RetireOrRecycle(slot, handle.index);
+        if (released is not null) {
+            ScriptServiceLifetime.EndOwner(released);
+        }
     }
 
     internal void RetireOrRecycle(ScriptInstanceSlot slot, uint index) {
@@ -80,6 +86,9 @@ internal sealed unsafe class ScriptInstanceStore {
                 // 永久欠番はfree listへ戻さない
                 continue;
             }
+            if (slot.instance is not null) {
+                slot.instance.instanceAttached = false;
+            }
             slot.instance = null;
             slot.runtimeStateSnapshot = null;
             slot.inUse = false;
@@ -87,7 +96,31 @@ internal sealed unsafe class ScriptInstanceStore {
         }
     }
 
-    internal ScriptBehaviour? FindScriptOfTypeByType(Type type) {
+    // 同じ所有Entityの基底型・interfaceを含むScriptを集める
+    internal void AppendScriptsAs<T>(NativeEntity owner, List<T> result) where T : class {
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (slot.inUse && !slot.retired && slot.instance != null && slot.instance is T match && SameOwner(slot.instance, owner)) {
+                result.Add(match);
+            }
+        }
+    }
+
+    internal T? FindScriptAs<T>(NativeEntity owner) where T : class {
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (slot.inUse && !slot.retired && slot.instance != null && slot.instance is T match && SameOwner(slot.instance, owner)) {
+                return match;
+            }
+        }
+        return null;
+    }
+
+    private static bool SameOwner(MonoBehaviour script, NativeEntity owner) {
+        NativeEntity candidate = GameObject.RawNative(script.ownerReference);
+        return candidate.world.index == owner.world.index && candidate.world.generation == owner.world.generation &&
+            candidate.index == owner.index && candidate.generation == owner.generation;
+    }
+
+    internal MonoBehaviour? FindScriptOfTypeByType(Type type) {
 
         foreach (ScriptInstanceSlot slot in slots) {
             if (slot.inUse && !slot.retired && slot.instance != null && type.IsInstanceOfType(slot.instance)) {
@@ -97,9 +130,9 @@ internal sealed unsafe class ScriptInstanceStore {
         return null;
     }
 
-    internal List<ScriptBehaviour> FindScriptsOfTypeByType(Type type) {
+    internal List<MonoBehaviour> FindScriptsOfTypeByType(Type type) {
 
-        var result = new List<ScriptBehaviour>();
+        var result = new List<MonoBehaviour>();
         foreach (ScriptInstanceSlot slot in slots) {
             if (slot.inUse && !slot.retired && slot.instance != null && type.IsInstanceOfType(slot.instance)) {
                 result.Add(slot.instance);
@@ -108,7 +141,7 @@ internal sealed unsafe class ScriptInstanceStore {
         return result;
     }
 
-    internal T? FindScriptOfType<T>() where T : ScriptBehaviour {
+    internal T? FindScriptOfType<T>() where T : MonoBehaviour {
 
         foreach (ScriptInstanceSlot slot in slots) {
             if (slot.inUse && !slot.retired && slot.instance is T match) {
@@ -118,7 +151,7 @@ internal sealed unsafe class ScriptInstanceStore {
         return null;
     }
 
-    internal T[] FindScriptsOfType<T>() where T : ScriptBehaviour {
+    internal T[] FindScriptsOfType<T>() where T : MonoBehaviour {
 
         var result = new List<T>();
         foreach (ScriptInstanceSlot slot in slots) {

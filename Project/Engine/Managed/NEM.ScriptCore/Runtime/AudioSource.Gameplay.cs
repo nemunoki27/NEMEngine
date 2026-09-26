@@ -5,20 +5,20 @@ namespace NEMEngine;
 public sealed partial class AudioSource {
 
     // Clipを主再生として先頭から再生
-    public void Play() => NativePlaybackAPI.AudioPlayCall(entity.native);
+    public void Play() => NativePlaybackAPI.AudioPlayCall(native);
     // 指定Clipを重ねて一度だけ再生
     public void PlayOneShot(AudioClip clip, float volumeScale = 1.0f) {
         if (clip == null) {
             return;
         }
-        NativePlaybackAPI.AudioPlayOneShotCall(entity.native, clip.id, volumeScale);
+        NativePlaybackAPI.AudioPlayOneShotCall(native, clip.id, volumeScale);
     }
     // 再生位置を保持して一時停止
-    public void Pause() => NativePlaybackAPI.AudioPauseCall(entity.native);
+    public void Pause() => NativePlaybackAPI.AudioPauseCall(native);
     // 一時停止中の再生を再開
-    public void UnPause() => NativePlaybackAPI.AudioUnPauseCall(entity.native);
+    public void UnPause() => NativePlaybackAPI.AudioUnPauseCall(native);
     // 停止（voice 破棄）
-    public void Stop() => NativePlaybackAPI.AudioStopCall(entity.native);
+    public void Stop() => NativePlaybackAPI.AudioStopCall(native);
     // 再生中か（pause 中は false）
-    public bool IsPlaying => NativePlaybackAPI.AudioIsPlayingCall(entity.native);
+    public bool IsPlaying => NativePlaybackAPI.AudioIsPlayingCall(native);
 }

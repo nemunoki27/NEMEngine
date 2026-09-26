@@ -17,26 +17,26 @@ internal static class Program {
 	private const string GoodFixture = @"
 using NEMEngine;
 namespace SandboxScripts;
-public sealed class AnalyzerGoodExample : ScriptBehaviour {
+public sealed class AnalyzerGoodExample : MonoBehaviour {
     [SerializeField] private float speed = 1.0f;
     public AnalyzerGoodExample() { speed = 1.0f; }
-    public override void Start() { Debug.Log($""good {speed}""); }
+    private void Start() { Debug.Log($""good {speed}""); }
 }";
 
 	// bad fixture: constructor 内で各副作用を行う（static readonly false ガードで実行はされない）。
-	// NEMSC001(native API)/002(Entity)/003(StartCoroutine)/004(Task.Run)/005(file I/O)/006(event) を期待。
+	// NEMSC001(native API)/002(GameObject)/003(StartCoroutine)/004(Task.Run)/005(file I/O)/006(event) を期待。
 	private const string BadFixture = @"
 using System;
 using System.Collections;
 using NEMEngine;
 namespace SandboxScripts;
-public sealed class AnalyzerBadExample : ScriptBehaviour {
+public sealed class AnalyzerBadExample : MonoBehaviour {
     private static readonly bool FixtureEnabled = false;
     private event Action? OnFixtureTick;
     public AnalyzerBadExample() {
         if (FixtureEnabled) {
             Debug.Log(""side effect"");
-            Entity self = entity;
+            GameObject self = gameObject;
             Debug.Log(self.name);
             StartCoroutine(FixtureRoutine());
             System.Threading.Tasks.Task.Run(() => { });
@@ -54,7 +54,7 @@ using NEMEngine;
 namespace SandboxScripts;
 [Serializable] public class StageUpdater { public float value = 0.0f; }
 [Serializable] public sealed class TubeUpdater : StageUpdater { }
-public sealed class StageManager : ScriptBehaviour {
+public sealed class StageManager : MonoBehaviour {
     [SerializeField] private StageUpdater stageUpdater = new TubeUpdater();
 }";
 
@@ -64,11 +64,11 @@ using NEMEngine;
 namespace SandboxScripts;
 [Serializable] public class StageUpdater { public float value = 0.0f; }
 [Serializable] public sealed class TubeUpdater : StageUpdater { }
-public sealed class StageManager : ScriptBehaviour {
+public sealed class StageManager : MonoBehaviour {
     [SerializeReference] private StageUpdater stageUpdater = new TubeUpdater();
 }";
 
-	private sealed class ProfileFixture : NEMEngine.ScriptBehaviour { }
+	private sealed class ProfileFixture : NEMEngine.MonoBehaviour { }
 
 	// 計測OFF時の区間はNativeを使わず、繰り返してもヒープを確保しない
 	private static void TestDisabledScriptProfiler() {
@@ -88,6 +88,23 @@ public sealed class StageManager : ScriptBehaviour {
 	private static int Main() {
 
 		int failures = 0;
+		try {
+			ObjectContractTests.Run();
+            FieldIdentityTests.Run();
+            ScriptCallbackTests.Run();
+            SerializationFieldTests.Run();
+            TestNestedReferenceSchema();
+            TestMetadataValidation();
+            TestAnalyzerBoundaries();
+            TestGenericBaseSchema();
+            TestCollectionSchema();
+            TestPropertyFieldSchema();
+            ComponentQueryTests.Run();
+			Console.WriteLine("[PASS] Object equality and Fake Null.");
+		} catch (Exception ex) {
+			++failures;
+			Console.Error.WriteLine($"[FAIL] Object equality: {ex}");
+		}
 		try {
 			MathLayoutTests.Run();
 			Console.WriteLine("[PASS] math ABI layout and values.");
@@ -190,17 +207,17 @@ using System.Text;
 using System.Text.Json.Nodes;
 using NEMEngine;
 
-public sealed class RuntimeFixture : ScriptBehaviour {
+public sealed class RuntimeFixture : MonoBehaviour {
     public int speed = 3;
     public int[] values = new[] { 1, 2 };
-    public Entity missing = Entity.nullEntity;
+    public GameObject missing = null;
     public UnsupportedGrid unsupported = new UnsupportedGrid();
     public int hidden = 9;
 }
 
 public sealed class UnsupportedGrid {
     public static int reads;
-    public Entity?[,] cells = new Entity?[6, 8];
+    public GameObject?[,] cells = new GameObject?[6, 8];
     public int probe { get { ++reads; throw new Exception("Unsupported value was read"); } set { } }
 }
 
@@ -318,8 +335,8 @@ public static unsafe class RuntimeTest {
 		const string source = """
 using NEMEngine;
 [ScriptTypeID("12345678-1234-1234-1234-123456789abc")]
-public sealed class StableIdentifierFixture : ScriptBehaviour {
-    [SerializeField, SerializedFieldID("abcdef01-1234-1234-1234-123456789abc")]
+public sealed class StableIdentifierFixture : MonoBehaviour {
+    [SerializeField, SerializedFieldID("abcdef01-1234-1234-1234-123456789abc"), FormerlySerializedAs("oldSpeed")]
     public float speed = 2.0f;
 }
 """;
@@ -343,7 +360,7 @@ public sealed class StableIdentifierFixture : ScriptBehaviour {
 			descriptors[0].ScriptTypeID != "12345678-1234-1234-1234-123456789abc" ||
 			script.GetProperty("scriptTypeId").GetString() != descriptors[0].ScriptTypeID ||
 			field.GetProperty("fieldId").GetString() != "abcdef01-1234-1234-1234-123456789abc" ||
-			field.GetProperty("name").GetString() != "speed") {
+			field.GetProperty("name").GetString() != "speed" || field.GetProperty("formerNames")[0].GetString() != "oldSpeed") {
 			throw new InvalidOperationException("Stable identifiers or serialized keys changed");
 		}
 	}
@@ -361,6 +378,162 @@ public sealed class StableIdentifierFixture : ScriptBehaviour {
 		ImmutableArray<Diagnostic> compileDiags = compilation.GetDiagnostics();
 		return analyzerDiags.AddRange(compileDiags);
 	}
+
+    // Generic基底の保存Fieldを閉じた実行型へ解決する
+    private static void TestGenericBaseSchema() {
+        const string source = """
+using NEMEngine;
+public abstract class GenericBase<T> : MonoBehaviour { [SerializeField] private T saved = default!; }
+public sealed class GenericFixture : GenericBase<int> { }
+""";
+        var registry = CreateGeneratedRegistry(source);
+        if (registry.scriptTypeEntries.Count != 1 || registry.scriptTypeEntries[0].fieldMap.Values.Single().FieldType != typeof(int)) {
+            throw new InvalidOperationException("Generic base field was not registered.");
+        }
+    }
+
+    // 未対応コンテナを除外しても他のField登録を継続する
+    private static void TestCollectionSchema() {
+        const string source = """
+using System;
+using System.Collections.Generic;
+using NEMEngine;
+public enum Wide : long { Value = 1 }
+[Serializable] public class Wrapped { public int[,] excluded; public int value = 7; }
+public sealed class CollectionFixture : MonoBehaviour {
+    public int[,] matrix;
+    public int[][] jagged;
+    public List<List<int>> nested;
+    public int? optional;
+    public Wide wide;
+    public int[] valid;
+    public Wrapped wrapped = new();
+}
+""";
+        var registry = CreateGeneratedRegistry(source);
+        if (registry.scriptTypeEntries.Single().unsupportedFields.Count != 5) {
+            throw new InvalidOperationException("Unsupported collection field selection mismatch.");
+        }
+    }
+
+    // 属性付きの自動Propertyだけ保存Fieldへ登録する
+    private static void TestPropertyFieldSchema() {
+        const string source = """
+using NEMEngine;
+public sealed class PropertyFixture : MonoBehaviour {
+    [field: SerializeField] public int Value { get; set; }
+    public int Temporary { get; set; }
+}
+""";
+        var registry = CreateGeneratedRegistry(source);
+        var fields = registry.scriptTypeEntries.Single().fieldMap.Values.ToArray();
+        if (fields.Length != 1 || fields[0].Name != "<Value>k__BackingField") {
+            throw new InvalidOperationException("Property backing field selection mismatch.");
+        }
+    }
+
+    // 生成から実行型登録まで同じ入力で検証する
+    private static NEMEngine.ScriptTypeRegistry CreateGeneratedRegistry(string source) {
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            new ScriptManifestGenerator().AsSourceGenerator(), new ScriptSchemaGenerator().AsSourceGenerator());
+        driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out Compilation output, out _);
+        using var stream = new MemoryStream();
+        var result = output.Emit(stream);
+        if (!result.Success) { throw new InvalidOperationException(string.Join("\n", result.Diagnostics)); }
+        var assembly = System.Reflection.Assembly.Load(stream.ToArray());
+        var registry = new NEMEngine.ScriptTypeRegistry { gameAssembly = assembly };
+        registry.RebuildScriptTypes(new NEMEngine.ScriptFieldCodec(registry));
+        return registry;
+    }
+
+    // 初期化時の副作用と後で呼ぶ処理を区別する
+    private static void TestAnalyzerBoundaries() {
+        const string source = """
+using NEMEngine;
+public sealed class InitializationFixture : MonoBehaviour {
+    private float initialTime = Time.deltaTime;
+    public InitializationFixture() {
+        string current = this.gameObject.name;
+        System.IO.StreamReader reader = new("unused.txt");
+        string path = System.IO.Path.Combine("a", "b");
+        using var memory = new System.IO.MemoryStream();
+        System.Action later = () => Debug.Log("deferred");
+        void Deferred() { Debug.Log("local"); }
+    }
+}
+""";
+        ImmutableArray<Diagnostic> diagnostics = Analyze(source);
+        if (diagnostics.Any(item => item.Severity == DiagnosticSeverity.Error) ||
+            diagnostics.Count(item => item.Id == "NEMSC001") != 1 ||
+            diagnostics.Count(item => item.Id == "NEMSC002") != 1 ||
+            diagnostics.Count(item => item.Id == "NEMSC005") != 1) {
+            throw new InvalidOperationException("Constructor analysis boundary mismatch: " + string.Join("\n", diagnostics));
+        }
+    }
+
+    // 循環候補を有限のschemaとして生成する
+    private static void TestNestedReferenceSchema() {
+        const string source = """
+using System;
+using NEMEngine;
+[Serializable] public class Node { [SerializeReference] public Node? child; }
+public class GraphFixture : MonoBehaviour { [SerializeReference] public Node? root; }
+""";
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new ScriptSchemaGenerator());
+        driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out Compilation output, out _);
+        if (driver.GetRunResult().Diagnostics.Concat(output.GetDiagnostics()).Any(d => d.Severity == DiagnosticSeverity.Error)) {
+            throw new InvalidOperationException("Nested managed reference schema failed to compile.");
+        }
+        string generated = string.Join("\n", driver.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()));
+        if (generated.Split("ManagedReference").Length < 3 || generated.Length > 50000) {
+            throw new InvalidOperationException("Nested reference schema was omitted or expanded recursively.");
+        }
+    }
+
+    // 壊れたmetaを別IDで生成せず、partialのFieldを一度だけ収録する
+    private static void TestMetadataValidation() {
+        const string source = """
+using NEMEngine;
+public partial class PartialFixture { public int first; }
+public partial class PartialFixture : MonoBehaviour {
+    public int second;
+    public int CheckedValue { get; set => field = System.Math.Max(0, value); }
+}
+""";
+        GeneratorDriver valid = CSharpGeneratorDriver.Create(
+            new ScriptManifestGenerator().AsSourceGenerator(), new ScriptSchemaGenerator().AsSourceGenerator());
+        valid = valid.RunGeneratorsAndUpdateCompilation(CreateCompilation(source), out Compilation output, out _);
+        string generated = string.Join("\n", valid.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()));
+        if (!generated.Contains("first") || !generated.Contains("second") ||
+            output.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) {
+            throw new InvalidOperationException("Partial script metadata was lost.");
+        }
+        // SDKと同じC#14構文をmeta収集でも解決する
+        NEM.ScriptMetaSync.ScriptSourceCollector.Collect(CreateCompilation(source));
+
+        string[] invalid = {
+            "{", "{} trailing", "{\"scripts\":[]", "{\"scripts\":[],}",
+            "{\"scripts\":[],\"scripts\":[]}", "{\"scripts\":true}",
+            "{\"scripts\":[{\"fullTypeName\":\"PartialFixture\",\"scriptTypeId\":\"invalid\"}]}",
+            "{\"scripts\":[],\"unknown\":truth}", "{\"scripts\":[],\"unknown\":01}",
+        };
+        foreach (string json in invalid) {
+            GeneratorDriver driver = CSharpGeneratorDriver.Create(
+                new[] { new ScriptManifestGenerator().AsSourceGenerator(), new ScriptSchemaGenerator().AsSourceGenerator() },
+                new AdditionalText[] { new FixtureMetaText(json) });
+            driver = driver.RunGenerators(CreateCompilation(source));
+            if (!driver.GetRunResult().Diagnostics.Any(d => d.Id == "NEMSG016" && d.Severity == DiagnosticSeverity.Error) ||
+                driver.GetRunResult().GeneratedTrees.Length != 0) {
+                throw new InvalidOperationException("Invalid metadata was accepted: " + json);
+            }
+        }
+    }
+
+    private sealed class FixtureMetaText(string value) : AdditionalText {
+        public override string Path => "fixture.cs.meta";
+        public override Microsoft.CodeAnalysis.Text.SourceText GetText(CancellationToken cancellationToken = default) =>
+            Microsoft.CodeAnalysis.Text.SourceText.From(value);
+    }
 
 	private static ImmutableArray<Diagnostic> GenerateSchema(string source) {
 

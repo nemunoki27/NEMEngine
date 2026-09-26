@@ -37,7 +37,7 @@ namespace Engine {
 
 			switch (target) {
 			case Engine::ManagedRendererMaterialTarget::Mesh:
-				if (!world.TryGetComponent<Engine::MeshRendererComponent>(entity)) {
+				if (!world.TryGetComponentForBinding<Engine::MeshRendererComponent>(entity)) {
 					break;
 				}
 				if (const std::span<Engine::SubMeshMaterial> subMeshes =
@@ -53,28 +53,28 @@ namespace Engine {
 				break;
 			case Engine::ManagedRendererMaterialTarget::Sprite:
 				if (Engine::SpriteRendererComponent* renderer =
-					world.TryGetComponent<Engine::SpriteRendererComponent>(entity)) {
+					world.TryGetComponentForBinding<Engine::SpriteRendererComponent>(entity)) {
 
 					visit(renderer->materialInstance);
 				}
 				break;
 			case Engine::ManagedRendererMaterialTarget::Text:
 				if (Engine::TextRendererComponent* renderer =
-					world.TryGetComponent<Engine::TextRendererComponent>(entity)) {
+					world.TryGetComponentForBinding<Engine::TextRendererComponent>(entity)) {
 
 					visit(renderer->materialInstance);
 				}
 				break;
 			case Engine::ManagedRendererMaterialTarget::Primitive:
 				if (Engine::PrimitiveRendererComponent* renderer =
-					world.TryGetComponent<Engine::PrimitiveRendererComponent>(entity)) {
+					world.TryGetComponentForBinding<Engine::PrimitiveRendererComponent>(entity)) {
 
 					visit(renderer->materialInstance);
 				}
 				break;
 			case Engine::ManagedRendererMaterialTarget::Line:
 				if (Engine::LineRendererComponent* renderer =
-					world.TryGetComponent<Engine::LineRendererComponent>(entity)) {
+					world.TryGetComponentForBinding<Engine::LineRendererComponent>(entity)) {
 
 					visit(renderer->materialInstance);
 				}

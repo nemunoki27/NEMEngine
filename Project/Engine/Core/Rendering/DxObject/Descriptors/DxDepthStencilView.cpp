@@ -2,11 +2,14 @@
 
 using namespace Engine;
 
+// c++
+#include <stdexcept>
+
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
 
 //============================================================================
 //	DSVDescriptor classMethods
@@ -16,6 +19,9 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 	uint32_t width, uint32_t height,
 	DXGI_FORMAT resourceFormat, DXGI_FORMAT depthClearFormat) {
 
+	if (!device_ || width == 0 || height == 0) {
+		throw std::invalid_argument("Depth Resourceの作成条件が不正です");
+	}
 	// 生成するResourceの設定
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Width = width;                                   // Textureの幅
@@ -36,15 +42,19 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 	depthClearValue.DepthStencil.Depth = 1.0f; // 1.0f(最大値)でクリア
 	depthClearValue.Format = depthClearFormat; // フォーマット、Resourceに合わせる
 
+	ComPtr<ID3D12Resource> candidate;
 	HRESULT hr = device_->CreateCommittedResource(
 		&heapProperties,                  // Heapの設定
 		D3D12_HEAP_FLAG_NONE,             // Heapの特殊な設定、特になし
 		&resourceDesc,                    // Resourceの設定
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, // 深度値を書き込む状態にしておく
 		&depthClearValue,                 // Clear最適値
-		IID_PPV_ARGS(&resource)           // 作成するResourceポインタへのポインタ
+		IID_PPV_ARGS(&candidate)           // 作成するResourceポインタへのポインタ
 	);
-	Assert::Call(SUCCEEDED(hr), "DepthStencil用リソースの作成に失敗しました");
+	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "DSVDescriptor::CreateDepthResource")) {
+		throw std::runtime_error("DepthStencil用リソースの作成に失敗しました");
+	}
+	resource = std::move(candidate);
 }
 
 void DSVDescriptor::InitFrameBufferDSV(uint32_t width, uint32_t height) {
@@ -61,7 +71,6 @@ void DSVDescriptor::ResizeFrameBufferDSV(uint32_t width, uint32_t height) {
 		return;
 	}
 
-	resource_.Reset();
 	CreateDepthResource(resource_, width, height,
 		DXGI_FORMAT_D24_UNORM_S8_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT);
 	UpdateResourceName(frameDSVIndex_, resource_.Get());
@@ -77,11 +86,15 @@ void Engine::DSVDescriptor::CreateDSV(uint32_t width, uint32_t height, uint32_t&
 	D3D12_CPU_DESCRIPTOR_HANDLE& handle, ComPtr<ID3D12Resource>& resource,
 	DXGI_FORMAT resourceFormat, DXGI_FORMAT depthClearFormat) {
 
-	index = Allocate();
-	handle = GetCPUHandle(index);
-
-	CreateDepthResource(resource, width, height, resourceFormat, depthClearFormat);
-	RegisterResourceName(index, resource.Get());
+	ComPtr<ID3D12Resource> candidate;
+	CreateDepthResource(candidate, width, height, resourceFormat, depthClearFormat);
+	const uint32_t allocated = Allocate();
+	try { RegisterResourceName(allocated, candidate.Get()); }
+	catch (...) { Free(allocated); throw; }
+	// 未成立の番号とResourceを呼び出し元へ渡さない
+	resource = std::move(candidate);
+	index = allocated;
+	handle = GetCPUHandle(allocated);
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
 	dsvDesc.Format = depthClearFormat;

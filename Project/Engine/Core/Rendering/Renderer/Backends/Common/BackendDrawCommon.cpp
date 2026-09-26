@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 
 // c++
 #include <variant>
@@ -262,8 +263,9 @@ void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDraw
 		const AssetID& textureAssetID) {
 		return ResolveMaterialTextureIndex(context, semantic, textureAssetID);
 	};
+	binder.SetTextureRevision(context.graphicsCore->GetTextureUploadService().GetContentRevision());
 	const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
-		binder.ResolveAndUpload(device, pipelineState, material,
+		binder.ResolveAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, pipelineState, material,
 			effectiveOverrides, resolveTexture);
 	if (materialParamsAddress != 0) {
 		RootBindingCommand::SetGraphicsCBV(commandList, bindCache.Get(slot), materialParamsAddress);

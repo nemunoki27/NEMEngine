@@ -92,9 +92,9 @@ void Engine::MeshGraphicsBinding::Bind(const RenderDrawContext& context,
 				.smoothDeltaTime = systemContext.smoothDeltaTime,
 				.unscaledTime = systemContext.unscaledTime,
 			};
-			const PostProcessConstantBufferAllocation allocation =
-				constantBufferAllocator_.AllocateAndUpload(
-					context.graphicsCore->GetDXObject().GetDevice(),
+			const FrameConstantBufferAllocation allocation =
+				constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(),
+			context.graphicsCore->GetDXObject().GetDevice(),
 					constants);
 			shaderGraphTimeGPUAddress_ = allocation.gpuAddress;
 		}

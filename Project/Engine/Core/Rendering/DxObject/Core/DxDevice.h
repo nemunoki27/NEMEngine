@@ -7,7 +7,6 @@
 
 // c++
 #include <string>
-#include <cassert>
 #include <cstdint>
 
 // directX
@@ -55,10 +54,6 @@ namespace Engine {
 		uint64_t dedicatedVideoMemoryBytes_ = 0;
 		D3D_FEATURE_LEVEL featureLevel_ = D3D_FEATURE_LEVEL_11_0;
 
-		//--------- functions ----------------------------------------------------
-
-		// 内部ヘルパ:ワイド文字列をUTF-8へ変換する
-		std::string WStringToString(const std::wstring& wstr);
 	};
 
 }; // Engine

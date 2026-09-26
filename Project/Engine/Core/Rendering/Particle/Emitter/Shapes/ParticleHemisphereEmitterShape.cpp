@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 // c++
 #include <cmath>
@@ -28,16 +27,4 @@ void Engine::ParticleHemisphereEmitterShape::InitParticle(Vector3& position, Vec
 	direction = Vector3::Normalize(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)));
 	direction.y = std::abs(direction.y);
 	position = direction * settings.sphere.radius;
-}
-
-void Engine::ParticleHemisphereEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	renderer->DrawHemisphere(center, settings.sphere.radius, rotation, Color4::Red());
-#endif
 }

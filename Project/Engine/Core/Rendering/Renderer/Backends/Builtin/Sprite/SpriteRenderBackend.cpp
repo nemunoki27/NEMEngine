@@ -189,9 +189,9 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 			maskConstants.restrictSubMeshIndex =
 				context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 			maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
-			const PostProcessConstantBufferAllocation maskAlloc =
-				constantBufferAllocator_.AllocateAndUpload(
-					graphicsCore.GetDXObject().GetDevice(), maskConstants);
+			const FrameConstantBufferAllocation maskAlloc =
+				constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), maskConstants);
 			RootBindingCommand::SetGraphicsCBV(
 				commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_),
 				maskAlloc.gpuAddress);

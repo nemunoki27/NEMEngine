@@ -30,6 +30,11 @@ Input* Input::GetInstance() {
 	return instance_;
 }
 
+Input* Input::TryGetInstance() {
+
+	return instance_;
+}
+
 void Input::Finalize() {
 
 	if (instance_ != nullptr) {

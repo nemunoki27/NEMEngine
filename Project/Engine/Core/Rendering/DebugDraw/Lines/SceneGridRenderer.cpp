@@ -454,7 +454,7 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 	desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-	bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(device, compiler, desc)) != nullptr;
+	bool created = (pipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 	Assert::Call(created, "SceneGridRendererの解析グリッドPipeline作成に失敗しました");
 
 	for (auto& buffers : passBuffers_) {
@@ -466,6 +466,10 @@ void Engine::SceneGridRenderer::Init(GraphicsCore& graphicsCore) {
 
 void Engine::SceneGridRenderer::BeginFrame() {
 
+	// 同frameの再描画では先の定数領域を残す
+	const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+	if (passFrameSerial_ == serial) return;
+	passFrameSerial_ = serial;
 	passBufferIndices_[GraphicsFrameState::GetCurrentIndex()] = 0;
 }
 
@@ -626,7 +630,7 @@ Engine::DxConstBuffer<Engine::SceneGridRenderer::GridPassConstants>& Engine::Sce
 
 		// 同じフレーム内で複数のカメラから描画されても、記録済みコマンドの定数を上書きしない
 		auto buffer = std::make_unique<DxConstBuffer<GridPassConstants>>();
-		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+		buffer->CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 		buffers.emplace_back(std::move(buffer));
 	}
 	return *buffers[bufferIndex++];

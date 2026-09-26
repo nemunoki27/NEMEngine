@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
 #include <cstddef>
@@ -23,10 +23,17 @@ namespace Engine {
 		//============================================================================
 
 		DxMappedUploadBuffer() = default;
-		~DxMappedUploadBuffer() = default;
+		~DxMappedUploadBuffer();
+		DxMappedUploadBuffer(const DxMappedUploadBuffer&) = delete;
+		DxMappedUploadBuffer& operator=(const DxMappedUploadBuffer&) = delete;
+		DxMappedUploadBuffer(DxMappedUploadBuffer&& other) noexcept;
+		DxMappedUploadBuffer& operator=(DxMappedUploadBuffer&& other) noexcept;
 
 		// 指定バイト数でUPLOAD heapリソースを確保し永続マップする
-		void Create(ID3D12Device* device, size_t sizeInBytes);
+		void Create(GraphicsResourceRetirement& retirement, ID3D12Device* device, size_t sizeInBytes);
+
+		// GPU利用中の資源を返す
+		void Release();
 
 		// マップ領域へ先頭からのオフセット位置にバイト列を書き込む
 		void Write(const void* src, size_t sizeInBytes, size_t dstOffset = 0);
@@ -52,12 +59,16 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::byte* mappedData_ = nullptr;
 
 		// 確保したバイト数で転送時の容量チェックに使う
 		size_t capacityInBytes_ = 0;
 
 		bool isCreated_ = false;
+
+		// 所有とMap先をまとめて交換する
+		void Swap(DxMappedUploadBuffer& other) noexcept;
 	};
 
 } // Engine

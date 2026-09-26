@@ -9,6 +9,9 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 
+// c++
+#include <stdexcept>
+
 //============================================================================
 //	MultiRenderTarget classMethods
 //============================================================================
@@ -24,16 +27,18 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 	Logger::BeginSection(LogType::Engine);
 	Logger::Output(LogType::Engine, "MultiRenderTargetの作成を開始します");
 
-	// 既にリソースが存在している場合は破棄する
-	Destroy();
+	// 完成するまでは現在の描画先を維持する
+	if (desc.width == 0 || desc.height == 0 || desc.colors.size() > D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT) {
+		throw std::invalid_argument("MultiRenderTargetのサイズまたは色数が不正です");
+	}
+	std::vector<std::unique_ptr<RenderTexture2D>> colors;
+	std::unique_ptr<DepthTexture2D> depth;
 
 	// サイズ設定
-	width_ = desc.width;
-	height_ = desc.height;
 	uint32_t colorCount = static_cast<uint32_t>(desc.colors.size());
 
 	// 色レンダーテクスチャの作成
-	colors_.reserve(colorCount);
+	colors.reserve(colorCount);
 	for (size_t i = 0; i < colorCount; ++i) {
 
 		Logger::Output(LogType::Engine, "RenderTexture2D番号: {}", i);
@@ -52,14 +57,19 @@ void Engine::MultiRenderTarget::Create(ID3D12Device* device,
 		createDesc.debugName = std::wstring(color.name.begin(), color.name.end());
 		texture->Create(device, rtvDescriptor, srvDescriptor, createDesc);
 
-		colors_.emplace_back(std::move(texture));
+		colors.emplace_back(std::move(texture));
 	}
 	// 深度レンダーテクスチャの作成
 	if (desc.depth.has_value()) {
 
-		depth_ = std::make_unique<DepthTexture2D>();
-		depth_->Create(dsvDescriptor, srvDescriptor, *desc.depth);
+		depth = std::make_unique<DepthTexture2D>();
+		depth->Create(dsvDescriptor, srvDescriptor, *desc.depth);
 	}
+
+	colors_.swap(colors);
+	depth_.swap(depth);
+	width_ = desc.width;
+	height_ = desc.height;
 
 	Logger::Output(LogType::Engine, "MultiRenderTargetを作成しました");
 	Logger::EndSection(LogType::Engine);

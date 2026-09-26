@@ -23,21 +23,24 @@ namespace Engine::PackageDetail {
 		return hash;
 	}
 
-	uint64_t ComputePackageHash(const std::filesystem::path& root) {
+	std::optional<uint64_t> ComputePackageHash(const std::filesystem::path& root) {
 
 		std::vector<std::filesystem::path> files;
 		std::error_code ec;
 		for (auto it = std::filesystem::recursive_directory_iterator(
-			root, std::filesystem::directory_options::skip_permission_denied, ec);
-			it != std::filesystem::recursive_directory_iterator{}; it.increment(ec)) {
+			root, std::filesystem::directory_options::none, ec);
+			!ec && it != std::filesystem::recursive_directory_iterator{}; it.increment(ec)) {
 
-			if (ec) {
-				ec.clear();
-				continue;
-			}
 			if (it->is_regular_file(ec)) {
 				files.emplace_back(it->path());
 			}
+			if (ec) {
+				return std::nullopt;
+			}
+		}
+		// 列挙に失敗した内容を正常なhashとして公開しない
+		if (ec) {
+			return std::nullopt;
 		}
 		std::sort(files.begin(), files.end(), [&root](const auto& lhs, const auto& rhs) {
 				return lhs.lexically_relative(root).generic_wstring() <
@@ -52,9 +55,15 @@ namespace Engine::PackageDetail {
 			hash = HashBytes(hash, relative.data(), relative.size());
 
 			std::ifstream file(path, std::ios::binary);
+			if (!file.is_open()) {
+				return std::nullopt;
+			}
 			while (file) {
 				file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 				hash = HashBytes(hash, buffer.data(), static_cast<size_t>(file.gcount()));
+			}
+			if (file.bad() || !file.eof()) {
+				return std::nullopt;
 			}
 		}
 		return hash;

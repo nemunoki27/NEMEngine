@@ -33,8 +33,8 @@ namespace Engine {
 		~JsonAdapter() = default;
 
 		// 保存
-		static void Save(const std::string& directoryFilePath, const nlohmann::json& data);
-		static void Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data);
+		static bool Save(const std::string& directoryFilePath, const nlohmann::json& data);
+		static bool Save(const std::filesystem::path& directoryFilePath, const nlohmann::json& data);
 		// キー順と数値表現を正規化し、同一内容なら書き換えず安全に保存
 		static bool SaveCanonical(const std::filesystem::path& directoryFilePath,
 			const nlohmann::json& data, int32_t indent = 4);
@@ -43,6 +43,8 @@ namespace Engine {
 		// 読み込み
 		static nlohmann::json Load(const std::string& directoryFilePath, bool assertion = false);
 		static nlohmann::json Load(const std::filesystem::path& directoryFilePath, bool assertion = false);
+		// 読込の成否とJSONの値を分けて受け取る
+		static bool TryLoad(const std::filesystem::path& path, nlohmann::json& output, std::string* diagnostic = nullptr);
 
 		// 読みこめるかチェック
 		static bool Check(const std::string& directoryFilePath, bool assertion = false);

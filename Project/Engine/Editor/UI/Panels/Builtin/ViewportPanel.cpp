@@ -23,7 +23,7 @@
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
-#include <Engine/Editor/Utility/JointAttachmentUtility.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>

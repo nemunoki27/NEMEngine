@@ -46,8 +46,6 @@
 
   <ItemGroup>
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- sidecar metadata を source generator へ AdditionalFiles として渡す（Stable ID の正） -->
-    <AdditionalFiles Include="..\GameAssets\**\*.cs.meta" />
     <!-- generator が metadata mode を読めるよう CompilerVisibleProperty にする -->
     <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCore\NEM.ScriptCore.csproj" />
@@ -55,10 +53,11 @@
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
-    <!-- ScriptBehaviour constructor の副作用（native API / Entity・Scene / coroutine / threading / I/O / event）を
+    <!-- MonoBehaviour constructor の副作用（native API / Entity・Scene / coroutine / threading / I/O / event）を
          warning で検出する Roslyn analyzer。診断専用なので出力 assembly は参照しない。 -->
     <ProjectReference Include="..\..\Engine\Managed\NEM.ScriptAnalyzers\NEM.ScriptAnalyzers.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Import Project="..\..\..\Premake\NEM.GameScripts.targets" />
 </Project>

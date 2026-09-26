@@ -26,7 +26,8 @@ bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12Com
 		return false;
 	}
 
-	for (FrameQueryState& state : frameStates_) {
+	std::array<FrameQueryState, kGraphicsFrameContextCount> candidates{};
+	for (FrameQueryState& state : candidates) {
 
 		D3D12_QUERY_HEAP_DESC heapDesc{};
 		heapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -55,11 +56,16 @@ bool Engine::GPUFrameProfiler::EnsureInitialized(ID3D12Device* device, ID3D12Com
 		return false;
 	}
 
+	// 全slotの生成後に計測用資源を公開する
+	frameStates_ = std::move(candidates);
 	initialized_ = true;
 	return true;
 }
 
-void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue) {
+void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQueue* commandQueue,
+	GraphicsResourceRetirement& retirement) {
+
+	retirement_ = &retirement;
 
 	if (!EnsureInitialized(device, commandQueue)) {
 		return;
@@ -67,6 +73,13 @@ void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 
 	FrameQueryState& state =
 		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	// 同じframeの別Viewではtimestampを引き継ぐ
+	const uint64_t serial = GraphicsFrameState::GetFrameSerial();
+	if (state.frameSerial == serial) {
+		state.active = true;
+		return;
+	}
+	state.frameSerial = serial;
 	// 同じContextの前回結果はBeginFrameのFence待機後なので安全に読める
 	CollectResolved(state);
 
@@ -171,8 +184,15 @@ void Engine::GPUFrameProfiler::CollectResolved(FrameQueryState& state) {
 
 void Engine::GPUFrameProfiler::Finalize() {
 
+	// GPU完了までQueryと読戻し先を保持する
 	for (FrameQueryState& state : frameStates_) {
+		if (retirement_) {
+			retirement_->Retire(state.queryHeap);
+			retirement_->Retire(state.readbackBuffer);
+		}
 		state = {};
 	}
+	retirement_ = nullptr;
+	frequency_ = 0;
 	initialized_ = false;
 }

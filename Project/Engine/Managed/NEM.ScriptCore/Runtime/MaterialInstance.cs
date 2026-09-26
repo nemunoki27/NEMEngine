@@ -108,17 +108,17 @@ public static class MaterialParameterIDs {
         MaterialParameterID.FromName(MaterialParameterNames.AlphaClip);
 }
 
-// Renderer上のMaterial Assetへ重ねるEntity固有パラメータ
+// Renderer上のMaterial Assetへ重ねるGameObject固有パラメータ
 public readonly struct MaterialInstance {
 
-    private readonly Entity entity;
+    private readonly GameObject gameObject;
     private readonly RendererMaterialTarget target;
     private readonly int subMeshIndex;
 
     internal MaterialInstance(
-        Entity entity, RendererMaterialTarget target, int subMeshIndex = -1) {
+        GameObject gameObject, RendererMaterialTarget target, int subMeshIndex = -1) {
 
-        this.entity = entity;
+        this.gameObject = gameObject;
         this.target = target;
         this.subMeshIndex = subMeshIndex;
     }
@@ -305,7 +305,7 @@ public readonly struct MaterialInstance {
 
     public bool Clear(MaterialParameterID id) {
         return NativeRenderingAPI.ClearRendererMaterialParameterValue(
-            entity.native, target, subMeshIndex, id.value);
+            gameObject.native, target, subMeshIndex, id.value);
     }
 
     private bool Set(
@@ -314,7 +314,7 @@ public readonly struct MaterialInstance {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
         return NativeRenderingAPI.WriteRendererMaterialParameter(
-            entity.native, target, subMeshIndex, id.value, name, value);
+            gameObject.native, target, subMeshIndex, id.value, name, value);
     }
 
     private bool TryGet(
@@ -322,6 +322,6 @@ public readonly struct MaterialInstance {
         out NativeMaterialParameterValue value) {
 
         return NativeRenderingAPI.ReadRendererMaterialParameter(
-            entity.native, target, subMeshIndex, id.value, out value);
+            gameObject.native, target, subMeshIndex, id.value, out value);
     }
 }

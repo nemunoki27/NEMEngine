@@ -120,42 +120,6 @@ namespace NEMTests {
 			destroyed.payloadBytes == 0;
 	}
 
-	bool TestECSExternalStorage() {
-
-		struct TestBufferTag;
-		Engine::RuntimeBufferPool<int32_t, TestBufferTag> buffers;
-		const std::array<int32_t, 3> source = { 1, 2, 3 };
-		const auto first = buffers.Create(source);
-		if (!buffers.IsAlive(first) || buffers.Get(first).size() != source.size()) {
-			return false;
-		}
-		if (!buffers.Release(first) || buffers.IsAlive(first)) {
-			return false;
-		}
-
-		const auto second = buffers.Create(source);
-		if (first.index != second.index || first.generation == second.generation ||
-			!buffers.Get(first).empty()) {
-			return false;
-		}
-
-		Engine::BlobStore blobs;
-		const std::array<std::byte, 4> blobData = {
-			std::byte{ 1 }, std::byte{ 2 }, std::byte{ 3 }, std::byte{ 4 }
-		};
-		const Engine::BlobStore::Handle blobA = blobs.Acquire(blobData);
-		const Engine::BlobStore::Handle blobB = blobs.Acquire(blobData);
-		if (blobA != blobB || blobs.GetReferenceCount(blobA) != 2 ||
-			blobs.Get(blobA).size() != blobData.size()) {
-			return false;
-		}
-		if (!blobs.Release(blobA) || !blobs.IsAlive(blobB) ||
-			blobs.GetReferenceCount(blobB) != 1) {
-			return false;
-		}
-		return blobs.Release(blobB) && !blobs.IsAlive(blobB);
-	}
-
 	bool TestECSRuntimeData() {
 
 		RegisterTestComponents();
@@ -264,7 +228,8 @@ namespace NEMTests {
 		const Engine::BlobAssetReference<TestBlobRoot> first = builder.Build(blobs);
 		const Engine::BlobAssetReference<TestBlobRoot> second = builder.Build(blobs);
 		const TestBlobRoot* root = blobs.TryGetObject<TestBlobRoot>(first.handle);
-		if (!root || root->id != 9 || root->values.Get(root).back() != 11 ||
+		if (!root || root->id != 9 || root->values.Get(blobs.Get(first.handle)).size() != values.size() ||
+			root->values.Get(blobs.Get(first.handle)).back() != 11 ||
 			first != second || blobs.GetReferenceCount(first.handle) != 2) {
 			return false;
 		}
@@ -385,6 +350,11 @@ namespace NEMTests {
 			"value"] = 99;
 		Engine::SetScriptEntries(
 			world, entity, entries);
+		// 元Worldの変更が保存用コピーへ漏れていないことを確認する
+		if (snapshot->GetComponent<Engine::NameComponent>(entity).name != "SnapshotSource" ||
+			snapshotEntries.front().serializedFields.value("value", 0) != 24) {
+			return false;
+		}
 		snapshot.reset();
 
 		const std::span<const Engine::ScriptEntry>

@@ -36,9 +36,6 @@ namespace Engine {
 		virtual void InitParticle(Vector3& position, Vector3& direction,
 			const ParticleEmitterSettings& settings, bool is2D,
 			[[maybe_unused]] const ParticleSpawnIndex& spawnIndex) const;
-		// 形状をデバッグ線で描画する
-		virtual void DrawShape(const ParticleEmitterSettings& settings,
-			const Vector3& center, const Quaternion& rotation, bool is2D) const = 0;
 
 		//--------- accessor -----------------------------------------------------
 

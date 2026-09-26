@@ -72,6 +72,7 @@ namespace Engine {
 		static Quaternion Conjugate(const Quaternion& q);
 		// 逆
 		static Quaternion Inverse(const Quaternion& q);
+		static bool TryInverse(const Quaternion& q, Quaternion& output);
 
 		// 任意軸回転
 		static Quaternion MakeAxisAngle(const Vector3& axis, float angle);

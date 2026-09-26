@@ -62,15 +62,14 @@ namespace NEMTests {
 
 	bool TestSubScenes() {
 
-		const std::filesystem::path testRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests";
+		TestDirectory directory("SubScenes", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		if (testRoot.parent_path().lexically_normal() !=
 			Engine::RuntimePaths::GetGameAssetsRoot().lexically_normal()) {
 			return false;
 		}
 
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
 		std::filesystem::create_directories(testRoot, ec);
 		if (ec) {
 			return false;
@@ -98,7 +97,7 @@ namespace NEMTests {
 			return false;
 		}
 		const Engine::AssetID childAsset =
-			database.ImportOrGet("game://Tests/Child.scene.json", Engine::AssetType::Scene);
+			database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(testRoot / "Child.scene.json"), Engine::AssetType::Scene);
 
 		const std::filesystem::path rootPath = testRoot / "Root.scene.json";
 		Engine::SceneHeader rootHeader{};
@@ -113,7 +112,7 @@ namespace NEMTests {
 			return false;
 		}
 		const Engine::AssetID rootAsset =
-			database.ImportOrGet("game://Tests/Root.scene.json", Engine::AssetType::Scene);
+			database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(testRoot / "Root.scene.json"), Engine::AssetType::Scene);
 
 		Engine::ECSWorld world;
 		Engine::SceneSystem sceneSystem;
@@ -157,16 +156,15 @@ namespace NEMTests {
 		world.ForEachAliveEntity([&aliveCount](Engine::Entity) { ++aliveCount; });
 		passed &= aliveCount == 0;
 
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		return passed && !ec;
 	}
 
 	bool TestSingleSceneLoadReservation() {
 
-		const std::filesystem::path testRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() / "Tests/SingleSceneLoad";
+		TestDirectory directory("SingleSceneLoad", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
 		std::error_code ec;
-		std::filesystem::remove_all(testRoot, ec);
 		std::filesystem::create_directories(testRoot, ec);
 		if (ec) {
 			return false;
@@ -187,13 +185,13 @@ namespace NEMTests {
 				{ "PrefabInstances", nlohmann::json::array() },
 			};
 			if (!Engine::JsonAdapter::SaveCanonical(path, root)) {
-				std::filesystem::remove_all(testRoot, ec);
+				directory.Remove();
 				return false;
 			}
 			sceneAssets[i] = database.ImportOrGet(
 				Engine::RuntimePaths::ToAssetPath(path), Engine::AssetType::Scene);
 			if (!sceneAssets[i]) {
-				std::filesystem::remove_all(testRoot, ec);
+				directory.Remove();
 				return false;
 			}
 		}
@@ -233,7 +231,7 @@ namespace NEMTests {
 
 		// 常駐化は親子の実体と音声Runtimeを保持し、Singleの破棄対象から外す
 		if (!passed || !scenes.GetActive()) {
-			std::filesystem::remove_all(testRoot, ec);
+			directory.Remove();
 			return false;
 		}
 		const Engine::Entity music = Engine::SceneAuthoring::CreateGameObject(world, "Music");
@@ -275,7 +273,7 @@ namespace NEMTests {
 		scenes.UnloadAll(world);
 		passed &= !world.IsAlive(second) && scenes.GetAll().empty();
 
-		std::filesystem::remove_all(testRoot, ec);
+		directory.Remove();
 		return passed && !ec;
 	}
 }

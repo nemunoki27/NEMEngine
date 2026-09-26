@@ -69,7 +69,8 @@ namespace Engine {
 
 		static constexpr const char* ToString(Enum value) noexcept {
 
-			return magic_enum::enum_name(value).data();
+			const auto name = magic_enum::enum_name(value);
+			return name.empty() ? "" : name.data();
 		}
 
 		static constexpr std::string_view ToStringView(Enum value) noexcept {

@@ -149,7 +149,7 @@ public static class InputActions {
                 value = v;
             }
         }
-        return Math.Clamp(value, -1.0f, 1.0f);
+        return Mathf.Clamp(value, -1.0f, 1.0f);
     }
 
     public static Vector2 ReadVector2(InputActionID action) {
@@ -163,7 +163,7 @@ public static class InputActions {
         Vector2 result = Vector2.zero;
         foreach (InputActionBinding binding in def.bindings) {
             Vector2 v = EvalVector2(binding);
-            if (Vector2.Length(v) > Vector2.Length(result)) {
+            if (Vector2.Magnitude(v) > Vector2.Magnitude(result)) {
                 result = v;
             }
         }

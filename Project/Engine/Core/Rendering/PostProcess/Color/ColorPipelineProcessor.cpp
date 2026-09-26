@@ -143,8 +143,8 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	const bool resetExposure = !state.initialized;
 	const ColorPipelineConstants constants = BuildConstants(
 		graphicsCore, context, *source, settings, resetExposure);
-	const PostProcessConstantBufferAllocation allocation =
-		constantBufferAllocator_.AllocateAndUpload(
+	const FrameConstantBufferAllocation allocation =
+		constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice(), constants);
 	if (!allocation.gpuAddress) {
 		return false;
@@ -209,8 +209,8 @@ bool Engine::ColorPipelineProcessor::PresentToBackBuffer(
 	constants.outputMode = static_cast<uint32_t>(output.mode);
 	constants.paperWhiteNits = output.paperWhiteNits;
 	constants.maxLuminanceNits = output.maxLuminanceNits;
-	const PostProcessConstantBufferAllocation allocation =
-		constantBufferAllocator_.AllocateAndUpload(
+	const FrameConstantBufferAllocation allocation =
+		constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice(), constants);
 	if (!allocation.gpuAddress) {
 		return false;

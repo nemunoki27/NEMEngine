@@ -6,7 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/RenderPath/IRenderPass.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 
 namespace Engine {
@@ -39,7 +39,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		const RenderPipelineDeps& deps_;
-		PostProcessConstantBufferAllocator constantAllocator_{};
+		FrameConstantBufferAllocator constantAllocator_{};
 		uint64_t constantAllocatorFrameSerial_ = 0;
 		AssetID depthPyramidPipeline_{};
 		PipelineBindingCache bindCache_{};

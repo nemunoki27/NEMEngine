@@ -361,7 +361,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// GPU計測のフレーム開始(前フレームの結果をFrameProfilerへ反映し、記録をリセット)
 	GPUFrameProfiler::GetInstance().BeginFrame(graphicsCore.GetDXObject().GetDevice(),
-		graphicsCore.GetDXObject().GetCommandQueue()->GetQueue());
+		graphicsCore.GetDXObject().GetCommandQueue()->GetQueue(), graphicsCore.GetDXObject().GetResourceRetirement());
 
 	// 描画アイテムの抽出
 	scenePreparation_.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, &assetReloadService_);

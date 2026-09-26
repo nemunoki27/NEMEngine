@@ -40,7 +40,7 @@ public struct Color3 {
     //--------- functions ----------------------------------------------------
 
     // 線形補間
-    public static Color3 Lerp(Color3 lhs, Color3 rhs, float t) => new(Math.Lerp(lhs.r, rhs.r, t), Math.Lerp(lhs.g, rhs.g, t), Math.Lerp(lhs.b, rhs.b, t));
+    public static Color3 Lerp(Color3 lhs, Color3 rhs, float t) => new(Mathf.Lerp(lhs.r, rhs.r, t), Mathf.Lerp(lhs.g, rhs.g, t), Mathf.Lerp(lhs.b, rhs.b, t));
 
     // 0xRRGGBBAAからRGBだけを取り出す
     public static Color3 FromHex(uint hex) {

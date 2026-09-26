@@ -10,6 +10,14 @@
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Audio/AudioSystem.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/UTFConversion.h>
+
+// c++
+#include <exception>
+#include <stdexcept>
+#include <cstdlib>
+#include <cstdio>
 
 using namespace Engine;
 
@@ -18,29 +26,63 @@ using namespace Engine;
 //============================================================================
 Framework::Framework(std::unique_ptr<IEngineApplication> application) :
 	engineApplication_(std::move(application)) {
+
+	// GPU初期化より前に必須Applicationを確認する
+	if (!engineApplication_) {
+		throw std::invalid_argument("Framework requires an Application");
+	}
 }
 
 Framework::~Framework() = default;
 
 void Framework::Run() {
 
-	// Comオブジェクト初期化
-	CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-
-	// 初期化
-	Init();
-
-	// メインループ
-	while (isRunning_) {
-
-		Tick();
+	// 終了済みFrameworkは再利用しない
+	if (!engineApplication_) {
+		throw std::logic_error("Framework has already finished");
 	}
 
-	// 終了処理
-	Finalize();
-
-	// Comオブジェクト終了
+	// COMの初期化が成功した場合だけ終了処理と対にする
+	HRESULT result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+	if (FAILED(result)) {
+		throw std::runtime_error("Framework COM initialization failed");
+	}
+	std::exception_ptr failure;
+	try {
+		Init();
+		while (isRunning_) {
+			Tick();
+		}
+	} catch (...) {
+		failure = std::current_exception();
+	}
+	// InitとTickの失敗時も所有資源を先に終了する
+	try {
+		Finalize();
+	} catch (...) {
+		if (!failure) {
+			failure = std::current_exception();
+		}
+	}
 	CoUninitialize();
+	if (failure) {
+		std::rethrow_exception(failure);
+	}
+}
+
+int Framework::ReportFailure(const char* detail) noexcept {
+
+	// Logger終了後も診断を残し、例外を実行入口の外へ出さない
+	try {
+		const std::string message = "NEMEngineの実行に失敗しました\n\n" + std::string(detail ? detail : "不明なエラー");
+		const auto wide = Algorithm::ConvertString(message);
+		std::fprintf(stderr, "%s\n", message.c_str());
+		OutputDebugStringW(wide.c_str());
+		MessageBoxW(nullptr, wide.c_str(), L"NEMEngine 実行エラー", MB_OK | MB_ICONERROR);
+	} catch (...) {
+		OutputDebugStringW(L"NEMEngineのエラー詳細を作成できませんでした\n");
+	}
+	return EXIT_FAILURE;
 }
 
 void Framework::Init() {
@@ -55,7 +97,7 @@ void Framework::Init() {
 	// 入力機能初期化
 	Input::GetInstance()->Init(graphicsCore_->GetContext().GetWinApp());
 
-	Assert::Call(engineApplication_ != nullptr, "FrameworkへApplicationを設定してください");
+	applicationStarted_ = true;
 	engineApplication_->Init(*graphicsCore_);
 
 	// フレーム初期化
@@ -134,17 +176,38 @@ void Framework::EndRenderFrame() {
 
 void Framework::Finalize() {
 
-	// 終了処理
-	if (engineApplication_) {
-		engineApplication_->Finalize();
-		engineApplication_.reset();
+	isRunning_ = false;
+	std::exception_ptr failure;
+	// 一つの終了処理が失敗しても残りの所有者を終了する
+	auto cleanup = [&failure](auto&& action) {
+		try {
+			action();
+		} catch (...) {
+			if (!failure) {
+				failure = std::current_exception();
+			}
+		}
+	};
+	cleanup([this]() {
+		if (applicationStarted_) {
+			engineApplication_->Finalize();
+		}
+	});
+	// Applicationの借用先は所有者を破棄するまで残す
+	engineApplication_.reset();
+	applicationStarted_ = false;
+	cleanup([]() { Input::Finalize(); });
+	cleanup([]() { Audio::Finalize(); });
+	cleanup([this]() {
+		if (graphicsCore_) {
+			graphicsCore_->Finalize();
+		}
+	});
+	graphicsCore_.reset();
+	cleanup([]() { Logger::Finalize(); });
+	if (failure) {
+		std::rethrow_exception(failure);
 	}
-	Input::Finalize();
-	if (graphicsCore_) {
-		graphicsCore_->Finalize();
-		graphicsCore_.reset();
-	}
-	Logger::Finalize();
 }
 
 //============================================================================

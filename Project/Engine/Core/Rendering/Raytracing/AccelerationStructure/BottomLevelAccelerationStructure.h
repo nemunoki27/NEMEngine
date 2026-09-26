@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/AccelerationStructureBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameUploadBufferAllocator.h>
 
 // c++
 #include <vector>
@@ -61,7 +61,7 @@ namespace Engine {
 		AccelerationStructureBuffer scratch_;
 		AccelerationStructureBuffer result_;
 		// ジオメトリローカル行列のアップロードバッファ
-		DxFrameMappedUploadBuffer geometryTransformBuffer_;
+		FrameUploadBufferAllocator geometryTransformBuffer_{ 256 };
 		GraphicsResourceRetirement* retirementQueue_ = nullptr;
 
 		// ジオメトリ記述
@@ -77,6 +77,10 @@ namespace Engine {
 		uint64_t layoutHash_ = 0;
 
 		//--------- functions ----------------------------------------------------
+
+		// 未公開の候補へAS構築を記録する
+		void BuildResources(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
+			const RaytracingBLASInput& input);
 
 		// 所有と構築状態を一組で交換する
 		void Swap(BottomLevelAccelerationStructure& other) noexcept;

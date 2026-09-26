@@ -49,13 +49,13 @@ internal enum CoroutinePhase {
 
 // Unity 風 Coroutine service。main thread でのみ resume する。
 // Update / FixedUpdate / EndOfFrame の resume queue を phase で分離する。
-// owner ScriptBehaviour 破棄 / DLL unload / Play Stop で停止し、IEnumerator 参照を手放す。
+// owner MonoBehaviour 破棄 / DLL unload / Play Stop で停止し、IEnumerator 参照を手放す。
 internal static class Coroutines {
 
     private sealed class Routine {
         public uint generation;        // 0 = 空きスロット
         public bool active;
-        public ScriptBehaviour? owner;
+        public MonoBehaviour? owner;
         public readonly Stack<IEnumerator> stack = new();
         public CoroutinePhase resumePhase;
         public bool waitingTime;       // WaitForSeconds(Realtime) 待機中か
@@ -74,7 +74,7 @@ internal static class Coroutines {
             && routines[handle.index].active && routines[handle.index].generation == handle.generation;
     }
 
-    internal static CoroutineHandle Start(ScriptBehaviour owner, IEnumerator routine) {
+    internal static CoroutineHandle Start(MonoBehaviour owner, IEnumerator routine) {
         if (routine == null) {
             return default;
         }
@@ -117,7 +117,7 @@ internal static class Coroutines {
         return true;
     }
 
-    internal static void StopAllForOwner(ScriptBehaviour owner) {
+    internal static void StopAllForOwner(MonoBehaviour owner) {
         for (int i = 0; i < routines.Count; ++i) {
             if (routines[i].active && ReferenceEquals(routines[i].owner, owner)) {
                 FreeAt(i);
@@ -127,8 +127,8 @@ internal static class Coroutines {
 
     // 指定 phase の resume を実行する（BehaviorSystem から main thread で）。
     internal static void Tick(CoroutinePhase phase) {
-        float scaledDelta = Time.DeltaTime;
-        float unscaledDelta = Time.UnscaledDeltaTime;
+        float scaledDelta = Time.deltaTime;
+        float unscaledDelta = Time.unscaledDeltaTime;
         int count = routines.Count;
         for (int i = 0; i < count && i < routines.Count; ++i) {
             Routine r = routines[i];
@@ -136,7 +136,7 @@ internal static class Coroutines {
                 continue;
             }
             // owner 破棄で停止
-            if (r.owner != null && !r.owner.entity.isAlive) {
+            if (r.owner is not null && !r.owner.objectAlive) {
                 FreeAt(i);
                 continue;
             }

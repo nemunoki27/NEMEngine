@@ -3,7 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <stdexcept>
+#include <algorithm>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 //============================================================================
@@ -28,10 +30,9 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 		index < static_cast<uint32_t>(input.geometries.size()); ++index) {
 
 		const RaytracingBLASGeometryInput& source = input.geometries[index];
-		Assert::Call(source.vertexAddress != 0 && source.vertexStride != 0 &&
-			source.vertexCount != 0, "BLAS Geometryに頂点データが必要です");
-		Assert::Call(source.indexAddress != 0 && source.indexCount != 0,
-			"BLAS Geometryにインデックスデータが必要です");
+		if (!source.vertexAddress || !source.vertexStride || !source.vertexCount || !source.indexAddress || !source.indexCount) {
+			throw std::invalid_argument("BLAS Geometryに頂点とインデックスが必要です");
+		}
 
 		// 行ベクトル行列をDXRの3x4行列へ変換
 		const Matrix4x4 matrix = Matrix4x4::Transpose(source.localMatrix);
@@ -46,9 +47,7 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 		geometry = {};
 		geometry.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
 		geometry.Flags = source.flags;
-		geometry.Triangles.Transform3x4 =
-			geometryTransformBuffer_.GetGPUAddress() +
-			sizeof(GeometryTransform3x4) * static_cast<uint64_t>(index);
+
 		geometry.Triangles.VertexFormat = source.vertexFormat;
 		geometry.Triangles.VertexCount = source.vertexCount;
 		geometry.Triangles.VertexBuffer.StartAddress = source.vertexAddress;
@@ -57,8 +56,11 @@ void Engine::BottomLevelAccelerationStructure::FillGeometryDescs(
 		geometry.Triangles.IndexCount = source.indexCount;
 		geometry.Triangles.IndexBuffer = source.indexAddress;
 	}
-	geometryTransformBuffer_.Write(
-		transforms.data(), transforms.size() * sizeof(GeometryTransform3x4));
+	const auto allocation = geometryTransformBuffer_.AllocateAndUploadBytes(*retirementQueue_, device_,
+		std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(transforms.data()), transforms.size() * sizeof(GeometryTransform3x4)));
+	for (size_t index = 0; index < geometryDescs_.size(); ++index) {
+		geometryDescs_[index].Triangles.Transform3x4 = allocation.gpuAddress + sizeof(GeometryTransform3x4) * index;
+	}
 }
 
 uint64_t Engine::BottomLevelAccelerationStructure::ComputeLayoutHash(
@@ -80,18 +82,27 @@ uint64_t Engine::BottomLevelAccelerationStructure::ComputeLayoutHash(
 void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
-	Assert::Call(retirementQueue_ != nullptr, "ASの回収窓口が設定されていません");
+	if (!retirementQueue_) throw std::logic_error("ASの回収窓口が設定されていません");
+	if (!device || !commandList || input.geometries.empty() || input.geometries.size() > UINT32_MAX) {
+		throw std::invalid_argument("BLASの構築引数が不正です");
+	}
+	if (!DxDredDiagnostics::CheckDeviceState(device, "BLAS::Build")) throw std::runtime_error("Deviceが失われました");
+	// 候補の作成と記録が成功してから公開する
+	retirementQueue_->ReservePending(2 + kGraphicsFrameContextCount);
+	BottomLevelAccelerationStructure candidate;
+	candidate.SetRetirementQueue(*retirementQueue_);
+	candidate.BuildResources(device, commandList, input);
+	Swap(candidate);
+}
 
-	Assert::Call(!input.geometries.empty(), "BLASにGeometryが必要です");
+void Engine::BottomLevelAccelerationStructure::BuildResources(ID3D12Device8* device,
+	ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
 
 	device_ = device;
 	allowUpdate_ = input.allowUpdate;
 	layoutHash_ = ComputeLayoutHash(input);
 
-	// ジオメトリローカル行列の領域を作成
-	geometryTransformBuffer_.EnsureCapacity(device,
-		sizeof(GeometryTransform3x4) * input.geometries.size(),
-		"BLASGeometryTransforms", 256);
+	// 構築ごとに異なる変換行列の領域を使う
 	FillGeometryDescs(input);
 
 	// ASビルド記述の設定
@@ -109,14 +120,10 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild{};
 	device->GetRaytracingAccelerationStructurePrebuildInfo(&inputs_, &prebuild);
 
-	if (scratch_.GetResource()) {
-		retirementQueue_->Retire(scratch_.TakeResource());
-	}
-	if (result_.GetResource()) {
-		retirementQueue_->Retire(result_.TakeResource());
-	}
 	// スクラッチと結果のバッファを作成
-	scratch_.Create(device, prebuild.ScratchDataSizeInBytes,
+	const UINT64 scratchSize = allowUpdate_ ?
+		(std::max)(prebuild.ScratchDataSizeInBytes, prebuild.UpdateScratchDataSizeInBytes) : prebuild.ScratchDataSizeInBytes;
+	scratch_.Create(device, scratchSize,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON);
 	result_.Create(device, prebuild.ResultDataMaxSizeInBytes,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE);
@@ -130,10 +137,7 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	commandList->BuildRaytracingAccelerationStructure(&buildDesc_, 0, nullptr);
 
 	// UAVバリアを挿入してASの構築完了を待つ
-	D3D12_RESOURCE_BARRIER uavBarrier{};
-	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	uavBarrier.UAV.pResource = result_.GetResource();
-	commandList->ResourceBarrier(1, &uavBarrier);
+	result_.InsertUAVBarrier(commandList);
 }
 
 void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6* commandList, const RaytracingBLASInput& input) {
@@ -153,13 +157,13 @@ void Engine::BottomLevelAccelerationStructure::Update(ID3D12GraphicsCommandList6
 	buildDesc_.Inputs.pGeometryDescs = geometryDescs_.data();
 	buildDesc_.SourceAccelerationStructureData = result_.GetGPUAddress();
 	buildDesc_.Inputs.Flags |= D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE;
+	// 先行描画と前回構築の読み書きを終えてから更新する
+	result_.InsertUAVBarrier(commandList);
+	scratch_.InsertUAVBarrier(commandList);
 	commandList->BuildRaytracingAccelerationStructure(&buildDesc_, 0, nullptr);
 
 	// UAVバリアを挿入してASの更新完了を待つ
-	D3D12_RESOURCE_BARRIER uavBarrier{};
-	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	uavBarrier.UAV.pResource = result_.GetResource();
-	commandList->ResourceBarrier(1, &uavBarrier);
+	result_.InsertUAVBarrier(commandList);
 }
 
 void Engine::BottomLevelAccelerationStructure::Rebuild(
@@ -186,13 +190,13 @@ void Engine::BottomLevelAccelerationStructure::Rebuild(
 	buildDesc_.DestAccelerationStructureData = result_.GetGPUAddress();
 	buildDesc_.ScratchAccelerationStructureData = scratch_.GetGPUAddress();
 	buildDesc_.SourceAccelerationStructureData = 0;
+	// 先行描画と前回構築の読み書きを終えてから更新する
+	result_.InsertUAVBarrier(commandList);
+	scratch_.InsertUAVBarrier(commandList);
 	commandList->BuildRaytracingAccelerationStructure(
 		&buildDesc_, 0, nullptr);
 
-	D3D12_RESOURCE_BARRIER uavBarrier{};
-	uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-	uavBarrier.UAV.pResource = result_.GetResource();
-	commandList->ResourceBarrier(1, &uavBarrier);
+	result_.InsertUAVBarrier(commandList);
 }
 
 Engine::BottomLevelAccelerationStructure::~BottomLevelAccelerationStructure() {
@@ -231,13 +235,13 @@ void Engine::BottomLevelAccelerationStructure::Swap(BottomLevelAccelerationStruc
 
 void Engine::BottomLevelAccelerationStructure::SetRetirementQueue(GraphicsResourceRetirement& queue) {
 
-	Assert::Call(!IsBuilt() || retirementQueue_ == &queue, "使用中のASの回収窓口は変更できません");
-	geometryTransformBuffer_.SetRetirementQueue(queue);
+	if (IsBuilt() && retirementQueue_ != &queue) throw std::logic_error("使用中のASの回収窓口は変更できません");
 	retirementQueue_ = &queue;
 }
 
 void Engine::BottomLevelAccelerationStructure::Release() {
 
+	if (retirementQueue_) retirementQueue_->ReservePending(2);
 	if (scratch_.GetResource()) retirementQueue_->Retire(scratch_.TakeResource());
 	if (result_.GetResource()) retirementQueue_->Retire(result_.TakeResource());
 	geometryTransformBuffer_.Release();

@@ -6,7 +6,7 @@ namespace SandboxScripts;
 //============================================================================
 //	Player
 //============================================================================
-public sealed class Player : ScriptBehaviour {
+public sealed class Player : MonoBehaviour {
 
 	[SerializeField]
 	[Label("移動速度")]
@@ -38,7 +38,7 @@ public sealed class Player : ScriptBehaviour {
 	[Range(0.0f, 1.0f)]
 	private float groundNormalThreshold = 0.6f;
 
-	private readonly HashSet<Entity> groundContacts = new();
+	private readonly HashSet<GameObject> groundContacts = new();
 	private Rigidbody2D? rigidbody;
 	private float horizontalInput;
 	private float coyoteTimer;
@@ -47,12 +47,12 @@ public sealed class Player : ScriptBehaviour {
 	//========================================================================
 	//	初期化処理
 	//========================================================================
-	public override void Awake() {
+	private void Awake() {
 
 		rigidbody = GetComponent<Rigidbody2D>();
 		if (rigidbody == null) {
 			Debug.LogError("Playerの移動にはRigidbody2Dが必要です");
-			Enabled = false;
+			enabled = false;
 			return;
 		}
 
@@ -65,7 +65,7 @@ public sealed class Player : ScriptBehaviour {
 	//========================================================================
 	//	入力更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
 		horizontalInput = 0.0f;
 		if (Input.GetKey(KeyCode.A)) {
@@ -76,14 +76,14 @@ public sealed class Player : ScriptBehaviour {
 		}
 
 		if (Input.GetKeyDown(KeyCode.W)) {
-			jumpBufferTimer = Math.Max(jumpBufferTime, Time.FixedDeltaTime);
+			jumpBufferTimer = Mathf.Max(jumpBufferTime, Time.fixedDeltaTime);
 		}
 	}
 
 	//========================================================================
 	//	物理更新処理
 	//========================================================================
-	public override void FixedUpdate() {
+	private void FixedUpdate() {
 
 		if (rigidbody == null) {
 			return;
@@ -93,9 +93,9 @@ public sealed class Player : ScriptBehaviour {
 		if (groundContacts.Count != 0) {
 			coyoteTimer = coyoteTime;
 		} else {
-			coyoteTimer = Math.Max(minimumTimer, coyoteTimer - Time.FixedDeltaTime);
+			coyoteTimer = Mathf.Max(minimumTimer, coyoteTimer - Time.fixedDeltaTime);
 		}
-		jumpBufferTimer = Math.Max(minimumTimer, jumpBufferTimer - Time.FixedDeltaTime);
+		jumpBufferTimer = Mathf.Max(minimumTimer, jumpBufferTimer - Time.fixedDeltaTime);
 
 		Vector2 velocity = rigidbody.LinearVelocity;
 		velocity.x = horizontalInput * moveSpeed;
@@ -114,22 +114,22 @@ public sealed class Player : ScriptBehaviour {
 	//========================================================================
 	//	接地判定
 	//========================================================================
-	public override void OnCollisionEnter(Collision collision) {
+	private void OnCollisionEnter(Collision collision) {
 
 		RegisterGroundContact(collision);
 	}
 
-	public override void OnCollisionStay(Collision collision) {
+	private void OnCollisionStay(Collision collision) {
 
 		RegisterGroundContact(collision);
 	}
 
-	public override void OnCollisionExit(Collision collision) {
+	private void OnCollisionExit(Collision collision) {
 
-		groundContacts.Remove(collision.entity);
+		groundContacts.Remove(collision.gameObject);
 	}
 
-	public override void OnDisable() {
+	private void OnDisable() {
 
 		horizontalInput = 0.0f;
 		coyoteTimer = 0.0f;
@@ -146,6 +146,6 @@ public sealed class Player : ScriptBehaviour {
 		if (rigidbody != null && rigidbody.LinearVelocity.y < -0.01f) {
 			return;
 		}
-		groundContacts.Add(collision.entity);
+		groundContacts.Add(collision.gameObject);
 	}
 }

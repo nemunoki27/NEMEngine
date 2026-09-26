@@ -18,7 +18,7 @@ namespace NEM.ScriptCodeGen
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             IncrementalValuesProvider<ScriptTypeModel?> models = context.SyntaxProvider.CreateSyntaxProvider(
-                static (node, _) => node is ClassDeclarationSyntax c && c.BaseList != null,
+                static (node, _) => node is ClassDeclarationSyntax,
                 static (ctx, _) => ScriptManifestAnalysis.Analyze(ctx))
                 .Where(static m => m != null);
 
