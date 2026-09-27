@@ -21,7 +21,6 @@ namespace Engine {
 		bool showSceneView = true;
 		bool showGameView = true;
 		bool showToolbar = true;
-		bool showTool = true;
 		// trueの間はMenuBarを含む全エディターUIを描画せず、GameViewを直接表示する
 		bool hidePanels = false;
 		// Play開始時にManagedデバッガのアタッチ待機を行う

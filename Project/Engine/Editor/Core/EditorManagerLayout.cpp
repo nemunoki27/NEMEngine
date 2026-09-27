@@ -129,7 +129,6 @@ Engine::EditorLayoutSnapshot Engine::EditorManager::CaptureEditorLayout() const 
 	layout.visibility.showSceneView = layoutState_.showSceneView;
 	layout.visibility.showGameView = layoutState_.showGameView;
 	layout.visibility.showToolbar = layoutState_.showToolbar;
-	layout.visibility.showTool = layoutState_.showTool;
 
 	for (const auto& panel : panels_) {
 
@@ -168,7 +167,6 @@ void Engine::EditorManager::ApplyEditorLayout(const EditorLayoutSnapshot& layout
 	layoutState_.showSceneView = layout.visibility.showSceneView;
 	layoutState_.showGameView = layout.visibility.showGameView;
 	layoutState_.showToolbar = layout.visibility.showToolbar;
-	layoutState_.showTool = layout.visibility.showTool;
 
 	// 適用前の複製パネルを破棄しスナップショットから作り直す
 	panels_.erase(std::remove_if(panels_.begin(), panels_.end(), [](const std::unique_ptr<IEditorPanel>& panel) {

@@ -11,6 +11,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <EditorBuildInfo.generated.h>
 
@@ -119,7 +120,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::MenuItem("Inspector", nullptr, &context.layoutState->showInspector);
 		ImGui::MenuItem("Project", nullptr, &context.layoutState->showProject);
 		ImGui::MenuItem("Console", nullptr, &context.layoutState->showConsole);
-		ImGui::MenuItem("Tool", nullptr, &context.layoutState->showTool);
 		ImGui::MenuItem("SceneView", nullptr, &context.layoutState->showSceneView);
 		ImGui::MenuItem("GameView", nullptr, &context.layoutState->showGameView);
 
@@ -458,6 +458,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		ImGui::EndMenu();
 	}
+
+	// グラフィックス設定の右隣にツール起動メニューを置く
+	EditorToolUI::DrawMenu(context);
 
 	//============================================================================
 	//	エディターレイアウト設定

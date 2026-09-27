@@ -11,8 +11,7 @@ namespace {
 			{ "console", visibility.showConsole },
 			{ "sceneView", visibility.showSceneView },
 			{ "gameView", visibility.showGameView },
-			{ "toolbar", visibility.showToolbar },
-			{ "tool", visibility.showTool },
+			{ "toolbar", visibility.showToolbar }
 		};
 	}
 
@@ -30,7 +29,6 @@ namespace {
 		visibility.showSceneView = data.value("sceneView", visibility.showSceneView);
 		visibility.showGameView = data.value("gameView", visibility.showGameView);
 		visibility.showToolbar = data.value("toolbar", visibility.showToolbar);
-		visibility.showTool = data.value("tool", visibility.showTool);
 		return visibility;
 	}
 }

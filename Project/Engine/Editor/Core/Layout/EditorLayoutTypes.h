@@ -25,7 +25,6 @@ namespace Engine {
 		bool showSceneView = true;
 		bool showGameView = true;
 		bool showToolbar = true;
-		bool showTool = true;
 	};
 
 	// パネルインスタンスの保存状態

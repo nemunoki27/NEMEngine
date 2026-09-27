@@ -15,6 +15,7 @@
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
@@ -486,7 +487,11 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 
 	// ドッキングスペースの描画
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PostScene);
-	// 全パネルのフォーカスが確定してからメイン編集コマンドを処理
+
+	// メニューを閉じても独立ツールを描画する
+	EditorToolUI::DrawWindows(panelContext);
+
+	// パネルとツールのフォーカスが確定してからメイン編集コマンドを処理
 	HandleGlobalShortcuts(context);
 	ApplyPendingPanelDuplicate(panelContext);
 
@@ -625,7 +630,6 @@ void Engine::EditorManager::BuildDefaultDockLayout(ImGuiID dockSpaceID, const Im
 	ImGui::DockBuilderDockWindow("Inspector###Inspector:inspector.primary", inspectorDockID);
 	ImGui::DockBuilderDockWindow("Project###Project:project.primary", bottomDockID);
 	ImGui::DockBuilderDockWindow("Console", consoleDockID);
-	ImGui::DockBuilderDockWindow("Tool", consoleDockID);
 	ImGui::DockBuilderDockWindow("SceneView", mainDockID);
 	ImGui::DockBuilderDockWindow("GameView", mainDockID);
 	ImGui::DockBuilderFinish(dockSpaceID);
