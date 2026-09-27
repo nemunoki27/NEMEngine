@@ -19,8 +19,7 @@ Engine::EditorRenderRequestBuilder::EditorRenderRequestBuilder(SystemContext& sy
 	systemContext_(systemContext),
 	assetDatabase_(assetDatabase),
 	editorManager_(editorManager),
-	worldManager_(worldManager) {
-}
+	worldManager_(worldManager) {}
 
 Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameRequest(
 	GraphicsCore& graphicsCore, ECSWorld* world, const SceneHeader* header, SceneInstanceManager& scenes) {
@@ -76,16 +75,12 @@ Engine::RenderFrameRequest Engine::EditorRenderRequestBuilder::BuildRenderFrameR
 		renderSceneView = showSceneView;
 		if (showGameView && showSceneView && !layout.hidePanels) {
 
-			const bool renderSecondaryView =
-				(renderFrameSerial_ % 2) == 0;
-			const EditorState& editorState =
-				editorManager_.GetEditorState();
+			const bool renderSecondaryView = (renderFrameSerial_ % 2) == 0;
+			const EditorState& editorState = editorManager_.GetEditorState();
 			if (worldManager_.IsPlaying()) {
-				renderSceneView = renderSecondaryView ||
-					editorState.sceneViewportHovered;
+				renderSceneView = renderSecondaryView;
 			} else {
-				renderGameView = renderSecondaryView ||
-					editorState.gameViewportHovered;
+				renderGameView = renderSecondaryView || editorState.gameViewportHovered;
 			}
 		}
 		++renderFrameSerial_;
