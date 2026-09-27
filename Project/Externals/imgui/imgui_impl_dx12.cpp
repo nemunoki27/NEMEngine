@@ -560,6 +560,8 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         ID3D12Resource* pTexture = nullptr;
         bd->pd3dDevice->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&pTexture));
+        if (pTexture)
+            pTexture->SetName(L"ImGui Texture");
 
         // Create SRV
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;

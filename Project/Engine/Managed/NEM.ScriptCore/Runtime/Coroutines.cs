@@ -103,8 +103,15 @@ internal static class Coroutines {
 
         CoroutineHandle handle = new(index, entry.generation);
         // Unity と同様、最初の yield までは即時に実行する
-        if (Step(entry)) {
+        try {
+            if (Step(entry)) {
+                FreeAt(index);
+            }
+        }
+        catch {
+            // 例外が出たCoroutineは再開対象へ残さない
             FreeAt(index);
+            throw;
         }
         return handle;
     }
@@ -135,9 +142,15 @@ internal static class Coroutines {
             if (!r.active) {
                 continue;
             }
-            // owner 破棄で停止
+            // owner破棄で停止、非active／Script無効中は待機する
             if (r.owner is not null && !r.owner.objectAlive) {
                 FreeAt(i);
+                continue;
+            }
+            if (r.owner is not null && !r.owner.gameObject.activeInHierarchy) {
+                continue;
+            }
+            if (r.owner is not null && !r.owner.isActiveAndEnabled) {
                 continue;
             }
             if (r.resumePhase != phase) {
@@ -150,8 +163,15 @@ internal static class Coroutines {
                 }
                 r.waitingTime = false;
             }
-            if (Step(r)) {
+            try {
+                if (Step(r)) {
+                    FreeAt(i);
+                }
+            }
+            catch {
+                // 例外が出たCoroutineは再開対象へ残さない
                 FreeAt(i);
+                throw;
             }
         }
     }
@@ -171,7 +191,7 @@ internal static class Coroutines {
             }
             catch (Exception ex) {
                 NativeApplicationAPI.WriteLog(2, $"[Coroutines] routine threw\n{ex}");
-                return true; // この routine を停止（他は継続）
+                throw;
             }
             if (!moved) {
                 // この階層が終了 → pop して親を継続

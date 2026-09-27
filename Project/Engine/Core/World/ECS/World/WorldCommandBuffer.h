@@ -43,6 +43,7 @@ namespace Engine {
 	//	scripting由来の構造変更を安全地点までキューに積んで遅延適用する
 	//============================================================================
 	class WorldCommandBuffer {
+		friend class ECSWorld;
 	public:
 		//============================================================================
 		//	public Methods
@@ -58,6 +59,8 @@ namespace Engine {
 		// 型名でコンポーネント追加/削除
 		void EnqueueAddComponentByName(const Entity& entity, std::string_view typeName);
 		void EnqueueRemoveComponentByName(const Entity& entity, std::string_view typeName);
+		// 指定したScriptの個体だけを削除する
+		void EnqueueRemoveScript(const Entity& entity, const UUID& scriptSlotID);
 		// 名前設定でNameComponentが無ければ追加してから設定する
 		void EnqueueSetNameEnsuringComponent(const Entity& entity, std::string_view name);
 		// アクティブ設定でSceneObjectComponentが無ければ追加してから設定する
@@ -76,7 +79,12 @@ namespace Engine {
 		// 追加前に読み書きできるComponentを予約する
 		uint64_t StageAddComponent(ECSWorld& world, const Entity& entity, uint32_t typeID);
 		// 予約したComponentの値を取得する
-		PendingComponent* FindPendingComponent(const Entity& entity, uint32_t typeID) const;
+		PendingComponent* FindPendingComponent(const Entity& entity, uint32_t typeID);
+		const PendingComponent* FindPendingComponent(const Entity& entity, uint32_t typeID) const;
+		// 対象Entityの未適用の値を読み取り用に列挙する
+		void CollectPendingComponents(const Entity& entity, std::vector<const PendingComponent*>& out) const;
+		// 保存用複製へ未適用Commandを順番どおり渡す
+		void CollectUnappliedCommands(std::vector<WorldCommand>& out) const;
 
 		//--------- flush --------------------------------------------------------
 
@@ -113,6 +121,8 @@ namespace Engine {
 
 		// 適用を開始する予約を索引から外す
 		void RemovePendingComponent(const WorldCommand& command);
+		// 適用済みまたは取消済みの予約値を解放する
+		void CancelPendingComponent(const Entity& entity, uint32_t typeID);
 
 	};
 } // Engine

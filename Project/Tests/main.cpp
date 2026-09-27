@@ -115,6 +115,10 @@ namespace {
 
 int main(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--managed-lifecycle") {
+		return RunTest("TestManagedLifecycleIntegration", TestManagedLifecycleIntegration) ? 0 : 45;
+	}
+
 	if (1 < argc && (std::string_view(argv[1]) == "--gpu-retirement" ||
 		std::string_view(argv[1]) == "--gpu-retirement-hardware")) {
 		if (!TestGPURetirement(std::string_view(argv[1]) == "--gpu-retirement-hardware")) return 44;
@@ -255,6 +259,7 @@ int main(int argc, char* argv[]) {
 			!RunTest("TestTransformDimensionSerialization", TestTransformDimensionSerialization) ||
 			!RunTest("TestScreenSpaceOutlineSerialization", TestScreenSpaceOutlineSerialization) || !RunTest("TestScreenSpaceOutlineBinding", TestScreenSpaceOutlineBinding) ||
 			!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) || !RunTest("TestScriptProfiler", TestScriptProfiler) ||
+			!RunTest("TestScriptFieldStorage", TestScriptFieldStorage) ||
 			!RunTest("TestCanvasNavigationTable", TestCanvasNavigationTable)) {
 			std::cerr << "ECS chunk storage failed\n";
 			return 10;
@@ -280,6 +285,8 @@ int main(int argc, char* argv[]) {
 		if (!RunTest("TestBlendStates", TestBlendStates) ||
 			!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) ||
 			!RunTest("TestMaterialParameters", TestMaterialParameters) ||
+			!RunTest("TestMeshAuthoringCache", TestMeshAuthoringCache) ||
+			!RunTest("TestPrimitiveTangents", TestPrimitiveTangents) ||
 			!RunTest("TestShaderReflectionMerge", TestShaderReflectionMerge)) {
 			std::cerr << "Material parameter storage failed\n";
 			return 17;
@@ -323,7 +330,10 @@ int main(int argc, char* argv[]) {
 	if (!RunTest("TestFoundationContracts", TestFoundationContracts)) {
 		return 41;
 	}
-	if (!RunTest("TestAssetGUIDRoundTrip", TestAssetGUIDRoundTrip)) {
+	if (!RunTest("TestAssetGUIDRoundTrip", TestAssetGUIDRoundTrip) ||
+		!RunTest("TestAssetDatabaseTransactions", TestAssetDatabaseTransactions) ||
+		!RunTest("TestAssetWatcherLifetime", TestAssetWatcherLifetime) ||
+		!RunTest("TestAssetDependencyCandidates", TestAssetDependencyCandidates)) {
 		std::cerr << "AssetGUID round-trip failed\n";
 		return 1;
 	}
@@ -355,7 +365,8 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Semantic JSON merge failed\n";
 		return 6;
 	}
-	if (!RunTest("TestSubScenes", TestSubScenes)) {
+	if (!RunTest("TestSubScenes", TestSubScenes) ||
+		!RunTest("TestSceneSnapshotTransactions", TestSceneSnapshotTransactions)) {
 		std::cerr << "SubScene failed\n";
 		return 7;
 	}
@@ -373,6 +384,10 @@ int main(int argc, char* argv[]) {
 	}
 	if (!RunTest("TestBuiltinShaderSources", TestBuiltinShaderSources)) {
 		std::cerr << "Builtin shader source resolution failed\n";
+		return 9;
+	}
+	if (!RunTest("TestMeshShaderConstantLayout", TestMeshShaderConstantLayout)) {
+		std::cerr << "Mesh shader constant layout failed\n";
 		return 9;
 	}
 	if ((!RunTest("TestECSChunkStorage", TestECSChunkStorage) || !RunTest("TestECSStructureSafety", TestECSStructureSafety))) {
@@ -411,7 +426,8 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Screen space outline serialization failed\n";
 		return 29;
 	}
-	if (!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) || !RunTest("TestScriptProfiler", TestScriptProfiler)) {
+	if (!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) ||
+		!RunTest("TestScriptFieldStorage", TestScriptFieldStorage) || !RunTest("TestScriptProfiler", TestScriptProfiler)) {
 		std::cerr << "Script execution order settings failed\n";
 		return 35;
 	}
@@ -443,11 +459,17 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Mesh LOD generation failed\n";
 		return 16;
 	}
+	if (!RunTest("TestGraphicsFeatureSelection", TestGraphicsFeatureSelection)) {
+		std::cerr << "Graphics feature selection failed\n";
+		return 16;
+	}
 	if (!RunTest("TestBlendStates", TestBlendStates)) {
 		std::cerr << "Blend state failed\n";
 		return 30;
 	}
-	if (!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) || !RunTest("TestMaterialParameters", TestMaterialParameters)) {
+	if (!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) || !RunTest("TestMaterialParameters", TestMaterialParameters) ||
+		!RunTest("TestMeshAuthoringCache", TestMeshAuthoringCache) ||
+		!RunTest("TestPrimitiveTangents", TestPrimitiveTangents)) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
 	}

@@ -105,6 +105,7 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		}
 		instance.renderer = nullptr;
 		instance.castShadows = item.castShadows;
+		instance.viewDependent = RenderBillboard::HasBillboard(item);
 		if (item.world && item.world->IsAlive(item.entity)) {
 			if (item.world->HasComponent<MeshRendererComponent>(item.entity)) {
 
@@ -161,6 +162,7 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 		instance.surfaceMode = item.surfaceMode;
 		instance.uvMatrix = payload->uvMatrix;
 		instance.castShadows = item.castShadows;
+		instance.viewDependent = RenderBillboard::HasBillboard(item);
 		// batchKeyは上書き分離を含むためBLAS共有には形状ハッシュを使う
 		instance.geometryHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		outInstances.emplace_back(instance);

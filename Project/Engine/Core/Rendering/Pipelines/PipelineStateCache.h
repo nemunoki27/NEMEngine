@@ -11,6 +11,7 @@
 #include <memory>
 #include <span>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Engine {
 
@@ -112,6 +113,8 @@ namespace Engine {
 
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> cache_;
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> fallbackCache_;
+		// 入力が更新されるまで失敗したPSOの再生成を抑える
+		std::unordered_set<PipelineCacheKey, PipelineCacheKeyHash> failedKeys_;
 		// pipelineAsset別の統合reflection、エディタからPSO再生成なしで参照するために保持する
 		std::unordered_map<AssetID, ShaderReflectionInfo> graphicsReflectionByPipeline_;
 

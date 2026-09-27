@@ -7,22 +7,73 @@
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	RenderQueue classMethods
 //============================================================================
 void Engine::RenderSceneBatch::Add(RenderItem&& item) {
 
+	canRefreshTransforms_ = canRefreshTransforms_ && item.canRefreshTransform;
 	item.previousWorldMatrix = item.worldMatrix;
+	const uint32_t frameSerial = static_cast<uint32_t>(GraphicsFrameState::GetFrameSerial());
+	const auto [begin, end] = transformHistory_.equal_range(BuildEntityKey(item.entity));
+	const TransformHistory* previous = nullptr;
+	for (auto it = begin; it != end; ++it) {
+		const TransformHistory& history = it->second;
+		if (history.world != item.world || history.backendID != item.backendID || history.cameraDomain != item.cameraDomain) {
+			continue;
+		}
+		// 同じEntityでも別の行列を持つ描画は対応を推測しない
+		if (previous && (previous->worldMatrix != history.worldMatrix ||
+			previous->previousWorldMatrix != history.previousWorldMatrix || previous->motionFrameSerial != history.motionFrameSerial)) {
+			previous = nullptr;
+			break;
+		}
+		previous = &history;
+	}
+	if (previous) {
+		if (previous->worldMatrix != item.worldMatrix) {
+			item.previousWorldMatrix = previous->motionFrameSerial == frameSerial ?
+				previous->previousWorldMatrix : previous->worldMatrix;
+			item.motionFrameSerial = frameSerial;
+		} else {
+			item.previousWorldMatrix = previous->previousWorldMatrix;
+			item.motionFrameSerial = previous->motionFrameSerial;
+		}
+	}
 	items_.emplace_back(std::move(item));
+}
+
+void Engine::RenderSceneBatch::BeginExtraction(const ECSWorld& world) {
+
+	auto history = std::move(transformHistory_);
+	history.clear();
+	// 終了済みWorldや別Worldの履歴は引き継がない
+	if (sourceWorld_ == &world && sourceWorldLifetime_ && sourceWorldLifetime_->IsAlive()) {
+		for (const RenderItem& item : items_) {
+			if (item.world != &world || !world.IsAlive(item.entity)) { continue; }
+			history.emplace(BuildEntityKey(item.entity), TransformHistory{
+				item.world, item.backendID, item.cameraDomain, item.worldMatrix, item.previousWorldMatrix, item.motionFrameSerial });
+		}
+	}
+	Clear();
+	transformHistory_ = std::move(history);
 }
 
 void Engine::RenderSceneBatch::Clear() {
 
 	items_.clear();
+	canRefreshTransforms_ = true;
+	extractorContentRevisions_.clear();
+	transformHistory_.clear();
 	entityItemLookup_.clear();
 	transformChanges_.clear();
 	payloadArena_.Clear();
 	sourceWorld_ = nullptr;
+	sourceWorldLifetime_.reset();
+	extractorRevision_.reset();
 	sourceRenderRevision_ = 0;
 	sourceMaterialRevision_ = 0;
 	sourceTransformRevision_ = 0;
@@ -91,9 +142,14 @@ void Engine::RenderSceneBatch::Sort() {
 }
 
 void Engine::RenderSceneBatch::SetSource(const ECSWorld* world,
-	uint64_t renderRevision, uint64_t transformRevision) {
+	uint64_t renderRevision, uint64_t transformRevision,
+	std::shared_ptr<const RegistryRevision> extractorRevision, std::span<const uint64_t> contentRevisions) {
 
 	sourceWorld_ = world;
+	sourceWorldLifetime_ = world ? world->GetLifetime() : nullptr;
+	extractorRevision_ = std::move(extractorRevision);
+	extractorContentRevisions_.assign(contentRevisions.begin(), contentRevisions.end());
+	transformHistory_.clear();
 	sourceRenderRevision_ = renderRevision;
 	sourceTransformRevision_ = transformRevision;
 	transformChanges_.clear();
@@ -146,10 +202,15 @@ void Engine::RenderSceneBatch::RefreshTransforms(
 			RenderItem& item = items_[it->second];
 			if (item.world != &world ||
 				item.entity != entity ||
+				!item.canRefreshTransform ||
+				item.cameraDomain == RenderCameraDomain::Screen ||
 				item.worldMatrix == worldMatrix) {
 				continue;
 			}
-			item.previousWorldMatrix = item.worldMatrix;
+			// 同じframeの最初の移動前行列を維持する
+			if (item.motionFrameSerial != static_cast<uint32_t>(GraphicsFrameState::GetFrameSerial())) {
+				item.previousWorldMatrix = item.worldMatrix;
+			}
 			item.worldMatrix = worldMatrix;
 			RefreshSortPosition(item);
 			item.motionFrameSerial = static_cast<uint32_t>(
@@ -174,7 +235,7 @@ void Engine::RenderSceneBatch::RefreshAllTransforms() {
 
 	transformChanges_.clear();
 	for (RenderItem& item : items_) {
-		if (!item.world || !item.world->IsAlive(item.entity)) {
+		if (!item.world || !item.world->IsAlive(item.entity) || !item.canRefreshTransform || item.cameraDomain == RenderCameraDomain::Screen) {
 			continue;
 		}
 		const Matrix4x4 worldMatrix =
@@ -182,7 +243,8 @@ void Engine::RenderSceneBatch::RefreshAllTransforms() {
 		if (item.worldMatrix == worldMatrix) {
 			continue;
 		}
-		const Matrix4x4 previousWorldMatrix = item.worldMatrix;
+		const Matrix4x4 previousWorldMatrix = item.motionFrameSerial == static_cast<uint32_t>(GraphicsFrameState::GetFrameSerial()) ?
+			item.previousWorldMatrix : item.worldMatrix;
 		item.previousWorldMatrix = previousWorldMatrix;
 		item.worldMatrix = worldMatrix;
 		RefreshSortPosition(item);
@@ -246,9 +308,14 @@ void Engine::RenderSceneBatch::RebuildEntityLookup() {
 
 namespace Engine {
 
+	bool RenderSceneBatch::MatchesExtractorContents(std::span<const uint64_t> revisions) const {
+
+		return std::equal(extractorContentRevisions_.begin(), extractorContentRevisions_.end(), revisions.begin(), revisions.end());
+	}
+
 	bool RenderSceneBatch::MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const {
 
-		return sourceWorld_ == world &&
+		return sourceWorld_ == world && sourceWorldLifetime_ && sourceWorldLifetime_->IsAlive() &&
 			sourceRenderRevision_ == renderRevision;
 	}
 }

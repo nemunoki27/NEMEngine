@@ -5,6 +5,24 @@ namespace NEMEngine;
 // Native個体の生存と参照の等値を扱う共通基底
 public abstract class Object {
 
+    // 参照先の個体だけを安全地点で破棄する
+    public static void Destroy(Object? target) {
+
+        if (target == null) {
+            return;
+        }
+        switch (target) {
+            case GameObject gameObject:
+                gameObject.Destroy();
+                break;
+            case Component component:
+                component.EnqueueDestroy();
+                break;
+            default:
+                throw new ArgumentException("実行中のGameObjectかComponentを指定してください", nameof(target));
+        }
+    }
+
     internal abstract bool objectAlive { get; }
 
     // 同じ個体を指す参照だけを等値にする

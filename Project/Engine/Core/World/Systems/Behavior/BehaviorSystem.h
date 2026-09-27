@@ -52,11 +52,14 @@ namespace Engine {
 		static void DispatchAnimationEvent(ECSWorld& world, SystemContext& context, const Entity& entity,
 			const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam);
 		// Prefab生成中にScript実体とAwakeとOnEnableを返却前まで同期する
-		static void SynchronizeInstantiatedEntities(ECSWorld& world, SystemContext& context,
+		static void SynchronizeInstantiatedEntities(ECSWorld& world, const SystemContext& context,
 			std::span<const Entity> entities);
 
 		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);
+		// 指定Worldの実行値とScript有効状態を複製用に取得する
+		static bool CaptureSavedFields(ECSWorld& world, const Entity& owner, UUID slotID,
+			nlohmann::json& fields, bool& enabled);
 		static void SetRuntimeSerializedField(BehaviorHandle handle, const std::string& fieldID, const nlohmann::json& value);
 
 		// ScriptBehaviour.Enabled用にowner EntityとscriptSlotIDでruntime entryを特定
@@ -69,8 +72,8 @@ namespace Engine {
 		static MonoBehavior* FindScriptInstance(const Entity& owner, const std::string& scriptTypeID);
 
 		// AddComponent<Script>用にowner EntityへscriptTypeIDのscriptをruntimeでattachする
-		// instanceは即時生成しAwake/Startは次のライフサイクル同期で走る、生成成否を返す
-		static bool AttachScript(const Entity& owner, const std::string& scriptTypeID);
+		// activeならAwakeとOnEnableを返却前に呼び、Startは通常同期へ残す
+		static MonoBehavior* AttachScript(const Entity& owner, const std::string& scriptTypeID, const SystemContext& context);
 
 		//--------- accessor -----------------------------------------------------
 

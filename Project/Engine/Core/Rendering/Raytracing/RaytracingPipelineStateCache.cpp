@@ -134,6 +134,10 @@ void Engine::RaytracingPipelineStateCache::Clear() {
 void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 	AssetID pipelineAssetID) {
 
+	// 初回生成に失敗した構成も更新後に再試行する
+	std::erase_if(failedRevisions_, [pipelineAssetID](const auto& entry) {
+		return entry.first.pipelineAsset == pipelineAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end();) {
 		if (it->first.pipelineAsset == pipelineAssetID) {
 			++revisions_[it->first];
@@ -155,6 +159,10 @@ void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 void Engine::RaytracingPipelineStateCache::InvalidateByShaderAsset(
 	AssetID shaderAssetID) {
 
+	// 有効な旧StateがなくてもShaderの修正を反映する
+	std::erase_if(failedRevisions_, [shaderAssetID](const auto& entry) {
+		return entry.first.pipelineShaderAsset == shaderAssetID || entry.first.shaderOverrideAsset == shaderAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end();) {
 		if (it->first.pipelineShaderAsset == shaderAssetID ||
 			it->first.shaderOverrideAsset == shaderAssetID) {

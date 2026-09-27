@@ -6,6 +6,7 @@
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Enum/DimensionType.h>
+#include <Engine/Core/World/Scene/Serialization/EntityTreeSnapshot.h>
 
 // c++
 #include <string>
@@ -79,6 +80,7 @@ namespace Engine {
 		std::string name_;
 		UUID parentStableUUID_{};
 		UUID createdStableUUID_{};
+		EntityTreeSnapshot snapshot_;
 		EntityCreationPreset preset_ = EntityCreationPreset::Empty;
 		Dimension dimension_ = Dimension::Type3D;
 

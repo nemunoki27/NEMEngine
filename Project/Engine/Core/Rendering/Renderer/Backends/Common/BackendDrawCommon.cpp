@@ -67,14 +67,10 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
 		PipelineVariantKind::GraphicsVertex :
 		passBinding.preferredVariant;
-	if (passBinding.shaderOverride) {
-		return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
-			passBinding.pipeline, passBinding.pipeline, passBinding.shaderOverride, desiredKind,
-			context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant);
-	}
+	// Shader差替え時も深度とSamplerの指定を引き継ぐ
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
-		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides);
+		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides, passBinding.shaderOverride);
 }
 
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsPipeline(

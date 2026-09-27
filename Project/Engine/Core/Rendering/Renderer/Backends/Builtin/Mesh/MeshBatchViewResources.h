@@ -39,6 +39,11 @@ namespace Engine {
 		// PBRライト計算に使う、実際に描画しているビューのカメラ位置
 		Vector3 renderCameraPos = Vector3::AnyInit(0.0f);
 		uint32_t frameSerial = 0;
+		// LODは各描画先のカメラで判定する
+		Matrix4x4 lodView = Matrix4x4::Identity();
+		Vector2 lodProjectionScale = Vector2::AnyInit(1.0f);
+		float lodNearClip = 0.001f;
+		float lodPadding = 0.0f;
 	};
 
 	struct MeshIndirectArgsConstants {
@@ -73,7 +78,7 @@ namespace Engine {
 		// Draw用の定数を確定する
 		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh,
 			uint32_t subMeshIndex, uint32_t subMeshGroupIndex, ID3D12Device* device, uint32_t instanceCount,
-			const OutlineBatchMetrics& outlineMetrics, float maxDisplacement);
+			const OutlineBatchMetrics& outlineMetrics, float maxDisplacement, bool normalConeAllowed);
 		// 間接描画用の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount, ID3D12Device* device);
 		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress(RenderViewKind kind) const { return view_[ToViewIndex(kind)].GetGPUAddress(); }
@@ -98,6 +103,8 @@ namespace Engine {
 			Matrix4x4::Identity(), Matrix4x4::Identity()
 		};
 		std::array<bool, 2> previousViewValid_ = { false, false };
+		std::array<Matrix4x4, 2> framePreviousViewProjections_{};
+		std::array<MeshViewConstants, 2> uploadedViews_{};
 		D3D12_GPU_VIRTUAL_ADDRESS drawGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS screenSpaceOutlineMaskGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS indirectArgsGPUAddress_ = 0;

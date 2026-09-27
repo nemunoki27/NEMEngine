@@ -52,6 +52,8 @@ namespace Engine {
 		uint32_t GetSpace() const { return space_; }
 		const std::vector<ShaderConstantBufferVariable>& GetVariables() const { return variables_; }
 		const ShaderConstantBufferVariable* Find(MaterialParameterID id) const;
+		// 値の検索方法とGPU配置を含む識別値を取得する
+		uint64_t GetContentHash() const;
 	private:
 		//============================================================================
 		//	private Methods

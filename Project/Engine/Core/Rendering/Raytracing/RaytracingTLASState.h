@@ -23,7 +23,11 @@ namespace Engine {
 		void ResetState();
 		// 配置の差分に応じて構築方法を決める
 		void BuildORUpdate(GraphicsCore& graphicsCore, const std::vector<RaytracingTLASInstance>& tlasInstances,
-			const std::vector<RaytracingTLASInstance>& previousInstances, uint32_t previousCount, bool requireTlasRebuild);
+			const std::vector<RaytracingTLASInstance>& previousInstances, uint32_t previousCount, bool requireTlasRebuild, bool blasContentsChanged);
+		// GPU接続を指定して同じ更新判定を使用する
+		void BuildORUpdate(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList, GraphicsResourceRetirement& retirement,
+			const std::vector<RaytracingTLASInstance>& tlasInstances, const std::vector<RaytracingTLASInstance>& previousInstances,
+			uint32_t previousCount, bool requireTlasRebuild, bool blasContentsChanged);
 		// 連続更新の上限で再構築する
 		void RefitORRebuild(GraphicsCore& graphicsCore, const std::vector<RaytracingTLASInstance>& instances, bool forceRebuild);
 		// 比較用の配置を記録する
@@ -43,5 +47,7 @@ namespace Engine {
 
 		// 配置の比較用ハッシュを計算する
 		static uint64_t ComputeTLASInstanceHash(std::span<const RaytracingTLASInstance> instances);
+		void RefitORRebuild(ID3D12GraphicsCommandList6* commandList,
+			const std::vector<RaytracingTLASInstance>& instances, bool forceRebuild);
 	};
 }

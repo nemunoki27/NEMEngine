@@ -5,9 +5,14 @@
 //============================================================================
 #include <imgui.h>
 
+// c++
+#include <algorithm>
+#include <utility>
+
 namespace {
 	constexpr const char* kUnsavedScenePopupName = "シーン未保存通知";
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
+	constexpr const char* kSceneSaveConflictPopupName = "同一Scene保存元の選択";
 }
 
 void Engine::EditorRequestSession::RequestPlayToggle() {
@@ -252,12 +257,140 @@ void Engine::EditorRequestSession::DrawCloseUnsavedScenePopup() {
 	ImGui::EndPopup();
 }
 
+void Engine::EditorRequestSession::RequestSceneSaveConflict(
+	const std::vector<SceneSaveConflictChoice>& choices) {
+
+	sceneSaveConflictChoices_ = choices;
+	sceneSaveConflictSelection_.assign(choices.size(), -1);
+	sceneSaveConflictResult_.reset();
+	requestOpenSceneSaveConflictPopup_ = true;
+}
+
+std::optional<Engine::SceneSaveConflictResult>
+Engine::EditorRequestSession::ConsumeSceneSaveConflictResult() {
+
+	if (!sceneSaveConflictResult_) {
+		return std::nullopt;
+	}
+	std::optional<SceneSaveConflictResult> result =
+		std::move(sceneSaveConflictResult_);
+	sceneSaveConflictResult_.reset();
+	return result;
+}
+
+void Engine::EditorRequestSession::DrawSceneSaveConflictPopup() {
+
+	if (requestOpenSceneSaveConflictPopup_) {
+
+		ImGui::OpenPopup(kSceneSaveConflictPopupName);
+		requestOpenSceneSaveConflictPopup_ = false;
+	}
+
+	if (!ImGui::BeginPopupModal(kSceneSaveConflictPopupName, nullptr,
+		ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::TextUnformatted("同じScene Assetを複数Instanceで編集しています");
+	ImGui::TextUnformatted("保存するInstanceを選択してください。選択前はファイルを変更しません。");
+	ImGui::TextUnformatted("別の内容のInstanceは未保存のまま残ります。切替・終了時は改めて確認します。");
+	ImGui::Separator();
+
+	bool canSave = !sceneSaveConflictChoices_.empty() &&
+		sceneSaveConflictSelection_.size() == sceneSaveConflictChoices_.size();
+	for (size_t i = 0; i < sceneSaveConflictChoices_.size(); ++i) {
+
+		const SceneSaveConflictChoice& choice = sceneSaveConflictChoices_[i];
+		ImGui::PushID(static_cast<int>(i));
+		ImGui::Text("Asset: %s", ToString(choice.sceneAsset).c_str());
+		std::string selectedLabel = "Instanceを選択";
+		if (sceneSaveConflictSelection_[i] >= 0 &&
+			static_cast<size_t>(sceneSaveConflictSelection_[i]) < choice.instanceIDs.size()) {
+			selectedLabel = ToString(choice.instanceIDs[sceneSaveConflictSelection_[i]]);
+		} else {
+			canSave = false;
+		}
+		if (ImGui::BeginCombo("保存元", selectedLabel.c_str())) {
+			for (size_t instanceIndex = 0; instanceIndex < choice.instanceIDs.size(); ++instanceIndex) {
+
+				const bool selected = sceneSaveConflictSelection_[i] == static_cast<int>(instanceIndex);
+				const std::string instanceLabel = ToString(choice.instanceIDs[instanceIndex]);
+				if (ImGui::Selectable(instanceLabel.c_str(), selected)) {
+					sceneSaveConflictSelection_[i] = static_cast<int>(instanceIndex);
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::PopID();
+	}
+
+	if (!canSave) {
+		ImGui::TextDisabled("保存元をすべて選択してください");
+	}
+	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f)) && canSave) {
+
+		std::unordered_map<AssetID, UUID> selectedInstances;
+		for (size_t i = 0; i < sceneSaveConflictChoices_.size(); ++i) {
+			const auto& choice = sceneSaveConflictChoices_[i];
+			selectedInstances.emplace(choice.sceneAsset,
+				choice.instanceIDs[sceneSaveConflictSelection_[i]]);
+		}
+		if (SubmitSceneSaveConflictResult({ false, std::move(selectedInstances) })) {
+			ImGui::CloseCurrentPopup();
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
+
+		SubmitSceneSaveConflictResult({ true, {} });
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
+bool Engine::EditorRequestSession::SubmitSceneSaveConflictResult(SceneSaveConflictResult result) {
+
+	if (sceneSaveConflictChoices_.empty()) {
+		return false;
+	}
+	if (!result.cancelled) {
+
+		// 全Assetに対し、表示したInstanceを一つずつ選ぶ
+		if (result.selectedInstances.size() != sceneSaveConflictChoices_.size()) {
+			return false;
+		}
+		for (const SceneSaveConflictChoice& choice : sceneSaveConflictChoices_) {
+			const auto found = result.selectedInstances.find(choice.sceneAsset);
+			if (found == result.selectedInstances.end() ||
+				std::ranges::find(choice.instanceIDs, found->second) == choice.instanceIDs.end()) {
+				return false;
+			}
+		}
+	} else {
+		// 取消には保存先を持ち越さない
+		result.selectedInstances.clear();
+	}
+	sceneSaveConflictResult_ = std::move(result);
+	sceneSaveConflictChoices_.clear();
+	sceneSaveConflictSelection_.clear();
+	requestOpenSceneSaveConflictPopup_ = false;
+	return true;
+}
+
 void Engine::EditorRequestSession::ResetPending() {
 
 	pendingSceneRequest_ = {};
 	requestOpenUnsavedPopup_ = false;
 	requestOpenCloseUnsavedPopup_ = false;
 	closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
+	requestOpenSceneSaveConflictPopup_ = false;
+	sceneSaveConflictChoices_.clear();
+	sceneSaveConflictSelection_.clear();
+	sceneSaveConflictResult_.reset();
 }
 
 void Engine::EditorRequestSession::ResetPlay() {

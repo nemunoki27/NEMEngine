@@ -10,6 +10,7 @@
 
 // c++
 #include <string>
+#include <memory>
 #include <unordered_set>
 
 namespace Engine {
@@ -40,6 +41,9 @@ namespace Engine {
 
 		// メッシュアセットのキャッシュ
 		AssetID cachedMeshAssetID_{};
+		std::weak_ptr<const uint8_t> cachedDatabaseLifetime_;
+		uint64_t cachedDatabaseRevision_ = 0;
+		uint64_t cachedMeshContentRevision_ = 0;
 		std::vector<MeshSubMeshLayoutItem> cachedSubMeshLayout_{};
 		bool cachedSubMeshLayoutResolved_ = false;
 

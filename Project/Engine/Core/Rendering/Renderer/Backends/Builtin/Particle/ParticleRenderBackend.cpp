@@ -71,6 +71,14 @@ void Engine::ParticleRenderBackend::PreloadMeshes(GraphicsCore& graphicsCore,
 	meshResourceManager_.WaitAll();
 }
 
+void Engine::ParticleRenderBackend::RequestMeshReload(AssetID meshAssetID) {
+
+	if (!meshManagerInitialized_ || !meshAssetID) {
+		return;
+	}
+	meshResourceManager_.RequestReload(meshAssetID);
+}
+
 void Engine::ParticleRenderBackend::BeginFrame(GraphicsCore& graphicsCore) {
 
 	if (!geometryManagerInitialized_) {

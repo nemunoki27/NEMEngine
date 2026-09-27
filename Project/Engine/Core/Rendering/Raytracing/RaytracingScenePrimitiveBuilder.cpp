@@ -102,7 +102,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		instanceShaderData.geometryDataOffset =
 			static_cast<uint32_t>(result_.sceneGeometryScratch_.size());
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(
-			renderer.renderFlags);
+			renderer.renderFlags, renderer.renderingLayerMask);
 		const uint32_t shaderInstanceIndex = static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
 		result_.sceneInstanceScratch_.emplace_back(instanceShaderData);
 

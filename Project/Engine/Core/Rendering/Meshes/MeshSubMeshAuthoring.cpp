@@ -3,33 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
-#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
-#include <mutex>
+#include <algorithm>
 #include <string_view>
 #include <unordered_map>
 
-//============================================================================
-//	MeshSubMeshAuthoring classMethods
-//============================================================================
 namespace {
-
-	struct CachedMeshLayout {
-
-		uint64_t databaseRevision = 0;
-		std::vector<Engine::MeshSubMeshLayoutItem> layout{};
-		Engine::MeshAssetAuthoringInfo info{};
-	};
-
-	std::mutex gLayoutCacheMutex;
-	std::unordered_map<const Engine::AssetDatabase*,
-		std::unordered_map<Engine::AssetID, CachedMeshLayout>> gLayoutCaches;
 
 	// モデルのマテリアル係数とテクスチャをmaterialInstanceへ流す、overwrite=falseは未設定のみ
 	bool ApplyLayoutItemToSubMesh(Engine::SubMeshMaterial& subMesh,
@@ -81,220 +62,11 @@ namespace {
 		setTexture(Engine::MaterialParameterNames::RoughnessTexture, tex.roughnessTexture);
 		setTexture(Engine::MaterialParameterNames::DisplacementTexture, tex.displacementTexture);
 		setTexture(Engine::MaterialParameterNames::AmbientOcclusionTexture, tex.occlusionTexture);
+		setTexture(Engine::MaterialParameterNames::OpacityTexture, tex.opacityTexture);
 		setTexture(Engine::MaterialParameterNames::SpecularTexture, tex.specularTexture);
 		return changed;
 	}
 
-	Engine::Vector3 ComputeMeshLocalCenter(const aiMesh* mesh) {
-
-		if (!mesh || mesh->mNumVertices == 0) {
-			return Engine::Vector3::AnyInit(0.0f);
-		}
-
-		Engine::Vector3 minV(FLT_MAX, FLT_MAX, FLT_MAX);
-		Engine::Vector3 maxV(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-		for (uint32_t v = 0; v < mesh->mNumVertices; ++v) {
-
-			aiVector3D pos = mesh->mVertices[v];
-
-			Engine::Vector3 p(-pos.x, pos.y, pos.z);
-
-			minV.x = (std::min)(minV.x, p.x);
-			minV.y = (std::min)(minV.y, p.y);
-			minV.z = (std::min)(minV.z, p.z);
-
-			maxV.x = (std::max)(maxV.x, p.x);
-			maxV.y = (std::max)(maxV.y, p.y);
-			maxV.z = (std::max)(maxV.z, p.z);
-		}
-		return (minV + maxV) * 0.5f;
-	}
-}
-
-bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
-	AssetID meshAssetID, std::vector<MeshSubMeshLayoutItem>& outLayout,
-	MeshAssetAuthoringInfo* outInfo) {
-
-	outLayout.clear();
-	MeshAssetAuthoringInfo resolvedInfo{};
-	if (outInfo) {
-		*outInfo = {};
-	}
-	if (!assetDatabase || !meshAssetID) {
-		return false;
-	}
-
-	const uint64_t databaseRevision =
-		assetDatabase->GetStructureRevision();
-	{
-		std::scoped_lock lock(gLayoutCacheMutex);
-		const auto databaseCache = gLayoutCaches.find(assetDatabase);
-		if (databaseCache != gLayoutCaches.end()) {
-
-			const auto cached = databaseCache->second.find(meshAssetID);
-			if (cached != databaseCache->second.end() &&
-				cached->second.databaseRevision == databaseRevision) {
-
-				outLayout = cached->second.layout;
-				if (outInfo) {
-					*outInfo = cached->second.info;
-				}
-				return true;
-			}
-		}
-	}
-
-	const std::filesystem::path fullPath = assetDatabase->ResolveFullPath(meshAssetID);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		return false;
-	}
-
-	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(
-		Algorithm::PathToUTF8(fullPath),
-		aiProcess_Triangulate |
-		aiProcess_JoinIdenticalVertices |
-		aiProcess_SortByPType);
-	if (!scene || !scene->HasMeshes()) {
-		return false;
-	}
-
-	TextureAssetResolver textureResolver{};
-	textureResolver.Build(fullPath);
-
-	outLayout.reserve(scene->mNumMeshes);
-	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
-
-		const aiMesh* mesh = scene->mMeshes[meshIndex];
-		if (!mesh || mesh->mNumVertices == 0 || mesh->mNumFaces == 0) {
-			continue;
-		}
-		if (mesh->HasBones()) {
-			resolvedInfo.hasBones = true;
-		}
-
-		const aiMaterial* material = (mesh->mMaterialIndex < scene->mNumMaterials) ?
-			scene->mMaterials[mesh->mMaterialIndex] : nullptr;
-		MeshSubMeshLayoutItem item{};
-		item.sourceSubMeshIndex = meshIndex;
-		item.vertexCount = mesh->mNumVertices;
-		item.name = Engine::MeshImportUtility::BuildSubMeshName(mesh, meshIndex, material);
-		item.sourcePivot = ComputeMeshLocalCenter(mesh);
-
-		if (material && assetDatabase) {
-			const MeshImportUtility::ImportedMaterialSurface surface =
-				MeshImportUtility::ReadMaterialSurface(material);
-			item.sourceSurfaceMode = surface.surfaceMode;
-			item.alphaCutoff = surface.alphaCutoff;
-
-			// FindByPathで見つからない場合はImportOrGetでメタを作成してから解決する
-			auto resolveAsset = [&](const std::string& assetPath) -> AssetID {
-				if (assetPath.empty()) {
-					return {};
-				}
-				if (const auto* meta = assetDatabase->FindByPath(assetPath)) {
-					return meta->guid;
-				}
-				return assetDatabase->ImportOrGet(assetPath, AssetType::Texture);
-			};
-
-			// AssimpMaterialTextureExtractor::ExtractはaiMaterial* (非const)を要求する
-			aiMaterial* mat = const_cast<aiMaterial*>(material);
-
-			const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(
-				mat, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
-			const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
-				mat, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA });
-			const std::string heightReference =
-				AssimpMaterialTextureExtractor::Extract(
-					mat, { aiTextureType_HEIGHT });
-			AssimpMaterialTextureExtractor::PBRTextureReferences pbrTextures =
-				AssimpMaterialTextureExtractor::ExtractPBR(mat);
-			const std::string normalOrHeightReference =
-				normalReference.empty() ? heightReference : normalReference;
-			if (pbrTextures.displacement.empty() &&
-				!normalReference.empty()) {
-
-				pbrTextures.displacement = heightReference;
-			}
-
-			item.defaultTextureAssets.baseColorTexture = resolveAsset(textureResolver.ResolveAssetPath(baseColorReference));
-			item.defaultTextureAssets.normalTexture =
-				resolveAsset(textureResolver.ResolveNormalAssetPath(
-					normalOrHeightReference, baseColorReference));
-			item.defaultTextureAssets.metallicRoughnessTexture =
-				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.metallicRoughness));
-			item.defaultTextureAssets.metallicTexture =
-				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.metallic));
-			item.defaultTextureAssets.roughnessTexture =
-				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.roughness));
-			item.defaultTextureAssets.displacementTexture =
-				resolveAsset(textureResolver.ResolveAssetPath(pbrTextures.displacement));
-			item.defaultTextureAssets.specularTexture = resolveAsset(textureResolver.ResolveAssetPath(
-				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_SPECULAR })));
-			item.defaultTextureAssets.emissiveTexture = resolveAsset(textureResolver.ResolveAssetPath(
-				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR })));
-			item.defaultTextureAssets.occlusionTexture = resolveAsset(textureResolver.ResolveAssetPath(
-				AssimpMaterialTextureExtractor::Extract(mat, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP })));
-
-			// マテリアル係数を読む、PBRのBASE_COLORが無ければmtl系のCOLOR_DIFFUSEへフォールバックする
-			aiColor4D baseColor{};
-			if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS) {
-
-				item.baseColorFactor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
-				item.hasBaseColorFactor = true;
-			} else {
-
-				aiColor3D diffuse{};
-				if (material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse) == AI_SUCCESS) {
-					item.baseColorFactor = Color4(diffuse.r, diffuse.g, diffuse.b, 1.0f);
-					item.hasBaseColorFactor = true;
-				}
-			}
-			aiColor3D emissive{};
-			if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive) == AI_SUCCESS) {
-				item.emissiveFactor = Color4(emissive.r, emissive.g, emissive.b, 1.0f);
-				item.hasEmissiveFactor = true;
-			}
-			ai_real metallic = 0.0f;
-			if (material->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
-				item.metallicFactor = static_cast<float>(metallic);
-				item.hasMetallicFactor = true;
-			}
-			ai_real roughness = 1.0f;
-			if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
-				item.roughnessFactor = static_cast<float>(roughness);
-				item.hasRoughnessFactor = true;
-			}
-		}
-
-		outLayout.emplace_back(std::move(item));
-	}
-	if (outInfo) {
-		*outInfo = resolvedInfo;
-	}
-	{
-		std::scoped_lock lock(gLayoutCacheMutex);
-		CachedMeshLayout& cached =
-			gLayoutCaches[assetDatabase][meshAssetID];
-		cached.databaseRevision =
-			assetDatabase->GetStructureRevision();
-		cached.layout = outLayout;
-		cached.info = resolvedInfo;
-	}
-	return true;
-}
-
-void Engine::MeshSubMeshAuthoring::InvalidateCachedLayout(
-	AssetID meshAssetID) {
-
-	if (!meshAssetID) {
-		return;
-	}
-	std::scoped_lock lock(gLayoutCacheMutex);
-	for (auto& [database, cache] : gLayoutCaches) {
-		cache.erase(meshAssetID);
-	}
 }
 
 bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
@@ -310,20 +82,17 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		return true;
 	}
 
-	// すでに一致しているなら何もしない
-	bool alreadyMatched = (subMeshes.size() == layout.size());
-	if (alreadyMatched) {
+	// 全件の対応を確認してから既存値を更新する
+	const bool alreadyMatched = subMeshes.size() == layout.size() &&
+		std::equal(subMeshes.begin(), subMeshes.end(), layout.begin(), [](const auto& current, const auto& item) {
+			return current.name == item.name && current.sourceSubMeshIndex == item.sourceSubMeshIndex && current.stableID;
+		});
+	if (alreadyMatched && preserveOverrides) {
 
 		bool updated = false;
 		for (size_t i = 0; i < layout.size(); ++i) {
 
 			auto& current = subMeshes[i];
-			if (current.name != layout[i].name ||
-				current.sourceSubMeshIndex != layout[i].sourceSubMeshIndex ||
-				!current.stableID) {
-				alreadyMatched = false;
-				break;
-			}
 			if (current.sourcePivot.x != layout[i].sourcePivot.x ||
 				current.sourcePivot.y != layout[i].sourcePivot.y ||
 				current.sourcePivot.z != layout[i].sourcePivot.z) {
@@ -337,28 +106,42 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 				current.sourceSurfaceMode = layout[i].sourceSurfaceMode;
 				updated = true;
 			}
-			if ((!preserveOverrides || sourceSurfaceWasUnset) &&
+			if (sourceSurfaceWasUnset &&
 				current.alphaCutoff != layout[i].alphaCutoff) {
 				current.alphaCutoff = layout[i].alphaCutoff;
 				updated = true;
 			}
-			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
-			if (!preserveOverrides) {
-				updated |= ApplyLayoutItemToSubMesh(current, layout[i], false);
-			}
 		}
-		if (alreadyMatched) {
-			return updated;
-		}
+		return updated;
 	}
 
 	const std::vector<SubMeshMaterial> oldSubMeshes = subMeshes;
 	std::vector<bool> used(oldSubMeshes.size(), false);
+	std::vector<int32_t> namedMatches(layout.size(), -1);
+	if (preserveOverrides) {
+		// 並べ替え前後で一意な名前を先に対応付ける
+		std::unordered_map<std::string_view, int32_t> oldNames;
+		std::unordered_map<std::string_view, size_t> newNames;
+		for (size_t index = 0; index < oldSubMeshes.size(); ++index) {
+			if (oldSubMeshes[index].name.empty()) continue;
+			const auto [found, inserted] = oldNames.emplace(oldSubMeshes[index].name, static_cast<int32_t>(index));
+			if (!inserted) found->second = -1;
+		}
+		for (const auto& item : layout) ++newNames[item.name];
+		for (size_t index = 0; index < layout.size(); ++index) {
+			const auto found = oldNames.find(layout[index].name);
+			if (found != oldNames.end() && found->second >= 0 && newNames[layout[index].name] == 1) {
+				namedMatches[index] = found->second;
+				used[found->second] = true;
+			}
+		}
+	}
 	auto findReusableOldIndex = [&](size_t newIndex, const MeshSubMeshLayoutItem& item) -> int32_t {
 
 		if (!preserveOverrides) {
 			return -1;
 		}
+		if (namedMatches[newIndex] >= 0) return namedMatches[newIndex];
 		for (size_t oldIndex = 0; oldIndex < oldSubMeshes.size(); ++oldIndex) {
 			if (used[oldIndex]) {
 				continue;
@@ -392,12 +175,9 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		const int32_t reusableOldIndex = findReusableOldIndex(i, layout[i]);
 		const bool reused = 0 <= reusableOldIndex;
 		if (reused) {
+			// 空のTexture指定も編集値として保持する
 			entry = oldSubMeshes[reusableOldIndex];
 			used[reusableOldIndex] = true;
-			// preserveOverrides=trueのとき、空スロットもユーザーの明示的な削除として扱い上書きしない
-			if (!preserveOverrides) {
-				ApplyLayoutItemToSubMesh(entry, layout[i], false);
-			}
 		} else {
 			// 新規エントリはモデルの係数とデフォルトテクスチャで初期化
 			ApplyLayoutItemToSubMesh(entry, layout[i], false);
@@ -410,7 +190,7 @@ bool Engine::MeshSubMeshAuthoring::SyncComponentToLayout(
 		const bool sourceSurfaceWasUnset =
 			entry.sourceSurfaceMode == MaterialSurfaceMode::Auto;
 		entry.sourceSurfaceMode = layout[i].sourceSurfaceMode;
-		if (!reused || !preserveOverrides || sourceSurfaceWasUnset) {
+		if (!reused || sourceSurfaceWasUnset) {
 			entry.alphaCutoff = layout[i].alphaCutoff;
 		}
 

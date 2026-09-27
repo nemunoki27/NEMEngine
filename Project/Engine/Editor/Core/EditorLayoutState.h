@@ -26,6 +26,8 @@ namespace Engine {
 		bool hidePanels = false;
 		// Play開始時にManagedデバッガのアタッチ待機を行う
 		bool waitForManagedDebuggerOnPlay = false;
+		// Play開始前に編集中のSceneを保存する
+		bool autoSaveScenesOnPlay = true;
 
 		// 各ウィンドウのサイズ
 		ImVec2 lastSceneViewSize = ImVec2(0.0f, 0.0f);

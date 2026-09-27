@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 // directX
 #include <DirectXTex.h>
 #include <d3dx12.h>
@@ -53,7 +54,7 @@ namespace Engine {
 
 		// 毎フレーム主スレッド更新
 		void TickFinalize();
-		// 全デコードとGPU転送の完了を待つ
+		// 遅延再読込を含む全デコードとGPU転送の完了を待つ
 		void WaitAll();
 
 		// アップロード要求
@@ -61,7 +62,7 @@ namespace Engine {
 		void RequestTextureFile(const TextureFileRequestDesc& desc);
 		void RequestTextureFile(const std::string& key, const std::string& assetPath);
 
-		// 既にロード済みのファイル由来テクスチャを再デコードして同一SRVインデックスへ差し替える、未ロードやsolid colorは無視する
+		// 最新要求で再読込し、成功後にResourceとDescriptorを差し替える
 		void RequestReload(const std::string& key);
 		// 指定ファイルを指す全てのキー(描画用base/sRGBやProjectPanelサムネイル等)をまとめて再ロードする
 		void RequestReloadByFile(const std::filesystem::path& fullPath,
@@ -82,6 +83,20 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
+		// ファイル要求と受付時の世代
+		struct DecodeRequest {
+
+			TextureFileRequestDesc description;
+			uint64_t revision = 0;
+		};
+
+		// 読込結果と元の要求世代
+		struct CompletedRequest {
+
+			DecodedTexture texture;
+			uint64_t revision = 0;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		std::atomic<uint64_t> contentRevision_ = 0;
@@ -89,24 +104,28 @@ namespace Engine {
 		TextureGPUUploader uploader_;
 
 		// 記録されたアップロードジョブ
-		AssetWorkerPool<TextureFileRequestDesc> decodeWorkers_;
+		AssetWorkerPool<DecodeRequest> decodeWorkers_;
 
 		// アップロードジョブのキューと完了したテクスチャのマップを保護するミューテックス
 		mutable std::mutex mutex_;
-		std::deque<DecodedTexture> pendingUploads_;
+		std::deque<CompletedRequest> pendingUploads_;
 		// キーとGPUテクスチャリソースのマップ
 		std::unordered_map<std::string, GPUTextureResource> readyTextures_;
 		std::unordered_set<std::string> queuedKeys_;
 		std::unordered_set<std::string> failedKeys_;
 		std::unordered_set<std::string> deferredReloadKeys_;
 		// ファイル由来テクスチャの再デコードに使う元リクエスト
-		std::unordered_map<std::string, TextureFileRequestDesc> keyRequests_;
+		std::unordered_map<std::string, DecodeRequest> keyRequests_;
 
 		//--------- functions ----------------------------------------------------
 
 		// アップロードジョブの記録
-		void DecodeTextureWorker(TextureFileRequestDesc&& job, uint32_t workerIndex);
+		void DecodeTextureWorker(DecodeRequest&& request, uint32_t workerIndex);
 		// デコード要求を投入し、受付失敗を状態へ戻す
-		bool QueueDecode(const TextureFileRequestDesc& desc);
+		bool QueueDecode(const DecodeRequest& request);
+		// 保護中の要求を更新し、進行中なら再投入を予約する
+		void PrepareRequest(DecodeRequest& request, std::vector<DecodeRequest>& toEnqueue);
+		// 保護中の要求と完了結果の世代を照合する
+		bool IsCurrentRequest(const CompletedRequest& completed) const;
 	};
 } // Engine

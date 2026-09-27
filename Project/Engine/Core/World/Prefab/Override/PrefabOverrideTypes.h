@@ -82,6 +82,8 @@ namespace Engine {
 		AssetID prefabAsset{};
 		// インスタンスを束ねるID
 		UUID instanceID{};
+		// Sceneファイルに書き戻すID、未指定なら実行用IDを使う
+		UUID savedInstanceID{};
 		// インスタンスrootを別実体の子にしている場合の親シーンローカルID
 		UUID rootParentSceneLocalFileID{};
 		// 親Prefabインスタンス、Scene直下のPrefabでは空
@@ -108,6 +110,8 @@ namespace Engine {
 		std::vector<UUID> removedEntities;
 		// 追加された実体
 		std::vector<PrefabAddedEntity> addedEntities;
+		// 親Prefabの追加Entity宣言IDから実体のScene内IDへの対応
+		std::vector<std::pair<UUID, UUID>> addedEntityMap;
 		// このPrefabが所有するネストPrefabインスタンス
 		std::vector<PrefabInstanceData> nestedInstances;
 		// シーン上で削除された親Prefabアセット由来のネストスロット

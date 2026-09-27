@@ -7,6 +7,10 @@
 #include <windows.h>
 // c++
 #include <cstdint>
+#include <array>
+#include <cstddef>
+#include <exception>
+#include <system_error>
 
 //============================================================================
 //	AssetChangeWatcher classMethods
@@ -19,6 +23,7 @@ bool Engine::AssetChangeWatcher::Start(const std::filesystem::path& directory) {
 
 	// 監視中なら一度止めてから張り直す
 	Stop();
+	directory_ = directory;
 
 	std::error_code existsError{};
 	if (!std::filesystem::exists(directory, existsError) || existsError) {
@@ -39,11 +44,17 @@ bool Engine::AssetChangeWatcher::Start(const std::filesystem::path& directory) {
 		return false;
 	}
 
-	directory_ = directory;
 	directoryHandle_ = handle;
 	stopEvent_ = stop;
 	running_.store(true);
-	thread_ = std::thread(&AssetChangeWatcher::ThreadMain, this);
+	try {
+		thread_ = std::thread(&AssetChangeWatcher::ThreadMain, this);
+	} catch (const std::system_error&) {
+
+		// スレッド生成に失敗したハンドルを戻す
+		Stop();
+		return false;
+	}
 	return true;
 }
 
@@ -74,11 +85,23 @@ void Engine::AssetChangeWatcher::Stop() {
 
 	std::scoped_lock lock(mutex_);
 	changedPaths_.clear();
+	rescanRequired_.store(false);
 }
 
 void Engine::AssetChangeWatcher::DrainChanges(std::vector<std::filesystem::path>& outPaths) {
 
 	std::scoped_lock lock(mutex_);
+	if (rescanRequired_.exchange(false)) {
+
+		try {
+			outPaths.emplace_back(directory_);
+		} catch (...) {
+			rescanRequired_.store(true);
+			throw;
+		}
+		changedPaths_.clear();
+		return;
+	}
 	if (changedPaths_.empty()) {
 		return;
 	}
@@ -93,68 +116,104 @@ void Engine::AssetChangeWatcher::ThreadMain() {
 	const HANDLE directory = static_cast<HANDLE>(directoryHandle_);
 	const HANDLE stop = static_cast<HANDLE>(stopEvent_);
 
+	// I/O完了まで通知バッファを保持する
+	alignas(DWORD) std::array<uint8_t, 64 * 1024> buffer{};
 	OVERLAPPED overlapped{};
 	overlapped.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
 	if (!overlapped.hEvent) {
+		rescanRequired_.store(true);
+		running_.store(false);
 		return;
 	}
 
 	// 変更通知バッファ、深い階層でも溢れにくいよう大きめに確保する
-	std::vector<uint8_t> buffer(64 * 1024);
 	const DWORD notifyFilter = FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME |
 		FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE;
 
-	while (running_.load()) {
+	try {
+		while (running_.load()) {
 
-		ResetEvent(overlapped.hEvent);
-		DWORD bytesReturned = 0;
-		const BOOL ok = ReadDirectoryChangesW(directory, buffer.data(),
-			static_cast<DWORD>(buffer.size()), TRUE, notifyFilter, &bytesReturned, &overlapped, nullptr);
-		if (!ok) {
-			break;
-		}
-
-		// 変更イベントか停止イベントのどちらかを待つ
-		const HANDLE waits[2] = { overlapped.hEvent, stop };
-		const DWORD wait = WaitForMultipleObjects(2, waits, FALSE, INFINITE);
-		if (wait != WAIT_OBJECT_0) {
-
-			// 停止要求やエラーは進行中のI/Oを解除して抜ける
-			CancelIoEx(directory, nullptr);
-			break;
-		}
-
-		DWORD transferred = 0;
-		if (!GetOverlappedResult(directory, &overlapped, &transferred, FALSE) || transferred == 0) {
-			continue;
-		}
-
-		// FILE_NOTIFY_INFORMATIONの連鎖を辿って、変更ファイルの絶対パスを集める
-		std::vector<std::filesystem::path> collected;
-		DWORD offset = 0;
-		for (;;) {
-
-			const auto* info = reinterpret_cast<const FILE_NOTIFY_INFORMATION*>(buffer.data() + offset);
-			const size_t nameLength = info->FileNameLength / sizeof(WCHAR);
-			if (nameLength != 0) {
-
-				const std::wstring relativeName(info->FileName, nameLength);
-				collected.emplace_back(directory_ / relativeName);
-			}
-			if (info->NextEntryOffset == 0) {
+			ResetEvent(overlapped.hEvent);
+			DWORD bytesReturned = 0;
+			const BOOL ok = ReadDirectoryChangesW(directory, buffer.data(),
+				static_cast<DWORD>(buffer.size()), TRUE, notifyFilter, &bytesReturned, &overlapped, nullptr);
+			if (!ok) {
+				rescanRequired_.store(true);
 				break;
 			}
-			offset += info->NextEntryOffset;
-		}
 
-		if (!collected.empty()) {
+			// 変更イベントか停止イベントのどちらかを待つ
+			const HANDLE waits[2] = { overlapped.hEvent, stop };
+			const DWORD wait = WaitForMultipleObjects(2, waits, FALSE, INFINITE);
+			if (wait != WAIT_OBJECT_0) {
 
-			std::scoped_lock lock(mutex_);
-			for (std::filesystem::path& path : collected) {
-				changedPaths_.emplace_back(std::move(path));
+				// キャンセル完了後に通知バッファを解放する
+				CancelIoEx(directory, &overlapped);
+				GetOverlappedResult(directory, &overlapped, &bytesReturned, TRUE);
+				break;
+			}
+
+			DWORD transferred = 0;
+			if (!GetOverlappedResult(directory, &overlapped, &transferred, TRUE) || transferred == 0) {
+
+				// 通知欠落は監視ルートの再走査へ戻す
+				rescanRequired_.store(true);
+				continue;
+			}
+
+			// FILE_NOTIFY_INFORMATIONの連鎖を辿って、変更ファイルの絶対パスを集める
+			std::vector<std::filesystem::path> collected;
+			DWORD offset = 0;
+			for (;;) {
+
+				// 不完全な通知は個別解析せず再走査する
+				constexpr size_t headerSize = offsetof(FILE_NOTIFY_INFORMATION, FileName);
+				if (transferred > buffer.size() || offset > transferred || transferred - offset < headerSize) {
+					rescanRequired_.store(true);
+					break;
+				}
+				const auto* info = reinterpret_cast<const FILE_NOTIFY_INFORMATION*>(buffer.data() + offset);
+				if (info->FileNameLength % sizeof(WCHAR) != 0 || info->FileNameLength > transferred - offset - headerSize) {
+					rescanRequired_.store(true);
+					break;
+				}
+				const size_t nameLength = info->FileNameLength / sizeof(WCHAR);
+				if (nameLength != 0) {
+
+					const std::wstring relativeName(info->FileName, nameLength);
+					collected.emplace_back(directory_ / relativeName);
+				}
+				if (info->NextEntryOffset == 0) {
+					break;
+				}
+				if (info->NextEntryOffset < headerSize + info->FileNameLength ||
+					info->NextEntryOffset % alignof(DWORD) != 0 || info->NextEntryOffset > transferred - offset) {
+					rescanRequired_.store(true);
+					break;
+				}
+				offset += info->NextEntryOffset;
+			}
+
+			if (!collected.empty()) {
+
+				std::scoped_lock lock(mutex_);
+				// 大量更新は通知をまとめてメモリの増加を抑える
+				if (changedPaths_.size() + collected.size() > 4096 || rescanRequired_.load()) {
+					changedPaths_.clear();
+					rescanRequired_.store(true);
+					continue;
+				}
+				for (std::filesystem::path& path : collected) {
+					changedPaths_.emplace_back(std::move(path));
+				}
 			}
 		}
+	} catch (const std::exception&) {
+
+		// パス収集に失敗した場合も次回の再走査へ引き継ぐ
+		rescanRequired_.store(true);
 	}
 
 	CloseHandle(overlapped.hEvent);
+	running_.store(false);
 }

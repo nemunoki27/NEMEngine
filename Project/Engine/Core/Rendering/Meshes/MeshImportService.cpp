@@ -13,6 +13,9 @@
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 
+// c++
+#include <cmath>
+
 //============================================================================
 //	MeshImportService classMethods
 //============================================================================
@@ -23,10 +26,15 @@ namespace {
 
 		float sum = 0.0f;
 		for (float w : influence.weights) {
+			if (!std::isfinite(w) || w < 0.0f) {
+				influence = Engine::VertexInfluence{};
+				return;
+			}
 			sum += w;
 		}
 
-		if (sum <= 0.0f) {
+		if (!std::isfinite(sum) || sum <= 0.0f) {
+			influence = Engine::VertexInfluence{};
 			return;
 		}
 
@@ -36,7 +44,7 @@ namespace {
 	}
 	void InsertInfluenceTop(Engine::VertexInfluence& dst, int32_t jointIndex, float weight) {
 
-		if (jointIndex < 0 || weight <= 0.0f) {
+		if (jointIndex < 0 || !std::isfinite(weight) || weight <= 0.0f) {
 			return;
 		}
 
@@ -78,6 +86,7 @@ void Engine::MeshImportService::Finalize() {
 	imported_.clear();
 	queued_.clear();
 	loading_.clear();
+	failed_.clear();
 }
 
 bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, AssetID meshAssetID) {
@@ -105,6 +114,7 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 			return false;
 		}
 		queued_.insert(meshAssetID);
+		failed_.erase(meshAssetID);
 	}
 
 	// ジョブをワーカープールに追加
@@ -128,6 +138,18 @@ bool Engine::MeshImportService::TakeImported(AssetID meshAssetID, ImportedMeshAs
 	outImported = std::move(it->second);
 	imported_.erase(it);
 	return true;
+}
+
+bool Engine::MeshImportService::ConsumeFailed(AssetID meshAssetID) {
+
+	std::scoped_lock lock(mutex_);
+	return failed_.erase(meshAssetID) != 0;
+}
+
+bool Engine::MeshImportService::IsPending(AssetID meshAssetID) const {
+
+	std::scoped_lock lock(mutex_);
+	return queued_.contains(meshAssetID) || loading_.contains(meshAssetID);
 }
 
 bool Engine::MeshImportService::IsLoaded(AssetID meshAssetID) const {
@@ -174,6 +196,8 @@ void Engine::MeshImportService::LoadJob(MeshLoadJob&& job, [[maybe_unused]] uint
 		loading_.erase(job.assetID);
 		if (succeeded) {
 			imported_[job.assetID] = std::move(imported);
+		} else {
+			failed_.insert(job.assetID);
 		}
 	}
 }
@@ -216,7 +240,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 
 		aiMesh* mesh = scene->mMeshes[meshIndex];
-		if (!mesh || mesh->mNumVertices == 0 || mesh->mNumFaces == 0) {
+		if (!MeshImportUtility::HasTriangleGeometry(mesh)) {
 			continue;
 		}
 
@@ -251,7 +275,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 	for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 
 		aiMesh* mesh = scene->mMeshes[meshIndex];
-		if (!mesh || mesh->mNumVertices == 0 || mesh->mNumFaces == 0) {
+		if (!MeshImportUtility::HasTriangleGeometry(mesh)) {
 			continue;
 		}
 
@@ -333,50 +357,13 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 					subMesh.materialName = materialName.C_Str();
 				}
 
-				// デフォルトで設定されているテクスチャのパスを取得
-				const std::string baseColorReference = AssimpMaterialTextureExtractor::Extract(
-					material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE });
-				const std::string normalReference = AssimpMaterialTextureExtractor::Extract(
-					material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA });
-				const std::string heightReference =
-					AssimpMaterialTextureExtractor::Extract(
-						material, { aiTextureType_HEIGHT });
-				AssimpMaterialTextureExtractor::PBRTextureReferences pbrTextures =
-					AssimpMaterialTextureExtractor::ExtractPBR(material);
-				// HEIGHTは旧モデルのバンプ用途を優先し、明示Normalと併存時だけ頂点変位へ使う
-				const std::string normalOrHeightReference =
-					normalReference.empty() ? heightReference : normalReference;
-				if (pbrTextures.displacement.empty() &&
-					!normalReference.empty()) {
+				// 宣言の有無と、実際に解決できた画像を区別する
+				subMesh.hasBaseColorTexture = !AssimpMaterialTextureExtractor::Extract(
+					material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }).empty();
+				subMesh.defaultTextures = AssimpMaterialTextureExtractor::ExtractResolved(material, textureResolver);
 
-					pbrTextures.displacement = heightReference;
-				}
-				// マテリアルがベースカラーテクスチャを宣言していたかを、解決可否と独立に保持する
-				// (見つからない場合はResolveAssetPathが空を返し、パスからは区別できないため)
-				subMesh.hasBaseColorTexture = !baseColorReference.empty();
-				subMesh.defaultTextures.baseColorTexturePath = textureResolver.ResolveAssetPath(baseColorReference);
-				subMesh.defaultTextures.normalTexturePath =
-					textureResolver.ResolveNormalAssetPath(
-						normalOrHeightReference, baseColorReference);
-				subMesh.defaultTextures.metallicRoughnessTexturePath =
-					textureResolver.ResolveAssetPath(pbrTextures.metallicRoughness);
-				subMesh.defaultTextures.metallicTexturePath =
-					textureResolver.ResolveAssetPath(pbrTextures.metallic);
-				subMesh.defaultTextures.roughnessTexturePath =
-					textureResolver.ResolveAssetPath(pbrTextures.roughness);
-				subMesh.defaultTextures.displacementTexturePath =
-					textureResolver.ResolveAssetPath(pbrTextures.displacement);
-				subMesh.defaultTextures.specularTexturePath = textureResolver.ResolveAssetPath(
-					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_SPECULAR }));
-				subMesh.defaultTextures.emissiveTexturePath = textureResolver.ResolveAssetPath(
-					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
-				subMesh.defaultTextures.occlusionTexturePath = textureResolver.ResolveAssetPath(
-					AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
-
-				aiColor4D baseColor;
-				if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor)) {
-					subMesh.baseColor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
-				}
+				// 編集用layoutと同じ優先順位で色と透明度を取得する
+				subMesh.baseColor = MeshImportUtility::ReadMaterialFactors(material).baseColor;
 			}
 			result.subMeshes.emplace_back(std::move(subMesh));
 		}
@@ -390,7 +377,7 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 		for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 
 			aiMesh* mesh = scene->mMeshes[meshIndex];
-			if (!mesh || !mesh->HasBones()) {
+			if (!MeshImportUtility::HasTriangleGeometry(mesh) || !mesh->HasBones()) {
 				continue;
 			}
 
@@ -410,6 +397,10 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 				for (uint32_t weightIndex = 0; weightIndex < bone->mNumWeights; ++weightIndex) {
 
 					const aiVertexWeight& weight = bone->mWeights[weightIndex];
+					// 元Meshの範囲外の重みを次のMeshへ流さない
+					if (weight.mVertexId >= mesh->mNumVertices) {
+						continue;
+					}
 					uint32_t globalIndex = baseVertexOffset + weight.mVertexId;
 					if (globalIndex >= result.vertexInfluences.size()) {
 						continue;

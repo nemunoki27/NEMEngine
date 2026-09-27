@@ -100,7 +100,8 @@ namespace Engine {
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
 		bool allowNormalConeCulling = false;
 		// メッシュLODを使用するか
-		bool allowMeshLOD = true;
+		// LODは明示的に有効化したときだけ使用する
+		bool allowMeshLOD = false;
 		// 投影半径が閾値を下回ったとき次のLODへ移る
 		float meshLOD0PixelThreshold =
 			GraphicsMeshLOD::kDefaultPixelThresholds[0];

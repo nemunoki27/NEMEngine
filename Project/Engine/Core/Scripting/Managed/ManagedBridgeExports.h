@@ -62,6 +62,8 @@ namespace Engine {
 		CopyScriptSchemaJsonFn copyScriptSchemaJson_ = nullptr;
 		GetRuntimeStateSizeFn getRuntimeStateSize_ = nullptr;
 		CopyRuntimeStateFn copyRuntimeState_ = nullptr;
+		GetRuntimeStateSizeFn getSavedStateSize_ = nullptr;
+		CopyRuntimeStateFn copySavedState_ = nullptr;
 		SetRuntimeFieldFn setRuntimeField_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;
 		SetSerializedFieldsFn setSerializedFields_ = nullptr;

@@ -5,8 +5,11 @@
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <filesystem>
+#include <functional>
 #include <vector>
 #include <mutex>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -41,10 +44,16 @@ namespace Engine {
 		std::vector<SceneStorageIssue> Inspect(const AssetDatabase& database);
 		// 読み込み時のディスク状態を保持する
 		void TrackLoaded(const std::filesystem::path& scenePath, AssetID sceneAsset);
+		void TrackLoaded(const std::filesystem::path& scenePath, AssetID sceneAsset, std::string revision);
+		// 読込前後のファイル状態を照合する
+		std::string CaptureRevision(const std::filesystem::path& scenePath, AssetID sceneAsset);
+		bool MatchesRevision(const std::filesystem::path& scenePath, AssetID sceneAsset, std::string_view revision);
 		// エディターが使用中のシーンを削除・修復から保護する
 		void SetProtectedScenes(const std::vector<AssetID>& sceneAssets);
 		// 変更前のファイルを退避して保存する
 		bool Save(SceneSaveSnapshot snapshot, std::string& error);
+		// 全文書の検証後に整列結果をまとめて保存する
+		bool Canonicalize(const std::vector<std::filesystem::path>& paths, std::string& error);
 		// シーンまたはフォルダーと所有Actorを退避して削除する
 		bool Delete(const std::filesystem::path& path, const AssetDatabase& database, std::string& error);
 		// 元のActorファイルを指定して欠損を復元する
@@ -77,7 +86,8 @@ namespace Engine {
 		// 操作中の失敗では自身の保護判定を除いて復旧する
 		bool RecoverInternal(const std::filesystem::path& directory, std::string& error, bool rollingBack);
 		// Sceneの使用状態を保護してファイル変更を確定する
-		bool Commit(const std::vector<SceneStorageChange>& changes, const std::string& label, std::string& error);
+		bool Commit(const std::vector<SceneStorageChange>& changes, const std::string& label,
+			std::string& error, const std::function<void()>& check = {});
 		// 編集中のSceneへの破壊的変更を拒否する
 		void RequireClosed(AssetID id);
 		// 欠損Actorの参照変更を検証して反映する

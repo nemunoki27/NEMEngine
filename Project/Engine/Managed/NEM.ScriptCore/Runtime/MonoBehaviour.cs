@@ -67,8 +67,6 @@ public abstract class MonoBehaviour : Component {
 
     // component access(GetComponent<T>等)はComponent基底が提供する（owner GameObjectへの委譲）
 
-    // 指定 GameObject を破棄する（WorldCommandBuffer 経由で遅延）
-    protected void Destroy(GameObject gameObject) => gameObject.Destroy();
     // 自分の owner GameObject を破棄する
     protected void DestroySelf() => gameObject.Destroy();
 

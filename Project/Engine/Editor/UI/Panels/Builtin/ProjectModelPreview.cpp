@@ -91,7 +91,7 @@ void Engine::ProjectModelPreview::PrepareModelPreviewAtlas(const EditorPanelCont
 		return;
 	}
 
-	const uint64_t signature = BuildModelPreviewSignature(node, meshAssets);
+	const uint64_t signature = BuildModelPreviewSignature(database, node, meshAssets);
 	if (signature != modelPreviewSignature_ || modelPreviewDirectory_ != node.virtualPath) {
 		RebuildModelPreviewSlots(database, node, meshAssets, signature);
 	}
@@ -99,6 +99,20 @@ void Engine::ProjectModelPreview::PrepareModelPreviewAtlas(const EditorPanelCont
 	if (!context.graphicsCore || !context.renderPipeline || !modelPreviewWorld_ ||
 		modelPreviewSlots_.empty() || modelPreviewAtlasSize_.x <= 0 || modelPreviewAtlasSize_.y <= 0) {
 		return;
+	}
+
+	// 描画を休止したAtlasでも読込結果の公開を進める
+	std::vector<AssetID> previewAssets;
+	previewAssets.reserve(meshAssets.size());
+	for (const auto* asset : meshAssets) {
+		previewAssets.push_back(asset->assetID);
+	}
+	const uint64_t meshRevision = context.renderPipeline->PreparePreviewMeshes(*context.graphicsCore, database, previewAssets);
+	const uint64_t textureRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
+	if (meshRevision != modelPreviewMeshRevision_ || textureRevision != modelPreviewTextureRevision_) {
+		modelPreviewMeshRevision_ = meshRevision;
+		modelPreviewTextureRevision_ = textureRevision;
+		modelPreviewRefreshFrames_ = (std::max)(modelPreviewRefreshFrames_, 1u);
 	}
 
 	EditorToolContext toolContext{};
@@ -272,7 +286,7 @@ bool Engine::ProjectModelPreview::TryGetModelPreviewImage(AssetID assetID,
 	return true;
 }
 
-uint64_t Engine::ProjectModelPreview::BuildModelPreviewSignature(const ProjectDirectoryNode& node,
+uint64_t Engine::ProjectModelPreview::BuildModelPreviewSignature(const AssetDatabase& database, const ProjectDirectoryNode& node,
 	const std::vector<const ProjectAssetEntry*>& meshAssets) const {
 
 	uint64_t signature = 1469598103934665603ull;
@@ -285,6 +299,7 @@ uint64_t Engine::ProjectModelPreview::BuildModelPreviewSignature(const ProjectDi
 		HashCombine(signature, asset->assetID.high);
 		HashCombine(signature, asset->assetID.low);
 		HashString(signature, asset->assetPath);
+		HashCombine(signature, database.GetContentRevision(asset->assetID));
 
 		std::error_code ec{};
 		const auto writeTime = std::filesystem::last_write_time(RuntimePaths::ResolveAssetPath(asset->assetPath), ec);

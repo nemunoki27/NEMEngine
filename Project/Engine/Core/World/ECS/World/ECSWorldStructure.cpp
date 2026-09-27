@@ -25,6 +25,9 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 		uuid = stableUUID ? stableUUID : UUID::New();
 		const auto previous = uuidToEntity_.find(uuid);
 		previousEntity = previous != uuidToEntity_.end() ? previous->second : Entity::Null();
+		if (IsAlive(previousEntity)) {
+			throw std::invalid_argument("EntityのUUIDが重複しています");
+		}
 		const uint32_t index = AllocateIndex();
 		entity = { index, records_[index].generation };
 		bool rowCreated = false;
@@ -71,6 +74,8 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 	}
 
 	try {
+		// 初期化hook内の生成も取消範囲へ含める
+		NotifyComponentMutation(entity, UINT32_MAX, ComponentMutationKind::EntityCreated);
 		for (uint32_t typeID : initialTypes) {
 
 			// 関連Componentの追加後も現在位置から引き直す
@@ -262,9 +267,12 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 			if (oldSignature.Test(typeID)) {
 				continue;
 			}
-			if (pending && pending->GetInfo().id == typeID) {
+			// Native側が先に追加しても予約済みの個体と値を引き継ぐ
+			const PendingComponent* initial = pending && pending->GetInfo().id == typeID ?
+				pending : commandBuffer_.FindPendingComponent(entity, typeID);
+			if (initial && initial->GetInstanceID() != 0) {
 				newChunk.CopyConstructByColumnIndex(newArchetype->GetColumnIndex(typeID), newRow,
-					pending->GetData(), pending->GetInstanceID());
+					initial->GetData(), initial->GetInstanceID());
 			} else {
 				newArchetype->ConstructDefault(newChunkIndex, newRow, typeID, nextInstanceID++);
 			}
@@ -318,6 +326,12 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 		records_[moved.index].location = oldLocation;
 	}
 	records_[entity.index].location = { newArchetype, newChunkIndex, newRow };
+	// Native側で取り込んだ予約を後のFlushで再適用しない
+	for (uint32_t typeID : newArchetype->GetTypes()) {
+		if (!oldSignature.Test(typeID)) {
+			commandBuffer_.CancelPendingComponent(entity, typeID);
+		}
+	}
 	++structuralMigrationCount_;
 	if (HasComponentChangeChannel(relocatedChannels, ComponentChangeChannel::Render)) {
 		MarkRenderDataModified(entity);

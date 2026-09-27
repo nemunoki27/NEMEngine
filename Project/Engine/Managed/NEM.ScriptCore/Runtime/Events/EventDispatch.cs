@@ -1,8 +1,10 @@
+using System.Runtime.ExceptionServices;
+
 namespace NEMEngine;
 
 //============================================================================
 //	EventDispatch
-//	イベント配信の共通実装。例外隔離つき Raise と、次フレーム頭(Update phase)で
+//	イベント配信の共通実装。ログ付き Raise と、次フレーム頭(Update phase)で
 //	ドレインする遅延キューを提供する。GameEvent / EventBus / 既存の静的イベントが共有する。
 //============================================================================
 // main thread 専用（BehaviorSystem の phase）。Timers/Coroutines と同じくロックは持たない。
@@ -11,8 +13,7 @@ internal static class EventDispatch {
     // 遅延発火の実行体。flush 時に「その時点の購読者」へ即時 Raise させる
     private static readonly List<Action> deferred = new();
 
-    // handlers を購読順・例外隔離で呼ぶ。GetInvocationList のスナップショットで
-    // Raise 中の購読追加/解除・再入が安全になる（既存の Application/SceneManager と同じ保証）
+    // handlers を購読順で呼ぶ。例外はログ後に呼出元へ戻す
     internal static void Raise(Action? handlers, string tag) {
         if (handlers == null) {
             return;
@@ -23,6 +24,7 @@ internal static class EventDispatch {
             }
             catch (Exception ex) {
                 NativeApplicationAPI.WriteLog(2, $"[{tag}] event handler threw\n{ex}");
+                throw;
             }
         }
     }
@@ -37,6 +39,7 @@ internal static class EventDispatch {
             }
             catch (Exception ex) {
                 NativeApplicationAPI.WriteLog(2, $"[{tag}] event handler threw\n{ex}");
+                throw;
             }
         }
     }
@@ -55,16 +58,21 @@ internal static class EventDispatch {
         if (count == 0) {
             return;
         }
+        Exception? firstException = null;
         for (int i = 0; i < count; ++i) {
             try {
                 deferred[i]();
             }
             catch (Exception ex) {
                 NativeApplicationAPI.WriteLog(2, $"[EventDispatch] deferred dispatch threw\n{ex}");
+                firstException ??= ex;
             }
         }
         // 開始時の件数だけを前方から取り除く。flush 中に追加された分(index >= count)は残す
         deferred.RemoveRange(0, count);
+        if (firstException != null) {
+            ExceptionDispatchInfo.Capture(firstException).Throw();
+        }
     }
 
     // DLL unload / Play Stop で遅延キューを捨て、古い GameScripts assembly の delegate を手放す

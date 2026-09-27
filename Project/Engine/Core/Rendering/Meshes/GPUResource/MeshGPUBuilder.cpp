@@ -41,6 +41,7 @@ namespace {
 			dst.specularTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.specularTexturePath);
 			dst.emissiveTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.emissiveTexturePath);
 			dst.occlusionTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.occlusionTexturePath);
+			dst.opacityTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.opacityTexturePath);
 		}
 	}
 	// BLASのPrimitiveIndex()と一致する並びでサブメッシュインデックスを並べる

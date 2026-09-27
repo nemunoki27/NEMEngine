@@ -12,6 +12,8 @@ internal static unsafe class ObjectContractTests {
 
     private static ulong componentInstanceID;
     private static bool gameObjectAlive = true;
+    private static ulong removedScriptSlot;
+    private static int removeScriptCalls;
 
     private sealed class ProbeScript : MonoBehaviour { }
 
@@ -149,19 +151,28 @@ internal static unsafe class ObjectContractTests {
     private static void CheckScriptIdentity() {
 
         var previous = NativeAPI.IsAlive;
+        var previousRemove = NativeAPI.RemoveScript;
         NativeAPI.IsAlive = &ReadIsAlive;
+        NativeAPI.RemoveScript = &RemoveScript;
+        removeScriptCalls = 0;
         var store = new ScriptInstanceStore();
         try {
             var owner = GameObject.FromNative(new NativeEntity {
                 world = new ManagedWorldHandle { index = 2, generation = 3 }, index = 5, generation = 7
             })!;
-            var first = new ProbeScript { gameObject = owner };
+            var first = new ProbeScript { gameObject = owner, scriptSlotID = 73 };
             var handle = store.AllocateSlot(first);
             Check(first != null);
+            EngineObject.Destroy(first);
+            Check(removedScriptSlot == 73 && removeScriptCalls == 1 && first != null);
             bool unsubscribed = false;
             var subscription = new EventSubscription(() => unsubscribed = true);
             EventOwnerTracker.Track(first!, subscription);
             store.ReleaseSlot(handle);
+            // 削除済みの参照から別個体の削除を要求しない
+            EngineObject.Destroy(first);
+            EngineObject.Destroy(null);
+            Check(removeScriptCalls == 1);
             Check(first == null && unsubscribed && !subscription.IsActive);
             Check(!store.TryResolveSlot(handle, out _));
 
@@ -176,7 +187,14 @@ internal static unsafe class ObjectContractTests {
         } finally {
             store.ReleaseAllSlots();
             NativeAPI.IsAlive = previous;
+            NativeAPI.RemoveScript = previousRemove;
         }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static void RemoveScript(NativeEntity owner, ulong slot) {
+        removedScriptSlot = slot;
+        ++removeScriptCalls;
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]

@@ -35,7 +35,7 @@ Engine::EditorPlaySession::EditorPlaySession(AssetDatabase& assetDatabase,
 	ManagedScriptBuildService& scriptBuildService,
 	bool& requestFrameDeltaReset,
 	std::function<bool()> isPrefabEditing,
-	std::function<bool()> saveAllEditScenes,
+	std::function<void()> saveScenesBeforePlay,
 	std::function<void()> refreshActiveWorldContext) :
 	assetDatabase_(assetDatabase),
 	worldManager_(worldManager),
@@ -49,7 +49,7 @@ Engine::EditorPlaySession::EditorPlaySession(AssetDatabase& assetDatabase,
 	scriptBuildService_(scriptBuildService),
 	requestFrameDeltaReset_(requestFrameDeltaReset),
 	isPrefabEditing_(isPrefabEditing),
-	saveAllEditScenes_(saveAllEditScenes),
+	saveScenesBeforePlay_(saveScenesBeforePlay),
 	refreshActiveWorldContext_(refreshActiveWorldContext) {
 }
 
@@ -59,13 +59,15 @@ void Engine::EditorPlaySession::HandlePlayToggle() {
 		return;
 	}
 
-	if (pendingPlayStart_) {
+	if (pendingPlayStart_ || waitingForSceneSave_) {
 
 		(void)Input::GetInstance()->TriggerKey(DIK_F5);
 		if constexpr (BuildConfig::kEditorEnabled) {
 			(void)editorManager_.ConsumePlayToggleRequest();
 		}
-		ProcessPendingPlayStart();
+		if (pendingPlayStart_) {
+			ProcessPendingPlayStart();
+		}
 		return;
 	}
 
@@ -148,14 +150,26 @@ void Engine::EditorPlaySession::ProcessPendingPlayStart() {
 			"EngineApplication: GameScriptsのビルドまたは再読み込みに失敗したためPlayを中止します");
 		return;
 	}
-	if (!isPrefabEditing_() && !saveAllEditScenes_()) {
+	if (!isPrefabEditing_() && editorManager_.GetLayoutState().autoSaveScenesOnPlay) {
 
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: シーン保存に失敗したためPlayを中止します");
+		// 選択Popupの完了までは二重にPlayを要求しない
+		waitingForSceneSave_ = true;
+		saveScenesBeforePlay_();
 		return;
 	}
 
 	StartPlayWorld();
+}
+
+void Engine::EditorPlaySession::CompleteSceneSave(bool succeeded) {
+
+	if (!waitingForSceneSave_) {
+		return;
+	}
+	waitingForSceneSave_ = false;
+	if (succeeded) {
+		StartPlayWorld();
+	}
 }
 
 void Engine::EditorPlaySession::StartPlayWorld() {
@@ -226,6 +240,18 @@ void Engine::EditorPlaySession::HandlePlayPauseRequests() {
 			playFrameStepRequested_ = true;
 		}
 	}
+}
+
+void Engine::EditorPlaySession::PauseForScriptException() {
+
+	if (!worldManager_.IsPlaying()) {
+		return;
+	}
+	playPaused_ = true;
+	playFrameStepRequested_ = false;
+	requestFrameDeltaReset_ = true;
+	Logger::Output(LogType::Engine, spdlog::level::err,
+		"EngineApplication: Play中のScript例外を検出したため一時停止します");
 }
 
 bool Engine::EditorPlaySession::ShouldAdvanceActiveWorld() const {

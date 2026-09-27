@@ -9,7 +9,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 
 // c++
-#include <cctype>
+#include <charconv>
 #include <unordered_set>
 
 //============================================================================
@@ -82,13 +82,15 @@ bool Engine::SceneAuthoring::TryParseIndexedName(const std::string& name, std::s
 	if (pos == std::string::npos || pos == 0 || pos + 1 >= name.size()) {
 		return false;
 	}
-	for (size_t i = pos + 1; i < name.size(); ++i) {
-		if (!std::isdigit(static_cast<unsigned char>(name[i]))) {
-			return false;
-		}
+	// 桁あふれした名前も通常の名前として扱う
+	uint32_t index = 0;
+	const char* end = name.data() + name.size();
+	const auto parsed = std::from_chars(name.data() + pos + 1, end, index);
+	if (parsed.ec != std::errc{} || parsed.ptr != end) {
+		return false;
 	}
 	outBase = name.substr(0, pos);
-	outIndex = static_cast<uint32_t>(std::stoul(name.substr(pos + 1)));
+	outIndex = index;
 	return true;
 }
 

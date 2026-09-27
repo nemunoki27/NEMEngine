@@ -23,6 +23,8 @@ namespace Engine {
 		Vector3 normal;
 		Vector2 texcoord;
 		Vector3 tangent;
+		// UVから求めた従法線の向き
+		float tangentSign = 1.0f;
 	};
 
 	// 生成したメッシュ、VS描画とBLAS構築の両方で使う
@@ -53,6 +55,10 @@ namespace Engine {
 		//========================================================================
 
 		//--------- functions ----------------------------------------------------
+
+		// 生成とcache識別に同じ分割数を使う
+		static int32_t ClampDivide(int32_t value, int32_t minimum);
+		static int32_t ClampCylinderHeightDivide(int32_t value);
 
 		// 形状ごとの生成
 		static void GeneratePlane(const PrimitivePlaneParams& params, PrimitiveMeshData& out);

@@ -14,6 +14,7 @@
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
+#include <Engine/Core/World/Scene/Serialization/SceneDocument.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
@@ -57,6 +58,42 @@ namespace NEMTests {
 		Engine::AssetDatabase database;
 		database.Init();
 		const Engine::AssetID id = database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(scenePath), Engine::AssetType::Scene);
+		// 後続文書の失敗で先行ファイルを正規化しない
+		const auto invalidPath = testRoot / "Invalid.scene.json";
+		auto originalScene = emptyScene;
+		originalScene["Extra"] = { 3, 1, 2 };
+		{
+			std::ofstream file(scenePath);
+			file << originalScene.dump();
+		}
+		Engine::JsonAdapter::SaveCanonical(invalidPath, emptyScene);
+		{
+			Engine::AssetDatabase invalidDatabase = database;
+			invalidDatabase.ImportOrGet(Engine::RuntimePaths::ToAssetPath(invalidPath), Engine::AssetType::Scene);
+		}
+		auto invalidScene = emptyScene;
+		invalidScene["SchemaVersion"] = 3.5;
+		Engine::JsonAdapter::SaveCanonical(invalidPath, invalidScene);
+		const auto originalHash = Engine::ContentHash::FileSHA256(scenePath);
+		check(!storage.Canonicalize({ scenePath, invalidPath }, error) &&
+			Engine::ContentHash::FileSHA256(scenePath) == originalHash, "canonicalization validates entire batch before writing");
+		storage.SetProtectedScenes({ id });
+		check(!storage.Canonicalize({ scenePath }, error) && Engine::ContentHash::FileSHA256(scenePath) == originalHash,
+			"canonicalization rejects an open scene");
+		storage.SetProtectedScenes({});
+		check(storage.Canonicalize({ scenePath, scenePath }, error) && Engine::JsonAdapter::Load(scenePath) == originalScene,
+			"canonicalization preserves unknown data and deduplicates paths");
+		const std::string canonical = Engine::JsonAdapter::SerializeCanonical(originalScene);
+		const auto canonicalBytes = std::span(reinterpret_cast<const uint8_t*>(canonical.data()), canonical.size());
+		check(Engine::ContentHash::FileSHA256(scenePath) == Engine::ContentHash::SHA256(canonicalBytes) &&
+			Engine::ContentHash::FileSHA256(scenePath) != originalHash, "canonicalization writes formatting-only changes");
+		const auto canonicalTime = std::filesystem::last_write_time(scenePath);
+		const auto canonicalRecords = storage.GetRecoveries().size();
+		check(storage.Canonicalize({ scenePath }, error) && std::filesystem::last_write_time(scenePath) == canonicalTime &&
+			storage.GetRecoveries().size() == canonicalRecords, "repeated canonicalization preserves file and journal");
+		Engine::JsonAdapter::SaveCanonical(scenePath, emptyScene);
+		std::filesystem::remove(invalidPath);
+		std::filesystem::remove(std::filesystem::path(invalidPath.wstring() + L".meta"));
 		const Engine::UUID parentID = Engine::UUID::New();
 		const Engine::UUID childID = Engine::UUID::New();
 		const auto actorRoot = Storage::ResolveActorRoot(scenePath, id);
@@ -77,6 +114,30 @@ namespace NEMTests {
 		if (!passed) return false;
 		check(storage.Validate(scenePath, id).empty(), "validate saved actors");
 		const auto validScene = Engine::JsonAdapter::Load(scenePath, false);
+		const auto validActor = Engine::JsonAdapter::Load(parentPath, false);
+		// 版番号の丸め込みを検査と実読込の両方で拒否する
+		const nlohmann::json invalidVersions = { 1.5, 4294967297ULL, -4294967295LL, "1", true, nullptr };
+		for (const auto& version : invalidVersions) {
+			auto invalidActor = validActor;
+			invalidActor["SchemaVersion"] = version;
+			Engine::JsonAdapter::SaveCanonical(parentPath, invalidActor);
+			check(!storage.Validate(scenePath, id).empty(), "invalid actor version rejected by inspection");
+			auto loading = validScene;
+			check(!Engine::SceneDocument::LoadExternalActors(scenePath, id, loading), "invalid actor version rejected by loading");
+		}
+		Engine::JsonAdapter::SaveCanonical(parentPath, validActor);
+		// 追加読込で開いているInstanceの外部変更検出を解除しない
+		const auto readRevision = storage.CaptureRevision(scenePath, id);
+		check(storage.MatchesRevision(scenePath, id, readRevision), "unchanged read revision");
+		auto externallyChanged = validScene;
+		externallyChanged["Header"]["name"] = "ExternallyChanged";
+		Engine::JsonAdapter::SaveCanonical(scenePath, externallyChanged);
+		check(!storage.MatchesRevision(scenePath, id, readRevision), "changed read revision");
+		storage.SetProtectedScenes({ id });
+		storage.TrackLoaded(scenePath, id);
+		check(!storage.Save(snapshot, error), "additional load preserves original save baseline");
+		storage.SetProtectedScenes({});
+		Engine::JsonAdapter::SaveCanonical(scenePath, validScene);
 		auto duplicateScene = validScene;
 		duplicateScene["ExternalActors"].push_back(Engine::ToString(parentID));
 		Engine::JsonAdapter::SaveCanonical(scenePath, duplicateScene);
@@ -106,6 +167,15 @@ namespace NEMTests {
 		std::filesystem::remove(childPath);
 		check(storage.Validate(scenePath, id).size() == 1, "missing actor detected");
 		check(!storage.Save(snapshot, error), "external deletion blocks save");
+		const auto validBackup = Engine::JsonAdapter::Load(actorBackup, false);
+		for (const auto& version : invalidVersions) {
+			auto invalidBackup = validBackup;
+			invalidBackup["SchemaVersion"] = version;
+			Engine::JsonAdapter::SaveCanonical(actorBackup, invalidBackup);
+			check(!storage.RestoreActor(scenePath, childID, actorBackup, error) && !std::filesystem::exists(childPath),
+				"invalid actor version cannot be restored");
+		}
+		Engine::JsonAdapter::SaveCanonical(actorBackup, validBackup);
 		check(storage.RestoreActor(scenePath, childID, actorBackup, error), "restore original actor");
 		check(!storage.RestoreActor(scenePath, childID, actorBackup, error), "do not overwrite actor");
 		check(storage.Save(undoSnapshot, error), "restore parent and child");

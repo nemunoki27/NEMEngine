@@ -1,9 +1,18 @@
 #include "EditorRefactoringTests.h"
+#include "CommandHistoryTests.h"
+#include "EditorEntityCommandTests.h"
+#include "EditorDeleteCommandTests.h"
+#include "EditorCloneCommandTests.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/Core/EditorSceneDirtyState.h>
+#include <Engine/Editor/Core/EditorRequestSession.h>
+#include <Engine/Editor/Core/EditorSceneEditScope.h>
+#include <Engine/Editor/Core/EditorContext.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Editor/Core/Layout/EditorLayoutSerialization.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
@@ -14,6 +23,38 @@
 namespace {
 
 	using namespace Engine;
+
+	bool TestSceneSaveConflictSelection() {
+
+		EditorRequestSession session;
+		const AssetID first{ 12, 1 }, second{ 12, 2 };
+		const auto a = Engine::UUID::New(), b = Engine::UUID::New(), c = Engine::UUID::New();
+		const std::vector<SceneSaveConflictChoice> choices{ { first, { a, b } }, { second, { c } } };
+		session.RequestSceneSaveConflict(choices);
+		if (session.ConsumeSceneSaveConflictResult()) return false;
+
+		// 不足した回答や別AssetのInstanceでは保存を開始しない
+		if (session.SubmitSceneSaveConflictResult({ false, { { first, a } } }) ||
+			session.SubmitSceneSaveConflictResult({ false, { { first, c }, { second, a } } }) ||
+			session.ConsumeSceneSaveConflictResult()) return false;
+		if (!session.SubmitSceneSaveConflictResult({ false, { { first, b }, { second, c } } })) return false;
+		const auto saved = session.ConsumeSceneSaveConflictResult();
+		if (!saved || saved->cancelled || saved->selectedInstances.at(first) != b ||
+			saved->selectedInstances.at(second) != c || session.ConsumeSceneSaveConflictResult()) return false;
+
+		// 取消を一度だけ返し、古い保存元を残さない
+		session.RequestSceneSaveConflict(choices);
+		if (!session.SubmitSceneSaveConflictResult({ true, { { first, a } } })) return false;
+		const auto cancelled = session.ConsumeSceneSaveConflictResult();
+		if (!cancelled || !cancelled->cancelled || !cancelled->selectedInstances.empty() ||
+			session.ConsumeSceneSaveConflictResult()) return false;
+
+		// World切替後は以前のPopupからの回答を受け付けない
+		session.RequestSceneSaveConflict(choices);
+		session.ResetPending();
+		return !session.SubmitSceneSaveConflictResult({ false, { { first, a }, { second, c } } }) &&
+			!session.ConsumeSceneSaveConflictResult();
+	}
 
 	bool TestProjectSettingsOwnership() {
 
@@ -75,7 +116,48 @@ namespace {
 			return false;
 		}
 		state.MarkAllScenesSaved();
-		return !state.HasDirtyScenes() && state.GetSceneDirtyRevision(first) == 0;
+		if (state.HasDirtyScenes() || state.GetSceneDirtyRevision(first) != 0) return false;
+
+		// 同じAssetでも別Instanceの編集と保存中の再編集を残す
+		const auto a = Engine::UUID::New(), b = Engine::UUID::New();
+		state.MarkDirty(first, a);
+		state.MarkDirty(first, b);
+		const uint64_t revisionA = state.GetSceneDirtyRevision(first, a);
+		state.MarkDirty(first, b);
+		state.MarkSceneSaved(first, revisionA, a);
+		if (state.IsSceneDirty(first, a) || !state.IsSceneDirty(first, b)) return false;
+		const uint64_t revisionB = state.GetSceneDirtyRevision(first, b);
+		state.MarkDirty(first, b);
+		state.MarkSceneSaved(first, revisionB, b);
+		if (!state.IsSceneDirty(first, b)) return false;
+		state.MarkAllScenesSaved();
+
+		// Active以外への操作と削除も所属Instanceへ記録する
+		ECSWorld world;
+		SceneInstanceManager scenes;
+		const auto active = scenes.CreateScratchScene({});
+		const auto edited = scenes.CreateScratchScene({});
+		scenes.Find(active)->sceneAsset = first;
+		scenes.Find(edited)->sceneAsset = first;
+		const auto entity = world.CreateEntity();
+		world.AddComponent<SceneObjectComponent>(entity).sceneInstanceID = edited;
+		EditorContext context{};
+		context.activeWorld = &world;
+		context.activeSceneAsset = first;
+		context.activeSceneInstanceID = active;
+		context.sceneInstances = &scenes;
+		{
+			EditorSceneEditScope operation(context, state);
+			world.MarkComponentModified<SceneObjectComponent>(entity);
+		}
+		if (state.HasDirtyScenes()) return false;
+		{
+			EditorSceneEditScope operation(context, state);
+			world.DestroyEntity(entity);
+			world.FlushPendingDestroyEntities();
+			operation.Commit();
+		}
+		return !state.IsSceneDirty(first, active) && state.IsSceneDirty(first, edited);
 	}
 
 	bool TestLayoutRoundTrip() {
@@ -106,7 +188,11 @@ namespace {
 
 bool TestEditorContracts() {
 
-	if (!TestSceneSaveRevision() || !TestLayoutRoundTrip() || !TestProjectSettingsOwnership()) {
+	if (!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
+		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||
+		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestBulkDeleteRecovery() || !NEMTests::TestBulkCloneRecovery() ||
+		!TestSceneSaveRevision() || !TestSceneSaveConflictSelection() ||
+		!TestLayoutRoundTrip() || !TestProjectSettingsOwnership()) {
 		std::cerr << "Editor state contract failed\n";
 		return false;
 	}

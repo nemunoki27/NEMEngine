@@ -146,9 +146,9 @@ bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, const std::st
 	return true;
 }
 
-void ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
+bool ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
 
-	ECSWorldSerialization::AddComponentFromJson(*this, entity, typeName, data);
+	return ECSWorldSerialization::AddComponentFromJson(*this, entity, typeName, data);
 }
 
 bool Engine::ECSWorld::ApplyComponentJson(

@@ -5,11 +5,16 @@
 //============================================================================
 #include "MeshGPUBuilder.h"
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <span>
+#include <stdexcept>
+#include <utility>
 
 //============================================================================
 //	MeshGPUResourceManager classMethods
@@ -22,14 +27,19 @@ Engine::MeshGPUResourceManager::~MeshGPUResourceManager() {
 
 void Engine::MeshGPUResourceManager::Init(GraphicsCore& graphicsCore) {
 
+	Init(graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetBufferUploadService(), graphicsCore.GetSRVDescriptor());
+}
+
+void Engine::MeshGPUResourceManager::Init(ID3D12Device* device, BufferUploadService& uploads, SRVDescriptor& descriptors) {
+
 	// すでに初期化されている場合は何もしない
 	if (initialized_) {
 		return;
 	}
 
-	device_ = graphicsCore.GetDXObject().GetDevice();
-	srvDescriptor_ = &graphicsCore.GetSRVDescriptor();
-	uploadService_ = &graphicsCore.GetBufferUploadService();
+	device_ = device;
+	srvDescriptor_ = &descriptors;
+	uploadService_ = &uploads;
 
 	// メッシュインポートサービスの初期化
 	importService_.Init(4);
@@ -48,8 +58,13 @@ void Engine::MeshGPUResourceManager::Finalize() {
 		for (auto& [id, mesh] : gpuMeshes_) {
 			ReleaseMeshResource(mesh);
 		}
+		// 所有元の終了も描画側のcacheへ伝える
+		if (!gpuMeshes_.empty()) {
+			++resourceRevision_;
+		}
 		gpuMeshes_.clear();
 		requested_.clear();
+		requestRevisions_.clear();
 	}
 	device_ = nullptr;
 	srvDescriptor_ = nullptr;
@@ -76,22 +91,11 @@ void Engine::MeshGPUResourceManager::RequestMesh(AssetDatabase& assetDatabase, A
 		return;
 	}
 
-	{
-		std::scoped_lock lock(mutex_);
-		if (gpuMeshes_.contains(meshAssetID) || requested_.contains(meshAssetID)) {
-			return;
-		}
-	}
-
-	// 実際にロード要求が通ったときだけ
-	if (!importService_.RequestLoadAsync(assetDatabase, meshAssetID)) {
+	std::scoped_lock lock(mutex_);
+	if (gpuMeshes_.contains(meshAssetID) || requested_.contains(meshAssetID)) {
 		return;
 	}
-
-	std::scoped_lock lock(mutex_);
-	if (!gpuMeshes_.contains(meshAssetID)) {
-		requested_.insert(meshAssetID);
-	}
+	BeginRequest(meshAssetID);
 }
 
 void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
@@ -100,29 +104,12 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 		return;
 	}
 
-	{
-		std::scoped_lock lock(mutex_);
-		auto it = gpuMeshes_.find(meshAssetID);
-		// まだロードされていないメッシュは差し替える対象が無いので無視する
-		if (it == gpuMeshes_.end()) {
-			return;
-		}
-
-		// 旧GPU資源とDescriptorは描画完了まで回収窓口に残す
-		ReleaseMeshResource(it->second);
-		gpuMeshes_.erase(it);
-		requested_.erase(meshAssetID);
-		// 世代を進めて、TLAS等のキャッシュが古いジオメトリを使わないようにする
-		++reloadGeneration_[meshAssetID];
-		++resourceRevision_;
+	std::scoped_lock lock(mutex_);
+	// 初回読込中や失敗後も、要求済みAssetなら最新内容を受け付ける
+	if (!requestRevisions_.contains(meshAssetID)) {
+		return;
 	}
-
-	// インポートサービスは初回ロード後にidの記録を残さないため、同じ要求で再パースされる
-	if (importService_.RequestLoadAsync(*assetDatabase_, meshAssetID)) {
-
-		std::scoped_lock lock(mutex_);
-		requested_.insert(meshAssetID);
-	}
+	BeginRequest(meshAssetID);
 }
 
 void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) {
@@ -133,45 +120,50 @@ void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) 
 void Engine::MeshGPUResourceManager::FlushUploads() {
 
 	// 読み込み待ちのメッシュアセットのうち、GPUにアップロードされていないものをアップロードする
-	std::vector<AssetID> pending{};
+	std::vector<std::pair<AssetID, uint64_t>> pending{};
 	{
 		std::scoped_lock lock(mutex_);
 		pending.reserve(requested_.size());
-		for (const AssetID& id : requested_) {
-			pending.emplace_back(id);
+		for (const auto& request : requested_) {
+			pending.emplace_back(request);
 		}
 	}
 
-	for (const AssetID& id : pending) {
+	for (const auto& [id, revision] : pending) {
 
 		ImportedMeshAsset imported{};
 		if (!importService_.TakeImported(id, imported)) {
+			if (importService_.ConsumeFailed(id)) {
+				// 失敗時は旧表示を残し、次回要求を受け付けられる状態へ戻す
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"Meshの読み込みに失敗しました asset={}", ToString(id));
+				CompleteRequest(id, revision);
+			}
 			continue;
 		}
 
-		{
-			std::scoped_lock lock(mutex_);
-			if (gpuMeshes_.contains(id)) {
-				requested_.erase(id);
-				continue;
-			}
-		}
-
 		// GPUにアップロード
-		UploadImported(imported);
-
-		// アップロード完了したものは要求リストから削除
-		{
-			std::scoped_lock lock(mutex_);
-			requested_.erase(id);
+		try {
+			UploadImported(imported, revision);
+		} catch (...) {
+			CompleteRequest(id, revision);
+			throw;
 		}
+		CompleteRequest(id, revision);
 	}
 }
 
 void Engine::MeshGPUResourceManager::WaitAll() {
 
-	importService_.WaitAll();
-	FlushUploads();
+	for (;;) {
+		importService_.WaitAll();
+		FlushUploads();
+		// 完了時に再投入した最新要求も待つ
+		std::scoped_lock lock(mutex_);
+		if (requested_.empty()) {
+			return;
+		}
+	}
 }
 
 const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID meshAssetID) const {
@@ -184,20 +176,113 @@ const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID mesh
 	return &it->second;
 }
 
-void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imported) {
+void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imported, uint64_t revision) {
 
 	if (!uploadService_) {
 		return;
 	}
-
-	MeshGPUResource mesh = MeshGPUBuilder::Create(imported, assetDatabase_, device_, uploadService_, srvDescriptor_);
-
-	// GPUリソースを保存
 	{
 		std::scoped_lock lock(mutex_);
-		// 現在のリロード世代を焼き込み、BLAS等のキャッシュが差し替えを検知できるようにする
-		mesh.reloadGeneration = reloadGeneration_[imported.assetID];
-		gpuMeshes_.emplace(imported.assetID, std::move(mesh));
+		// 古い読込結果のGPU生成を省く
+		if (requestRevisions_.at(imported.assetID) != revision) {
+			return;
+		}
+	}
+
+	MeshGPUResource mesh{};
+	try {
+		mesh = MeshGPUBuilder::Create(imported, assetDatabase_, device_, uploadService_, srvDescriptor_);
+	}
+	catch (const std::exception& exception) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"MeshのGPU資源作成に失敗しました asset={} 内容={}",
+			ToString(imported.assetID), exception.what());
+		return;
+	}
+	catch (...) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"MeshのGPU資源作成に失敗しました asset={} 内容=不明な例外",
+			ToString(imported.assetID));
+		return;
+	}
+	if (!mesh.IsValid()) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"MeshのGPU資源作成に失敗しました asset={}", ToString(imported.assetID));
+		ReleaseMeshResource(mesh);
+		return;
+	}
+
+	MeshGPUResource old{};
+	bool retireOld = false;
+	// 成功した候補を公開してから旧GPU資源を回収へ渡す
+	{
+		std::scoped_lock lock(mutex_);
+		// GPU生成中に新しい要求を受けた候補も公開しない
+		if (requestRevisions_.at(imported.assetID) != revision) {
+			return;
+		}
+		auto it = gpuMeshes_.find(imported.assetID);
+		auto& generation = reloadGeneration_[imported.assetID];
+		if (generation == UINT32_MAX) {
+			throw std::overflow_error("Meshの公開世代が上限に達しました");
+		}
+		mesh.reloadGeneration = generation + 1;
+		if (it == gpuMeshes_.end()) {
+			gpuMeshes_.emplace(imported.assetID, std::move(mesh));
+		} else {
+			old = std::move(it->second);
+			it->second = std::move(mesh);
+			retireOld = true;
+		}
+		++generation;
 		++resourceRevision_;
+	}
+	if (retireOld) {
+		ReleaseMeshResource(old);
+	}
+	// GPU公開に成功した世代だけ編集layoutの解析を失効させる
+	MeshSubMeshAuthoring::InvalidateCachedLayout(imported.assetID);
+}
+
+void Engine::MeshGPUResourceManager::BeginRequest(AssetID asset) {
+
+	auto& revision = requestRevisions_[asset];
+	if (revision == UINT64_MAX) {
+		throw std::overflow_error("Meshの要求世代が上限に達しました");
+	}
+	++revision;
+	if (!requested_.contains(asset)) {
+		QueueLatestRequest(asset, revision);
+	}
+}
+
+void Engine::MeshGPUResourceManager::QueueLatestRequest(AssetID asset, uint64_t revision) {
+
+	// workerの開始前に受付状態を確保する
+	const auto [entry, inserted] = requested_.emplace(asset, revision);
+	if (!inserted) {
+		return;
+	}
+	try {
+		if (!importService_.RequestLoadAsync(*assetDatabase_, asset)) {
+			requested_.erase(entry);
+		}
+	} catch (...) {
+		requested_.erase(entry);
+		throw;
+	}
+}
+
+void Engine::MeshGPUResourceManager::CompleteRequest(AssetID asset, uint64_t revision) {
+
+	std::scoped_lock lock(mutex_);
+	const auto active = requested_.find(asset);
+	if (active == requested_.end() || active->second != revision) {
+		return;
+	}
+	requested_.erase(active);
+	const uint64_t latest = requestRevisions_.at(asset);
+	if (latest != revision) {
+		QueueLatestRequest(asset, latest);
 	}
 }

@@ -9,6 +9,7 @@
 
 // c++
 #include <unordered_map>
+#include <memory>
 #include <vector>
 #include <cstdint>
 
@@ -16,6 +17,7 @@ namespace Engine {
 
 	// front
 	class ECSWorld;
+	class ECSWorldLifetime;
 
 	//============================================================================
 	//	UIRuntimeService structures
@@ -62,6 +64,7 @@ namespace Engine {
 
 		struct WorldState {
 
+			std::shared_ptr<const ECSWorldLifetime> lifetime;
 			Vector2 viewportSize{};
 			std::vector<UIElementRuntime> elements{};
 			std::unordered_map<uint64_t, size_t> lookup{};
@@ -69,5 +72,8 @@ namespace Engine {
 
 		std::unordered_map<const ECSWorld*, WorldState> worlds_{};
 		bool gameplayInputBlocked_ = false;
+
+		// 終了したWorldのcacheを除外する
+		const WorldState* FindWorld(const ECSWorld& world) const;
 	};
 } // Engine

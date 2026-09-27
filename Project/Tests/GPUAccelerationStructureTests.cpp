@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/TopLevelAccelerationStructure.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingTLASState.h>
 
 // c++
 #include <array>
@@ -88,8 +89,8 @@ cbuffer Params : register(b0) { uint outputIndex; };
 		desc.pRootSignature = root.Get();
 		desc.CS = { shader.GetBytecodePointer(), shader.GetBytecodeSize() };
 		if (FAILED(device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipeline)))) return false;
-		DxUtils::CreateReadbackBufferResource(device, readback, 24);
-		DxUtils::CreateUavBufferResource(device, output, 24);
+		DxUtils::CreateReadbackBufferResource(device, readback, 40);
+		DxUtils::CreateUavBufferResource(device, output, 40);
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		commands->ResourceBarrier(1, &barrier);
@@ -102,11 +103,11 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	Engine::TopLevelAccelerationStructure top;
 	top.SetRetirementQueue(retirement);
 	top.Build(device8.Get(), commands, instances, true);
-	auto trace = [&](uint32_t index) {
+	auto trace = [&](uint32_t index, ID3D12Resource* tlas = nullptr) {
 		if (!canQuery) return;
 		commands->SetComputeRootSignature(root.Get());
 		commands->SetPipelineState(pipeline.Get());
-		commands->SetComputeRootShaderResourceView(0, top.GetResource()->GetGPUVirtualAddress());
+		commands->SetComputeRootShaderResourceView(0, (tlas ? tlas : top.GetResource())->GetGPUVirtualAddress());
 		commands->SetComputeRootUnorderedAccessView(1, output->GetGPUVirtualAddress());
 		commands->SetComputeRoot32BitConstant(2, index, 0);
 		commands->Dispatch(1, 1, 1);
@@ -152,11 +153,29 @@ cbuffer Params : register(b0) { uint outputIndex; };
 	top.Build(device8.Get(), commands, instances, true);
 	top = std::move(movedTop);
 	trace(5);
+	// 同じBLASアドレスの形状変更をTLASの境界へ伝える
+	Engine::RaytracingTLASState state;
+	geometry.localMatrix.m[3][0] = 10;
+	source.Update(commands, input);
+	state.BuildORUpdate(device8.Get(), commands, retirement, instances, {}, 0, false, false);
+	trace(6, state.GetResource());
+	geometry.localMatrix = Engine::Matrix4x4::Identity();
+	source.Update(commands, input);
+	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, true);
+	trace(7, state.GetResource());
+	geometry.localMatrix.m[3][0] = 10;
+	source.Rebuild(commands, input);
+	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, true);
+	trace(8, state.GetResource());
+	geometry.localMatrix = Engine::Matrix4x4::Identity();
+	source.Rebuild(commands, input);
+	state.BuildORUpdate(device8.Get(), commands, retirement, instances, instances, 1, false, true);
+	trace(9, state.GetResource());
 	if (canQuery) {
 		const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(output.Get(),
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
 		commands->ResourceBarrier(1, &barrier);
-		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 24);
+		commands->CopyBufferRegion(readback.Get(), 0, output.Get(), 0, 40);
 		retirement.Retire(std::move(output));
 		retirement.Retire(std::move(root));
 		retirement.Retire(std::move(pipeline));

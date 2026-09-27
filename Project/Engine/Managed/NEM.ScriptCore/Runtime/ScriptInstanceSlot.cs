@@ -11,4 +11,6 @@ internal sealed class ScriptInstanceSlot {
     internal bool retired;
     // サイズ取得とコピーで共有する実行時データ
     internal byte[]? runtimeStateSnapshot;
+    // 複製用の保存値をサイズ取得からコピーまで保持する
+    internal byte[]? savedStateSnapshot;
 }

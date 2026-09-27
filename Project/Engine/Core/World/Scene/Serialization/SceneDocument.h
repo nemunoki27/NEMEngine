@@ -16,6 +16,10 @@ namespace Engine::SceneDocument {
 
 	// シーン文書の版と必須項目を検証する
 	bool ValidateSceneFileRoot(const nlohmann::json& root);
+	// 外部Actorの版と所有IDを検証する
+	bool ValidateExternalActor(const nlohmann::json& actor, UUID localFileID);
+	// 未知の項目を保持して保存配列を整列する
+	bool Canonicalize(nlohmann::json& root);
 
 	// 比較に使う正規化パスを取得する
 	std::filesystem::path NormalizePath(const std::filesystem::path& path);

@@ -97,7 +97,7 @@ namespace {
 		for (uint32_t meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex) {
 
 			const aiMesh* mesh = scene->mMeshes[meshIndex];
-			if (!mesh || !mesh->HasBones()) {
+			if (!Engine::MeshImportUtility::HasTriangleGeometry(mesh) || !mesh->HasBones()) {
 				continue;
 			}
 			for (uint32_t boneIndex = 0; boneIndex < mesh->mNumBones; ++boneIndex) {

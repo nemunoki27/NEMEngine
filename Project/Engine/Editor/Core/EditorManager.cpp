@@ -2,6 +2,7 @@
 
 #include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
 #include "EditorSelectionOperations.h"
+#include <Engine/Editor/Commands/Core/EditorCommandExecution.h>
 
 //============================================================================
 //	include
@@ -15,7 +16,6 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -119,59 +119,50 @@ void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
 	meshSubMeshPicker_->Init(graphicsCore);
 }
 
-Engine::EditorCommandContext Engine::EditorManager::MakeCommandContext(const EditorContext& context) {
-
-	EditorCommandContext commandContext{};
-	commandContext.editorContext = &context;
-	commandContext.editorState = &editorState_;
-	return commandContext;
-}
-
 bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand> command) {
 
-	if (!currentRenderContext_) {
+	if (!currentRenderContext_ || !command) {
 		return false;
 	}
 
-	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
-	bool executed = editorState_.commandHistory.Execute(std::move(command), commandContext);
-	if (executed) {
-		MarkCurrentSceneDirty();
-	}
-	return executed;
+	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
+		[&](EditorCommandContext& commandContext) {
+			// Play中は実行Worldへ直接反映しUndoへ積まない
+			return currentRenderContext_->isPlaying ? command->Execute(commandContext) :
+				editorState_.commandHistory.Execute(std::move(command), commandContext);
+		});
 }
 
 bool Engine::EditorManager::UndoEditorCommand() {
 
-	if (!currentRenderContext_) {
+	// Play中はEdit Worldの履歴を操作しない
+	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
 		return false;
 	}
 
-	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
-	bool executed = editorState_.commandHistory.Undo(commandContext);
-	if (executed) {
-		MarkCurrentSceneDirty();
-	}
-	return executed;
+	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
+		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Undo(commandContext); });
 }
 
 bool Engine::EditorManager::RedoEditorCommand() {
 
-	if (!currentRenderContext_) {
+	// Play中はEdit Worldの履歴を操作しない
+	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
 		return false;
 	}
 
-	EditorCommandContext commandContext = MakeCommandContext(*currentRenderContext_);
-	bool executed = editorState_.commandHistory.Redo(commandContext);
-	if (executed) {
-		MarkCurrentSceneDirty();
-	}
-	return executed;
+	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
+		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Redo(commandContext); });
 }
 
 bool Engine::EditorManager::DuplicateSelection() {
 
 	return EditorSelectionOperations::Duplicate(currentRenderContext_, editorState_, *this);
+}
+
+bool Engine::EditorManager::DeleteSelection() {
+
+	return EditorSelectionOperations::Delete(currentRenderContext_, editorState_, *this);
 }
 
 bool Engine::EditorManager::CopySelectionToClipboardInternal(const EditorContext& context) {
@@ -252,15 +243,7 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 	}
 	// 削除、複数選択をまとめて消すため対象を先にコピーしてからループする
 	if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-		if (editorState_.HasValidSelection(context.activeWorld) && !context.isPlaying) {
-
-			const std::vector<Entity> targets = editorState_.GetSelectedEntities();
-			for (const Entity& target : targets) {
-				if (context.activeWorld && context.activeWorld->IsAlive(target)) {
-					ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(target));
-				}
-			}
-		}
+		DeleteSelection();
 		return;
 	}
 	// ギズモ操作のショートカット
@@ -422,6 +405,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	requests_.DrawUnsavedScenePopup();
 	requests_.DrawCloseUnsavedScenePopup();
+	requests_.DrawSceneSaveConflictPopup();
 }
 
 void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorContext& context) {
@@ -581,7 +565,7 @@ void Engine::EditorManager::MarkCurrentSceneDirty() {
 		currentRenderContext_->isPrefabEditing || !currentRenderContext_->activeSceneAsset) {
 		return;
 	}
-	dirtyState_.MarkDirty(currentRenderContext_->activeSceneAsset);
+	dirtyState_.MarkDirty(currentRenderContext_->activeSceneAsset, currentRenderContext_->activeSceneInstanceID);
 }
 
 void Engine::EditorManager::DrawDockSpace() {
@@ -717,6 +701,18 @@ Engine::EditorUnsavedScenePopupResult Engine::EditorManager::ConsumeCloseUnsaved
 	return requests_.ConsumeCloseUnsavedScenePopupResult();
 }
 
+void Engine::EditorManager::RequestSceneSaveConflict(
+	const std::vector<SceneSaveConflictChoice>& choices) {
+
+	requests_.RequestSceneSaveConflict(choices);
+}
+
+std::optional<Engine::SceneSaveConflictResult>
+Engine::EditorManager::ConsumeSceneSaveConflictResult() {
+
+	return requests_.ConsumeSceneSaveConflictResult();
+}
+
 bool Engine::EditorManager::ConsumePlayToggleRequest() {
 
 	return requests_.ConsumePlayToggleRequest();
@@ -747,9 +743,19 @@ void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset) {
 	dirtyState_.MarkSceneSaved(sceneAsset);
 }
 
-void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision) {
+void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision, UUID instanceID) {
 
-	dirtyState_.MarkSceneSaved(sceneAsset, dirtyRevision);
+	dirtyState_.MarkSceneSaved(sceneAsset, dirtyRevision, instanceID);
+}
+
+void Engine::EditorManager::MarkSceneInstanceSaved(AssetID sceneAsset, UUID instanceID) {
+
+	dirtyState_.MarkSceneInstanceSaved(sceneAsset, instanceID);
+}
+
+void Engine::EditorManager::MarkSceneInstanceDirty(AssetID sceneAsset, UUID instanceID) {
+
+	dirtyState_.MarkDirty(sceneAsset, instanceID);
 }
 
 void Engine::EditorManager::MarkAllScenesSaved() {
@@ -762,12 +768,12 @@ void Engine::EditorManager::ResetSceneDirtyState() {
 	dirtyState_.ResetSceneDirtyState();
 }
 
-bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset) const {
+bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset, UUID instanceID) const {
 
-	return dirtyState_.IsSceneDirty(sceneAsset);
+	return dirtyState_.IsSceneDirty(sceneAsset, instanceID);
 }
 
-uint64_t Engine::EditorManager::GetSceneDirtyRevision(AssetID sceneAsset) const {
+uint64_t Engine::EditorManager::GetSceneDirtyRevision(AssetID sceneAsset, UUID instanceID) const {
 
-	return dirtyState_.GetSceneDirtyRevision(sceneAsset);
+	return dirtyState_.GetSceneDirtyRevision(sceneAsset, instanceID);
 }

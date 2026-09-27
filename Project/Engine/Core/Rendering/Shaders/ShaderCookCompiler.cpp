@@ -15,12 +15,13 @@ namespace {
 	std::string ResolveDefaultProfile(Engine::ShaderStage stage) {
 
 		switch (stage) {
-		case Engine::ShaderStage::VS: return "vs_6_6";
+		// bindlessを使わない基本ステージはSM6.0を基準にCookする
+		case Engine::ShaderStage::VS: return "vs_6_0";
 		case Engine::ShaderStage::AS: return "as_6_6";
 		case Engine::ShaderStage::MS: return "ms_6_6";
-		case Engine::ShaderStage::GS: return "gs_6_6";
-		case Engine::ShaderStage::PS: return "ps_6_6";
-		case Engine::ShaderStage::CS: return "cs_6_6";
+		case Engine::ShaderStage::GS: return "gs_6_0";
+		case Engine::ShaderStage::PS: return "ps_6_0";
+		case Engine::ShaderStage::CS: return "cs_6_0";
 		case Engine::ShaderStage::Lib: return "lib_6_6";
 		default: return {};
 		}

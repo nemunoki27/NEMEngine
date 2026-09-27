@@ -18,7 +18,7 @@ namespace {
 	constexpr uint32_t kMaxLifecycleTransitionPassCount = 64;
 }
 
-void Engine::BehaviorExecutionSession::EnsureActiveWorld(ECSWorld& world, SystemContext& context) {
+void Engine::BehaviorExecutionSession::EnsureActiveWorld(ECSWorld& world, const SystemContext& context) {
 
 	// プレイ中でないときにアクティブにしない
 	if (context.mode != WorldMode::Play) {
@@ -57,7 +57,7 @@ void Engine::BehaviorExecutionSession::ResetRuntimeState([[maybe_unused]] ECSWor
 	// 実行時対応はBehaviorWorldが所有し、Script設定側へキャッシュしない
 }
 
-void Engine::BehaviorExecutionSession::SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep) {
+void Engine::BehaviorExecutionSession::SynchronizeLifecycle(ECSWorld& world, const SystemContext& context, bool sweep) {
 
 	// ワールドを設定
 	EnsureActiveWorld(world, context);
@@ -131,7 +131,7 @@ void Engine::BehaviorExecutionSession::OnComponentMutation(ECSWorld& world, cons
 	}
 }
 
-void Engine::BehaviorExecutionSession::InvokePendingAwake(ECSWorld& world, SystemContext& context) {
+void Engine::BehaviorExecutionSession::InvokePendingAwake(ECSWorld& world, const SystemContext& context) {
 
 	// activeかつ未AwakeのrecordにAwakeを1回呼ぶ
 	const std::vector<SyncParticipant> participants = participantCache_.participants_;
@@ -189,7 +189,7 @@ void Engine::BehaviorExecutionSession::RefreshFaultState(const BehaviorHandle& h
 	}
 }
 
-void Engine::BehaviorExecutionSession::FlushActiveTransitions(ECSWorld& world, SystemContext& context) {
+void Engine::BehaviorExecutionSession::FlushActiveTransitions(ECSWorld& world, const SystemContext& context) {
 
 	uint32_t pass = 0;
 	while (enableTransitionsDirty_ && pass < kMaxLifecycleTransitionPassCount) {
@@ -206,7 +206,7 @@ void Engine::BehaviorExecutionSession::FlushActiveTransitions(ECSWorld& world, S
 	}
 }
 
-void Engine::BehaviorExecutionSession::SynchronizeLifecycleIfDirty(ECSWorld& world, SystemContext& context) {
+void Engine::BehaviorExecutionSession::SynchronizeLifecycleIfDirty(ECSWorld& world, const SystemContext& context) {
 
 	const bool executionOrderChanged = participantCache_.executionOrderRevision_ !=
 		BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision();
@@ -217,7 +217,7 @@ void Engine::BehaviorExecutionSession::SynchronizeLifecycleIfDirty(ECSWorld& wor
 	SynchronizeLifecycle(world, context, false);
 }
 
-void Engine::BehaviorExecutionSession::ApplyEnableTransitions(ECSWorld& world, SystemContext& context) {
+void Engine::BehaviorExecutionSession::ApplyEnableTransitions(ECSWorld& world, const SystemContext& context) {
 
 	const std::vector<SyncParticipant> participants = participantCache_.participants_;
 	for (const SyncParticipant& participant : participants) {
@@ -246,7 +246,7 @@ void Engine::BehaviorExecutionSession::ApplyEnableTransitions(ECSWorld& world, S
 	}
 }
 
-bool Engine::BehaviorExecutionSession::InvokePendingStart(ECSWorld& world, SystemContext& context) {
+bool Engine::BehaviorExecutionSession::InvokePendingStart(ECSWorld& world, const SystemContext& context) {
 
 	// 有効かつ未StartのrecordにStartを1回呼ぶ、再有効化では再実行しない
 	const std::vector<SyncParticipant> participants = participantCache_.participants_;
@@ -271,7 +271,7 @@ bool Engine::BehaviorExecutionSession::InvokePendingStart(ECSWorld& world, Syste
 }
 
 void Engine::BehaviorExecutionSession::DispatchCollision(ECSWorld& world,
-	SystemContext& context, const CollisionContact& collision, int32_t phase) {
+	const SystemContext& context, const CollisionContact& collision, int32_t phase) {
 
 	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
 		return;

@@ -263,13 +263,22 @@ void Engine::MeshRendererInspectorDrawer::SerializeDraft(
 void Engine::MeshRendererInspectorDrawer::RefreshSubMeshLayoutCache(
 	Engine::AssetDatabase* assetDatabase, Engine::AssetID meshAssetID) {
 
-	if (cachedMeshAssetID_ == meshAssetID) {
+	const auto lifetime = assetDatabase ? assetDatabase->GetCacheLifetime() : std::weak_ptr<const uint8_t>{};
+	const uint64_t revision = assetDatabase ? assetDatabase->GetStructureRevision() : 0;
+	const uint64_t contentRevision = assetDatabase ? assetDatabase->GetContentRevision(meshAssetID) : 0;
+	if (cachedMeshAssetID_ == meshAssetID && !cachedDatabaseLifetime_.expired() &&
+		!cachedDatabaseLifetime_.owner_before(lifetime) && !lifetime.owner_before(cachedDatabaseLifetime_) &&
+		cachedDatabaseRevision_ == revision && cachedMeshContentRevision_ == contentRevision) {
 		return;
 	}
+	// 同じMeshの再読込とProject切替も反映する
 	cachedMeshAssetID_ = meshAssetID;
+	cachedDatabaseLifetime_ = lifetime;
+	cachedMeshContentRevision_ = contentRevision;
 	cachedSubMeshLayout_.clear();
 	// キャッシュを更新
 	cachedSubMeshLayoutResolved_ = MeshSubMeshAuthoring::TryBuildLayout(assetDatabase, meshAssetID, cachedSubMeshLayout_);
+	cachedDatabaseRevision_ = assetDatabase ? assetDatabase->GetStructureRevision() : 0;
 }
 
 void Engine::MeshRendererInspectorDrawer::SyncDraftSubMeshes(const EditorPanelContext& context,

@@ -65,7 +65,7 @@ void Engine::BehaviorSystem::DispatchAnimationEvent(ECSWorld& world, SystemConte
 	}
 }
 
-void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(ECSWorld& world, SystemContext& context,
+void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(ECSWorld& world, const SystemContext& context,
 	std::span<const Entity> entities) {
 
 	if (!activeSystem_ || context.mode != WorldMode::Play ||
@@ -110,6 +110,42 @@ nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle 
 		return nlohmann::json::object();
 	}
 	return record->instance->GetRuntimeSerializedState();
+}
+
+bool Engine::BehaviorSystem::CaptureSavedFields(ECSWorld& world, const Entity& owner, UUID slotID,
+	nlohmann::json& fields, bool& enabled) {
+
+	if (!activeSystem_) {
+		return true;
+	}
+	if (activeSystem_->session_.activeWorld_ != &world || !world.IsAlive(owner)) {
+		return false;
+	}
+	BehaviorSystem* system = activeSystem_;
+	const auto lifetime = world.GetLifetime();
+	const BehaviorHandle handle = system->session_.runtime_.FindHandleBySlot(owner, slotID);
+	BehaviorRecord* record = system->session_.runtime_.GetRecord(handle);
+	if (!record || !record->instance) {
+		// Missing Scriptは元の保存値を保持する
+		return true;
+	}
+	nlohmann::json candidate = fields;
+	if (!record->instance->CaptureSavedFields(world, candidate)) {
+		return false;
+	}
+	// 保存callbackによる再入後はrecordを取り直す
+	if (activeSystem_ != system || !lifetime->IsAlive() || system->session_.activeWorld_ != &world) {
+		return false;
+	}
+	record = system->session_.runtime_.GetRecord(handle);
+	if (!record || !world.IsAlive(owner)) {
+		return false;
+	}
+	if (record->hasRuntimeEnabledOverride) {
+		enabled = record->runtimeEnabledOverride;
+	}
+	fields = std::move(candidate);
+	return true;
 }
 
 void Engine::BehaviorSystem::SetRuntimeSerializedField(BehaviorHandle handle,
@@ -215,20 +251,20 @@ Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& o
 	return nullptr;
 }
 
-bool Engine::BehaviorSystem::AttachScript(const Entity& owner, const std::string& scriptTypeID) {
+Engine::MonoBehavior* Engine::BehaviorSystem::AttachScript(const Entity& owner, const std::string& scriptTypeID, const SystemContext& context) {
 
 	if (!activeSystem_ || !activeSystem_->session_.activeWorld_ || scriptTypeID.empty()) {
-		return false;
+		return nullptr;
 	}
 	ECSWorld& world = *activeSystem_->session_.activeWorld_;
-	if (!world.IsAlive(owner)) {
-		return false;
+	if (context.world != &world || !world.IsAlive(owner)) {
+		return nullptr;
 	}
 
 	// 型GUIDから実行時型IDを解決する、未登録なら失敗
 	const BehaviorTypeInfo* info = BehaviorTypeRegistry::GetInstance().FindByStableScriptTypeID(scriptTypeID);
 	if (!info) {
-		return false;
+		return nullptr;
 	}
 
 	// ScriptComponentが無ければ付与する、すでにscriptを持つEntityへの追加はvectorへのappendのみで構造変更しない
@@ -249,19 +285,38 @@ bool Engine::BehaviorSystem::AttachScript(const Entity& owner, const std::string
 	if (!record || !record->instance) {
 
 		entries.RemoveAt(entries.GetSize() - 1);
-		return false;
+		return nullptr;
 	}
 
 	// scriptSlotIDを渡し、既定のserialized fieldsを適用してからinstanceを確定する
 	record->instance->SetSlotID(entry.scriptSlotID.value);
 	record->instance->SetSerializedFields(entry.serializedFields);
-	if (!record->instance->EnsureInstance(world, owner)) {
-
+	const bool created = record->instance->EnsureInstance(world, owner);
+	// constructorからの追加でrecord配列が移動する場合がある
+	record = activeSystem_->session_.runtime_.GetRecord(handle);
+	if (!record) {
+		return nullptr;
+	}
+	if (!created) {
 		record->faulted = true;
 	}
 	world.MarkComponentModified<ScriptComponent>(owner);
 	world.MarkComponentModified<ScriptEntry>(owner);
 	activeSystem_->session_.participantCache_.participantsDirty_ = true;
 	activeSystem_->session_.enableTransitionsDirty_ = true;
-	return true;
+	// callbackでrecord配列が増えてもハンドルから取り直す
+	if (!record->faulted && IsEntityActiveInHierarchy(world, owner)) {
+		record->awakeCalled = true;
+		record->instance->Awake(world, context, owner);
+		activeSystem_->session_.RefreshFaultState(handle);
+		record = activeSystem_->session_.runtime_.GetRecord(handle);
+		if (record && !record->faulted && !record->enabled && IsEntityActiveInHierarchy(world, owner) &&
+			(!record->hasRuntimeEnabledOverride || record->runtimeEnabledOverride)) {
+			record->enabled = true;
+			record->instance->OnEnable(world, context, owner);
+			activeSystem_->session_.RefreshFaultState(handle);
+		}
+	}
+	record = activeSystem_->session_.runtime_.GetRecord(handle);
+	return record ? record->instance.get() : nullptr;
 }

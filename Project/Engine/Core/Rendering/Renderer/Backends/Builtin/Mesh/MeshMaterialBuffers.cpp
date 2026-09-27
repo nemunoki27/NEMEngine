@@ -9,29 +9,6 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-
-namespace {
-	uint64_t ComputeMaterialLayoutHash(
-		const Engine::MaterialParameterLayout& layout) {
-
-		uint64_t hash = 1469598103934665603ull;
-		Engine::Algorithm::HashCombine(hash, layout.GetSizeInBytes());
-		for (const Engine::ShaderConstantBufferVariable& variable :
-			layout.GetVariables()) {
-
-			Engine::Algorithm::HashCombine(hash,
-				static_cast<uint64_t>(std::hash<std::string>{}(variable.name)));
-			Engine::Algorithm::HashCombine(hash, variable.offset);
-			Engine::Algorithm::HashCombine(hash, variable.size);
-			Engine::Algorithm::HashCombine(hash,
-				static_cast<uint64_t>(variable.valueClass));
-			Engine::Algorithm::HashCombine(hash,
-				static_cast<uint64_t>(variable.valueType));
-		}
-		return hash;
-	}
-}
 
 Engine::MeshMaterialBuffers::SubMeshMaterialParamBuffer&
 Engine::MeshMaterialBuffers::GetSubMeshMaterialParamBuffer(
@@ -113,7 +90,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	// リフレクションから取得した構造体strideをそのまま使用する
 	const uint32_t stride = layout.GetSizeInBytes();
 	const uint32_t elementCount = static_cast<uint32_t>(parameters.size());
-	const uint64_t layoutHash = ComputeMaterialLayoutHash(layout);
+	const uint64_t layoutHash = layout.GetContentHash();
 	const uint64_t materialHash = material ?
 		material->parameters.GetContentHash() : 0;
 	const uint64_t textureRevision = drawContext.graphicsCore->GetTextureUploadService().GetContentRevision();

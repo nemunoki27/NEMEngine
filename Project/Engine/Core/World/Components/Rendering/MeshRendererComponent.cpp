@@ -92,7 +92,7 @@ void Engine::MeshRendererComponent::SerializeECS(
 	const ECSWorld& world, const Entity& entity,
 	const MeshRendererComponent& component, nlohmann::json& out) {
 
-	SerializeMeshRenderer(component, GetMeshSubMeshes(world, entity), out);
+	SerializeMeshRenderer(component, world.TryGetBufferForBinding<SubMeshMaterial>(entity).GetSpan(), out);
 }
 
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
@@ -213,18 +213,8 @@ bool Engine::SetMeshSubMesh(ECSWorld& world, const Entity& entity,
 void Engine::SetMeshSubMeshes(ECSWorld& world, const Entity& entity,
 	std::span<const SubMeshMaterial> subMeshes) {
 
-	DynamicBuffer<SubMeshMaterial> buffer =
-		world.TryGetBuffer<SubMeshMaterial>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<SubMeshMaterial>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(subMeshes.size()));
-	for (const SubMeshMaterial& subMesh : subMeshes) {
-		buffer.Add(subMesh);
-	}
-	// Buffer要素の変更は構造変更を伴わないため明示的に通知する
-	world.MarkComponentModified<SubMeshMaterial>(entity);
+	// 自身のSubMesh列を渡した場合も変更前の値を保持する
+	world.SetBuffer<SubMeshMaterial>(entity, subMeshes);
 }
 
 void Engine::SerializeMeshRenderer(

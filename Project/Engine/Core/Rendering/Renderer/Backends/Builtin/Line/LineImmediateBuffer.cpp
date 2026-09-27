@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
+#include <stdexcept>
 
 //============================================================================
 //	LineImmediateBuffer classMethods
@@ -16,6 +17,7 @@ Engine::LineImmediateBuffer& Engine::LineImmediateBuffer::GetInstance() {
 
 void Engine::LineImmediateBuffer::BeginFrame() {
 
+	if (!entries_.empty()) { AdvanceRevision(); }
 	points_.clear();
 	entries_.clear();
 }
@@ -28,6 +30,7 @@ void Engine::LineImmediateBuffer::AddPolyline(const LinePoint* points, uint32_t 
 	}
 
 	Entry entry{};
+	AdvanceRevision();
 	entry.pointOffset = static_cast<uint32_t>(points_.size());
 	entry.pointCount = count;
 	entry.connected = connected;
@@ -42,6 +45,7 @@ void Engine::LineImmediateBuffer::AddPolyline(const LinePoint* points, uint32_t 
 void Engine::LineImmediateBuffer::AddSphere(const Vector3& center, float radius, const Color4& color,
 	uint32_t division, float thickness, AssetID material) {
 
+	AdvanceRevision();
 	const uint32_t startOffset = static_cast<uint32_t>(points_.size());
 	// 線分リストとしてプールへ直接展開する
 	LineShapeBuilder::BuildSphere(center, radius, color, division, thickness, points_);
@@ -57,4 +61,10 @@ void Engine::LineImmediateBuffer::AddSphere(const Vector3& center, float radius,
 	entry.connected = false;
 	entry.material = material;
 	entries_.emplace_back(entry);
+}
+
+void Engine::LineImmediateBuffer::AdvanceRevision() {
+
+	if (contentRevision_ == UINT64_MAX) { throw std::overflow_error("即時Lineの世代が上限に達しました"); }
+	++contentRevision_;
 }

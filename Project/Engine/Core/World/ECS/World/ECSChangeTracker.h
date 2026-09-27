@@ -25,6 +25,7 @@ namespace Engine {
 		Removed,
 		Modified,
 		EntityDestroyed,
+		EntityCreated,
 	};
 
 	//============================================================================

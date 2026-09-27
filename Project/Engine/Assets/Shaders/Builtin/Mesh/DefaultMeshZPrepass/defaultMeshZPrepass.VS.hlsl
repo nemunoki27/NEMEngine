@@ -18,7 +18,7 @@ DepthVSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID)
 
 	DepthVSOutput output;
 	
-	output.position = mul(worldPos, viewProjection);
+	output.position = ResolveMeshRenderGroupPosition(mul(worldPos, viewProjection), instanceID, localSubMeshIndex);
 
 	return output;
 }

@@ -24,6 +24,16 @@ public abstract class Component : Object {
     public Transform transform => gameObject.transform;
     internal GameObject? ownerReference => owner;
 
+    internal void EnqueueDestroy() {
+
+        // 同型の別Scriptを削除しないようslotを渡す
+        if (this is MonoBehaviour script) {
+            NativeEntityAPI.EnqueueRemoveScript(native, script.scriptSlotID);
+        } else {
+            NativeEntityAPI.EnqueueRemoveComponent(native, nativeTypeID);
+        }
+    }
+
     internal override bool objectAlive => nativeInstanceID != 0 &&
         NativeEntityAPI.ReadComponentInstanceID(GameObject.RawNative(owner), nativeTypeID) == nativeInstanceID;
     private protected bool ownerAlive => owner != null;

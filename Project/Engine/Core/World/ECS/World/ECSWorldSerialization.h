@@ -26,7 +26,7 @@ namespace Engine {
 		//========================================================================
 
 		// 保存データからコンポーネントを追加する
-		static void AddComponentFromJson(ECSWorld& world,
+		static bool AddComponentFromJson(ECSWorld& world,
 			const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
 
 		// 保存データを既存コンポーネントへ適用する

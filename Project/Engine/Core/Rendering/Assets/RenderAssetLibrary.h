@@ -14,6 +14,7 @@
 // c++
 #include <unordered_map>
 #include <filesystem>
+#include <memory>
 #include <cctype>
 
 namespace Engine {
@@ -52,7 +53,7 @@ namespace Engine {
 		void RegisterDerivedMaterial(MaterialAsset material);
 
 		// マテリアルのキャッシュを破棄して次回ロードでファイルから読み直させる、実行中の編集反映に使う
-		void InvalidateMaterial(AssetID assetID) { materialCache_.erase(assetID); }
+		void InvalidateMaterial(AssetID assetID);
 		// シェーダーとパイプラインのアセットキャッシュを破棄する
 		void InvalidateShader(AssetID assetID) { shaderCache_.erase(assetID); }
 		void InvalidatePipeline(AssetID assetID) { pipelineCache_.erase(assetID); }
@@ -65,6 +66,8 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		AssetDatabase* GetDatabase() const { return database_; }
+		// 別Libraryと同じ更新番号でも内容を混同しない
+		const std::shared_ptr<const uint64_t>& GetMaterialRevision() const { return materialRevision_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -88,6 +91,7 @@ namespace Engine {
 		AssetDatabase* database_ = nullptr;
 		// フォントレイアウトキャッシュの世代判定に使うリビジョン
 		uint64_t nextFontContentRevision_ = 1;
+		std::shared_ptr<const uint64_t> materialRevision_ = std::make_shared<const uint64_t>(1);
 
 		// アセットIDからデータへのマップ
 		std::unordered_map<AssetID, ShaderAsset> shaderCache_;

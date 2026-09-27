@@ -1,0 +1,29 @@
+{
+  "guid": "219762d2117a857a06f7c4d4d93fbcaa",
+  "importer": "ScriptImporter",
+  "importerVersion": 1,
+  "schemaVersion": 2,
+  "settings": {},
+  "type": "Script",
+  "scripts": [
+    {
+      "fullTypeName": "SandboxScripts.RuntimeLifecycleProbe",
+      "scriptTypeId": "eed5af54-963a-4b78-81f0-b6106e6737e1",
+      "formerNames": [],
+      "fields": [
+        {
+          "fieldId": "6ae09a0e-2e17-4405-ae7c-2f39a2d7d39b",
+          "name": "lifecycleMask",
+          "type": "int",
+          "formerNames": []
+        },
+        {
+          "fieldId": "bda98a95-8333-4c86-b4d1-0320f6e3032a",
+          "name": "testValue",
+          "type": "float",
+          "formerNames": []
+        }
+      ]
+    }
+  ]
+}

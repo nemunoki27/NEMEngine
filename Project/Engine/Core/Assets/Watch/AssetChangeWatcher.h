@@ -38,6 +38,8 @@ namespace Engine {
 
 		// 前回以降に変更があったファイルの絶対パスを取り出して内部バッファをクリアする
 		void DrainChanges(std::vector<std::filesystem::path>& outPaths);
+		bool IsRunning() const { return running_.load(); }
+		const std::filesystem::path& GetDirectory() const { return directory_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -60,6 +62,8 @@ namespace Engine {
 
 		// スレッド稼働フラグ
 		std::atomic<bool> running_{ false };
+		// 通知欠落時は個別パスに代えて全体を再走査する
+		std::atomic<bool> rescanRequired_{ false };
 
 		// 収集した変更ファイルの絶対パスを保護するミューテックス
 		std::mutex mutex_;

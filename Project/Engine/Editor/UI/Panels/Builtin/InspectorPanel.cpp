@@ -148,6 +148,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	// インスペクターパネルの表示状態を確認
 	bool* open = ResolveOpenState(&context.layoutState->showInspector);
 	if (!*open) {
+		prefabBaseCache_.Clear();
 		return;
 	}
 
@@ -309,8 +310,16 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	auto editResult = MyGUI::InputText("Name", nameEditBuffer_);
 	if (editResult.editFinished) {
 		if (nameEditBuffer_ != currentName) {
-
-			context.host->ExecuteEditorCommand(std::make_unique<RenameEntityCommand>(entity, nameEditBuffer_));
+			if (context.IsPlaying()) {
+				// Play中は実行Worldの名前だけを書き換える
+				if (auto* name = world.TryGetComponent<NameComponent>(entity)) {
+					name->name = nameEditBuffer_;
+					world.MarkComponentModified<NameComponent>(entity);
+				}
+			} else {
+				context.host->ExecuteEditorCommand(
+					std::make_unique<RenameEntityCommand>(entity, nameEditBuffer_));
+			}
 		}
 	}
 
@@ -331,8 +340,16 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	std::string editTag = currentTag;
 	auto tagResult = MyGUI::StringCombo("Tag", editTag, std::span<const std::string>(tags.data(), tags.size()));
 	if (tagResult.valueChanged && editTag != currentTag) {
-
-		context.host->ExecuteEditorCommand(std::make_unique<SetEntityTagCommand>(entity, editTag));
+		if (context.IsPlaying()) {
+			// Play中は実行Worldのタグだけを書き換える
+			if (auto* sceneObject = world.TryGetComponent<SceneObjectComponent>(entity)) {
+				sceneObject->tag = editTag;
+				world.MarkComponentModified<SceneObjectComponent>(entity);
+			}
+		} else {
+			context.host->ExecuteEditorCommand(
+				std::make_unique<SetEntityTagCommand>(entity, editTag));
+		}
 	}
 
 	// タグの追加削除はTag Managerツールで行う、Unityのタグ管理と同じ導線
@@ -398,7 +415,8 @@ void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& cont
 	float spacing = ImGui::GetStyle().ItemSpacing.x;
 	float width = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
 
-	if (!context.CanEditScene()) {
+	const bool canEditRuntimeWorld = context.CanEditScene() || context.IsPlaying();
+	if (!canEditRuntimeWorld) {
 		ImGui::BeginDisabled();
 	}
 
@@ -413,7 +431,7 @@ void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& cont
 		ImGui::OpenPopup("##Inspector_RemoveComponentPopup");
 	}
 
-	if (!context.CanEditScene()) {
+	if (!canEditRuntimeWorld) {
 		ImGui::EndDisabled();
 	}
 
@@ -569,7 +587,7 @@ void Engine::InspectorPanel::DrawAddScriptEntries(const EditorPanelContext& cont
 void Engine::InspectorPanel::DrawScriptAssetDropTarget(const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, const Entity& entity) {
 
-	if (!context.CanEditScene() || !context.host) {
+	if ((!context.CanEditScene() && !context.IsPlaying()) || !context.host) {
 		return;
 	}
 
@@ -672,20 +690,33 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 	// 差分一覧を開くまで所属同期と差分計算を行わない
 	if (ImGui::Button("Prefab 上書きパラメータ###PrefabOverrideButton", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
 		overrideChoices_.clear();
+		prefabBaseCache_.Clear();
 		ImGui::OpenPopup("PrefabOverridesPopup");
 	}
 	ImGui::Spacing();
 	if (!ImGui::BeginPopup("PrefabOverridesPopup")) {
+		prefabBaseCache_.Clear();
 		return;
 	}
 
 	const PrefabLinkComponent link = world.GetComponent<PrefabLinkComponent>(entity);
 
 	// 一覧表示に必要なインスタンス差分を取得
-	const auto& base = PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(*database, link.prefabAsset);
+	const auto baseSnapshot = prefabBaseCache_.Load(*database, link.prefabAsset);
+	if (!baseSnapshot) {
+		ImGui::TextUnformatted("Prefabの基準データを読み込めません");
+		ImGui::EndPopup();
+		return;
+	}
+	const auto& base = *baseSnapshot;
 	PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(world);
 	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(
 		world, *database, link.prefabInstanceID, base);
+	if (!data.instanceID) {
+		ImGui::TextUnformatted("Prefabの差分を取得できません。参照先のAssetを確認してください");
+		ImGui::EndPopup();
+		return;
+	}
 	data.prefabAsset = link.prefabAsset;
 	const UUID sceneInstanceID = world.HasComponent<SceneObjectComponent>(entity) ?
 		world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID : UUID{};
@@ -833,7 +864,7 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 		// プレファブファイルを読み、Apply対象を書き込む
 		const auto prefabPath = database->ResolveFullPath(link.prefabAsset);
 		nlohmann::json prefabFileJson = JsonAdapter::Load(prefabPath.string(), true);
-		const auto oldBase = base;
+		const auto& oldBase = base;
 		bool prefabChanged = false;
 		bool instanceHierarchyChanged = false;
 		std::vector<PrefabPropertyModification> propertiesToRevert;
@@ -892,30 +923,48 @@ void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& cont
 				addedRootsToRevert.emplace_back(addedRoot);
 			}
 		}
+		auto rollbackPromotedLinks = [&]() {
+
+			// 保存前に追加したPrefabリンクだけを取り消す
+			for (const Entity& addedRoot : addedRootsToApply) {
+				for (const Entity& promoted :
+					EditorEntitySnapshotUtility::CollectSubtreeEntities(world, addedRoot)) {
+
+					if (world.IsAlive(promoted) && world.HasComponent<PrefabLinkComponent>(promoted)) {
+						world.RemoveComponentByName(promoted, "PrefabLink");
+					}
+				}
+			}
+		};
 		if (!addedRootsToApply.empty()) {
 
-			prefabChanged |= PrefabOverrideUtility::PromoteAddedEntitySubtrees(
-				prefabFileJson, world, link.prefabAsset, link.prefabInstanceID, addedRootsToApply);
+			try {
+				prefabChanged |= PrefabOverrideUtility::PromoteAddedEntitySubtrees(
+					prefabFileJson, world, link.prefabAsset, link.prefabInstanceID, addedRootsToApply);
+			} catch (...) {
+				rollbackPromotedLinks();
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"[Prefab] 追加EntityのPrefab昇格に失敗したため反映を中止しました path={}",
+					prefabPath.string());
+			}
 		}
 		bool applySucceeded = true;
 		if (prefabChanged) {
-			PrefabReferenceRemapper::NormalizePrefabFileHierarchy(prefabFileJson);
-			PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(prefabFileJson);
-			applySucceeded = JsonAdapter::SaveCanonical(prefabPath, prefabFileJson);
-			if (applySucceeded) {
-				PrefabOverrideUtility::InvalidatePrefabBaseCache(link.prefabAsset);
+			try {
+				// 正規化と保存が完了するまでライブリンクを確定しない
+				PrefabReferenceRemapper::NormalizePrefabFileHierarchy(prefabFileJson);
+				PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(prefabFileJson);
+				applySucceeded = JsonAdapter::SaveCanonical(prefabPath, prefabFileJson);
+				if (applySucceeded) {
+					database->NotifyContentChanged(link.prefabAsset);
+					prefabBaseCache_.Clear();
+				}
+			} catch (...) {
+				applySucceeded = false;
 			}
 			if (!applySucceeded) {
 
-				for (const Entity& addedRoot : addedRootsToApply) {
-					for (const Entity& promoted :
-						EditorEntitySnapshotUtility::CollectSubtreeEntities(world, addedRoot)) {
-
-						if (world.IsAlive(promoted) && world.HasComponent<PrefabLinkComponent>(promoted)) {
-							world.RemoveComponentByName(promoted, "PrefabLink");
-						}
-					}
-				}
+				rollbackPromotedLinks();
 				Logger::Output(LogType::Engine, spdlog::level::err,
 					"[Prefab] Prefabアセットを保存できなかったため反映を中止しました path={}",
 					prefabPath.string());

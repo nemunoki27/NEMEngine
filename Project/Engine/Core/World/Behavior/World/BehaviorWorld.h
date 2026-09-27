@@ -44,7 +44,7 @@ namespace Engine {
 		// authoringへは書き戻さずPlay終了でrecordごと破棄される
 		bool runtimeEnabledOverride = false;
 		bool hasRuntimeEnabledOverride = false;
-		// callback内で回復不能な例外が発生した状態でfaulted以降はgameplay callbackを呼ばない
+		// インスタンス生成に失敗して継続できない状態
 		bool faulted = false;
 		// スイープ用
 		bool seen = false;

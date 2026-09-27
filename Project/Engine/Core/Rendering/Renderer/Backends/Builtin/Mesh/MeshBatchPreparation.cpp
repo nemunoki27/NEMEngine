@@ -163,6 +163,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		// スキニング結果はポーズ世代が変わるまでフレームを跨いで再利用する
 		SkinnedBatchCacheKey key{};
 		key.world = outPrepared.items.front()->world;
+		key.worldLifetime = key.world ? key.world->GetLifetime() : nullptr;
 		key.mesh = outPrepared.batchMesh;
 		key.hash = BuildBatchHash(outPrepared.items);
 		auto it = skinnedBatchCache_.find(key);
@@ -170,11 +171,14 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 
 			resources = it->second.resources.get();
 			resources->UpdateView(*context.view, context.cullingView);
-			if (it->second.lastUploadFrame != frameIndex_) {
+			if (it->second.lastUploadFrame != frameIndex_ ||
+				it->second.transformRevision != context.batch->GetSourceTransformRevision() ||
+				!resources->MatchesBatch(*context.batch, outPrepared.items, *outPrepared.gpuMesh)) {
 
 				resources->UploadBatchData(context, *context.batch,
 					outPrepared.items, *outPrepared.gpuMesh);
 				it->second.lastUploadFrame = frameIndex_;
+				it->second.transformRevision = context.batch->GetSourceTransformRevision();
 			}
 			it->second.lastUsedFrame = frameIndex_;
 		} else {
@@ -187,6 +191,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 				outPrepared.items, *outPrepared.gpuMesh);
 			entry.lastUsedFrame = frameIndex_;
 			entry.lastUploadFrame = frameIndex_;
+			entry.transformRevision = context.batch->GetSourceTransformRevision();
 			resources = entry.resources.get();
 			skinnedBatchCache_.emplace(key, std::move(entry));
 		}
@@ -260,11 +265,6 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 	}
 	outPrepared.resources = resources;
 
-	// スキニング済み頂点の検索テーブルを構築
-	if (outPrepared.gpuMesh->isSkinned && resources->HasSkinningResources()) {
-
-		RegisterSkinnedSources(outPrepared.batchMesh, *resources, outPrepared.items);
-	}
 	return true;
 }
 
@@ -305,9 +305,12 @@ bool Engine::MeshRenderBackend::PrepareBatch(const RenderDrawContext& context,
 			outPrepared.material = sourceMaterial;
 		}
 	}
-	// マテリアル依存の頂点変位を含む描画定数はパス解決後に毎描画更新する
+	// 両面描画やShader差替えに元の背面判定を流用しない
+	const bool normalConeAllowed = outPrepared.variant->rasterizer.CullMode == D3D12_CULL_MODE_BACK &&
+		!outPrepared.variant->rasterizer.FrontCounterClockwise && !resolvedPass.pass->shaderOverride;
+	// パスごとの変位と背面設定を描画定数へ渡す
 	outPrepared.resources->UpdateDrawConstants(
 		context, *outPrepared.gpuMesh, outPrepared.subMeshIndex,
-		outPrepared.subMeshGroupIndex, outPrepared.material);
+		outPrepared.subMeshGroupIndex, outPrepared.material, normalConeAllowed);
 	return true;
 }

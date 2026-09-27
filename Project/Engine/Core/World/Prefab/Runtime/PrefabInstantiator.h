@@ -35,7 +35,9 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
-		// ワールド内で重複しないSceneローカルIDを採番する
-		static Engine::UUID AllocateUniqueLocalFileID(ECSWorld& world);
+		// 検証済みの文書から実体と参照を構築する
+		static bool Instantiate(PrefabGenerationContext& context, AssetID prefabAsset,
+			PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc);
+
 	};
 } // Engine

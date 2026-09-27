@@ -32,30 +32,25 @@ void Engine::GraphicsFeatureController::ApplyDetectedSupport(
 	adapterInfo_ = adapterInfo;
 	support_ = support;
 
-	// 初回適用時は、サポート状況を元にユーザー設定の初期値を決定する
+	// 初回適用時は保存済みの希望設定を読み込む
 	if (firstApply) {
 
-		preferences_.allowInlineRayTracing = support_.SupportsRayTracingPath();
-		preferences_.allowDispatchRays = support_.SupportsRayTracingPath();
 		LoadPreferencesFromConfig();
 		initialized_ = true;
 	}
-	ClampPreferencesToSupport();
+	// 対応状況で実行経路だけを制限し、ユーザー設定は保持する
 	RebuildRuntimeFeatures();
-	SavePreferencesToConfig();
 	LogCurrentState();
 }
 
 void Engine::GraphicsFeatureController::SetAllowMeshShader(bool enabled) {
 
-	// サポートしていない機能を有効にしようとした場合は、強制的に無効にする
-	bool clamped = enabled && support_.SupportsMeshShaderPath();
-	if (preferences_.allowMeshShader == clamped) {
+	if (preferences_.allowMeshShader == enabled) {
 		return;
 	}
 
-	// 設定を更新して、ランタイムの機能も再構築する
-	preferences_.allowMeshShader = clamped;
+	// 希望設定を保存し、実行経路は対応状況から別に解決する
+	preferences_.allowMeshShader = enabled;
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
@@ -64,12 +59,11 @@ void Engine::GraphicsFeatureController::SetAllowMeshShader(bool enabled) {
 
 void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
 
-	bool clamped = enabled && support_.SupportsRayTracingPath();
-	if (preferences_.allowInlineRayTracing == clamped) {
+	if (preferences_.allowInlineRayTracing == enabled) {
 		return;
 	}
 
-	preferences_.allowInlineRayTracing = clamped;
+	preferences_.allowInlineRayTracing = enabled;
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
@@ -78,12 +72,11 @@ void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {
 
 void Engine::GraphicsFeatureController::SetAllowDispatchRays(bool enabled) {
 
-	bool clamped = enabled && support_.SupportsRayTracingPath();
-	if (preferences_.allowDispatchRays == clamped) {
+	if (preferences_.allowDispatchRays == enabled) {
 		return;
 	}
 
-	preferences_.allowDispatchRays = clamped;
+	preferences_.allowDispatchRays = enabled;
 	RebuildRuntimeFeatures();
 	SavePreferencesToConfig();
 
@@ -269,19 +262,6 @@ void Engine::GraphicsFeatureController::SetDisplayLuminance(
 	preferences_.displayOutput.paperWhiteNits = paperWhiteNits;
 	preferences_.displayOutput.maxLuminanceNits = maxLuminanceNits;
 	SavePreferencesToConfig();
-}
-
-void Engine::GraphicsFeatureController::ClampPreferencesToSupport() {
-
-	if (!support_.SupportsMeshShaderPath()) {
-
-		preferences_.allowMeshShader = false;
-	}
-	if (!support_.SupportsRayTracingPath()) {
-
-		preferences_.allowInlineRayTracing = false;
-		preferences_.allowDispatchRays = false;
-	}
 }
 
 void Engine::GraphicsFeatureController::RebuildRuntimeFeatures() {

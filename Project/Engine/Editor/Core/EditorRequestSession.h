@@ -5,6 +5,10 @@
 //============================================================================
 #include "EditorSceneRequest.h"
 
+// c++
+#include <optional>
+#include <unordered_map>
+
 namespace Engine {
 
 	//============================================================================
@@ -59,6 +63,14 @@ namespace Engine {
 		void DrawUnsavedScenePopup();
 		// 未保存確認を表示する
 		void DrawCloseUnsavedScenePopup();
+		// 同一Sceneの保存元選択を要求する
+		void RequestSceneSaveConflict(const std::vector<SceneSaveConflictChoice>& choices);
+		// 保存元選択の結果を取り出す
+		std::optional<SceneSaveConflictResult> ConsumeSceneSaveConflictResult();
+		// 表示した選択肢と照合して保存元の回答を受け付ける
+		bool SubmitSceneSaveConflictResult(SceneSaveConflictResult result);
+		// 保存元選択Popupを描画する
+		void DrawSceneSaveConflictPopup();
 		// 保留中の確認だけを解除する
 		void ResetPending();
 		// 再生要求だけを解除する
@@ -86,6 +98,11 @@ namespace Engine {
 		bool requestOpenCloseUnsavedPopup_ = false;
 		// 終了時の未保存確認結果
 		EditorUnsavedScenePopupResult closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
+		// 同一Scene保存の選択Popup
+		bool requestOpenSceneSaveConflictPopup_ = false;
+		std::vector<SceneSaveConflictChoice> sceneSaveConflictChoices_;
+		std::vector<int> sceneSaveConflictSelection_;
+		std::optional<SceneSaveConflictResult> sceneSaveConflictResult_;
 
 		//--------- functions ----------------------------------------------------
 

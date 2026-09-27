@@ -54,10 +54,17 @@ void Engine::RaytracingTLASState::RecordInstances(std::span<const RaytracingTLAS
 }
 
 void Engine::RaytracingTLASState::BuildORUpdate(GraphicsCore& graphicsCore, const std::vector<RaytracingTLASInstance>& tlasInstances,
-			const std::vector<RaytracingTLASInstance>& previousInstances, uint32_t previousCount, bool requireTlasRebuild) {
+			const std::vector<RaytracingTLASInstance>& previousInstances, uint32_t previousCount, bool requireTlasRebuild, bool blasContentsChanged) {
 
-	auto* device = graphicsCore.GetDXObject().GetDevice();
-	auto* commandList = graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+	auto& dxObject = graphicsCore.GetDXObject();
+	BuildORUpdate(dxObject.GetDevice(), dxObject.GetDxCommand()->GetCommandList(), dxObject.GetResourceRetirement(),
+		tlasInstances, previousInstances, previousCount, requireTlasRebuild, blasContentsChanged);
+}
+
+void Engine::RaytracingTLASState::BuildORUpdate(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList,
+	GraphicsResourceRetirement& retirement, const std::vector<RaytracingTLASInstance>& tlasInstances,
+	const std::vector<RaytracingTLASInstance>& previousInstances, uint32_t previousCount, bool requireTlasRebuild, bool blasContentsChanged) {
+
 	const uint64_t tlasInstanceHash =
 		ComputeTLASInstanceHash(tlasInstances);
 	uint32_t changedInstanceCount = 0;
@@ -89,14 +96,15 @@ void Engine::RaytracingTLASState::BuildORUpdate(GraphicsCore& graphicsCore, cons
 		requireTlasRebuild || instanceCountChanged ||
 		rebuildForTraceQuality) {
 
-		tlas_.SetRetirementQueue(graphicsCore.GetDXObject().GetResourceRetirement());
+		tlas_.SetRetirementQueue(retirement);
 		tlas_.Build(device, commandList, tlasInstances, true);
 		consecutiveTLASRefitCount_ = 0;
 		firstTLASBuild_ = false;
 		FrameProfiler::GetInstance().AddTLASBuild();
-	} else if (tlasInstanceHash_ != tlasInstanceHash) {
+	} else if (blasContentsChanged || tlasInstanceHash_ != tlasInstanceHash) {
 
-		RefitORRebuild(graphicsCore, tlasInstances, false);
+		// BLASのアドレスが同じでも境界を更新する
+		RefitORRebuild(commandList, tlasInstances, false);
 	} else {
 
 		FrameProfiler::GetInstance().AddTLASSkip();
@@ -138,6 +146,12 @@ void Engine::RaytracingTLASState::RefitORRebuild(
 
 	ID3D12GraphicsCommandList6* commandList =
 		graphicsCore.GetDXObject().GetDxCommand()->GetCommandList();
+	RefitORRebuild(commandList, instances, forceRebuild);
+}
+
+void Engine::RaytracingTLASState::RefitORRebuild(ID3D12GraphicsCommandList6* commandList,
+	const std::vector<RaytracingTLASInstance>& instances, bool forceRebuild) {
+
 	if (forceRebuild || kMaxConsecutiveTLASRefits <=
 		consecutiveTLASRefitCount_ + 1) {
 

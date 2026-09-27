@@ -410,7 +410,12 @@
     {
       "name": "attachScript",
       "nativeType": "AttachScriptCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle>"
+    },
+    {
+      "name": "removeScript",
+      "nativeType": "RemoveScriptCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, void>"
     },
     {
       "name": "loadSceneSingle",
@@ -425,7 +430,7 @@
     {
       "name": "resolveEntityRef",
       "nativeType": "ResolveEntityRefCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity>"
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity, NativeEntity>"
     },
     {
       "name": "lineSetPoints",

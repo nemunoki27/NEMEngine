@@ -33,7 +33,7 @@ Engine::BehaviorRecordSynchronizer::BehaviorRecordSynchronizer(BehaviorWorld& ru
 	bool& participantsDirty, bool& enableTransitionsDirty) :
 	runtime_(runtime), dirtyScriptEntities_(dirtyEntities), participantsDirty_(participantsDirty), enableTransitionsDirty_(enableTransitionsDirty) {}
 
-void Engine::BehaviorRecordSynchronizer::SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep) {
+void Engine::BehaviorRecordSynchronizer::SynchronizeRecords(ECSWorld& world, const SystemContext& context, bool sweep) {
 
 	// 全同期はWorld開始、Scene構成変更、Hot Reloadだけで実行する
 	runtime_.ClearSeenFlags();
@@ -49,7 +49,7 @@ void Engine::BehaviorRecordSynchronizer::SynchronizeRecords(ECSWorld& world, Sys
 	enableTransitionsDirty_ = true;
 }
 
-void Engine::BehaviorRecordSynchronizer::SynchronizeDirtyRecords(ECSWorld& world, SystemContext& context) {
+void Engine::BehaviorRecordSynchronizer::SynchronizeDirtyRecords(ECSWorld& world, const SystemContext& context) {
 
 	if (dirtyScriptEntities_.empty()) {
 		return;
@@ -75,7 +75,7 @@ void Engine::BehaviorRecordSynchronizer::SynchronizeDirtyRecords(ECSWorld& world
 	enableTransitionsDirty_ = true;
 }
 
-void Engine::BehaviorRecordSynchronizer::SynchronizeEntityRecords(ECSWorld& world, SystemContext& context,
+void Engine::BehaviorRecordSynchronizer::SynchronizeEntityRecords(ECSWorld& world, const SystemContext& context,
 	const Entity& entity, bool clearOwnerSeen) {
 
 	if (clearOwnerSeen) {

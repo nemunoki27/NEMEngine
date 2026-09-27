@@ -11,6 +11,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
@@ -31,63 +32,53 @@ bool Engine::SceneSystem::CopySceneAssets(const std::vector<SceneAssetCopy>& cop
 bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSWorld& world, AssetDatabase* assetDatabase,
 	AssetID sourceAsset, UUID sceneInstanceID, SceneHeader* outHeader, std::vector<Entity>* outCreatedEntities) const {
 
-	// 読み込み開始時の状態を基準にし、途中の外部変更も保存時に検出する
 	try {
-		if (world.GetKind() == ECSWorldKind::Authoring) {
-			storage_->TrackLoaded(scenePath, sourceAsset);
-		}
-	} catch (const std::exception& exception) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] 保存状態を確認できません scene={} 詳細={}", Algorithm::PathToUTF8(scenePath), exception.what());
-		return false;
-	}
-	// ファイルからnlohmann::jsonをロード
-	nlohmann::json root = JsonAdapter::Load(scenePath, true);
-	if (!ValidateSceneFileRoot(root)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] 未対応のScene Schemaです 期待値={} scene={}",
-			kSceneSchemaVersion, Algorithm::PathToUTF8(scenePath));
-		return false;
-	}
-	if (root.contains("ExternalActors") &&
-		!LoadExternalActors(scenePath, sourceAsset, root)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] ExternalActorを読み込めません scene={}",
-			Algorithm::PathToUTF8(scenePath));
-		return false;
-	}
-	if (outHeader) {
-		if (!FromJson(root["Header"], *outHeader, assetDatabase)) {
+		const bool trackChanges = world.GetKind() == ECSWorldKind::Authoring;
+		const std::string readRevision = trackChanges ? storage_->CaptureRevision(scenePath, sourceAsset) : std::string{};
+		// ファイルの読込失敗を実体生成へ持ち込まない
+		nlohmann::json root;
+		std::string diagnostic;
+		if (!JsonFile::TryLoad(scenePath, root, &diagnostic) || !ValidateSceneFileRoot(root)) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SceneSystem] Scene文書を読み込めません scene={} 詳細={}", Algorithm::PathToUTF8(scenePath), diagnostic);
 			return false;
 		}
-		// シーン表示名はファイル名を正として、外部リネーム後も古いHeader名を残さない
-		if (const std::string assetName = MakeSceneAssetName(scenePath);
-			!assetName.empty()) {
-			outHeader->name = assetName;
+		if (root.contains("ExternalActors") && !LoadExternalActors(scenePath, sourceAsset, root)) {
+			return false;
 		}
-		outHeader->guid = sourceAsset;
-		EnsureSceneRenderFeatureProfile(*outHeader,
-			Algorithm::PathToUTF8(scenePath), assetDatabase);
-	}
-	if (LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities)) {
+		SceneHeader header;
+		// 出力先がなくてもHeaderの不正を検出する
+		if (!FromJson(root["Header"], header, assetDatabase)) {
+			return false;
+		}
+		if (outHeader) {
+			if (const auto name = MakeSceneAssetName(scenePath); !name.empty()) {
+				header.name = name;
+			}
+			header.guid = sourceAsset;
+			EnsureSceneRenderFeatureProfile(header, Algorithm::PathToUTF8(scenePath), assetDatabase);
+		}
+		// 別の保存内容が混ざった読込では実体を作らない
+		if (trackChanges && !storage_->MatchesRevision(scenePath, sourceAsset, readRevision)) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[SceneSystem] Scene読込中に外部変更を検出しました scene={}", Algorithm::PathToUTF8(scenePath));
+			return false;
+		}
+		if (!LoadFromJson(root, world, assetDatabase, sourceAsset, sceneInstanceID, outCreatedEntities)) {
+			return false;
+		}
+		// 成功した読込の基準だけを保存管理へ渡す
+		if (trackChanges) storage_->TrackLoaded(scenePath, sourceAsset, readRevision);
+		// 実体生成と一組でHeaderを公開する
+		if (outHeader) {
+			*outHeader = std::move(header);
+		}
 		return true;
+	} catch (const std::exception& error) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[SceneSystem] Scene読込に失敗しました scene={} 詳細={}", Algorithm::PathToUTF8(scenePath), error.what());
+		return false;
 	}
-
-	// 読込途中のEntityを残さず、呼び出し元が同じWorldを継続利用できる状態へ戻す
-	std::vector<Entity> failedEntities;
-	world.ForEach<SceneObjectComponent>([&](const Entity& entity, SceneObjectComponent& sceneObject) {
-		if (sceneObject.sceneInstanceID == sceneInstanceID) {
-			failedEntities.emplace_back(entity);
-		}
-		});
-	for (auto it = failedEntities.rbegin(); it != failedEntities.rend(); ++it) {
-		world.DestroyEntity(*it);
-	}
-	world.FlushPendingDestroyEntities();
-	if (outCreatedEntities) {
-		outCreatedEntities->clear();
-	}
-	return false;
 }
 
 bool Engine::SceneSystem::SaveScene(const std::filesystem::path& scenePath, ECSWorld& world,

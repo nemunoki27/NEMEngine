@@ -44,6 +44,7 @@
 // c++
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -210,11 +211,15 @@ namespace Engine {
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
 		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
+		// プレビューMeshの読込結果を公開し、現在の世代を返す
+		uint64_t PreparePreviewMeshes(GraphicsCore& graphicsCore, AssetDatabase& database, std::span<const AssetID> assets);
 
 		//--------- accessor -----------------------------------------------------
 
 		ViewportRenderService& GetViewportRenderService() { return *viewportRenderService_.get(); }
 		const ViewportRenderService& GetViewportRenderService() const { return *viewportRenderService_.get(); }
+		// 描画結果の検証用にView内の色Bufferを貸し出す
+		const RenderTexture2D* FindViewColorTexture(RenderViewKind kind, const std::string& name) const;
 		RenderAssetLibrary& GetRenderAssetLibrary() { return renderAssetLibrary_; }
 		const RenderAssetLibrary& GetRenderAssetLibrary() const { return renderAssetLibrary_; }
 

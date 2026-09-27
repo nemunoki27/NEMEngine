@@ -29,5 +29,10 @@ namespace Engine {
 		static bool LoadFromJson(const nlohmann::json& sourceRoot, ECSWorld& world,
 			AssetDatabase* assetDatabase, AssetID sourceAsset, UUID sceneInstanceID,
 			std::vector<Entity>* outCreatedEntities);
+	private:
+		// 検証済み文書の実体を作成する
+		static bool Instantiate(const nlohmann::json& sourceRoot, ECSWorld& world,
+			AssetDatabase* assetDatabase, AssetID sourceAsset, UUID sceneInstanceID,
+			std::vector<Entity>* outCreatedEntities);
 	};
 } // Engine

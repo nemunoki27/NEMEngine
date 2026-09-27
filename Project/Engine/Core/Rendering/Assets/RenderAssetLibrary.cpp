@@ -65,12 +65,14 @@ void Engine::RenderAssetLibrary::Init(AssetDatabase* database) {
 
 void Engine::RenderAssetLibrary::Clear() {
 
+	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
 	shaderCache_.clear();
 	pipelineCache_.clear();
 	materialCache_.clear();
 	fontCache_.clear();
 	particleEffectCache_.clear();
 	renderFeatureProfileCache_.clear();
+	materialRevision_ = revision;
 }
 
 void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
@@ -227,7 +229,17 @@ void Engine::RenderAssetLibrary::RegisterDerivedMaterial(
 	MaterialAsset material) {
 
 	if (material.guid) {
+		const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
 		materialCache_.insert_or_assign(
 			material.guid, std::move(material));
+		materialRevision_ = revision;
 	}
+}
+
+void Engine::RenderAssetLibrary::InvalidateMaterial(AssetID assetID) {
+
+	// 静的な描画結果にもMaterialの再読込を伝える
+	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
+	materialCache_.erase(assetID);
+	materialRevision_ = revision;
 }

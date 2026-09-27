@@ -75,6 +75,8 @@ namespace Engine {
 		// Play中runtime Inspector用でinstanceの現在値を{ fieldGuid: value }で返す
 		// ネイティブMonoBehaviorは保存対象を持たないため既定で空
 		virtual nlohmann::json GetRuntimeSerializedState() { return nlohmann::json::object(); }
+		// 複製時の保存値を取得する
+		virtual bool CaptureSavedFields(ECSWorld& world, nlohmann::json& fields);
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
 		virtual void SetRuntimeSerializedField([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const std::string& fieldID,
 			[[maybe_unused]] const nlohmann::json& value) {}
@@ -88,8 +90,7 @@ namespace Engine {
 		// ネイティブMonoBehaviorは自身が実体なので既定でtrue
 		virtual bool EnsureInstance([[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity) { return true; }
 
-		// callback内で回復不能な例外が発生したか
-		// faulted状態のビヘイビアは以降のgameplay callbackを停止する
+		// インスタンスを継続できない状態か
 		// ネイティブMonoBehaviorは例外を境界越えしないため既定でfalse
 		virtual bool IsFaulted() const { return false; }
 	};

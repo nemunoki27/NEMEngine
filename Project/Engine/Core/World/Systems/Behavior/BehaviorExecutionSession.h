@@ -55,19 +55,19 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// アクティブなワールドを設定
-		void EnsureActiveWorld(ECSWorld& world, SystemContext& context);
+		void EnsureActiveWorld(ECSWorld& world, const SystemContext& context);
 		// ワールド内のビヘイビアハンドルをリセット
 		void ResetRuntimeState(ECSWorld& world);
 
 		// 全パスをまとめて実行する、sweep時は参照されなくなったビヘイビアを破棄する
-		void SynchronizeLifecycle(ECSWorld& world, SystemContext& context, bool sweep);
+		void SynchronizeLifecycle(ECSWorld& world, const SystemContext& context, bool sweep);
 
 		// Component変更通知をDirty状態へ変換する
 		static void OnComponentMutation(ECSWorld& world, const Entity& entity,
 			uint32_t typeID, ComponentMutationKind kind, void* userData);
 
 		// Pass2: activeなscriptのAwakeを全件実行
-		void InvokePendingAwake(ECSWorld& world, SystemContext& context);
+		void InvokePendingAwake(ECSWorld& world, const SystemContext& context);
 		// runtime設定を優先してscriptの有効状態を取得する
 		bool IsParticipantEnabled(ECSWorld& world, const SyncParticipant& participant,
 			const BehaviorRecord& record) const;
@@ -77,16 +77,16 @@ namespace Engine {
 		// コールバック後にハンドルからレコードを取り直して例外状態を反映する
 		void RefreshFaultState(const BehaviorHandle& handle);
 		// Active変更で発生したAwakeとOnEnableとOnDisableを安定するまで反映する
-		void FlushActiveTransitions(ECSWorld& world, SystemContext& context);
+		void FlushActiveTransitions(ECSWorld& world, const SystemContext& context);
 		// ScriptまたはActive変更が残っていればライフサイクルを同期する
-		void SynchronizeLifecycleIfDirty(ECSWorld& world, SystemContext& context);
+		void SynchronizeLifecycleIfDirty(ECSWorld& world, const SystemContext& context);
 		// Pass3: OnEnable/OnDisableの遷移を全件反映
-		void ApplyEnableTransitions(ECSWorld& world, SystemContext& context);
+		void ApplyEnableTransitions(ECSWorld& world, const SystemContext& context);
 		// Pass5: Startを全件実行し実行したものがあればtrueを返す
-		bool InvokePendingStart(ECSWorld& world, SystemContext& context);
+		bool InvokePendingStart(ECSWorld& world, const SystemContext& context);
 
 		// 衝突イベントを対象Entityのビヘイビアへ渡す
-		void DispatchCollision(ECSWorld& world, SystemContext& context, const CollisionContact& collision, int32_t phase);
+		void DispatchCollision(ECSWorld& world, const SystemContext& context, const CollisionContact& collision, int32_t phase);
 
 	};
 }

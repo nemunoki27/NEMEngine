@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Assets/AssetTypes.h>
 
 namespace Engine {
 
@@ -28,6 +29,8 @@ namespace Engine {
 		Entity FindByLocalFileID(ECSWorld& world, UUID localFileID);
 		// 指定したシーンインスタンス内のlocalFileIDからEntityを探す
 		Entity FindByLocalFileID(ECSWorld& world, UUID sceneInstanceID, UUID localFileID);
+		// AssetとLocalFileIDが一致し、一意に決まる保存参照を解決する
+		Entity ResolveReference(ECSWorld& world, AssetID sourceAsset, UUID localFileID, UUID preferredScene = {});
 
 	} // SceneObjectUtility
 } // Engine

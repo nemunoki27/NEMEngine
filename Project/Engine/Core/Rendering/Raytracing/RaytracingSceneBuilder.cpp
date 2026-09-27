@@ -27,6 +27,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <algorithm>
 #include <bit>
 #include <cmath>
 #include <cstddef>
@@ -70,6 +71,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	cachedMeshLODRecordIndices_.clear();
 
 	materialResolver_.Clear();
+	materialRevision_.reset();
 	sceneMaterialGeneration_ = 0;
 	cachedSceneMaterialHash_ = 0;
 
@@ -78,9 +80,12 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 	initialized_ = false;
 	builtThisFrame_ = false;
 	builtWorld_ = nullptr;
+	builtWorldLifetime_.reset();
 	builtSceneInstanceID_ = {};
 	cachedStaticScene_ = false;
 	cachedWorld_ = nullptr;
+	cachedWorldLifetime_.reset();
+	cachedExtractorRevision_.reset();
 	cachedSceneInstanceID_ = {};
 	cachedRenderRevision_ = 0;
 	cachedTransformRevision_ = 0;
@@ -99,6 +104,7 @@ void Engine::RaytracingSceneBuilder::BeginFrame(GraphicsCore& graphicsCore) {
 	// フラグリセット
 	builtThisFrame_ = false;
 	builtWorld_ = nullptr;
+	builtWorldLifetime_.reset();
 	builtSceneInstanceID_ = {};
 
 	blasCache_.CollectExpired();
@@ -129,21 +135,36 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		builtThisFrame_ = false;
 	}
 
-	// すでに同一シーンインスタンスで構築している場合は、構築済みのシーン情報を渡す
-	if (builtThisFrame_ && builtWorld_ == context.world &&
-		builtSceneInstanceID_ == context.sceneInstance->instanceID) {
+	const uint64_t meshResourceRevision =
+		meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
+	// Worldに変更がなくてもMaterialの編集結果を構築し直す
+	if (materialRevision_ != assetLibrary.GetMaterialRevision()) {
+		materialRevision_ = assetLibrary.GetMaterialRevision();
+		cachedStaticScene_ = false;
+		builtThisFrame_ = false;
+	}
+	const GraphicsRuntimeFeatures& runtimeFeatures =
+		featureController.GetRuntimeFeatures();
+	const ResolvedRenderView* lodView = context.view;
+	const uint64_t lodViewHash =
+		ComputeLODViewHash(runtimeFeatures, lodView);
+	// 同じ描画条件だけ構築済み結果を共有する
+	if (builtThisFrame_ && builtWorld_ == context.world && builtWorldLifetime_ && builtWorldLifetime_->IsAlive() &&
+		builtSceneInstanceID_ == context.sceneInstance->instanceID &&
+		builtRenderRevision_ == renderBatch.GetSourceRevision() &&
+		builtMeshResourceRevision_ == meshResourceRevision && builtLODViewHash_ == lodViewHash) {
 		PublishBuiltScene(context);
 		return;
 	}
-
-	const uint64_t meshResourceRevision =
-		meshBackend ? meshBackend->GetMeshResourceRevision() : 0;
-	const GraphicsRuntimeFeatures& runtimeFeatures =
-		featureController.GetRuntimeFeatures();
-	const ResolvedRenderView* lodView =
-		context.cullingView ? context.cullingView : context.view;
-	const uint64_t lodViewHash =
-		ComputeLODViewHash(runtimeFeatures, lodView);
+	auto recordBuiltScene = [&]() {
+		builtThisFrame_ = true;
+		builtWorld_ = context.world;
+		builtWorldLifetime_ = context.world ? context.world->GetLifetime() : nullptr;
+		builtRenderRevision_ = renderBatch.GetSourceRevision();
+		builtMeshResourceRevision_ = meshResourceRevision;
+		builtLODViewHash_ = lodViewHash;
+		builtSceneInstanceID_ = context.sceneInstance->instanceID;
+	};
 	bool lodResourceMissing = false;
 	auto updateCachedLODSelections = [&]() {
 
@@ -168,6 +189,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			if (!meshResource ||
 				record.tlasInstanceIndex >=
 					cachedTLASInstances_.size()) {
+				lodResourceMissing = true;
 				continue;
 			}
 
@@ -176,6 +198,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 				StaticInstanceBLASKey key{};
 				key.world = record.world;
+				key.worldLifetime = record.world->GetLifetime();
 				key.entity = record.entity;
 				key.meshAssetID = record.meshAssetID;
 				key.reloadGeneration = record.reloadGeneration;
@@ -200,6 +223,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 				auto blasIt = blasCache_.blases_.find(key);
 				if (blasIt == blasCache_.blases_.end() ||
 					!blasIt->second.IsBuilt()) {
+					lodResourceMissing = true;
 					continue;
 				}
 				blasResource = blasIt->second.GetResource();
@@ -239,6 +263,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		cachedStaticScene_ &&
 		!materialResolver_.HasPendingTextures() &&
 		cachedWorld_ == context.world &&
+		cachedWorldLifetime_ && cachedWorldLifetime_->IsAlive() &&
+		renderBatch.MatchesExtractors(cachedExtractorRevision_) &&
 		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
 		cachedRenderRevision_ ==
 			renderBatch.GetSourceRenderRevision() &&
@@ -256,6 +282,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			}
 			StaticInstanceBLASKey key{};
 			key.world = record.world;
+			key.worldLifetime = record.world->GetLifetime();
 			key.entity = record.entity;
 			key.meshAssetID = record.meshAssetID;
 			key.reloadGeneration = record.reloadGeneration;
@@ -266,137 +293,149 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		}
 	}
 
-	if (matchesStaticScene &&
-		cachedTransformRevision_ ==
-			renderBatch.GetSourceTransformRevision()) {
+	// 不足するLODは通常の構築経路へ戻す
+	auto tryReuseStaticScene = [&]() -> bool {
+		if (matchesStaticScene &&
+			cachedTransformRevision_ ==
+				renderBatch.GetSourceTransformRevision()) {
 
-		const uint32_t lodChangedCount =
-			cachedLODViewHash_ != lodViewHash ?
-				updateCachedLODSelections() : 0;
-		if (lodResourceMissing) {
-			cachedStaticScene_ = false;
+			const uint32_t lodChangedCount =
+				cachedLODViewHash_ != lodViewHash ?
+					updateCachedLODSelections() : 0;
+			if (lodResourceMissing) {
+				cachedStaticScene_ = false;
+				return false;
+			}
+			if (0 < lodChangedCount) {
+
+				tlasState_.RefitORRebuild(
+					graphicsCore, cachedTLASInstances_, false);
+				tlasState_.RecordInstances(cachedTLASInstances_);
+			} else {
+				FrameProfiler::GetInstance().AddTLASSkip();
+			}
+			cachedLODViewHash_ = lodViewHash;
+			if (0 < lodChangedCount) {
+				// LOD変更後のGeometry番号を別slotへ転送する
+				result_.Upload();
+			} else {
+				result_.UploadCached();
+			}
+			FrameProfiler::GetInstance().AddBLASSkip(cachedBLASGeometryCount_);
+			FrameProfiler::GetInstance().SetTLASInstanceCount(cachedTLASInstanceCount_);
+			recordBuiltScene();
+			PublishBuiltScene(context);
+			return true;
 		}
-		if (0 < lodChangedCount) {
+		if (matchesStaticScene &&
+			renderBatch.HasCompleteTransformChanges() &&
+			!cachedTLASInstances_.empty()) {
 
-			tlasState_.RefitORRebuild(
-				graphicsCore, cachedTLASInstances_, false);
-			tlasState_.RecordInstances(cachedTLASInstances_);
-		} else {
-			FrameProfiler::GetInstance().AddTLASSkip();
-		}
-		cachedLODViewHash_ = lodViewHash;
-		result_.UploadCached();
-		FrameProfiler::GetInstance().AddBLASSkip(cachedBLASGeometryCount_);
-		FrameProfiler::GetInstance().SetTLASInstanceCount(cachedTLASInstanceCount_);
-		builtThisFrame_ = true;
-		builtWorld_ = context.world;
-		builtSceneInstanceID_ = context.sceneInstance->instanceID;
-		PublishBuiltScene(context);
-		return;
-	}
-	if (matchesStaticScene &&
-		renderBatch.HasCompleteTransformChanges() &&
-		!cachedTLASInstances_.empty()) {
+			bool transformChanged = false;
+			uint32_t changedInstanceCount = 0;
+			for (const RenderTransformChange& change :
+				renderBatch.GetTransformChanges()) {
+				SceneEntityKey key{};
+				key.world = change.world;
+				key.entity = change.entity;
+				const auto [begin, end] =
+					cachedTLASInstanceIndices_.equal_range(key);
+				for (auto it = begin; it != end; ++it) {
+					RaytracingTLASInstance& instance =
+						cachedTLASInstances_[it->second];
+					if (instance.worldMatrix ==
+						change.worldMatrix) {
+						continue;
+					}
+					instance.worldMatrix =
+						change.worldMatrix;
+					if (it->second <
+						cachedMeshLODRecordIndices_.size()) {
 
-		bool transformChanged = false;
-		uint32_t changedInstanceCount = 0;
-		for (const RenderTransformChange& change :
-			renderBatch.GetTransformChanges()) {
-			SceneEntityKey key{};
-			key.world = change.world;
-			key.entity = change.entity;
-			const auto [begin, end] =
-				cachedTLASInstanceIndices_.equal_range(key);
-			for (auto it = begin; it != end; ++it) {
-				RaytracingTLASInstance& instance =
-					cachedTLASInstances_[it->second];
-				if (instance.worldMatrix ==
-					change.worldMatrix) {
-					continue;
-				}
-				instance.worldMatrix =
-					change.worldMatrix;
-				if (it->second <
-					cachedMeshLODRecordIndices_.size()) {
+						const uint32_t recordIndex =
+							cachedMeshLODRecordIndices_[
+								it->second];
+						if (recordIndex != UINT32_MAX &&
+							recordIndex <
+								cachedMeshLODInstances_.size()) {
 
-					const uint32_t recordIndex =
-						cachedMeshLODRecordIndices_[
-							it->second];
-					if (recordIndex != UINT32_MAX &&
-						recordIndex <
-							cachedMeshLODInstances_.size()) {
+							CachedMeshLODInstance& record =
+								cachedMeshLODInstances_[
+									recordIndex];
+							record.lodIndex =
+								Engine::kMeshLODCount;
+							const MeshGPUResource* meshResource =
+								meshBackend ?
+									meshBackend->
+										FindMeshResource(
+											record.meshAssetID) :
+									nullptr;
+							if (meshResource) {
 
-						CachedMeshLODInstance& record =
-							cachedMeshLODInstances_[
-								recordIndex];
-						record.lodIndex =
-							Engine::kMeshLODCount;
-						const MeshGPUResource* meshResource =
-							meshBackend ?
-								meshBackend->
-									FindMeshResource(
-										record.meshAssetID) :
-								nullptr;
-						if (meshResource) {
-
-							const std::span<
-								const SubMeshMaterial>
-								subMeshes =
-									change.world ?
-										GetMeshSubMeshes(
-											*change.world,
-											change.entity) :
-										std::span<
-											const SubMeshMaterial>{};
-							CalculateMeshWorldBounds(
-								*meshResource,
-								subMeshes,
-								change.worldMatrix,
-								record.worldBoundsCenter,
-								record.worldBoundsRadius);
+								const std::span<
+									const SubMeshMaterial>
+									subMeshes =
+										change.world ?
+											GetMeshSubMeshes(
+												*change.world,
+												change.entity) :
+											std::span<
+												const SubMeshMaterial>{};
+								CalculateMeshWorldBounds(
+									*meshResource,
+									subMeshes,
+									change.worldMatrix,
+									record.worldBoundsCenter,
+									record.worldBoundsRadius);
+							}
 						}
 					}
+					transformChanged = true;
+					++changedInstanceCount;
 				}
-				transformChanged = true;
-				++changedInstanceCount;
 			}
-		}
 
-		const uint32_t lodChangedCount =
-			(transformChanged ||
-				cachedLODViewHash_ != lodViewHash) ?
-				updateCachedLODSelections() : 0;
-		if (lodResourceMissing) {
-			cachedStaticScene_ = false;
-		}
-		changedInstanceCount += lodChangedCount;
-		if (transformChanged || 0 < lodChangedCount) {
-			const bool rebuildForTraceQuality =
-				RequiresTLASRebuildForTraceQuality(
-					cachedTLASInstances_.size(),
-					changedInstanceCount);
-			tlasState_.RefitORRebuild(graphicsCore,
-				cachedTLASInstances_, rebuildForTraceQuality);
-		} else {
-			FrameProfiler::GetInstance().AddTLASSkip();
-		}
+			const uint32_t lodChangedCount =
+				(transformChanged ||
+					cachedLODViewHash_ != lodViewHash) ?
+					updateCachedLODSelections() : 0;
+			if (lodResourceMissing) {
+				cachedStaticScene_ = false;
+				return false;
+			}
+			changedInstanceCount += lodChangedCount;
+			if (transformChanged || 0 < lodChangedCount) {
+				const bool rebuildForTraceQuality =
+					RequiresTLASRebuildForTraceQuality(
+						cachedTLASInstances_.size(),
+						changedInstanceCount);
+				tlasState_.RefitORRebuild(graphicsCore,
+					cachedTLASInstances_, rebuildForTraceQuality);
+			} else {
+				FrameProfiler::GetInstance().AddTLASSkip();
+			}
 
-		tlasState_.RecordInstances(cachedTLASInstances_);
-		cachedTransformRevision_ =
-			renderBatch.GetSourceTransformRevision();
-		cachedLODViewHash_ = lodViewHash;
-		result_.UploadCached();
-		FrameProfiler::GetInstance().AddBLASSkip(
-			cachedBLASGeometryCount_);
-		FrameProfiler::GetInstance().SetTLASInstanceCount(
-			cachedTLASInstanceCount_);
-		builtThisFrame_ = true;
-		builtWorld_ = context.world;
-		builtSceneInstanceID_ =
-			context.sceneInstance->instanceID;
-		PublishBuiltScene(context);
-		return;
-	}
+			tlasState_.RecordInstances(cachedTLASInstances_);
+			cachedTransformRevision_ =
+				renderBatch.GetSourceTransformRevision();
+			cachedLODViewHash_ = lodViewHash;
+			if (0 < lodChangedCount) {
+				// LOD変更後のGeometry番号を別slotへ転送する
+				result_.Upload();
+			} else {
+				result_.UploadCached();
+			}
+			FrameProfiler::GetInstance().AddBLASSkip(
+				cachedBLASGeometryCount_);
+			FrameProfiler::GetInstance().SetTLASInstanceCount(
+				cachedTLASInstanceCount_);
+			recordBuiltScene();
+			PublishBuiltScene(context);
+			return true;
+		}
+		return false;
+	};
+	if (tryReuseStaticScene()) { return; }
 	cachedStaticScene_ = false;
 
 	result_.scenePickRecords_.clear();
@@ -456,7 +495,10 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
 	bool requireTlasRebuild = false;
-	bool staticScene = true;
+	bool blasContentsChanged = false;
+	// Billboardの行列はViewごとに作り直す
+	bool staticScene = std::none_of(sceneMeshes.begin(), sceneMeshes.end(), [](const auto& item) { return item.viewDependent; }) &&
+		std::none_of(scenePrimitives.begin(), scenePrimitives.end(), [](const auto& item) { return item.viewDependent; });
 	uint32_t blasGeometryCount = 0;
 
 	SceneBuildWork work{
@@ -475,6 +517,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 		.meshLODInstances = meshLODInstances,
 		.meshLODRecordIndices = meshLODRecordIndices,
 		.requireTlasRebuild = requireTlasRebuild,
+		.blasContentsChanged = blasContentsChanged,
 		.staticScene = staticScene,
 		.blasGeometryCount = blasGeometryCount,
 	};
@@ -495,7 +538,7 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 
 	// TLASの構築、BLASを新規/作り直しした場合はrefitでは反映できないため完全再構築する
 	tlasState_.BuildORUpdate(graphicsCore, tlasInstances, cachedTLASInstances_,
-		cachedTLASInstanceCount_, requireTlasRebuild);
+		cachedTLASInstanceCount_, requireTlasRebuild, blasContentsChanged);
 
 	// 構築済みにする
 	const uint64_t sceneMaterialHash =
@@ -509,11 +552,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore,
 			sceneMaterialGeneration_ = 1;
 		}
 	}
-	builtThisFrame_ = true;
-	builtWorld_ = context.world;
-	builtSceneInstanceID_ = context.sceneInstance->instanceID;
+	recordBuiltScene();
 	cachedStaticScene_ = staticScene;
 	cachedWorld_ = context.world;
+	cachedWorldLifetime_ = context.world ? context.world->GetLifetime() : nullptr;
+	cachedExtractorRevision_ = renderBatch.GetExtractorRevision();
 	cachedSceneInstanceID_ = context.sceneInstance->instanceID;
 	cachedRenderRevision_ =
 		renderBatch.GetSourceRenderRevision();

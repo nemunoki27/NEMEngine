@@ -23,7 +23,7 @@ bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescript
 		MeshVertex vertex{};
 		vertex.normal = source.normal;
 		vertex.tangent = source.tangent;
-		vertex.tangentSign = 1.0f;
+		vertex.tangentSign = source.tangentSign;
 		vertex.uv = source.texcoord;
 		vertex.position = Vector4(source.position.x, source.position.y, source.position.z, 1.0f);
 		vertices.emplace_back(vertex);

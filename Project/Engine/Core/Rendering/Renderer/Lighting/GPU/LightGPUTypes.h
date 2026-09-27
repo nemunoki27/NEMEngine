@@ -29,7 +29,9 @@ namespace Engine {
 		float shadowStrength = 1.0f;
 		// 光源の見かけの半径、度数法
 		float shadowAngularRadius = 0.27f;
-		float pad[2] = { 0.0f, 0.0f };
+		// Rendererのレイヤーマスク
+		uint32_t affectLayerMask = 0xFFFFFFFFu;
+		uint32_t pad = 0;
 	};
 	static_assert(sizeof(DirectionalLightGPU) % 16 == 0, "DirectionalLightGPU must be 16 byte aligned");
 	// 点光源
@@ -51,6 +53,9 @@ namespace Engine {
 		float shadowStrength = 1.0f;
 		// 面光源として扱う半径
 		float shadowRadius = 0.05f;
+		// Rendererのレイヤーマスク
+		uint32_t affectLayerMask = 0xFFFFFFFFu;
+		uint32_t pad[3] = { 0, 0, 0 };
 	};
 	static_assert(sizeof(PointLightGPU) % 16 == 0, "PointLightGPU must be 16 byte aligned");
 	// 矩形面光源
@@ -74,6 +79,9 @@ namespace Engine {
 		float barnDoorAngle = 88.0f;
 		float barnDoorLength = 0.0f;
 		float shadowStrength = 1.0f;
+		// Rendererのレイヤーマスク
+		uint32_t affectLayerMask = 0xFFFFFFFFu;
+		uint32_t pad[3] = { 0, 0, 0 };
 	};
 	static_assert(sizeof(RectLightGPU) % 16 == 0, "RectLightGPU must be 16 byte aligned");
 	// スポットライト
@@ -102,7 +110,9 @@ namespace Engine {
 
 		// 面光源として扱う半径
 		float shadowRadius = 0.05f;
-		float pad[3] = { 0.0f, 0.0f, 0.0f };
+		// Rendererのレイヤーマスク
+		uint32_t affectLayerMask = 0xFFFFFFFFu;
+		float pad[2] = { 0.0f, 0.0f };
 	};
 	static_assert(sizeof(SpotLightGPU) % 16 == 0, "SpotLightGPU must be 16 byte aligned");
 	// ライトの数

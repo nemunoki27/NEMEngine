@@ -73,6 +73,14 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 
 void Engine::MeshBatchResources::Finalize() {
 
+	// 描画中の間接引数もGPU完了まで保持する
+	if (indexedIndirectArgs_) {
+		srvDescriptor_->GetRetirementQueue().Retire(std::move(indexedIndirectArgs_));
+	}
+	meshData_.Release();
+	visibleMeshData_.Release();
+	subMeshData_.Release();
+	outlineData_.Release();
 	// MeshSkinningBufferSetは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
 	skinning_.reset();
 	// パス別の可変strideマテリアルパラメータバッファを解放する
@@ -101,9 +109,11 @@ void Engine::MeshBatchResources::Finalize() {
 	skinningOutputValid_ = false;
 	currentSkinningPoseHash_ = 0;
 	dispatchedSkinningPoseHash_ = 0;
+	dispatchedSkinningPipelineID_ = 0;
+	skinningResultGeneration_ = 0;
+	skinningDrawEnabled_ = true;
 	skinningBufferGeneration_ = 0;
 	usesFallbackTexture_ = false;
-	indexedIndirectArgs_.Reset();
 	indexedIndirectArgsState_ = D3D12_RESOURCE_STATE_COMMON;
 	visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	initialized_ = false;
@@ -175,10 +185,10 @@ float Engine::MeshBatchResources::ResolveMaxDisplacement(
 
 void Engine::MeshBatchResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
 	const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
-	uint32_t subMeshGroupIndex, const MaterialAsset* material) {
+	uint32_t subMeshGroupIndex, const MaterialAsset* material, bool normalConeAllowed) {
 
 	viewResources_.UpdateDrawConstants(drawContext, gpuMesh, subMeshIndex, subMeshGroupIndex,
-		device_, instanceCount_, outlineMetrics_, ResolveMaxDisplacement(material));
+		device_, instanceCount_, outlineMetrics_, ResolveMaxDisplacement(material), normalConeAllowed);
 }
 
 void Engine::MeshBatchResources::UpdateIndexedIndirectArgsConstants(uint32_t indexCount) {
@@ -270,11 +280,50 @@ namespace Engine {
 		return h;
 	}
 
-	void MeshBatchResources::MarkSkinningDispatched() {
+	void MeshBatchResources::MarkSkinningDispatched(uint64_t pipelineID) {
 
 		skinningDispatched_ = true;
 		skinningOutputValid_ = true;
 		dispatchedSkinningPoseHash_ = currentSkinningPoseHash_;
+		dispatchedSkinningPipelineID_ = pipelineID;
+		++skinningResultGeneration_;
+	}
+
+	bool MeshBatchResources::CanReuseSkinningOutput(uint64_t pipelineID) const {
+
+		return pipelineID != 0 && skinningOutputValid_ &&
+			dispatchedSkinningPipelineID_ == pipelineID && dispatchedSkinningPoseHash_ == currentSkinningPoseHash_;
+	}
+
+	void MeshBatchResources::UploadSkinningInputs(const MeshGPUResource& gpuMesh) {
+
+		// ポーズが同じでもShader更新時は現在の転送領域を使う
+		skinning_->Upload(paletteScratch_, gpuMesh.vertexCount, gpuMesh.boneCount, skinnedInstanceCount_);
+	}
+
+	void MeshBatchResources::SetSkinningAvailable(bool available) {
+
+		skinningDispatched_ = available;
+		if (!available) skinningOutputValid_ = false;
+		if (skinningDrawEnabled_ == available) return;
+		skinningDrawEnabled_ = available;
+		if (skinnedVertexOffsetMap_.empty()) return;
+
+		// 対象Instanceだけ元の頂点と計算済み頂点を切り替える
+		for (const auto& entry : skinnedVertexOffsetMap_) {
+			const auto [begin, end] = meshInstanceIndexMap_.equal_range(entry.first);
+			for (auto it = begin; it != end; ++it) {
+				auto& instance = meshScratch_[it->second];
+				if (available) {
+					instance.flags |= kMeshInstanceFlagSkinned;
+				} else {
+					instance.flags &= ~kMeshInstanceFlagSkinned;
+				}
+				meshData_.MarkDirtyRange(it->second, 1);
+			}
+		}
+		const uint64_t bytes = meshData_.UploadCurrentFrame(meshScratch_);
+		FrameProfiler::GetInstance().AddMeshTransferBytes(bytes);
 	}
 
 	D3D12_GPU_VIRTUAL_ADDRESS MeshBatchResources::GetSubMeshMaterialParamGPUAddress() const {

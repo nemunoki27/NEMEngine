@@ -24,7 +24,7 @@ namespace Engine {
 
 		// ファイル変更を退避して適用し、失敗時は復旧処理へ渡す
 		bool Commit(const std::vector<SceneStorageChange>& changes, const std::string& label,
-			std::string& error, const RecoveryAction& recover);
+			std::string& error, const RecoveryAction& recover, const JsonFileJournal::CommitCheck& check = {});
 		// 操作記録の一覧を取得する
 		std::vector<std::filesystem::path> GetRecoveries(bool unfinishedOnly = false);
 		// 復旧対象の使用状態を確認してから逆順に復旧する

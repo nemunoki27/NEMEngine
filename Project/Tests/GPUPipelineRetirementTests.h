@@ -9,6 +9,12 @@ namespace Engine { class SRVDescriptor; }
 
 namespace NEMTests {
 
+	// Graphの生成VSとMSをGBuffer用PSへ接続する
+	bool CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::GraphicsResourceRetirement& retirement);
+
+	bool CheckMeshIndirectArguments(ID3D12Device* device, ID3D12CommandQueue* queue);
+	bool CheckHiZSampleBounds(ID3D12Device* device, ID3D12CommandQueue* queue);
+
 	// 消失時の待機中止と保持解除を確認する
 	bool CheckFenceWaitAndRemoval();
 
@@ -19,5 +25,5 @@ namespace NEMTests {
 	bool RecordTexturePublication(ID3D12Device* device,
 		ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback);
 	bool RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* queue,
-		ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors);
+		ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback);
 }

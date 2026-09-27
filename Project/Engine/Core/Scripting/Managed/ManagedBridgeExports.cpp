@@ -38,6 +38,8 @@ bool Engine::ManagedBridgeExports::Load(DotnetHostResolver& host, const std::fil
 	success &= loadRequired(copyScriptSchemaJson_, L"CopyScriptSchemaJson");
 	success &= loadRequired(getRuntimeStateSize_, L"GetRuntimeSerializedStateSize");
 	success &= loadRequired(copyRuntimeState_, L"CopyRuntimeSerializedState");
+	success &= loadRequired(getSavedStateSize_, L"GetSavedSerializedStateSize");
+	success &= loadRequired(copySavedState_, L"CopySavedSerializedState");
 	success &= loadRequired(setRuntimeField_, L"SetRuntimeSerializedField");
 	success &= loadRequired(createInstance_, L"CreateInstance");
 	success &= loadRequired(setSerializedFields_, L"SetSerializedFields");

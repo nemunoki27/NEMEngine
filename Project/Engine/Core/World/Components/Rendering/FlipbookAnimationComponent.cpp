@@ -92,7 +92,7 @@ void Engine::FlipbookAnimationComponent::SerializeECS(
 	const FlipbookAnimationComponent& component, nlohmann::json& out) {
 
 	const std::span<const FlipbookTileColumn> stored =
-		GetFlipbookTileColumns(world, entity);
+		world.TryGetBufferForBinding<FlipbookTileColumn>(entity).GetSpan();
 	std::vector<int32_t> columns{};
 	columns.reserve(stored.size());
 	for (const FlipbookTileColumn& column : stored) {
@@ -129,21 +129,17 @@ void Engine::SetFlipbookTileColumns(
 	ECSWorld& world, const Entity& entity,
 	std::span<const int32_t> columns) {
 
-	DynamicBuffer<FlipbookTileColumn> buffer =
-		world.TryGetBuffer<FlipbookTileColumn>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<FlipbookTileColumn>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>((std::max)(size_t{ 1 }, columns.size())));
+	// 列数を補正してから既存Bufferへ反映する
+	std::vector<FlipbookTileColumn> converted;
+	converted.reserve((std::max)(size_t{ 1 }, columns.size()));
 	if (columns.empty()) {
-		buffer.Add(FlipbookTileColumn{});
+		converted.push_back(FlipbookTileColumn{});
 	} else {
 		for (int32_t column : columns) {
-			buffer.Add(FlipbookTileColumn{ (std::max)(column, 1) });
+			converted.push_back(FlipbookTileColumn{ (std::max)(column, 1) });
 		}
 	}
-	world.MarkComponentModified<FlipbookTileColumn>(entity);
+	world.SetBuffer<FlipbookTileColumn>(entity, converted);
 }
 
 void Engine::SerializeFlipbookAnimation(

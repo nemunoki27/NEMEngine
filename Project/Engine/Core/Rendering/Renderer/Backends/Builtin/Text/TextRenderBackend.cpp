@@ -68,6 +68,10 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 	const bool is3D = items.front()->cameraDomain == RenderCameraDomain::Perspective;
 	// パイプラインを解決する
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveGraphicsPipeline(context, *resolvedPass.pass, nullptr, is3D);
+	// 生成失敗時は未成立のPSOを使わない
+	if (!pipelineState) {
+		return;
+	}
 
 	// 描画に使用するフォントを解決する
 	const MSDFFontAsset* font = ResolveFont(context, *items.front());

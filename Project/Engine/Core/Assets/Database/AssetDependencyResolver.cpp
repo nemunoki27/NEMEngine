@@ -11,6 +11,12 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+
+// c++
+#include <algorithm>
+#include <stdexcept>
+#include <unordered_set>
 
 using namespace Engine;
 using AssetFileUtility::LoadJsonFileNoThrow;
@@ -20,23 +26,19 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 
 	std::vector<AssetID> dependencies;
 
-	// JSONベースのアセットだけが内部に参照を持つ
-	if (!AssetTypeResolver::IsJsonAssetType(meta.type)) {
-		return dependencies;
-	}
-
 	const std::filesystem::path fullPath = database.ResolveAssetPath(meta.assetPath);
 	if (fullPath.empty()) {
 		return dependencies;
 	}
-	// Shader種別には.hlsl/.hlsli等の非JSONも含まれるため、実体が.jsonのものだけ解析する
-	if (Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension())) != ".json") {
+	// 独自拡張子のJSONも解析し、Font本体やShaderソースは除く
+	if (!AssetTypeResolver::IsJsonAssetFile(meta.type, fullPath)) {
 		return dependencies;
 	}
 
-	nlohmann::json data = LoadJsonFileNoThrow(fullPath);
-	if (!data.is_object() && !data.is_array()) {
-		return dependencies;
+	nlohmann::json data;
+	std::string diagnostic;
+	if (!JsonFile::TryLoad(fullPath, data, &diagnostic) || (!data.is_object() && !data.is_array())) {
+		throw std::runtime_error("Asset dependency read failed: " + meta.assetPath + " " + diagnostic);
 	}
 	if (RuntimePaths::IsProductBuild() && data.is_object()) {
 		// 製品のシェーダーソース参照はCook済みデータが所有する
@@ -56,15 +58,22 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 	}
 
 	// 既知の参照キー配下からGUIDとシェーダー等の論理パスを収集する
-	std::unordered_map<AssetID, AssetType> candidates;
-	std::unordered_map<std::string, AssetType> pathCandidates;
+	AssetDependencyScanner::IDReferences candidates;
+	AssetDependencyScanner::PathReferences pathCandidates;
 	AssetDependencyScanner::ScanReferences(data, candidates, pathCandidates);
 	// シーンから分離したActor内のスクリプト参照も依存先へ含める
 	if (meta.type == AssetType::Scene && data.contains("ExternalActors") && data["ExternalActors"].is_array()) {
 		const auto actorRoot = SceneAssetStorage::ResolveActorRoot(fullPath, meta.guid);
 		for (const auto& actorID : data["ExternalActors"]) {
-			if (!actorID.is_string() || !TryParseUUID16Hex(actorID.get<std::string>())) continue;
-			AssetDependencyScanner::ScanReferences(LoadJsonFileNoThrow(actorRoot / (actorID.get<std::string>() + ".actor.json")), candidates, pathCandidates);
+			if (!actorID.is_string() || !TryParseUUID16Hex(actorID.get<std::string>())) {
+				throw std::runtime_error("Invalid ExternalActor ID: " + meta.assetPath);
+			}
+			const auto actorPath = actorRoot / (actorID.get<std::string>() + ".actor.json");
+			nlohmann::json actor;
+			if (!JsonFile::TryLoad(actorPath, actor, &diagnostic) || !actor.is_object()) {
+				throw std::runtime_error("ExternalActor read failed: " + Algorithm::PathToUTF8(actorPath) + " " + diagnostic);
+			}
+			AssetDependencyScanner::ScanReferences(actor, candidates, pathCandidates);
 		}
 	}
 	// 編集時の派生参照は元グラフから再生成され、通常アセットには登録されない
@@ -83,9 +92,13 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 					graphData["target"].get<std::string>()).value_or(ShaderGraphTarget::Mesh);
 				const auto artifact = ShaderGraphArtifactCache::DescribeReferences(graph, graphID);
 				const auto removeGenerated = [&](AssetID id, AssetType type) {
-					const auto found = candidates.find(id);
-					if (id && found != candidates.end() && found->second == type) {
-						candidates.erase(found);
+					auto [found, end] = candidates.equal_range(id);
+					while (found != end) {
+						if (found->second == type) {
+							found = candidates.erase(found);
+						} else {
+							++found;
+						}
 					}
 				};
 				for (const AssetID id : { artifact.opaqueShaderID, artifact.transparentShaderID,
@@ -110,10 +123,14 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 				"missing path reference" });
 			continue;
 		}
-		candidates.emplace(referenced->guid, expectedType);
+		const auto [begin, end] = candidates.equal_range(referenced->guid);
+		if (!std::any_of(begin, end, [expectedType](const auto& candidate) { return candidate.second == expectedType; })) {
+			candidates.emplace(referenced->guid, expectedType);
+		}
 	}
 
 	dependencies.reserve(candidates.size());
+	std::unordered_set<AssetID> collected;
 	for (const auto& [referencedID, expectedType] : candidates) {
 
 		const AssetMeta* referenced = database.Find(referencedID);
@@ -126,7 +143,9 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 			issues.push_back({ AssetDatabaseIssueType::ReferenceTypeMismatch, meta.guid, referencedID,
 				expectedType, referenced->type, meta.assetPath, referenced->assetPath, "type mismatch" });
 		}
-		dependencies.emplace_back(referencedID);
+		if (collected.insert(referencedID).second) {
+			dependencies.emplace_back(referencedID);
+		}
 	}
 	return dependencies;
 }

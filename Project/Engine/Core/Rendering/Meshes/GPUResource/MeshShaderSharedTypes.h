@@ -109,7 +109,8 @@ namespace Engine {
 
 		float metallic = 0.0f;
 		float roughness = 0.5f;
-		float _materialPad[2] = { 0.0f, 0.0f };
+		uint32_t opacityTextureIndex = UINT32_MAX;
+		uint32_t _materialPad = 0;
 
 		// サブメッシュごとのローカル行列(位置・Bounds・Culling用)
 		Matrix4x4 localMatrix = Matrix4x4::Identity();

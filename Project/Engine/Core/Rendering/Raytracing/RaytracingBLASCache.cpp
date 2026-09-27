@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 void Engine::RaytracingBLASCache::Clear() {
 
@@ -24,10 +25,10 @@ void Engine::RaytracingBLASCache::CollectExpired() {
 
 	// 未使用cacheを間引き、GPU資源は描画Fence完了後に回収する
 	std::erase_if(dynamicBlases_, [&](const auto& pair) {
-		return expired(pair.second.lastUsedFrame);
+		return !pair.first.worldLifetime || !pair.first.worldLifetime->IsAlive() || expired(pair.second.lastUsedFrame);
 	});
 	std::erase_if(staticInstanceBLASes_, [&](const auto& pair) {
-		return expired(pair.second.lastUsedFrame);
+		return !pair.first.worldLifetime || !pair.first.worldLifetime->IsAlive() || expired(pair.second.lastUsedFrame);
 	});
 
 }
@@ -55,14 +56,14 @@ namespace Engine {
 
 	bool RaytracingBLASCache::StaticInstanceBLASKey::operator==(const StaticInstanceBLASKey& rhs) const noexcept {
 
-		return world == rhs.world && entity == rhs.entity &&
+		return worldLifetime == rhs.worldLifetime && world == rhs.world && entity == rhs.entity &&
 			meshAssetID == rhs.meshAssetID &&
 			reloadGeneration == rhs.reloadGeneration;
 	}
 
 	size_t RaytracingBLASCache::StaticInstanceBLASKeyHash::operator()(const StaticInstanceBLASKey& key) const noexcept {
 
-		size_t hash = std::hash<void*>{}(key.world);
+		size_t hash = std::hash<const ECSWorldLifetime*>{}(key.worldLifetime.get());
 		hash ^= std::hash<uint32_t>{}(key.entity.index) << 1;
 		hash ^= std::hash<uint32_t>{}(key.entity.generation) << 2;
 		hash ^= std::hash<AssetID>{}(key.meshAssetID) << 3;
@@ -72,13 +73,13 @@ namespace Engine {
 
 	bool RaytracingBLASCache::DynamicBLASKey::operator==(const DynamicBLASKey& rhs) const noexcept {
 
-		return world == rhs.world && entity.index == rhs.entity.index && entity.generation == rhs.entity.generation &&
+		return worldLifetime == rhs.worldLifetime && world == rhs.world && entity == rhs.entity &&
 			meshAssetID == rhs.meshAssetID && reloadGeneration == rhs.reloadGeneration;
 	}
 
 	size_t RaytracingBLASCache::DynamicBLASKeyHash::operator()(const DynamicBLASKey& key) const noexcept {
 
-		size_t h = std::hash<void*>{}(key.world);
+		size_t h = std::hash<const ECSWorldLifetime*>{}(key.worldLifetime.get());
 		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
 		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
 		h ^= (std::hash<AssetID>{}(key.meshAssetID) << 3);

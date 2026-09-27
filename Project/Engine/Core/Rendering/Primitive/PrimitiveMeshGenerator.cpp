@@ -28,41 +28,125 @@ namespace {
 		}
 	}
 
-	void HashFloat(uint64_t& hash, float value) { HashScalar(hash, &value, sizeof(value)); }
+	void HashFloat(uint64_t& hash, float value) {
+
+		// 符号付き0で同じ形状を二重生成しない
+		if (value == 0.0f) value = 0.0f;
+		HashScalar(hash, &value, sizeof(value));
+	}
 	void HashInt(uint64_t& hash, int32_t value) { HashScalar(hash, &value, sizeof(value)); }
 	void HashVector2(uint64_t& hash, const Engine::Vector2& value) { HashFloat(hash, value.x); HashFloat(hash, value.y); }
 	void HashVector3(uint64_t& hash, const Engine::Vector3& value) { HashFloat(hash, value.x); HashFloat(hash, value.y); HashFloat(hash, value.z); }
 
-	// 直線補間
+	float FiniteOr(float value, float fallback) {
 
+		return std::isfinite(value) ? value : fallback;
+	}
+
+	Engine::Vector2 FiniteOr(const Engine::Vector2& value, const Engine::Vector2& fallback) {
+
+		return Engine::Vector2(
+			FiniteOr(value.x, fallback.x),
+			FiniteOr(value.y, fallback.y));
+	}
+
+	Engine::Vector3 FiniteOr(const Engine::Vector3& value, const Engine::Vector3& fallback) {
+
+		return Engine::Vector3(
+			FiniteOr(value.x, fallback.x),
+			FiniteOr(value.y, fallback.y),
+			FiniteOr(value.z, fallback.z));
+	}
+
+	Engine::PrimitiveRendererComponent NormalizeFiniteParameters(
+		const Engine::PrimitiveRendererComponent& renderer) {
+
+		Engine::PrimitiveRendererComponent result = renderer;
+		switch (renderer.type) {
+		case Engine::PrimitiveType::Plane:
+			result.plane.size = FiniteOr(renderer.plane.size,
+				Engine::Vector2::AnyInit(1.0f));
+			result.plane.pivot = FiniteOr(renderer.plane.pivot,
+				Engine::Vector2::AnyInit(0.5f));
+			break;
+		case Engine::PrimitiveType::CrossPlane:
+			result.crossPlane.size = FiniteOr(renderer.crossPlane.size,
+				Engine::Vector2::AnyInit(1.0f));
+			result.crossPlane.pivot = FiniteOr(renderer.crossPlane.pivot,
+				Engine::Vector2::AnyInit(0.5f));
+			break;
+		case Engine::PrimitiveType::Ring:
+			result.ring.outerRadius = FiniteOr(renderer.ring.outerRadius, 1.0f);
+			result.ring.innerRadius = FiniteOr(renderer.ring.innerRadius, 0.5f);
+			result.ring.startAngle = FiniteOr(renderer.ring.startAngle, 0.0f);
+			result.ring.endAngle = FiniteOr(renderer.ring.endAngle, 360.0f);
+			break;
+		case Engine::PrimitiveType::Cylinder:
+			result.cylinder.topRadius = FiniteOr(renderer.cylinder.topRadius, 1.0f);
+			result.cylinder.centerRadius = FiniteOr(renderer.cylinder.centerRadius, 1.0f);
+			result.cylinder.bottomRadius = FiniteOr(renderer.cylinder.bottomRadius, 1.0f);
+			result.cylinder.topRadiusWeight = FiniteOr(renderer.cylinder.topRadiusWeight, 0.0f);
+			result.cylinder.bottomRadiusWeight = FiniteOr(renderer.cylinder.bottomRadiusWeight, 0.0f);
+			result.cylinder.height = FiniteOr(renderer.cylinder.height, 2.0f);
+			result.cylinder.maxAngle = FiniteOr(renderer.cylinder.maxAngle, 360.0f);
+			break;
+		case Engine::PrimitiveType::Sphere:
+			result.sphere.radius = FiniteOr(renderer.sphere.radius, 1.0f);
+			break;
+		case Engine::PrimitiveType::Hemisphere:
+			result.hemisphere.radius = FiniteOr(renderer.hemisphere.radius, 1.0f);
+			break;
+		case Engine::PrimitiveType::Cube:
+			result.cube.size = FiniteOr(renderer.cube.size,
+				Engine::Vector3::AnyInit(1.0f));
+			result.cube.pivot = FiniteOr(renderer.cube.pivot,
+				Engine::Vector3::AnyInit(0.5f));
+			break;
+		}
+		return result;
+	}
+
+}
+
+int32_t Engine::PrimitiveMeshGenerator::ClampDivide(int32_t value, int32_t minimum) {
+
+	return std::clamp(value, minimum, kMaxPrimitiveDivide);
+}
+
+int32_t Engine::PrimitiveMeshGenerator::ClampCylinderHeightDivide(int32_t value) {
+
+	// 中央半径の位置に必ず頂点列を置く
+	const int32_t divide = ClampDivide(value, 2);
+	return (divide & 1) != 0 && divide < kMaxPrimitiveDivide ? divide + 1 : divide;
 }
 
 void Engine::PrimitiveMeshGenerator::Generate(const PrimitiveRendererComponent& renderer, PrimitiveMeshData& out) {
 
 	out.vertices.clear();
 	out.indices.clear();
+	const PrimitiveRendererComponent normalized = NormalizeFiniteParameters(renderer);
 
-	switch (renderer.type) {
+	switch (normalized.type) {
 	case PrimitiveType::Plane:
-		GeneratePlane(renderer.plane, out);
+		GeneratePlane(normalized.plane, out);
 		break;
 	case PrimitiveType::CrossPlane:
-		GenerateCrossPlane(renderer.crossPlane, out);
+		GenerateCrossPlane(normalized.crossPlane, out);
 		break;
 	case PrimitiveType::Ring:
-		GenerateRing(renderer.ring, out);
+		GenerateRing(normalized.ring, out);
 		break;
 	case PrimitiveType::Cylinder:
-		GenerateCylinder(renderer.cylinder, out);
+		GenerateCylinder(normalized.cylinder, out);
 		break;
 	case PrimitiveType::Sphere:
-		GenerateSphere(renderer.sphere, out);
+		GenerateSphere(normalized.sphere, out);
 		break;
 	case PrimitiveType::Hemisphere:
-		GenerateHemisphere(renderer.hemisphere, out);
+		GenerateHemisphere(normalized.hemisphere, out);
 		break;
 	case PrimitiveType::Cube:
-		GenerateCube(renderer.cube, out);
+		GenerateCube(normalized.cube, out);
 		break;
 	}
 
@@ -77,6 +161,7 @@ void Engine::PrimitiveMeshGenerator::ComputeTangents(PrimitiveMeshData& out) {
 	}
 
 	std::vector<Vector3> accum(out.vertices.size(), Vector3::AnyInit(0.0f));
+	std::vector<Vector3> bitangents(out.vertices.size(), Vector3::AnyInit(0.0f));
 
 	// 三角形ごとに位置差とUV差から接線を求めて頂点へ加算する
 	for (size_t i = 0; i + 2 < out.indices.size(); i += 3) {
@@ -97,10 +182,14 @@ void Engine::PrimitiveMeshGenerator::ComputeTangents(PrimitiveMeshData& out) {
 			continue;
 		}
 		const Vector3 tangent = (edge1 * dv2 - edge2 * dv1) * (1.0f / denom);
+		const Vector3 bitangent = (edge2 * du1 - edge1 * du2) * (1.0f / denom);
 
 		accum[i0] += tangent;
 		accum[i1] += tangent;
 		accum[i2] += tangent;
+		bitangents[i0] += bitangent;
+		bitangents[i1] += bitangent;
+		bitangents[i2] += bitangent;
 	}
 
 	// 法線に直交させて正規化する、UVが退化した頂点は法線から補助軸を作る
@@ -114,6 +203,9 @@ void Engine::PrimitiveMeshGenerator::ComputeTangents(PrimitiveMeshData& out) {
 			tangent = Vector3::Cross(axis, normal);
 		}
 		out.vertices[i].tangent = Vector3::Normalize(tangent);
+		// 従法線をUVのV方向へ合わせる
+		out.vertices[i].tangentSign = Vector3::Dot(
+			Vector3::Cross(normal, out.vertices[i].tangent), bitangents[i]) < 0.0f ? -1.0f : 1.0f;
 	}
 }
 
@@ -124,51 +216,51 @@ uint64_t Engine::PrimitiveMeshGenerator::ComputeHash(const PrimitiveRendererComp
 
 	switch (renderer.type) {
 	case PrimitiveType::Plane:
-		HashVector2(hash, renderer.plane.size);
-		HashVector2(hash, renderer.plane.pivot);
+		HashVector2(hash, FiniteOr(renderer.plane.size, Vector2::AnyInit(1.0f)));
+		HashVector2(hash, FiniteOr(renderer.plane.pivot, Vector2::AnyInit(0.5f)));
 		HashInt(hash, static_cast<int32_t>(renderer.plane.axis));
-		HashInt(hash, renderer.plane.divideX);
-		HashInt(hash, renderer.plane.divideY);
+		HashInt(hash, ClampDivide(renderer.plane.divideX, 1));
+		HashInt(hash, ClampDivide(renderer.plane.divideY, 1));
 		break;
 	case PrimitiveType::CrossPlane:
-		HashVector2(hash, renderer.crossPlane.size);
-		HashVector2(hash, renderer.crossPlane.pivot);
-		HashInt(hash, renderer.crossPlane.planeCount);
+		HashVector2(hash, FiniteOr(renderer.crossPlane.size, Vector2::AnyInit(1.0f)));
+		HashVector2(hash, FiniteOr(renderer.crossPlane.pivot, Vector2::AnyInit(0.5f)));
+		HashInt(hash, ClampDivide(renderer.crossPlane.planeCount, 1));
 		break;
 	case PrimitiveType::Ring:
-		HashFloat(hash, renderer.ring.outerRadius);
-		HashFloat(hash, renderer.ring.innerRadius);
-		HashFloat(hash, renderer.ring.startAngle);
-		HashFloat(hash, renderer.ring.endAngle);
-		HashInt(hash, renderer.ring.divide);
+		HashFloat(hash, FiniteOr(renderer.ring.outerRadius, 1.0f));
+		HashFloat(hash, FiniteOr(renderer.ring.innerRadius, 0.5f));
+		HashFloat(hash, FiniteOr(renderer.ring.startAngle, 0.0f));
+		HashFloat(hash, FiniteOr(renderer.ring.endAngle, 360.0f));
+		HashInt(hash, ClampDivide(renderer.ring.divide, 3));
 		break;
 	case PrimitiveType::Cylinder:
-		HashFloat(hash, renderer.cylinder.topRadius);
-		HashFloat(hash, renderer.cylinder.centerRadius);
-		HashFloat(hash, renderer.cylinder.bottomRadius);
-		HashFloat(hash, renderer.cylinder.topRadiusWeight);
-		HashFloat(hash, renderer.cylinder.bottomRadiusWeight);
-		HashFloat(hash, renderer.cylinder.height);
-		HashFloat(hash, renderer.cylinder.maxAngle);
-		HashInt(hash, renderer.cylinder.radialDivide);
-		HashInt(hash, renderer.cylinder.heightDivide);
+		HashFloat(hash, FiniteOr(renderer.cylinder.topRadius, 1.0f));
+		HashFloat(hash, FiniteOr(renderer.cylinder.centerRadius, 1.0f));
+		HashFloat(hash, FiniteOr(renderer.cylinder.bottomRadius, 1.0f));
+		HashFloat(hash, std::clamp(FiniteOr(renderer.cylinder.topRadiusWeight, 0.0f), 0.0f, 1.0f));
+		HashFloat(hash, std::clamp(FiniteOr(renderer.cylinder.bottomRadiusWeight, 0.0f), 0.0f, 1.0f));
+		HashFloat(hash, FiniteOr(renderer.cylinder.height, 2.0f));
+		HashFloat(hash, FiniteOr(renderer.cylinder.maxAngle, 360.0f));
+		HashInt(hash, ClampDivide(renderer.cylinder.radialDivide, 3));
+		HashInt(hash, ClampCylinderHeightDivide(renderer.cylinder.heightDivide));
 		HashInt(hash, static_cast<int32_t>(renderer.cylinder.cap));
 		HashInt(hash, static_cast<int32_t>(renderer.cylinder.uvMode));
 		break;
 	case PrimitiveType::Sphere:
-		HashFloat(hash, renderer.sphere.radius);
-		HashInt(hash, renderer.sphere.longitudeDivide);
-		HashInt(hash, renderer.sphere.latitudeDivide);
+		HashFloat(hash, FiniteOr(renderer.sphere.radius, 1.0f));
+		HashInt(hash, ClampDivide(renderer.sphere.longitudeDivide, 3));
+		HashInt(hash, ClampDivide(renderer.sphere.latitudeDivide, 2));
 		break;
 	case PrimitiveType::Hemisphere:
-		HashFloat(hash, renderer.hemisphere.radius);
-		HashInt(hash, renderer.hemisphere.longitudeDivide);
-		HashInt(hash, renderer.hemisphere.latitudeDivide);
+		HashFloat(hash, FiniteOr(renderer.hemisphere.radius, 1.0f));
+		HashInt(hash, ClampDivide(renderer.hemisphere.longitudeDivide, 3));
+		HashInt(hash, ClampDivide(renderer.hemisphere.latitudeDivide, 1));
 		HashInt(hash, renderer.hemisphere.bottomCap ? 1 : 0);
 		break;
 	case PrimitiveType::Cube:
-		HashVector3(hash, renderer.cube.size);
-		HashVector3(hash, renderer.cube.pivot);
+		HashVector3(hash, FiniteOr(renderer.cube.size, Vector3::AnyInit(1.0f)));
+		HashVector3(hash, FiniteOr(renderer.cube.pivot, Vector3::AnyInit(0.5f)));
 		break;
 	}
 	return hash;

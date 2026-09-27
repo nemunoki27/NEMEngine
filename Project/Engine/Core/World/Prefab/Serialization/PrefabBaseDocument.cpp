@@ -4,48 +4,37 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabDocument.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 // c++
-#include <filesystem>
-#include <system_error>
+#include <exception>
 #include <unordered_map>
 #include <unordered_set>
 
 using namespace Engine;
 
-namespace {
-
-	struct PrefabBaseCacheEntry {
-
-		bool loaded = false;
-		std::filesystem::file_time_type writeTime{};
-		std::unordered_map<Engine::UUID, PrefabBaseEntity> base;
-	};
-	std::unordered_map<AssetID, PrefabBaseCacheEntry> prefabBaseCache;
-}
-
 std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabBaseDocument::LoadPrefabBaseEntities(
-	AssetDatabase& database, AssetID prefabAsset, UUID* outRootLocalFileID) {
+	AssetDatabase& database, AssetID prefabAsset, UUID* outRootLocalFileID) try {
 
 	std::unordered_map<UUID, PrefabBaseEntity> result;
+	if (outRootLocalFileID) {
+		*outRootLocalFileID = {};
+	}
 
 	// プレファブファイルを読み込む
-	auto fullPath = database.ResolveFullPath(prefabAsset);
-	if (fullPath.empty()) {
+	std::filesystem::path fullPath;
+	nlohmann::json fileJson;
+	if (!PrefabDocument::Read(database, prefabAsset, fullPath, fileJson)) {
 		return result;
 	}
-	nlohmann::json fileJson = JsonAdapter::Load(fullPath);
-	const uint32_t schemaVersion = fileJson.is_object() ? fileJson.value("SchemaVersion", 0u) : 0u;
-	if (!fileJson.is_object() || schemaVersion < 1u || schemaVersion > 2u ||
-		!fileJson.contains("Header") || !fileJson["Header"].is_object() ||
-		!fileJson.contains("Entities") || !fileJson["Entities"].is_array() || fileJson["Entities"].empty()) {
+	if (fileJson["Entities"].empty()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[Prefab] Prefabアセットの形式が不正です AssetID={} path={}",
-			ToString(prefabAsset), fullPath.string());
+			ToString(prefabAsset), Algorithm::PathToUTF8(fullPath));
 		return result;
 	}
 	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
@@ -57,9 +46,6 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabBaseDoc
 
 		const std::string rootStr = fileJson["Header"].value("rootLocalFileID", "");
 		rootLocalFileID = rootStr.empty() ? UUID{} : FromString16Hex(rootStr);
-	}
-	if (outRootLocalFileID) {
-		*outRootLocalFileID = rootLocalFileID;
 	}
 	if (!rootLocalFileID) {
 
@@ -104,34 +90,13 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabBaseDoc
 			"[Prefab] Prefab内にルートEntityがありません AssetID={}", ToString(prefabAsset));
 		return {};
 	}
+	if (outRootLocalFileID) {
+		*outRootLocalFileID = rootLocalFileID;
+	}
 	return result;
-}
+} catch (const std::exception& error) {
 
-const std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity>&
-Engine::PrefabBaseDocument::LoadPrefabBaseEntitiesCached(AssetDatabase& database, AssetID prefabAsset) {
-
-	PrefabBaseCacheEntry& entry = prefabBaseCache[prefabAsset];
-
-	// ファイルの更新時刻を見て、変化が無ければ読み直さずキャッシュを返す
-	const auto fullPath = database.ResolveFullPath(prefabAsset);
-	std::error_code ec;
-	const std::filesystem::file_time_type currentTime =
-		fullPath.empty() ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(fullPath, ec);
-
-	if (entry.loaded && !ec && currentTime == entry.writeTime) {
-		return entry.base;
-	}
-
-	// 初回または更新があった場合だけファイルから読み直す
-	entry.base = LoadPrefabBaseEntities(database, prefabAsset);
-	entry.writeTime = currentTime;
-	entry.loaded = true;
-	return entry.base;
-}
-
-void Engine::PrefabBaseDocument::InvalidatePrefabBaseCache(AssetID prefabAsset) {
-
-	if (prefabAsset) {
-		prefabBaseCache.erase(prefabAsset);
-	}
+	Logger::Output(LogType::Engine, spdlog::level::err,
+		"[Prefab] 基準データを読み込めません AssetID={} 詳細={}", ToString(prefabAsset), error.what());
+	return {};
 }

@@ -22,5 +22,6 @@ namespace Engine {
 		~LineRenderItemExtractor() = default;
 
 		void Extract(ECSWorld& world, RenderSceneBatch& batch) override;
+		uint64_t GetContentRevision() const override;
 	};
 } // Engine

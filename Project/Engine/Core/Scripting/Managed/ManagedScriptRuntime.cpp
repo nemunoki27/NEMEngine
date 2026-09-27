@@ -160,39 +160,8 @@ void Engine::ManagedScriptRuntime::Finalize() {
 	applicationQuitRequested_ = false;
 	initialized_ = false;
 
-	// 関数ポインタのリセット
-	bridge_.initializeNativeAPI_ = nullptr;
-	bridge_.loadGameAssembly_ = nullptr;
-	bridge_.unloadGameAssembly_ = nullptr;
-	bridge_.pumpSceneEvents_ = nullptr;
-	bridge_.raiseApplicationQuitting_ = nullptr;
-	bridge_.tickFrame_ = nullptr;
-	bridge_.configureProfiler_ = nullptr;
-	bridge_.getLastAlcUnloadStatus_ = nullptr;
-	bridge_.getScriptTypeCount_ = nullptr;
-	bridge_.copyScriptTypeInfo_ = nullptr;
-	bridge_.generateScriptManifest_ = nullptr;
-	bridge_.getScriptSchemaJsonSize_ = nullptr;
-	bridge_.copyScriptSchemaJson_ = nullptr;
-	bridge_.getRuntimeStateSize_ = nullptr;
-	bridge_.copyRuntimeState_ = nullptr;
-	bridge_.setRuntimeField_ = nullptr;
-	bridge_.createInstance_ = nullptr;
-	bridge_.setSerializedFields_ = nullptr;
-	bridge_.flushPendingReferences_ = nullptr;
-	bridge_.destroyInstance_ = nullptr;
-	bridge_.invokeAwake_ = nullptr;
-	bridge_.invokeStart_ = nullptr;
-	bridge_.invokeOnEnable_ = nullptr;
-	bridge_.invokeOnDisable_ = nullptr;
-	bridge_.invokeOnDestroy_ = nullptr;
-	bridge_.invokeFixedUpdate_ = nullptr;
-	bridge_.invokeUpdate_ = nullptr;
-	bridge_.invokeLateUpdate_ = nullptr;
-	bridge_.invokeCollisionEnter_ = nullptr;
-	bridge_.invokeCollisionStay_ = nullptr;
-	bridge_.invokeCollisionExit_ = nullptr;
-	bridge_.invokeAnimationEvent_ = nullptr;
+	// 接続済みexportをまとめて解除する
+	bridge_ = {};
 
 	ReleaseHostfxr();
 }

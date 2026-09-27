@@ -75,7 +75,9 @@ namespace Engine {
 		// 指定シーンを保存済み状態にする
 		void MarkSceneSaved(AssetID sceneAsset);
 		// 保存開始時の変更世代と一致する場合だけ保存済み状態にする
-		void MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision);
+		void MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision, UUID instanceID = {});
+		void MarkSceneInstanceSaved(AssetID sceneAsset, UUID instanceID);
+		void MarkSceneInstanceDirty(AssetID sceneAsset, UUID instanceID);
 		// 全シーンを保存済み状態にする
 		void MarkAllScenesSaved();
 		// シーン切り替え後の編集状態をリセットする
@@ -91,6 +93,7 @@ namespace Engine {
 
 		// 編集操作
 		bool DuplicateSelection() override;
+		bool DeleteSelection() override;
 		bool CopySelectionToClipboard() override;
 		bool PasteClipboard() override;
 		void NotifyEditorCommandPanelFocused(
@@ -132,6 +135,10 @@ namespace Engine {
 		void RequestCloseUnsavedScenePopup();
 		// 終了時の未保存確認結果
 		EditorUnsavedScenePopupResult ConsumeCloseUnsavedScenePopupResult();
+		// 同一Sceneの保存元選択を要求する
+		void RequestSceneSaveConflict(const std::vector<SceneSaveConflictChoice>& choices);
+		// 保存元選択の結果を取り出す
+		std::optional<SceneSaveConflictResult> ConsumeSceneSaveConflictResult();
 
 		// シーンビューのメッシュピック処理
 		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
@@ -144,9 +151,9 @@ namespace Engine {
 		// エディタの状態の取得
 		const EditorLayoutState& GetLayoutState() const { return layoutState_; }
 		const EditorState& GetEditorState() const { return editorState_; }
-		bool IsSceneDirty(AssetID sceneAsset) const;
+		bool IsSceneDirty(AssetID sceneAsset, UUID instanceID = {}) const;
 		uint64_t GetSceneDirtyRevision(
-			AssetID sceneAsset) const;
+			AssetID sceneAsset, UUID instanceID = {}) const;
 		bool HasDirtyScenes() const { return dirtyState_.HasDirtyScenes(); }
 		const std::unordered_set<AssetID>& GetDirtySceneAssets() const { return dirtyState_.GetDirtySceneAssets(); }
 
@@ -211,8 +218,6 @@ namespace Engine {
 		// 2Dエンティティのピック処理を実行
 		Entity Execute2DPick(const Vector2& inputPixel, const ResolvedRenderView& view, ECSWorld* world);
 
-		// コマンド実行のためのコンテキストを作成する
-		EditorCommandContext MakeCommandContext(const EditorContext& context);
 		// 操作ショートカット
 		void HandleGlobalShortcuts(const EditorContext& context);
 		// 現在編集中のシーンを未保存状態にする

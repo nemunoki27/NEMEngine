@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabInstantiator.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
@@ -10,6 +11,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
@@ -23,9 +25,10 @@
 using namespace Engine::PrefabInstanceUtility;
 
 Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGenerationContext& context,
-	const PrefabInstanceData& data, UUID sceneInstanceID, uint32_t nestedDepth) {
+	const PrefabInstanceData& data, UUID sceneInstanceID, uint32_t nestedDepth) try {
 
 	ECSWorld& world = context.world;
+	SceneCreationScope creation(world);
 	AssetDatabase& database = context.database;
 	HierarchySystem& hierarchySystem = context.hierarchySystem;
 
@@ -39,6 +42,7 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 	if (!data.prefabAsset) {
 		return Entity::Null();
 	}
+	context.ReserveInstanceLocalFileIDs(data);
 
 	// ベースのプレファブを、同一インスタンスIDと保存済みローカルIDの対応付きで展開する
 	PrefabInstantiateResult result{};
@@ -56,6 +60,16 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 	if (!PrefabInstantiator::InstantiatePrefab(context, data.prefabAsset, result, desc)) {
 		return Entity::Null();
 	}
+	// ネストごとの保存IDを維持し、同じSceneの再読込と区別する
+	for (Entity entity : result.createdEntities) {
+		if (auto* link = world.TryGetComponent<PrefabLinkComponent>(entity);
+			link && link->prefabInstanceID == result.prefabInstanceID) {
+			link->savedInstanceID = data.savedInstanceID;
+			if (link->isPrefabRoot) {
+				link->addedEntityMap = data.addedEntityMap;
+			}
+		}
+	}
 	const PrefabReferenceRemapper::LocalFileIDMap prefabToSceneLocal =
 		BuildPrefabToSceneLocalMap(world, result);
 
@@ -70,19 +84,11 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 
 		const Entity entity = findByTarget(target);
 		if (world.IsAlive(entity)) {
-			world.DestroyEntity(entity);
+			creation.DestroyCreated(entity);
 		}
 	}
-	world.FlushPendingDestroyEntities();
 	// ルートが削除済みのインスタンスは子だけを残さず全て破棄する
 	if (!world.IsAlive(result.root)) {
-
-		for (const Entity& entity : result.createdEntities) {
-			if (world.IsAlive(entity)) {
-				world.DestroyEntity(entity);
-			}
-		}
-		world.FlushPendingDestroyEntities();
 		return Entity::Null();
 	}
 
@@ -103,7 +109,9 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 			nlohmann::json value = added.value;
 			PrefabReferenceRemapper::RemapComponent(
 				added.type, value, prefabToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
-			world.AddComponentFromJson(entity, added.type, value);
+			if (!world.AddComponentFromJson(entity, added.type, value)) {
+				return Entity::Null();
+			}
 			if (added.type == "SceneObject") {
 				RestoreSceneObjectRuntimeFields(world, entity, data.prefabAsset, sceneInstanceID, sceneLocalFileID);
 			}
@@ -144,7 +152,9 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 		}
 		for (auto& [type, componentJson] : typeMap) {
 			const UUID sceneLocalFileID = type == "SceneObject" ? SceneLocalOf(world, entity) : UUID{};
-			world.AddComponentFromJson(entity, type, componentJson);
+			if (!world.AddComponentFromJson(entity, type, componentJson)) {
+				return Entity::Null();
+			}
 			if (type == "SceneObject") {
 				RestoreSceneObjectRuntimeFields(world, entity, data.prefabAsset, sceneInstanceID, sceneLocalFileID);
 			}
@@ -158,7 +168,9 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 		const Entity entity = world.CreateEntity(added.stableUUID);
 		if (added.components.is_object()) {
 			for (auto it = added.components.begin(); it != added.components.end(); ++it) {
-				world.AddComponentFromJson(entity, it.key(), it.value());
+				if (!world.AddComponentFromJson(entity, it.key(), it.value())) {
+					return Entity::Null();
+				}
 			}
 		}
 		SceneAuthoring::EnsureGameObjectDefaults(world, entity);
@@ -167,6 +179,8 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 			sceneObject.localFileID = added.sceneLocalFileID;
 		}
 		sceneObject.sceneInstanceID = sceneInstanceID;
+		// 追加Entityも保存参照から同じPrefab空間で解決する
+		sceneObject.sourceAsset = data.prefabAsset;
 
 		// 親への接続はローカルID経由でリンク再構築に任せる
 		if (added.parentSceneLocalFileID) {
@@ -241,7 +255,12 @@ Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(PrefabGeneration
 			MeshSubMeshAuthoring::SyncEntity(&database, world, entity, true);
 		}
 	}
+	creation.Commit();
 	return result.root;
+} catch (const std::exception& error) {
+	Logger::Output(LogType::Engine, spdlog::level::err,
+		"[Prefab] 差分の復元に失敗しました AssetID={} 詳細={}", ToString(data.prefabAsset), error.what());
+	return Entity::Null();
 }
 
 Engine::Entity Engine::PrefabInstanceRebuilder::RebuildInstance(ECSWorld& world, AssetDatabase& database,

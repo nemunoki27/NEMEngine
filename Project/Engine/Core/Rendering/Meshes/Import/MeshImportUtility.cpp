@@ -32,6 +32,16 @@ std::string Engine::MeshImportUtility::BuildSubMeshName(
 	return "SubMesh_" + std::to_string(meshIndex);
 }
 
+bool Engine::MeshImportUtility::HasTriangleGeometry(const aiMesh* mesh) {
+
+	if (!mesh || !mesh->HasPositions() || !mesh->HasFaces()) {
+		return false;
+	}
+	// 点・線だけのMeshをSubMeshや骨の対応へ含めない
+	return std::any_of(mesh->mFaces, mesh->mFaces + mesh->mNumFaces,
+		[](const aiFace& face) { return face.mNumIndices == 3; });
+}
+
 Engine::MeshImportUtility::ImportedMaterialSurface
 Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material) {
 
@@ -68,6 +78,49 @@ Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material) {
 	}
 	if (material->GetTextureCount(aiTextureType_OPACITY) > 0) {
 		result.surfaceMode = MaterialSurfaceMode::Masked;
+	}
+	return result;
+}
+
+Engine::MeshImportUtility::ImportedMaterialFactors
+Engine::MeshImportUtility::ReadMaterialFactors(const aiMaterial* material) {
+
+	ImportedMaterialFactors result{};
+	if (!material) {
+		return result;
+	}
+
+	// PBRのAlphaへ汎用Opacityを重ねて適用しない
+	aiColor4D baseColor{};
+	if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS) {
+		result.baseColor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+		result.hasBaseColor = true;
+	} else {
+		if (material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor) == AI_SUCCESS) {
+			result.baseColor = Color4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+			result.hasBaseColor = true;
+		}
+		// OBJ等の透明度は色とは別のプロパティに格納される
+		ai_real opacity = 1.0f;
+		if (material->Get(AI_MATKEY_OPACITY, opacity) == AI_SUCCESS) {
+			result.baseColor.a = std::clamp(static_cast<float>(opacity), 0.0f, 1.0f);
+			result.hasBaseColor = true;
+		}
+	}
+	aiColor3D emissive{};
+	if (material->Get(AI_MATKEY_COLOR_EMISSIVE, emissive) == AI_SUCCESS) {
+		result.emissive = Color4(emissive.r, emissive.g, emissive.b, 1.0f);
+		result.hasEmissive = true;
+	}
+	ai_real metallic = 0.0f;
+	if (material->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+		result.metallic = static_cast<float>(metallic);
+		result.hasMetallic = true;
+	}
+	ai_real roughness = 1.0f;
+	if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+		result.roughness = static_cast<float>(roughness);
+		result.hasRoughness = true;
 	}
 	return result;
 }

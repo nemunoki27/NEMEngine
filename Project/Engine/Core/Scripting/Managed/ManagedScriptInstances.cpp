@@ -1,5 +1,6 @@
 #include "ManagedScriptRuntime.h"
 #include "ManagedScriptUtility.h"
+#include "ScriptFieldStorage.h"
 #include "Generated/ManagedComponentBindings.generated.h"
 #include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 
@@ -51,7 +52,12 @@ Engine::ManagedScriptInstanceHandle Engine::ManagedScriptRuntime::CreateInstance
 	if (status == ManagedStatus::Ok && createdHandle.IsValid()) {
 		ScriptProfiler::GetInstance().Register({
 			ScriptProfiler::OwnerID(createdHandle), MakeNativeEntity(world, entity), scriptSlotID,
-			scriptTypeID, GetScriptSchema(scriptTypeID).fullTypeName });
+			 scriptTypeID, GetScriptSchema(scriptTypeID).fullTypeName });
+	}
+	if (status != ManagedStatus::Ok || !createdHandle.IsValid()) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"Scriptの生成に失敗しました type={} slot={} status={}",
+			scriptTypeID, scriptSlotID, static_cast<int32_t>(status));
 	}
 	// 生成失敗時は無効ハンドルを返す
 	return status == ManagedStatus::Ok ? createdHandle : ManagedScriptInstanceHandle::Null();
@@ -166,20 +172,7 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::InvokeAnimationEvent(Managed
 nlohmann::json Engine::ManagedScriptRuntime::BuildSerializedValueMap(
 	const nlohmann::json& serializedFields) {
 
-	nlohmann::json result = nlohmann::json::object();
-	if (!serializedFields.is_object() ||
-		!serializedFields.contains("fields") || !serializedFields["fields"].is_object()) {
-		return result;
-	}
-
-	for (auto& [guid, entry] : serializedFields["fields"].items()) {
-		if (entry.is_object() && entry.contains("value")) {
-			result[guid] = entry["value"];
-		} else {
-			result[guid] = entry;
-		}
-	}
-	return result;
+	return ScriptFieldStorage::ExtractValues(serializedFields);
 }
 
 nlohmann::json Engine::ManagedScriptRuntime::GetRuntimeSerializedState(ManagedScriptInstanceHandle handle) {
@@ -204,6 +197,36 @@ nlohmann::json Engine::ManagedScriptRuntime::GetRuntimeSerializedState(ManagedSc
 	}
 	catch (const nlohmann::json::exception&) {
 		return empty;
+	}
+}
+
+bool Engine::ManagedScriptRuntime::CaptureSavedValueMap(ManagedScriptInstanceHandle handle,
+	ECSWorld& world, nlohmann::json& fields) {
+
+	if (!initialized_ || !bridge_.getSavedStateSize_ || !bridge_.copySavedState_ || !handle.IsValid()) {
+		return false;
+	}
+	ScopedReferenceWorld worldScope(world);
+	int32_t size = 0;
+	if (bridge_.getSavedStateSize_(handle, &size) != ManagedStatus::Ok || size <= 0) {
+		return false;
+	}
+	std::string buffer(static_cast<size_t>(size), '\0');
+	int32_t written = 0;
+	if (bridge_.copySavedState_(handle, buffer.data(), size, &written) != ManagedStatus::Ok ||
+		written <= 0 || written > size) {
+		return false;
+	}
+	try {
+		// 正しい保存形式を取得できた場合だけ差し替える
+		auto candidate = nlohmann::json::parse(buffer.begin(), buffer.begin() + written);
+		if (!candidate.is_object()) {
+			return false;
+		}
+		fields = std::move(candidate);
+		return true;
+	} catch (const nlohmann::json::exception&) {
+		return false;
 	}
 }
 

@@ -7,6 +7,13 @@ using static NEMEngine.NativeAPI;
 // 接続済みcallbackを用途別に呼び出す
 internal static unsafe class NativeEntityAPI {
 
+    internal static void EnqueueRemoveScript(NativeEntity entity, ulong slotID) {
+
+        if (RemoveScript != null && slotID != 0) {
+            RemoveScript(entity, slotID);
+        }
+    }
+
     internal static bool ReadIsAlive(NativeEntity entity) {
         return IsAlive != null && IsAlive(entity) != 0;
     }
@@ -121,14 +128,14 @@ internal static unsafe class NativeEntityAPI {
         }
     }
 
-    internal static bool TryAttachScript(NativeEntity owner, string scriptTypeID) {
+    internal static NativeScriptInstanceHandle AttachScriptInstance(NativeEntity owner, string scriptTypeID) {
         if (AttachScript == null || string.IsNullOrEmpty(scriptTypeID)) {
-            return false;
+            return NativeScriptInstanceHandle.Null;
         }
         byte[] bytes = new byte[Encoding.UTF8.GetByteCount(scriptTypeID) + 1];
         Encoding.UTF8.GetBytes(scriptTypeID, 0, scriptTypeID.Length, bytes, 0);
         fixed (byte* ptr = bytes) {
-            return AttachScript(owner, ptr) != 0;
+            return AttachScript(owner, ptr);
         }
     }
 
@@ -160,8 +167,8 @@ internal static unsafe class NativeEntityAPI {
             NativeQuaternion.From(rotation), useTransform ? 1 : 0, GameObject.RawNative(parent)));
     }
 
-    internal static GameObject? ResolveEntityReference(AssetGUID sourceAsset, ulong localFileID)
-        => (ResolveEntityRef != null && localFileID != 0) ? GameObject.FromNative(ResolveEntityRef(sourceAsset, localFileID)) : null;
+    internal static GameObject? ResolveEntityReference(AssetGUID sourceAsset, ulong localFileID, NativeEntity owner)
+        => (ResolveEntityRef != null && localFileID != 0) ? GameObject.FromNative(ResolveEntityRef(sourceAsset, localFileID, owner)) : null;
 
     internal static EntityRef ReadEntityReferenceIdentity(NativeEntity entity) {
         if (GetEntityReferenceIdentity == null) {

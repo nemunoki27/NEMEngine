@@ -105,6 +105,8 @@ namespace Engine {
 
 		// Play中runtime Inspector用：instanceの現在値を{ fieldGuid: value }で取得する
 		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
+		// 複製用の保存値を取得し、失敗時は出力を維持する
+		bool CaptureSavedValueMap(ManagedScriptInstanceHandle handle, ECSWorld& world, nlohmann::json& fields);
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
 		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, ECSWorld& world,
 			const std::string& fieldID, const nlohmann::json& value);
@@ -292,7 +294,8 @@ namespace Engine {
 		// GetComponent<Script> v9でowner Entity上のscriptTypeID一致instanceハンドルを返す
 		static ManagedScriptInstanceHandle __cdecl GetScriptInstanceCallback(ManagedNativeEntity owner, const char* scriptTypeID);
 		// AddComponent<Script> v22でowner EntityへscriptTypeIDのscriptをruntime attachする
-		static int32_t __cdecl AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID);
+		static ManagedScriptInstanceHandle __cdecl AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID);
+		static void __cdecl RemoveScriptCallback(ManagedNativeEntity owner, uint64_t scriptSlotID);
 		// Gameplay v7のTime拡張とTimeScaleでscaledはgetDeltaTimeとgetFixedDeltaTimeが返す既存値
 		static float __cdecl GetUnscaledDeltaTimeCallback();
 		static float __cdecl GetUnscaledFixedDeltaTimeCallback();
@@ -383,7 +386,7 @@ namespace Engine {
 		static uint64_t __cdecl ReloadActiveSceneCallback();
 		static int32_t __cdecl DontDestroyOnLoadCallback(ManagedNativeEntity entity);
 		// EntityRefをlocalFileIDからruntime entityへ解決する、対象が無ければNull
-		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(ManagedAssetGUID sourceAsset, uint64_t localFileID);
+		static ManagedNativeEntity __cdecl ResolveEntityRefCallback(ManagedAssetGUID sourceAsset, uint64_t localFileID, ManagedNativeEntity owner);
 		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う
 		static void __cdecl GetEntityReferenceIdentityCallback(ManagedNativeEntity entity, ManagedAssetGUID* sourceAsset, uint64_t* localFileID, int32_t* kind);
 		// レイキャストの最近ヒットを返す、ヒット無しは0

@@ -87,6 +87,69 @@ namespace Engine::HierarchyUtility {
 		return true;
 	}
 
+	std::vector<Entity> CollectLogicalRoots(ECSWorld& world, std::span<const Entity> selection) {
+
+		std::vector<Entity> candidates;
+		std::unordered_set<uint64_t> selected;
+		for (const Entity& entity : selection) {
+			if (world.IsAlive(entity) && selected.emplace(EntityKey(entity)).second) {
+				candidates.emplace_back(entity);
+			}
+		}
+		if (candidates.size() < 2) {
+			return candidates;
+		}
+
+		// Jointの接続先を一度の走査で索引化する
+		std::unordered_map<LocalKey, Entity, LocalKeyHash> entities;
+		world.ForEachAliveEntity([&](Entity entity) {
+			if (const auto* membership = world.TryGetComponent<SceneObjectComponent>(entity)) {
+				if (membership->localFileID) {
+					const auto [entry, inserted] = entities.emplace(
+						LocalKey{ membership->sceneInstanceID, membership->localFileID }, entity);
+					if (!inserted) {
+						entry->second = Entity::Null();
+					}
+				}
+			}
+		});
+		const auto parentOf = [&](Entity entity) {
+			if (const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(entity)) {
+				if (world.IsAlive(hierarchy->parent)) {
+					return hierarchy->parent;
+				}
+			}
+			const auto* joint = world.TryGetComponent<JointAttachmentComponent>(entity);
+			const auto* membership = world.TryGetComponent<SceneObjectComponent>(entity);
+			if (joint && membership && joint->skinnedEntityLocalFileID) {
+				const auto parent = entities.find({ membership->sceneInstanceID, joint->skinnedEntityLocalFileID });
+				if (parent != entities.end()) {
+					return parent->second;
+				}
+			}
+			return Entity::Null();
+		};
+
+		std::vector<Entity> roots;
+		std::unordered_set<uint64_t> visited;
+		for (const Entity& candidate : candidates) {
+			visited.clear();
+			bool nested = false;
+			Entity parent = parentOf(candidate);
+			while (world.IsAlive(parent) && visited.emplace(EntityKey(parent)).second) {
+				if (selected.contains(EntityKey(parent))) {
+					nested = true;
+					break;
+				}
+				parent = parentOf(parent);
+			}
+			if (!nested) {
+				roots.emplace_back(candidate);
+			}
+		}
+		return roots;
+	}
+
 	std::vector<Entity> CollectLogicalSubtree(ECSWorld& world, Entity root) {
 
 		std::vector<Entity> entities;

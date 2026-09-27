@@ -39,13 +39,17 @@ void Engine::WorldCommandBuffer::EnqueueRemoveComponentByName(const Entity& enti
 	// 削除予約の成功後に、未適用の追加を取り消す
 	const auto* info = ComponentTypeRegistry::GetInstance().FindByName(typeName);
 	if (info) {
-		const auto entry = pendingComponents_.find({ entity.index, entity.generation, info->id });
-		if (entry != pendingComponents_.end()) {
-			auto cancelled = std::move(entry->second);
-			pendingComponents_.erase(entry);
-			cancelled->Cancel();
-		}
+		CancelPendingComponent(entity, info->id);
 	}
+}
+
+void Engine::WorldCommandBuffer::EnqueueRemoveScript(const Entity& entity, const UUID& scriptSlotID) {
+
+	WorldCommand command{};
+	command.kind = WorldCommandKind::RemoveScript;
+	command.target = entity;
+	command.scriptSlotID = scriptSlotID;
+	commands_.emplace_back(std::move(command));
 }
 
 void Engine::WorldCommandBuffer::EnqueueSetNameEnsuringComponent(const Entity& entity, std::string_view name) {

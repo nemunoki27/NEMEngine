@@ -2,6 +2,7 @@
 #include "GPUPipelineRetirementTests.h"
 #include "GPUAccelerationStructureTests.h"
 #include "GPUBufferLifetimeTests.h"
+#include "GPUMeshPublicationTests.h"
 
 //============================================================================
 //	include
@@ -159,6 +160,7 @@ namespace {
 		ID3D12DescriptorHeap* heaps[]{ descriptors.GetDescriptorHeap() };
 		commands->SetDescriptorHeaps(1, heaps);
 		valid &= NEMTests::RecordPipelineOwnerRetirement(device, commands.Get(), descriptors, pipelineReadback);
+		valid &= NEMTests::CheckShaderGraphMeshPipelines(device, retirement);
 		// 同じframeの2Viewを記録し、提出前にProfilerを終了する
 		auto& profiler = Engine::GPUFrameProfiler::GetInstance();
 		const size_t beforeProfiler = retirement.GetPendingCount();
@@ -172,7 +174,10 @@ namespace {
 		valid &= retirement.GetPendingCount() == beforeProfiler + 2 * Engine::kGraphicsFrameContextCount;
 		ComPtr<ID3D12Resource> textureReadback;
 		valid &= NEMTests::RecordTexturePublication(device, commands.Get(), descriptors, textureReadback);
-		valid &= NEMTests::RecordImGuiRetirement(device, queue, commands.Get(), descriptors);
+		ComPtr<ID3D12Resource> meshReadback;
+		valid &= NEMTests::RecordMeshPublication(device, queue, commands.Get(), descriptors, meshReadback);
+		ComPtr<ID3D12Resource> guiReadback;
+		valid &= NEMTests::RecordImGuiRetirement(device, queue, commands.Get(), descriptors, guiReadback);
 		const uint32_t heldDescriptors = descriptors.GetUseDescriptorCount();
 		const size_t pendingCount = retirement.GetPendingCount();
 		commands->Close();
@@ -202,9 +207,9 @@ namespace {
 		valid &= std::memcmp(mapped, expectedStatic, sizeof(expectedStatic)) == 0;
 		staticReadback->Unmap(0, &writtenRange);
 		if (asReadback) {
-			readRange.End = 24;
+			readRange.End = 40;
 			if (FAILED(asReadback->Map(0, &readRange, &mapped))) return false;
-			const uint32_t expectedHits[]{ 1, 0, 1, 0, 1, 1 };
+			const uint32_t expectedHits[]{ 1, 0, 1, 0, 1, 1, 0, 1, 0, 1 };
 			valid &= std::memcmp(mapped, expectedHits, sizeof(expectedHits)) == 0;
 			asReadback->Unmap(0, &writtenRange);
 		}
@@ -238,6 +243,19 @@ namespace {
 		valid &= std::memcmp(mapped, expectedPixel.data(), 4) == 0 &&
 			std::memcmp(static_cast<std::byte*>(mapped) + 512, expectedBlue.data(), 4) == 0;
 		textureReadback->Unmap(0, &writtenRange);
+		readRange.End = sizeof(float) * 2;
+		if (!meshReadback || FAILED(meshReadback->Map(0, &readRange, &mapped))) return false;
+		const std::array<float, 2> expectedMeshHeights{ 5.0f, 7.0f };
+		valid &= std::memcmp(mapped, expectedMeshHeights.data(), sizeof(expectedMeshHeights)) == 0;
+		meshReadback->Unmap(0, &writtenRange);
+		readRange.End = 8 * D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+		if (!guiReadback || FAILED(guiReadback->Map(0, &readRange, &mapped))) return false;
+		const std::array<uint8_t, 4> expectedGUI{ 255, 255, 255, 255 };
+		const bool guiValid = std::memcmp(static_cast<std::byte*>(mapped) +
+			4 * D3D12_TEXTURE_DATA_PITCH_ALIGNMENT + 4 * 4, expectedGUI.data(), expectedGUI.size()) == 0;
+		if (!guiValid) std::cerr << "ImGui texture sampling after backend shutdown failed\n";
+		valid &= guiValid;
+		guiReadback->Unmap(0, &writtenRange);
 		retirement.Collect(completed->GetCompletedValue());
 		return valid && retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0 &&
 			renderTargets.GetUseDescriptorCount() == 0 && depths.GetUseDescriptorCount() == 0;
@@ -409,6 +427,8 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 	const uint32_t previousCount = Engine::GraphicsFrameState::GetActiveCount();
 	const uint32_t previousIndex = Engine::GraphicsFrameState::GetCurrentIndex();
 	bool valid = CheckDescriptorCapacity(device.Get()) && CheckBufferPublication(device.Get()) && CheckRenderTargetPublication(device.Get());
+	valid &= NEMTests::CheckMeshIndirectArguments(device.Get(), queue.Get());
+	valid &= NEMTests::CheckHiZSampleBounds(device.Get(), queue.Get());
 	const bool graphicsValid = CheckGraphicsFenceRetirement(device.Get(), queue.Get());
 	if (!graphicsValid) std::cerr << "Graphics owner retirement failed\n";
 	valid &= graphicsValid;

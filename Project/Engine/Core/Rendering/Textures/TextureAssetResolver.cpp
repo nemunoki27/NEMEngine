@@ -91,7 +91,9 @@ ChooseBestCandidate(const std::vector<TextureCandidate>& candidates) const {
 
 		// パスが短いものを少し優先
 		score -= static_cast<int>(candidate.assetPath.size());
-		if (best == nullptr || bestScore < score) {
+		// 同順位の候補は列挙順に依存させない
+		if (best == nullptr || bestScore < score ||
+			(bestScore == score && candidate.assetPath < best->assetPath)) {
 			best = &candidate;
 			bestScore = score;
 		}
@@ -129,10 +131,6 @@ void Engine::TextureAssetResolver::Build(const std::filesystem::path& modelFullP
 	if (std::filesystem::exists(modelDirectory_) && std::filesystem::is_directory(modelDirectory_)) {
 
 		IndexDirectoryRecursive(modelDirectory_, true);
-		const std::filesystem::path localTextures = modelDirectory_ / "Textures";
-		if (std::filesystem::exists(localTextures) && std::filesystem::is_directory(localTextures)) {
-			IndexDirectoryRecursive(localTextures, true);
-		}
 	}
 
 	const std::filesystem::path gameTexturesRoot = RuntimePaths::GetGameRoot() / "GameAssets/Textures";

@@ -46,6 +46,23 @@ Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetBufferForBinding(const Enti
 		info.elementSize, info.elementAlign, info.bufferElementTriviallyCopyable);
 }
 
+const void* Engine::ECSWorld::TryGetPendingComponentData(const Entity& entity, uint32_t typeID) const {
+
+	if (!IsAlive(entity) || IsPendingDestroy(entity)) return nullptr;
+	const PendingComponent* pending = commandBuffer_.FindPendingComponent(entity, typeID);
+	return pending ? pending->GetData() : nullptr;
+}
+
+Engine::ReadOnlyUntypedDynamicBuffer Engine::ECSWorld::TryGetBufferForBinding(const Entity& entity, uint32_t typeID) const {
+
+	if (!IsAlive(entity) || IsPendingDestroy(entity)) return {};
+	if (auto buffer = TryGetUntypedBuffer(entity, typeID); buffer.IsValid()) return buffer;
+	const auto& info = ComponentTypeRegistry::GetInstance().GetInfo(typeID);
+	if (info.storageKind != ComponentStorageKind::Buffer) return {};
+	return ReadOnlyUntypedDynamicBuffer(static_cast<const DynamicBufferHeader*>(TryGetPendingComponentData(entity, typeID)),
+		info.elementSize, info.elementAlign, info.bufferElementTriviallyCopyable);
+}
+
 void Engine::ECSWorld::ApplyPendingComponent(const Entity& entity, const PendingComponent& component) {
 
 	if (component.GetInstanceID() == 0 || !IsAlive(entity) || IsPendingDestroy(entity) ||

@@ -121,6 +121,7 @@ namespace Engine {
 			Matrix4x4 worldMatrix = Matrix4x4::Identity();
 			const MeshRendererComponent* renderer = nullptr;
 			bool castShadows = true;
+			bool viewDependent = false;
 		};
 		// Primitiveのコレクション
 		struct CollectedPrimitiveInstance {
@@ -134,6 +135,7 @@ namespace Engine {
 			MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
 			Matrix4x4 uvMatrix = Matrix4x4::Identity();
 			bool castShadows = true;
+			bool viewDependent = false;
 			// 形状ハッシュ、共有ジオメトリのキー
 			uint64_t geometryHash = 0;
 		};
@@ -167,6 +169,7 @@ namespace Engine {
 			std::vector<CachedMeshLODInstance>& meshLODInstances;
 			std::vector<uint32_t>& meshLODRecordIndices;
 			bool& requireTlasRebuild;
+			bool& blasContentsChanged;
 			bool& staticScene;
 			uint32_t& blasGeometryCount;
 		};
@@ -199,18 +202,25 @@ namespace Engine {
 		std::vector<uint32_t>
 			cachedMeshLODRecordIndices_{};
 
-		// 1フレームで二重構築しないための制御フラグ
+		// 同じframeと描画条件での重複構築を避ける
 		bool builtThisFrame_ = false;
 		const ECSWorld* builtWorld_ = nullptr;
+		std::shared_ptr<const ECSWorldLifetime> builtWorldLifetime_;
+		uint64_t builtRenderRevision_ = 0;
+		uint64_t builtMeshResourceRevision_ = 0;
+		uint64_t builtLODViewHash_ = 0;
 		UUID builtSceneInstanceID_{};
 		// 静的シーンはWorldとMesh GPUリソースが変わるまでCPU構築結果を再利用する
 		bool cachedStaticScene_ = false;
 		const ECSWorld* cachedWorld_ = nullptr;
+		std::shared_ptr<const ECSWorldLifetime> cachedWorldLifetime_;
+		std::shared_ptr<const RegistryRevision> cachedExtractorRevision_;
 		UUID cachedSceneInstanceID_{};
 		uint64_t cachedRenderRevision_ = 0;
 		uint64_t cachedTransformRevision_ = 0;
 		uint64_t cachedMeshResourceRevision_ = 0;
 		uint64_t textureRevision_ = 0;
+		std::shared_ptr<const uint64_t> materialRevision_;
 		uint64_t cachedLODViewHash_ = 0;
 		uint32_t cachedBLASGeometryCount_ = 0;
 		uint32_t cachedTLASInstanceCount_ = 0;

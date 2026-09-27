@@ -24,12 +24,17 @@ namespace Engine {
 		const EditorContext* editorContext = nullptr;
 		// エディタ状態
 		EditorState* editorState = nullptr;
+		// Play中のInspectorから実行Worldだけを編集する
+		bool allowRuntimeEdit = false;
 
 		// ワールド全体のランタイム階層リンクを再構築する
 		void RebuildHierarchyAll() const;
 
-		// 編集可能か
-		bool CanEditScene() const { return editorContext && !editorContext->isPlaying && editorContext->activeWorld; }
+		// 編集対象Worldが有効か
+		bool CanEditScene() const {
+			return editorContext && editorContext->activeWorld &&
+				(!editorContext->isPlaying || allowRuntimeEdit);
+		}
 		// ワールド取得
 		ECSWorld* GetWorld() const { return editorContext ? editorContext->activeWorld : nullptr; }
 	};

@@ -202,6 +202,7 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 				ImGui::SameLine();
 				if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f)) &&
 					context.panelContext->renderingLayerSettings->RemoveLayer(index)) {
+					ProjectSettingsOperations::ClearRenderingLayer(context, index);
 				}
 			}
 			ImGui::PopID();

@@ -38,6 +38,7 @@ Engine::MeshBatchResources::CachedInstance Engine::MeshBatchResources::MakeCache
 	result.material = item.material;
 	result.batchKey = item.batchKey;
 	if (item.world) {
+		result.worldLifetime = item.world->GetLifetime();
 		result.renderRevision = item.world->GetEntityRenderRevision(item.entity);
 		result.resetRevision = item.world->GetRenderResetRevision();
 	}
@@ -61,6 +62,10 @@ bool Engine::MeshBatchResources::MatchesBatch(const RenderSceneBatch& batch,
 	}
 	for (size_t i = 0; i < items.size(); ++i) {
 		auto expected = cachedInstances_[i];
+		// 同じアドレスの新Worldへ古いcacheを接続しない
+		if (expected.world && !expected.worldLifetime->IsAlive()) {
+			return false;
+		}
 		expected.colorRevision = 0;
 		if (expected != MakeCachedInstance(batch, *items[i])) {
 			return false;
@@ -90,7 +95,7 @@ uint32_t Engine::MeshBatchResources::RefreshMaterialColors() {
 	uint32_t changed = 0;
 	for (size_t i = 0; i < cachedInstances_.size(); ++i) {
 		auto& cached = cachedInstances_[i];
-		if (!cached.world || !cached.world->IsAlive(cached.entity)) {
+		if (!cached.world || !cached.worldLifetime->IsAlive() || !cached.world->IsAlive(cached.entity)) {
 			continue;
 		}
 		const uint64_t revision = cached.world->GetMeshColorRevision(cached.entity);

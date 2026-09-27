@@ -9,10 +9,13 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <cstring>
 #include <filesystem>
+#include <unordered_set>
+#include <utility>
 
 //============================================================================
 //	SceneHeader classMethods
@@ -125,12 +128,17 @@ void Engine::EnsureSceneRenderFeatureProfile(SceneHeader& sceneHeader,
 	}
 }
 
-bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase) {
+bool Engine::FromJson(const nlohmann::json& data, SceneHeader& output, AssetDatabase* assetDatabase) try {
 
 	// JSONがオブジェクトでない場合は失敗
 	if (!data.is_object()) {
 		return false;
 	}
+	if (data.contains("subScenes") && !data["subScenes"].is_array()) {
+		return false;
+	}
+	// 全項目を読めるまで呼出し元のHeaderを保持する
+	SceneHeader sceneHeader = output;
 
 	// JSONからシーンヘッダーの情報を取得する
 	{
@@ -145,6 +153,7 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 	if (data.contains("subScenes") && data["subScenes"].is_array()) {
 
 		size_t generatedIndex = 0;
+		std::unordered_set<UUID> slotIDs;
 		for (const auto& item : data["subScenes"]) {
 
 			if (!item.is_object()) {
@@ -152,7 +161,7 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 			}
 			SubSceneSlotDesc desc{};
 			desc.slotID = FromString16Hex(item.value("slotID", std::string{}));
-			if (!desc.slotID) {
+			if (!desc.slotID || !slotIDs.insert(desc.slotID).second) {
 				return false;
 			}
 			desc.slotName = item.value("slotName", "SubScene" + std::to_string(generatedIndex++));
@@ -161,14 +170,16 @@ bool Engine::FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, Asse
 			if (desc.slotName.empty()) {
 				desc.slotName = "SubScene" + std::to_string(generatedIndex++);
 			}
-			if (!desc.sceneAsset) {
-				continue;
-			}
+			// 未割当のスロットも名前と有効状態を保存する
 			sceneHeader.subScenes.emplace_back(std::move(desc));
 		}
 	}
 
+	output = std::move(sceneHeader);
 	return true;
+} catch (const nlohmann::json::exception& error) {
+	Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] Headerの形式が不正です 詳細={}", error.what());
+	return false;
 }
 
 nlohmann::json Engine::ToJson(const SceneHeader& sceneHeader) {

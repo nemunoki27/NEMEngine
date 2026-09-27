@@ -25,7 +25,7 @@ bool Engine::RaytracingPipelineBuilder::BuildShaderTable(RaytracingPipelineState
 	state.hitGroupCount_ = static_cast<uint32_t>(hitGroupExports.size());
 	state.callableCount_ = static_cast<uint32_t>(callableExports.size());
 	state.rayGenerationTableOffset_ = 0;
-	state.missTableOffset_ = AlignUp(state.rayGenerationCount_ * RaytracingPipelineState::kRecordStride, RaytracingPipelineState::kTableAlign);
+	state.missTableOffset_ = AlignUp(state.rayGenerationCount_ * RaytracingPipelineState::kRayGenerationStride, RaytracingPipelineState::kTableAlign);
 	state.hitGroupTableOffset_ = AlignUp(
 		state.missTableOffset_ + state.missCount_ * RaytracingPipelineState::kRecordStride, RaytracingPipelineState::kTableAlign);
 	state.callableTableOffset_ = AlignUp(
@@ -58,7 +58,7 @@ bool Engine::RaytracingPipelineBuilder::BuildShaderTable(RaytracingPipelineState
 	}
 	std::memset(mapped, 0, state.shaderTableSize_);
 	const auto writeTable = [&](const std::vector<std::wstring>& exports,
-		UINT64 tableOffset) {
+		UINT64 tableOffset, UINT64 recordStride) {
 
 		for (size_t index = 0; index < exports.size(); ++index) {
 			const void* identifier =
@@ -66,16 +66,16 @@ bool Engine::RaytracingPipelineBuilder::BuildShaderTable(RaytracingPipelineState
 			if (!identifier) {
 				return false;
 			}
-			std::memcpy(mapped + tableOffset + index * RaytracingPipelineState::kRecordStride,
+			std::memcpy(mapped + tableOffset + index * recordStride,
 				identifier, RaytracingPipelineState::kHandleSize);
 		}
 		return true;
 	};
 	const bool written =
-		writeTable(rayGenerationExports, state.rayGenerationTableOffset_) &&
-		writeTable(missExports, state.missTableOffset_) &&
-		writeTable(hitGroupExports, state.hitGroupTableOffset_) &&
-		writeTable(callableExports, state.callableTableOffset_);
+		writeTable(rayGenerationExports, state.rayGenerationTableOffset_, RaytracingPipelineState::kRayGenerationStride) &&
+		writeTable(missExports, state.missTableOffset_, RaytracingPipelineState::kRecordStride) &&
+		writeTable(hitGroupExports, state.hitGroupTableOffset_, RaytracingPipelineState::kRecordStride) &&
+		writeTable(callableExports, state.callableTableOffset_, RaytracingPipelineState::kRecordStride);
 	state.shaderTable_->Unmap(0, nullptr);
 	if (!written) {
 		Logger::Output(LogType::Engine, spdlog::level::err,

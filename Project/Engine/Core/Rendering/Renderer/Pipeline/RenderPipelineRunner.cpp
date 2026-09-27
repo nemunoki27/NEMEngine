@@ -57,6 +57,12 @@
 
 using namespace Engine;
 
+const RenderTexture2D* RenderPipelineRunner::FindViewColorTexture(RenderViewKind kind, const std::string& name) const {
+
+	const auto& state = kind == RenderViewKind::Game ? gameViewState_ : sceneViewState_;
+	return state.targetRegistry.FindColorByName(name);
+}
+
 //============================================================================
 //	RenderPipelineRunner classMethods
 //============================================================================
@@ -166,6 +172,9 @@ void RenderPipelineRunner::ReloadMesh(AssetID meshAssetID) {
 	if (meshBackend_) {
 		meshBackend_->RequestMeshReload(meshAssetID);
 	}
+	if (particleBackend_) {
+		particleBackend_->RequestMeshReload(meshAssetID);
+	}
 	if (previewResources_.previewMeshBackend_) {
 		previewResources_.previewMeshBackend_->RequestMeshReload(meshAssetID);
 	}
@@ -266,6 +275,10 @@ void RenderPipelineRunner::Finalize() {
 	// GPU計測用のクエリヒープ/リードバックバッファはここで解放する
 	// シングルトンのため放置するとDeviceより後まで生き残り、LeakCheckerに残る
 	GPUFrameProfiler::GetInstance().Finalize();
+	// Worldや登録処理より先に抽出結果の借用を解除する
+	scenePreparation_.renderBatch_.Clear();
+	previewResources_.previewScenePreparation_.renderBatch_.Clear();
+	previewResources_.previewScenePreparation_.frameLightBatch_.Clear();
 
 	renderPath_.Finalize();
 	backendRegistry_.Clear();
@@ -478,11 +491,7 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 			// レイトレーシングシーンの構築
 			// gRaytracingSceneInstances/gRaytracingSubMeshesはcontext.bufferRegistryへ登録する必要があるため、
 			// コピーではなく実際のcontextへ直接構築する、コピーへ構築すると登録が破棄され反射パスが早期リターンする
-			// TLAS構築の基準ビューだけ一時的にGameViewへ差し替え、構築後に元へ戻す
-			const ResolvedRenderView* prevTlasView = context.view;
-			if (gameViewState_.view.valid) {
-				context.view = &gameViewState_.view;
-			}
+			// 描画先のCameraでLODとBillboardを解決する
 			PrimitiveGeometryManager* primitiveGeometryManager = primitiveBackend_ ? &primitiveBackend_->GetGeometryManager() : nullptr;
 			GPUFrameProfiler::GetInstance().BeginPass(commandList, viewName + "/RaytracingSceneBuild");
 			raytracingSceneBuilder_.BuildForScene(
@@ -490,7 +499,6 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 				renderAssetLibrary_, materialResolver_, meshBackend,
 				primitiveGeometryManager, scenePreparation_.renderBatch_, context);
 			GPUFrameProfiler::GetInstance().EndPass(commandList);
-			context.view = prevTlasView;
 
 			if (context.raytracing.tlasResource) {
 				pickingState_.tlasResource_ = context.raytracing.tlasResource;

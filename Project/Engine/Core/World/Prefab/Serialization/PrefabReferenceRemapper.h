@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
+#include <functional>
 #include <string>
 #include <unordered_map>
 // json
@@ -27,6 +28,14 @@ namespace PrefabReferenceRemapper {
 	};
 
 	using LocalFileIDMap = std::unordered_map<UUID, UUID>;
+	using EntityReferenceMapper = std::function<void(nlohmann::json&)>;
+
+	// 有効な保存Entity参照からAssetとLocalFileIDを読む
+	bool TryReadEntityReference(const nlohmann::json& reference, AssetID& sourceAsset, UUID& localFileID);
+
+	// 参照元Assetが一致する複製範囲内の参照だけを変換する
+	void RemapMatchedEntityReference(nlohmann::json& reference, const LocalFileIDMap& localFileIDMap,
+		const std::unordered_map<UUID, AssetID>& sourceAssets);
 
 	// 旧シーンの重複対応を先頭へ統合し、シーン参照だけを張り替える
 	bool NormalizeLegacySceneInstances(nlohmann::json& scene, AssetID sourceAsset, std::string& diagnostic,
@@ -38,6 +47,9 @@ namespace PrefabReferenceRemapper {
 	// 単一コンポーネント内のEntity参照を変換する
 	void RemapComponent(const std::string& componentType, nlohmann::json& component,
 		const LocalFileIDMap& localFileIDMap, ReferenceSpace referenceSpace, AssetID sourceAsset);
+	// 参照元Assetを照合する複製処理とNative参照の変換を共有する
+	void RemapComponentReferences(const std::string& componentType, nlohmann::json& component,
+		const LocalFileIDMap& localFileIDMap, const EntityReferenceMapper& mapper);
 	// 差分値内のEntity参照をパス情報込みで変換する
 	void RemapValue(nlohmann::json& value, const std::string& path,
 		const LocalFileIDMap& localFileIDMap, ReferenceSpace referenceSpace, AssetID sourceAsset);

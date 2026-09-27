@@ -9,6 +9,8 @@ Engine::DirectionalLightGPU Engine::LightGPUConversion::ToGPU(const DirectionalL
 	light.intensity = item.intensity;
 	light.shadowStrength = item.shadowStrength;
 	light.shadowAngularRadius = item.shadowAngularRadius;
+	// Light共通情報をGPU側へ転送
+	light.affectLayerMask = item.common.affectLayerMask;
 
 	return light;
 }
@@ -24,6 +26,8 @@ Engine::PointLightGPU Engine::LightGPUConversion::ToGPU(const PointLightItem& it
 	light.decay = item.decay;
 	light.shadowStrength = item.shadowStrength;
 	light.shadowRadius = item.shadowRadius;
+	// Light共通情報をGPU側へ転送
+	light.affectLayerMask = item.common.affectLayerMask;
 
 	return light;
 }
@@ -42,6 +46,8 @@ Engine::SpotLightGPU Engine::LightGPUConversion::ToGPU(const SpotLightItem& item
 	light.cosFalloffStart = item.cosFalloffStart;
 	light.shadowStrength = item.shadowStrength;
 	light.shadowRadius = item.shadowRadius;
+	// Light共通情報をGPU側へ転送
+	light.affectLayerMask = item.common.affectLayerMask;
 
 	return light;
 }
@@ -63,6 +69,8 @@ Engine::RectLightGPU Engine::LightGPUConversion::ToGPU(const RectLightItem& item
 	light.barnDoorAngle = item.barnDoorAngle;
 	light.barnDoorLength = item.barnDoorLength;
 	light.shadowStrength = item.shadowStrength;
+	// Light共通情報をGPU側へ転送
+	light.affectLayerMask = item.common.affectLayerMask;
 
 	return light;
 }

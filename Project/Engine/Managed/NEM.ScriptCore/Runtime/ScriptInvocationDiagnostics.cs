@@ -38,6 +38,24 @@ internal static unsafe class ScriptInvocationDiagnostics {
         }
     }
 
+    // Timer／Coroutine／遅延Eventの例外をPause判定へ渡す
+    internal static void ReportRuntimeServiceException(string apiName, Exception ex) {
+        try {
+            NativeApplicationAPI.WriteLog(2, $"[RuntimeServiceException] api={apiName}\n{ex}");
+            var dto = new JsonObject {
+                ["callback"] = apiName,
+                ["exceptionType"] = ex.GetType().FullName ?? ex.GetType().Name,
+                ["message"] = ex.Message ?? string.Empty,
+                ["frames"] = new JsonArray(),
+            };
+            NativeApplicationAPI.ReportScriptExceptionJson(dto.ToJsonString());
+        }
+        catch {
+            try { NativeApplicationAPI.WriteLog(2, "[RuntimeServiceException] Failed to report diagnostics."); }
+            catch { }
+        }
+    }
+
     private static void WriteScriptException(ScriptTypeRegistry registry, MonoBehaviour script, string callbackName, Exception ex) {
 
         Type type = script.GetType();

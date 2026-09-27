@@ -11,15 +11,14 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
-#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
 // c++
-#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <string_view>
-#include <unordered_set>
+#include <vector>
 
 namespace {
 
@@ -49,109 +48,22 @@ namespace {
 			database.GetIssues().empty() ? 0 : 4;
 	}
 
-	bool CanonicalizeSceneFile(const std::filesystem::path& path) {
-
-		nlohmann::json root = Engine::JsonAdapter::Load(path);
-		if (!root.is_object()) {
-			return false;
-		}
-		const bool hasExternalActors =
-			root.contains("ExternalActors") &&
-			root["ExternalActors"].is_array();
-		const bool hasEntities =
-			root.contains("Entities") &&
-			root["Entities"].is_array();
-		if (root.value("SchemaVersion", 0u) != 3u ||
-			!root.contains("Header") || !root["Header"].is_object() ||
-			!root.contains("PrefabInstances") || !root["PrefabInstances"].is_array() ||
-			hasExternalActors == hasEntities) {
-			return false;
-		}
-
-		if (auto header = root.find("Header");
-			header != root.end() && header->is_object()) {
-
-			auto subScenes = header->find("subScenes");
-			if (subScenes != header->end() && subScenes->is_array()) {
-
-				for (size_t index = 0; index < subScenes->size(); ++index) {
-
-					nlohmann::json& item = (*subScenes)[index];
-					if (!item.is_object() ||
-						!Engine::TryParseUUID16Hex(
-							item.value("slotID", std::string{}))) {
-						return false;
-					}
-				}
-			}
-		}
-
-		if (hasExternalActors) {
-			std::sort(root["ExternalActors"].begin(),
-				root["ExternalActors"].end());
-		} else {
-
-			std::unordered_set<Engine::UUID> localFileIDs;
-			for (const nlohmann::json& entity : root["Entities"]) {
-
-				if (!entity.is_object() ||
-					!entity.contains("Components") ||
-					!entity["Components"].is_object()) {
-					return false;
-				}
-				const std::optional<Engine::UUID> localFileID =
-					Engine::TryParseUUID16Hex(
-						entity.value("LocalFileID", std::string{}));
-				if (!localFileID ||
-					!localFileIDs.insert(*localFileID).second) {
-					return false;
-				}
-			}
-			std::sort(root["Entities"].begin(),
-				root["Entities"].end(),
-				[](const auto& lhs, const auto& rhs) {
-					return lhs.value("LocalFileID", std::string{}) <
-						rhs.value("LocalFileID", std::string{});
-				});
-		}
-		for (auto& item : root["PrefabInstances"]) {
-
-			Engine::PrefabInstanceData data{};
-			if (!Engine::FromJson(item, data)) {
-				return false;
-			}
-			item = Engine::ToJson(data);
-		}
-		std::sort(root["PrefabInstances"].begin(), root["PrefabInstances"].end(),
-			[](const auto& lhs, const auto& rhs) {
-			return lhs.value("InstanceID", std::string{}) <
-				rhs.value("InstanceID", std::string{});
-			});
-		return Engine::JsonAdapter::SaveCanonical(path, root);
-	}
-
-	bool CanonicalizeSceneRoot(const std::filesystem::path& root, size_t& sceneCount) {
+	bool CollectScenePaths(const std::filesystem::path& root, std::vector<std::filesystem::path>& paths) {
 
 		std::error_code ec;
-		for (auto it = std::filesystem::recursive_directory_iterator(
-			root, std::filesystem::directory_options::skip_permission_denied, ec);
-			it != std::filesystem::recursive_directory_iterator{}; it.increment(ec)) {
+		auto it = std::filesystem::recursive_directory_iterator(root, ec);
+		while (!ec && it != std::filesystem::recursive_directory_iterator{}) {
 
-			if (ec) {
-				ec.clear();
-				continue;
+			// 列挙失敗を対象なしとして扱わない
+			if (it->is_regular_file(ec) &&
+				Engine::AssetTypeResolver::GuessByPath(it->path()) == Engine::AssetType::Scene) {
+				paths.push_back(it->path());
 			}
-			if (!it->is_regular_file(ec) ||
-				Engine::AssetTypeResolver::GuessByPath(it->path()) != Engine::AssetType::Scene) {
-				continue;
-			}
-			if (!CanonicalizeSceneFile(it->path())) {
-				std::cerr << "シーンの正規化に失敗しました: " << it->path() << '\n';
-				return false;
-			}
-			++sceneCount;
+			if (ec) break;
+			it.increment(ec);
 		}
-		return true;
+		if (ec) std::cerr << "シーンの列挙に失敗しました: " << root << " / " << ec.message() << '\n';
+		return !ec;
 	}
 
 	int CanonicalizeScenes(const std::filesystem::path& projectPath, bool includeEngine) {
@@ -164,15 +76,21 @@ namespace {
 		}
 		Engine::RuntimePaths::Refresh();
 
-		size_t sceneCount = 0;
-		if (!CanonicalizeSceneRoot(Engine::RuntimePaths::GetGameAssetsRoot(), sceneCount)) {
+		std::vector<std::filesystem::path> paths;
+		if (!CollectScenePaths(Engine::RuntimePaths::GetGameAssetsRoot(), paths)) {
 			return 5;
 		}
 		if (includeEngine &&
-			!CanonicalizeSceneRoot(Engine::RuntimePaths::GetEngineAssetsRoot(), sceneCount)) {
+			!CollectScenePaths(Engine::RuntimePaths::GetEngineAssetsRoot(), paths)) {
 			return 5;
 		}
-		std::cout << "正規化したシーン数: " << sceneCount << '\n';
+		Engine::SceneAssetStorage storage;
+		std::string error;
+		if (!storage.Canonicalize(paths, error)) {
+			std::cerr << error << '\n';
+			return 5;
+		}
+		std::cout << "正規化したシーン数: " << paths.size() << '\n';
 		return 0;
 	}
 

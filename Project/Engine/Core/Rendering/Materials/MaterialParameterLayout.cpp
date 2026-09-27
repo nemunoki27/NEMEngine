@@ -1,7 +1,10 @@
 #include "MaterialParameterLayout.h"
+#include "MaterialParameterLookup.h"
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
 #include <algorithm>
+#include <functional>
 
 //============================================================================
 //	MaterialParameterLayout classMethods
@@ -42,7 +45,8 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 		space_ = buffer->space;
 		variables_ = buffer->variables;
 
-		for (const ShaderConstantBufferVariable& variable : variables_) {
+		for (ShaderConstantBufferVariable& variable : variables_) {
+			variable.isTexture = MaterialParameterLookup::IsTexture(variable, reflection);
 			const uint32_t declaredEnd = variable.offset + GetDeclaredVariableByteSize(variable);
 			sizeInBytes_ = (std::max)(sizeInBytes_, declaredEnd);
 		}
@@ -62,6 +66,7 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 		bindPoint_ = structuredBuffer->bindPoint;
 		space_ = structuredBuffer->space;
 		variables_ = structuredBuffer->variables;
+		for (auto& variable : variables_) variable.isTexture = MaterialParameterLookup::IsTexture(variable, reflection);
 		std::sort(variables_.begin(), variables_.end(),
 			[](const ShaderConstantBufferVariable& lhs,
 				const ShaderConstantBufferVariable& rhs) {
@@ -79,4 +84,31 @@ Engine::MaterialParameterLayout::Find(MaterialParameterID id) const {
 		});
 	return position != variables_.end() && position->parameterID == id ?
 		&*position : nullptr;
+}
+
+uint64_t Engine::MaterialParameterLayout::GetContentHash() const {
+
+	uint64_t hash = 1469598103934665603ull;
+	Algorithm::HashCombine(hash, sizeInBytes_);
+	Algorithm::HashCombine(hash, bindPoint_);
+	Algorithm::HashCombine(hash, space_);
+	for (const auto& variable : variables_) {
+		// 同じ配置でもIDやTexture指定が変われば再転送する
+		Algorithm::HashCombine(hash, std::hash<std::string>{}(variable.name));
+		Algorithm::HashCombine(hash, variable.parameterID.value);
+		Algorithm::HashCombine(hash, static_cast<uint64_t>(variable.semantic));
+		Algorithm::HashCombine(hash, variable.offset);
+		Algorithm::HashCombine(hash, variable.size);
+		Algorithm::HashCombine(hash, static_cast<uint64_t>(variable.valueClass));
+		Algorithm::HashCombine(hash, static_cast<uint64_t>(variable.valueType));
+		Algorithm::HashCombine(hash, variable.rows);
+		Algorithm::HashCombine(hash, variable.columns);
+		Algorithm::HashCombine(hash, variable.elements);
+		Algorithm::HashCombine(hash, variable.declaredComponentCount);
+		Algorithm::HashCombine(hash, variable.declaredByteSize);
+		Algorithm::HashCombine(hash, variable.used);
+		Algorithm::HashCombine(hash, variable.isColor);
+		Algorithm::HashCombine(hash, variable.isTexture);
+	}
+	return hash;
 }

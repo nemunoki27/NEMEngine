@@ -54,11 +54,13 @@ namespace NEMTests {
 	concept CanSetBufferData = requires(T buffer) { buffer.SetData(nullptr, 0); };
 	template <typename T>
 	concept CanSetBufferElement = requires(T buffer) { buffer.SetElement(0, nullptr); };
+	template <typename T>
+	concept CanAssignBuffer = requires(T buffer) { buffer.Assign(std::span<const TestBufferElement>{}); };
 
 	using ReadOnlyTestBuffer = Engine::DynamicBuffer<const TestBufferElement>;
 	static_assert(!CanResizeBuffer<ReadOnlyTestBuffer> && !CanAddBufferElement<ReadOnlyTestBuffer> &&
 		!CanEmplaceBufferElement<ReadOnlyTestBuffer> && !CanClearBuffer<ReadOnlyTestBuffer> &&
-		!CanReserveBuffer<ReadOnlyTestBuffer> && !CanRemoveBufferElement<ReadOnlyTestBuffer>);
+		!CanReserveBuffer<ReadOnlyTestBuffer> && !CanRemoveBufferElement<ReadOnlyTestBuffer> && !CanAssignBuffer<ReadOnlyTestBuffer>);
 	static_assert(CanResizeBuffer<Engine::DynamicBuffer<TestBufferElement>>);
 	static_assert(std::is_same_v<decltype(std::declval<ReadOnlyTestBuffer>().GetData()), const TestBufferElement*>);
 	static_assert(std::is_same_v<decltype(std::declval<ReadOnlyTestBuffer>()[0]), const TestBufferElement&>);
@@ -163,6 +165,9 @@ namespace NEMTests {
 		}
 
 		// C# ABIと同じ型消去経路でもサイズ検証後に読み書きできる
+		const auto* retainedStorage = buffer.GetData();
+		buffer.Assign(buffer.GetSpan().subspan(1, 3));
+		if (buffer.GetData() != retainedStorage || buffer.GetSize() != 3 || buffer[0].value != 1 || buffer[2].value != 3) return false;
 		const uint32_t bufferTypeID =
 			Engine::ComponentTypeRegistry::GetInstance().GetID<TestBufferElement>();
 		Engine::UntypedDynamicBuffer untyped =
@@ -250,6 +255,14 @@ namespace NEMTests {
 			"type-guid-b", "Game.PlayerEffects"));
 		expected.back().serializedFields["enabled"] = true;
 		Engine::SetScriptEntries(world, source, expected);
+		// 自分の全体と部分列を入力してもJSONと個体IDを壊さない
+		Engine::SetScriptEntries(world, source, Engine::GetScriptEntries(world, source));
+		if (Engine::GetScriptEntries(world, source)[0].serializedFields != expected[0].serializedFields) return false;
+		Engine::SetScriptEntries(world, source, Engine::GetScriptEntries(world, source).subspan(1));
+		const auto shortened = Engine::GetScriptEntries(world, source);
+		if (shortened.size() != 1 || shortened[0].scriptSlotID != expected[1].scriptSlotID ||
+			shortened[0].serializedFields != expected[1].serializedFields) return false;
+		Engine::SetScriptEntries(world, source, expected);
 
 		const auto readUntyped = std::as_const(world).TryGetUntypedBuffer(source,
 			Engine::ComponentTypeRegistry::GetInstance().GetID<Engine::ScriptEntry>());
@@ -294,6 +307,66 @@ namespace NEMTests {
 	bool TestSerializationClone() {
 
 		RegisterTestComponents();
+		// 追加待ちの値と従属BufferをFlushせず保存する
+		Engine::ECSWorld pendingWorld;
+		const auto pendingEntity = pendingWorld.CreateEntity();
+		auto& commands = pendingWorld.GetCommandBuffer();
+		auto& registry = Engine::ComponentTypeRegistry::GetInstance();
+		commands.EnqueueCreateEntity(pendingWorld, pendingEntity, "PendingSnapshot", Engine::Entity::Null());
+		commands.StageAddComponent(pendingWorld, pendingEntity, registry.GetID<Engine::ScriptComponent>());
+		const uint32_t scriptBufferID = registry.GetID<Engine::ScriptEntry>();
+		commands.StageAddComponent(pendingWorld, pendingEntity, scriptBufferID);
+		auto script = Engine::MakeScriptEntry("pending-script", "Game.Pending");
+		script.serializedFields["value"] = 73;
+		pendingWorld.TryGetBufferForBinding<Engine::ScriptEntry>(pendingEntity).Add(script);
+		const Engine::ECSWorld& readPending = pendingWorld;
+		static_assert(!CanResizeBuffer<decltype(readPending.TryGetBufferForBinding<Engine::ScriptEntry>(pendingEntity))>);
+		static_assert(std::is_same_v<decltype(readPending.TryGetComponentForBinding<Engine::NameComponent>(pendingEntity)),
+			const Engine::NameComponent*>);
+		if (readPending.TryGetComponentForBinding<Engine::NameComponent>(pendingEntity)->name != "PendingSnapshot" ||
+			readPending.TryGetBufferForBinding(pendingEntity, scriptBufferID).GetSize() != 1) return false;
+		nlohmann::json pendingJSON;
+		pendingWorld.SerializeEntityComponents(pendingEntity, pendingJSON);
+		nlohmann::json pendingScript;
+		if (!pendingWorld.SerializeComponentToJson(pendingEntity, "Script", pendingScript) ||
+			pendingScript != pendingJSON["Script"] || !pendingJSON.contains("Name") ||
+			!pendingScript.is_array() || pendingScript.size() != 1 || pendingScript[0]["serializedFields"]["value"] != 73 ||
+			pendingWorld.HasComponent<Engine::ScriptComponent>(pendingEntity) || commands.IsEmpty()) return false;
+		auto pendingSnapshot = pendingWorld.CloneForSerialization();
+		if (!pendingSnapshot->HasComponent<Engine::NameComponent>(pendingEntity) ||
+			!pendingSnapshot->HasBuffer<Engine::ScriptEntry>(pendingEntity) || !pendingSnapshot->GetCommandBuffer().IsEmpty() ||
+			pendingWorld.HasComponent<Engine::NameComponent>(pendingEntity)) return false;
+		pendingWorld.TryGetBufferForBinding<Engine::ScriptEntry>(pendingEntity)[0].serializedFields["value"] = 89;
+		nlohmann::json snapshotJSON;
+		pendingSnapshot->SerializeEntityComponents(pendingEntity, snapshotJSON);
+		if (snapshotJSON != pendingJSON) return false;
+		pendingSnapshot.reset();
+		pendingWorld.TryGetBufferForBinding<Engine::ScriptEntry>(pendingEntity)[0].serializedFields["value"] = 73;
+		commands.StageAddComponent(pendingWorld, pendingEntity, registry.GetID<TestEnableableComponent>());
+		commands.EnqueueRemoveComponentByName(pendingEntity, registry.GetInfo(registry.GetID<TestEnableableComponent>()).name);
+		nlohmann::json cancelledJSON;
+		pendingWorld.SerializeEntityComponents(pendingEntity, cancelledJSON);
+		if (cancelledJSON != pendingJSON) return false;
+		// 保存用複製へ保留中の名前・有効状態・親変更を反映する
+		const auto parentEntity = pendingWorld.CreateEntity();
+		commands.EnqueueCreateEntity(pendingWorld, parentEntity, "PendingParent", Engine::Entity::Null());
+		commands.EnqueueSetParent(pendingEntity, parentEntity);
+		commands.EnqueueSetNameEnsuringComponent(pendingEntity, "RenamedBeforeSave");
+		commands.EnqueueSetActiveSelfEnsuringComponent(pendingEntity, false);
+		auto commandSnapshot = pendingWorld.CloneForSerialization();
+		if (pendingWorld.TryGetComponentForBinding<Engine::NameComponent>(pendingEntity)->name != "PendingSnapshot" ||
+			!commandSnapshot ||
+			commandSnapshot->GetComponent<Engine::NameComponent>(pendingEntity).name != "RenamedBeforeSave" ||
+			commandSnapshot->GetComponent<Engine::SceneObjectComponent>(pendingEntity).activeSelf ||
+			commandSnapshot->GetComponent<Engine::HierarchyComponent>(pendingEntity).parent != parentEntity) {
+			return false;
+		}
+		pendingWorld.FlushWorldCommands();
+		nlohmann::json appliedScript;
+		if (!pendingWorld.SerializeComponentToJson(pendingEntity, "Script", appliedScript) ||
+			appliedScript != pendingScript) return false;
+		const auto appliedEntries = Engine::GetScriptEntries(readPending, pendingEntity);
+		if (appliedEntries.size() != 1 || appliedEntries.front().serializedFields["value"] != 73) return false;
 		Engine::ECSWorld world(Engine::ECSWorldKind::Authoring);
 		const Engine::Entity entity =
 			Engine::SceneAuthoring::CreateGameObject(

@@ -73,6 +73,7 @@ namespace {
 void Engine::UIRuntimeService::Build(ECSWorld& world, const Vector2& viewportSize) {
 
 	WorldState state{};
+	state.lifetime = world.GetLifetime();
 	state.viewportSize = viewportSize;
 
 	std::vector<Entity> canvases;
@@ -135,11 +136,34 @@ void Engine::UIRuntimeService::Build(ECSWorld& world, const Vector2& viewportSiz
 		visit(canvasEntity);
 	}
 
+	// 描画行列や順序が変わったときだけ抽出結果を更新する
+	const WorldState* previous = FindWorld(world);
+	const bool unchanged = previous && std::equal(previous->elements.begin(), previous->elements.end(),
+		state.elements.begin(), state.elements.end(), [](const UIElementRuntime& a, const UIElementRuntime& b) {
+			return a.entity == b.entity && a.canvas == b.canvas && a.screenMatrix == b.screenMatrix &&
+				a.canvasSortingLayer == b.canvasSortingLayer && a.canvasOrder == b.canvasOrder && a.hierarchyOrder == b.hierarchyOrder;
+		});
+	if (!unchanged) {
+		if (previous) {
+			for (const auto& element : previous->elements) {
+				if (world.IsAlive(element.entity)) { world.MarkRenderDataModified(element.entity); }
+			}
+		}
+		for (const auto& element : state.elements) {
+			world.MarkRenderDataModified(element.entity);
+		}
+	}
 	worlds_[&world] = std::move(state);
 }
 
 void Engine::UIRuntimeService::Clear(ECSWorld& world) {
 
+	// Canvasから外れた描画も通常の座標へ戻す
+	if (const WorldState* state = FindWorld(world)) {
+		for (const auto& element : state->elements) {
+			if (world.IsAlive(element.entity)) { world.MarkRenderDataModified(element.entity); }
+		}
+	}
 	worlds_.erase(&world);
 	gameplayInputBlocked_ = false;
 }
@@ -164,25 +188,31 @@ bool Engine::UIRuntimeService::TryScreenToLocalPoint(const ECSWorld& world, Enti
 
 const Engine::UIElementRuntime* Engine::UIRuntimeService::Find(const ECSWorld& world, Entity entity) const {
 
-	const auto worldIt = worlds_.find(&world);
-	if (worldIt == worlds_.end()) {
+	const WorldState* state = FindWorld(world);
+	if (!state) {
 		return nullptr;
 	}
-	const auto it = worldIt->second.lookup.find(MakeEntityKey(entity));
-	return it != worldIt->second.lookup.end() ? &worldIt->second.elements[it->second] : nullptr;
+	const auto it = state->lookup.find(MakeEntityKey(entity));
+	return it != state->lookup.end() ? &state->elements[it->second] : nullptr;
 }
 
 const std::vector<Engine::UIElementRuntime>& Engine::UIRuntimeService::GetElements(const ECSWorld& world) const {
 
 	static const std::vector<UIElementRuntime> empty;
-	const auto it = worlds_.find(&world);
-	return it != worlds_.end() ? it->second.elements : empty;
+	const WorldState* state = FindWorld(world);
+	return state ? state->elements : empty;
 }
 
 Engine::Vector2 Engine::UIRuntimeService::GetViewportSize(const ECSWorld& world) const {
 
+	const WorldState* state = FindWorld(world);
+	return state ? state->viewportSize : Vector2{};
+}
+
+const Engine::UIRuntimeService::WorldState* Engine::UIRuntimeService::FindWorld(const ECSWorld& world) const {
+
 	const auto it = worlds_.find(&world);
-	return it != worlds_.end() ? it->second.viewportSize : Vector2{};
+	return it != worlds_.end() && it->second.lifetime && it->second.lifetime->IsAlive() ? &it->second : nullptr;
 }
 
 Engine::UIRuntimeService& Engine::UIRuntimeService::GetInstance() {

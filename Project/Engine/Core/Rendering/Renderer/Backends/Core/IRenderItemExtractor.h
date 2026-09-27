@@ -28,6 +28,8 @@ namespace Engine {
 
 		// 描画アイテムの抽出
 		virtual void Extract(ECSWorld& world, RenderSceneBatch& batch) = 0;
+		// World外の描画データの更新を通知する
+		virtual uint64_t GetContentRevision() const;
 	};
 
 	// アイテム抽出に関するユーティリティ関数

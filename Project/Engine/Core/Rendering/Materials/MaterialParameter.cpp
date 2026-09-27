@@ -66,6 +66,7 @@ namespace {
 		SemanticAlias{ "emissiontexture", Engine::MaterialParameterSemantic::EmissiveTexture },
 		SemanticAlias{ "emissiveintensity", Engine::MaterialParameterSemantic::EmissiveIntensity },
 		SemanticAlias{ "opacity", Engine::MaterialParameterSemantic::Opacity },
+		SemanticAlias{ "opacitytexture", Engine::MaterialParameterSemantic::OpacityTexture },
 		SemanticAlias{ "alphaclip", Engine::MaterialParameterSemantic::AlphaClip },
 		SemanticAlias{ "alphacutoff", Engine::MaterialParameterSemantic::AlphaClip },
 		SemanticAlias{ "uvtransform", Engine::MaterialParameterSemantic::UVTransform },

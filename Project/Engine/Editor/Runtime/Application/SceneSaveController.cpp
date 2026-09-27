@@ -10,10 +10,13 @@
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 // c++
 #include <exception>
-#include <unordered_set>
+#include <algorithm>
+#include <utility>
+#include <vector>
 
 using namespace Engine;
 
@@ -22,28 +25,34 @@ Engine::SceneSaveController::SceneSaveController(AssetDatabase& assetDatabase,
 	SceneInstanceManager& editScenes,
 	SceneSystem& sceneSystem,
 	EditorManager& editorManager,
-	const std::string& activeScenePath,
 	std::function<void()> restoreEditModeUIVisuals) :
 	assetDatabase_(assetDatabase),
 	worldManager_(worldManager),
 	editScenes_(editScenes),
 	sceneSystem_(sceneSystem),
 	editorManager_(editorManager),
-	activeScenePath_(activeScenePath),
 	restoreEditModeUIVisuals_(restoreEditModeUIVisuals) {
 }
 
 bool Engine::SceneSaveController::SaveActiveEditScene() {
 
 	const SceneInstance* activeScene = editScenes_.GetActive();
-	const AssetID sceneAsset = activeScene ? activeScene->sceneAsset : AssetID{};
-	if (!activeScene || !sceneAsset) {
+	return activeScene && SaveEditScene(activeScene->instanceID);
+}
+
+bool Engine::SceneSaveController::SaveEditScene(UUID instanceID) {
+
+	const SceneInstance* scene = editScenes_.Find(instanceID);
+	if (!scene || !scene->sceneAsset || scene->persistent) {
 		return false;
 	}
+	const AssetID sceneAsset = scene->sceneAsset;
 	if (sceneSaveJob_) {
 
-		// 保存中の再要求は完了直後に最新ワールドをもう一度取得する
-		sceneSaveQueued_ = true;
+		// 同じSceneの連打はまとめ、別Sceneの要求も保持する
+		if (std::find(queuedInstances_.begin(), queuedInstances_.end(), instanceID) == queuedInstances_.end()) {
+			queuedInstances_.push_back(instanceID);
+		}
 		return true;
 	}
 	restoreEditModeUIVisuals_();
@@ -63,64 +72,104 @@ bool Engine::SceneSaveController::SaveActiveEditScene() {
 			std::chrono::steady_clock::now() -
 			captureStartedAt).count();
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: シーン保存用Snapshotを複製しました path={} 経過={}ms",
-		activeScenePath_, captureElapsed);
+		"EngineApplication: シーン保存用Snapshotを複製しました Asset={} 経過={}ms",
+		ToString(sceneAsset), captureElapsed);
 
 	SceneSaveJob job{};
 	job.sceneAsset = sceneAsset;
-	job.dirtyRevision =
-		editorManager_.GetSceneDirtyRevision(sceneAsset);
-	job.scenePath = activeScenePath_;
+	for (UUID id : editScenes_.FindInstanceIDs(sceneAsset)) {
+		job.dirtyRevisions[id] = editorManager_.GetSceneDirtyRevision(sceneAsset, id);
+	}
+	job.scenePath = Algorithm::PathToUTF8(assetDatabase_.ResolveFullPath(sceneAsset));
 	job.startedAt = captureStartedAt;
 	job.result = std::async(std::launch::async,
 		[worldSnapshot = std::move(worldSnapshot),
 		scenesSnapshot = std::move(scenesSnapshot),
 		databaseSnapshot = std::move(databaseSnapshot),
-		sceneAsset, storage = sceneSystem_.GetStorage()]() mutable {
+		sceneAsset, instanceID, storage = sceneSystem_.GetStorage()]() mutable {
 
 			SceneSystem sceneSystem{ std::move(storage) };
+			SceneSaveResult result;
 			SceneSaveSnapshot snapshot{};
 			if (!scenesSnapshot.CaptureSave(
 				databaseSnapshot, sceneSystem,
-				*worldSnapshot, sceneAsset, snapshot)) {
-				return false;
+				*worldSnapshot, sceneAsset, snapshot, instanceID)) {
+				return result;
 			}
-			return SceneSystem::WriteSaveSnapshot(
-				std::move(snapshot));
+			// 保存内容と一致するInstanceだけを完了時に解除する
+			for (UUID id : scenesSnapshot.FindInstanceIDs(sceneAsset)) {
+				SceneSaveSnapshot other;
+				if (id == instanceID ||
+					(scenesSnapshot.CaptureSave(databaseSnapshot, sceneSystem, *worldSnapshot, sceneAsset, other, id) &&
+						other.root == snapshot.root && other.useExternalActors == snapshot.useExternalActors)) {
+					result.matchingInstances.push_back(id);
+				}
+			}
+			result.succeeded = SceneSystem::WriteSaveSnapshot(std::move(snapshot));
+			return result;
 		});
 	sceneSaveJob_.emplace(std::move(job));
 	return true;
 }
 
-bool Engine::SceneSaveController::SaveAllEditScenes() {
+std::vector<Engine::SceneSaveConflictChoice>
+Engine::SceneSaveController::ConsumePendingConflicts() {
+
+	std::vector<SceneSaveConflictChoice> conflicts = std::move(pendingConflicts_);
+	pendingConflicts_.clear();
+	return conflicts;
+}
+
+Engine::SceneSaveOutcome Engine::SceneSaveController::SaveAllEditScenes(
+	const std::unordered_map<AssetID, UUID>& selectedInstances) {
 
 	if (!WaitForSceneSave()) {
-		return false;
+		return SceneSaveOutcome::Failed;
 	}
 	restoreEditModeUIVisuals_();
 
-	std::unordered_set<AssetID> savedAssets;
-	for (const SceneInstance& scene : editScenes_.GetAll()) {
-
-		if (!scene.sceneAsset || !savedAssets.insert(scene.sceneAsset).second) {
-			continue;
-		}
-		if (!editScenes_.Save(
-			assetDatabase_, sceneSystem_, worldManager_.GetEditWorld(), scene.sceneAsset)) {
-
+	// 同じ保存先の競合は最初のファイルを書き込む前に検出する
+	std::vector<SceneSaveSnapshot> snapshots;
+	std::vector<AssetID> conflicts;
+	if (!editScenes_.CaptureAllSaves(assetDatabase_, sceneSystem_, worldManager_.GetEditWorld(), snapshots, conflicts,
+		selectedInstances)) {
+		pendingConflicts_.clear();
+		for (AssetID asset : conflicts) {
+			SceneSaveConflictChoice choice{};
+			choice.sceneAsset = asset;
+			choice.instanceIDs = editScenes_.FindInstanceIDs(asset);
+			pendingConflicts_.emplace_back(std::move(choice));
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"EngineApplication: シーン保存に失敗しました Asset={}", ToString(scene.sceneAsset));
-			return false;
+				"EngineApplication: 同じSceneの編集内容が異なります。保存元Instanceを選択してください Asset={}", ToString(asset));
+		}
+		return pendingConflicts_.empty() ? SceneSaveOutcome::Failed : SceneSaveOutcome::Conflict;
+	}
+	pendingConflicts_.clear();
+	for (auto& snapshot : snapshots) {
+		const AssetID sceneAsset = snapshot.sceneAsset;
+		if (!SceneSystem::WriteSaveSnapshot(std::move(snapshot))) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"EngineApplication: シーン保存に失敗しました Asset={}", ToString(sceneAsset));
+			return SceneSaveOutcome::Failed;
+		}
+		// 保存元を選んだAssetには別Instanceの未保存編集が残る
+		if (!selectedInstances.contains(sceneAsset)) {
+			editorManager_.MarkSceneSaved(sceneAsset);
+		} else {
+			const UUID selected = selectedInstances.at(sceneAsset);
+			editorManager_.MarkSceneInstanceSaved(sceneAsset, selected);
+			for (UUID instance : editScenes_.FindInstanceIDs(sceneAsset)) {
+				if (instance != selected) {
+					editorManager_.MarkSceneInstanceDirty(sceneAsset, instance);
+				}
+			}
 		}
 	}
 
 	assetDatabase_.RebuildMeta();
-	if constexpr (BuildConfig::kEditorEnabled) {
-		editorManager_.MarkAllScenesSaved();
-	}
 	Logger::Output(LogType::Engine, spdlog::level::info,
-		"EngineApplication: 読み込み済みシーンを保存しました 数={}", savedAssets.size());
-	return true;
+		"EngineApplication: 読み込み済みシーンを保存しました 数={}", snapshots.size());
+	return editorManager_.HasDirtyScenes() ? SceneSaveOutcome::UnsavedInstances : SceneSaveOutcome::Saved;
 }
 
 bool Engine::SceneSaveController::FinishSceneSave(
@@ -133,7 +182,7 @@ bool Engine::SceneSaveController::FinishSceneSave(
 		return true;
 	}
 
-	std::future<bool>& result = sceneSaveJob_->result;
+	std::future<SceneSaveResult>& result = sceneSaveJob_->result;
 	if (!wait && result.wait_for(
 		std::chrono::milliseconds(0)) !=
 		std::future_status::ready) {
@@ -145,8 +194,7 @@ bool Engine::SceneSaveController::FinishSceneSave(
 
 	const AssetID sceneAsset =
 		sceneSaveJob_->sceneAsset;
-	const uint64_t dirtyRevision =
-		sceneSaveJob_->dirtyRevision;
+	const auto dirtyRevisions = sceneSaveJob_->dirtyRevisions;
 	const std::string scenePath =
 		sceneSaveJob_->scenePath;
 	const auto elapsed =
@@ -154,8 +202,10 @@ bool Engine::SceneSaveController::FinishSceneSave(
 			std::chrono::steady_clock::now() -
 			sceneSaveJob_->startedAt).count();
 	bool succeeded = false;
+	SceneSaveResult saved;
 	try {
-		succeeded = result.get();
+		saved = result.get();
+		succeeded = saved.succeeded;
 	}
 	catch (const std::exception& exception) {
 
@@ -169,8 +219,23 @@ bool Engine::SceneSaveController::FinishSceneSave(
 
 		// AssetDatabaseとEditor状態はメインスレッドだけで更新する
 		assetDatabase_.RebuildMeta();
-		editorManager_.MarkSceneSaved(
-			sceneAsset, dirtyRevision);
+		for (const auto& [instanceID, revision] : dirtyRevisions) {
+			if (!editScenes_.Find(instanceID)) {
+				continue;
+			}
+			if (std::find(saved.matchingInstances.begin(), saved.matchingInstances.end(), instanceID) != saved.matchingInstances.end()) {
+				editorManager_.MarkSceneSaved(sceneAsset, revision, instanceID);
+			} else {
+				// ファイルと異なる別Instanceは未保存として残す
+				editorManager_.MarkSceneInstanceDirty(sceneAsset, instanceID);
+			}
+		}
+		// 保存中に追加されたInstanceは内容一致を確認できていない
+		for (UUID instanceID : editScenes_.FindInstanceIDs(sceneAsset)) {
+			if (!dirtyRevisions.contains(instanceID)) {
+				editorManager_.MarkSceneInstanceDirty(sceneAsset, instanceID);
+			}
+		}
 		Logger::Output(LogType::Engine, spdlog::level::info,
 			"EngineApplication: アクティブシーンを保存しました path={} 経過={}ms",
 			scenePath, elapsed);
@@ -192,28 +257,28 @@ void Engine::SceneSaveController::UpdateSceneSave() {
 	if (!FinishSceneSave(false, &succeeded)) {
 		return;
 	}
-	if (!sceneSaveQueued_) {
+	if (queuedInstances_.empty()) {
 		return;
 	}
 
-	sceneSaveQueued_ = false;
-	SaveActiveEditScene();
+	const UUID requested = queuedInstances_.front();
+	queuedInstances_.pop_front();
+	SaveEditScene(requested);
 }
 
 bool Engine::SceneSaveController::WaitForSceneSave() {
 
 	bool allSucceeded = true;
-	while (sceneSaveJob_) {
+	while (sceneSaveJob_ || !queuedInstances_.empty()) {
 
 		bool succeeded = true;
 		FinishSceneSave(true, &succeeded);
 		allSucceeded = allSucceeded && succeeded;
-		if (sceneSaveQueued_) {
+		if (!queuedInstances_.empty()) {
 
-			sceneSaveQueued_ = false;
-			if (!SaveActiveEditScene()) {
-				return false;
-			}
+			const UUID requested = queuedInstances_.front();
+			queuedInstances_.pop_front();
+			allSucceeded = SaveEditScene(requested) && allSucceeded;
 		}
 	}
 	return allSucceeded;

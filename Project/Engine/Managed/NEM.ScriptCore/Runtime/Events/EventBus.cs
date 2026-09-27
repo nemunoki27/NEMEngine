@@ -4,7 +4,7 @@ namespace NEMEngine;
 //	EventBus
 //	型をキーにしたグローバル pub/sub。GameObject に依存しないゲーム全体イベント向け。
 //	イベント型は readonly struct 推奨。typeof(T) 完全一致で配信し、基底/派生への
-//	fan-out は行わない。例外隔離・owner 破棄での自動解除・次フレーム遅延発火を備える。
+//	fan-out は行わない。例外ログ・owner 破棄での自動解除・次フレーム遅延発火を備える。
 //============================================================================
 // main thread 専用。delegate スナップショットで Publish 中の購読変更・再入も安全。
 public static class EventBus {

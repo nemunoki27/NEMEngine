@@ -72,6 +72,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.setScriptEnabled = &ManagedScriptRuntime::SetScriptEnabledCallback;
 	callbacks.getScriptInstance = &ManagedScriptRuntime::GetScriptInstanceCallback;
 	callbacks.attachScript = &ManagedScriptRuntime::AttachScriptCallback;
+	callbacks.removeScript = &ManagedScriptRuntime::RemoveScriptCallback;
 	// 自動生成コンポーネントバインディングの型付きプロパティ振り分け、ManagedComponentBindings.json由来
 	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
 	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;

@@ -58,7 +58,7 @@ namespace Engine {
 	// v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
 	// v52: アクティブSceneの再読み込みAPIを追加
 	// v53: スクリプトの詳細計測区間を追加
-	inline constexpr uint32_t kManagedAbiVersion = 56;
+	inline constexpr uint32_t kManagedAbiVersion = 58;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -560,8 +560,9 @@ namespace Engine {
 		// GetComponent<Script> v9のentity上でscriptTypeID一致のscript instanceハンドルを引く
 		using GetScriptInstanceCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
 		// AddComponent<Script> v22のentityへscriptTypeIDのscriptをruntime attachする、成否を返す
-		using AttachScriptCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*);
-		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(ManagedAssetGUID, uint64_t);
+		using AttachScriptCallback = ManagedScriptInstanceHandle(__cdecl*)(ManagedNativeEntity, const char*);
+		using RemoveScriptCallback = void(__cdecl*)(ManagedNativeEntity, uint64_t);
+		using ResolveEntityRefCallback = ManagedNativeEntity(__cdecl*)(ManagedAssetGUID, uint64_t, ManagedNativeEntity);
 		// v20のEntity保存identity逆引き、sourceAssetとlocalFileIDとkindを返す
 		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, ManagedAssetGUID*, uint64_t*, int32_t*);
 		// v21のレイキャスト、単発は最近ヒットを返しAllはヒット総数を返してcapacity分だけ書く

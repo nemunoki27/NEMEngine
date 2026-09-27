@@ -42,8 +42,11 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	constexpr uint32_t kRaytracingRenderFlagReceiveShadow = 1u << 2;
 	constexpr uint32_t kRaytracingRenderFlagReceiveIBL = 1u << 3;
 	constexpr uint32_t kRaytracingRenderFlagReceiveReflection = 1u << 4;
+	constexpr uint32_t kRaytracingRenderingLayerMaskShift = 8u;
+	constexpr uint32_t kRaytracingRenderingLayerMaskBits = 0x00FFFFFFu;
 
-	uint32_t ToRaytracingRenderFlags(Engine::MeshRenderFlags flags) {
+	uint32_t ToRaytracingRenderFlags(
+		Engine::MeshRenderFlags flags, uint32_t renderingLayerMask) {
 
 		uint32_t result = 0;
 		if (Engine::HasMeshRenderFlag(flags,
@@ -66,7 +69,10 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 			result |= kRaytracingRenderFlagReceiveReflection;
 		}
-		return result;
+		// Lighting flagとRenderer maskを同じinstance flagsへ詰める
+		return result | ((renderingLayerMask &
+			kRaytracingRenderingLayerMaskBits) <<
+			kRaytracingRenderingLayerMaskShift);
 	}
 
 	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
@@ -166,6 +172,8 @@ namespace Engine::RaytracingSceneGeometryUtility {
 			Engine::Algorithm::HashCombine(hash,
 				subMesh.occlusionTextureIndex);
 			Engine::Algorithm::HashCombine(hash,
+				subMesh.opacityTextureIndex);
+			Engine::Algorithm::HashCombine(hash,
 				subMesh.specularTextureIndex);
 			Engine::Algorithm::HashCombine(hash,
 				subMesh.metallicTextureIndex);
@@ -196,19 +204,15 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 	float GetMatrixMaxScale(const Engine::Matrix4x4& matrix) {
 
-		const float scaleX = std::sqrt(
-			matrix.m[0][0] * matrix.m[0][0] +
-			matrix.m[0][1] * matrix.m[0][1] +
-			matrix.m[0][2] * matrix.m[0][2]);
-		const float scaleY = std::sqrt(
-			matrix.m[1][0] * matrix.m[1][0] +
-			matrix.m[1][1] * matrix.m[1][1] +
-			matrix.m[1][2] * matrix.m[1][2]);
-		const float scaleZ = std::sqrt(
-			matrix.m[2][0] * matrix.m[2][0] +
-			matrix.m[2][1] * matrix.m[2][1] +
-			matrix.m[2][2] * matrix.m[2][2]);
-		return (std::max)(scaleX, (std::max)(scaleY, scaleZ));
+		const Engine::Vector3 x(matrix.m[0][0], matrix.m[0][1], matrix.m[0][2]);
+		const Engine::Vector3 y(matrix.m[1][0], matrix.m[1][1], matrix.m[1][2]);
+		const Engine::Vector3 z(matrix.m[2][0], matrix.m[2][1], matrix.m[2][2]);
+		const float xy = std::abs(Engine::Vector3::Dot(x, y));
+		const float xz = std::abs(Engine::Vector3::Dot(x, z));
+		const float yz = std::abs(Engine::Vector3::Dot(y, z));
+		// Shaderと同じGram行列の上限でせん断後の球も包む
+		return std::sqrt((std::max)({ Engine::Vector3::Dot(x, x) + xy + xz,
+			Engine::Vector3::Dot(y, y) + xy + yz, Engine::Vector3::Dot(z, z) + xz + yz }));
 	}
 
 	void EncapsulateSphere(const Engine::Vector3& sourceCenter,
@@ -290,14 +294,14 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 	uint32_t ResolveMeshLOD(
 		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* cullingView,
+		const Engine::ResolvedRenderView* lodView,
 		const Engine::Vector3& center, float radius) {
 
-		if (!features.useMeshLOD || !cullingView) {
+		if (!features.useMeshLOD || !lodView) {
 			return 0;
 		}
 		const Engine::ResolvedCameraView* camera =
-			cullingView->FindCamera(
+			lodView->FindCamera(
 				Engine::RenderCameraDomain::Perspective);
 		if (!camera || !camera->valid) {
 			return 0;
@@ -317,11 +321,11 @@ namespace Engine::RaytracingSceneGeometryUtility {
 			camera->matrices.projectionMatrix.m[1][1]);
 		const float pixelRadiusX =
 			std::abs(radius * projectionX / nearZ) *
-			static_cast<float>((std::max)(cullingView->width, 1u)) *
+			static_cast<float>((std::max)(lodView->width, 1u)) *
 			0.5f;
 		const float pixelRadiusY =
 			std::abs(radius * projectionY / nearZ) *
-			static_cast<float>((std::max)(cullingView->height, 1u)) *
+			static_cast<float>((std::max)(lodView->height, 1u)) *
 			0.5f;
 		const float pixelRadius =
 			(std::max)(pixelRadiusX, pixelRadiusY);
@@ -339,7 +343,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 	uint64_t ComputeLODViewHash(
 		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* cullingView) {
+		const Engine::ResolvedRenderView* lodView) {
 
 		uint64_t hash = features.useMeshLOD ? 1ull : 0ull;
 		Engine::Algorithm::HashCombine(hash,
@@ -351,14 +355,14 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		Engine::Algorithm::HashCombine(hash,
 			std::bit_cast<uint32_t>(
 				features.meshLOD2PixelThreshold));
-		if (!cullingView) {
+		if (!lodView) {
 			return hash;
 		}
 
-		Engine::Algorithm::HashCombine(hash, cullingView->width);
-		Engine::Algorithm::HashCombine(hash, cullingView->height);
+		Engine::Algorithm::HashCombine(hash, lodView->width);
+		Engine::Algorithm::HashCombine(hash, lodView->height);
 		const Engine::ResolvedCameraView* camera =
-			cullingView->FindCamera(
+			lodView->FindCamera(
 				Engine::RenderCameraDomain::Perspective);
 		if (!camera || !camera->valid) {
 			return hash;

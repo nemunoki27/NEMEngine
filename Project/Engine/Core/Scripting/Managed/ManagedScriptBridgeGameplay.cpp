@@ -8,6 +8,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
@@ -66,52 +67,18 @@ namespace Engine {
 
 
 	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback(
-		ManagedAssetGUID sourceAsset, uint64_t localFileID) {
+		ManagedAssetGUID sourceAsset, uint64_t localFileID, ManagedNativeEntity owner) {
 
-		// localFileIDとsourceAssetから現在のworldのentityを引く
-		const SystemContext* context = GetCurrentContext();
-		ECSWorld* world = context ? context->world : currentReferenceWorld_;
-		if (!world || localFileID == 0) {
+		// 所有ScriptのWorldとSceneから保存参照を解決する
+		ECSWorld* world = ResolveWorld(owner);
+		const Entity ownerEntity = ResolveEntity(owner);
+		if (!world || !world->IsAlive(ownerEntity) || localFileID == 0) {
 			return MakeNullNativeEntity();
 		}
 
-		const SceneInstanceManager* sceneInstances =
-			world->GetCommandServices().sceneInstances;
-		const SceneInstance* activeScene = sceneInstances ? sceneInstances->GetActive() : nullptr;
-		const UUID activeSceneInstanceID = activeScene ? activeScene->instanceID : UUID{};
-
-		const AssetID sourceAssetID = ToAssetID(sourceAsset);
-		Entity fallback = Entity::Null();
-		Entity sourceMatch = Entity::Null();
-		Entity activeMatch = Entity::Null();
-		Entity activeSourceMatch = Entity::Null();
-		world->ForEach<SceneObjectComponent>([&](Entity entity,
-			SceneObjectComponent& sceneObject) {
-
-			if (sceneObject.localFileID.value != localFileID) {
-				return;
-			}
-			if (!world->IsAlive(fallback)) {
-				fallback = entity;
-			}
-			const bool sourceMatched = !sourceAssetID ||
-				sceneObject.sourceAsset == sourceAssetID;
-			const bool activeMatched = activeSceneInstanceID &&
-				sceneObject.sceneInstanceID == activeSceneInstanceID;
-			if (sourceMatched && !world->IsAlive(sourceMatch)) {
-				sourceMatch = entity;
-			}
-			if (activeMatched && !world->IsAlive(activeMatch)) {
-				activeMatch = entity;
-			}
-			if (sourceMatched && activeMatched && !world->IsAlive(activeSourceMatch)) {
-				activeSourceMatch = entity;
-			}
-			});
-
-		const Entity entity = world->IsAlive(activeSourceMatch) ? activeSourceMatch :
-			world->IsAlive(sourceMatch) ? sourceMatch :
-			world->IsAlive(activeMatch) ? activeMatch : fallback;
+		// 別Assetや任意のActive Sceneへ参照を付け替えない
+		const Entity entity = SceneObjectUtility::ResolveReference(*world, ToAssetID(sourceAsset), UUID{ localFileID },
+			SceneObjectUtility::GetSceneInstanceID(*world, ownerEntity));
 		if (!world->IsAlive(entity)) {
 			return MakeNullNativeEntity();
 		}
@@ -130,7 +97,7 @@ namespace Engine {
 		if (!world || !world->IsAlive(resolved)) {
 			return;
 		}
-		const SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
+		const SceneObjectComponent* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved);
 		if (!sceneObject || !sceneObject->localFileID) {
 			return;
 		}
@@ -216,9 +183,9 @@ namespace Engine {
 			}
 		}
 
-		// 呼び出し元はSystemSchedulerが所有する可変ContextのためLifecycle同期へ戻す
+		// 生成したScriptのAwakeとOnEnableを反映
 		BehaviorSystem::SynchronizeInstantiatedEntities(
-			*world, *const_cast<SystemContext*>(context), result.createdEntities);
+			*world, *context, result.createdEntities);
 		return MakeNativeEntity(*world, result.root);
 	}
 

@@ -33,21 +33,8 @@ struct DepthVSOutput {
 //	resources
 //============================================================================
 cbuffer ViewConstants : register(b0) {
-	
-	float4x4 viewProjection;
-	float4x4 previousViewProjection;
-	float4x4 cullingViewProjection;
-	float4x4 cullingView;
-	float3 cullingCameraPos;
-	float cullingNearClip;
-	float3 cullingCameraForward;
-	float _cullingPad0;
-	float2 viewSize;
-	float2 cullingViewSize;
-	float2 cullingProjectionScale;
-	float2 _viewPad0;
-	float3 renderCameraPos;
-	uint frameSerial;
+
+#include "meshViewFields.hlsli"
 };
 cbuffer SubMeshConstants : register(b1) {
 
@@ -58,30 +45,7 @@ cbuffer SubMeshConstants : register(b1) {
 };
 cbuffer MeshDrawConstants : register(b0, space1) {
 
-	uint meshletCount;
-	uint subMeshCount;
-	uint instanceCount;
-	uint cullingEnabled;
-	uint packedMeshletVertexIndices;
-	uint frustumCullingEnabled;
-	uint contributionCullingEnabled;
-	uint normalConeCullingEnabled;
-	float3 meshBoundsCenter;
-	float meshBoundsRadius;
-	float contributionPixelThreshold;
-	uint invertedHullOutlinePass;
-	float outlineMaxModelExpansion;
-	float outlineMaxAbsCameraZOffset;
-	uint outlineHasScreenPixelWidth;
-	uint occlusionCullingEnabled;
-	uint subMeshGroupIndex;
-	float maxDisplacement;
-	uint4 lodIndexOffsets;
-	uint4 lodIndexCounts;
-	uint4 lodMeshletOffsets;
-	uint4 lodMeshletCounts;
-	float3 lodPixelThresholds;
-	uint lodCount;
+#include "meshDrawFields.hlsli"
 };
 // 共有GPU構造体はmeshShaderSharedTypes.hlsliへ集約済み
 
@@ -328,27 +292,7 @@ float CalcProjectedPixelRadius(float3 center, float radius) {
 	return max(radiusXY.x, radiusXY.y);
 }
 
-uint ResolveMeshLOD(MeshInstance instance) {
-
-	if (lodCount <= 1u ||
-		(instance.flags & MESH_INSTANCE_FLAG_SKINNED) != 0u) {
-		return 0u;
-	}
-
-	float3 center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
-	float radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
-	float pixelRadius = CalcProjectedPixelRadius(center, radius);
-	if (pixelRadius >= lodPixelThresholds.x) {
-		return 0u;
-	}
-	if (pixelRadius >= lodPixelThresholds.y) {
-		return 1u;
-	}
-	if (pixelRadius >= lodPixelThresholds.z) {
-		return 2u;
-	}
-	return min(3u, lodCount - 1u);
-}
+#include "meshLODSelection.hlsli"
 
 bool HasContribution(float3 center, float radius) {
 
@@ -358,17 +302,14 @@ bool HasContribution(float3 center, float radius) {
 	return CalcProjectedPixelRadius(center, radius) >= contributionPixelThreshold;
 }
 
-bool IsNormalConeVisible(MeshletBounds bounds, float3 center, float3x3 normalMatrix) {
+bool IsNormalConeVisible(MeshletBounds bounds, float3 center, float3x3 worldMatrix) {
 
 	if (normalConeCullingEnabled == 0u || bounds.coneCutoff < 0.5f) {
 		return true;
 	}
 
-	// coneAxisは法線方向なので、非一様スケールでもnormalMatrixで変換する
-	float3 axis = normalize(mul(bounds.coneAxis, normalMatrix));
-	float3 viewDir = normalize(cullingCameraPos - center);
-	float coneAngleSin = sqrt(saturate(1.0f - bounds.coneCutoff * bounds.coneCutoff));
-	return dot(axis, viewDir) > -coneAngleSin;
+	return IsTransformedNormalConeVisible(bounds.coneAxis, bounds.coneCutoff,
+		cullingCameraPos - center, bounds.radius, worldMatrix);
 }
 
 bool IsSphereOccluded(float3 center, float radius) {
@@ -396,7 +337,6 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	}
 
 	float4x4 worldMatrix = GetInstanceSubMeshWorldMatrix(instanceIndex, meshlet.subMeshIndex);
-	float4x4 normalMatrix = GetInstanceSubMeshNormalMatrix(instanceIndex, meshlet.subMeshIndex);
 	MeshletBounds bounds = gMeshletBounds[meshletIndex];
 	float3 center = mul(float4(bounds.center, 1.0f), worldMatrix).xyz;
 	// 背面法アウトラインは元形状より外へ膨張するため、Boundsを安全側へ広げる
@@ -415,13 +355,32 @@ bool IsMeshletVisible(uint meshletIndex, uint instanceIndex) {
 	if (!HasContribution(center, radius)) {
 		return false;
 	}
-	if (!IsNormalConeVisible(bounds, center, (float3x3)normalMatrix)) {
+	if (!IsNormalConeVisible(bounds, center, (float3x3)worldMatrix)) {
 		return false;
 	}
 	if (IsSphereOccluded(center, radius)) {
 		return false;
 	}
 	return true;
+}
+
+// 担当外のSubMeshをfar面の外へ送る
+float4 ResolveMeshRenderGroupPosition(float4 position, uint instanceID, uint subMeshIndex) {
+
+	if (!IsSubMeshRenderGroupVisible(instanceID, subMeshIndex)) {
+		position.z = position.w * 2.0f;
+	}
+	return position;
+}
+
+// 本体と履歴の座標を同じ描画グループへ制限する
+void ApplyMeshRenderGroupVisibility(inout VSOutput output) {
+
+	if (!IsSubMeshRenderGroupVisible(output.instanceID, output.subMeshIndex)) {
+		output.position = ResolveMeshRenderGroupPosition(output.position, output.instanceID, output.subMeshIndex);
+		output.currentClipPosition = output.position;
+		output.previousClipPosition = output.position;
+	}
 }
 
 // VS経路のVSOutputを構築する、各PS系で共通の頂点処理
@@ -454,12 +413,7 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 	output.subMeshIndex = localSubMeshIndex;
 	output.tangentSign = vertex.tangentSign;
 	output.orientationSign = GetInstanceSubMeshOrientationSign(instanceID, localSubMeshIndex);
-	if (!IsSubMeshRenderGroupVisible(instanceID, localSubMeshIndex)) {
-		// VS経路ではグループ外の頂点をfar面の外へ送りラスタライズしない
-		output.position.z = output.position.w * 2.0f;
-		output.currentClipPosition = output.position;
-		output.previousClipPosition = output.position;
-	}
+	ApplyMeshRenderGroupVisibility(output);
 
 	return output;
 }

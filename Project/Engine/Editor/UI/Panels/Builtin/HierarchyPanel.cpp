@@ -11,9 +11,7 @@ using namespace Engine::EntityCreationMenu;
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/ReparentEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
 #include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
 #include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
 #include <Engine/Editor/Commands/Entity/UnpackPrefabCommand.h>
@@ -650,12 +648,7 @@ void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
 		const bool canDelete = PrefabInstanceEditUtility::CanDelete(context.editorContext, world, entity);
 		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene() && canDelete)) {
 
-			const std::vector<Entity> targets = context.editorState->GetSelectedEntities();
-			for (const Entity& target : targets) {
-				if (world.IsAlive(target)) {
-					context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(target));
-				}
-			}
+			context.host->DeleteSelection();
 		}
 		ImGui::EndPopup();
 	}

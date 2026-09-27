@@ -9,6 +9,9 @@
 
 namespace Engine {
 
+	// 登録内容の個体を区別する
+	struct RegistryRevision final {};
+
 	// リスト形式のレジストリ基底クラス
 	template <typename T>
 	class ListRegistryBase {
@@ -18,24 +21,30 @@ namespace Engine {
 		// 登録
 		virtual void Register(std::unique_ptr<T> item) {
 			if (item) {
+				auto revision = std::make_shared<const RegistryRevision>();
 				items_.emplace_back(std::move(item));
+				revision_ = std::move(revision);
 			}
 		}
 
 		// クリア
 		virtual void Clear() {
+			auto revision = std::make_shared<const RegistryRevision>();
 			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する
 			for (auto& item : items_) {
 				item.reset();
 			}
 			items_.clear();
+			revision_ = std::move(revision);
 		}
 
 		// アイテムリストの取得
 		const std::vector<std::unique_ptr<T>>& GetItems() const { return items_; }
+		const std::shared_ptr<const RegistryRevision>& GetRevision() const { return revision_; }
 
 	protected:
 		std::vector<std::unique_ptr<T>> items_;
+		std::shared_ptr<const RegistryRevision> revision_ = std::make_shared<const RegistryRevision>();
 	};
 
 	// マップ形式のレジストリ基底クラス

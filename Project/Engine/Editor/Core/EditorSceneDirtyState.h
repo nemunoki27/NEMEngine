@@ -23,17 +23,19 @@ namespace Engine {
 		// 指定シーンの未保存状態を解除する
 		void MarkSceneSaved(AssetID sceneAsset);
 		// 保存開始後に再編集されていなければ未保存状態を解除する
-		void MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision);
+		void MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision, UUID instanceID = {});
+		// 保存したInstanceだけの未保存状態を解除する
+		void MarkSceneInstanceSaved(AssetID sceneAsset, UUID instanceID);
 		// 全シーンの未保存状態を解除する
 		void MarkAllScenesSaved();
 		// 変更世代の連番を保持して編集状態を初期化する
 		void ResetSceneDirtyState();
 		// 指定シーンに未保存の変更があるか
-		bool IsSceneDirty(AssetID sceneAsset) const;
+		bool IsSceneDirty(AssetID sceneAsset, UUID instanceID = {}) const;
 		// シーンの変更世代を取得する
-		uint64_t GetSceneDirtyRevision(AssetID sceneAsset) const;
+		uint64_t GetSceneDirtyRevision(AssetID sceneAsset, UUID instanceID = {}) const;
 		// シーンを次の変更世代へ進める
-		void MarkDirty(AssetID sceneAsset);
+		void MarkDirty(AssetID sceneAsset, UUID instanceID = {});
 
 		//--------- accessor -----------------------------------------------------
 
@@ -50,7 +52,7 @@ namespace Engine {
 		// 未保存の変更があるシーンアセット
 		std::unordered_set<AssetID> dirtySceneAssets_;
 		// 非同期保存中の再編集を保存済みにしないためのシーン別変更世代
-		std::unordered_map<AssetID, uint64_t> dirtySceneRevisions_;
+		std::unordered_map<AssetID, std::unordered_map<UUID, uint64_t>> dirtySceneRevisions_;
 		uint64_t dirtySceneRevision_ = 0;
 
 	};

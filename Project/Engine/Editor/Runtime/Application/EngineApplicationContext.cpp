@@ -59,7 +59,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 		editorContext_.activeSceneAsset = activeSceneInstance ? activeSceneInstance->sceneAsset : activeScene_;
 		editorContext_.activeSceneInstanceID = activeSceneInstance ? activeSceneInstance->instanceID : UUID{};
 		editorContext_.activeSceneDirty =
-			editorManager_.IsSceneDirty(editorContext_.activeSceneAsset);
+			editorManager_.IsSceneDirty(editorContext_.activeSceneAsset, editorContext_.activeSceneInstanceID);
 		editorContext_.sceneInstances = &activeScenes;
 		editorContext_.activeWorld = world;
 		editorContext_.editWorld = &worldManager_.GetEditWorld();

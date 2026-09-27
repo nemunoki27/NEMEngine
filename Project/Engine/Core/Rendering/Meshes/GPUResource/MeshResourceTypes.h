@@ -143,6 +143,7 @@ namespace Engine {
 		std::string roughnessTexturePath;
 		std::string displacementTexturePath;
 		std::string specularTexturePath;
+		std::string opacityTexturePath;
 		std::string emissiveTexturePath;
 		std::string occlusionTexturePath;
 	};
@@ -158,6 +159,7 @@ namespace Engine {
 		AssetID specularTexture{};
 		AssetID emissiveTexture{};
 		AssetID occlusionTexture{};
+		AssetID opacityTexture{};
 	};
 	// メッシュレット情報
 	struct MeshletDesc {
@@ -384,6 +386,12 @@ namespace Engine {
 		Vector3 boundsCenter = Vector3::AnyInit(0.0f);
 		// インスタンス単位カリングで使用するメッシュ全体のローカルBounds
 		float boundsRadius = 0.0f;
+
+		// 描画に必要なGPU資源が揃っているか確認する
+		bool IsValid() const {
+			return assetID && vertexCount > 0u && indexCount > 0u &&
+				indexBuffer.IsCreatedResource();
+		}
 
 		// スキニングするか
 		bool isSkinned = false;

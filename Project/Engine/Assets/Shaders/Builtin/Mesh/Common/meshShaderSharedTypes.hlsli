@@ -55,7 +55,8 @@ struct SubMeshShaderData {
 
 	float metallic;
 	float roughness;
-	float2 _materialPad;
+	uint opacityTextureIndex;
+	uint _materialPad;
 
 	// 位置やBoundsやCulling用のローカル行列
 	float4x4 localMatrix;

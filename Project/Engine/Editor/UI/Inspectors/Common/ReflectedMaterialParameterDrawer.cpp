@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 // c++
@@ -103,30 +104,9 @@ Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureValue(
 	MaterialParameterSemantic semantic,
 	std::string_view name) const {
 
-	const auto findTexture = [parameterID, semantic, name](
-		const MaterialParameterSet& source) -> AssetID {
-
-		const MaterialParameterValue* value = nullptr;
-		if (parameterID) {
-			value = source.Find(parameterID);
-		}
-		if (!value && semantic != MaterialParameterSemantic::None) {
-			value = source.Find(semantic);
-		}
-		if (!value && !name.empty()) {
-			value = source.FindByName(name);
-		}
-		if (value) {
-			if (const AssetID* textureID =
-				std::get_if<AssetID>(&value->value)) {
-				return *textureID;
-			}
-		}
-		return AssetID{};
-		};
-
-	if (const AssetID textureID = findTexture(parameters)) {
-		return textureID;
-	}
-	return findTexture(cachedMaterial_.parameters);
+	// 値の有無と空Textureの上書きを区別する
+	const auto* value = MaterialParameterLookup::Find(parameters, parameterID, semantic, name, &cachedMaterial_.parameters);
+	if (!value) value = MaterialParameterLookup::Find(cachedMaterial_.parameters, parameterID, semantic, name);
+	const auto* texture = value ? std::get_if<AssetID>(&value->value) : nullptr;
+	return texture ? *texture : AssetID{};
 }

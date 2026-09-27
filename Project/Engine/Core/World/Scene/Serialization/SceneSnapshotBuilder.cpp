@@ -203,8 +203,12 @@ bool Engine::SceneSnapshotBuilder::CaptureSaveSnapshot(
 				pendingInstances.emplace_back(&nested);
 			}
 		}
-		prefabInstances.push_back(ToJson(data));
+		prefabInstances.push_back(ToSceneJson(data));
 	}
+	// 読込順に依存する実行用IDを保存順へ持ち込まない
+	std::sort(prefabInstances.begin(), prefabInstances.end(), [](const auto& left, const auto& right) {
+		return left.at("InstanceID").template get<std::string>() < right.at("InstanceID").template get<std::string>();
+	});
 	root["PrefabInstances"] = std::move(prefabInstances);
 
 	// インスタンスに取り込まれなかった実体だけをfat保存する

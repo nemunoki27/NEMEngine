@@ -19,7 +19,6 @@ namespace Engine {
 		DirectX::ScratchImage image;
 		DirectX::TexMetadata metadata{};
 		bool success = false;
-		bool reload = false;
 		HRESULT result = E_FAIL;
 		const char* failureStage = "Decode";
 	};

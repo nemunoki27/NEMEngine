@@ -37,6 +37,8 @@ namespace Engine {
 		// Model形状で使う全メッシュを同期作成する
 		void PreloadMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
 			std::span<const AssetID> meshAssets);
+		// Model粒子のメッシュを旧表示を保ったまま再読込する
+		void RequestMeshReload(AssetID meshAssetID);
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 

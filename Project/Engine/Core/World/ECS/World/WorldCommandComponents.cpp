@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/ECS/World/PendingComponent.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -57,10 +58,48 @@ uint64_t Engine::WorldCommandBuffer::StageAddComponent(ECSWorld& world, const En
 	return component->GetInstanceID();
 }
 
-Engine::PendingComponent* Engine::WorldCommandBuffer::FindPendingComponent(const Entity& entity, uint32_t typeID) const {
+Engine::PendingComponent* Engine::WorldCommandBuffer::FindPendingComponent(const Entity& entity, uint32_t typeID) {
 
 	const auto entry = pendingComponents_.find({ entity.index, entity.generation, typeID });
 	return entry != pendingComponents_.end() ? entry->second.get() : nullptr;
+}
+
+const Engine::PendingComponent* Engine::WorldCommandBuffer::FindPendingComponent(const Entity& entity, uint32_t typeID) const {
+
+	const auto entry = pendingComponents_.find({ entity.index, entity.generation, typeID });
+	return entry != pendingComponents_.end() ? entry->second.get() : nullptr;
+}
+
+void Engine::WorldCommandBuffer::CollectPendingComponents(const Entity& entity, std::vector<const PendingComponent*>& out) const {
+
+	out.clear();
+	// Entityの世代が一致する範囲だけを走査する
+	for (auto it = pendingComponents_.lower_bound({ entity.index, entity.generation, 0 }); it != pendingComponents_.end(); ++it) {
+		if (std::get<0>(it->first) != entity.index || std::get<1>(it->first) != entity.generation) break;
+		if (it->second->GetInstanceID() != 0) out.push_back(it->second.get());
+	}
+}
+
+void Engine::WorldCommandBuffer::CollectUnappliedCommands(std::vector<WorldCommand>& out) const {
+
+	out.clear();
+	// 失敗したFlushの残りを先に保存する
+	if (activeCommandIndex_ < activeBatch_.size()) {
+		out.insert(out.end(), activeBatch_.begin() + activeCommandIndex_, activeBatch_.end());
+	}
+	// 次回Flush待ちのCommandを後ろへ続ける
+	out.insert(out.end(), commands_.begin(), commands_.end());
+}
+
+void Engine::WorldCommandBuffer::CancelPendingComponent(const Entity& entity, uint32_t typeID) {
+
+	const auto entry = pendingComponents_.find({ entity.index, entity.generation, typeID });
+	if (entry == pendingComponents_.end()) {
+		return;
+	}
+	auto cancelled = std::move(entry->second);
+	pendingComponents_.erase(entry);
+	cancelled->Cancel();
 }
 
 void Engine::WorldCommandBuffer::RemovePendingComponent(const WorldCommand& command) {
@@ -91,7 +130,22 @@ void Engine::WorldCommandBuffer::EnqueueCreateEntity(ECSWorld& world, const Enti
 	StageAddComponent(world, reserved, registry.GetID<SceneObjectComponent>());
 	world.TryGetComponentForBinding<NameComponent>(reserved)->name = name.empty() ? "GameObject" : std::string(name);
 
-	// 所属Sceneと親子関係は安全地点で確定する
+	// 生成直後の保存参照にも同じIDと所属を返す
+	auto& sceneObject = *world.TryGetComponentForBinding<SceneObjectComponent>(reserved);
+	if (!sceneObject.localFileID) {
+		sceneObject.localFileID = UUID::New();
+	}
+	if (const auto* parentObject = world.TryGetComponentForBinding<SceneObjectComponent>(parent)) {
+		sceneObject.sceneInstanceID = parentObject->sceneInstanceID;
+		sceneObject.sourceAsset = parentObject->sourceAsset;
+	} else if (const auto* scenes = world.GetCommandServices().sceneInstances) {
+		if (const auto* active = scenes->GetActive()) {
+			sceneObject.sceneInstanceID = active->instanceID;
+			sceneObject.sourceAsset = active->sceneAsset;
+		}
+	}
+
+	// 親子の実体リンクは安全地点で確定する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::CreateEntity;
 	command.target = reserved;

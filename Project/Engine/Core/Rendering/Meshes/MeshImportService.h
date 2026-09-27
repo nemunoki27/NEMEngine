@@ -48,6 +48,10 @@ namespace Engine {
 
 		// 読み込まれたメッシュアセットをムーブで取り出す
 		bool TakeImported(AssetID meshAssetID, ImportedMeshAsset& outImported);
+		// 読み込み失敗を一度だけ取り出す
+		bool ConsumeFailed(AssetID meshAssetID);
+		// 読み込み中または待機中か確認する
+		bool IsPending(AssetID meshAssetID) const;
 		// メッシュアセットが読み込まれているか
 		bool IsLoaded(AssetID meshAssetID) const;
 	private:
@@ -75,6 +79,7 @@ namespace Engine {
 		// 読み込み待ちと読み込み中のアセットIDのセット
 		std::unordered_set<AssetID> queued_;
 		std::unordered_set<AssetID> loading_;
+		std::unordered_set<AssetID> failed_;
 
 		//--------- functions ----------------------------------------------------
 

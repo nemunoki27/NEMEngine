@@ -30,7 +30,8 @@ struct DirectionalLight {
 
 	float shadowStrength;
 	float shadowAngularRadius;
-	float2 _pad1;
+	uint affectLayerMask;
+	uint _pad1;
 };
 // 点光源
 struct PointLight {
@@ -44,6 +45,9 @@ struct PointLight {
 	float decay;
 	float shadowStrength;
 	float shadowRadius;
+
+	uint affectLayerMask;
+	uint3 _pad1;
 };
 // スポットライト
 struct SpotLight {
@@ -62,7 +66,8 @@ struct SpotLight {
 	float shadowStrength;
 
 	float shadowRadius;
-	float3 _pad0;
+	uint affectLayerMask;
+	uint2 _pad0;
 };
 // 矩形面光源
 struct RectLight {
@@ -85,6 +90,9 @@ struct RectLight {
 	float barnDoorAngle;
 	float barnDoorLength;
 	float shadowStrength;
+
+	uint affectLayerMask;
+	uint3 _pad0;
 };
 // ライト数
 cbuffer LightCounts : register(b0) {
@@ -681,6 +689,10 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 	for (uint di = 0; di < directionalCount; ++di) {
 
 		DirectionalLight light = gDirectionalLights[di];
+		if (!DoesDeferredLightAffectRenderingLayer(
+			light.affectLayerMask, flags)) {
+			continue;
+		}
 		float3 L = normalize(-light.direction);
 		// 影計算を行うか、影を受けないサーフェイスもスキップして1.0fのまま使う
 		float shadow = 1.0f;
@@ -704,18 +716,30 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 			uint localIndex =
 				gLightClusterIndices[clusterHeader.offset + clusterLight];
 			if (localIndex < pointCount) {
+				if (!DoesDeferredLightAffectRenderingLayer(
+					gPointLights[localIndex].affectLayerMask, flags)) {
+					continue;
+				}
 				Lo += EvaluatePointLightIndex(localIndex,
 					worldPos, N, V, albedo, metallic,
 					roughness, F0, flags, useShadow, pixel.xy);
 			} else {
 				uint spotIndex = localIndex - pointCount;
 				if (spotIndex < spotCount) {
+					if (!DoesDeferredLightAffectRenderingLayer(
+						gSpotLights[spotIndex].affectLayerMask, flags)) {
+						continue;
+					}
 					Lo += EvaluateSpotLightIndex(spotIndex,
 						worldPos, N, V, albedo, metallic,
 						roughness, F0, flags, useShadow, pixel.xy);
 				} else {
 					uint rectIndex = spotIndex - spotCount;
 					if (rectIndex < rectCount) {
+						if (!DoesDeferredLightAffectRenderingLayer(
+							gRectLights[rectIndex].affectLayerMask, flags)) {
+							continue;
+						}
 						Lo += EvaluateRectLightIndex(rectIndex,
 							worldPos, N, V, albedo, metallic,
 							roughness, F0, flags, useShadow, pixel.xy);
@@ -727,18 +751,30 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		// 透視カメラを持たないビューでは従来通り全ローカルライトを評価する
 		[loop]
 		for (uint pi = 0; pi < pointCount; ++pi) {
+			if (!DoesDeferredLightAffectRenderingLayer(
+				gPointLights[pi].affectLayerMask, flags)) {
+				continue;
+			}
 			Lo += EvaluatePointLightIndex(pi,
 				worldPos, N, V, albedo, metallic,
 				roughness, F0, flags, useShadow, pixel.xy);
 		}
 		[loop]
 		for (uint si = 0; si < spotCount; ++si) {
+			if (!DoesDeferredLightAffectRenderingLayer(
+				gSpotLights[si].affectLayerMask, flags)) {
+				continue;
+			}
 			Lo += EvaluateSpotLightIndex(si,
 				worldPos, N, V, albedo, metallic,
 				roughness, F0, flags, useShadow, pixel.xy);
 		}
 		[loop]
 		for (uint ri = 0; ri < rectCount; ++ri) {
+			if (!DoesDeferredLightAffectRenderingLayer(
+				gRectLights[ri].affectLayerMask, flags)) {
+				continue;
+			}
 			Lo += EvaluateRectLightIndex(ri,
 				worldPos, N, V, albedo, metallic,
 				roughness, F0, flags, useShadow, pixel.xy);

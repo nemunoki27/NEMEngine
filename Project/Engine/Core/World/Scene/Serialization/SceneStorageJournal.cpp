@@ -16,9 +16,9 @@ namespace {
 }
 
 bool Engine::SceneStorageJournal::Commit(const std::vector<SceneStorageChange>& changes, const std::string& label,
-	std::string& error, const RecoveryAction& recover) {
+	std::string& error, const RecoveryAction& recover, const JsonFileJournal::CommitCheck& check) {
 
-	return JsonFileJournal::Commit(MakeSceneScope(), changes, label, error, recover);
+	return JsonFileJournal::Commit(MakeSceneScope(), changes, label, error, recover, check);
 }
 
 std::vector<std::filesystem::path> Engine::SceneStorageJournal::GetRecoveries(bool unfinishedOnly) {

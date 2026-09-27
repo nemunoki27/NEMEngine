@@ -655,13 +655,17 @@ bool Engine::MaterialCreationSession::CreateMaterialAssets(const EditorToolConte
 		}
 		renderPipeline->ReloadAsset(*assetDatabase, materialID);
 	} else {
-		assetDatabase->RefreshDependencies(shaderID);
-		assetDatabase->RefreshDependencies(pipelineID);
+		bool refreshed = assetDatabase->RefreshDependencies(shaderID);
+		refreshed &= assetDatabase->RefreshDependencies(pipelineID);
 		if (transparentShaderID) {
-			assetDatabase->RefreshDependencies(transparentShaderID);
-			assetDatabase->RefreshDependencies(transparentPipelineID);
+			refreshed &= assetDatabase->RefreshDependencies(transparentShaderID);
+			refreshed &= assetDatabase->RefreshDependencies(transparentPipelineID);
 		}
-		assetDatabase->RefreshDependencies(materialID);
+		refreshed &= assetDatabase->RefreshDependencies(materialID);
+		if (!refreshed) {
+			draft_.createMessage = "作成したAssetの参照更新に失敗しました Assetの再検査が必要です";
+			return false;
+		}
 	}
 
 	Logger::Output(LogType::Engine, "[MaterialEditorTool] Material Assetを作成しました path={}", materialLogical);

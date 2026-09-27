@@ -40,6 +40,8 @@ namespace Engine {
 			((kHandleSize + (D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1)) &
 				~(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1));
 		static constexpr UINT64 kTableAlign = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+		// 個々のRayGenをDispatchの開始位置にできるようにする
+		static constexpr UINT64 kRayGenerationStride = (kRecordStride + kTableAlign - 1) & ~(kTableAlign - 1);
 
 		//--------- functions ----------------------------------------------------
 

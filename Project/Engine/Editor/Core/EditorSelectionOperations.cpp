@@ -4,59 +4,69 @@
 //	include
 //============================================================================
 #include <Engine/Editor/Commands/Entity/EditorEntityDuplicateUtility.h>
-#include <Engine/Editor/Commands/Entity/DuplicateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/PasteEntityTreeCommand.h>
+#include <Engine/Editor/Commands/Entity/CloneEntityTreesCommand.h>
+#include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
+#include <Engine/Editor/Commands/Core/CompositeEditorCommand.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
+#include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
+
+// c++
+#include <memory>
+#include <utility>
 
 bool Engine::EditorSelectionOperations::Duplicate(const EditorContext* context, EditorState& state, IEditorPanelHost& host) {
 
-	if (!context) {
+	if (!context || !context->activeWorld) {
 		return false;
 	}
 	if (!state.HasValidSelection(context->activeWorld) || context->isPlaying) {
 		return false;
 	}
-	// 複数選択を順に複製する、選択や生存が変わるため対象を先にコピーしておく
-	ECSWorld* world = context->activeWorld;
-	const std::vector<Entity> targets = state.GetSelectedEntities();
-	std::vector<Entity> duplicated;
-	for (const Entity& target : targets) {
-		if (world && world->IsAlive(target)) {
-			// 各コマンドは複製ルートをselectedEntityへ入れるので実行後に集約する
-			if (host.ExecuteEditorCommand(std::make_unique<DuplicateEntityCommand>(target))) {
-				duplicated.push_back(state.selectedEntity);
-			}
-		}
-	}
-	if (duplicated.empty()) {
+	// 複製範囲を先に確定し、参照と選択を履歴内で更新する
+	auto targets = HierarchyUtility::CollectLogicalRoots(*context->activeWorld, state.GetSelectedEntities());
+	return !targets.empty() && host.ExecuteEditorCommand(std::make_unique<CloneEntityTreesCommand>(std::move(targets)));
+}
+
+bool Engine::EditorSelectionOperations::Delete(const EditorContext* context, EditorState& state, IEditorPanelHost& host) {
+
+	if (!context || !context->activeWorld || context->isPlaying) {
 		return false;
 	}
-	// 複製した分をまとめて選択し直す
-	state.SetSelectedEntities(duplicated);
-	return true;
+	ECSWorld& world = *context->activeWorld;
+	const std::vector<Entity> targets = HierarchyUtility::CollectLogicalRoots(world, state.GetSelectedEntities());
+	std::vector<std::unique_ptr<IEditorCommand>> commands;
+	for (const Entity& target : targets) {
+		// 編集中Prefabのルートを含む場合は全体を変更前に止める
+		if (!PrefabInstanceEditUtility::CanDelete(context, world, target)) {
+			return false;
+		}
+		commands.emplace_back(std::make_unique<DeleteEntityCommand>(target));
+	}
+	return !commands.empty() && host.ExecuteEditorCommand(std::make_unique<CompositeEditorCommand>(std::move(commands)));
 }
 
 bool Engine::EditorSelectionOperations::Copy(const EditorContext& context, EditorState& state) {
 
-	if (!state.HasValidSelection(context.activeWorld) || context.isPlaying) {
+	if (!context.activeWorld || !state.HasValidSelection(context.activeWorld) || context.isPlaying) {
 		return false;
 	}
 
 	ECSWorld& world = *context.activeWorld;
 
 	// 複数選択をそれぞれ独立スナップショットとしてクリップボードへ保存する
-	state.clipboardSnapshots.clear();
-	state.clipboardParentUUIDs.clear();
-	const std::vector<Entity> targets = state.GetSelectedEntities();
+	std::vector<EditorEntityTreeSnapshot> snapshots;
+	std::vector<UUID> parents;
+	const std::vector<Entity> targets = HierarchyUtility::CollectLogicalRoots(world, state.GetSelectedEntities());
 	for (const Entity& selected : targets) {
 
 		if (!world.IsAlive(selected)) {
-			continue;
+			return false;
 		}
 		EditorEntityTreeSnapshot snapshot{};
 		EditorEntitySnapshotUtility::CaptureSubtree(world, selected, snapshot);
 		if (snapshot.IsEmpty()) {
-			continue;
+			return false;
 		}
 
 		// 各エンティティの親UUIDも控えておき、貼り付けは元の親付近へ行う
@@ -70,34 +80,25 @@ bool Engine::EditorSelectionOperations::Copy(const EditorContext& context, Edito
 		}
 		// クリップボードは外部親を持たない独立スナップショットにしておく
 		EditorEntityDuplicateUtility::ClearRootParentLink(snapshot);
-		state.clipboardSnapshots.emplace_back(std::move(snapshot));
-		state.clipboardParentUUIDs.emplace_back(parentUUID);
+		snapshots.emplace_back(std::move(snapshot));
+		parents.emplace_back(parentUUID);
 	}
-	return !state.clipboardSnapshots.empty();
+	if (snapshots.empty()) {
+		return false;
+	}
+	// 全対象の取得に成功してからクリップボードを差し替える
+	state.clipboardSnapshots = std::move(snapshots);
+	state.clipboardParentUUIDs = std::move(parents);
+	state.clipboardWorld = world.GetLifetime();
+	return true;
 }
 
 bool Engine::EditorSelectionOperations::Paste(const EditorContext* context, EditorState& state, IEditorPanelHost& host) {
 
-	if (!context) {
+	if (!context || !context->activeWorld || context->isPlaying || !state.HasClipboard()) {
 		return false;
 	}
-	if (context->isPlaying || !state.HasClipboard()) {
-		return false;
-	}
-	// クリップボードの各スナップショットを順に貼り付け、貼り付け先をまとめて選択する
-	std::vector<Entity> pasted;
-	for (size_t i = 0; i < state.clipboardSnapshots.size(); ++i) {
-
-		const UUID parentUUID = i < state.clipboardParentUUIDs.size() ?
-			state.clipboardParentUUIDs[i] : UUID{};
-		if (host.ExecuteEditorCommand(std::make_unique<PasteEntityTreeCommand>(
-			state.clipboardSnapshots[i], parentUUID))) {
-			pasted.push_back(state.selectedEntity);
-		}
-	}
-	if (pasted.empty()) {
-		return false;
-	}
-	state.SetSelectedEntities(pasted);
-	return true;
+	return host.ExecuteEditorCommand(std::make_unique<CloneEntityTreesCommand>(
+		state.clipboardSnapshots, state.clipboardParentUUIDs,
+		state.clipboardWorld.lock() == context->activeWorld->GetLifetime()));
 }

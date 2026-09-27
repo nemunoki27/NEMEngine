@@ -30,7 +30,7 @@ internal readonly struct EntityRef
     public bool isValid => kind != EntityRefKind.Null && localFileID.isValid;
 
     // 参照先の現在のランタイムワールドエンティティを取得する
-    public GameObject? Resolve() => isValid ? NativeEntityAPI.ResolveEntityReference(sourceAsset, localFileID.value) : null;
+    public GameObject? Resolve(NativeEntity owner) => isValid ? NativeEntityAPI.ResolveEntityReference(sourceAsset, localFileID.value, owner) : null;
 
     public static EntityRef Null => new(EntityRefKind.Null, AssetGUID.None, UUID.None);
 

@@ -6,6 +6,7 @@
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
+#include <Engine/Core/Scripting/Managed/ScriptFieldStorage.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
@@ -65,6 +66,16 @@ nlohmann::json Engine::ManagedBehavior::GetRuntimeSerializedState() {
 		return nlohmann::json::object();
 	}
 	return ManagedScriptRuntime::GetInstance().GetRuntimeSerializedState(managedHandle_);
+}
+
+bool Engine::ManagedBehavior::CaptureSavedFields(ECSWorld& world, nlohmann::json& fields) {
+
+	nlohmann::json values;
+	if (!ManagedScriptRuntime::GetInstance().CaptureSavedValueMap(managedHandle_, world, values)) {
+		return false;
+	}
+	ScriptFieldStorage::MergeValues(fields, values);
+	return true;
 }
 
 void Engine::ManagedBehavior::SetRuntimeSerializedField(ECSWorld& world,
@@ -232,12 +243,11 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 	if (status == ManagedStatus::Ok) {
 		return;
 	}
-	// C#側でユーザーのコールバックが例外を投げた場合のみ異常化する、全文はC#側GuardInstanceがログ済みでここでは型とコールバックとエンティティを残す
-	if (status == ManagedStatus::ScriptException && !faulted_) {
+	// callback例外はPlayを止めるが、Resume後の次callbackから同じScriptを継続する
+	if (status == ManagedStatus::ScriptException) {
 
-		faulted_ = true;
 		Logger::Output(LogType::GameLogic, spdlog::level::err,
-			"ManagedBehavior: Script例外を検出したため無効化します type={} ScriptTypeID={} Callback={} Entity={}:{}",
+			"ManagedBehavior: Script例外を検出しました type={} ScriptTypeID={} Callback={} Entity={}:{}",
 			displayName_, scriptTypeID_, callbackName, entity.index, entity.generation);
 	}
 }

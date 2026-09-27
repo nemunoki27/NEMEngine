@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/FrameBatchResourcePool.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderBackendRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
+#include "RenderScenePreparation.h"
 
 namespace Engine {
 
@@ -35,5 +36,7 @@ namespace Engine {
 		RenderBackendRegistry previewBackendRegistry_{};
 		bool previewBackendFrameStarted_ = false;
 		MeshRenderBackend* previewMeshBackend_ = nullptr;
+		// 本描画の抽出結果と前回行列を上書きしない
+		RenderScenePreparation previewScenePreparation_;
 	};
 }

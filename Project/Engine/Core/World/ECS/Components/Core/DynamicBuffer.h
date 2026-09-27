@@ -16,6 +16,7 @@
 #include <utility>
 #include <span>
 #include <type_traits>
+#include <vector>
 
 namespace Engine {
 
@@ -160,6 +161,8 @@ namespace Engine {
 		void Resize(uint32_t size) requires (!std::is_const_v<T>);
 		// 必要な要素数を事前確保する
 		void Reserve(uint32_t capacity) requires (!std::is_const_v<T>);
+		// 同じBufferからの入力も保護して要素列を置き換える
+		void Assign(std::span<const T> values) requires (!std::is_const_v<T>);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -231,6 +234,45 @@ template <typename T>
 inline void Engine::DynamicBuffer<T>::Add(const T& value) requires (!std::is_const_v<T>) {
 
 	EmplaceBack(value);
+}
+
+template <typename T>
+inline void Engine::DynamicBuffer<T>::Assign(std::span<const T> values) requires (!std::is_const_v<T>) {
+
+	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
+	if (values.size() > UINT32_MAX || values.size() > (std::numeric_limits<size_t>::max)() / sizeof(T)) {
+		throw std::length_error("DynamicBufferの要素数が上限を超えています");
+	}
+	if (values.data() == GetData() && values.size() == GetSize()) return;
+	if (values.empty()) { Clear(); return; }
+	const uint32_t count = static_cast<uint32_t>(values.size());
+	if constexpr (std::is_trivially_copyable_v<T>) {
+		// 単純な値は領域を再利用して重なりを保護する
+		UntypedDynamicBuffer buffer(header_, sizeof(T), alignof(T), true);
+		if (!buffer.SetData(values.data(), count)) throw std::runtime_error("DynamicBufferの置換に失敗しました");
+	} else if constexpr (std::is_nothrow_move_constructible_v<T>) {
+		// コピーと容量確保が成功してから旧要素を破棄する
+		std::vector<T> copied(values.begin(), values.end());
+		Reserve(count);
+		Clear();
+		for (T& value : copied) EmplaceBack(std::move(value));
+	} else {
+		// 移動でも例外が出る型は完成した領域ごと差し替える
+		T* copied = static_cast<T*>(::operator new(sizeof(T) * count, std::align_val_t(alignof(T))));
+		uint32_t constructed = 0;
+		try {
+			for (; constructed < count; ++constructed) new (copied + constructed) T(values[constructed]);
+		} catch (...) {
+			while (constructed) copied[--constructed].~T();
+			::operator delete(copied, std::align_val_t(alignof(T)));
+			throw;
+		}
+		Clear();
+		if (!UsesInternalStorage()) ::operator delete(header_->data, std::align_val_t(alignof(T)));
+		header_->data = copied;
+		header_->size = count;
+		header_->capacity = count;
+	}
 }
 
 template <typename T>

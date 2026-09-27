@@ -1,5 +1,6 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
+#include "PrefabNestedIdentityTests.h"
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
@@ -12,11 +13,14 @@
 #include "EditorRefactoringTests.h"
 #include "GameplayRefactoringTests.h"
 #include "SceneStorageTests.h"
+#include "PrefabCacheTests.h"
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabBaseCache.h>
+#include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -43,6 +47,28 @@
 namespace NEMTests {
 
 	bool TestPrefabPropagationAndNestedInstances() {
+
+		if (!TestPrefabNestedAddedIdentity()) {
+			return false;
+		}
+
+		// objectの削除、null追加、区切り文字付きキーを差分から復元する
+		const nlohmann::json before = { { "remove", 1 }, { "keep", { { "x", 1 } } } };
+		for (const auto& after : std::vector<nlohmann::json>{
+			{ { "keep", { { "x", 1 } } } },
+			{ { "remove", 1 }, { "keep", { { "x", 1 }, { "added", nullptr } } } },
+			{ { "remove", 1 }, { "keep", { { "path/name", 2 } } } }
+		}) {
+			std::vector<std::pair<std::string, nlohmann::json>> changes;
+			Engine::PrefabJsonDiff::CollectLeafDifferences("", before, after, changes);
+			auto restored = before;
+			for (const auto& [path, value] : changes) {
+				Engine::PrefabJsonDiff::SetAtPath(restored, path, value);
+			}
+			if (restored != after) {
+				return false;
+			}
+		}
 
 		Engine::RuntimePaths::Refresh();
 		TestDirectory directory("PrefabPropagation", Engine::RuntimePaths::GetGameAssetsRoot());
@@ -390,6 +416,55 @@ namespace NEMTests {
 			++entityCountAfterFailure;
 			});
 		passed &= entityCount == entityCountAfterFailure;
+
+		// ネスト元の欠損を削除操作として保存しない
+		const auto nestedFile = database.ResolveFullPath(nestedAsset);
+		const auto nestedBackup = testRoot / "Nested.backup";
+		Engine::PrefabBaseCache baseCache;
+		const auto originalSnapshot = baseCache.Load(database, nestedAsset);
+		if (!originalSnapshot) return false;
+		const auto cachedBase = *originalSnapshot;
+		passed &= !cachedBase.empty();
+		passed &= baseCache.Load(database, nestedAsset) == originalSnapshot;
+		std::filesystem::rename(nestedFile, nestedBackup);
+		passed &= !baseCache.Load(database, nestedAsset);
+		const auto missingData = Engine::PrefabOverrideUtility::CaptureInstance(
+			targetWorld, database, outerResult.prefabInstanceID, currentBase);
+		std::filesystem::rename(nestedBackup, nestedFile);
+		const auto restoredBase = baseCache.Load(database, nestedAsset);
+		passed &= restoredBase && restoredBase->size() == cachedBase.size();
+		passed &= !missingData.instanceID && targetWorld.IsAlive(rebuiltRoot);
+		const auto recoveredData = Engine::PrefabOverrideUtility::CaptureInstance(
+			targetWorld, database, outerResult.prefabInstanceID, currentBase);
+		passed &= recoveredData.instanceID == outerResult.prefabInstanceID && recoveredData.removedNestedSlots.size() == 1;
+
+		// 同じGUIDと更新時刻でも別ファイルの基準データを使う
+		const auto alternateRoot = testRoot / "Alternate";
+		std::filesystem::create_directories(alternateRoot);
+		const auto alternateFile = alternateRoot / "Nested.prefab.json";
+		auto alternateJson = Engine::JsonAdapter::Load(nestedFile);
+		for (auto& entity : alternateJson["Entities"]) {
+			entity["Components"]["Name"]["name"] = "AlternateRoot";
+		}
+		passed &= Engine::JsonAdapter::SaveCanonical(alternateFile, alternateJson);
+		std::filesystem::last_write_time(alternateFile, std::filesystem::last_write_time(nestedFile));
+		passed &= Engine::AssetDatabase::WriteMetaFile(alternateRoot / "Nested.prefab.json.meta", *database.Find(nestedAsset));
+		Engine::AssetDatabase alternateDatabase;
+		passed &= alternateDatabase.RebuildMeta({ alternateRoot });
+		const auto alternateBase = baseCache.Load(alternateDatabase, nestedAsset);
+		if (!alternateBase) return false;
+		passed &= !alternateBase->empty();
+		for (const auto& [id, entity] : *alternateBase) {
+			passed &= entity.components["Name"]["name"] == "AlternateRoot";
+		}
+		const auto originalBase = baseCache.Load(database, nestedAsset);
+		if (!originalBase) return false;
+		passed &= originalBase->size() == cachedBase.size();
+		for (const auto& [id, entity] : *originalBase) {
+			passed &= entity.components == cachedBase.at(id).components;
+		}
+
+		passed &= TestPrefabCacheLifetime(database, nestedAsset);
 
 		directory.Remove();
 		return passed && !ec;

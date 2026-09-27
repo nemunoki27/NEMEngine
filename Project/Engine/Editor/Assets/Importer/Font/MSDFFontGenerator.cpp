@@ -9,6 +9,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Assets/MSDFFontAsset.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 
 // c++
 #include <chrono>
@@ -24,7 +25,7 @@
 //============================================================================
 namespace {
 
-	// 生成物の命名サフィックス、AssetDatabaseのReconcileFontAtlasReferencesと前提を合わせる
+	// 生成物の命名サフィックス
 	constexpr const char* kFontJsonSuffix = "_msdf.font.json";
 	constexpr const char* kAtlasSuffix = "_msdf.png";
 	constexpr const char* kRawJsonSuffix = "_msdf.raw.json";
@@ -145,7 +146,7 @@ namespace {
 			return false;
 		}
 
-		// name と atlasTexture を補ってから既存スキーマへ詰め直す、atlasTextureはRebuildMetaがGUIDへ貼り直す
+		// 名前とAtlasパスを補い、登録時にAtlasのGUIDへ置き換える
 		nlohmann::json fontJson;
 		fontJson["name"] = fontName;
 		fontJson["atlasTexture"] = atlasAssetPath;
@@ -299,12 +300,20 @@ Engine::MSDFFontGenerator::Result Engine::MSDFFontGenerator::EnsureGenerated(
 		generatedFilesReplaced = true;
 	}
 
-	// 新規生成物に.metaを発番し、atlasTextureを隣接アトラスのGUIDへ貼り直す
-	database.RebuildMeta();
+	// 生成したAtlasを明示登録してFontへ接続する
+	const AssetID generatedAtlasID = database.ImportOrGet(atlasAssetPath, AssetType::Texture);
+	nlohmann::json registeredFont;
+	const bool registered = generatedAtlasID && JsonFile::TryLoad(fontJsonPath, registeredFont) && registeredFont.is_object();
+	bool referenceSaved = false;
+	if (registered) {
+		registeredFont["atlasTexture"] = ToString(generatedAtlasID);
+		referenceSaved = JsonFile::SaveCanonical(fontJsonPath, registeredFont, 2);
+	}
+	const AssetID generatedFontID = referenceSaved ? database.ImportOrGet(fontAssetPath, AssetType::Font) : AssetID{};
 
 	const AssetMeta* fontMeta = database.FindByPath(fontAssetPath);
 	const AssetMeta* atlasMeta = database.FindByPath(atlasAssetPath);
-	if (!fontMeta || !atlasMeta) {
+	if (!generatedFontID || !fontMeta || !atlasMeta) {
 
 		if (generatedFilesReplaced) {
 			if (!RestoreGeneratedFiles(fontJsonPath, fontJsonBackupPath, fontJsonExisted,
@@ -322,6 +331,9 @@ Engine::MSDFFontGenerator::Result Engine::MSDFFontGenerator::EnsureGenerated(
 	}
 
 	result.success = true;
+	if (!database.RefreshDependencies(generatedFontID)) {
+		result.message = "フォントを生成しましたが参照の更新に失敗しました Assetの再検査が必要です";
+	}
 	result.fontAssetID = fontMeta->guid;
 	result.atlasAssetID = atlasMeta->guid;
 	return result;

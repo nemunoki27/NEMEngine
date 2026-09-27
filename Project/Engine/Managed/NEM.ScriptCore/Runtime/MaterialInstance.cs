@@ -65,9 +65,9 @@ public static class MaterialParameterNames {
     public const string BaseColor = "color";
     public const string BaseColorTexture = "baseColorTexture";
     public const string NormalTexture = "normalTexture";
-    public const string Metallic = "Metallic";
+    public const string Metallic = "metallic";
     public const string MetallicRoughnessTexture = "metallicRoughnessTexture";
-    public const string Roughness = "Roughness";
+    public const string Roughness = "roughness";
     public const string AmbientOcclusion = "ambientOcclusion";
     public const string AmbientOcclusionTexture = "occlusionTexture";
     public const string EmissiveColor = "emissiveColor";

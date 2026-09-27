@@ -73,6 +73,8 @@ namespace Engine {
 
 		// 変更検知の間引き用フレームカウンタ
 		uint32_t frameCounter_ = 0;
+		uint64_t sessionRevision_ = 0;
+		bool rebuildPending_ = false;
 		// 変更パスごとの最後に検知した時刻でdebounceに使い、書き込み途中のファイルを読まないようにする
 		std::unordered_map<std::filesystem::path,
 			std::chrono::steady_clock::time_point> pendingChanges_;

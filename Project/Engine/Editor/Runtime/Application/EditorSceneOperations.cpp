@@ -59,20 +59,18 @@ bool EditorSceneOperations::OpenEditScene(EditorSceneOperationContext& context, 
 		return false;
 	}
 
-	// 既存のEditWorldを空にしてから、新しいシーンツリーをロードする
+	// 読込失敗時は元のSceneと編集状態を残す
+	const std::string nextScenePath = meta->assetPath;
 	context.scheduler.DetachCurrentWorld(context.systemContext);
-	context.editScenes.UnloadAll(context.worldManager.GetEditWorld());
-
-	// アクティブシーン情報を先に差し替える
-	context.activeScene = sceneAsset;
-	context.activeScenePath = meta->assetPath;
 
 	// SceneSystemを通してEntity/Componentを復元する
-	if (!context.editScenes.LoadSceneTree(context.assetDatabase, context.sceneSystem, context.worldManager.GetEditWorld(), context.activeScene)) {
+	if (!context.editScenes.LoadSceneTree(context.assetDatabase, context.sceneSystem, context.worldManager.GetEditWorld(), sceneAsset)) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"EngineApplication: シーンを開けません path={}", context.activeScenePath);
+			"EngineApplication: シーンを開けません path={}", nextScenePath);
 		return false;
 	}
+	context.activeScene = sceneAsset;
+	context.activeScenePath = nextScenePath;
 
 	// シーン切り替え直後の大きな処理でdeltaTimeが跳ねないようにする
 	context.requestFrameDeltaReset = true;

@@ -21,6 +21,9 @@
 #include <Engine/Editor/Core/EditorManager.h>
 #include <Engine/Editor/Core/EditorContext.h>
 
+// c++
+#include <optional>
+
 namespace Engine {
 
 	class EditorRenderRequestBuilder;
@@ -63,6 +66,11 @@ namespace Engine {
 		bool RequestClose();
 		// Assert停止前に必要な保存処理を行う
 		void NotifyAssertBeforeAbort();
+
+		//--------- accessor -----------------------------------------------------
+
+		// 計測と画像保存に直近のView出力を貸し出す
+		const RenderTexture2D* GetRenderedViewTexture(RenderViewKind kind, const std::string& attachment = {}) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -121,6 +129,7 @@ namespace Engine {
 		bool shutdownAccepted_ = false;
 		bool closeRequestPending_ = false;
 		bool handlingAssertAbort_ = false;
+		std::optional<EditorSceneSaveRequest> pendingSceneSaveRequest_;
 
 		std::unique_ptr<EditorPlaySession> playSession_;
 		std::unique_ptr<SceneSaveController> sceneSaveController_;
@@ -155,7 +164,12 @@ namespace Engine {
 		bool SaveActiveEditScene();
 
 		// エディタワールドで読み込み中のシーンを全て保存する
-		bool SaveAllEditScenes();
+		SceneSaveOutcome SaveAllEditScenes(
+			const std::unordered_map<AssetID, UUID>& selectedInstances = {});
+		// 保存元選択を挟んでも要求元の操作を保持する
+		void SaveScenesAndContinue(const EditorSceneSaveRequest& request);
+		// 保存結果に応じて元の操作を再開する
+		void CompleteSceneSaveRequest(const EditorSceneSaveRequest& request, SceneSaveOutcome outcome);
 
 		// 完了した保存と再要求を処理する
 		void UpdateSceneSave();

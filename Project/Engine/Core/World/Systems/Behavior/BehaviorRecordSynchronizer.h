@@ -30,11 +30,11 @@ namespace Engine {
 			bool& participantsDirty, bool& enableTransitionsDirty);
 
 		// Scriptの登録状態を同期する
-		void SynchronizeRecords(ECSWorld& world, SystemContext& context, bool sweep);
+		void SynchronizeRecords(ECSWorld& world, const SystemContext& context, bool sweep);
 		// Scriptの登録状態を同期する
-		void SynchronizeDirtyRecords(ECSWorld& world, SystemContext& context);
+		void SynchronizeDirtyRecords(ECSWorld& world, const SystemContext& context);
 		// Scriptの登録状態を同期する
-		void SynchronizeEntityRecords(ECSWorld& world, SystemContext& context,
+		void SynchronizeEntityRecords(ECSWorld& world, const SystemContext& context,
 			const Entity& entity, bool clearOwnerSeen);
 		// Scriptの登録状態を同期する
 		void QueueScriptEntity(const Entity& entity);

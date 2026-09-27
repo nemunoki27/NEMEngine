@@ -80,7 +80,9 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	skinnedRecords_.clear();
 	skinnedVertexOffsetMap_.clear();
 	skinnedInstanceCount_ = 0;
+	skinningDrawEnabled_ = true;
 	currentSkinningPoseHash_ = 1469598103934665603ull;
+	Algorithm::HashCombine(currentSkinningPoseHash_, gpuMesh.reloadGeneration);
 	usesFallbackTexture_ = false;
 	// アウトラインの保守的メトリクスを初期化する
 	outlineMetrics_ = OutlineBatchMetrics{};
@@ -357,11 +359,6 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 
 		skinningDispatched_ = skinningOutputValid_ &&
 			currentSkinningPoseHash_ == dispatchedSkinningPoseHash_;
-		if (!skinningDispatched_ && 0 < skinnedInstanceCount_) {
-
-			// ポーズ変更時だけパレットとDispatch定数を更新する
-			skinning_->Upload(paletteScratch_, gpuMesh.vertexCount, gpuMesh.boneCount, skinnedInstanceCount_);
-		}
 	}
 	subMeshParamGenerations_.assign(subMeshParamScratch_.size(), ++parameterGeneration_);
 	CaptureBatchIdentity(batch, items, gpuMesh);

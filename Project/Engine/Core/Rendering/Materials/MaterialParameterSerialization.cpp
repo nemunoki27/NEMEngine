@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+#include <limits>
 #include <type_traits>
 
 namespace {
@@ -20,12 +21,19 @@ namespace {
 			outValue.value = data.get<bool>();
 			return true;
 		}
-		if (data.is_number_integer()) {
-			outValue.value = static_cast<int32_t>(data.get<int64_t>());
+		if (data.is_number_unsigned()) {
+			// 型情報のない既存値は符号付きの範囲を優先する
+			const uint64_t number = data.get<uint64_t>();
+			if (number > std::numeric_limits<uint32_t>::max()) return false;
+			if (number <= std::numeric_limits<int32_t>::max()) outValue.value = static_cast<int32_t>(number);
+			else outValue.value = static_cast<uint32_t>(number);
 			return true;
 		}
-		if (data.is_number_unsigned()) {
-			outValue.value = static_cast<uint32_t>(data.get<uint64_t>());
+		if (data.is_number_integer()) {
+			const int64_t number = data.get<int64_t>();
+			if (number < std::numeric_limits<int32_t>::min() || number > std::numeric_limits<uint32_t>::max()) return false;
+			if (number <= std::numeric_limits<int32_t>::max()) outValue.value = static_cast<int32_t>(number);
+			else outValue.value = static_cast<uint32_t>(number);
 			return true;
 		}
 		if (data.is_string()) {
@@ -59,6 +67,14 @@ namespace {
 			}
 		}
 		if (data.is_object()) {
+			// 小さいuintもJSON文字列を経由して型を維持する
+			if (data.contains("valueType")) {
+				if (data["valueType"] != "uint" || !data.contains("value") || !data["value"].is_number_integer()) return false;
+				const auto& number = data["value"];
+				if (number < 0 || number > std::numeric_limits<uint32_t>::max()) return false;
+				outValue.value = number.get<uint32_t>();
+				return true;
+			}
 			if (data.contains("r") && data.contains("g") && data.contains("b") && data.contains("a")) {
 
 				outValue.value = Engine::Color4(data.value("r", 0.0f), data.value("g", 0.0f), data.value("b", 0.0f), data.value("a", 1.0f));
@@ -76,10 +92,11 @@ namespace {
 
 			if constexpr (std::is_same_v<ValueType, float> ||
 				std::is_same_v<ValueType, int32_t> ||
-				std::is_same_v<ValueType, uint32_t> ||
 				std::is_same_v<ValueType, bool>) {
 
 				return value;
+			} else if constexpr (std::is_same_v<ValueType, uint32_t>) {
+				return nlohmann::json{ { "valueType", "uint" }, { "value", value } };
 			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
 
 				return nlohmann::json::array({ value.x, value.y });

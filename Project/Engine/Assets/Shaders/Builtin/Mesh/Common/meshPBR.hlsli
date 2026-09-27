@@ -35,6 +35,7 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 
 	// ベースカラー = マテリアル色 × ベースカラーテクスチャ
 	float4 baseColor = SamplePBRTexture(params.baseColorTexture, uv, 1.0f.xxxx);
+	baseColor.a *= SamplePBRTexture(params.opacityTexture, uv, 1.0f.xxxx).r;
 	baseColor *= params.color;
 
 	// メタリックとラフネスは係数にmetallicRoughnessテクスチャを掛ける、glTF流でB=metallic G=roughness

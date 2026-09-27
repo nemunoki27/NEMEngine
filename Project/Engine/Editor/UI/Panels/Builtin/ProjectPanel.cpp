@@ -409,6 +409,7 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
 	sceneStorageInspector_.DrawSceneStoragePopup(context, database);
+	assetDiagnostics_.Draw(database, !context.editorContext->isPlaying && !context.editorContext->isPrefabEditing);
 	DrawSearchBar(context);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();

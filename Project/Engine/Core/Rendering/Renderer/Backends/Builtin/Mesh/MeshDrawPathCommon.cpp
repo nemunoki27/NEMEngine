@@ -202,6 +202,15 @@ Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetI
 		MaterialParameterIDs::AmbientOcclusionTexture, modelDefault);
 }
 
+Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshOpacityTextureAssetID(const MeshGPUResource& gpuMesh,
+	std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex) {
+
+	const AssetID modelDefault = subMeshIndex < gpuMesh.subMeshes.size() ?
+		gpuMesh.subMeshes[subMeshIndex].defaultTextureAssets.opacityTexture : AssetID{};
+	return ResolveSubMeshTextureParam(subMeshes, subMeshIndex,
+		MaterialParameterIDs::OpacityTexture, modelDefault);
+}
+
 Engine::AssetID Engine::MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(const MeshGPUResource& gpuMesh,
 	std::span<const SubMeshMaterial> subMeshes, uint32_t subMeshIndex) {
 

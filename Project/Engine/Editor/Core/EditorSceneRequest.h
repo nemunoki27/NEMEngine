@@ -6,6 +6,8 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 
 #include <cstdint>
+#include <unordered_map>
+#include <vector>
 
 namespace Engine {
 	//============================================================================
@@ -40,6 +42,43 @@ namespace Engine {
 
 		EditorSceneRequestType type = EditorSceneRequestType::None;
 		AssetID sceneAsset{};
+	};
+
+	// 同一Scene Assetを複数Instanceから保存するときの選択肢
+	struct SceneSaveConflictChoice {
+
+		AssetID sceneAsset{};
+		std::vector<UUID> instanceIDs;
+	};
+
+	enum class SceneSaveOutcome : uint8_t {
+
+		Saved,
+		UnsavedInstances,
+		Conflict,
+		Failed,
+		Cancelled,
+	};
+
+	enum class EditorSceneSaveAction : uint8_t {
+
+		None,
+		NewScene,
+		OpenScene,
+		Play,
+		Close,
+	};
+
+	struct EditorSceneSaveRequest {
+
+		EditorSceneSaveAction action = EditorSceneSaveAction::None;
+		AssetID sceneAsset{};
+	};
+
+	struct SceneSaveConflictResult {
+
+		bool cancelled = false;
+		std::unordered_map<AssetID, UUID> selectedInstances;
 	};
 
 }

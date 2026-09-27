@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabHeader.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -21,7 +22,8 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabDocument.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabOwnership.h>
-#include <Engine/Core/World/Prefab/Runtime/PrefabInstanceRebuilder.h>
+#include <Engine/Core/World/Prefab/Runtime/PrefabNestedInstanceBuilder.h>
+#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 
 // c++
 #include <algorithm>
@@ -37,6 +39,28 @@ namespace {
 }
 
 bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& context, AssetID prefabAsset,
+	PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc) {
+
+	outResult = {};
+	try {
+		SceneCreationScope creation(context.world);
+		PrefabInstantiateResult candidate;
+		if (!Instantiate(context, prefabAsset, candidate, desc)) {
+			return false;
+		}
+		// ネストと参照の構築成功後に結果を公開
+		outResult = std::move(candidate);
+		creation.Commit();
+		return true;
+	} catch (const std::exception& error) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[PrefabSystem] Prefab生成に失敗しました AssetID={} 詳細={}", ToString(prefabAsset), error.what());
+		outResult = {};
+		return false;
+	}
+}
+
+bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, AssetID prefabAsset,
 	PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc) {
 
 	AssetDatabase& database = context.database;
@@ -81,7 +105,7 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 		const std::string rootName = header.name.empty() ? "NewPrefab" : header.name;
 		outResult.root = SceneAuthoring::CreateGameObject(world, rootName);
 		auto& sceneObject = world.GetComponent<SceneObjectComponent>(outResult.root);
-		sceneObject.localFileID = AllocateUniqueLocalFileID(world);
+		sceneObject.localFileID = context.AllocateLocalFileID();
 		sceneObject.sourceAsset = prefabAsset;
 		sceneObject.sceneInstanceID = desc.ownerSceneInstanceID;
 		PrefabOwnership::SetPrefabLink(world, outResult.root, prefabAsset, sceneObject.localFileID,
@@ -154,6 +178,12 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 	if (desc.localFileIDRemap) {
 		for (const auto& pair : *desc.localFileIDRemap) {
 			remapLookup.emplace(pair.first, pair.second);
+			context.ReserveLocalFileID(pair.second);
+		}
+	}
+	if (desc.nestedInstanceRemap) {
+		for (const auto& nested : *desc.nestedInstanceRemap) {
+			context.ReserveInstanceLocalFileIDs(nested);
 		}
 	}
 	std::unordered_map<UUID, UUID> stableUUIDLookup;
@@ -206,12 +236,14 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 		if (auto remapIt = remapLookup.find(prefabLocalFileID); remapIt != remapLookup.end() && remapIt->second) {
 			newSceneLocalFileID = remapIt->second;
 		} else {
-			newSceneLocalFileID = AllocateUniqueLocalFileID(world);
+			newSceneLocalFileID = context.AllocateLocalFileID();
 		}
 		if (entityJson.contains("Components") && entityJson["Components"].is_object()) {
 			const auto& components = entityJson["Components"];
 			if (components.contains("SceneObject") && components["SceneObject"].is_object()) {
-				world.AddComponentFromJson(entity, "SceneObject", components["SceneObject"]);
+				if (!world.AddComponentFromJson(entity, "SceneObject", components["SceneObject"])) {
+					return false;
+				}
 			}
 		}
 		// シーンオブジェクト初期化
@@ -260,7 +292,9 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 			}
 			PrefabReferenceRemapper::RemapComponent(
 				typeName, data, prefabLocalToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
-			world.AddComponentFromJson(entity, typeName, data);
+			if (!world.AddComponentFromJson(entity, typeName, data)) {
+				return false;
+			}
 		}
 	}
 
@@ -355,186 +389,8 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 	// 親Prefabアセットに保存されたネストPrefabを差分付きで生成する
 	const PrefabReferenceRemapper::LocalFileIDMap directPrefabLocalToSceneLocal =
 		prefabLocalToSceneLocal;
-	std::vector<PrefabInstanceData> nestedDeclarations;
-	if (fileJson.contains("NestedPrefabInstances") && fileJson["NestedPrefabInstances"].is_array()) {
-		for (const auto& nestedJson : fileJson["NestedPrefabInstances"]) {
-
-			PrefabInstanceData nested{};
-			if (FromJson(nestedJson, nested)) {
-				nestedDeclarations.emplace_back(std::move(nested));
-			}
-		}
-	}
-
-	std::unordered_set<UUID> restoredSlots;
-	auto findRestoredNested = [&](UUID nestedSlotID) -> const PrefabInstanceData* {
-
-		if (!desc.nestedInstanceRemap) {
-			return nullptr;
-		}
-		for (const auto& nested : *desc.nestedInstanceRemap) {
-			if (nested.nestedSlotID == nestedSlotID) {
-				return &nested;
-			}
-		}
-		return nullptr;
-		};
-
-	auto freshenNestedData = [&](auto&& self, PrefabInstanceData& data, UUID ownerInstanceID,
-		const PrefabReferenceRemapper::LocalFileIDMap& externalMap, bool preserveLocalFileIDs) -> void {
-
-		PrefabReferenceRemapper::LocalFileIDMap localMap;
-		for (auto& [prefabLocalFileID, sceneLocalFileID] : data.entityMap) {
-
-			const UUID previous = sceneLocalFileID;
-			if (!preserveLocalFileIDs) {
-				sceneLocalFileID = AllocateUniqueLocalFileID(world);
-			}
-			localMap.emplace(previous, sceneLocalFileID);
-			prefabLocalToSceneLocal.insert_or_assign(previous, sceneLocalFileID);
-		}
-		for (auto& added : data.addedEntities) {
-
-			const UUID previous = added.sceneLocalFileID;
-			if (!preserveLocalFileIDs) {
-				added.sceneLocalFileID = AllocateUniqueLocalFileID(world);
-			}
-			localMap.emplace(previous, added.sceneLocalFileID);
-			prefabLocalToSceneLocal.insert_or_assign(previous, added.sceneLocalFileID);
-		}
-		for (const auto& [source, target] : externalMap) {
-			localMap.try_emplace(source, target);
-		}
-
-		auto remapLocal = [&](UUID value) {
-			auto it = localMap.find(value);
-			return it != localMap.end() ? it->second : value;
-			};
-		data.rootParentSceneLocalFileID = remapLocal(data.rootParentSceneLocalFileID);
-		for (auto& modification : data.modifications) {
-			PrefabReferenceRemapper::RemapValue(modification.value, modification.path, localMap,
-				PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
-		}
-		for (auto& addedComponent : data.addedComponents) {
-			PrefabReferenceRemapper::RemapComponent(addedComponent.type, addedComponent.value, localMap,
-				PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
-		}
-		for (auto& added : data.addedEntities) {
-
-			added.parentSceneLocalFileID = remapLocal(added.parentSceneLocalFileID);
-			PrefabReferenceRemapper::RemapComponents(added.components, localMap,
-				PrefabReferenceRemapper::ReferenceSpace::Scene, data.prefabAsset);
-		}
-		for (auto& hierarchyMod : data.hierarchyModifications) {
-			hierarchyMod.externalParentSceneLocalFileID =
-				remapLocal(hierarchyMod.externalParentSceneLocalFileID);
-		}
-
-		data.instanceID = UUID::New();
-		data.ownerPrefabInstanceID = ownerInstanceID;
-		data.stableUUIDMap.clear();
-		for (auto& nested : data.nestedInstances) {
-			self(self, nested, data.instanceID, localMap, preserveLocalFileIDs);
-		}
-		};
-
-	auto appendRestoredNestedMap = [&](auto&& self, const PrefabInstanceData& declaration,
-		const PrefabInstanceData& restored) -> void {
-
-		std::unordered_map<UUID, UUID> restoredEntityMap;
-		for (const auto& [prefabLocalFileID, sceneLocalFileID] : restored.entityMap) {
-			restoredEntityMap.emplace(prefabLocalFileID, sceneLocalFileID);
-		}
-		for (const auto& [prefabLocalFileID, sceneLocalFileID] : declaration.entityMap) {
-			auto it = restoredEntityMap.find(prefabLocalFileID);
-			if (it != restoredEntityMap.end()) {
-				prefabLocalToSceneLocal.insert_or_assign(sceneLocalFileID, it->second);
-			}
-		}
-		const size_t addedCount = std::min(
-			declaration.addedEntities.size(), restored.addedEntities.size());
-		for (size_t i = 0; i < addedCount; ++i) {
-			prefabLocalToSceneLocal.insert_or_assign(
-				declaration.addedEntities[i].sceneLocalFileID,
-				restored.addedEntities[i].sceneLocalFileID);
-		}
-		for (const PrefabInstanceData& declarationNested : declaration.nestedInstances) {
-			for (const PrefabInstanceData& restoredNested : restored.nestedInstances) {
-				if (declarationNested.nestedSlotID == restoredNested.nestedSlotID) {
-					self(self, declarationNested, restoredNested);
-					break;
-				}
-			}
-		}
-		};
-
-	auto instantiateNested = [&](PrefabInstanceData data, bool preserveSceneIDs, bool isPrefabAssetNested) {
-
-		if (!preserveSceneIDs) {
-			freshenNestedData(freshenNestedData, data, outResult.prefabInstanceID,
-				prefabLocalToSceneLocal, desc.preserveNestedLocalFileIDs);
-		} else {
-			data.ownerPrefabInstanceID = outResult.prefabInstanceID;
-		}
-		data.isPrefabAssetNested = isPrefabAssetNested;
-
-		const Entity nestedRoot = PrefabInstanceRebuilder::RebuildInstance(
-			context, data, desc.ownerSceneInstanceID, desc.nestedDepth + 1);
-		if (!world.IsAlive(nestedRoot)) {
-			return false;
-		}
-		for (const Entity& nestedEntity : HierarchyUtility::CollectLogicalSubtree(world, nestedRoot)) {
-			if (std::find(outResult.createdEntities.begin(), outResult.createdEntities.end(), nestedEntity) ==
-				outResult.createdEntities.end()) {
-				outResult.createdEntities.emplace_back(nestedEntity);
-			}
-		}
-		return true;
-		};
-
-	bool nestedSucceeded = true;
-	for (const auto& declaration : nestedDeclarations) {
-
-		if (desc.removedNestedSlots &&
-			std::find(desc.removedNestedSlots->begin(), desc.removedNestedSlots->end(),
-				declaration.nestedSlotID) != desc.removedNestedSlots->end()) {
-			continue;
-		}
-		if (const PrefabInstanceData* restored = findRestoredNested(declaration.nestedSlotID)) {
-			restoredSlots.insert(declaration.nestedSlotID);
-			appendRestoredNestedMap(appendRestoredNestedMap, declaration, *restored);
-			nestedSucceeded = instantiateNested(*restored, true, true);
-		} else {
-			nestedSucceeded = instantiateNested(declaration, false, true);
-		}
-		if (!nestedSucceeded) {
-			break;
-		}
-	}
-	if (nestedSucceeded && desc.nestedInstanceRemap) {
-		for (const auto& restored : *desc.nestedInstanceRemap) {
-
-			if (restoredSlots.contains(restored.nestedSlotID)) {
-				continue;
-			}
-			if (restored.isPrefabAssetNested) {
-				continue;
-			}
-			if (!instantiateNested(restored, true, false)) {
-				nestedSucceeded = false;
-				break;
-			}
-		}
-	}
-	if (!nestedSucceeded) {
-
-		for (auto it = outResult.createdEntities.rbegin(); it != outResult.createdEntities.rend(); ++it) {
-			if (world.IsAlive(*it)) {
-				world.DestroyEntity(*it);
-			}
-		}
-		world.FlushPendingDestroyEntities();
-		outResult = PrefabInstantiateResult{};
+	PrefabNestedInstanceBuilder nestedBuilder(context, desc, outResult, prefabLocalToSceneLocal);
+	if (!nestedBuilder.Build(fileJson)) {
 		return false;
 	}
 
@@ -561,28 +417,12 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 			if (directData == completeData) {
 				continue;
 			}
-			world.AddComponentFromJson(entity, typeName, completeData);
+			if (!world.AddComponentFromJson(entity, typeName, completeData)) {
+				return false;
+			}
 		}
 	}
 	return true;
-}
-
-Engine::UUID Engine::PrefabInstantiator::AllocateUniqueLocalFileID(ECSWorld& world) {
-
-	while (true) {
-
-		UUID candidate = UUID::New();
-		bool exists = false;
-		// このローカルIDがすでにシーン内のどこかで使われていないか走査する
-		world.ForEach<SceneObjectComponent>([&](const Entity&, SceneObjectComponent& sceneObject) {
-			if (sceneObject.localFileID == candidate) {
-				exists = true;
-			}
-			});
-		if (!exists) {
-			return candidate;
-		}
-	}
 }
 
 bool Engine::PrefabInstantiator::InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem,

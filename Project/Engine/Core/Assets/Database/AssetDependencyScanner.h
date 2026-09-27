@@ -10,7 +10,11 @@
 
 namespace Engine::AssetDependencyScanner {
 
+	using IDReferences = std::unordered_multimap<AssetID, AssetType>;
+	using PathReferences = std::unordered_multimap<std::string, AssetType>;
+
 	// JSONから参照候補と期待型を収集する
 	void ScanReferences(const nlohmann::json& node,
-		std::unordered_map<AssetID, AssetType>& outIDs, std::unordered_map<std::string, AssetType>& outPaths);
+		IDReferences& outIDs, PathReferences& outPaths,
+		bool includeUnclassified = false);
 }

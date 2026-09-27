@@ -33,11 +33,13 @@ namespace Engine {
 			SceneInstanceManager& playScenes, SceneSystem& sceneSystem, SystemScheduler& scheduler,
 			SystemContext& systemContext, EditorManager& editorManager, RuntimeWorldBaker& runtimeWorldBaker,
 			ManagedScriptBuildService& scriptBuildService, bool& requestFrameDeltaReset,
-			std::function<bool()> isPrefabEditing, std::function<bool()> saveAllEditScenes,
+			std::function<bool()> isPrefabEditing, std::function<void()> saveScenesBeforePlay,
 			std::function<void()> refreshActiveWorldContext);
 
 		// プレイモードの切り替え
 		void HandlePlayToggle();
+		// 保存元選択後の結果でPlay開始を再開する
+		void CompleteSceneSave(bool succeeded);
 		// PlayWorldを破棄してEditへ戻す、StopトグルとPlay中script例外の両方で使う
 		void StopPlayWorld();
 		// C#のApplication終了要求を安全なフレーム終端で処理する
@@ -46,6 +48,8 @@ namespace Engine {
 		void StartPlayWorld();
 		// Play中の一時停止/再開/コマ送り要求を処理する
 		void HandlePlayPauseRequests();
+		// Script例外を検出した安全地点で一時停止する
+		void PauseForScriptException();
 		// このフレームにWorldを進行させるか
 		bool ShouldAdvanceActiveWorld() const;
 
@@ -65,6 +69,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		bool pendingPlayStart_ = false;
+		bool waitingForSceneSave_ = false;
 		bool playPaused_ = false;
 		bool playFrameStepRequested_ = false;
 		bool playWorldJustStarted_ = false;
@@ -80,7 +85,7 @@ namespace Engine {
 		ManagedScriptBuildService& scriptBuildService_;
 		bool& requestFrameDeltaReset_;
 		std::function<bool()> isPrefabEditing_;
-		std::function<bool()> saveAllEditScenes_;
+		std::function<void()> saveScenesBeforePlay_;
 		std::function<void()> refreshActiveWorldContext_;
 
 		//--------- functions ----------------------------------------------------

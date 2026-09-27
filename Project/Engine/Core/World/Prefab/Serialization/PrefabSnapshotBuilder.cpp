@@ -183,7 +183,7 @@ bool Engine::PrefabSnapshotBuilder::SavePrefabFromEntities(AssetDatabase& databa
 	if (!JsonAdapter::SaveCanonical(savePath, fileJson)) {
 		return false;
 	}
-	PrefabOverrideUtility::InvalidatePrefabBaseCache(prefabAsset);
+	database.NotifyContentChanged(prefabAsset);
 	return true;
 }
 

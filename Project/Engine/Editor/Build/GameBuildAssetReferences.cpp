@@ -7,17 +7,25 @@
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/World/Scene/Serialization/SceneStorageJournal.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Database/AssetDependencyScanner.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 
 // c++
 #include <array>
 #include <fstream>
 #include <regex>
 #include <sstream>
+
+// assimp
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
 namespace Engine {
 
@@ -27,7 +35,7 @@ using BuildFileEntry = GameBuildFileEntry;
 void GameBuildAssetCollector::InspectFile(const Engine::AssetMeta& meta, const std::filesystem::path& source) {
 
 	const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(source.extension()));
-	if (extension == ".json" || extension == ".effect" || extension == ".prefab" || extension == ".scene") {
+	if (extension == ".json" || AssetTypeResolver::IsJsonAssetFile(meta.type, source)) {
 
 		const nlohmann::json data = LoadJson(source);
 		if (!data.is_discarded() && !data.is_null()) {
@@ -93,29 +101,21 @@ void GameBuildAssetCollector::CollectExternalActors(const Engine::AssetMeta& sce
 
 void GameBuildAssetCollector::InspectJson(const nlohmann::json& node) {
 
-	if (node.is_object()) {
-
-		for (auto it = node.begin(); it != node.end(); ++it) {
-
-			const std::string& key = it.key();
-			if (it->is_string()) {
-
-				const std::string value = it->get<std::string>();
-				if (const std::optional<Engine::AssetID> parsed = Engine::TryParseAssetGUID32Hex(value)) {
-					if (database_.Find(*parsed)) {
-						AddAsset(*parsed);
-					}
-				} else if (key == "file" &&
-					(StartsWith(value, "Engine/Assets/") || StartsWith(value, "GameAssets/"))) {
-					AddLogicalFile(value);
-				}
-			}
-			InspectJson(*it);
+	// 構文解析をAssetDatabaseと共有し、製品収集の方針はここで適用する
+	AssetDependencyScanner::IDReferences candidates;
+	AssetDependencyScanner::PathReferences paths;
+	AssetDependencyScanner::ScanReferences(node, candidates, paths, true);
+	for (const auto& [id, type] : candidates) {
+		if (type != AssetType::Unknown || database_.Find(id)) {
+			AddAsset(id);
 		}
-	} else if (node.is_array()) {
-
-		for (const nlohmann::json& element : node) {
-			InspectJson(element);
+	}
+	for (const auto& [path, type] : paths) {
+		if (const auto* meta = database_.FindByPath(path)) {
+			AddAsset(meta->guid);
+		} else if (type == AssetType::Shader && (StartsWith(path, "Engine/Assets/") ||
+			StartsWith(path, "GameAssets/") || StartsWith(path, "package://"))) {
+			AddLogicalFile(path);
 		}
 	}
 }
@@ -174,6 +174,23 @@ void GameBuildAssetCollector::CollectModelSidecars(const std::filesystem::path& 
 	} else if (extension == ".obj") {
 
 		CollectObjSidecars(modelPath);
+	}
+	// 名前補完された画像も通常描画と同じ規則で製品へ含める
+	TextureAssetResolver resolver;
+	resolver.Build(modelPath);
+	Assimp::Importer importer;
+	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(modelPath), aiProcess_Triangulate);
+	if (!scene) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"モデルのTexture参照を収集できません path={} 内容={}",
+			Algorithm::PathToUTF8(modelPath), importer.GetErrorString());
+		return;
+	}
+	for (uint32_t index = 0; index < scene->mNumMaterials; ++index) {
+		for (const auto& path : AssimpMaterialTextureExtractor::CollectResolvedPaths(scene->mMaterials[index], resolver)) {
+
+			AddLogicalFile(path);
+		}
 	}
 }
 

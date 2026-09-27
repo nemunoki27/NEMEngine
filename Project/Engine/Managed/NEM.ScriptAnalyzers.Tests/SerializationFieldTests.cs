@@ -106,6 +106,64 @@ internal static class SerializationFieldTests {
         public Data data = new();
     }
 
+    private sealed class EntityReferenceFixture : MonoBehaviour {
+        public GameObject? target = null;
+    }
+
+    private static bool referenceAvailable;
+    private static NativeEntity referenceOwner;
+
+    private static unsafe void TestUnresolvedEntityReferences() {
+        var registry = new ScriptTypeRegistry { gameAssembly = typeof(EntityReferenceFixture).Assembly };
+        registry.AddScriptTypeEntry("cb7af010-0214-4dbe-8d82-426337745559", typeof(EntityReferenceFixture),
+            typeof(EntityReferenceFixture).FullName!, "References", "", true);
+        ScriptTypeEntry entry = registry.typeToEntry[typeof(EntityReferenceFixture)];
+        entry.fieldMap.Add("target", typeof(EntityReferenceFixture).GetField("target")!);
+        entry.deferredFields.Add("target");
+        var codec = new ScriptFieldCodec(registry);
+        var fixture = new EntityReferenceFixture();
+        const string saved = "{\"target\":{\"kind\":\"Scene\",\"sourceAsset\":\"00000000000000010000000000000002\",\"localFileId\":\"0000000000000001\"}}";
+        var previousResolver = NativeAPI.ResolveEntityRef;
+        var previousAlive = NativeAPI.IsAlive;
+        NativeAPI.ResolveEntityRef = &ResolveTestReference;
+        NativeAPI.IsAlive = &IsInitialEntityAlive;
+        fixture.gameObject = GameObject.FromNative(new NativeEntity {
+            world = new ManagedWorldHandle { index = 2, generation = 1 }, index = 0, generation = 0
+        })!;
+        referenceAvailable = false;
+        try {
+            codec.ApplySerializedFields(fixture, saved);
+            codec.FlushPendingReferenceFields();
+            Check(fixture.target is null && JsonNode.DeepEquals(JsonNode.Parse(saved), JsonNode.Parse(codec.BuildSavedStateJson(fixture))));
+            referenceAvailable = true;
+            codec.FlushPendingReferenceFields(retryUnresolved: true);
+            Check(fixture.target != null);
+            Check(referenceOwner.world.index == 2 && referenceOwner.world.generation == 1 && referenceOwner.index == 0);
+
+            // 未解決中の明示編集は再解決で戻さない
+            referenceAvailable = false;
+            codec.ApplySerializedFields(fixture, saved);
+            codec.FlushPendingReferenceFields();
+            codec.ApplyFieldValue(fixture, entry.fieldMap["target"], "null");
+            referenceAvailable = true;
+            codec.FlushPendingReferenceFields(retryUnresolved: true);
+            Check(fixture.target is null);
+        } finally {
+            codec.ReleaseInstance(fixture);
+            NativeAPI.ResolveEntityRef = previousResolver;
+            NativeAPI.IsAlive = previousAlive;
+            referenceAvailable = false;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static NativeEntity ResolveTestReference(AssetGUID source, ulong localFileID, NativeEntity owner) {
+        referenceOwner = owner;
+        return referenceAvailable
+            ? new NativeEntity { world = new ManagedWorldHandle { index = 2, generation = 1 }, index = 0, generation = 0 }
+            : NativeEntity.Null;
+    }
+
     private sealed class MovementFixture : MonoBehaviour {
         [SerializeField] private float moveSpeed = 0.0f;
         internal float Speed => moveSpeed;
@@ -123,6 +181,7 @@ internal static class SerializationFieldTests {
     }
 
     internal static void Run() {
+        TestUnresolvedEntityReferences();
         CheckPendingReentry();
         TestNestedRename();
         TestNestedPreservation();

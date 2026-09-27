@@ -20,6 +20,7 @@
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Scene/Serialization/SceneDocument.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -56,8 +57,45 @@ namespace NEMTests {
 		prefab.modifications.push_back({ Engine::UUID{ 2 }, "Transform/localScale", 1.0f });
 		prefab.modifications.push_back({ Engine::UUID{ 2 }, "Transform/localPos", 0.0f });
 		const nlohmann::json prefabJson = Engine::ToJson(prefab);
-		return prefabJson["EntityMap"][0]["P"] == "0000000000000001" &&
-			prefabJson["Modifications"][0]["Path"] == "Transform/localPos";
+		if (prefabJson["EntityMap"][0]["P"] != "0000000000000001" ||
+			prefabJson["Modifications"][0]["Path"] != "Transform/localPos") return false;
+
+		// 未知の項目と利用者の配列順を正規化後も保持する
+		prefab.instanceID = Engine::UUID{ 100 };
+		prefab.prefabAsset = Engine::AssetID::New();
+		auto stored = Engine::ToJson(prefab);
+		stored["Extra"] = { { "EntityMap", { 3, 1, 2 } } };
+		stored["EntityMap"][0]["Extra"] = "first";
+		stored["EntityMap"][1]["Extra"] = "second";
+		std::reverse(stored["EntityMap"].begin(), stored["EntityMap"].end());
+		stored["Modifications"][0]["Value"] = { { "Entities", { 3, 1, 2 } } };
+		auto nested = stored;
+		nested["InstanceID"] = Engine::ToString(Engine::UUID{ 101 });
+		nested["NestedSlotID"] = Engine::ToString(Engine::UUID{ 102 });
+		nested["OwnerPrefabInstanceID"] = Engine::ToString(prefab.instanceID);
+		stored["NestedInstances"].push_back(nested);
+		nlohmann::json scene = { { "SchemaVersion", 3 }, { "Header", nlohmann::json::object() },
+			{ "Entities", nlohmann::json::array() }, { "PrefabInstances", { stored } }, { "Extra", { 9, 7 } } };
+		if (!Engine::SceneDocument::Canonicalize(scene)) return false;
+		const auto& canonical = scene["PrefabInstances"][0];
+		if (canonical["EntityMap"][0]["Extra"] != "first" || canonical["EntityMap"][1]["Extra"] != "second" ||
+			canonical["Extra"] != stored["Extra"] || canonical["Modifications"] != stored["Modifications"] ||
+			canonical["NestedInstances"][0]["EntityMap"][0]["Extra"] != "first" || scene["Extra"] != nlohmann::json({ 9, 7 })) return false;
+		const auto canonicalScene = scene;
+		if (!Engine::SceneDocument::Canonicalize(scene) || scene != canonicalScene) return false;
+
+		// 不正な版番号と重複参照では入力を変更しない
+		for (const auto& version : { nlohmann::json(3.5), nlohmann::json(4294967299ULL), nlohmann::json("3") }) {
+			scene = canonicalScene;
+			scene["SchemaVersion"] = version;
+			const auto original = scene;
+			if (Engine::SceneDocument::Canonicalize(scene) || scene != original) return false;
+		}
+		scene = canonicalScene;
+		scene.erase("Entities");
+		scene["ExternalActors"] = { Engine::ToString(Engine::UUID{ 1 }), Engine::ToString(Engine::UUID{ 1 }) };
+		const auto invalid = scene;
+		return !Engine::SceneDocument::Canonicalize(scene) && scene == invalid;
 	}
 
 	bool TestSubScenes() {
@@ -140,6 +178,27 @@ namespace NEMTests {
 		passed &= editableRoot && !editableRoot->childScenes.empty() &&
 			editableRoot->childScenes.front().childInstanceID == childInstanceID &&
 			editableRoot->childScenes.front().slotName == "RenamedChild";
+
+		// 後続の追加に失敗しても、先行した無効化と追加を残さない
+		if (editableRoot) {
+			const auto originalSlots = editableRoot->header.subScenes;
+			const auto revision = scenes.GetRevision();
+			editableRoot->header.subScenes.front().enabled = false;
+			editableRoot->header.subScenes.push_back({ .slotID = Engine::UUID{ 103 }, .slotName = "Added",
+				.sceneAsset = childAsset, .enabled = true });
+			editableRoot->header.subScenes.push_back({ .slotID = Engine::UUID{ 104 }, .slotName = "Missing",
+				.sceneAsset = Engine::AssetID{ 901, 902 }, .enabled = true });
+			passed &= !scenes.SynchronizeSubScenes(database, sceneSystem, world, rootInstanceID) &&
+				scenes.GetAll().size() == 2 && scenes.Find(childInstanceID) && scenes.GetRevision() == revision;
+			editableRoot = scenes.Find(rootInstanceID);
+			passed &= editableRoot && editableRoot->childScenes.size() == 1 &&
+				editableRoot->childScenes.front().childInstanceID == childInstanceID;
+			if (editableRoot) {
+				editableRoot->header.subScenes = originalSlots;
+			}
+			passed &= !scenes.LoadSceneTree(database, sceneSystem, world, Engine::AssetID{ 901, 902 }) &&
+				scenes.GetAll().size() == 2 && scenes.Find(childInstanceID) && scenes.GetRevision() == revision;
+		}
 
 		passed &= rootInstanceID && scenes.Unload(world, rootInstanceID) && scenes.GetAll().empty();
 

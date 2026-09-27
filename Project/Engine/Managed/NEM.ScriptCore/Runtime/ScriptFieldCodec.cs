@@ -15,6 +15,7 @@ namespace NEMEngine;
 internal sealed unsafe class ScriptFieldCodec {
 
     private readonly ScriptTypeRegistry registry;
+    private readonly ScriptReferenceContext referenceContext = new();
     private ConditionalWeakTable<MonoBehaviour, ScriptSerializedValues> savedValues = new();
     private readonly HashSet<MonoBehaviour> pendingCallbacks = new(ReferenceEqualityComparer.Instance);
     private bool flushing;
@@ -22,10 +23,11 @@ internal sealed unsafe class ScriptFieldCodec {
 
     internal ScriptFieldCodec(ScriptTypeRegistry registry) {
         this.registry = registry;
+        jsonOptions = CreateJsonOptions();
         pendingReferences = new PendingScriptReferences(SetFieldFromElement);
     }
 
-    private JsonSerializerOptions jsonOptions = CreateJsonOptions();
+    private JsonSerializerOptions jsonOptions;
 
     // 保留値と旧Assemblyの型キャッシュを破棄する
     internal void ResetAssemblyState() {
@@ -43,7 +45,7 @@ internal sealed unsafe class ScriptFieldCodec {
         savedValues.Remove(script);
     }
 
-    private static JsonSerializerOptions CreateJsonOptions() {
+    private JsonSerializerOptions CreateJsonOptions() {
 
         var options = new JsonSerializerOptions {
             IncludeFields = true,
@@ -54,10 +56,10 @@ internal sealed unsafe class ScriptFieldCodec {
         options.Converters.Add(new UUIDJsonConverter());
         ScriptNumericConversion.Configure(options);
         options.Converters.Add(new EntityRefJsonConverter());
-        options.Converters.Add(new GameObjectJsonConverter());
+        options.Converters.Add(new GameObjectJsonConverter(referenceContext));
         options.Converters.Add(new AssetJsonConverterFactory());
-        options.Converters.Add(new MonoBehaviourJsonConverterFactory());
-        options.Converters.Add(new ComponentJsonConverterFactory());
+        options.Converters.Add(new MonoBehaviourJsonConverterFactory(referenceContext));
+        options.Converters.Add(new ComponentJsonConverterFactory(referenceContext));
         return options;
     }
 
@@ -121,11 +123,13 @@ internal sealed unsafe class ScriptFieldCodec {
         }
     }
 
-    internal void FlushPendingReferenceFields() {
+    internal void FlushPendingReferenceFields(bool retryUnresolved = false) {
 
         if (flushing) { return; }
         flushing = true;
         try {
+            pendingReferences.DiscardChangedReferences((script, field) => savedValues.GetOrCreateValue(script).rejectedFields.Remove(field));
+            if (retryUnresolved) { pendingReferences.RetryUnresolved(); }
             pendingReferences.Flush();
             foreach (MonoBehaviour script in pendingCallbacks.ToArray()) {
                 if (!pendingCallbacks.Remove(script)) { continue; }
@@ -137,12 +141,20 @@ internal sealed unsafe class ScriptFieldCodec {
 
     internal void SetFieldFromElement(MonoBehaviour script, FieldInfo field, JsonElement value) {
 
+        using var scope = referenceContext.Enter(script);
         try {
             ScriptReferenceGraph graph = GetReferenceGraph(script);
             object? deserialized = graph.ReadField(field.FieldType, JsonNode.Parse(value.GetRawText()),
                 field.GetCustomAttribute<SerializeReferenceAttribute>() is not null);
             field.SetValue(script, deserialized);
             savedValues.GetOrCreateValue(script).rejectedFields.Remove(field);
+        }
+        catch (UnresolvedScriptReferenceException ex) {
+            // 保存identityを残し、明示的な再解決まで実行値を維持する
+            if (savedValues.GetOrCreateValue(script).rejectedFields.Add(field)) {
+                NativeApplicationAPI.WriteLog(1, $"参照を保留しました: {script.GetType().FullName}.{field.Name}: {ex.Message}");
+            }
+            pendingReferences.AddUnresolved(script, field, value);
         }
         catch (Exception ex) {
             // 変換できない保存値を残し、実行値は変更しない
@@ -165,6 +177,7 @@ internal sealed unsafe class ScriptFieldCodec {
 
     internal void ApplyFieldValue(MonoBehaviour script, FieldInfo field, string? valueJson) {
 
+        using var scope = referenceContext.Enter(script);
         if (valueJson == null) {
             return;
         }
@@ -178,6 +191,7 @@ internal sealed unsafe class ScriptFieldCodec {
             ScriptReferenceGraph single = CreateReferenceGraph(script.GetType().Assembly);
             object? value = single.ReadField(field.FieldType, JsonNode.Parse(valueJson), false);
             field.SetValue(script, value);
+            pendingReferences.Remove(script, field);
             savedValues.GetOrCreateValue(script).rejectedFields.Remove(field);
             return;
         }
@@ -198,7 +212,10 @@ internal sealed unsafe class ScriptFieldCodec {
             catch when (!item.Value.Equals(field)) { rejected.Add(item.Value); }
         }
         // 編集対象の変換成功後に共有参照を一組で公開する
-        foreach (KeyValuePair<FieldInfo, object?> item in values) { item.Key.SetValue(script, item.Value); }
+        foreach (KeyValuePair<FieldInfo, object?> item in values) {
+            item.Key.SetValue(script, item.Value);
+            pendingReferences.Remove(script, item.Key);
+        }
         ScriptSerializedValues saved = savedValues.GetOrCreateValue(script);
         saved.source = source;
         saved.graph = graph;

@@ -59,6 +59,7 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const std::vector<Entry>& GetEntries() const { return entries_; }
+		uint64_t GetContentRevision() const { return contentRevision_; }
 		// 抽出時に解決する、appendでpoints_が再確保されても確定後に呼ぶので安全
 		const LinePoint* GetPoints(const Entry& entry) const { return points_.data() + entry.pointOffset; }
 
@@ -74,5 +75,9 @@ namespace Engine {
 		// 全エントリの点列を連結して持つプール
 		std::vector<LinePoint> points_{};
 		std::vector<Entry> entries_{};
+		uint64_t contentRevision_ = 0;
+
+		// 点列の追加や破棄で借用中の描画を更新する
+		void AdvanceRevision();
 	};
 } // Engine

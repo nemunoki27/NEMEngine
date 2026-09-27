@@ -35,7 +35,7 @@ D3D12_DISPATCH_RAYS_DESC Engine::RaytracingPipelineState::BuildDispatchDesc(
 	const D3D12_GPU_VIRTUAL_ADDRESS baseAddress =
 		shaderTable_->GetGPUVirtualAddress();
 	desc.RayGenerationShaderRecord.StartAddress = baseAddress +
-		rayGenerationTableOffset_ + rayGenerationIndex * kRecordStride;
+		rayGenerationTableOffset_ + rayGenerationIndex * kRayGenerationStride;
 	desc.RayGenerationShaderRecord.SizeInBytes = kRecordStride;
 	if (missCount_ > 0) {
 		desc.MissShaderTable.StartAddress = baseAddress + missTableOffset_;

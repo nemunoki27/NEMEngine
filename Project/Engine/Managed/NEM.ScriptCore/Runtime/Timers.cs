@@ -120,6 +120,11 @@ public static class Timers {
                 Free(i);
                 continue;
             }
+            if (e.owner is not null && !e.owner.isActiveAndEnabled) {
+                // Script無効またはEntity非アクティブ中は残り時間を減らさない
+                entries[i] = e;
+                continue;
+            }
             e.remaining -= e.unscaled ? unscaledDelta : scaledDelta;
             if (e.remaining > 0.0f) {
                 entries[i] = e;
@@ -141,6 +146,7 @@ public static class Timers {
             }
             catch (Exception ex) {
                 NativeApplicationAPI.WriteLog(2, $"[Timers] callback threw\n{ex}");
+                throw;
             }
         }
     }

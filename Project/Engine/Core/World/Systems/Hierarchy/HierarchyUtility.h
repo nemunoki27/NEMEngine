@@ -7,6 +7,7 @@
 
 // c++
 #include <vector>
+#include <span>
 
 namespace Engine {
 
@@ -22,6 +23,8 @@ namespace Engine {
 
 		// 通常の子とジョイント接続された子を含むサブツリーを収集する
 		std::vector<Entity> CollectLogicalSubtree(ECSWorld& world, Entity root);
+		// 選択内の祖先に含まれるEntityと重複を除く
+		std::vector<Entity> CollectLogicalRoots(ECSWorld& world, std::span<const Entity> selection);
 
 	} // HierarchyUtility
 } // Engine

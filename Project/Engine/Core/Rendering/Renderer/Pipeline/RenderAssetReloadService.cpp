@@ -127,7 +127,9 @@ bool RenderAssetReloadService::ReloadMaterialDependencies(
 			return false;
 		}
 
-		assetDatabase.RefreshDependencies(assetID);
+		if (!assetDatabase.RefreshDependencies(assetID)) {
+			return false;
+		}
 		for (AssetID dependency : assetDatabase.FindDependencies(assetID)) {
 			if (!reloadDependency(dependency)) {
 				return false;
@@ -177,7 +179,9 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 	}
 
 	// JSONの参照先が変わった場合に備えて逆引き依存関係も更新する
-	assetDatabase.RefreshDependencies(assetID);
+	if (!assetDatabase.RefreshDependencies(assetID)) {
+		return;
+	}
 	if (meta->type == AssetType::Material) {
 		ReloadMaterial(assetID);
 		return;

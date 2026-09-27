@@ -36,6 +36,7 @@ namespace Engine {
 	// front
 	class GraphicsCore;
 	class ECSWorld;
+	class ECSWorldLifetime;
 	class SRVDescriptor;
 	struct RenderDrawContext;
 	struct MeshGPUResource;
@@ -147,7 +148,7 @@ namespace Engine {
 		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
 		void UpdateDrawConstants(const RenderDrawContext& drawContext,
 			const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
-			uint32_t subMeshGroupIndex, const MaterialAsset* material);
+			uint32_t subMeshGroupIndex, const MaterialAsset* material, bool normalConeAllowed);
 		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 
@@ -164,7 +165,13 @@ namespace Engine {
 		bool FindSkinnedVertexOffset(ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const;
 
 		// 現在のポーズに対するスキニング処理完了を記録する
-		void MarkSkinningDispatched();
+		void MarkSkinningDispatched(uint64_t pipelineID);
+		// 同じポーズとパイプラインの計算結果を再利用する
+		bool CanReuseSkinningOutput(uint64_t pipelineID) const;
+		// 再計算に必要なパレットと定数を転送する
+		void UploadSkinningInputs(const MeshGPUResource& gpuMesh);
+		// 未計算の頂点を使わず元の形状へ戻す
+		void SetSkinningAvailable(bool available);
 		// スキニング頂点のリソース状態をセット
 		void SetSkinnedVertexState(D3D12_RESOURCE_STATES state) { skinning_->skinnedVertexState = state; }
 		// 圧縮頂点側のスキニング結果も通常頂点とは別に状態管理する
@@ -235,6 +242,7 @@ namespace Engine {
 		uint32_t GetInstanceCount() const { return instanceCount_; }
 		uint32_t GetSkinnedInstanceCount() const { return skinnedInstanceCount_; }
 		uint64_t GetSkinningBufferGeneration() const { return skinningBufferGeneration_; }
+		uint64_t GetSkinningResultGeneration() const { return skinningResultGeneration_; }
 
 		// スキニング処理をディスパッチしたか
 		bool IsSkinningDispatched() const { return skinningDispatched_; }
@@ -290,6 +298,7 @@ namespace Engine {
 		// キャッシュへECSのComponentポインターを保持しない
 		struct CachedInstance {
 			ECSWorld* world = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity{};
 			AssetID material{};
 			uint64_t batchKey = 0;
@@ -341,6 +350,9 @@ namespace Engine {
 		bool skinningOutputValid_ = false;
 		uint64_t currentSkinningPoseHash_ = 0;
 		uint64_t dispatchedSkinningPoseHash_ = 0;
+		uint64_t dispatchedSkinningPipelineID_ = 0;
+		uint64_t skinningResultGeneration_ = 0;
+		bool skinningDrawEnabled_ = true;
 		// 出力バッファ再生成を動的BLASへ伝える世代
 		uint64_t skinningBufferGeneration_ = 0;
 		bool usesFallbackTexture_ = false;

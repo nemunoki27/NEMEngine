@@ -75,6 +75,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
 
 			staticInstanceKey.world = src.world;
+			staticInstanceKey.worldLifetime = src.world ? src.world->GetLifetime() : nullptr;
 			staticInstanceKey.entity = src.entity;
 			staticInstanceKey.meshAssetID = src.meshAssetID;
 			staticInstanceKey.reloadGeneration =
@@ -216,6 +217,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				*meshResource, subMeshes, subMeshIndex);
 			AssetID occlusionAsset = MeshDrawPathCommon::ResolveSubMeshOcclusionTextureAssetID(
 				*meshResource, subMeshes, subMeshIndex);
+			AssetID opacityAsset = MeshDrawPathCommon::ResolveSubMeshOpacityTextureAssetID(
+				*meshResource, subMeshes, subMeshIndex);
 			AssetID specularAsset = MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(
 				*meshResource, subMeshes, subMeshIndex);
 			subMeshData.normalTextureIndex = normalAsset ?
@@ -236,6 +239,9 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			subMeshData.occlusionTextureIndex = occlusionAsset ?
 				materialResolver_.ResolveTextureDescriptorIndex(
 					work.graphicsCore, work.assetDatabase, occlusionAsset, false) : UINT32_MAX;
+			subMeshData.opacityTextureIndex = opacityAsset ?
+				materialResolver_.ResolveTextureDescriptorIndex(
+					work.graphicsCore, work.assetDatabase, opacityAsset, false) : UINT32_MAX;
 			subMeshData.specularTextureIndex = specularAsset ?
 				materialResolver_.ResolveTextureDescriptorIndex(
 					work.graphicsCore, work.assetDatabase, specularAsset, false) : UINT32_MAX;
@@ -346,6 +352,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 
 			DynamicBLASKey key{};
 			key.world = src.world;
+			key.worldLifetime = src.world ? src.world->GetLifetime() : nullptr;
 			key.entity = src.entity;
 			key.meshAssetID = src.meshAssetID;
 			key.reloadGeneration = reloadGeneration;
@@ -380,6 +387,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 					FrameProfiler::GetInstance().AddBLASRefit(
 						static_cast<uint32_t>(geometries.size()));
 				}
+				work.blasContentsChanged = true;
 			} else {
 
 				FrameProfiler::GetInstance().AddBLASSkip(
@@ -414,6 +422,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			} else if (geometryChanged) {
 
 				blas.Update(work.commandList, lodInput);
+				work.blasContentsChanged = true;
 				FrameProfiler::GetInstance().AddBLASRefit(
 					static_cast<uint32_t>(lodGeometries.size()));
 			} else {
@@ -485,9 +494,12 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		instanceShaderData.indexDescriptorIndex = meshResource->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = vertexOffset;
 		instanceShaderData.geometryDataOffset = geometryDataOffset;
+		const MeshRenderFlags renderFlags = src.renderer ?
+			src.renderer->renderFlags : MeshRenderFlags::Default;
+		const uint32_t renderingLayerMask = src.renderer ?
+			src.renderer->renderingLayerMask : kRenderingLayerMaskBits;
 		instanceShaderData.renderFlags = ToRaytracingRenderFlags(
-			src.renderer ? src.renderer->renderFlags :
-				MeshRenderFlags::Default);
+			renderFlags, renderingLayerMask);
 		const uint32_t shaderInstanceIndex =
 			static_cast<uint32_t>(result_.sceneInstanceScratch_.size());
 		result_.sceneInstanceScratch_.emplace_back(instanceShaderData);

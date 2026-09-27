@@ -12,7 +12,7 @@
 void Engine::LightExtractorRegistry::BuildBatch(ECSWorld& world, FrameLightBatch& batch) {
 
 	const uint64_t revision = world.GetLightDataRevision();
-	if (batch.MatchesSource(&world, revision)) {
+	if (batch.MatchesExtractors(GetRevision()) && batch.MatchesSource(&world, revision)) {
 		return;
 	}
 
@@ -23,5 +23,5 @@ void Engine::LightExtractorRegistry::BuildBatch(ECSWorld& world, FrameLightBatch
 		extractor->Extract(world, batch);
 	}
 	batch.Sort();
-	batch.SetSource(&world, revision);
+	batch.SetSource(&world, revision, GetRevision());
 }

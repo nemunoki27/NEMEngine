@@ -18,6 +18,7 @@
 #include <new>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 //============================================================================
 //	CanvasComponent internal
@@ -230,8 +231,8 @@ void Engine::CanvasComponent::SerializeECS(
 	const CanvasComponent& component, nlohmann::json& out) {
 
 	SerializeCanvas(component,
-		GetCanvasInputBindings(world, entity),
-		GetCanvasNavigationCells(world, entity), out);
+		world.TryGetBufferForBinding<CanvasInputBinding>(entity).GetSpan(),
+		world.TryGetBufferForBinding<CanvasNavigationCell>(entity).GetSpan(), out);
 }
 
 bool Engine::TryGetCanvasNavigationCellCount(
@@ -554,17 +555,8 @@ void Engine::SetCanvasInputBindings(
 	ECSWorld& world, const Entity& entity,
 	std::span<const CanvasInputBinding> bindings) {
 
-	DynamicBuffer<CanvasInputBinding> buffer =
-		world.TryGetBuffer<CanvasInputBinding>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<CanvasInputBinding>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(bindings.size()));
-	for (const CanvasInputBinding& binding : bindings) {
-		buffer.Add(binding);
-	}
-	world.MarkComponentModified<CanvasInputBinding>(entity);
+	// 同じ入力設定を参照した置換も保護する
+	world.SetBuffer<CanvasInputBinding>(entity, bindings);
 }
 
 std::span<Engine::CanvasNavigationCell> Engine::GetCanvasNavigationCells(
@@ -582,16 +574,11 @@ std::span<const Engine::CanvasNavigationCell> Engine::GetCanvasNavigationCells(
 void Engine::SetCanvasNavigationCells(
 	ECSWorld& world, const Entity& entity, std::span<const UUID> cells) {
 
-	DynamicBuffer<CanvasNavigationCell> buffer =
-		world.TryGetBuffer<CanvasNavigationCell>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<CanvasNavigationCell>(entity);
-	}
-	buffer.Resize(static_cast<uint32_t>(cells.size()));
-	for (size_t index = 0; index < cells.size(); ++index) {
-		buffer[static_cast<uint32_t>(index)].localFileID = cells[index];
-	}
-	world.MarkComponentModified<CanvasNavigationCell>(entity);
+	// 参照IDを格納形式へ変換してから確定する
+	std::vector<CanvasNavigationCell> converted;
+	converted.reserve(cells.size());
+	for (UUID cell : cells) converted.push_back(CanvasNavigationCell{ cell });
+	world.SetBuffer<CanvasNavigationCell>(entity, converted);
 }
 
 void Engine::SerializeCanvas(

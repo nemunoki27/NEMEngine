@@ -67,6 +67,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	if (auto found = cache_.find(key); found != cache_.end()) {
 		return found->second.get();
 	}
+	if (failedKeys_.contains(key)) {
+		return nullptr;
+	}
 	auto restoreFallback = [&]() -> const PipelineState* {
 
 		auto fallback = fallbackCache_.find(key);
@@ -116,6 +119,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	std::unique_ptr<PipelineState> pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(),
 		graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc, &composedShader);
 	if (!pipelineState) {
+		failedKeys_.insert(key);
 		return restoreFallback();
 	}
 
@@ -179,6 +183,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	auto found = cache_.find(key);
 	if (found != cache_.end()) {
 		return found->second.get();
+	}
+	if (failedKeys_.contains(key)) {
+		return nullptr;
 	}
 	auto restoreFallback = [&]() -> const PipelineState* {
 
@@ -250,6 +257,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	}
 	// 生成に失敗した場合は退避した旧PSOへ戻す
 	if (!pipelineState) {
+		failedKeys_.insert(key);
 		return restoreFallback();
 	}
 	// キャッシュに保存
@@ -274,6 +282,7 @@ const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsRefl
 
 void Engine::PipelineStateCache::Clear() {
 
+	failedKeys_.clear();
 	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする
 	for (auto& entry : cache_) {
 		entry.second.reset();
@@ -288,6 +297,10 @@ void Engine::PipelineStateCache::Clear() {
 
 void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAssetID) {
 
+	// Pipeline更新後は失敗した構成も再試行する
+	std::erase_if(failedKeys_, [pipelineAssetID](const PipelineCacheKey& key) {
+		return key.pipelineAsset == pipelineAssetID || key.geometryPipelineAsset == pipelineAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
 		if (it->first.pipelineAsset == pipelineAssetID || it->first.geometryPipelineAsset == pipelineAssetID) {
 			graphicsReflectionByPipeline_.erase(it->first.pipelineAsset);
@@ -330,6 +343,11 @@ uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rt
 
 void Engine::PipelineStateCache::InvalidateByShaderAsset(AssetID shaderAssetID) {
 
+	// Shader更新後は旧PSOの有無に関係なく再試行する
+	std::erase_if(failedKeys_, [shaderAssetID](const PipelineCacheKey& key) {
+		return key.pipelineShaderAsset == shaderAssetID || key.geometryShaderAsset == shaderAssetID ||
+			key.shaderOverrideAsset == shaderAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
 		if (it->first.pipelineShaderAsset == shaderAssetID ||
 			it->first.geometryShaderAsset == shaderAssetID ||

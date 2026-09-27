@@ -11,6 +11,7 @@
 // c++
 #include <algorithm>
 #include <deque>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 // directX
@@ -40,7 +41,7 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 
 	const uint32_t hardwareThreadCount = (std::max)(1u, std::thread::hardware_concurrency());
 	const uint32_t threadCount = (std::min)(kMaxDecodeWorkerCount, hardwareThreadCount);
-	decodeWorkers_.Start(threadCount, [this](TextureFileRequestDesc&& job, uint32_t workerIndex) {
+	decodeWorkers_.Start(threadCount, [this](DecodeRequest&& job, uint32_t workerIndex) {
 		this->DecodeTextureWorker(std::move(job), workerIndex);
 		});
 
@@ -53,14 +54,24 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 void Engine::TextureUploadService::TickFinalize() {
 
 	// アップロードジョブをスワップしてロックを解放する
-	std::deque<DecodedTexture> jobs{};
+	std::deque<CompletedRequest> jobs{};
 	{
 		std::scoped_lock lock(mutex_);
 		jobs.swap(pendingUploads_);
 	}
 
 	// 記録されたジョブを処理する
-	for (auto& job : jobs) {
+	for (auto& completed : jobs) {
+
+		auto& job = completed.texture;
+		{
+			std::scoped_lock lock(mutex_);
+			// 更新前の画像を転送せず、最新要求へ進める
+			if (!IsCurrentRequest(completed)) {
+				queuedKeys_.erase(job.key);
+				continue;
+			}
+		}
 
 		GPUTextureResource uploaded{};
 		// 単色テクスチャのアップロード
@@ -77,9 +88,16 @@ void Engine::TextureUploadService::TickFinalize() {
 		// アップロード結果を反映する
 		std::scoped_lock lock(mutex_);
 		queuedKeys_.erase(job.key);
+		// GPU転送中に変更された要求も公開しない
+		if (!IsCurrentRequest(completed)) {
+			if (uploaded.valid) {
+				srvDescriptor_->Retire(uploaded.srvIndex, uploaded.resource);
+			}
+			continue;
+		}
 
-		// reloadのデコードに失敗した時は、書き込み途中や一時的な破損なので既存の有効なテクスチャを壊さず保持する
-		if (job.reload && !uploaded.valid) {
+		// 再読込に失敗した場合は公開済みの画像を保持する
+		if (readyTextures_.contains(job.key) && !uploaded.valid) {
 			continue;
 		}
 
@@ -113,45 +131,51 @@ void Engine::TextureUploadService::TickFinalize() {
 		++contentRevision_;
 	}
 
-	// 読み込み中にImporter設定が変わったキーは初回転送直後に最新設定で再読込する
-	std::vector<TextureFileRequestDesc> deferredReloads{};
+	// 進行中の読込が終わったキーを最新要求で再投入する
+	std::vector<DecodeRequest> deferredReloads{};
 	{
 		std::scoped_lock lock(mutex_);
 		for (auto it = deferredReloadKeys_.begin(); it != deferredReloadKeys_.end();) {
 
 			const auto request = keyRequests_.find(*it);
-			if (request == keyRequests_.end() || failedKeys_.contains(*it)) {
+			if (request == keyRequests_.end()) {
 
 				it = deferredReloadKeys_.erase(it);
 				continue;
 			}
-			if (queuedKeys_.contains(*it) || !readyTextures_.contains(*it)) {
+			if (queuedKeys_.contains(*it)) {
 
 				++it;
 				continue;
 			}
 
-			TextureFileRequestDesc reloadDesc = request->second;
-			reloadDesc.reload = true;
+			DecodeRequest reloadDesc = request->second;
 			queuedKeys_.insert(*it);
 			deferredReloads.emplace_back(std::move(reloadDesc));
 			it = deferredReloadKeys_.erase(it);
 		}
 	}
-	for (TextureFileRequestDesc& desc : deferredReloads) {
+	for (const DecodeRequest& request : deferredReloads) {
 
-		if (!QueueDecode(desc)) {
+		if (!QueueDecode(request)) {
 			continue;
 		}
 		Logger::Output(LogType::Engine,
-			"[TextureReload][遅延] key={} path={}", desc.key, desc.assetPath);
+			"[TextureReload][遅延] key={} path={}", request.description.key, request.description.assetPath);
 	}
 }
 
 void Engine::TextureUploadService::WaitAll() {
 
-	decodeWorkers_.WaitIdle();
-	TickFinalize();
+	for (;;) {
+		decodeWorkers_.WaitIdle();
+		TickFinalize();
+		// 転送後に再投入した読込も完了まで待つ
+		std::scoped_lock lock(mutex_);
+		if (queuedKeys_.empty() && pendingUploads_.empty() && deferredReloadKeys_.empty()) {
+			return;
+		}
+	}
 }
 
 void Engine::TextureUploadService::RequestSolidColor1x1(
@@ -170,7 +194,8 @@ void Engine::TextureUploadService::RequestSolidColor1x1(
 		queuedKeys_.insert(key);
 
 		// アップロードジョブを記録する
-		DecodedTexture job{};
+		CompletedRequest completed;
+		auto& job = completed.texture;
 		job.key = key;
 		job.isSolidColor = true;
 		job.solidRGBA[0] = r;
@@ -178,7 +203,7 @@ void Engine::TextureUploadService::RequestSolidColor1x1(
 		job.solidRGBA[2] = b;
 		job.solidRGBA[3] = a;
 		job.success = true;
-		pendingUploads_.emplace_back(std::move(job));
+		pendingUploads_.emplace_back(std::move(completed));
 		accepted = true;
 	}
 
@@ -192,27 +217,20 @@ void Engine::TextureUploadService::RequestSolidColor1x1(
 
 void Engine::TextureUploadService::RequestTextureFile(const TextureFileRequestDesc& desc) {
 
-	bool shouldEnqueue = false;
+	std::vector<DecodeRequest> toEnqueue;
 	{
 		std::scoped_lock lock(mutex_);
 		if (readyTextures_.contains(desc.key) || queuedKeys_.contains(desc.key)) {
 			return;
 		}
 
-		// 再試行可能にする
-		failedKeys_.erase(desc.key);
-		queuedKeys_.insert(desc.key);
-		// 再デコード用に元リクエストを覚えておく、reloadフラグは持ち越さない
-		TextureFileRequestDesc stored = desc;
-		stored.reload = false;
-		keyRequests_[desc.key] = std::move(stored);
-		shouldEnqueue = true;
-	}
-	if (!shouldEnqueue) {
-		return;
+		// 再試行でも前の要求世代へ戻さない
+		auto& request = keyRequests_[desc.key];
+		request.description = desc;
+		PrepareRequest(request, toEnqueue);
 	}
 
-	if (!QueueDecode(desc)) {
+	if (!QueueDecode(toEnqueue.front())) {
 		return;
 	}
 
@@ -232,7 +250,7 @@ void Engine::TextureUploadService::RequestTextureFile(const std::string& key, co
 
 void Engine::TextureUploadService::RequestReload(const std::string& key) {
 
-	TextureFileRequestDesc desc{};
+	std::vector<DecodeRequest> toEnqueue;
 	{
 		std::scoped_lock lock(mutex_);
 		// 元のファイルリクエストが無いキーはsolid colorや未ロードなので対象外
@@ -240,20 +258,16 @@ void Engine::TextureUploadService::RequestReload(const std::string& key) {
 		if (it == keyRequests_.end()) {
 			return;
 		}
-		// まだロードされていないキーや、既に再ロードが進行中のキーは重ねて投げない
-		if (!readyTextures_.contains(key) || queuedKeys_.contains(key)) {
-			return;
+		PrepareRequest(it->second, toEnqueue);
+	}
+
+	for (const DecodeRequest& request : toEnqueue) {
+		if (!QueueDecode(request)) {
+			continue;
 		}
-
-		desc = it->second;
-		desc.reload = true;
-		queuedKeys_.insert(key);
+		Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}",
+			request.description.key, request.description.assetPath);
 	}
-
-	if (!QueueDecode(desc)) {
-		return;
-	}
-	Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}", desc.key, desc.assetPath);
 }
 
 void Engine::TextureUploadService::RequestReloadByFile(
@@ -266,11 +280,12 @@ void Engine::TextureUploadService::RequestReloadByFile(
 		return;
 	}
 
-	std::vector<TextureFileRequestDesc> toEnqueue;
+	std::vector<DecodeRequest> toEnqueue;
 	{
 		std::scoped_lock lock(mutex_);
-		for (auto& [key, storedDesc] : keyRequests_) {
+		for (auto& [key, request] : keyRequests_) {
 
+			auto& storedDesc = request.description;
 			// このキーが指すファイルの絶対パスを求めて変更ファイルと一致するか確認する
 			const std::filesystem::path requestedPath = Algorithm::PathFromUTF8(storedDesc.assetPath);
 			const std::filesystem::path candidate = requestedPath.is_absolute() ?
@@ -282,29 +297,17 @@ void Engine::TextureUploadService::RequestReloadByFile(
 			if (updatedSettings) {
 				storedDesc.importSettings = *updatedSettings;
 			}
-			storedDesc.reload = false;
-			if (queuedKeys_.contains(key)) {
-
-				deferredReloadKeys_.insert(key);
-				continue;
-			}
-			if (!readyTextures_.contains(key)) {
-				continue;
-			}
-
-			TextureFileRequestDesc reloadDesc = storedDesc;
-			reloadDesc.reload = true;
-			queuedKeys_.insert(key);
-			toEnqueue.emplace_back(std::move(reloadDesc));
+			PrepareRequest(request, toEnqueue);
 		}
 	}
 
-	for (TextureFileRequestDesc& desc : toEnqueue) {
+	for (const DecodeRequest& request : toEnqueue) {
 
-		if (!QueueDecode(desc)) {
+		if (!QueueDecode(request)) {
 			continue;
 		}
-		Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}", desc.key, desc.assetPath);
+		Logger::Output(LogType::Engine, "[TextureReload][待機列] key={} path={}",
+			request.description.key, request.description.assetPath);
 	}
 }
 
@@ -358,8 +361,9 @@ Engine::TextureRequestState Engine::TextureUploadService::GetState(const std::st
 	return TextureRequestState::None;
 }
 
-void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& job, uint32_t workerIndex) {
+void Engine::TextureUploadService::DecodeTextureWorker(DecodeRequest&& request, uint32_t workerIndex) {
 
+	const auto& job = request.description;
 	const auto startStats = decodeWorkers_.GetStats();
 	Logger::Output(LogType::Engine, "[TextureLoad][開始] Worker[{}/{}] processing={} queued={} key={} path={}",
 		workerIndex + 1, startStats.threadCount, startStats.inFlightCount, startStats.queuedCount, job.key, job.assetPath);
@@ -386,20 +390,52 @@ void Engine::TextureUploadService::DecodeTextureWorker(TextureFileRequestDesc&& 
 			static_cast<uint32_t>(result.result), job.assetPath);
 	}
 	std::scoped_lock lock(mutex_);
-	pendingUploads_.emplace_back(std::move(result));
+	pendingUploads_.push_back({ std::move(result), request.revision });
 }
 
-bool Engine::TextureUploadService::QueueDecode(const TextureFileRequestDesc& desc) {
+bool Engine::TextureUploadService::QueueDecode(const DecodeRequest& request) {
 
-	if (decodeWorkers_.Enqueue(desc)) {
+	if (decodeWorkers_.Enqueue(request)) {
 		return true;
 	}
 	// 受付失敗を待機中として残さず旧Textureは保持する
 	{
 		std::scoped_lock lock(mutex_);
-		queuedKeys_.erase(desc.key);
-		failedKeys_.insert(desc.key);
+		const auto& key = request.description.key;
+		queuedKeys_.erase(key);
+		const auto latest = keyRequests_.find(key);
+		if (latest != keyRequests_.end() && latest->second.revision == request.revision) {
+			failedKeys_.insert(key);
+			deferredReloadKeys_.erase(key);
+		}
 	}
-	Logger::Output(LogType::Engine, spdlog::level::err, "[TextureLoad][受付失敗] key={}", desc.key);
+	Logger::Output(LogType::Engine, spdlog::level::err, "[TextureLoad][受付失敗] key={}", request.description.key);
 	return false;
+}
+
+void Engine::TextureUploadService::PrepareRequest(DecodeRequest& request, std::vector<DecodeRequest>& toEnqueue) {
+
+	if (request.revision == UINT64_MAX) {
+		throw std::overflow_error("Textureの要求世代が上限に達しました");
+	}
+	++request.revision;
+	const auto& key = request.description.key;
+	failedKeys_.erase(key);
+	// 同じキーの読込を重ねず、最後の要求だけ再投入する
+	if (queuedKeys_.contains(key)) {
+		deferredReloadKeys_.insert(key);
+		return;
+	}
+	toEnqueue.emplace_back(request);
+	queuedKeys_.insert(key);
+	deferredReloadKeys_.erase(key);
+}
+
+bool Engine::TextureUploadService::IsCurrentRequest(const CompletedRequest& completed) const {
+
+	if (completed.texture.isSolidColor) {
+		return true;
+	}
+	const auto latest = keyRequests_.find(completed.texture.key);
+	return latest != keyRequests_.end() && latest->second.revision == completed.revision;
 }

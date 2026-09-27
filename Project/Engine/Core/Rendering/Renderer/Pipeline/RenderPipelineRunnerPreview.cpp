@@ -23,6 +23,17 @@ using namespace Engine;
 //	RenderPipelineRunner classMethods (Preview)
 //============================================================================
 
+uint64_t RenderPipelineRunner::PreparePreviewMeshes(GraphicsCore& graphicsCore, AssetDatabase& database,
+	std::span<const AssetID> assets) {
+
+	if (!previewResources_.previewMeshBackend_) {
+		return 0;
+	}
+	// Atlasを再描画しないframeも非同期読込を完了させる
+	previewResources_.previewMeshBackend_->RequestMeshes(graphicsCore, database, assets);
+	return previewResources_.previewMeshBackend_->GetMeshResourceRevision();
+}
+
 bool RenderPipelineRunner::RenderEntityPreview(
 	GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request) {
 
@@ -34,7 +45,8 @@ bool RenderPipelineRunner::RenderEntityPreview(
 	// メインのScene/Gameとは別に、ツール用サーフェイスだけを描画対象にする
 	renderAssetLibrary_.Init(request.assetDatabase);
 	previewResources_.BeginFrame(graphicsCore);
-	scenePreparation_.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, nullptr);
+	auto& preparation = previewResources_.previewScenePreparation_;
+	preparation.Extract(*request.world, extractorRegistry_, lightExtractorRegistry_, nullptr);
 
 	RenderViewRequest viewRequest{};
 	viewRequest.kind = RenderViewKind::Scene;
@@ -57,7 +69,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 
 	RenderPassPhaseBuckets passBuckets{};
 	std::vector<AssetID> meshAssets{};
-	BuildPreviewPassBuckets(*request.world, request.rootEntity, scenePreparation_.renderBatch_, previewView, passBuckets, meshAssets);
+	BuildPreviewPassBuckets(*request.world, request.rootEntity, preparation.renderBatch_, previewView, passBuckets, meshAssets);
 
 	RenderTargetRegistry previewTargetRegistry{};
 	previewTargetRegistry.BeginFrame();
@@ -84,7 +96,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 
 	// プレビュー用のライトバッファを更新しSceneView/GameViewのGPUバッファは触らない
 	previewResources_.previewLightSet_.Clear();
-	ViewLightCollector::CollectForView(scenePreparation_.frameLightBatch_, &previewScene, previewView, previewResources_.previewLightSet_);
+	ViewLightCollector::CollectForView(preparation.frameLightBatch_, &previewScene, previewView, previewResources_.previewLightSet_);
 	ViewLightBufferSet& previewLightBuffers = previewResources_.previewLightBufferPool_.Acquire(graphicsCore,
 		[](ViewLightBufferSet& buffers, GraphicsCore& core) {
 			buffers.Init(core);
@@ -102,7 +114,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 			return false;
 		}
 		PreDispatchVisibleMeshSkinning(graphicsCore, context,
-			scenePreparation_.renderBatch_, previewResources_.previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
+			preparation.renderBatch_, previewResources_.previewBackendRegistry_, renderAssetLibrary_, pipelineStateCache_, materialResolver_, passBuckets);
 	}
 
 	// プレビュー:クリア→全フェーズを描画サーフェスへ直接描画
@@ -139,7 +151,7 @@ bool RenderPipelineRunner::RenderEntityPreview(
 		} else {
 			dxCommand->SetViewportAndScissor(request.surface->GetWidth(), request.surface->GetHeight());
 		}
-		batchDispatcher_.Dispatch(graphicsCore, context, scenePreparation_.renderBatch_, previewResources_.previewBackendRegistry_,
+		batchDispatcher_.Dispatch(graphicsCore, context, preparation.renderBatch_, previewResources_.previewBackendRegistry_,
 			renderAssetLibrary_, pipelineStateCache_, materialResolver_,
 			list.items, request.surface, nullptr, MaterialPassKind::Draw, false);
 	}

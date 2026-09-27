@@ -43,6 +43,7 @@ namespace Engine {
 
 		// 編集操作
 		virtual bool DuplicateSelection() = 0;
+		virtual bool DeleteSelection() = 0;
 		virtual bool CopySelectionToClipboard() = 0;
 		virtual bool PasteClipboard() = 0;
 		// メイン編集コマンドを受け取るパネルのフォーカスを通知

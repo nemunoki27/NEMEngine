@@ -47,17 +47,17 @@ bool Engine::PrefabDocument::Read(AssetDatabase& database, AssetID prefabAsset,
 	}
 
 	// ファイルからnlohmann::json読み込み
-	fileJson = JsonAdapter::Load(fullPath);
-	if (!fileJson.is_object()) {
+	if (!JsonAdapter::TryLoad(fullPath, fileJson) || !fileJson.is_object()) {
 
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"[PrefabSystem] Prefabファイルを読み込めませんでした AssetID={} Path={}",
 			ToString(prefabAsset), fullPath.string());
 		return false;
 	}
-	const uint32_t schemaVersion = fileJson.value("SchemaVersion", 0u);
+	// 整数への変換で不正な版番号を丸めない
 	if (
-		schemaVersion < kMinimumPrefabSchemaVersion || schemaVersion > kPrefabSchemaVersion ||
+		!fileJson.contains("SchemaVersion") || !fileJson["SchemaVersion"].is_number_integer() ||
+		fileJson["SchemaVersion"] < kMinimumPrefabSchemaVersion || fileJson["SchemaVersion"] > kPrefabSchemaVersion ||
 		!fileJson.contains("Header") || !fileJson["Header"].is_object() ||
 		!fileJson.contains("Entities") || !fileJson["Entities"].is_array()) {
 

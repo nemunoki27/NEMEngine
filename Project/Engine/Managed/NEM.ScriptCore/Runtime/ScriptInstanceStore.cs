@@ -57,6 +57,7 @@ internal sealed unsafe class ScriptInstanceStore {
         }
         slot.instance = null;
         slot.runtimeStateSnapshot = null;
+        slot.savedStateSnapshot = null;
         slot.inUse = false;
         RetireOrRecycle(slot, handle.index);
         if (released is not null) {
@@ -91,6 +92,7 @@ internal sealed unsafe class ScriptInstanceStore {
             }
             slot.instance = null;
             slot.runtimeStateSnapshot = null;
+            slot.savedStateSnapshot = null;
             slot.inUse = false;
             RetireOrRecycle(slot, (uint)i);
         }
@@ -118,6 +120,20 @@ internal sealed unsafe class ScriptInstanceStore {
         NativeEntity candidate = GameObject.RawNative(script.ownerReference);
         return candidate.world.index == owner.world.index && candidate.world.generation == owner.world.generation &&
             candidate.index == owner.index && candidate.generation == owner.generation;
+    }
+
+    // 同型Scriptが複数ある場合も保存slotを優先して解決する
+    internal MonoBehaviour? FindScriptByIdentity(NativeEntity owner, Type type, ulong scriptSlotID) {
+        MonoBehaviour? result = null;
+        foreach (ScriptInstanceSlot slot in slots) {
+            if (!slot.inUse || slot.retired || slot.instance is null || slot.instance.GetType() != type ||
+                !SameOwner(slot.instance, owner) || (scriptSlotID != 0 && slot.instance.scriptSlotID != scriptSlotID)) {
+                continue;
+            }
+            if (result is not null) { return null; }
+            result = slot.instance;
+        }
+        return result;
     }
 
     internal MonoBehaviour? FindScriptOfTypeByType(Type type) {

@@ -13,7 +13,12 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 
 	const uint64_t renderRevision = world.GetRenderDataRevision();
 	const uint64_t transformRevision = world.GetRenderTransformRevision();
-	if (batch.MatchesStructure(&world, renderRevision)) {
+	contentRevisions_.clear();
+	for (const auto& extractor : items_) {
+		contentRevisions_.emplace_back(extractor->GetContentRevision());
+	}
+	if (batch.MatchesExtractors(GetRevision()) && batch.MatchesExtractorContents(contentRevisions_) &&
+		batch.MatchesStructure(&world, renderRevision) && (batch.MatchesTransforms(transformRevision) || batch.CanRefreshTransforms())) {
 		batch.SetMaterialSource(world.GetMeshColorRevision());
 
 		if (batch.MatchesTransforms(transformRevision)) {
@@ -37,7 +42,7 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 	}
 
 	// 全ての抽出器を呼び出して描画アイテムを抽出する
-	batch.Clear();
+	batch.BeginExtraction(world);
 	// 描画Entity数の上限をもとにフレーム中の再確保を抑える
 	batch.Reserve(world.GetRecordCount(), world.GetRecordCount() * 128u);
 	for (auto& extractor : items_) {
@@ -46,6 +51,6 @@ void Engine::RenderExtractorRegistry::BuildBatch(ECSWorld& world, RenderSceneBat
 	}
 	// 描画アイテムをソートする
 	batch.Sort();
-	batch.SetSource(&world, renderRevision, transformRevision);
+	batch.SetSource(&world, renderRevision, transformRevision, GetRevision(), contentRevisions_);
 	batch.SetMaterialSource(world.GetMeshColorRevision());
 }

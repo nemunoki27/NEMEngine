@@ -29,6 +29,9 @@ void Engine::PrefabOwnership::SetPrefabLink(ECSWorld& world, const Entity& entit
 		world.AddComponent<PrefabLinkComponent>(entity);
 	prefabLink.prefabAsset = prefabAsset;
 	prefabLink.prefabLocalFileID = prefabLocalFileID;
+	if (prefabLink.prefabInstanceID != prefabInstanceID) {
+		prefabLink.savedInstanceID = UUID{};
+	}
 	prefabLink.prefabInstanceID = prefabInstanceID;
 	prefabLink.ownerPrefabInstanceID = ownerPrefabInstanceID;
 	prefabLink.nestedSlotID = nestedSlotID;

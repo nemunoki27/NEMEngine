@@ -191,7 +191,8 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 				IID_PPV_ARGS(&state.graphicsPipelines_[static_cast<uint32_t>(blendMode)]));
 			if (FAILED(hr)) {
 				Logger::Output(LogType::Engine,
-					"GraphicsPipelineStateの作成に失敗しました path={} blend={}", desc.pixel.file, mode);
+					"GraphicsPipelineStateの作成に失敗しました preRaster={} pixel={} blend={} hr=0x{:08X}",
+					desc.preRaster.file, desc.pixel.file, mode, static_cast<uint32_t>(hr));
 				success = false;
 				continue;
 			}

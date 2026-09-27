@@ -133,6 +133,12 @@ namespace Engine {
 			SyncDraftFromWorld(world, entity, hooks);
 			return;
 		}
+		if (context.IsPlaying()) {
+			// Play中はプレビュー済みの実行値を確定し、Undoへは記録しない
+			previewActive_ = false;
+			SyncDraftFromWorld(world, entity, hooks);
+			return;
+		}
 
 		// コマンドを実行して変更をコミット
 		context.host->ExecuteEditorCommand(std::make_unique<SetSerializedComponentCommand>(

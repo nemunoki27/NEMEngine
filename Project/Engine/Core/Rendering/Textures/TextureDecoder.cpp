@@ -262,7 +262,6 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 
 	DecodedTexture result{};
 	result.key = job.key;
-	result.reload = job.reload;
 
 	// ファイルパスからテクスチャをデコードする
 	const std::filesystem::path fullPath = RuntimePaths::ResolveAssetPath(job.assetPath);

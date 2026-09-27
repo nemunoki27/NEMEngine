@@ -147,7 +147,7 @@ void Engine::MeshGraphicsBinding::Bind(const RenderDrawContext& context,
 	D3D12_GPU_DESCRIPTOR_HANDLE skinnedVBHandle = prepared.gpuMesh->vertexSRV.srvGPUHandle;
 	D3D12_GPU_VIRTUAL_ADDRESS skinnedPackedVBAddress = prepared.gpuMesh->packedVertexSRV.buffer->GetResource()->GetGPUVirtualAddress();
 	D3D12_GPU_DESCRIPTOR_HANDLE skinnedPackedVBHandle = prepared.gpuMesh->packedVertexSRV.srvGPUHandle;
-	if (prepared.resources->HasSkinningResources()) {
+	if (prepared.resources->IsSkinningDispatched()) {
 
 		skinnedVBAddress = prepared.resources->GetSkinnedVerticesGPUAddress();
 		skinnedVBHandle = prepared.resources->GetSkinnedVerticesSRVHandle();

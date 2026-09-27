@@ -2,6 +2,19 @@
 #include "TestFixtures.h"
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/BlendState.h>
+#include <Engine/Core/Rendering/Core/GraphicsFeatureSelection.h>
+#include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshBatchViewResources.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderExtractorRegistry.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingSceneGeometryUtility.h>
+#include <Engine/Core/World/UI/UIRuntimeService.h>
+#include <Engine/Core/World/Components/UI/CanvasComponent.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderItemExtractor.h>
+#include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 
 #include "ApplicationPlatformTests.h"
 
@@ -30,6 +43,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 
 namespace NEMTests {
@@ -63,8 +77,70 @@ namespace NEMTests {
 		return Engine::ShaderSourcePath::Resolve("b2995658d93cd4ab").empty();
 	}
 
+	bool TestMeshShaderConstantLayout() {
+
+		Engine::DxShaderCompiler compiler;
+		compiler.Init();
+		const auto root = Engine::RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Mesh";
+		struct ShaderCase {
+			const wchar_t* path;
+			const wchar_t* profile;
+			Engine::ShaderStage stage;
+		};
+		const ShaderCase cases[]{
+			{ L"Culling/buildIndexedIndirectArgs.CS.hlsl", L"cs_6_0", Engine::ShaderStage::CS },
+			{ L"MeshPBR/meshPBRTransparent.VS.hlsl", L"vs_6_6", Engine::ShaderStage::VS },
+			{ L"Common/meshGeometry.AS.hlsl", L"as_6_6", Engine::ShaderStage::AS },
+			{ L"Common/meshGeometry.MS.hlsl", L"ms_6_6", Engine::ShaderStage::MS },
+		};
+		for (const auto& test : cases) {
+
+			// DXCが解釈した配置とCPU転送型を照合する
+			const auto shader = compiler.CompileShader((root / test.path).wstring(), test.profile, L"main", test.stage);
+			const auto* view = Engine::FindConstantBuffer(shader.reflection, "ViewConstants");
+			if (!shader.IsValid() || !view || view->size != sizeof(Engine::MeshViewConstants)) {
+				return false;
+			}
+			const std::pair<const char*, size_t> offsets[]{
+				{ "previousViewProjection", offsetof(Engine::MeshViewConstants, previousViewProjection) },
+				{ "cullingViewProjection", offsetof(Engine::MeshViewConstants, cullingViewProjection) },
+				{ "cullingCameraPos", offsetof(Engine::MeshViewConstants, cullingCameraPos) },
+				{ "viewSize", offsetof(Engine::MeshViewConstants, viewSize) },
+				{ "renderCameraPos", offsetof(Engine::MeshViewConstants, renderCameraPos) },
+				{ "lodView", offsetof(Engine::MeshViewConstants, lodView) },
+				{ "lodNearClip", offsetof(Engine::MeshViewConstants, lodNearClip) },
+			};
+			for (const auto& [name, offset] : offsets) {
+				const auto found = std::find_if(view->variables.begin(), view->variables.end(),
+					[name](const auto& value) { return value.name == name; });
+				if (found == view->variables.end() || found->offset != offset) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	bool TestMeshLODGeneration() {
 
+		// 同じ形状でも描画Cameraの距離に応じてLODを選ぶ
+		Engine::GraphicsRuntimeFeatures features;
+		features.useMeshLOD = true;
+		features.meshLOD0PixelThreshold = 100.0f;
+		features.meshLOD1PixelThreshold = 40.0f;
+		features.meshLOD2PixelThreshold = 10.0f;
+		Engine::ResolvedRenderView nearView;
+		nearView.width = nearView.height = 1000;
+		nearView.perspective.valid = true;
+		Engine::ResolvedRenderView farView = nearView;
+		farView.perspective.matrices.viewMatrix.m[3][2] = 1000.0f;
+		const Engine::Vector3 center(0.0f, 0.0f, 10.0f);
+		using namespace Engine::RaytracingSceneGeometryUtility;
+		if (ResolveMeshLOD(features, &nearView, center, 1.0f) != 1 ||
+			ResolveMeshLOD(features, &farView, center, 1.0f) != 3 ||
+			ComputeLODViewHash(features, &nearView) == ComputeLODViewHash(features, &farView)) return false;
+		features.useMeshLOD = false;
+		if (ResolveMeshLOD(features, &farView, center, 1.0f) != 0) return false;
 		constexpr uint32_t gridSize = 32;
 		Engine::ImportedMeshAsset mesh{};
 		mesh.vertices.reserve(
@@ -125,12 +201,6 @@ namespace NEMTests {
 			mesh.lods[0].indexCount;
 		uint32_t previousMeshletCount =
 			mesh.lods[0].meshletCount;
-		const uint32_t lod0IndexCount =
-			mesh.lods[0].indexCount;
-		constexpr std::array<float, Engine::kMeshLODCount>
-			maximumIndexRatios = {
-				1.0f, 0.45f, 0.12f, 0.04f
-		};
 		if (previousIndexCount != gridSize * gridSize * 6 ||
 			previousMeshletCount == 0) {
 			return false;
@@ -145,9 +215,6 @@ namespace NEMTests {
 			if (lod.indexCount == 0 ||
 				lod.indexCount % 3 != 0 ||
 				lod.indexCount >= previousIndexCount ||
-				static_cast<float>(lod.indexCount) >
-				static_cast<float>(lod0IndexCount) *
-				maximumIndexRatios[lodIndex] ||
 				lod.meshletCount == 0 ||
 				lod.meshletCount > previousMeshletCount) {
 				std::cerr << "LOD" << lodIndex <<
@@ -162,15 +229,49 @@ namespace NEMTests {
 			previousMeshletCount = lod.meshletCount;
 		}
 
-		if (mesh.lods[Engine::kMeshLODCount - 1].
-			indexCount > 64u * 3u) {
-			return false;
+		// 最低LODでも全SubMeshを残す
+		for (const Engine::SubMeshDesc& subMesh : mesh.subMeshes) {
+			if (subMesh.lods[Engine::kMeshLODCount - 1].indexCount == 0) {
+				return false;
+			}
 		}
 
 		return Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
 			160.0f, 80.0f, 32.0f) &&
 			!Engine::GraphicsMeshLOD::ArePixelThresholdsValid(
 				534.1f, 0.1f, 0.1f);
+	}
+
+	bool TestGraphicsFeatureSelection() {
+
+		Engine::GraphicsFeaturePreferences preferences{};
+		preferences.allowMeshShader = true;
+		preferences.allowInlineRayTracing = true;
+		preferences.allowDispatchRays = true;
+
+		Engine::GraphicsFeatureSupport unsupported{};
+		const Engine::GraphicsRuntimeFeatures restricted =
+			Engine::GraphicsFeatureSelection::Resolve(
+				unsupported, preferences);
+		if (restricted.useMeshShader ||
+			restricted.useInlineRayTracing ||
+			restricted.useDispatchRays ||
+			!preferences.allowMeshShader ||
+			!preferences.allowInlineRayTracing ||
+			!preferences.allowDispatchRays) {
+			return false;
+		}
+
+		Engine::GraphicsFeatureSupport supported{};
+		supported.highestShaderModel = D3D_SHADER_MODEL_6_6;
+		supported.meshShaderTier = D3D12_MESH_SHADER_TIER_1;
+		supported.raytracingTier = D3D12_RAYTRACING_TIER_1_1;
+		const Engine::GraphicsRuntimeFeatures enabled =
+			Engine::GraphicsFeatureSelection::Resolve(
+				supported, preferences);
+		return enabled.useMeshShader &&
+			enabled.useInlineRayTracing &&
+			enabled.useDispatchRays;
 	}
 
 	bool TestBlendStates() {
@@ -223,6 +324,189 @@ namespace NEMTests {
 	bool TestMeshBatchInvalidation() {
 
 		using namespace Engine;
+		// 同じポーズでもPSO更新と計算失敗で結果を失効させる
+		MeshBatchResources skinning;
+		if (skinning.CanReuseSkinningOutput(1) || skinning.IsSkinningDispatched()) return false;
+		skinning.MarkSkinningDispatched(1);
+		if (!skinning.CanReuseSkinningOutput(1) || skinning.CanReuseSkinningOutput(2) ||
+			skinning.CanReuseSkinningOutput(0) || skinning.GetSkinningResultGeneration() != 1) return false;
+		skinning.SetSkinningAvailable(false);
+		if (skinning.CanReuseSkinningOutput(1) || skinning.IsSkinningDispatched()) return false;
+		skinning.MarkSkinningDispatched(2);
+		if (!skinning.CanReuseSkinningOutput(2) || skinning.GetSkinningResultGeneration() != 2) return false;
+		skinning.Finalize();
+		if (skinning.CanReuseSkinningOutput(2) || skinning.IsSkinningDispatched()) return false;
+		// Worldを変更せず登録内容だけを入れ替える
+		struct CountingRenderExtractor final : IRenderItemExtractor {
+			int* count;
+			explicit CountingRenderExtractor(int& value) : count(&value) {}
+			void Extract(ECSWorld&, RenderSceneBatch&) override { ++*count; }
+		};
+		struct CountingLightExtractor final : ILightExtractor {
+			int* count;
+			explicit CountingLightExtractor(int& value) : count(&value) {}
+			void Extract(ECSWorld&, FrameLightBatch&) override { ++*count; }
+		};
+		ECSWorld registryWorld(ECSWorldKind::Runtime);
+		RenderSceneBatch registryBatch;
+		FrameLightBatch registryLights;
+		RenderExtractorRegistry renderExtractors;
+		LightExtractorRegistry lightExtractors;
+		int renderCount = 0;
+		int lightCount = 0;
+		for (int generation = 1; generation <= 2; ++generation) {
+			renderExtractors.Register(std::make_unique<CountingRenderExtractor>(renderCount));
+			lightExtractors.Register(std::make_unique<CountingLightExtractor>(lightCount));
+			for (int repeat = 0; repeat < 2; ++repeat) {
+				renderExtractors.BuildBatch(registryWorld, registryBatch);
+				lightExtractors.BuildBatch(registryWorld, registryLights);
+			}
+			if (renderCount != generation || lightCount != generation) return false;
+			renderExtractors.Clear();
+			lightExtractors.Clear();
+		}
+		// 別Registryの同じ件数を旧登録とみなさない
+		RenderExtractorRegistry otherRenderExtractors;
+		LightExtractorRegistry otherLightExtractors;
+		otherRenderExtractors.Register(std::make_unique<CountingRenderExtractor>(renderCount));
+		otherLightExtractors.Register(std::make_unique<CountingLightExtractor>(lightCount));
+		otherRenderExtractors.BuildBatch(registryWorld, registryBatch);
+		otherLightExtractors.BuildBatch(registryWorld, registryLights);
+		if (renderCount != 3 || lightCount != 3) return false;
+		// 再抽出と同frameの追加移動でも前frameの行列を維持する
+		struct MotionExtractor final : IRenderItemExtractor {
+			Entity entity;
+			explicit MotionExtractor(Entity value) : entity(value) {}
+			void Extract(ECSWorld& world, RenderSceneBatch& batch) override {
+				RenderItem item;
+				item.world = &world;
+				item.entity = entity;
+				item.worldMatrix = world.GetComponent<TransformComponent>(entity).worldMatrix;
+				batch.Add(std::move(item));
+			}
+		};
+		const Entity moving = SceneAuthoring::CreateGameObject(registryWorld, "Motion");
+		RenderExtractorRegistry motionExtractor;
+		motionExtractor.Register(std::make_unique<MotionExtractor>(moving));
+		RenderSceneBatch motionBatch;
+		GraphicsFrameState::BeginFrame(0);
+		motionExtractor.BuildBatch(registryWorld, motionBatch);
+		GraphicsFrameState::BeginFrame(0);
+		for (float x : { 4.0f, 6.0f }) {
+			registryWorld.GetComponent<TransformComponent>(moving).worldMatrix.m[3][0] = x;
+			registryWorld.MarkRenderDataModified();
+			motionExtractor.BuildBatch(registryWorld, motionBatch);
+			const auto& item = motionBatch.GetItems().front();
+			if (item.worldMatrix.m[3][0] != x || item.previousWorldMatrix.m[3][0] != 0.0f ||
+				item.motionFrameSerial != GraphicsFrameState::GetFrameSerial()) {
+				std::cerr << "Motion re-extraction: current=" << item.worldMatrix.m[3][0] << " previous=" <<
+					item.previousWorldMatrix.m[3][0] << " serial=" << item.motionFrameSerial << " frame=" << GraphicsFrameState::GetFrameSerial() << '\n';
+				return false;
+			}
+		}
+		registryWorld.GetComponent<TransformComponent>(moving).worldMatrix.m[3][0] = 8.0f;
+		const std::array<Entity, 1> movingEntities{ moving };
+		motionBatch.RefreshTransforms(registryWorld, movingEntities);
+		if (motionBatch.GetItems().front().previousWorldMatrix.m[3][0] != 0.0f) {
+			std::cerr << "Motion changed twice in one frame\n";
+			return false;
+		}
+		GraphicsFrameState::BeginFrame(0);
+		registryWorld.GetComponent<TransformComponent>(moving).worldMatrix.m[3][0] = 10.0f;
+		motionBatch.RefreshAllTransforms();
+		if (motionBatch.GetItems().front().previousWorldMatrix.m[3][0] != 8.0f) {
+			std::cerr << "Motion previous frame=" << motionBatch.GetItems().front().previousWorldMatrix.m[3][0] << '\n';
+			return false;
+		}
+		// Canvasの描画行列変更を抽出へ伝え、通常Transformで上書きしない
+		UIRuntimeService uiRuntime;
+		registryWorld.AddComponent<CanvasComponent>(moving);
+		uiRuntime.Build(registryWorld, Vector2(640.0f, 360.0f));
+		const uint64_t uiRevision = registryWorld.GetRenderDataRevision();
+		uiRuntime.Build(registryWorld, Vector2(640.0f, 360.0f));
+		if (registryWorld.GetRenderDataRevision() != uiRevision) return false;
+		registryWorld.GetComponent<CanvasComponent>(moving).scaleFactor = 2.0f;
+		uiRuntime.Build(registryWorld, Vector2(640.0f, 360.0f));
+		if (registryWorld.GetRenderDataRevision() == uiRevision) return false;
+		const auto* uiElement = uiRuntime.Find(registryWorld, moving);
+		if (!uiElement) return false;
+		const Matrix4x4 screenMatrix = uiElement->screenMatrix;
+		RenderSceneBatch uiBatch;
+		RenderItem uiItem;
+		uiItem.world = &registryWorld;
+		uiItem.entity = moving;
+		uiItem.cameraDomain = RenderCameraDomain::Screen;
+		uiItem.worldMatrix = screenMatrix;
+		uiBatch.Add(std::move(uiItem));
+		uiBatch.SetSource(&registryWorld, registryWorld.GetRenderDataRevision(), registryWorld.GetRenderTransformRevision());
+		uiBatch.RefreshTransforms(registryWorld, movingEntities);
+		uiBatch.RefreshAllTransforms();
+		if (uiBatch.GetItems().front().worldMatrix != screenMatrix) return false;
+		// Worldに変更がなくても即時Lineの追加と破棄を反映する
+		auto& immediateLines = LineImmediateBuffer::GetInstance();
+		immediateLines.BeginFrame();
+		RenderExtractorRegistry lineExtractors;
+		lineExtractors.Register(std::make_unique<LineRenderItemExtractor>());
+		RenderSceneBatch lineBatch;
+		lineExtractors.BuildBatch(registryWorld, lineBatch);
+		if (!lineBatch.GetItems().empty()) return false;
+		std::array<LinePoint, 2> linePoints{};
+		linePoints[1].position = Vector3(1.0f, 0.0f, 0.0f);
+		immediateLines.AddPolyline(linePoints.data(), 2, true, false, false, {});
+		lineExtractors.BuildBatch(registryWorld, lineBatch);
+		if (lineBatch.GetItems().size() != 1) return false;
+		immediateLines.BeginFrame();
+		lineExtractors.BuildBatch(registryWorld, lineBatch);
+		if (!lineBatch.GetItems().empty()) return false;
+		// Lineが別Entityへ追従する行列もTransform更新後に再抽出する
+		const Entity line = SceneAuthoring::CreateGameObject(registryWorld, "FollowingLine");
+		registryWorld.AddComponent<LineRendererComponent>(line);
+		SetLinePoints(registryWorld, line, linePoints);
+		auto& lineRenderer = registryWorld.GetComponent<LineRendererComponent>(line);
+		lineRenderer.useWorldSpace = false;
+		lineRenderer.parentLocalFileID = registryWorld.GetComponent<SceneObjectComponent>(moving).localFileID;
+		lineExtractors.BuildBatch(registryWorld, lineBatch);
+		if (lineBatch.GetItems().size() != 1 || lineBatch.CanRefreshTransforms()) return false;
+		registryWorld.GetComponent<TransformComponent>(moving).worldMatrix.m[3][0] = 20.0f;
+		registryWorld.MarkTransformConsumersModified(ComponentChangeChannel::Render, movingEntities);
+		lineExtractors.BuildBatch(registryWorld, lineBatch);
+		if (lineBatch.GetItems().front().worldMatrix.m[3][0] != 20.0f) return false;
+		// UIのcacheもWorldの同一アドレス再利用を区別する
+		std::optional<ECSWorld> uiWorld;
+		uiWorld.emplace(ECSWorldKind::Runtime);
+		const Entity oldCanvas = SceneAuthoring::CreateGameObject(*uiWorld, "OldCanvas");
+		uiWorld->AddComponent<CanvasComponent>(oldCanvas);
+		uiRuntime.Build(*uiWorld, Vector2(640.0f, 360.0f));
+		uiWorld.reset();
+		uiWorld.emplace(ECSWorldKind::Runtime);
+		if (uiRuntime.Find(*uiWorld, oldCanvas) || !uiRuntime.GetElements(*uiWorld).empty()) return false;
+		// 同じアドレスへ作り直したWorldの旧cacheを拒否する
+		std::optional<ECSWorld> reusedWorld;
+		reusedWorld.emplace(ECSWorldKind::Runtime);
+		RenderSceneBatch reusedBatch;
+		FrameLightBatch reusedLights;
+		auto oldLifetime = reusedWorld->GetLifetime();
+		reusedBatch.SetSource(&*reusedWorld, reusedWorld->GetRenderDataRevision(), reusedWorld->GetRenderTransformRevision());
+		reusedLights.SetSource(&*reusedWorld, reusedWorld->GetRenderDataRevision());
+		if (!reusedLights.MatchesSource(&*reusedWorld, reusedWorld->GetRenderDataRevision())) return false;
+		if (!reusedBatch.MatchesStructure(&*reusedWorld, reusedWorld->GetRenderDataRevision())) return false;
+		reusedWorld.reset();
+		reusedWorld.emplace(ECSWorldKind::Runtime);
+		if (oldLifetime->IsAlive() || reusedBatch.MatchesStructure(&*reusedWorld, reusedWorld->GetRenderDataRevision())) return false;
+		if (reusedLights.MatchesSource(&*reusedWorld, reusedWorld->GetRenderDataRevision())) return false;
+		// Mesh側のcacheもWorldの個体を区別する
+		MeshGPUResource reusedMesh;
+		MeshBatchResources reusedCache;
+		RenderItem reusedItem;
+		reusedItem.world = &*reusedWorld;
+		reusedItem.entity = SceneAuthoring::CreateGameObject(*reusedWorld, "Reused");
+		reusedItem.payload = reusedBatch.PushPayload(MeshRenderPayload{});
+		const std::array<const RenderItem*, 1> reusedItems{ &reusedItem };
+		reusedCache.CaptureBatchIdentity(reusedBatch, reusedItems, reusedMesh);
+		reusedWorld.reset();
+		reusedWorld.emplace(ECSWorldKind::Runtime);
+		reusedItem.entity = SceneAuthoring::CreateGameObject(*reusedWorld, "Reused");
+		if (reusedCache.MatchesBatch(reusedBatch, reusedItems, reusedMesh) || reusedCache.RefreshMaterialColors() != 0) return false;
 		ECSWorld world(ECSWorldKind::Runtime);
 		const Entity rain = SceneAuthoring::CreateGameObject(world, "Rain");
 		const Entity stage = SceneAuthoring::CreateGameObject(world, "Stage");

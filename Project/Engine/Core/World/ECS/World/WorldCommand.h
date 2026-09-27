@@ -24,6 +24,7 @@ namespace Engine {
 		AddComponentByName,
 		AddComponentValue,
 		RemoveComponentByName,
+		RemoveScript,
 		SetNameEnsuringComponent,
 		SetActiveSelfEnsuringComponent,
 		SetParent,
@@ -43,6 +44,7 @@ namespace Engine {
 		// Sceneのasset、Scene instanceのUUID
 		AssetID assetID{};
 		UUID sceneInstanceID{};
+		UUID scriptSlotID{};
 		// AddComponent/RemoveComponent/SetName/CreateEntity(name)用の文字列
 		std::string text;
 		// 追加前の読み書きで共有する値

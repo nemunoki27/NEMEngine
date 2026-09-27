@@ -49,7 +49,7 @@ void Engine::ScriptComponent::SerializeECS(
 	[[maybe_unused]] const ScriptComponent& component,
 	nlohmann::json& out) {
 
-	SerializeScriptEntries(GetScriptEntries(world, entity), out);
+	SerializeScriptEntries(world.TryGetBufferForBinding<ScriptEntry>(entity).GetSpan(), out);
 }
 
 void Engine::from_json(const nlohmann::json& in, ScriptEntry& entry) {
@@ -112,17 +112,8 @@ void Engine::SetScriptEntries(
 	ECSWorld& world, const Entity& entity,
 	std::span<const ScriptEntry> entries) {
 
-	DynamicBuffer<ScriptEntry> buffer =
-		world.TryGetBuffer<ScriptEntry>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<ScriptEntry>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(entries.size()));
-	for (const ScriptEntry& entry : entries) {
-		buffer.Add(entry);
-	}
-	world.MarkComponentModified<ScriptEntry>(entity);
+	// Scriptの保存値を複製してから置き換える
+	world.SetBuffer<ScriptEntry>(entity, entries);
 }
 
 void Engine::SerializeScriptEntries(

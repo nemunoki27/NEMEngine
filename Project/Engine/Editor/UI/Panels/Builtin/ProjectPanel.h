@@ -6,6 +6,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include "ProjectModelPreview.h"
 #include "ProjectSceneStorageInspector.h"
+#include "ProjectAssetDiagnostics.h"
 #include <Engine/Editor/Assets/Project/ProjectAssetIndex.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetThumbnailCache.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
@@ -108,6 +109,7 @@ namespace Engine {
 		std::string deleteErrorMessage_;
 		// シーン保存の検証と修復表示
 		ProjectSceneStorageInspector sceneStorageInspector_;
+		ProjectAssetDiagnostics assetDiagnostics_;
 		// 削除確認ポップアップを次の描画で開くか
 		bool requestOpenDeletePopup_ = false;
 		// ファイル操作結果の遅延反映用キャッシュ

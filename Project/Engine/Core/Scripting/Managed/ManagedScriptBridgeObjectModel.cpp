@@ -239,14 +239,28 @@ namespace Engine {
 		return managed ? managed->GetManagedHandle() : ManagedScriptInstanceHandle::Null();
 	}
 
-	int32_t ManagedScriptRuntime::AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID) {
+	void ManagedScriptRuntime::RemoveScriptCallback(ManagedNativeEntity owner, uint64_t scriptSlotID) {
 
-		// owner EntityへscriptTypeIDのscriptをruntime attachし、instance生成の成否を返す
-		if (!scriptTypeID) {
-			return 0;
+		ECSWorld* world = ResolveWorld(owner);
+		const Entity entity = ResolveEntity(owner);
+		if (!world || !world->IsAlive(entity) || scriptSlotID == 0) {
+			return;
 		}
+		// callbackから戻るまでScriptの実体を保持する
+		world->GetCommandBuffer().EnqueueRemoveScript(entity, UUID{ scriptSlotID });
+	}
+
+	ManagedScriptInstanceHandle ManagedScriptRuntime::AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID) {
+
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = ResolveWorld(owner);
 		const Entity resolved = ResolveEntity(owner);
-		return BehaviorSystem::AttachScript(resolved, scriptTypeID) ? 1 : 0;
+		if (!scriptTypeID || !context || !world || context->world != world || !world->IsAlive(resolved)) {
+			return ManagedScriptInstanceHandle::Null();
+		}
+		// 同型の既存Scriptを検索せず、今回生成した個体を返す
+		auto* instance = dynamic_cast<ManagedBehavior*>(BehaviorSystem::AttachScript(resolved, scriptTypeID, *context));
+		return instance ? instance->GetManagedHandle() : ManagedScriptInstanceHandle::Null();
 	}
 
 } // Engine

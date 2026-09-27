@@ -90,6 +90,7 @@ namespace Engine {
 		struct SkinnedBatchCacheKey {
 
 			ECSWorld* world = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			AssetID mesh{};
 			uint64_t hash = 0;
 
@@ -104,11 +105,13 @@ namespace Engine {
 			std::unique_ptr<MeshBatchResources> resources{};
 			uint64_t lastUsedFrame = 0;
 			uint64_t lastUploadFrame = 0;
+			uint64_t transformRevision = 0;
 		};
 		// スキニング頂点のGPUリソースを検索するためのキー
 		struct SkinnedSourceLookupKey {
 
 			ECSWorld* world = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity = Entity::Null();
 			AssetID mesh{};
 

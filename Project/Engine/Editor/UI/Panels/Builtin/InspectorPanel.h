@@ -14,6 +14,7 @@
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabBaseCache.h>
 
 // c++
 #include <array>
@@ -78,6 +79,7 @@ namespace Engine {
 
 		// オーバーライドポップアップの各差分の選択、0=そのまま 1=Apply 2=Revert
 		std::unordered_map<std::string, int> overrideChoices_;
+		PrefabBaseCache prefabBaseCache_;
 
 		// モデルプレビューの所有
 		InspectorModelPreview modelPreview_;

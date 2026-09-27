@@ -1,5 +1,6 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
+#include "PrefabInputTests.h"
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
@@ -47,6 +48,10 @@
 namespace NEMTests {
 
 	bool TestPrefabImmediateHierarchy() {
+
+		if (!TestPrefabInputFailures()) {
+			return false;
+		}
 
 		// 旧対応表は先頭を維持し、参照先と参照空間を混同しない
 		{
@@ -176,6 +181,7 @@ namespace NEMTests {
 			}
 			auto& commands = pendingWorld.GetCommandBuffer();
 			commands.EnqueueCreateEntity(pendingWorld, pendingParent, "RainVisuals", Entity::Null());
+			const auto reservedParentLocalID = pendingWorld.TryGetComponentForBinding<SceneObjectComponent>(pendingParent)->localFileID;
 			pendingWorld.TryGetComponentForBinding<TransformComponent>(pendingParent)->localPos = Vector3{ 2.0f, 3.0f, 4.0f };
 			const auto transformID = ComponentTypeRegistry::GetInstance().GetID<TransformComponent>();
 
@@ -190,6 +196,7 @@ namespace NEMTests {
 			const SceneObjectComponent* parentSceneObject =
 				pendingWorld.TryGetComponent<SceneObjectComponent>(pendingParent);
 			const Engine::UUID parentLocalFileID = parentSceneObject ? parentSceneObject->localFileID : Engine::UUID{};
+			passed &= parentLocalFileID == reservedParentLocalID;
 
 			// 構造変更をまたいでコンポーネント参照を保持しない
 			const auto checkHierarchy = [&]() {

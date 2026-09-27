@@ -1,0 +1,19 @@
+// VSとMSとカリングComputeで同じ定数配置を使う
+	float4x4 viewProjection;
+	float4x4 previousViewProjection;
+	float4x4 cullingViewProjection;
+	float4x4 cullingView;
+	float3 cullingCameraPos;
+	float cullingNearClip;
+	float3 cullingCameraForward;
+	float _cullingPad0;
+	float2 viewSize;
+	float2 cullingViewSize;
+	float2 cullingProjectionScale;
+	float2 _viewPad0;
+	float3 renderCameraPos;
+	uint frameSerial;
+	float4x4 lodView;
+	float2 lodProjectionScale;
+	float lodNearClip;
+	float _lodPad;

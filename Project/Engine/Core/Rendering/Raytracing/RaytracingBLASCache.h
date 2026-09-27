@@ -8,11 +8,13 @@
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <array>
+#include <memory>
 #include <unordered_map>
 
 namespace Engine {
 
 	class ECSWorld;
+	class ECSWorldLifetime;
 	//============================================================================
 	//	RaytracingBLASCache class
 	//	形状ごとのBLASを保持する
@@ -53,6 +55,7 @@ namespace Engine {
 		struct StaticInstanceBLASKey {
 
 			ECSWorld* world = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity = Entity::Null();
 			AssetID meshAssetID{};
 			uint32_t reloadGeneration = 0;
@@ -80,6 +83,7 @@ namespace Engine {
 		struct DynamicBLASKey {
 
 			ECSWorld* world = nullptr;
+			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity = Entity::Null();
 			AssetID meshAssetID{};
 			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない

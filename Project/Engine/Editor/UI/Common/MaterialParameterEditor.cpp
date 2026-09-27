@@ -3,6 +3,9 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
+
+// c++
 #include <algorithm>
 #include <array>
 #include <type_traits>
@@ -139,41 +142,20 @@ namespace Engine::MaterialParameterEditor {
 	bool IsMaterialTextureResource(
 		const ShaderResourceBinding& resource) {
 
-		return resource.kind == ShaderBindingKind::SRV &&
-			resource.space == 2 &&
-			resource.rawType == D3D_SIT_TEXTURE;
+		return MaterialParameterLookup::IsTextureResource(resource);
 	}
 
 	bool IsTextureSemantic(
 		MaterialParameterSemantic semantic) {
 
-		switch (semantic) {
-		case MaterialParameterSemantic::BaseColorTexture:
-		case MaterialParameterSemantic::NormalTexture:
-		case MaterialParameterSemantic::MetallicRoughnessTexture:
-		case MaterialParameterSemantic::RoughnessTexture:
-		case MaterialParameterSemantic::MetallicTexture:
-		case MaterialParameterSemantic::EmissiveTexture:
-		case MaterialParameterSemantic::AmbientOcclusionTexture:
-		case MaterialParameterSemantic::DisplacementTexture:
-			return true;
-		default:
-			return false;
-		}
+		return MaterialParameterLookup::IsTextureSemantic(semantic);
 	}
 
 	bool IsSameReflectedMaterialParameter(
 		const ShaderConstantBufferVariable& variable,
 		const ShaderResourceBinding& resource) {
 
-		if (variable.parameterID && resource.parameterID) {
-			return variable.parameterID == resource.parameterID;
-		}
-		if (variable.semantic != MaterialParameterSemantic::None &&
-			resource.semantic != MaterialParameterSemantic::None) {
-			return variable.semantic == resource.semantic;
-		}
-		return variable.name == resource.name;
+		return MaterialParameterLookup::IsSameParameter(variable, resource);
 	}
 
 	const ShaderResourceBinding* FindReflectedTextureResource(
@@ -214,13 +196,7 @@ namespace Engine::MaterialParameterEditor {
 		const ShaderConstantBufferVariable& variable,
 		const ShaderReflectionInfo& reflection) {
 
-		if (variable.valueType != D3D_SVT_UINT) {
-			return false;
-		}
-		return variable.isTexture ||
-			IsTextureSemantic(variable.semantic) ||
-			IsTextureSemantic(ResolveMaterialParameterSemantic(variable.name)) ||
-			FindReflectedTextureResource(variable, reflection) != nullptr;
+		return MaterialParameterLookup::IsTexture(variable, reflection);
 	}
 
 	std::string_view GetReflectedTextureDisplayName(

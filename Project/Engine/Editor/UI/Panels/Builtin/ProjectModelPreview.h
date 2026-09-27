@@ -108,6 +108,9 @@ namespace Engine {
 		Vector2I modelPreviewAtlasSize_;
 		// モデル読込完了までAtlasを更新する残りフレーム数
 		uint32_t modelPreviewRefreshFrames_ = 0;
+		// Atlasへ反映したMeshとTextureの公開世代
+		uint64_t modelPreviewMeshRevision_ = 0;
+		uint64_t modelPreviewTextureRevision_ = 0;
 
 		//--------- functions ----------------------------------------------------
 
@@ -119,7 +122,7 @@ namespace Engine {
 		// モデルプレビューAtlasを描画する
 		bool RenderModelPreviewAtlas(const EditorToolContext& toolContext, EditorToolRenderTexture& atlas);
 		// アセットリストからプレビュー再構築用の署名を作る
-		uint64_t BuildModelPreviewSignature(const ProjectDirectoryNode& node,
+		uint64_t BuildModelPreviewSignature(const AssetDatabase& database, const ProjectDirectoryNode& node,
 			const std::vector<const ProjectAssetEntry*>& meshAssets) const;
 		// モデル全体を収めるカメラを作るための境界を取得する
 		ModelPreviewBounds ComputeModelPreviewBounds(AssetDatabase& database, AssetID meshAssetID) const;

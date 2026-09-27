@@ -16,6 +16,11 @@ bool Engine::RenderItemExtract::IsVisible(ECSWorld& world, const Entity& entity,
 	return sceneObject->activeInHierarchy;
 }
 
+uint64_t Engine::IRenderItemExtractor::GetContentRevision() const {
+
+	return 0;
+}
+
 Engine::Matrix4x4 Engine::RenderItemExtract::GetWorldMatrix(ECSWorld& world, const Entity& entity) {
 
 	if (const auto* transform = world.TryGetComponent<Engine::TransformComponent>(entity)) {

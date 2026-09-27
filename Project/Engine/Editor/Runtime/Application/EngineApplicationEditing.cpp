@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "EditorSceneOperations.h"
+#include "EditorPlaySession.h"
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
@@ -16,6 +17,18 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 	if constexpr (!BuildConfig::kEditorEnabled) {
 		return;
 	} else {
+
+		if (const auto result = editorManager_.ConsumeSceneSaveConflictResult()) {
+
+			const EditorSceneSaveRequest savedRequest = pendingSceneSaveRequest_.value_or(EditorSceneSaveRequest{});
+			pendingSceneSaveRequest_.reset();
+			const SceneSaveOutcome outcome = result->cancelled ? SceneSaveOutcome::Cancelled :
+				SaveAllEditScenes(result->selectedInstances);
+			CompleteSceneSaveRequest(savedRequest, outcome);
+		}
+		if (pendingSceneSaveRequest_) {
+			return;
+		}
 
 		// EditorManagerに溜まっているシーン操作要求を1件取り出す
 		EditorSceneRequest request = editorManager_.ConsumeSceneRequest();
@@ -43,16 +56,10 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			SaveActiveEditScene();
 			break;
 		case EditorSceneRequestType::SaveAndNewScene:
-			// 読み込み中の全シーンの保存に成功した場合だけ新規シーン作成へ進む
-			if (SaveAllEditScenes()) {
-				CreateNewEditScene();
-			}
+			SaveScenesAndContinue({ EditorSceneSaveAction::NewScene, {} });
 			break;
 		case EditorSceneRequestType::SaveAndOpenScene:
-			// 読み込み中の全シーンの保存に成功した場合だけ別シーンを開く
-			if (SaveAllEditScenes()) {
-				OpenEditScene(request.sceneAsset);
-			}
+			SaveScenesAndContinue({ EditorSceneSaveAction::OpenScene, request.sceneAsset });
 			break;
 		case EditorSceneRequestType::EnterPrefabEdit:
 			// 既にPrefab編集中なら、現在の編集内容を保存してから次のPrefabを開く
@@ -85,8 +92,68 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 	}
 }
 
+void Engine::EngineApplication::SaveScenesAndContinue(const EditorSceneSaveRequest& request) {
+
+	if (pendingSceneSaveRequest_) {
+		if (request.action == EditorSceneSaveAction::Play) {
+			playSession_->CompleteSceneSave(false);
+		}
+		return;
+	}
+	CompleteSceneSaveRequest(request, SaveAllEditScenes());
+}
+
+void Engine::EngineApplication::CompleteSceneSaveRequest(
+	const EditorSceneSaveRequest& request, SceneSaveOutcome outcome) {
+
+	if (outcome == SceneSaveOutcome::Conflict) {
+		pendingSceneSaveRequest_ = request;
+		return;
+	}
+	const bool saved = outcome == SceneSaveOutcome::Saved;
+	const bool remaining = outcome == SceneSaveOutcome::UnsavedInstances;
+	if (request.action == EditorSceneSaveAction::Play) {
+		// PlayはEdit Worldを保持するため、別Instanceの編集もSnapshotへ渡せる
+		playSession_->CompleteSceneSave(saved || remaining);
+		return;
+	}
+	if (!saved && !remaining) {
+		closeRequestPending_ = false;
+		return;
+	}
+	// 切替・終了で失われる編集は、保存成功とみなして破棄しない
+	switch (request.action) {
+	case EditorSceneSaveAction::NewScene:
+		if (remaining) {
+			editorManager_.RequestNewScene();
+		} else {
+			CreateNewEditScene();
+		}
+		break;
+	case EditorSceneSaveAction::OpenScene:
+		if (remaining) {
+			editorManager_.RequestOpenScene(request.sceneAsset);
+		} else {
+			OpenEditScene(request.sceneAsset);
+		}
+		break;
+	case EditorSceneSaveAction::Close:
+		if (remaining) {
+			editorManager_.RequestCloseUnsavedScenePopup();
+		} else {
+			AcceptCloseRequest(true);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 bool Engine::EngineApplication::CreateNewEditScene() {
 
+	if (!WaitForSceneSave()) {
+		return false;
+	}
 	EditorSceneOperationContext context{ assetDatabase_, editScenes_, sceneSystem_, worldManager_, scheduler_,
 		systemContext_, editorManager_, activeScene_, activeScenePath_, requestFrameDeltaReset_ };
 	return EditorSceneOperations::CreateNewEditScene(context);
@@ -94,6 +161,9 @@ bool Engine::EngineApplication::CreateNewEditScene() {
 
 bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 
+	if (!WaitForSceneSave()) {
+		return false;
+	}
 	EditorSceneOperationContext context{ assetDatabase_, editScenes_, sceneSystem_, worldManager_, scheduler_,
 		systemContext_, editorManager_, activeScene_, activeScenePath_, requestFrameDeltaReset_ };
 	return EditorSceneOperations::OpenEditScene(context, sceneAsset);
@@ -133,11 +203,7 @@ void Engine::EngineApplication::HandleCloseRequestResult() {
 		const EditorUnsavedScenePopupResult result = editorManager_.ConsumeCloseUnsavedScenePopupResult();
 		switch (result) {
 		case EditorUnsavedScenePopupResult::Save:
-			if (SaveAllEditScenes()) {
-				AcceptCloseRequest(true);
-			} else {
-				closeRequestPending_ = false;
-			}
+			SaveScenesAndContinue({ EditorSceneSaveAction::Close, {} });
 			break;
 		case EditorUnsavedScenePopupResult::DontSave:
 			AcceptCloseRequest(true);
@@ -154,6 +220,9 @@ void Engine::EngineApplication::HandleCloseRequestResult() {
 
 bool Engine::EngineApplication::RequestClose() {
 
+	if (pendingSceneSaveRequest_) {
+		return false;
+	}
 	if (shutdownAccepted_) {
 		return true;
 	}

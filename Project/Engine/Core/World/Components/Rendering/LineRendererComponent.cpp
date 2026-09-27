@@ -117,7 +117,7 @@ void Engine::LineRendererComponent::SerializeECS(
 	const ECSWorld& world, const Entity& entity,
 	const LineRendererComponent& component, nlohmann::json& out) {
 
-	SerializeLineRenderer(component, GetLinePoints(world, entity), out);
+	SerializeLineRenderer(component, world.TryGetBufferForBinding<LinePoint>(entity).GetSpan(), out);
 }
 
 void Engine::from_json(const nlohmann::json& in, LineRendererComponent& component) {
@@ -146,16 +146,8 @@ std::span<const Engine::LinePoint> Engine::GetLinePoints(
 void Engine::SetLinePoints(ECSWorld& world, const Entity& entity,
 	std::span<const LinePoint> points) {
 
-	DynamicBuffer<LinePoint> buffer = world.TryGetBuffer<LinePoint>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<LinePoint>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(points.size()));
-	for (const LinePoint& point : points) {
-		buffer.Add(point);
-	}
-	world.MarkComponentModified<LinePoint>(entity);
+	// 点列が現在のBufferを参照していても保護する
+	world.SetBuffer<LinePoint>(entity, points);
 }
 
 void Engine::SerializeLineRenderer(const LineRendererComponent& component,

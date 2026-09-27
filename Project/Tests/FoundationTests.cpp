@@ -27,6 +27,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <stdexcept>
 
 namespace {
 
@@ -40,6 +41,19 @@ namespace {
 	// 行列積と回転演算、配列の座標順を確認する
 	bool TestMathContracts() {
 
+		// どの1要素が変わっても等値と不等値の結果を反転する
+		const auto original = Engine::Matrix4x4::Identity();
+		if (!(original == original) || original != original) return false;
+		for (int row = 0; row < 4; ++row) {
+			for (int column = 0; column < 4; ++column) {
+				auto changed = original;
+				changed.m[row][column] += 1.0f;
+				if (original == changed || changed == original || !(original != changed) || !(changed != original)) return false;
+			}
+		}
+		auto nonFinite = original;
+		nonFinite.m[0][0] = std::numeric_limits<float>::quiet_NaN();
+		if (nonFinite == nonFinite || !(nonFinite != nonFinite)) return false;
 		const auto matrix = Engine::Matrix4x4::MakeAffineMatrix({ 2.0f, 3.0f, 4.0f },
 			Engine::Quaternion::FromEulerDegrees({ 10.0f, 20.0f, 30.0f }), { 5.0f, 6.0f, 7.0f });
 		auto multiplied = matrix;
@@ -207,6 +221,17 @@ namespace {
 			return Engine::JsonFileJournal::Recover(scope, directory, error, [](const auto&) {});
 		};
 		std::string error;
+		// 排他を得た後の検証失敗では退避も書込も始めない
+		bool checked = false;
+		bool nestedAccepted = false;
+		if (Engine::JsonFileJournal::Commit(scope, changes, "Rejected", error, recover, [&] {
+			checked = true;
+			std::string nestedError;
+			nestedAccepted = Engine::JsonFileJournal::Commit(scope, changes, "Nested", nestedError, recover);
+			throw std::runtime_error("保存前の状態が変わりました");
+		}) || !checked || nestedAccepted || error.empty() ||
+			Engine::StorageFileUtility::FileRevision(first) != before || Engine::JsonAdapter::Load(second) != original ||
+			!Engine::JsonFileJournal::GetRecoveries(scope).empty()) return false;
 		{
 			NEMTests::TestFileReadLock locked(second);
 			if (Engine::JsonFileJournal::Commit(scope, changes, "Foundation", error, recover) || error.empty() ||
@@ -225,6 +250,53 @@ namespace {
 			if (entry.is_directory()) ++directoryCount;
 		}
 		if (directoryCount != records.size()) return false;
+		std::filesystem::path completed;
+		for (const auto& record : records) {
+			if (Engine::JsonAdapter::Load(record / "operation.json").value("state", "") == "completed") {
+				completed = record;
+			}
+		}
+		if (completed.empty()) return false;
+		// 復旧の後半だけ失敗しても、次回は残りから戻せる
+		{
+			NEMTests::TestFileReadLock locked(first);
+			if (recover(completed, error) || Engine::JsonAdapter::Load(second) != original ||
+				Engine::JsonAdapter::Load(first) != changes[0].data ||
+				Engine::JsonFileJournal::GetRecoveries(scope, true).empty()) return false;
+		}
+		if (!recover(completed, error) || Engine::JsonAdapter::Load(first) != original ||
+			!Engine::JsonFileJournal::GetRecoveries(scope, true).empty()) return false;
+
+		// 全件確認後の外部変更を復旧前の再確認で保護する
+		if (!Engine::JsonFileJournal::Commit(scope, changes, "ExternalChange", error, recover)) return false;
+		for (const auto& record : Engine::JsonFileJournal::GetRecoveries(scope)) {
+			if (Engine::JsonAdapter::Load(record / "operation.json").value("state", "") == "completed") {
+				completed = record;
+			}
+		}
+		const nlohmann::json external = {{ "value", 999 }};
+		const bool recovered = Engine::JsonFileJournal::Recover(scope, completed, error, [&](const auto& target) {
+			if (target == second && !Engine::JsonAdapter::SaveCanonical(first, external)) {
+				throw std::runtime_error("外部変更の準備に失敗しました");
+			}
+		});
+		if (recovered || Engine::JsonAdapter::Load(first) != external ||
+			Engine::JsonFileJournal::GetRecoveries(scope, true).empty()) {
+			std::cerr << "Journal external change protection failed: " << error << '\n';
+			return false;
+		}
+		// 外部変更を退避済みの値へ戻して復旧を再開する
+		if (!Engine::JsonAdapter::SaveCanonical(first, changes[0].data) || !recover(completed, error) ||
+			Engine::JsonAdapter::Load(first) != original || Engine::JsonAdapter::Load(second) != original) return false;
+		// 不明な状態の記録を完了済みと判断しない
+		const auto validJournal = Engine::JsonAdapter::Load(completed / "operation.json");
+		auto invalidJournal = validJournal;
+		invalidJournal["state"] = "invalid";
+		if (!Engine::JsonAdapter::SaveCanonical(completed / "operation.json", invalidJournal) ||
+			Engine::JsonFileJournal::GetRecoveries(scope, true).empty() ||
+			Engine::JsonFileJournal::Commit(scope, changes, "InvalidState", error, recover) ||
+			Engine::JsonAdapter::Load(first) != original) return false;
+		if (!Engine::JsonAdapter::SaveCanonical(completed / "operation.json", validJournal)) return false;
 		// 同じパスへの競合要求は何も保存せず拒否する
 		return !Engine::JsonFileJournal::Commit(scope, {changes[0], changes[0]}, "Duplicate", error, recover);
 	}

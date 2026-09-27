@@ -70,6 +70,7 @@ namespace Engine {
 		UVTransform,
 		MetallicRoughnessTexture,
 		EmissiveIntensity,
+		OpacityTexture,
 	};
 
 	// 標準PBRパラメータ名
@@ -93,6 +94,7 @@ namespace Engine {
 		inline constexpr std::string_view SpecularTexture = "specularTexture";
 		inline constexpr std::string_view EmissiveIntensity = "emissiveIntensity";
 		inline constexpr std::string_view Opacity = "opacity";
+		inline constexpr std::string_view OpacityTexture = "opacityTexture";
 		inline constexpr std::string_view AlphaClip = "alphaClip";
 		inline constexpr std::string_view SelectionMode = "selectionMode";
 		inline constexpr std::string_view CompositeMode = "compositeMode";
@@ -147,6 +149,8 @@ namespace Engine {
 			MaterialParameterID::FromName(MaterialParameterNames::EmissiveIntensity);
 		inline constexpr MaterialParameterID Opacity =
 			MaterialParameterID::FromName(MaterialParameterNames::Opacity);
+		inline constexpr MaterialParameterID OpacityTexture =
+			MaterialParameterID::FromName(MaterialParameterNames::OpacityTexture);
 		inline constexpr MaterialParameterID AlphaClip =
 			MaterialParameterID::FromName(MaterialParameterNames::AlphaClip);
 	}

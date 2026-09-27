@@ -7,6 +7,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
 #include <cmath>
+#include <cstring>
 
 namespace {
 	bool CanCullView(const Engine::RenderDrawContext& drawContext, const Engine::MeshGPUResource& gpuMesh) {
@@ -38,7 +39,7 @@ void Engine::MeshBatchViewResources::BeginDynamicConstantsFrame() {
 void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext& drawContext,
 	const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
 	uint32_t subMeshGroupIndex, ID3D12Device* device, uint32_t instanceCount,
-	const OutlineBatchMetrics& outlineMetrics, float maxDisplacement) {
+	const OutlineBatchMetrics& outlineMetrics, float maxDisplacement, bool normalConeAllowed) {
 
 	const bool hullOutline = IsHullOutlinePass(drawContext.passKind);
 	bool canCull = CanCullView(drawContext, gpuMesh);
@@ -62,7 +63,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		!hullOutline && canCull &&
 		drawContext.runtimeFeatures.useContributionCulling;
 	const bool normalConeCullingEnabled =
-		!hullOutline && canCull &&
+		!hullOutline && canCull && normalConeAllowed && maxDisplacement == 0.0f &&
 		drawContext.runtimeFeatures.useNormalConeCulling;
 	const bool occlusionCullingEnabled =
 		!hullOutline && canCull &&
@@ -162,21 +163,27 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view, 
 
 	const size_t viewIndex = ToViewIndex(view.kind);
 	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-	if (viewUploadFrameSerials_[viewIndex] == frameSerial) {
-		return;
-	}
-	viewUploadFrameSerials_[viewIndex] = frameSerial;
+	const bool firstViewInFrame = !previousViewValid_[viewIndex] || viewUploadFrameSerials_[viewIndex] != frameSerial;
 
 	// 定数バッファにビュー行列を転送する
 	MeshViewConstants constants{};
 	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
-		constants.previousViewProjection = previousViewValid_[viewIndex] ?
-			previousViewProjections_[viewIndex] : constants.viewProjection;
-		previousViewProjections_[viewIndex] = constants.viewProjection;
-		previousViewValid_[viewIndex] = true;
+		if (firstViewInFrame) {
+			// 同じframeの追加描画で前frameの履歴を上書きしない
+			framePreviousViewProjections_[viewIndex] = previousViewValid_[viewIndex] ?
+				previousViewProjections_[viewIndex] : constants.viewProjection;
+			previousViewProjections_[viewIndex] = constants.viewProjection;
+			previousViewValid_[viewIndex] = true;
+		}
+		constants.previousViewProjection = framePreviousViewProjections_[viewIndex];
 		constants.renderCameraPos = camera->cameraPos;
+		// カリング設定から独立したLOD用の投影情報を渡す
+		constants.lodView = camera->matrices.viewMatrix;
+		constants.lodNearClip = camera->nearClip;
+		constants.lodProjectionScale = Vector2(std::abs(camera->matrices.projectionMatrix.m[0][0]),
+			std::abs(camera->matrices.projectionMatrix.m[1][1]));
 	}
 	constants.frameSerial = static_cast<uint32_t>(frameSerial);
 	constants.viewSize = Vector2(static_cast<float>((std::max)(view.width, 1u)),
@@ -201,7 +208,12 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view, 
 		constants.cullingViewSize = constants.viewSize;
 		constants.cullingProjectionScale = Vector2::AnyInit(1.0f);
 	}
-	view_[viewIndex].Upload(constants);
+	// 同じ種類のViewでもCameraが変われば別の定数領域へ転送する
+	if (firstViewInFrame || std::memcmp(&uploadedViews_[viewIndex], &constants, sizeof(constants)) != 0) {
+		view_[viewIndex].Upload(constants);
+		uploadedViews_[viewIndex] = constants;
+		viewUploadFrameSerials_[viewIndex] = frameSerial;
+	}
 }
 
 void Engine::MeshBatchViewResources::Init(GraphicsResourceRetirement& retirement, ID3D12Device* device) {
@@ -216,6 +228,12 @@ void Engine::MeshBatchViewResources::Init(GraphicsResourceRetirement& retirement
 
 void Engine::MeshBatchViewResources::Release() {
 
+	// 再利用時へ前のWorldのViewと履歴を持ち越さない
+	for (auto& view : view_) {
+		view.Release();
+	}
+	previousViewValid_ = { false, false };
+	retirement_ = nullptr;
 	dynamicConstantAllocator_.Release();
 	dynamicConstantFrameSerial_ = 0;
 	viewUploadFrameSerials_ = { 0, 0 };

@@ -105,6 +105,7 @@ namespace Engine {
 	class ECSWorld {
 		friend class ECSWorldSerialization;
 		friend class WorldCommandBuffer;
+		friend class ECSCreationScope;
 	public:
 		//============================================================================
 		//	public Methods
@@ -152,14 +153,18 @@ namespace Engine {
 		template <typename T>
 		void RemoveComponent(const Entity& entity);
 		bool RemoveComponentByName(const Entity& entity, const std::string_view& typeName);
-		// DynamicBufferを追加、削除する
+		// DynamicBufferを追加する
 		template <typename T>
 		DynamicBuffer<T> AddBuffer(const Entity& entity);
+		// Bufferを置き換えて変更を通知する
+		template <typename T>
+		void SetBuffer(const Entity& entity, std::span<const T> values);
+		// DynamicBufferを削除する
 		template <typename T>
 		void RemoveBuffer(const Entity& entity);
 
 		// jsonからエンティティに対してコンポーネントを追加
-		void AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
+		bool AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
 		// 追加済みコンポーネントへjsonを適用
 		bool ApplyComponentJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
 		// 保存対象Componentを同じEntity IDの独立Worldへ複製する
@@ -265,7 +270,15 @@ namespace Engine {
 		// Scriptからは追加待ちの値も読み書きする
 		template <typename T>
 		T* TryGetComponentForBinding(const Entity& entity);
+		template <typename T>
+		const T* TryGetComponentForBinding(const Entity& entity) const;
+		// 保存処理も追加待ちBufferを読み取り専用で参照する
+		template <typename T>
+		DynamicBuffer<const T> TryGetBufferForBinding(const Entity& entity) const;
+		template <typename T>
+		DynamicBuffer<T> TryGetBufferForBinding(const Entity& entity);
 		UntypedDynamicBuffer TryGetBufferForBinding(const Entity& entity, uint32_t typeID);
+		ReadOnlyUntypedDynamicBuffer TryGetBufferForBinding(const Entity& entity, uint32_t typeID) const;
 
 		// 走査または構造変更が終わるまでCommandを保留する
 		bool IsStructuralChangeDeferred() const { return queryDepth_ != 0 || structuralChange_; }
@@ -384,7 +397,7 @@ namespace Engine {
 		Entity CreateEntityInArchetype(EntityArchetype* archetype, UUID stableUUID);
 		// エンティティが存在することを確認する、存在しない場合はアサート
 		void AssertAlive(const Entity& entity) const;
-		// エンティティを即時破棄する本体でFlushPendingDestroyEntitiesからのみ呼び出す
+		// 安全地点の削除と生成取消でEntityを即時破棄する
 		void DestroyEntityImmediate(const Entity& entity);
 
 		// エンティティが所属するArchetypeを移動する本体
@@ -407,6 +420,7 @@ namespace Engine {
 		void ValidateComponentStorage(const ComponentTypeInfo& info) const;
 		// 有効なEntityの追加予約から値を取得する
 		void* TryGetPendingComponentData(const Entity& entity, uint32_t typeID);
+		const void* TryGetPendingComponentData(const Entity& entity, uint32_t typeID) const;
 
 		// Archetype上のtypeID配列から列番号配列を一度だけ解決する
 		template <size_t N, size_t... I>
@@ -507,6 +521,20 @@ namespace Engine {
 			NotifyComponentMutation(entity, typeID, ComponentMutationKind::Added);
 		}
 		return GetBuffer<T>(entity);
+	}
+
+	template <typename T>
+	inline void ECSWorld::SetBuffer(const Entity& entity, std::span<const T> values) {
+
+		if (values.size() > UINT32_MAX) throw std::length_error("DynamicBufferの要素数が上限を超えています");
+		if (auto buffer = TryGetBuffer<T>(entity); buffer.IsValid()) {
+			buffer.Assign(values);
+		} else {
+			// 構造変更で同じChunkの入力が移動する前に複製する
+			const std::vector<T> copied(values.begin(), values.end());
+			AddBuffer<T>(entity).Assign(copied);
+		}
+		MarkComponentModified<T>(entity);
 	}
 
 	template <typename T>
@@ -843,5 +871,31 @@ namespace Engine {
 			return component;
 		}
 		return static_cast<T*>(TryGetPendingComponentData(entity, ComponentTypeRegistry::GetInstance().GetID<T>()));
+	}
+
+	template <typename T>
+	inline const T* ECSWorld::TryGetComponentForBinding(const Entity& entity) const {
+
+		if (!IsAlive(entity) || IsPendingDestroy(entity)) return nullptr;
+		if (const T* component = TryGetComponent<T>(entity)) return component;
+		return static_cast<const T*>(TryGetPendingComponentData(entity, ComponentTypeRegistry::GetInstance().GetID<T>()));
+	}
+
+	template <typename T>
+	inline DynamicBuffer<const T> ECSWorld::TryGetBufferForBinding(const Entity& entity) const {
+
+		if (!IsAlive(entity) || IsPendingDestroy(entity)) return {};
+		if (auto buffer = TryGetBuffer<T>(entity); buffer.IsValid()) return buffer;
+		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
+		return DynamicBuffer<const T>(static_cast<const DynamicBufferHeader*>(TryGetPendingComponentData(entity, typeID)));
+	}
+
+	template <typename T>
+	inline DynamicBuffer<T> ECSWorld::TryGetBufferForBinding(const Entity& entity) {
+
+		if (!IsAlive(entity) || IsPendingDestroy(entity)) return {};
+		if (auto buffer = TryGetBuffer<T>(entity); buffer.IsValid()) return buffer;
+		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
+		return DynamicBuffer<T>(static_cast<DynamicBufferHeader*>(TryGetPendingComponentData(entity, typeID)));
 	}
 }

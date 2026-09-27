@@ -55,14 +55,9 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 	const auto resolveTexture = [&](MaterialParameterID id,
 		MaterialParameterSemantic semantic) {
 
-		const MaterialParameterValue* value = FindStandardMaterialParameter(
-			materialInstance, id, semantic);
+		const MaterialParameterValue* value = resolveValue(id, semantic);
 		const AssetID* texture = value ? std::get_if<AssetID>(&value->value) : nullptr;
-		if (texture && *texture) {
-			return *texture;
-		}
-		value = FindStandardMaterialParameter(&material.parameters, id, semantic);
-		texture = value ? std::get_if<AssetID>(&value->value) : nullptr;
+		// 空の上書きはTextureなしとして扱う
 		return texture ? *texture : AssetID{};
 	};
 	const auto resolveTextureIndex = [&](MaterialParameterID id,
@@ -89,6 +84,9 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 	data.occlusionTextureIndex = resolveTextureIndex(
 		MaterialParameterIDs::AmbientOcclusionTexture,
 		MaterialParameterSemantic::AmbientOcclusionTexture, false);
+	data.opacityTextureIndex = resolveTextureIndex(
+		MaterialParameterIDs::OpacityTexture,
+		MaterialParameterSemantic::OpacityTexture, false);
 	data.specularTextureIndex = resolveTextureIndex(
 		MaterialParameterIDs::SpecularTexture,
 		MaterialParameterSemantic::None, false);

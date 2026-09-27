@@ -106,14 +106,9 @@ bool Matrix4x4::operator==(const Matrix4x4& other) const {
 	return true;
 }
 bool Matrix4x4::operator!=(const Matrix4x4& other) const {
-	for (int i = 0; i < 4; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			if (m[i][j] == other.m[i][j]) {
-				return false;
-			}
-		}
-	}
-	return true;
+
+	// 1要素でも異なれば不一致とする
+	return !(*this == other);
 }
 
 void Matrix4x4::Init() {

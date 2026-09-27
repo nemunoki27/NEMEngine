@@ -4,9 +4,11 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 
 // c++
 #include <algorithm>
@@ -55,7 +57,8 @@ void Engine::ModelPreviewUtility::CollectNodePositions(const aiScene* scene, con
 			continue;
 		}
 		const aiMesh* mesh = scene->mMeshes[meshIndex];
-		if (!mesh || mesh->mNumVertices == 0) {
+		// 描画しない点・線でプレビュー範囲を広げない
+		if (!MeshImportUtility::HasTriangleGeometry(mesh)) {
 			continue;
 		}
 
@@ -116,29 +119,19 @@ void Engine::ModelPreviewUtility::ImportReferencedTextures(AssetDatabase& databa
 	textureResolver.Build(fullPath);
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
+	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath), kModelPreviewAssimpFlags);
 	if (!scene || scene->mNumMaterials == 0) {
 		return;
 	}
 
-	auto importTexture = [&](const std::string& reference) {
-
-		const std::string assetPath = textureResolver.ResolveAssetPath(reference);
-		if (!assetPath.empty()) {
-
-			database.ImportOrGet(assetPath, AssetType::Texture);
-		}
-		};
-
 	for (uint32_t materialIndex = 0; materialIndex < scene->mNumMaterials; ++materialIndex) {
 
-		aiMaterial* material = scene->mMaterials[materialIndex];
-		importTexture(AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_BASE_COLOR, aiTextureType_DIFFUSE }));
-		importTexture(AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_NORMALS, aiTextureType_NORMAL_CAMERA, aiTextureType_HEIGHT }));
-		importTexture(AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_UNKNOWN }));
-		importTexture(AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_SPECULAR }));
-		importTexture(AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_EMISSIVE, aiTextureType_EMISSION_COLOR }));
-		importTexture(AssimpMaterialTextureExtractor::Extract(material, { aiTextureType_AMBIENT_OCCLUSION, aiTextureType_LIGHTMAP }));
+		// 通常描画と同じ補完規則で全用途の画像を登録する
+		for (const auto& path : AssimpMaterialTextureExtractor::CollectResolvedPaths(
+			scene->mMaterials[materialIndex], textureResolver)) {
+
+			database.ImportOrGet(path, AssetType::Texture);
+		}
 	}
 }
 
@@ -155,7 +148,7 @@ bool Engine::ModelPreviewUtility::ComputeBounds(const AssetDatabase& database, A
 	}
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(fullPath.string(), kModelPreviewAssimpFlags);
+	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath), kModelPreviewAssimpFlags);
 	if (!scene || !scene->HasMeshes()) {
 		return false;
 	}

@@ -6,6 +6,7 @@
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -121,6 +122,27 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 
 		world.RemoveComponentByName(command.target, command.text);
 		break;
+	case WorldCommandKind::RemoveScript: {
+
+		// 保存slotで照合し、同型の別Scriptは残す
+		if (!world.HasBuffer<ScriptEntry>(command.target)) {
+			break;
+		}
+		auto entries = world.GetBuffer<ScriptEntry>(command.target);
+		for (uint32_t index = 0; index < entries.GetSize(); ++index) {
+			if (entries[index].scriptSlotID != command.scriptSlotID) {
+				continue;
+			}
+			entries.RemoveAt(index);
+			world.MarkComponentModified<ScriptEntry>(command.target);
+			world.MarkComponentModified<ScriptComponent>(command.target);
+			if (entries.GetSize() == 0) {
+				world.RemoveComponent<ScriptComponent>(command.target);
+			}
+			break;
+		}
+		break;
+	}
 	case WorldCommandKind::SetNameEnsuringComponent: {
 
 		NameComponent* nameComponent = world.TryGetComponent<NameComponent>(command.target);

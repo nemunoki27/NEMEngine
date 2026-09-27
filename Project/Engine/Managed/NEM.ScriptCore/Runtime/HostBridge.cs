@@ -13,7 +13,7 @@ namespace NEMEngine;
 //============================================================================
 //	HostBridge class
 //============================================================================
-public static unsafe class HostBridge {
+public static unsafe partial class HostBridge {
 
     private const int MaxNameBytes = 128;
     private const int ScriptTypeIDBytes = 40;
@@ -115,11 +115,15 @@ public static unsafe class HostBridge {
     // Update で 遅延イベント flush + Timer tick + Coroutine(Update)、FixedUpdate で Coroutine(Fixed)、EndOfFrame で Coroutine(EndOfFrame)。
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int TickFrame(int phase) {
-
-        return (int)ScriptInvocationDiagnostics.Guard(nameof(TickFrame), () => {
+        try {
             ScriptServiceLifetime.TickFrame(phase);
-            return ManagedStatus.Ok;
-        });
+            return (int)ManagedStatus.Ok;
+        }
+        catch (Exception ex) {
+            // サービス例外は次の安全地点でEditorをPauseさせる
+            ScriptInvocationDiagnostics.ReportRuntimeServiceException(nameof(TickFrame), ex);
+            return (int)ManagedStatus.ScriptException;
+        }
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -303,7 +307,7 @@ public static unsafe class HostBridge {
     public static int FlushPendingReferences() {
 
         return (int)ScriptInvocationDiagnostics.Guard(nameof(FlushPendingReferences), () => {
-            session.codec.FlushPendingReferenceFields();
+            session.codec.FlushPendingReferenceFields(retryUnresolved: true);
             return ManagedStatus.Ok;
         });
     }
@@ -461,13 +465,12 @@ public static unsafe class HostBridge {
     internal static void AppendScriptsAs<T>(NativeEntity owner, List<T> result) where T : class => instances.AppendScriptsAs(owner, result);
 
     // Stable GUID 指定で同 GameObject 上の script instance を引く（参照フィールドの復元用）
-    internal static MonoBehaviour? FindScriptByGuid(NativeEntity owner, string scriptTypeID) {
+    internal static MonoBehaviour? FindScriptByGuid(NativeEntity owner, string scriptTypeID, ulong scriptSlotID = 0) {
 
-        if (string.IsNullOrEmpty(scriptTypeID)) {
+        if (!session.registry.TryGetEntry(scriptTypeID, out ScriptTypeEntry entry)) {
             return null;
         }
-        NativeScriptInstanceHandle handle = NativeEntityAPI.FindScriptInstance(owner, scriptTypeID);
-        return instances.TryResolveSlot(handle, out MonoBehaviour script) ? script : null;
+        return instances.FindScriptByIdentity(owner, entry.type, scriptSlotID);
     }
 
     // 型の Stable Script Type GUID を返す。未登録型は null（参照フィールドの保存用）
@@ -481,7 +484,8 @@ public static unsafe class HostBridge {
         if (!session.registry.typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
             return null;
         }
-        return NativeEntityAPI.TryAttachScript(owner, entry.scriptTypeID) ? FindScriptAs<T>(owner) : null;
+        NativeScriptInstanceHandle handle = NativeEntityAPI.AttachScriptInstance(owner, entry.scriptTypeID);
+        return instances.TryResolveSlot(handle, out MonoBehaviour script) ? script as T : null;
     }
 
     // 直近の collectible ALC unload の typed status を返す（0=Unknown, 1=UnloadSucceeded, 2=LeakSuspected）。

@@ -5,7 +5,6 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
-#include <Engine/Editor/Commands/Entity/DeleteEntityCommand.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
@@ -55,8 +54,10 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::SetWindowFontScale(0.72f);
 
 		// それぞれの操作の実行可能かどうかを判定する
-		const bool canUndo = context.editorState && context.editorState->commandHistory.CanUndo();
-		const bool canRedo = context.editorState && context.editorState->commandHistory.CanRedo();
+		const bool canUndo = !context.IsPlaying() && context.editorState &&
+			context.editorState->commandHistory.CanUndo();
+		const bool canRedo = !context.IsPlaying() && context.editorState &&
+			context.editorState->commandHistory.CanRedo();
 		const bool canMutateSelection = context.editorState &&
 			context.editorState->HasValidSelection(context.GetWorld()) && context.CanEditScene();
 		const bool canPaste = context.editorState && context.editorState->HasClipboard() && context.CanEditScene();
@@ -89,14 +90,12 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		// 選択しているエンティティを削除する
 		if (ImGui::MenuItem("削除", "Del", false, canMutateSelection)) {
-			context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(context.editorState->selectedEntity));
+			context.host->DeleteSelection();
 		}
 		ImGui::Separator();
 
 		// 複数選択
-		if (ImGui::MenuItem("複数選択", "Shift+左クリック", false, canMutateSelection)) {
-			context.host->ExecuteEditorCommand(std::make_unique<DeleteEntityCommand>(context.editorState->selectedEntity));
-		}
+		ImGui::MenuItem("複数選択", "Shift+左クリック", false, false);
 
 		ImGui::SetWindowFontScale(1.0f);
 
@@ -111,6 +110,8 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::SetWindowFontScale(0.72f);
 
 		ImGui::MenuItem("パネルを全て非表示", "Tab+Esc", &context.layoutState->hidePanels);
+		ImGui::MenuItem("Play開始時にSceneを保存", nullptr,
+			&context.layoutState->autoSaveScenesOnPlay);
 		ImGui::Separator();
 
 		ImGui::MenuItem("Toolbar", nullptr, &context.layoutState->showToolbar);
@@ -154,15 +155,13 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 
 		if (ImGui::BeginMenu("描画パス")) {
 			bool allowMeshShader = preferences.allowMeshShader;
-			ImGui::BeginDisabled(!support.SupportsMeshShaderPath());
 			if (ImGui::Checkbox("メッシュシェーダーを使用", &allowMeshShader)) {
 				featureController.SetAllowMeshShader(allowMeshShader);
 			}
 			DrawGraphicsTooltip("対応GPUではMesh Shader経路を使用します");
-			ImGui::EndDisabled();
 
 			if (!support.SupportsMeshShaderPath()) {
-				ImGui::TextDisabled("メッシュシェーダーに対応していないGPUです");
+				ImGui::TextDisabled("未対応GPUでは実行時だけ頂点シェーダーへ切り替えます");
 			}
 			ImGui::Text("現在のメッシュパス: %s",
 				runtime.useMeshShader ? "メッシュシェーダー" : "頂点シェーダー");
@@ -365,7 +364,6 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		if (ImGui::BeginMenu("レイトレーシング")) {
 			bool allowInlineRayTracing =
 				preferences.allowInlineRayTracing;
-			ImGui::BeginDisabled(!support.SupportsRayTracingPath());
 			if (ImGui::Checkbox("インラインシャドウ",
 				&allowInlineRayTracing)) {
 				featureController.SetAllowInlineRayTracing(
@@ -411,10 +409,9 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 			DrawGraphicsTooltip(
 				"DispatchRaysと後段フィルターを縮小解像度で実行します");
 			ImGui::EndDisabled();
-			ImGui::EndDisabled();
 
 			if (!support.SupportsRayTracingPath()) {
-				ImGui::TextDisabled("レイトレーシングに対応していないGPUです");
+				ImGui::TextDisabled("未対応GPUでは実行時だけRayTracingを無効化します");
 			}
 			ImGui::Text("TLASビルド: %s",
 				runtime.UsesAnyRayTracing() ? "有効" : "無効");

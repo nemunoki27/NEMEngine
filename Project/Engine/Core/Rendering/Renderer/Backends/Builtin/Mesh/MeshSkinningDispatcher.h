@@ -22,7 +22,7 @@ namespace Engine {
 
 		MeshSkinningDispatcher();
 		// SkinningのGPU命令を発行して状態を更新する
-		void Dispatch(const RenderDrawContext& context, const MeshPreparedBatch& prepared);
+		bool Dispatch(const RenderDrawContext& context, const MeshPreparedBatch& prepared);
 	private:
 		//========================================================================
 		//	private Methods

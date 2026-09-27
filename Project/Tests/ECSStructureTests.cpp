@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
@@ -109,6 +110,40 @@ namespace {
 		throw std::runtime_error("追加通知失敗の検証");
 	}
 
+	// 例外を投げ得る移動でも同じ置換契約を確認する
+	struct ThrowingBufferValue : ThrowingComponent {
+
+		ThrowingBufferValue() = default;
+		ThrowingBufferValue(const ThrowingBufferValue&) = default;
+		ThrowingBufferValue(ThrowingBufferValue&& source) : ThrowingComponent(std::move(source)) { }
+	};
+
+	template <typename T>
+	bool CheckBufferAssignFailure() {
+
+		struct BufferScope {
+			Engine::DynamicBufferHeader header;
+			BufferScope() { Engine::DynamicBufferStorage::Construct<T>(&header, 0); }
+			~BufferScope() { Engine::DynamicBufferStorage::Destroy<T>(&header); }
+		} storage;
+		Engine::DynamicBuffer<T> buffer(&storage.header);
+		std::array<T, 3> values;
+		values[0].value = 11;
+		values[1].value = 22;
+		values[2].value = 33;
+		buffer.Assign(values);
+		const int liveCount = ThrowingComponent::liveCount;
+		ThrowingComponent::copiesBeforeThrow = 1;
+		bool rejected = false;
+		try { buffer.Assign(buffer.GetSpan().subspan(1)); }
+		catch (const std::runtime_error&) { rejected = true; }
+		ThrowingComponent::copiesBeforeThrow = -1;
+		if (!rejected || ThrowingComponent::liveCount != liveCount || buffer.GetSize() != 3 ||
+			buffer[0].value != 11 || buffer[1].value != 22 || buffer[2].value != 33) return false;
+		buffer.Assign(buffer.GetSpan().subspan(1));
+		return buffer.GetSize() == 2 && buffer[0].value == 22 && buffer[1].value == 33;
+	}
+
 	void to_json(nlohmann::json& out, const QueryComponent& value) {
 
 		out = value.value;
@@ -164,13 +199,14 @@ namespace {
 		const std::array<uint32_t, 1> failingTypes{ registry.GetID<FailingAddedComponent>() };
 		for (bool destroy : { false, true }) {
 			FailingAddedComponent::destroyOwner = destroy;
+			const auto failedUUID = Engine::UUID::New();
 			bool rejected = false;
 			try {
-				world.CreateEntityWithComponents(failingTypes, stable);
+				world.CreateEntityWithComponents(failingTypes, failedUUID);
 			} catch (const std::runtime_error&) {
 				rejected = true;
 			}
-			if (!rejected || !world.IsAlive(original) || world.FindByUUID(stable) != original) {
+			if (!rejected || !world.IsAlive(original) || world.FindByUUID(stable) != original || world.FindByUUID(failedUUID).IsValid()) {
 				return false;
 			}
 		}
@@ -291,6 +327,24 @@ namespace {
 			return false;
 		}
 		world.TryGetComponentForBinding<ThrowingComponent>(entity)->value = 93;
+		// 保存用複製の失敗でも元の予約値と個体番号を維持する
+		ThrowingComponent::copiesBeforeThrow = 0;
+		bool copyFailed = false;
+		try {
+			world.CloneForSerialization();
+		} catch (const std::runtime_error&) {
+			copyFailed = true;
+		}
+		ThrowingComponent::copiesBeforeThrow = -1;
+		if (!copyFailed || ThrowingComponent::liveCount != 1 || world.HasComponent<ThrowingComponent>(entity) ||
+			world.GetBindingComponentInstanceID(entity, typeID) != pendingID ||
+			world.TryGetComponentForBinding<ThrowingComponent>(entity)->value != 93) return false;
+		{
+			const auto snapshot = world.CloneForSerialization();
+			if (snapshot->GetComponent<ThrowingComponent>(entity).value != 93 ||
+				snapshot->GetComponentInstanceID(entity, typeID) != pendingID || !snapshot->GetCommandBuffer().IsEmpty()) return false;
+		}
+		if (ThrowingComponent::liveCount != 1) return false;
 		commands.Flush(world);
 		if (world.GetComponent<ThrowingComponent>(entity).value != 93 ||
 			world.GetComponentInstanceID(entity, typeID) != pendingID || !commands.IsEmpty()) {
@@ -340,6 +394,16 @@ namespace {
 			return false;
 		}
 		world.RemoveComponent<ThrowingComponent>(entity);
+
+		// Native追加で予約値を引き継ぎ、削除後は古いCommandを無効にする
+		const auto adoptedID = commands.StageAddComponent(world, entity, typeID);
+		world.TryGetComponentForBinding<ThrowingComponent>(entity)->value = 333;
+		world.AddComponent<ThrowingComponent>(entity);
+		if (world.GetComponentInstanceID(entity, typeID) != adoptedID ||
+			world.GetComponent<ThrowingComponent>(entity).value != 333 || commands.FindPendingComponent(entity, typeID)) return false;
+		world.RemoveComponent<ThrowingComponent>(entity);
+		commands.Flush(world);
+		if (world.HasComponent<ThrowingComponent>(entity) || ThrowingComponent::liveCount != 0) return false;
 
 		// 予約後にEntityが失効しても次の世代へ値を渡さない
 		commands.StageAddComponent(world, entity, typeID);
@@ -469,8 +533,29 @@ namespace {
 	bool CheckPendingGameObject() {
 
 		Engine::ECSWorld world;
+		const auto scriptOwner = world.CreateEntity();
+		world.AddComponent<Engine::ScriptComponent>(scriptOwner);
+		auto scripts = world.GetBuffer<Engine::ScriptEntry>(scriptOwner);
+		const auto first = Engine::MakeScriptEntry("Test", "Test");
+		const auto second = Engine::MakeScriptEntry("Test", "Test");
+		scripts.EmplaceBack(first);
+		scripts.EmplaceBack(second);
+		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, first.scriptSlotID);
+		if (scripts.GetSize() != 2) return false;
+		world.GetCommandBuffer().Flush(world);
+		// 同型の二つ目は残り、重複削除でも新しいslotへ触れない
+		scripts = world.GetBuffer<Engine::ScriptEntry>(scriptOwner);
+		if (scripts.GetSize() != 1 || scripts[0].scriptSlotID != second.scriptSlotID) return false;
+		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, first.scriptSlotID);
+		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, second.scriptSlotID);
+		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, second.scriptSlotID);
+		world.GetCommandBuffer().Flush(world);
+		if (world.HasComponent<Engine::ScriptComponent>(scriptOwner) || world.HasBuffer<Engine::ScriptEntry>(scriptOwner)) return false;
 		const auto entity = world.CreateEntity();
 		world.GetCommandBuffer().EnqueueCreateEntity(world, entity, "Pending", Engine::Entity::Null());
+		const auto* pendingMembership = world.TryGetComponentForBinding<Engine::SceneObjectComponent>(entity);
+		if (!pendingMembership || !pendingMembership->localFileID) return false;
+		const auto reservedLocalID = pendingMembership->localFileID;
 		auto* transform = world.TryGetComponentForBinding<Engine::TransformComponent>(entity);
 		const auto typeID = Engine::ComponentTypeRegistry::GetInstance().GetID<Engine::TransformComponent>();
 		const auto instanceID = world.GetBindingComponentInstanceID(entity, typeID);
@@ -491,6 +576,7 @@ namespace {
 		// 実体化でも個体番号と編集値を引き継ぐ
 		world.GetCommandBuffer().Flush(world);
 		return world.GetComponentInstanceID(entity, typeID) == instanceID &&
+			world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID == reservedLocalID &&
 			world.GetComponent<Engine::TransformComponent>(entity).localPos.y == 17.0f &&
 			world.GetComponent<Engine::NameComponent>(entity).name == "Edited" &&
 			static_cast<bool>(world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID);
@@ -502,5 +588,7 @@ bool NEMTests::TestECSStructureSafety() {
 	RegisterStructureComponents();
 	return CheckStructureFailure() && ThrowingComponent::liveCount == 0 && CheckQueryMutation() &&
 		ThrowingComponent::liveCount == 0 && CheckNotificationMutation() && ThrowingComponent::liveCount == 0 &&
-		CheckPendingComponents() && ThrowingComponent::liveCount == 0 && CheckPendingBuffer() && CheckPendingGameObject() && CheckQueryModes() && CheckWorldReleaseFailure();
+		CheckPendingComponents() && ThrowingComponent::liveCount == 0 && CheckPendingBuffer() && CheckPendingGameObject() && CheckQueryModes() && CheckWorldReleaseFailure() &&
+		CheckBufferAssignFailure<ThrowingComponent>() && ThrowingComponent::liveCount == 0 &&
+		CheckBufferAssignFailure<ThrowingBufferValue>() && ThrowingComponent::liveCount == 0;
 }

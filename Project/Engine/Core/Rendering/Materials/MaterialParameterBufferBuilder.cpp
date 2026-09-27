@@ -385,8 +385,8 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 			writeOne(variable, *defaultValue);
 			continue;
 		}
-		// テクスチャindexはcbuffer内でuintとして現れる、未指定はkNoTextureにしてテクスチャなし分岐へ乗せる
-		if (variable.valueType == D3D_SVT_UINT &&
+		// Textureだけを未指定扱いにし、通常のuintはゼロを維持する
+		if (variable.isTexture && variable.valueType == D3D_SVT_UINT &&
 			static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
 
 			const uint32_t noTexture = kNoTextureIndex;

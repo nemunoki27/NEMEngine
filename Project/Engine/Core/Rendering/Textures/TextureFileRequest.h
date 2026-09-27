@@ -23,8 +23,6 @@ namespace Engine {
 		bool overrideImportColorSpace = false;
 		// エディタプレビュー用のチャンネル変換
 		TexturePreviewChannel previewChannel = TexturePreviewChannel::Color;
-		// ホットリロードでの再アップロードか、trueなら既存SRVインデックスへ上書きする
-		bool reload = false;
 	};
 
 }

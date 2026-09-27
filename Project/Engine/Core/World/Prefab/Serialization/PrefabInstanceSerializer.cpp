@@ -145,6 +145,14 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	}
 	json["AddedEntities"] = std::move(addedEntities);
 
+	// 配列の並び順とは別に宣言元との対応を保存する
+	std::sort(canonical.addedEntityMap.begin(), canonical.addedEntityMap.end(),
+		[](const auto& lhs, const auto& rhs) { return lhs.first.value < rhs.first.value; });
+	json["AddedEntityMap"] = nlohmann::json::array();
+	for (const auto& [source, target] : canonical.addedEntityMap) {
+		json["AddedEntityMap"].push_back({ { "P", UUIDToStringOrEmpty(source) }, { "S", UUIDToStringOrEmpty(target) } });
+	}
+
 	nlohmann::json nestedInstances = nlohmann::json::array();
 	for (const auto& nested : canonical.nestedInstances) {
 		nestedInstances.push_back(ToJson(nested));
@@ -160,7 +168,23 @@ nlohmann::json Engine::ToJson(const PrefabInstanceData& data) {
 	return json;
 }
 
-bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
+nlohmann::json Engine::ToSceneJson(const PrefabInstanceData& data) {
+
+	PrefabInstanceData saved = data;
+	const auto restoreIDs = [&](auto&& self, PrefabInstanceData& current, UUID owner) -> void {
+		if (current.savedInstanceID) {
+			current.instanceID = current.savedInstanceID;
+		}
+		current.ownerPrefabInstanceID = owner;
+		for (auto& nested : current.nestedInstances) {
+			self(self, nested, current.instanceID);
+		}
+	};
+	restoreIDs(restoreIDs, saved, UUID{});
+	return ToJson(saved);
+}
+
+bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& output) try {
 
 	static thread_local uint32_t readDepth = 0;
 	if (readDepth >= 32) {
@@ -178,7 +202,14 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 		return false;
 	}
 
-	data = PrefabInstanceData{};
+	// 存在する項目の型が違う場合は空配列へ読み替えない
+	for (const char* key : { "EntityMap", "Modifications", "AddedComponents", "RemovedComponents", "HierarchyMods",
+		"RemovedEntities", "AddedEntities", "AddedEntityMap", "NestedInstances", "RemovedNestedSlots" }) {
+		if (json.contains(key) && !json[key].is_array()) {
+			return false;
+		}
+	}
+	PrefabInstanceData data;
 	data.prefabAsset = StringToAssetGUIDOrZero(json.value("PrefabAsset", ""));
 	data.instanceID = StringToUUIDOrZero(json.value("InstanceID", ""));
 	data.rootParentSceneLocalFileID = StringToUUIDOrZero(json.value("RootParent", ""));
@@ -252,6 +283,12 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 			data.addedEntities.push_back(std::move(added));
 		}
 	}
+	if (json.contains("AddedEntityMap")) {
+		for (const auto& entry : json["AddedEntityMap"]) {
+			data.addedEntityMap.emplace_back(StringToUUIDOrZero(entry.at("P").get<std::string>()),
+				StringToUUIDOrZero(entry.at("S").get<std::string>()));
+		}
+	}
 	if (json.contains("NestedInstances") && json["NestedInstances"].is_array()) {
 		for (const auto& item : json["NestedInstances"]) {
 
@@ -293,6 +330,16 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 			return false;
 		}
 	}
+	std::unordered_set<UUID> addedIDs;
+	for (const auto& added : data.addedEntities) {
+		addedIDs.insert(added.sceneLocalFileID);
+	}
+	std::unordered_set<UUID> addedSources, addedTargets;
+	for (const auto& [source, target] : data.addedEntityMap) {
+		if (!source || !addedIDs.contains(target) || !addedSources.insert(source).second || !addedTargets.insert(target).second) {
+			return false;
+		}
+	}
 	std::unordered_set<UUID> nestedSlotIDs;
 	for (const auto& nested : data.nestedInstances) {
 		if (!nested.nestedSlotID ||
@@ -308,5 +355,10 @@ bool Engine::FromJson(const nlohmann::json& json, PrefabInstanceData& data) {
 			return false;
 		}
 	}
+	// 全項目の検証後に以前の読込結果と差し替える
+	output = std::move(data);
 	return true;
+} catch (const nlohmann::json::exception& error) {
+	Logger::Output(LogType::Engine, spdlog::level::err, "[Prefab] 差分データの読込に失敗しました: {}", error.what());
+	return false;
 }

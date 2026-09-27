@@ -40,11 +40,10 @@ void Engine::CreateDroppedEntityCommand::Undo(EditorCommandContext& context) {
 		return;
 	}
 
-	// 破棄前に最新状態をスナップショットへ取り直す、作成後の編集差分もRedoで戻せるようにする
+	// 初回のSnapshotを維持して生成物だけを取り除く
 	Entity target = world->FindByUUID(targetStableUUID_);
 	if (world->IsAlive(target)) {
 
-		EditorEntitySnapshotUtility::CaptureSubtree(*world, target, snapshot_);
 		EditorEntitySnapshotUtility::DestroySubtree(*world, target);
 		context.RebuildHierarchyAll();
 	}
@@ -57,19 +56,5 @@ void Engine::CreateDroppedEntityCommand::Undo(EditorCommandContext& context) {
 
 bool Engine::CreateDroppedEntityCommand::Redo(EditorCommandContext& context) {
 
-	ECSWorld* world = context.GetWorld();
-	if (!world || snapshot_.IsEmpty()) {
-		return false;
-	}
-
-	// スナップショットからエンティティを復元する
-	const std::vector<Entity> restoredEntities = EditorEntitySnapshotUtility::RestoreSubtree(*world, snapshot_);
-	EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, snapshot_, restoredEntities);
-	context.RebuildHierarchyAll();
-
-	// 復元したエンティティを選択する
-	if (context.editorState) {
-		context.editorState->SelectEntity(world->FindByUUID(targetStableUUID_));
-	}
-	return true;
+	return EditorEntitySnapshotUtility::RestoreCommandSnapshot(context, snapshot_).IsValid();
 }

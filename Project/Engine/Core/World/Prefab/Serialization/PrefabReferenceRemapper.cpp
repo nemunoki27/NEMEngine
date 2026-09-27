@@ -127,26 +127,35 @@ namespace {
 	}
 
 	// JSONツリー内のEntity参照を再帰的にリマップする
-	void RemapTree(nlohmann::json& value,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap,
-		Engine::PrefabReferenceRemapper::ReferenceSpace referenceSpace, Engine::AssetID sourceAsset) {
+	template<typename Mapper>
+	void RemapTree(nlohmann::json& value, const Mapper& mapper) {
 
 		if (value.is_object()) {
 
 			if (IsEntityRefObject(value)) {
-				RemapEntityRef(value, localFileIDMap, referenceSpace, sourceAsset);
+				mapper(value);
 				return;
 			}
 			for (auto it = value.begin(); it != value.end(); ++it) {
-				RemapTree(it.value(), localFileIDMap, referenceSpace, sourceAsset);
+				RemapTree(it.value(), mapper);
 			}
 			return;
 		}
 		if (value.is_array()) {
 			for (auto& element : value) {
-				RemapTree(element, localFileIDMap, referenceSpace, sourceAsset);
+				RemapTree(element, mapper);
 			}
 		}
+	}
+
+	// Prefab保存用の参照空間へ変換する
+	void RemapTree(nlohmann::json& value,
+		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap,
+		Engine::PrefabReferenceRemapper::ReferenceSpace referenceSpace, Engine::AssetID sourceAsset) {
+
+		RemapTree(value, [&](nlohmann::json& reference) {
+			RemapEntityRef(reference, localFileIDMap, referenceSpace, sourceAsset);
+		});
 	}
 
 	// JSONツリー内に残ったScene参照を空にする
@@ -411,6 +420,47 @@ bool Engine::PrefabReferenceRemapper::NormalizeLegacySceneInstances(
 	return true;
 }
 
+bool Engine::PrefabReferenceRemapper::TryReadEntityReference(const nlohmann::json& reference,
+	AssetID& sourceAsset, UUID& localFileID) {
+
+	if (!IsEntityRefObject(reference) || !reference["kind"].is_string() || !reference["sourceAsset"].is_string() ||
+		!reference["localFileId"].is_string()) {
+		return false;
+	}
+	const std::string kind = reference["kind"].get<std::string>();
+	if (kind != "Scene" && kind != "Prefab") {
+		return false;
+	}
+	const AssetID asset = ParseAssetID(reference, "sourceAsset");
+	// 不正なAsset文字列を相対参照として扱わない
+	if (!asset && !reference["sourceAsset"].get_ref<const std::string&>().empty()) {
+		return false;
+	}
+	const UUID localID = FromString16Hex(reference["localFileId"].get<std::string>());
+	if (!localID) {
+		return false;
+	}
+	sourceAsset = asset;
+	localFileID = localID;
+	return true;
+}
+
+void Engine::PrefabReferenceRemapper::RemapMatchedEntityReference(nlohmann::json& reference,
+	const LocalFileIDMap& localFileIDMap, const std::unordered_map<UUID, AssetID>& sourceAssets) {
+
+	AssetID asset;
+	UUID localID;
+	if (!TryReadEntityReference(reference, asset, localID)) {
+		return;
+	}
+	const auto target = localFileIDMap.find(localID);
+	const auto source = sourceAssets.find(localID);
+	if (target == localFileIDMap.end() || source == sourceAssets.end() || (asset && asset != source->second)) {
+		return;
+	}
+	reference["localFileId"] = ToString(target->second);
+}
+
 void Engine::PrefabReferenceRemapper::RemapComponents(nlohmann::json& components,
 	const LocalFileIDMap& localFileIDMap, ReferenceSpace referenceSpace, AssetID sourceAsset) {
 
@@ -430,6 +480,13 @@ void Engine::PrefabReferenceRemapper::RemapComponent(const std::string& componen
 	}
 	RemapNativeComponentFields(componentType, component, localFileIDMap);
 	RemapTree(component, localFileIDMap, referenceSpace, sourceAsset);
+}
+
+void Engine::PrefabReferenceRemapper::RemapComponentReferences(const std::string& componentType,
+	nlohmann::json& component, const LocalFileIDMap& localFileIDMap, const EntityReferenceMapper& mapper) {
+
+	RemapNativeComponentFields(componentType, component, localFileIDMap);
+	RemapTree(component, mapper);
 }
 
 void Engine::PrefabReferenceRemapper::RemapValue(nlohmann::json& value, const std::string& path,

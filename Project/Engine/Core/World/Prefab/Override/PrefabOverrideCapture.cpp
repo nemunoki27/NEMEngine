@@ -10,6 +10,7 @@
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabInstanceUtility.h>
 
 // c++
@@ -40,9 +41,11 @@ Engine::PrefabInstanceData Engine::PrefabOverrideCapture::CaptureInstance(ECSWor
 		instanceByPrefabLocal.emplace(link.prefabLocalFileID, entity);
 		data.prefabAsset = link.prefabAsset;
 		if (link.isPrefabRoot) {
+			data.savedInstanceID = link.savedInstanceID;
 			data.ownerPrefabInstanceID = link.ownerPrefabInstanceID;
 			data.nestedSlotID = link.nestedSlotID;
 			data.isPrefabAssetNested = link.isPrefabAssetNested;
+			data.addedEntityMap = link.addedEntityMap;
 		}
 	}
 	const PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
@@ -169,6 +172,13 @@ Engine::PrefabInstanceData Engine::PrefabOverrideCapture::CaptureInstance(ECSWor
 		}
 	}
 
+	// 削除済みの追加Entityは対応表から除く
+	std::unordered_set<UUID> addedIDs;
+	for (const auto& added : data.addedEntities) {
+		addedIDs.insert(added.sceneLocalFileID);
+	}
+	std::erase_if(data.addedEntityMap, [&](const auto& entry) { return !addedIDs.contains(entry.second); });
+
 	// 親Prefabが所有する別Prefabを差分のまま再帰保存する
 	std::vector<Entity> nestedRoots;
 	world.ForEachAliveEntity([&](Entity entity) {
@@ -191,7 +201,10 @@ Engine::PrefabInstanceData Engine::PrefabOverrideCapture::CaptureInstance(ECSWor
 		const auto& nestedLink = world.GetComponent<PrefabLinkComponent>(nestedRoot);
 		const auto nestedBase = PrefabOverrideUtility::LoadPrefabBaseEntities(database, nestedLink.prefabAsset);
 		if (nestedBase.empty()) {
-			continue;
+			// 読込不能を削除差分へ置き換えない
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"[Prefab] ネスト元を読み込めないため差分取得を中止します AssetID={}", ToString(nestedLink.prefabAsset));
+			return {};
 		}
 		data.nestedInstances.emplace_back(
 			CaptureInstance(world, database, nestedLink.prefabInstanceID, nestedBase));

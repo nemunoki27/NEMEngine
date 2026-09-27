@@ -18,6 +18,7 @@
 #include <vector>
 #include <span>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -25,6 +26,8 @@ namespace Engine {
 
 	// front
 	class ECSWorld;
+	class ECSWorldLifetime;
+	struct RegistryRevision;
 	class MaterialParameterSet;
 	struct PrimitiveRendererComponent;
 
@@ -110,6 +113,8 @@ namespace Engine {
 
 		// 描画アイテムの種類
 		uint32_t backendID = 0;
+		// 独自の追従行列を持つ描画は再抽出で更新する
+		bool canRefreshTransform = true;
 		// 描画フェーズ
 		RenderPhase renderPhase = RenderPhase::Opaque;
 
@@ -179,13 +184,16 @@ namespace Engine {
 		void Add(RenderItem&& item);
 		// 描画アイテムのクリア
 		void Clear();
+		// 同じWorldの移動履歴を残して再抽出を始める
+		void BeginExtraction(const ECSWorld& world);
 		// フレーム中に追加される描画アイテムとペイロードの容量を事前に確保
 		void Reserve(uint32_t itemCount, uint32_t payloadByteCount);
 		// 描画アイテムのソート
 		void Sort();
 		// 抽出元Worldと描画データ、Transform世代を記録する
 		void SetSource(const ECSWorld* world,
-			uint64_t renderRevision, uint64_t transformRevision);
+			uint64_t renderRevision, uint64_t transformRevision,
+			std::shared_ptr<const RegistryRevision> extractorRevision = {}, std::span<const uint64_t> contentRevisions = {});
 		// Transformだけを更新した世代を記録する
 		void SetTransformSource(uint64_t transformRevision,
 			bool completeChanges);
@@ -212,6 +220,10 @@ namespace Engine {
 		uint64_t GetSourceRenderRevision() const { return sourceRenderRevision_; }
 		uint64_t GetSourceTransformRevision() const { return sourceTransformRevision_; }
 		bool MatchesStructure(const ECSWorld* world, uint64_t renderRevision) const;
+		bool MatchesExtractors(const std::shared_ptr<const RegistryRevision>& revision) const { return extractorRevision_ == revision; }
+		const std::shared_ptr<const RegistryRevision>& GetExtractorRevision() const { return extractorRevision_; }
+		bool MatchesExtractorContents(std::span<const uint64_t> revisions) const;
+		bool CanRefreshTransforms() const { return canRefreshTransforms_; }
 		bool MatchesTransforms(uint64_t transformRevision) const { return sourceTransformRevision_ == transformRevision; }
 
 		template<class T>
@@ -221,7 +233,20 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct TransformHistory {
+			const ECSWorld* world = nullptr;
+			uint32_t backendID = 0;
+			RenderCameraDomain cameraDomain{};
+			Matrix4x4 worldMatrix;
+			Matrix4x4 previousWorldMatrix;
+			uint32_t motionFrameSerial = 0;
+		};
+
 		//--------- variables ----------------------------------------------------
+
+		std::unordered_multimap<uint64_t, TransformHistory> transformHistory_;
 
 		std::vector<RenderItem> items_;
 		std::unordered_multimap<uint64_t, size_t>
@@ -229,6 +254,11 @@ namespace Engine {
 		std::vector<RenderTransformChange> transformChanges_;
 		RenderPayloadArena payloadArena_{};
 		const ECSWorld* sourceWorld_ = nullptr;
+		// World本体を保持せず、元の個体の終了を確認する
+		std::shared_ptr<const ECSWorldLifetime> sourceWorldLifetime_;
+		std::shared_ptr<const RegistryRevision> extractorRevision_;
+		std::vector<uint64_t> extractorContentRevisions_;
+		bool canRefreshTransforms_ = true;
 		uint64_t sourceRenderRevision_ = 0;
 		uint64_t sourceMaterialRevision_ = 0;
 		uint64_t sourceTransformRevision_ = 0;

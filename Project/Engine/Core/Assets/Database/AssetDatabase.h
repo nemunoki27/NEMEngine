@@ -8,6 +8,7 @@
 // c++
 #include <unordered_map>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,11 +31,19 @@ namespace Engine {
 		bool Init();
 		// メタデータをすべて取得
 		bool RebuildMeta();
+		// 指定した走査範囲から索引全体を作り直す
+		bool RebuildMeta(const std::vector<std::filesystem::path>& scanRoots);
+		// 検出済みの孤立metaを元Assetの不在を確認して削除する
+		bool DeleteOrphanMeta(const std::filesystem::path& metaPath);
+		// 欠損したFont参照を指定したAtlasへ修復する
+		bool RepairFontAtlas(AssetID fontID, AssetID atlasID, std::string* diagnostic = nullptr);
 
 		// アセットをインポートするか、すでに存在する場合は識別IDを返す
 		AssetID ImportOrGet(const std::string& assetPath, AssetType guessedType);
 		// 指定アセットの依存関係と逆引き参照を現在のファイル内容で更新する
-		void RefreshDependencies(AssetID id);
+		bool RefreshDependencies(AssetID id);
+		// 保存完了を通知し、同じ更新時刻でも読込結果を失効させる
+		void NotifyContentChanged(AssetID id);
 		// Importer設定をメモリと.metaへ反映する
 		bool UpdateImporterSettings(AssetID id, const nlohmann::json& settings,
 			uint32_t importerVersion);
@@ -60,10 +69,15 @@ namespace Engine {
 		std::vector<AssetID> FindReferencersRecursive(AssetID id) const;
 		bool HasReferencers(AssetID id) const;
 		const std::vector<AssetDatabaseIssue>& GetIssues() const { return issues_; }
+		const std::string& GetLastRebuildError() const { return lastRebuildError_; }
 		const std::unordered_map<AssetID, AssetMeta>& GetAssets() const { return guidToMeta_; }
 
 		// アセット集合の構造リビジョンを取得、RebuildMetaのたびに増えるので差分監視に使う
 		uint64_t GetStructureRevision() const { return structureRevision_; }
+		// この索引で通知された内容の更新番号を取得する
+		uint64_t GetContentRevision(AssetID id) const;
+		// 索引の複製や破棄を派生データの所有元へ通知する
+		std::weak_ptr<const uint8_t> GetCacheLifetime() const { return cacheLifetime_.identity; }
 
 		// ファイルパスのルートを取得
 		const std::filesystem::path& GetProjectRoot() const { return projectRoot_; }
@@ -73,7 +87,20 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		struct CacheLifetime {
+
+			std::shared_ptr<const uint8_t> identity = std::make_shared<const uint8_t>(0);
+
+			CacheLifetime() = default;
+			CacheLifetime(const CacheLifetime&);
+			CacheLifetime& operator=(const CacheLifetime&);
+		};
+
 		//--------- variables ----------------------------------------------------
+
+		CacheLifetime cacheLifetime_;
 
 		// ファイルのディレクトリパス
 		std::filesystem::path projectRoot_;
@@ -89,6 +116,11 @@ namespace Engine {
 		std::vector<AssetDatabaseIssue> issues_;
 		// アセット集合の構造リビジョン、RebuildMetaのたびに増える
 		uint64_t structureRevision_ = 0;
+		std::unordered_map<AssetID, uint64_t> contentRevisions_;
+		// 直近の走査失敗と再検査する範囲
+		std::string lastRebuildError_;
+		std::vector<std::filesystem::path> scanRoots_;
+		bool buildingIndex_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -101,8 +133,6 @@ namespace Engine {
 		void RebuildIndex(const std::vector<std::filesystem::path>& scanRoots);
 		// 索引構築後に依存関係・逆引き参照・参照診断を構築する
 		void RebuildDependencies();
-		// font.jsonのatlasTexture参照を隣接アトラス画像の現在GUIDへ揃えて書き戻す
-		void ReconcileFontAtlasReferences();
 		// 1つのアセットファイルを索引へ登録する
 		AssetID RegisterAssetFile(const std::filesystem::path& assetFullPath);
 		// 指定アセットの依存先を抽出する

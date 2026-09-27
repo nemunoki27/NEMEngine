@@ -18,17 +18,6 @@ std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity> Engine::PrefabOverrid
 	return PrefabBaseDocument::LoadPrefabBaseEntities(database, prefabAsset, outRootLocalFileID);
 }
 
-const std::unordered_map<Engine::UUID, Engine::PrefabBaseEntity>&
-Engine::PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(AssetDatabase& database, AssetID prefabAsset) {
-
-	return PrefabBaseDocument::LoadPrefabBaseEntitiesCached(database, prefabAsset);
-}
-
-void Engine::PrefabOverrideUtility::InvalidatePrefabBaseCache(AssetID prefabAsset) {
-
-	PrefabBaseDocument::InvalidatePrefabBaseCache(prefabAsset);
-}
-
 std::vector<Engine::Entity> Engine::PrefabOverrideUtility::CollectInstanceEntities(ECSWorld& world, UUID instanceID) {
 
 	return PrefabInstanceOwnership::CollectInstanceEntities(world, instanceID);

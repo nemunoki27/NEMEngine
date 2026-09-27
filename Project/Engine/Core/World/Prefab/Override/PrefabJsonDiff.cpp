@@ -90,11 +90,27 @@ void Engine::PrefabJsonDiff::CollectLeafDifferences(const std::string& prefix, c
 	// 両方オブジェクトのときだけ子へ降りる、配列とスカラーは丸ごと1リーフ扱い
 	if (base.is_object() && instance.is_object()) {
 
+		// 削除キーと参照identityは親オブジェクトごと保存する
+		bool replaceObject = instance.contains("kind") && instance.contains("sourceAsset") && instance.contains("localFileId");
+		for (auto it = base.begin(); it != base.end(); ++it) {
+			replaceObject |= !instance.contains(it.key());
+		}
+		for (auto it = instance.begin(); it != instance.end(); ++it) {
+			replaceObject |= it.key().empty() || it.key().find('/') != std::string::npos;
+		}
+		if (replaceObject) {
+			out.emplace_back(prefix, instance);
+			return;
+		}
 		for (auto it = instance.begin(); it != instance.end(); ++it) {
 
 			const std::string childPrefix = prefix.empty() ? it.key() : prefix + "/" + it.key();
-			const nlohmann::json& baseChild = base.contains(it.key()) ? base[it.key()] : nlohmann::json(nullptr);
-			CollectLeafDifferences(childPrefix, baseChild, it.value(), out);
+			// キーの追加と既存のnull値を区別する
+			if (!base.contains(it.key())) {
+				out.emplace_back(childPrefix, it.value());
+			} else {
+				CollectLeafDifferences(childPrefix, base[it.key()], it.value(), out);
+			}
 		}
 		return;
 	}

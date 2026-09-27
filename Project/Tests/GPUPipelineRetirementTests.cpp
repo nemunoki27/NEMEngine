@@ -15,6 +15,8 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineBuilder.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 
@@ -32,6 +34,57 @@
 #include <Externals/DirectX12/d3dx12.h>
 
 #pragma comment(lib, "d3dcompiler.lib")
+
+bool NEMTests::CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::GraphicsResourceRetirement& retirement) {
+
+	using namespace Engine;
+	TestDirectory directory("GraphMeshPipelines");
+	auto graph = CreateDefaultSurfaceShaderGraph("Motion", ShaderGraphTarget::Mesh);
+	graph.vertexOutputNode = Engine::UUID::New();
+	graph.nodes.push_back({ .id = graph.vertexOutputNode, .kind = ShaderGraphNodeKind::VertexOutput });
+	const auto generated = ShaderGraphCompiler::Compile(graph, "surface.hlsli");
+	if (!generated.Succeeded()) return false;
+	const auto write = [&](const char* name, const std::string& source) {
+		std::ofstream file(directory.GetPath() / name, std::ios::binary);
+		file << source;
+		return file.good();
+	};
+	if (!write("surface.hlsli", generated.surfaceHLSL) || !write("vertex.VS.hlsl", generated.vertexHLSL) ||
+		!write("mesh.MS.hlsl", generated.meshHLSL) || !write("opaque.PS.hlsl", generated.opaquePixelHLSL)) return false;
+	ComPtr<ID3D12Device8> device8;
+	if (FAILED(device->QueryInterface(IID_PPV_ARGS(&device8)))) return false;
+	DxShaderCompiler compiler;
+	compiler.Init();
+	// GraphのVSも描画グループの定数を参照していることを確認する
+	const auto vertex = compiler.CompileShader((directory.GetPath() / "vertex.VS.hlsl").wstring(), L"vs_6_6", L"main", ShaderStage::VS);
+	const auto* draw = FindConstantBuffer(vertex.reflection, "MeshDrawConstants");
+	if (!vertex.IsValid() || !draw || std::none_of(draw->variables.begin(), draw->variables.end(), [](const auto& variable) {
+		return variable.name == "subMeshGroupIndex" && variable.used;
+	})) return false;
+	GraphicsPipelineDesc desc;
+	desc.preRaster = { .file = Algorithm::PathToUTF8(directory.GetPath() / "vertex.VS.hlsl"), .entry = "main", .profile = "vs_6_6" };
+	desc.pixel = { .file = Algorithm::PathToUTF8(directory.GetPath() / "opaque.PS.hlsl"), .entry = "main", .profile = "ps_6_6" };
+	desc.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	desc.depthStencil = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	const DXGI_FORMAT formats[]{ DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R16G16B16A16_FLOAT,
+		DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R11G11B10_FLOAT,
+		DXGI_FORMAT_R32_UINT, DXGI_FORMAT_R16G16_FLOAT };
+	desc.numRenderTargets = static_cast<UINT>(std::size(formats));
+	std::copy(std::begin(formats), std::end(formats), desc.rtvFormats);
+	// 個別コンパイルだけでなくVSとPSの接続まで検証する
+	if (!PipelineStateBuilder::CreateGraphics(retirement, device8.Get(), &compiler, desc)) return false;
+	D3D12_FEATURE_DATA_D3D12_OPTIONS7 support{};
+	if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &support, sizeof(support)))) return false;
+	if (support.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED) {
+		desc.type = PipelineType::Mesh;
+		desc.preRaster = { .file = Algorithm::PathToUTF8(directory.GetPath() / "mesh.MS.hlsl"), .entry = "main", .profile = "ms_6_6" };
+		desc.amplification = { .file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Mesh/Common/meshGeometry.AS.hlsl"),
+			.entry = "main", .profile = "as_6_6" };
+		if (!PipelineStateBuilder::CreateGraphics(retirement, device8.Get(), &compiler, desc)) return false;
+	}
+	return true;
+}
 
 bool NEMTests::RecordPipelineOwnerRetirement(ID3D12Device* device, ID3D12GraphicsCommandList6* commands,
 	Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback) {
@@ -112,17 +165,18 @@ bool NEMTests::RecordPipelineOwnerRetirement(ID3D12Device* device, ID3D12Graphic
 		{
 			std::ofstream file(libraryPath);
 			file << "struct Payload { uint value; }; [shader(\"raygeneration\")] void RayGeneration() {} "
+				"[shader(\"raygeneration\")] void RayGeneration2() {} "
 				"[shader(\"miss\")] void Miss(inout Payload payload) {}";
 			if (!file) return false;
 		}
 		Engine::ShaderAsset shaderAsset{};
-		for (const char* entry : { "RayGeneration", "Miss" }) {
+		for (const char* entry : { "RayGeneration", "RayGeneration2", "Miss" }) {
 			shaderAsset.stages.push_back({ .stage = Engine::ShaderStage::Lib,
 				.file = Engine::Algorithm::PathToUTF8(libraryPath), .entry = entry, .profile = "lib_6_3" });
 		}
 		Engine::PipelineVariantDesc variant{};
 		variant.kind = Engine::PipelineVariantKind::Raytracing;
-		variant.rayGenerationExports = { "RayGeneration" };
+		variant.rayGenerationExports = { "RayGeneration", "RayGeneration2" };
 		variant.missExports = { "Miss" };
 		auto rayPipeline = Engine::RaytracingPipelineBuilder::Create(device8.Get(), &compiler, variant, shaderAsset);
 		std::filesystem::remove(libraryPath);
@@ -130,8 +184,14 @@ bool NEMTests::RecordPipelineOwnerRetirement(ID3D12Device* device, ID3D12Graphic
 		rayPipeline->SetRetirementQueue(retirement);
 		commands->SetComputeRootSignature(rayPipeline->GetRootSignature());
 		commands->SetPipelineState1(rayPipeline->GetStateObject());
-		const auto dispatch = rayPipeline->BuildDispatchDesc(1, 1);
-		commands->DispatchRays(&dispatch);
+		// 2件目のRayGenも64byte境界から実行する
+		for (uint32_t index = 0; index < 2; ++index) {
+			const auto dispatch = rayPipeline->BuildDispatchDesc(1, 1, 1, index);
+			if (dispatch.RayGenerationShaderRecord.StartAddress % D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT != 0 ||
+				dispatch.RayGenerationShaderRecord.StartAddress + dispatch.RayGenerationShaderRecord.SizeInBytes >
+					dispatch.MissShaderTable.StartAddress) return false;
+			commands->DispatchRays(&dispatch);
+		}
 	}
 	return true;
 }
@@ -160,11 +220,23 @@ bool NEMTests::RecordTexturePublication(ID3D12Device* device,
 	request.importSettings.generateMipmaps = false;
 	request.importSettings.alphaColorBleed = false;
 	request.requestedColorSpace = Engine::TextureColorSpace::Linear;
-	if (!save(false)) return false;
+	// 初回失敗したキーも同じ要求で再試行できる
 	textures.RequestTextureFile(request);
 	textures.WaitAll();
+	if (textures.GetState(request.key) != Engine::TextureRequestState::Failed) return false;
+	if (!save(false)) return false;
+	textures.RequestTextureFile(request);
+	// 連続した設定変更では最後の要求だけを公開する
+	auto latestSettings = request.importSettings;
+	latestSettings.colorSpace = Engine::TextureColorSpace::SRGB;
+	textures.RequestReloadByFile(path, &latestSettings);
+	textures.RequestReload(request.key);
+	textures.RequestReloadByFile(path, &request.importSettings);
+	textures.RequestReloadByFile(path, &latestSettings);
+	textures.WaitAll();
 	const auto* first = textures.GetTexture(request.key);
-	if (!first || !first->valid) return false;
+	if (!first || !first->valid || textures.GetContentRevision() != 1 ||
+		first->resource->GetDesc().Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB) return false;
 	const uint32_t firstIndex = first->srvIndex;
 	const uint64_t firstRevision = textures.GetContentRevision();
 	DxUtils::CreateReadbackBufferResource(device, readback, 1024);
@@ -186,6 +258,7 @@ bool NEMTests::RecordTexturePublication(ID3D12Device* device,
 	copy(first->resource.Get(), 0);
 	if (!save(true)) return false;
 	textures.RequestReload(request.key);
+	textures.RequestReload(request.key);
 	textures.WaitAll();
 	const auto* second = textures.GetTexture(request.key);
 	if (!second || !second->valid || second->srvIndex == firstIndex ||
@@ -197,13 +270,23 @@ bool NEMTests::RecordTexturePublication(ID3D12Device* device,
 	textures.RequestReload(request.key);
 	textures.WaitAll();
 	const auto* retained = textures.GetTexture(request.key);
-	const bool valid = retained && retained->srvIndex == secondIndex && textures.GetContentRevision() == firstRevision + 1;
+	bool valid = retained && retained->srvIndex == secondIndex && textures.GetContentRevision() == firstRevision + 1;
+	// 初回失敗した別キーも再読込要求から復帰する
+	request.key = "TexturePublicationRetry";
+	textures.RequestTextureFile(request);
+	textures.WaitAll();
+	valid &= textures.GetState(request.key) == Engine::TextureRequestState::Failed;
+	if (!save(false)) return false;
+	textures.RequestReload(request.key);
+	textures.WaitAll();
+	const auto* recovered = textures.GetTexture(request.key);
+	valid &= recovered && recovered->valid && textures.GetContentRevision() == firstRevision + 2;
 	textures.Finalize();
 	return valid && descriptors.IsAllocated(firstIndex) && descriptors.IsAllocated(secondIndex);
 }
 
 bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* queue,
-	ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors) {
+	ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback) {
 
 	ImGui::CreateContext();
 	struct ContextLifetime {
@@ -265,6 +348,16 @@ bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* q
 	ID3D12DescriptorHeap* heaps[]{ descriptors.GetDescriptorHeap() };
 	commands->SetDescriptorHeaps(1, heaps);
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands);
+	// Backend終了後に実行される描画結果も読み戻す
+	DxUtils::CreateReadbackBufferResource(device, readback, 8 * D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const auto toCopy = CD3DX12_RESOURCE_BARRIER::Transition(target.Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	commands->ResourceBarrier(1, &toCopy);
+	const D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{ 0,
+		{ DXGI_FORMAT_R8G8B8A8_UNORM, 8, 8, 1, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT } };
+	const CD3DX12_TEXTURE_COPY_LOCATION source(target.Get(), 0);
+	const CD3DX12_TEXTURE_COPY_LOCATION destination(readback.Get(), footprint);
+	commands->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
 	const size_t beforeShutdown = descriptors.GetRetirementQueue().GetPendingCount();
 	// 提出前にBackendを終了し、GPU資源だけを回収窓口へ残す
 	ImGui_ImplDX12_Shutdown();

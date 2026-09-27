@@ -1,4 +1,5 @@
 #include "EngineApplication.h"
+#include "EditorRenderBenchmark.h"
 
 //============================================================================
 //	include
@@ -22,6 +23,7 @@
 
 // c++
 #include <algorithm>
+#include <cstdio>
 
 using namespace Engine;
 
@@ -139,7 +141,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	if (ShouldAdvanceActiveWorld()) {
 
 		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
-		// Play中にscript例外が出たらUnity風にEditへ戻すため、tick前後で例外storeのversionを比べる
+			// callback後の安全地点でScript例外によるPauseを反映する
 		const bool playingThisTick = worldManager_.IsPlaying();
 		const uint64_t sceneRevisionBeforeTick = playingThisTick ?
 			playScenes_.GetRevision() : 0;
@@ -157,11 +159,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		}
 		if (playingThisTick && ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
 
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"EngineApplication: Play中のScript例外を検出したためEditへ戻ります");
-			StopPlayWorld();
-			world = systemContext_.world;
-			header = systemContext_.activeSceneHeader;
+			playSession_->PauseForScriptException();
 		}
 	}
 	if (HandleApplicationQuitRequest()) {
@@ -253,16 +251,41 @@ void Engine::EngineApplication::RenderPlatformWindows([[maybe_unused]] GraphicsC
 	}
 }
 
+const Engine::RenderTexture2D* Engine::EngineApplication::GetRenderedViewTexture(RenderViewKind kind, const std::string& attachment) const {
+
+	return attachment.empty() ? renderPipeline_->GetViewportRenderService().GetDisplayTexture(kind) :
+		renderPipeline_->FindViewColorTexture(kind, attachment);
+}
+
 int Engine::RunEditorApplication() {
 
+	wchar_t benchmarkPath[32768]{};
+	const DWORD benchmarkLength = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK", benchmarkPath, 32768);
+	const bool benchmarkRequested = benchmarkLength != 0 && benchmarkLength < 32768;
+	auto reportFailure = [benchmarkRequested](const char* message) {
+
+		// 自動計測はダイアログ待ちにせず終了コードと診断を返す
+		if (benchmarkRequested) {
+			std::fprintf(stderr, "%s\n", message);
+			return 1;
+		}
+		return Framework::ReportFailure(message);
+	};
 	try {
-		Framework framework(std::make_unique<EngineApplication>());
+		auto editor = std::make_unique<EngineApplication>();
+		std::unique_ptr<IEngineApplication> application;
+		if (benchmarkRequested) {
+			application = std::make_unique<EditorRenderBenchmark>(std::move(editor), benchmarkPath);
+		} else {
+			application = std::move(editor);
+		}
+		Framework framework(std::move(application));
 		framework.Run();
 		return 0;
 	} catch (const std::exception& error) {
-		return Framework::ReportFailure(error.what());
+		return reportFailure(error.what());
 	} catch (...) {
-		return Framework::ReportFailure("C++例外の詳細を取得できませんでした");
+		return reportFailure("C++例外の詳細を取得できませんでした");
 	}
 }
 
@@ -320,9 +343,19 @@ bool Engine::EngineApplication::SaveActiveEditScene() {
 	return sceneSaveController_->SaveActiveEditScene();
 }
 
-bool Engine::EngineApplication::SaveAllEditScenes() {
+Engine::SceneSaveOutcome Engine::EngineApplication::SaveAllEditScenes(
+	const std::unordered_map<AssetID, UUID>& selectedInstances) {
 
-	return sceneSaveController_->SaveAllEditScenes();
+	const SceneSaveOutcome outcome = sceneSaveController_->SaveAllEditScenes(selectedInstances);
+	if (outcome == SceneSaveOutcome::Conflict) {
+		const std::vector<SceneSaveConflictChoice> conflicts =
+			sceneSaveController_->ConsumePendingConflicts();
+		if (!conflicts.empty()) {
+			// 保存元が決まるまでSceneファイルを書き換えない
+			editorManager_.RequestSceneSaveConflict(conflicts);
+		}
+	}
+	return outcome;
 }
 
 void Engine::EngineApplication::UpdateSceneSave() {
@@ -385,7 +418,6 @@ Engine::EngineApplication::EngineApplication() {
 		editScenes_,
 		sceneSystem_,
 		editorManager_,
-		activeScenePath_,
 		[this]() { RestoreEditModeUIVisuals(); });
 	playSession_ = std::make_unique<EditorPlaySession>(assetDatabase_,
 		worldManager_,
@@ -399,7 +431,7 @@ Engine::EngineApplication::EngineApplication() {
 		scriptBuildService_,
 		requestFrameDeltaReset_,
 		[this]() { return IsPrefabEditing(); },
-		[this]() { return SaveAllEditScenes(); },
+		[this]() { SaveScenesAndContinue({ EditorSceneSaveAction::Play, {} }); },
 		[this]() { RefreshActiveWorldContext(); });
 	renderRequestBuilder_ = std::make_unique<EditorRenderRequestBuilder>(systemContext_,
 		assetDatabase_,

@@ -3,13 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Scene/Serialization/EntitySnapshotDuplicator.h>
 
 //============================================================================
 //	EditorEntityDuplicateUtility classMethods
@@ -28,53 +26,6 @@ namespace {
 		}
 		return name;
 	}
-	// コンポーネントからシーンオブジェクトのローカルファイルIDを読み取る
-	Engine::UUID ReadLocalFileIDFromComponents(const nlohmann::json& components) {
-
-		if (!components.contains("SceneObject")) {
-			return Engine::UUID{};
-		}
-
-		const std::string localID = components["SceneObject"].value("localFileId", "");
-		return localID.empty() ? Engine::UUID{} : Engine::FromString16Hex(localID);
-	}
-	// コンポーネントにシーンオブジェクトのローカルファイルIDを書き込む
-	void WriteLocalFileIDToComponents(nlohmann::json& components, Engine::UUID localFileID) {
-
-		if (!components.contains("SceneObject")) {
-			components["SceneObject"] = nlohmann::json::object();
-		}
-		components["SceneObject"]["localFileId"] = localFileID ? Engine::ToString(localFileID) : "";
-	}
-	// コンポーネントから親のローカルファイルIDを読み取る
-	Engine::UUID ReadParentLocalFileIDFromComponents(const nlohmann::json& components) {
-
-		if (!components.contains("Hierarchy")) {
-			return Engine::UUID{};
-		}
-		const std::string parentLocalID = components["Hierarchy"].value("parentLocalFileID", "");
-		return parentLocalID.empty() ? Engine::UUID{} : Engine::FromString16Hex(parentLocalID);
-	}
-	// コンポーネントに親のローカルファイルIDを書き込む
-	void WriteParentLocalFileIDToComponents(nlohmann::json& components, Engine::UUID parentLocalFileID) {
-
-		if (!components.contains("Hierarchy")) {
-			components["Hierarchy"] = nlohmann::json::object();
-		}
-		components["Hierarchy"]["parentLocalFileID"] = parentLocalFileID ? Engine::ToString(parentLocalFileID) : "";
-	}
-	// スナップショットのルートの名前を変更しルートが存在しない場合は何もしない
-	void WriteRootNameToSnapshot(Engine::EditorEntityTreeSnapshot& snapshot, const std::string_view& name) {
-
-		if (snapshot.IsEmpty()) {
-			return;
-		}
-		auto& root = snapshot.entities.front();
-		if (!root.components.contains("Name")) {
-			root.components["Name"] = nlohmann::json::object();
-		}
-		root.components["Name"]["name"] = std::string(name);
-	}
 	// エンティティとその子孫にシーンインスタンスIDとソースアセットを設定する
 	void PropagateSceneRuntimeState(Engine::ECSWorld& world, const Engine::Entity& entity,
 		Engine::UUID sceneInstanceID, Engine::AssetID sourceAsset) {
@@ -88,7 +39,7 @@ namespace {
 			if (sceneInstanceID) {
 				sceneObject.sceneInstanceID = sceneInstanceID;
 			}
-			if (sourceAsset) {
+			if (!sceneObject.sourceAsset && sourceAsset) {
 				sceneObject.sourceAsset = sourceAsset;
 			}
 		}
@@ -105,116 +56,7 @@ std::string Engine::EditorEntityDuplicateUtility::MakeUniqueDuplicatedName(
 
 void Engine::EditorEntityDuplicateUtility::ClearRootParentLink(EditorEntityTreeSnapshot& snapshot) {
 
-	if (snapshot.IsEmpty()) {
-		return;
-	}
-	WriteParentLocalFileIDToComponents(snapshot.entities.front().components, UUID{});
-}
-
-void Engine::EditorEntityDuplicateUtility::BuildDuplicateSnapshot(const EditorEntityTreeSnapshot& sourceSnapshot,
-	const std::string_view& duplicatedRootName, EditorEntityTreeSnapshot& outSnapshot) {
-
-	outSnapshot.Clear();
-	if (sourceSnapshot.IsEmpty()) {
-		return;
-	}
-
-	std::unordered_map<UUID, UUID> stableUUIDMap;
-	std::unordered_map<UUID, UUID> localFileIDMap;
-	std::unordered_map<UUID, UUID> prefabInstanceIDMap;
-	stableUUIDMap.reserve(sourceSnapshot.entities.size());
-	localFileIDMap.reserve(sourceSnapshot.entities.size());
-	prefabInstanceIDMap.reserve(sourceSnapshot.entities.size());
-
-	// 複製後に使用するUUID、ローカルファイルID、プレファブインスタンスIDを生成
-	for (const auto& sourceEntity : sourceSnapshot.entities) {
-
-		stableUUIDMap[sourceEntity.stableUUID] = UUID::New();
-		const UUID oldLocalFileID = ReadLocalFileIDFromComponents(sourceEntity.components);
-		if (oldLocalFileID) {
-
-			localFileIDMap[oldLocalFileID] = UUID::New();
-		}
-		if (sourceEntity.components.contains("PrefabLink")) {
-
-			const PrefabLinkComponent prefabLink =
-				sourceEntity.components["PrefabLink"].get<PrefabLinkComponent>();
-			if (prefabLink.isPrefabRoot && prefabLink.prefabInstanceID &&
-				!prefabInstanceIDMap.contains(prefabLink.prefabInstanceID)) {
-
-				prefabInstanceIDMap[prefabLink.prefabInstanceID] = UUID::New();
-			}
-		}
-	}
-
-	// UUIDのマッピングを作成した後で、ルートのStableUUIDを先に書き換えておく
-	outSnapshot.rootStableUUID = stableUUIDMap[sourceSnapshot.rootStableUUID];
-	outSnapshot.entities.reserve(sourceSnapshot.entities.size());
-
-	// jsonを複製して参照IDを書き換える
-	for (const auto& sourceEntity : sourceSnapshot.entities) {
-
-		SerializedEntitySnapshot duplicatedEntity{};
-		duplicatedEntity.stableUUID = stableUUIDMap[sourceEntity.stableUUID];
-		duplicatedEntity.components = sourceEntity.components;
-
-		// シーンオブジェクトのローカルフィールドIDを再生成
-		const UUID oldLocalFileID = ReadLocalFileIDFromComponents(duplicatedEntity.components);
-		if (oldLocalFileID && localFileIDMap.contains(oldLocalFileID)) {
-
-			WriteLocalFileIDToComponents(duplicatedEntity.components, localFileIDMap.at(oldLocalFileID));
-		}
-		// 複製範囲内のスキンメッシュへ接続されている場合は新しいローカルIDへ張り替える
-		if (duplicatedEntity.components.contains("JointAttachment")) {
-
-			auto& attachment = duplicatedEntity.components["JointAttachment"];
-			const std::string target = attachment.value("skinnedEntityLocalFileID", "");
-			const UUID oldTarget = target.empty() ? UUID{} : FromString16Hex(target);
-			if (oldTarget && localFileIDMap.contains(oldTarget)) {
-				attachment["skinnedEntityLocalFileID"] = ToString(localFileIDMap.at(oldTarget));
-			}
-		}
-		if (duplicatedEntity.components.contains("PrefabLink")) {
-
-			PrefabLinkComponent prefabLink = duplicatedEntity.components["PrefabLink"].get<PrefabLinkComponent>();
-			if (prefabLink.prefabInstanceID && prefabInstanceIDMap.contains(prefabLink.prefabInstanceID)) {
-
-				prefabLink.prefabInstanceID = prefabInstanceIDMap.at(prefabLink.prefabInstanceID);
-				// 複製範囲外の所有者やスロットを新しいルートへ持ち込まない
-				if (prefabInstanceIDMap.contains(prefabLink.ownerPrefabInstanceID)) {
-					prefabLink.ownerPrefabInstanceID = prefabInstanceIDMap.at(prefabLink.ownerPrefabInstanceID);
-				} else {
-					prefabLink.ownerPrefabInstanceID = {};
-					prefabLink.nestedSlotID = {};
-					prefabLink.isPrefabAssetNested = false;
-				}
-				duplicatedEntity.components["PrefabLink"] = prefabLink;
-			} else {
-				// ルートを含まない部分複製は追加Entityとして扱う
-				duplicatedEntity.components.erase("PrefabLink");
-			}
-		}
-
-		// ヒエラルキーのローカルフィールドIDを内部複製用に張り替える
-		if (duplicatedEntity.stableUUID == outSnapshot.rootStableUUID) {
-
-			// ルートの親はコマンド側で外部親へ付けるので、いったん切る
-			WriteParentLocalFileIDToComponents(duplicatedEntity.components, UUID{});
-		} else {
-
-			const UUID oldParentLocalID = ReadParentLocalFileIDFromComponents(duplicatedEntity.components);
-			if (oldParentLocalID && localFileIDMap.contains(oldParentLocalID)) {
-
-				WriteParentLocalFileIDToComponents(duplicatedEntity.components, localFileIDMap.at(oldParentLocalID));
-			} else {
-
-				WriteParentLocalFileIDToComponents(duplicatedEntity.components, UUID{});
-			}
-		}
-		// スナップショットエンティティに追加
-		outSnapshot.entities.emplace_back(std::move(duplicatedEntity));
-	}
-	WriteRootNameToSnapshot(outSnapshot, duplicatedRootName);
+	EntitySnapshotDuplicator::ClearRootParentLink(snapshot);
 }
 
 Engine::Entity Engine::EditorEntityDuplicateUtility::InstantiatePreparedSnapshot(ECSWorld& world,

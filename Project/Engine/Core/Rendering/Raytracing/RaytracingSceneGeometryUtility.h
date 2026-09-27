@@ -22,7 +22,8 @@ namespace Engine {
 namespace Engine::RaytracingSceneGeometryUtility {
 
 	// 描画Flagを変換する
-	uint32_t ToRaytracingRenderFlags(Engine::MeshRenderFlags flags);
+	uint32_t ToRaytracingRenderFlags(Engine::MeshRenderFlags flags,
+		uint32_t renderingLayerMask = 0xFFFFFFFFu);
 	// Cull設定を変換する
 	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
 		const D3D12_RASTERIZER_DESC& rasterizer);
@@ -42,7 +43,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	// TLASの再構築条件を判定する
 	bool RequiresTLASRebuildForTraceQuality(
 		size_t instanceCount, uint32_t changedInstanceCount);
-	// 行列の最大Scaleを求める
+	// せん断を含む変換の最大伸長率を上から抑える
 	float GetMatrixMaxScale(const Engine::Matrix4x4& matrix);
 	// 包含する球を更新する
 	void EncapsulateSphere(const Engine::Vector3& sourceCenter,
@@ -59,10 +60,10 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	// 画面上の大きさからLODを選択する
 	uint32_t ResolveMeshLOD(
 		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* cullingView,
+		const Engine::ResolvedRenderView* lodView,
 		const Engine::Vector3& center, float radius);
 	// LODのView条件を識別する
 	uint64_t ComputeLODViewHash(
 		const Engine::GraphicsRuntimeFeatures& features,
-		const Engine::ResolvedRenderView* cullingView);
+		const Engine::ResolvedRenderView* lodView);
 }

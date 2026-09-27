@@ -25,6 +25,7 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
@@ -250,6 +251,7 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 	}
 
 	// Redoでも同じUUIDを使えるようにする
+	SceneCreationScope creation(*world);
 	Entity entity = world->CreateEntity(createdStableUUID_);
 	if (!createdStableUUID_) {
 
@@ -297,11 +299,14 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 	}
 
 	ApplyPreset(*world, entity);
+	// LocalFileIDと初期値もRedoで再利用する
+	EditorEntitySnapshotUtility::CaptureSubtree(*world, entity, snapshot_);
 
 	if (context.editorState) {
 
 		context.editorState->SelectEntity(entity);
 	}
+	creation.Commit();
 	return true;
 }
 
@@ -334,5 +339,5 @@ void Engine::CreateEntityCommand::Undo(EditorCommandContext& context) {
 
 bool Engine::CreateEntityCommand::Redo(EditorCommandContext& context) {
 
-	return CreateInternal(context);
+	return EditorEntitySnapshotUtility::RestoreCommandSnapshot(context, snapshot_).IsValid();
 }

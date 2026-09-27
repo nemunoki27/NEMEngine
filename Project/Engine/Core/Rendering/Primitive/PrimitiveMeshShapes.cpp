@@ -13,8 +13,8 @@ namespace {
 
 void Engine::PrimitiveMeshGenerator::GeneratePlane(const PrimitivePlaneParams& params, PrimitiveMeshData& out) {
 
-	const int32_t divideX = std::clamp(params.divideX, 1, kMaxPrimitiveDivide);
-	const int32_t divideY = std::clamp(params.divideY, 1, kMaxPrimitiveDivide);
+	const int32_t divideX = ClampDivide(params.divideX, 1);
+	const int32_t divideY = ClampDivide(params.divideY, 1);
 	const float halfX = params.size.x * 0.5f;
 	const float halfY = params.size.y * 0.5f;
 	// pivotを原点に合わせるためのオフセット
@@ -65,8 +65,8 @@ void Engine::PrimitiveMeshGenerator::GeneratePlane(const PrimitivePlaneParams& p
 
 void Engine::PrimitiveMeshGenerator::GenerateSphere(const PrimitiveSphereParams& params, PrimitiveMeshData& out) {
 
-	const int32_t longitude = std::clamp(params.longitudeDivide, 3, kMaxPrimitiveDivide);
-	const int32_t latitude = std::clamp(params.latitudeDivide, 2, kMaxPrimitiveDivide);
+	const int32_t longitude = ClampDivide(params.longitudeDivide, 3);
+	const int32_t latitude = ClampDivide(params.latitudeDivide, 2);
 	const float radius = params.radius;
 	constexpr float pi = std::numbers::pi_v<float>;
 
@@ -107,7 +107,7 @@ void Engine::PrimitiveMeshGenerator::GenerateSphere(const PrimitiveSphereParams&
 
 void Engine::PrimitiveMeshGenerator::GenerateCrossPlane(const PrimitiveCrossPlaneParams& params, PrimitiveMeshData& out) {
 
-	const int32_t planeCount = std::clamp(params.planeCount, 1, kMaxPrimitiveDivide);
+	const int32_t planeCount = ClampDivide(params.planeCount, 1);
 	const float halfX = params.size.x * 0.5f;
 	const float halfY = params.size.y * 0.5f;
 	const float offsetX = Lerp(-halfX, halfX, params.pivot.x);
@@ -144,7 +144,7 @@ void Engine::PrimitiveMeshGenerator::GenerateCrossPlane(const PrimitiveCrossPlan
 
 void Engine::PrimitiveMeshGenerator::GenerateRing(const PrimitiveRingParams& params, PrimitiveMeshData& out) {
 
-	const int32_t divide = std::clamp(params.divide, 3, kMaxPrimitiveDivide);
+	const int32_t divide = ClampDivide(params.divide, 3);
 	const float outer = params.outerRadius;
 	const float inner = params.innerRadius;
 	// 度数法の開始角から終了角までをラジアンへ直して分割する、全周なら従来どおり閉じたリングになる
@@ -185,11 +185,8 @@ void Engine::PrimitiveMeshGenerator::GenerateRing(const PrimitiveRingParams& par
 
 void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderParams& params, PrimitiveMeshData& out) {
 
-	const int32_t radialDivide = std::clamp(params.radialDivide, 3, kMaxPrimitiveDivide);
-	int32_t heightDivide = std::clamp(params.heightDivide, 2, kMaxPrimitiveDivide);
-	if ((heightDivide & 1) != 0 && heightDivide < kMaxPrimitiveDivide) {
-		++heightDivide;
-	}
+	const int32_t radialDivide = ClampDivide(params.radialDivide, 3);
+	const int32_t heightDivide = ClampCylinderHeightDivide(params.heightDivide);
 	const float topRadius = params.topRadius;
 	const float centerRadius = params.centerRadius;
 	const float bottomRadius = params.bottomRadius;
@@ -306,8 +303,8 @@ void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderPar
 
 void Engine::PrimitiveMeshGenerator::GenerateHemisphere(const PrimitiveHemisphereParams& params, PrimitiveMeshData& out) {
 
-	const int32_t longitude = std::clamp(params.longitudeDivide, 3, kMaxPrimitiveDivide);
-	const int32_t latitude = std::clamp(params.latitudeDivide, 1, kMaxPrimitiveDivide);
+	const int32_t longitude = ClampDivide(params.longitudeDivide, 3);
+	const int32_t latitude = ClampDivide(params.latitudeDivide, 1);
 	const float radius = params.radius;
 	constexpr float pi = std::numbers::pi_v<float>;
 

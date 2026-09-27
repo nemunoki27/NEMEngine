@@ -126,3 +126,17 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 		return false;
 	}
 }
+
+bool Engine::AssetTypeResolver::IsJsonAssetFile(AssetType type, const std::filesystem::path& path) {
+
+	const auto extension = Algorithm::ToLower(Algorithm::PathToUTF8(path.extension()));
+	if (type == AssetType::Font) {
+		return extension == ".json";
+	}
+	if (!IsJsonAssetType(type)) {
+		return false;
+	}
+	return extension == ".json" || extension == ".scene" || extension == ".prefab" ||
+		extension == ".effect" || extension == ".material" || extension == ".shadergraph" ||
+		extension == ".shader" || extension == ".animclip";
+}

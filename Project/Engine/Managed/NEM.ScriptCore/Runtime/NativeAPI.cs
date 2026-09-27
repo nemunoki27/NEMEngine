@@ -55,7 +55,8 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> GetScriptEnabled;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> SetScriptEnabled;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> GetScriptInstance;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int> AttachScript;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> AttachScript;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, void> RemoveScript;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> GetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SetComponentProperty;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> GetComponentStringProperty;
@@ -100,7 +101,7 @@ internal static unsafe class NativeAPI {
     // Diagnostics(v8): script callback 例外の構造化報告
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
     // v11: EntityRef(sourceAsset, localFileID) を runtime entity へ解決する
-    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity> ResolveEntityRef;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity, NativeEntity> ResolveEntityRef;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> LineSetPoints;
     internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, AssetGUID, void> LineDrawImmediate;
     internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID, void> LineDrawSphereImmediate;
@@ -251,6 +252,7 @@ internal static unsafe class NativeAPI {
         SetScriptEnabled = callbacks->setScriptEnabled;
         GetScriptInstance = callbacks->getScriptInstance;
         AttachScript = callbacks->attachScript;
+        RemoveScript = callbacks->removeScript;
         GetComponentProperty = callbacks->getComponentProperty;
         SetComponentProperty = callbacks->setComponentProperty;
         GetComponentStringProperty = callbacks->getComponentStringProperty;

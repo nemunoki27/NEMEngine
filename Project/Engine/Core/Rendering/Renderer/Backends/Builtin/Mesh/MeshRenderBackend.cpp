@@ -171,7 +171,8 @@ void Engine::MeshRenderBackend::PreDispatchSkinningBatch(const RenderDrawContext
 	}
 
 	// スキニング対象だけ先にディスパッチして頂点を更新
-	skinningDispatcher_.Dispatch(context, prepared);
+	prepared.resources->SetSkinningAvailable(skinningDispatcher_.Dispatch(context, prepared));
+	RegisterSkinnedSources(prepared.batchMesh, *prepared.resources, prepared.items);
 }
 
 bool Engine::MeshRenderBackend::FindSkinnedVertexSource(ECSWorld* world, Entity entity, AssetID mesh,
@@ -179,6 +180,7 @@ bool Engine::MeshRenderBackend::FindSkinnedVertexSource(ECSWorld* world, Entity 
 
 	SkinnedSourceLookupKey key{};
 	key.world = world;
+	key.worldLifetime = world ? world->GetLifetime() : nullptr;
 	key.entity = entity;
 	key.mesh = mesh;
 
@@ -226,7 +228,8 @@ void Engine::MeshRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 
 	// スキニング更新フォロースルー
-	skinningDispatcher_.Dispatch(context, prepared);
+	prepared.resources->SetSkinningAvailable(skinningDispatcher_.Dispatch(context, prepared));
+	RegisterSkinnedSources(prepared.batchMesh, *prepared.resources, prepared.items);
 
 	// パイプラインを設定
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
@@ -332,26 +335,27 @@ void Engine::MeshRenderBackend::PruneSkinnedBatchCache() {
 void Engine::MeshRenderBackend::RegisterSkinnedSources(AssetID meshAssetID, MeshBatchResources& resources,
 	std::span<const RenderItem* const> items) {
 
-	// スキニング用のリソースがない場合は何もしない
-	if (!resources.HasSkinningResources()) {
-		return;
-	}
-
 	for (const RenderItem* item : items) {
 		if (!item || !item->world) {
-			continue;
-		}
-
-		uint32_t vertexOffset = 0;
-		if (!resources.FindSkinnedVertexOffset(item->world, item->entity, vertexOffset)) {
 			continue;
 		}
 
 		// スキニング頂点の検索テーブルのキーを構築する
 		SkinnedSourceLookupKey key{};
 		key.world = item->world;
+		key.worldLifetime = item->world->GetLifetime();
 		key.entity = item->entity;
 		key.mesh = meshAssetID;
+		// 計算失敗後に前回の検索結果を使わない
+		if (!resources.IsSkinningDispatched()) {
+			skinnedSourceLookup_.erase(key);
+			continue;
+		}
+		uint32_t vertexOffset = 0;
+		if (!resources.FindSkinnedVertexOffset(item->world, item->entity, vertexOffset)) {
+			skinnedSourceLookup_.erase(key);
+			continue;
+		}
 
 		// スキニング頂点のGPUリソース情報を登録する
 		SkinnedVertexSource source{};
@@ -359,10 +363,7 @@ void Engine::MeshRenderBackend::RegisterSkinnedSources(AssetID meshAssetID, Mesh
 		source.srvIndex = resources.GetSkinnedVerticesSRVIndex();
 		source.vertexOffset = vertexOffset;
 		source.bufferGeneration = resources.GetSkinningBufferGeneration();
-		if (const SkinnedAnimationRuntimeData* runtime =
-			TryGetSkinnedAnimationRuntime(*item->world, item->entity)) {
-			source.poseGeneration = runtime->poseGeneration;
-		}
+		source.poseGeneration = resources.GetSkinningResultGeneration();
 
 		// 同一エンティティが複数回描画される場合は、最後のものが登録される
 		skinnedSourceLookup_[key] = source;
@@ -383,12 +384,13 @@ namespace Engine {
 
 	bool MeshRenderBackend::SkinnedBatchCacheKey::operator==(const SkinnedBatchCacheKey& rhs) const noexcept {
 
-		return world == rhs.world && mesh == rhs.mesh && hash == rhs.hash;
+		return world == rhs.world && worldLifetime == rhs.worldLifetime && mesh == rhs.mesh && hash == rhs.hash;
 	}
 
 	size_t MeshRenderBackend::SkinnedBatchCacheKeyHash::operator()(const SkinnedBatchCacheKey& key) const noexcept {
 
 		size_t h = std::hash<void*>{}(key.world);
+		h ^= std::hash<const void*>{}(key.worldLifetime.get());
 		h ^= (std::hash<AssetID>{}(key.mesh) << 1);
 		h ^= (std::hash<uint64_t>{}(key.hash) << 2);
 		return h;
@@ -396,13 +398,14 @@ namespace Engine {
 
 	bool MeshRenderBackend::SkinnedSourceLookupKey::operator==(const SkinnedSourceLookupKey& rhs) const noexcept {
 
-		return world == rhs.world && entity.index == rhs.entity.index &&
+		return world == rhs.world && worldLifetime == rhs.worldLifetime && entity.index == rhs.entity.index &&
 			entity.generation == rhs.entity.generation && mesh == rhs.mesh;
 	}
 
 	size_t MeshRenderBackend::SkinnedSourceLookupKeyHash::operator()(const SkinnedSourceLookupKey& key) const noexcept {
 
 		size_t h = std::hash<void*>{}(key.world);
+		h ^= std::hash<const void*>{}(key.worldLifetime.get());
 		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
 		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
 		h ^= (std::hash<AssetID>{}(key.mesh) << 3);
