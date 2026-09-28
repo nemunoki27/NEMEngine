@@ -40,7 +40,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.85f);
+	ImGui::SetWindowFontScale(0.8f);
 
 	//============================================================================
 	//	製品ビルド
@@ -52,7 +52,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	if (ImGui::BeginMenu("編集補助")) {
 
-		ImGui::SetWindowFontScale(0.72f);
+		ImGui::SetWindowFontScale(0.8f);
 
 		// それぞれの操作の実行可能かどうかを判定する
 		const bool canUndo = !context.IsPlaying() && context.editorState &&
@@ -108,7 +108,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	if (ImGui::BeginMenu("ウィンドウ")) {
 
-		ImGui::SetWindowFontScale(0.72f);
+		ImGui::SetWindowFontScale(0.8f);
 
 		ImGui::MenuItem("パネルを全て非表示", "Tab+Esc", &context.layoutState->hidePanels);
 		ImGui::MenuItem("Play開始時にSceneを保存", nullptr,
@@ -133,7 +133,7 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 	//============================================================================
 	if (ImGui::BeginMenu("グラフィックス設定")) {
 
-		ImGui::SetWindowFontScale(0.85f);
+		ImGui::SetWindowFontScale(0.8f);
 
 		auto& featureController = context.graphicsPlatform->GetFeatureController();
 		const auto& adapterInfo = featureController.GetAdapterInfo();
@@ -484,7 +484,7 @@ void Engine::MenuBarPanel::DrawEditorLayoutMenu(const EditorPanelContext& contex
 		return;
 	}
 
-	ImGui::SetWindowFontScale(0.72f);
+	ImGui::SetWindowFontScale(0.8f);
 	if (ImGui::MenuItem("現在のレイアウトを保存")) {
 
 		layoutNameBuffer_.clear();
@@ -539,6 +539,8 @@ void Engine::MenuBarPanel::DrawLayoutSavePopup(const EditorPanelContext& context
 		return;
 	}
 
+	ImGui::SetWindowFontScale(0.8f);
+
 	ImGui::Text("レイアウト名");
 	ImGui::Separator();
 	TextInputPopupResult inputResult = MyGUI::InputTextPopupContent("名前", layoutNameBuffer_,
@@ -555,5 +557,6 @@ void Engine::MenuBarPanel::DrawLayoutSavePopup(const EditorPanelContext& context
 		layoutSaveError_.clear();
 		ImGui::CloseCurrentPopup();
 	}
+	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndPopup();
 }

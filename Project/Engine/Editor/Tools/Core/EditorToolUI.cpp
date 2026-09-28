@@ -63,6 +63,7 @@ namespace {
 			return;
 		}
 
+		ImGui::SetWindowFontScale(0.8f);
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
 		ImGui::TextDisabled("[%s]", OwnerLabel(desc.owner));
 		if (!desc.description.empty()) {
@@ -73,6 +74,7 @@ namespace {
 			ImGui::TextUnformatted("現在のモードではこのツールを開けません。");
 		}
 		ImGui::PopTextWrapPos();
+		ImGui::SetWindowFontScale(1.0f);
 		ImGui::EndTooltip();
 	}
 
@@ -101,6 +103,8 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 		return;
 	}
 
+	ImGui::SetWindowFontScale(0.8f);
+
 	const auto tools = CollectEditorTools();
 	const ToolContext toolContext = MakeToolContext(context);
 	std::string openToolID;
@@ -121,6 +125,7 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 		// 空カテゴリと、表示名が「その他」のカテゴリも識別できる。
 		ImGui::PushID(category.c_str());
 		if (ImGui::BeginMenu(category.empty() ? "その他" : category.c_str())) {
+			ImGui::SetWindowFontScale(0.8f);
 			for (std::size_t index = first; index < last; ++index) {
 				IEditorTool& tool = *tools[index];
 				const ToolDescriptor& desc = tool.GetDescriptor();
@@ -135,12 +140,14 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 				DrawToolTooltip(desc, enabled);
 				ImGui::PopID();
 			}
+			ImGui::SetWindowFontScale(1.0f);
 			ImGui::EndMenu();
 		}
 		ImGui::PopID();
 		first = last;
 	}
 
+	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndMenu();
 
 	// 一覧の走査が終わってから開く。既存インスタンスを再利用する。
