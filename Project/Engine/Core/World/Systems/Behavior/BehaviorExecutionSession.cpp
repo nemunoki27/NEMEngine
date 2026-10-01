@@ -54,6 +54,8 @@ void Engine::BehaviorExecutionSession::ResetRuntimeState([[maybe_unused]] ECSWor
 	dirtyScriptEntities_.clear();
 	enableTransitionsDirty_ = true;
 	fullSyncRequested_ = true;
+	reloadSnapshots_.clear();
+	reloadPrepared_ = false;
 	// 実行時対応はBehaviorWorldが所有し、Script設定側へキャッシュしない
 }
 

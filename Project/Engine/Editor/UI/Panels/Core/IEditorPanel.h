@@ -27,6 +27,14 @@ namespace Engine {
 		PostScene,
 	};
 
+	// パネルの未確定編集を閉じる要求の結果
+	enum class EditorPanelCloseResult : uint8_t {
+
+		None,
+		Accepted,
+		Cancelled,
+	};
+
 	// ドラッグ&ドロップのペイロード構造体
 	struct EditorAssetDragDropPayload {
 
@@ -62,6 +70,9 @@ namespace Engine {
 
 		virtual EditorPanelPhase GetPhase() const { return EditorPanelPhase::PreScene; }
 		virtual bool CanDuplicate([[maybe_unused]] const EditorPanelContext& context) const { return false; }
+		virtual bool HasPendingEdits() const { return false; }
+		virtual void RequestResolvePendingEdits() {}
+		virtual EditorPanelCloseResult ConsumePendingEditCloseResult() { return EditorPanelCloseResult::None; }
 		const std::string& GetPanelTypeID() const { return panelTypeID_; }
 		const std::string& GetInstanceID() const { return instanceID_; }
 		bool IsPrimaryInstance() const { return primaryInstance_; }

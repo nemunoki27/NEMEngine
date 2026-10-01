@@ -9,6 +9,7 @@
 #include <vector>
 
 namespace {
+	constexpr size_t kMaximumPendingOutputBytes = 1024u * 1024u;
 
 	// 現在の環境ブロックを複製しDOTNET_CLI_UI_LANGUAGE=enを上書きしたUnicode環境ブロックをダブルnull終端で構築する
 	std::vector<wchar_t> BuildChildEnvironmentBlock() {
@@ -96,7 +97,7 @@ bool Engine::ManagedProcessRunner::Start(const std::wstring& commandLine, const 
 		nullptr,
 		nullptr,
 		TRUE, // pipe write end を継承させる
-		CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
+		CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED,
 		environmentBlock.data(),
 		workingDirectoryString.empty() ? nullptr : workingDirectoryString.c_str(),
 		&startupInfo,
@@ -111,9 +112,28 @@ bool Engine::ManagedProcessRunner::Start(const std::wstring& commandLine, const 
 		return false;
 	}
 
+	// dotnetが起動する子孫もEditor終了時にまとめて停止する
+	HANDLE job = ::CreateJobObjectW(nullptr, nullptr);
+	if (job) {
+
+		JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+		limits.BasicLimitInformation.LimitFlags =
+			JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+		if (!::SetInformationJobObject(job,
+			JobObjectExtendedLimitInformation,
+			&limits, sizeof(limits)) ||
+			!::AssignProcessToJobObject(job, processInfo.hProcess)) {
+
+			::CloseHandle(job);
+			job = nullptr;
+		}
+	}
+	::ResumeThread(processInfo.hThread);
+
 	process_ = processInfo.hProcess;
 	thread_ = processInfo.hThread;
 	stdoutRead_ = readEnd;
+	job_ = job;
 	pending_.clear();
 	exitCode_ = -1;
 	return true;
@@ -156,7 +176,11 @@ void Engine::ManagedProcessRunner::Terminate() {
 		// まだ実行中なら終了させてから回収する
 		if (::WaitForSingleObject(static_cast<HANDLE>(process_), 0) != WAIT_OBJECT_0) {
 
-			::TerminateProcess(static_cast<HANDLE>(process_), 1);
+			if (job_) {
+				::TerminateJobObject(static_cast<HANDLE>(job_), 1);
+			} else {
+				::TerminateProcess(static_cast<HANDLE>(process_), 1);
+			}
 			::WaitForSingleObject(static_cast<HANDLE>(process_), 2000);
 		}
 	}
@@ -177,6 +201,10 @@ void Engine::ManagedProcessRunner::CloseHandles() {
 	if (stdoutRead_) {
 		::CloseHandle(static_cast<HANDLE>(stdoutRead_));
 		stdoutRead_ = nullptr;
+	}
+	if (job_) {
+		::CloseHandle(static_cast<HANDLE>(job_));
+		job_ = nullptr;
 	}
 }
 
@@ -206,6 +234,12 @@ void Engine::ManagedProcessRunner::DrainPipe(const std::function<void(const std:
 		}
 
 		pending_.append(buffer, read);
+		if (pending_.size() > kMaximumPendingOutputBytes &&
+			pending_.find('\n') == std::string::npos) {
+
+			onLine(pending_.substr(0, kMaximumPendingOutputBytes));
+			pending_.erase(0, kMaximumPendingOutputBytes);
+		}
 
 		// 行単位でonLineへ流す
 		size_t newlinePos = pending_.find('\n');

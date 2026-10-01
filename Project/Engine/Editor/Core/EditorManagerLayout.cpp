@@ -215,6 +215,20 @@ void Engine::EditorManager::ApplyPendingEditorLayout(GraphicsCore& graphicsCore)
 	if (!pendingEditorLayout_) {
 		return;
 	}
+	if (HasPendingPanelEdits() && !pendingPanelEditResolution_) {
+		RequestResolvePendingPanelEdits();
+		return;
+	}
+	if (pendingPanelEditResolution_) {
+		const EditorPanelCloseResult result = ConsumePendingPanelEditResult();
+		if (result == EditorPanelCloseResult::None) {
+			return;
+		}
+		if (result == EditorPanelCloseResult::Cancelled) {
+			pendingEditorLayout_.reset();
+			return;
+		}
+	}
 	ApplyEditorLayout(pendingEditorLayout_.value(), graphicsCore);
 	editorLayoutManager_.SaveSession(pendingEditorLayout_.value());
 	pendingEditorLayout_.reset();
@@ -259,7 +273,15 @@ void Engine::EditorManager::ApplyPendingPanelDuplicate(const EditorPanelContext&
 void Engine::EditorManager::RemoveClosedDuplicatedPanels() {
 
 	panels_.erase(std::remove_if(panels_.begin(), panels_.end(), [](const std::unique_ptr<IEditorPanel>& panel) {
-		return !panel->IsPrimaryInstance() && !panel->IsInstanceOpen();
+		if (panel->IsPrimaryInstance() || panel->IsInstanceOpen()) {
+			return false;
+		}
+		if (panel->HasPendingEdits()) {
+			panel->SetInstanceOpen(true);
+			panel->RequestResolvePendingEdits();
+			return false;
+		}
+		return true;
 		}), panels_.end());
 }
 

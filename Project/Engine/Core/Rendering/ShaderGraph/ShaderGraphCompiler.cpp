@@ -1121,9 +1121,12 @@ namespace {
 					EmitDynamicInput(node, firstSlot, "0.0f"), input.type);
 				GraphExpression maximum = ConvertExpression(
 					EmitDynamicInput(node, firstSlot + 1u, "1.0f"), input.type);
+				if (node.kind == ShaderGraphNodeKind::Clamp) {
+					return { input.type,
+						"clamp(" + input.code + ", " + minimum.code + ", " + maximum.code + ")" };
+				}
 				return { input.type,
-					std::string(node.kind == ShaderGraphNodeKind::Clamp ? "clamp(" : "smoothstep(") +
-						minimum.code + ", " + maximum.code + ", " + input.code + ")" };
+					"smoothstep(" + minimum.code + ", " + maximum.code + ", " + input.code + ")" };
 			}
 			case ShaderGraphNodeKind::Step: {
 				GraphExpression edge = EmitDynamicInput(node, 0, "0.5f");
@@ -1723,7 +1726,8 @@ namespace {
 
 		std::string source =
 			"#ifndef NEM_GENERATED_SHADER_GRAPH_SURFACE\n"
-			"#define NEM_GENERATED_SHADER_GRAPH_SURFACE\n\n";
+			"#define NEM_GENERATED_SHADER_GRAPH_SURFACE\n\n"
+			"#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n";
 		source +=
 			"Texture2D<float4> gShaderGraphSceneColor : register(t0, space4);\n"
 			"Texture2D<float> gShaderGraphSceneDepth : register(t1, space4);\n"
@@ -1808,7 +1812,7 @@ namespace {
 				"\tif (textureIndex == 0xFFFFFFFFu) {\n"
 				"\t\treturn fallbackValue;\n"
 				"\t}\n"
-				"\tTexture2D<float4> texture = ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];\n"
+				"\tTexture2D<float4> texture = NEM_TEXTURE2D(textureIndex);\n"
 				"\treturn texture.SampleLevel(sampler, uv, 0.0f);\n"
 				"}\n\n";
 		}
@@ -1911,6 +1915,7 @@ namespace {
 		if (!transparent) {
 			source +=
 				"GBufferOutput main(VSOutput input) {\n\n"
+				"\tApplyMeshLODDither(input.position.xy, input.lodCoverage);\n"
 				"\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
 				"\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 				"\tMeshSurface surface;\n"
@@ -1931,6 +1936,7 @@ namespace {
 				"\tfloat4 color : SV_TARGET0;\n"
 				"};\n\n"
 				"TransparentPSOutput mainTransparent(VSOutput input) {\n\n"
+				"\tApplyMeshLODDither(input.position.xy, input.lodCoverage);\n"
 				"\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
 				"\tfloat alpha = graph.baseColor.a * graph.opacity;\n"
 				"\tclip(alpha - graph.alphaClip);\n"
@@ -2102,6 +2108,7 @@ namespace {
 		} else {
 			source +=
 				"void main(VSOutput input) {\n\n"
+				"\tApplyMeshLODDither(input.position.xy, input.lodCoverage);\n"
 				"\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
 				"\tclip(graph.baseColor.a * graph.opacity - graph.alphaClip);\n"
 				"}\n";
@@ -2209,6 +2216,7 @@ namespace {
 			"\toutput.subMeshIndex = localSubMeshIndex;\n"
 			"\toutput.tangentSign = vertex.tangentSign;\n"
 			"\toutput.orientationSign = GetInstanceSubMeshOrientationSign(instanceID, localSubMeshIndex);\n"
+			"\toutput.lodCoverage = GetMeshInstanceLODCoverage(instanceID);\n"
 			"\tApplyMeshRenderGroupVisibility(output);\n"
 			"\treturn output;\n"
 			"}\n";
@@ -2259,6 +2267,7 @@ namespace {
 			"\t\toutput.subMeshIndex = localSubMeshIndex;\n"
 			"\t\toutput.tangentSign = vertex.tangentSign;\n"
 			"\t\toutput.orientationSign = gGraphOrientationSign;\n"
+			"\t\toutput.lodCoverage = payload.lodCoverages[groupID.x];\n"
 			"\t\toutVerts[groupThreadID] = output;\n"
 			"\t}\n"
 			"}\n";
@@ -2838,6 +2847,7 @@ namespace {
 
 		std::string source =
 			"// Shader Graph generated PostProcess\n"
+			"#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n"
 			"cbuffer PostProcessFrameConstants : register(b0) {\n\n"
 			"\tfloat2 resolution;\n"
 			"\tfloat2 invResolution;\n"
@@ -2886,7 +2896,7 @@ namespace {
 			"};\n\n"
 			"float4 SampleGraphTexture(uint textureIndex, float2 uv, SamplerState sampler, float4 fallbackValue) {\n\n"
 			"\tif (textureIndex == 0xFFFFFFFFu) return fallbackValue;\n"
-			"\tTexture2D<float4> texture = ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];\n"
+			"\tTexture2D<float4> texture = NEM_TEXTURE2D(textureIndex);\n"
 			"\treturn texture.SampleLevel(sampler, uv, 0.0f);\n"
 			"}\n\n"
 			"float ShaderGraphHash(float2 value) {\n\n"

@@ -1,0 +1,7 @@
+<Project>
+  <!-- GameScriptsだけにビルドサイクル固有の中間出力先を適用する -->
+  <PropertyGroup Condition="'$(NEMScriptIntermediateOutput)' != ''">
+    <BaseIntermediateOutputPath>$(NEMScriptIntermediateOutput)</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(NEMScriptIntermediateOutput)</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+</Project>

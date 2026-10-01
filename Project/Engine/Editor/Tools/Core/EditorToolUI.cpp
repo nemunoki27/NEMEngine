@@ -7,6 +7,9 @@
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	EditorToolUI classMethods
 //============================================================================
@@ -176,4 +179,39 @@ void Engine::EditorToolUI::DrawWindows(const EditorPanelContext& context) {
 		EditorToolFrameScope frameScope(*tool, editorToolContext);
 		tool->DrawEditorTool(editorToolContext);
 	}
+}
+
+bool Engine::EditorToolUI::HasPendingEdits() {
+
+	const auto tools = CollectEditorTools();
+	return std::ranges::any_of(tools, [](const IEditorTool* tool) {
+		return tool->HasPendingEdits();
+		});
+}
+
+void Engine::EditorToolUI::RequestResolvePendingEdits() {
+
+	const auto tools = CollectEditorTools();
+	for (IEditorTool* tool : tools) {
+		if (tool->HasPendingEdits()) {
+			tool->RequestResolvePendingEdits();
+		}
+	}
+}
+
+Engine::EditorToolCloseResult Engine::EditorToolUI::ConsumePendingEditCloseResult() {
+
+	bool accepted = false;
+	const auto tools = CollectEditorTools();
+	for (IEditorTool* tool : tools) {
+		const EditorToolCloseResult result =
+			tool->ConsumePendingEditCloseResult();
+		if (result == EditorToolCloseResult::Cancelled) {
+			return result;
+		}
+		accepted |= result == EditorToolCloseResult::Accepted;
+	}
+	return accepted ?
+		EditorToolCloseResult::Accepted :
+		EditorToolCloseResult::None;
 }

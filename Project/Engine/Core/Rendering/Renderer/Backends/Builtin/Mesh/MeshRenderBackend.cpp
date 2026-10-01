@@ -136,10 +136,8 @@ void Engine::MeshRenderBackend::RequestMeshReload(AssetID meshAssetID) {
 		return;
 	}
 
-	// メッシュを破棄して再インポートし、旧gpuMeshを参照していたバッチキャッシュを作り直させる
-	// バッチは毎フレームgpuMeshを引き直すので、キャッシュclearで新しいリソースとサブメッシュ構成に追従する
+	// 旧Meshを表示したまま再インポートする
 	meshResourceManager_.RequestReload(meshAssetID);
-	ClearWorldBatchCaches();
 }
 
 void Engine::MeshRenderBackend::PreDispatchSkinningBatch(const RenderDrawContext& context,

@@ -215,7 +215,7 @@ namespace {
 					{ "stage", "PS" },
 					{ "file", Engine::ToAssetReferenceJson(pixelShader) },
 					{ "entry", pixelEntry },
-					{ "profile", "ps_6_6" },
+					{ "profile", "ps_6_0" },
 				},
 				}) },
 			{ "colorParameters", std::move(colorParameterNames) },
@@ -376,13 +376,13 @@ void Engine::ShaderGraphEditorTool::DrawEditorTool(const EditorToolContext& cont
 
 	commandPanelFocused_ = false;
 	if (pendingAsset_) {
-		RestorePreviewMaterial(context);
-		LoadGraph(context, pendingAsset_);
+		RequestGraphSwitch(context, pendingAsset_);
 		pendingAsset_ = {};
 	}
 	if (openWindow_) {
 		DrawWindow(context);
 	}
+	DrawUnsavedPrompt(context);
 	if (!openWindow_) {
 		RestorePreviewMaterial(context);
 		return;
@@ -392,6 +392,7 @@ void Engine::ShaderGraphEditorTool::DrawEditorTool(const EditorToolContext& cont
 
 void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context) {
 
+	const bool wasOpen = openWindow_;
 	const bool visible = ImGui::Begin(
 		"シェーダーグラフ", &openWindow_,
 		ImGuiWindowFlags_MenuBar);
@@ -400,6 +401,15 @@ void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context)
 	if (!visible) {
 
 		ImGui::End();
+		if (wasOpen && !openWindow_) {
+			if (editSession_.IsDirty()) {
+				openWindow_ = true;
+				requestWindowClose_ = true;
+				requestUnsavedPrompt_ = true;
+			} else {
+				RestorePreviewMaterial(context);
+			}
+		}
 		return;
 	}
 
@@ -433,6 +443,86 @@ void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context)
 		CommitGraphHistory();
 	}
 	ImGui::End();
+	if (wasOpen && !openWindow_) {
+		if (editSession_.IsDirty()) {
+			openWindow_ = true;
+			requestWindowClose_ = true;
+			requestUnsavedPrompt_ = true;
+		} else {
+			RestorePreviewMaterial(context);
+		}
+	}
+}
+
+bool Engine::ShaderGraphEditorTool::HasPendingEdits() const {
+
+	return editSession_.IsDirty();
+}
+
+void Engine::ShaderGraphEditorTool::RequestResolvePendingEdits() {
+
+	if (!editSession_.IsDirty()) {
+		return;
+	}
+	openWindow_ = true;
+	requestAssetSwitch_ = false;
+	requestGraphCreate_ = false;
+	requestWindowClose_ = true;
+	requestUnsavedPrompt_ = true;
+	pendingEditCloseResult_ = EditorToolCloseResult::None;
+}
+
+Engine::EditorToolCloseResult Engine::ShaderGraphEditorTool::ConsumePendingEditCloseResult() {
+
+	const EditorToolCloseResult result = pendingEditCloseResult_;
+	pendingEditCloseResult_ = EditorToolCloseResult::None;
+	return result;
+}
+
+void Engine::ShaderGraphEditorTool::DrawUnsavedPrompt(
+	const EditorToolContext& context) {
+
+	constexpr const char* kPopup = "ShaderGraphの未保存編集";
+	if (requestUnsavedPrompt_) {
+		ImGui::OpenPopup(kPopup);
+		requestUnsavedPrompt_ = false;
+	}
+	if (!ImGui::BeginPopupModal(
+		kPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::TextUnformatted(
+		"シェーダーグラフに未保存の変更があります。");
+	ImGui::Separator();
+	if (ImGui::Button("保存", ImVec2(96.0f, 0.0f))) {
+		CaptureNodePositions();
+		if (editSession_.Save(context)) {
+			pendingEditCloseResult_ =
+				EditorToolCloseResult::Accepted;
+			ApplyPendingTransition(context);
+			ImGui::CloseCurrentPopup();
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("破棄", ImVec2(96.0f, 0.0f))) {
+		pendingEditCloseResult_ =
+			EditorToolCloseResult::Accepted;
+		ApplyPendingTransition(context);
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("キャンセル", ImVec2(96.0f, 0.0f))) {
+		requestAssetSwitch_ = false;
+		requestGraphCreate_ = false;
+		requestWindowClose_ = false;
+		requestedAsset_ = {};
+		openWindow_ = true;
+		pendingEditCloseResult_ =
+			EditorToolCloseResult::Cancelled;
+		ImGui::CloseCurrentPopup();
+	}
+	ImGui::EndPopup();
 }
 
 void Engine::ShaderGraphEditorTool::DrawToolbar(const EditorToolContext& context) {
@@ -445,8 +535,7 @@ void Engine::ShaderGraphEditorTool::DrawToolbar(const EditorToolContext& context
 		"グラフ", selected, assetDatabase,
 		{ AssetType::ShaderGraph }).valueChanged) {
 
-		RestorePreviewMaterial(context);
-		LoadGraph(context, selected);
+		RequestGraphSwitch(context, selected);
 	}
 
 	AssetID importSource{};
@@ -468,7 +557,14 @@ void Engine::ShaderGraphEditorTool::DrawToolbar(const EditorToolContext& context
 		(ImGui::GetContentRegionAvail().x -
 			ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 	if (ImGui::Button("新規作成", ImVec2(buttonWidth, 0.0f))) {
-		CreateGraph(context);
+		if (!editSession_.IsDirty()) {
+			CreateGraph(context);
+		} else {
+			requestGraphCreate_ = true;
+			requestAssetSwitch_ = false;
+			requestWindowClose_ = false;
+			requestUnsavedPrompt_ = true;
+		}
 	}
 	ImGui::SameLine();
 	ImGui::BeginDisabled(!editSession_.IsLoaded());
@@ -1446,7 +1542,7 @@ void Engine::ShaderGraphEditorTool::DrawPreviewSetting(const EditorToolContext& 
 		return;
 	}
 	if ((!editSession_.GetPreviewMaterialID() || editSession_.NeedsCompile()) &&
-		!SaveAndCompile(context)) {
+		!editSession_.CompilePreview(context)) {
 
 		return;
 	}
@@ -2668,7 +2764,11 @@ bool Engine::ShaderGraphEditorTool::CreateGraph(const EditorToolContext& context
 	} else {
 		graph = CreateDefaultSurfaceShaderGraph(name, createTarget_);
 	}
-	JsonAdapter::Save(path, ToJson(graph));
+	if (!JsonAdapter::Save(path, ToJson(graph))) {
+		editSession_.GetStatusMessage() =
+			"グラフを作成できませんでした";
+		return false;
+	}
 
 	const std::string assetPath =
 		RuntimePaths::ToAssetPath(path);
@@ -2726,7 +2826,7 @@ void Engine::ShaderGraphEditorTool::UpdateMaterialPreview(const EditorToolContex
 	}
 
 	scenePreview_.GetCompileDeadline() = 0.0;
-	if (SaveAndCompile(context)) {
+	if (editSession_.CompilePreview(context)) {
 		ApplyPreviewMaterial(context);
 	}
 }
@@ -3412,6 +3512,47 @@ bool Engine::ShaderGraphEditorTool::LoadGraph(const EditorToolContext& context, 
 	ResetNodeEditor();
 	restoreNodePositions_ = true;
 	return true;
+}
+
+void Engine::ShaderGraphEditorTool::RequestGraphSwitch(
+	const EditorToolContext& context, AssetID assetID) {
+
+	if (assetID == editSession_.GetAssetID()) {
+		return;
+	}
+	if (!editSession_.IsDirty()) {
+		RestorePreviewMaterial(context);
+		LoadGraph(context, assetID);
+		return;
+	}
+	requestedAsset_ = assetID;
+	requestAssetSwitch_ = true;
+	requestGraphCreate_ = false;
+	requestWindowClose_ = false;
+	requestUnsavedPrompt_ = true;
+}
+
+void Engine::ShaderGraphEditorTool::ApplyPendingTransition(
+	const EditorToolContext& context) {
+
+	RestorePreviewMaterial(context);
+	if (requestAssetSwitch_) {
+		const AssetID assetID = requestedAsset_;
+		requestAssetSwitch_ = false;
+		requestedAsset_ = {};
+		LoadGraph(context, assetID);
+	}
+	if (requestGraphCreate_) {
+		requestGraphCreate_ = false;
+		CreateGraph(context);
+	}
+	if (requestWindowClose_) {
+		if (editSession_.IsDirty()) {
+			editSession_.Load(context, editSession_.GetAssetID());
+		}
+		requestWindowClose_ = false;
+		openWindow_ = false;
+	}
 }
 
 bool Engine::ShaderGraphEditorTool::SaveAndCompile(const EditorToolContext& context) {

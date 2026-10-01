@@ -4,6 +4,7 @@
 #include "../FullscreenCopy/fullscreenCopy.hlsli"
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/pbrMath.hlsli"
+#include "../Common/descriptorHeapCompatibility.hlsli"
 
 //============================================================================
 //	GBuffer入力
@@ -648,7 +649,7 @@ float3 SampleBackground(float2 texcoord) {
 	float3 direction = normalize(worldFar.xyz / worldFar.w - cameraPos);
 
 	// キューブマップテクスチャ取得
-	TextureCube<float4> cubemap = ResourceDescriptorHeap[NonUniformResourceIndex(skyboxCubemapIndex)];
+	TextureCube<float4> cubemap = NEM_TEXTURECUBE(skyboxCubemapIndex);
 	return cubemap.SampleLevel(gSampler, direction, 0.0f).rgb * skyboxColor.rgb;
 }
 
@@ -787,7 +788,7 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 		if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
 
 			// Skyboxから畳み込んだ放射照度で拡散環境光を作る
-			TextureCube<float4> irradianceMap = ResourceDescriptorHeap[NonUniformResourceIndex(irradianceCubemapIndex)];
+			TextureCube<float4> irradianceMap = NEM_TEXTURECUBE(irradianceCubemapIndex);
 			float3 irradiance = irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
 			ambient = irradiance * skyboxColor.rgb * iblIntensity * albedo * ao;
 		} else {

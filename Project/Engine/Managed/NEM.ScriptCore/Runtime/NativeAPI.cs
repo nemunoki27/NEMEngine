@@ -74,6 +74,7 @@ internal static unsafe class NativeAPI {
     // Gameplay(v7): GameObject 生成 / Prefab / Scene / SetParent(worldPositionStays)
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> CreateEntity;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiateEntity;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneAdditive;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneSingle;
     internal static delegate* unmanaged[Cdecl]<ulong> ReloadActiveScene;
@@ -268,6 +269,7 @@ internal static unsafe class NativeAPI {
         CopyAssetDisplayName = callbacks->copyAssetDisplayName;
         CreateEntity = callbacks->createEntity;
         InstantiatePrefab = callbacks->instantiatePrefab;
+        InstantiateEntity = callbacks->instantiateEntity;
         LoadSceneAdditive = callbacks->loadSceneAdditive;
         LoadSceneSingle = callbacks->loadSceneSingle;
         ReloadActiveScene = callbacks->reloadActiveScene;

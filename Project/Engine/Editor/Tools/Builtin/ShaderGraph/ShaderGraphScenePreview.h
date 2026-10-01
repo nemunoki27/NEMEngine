@@ -6,7 +6,12 @@
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 
+// c++
+#include <memory>
+
 namespace Engine {
+	class ECSWorld;
+	class ECSWorldLifetime;
 
 	//============================================================================
 	//	ShaderGraphScenePreview class
@@ -41,6 +46,8 @@ namespace Engine {
 		ShaderGraphTarget appliedPreviewTarget_ =
 			ShaderGraphTarget::Mesh;
 		AssetID previewOriginalMaterial_{};
+		ECSWorld* appliedWorld_ = nullptr;
+		std::weak_ptr<const ECSWorldLifetime> appliedWorldLifetime_{};
 		bool previewMaterialApplied_ = false;
 		double previewCompileDeadline_ = 0.0;
 	};

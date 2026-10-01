@@ -10,6 +10,9 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+// directX
+#include <d3d12shader.h>
+
 //============================================================================
 //	AutoRootSignatureBuilder classMethods
 //============================================================================
@@ -67,6 +70,11 @@ namespace {
 		Assert::Call(false, "RootSignatureで未対応のBinding種別です");
 		return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	}
+	// Reflectionの0は非有界配列なのでRoot SignatureではUINT_MAXへ変換する
+	UINT ToDescriptorRangeCount(UINT bindCount) {
+
+		return bindCount == 0 ? UINT_MAX : bindCount;
+	}
 	// パイプラインの種類とステージマスクからD3D12_SHADER_VISIBILITYを決定する
 	D3D12_SHADER_VISIBILITY ToVisibility(PipelineType pipelineType, ShaderStage stageMask) {
 
@@ -104,7 +112,9 @@ namespace {
 		return D3D12_SHADER_VISIBILITY_ALL;
 	}
 
-	D3D12_ROOT_SIGNATURE_FLAGS BuildRootSignatureFlags(PipelineType pipelineType, ShaderStage usedStageMask) {
+	D3D12_ROOT_SIGNATURE_FLAGS BuildRootSignatureFlags(
+		PipelineType pipelineType, ShaderStage usedStageMask,
+		bool usesDirectHeapIndexing) {
 
 		// パイプラインの種類と使用されているシェーダーステージに応じてルートシグネチャフラグを構築する
 		D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -114,7 +124,9 @@ namespace {
 
 			flags |= D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 		}
-		flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+		if (usesDirectHeapIndexing) {
+			flags |= D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+		}
 		auto denyIfUnused = [&](ShaderStage stage, D3D12_ROOT_SIGNATURE_FLAGS denyFlag) {
 			if (!Algorithm::HasFlag<ShaderStage>(usedStageMask, stage)) {
 				flags |= denyFlag;
@@ -182,6 +194,7 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 	//============================================================================
 	std::unordered_map<BindingKey, RootBindingLocation, BindingKeyHash> merged{};
 	ShaderStage usedStageMask = ShaderStage::None;
+	bool usesDirectHeapIndexing = false;
 	for (const CompiledShader* shader : shaders) {
 
 		// シェーダーオブジェクトがないものは無視
@@ -190,6 +203,9 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 		}
 
 		usedStageMask |= shader->stage;
+		usesDirectHeapIndexing |=
+			(shader->reflection.requiresFlags &
+				D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING) != 0;
 		for (const auto& resource : shader->reflection.resources) {
 
 			// 静的サンプラーでカバーされているものはルートシグネチャに含めない
@@ -213,8 +229,13 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 				merged.emplace(key, std::move(location));
 			} else {
 
-				Assert::Call(it->second.bindCount == resource.bindCount,
-					"同じRegisterとSpaceに異なるBindCountが指定されています");
+				// 片方が非有界配列なら統合後も非有界を維持
+				if (it->second.bindCount == 0 || resource.bindCount == 0) {
+					it->second.bindCount = 0;
+				} else {
+					Assert::Call(it->second.bindCount == resource.bindCount,
+						"同じRegisterとSpaceに異なるBindCountが指定されています");
+				}
 				// 共有されるステージ情報をマージ
 				it->second.stageMask |= resource.stageMask;
 			}
@@ -271,7 +292,7 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 
 			auto& range = ranges[tableIndex++];
 			range.RangeType = ToRangeType(binding.kind);
-			range.NumDescriptors = binding.bindCount;
+			range.NumDescriptors = ToDescriptorRangeCount(binding.bindCount);
 			range.BaseShaderRegister = binding.bindPoint;
 			range.RegisterSpace = binding.space;
 			range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -307,7 +328,8 @@ RootSignatureBuildResult AutoRootSignatureBuilder::Build(ID3D12Device* device, P
 	signatureDesc.Desc_1_1.pParameters = params.empty() ? nullptr : params.data();
 	signatureDesc.Desc_1_1.NumStaticSamplers = static_cast<UINT>(staticSamplers.size());
 	signatureDesc.Desc_1_1.pStaticSamplers = staticSamplers.empty() ? nullptr : staticSamplers.data();
-	signatureDesc.Desc_1_1.Flags = BuildRootSignatureFlags(pipelineType, usedStageMask);
+	signatureDesc.Desc_1_1.Flags = BuildRootSignatureFlags(
+		pipelineType, usedStageMask, usesDirectHeapIndexing);
 	ComPtr<ID3DBlob> signatureBlob = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	HRESULT hr = D3D12SerializeVersionedRootSignature(&signatureDesc, &signatureBlob, &errorBlob);

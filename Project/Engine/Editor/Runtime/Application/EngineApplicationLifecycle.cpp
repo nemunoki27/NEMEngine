@@ -9,7 +9,6 @@
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
-#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
@@ -150,7 +149,6 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 			{ RuntimePaths::GetGameRoot() / "GameAssets", RuntimePaths::GetEngineAssetsRoot() });
 		// モデル変更時のリロードは描画バックエンドのメッシュ管理へ委譲する
 		assetWatchService_.SetMeshReloadCallback([this](AssetID meshAssetID) {
-			MeshSubMeshAuthoring::InvalidateCachedLayout(meshAssetID);
 			if (renderPipeline_) {
 				renderPipeline_->ReloadMesh(meshAssetID);
 			}

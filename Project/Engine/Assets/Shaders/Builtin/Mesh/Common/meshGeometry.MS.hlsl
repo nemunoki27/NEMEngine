@@ -64,6 +64,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 		output.subMeshIndex = localSubMeshIndex;
 		output.tangentSign = vertex.tangentSign;
 		output.orientationSign = gMeshletOrientationSign;
+		output.lodCoverage = payload.lodCoverages[groupID.x];
 
 		outVerts[groupThreadID] = output;
 	}

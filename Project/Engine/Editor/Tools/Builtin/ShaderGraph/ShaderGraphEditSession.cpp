@@ -153,14 +153,37 @@ bool Engine::ShaderGraphEditSession::SaveAndCompile(const EditorToolContext& con
 	return true;
 }
 
-void Engine::ShaderGraphEditSession::Save(const EditorToolContext& context) {
+bool Engine::ShaderGraphEditSession::CompilePreview(
+	const EditorToolContext& context) {
+
+	AssetDatabase* database = context.toolContext.assetDatabase;
+	if (!database || !selectedAsset_ ||
+		!ShaderGraphPublication::CompileAndPublishPreview(
+			context, *database, graph_, selectedAsset_,
+			previewMaterial_, latestDiagnostics_, statusMessage_)) {
+
+		return false;
+	}
+	compiledGraphState_ = MakeShaderGraphCompileState(graph_);
+	previewCompileDirty_ = false;
+	return true;
+}
+
+bool Engine::ShaderGraphEditSession::Save(const EditorToolContext& context) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (const AssetMeta* meta = database ? database->Find(selectedAsset_) : nullptr) {
-		JsonAdapter::Save(database->ResolveFullPath(meta->guid), ToJson(graph_));
-		graphDirty_ = false;
-		statusMessage_ = "保存しました";
+		if (JsonAdapter::Save(
+			database->ResolveFullPath(meta->guid), ToJson(graph_))) {
+
+			graphDirty_ = false;
+			statusMessage_ = "保存しました";
+			return true;
+		} else {
+			statusMessage_ = "グラフを保存できませんでした";
+		}
 	}
+	return false;
 }
 
 void Engine::ShaderGraphEditSession::Import(ShaderGraphAsset imported) {

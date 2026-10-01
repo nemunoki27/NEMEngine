@@ -101,6 +101,7 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 	const std::string stableID = in.value("stableID", "");
 	subMeshMaterial.stableID = stableID.empty() ? UUID{} : FromString16Hex(stableID);
 	subMeshMaterial.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
+	subMeshMaterial.visible = in.value("visible", true);
 	subMeshMaterial.material = ParseAssetID(in, "material");
 	subMeshMaterial.surfaceMode = EnumAdapter<MaterialSurfaceMode>::FromString(
 		in.value("surfaceMode", "Auto")).value_or(MaterialSurfaceMode::Auto);
@@ -128,6 +129,7 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["name"] = subMeshMaterial.name;
 	out["stableID"] = subMeshMaterial.stableID ? ToString(subMeshMaterial.stableID) : "";
 	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
+	out["visible"] = subMeshMaterial.visible;
 	out["material"] = ToAssetReferenceJson(subMeshMaterial.material);
 	out["surfaceMode"] = EnumAdapter<MaterialSurfaceMode>::ToString(
 		subMeshMaterial.surfaceMode);

@@ -27,7 +27,7 @@ namespace Engine {
 		// 監視を終了する
 		void Stop();
 		// 通知と補助走査で変更を検出する
-		void Poll(const std::filesystem::path& projectPath, bool& dirty,
+		bool Poll(const std::filesystem::path& projectPath, bool& dirty,
 			std::chrono::steady_clock::time_point& lastChangeTime, int32_t& changedSourceCount);
 		// ロード済みAssemblyより新しいソースを調べる
 		bool IsNewerThan(const std::filesystem::path& assemblyPath) const;

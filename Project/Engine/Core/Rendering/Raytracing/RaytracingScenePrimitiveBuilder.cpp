@@ -71,7 +71,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		}
 		++work.blasGeometryCount;
 
-		PrimitiveGeometry* geometry = work.primitiveGeometryManager->GetOrCreate(work.graphicsCore, src.geometryHash, renderer);
+		PrimitiveGeometry* geometry = work.primitiveGeometryManager->GetOrCreate(work.graphicsCore, renderer);
 		if (!geometry) {
 			continue;
 		}

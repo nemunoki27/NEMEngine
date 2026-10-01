@@ -7,6 +7,7 @@
 
 // c++
 #include <algorithm>
+#include <limits>
 
 //============================================================================
 //	BehaviorWorld classMethods
@@ -59,6 +60,31 @@ void Engine::BehaviorWorld::DestroyAll(ECSWorld& world, const SystemContext& con
 
 			DestroyIndex(i, world, context);
 		}
+	}
+	ownerToRecords_.clear();
+}
+
+void Engine::BehaviorWorld::ResetForReload() {
+
+	free_.clear();
+	for (uint32_t index = 0; index < GetRecordCount(); ++index) {
+		BehaviorRecord& record = records_[index];
+		if (record.retired) {
+			continue;
+		}
+		if (!record.alive) {
+			free_.emplace_back(index);
+			continue;
+		}
+		if (record.generation == (std::numeric_limits<uint32_t>::max)()) {
+			record = BehaviorRecord{};
+			record.retired = true;
+			continue;
+		}
+		const uint32_t generation = record.generation + 1;
+		record = BehaviorRecord{};
+		record.generation = generation;
+		free_.emplace_back(index);
 	}
 	ownerToRecords_.clear();
 }
@@ -226,33 +252,21 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 	}
 
 	BehaviorRecord& record = records_[index];
-	if (!record.alive) {
+	if (!record.alive || record.retired) {
 		return;
 	}
 
 	const Entity owner = record.owner;
+	const bool enabled = record.enabled;
+	const bool awakeCalled = record.awakeCalled;
+	std::unique_ptr<MonoBehavior> instance = std::move(record.instance);
+	const bool retire = record.generation == (std::numeric_limits<uint32_t>::max)();
+	const uint32_t generation = retire ? record.generation : record.generation + 1;
 
-	// ビヘイビアの状態に応じて適切な関数を呼び出す
-	// enabledなものだけOnDisable、一度でもAwake済みのものだけOnDestroyを呼ぶ
-	// Awake未実行のinactive scriptはどちらも呼ばず解放だけ行う
-	if (record.instance) {
-		if (record.enabled) {
-
-			record.instance->OnDisable(world, context, record.owner);
-		}
-		if (record.awakeCalled) {
-
-			record.instance->OnDestroy(world, context, record.owner);
-		}
-	}
-
-	// 世代をインクリメントして古いハンドルを無効にする
-	const uint32_t generation = record.generation + 1;
-	// レコードを初期化して空きIDのスタックに戻す
+	// callback前にレコードを無効化して再入時の二重破棄を防ぐ
 	record = BehaviorRecord{};
 	record.generation = generation;
-	free_.emplace_back(index);
-
+	record.retired = retire;
 	auto ownerIt = ownerToRecords_.find(MakeOwnerKey(owner));
 	if (ownerIt != ownerToRecords_.end()) {
 		auto& indices = ownerIt->second;
@@ -260,5 +274,24 @@ void Engine::BehaviorWorld::DestroyIndex(uint32_t index, ECSWorld& world, const 
 		if (indices.empty()) {
 			ownerToRecords_.erase(ownerIt);
 		}
+	}
+
+	// ビヘイビアの状態に応じて適切な関数を呼び出す
+	// enabledなものだけOnDisable、一度でもAwake済みのものだけOnDestroyを呼ぶ
+	// Awake未実行のinactive scriptはどちらも呼ばず解放だけ行う
+	if (instance) {
+		if (enabled) {
+
+			instance->OnDisable(world, context, owner);
+		}
+		if (awakeCalled) {
+
+			instance->OnDestroy(world, context, owner);
+		}
+	}
+
+	// callback完了後にだけ再利用可能な枠へ戻す
+	if (!retire) {
+		free_.emplace_back(index);
 	}
 }

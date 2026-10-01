@@ -56,6 +56,18 @@ internal static unsafe class ScriptInvocationDiagnostics {
         }
     }
 
+    // Debug.LogErrorをEditorのError Pauseへ通知する
+    internal static void ReportLogError(string message) {
+
+        var dto = new JsonObject {
+            ["callback"] = "Debug.LogError",
+            ["exceptionType"] = "LogError",
+            ["message"] = message,
+            ["frames"] = new JsonArray(),
+        };
+        NativeApplicationAPI.ReportScriptExceptionJson(dto.ToJsonString());
+    }
+
     private static void WriteScriptException(ScriptTypeRegistry registry, MonoBehaviour script, string callbackName, Exception ex) {
 
         Type type = script.GetType();

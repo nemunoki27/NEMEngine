@@ -64,6 +64,9 @@ namespace Engine {
 		CopyRuntimeStateFn copyRuntimeState_ = nullptr;
 		GetRuntimeStateSizeFn getSavedStateSize_ = nullptr;
 		CopyRuntimeStateFn copySavedState_ = nullptr;
+		GetRuntimeStateSizeFn getReloadStateSize_ = nullptr;
+		CopyRuntimeStateFn copyReloadState_ = nullptr;
+		SetSerializedFieldsFn applyReloadState_ = nullptr;
 		SetRuntimeFieldFn setRuntimeField_ = nullptr;
 		CreateInstanceFn createInstance_ = nullptr;
 		SetSerializedFieldsFn setSerializedFields_ = nullptr;

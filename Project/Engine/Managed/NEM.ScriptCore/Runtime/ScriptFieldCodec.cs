@@ -89,6 +89,17 @@ internal sealed unsafe class ScriptFieldCodec {
 
     internal void ApplySerializedFields(MonoBehaviour script, string? json) {
 
+        ApplyFields(script, json, false);
+    }
+
+    // Hot Reload時だけprivate Fieldも復元する
+    internal void ApplyReloadFields(MonoBehaviour script, string? json) {
+
+        ApplyFields(script, json, true);
+    }
+
+    private void ApplyFields(MonoBehaviour script, string? json, bool includePrivate) {
+
         if (string.IsNullOrWhiteSpace(json)) {
             return;
         }
@@ -106,21 +117,32 @@ internal sealed unsafe class ScriptFieldCodec {
         pendingReferences.Remove(script);
         saved.graph = new ScriptReferenceGraph(script.GetType().Assembly, jsonOptions, saved.source);
         pendingCallbacks.Add(script);
+        Dictionary<string, FieldInfo>? privateFields = includePrivate ? BuildPrivateReloadFieldMap(script.GetType()) : null;
         foreach (JsonProperty prop in document.RootElement.EnumerateObject()) {
-            if (!entry.fieldMap.TryGetValue(prop.Name, out FieldInfo? field)) {
+            if (!entry.fieldMap.TryGetValue(prop.Name, out FieldInfo? field) &&
+                (privateFields == null || !privateFields.TryGetValue(prop.Name, out field))) {
                 continue;
             }
-            if (entry.unsupportedFields.Contains(prop.Name)) {
+            if (entry.fieldMap.ContainsKey(prop.Name) && entry.unsupportedFields.Contains(prop.Name)) {
                 saved.rejectedFields.Add(field);
                 continue;
             }
-            if (entry.deferredFields.Contains(prop.Name)) {
+            if (entry.deferredFields.Contains(prop.Name) || IsDeferredReferenceType(field.FieldType, null)) {
                 // JsonDocumentのdispose後も値を保持できるようCloneして積む
                 pendingReferences.Add(script, field, prop.Value);
             } else {
                 SetFieldFromElement(script, field, prop.Value);
             }
         }
+    }
+
+    private static Dictionary<string, FieldInfo> BuildPrivateReloadFieldMap(Type type) {
+
+        var fields = new Dictionary<string, FieldInfo>(StringComparer.Ordinal);
+        foreach (FieldInfo field in EnumerateNestedSerializedFields(type, true, typeof(MonoBehaviour))) {
+            fields.TryAdd("$private:" + field.DeclaringType!.FullName + "/" + field.Name, field);
+        }
+        return fields;
     }
 
     internal void FlushPendingReferenceFields(bool retryUnresolved = false) {
@@ -255,6 +277,13 @@ internal sealed unsafe class ScriptFieldCodec {
         }
         JsonObject result = saved.source.DeepClone().AsObject();
         result.Remove("$managedReferences");
+        if (!includePrivate) {
+            // Reload専用のprivate値を通常保存へ混ぜない
+            foreach (string key in result.Select(item => item.Key)
+                .Where(key => key.StartsWith("$private:", StringComparison.Ordinal)).ToArray()) {
+                result.Remove(key);
+            }
+        }
         foreach (KeyValuePair<string, FieldInfo> item in fields) {
             if (!entry.unsupportedFields.Contains(item.Key) && !saved.rejectedFields.Contains(item.Value)) { result.Remove(item.Key); }
         }

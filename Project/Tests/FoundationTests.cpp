@@ -18,6 +18,7 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/WindowInputBridge.h>
 #include <Engine/Core/Runtime/Paths/RuntimePathResolution.h>
+#include <Engine/Core/Scripting/Managed/ManagedBuildUtility.h>
 
 // c++
 #include <atomic>
@@ -114,6 +115,15 @@ namespace {
 			Math::WrapDegree360(360.0f) == 0.0f &&
 			std::isinf(Math::WrapDegree360(std::numeric_limits<float>::infinity())) &&
 			std::isnan(Math::WrapDegree360(std::numeric_limits<float>::quiet_NaN()));
+	}
+
+	// MSBuildへ渡すDirectory propertyの形式を確認する
+	bool TestMSBuildDirectory() {
+
+		using Engine::ManagedBuildUtility::ToMSBuildDirectory;
+		return ToMSBuildDirectory(LR"(C:\Build Root\obj)") == LR"(C:/Build Root/obj/)" &&
+			ToMSBuildDirectory(LR"(C:\Build Root\obj\)") == LR"(C:/Build Root/obj/)" &&
+			ToMSBuildDirectory({}).empty();
 	}
 
 	// EditorとRuntimeで共有する分解が元の行列を再構成できるか確認する
@@ -460,7 +470,8 @@ bool TestFoundationContracts() {
 	try {
 		NEMTests::TestDirectory directory("Foundation");
 		const auto& root = directory.GetPath();
-		const bool passed = TestMathContracts() && TestAffineDecomposition() && TestJsonStorage(root) && TestTextConversion() &&
+		const bool passed = TestMathContracts() && TestMSBuildDirectory() && TestAffineDecomposition() &&
+			TestJsonStorage(root) && TestTextConversion() &&
 			TestWorkerCompletion() && TestResolvedPaths(root) && TestJsonJournal(root) && TestLoggerShutdown(root);
 		if (!passed) {
 			std::cerr << "Foundation contracts failed\n";

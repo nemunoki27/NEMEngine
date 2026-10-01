@@ -62,9 +62,12 @@ void Engine::ManagedScriptBuildService::Initialize(ManagedScriptRuntime* runtime
 	runtime_ = runtime;
 	state_ = State::Idle;
 	dirty_ = false;
+	inputRevision_ = 0;
 	sourceMonitor_.Reset();
 	playBuildRequested_ = false;
 	playBuildResult_ = PlayBuildResult::Succeeded;
+	stopPlayRequested_ = false;
+	reloadPauseRequested_ = false;
 
 	// 起動時にソースの基準を取得する、初回は変更扱いにしない
 	sourceMonitor_.Poll(runtime_->GameScriptProjectPath(), dirty_, lastChangeTime_, cycle_.diagnostics.changedSourceCount);
@@ -90,25 +93,45 @@ void Engine::ManagedScriptBuildService::Shutdown() {
 	process_.Terminate();
 	sourceMonitor_.Stop();
 	state_ = State::Idle;
+	stopPlayRequested_ = false;
+	reloadPauseRequested_ = false;
+	currentWorld_ = nullptr;
+	currentContext_ = nullptr;
 	runtime_ = nullptr;
 }
 
-void Engine::ManagedScriptBuildService::Tick(bool playing) {
+void Engine::ManagedScriptBuildService::Tick(bool playing, ECSWorld* world, const SystemContext* context) {
 
 	if (!runtime_ || !runtime_->IsInitialized()) {
 		return;
 	}
 
-	// 変更検知でPlay中もdirtyは記録するがリロードはしない
-	sourceMonitor_.Poll(runtime_->GameScriptProjectPath(), dirty_, lastChangeTime_, cycle_.diagnostics.changedSourceCount);
+	currentPlaying_ = playing;
+	currentWorld_ = world;
+	currentContext_ = context;
 
-	// Play中に変更があったら「Stop後に反映」を一度だけ通知する
+	// 変更検知でPlay中もdirtyを記録する
+	if (sourceMonitor_.Poll(runtime_->GameScriptProjectPath(), dirty_, lastChangeTime_,
+		cycle_.diagnostics.changedSourceCount)) {
+
+		++inputRevision_;
+	}
+
+	// Play中の反映方式を一度だけ通知する
 	if (playing) {
 		if (dirty_ && !playDirtyNotified_) {
 
+			const char* action = playReloadMode_ == ManagedPlayReloadMode::RecompileAndContinue ?
+				"ビルド後にPlayを継続して再読み込みします" :
+				playReloadMode_ == ManagedPlayReloadMode::StopAndRecompile ?
+				"Playを停止して再読み込みします" :
+				"Stop後にビルドと再読み込みを行います";
 			Logger::Output(LogType::GameLogic, spdlog::level::info,
-				"GameScripts: Play中のC#変更を検出しました Stop後にビルドと再読み込みを行います");
+				"GameScripts: Play中のC#変更を検出しました {}", action);
 			playDirtyNotified_ = true;
+		}
+		if (dirty_ && playReloadMode_ == ManagedPlayReloadMode::StopAndRecompile) {
+			stopPlayRequested_ = true;
 		}
 	} else {
 		playDirtyNotified_ = false;
@@ -116,6 +139,8 @@ void Engine::ManagedScriptBuildService::Tick(bool playing) {
 
 	// 状態機械を進める
 	AdvanceState(playing);
+	currentWorld_ = nullptr;
+	currentContext_ = nullptr;
 }
 
 void Engine::ManagedScriptBuildService::RequestPlayBuild() {
@@ -140,7 +165,8 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 			return;
 		}
 		// 通常のEdit変更はデバウンスへ
-		if (!playing && dirty_) {
+		if (dirty_ && (!playing ||
+			playReloadMode_ == ManagedPlayReloadMode::RecompileAndContinue)) {
 			SetState(State::Debouncing);
 		}
 		return;
@@ -148,7 +174,7 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	case State::Debouncing:
 	{
 		// Playへ入ったら一旦保留し、変更はdirtyのままでStop後に再開する
-		if (playing || !dirty_) {
+		if ((playing && playReloadMode_ != ManagedPlayReloadMode::RecompileAndContinue) || !dirty_) {
 			SetState(State::Idle);
 			return;
 		}
@@ -193,8 +219,8 @@ void Engine::ManagedScriptBuildService::AdvanceState(bool playing) {
 	}
 	case State::ReloadPending:
 	{
-		// リロードの適用はメインスレッドかつEditモードでのみ行う
-		if (playing) {
+		// Play継続方式以外はStop後の安全地点まで待つ
+		if (playing && playReloadMode_ != ManagedPlayReloadMode::RecompileAndContinue) {
 			return;
 		}
 		ApplyReload();
@@ -230,7 +256,8 @@ Engine::ManagedScriptBuildService::Snapshot Engine::ManagedScriptBuildService::G
 	snapshot.buildID = cycle_.diagnostics.buildID;
 	snapshot.reloadID = cycle_.diagnostics.reloadID;
 	snapshot.hasPendingSourceChanges = dirty_;
-	snapshot.reloadDeferredByPlayMode = playDirtyNotified_;
+	snapshot.reloadDeferredByPlayMode = playDirtyNotified_ &&
+		playReloadMode_ != ManagedPlayReloadMode::RecompileAndContinue;
 	std::error_code ec{};
 	snapshot.hasUsableLastKnownGood =
 		std::filesystem::exists(artifacts_.LastKnownGoodDirectory() / kAssemblyFileName, ec) && !ec;
@@ -247,6 +274,7 @@ void Engine::ManagedScriptBuildService::RequestRebuild() {
 
 	// 次の安全地点でビルドやリロードを開始させる、状態機械は触らずdirtyを立てるだけでPlay中は保留される
 	dirty_ = true;
+	++inputRevision_;
 	lastChangeTime_ = std::chrono::steady_clock::now() - debounce_;
 }
 
@@ -265,4 +293,18 @@ void Engine::ManagedScriptBuildService::RequestReloadWhenSafe() {
 
 	// 安全になった時点でリロードし、Play中は既存の保留規則つまりStop後反映に従う
 	RequestRebuild();
+}
+
+bool Engine::ManagedScriptBuildService::ConsumeStopPlayRequest() {
+
+	const bool requested = stopPlayRequested_;
+	stopPlayRequested_ = false;
+	return requested;
+}
+
+bool Engine::ManagedScriptBuildService::ConsumeReloadPauseRequest() {
+
+	const bool requested = reloadPauseRequested_;
+	reloadPauseRequested_ = false;
+	return requested;
 }

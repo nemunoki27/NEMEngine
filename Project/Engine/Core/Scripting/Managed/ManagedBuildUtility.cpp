@@ -13,6 +13,16 @@ std::string ToUtf8Path(const std::filesystem::path& path) {
 		return Engine::Algorithm::ConvertString(path.wstring());
 	}
 
+std::wstring ToMSBuildDirectory(const std::filesystem::path& path) {
+
+		// MSBuildのDirectory propertyは末尾区切りを必須とする
+		std::wstring result = path.generic_wstring();
+		if (!result.empty() && result.back() != L'/') {
+			result.push_back(L'/');
+		}
+		return result;
+	}
+
 std::wstring Widen(const std::string& text) {
 		return Engine::Algorithm::ConvertString(text);
 	}

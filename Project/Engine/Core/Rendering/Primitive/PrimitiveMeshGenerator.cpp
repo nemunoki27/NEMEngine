@@ -3,9 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 
 // c++
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <numbers>
 
@@ -27,16 +29,6 @@ namespace {
 			hash *= kFnvPrime;
 		}
 	}
-
-	void HashFloat(uint64_t& hash, float value) {
-
-		// 符号付き0で同じ形状を二重生成しない
-		if (value == 0.0f) value = 0.0f;
-		HashScalar(hash, &value, sizeof(value));
-	}
-	void HashInt(uint64_t& hash, int32_t value) { HashScalar(hash, &value, sizeof(value)); }
-	void HashVector2(uint64_t& hash, const Engine::Vector2& value) { HashFloat(hash, value.x); HashFloat(hash, value.y); }
-	void HashVector3(uint64_t& hash, const Engine::Vector3& value) { HashFloat(hash, value.x); HashFloat(hash, value.y); HashFloat(hash, value.z); }
 
 	float FiniteOr(float value, float fallback) {
 
@@ -211,57 +203,96 @@ void Engine::PrimitiveMeshGenerator::ComputeTangents(PrimitiveMeshData& out) {
 
 uint64_t Engine::PrimitiveMeshGenerator::ComputeHash(const PrimitiveRendererComponent& renderer) {
 
-	uint64_t hash = kFnvOffsetBasis;
-	HashInt(hash, static_cast<int32_t>(renderer.type));
+	return ComputeHash(ComputeKey(renderer));
+}
 
-	switch (renderer.type) {
+Engine::PrimitiveGeometryKey Engine::PrimitiveMeshGenerator::ComputeKey(
+	const PrimitiveRendererComponent& renderer) {
+
+	PrimitiveGeometryKey key{};
+	const PrimitiveRendererComponent normalized = NormalizeFiniteParameters(renderer);
+	const auto appendInt = [&key](int32_t value) {
+
+		key.values[key.valueCount++] = static_cast<uint32_t>(value);
+	};
+	const auto appendFloat = [&key](float value) {
+
+		// 符号付き0を同じ形状として扱う
+		if (value == 0.0f) {
+			value = 0.0f;
+		}
+		key.values[key.valueCount++] = std::bit_cast<uint32_t>(value);
+	};
+	const auto appendVector2 = [&appendFloat](const Vector2& value) {
+
+		appendFloat(value.x);
+		appendFloat(value.y);
+	};
+	const auto appendVector3 = [&appendFloat](const Vector3& value) {
+
+		appendFloat(value.x);
+		appendFloat(value.y);
+		appendFloat(value.z);
+	};
+
+	appendInt(static_cast<int32_t>(normalized.type));
+	switch (normalized.type) {
 	case PrimitiveType::Plane:
-		HashVector2(hash, FiniteOr(renderer.plane.size, Vector2::AnyInit(1.0f)));
-		HashVector2(hash, FiniteOr(renderer.plane.pivot, Vector2::AnyInit(0.5f)));
-		HashInt(hash, static_cast<int32_t>(renderer.plane.axis));
-		HashInt(hash, ClampDivide(renderer.plane.divideX, 1));
-		HashInt(hash, ClampDivide(renderer.plane.divideY, 1));
+		appendVector2(normalized.plane.size);
+		appendVector2(normalized.plane.pivot);
+		appendInt(static_cast<int32_t>(normalized.plane.axis));
+		appendInt(ClampDivide(normalized.plane.divideX, 1));
+		appendInt(ClampDivide(normalized.plane.divideY, 1));
 		break;
 	case PrimitiveType::CrossPlane:
-		HashVector2(hash, FiniteOr(renderer.crossPlane.size, Vector2::AnyInit(1.0f)));
-		HashVector2(hash, FiniteOr(renderer.crossPlane.pivot, Vector2::AnyInit(0.5f)));
-		HashInt(hash, ClampDivide(renderer.crossPlane.planeCount, 1));
+		appendVector2(normalized.crossPlane.size);
+		appendVector2(normalized.crossPlane.pivot);
+		appendInt(ClampDivide(normalized.crossPlane.planeCount, 1));
 		break;
 	case PrimitiveType::Ring:
-		HashFloat(hash, FiniteOr(renderer.ring.outerRadius, 1.0f));
-		HashFloat(hash, FiniteOr(renderer.ring.innerRadius, 0.5f));
-		HashFloat(hash, FiniteOr(renderer.ring.startAngle, 0.0f));
-		HashFloat(hash, FiniteOr(renderer.ring.endAngle, 360.0f));
-		HashInt(hash, ClampDivide(renderer.ring.divide, 3));
+		appendFloat(normalized.ring.outerRadius);
+		appendFloat(normalized.ring.innerRadius);
+		appendFloat(normalized.ring.startAngle);
+		appendFloat(normalized.ring.endAngle);
+		appendInt(ClampDivide(normalized.ring.divide, 3));
 		break;
 	case PrimitiveType::Cylinder:
-		HashFloat(hash, FiniteOr(renderer.cylinder.topRadius, 1.0f));
-		HashFloat(hash, FiniteOr(renderer.cylinder.centerRadius, 1.0f));
-		HashFloat(hash, FiniteOr(renderer.cylinder.bottomRadius, 1.0f));
-		HashFloat(hash, std::clamp(FiniteOr(renderer.cylinder.topRadiusWeight, 0.0f), 0.0f, 1.0f));
-		HashFloat(hash, std::clamp(FiniteOr(renderer.cylinder.bottomRadiusWeight, 0.0f), 0.0f, 1.0f));
-		HashFloat(hash, FiniteOr(renderer.cylinder.height, 2.0f));
-		HashFloat(hash, FiniteOr(renderer.cylinder.maxAngle, 360.0f));
-		HashInt(hash, ClampDivide(renderer.cylinder.radialDivide, 3));
-		HashInt(hash, ClampCylinderHeightDivide(renderer.cylinder.heightDivide));
-		HashInt(hash, static_cast<int32_t>(renderer.cylinder.cap));
-		HashInt(hash, static_cast<int32_t>(renderer.cylinder.uvMode));
+		appendFloat(normalized.cylinder.topRadius);
+		appendFloat(normalized.cylinder.centerRadius);
+		appendFloat(normalized.cylinder.bottomRadius);
+		appendFloat(std::clamp(normalized.cylinder.topRadiusWeight, 0.0f, 1.0f));
+		appendFloat(std::clamp(normalized.cylinder.bottomRadiusWeight, 0.0f, 1.0f));
+		appendFloat(normalized.cylinder.height);
+		appendFloat(normalized.cylinder.maxAngle);
+		appendInt(ClampDivide(normalized.cylinder.radialDivide, 3));
+		appendInt(ClampCylinderHeightDivide(normalized.cylinder.heightDivide));
+		appendInt(static_cast<int32_t>(normalized.cylinder.cap));
+		appendInt(static_cast<int32_t>(normalized.cylinder.uvMode));
 		break;
 	case PrimitiveType::Sphere:
-		HashFloat(hash, FiniteOr(renderer.sphere.radius, 1.0f));
-		HashInt(hash, ClampDivide(renderer.sphere.longitudeDivide, 3));
-		HashInt(hash, ClampDivide(renderer.sphere.latitudeDivide, 2));
+		appendFloat(normalized.sphere.radius);
+		appendInt(ClampDivide(normalized.sphere.longitudeDivide, 3));
+		appendInt(ClampDivide(normalized.sphere.latitudeDivide, 2));
 		break;
 	case PrimitiveType::Hemisphere:
-		HashFloat(hash, FiniteOr(renderer.hemisphere.radius, 1.0f));
-		HashInt(hash, ClampDivide(renderer.hemisphere.longitudeDivide, 3));
-		HashInt(hash, ClampDivide(renderer.hemisphere.latitudeDivide, 1));
-		HashInt(hash, renderer.hemisphere.bottomCap ? 1 : 0);
+		appendFloat(normalized.hemisphere.radius);
+		appendInt(ClampDivide(normalized.hemisphere.longitudeDivide, 3));
+		appendInt(ClampDivide(normalized.hemisphere.latitudeDivide, 1));
+		appendInt(normalized.hemisphere.bottomCap ? 1 : 0);
 		break;
 	case PrimitiveType::Cube:
-		HashVector3(hash, FiniteOr(renderer.cube.size, Vector3::AnyInit(1.0f)));
-		HashVector3(hash, FiniteOr(renderer.cube.pivot, Vector3::AnyInit(0.5f)));
+		appendVector3(normalized.cube.size);
+		appendVector3(normalized.cube.pivot);
 		break;
+	}
+	return key;
+}
+
+uint64_t Engine::PrimitiveMeshGenerator::ComputeHash(const PrimitiveGeometryKey& key) {
+
+	uint64_t hash = kFnvOffsetBasis;
+	for (uint8_t index = 0; index < key.valueCount; ++index) {
+		HashScalar(hash, &key.values[index], sizeof(key.values[index]));
 	}
 	return hash;
 }

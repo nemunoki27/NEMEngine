@@ -16,4 +16,8 @@ namespace Engine::ShaderGraphPublication {
 	bool CompileAndPublish(const EditorToolContext& context, AssetDatabase& database, const ShaderGraphAsset& graph,
 		AssetID assetID, const std::filesystem::path& graphPath, AssetID& materialID,
 		std::vector<ShaderGraphDiagnostic>& diagnostics, std::string& status);
+	// 編集中の成果物をファイルへ保存せず描画側へ公開する
+	bool CompileAndPublishPreview(const EditorToolContext& context, AssetDatabase& database,
+		const ShaderGraphAsset& graph, AssetID assetID, AssetID& materialID,
+		std::vector<ShaderGraphDiagnostic>& diagnostics, std::string& status);
 }

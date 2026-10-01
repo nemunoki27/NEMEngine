@@ -71,6 +71,9 @@ namespace Engine {
 		// 投影半径が閾値以上ならLOD0/1/2を選び、それ未満はLOD3にする
 		Vector3 lodPixelThresholds = Vector3(160.0f, 80.0f, 32.0f);
 		uint32_t lodCount = kMeshLODCount;
+		uint32_t lodDitherEnabled = 0;
+		uint32_t preserveInstanceOrder = 0;
+		uint32_t _lodDrawPad[2] = { 0, 0 };
 	};
 	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
 

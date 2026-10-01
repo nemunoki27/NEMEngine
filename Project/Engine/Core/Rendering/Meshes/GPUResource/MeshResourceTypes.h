@@ -263,12 +263,19 @@ namespace Engine {
 		// メッシュレット内の三角形を構成するPrimitiveIndex配列
 		std::vector<uint32_t> meshletPrimitiveIndices;
 		std::array<MeshLODRange, kMeshLODCount> lods{};
+		// LOD0または手動指定した形状かを保持する
+		std::array<bool, kMeshLODCount> authoredLODs = {
+			true, false, false, false,
+		};
+		bool ditherLODTransitions = false;
 
 		MeshNode rootNode{};
 
 		// スキニング情報
 		bool isSkinned = false;
 		uint32_t boneCount = 0;
+		// 手動LODのスケルトン対応を検証する
+		std::vector<std::string> skeletonJointPaths{};
 		std::vector<VertexInfluence> vertexInfluences{};
 	};
 	// 静的メッシュのBufferとSRV番号を所有する
@@ -379,6 +386,7 @@ namespace Engine {
 		uint32_t indexCount = 0;
 		uint32_t meshletCount = 0;
 		std::array<MeshLODRange, kMeshLODCount> lods{};
+		bool ditherLODTransitions = false;
 		// packedMeshletVertexIndexSRVを使える場合だけtrueにする
 		bool usePackedMeshletVertexIndices = false;
 		std::vector<SubMeshDesc> subMeshes;

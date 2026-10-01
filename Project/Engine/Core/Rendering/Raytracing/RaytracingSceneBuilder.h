@@ -137,7 +137,6 @@ namespace Engine {
 			bool castShadows = true;
 			bool viewDependent = false;
 			// 形状ハッシュ、共有ジオメトリのキー
-			uint64_t geometryHash = 0;
 		};
 		// TLASインスタンスをEntityから検索するためのキー
 		struct SceneEntityKey {

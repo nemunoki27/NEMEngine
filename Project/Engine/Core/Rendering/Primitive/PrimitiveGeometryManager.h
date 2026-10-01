@@ -6,10 +6,12 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
+#include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 
 // c++
+#include <cstddef>
 #include <cstdint>
 #include <unordered_map>
 
@@ -18,7 +20,12 @@ namespace Engine {
 	// front
 	class GraphicsCore;
 	class SRVDescriptor;
-	struct PrimitiveRendererComponent;
+
+	// PrimitiveGeometryKeyをunordered_mapで使う
+	struct PrimitiveGeometryKeyHash {
+
+		size_t operator()(const PrimitiveGeometryKey& key) const;
+	};
 
 	//============================================================================
 	//	PrimitiveGeometry
@@ -61,11 +68,8 @@ namespace Engine {
 		void BeginFrame();
 
 		// ハッシュに対応するジオメトリを返す、無ければ生成する、使用フレームを更新する
-		PrimitiveGeometry* GetOrCreate(GraphicsCore& graphicsCore, uint64_t hash,
+		PrimitiveGeometry* GetOrCreate(GraphicsCore& graphicsCore,
 			const PrimitiveRendererComponent& renderer);
-
-		// 生成済みジオメトリを返す、無ければnullptr
-		PrimitiveGeometry* Find(uint64_t hash);
 
 		// レイトレ用にBLASを構築する、共有の頂点/インデックスから作る
 		bool EnsureBLAS(ID3D12Device8* device, ID3D12GraphicsCommandList6* commandList, PrimitiveGeometry& geometry);
@@ -84,7 +88,8 @@ namespace Engine {
 
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		uint64_t frameIndex_ = 0;
-		std::unordered_map<uint64_t, PrimitiveGeometry> geometries_{};
+		std::unordered_map<PrimitiveGeometryKey, PrimitiveGeometry,
+			PrimitiveGeometryKeyHash> geometries_{};
 
 		//--------- functions ----------------------------------------------------
 

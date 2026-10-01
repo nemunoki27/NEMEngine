@@ -24,10 +24,11 @@ namespace Engine {
 		//========================================================================
 
 		bool Load(const EditorToolContext& context, AssetID assetID);
-		void Save(const EditorToolContext& context);
+		bool Save(const EditorToolContext& context);
 		// 位置の確定前に保存先を検証する
 		std::filesystem::path ResolveCompilePath(const EditorToolContext& context);
 		bool SaveAndCompile(const EditorToolContext& context, const std::filesystem::path& graphPath);
+		bool CompilePreview(const EditorToolContext& context);
 		void Import(ShaderGraphAsset imported);
 		void CaptureHistory();
 		void Commit();
@@ -42,6 +43,7 @@ namespace Engine {
 		AssetID GetAssetID() const { return selectedAsset_; }
 		AssetID GetPreviewMaterialID() const { return previewMaterial_; }
 		bool IsLoaded() const { return graphLoaded_; }
+		bool IsDirty() const { return graphDirty_; }
 		bool NeedsCompile() const { return previewCompileDirty_; }
 		bool CanUndo() const { return history_.CanUndo(); }
 		bool CanRedo() const { return history_.CanRedo(); }

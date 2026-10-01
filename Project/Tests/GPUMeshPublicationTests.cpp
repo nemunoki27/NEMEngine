@@ -5,6 +5,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshGPUResourceManager.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -21,17 +23,36 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	using namespace Engine;
 	TestDirectory directory("MeshPublication", RuntimePaths::GetGameAssetsRoot());
 	const auto path = directory.GetPath() / "reload.obj";
+	const auto lodPath = directory.GetPath() / "reload_lod1.obj";
 	auto save = [&](int height) {
 		std::ofstream file(path);
-		file << "v 0 0 " << height << "\nv 1 0 " << height << "\nv 0 1 " << height << "\nf 1 2 3\n";
+		file << "o mesh" << height << "\nv 0 0 " << height << "\nv 1 0 " << height <<
+			"\nv 0 1 " << height << "\nf 1 2 3\n";
+		if (7 <= height) {
+			file << "o extra\nv 2 0 " << height << "\nv 3 0 " << height <<
+				"\nv 2 1 " << height << "\nf 4 5 6\n";
+		}
 		file.close();
 		return !file.fail();
 	};
 	if (!save(3)) return false;
+	{
+		std::ofstream file(lodPath);
+		file << "o mesh3\nv 0 0 3\nv 1 0 3\nv 0 1 3\nv 1 1 3\n"
+			"f 1 2 3\nf 2 4 3\n";
+		if (file.fail()) return false;
+	}
 	AssetDatabase database;
 	database.Init();
 	const AssetID asset = database.ImportOrGet(RuntimePaths::ToAssetPath(path), AssetType::Mesh);
-	if (!asset) return false;
+	const AssetID lodAsset = database.ImportOrGet(
+		RuntimePaths::ToAssetPath(lodPath), AssetType::Mesh);
+	MeshImportSettings settings{};
+	settings.manualLODMeshes[0] = lodAsset;
+	if (!asset || !lodAsset || !database.UpdateImporterSettings(
+		asset, ToJson(settings), kMeshImporterVersion)) return false;
+	std::vector<MeshSubMeshLayoutItem> initialLayout;
+	if (!MeshSubMeshAuthoring::TryBuildLayout(&database, asset, initialLayout) || initialLayout.empty()) return false;
 	BufferUploadService uploads;
 	uploads.Init(descriptors.GetRetirementQueue(), device, queue);
 	MeshGPUResourceManager meshes;
@@ -49,7 +70,11 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	meshes.RequestReload(asset);
 	meshes.WaitAll();
 	const auto* first = meshes.Find(asset);
-	if (!first || !first->IsValid() || first->vertexCount != 3) return false;
+	if (!first || !first->IsValid() || first->vertexCount != 7 ||
+		first->lods[1].indexCount != 6) return false;
+	std::vector<MeshSubMeshLayoutItem> publishedLayout;
+	if (!MeshSubMeshAuthoring::TryBuildLayout(&database, asset, publishedLayout) || publishedLayout.empty()) return false;
+	const size_t publishedSubMeshCount = publishedLayout.size();
 	const uint32_t firstIndex = first->vertexSRV.srvIndex;
 	const uint32_t firstGeneration = first->reloadGeneration;
 	const uint64_t firstRevision = meshes.GetResourceRevision();
@@ -70,7 +95,9 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	}
 	meshes.RequestReload(asset);
 	meshes.WaitAll();
-	if (!retained() || !save(7)) return false;
+	std::vector<MeshSubMeshLayoutItem> failedLayout;
+	if (!retained() || !MeshSubMeshAuthoring::TryBuildLayout(&database, asset, failedLayout) ||
+		failedLayout.size() != publishedSubMeshCount || !save(7)) return false;
 
 	// Descriptor不足でGPU生成を失敗させる
 	std::vector<uint32_t> occupied;
@@ -94,6 +121,9 @@ bool NEMTests::RecordMeshPublication(ID3D12Device* device, ID3D12CommandQueue* q
 	if (!second || !second->IsValid() || second->vertexSRV.srvIndex == firstIndex ||
 		second->reloadGeneration != firstGeneration + 1 || meshes.GetResourceRevision() != firstRevision + 1 ||
 		!descriptors.IsAllocated(firstIndex)) return false;
+	std::vector<MeshSubMeshLayoutItem> reloadedLayout;
+	if (!MeshSubMeshAuthoring::TryBuildLayout(&database, asset, reloadedLayout) ||
+		reloadedLayout.size() == publishedSubMeshCount) return false;
 	const uint32_t secondIndex = second->vertexSRV.srvIndex;
 	commands->CopyBufferRegion(readback.Get(), sizeof(float), second->vertexSRV.buffer->GetResource(), positionZ, sizeof(float));
 	meshes.Finalize();

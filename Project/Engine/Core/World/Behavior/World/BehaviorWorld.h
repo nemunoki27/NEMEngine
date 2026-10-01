@@ -27,6 +27,8 @@ namespace Engine {
 		uint32_t typeID = 0;
 		// 生存フラグ
 		bool alive = false;
+		// 世代枯渇後は過去ハンドルとの再一致を防ぐため再利用しない
+		bool retired = false;
 
 		// 所持しているエンティティ
 		Entity owner = Entity::Null();
@@ -70,6 +72,8 @@ namespace Engine {
 		void Destroy(const BehaviorHandle& handle, ECSWorld& world, const  SystemContext& context);
 		// ビヘイビアの全ての実体を破棄
 		void DestroyAll(ECSWorld& world, const  SystemContext& context);
+		// Hot Reload時にLifecycleを再通知せず実体を破棄する
+		void ResetForReload();
 		// 指定Entityが所有するビヘイビアを全て破棄
 		uint32_t DestroyByOwner(const Entity& owner, ECSWorld& world, const SystemContext& context);
 
@@ -117,7 +121,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		/// 新しいビヘイビアIDを割り当てる
+		// 新しいビヘイビアIDを割り当てる
 		uint32_t AllocateIndex();
 		// Entityを検索用キーへ変換する
 		static uint64_t MakeOwnerKey(const Entity& owner);

@@ -36,6 +36,18 @@ namespace Engine {
 		// 1回のSynchronizeで処理するscriptの安定スナップショット要素
 		using SyncParticipant = BehaviorParticipantCache::SyncParticipant;
 
+		struct ReloadSnapshot {
+
+			Entity owner = Entity::Null();
+			UUID scriptSlotID{};
+			nlohmann::json fields = nlohmann::json::object();
+			bool awakeCalled = false;
+			bool startCalled = false;
+			bool enabled = false;
+			bool runtimeEnabledOverride = false;
+			bool hasRuntimeEnabledOverride = false;
+		};
+
 		//--------- variables ----------------------------------------------------
 
 		ECSWorld* activeWorld_ = nullptr;
@@ -51,6 +63,9 @@ namespace Engine {
 		// ECSWorldのComponent変更通知購読ID
 		uint64_t componentMutationListenerID_ = 0;
 		BehaviorRecordSynchronizer records_{ runtime_, dirtyScriptEntities_, participantCache_.participantsDirty_, enableTransitionsDirty_ };
+		// Assembly切替中も保持するScript実行値
+		std::vector<ReloadSnapshot> reloadSnapshots_;
+		bool reloadPrepared_ = false;
 
 		//--------- functions ----------------------------------------------------
 

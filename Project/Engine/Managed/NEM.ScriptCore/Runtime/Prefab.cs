@@ -11,6 +11,10 @@ public sealed class Prefab : Asset {
         return NativeEntityAPI.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, null);
     }
 
+    public GameObject? Instantiate(GameObject? parent) {
+        return NativeEntityAPI.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, parent);
+    }
+
     public GameObject? Instantiate(Vector3 position, Quaternion rotation) {
         return NativeEntityAPI.SpawnPrefab(id, position, rotation, true, null);
     }

@@ -45,6 +45,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 中間出力先を切り替えても以前のobj/binに残る生成コードをコンパイルしない -->
+    <Compile Remove="obj\**\*.cs" />
+    <Compile Remove="bin\**\*.cs" />
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- generator が metadata mode を読めるよう CompilerVisibleProperty にする -->
     <CompilerVisibleProperty Include="NEMScriptMetadataMode" />

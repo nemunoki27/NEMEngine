@@ -64,7 +64,12 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
-	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
+	// 半透明はGPU実行順で前後関係を崩さない頂点経路を使う
+	const bool preserveTransparentOrder =
+		context.passKind == MaterialPassKind::Transparent &&
+		passBinding.preferredVariant == PipelineVariantKind::GraphicsMesh;
+	const PipelineVariantKind desiredKind =
+		context.forceVertexMeshVariant || preserveTransparentOrder ?
 		PipelineVariantKind::GraphicsVertex :
 		passBinding.preferredVariant;
 	// Shader差替え時も深度とSamplerの指定を引き継ぐ
@@ -90,6 +95,8 @@ ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(con
 
 	// パイプラインを設定
 	commandList->SetGraphicsRootSignature(pipelineState.GetRootSignature());
+	pipelineState.BindGlobalDescriptorTablesGraphics(commandList,
+		context.graphicsCore->GetSRVDescriptor().GetGPUHandle(0));
 	commandList->SetPipelineState(pipelineState.GetGraphicsPipeline(blendMode));
 
 	return commandList;

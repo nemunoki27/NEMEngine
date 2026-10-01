@@ -33,6 +33,7 @@ namespace Engine {
 		//========================================================================
 
 		SerializedComponentEditSession(std::string_view componentTypeName) : componentTypeName_(componentTypeName) {}
+		~SerializedComponentEditSession() { RestorePreview(); }
 
 		// ワールドから編集値を同期する
 		void SyncDraftFromWorld(ECSWorld& world, const Entity& entity, SerializedComponentEditHooks<T>& hooks);
@@ -46,7 +47,11 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		bool NeedsSync(UUID entityUUID) const { return editingEntityStableUUID_ != entityUUID || !isEditing_; }
+		bool NeedsSync(const ECSWorld& world, UUID entityUUID) const {
+			const auto editingWorld = editingWorld_.lock();
+			return !editingWorld || editingWorld != world.GetLifetime() ||
+				editingEntityStableUUID_ != entityUUID || !isEditing_;
+		}
 		void SetEditing(bool editing) { isEditing_ = editing; }
 		void RequestCommit() { commitRequested_ = true; }
 		T& GetDraft() { return draftComponent_; }
@@ -62,6 +67,8 @@ namespace Engine {
 		std::string componentTypeName_;
 		// 編集中のエンティティのUUID
 		UUID editingEntityStableUUID_{};
+		std::weak_ptr<const ECSWorldLifetime> editingWorld_;
+		ECSWorld* editingWorldPointer_ = nullptr;
 		T draftComponent_{};
 
 		// 編集中か
@@ -76,6 +83,9 @@ namespace Engine {
 		T previewBeginComponent_{};
 		nlohmann::json previewBeginData_{};
 
+		// 編集対象を失う前に未確定プレビューを戻す
+		void RestorePreview();
+
 	};
 
 	template<typename T>
@@ -85,10 +95,16 @@ namespace Engine {
 		if (!world.IsAlive(entity) || !world.HasComponent<T>(entity)) {
 			return;
 		}
+		const auto editingWorld = editingWorld_.lock();
+		if (editingWorldPointer_ != &world || !editingWorld || editingEntityStableUUID_ != world.GetUUID(entity)) {
+			RestorePreview();
+		}
 
 		// ワールドからドラフトを更新
 		draftComponent_ = world.GetComponent<T>(entity);
 		editingEntityStableUUID_ = world.GetUUID(entity);
+		editingWorld_ = world.GetLifetime();
+		editingWorldPointer_ = &world;
 
 		// ドラフトをワールドから同期したのでプレビュー状態をリセット
 		previewActive_ = false;
@@ -191,5 +207,24 @@ namespace Engine {
 		if (result.valueChanged) {
 			previewRequested_ = true;
 		}
+	}
+
+	template<typename T>
+	inline void SerializedComponentEditSession<T>::RestorePreview() {
+
+		const auto lifetime = editingWorld_.lock();
+		if (previewActive_ && lifetime && lifetime->IsAlive() && editingWorldPointer_) {
+			const Entity entity = editingWorldPointer_->FindByUUID(editingEntityStableUUID_);
+			if (editingWorldPointer_->IsAlive(entity) && editingWorldPointer_->HasComponent<T>(entity)) {
+				// World切替やPanel破棄では未確定値を残さない
+				editingWorldPointer_->ApplyComponentJson(entity, componentTypeName_, previewBeginData_);
+			}
+		}
+		previewActive_ = false;
+		previewRequested_ = false;
+		previewBeginData_ = nlohmann::json{};
+		editingWorld_.reset();
+		editingWorldPointer_ = nullptr;
+		editingEntityStableUUID_ = {};
 	}
 }

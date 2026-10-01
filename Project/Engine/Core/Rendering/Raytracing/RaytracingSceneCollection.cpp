@@ -163,8 +163,6 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 		instance.uvMatrix = payload->uvMatrix;
 		instance.castShadows = item.castShadows;
 		instance.viewDependent = RenderBillboard::HasBillboard(item);
-		// batchKeyは上書き分離を含むためBLAS共有には形状ハッシュを使う
-		instance.geometryHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		outInstances.emplace_back(instance);
 	}
 }

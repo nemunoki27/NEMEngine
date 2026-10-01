@@ -142,7 +142,7 @@ internal static class Coroutines {
             if (!r.active) {
                 continue;
             }
-            // owner破棄で停止、非active／Script無効中は待機する
+            // owner破棄で終了し、非activeまたはScript無効中は待機する
             if (r.owner is not null && !r.owner.objectAlive) {
                 FreeAt(i);
                 continue;

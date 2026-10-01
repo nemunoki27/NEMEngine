@@ -23,3 +23,6 @@ uint meshletCount;
 	uint4 lodMeshletCounts;
 	float3 lodPixelThresholds;
 	uint lodCount;
+	uint lodDitherEnabled;
+	uint preserveInstanceOrder;
+	uint2 _lodDrawPad;

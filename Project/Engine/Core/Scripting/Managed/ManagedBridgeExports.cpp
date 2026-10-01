@@ -40,6 +40,9 @@ bool Engine::ManagedBridgeExports::Load(DotnetHostResolver& host, const std::fil
 	success &= loadRequired(copyRuntimeState_, L"CopyRuntimeSerializedState");
 	success &= loadRequired(getSavedStateSize_, L"GetSavedSerializedStateSize");
 	success &= loadRequired(copySavedState_, L"CopySavedSerializedState");
+	success &= loadRequired(getReloadStateSize_, L"GetReloadSerializedStateSize");
+	success &= loadRequired(copyReloadState_, L"CopyReloadSerializedState");
+	success &= loadRequired(applyReloadState_, L"ApplyReloadSerializedState");
 	success &= loadRequired(setRuntimeField_, L"SetRuntimeSerializedField");
 	success &= loadRequired(createInstance_, L"CreateInstance");
 	success &= loadRequired(setSerializedFields_, L"SetSerializedFields");

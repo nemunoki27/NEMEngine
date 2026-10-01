@@ -39,6 +39,7 @@ struct OutlineVertexOutput {
 
 	float4 position : SV_Position;
 	nointerpolation float4 color : COLOR0;
+	nointerpolation float lodCoverage : LODCOVERAGE0;
 };
 
 //============================================================================
@@ -52,8 +53,8 @@ float SampleOutlineWidthMultiplier(MeshOutlineGPUData outline, float2 uv) {
 		return 1.0f;
 	}
 
-	Texture2D<float4> tex = ResourceDescriptorHeap[
-		NonUniformResourceIndex(outline.outlineSamplerTextureIndex)];
+	Texture2D<float4> tex = NEM_TEXTURE2D(
+		outline.outlineSamplerTextureIndex);
 	return saturate(tex.SampleLevel(gOutlineSampler, uv, 0.0f).r);
 }
 
@@ -65,8 +66,8 @@ float3 ResolveOutlineLocalNormal(MeshOutlineGPUData outline, MeshVertex vertex) 
 		return normalize(vertex.normal);
 	}
 
-	Texture2D<float4> tex = ResourceDescriptorHeap[
-		NonUniformResourceIndex(outline.bakedNormalTextureIndex)];
+	Texture2D<float4> tex = NEM_TEXTURE2D(
+		outline.bakedNormalTextureIndex);
 	float3 encoded = tex.SampleLevel(gOutlineSampler, vertex.uv, 0.0f).xyz;
 	float3 normal = encoded * 2.0f - 1.0f;
 	return normalize(normal);
@@ -171,5 +172,6 @@ OutlineVertexOutput BuildOutlineVertex(uint instanceID, uint localSubMeshIndex,
 		output.position = mul(float4(worldPos, 1.0f), viewProjection);
 	}
 	output.color = outline.color;
+	output.lodCoverage = GetMeshInstanceLODCoverage(instanceID);
 	return output;
 }

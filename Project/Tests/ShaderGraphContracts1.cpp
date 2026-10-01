@@ -688,6 +688,7 @@ namespace NEMTests {
 			Engine::ShaderGraphNodeKind::Remap,
 			Engine::ShaderGraphNodeKind::TilingAndOffset,
 			Engine::ShaderGraphNodeKind::PolarCoordinates,
+			Engine::ShaderGraphNodeKind::Clamp,
 			Engine::ShaderGraphNodeKind::Split,
 			Engine::ShaderGraphNodeKind::Combine,
 			Engine::ShaderGraphNodeKind::Dither,
@@ -726,6 +727,12 @@ namespace NEMTests {
 				Engine::ShaderGraphCompiler::Compile(
 					nodeGraph, "NEMNodeTest.surface.hlsli");
 			if (!nodeOutput.Succeeded()) {
+				return false;
+			}
+			if (kind == Engine::ShaderGraphNodeKind::Clamp &&
+				nodeOutput.surfaceHLSL.find(
+					"clamp(0.0f, 0.0f, 1.0f)") == std::string::npos) {
+
 				return false;
 			}
 

@@ -128,6 +128,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
+	pipelineState->BindGlobalDescriptorTablesCompute(commandList,
+		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
 	std::vector<ComputeBindItem> binds{};
 	binds.reserve(8);
@@ -135,6 +137,11 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
 	for (const ShaderResourceBinding& binding : reflection.resources) {
 		if (!IsResourceBinding(binding)) {
+			continue;
+		}
+		if (binding.name == "gNEMGlobalTexture2D" ||
+			binding.name == "gNEMGlobalTextureCube") {
+
 			continue;
 		}
 

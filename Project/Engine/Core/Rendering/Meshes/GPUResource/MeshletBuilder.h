@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 
 // meshoptimizer
 #include <meshoptimizer.h>
@@ -23,7 +24,8 @@ namespace Engine {
 		MeshletBuilder() = default;
 		~MeshletBuilder() = default;
 
-		void Build(ImportedMeshAsset& mesh) const;
+		void Build(ImportedMeshAsset& mesh,
+			const MeshImportSettings& settings = {}) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -40,7 +42,8 @@ namespace Engine {
 		// 3つの頂点インデックスを1つの32ビット整数にパックする
 		static uint32_t PackPrimitive(uint32_t i0, uint32_t i1, uint32_t i2);
 		// LOD0から3段階の簡略Indexを生成する
-		void BuildLODs(ImportedMeshAsset& mesh) const;
+		void BuildLODs(ImportedMeshAsset& mesh,
+			const MeshImportSettings& settings) const;
 		// サブメッシュの頂点とインデックスをもとにメッシュレットを構築する
 		void BuildSubMeshMeshlets(
 			ImportedMeshAsset& mesh, uint32_t subMeshIndex, uint32_t lodIndex) const;

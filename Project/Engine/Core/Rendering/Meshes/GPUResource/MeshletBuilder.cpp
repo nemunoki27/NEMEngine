@@ -104,7 +104,9 @@ uint32_t Engine::MeshletBuilder::PackPrimitive(uint32_t i0, uint32_t i1, uint32_
 	return (i0 & 0x3FFu) | ((i1 & 0x3FFu) << 10u) | ((i2 & 0x3FFu) << 20u);
 }
 
-void Engine::MeshletBuilder::Build(ImportedMeshAsset& mesh) const {
+void Engine::MeshletBuilder::Build(
+	ImportedMeshAsset& mesh,
+	const MeshImportSettings& settings) const {
 
 	mesh.meshlets.clear();
 	mesh.meshletVertexIndices.clear();
@@ -113,7 +115,7 @@ void Engine::MeshletBuilder::Build(ImportedMeshAsset& mesh) const {
 		return;
 	}
 
-	BuildLODs(mesh);
+	BuildLODs(mesh, settings);
 	// LODごとに連続したメッシュレット範囲を構築する
 	for (uint32_t lodIndex = 0; lodIndex < kMeshLODCount; ++lodIndex) {
 
@@ -136,16 +138,16 @@ void Engine::MeshletBuilder::Build(ImportedMeshAsset& mesh) const {
 	}
 }
 
-void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
+void Engine::MeshletBuilder::BuildLODs(
+	ImportedMeshAsset& mesh,
+	const MeshImportSettings& settings) const {
 
 	static constexpr std::array<float, kMeshLODCount> kTriangleRatios = {
 		1.0f, 0.35f, 0.08f, 0.04f
 	};
-	static constexpr std::array<float, kMeshLODCount> kTargetErrors = {
-		0.0f, 0.03f, 0.1f, 0.2f
-	};
-
-	const uint32_t lod0IndexCount = static_cast<uint32_t>(mesh.indices.size());
+	const uint32_t lod0IndexCount = mesh.lods[0].indexCount != 0 ?
+		mesh.lods[0].indexCount :
+		static_cast<uint32_t>(mesh.indices.size());
 	mesh.lods[0].indexOffset = 0;
 	mesh.lods[0].indexCount = lod0IndexCount;
 	for (SubMeshDesc& subMesh : mesh.subMeshes) {
@@ -173,6 +175,16 @@ void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 	for (uint32_t lodIndex = 1; lodIndex < kMeshLODCount; ++lodIndex) {
 
 		MeshLODRange& lod = mesh.lods[lodIndex];
+		if (mesh.authoredLODs[lodIndex]) {
+			continue;
+		}
+		if (!settings.generateAutomaticLODs) {
+			lod = mesh.lods[0];
+			for (SubMeshDesc& subMesh : mesh.subMeshes) {
+				subMesh.lods[lodIndex] = subMesh.lods[0];
+			}
+			continue;
+		}
 		lod.indexOffset = static_cast<uint32_t>(mesh.indices.size());
 		for (uint32_t subMeshIndex = 0;
 			subMeshIndex < static_cast<uint32_t>(mesh.subMeshes.size());
@@ -209,7 +221,8 @@ void Engine::MeshletBuilder::BuildLODs(ImportedMeshAsset& mesh) const {
 					mesh.vertices.size(), sizeof(MeshVertex),
 					attributes.data(), sizeof(float) * 5,
 					kAttributeWeights, 5, nullptr,
-					targetCount, kTargetErrors[lodIndex],
+					targetCount,
+					settings.lodTargetErrors[lodIndex - 1],
 					meshopt_SimplifyLockBorder |
 					meshopt_SimplifyRegularize, nullptr);
 

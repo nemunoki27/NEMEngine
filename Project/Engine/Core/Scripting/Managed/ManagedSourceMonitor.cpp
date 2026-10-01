@@ -53,7 +53,7 @@ void Engine::ManagedSourceMonitor::Stop() {
 	watchedRoot_.clear();
 }
 
-void Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath, bool& dirty,
+bool Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath, bool& dirty,
 	std::chrono::steady_clock::time_point& lastChangeTime, int32_t& changedSourceCount) {
 
 	const auto now = std::chrono::steady_clock::now();
@@ -63,7 +63,7 @@ void Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 		hasSnapshot_ = false;
 		watcher_.Stop();
 		watchedRoot_.clear();
-		return;
+		return false;
 	}
 
 	// Scriptsルートと兄弟のGameAssetsを含む共通の親を監視する
@@ -79,7 +79,7 @@ void Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 	// 変更を検知したか取りこぼし対策の安全走査期限が来た時だけ実走査する
 	const bool changedByWatcher = watcher_.ConsumeChanged();
 	if (!changedByWatcher && now < nextScanTime_) {
-		return;
+		return false;
 	}
 	nextScanTime_ = now + scanInterval_;
 
@@ -144,7 +144,7 @@ void Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 	if (!hasSnapshot_) {
 		sourceSnapshot_ = std::move(current);
 		hasSnapshot_ = true;
-		return;
+		return false;
 	}
 
 	// 変更判定でサイズと更新時刻と追加削除を見る
@@ -170,6 +170,7 @@ void Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 		lastChangeTime = now;
 		changedSourceCount = changedCount;
 	}
+	return changed;
 }
 
 bool Engine::ManagedSourceMonitor::IsNewerThan(const std::filesystem::path& assemblyPath) const {

@@ -24,6 +24,10 @@ namespace Engine {
 
 		AssetType GetAssetType() const override { return AssetType::Texture; }
 		void Draw(const EditorPanelContext& context, const AssetMeta& meta) override;
+		bool HasPendingChanges() const override { return draftSettings_ != savedSettings_; }
+		bool ApplyPendingChanges(const EditorPanelContext& context) override;
+		void DiscardPendingChanges() override;
+		AssetID GetEditingAsset() const override { return selectedAsset_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -42,6 +46,8 @@ namespace Engine {
 
 		// 選択アセットが変わったとき編集状態を同期する
 		void SyncSelection(const AssetMeta& meta);
+		// 現在のドラフトをmetaへ保存する
+		bool ApplySettings(const EditorPanelContext& context, const AssetMeta& meta);
 		// Importer設定を描画する
 		void DrawImportSettings(const EditorPanelContext& context, const AssetMeta& meta);
 		// テクスチャプレビューと情報を描画する

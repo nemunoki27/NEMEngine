@@ -243,6 +243,7 @@ Engine::MeshGPUResource Engine::MeshGPUBuilder::Create(const ImportedMeshAsset& 
 	mesh.assetID = imported.assetID;
 	mesh.vertexCount = static_cast<uint32_t>(imported.vertices.size());
 	mesh.lods = imported.lods;
+	mesh.ditherLODTransitions = imported.ditherLODTransitions;
 	mesh.indexCount = mesh.lods[0].indexCount;
 	mesh.meshletCount = mesh.lods[0].meshletCount;
 	mesh.isSkinned = imported.isSkinned;

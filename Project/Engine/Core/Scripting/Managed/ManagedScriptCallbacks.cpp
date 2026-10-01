@@ -169,6 +169,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	// Gameplay v7のEntity生成/Prefab/Scene/SetParent
 	callbacks.createEntity = &ManagedScriptRuntime::CreateEntityCallback;
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
+	callbacks.instantiateEntity = &ManagedScriptRuntime::InstantiateEntityCallback;
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
 	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
 	callbacks.reloadActiveScene = &ManagedScriptRuntime::ReloadActiveSceneCallback;

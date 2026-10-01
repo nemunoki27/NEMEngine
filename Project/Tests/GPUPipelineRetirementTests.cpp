@@ -286,7 +286,8 @@ bool NEMTests::RecordTexturePublication(ID3D12Device* device,
 }
 
 bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* queue,
-	ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback) {
+	Engine::SRVDescriptor& descriptors, ComPtr<ID3D12CommandAllocator>& allocator,
+	ComPtr<ID3D12GraphicsCommandList6>& commands, ComPtr<ID3D12Resource>& readback) {
 
 	ImGui::CreateContext();
 	struct ContextLifetime {
@@ -331,6 +332,13 @@ bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* q
 	ImGui::NewFrame();
 	ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(8, 8), IM_COL32_WHITE);
 	ImGui::Render();
+	// Texture転送を終えてから描画CommandListを作る
+	for (ImTextureData* texture : ImGui::GetPlatformIO().Textures) {
+		if (texture->Status != ImTextureStatus_OK) ImGui_ImplDX12_UpdateTexture(texture);
+	}
+	if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator))) ||
+		FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, allocator.Get(), nullptr,
+			IID_PPV_ARGS(&commands)))) return false;
 	ComPtr<ID3D12Resource> target;
 	const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 	const auto description = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 8, 8, 1, 1, 1, 0,
@@ -347,7 +355,7 @@ bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* q
 	commands->OMSetRenderTargets(1, &handle, FALSE, nullptr);
 	ID3D12DescriptorHeap* heaps[]{ descriptors.GetDescriptorHeap() };
 	commands->SetDescriptorHeaps(1, heaps);
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands);
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commands.Get());
 	// Backend終了後に実行される描画結果も読み戻す
 	DxUtils::CreateReadbackBufferResource(device, readback, 8 * D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 	const auto toCopy = CD3DX12_RESOURCE_BARRIER::Transition(target.Get(),
@@ -364,7 +372,7 @@ bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* q
 	lifetime.backend = false;
 	const bool retained = descriptors.GetRetirementQueue().GetPendingCount() > beforeShutdown;
 	descriptors.GetRetirementQueue().Retire(std::move(target));
-	return retained;
+	return retained && SUCCEEDED(commands->Close());
 }
 
 bool NEMTests::CheckFenceWaitAndRemoval() {

@@ -127,7 +127,9 @@ void Engine::MergeShaderReflection(
 			});
 		if (found != target.resources.end()) {
 			found->stageMask |= resource.stageMask;
-			found->bindCount = (std::max)(found->bindCount, resource.bindCount);
+			// 0は非有界配列なので固定長との統合でも非有界を維持する
+			found->bindCount = found->bindCount == 0 || resource.bindCount == 0 ?
+				0 : (std::max)(found->bindCount, resource.bindCount);
 		} else {
 			target.resources.emplace_back(resource);
 		}

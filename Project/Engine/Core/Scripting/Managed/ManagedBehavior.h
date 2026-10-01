@@ -32,6 +32,11 @@ namespace Engine {
 		nlohmann::json GetRuntimeSerializedState() override;
 		bool CaptureSavedFields(ECSWorld& world, nlohmann::json& fields) override;
 		void SetRuntimeSerializedField(ECSWorld& world, const std::string& fieldID, const nlohmann::json& value) override;
+		// Hot Reload用のprivate Fieldを含む値を取得・復元する
+		bool CaptureReloadFields(ECSWorld& world, nlohmann::json& fields);
+		bool ApplyReloadFields(ECSWorld& world, const nlohmann::json& fields);
+		// Assembly解放前にManagedインスタンスを切り離す
+		void ReleaseForReload();
 
 		// scriptSlotIDを受け取り、CreateInstance時にC#へ転送する
 		void SetSlotID(uint64_t scriptSlotID) override { scriptSlotID_ = scriptSlotID; }

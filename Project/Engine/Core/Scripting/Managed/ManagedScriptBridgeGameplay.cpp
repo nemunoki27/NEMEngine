@@ -8,11 +8,15 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Serialization/EntitySnapshotDuplicator.h>
+#include <Engine/Core/World/Scene/Serialization/RuntimeEntitySnapshot.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
@@ -43,6 +47,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -176,17 +181,70 @@ namespace Engine {
 			return MakeNullNativeEntity();
 		}
 		if (useTransform != 0) {
-			if (TransformComponent* transform = world->TryGetComponent<TransformComponent>(result.root)) {
-				transform->localPos = Vector3(position.x, position.y, position.z);
-				transform->localRotation = Quaternion::Normalize(
-					Quaternion(rotation.x, rotation.y, rotation.z, rotation.w));
-			}
+			const ManagedNativeEntity nativeRoot = MakeNativeEntity(*world, result.root);
+			SetPositionCallback(nativeRoot, position);
+			SetRotationCallback(nativeRoot, rotation);
 		}
 
 		// 生成したScriptのAwakeとOnEnableを反映
 		BehaviorSystem::SynchronizeInstantiatedEntities(
 			*world, *context, result.createdEntities);
 		return MakeNativeEntity(*world, result.root);
+	}
+
+	ManagedNativeEntity ManagedScriptRuntime::InstantiateEntityCallback(ManagedNativeEntity source,
+		ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent) {
+
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* sourceWorld = ResolveWorld(source);
+		ECSWorld* targetWorld = ResolveTargetWorld(parent);
+		const Entity sourceEntity = ResolveEntity(source);
+		if (!context || !sourceWorld || sourceWorld != targetWorld || !sourceWorld->IsAlive(sourceEntity)) {
+			return MakeNullNativeEntity();
+		}
+
+		try {
+			EntityTreeSnapshot sourceSnapshot;
+			if (!RuntimeEntitySnapshot::Capture(*sourceWorld, sourceEntity, sourceSnapshot)) {
+				return MakeNullNativeEntity();
+			}
+
+			std::string cloneName = "Entity(Clone)";
+			if (const NameComponent* name = sourceWorld->TryGetComponent<NameComponent>(sourceEntity)) {
+				cloneName = name->name + "(Clone)";
+			}
+			EntityTreeSnapshot cloneSnapshot;
+			EntitySnapshotDuplicator::Build(sourceSnapshot, cloneName, cloneSnapshot);
+
+			// 復元と後処理を一つの取消範囲に含める
+			SceneCreationScope creation(*targetWorld);
+			const std::vector<Entity> created = EntitySnapshotUtility::RestoreSubtree(*targetWorld, cloneSnapshot);
+			HierarchySystem hierarchy;
+			hierarchy.RebuildRuntimeLinks(*targetWorld, created);
+			const Entity root = targetWorld->FindByUUID(cloneSnapshot.rootStableUUID);
+			if (!targetWorld->IsAlive(root)) {
+				throw std::runtime_error("複製した階層にルートがありません");
+			}
+
+			const Entity parentEntity = ResolveEntity(parent);
+			if (targetWorld->IsAlive(parentEntity)) {
+				hierarchy.SetParent(*targetWorld, root, parentEntity);
+			}
+			if (useTransform != 0) {
+				const ManagedNativeEntity nativeRoot = MakeNativeEntity(*targetWorld, root);
+				SetPositionCallback(nativeRoot, position);
+				SetRotationCallback(nativeRoot, rotation);
+			}
+
+			// Awakeより前に複製範囲内の参照を解決する
+			BehaviorSystem::SynchronizeInstantiatedEntities(*targetWorld, *context, created);
+			creation.Commit();
+			return MakeNativeEntity(*targetWorld, root);
+		} catch (const std::exception& exception) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"Object.Instantiate: Entityの複製に失敗しました {}", exception.what());
+			return MakeNullNativeEntity();
+		}
 	}
 
 	int32_t ManagedScriptRuntime::DontDestroyOnLoadCallback(ManagedNativeEntity entity) {

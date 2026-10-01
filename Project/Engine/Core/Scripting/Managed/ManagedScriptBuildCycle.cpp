@@ -49,6 +49,7 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 	// 変更は消費する、ビルド中の追加変更はPollSourceChangesが再びdirtyへ戻す
 	dirty_ = false;
 	cycle_.currentForPlay = forPlay;
+	cycle_.inputRevision = inputRevision_;
 	cycle_.buildStartTime = std::chrono::steady_clock::now();
 	cycle_.diagnostics = ManagedBuildCycle::ReloadDiagnostics{};
 	cycle_.diagnostics.buildID = ++buildCounter_;
@@ -73,11 +74,14 @@ bool Engine::ManagedScriptBuildService::StartBuild(bool forPlay) {
 		return false;
 	}
 
+	// MSBuildのDirectory propertyへ渡すため末尾区切りを付ける
+	const std::wstring intermediateDirectory = ToMSBuildDirectory(cycle_.currentStagingDir / "obj");
 	// ステージング出力へdotnet buildし実行中DLLは触らない、NEMScriptStagingOutputでこのプロジェクトだけステージングへ向ける
 	cycle_.pendingBuildCommand =
 		L"dotnet build \"" + projectPath.wstring() + L"\" -c " + Widen(BuildProfile()) +
 		L" --nologo --no-dependencies -p:DebugType=portable -p:DebugSymbols=true -p:Optimize=false" +
 		L" -p:NEMScriptMetadataMode=EditorSync" +
+		L" -p:NEMScriptIntermediateOutput=\"" + intermediateDirectory + L"\"" +
 		L" -p:NEMScriptStagingOutput=\"" + cycle_.currentStagingDir.wstring() + L"\"";
 	cycle_.lastBuildWorkingDir = projectPath.parent_path();
 

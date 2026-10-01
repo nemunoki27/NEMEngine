@@ -175,16 +175,22 @@ namespace {
 		ComPtr<ID3D12Resource> textureReadback;
 		valid &= NEMTests::RecordTexturePublication(device, commands.Get(), descriptors, textureReadback);
 		ComPtr<ID3D12Resource> meshReadback;
-		valid &= NEMTests::RecordMeshPublication(device, queue, commands.Get(), descriptors, meshReadback);
+		const bool meshPublication =
+			NEMTests::RecordMeshPublication(device, queue, commands.Get(), descriptors, meshReadback);
+		if (!meshPublication) std::cerr << "Mesh publication test failed\n";
+		valid &= meshPublication;
 		ComPtr<ID3D12Resource> guiReadback;
-		valid &= NEMTests::RecordImGuiRetirement(device, queue, commands.Get(), descriptors, guiReadback);
+		ComPtr<ID3D12CommandAllocator> guiAllocator;
+		ComPtr<ID3D12GraphicsCommandList6> guiCommands;
+		valid &= NEMTests::RecordImGuiRetirement(
+			device, queue, descriptors, guiAllocator, guiCommands, guiReadback);
 		const uint32_t heldDescriptors = descriptors.GetUseDescriptorCount();
 		const size_t pendingCount = retirement.GetPendingCount();
 		commands->Close();
 		// 描画実行を止めたままOwnerを破棄し、完了前の回収を試す
 		valid &= SUCCEEDED(queue->Wait(gate.Get(), 1));
-		ID3D12CommandList* lists[]{ commands.Get() };
-		queue->ExecuteCommandLists(1, lists);
+		ID3D12CommandList* lists[]{ commands.Get(), guiCommands.Get() };
+		queue->ExecuteCommandLists(static_cast<UINT>(std::size(lists)), lists);
 		valid &= SUCCEEDED(queue->Signal(completed.Get(), 1));
 		retirement.Seal(1);
 		retirement.Collect(completed->GetCompletedValue());

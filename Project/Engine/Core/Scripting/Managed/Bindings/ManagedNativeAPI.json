@@ -308,6 +308,11 @@
       "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity>"
     },
     {
+      "name": "instantiateEntity",
+      "nativeType": "InstantiateEntityCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity>"
+    },
+    {
       "name": "loadSceneAdditive",
       "nativeType": "LoadSceneCallback",
       "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -179,7 +180,7 @@ void Engine::PrimitiveMeshGenerator::GenerateRing(const PrimitiveRingParams& par
 		const uint32_t in0 = o0 + 1;
 		const uint32_t o1 = o0 + 2;
 		const uint32_t in1 = o0 + 3;
-		out.indices.insert(out.indices.end(), { o0, o1, in0, in0, o1, in1 });
+		out.indices.insert(out.indices.end(), { o0, in0, o1, in0, in1, o1 });
 	}
 }
 
@@ -256,7 +257,7 @@ void Engine::PrimitiveMeshGenerator::GenerateCylinder(const PrimitiveCylinderPar
 			const uint32_t i1 = i0 + 1;
 			const uint32_t i2 = i0 + static_cast<uint32_t>(stride);
 			const uint32_t i3 = i2 + 1;
-			out.indices.insert(out.indices.end(), { i0, i2, i1, i1, i2, i3 });
+			out.indices.insert(out.indices.end(), { i0, i1, i2, i1, i3, i2 });
 		}
 	}
 
@@ -426,6 +427,6 @@ void Engine::PrimitiveMeshGenerator::GenerateCube(const PrimitiveCubeParams& par
 			out.vertices.push_back(vertex);
 		}
 		out.indices.insert(out.indices.end(),
-			{ base + 0, base + 2, base + 1, base + 1, base + 2, base + 3 });
+			{ base + 0, base + 1, base + 2, base + 1, base + 3, base + 2 });
 	}
 }

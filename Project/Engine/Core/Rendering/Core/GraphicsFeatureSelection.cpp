@@ -7,8 +7,8 @@ Engine::GraphicsRuntimeFeatures Engine::GraphicsFeatureSelection::Resolve(
 
 	// GPU対応が必要な機能はsupportで絞り、カリング系は描画側で安全側に倒せるよう設定を直で反映する
 	features.useMeshShader = support.SupportsMeshShaderPath() && preferences.allowMeshShader;
-	features.useInlineRayTracing = support.SupportsRayTracingPath() && preferences.allowInlineRayTracing;
-	features.useDispatchRays = support.SupportsRayTracingPath() && preferences.allowDispatchRays;
+	features.useInlineRayTracing = support.SupportsInlineRayTracingPath() && preferences.allowInlineRayTracing;
+	features.useDispatchRays = support.SupportsDispatchRaysPath() && preferences.allowDispatchRays;
 	features.useRaytracingDownsampling =
 		preferences.allowRaytracingDownsampling;
 	features.softShadowSampleCount =

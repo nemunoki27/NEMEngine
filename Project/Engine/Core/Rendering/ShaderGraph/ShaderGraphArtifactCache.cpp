@@ -49,7 +49,7 @@ namespace {
 			.stage = Engine::ShaderStage::PS,
 			.file = Engine::Algorithm::PathToUTF8(path),
 			.entry = std::string(entry),
-			.profile = "ps_6_6",
+			.profile = "ps_6_0",
 			});
 		shader.parameters = parameters;
 		for (const Engine::ShaderParameterMetadata& parameter : parameters) {
@@ -73,7 +73,7 @@ namespace {
 			.stage = Engine::ShaderStage::CS,
 			.file = Engine::Algorithm::PathToUTF8(path),
 			.entry = "main",
-			.profile = "cs_6_6",
+			.profile = "cs_6_0",
 			});
 		shader.parameters = parameters;
 		for (const Engine::ShaderParameterMetadata& parameter : parameters) {

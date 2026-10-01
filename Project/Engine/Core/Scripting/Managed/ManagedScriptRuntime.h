@@ -107,6 +107,10 @@ namespace Engine {
 		nlohmann::json GetRuntimeSerializedState(ManagedScriptInstanceHandle handle);
 		// 複製用の保存値を取得し、失敗時は出力を維持する
 		bool CaptureSavedValueMap(ManagedScriptInstanceHandle handle, ECSWorld& world, nlohmann::json& fields);
+		// Hot Reload用にprivate Fieldを含む実行値を取得する
+		bool CaptureReloadValueMap(ManagedScriptInstanceHandle handle, ECSWorld& world, nlohmann::json& fields);
+		// Hot Reload用の実行値を新しいインスタンスへ復元する
+		bool ApplyReloadValueMap(ManagedScriptInstanceHandle handle, ECSWorld& world, const nlohmann::json& fields);
 		// runtime instanceの単一fieldを即時更新する、authoringへは保存しない
 		void SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, ECSWorld& world,
 			const std::string& fieldID, const nlohmann::json& value);
@@ -381,6 +385,7 @@ namespace Engine {
 		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		static ManagedNativeEntity __cdecl CreateEntityCallback(const char* name, ManagedNativeEntity parent);
 		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
+		static ManagedNativeEntity __cdecl InstantiateEntityCallback(ManagedNativeEntity source, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
 		static uint64_t __cdecl LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl LoadSceneSingleCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl ReloadActiveSceneCallback();

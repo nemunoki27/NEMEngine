@@ -57,6 +57,7 @@ namespace Engine {
 		ShaderBindingKind kind;
 
 		UINT bindPoint = 0;
+		// 0はTexture等の非有界配列を表す
 		UINT bindCount = 1;
 		UINT space = 0;
 		ShaderStage stageMask = ShaderStage::None;
@@ -153,6 +154,8 @@ namespace Engine {
 		ComPtr<IDxcBlob> object;
 		// Cook済み製品ではdxcompiler.dllを使わず所有する
 		std::vector<uint8_t> bytecode;
+		// コンパイル失敗時のDXC診断
+		std::string diagnostics;
 		// シェーダーのリフレクション情報
 		ShaderReflectionInfo reflection;
 

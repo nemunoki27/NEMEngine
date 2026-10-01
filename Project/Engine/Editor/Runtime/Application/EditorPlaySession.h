@@ -50,6 +50,8 @@ namespace Engine {
 		void HandlePlayPauseRequests();
 		// Script例外を検出した安全地点で一時停止する
 		void PauseForScriptException();
+		// Script再読み込み失敗時にWorldを保持して一時停止する
+		void PauseForScriptReloadFailure();
 		// このフレームにWorldを進行させるか
 		bool ShouldAdvanceActiveWorld() const;
 

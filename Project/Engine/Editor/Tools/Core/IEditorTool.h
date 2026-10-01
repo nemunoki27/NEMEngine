@@ -5,6 +5,13 @@
 
 namespace Engine {
 
+	enum class EditorToolCloseResult : uint8_t {
+
+		None,
+		Accepted,
+		Cancelled,
+	};
+
 	//============================================================================
 	//	IEditorTool class
 	//	ImGuiで操作するエディタツールのインターフェース
@@ -29,6 +36,11 @@ namespace Engine {
 		virtual void OpenEditorTool() {}
 		// 独立したエディタウィンドウを描画する
 		virtual void DrawEditorTool(const EditorToolContext& context) = 0;
+		virtual bool HasPendingEdits() const { return false; }
+		virtual void RequestResolvePendingEdits() {}
+		virtual EditorToolCloseResult ConsumePendingEditCloseResult() {
+			return EditorToolCloseResult::None;
+		}
 	protected:
 		//============================================================================
 		//	protected Methods

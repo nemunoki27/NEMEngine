@@ -54,6 +54,12 @@ namespace Engine {
 		// Prefab生成中にScript実体とAwakeとOnEnableを返却前まで同期する
 		static void SynchronizeInstantiatedEntities(ECSWorld& world, const SystemContext& context,
 			std::span<const Entity> entities);
+		// Assembly切替前に実行値を退避してManagedインスタンスを解放する
+		static bool PrepareManagedReload(ECSWorld& world, const SystemContext& context);
+		// 新しいAssemblyのインスタンスへ退避値を復元する
+		static bool RestoreManagedReload(ECSWorld& world, const SystemContext& context);
+		// 退避中のReloadがあるか
+		static bool HasPreparedManagedReload();
 
 		// Play中runtime Inspector用にBehaviorHandleからlive instanceの現在値を取得設定
 		static nlohmann::json GetRuntimeSerializedState(BehaviorHandle handle);

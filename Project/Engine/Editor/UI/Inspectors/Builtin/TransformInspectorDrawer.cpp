@@ -12,6 +12,11 @@
 //============================================================================
 //	TransformInspectorDrawer classMethods
 //============================================================================
+Engine::TransformInspectorDrawer::~TransformInspectorDrawer() {
+
+	RestorePreview();
+}
+
 void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
 	// 描画できない場合は何もしない
@@ -21,7 +26,9 @@ void Engine::TransformInspectorDrawer::Draw(const EditorPanelContext& context, E
 
 	// ドラフトのエンティティが変わった、または編集状態でない場合はワールドからドラフトを更新する
 	const UUID stableUUID = world.GetUUID(entity);
-	bool shouldSyncFromWorld = (editingEntityStableUUID_ != stableUUID);
+	const auto editingWorld = editingWorld_.lock();
+	bool shouldSyncFromWorld = !editingWorld || editingWorld != world.GetLifetime() ||
+		editingEntityStableUUID_ != stableUUID;
 	if (!shouldSyncFromWorld && !isEditing_) {
 
 		const auto& worldTransform = world.GetComponent<TransformComponent>(entity);
@@ -189,6 +196,10 @@ void Engine::TransformInspectorDrawer::SyncDraftFromWorld(ECSWorld& world, const
 	}
 
 	const UUID stableUUID = world.GetUUID(entity);
+	const auto editingWorld = editingWorld_.lock();
+	if (!editingWorld || editingWorld != world.GetLifetime() || editingEntityStableUUID_ != stableUUID) {
+		RestorePreview();
+	}
 	const auto& transform = world.GetComponent<TransformComponent>(entity);
 
 	const Vector3 rawEulerDegrees = Quaternion::ToEulerAngles(transform.localRotation);
@@ -203,6 +214,8 @@ void Engine::TransformInspectorDrawer::SyncDraftFromWorld(ECSWorld& world, const
 	}
 
 	editingEntityStableUUID_ = stableUUID;
+	editingWorld_ = world.GetLifetime();
+	editingWorldPointer_ = &world;
 
 	previewActive_ = false;
 	previewRequested_ = false;
@@ -274,4 +287,22 @@ void Engine::TransformInspectorDrawer::ApplyPreviewIfNeeded(ECSWorld& world, con
 
 		draftTransform_ = previewTransform;
 	}
+}
+
+void Engine::TransformInspectorDrawer::RestorePreview() {
+
+	const auto lifetime = editingWorld_.lock();
+	if (previewActive_ && lifetime && lifetime->IsAlive() && editingWorldPointer_) {
+		const Entity entity = editingWorldPointer_->FindByUUID(editingEntityStableUUID_);
+		if (editingWorldPointer_->IsAlive(entity) && editingWorldPointer_->HasComponent<TransformComponent>(entity)) {
+			// World切替やPanel破棄では未確定値を残さない
+			TransformEditUtility::ApplyImmediate(*editingWorldPointer_, entity, previewBeginTransform_);
+		}
+	}
+	previewActive_ = false;
+	previewRequested_ = false;
+	previewBeginTransform_ = {};
+	editingWorld_.reset();
+	editingWorldPointer_ = nullptr;
+	editingEntityStableUUID_ = {};
 }

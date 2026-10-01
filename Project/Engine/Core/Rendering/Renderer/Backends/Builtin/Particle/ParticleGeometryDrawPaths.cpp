@@ -197,8 +197,7 @@ void Engine::ParticleRenderBackend::DrawSharedGeometryPath(const RenderDrawConte
 	// 粒子が共有する形状ジオメトリを取得する、無ければ生成する
 	GraphicsCore& graphicsCore = *context.graphicsCore;
 	const PrimitiveRendererComponent shape = MakeShapeComponent(settings);
-	const uint64_t geometryHash = PrimitiveMeshGenerator::ComputeHash(shape);
-	const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, geometryHash, shape);
+	const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, shape);
 	if (!geometry || geometry->indexCount == 0 || !geometry->vertexBuffer.buffer) {
 		return;
 	}

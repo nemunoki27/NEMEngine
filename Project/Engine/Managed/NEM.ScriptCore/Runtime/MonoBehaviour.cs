@@ -71,16 +71,6 @@ public abstract class MonoBehaviour : Component {
     protected void DestroySelf() => gameObject.Destroy();
 
     //========================================================================
-    //	Prefab 実体化（Unity の Instantiate 相当の糖衣。nullは安全にnull GameObject）
-    //========================================================================
-    protected static GameObject? Instantiate(Prefab? prefab)
-        => prefab != null ? prefab.Instantiate() : null;
-    protected static GameObject? Instantiate(Prefab? prefab, Vector3 position, Quaternion rotation)
-        => prefab != null ? prefab.Instantiate(position, rotation) : null;
-    protected static GameObject? Instantiate(Prefab? prefab, Vector3 position, Quaternion rotation, GameObject? parent)
-        => prefab != null ? prefab.Instantiate(position, rotation, parent) : null;
-
-    //========================================================================
     //	Coroutine（owner=this。owner 破棄 / DLL unload / Play Stop で停止）
     //========================================================================
     protected CoroutineHandle StartCoroutine(IEnumerator routine) => Coroutines.Start(this, routine);

@@ -10,6 +10,7 @@
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -113,6 +114,27 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 		ImGui::MenuItem("パネルを全て非表示", "Tab+Esc", &context.layoutState->hidePanels);
 		ImGui::MenuItem("Play開始時にSceneを保存", nullptr,
 			&context.layoutState->autoSaveScenesOnPlay);
+		ImGui::MenuItem("Script Errorで一時停止", nullptr,
+			&context.layoutState->pauseOnScriptError);
+		if (context.editorContext && context.editorContext->scriptBuildService &&
+			ImGui::BeginMenu("Play中のC#再読み込み")) {
+
+			auto* service = context.editorContext->scriptBuildService;
+			const ManagedPlayReloadMode mode = service->GetPlayReloadMode();
+			if (ImGui::MenuItem("再コンパイルして継続", nullptr,
+				mode == ManagedPlayReloadMode::RecompileAndContinue)) {
+				service->SetPlayReloadMode(ManagedPlayReloadMode::RecompileAndContinue);
+			}
+			if (ImGui::MenuItem("Stop後に再コンパイル", nullptr,
+				mode == ManagedPlayReloadMode::RecompileAfterStop)) {
+				service->SetPlayReloadMode(ManagedPlayReloadMode::RecompileAfterStop);
+			}
+			if (ImGui::MenuItem("自動Stopして再コンパイル", nullptr,
+				mode == ManagedPlayReloadMode::StopAndRecompile)) {
+				service->SetPlayReloadMode(ManagedPlayReloadMode::StopAndRecompile);
+			}
+			ImGui::EndMenu();
+		}
 		ImGui::Separator();
 
 		ImGui::MenuItem("Toolbar", nullptr, &context.layoutState->showToolbar);

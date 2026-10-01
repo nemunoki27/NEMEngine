@@ -50,6 +50,9 @@ namespace Engine {
 
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 		bool CanDuplicate(const EditorPanelContext& context) const override;
+		bool HasPendingEdits() const override;
+		void RequestResolvePendingEdits() override;
+		EditorPanelCloseResult ConsumePendingEditCloseResult() override;
 	private:
 		//============================================================================
 		//	private Methods
@@ -73,6 +76,20 @@ namespace Engine {
 		TextSearchFilter addScriptSearchFilter_;
 		// アセット種別ごとのInspector表示登録
 		AssetInspectorRegistry assetInspectorRegistry_{};
+		IAssetInspectorDrawer* activeAssetDrawer_ = nullptr;
+		AssetID activeInspectedAsset_{};
+		AssetID pendingAssetSelection_{};
+		EditorSelectionKind pendingSelectionKind_ = EditorSelectionKind::None;
+		std::vector<Entity> pendingSelectedEntities_{};
+		uint32_t pendingSubMeshIndex_ = 0;
+		UUID pendingSubMeshStableID_{};
+		Entity pendingJointEntity_ = Entity::Null();
+		int32_t pendingJointIndex_ = -1;
+		bool pendingCloseAssetEdit_ = false;
+		bool pendingAssetEditPrompt_ = false;
+		bool requestResolvePendingEdits_ = false;
+		bool pendingCloseForHost_ = false;
+		EditorPanelCloseResult pendingEditCloseResult_ = EditorPanelCloseResult::None;
 
 		// メッシュインスペクター
 		MeshRendererInspectorDrawer* meshRendererDrawer_ = nullptr;
@@ -91,6 +108,10 @@ namespace Engine {
 		void DrawEntityHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// 選択中のアセットのインスペクターを描画する
 		void DrawSelectedAssetInspector(const EditorPanelContext& context);
+		// Asset編集の切替・終了確認を処理する
+		bool ResolvePendingAssetEdit(const EditorPanelContext& context, bool closing);
+		// 保留していた選択を反映する
+		void ApplyPendingSelection(EditorState& state);
 		// 名前の同期
 		void SyncNameBufferIfNeeded(ECSWorld& world, const Entity& entity);
 		// コンポーネントのツールバーを描画する

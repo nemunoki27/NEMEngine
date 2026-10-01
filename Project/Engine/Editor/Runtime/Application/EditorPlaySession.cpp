@@ -254,6 +254,18 @@ void Engine::EditorPlaySession::PauseForScriptException() {
 		"EngineApplication: Play中のScript例外を検出したため一時停止します");
 }
 
+void Engine::EditorPlaySession::PauseForScriptReloadFailure() {
+
+	if (!worldManager_.IsPlaying()) {
+		return;
+	}
+	playPaused_ = true;
+	playFrameStepRequested_ = false;
+	requestFrameDeltaReset_ = true;
+	Logger::Output(LogType::Engine, spdlog::level::err,
+		"EngineApplication: Script再読み込みに失敗したためPlayを一時停止します");
+}
+
 bool Engine::EditorPlaySession::ShouldAdvanceActiveWorld() const {
 
 	return !worldManager_.IsPlaying() || !playPaused_ || playFrameStepRequested_;

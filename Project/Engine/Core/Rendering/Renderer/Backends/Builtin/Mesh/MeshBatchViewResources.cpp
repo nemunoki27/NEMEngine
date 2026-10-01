@@ -108,8 +108,13 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		drawContext.runtimeFeatures.
 			meshLOD2PixelThreshold);
 	drawConstants.lodCount =
-		drawContext.runtimeFeatures.useMeshLOD ?
+		drawContext.runtimeFeatures.useMeshLOD &&
+		drawContext.passKind != MaterialPassKind::Transparent ?
 		kMeshLODCount : 1u;
+	drawConstants.lodDitherEnabled =
+		drawConstants.lodCount > 1u && gpuMesh.ditherLODTransitions ? 1u : 0u;
+	drawConstants.preserveInstanceOrder =
+		drawContext.passKind == MaterialPassKind::Transparent ? 1u : 0u;
 
 	drawConstants.invertedHullOutlinePass = hullOutline ? 1u : 0u;
 	drawConstants.outlineMaxModelExpansion = hullOutline ? outlineMetrics.maxModelExpansion : 0.0f;

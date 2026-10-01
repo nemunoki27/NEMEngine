@@ -128,6 +128,7 @@ namespace Engine {
 		bool requestFrameDeltaReset_ = false;
 		bool shutdownAccepted_ = false;
 		bool closeRequestPending_ = false;
+		bool pendingPanelCloseRequest_ = false;
 		bool handlingAssertAbort_ = false;
 		std::optional<EditorSceneSaveRequest> pendingSceneSaveRequest_;
 

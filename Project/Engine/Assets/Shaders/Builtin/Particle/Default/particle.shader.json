@@ -4,13 +4,13 @@
         {
             "entry": "main",
             "file": "4e454d4153534554eff0000000000002",
-            "profile": "vs_6_6",
+            "profile": "vs_6_0",
             "stage": "VS"
         },
         {
             "entry": "main",
             "file": "4e454d4153534554eff0000000000003",
-            "profile": "ps_6_6",
+            "profile": "ps_6_0",
             "stage": "PS"
         }
     ]

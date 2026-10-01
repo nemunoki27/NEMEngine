@@ -58,7 +58,7 @@ namespace Engine {
 	// v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
 	// v52: アクティブSceneの再読み込みAPIを追加
 	// v53: スクリプトの詳細計測区間を追加
-	inline constexpr uint32_t kManagedAbiVersion = 58;
+	inline constexpr uint32_t kManagedAbiVersion = 59;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -541,6 +541,7 @@ namespace Engine {
 		// Gameplay v7のEntity生成とPrefabとSceneとSetParentのworldPositionStays
 		using CreateEntityCallback = ManagedNativeEntity(__cdecl*)(const char*, ManagedNativeEntity);
 		using InstantiatePrefabCallback = ManagedNativeEntity(__cdecl*)(ManagedAssetGUID, ManagedVector3, ManagedQuaternion, int32_t, ManagedNativeEntity);
+		using InstantiateEntityCallback = ManagedNativeEntity(__cdecl*)(ManagedNativeEntity, ManagedVector3, ManagedQuaternion, int32_t, ManagedNativeEntity);
 		using LoadSceneCallback = uint64_t(__cdecl*)(ManagedAssetGUID);
 		using UnloadSceneCallback = void(__cdecl*)(uint64_t);
 		using SetParentKeepWorldCallback = void(__cdecl*)(ManagedNativeEntity, ManagedNativeEntity, int32_t);

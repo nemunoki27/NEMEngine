@@ -41,7 +41,17 @@ namespace Engine {
 		bool SupportsShaderModel6_6() const { return D3D_SHADER_MODEL_6_6 <= highestShaderModel; }
 		bool SupportsMeshShaderPath() const { return SupportsShaderModel6_6() && meshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED; }
 		// レイトレーシング対応しているか
-		bool SupportsRayTracingPath() const { return D3D12_RAYTRACING_TIER_1_0 <= raytracingTier; }
+		bool SupportsInlineRayTracingPath() const {
+			return D3D_SHADER_MODEL_6_5 <= highestShaderModel &&
+				D3D12_RAYTRACING_TIER_1_1 <= raytracingTier;
+		}
+		bool SupportsDispatchRaysPath() const {
+			return D3D_SHADER_MODEL_6_3 <= highestShaderModel &&
+				D3D12_RAYTRACING_TIER_1_0 <= raytracingTier;
+		}
+		bool SupportsRayTracingPath() const {
+			return SupportsInlineRayTracingPath() || SupportsDispatchRaysPath();
+		}
 		bool SupportsRayTracingTier1_1() const { return D3D12_RAYTRACING_TIER_1_1 <= raytracingTier; }
 	};
 

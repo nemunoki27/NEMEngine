@@ -39,6 +39,9 @@ namespace Engine {
 
 		void OpenEditorTool() override;
 		void DrawEditorTool(const EditorToolContext& context) override;
+		bool HasPendingEdits() const override;
+		void RequestResolvePendingEdits() override;
+		EditorToolCloseResult ConsumePendingEditCloseResult() override;
 		// ProjectPanelから指定グラフを開く
 		void OpenAsset(AssetID assetID);
 
@@ -74,6 +77,13 @@ namespace Engine {
 
 		bool openWindow_ = false;
 		AssetID pendingAsset_{};
+		AssetID requestedAsset_{};
+		bool requestAssetSwitch_ = false;
+		bool requestGraphCreate_ = false;
+		bool requestWindowClose_ = false;
+		bool requestUnsavedPrompt_ = false;
+		EditorToolCloseResult pendingEditCloseResult_ =
+			EditorToolCloseResult::None;
 		ShaderGraphEditSession editSession_;
 		bool commandPanelFocused_ = false;
 		bool restoreNodePositions_ = false;
@@ -106,6 +116,8 @@ namespace Engine {
 
 		// ツールの編集画面を表示する
 		void DrawWindow(const EditorToolContext& context);
+		// 未保存の編集を切替前に解決する
+		void DrawUnsavedPrompt(const EditorToolContext& context);
 		// 保存と履歴操作を表示する
 		void DrawToolbar(const EditorToolContext& context);
 		// 公開Parameterの一覧を表示する
@@ -159,6 +171,10 @@ namespace Engine {
 
 		// Graphを読み編集画面を切り替える
 		bool LoadGraph(const EditorToolContext& context, AssetID assetID);
+		// 未保存状態を確認してグラフ切替を予約する
+		void RequestGraphSwitch(const EditorToolContext& context, AssetID assetID);
+		// 確認済みの切替または終了を適用する
+		void ApplyPendingTransition(const EditorToolContext& context);
 		// 別アセットの設定を検証して一括置換する
 		void ImportGraphSettings(const EditorToolContext& context, AssetID source);
 		// 初期Graphを作成して開く

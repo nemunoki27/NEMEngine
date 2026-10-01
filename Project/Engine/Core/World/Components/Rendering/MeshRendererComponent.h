@@ -64,6 +64,8 @@ namespace Engine {
 		UUID stableID{};
 		// 元メッシュ内でのインデックス
 		uint32_t sourceSubMeshIndex = 0;
+		// サブメッシュ単位の表示
+		bool visible = true;
 		// サブメッシュ固有マテリアル、未設定時はRendererのマテリアルを使う
 		AssetID material{};
 		// ユーザー指定の表面方式、Autoはマテリアルとモデル情報から解決する

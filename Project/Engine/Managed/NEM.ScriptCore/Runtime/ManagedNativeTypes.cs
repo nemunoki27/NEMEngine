@@ -51,7 +51,7 @@ internal static class ManagedAbi {
     // v52: アクティブSceneの再読み込みAPIを追加
     // v53: スクリプトの詳細計測区間を追加
     // v54: シーンを越えてルートGameObjectを保持するAPIを追加
-    internal const uint Version = 58;
+    internal const uint Version = 59;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;

@@ -13,7 +13,9 @@ public static class Debug {
     }
 
     public static void LogError(object? message) {
-        NativeApplicationAPI.WriteLog(2, message?.ToString() ?? string.Empty);
+        string text = message?.ToString() ?? string.Empty;
+        NativeApplicationAPI.WriteLog(2, text);
+        ScriptInvocationDiagnostics.ReportLogError(text);
     }
 
     // そのフレームだけGameViewへ線を描く(Unity互換の可視化、LineDrawへの糖衣)

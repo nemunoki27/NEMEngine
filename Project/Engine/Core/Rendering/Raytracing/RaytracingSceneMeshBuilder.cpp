@@ -59,11 +59,23 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		if (meshResource->subMeshes.empty()) {
 			continue;
 		}
-		work.staticScene = work.staticScene && !meshResource->isSkinned;
-		work.blasGeometryCount += static_cast<uint32_t>(meshResource->subMeshes.size());
 		const std::span<const SubMeshMaterial> subMeshes =
 			src.world ? GetMeshSubMeshes(*src.world, src.entity) :
 			std::span<const SubMeshMaterial>{};
+		uint32_t visibleSubMeshCount = 0;
+		for (uint32_t index = 0;
+			index < static_cast<uint32_t>(meshResource->subMeshes.size());
+			++index) {
+
+			if (subMeshes.size() <= index || subMeshes[index].visible) {
+				++visibleSubMeshCount;
+			}
+		}
+		if (visibleSubMeshCount == 0) {
+			continue;
+		}
+		work.staticScene = work.staticScene && !meshResource->isSkinned;
+		work.blasGeometryCount += visibleSubMeshCount;
 		const uint64_t geometryLayoutHash = ComputeGeometryLayoutHash(
 			subMeshes, static_cast<uint32_t>(meshResource->subMeshes.size()));
 		const bool hasCustomGeometryTransforms =
@@ -129,7 +141,9 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 
 		// 1メッシュの全サブメッシュを1つのBLASへまとめる
 		std::vector<RaytracingBLASGeometryInput> geometries{};
-		geometries.reserve(meshResource->subMeshes.size());
+		geometries.reserve(visibleSubMeshCount);
+		std::vector<uint32_t> geometrySubMeshIndices{};
+		geometrySubMeshIndices.reserve(visibleSubMeshCount);
 
 		const uint32_t geometryDataOffset =
 			static_cast<uint32_t>(result_.sceneGeometryScratch_.size());
@@ -155,6 +169,11 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			subMeshIndex < static_cast<uint32_t>(meshResource->subMeshes.size());
 			++subMeshIndex) {
 
+			if (subMeshIndex < subMeshes.size() &&
+				!subMeshes[subMeshIndex].visible) {
+				continue;
+			}
+
 			const SubMeshDesc& importedSubMesh = meshResource->subMeshes[subMeshIndex];
 			const bool hasMesh = subMeshIndex < subMeshes.size();
 			const Matrix4x4 localMatrix = hasMesh ?
@@ -176,6 +195,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			geometry.indexFormat = meshResource->indexBuffer.GetFormat();
 			geometry.localMatrix = localMatrix;
 			geometries.emplace_back(geometry);
+			geometrySubMeshIndices.emplace_back(subMeshIndex);
 
 			const uint32_t subMeshDataIndex =
 				static_cast<uint32_t>(result_.sceneSubMeshScratch_.size());
@@ -333,16 +353,18 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			// 編集中は表示LODだけをrefitし、未使用LODのGPU更新を次回選択時まで遅延する
 			std::vector<RaytracingBLASGeometryInput> lodGeometries =
 				geometries;
-			for (uint32_t subMeshIndex = 0;
-				subMeshIndex < static_cast<uint32_t>(lodGeometries.size());
-				++subMeshIndex) {
+			for (uint32_t geometryIndex = 0;
+				geometryIndex < static_cast<uint32_t>(lodGeometries.size());
+				++geometryIndex) {
 
+				const uint32_t subMeshIndex =
+					geometrySubMeshIndices[geometryIndex];
 				const MeshLODRange& range = ResolveRaytracingLODRange(
 					meshResource->subMeshes[subMeshIndex], lodIndex);
-				lodGeometries[subMeshIndex].indexAddress =
+				lodGeometries[geometryIndex].indexAddress =
 					indexAddress + static_cast<uint64_t>(indexSize) *
 						range.indexOffset;
-				lodGeometries[subMeshIndex].indexCount = range.indexCount;
+				lodGeometries[geometryIndex].indexCount = range.indexCount;
 			}
 			return lodGeometries;
 		};

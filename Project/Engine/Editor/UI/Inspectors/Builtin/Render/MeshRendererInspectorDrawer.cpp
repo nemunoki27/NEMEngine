@@ -427,6 +427,12 @@ void Engine::MeshRendererInspectorDrawer::DrawSubMeshMaterialFields(
 	SubMeshMaterial& subMesh, bool& anyItemActive) {
 
 	DrawField(anyItemActive, [&]() {
+		ValueEditResult result{};
+		result.valueChanged = MyGUI::Checkbox("表示", subMesh.visible);
+		result.editFinished = result.valueChanged;
+		return result;
+		});
+	DrawField(anyItemActive, [&]() {
 
 		AssetEditSetting setting{};
 		setting.defaultAssetID = renderer.material ? renderer.material :

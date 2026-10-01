@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/Scripting/Managed/ManagedBehavior.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -97,6 +98,115 @@ void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(ECSWorld& world, co
 
 	// Startは呼び出し元のコールバック終了後に通常Lifecycle同期で実行する
 	activeSystem_->session_.participantCache_.participantsDirty_ = true;
+}
+
+bool Engine::BehaviorSystem::PrepareManagedReload(ECSWorld& world, const SystemContext& context) {
+
+	if (!activeSystem_ || context.mode != WorldMode::Play ||
+		activeSystem_->session_.activeWorld_ != &world) {
+		return false;
+	}
+	BehaviorExecutionSession& session = activeSystem_->session_;
+	if (!session.reloadPrepared_) {
+		std::vector<BehaviorExecutionSession::ReloadSnapshot> snapshots;
+		bool captured = true;
+		session.runtime_.ForEachAlive([&](BehaviorRecord& record) {
+
+			auto* behavior = dynamic_cast<ManagedBehavior*>(record.instance.get());
+			if (!behavior) {
+				return;
+			}
+			BehaviorExecutionSession::ReloadSnapshot snapshot{};
+			snapshot.owner = record.owner;
+			snapshot.scriptSlotID = record.scriptSlotID;
+			snapshot.awakeCalled = record.awakeCalled;
+			snapshot.startCalled = record.startCalled;
+			snapshot.enabled = record.enabled;
+			snapshot.runtimeEnabledOverride = record.runtimeEnabledOverride;
+			snapshot.hasRuntimeEnabledOverride = record.hasRuntimeEnabledOverride;
+			if (!behavior->CaptureReloadFields(world, snapshot.fields)) {
+				captured = false;
+				return;
+			}
+			snapshots.emplace_back(std::move(snapshot));
+		});
+		if (!captured) {
+			return false;
+		}
+		session.reloadSnapshots_ = std::move(snapshots);
+		session.reloadPrepared_ = true;
+	}
+
+	// 有効なScriptへ切替前のOnDisableを一度だけ通知する
+	for (const BehaviorExecutionSession::ReloadSnapshot& snapshot : session.reloadSnapshots_) {
+
+		const BehaviorHandle handle = session.runtime_.FindHandleBySlot(
+			snapshot.owner, snapshot.scriptSlotID);
+		BehaviorRecord* record = session.runtime_.GetRecord(handle);
+		if (!record || !record->instance) {
+			continue;
+		}
+		if (record->enabled) {
+			record->enabled = false;
+			record->instance->OnDisable(world, context, record->owner);
+		}
+		if (auto* behavior = dynamic_cast<ManagedBehavior*>(record->instance.get())) {
+			behavior->ReleaseForReload();
+		}
+	}
+	session.runtime_.ResetForReload();
+	session.participantCache_.participants_.clear();
+	session.participantCache_.lateUpdateParticipants_.clear();
+	session.participantCache_.participantsDirty_ = true;
+	session.fullSyncRequested_ = true;
+	return true;
+}
+
+bool Engine::BehaviorSystem::RestoreManagedReload(ECSWorld& world, const SystemContext& context) {
+
+	if (!activeSystem_ || !activeSystem_->session_.reloadPrepared_ ||
+		activeSystem_->session_.activeWorld_ != &world) {
+		return false;
+	}
+	BehaviorExecutionSession& session = activeSystem_->session_;
+	session.records_.SynchronizeRecords(world, context, false);
+	bool restored = true;
+	for (const BehaviorExecutionSession::ReloadSnapshot& snapshot : session.reloadSnapshots_) {
+
+		const BehaviorHandle handle = session.runtime_.FindHandleBySlot(
+			snapshot.owner, snapshot.scriptSlotID);
+		BehaviorRecord* record = session.runtime_.GetRecord(handle);
+		if (!record || !record->instance) {
+			continue;
+		}
+		auto* behavior = dynamic_cast<ManagedBehavior*>(record->instance.get());
+		if (!behavior || !behavior->ApplyReloadFields(world, snapshot.fields)) {
+			restored = false;
+			continue;
+		}
+		record->awakeCalled = snapshot.awakeCalled;
+		record->startCalled = snapshot.startCalled;
+		record->runtimeEnabledOverride = snapshot.runtimeEnabledOverride;
+		record->hasRuntimeEnabledOverride = snapshot.hasRuntimeEnabledOverride;
+		record->enabled = false;
+	}
+	ManagedScriptRuntime::GetInstance().FlushPendingReferences(world);
+	if (!restored) {
+		return false;
+	}
+	session.participantCache_.RebuildParticipants(world, session.runtime_);
+	session.participantCache_.participantsDirty_ = false;
+	session.enableTransitionsDirty_ = true;
+	session.FlushActiveTransitions(world, context);
+	session.reloadSnapshots_.clear();
+	session.reloadPrepared_ = false;
+	session.fullSyncRequested_ = false;
+	return true;
+}
+
+bool Engine::BehaviorSystem::HasPreparedManagedReload() {
+
+	return activeSystem_ && activeSystem_->session_.reloadPrepared_;
 }
 
 nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle handle) {

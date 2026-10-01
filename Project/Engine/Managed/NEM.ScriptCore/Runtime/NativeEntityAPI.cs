@@ -167,6 +167,14 @@ internal static unsafe class NativeEntityAPI {
             NativeQuaternion.From(rotation), useTransform ? 1 : 0, GameObject.RawNative(parent)));
     }
 
+    internal static GameObject? CloneEntity(GameObject source, Vector3 position, Quaternion rotation, bool useTransform, GameObject? parent) {
+        if (InstantiateEntity == null) {
+            return null;
+        }
+        return GameObject.FromNative(InstantiateEntity(source.native, NativeVector3.From(position),
+            NativeQuaternion.From(rotation), useTransform ? 1 : 0, GameObject.RawNative(parent)));
+    }
+
     internal static GameObject? ResolveEntityReference(AssetGUID sourceAsset, ulong localFileID, NativeEntity owner)
         => (ResolveEntityRef != null && localFileID != 0) ? GameObject.FromNative(ResolveEntityRef(sourceAsset, localFileID, owner)) : null;
 

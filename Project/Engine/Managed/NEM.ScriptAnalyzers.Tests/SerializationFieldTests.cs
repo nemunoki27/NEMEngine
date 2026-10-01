@@ -297,6 +297,10 @@ internal static class SerializationFieldTests {
         string prefix = "$private:" + typeof(ReloadFixture).FullName + "/";
         Check(captured.Count == 3 && (int)captured[prefix + "counter"]! == 17);
         Check((int)captured[prefix + "callback"]!["number"]! == 12 && (int)captured[prefix + "numbers"]![1]! == 7);
+        typeof(ReloadFixture).GetField("counter", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(script, 99);
+        codec.ApplyReloadFields(script, captured.ToJsonString());
+        codec.FlushPendingReferenceFields(true);
+        Check(script.Current == 61);
         Check(JsonNode.Parse(codec.BuildSavedStateJson(script))!.AsObject().Count == 0);
     }
 

@@ -36,6 +36,7 @@ namespace Engine {
 		std::filesystem::path currentStagingDir;
 		std::filesystem::path currentShadowDir;
 		bool currentForPlay = false;
+		uint64_t inputRevision = 0;
 		std::chrono::steady_clock::time_point buildStartTime{};
 		ReloadDiagnostics diagnostics{};
 

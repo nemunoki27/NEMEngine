@@ -44,7 +44,7 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	desc.compute.file = "Builtin/Lighting/skyboxIrradiance.CS.hlsl";
 	desc.compute.shader = BuiltinAssets::Shaders::SkyboxIrradiance;
 	desc.compute.entry = "main";
-	desc.compute.profile = "cs_6_6";
+	desc.compute.profile = "cs_6_0";
 
 	// cubemapサンプリング用の静的サンプラー
 	D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -158,6 +158,8 @@ void Engine::SkyboxIrradianceMap::Update(GraphicsCore& graphicsCore,
 	// パイプラインを設定
 	commandList->SetComputeRootSignature(pipeline_->GetRootSignature());
 	commandList->SetPipelineState(pipeline_->GetComputePipeline());
+	pipeline_->BindGlobalDescriptorTablesCompute(commandList,
+		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
 	// 定数と出力UAVをバインド
 	bindCache_.Sync(*pipeline_);

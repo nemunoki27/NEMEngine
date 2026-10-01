@@ -187,7 +187,7 @@ namespace {
 
 		nlohmann::json stages = nlohmann::json::array();
 		if (!pixelOnly) {
-			stages.push_back(MakeStageJson("VS", vs, "main", "vs_6_6"));
+			stages.push_back(MakeStageJson("VS", vs, "main", "vs_6_0"));
 		}
 		if (includeMeshStages && as) {
 			stages.push_back(MakeStageJson("AS", as, "main", "as_6_6"));
@@ -196,9 +196,9 @@ namespace {
 			stages.push_back(MakeStageJson("MS", ms, "main", "ms_6_6"));
 		}
 		if (includeGeometryStage && gs) {
-			stages.push_back(MakeStageJson("GS", gs, "main", "gs_6_6"));
+			stages.push_back(MakeStageJson("GS", gs, "main", "gs_6_0"));
 		}
-		stages.push_back(MakeStageJson("PS", ps, pixelEntry.c_str(), "ps_6_6"));
+		stages.push_back(MakeStageJson("PS", ps, pixelEntry.c_str(), "ps_6_0"));
 
 		return nlohmann::json{ { "name", name + "Shader" }, { "stages", stages } };
 	}

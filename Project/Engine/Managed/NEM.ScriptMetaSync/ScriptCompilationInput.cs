@@ -17,7 +17,7 @@ internal static class ScriptCompilationInput {
             WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(project))!,
         };
         string[] arguments = {
-            "msbuild", Path.GetFullPath(project), "-nologo", "-verbosity:quiet",
+            "msbuild", Path.GetFullPath(project), "-nologo", "-verbosity:quiet", "-maxcpucount:1", "-nodeReuse:false",
             "-target:ResolveReferences,GenerateGlobalUsings", "-property:BuildProjectReferences=false",
             "-property:Configuration=" + configuration, "-getItem:Compile,ReferencePath",
             "-getProperty:DefineConstants,LangVersion,AllowUnsafeBlocks,Nullable",

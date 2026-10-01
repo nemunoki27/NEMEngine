@@ -12,6 +12,7 @@ Project/**/*.vcxproj.filters
 Project/**/*.vcxproj.user
 Project/**/*.vcxproj.nuget.*
 Project/**/*.props
+!Project/__GAME_NAME__/Scripts/Directory.Build.props
 Project/**/*.targets
 Project/**/*.csproj.user
 

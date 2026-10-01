@@ -87,13 +87,36 @@ void Engine::ManagedBehavior::SetRuntimeSerializedField(ECSWorld& world,
 	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, world, fieldID, value);
 }
 
+bool Engine::ManagedBehavior::CaptureReloadFields(ECSWorld& world, nlohmann::json& fields) {
+
+	return managedHandle_.IsValid() &&
+		ManagedScriptRuntime::GetInstance().CaptureReloadValueMap(managedHandle_, world, fields);
+}
+
+bool Engine::ManagedBehavior::ApplyReloadFields(ECSWorld& world, const nlohmann::json& fields) {
+
+	return managedHandle_.IsValid() &&
+		ManagedScriptRuntime::GetInstance().ApplyReloadValueMap(managedHandle_, world, fields);
+}
+
+void Engine::ManagedBehavior::ReleaseForReload() {
+
+	ReleaseInstance();
+	faulted_ = false;
+}
+
 void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	// インスタンス生成はライフサイクルのPass1で済ませてある
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context), "Awake", entity);
+	const ManagedStatus status = ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context);
+	HandleStatus(status, "Awake", entity);
+	if (status == ManagedStatus::ScriptException) {
+		// Awake失敗後は明示的な再作成まで実行しない
+		faulted_ = true;
+	}
 }
 
 void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world,

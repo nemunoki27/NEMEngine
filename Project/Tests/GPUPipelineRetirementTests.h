@@ -25,5 +25,6 @@ namespace NEMTests {
 	bool RecordTexturePublication(ID3D12Device* device,
 		ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback);
 	bool RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* queue,
-		ID3D12GraphicsCommandList6* commands, Engine::SRVDescriptor& descriptors, ComPtr<ID3D12Resource>& readback);
+		Engine::SRVDescriptor& descriptors, ComPtr<ID3D12CommandAllocator>& allocator,
+		ComPtr<ID3D12GraphicsCommandList6>& commands, ComPtr<ID3D12Resource>& readback);
 }

@@ -39,11 +39,11 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
-	// cubemapをbindlessで引くためPixelはSM6_6を使う
+	// Descriptor Table経由でSM6.0でもCubemapを参照する
 	desc.pixel.file = BuiltinShaderSource::Skybox::PS;
 	desc.pixel.shader = BuiltinAssets::Shaders::Skybox;
 	desc.pixel.entry = "main";
-	desc.pixel.profile = "ps_6_6";
+	desc.pixel.profile = "ps_6_0";
 
 	// cubemap用の静的サンプラー
 	D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -167,6 +167,8 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 
 	commandList->SetGraphicsRootSignature(pipeline_->GetRootSignature());
 	commandList->SetPipelineState(pipeline_->GetGraphicsPipeline(BlendMode::Normal));
+	pipeline_->BindGlobalDescriptorTablesGraphics(commandList,
+		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
 	bindCache_.Sync(*pipeline_);
 	if (bindCache_.Has(cbvSlot_)) {

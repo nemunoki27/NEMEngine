@@ -8,11 +8,23 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
 
+// c++
+#include <limits>
+
 bool Engine::PrimitiveGPUBuilder::Create(GraphicsCore& graphicsCore, SRVDescriptor* srvDescriptor,
 	const PrimitiveMeshData& mesh, PrimitiveGeometry& geometry) {
 
 	if (mesh.vertices.empty() || mesh.indices.empty()) {
 		return false;
+	}
+	if (mesh.vertices.size() > std::numeric_limits<uint32_t>::max() ||
+		mesh.indices.size() > std::numeric_limits<uint32_t>::max()) {
+		return false;
+	}
+	for (uint32_t index : mesh.indices) {
+		if (index >= mesh.vertices.size()) {
+			return false;
+		}
 	}
 
 	// 中立形式からMeshVertexへ詰め替える、描画とレイトレで同じ形式を共用する

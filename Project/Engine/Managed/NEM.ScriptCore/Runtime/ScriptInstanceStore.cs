@@ -58,6 +58,7 @@ internal sealed unsafe class ScriptInstanceStore {
         slot.instance = null;
         slot.runtimeStateSnapshot = null;
         slot.savedStateSnapshot = null;
+        slot.reloadStateSnapshot = null;
         slot.inUse = false;
         RetireOrRecycle(slot, handle.index);
         if (released is not null) {
@@ -93,6 +94,7 @@ internal sealed unsafe class ScriptInstanceStore {
             slot.instance = null;
             slot.runtimeStateSnapshot = null;
             slot.savedStateSnapshot = null;
+            slot.reloadStateSnapshot = null;
             slot.inUse = false;
             RetireOrRecycle(slot, (uint)i);
         }

@@ -110,7 +110,7 @@ bool NEMTests::CheckHiZSampleBounds(ID3D12Device* device, ID3D12CommandQueue* qu
 			" gOutput[offset + 7] = IsTransformedNormalConeVisible(value.cone.xyz, value.cone.w,\n"
 			" camera, value.cameraRadius.w, (float3x3)value.transform) ? 1 : 0;\n"
 			// 画面端の球を包む立方体の投影範囲が欠けないか確認する
-			" float4x4 view = (float4x4)1;\n"
+			" float4x4 view = (float4x4)0; view[0][0] = 1; view[1][1] = 1; view[2][2] = 1; view[3][3] = 1;\n"
 			" float4x4 projection = (float4x4)0; projection[0][0] = 1; projection[1][1] = 1;\n"
 			" projection[2][2] = 100.0 / 99.0; projection[2][3] = 1; projection[3][2] = -100.0 / 99.0;\n"
 			" float3 center = float3((id.x < 3) ? 1.0 : -1.0, 2.0 + id.x, 10.0); center.x *= 5.0 + id.x;\n"
@@ -186,9 +186,16 @@ bool NEMTests::CheckHiZSampleBounds(ID3D12Device* device, ID3D12CommandQueue* qu
 	readback->Unmap(0, &empty);
 	bool valid = true;
 	for (size_t index = 0; index < results.size(); ++index) {
-		valid &= results[index].bounds == expected[index] && results[index].coneVisible == coneVisible[index] &&
+		const bool itemValid = results[index].bounds == expected[index] && results[index].coneVisible == coneVisible[index] &&
 			results[index].projectionCovered == 1 && std::isfinite(results[index].scale) &&
 			std::abs(results[index].scale - scales[index]) <= 0.00001f;
+		if (!itemValid) {
+			std::cerr << "Culling mismatch index=" << index << " bounds=";
+			for (uint32_t value : results[index].bounds) std::cerr << value << ',';
+			std::cerr << " scale=" << results[index].scale << " expectedScale=" << scales[index] <<
+				" cone=" << results[index].coneVisible << " projection=" << results[index].projectionCovered << '\n';
+		}
+		valid &= itemValid;
 	}
 	if (!valid) std::cerr << "Culling bounds differ from the conservative CPU result\n";
 	return valid;

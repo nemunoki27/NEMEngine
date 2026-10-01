@@ -17,6 +17,11 @@
 //============================================================================
 //	PrimitiveGeometryManager classMethods
 //============================================================================
+size_t Engine::PrimitiveGeometryKeyHash::operator()(const PrimitiveGeometryKey& key) const {
+
+	return static_cast<size_t>(PrimitiveMeshGenerator::ComputeHash(key));
+}
+
 void Engine::PrimitiveGeometryManager::Init(GraphicsCore& graphicsCore) {
 
 	srvDescriptor_ = &graphicsCore.GetSRVDescriptor();
@@ -40,9 +45,10 @@ void Engine::PrimitiveGeometryManager::BeginFrame() {
 }
 
 Engine::PrimitiveGeometry* Engine::PrimitiveGeometryManager::GetOrCreate(GraphicsCore& graphicsCore,
-	uint64_t hash, const PrimitiveRendererComponent& renderer) {
+	const PrimitiveRendererComponent& renderer) {
 
-	if (const auto it = geometries_.find(hash); it != geometries_.end()) {
+	const PrimitiveGeometryKey key = PrimitiveMeshGenerator::ComputeKey(renderer);
+	if (const auto it = geometries_.find(key); it != geometries_.end()) {
 		it->second.lastUsedFrame = frameIndex_;
 		return &it->second;
 	}
@@ -53,14 +59,8 @@ Engine::PrimitiveGeometry* Engine::PrimitiveGeometryManager::GetOrCreate(Graphic
 	}
 	geometry.lastUsedFrame = frameIndex_;
 
-	auto [it, inserted] = geometries_.emplace(hash, std::move(geometry));
+	auto [it, inserted] = geometries_.emplace(key, std::move(geometry));
 	return &it->second;
-}
-
-Engine::PrimitiveGeometry* Engine::PrimitiveGeometryManager::Find(uint64_t hash) {
-
-	const auto it = geometries_.find(hash);
-	return it != geometries_.end() ? &it->second : nullptr;
 }
 
 bool Engine::PrimitiveGeometryManager::EnsureBLAS(ID3D12Device8* device,

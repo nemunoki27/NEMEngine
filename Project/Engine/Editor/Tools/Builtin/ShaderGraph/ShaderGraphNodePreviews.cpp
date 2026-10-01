@@ -161,7 +161,7 @@ void Engine::ShaderGraphNodePreviews::UpdateResources(const EditorToolContext& c
 			"Builtin/ShaderGraphPreview/"
 			"shaderGraphPreview.PS.hlsl";
 		desc.pixel.entry = "main";
-		desc.pixel.profile = "ps_6_6";
+		desc.pixel.profile = "ps_6_0";
 
 		D3D12_STATIC_SAMPLER_DESC sampler{};
 		sampler.Filter =
@@ -499,6 +499,10 @@ void Engine::ShaderGraphNodePreviews::UpdateResources(const EditorToolContext& c
 					commandList->SetPipelineState(
 						state.pipeline->GetGraphicsPipeline(
 							BlendMode::Normal));
+					state.pipeline->BindGlobalDescriptorTablesGraphics(
+						commandList,
+						renderContext.graphicsCore->GetSRVDescriptor().
+							GetGPUHandle(0));
 
 					state.bindCache.Sync(*state.pipeline);
 					for (uint32_t inputSlot = 0;

@@ -184,6 +184,7 @@ void Engine::EngineApplication::AcceptCloseRequest(bool destroyWindow) {
 	SaveActiveSceneConfig();
 	shutdownAccepted_ = true;
 	closeRequestPending_ = false;
+	pendingPanelCloseRequest_ = false;
 
 	if (destroyWindow) {
 		WinApp::RequestCloseWindow();
@@ -197,6 +198,24 @@ void Engine::EngineApplication::HandleCloseRequestResult() {
 	} else {
 
 		if (!closeRequestPending_) {
+			return;
+		}
+		if (pendingPanelCloseRequest_) {
+			const EditorPanelCloseResult panelResult =
+				editorManager_.ConsumePendingPanelEditResult();
+			if (panelResult == EditorPanelCloseResult::None) {
+				return;
+			}
+			pendingPanelCloseRequest_ = false;
+			if (panelResult == EditorPanelCloseResult::Cancelled) {
+				closeRequestPending_ = false;
+				return;
+			}
+			if (!editorManager_.HasDirtyScenes()) {
+				AcceptCloseRequest(true);
+				return;
+			}
+			editorManager_.RequestCloseUnsavedScenePopup();
 			return;
 		}
 
@@ -232,6 +251,14 @@ bool Engine::EngineApplication::RequestClose() {
 		AcceptCloseRequest(false);
 		return true;
 	} else {
+		if (editorManager_.HasPendingPanelEdits()) {
+			if (!pendingPanelCloseRequest_) {
+				pendingPanelCloseRequest_ = true;
+				closeRequestPending_ = true;
+				editorManager_.RequestResolvePendingPanelEdits();
+			}
+			return false;
+		}
 
 		if (!editorManager_.HasDirtyScenes()) {
 			AcceptCloseRequest(false);

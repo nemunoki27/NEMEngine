@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
+#include <Engine/Editor/Tools/Core/IEditorTool.h>
 
 //============================================================================
 //	EditorToolUI namespace
@@ -15,4 +16,9 @@ namespace Engine::EditorToolUI {
 
 	// シーン描画後、ImGuiフレームの終了前に毎フレーム呼ぶ。
 	void DrawWindows(const EditorPanelContext& context);
+
+	// 独立ツールの未確定編集を取得する
+	bool HasPendingEdits();
+	void RequestResolvePendingEdits();
+	EditorToolCloseResult ConsumePendingEditCloseResult();
 }

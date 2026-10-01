@@ -48,6 +48,7 @@
 #include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Asset/MeshAssetInspectorDrawer.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
@@ -90,6 +91,7 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 
 	// アセット種別ごとのInspector表示を登録する
 	assetInspectorRegistry_.Register(std::make_unique<TextureAssetInspectorDrawer>());
+	assetInspectorRegistry_.Register(std::make_unique<MeshAssetInspectorDrawer>());
 }
 
 nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
@@ -143,10 +145,35 @@ bool Engine::InspectorPanel::CanDuplicate(const EditorPanelContext& context) con
 	return context.editorState->HasValidSelection(world);
 }
 
+bool Engine::InspectorPanel::HasPendingEdits() const {
+
+	return activeAssetDrawer_ && activeAssetDrawer_->HasPendingChanges();
+}
+
+void Engine::InspectorPanel::RequestResolvePendingEdits() {
+
+	requestResolvePendingEdits_ = true;
+	pendingCloseForHost_ = true;
+	pendingEditCloseResult_ = EditorPanelCloseResult::None;
+}
+
+Engine::EditorPanelCloseResult Engine::InspectorPanel::ConsumePendingEditCloseResult() {
+
+	const EditorPanelCloseResult result = pendingEditCloseResult_;
+	pendingEditCloseResult_ = EditorPanelCloseResult::None;
+	pendingCloseForHost_ = false;
+	return result;
+}
+
 void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 
 	// インスペクターパネルの表示状態を確認
 	bool* open = ResolveOpenState(&context.layoutState->showInspector);
+	if ((!*open || requestResolvePendingEdits_) && HasPendingEdits()) {
+		// 確認が終わるまでInspectorを表示して編集状態を保持する
+		*open = true;
+		pendingCloseAssetEdit_ = true;
+	}
 	if (!*open) {
 		prefabBaseCache_.Clear();
 		return;
@@ -165,6 +192,19 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	const std::string windowName = MakeWindowName(displayName);
 	ApplyInitialDock();
 	const bool visible = ImGui::Begin(windowName.c_str(), open);
+	if (!*open && HasPendingEdits()) {
+		*open = true;
+		pendingCloseAssetEdit_ = true;
+	}
+	ResolvePendingAssetEdit(context, pendingCloseAssetEdit_ || requestResolvePendingEdits_);
+	if (pendingEditCloseResult_ == EditorPanelCloseResult::Accepted) {
+		*open = false;
+		if (!pendingCloseForHost_) {
+			pendingEditCloseResult_ = EditorPanelCloseResult::None;
+		}
+		ImGui::End();
+		return;
+	}
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
 		context.host->NotifyEditorCommandPanelFocused(
 			EditorCommandPanelKind::Scene);
@@ -391,9 +431,13 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 	// Registryへ移行済みの種別はそちらへ委ねる、Textureはここに含まれる
 	if (IAssetInspectorDrawer* drawer = assetInspectorRegistry_.Find(meta->type)) {
 
+		activeAssetDrawer_ = drawer;
+		activeInspectedAsset_ = meta->guid;
 		drawer->Draw(context, *meta);
 		return;
 	}
+	activeAssetDrawer_ = nullptr;
+	activeInspectedAsset_ = {};
 
 	// Material/Meshは編集やプレビューでPanel内部状態を持つため当面ここに残す
 	if (meta->type == AssetType::Material) {
@@ -408,6 +452,115 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 	}
 
 	ImGui::TextDisabled("No inspector for this asset type.");
+}
+
+bool Engine::InspectorPanel::ResolvePendingAssetEdit(
+	const EditorPanelContext& context, bool closing) {
+
+	if (!context.editorState || !activeAssetDrawer_ ||
+		!activeAssetDrawer_->HasPendingChanges()) {
+		if (closing) {
+			requestResolvePendingEdits_ = false;
+			pendingCloseAssetEdit_ = false;
+			pendingEditCloseResult_ = EditorPanelCloseResult::Accepted;
+		}
+		return true;
+	}
+
+	EditorState& state = *context.editorState;
+	const AssetID selectedAsset = state.selectionKind == EditorSelectionKind::Asset ?
+		state.selectedAsset : AssetID{};
+	const bool selectionChanged = state.selectionKind != EditorSelectionKind::Asset ||
+		selectedAsset != activeInspectedAsset_;
+	if (!closing && !selectionChanged && !pendingAssetEditPrompt_) {
+		return true;
+	}
+
+	if (!pendingAssetEditPrompt_) {
+		pendingAssetEditPrompt_ = true;
+		pendingAssetSelection_ = state.selectedAsset;
+		pendingSelectionKind_ = state.selectionKind;
+		pendingSelectedEntities_ = state.selectedEntities;
+		pendingSubMeshIndex_ = state.selectedSubMeshIndex;
+		pendingSubMeshStableID_ = state.selectedSubMeshStableID;
+		pendingJointEntity_ = state.selectedJointSkinnedEntity;
+		pendingJointIndex_ = state.selectedJointIndex;
+		pendingCloseAssetEdit_ = closing;
+		state.SelectAsset(activeInspectedAsset_);
+		ImGui::OpenPopup("Textureインポート設定の確認");
+	}
+
+	if (ImGui::BeginPopupModal("Textureインポート設定の確認", nullptr,
+		ImGuiWindowFlags_AlwaysAutoResize)) {
+
+		ImGui::TextUnformatted("未適用のインポート設定があります。");
+		if (ImGui::Button("適用") && activeAssetDrawer_->ApplyPendingChanges(context)) {
+			if (pendingCloseAssetEdit_) {
+				pendingEditCloseResult_ = EditorPanelCloseResult::Accepted;
+			} else {
+				ApplyPendingSelection(state);
+			}
+			activeAssetDrawer_ = nullptr;
+			activeInspectedAsset_ = {};
+			pendingCloseAssetEdit_ = false;
+			pendingAssetEditPrompt_ = false;
+			requestResolvePendingEdits_ = false;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("破棄")) {
+			activeAssetDrawer_->DiscardPendingChanges();
+			if (pendingCloseAssetEdit_) {
+				pendingEditCloseResult_ = EditorPanelCloseResult::Accepted;
+			} else {
+				ApplyPendingSelection(state);
+			}
+			activeAssetDrawer_ = nullptr;
+			activeInspectedAsset_ = {};
+			pendingCloseAssetEdit_ = false;
+			pendingAssetEditPrompt_ = false;
+			requestResolvePendingEdits_ = false;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("キャンセル")) {
+			state.SelectAsset(activeInspectedAsset_);
+			pendingAssetSelection_ = {};
+			pendingSelectionKind_ = EditorSelectionKind::None;
+			pendingSelectedEntities_.clear();
+			pendingCloseAssetEdit_ = false;
+			pendingAssetEditPrompt_ = false;
+			requestResolvePendingEdits_ = false;
+			pendingEditCloseResult_ = EditorPanelCloseResult::Cancelled;
+			if (!pendingCloseForHost_) {
+				pendingEditCloseResult_ = EditorPanelCloseResult::None;
+			}
+			pendingCloseForHost_ = false;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+	return false;
+}
+
+void Engine::InspectorPanel::ApplyPendingSelection(EditorState& state) {
+
+	const EditorSelectionKind kind = pendingSelectionKind_;
+	const AssetID asset = pendingAssetSelection_;
+	const std::vector<Entity> entities = std::move(pendingSelectedEntities_);
+	pendingAssetSelection_ = {};
+	pendingSelectionKind_ = EditorSelectionKind::None;
+	pendingSelectedEntities_.clear();
+	if (kind == EditorSelectionKind::Asset) {
+		state.SelectAsset(asset);
+		return;
+	}
+	state.SetSelectedEntities(entities);
+	state.selectionKind = kind;
+	state.selectedSubMeshIndex = pendingSubMeshIndex_;
+	state.selectedSubMeshStableID = pendingSubMeshStableID_;
+	state.selectedJointSkinnedEntity = pendingJointEntity_;
+	state.selectedJointIndex = pendingJointIndex_;
 }
 
 void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {

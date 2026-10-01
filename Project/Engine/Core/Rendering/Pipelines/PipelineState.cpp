@@ -66,6 +66,42 @@ const RootBindingLocation* Engine::PipelineState::FindBindingByName(
 	return &bindings_[found->second];
 }
 
+void Engine::PipelineState::BindGlobalDescriptorTablesGraphics(
+	ID3D12GraphicsCommandList* commandList,
+	D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const {
+
+	for (const std::string_view name : {
+		"gNEMGlobalTexture2D", "gNEMGlobalTextureCube" }) {
+
+		const RootBindingLocation* binding = FindBindingByName(
+			name, ShaderBindingKind::SRV);
+		if (binding && binding->parameterType ==
+			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) {
+
+			commandList->SetGraphicsRootDescriptorTable(
+				binding->rootParameterIndex, heapStart);
+		}
+	}
+}
+
+void Engine::PipelineState::BindGlobalDescriptorTablesCompute(
+	ID3D12GraphicsCommandList* commandList,
+	D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const {
+
+	for (const std::string_view name : {
+		"gNEMGlobalTexture2D", "gNEMGlobalTextureCube" }) {
+
+		const RootBindingLocation* binding = FindBindingByName(
+			name, ShaderBindingKind::SRV);
+		if (binding && binding->parameterType ==
+			D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) {
+
+			commandList->SetComputeRootDescriptorTable(
+				binding->rootParameterIndex, heapStart);
+		}
+	}
+}
+
 ID3D12PipelineState* Engine::PipelineState::GetGraphicsPipeline(BlendMode blendMode) const {
 
 	return graphicsPipelines_[static_cast<uint32_t>(blendMode)].Get();

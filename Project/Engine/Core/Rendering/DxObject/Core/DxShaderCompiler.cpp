@@ -363,6 +363,11 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		L"-O3",
 #endif
 	};
+	const std::wstring profileName(profile);
+	if (profileName.ends_with(L"_6_0")) {
+		args.emplace_back(L"-D");
+		args.emplace_back(L"NEM_DESCRIPTOR_TABLE_COMPAT=1");
+	}
 	for (const std::wstring& includePath : includePaths) {
 		args.emplace_back(L"-I");
 		args.emplace_back(includePath.c_str());
@@ -386,6 +391,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	if (errors && errors->GetStringLength() > 0) {
 
 		const char* msg = reinterpret_cast<const char*>(errors->GetBufferPointer());
+		out.diagnostics.assign(msg, errors->GetStringLength());
 		if (FAILED(status)) {
 
 			Logger::Output(LogType::Engine,

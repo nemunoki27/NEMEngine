@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
+#include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedBuildDiagnosticStore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -120,12 +121,31 @@ void Engine::ManagedScriptBuildService::OnBuildFinished() {
 void Engine::ManagedScriptBuildService::ApplyReload() {
 
 	SetState(State::Reloading);
+	const bool playReload = currentPlaying_ && currentWorld_ && currentContext_;
+	if (playReload && !BehaviorSystem::PrepareManagedReload(
+		*currentWorld_, *currentContext_)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"ManagedScriptBuildService: Script実行値を退避できないため再読み込みを中止しました");
+		reloadPauseRequested_ = true;
+		SetState(State::ReloadFailed);
+		FinishCycle(false);
+		return;
+	}
 
 	const auto loadStart = std::chrono::steady_clock::now();
 	const std::filesystem::path shadowDll = cycle_.currentShadowDir / kAssemblyFileName;
 
 	// 現在のアセンブリを解放しシャドウコピーから回収可能なALCへロードする
-	const bool loaded = runtime_->LoadGameAssemblyFromPath(shadowDll);
+	bool loaded = runtime_->LoadGameAssemblyFromPath(shadowDll);
+	if (loaded && playReload) {
+		loaded = BehaviorSystem::RestoreManagedReload(
+			*currentWorld_, *currentContext_);
+		if (!loaded) {
+			Logger::Output(LogType::Engine, spdlog::level::err,
+				"ManagedScriptBuildService: 新しいAssemblyへScript実行値を復元できませんでした");
+		}
+	}
 	cycle_.diagnostics.loadMs = DurationMs(loadStart, std::chrono::steady_clock::now());
 	cycle_.diagnostics.scriptTypeCount = runtime_->ManagedScriptTypeCount();
 
@@ -157,6 +177,9 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 
 	// リロード失敗、最後の正常版から復旧を試みる
 	SetState(State::ReloadFailed);
+	if (playReload) {
+		reloadPauseRequested_ = true;
+	}
 	Logger::Output(LogType::Engine, spdlog::level::err,
 		"ManagedScriptBuildService: 再読み込みに失敗したためLastKnownGoodへ戻します BuildID={} ReloadID={}",
 		cycle_.diagnostics.buildID, cycle_.diagnostics.reloadID);
@@ -170,8 +193,19 @@ void Engine::ManagedScriptBuildService::ApplyFallback() {
 
 	const std::filesystem::path lastKnownGoodDll = artifacts_.LastKnownGoodDirectory() / kAssemblyFileName;
 	std::error_code existsError{};
-	if (std::filesystem::exists(lastKnownGoodDll, existsError) && !existsError &&
-		runtime_->LoadGameAssemblyFromPath(lastKnownGoodDll)) {
+	const bool playReload = currentPlaying_ && currentWorld_ && currentContext_ &&
+		BehaviorSystem::HasPreparedManagedReload();
+	if (playReload) {
+		// 失敗したAssemblyで作られたインスタンスを解放してから旧版へ戻す
+		BehaviorSystem::PrepareManagedReload(*currentWorld_, *currentContext_);
+	}
+	bool restored = std::filesystem::exists(lastKnownGoodDll, existsError) && !existsError &&
+		runtime_->LoadGameAssemblyFromPath(lastKnownGoodDll);
+	if (restored && playReload) {
+		restored = BehaviorSystem::RestoreManagedReload(
+			*currentWorld_, *currentContext_);
+	}
+	if (restored) {
 
 		SetState(State::FallbackSucceeded);
 		Logger::Output(LogType::Engine, spdlog::level::warn,
@@ -190,9 +224,14 @@ void Engine::ManagedScriptBuildService::ApplyFallback() {
 
 void Engine::ManagedScriptBuildService::FinishCycle(bool succeeded) {
 
+	// ビルド中に変わった入力は次のサイクルで処理する
+	const bool hasNewerInput = cycle_.inputRevision != inputRevision_;
+	dirty_ |= hasNewerInput;
+
 	// Play用ビルドの結果を確定する、このサイクルがforPlayの場合のみ
 	if (cycle_.currentForPlay) {
-		playBuildResult_ = succeeded ? PlayBuildResult::Succeeded : PlayBuildResult::Failed;
+		playBuildResult_ = hasNewerInput ? PlayBuildResult::Pending :
+			(succeeded ? PlayBuildResult::Succeeded : PlayBuildResult::Failed);
 	}
 	cycle_.currentForPlay = false;
 	SetState(State::Idle);

@@ -144,6 +144,34 @@ bool IsInstanceVisible(MeshInstance instance) {
 
 #include "../Common/meshLODSelection.hlsli"
 
+void AppendVisibleInstance(MeshInstance instance) {
+
+	MeshLODSelection selection = ResolveMeshLODSelection(instance);
+	MeshInstance firstInstance = instance;
+	if (selection.secondLOD != 0xFFFFFFFFu) {
+		firstInstance.flags |= MESH_INSTANCE_FLAG_LOD_DITHER;
+		firstInstance._motionPad.x = asuint(selection.firstCoverage);
+	}
+	uint firstVisibleIndex = 0;
+	gIndexedIndirectArgs.InterlockedAdd(
+		selection.firstLOD * 20u + 4u, 1u, firstVisibleIndex);
+	gVisibleMeshInstances[
+		selection.firstLOD * instanceCount + firstVisibleIndex] = firstInstance;
+
+	if (selection.secondLOD != 0xFFFFFFFFu &&
+		selection.secondCoverage > 0.0f) {
+
+		MeshInstance secondInstance = instance;
+		secondInstance.flags |= MESH_INSTANCE_FLAG_LOD_DITHER;
+		secondInstance._motionPad.x = asuint(selection.secondCoverage);
+		uint secondVisibleIndex = 0;
+		gIndexedIndirectArgs.InterlockedAdd(
+			selection.secondLOD * 20u + 4u, 1u, secondVisibleIndex);
+		gVisibleMeshInstances[
+			selection.secondLOD * instanceCount + secondVisibleIndex] = secondInstance;
+	}
+}
+
 //============================================================================
 //	main
 //============================================================================
@@ -165,6 +193,17 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 	}
 	// UAVの初期化を全スレッドへ反映してから加算する
 	DeviceMemoryBarrierWithGroupSync();
+	if (preserveInstanceOrder != 0u) {
+		if (groupThreadID == 0u) {
+			for (uint i = 0u; i < instanceCount; ++i) {
+				MeshInstance instance = gMeshInstances[i];
+				if (IsInstanceVisible(instance)) {
+					AppendVisibleInstance(instance);
+				}
+			}
+		}
+		return;
+	}
 
 	for (uint i = groupThreadID; i < instanceCount; i += 256u) {
 
@@ -173,11 +212,6 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 			continue;
 		}
 
-		const uint lodIndex = ResolveMeshLOD(instance);
-		uint visibleIndex = 0;
-		gIndexedIndirectArgs.InterlockedAdd(
-			lodIndex * 20u + 4u, 1u, visibleIndex);
-		gVisibleMeshInstances[
-			lodIndex * instanceCount + visibleIndex] = instance;
+		AppendVisibleInstance(instance);
 	}
 }

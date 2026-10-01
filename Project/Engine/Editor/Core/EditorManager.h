@@ -139,6 +139,10 @@ namespace Engine {
 		void RequestSceneSaveConflict(const std::vector<SceneSaveConflictChoice>& choices);
 		// 保存元選択の結果を取り出す
 		std::optional<SceneSaveConflictResult> ConsumeSceneSaveConflictResult();
+		// パネル内の未確定編集を終了前に解決する
+		bool HasPendingPanelEdits() const;
+		void RequestResolvePendingPanelEdits();
+		EditorPanelCloseResult ConsumePendingPanelEditResult();
 
 		// シーンビューのメッシュピック処理
 		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
@@ -194,6 +198,7 @@ namespace Engine {
 		std::string pendingDuplicatePanelID_;
 		// 次のフレーム開始時に適用するレイアウト
 		std::optional<EditorLayoutSnapshot> pendingEditorLayout_;
+		bool pendingPanelEditResolution_ = false;
 		// ビルトインDefaultドックを再構築するか
 		bool requestBuildDefaultDockLayout_ = false;
 

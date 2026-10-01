@@ -122,7 +122,7 @@ namespace Engine {
 
 		// エンティティが変わった、または編集中でない場合はワールドからドラフトを同期
 		const UUID stableUUID = world.GetUUID(entity);
-		if (session_.NeedsSync(stableUUID)) {
+		if (session_.NeedsSync(world, stableUUID)) {
 			session_.SyncDraftFromWorld(world, entity, *this);
 		}
 

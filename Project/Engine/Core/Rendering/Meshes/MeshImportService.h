@@ -6,6 +6,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
+#include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 #include <Engine/Core/Rendering/Meshes/MeshNode.h>
 
 // c++
@@ -66,6 +67,8 @@ namespace Engine {
 
 			AssetID assetID{};
 			std::filesystem::path fullPath;
+			MeshImportSettings settings{};
+			std::array<std::filesystem::path, 3> manualLODPaths{};
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -84,7 +87,11 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		void LoadJob(MeshLoadJob&& job, uint32_t workerIndex);
-		ImportedMeshAsset ImportFile(AssetID assetID, const std::filesystem::path& fullPath) const;
+		ImportedMeshAsset ImportFile(AssetID assetID,
+			const std::filesystem::path& fullPath,
+			const MeshImportSettings& settings,
+			const std::array<std::filesystem::path, 3>& manualLODPaths,
+			bool buildGPUData = true) const;
 		MeshNode ReadNode(aiNode* node) const;
 	};
 } // Engine

@@ -10,6 +10,8 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/Scene/Serialization/SceneStorageJournal.h>
 
 // c++
 #include <functional>
@@ -25,13 +27,20 @@ namespace {
 	};
 
 	template <typename Fn>
-	bool UpdateScenePrefabDocuments(Engine::AssetDatabase& database, Fn&& update) {
+	bool UpdateScenePrefabDocuments(const Engine::EditorContext& context,
+		Engine::AssetDatabase& database, Fn&& update) {
 
 		std::vector<ProjectJsonDocument> documents;
 		for (const auto& [assetID, meta] : database.GetAssets()) {
 			if (meta.type != Engine::AssetType::Scene &&
 				meta.type != Engine::AssetType::Prefab &&
 				meta.type != Engine::AssetType::ParticleEffect) {
+				continue;
+			}
+			// 開いている文書はWorld側のCommandだけを更新する
+			if ((context.sceneInstances &&
+				!context.sceneInstances->FindInstanceIDs(assetID).empty()) ||
+				(context.isPrefabEditing && context.prefabEditAsset == assetID)) {
 				continue;
 			}
 			const std::filesystem::path path = database.ResolveFullPath(assetID);
@@ -53,12 +62,24 @@ namespace {
 				changed.emplace_back(&document);
 			}
 		}
+		std::vector<Engine::SceneStorageChange> changes;
+		changes.reserve(changed.size());
 		for (ProjectJsonDocument* document : changed) {
-			if (!Engine::JsonFile::Save(document->path, document->data)) {
-				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-					"Project設定の参照更新を保存できません path={}", document->path.string());
-				return false;
-			}
+			changes.push_back({ document->path, document->data });
+		}
+		std::string error;
+		const auto recover = [](const std::filesystem::path& directory,
+			std::string& recoveryError) {
+
+			return Engine::SceneStorageJournal::Recover(
+				directory, recoveryError, [](const std::filesystem::path&) {});
+		};
+		if (!Engine::SceneStorageJournal::Commit(
+			changes, "Project設定の参照更新", error, recover)) {
+
+			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+				"Project設定の参照更新を保存できません 内容={}", error);
+			return false;
 		}
 		if (!changed.empty()) {
 			database.RebuildMeta();
@@ -123,32 +144,52 @@ namespace {
 	}
 }
 
-void Engine::ProjectSettingsOperations::RemapTags(const EditorToolContext& context, const std::string& from, const std::string& to) {
+bool Engine::ProjectSettingsOperations::RemapTags(const EditorToolContext& context, const std::string& from, const std::string& to) {
 
 	// 開いているシーンのタグ文字列だけ付け替える、コマンド経由でUndoできる
-	if (!context.CanEditScene() || !context.panelContext || !context.panelContext->host) {
-		return;
+	if (!context.CanEditScene() || !context.panelContext ||
+		!context.panelContext->host || !context.panelContext->editorContext) {
+		return false;
 	}
-	context.panelContext->host->ExecuteEditorCommand(std::make_unique<RemapEntityTagsCommand>(from, to));
+	const bool worldChanged = context.panelContext->host->ExecuteEditorCommand(
+		std::make_unique<RemapEntityTagsCommand>(from, to));
 	if (context.panelContext->editorContext->assetDatabase) {
-		UpdateScenePrefabDocuments(*context.panelContext->editorContext->assetDatabase,
-			[&](nlohmann::json& root) { return ReplaceSceneTags(root, from, to); });
+		if (!UpdateScenePrefabDocuments(*context.panelContext->editorContext,
+			*context.panelContext->editorContext->assetDatabase,
+			[&](nlohmann::json& root) { return ReplaceSceneTags(root, from, to); })) {
+
+			// Project文書の保存に失敗したためWorld側も元へ戻す
+			if (worldChanged) {
+				context.panelContext->host->UndoEditorCommand();
+			}
+			return false;
+		}
 	}
+	return true;
 }
 
-void Engine::ProjectSettingsOperations::ClearRenderingLayer(
+bool Engine::ProjectSettingsOperations::ClearRenderingLayer(
 	const EditorToolContext& context, uint32_t layerIndex) {
 
 	if (!context.CanEditScene() || !context.panelContext ||
 		!context.panelContext->host || !context.panelContext->editorContext) {
-		return;
+		return false;
 	}
-	context.panelContext->host->ExecuteEditorCommand(
+	const bool worldChanged = context.panelContext->host->ExecuteEditorCommand(
 		std::make_unique<ClearRenderingLayerCommand>(layerIndex));
 	if (context.panelContext->editorContext->assetDatabase) {
-		UpdateScenePrefabDocuments(*context.panelContext->editorContext->assetDatabase,
+		if (!UpdateScenePrefabDocuments(*context.panelContext->editorContext,
+			*context.panelContext->editorContext->assetDatabase,
 			[layerIndex](nlohmann::json& root) {
 				return ClearLayerMasks(root, layerIndex);
-			});
+			})) {
+
+			// Project文書の保存に失敗したためWorld側も元へ戻す
+			if (worldChanged) {
+				context.panelContext->host->UndoEditorCommand();
+			}
+			return false;
+		}
 	}
+	return true;
 }

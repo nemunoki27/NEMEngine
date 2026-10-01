@@ -15,6 +15,7 @@
 
 // c++
 #include <cmath>
+#include <span>
 
 //============================================================================
 //	MeshImportService classMethods
@@ -107,6 +108,22 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
 		return false;
 	}
+	const AssetMeta* meta = assetDatabase.Find(meshAssetID);
+	const MeshImportSettings settings = meta ?
+		ParseMeshImportSettings(meta->importerSettings) :
+		MeshImportSettings{};
+	std::array<std::filesystem::path, 3> manualLODPaths{};
+	for (size_t index = 0; index < settings.manualLODMeshes.size(); ++index) {
+		const AssetID manualAsset = settings.manualLODMeshes[index];
+		const AssetMeta* manualMeta = manualAsset ?
+			assetDatabase.Find(manualAsset) : nullptr;
+		if (manualMeta && manualMeta->type == AssetType::Mesh &&
+			manualAsset != meshAssetID) {
+
+			manualLODPaths[index] =
+				assetDatabase.ResolveFullPath(manualAsset);
+		}
+	}
 
 	{
 		std::scoped_lock lock(mutex_);
@@ -118,7 +135,12 @@ bool Engine::MeshImportService::RequestLoadAsync(AssetDatabase& assetDatabase, A
 	}
 
 	// ジョブをワーカープールに追加
-	if (!workerPool_.Enqueue(MeshLoadJob{ .assetID = meshAssetID,.fullPath = std::move(fullPath), })) {
+	if (!workerPool_.Enqueue(MeshLoadJob{
+		.assetID = meshAssetID,
+		.fullPath = std::move(fullPath),
+		.settings = settings,
+		.manualLODPaths = std::move(manualLODPaths),
+		})) {
 		// 受付を断った要求を待機中として残さない
 		std::scoped_lock lock(mutex_);
 		queued_.erase(meshAssetID);
@@ -175,7 +197,9 @@ void Engine::MeshImportService::LoadJob(MeshLoadJob&& job, [[maybe_unused]] uint
 	ImportedMeshAsset imported{};
 	bool succeeded = false;
 	try {
-		imported = ImportFile(job.assetID, job.fullPath);
+		imported = ImportFile(
+			job.assetID, job.fullPath, job.settings,
+			job.manualLODPaths);
 		succeeded = !imported.vertices.empty() && !imported.indices.empty();
 	}
 	catch (const std::exception& exception) {
@@ -202,13 +226,18 @@ void Engine::MeshImportService::LoadJob(MeshLoadJob&& job, [[maybe_unused]] uint
 	}
 }
 
-Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
-	const std::filesystem::path& fullPath) const {
+Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(
+	AssetID assetID, const std::filesystem::path& fullPath,
+	const MeshImportSettings& settings,
+	const std::array<std::filesystem::path, 3>& manualLODPaths,
+	bool buildGPUData) const {
 
 	// 基本情報を設定
 	ImportedMeshAsset result{};
 	result.assetID = assetID;
 	result.sourcePath = Algorithm::ConvertString(fullPath.generic_wstring());
+	result.ditherLODTransitions =
+		settings.lodTransition == MeshLODTransitionMode::Dither;
 
 	// テクスチャアセット参照を解決
 	TextureAssetResolver textureResolver{};
@@ -266,6 +295,10 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 
 			result.isSkinned = true;
 			result.boneCount = static_cast<uint32_t>(skeleton.joints.size());
+			result.skeletonJointPaths.reserve(skeleton.joints.size());
+			for (const Joint& joint : skeleton.joints) {
+				result.skeletonJointPaths.emplace_back(joint.nodePath);
+			}
 			result.vertexInfluences.resize(totalVertexCount);
 		}
 	}
@@ -418,9 +451,115 @@ Engine::ImportedMeshAsset Engine::MeshImportService::ImportFile(AssetID assetID,
 		}
 	}
 
+	if (!buildGPUData) {
+		return result;
+	}
+
+	// 手動LODをLOD0と同じバッファへ連結
+	result.lods[0].indexOffset = 0;
+	result.lods[0].indexCount =
+		static_cast<uint32_t>(result.indices.size());
+	for (SubMeshDesc& subMesh : result.subMeshes) {
+		subMesh.lods[0].indexOffset = subMesh.indexOffset;
+		subMesh.lods[0].indexCount = subMesh.indexCount;
+	}
+	for (size_t sourceIndex = 0;
+		sourceIndex < manualLODPaths.size(); ++sourceIndex) {
+
+		const std::filesystem::path& lodPath =
+			manualLODPaths[sourceIndex];
+		if (lodPath.empty()) {
+			continue;
+		}
+		const uint32_t lodIndex =
+			static_cast<uint32_t>(sourceIndex + 1);
+		const ImportedMeshAsset source = ImportFile(
+			{}, lodPath, MeshImportSettings{}, {}, false);
+		if (source.vertices.empty() || source.indices.empty() ||
+			source.subMeshes.size() != result.subMeshes.size() ||
+			source.isSkinned != result.isSkinned ||
+			source.boneCount != result.boneCount ||
+			source.skeletonJointPaths != result.skeletonJointPaths) {
+
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"Meshの手動LODを適用できません path={}",
+				Algorithm::PathToUTF8(lodPath));
+			continue;
+		}
+
+		const uint32_t vertexOffset =
+			static_cast<uint32_t>(result.vertices.size());
+		std::vector<uint32_t> subMeshMap(
+			source.subMeshes.size(), UINT32_MAX);
+		std::vector<bool> targetUsed(result.subMeshes.size(), false);
+		for (uint32_t index = 0;
+			index < static_cast<uint32_t>(source.subMeshes.size()); ++index) {
+
+			const std::string& name = source.subMeshes[index].name;
+			auto found = std::find_if(
+				result.subMeshes.begin(), result.subMeshes.end(),
+				[&](const SubMeshDesc& target) {
+					return !name.empty() && target.name == name;
+				});
+			uint32_t targetIndex = found != result.subMeshes.end() ?
+				static_cast<uint32_t>(found - result.subMeshes.begin()) : index;
+			if (targetIndex >= targetUsed.size() || targetUsed[targetIndex]) {
+				subMeshMap.clear();
+				break;
+			}
+			subMeshMap[index] = targetIndex;
+			targetUsed[targetIndex] = true;
+		}
+		if (subMeshMap.size() != source.subMeshes.size()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"Meshの手動LODのSubMesh対応を解決できません path={}",
+				Algorithm::PathToUTF8(lodPath));
+			continue;
+		}
+
+		result.vertices.insert(result.vertices.end(),
+			source.vertices.begin(), source.vertices.end());
+		for (uint32_t sourceSubMesh : source.vertexSubMeshIndices) {
+			result.vertexSubMeshIndices.emplace_back(
+				sourceSubMesh < subMeshMap.size() ?
+					subMeshMap[sourceSubMesh] : 0u);
+		}
+		if (result.isSkinned) {
+			result.vertexInfluences.insert(
+				result.vertexInfluences.end(),
+				source.vertexInfluences.begin(),
+				source.vertexInfluences.end());
+		}
+
+		MeshLODRange& lod = result.lods[lodIndex];
+		lod.indexOffset = static_cast<uint32_t>(result.indices.size());
+		for (uint32_t index = 0;
+			index < static_cast<uint32_t>(source.subMeshes.size()); ++index) {
+
+			const SubMeshDesc& sourceSubMesh = source.subMeshes[index];
+			MeshLODRange& targetRange =
+				result.subMeshes[subMeshMap[index]].lods[lodIndex];
+			targetRange.indexOffset =
+				static_cast<uint32_t>(result.indices.size());
+			const uint32_t* begin =
+				source.indices.data() + sourceSubMesh.indexOffset;
+			for (uint32_t sourceVertex : std::span(
+				begin, sourceSubMesh.indexCount)) {
+
+				result.indices.emplace_back(
+					sourceVertex + vertexOffset);
+			}
+			targetRange.indexCount = sourceSubMesh.indexCount;
+		}
+		lod.indexCount =
+			static_cast<uint32_t>(result.indices.size()) -
+			lod.indexOffset;
+		result.authoredLODs[lodIndex] = true;
+	}
+
 	// メッシュレットの構築
 	MeshletBuilder builder{};
-	builder.Build(result);
+	builder.Build(result, settings);
 
 	return result;
 }

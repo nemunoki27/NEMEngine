@@ -321,6 +321,7 @@ namespace NEMTests {
 		subMesh.sourceSurfaceMode =
 			Engine::MaterialSurfaceMode::Transparent;
 		subMesh.alphaCutoff = 0.37f;
+		subMesh.visible = false;
 		const Engine::SubMeshMaterial restoredSubMesh =
 			nlohmann::json(subMesh).get<Engine::SubMeshMaterial>();
 		// SubMeshの自己参照入力でも名前とMaterialの所有を維持する
@@ -358,6 +359,7 @@ namespace NEMTests {
 			kept[0].materialInstance.GetContentHash() != subMeshes[1].materialInstance.GetContentHash()) return false;
 		return restoredSubMesh.surfaceMode ==
 				Engine::MaterialSurfaceMode::Auto &&
+			!restoredSubMesh.visible &&
 			restoredSubMesh.sourceSurfaceMode ==
 				Engine::MaterialSurfaceMode::Transparent &&
 			std::abs(restoredSubMesh.alphaCutoff - 0.37f) < 1e-6f &&

@@ -89,7 +89,7 @@ namespace NEMTests {
 		};
 		const ShaderCase cases[]{
 			{ L"Culling/buildIndexedIndirectArgs.CS.hlsl", L"cs_6_0", Engine::ShaderStage::CS },
-			{ L"MeshPBR/meshPBRTransparent.VS.hlsl", L"vs_6_6", Engine::ShaderStage::VS },
+			{ L"MeshPBR/meshPBRTransparent.VS.hlsl", L"vs_6_0", Engine::ShaderStage::VS },
 			{ L"Common/meshGeometry.AS.hlsl", L"as_6_6", Engine::ShaderStage::AS },
 			{ L"Common/meshGeometry.MS.hlsl", L"ms_6_6", Engine::ShaderStage::MS },
 		};
@@ -99,6 +99,13 @@ namespace NEMTests {
 			const auto shader = compiler.CompileShader((root / test.path).wstring(), test.profile, L"main", test.stage);
 			const auto* view = Engine::FindConstantBuffer(shader.reflection, "ViewConstants");
 			if (!shader.IsValid() || !view || view->size != sizeof(Engine::MeshViewConstants)) {
+				std::cerr << "Mesh shader layout case failed: " <<
+					std::filesystem::path(test.path).string() <<
+					" valid=" << shader.IsValid() <<
+					" view=" << (view != nullptr) <<
+					" size=" << (view ? view->size : 0u) <<
+					" expected=" << sizeof(Engine::MeshViewConstants) << '\n' <<
+					shader.diagnostics << '\n';
 				return false;
 			}
 			const std::pair<const char*, size_t> offsets[]{
@@ -117,6 +124,55 @@ namespace NEMTests {
 					return false;
 				}
 			}
+		}
+
+		// Primitive2Dも3Dと同じView定数配置を使う
+		const auto primitive2D = compiler.CompileShader(
+			(Engine::RuntimePaths::GetEngineAssetsRoot() /
+				"Shaders/Builtin/Primitive/primitive2D.VS.hlsl").wstring(),
+			L"vs_6_0", L"main", Engine::ShaderStage::VS);
+		const auto* primitiveView = Engine::FindConstantBuffer(
+			primitive2D.reflection, "ViewConstants");
+		if (!primitive2D.IsValid() || !primitiveView ||
+			primitiveView->size != 144u) {
+
+			return false;
+		}
+		const std::pair<const char*, size_t> primitiveOffsets[]{
+			{ "viewProjection", 0u },
+			{ "previousViewProjection", 64u },
+			{ "cameraPosition", 128u },
+			{ "frameSerial", 140u },
+		};
+		for (const auto& [name, offset] : primitiveOffsets) {
+			const auto found = std::find_if(
+				primitiveView->variables.begin(), primitiveView->variables.end(),
+				[name](const auto& value) { return value.name == name; });
+			if (found == primitiveView->variables.end() ||
+				found->offset != offset) {
+
+				return false;
+			}
+		}
+
+		// SM6.0版は直接Heap参照を使わず互換Descriptor Tableを公開する
+		const auto meshPixel = compiler.CompileShader(
+			(root / "MeshPBR/meshPBR.PS.hlsl").wstring(),
+			L"ps_6_0", L"main", Engine::ShaderStage::PS);
+		const auto globalTexture = std::find_if(
+			meshPixel.reflection.resources.begin(),
+			meshPixel.reflection.resources.end(),
+			[](const Engine::ShaderResourceBinding& binding) {
+				return binding.name == "gNEMGlobalTexture2D" &&
+					binding.space == 126u;
+			});
+		if (!meshPixel.IsValid() ||
+			globalTexture == meshPixel.reflection.resources.end() ||
+			globalTexture->bindCount != 0 ||
+			(meshPixel.reflection.requiresFlags &
+				D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING) != 0) {
+
+			return false;
 		}
 		return true;
 	}
@@ -195,7 +251,23 @@ namespace NEMTests {
 		mesh.subMeshes.emplace_back(secondSubMesh);
 
 		Engine::MeshletBuilder builder{};
-		builder.Build(mesh);
+		Engine::ImportedMeshAsset defaultMesh = mesh;
+		builder.Build(defaultMesh);
+		if (defaultMesh.indices.size() != mesh.indices.size()) {
+			return false;
+		}
+		for (uint32_t lodIndex = 1;
+			lodIndex < Engine::kMeshLODCount; ++lodIndex) {
+
+			if (defaultMesh.lods[lodIndex].indexOffset != 0 ||
+				defaultMesh.lods[lodIndex].indexCount !=
+					defaultMesh.lods[0].indexCount) {
+				return false;
+			}
+		}
+		Engine::MeshImportSettings lodSettings{};
+		lodSettings.generateAutomaticLODs = true;
+		builder.Build(mesh, lodSettings);
 
 		uint32_t previousIndexCount =
 			mesh.lods[0].indexCount;
@@ -269,9 +341,34 @@ namespace NEMTests {
 		const Engine::GraphicsRuntimeFeatures enabled =
 			Engine::GraphicsFeatureSelection::Resolve(
 				supported, preferences);
-		return enabled.useMeshShader &&
-			enabled.useInlineRayTracing &&
-			enabled.useDispatchRays;
+		if (!enabled.useMeshShader ||
+			!enabled.useInlineRayTracing ||
+			!enabled.useDispatchRays) {
+
+			return false;
+		}
+
+		// RT Tierだけでなく各経路が必要とするShader Modelも確認する
+		Engine::GraphicsFeatureSupport shaderModel60 = supported;
+		shaderModel60.highestShaderModel = D3D_SHADER_MODEL_6_0;
+		const Engine::GraphicsRuntimeFeatures shaderModel60Features =
+			Engine::GraphicsFeatureSelection::Resolve(
+				shaderModel60, preferences);
+		if (shaderModel60Features.useMeshShader ||
+			shaderModel60Features.useInlineRayTracing ||
+			shaderModel60Features.useDispatchRays) {
+
+			return false;
+		}
+
+		Engine::GraphicsFeatureSupport dispatchRays = supported;
+		dispatchRays.highestShaderModel = D3D_SHADER_MODEL_6_3;
+		const Engine::GraphicsRuntimeFeatures dispatchRaysFeatures =
+			Engine::GraphicsFeatureSelection::Resolve(
+				dispatchRays, preferences);
+		return !dispatchRaysFeatures.useMeshShader &&
+			!dispatchRaysFeatures.useInlineRayTracing &&
+			dispatchRaysFeatures.useDispatchRays;
 	}
 
 	bool TestBlendStates() {

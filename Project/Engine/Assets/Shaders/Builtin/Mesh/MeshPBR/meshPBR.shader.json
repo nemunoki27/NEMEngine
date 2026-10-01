@@ -5,7 +5,7 @@
       "stage": "VS",
       "file": "4e454d4153534554f6485468f3b0f105",
       "entry": "main",
-      "profile": "vs_6_6"
+      "profile": "vs_6_0"
     },
     {
       "stage": "AS",
@@ -23,7 +23,7 @@
       "stage": "PS",
       "file": "4e454d41535345542b5e427ce09053d5",
       "entry": "main",
-      "profile": "ps_6_6"
+      "profile": "ps_6_0"
     }
   ],
   "colorParameters": [ "color", "emissiveColor" ]

@@ -27,6 +27,8 @@ namespace Engine {
 		bool waitForManagedDebuggerOnPlay = false;
 		// Play開始前に編集中のSceneを保存する
 		bool autoSaveScenesOnPlay = true;
+		// Script例外とDebug.LogErrorでPlayを一時停止する
+		bool pauseOnScriptError = true;
 
 		// 各ウィンドウのサイズ
 		ImVec2 lastSceneViewSize = ImVec2(0.0f, 0.0f);

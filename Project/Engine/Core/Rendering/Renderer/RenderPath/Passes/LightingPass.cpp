@@ -49,11 +49,11 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
-	// cubemapをbindlessで引くためPixelはSM6_6を使う
+	// 通常LightingはDescriptor Table経由でSM6.0へ対応する
 	desc.pixel.file = "Builtin/Lighting/deferredLighting.PS.hlsl";
 	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLighting;
 	desc.pixel.entry = "main";
-	desc.pixel.profile = "ps_6_6";
+	desc.pixel.profile = "ps_6_0";
 
 	// cubemap用の静的サンプラー
 	D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -91,6 +91,7 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 	// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
 	desc.pixel.entry = "mainShadowed";
 	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
+	desc.pixel.profile = "ps_6_6";
 	shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
 		graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 }
@@ -177,6 +178,8 @@ void Engine::LightingPass::Execute(GraphicsCore& graphicsCore,
 
 	commandList->SetGraphicsRootSignature(activePipeline.GetRootSignature());
 	commandList->SetPipelineState(activePipeline.GetGraphicsPipeline(BlendMode::Normal));
+	activePipeline.BindGlobalDescriptorTablesGraphics(commandList,
+		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
 	// ライトバッファとTLASを名前でバインド
 	registryAutoBindTable_.Sync(activePipeline, context.bufferRegistry);

@@ -20,6 +20,16 @@ namespace Engine {
 
 	// front
 	class ManagedScriptRuntime;
+	class ECSWorld;
+	struct SystemContext;
+
+	// Play中にC#ソースが変わった場合の反映方法
+	enum class ManagedPlayReloadMode : uint8_t {
+
+		RecompileAndContinue,
+		RecompileAfterStop,
+		StopAndRecompile,
+	};
 
 	//============================================================================
 	//	ManagedScriptBuildService class
@@ -85,8 +95,8 @@ namespace Engine {
 		// 実行中の子プロセスを安全に終了して状態を破棄する、複数回呼び出しても安全
 		void Shutdown();
 
-		// 毎フレーム呼ぶ、playing中はreloadを適用せず変更検知のdirty記録だけ行う
-		void Tick(bool playing);
+		// 毎フレーム呼び、設定した方式でPlay中の変更を処理する
+		void Tick(bool playing, ECSWorld* world = nullptr, const SystemContext* context = nullptr);
 
 		// Play開始のために最新のbuildやreloadを要求する、debounceを経ずに開始する
 		void RequestPlayBuild();
@@ -111,6 +121,13 @@ namespace Engine {
 		void RequestMetadataSync();
 		// 安全になった時点でreloadする要求でPlay中はStop後までdeferする
 		void RequestReloadWhenSafe();
+		// Play中の再読み込み方式を設定する
+		void SetPlayReloadMode(ManagedPlayReloadMode mode) { playReloadMode_ = mode; }
+		ManagedPlayReloadMode GetPlayReloadMode() const { return playReloadMode_; }
+		// 自動Stop要求を一度だけ取得する
+		bool ConsumeStopPlayRequest();
+		// Reload失敗によるPause要求を一度だけ取得する
+		bool ConsumeReloadPauseRequest();
 	private:
 		//========================================================================
 		//	private Methods
@@ -126,6 +143,8 @@ namespace Engine {
 
 		// source監視
 		bool dirty_ = false;
+		// ビルド開始後の追加入力を次のサイクルへ残す
+		uint64_t inputRevision_ = 0;
 		// Play中の変更を「Stop後に反映」と一度だけ通知したか
 		bool playDirtyNotified_ = false;
 		std::chrono::steady_clock::time_point lastChangeTime_{};
@@ -145,6 +164,12 @@ namespace Engine {
 		// Play gate
 		bool playBuildRequested_ = false;
 		PlayBuildResult playBuildResult_ = PlayBuildResult::Succeeded;
+		ManagedPlayReloadMode playReloadMode_ = ManagedPlayReloadMode::RecompileAndContinue;
+		bool stopPlayRequested_ = false;
+		bool reloadPauseRequested_ = false;
+		bool currentPlaying_ = false;
+		ECSWorld* currentWorld_ = nullptr;
+		const SystemContext* currentContext_ = nullptr;
 
 		// 設定値、Editorの設定UIから変更できる拡張点
 		std::chrono::milliseconds debounce_{ 400 };

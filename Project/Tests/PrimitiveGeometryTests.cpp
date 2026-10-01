@@ -4,10 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
+#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 
 // c++
 #include <cmath>
 #include <limits>
+#include <unordered_map>
 
 namespace {
 
@@ -132,6 +134,89 @@ namespace {
 		invalid.cube.pivot.x = infinity;
 		return check(invalid, expected);
 	}
+
+	bool TestGeometryKeyCollision() {
+
+		using namespace Engine;
+		struct ZeroHash {
+
+			size_t operator()(const PrimitiveGeometryKey&) const { return 0; }
+		};
+
+		PrimitiveRendererComponent plane;
+		PrimitiveRendererComponent sphere;
+		sphere.type = PrimitiveType::Sphere;
+		const PrimitiveGeometryKey planeKey = PrimitiveMeshGenerator::ComputeKey(plane);
+		const PrimitiveGeometryKey sphereKey = PrimitiveMeshGenerator::ComputeKey(sphere);
+		if (planeKey == sphereKey) return false;
+
+		// 同じhash bucketでも形状キーの比較で別要素に分ける
+		std::unordered_map<PrimitiveGeometryKey, int, ZeroHash> cache;
+		cache.emplace(planeKey, 1);
+		cache.emplace(sphereKey, 2);
+		return cache.size() == 2 && cache.at(planeKey) == 1 && cache.at(sphereKey) == 2;
+	}
+
+	bool ValidateGeometryCapacity(const Engine::PrimitiveMeshData& mesh) {
+
+		if (mesh.vertices.empty() || mesh.indices.empty() || mesh.indices.size() % 3 != 0 ||
+			mesh.vertices.size() > std::numeric_limits<uint32_t>::max() ||
+			mesh.indices.size() > std::numeric_limits<uint32_t>::max()) {
+			return false;
+		}
+		for (uint32_t index : mesh.indices) {
+			if (index >= mesh.vertices.size()) return false;
+		}
+		return true;
+	}
+
+	bool TestGeometryCapacity() {
+
+		using namespace Engine;
+		PrimitiveRendererComponent renderer;
+		PrimitiveMeshData mesh;
+		for (PrimitiveType type : { PrimitiveType::Plane, PrimitiveType::CrossPlane,
+			PrimitiveType::Ring, PrimitiveType::Cylinder, PrimitiveType::Sphere,
+			PrimitiveType::Hemisphere, PrimitiveType::Cube }) {
+
+			renderer.type = type;
+			renderer.plane.divideX = renderer.plane.divideY = kMaxPrimitiveDivide;
+			renderer.crossPlane.planeCount = kMaxPrimitiveDivide;
+			renderer.ring.divide = kMaxPrimitiveDivide;
+			renderer.cylinder.radialDivide = renderer.cylinder.heightDivide = kMaxPrimitiveDivide;
+			renderer.sphere.longitudeDivide = renderer.sphere.latitudeDivide = kMaxPrimitiveDivide;
+			renderer.hemisphere.longitudeDivide = renderer.hemisphere.latitudeDivide = kMaxPrimitiveDivide;
+			PrimitiveMeshGenerator::Generate(renderer, mesh);
+			if (!ValidateGeometryCapacity(mesh)) return false;
+		}
+		return true;
+	}
+
+	bool TestTriangleWinding() {
+
+		using namespace Engine;
+		PrimitiveRendererComponent renderer;
+		PrimitiveMeshData mesh;
+		for (PrimitiveType type : { PrimitiveType::Plane, PrimitiveType::CrossPlane,
+			PrimitiveType::Ring, PrimitiveType::Cylinder, PrimitiveType::Sphere,
+			PrimitiveType::Hemisphere, PrimitiveType::Cube }) {
+
+			renderer.type = type;
+			PrimitiveMeshGenerator::Generate(renderer, mesh);
+			for (size_t index = 0; index < mesh.indices.size(); index += 3) {
+
+				const PrimitiveMeshVertex& a = mesh.vertices[mesh.indices[index + 0]];
+				const PrimitiveMeshVertex& b = mesh.vertices[mesh.indices[index + 1]];
+				const PrimitiveMeshVertex& c = mesh.vertices[mesh.indices[index + 2]];
+				const Vector3 face = Vector3::Cross(b.position - a.position, c.position - a.position);
+				if (face.Length() <= 1e-6f) continue;
+				const Vector3 normal = a.normal + b.normal + c.normal;
+				// D3Dの時計回り面と頂点法線の向きを揃える
+				if (Vector3::Dot(face, normal) >= 0.0f) return false;
+			}
+		}
+		return true;
+	}
 }
 
 bool NEMTests::TestPrimitiveTangents() {
@@ -168,5 +253,6 @@ bool NEMTests::TestPrimitiveTangents() {
 			!std::isfinite(vertex.tangent.z) || std::fabs(Vector3::Dot(vertex.normal, vertex.tangent)) > 0.001f ||
 			std::fabs(vertex.tangent.Length() - 1.0f) > 0.001f) return false;
 	}
-	return TestNormalizedGeometryKeys() && TestFiniteParameters();
+	return TestNormalizedGeometryKeys() && TestFiniteParameters() && TestGeometryKeyCollision() &&
+		TestGeometryCapacity() && TestTriangleWinding();
 }

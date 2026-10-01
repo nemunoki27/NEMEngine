@@ -230,6 +230,49 @@ bool Engine::ManagedScriptRuntime::CaptureSavedValueMap(ManagedScriptInstanceHan
 	}
 }
 
+bool Engine::ManagedScriptRuntime::CaptureReloadValueMap(ManagedScriptInstanceHandle handle,
+	ECSWorld& world, nlohmann::json& fields) {
+
+	if (!initialized_ || !bridge_.getReloadStateSize_ ||
+		!bridge_.copyReloadState_ || !handle.IsValid()) {
+		return false;
+	}
+	ScopedReferenceWorld worldScope(world);
+	int32_t size = 0;
+	if (bridge_.getReloadStateSize_(handle, &size) != ManagedStatus::Ok || size <= 0) {
+		return false;
+	}
+	std::string buffer(static_cast<size_t>(size), '\0');
+	int32_t written = 0;
+	if (bridge_.copyReloadState_(handle, buffer.data(), size, &written) != ManagedStatus::Ok ||
+		written <= 0 || written > size) {
+		return false;
+	}
+	try {
+		nlohmann::json candidate = nlohmann::json::parse(
+			buffer.begin(), buffer.begin() + written);
+		if (!candidate.is_object()) {
+			return false;
+		}
+		fields = std::move(candidate);
+		return true;
+	} catch (const nlohmann::json::exception&) {
+		return false;
+	}
+}
+
+bool Engine::ManagedScriptRuntime::ApplyReloadValueMap(ManagedScriptInstanceHandle handle,
+	ECSWorld& world, const nlohmann::json& fields) {
+
+	if (!initialized_ || !bridge_.applyReloadState_ ||
+		!handle.IsValid() || !fields.is_object()) {
+		return false;
+	}
+	const std::string state = fields.dump();
+	ScopedReferenceWorld worldScope(world);
+	return bridge_.applyReloadState_(handle, state.c_str()) == ManagedStatus::Ok;
+}
+
 void Engine::ManagedScriptRuntime::SetRuntimeSerializedField(ManagedScriptInstanceHandle handle, ECSWorld& world,
 	const std::string& fieldID, const nlohmann::json& value) {
 

@@ -5,6 +5,7 @@
 //	Common VS/PS
 //============================================================================
 #include "meshShaderSharedTypes.hlsli"
+#include "../../Common/descriptorHeapCompatibility.hlsli"
 
 //============================================================================
 //	output
@@ -23,10 +24,12 @@ struct VSOutput {
 	// PS側のTBN構築で使う接線符号と向き符号
 	float tangentSign : TANGENTSIGN0;
 	float orientationSign : ORIENTATIONSIGN0;
+	nointerpolation float lodCoverage : LODCOVERAGE0;
 };
 struct DepthVSOutput {
 
 	float4 position : SV_Position;
+	nointerpolation float lodCoverage : LODCOVERAGE0;
 };
 
 //============================================================================
@@ -53,6 +56,7 @@ struct MeshDispatchPayload {
 
 	uint meshletIndices[32];
 	uint instanceIndices[32];
+	float lodCoverages[32];
 };
 
 StructuredBuffer<MeshPackedVertex> gPackedVertices : register(t0);
@@ -195,12 +199,29 @@ MeshVertex DecodePackedVertex(MeshPackedVertex vertex) {
 	return outVertex;
 }
 
+// 隣接LODを同じ画素へ滑らかに切り替える
+void ApplyMeshLODDither(float2 pixelPosition, float coverage) {
+
+	if (coverage >= 0.9999f) {
+		return;
+	}
+	float threshold = frac(52.9829189f * frac(dot(
+		floor(pixelPosition), float2(0.06711056f, 0.00583715f))));
+	clip(coverage - threshold);
+}
+
+float GetMeshInstanceLODCoverage(uint instanceID) {
+
+	MeshInstance instance = gMeshInstances[instanceID];
+	return (instance.flags & MESH_INSTANCE_FLAG_LOD_DITHER) != 0u ?
+		asfloat(instance._motionPad.x) : 1.0f;
+}
+
 #if defined(NEM_ENABLE_MESH_DISPLACEMENT)
 // 頂点シェーダーからSamplerを増やさず使用できる繰り返しバイリニアサンプル
 float SampleMeshDisplacement(uint textureIndex, float2 uv) {
 
-	Texture2D<float4> texture =
-		ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
+	Texture2D<float4> texture = NEM_TEXTURE2D(textureIndex);
 	uint width;
 	uint height;
 	texture.GetDimensions(width, height);
@@ -413,6 +434,7 @@ VSOutput BuildMeshSurfaceVertex(uint vertexID, uint instanceID) {
 	output.subMeshIndex = localSubMeshIndex;
 	output.tangentSign = vertex.tangentSign;
 	output.orientationSign = GetInstanceSubMeshOrientationSign(instanceID, localSubMeshIndex);
+	output.lodCoverage = GetMeshInstanceLODCoverage(instanceID);
 	ApplyMeshRenderGroupVisibility(output);
 
 	return output;

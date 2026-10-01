@@ -130,6 +130,11 @@ namespace Engine {
 		// ルート引数の配置情報の取得
 		const RootBindingLocation* FindBinding(ShaderBindingKind kind, UINT bindPoint, UINT space = 0) const;
 		const RootBindingLocation* FindBindingByName(const std::string_view& name, ShaderBindingKind kind) const;
+		// SM6.0互換ShaderへグローバルDescriptor Heapの先頭を渡す
+		void BindGlobalDescriptorTablesGraphics(ID3D12GraphicsCommandList* commandList,
+			D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const;
+		void BindGlobalDescriptorTablesCompute(ID3D12GraphicsCommandList* commandList,
+			D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const;
 
 		// ルートシグネイチャとパイプラインステートオブジェクトの取得
 		ID3D12RootSignature* GetRootSignature() const { return rootSignature_.Get(); }

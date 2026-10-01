@@ -125,6 +125,8 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 		uint64_t hash = geometryCount;
 		for (uint32_t index = 0; index < geometryCount; ++index) {
+			Engine::Algorithm::HashCombine(hash,
+				index < subMeshes.size() && !subMeshes[index].visible ? 0u : 1u);
 
 			const Engine::Matrix4x4 localMatrix =
 				index < subMeshes.size() ?
@@ -254,6 +256,9 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 		bool initialized = false;
 		for (const Engine::SubMeshMaterial& subMesh : subMeshes) {
+			if (!subMesh.visible) {
+				continue;
+			}
 
 			const Engine::Matrix4x4 localMatrix =
 				Engine::MeshSubMeshRuntime::

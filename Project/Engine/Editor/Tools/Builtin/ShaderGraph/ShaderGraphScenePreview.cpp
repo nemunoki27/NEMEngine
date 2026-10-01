@@ -164,7 +164,8 @@ bool Engine::ShaderGraphScenePreview::ApplyPreviewMaterial(
 	}
 
 	if (previewMaterialApplied_ &&
-		(appliedPreviewEntityUUID_ !=
+		(appliedWorldLifetime_.lock() != world->GetLifetime() ||
+			appliedPreviewEntityUUID_ !=
 			previewEntityUUID_ ||
 			appliedPreviewTarget_ != target)) {
 
@@ -181,6 +182,8 @@ bool Engine::ShaderGraphScenePreview::ApplyPreviewMaterial(
 		}
 		appliedPreviewEntityUUID_ =
 			previewEntityUUID_;
+		appliedWorld_ = world;
+		appliedWorldLifetime_ = world->GetLifetime();
 		appliedPreviewTarget_ = target;
 		previewMaterialApplied_ = true;
 	}
@@ -196,14 +199,16 @@ bool Engine::ShaderGraphScenePreview::ApplyPreviewMaterial(
 	return true;
 }
 
-void Engine::ShaderGraphScenePreview::RestorePreviewMaterial(const EditorToolContext& context) {
+void Engine::ShaderGraphScenePreview::RestorePreviewMaterial(
+	[[maybe_unused]] const EditorToolContext& context) {
 
 	if (!previewMaterialApplied_) {
 		return;
 	}
 
-	ECSWorld* world = context.GetWorld();
-	if (world) {
+	const auto lifetime = appliedWorldLifetime_.lock();
+	ECSWorld* world = appliedWorld_;
+	if (world && lifetime && lifetime->IsAlive()) {
 		const Entity entity =
 			world->FindByUUID(
 				appliedPreviewEntityUUID_);
@@ -216,6 +221,8 @@ void Engine::ShaderGraphScenePreview::RestorePreviewMaterial(const EditorToolCon
 	}
 	appliedPreviewEntityUUID_ = {};
 	previewOriginalMaterial_ = {};
+	appliedWorld_ = nullptr;
+	appliedWorldLifetime_.reset();
 	previewMaterialApplied_ = false;
 	previewCompileDeadline_ = 0.0;
 }

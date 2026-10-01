@@ -14,6 +14,8 @@ internal static unsafe class ObjectContractTests {
     private static bool gameObjectAlive = true;
     private static ulong removedScriptSlot;
     private static int removeScriptCalls;
+    private static int instantiateCalls;
+    private static int instantiateUseTransform;
 
     private sealed class ProbeScript : MonoBehaviour { }
 
@@ -41,6 +43,7 @@ internal static unsafe class ObjectContractTests {
         CheckComponentIdentity();
         CheckScriptIdentity();
         CheckGameObjectIdentity();
+        CheckInstantiateContract();
         CheckMissingNativeContracts();
         CheckLongNativeStrings();
         CheckNativeStatus();
@@ -199,7 +202,8 @@ internal static unsafe class ObjectContractTests {
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static int ReadIsAlive(NativeEntity owner) =>
-        gameObjectAlive && owner.world.index == 2 && owner.world.generation == 3 && owner.index == 5 && owner.generation == 7 ? 1 : 0;
+        gameObjectAlive && owner.world.index == 2 && owner.world.generation == 3 &&
+        (owner.index == 5 || owner.index == 6) && owner.generation == 7 ? 1 : 0;
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     private static ulong ReadComponentInstanceID(NativeEntity owner, int typeID) {
@@ -234,6 +238,44 @@ internal static unsafe class ObjectContractTests {
             gameObjectAlive = true;
             NativeAPI.IsAlive = previous;
         }
+    }
+
+    // 公開InstantiateがNative複製入口とFake Nullを正しく扱う
+    private static void CheckInstantiateContract() {
+
+        var previousAlive = NativeAPI.IsAlive;
+        var previousInstantiate = NativeAPI.InstantiateEntity;
+        NativeAPI.IsAlive = &ReadIsAlive;
+        NativeAPI.InstantiateEntity = &InstantiateEntity;
+        instantiateCalls = 0;
+        try {
+            var source = GameObject.FromNative(new NativeEntity {
+                world = new ManagedWorldHandle { index = 2, generation = 3 }, index = 5, generation = 7
+            })!;
+            GameObject first = EngineObject.Instantiate(source);
+            Check(first != null && instantiateCalls == 1 && instantiateUseTransform == 0);
+            GameObject second = EngineObject.Instantiate(source, Vector3.one, Quaternion.identity);
+            Check(second != null && instantiateCalls == 2 && instantiateUseTransform == 1);
+
+            gameObjectAlive = false;
+            bool rejected = false;
+            try { _ = EngineObject.Instantiate(source); } catch (ArgumentException) { rejected = true; }
+            Check(rejected && instantiateCalls == 2);
+        } finally {
+            gameObjectAlive = true;
+            NativeAPI.IsAlive = previousAlive;
+            NativeAPI.InstantiateEntity = previousInstantiate;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static NativeEntity InstantiateEntity(NativeEntity source, NativeVector3 position,
+        NativeQuaternion rotation, int useTransform, NativeEntity parent) {
+
+        ++instantiateCalls;
+        instantiateUseTransform = useTransform;
+        source.index = 6;
+        return source;
     }
 
     private static void CheckMissingNativeContracts() {

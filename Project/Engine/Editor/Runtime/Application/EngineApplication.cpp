@@ -71,8 +71,14 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
-		// 非同期build/reload状態機械を進める、Play中はreloadを適用せず変更検知のdirtyのみ行う
-		scriptBuildService_.Tick(worldManager_.IsPlaying());
+		// 非同期build/reload状態機械を安全なフレーム境界で進める
+		scriptBuildService_.Tick(worldManager_.IsPlaying(), GetActiveWorld(), &systemContext_);
+		if (scriptBuildService_.ConsumeStopPlayRequest()) {
+			StopPlayWorld();
+		}
+		if (scriptBuildService_.ConsumeReloadPauseRequest()) {
+			playSession_->PauseForScriptReloadFailure();
+		}
 	}
 
 	// プレイモードの切り替え
@@ -157,7 +163,8 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			requestFrameDeltaReset_ = true;
 			scriptProfiler.Configure(scriptProfiler.IsEnabled(), {}, 0);
 		}
-		if (playingThisTick && ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
+		if (playingThisTick && editorManager_.GetLayoutState().pauseOnScriptError &&
+			ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
 
 			playSession_->PauseForScriptException();
 		}

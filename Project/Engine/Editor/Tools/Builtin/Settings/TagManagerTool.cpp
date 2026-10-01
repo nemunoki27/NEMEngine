@@ -94,8 +94,10 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 				const bool committed = ImGui::InputText("##RenameTag", renameBuffer_, sizeof(renameBuffer_),
 					ImGuiInputTextFlags_EnterReturnsTrue);
 				if (committed) {
-					if (context.panelContext->tagSettings->RenameTag(tag, renameBuffer_)) {
-						ProjectSettingsOperations::RemapTags(context, tag, renameBuffer_);
+					if (context.panelContext->tagSettings->IsValidNewTag(renameBuffer_) &&
+						ProjectSettingsOperations::RemapTags(context, tag, renameBuffer_)) {
+
+						context.panelContext->tagSettings->RenameTag(tag, renameBuffer_);
 					}
 					renamingTag_.clear();
 				}
@@ -107,8 +109,10 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 			if (renamingTag_ == tag) {
 
 				if (ImGui::SmallButton("確定")) {
-					if (context.panelContext->tagSettings->RenameTag(tag, renameBuffer_)) {
-						ProjectSettingsOperations::RemapTags(context, tag, renameBuffer_);
+					if (context.panelContext->tagSettings->IsValidNewTag(renameBuffer_) &&
+						ProjectSettingsOperations::RemapTags(context, tag, renameBuffer_)) {
+
+						context.panelContext->tagSettings->RenameTag(tag, renameBuffer_);
 					}
 					renamingTag_.clear();
 				}
@@ -126,9 +130,9 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 				}
 				ImGui::SameLine();
 				if (ImGui::SmallButton("削除")) {
-					if (context.panelContext->tagSettings->RemoveTag(tag)) {
-						// 使用中のエンティティはUntaggedへ戻す
-						ProjectSettingsOperations::RemapTags(context, tag, "Untagged");
+					// 使用中のエンティティはUntaggedへ戻す
+					if (ProjectSettingsOperations::RemapTags(context, tag, "Untagged")) {
+						context.panelContext->tagSettings->RemoveTag(tag);
 					}
 				}
 				ImGui::EndDisabled();
@@ -201,8 +205,9 @@ void Engine::TagManagerTool::DrawWindow(const EditorToolContext& context) {
 			if (index != 0u) {
 				ImGui::SameLine();
 				if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f)) &&
-					context.panelContext->renderingLayerSettings->RemoveLayer(index)) {
-					ProjectSettingsOperations::ClearRenderingLayer(context, index);
+					ProjectSettingsOperations::ClearRenderingLayer(context, index)) {
+
+					context.panelContext->renderingLayerSettings->RemoveLayer(index);
 				}
 			}
 			ImGui::PopID();
