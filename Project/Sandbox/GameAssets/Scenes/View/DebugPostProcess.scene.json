@@ -65,6 +65,10 @@
                     "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
+                    "renderExtension": "59e361770f3759eeb925dd7f27469b14",
+                    "volumeProfile": "49e361770f3759eeb925dd7f27469b14",
+                    "volumeLayerMask": 4294967295,
+                    "postProcessEnabled": true,
                     "cullingMask": -1,
                     "editorFrustumScale": 0.0020000000949949026,
                     "enabled": true,
@@ -153,7 +157,6 @@
     ],
     "Header": {
         "name": "DebugPostProcess",
-        "renderFeatureProfile": "59e361770f3759eeb925dd7f27469b14",
         "subScenes": [
             {
                 "enabled": false,

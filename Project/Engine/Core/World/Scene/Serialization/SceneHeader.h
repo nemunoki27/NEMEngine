@@ -123,17 +123,11 @@ namespace Engine {
 		// シーンが持つサブシーンリスト
 		std::vector<SubSceneSlotDesc> subScenes;
 
-		// シーンのカラー出力、Compute、DispatchRaysをまとめたProfile
-		AssetID renderFeatureProfile{};
 	};
 
 	// json変換
 	// .scene.jsonのファイル名からシーン表示名を取得する
 	std::string MakeSceneAssetName(const std::filesystem::path& scenePath);
-	std::string MakeDefaultRenderFeatureProfilePath(
-		const std::string& scenePath);
-	void EnsureSceneRenderFeatureProfile(SceneHeader& sceneHeader,
-		const std::string& scenePath, AssetDatabase* assetDatabase);
 	bool FromJson(const nlohmann::json& data, SceneHeader& sceneHeader, AssetDatabase* assetDatabase);
 	nlohmann::json ToJson(const SceneHeader& sceneHeader);
 } // Engine

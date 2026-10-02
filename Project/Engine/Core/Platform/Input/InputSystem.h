@@ -35,6 +35,7 @@ namespace Engine {
 	//============================================================================
 	class Input {
 	public:
+		static constexpr uint32_t kMaxPlayers = 4;
 		//============================================================================
 		//	public Methods
 		//============================================================================
@@ -115,12 +116,22 @@ namespace Engine {
 
 		// ゲームパッドの振動
 		uint32_t PlayVibration(const InputVibrationParams& params);
+		uint32_t PlayVibration(uint32_t playerIndex, const InputVibrationParams& params);
 		// 指定のID振動の停止
 		void StopVibration(uint32_t handle);
+		void StopVibration(uint32_t playerIndex, uint32_t handle);
 		// 全ての振動を停止
 		void StopAllVibration();
 		// 振動の有効、無効の設定
 		void SetVibrationEnabled(bool enabled);
+		void SetVibrationEnabled(uint32_t playerIndex, bool enabled);
+		void SetPlayerGamepadIndex(uint32_t playerIndex, int32_t gamepadIndex);
+		int32_t GetPlayerGamepadIndex(uint32_t playerIndex) const;
+		void SetPlayerKeyboardMouseEnabled(uint32_t playerIndex, bool enabled);
+		bool IsPlayerKeyboardMouseEnabled(uint32_t playerIndex) const;
+		void SetBackgroundInputEnabled(bool enabled) { backgroundInputEnabled_ = enabled; }
+		bool IsBackgroundInputEnabled() const { return backgroundInputEnabled_; }
+		bool IsGameplayInputAvailable(uint32_t playerIndex) const;
 		// ゲームパッドが繋がっているかどうか
 		bool IsGamepadConnected() const { return hardware_.GetState().gamepadConnected; }
 
@@ -139,7 +150,7 @@ namespace Engine {
 		bool HasWindowFocus() const { return windowEvents_.HasWindowFocus(); }
 		// WinAppのWM_CHAR / focusメッセージからmain threadで呼ぶ
 		void AppendTextInputUtf16(wchar_t code) { windowEvents_.AppendTextInputUtf16(code); }
-		void SetWindowFocus(bool focused) { windowEvents_.SetWindowFocus(focused); }
+		void SetWindowFocus(bool focused);
 
 		// 外部エクスプローラーからのファイルドロップを画面座標で積む
 		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint);
@@ -186,7 +197,12 @@ namespace Engine {
 		// 描画矩形範囲
 		InputViewMapping views_;
 
-		InputVibrationPlayer vibration_;
+		std::array<InputVibrationPlayer, kMaxPlayers> vibrations_{};
+		std::array<int32_t, kMaxPlayers> playerGamepads_{ 0, 1, 2, 3 };
+		std::array<bool, kMaxPlayers> playerKeyboardMouse_{ true, false, false, false };
+		bool backgroundInputEnabled_ = false;
+		bool suppressEdgesThisFrame_ = false;
+		bool suppressEdgesOnNextUpdate_ = false;
 
 		//--------- functions ----------------------------------------------------
 

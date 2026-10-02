@@ -23,6 +23,9 @@ void Engine::RigidbodyInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 			return InspectorDrawerCommon::DrawEnumComboField("種別", draft.bodyType);
 			});
 		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("衝突検出", draft.collisionDetection);
+			});
+		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("質量", draft.mass,
 				{ .dragSpeed = 0.01f, .minValue = 0.0f });
 			});

@@ -20,7 +20,11 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderExtensionAsset.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
+#include <Engine/Core/Rendering/Volumes/VolumeProfileAsset.h>
+#include <Engine/Core/World/Components/Camera/CameraComponent.h>
 
 // c++
 #include <algorithm>
@@ -345,9 +349,70 @@ namespace NEMTests {
 
 		profile.passes[0].anchor = Engine::RenderFeatureAnchor::AfterTransparent;
 		runtime.Rebuild(profile);
-		return !runtime.BuildPlan(
+		if (runtime.BuildPlan(
 			Engine::RenderFeatureAnchor::AfterLighting,
-			Engine::RenderViewKind::Game).IsValid();
+			Engine::RenderViewKind::Game).IsValid()) {
+
+			return false;
+		}
+
+		// VolumeとRender Extensionは旧Profileから分離した保存形式を保つ
+		Engine::VolumeProfileAsset volume{};
+		volume.guid = Engine::AssetID{ 101, 102 };
+		volume.name = "VolumeTest";
+		volume.colorPipeline.exposure.manualEV100 = 2.5f;
+		Engine::VolumeProfileAsset restoredVolume{};
+		if (!Engine::FromJson(Engine::ToJson(volume), restoredVolume) ||
+			restoredVolume.guid != volume.guid ||
+			restoredVolume.name != volume.name ||
+			restoredVolume.colorPipeline.exposure.manualEV100 != 2.5f) {
+
+			return false;
+		}
+
+		Engine::RenderExtensionAsset extension{};
+		extension.guid = Engine::AssetID{ 103, 104 };
+		extension.name = "ExtensionTest";
+		extension.passes = selectiveProfile.passes;
+		extension.hierarchy = selectiveProfile.hierarchy;
+		Engine::RenderExtensionAsset restoredExtension{};
+		if (!Engine::FromJson(Engine::ToJson(extension), restoredExtension) ||
+			restoredExtension.guid != extension.guid ||
+			restoredExtension.passes.size() != selectiveProfile.passes.size()) {
+
+			return false;
+		}
+
+		// RenderTexture寸法とCamera出力設定を保存後も維持する
+		Engine::RenderTextureAsset renderTexture{};
+		renderTexture.guid = Engine::AssetID{ 105, 106 };
+		renderTexture.width = 1280;
+		renderTexture.height = 720;
+		Engine::RenderTextureAsset restoredTexture{};
+		if (!Engine::FromJson(Engine::ToJson(renderTexture), restoredTexture) ||
+			restoredTexture.width != 1280 || restoredTexture.height != 720) {
+
+			return false;
+		}
+
+		Engine::PerspectiveCameraComponent camera{};
+		camera.projectionMode = Engine::CameraProjectionMode::Orthographic;
+		camera.orthographicSize = 12.0f;
+		camera.common.viewportX = 0.5f;
+		camera.common.viewportWidth = 0.5f;
+		camera.common.targetTexture = renderTexture.guid;
+		camera.common.volumeProfile = volume.guid;
+		camera.common.renderExtension = extension.guid;
+		const nlohmann::json cameraData = camera;
+		const Engine::PerspectiveCameraComponent restoredCamera =
+			cameraData.get<Engine::PerspectiveCameraComponent>();
+		return restoredCamera.projectionMode == Engine::CameraProjectionMode::Orthographic &&
+			restoredCamera.orthographicSize == 12.0f &&
+			restoredCamera.common.viewportX == 0.5f &&
+			restoredCamera.common.viewportWidth == 0.5f &&
+			restoredCamera.common.targetTexture == renderTexture.guid &&
+			restoredCamera.common.volumeProfile == volume.guid &&
+			restoredCamera.common.renderExtension == extension.guid;
 	}
 
 	bool TestPostProcessSourceExtension() {

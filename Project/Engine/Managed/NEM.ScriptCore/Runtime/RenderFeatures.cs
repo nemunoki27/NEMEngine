@@ -1,15 +1,15 @@
 namespace NEMEngine;
 
 //============================================================================
-//	RenderFeaturePass struct
-//	Profile内の1つの描画Passへ実行時オーバーライドを設定する
+//	RenderExtensionPass struct
+//	Render Extension内の描画Passへ実行時オーバーライドを設定する
 //============================================================================
-public readonly struct RenderFeaturePass {
+public readonly struct RenderExtensionPass {
 
     private readonly ulong passID;
     private readonly ulong generation;
 
-    internal RenderFeaturePass(ulong passID, ulong generation) {
+    internal RenderExtensionPass(ulong passID, ulong generation) {
         this.passID = passID;
         this.generation = generation;
     }
@@ -230,10 +230,10 @@ public readonly struct RenderFeaturePass {
 }
 
 //============================================================================
-//	RenderFeatures class
-//	現在のRenderFeatureProfileへ実行時オーバーライドを設定する
+//	RenderExtensions class
+//	Main CameraのRender Extensionへ実行時オーバーライドを設定する
 //============================================================================
-public static class RenderFeatures {
+public static class RenderExtensions {
 
     // GPUがDXRをサポートしている場合にtrueを返す
     public static bool IsRayTracingSupported =>
@@ -244,11 +244,11 @@ public static class RenderFeatures {
         NativeRenderingAPI.ReadRayTracingActive();
 
     // Profile内の表示名からPassハンドルを取得する
-    public static RenderFeaturePass FindPass(string passName) {
+    public static RenderExtensionPass FindPass(string passName) {
         ArgumentException.ThrowIfNullOrEmpty(passName);
         return NativeRenderingAPI.ResolveRenderFeaturePassValue(
             passName, out ulong passID, out ulong generation)
-            ? new RenderFeaturePass(passID, generation)
+            ? new RenderExtensionPass(passID, generation)
             : default;
     }
 

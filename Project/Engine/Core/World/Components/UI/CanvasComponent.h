@@ -95,6 +95,15 @@ namespace Engine {
 		std::vector<UUID> cells = std::vector<UUID>(9);
 	};
 
+	// Canvasがゲーム入力を止める条件
+	enum class CanvasInputBlockMode :
+		uint8_t {
+
+		None,
+		ConsumedFrame,
+		WhileVisible,
+	};
+
 	enum class CanvasNavigationTableResult :
 		uint8_t {
 
@@ -121,7 +130,8 @@ namespace Engine {
 		int32_t sortingLayer = 0;
 		int32_t order = 0;
 
-		bool blockGameplayInput = true;
+		CanvasInputBlockMode inputBlockMode = CanvasInputBlockMode::None;
+		uint32_t playerIndex = 0;
 		bool inputInEditMode = false;
 		bool blockInputAfterSubmit = false;
 		bool keyboardInputEnabled = true;

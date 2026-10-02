@@ -202,6 +202,10 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			!cookShader(std::move(artifact.pickingShader), meta->assetPath)) {
 			return false;
 		}
+		if (artifact.outlineShader.guid &&
+			!cookShader(std::move(artifact.outlineShader), meta->assetPath)) {
+			return false;
+		}
 		if (artifact.computeShader.guid &&
 			!cookShader(std::move(artifact.computeShader), meta->assetPath)) {
 			return false;
@@ -215,6 +219,7 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			&artifact.transparentPipeline,
 			&artifact.depthPipeline,
 			&artifact.pickingPipeline,
+			&artifact.outlinePipeline,
 			&artifact.computePipeline,
 			&artifact.rayTracingPipeline,
 			}) {

@@ -115,6 +115,14 @@ void Engine::EngineContext::InitCoreSettings(bool usesEditorUI) {
 	// ゲームウィンドウサイズ
 	windowSetting_.gameSizeFloat.x = ReadSizeSetting(data, "GameWindowSizeX", 1920.0f);
 	windowSetting_.gameSizeFloat.y = ReadSizeSetting(data, "GameWindowSizeY", 1080.0f);
+	const nlohmann::json gameSettings = JsonAdapter::Load(
+		RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild), false);
+	if (gameSettings.is_object()) {
+		windowSetting_.gameSizeFloat.x = ReadSizeSetting(
+			gameSettings, "gameWidth", windowSetting_.gameSizeFloat.x);
+		windowSetting_.gameSizeFloat.y = ReadSizeSetting(
+			gameSettings, "gameHeight", windowSetting_.gameSizeFloat.y);
+	}
 	windowSetting_.gameSize.x = static_cast<uint32_t>(windowSetting_.gameSizeFloat.x);
 	windowSetting_.gameSize.y = static_cast<uint32_t>(windowSetting_.gameSizeFloat.y);
 	// グラフィックス設定
@@ -133,7 +141,8 @@ void Engine::EngineContext::Init(bool usesEditorUI) {
 
 	// 表示ウィンドウ作成
 	winApp_ = std::make_unique<WinApp>();
-	winApp_->Create(windowSetting_.engineSize.ToUInt().front(), windowSetting_.engineSize.ToUInt().back(), windowSetting_.title.c_str());
+	const Vector2I initialSize = usesEditorUI ? windowSetting_.engineSize : windowSetting_.gameSize;
+	winApp_->Create(initialSize.ToUInt().front(), initialSize.ToUInt().back(), windowSetting_.title.c_str());
 	if (windowSetting_.startupFullscreen) {
 		WinApp::SetFullscreen(true);
 	}
@@ -144,4 +153,11 @@ void Engine::EngineContext::Finalize() {
 	// 各機能を破棄
 
 	winApp_.reset();
+}
+
+void Engine::EngineContext::SetGameSize(const Vector2I& size) {
+
+	windowSetting_.gameSize.x = (std::max)(size.x, 1);
+	windowSetting_.gameSize.y = (std::max)(size.y, 1);
+	windowSetting_.gameSizeFloat = windowSetting_.gameSize.GetFloat();
 }

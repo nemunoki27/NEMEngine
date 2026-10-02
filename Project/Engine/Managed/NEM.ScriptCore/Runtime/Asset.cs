@@ -54,6 +54,21 @@ public sealed class Texture : Asset {
     internal Texture(AssetGUID id) : base(id) { }
 }
 
+[NativeAssetType("RenderTexture")]
+public sealed class RenderTexture : Asset {
+    internal RenderTexture(AssetGUID id) : base(id) { }
+}
+
+[NativeAssetType("VolumeProfile")]
+public sealed class VolumeProfile : Asset {
+    internal VolumeProfile(AssetGUID id) : base(id) { }
+}
+
+[NativeAssetType("RenderExtension")]
+public sealed class RenderExtension : Asset {
+    internal RenderExtension(AssetGUID id) : base(id) { }
+}
+
 [NativeAssetType("Material")]
 public sealed class Material : Asset {
     internal Material(AssetGUID id) : base(id) { }

@@ -113,6 +113,9 @@ void Engine::GraphicsPreferenceStorage::Load(GraphicsFeaturePreferences& prefere
 		preferences.allowOcclusionCulling);
 	preferences.useGameViewCameraForSceneCulling = ReadBoolSetting(data,
 		"useGameViewCameraForSceneCulling", preferences.useGameViewCameraForSceneCulling);
+	preferences.useGameViewPositionForSceneVolumes = ReadBoolSetting(data,
+		"useGameViewPositionForSceneVolumes",
+		preferences.useGameViewPositionForSceneVolumes);
 	preferences.allowContributionCulling = ReadBoolSetting(data,
 		"allowContributionCulling", preferences.allowContributionCulling);
 	preferences.allowNormalConeCulling = ReadBoolSetting(data,
@@ -172,6 +175,8 @@ void Engine::GraphicsPreferenceStorage::Save(const GraphicsFeaturePreferences& p
 	data["allowFrustumCulling"] = preferences.allowFrustumCulling;
 	data["allowOcclusionCulling"] = preferences.allowOcclusionCulling;
 	data["useGameViewCameraForSceneCulling"] = preferences.useGameViewCameraForSceneCulling;
+	data["useGameViewPositionForSceneVolumes"] =
+		preferences.useGameViewPositionForSceneVolumes;
 	data["allowContributionCulling"] = preferences.allowContributionCulling;
 	data["allowNormalConeCulling"] = preferences.allowNormalConeCulling;
 	data["allowMeshLOD"] = preferences.allowMeshLOD;

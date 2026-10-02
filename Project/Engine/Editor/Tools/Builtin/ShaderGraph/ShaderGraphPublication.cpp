@@ -56,12 +56,14 @@ namespace {
 		library.RegisterDerivedShader(std::move(artifact.transparentShader));
 		library.RegisterDerivedShader(std::move(artifact.depthShader));
 		library.RegisterDerivedShader(std::move(artifact.pickingShader));
+		library.RegisterDerivedShader(std::move(artifact.outlineShader));
 		library.RegisterDerivedShader(std::move(artifact.computeShader));
 		library.RegisterDerivedShader(std::move(artifact.rayTracingShader));
 		library.RegisterDerivedPipeline(std::move(artifact.opaquePipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.transparentPipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.depthPipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.pickingPipeline));
+		library.RegisterDerivedPipeline(std::move(artifact.outlinePipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.computePipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.rayTracingPipeline));
 		library.RegisterDerivedMaterial(std::move(material));
@@ -161,6 +163,9 @@ bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& 
 		}
 		if (artifact.pickingShaderID) {
 			renderPipeline.ReloadShader(artifact.pickingShaderID);
+		}
+		if (artifact.outlineShaderID) {
+			renderPipeline.ReloadShader(artifact.outlineShaderID);
 		}
 		if (artifact.computeShaderID) {
 			renderPipeline.ReloadShader(artifact.computeShaderID);

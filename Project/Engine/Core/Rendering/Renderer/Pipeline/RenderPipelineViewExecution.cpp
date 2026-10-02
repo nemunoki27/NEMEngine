@@ -39,6 +39,7 @@
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphBindingNames.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/Renderer/Views/CameraViewProjection.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -142,19 +143,89 @@ void RenderPipelineRunner::SyncRequestedSurfaces(
 		}
 		viewportRenderService_->SyncSurface(graphicsCore, viewRequest.kind, viewRequest.width, viewRequest.height);
 	}
+	for (const ResolvedRenderView& view : gameCameraViews_) {
+		if (!view.targetTexture) {
+			continue;
+		}
+		const RenderTextureAsset* asset = renderAssetLibrary_.LoadRenderTexture(view.targetTexture);
+		if (asset) {
+			viewportRenderService_->SyncRenderTextureSurface(
+				graphicsCore, view.targetTexture, asset->width, asset->height);
+		}
+	}
 }
 
 void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 
 	gameViewState_.view = {};
 	sceneViewState_.view = {};
+	gameCameraViews_.clear();
 	for (const auto& viewRequest : request.views) {
 
 		ResolvedRenderView resolved = RenderViewResolver::Resolve(viewRequest, *request.world);
 		switch (viewRequest.kind) {
 		case RenderViewKind::Game:
+			gameCameraViews_ = RenderViewResolver::ResolveGameCameraViews(viewRequest, *request.world);
+			for (ResolvedRenderView& gameView : gameCameraViews_) {
+				if (!gameView.targetTexture) {
+					continue;
+				}
+				const RenderTextureAsset* asset = renderAssetLibrary_.LoadRenderTexture(gameView.targetTexture);
+				if (!asset) {
+					gameView.valid = false;
+					continue;
+				}
 
-			gameViewState_.view = resolved;
+				gameView.outputX = static_cast<uint32_t>(std::round(
+					static_cast<float>(asset->width) * gameView.normalizedOutputX));
+				gameView.outputY = static_cast<uint32_t>(std::round(
+					static_cast<float>(asset->height) * gameView.normalizedOutputY));
+				gameView.outputWidth = (std::max)(1u, static_cast<uint32_t>(std::round(
+					static_cast<float>(asset->width) * gameView.normalizedOutputWidth)));
+				gameView.outputHeight = (std::max)(1u, static_cast<uint32_t>(std::round(
+					static_cast<float>(asset->height) * gameView.normalizedOutputHeight)));
+				gameView.outputX = (std::min)(gameView.outputX, asset->width - 1);
+				gameView.outputY = (std::min)(gameView.outputY, asset->height - 1);
+				gameView.outputWidth = (std::min)(gameView.outputWidth, asset->width - gameView.outputX);
+				gameView.outputHeight = (std::min)(gameView.outputHeight, asset->height - gameView.outputY);
+				gameView.width = gameView.outputWidth;
+				gameView.height = gameView.outputHeight;
+				gameView.aspectRatio = static_cast<float>(gameView.width) / static_cast<float>(gameView.height);
+				TransformComponent* transform = request.world->TryGetComponent<TransformComponent>(
+					gameView.perspective.sourceCamera);
+				PerspectiveCameraComponent* camera = request.world->TryGetComponent<PerspectiveCameraComponent>(
+					gameView.perspective.sourceCamera);
+				if (transform && camera) {
+					CameraViewProjection::UpdatePerspectiveCameraMatrices(
+						*transform, *camera, gameView.width, gameView.height);
+					gameView.perspective = CameraViewProjection::BuildFromPerspectiveCamera(
+						gameView.perspective.sourceCamera, *transform, *camera);
+				}
+				TransformComponent* orthographicTransform =
+					request.world->TryGetComponent<TransformComponent>(
+						gameView.orthographic.sourceCamera);
+				OrthographicCameraComponent* orthographicCamera =
+					request.world->TryGetComponent<OrthographicCameraComponent>(
+						gameView.orthographic.sourceCamera);
+				if (orthographicTransform && orthographicCamera) {
+					CameraViewProjection::UpdateOrthographicCameraMatrices(
+						*orthographicTransform, *orthographicCamera,
+						gameView.width, gameView.height);
+					gameView.orthographic = CameraViewProjection::BuildFromOrthographicCamera(
+						gameView.orthographic.sourceCamera,
+						*orthographicTransform, *orthographicCamera);
+				}
+				gameView.screen = CameraViewProjection::BuildScreenCamera(gameView.width, gameView.height);
+			}
+			for (auto it = gameCameraViews_.rbegin(); it != gameCameraViews_.rend(); ++it) {
+				if (it->valid && !it->targetTexture) {
+					gameViewState_.view = *it;
+					break;
+				}
+			}
+			if (!gameViewState_.view.valid) {
+				gameViewState_.view = resolved;
+			}
 			break;
 		case RenderViewKind::Scene:
 
@@ -180,10 +251,68 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	context.cullingView = (kind == RenderViewKind::Scene &&
 		useGameViewCameraForSceneCulling && gameViewState_.view.valid) ?
 		&gameViewState_.view : &view;
-	context.defaultSurface = viewportRenderService_->GetSurface(kind);
+	const ResolvedCameraView* viewCamera =
+		view.FindCamera(RenderCameraDomain::Perspective);
+	if (!viewCamera) {
+		viewCamera = view.FindCamera(RenderCameraDomain::Orthographic);
+	}
+	const ResolvedCameraView* gameCamera = gameViewState_.view.FindCamera(
+		RenderCameraDomain::Perspective);
+	if (!gameCamera) {
+		gameCamera = gameViewState_.view.FindCamera(RenderCameraDomain::Orthographic);
+	}
+	if (kind == RenderViewKind::Scene && gameCamera) {
+		// SceneViewはGame Cameraの画面設定を参照する
+		context.volumeCamera = *gameCamera;
+		if (viewCamera && !graphicsCore.GetDXObject().GetFeatureController().
+			ShouldUseGameViewPositionForSceneVolumes()) {
+			context.volumeCamera.cameraPos = viewCamera->cameraPos;
+		}
+	} else if (viewCamera) {
+		context.volumeCamera = *viewCamera;
+	}
+	context.defaultSurface = view.targetTexture ?
+		viewportRenderService_->GetRenderTextureSurface(view.targetTexture) :
+		viewportRenderService_->GetSurface(kind);
+	context.useViewportRect = view.outputWidth != 0 && view.outputHeight != 0 &&
+		context.defaultSurface && (view.outputX != 0 || view.outputY != 0 ||
+		view.outputWidth != context.defaultSurface->GetWidth() ||
+		view.outputHeight != context.defaultSurface->GetHeight());
+	context.viewportX = view.outputX;
+	context.viewportY = view.outputY;
+	context.viewportWidth = view.outputWidth;
+	context.viewportHeight = view.outputHeight;
 	context.world = request.world;
 	context.systemContext = request.systemContext;
 	context.assetDatabase = request.assetDatabase;
+	const ResolvedRenderView& extensionView = kind == RenderViewKind::Scene && gameViewState_.view.valid ?
+		gameViewState_.view : view;
+	const ResolvedCameraView* extensionCamera = extensionView.FindCamera(RenderCameraDomain::Perspective);
+	if (!extensionCamera) {
+		extensionCamera = extensionView.FindCamera(RenderCameraDomain::Orthographic);
+	}
+	const AssetID extensionID = extensionCamera ? extensionCamera->renderExtension : AssetID{};
+	const uint64_t extensionRevision = renderAssetLibrary_.GetRenderExtensionRevision();
+	if (viewRenderExtension_ != extensionID ||
+		viewRenderExtensionAssetRevision_ != extensionRevision) {
+		const RenderExtensionAsset* extension = extensionID ?
+			renderAssetLibrary_.LoadRenderExtension(extensionID) : nullptr;
+		viewRenderExtensionRuntime_.Rebuild(extension ?
+			ToRuntimeProfile(*extension) : RenderFeatureProfileAsset{});
+		viewRenderExtension_ = extensionID;
+		viewRenderExtensionAssetRevision_ = extensionRevision;
+		++viewRenderExtensionGeneration_;
+	}
+	const ResolvedCameraView* mainGameCamera = gameViewState_.view.FindCamera(
+		extensionCamera && extensionCamera->projectionMode == ResolvedProjectionMode::Orthographic ?
+		RenderCameraDomain::Orthographic : RenderCameraDomain::Perspective);
+	if (kind == RenderViewKind::Game && extensionCamera && mainGameCamera &&
+		extensionCamera->sourceCamera == mainGameCamera->sourceCamera) {
+		RenderFeatureProfileService::GetInstance().SetRuntimeExtension(
+			extensionID ? renderAssetLibrary_.LoadRenderExtension(extensionID) : nullptr);
+	}
+	context.renderExtensionRuntime = &viewRenderExtensionRuntime_;
+	context.renderExtensionGeneration = viewRenderExtensionGeneration_;
 	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
 	context.drawSceneView2DCameraBounds = request.drawSceneView2DCameraBounds;
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
@@ -295,6 +424,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 
 		context.hasShadowCastingLight =
 			gameViewState_.lightSet.hasShadowCastingLight;
+		context.viewLights = &gameViewState_.lightSet;
 		gameViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		gameViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;
@@ -302,6 +432,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 
 		context.hasShadowCastingLight =
 			sceneViewState_.lightSet.hasShadowCastingLight;
+		context.viewLights = &sceneViewState_.lightSet;
 		sceneViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
 		sceneViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
 		break;

@@ -32,7 +32,8 @@ internal static unsafe class NativePhysicsAPI {
     internal static void CollisionSetShapeVector3(NativeEntity entity, int propertyID, Vector3 value) => WriteShape(entity, propertyID, value);
 
     internal static bool RaycastClosest(Vector3 origin, Vector3 direction, float maxDistance,
-        uint layerMask, uint targets, out NativeRaycastHit hit) {
+        uint layerMask, uint targets, QueryTriggerInteraction triggerInteraction,
+        out NativeRaycastHit hit) {
 
         hit = default;
         if (PhysicsRaycast == null) {
@@ -40,19 +41,30 @@ internal static unsafe class NativePhysicsAPI {
         }
         fixed (NativeRaycastHit* hitPtr = &hit) {
             return PhysicsRaycast(NativeVector3.From(origin), NativeVector3.From(direction),
-                maxDistance, layerMask, targets, hitPtr) != 0;
+                maxDistance, layerMask, targets, (uint)triggerInteraction, hitPtr) != 0;
+        }
+    }
+
+    internal static bool ReadQueriesHitTriggers()
+        => GetQueriesHitTriggers != null && GetQueriesHitTriggers() != 0;
+
+    internal static void WriteQueriesHitTriggers(bool value) {
+        if (SetQueriesHitTriggers != null) {
+            SetQueriesHitTriggers(value ? 1 : 0);
         }
     }
 
     internal static int RaycastMany(Vector3 origin, Vector3 direction, float maxDistance,
-        uint layerMask, uint targets, Span<NativeRaycastHit> buffer) {
+        uint layerMask, uint targets, QueryTriggerInteraction triggerInteraction,
+        Span<NativeRaycastHit> buffer) {
 
         if (PhysicsRaycastAll == null) {
             return 0;
         }
         fixed (NativeRaycastHit* bufferPtr = buffer) {
             return PhysicsRaycastAll(NativeVector3.From(origin), NativeVector3.From(direction),
-                maxDistance, layerMask, targets, bufferPtr, buffer.Length);
+                maxDistance, layerMask, targets, (uint)triggerInteraction,
+                bufferPtr, buffer.Length);
         }
     }
 

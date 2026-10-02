@@ -111,9 +111,14 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		return;
 	}
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass = sourcePass;
-	if (IsOutlineMaskPass(context.passKind) &&
-		!ResolveSpriteOutlinePass(context, resolvedPass)) {
-		return;
+	if (IsOutlineMaskPass(context.passKind)) {
+		if (const MaterialPassBinding* graphPass = sourcePass.material ?
+			FindPass(*sourcePass.material, context.passKind) : nullptr) {
+
+			resolvedPass.pass = graphPass;
+		} else if (!ResolveSpriteOutlinePass(context, resolvedPass)) {
+			return;
+		}
 	}
 	const MaterialAsset* bindingMaterial = sourcePass.material;
 	const SpriteRenderPayload* firstPayload = context.batch->GetPayload<SpriteRenderPayload>(*items.front());
@@ -189,6 +194,7 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 			maskConstants.restrictSubMeshIndex =
 				context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 			maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
+			maskConstants.alphaThreshold = context.screenSpaceOutlineMaskAlphaThreshold;
 			const FrameConstantBufferAllocation maskAlloc =
 				constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice(), maskConstants);

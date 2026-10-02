@@ -7,6 +7,7 @@
 #include <Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
+#include <Engine/Editor/Tools/Builtin/RenderFeatures/VolumeProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEmitterDebugDraw.h>
@@ -53,6 +54,7 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
 	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
+	RegisterBuiltinEditorTool<VolumeProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
 	RegisterBuiltinEditorTool<ParticleEffectEditorTool>();
@@ -61,6 +63,5 @@ void Engine::RegisterBuiltinEditorTools() {
 	RegisterBuiltinEditorTool<PerformanceCheckTool>();
 	RegisterBuiltinEditorTool<ScriptExecutionOrderTool>();
 	RegisterBuiltinEditorTool<ScriptProfilerTool>();
-	// 動作が不安定なため、処理しない
-	//RegisterBuiltinEditorTool<InputDeviceTool>();
+	RegisterBuiltinEditorTool<InputDeviceTool>();
 }

@@ -58,7 +58,8 @@ namespace Engine {
 	// v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
 	// v52: アクティブSceneの再読み込みAPIを追加
 	// v53: スクリプトの詳細計測区間を追加
-	inline constexpr uint32_t kManagedAbiVersion = 59;
+	// v60: 物理クエリのTrigger指定とグローバル設定を追加
+	inline constexpr uint32_t kManagedAbiVersion = 60;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -550,6 +551,10 @@ namespace Engine {
 		using GamepadIndexedButtonCallback = int32_t(__cdecl*)(int32_t, int32_t);
 		using GamepadAxisCallback = float(__cdecl*)(int32_t, int32_t);
 		using GamepadConnectedCallback = int32_t(__cdecl*)(int32_t);
+		using PlayerIndexCallback = int32_t(__cdecl*)(int32_t);
+		using InputPlayVibrationCallback = uint32_t(__cdecl*)(
+			int32_t, float, float, float, float, float);
+		using InputStopVibrationCallback = void(__cdecl*)(int32_t, uint32_t);
 		using CopyTextCallback = int32_t(__cdecl*)(char*, int32_t);
 		// Gameplay v7のAudioSource gameplay methodでentityのAudioSourceComponentを操作する
 		using EntityActionCallback = void(__cdecl*)(ManagedNativeEntity);
@@ -567,8 +572,8 @@ namespace Engine {
 		// v20のEntity保存identity逆引き、sourceAssetとlocalFileIDとkindを返す
 		using GetEntityRefIdentityCallback = void(__cdecl*)(ManagedNativeEntity, ManagedAssetGUID*, uint64_t*, int32_t*);
 		// v21のレイキャスト、単発は最近ヒットを返しAllはヒット総数を返してcapacity分だけ書く
-		using PhysicsRaycastCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*);
-		using PhysicsRaycastAllCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, ManagedRaycastHit*, int32_t);
+		using PhysicsRaycastCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, uint32_t, ManagedRaycastHit*);
+		using PhysicsRaycastAllCallback = int32_t(__cdecl*)(ManagedVector3, ManagedVector3, float, uint32_t, uint32_t, uint32_t, ManagedRaycastHit*, int32_t);
 		// v21のカメラレイ、GameViewピクセル座標からレイを作る
 		using ScreenPointToRayCallback = int32_t(__cdecl*)(float, float, ManagedVector3*, ManagedVector3*);
 		// v30のワールド座標からGameViewピクセル座標への変換

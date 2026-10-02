@@ -25,15 +25,17 @@ void RenderScenePreparation::Extract(ECSWorld& world, RenderExtractorRegistry& e
 
 void RenderScenePreparation::RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase* assetDatabase,
 	MeshRenderBackend* meshBackend, const SceneInstance* activeScene,
-	const ResolvedRenderView& gameView, const ResolvedRenderView& sceneView) {
+	std::span<const ResolvedRenderView> gameViews, const ResolvedRenderView& sceneView) {
 
 	visibleMeshSet_.clear();
 	visibleMeshSet_.reserve(renderBatch_.GetItems().size());
 
 	// ビューごとに可視なメッシュアセットIDを収集
 	if (meshBackend && activeScene) {
-		if (gameView.valid) {
-			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameView, visibleMeshSet_);
+		for (const ResolvedRenderView& gameView : gameViews) {
+			if (gameView.valid) {
+				CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, gameView, visibleMeshSet_);
+			}
 		}
 		if (sceneView.valid) {
 			CollectVisibleMeshAssetsForView(renderBatch_, activeScene->instanceID, sceneView, visibleMeshSet_);

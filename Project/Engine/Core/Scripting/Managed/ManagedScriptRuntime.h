@@ -248,7 +248,7 @@ namespace Engine {
 		static ManagedVector2 __cdecl GetRightStickCallback();
 		static float __cdecl GetLeftTriggerCallback();
 		static float __cdecl GetRightTriggerCallback();
-		static int32_t __cdecl GetUIBlocksGameplayInputCallback();
+		static int32_t __cdecl GetUIBlocksGameplayInputCallback(int32_t playerIndex);
 		static int32_t __cdecl IsAliveCallback(ManagedNativeEntity entity);
 		static int32_t __cdecl CopyNameCallback(ManagedNativeEntity entity, char* buffer, int32_t capacity);
 		static void __cdecl SetNameCallback(ManagedNativeEntity entity, const char* name);
@@ -395,9 +395,15 @@ namespace Engine {
 		// EntityのSceneObject識別子を逆引きする、参照フィールドの保存表現に使う
 		static void __cdecl GetEntityReferenceIdentityCallback(ManagedNativeEntity entity, ManagedAssetGUID* sourceAsset, uint64_t* localFileID, int32_t* kind);
 		// レイキャストの最近ヒットを返す、ヒット無しは0
-		static int32_t __cdecl PhysicsRaycastCallback(ManagedVector3 origin, ManagedVector3 direction, float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* outHit);
+		static int32_t __cdecl PhysicsRaycastCallback(ManagedVector3 origin, ManagedVector3 direction,
+			float maxDistance, uint32_t layerMask, uint32_t targets,
+			uint32_t triggerInteraction, ManagedRaycastHit* outHit);
 		// レイキャストの全ヒットを距離昇順で書き込みヒット総数を返す、bufferへはcapacity分だけ書く
-		static int32_t __cdecl PhysicsRaycastAllCallback(ManagedVector3 origin, ManagedVector3 direction, float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* buffer, int32_t capacity);
+		static int32_t __cdecl PhysicsRaycastAllCallback(ManagedVector3 origin, ManagedVector3 direction,
+			float maxDistance, uint32_t layerMask, uint32_t targets,
+			uint32_t triggerInteraction, ManagedRaycastHit* buffer, int32_t capacity);
+		static int32_t __cdecl GetQueriesHitTriggersCallback();
+		static void __cdecl SetQueriesHitTriggersCallback(int32_t enabled);
 		// GameViewピクセル座標からワールドレイを作る、カメラ未解決は0
 		static int32_t __cdecl ScreenPointToRayCallback(float x, float y, ManagedVector3* outOrigin, ManagedVector3* outDirection);
 		// ワールド座標をGameViewピクセル座標へ変換する、カメラ未解決は0
@@ -475,6 +481,12 @@ namespace Engine {
 		static float __cdecl GetGamepadAxisCallback(int32_t index, int32_t axis);
 		static int32_t __cdecl IsGamepadConnectedIndexedCallback(int32_t index);
 		static int32_t __cdecl GetConnectedGamepadCountCallback();
+		static int32_t __cdecl GetPlayerGamepadIndexCallback(int32_t playerIndex);
+		static int32_t __cdecl GetPlayerKeyboardMouseEnabledCallback(int32_t playerIndex);
+		static int32_t __cdecl GetPlayerInputAvailableCallback(int32_t playerIndex);
+		static uint32_t __cdecl PlayPlayerVibrationCallback(int32_t playerIndex,
+			float left, float right, float duration, float attack, float release);
+		static void __cdecl StopPlayerVibrationCallback(int32_t playerIndex, uint32_t handle);
 		static int32_t __cdecl GetHasFocusCallback();
 		static int32_t __cdecl CopyTextInputCallback(char* buffer, int32_t capacity);
 		// Gameplay v7のproject rootパス

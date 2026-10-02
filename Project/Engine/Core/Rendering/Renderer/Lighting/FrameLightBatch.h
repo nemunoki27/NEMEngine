@@ -33,6 +33,8 @@ namespace Engine {
 
 		// どのレイヤーに影響するか
 		uint32_t affectLayerMask = 0xFFFFFFFFu;
+		// 影を適用するRendererレイヤー
+		uint32_t shadowLayerMask = 0xFFFFFFFFu;
 
 		// どのカメラドメイン向けか
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
@@ -105,6 +107,8 @@ namespace Engine {
 
 		const ResolvedRenderView* view = nullptr;
 		const ResolvedCameraView* camera = nullptr;
+		const ECSWorld* sourceWorld = nullptr;
+		std::shared_ptr<const ECSWorldLifetime> sourceWorldLifetime;
 		UUID sceneInstanceID{};
 		uint64_t sourceRevision = 0;
 
@@ -172,6 +176,8 @@ namespace Engine {
 		uint32_t GetSpotCount() const { return static_cast<uint32_t>(spotLights_.size()); }
 		uint32_t GetTotalCount() const { return GetDirectionalCount() + GetPointCount() + GetRectCount() + GetSpotCount(); }
 		uint64_t GetSourceRevision() const { return sourceRevision_; }
+		const ECSWorld* GetSourceWorld() const { return sourceWorld_; }
+		const std::shared_ptr<const ECSWorldLifetime>& GetSourceWorldLifetime() const { return sourceWorldLifetime_; }
 		bool MatchesSource(const ECSWorld* world, uint64_t revision) const;
 		bool MatchesExtractors(const std::shared_ptr<const RegistryRevision>& revision) const { return extractorRevision_ == revision; }
 	private:

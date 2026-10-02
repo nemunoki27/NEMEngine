@@ -9,7 +9,9 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Assets/MSDFFontAsset.h>
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderExtensionAsset.h>
+#include <Engine/Core/Rendering/Volumes/VolumeProfileAsset.h>
 
 // c++
 #include <unordered_map>
@@ -44,13 +46,16 @@ namespace Engine {
 		const MaterialAsset* LoadMaterial(AssetID assetID);
 		const MSDFFontAsset* LoadFont(AssetID assetID);
 		const ParticleEffectAsset* LoadParticleEffect(AssetID assetID);
-		const RenderFeatureProfileAsset* LoadRenderFeatureProfile(
-			AssetID assetID);
+		const RenderTextureAsset* LoadRenderTexture(AssetID assetID);
+		const VolumeProfileAsset* LoadVolumeProfile(AssetID assetID);
+		const RenderExtensionAsset* LoadRenderExtension(AssetID assetID);
 		// Library内の派生Shaderを実行時キャッシュへ登録
 		void RegisterDerivedShader(ShaderAsset shader);
 		void RegisterDerivedPipeline(RenderPipelineAsset pipeline);
 		// プレビュー用の派生Materialを実行時キャッシュへ登録
 		void RegisterDerivedMaterial(MaterialAsset material);
+		// Volume Profileの未保存プレビューを登録する
+		void RegisterPreviewVolumeProfile(VolumeProfileAsset profile);
 
 		// マテリアルのキャッシュを破棄して次回ロードでファイルから読み直させる、実行中の編集反映に使う
 		void InvalidateMaterial(AssetID assetID);
@@ -61,13 +66,19 @@ namespace Engine {
 		void InvalidateFont(AssetID assetID) { fontCache_.erase(assetID); }
 		// パーティクルエフェクトのキャッシュを破棄する、実行中の編集反映に使う
 		void InvalidateParticleEffect(AssetID assetID) { particleEffectCache_.erase(assetID); }
-		void InvalidateRenderFeatureProfile(AssetID assetID) { renderFeatureProfileCache_.erase(assetID); }
+		void InvalidateRenderTexture(AssetID assetID) { renderTextureCache_.erase(assetID); }
+		void InvalidateVolumeProfile(AssetID assetID) { volumeProfileCache_.erase(assetID); }
+		void InvalidateRenderExtension(AssetID assetID) {
+			renderExtensionCache_.erase(assetID);
+			++renderExtensionRevision_;
+		}
 
 		//--------- accessor -----------------------------------------------------
 
 		AssetDatabase* GetDatabase() const { return database_; }
 		// 別Libraryと同じ更新番号でも内容を混同しない
 		const std::shared_ptr<const uint64_t>& GetMaterialRevision() const { return materialRevision_; }
+		uint64_t GetRenderExtensionRevision() const { return renderExtensionRevision_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -91,6 +102,7 @@ namespace Engine {
 		AssetDatabase* database_ = nullptr;
 		// フォントレイアウトキャッシュの世代判定に使うリビジョン
 		uint64_t nextFontContentRevision_ = 1;
+		uint64_t renderExtensionRevision_ = 1;
 		std::shared_ptr<const uint64_t> materialRevision_ = std::make_shared<const uint64_t>(1);
 
 		// アセットIDからデータへのマップ
@@ -99,7 +111,8 @@ namespace Engine {
 		std::unordered_map<AssetID, MaterialAsset> materialCache_;
 		std::unordered_map<AssetID, MSDFFontAsset> fontCache_;
 		std::unordered_map<AssetID, ParticleEffectAsset> particleEffectCache_;
-		std::unordered_map<AssetID, RenderFeatureProfileAsset>
-			renderFeatureProfileCache_;
+		std::unordered_map<AssetID, RenderTextureAsset> renderTextureCache_;
+		std::unordered_map<AssetID, VolumeProfileAsset> volumeProfileCache_;
+		std::unordered_map<AssetID, RenderExtensionAsset> renderExtensionCache_;
 	};
 } // Engine

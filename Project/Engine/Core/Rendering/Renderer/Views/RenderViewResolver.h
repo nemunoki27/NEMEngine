@@ -11,6 +11,7 @@
 
 // c++
 #include <cstdint>
+#include <vector>
 
 namespace Engine {
 
@@ -29,6 +30,9 @@ namespace Engine {
 
 		// リクエストから描画ビューを確定させる
 		static ResolvedRenderView Resolve(const RenderViewRequest& request, ECSWorld& world);
+		// Game Viewへ出力する各CameraのViewを確定する
+		static std::vector<ResolvedRenderView> ResolveGameCameraViews(
+			const RenderViewRequest& request, ECSWorld& world);
 	private:
 		//============================================================================
 		//	private Methods

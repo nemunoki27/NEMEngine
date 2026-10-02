@@ -26,13 +26,12 @@ namespace Engine {
 
 			Engine::RenderFeatureProfileService& service =
 				Engine::RenderFeatureProfileService::GetInstance();
-			service.EnsureLoaded();
 			if (generation == 0 ||
-				generation != service.GetRuntimeGeneration()) {
+				generation != service.GetRuntimeExtensionGeneration()) {
 
 				return nullptr;
 			}
-			return service.FindPassByID(Engine::UUID{ passID });
+			return service.FindRuntimeExtensionPassByID(Engine::UUID{ passID });
 		}
 	}
 
@@ -62,14 +61,13 @@ namespace Engine {
 		}
 		RenderFeatureProfileService& service =
 			RenderFeatureProfileService::GetInstance();
-		service.EnsureLoaded();
 		const RenderFeaturePassSettings* pass =
-			service.FindPassByName(passName);
+			service.FindRuntimeExtensionPassByName(passName);
 		if (!pass) {
 			return 0;
 		}
 		*outPassID = pass->id.value;
-		*outGeneration = service.GetRuntimeGeneration();
+		*outGeneration = service.GetRuntimeExtensionGeneration();
 		return 1;
 	}
 
@@ -97,7 +95,7 @@ namespace Engine {
 			return 0;
 		}
 		return RenderFeatureRuntimeOverrides::GetInstance().SetSceneColorOutput(
-			RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(),
+			RenderFeatureProfileService::GetInstance().GetRuntimeExtension().GetProfile(),
 			UUID{ passID }, enabled != 0) ? 1 : 0;
 	}
 

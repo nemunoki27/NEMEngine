@@ -19,6 +19,10 @@ void Engine::from_json(const nlohmann::json& in, DirectionalLightComponent& comp
 		in.value("shadowAngularRadius", component.shadowAngularRadius);
 	component.enabled = in.value("enabled", true);
 	component.affectLayerMask = in.value("affectLayerMask", component.affectLayerMask);
+	component.useShadowLayerMask = in.value(
+		"useShadowLayerMask", component.useShadowLayerMask);
+	component.shadowLayerMask = in.value(
+		"shadowLayerMask", component.shadowLayerMask);
 }
 
 void Engine::to_json(nlohmann::json& out, const DirectionalLightComponent& component) {
@@ -30,6 +34,8 @@ void Engine::to_json(nlohmann::json& out, const DirectionalLightComponent& compo
 	out["shadowAngularRadius"] = component.shadowAngularRadius;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
+	out["useShadowLayerMask"] = component.useShadowLayerMask;
+	out["shadowLayerMask"] = component.shadowLayerMask;
 }
 
 //============================================================================
@@ -45,6 +51,10 @@ void Engine::from_json(const nlohmann::json& in, PointLightComponent& component)
 	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
 	component.enabled = in.value("enabled", true);
 	component.affectLayerMask = in.value("affectLayerMask", component.affectLayerMask);
+	component.useShadowLayerMask = in.value(
+		"useShadowLayerMask", component.useShadowLayerMask);
+	component.shadowLayerMask = in.value(
+		"shadowLayerMask", component.shadowLayerMask);
 }
 
 void Engine::to_json(nlohmann::json& out, const PointLightComponent& component) {
@@ -57,6 +67,8 @@ void Engine::to_json(nlohmann::json& out, const PointLightComponent& component) 
 	out["shadowRadius"] = component.shadowRadius;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
+	out["useShadowLayerMask"] = component.useShadowLayerMask;
+	out["shadowLayerMask"] = component.shadowLayerMask;
 }
 
 //============================================================================
@@ -80,6 +92,10 @@ void Engine::from_json(const nlohmann::json& in, RectLightComponent& component) 
 	component.enabled = in.value("enabled", component.enabled);
 	component.affectLayerMask =
 		in.value("affectLayerMask", component.affectLayerMask);
+	component.useShadowLayerMask = in.value(
+		"useShadowLayerMask", component.useShadowLayerMask);
+	component.shadowLayerMask = in.value(
+		"shadowLayerMask", component.shadowLayerMask);
 }
 
 void Engine::to_json(nlohmann::json& out, const RectLightComponent& component) {
@@ -95,6 +111,8 @@ void Engine::to_json(nlohmann::json& out, const RectLightComponent& component) {
 	out["shadowStrength"] = component.shadowStrength;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
+	out["useShadowLayerMask"] = component.useShadowLayerMask;
+	out["shadowLayerMask"] = component.shadowLayerMask;
 }
 
 //============================================================================
@@ -113,6 +131,10 @@ void Engine::from_json(const nlohmann::json& in, SpotLightComponent& component) 
 	component.shadowRadius = in.value("shadowRadius", component.shadowRadius);
 	component.enabled = in.value("enabled", true);
 	component.affectLayerMask = in.value("affectLayerMask", component.affectLayerMask);
+	component.useShadowLayerMask = in.value(
+		"useShadowLayerMask", component.useShadowLayerMask);
+	component.shadowLayerMask = in.value(
+		"shadowLayerMask", component.shadowLayerMask);
 }
 
 void Engine::to_json(nlohmann::json& out, const SpotLightComponent& component) {
@@ -128,4 +150,6 @@ void Engine::to_json(nlohmann::json& out, const SpotLightComponent& component) {
 	out["shadowRadius"] = component.shadowRadius;
 	out["enabled"] = component.enabled;
 	out["affectLayerMask"] = component.affectLayerMask;
+	out["useShadowLayerMask"] = component.useShadowLayerMask;
+	out["shadowLayerMask"] = component.shadowLayerMask;
 }

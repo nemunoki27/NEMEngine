@@ -39,6 +39,8 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 				body.accumulatedTorque = Vector3::AnyInit(0.0f);
 				return;
 			}
+			body.previousWorldPosition = transform.worldMatrix.GetTranslationValue();
+			body.hasPreviousWorldPosition = true;
 			RigidbodyIntegration::Integrate(body, transform, dt);
 			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
 			MarkTransformSubtreeDirty(world, entity);
@@ -58,6 +60,8 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 				body.accumulatedTorque = 0.0f;
 				return;
 			}
+			body.previousWorldPosition = transform.worldMatrix.GetTranslationValue();
+			body.hasPreviousWorldPosition = true;
 			RigidbodyIntegration::Integrate(body, transform, dt);
 			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
 			MarkTransformSubtreeDirty(world, entity);

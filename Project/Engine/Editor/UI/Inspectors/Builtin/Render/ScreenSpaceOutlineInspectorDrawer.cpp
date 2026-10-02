@@ -51,6 +51,10 @@ void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 			return InspectorDrawerCommon::DrawEnumComboField("Alpha判定元", draft.alphaSource);
 			});
 		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("Alpha閾値", draft.alphaThreshold,
+				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("UI重なり", draft.uiOcclusionMode);
 			});
 	}

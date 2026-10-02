@@ -56,7 +56,6 @@ bool Engine::SceneSystem::LoadScene(const std::filesystem::path& scenePath, ECSW
 				header.name = name;
 			}
 			header.guid = sourceAsset;
-			EnsureSceneRenderFeatureProfile(header, Algorithm::PathToUTF8(scenePath), assetDatabase);
 		}
 		// 別の保存内容が混ざった読込では実体を作らない
 		if (trackChanges && !storage_->MatchesRevision(scenePath, sourceAsset, readRevision)) {

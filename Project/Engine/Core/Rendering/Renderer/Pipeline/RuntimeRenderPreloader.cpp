@@ -106,7 +106,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 	std::vector<AssetID> meshAssets{};
 	std::vector<AssetID> materialAssets{};
 	std::vector<AssetID> pipelineAssets{};
-	std::vector<AssetID> renderFeatureProfiles{};
+	std::vector<AssetID> renderExtensions{};
 	TextureUploadService& textureUploadService = graphicsCore.GetTextureUploadService();
 	for (const AssetMeta* meta : assets) {
 
@@ -153,9 +153,12 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 		case AssetType::Mesh:
 			meshAssets.emplace_back(meta->guid);
 			break;
-		case AssetType::RenderFeatureProfile:
-			context.assetLibrary.LoadRenderFeatureProfile(meta->guid);
-			renderFeatureProfiles.emplace_back(meta->guid);
+		case AssetType::RenderExtension:
+			context.assetLibrary.LoadRenderExtension(meta->guid);
+			renderExtensions.emplace_back(meta->guid);
+			break;
+		case AssetType::VolumeProfile:
+			context.assetLibrary.LoadVolumeProfile(meta->guid);
 			break;
 		default:
 			break;
@@ -310,15 +313,15 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 		}
 	}
 
-	// Profile単位のSampler上書きを含めてCompute/DXRを事前作成する
-	for (AssetID profileID : renderFeatureProfiles) {
+	// Render Extension単位のSampler上書きを含めてCompute/DXRを事前作成する
+	for (AssetID extensionID : renderExtensions) {
 
-		const RenderFeatureProfileAsset* profile =
-			context.assetLibrary.LoadRenderFeatureProfile(profileID);
-		if (!profile) {
+		const RenderExtensionAsset* extension =
+			context.assetLibrary.LoadRenderExtension(extensionID);
+		if (!extension) {
 			continue;
 		}
-		for (const RenderFeaturePassSettings& featurePass : profile->passes) {
+		for (const RenderFeaturePassSettings& featurePass : extension->passes) {
 
 			const MaterialAsset* material =
 				context.assetLibrary.LoadMaterial(featurePass.material);

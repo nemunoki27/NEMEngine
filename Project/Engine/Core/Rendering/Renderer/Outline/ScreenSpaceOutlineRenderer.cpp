@@ -246,6 +246,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	const uint32_t prevStyleID = context.screenSpaceOutlineMaskStyleID;
 	const int32_t prevSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 	const uint32_t prevAlphaSource = context.screenSpaceOutlineMaskAlphaSource;
+	const float prevAlphaThreshold = context.screenSpaceOutlineMaskAlphaThreshold;
 
 	DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand();
 	ID3D12GraphicsCommandList6* commandList = dxCommand->GetCommandList();
@@ -260,13 +261,16 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 			const int32_t groupSubMeshIndex = drawScratch_[groupBegin].request.subMeshIndex;
 			const ScreenSpaceOutlineAlphaSource groupAlphaSource =
 				drawScratch_[groupBegin].request.alphaSource;
+			const float groupAlphaThreshold =
+				drawScratch_[groupBegin].request.alphaThreshold;
 			const ScreenSpaceOutlineRegionMode groupRegion = drawScratch_[groupBegin].request.style.regionMode;
 
 			size_t groupEnd = groupBegin;
 			while (groupEnd < drawScratch_.size() &&
 				drawScratch_[groupEnd].styleID == groupStyleID &&
 				drawScratch_[groupEnd].request.subMeshIndex == groupSubMeshIndex &&
-				drawScratch_[groupEnd].request.alphaSource == groupAlphaSource) {
+				drawScratch_[groupEnd].request.alphaSource == groupAlphaSource &&
+				drawScratch_[groupEnd].request.alphaThreshold == groupAlphaThreshold) {
 				++groupEnd;
 			}
 
@@ -298,6 +302,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 					context.screenSpaceOutlineMaskRestrictSubMeshIndex = groupSubMeshIndex;
 					context.screenSpaceOutlineMaskAlphaSource =
 						static_cast<uint32_t>(groupAlphaSource);
+					context.screenSpaceOutlineMaskAlphaThreshold = groupAlphaThreshold;
 					RenderPassExecutionHelper::Execute(graphicsCore, context, itemScratch_, deps,
 						binding, passKind, false, false);
 				}
@@ -325,4 +330,5 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	context.screenSpaceOutlineMaskStyleID = prevStyleID;
 	context.screenSpaceOutlineMaskRestrictSubMeshIndex = prevSubMeshIndex;
 	context.screenSpaceOutlineMaskAlphaSource = prevAlphaSource;
+	context.screenSpaceOutlineMaskAlphaThreshold = prevAlphaThreshold;
 }

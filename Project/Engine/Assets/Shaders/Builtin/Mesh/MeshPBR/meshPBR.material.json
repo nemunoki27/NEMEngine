@@ -3,7 +3,7 @@
   "domain": "Surface",
   "usage": "Mesh",
   "passes": [
-    { "passKind": "ZPrepass", "pipeline": "4e454d4153534554f09836087840b1d2", "preferredVariant": "GraphicsMesh" },
+    { "passKind": "ZPrepass", "pipeline": "4e454d4153534554a100000000000002", "preferredVariant": "GraphicsMesh" },
     { "passKind": "EditorPicking", "pipeline": "4e454d41535345548d50435034671c2c", "preferredVariant": "GraphicsVertex" },
     { "passKind": "Draw", "pipeline": "4e454d4153534554966f3e8a34595313", "preferredVariant": "GraphicsMesh" },
     { "passKind": "Masked", "pipeline": "4e454d4153534554966f3e8a34595314", "preferredVariant": "GraphicsMesh" },

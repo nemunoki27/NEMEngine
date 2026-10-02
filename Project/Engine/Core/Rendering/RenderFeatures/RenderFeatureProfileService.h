@@ -5,6 +5,7 @@
 //============================================================================
 #include "RenderFeatureProfileDocument.h"
 #include "RenderFeatureReflectionCache.h"
+#include "RenderExtensionAsset.h"
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
@@ -41,6 +42,8 @@ namespace Engine {
 		bool Save() const;
 		void SetActiveProfileAsset(AssetID assetID,
 			const AssetDatabase* assetDatabase);
+		// Main CameraのRender ExtensionをC#操作用へ同期する
+		void SetRuntimeExtension(const RenderExtensionAsset* extension);
 		void SetActiveProfilePath(
 			const std::filesystem::path& path);
 		void RebuildRuntime();
@@ -60,6 +63,15 @@ namespace Engine {
 		uint64_t GetRuntimeGeneration() const { return runtimeGeneration_; }
 		const RenderFeaturePassSettings* FindPassByID(UUID passID) const;
 		const RenderFeaturePassSettings* FindPassByName(
+			std::string_view passName) const;
+		const RenderFeatureProfileRuntime& GetRuntimeExtension() const {
+			return runtimeExtensionRuntime_;
+		}
+		uint64_t GetRuntimeExtensionGeneration() const {
+			return runtimeExtensionGeneration_;
+		}
+		const RenderFeaturePassSettings* FindRuntimeExtensionPassByID(UUID passID) const;
+		const RenderFeaturePassSettings* FindRuntimeExtensionPassByName(
 			std::string_view passName) const;
 		const std::filesystem::path& GetCurrentPath() const { return document_.profilePath_; }
 		bool IsDirty() const { return document_.dirty_; }
@@ -88,6 +100,9 @@ namespace Engine {
 		RenderFeatureProfileDocument document_{};
 		RenderFeatureProfileRuntime runtime_{};
 		uint64_t runtimeGeneration_ = 0;
+		AssetID runtimeExtensionID_{};
+		RenderFeatureProfileRuntime runtimeExtensionRuntime_{};
+		uint64_t runtimeExtensionGeneration_ = 0;
 		RenderFeatureReflectionCache reflectionCache_{};
 	};
 } // Engine

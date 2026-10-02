@@ -4991,6 +4991,10 @@
                     "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
+                    "renderExtension": "4e454d4153534554525450524f46494c",
+                    "volumeProfile": "4e454d4153534554564f4c554d454445",
+                    "volumeLayerMask": 4294967295,
+                    "postProcessEnabled": true,
                     "cullingMask": -1,
                     "editorFrustumScale": 0.0020000000949949026,
                     "enabled": true,
@@ -23723,6 +23727,10 @@
                     "name": "Camera2D"
                 },
                 "OrthographicCamera": {
+                    "renderExtension": "4e454d4153534554525450524f46494c",
+                    "volumeProfile": "4e454d4153534554564f4c554d454445",
+                    "volumeLayerMask": 4294967295,
+                    "postProcessEnabled": true,
                     "cullingMask": -1,
                     "enabled": true,
                     "farClip": 1000.0,
@@ -37129,7 +37137,6 @@
     ],
     "Header": {
         "name": "ManyEntity",
-        "renderFeatureProfile": "4e454d4153534554525450524f46494c",
         "subScenes": []
     },
     "PrefabInstances": [],

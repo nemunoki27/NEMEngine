@@ -26,6 +26,7 @@
 
 // c++
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -66,7 +67,7 @@ namespace {
 void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	UIRuntimeService& runtimeService = UIRuntimeService::GetInstance();
-	runtimeService.SetGameplayInputBlocked(false);
+	runtimeService.ClearGameplayInputBlocks();
 	world.ForEach<UIImageButtonRuntimeComponent>(
 		[](Entity, UIImageButtonRuntimeComponent& runtime) {
 		runtime.clickedThisFrame = false;
@@ -81,6 +82,15 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		});
 
 	const bool isPlay = context.mode == WorldMode::Play;
+	if (isPlay) {
+		world.ForEach<CanvasComponent>([&](Entity entity, CanvasComponent& canvas) {
+			const auto* sceneObject = world.TryGetComponent<SceneObjectComponent>(entity);
+			if (canvas.enabled && (!sceneObject || sceneObject->activeInHierarchy) &&
+				canvas.inputBlockMode == CanvasInputBlockMode::WhileVisible) {
+				runtimeService.SetGameplayInputBlocked(canvas.playerIndex, true);
+			}
+			});
+	}
 	if (runtimeService.GetElements(world).empty()) {
 		runtimeService.Build(world, EngineContext::GetWindowSetting().gameSizeFloat);
 	}
@@ -182,15 +192,19 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 	}
 
 	Input* input = Input::GetInstance();
-	bool consumedInput = false;
-	Entity activeCanvas = Entity::Null();
+	std::array<bool, Input::kMaxPlayers> consumedInput{};
+	std::array<Entity, Input::kMaxPlayers> activeCanvases{};
 	for (Entity candidate : canvases) {
 		const auto& canvas = world.GetComponent<CanvasComponent>(candidate);
+		if (Input::kMaxPlayers <= canvas.playerIndex) {
+			continue;
+		}
 		const auto& canvasRuntime =
 			world.GetComponent<CanvasRuntimeComponent>(candidate);
 		if (!canvasRuntime.selectedLocalFileID) {
 			continue;
 		}
+		Entity& activeCanvas = activeCanvases[canvas.playerIndex];
 		if (!world.IsAlive(activeCanvas)) {
 			activeCanvas = candidate;
 			continue;
@@ -202,81 +216,115 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		}
 	}
 
-	Vector2 direction{};
-	bool navigationTriggered = false;
-	if (input && world.IsAlive(activeCanvas) &&
-		!world.GetComponent<CanvasRuntimeComponent>(activeCanvas).inputLocked) {
-
-		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
-		auto& canvasRuntime =
-			world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
-		const std::span<const CanvasInputBinding> bindings =
-			GetCanvasInputBindings(world, activeCanvas);
-		Vector2 heldDirection = ReadTriggeredNavigationDirection(
-			*input, canvas, bindings);
-		if (heldDirection == Vector2{}) {
-			heldDirection = ReadHeldNavigationDirection(
-				*input, canvas, bindings);
+	// マウス位置にある最前面UIを選択する
+	UISelectableEntry* pointerEntry = nullptr;
+	if (input) {
+		const std::optional<Vector2> mousePosition = input->GetMousePosInView(InputViewArea::Game);
+		if (mousePosition) {
+			pointerEntry = FindPointerEntry(world, entries, *mousePosition);
 		}
-		if (heldDirection != Vector2{}) {
-			if (heldDirection != canvasRuntime.repeatDirection) {
-				canvasRuntime.repeatDirection = heldDirection;
-				canvasRuntime.repeatElapsed = 0.0f;
-				canvasRuntime.repeatStarted = false;
-				direction = heldDirection;
-				navigationTriggered = true;
-			} else {
-				canvasRuntime.repeatElapsed += context.unscaledDeltaTime;
-				const float threshold = canvasRuntime.repeatStarted ?
-					(std::max)(canvas.repeatInterval, 0.01f) : (std::max)(canvas.repeatDelay, 0.0f);
-				if (threshold <= canvasRuntime.repeatElapsed) {
+	}
+	if (pointerEntry) {
+		const auto& canvas = world.GetComponent<CanvasComponent>(pointerEntry->canvas);
+		if (Input::kMaxPlayers <= canvas.playerIndex ||
+			!input->IsPlayerKeyboardMouseEnabled(canvas.playerIndex)) {
+			pointerEntry = nullptr;
+		}
+	}
+	if (pointerEntry) {
+		const auto& canvas = world.GetComponent<CanvasComponent>(pointerEntry->canvas);
+		Entity& activeCanvas = activeCanvases[canvas.playerIndex];
+		activeCanvas = pointerEntry->canvas;
+		auto& canvasRuntime = world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
+		const UUID pointedLocalFileID = GetLocalFileID(world, pointerEntry->entity);
+		if (canvasRuntime.selectedLocalFileID != pointedLocalFileID) {
+			canvasRuntime.selectedLocalFileID = pointedLocalFileID;
+			consumedInput[canvas.playerIndex] = true;
+		}
+	}
+
+	for (uint32_t playerIndex = 0; playerIndex < Input::kMaxPlayers; ++playerIndex) {
+		Entity activeCanvas = activeCanvases[playerIndex];
+		Vector2 direction{};
+		bool navigationTriggered = false;
+		if (!input || !input->IsGameplayInputAvailable(playerIndex) ||
+			!world.IsAlive(activeCanvas)) {
+			continue;
+		}
+		if (!world.GetComponent<CanvasRuntimeComponent>(activeCanvas).inputLocked) {
+
+			auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
+			auto& canvasRuntime =
+				world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
+			const std::span<const CanvasInputBinding> bindings =
+				GetCanvasInputBindings(world, activeCanvas);
+			Vector2 heldDirection = ReadTriggeredNavigationDirection(
+				*input, canvas, bindings);
+			if (heldDirection == Vector2{}) {
+				heldDirection = ReadHeldNavigationDirection(
+					*input, canvas, bindings);
+			}
+			if (heldDirection != Vector2{}) {
+				if (heldDirection != canvasRuntime.repeatDirection) {
+					canvasRuntime.repeatDirection = heldDirection;
 					canvasRuntime.repeatElapsed = 0.0f;
-					canvasRuntime.repeatStarted = true;
+					canvasRuntime.repeatStarted = false;
 					direction = heldDirection;
 					navigationTriggered = true;
+				} else {
+					canvasRuntime.repeatElapsed += context.unscaledDeltaTime;
+					const float threshold = canvasRuntime.repeatStarted ?
+						(std::max)(canvas.repeatInterval, 0.01f) :
+						(std::max)(canvas.repeatDelay, 0.0f);
+					if (threshold <= canvasRuntime.repeatElapsed) {
+						canvasRuntime.repeatElapsed = 0.0f;
+						canvasRuntime.repeatStarted = true;
+						direction = heldDirection;
+						navigationTriggered = true;
+					}
+				}
+			} else {
+				canvasRuntime.repeatDirection = {};
+				canvasRuntime.repeatElapsed = 0.0f;
+				canvasRuntime.repeatStarted = false;
+			}
+		}
+
+		if (navigationTriggered) {
+
+			auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
+			auto& canvasRuntime =
+				world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
+			UISelectableEntry* current = FindEntryByLocalFileID(world, entries,
+				activeCanvas, canvasRuntime.selectedLocalFileID);
+			UISelectableEntry* next = nullptr;
+			if (current) {
+				if (canvas.navigationMode == CanvasNavigationMode::TransitionTable) {
+					next = FindTransitionTableNavigation(world, entries,
+						activeCanvas, canvas, *current, direction,
+						GetCanvasNavigationCells(world, activeCanvas));
+				} else {
+					next = FindAutomaticNavigation(
+						entries, *current, direction, canvas.wrapNavigation);
 				}
 			}
-		} else {
-			canvasRuntime.repeatDirection = {};
-			canvasRuntime.repeatElapsed = 0.0f;
-			canvasRuntime.repeatStarted = false;
-		}
-	}
-
-	if (navigationTriggered && world.IsAlive(activeCanvas)) {
-
-		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
-		auto& canvasRuntime =
-			world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
-		UISelectableEntry* current = FindEntryByLocalFileID(world, entries,
-			activeCanvas, canvasRuntime.selectedLocalFileID);
-		UISelectableEntry* next = nullptr;
-		if (current) {
-			if (canvas.navigationMode == CanvasNavigationMode::TransitionTable) {
-				next = FindTransitionTableNavigation(world, entries,
-					activeCanvas, canvas, *current, direction,
-					GetCanvasNavigationCells(world, activeCanvas));
-			} else {
-				next = FindAutomaticNavigation(entries, *current, direction, canvas.wrapNavigation);
+			if (next && next->selectable->interactable) {
+				canvasRuntime.selectedLocalFileID =
+					GetLocalFileID(world, next->entity);
+				consumedInput[playerIndex] = true;
 			}
 		}
-		if (next && next->selectable->interactable) {
-			canvasRuntime.selectedLocalFileID =
-				GetLocalFileID(world, next->entity);
-			consumedInput = true;
-		}
-	}
-
-	if (input && world.IsAlive(activeCanvas)) {
 
 		auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
 		auto& canvasRuntime =
 			world.GetComponent<CanvasRuntimeComponent>(activeCanvas);
 		if (!canvasRuntime.inputLocked) {
-			if (UISelectableEntry* selected = FindEntryByLocalFileID(world, entries,
+			UISelectableEntry* selected = FindEntryByLocalFileID(world, entries,
 				activeCanvas, canvasRuntime.selectedLocalFileID);
-				selected && IsSubmitTriggered(
-					*input, canvas, GetCanvasInputBindings(world, activeCanvas))) {
+			const bool pointerSubmitted = pointerEntry == selected &&
+				input->IsPlayerKeyboardMouseEnabled(playerIndex) && input->TriggerMouseLeft();
+			if (selected && (pointerSubmitted || IsSubmitTriggered(
+				*input, canvas, GetCanvasInputBindings(world, activeCanvas)))) {
 
 				selected->runtime->submitted = true;
 				selected->runtime->submittedThisFrame = true;
@@ -285,7 +333,7 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 				visuals_.ResetSubmitState(world.GetUUID(selected->entity));
 				PlayStateSound(selected->selectable->submitted, context);
 				ClickButton(world, selected->entity);
-				consumedInput = true;
+				consumedInput[playerIndex] = true;
 
 				if (canvas.blockInputAfterSubmit) {
 					canvasRuntime.inputLocked = true;
@@ -335,9 +383,18 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 		}
 	}
 
-	if (isPlay && world.IsAlive(activeCanvas)) {
-		const auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
-		runtimeService.SetGameplayInputBlocked(canvas.blockGameplayInput && consumedInput);
+	if (isPlay) {
+		for (uint32_t playerIndex = 0; playerIndex < Input::kMaxPlayers; ++playerIndex) {
+			const Entity activeCanvas = activeCanvases[playerIndex];
+			if (!world.IsAlive(activeCanvas)) {
+				continue;
+			}
+			const auto& canvas = world.GetComponent<CanvasComponent>(activeCanvas);
+			if (canvas.inputBlockMode == CanvasInputBlockMode::ConsumedFrame &&
+				consumedInput[playerIndex]) {
+				runtimeService.SetGameplayInputBlocked(playerIndex, true);
+			}
+		}
 	}
 }
 
@@ -358,5 +415,5 @@ void Engine::UIInputSystem::RestoreEditModeVisuals(ECSWorld& world) {
 		[](Entity, CanvasRuntimeComponent& runtime) {
 			ResetCanvasInputRuntime(runtime);
 			});
-	UIRuntimeService::GetInstance().SetGameplayInputBlocked(false);
+	UIRuntimeService::GetInstance().ClearGameplayInputBlocks();
 }

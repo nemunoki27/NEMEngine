@@ -27,6 +27,7 @@ bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noe
 		inlineRayTracingEnabled == rhs.inlineRayTracingEnabled &&
 		dispatchRaysEnabled == rhs.dispatchRaysEnabled &&
 		depthForcedTestWrite == rhs.depthForcedTestWrite &&
+		twoSidedRasterizer == rhs.twoSidedRasterizer &&
 		samplerHash == rhs.samplerHash;
 }
 
@@ -34,7 +35,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
 	AssetID shaderOverrideAssetID, PipelineVariantKind desiredKind,
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
-	const GraphicsRuntimeFeatures& runtimeFeatures, const PipelineVariantDesc** outVariant) {
+	const GraphicsRuntimeFeatures& runtimeFeatures, const PipelineVariantDesc** outVariant,
+	bool forceTwoSidedRasterizer) {
 
 	const RenderPipelineAsset* statePipeline = assetLibrary.LoadPipeline(pipelineAssetID);
 	const RenderPipelineAsset* geometryPipeline = assetLibrary.LoadPipeline(geometryPipelineAssetID);
@@ -61,6 +63,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	key.meshEnabled = runtimeFeatures.useMeshShader;
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
+	key.twoSidedRasterizer = forceTwoSidedRasterizer;
 	key.formatHash = HashFormats(runtimeRTVFormats,
 		(stateVariant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? stateVariant->dsvFormat : runtimeDSVFormat);
 
@@ -116,6 +119,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 		runtimeRTVFormats, runtimeDSVFormat, nullptr, desc)) {
 		return restoreFallback();
 	}
+	if (forceTwoSidedRasterizer) {
+		desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+	}
 	std::unique_ptr<PipelineState> pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(),
 		graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc, &composedShader);
 	if (!pipelineState) {
@@ -145,7 +151,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	const GraphicsRuntimeFeatures& runtimeFeatures,
 	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
 	const PipelineStaticSamplerOverrideSet* samplerOverrides,
-	AssetID shaderOverrideAssetID) {
+	AssetID shaderOverrideAssetID, bool forceTwoSidedRasterizer) {
 
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
@@ -174,6 +180,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
 	key.depthForcedTestWrite = forceDepthTestWrite;
+	key.twoSidedRasterizer = forceTwoSidedRasterizer;
 	key.formatHash = HashFormats(runtimeRTVFormats,
 		variant->dsvFormat != DXGI_FORMAT_UNKNOWN ?
 		variant->dsvFormat : runtimeDSVFormat);
@@ -234,6 +241,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 			desc.depthStencil.DepthEnable = TRUE;
 			desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		}
+		if (forceTwoSidedRasterizer) {
+			desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;
 		}
 		// パイプラインステートオブジェクトを生成
 		pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(), graphicsPlatform.GetDevice(),
@@ -403,7 +413,8 @@ namespace Engine {
 		h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 8);
 		h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 9);
 		h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 10);
-		h ^= (std::hash<uint64_t>{}(key.samplerHash) << 11);
+		h ^= (std::hash<bool>{}(key.twoSidedRasterizer) << 11);
+		h ^= (std::hash<uint64_t>{}(key.samplerHash) << 12);
 		return h;
 	}
 }

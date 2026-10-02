@@ -33,6 +33,8 @@ function Write-ProductSettings {
     Write-Utf8Json -Path (Join-Path $runtimeSettingsDirectory "Game.json") -Value @{
         gameName = $productName
         startupFullscreen = [bool]$manifest.startupFullscreen
+        gameWidth = [int]$manifest.gameWidth
+        gameHeight = [int]$manifest.gameHeight
     }
     $descriptorName = [System.IO.Path]::GetFileNameWithoutExtension($executableName) + ".nemproject"
     Write-Utf8Json -Path (Join-Path $stageDirectory $descriptorName) -Value @{
@@ -49,6 +51,8 @@ function Write-ProductSettings {
         executableName = $executableName
         startupScene = [string]$manifest.startupScene
         startupFullscreen = [bool]$manifest.startupFullscreen
+        gameWidth = [int]$manifest.gameWidth
+        gameHeight = [int]$manifest.gameHeight
         assetFileCount = @($manifest.files).Count
         packageCount = @($manifest.packages).Count
         cookHash = [string]$manifest.cookHash

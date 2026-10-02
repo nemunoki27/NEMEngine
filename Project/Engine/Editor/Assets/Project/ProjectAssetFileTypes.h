@@ -26,7 +26,9 @@ namespace Engine {
 		Shader,
 		RenderPipeline,
 		ShaderGraph,
-		RenderFeatureProfile,
+		VolumeProfile,
+		RenderExtension,
+		RenderTexture,
 	};
 
 	//============================================================================

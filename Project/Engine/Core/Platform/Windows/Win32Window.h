@@ -60,6 +60,12 @@ namespace Engine {
 		static HWND GetHwnd() { return hwnd_; }
 		// 現在のクライアント領域サイズを返す
 		static Vector2I GetClientSize();
+		// 製品画像と同じクライアントサイズへ一時変更する
+		static bool BeginProductSizePreview(const Vector2I& size);
+		// 一時変更前のEditorウィンドウへ戻す
+		static void EndProductSizePreview();
+		// 現在のモニターへ収まる最大クライアントサイズを返す
+		static Vector2I GetMaximumClientSize();
 		// ウィンドウを閉じる前に呼ぶ確認処理を設定する
 		static void SetCloseRequestCallback(bool (*callback)()) { closeRequestCallback_ = callback; }
 		// Editor UIがWin32メッセージを処理する場合の転送先

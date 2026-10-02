@@ -403,6 +403,11 @@ namespace NEMTests {
 			if (!targetOutput.Succeeded() ||
 				targetOutput.opaquePixelHLSL.find(include) ==
 					std::string::npos ||
+				((target == Engine::ShaderGraphTarget::Sprite ||
+					target == Engine::ShaderGraphTarget::Primitive2D) &&
+					(targetOutput.outlinePixelHLSL.find(include) == std::string::npos ||
+					 targetOutput.outlinePixelHLSL.find("EvaluateShaderGraphSurface") ==
+						std::string::npos)) ||
 				((target == Engine::ShaderGraphTarget::Particle ||
 					target == Engine::ShaderGraphTarget::Trail) &&
 					targetOutput.opaquePixelHLSL.find(
@@ -412,6 +417,20 @@ namespace NEMTests {
 						8u : 4u)) {
 
 				return false;
+			}
+			if (target == Engine::ShaderGraphTarget::Sprite ||
+				target == Engine::ShaderGraphTarget::Primitive2D) {
+
+				const Engine::MaterialAsset material =
+					Engine::ShaderGraphArtifactCache::CreateMaterial(
+						targetGraph, Engine::AssetID{ 41, static_cast<uint64_t>(target) + 1u });
+				if (!Engine::FindPass(material,
+					Engine::MaterialPassKind::ScreenSpaceOutlineMask) ||
+					!Engine::FindPass(material,
+						Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask)) {
+
+					return false;
+				}
 			}
 			if (!writeGeneratedGraph(
 				targetGraph,

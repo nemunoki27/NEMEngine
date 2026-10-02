@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
+#include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -15,10 +16,11 @@
 //	CollisionQuery classMethods
 //============================================================================
 bool Engine::CollisionQuery::Raycast(ECSWorld& world, const Ray& ray, float maxDistance,
-	uint32_t layerMask, RaycastTargets targets, RaycastHit3D& outHit) {
+	uint32_t layerMask, RaycastTargets targets,
+	QueryTriggerInteraction triggerInteraction, RaycastHit3D& outHit) {
 
 	std::vector<RaycastHit3D> hits{};
-	RaycastAll(world, ray, maxDistance, layerMask, targets, hits);
+	RaycastAll(world, ray, maxDistance, layerMask, targets, triggerInteraction, hits);
 	if (hits.empty()) {
 		return false;
 	}
@@ -27,7 +29,8 @@ bool Engine::CollisionQuery::Raycast(ECSWorld& world, const Ray& ray, float maxD
 }
 
 void Engine::CollisionQuery::RaycastAll(ECSWorld& world, const Ray& ray, float maxDistance,
-	uint32_t layerMask, RaycastTargets targets, std::vector<RaycastHit3D>& outHits) {
+	uint32_t layerMask, RaycastTargets targets,
+	QueryTriggerInteraction triggerInteraction, std::vector<RaycastHit3D>& outHits) {
 
 	outHits.clear();
 
@@ -39,14 +42,20 @@ void Engine::CollisionQuery::RaycastAll(ECSWorld& world, const Ray& ray, float m
 	}
 
 	if (HasRaycastTarget(targets, RaycastTargets::Colliders)) {
-		RaycastColliders(world, normalizedRay, maxDistance, layerMask, outHits);
+		CollisionSettings& settings = CollisionSettings::GetInstance();
+		settings.EnsureLoaded();
+		const bool includeTriggers = triggerInteraction == QueryTriggerInteraction::Collide ||
+			(triggerInteraction == QueryTriggerInteraction::UseGlobal &&
+				settings.GetQueriesHitTriggers());
+		RaycastColliders(world, normalizedRay, maxDistance,
+			layerMask, includeTriggers, outHits);
 	}
 	std::sort(outHits.begin(), outHits.end(),
 		[](const RaycastHit3D& a, const RaycastHit3D& b) { return a.distance < b.distance; });
 }
 
 void Engine::CollisionQuery::RaycastColliders(ECSWorld& world, const Ray& ray, float maxDistance,
-	uint32_t layerMask, std::vector<RaycastHit3D>& outHits) {
+	uint32_t layerMask, bool includeTriggers, std::vector<RaycastHit3D>& outHits) {
 
 	world.ForEach<CollisionComponent>([&](const Entity& entity, CollisionComponent& collision) {
 
@@ -59,7 +68,8 @@ void Engine::CollisionQuery::RaycastColliders(ECSWorld& world, const Ray& ray, f
 		}
 
 		const CollisionShape& shape = collision.shape;
-		if (!shape.enabled || !IsCollisionShape3D(shape.type)) {
+		if (!shape.enabled || !IsCollisionShape3D(shape.type) ||
+			(!includeTriggers && shape.isTrigger)) {
 			return;
 		}
 

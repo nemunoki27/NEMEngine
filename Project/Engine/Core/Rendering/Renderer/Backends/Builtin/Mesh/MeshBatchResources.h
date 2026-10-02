@@ -129,7 +129,8 @@ namespace Engine {
 		void Finalize();
 
 		// 描画に使用するビューを更新する
-		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
+		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView,
+			const ResolvedRenderView* lodView = nullptr);
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
 			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
 		// 順序付きの描画構成とEntityの更新世代を照合する

@@ -42,6 +42,7 @@ void Engine::CollisionSettings::Load() {
 		if (data.is_object()) {
 
 			drawCollisionWorld_ = data.value("drawCollisionWorld", false);
+			queriesHitTriggers_ = data.value("queriesHitTriggers", true);
 
 			// Collisionタイプを読み込む
 			types_.clear();
@@ -84,6 +85,7 @@ void Engine::CollisionSettings::Save() const {
 	nlohmann::json data = nlohmann::json::object();
 
 	data["drawCollisionWorld"] = drawCollisionWorld_;
+	data["queriesHitTriggers"] = queriesHitTriggers_;
 
 	// Collisionタイプを書き出す
 	data["types"] = nlohmann::json::array();
@@ -105,6 +107,15 @@ void Engine::CollisionSettings::Save() const {
 	std::error_code ec;
 	std::filesystem::create_directories(settingsPath_.parent_path(), ec);
 	JsonAdapter::Save(settingsPath_, data);
+}
+
+void Engine::CollisionSettings::SetQueriesHitTriggers(bool enabled) {
+
+	EnsureLoaded();
+	if (queriesHitTriggers_ == enabled) {
+		return;
+	}
+	queriesHitTriggers_ = enabled;
 }
 
 void Engine::CollisionSettings::BindGlobal() {
@@ -249,6 +260,7 @@ bool Engine::CollisionSettings::CanCollide(uint32_t typeMaskA, uint32_t typeMask
 
 void Engine::CollisionSettings::ResetDefault() {
 
+	queriesHitTriggers_ = true;
 	types_.clear();
 	types_.push_back({ "Default", true });
 	matrixRows_.fill(0);

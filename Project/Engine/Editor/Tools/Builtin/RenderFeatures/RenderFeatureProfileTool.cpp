@@ -32,7 +32,7 @@ void Engine::RenderFeatureProfileTool::OpenEditorTool() {
 
 void Engine::RenderFeatureProfileTool::OpenAsset(AssetID assetID) {
 
-	editSession_.RequestProfile(assetID);
+	RequestAssetSwitch(assetID);
 	openWindow_ = true;
 }
 
@@ -45,10 +45,23 @@ void Engine::RenderFeatureProfileTool::DrawEditorTool(const EditorToolContext& c
 
 void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& context) {
 
-	if (!ImGui::Begin("レンダー機能設定", &openWindow_)) {
+	const bool wasOpen = openWindow_;
+	if (!ImGui::Begin("Render Extension", &openWindow_)) {
+		if (wasOpen && !openWindow_ &&
+			RenderFeatureProfileService::GetInstance().IsDirty()) {
+			openWindow_ = true;
+			pendingClose_ = true;
+		}
+		DrawUnsavedChangesPopup(context);
 		ImGui::End();
 		return;
 	}
+	if (wasOpen && !openWindow_ &&
+		RenderFeatureProfileService::GetInstance().IsDirty()) {
+		openWindow_ = true;
+		pendingClose_ = true;
+	}
+	DrawUnsavedChangesPopup(context);
 
 	RenderFeatureProfileService& service =
 		RenderFeatureProfileService::GetInstance();
@@ -57,14 +70,39 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 	AssetEditSetting assetSetting{};
 	if (MyGUI::AssetReferenceField("プロファイル", profileAsset,
 		context.toolContext.assetDatabase,
-		{ AssetType::RenderFeatureProfile }, assetSetting).valueChanged) {
+		{ AssetType::RenderExtension }, assetSetting).valueChanged) {
 
-		editSession_.SelectProfile(context, profileAsset);
-		ClearSelection();
+		RequestAssetSwitch(profileAsset);
 	}
 
-	if (!editSession_.GetProfileID() && !EnsureProfile(context)) {
-		ImGui::TextDisabled("シーンまたは保存先を確認してください");
+	if (!editSession_.GetProfileID()) {
+		ImGui::TextDisabled("ProjectからRender Extensionを選択してください");
+		ImGui::End();
+		return;
+	}
+	if (context.IsPlaying()) {
+		ImGui::TextDisabled("Play中の変更は実行用にだけ反映され、Stop時に破棄されます");
+		RenderFeatureRuntimeOverrides& overrides =
+			RenderFeatureRuntimeOverrides::GetInstance();
+		const RenderFeatureProfileAsset& runtimeProfile =
+			service.GetRuntimeExtension().GetProfile();
+		for (const RenderFeaturePassSettings& pass : runtimeProfile.passes) {
+			ImGui::PushID(static_cast<int32_t>(pass.id.value));
+			bool enabled = overrides.IsEnabled(pass.id, pass.enabled);
+			if (ImGui::Checkbox("##Enabled", &enabled)) {
+				overrides.SetEnabled(pass.id, enabled);
+			}
+			ImGui::SameLine();
+			ImGui::TextUnformatted(pass.name.c_str());
+			ImGui::SameLine();
+			bool sceneColorOutput = overrides.IsSceneColorOutput(
+				pass.id, pass.sceneColorOutput);
+			if (ImGui::Checkbox("Scene Colorへ出力", &sceneColorOutput)) {
+				overrides.SetSceneColorOutput(
+					runtimeProfile, pass.id, sceneColorOutput);
+			}
+			ImGui::PopID();
+		}
 		ImGui::End();
 		return;
 	}
@@ -74,7 +112,7 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 	importSetting.allowDelete = false;
 	if (MyGUI::AssetReferenceField("設定をインポート", importSource,
 		context.toolContext.assetDatabase,
-		{ AssetType::RenderFeatureProfile }, importSetting).valueChanged) {
+		{ AssetType::RenderExtension }, importSetting).valueChanged) {
 
 		ImportProfileSettings(context, importSource);
 	}
@@ -97,8 +135,6 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 			service.GetRuntime().GetDiagnostic().c_str());
 	}
 
-	DrawColorPipeline();
-	ImGui::Separator();
 	const float listWidth = (std::max)(220.0f,
 		ImGui::GetContentRegionAvail().x * 0.28f);
 	if (ImGui::BeginChild("RenderFeaturePassList", ImVec2(listWidth, 0.0f),
@@ -115,42 +151,61 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 	ImGui::End();
 }
 
-void Engine::RenderFeatureProfileTool::DrawColorPipeline() {
+void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(
+	const EditorToolContext& context) {
 
-	if (!MyGUI::CollapsingHeader("カラー出力", false)) {
+	if (!pendingClose_ && !pendingAsset_) {
 		return;
 	}
-	ColorPipelineSettings& settings =
-		RenderFeatureProfileService::GetInstance().GetProfile().colorPipeline;
-	bool changed = false;
-	ImGui::Indent();
-	if (MyGUI::CollapsingHeader("露出", false)) {
-		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureExposure");
-		changed |= MyGUI::EnumCombo("露出モード", settings.exposure.mode).valueChanged;
-		changed |= MyGUI::DragFloat("EV100", settings.exposure.manualEV100).valueChanged;
-		changed |= MyGUI::DragFloat("露出補正", settings.exposure.compensation).valueChanged;
-		changed |= MyGUI::Checkbox("Pre-Exposure", settings.exposure.usePreExposure);
+	ImGui::OpenPopup("Render Extensionの未保存編集");
+	if (!ImGui::BeginPopupModal("Render Extensionの未保存編集", nullptr,
+		ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
 	}
-	if (MyGUI::CollapsingHeader("フィルミック", false)) {
-		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureFilmic");
-		changed |= MyGUI::DragFloat("Slope", settings.filmic.slope).valueChanged;
-		changed |= MyGUI::DragFloat("Toe", settings.filmic.toe).valueChanged;
-		changed |= MyGUI::DragFloat("Shoulder", settings.filmic.shoulder).valueChanged;
+	ImGui::TextUnformatted("変更を保存しますか？");
+	const auto finish = [&]() {
+		if (pendingAsset_) {
+			editSession_.SelectProfile(context, pendingAsset_);
+			ClearSelection();
+		}
+		if (pendingClose_) {
+			openWindow_ = false;
+		}
+		pendingAsset_ = {};
+		pendingClose_ = false;
+		ImGui::CloseCurrentPopup();
+		};
+	if (ImGui::Button("保存")) {
+		editSession_.Save();
+		if (!editSession_.HasError()) {
+			finish();
+		}
 	}
-	if (MyGUI::CollapsingHeader("カラーグレーディング", false)) {
-		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureColorGrading");
-		changed |= MyGUI::ColorEdit("フィルター",
-			settings.colorGrading.colorFilter).valueChanged;
-		changed |= MyGUI::DragFloat("色温度",
-			settings.colorGrading.temperature).valueChanged;
-		changed |= MyGUI::DragFloat("Tint", settings.colorGrading.tint).valueChanged;
-		changed |= MyGUI::DragVector3("彩度",
-			settings.colorGrading.saturation).valueChanged;
+	ImGui::SameLine();
+	if (ImGui::Button("破棄")) {
+		editSession_.Reload();
+		finish();
 	}
-	ImGui::Unindent();
-	if (changed) {
-		editSession_.SetDirty();
+	ImGui::SameLine();
+	if (ImGui::Button("キャンセル")) {
+		pendingAsset_ = {};
+		pendingClose_ = false;
+		openWindow_ = true;
+		ImGui::CloseCurrentPopup();
 	}
+	ImGui::EndPopup();
+}
+
+void Engine::RenderFeatureProfileTool::RequestAssetSwitch(AssetID assetID) {
+
+	if (assetID == editSession_.GetProfileID()) {
+		return;
+	}
+	if (RenderFeatureProfileService::GetInstance().IsDirty()) {
+		pendingAsset_ = assetID;
+		return;
+	}
+	editSession_.RequestProfile(assetID);
 }
 
 void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& context) {

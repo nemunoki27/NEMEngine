@@ -41,6 +41,7 @@ namespace NEMTests {
 	bool TestInactivePhysicsSystems();
 	bool TestEditCollisionState();
 	bool TestCapsuleCollisions();
+	bool TestPhysicsQueryTriggers();
 	bool TestMeshLODGeneration();
 	bool TestGraphicsFeatureSelection();
 	bool TestBlendStates();

@@ -230,9 +230,10 @@ bool Engine::MeshBatchResources::FindSkinnedVertexOffset(ECSWorld* world, Entity
 	return true;
 }
 
-void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView) {
+void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view,
+	const ResolvedRenderView* cullingView, const ResolvedRenderView* lodView) {
 
-	viewResources_.UpdateView(view, cullingView);
+	viewResources_.UpdateView(view, cullingView, lodView);
 }
 
 void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawContext,

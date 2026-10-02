@@ -243,6 +243,11 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 				outlineGPU.cameraZOffset = outline->cameraZOffset;
 				outlineGPU.expansionMode = static_cast<uint32_t>(outline->expansionMode);
 				outlineGPU.widthMode = static_cast<uint32_t>(outline->widthMode);
+				outlineGPU.alphaThreshold = std::clamp(
+					outline->alphaThreshold, 0.0f, 1.0f);
+				if (outline->respectMaterialSurface) {
+					outlineGPU.flags |= kMeshOutlineFlagRespectMaterialSurface;
+				}
 
 				// Baked Normal / Outline SamplerはLinearとして解決する
 				if (outline->useBakedNormal && outline->bakedNormalTexture) {

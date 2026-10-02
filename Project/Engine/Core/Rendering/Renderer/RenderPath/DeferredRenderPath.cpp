@@ -41,7 +41,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.phase = RenderPhase::Opaque,
 		.target = QueueRenderPass::Target::SceneMain
 		}));
-	fixedPasses.emplace_back(std::make_unique<LightingPass>());
+	fixedPasses.emplace_back(std::make_unique<LightingPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
 		.kind = RenderPathPassKind::Transparent,

@@ -19,9 +19,11 @@ namespace {
 		Engine::AssetType type = Engine::AssetType::DefaultAsset;
 	};
 
-	constexpr std::array<CompoundAssetSuffix, 15> kCompoundAssetSuffixes = {
+	constexpr std::array<CompoundAssetSuffix, 17> kCompoundAssetSuffixes = {
 		CompoundAssetSuffix{ ".scene.json", Engine::AssetType::Scene },
-		CompoundAssetSuffix{ ".renderfeatureprofile.json", Engine::AssetType::RenderFeatureProfile },
+		CompoundAssetSuffix{ ".rendertexture.json", Engine::AssetType::RenderTexture },
+		CompoundAssetSuffix{ ".volumeprofile.json", Engine::AssetType::VolumeProfile },
+		CompoundAssetSuffix{ ".renderextension.json", Engine::AssetType::RenderExtension },
 		CompoundAssetSuffix{ ".effect.json", Engine::AssetType::ParticleEffect },
 		CompoundAssetSuffix{ ".prefab.json", Engine::AssetType::Prefab },
 		CompoundAssetSuffix{ ".material.json", Engine::AssetType::Material },
@@ -120,7 +122,9 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::RenderPipeline:
 	case AssetType::ParticleEffect:
 	case AssetType::ShaderGraph:
-	case AssetType::RenderFeatureProfile:
+	case AssetType::RenderTexture:
+	case AssetType::VolumeProfile:
+	case AssetType::RenderExtension:
 		return true;
 	default:
 		return false;

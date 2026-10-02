@@ -75,7 +75,8 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	// Shader差替え時も深度とSamplerの指定を引き継ぐ
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
-		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides, passBinding.shaderOverride);
+		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides,
+		passBinding.shaderOverride, context.forceTwoSidedRasterizer);
 }
 
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsPipeline(
@@ -84,7 +85,8 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsP
 
 	return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, geometryPipeline, passBinding.shaderOverride, desiredKind,
-		context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant);
+		context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant,
+		context.forceTwoSidedRasterizer);
 }
 
 ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(const RenderDrawContext& context,

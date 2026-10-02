@@ -111,6 +111,54 @@ namespace Engine::CameraViewSelection {
 		return BuildFromPerspectiveCamera(best.entity, best.transform, best.camera);
 	}
 
+	std::vector<ResolvedPerspectiveCameraOutput> ResolvePerspectiveCameraOutputs(
+		ECSWorld& world, uint32_t width, uint32_t height) {
+
+		std::vector<CameraCandidate<PerspectiveCameraComponent>> candidates{};
+		world.ForEach<TransformComponent, PerspectiveCameraComponent>(
+			[&](Entity entity, TransformComponent& transform, PerspectiveCameraComponent& camera) {
+
+				if (!camera.common.enabled || !IsActiveCameraEntity(world, entity)) {
+					return;
+				}
+
+				CameraCandidate<PerspectiveCameraComponent> candidate{};
+				candidate.entity = entity;
+				candidate.transform = transform;
+				candidate.camera = camera;
+				candidates.emplace_back(std::move(candidate));
+			});
+
+		// 優先度の低いCameraから描画し、高いCameraを後から重ねる
+		std::sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
+
+			if (lhs.camera.common.priority != rhs.camera.common.priority) {
+				return lhs.camera.common.priority < rhs.camera.common.priority;
+			}
+			if (lhs.camera.common.isMain != rhs.camera.common.isMain) {
+				return !lhs.camera.common.isMain && rhs.camera.common.isMain;
+			}
+			return lhs.entity.index < rhs.entity.index;
+			});
+
+		std::vector<ResolvedPerspectiveCameraOutput> outputs{};
+		outputs.reserve(candidates.size());
+		for (CameraCandidate<PerspectiveCameraComponent>& candidate : candidates) {
+
+			const CameraCommon& common = candidate.camera.common;
+			const uint32_t cameraWidth = (std::max)(1u, static_cast<uint32_t>(
+				std::round(static_cast<float>(width) * std::clamp(common.viewportWidth, 0.0f, 1.0f))));
+			const uint32_t cameraHeight = (std::max)(1u, static_cast<uint32_t>(
+				std::round(static_cast<float>(height) * std::clamp(common.viewportHeight, 0.0f, 1.0f))));
+			UpdatePerspectiveCameraMatrices(candidate.transform, candidate.camera, cameraWidth, cameraHeight);
+			outputs.emplace_back(ResolvedPerspectiveCameraOutput{
+				.camera = BuildFromPerspectiveCamera(candidate.entity, candidate.transform, candidate.camera),
+				.output = candidate.camera.common,
+				});
+		}
+		return outputs;
+	}
+
 	Engine::ResolvedCameraView ResolvePreferredOrthographicCamera(
 		ECSWorld& world, UUID preferredCameraUUID, uint32_t width, uint32_t height) {
 

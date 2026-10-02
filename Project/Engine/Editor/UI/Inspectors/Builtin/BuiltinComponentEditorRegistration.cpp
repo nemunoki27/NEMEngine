@@ -22,6 +22,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Render/VolumeInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/LightInspectorDrawers.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationPlayerInspectorDrawer.h>
@@ -29,6 +30,7 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/RigidbodyInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Rigidbody2DInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/PhysicsJointInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/UI/UIComponentInspectorDrawers.h>
 
 // c++
@@ -91,12 +93,15 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>("Billboard", "Billboard", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>("Inverted Hull Outline", "InvertedHullOutline", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<ScreenSpaceOutlineInspectorDrawer>("Screen Space Outline", "ScreenSpaceOutline", "Rendering"));
+		registry.Register(MakeComponentEditorDescriptor<VolumeInspectorDrawer>("Volume", "Volume", "Rendering"));
 	}
 	// 衝突
 	{
 		registry.Register(MakeComponentEditorDescriptor<CollisionInspectorDrawer>("Collision", "Collision", "Physics"));
 		registry.Register(MakeComponentEditorDescriptor<RigidbodyInspectorDrawer>("Rigidbody", "Rigidbody", "Physics"));
 		registry.Register(MakeComponentEditorDescriptor<Rigidbody2DInspectorDrawer>("Rigidbody 2D", "Rigidbody2D", "Physics"));
+		registry.Register(MakeComponentEditorDescriptor<FixedJointInspectorDrawer>("Fixed Joint", "FixedJoint", "Physics"));
+		registry.Register(MakeComponentEditorDescriptor<HingeJointInspectorDrawer>("Hinge Joint", "HingeJoint", "Physics"));
 	}
 	// UI
 	{

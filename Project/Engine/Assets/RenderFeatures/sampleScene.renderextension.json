@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "name": "Default Render Feature Profile",
+  "version": 1,
+  "name": "Sample Scene Render Features",
   "passes": [
     {
       "id": "52545245464c4543",
@@ -12,9 +12,12 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7c",
       "materialPass": "RayTracing",
-      "source": { "kind": "SceneColor", "pass": "", "output": "Color" },
+      "source": {
+        "kind": "SceneColor",
+        "pass": "",
+        "output": "Color"
+      },
       "sceneColorOutput": false,
-      "rayGenerationIndex": 0,
       "adaptiveResolution": false,
       "gpuBudgetMs": 2.0,
       "minResolutionScale": 0.5,
@@ -63,7 +66,11 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7d",
       "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "52545245464c4543", "output": "Raw" },
+      "source": {
+        "kind": "PassOutput",
+        "pass": "52545245464c4543",
+        "output": "Raw"
+      },
       "sceneColorOutput": false,
       "outputs": [
         {
@@ -100,7 +107,11 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7d",
       "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544941", "output": "Filtered" },
+      "source": {
+        "kind": "PassOutput",
+        "pass": "5254535041544941",
+        "output": "Filtered"
+      },
       "sceneColorOutput": false,
       "outputs": [
         {
@@ -134,7 +145,11 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7d",
       "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544931", "output": "Spatial" },
+      "source": {
+        "kind": "PassOutput",
+        "pass": "5254535041544931",
+        "output": "Spatial"
+      },
       "sceneColorOutput": false,
       "outputs": [
         {
@@ -171,7 +186,11 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7d",
       "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544932", "output": "Spatial" },
+      "source": {
+        "kind": "PassOutput",
+        "pass": "5254535041544932",
+        "output": "Spatial"
+      },
       "sceneColorOutput": false,
       "outputs": [
         {
@@ -208,7 +227,11 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7e",
       "materialPass": "PostProcess",
-      "source": { "kind": "PassOutput", "pass": "5254535041544933", "output": "Spatial" },
+      "source": {
+        "kind": "PassOutput",
+        "pass": "5254535041544933",
+        "output": "Spatial"
+      },
       "sceneColorOutput": false,
       "outputs": [
         {
@@ -271,7 +294,11 @@
       "anchor": "AfterLighting",
       "material": "4e454d4153534554375384bc3bf6bb7f",
       "materialPass": "PostProcess",
-      "source": { "kind": "SceneColor", "pass": "", "output": "Color" },
+      "source": {
+        "kind": "SceneColor",
+        "pass": "",
+        "output": "Color"
+      },
       "sceneColorOutput": true,
       "outputs": [
         {
@@ -295,6 +322,39 @@
           "output": "Temporal"
         }
       }
+    },
+    {
+      "id": "dbca16c553c729b2",
+      "name": "Bloom",
+      "enabled": true,
+      "gameView": true,
+      "sceneView": true,
+      "type": "Compute",
+      "anchor": "AfterPostProcessUI",
+      "material": "4e454d4153534554d4585b4b3c65da40",
+      "materialPass": "PostProcess",
+      "source": {
+        "kind": "PreviousPass",
+        "pass": "",
+        "output": "Color"
+      },
+      "sceneColorOutput": true,
+      "outputs": [
+        {
+          "name": "Color",
+          "shaderResource": "gDestColor",
+          "format": "Inherit",
+          "widthScale": 1.0,
+          "heightScale": 1.0
+        }
+      ],
+      "parameters": {
+        "intensity": 3.5299999713897705,
+        "radius": 20,
+        "sigma": 128.0,
+        "threshold": 1.7699999809265137
+      }
     }
-  ]
+  ],
+  "hierarchy": null
 }

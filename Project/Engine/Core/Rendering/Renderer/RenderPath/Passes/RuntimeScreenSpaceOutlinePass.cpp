@@ -8,7 +8,6 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderBackendCapabilities.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -46,7 +45,6 @@ namespace {
 void Engine::RuntimeScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
 	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	RenderFeatureProfileService::GetInstance().EnsureLoaded();
 	if (!context.resources) {
 		return;
 	}
@@ -194,12 +192,10 @@ void Engine::RuntimeScreenSpaceOutlinePass::DrawUIRange(
 	uiDrawScratch_.assign(
 		items.items.begin() + beginIndex,
 		items.items.begin() + endIndex);
-	RenderFeatureProfileService& featureService =
-		RenderFeatureProfileService::GetInstance();
-	featureService.EnsureLoaded();
 	std::erase_if(uiDrawScratch_, [&](const RenderItem* item) {
 
-		return item && featureService.GetRuntime().IsItemIsolated(*item);
+		return item && context.renderExtensionRuntime &&
+			context.renderExtensionRuntime->IsItemIsolated(*item);
 	});
 	RenderPassExecutionHelper::Execute(graphicsCore, context,
 		uiDrawScratch_, deps_, target);
@@ -239,8 +235,8 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 
 			// マスクパスを解決できるバックエンドだけを対象にする
 			if (!item || !item->world ||
-				RenderFeatureProfileService::GetInstance().GetRuntime().
-					IsItemIsolated(*item) ||
+				(context.renderExtensionRuntime &&
+					context.renderExtensionRuntime->IsItemIsolated(*item)) ||
 				!RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
 				continue;
 			}
@@ -277,6 +273,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 			request.style.visibilityMode = outline->visibilityMode;
 			request.style.regionMode = outline->regionMode;
 			request.alphaSource = outline->alphaSource;
+			request.alphaThreshold = outline->alphaThreshold;
 			request.uiOcclusionMode = outline->uiOcclusionMode;
 			request.source = ScreenSpaceOutlineSource::RuntimeComponent;
 			requests_.emplace_back(request);

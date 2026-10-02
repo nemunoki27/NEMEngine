@@ -447,7 +447,8 @@ int main(int argc, char* argv[]) {
 		std::cerr << "Edit collision state failed\n";
 		return 31;
 	}
-	if (!RunTest("TestCapsuleCollisions", TestCapsuleCollisions)) {
+	if (!RunTest("TestCapsuleCollisions", TestCapsuleCollisions) ||
+		!RunTest("TestPhysicsQueryTriggers", TestPhysicsQueryTriggers)) {
 		std::cerr << "Capsule collision failed\n";
 		return 28;
 	}

@@ -61,7 +61,7 @@ namespace Engine {
 		// CollisionManagerウィンドウを描画する
 		void DrawWindow(const EditorToolContext& context);
 		// Collisionタイプ一覧を描画する、変更があればtrue
-		bool DrawTypes();
+		bool DrawTypes(const EditorToolContext& context);
 		// Collisionタイプ同士の衝突マトリクスを描画する、変更があればtrue
 		bool DrawMatrix();
 		// World内のCollision形状をLineRendererで描画する

@@ -43,7 +43,7 @@ namespace Engine {
 
 		ToolDescriptor descriptor_{
 			.id = "engine.render_features",
-			.name = "レンダー機能設定",
+			.name = "Render Extension",
 			.category = "レンダリング",
 			.owner = ToolOwner::Engine,
 			.flags = ToolFlags::AllowPlayMode,
@@ -51,6 +51,8 @@ namespace Engine {
 		};
 
 		bool openWindow_ = false;
+		bool pendingClose_ = false;
+		AssetID pendingAsset_{};
 		RenderFeatureEditSession editSession_;
 		UUID selectedPass_{};
 		UUID selectedGroup_{};
@@ -58,8 +60,10 @@ namespace Engine {
 
 		// ツールの編集画面を表示する
 		void DrawWindow(const EditorToolContext& context);
-		// 色補正設定を編集する
-		void DrawColorPipeline();
+		// 未保存編集の確認を表示する
+		void DrawUnsavedChangesPopup(const EditorToolContext& context);
+		// 別アセットへの切替を要求する
+		void RequestAssetSwitch(AssetID assetID);
 		// PassとGroupの一覧を表示する
 		void DrawPassList(const EditorToolContext& context);
 		// 選択Passの設定を編集する

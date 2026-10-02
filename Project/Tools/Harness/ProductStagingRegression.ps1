@@ -25,6 +25,7 @@ $manifest = [pscustomobject]@{
     })
     packages = @([pscustomobject]@{ name = 'com.nem.fixture'; version = '1'; contentHash = '1234' })
     startupScene = '12345678901234567890123456789012'; startupFullscreen = $false
+    gameWidth = 1280; gameHeight = 720
     projectGuid = '12345678901234567890123456789013'; cookHash = 'fixture'
 }
 Copy-ProductFiles $manifest $source 'Game.exe' $stage 'Product.exe' $managed
@@ -39,6 +40,8 @@ if ($material.PSObject.Properties.Name -contains 'shaderGraph') { throw 'Graph�
 Write-ProductSettings $manifest $stage 'Product' 'Product.exe'
 $settings = Get-Content (Join-Path $stage 'ProjectSettings\Runtime\StartupScene.json') -Raw | ConvertFrom-Json
 if ($settings.activeScene -ne $manifest.startupScene) { throw '起動Sceneが変化しました' }
+$gameSettings = Get-Content (Join-Path $stage 'ProjectSettings\Runtime\Game.json') -Raw | ConvertFrom-Json
+if ($gameSettings.gameWidth -ne 1280 -or $gameSettings.gameHeight -ne 720) { throw 'ゲーム画像サイズが変化しました' }
 $cook = Get-Content (Join-Path $stage '.nemCookManifest.json') -Raw | ConvertFrom-Json
 foreach ($file in $cook.files) {
     Assert-FileHash (Join-Path $stage $file.path) $file.size $file.sha256

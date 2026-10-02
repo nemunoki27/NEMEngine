@@ -33,6 +33,7 @@
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/ShaderGraph/ShaderGraphEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
+#include <Engine/Editor/Tools/Builtin/RenderFeatures/VolumeProfileTool.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -1194,24 +1195,38 @@ void Engine::ProjectPanel::RegisterAssetActions() {
 	particleEffect.onDragSource = DrawDefaultAssetDragDropSource;
 	assetActionRegistry_.Register(std::move(particleEffect));
 
-	// 統合ProfileはComputeとDispatchRaysを同じツールで開く
-	AssetActionDescriptor renderFeatureProfile{};
-	renderFeatureProfile.type = AssetType::RenderFeatureProfile;
-	renderFeatureProfile.displayName = "RenderFeatureProfile";
-	renderFeatureProfile.iconResolver = ResolveDefaultAssetIcon;
-	renderFeatureProfile.onDoubleClick =
-		[](const EditorPanelContext& /*context*/,
-			const ProjectAssetEntry& asset) {
+	AssetActionDescriptor volumeProfile{};
+	volumeProfile.type = AssetType::VolumeProfile;
+	volumeProfile.displayName = "VolumeProfile";
+	volumeProfile.iconResolver = ResolveDefaultAssetIcon;
+	volumeProfile.onDoubleClick =
+		[](const EditorPanelContext&, const ProjectAssetEntry& asset) {
 
-		ITool* tool = ToolRegistry::GetInstance().Find(
-			"engine.render_features");
+		ITool* tool = ToolRegistry::GetInstance().Find("engine.volume_profile");
+		auto* editor = dynamic_cast<VolumeProfileTool*>(tool);
+		if (editor) {
+			editor->OpenAsset(asset.assetID);
+		}
+		};
+	volumeProfile.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(volumeProfile));
+
+	// Render Extensionは既存のPass Graph編集機能で開く
+	AssetActionDescriptor renderExtension{};
+	renderExtension.type = AssetType::RenderExtension;
+	renderExtension.displayName = "RenderExtension";
+	renderExtension.iconResolver = ResolveDefaultAssetIcon;
+	renderExtension.onDoubleClick =
+		[](const EditorPanelContext&, const ProjectAssetEntry& asset) {
+
+		ITool* tool = ToolRegistry::GetInstance().Find("engine.render_features");
 		auto* editor = dynamic_cast<RenderFeatureProfileTool*>(tool);
 		if (editor) {
 			editor->OpenAsset(asset.assetID);
 		}
 		};
-	renderFeatureProfile.onDragSource = DrawDefaultAssetDragDropSource;
-	assetActionRegistry_.Register(std::move(renderFeatureProfile));
+	renderExtension.onDragSource = DrawDefaultAssetDragDropSource;
+	assetActionRegistry_.Register(std::move(renderExtension));
 }
 
 void Engine::ProjectPanel::HandleAssetDoubleClick(const EditorPanelContext& context, const ProjectAssetEntry& asset) {
@@ -1348,7 +1363,7 @@ void Engine::ProjectPanel::BeginRenameDirectory(const ProjectDirectoryNode& node
 
 void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtualPath) {
 
-	constexpr std::array<ProjectAssetFileKind, 11> kCreateKinds = {
+	constexpr std::array<ProjectAssetFileKind, 13> kCreateKinds = {
 		ProjectAssetFileKind::Folder,
 		ProjectAssetFileKind::Script,
 		ProjectAssetFileKind::Scene,
@@ -1358,7 +1373,9 @@ void Engine::ProjectPanel::DrawCreateMenuItems(const std::string& directoryVirtu
 		ProjectAssetFileKind::Shader,
 		ProjectAssetFileKind::ShaderGraph,
 		ProjectAssetFileKind::RenderPipeline,
-		ProjectAssetFileKind::RenderFeatureProfile,
+		ProjectAssetFileKind::VolumeProfile,
+		ProjectAssetFileKind::RenderExtension,
+		ProjectAssetFileKind::RenderTexture,
 		ProjectAssetFileKind::Text,
 	};
 

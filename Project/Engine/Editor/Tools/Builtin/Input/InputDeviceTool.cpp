@@ -8,6 +8,7 @@
 
 // c++
 #include <array>
+#include <string>
 
 #include <magic_enum.hpp>
 #include <imgui.h>
@@ -81,6 +82,25 @@ void Engine::InputDeviceTool::DrawWindow() {
 		float deadZone = input->GetDeadZone();
 		if (ImGui::DragFloat("デッドゾーン", &deadZone, 100.0f, 0.0f, 32767.0f)) {
 			input->SetDeadZone(deadZone);
+		}
+
+		bool backgroundInput = input->IsBackgroundInputEnabled();
+		if (ImGui::Checkbox("バックグラウンド入力", &backgroundInput)) {
+			input->SetBackgroundInputEnabled(backgroundInput);
+		}
+		for (uint32_t playerIndex = 0; playerIndex < Input::kMaxPlayers; ++playerIndex) {
+			ImGui::PushID(static_cast<int32_t>(playerIndex));
+			ImGui::SeparatorText(("Player " + std::to_string(playerIndex)).c_str());
+			int32_t gamepadIndex = input->GetPlayerGamepadIndex(playerIndex);
+			if (ImGui::SliderInt("ゲームパッド", &gamepadIndex, -1, 3,
+				gamepadIndex < 0 ? "なし" : "%d")) {
+				input->SetPlayerGamepadIndex(playerIndex, gamepadIndex);
+			}
+			bool keyboardMouse = input->IsPlayerKeyboardMouseEnabled(playerIndex);
+			if (ImGui::Checkbox("キーボード／マウス", &keyboardMouse)) {
+				input->SetPlayerKeyboardMouseEnabled(playerIndex, keyboardMouse);
+			}
+			ImGui::PopID();
 		}
 
 		ImGui::SeparatorText("マウス範囲制御");

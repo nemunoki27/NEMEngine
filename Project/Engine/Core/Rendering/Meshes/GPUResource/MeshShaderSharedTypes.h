@@ -90,13 +90,14 @@ namespace Engine {
 		uint32_t bakedNormalTextureIndex = UINT32_MAX;
 		uint32_t outlineSamplerTextureIndex = UINT32_MAX;
 		uint32_t flags = 0;
-		uint32_t _pad0 = 0;
+		float alphaThreshold = 0.1f;
 	};
 	static_assert(sizeof(MeshOutlineGPUData) % 16 == 0);
 
 	// MeshOutlineGPUDataのflags
 	static constexpr uint32_t kMeshOutlineFlagUseBakedNormal = 1u << 0;
 	static constexpr uint32_t kMeshOutlineFlagUseOutlineSampler = 1u << 1;
+	static constexpr uint32_t kMeshOutlineFlagRespectMaterialSurface = 1u << 2;
 
 	struct MeshSubMeshShaderData {
 

@@ -70,7 +70,25 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	const ResolvedRenderView& view = GetResolvedView(kind);
+	const ResolvedRenderView* selectedView = &GetResolvedView(kind);
+	Vector2 viewPixel = inputPixel;
+	if (kind == RenderViewKind::Game) {
+		for (auto it = gameCameraViews_.rbegin(); it != gameCameraViews_.rend(); ++it) {
+			const ResolvedRenderView& candidate = *it;
+			if (!candidate.valid || candidate.targetTexture ||
+				inputPixel.x < static_cast<float>(candidate.outputX) ||
+				inputPixel.y < static_cast<float>(candidate.outputY) ||
+				static_cast<float>(candidate.outputX + candidate.outputWidth) <= inputPixel.x ||
+				static_cast<float>(candidate.outputY + candidate.outputHeight) <= inputPixel.y) {
+				continue;
+			}
+			selectedView = &candidate;
+			viewPixel.x -= static_cast<float>(candidate.outputX);
+			viewPixel.y -= static_cast<float>(candidate.outputY);
+			break;
+		}
+	}
+	const ResolvedRenderView& view = *selectedView;
 	const ResolvedCameraView* camera =
 		view.FindCamera(RenderCameraDomain::Perspective);
 	if (!view.valid || !camera) {
@@ -129,9 +147,9 @@ bool RenderPipelineRunner::RenderMeshPicking(GraphicsCore& graphicsCore,
 
 	// 元ビューを負のオフセットで1x1 RTへ写し、クリック画素だけをラスタライズする
 	const float pixelX = std::floor(std::clamp(
-		inputPixel.x, 0.0f, static_cast<float>(view.width - 1)));
+		viewPixel.x, 0.0f, static_cast<float>(view.width - 1)));
 	const float pixelY = std::floor(std::clamp(
-		inputPixel.y, 0.0f, static_cast<float>(view.height - 1)));
+		viewPixel.y, 0.0f, static_cast<float>(view.height - 1)));
 	D3D12_VIEWPORT viewport{};
 	viewport.TopLeftX = -pixelX;
 	viewport.TopLeftY = -pixelY;

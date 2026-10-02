@@ -95,8 +95,7 @@ Engine::RenderTexture2D* Engine::DepthVisualizer::Render(
 	constants.projectionB = camera.matrices.projectionMatrix.m[3][2];
 	constants.nearClip = camera.nearClip;
 	constants.farClip = camera.farClip;
-	constants.perspective =
-		std::abs(camera.matrices.projectionMatrix.m[2][3]) > 0.5f;
+	constants.perspective = camera.projectionMode == ResolvedProjectionMode::Perspective;
 	constants_.Upload(constants);
 
 	// 入力深度を読み取り、出力色をレンダーターゲットへ遷移する

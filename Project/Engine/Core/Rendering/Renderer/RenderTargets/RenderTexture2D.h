@@ -71,6 +71,7 @@ namespace Engine {
 		// GPUディスクリプタハンドルの取得
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const { return srvGPUHandle_; }
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetUAVGPUHandle() const { return uavGPUHandle_; }
+		uint32_t GetSRVIndex() const { return srvIndex_; }
 
 		// 現在のリソース状態の取得
 		D3D12_RESOURCE_STATES GetCurrentState() const { return currentState_; }

@@ -9,6 +9,7 @@
 
 // c++
 #include <unordered_map>
+#include <array>
 #include <memory>
 #include <vector>
 #include <cstdint>
@@ -53,8 +54,9 @@ namespace Engine {
 		const std::vector<UIElementRuntime>& GetElements(const ECSWorld& world) const;
 		Vector2 GetViewportSize(const ECSWorld& world) const;
 
-		void SetGameplayInputBlocked(bool blocked) { gameplayInputBlocked_ = blocked; }
-		bool IsGameplayInputBlocked() const { return gameplayInputBlocked_; }
+		void SetGameplayInputBlocked(uint32_t playerIndex, bool blocked);
+		bool IsGameplayInputBlocked(uint32_t playerIndex) const;
+		void ClearGameplayInputBlocks();
 
 		static UIRuntimeService& GetInstance();
 	private:
@@ -71,7 +73,7 @@ namespace Engine {
 		};
 
 		std::unordered_map<const ECSWorld*, WorldState> worlds_{};
-		bool gameplayInputBlocked_ = false;
+		std::array<bool, 4> gameplayInputBlocked_{};
 
 		// 終了したWorldのcacheを除外する
 		const WorldState* FindWorld(const ECSWorld& world) const;

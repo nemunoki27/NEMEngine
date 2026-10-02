@@ -158,6 +158,8 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	// v21のレイキャストとカメラレイとCollisionタイプ名解決
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;
 	callbacks.physicsRaycastAll = &ManagedScriptRuntime::PhysicsRaycastAllCallback;
+	callbacks.getQueriesHitTriggers = &ManagedScriptRuntime::GetQueriesHitTriggersCallback;
+	callbacks.setQueriesHitTriggers = &ManagedScriptRuntime::SetQueriesHitTriggersCallback;
 	callbacks.screenPointToRay = &ManagedScriptRuntime::ScreenPointToRayCallback;
 	callbacks.getMousePositionInView = &ManagedScriptRuntime::GetMousePositionInViewCallback;
 	callbacks.getCollisionTypeMaskByName = &ManagedScriptRuntime::GetCollisionTypeMaskByNameCallback;
@@ -191,6 +193,11 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.getGamepadAxis = &ManagedScriptRuntime::GetGamepadAxisCallback;
 	callbacks.isGamepadConnectedIndexed = &ManagedScriptRuntime::IsGamepadConnectedIndexedCallback;
 	callbacks.getConnectedGamepadCount = &ManagedScriptRuntime::GetConnectedGamepadCountCallback;
+	callbacks.getPlayerGamepadIndex = &ManagedScriptRuntime::GetPlayerGamepadIndexCallback;
+	callbacks.getPlayerKeyboardMouseEnabled = &ManagedScriptRuntime::GetPlayerKeyboardMouseEnabledCallback;
+	callbacks.getPlayerInputAvailable = &ManagedScriptRuntime::GetPlayerInputAvailableCallback;
+	callbacks.playPlayerVibration = &ManagedScriptRuntime::PlayPlayerVibrationCallback;
+	callbacks.stopPlayerVibration = &ManagedScriptRuntime::StopPlayerVibrationCallback;
 	callbacks.getHasFocus = &ManagedScriptRuntime::GetHasFocusCallback;
 	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
 	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;

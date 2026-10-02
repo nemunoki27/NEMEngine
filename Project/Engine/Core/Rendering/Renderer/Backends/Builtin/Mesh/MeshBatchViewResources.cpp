@@ -112,7 +112,8 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		drawContext.passKind != MaterialPassKind::Transparent ?
 		kMeshLODCount : 1u;
 	drawConstants.lodDitherEnabled =
-		drawConstants.lodCount > 1u && gpuMesh.ditherLODTransitions ? 1u : 0u;
+		drawConstants.lodCount > 1u && gpuMesh.ditherLODTransitions &&
+		!drawContext.disableLODDither ? 1u : 0u;
 	drawConstants.preserveInstanceOrder =
 		drawContext.passKind == MaterialPassKind::Transparent ? 1u : 0u;
 
@@ -149,6 +150,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		params.styleID = drawContext.screenSpaceOutlineMaskStyleID;
 		params.restrictSubMeshIndex = drawContext.screenSpaceOutlineMaskRestrictSubMeshIndex;
 		params.alphaSource = drawContext.screenSpaceOutlineMaskAlphaSource;
+		params.alphaThreshold = drawContext.screenSpaceOutlineMaskAlphaThreshold;
 		screenSpaceOutlineMaskGPUAddress_ =
 			dynamicConstantAllocator_.AllocateAndUpload(*retirement_, device, params).gpuAddress;
 	}
@@ -164,7 +166,8 @@ void Engine::MeshBatchViewResources::UpdateIndexedIndirectArgsConstants(uint32_t
 		dynamicConstantAllocator_.AllocateAndUpload(*retirement_, device, constants).gpuAddress;
 }
 
-void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView) {
+void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
+	const ResolvedRenderView* cullingView, const ResolvedRenderView* lodView) {
 
 	const size_t viewIndex = ToViewIndex(view.kind);
 	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
@@ -184,10 +187,16 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view, 
 		}
 		constants.previousViewProjection = framePreviousViewProjections_[viewIndex];
 		constants.renderCameraPos = camera->cameraPos;
-		// カリング設定から独立したLOD用の投影情報を渡す
+	}
+	// Shadow Mapなどの補助描画は画面CameraのLODを維持する
+	const ResolvedRenderView* resolvedLODView = lodView ? lodView : &view;
+	if (const ResolvedCameraView* camera =
+		resolvedLODView->FindCamera(RenderCameraDomain::Perspective)) {
+
 		constants.lodView = camera->matrices.viewMatrix;
 		constants.lodNearClip = camera->nearClip;
-		constants.lodProjectionScale = Vector2(std::abs(camera->matrices.projectionMatrix.m[0][0]),
+		constants.lodProjectionScale = Vector2(
+			std::abs(camera->matrices.projectionMatrix.m[0][0]),
 			std::abs(camera->matrices.projectionMatrix.m[1][1]));
 	}
 	constants.frameSerial = static_cast<uint32_t>(frameSerial);

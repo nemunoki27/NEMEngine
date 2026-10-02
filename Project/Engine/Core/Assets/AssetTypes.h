@@ -38,7 +38,9 @@ namespace Engine {
 		AnimationClip,
 		ParticleEffect,
 		ShaderGraph,
-		RenderFeatureProfile,
+		RenderTexture,
+		VolumeProfile,
+		RenderExtension,
 		DefaultAsset,
 	};
 

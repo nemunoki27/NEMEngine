@@ -50,6 +50,7 @@ namespace Engine {
 
 		ScreenSpaceOutlineStyle style{};
 		ScreenSpaceOutlineAlphaSource alphaSource = ScreenSpaceOutlineAlphaSource::OutputColor;
+		float alphaThreshold = 0.1f;
 		ScreenSpaceOutlineUIOcclusionMode uiOcclusionMode =
 			ScreenSpaceOutlineUIOcclusionMode::RespectRenderOrder;
 		ScreenSpaceOutlineSource source = ScreenSpaceOutlineSource::RuntimeComponent;

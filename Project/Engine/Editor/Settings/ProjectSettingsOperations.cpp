@@ -12,6 +12,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Scene/Serialization/SceneStorageJournal.h>
+#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 
 // c++
 #include <functional>
@@ -142,6 +143,37 @@ namespace {
 		}
 		return changed;
 	}
+
+	uint32_t RemoveMaskBit(uint32_t mask, uint32_t index) {
+
+		const uint32_t lower = index == 0 ? 0u : mask & ((1u << index) - 1u);
+		const uint32_t upper = index == 31 ? 0u : (mask >> (index + 1u)) << index;
+		return lower | upper;
+	}
+
+	bool RemoveCollisionTypeMasks(nlohmann::json& value, uint32_t typeIndex) {
+
+		bool changed = false;
+		if (value.is_object()) {
+			for (auto& [key, child] : value.items()) {
+				if (key == "typeMask" && (child.is_number_unsigned() || child.is_number_integer())) {
+					const uint32_t mask = child.get<uint32_t>();
+					const uint32_t next = RemoveMaskBit(mask, typeIndex);
+					if (next != mask) {
+						child = next;
+						changed = true;
+					}
+				} else {
+					changed |= RemoveCollisionTypeMasks(child, typeIndex);
+				}
+			}
+		} else if (value.is_array()) {
+			for (nlohmann::json& child : value) {
+				changed |= RemoveCollisionTypeMasks(child, typeIndex);
+			}
+		}
+		return changed;
+	}
 }
 
 bool Engine::ProjectSettingsOperations::RemapTags(const EditorToolContext& context, const std::string& from, const std::string& to) {
@@ -190,6 +222,29 @@ bool Engine::ProjectSettingsOperations::ClearRenderingLayer(
 			}
 			return false;
 		}
+	}
+	return true;
+}
+
+bool Engine::ProjectSettingsOperations::RemoveCollisionType(
+	const EditorToolContext& context, uint32_t typeIndex) {
+
+	if (typeIndex >= 32u || !context.panelContext ||
+		!context.panelContext->editorContext) {
+		return false;
+	}
+	const EditorContext& editorContext = *context.panelContext->editorContext;
+	if (editorContext.assetDatabase && !UpdateScenePrefabDocuments(
+		editorContext, *editorContext.assetDatabase,
+		[typeIndex](nlohmann::json& root) {
+			return RemoveCollisionTypeMasks(root, typeIndex);
+			})) {
+		return false;
+	}
+	if (ECSWorld* world = context.GetWorld()) {
+		world->ForEach<CollisionComponent>([typeIndex](Entity, CollisionComponent& collision) {
+			collision.typeMask = RemoveMaskBit(collision.typeMask, typeIndex);
+			});
 	}
 	return true;
 }

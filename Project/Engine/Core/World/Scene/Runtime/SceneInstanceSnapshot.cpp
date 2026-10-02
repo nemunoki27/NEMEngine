@@ -130,7 +130,6 @@ bool Engine::SceneInstanceManager::LoadSnapshot(AssetDatabase& database, const S
 		for (size_t index = 0; index < candidate.scenes_.size(); ++index) {
 			auto& instance = candidate.scenes_[index];
 			const auto scenePath = database.ResolveFullPath(instance.sceneAsset);
-			EnsureSceneRenderFeatureProfile(instance.header, Algorithm::PathToUTF8(scenePath), &database);
 			const nlohmann::json entities{ { "Entities", snapshot["Scenes"][index]["Entities"] } };
 			if (!sceneSystem.LoadFromJson(entities, world, &database, instance.sceneAsset,
 				instance.instanceID, &instance.createdEntities)) {

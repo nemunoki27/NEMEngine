@@ -35,6 +35,7 @@
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Runtime/Context/EngineContext.h>
 
 // c++
 #include <cmath>
@@ -303,9 +304,11 @@ void Engine::ViewportPanel::DrawViewportContent(const EditorPanelContext& contex
 		// 表示サイズ
 		Vector2 srcSize(static_cast<float>(display->GetRenderTarget().width), static_cast<float>(display->GetRenderTarget().height));
 
-		// 表示ウィンドウの中心に16:9で表示させる
+		// Projectの製品画像比率を保ってPanel中央へ表示する
 		ImVec2 avail = ImGui::GetContentRegionAvail();
-		const float aspect = 16.0f / 9.0f;
+		const Vector2I gameSize = EngineContext::GetWindowSetting().gameSize;
+		const float aspect = static_cast<float>((std::max)(gameSize.x, 1)) /
+			static_cast<float>((std::max)(gameSize.y, 1));
 		if (avail.x / avail.y >= aspect) {
 			viewSize_.y = avail.y;
 			viewSize_.x = avail.y * aspect;

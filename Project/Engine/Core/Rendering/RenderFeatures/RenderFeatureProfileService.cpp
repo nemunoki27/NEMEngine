@@ -55,6 +55,23 @@ void Engine::RenderFeatureProfileService::SetActiveProfileAsset(
 		assetDatabase->ResolveFullPath(assetID) : std::filesystem::path{});
 }
 
+void Engine::RenderFeatureProfileService::SetRuntimeExtension(
+	const RenderExtensionAsset* extension) {
+
+	const AssetID extensionID = extension ? extension->guid : AssetID{};
+	if (runtimeExtensionID_ == extensionID) {
+		return;
+	}
+	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
+	runtimeExtensionID_ = extensionID;
+	runtimeExtensionRuntime_.Rebuild(extension ?
+		ToRuntimeProfile(*extension) : RenderFeatureProfileAsset{});
+	++runtimeExtensionGeneration_;
+	if (runtimeExtensionGeneration_ == 0) {
+		runtimeExtensionGeneration_ = 1;
+	}
+}
+
 void Engine::RenderFeatureProfileService::SetActiveProfilePath(
 	const std::filesystem::path& path) {
 
@@ -126,6 +143,36 @@ Engine::RenderFeatureProfileService::FindPassByName(
 		return pass.name == passName;
 	});
 	return found == document_.profile_.passes.end() ? nullptr : &*found;
+}
+
+const Engine::RenderFeaturePassSettings*
+Engine::RenderFeatureProfileService::FindRuntimeExtensionPassByID(
+	UUID passID) const {
+
+	if (!passID) {
+		return nullptr;
+	}
+	const auto& passes = runtimeExtensionRuntime_.GetProfile().passes;
+	const auto found = std::find_if(passes.begin(), passes.end(),
+		[passID](const RenderFeaturePassSettings& pass) {
+			return pass.id == passID;
+		});
+	return found == passes.end() ? nullptr : &*found;
+}
+
+const Engine::RenderFeaturePassSettings*
+Engine::RenderFeatureProfileService::FindRuntimeExtensionPassByName(
+	std::string_view passName) const {
+
+	if (passName.empty()) {
+		return nullptr;
+	}
+	const auto& passes = runtimeExtensionRuntime_.GetProfile().passes;
+	const auto found = std::find_if(passes.begin(), passes.end(),
+		[passName](const RenderFeaturePassSettings& pass) {
+			return pass.name == passName;
+		});
+	return found == passes.end() ? nullptr : &*found;
 }
 
 const std::vector<Engine::ShaderConstantBufferVariable>*

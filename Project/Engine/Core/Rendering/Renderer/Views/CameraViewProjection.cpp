@@ -17,6 +17,7 @@ namespace Engine::CameraViewProjection {
 
 		Engine::ResolvedCameraView out{};
 		out.valid = 0 < width && 0 < height;
+		out.projectionMode = Engine::ResolvedProjectionMode::Orthographic;
 		out.usesManualCamera = true;
 		out.nearClip = -1000.0f;
 		out.farClip = 1000.0f;
@@ -46,8 +47,17 @@ namespace Engine::CameraViewProjection {
 
 		camera.common.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
 		camera.common.viewMatrix = Engine::Matrix4x4::Inverse(transform.worldMatrix);
-		camera.common.projectionMatrix = Engine::Matrix4x4::MakePerspectiveFovMatrix(
-			camera.fovY, camera.common.aspectRatio, camera.nearClip, camera.farClip);
+		if (camera.projectionMode == Engine::CameraProjectionMode::Orthographic) {
+
+			// 3Dカメラの中心を基準に平行投影範囲を作る
+			const float halfHeight = (std::max)(camera.orthographicSize, 0.001f);
+			const float halfWidth = halfHeight * camera.common.aspectRatio;
+			camera.common.projectionMatrix = Engine::Matrix4x4::MakeOrthographicMatrix(
+				-halfWidth, halfHeight, halfWidth, -halfHeight, camera.nearClip, camera.farClip);
+		} else {
+			camera.common.projectionMatrix = Engine::Matrix4x4::MakePerspectiveFovMatrix(
+				camera.fovY, camera.common.aspectRatio, camera.nearClip, camera.farClip);
+		}
 		camera.common.viewProjectionMatrix = camera.common.viewMatrix * camera.common.projectionMatrix;
 	}
 
@@ -57,6 +67,7 @@ namespace Engine::CameraViewProjection {
 		// カメラコンポーネントから描画ビューの情報を構築する
 		ResolvedCameraView out{};
 		out.valid = true;
+		out.projectionMode = ResolvedProjectionMode::Orthographic;
 		out.sourceCamera = entity;
 		out.usesManualCamera = false;
 		out.cameraPos = transform.worldMatrix.GetTranslationValue();
@@ -64,6 +75,10 @@ namespace Engine::CameraViewProjection {
 		out.nearClip = camera.nearClip;
 		out.farClip = (std::max)(camera.farClip, out.nearClip + 0.001f);
 		out.cullingMask = static_cast<uint32_t>(camera.common.cullingMask);
+		out.postProcessEnabled = camera.common.postProcessEnabled;
+		out.volumeLayerMask = camera.common.volumeLayerMask;
+		out.volumeProfile = camera.common.volumeProfile;
+		out.renderExtension = camera.common.renderExtension;
 
 		out.matrices.inverseViewMatrix = transform.worldMatrix;
 		out.matrices.viewMatrix = camera.common.viewMatrix;
@@ -80,6 +95,8 @@ namespace Engine::CameraViewProjection {
 		// カメラコンポーネントから描画ビューの情報を構築する
 		ResolvedCameraView out{};
 		out.valid = true;
+		out.projectionMode = camera.projectionMode == CameraProjectionMode::Orthographic ?
+			ResolvedProjectionMode::Orthographic : ResolvedProjectionMode::Perspective;
 		out.sourceCamera = entity;
 		out.usesManualCamera = false;
 		out.cameraPos = transform.worldMatrix.GetTranslationValue();
@@ -87,6 +104,10 @@ namespace Engine::CameraViewProjection {
 		out.nearClip = (std::max)(camera.nearClip, 0.001f);
 		out.farClip = (std::max)(camera.farClip, out.nearClip + 0.001f);
 		out.cullingMask = static_cast<uint32_t>(camera.common.cullingMask);
+		out.postProcessEnabled = camera.common.postProcessEnabled;
+		out.volumeLayerMask = camera.common.volumeLayerMask;
+		out.volumeProfile = camera.common.volumeProfile;
+		out.renderExtension = camera.common.renderExtension;
 
 		out.matrices.inverseViewMatrix = transform.worldMatrix;
 		out.matrices.viewMatrix = camera.common.viewMatrix;
@@ -107,6 +128,7 @@ namespace Engine::CameraViewProjection {
 
 		// マニュアルカメラの状態から描画ビューの情報を構築する
 		out.valid = true;
+		out.projectionMode = ResolvedProjectionMode::Orthographic;
 		out.usesManualCamera = true;
 		out.cameraPos = state.transform2D.pos;
 		out.nearClip = state.orthoNearClip;
@@ -142,6 +164,7 @@ namespace Engine::CameraViewProjection {
 
 		// マニュアルカメラの状態から描画ビューの情報を構築する
 		out.valid = true;
+		out.projectionMode = ResolvedProjectionMode::Perspective;
 		out.usesManualCamera = true;
 		out.cameraPos = state.transform3D.pos;
 		out.nearClip = (std::max)(state.perspectiveNearClip, 0.001f);

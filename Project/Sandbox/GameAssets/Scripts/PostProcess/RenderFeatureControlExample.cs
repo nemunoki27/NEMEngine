@@ -31,8 +31,8 @@ public sealed class RenderFeatureControlExample : MonoBehaviour {
 	[SerializeField]
 	private float customComputeStrength = 1.0f;
 
-	private RenderFeaturePass shaderGraphPass;
-	private RenderFeaturePass customComputePass;
+	private RenderExtensionPass shaderGraphPass;
+	private RenderExtensionPass customComputePass;
 	private bool missingShaderGraphPassLogged = false;
 	private bool missingCustomComputePassLogged = false;
 
@@ -84,7 +84,7 @@ public sealed class RenderFeatureControlExample : MonoBehaviour {
 	//========================================================================
 	private void ResolvePass() {
 
-		shaderGraphPass = RenderFeatures.FindPass(passName);
+		shaderGraphPass = RenderExtensions.FindPass(passName);
 		if (shaderGraphPass.isValid) {
 			missingShaderGraphPassLogged = false;
 		} else if (!missingShaderGraphPassLogged) {
@@ -93,7 +93,7 @@ public sealed class RenderFeatureControlExample : MonoBehaviour {
 			missingShaderGraphPassLogged = true;
 		}
 
-		customComputePass = RenderFeatures.FindPass(customComputePassName);
+		customComputePass = RenderExtensions.FindPass(customComputePassName);
 		if (customComputePass.isValid) {
 			missingCustomComputePassLogged = false;
 		} else if (!missingCustomComputePassLogged) {

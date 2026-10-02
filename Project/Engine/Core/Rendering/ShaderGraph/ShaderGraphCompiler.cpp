@@ -2680,6 +2680,61 @@ namespace {
 		return source;
 	}
 
+	std::string BuildUnlitOutlinePixelSource(
+		ShaderGraphTarget target,
+		std::string_view surfaceIncludeFile,
+		const CompilerContext& context) {
+
+		const bool sprite = target == ShaderGraphTarget::Sprite;
+		std::string source =
+			"// Shader Graph generated Outline file\n";
+		source += sprite ?
+			"#include \"Builtin/Sprite/defaultSprite.hlsli\"\n" :
+			"#include \"Builtin/Primitive/primitive2D.hlsli\"\n";
+		source +=
+			"#include \"Builtin/ScreenSpaceOutline/Common/screenSpaceOutlineCommon.hlsli\"\n"
+			"SamplerState gSampler : register(s0);\n";
+		if (sprite) {
+			source +=
+				"struct PSInstance { float4x4 uvMatrix; };\n"
+				"StructuredBuffer<PSInstance> gPSInstances : register(t2);\n";
+		}
+		source += "#include \"" + std::string(surfaceIncludeFile) + "\"\n\n";
+		source += context.BuildMaterialConstantBuffer();
+		source += "\n" + context.BuildMaterialParameterGetter();
+		source +=
+			"\ncbuffer ScreenSpaceOutlineMaskConstantsBuffer : register(b1, space1) {\n\n"
+			"\tScreenSpaceOutlineMaskConstants gMaskConstants;\n"
+			"};\n\n"
+			"uint main(VSOutput input) : SV_Target0 {\n\n"
+			"\tif (gMaskConstants.styleID == 0u) { discard; }\n"
+			"\tShaderGraphSurfaceInput graphInput;\n";
+		if (sprite) {
+			source +=
+				"\tPSInstance instance = gPSInstances[input.instanceID];\n"
+				"\tgraphInput.uv = mul(float4(input.texcoord, 0.0f, 1.0f), instance.uvMatrix).xy;\n";
+		} else {
+			source +=
+				"\tgraphInput.uv = ResolvePrimitivePixelUV(input.texcoord, input.uvCoordinates, input.ringParams, input.uvBasis);\n";
+		}
+		source +=
+			"\tgraphInput.worldNormal = float3(0.0f, 0.0f, -1.0f);\n"
+			"\tgraphInput.worldPosition = float3(0.0f, 0.0f, 0.0f);\n"
+			"\tgraphInput.objectPosition = float3(0.0f, 0.0f, 0.0f);\n"
+			"\tgraphInput.objectNormal = float3(0.0f, 0.0f, -1.0f);\n"
+			"\tgraphInput.objectTangent = float3(1.0f, 0.0f, 0.0f);\n"
+			"\tgraphInput.viewDirection = float3(0.0f, 0.0f, -1.0f);\n"
+			"\tgraphInput.screenPosition = input.position;\n"
+			"\tgraphInput.vertexColor = 1.0f.xxxx;\n"
+			"\tgraphInput.tangentToWorld = float3x3(1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);\n"
+			"\tShaderGraphSurface graph = EvaluateShaderGraphSurface(graphInput, GetShaderGraphParameters());\n"
+			"\tfloat alpha = graph.baseColor.a * graph.opacity;\n"
+			"\tclip(alpha - max(graph.alphaClip, gMaskConstants.alphaThreshold));\n"
+			"\treturn gMaskConstants.styleID;\n"
+			"}\n";
+		return source;
+	}
+
 	std::string BuildRayTracingEffectSource(
 		const ShaderGraphAsset& graph,
 		CompilerContext& context) {
@@ -3052,8 +3107,14 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(
 			BuildPixelSource(
 				expandedGraph, surfaceIncludeFile, context, false);
 		output.transparentPixelHLSL =
-			BuildPixelSource(
-				expandedGraph, surfaceIncludeFile, context, true);
+				BuildPixelSource(
+					expandedGraph, surfaceIncludeFile, context, true);
+		if (expandedGraph.target == ShaderGraphTarget::Sprite ||
+			expandedGraph.target == ShaderGraphTarget::Primitive2D) {
+
+			output.outlinePixelHLSL = BuildUnlitOutlinePixelSource(
+				expandedGraph.target, surfaceIncludeFile, context);
+		}
 		if (IsShaderGraph3DTarget(expandedGraph.target)) {
 			output.rayTracingHLSL = BuildRayTracingSource(
 				surfaceIncludeFile, context);

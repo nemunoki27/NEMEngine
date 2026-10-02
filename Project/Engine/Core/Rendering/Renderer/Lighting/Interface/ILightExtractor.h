@@ -58,6 +58,8 @@ namespace Engine {
 			common.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 
 			common.affectLayerMask = component.affectLayerMask;
+			common.shadowLayerMask = component.useShadowLayerMask ?
+				component.shadowLayerMask : component.affectLayerMask;
 			if (sceneObject) {
 
 				common.affectLayerMask &= sceneObject->visibilityLayerMask;

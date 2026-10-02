@@ -170,7 +170,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 		if (it != skinnedBatchCache_.end()) {
 
 			resources = it->second.resources.get();
-			resources->UpdateView(*context.view, context.cullingView);
+			resources->UpdateView(*context.view, context.cullingView, context.lodView);
 			if (it->second.lastUploadFrame != frameIndex_ ||
 				it->second.transformRevision != context.batch->GetSourceTransformRevision() ||
 				!resources->MatchesBatch(*context.batch, outPrepared.items, *outPrepared.gpuMesh)) {
@@ -186,7 +186,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			SkinnedBatchCacheEntry entry{};
 			entry.resources = std::make_unique<MeshBatchResources>();
 			entry.resources->Init(graphicsCore);
-			entry.resources->UpdateView(*context.view, context.cullingView);
+			entry.resources->UpdateView(*context.view, context.cullingView, context.lodView);
 			entry.resources->UploadBatchData(context, *context.batch,
 				outPrepared.items, *outPrepared.gpuMesh);
 			entry.lastUsedFrame = frameIndex_;
@@ -202,7 +202,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			[](MeshBatchResources& resource, GraphicsCore& core) {
 				resource.Init(core);
 			});
-		acquired.UpdateView(*context.view, context.cullingView);
+		acquired.UpdateView(*context.view, context.cullingView, context.lodView);
 		acquired.UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
 		resources = &acquired;
 	} else {
@@ -219,7 +219,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 
 			resources = it->second.resources.get();
 			// SceneView/GameViewで行列が変わるため、キャッシュ済みでもView定数だけ更新する
-			resources->UpdateView(*context.view, context.cullingView);
+			resources->UpdateView(*context.view, context.cullingView, context.lodView);
 			const uint64_t renderRevision =
 				context.batch->GetSourceRenderRevision();
 			const uint64_t transformRevision =
@@ -243,7 +243,7 @@ bool Engine::MeshRenderBackend::PrepareBatchResources(const RenderDrawContext& c
 			StaticBatchCacheEntry entry{};
 			entry.resources = std::make_unique<MeshBatchResources>();
 			entry.resources->Init(graphicsCore);
-			entry.resources->UpdateView(*context.view, context.cullingView);
+			entry.resources->UpdateView(*context.view, context.cullingView, context.lodView);
 			entry.resources->UploadBatchData(context, *context.batch, outPrepared.items, *outPrepared.gpuMesh);
 			entry.lastUsedFrame = frameIndex_;
 			entry.renderRevision =

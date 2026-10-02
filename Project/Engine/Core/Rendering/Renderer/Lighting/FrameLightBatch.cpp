@@ -22,6 +22,8 @@ void Engine::PerViewLightSet::Clear() {
 
 	view = nullptr;
 	camera = nullptr;
+	sourceWorld = nullptr;
+	sourceWorldLifetime.reset();
 	sceneInstanceID = {};
 	sourceRevision = 0;
 	directionalLights.clear();

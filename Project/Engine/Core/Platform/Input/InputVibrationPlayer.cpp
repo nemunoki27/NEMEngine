@@ -139,7 +139,7 @@ void InputVibrationPlayer::ApplyVibration(uint16_t left, uint16_t right) {
 	XINPUT_VIBRATION vib{};
 	vib.wLeftMotorSpeed = left;
 	vib.wRightMotorSpeed = right;
-	XInputSetState(0, &vib);
+	XInputSetState(gamepadIndex_, &vib);
 }
 
 uint16_t InputVibrationPlayer::ToMotorSpeed(float v01) {

@@ -8,8 +8,10 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderExtensionAsset.h>
+#include <Engine/Core/Rendering/Volumes/VolumeProfileAsset.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
@@ -35,8 +37,9 @@ namespace Engine {
 		case ProjectAssetFileKind::Shader: return ".shader.json";
 		case ProjectAssetFileKind::RenderPipeline: return ".pipeline.json";
 		case ProjectAssetFileKind::ShaderGraph: return ".shadergraph.json";
-		case ProjectAssetFileKind::RenderFeatureProfile:
-			return ".renderFeatureProfile.json";
+		case ProjectAssetFileKind::VolumeProfile: return ".volumeprofile.json";
+		case ProjectAssetFileKind::RenderExtension: return ".renderextension.json";
+		case ProjectAssetFileKind::RenderTexture: return ".renderTexture.json";
 		case ProjectAssetFileKind::Folder:
 		default: break;
 		}
@@ -84,7 +87,6 @@ namespace Engine {
 				"  \"ExternalActors\": [],\n"
 				"  \"Header\": {{\n"
 				"    \"name\": \"{}\",\n"
-				"    \"renderFeatureProfile\": \"\",\n"
 				"    \"subScenes\": []\n"
 				"  }},\n"
 				"  \"PrefabInstances\": [],\n"
@@ -137,13 +139,20 @@ namespace Engine {
 			// 新規グラフは標準PBRノードを接続済みの状態で作成する
 			return JsonAdapter::SerializeCanonical(
 				ToJson(CreateDefaultSurfaceShaderGraph(assetName)), 2);
-		case ProjectAssetFileKind::RenderFeatureProfile:
+		case ProjectAssetFileKind::VolumeProfile:
 		{
-			RenderFeatureProfileAsset profile{};
+			VolumeProfileAsset profile{};
 			profile.name = assetName;
-			return JsonAdapter::SerializeCanonical(
-				RenderFeatureProfileSerializer::ToJson(profile), 2);
+			return JsonAdapter::SerializeCanonical(ToJson(profile), 2);
 		}
+		case ProjectAssetFileKind::RenderExtension:
+		{
+			RenderExtensionAsset extension{};
+			extension.name = assetName;
+			return JsonAdapter::SerializeCanonical(ToJson(extension), 2);
+		}
+		case ProjectAssetFileKind::RenderTexture:
+			return JsonAdapter::SerializeCanonical(ToJson(RenderTextureAsset{}), 2);
 		case ProjectAssetFileKind::Text: return "";
 		case ProjectAssetFileKind::Folder:
 		default: break;

@@ -28,6 +28,10 @@ void Engine::from_json(const nlohmann::json& in, InvertedHullOutlineComponent& c
 	component.bakedNormalTexture = ParseAssetID(in, "bakedNormalTexture");
 	component.useOutlineSampler = in.value("useOutlineSampler", component.useOutlineSampler);
 	component.outlineSamplerTexture = ParseAssetID(in, "outlineSamplerTexture");
+	component.respectMaterialSurface = in.value(
+		"respectMaterialSurface", component.respectMaterialSurface);
+	component.alphaThreshold = std::clamp(
+		in.value("alphaThreshold", component.alphaThreshold), 0.0f, 1.0f);
 	component.useStencil = in.value("useStencil", component.useStencil);
 }
 
@@ -43,5 +47,7 @@ void Engine::to_json(nlohmann::json& out, const InvertedHullOutlineComponent& co
 	out["bakedNormalTexture"] = ToAssetReferenceJson(component.bakedNormalTexture);
 	out["useOutlineSampler"] = component.useOutlineSampler;
 	out["outlineSamplerTexture"] = ToAssetReferenceJson(component.outlineSamplerTexture);
+	out["respectMaterialSurface"] = component.respectMaterialSurface;
+	out["alphaThreshold"] = component.alphaThreshold;
 	out["useStencil"] = component.useStencil;
 }

@@ -362,6 +362,31 @@
       "nativeType": "GetNativeBoolCallback",
       "managedType": "delegate* unmanaged[Cdecl]<int>"
     },
+	{
+	  "name": "getPlayerGamepadIndex",
+	  "nativeType": "PlayerIndexCallback",
+	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+	},
+	{
+	  "name": "getPlayerKeyboardMouseEnabled",
+	  "nativeType": "PlayerIndexCallback",
+	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+	},
+	{
+	  "name": "getPlayerInputAvailable",
+	  "nativeType": "PlayerIndexCallback",
+	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+	},
+	{
+	  "name": "playPlayerVibration",
+	  "nativeType": "InputPlayVibrationCallback",
+	  "managedType": "delegate* unmanaged[Cdecl]<int, float, float, float, float, float, uint>"
+	},
+	{
+	  "name": "stopPlayerVibration",
+	  "nativeType": "InputStopVibrationCallback",
+	  "managedType": "delegate* unmanaged[Cdecl]<int, uint, void>"
+	},
     {
       "name": "getHasFocus",
       "nativeType": "GetNativeBoolCallback",
@@ -645,12 +670,22 @@
     {
       "name": "physicsRaycast",
       "nativeType": "PhysicsRaycastCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*, int>"
     },
     {
       "name": "physicsRaycastAll",
       "nativeType": "PhysicsRaycastAllCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int>"
+      "managedType": "delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*, int, int>"
+    },
+    {
+      "name": "getQueriesHitTriggers",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
+    },
+    {
+      "name": "setQueriesHitTriggers",
+      "nativeType": "SetNativeIntCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, void>"
     },
     {
       "name": "screenPointToRay",
@@ -714,8 +749,8 @@
     },
     {
       "name": "getUIBlocksGameplayInput",
-      "nativeType": "GetNativeBoolCallback",
-      "managedType": "delegate* unmanaged[Cdecl]<int>"
+	  "nativeType": "PlayerIndexCallback",
+	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
     },
     {
       "name": "getUISelectableRuntimeState",

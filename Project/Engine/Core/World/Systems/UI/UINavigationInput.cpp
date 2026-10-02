@@ -32,15 +32,16 @@
 namespace Engine::UINavigationInput {
 
 	bool IsBindingTriggered(Engine::Input& input, std::span<const Engine::CanvasInputBinding> bindings,
-		Engine::CanvasInputAction action, Engine::CanvasInputDevice device) {
+		Engine::CanvasInputAction action, Engine::CanvasInputDevice device, uint32_t playerIndex) {
 
 		for (const Engine::CanvasInputBinding& binding : bindings) {
 			if (binding.action != action || binding.device != device) {
 				continue;
 			}
 			const bool triggered = device == Engine::CanvasInputDevice::Keyboard ?
-				input.TriggerKey(static_cast<BYTE>(binding.code)) : input.TriggerGamepadButton(
-					static_cast<GamePadButtons>(binding.code));
+				(input.IsPlayerKeyboardMouseEnabled(playerIndex) &&
+					input.TriggerKey(static_cast<BYTE>(binding.code))) :
+				input.GamepadButtonDownByIndex(input.GetPlayerGamepadIndex(playerIndex), binding.code);
 			if (triggered) {
 				return true;
 			}
@@ -49,15 +50,16 @@ namespace Engine::UINavigationInput {
 	}
 
 	bool IsBindingHeld(Engine::Input& input, std::span<const Engine::CanvasInputBinding> bindings,
-		Engine::CanvasInputAction action, Engine::CanvasInputDevice device) {
+		Engine::CanvasInputAction action, Engine::CanvasInputDevice device, uint32_t playerIndex) {
 
 		for (const Engine::CanvasInputBinding& binding : bindings) {
 			if (binding.action != action || binding.device != device) {
 				continue;
 			}
 			const bool held = device == Engine::CanvasInputDevice::Keyboard ?
-				input.PushKey(static_cast<BYTE>(binding.code)) : input.PushGamepadButton(
-					static_cast<GamePadButtons>(binding.code));
+				(input.IsPlayerKeyboardMouseEnabled(playerIndex) &&
+					input.PushKey(static_cast<BYTE>(binding.code))) :
+				input.GamepadButtonByIndex(input.GetPlayerGamepadIndex(playerIndex), binding.code);
 			if (held) {
 				return true;
 			}
@@ -70,34 +72,34 @@ namespace Engine::UINavigationInput {
 
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingTriggered(input, bindings,
-				Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingTriggered(input, bindings,
-					Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(0.0f, -1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingTriggered(input, bindings,
-				Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingTriggered(input, bindings,
-					Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(0.0f, 1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingTriggered(input, bindings,
-				Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingTriggered(input, bindings,
-					Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(-1.0f, 0.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingTriggered(input, bindings,
-				Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingTriggered(input, bindings,
-					Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(1.0f, 0.0f);
 		}
 		return {};
@@ -108,39 +110,42 @@ namespace Engine::UINavigationInput {
 
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingHeld(input, bindings,
-				Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingHeld(input, bindings,
-					Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Up, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(0.0f, -1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingHeld(input, bindings,
-				Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingHeld(input, bindings,
-					Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Down, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(0.0f, 1.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingHeld(input, bindings,
-				Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingHeld(input, bindings,
-					Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Left, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(-1.0f, 0.0f);
 		}
 		if ((canvas.keyboardInputEnabled &&
 			IsBindingHeld(input, bindings,
-				Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingHeld(input, bindings,
-					Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Gamepad))) {
+					Engine::CanvasInputAction::Right, Engine::CanvasInputDevice::Gamepad, canvas.playerIndex))) {
 			return Engine::Vector2(1.0f, 0.0f);
 		}
 
+		const int32_t gamepadIndex = input.GetPlayerGamepadIndex(canvas.playerIndex);
 		const Engine::Vector2 stick = canvas.gamepadInputEnabled &&
-			canvas.gamepadLeftStickEnabled ? input.GetLeftStickVal() : Engine::Vector2{};
+			canvas.gamepadLeftStickEnabled ? Engine::Vector2(
+				input.GamepadAxisByIndex(gamepadIndex, 0),
+				input.GamepadAxisByIndex(gamepadIndex, 1)) : Engine::Vector2{};
 		if (canvas.stickThreshold <= std::abs(stick.x) ||
 			canvas.stickThreshold <= std::abs(stick.y)) {
 			return std::abs(stick.x) > std::abs(stick.y) ?
@@ -156,11 +161,11 @@ namespace Engine::UINavigationInput {
 		return (canvas.keyboardInputEnabled &&
 			IsBindingTriggered(input, bindings,
 				Engine::CanvasInputAction::Submit,
-				Engine::CanvasInputDevice::Keyboard)) ||
+				Engine::CanvasInputDevice::Keyboard, canvas.playerIndex)) ||
 			(canvas.gamepadInputEnabled &&
 				IsBindingTriggered(input, bindings,
 					Engine::CanvasInputAction::Submit,
-					Engine::CanvasInputDevice::Gamepad));
+					Engine::CanvasInputDevice::Gamepad, canvas.playerIndex));
 	}
 
 	void ResetCanvasInputRuntime(Engine::CanvasRuntimeComponent& runtime) {

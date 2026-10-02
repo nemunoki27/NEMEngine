@@ -103,6 +103,25 @@ internal static unsafe class NativeInputAPI {
 
     internal static int ReadConnectedGamepadCount() => GetConnectedGamepadCount != null ? GetConnectedGamepadCount() : 0;
 
+	internal static int ReadPlayerGamepadIndex(int playerIndex) =>
+		GetPlayerGamepadIndex != null ? GetPlayerGamepadIndex(playerIndex) : playerIndex;
+
+	internal static bool ReadPlayerKeyboardMouseEnabled(int playerIndex) =>
+		GetPlayerKeyboardMouseEnabled != null && GetPlayerKeyboardMouseEnabled(playerIndex) != 0;
+
+	internal static bool ReadPlayerInputAvailable(int playerIndex) =>
+		GetPlayerInputAvailable != null && GetPlayerInputAvailable(playerIndex) != 0;
+
+	internal static uint PlayPlayerVibration(int playerIndex, float left, float right,
+		float duration, float attack, float release) => NativeAPI.PlayPlayerVibration != null ?
+		NativeAPI.PlayPlayerVibration(playerIndex, left, right, duration, attack, release) : 0;
+
+	internal static void StopPlayerVibration(int playerIndex, uint handle) {
+		if (NativeAPI.StopPlayerVibration != null) {
+			NativeAPI.StopPlayerVibration(playerIndex, handle);
+		}
+	}
+
     internal static string ReadTextInput() {
         if (CopyTextInput == null) {
             return string.Empty;

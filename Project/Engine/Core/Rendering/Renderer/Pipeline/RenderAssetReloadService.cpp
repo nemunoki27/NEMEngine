@@ -190,9 +190,12 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 		ReloadPipeline(assetID);
 		return;
 	}
-	if (meta->type == AssetType::RenderFeatureProfile) {
-		renderAssetLibrary_.InvalidateRenderFeatureProfile(assetID);
-		RenderFeatureProfileService::GetInstance().Reload();
+	if (meta->type == AssetType::RenderExtension) {
+		renderAssetLibrary_.InvalidateRenderExtension(assetID);
+		return;
+	}
+	if (meta->type == AssetType::VolumeProfile) {
+		renderAssetLibrary_.InvalidateVolumeProfile(assetID);
 		return;
 	}
 	if (meta->type == AssetType::Font) {
@@ -230,6 +233,7 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 				artifact.transparentShaderID,
 				artifact.depthShaderID,
 				artifact.pickingShaderID,
+				artifact.outlineShaderID,
 				artifact.computeShaderID,
 				artifact.rayTracingShaderID,
 			};
@@ -248,6 +252,8 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.pickingShader));
 			renderAssetLibrary_.RegisterDerivedShader(
+				std::move(artifact.outlineShader));
+			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.computeShader));
 			renderAssetLibrary_.RegisterDerivedShader(
 				std::move(artifact.rayTracingShader));
@@ -259,6 +265,8 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 				std::move(artifact.depthPipeline));
 			renderAssetLibrary_.RegisterDerivedPipeline(
 				std::move(artifact.pickingPipeline));
+			renderAssetLibrary_.RegisterDerivedPipeline(
+				std::move(artifact.outlinePipeline));
 			renderAssetLibrary_.RegisterDerivedPipeline(
 				std::move(artifact.computePipeline));
 			renderAssetLibrary_.RegisterDerivedPipeline(

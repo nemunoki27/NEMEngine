@@ -21,12 +21,14 @@ namespace Engine {
 		AssetID transparentShaderID{};
 		AssetID depthShaderID{};
 		AssetID pickingShaderID{};
+		AssetID outlineShaderID{};
 		AssetID computeShaderID{};
 		AssetID rayTracingShaderID{};
 		AssetID opaquePipelineID{};
 		AssetID transparentPipelineID{};
 		AssetID depthPipelineID{};
 		AssetID pickingPipelineID{};
+		AssetID outlinePipelineID{};
 		AssetID computePipelineID{};
 		AssetID rayTracingPipelineID{};
 		std::filesystem::path root;
@@ -35,6 +37,7 @@ namespace Engine {
 		std::filesystem::path transparentPixelPath;
 		std::filesystem::path depthPixelPath;
 		std::filesystem::path pickingPixelPath;
+		std::filesystem::path outlinePixelPath;
 		std::filesystem::path vertexPath;
 		std::filesystem::path meshPath;
 		std::filesystem::path computePath;
@@ -43,12 +46,14 @@ namespace Engine {
 		ShaderAsset transparentShader{};
 		ShaderAsset depthShader{};
 		ShaderAsset pickingShader{};
+		ShaderAsset outlineShader{};
 		ShaderAsset computeShader{};
 		ShaderAsset rayTracingShader{};
 		RenderPipelineAsset opaquePipeline{};
 		RenderPipelineAsset transparentPipeline{};
 		RenderPipelineAsset depthPipeline{};
 		RenderPipelineAsset pickingPipeline{};
+		RenderPipelineAsset outlinePipeline{};
 		RenderPipelineAsset computePipeline{};
 		RenderPipelineAsset rayTracingPipeline{};
 		ShaderGraphCompileOutput compileOutput{};

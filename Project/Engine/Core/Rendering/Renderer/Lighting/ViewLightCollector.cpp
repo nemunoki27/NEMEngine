@@ -52,6 +52,8 @@ void Engine::ViewLightCollector::CollectForView(const FrameLightBatch& batch, co
 	// 出力セットを初期化
 	outSet.Clear();
 	outSet.view = &view;
+	outSet.sourceWorld = batch.GetSourceWorld();
+	outSet.sourceWorldLifetime = batch.GetSourceWorldLifetime();
 	outSet.sceneInstanceID =
 		sceneInstance ? sceneInstance->instanceID : UUID{};
 	outSet.sourceRevision = batch.GetSourceRevision();

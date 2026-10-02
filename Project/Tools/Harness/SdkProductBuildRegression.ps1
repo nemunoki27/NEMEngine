@@ -145,6 +145,8 @@ try {
         projectGuid = $descriptor.projectGuid
         startupScene = $sceneGUID
         startupFullscreen = $false
+		gameWidth = 1280
+		gameHeight = 720
         packages = @()
         files = $files
         cookHash = "sdk-product-build-regression"

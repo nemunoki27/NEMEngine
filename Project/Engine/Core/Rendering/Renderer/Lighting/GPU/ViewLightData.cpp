@@ -35,6 +35,12 @@ namespace {
 			sizeof(lightSet.view->width));
 		hash = HashBytes(hash, &lightSet.view->height,
 			sizeof(lightSet.view->height));
+		hash = HashBytes(hash, &lightSet.sourceWorld,
+			sizeof(lightSet.sourceWorld));
+		const Engine::ECSWorldLifetime* sourceLifetime =
+			lightSet.sourceWorldLifetime.get();
+		hash = HashBytes(hash, &sourceLifetime,
+			sizeof(sourceLifetime));
 		hash = HashBytes(hash, &lightSet.camera->matrices.viewMatrix,
 			sizeof(lightSet.camera->matrices.viewMatrix));
 		hash = HashBytes(hash, &lightSet.camera->matrices.projectionMatrix,

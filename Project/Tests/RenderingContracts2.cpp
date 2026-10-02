@@ -391,8 +391,8 @@ namespace NEMTests {
 		world.AddComponent<ScreenSpaceOutlineComponent>(entity);
 		const ManagedNativeEntity native = MakeNativeEntity(world, entity);
 		constexpr int32_t typeID = 24;
-		constexpr int32_t colorProperty = 0;
-		constexpr int32_t enabledProperty = 1;
+		constexpr int32_t enabledProperty = 0;
+		constexpr int32_t colorProperty = 1;
 		bool passed = true;
 
 		for (float alpha : { 1.0f, 0.5f, 0.0f, 1.0f }) {

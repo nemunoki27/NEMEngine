@@ -61,8 +61,9 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 	case ProjectAssetFileKind::Shader: return "Shader";
 	case ProjectAssetFileKind::RenderPipeline: return "Render Pipeline";
 	case ProjectAssetFileKind::ShaderGraph: return "Shader Graph";
-	case ProjectAssetFileKind::RenderFeatureProfile:
-		return "Render Feature Profile";
+	case ProjectAssetFileKind::VolumeProfile: return "Volume Profile";
+	case ProjectAssetFileKind::RenderExtension: return "Render Extension";
+	case ProjectAssetFileKind::RenderTexture: return "Render Texture";
 	}
 	return "Asset";
 }
@@ -80,8 +81,9 @@ const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind
 	case ProjectAssetFileKind::Shader: return "NewShader";
 	case ProjectAssetFileKind::RenderPipeline: return "NewPipeline";
 	case ProjectAssetFileKind::ShaderGraph: return "NewShaderGraph";
-	case ProjectAssetFileKind::RenderFeatureProfile:
-		return "NewRenderFeatureProfile";
+	case ProjectAssetFileKind::VolumeProfile: return "NewVolumeProfile";
+	case ProjectAssetFileKind::RenderExtension: return "NewRenderExtension";
+	case ProjectAssetFileKind::RenderTexture: return "NewRenderTexture";
 	}
 	return "NewAsset";
 }

@@ -31,6 +31,7 @@ namespace Engine {
 		float friction = 0.4f;
 		// 角速度の減衰率
 		float angularDamping = 0.05f;
+		CollisionDetectionMode collisionDetection = CollisionDetectionMode::Discrete;
 		// Z軸まわりの角速度、rad/s
 		float angularVelocity = 0.0f;
 
@@ -48,6 +49,8 @@ namespace Engine {
 		Vector2 accumulatedForce = Vector2::AnyInit(0.0f);
 		// このステップで適用する蓄積トルク、Z軸まわり、保存しない
 		float accumulatedTorque = 0.0f;
+		Vector3 previousWorldPosition = Vector3::AnyInit(0.0f);
+		bool hasPreviousWorldPosition = false;
 	};
 
 	// jsonからコンポーネントへ変換する

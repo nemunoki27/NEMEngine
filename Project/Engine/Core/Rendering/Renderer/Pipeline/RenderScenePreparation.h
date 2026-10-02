@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/FrameLightBatch.h>
 #include <unordered_set>
+#include <span>
 
 namespace Engine {
 
@@ -33,7 +34,8 @@ namespace Engine {
 			RenderAssetReloadService* materialStates);
 		// Viewに必要なMeshを要求する
 		void RequestMeshes(GraphicsCore& graphicsCore, AssetDatabase* assetDatabase, MeshRenderBackend* meshBackend,
-			const SceneInstance* activeScene, const ResolvedRenderView& gameView, const ResolvedRenderView& sceneView);
+			const SceneInstance* activeScene, std::span<const ResolvedRenderView> gameViews,
+			const ResolvedRenderView& sceneView);
 	private:
 		//========================================================================
 		//	private Methods

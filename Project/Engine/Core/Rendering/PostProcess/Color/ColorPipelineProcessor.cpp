@@ -162,7 +162,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	}
 
 	const bool drawn = DrawToneMap(graphicsCore, *source, *dest,
-		assetLibrary, pipelineCache, state, allocation.gpuAddress);
+		assetLibrary, pipelineCache, state, allocation.gpuAddress, context);
 	if (drawn) {
 		dest->TransitionForShaderRead(
 			*graphicsCore.GetDXObject().GetDxCommand());
@@ -368,7 +368,8 @@ bool Engine::ColorPipelineProcessor::DrawToneMap(
 	GraphicsCore& graphicsCore, MultiRenderTarget& source,
 	MultiRenderTarget& dest, RenderAssetLibrary& assetLibrary,
 	PipelineStateCache& pipelineCache, ViewExposureState& state,
-	D3D12_GPU_VIRTUAL_ADDRESS constantsAddress) {
+	D3D12_GPU_VIRTUAL_ADDRESS constantsAddress,
+	const SceneExecutionContext& context) {
 
 	const MaterialAsset* material = assetLibrary.LoadMaterial(
 		BuiltinAssets::Materials::ToneMapToView);
@@ -411,6 +412,10 @@ bool Engine::ColorPipelineProcessor::DrawToneMap(
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	if (!BindColorTargetsOnly(graphicsCore, dest)) {
 		return false;
+	}
+	if (context.useViewportRect && context.viewportWidth > 0 && context.viewportHeight > 0) {
+		dxCommand->SetViewportAndScissor(context.viewportX, context.viewportY,
+			context.viewportWidth, context.viewportHeight);
 	}
 	dxCommand->SetDescriptorHeaps({
 		graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });

@@ -59,6 +59,55 @@ namespace Engine::UIElementSelection {
 		return Engine::Vector2(center.x, center.y);
 	}
 
+	Engine::UISelectableEntry* FindPointerEntry(Engine::ECSWorld& world,
+		std::vector<Engine::UISelectableEntry>& entries, const Engine::Vector2& screenPosition) {
+
+		UISelectableEntry* hit = nullptr;
+		int32_t hitSortingLayer = (std::numeric_limits<int32_t>::min)();
+		int32_t hitOrder = (std::numeric_limits<int32_t>::min)();
+		uint32_t hitHierarchyOrder = 0;
+		for (UISelectableEntry& entry : entries) {
+
+			if (!entry.selectable->interactable || !entry.element) {
+				continue;
+			}
+			Vector2 size{};
+			Vector2 pivot{};
+			if (const auto* sprite = world.TryGetComponent<SpriteRendererComponent>(entry.entity)) {
+				size = sprite->size;
+				pivot = sprite->pivot;
+			} else if (const auto* text = world.TryGetComponent<TextRendererComponent>(entry.entity)) {
+				const auto* layout = world.TryGetComponent<TextLayoutRuntimeComponent>(entry.entity);
+				if (!layout) {
+					continue;
+				}
+				size = layout->boundsSize;
+				pivot = text->pivot;
+			} else {
+				continue;
+			}
+
+			// 画面座標をUIのローカル矩形へ戻す
+			const Vector3 local = Vector3::Transform(Vector3(screenPosition.x, screenPosition.y, 0.0f),
+				Matrix4x4::Inverse(entry.element->screenMatrix));
+			const Vector2 rectMin(-pivot.x * size.x, -pivot.y * size.y);
+			const Vector2 rectMax = rectMin + size;
+			if (local.x < rectMin.x || rectMax.x < local.x || local.y < rectMin.y || rectMax.y < local.y) {
+				continue;
+			}
+			if (!hit || hitSortingLayer < entry.element->canvasSortingLayer ||
+				(hitSortingLayer == entry.element->canvasSortingLayer && hitOrder < entry.element->canvasOrder) ||
+				(hitSortingLayer == entry.element->canvasSortingLayer && hitOrder == entry.element->canvasOrder &&
+					hitHierarchyOrder <= entry.element->hierarchyOrder)) {
+				hit = &entry;
+				hitSortingLayer = entry.element->canvasSortingLayer;
+				hitOrder = entry.element->canvasOrder;
+				hitHierarchyOrder = entry.element->hierarchyOrder;
+			}
+		}
+		return hit;
+	}
+
 	UISelectableEntry* FindEntryByLocalFileID(Engine::ECSWorld& world,
 		std::vector<UISelectableEntry>& entries, Engine::Entity canvas, Engine::UUID localFileID) {
 

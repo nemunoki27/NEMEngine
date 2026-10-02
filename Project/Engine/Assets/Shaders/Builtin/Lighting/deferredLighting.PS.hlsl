@@ -32,7 +32,7 @@ struct DirectionalLight {
 	float shadowStrength;
 	float shadowAngularRadius;
 	uint affectLayerMask;
-	uint _pad1;
+	uint shadowLayerMask;
 };
 // 点光源
 struct PointLight {
@@ -48,7 +48,8 @@ struct PointLight {
 	float shadowRadius;
 
 	uint affectLayerMask;
-	uint3 _pad1;
+	uint shadowLayerMask;
+	uint2 _pad1;
 };
 // スポットライト
 struct SpotLight {
@@ -68,7 +69,8 @@ struct SpotLight {
 
 	float shadowRadius;
 	uint affectLayerMask;
-	uint2 _pad0;
+	uint shadowLayerMask;
+	uint _pad0;
 };
 // 矩形面光源
 struct RectLight {
@@ -93,7 +95,8 @@ struct RectLight {
 	float shadowStrength;
 
 	uint affectLayerMask;
-	uint3 _pad0;
+	uint shadowLayerMask;
+	uint2 _pad0;
 };
 // ライト数
 cbuffer LightCounts : register(b0) {
@@ -146,6 +149,7 @@ cbuffer DeferredLightingConstants : register(b1) {
 
 	float4x4 inverseViewProjection;
 	float4x4 viewMatrix;
+	float4x4 viewProjectionMatrix;
 
 	float4 skyboxColor;
 
@@ -161,8 +165,19 @@ cbuffer DeferredLightingConstants : register(b1) {
 	float iblIntensity;
 
 	uint softShadowSampleCount;
-	uint3 _lightingPad0;
+	uint shadowMapAvailable;
+	uint shadowMapLightIndex;
+	uint reflectionFeatureActive;
+
+	float4x4 shadowViewProjections[4];
+	float4 shadowCascadeSplits;
+	float4 shadowDepthRanges;
 };
+
+Texture2D<float> gDirectionalShadowMap0 : register(t13);
+Texture2D<float> gDirectionalShadowMap1 : register(t14);
+Texture2D<float> gDirectionalShadowMap2 : register(t15);
+Texture2D<float> gDirectionalShadowMap3 : register(t16);
 
 // 無効キューブマップインデックス
 static const uint kNoCubemap = 0xFFFFFFFF;
@@ -504,6 +519,7 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	float3 L = toLight / dist;
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
+		DoesDeferredLightAffectRenderingLayer(light.shadowLayerMask, flags) &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
 			light.shadowRadius, pixel, lightIndex);
@@ -544,6 +560,7 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	}
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
+		DoesDeferredLightAffectRenderingLayer(light.shadowLayerMask, flags) &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
 			light.shadowRadius, pixel, pointCount + lightIndex);
@@ -572,6 +589,7 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
+		DoesDeferredLightAffectRenderingLayer(light.shadowLayerMask, flags) &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 
 		float occlusion = TraceRectShadow(
@@ -653,6 +671,405 @@ float3 SampleBackground(float2 texcoord) {
 	return cubemap.SampleLevel(gSampler, direction, 0.0f).rgb * skyboxColor.rgb;
 }
 
+bool ProjectScreenSpaceSample(float3 samplePos, out float2 uv,
+	out float sampleDepth) {
+
+	float4 clip = mul(float4(samplePos, 1.0f), viewProjectionMatrix);
+	uv = 0.0f.xx;
+	sampleDepth = 0.0f;
+	if (clip.w <= 0.0f) {
+		return false;
+	}
+	uv = float2(
+		clip.x / clip.w * 0.5f + 0.5f,
+		0.5f - clip.y / clip.w * 0.5f);
+	if (any(uv <= 0.0f.xx) || any(1.0f.xx <= uv)) {
+		return false;
+	}
+	sampleDepth = mul(float4(samplePos, 1.0f), viewMatrix).z;
+	return true;
+}
+
+bool LoadScreenSpaceDepthDelta(float2 uv, float sampleDepth,
+	out float depthDelta) {
+
+	uint2 hitPixel = min(uint2(uv * viewportSize), viewportSize - 1u);
+	depthDelta = 0.0f;
+	if ((gFlags.Load(int3(hitPixel, 0)) & kMaterialFlagSurface) == 0u) {
+		return false;
+	}
+	float3 hitPos = gWorldPos.Load(int3(hitPixel, 0)).xyz;
+	float hitDepth = mul(float4(hitPos, 1.0f), viewMatrix).z;
+	depthDelta = sampleDepth - hitDepth;
+	return true;
+}
+
+float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
+	float3 N, float3 V, float3 albedo, float metallic,
+	float roughness, float ao, float3 emissive, uint flags,
+	bool useShadow);
+
+// 粗いMarchで見つけた交差区間を二分探索して縞状の欠落を防ぐ
+bool TraceScreenSpaceReflection(float3 worldPos, float3 direction,
+	bool useShadow,
+	out float3 reflectionColor) {
+
+	reflectionColor = 0.0f.xxx;
+	float distance = 0.2f;
+	float previousDistance = 0.0f;
+	float previousDepthDelta = 0.0f;
+	bool previousSurface = false;
+	[loop]
+	for (uint step = 0u; step < 32u; ++step) {
+
+		float3 samplePos = worldPos + direction * distance;
+		float2 uv;
+		float sampleDepth;
+		if (!ProjectScreenSpaceSample(samplePos, uv, sampleDepth)) {
+			return false;
+		}
+		float depthDelta;
+		const bool surface = LoadScreenSpaceDepthDelta(
+			uv, sampleDepth, depthDelta);
+		if (surface && 0.0f <= depthDelta) {
+
+			float2 hitUV = uv;
+			float hitDepthDelta = depthDelta;
+			if (previousSurface && previousDepthDelta < 0.0f) {
+
+				float lowerDistance = previousDistance;
+				float upperDistance = distance;
+				[unroll]
+				for (uint refinement = 0u; refinement < 6u; ++refinement) {
+
+					const float middleDistance =
+						(lowerDistance + upperDistance) * 0.5f;
+					const float3 middlePos =
+						worldPos + direction * middleDistance;
+					float2 middleUV;
+					float middleDepth;
+					float middleDepthDelta;
+					const bool middleProjected = ProjectScreenSpaceSample(
+						middlePos, middleUV, middleDepth);
+					const bool middleSurface = middleProjected &&
+						LoadScreenSpaceDepthDelta(
+							middleUV, middleDepth, middleDepthDelta);
+					if (middleSurface && 0.0f <= middleDepthDelta) {
+
+						upperDistance = middleDistance;
+						hitUV = middleUV;
+						hitDepthDelta = middleDepthDelta;
+					} else {
+
+						lowerDistance = middleDistance;
+					}
+				}
+			}
+
+			const float thickness = max(0.08f, distance * 0.015f);
+			if (hitDepthDelta <= thickness * 2.0f) {
+
+				int2 hitPixel = min(
+					int2(hitUV * viewportSize), int2(viewportSize) - 1);
+				uint hitFlags = gFlags.Load(int3(hitPixel, 0));
+				float3 hitAlbedo = gAlbedo.Load(int3(hitPixel, 0)).rgb;
+				float3 hitNormal = normalize(
+					gNormal.Load(int3(hitPixel, 0)).xyz * 2.0f - 1.0f);
+				float3 hitWorldPos =
+					gWorldPos.Load(int3(hitPixel, 0)).xyz;
+				float4 hitMaterial = gMaterial.Load(int3(hitPixel, 0));
+				float3 hitEmissive =
+					gEmissive.Load(int3(hitPixel, 0)).rgb;
+				reflectionColor = EvaluateSurfaceLighting(
+					hitPixel, hitWorldPos, hitNormal, normalize(-direction),
+					hitAlbedo, hitMaterial.r, max(hitMaterial.g, 0.04f),
+					hitMaterial.b, hitEmissive, hitFlags, useShadow);
+				return true;
+			}
+		}
+		previousSurface = surface;
+		previousDistance = distance;
+		previousDepthDelta = depthDelta;
+		distance += 0.12f + distance * 0.08f;
+	}
+	return false;
+}
+
+// 非RT環境では画面内のGBufferを使って平行光源の遮蔽を補う
+float TraceScreenSpaceShadow(float3 worldPos, float3 direction) {
+
+	float distance = 0.12f;
+	[loop]
+	for (uint step = 0u; step < 32u; ++step) {
+
+		float3 samplePos = worldPos + direction * distance;
+		float4 clip = mul(float4(samplePos, 1.0f), viewProjectionMatrix);
+		if (clip.w <= 0.0f) {
+			return 0.0f;
+		}
+		float2 uv = float2(
+			clip.x / clip.w * 0.5f + 0.5f,
+			0.5f - clip.y / clip.w * 0.5f);
+		if (any(uv <= 0.0f.xx) || any(1.0f.xx <= uv)) {
+			return 0.0f;
+		}
+
+		uint2 hitPixel = min(uint2(uv * viewportSize), viewportSize - 1u);
+		if ((gFlags.Load(int3(hitPixel, 0)) & kMaterialFlagSurface) != 0u) {
+
+			float3 hitPos = gWorldPos.Load(int3(hitPixel, 0)).xyz;
+			float sampleDepth = mul(float4(samplePos, 1.0f), viewMatrix).z;
+			float hitDepth = mul(float4(hitPos, 1.0f), viewMatrix).z;
+			float thickness = max(0.08f, distance * 0.02f);
+			if (0.0f <= sampleDepth - hitDepth && sampleDepth - hitDepth <= thickness) {
+				return 1.0f;
+			}
+		}
+		distance += 0.12f + distance * 0.08f;
+	}
+	return 0.0f;
+}
+
+float LoadDirectionalShadowDepth(uint cascade, int2 pixel) {
+
+	if (cascade == 0u) return gDirectionalShadowMap0.Load(int3(pixel, 0));
+	if (cascade == 1u) return gDirectionalShadowMap1.Load(int3(pixel, 0));
+	if (cascade == 2u) return gDirectionalShadowMap2.Load(int3(pixel, 0));
+	return gDirectionalShadowMap3.Load(int3(pixel, 0));
+}
+
+// 指定CascadeのShadow Mapを3x3 PCFで評価
+float TraceDirectionalShadowCascade(float3 worldPos, float3 worldNormal,
+	uint cascade) {
+
+	float4 shadowClip = mul(float4(worldPos, 1.0f),
+		shadowViewProjections[cascade]);
+	float3 shadowNDC = shadowClip.xyz / max(shadowClip.w, 1e-5f);
+	float2 uv = float2(shadowNDC.x * 0.5f + 0.5f,
+		0.5f - shadowNDC.y * 0.5f);
+	if (any(uv <= 0.0f.xx) || any(1.0f.xx <= uv) ||
+		shadowNDC.z <= 0.0f || 1.0f <= shadowNDC.z) {
+
+		return 0.0f;
+	}
+
+	uint width;
+	uint height;
+	if (cascade == 0u) gDirectionalShadowMap0.GetDimensions(width, height);
+	else if (cascade == 1u) gDirectionalShadowMap1.GetDimensions(width, height);
+	else if (cascade == 2u) gDirectionalShadowMap2.GetDimensions(width, height);
+	else gDirectionalShadowMap3.GetDimensions(width, height);
+	int2 center = int2(uv * uint2(width, height));
+	float slope = 1.0f - saturate(abs(dot(worldNormal,
+		normalize(gDirectionalLights[shadowMapLightIndex].direction))));
+	float depthRange = max(shadowDepthRanges[cascade], 1.0f);
+	float bias = (0.08f + slope * 0.25f) / depthRange;
+	float occlusion = 0.0f;
+	[unroll]
+	for (int y = -1; y <= 1; ++y) {
+		[unroll]
+		for (int x = -1; x <= 1; ++x) {
+
+			int2 samplePixel = clamp(center + int2(x, y),
+				int2(0, 0), int2(width - 1u, height - 1u));
+			occlusion += LoadDirectionalShadowDepth(cascade, samplePixel) +
+				bias < shadowNDC.z ? 1.0f : 0.0f;
+		}
+	}
+	return occlusion / 9.0f;
+}
+
+// Cascade境界を補間してCamera移動時の影の切り替わりを抑える
+float TraceDirectionalShadowMap(float3 worldPos, float3 worldNormal) {
+
+	float viewDepth = mul(float4(worldPos, 1.0f), viewMatrix).z;
+	uint cascade = viewDepth <= shadowCascadeSplits.x ? 0u :
+		(viewDepth <= shadowCascadeSplits.y ? 1u :
+			(viewDepth <= shadowCascadeSplits.z ? 2u : 3u));
+	float occlusion = TraceDirectionalShadowCascade(
+		worldPos, worldNormal, cascade);
+	if (cascade >= 3u) {
+		return occlusion;
+	}
+
+	float cascadeNear = cascade == 0u ? clusterNearClip :
+		shadowCascadeSplits[cascade - 1u];
+	float cascadeFar = shadowCascadeSplits[cascade];
+	float blendWidth = max((cascadeFar - cascadeNear) * 0.10f, 0.001f);
+	float blend = saturate((viewDepth - (cascadeFar - blendWidth)) /
+		blendWidth);
+	if (blend <= 0.0f) {
+		return occlusion;
+	}
+	return lerp(occlusion, TraceDirectionalShadowCascade(
+		worldPos, worldNormal, cascade + 1u), blend);
+}
+
+// GBufferのMaterialへ通常描画と同じ直接光と拡散環境光を適用
+float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
+	float3 N, float3 V, float3 albedo, float metallic,
+	float roughness, float ao, float3 emissive, uint flags,
+	bool useShadow) {
+
+	if ((flags & kMaterialFlagLighting) == 0u) {
+		return albedo + emissive;
+	}
+
+	float3 F0 = lerp(0.04f.xxx, albedo, metallic);
+	float3 color = 0.0f.xxx;
+	[loop]
+	for (uint index = 0u; index < directionalCount; ++index) {
+
+		DirectionalLight light = gDirectionalLights[index];
+		if (!DoesDeferredLightAffectRenderingLayer(
+			light.affectLayerMask, flags)) {
+			continue;
+		}
+		float shadow = 1.0f;
+		if (light.shadowStrength > 0.0f &&
+			DoesDeferredLightAffectRenderingLayer(
+				light.shadowLayerMask, flags) &&
+			(flags & kMaterialFlagReceiveShadow) != 0u) {
+
+			float occlusion = useShadow ?
+				TraceDirectionalShadow(worldPos, N, light.direction,
+					light.shadowAngularRadius, pixel, index) :
+				(shadowMapAvailable != 0u && index == shadowMapLightIndex ?
+					TraceDirectionalShadowMap(worldPos, N) :
+					TraceScreenSpaceShadow(
+						worldPos + N * shadowNormalBias,
+						normalize(-light.direction)));
+			shadow = 1.0f - occlusion * light.shadowStrength;
+		}
+		float3 radiance = light.color.rgb * light.intensity * shadow;
+		color += EvaluatePBRLight(N, V, normalize(-light.direction),
+			radiance, albedo, metallic, roughness, F0);
+	}
+
+	LightClusterHeader clusterHeader;
+	if (ResolveLightCluster(pixel, worldPos, clusterHeader)) {
+
+		[loop]
+		for (uint clusterLight = 0u;
+			clusterLight < clusterHeader.count; ++clusterLight) {
+
+			uint localIndex =
+				gLightClusterIndices[clusterHeader.offset + clusterLight];
+			if (localIndex < pointCount) {
+
+				if (DoesDeferredLightAffectRenderingLayer(
+					gPointLights[localIndex].affectLayerMask, flags)) {
+
+					color += EvaluatePointLightIndex(localIndex,
+						worldPos, N, V, albedo, metallic, roughness,
+						F0, flags, useShadow, pixel);
+				}
+				continue;
+			}
+			uint spotIndex = localIndex - pointCount;
+			if (spotIndex < spotCount) {
+
+				if (DoesDeferredLightAffectRenderingLayer(
+					gSpotLights[spotIndex].affectLayerMask, flags)) {
+
+					color += EvaluateSpotLightIndex(spotIndex,
+						worldPos, N, V, albedo, metallic, roughness,
+						F0, flags, useShadow, pixel);
+				}
+				continue;
+			}
+			uint rectIndex = spotIndex - spotCount;
+			if (rectIndex < rectCount &&
+				DoesDeferredLightAffectRenderingLayer(
+					gRectLights[rectIndex].affectLayerMask, flags)) {
+
+				color += EvaluateRectLightIndex(rectIndex,
+					worldPos, N, V, albedo, metallic, roughness,
+					F0, flags, useShadow, pixel);
+			}
+		}
+	} else {
+
+		[loop]
+		for (uint index = 0u; index < pointCount; ++index) {
+
+			if (DoesDeferredLightAffectRenderingLayer(
+				gPointLights[index].affectLayerMask, flags)) {
+
+				color += EvaluatePointLightIndex(index,
+					worldPos, N, V, albedo, metallic, roughness,
+					F0, flags, useShadow, pixel);
+			}
+		}
+		[loop]
+		for (uint index = 0u; index < spotCount; ++index) {
+
+			if (DoesDeferredLightAffectRenderingLayer(
+				gSpotLights[index].affectLayerMask, flags)) {
+
+				color += EvaluateSpotLightIndex(index,
+					worldPos, N, V, albedo, metallic, roughness,
+					F0, flags, useShadow, pixel);
+			}
+		}
+		[loop]
+		for (uint index = 0u; index < rectCount; ++index) {
+
+			if (DoesDeferredLightAffectRenderingLayer(
+				gRectLights[index].affectLayerMask, flags)) {
+
+				color += EvaluateRectLightIndex(index,
+					worldPos, N, V, albedo, metallic, roughness,
+					F0, flags, useShadow, pixel);
+			}
+		}
+	}
+
+	if ((flags & kMaterialFlagReceiveIBL) != 0u) {
+
+		if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
+
+			TextureCube<float4> irradianceMap =
+				NEM_TEXTURECUBE(irradianceCubemapIndex);
+			float3 irradiance =
+				irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
+			color += irradiance * skyboxColor.rgb * iblIntensity *
+				albedo * ao;
+		} else {
+
+			color += ambientIntensity * albedo * ao;
+		}
+	}
+	return color + emissive;
+}
+
+// SSRが見つからない範囲はSkyboxのReflection Captureで補う
+float3 ResolveEnvironmentReflection(float3 worldPos, float3 N, float3 V,
+	float roughness, bool useShadow) {
+
+	float3 reflectionDirection = normalize(reflect(-V, N));
+	float3 result = 0.0f.xxx;
+	if (roughness < 0.85f &&
+		TraceScreenSpaceReflection(
+			worldPos + N * 0.05f, reflectionDirection,
+			useShadow, result)) {
+
+		return result;
+	}
+	if (hasSkybox == 0u || skyboxCubemapIndex == kNoCubemap) {
+		return result;
+	}
+
+	TextureCube<float4> cubemap = NEM_TEXTURECUBE(skyboxCubemapIndex);
+	uint width;
+	uint height;
+	uint mipLevels;
+	cubemap.GetDimensions(0u, width, height, mipLevels);
+	float mip = roughness * max(float(mipLevels) - 1.0f, 0.0f);
+	return cubemap.SampleLevel(gSampler, reflectionDirection, mip).rgb *
+		skyboxColor.rgb * iblIntensity;
+}
+
 //============================================================================
 //	全ピクセルのマテリアル計算
 //============================================================================
@@ -675,130 +1092,23 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 	float ao = material.b;
 	float3 emissive = gEmissive.Load(pixel).rgb;
 
-	// ライティングしないサーフェイスはアルベドと発光をそのまま出す
-	if ((flags & kMaterialFlagLighting) == 0u) {
-		return float4(albedo + emissive, 1.0f);
-	}
-
 	float3 V = normalize(cameraPos - worldPos);
 	float3 F0 = lerp(0.04f.xxx, albedo, metallic);
+	float3 color = EvaluateSurfaceLighting(
+		pixel.xy, worldPos, N, V, albedo, metallic,
+		roughness, ao, emissive, flags, useShadow);
 
-	float3 Lo = 0.0f.xxx;
+	// 主サーフェイスだけSSRまたはSkyboxの鏡面反射を加える
+	if ((flags & kMaterialFlagLighting) != 0u &&
+		(flags & kMaterialFlagReceiveIBL) != 0u &&
+		reflectionFeatureActive == 0u) {
 
-	// 平行光源
-	[loop]
-	for (uint di = 0; di < directionalCount; ++di) {
-
-		DirectionalLight light = gDirectionalLights[di];
-		if (!DoesDeferredLightAffectRenderingLayer(
-			light.affectLayerMask, flags)) {
-			continue;
-		}
-		float3 L = normalize(-light.direction);
-		// 影計算を行うか、影を受けないサーフェイスもスキップして1.0fのまま使う
-		float shadow = 1.0f;
-		if (useShadow && light.shadowStrength > 0.0f &&
-			(flags & kMaterialFlagReceiveShadow) != 0u) {
-
-			float occlusion = TraceDirectionalShadow(worldPos, N,
-				light.direction, light.shadowAngularRadius, pixel.xy, di);
-			shadow = 1.0f - occlusion * light.shadowStrength;
-		}
-		float3 radiance = light.color.rgb * light.intensity * shadow;
-		Lo += EvaluatePBRLight(N, V, L, radiance, albedo, metallic, roughness, F0);
+		float NdotV = saturate(dot(N, V));
+		float3 environment = ResolveEnvironmentReflection(
+			worldPos, N, V, roughness, useShadow);
+		color += environment * FresnelSchlick(NdotV, F0) *
+			(1.0f - roughness * 0.75f) * ao;
 	}
-	// ローカルライトは現在ピクセルが属するクラスターの索引だけを走査する
-	LightClusterHeader clusterHeader;
-	if (ResolveLightCluster(pixel.xy, worldPos, clusterHeader)) {
-		[loop]
-		for (uint clusterLight = 0;
-			clusterLight < clusterHeader.count; ++clusterLight) {
-
-			uint localIndex =
-				gLightClusterIndices[clusterHeader.offset + clusterLight];
-			if (localIndex < pointCount) {
-				if (!DoesDeferredLightAffectRenderingLayer(
-					gPointLights[localIndex].affectLayerMask, flags)) {
-					continue;
-				}
-				Lo += EvaluatePointLightIndex(localIndex,
-					worldPos, N, V, albedo, metallic,
-					roughness, F0, flags, useShadow, pixel.xy);
-			} else {
-				uint spotIndex = localIndex - pointCount;
-				if (spotIndex < spotCount) {
-					if (!DoesDeferredLightAffectRenderingLayer(
-						gSpotLights[spotIndex].affectLayerMask, flags)) {
-						continue;
-					}
-					Lo += EvaluateSpotLightIndex(spotIndex,
-						worldPos, N, V, albedo, metallic,
-						roughness, F0, flags, useShadow, pixel.xy);
-				} else {
-					uint rectIndex = spotIndex - spotCount;
-					if (rectIndex < rectCount) {
-						if (!DoesDeferredLightAffectRenderingLayer(
-							gRectLights[rectIndex].affectLayerMask, flags)) {
-							continue;
-						}
-						Lo += EvaluateRectLightIndex(rectIndex,
-							worldPos, N, V, albedo, metallic,
-							roughness, F0, flags, useShadow, pixel.xy);
-					}
-				}
-			}
-		}
-	} else {
-		// 透視カメラを持たないビューでは従来通り全ローカルライトを評価する
-		[loop]
-		for (uint pi = 0; pi < pointCount; ++pi) {
-			if (!DoesDeferredLightAffectRenderingLayer(
-				gPointLights[pi].affectLayerMask, flags)) {
-				continue;
-			}
-			Lo += EvaluatePointLightIndex(pi,
-				worldPos, N, V, albedo, metallic,
-				roughness, F0, flags, useShadow, pixel.xy);
-		}
-		[loop]
-		for (uint si = 0; si < spotCount; ++si) {
-			if (!DoesDeferredLightAffectRenderingLayer(
-				gSpotLights[si].affectLayerMask, flags)) {
-				continue;
-			}
-			Lo += EvaluateSpotLightIndex(si,
-				worldPos, N, V, albedo, metallic,
-				roughness, F0, flags, useShadow, pixel.xy);
-		}
-		[loop]
-		for (uint ri = 0; ri < rectCount; ++ri) {
-			if (!DoesDeferredLightAffectRenderingLayer(
-				gRectLights[ri].affectLayerMask, flags)) {
-				continue;
-			}
-			Lo += EvaluateRectLightIndex(ri,
-				worldPos, N, V, albedo, metallic,
-				roughness, F0, flags, useShadow, pixel.xy);
-		}
-	}
-
-	// 環境光はAOで減衰、環境光を受けないサーフェイスは加算しない
-	float3 ambient = 0.0f.xxx;
-	if ((flags & kMaterialFlagReceiveIBL) != 0u) {
-		if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
-
-			// Skyboxから畳み込んだ放射照度で拡散環境光を作る
-			TextureCube<float4> irradianceMap = NEM_TEXTURECUBE(irradianceCubemapIndex);
-			float3 irradiance = irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
-			ambient = irradiance * skyboxColor.rgb * iblIntensity * albedo * ao;
-		} else {
-
-			// Skyboxが無い場合は従来のフラット環境光
-			ambient = ambientIntensity * albedo * ao;
-		}
-	}
-	// 発光はそのまま加算する
-	float3 color = Lo + ambient + emissive;
 
 	return float4(color, 1.0f);
 }

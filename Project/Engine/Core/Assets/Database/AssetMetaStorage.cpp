@@ -32,8 +32,9 @@ namespace Engine::AssetMetaStorage {
 		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";
 		case Engine::AssetType::ParticleEffect:   return "ParticleEffectImporter";
 		case Engine::AssetType::ShaderGraph:      return "ShaderGraphImporter";
-		case Engine::AssetType::RenderFeatureProfile:
-			return "RenderFeatureProfileImporter";
+		case Engine::AssetType::RenderTexture:      return "RenderTextureImporter";
+		case Engine::AssetType::VolumeProfile:      return "VolumeProfileImporter";
+		case Engine::AssetType::RenderExtension:    return "RenderExtensionImporter";
 		default:                                  return "DefaultImporter";
 		}
 	}

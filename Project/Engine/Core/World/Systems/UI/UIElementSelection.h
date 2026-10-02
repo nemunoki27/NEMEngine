@@ -11,6 +11,9 @@ namespace Engine::UIElementSelection {
 
 	Vector2 ResolveElementCenter(ECSWorld& world, Entity entity, const UIElementRuntime& runtime);
 
+	UISelectableEntry* FindPointerEntry(ECSWorld& world,
+		std::vector<UISelectableEntry>& entries, const Vector2& screenPosition);
+
 	UISelectableEntry* FindEntryByLocalFileID(ECSWorld& world,
 		std::vector<UISelectableEntry>& entries, Entity canvas, UUID localFileID);
 

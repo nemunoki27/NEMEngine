@@ -41,8 +41,9 @@ void Engine::EditorSelectionScreenSpaceOutlinePass::Execute([[maybe_unused]] Gra
 	}
 
 	// Editor専用のScreenSpaceOutlineへ描いてruntime用とは分離する
-	constexpr std::array<RenderPhase, 1> kEditorOutlinePhases = {
+	constexpr std::array<RenderPhase, 2> kEditorOutlinePhases = {
 		RenderPhase::Opaque,
+		RenderPhase::Transparent,
 	};
 	DepthTexture2D* depth = context.resources->GetSceneMain() ?
 		context.resources->GetSceneMain()->GetDepthTexture() : nullptr;

@@ -471,8 +471,15 @@ void Engine::from_json(
 		in.value("matchWidthOrHeight", component.matchWidthOrHeight);
 	component.sortingLayer = in.value("sortingLayer", component.sortingLayer);
 	component.order = in.value("order", component.order);
-	component.blockGameplayInput =
-		in.value("blockGameplayInput", component.blockGameplayInput);
+	if (const auto mode = in.find("inputBlockMode"); mode != in.end() && mode->is_string()) {
+		component.inputBlockMode = EnumAdapter<CanvasInputBlockMode>::FromString(
+			mode->get<std::string>()).value_or(component.inputBlockMode);
+	} else {
+		// 旧設定の有効値は入力を消費したフレームへ移行する
+		component.inputBlockMode = in.value("blockGameplayInput", false) ?
+			CanvasInputBlockMode::ConsumedFrame : CanvasInputBlockMode::None;
+	}
+	component.playerIndex = (std::min)(in.value("playerIndex", component.playerIndex), 3u);
 	component.inputInEditMode =
 		in.value("inputInEditMode", component.inputInEditMode);
 	component.blockInputAfterSubmit =
@@ -520,7 +527,8 @@ void Engine::to_json(
 	out["matchWidthOrHeight"] = component.matchWidthOrHeight;
 	out["sortingLayer"] = component.sortingLayer;
 	out["order"] = component.order;
-	out["blockGameplayInput"] = component.blockGameplayInput;
+	out["inputBlockMode"] = EnumAdapter<CanvasInputBlockMode>::ToString(component.inputBlockMode);
+	out["playerIndex"] = component.playerIndex;
 	out["inputInEditMode"] = component.inputInEditMode;
 	out["blockInputAfterSubmit"] = component.blockInputAfterSubmit;
 	out["inputSettings"]["keyboardEnabled"] = component.keyboardInputEnabled;

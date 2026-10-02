@@ -64,7 +64,13 @@ bool Input::GamepadButtonByIndex(int index, int button) const {
 }
 
 bool Input::GamepadButtonDownByIndex(int index, int button) const {
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	if (index < 0 || index >= InputDeviceState::kMaxGamepads) {
+		return false;
+	}
+	if (!hardware_.GetState().padConnectedPre[static_cast<size_t>(index)]) {
 		return false;
 	}
 	const bool now = hardware_.GetState().padConnected[static_cast<size_t>(index)] && IsGamepadButtonPressed(hardware_.GetState().pads[static_cast<size_t>(index)], button);
@@ -73,7 +79,14 @@ bool Input::GamepadButtonDownByIndex(int index, int button) const {
 }
 
 bool Input::GamepadButtonUpByIndex(int index, int button) const {
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	if (index < 0 || index >= InputDeviceState::kMaxGamepads) {
+		return false;
+	}
+	if (!hardware_.GetState().padConnected[static_cast<size_t>(index)] ||
+		!hardware_.GetState().padConnectedPre[static_cast<size_t>(index)]) {
 		return false;
 	}
 	const bool now = hardware_.GetState().padConnected[static_cast<size_t>(index)] && IsGamepadButtonPressed(hardware_.GetState().pads[static_cast<size_t>(index)], button);

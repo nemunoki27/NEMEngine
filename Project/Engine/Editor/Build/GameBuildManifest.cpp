@@ -104,6 +104,8 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 	manifest["projectGuid"] = RuntimePaths::GetProjectGUID();
 	manifest["startupScene"] = ToString(settings.startupScene);
 	manifest["startupFullscreen"] = settings.startupFullscreen;
+	manifest["gameWidth"] = settings.gameWidth;
+	manifest["gameHeight"] = settings.gameHeight;
 	manifest["packages"] = nlohmann::json::array();
 	std::vector<ResolvedPackage> packages = RuntimePaths::GetPackages();
 	std::sort(packages.begin(), packages.end(),

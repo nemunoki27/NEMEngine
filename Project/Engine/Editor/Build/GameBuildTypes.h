@@ -35,6 +35,8 @@ namespace Engine {
 		AssetID startupScene{};
 		std::string executableName;
 		std::filesystem::path outputRoot;
+		uint32_t gameWidth = 1920;
+		uint32_t gameHeight = 1080;
 		bool startupFullscreen = false;
 	};
 	// 製品ビルドの進行状態

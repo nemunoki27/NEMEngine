@@ -166,7 +166,8 @@ namespace Engine {
 		bool DrawToneMap(GraphicsCore& graphicsCore, MultiRenderTarget& source,
 			MultiRenderTarget& dest, RenderAssetLibrary& assetLibrary,
 			PipelineStateCache& pipelineCache, ViewExposureState& state,
-			D3D12_GPU_VIRTUAL_ADDRESS constantsAddress);
+			D3D12_GPU_VIRTUAL_ADDRESS constantsAddress,
+			const SceneExecutionContext& context);
 		static Vector3 CalculateWhiteBalance(float temperature, float tint);
 	};
 } // Engine

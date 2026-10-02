@@ -68,7 +68,8 @@ public static class InputActions {
     // UI が入力を消費しているフレームは gameplay クエリを抑止する層（editor / UI が設定する）。
     public static bool BlockGameplayInput { get; set; }
 
-	private static bool IsGameplayInputBlocked => BlockGameplayInput || NativeAPI.ReadUIBlocksGameplayInput();
+    private static bool IsGameplayInputBlocked(int playerIndex) => BlockGameplayInput ||
+        !PlayerInput.IsAvailable(playerIndex) || NativeAPI.ReadUIBlocksGameplayInput(playerIndex);
 
     private static readonly object gate = new();
     private static InputActionDefinition[] actions = Array.Empty<InputActionDefinition>();
@@ -85,8 +86,8 @@ public static class InputActions {
         }
     }
 
-    public static bool IsPressed(InputActionID action) {
-        if (IsGameplayInputBlocked) {
+    public static bool IsPressed(InputActionID action, int playerIndex = 0) {
+        if (IsGameplayInputBlocked(playerIndex)) {
             return false;
         }
         InputActionDefinition? def = Resolve(action);
@@ -94,15 +95,15 @@ public static class InputActions {
             return false;
         }
         foreach (InputActionBinding binding in def.bindings) {
-            if (EvalButtonPhase(binding, InputButtonPhase.Held)) {
+            if (EvalButtonPhase(binding, InputButtonPhase.Held, playerIndex)) {
                 return true;
             }
         }
         return false;
     }
 
-    public static bool WasPressed(InputActionID action) {
-        if (IsGameplayInputBlocked) {
+    public static bool WasPressed(InputActionID action, int playerIndex = 0) {
+        if (IsGameplayInputBlocked(playerIndex)) {
             return false;
         }
         InputActionDefinition? def = Resolve(action);
@@ -110,15 +111,15 @@ public static class InputActions {
             return false;
         }
         foreach (InputActionBinding binding in def.bindings) {
-            if (EvalButtonPhase(binding, InputButtonPhase.Down)) {
+            if (EvalButtonPhase(binding, InputButtonPhase.Down, playerIndex)) {
                 return true;
             }
         }
         return false;
     }
 
-    public static bool WasReleased(InputActionID action) {
-        if (IsGameplayInputBlocked) {
+    public static bool WasReleased(InputActionID action, int playerIndex = 0) {
+        if (IsGameplayInputBlocked(playerIndex)) {
             return false;
         }
         InputActionDefinition? def = Resolve(action);
@@ -126,15 +127,15 @@ public static class InputActions {
             return false;
         }
         foreach (InputActionBinding binding in def.bindings) {
-            if (EvalButtonPhase(binding, InputButtonPhase.Up)) {
+            if (EvalButtonPhase(binding, InputButtonPhase.Up, playerIndex)) {
                 return true;
             }
         }
         return false;
     }
 
-    public static float ReadAxis(InputActionID action) {
-        if (IsGameplayInputBlocked) {
+    public static float ReadAxis(InputActionID action, int playerIndex = 0) {
+        if (IsGameplayInputBlocked(playerIndex)) {
             return 0.0f;
         }
         InputActionDefinition? def = Resolve(action);
@@ -143,7 +144,7 @@ public static class InputActions {
         }
         float value = 0.0f;
         foreach (InputActionBinding binding in def.bindings) {
-            float v = EvalAxis1D(binding);
+            float v = EvalAxis1D(binding, playerIndex);
             // 絶対値が大きい binding を優先（複数 binding の競合解決）
             if (System.MathF.Abs(v) > System.MathF.Abs(value)) {
                 value = v;
@@ -152,8 +153,8 @@ public static class InputActions {
         return Mathf.Clamp(value, -1.0f, 1.0f);
     }
 
-    public static Vector2 ReadVector2(InputActionID action) {
-        if (IsGameplayInputBlocked) {
+    public static Vector2 ReadVector2(InputActionID action, int playerIndex = 0) {
+        if (IsGameplayInputBlocked(playerIndex)) {
             return Vector2.zero;
         }
         InputActionDefinition? def = Resolve(action);
@@ -162,7 +163,7 @@ public static class InputActions {
         }
         Vector2 result = Vector2.zero;
         foreach (InputActionBinding binding in def.bindings) {
-            Vector2 v = EvalVector2(binding);
+            Vector2 v = EvalVector2(binding, playerIndex);
             if (Vector2.Magnitude(v) > Vector2.Magnitude(result)) {
                 result = v;
             }
@@ -201,10 +202,15 @@ public static class InputActions {
 
     // string convenience overload（初回に compact ID を解決して以降は cache）。hot path では ID 版を推奨。
     public static bool IsPressed(string action) => IsPressed(CachedID(action));
+    public static bool IsPressed(string action, int playerIndex) => IsPressed(CachedID(action), playerIndex);
     public static bool WasPressed(string action) => WasPressed(CachedID(action));
+    public static bool WasPressed(string action, int playerIndex) => WasPressed(CachedID(action), playerIndex);
     public static bool WasReleased(string action) => WasReleased(CachedID(action));
+    public static bool WasReleased(string action, int playerIndex) => WasReleased(CachedID(action), playerIndex);
     public static float ReadAxis(string action) => ReadAxis(CachedID(action));
+    public static float ReadAxis(string action, int playerIndex) => ReadAxis(CachedID(action), playerIndex);
     public static Vector2 ReadVector2(string action) => ReadVector2(CachedID(action));
+    public static Vector2 ReadVector2(string action, int playerIndex) => ReadVector2(CachedID(action), playerIndex);
 
     //========================================================================
     //	internal

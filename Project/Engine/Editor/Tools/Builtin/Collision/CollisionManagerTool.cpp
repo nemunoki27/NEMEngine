@@ -12,6 +12,7 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Quaternion.h>
 #include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/Settings/ProjectSettingsOperations.h>
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -373,8 +374,13 @@ void Engine::CollisionManagerTool::DrawWindow(
 		settings.SetDrawCollisionWorld(drawWorld);
 		dirty_ = true;
 	}
+	bool queriesHitTriggers = settings.GetQueriesHitTriggers();
+	if (ImGui::Checkbox("物理クエリでTriggerを検出", &queriesHitTriggers)) {
+		settings.SetQueriesHitTriggers(queriesHitTriggers);
+		dirty_ = true;
+	}
 	ImGui::Separator();
-	if (DrawTypes()) {
+	if (DrawTypes(context)) {
 		dirty_ = true;
 	}
 	ImGui::Spacing();
@@ -388,7 +394,7 @@ void Engine::CollisionManagerTool::DrawWindow(
 	ImGui::End();
 }
 
-bool Engine::CollisionManagerTool::DrawTypes() {
+bool Engine::CollisionManagerTool::DrawTypes(const EditorToolContext& context) {
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	bool changed = false;
@@ -454,9 +460,12 @@ bool Engine::CollisionManagerTool::DrawTypes() {
 
 			ImGui::SameLine();
 			if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f))) {
-				settings.RemoveType(static_cast<uint32_t>(removeTypeIndex_));
-				removeTypeIndex_ = 0;
-				changed = true;
+				const uint32_t removeIndex = static_cast<uint32_t>(removeTypeIndex_);
+				if (ProjectSettingsOperations::RemoveCollisionType(context, removeIndex)) {
+					settings.RemoveType(removeIndex);
+					removeTypeIndex_ = 0;
+					changed = true;
+				}
 			}
 			MyGUI::EndPropertyRow();
 		}

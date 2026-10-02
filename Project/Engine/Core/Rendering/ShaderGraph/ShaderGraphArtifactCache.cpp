@@ -320,6 +320,7 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 	outArtifact.transparentPixelPath = outArtifact.root / "transparent.PS.hlsl";
 	outArtifact.depthPixelPath = outArtifact.root / "depth.PS.hlsl";
 	outArtifact.pickingPixelPath = outArtifact.root / "picking.PS.hlsl";
+	outArtifact.outlinePixelPath = outArtifact.root / "outline.PS.hlsl";
 	outArtifact.vertexPath = outArtifact.root / "vertex.VS.hlsl";
 	outArtifact.meshPath = outArtifact.root / "mesh.MS.hlsl";
 	outArtifact.computePath = outArtifact.root / "postProcess.CS.hlsl";
@@ -423,6 +424,20 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			outArtifact.compileOutput.transparentPixelHLSL)) {
 
 		return false;
+	}
+	if (!outArtifact.compileOutput.outlinePixelHLSL.empty()) {
+		if (!WriteTextFile(outArtifact.outlinePixelPath,
+			outArtifact.compileOutput.outlinePixelHLSL)) {
+
+			return false;
+		}
+		outArtifact.outlineShaderID = MakeDerivedID(
+			graphID, 0x4f55544c494e4550ull ^
+				static_cast<uint64_t>(graph.target));
+		outArtifact.outlineShader = MakePixelShader(
+			graph.name + "Outline", outArtifact.outlineShaderID,
+			outArtifact.outlinePixelPath, "main",
+			outArtifact.compileOutput.parameters);
 	}
 	if (!outArtifact.compileOutput.rayTracingHLSL.empty()) {
 		if (!WriteTextFile(outArtifact.rayTracingPath,
@@ -553,6 +568,9 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 
 		appendGeneratedGeometryStages(outArtifact.opaqueShader);
 		appendGeneratedGeometryStages(outArtifact.transparentShader);
+		if (outArtifact.outlineShaderID) {
+			appendGeneratedGeometryStages(outArtifact.outlineShader);
+		}
 	}
 	MakeGraphPipeline(graph, outArtifact.compileOutput,
 		graphID, false, database,
@@ -560,6 +578,19 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 	MakeGraphPipeline(graph, outArtifact.compileOutput,
 		graphID, true, database,
 		outArtifact.transparentPipeline, outArtifact.transparentPipelineID);
+	if (outArtifact.outlineShaderID) {
+		const AssetID basePipeline = graph.target == ShaderGraphTarget::Sprite ?
+			BuiltinAssets::Pipelines::SpriteOutlineMask :
+			BuiltinAssets::Pipelines::Primitive2DOutlineMask;
+		if (!MakeGraphPipeline(graph, outArtifact.compileOutput,
+			graphID, false, database,
+			outArtifact.outlinePipeline, outArtifact.outlinePipelineID,
+			basePipeline, 0x4f55544c494e4551ull,
+			"OutlinePipeline")) {
+
+			return false;
+		}
+	}
 	if (graph.target == ShaderGraphTarget::Mesh) {
 		MakeGraphPipeline(graph, outArtifact.compileOutput,
 			graphID, false, database,
@@ -643,6 +674,12 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 			addPass(MaterialPassKind::Draw,
 				BuiltinAssets::Pipelines::DefaultSprite,
 				PipelineVariantKind::GraphicsVertex);
+			addPass(MaterialPassKind::ScreenSpaceOutlineMask,
+				BuiltinAssets::Pipelines::SpriteOutlineMask,
+				PipelineVariantKind::GraphicsVertex);
+			addPass(MaterialPassKind::ScreenSpaceOutlineCoverageMask,
+				BuiltinAssets::Pipelines::SpriteOutlineMask,
+				PipelineVariantKind::GraphicsVertex);
 			break;
 		case ShaderGraphTarget::Text:
 			addPass(MaterialPassKind::Draw,
@@ -652,6 +689,12 @@ Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
 		case ShaderGraphTarget::Primitive2D:
 			addPass(MaterialPassKind::Draw,
 				BuiltinAssets::Pipelines::DefaultPrimitive2D,
+				PipelineVariantKind::GraphicsVertex);
+			addPass(MaterialPassKind::ScreenSpaceOutlineMask,
+				BuiltinAssets::Pipelines::Primitive2DOutlineMask,
+				PipelineVariantKind::GraphicsVertex);
+			addPass(MaterialPassKind::ScreenSpaceOutlineCoverageMask,
+				BuiltinAssets::Pipelines::Primitive2DOutlineMask,
 				PipelineVariantKind::GraphicsVertex);
 			break;
 		case ShaderGraphTarget::Particle:
@@ -740,6 +783,17 @@ void Engine::ShaderGraphArtifactCache::ApplyToMaterial(
 		}
 		pass->shaderOverride = artifact.pickingShaderID;
 	}
+	for (const auto kind : {
+		MaterialPassKind::ScreenSpaceOutlineMask,
+		MaterialPassKind::ScreenSpaceOutlineCoverageMask }) {
+
+		if (MaterialPassBinding* pass = FindPass(material, kind)) {
+			if (artifact.outlinePipelineID) {
+				pass->pipeline = artifact.outlinePipelineID;
+			}
+			pass->shaderOverride = artifact.outlineShaderID;
+		}
+	}
 	// 切り抜きも通常描画と同じグラフで評価する
 	for (const auto kind : { MaterialPassKind::Draw, MaterialPassKind::Masked }) {
 		if (MaterialPassBinding* pass = FindPass(material, kind)) {
@@ -794,6 +848,12 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 	artifact.opaqueShaderID = derived(0x4f50415155455f50ull ^ target);
 	artifact.transparentPipelineID = derived(0x5452414e535f504cull ^ target);
 	artifact.transparentShaderID = derived(0x5452414e535f5053ull ^ target);
+	if (graph.target == ShaderGraphTarget::Sprite ||
+		graph.target == ShaderGraphTarget::Primitive2D) {
+
+		artifact.outlinePipelineID = derived(0x4f55544c494e4551ull);
+		artifact.outlineShaderID = derived(0x4f55544c494e4550ull ^ target);
+	}
 	if (graph.target == ShaderGraphTarget::Mesh) {
 		artifact.depthPipelineID = derived(0x44455054485f504cull);
 		artifact.depthShaderID = derived(0x44455054485f5053ull);

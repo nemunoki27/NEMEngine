@@ -98,20 +98,6 @@ bool Engine::RenderFeatureEditSession::Tick(ToolContext& context) {
 		requestedProfile_ = {};
 		return true;
 	}
-	if (!context.activeSceneHeader) {
-		return false;
-	}
-	const AssetID profile = context.activeSceneHeader->renderFeatureProfile;
-	if (profile == observedProfile_) {
-		return false;
-	}
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
-	if (!service.IsDirty()) {
-		service.SetActiveProfileAsset(profile, context.assetDatabase);
-		observedProfile_ = profile;
-		return true;
-	}
 	return false;
 }
 
@@ -130,8 +116,8 @@ bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolCon
 	}
 
 	const AssetMeta* sourceMeta = database->Find(sourceProfile);
-	if (!sourceMeta || sourceMeta->type != AssetType::RenderFeatureProfile) {
-		statusMessage_ = "Render Feature Profileを指定してください";
+	if (!sourceMeta || sourceMeta->type != AssetType::RenderExtension) {
+		statusMessage_ = "Render Extensionを指定してください";
 		statusError_ = true;
 		return false;
 	}
@@ -159,40 +145,15 @@ bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolCon
 
 bool Engine::RenderFeatureEditSession::CreateProfile(const EditorToolContext& context) {
 
-	AssetDatabase* database = context.toolContext.assetDatabase;
-	SceneHeader* header = ResolveActiveSceneHeader(context.toolContext);
-	if (!database || !header || context.toolContext.activeScenePath.empty()) {
-		return false;
-	}
-
-	const std::string assetPath = MakeDefaultRenderFeatureProfilePath(
-		std::string(context.toolContext.activeScenePath));
-	const std::filesystem::path fullPath = database->ResolveAssetPath(assetPath);
-	std::error_code ec;
-	std::filesystem::create_directories(fullPath.parent_path(), ec);
-	RenderFeatureProfileAsset profile{};
-	profile.name = Algorithm::PathToUTF8(
-		Algorithm::PathFromUTF8(assetPath).stem());
-	if (!RenderFeatureProfileSerializer::Save(fullPath, profile)) {
-		statusMessage_ = "プロファイル作成に失敗しました";
-		statusError_ = true;
-		return false;
-	}
-	header->renderFeatureProfile = database->ImportOrGet(
-		assetPath, AssetType::RenderFeatureProfile);
-	observedProfile_ = header->renderFeatureProfile;
-	RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(
-		observedProfile_, database);
-	return true;
+	(void)context;
+	statusMessage_ = "ProjectからRender Extensionを作成してください";
+	statusError_ = false;
+	return false;
 }
 
 void Engine::RenderFeatureEditSession::SelectProfile(const EditorToolContext& context, AssetID profileAsset) {
 
 	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
-	SceneHeader* header = ResolveActiveSceneHeader(context.toolContext);
-	if (header) {
-		header->renderFeatureProfile = profileAsset;
-	}
 	service.SetActiveProfileAsset(
 		profileAsset, context.toolContext.assetDatabase);
 	observedProfile_ = profileAsset;
@@ -220,8 +181,8 @@ void Engine::RenderFeatureEditSession::Reload() {
 
 bool Engine::RenderFeatureEditSession::CanCreateProfile(const EditorToolContext& context) const {
 
-	return context.toolContext.assetDatabase && ResolveActiveSceneHeader(context.toolContext) &&
-		!context.toolContext.activeScenePath.empty();
+	(void)context;
+	return false;
 }
 
 void Engine::RenderFeatureEditSession::SetStatusMessage(const std::string& message, bool error) {

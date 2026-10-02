@@ -8,10 +8,10 @@
 namespace Engine::UINavigationInput {
 
 	bool IsBindingTriggered(Input& input, std::span<const CanvasInputBinding> bindings,
-		CanvasInputAction action, CanvasInputDevice device);
+		CanvasInputAction action, CanvasInputDevice device, uint32_t playerIndex);
 
 	bool IsBindingHeld(Input& input, std::span<const CanvasInputBinding> bindings,
-		CanvasInputAction action, CanvasInputDevice device);
+		CanvasInputAction action, CanvasInputDevice device, uint32_t playerIndex);
 
 	Vector2 ReadTriggeredNavigationDirection(Input& input, const CanvasComponent& canvas,
 		std::span<const CanvasInputBinding> bindings);

@@ -19,6 +19,8 @@ void Engine::from_json(const nlohmann::json& in, Rigidbody2DComponent& component
 	component.restitution = in.value("restitution", component.restitution);
 	component.friction = in.value("friction", component.friction);
 	component.angularDamping = in.value("angularDamping", component.angularDamping);
+	component.collisionDetection = EnumAdapter<CollisionDetectionMode>::FromString(
+		in.value("collisionDetection", "Discrete")).value_or(CollisionDetectionMode::Discrete);
 	component.angularVelocity = in.value("angularVelocity", component.angularVelocity);
 	component.freezePositionX = in.value("freezePositionX", component.freezePositionX);
 	component.freezePositionY = in.value("freezePositionY", component.freezePositionY);
@@ -40,6 +42,7 @@ void Engine::to_json(nlohmann::json& out, const Rigidbody2DComponent& component)
 	out["restitution"] = component.restitution;
 	out["friction"] = component.friction;
 	out["angularDamping"] = component.angularDamping;
+	out["collisionDetection"] = EnumAdapter<CollisionDetectionMode>::ToString(component.collisionDetection);
 	out["angularVelocity"] = component.angularVelocity;
 	out["freezePositionX"] = component.freezePositionX;
 	out["freezePositionY"] = component.freezePositionY;

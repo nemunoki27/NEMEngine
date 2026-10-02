@@ -15,6 +15,8 @@ namespace Engine {
 		std::string sceneName;
 		std::string executableName;
 		std::string outputPath;
+		int32_t gameWidth = 1920;
+		int32_t gameHeight = 1080;
 		bool startupFullscreen = false;
 	};
 
@@ -33,6 +35,8 @@ namespace Engine {
 		void Start(const EditorPanelContext& context);
 		void ResetStatus();
 		void RequestDirectory();
+		// 製品画像サイズを画面内へ制限してProject設定へ保存する
+		void SetGameSize(int32_t width, int32_t height);
 		bool ConsumeOpenPopup();
 
 		//--------- accessor -----------------------------------------------------

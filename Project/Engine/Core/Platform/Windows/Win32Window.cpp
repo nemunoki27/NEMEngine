@@ -117,6 +117,22 @@ Vector2I WinApp::GetClientSize() {
 	};
 }
 
+bool WinApp::BeginProductSizePreview(const Vector2I& size) {
+
+	return placement_.BeginClientPreview(hwnd_, static_cast<uint32_t>((std::max)(size.x, 1)),
+		static_cast<uint32_t>((std::max)(size.y, 1)));
+}
+
+void WinApp::EndProductSizePreview() {
+
+	placement_.EndClientPreview(hwnd_);
+}
+
+Vector2I WinApp::GetMaximumClientSize() {
+
+	return placement_.GetMaximumClientSize(hwnd_);
+}
+
 void WinApp::RequestCloseWindow() {
 
 	if (!hwnd_) {
@@ -186,6 +202,16 @@ LRESULT WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		// ウィンドウ移動・サイズ変更後は再適用
 		cursor_.ApplyCursorClipIfNeeded();
 		return 0;
+	case WM_DPICHANGED:
+	{
+		// DPI変更時はWindowsが提示する矩形を適用する
+		const RECT* suggested = reinterpret_cast<const RECT*>(lparam);
+		SetWindowPos(hwnd, nullptr, suggested->left, suggested->top,
+			suggested->right - suggested->left, suggested->bottom - suggested->top,
+			SWP_NOACTIVATE | SWP_NOZORDER);
+		cursor_.ApplyCursorClipIfNeeded();
+		return 0;
+	}
 
 	case WM_DROPFILES:
 	{

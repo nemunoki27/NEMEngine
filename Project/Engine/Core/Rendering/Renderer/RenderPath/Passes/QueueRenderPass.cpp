@@ -8,7 +8,6 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTargetCopyUtility.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 
 //============================================================================
 //	QueueRenderPass classMethods
@@ -52,13 +51,11 @@ void Engine::QueueRenderPass::Execute(GraphicsCore& graphicsCore,
 		depth = context.resources->GetSceneMain()->GetDepthTexture();
 	}
 	const RenderPassItemList& items = passBuckets.Get(desc_.phase);
-	RenderFeatureProfileService& featureService =
-		RenderFeatureProfileService::GetInstance();
-	featureService.EnsureLoaded();
 	itemScratch_.clear();
 	itemScratch_.reserve(items.items.size());
 	for (const RenderItem* item : items.items) {
-		if (item && !featureService.GetRuntime().IsItemIsolated(*item)) {
+		if (item && (!context.renderExtensionRuntime ||
+			!context.renderExtensionRuntime->IsItemIsolated(*item))) {
 			itemScratch_.emplace_back(item);
 		}
 	}

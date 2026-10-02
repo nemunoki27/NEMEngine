@@ -58,6 +58,14 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 			MyGUI::EndPropertyRow();
 		}
 		MyGUI::Checkbox("起動時にフルスクリーン", session.GetDraft().startupFullscreen);
+		int32_t gameWidth = session.GetDraft().gameWidth;
+		int32_t gameHeight = session.GetDraft().gameHeight;
+		const ValueEditResult widthResult = MyGUI::DragInt("ゲーム画像の幅", gameWidth);
+		const ValueEditResult heightResult = MyGUI::DragInt("ゲーム画像の高さ", gameHeight);
+		const bool gameSizeChanged = widthResult.valueChanged || heightResult.valueChanged;
+		if (gameSizeChanged) {
+			session.SetGameSize(gameWidth, gameHeight);
+		}
 	}
 	ImGui::EndDisabled();
 

@@ -63,6 +63,10 @@ namespace Engine {
 		bool useOutlineSampler = false;
 		AssetID outlineSamplerTexture{};
 
+		// 元Materialの透明度をアウトラインにも反映する
+		bool respectMaterialSurface = true;
+		float alphaThreshold = 0.1f;
+
 		// trueの場合、同一フレームのoutlined silhouetteをstencilへ書き込み、
 		// Hull描画時にNOT_EQUALで内部や重なりを抑制する
 		bool useStencil = false;

@@ -41,6 +41,51 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::Resolve(
 	return view;
 }
 
+std::vector<Engine::ResolvedRenderView> Engine::RenderViewResolver::ResolveGameCameraViews(
+	const RenderViewRequest& request, ECSWorld& world) {
+
+	if (!request.enabled || request.width == 0 || request.height == 0 ||
+		request.sourceKind != RenderViewSourceKind::WorldCamera) {
+		return {};
+	}
+
+	const ResolvedCameraView orthographic = ResolveBestOrthographicCamera(
+		world, request.width, request.height);
+	const std::vector<ResolvedPerspectiveCameraOutput> outputs =
+		ResolvePerspectiveCameraOutputs(world, request.width, request.height);
+	std::vector<ResolvedRenderView> views{};
+	views.reserve(outputs.size());
+	for (const ResolvedPerspectiveCameraOutput& output : outputs) {
+
+		ResolvedRenderView view{};
+		view.kind = request.kind;
+		view.targetTexture = output.output.targetTexture;
+		view.normalizedOutputX = std::clamp(output.output.viewportX, 0.0f, 1.0f);
+		view.normalizedOutputY = std::clamp(output.output.viewportY, 0.0f, 1.0f);
+		view.normalizedOutputWidth = std::clamp(output.output.viewportWidth, 0.0f, 1.0f);
+		view.normalizedOutputHeight = std::clamp(output.output.viewportHeight, 0.0f, 1.0f);
+		view.outputX = static_cast<uint32_t>(std::round(static_cast<float>(request.width) *
+			view.normalizedOutputX));
+		view.outputY = static_cast<uint32_t>(std::round(static_cast<float>(request.height) *
+			view.normalizedOutputY));
+		view.outputWidth = (std::max)(1u, static_cast<uint32_t>(std::round(static_cast<float>(request.width) *
+			view.normalizedOutputWidth)));
+		view.outputHeight = (std::max)(1u, static_cast<uint32_t>(std::round(static_cast<float>(request.height) *
+			view.normalizedOutputHeight)));
+		view.outputWidth = (std::min)(view.outputWidth, request.width - (std::min)(view.outputX, request.width - 1));
+		view.outputHeight = (std::min)(view.outputHeight, request.height - (std::min)(view.outputY, request.height - 1));
+		view.width = view.outputWidth;
+		view.height = view.outputHeight;
+		view.aspectRatio = static_cast<float>(view.width) / static_cast<float>(view.height);
+		view.orthographic = orthographic;
+		view.perspective = output.camera;
+		view.screen = BuildScreenCamera(view.width, view.height);
+		view.valid = true;
+		views.emplace_back(std::move(view));
+	}
+	return views;
+}
+
 Engine::ResolvedRenderView Engine::RenderViewResolver::ResolveWorldCameraView(RenderViewKind kind,
 	ECSWorld& world, uint32_t width, uint32_t height,
 	UUID preferredOrthographicCameraUUID, UUID preferredPerspectiveCameraUUID) {
@@ -51,6 +96,8 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::ResolveWorldCameraView(Re
 	view.width = width;
 	view.height = height;
 	view.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
+	view.outputWidth = width;
+	view.outputHeight = height;
 
 	// 指定カメラを優先
 	if (preferredOrthographicCameraUUID) {
@@ -91,6 +138,8 @@ Engine::ResolvedRenderView Engine::RenderViewResolver::BuildFromManualCamera(
 	view.width = width;
 	view.height = height;
 	view.aspectRatio = static_cast<float>(width) / static_cast<float>((std::max)(height, 1u));
+	view.outputWidth = width;
+	view.outputHeight = height;
 
 	// 2D/3D両方のマニュアルカメラを構築する
 	view.orthographic = BuildManualOrthographic(state, width, height);

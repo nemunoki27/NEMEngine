@@ -84,6 +84,18 @@ namespace {
 		// アウトラインマスクは次元ごとの専用マテリアルから解決する
 		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
 			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
+			if (const Engine::MaterialAsset* source =
+				context.assetLibrary->LoadMaterial(requestedMaterial)) {
+
+				if (const Engine::MaterialPassBinding* pass =
+					Engine::FindPass(*source, context.passKind)) {
+
+					outResolved.materialID = requestedMaterial;
+					outResolved.material = source;
+					outResolved.pass = pass;
+					return true;
+				}
+			}
 
 			const Engine::AssetID materialID = is2D ?
 				Engine::BuiltinAssets::Materials::Primitive2DOutlineMask :
@@ -335,6 +347,7 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		maskConstants.styleID = context.screenSpaceOutlineMaskStyleID;
 		maskConstants.restrictSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 		maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
+		maskConstants.alphaThreshold = context.screenSpaceOutlineMaskAlphaThreshold;
 		const FrameConstantBufferAllocation maskAlloc =
 			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, maskConstants);
 		RootBindingCommand::SetGraphicsCBV(

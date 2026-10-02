@@ -31,6 +31,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
@@ -80,6 +81,10 @@ namespace Engine {
 		// SceneViewのエディター表示で参照するGameView
 		const ResolvedRenderView* gameView = nullptr;
 		const ResolvedRenderView* cullingView = nullptr;
+		// 補助描画でもLOD判定に使う元のCamera
+		const ResolvedRenderView* lodView = nullptr;
+		// Camera設定とVolume評価位置を確定した画面効果用カメラ
+		ResolvedCameraView volumeCamera{};
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
@@ -95,6 +100,8 @@ namespace Engine {
 		uint32_t viewportY = 0;
 		uint32_t viewportWidth = 0;
 		uint32_t viewportHeight = 0;
+		// 複数Cameraを合成するときだけ既定サーフェスを最初にクリアする
+		bool clearDefaultSurface = true;
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
@@ -102,6 +109,7 @@ namespace Engine {
 		bool disableInlineRayTracing = false;
 		// 現在のビューに影強度が0より大きいライトが存在するか
 		bool hasShadowCastingLight = false;
+		const PerViewLightSet* viewLights = nullptr;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
 		// SceneViewへ現在の2Dゲームカメラ範囲を描画する
@@ -112,16 +120,24 @@ namespace Engine {
 		bool forceVertexMeshVariant = false;
 		// ピッキングなど画面外判定を再利用できない描画ではメッシュカリングを無効化する
 		bool disableMeshCulling = false;
+		// Shadow Mapでは片面形状も遮蔽物として描く
+		bool forceTwoSidedRasterizer = false;
+		// 補助描画では画面座標に依存するLODディザを使わない
+		bool disableLODDither = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
+		// CameraのRender Extensionから構築した実行計画
+		const RenderFeatureProfileRuntime* renderExtensionRuntime = nullptr;
+		uint64_t renderExtensionGeneration = 0;
 
 		// ScreenSpaceOutline Mask描画用のper-draw値でScreenSpaceOutlineRendererが
 		// Mask描画を呼ぶ直前に設定する、Mask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
 		uint32_t screenSpaceOutlineMaskAlphaSource = 0;
+		float screenSpaceOutlineMaskAlphaThreshold = 0.1f;
 	};
 
 	// エディタツール用のEntityプレビュー描画要求
@@ -266,6 +282,12 @@ namespace Engine {
 		// 描画ビューごとの状態、ゲーム/シーンで同型
 		RenderPipelineViewResources gameViewState_{};
 		RenderPipelineViewResources sceneViewState_{};
+		// Game Viewへ順番に合成するCameraごとのView
+		std::vector<ResolvedRenderView> gameCameraViews_{};
+		RenderFeatureProfileRuntime viewRenderExtensionRuntime_{};
+		AssetID viewRenderExtension_{};
+		uint64_t viewRenderExtensionGeneration_ = 1;
+		uint64_t viewRenderExtensionAssetRevision_ = 0;
 
 		// 固定RenderPath
 		DeferredRenderPath renderPath_{};
@@ -299,9 +321,6 @@ namespace Engine {
 
 		RenderAssetReloadService assetReloadService_{ renderAssetLibrary_, pipelineStateCache_,
 			raytracingPipelineStateCache_, postProcessExecutor_, rayTracingExecutor_ };
-
-		// 前回通知したProfileでシーン切り替え時の再ロードを検出する
-		AssetID lastNotifiedRenderFeatureProfile_{};
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;

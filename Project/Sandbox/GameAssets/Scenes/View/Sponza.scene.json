@@ -4505,7 +4505,16 @@
                     "farClip": 1000.0,
                     "isMain": true,
                     "nearClip": 0.0,
-                    "priority": 0
+                    "postProcessEnabled": true,
+                    "priority": 0,
+                    "renderExtension": "6ba35c82529925140ca517bf3c45d385",
+                    "targetTexture": "",
+                    "viewportHeight": 1.0,
+                    "viewportWidth": 1.0,
+                    "viewportX": 0.0,
+                    "viewportY": 0.0,
+                    "volumeLayerMask": 4294967295,
+                    "volumeProfile": "5ba35c82529925140ca517bf3c45d385"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -14428,6 +14437,7 @@
                         "z": 0.0
                     },
                     "bodyType": "Dynamic",
+                    "collisionDetection": "Discrete",
                     "freezePositionX": false,
                     "freezePositionY": false,
                     "freezePositionZ": false,
@@ -14519,7 +14529,9 @@
                     "enabled": true,
                     "intensity": 8.390000343322754,
                     "shadowAngularRadius": 0.27000001072883606,
-                    "shadowStrength": 0.9200000166893005
+                    "shadowLayerMask": 4294967295,
+                    "shadowStrength": 0.9200000166893005,
+                    "useShadowLayerMask": false
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -17331,9 +17343,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 6.025407791137695,
+                        "x": 12.870067596435547,
                         "y": 2.261659622192383,
-                        "z": 11.46786117553711
+                        "z": 10.071451187133789
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -17493,9 +17505,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 0.0,
-                        "y": 1.904695749282837,
-                        "z": -5.552964210510254
+                        "x": 6.208311557769775,
+                        "y": 1.9848849773406982,
+                        "z": -6.605283260345459
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -17528,8 +17540,19 @@
                     "farClip": 4000.0,
                     "fovY": 60.0,
                     "isMain": true,
-                    "nearClip": 0.009999999776482582,
-                    "priority": 0
+                    "nearClip": 0.0010000000474974513,
+                    "orthographicSize": 5.0,
+                    "postProcessEnabled": true,
+                    "priority": 0,
+                    "projectionMode": "Perspective",
+                    "renderExtension": "6ba35c82529925140ca517bf3c45d385",
+                    "targetTexture": "",
+                    "viewportHeight": 1.0,
+                    "viewportWidth": 1.0,
+                    "viewportX": 0.0,
+                    "viewportY": 0.0,
+                    "volumeLayerMask": 16777215,
+                    "volumeProfile": "5ba35c82529925140ca517bf3c45d385"
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -17540,20 +17563,20 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 7.809802055358887,
-                        "y": 11.472025871276855,
+                        "x": 9.123738288879395,
+                        "y": 12.35183048248291,
                         "z": -4.64422082901001
                     },
                     "localRotation": {
-                        "w": 0.7046268582344055,
-                        "x": 0.05916916951537132,
-                        "y": 0.7046268582344055,
-                        "z": -0.05916916951537132
+                        "w": 0.7071067690849304,
+                        "x": 0.0,
+                        "y": 0.7071067690849304,
+                        "z": 0.0
                     },
                     "localScale": {
-                        "x": 1.0000720024108887,
-                        "y": 1.0000720024108887,
-                        "z": 1.0000720024108887
+                        "x": 1.000022530555725,
+                        "y": 1.0000215768814087,
+                        "z": 1.0000215768814087
                     }
                 }
             },
@@ -18097,7 +18120,6 @@
     ],
     "Header": {
         "name": "Sponza",
-        "renderFeatureProfile": "6ba35c82529925140ca517bf3c45d385",
         "subScenes": [
             {
                 "enabled": false,

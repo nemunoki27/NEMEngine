@@ -53,11 +53,17 @@ bool Input::PushKey(BYTE keyNumber, [[maybe_unused]] const std::source_location&
 
 bool Input::TriggerKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	// 現在のフレームで押されていて、前のフレームで押されていなかった場合にtrueを返す
 	return hardware_.GetState().key[keyNumber] && !hardware_.GetState().keyPre[keyNumber];
 }
 bool Input::ReleaseKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	return !hardware_.GetState().key[keyNumber] && hardware_.GetState().keyPre[keyNumber];
 }
 bool Input::PushGamepadButton(GamePadButtons button, [[maybe_unused]] const std::source_location& location) {
@@ -71,6 +77,12 @@ bool Input::PushGamepadButton(GamePadButtons button, [[maybe_unused]] const std:
 }
 bool Input::TriggerGamepadButton(GamePadButtons button, [[maybe_unused]] const std::source_location& location) {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
+	if (!hardware_.GetState().padConnectedPre[0]) {
+		return false;
+	}
 	// ボタン番号が範囲外の場合はfalseを返す
 	if (hardware_.GetState().gamepadButtons.size() <= static_cast<size_t>(button)) {
 		return false;
@@ -139,14 +151,23 @@ bool Input::PushMouse(MouseButton button, const std::source_location& location) 
 }
 bool Input::TriggerMouseLeft([[maybe_unused]] const std::source_location& location) const {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	return !hardware_.GetState().mousePreButtons[0] && hardware_.GetState().mouseButtons[0];
 }
 bool Input::TriggerMouseRight([[maybe_unused]] const std::source_location& location) const {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	return !hardware_.GetState().mousePreButtons[1] && hardware_.GetState().mouseButtons[1];
 }
 bool Input::TriggerMouseCenter([[maybe_unused]] const std::source_location& location) const {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	return !hardware_.GetState().mousePreButtons[2] && hardware_.GetState().mouseButtons[2];
 }
 bool Input::TriggerMouse(MouseButton button, const std::source_location& location) const {
@@ -173,6 +194,9 @@ bool Input::TriggerMouse(MouseButton button, const std::source_location& locatio
 }
 bool Input::ReleaseMouse(MouseButton button, [[maybe_unused]] const std::source_location& location) const {
 
+	if (suppressEdgesThisFrame_) {
+		return false;
+	}
 	bool released = false;
 	switch (button) {
 	case MouseButton::Left: {
@@ -216,6 +240,15 @@ void Input::LoadConfig() {
 
 	deadZone_ = data.value("deadZone", deadZone_);
 	SetDeadZone(deadZone_);
+	backgroundInputEnabled_ = data.value("backgroundInputEnabled", false);
+	if (data.contains("players") && data["players"].is_array()) {
+		for (size_t i = 0; i < data["players"].size() && i < kMaxPlayers; ++i) {
+			const nlohmann::json& player = data["players"][i];
+			SetPlayerGamepadIndex(static_cast<uint32_t>(i),
+				player.value("gamepad", static_cast<int32_t>(i)));
+			playerKeyboardMouse_[i] = player.value("keyboardMouse", i == 0);
+		}
+	}
 
 	// マウス範囲制御を復元する
 	mouseRangeControl_ = data.value("mouseRangeControl", mouseRangeControl_);
@@ -231,6 +264,14 @@ void Input::SaveConfig() const {
 
 	nlohmann::json data{};
 	data["deadZone"] = deadZone_;
+	data["backgroundInputEnabled"] = backgroundInputEnabled_;
+	data["players"] = nlohmann::json::array();
+	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
+		data["players"].push_back({
+			{ "gamepad", playerGamepads_[i] },
+			{ "keyboardMouse", playerKeyboardMouse_[i] },
+			});
+	}
 
 	data["mouseRangeControl"] = mouseRangeControl_;
 	data["mouseAreaPosX"] = mouseAreaPos_.x;
@@ -344,41 +385,113 @@ bool Input::HasGamepadInput() const {
 
 uint32_t Engine::Input::PlayVibration(const InputVibrationParams& params) {
 
-	return vibration_.PlayVibration(params);
+	return PlayVibration(0, params);
+}
+
+uint32_t Engine::Input::PlayVibration(uint32_t playerIndex, const InputVibrationParams& params) {
+
+	return playerIndex < kMaxPlayers ? vibrations_[playerIndex].PlayVibration(params) : 0;
 }
 
 void Engine::Input::StopVibration(uint32_t handle) {
 
-	vibration_.StopVibration(handle);
+	StopVibration(0, handle);
+}
+
+void Engine::Input::StopVibration(uint32_t playerIndex, uint32_t handle) {
+
+	if (playerIndex < kMaxPlayers) {
+		vibrations_[playerIndex].StopVibration(handle);
+	}
 }
 
 void Engine::Input::StopAllVibration() {
 
-	vibration_.StopAllVibration();
+	for (InputVibrationPlayer& vibration : vibrations_) {
+		vibration.StopAllVibration();
+	}
 }
 
 void Engine::Input::SetVibrationEnabled(bool enabled) {
 
-	vibration_.SetVibrationEnabled(enabled);
+	for (InputVibrationPlayer& vibration : vibrations_) {
+		vibration.SetVibrationEnabled(enabled);
+	}
+}
+
+void Engine::Input::SetVibrationEnabled(uint32_t playerIndex, bool enabled) {
+
+	if (playerIndex < kMaxPlayers) {
+		vibrations_[playerIndex].SetVibrationEnabled(enabled);
+	}
+}
+
+void Engine::Input::SetPlayerGamepadIndex(uint32_t playerIndex, int32_t gamepadIndex) {
+
+	if (playerIndex >= kMaxPlayers || gamepadIndex < -1 || InputDeviceState::kMaxGamepads <= gamepadIndex) {
+		return;
+	}
+	playerGamepads_[playerIndex] = gamepadIndex;
+}
+
+int32_t Engine::Input::GetPlayerGamepadIndex(uint32_t playerIndex) const {
+
+	return playerIndex < kMaxPlayers ? playerGamepads_[playerIndex] : -1;
+}
+
+void Engine::Input::SetPlayerKeyboardMouseEnabled(uint32_t playerIndex, bool enabled) {
+
+	if (playerIndex < kMaxPlayers) {
+		playerKeyboardMouse_[playerIndex] = enabled;
+	}
+}
+
+bool Engine::Input::IsPlayerKeyboardMouseEnabled(uint32_t playerIndex) const {
+
+	return playerIndex < kMaxPlayers && playerKeyboardMouse_[playerIndex];
+}
+
+bool Engine::Input::IsGameplayInputAvailable(uint32_t playerIndex) const {
+
+	return playerIndex < kMaxPlayers && (backgroundInputEnabled_ || HasWindowFocus());
 }
 
 void Input::Init(WinApp* winApp) {
 
 	winApp_ = winApp;
 	hardware_.Init(*winApp_);
+	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
+		vibrations_[i].SetGamepadIndex(i);
+	}
 	LoadConfig();
 }
 
 void Input::Update() {
 
+	// focus復帰frameは押下状態だけを復元する
+	suppressEdgesThisFrame_ = suppressEdgesOnNextUpdate_;
+	suppressEdgesOnNextUpdate_ = false;
 	hardware_.BeginFrame();
 	hardware_.PollKeyboardAndGamepads(deadZone_);
 	windowEvents_.CommitText();
 
-	// デバイス振動の更新
-	vibration_.UpdateVibration(hardware_.GetState().gamepadConnected);
+	// Playerごとの割り当て先へ振動を出力
+	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
+		const int32_t gamepadIndex = playerGamepads_[i];
+		vibrations_[i].SetGamepadIndex(gamepadIndex < 0 ? i : static_cast<uint32_t>(gamepadIndex));
+		vibrations_[i].UpdateVibration(
+			IsGameplayInputAvailable(i) && GamepadConnectedByIndex(gamepadIndex));
+	}
 
 	hardware_.PollMouse(*winApp_);
+}
+
+void Input::SetWindowFocus(bool focused) {
+
+	if (focused && !windowEvents_.HasWindowFocus()) {
+		suppressEdgesOnNextUpdate_ = true;
+	}
+	windowEvents_.SetWindowFocus(focused);
 }
 
 void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos,

@@ -29,6 +29,14 @@ namespace Engine {
 		Screen,
 	};
 
+	// 確定したカメラの投影方式
+	enum class ResolvedProjectionMode :
+		uint8_t {
+
+		Perspective,
+		Orthographic,
+	};
+
 	// 2D/3Dカメラ共通トランスフォーム
 	struct ManualRenderCameraTransform {
 
@@ -73,6 +81,8 @@ namespace Engine {
 
 		// ビュー情報が有効か
 		bool valid = false;
+		// 投影方式
+		ResolvedProjectionMode projectionMode = ResolvedProjectionMode::Perspective;
 
 		// 描画ビュー行列
 		ViewProjectionMatrices matrices{};
@@ -85,6 +95,10 @@ namespace Engine {
 		float farClip = 1000.0f;
 		// 描画対象レイヤーマスク
 		uint32_t cullingMask = 0xFFFFFFFFu;
+		bool postProcessEnabled = true;
+		uint32_t volumeLayerMask = 0xffffffffu;
+		AssetID volumeProfile{};
+		AssetID renderExtension{};
 
 		// 描画にしようするカメラを持つエンティティ
 		Entity sourceCamera = Entity::Null();
@@ -103,6 +117,17 @@ namespace Engine {
 		uint32_t width = 0;
 		uint32_t height = 0;
 		float aspectRatio = 1.0f;
+		// 出力先内の描画範囲
+		uint32_t outputX = 0;
+		uint32_t outputY = 0;
+		uint32_t outputWidth = 0;
+		uint32_t outputHeight = 0;
+		float normalizedOutputX = 0.0f;
+		float normalizedOutputY = 0.0f;
+		float normalizedOutputWidth = 1.0f;
+		float normalizedOutputHeight = 1.0f;
+		// 空なら既定のViewサーフェスへ出力する
+		AssetID targetTexture{};
 
 		ResolvedCameraView orthographic{};
 		ResolvedCameraView perspective{};

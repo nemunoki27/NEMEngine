@@ -103,9 +103,12 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 
 	RenderFeatureProfileService& service =
 		RenderFeatureProfileService::GetInstance();
-	service.EnsureLoaded();
+	if (!context.renderExtensionRuntime) {
+		return;
+	}
+	const RenderFeatureProfileRuntime& runtime = *context.renderExtensionRuntime;
 	const RenderFeatureExecutionPlan plan =
-		service.GetRuntime().BuildPlan(anchor_, context.kind);
+		runtime.BuildPlan(anchor_, context.kind);
 	if (!plan.IsValid()) {
 		if (lastDiagnostic_ != plan.diagnostic) {
 			Logger::Output(LogType::Engine, spdlog::level::err,
@@ -132,7 +135,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			node.selectionGroup;
 		const bool selectionBegin = node.selectionBegin;
 		const bool selectionEnd = node.selectionEnd;
-		if (selectionBegin && !selection.Begin(graphicsCore, context, deps_, service.GetRuntime(),
+		if (selectionBegin && !selection.Begin(graphicsCore, context, deps_, runtime,
 			passBuckets, selectionGroup, *sceneFinal, sceneFormat)) {
 			return;
 		}
@@ -186,7 +189,8 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		resolutionScales[pass.id.value] = outputScale;
 		RenderFeaturePassTargets targets{};
 		if (!targets.Resolve(graphicsCore, context, *deps_.postProcessTargetPool, temporalState_,
-			pass, *sceneFinal, sceneFormat, outputScale, raytracingChain, runtimeFeatures, service.GetRuntimeGeneration())) {
+			pass, *sceneFinal, sceneFormat, outputScale, raytracingChain, runtimeFeatures,
+			context.renderExtensionGeneration)) {
 			return;
 		}
 

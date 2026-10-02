@@ -44,6 +44,8 @@ namespace Engine {
 		bool dispatchRaysEnabled = false;
 		// 深度テスト+書き込みを強制した派生PSOか、3Dテキストなど次元で深度挙動を変える用途で別エントリにする
 		bool depthForcedTestWrite = false;
+		// Shadow Map用にCullModeをNONEへ上書きした派生PSOか
+		bool twoSidedRasterizer = false;
 		// 静的サンプラー上書きのハッシュ値
 		uint64_t samplerHash = 0;
 
@@ -75,14 +77,15 @@ namespace Engine {
 			const GraphicsRuntimeFeatures& runtimeFeatures,
 			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false,
 			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr,
-			AssetID shaderOverrideAssetID = {});
+			AssetID shaderOverrideAssetID = {}, bool forceTwoSidedRasterizer = false);
 		// 状態、形状ステージ、Materialステージを合成して取得する
 		const PipelineState* GetORCreateComposed(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
 			AssetID shaderOverrideAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 			const GraphicsRuntimeFeatures& runtimeFeatures,
-			const PipelineVariantDesc** outVariant = nullptr);
+			const PipelineVariantDesc** outVariant = nullptr,
+			bool forceTwoSidedRasterizer = false);
 
 		// データクリア
 		void Clear();

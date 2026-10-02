@@ -71,7 +71,10 @@ void Engine::RenderAssetLibrary::Clear() {
 	materialCache_.clear();
 	fontCache_.clear();
 	particleEffectCache_.clear();
-	renderFeatureProfileCache_.clear();
+	renderTextureCache_.clear();
+	volumeProfileCache_.clear();
+	renderExtensionCache_.clear();
+	++renderExtensionRevision_;
 	materialRevision_ = revision;
 }
 
@@ -125,12 +128,14 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	RegisterDerivedShader(std::move(artifact.transparentShader));
 	RegisterDerivedShader(std::move(artifact.depthShader));
 	RegisterDerivedShader(std::move(artifact.pickingShader));
+	RegisterDerivedShader(std::move(artifact.outlineShader));
 	RegisterDerivedShader(std::move(artifact.computeShader));
 	RegisterDerivedShader(std::move(artifact.rayTracingShader));
 	RegisterDerivedPipeline(std::move(artifact.opaquePipeline));
 	RegisterDerivedPipeline(std::move(artifact.transparentPipeline));
 	RegisterDerivedPipeline(std::move(artifact.depthPipeline));
 	RegisterDerivedPipeline(std::move(artifact.pickingPipeline));
+	RegisterDerivedPipeline(std::move(artifact.outlinePipeline));
 	RegisterDerivedPipeline(std::move(artifact.computePipeline));
 	RegisterDerivedPipeline(std::move(artifact.rayTracingPipeline));
 	ShaderGraphArtifactCache::ApplyToMaterial(artifact, asset);
@@ -201,10 +206,19 @@ const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffec
 	return LoadCachedAsset(particleEffectCache_, assetID);
 }
 
-const Engine::RenderFeatureProfileAsset*
-Engine::RenderAssetLibrary::LoadRenderFeatureProfile(AssetID assetID) {
+const Engine::RenderTextureAsset* Engine::RenderAssetLibrary::LoadRenderTexture(AssetID assetID) {
 
-	return LoadCachedAsset(renderFeatureProfileCache_, assetID);
+	return LoadCachedAsset(renderTextureCache_, assetID);
+}
+
+const Engine::VolumeProfileAsset* Engine::RenderAssetLibrary::LoadVolumeProfile(AssetID assetID) {
+
+	return LoadCachedAsset(volumeProfileCache_, assetID);
+}
+
+const Engine::RenderExtensionAsset* Engine::RenderAssetLibrary::LoadRenderExtension(AssetID assetID) {
+
+	return LoadCachedAsset(renderExtensionCache_, assetID);
 }
 
 void Engine::RenderAssetLibrary::RegisterDerivedShader(
@@ -233,6 +247,14 @@ void Engine::RenderAssetLibrary::RegisterDerivedMaterial(
 		materialCache_.insert_or_assign(
 			material.guid, std::move(material));
 		materialRevision_ = revision;
+	}
+}
+
+void Engine::RenderAssetLibrary::RegisterPreviewVolumeProfile(
+	VolumeProfileAsset profile) {
+
+	if (profile.guid) {
+		volumeProfileCache_.insert_or_assign(profile.guid, std::move(profile));
 	}
 }
 

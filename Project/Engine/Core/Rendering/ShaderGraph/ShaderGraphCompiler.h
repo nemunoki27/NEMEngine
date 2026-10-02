@@ -36,6 +36,7 @@ namespace Engine {
 		std::string transparentPixelHLSL;
 		std::string depthPixelHLSL;
 		std::string pickingPixelHLSL;
+		std::string outlinePixelHLSL;
 		std::string vertexHLSL;
 		std::string meshHLSL;
 		std::string rayTracingHLSL;

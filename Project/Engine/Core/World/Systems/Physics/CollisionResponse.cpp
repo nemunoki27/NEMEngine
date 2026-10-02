@@ -77,7 +77,16 @@ namespace {
 			return;
 		}
 		auto& transform = world.GetComponent<Engine::TransformComponent>(entity);
-		transform.localPos += constrainedDelta;
+		Engine::Vector3 localDelta = constrainedDelta;
+		if (const auto* hierarchy = world.TryGetComponent<Engine::HierarchyComponent>(entity);
+			hierarchy && world.IsAlive(hierarchy->parent)) {
+
+			if (const auto* parent = world.TryGetComponent<Engine::TransformComponent>(hierarchy->parent)) {
+				localDelta = Engine::Vector3::TransferNormal(
+					constrainedDelta, Engine::Matrix4x4::Inverse(parent->worldMatrix));
+			}
+		}
+		transform.localPos += localDelta;
 		UpdateTransformWorldMatrix(world, entity, transform);
 	}
 
@@ -346,7 +355,7 @@ namespace {
 				IsCenterSupported3D(transform, com, pushOutDir, selfShape, supportShape);
 			if (body.allowTopple && !supported) {
 
-				ResolveContact3D(body, pushOutDir, lever);
+				ResolveContact3D(body, pushOutDir, lever, *selfShape);
 			} else {
 				ResolveLinearOnly(body.linearVelocity, pushOutDir, body.restitution, body.friction);
 			}
@@ -366,7 +375,7 @@ namespace {
 			const bool supported = body.allowTopple && !body.freezeRotation &&
 				IsCenterSupported2D(com, pushOutDir, selfShape, supportShape);
 			if (body.allowTopple && !body.freezeRotation && !supported) {
-				ResolveContact2D(body, normal2D, Engine::Vector2(lever.x, lever.y));
+				ResolveContact2D(body, normal2D, Engine::Vector2(lever.x, lever.y), *selfShape);
 			} else {
 				ResolveLinearOnly(body.linearVelocity, normal2D, body.restitution, body.friction);
 			}
@@ -376,6 +385,68 @@ namespace {
 			}
 			ApplyVelocityConstraints(body);
 		}
+	}
+
+	float ResolveInverseMass(Engine::ECSWorld& world, Engine::Entity entity) {
+
+		if (const auto* body = world.TryGetComponent<Engine::RigidbodyComponent>(entity)) {
+			return body->bodyType == Engine::RigidbodyType::Dynamic ?
+				1.0f / (std::max)(body->mass, 0.0001f) : 0.0f;
+		}
+		if (const auto* body = world.TryGetComponent<Engine::Rigidbody2DComponent>(entity)) {
+			return body->bodyType == Engine::RigidbodyType::Dynamic ?
+				1.0f / (std::max)(body->mass, 0.0001f) : 0.0f;
+		}
+		return 1.0f;
+	}
+
+	bool ResolvePairContactVelocity(Engine::ECSWorld& world,
+		const Engine::Entity& entityA, const Engine::Entity& entityB,
+		const Engine::Vector3& normalA, const Engine::Vector3& contactPoint,
+		const Engine::CollisionShapeInstance* shapeA,
+		const Engine::CollisionShapeInstance* shapeB) {
+
+		if (!shapeA || !shapeB) {
+			return false;
+		}
+		const auto* transformA = world.TryGetComponent<Engine::TransformComponent>(entityA);
+		const auto* transformB = world.TryGetComponent<Engine::TransformComponent>(entityB);
+		if (!transformA || !transformB) {
+			return false;
+		}
+		const Engine::Vector3 leverA = contactPoint -
+			transformA->worldMatrix.GetTranslationValue();
+		const Engine::Vector3 leverB = contactPoint -
+			transformB->worldMatrix.GetTranslationValue();
+		if (auto* bodyA = world.TryGetComponent<Engine::RigidbodyComponent>(entityA)) {
+
+			auto* bodyB = world.TryGetComponent<Engine::RigidbodyComponent>(entityB);
+			if (!bodyB || bodyA->bodyType != Engine::RigidbodyType::Dynamic ||
+				bodyB->bodyType != Engine::RigidbodyType::Dynamic) {
+				return false;
+			}
+			Engine::CollisionImpulse::ResolveContactPair3D(
+				*bodyA, *bodyB, normalA, leverA, leverB, *shapeA, *shapeB);
+			ApplyVelocityConstraints(*bodyA);
+			ApplyVelocityConstraints(*bodyB);
+			return true;
+		}
+		if (auto* bodyA = world.TryGetComponent<Engine::Rigidbody2DComponent>(entityA)) {
+
+			auto* bodyB = world.TryGetComponent<Engine::Rigidbody2DComponent>(entityB);
+			if (!bodyB || bodyA->bodyType != Engine::RigidbodyType::Dynamic ||
+				bodyB->bodyType != Engine::RigidbodyType::Dynamic) {
+				return false;
+			}
+			Engine::CollisionImpulse::ResolveContactPair2D(*bodyA, *bodyB,
+				Engine::Vector2(normalA.x, normalA.y),
+				Engine::Vector2(leverA.x, leverA.y), Engine::Vector2(leverB.x, leverB.y),
+				*shapeA, *shapeB);
+			ApplyVelocityConstraints(*bodyA);
+			ApplyVelocityConstraints(*bodyB);
+			return true;
+		}
+		return false;
 	}
 }
 
@@ -412,8 +483,10 @@ void Engine::CollisionResponse::ApplyPushback(ECSWorld& world,
 		ApplyTranslationConstraints(world, a.entity, contact.normal) : Vector3::AnyInit(0.0f);
 	const Vector3 responseDirectionB = movableB ?
 		ApplyTranslationConstraints(world, b.entity, contact.normal) : Vector3::AnyInit(0.0f);
-	const float responseA = (std::max)(Vector3::Dot(responseDirectionA, contact.normal), 0.0f);
-	const float responseB = (std::max)(Vector3::Dot(responseDirectionB, contact.normal), 0.0f);
+	const float responseA = (std::max)(Vector3::Dot(responseDirectionA, contact.normal), 0.0f) *
+		ResolveInverseMass(world, a.entity);
+	const float responseB = (std::max)(Vector3::Dot(responseDirectionB, contact.normal), 0.0f) *
+		ResolveInverseMass(world, b.entity);
 	const float responseSum = responseA + responseB;
 	const float correctionDepth = (std::max)(contact.penetration - kPenetrationSlop, 0.0f);
 	bool movedA = false;
@@ -434,11 +507,13 @@ void Engine::CollisionResponse::ApplyPushback(ECSWorld& world,
 		}
 	}
 
-	if (movableA) {
+	const bool pairResolved = movableA && movableB && ResolvePairContactVelocity(
+		world, a.entity, b.entity, -contact.normal, contact.point, shapeA, shapeB);
+	if (movableA && !pairResolved) {
 		ResolveContactVelocity(world, a.entity, -contact.normal,
 			contact.point, shapeA, shapeB);
 	}
-	if (movableB) {
+	if (movableB && !pairResolved) {
 		ResolveContactVelocity(world, b.entity, contact.normal,
 			contact.point, shapeB, shapeA);
 	}
@@ -450,4 +525,11 @@ void Engine::CollisionResponse::ApplyPushback(ECSWorld& world,
 	if (movedB) {
 		RebuildRuntimeShape(world, b);
 	}
+}
+
+void Engine::CollisionResponse::MoveByWorldDelta(ECSWorld& world,
+	CollisionRuntimeEntity& runtime, const Vector3& delta) {
+
+	MoveEntity(world, runtime.entity, delta);
+	RebuildRuntimeShape(world, runtime);
 }

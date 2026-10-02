@@ -20,6 +20,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Runtime/Context/EngineContext.h>
 
 // パネル群
 #include <Engine/Editor/UI/Panels/Builtin/BuiltinEditorPanelRegistration.h>
@@ -366,6 +367,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 		// 通常表示中でもMenuBarのショートカット表記通りTab+EscでHidePanelsへ入る
 		layoutState_.hidePanels = true;
+		WinApp::BeginProductSizePreview(EngineContext::GetWindowSetting().gameSize);
 		return;
 	}
 	if (layoutState_.hidePanels) {
@@ -373,7 +375,9 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 		// HidePanels中はエディター機能を止め、Tab+Escの復帰入力だけを受け付ける
 		if (IsHidePanelsShortcutTriggered()) {
 			layoutState_.hidePanels = false;
+			WinApp::EndProductSizePreview();
 		} else {
+			WinApp::BeginProductSizePreview(EngineContext::GetWindowSetting().gameSize);
 			return;
 		}
 	}
@@ -578,6 +582,7 @@ void Engine::EditorManager::Finalize() {
 
 	// Editor終了後の補助描画を切り離す
 	ParticleEmitterShapeRegistry::GetInstance().SetDebugDrawFunction(nullptr);
+	WinApp::EndProductSizePreview();
 
 	if (!initialized_) {
 		return;

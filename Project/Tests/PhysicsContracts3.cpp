@@ -12,8 +12,14 @@
 #include "SceneStorageTests.h"
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Physics/Collision/CollisionRaycast.h>
+#include <Engine/Core/Physics/Collision/CollisionQuery.h>
+#include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
+#include <Engine/Core/World/Systems/Physics/CollisionImpulse.h>
+#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
+#include <Engine/Core/World/Components/Physics/PhysicsJointComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
 #include <algorithm>
@@ -239,5 +245,95 @@ namespace NEMTests {
 			std::abs(built3D.segmentEnd.z - 1.0f) <= 0.0001f &&
 			std::abs(restored3D.capsuleHeight - authored3D.capsuleHeight) <= 0.0001f &&
 			restored3D.capsuleAxis == authored3D.capsuleAxis;
+	}
+
+	bool TestPhysicsQueryTriggers() {
+
+		using namespace Engine;
+		ECSWorld world(ECSWorldKind::Runtime);
+		auto createSphere = [&](float x, bool trigger) {
+
+			const Entity entity = world.CreateEntity();
+			auto& transform = world.AddComponent<TransformComponent>(entity);
+			transform.localPos = Vector3(x, 0.0f, 0.0f);
+			transform.worldMatrix = Matrix4x4::MakeTranslateMatrix(transform.localPos);
+			auto& collision = world.AddComponent<CollisionComponent>(entity);
+			collision.shape.type = ColliderShapeType::Sphere3D;
+			collision.shape.radius = 0.5f;
+			collision.shape.isTrigger = trigger;
+			return entity;
+		};
+
+		const Entity trigger = createSphere(0.0f, true);
+		const Entity solid = createSphere(3.0f, false);
+		Ray ray{};
+		ray.origin = Vector3(-5.0f, 0.0f, 0.0f);
+		ray.direction = Vector3(1.0f, 0.0f, 0.0f);
+		RaycastHit3D hit{};
+		if (!CollisionQuery::Raycast(world, ray, 20.0f, 0xffffffffu,
+			RaycastTargets::All, QueryTriggerInteraction::Ignore, hit) ||
+			hit.entity != solid || hit.trigger) {
+
+			return false;
+		}
+		if (!CollisionQuery::Raycast(world, ray, 20.0f, 0xffffffffu,
+			RaycastTargets::All, QueryTriggerInteraction::Collide, hit) ||
+			hit.entity != trigger || !hit.trigger) {
+
+			return false;
+		}
+
+		CollisionSettings& settings = CollisionSettings::GetInstance();
+		settings.EnsureLoaded();
+		const bool previous = settings.GetQueriesHitTriggers();
+		settings.SetQueriesHitTriggers(false);
+		const bool ignored = CollisionQuery::Raycast(world, ray, 20.0f,
+			0xffffffffu, RaycastTargets::All,
+			QueryTriggerInteraction::UseGlobal, hit) && hit.entity == solid;
+		settings.SetQueriesHitTriggers(true);
+		const bool included = CollisionQuery::Raycast(world, ray, 20.0f,
+			0xffffffffu, RaycastTargets::All,
+			QueryTriggerInteraction::UseGlobal, hit) && hit.entity == trigger;
+		settings.SetQueriesHitTriggers(previous);
+
+		// 動的剛体同士は合成質量を使い、運動量を保ったまま離れる
+		RigidbodyComponent lightBody{};
+		RigidbodyComponent heavyBody{};
+		lightBody.mass = 1.0f;
+		heavyBody.mass = 3.0f;
+		lightBody.restitution = 1.0f;
+		heavyBody.restitution = 1.0f;
+		lightBody.friction = 0.0f;
+		heavyBody.friction = 0.0f;
+		lightBody.linearVelocity = Vector3(4.0f, 0.0f, 0.0f);
+		heavyBody.linearVelocity = Vector3::AnyInit(0.0f);
+		CollisionShapeInstance impulseShape{};
+		impulseShape.type = ColliderShapeType::Sphere3D;
+		impulseShape.radius = 1.0f;
+		CollisionImpulse::ResolveContactPair3D(lightBody, heavyBody,
+			Vector3(-1.0f, 0.0f, 0.0f), Vector3::AnyInit(0.0f),
+			Vector3::AnyInit(0.0f), impulseShape, impulseShape);
+		const float momentum = lightBody.linearVelocity.x * lightBody.mass +
+			heavyBody.linearVelocity.x * heavyBody.mass;
+		const bool separated = lightBody.linearVelocity.x <= heavyBody.linearVelocity.x;
+
+		// JointとCCD設定を保存後も維持する
+		HingeJointComponent hinge{};
+		hinge.connectedBodyLocalFileID = Engine::UUID{ 17 };
+		hinge.axis = Vector3(0.0f, 1.0f, 0.0f);
+		hinge.useLimits = true;
+		hinge.minAngle = -35.0f;
+		hinge.maxAngle = 70.0f;
+		const HingeJointComponent restoredHinge =
+			nlohmann::json(hinge).get<HingeJointComponent>();
+		lightBody.collisionDetection = CollisionDetectionMode::Continuous;
+		const RigidbodyComponent restoredBody =
+			nlohmann::json(lightBody).get<RigidbodyComponent>();
+		return ignored && included && separated &&
+			std::abs(momentum - 4.0f) <= 0.0001f &&
+			restoredHinge.connectedBodyLocalFileID == hinge.connectedBodyLocalFileID &&
+			restoredHinge.useLimits && restoredHinge.minAngle == hinge.minAngle &&
+			restoredHinge.maxAngle == hinge.maxAngle &&
+			restoredBody.collisionDetection == CollisionDetectionMode::Continuous;
 	}
 }

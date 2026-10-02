@@ -152,8 +152,10 @@ internal static unsafe class NativeAPI {
     // v20: GameObjectの保存identityを逆引きする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void> GetEntityReferenceIdentity;
     // v21: レイキャストとカメラレイとCollisionタイプ名解決
-    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int> PhysicsRaycast;
-    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, NativeRaycastHit*, int, int> PhysicsRaycastAll;
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*, int> PhysicsRaycast;
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*, int, int> PhysicsRaycastAll;
+    internal static delegate* unmanaged[Cdecl]<int> GetQueriesHitTriggers;
+    internal static delegate* unmanaged[Cdecl]<int, void> SetQueriesHitTriggers;
     internal static delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> ScreenPointToRay;
     internal static delegate* unmanaged[Cdecl]<NativeVector2*, int> GetMousePositionInView;
     internal static delegate* unmanaged[Cdecl]<byte*, uint> GetCollisionTypeMaskByName;
@@ -176,7 +178,12 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> DynamicBufferCopy;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int> DynamicBufferMutate;
     // v26: UI入力ブロック状態
-    internal static delegate* unmanaged[Cdecl]<int> GetUIBlocksGameplayInput;
+	internal static delegate* unmanaged[Cdecl]<int, int> GetUIBlocksGameplayInput;
+	internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerGamepadIndex;
+	internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerKeyboardMouseEnabled;
+	internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerInputAvailable;
+	internal static delegate* unmanaged[Cdecl]<int, float, float, float, float, float, uint> PlayPlayerVibration;
+	internal static delegate* unmanaged[Cdecl]<int, uint, void> StopPlayerVibration;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUISelectableRuntimeState*, int> GetUISelectableRuntimeState;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*, int> GetUIProgressRuntimeState;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCanvasInputLocked;
@@ -335,6 +342,8 @@ internal static unsafe class NativeAPI {
         GetEntityReferenceIdentity = callbacks->getEntityReferenceIdentity;
         PhysicsRaycast = callbacks->physicsRaycast;
         PhysicsRaycastAll = callbacks->physicsRaycastAll;
+        GetQueriesHitTriggers = callbacks->getQueriesHitTriggers;
+        SetQueriesHitTriggers = callbacks->setQueriesHitTriggers;
         ScreenPointToRay = callbacks->screenPointToRay;
         GetMousePositionInView = callbacks->getMousePositionInView;
         GetCollisionTypeMaskByName = callbacks->getCollisionTypeMaskByName;
@@ -350,7 +359,12 @@ internal static unsafe class NativeAPI {
         DynamicBufferLength = callbacks->dynamicBufferLength;
         DynamicBufferCopy = callbacks->dynamicBufferCopy;
         DynamicBufferMutate = callbacks->dynamicBufferMutate;
-        GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
+		GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
+		GetPlayerGamepadIndex = callbacks->getPlayerGamepadIndex;
+		GetPlayerKeyboardMouseEnabled = callbacks->getPlayerKeyboardMouseEnabled;
+		GetPlayerInputAvailable = callbacks->getPlayerInputAvailable;
+		PlayPlayerVibration = callbacks->playPlayerVibration;
+		StopPlayerVibration = callbacks->stopPlayerVibration;
         GetUISelectableRuntimeState = callbacks->getUISelectableRuntimeState;
         GetUIProgressRuntimeState = callbacks->getUIProgressRuntimeState;
         GetCanvasInputLocked = callbacks->getCanvasInputLocked;
@@ -511,8 +525,8 @@ internal static unsafe class NativeAPI {
         throw new InvalidOperationException($"Component access failed: {status}");
     }
 
-	internal static bool ReadUIBlocksGameplayInput() {
-		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput() != 0;
+	internal static bool ReadUIBlocksGameplayInput(int playerIndex) {
+		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput(playerIndex) != 0;
 	}
 
 }

@@ -74,7 +74,8 @@ namespace Engine {
 		// 描画ごとの定数領域を解放する
 		void Release();
 		// Viewの行列と履歴を更新する
-		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView);
+		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView,
+			const ResolvedRenderView* lodView = nullptr);
 		// Draw用の定数を確定する
 		void UpdateDrawConstants(const RenderDrawContext& drawContext, const MeshGPUResource& gpuMesh,
 			uint32_t subMeshIndex, uint32_t subMeshGroupIndex, ID3D12Device* device, uint32_t instanceCount,

@@ -608,7 +608,16 @@ void Engine::CanvasInspectorDrawer::DrawFields([[maybe_unused]] const EditorPane
 
 	ImGui::Indent();
 	if (MyGUI::CollapsingHeader("入力設定", false)) {
-		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("ゲーム入力をブロック", draft.blockGameplayInput); });
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("ゲーム入力ブロック", draft.inputBlockMode);
+			});
+		DrawField(anyItemActive, [&]() {
+			int32_t playerIndex = static_cast<int32_t>(draft.playerIndex);
+			ValueEditResult result = MyGUI::DragInt("Player", playerIndex,
+				{ .dragSpeed = 1.0f,.minValue = 0,.maxValue = 3 });
+			draft.playerIndex = static_cast<uint32_t>(std::clamp(playerIndex, 0, 3));
+			return result;
+			});
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("編集中に入力有効", draft.inputInEditMode); });
 		DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("決定後入力を受け付けない", draft.blockInputAfterSubmit); });
 		DrawField(anyItemActive, [&]() {

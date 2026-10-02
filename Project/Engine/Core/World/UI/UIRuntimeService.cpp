@@ -165,7 +165,24 @@ void Engine::UIRuntimeService::Clear(ECSWorld& world) {
 		}
 	}
 	worlds_.erase(&world);
-	gameplayInputBlocked_ = false;
+	ClearGameplayInputBlocks();
+}
+
+void Engine::UIRuntimeService::SetGameplayInputBlocked(uint32_t playerIndex, bool blocked) {
+
+	if (playerIndex < gameplayInputBlocked_.size()) {
+		gameplayInputBlocked_[playerIndex] = blocked;
+	}
+}
+
+bool Engine::UIRuntimeService::IsGameplayInputBlocked(uint32_t playerIndex) const {
+
+	return playerIndex < gameplayInputBlocked_.size() && gameplayInputBlocked_[playerIndex];
+}
+
+void Engine::UIRuntimeService::ClearGameplayInputBlocks() {
+
+	gameplayInputBlocked_.fill(false);
 }
 
 bool Engine::UIRuntimeService::TryScreenToLocalPoint(const ECSWorld& world, Entity canvas,

@@ -75,6 +75,7 @@ namespace Engine {
 		ScreenSpaceOutlineRegionMode regionMode = ScreenSpaceOutlineRegionMode::AllVisibleSilhouettes;
 		// 2D RendererのAlpha判定元
 		ScreenSpaceOutlineAlphaSource alphaSource = ScreenSpaceOutlineAlphaSource::OutputColor;
+		float alphaThreshold = 0.1f;
 		// 2D UIとの重なり方
 		ScreenSpaceOutlineUIOcclusionMode uiOcclusionMode =
 			ScreenSpaceOutlineUIOcclusionMode::RespectRenderOrder;

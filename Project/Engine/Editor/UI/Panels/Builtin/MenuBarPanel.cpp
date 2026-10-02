@@ -328,6 +328,15 @@ void Engine::MenuBarPanel::Draw(const EditorPanelContext& context) {
 					useGameViewCameraForSceneCulling);
 			}
 			DrawGraphicsTooltip("無効時はSceneView自身のカメラでカリングします");
+
+			bool useGameViewPositionForSceneVolumes =
+				preferences.useGameViewPositionForSceneVolumes;
+			if (ImGui::Checkbox("SceneViewのVolume位置にGameViewを使用",
+				&useGameViewPositionForSceneVolumes)) {
+				featureController.SetUseGameViewPositionForSceneVolumes(
+					useGameViewPositionForSceneVolumes);
+			}
+			DrawGraphicsTooltip("無効時はSceneViewカメラ位置でLocal Volumeを評価します");
 			ImGui::EndMenu();
 		}
 

@@ -105,6 +105,8 @@ namespace Engine {
 		bool allowOcclusionCulling = true;
 		// SceneViewのカリングにGameViewのカメラを使用するか
 		bool useGameViewCameraForSceneCulling = true;
+		// SceneViewのLocal Volume判定にGameViewの位置を使用するか
+		bool useGameViewPositionForSceneVolumes = false;
 		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか

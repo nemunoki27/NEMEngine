@@ -36,22 +36,37 @@ namespace {
 void Engine::CollisionContactHistory::DispatchCollisionEnter(ECSWorld& world,
 	SystemContext& context, const CollisionContact& contact) const {
 
-	BehaviorSystem::DispatchCollisionEnter(world, context, contact);
-	BehaviorSystem::DispatchCollisionEnter(world, context, MakeSwappedContact(contact));
+	if (world.IsAlive(contact.self)) {
+		BehaviorSystem::DispatchCollisionEnter(world, context, contact);
+	}
+	if (world.IsAlive(contact.other)) {
+		BehaviorSystem::DispatchCollisionEnter(
+			world, context, MakeSwappedContact(contact));
+	}
 }
 
 void Engine::CollisionContactHistory::DispatchCollisionStay(ECSWorld& world,
 	SystemContext& context, const CollisionContact& contact) const {
 
-	BehaviorSystem::DispatchCollisionStay(world, context, contact);
-	BehaviorSystem::DispatchCollisionStay(world, context, MakeSwappedContact(contact));
+	if (world.IsAlive(contact.self)) {
+		BehaviorSystem::DispatchCollisionStay(world, context, contact);
+	}
+	if (world.IsAlive(contact.other)) {
+		BehaviorSystem::DispatchCollisionStay(
+			world, context, MakeSwappedContact(contact));
+	}
 }
 
 void Engine::CollisionContactHistory::DispatchCollisionExit(ECSWorld& world,
 	SystemContext& context, const CollisionContact& contact) const {
 
-	BehaviorSystem::DispatchCollisionExit(world, context, contact);
-	BehaviorSystem::DispatchCollisionExit(world, context, MakeSwappedContact(contact));
+	if (world.IsAlive(contact.self)) {
+		BehaviorSystem::DispatchCollisionExit(world, context, contact);
+	}
+	if (world.IsAlive(contact.other)) {
+		BehaviorSystem::DispatchCollisionExit(
+			world, context, MakeSwappedContact(contact));
+	}
 }
 
 void Engine::CollisionContactHistory::NotifyContact(ECSWorld& world, SystemContext& context, const CollisionPairKey& key, const CollisionContact& contact) const {

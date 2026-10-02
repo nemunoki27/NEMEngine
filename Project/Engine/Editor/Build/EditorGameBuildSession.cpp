@@ -1,6 +1,9 @@
 #include "EditorGameBuildSession.h"
 
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Runtime/Context/EngineContext.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 #include <algorithm>
@@ -37,6 +40,9 @@ void Engine::EditorGameBuildSession::Prepare(const EditorPanelContext& context) 
 		draft_.outputPath = Algorithm::PathToUTF8(
 			RuntimePaths::GetEngineProjectRoot().parent_path() / "Build");
 	}
+	const Vector2I gameSize = EngineContext::GetWindowSetting().gameSize;
+	draft_.gameWidth = gameSize.x;
+	draft_.gameHeight = gameSize.y;
 	requestOpenBuildPopup_ = true;
 }
 
@@ -63,6 +69,8 @@ void EditorGameBuildSession::Start(const EditorPanelContext& context) {
 	settings.startupScene = ResolveBuildScene();
 	settings.executableName = draft_.executableName;
 	settings.outputRoot = Algorithm::PathFromUTF8(draft_.outputPath);
+	settings.gameWidth = static_cast<uint32_t>(draft_.gameWidth);
+	settings.gameHeight = static_cast<uint32_t>(draft_.gameHeight);
 	settings.startupFullscreen = draft_.startupFullscreen;
 	if (!context.editorContext || !context.editorContext->assetDatabase ||
 		!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
@@ -83,6 +91,24 @@ void EditorGameBuildSession::ResetStatus() {
 void EditorGameBuildSession::RequestDirectory() {
 
 	buildDirectoryDialog_.Open(Algorithm::PathFromUTF8(draft_.outputPath));
+}
+
+void Engine::EditorGameBuildSession::SetGameSize(int32_t width, int32_t height) {
+
+	const Vector2I maximum = WinApp::GetMaximumClientSize();
+	draft_.gameWidth = std::clamp(width, 1, (std::max)(maximum.x, 1));
+	draft_.gameHeight = std::clamp(height, 1, (std::max)(maximum.y, 1));
+	EngineContext::SetGameSize({ draft_.gameWidth, draft_.gameHeight });
+
+	// 他の製品設定を保ったまま画像サイズだけを保存する
+	const std::filesystem::path path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild);
+	nlohmann::json data = JsonAdapter::Load(path.string(), false);
+	if (!data.is_object()) {
+		data = nlohmann::json::object();
+	}
+	data["gameWidth"] = draft_.gameWidth;
+	data["gameHeight"] = draft_.gameHeight;
+	JsonAdapter::Save(path.string(), data);
 }
 
 bool EditorGameBuildSession::ConsumeOpenPopup() {
