@@ -5,6 +5,7 @@
 //============================================================================
 #include "ParticleRenderDataUtility.h"
 #include "ParticleTrailDataBuilder.h"
+#include <Engine/Core/Rendering/Particle/Structures/ParticleShapeDataUtility.h>
 
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -40,31 +41,6 @@ namespace Engine::ParticleDrawPreparation {
 		const Engine::Vector3 translationWithPivot =
 			translation + pivot - Engine::Vector3::Transform(pivot, scaleRotation);
 		return Engine::Matrix4x4::MakeAffineMatrix(scale, rotation, translationWithPivot);
-	}
-
-	Engine::ParticleShapeData MakeStaticShapeData(const Engine::ParticleRenderSettings& settings) {
-
-		Engine::ParticleShapeData data{};
-		if (settings.shape == Engine::PrimitiveType::Ring) {
-
-			data.params0 = Engine::Vector4(
-				settings.ring.outerRadius,
-				settings.ring.innerRadius,
-				settings.ring.startAngle * Math::radian,
-				settings.ring.endAngle * Math::radian);
-		} else if (settings.shape == Engine::PrimitiveType::Cylinder) {
-
-			const Engine::PrimitiveCylinderParams& cylinder = settings.cylinder;
-			data.params0 = Engine::Vector4(
-				cylinder.topRadius, cylinder.centerRadius, cylinder.bottomRadius, cylinder.height);
-			data.params1 = Engine::Vector4(
-				cylinder.topRadiusWeight, cylinder.bottomRadiusWeight,
-				cylinder.maxAngle * Math::radian, 1.0f);
-			data.topColor = cylinder.topColor;
-			data.centerColor = cylinder.centerColor;
-			data.bottomColor = cylinder.bottomColor;
-		}
-		return data;
 	}
 
 	const Engine::ParticlePhaseMaterialSettings& GetPhaseMaterialSettings(
@@ -230,7 +206,7 @@ namespace Engine::ParticleDrawPreparation {
 					Vector3::AnyInit(particle.size) * particle.worldScale, rotation, worldPos);
 				instance.geometry.vertexColor = particle.color;
 				const ParticleShapeData shapeData = settings.shapeOverLifetime ?
-					particle.shapeData : MakeStaticShapeData(settings);
+					particle.shapeData : MakeParticleShapeData(settings);
 				instance.geometry.shapeParams0 = shapeData.params0;
 				instance.geometry.shapeParams1 = shapeData.params1;
 				instance.geometry.topColor = shapeData.topColor;

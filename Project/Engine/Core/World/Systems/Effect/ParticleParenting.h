@@ -4,7 +4,6 @@
 //	include
 //============================================================================
 #include "ParticleEffectDefinition.h"
-#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 namespace Engine::ParticleParenting {
 
@@ -19,7 +18,7 @@ namespace Engine::ParticleParenting {
 		const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 		const std::vector<ParticleParentPose>& parents);
 	// 各フェーズの親姿勢をエミッター単位で解決する
-	void ResolveParticleParents(ECSWorld& world, const Matrix4x4& emitterWorld, const ParticleGroupDefinition& group,
+	void ResolveParticleParents(const Matrix4x4& emitterWorld, const ParticleGroupDefinition& group,
 		const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 		std::vector<ParticleParentPose>& outParents);
 	// 粒子の描画用ワールド姿勢を更新する

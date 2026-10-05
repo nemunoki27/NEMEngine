@@ -4,14 +4,11 @@ using System.Runtime.InteropServices;
 
 using System.Text;
 
-
-
-
-
 namespace NEMEngine;
 
 //============================================================================
 //	HostBridge class
+//	Nativeの接続入口とManagedサービスを結ぶ
 //============================================================================
 public static unsafe partial class HostBridge {
 
@@ -22,6 +19,7 @@ public static unsafe partial class HostBridge {
 
     private static readonly ScriptInstanceStore instances = new();
     private static readonly ManagedAssemblySession session = new(instances);
+    private static readonly ScriptCallbackInvoker invocations = new(instances, session);
 
     internal static T? FindScriptOfType<T>() where T : MonoBehaviour => instances.FindScriptOfType<T>();
     internal static T[] FindScriptsOfType<T>() where T : MonoBehaviour => instances.FindScriptsOfType<T>();
@@ -31,31 +29,31 @@ public static unsafe partial class HostBridge {
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InitializeNativeAPI(NativeAPITable* callbacks) {
 
-        // ここでは例外を境界外へ出さない。log callbackは未設定の可能性があるためtry内で使わない
+        // 未接続のログを使わず例外を境界内で受け止める
         try {
             if (callbacks == null) {
                 return (int)ManagedStatus.InvalidArgument;
             }
 
-            // ABIヘッダでversion / 構造体サイズ / capabilityを検証し、不一致なら関数ポインタを読まない
-            ManagedAbiHeader header = callbacks->header;
-            if (header.abiVersion != ManagedAbi.Version) {
-                return (int)ManagedStatus.AbiMismatch;
+            // 版と配置と必要機能を照合してから接続する
+            ManagedABIHeader header = callbacks->header;
+            if (header.abiVersion != ManagedABI.Version) {
+                return (int)ManagedStatus.ABIMismatch;
             }
             if (header.structSize != (uint)sizeof(NativeAPITable) || header.bindingFingerprint != NativeAPITable.BindingFingerprint) {
-                return (int)ManagedStatus.AbiMismatch;
+                return (int)ManagedStatus.ABIMismatch;
             }
-            if ((header.capabilities & ManagedAbi.RequiredCapabilities) != ManagedAbi.RequiredCapabilities) {
-                return (int)ManagedStatus.AbiMismatch;
+            if ((header.capabilities & ManagedABI.RequiredCapabilities) != ManagedABI.RequiredCapabilities) {
+                return (int)ManagedStatus.ABIMismatch;
             }
-            if (!GeneratedABILayout.IsValid()) { return (int)ManagedStatus.AbiMismatch; }
+            if (!GeneratedABILayout.IsValid()) { return (int)ManagedStatus.ABIMismatch; }
 
             // 公開APIの接続不足を起動時に検出する
             if (!callbacks->HasRequiredCallbacks()) {
                 return (int)ManagedStatus.InvalidArgument;
             }
 
-            // C++から渡されたECSアクセス関数をScriptCore全体で使えるようにする
+            // 検証済みNative関数をScriptCoreへ接続する
             NativeAPI.SetCallbacks(callbacks);
             return (int)ManagedStatus.Ok;
         }
@@ -69,7 +67,7 @@ public static unsafe partial class HostBridge {
 
         return (int)ScriptInvocationDiagnostics.Guard(nameof(LoadGameAssembly), () => {
 
-            // ゲーム側DLLをロードして、MonoBehaviour派生型を再収集する
+            // AssemblyからScript型を登録する
             string? path = ManagedUTF8Transfer.PtrToString(assemblyPath);
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) {
                 return ManagedStatus.InvalidArgument;
@@ -88,20 +86,19 @@ public static unsafe partial class HostBridge {
         });
     }
 
-    // BehaviorSystem が SynchronizeLifecycle の Pass4(OnEnable 後・Start 前)で呼ぶ。
-    // Scene の load/unload 完了を検出して SceneManager の SceneLoaded/SceneUnloaded を発火する。
+    // OnEnable後とStart前にScene通知を処理する
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int PumpSceneEvents() {
 
         return (int)ScriptInvocationDiagnostics.Guard(nameof(PumpSceneEvents), () => {
-            // Pass4(OnEnable 後・Start 前)の per-frame pump。Scene / Application イベントを発火する。
+            // SceneとApplicationの完了通知を送る
             SceneManager.PumpEvents();
             Application.PumpEvents();
             return ManagedStatus.Ok;
         });
     }
 
-    // application shutdown 前に native から一度だけ呼ばれ、Application.Quitting を発火する。
+    // Applicationの終了通知を送る
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int RaiseApplicationQuitting() {
 
@@ -111,8 +108,7 @@ public static unsafe partial class HostBridge {
         });
     }
 
-    // BehaviorSystem の各 phase 末から呼ばれる per-frame tick。phase: 0=Update, 1=FixedUpdate, 2=EndOfFrame。
-    // Update で 遅延イベント flush + Timer tick + Coroutine(Update)、FixedUpdate で Coroutine(Fixed)、EndOfFrame で Coroutine(EndOfFrame)。
+    // 更新phaseに対応する予約処理を進める
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int TickFrame(int phase) {
         try {
@@ -148,7 +144,7 @@ public static unsafe partial class HostBridge {
             }
             ScriptTypeEntry entry = session.registry.scriptTypeEntries[index];
 
-            // native registry へ Stable GUID と表示用情報・source path を渡す
+            // 登録先へ型IDと表示情報とソース位置を渡す
             ManagedUTF8Transfer.CopyFixed(entry.scriptTypeID, outInfo->scriptTypeID, ScriptTypeIDBytes);
             ManagedUTF8Transfer.CopyFixed(entry.fullTypeName, outInfo->fullTypeName, FullTypeNameBytes);
             ManagedUTF8Transfer.CopyFixed(entry.displayName, outInfo->displayName, MaxNameBytes);
@@ -220,7 +216,7 @@ public static unsafe partial class HostBridge {
 
         return (int)ScriptInvocationDiagnostics.Guard(nameof(SetRuntimeSerializedField), () => {
 
-            // Play中 runtime Inspector の単一 field 編集。live instance のみへ反映する
+            // 実行中のScriptだけにField編集を反映する
             if (!instances.TryResolveSlot(handle, out MonoBehaviour script)) {
                 return ManagedStatus.InvalidInstanceHandle;
             }
@@ -245,7 +241,7 @@ public static unsafe partial class HostBridge {
             }
             *outHandle = NativeScriptInstanceHandle.Null;
 
-            // Stable GUID から型を解決し、ECSのGameObject参照を持つMonoBehaviourを生成する
+            // 型IDから所有GameObjectに属するScriptを生成する
             if (!session.registry.TryGetEntry(ManagedUTF8Transfer.PtrToString(scriptTypeID), out ScriptTypeEntry entry)) {
                 return ManagedStatus.InvalidArgument;
             }
@@ -254,7 +250,7 @@ public static unsafe partial class HostBridge {
                 return ManagedStatus.InternalError;
             }
 
-            // serialized field 適用 / Awake より前に GameObject と scriptSlotID を設定する
+            // 保存値の適用前に所有GameObjectとslotを接続する
             script.gameObject = GameObject.FromNative(gameObject) ?? throw new ArgumentException("所有GameObjectが無効です");
             script.scriptSlotID = scriptSlotID;
             script.callbacks = entry.callbacks;
@@ -275,9 +271,7 @@ public static unsafe partial class HostBridge {
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int GenerateScriptManifest(byte* assemblyPath, byte* manifestOutputPath) {
 
-        // build/reload 時のみ。対象 DLL を一時 collectible ALC（default ALC 非汚染）で反射して
-        // Script Type GUID / fullTypeName / sourcePath を集め、検証して manifest JSON を出力する。
-        // 現在ロード中の assembly（gameLoadContext）には触れない＝失敗しても現行 DLL を unload しない。
+        // 実行中のAssemblyに触れずManifestを生成する
         return (int)ScriptInvocationDiagnostics.Guard(nameof(GenerateScriptManifest), () => {
 
             string? dll = ManagedUTF8Transfer.PtrToString(assemblyPath);
@@ -324,112 +318,67 @@ public static unsafe partial class HostBridge {
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeAwake(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.Awake), static script => script.callbacks.Awake?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.Awake), static script => script.callbacks.Awake?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeStart(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.Start), static script => script.callbacks.Start?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.Start), static script => script.callbacks.Start?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeOnEnable(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.OnEnable), static script => script.callbacks.OnEnable?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.OnEnable), static script => script.callbacks.OnEnable?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeOnDisable(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.OnDisable), static script => script.callbacks.OnDisable?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.OnDisable), static script => script.callbacks.OnDisable?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeOnDestroy(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.OnDestroy), static script => script.callbacks.OnDestroy?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.OnDestroy), static script => script.callbacks.OnDestroy?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeFixedUpdate(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.FixedUpdate), static script => script.callbacks.FixedUpdate?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.FixedUpdate), static script => script.callbacks.FixedUpdate?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeUpdate(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.Update), static script => script.callbacks.Update?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.Update), static script => script.callbacks.Update?.Invoke(script));
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeLateUpdate(NativeScriptInstanceHandle handle) {
-        return (int)GuardInstance(handle, nameof(ScriptCallbacks.LateUpdate), static script => script.callbacks.LateUpdate?.Invoke(script));
+        return (int)invocations.Invoke(handle, nameof(ScriptCallbacks.LateUpdate), static script => script.callbacks.LateUpdate?.Invoke(script));
     }
 
-    // Collision系はcollisionをキャプチャするとクロージャがヒープ確保されるため、
-    // 高頻度callbackでの確保を避けてGuardInstanceを使わず明示的にguardする
+    // 衝突情報をクロージャへ取り込まず通知する
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeCollisionEnter(NativeScriptInstanceHandle handle, NativeCollisionEvent collision) {
 
-        if (!instances.TryResolveSlot(handle, out MonoBehaviour script)) {
-            return (int)ManagedStatus.InvalidInstanceHandle;
-        }
-        try {
-            session.codec.FlushPendingReferenceFields();
-            script.callbacks.OnCollisionEnter?.Invoke(script, new Collision(collision));
-            return (int)ManagedStatus.Ok;
-        }
-        catch (Exception ex) {
-            ScriptInvocationDiagnostics.LogScriptException(session.registry, script, nameof(ScriptCallbacks.OnCollisionEnter), ex);
-            return (int)ManagedStatus.ScriptException;
-        }
+        return (int)invocations.InvokeCollision(handle, collision, ScriptCollisionCallback.Enter);
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeCollisionStay(NativeScriptInstanceHandle handle, NativeCollisionEvent collision) {
 
-        if (!instances.TryResolveSlot(handle, out MonoBehaviour script)) {
-            return (int)ManagedStatus.InvalidInstanceHandle;
-        }
-        try {
-            session.codec.FlushPendingReferenceFields();
-            script.callbacks.OnCollisionStay?.Invoke(script, new Collision(collision));
-            return (int)ManagedStatus.Ok;
-        }
-        catch (Exception ex) {
-            ScriptInvocationDiagnostics.LogScriptException(session.registry, script, nameof(ScriptCallbacks.OnCollisionStay), ex);
-            return (int)ManagedStatus.ScriptException;
-        }
+        return (int)invocations.InvokeCollision(handle, collision, ScriptCollisionCallback.Stay);
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeCollisionExit(NativeScriptInstanceHandle handle, NativeCollisionEvent collision) {
 
-        if (!instances.TryResolveSlot(handle, out MonoBehaviour script)) {
-            return (int)ManagedStatus.InvalidInstanceHandle;
-        }
-        try {
-            session.codec.FlushPendingReferenceFields();
-            script.callbacks.OnCollisionExit?.Invoke(script, new Collision(collision));
-            return (int)ManagedStatus.Ok;
-        }
-        catch (Exception ex) {
-            ScriptInvocationDiagnostics.LogScriptException(session.registry, script, nameof(ScriptCallbacks.OnCollisionExit), ex);
-            return (int)ManagedStatus.ScriptException;
-        }
+        return (int)invocations.InvokeCollision(handle, collision, ScriptCollisionCallback.Exit);
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int InvokeAnimationEvent(NativeScriptInstanceHandle handle, byte* name, float floatParam, int intParam, byte* stringParam) {
 
-        if (!instances.TryResolveSlot(handle, out MonoBehaviour script)) {
-            return (int)ManagedStatus.InvalidInstanceHandle;
-        }
-        try {
-            session.codec.FlushPendingReferenceFields();
-            script.callbacks.OnAnimationEvent?.Invoke(script, new AnimationEvent(ManagedUTF8Transfer.PtrToString(name) ?? string.Empty, floatParam, intParam, ManagedUTF8Transfer.PtrToString(stringParam) ?? string.Empty));
-            return (int)ManagedStatus.Ok;
-        }
-        catch (Exception ex) {
-            ScriptInvocationDiagnostics.LogScriptException(session.registry, script, nameof(ScriptCallbacks.OnAnimationEvent), ex);
-            return (int)ManagedStatus.ScriptException;
-        }
+        return (int)invocations.InvokeAnimationEvent(handle, name, floatParam, intParam, stringParam);
     }
 
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -440,32 +389,12 @@ public static unsafe partial class HostBridge {
         });
     }
 
-    // script callback専用ラッパー。例外時は対象instanceのみScriptExceptionを返し、診断情報を残す
-    private static ManagedStatus GuardInstance(NativeScriptInstanceHandle handle, string callbackName, Action<MonoBehaviour> body) {
-
-        if (!instances.TryResolveSlot(handle, out MonoBehaviour script)) {
-            return ManagedStatus.InvalidInstanceHandle;
-        }
-
-        try {
-            // 保留値と保存callbackも例外境界内で処理する
-            session.codec.FlushPendingReferenceFields();
-            body(script);
-            return ManagedStatus.Ok;
-        }
-        catch (Exception ex) {
-            ScriptInvocationDiagnostics.LogScriptException(session.registry, script, callbackName, ex);
-            return ManagedStatus.ScriptException;
-        }
-    }
-
-    // 同 GameObject 上の T 型スクリプト instance を引く（GameObject.GetComponent<T> から呼ぶ）。
-    // 所有Entityと代入可能な型で解決する
+    // 所有Entityと代入可能な型でScriptを解決する
     internal static T? FindScriptAs<T>(NativeEntity owner) where T : class => instances.FindScriptAs<T>(owner);
     internal static void AppendScriptsAs<T>(NativeEntity owner, List<T> result) where T : class => instances.AppendScriptsAs(owner, result);
 
-    // Stable GUID 指定で同 GameObject 上の script instance を引く（参照フィールドの復元用）
-    internal static MonoBehaviour? FindScriptByGuid(NativeEntity owner, string scriptTypeID, ulong scriptSlotID = 0) {
+    // 保存参照の型IDとslotからScriptを解決する
+    internal static MonoBehaviour? FindScriptByGUID(NativeEntity owner, string scriptTypeID, ulong scriptSlotID = 0) {
 
         if (!session.registry.TryGetEntry(scriptTypeID, out ScriptTypeEntry entry)) {
             return null;
@@ -473,12 +402,12 @@ public static unsafe partial class HostBridge {
         return instances.FindScriptByIdentity(owner, entry.type, scriptSlotID);
     }
 
-    // 型の Stable Script Type GUID を返す。未登録型は null（参照フィールドの保存用）
-    internal static string? GetScriptTypeGuid(Type type) {
+    // 保存参照に使う登録済みScript型IDを返す
+    internal static string? GetScriptTypeGUID(Type type) {
         return session.registry.typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) ? entry.scriptTypeID : null;
     }
 
-    // AddComponent<Script>用に owner GameObject へ T を runtime attach し、生成した managed instance を返す。未登録/失敗は null
+    // 所有GameObjectへ登録済みScriptを追加する
     internal static T? AttachScriptAs<T>(NativeEntity owner) where T : class {
 
         if (!session.registry.typeToEntry.TryGetValue(typeof(T), out ScriptTypeEntry? entry)) {
@@ -488,10 +417,9 @@ public static unsafe partial class HostBridge {
         return instances.TryResolveSlot(handle, out MonoBehaviour script) ? script as T : null;
     }
 
-    // 直近の collectible ALC unload の typed status を返す（0=Unknown, 1=UnloadSucceeded, 2=LeakSuspected）。
-    // reload/unload path でのみ更新され、gameplay frame hot path に GC probe を入れない。
+    // Assembly解放時に確定した診断結果を返す
     [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int GetLastAlcUnloadStatus() {
+    public static int GetLastALCUnloadStatus() {
 
         return session.lastAlcUnloadStatus;
     }
@@ -500,22 +428,22 @@ public static unsafe partial class HostBridge {
 
 //============================================================================
 //	NativeScriptTypeInfo structure
-//	C++側 ManagedScriptTypeDescriptor と同一レイアウト
+//	NativeのScript型情報と配置を揃える
 //============================================================================
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct NativeScriptTypeInfo {
 
-    // 正規化済み Stable Script Type GUID
+    // 正規化済みScript型ID
     public fixed byte scriptTypeID[40];
     // 完全修飾型名
     public fixed byte fullTypeName[256];
     // 表示名
     public fixed byte displayName[128];
-    // 定義元 .cs パス（drag&drop の source 照合用）
+    // 定義元のソース位置
     public fixed byte sourcePath[260];
-    // [ScriptTypeID] が明示されていたか
+    // Script型IDの明示指定
     public int hasExplicitID;
-    // [DefaultExecutionOrder] の値（未指定は 0）
+    // 既定の実行順序
     public int defaultExecutionOrder;
 }
 

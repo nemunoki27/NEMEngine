@@ -326,22 +326,22 @@ namespace {
 
 		const Engine::FrameProfiler& profiler = Engine::FrameProfiler::GetInstance();
 
-		ImGui::Text("FPS               : %.1f", profiler.GetFps());
+		ImGui::Text("FPS               : %.1f", profiler.GetFPS());
 		ImGui::Text("DeltaTime         : %.3f ms", profiler.GetDeltaTimeSec() * 1000.0f);
 		ImGui::Text("起動からの経過時間  : %.2f s", profiler.GetTotalTimeSec());
 
 		ImGui::Separator();
 
 		ImGui::Text("更新全体          : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Update));
-		ImGui::Text("ECSシステム       : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::Ecs));
+		ImGui::Text("ECSシステム       : %.3f ms", profiler.GetAverageMs(Engine::FrameProfiler::Category::ECS));
 		if (ImGui::IsItemHovered()) {
 
 			ImGui::BeginTooltip();
-			if (profiler.HasEcsSystemData()) {
+			if (profiler.HasECSSystemData()) {
 
 				ImGui::TextUnformatted("システム処理時間(処理順)");
 				ImGui::Separator();
-				for (const Engine::FrameProfiler::NamedTime& system : profiler.GetEcsSystemTimes()) {
+				for (const Engine::FrameProfiler::NamedTime& system : profiler.GetECSSystemTimes()) {
 					ImGui::Text("%-28s : %.3f ms", system.name.c_str(), system.milliseconds);
 				}
 			} else {
@@ -441,6 +441,7 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 			if (ImGui::BeginTabBar("ConsoleEngineTabBar")) {
 				if (ImGui::BeginTabItem("Measurement")) {
 
+					DrawCaptureControls();
 					DrawMeasurementTab();
 					ImGui::EndTabItem();
 				}

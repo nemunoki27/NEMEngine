@@ -10,6 +10,7 @@
 
 // c++
 #include <limits>
+#include <utility>
 
 namespace Engine::AssetMetaStorage {
 
@@ -30,11 +31,11 @@ namespace Engine::AssetMetaStorage {
 		case Engine::AssetType::Shader:           return "ShaderImporter";
 		case Engine::AssetType::RenderPipeline:   return "RenderPipelineImporter";
 		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";
+		case Engine::AssetType::AnimationController: return "AnimationControllerImporter";
 		case Engine::AssetType::ParticleEffect:   return "ParticleEffectImporter";
 		case Engine::AssetType::ShaderGraph:      return "ShaderGraphImporter";
 		case Engine::AssetType::RenderTexture:      return "RenderTextureImporter";
-		case Engine::AssetType::VolumeProfile:      return "VolumeProfileImporter";
-		case Engine::AssetType::RenderExtension:    return "RenderExtensionImporter";
+		case Engine::AssetType::RenderPasses:    return "RenderPassesImporter";
 		default:                                  return "DefaultImporter";
 		}
 	}
@@ -102,11 +103,26 @@ namespace Engine::AssetMetaStorage {
 		}
 	}
 
-	bool WriteMetaFile(const std::filesystem::path& metaFullPath, const AssetMeta& meta) {
+	bool BuildMetaDocument(const AssetMeta& meta, const nlohmann::json& source, nlohmann::json& out) {
 
-		if (!meta.guid || meta.importerVersion == 0 || !meta.importerSettings.is_object()) {
+		if (!meta.guid || meta.importerVersion == 0 || !meta.importerSettings.is_object() || !source.is_object()) {
 			return false;
 		}
+		// 呼出し元の文書を変更せず保存値を揃える
+		nlohmann::json data = source;
+		data["schemaVersion"] = kAssetMetaSchemaVersion;
+		data["guid"] = ToString(meta.guid);
+		data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));
+		data["importer"] = meta.importer.empty() ? std::string(ResolveImporterName(meta.type)) : meta.importer;
+		data["importerVersion"] = meta.importerVersion;
+		data["settings"] = meta.importerSettings;
+		data.erase("version");
+		out = std::move(data);
+		return true;
+	}
+
+	bool WriteMetaFile(const std::filesystem::path& metaFullPath, const AssetMeta& meta) {
+
 		// 未知キーを保持し、破損した既存metaを空文書で上書きしない
 		nlohmann::json data = nlohmann::json::object();
 		std::error_code error;
@@ -118,15 +134,9 @@ namespace Engine::AssetMetaStorage {
 			return false;
 		}
 
-		data["schemaVersion"] = kAssetMetaSchemaVersion;
-		data["guid"] = ToString(meta.guid);
-		data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));
-		data["importer"] = meta.importer.empty() ?
-			std::string(ResolveImporterName(meta.type)) : meta.importer;
-		data["importerVersion"] = meta.importerVersion;
-		data["settings"] = meta.importerSettings.is_object() ?
-			meta.importerSettings : nlohmann::json::object();
-		data.erase("version");
+		if (!BuildMetaDocument(meta, data, data)) {
+			return false;
+		}
 
 		// 全量を書き込んでから既存ファイルと置き換える
 		return JsonFile::SaveCanonical(metaFullPath, data, 2);

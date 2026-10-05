@@ -88,7 +88,7 @@ bool Engine::RenderFeaturePassTargets::Resolve(GraphicsCore& graphicsCore, Scene
 				return false;
 			}
 			const std::string historyKey = MakeStateKey(
-				context.kind, pass.id, output.name);
+				*context.view, pass.id, output.name);
 			temporalState.PrepareHistory(graphicsCore, previous, historyKey, target->GetWidth(), target->GetHeight(),
 				runtimeGeneration, context.raytracing.materialGeneration);
 			context.targetRegistry->Register(outputAlias, target,

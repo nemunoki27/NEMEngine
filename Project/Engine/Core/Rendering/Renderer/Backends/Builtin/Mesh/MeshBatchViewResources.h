@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/Views/RenderCameraHistory.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
@@ -100,11 +101,7 @@ namespace Engine {
 		FrameConstantBufferAllocator dynamicConstantAllocator_{};
 		uint64_t dynamicConstantFrameSerial_ = 0;
 		std::array<uint64_t, 2> viewUploadFrameSerials_ = { 0, 0 };
-		std::array<Matrix4x4, 2> previousViewProjections_ = {
-			Matrix4x4::Identity(), Matrix4x4::Identity()
-		};
-		std::array<bool, 2> previousViewValid_ = { false, false };
-		std::array<Matrix4x4, 2> framePreviousViewProjections_{};
+		RenderCameraHistory cameraHistory_{};
 		std::array<MeshViewConstants, 2> uploadedViews_{};
 		D3D12_GPU_VIRTUAL_ADDRESS drawGPUAddress_ = 0;
 		D3D12_GPU_VIRTUAL_ADDRESS screenSpaceOutlineMaskGPUAddress_ = 0;

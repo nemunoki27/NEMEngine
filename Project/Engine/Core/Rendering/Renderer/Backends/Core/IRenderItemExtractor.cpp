@@ -34,3 +34,12 @@ const Engine::SceneObjectComponent* Engine::RenderItemExtract::GetSceneObject(EC
 
 	return world.TryGetComponent<SceneObjectComponent>(entity);
 }
+
+uint32_t Engine::RenderItemExtract::GetVisibilityLayerMask(
+	ECSWorld& world, const Entity& entity, uint32_t renderingLayerMask) {
+
+	// Rendererの設定を全描画経路の選別へ渡す
+	const SceneObjectComponent* sceneObject = GetSceneObject(world, entity);
+	const uint32_t sceneMask = sceneObject ? sceneObject->visibilityLayerMask : kRenderingLayerMaskBits;
+	return sceneMask & renderingLayerMask & kRenderingLayerMaskBits;
+}

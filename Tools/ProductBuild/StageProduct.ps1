@@ -1,4 +1,4 @@
-function Copy-ProductFiles {
+﻿function Copy-ProductFiles {
     param($manifest, [string]$sourceRuntime, [string]$runtimeExecutable, [string]$stageDirectory, [string]$executableName, [string]$managedSource)
 
     $runtimeSource = Join-Path $sourceRuntime $runtimeExecutable

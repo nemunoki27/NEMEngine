@@ -39,9 +39,9 @@ namespace Engine {
 		ParticleEffect,
 		ShaderGraph,
 		RenderTexture,
-		VolumeProfile,
-		RenderExtension,
+		RenderPasses = 16,
 		DefaultAsset,
+		AnimationController,
 	};
 
 	// アセット参照の診断種別
@@ -60,6 +60,9 @@ namespace Engine {
 		AssetType expectedType = AssetType::Unknown;
 		AssetType actualType = AssetType::Unknown;
 	};
+
+	// Texture参照にはCamera出力も許可する
+	bool IsAssetTypeCompatible(AssetType expectedType, AssetType actualType);
 
 	// nlohmann::jsonからAssetIDを取得する、UID文字列のみで検証はしない
 	AssetID ParseAssetID(const nlohmann::json& in, const char* key);

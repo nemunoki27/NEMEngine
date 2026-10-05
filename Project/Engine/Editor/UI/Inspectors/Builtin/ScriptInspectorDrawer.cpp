@@ -19,7 +19,7 @@
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 // c++
 #include <charconv>

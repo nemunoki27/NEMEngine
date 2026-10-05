@@ -5,7 +5,7 @@
 //============================================================================
 #include "RenderFeatureProfileDocument.h"
 #include "RenderFeatureReflectionCache.h"
-#include "RenderExtensionAsset.h"
+#include "RenderPassesAsset.h"
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
@@ -42,8 +42,8 @@ namespace Engine {
 		bool Save() const;
 		void SetActiveProfileAsset(AssetID assetID,
 			const AssetDatabase* assetDatabase);
-		// Main CameraのRender ExtensionをC#操作用へ同期する
-		void SetRuntimeExtension(const RenderExtensionAsset* extension);
+		// Main CameraのRender PassesをC#操作用へ同期する
+		void SetRuntimeExtension(const RenderPassesAsset* extension, uint64_t revision = 0);
 		void SetActiveProfilePath(
 			const std::filesystem::path& path);
 		void RebuildRuntime();
@@ -101,6 +101,7 @@ namespace Engine {
 		RenderFeatureProfileRuntime runtime_{};
 		uint64_t runtimeGeneration_ = 0;
 		AssetID runtimeExtensionID_{};
+		uint64_t runtimeExtensionRevision_ = 0;
 		RenderFeatureProfileRuntime runtimeExtensionRuntime_{};
 		uint64_t runtimeExtensionGeneration_ = 0;
 		RenderFeatureReflectionCache reflectionCache_{};

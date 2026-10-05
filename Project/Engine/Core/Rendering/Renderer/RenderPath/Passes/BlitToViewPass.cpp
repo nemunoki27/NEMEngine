@@ -16,7 +16,6 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 #include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
-#include <Engine/Core/Rendering/Volumes/VolumeResolver.h>
 
 //============================================================================
 //	BlitToViewPass classMethods
@@ -53,9 +52,9 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	ColorPipelineSettings colorPipeline{};
-	if (context.world && context.volumeCamera.valid) {
-		colorPipeline = VolumeResolver::Resolve(
-			*context.world, *deps_.assetLibrary, context.volumeCamera);
+	// 描画Cameraの設定を最終出力へ適用する
+	if (context.postProcessCamera.valid && context.postProcessCamera.postProcessEnabled) {
+		colorPipeline = context.postProcessCamera.colorPipeline;
 	}
 	// 露出更新は最終ビュー出力で1フレームに1回だけ行う
 	if (!deps_.colorPipelineProcessor->ToneMap(graphicsCore, context,

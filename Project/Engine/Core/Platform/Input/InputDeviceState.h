@@ -29,18 +29,18 @@ namespace Engine {
 		std::array<XINPUT_STATE, kMaxGamepads> padsPre{};
 		std::array<bool, kMaxGamepads> padConnected{};
 		std::array<bool, kMaxGamepads> padConnectedPre{};
-		float leftThumbX;
-		float leftThumbY;
-		float rightThumbX;
-		float rightThumbY;
+		float leftThumbX = 0.0f;
+		float leftThumbY = 0.0f;
+		float rightThumbX = 0.0f;
+		float rightThumbY = 0.0f;
 		float leftTriggerValue = 0.0f;
 		float rightTriggerValue = 0.0f;
-		DIMOUSESTATE mouseState;
-		std::array<bool, 3> mouseButtons;    // マウスボタンの状態
-		std::array<bool, 3> mousePreButtons; // 1フレ前のマウスボタンの状態
-		Vector2 mousePos;                    // マウスの座標
-		Vector2 mouseScreenPos;              // デスクトップ上のマウス座標
-		Vector2 mousePrePos;                 // マウスの前座標
-		float wheelValue;                    // ホイール移動量
+		DIMOUSESTATE mouseState{};
+		std::array<bool, 3> mouseButtons{};	   // マウスボタンの状態
+		std::array<bool, 3> mousePreButtons{}; // 1フレ前のマウスボタンの状態
+		Vector2 mousePos;					   // マウスの座標
+		Vector2 mouseScreenPos;				   // デスクトップ上のマウス座標
+		Vector2 mousePrePos;				   // マウスの前座標
+		float wheelValue = 0.0f;			   // ホイール移動量
 	};
 }

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 
 // c++
 #include <algorithm>

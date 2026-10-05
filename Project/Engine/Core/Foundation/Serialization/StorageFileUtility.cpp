@@ -18,6 +18,17 @@
 
 namespace Engine::StorageFileUtility {
 
+	bool MoveWithoutReplacement(const Path& source, const Path& target, std::error_code& error) noexcept {
+
+		// 事前確認の後に作られた移動先も保護する
+		if (!MoveFileExW(source.c_str(), target.c_str(), MOVEFILE_WRITE_THROUGH)) {
+			error = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+			return false;
+		}
+		error.clear();
+		return true;
+	}
+
 	std::string PathKey(const Path& path) {
 
 		return Algorithm::ToLower(Algorithm::PathToUTF8(std::filesystem::weakly_canonical(path)));

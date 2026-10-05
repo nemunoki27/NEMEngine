@@ -1,57 +1,34 @@
 #include "HierarchyPanel.h"
 #include "HierarchyEntityOperations.h"
-#include "HierarchyMeshTree.h"
+#include "HierarchyDropTargets.h"
 #include <Engine/Editor/UI/Common/EntityCreationMenu.h>
-
-using namespace Engine::HierarchyEntityOperations;
-using namespace Engine::EntityCreationMenu;
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
-#include <Engine/Editor/Commands/Entity/CreateEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/ReparentEntityCommand.h>
-#include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
-#include <Engine/Editor/Commands/Entity/InstantiatePrefabCommand.h>
-#include <Engine/Editor/Commands/Entity/UnpackPrefabCommand.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
-#include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
-#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
-#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Editor/Utility/AssetEntityFactory.h>
-#include <Engine/Editor/Utility/PrefabInstanceEditUtility.h>
-#include <Engine/Editor/Commands/Entity/CreateDroppedEntityCommand.h>
-#include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
-#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
-#include <Engine/Editor/Utility/EditorTextureHelper.h>
-#include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <algorithm>
 #include <optional>
 #include <vector>
 
+using namespace Engine::HierarchyEntityOperations;
+using namespace Engine::EntityCreationMenu;
+
 //============================================================================
 //	HierarchyPanel classMethods
 //============================================================================
 namespace {
 
-	constexpr const char* kActiveEyeTextureKey = "editor:hierarchy:entityActiveEye";
-	constexpr const char* kInactiveEyeTextureKey = "editor:hierarchy:entityActiveOffEye";
-	constexpr float kEntityNodeFontScale = 0.88f;
-
+	// 兄弟の表示順を取得
 	int32_t GetHierarchySiblingOrder(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<Engine::HierarchyComponent>(entity)) {
@@ -60,63 +37,9 @@ namespace {
 		return world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder;
 	}
 
-	bool SetEntityActiveFromHierarchy(const Engine::EditorPanelContext& context,
-		Engine::ECSWorld& world, const Engine::Entity& entity, bool active) {
-
-		if (!world.IsAlive(entity)) {
-			return false;
-		}
-		if (context.IsPlaying()) {
-			return Engine::SceneObjectUtility::SetActiveSelf(world, entity, active);
-		}
-		return context.host && context.host->ExecuteEditorCommand(
-			std::make_unique<Engine::SetEntityActiveCommand>(entity, active));
-	}
-
-	// プロジェクトからドロップされたアセットをエンティティとして原点に作成する、parentがあればその子にする
-	void DropProjectAssetToHierarchy(const Engine::EditorPanelContext& context, Engine::ECSWorld& world,
-		const Engine::EditorAssetDragDropPayload& payload, const Engine::Entity& parent) {
-
-		if (!context.CanEditScene() || !context.editorContext || !context.editorContext->assetDatabase || !context.host) {
-			return;
-		}
-
-		// プレファブは既存のコマンド経路を使い、Undo対応のままインスタンス化する
-		if (payload.assetType == Engine::AssetType::Prefab) {
-
-			const Engine::UUID parentUUID = world.IsAlive(parent) ? world.GetUUID(parent) : Engine::UUID{};
-			context.host->ExecuteEditorCommand(
-				std::make_unique<Engine::InstantiatePrefabCommand>(payload.assetID, parentUUID));
-			return;
-		}
-
-		// モデル/テクスチャ/フォントはファクトリで生成し、親があればぶら下げる
-		if (!Engine::AssetEntityFactory::CanSpawn(payload) || !context.graphicsCore) {
-			return;
-		}
-		Engine::HierarchySystem hierarchySystem{};
-		const Engine::AssetSpawnResult spawn = Engine::AssetEntityFactory::Spawn(world,
-			*context.editorContext->assetDatabase, *context.graphicsCore, hierarchySystem, payload,
-			context.editorContext->activeSceneInstanceID);
-		if (!spawn.valid) {
-			return;
-		}
-		if (world.IsAlive(parent)) {
-			hierarchySystem.SetParent(world, spawn.root, parent);
-		}
-		if (context.editorState) {
-			context.editorState->SelectEntity(spawn.root);
-		}
-		// 作成済みエンティティをUndo/Redo対象として履歴へ登録する
-		context.host->ExecuteEditorCommand(std::make_unique<Engine::CreateDroppedEntityCommand>(spawn.root));
-	}
-
-	// UIプリセット作成メニューを描画する
-
 }
 
-Engine::HierarchyPanel::HierarchyPanel(TextureUploadService& textureUploadService) :
-	textureUploadService_(&textureUploadService) {
+Engine::HierarchyPanel::HierarchyPanel(TextureUploadService& textureUploadService) : entityTree_(textureUploadService) {
 }
 
 void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
@@ -128,15 +51,12 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 
 	const bool visible = ImGui::Begin("Hierarchy", &context.layoutState->showHierarchy);
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
-		context.host->NotifyEditorCommandPanelFocused(
-			EditorCommandPanelKind::Scene);
+		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}
 	if (!visible) {
 		ImGui::End();
 		return;
 	}
-
-	RequestActiveIconTextures();
 
 	// プレファブ編集中はバナーを出し、戻るボタンで一回の操作で元のシーン編集へ戻る
 	if (context.editorContext && context.editorContext->isPrefabEditing) {
@@ -154,8 +74,7 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
-	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(*textureUploadService_);
-	searchFilter_.DrawInput("##HierarchySearch", searchIcon, "検索...");
+	entityTree_.DrawSearch();
 
 	ImGui::Separator();
 
@@ -174,14 +93,13 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	// プレファブ編集中の表示制御、隔離編集は環境を隠し、In-Context編集は編集中のプレファブだけを出す
 	const bool prefabEditing = context.editorContext && context.editorContext->isPrefabEditing;
 	const bool inContext = context.editorContext && context.editorContext->isPrefabInContext;
-	const UUID inContextInstanceID = context.editorContext ?
-		context.editorContext->prefabInContextInstanceID : UUID{};
-	const std::vector<Entity>* environmentEntities = context.editorContext ? context.editorContext->prefabEnvironmentEntities : nullptr;
+	const UUID inContextInstanceID = context.editorContext ? context.editorContext->prefabInContextInstanceID : UUID{};
+	const std::vector<Entity>* environmentEntities =
+		context.editorContext ? context.editorContext->prefabEnvironmentEntities : nullptr;
 
 	std::vector<Entity> rootEntities;
 	rootEntities.reserve(world->GetRecordCount());
 	world->ForEachAliveEntity([&](Entity entity) {
-
 		// シーン編集対象でない内部Entityは表示しない
 		if (!world->HasComponent<SceneObjectComponent>(entity)) {
 			return;
@@ -195,8 +113,7 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 
 			Entity skinned = Entity::Null();
 			Matrix4x4 jointSkeletonSpace{};
-			if (JointAttachmentUtility::ResolveAttachedJoint(
-				*world, entity, skinned, jointSkeletonSpace)) {
+			if (JointAttachmentUtility::ResolveAttachedJoint(*world, entity, skinned, jointSkeletonSpace)) {
 				return;
 			}
 		}
@@ -215,36 +132,34 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		}
 
 		rootEntities.emplace_back(entity);
-		});
+	});
 	std::stable_sort(rootEntities.begin(), rootEntities.end(), [&](const Entity& lhs, const Entity& rhs) {
 		return GetHierarchySiblingOrder(*world, lhs) < GetHierarchySiblingOrder(*world, rhs);
-		});
+	});
 
 	bool hasVisibleEntity = false;
 	bool entitySectionOpen = true;
-	visibleEntityRowIndex_ = 0;
+	entityTree_.BeginFrame();
 	auto drawSceneRoots = [&](UUID sceneInstanceID) {
-
 		Entity lastVisibleRoot = Entity::Null();
 		for (const Entity& entity : rootEntities) {
 
 			if (world->GetComponent<SceneObjectComponent>(entity).sceneInstanceID != sceneInstanceID ||
-				!ShouldDrawEntityNode(*world, entity)) {
+				!entityTree_.ShouldDrawEntityNode(*world, entity)) {
 				continue;
 			}
 
-			DrawSiblingDropTarget(context, *world, entity, false);
-			DrawEntityNode(context, *world, entity, false);
+			HierarchyDropTargets::DrawSiblingDropTarget(context, *world, entity, false);
+			entityTree_.DrawEntityNode(context, *world, entity, false);
 			hasVisibleEntity = true;
 			lastVisibleRoot = entity;
 		}
 		if (world->IsAlive(lastVisibleRoot)) {
-			DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
+			HierarchyDropTargets::DrawSiblingDropTarget(context, *world, lastVisibleRoot, true);
 		}
-		};
+	};
 
-	SceneInstanceManager* sceneInstances = context.editorContext ?
-		context.editorContext->sceneInstances : nullptr;
+	SceneInstanceManager* sceneInstances = context.editorContext ? context.editorContext->sceneInstances : nullptr;
 	if (sceneInstances && !prefabEditing && !sceneInstances->GetAll().empty()) {
 
 		entitySectionOpen = false;
@@ -263,11 +178,11 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 		}
 	} else {
 		for (const Entity& entity : rootEntities) {
-			if (!ShouldDrawEntityNode(*world, entity)) {
+			if (!entityTree_.ShouldDrawEntityNode(*world, entity)) {
 				continue;
 			}
-			DrawSiblingDropTarget(context, *world, entity, false);
-			DrawEntityNode(context, *world, entity, false);
+			HierarchyDropTargets::DrawSiblingDropTarget(context, *world, entity, false);
+			entityTree_.DrawEntityNode(context, *world, entity, false);
 			hasVisibleEntity = true;
 		}
 	}
@@ -280,478 +195,9 @@ void Engine::HierarchyPanel::Draw(const EditorPanelContext& context) {
 	}
 
 	// 親子関係のないエンティティをドロップしてルートエンティティにするためのドロップ目標
-	DrawRootDropTarget(context, *world);
+	HierarchyDropTargets::DrawRootDropTarget(context, *world);
 
 	ImGui::End();
-}
-
-void Engine::HierarchyPanel::RequestActiveIconTextures() {
-
-	if (activeIconRequested_ || !textureUploadService_) {
-		return;
-	}
-
-	textureUploadService_->RequestTextureFile(kActiveEyeTextureKey,
-		EditorTextureHelper::MakeEditorTexturePath("Hierarchy", "entityActiveEye.dds"));
-	textureUploadService_->RequestTextureFile(kInactiveEyeTextureKey,
-		EditorTextureHelper::MakeEditorTexturePath("Hierarchy", "entityActiveOffEye.dds"));
-	activeIconRequested_ = true;
-}
-
-void Engine::HierarchyPanel::DrawActiveToggleIcon(const EditorPanelContext& context,
-	ECSWorld& world, const Entity& entity, bool activeSelf, bool& leftClicked, bool& rightClicked) {
-
-	leftClicked = false;
-	rightClicked = false;
-
-	ImTextureID textureID{};
-	if (textureUploadService_) {
-		const char* textureKey = activeSelf ? kActiveEyeTextureKey : kInactiveEyeTextureKey;
-		textureID = EditorTextureHelper::GetImTextureID(*textureUploadService_, textureKey);
-	}
-
-	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
-	const ImVec2 buttonSize(iconSize, iconSize);
-
-	bool toggled = false;
-	if (textureID != ImTextureID{}) {
-
-		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.22f, 0.24f, 0.28f, 0.75f));
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.30f, 0.34f, 0.40f, 0.95f));
-		toggled = ImGui::ImageButton("##ActiveEye", textureID, buttonSize);
-		ImGui::PopStyleColor(3);
-		ImGui::PopStyleVar();
-	} else {
-
-		bool editedActiveSelf = activeSelf;
-		toggled = MyGUI::SmallCheckbox("##Active", editedActiveSelf);
-	}
-
-	leftClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
-	rightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-
-	if (toggled && world.IsAlive(entity)) {
-
-		// 選択中のエンティティなら全選択へ同じ状態を適用する
-		const bool newActive = !activeSelf;
-		if (context.editorState && context.editorState->IsEntitySelected(entity)) {
-			for (const Entity& target : context.editorState->GetSelectedEntities()) {
-				if (world.IsAlive(target)) {
-					SetEntityActiveFromHierarchy(context, world, target, newActive);
-				}
-			}
-		} else {
-			SetEntityActiveFromHierarchy(context, world, entity, newActive);
-		}
-	}
-}
-
-void Engine::HierarchyPanel::DrawEntityNode(const EditorPanelContext& context,
-	ECSWorld& world,
-	const Entity& entity,
-	bool forceVisible) {
-
-	if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
-		return;
-	}
-
-	const bool selfMatchesSearch = EntityMatchesSearch(world, entity);
-	const bool drawDescendants = forceVisible || selfMatchesSearch;
-
-	// アクティブ状態を取得
-	bool activeSelf = true;
-	bool activeInHierarchy = true;
-	if (world.HasComponent<SceneObjectComponent>(entity)) {
-
-		const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-		activeSelf = sceneObject.activeSelf;
-		activeInHierarchy = sceneObject.activeInHierarchy;
-	}
-
-	// 選択されているか
-	bool isSelected = context.editorState && context.editorState->IsEntitySelected(entity);
-	// 階層コンポーネントを持っているか
-	bool hasHierarchy = world.HasComponent<HierarchyComponent>(entity);
-	// 子を持っているか
-	bool hasChildren = false;
-	Entity firstChild = Entity::Null();
-	if (hasHierarchy) {
-
-		const auto& hierarchy = world.GetComponent<HierarchyComponent>(entity);
-		firstChild = hierarchy.firstChild;
-		hasChildren = world.IsAlive(firstChild);
-	}
-	// サブメッシュを持っているか
-	bool hasSubMeshChildren = false;
-	if (world.HasComponent<MeshRendererComponent>(entity)) {
-		hasSubMeshChildren = !GetMeshSubMeshes(world, entity).empty();
-	}
-	// スキンメッシュのジョイントを持っているか
-	bool hasSkinnedMeshChildren = false;
-	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
-
-		const SkinnedAnimationRuntimeData* runtime =
-			TryGetSkinnedAnimationRuntime(world, entity);
-		hasSkinnedMeshChildren =
-			runtime && !runtime->skeleton.joints.empty();
-	}
-
-	// ツリー表示できる子がいるか
-	bool hasAnyTreeChildren = hasChildren || hasSubMeshChildren || hasSkinnedMeshChildren;
-
-	// ノードのフラグを設定
-	ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
-		ImGuiTreeNodeFlags_SpanAvailWidth;
-	if (isSelected) {
-		flags |= ImGuiTreeNodeFlags_Selected;
-	}
-	if (!hasAnyTreeChildren) {
-		flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-	}
-	if (searchFilter_.IsActive() && hasAnyTreeChildren) {
-		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
-	}
-
-	// 表示名はNameComponentの文字列を直接参照して行ごとの確保を避ける
-	const char* displayName = "Entity";
-	if (const NameComponent* name =
-		world.TryGetComponent<NameComponent>(entity);
-		name && !name->name.empty()) {
-		displayName = name->name.c_str();
-	}
-
-	ImGui::PushID(static_cast<int>(entity.index));
-	ImGui::PushID(static_cast<int>(entity.generation));
-
-	// 行を交互に塗り、深い階層でも横方向を追いやすくする
-	if ((visibleEntityRowIndex_++ & 1u) != 0u) {
-
-		ImVec4 rowColor = ImGui::GetStyleColorVec4(ImGuiCol_Header);
-		rowColor.w = 0.10f;
-		const ImVec2 windowPosition = ImGui::GetWindowPos();
-		const ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-		const ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-		const float rowY = ImGui::GetCursorScreenPos().y;
-		ImGui::GetWindowDrawList()->AddRectFilled(
-			ImVec2(windowPosition.x + contentMin.x, rowY),
-			ImVec2(windowPosition.x + contentMax.x, rowY + ImGui::GetFrameHeight()),
-			ImGui::GetColorU32(rowColor));
-	}
-
-	const bool additiveSelect = ImGui::IsKeyDown(ImGuiKey_LeftShift);
-	auto selectEntityInHierarchy = [&]() {
-		if (context.editorContext && context.editorContext->sceneInstances &&
-			world.HasComponent<SceneObjectComponent>(entity)) {
-			const UUID sceneInstanceID =
-				world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID;
-			if (sceneInstanceID) {
-				context.editorContext->sceneInstances->SetActive(sceneInstanceID);
-			}
-		}
-		if (additiveSelect && context.editorState->selectKind == EditorSelectionKind::Entity &&
-			context.editorState->CanMultiSelect(world, entity)) {
-			context.editorState->ToggleEntityInSelection(entity);
-		} else {
-			context.editorState->SelectEntity(entity);
-		}
-		};
-
-	//============================================================================
-	//	ツリーノード本体
-	//============================================================================
-
-	// アクティブでない場合はテキストを薄く表示する、プレファブインスタンスは水色で表示する
-	const bool isPrefabInstance = world.HasComponent<PrefabLinkComponent>(entity);
-	bool isBrokenPrefab = false;
-	if (isPrefabInstance && context.editorContext && context.editorContext->assetDatabase) {
-
-		const AssetID prefabAsset = world.GetComponent<PrefabLinkComponent>(entity).prefabAsset;
-		isBrokenPrefab = !prefabAsset || !context.editorContext->assetDatabase->Find(prefabAsset);
-	}
-	bool pushedTextColor = false;
-	if (isBrokenPrefab) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
-		pushedTextColor = true;
-	} else if (!activeInHierarchy) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-		pushedTextColor = true;
-	} else if (isPrefabInstance) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.45f, 0.80f, 1.0f, 1.0f));
-		pushedTextColor = true;
-	}
-
-	const ImGuiStyle& style = ImGui::GetStyle();
-	const float entityNodeFontHeight = ImGui::GetFontSize() * kEntityNodeFontScale;
-	const float entityNodePaddingY =
-		std::max(0.0f, (ImGui::GetFrameHeight() - entityNodeFontHeight) * 0.5f);
-	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, entityNodePaddingY));
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(style.ItemSpacing.x, 1.0f));
-	ImGui::SetWindowFontScale(kEntityNodeFontScale);
-	ImGui::SetNextItemAllowOverlap();
-	bool opened = ImGui::TreeNodeEx("##HierarchyNode", flags, "%s", displayName);
-	ImGui::SetWindowFontScale(1.0f);
-	ImGui::PopStyleVar(2);
-
-	if (pushedTextColor) {
-		ImGui::PopStyleColor();
-	}
-
-	// 右クリックは押した時に判定する
-	bool nodeRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
-	// Unity同様ドラッグせず離した時だけ選択し、ドラッグはD&Dとして選択を変えない
-	bool nodeLeftClickedNoDrag = ImGui::IsItemHovered() &&
-		ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
-		!ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left);
-
-	// 左クリックで選択状態にする、右クリックで既に複数選択に含むなら維持する
-	if (nodeLeftClickedNoDrag) {
-		selectEntityInHierarchy();
-	} else if (nodeRightClicked && !context.editorState->IsEntitySelected(entity)) {
-		context.editorState->SelectEntity(entity);
-	}
-
-	// ダブルクリックでシーンカメラをそのエンティティへ寄せる
-	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-		const std::optional<Dimension> dimension = ResolveEntityDimension(world, entity);
-		if (dimension && *dimension == Dimension::Type3D) {
-			context.editorState->cameraFocusRequest = entity;
-		}
-	}
-
-	// ノード右クリックでもコンテキストメニューを開く
-	if (nodeRightClicked) {
-		ImGui::OpenPopup("HierarchyEntityContextMenu");
-	}
-
-	//============================================================================
-	//	ドラッグ開始
-	//============================================================================
-	// TreeNodeExを直前Itemとして扱える位置で、行全体のドラッグ元を登録する
-	if (ImGui::BeginDragDropSource()) {
-
-		const UUID stableUUID = world.GetUUID(entity);
-		ImGui::SetDragDropPayload(kHierarchyDragDropPayloadType, &stableUUID, sizeof(UUID));
-		ImGui::Text("%s", displayName);
-		ImGui::EndDragDropSource();
-	}
-
-	//============================================================================
-	//	ドラッグ目標
-	//============================================================================
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-
-				std::vector<Entity> draggedEntities =
-					ResolveDraggedEntities(context, world, payload);
-				draggedEntities.erase(std::remove_if(draggedEntities.begin(), draggedEntities.end(),
-					[&](const Entity& dragged) {
-						return !CanReparent(context, world, dragged, entity);
-						}), draggedEntities.end());
-				if (!draggedEntities.empty()) {
-					context.host->ExecuteEditorCommand(std::make_unique<ReparentEntitiesCommand>(
-						std::move(draggedEntities), world.GetUUID(entity)));
-				}
-			}
-		}
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
-			if (payload->IsDelivery() && context.CanEditScene() &&
-				payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
-
-				// 重なっているエンティティの子としてアセットエンティティを原点に作成する
-				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
-				if (assetPayload) {
-					DropProjectAssetToHierarchy(context, world, *assetPayload, entity);
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
-	}
-
-	// Blenderと同じく、アクティブ切り替えを行の右端へ固定する
-	const float iconSize = ImGui::GetTextLineHeight() * 0.92f;
-	ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - iconSize);
-	bool checkboxLeftClicked = false;
-	bool checkboxRightClicked = false;
-	DrawActiveToggleIcon(context, world, entity, activeSelf, checkboxLeftClicked, checkboxRightClicked);
-	if (checkboxLeftClicked || checkboxRightClicked) {
-		selectEntityInHierarchy();
-	}
-	if (checkboxRightClicked) {
-		ImGui::OpenPopup("HierarchyEntityContextMenu");
-	}
-
-	//============================================================================
-	//	右クリックのコンテキストメニュー
-	//============================================================================
-	if (ImGui::BeginPopup("HierarchyEntityContextMenu")) {
-
-		// 既に複数選択へ含まれているなら維持し、含まれていなければ単体選択にする
-		if (!context.editorState->IsEntitySelected(entity)) {
-			context.editorState->SelectEntity(entity);
-		}
-
-		// アクティブ切り替え、選択中なら全選択へ同じ状態を適用する
-		if (ImGui::MenuItem(activeSelf ? "非アクティブにする" : "アクティブにする",
-			nullptr, false, context.CanEditScene() || context.IsPlaying())) {
-
-			const bool newActive = !activeSelf;
-			if (context.editorState->IsEntitySelected(entity)) {
-				for (const Entity& target : context.editorState->GetSelectedEntities()) {
-					if (world.IsAlive(target)) {
-						SetEntityActiveFromHierarchy(context, world, target, newActive);
-					}
-				}
-			} else {
-				SetEntityActiveFromHierarchy(context, world, entity, newActive);
-			}
-		}
-
-		ImGui::Separator();
-
-		// 子エンティティの種類を階層メニューから選択する
-		DrawEntityCreationMenu(context, world.GetUUID(entity),
-			"子にオブジェクトを作成", ResolveSceneViewCameraDimension(
-				context.editorState->sceneViewPickDimension));
-		if (PrefabInstanceEditUtility::IsPrefabRoot(world, entity)) {
-
-			const bool canUnpack = context.CanEditScene() &&
-				PrefabInstanceEditUtility::CanUnpack(context.editorContext, world, entity);
-			if (ImGui::BeginMenu("プレファブ", canUnpack)) {
-
-				if (ImGui::MenuItem("リンクを解除")) {
-
-					context.host->ExecuteEditorCommand(std::make_unique<UnpackPrefabCommand>(
-						entity, PrefabUnpackMode::OutermostRoot));
-				}
-				if (ImGui::MenuItem("リンクを完全解除")) {
-
-					context.host->ExecuteEditorCommand(std::make_unique<UnpackPrefabCommand>(
-						entity, PrefabUnpackMode::Completely));
-				}
-				ImGui::EndMenu();
-			}
-		}
-		// エンティティを複製
-		if (ImGui::MenuItem("複製", "Ctrl+D", false, context.CanEditScene())) {
-
-			context.host->DuplicateSelection();
-		}
-		// クリップボードにエンティティをコピー
-		if (ImGui::MenuItem("コピー", "Ctrl+C", false, context.CanEditScene())) {
-
-			context.host->CopySelectionToClipboard();
-		}
-		// エンティティを削除、複数選択ならまとめて消す
-		const bool canDelete = PrefabInstanceEditUtility::CanDelete(context.editorContext, world, entity);
-		if (ImGui::MenuItem("削除", "Del", false, context.CanEditScene() && canDelete)) {
-
-			context.host->DeleteSelection();
-		}
-		ImGui::EndPopup();
-	}
-
-	//============================================================================
-	//	子ノードの表示
-	//============================================================================
-	if (hasAnyTreeChildren && opened) {
-
-		Entity child = firstChild;
-		Entity lastVisibleChild = Entity::Null();
-		while (child.IsValid() && world.IsAlive(child)) {
-
-			if (world.HasComponent<SceneObjectComponent>(child) &&
-				(drawDescendants || ShouldDrawEntityNode(world, child))) {
-
-				DrawSiblingDropTarget(context, world, child, false);
-				DrawEntityNode(context, world, child, drawDescendants);
-				lastVisibleChild = child;
-			}
-			if (!world.HasComponent<HierarchyComponent>(child)) {
-				break;
-			}
-			child = world.GetComponent<HierarchyComponent>(child).nextSibling;
-		}
-		if (world.IsAlive(lastVisibleChild)) {
-
-			DrawSiblingDropTarget(context, world, lastVisibleChild, true);
-		}
-
-		// サブメッシュノードの表示
-		if (hasSubMeshChildren) {
-
-			ImGui::SetWindowFontScale(0.72f);
-
-			HierarchyMeshTree::DrawSubMeshNodes(context, world, entity);
-
-			ImGui::SetWindowFontScale(1.0f);
-		}
-		// スキンメッシュのジョイント階層の表示
-		if (hasSkinnedMeshChildren) {
-
-			ImGui::SetWindowFontScale(0.72f);
-
-			HierarchyMeshTree::DrawSkinnedMeshNodes(context, world, entity, [&](const Entity& attached) {
-			DrawEntityNode(context, world, attached, true);
-		});
-
-			ImGui::SetWindowFontScale(1.0f);
-		}
-		ImGui::TreePop();
-	}
-
-	ImGui::PopID();
-	ImGui::PopID();
-}
-
-void Engine::HierarchyPanel::DrawSiblingDropTarget(const EditorPanelContext& context, ECSWorld& world,
-	const Entity& anchorEntity, bool insertAfter) {
-
-	if (!context.CanEditScene() || !world.IsAlive(anchorEntity)) {
-		return;
-	}
-	const ImGuiPayload* activePayload =
-		ImGui::GetDragDropPayload();
-	if (!activePayload ||
-		!activePayload->IsDataType(
-			kHierarchyDragDropPayloadType)) {
-		return;
-	}
-
-	const UUID anchorUUID = world.GetUUID(anchorEntity);
-	const std::string id = (insertAfter ? "##SiblingDropAfter" : "##SiblingDropBefore") + ToString(anchorUUID);
-
-	ImGui::PushID(id.c_str());
-	const ImVec2 size(ImGui::GetContentRegionAvail().x, 1.0f);
-	ImGui::InvisibleButton("##SiblingDropLine", size);
-
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-
-				Entity dragged = ResolveDraggedEntity(world, payload);
-				if (CanReorder(context, world, dragged, anchorEntity)) {
-
-					context.host->ExecuteEditorCommand(
-						std::make_unique<ReorderEntityCommand>(dragged, anchorEntity, insertAfter));
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
-	}
-
-	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
-
-		const ImVec2 min = ImGui::GetItemRectMin();
-		const ImVec2 max = ImGui::GetItemRectMax();
-		ImGui::GetWindowDrawList()->AddLine(
-			ImVec2(min.x, (min.y + max.y) * 0.5f),
-			ImVec2(max.x, (min.y + max.y) * 0.5f),
-			ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
-	}
-	ImGui::PopID();
 }
 
 void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext& context) {
@@ -759,12 +205,11 @@ void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext&
 	//============================================================================
 	//	右クリックのコンテキストメニュー
 	//============================================================================
-	if (ImGui::BeginPopupContextWindow("HierarchyWindowContextMenu",
-		ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+	if (ImGui::BeginPopupContextWindow(
+			"HierarchyWindowContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
 
 		DrawEntityCreationMenu(context, UUID{}, "オブジェクトを作成",
-			ResolveSceneViewCameraDimension(
-				context.editorState->sceneViewPickDimension));
+			ResolveSceneViewCameraDimension(context.editorState->sceneViewPickDimension));
 		// コピーエンティティを作成
 		const bool canPaste = context.editorState && context.editorState->HasClipboard() && context.CanEditScene();
 		if (ImGui::MenuItem("コピー済みをペースト", "Ctrl+V", false, canPaste)) {
@@ -773,92 +218,4 @@ void Engine::HierarchyPanel::DrawBackgroundContextMenu(const EditorPanelContext&
 		}
 		ImGui::EndPopup();
 	}
-}
-
-void Engine::HierarchyPanel::DrawRootDropTarget(const EditorPanelContext& context, ECSWorld& world) {
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::TextDisabled("エンティティをルートに戻す");
-	ImGui::InvisibleButton("HierarchyRootDropTarget", ImVec2(ImGui::GetContentRegionAvail().x, 24.0f));
-
-	//============================================================================
-	//	ドラッグ目標
-	//============================================================================
-	if (ImGui::BeginDragDropTarget()) {
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kHierarchyDragDropPayloadType)) {
-			if (payload->IsDelivery()) {
-
-				// ドロップされたペイロードから目標エンティティを取得
-				Entity dragged = ResolveDraggedEntity(world, payload);
-				if (world.IsAlive(dragged)) {
-
-					if (world.HasComponent<JointAttachmentComponent>(dragged)) {
-
-						context.host->ExecuteEditorCommand(
-							std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
-					} else {
-
-						// ドロップされたエンティティの現在の親を取得
-						Entity currentParent = Entity::Null();
-						if (world.HasComponent<HierarchyComponent>(dragged)) {
-							currentParent = world.GetComponent<HierarchyComponent>(dragged).parent;
-						}
-						// すでにルートなら何もしない
-						if (world.IsAlive(currentParent) &&
-							PrefabInstanceEditUtility::CanChangeParent(
-								context.editorContext, world, dragged, Entity::Null())) {
-
-							context.host->ExecuteEditorCommand(std::make_unique<ReparentEntityCommand>(dragged, UUID{}));
-						}
-					}
-				}
-			}
-		}
-		if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kProjectAssetDragDropPayloadType)) {
-			if (payload->IsDelivery() && context.CanEditScene() && payload->DataSize == sizeof(EditorAssetDragDropPayload)) {
-
-				// 何にも重なっていない空き領域へのドロップはルートエンティティとして原点に作成する
-				const auto* assetPayload = static_cast<const EditorAssetDragDropPayload*>(payload->Data);
-				if (assetPayload) {
-					DropProjectAssetToHierarchy(context, world, *assetPayload, Entity::Null());
-				}
-			}
-		}
-		ImGui::EndDragDropTarget();
-	}
-}
-
-bool Engine::HierarchyPanel::EntityMatchesSearch(ECSWorld& world, const Entity& entity) const {
-
-	if (!searchFilter_.IsActive()) {
-		return true;
-	}
-	return searchFilter_.Matches(GetEntityDisplayName(world, entity));
-}
-
-bool Engine::HierarchyPanel::ShouldDrawEntityNode(ECSWorld& world, const Entity& entity) const {
-
-	if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
-		return false;
-	}
-	if (!searchFilter_.IsActive() || EntityMatchesSearch(world, entity)) {
-		return true;
-	}
-	if (!world.HasComponent<HierarchyComponent>(entity)) {
-		return false;
-	}
-
-	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
-	while (child.IsValid() && world.IsAlive(child)) {
-
-		if (ShouldDrawEntityNode(world, child)) {
-			return true;
-		}
-		if (!world.HasComponent<HierarchyComponent>(child)) {
-			break;
-		}
-		child = world.GetComponent<HierarchyComponent>(child).nextSibling;
-	}
-	return false;
 }

@@ -155,19 +155,6 @@ void Engine::GraphicsFeatureController::SetUseGameViewCameraForSceneCulling(bool
 		enabled ? "GameView" : "SceneView");
 }
 
-void Engine::GraphicsFeatureController::SetUseGameViewPositionForSceneVolumes(
-	bool enabled) {
-
-	if (preferences_.useGameViewPositionForSceneVolumes == enabled) {
-		return;
-	}
-	preferences_.useGameViewPositionForSceneVolumes = enabled;
-	SavePreferencesToConfig();
-
-	Logger::Output(LogType::Engine, "SceneViewのVolume評価位置: {}",
-		enabled ? "GameView" : "SceneView");
-}
-
 void Engine::GraphicsFeatureController::SetAllowContributionCulling(bool enabled) {
 
 	// VS経路とMS経路の両方で使うため、共通のRuntimeFeaturesへ反映する

@@ -42,22 +42,23 @@ namespace Engine {
 		// シーンオブジェクトコンポーネントを取得する
 		const SceneObjectComponent* GetSceneObject(ECSWorld& world, const Entity& entity);
 
+		// SceneとRendererの可視レイヤーを合わせる
+		uint32_t GetVisibilityLayerMask(ECSWorld& world, const Entity& entity, uint32_t renderingLayerMask);
+
 		// 描画アイテムの共通フィールドを埋める
 		template <typename T>
 		inline void FillCommonFields(RenderItem& item, ECSWorld& world,
 			const Entity& entity, const T& renderer, const Matrix4x4& worldMatrix) {
 
-			const SceneObjectComponent* sceneObject = GetSceneObject(world, entity);
-
 			item.entity = entity;
 			item.world = &world;
 			item.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
 			item.renderPhase = renderer.queue;
-			item.visibilityLayerMask = sceneObject ? sceneObject->visibilityLayerMask : 0xFFFFFFFFu;
 			if constexpr (requires { renderer.renderingLayerMask; }) {
 				item.renderingLayerMask = renderer.renderingLayerMask &
 					kRenderingLayerMaskBits;
 			}
+			item.visibilityLayerMask = GetVisibilityLayerMask(world, entity, item.renderingLayerMask);
 			item.sortingLayer = renderer.layer;
 			item.sortingOrder = renderer.order;
 			item.blendMode = renderer.blendMode;

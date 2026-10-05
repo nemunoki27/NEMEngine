@@ -3,11 +3,13 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
+#include "ShaderGraphPreviewFingerprint.h"
 
+// c++
 #include <array>
+#include <cstdint>
+#include <string>
+#include <vector>
 #include <unordered_set>
 
 namespace Engine::ShaderGraphNodePreviewUtility {
@@ -68,73 +70,55 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		bool sRGB = false;
 	};
 
-	// ノードプレビューの入力を解決する
-uint64_t CalculatePreviewHash(
-		const Engine::ShaderGraphAsset& graph);
-	// ノードプレビューの入力を解決する
-const Engine::ShaderGraphNode* FindPreviewNode(
-		const Engine::ShaderGraphAsset& graph,
-		Engine::UUID id);
-	// ノードプレビューの入力を解決する
-const Engine::ShaderGraphLink* FindPreviewInput(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& node,
-		uint32_t slot);
-	// ノードプレビューの入力を解決する
-Engine::ShaderGraphValueType ResolvePreviewOutputType(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& node,
-		uint32_t outputSlot,
+	// IDが一致するノードを取得する
+	const Engine::ShaderGraphNode* FindPreviewNode(const Engine::ShaderGraphAsset& graph, Engine::UUID id);
+
+	// 指定入力に接続したリンクを取得する
+	const Engine::ShaderGraphLink* FindPreviewInput(
+		const Engine::ShaderGraphAsset& graph, const Engine::ShaderGraphNode& node, uint32_t slot);
+
+	// 接続をたどって出力の型を決める
+	Engine::ShaderGraphValueType ResolvePreviewOutputType(const Engine::ShaderGraphAsset& graph,
+		const Engine::ShaderGraphNode& node, uint32_t outputSlot, std::unordered_set<uint64_t>& visiting);
+
+	// 接続をたどって出力の型を決める
+	Engine::ShaderGraphValueType ResolvePreviewOutputType(
+		const Engine::ShaderGraphAsset& graph, const Engine::ShaderGraphNode& node, uint32_t outputSlot = 0);
+
+	// 出力スロットの成分選択を決める
+	PreviewSwizzle ResolvePreviewSwizzle(
+		const Engine::ShaderGraphAsset& graph, const Engine::ShaderGraphNode& source, uint32_t outputSlot);
+
+	// ノードをプレビュー用の演算へ変換する
+	PreviewOperation GetPreviewOperation(const Engine::ShaderGraphAsset& graph, const Engine::ShaderGraphNode& node);
+
+	// プレビューで扱えるノードか確認する
+	bool IsPreviewableNode(Engine::ShaderGraphNodeKind kind);
+
+	// ノード専用の描画先名を作る
+	std::string PreviewTextureName(Engine::UUID nodeID);
+
+	// 設定値をプレビュー用の四成分へ変換する
+	Engine::Vector4 ToPreviewVector(const Engine::MaterialParameterValue& parameter, Engine::ShaderGraphValueType type);
+
+	// 未接続入力の既定値を取得する
+	Engine::Vector4 PreviewInputDefault(Engine::ShaderGraphNodeKind kind, uint32_t slot);
+
+	// Textureと色空間を解決する
+	PreviewTextureReference ResolvePreviewTextureReference(
+		const Engine::ShaderGraphAsset& graph, const Engine::ShaderGraphNode& node);
+
+	// 数値型の成分数を取得する
+	uint32_t PreviewComponentCount(Engine::ShaderGraphValueType type);
+
+	// 入力の接続先か既定の型を取得する
+	Engine::ShaderGraphValueType ResolvePreviewInputType(const Engine::ShaderGraphAsset& graph,
+		const Engine::ShaderGraphNode& node, uint32_t inputSlot, Engine::ShaderGraphValueType fallback,
 		std::unordered_set<uint64_t>& visiting);
-	// ノードプレビューの入力を解決する
-Engine::ShaderGraphValueType ResolvePreviewOutputType(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& node,
-		uint32_t outputSlot = 0);
-	// ノードプレビューの入力を解決する
-PreviewSwizzle ResolvePreviewSwizzle(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& source,
-		uint32_t outputSlot);
-	// ノードプレビューの入力を解決する
-PreviewOperation GetPreviewOperation(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& node);
-	// ノードプレビューの入力を解決する
-bool IsPreviewableNode(
-		Engine::ShaderGraphNodeKind kind);
-	// ノードプレビューの入力を解決する
-std::string PreviewTextureName(Engine::UUID nodeID);
-	// ノードプレビューの入力を解決する
-Engine::Vector4 ToPreviewVector(
-		const Engine::MaterialParameterValue& parameter,
-		Engine::ShaderGraphValueType type);
-	// ノードプレビューの入力を解決する
-Engine::Vector4 PreviewInputDefault(
-		Engine::ShaderGraphNodeKind kind,
-		uint32_t slot);
-	// ノードプレビューの入力を解決する
-PreviewTextureReference ResolvePreviewTextureReference(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& node);
-	// ノードプレビューの入力を解決する
-uint64_t CombinePreviewHash(
-		uint64_t seed, uint64_t value);
-	// ノードプレビューの入力を解決する
-uint64_t HashPreviewValue(
-		const Engine::MaterialParameterValue& parameter);
-	// ノードプレビューの入力を解決する
-uint32_t PreviewComponentCount(
-		Engine::ShaderGraphValueType type);
-	// ノードプレビューの入力を解決する
-Engine::ShaderGraphValueType ResolvePreviewInputType(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphNode& node,
-		uint32_t inputSlot,
-		Engine::ShaderGraphValueType fallback,
-		std::unordered_set<uint64_t>& visiting);
+
 	// 入力ノードから順に評価対象を並べる
 	std::vector<const Engine::ShaderGraphNode*> BuildPreviewOrder(const Engine::ShaderGraphAsset& graph);
+
 	// プレビューの参照パラメータを解決する
 	const Engine::ShaderGraphParameter* FindPreviewParameter(const Engine::ShaderGraphAsset& graph, Engine::UUID id);
-}
+} // Engine::ShaderGraphNodePreviewUtility

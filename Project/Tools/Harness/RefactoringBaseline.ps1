@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   リファクタリング前後の静的構造と回帰項目を検証する
 
@@ -514,6 +514,7 @@ function Get-MSBuildPath {
 
 function Invoke-BuildChecks {
 
+    . (Join-Path $repoRoot 'Tools\ProductBuild\BuildFileOperations.ps1')
     $msbuild = Get-MSBuildPath
     $solution = Join-Path $repoRoot "Project\NEMEngine.slnx"
     if (-not (Test-Path -LiteralPath $solution)) {
@@ -524,8 +525,8 @@ function Invoke-BuildChecks {
     foreach ($configuration in $Configurations) {
         Write-Host "=== Build: $Target $configuration ==="
         $watch = [System.Diagnostics.Stopwatch]::StartNew()
-        $process = Invoke-HarnessProcess $msbuild @($solution, "/t:$Target", "/p:Configuration=$configuration",
-            '/p:Platform=x64', '/m:1', '/nodeReuse:false', '/v:minimal')
+        $nativeArguments = @(Get-NativeBuildArguments $configuration $Target)
+        $process = Invoke-HarnessProcess $msbuild (@($solution) + $nativeArguments)
         $messages = $process.output
         $exitCode = $process.exitCode
         $messages | ForEach-Object { Write-Host $_ }

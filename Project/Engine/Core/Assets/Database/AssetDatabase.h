@@ -19,6 +19,7 @@ namespace Engine {
 	//	アセットファイルのメタデータを管理するクラス
 	//============================================================================
 	class AssetDatabase {
+		friend class AssetDocumentPublication;
 	public:
 		//============================================================================
 		//	public Methods
@@ -76,6 +77,8 @@ namespace Engine {
 		uint64_t GetStructureRevision() const { return structureRevision_; }
 		// この索引で通知された内容の更新番号を取得する
 		uint64_t GetContentRevision(AssetID id) const;
+		// 索引全体で通知された内容の更新番号を取得する
+		uint64_t GetContentRevision() const { return contentRevision_; }
 		// 索引の複製や破棄を派生データの所有元へ通知する
 		std::weak_ptr<const uint8_t> GetCacheLifetime() const { return cacheLifetime_.identity; }
 
@@ -116,6 +119,8 @@ namespace Engine {
 		std::vector<AssetDatabaseIssue> issues_;
 		// アセット集合の構造リビジョン、RebuildMetaのたびに増える
 		uint64_t structureRevision_ = 0;
+		// 個別の更新番号と索引全体の更新番号
+		uint64_t contentRevision_ = 0;
 		std::unordered_map<AssetID, uint64_t> contentRevisions_;
 		// 直近の走査失敗と再検査する範囲
 		std::string lastRebuildError_;

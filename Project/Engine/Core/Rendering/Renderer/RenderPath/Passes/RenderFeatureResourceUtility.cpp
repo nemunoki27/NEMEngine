@@ -36,10 +36,10 @@ namespace Engine::RenderFeatureResourceUtility {
 
 	constexpr std::string_view kDefaultOutputName = "Color";
 
-	std::string MakeStateKey(Engine::RenderViewKind kind,
+	std::string MakeStateKey(const Engine::ResolvedRenderView& view,
 		Engine::UUID passID, std::string_view output) {
 
-		return std::to_string(static_cast<uint32_t>(kind)) + "_" +
+		return view.GetHistoryKey() + "|" +
 			std::to_string(passID.value) + "_" + std::string(output);
 	}
 

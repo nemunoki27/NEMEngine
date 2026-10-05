@@ -30,9 +30,8 @@ namespace Engine::AnimationGroupPlayback {
 			return;
 		}
 
-		// クロスフェードは別グループを再生中の時だけ有効にする、現在の再生をfromへ退避する
-		if (fadeDuration > 0.0f && player.runtimePlaying && !player.runtimeCurrentGroup.empty() &&
-			player.runtimeCurrentGroup != groupName) {
+		// 再生中の姿勢を遷移元へ退避する
+		if (fadeDuration > 0.0f && player.runtimePlaying && !player.runtimeCurrentGroup.empty()) {
 
 			player.runtimeFromGroup = player.runtimeCurrentGroup;
 			player.runtimeFromClips = player.runtimeCurrentClips;
@@ -75,15 +74,18 @@ namespace Engine::AnimationGroupPlayback {
 			return;
 		}
 
-		const float baseDelta = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
+		float baseDelta = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
+		if (!std::isfinite(baseDelta) || baseDelta <= 0.0f) return;
 
 		// 開始遅延を消化する、経過するまでは再生しない
 		if (!clipRt.started) {
 
-			clipRt.delayRemaining -= baseDelta;
-			if (clipRt.delayRemaining > 0.0f) {
+			if (baseDelta < clipRt.delayRemaining) {
+				clipRt.delayRemaining -= baseDelta;
 				return;
 			}
+			// 遅延を超えた時間だけを本編へ渡す
+			baseDelta -= clipRt.delayRemaining;
 			clipRt.delayRemaining = 0.0f;
 			clipRt.started = true;
 			clipRt.playing = true;
@@ -96,32 +98,40 @@ namespace Engine::AnimationGroupPlayback {
 		const AnimationWrapMode curWrap = EffectiveWrap(state->wrapMode, clip->loop);
 		const float dur = (std::max)(clip->duration, 0.001f);
 
-		// このフレームで跨いだイベント検出のため、進める前の状態を控える
-		const float beforeTime = clipRt.time;
-		const int8_t beforeDir = clipRt.dir;
-		const AnimationClipPhase beforePhase = clipRt.phase;
-		const int32_t beforeRepeat = clipRt.repeatCount;
+		if (!std::isfinite(curDelta) || curDelta == 0.0f) return;
+		// 逆再生は終端から開始する
+		if (!clipRt.sampled) {
+			clipRt.time = curDelta < 0.0f ? dur : 0.0f;
+			clipRt.sampled = true;
+		}
+		std::vector<Interval> intervals;
+		auto* traversal = firedOut && context.mode == WorldMode::Play && !clip->events.empty() ? &intervals : nullptr;
 
 		// ループ/往復はフェーズ機械で繋ぎ補間とインターバルを扱う、それ以外は素直に進める
 		if (curWrap == AnimationWrapMode::Loop) {
 
-			AdvanceLoop(clipRt, *state, dur, curDelta);
+			AdvanceLoop(clipRt, *state, dur, curDelta, traversal);
 		} else if (curWrap == AnimationWrapMode::PingPong) {
 
-			AdvancePingPong(clipRt, *state, dur, curDelta);
+			AdvancePingPong(clipRt, *state, dur, curDelta, traversal);
 		} else {
 
 			bool finished = false;
+			const float beforeTime = clipRt.time;
 			clipRt.time = AdvanceTime(dur, curWrap, clipRt.time, clipRt.dir, curDelta, finished);
+			clipRt.normalizedTime += std::abs(static_cast<double>(clipRt.time - beforeTime)) / dur;
+			RecordInterval(clipRt, beforeTime, clipRt.time, traversal);
 			if (finished) {
 				clipRt.playing = false;
 				clipRt.finished = true;
 			}
 		}
 
+		clipRt.terminalPosePending = clipRt.finished;
+
 		// Play中のみ、本編再生フェーズで跨いだイベントを集める
-		if (firedOut && context.mode == WorldMode::Play && !clip->events.empty()) {
-			CollectClipEvents(*clip, curWrap, beforeTime, beforeDir, beforePhase, beforeRepeat, clipRt, dur, *firedOut);
+		if (traversal) {
+			CollectClipEvents(*clip, intervals, *firedOut);
 		}
 	}
 }

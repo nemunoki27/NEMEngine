@@ -1,14 +1,8 @@
 using System.Text;
-using System.Text.Json;
-using static NEM.ComponentBindingGen.BindingTypeLayout;
-using static NEM.ComponentBindingGen.BindingOutputText;
-using static NEM.ComponentBindingGen.NativeBindingEmitter;
-using static NEM.ComponentBindingGen.ManagedBindingEmitter;
-using static NEM.ComponentBindingGen.BindingArtifactStore;
 
 namespace NEM.ComponentBindingGen;
 
-// Component連携の生成処理
+// 生成した成果物の保存と復元を行う
 internal static class BindingArtifactStore {
 
     // 全成果物を用意してから差し替え、途中失敗では戻す
@@ -62,6 +56,7 @@ internal static class BindingArtifactStore {
         foreach (var output in staged) { Console.WriteLine($"[ComponentBindingGen] wrote {Path.GetFileName(output.path)}"); }
     }
 
+    // 保存済みの成果物と生成結果の差分を確認する
     internal static void CheckDrift(string path, string expected, Action<string> fail) {
         if (!File.Exists(path)) {
             fail($"generated file missing (drift): {path}");

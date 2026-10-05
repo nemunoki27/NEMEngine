@@ -8,7 +8,7 @@
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxUploadContext.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
@@ -56,14 +56,14 @@ bool NEMTests::CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::Graph
 	DxShaderCompiler compiler;
 	compiler.Init();
 	// GraphのVSも描画グループの定数を参照していることを確認する
-	const auto vertex = compiler.CompileShader((directory.GetPath() / "vertex.VS.hlsl").wstring(), L"vs_6_6", L"main", ShaderStage::VS);
+	const auto vertex = compiler.CompileShader((directory.GetPath() / "vertex.VS.hlsl").wstring(), L"vs_6_0", L"main", ShaderStage::VS);
 	const auto* draw = FindConstantBuffer(vertex.reflection, "MeshDrawConstants");
 	if (!vertex.IsValid() || !draw || std::none_of(draw->variables.begin(), draw->variables.end(), [](const auto& variable) {
 		return variable.name == "subMeshGroupIndex" && variable.used;
 	})) return false;
 	GraphicsPipelineDesc desc;
-	desc.preRaster = { .file = Algorithm::PathToUTF8(directory.GetPath() / "vertex.VS.hlsl"), .entry = "main", .profile = "vs_6_6" };
-	desc.pixel = { .file = Algorithm::PathToUTF8(directory.GetPath() / "opaque.PS.hlsl"), .entry = "main", .profile = "ps_6_6" };
+	desc.preRaster = { .file = Algorithm::PathToUTF8(directory.GetPath() / "vertex.VS.hlsl"), .entry = "main", .profile = "vs_6_0" };
+	desc.pixel = { .file = Algorithm::PathToUTF8(directory.GetPath() / "opaque.PS.hlsl"), .entry = "main", .profile = "ps_6_0" };
 	desc.rasterizer = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	desc.depthStencil = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	desc.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -74,9 +74,19 @@ bool NEMTests::CheckShaderGraphMeshPipelines(ID3D12Device* device, Engine::Graph
 	std::copy(std::begin(formats), std::end(formats), desc.rtvFormats);
 	// 個別コンパイルだけでなくVSとPSの接続まで検証する
 	if (!PipelineStateBuilder::CreateGraphics(retirement, device8.Get(), &compiler, desc)) return false;
+	// 対応GPUではDescriptor Heapを直接参照する経路も検証する
+	D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{ D3D_SHADER_MODEL_6_6 };
+	const bool shaderModel66 = SUCCEEDED(device->CheckFeatureSupport(
+		D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel))) &&
+		shaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6;
+	if (shaderModel66) {
+		desc.preRaster.profile = "vs_6_6";
+		desc.pixel.profile = "ps_6_6";
+		if (!PipelineStateBuilder::CreateGraphics(retirement, device8.Get(), &compiler, desc)) return false;
+	}
 	D3D12_FEATURE_DATA_D3D12_OPTIONS7 support{};
 	if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &support, sizeof(support)))) return false;
-	if (support.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED) {
+	if (shaderModel66 && support.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED) {
 		desc.type = PipelineType::Mesh;
 		desc.preRaster = { .file = Algorithm::PathToUTF8(directory.GetPath() / "mesh.MS.hlsl"), .entry = "main", .profile = "ms_6_6" };
 		desc.amplification = { .file = Algorithm::PathToUTF8(RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/Mesh/Common/meshGeometry.AS.hlsl"),
@@ -318,9 +328,9 @@ bool NEMTests::RecordImGuiRetirement(ID3D12Device* device, ID3D12CommandQueue* q
 		heap.Retire(static_cast<uint32_t>((cpu.ptr - heap.GetCPUHandle(0).ptr) / stride), {});
 	};
 	info.WaitForGPUFn = [](auto* init, ID3D12Fence* fence, UINT64 value, HANDLE event) {
-		return fence ? Engine::DxDredDiagnostics::WaitForFence(init->Device, fence, value, event, "ImGuiTest::Fence") :
-			event ? Engine::DxDredDiagnostics::WaitForEvent(init->Device, event, "ImGuiTest::Present") :
-			Engine::DxDredDiagnostics::CheckDeviceState(init->Device, "ImGuiTest::Device");
+		return fence ? Engine::DxDREDDiagnostics::WaitForFence(init->Device, fence, value, event, "ImGuiTest::Fence") :
+			event ? Engine::DxDREDDiagnostics::WaitForEvent(init->Device, event, "ImGuiTest::Present") :
+			Engine::DxDREDDiagnostics::CheckDeviceState(init->Device, "ImGuiTest::Device");
 	};
 	info.ResourceRetireFn = [](auto* init, ID3D12Object* resource) {
 		auto& heap = *static_cast<Engine::SRVDescriptor*>(init->UserData);
@@ -386,7 +396,7 @@ bool NEMTests::CheckFenceWaitAndRemoval() {
 		FAILED(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter))) ||
 		FAILED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device))) ||
 		FAILED(device->CreateFence(1, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)))) return false;
-	if (!Engine::DxDredDiagnostics::WaitForFence(device.Get(), fence.Get(), 1, nullptr, "FenceTest::Completed")) return false;
+	if (!Engine::DxDREDDiagnostics::WaitForFence(device.Get(), fence.Get(), 1, nullptr, "FenceTest::Completed")) return false;
 	Engine::GraphicsResourceRetirement retirement;
 	Engine::BaseDescriptor descriptors(2);
 	descriptors.Init(device.Get(), { D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE });
@@ -411,7 +421,7 @@ bool NEMTests::CheckFenceWaitAndRemoval() {
 		std::this_thread::sleep_for(std::chrono::milliseconds(30));
 		device->RemoveDevice();
 	});
-	const bool completed = Engine::DxDredDiagnostics::WaitForFence(device.Get(), fence.Get(), 2, completion, "FenceTest::Removed");
+	const bool completed = Engine::DxDREDDiagnostics::WaitForFence(device.Get(), fence.Get(), 2, completion, "FenceTest::Removed");
 	CloseHandle(completion);
 	removal.join();
 	// 消失後のResetと転送を失敗として通知する
@@ -428,7 +438,7 @@ bool NEMTests::CheckFenceWaitAndRemoval() {
 	retirement.Collect(UINT64_MAX);
 	const bool retained = retirement.GetPendingCount() == 2;
 	retirement.ReleaseAfterDeviceRemoval(device.Get());
-	Engine::DxDredDiagnostics::ResetForNewDevice();
+	Engine::DxDREDDiagnostics::ResetForNewDevice();
 	return !completed && retained && resetRejected && !commands.IsRecording() && uploadRejected && recordingRejected && elapsed < std::chrono::seconds(5) &&
 		retirement.GetPendingCount() == 0 && descriptors.GetUseDescriptorCount() == 0;
 }

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <stdexcept>
 
 //============================================================================
@@ -33,7 +33,7 @@ void Engine::AccelerationStructureBuffer::Create(ID3D12Device* device, UINT64 si
 	ComPtr<ID3D12Resource> candidate;
 	HRESULT hr = device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
 		&desc, initialState, nullptr, IID_PPV_ARGS(&candidate));
-	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "AccelerationStructureBuffer::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, hr, "AccelerationStructureBuffer::Create")) {
 		throw std::runtime_error("AccelerationStructure用バッファの作成に失敗しました");
 	}
 	resource_ = std::move(candidate);

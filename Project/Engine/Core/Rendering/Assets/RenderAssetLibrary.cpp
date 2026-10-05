@@ -72,9 +72,10 @@ void Engine::RenderAssetLibrary::Clear() {
 	fontCache_.clear();
 	particleEffectCache_.clear();
 	renderTextureCache_.clear();
-	volumeProfileCache_.clear();
-	renderExtensionCache_.clear();
-	++renderExtensionRevision_;
+	renderPassesCache_.clear();
+	renderPassesPreviews_.clear();
+	renderPassesAssetRevisions_.clear();
+	renderPassesResetRevision_ = ++renderPassesRevision_;
 	materialRevision_ = revision;
 }
 
@@ -211,14 +212,18 @@ const Engine::RenderTextureAsset* Engine::RenderAssetLibrary::LoadRenderTexture(
 	return LoadCachedAsset(renderTextureCache_, assetID);
 }
 
-const Engine::VolumeProfileAsset* Engine::RenderAssetLibrary::LoadVolumeProfile(AssetID assetID) {
+const Engine::RenderPassesAsset* Engine::RenderAssetLibrary::LoadRenderPasses(AssetID assetID) {
 
-	return LoadCachedAsset(volumeProfileCache_, assetID);
-}
-
-const Engine::RenderExtensionAsset* Engine::RenderAssetLibrary::LoadRenderExtension(AssetID assetID) {
-
-	return LoadCachedAsset(renderExtensionCache_, assetID);
+	// 未保存編集をファイルのキャッシュより優先する
+	const auto preview = renderPassesPreviews_.find(assetID);
+	if (preview != renderPassesPreviews_.end()) {
+		return &preview->second;
+	}
+	// 旧形式や別種類のJSONをPass設定として読まない
+	if (!database_ || !database_->ResolveFullPath(assetID).filename().string().ends_with(".renderpasses.json")) {
+		return nullptr;
+	}
+	return LoadCachedAsset(renderPassesCache_, assetID);
 }
 
 void Engine::RenderAssetLibrary::RegisterDerivedShader(
@@ -250,11 +255,21 @@ void Engine::RenderAssetLibrary::RegisterDerivedMaterial(
 	}
 }
 
-void Engine::RenderAssetLibrary::RegisterPreviewVolumeProfile(
-	VolumeProfileAsset profile) {
+void Engine::RenderAssetLibrary::RegisterPreviewRenderPasses(RenderPassesAsset extension) {
 
-	if (profile.guid) {
-		volumeProfileCache_.insert_or_assign(profile.guid, std::move(profile));
+	if (!extension.guid) {
+		return;
+	}
+	// 値を所有して次の描画から新しい構成を使う
+	const AssetID assetID = extension.guid;
+	renderPassesPreviews_.insert_or_assign(assetID, std::move(extension));
+	renderPassesAssetRevisions_[assetID] = ++renderPassesRevision_;
+}
+
+void Engine::RenderAssetLibrary::DiscardPreviewRenderPasses(AssetID assetID) {
+
+	if (renderPassesPreviews_.erase(assetID) != 0) {
+		InvalidateRenderPasses(assetID);
 	}
 }
 
@@ -264,4 +279,17 @@ void Engine::RenderAssetLibrary::InvalidateMaterial(AssetID assetID) {
 	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
 	materialCache_.erase(assetID);
 	materialRevision_ = revision;
+}
+
+void Engine::RenderAssetLibrary::InvalidateRenderPasses(AssetID assetID) {
+
+	// 対象Assetを使うCameraだけ実行計画を更新する
+	renderPassesCache_.erase(assetID);
+	renderPassesAssetRevisions_[assetID] = ++renderPassesRevision_;
+}
+
+uint64_t Engine::RenderAssetLibrary::GetRenderPassesRevision(AssetID assetID) const {
+
+	const auto revision = renderPassesAssetRevisions_.find(assetID);
+	return revision == renderPassesAssetRevisions_.end() ? renderPassesResetRevision_ : revision->second;
 }

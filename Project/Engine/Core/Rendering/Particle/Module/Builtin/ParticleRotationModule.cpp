@@ -48,7 +48,7 @@ namespace {
 
 			const size_t count = (std::min)(curve.channels.size(), it->size());
 			for (size_t i = 0; i < count; ++i) {
-				from_json((*it)[i], curve.channels[i]);
+				Engine::ReadCurveChannel((*it)[i], curve.channels[i], i != 0);
 			}
 		}
 		curve.axisKeys.clear();
@@ -75,7 +75,7 @@ namespace {
 				curve.axisKeys.emplace_back(Engine::QuaternionAxisKeyUtility::Sanitize(axisSetting));
 			}
 		}
-		curve.EnsureAxisKeyCount();
+		Engine::QuaternionAxisKeyUtility::SortKeys(curve.channels[0], curve.axisKeys);
 	}
 
 	// Quaternionカーブの軸キーを書き出す
@@ -247,9 +247,10 @@ void Engine::ParticleRotationModule::OnSpawn(Particle& particle) {
 		particle.rotation = Quaternion::Normalize((settings_.valueType == ParticleRotationValueType::Euler ?
 			Quaternion::FromEulerDegrees(settings_.addAngle.Sample()) :
 			MakeAxisRotation(settings_.addAxis, settings_.addQuaternionAngle.Sample())) * particle.rotation);
-		particle.rotationSpeed = Vector3::AnyInit(0.0f);
+		// 他のRotation Moduleの抽選値を上書きしない
+		particle.rotationSpeeds.erase(GetInstanceID());
 		if (settings_.speedMode == ParticleRotationSpeedMode::Constant) {
-			particle.rotationSpeed = settings_.valueType == ParticleRotationValueType::Euler ?
+			particle.rotationSpeeds[GetInstanceID()] = settings_.valueType == ParticleRotationValueType::Euler ?
 				settings_.rotationSpeed.Sample() :
 				GetAxisDirection(settings_.rotationSpeedAxis) * settings_.rotationQuaternionSpeed.Sample();
 		}
@@ -269,7 +270,10 @@ void Engine::ParticleRotationModule::OnUpdate(Particle& particle, float deltaTim
 	}
 	if (settings_.mode == ParticleRotationMode::Additive) {
 
-		Vector3 speed = particle.rotationSpeed;
+		Vector3 speed = Vector3::AnyInit(0.0f);
+		if (auto it = particle.rotationSpeeds.find(GetInstanceID()); it != particle.rotationSpeeds.end()) {
+			speed = it->second;
+		}
 		if (settings_.speedMode == ParticleRotationSpeedMode::OverLifetime) {
 
 			const float progress = settings_.speedLoop.LoopedT(particle.age / particle.lifetime);

@@ -112,9 +112,9 @@ namespace NEMTests {
 		return result;
 	}
 
-	TestFileReadLock::TestFileReadLock(const std::filesystem::path& path) {
+	TestFileReadLock::TestFileReadLock(const std::filesystem::path& path, bool allowRead) {
 
-		handle_ = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+		handle_ = CreateFileW(path.c_str(), GENERIC_READ, allowRead ? FILE_SHARE_READ : 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 		if (handle_ == INVALID_HANDLE_VALUE) throw std::runtime_error("Test file lock failed");
 	}
 

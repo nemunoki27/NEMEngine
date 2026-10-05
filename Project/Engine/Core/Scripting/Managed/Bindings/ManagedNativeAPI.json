@@ -362,31 +362,31 @@
       "nativeType": "GetNativeBoolCallback",
       "managedType": "delegate* unmanaged[Cdecl]<int>"
     },
-	{
-	  "name": "getPlayerGamepadIndex",
-	  "nativeType": "PlayerIndexCallback",
-	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
-	},
-	{
-	  "name": "getPlayerKeyboardMouseEnabled",
-	  "nativeType": "PlayerIndexCallback",
-	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
-	},
-	{
-	  "name": "getPlayerInputAvailable",
-	  "nativeType": "PlayerIndexCallback",
-	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
-	},
-	{
-	  "name": "playPlayerVibration",
-	  "nativeType": "InputPlayVibrationCallback",
-	  "managedType": "delegate* unmanaged[Cdecl]<int, float, float, float, float, float, uint>"
-	},
-	{
-	  "name": "stopPlayerVibration",
-	  "nativeType": "InputStopVibrationCallback",
-	  "managedType": "delegate* unmanaged[Cdecl]<int, uint, void>"
-	},
+    {
+      "name": "getPlayerGamepadIndex",
+      "nativeType": "PlayerIndexCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getPlayerKeyboardMouseEnabled",
+      "nativeType": "PlayerIndexCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "getPlayerInputAvailable",
+      "nativeType": "PlayerIndexCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+    },
+    {
+      "name": "playPlayerVibration",
+      "nativeType": "InputPlayVibrationCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, float, float, float, float, float, uint>"
+    },
+    {
+      "name": "stopPlayerVibration",
+      "nativeType": "InputStopVibrationCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, uint, void>"
+    },
     {
       "name": "getHasFocus",
       "nativeType": "GetNativeBoolCallback",
@@ -446,6 +446,11 @@
       "name": "removeScript",
       "nativeType": "RemoveScriptCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, ulong, void>"
+    },
+    {
+      "name": "preloadScene",
+      "nativeType": "LoadSceneCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<AssetGUID, ulong>"
     },
     {
       "name": "loadSceneSingle",
@@ -749,8 +754,8 @@
     },
     {
       "name": "getUIBlocksGameplayInput",
-	  "nativeType": "PlayerIndexCallback",
-	  "managedType": "delegate* unmanaged[Cdecl]<int, int>"
+      "nativeType": "PlayerIndexCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int, int>"
     },
     {
       "name": "getUISelectableRuntimeState",
@@ -861,6 +866,16 @@
       "name": "getComponentInstanceID",
       "nativeType": "GetComponentInstanceIDCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, int, ulong>"
+    },
+    {
+      "name": "setAnimatorParameter",
+      "nativeType": "SetAnimatorParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float, int, int>"
+    },
+    {
+      "name": "getAnimatorParameter",
+      "nativeType": "GetAnimatorParameterCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float*, int*, int>"
     }
   ],
   "layouts": [
@@ -1099,8 +1114,8 @@
       }
     },
     {
-      "nativeType": "ManagedAbiHeader",
-      "managedType": "ManagedAbiHeader",
+      "nativeType": "ManagedABIHeader",
+      "managedType": "ManagedABIHeader",
       "size": 24,
       "members": {
         "abiVersion": 0,

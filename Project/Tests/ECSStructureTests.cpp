@@ -1,4 +1,6 @@
 #include "TestContracts.h"
+#include "ECSBindingContractTests.h"
+#include "ECSQueryContractTests.h"
 
 //============================================================================
 //	include
@@ -6,10 +8,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
 // c++
 #include <array>
@@ -83,12 +82,6 @@ namespace {
 		}
 	}
 
-	struct QueryComponent {
-
-		static constexpr bool kEnableable = true;
-		int value = 0;
-	};
-
 	// 追加通知の失敗と通知中の自己破棄を発生させる
 	struct FailingAddedComponent {
 
@@ -115,7 +108,7 @@ namespace {
 
 		ThrowingBufferValue() = default;
 		ThrowingBufferValue(const ThrowingBufferValue&) = default;
-		ThrowingBufferValue(ThrowingBufferValue&& source) : ThrowingComponent(std::move(source)) { }
+		ThrowingBufferValue(ThrowingBufferValue&& source) : ThrowingComponent(std::move(source)) {}
 	};
 
 	template <typename T>
@@ -135,29 +128,19 @@ namespace {
 		const int liveCount = ThrowingComponent::liveCount;
 		ThrowingComponent::copiesBeforeThrow = 1;
 		bool rejected = false;
-		try { buffer.Assign(buffer.GetSpan().subspan(1)); }
-		catch (const std::runtime_error&) { rejected = true; }
+		try {
+			buffer.Assign(buffer.GetSpan().subspan(1));
+		} catch (const std::runtime_error&) {
+			rejected = true;
+		}
 		ThrowingComponent::copiesBeforeThrow = -1;
-		if (!rejected || ThrowingComponent::liveCount != liveCount || buffer.GetSize() != 3 ||
-			buffer[0].value != 11 || buffer[1].value != 22 || buffer[2].value != 33) return false;
+		if (!rejected || ThrowingComponent::liveCount != liveCount || buffer.GetSize() != 3 || buffer[0].value != 11 ||
+			buffer[1].value != 22 || buffer[2].value != 33) {
+			return false;
+		}
 		buffer.Assign(buffer.GetSpan().subspan(1));
 		return buffer.GetSize() == 2 && buffer[0].value == 22 && buffer[1].value == 33;
 	}
-
-	void to_json(nlohmann::json& out, const QueryComponent& value) {
-
-		out = value.value;
-	}
-
-	void from_json(const nlohmann::json& in, QueryComponent& value) {
-
-		value.value = in.get<int>();
-	}
-
-	struct QueryTag {
-
-		static constexpr Engine::ComponentStorageKind kStorageKind = Engine::ComponentStorageKind::Tag;
-	};
 
 	// 1行だけでもChunkへ収まらないComponent
 	struct OversizedComponent {
@@ -166,23 +149,14 @@ namespace {
 		std::array<std::byte, Engine::kChunkBytes + 1> bytes{};
 	};
 
-	struct PendingBufferElement {
-
-		static constexpr bool kSerializable = false;
-		static constexpr Engine::ComponentStorageKind kStorageKind = Engine::ComponentStorageKind::Buffer;
-		static constexpr uint32_t kInternalBufferCapacity = 2;
-		int32_t value = 0;
-	};
-
 	void RegisterStructureComponents() {
 
 		[[maybe_unused]] static const bool registered = [] {
 			auto& registry = Engine::ComponentTypeRegistry::GetInstance();
 			registry.Register<ThrowingComponent>(registry.GetComponentTypeCount(), "ThrowingComponent");
 			registry.Register<OversizedComponent>(registry.GetComponentTypeCount(), "OversizedComponent");
-			registry.Register<PendingBufferElement>(registry.GetComponentTypeCount(), "PendingBufferElement");
-			registry.Register<QueryComponent>(registry.GetComponentTypeCount(), "QueryComponent");
-			registry.Register<QueryTag>(registry.GetComponentTypeCount(), "QueryTag");
+			NEMTests::RegisterECSBindingTestComponents();
+			NEMTests::RegisterECSQueryTestComponents();
 			registry.Register<FailingAddedComponent>(registry.GetComponentTypeCount(), "FailingAddedComponent");
 			return true;
 		}();
@@ -196,8 +170,8 @@ namespace {
 		const uint32_t typeID = registry.GetID<ThrowingComponent>();
 		const auto stable = Engine::UUID::New();
 		const auto original = world.CreateEntity(stable);
-		const std::array<uint32_t, 1> failingTypes{ registry.GetID<FailingAddedComponent>() };
-		for (bool destroy : { false, true }) {
+		const std::array<uint32_t, 1> failingTypes{registry.GetID<FailingAddedComponent>()};
+		for (bool destroy : {false, true}) {
 			FailingAddedComponent::destroyOwner = destroy;
 			const auto failedUUID = Engine::UUID::New();
 			bool rejected = false;
@@ -206,11 +180,12 @@ namespace {
 			} catch (const std::runtime_error&) {
 				rejected = true;
 			}
-			if (!rejected || !world.IsAlive(original) || world.FindByUUID(stable) != original || world.FindByUUID(failedUUID).IsValid()) {
+			if (!rejected || !world.IsAlive(original) || world.FindByUUID(stable) != original ||
+				world.FindByUUID(failedUUID).IsValid()) {
 				return false;
 			}
 		}
-		const std::array<uint32_t, 1> types{ typeID };
+		const std::array<uint32_t, 1> types{typeID};
 		ThrowingComponent::failConstruct = true;
 		bool rejectedCreate = false;
 		try {
@@ -238,7 +213,8 @@ namespace {
 		world.AddComponent<ThrowingComponent>(first).value = 31;
 		const uint64_t firstInstance = world.GetComponentInstanceID(first, typeID);
 		world.AddComponent<Engine::SceneObjectComponent>(first);
-		if (world.GetComponentInstanceID(first, typeID) != firstInstance || world.GetComponent<ThrowingComponent>(first).value != 31) {
+		if (world.GetComponentInstanceID(first, typeID) != firstInstance ||
+			world.GetComponent<ThrowingComponent>(first).value != 31) {
 			return false;
 		}
 		world.RemoveComponent<ThrowingComponent>(first);
@@ -338,13 +314,19 @@ namespace {
 		ThrowingComponent::copiesBeforeThrow = -1;
 		if (!copyFailed || ThrowingComponent::liveCount != 1 || world.HasComponent<ThrowingComponent>(entity) ||
 			world.GetBindingComponentInstanceID(entity, typeID) != pendingID ||
-			world.TryGetComponentForBinding<ThrowingComponent>(entity)->value != 93) return false;
+			world.TryGetComponentForBinding<ThrowingComponent>(entity)->value != 93) {
+			return false;
+		}
 		{
 			const auto snapshot = world.CloneForSerialization();
 			if (snapshot->GetComponent<ThrowingComponent>(entity).value != 93 ||
-				snapshot->GetComponentInstanceID(entity, typeID) != pendingID || !snapshot->GetCommandBuffer().IsEmpty()) return false;
+				snapshot->GetComponentInstanceID(entity, typeID) != pendingID || !snapshot->GetCommandBuffer().IsEmpty()) {
+				return false;
+			}
 		}
-		if (ThrowingComponent::liveCount != 1) return false;
+		if (ThrowingComponent::liveCount != 1) {
+			return false;
+		}
 		commands.Flush(world);
 		if (world.GetComponent<ThrowingComponent>(entity).value != 93 ||
 			world.GetComponentInstanceID(entity, typeID) != pendingID || !commands.IsEmpty()) {
@@ -400,10 +382,14 @@ namespace {
 		world.TryGetComponentForBinding<ThrowingComponent>(entity)->value = 333;
 		world.AddComponent<ThrowingComponent>(entity);
 		if (world.GetComponentInstanceID(entity, typeID) != adoptedID ||
-			world.GetComponent<ThrowingComponent>(entity).value != 333 || commands.FindPendingComponent(entity, typeID)) return false;
+			world.GetComponent<ThrowingComponent>(entity).value != 333 || commands.FindPendingComponent(entity, typeID)) {
+			return false;
+		}
 		world.RemoveComponent<ThrowingComponent>(entity);
 		commands.Flush(world);
-		if (world.HasComponent<ThrowingComponent>(entity) || ThrowingComponent::liveCount != 0) return false;
+		if (world.HasComponent<ThrowingComponent>(entity) || ThrowingComponent::liveCount != 0) {
+			return false;
+		}
 
 		// 予約後にEntityが失効しても次の世代へ値を渡さない
 		commands.StageAddComponent(world, entity, typeID);
@@ -412,68 +398,7 @@ namespace {
 		const auto replacement = world.CreateEntity();
 		commands.Flush(world);
 		return replacement.index == entity.index && replacement.generation != entity.generation &&
-			!world.HasComponent<ThrowingComponent>(replacement) && ThrowingComponent::liveCount == 0;
-	}
-
-	// 追加前の可変長配列も外部領域ごと安全に引き継ぐ
-	bool CheckPendingBuffer() {
-
-		Engine::ECSWorld world;
-		const auto entity = world.CreateEntity();
-		const uint32_t typeID = Engine::ComponentTypeRegistry::GetInstance().GetID<PendingBufferElement>();
-		const uint64_t instanceID = world.GetCommandBuffer().StageAddComponent(world, entity, typeID);
-		const std::array<PendingBufferElement, 4> values{ { { 13 }, { 29 }, { 41 }, { 57 } } };
-		if (!world.TryGetBufferForBinding(entity, typeID).SetData(values.data(), static_cast<uint32_t>(values.size()))) {
-			return false;
-		}
-		world.FlushWorldCommands();
-		auto buffer = world.TryGetUntypedBuffer(entity, typeID);
-		std::array<PendingBufferElement, 4> copied{};
-		if (buffer.CopyTo(copied.data(), static_cast<uint32_t>(copied.size())) != values.size() ||
-			copied[0].value != 13 || copied[3].value != 57 || world.GetComponentInstanceID(entity, typeID) != instanceID) {
-			return false;
-		}
-		// 自分の部分列を詰め、範囲外の指定では内容を維持する
-		auto* source = static_cast<PendingBufferElement*>(buffer.GetData());
-		if (buffer.SetData(source + 3, 2) || !buffer.SetData(source + 1, 3)) {
-			return false;
-		}
-		if (buffer.CopyTo(copied.data(), 4) != 3 || copied[0].value != 29 || copied[2].value != 57) {
-			return false;
-		}
-		// 右へ重なるコピーでも元の順序を維持する
-		source = static_cast<PendingBufferElement*>(buffer.GetData());
-		return buffer.CopyTo(source + 1, 2) == 2 && source[1].value == 29 && source[2].value == 41;
-	}
-
-	// 型番号の走査条件と値を持たないTagの移動を確認する
-	bool CheckQueryModes() {
-
-		Engine::ECSWorld world;
-		const auto entity = world.CreateEntity();
-		world.AddComponent<QueryComponent>(entity).value = 19;
-		world.AddComponentByName(entity, "QueryTag");
-		world.SetComponentEnabled<QueryComponent>(entity, false);
-		const uint32_t typeID = Engine::ComponentTypeRegistry::GetInstance().GetID<QueryComponent>();
-		uint32_t enabledCount = 0;
-		uint32_t allCount = 0;
-		world.ForEach(typeID, [&](const Engine::Entity&) { ++enabledCount; });
-		world.ForEach(typeID, [&](const Engine::Entity&) { ++allCount; }, Engine::ECSQueryMode::IncludeDisabled);
-		const auto snapshot = world.CloneForSerialization();
-		if (enabledCount != 0 || allCount != 1 || !snapshot->HasComponent<QueryTag>(entity) ||
-			snapshot->IsComponentEnabled<QueryComponent>(entity) || snapshot->GetComponent<QueryComponent>(entity).value != 19) {
-			return false;
-		}
-		world.RemoveComponentByName(entity, "QueryTag");
-		Engine::EntitySignature invalid{};
-		invalid.Set(Engine::kMaxComponentTypes - 1);
-		bool rejected = false;
-		try {
-			world.CreateEntityWithSignature(invalid);
-		} catch (const std::invalid_argument&) {
-			rejected = true;
-		}
-		return rejected && world.GetComponent<QueryComponent>(entity).value == 19;
+			   !world.HasComponent<ThrowingComponent>(replacement) && ThrowingComponent::liveCount == 0;
 	}
 
 	// 解放処理の例外でも残りのEntityを終了する
@@ -497,14 +422,13 @@ namespace {
 		uint32_t removedCalls = 0;
 	};
 
-	void RemovedListener(Engine::ECSWorld&, const Engine::Entity&, uint32_t,
-		Engine::ComponentMutationKind, void* data) {
+	void RemovedListener(Engine::ECSWorld&, const Engine::Entity&, uint32_t, Engine::ComponentMutationKind, void* data) {
 
 		++static_cast<NotificationState*>(data)->removedCalls;
 	}
 
-	void ReentrantListener(Engine::ECSWorld& world, const Engine::Entity& entity, uint32_t,
-		Engine::ComponentMutationKind kind, void* data) {
+	void ReentrantListener(
+		Engine::ECSWorld& world, const Engine::Entity& entity, uint32_t, Engine::ComponentMutationKind kind, void* data) {
 
 		auto& state = *static_cast<NotificationState*>(data);
 		if (state.entered || kind != Engine::ComponentMutationKind::Added) {
@@ -528,67 +452,18 @@ namespace {
 		state.removedListener = world.AddComponentMutationListener(RemovedListener, &state);
 		ThrowingComponent& result = world.AddComponent<ThrowingComponent>(entity);
 		return &result == world.TryGetComponent<ThrowingComponent>(entity) && result.value == 7 &&
-			world.GetComponent<Engine::NameComponent>(entity).name == "Reentrant" && state.removedCalls == 64;
+			   world.GetComponent<Engine::NameComponent>(entity).name == "Reentrant" && state.removedCalls == 64;
 	}
-	bool CheckPendingGameObject() {
 
-		Engine::ECSWorld world;
-		const auto scriptOwner = world.CreateEntity();
-		world.AddComponent<Engine::ScriptComponent>(scriptOwner);
-		auto scripts = world.GetBuffer<Engine::ScriptEntry>(scriptOwner);
-		const auto first = Engine::MakeScriptEntry("Test", "Test");
-		const auto second = Engine::MakeScriptEntry("Test", "Test");
-		scripts.EmplaceBack(first);
-		scripts.EmplaceBack(second);
-		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, first.scriptSlotID);
-		if (scripts.GetSize() != 2) return false;
-		world.GetCommandBuffer().Flush(world);
-		// 同型の二つ目は残り、重複削除でも新しいslotへ触れない
-		scripts = world.GetBuffer<Engine::ScriptEntry>(scriptOwner);
-		if (scripts.GetSize() != 1 || scripts[0].scriptSlotID != second.scriptSlotID) return false;
-		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, first.scriptSlotID);
-		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, second.scriptSlotID);
-		world.GetCommandBuffer().EnqueueRemoveScript(scriptOwner, second.scriptSlotID);
-		world.GetCommandBuffer().Flush(world);
-		if (world.HasComponent<Engine::ScriptComponent>(scriptOwner) || world.HasBuffer<Engine::ScriptEntry>(scriptOwner)) return false;
-		const auto entity = world.CreateEntity();
-		world.GetCommandBuffer().EnqueueCreateEntity(world, entity, "Pending", Engine::Entity::Null());
-		const auto* pendingMembership = world.TryGetComponentForBinding<Engine::SceneObjectComponent>(entity);
-		if (!pendingMembership || !pendingMembership->localFileID) return false;
-		const auto reservedLocalID = pendingMembership->localFileID;
-		auto* transform = world.TryGetComponentForBinding<Engine::TransformComponent>(entity);
-		const auto typeID = Engine::ComponentTypeRegistry::GetInstance().GetID<Engine::TransformComponent>();
-		const auto instanceID = world.GetBindingComponentInstanceID(entity, typeID);
-		if (!transform || !instanceID || world.HasComponent<Engine::TransformComponent>(entity)) {
-			return false;
-		}
-
-		// 生成直後の値を読み戻し、通常走査へはまだ公開しない
-		transform->localPos = Engine::Vector3(13.0f, 17.0f, 19.0f);
-		world.TryGetComponentForBinding<Engine::NameComponent>(entity)->name = "Edited";
-		Engine::ResolvedWorldTransform resolved{};
-		if (Engine::TransformWorldUtility::ResolveWorldTransform(world, entity, resolved) ||
-			!Engine::TransformWorldUtility::ResolveWorldTransform(world, entity, resolved, true) ||
-			resolved.matrix.GetTranslationValue().x != 13.0f) {
-			return false;
-		}
-
-		// 実体化でも個体番号と編集値を引き継ぐ
-		world.GetCommandBuffer().Flush(world);
-		return world.GetComponentInstanceID(entity, typeID) == instanceID &&
-			world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID == reservedLocalID &&
-			world.GetComponent<Engine::TransformComponent>(entity).localPos.y == 17.0f &&
-			world.GetComponent<Engine::NameComponent>(entity).name == "Edited" &&
-			static_cast<bool>(world.GetComponent<Engine::SceneObjectComponent>(entity).localFileID);
-	}
 }
 
 bool NEMTests::TestECSStructureSafety() {
 
 	RegisterStructureComponents();
 	return CheckStructureFailure() && ThrowingComponent::liveCount == 0 && CheckQueryMutation() &&
-		ThrowingComponent::liveCount == 0 && CheckNotificationMutation() && ThrowingComponent::liveCount == 0 &&
-		CheckPendingComponents() && ThrowingComponent::liveCount == 0 && CheckPendingBuffer() && CheckPendingGameObject() && CheckQueryModes() && CheckWorldReleaseFailure() &&
-		CheckBufferAssignFailure<ThrowingComponent>() && ThrowingComponent::liveCount == 0 &&
-		CheckBufferAssignFailure<ThrowingBufferValue>() && ThrowingComponent::liveCount == 0;
+		   ThrowingComponent::liveCount == 0 && CheckNotificationMutation() && ThrowingComponent::liveCount == 0 &&
+		   CheckPendingComponents() && ThrowingComponent::liveCount == 0 && CheckPendingBuffer() && CheckPendingGameObject() &&
+		   CheckQueryModes() && CheckWorldReleaseFailure() && CheckBufferAssignFailure<ThrowingComponent>() &&
+		   ThrowingComponent::liveCount == 0 && CheckBufferAssignFailure<ThrowingBufferValue>() &&
+		   ThrowingComponent::liveCount == 0;
 }

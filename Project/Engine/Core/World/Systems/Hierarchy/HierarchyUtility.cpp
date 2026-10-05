@@ -43,6 +43,30 @@ namespace {
 
 namespace Engine::HierarchyUtility {
 
+	Entity GetParent(const ECSWorld& world, Entity entity) {
+
+		if (const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(entity)) {
+			return world.IsAlive(hierarchy->parent) ? hierarchy->parent : Entity::Null();
+		}
+		return Entity::Null();
+	}
+
+	bool CanSetParent(const ECSWorld& world, Entity child, Entity parent) {
+
+		if (!world.IsAlive(child)) {
+			return false;
+		}
+		size_t remaining = world.GetRecordCount() + 1;
+		// 壊れた階層でも無限に親をたどらない
+		while (world.IsAlive(parent)) {
+			if (parent == child || remaining-- == 0) {
+				return false;
+			}
+			parent = GetParent(world, parent);
+		}
+		return true;
+	}
+
 	void SortChildLinksBySiblingOrder(ECSWorld& world, Entity parent) {
 
 		if (!world.IsAlive(parent) || !world.HasComponent<HierarchyComponent>(parent)) {
@@ -65,8 +89,8 @@ namespace Engine::HierarchyUtility {
 
 		std::stable_sort(children.begin(), children.end(), [&](const Entity& lhs, const Entity& rhs) {
 			return world.GetComponent<HierarchyComponent>(lhs).siblingOrder <
-				world.GetComponent<HierarchyComponent>(rhs).siblingOrder;
-			});
+				   world.GetComponent<HierarchyComponent>(rhs).siblingOrder;
+		});
 
 		parentHierarchy.firstChild = children.front();
 		parentHierarchy.lastChild = children.back();
@@ -80,7 +104,9 @@ namespace Engine::HierarchyUtility {
 	}
 
 	bool IsRoot(ECSWorld& world, Entity entity) {
-		if (!world.IsAlive(entity)) { return true; }
+		if (!world.IsAlive(entity)) {
+			return true;
+		}
 		if (const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(entity)) {
 			return !world.IsAlive(hierarchy->parent);
 		}
@@ -105,8 +131,8 @@ namespace Engine::HierarchyUtility {
 		world.ForEachAliveEntity([&](Entity entity) {
 			if (const auto* membership = world.TryGetComponent<SceneObjectComponent>(entity)) {
 				if (membership->localFileID) {
-					const auto [entry, inserted] = entities.emplace(
-						LocalKey{ membership->sceneInstanceID, membership->localFileID }, entity);
+					const auto [entry, inserted] =
+						entities.emplace(LocalKey{membership->sceneInstanceID, membership->localFileID}, entity);
 					if (!inserted) {
 						entry->second = Entity::Null();
 					}
@@ -122,7 +148,7 @@ namespace Engine::HierarchyUtility {
 			const auto* joint = world.TryGetComponent<JointAttachmentComponent>(entity);
 			const auto* membership = world.TryGetComponent<SceneObjectComponent>(entity);
 			if (joint && membership && joint->skinnedEntityLocalFileID) {
-				const auto parent = entities.find({ membership->sceneInstanceID, joint->skinnedEntityLocalFileID });
+				const auto parent = entities.find({membership->sceneInstanceID, joint->skinnedEntityLocalFileID});
 				if (parent != entities.end()) {
 					return parent->second;
 				}
@@ -161,9 +187,7 @@ namespace Engine::HierarchyUtility {
 		std::unordered_multimap<LocalKey, Entity, LocalKeyHash> attachedBySkinned;
 		attachedBySkinned.reserve(world.GetRecordCount());
 		world.ForEachAliveEntity([&](Entity entity) {
-
-			if (!world.HasComponent<JointAttachmentComponent>(entity) ||
-				!world.HasComponent<SceneObjectComponent>(entity)) {
+			if (!world.HasComponent<JointAttachmentComponent>(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
 				return;
 			}
 			const auto& attachment = world.GetComponent<JointAttachmentComponent>(entity);
@@ -171,9 +195,8 @@ namespace Engine::HierarchyUtility {
 				return;
 			}
 			const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-			attachedBySkinned.emplace(
-				LocalKey{ sceneObject.sceneInstanceID, attachment.skinnedEntityLocalFileID }, entity);
-			});
+			attachedBySkinned.emplace(LocalKey{sceneObject.sceneInstanceID, attachment.skinnedEntityLocalFileID}, entity);
+		});
 
 		std::vector<Entity> stack;
 		std::unordered_set<uint64_t> collected;
@@ -190,8 +213,8 @@ namespace Engine::HierarchyUtility {
 			if (world.HasComponent<SceneObjectComponent>(entity)) {
 
 				const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-				const auto [begin, end] = attachedBySkinned.equal_range(
-					LocalKey{ sceneObject.sceneInstanceID, sceneObject.localFileID });
+				const auto [begin, end] =
+					attachedBySkinned.equal_range(LocalKey{sceneObject.sceneInstanceID, sceneObject.localFileID});
 				for (auto it = begin; it != end; ++it) {
 					stack.emplace_back(it->second);
 				}
@@ -204,8 +227,9 @@ namespace Engine::HierarchyUtility {
 			while (world.IsAlive(child)) {
 
 				stack.emplace_back(child);
-				child = world.HasComponent<HierarchyComponent>(child) ?
-					world.GetComponent<HierarchyComponent>(child).nextSibling : Entity::Null();
+				child = world.HasComponent<HierarchyComponent>(child)
+							? world.GetComponent<HierarchyComponent>(child).nextSibling
+							: Entity::Null();
 			}
 		}
 		return entities;

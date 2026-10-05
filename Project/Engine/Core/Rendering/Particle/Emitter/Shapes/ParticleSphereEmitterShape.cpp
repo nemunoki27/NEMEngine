@@ -21,6 +21,7 @@ void Engine::ParticleSphereEmitterShape::InitParticle(Vector3& position, Vector3
 	const ParticleEmitterSettings& settings, [[maybe_unused]] bool is2D) const {
 
 	// 球面上から外向きに飛ばす
-	direction = Vector3::Normalize(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)));
+	direction = Vector3::NormalizeOr(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)),
+		Vector3(0.0f, 1.0f, 0.0f));
 	position = direction * settings.sphere.radius;
 }

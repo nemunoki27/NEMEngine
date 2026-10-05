@@ -1,23 +1,31 @@
 #include "InputHardware.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Platform/Windows/Win32Window.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 // c++
 #include <algorithm>
 #include <cstring>
 #include <cmath>
+#include <stdexcept>
+#include <utility>
 
-#pragma comment(lib,"dInput8.lib")
-#pragma comment(lib,"dxguid.lib")
-#pragma comment(lib,"xinput.lib")
+#pragma comment(lib, "dInput8.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "xinput.lib")
+
+using namespace Engine;
 
 namespace {
+
+	void RequireInputResult(HRESULT result, const char* message) {
+
+		if (FAILED(result)) {
+			throw std::runtime_error(message);
+		}
+	}
 
 	float ApplyDeadZone(float value, float deadZone) {
 
@@ -30,41 +38,34 @@ namespace {
 
 void InputHardware::Init(WinApp& winApp) {
 
-	HRESULT hr;
+	// 初期化が完了するまで現在の入力機器を保持
+	ComPtr<IDirectInput8> dInput;
+	ComPtr<IDirectInputDevice8> keyboard;
+	ComPtr<IDirectInputDevice8> mouse;
+	RequireInputResult(DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8,
+						   reinterpret_cast<void**>(dInput.GetAddressOf()), nullptr),
+		"DirectInputの初期化に失敗しました");
 
-	// DirectInputの初期化
-	dInput_ = nullptr;
-	hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&dInput_, nullptr);
-	Assert::Call(SUCCEEDED(hr), "DirectInputの初期化に失敗しました");
+	// キーボードの形式と協調レベルを設定
+	RequireInputResult(
+		dInput->CreateDevice(GUID_SysKeyboard, keyboard.GetAddressOf(), nullptr), "キーボード入力デバイスの作成に失敗しました");
+	RequireInputResult(keyboard->SetDataFormat(&c_dfDIKeyboard), "キーボード入力形式の設定に失敗しました");
+	RequireInputResult(keyboard->SetCooperativeLevel(winApp.GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY),
+		"キーボードの協調レベル設定に失敗しました");
 
-	// キーボードデバイスの初期化
-	keyboard_ = nullptr;
-	hr = dInput_->CreateDevice(GUID_SysKeyboard, &keyboard_, NULL);
-	Assert::Call(SUCCEEDED(hr), "キーボード入力デバイスの作成に失敗しました");
+	// マウスの形式と協調レベルを設定
+	RequireInputResult(
+		dInput->CreateDevice(GUID_SysMouse, mouse.GetAddressOf(), nullptr), "マウス入力デバイスの作成に失敗しました");
+	RequireInputResult(mouse->SetDataFormat(&c_dfDIMouse), "マウス入力形式の設定に失敗しました");
+	RequireInputResult(mouse->SetCooperativeLevel(winApp.GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE),
+		"マウスの協調レベル設定に失敗しました");
+	mouse->Acquire();
 
-	// 入力データ形式のセット標準形式
-	hr = keyboard_->SetDataFormat(&c_dfDIKeyboard);
-	Assert::Call(SUCCEEDED(hr), "キーボード入力形式の設定に失敗しました");
-
-	// 排他制御レベルのリセット
-	hr = keyboard_->SetCooperativeLevel(winApp.GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
-	Assert::Call(SUCCEEDED(hr), "キーボードの協調レベル設定に失敗しました");
-
-	// マウスデバイスの初期化
-	hr = dInput_->CreateDevice(GUID_SysMouse, &mouse_, NULL);
-	Assert::Call(SUCCEEDED(hr), "マウス入力デバイスの作成に失敗しました");
-
-	// 入力データ形式のセット
-	hr = mouse_->SetDataFormat(&c_dfDIMouse);
-	Assert::Call(SUCCEEDED(hr), "マウス入力形式の設定に失敗しました");
-
-	// 排他制御レベルのリセット
-	hr = mouse_->SetCooperativeLevel(winApp.GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
-	Assert::Call(SUCCEEDED(hr), "マウスの協調レベル設定に失敗しました");
-
-	// マウスの取得開始
-	hr = mouse_->Acquire();
-
+	// 成功した機器だけを公開して入力履歴を初期化
+	dInput_ = std::move(dInput);
+	keyboard_ = std::move(keyboard);
+	mouse_ = std::move(mouse);
+	state_ = {};
 }
 
 void InputHardware::BeginFrame() {
@@ -85,13 +86,16 @@ void InputHardware::PollKeyboardAndGamepads(float deadZone) {
 	// 前回のキー入力を保存
 	std::memcpy(state.keyPre.data(), state.key.data(), state.key.size());
 
-	// 全キーの入力状態を取得する
+	// 取得失敗時は前frameの押下を残さない
 	hr = keyboard_->GetDeviceState(static_cast<DWORD>(state.key.size()), state.key.data());
+	if (FAILED(hr)) {
+		state.key.fill(0);
+	}
 
 	// 前回のゲームパッドの状態を保存
 	std::memcpy(state.gamepadButtonsPre.data(), state.gamepadButtons.data(), state.gamepadButtons.size());
 
-	// gameplay用の多gamepad snapshotを更新する、indexはC# GamepadButton / GamepadAxis enumに対応する
+	// 各ゲームパッドの現在値と前frame値を更新
 	state.padsPre = state.pads;
 	state.padConnectedPre = state.padConnected;
 	for (int i = 0; i < InputDeviceState::kMaxGamepads; ++i) {
@@ -99,29 +103,46 @@ void InputHardware::PollKeyboardAndGamepads(float deadZone) {
 		state.padConnected[i] = (XInputGetState(static_cast<DWORD>(i), &state.pads[i]) == ERROR_SUCCESS);
 	}
 
-	// 既存single-gamepad pathはindex0のsnapshotを共有し、XInputGetStateの二重ポーリングを避ける
+	// 1台目の入力は取得済みの状態を共有
 	state.gamepadState = state.pads[0];
 	state.gamepadConnected = state.padConnected[0];
 
 	if (state.gamepadConnected) {
 
-#pragma region ///ゲームパッドが接続されている場合の処理 ///
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_UP)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_DOWN)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_LEFT)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_RIGHT)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::START)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_START) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::BACK)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::LEFT_THUMB)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::RIGHT_THUMB)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::LEFT_SHOULDER)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::RIGHT_SHOULDER)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
+#pragma region /// ゲームパッドが接続されている場合の処理 ///
+		// 同じframeのトリガー値からボタンを判定
+		state.leftTriggerValue = static_cast<float>(state.gamepadState.Gamepad.bLeftTrigger) / 255.0f;
+		state.rightTriggerValue = static_cast<float>(state.gamepadState.Gamepad.bRightTrigger) / 255.0f;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_UP)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_DOWN)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_LEFT)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::ARROW_RIGHT)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::START)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_START) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::BACK)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::LEFT_THUMB)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::RIGHT_THUMB)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::LEFT_SHOULDER)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::RIGHT_SHOULDER)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
 		state.gamepadButtons[static_cast<size_t>(GamePadButtons::LEFT_TRIGGER)] = (state.leftTriggerValue > 0);
 		state.gamepadButtons[static_cast<size_t>(GamePadButtons::RIGHT_TRIGGER)] = (state.rightTriggerValue > 0);
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::A)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::B)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::X)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0;
-		state.gamepadButtons[static_cast<size_t>(GamePadButtons::Y)] = (state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::A)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::B)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::X)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0;
+		state.gamepadButtons[static_cast<size_t>(GamePadButtons::Y)] =
+			(state.gamepadState.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0;
 
 		// スティックの状態を更新
 		state.leftThumbX = ApplyDeadZone(state.gamepadState.Gamepad.sThumbLX, deadZone);
@@ -129,8 +150,6 @@ void InputHardware::PollKeyboardAndGamepads(float deadZone) {
 		state.rightThumbX = ApplyDeadZone(state.gamepadState.Gamepad.sThumbRX, deadZone);
 		state.rightThumbY = ApplyDeadZone(state.gamepadState.Gamepad.sThumbRY, deadZone);
 
-		state.leftTriggerValue = static_cast<float>(state.gamepadState.Gamepad.bLeftTrigger) / 255.0f;
-		state.rightTriggerValue = static_cast<float>(state.gamepadState.Gamepad.bRightTrigger) / 255.0f;
 #pragma endregion
 	} else {
 
@@ -145,7 +164,6 @@ void InputHardware::PollKeyboardAndGamepads(float deadZone) {
 		state.leftTriggerValue = 0.0f;
 		state.rightTriggerValue = 0.0f;
 	}
-
 }
 
 void InputHardware::PollMouse(WinApp& winApp) {
@@ -189,5 +207,4 @@ void InputHardware::PollMouse(WinApp& winApp) {
 		// ホイール値
 		state.wheelValue = static_cast<float>(state.mouseState.lZ) / WHEEL_DELTA;
 	}
-
 }

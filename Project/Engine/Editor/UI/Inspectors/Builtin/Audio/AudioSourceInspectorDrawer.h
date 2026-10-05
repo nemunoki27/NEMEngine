@@ -5,8 +5,11 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/SerializedComponentInspectorDrawer.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
+#include <Engine/Editor/Assets/Preview/AudioPreviewSession.h>
 
 namespace Engine {
+
+	class ECSWorldLifetime;
 
 	//============================================================================
 	//	AudioSourceInspectorDrawer class
@@ -21,10 +24,19 @@ namespace Engine {
 
 		AudioSourceInspectorDrawer() : SerializedComponentInspectorDrawer("Audio Source", "AudioSource") {}
 		~AudioSourceInspectorDrawer() = default;
+		void SyncPreviewOwner(ECSWorld* world, const Entity& entity) override;
+		void EndPreview() override;
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		AudioPreviewSession preview_;
+		std::weak_ptr<const ECSWorldLifetime> previewWorld_;
+		Entity previewEntity_ = Entity::Null();
+		AssetID previewClip_{};
 
 		//--------- functions ----------------------------------------------------
 

@@ -124,6 +124,27 @@ bool Engine::ShaderCook::IsCookedProduct() {
 	return RuntimePaths::IsProductBuild();
 }
 
+bool Engine::ShaderCook::TryGetAssetType(AssetID assetID, AssetType& outType) {
+
+	if (!IsCookedProduct()) {
+		return false;
+	}
+	std::scoped_lock lock(g_runtimeMutex);
+	if (!LoadRuntimeManifest()) {
+		return false;
+	}
+	// 製品のShaderとPipelineはCookから解決する
+	if (g_runtimeState.shaders.contains(assetID)) {
+		outType = AssetType::Shader;
+		return true;
+	}
+	if (g_runtimeState.pipelines.contains(assetID)) {
+		outType = AssetType::RenderPipeline;
+		return true;
+	}
+	return false;
+}
+
 bool Engine::ShaderCook::LoadShaderAsset(AssetID shaderID,
 	ShaderAsset& outAsset) {
 

@@ -53,6 +53,7 @@ namespace Engine {
 		const std::string& GetStatusMessage() const { return statusMessage_; }
 		const std::string& GetFailureDetail() const { return failureDetail_; }
 		const std::filesystem::path& GetOutputDirectory() const { return outputDirectory_; }
+		const std::vector<GameBuildWarning>& GetWarnings() const { return warnings_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -62,6 +63,7 @@ namespace Engine {
 
 		ManagedProcessRunner processRunner_;
 		std::vector<GameBuildSceneEntry> scenes_;
+		std::vector<GameBuildWarning> warnings_;
 		GameBuildState state_ = GameBuildState::Idle;
 		std::string statusMessage_;
 		std::string failureDetail_;

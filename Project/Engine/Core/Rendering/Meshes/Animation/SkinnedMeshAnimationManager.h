@@ -9,13 +9,9 @@
 
 // c++
 #include <unordered_map>
-#include <unordered_set>
+#include <memory>
 #include <filesystem>
 #include <mutex>
-// assimp
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
 
 namespace Engine {
 
@@ -30,6 +26,7 @@ namespace Engine {
 
 		AssetID meshAssetID{};
 		bool valid = false;
+		uint64_t generation = 0;
 
 		Skeleton skeleton{};
 		SkinCluster skinCluster{};
@@ -70,7 +67,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const SkinnedMeshAnimationSet* Find(AssetID meshAssetID) const;
+		std::shared_ptr<const SkinnedMeshAnimationSet> Find(AssetID meshAssetID) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -83,6 +80,15 @@ namespace Engine {
 
 			AssetID meshAssetID{};
 			std::filesystem::path fullPath{};
+			uint64_t serial = 0;
+		};
+
+		struct RequestState {
+
+			uint64_t contentRevision = UINT64_MAX;
+			uint64_t structureRevision = UINT64_MAX;
+			std::filesystem::path fullPath;
+			uint64_t serial = 0;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -91,11 +97,12 @@ namespace Engine {
 		AssetWorkerPool<LoadJob> workerPool_{};
 
 		// 読み込まれたアニメーションセットのマップ
-		std::unordered_map<AssetID, SkinnedMeshAnimationSet> loaded_{};
+		std::unordered_map<AssetID, std::shared_ptr<const SkinnedMeshAnimationSet>> loaded_{};
 
-		// 読み込み待ちと読み込み中のアセットIDのセット
-		std::unordered_set<AssetID> queued_{};
-		std::unordered_set<AssetID> loading_{};
+		// 最新要求だけを公開し、失敗した内容は更新まで再試行しない
+		std::unordered_map<AssetID, RequestState> requests_;
+		uint64_t nextSerial_ = 1;
+		uint64_t nextGeneration_ = 1;
 
 		//--------- functions ----------------------------------------------------
 

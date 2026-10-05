@@ -18,6 +18,8 @@
 // c++
 #include <exception>
 #include <algorithm>
+#include <tuple>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -36,7 +38,7 @@ bool GameBuildAssetCollector::Collect(Engine::AssetID startupScene, std::vector<
 	}
 	AddAllGameAssets();
 	AddPackageFiles();
-	AddAsset(startupScene);
+	AddAsset(startupScene, true);
 	for (const Engine::AssetID assetID : Engine::BuiltinAssets::Runtime::Assets) {
 		AddAsset(assetID, true);
 	}
@@ -44,6 +46,11 @@ bool GameBuildAssetCollector::Collect(Engine::AssetID startupScene, std::vector<
 	AddFixedRuntimeFiles();
 	AddDefaultMaterialAssets();
 	ProcessAssets();
+	// 同じ欠損集合の確認結果を再収集時にも照合できる順序にする
+	std::sort(warnings_.begin(), warnings_.end(), [](const GameBuildWarning& lhs, const GameBuildWarning& rhs) {
+		return std::tie(lhs.assetPath, lhs.detail, lhs.assetID, lhs.referenceID) <
+			std::tie(rhs.assetPath, rhs.detail, rhs.assetID, rhs.referenceID);
+	});
 
 	if (!errors_.empty()) {
 		outError = errors_.front();
@@ -67,6 +74,14 @@ bool GameBuildAssetCollector::Collect(Engine::AssetID startupScene, std::vector<
 	return true;
 }
 
+void GameBuildAssetCollector::AddWarning(AssetID asset, AssetID reference, std::string path, std::string detail) {
+
+	GameBuildWarning warning{ asset, reference, std::move(path), std::move(detail) };
+	if (std::find(warnings_.begin(), warnings_.end(), warning) == warnings_.end()) {
+		warnings_.push_back(std::move(warning));
+	}
+}
+
 void GameBuildAssetCollector::AddAsset(Engine::AssetID assetID, bool required) {
 
 	if (!assetID) return;
@@ -83,6 +98,7 @@ void GameBuildAssetCollector::AddFile(const std::filesystem::path& source, const
 		!std::filesystem::is_regular_file(source, ec) || ec) {
 		if (required) errors_.push_back("製品に必要なファイルを読み込めません: " +
 			Engine::Algorithm::PathToUTF8(source));
+		else AddWarning(currentAsset_, {}, destination, "参照ファイルが見つかりません");
 		return;
 	}
 	if (IsEditorOnlyAsset(destination) || IsGameEditorOnlyAsset(destination)) {
@@ -222,9 +238,18 @@ void GameBuildAssetCollector::AddPackageFiles() {
 
 void GameBuildAssetCollector::ProcessAssets() {
 
+	// 参照診断をGUIDごとにまとめて重複走査を省く
+	std::unordered_map<AssetID, std::vector<const AssetDatabaseIssue*>> issues;
+	for (const auto& issue : database_.GetIssues()) {
+		if (issue.type == AssetDatabaseIssueType::MissingReference ||
+			issue.type == AssetDatabaseIssueType::ReferenceTypeMismatch) {
+			issues[issue.assetID].push_back(&issue);
+		}
+	}
 	while (!assetQueue_.empty()) {
 
 		const Engine::AssetID assetID = assetQueue_.front();
+		currentAsset_ = assetID;
 		assetQueue_.pop_front();
 
 		const Engine::AssetMeta* meta = database_.Find(assetID);
@@ -233,9 +258,7 @@ void GameBuildAssetCollector::ProcessAssets() {
 				errors_.push_back("製品に必須のアセットが登録されていません GUID=" + Engine::ToString(assetID));
 				continue;
 			}
-			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn,
-				"[ゲームビルド] 参照アセットが見つからないため出力対象から除外します GUID={}",
-				Engine::ToString(assetID));
+			AddWarning({}, assetID, {}, "参照Assetが登録されていません GUID=" + Engine::ToString(assetID));
 			continue;
 		}
 		if (meta->type == Engine::AssetType::Script ||
@@ -244,8 +267,17 @@ void GameBuildAssetCollector::ProcessAssets() {
 		}
 
 		AddAssetFile(*meta);
+		if (const auto found = issues.find(assetID); found != issues.end()) {
+			for (const auto* issue : found->second) {
+				if (requiredAssets_.contains(assetID) && meta->type != AssetType::Scene) {
+					errors_.push_back(issue->detail + " path=" + meta->assetPath);
+				} else {
+					AddWarning(assetID, issue->referencedAssetID, meta->assetPath, issue->detail);
+				}
+			}
+		}
 		for (const Engine::AssetID dependency : database_.FindDependencies(assetID)) {
-			AddAsset(dependency, requiredAssets_.contains(assetID));
+			AddAsset(dependency, requiredAssets_.contains(assetID) && meta->type != AssetType::Scene);
 		}
 
 		const std::filesystem::path source = database_.ResolveFullPath(assetID);
@@ -287,13 +319,17 @@ void GameBuildAssetCollector::AddDefaultMaterialAssets() {
 }
 
 bool Engine::GameBuildAssetCollector::CollectFiles(AssetID startupScene, const AssetDatabase& database,
-	std::vector<GameBuildFileEntry>& outFiles, std::string& outError, SceneAssetStorage* sceneStorage) {
+	std::vector<GameBuildFileEntry>& outFiles, std::string& outError, SceneAssetStorage* sceneStorage,
+	std::vector<GameBuildWarning>* warnings) {
 
 	outFiles.clear();
 	outError.clear();
+	if (warnings) { warnings->clear(); }
 	try {
 		GameBuildAssetCollector collector(database, sceneStorage);
-		return collector.Collect(startupScene, outFiles, outError);
+		bool collected = collector.Collect(startupScene, outFiles, outError);
+		if (warnings) { *warnings = collector.GetWarnings(); }
+		return collected;
 	} catch (const std::exception& exception) {
 		// 収集中の例外はビルド失敗として扱い、不完全な一覧を渡さない
 		outFiles.clear();

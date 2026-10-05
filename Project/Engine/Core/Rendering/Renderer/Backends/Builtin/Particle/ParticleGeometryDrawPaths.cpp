@@ -54,11 +54,14 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 	uint32_t instanceCount,
 	D3D12_GPU_VIRTUAL_ADDRESS viewAddress) {
 
-	// 専用MSパイプラインを解決する、解決できなければ共有ジオメトリへ落とす
+	// 同じ形状生成をVSとMSの双方で使う
+	const bool useMeshShader = context.runtimeFeatures.useMeshShader && !context.forceVertexMeshVariant;
+	const PipelineVariantKind desiredKind = useMeshShader ?
+		PipelineVariantKind::GraphicsMesh : PipelineVariantKind::GraphicsVertex;
 	const PipelineVariantDesc* variant = nullptr;
 	const PipelineState* pipelineState = BackendDrawCommon::ResolveComposedGraphicsPipeline(
-		context, *resolvedPass.pass, parametric.GetPipeline(), PipelineVariantKind::GraphicsMesh, &variant);
-	if (!pipelineState || !variant || variant->kind != PipelineVariantKind::GraphicsMesh) {
+		context, *resolvedPass.pass, parametric.GetPipeline(), desiredKind, &variant);
+	if (!pipelineState || !variant || variant->kind != desiredKind) {
 		return false;
 	}
 
@@ -123,8 +126,13 @@ bool Engine::ParticleRenderBackend::DrawParametricShapePath(const RenderDrawCont
 			break;
 		}
 	}
-	const uint32_t groupCount = (triangleCount + kParticleMeshGroupTriangles - 1) / kParticleMeshGroupTriangles;
-	commandList->DispatchMesh(groupCount, instanceCount, 1);
+	if (useMeshShader) {
+		const uint32_t groupCount = (triangleCount + kParticleMeshGroupTriangles - 1) / kParticleMeshGroupTriangles;
+		commandList->DispatchMesh(groupCount, instanceCount, 1);
+	} else {
+		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		commandList->DrawInstanced(triangleCount * 3u, instanceCount, 0, 0);
+	}
 	return true;
 }
 

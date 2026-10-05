@@ -150,8 +150,8 @@ void Engine::ManagedScriptBuildService::ApplyReload() {
 	cycle_.diagnostics.scriptTypeCount = runtime_->ManagedScriptTypeCount();
 
 	// 旧アセンブリのALC解放の状態をログ解析せず取り込む、リロード経路のみでUnknownは正常扱いしない
-	alcUnloadStatus_ = runtime_->GetLastAlcUnloadStatus();
-	alcLeakSuspected_ = (alcUnloadStatus_ == AlcUnloadStatus::LeakSuspected);
+	alcUnloadStatus_ = runtime_->GetLastALCUnloadStatus();
+	alcLeakSuspected_ = (alcUnloadStatus_ == ALCUnloadStatus::LeakSuspected);
 
 	if (loaded) {
 

@@ -53,8 +53,8 @@ namespace Engine {
 		UnloadGameAssemblyFn raiseApplicationQuitting_ = nullptr;
 		// per-frame tickのTickFrameでphaseを引数に取る
 		TickFrameFn tickFrame_ = nullptr;
-		// 直近ALC unload statusのGetLastAlcUnloadStatusでintを返す無引数
-		IntNoArgFn getLastAlcUnloadStatus_ = nullptr;
+		// 直近ALC unload statusのGetLastALCUnloadStatusでintを返す無引数
+		IntNoArgFn getLastALCUnloadStatus_ = nullptr;
 		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
 		CopyScriptTypeInfoFn copyScriptTypeInfo_ = nullptr;
 		GenerateScriptManifestFn generateScriptManifest_ = nullptr;

@@ -9,15 +9,18 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
+#include <Engine/Core/Foundation/Time/ProfileCapture.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Audio/AudioSystem.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/UTFConversion.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
 
 // c++
 #include <exception>
 #include <stdexcept>
 #include <cstdlib>
 #include <cstdio>
+#include <charconv>
 
 using namespace Engine;
 
@@ -87,6 +90,22 @@ int Framework::ReportFailure(const char* detail) noexcept {
 
 void Framework::Init() {
 
+	// 製品の計測は明示指定された場合だけ有効にする
+	char* profileSetting = nullptr;
+	size_t profileSettingLength = 0;
+	_dupenv_s(&profileSetting, &profileSettingLength, "NEM_PROFILE_ENABLED");
+	FrameProfiler::GetInstance().SetEnabled(engineApplication_->UsesEditorUI() ||
+		(profileSetting && std::string_view(profileSetting) == "1"));
+	std::free(profileSetting);
+	// 出力先の指定も製品計測の明示要求として扱う
+	wchar_t* capturePath = nullptr;
+	size_t capturePathLength = 0;
+	_wdupenv_s(&capturePath, &capturePathLength, L"NEM_PROFILE_CAPTURE");
+	if (capturePath && *capturePath) {
+		profileCapturePath_ = capturePath;
+		FrameProfiler::GetInstance().SetEnabled(true);
+	}
+	std::free(capturePath);
 	// ログファイルの作成
 	Logger::CreateLogFiles(RuntimePaths::GetSavedPath("Logs"));
 
@@ -99,6 +118,7 @@ void Framework::Init() {
 
 	applicationStarted_ = true;
 	engineApplication_->Init(*graphicsCore_);
+	InitProfileCapture();
 
 	// フレーム初期化
 	frameTimer_.Init();
@@ -123,6 +143,10 @@ void Framework::Tick() {
 
 	// 入力更新
 	Input::GetInstance()->Update();
+	// 入力と音声は独立した背景動作の設定を使う
+	Audio* audio = Audio::GetInstance();
+	audio->SetGamePauseReason(AudioPauseReason::Background,
+		!audio->IsPlayInBackgroundEnabled() && !Input::GetInstance()->HasWindowFocus());
 	if (!engineApplication_->UsesEditorUI()) {
 
 		// 製品実行中はF11でウィンドウとフルスクリーンを切り替える
@@ -160,6 +184,7 @@ void Framework::Tick() {
 	if (engineApplication_->ConsumeFrameDeltaResetRequest()) {
 		frameTimer_.ResetDeltaTimeBase();
 	}
+	UpdateProfileCapture();
 }
 
 void Framework::BeginRenderFrame() {
@@ -188,6 +213,8 @@ void Framework::Finalize() {
 			}
 		}
 	};
+	// 終了時に未取得のGPU値を待たず、取得状態を含めて保存する
+	cleanup([this]() { SaveProfileCapture(); });
 	cleanup([this]() {
 		if (applicationStarted_) {
 			engineApplication_->Finalize();
@@ -208,6 +235,45 @@ void Framework::Finalize() {
 	if (failure) {
 		std::rethrow_exception(failure);
 	}
+}
+
+void Framework::InitProfileCapture() {
+
+	if (profileCapturePath_.empty()) { return; }
+	uint32_t frameLimit = 600;
+	char* frameSetting = nullptr;
+	size_t frameSettingLength = 0;
+	_dupenv_s(&frameSetting, &frameSettingLength, "NEM_PROFILE_FRAMES");
+	if (frameSetting) {
+		const std::string_view text(frameSetting);
+		const auto result = std::from_chars(text.data(), text.data() + text.size(), frameLimit);
+		if (result.ec != std::errc{} || result.ptr != text.data() + text.size()) { frameLimit = 0; }
+	}
+	std::free(frameSetting);
+	if (!FrameProfiler::GetInstance().StartCapture(frameLimit)) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[Profiler] 記録フレーム数は1から36000で指定してください");
+		profileCapturePath_.clear();
+		return;
+	}
+	// 製品では明示計測中に限ってScriptの内訳を集計する
+	if (!engineApplication_->UsesEditorUI()) { ScriptProfiler::GetInstance().Configure(true, {}, 0); }
+}
+
+void Framework::UpdateProfileCapture() {
+
+	if (profileCapturePath_.empty() || FrameProfiler::GetInstance().IsCaptureRecording()) { return; }
+	// 結果取得のためにFence待機や追加描画を発生させない
+	if (++profileCaptureDrainFrames_ >= 8) { SaveProfileCapture(); }
+}
+
+void Framework::SaveProfileCapture() {
+
+	if (profileCapturePath_.empty()) { return; }
+	auto& capture = FrameProfiler::GetInstance().GetCapture();
+	capture.Stop("application_exit");
+	Logger::Output(LogType::Engine, capture.Save(profileCapturePath_) ? spdlog::level::info : spdlog::level::err,
+		"[Profiler] 計測記録の保存先: {}", Algorithm::ConvertString(profileCapturePath_.wstring()));
+	profileCapturePath_.clear();
 }
 
 //============================================================================

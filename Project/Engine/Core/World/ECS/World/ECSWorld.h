@@ -210,7 +210,7 @@ namespace Engine {
 		template <typename Fn>
 		void ForEach(uint32_t typeID, Fn&& fn, ECSQueryMode mode = ECSQueryMode::EnabledOnly);
 		template <typename Fn>
-		void ForEachAliveEntity(Fn&& fn);
+		void ForEachAliveEntity(Fn&& fn) const;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -650,7 +650,7 @@ namespace Engine {
 	}
 
 	template <typename Fn>
-	inline void ECSWorld::ForEachAliveEntity(Fn&& fn) {
+	inline void ECSWorld::ForEachAliveEntity(Fn&& fn) const {
 
 		if (structuralChange_) {
 			throw std::logic_error("構造変更途中のEntityを走査できません");

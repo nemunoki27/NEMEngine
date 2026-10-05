@@ -21,7 +21,7 @@ namespace {
 	// AudioSourceComponentの再生キーを作成する
 	std::string BuildAudioKey(const std::filesystem::path& fullPath) {
 
-		return fullPath.empty() ? std::string{} : Engine::Algorithm::PathToUTF8(fullPath.stem());
+		return fullPath.empty() ? std::string{} : Engine::Algorithm::PathToUTF8(fullPath);
 	}
 }
 
@@ -61,7 +61,7 @@ bool Engine::AudioSourcePlayback::StartPlayback( Entity entity, const AudioSourc
 	playback.primary = primary;
 	playback.loop = loop;
 	playback.voiceID = Audio::GetInstance()->PlayManaged(
-		playback.key, loop, playback.appliedVolume);
+		playback.key, loop, playback.appliedVolume, AudioPlaybackOwner::Game, component.pitch);
 	if (playback.voiceID == 0) {
 		return false;
 	}
@@ -127,6 +127,7 @@ void Engine::AudioSourcePlayback::UpdatePlaybackSettings(
 	Audio* audio = Audio::GetInstance();
 	const float sourceVolume = std::clamp(component.volume, 0.0f, 1.0f);
 	for (AudioSourcePlaybackRuntime& playback : runtime.playbacks) {
+		audio->SetVoicePitch(playback.voiceID, component.pitch);
 		const float volume = sourceVolume * playback.volumeScale;
 		if (std::abs(playback.appliedVolume - volume) > 0.0001f) {
 			audio->SetVoiceVolume(playback.voiceID, volume);
@@ -207,4 +208,5 @@ void Engine::AudioSourcePlayback::StopAll(ECSWorld& world) {
 		audio->StopVoice(voice.first);
 	}
 	runtimeVoices_.clear();
+	audio->StopGameVoices();
 }

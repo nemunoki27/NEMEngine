@@ -10,7 +10,7 @@ namespace Engine::AnimationValueOperations {
 
 	bool SameBinding(const Engine::AnimationPropertyBinding& lhs, const Engine::AnimationPropertyBinding& rhs) {
 
-		return lhs.componentName == rhs.componentName && lhs.propertyPath == rhs.propertyPath;
+		return lhs.componentName == rhs.componentName && lhs.propertyPath == rhs.propertyPath && lhs.valueType == rhs.valueType;
 	}
 
 	const Engine::AnimationPropertyValue* FindBaseValue( const Engine::AnimationCurveTrack& track,

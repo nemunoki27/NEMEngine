@@ -4,6 +4,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
@@ -44,6 +45,9 @@ Engine::PrefabEditSession::PrefabEditSession(AssetDatabase& assetDatabase,
 }
 
 void Engine::PrefabEditSession::EnterPrefabEdit(AssetID prefabAsset) {
+
+	// 保存と切替の前にSceneプレビューを戻す
+	EditorToolUI::EndScenePreviews();
 
 	// プレファブ以外や無効IDは無視する、Play中は呼ばれない前提
 	const AssetMeta* meta = assetDatabase_.Find(prefabAsset);
@@ -274,6 +278,8 @@ void Engine::PrefabEditSession::TogglePrefabInContextMode() {
 }
 
 bool Engine::PrefabEditSession::SaveCurrentPrefab() {
+
+	EditorToolUI::EndScenePreviews();
 
 	if (prefabStages_.empty()) {
 		return false;

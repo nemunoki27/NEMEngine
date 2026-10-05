@@ -1,4 +1,5 @@
 #include "AnimationGroupLookup.h"
+#include <Engine/Core/Animation/Evaluation/AnimationValueOperations.h>
 
 //============================================================================
 //	include
@@ -28,14 +29,18 @@ namespace Engine::AnimationGroupLookup {
 
 	bool SameBinding(const Engine::AnimationPropertyBinding& lhs, const Engine::AnimationPropertyBinding& rhs) {
 
-		return lhs.componentName == rhs.componentName && lhs.propertyPath == rhs.propertyPath &&
-			lhs.valueType == rhs.valueType;
+		return AnimationValueOperations::SameBinding(lhs, rhs);
 	}
 
 	const Engine::AnimationGroup* FindGroup( const AnimationPlayerComponent& player, const std::string& name) {
 
 		if (name.empty()) {
 			return nullptr;
+		}
+		if (name == player.runtimeDirectGroup.name) return &player.runtimeDirectGroup;
+		// Controllerの状態は共有Assetの実行snapshotから参照する
+		for (const AnimationGroup& group : player.runtimeControllerGroups) {
+			if (group.name == name) return &group;
 		}
 		for (const AnimationGroup& group : player.groups) {
 			if (group.name == name) {

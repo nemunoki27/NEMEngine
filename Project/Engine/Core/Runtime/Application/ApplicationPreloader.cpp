@@ -1,4 +1,6 @@
 #include "ApplicationPreloader.h"
+#include "RuntimeAssetPreloadPlan.h"
+#include "RuntimeAssetPreloadRequests.h"
 
 //============================================================================
 //	include
@@ -15,16 +17,11 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Audio/AudioSystem.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Systems/Transform/TransformSystem.h>
 
 // c++
-#include <algorithm>
 #include <chrono>
 
 using namespace Engine;
-
-// c++
 
 bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore,
 	[[maybe_unused]] ApplicationPreloadContext& context, [[maybe_unused]] bool editor) {
@@ -36,97 +33,13 @@ bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore,
 	Logger::Output(LogType::Engine, editor ? "[RuntimePreload] Release起動時の事前読み込みを開始します" :
 		"[実行時事前読み込み] Release起動時の事前読み込みを開始します");
 
-	context.renderPipeline.PreloadRuntimeAssets(graphicsCore, context.assetDatabase);
-
-	std::vector<const AssetMeta*> assets;
-	assets.reserve(context.assetDatabase.GetAssets().size());
-	for (const auto& [assetID, meta] : context.assetDatabase.GetAssets()) {
-		assets.emplace_back(&meta);
+	// 開いているSceneとその依存だけを準備する
+	std::vector<AssetID> roots;
+	for (const SceneInstance& scene : context.playScenes.GetAll()) {
+		if (scene.sceneAsset) { roots.push_back(scene.sceneAsset); }
 	}
-	std::sort(assets.begin(), assets.end(), [](const AssetMeta* lhs, const AssetMeta* rhs) {
-		return lhs->assetPath < rhs->assetPath;
-		});
-
-	std::vector<AssetID> sceneAssets;
-	for (const AssetMeta* meta : assets) {
-		switch (meta->type) {
-		case AssetType::Mesh:
-			context.skinnedAnimationManager.RequestLoadAsync(context.assetDatabase, meta->guid);
-			break;
-		case AssetType::AnimationClip:
-			context.animationClipManager.GetOrLoad(context.assetDatabase, meta->guid);
-			break;
-		case AssetType::Audio:
-		{
-			const std::filesystem::path fullPath = context.assetDatabase.ResolveFullPath(meta->guid);
-			if (!fullPath.empty()) {
-				Audio::GetInstance()->EnsureLoaded(fullPath);
-			}
-			break;
-		}
-		case AssetType::Scene:
-			if (meta->assetPath.starts_with("GameAssets/")) {
-				sceneAssets.emplace_back(meta->guid);
-			}
-			break;
-		default:
-			break;
-		}
-	}
-	context.skinnedAnimationManager.WaitAll();
-
-	for (AssetID sceneAsset : sceneAssets) {
-		if (sceneAsset == context.activeScene) {
-			continue;
-		}
-
-		const AssetMeta* sceneMeta = editor ? context.assetDatabase.Find(sceneAsset) : nullptr;
-		if (editor) {
-			Logger::Output(LogType::Engine, "[RuntimePreload] シーンのWarmupを開始します path={}",
-				sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
-		}
-		ECSWorld warmupWorld{};
-		SceneInstanceManager warmupScenes{};
-		if (!warmupScenes.LoadSceneTree(context.assetDatabase, context.sceneSystem, warmupWorld, sceneAsset)) {
-			if (editor) {
-				Logger::Output(LogType::Engine, spdlog::level::warn,
-					"[RuntimePreload] シーンの読み込みに失敗しました GUID={}", ToString(sceneAsset));
-			} else {
-				Logger::Output(LogType::Engine, spdlog::level::warn,
-					"[実行時事前読み込み] シーンの読み込みに失敗しました GUID={}", ToString(sceneAsset));
-			}
-			continue;
-		}
-
-		SystemContext warmupContext{};
-		warmupContext.engineContext = &graphicsCore.GetContext();
-		warmupContext.graphicsPlatform = &graphicsCore.GetDXObject();
-		warmupContext.assetDatabase = &context.assetDatabase;
-		warmupContext.skinnedAnimationManager = &context.skinnedAnimationManager;
-		warmupContext.animationClipManager = &context.animationClipManager;
-		warmupContext.mode = WorldMode::Play;
-		warmupContext.world = &warmupWorld;
-		if (const SceneInstance* activeScene = warmupScenes.GetActive()) {
-			warmupContext.activeSceneHeader = &activeScene->header;
-		}
-
-		WorldCommandServices services{};
-		services.assetDatabase = &context.assetDatabase;
-		services.sceneInstances = &warmupScenes;
-		services.sceneSystem = &context.sceneSystem;
-		warmupWorld.SetCommandServices(services);
-
-		HierarchySystem hierarchySystem{};
-		hierarchySystem.OnWorldEnter(warmupWorld, warmupContext);
-		TransformSystem transformSystem{};
-		transformSystem.LateUpdate(warmupWorld, warmupContext);
-		Warmup(graphicsCore, warmupWorld, warmupScenes, warmupContext, context, editor);
-		if (editor) {
-			Logger::Output(LogType::Engine, "[RuntimePreload] シーンのWarmupが完了しました path={}",
-				sceneMeta ? sceneMeta->assetPath : ToString(sceneAsset));
-		}
-	}
-
+	if (roots.empty() && context.activeScene) { roots.push_back(context.activeScene); }
+	PreloadAssets(graphicsCore, context, roots);
 	context.systemContext.engineContext = &graphicsCore.GetContext();
 	context.systemContext.graphicsPlatform = &graphicsCore.GetDXObject();
 	context.systemContext.assetDatabase = &context.assetDatabase;
@@ -152,14 +65,53 @@ bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore,
 		std::chrono::steady_clock::now() - startTime).count();
 	if (editor) {
 		Logger::Output(LogType::Engine,
-			"[RuntimePreload] Release起動時の事前読み込みが完了しました Scene数={} 経過={}ms", sceneAssets.size(), elapsed);
+			"[RuntimePreload] Release起動時の事前読み込みが完了しました Scene数={} 経過={}ms", roots.size(), elapsed);
 	} else {
 		Logger::Output(LogType::Engine,
-			"[実行時事前読み込み] Release起動時の事前読み込みが完了しました シーン数={} 経過={}ms", sceneAssets.size(), elapsed);
+			"[実行時事前読み込み] Release起動時の事前読み込みが完了しました シーン数={} 経過={}ms", roots.size(), elapsed);
 	}
 	Logger::Flush(LogType::Engine);
 	return true;
 #endif
+}
+
+bool ApplicationPreloader::ProcessRequests(GraphicsCore& graphicsCore, ApplicationPreloadContext& context) {
+
+	ECSWorld* world = context.systemContext.world;
+	auto* requests = world ? world->GetStorage().TryGet<RuntimeAssetPreloadRequests>() : nullptr;
+	if (!requests) { return false; }
+	std::vector<AssetID> roots = requests->Take();
+	if (roots.empty()) { return false; }
+	PreloadAssets(graphicsCore, context, roots);
+	return true;
+}
+
+void ApplicationPreloader::PreloadAssets(GraphicsCore& graphicsCore, ApplicationPreloadContext& context,
+	std::span<const AssetID> roots) {
+
+	RuntimeAssetPreloadPlan plan = RuntimeAssetPreloadPlan::Collect(context.assetDatabase, roots);
+	for (AssetID missing : plan.missing) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "[実行時事前読み込み] 参照先がありません GUID={}", ToString(missing));
+	}
+	// ScriptやEntityを生成せず共有Assetだけを準備する
+	for (AssetID asset : plan.assets) {
+		const AssetMeta& meta = *context.assetDatabase.Find(asset);
+		switch (meta.type) {
+		case AssetType::Mesh:
+			context.skinnedAnimationManager.RequestLoadAsync(context.assetDatabase, asset);
+			break;
+		case AssetType::AnimationClip:
+			context.animationClipManager.GetOrLoad(context.assetDatabase, asset);
+			break;
+		case AssetType::Audio:
+			Audio::GetInstance()->EnsureLoaded(context.assetDatabase.ResolveFullPath(asset));
+			break;
+		default:
+			break;
+		}
+	}
+	context.skinnedAnimationManager.WaitAll();
+	context.renderPipeline.PreloadRuntimeAssets(graphicsCore, context.assetDatabase, plan.assets);
 }
 
 void ApplicationPreloader::Warmup(GraphicsCore& graphicsCore, ECSWorld& world,

@@ -228,6 +228,16 @@ void Engine::AnimationClipEvaluator::EvaluateClipValues(ECSWorld& world, const E
 		const AnimationPropertyValue* baseValue = FindBaseValue(track, baseValues);
 		AnimationEvaluatedValue evaluated{};
 		evaluated.binding = track.binding;
+		// キーを持つ成分だけを合成へ渡す
+		evaluated.channelMask = 0;
+		for (size_t channel = 0; channel < track.channels.size() && channel < 4; ++channel) {
+			if (!track.channels[channel].keys.empty()) {
+				evaluated.channelMask |= static_cast<uint8_t>(1u << channel);
+			}
+		}
+		if (track.binding.valueType == AnimationValueType::Quaternion && HasAnyKey(track)) {
+			evaluated.channelMask = 0x0f;
+		}
 		if (!ComputeTrackValue(world, entity, *descOpt, track, clip, time, baseValue, evaluated.value)) {
 			continue;
 		}
@@ -249,7 +259,24 @@ void Engine::AnimationClipEvaluator::WriteValues(ECSWorld& world, const Entity& 
 		if (!descOpt || !descOpt->setValue || !descOpt->hasComponent || !descOpt->hasComponent(world, entity)) {
 			continue;
 		}
-		descOpt->setValue(world, entity, value.value);
+		// キーのない成分はScriptなどが更新した現在値を残す
+		const uint32_t count = GetAnimationValueTypeChannelCount(value.binding.valueType);
+		if (value.channelMask != static_cast<uint8_t>((1u << count) - 1) && descOpt->getValue) {
+
+			AnimationPropertyValue current;
+			float channels[4]{};
+			float evaluated[4]{};
+			if (!descOpt->getValue(world, entity, current) ||
+				!ReadValueChannels(current, channels, count) || !ReadValueChannels(value.value, evaluated, count)) continue;
+			for (uint32_t channel = 0; channel < count; ++channel) {
+				if (value.channelMask & (1u << channel)) channels[channel] = evaluated[channel];
+			}
+			if (WriteValueChannels(value.binding.valueType, std::span<const float>(channels, count), current)) {
+				descOpt->setValue(world, entity, current);
+			}
+		} else {
+			descOpt->setValue(world, entity, value.value);
+		}
 	}
 }
 

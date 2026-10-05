@@ -165,6 +165,7 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 
 void Engine::EditorToolUI::DrawWindows(const EditorPanelContext& context) {
 	if (!CanDrawToolUI(context)) {
+		EndScenePreviews();
 		return;
 	}
 
@@ -187,6 +188,12 @@ bool Engine::EditorToolUI::HasPendingEdits() {
 	return std::ranges::any_of(tools, [](const IEditorTool* tool) {
 		return tool->HasPendingEdits();
 		});
+}
+
+void Engine::EditorToolUI::EndScenePreviews() {
+
+	// Worldの値を戻してから保存と切替へ進む
+	for (IEditorTool* tool : CollectEditorTools()) tool->EndScenePreview();
 }
 
 void Engine::EditorToolUI::RequestResolvePendingEdits() {

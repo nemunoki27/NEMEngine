@@ -18,6 +18,7 @@ internal static class MathLayoutTests {
 		Check<Color3>(12, "r", "g", "b");
 		Check<Color4>(16, "r", "g", "b", "a");
         CheckInterpolation();
+        CheckRotationBoundaries();
         CheckEulerAngles();
         CheckVectors();
         Vector3 value = new(1.0f, 2.0f, 3.0f);
@@ -67,6 +68,34 @@ internal static class MathLayoutTests {
     private static void CheckSameRotation(Quaternion a, Quaternion b) {
         if (MathF.Abs(Quaternion.Dot(a.normalized, b.normalized)) < 0.99999f) {
             throw new InvalidOperationException("ZXY Euler rotation changed.");
+        }
+    }
+
+    // 回転方向と無効方向入力と逆回転を確認する
+    private static void CheckRotationBoundaries() {
+
+        Quaternion target = Quaternion.AngleAxis(120.0f, Vector3.up);
+        Quaternion towards = Quaternion.RotateTowards(Quaternion.identity, target, 30.0f);
+        Quaternion away = Quaternion.RotateTowards(Quaternion.identity, target, -30.0f);
+        if (MathF.Abs(Quaternion.Angle(towards, target) - 90.0f) > 0.001f ||
+            MathF.Abs(Quaternion.Angle(away, target) - 150.0f) > 0.001f ||
+            Quaternion.Angle(target, Quaternion.RotateTowards(Quaternion.identity, target, 150.0f)) != 0.0f ||
+            Quaternion.RotateTowards(target, target, -30.0f) != target) {
+            throw new InvalidOperationException("Quaternion rotation direction contract failed.");
+        }
+
+        if (Quaternion.FromToRotation(Vector3.zero, Vector3.forward) != Quaternion.identity ||
+            Quaternion.FromToRotation(Vector3.forward, Vector3.zero) != Quaternion.identity ||
+            Quaternion.FromToRotation(Vector3.zero, Vector3.zero) != Quaternion.identity) {
+            throw new InvalidOperationException("A zero direction produced a non-unit quaternion.");
+        }
+
+        Quaternion nonUnit = target * 2.0f;
+        Quaternion inverse = Quaternion.Inverse(nonUnit);
+        CheckSameRotation(nonUnit * inverse, Quaternion.identity);
+        Vector3 opposite = Quaternion.FromToRotation(Vector3.forward, Vector3.back) * Vector3.forward;
+        if ((opposite - Vector3.back).magnitude > 0.00001f) {
+            throw new InvalidOperationException("Opposite direction rotation changed.");
         }
     }
 

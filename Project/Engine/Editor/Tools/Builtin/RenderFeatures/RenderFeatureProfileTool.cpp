@@ -4,21 +4,15 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
-#include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <algorithm>
-#include <filesystem>
 
+// imgui
 #include <imgui.h>
 
 //============================================================================
@@ -36,19 +30,40 @@ void Engine::RenderFeatureProfileTool::OpenAsset(AssetID assetID) {
 	openWindow_ = true;
 }
 
+bool Engine::RenderFeatureProfileTool::HasPendingEdits() const {
+
+	return RenderFeatureProfileService::GetInstance().IsDirty();
+}
+
+void Engine::RenderFeatureProfileTool::RequestResolvePendingEdits() {
+
+	// Editor終了時も同じ確認画面を開く
+	resolvePendingEdits_ = true;
+	closeResult_ = EditorToolCloseResult::None;
+	pendingClose_ = true;
+	openWindow_ = true;
+}
+
+Engine::EditorToolCloseResult Engine::RenderFeatureProfileTool::ConsumePendingEditCloseResult() {
+
+	const EditorToolCloseResult result = closeResult_;
+	closeResult_ = EditorToolCloseResult::None;
+	return result;
+}
+
 void Engine::RenderFeatureProfileTool::DrawEditorTool(const EditorToolContext& context) {
 
 	if (openWindow_) {
 		DrawWindow(context);
 	}
+	editSession_.SynchronizePreview(context);
 }
 
 void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& context) {
 
 	const bool wasOpen = openWindow_;
-	if (!ImGui::Begin("Render Extension", &openWindow_)) {
-		if (wasOpen && !openWindow_ &&
-			RenderFeatureProfileService::GetInstance().IsDirty()) {
+	if (!ImGui::Begin("Render Passes", &openWindow_)) {
+		if (wasOpen && !openWindow_ && RenderFeatureProfileService::GetInstance().IsDirty()) {
 			openWindow_ = true;
 			pendingClose_ = true;
 		}
@@ -56,36 +71,32 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 		ImGui::End();
 		return;
 	}
-	if (wasOpen && !openWindow_ &&
-		RenderFeatureProfileService::GetInstance().IsDirty()) {
+	if (wasOpen && !openWindow_ && RenderFeatureProfileService::GetInstance().IsDirty()) {
 		openWindow_ = true;
 		pendingClose_ = true;
 	}
 	DrawUnsavedChangesPopup(context);
 
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
+	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
 	service.EnsureLoaded();
 	AssetID profileAsset = editSession_.GetProfileID();
 	AssetEditSetting assetSetting{};
-	if (MyGUI::AssetReferenceField("プロファイル", profileAsset,
-		context.toolContext.assetDatabase,
-		{ AssetType::RenderExtension }, assetSetting).valueChanged) {
+	if (MyGUI::AssetReferenceField(
+			"プロファイル", profileAsset, context.toolContext.assetDatabase, {AssetType::RenderPasses}, assetSetting)
+			.valueChanged) {
 
 		RequestAssetSwitch(profileAsset);
 	}
 
 	if (!editSession_.GetProfileID()) {
-		ImGui::TextDisabled("ProjectからRender Extensionを選択してください");
+		ImGui::TextDisabled("ProjectからRender Passesを選択してください");
 		ImGui::End();
 		return;
 	}
 	if (context.IsPlaying()) {
 		ImGui::TextDisabled("Play中の変更は実行用にだけ反映され、Stop時に破棄されます");
-		RenderFeatureRuntimeOverrides& overrides =
-			RenderFeatureRuntimeOverrides::GetInstance();
-		const RenderFeatureProfileAsset& runtimeProfile =
-			service.GetRuntimeExtension().GetProfile();
+		RenderFeatureRuntimeOverrides& overrides = RenderFeatureRuntimeOverrides::GetInstance();
+		const RenderFeatureProfileAsset& runtimeProfile = service.GetRuntimeExtension().GetProfile();
 		for (const RenderFeaturePassSettings& pass : runtimeProfile.passes) {
 			ImGui::PushID(static_cast<int32_t>(pass.id.value));
 			bool enabled = overrides.IsEnabled(pass.id, pass.enabled);
@@ -95,11 +106,9 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 			ImGui::SameLine();
 			ImGui::TextUnformatted(pass.name.c_str());
 			ImGui::SameLine();
-			bool sceneColorOutput = overrides.IsSceneColorOutput(
-				pass.id, pass.sceneColorOutput);
+			bool sceneColorOutput = overrides.IsSceneColorOutput(pass.id, pass.sceneColorOutput);
 			if (ImGui::Checkbox("Scene Colorへ出力", &sceneColorOutput)) {
-				overrides.SetSceneColorOutput(
-					runtimeProfile, pass.id, sceneColorOutput);
+				overrides.SetSceneColorOutput(runtimeProfile, pass.id, sceneColorOutput);
 			}
 			ImGui::PopID();
 		}
@@ -110,14 +119,14 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 	AssetID importSource{};
 	AssetEditSetting importSetting{};
 	importSetting.allowDelete = false;
-	if (MyGUI::AssetReferenceField("設定をインポート", importSource,
-		context.toolContext.assetDatabase,
-		{ AssetType::RenderExtension }, importSetting).valueChanged) {
+	if (MyGUI::AssetReferenceField(
+			"設定をインポート", importSource, context.toolContext.assetDatabase, {AssetType::RenderPasses}, importSetting)
+			.valueChanged) {
 
 		ImportProfileSettings(context, importSource);
 	}
 
-	const float buttonWidth = ImGui::GetContentRegionAvail().x * 0.5f - 2.0f;
+	const float buttonWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 	if (ImGui::Button("保存", ImVec2(buttonWidth, 0.0f))) {
 		editSession_.Save();
 	}
@@ -127,42 +136,37 @@ void Engine::RenderFeatureProfileTool::DrawWindow(const EditorToolContext& conte
 		ClearSelection();
 	}
 	if (!editSession_.GetStatusMessage().empty()) {
-		ImGui::TextColored(editSession_.HasError() ? ImVec4(1.0f, 0.35f, 0.35f, 1.0f) :
-			ImVec4(0.45f, 0.9f, 0.55f, 1.0f), "%s", editSession_.GetStatusMessage().c_str());
+		ImGui::TextColored(editSession_.HasError() ? ImVec4(1.0f, 0.35f, 0.35f, 1.0f) : ImVec4(0.45f, 0.9f, 0.55f, 1.0f), "%s",
+			editSession_.GetStatusMessage().c_str());
 	}
 	if (!service.GetRuntime().GetDiagnostic().empty()) {
-		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s",
-			service.GetRuntime().GetDiagnostic().c_str());
+		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", service.GetRuntime().GetDiagnostic().c_str());
 	}
 
-	const float listWidth = (std::max)(220.0f,
-		ImGui::GetContentRegionAvail().x * 0.28f);
-	if (ImGui::BeginChild("RenderFeaturePassList", ImVec2(listWidth, 0.0f),
-		ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX)) {
+	const float listWidth = (std::max)(220.0f, ImGui::GetContentRegionAvail().x * 0.28f);
+	if (ImGui::BeginChild(
+			"RenderFeaturePassList", ImVec2(listWidth, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX)) {
 		DrawPassList(context);
 	}
 	ImGui::EndChild();
 	ImGui::SameLine();
-	if (ImGui::BeginChild("RenderFeaturePassDetail", ImVec2(0.0f, 0.0f),
-		ImGuiChildFlags_Borders)) {
+	if (ImGui::BeginChild("RenderFeaturePassDetail", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
 		DrawPassDetail(context);
 	}
 	ImGui::EndChild();
 	ImGui::End();
 }
 
-void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(
-	const EditorToolContext& context) {
+void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(const EditorToolContext& context) {
 
 	if (!pendingClose_ && !pendingAsset_) {
 		return;
 	}
-	ImGui::OpenPopup("Render Extensionの未保存編集");
-	if (!ImGui::BeginPopupModal("Render Extensionの未保存編集", nullptr,
-		ImGuiWindowFlags_AlwaysAutoResize)) {
+	ImGui::OpenPopup("Render Passesの未保存編集");
+	if (!MyGUI::BeginPopupModal("Render Passesの未保存編集", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
-	ImGui::TextUnformatted("変更を保存しますか？");
+	ImGui::TextWrapped("%s", "変更を保存しますか？");
 	const auto finish = [&]() {
 		if (pendingAsset_) {
 			editSession_.SelectProfile(context, pendingAsset_);
@@ -173,8 +177,12 @@ void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(
 		}
 		pendingAsset_ = {};
 		pendingClose_ = false;
+		if (resolvePendingEdits_) {
+			closeResult_ = EditorToolCloseResult::Accepted;
+			resolvePendingEdits_ = false;
+		}
 		ImGui::CloseCurrentPopup();
-		};
+	};
 	if (ImGui::Button("保存")) {
 		editSession_.Save();
 		if (!editSession_.HasError()) {
@@ -191,6 +199,10 @@ void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(
 		pendingAsset_ = {};
 		pendingClose_ = false;
 		openWindow_ = true;
+		if (resolvePendingEdits_) {
+			closeResult_ = EditorToolCloseResult::Cancelled;
+			resolvePendingEdits_ = false;
+		}
 		ImGui::CloseCurrentPopup();
 	}
 	ImGui::EndPopup();
@@ -210,8 +222,7 @@ void Engine::RenderFeatureProfileTool::RequestAssetSwitch(AssetID assetID) {
 
 void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& context) {
 
-	RenderFeatureProfileAsset& profile =
-		RenderFeatureProfileService::GetInstance().GetProfile();
+	RenderFeatureProfileAsset& profile = RenderFeatureProfileService::GetInstance().GetProfile();
 	if (!selectedPass_) {
 		if (selectedGroup_) {
 			DrawSelectedGroupDetail(context, profile);
@@ -223,11 +234,8 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 	if (!DrawSelectedPassControls(profile)) {
 		return;
 	}
-	const auto selected = std::find_if(profile.passes.begin(),
-		profile.passes.end(), [&](const RenderFeaturePassSettings& pass) {
-
-			return pass.id == selectedPass_;
-		});
+	const auto selected = std::find_if(profile.passes.begin(), profile.passes.end(),
+		[&](const RenderFeaturePassSettings& pass) { return pass.id == selectedPass_; });
 	if (selected == profile.passes.end()) {
 		ClearSelection();
 		return;
@@ -246,16 +254,14 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 	changed |= MyGUI::Checkbox("Scene View", editablePass.sceneView);
 	// Play中の出力切り替えはスクリプトと同じ実行時設定を使う
 	RenderFeatureRuntimeOverrides& overrides = RenderFeatureRuntimeOverrides::GetInstance();
-	bool sceneColorOutput = context.IsPlaying() ?
-		overrides.IsSceneColorOutput(editablePass.id, editablePass.sceneColorOutput) :
-		editablePass.sceneColorOutput;
+	bool sceneColorOutput = context.IsPlaying() ? overrides.IsSceneColorOutput(editablePass.id, editablePass.sceneColorOutput)
+												: editablePass.sceneColorOutput;
 	if (MyGUI::Checkbox("Scene Colorへ出力", sceneColorOutput)) {
 
 		if (context.IsPlaying()) {
 
 			if (!overrides.SetSceneColorOutput(
-				RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(),
-				editablePass.id, sceneColorOutput)) {
+					RenderFeatureProfileService::GetInstance().GetRuntime().GetProfile(), editablePass.id, sceneColorOutput)) {
 
 				editSession_.SetStatusMessage("SceneColor出力を変更できません。出力形式とサイズを確認してください", true);
 			}
@@ -278,21 +284,19 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 
 	AssetEditSetting setting{};
 	AssetID selectedAsset = editablePass.material;
-	if (MyGUI::AssetReferenceField("マテリアル", selectedAsset,
-		context.toolContext.assetDatabase,
-		{ AssetType::Material, AssetType::Shader }, setting).valueChanged) {
+	if (MyGUI::AssetReferenceField(
+			"マテリアル", selectedAsset, context.toolContext.assetDatabase, {AssetType::Material, AssetType::Shader}, setting)
+			.valueChanged) {
 
 		if (!selectedAsset) {
 			editablePass.material = {};
 			changed = true;
 		} else {
-			const AssetMeta* meta = context.toolContext.assetDatabase ?
-				context.toolContext.assetDatabase->Find(selectedAsset) : nullptr;
+			const AssetMeta* meta =
+				context.toolContext.assetDatabase ? context.toolContext.assetDatabase->Find(selectedAsset) : nullptr;
 			const AssetType assetType = meta ? meta->type : AssetType::Unknown;
-			const std::string_view assetPath = meta ?
-				std::string_view(meta->assetPath) : std::string_view{};
-			const AssetID materialID = editSession_.ResolvePassMaterial(
-				context, selectedAsset, assetType, assetPath);
+			const std::string_view assetPath = meta ? std::string_view(meta->assetPath) : std::string_view{};
+			const AssetID materialID = editSession_.ResolvePassMaterial(context, selectedAsset, assetType, assetPath);
 			if (materialID) {
 				editablePass.material = materialID;
 				if (assetType == AssetType::Shader) {
@@ -303,22 +307,17 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 			}
 		}
 	}
-	changed |= MyGUI::EnumCombo("マテリアルパス",
-		editablePass.materialPass).valueChanged;
+	changed |= MyGUI::EnumCombo("マテリアルパス", editablePass.materialPass).valueChanged;
 	if (editablePass.type == RenderFeaturePassType::RayTracing) {
-		int32_t rayGeneration =
-			static_cast<int32_t>(editablePass.rayGenerationIndex);
-		if (MyGUI::DragInt("Ray Generation", rayGeneration,
-			{ .minValue = 0 }).valueChanged) {
+		int32_t rayGeneration = static_cast<int32_t>(editablePass.rayGenerationIndex);
+		if (MyGUI::DragInt("Ray Generation", rayGeneration, {.minValue = 0}).valueChanged) {
 
-			editablePass.rayGenerationIndex =
-				static_cast<uint32_t>(rayGeneration);
+			editablePass.rayGenerationIndex = static_cast<uint32_t>(rayGeneration);
 			changed = true;
 		}
 	}
 
 	const auto sourceKindLabel = [](RenderFeatureSourceKind kind) {
-
 		switch (kind) {
 		case RenderFeatureSourceKind::PreviousPass:
 			return "直前のパス";
@@ -329,11 +328,9 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 		}
 		return "不明";
 	};
-	static const std::vector<std::string> sourceItems{
-		"直前のパス", "Scene Color", "指定パス" };
+	static const std::vector<std::string> sourceItems{"直前のパス", "Scene Color", "指定パス"};
 	std::string selectedSource = sourceKindLabel(editablePass.sourceKind);
-	if (MyGUI::StringCombo("主入力", selectedSource,
-		sourceItems).valueChanged) {
+	if (MyGUI::StringCombo("主入力", selectedSource, sourceItems).valueChanged) {
 
 		if (selectedSource == sourceItems[0]) {
 			editablePass.sourceKind = RenderFeatureSourceKind::PreviousPass;
@@ -348,8 +345,7 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 		changed = true;
 	}
 	if (editablePass.sourceKind == RenderFeatureSourceKind::PassOutput) {
-		changed |= DrawOutputReferenceCombo("参照出力", profile, editablePass,
-			editablePass.source, "未設定");
+		changed |= DrawOutputReferenceCombo("参照出力", profile, editablePass, editablePass.source, "未設定");
 	}
 
 	if (changed) {
@@ -362,25 +358,19 @@ void Engine::RenderFeatureProfileTool::DrawPassDetail(const EditorToolContext& c
 	bool gpuChanged = false;
 	if (MyGUI::CollapsingHeader("GPU品質", false)) {
 		MyGUI::ScopedPropertyLabelWidth width("RenderFeatureGPUQuality");
-		gpuChanged |= MyGUI::Checkbox("動的解像度",
-			editablePass.adaptiveResolution);
-		gpuChanged |= MyGUI::DragFloat("GPU予算(ms)", editablePass.gpuBudgetMs,
-			{ .minValue = 0.1f, .maxValue = 33.0f }).valueChanged;
-		gpuChanged |= MyGUI::DragFloat("最小スケール",
-			editablePass.minResolutionScale,
-			{ .minValue = 0.25f, .maxValue = 1.0f }).valueChanged;
-		gpuChanged |= MyGUI::DragFloat("最大スケール",
-			editablePass.maxResolutionScale,
-			{ .minValue = 0.25f, .maxValue = 1.0f }).valueChanged;
-		gpuChanged |= MyGUI::DragFloat("調整幅", editablePass.resolutionStep,
-			{ .minValue = 0.05f, .maxValue = 0.5f }).valueChanged;
-		int32_t interval = static_cast<int32_t>(
-			editablePass.adjustmentIntervalFrames);
-		if (MyGUI::DragInt("調整間隔", interval,
-			{ .minValue = 1, .maxValue = 240 }).valueChanged) {
+		gpuChanged |= MyGUI::Checkbox("動的解像度", editablePass.adaptiveResolution);
+		gpuChanged |=
+			MyGUI::DragFloat("GPU予算(ms)", editablePass.gpuBudgetMs, {.minValue = 0.1f, .maxValue = 33.0f}).valueChanged;
+		gpuChanged |= MyGUI::DragFloat("最小スケール", editablePass.minResolutionScale, {.minValue = 0.25f, .maxValue = 1.0f})
+						  .valueChanged;
+		gpuChanged |= MyGUI::DragFloat("最大スケール", editablePass.maxResolutionScale, {.minValue = 0.25f, .maxValue = 1.0f})
+						  .valueChanged;
+		gpuChanged |=
+			MyGUI::DragFloat("調整幅", editablePass.resolutionStep, {.minValue = 0.05f, .maxValue = 0.5f}).valueChanged;
+		int32_t interval = static_cast<int32_t>(editablePass.adjustmentIntervalFrames);
+		if (MyGUI::DragInt("調整間隔", interval, {.minValue = 1, .maxValue = 240}).valueChanged) {
 
-			editablePass.adjustmentIntervalFrames =
-				static_cast<uint32_t>(interval);
+			editablePass.adjustmentIntervalFrames = static_cast<uint32_t>(interval);
 			gpuChanged = true;
 		}
 	}
@@ -410,16 +400,4 @@ bool Engine::RenderFeatureProfileTool::ImportProfileSettings(const EditorToolCon
 	}
 	ClearSelection();
 	return true;
-}
-
-bool Engine::RenderFeatureProfileTool::EnsureProfile(const EditorToolContext& context) {
-
-	if (!editSession_.CanCreateProfile(context)) {
-		return false;
-	}
-	if (!ImGui::Button("現在のシーン用プロファイルを作成",
-		ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		return false;
-	}
-	return editSession_.CreateProfile(context);
 }

@@ -69,7 +69,7 @@ bool Engine::EditorSelectionOperations::Copy(const EditorContext& context, Edito
 			return false;
 		}
 
-		// 各エンティティの親UUIDも控えておき、貼り付けは元の親付近へ行う
+		// 貼り付け先の親IDを保持する
 		UUID parentUUID{};
 		if (world.HasComponent<HierarchyComponent>(selected)) {
 

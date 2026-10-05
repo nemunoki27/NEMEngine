@@ -41,7 +41,7 @@ void Engine::AudioSourceRuntimeComponent::ReleaseStorage(
 				runtime->playbacks) {
 
 				if (playback.voiceID != 0) {
-					Audio::GetInstance()->StopVoice(playback.voiceID);
+					if (Audio* audio = Audio::TryGetInstance()) { audio->StopVoice(playback.voiceID); }
 				}
 			}
 		}
@@ -215,6 +215,12 @@ void Engine::from_json(const nlohmann::json& in, AudioSourceComponent& component
 	component.playOnAwake = in.value("playOnAwake", component.playOnAwake);
 	component.loop = in.value("loop", component.loop);
 	component.volume = in.value("volume", component.volume);
+	component.pitch = in.value("pitch", component.pitch);
+	component.spatialBlend = in.value("spatialBlend", component.spatialBlend);
+	component.minDistance = in.value("minDistance", component.minDistance);
+	component.maxDistance = in.value("maxDistance", component.maxDistance);
+	int rolloff = in.value("rolloffMode", static_cast<int>(component.rolloffMode));
+	component.rolloffMode = rolloff == 1 ? AudioRolloffMode::Linear : AudioRolloffMode::Logarithmic;
 }
 
 void Engine::to_json(nlohmann::json& out, const AudioSourceComponent& component) {
@@ -224,4 +230,9 @@ void Engine::to_json(nlohmann::json& out, const AudioSourceComponent& component)
 	out["playOnAwake"] = component.playOnAwake;
 	out["loop"] = component.loop;
 	out["volume"] = component.volume;
+	out["pitch"] = component.pitch;
+	out["spatialBlend"] = component.spatialBlend;
+	out["minDistance"] = component.minDistance;
+	out["maxDistance"] = component.maxDistance;
+	out["rolloffMode"] = static_cast<int>(component.rolloffMode);
 }

@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <span>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -55,10 +56,11 @@ namespace Engine {
 		// 全文書の検証後に整列結果をまとめて保存する
 		bool Canonicalize(const std::vector<std::filesystem::path>& paths, std::string& error);
 		// シーンまたはフォルダーと所有Actorを退避して削除する
-		bool Delete(const std::filesystem::path& path, const AssetDatabase& database, std::string& error);
+		bool Delete(const std::filesystem::path& path, const AssetDatabase& database, std::string& error,
+			std::span<const std::filesystem::path> additionalPaths = {});
 		// 元のActorファイルを指定して欠損を復元する
-		bool RestoreActor(const std::filesystem::path& scenePath, UUID actorID,
-			const std::filesystem::path& source, std::string& error);
+		bool RestoreActor(
+			const std::filesystem::path& scenePath, UUID actorID, const std::filesystem::path& source, std::string& error);
 		// 参照の残った欠損Actorを明示的に削除する
 		bool RemoveMissingActor(const std::filesystem::path& scenePath, UUID actorID, std::string& error);
 		// 削除確定が変更するファイルを保存前に確認する
@@ -68,6 +70,7 @@ namespace Engine {
 		std::vector<std::filesystem::path> GetRecoveries(bool unfinishedOnly = false);
 		// 退避データから操作前の状態へ戻す
 		bool Recover(const std::filesystem::path& directory, std::string& error);
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -83,15 +86,18 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// MetaからSceneのGUIDを取得
+		static AssetID ReadSceneID(const std::filesystem::path& path);
+
 		// 操作中の失敗では自身の保護判定を除いて復旧する
 		bool RecoverInternal(const std::filesystem::path& directory, std::string& error, bool rollingBack);
 		// Sceneの使用状態を保護してファイル変更を確定する
-		bool Commit(const std::vector<SceneStorageChange>& changes, const std::string& label,
-			std::string& error, const std::function<void()>& check = {});
+		bool Commit(const std::vector<SceneStorageChange>& changes, const std::string& label, std::string& error,
+			const std::function<void()>& check = {});
 		// 編集中のSceneへの破壊的変更を拒否する
 		void RequireClosed(AssetID id);
 		// 欠損Actorの参照変更を検証して反映する
-		bool UpdateMissingActor(const std::filesystem::path& scenePath, UUID actorID,
-			std::string& error, std::vector<std::filesystem::path>* preview);
+		bool UpdateMissingActor(const std::filesystem::path& scenePath, UUID actorID, std::string& error,
+			std::vector<std::filesystem::path>* preview);
 	};
 }

@@ -7,13 +7,16 @@
 #include <Engine/Core/Rendering/Assets/ParticleEffectAsset.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
+#include <Engine/Core/Foundation/Utility/Command/CommandHistory.h>
 
 #include <unordered_map>
+#include <optional>
 
 namespace Engine {
 
 	struct ParticleModuleEditCacheEntry {
 
+		UUID instanceID{};
 		std::string id;
 		ParticleModuleRegistry::TypeID typeID = ParticleModuleRegistry::kInvalidTypeID;
 		std::unique_ptr<IParticleModule> module;
@@ -44,13 +47,18 @@ namespace Engine {
 		// モジュールの編集用インスタンスを取得する、idが変わっていれば作り直す
 		IParticleModule* ResolveModuleCache(ParticleModuleEditCacheEntry& cache, const ParticleEffectModuleEntry& entry);
 		// エフェクトをファイルから読み込む
-		void LoadEffect(const EditorToolContext& context, AssetID effectID, std::string& statusMessage);
+		bool LoadEffect(const EditorToolContext& context, AssetID effectID, std::string& statusMessage);
 		// エフェクトをファイルへ保存する
-		void SaveEffect(const EditorToolContext& context, std::string& statusMessage);
+		bool SaveEffect(const EditorToolContext& context, std::string& statusMessage);
 		// 新規エフェクトを作成する
-		void CreateEffect(const EditorToolContext& context, std::string& statusMessage, const std::string& createName);
+		bool CreateEffect(const EditorToolContext& context, std::string& statusMessage, const std::string& createName);
 		// 編集内容をランタイムへ即反映する
 		void ApplyToRuntime();
+		void UpdateEditing(bool changed, bool itemActive);
+		void FinishEditing();
+		bool Undo();
+		bool Redo();
+		void Discard();
 
 		// 削除したグループの編集状態を破棄する
 		void RemoveGroupState(UUID groupID);
@@ -61,6 +69,9 @@ namespace Engine {
 		const ParticleEffectAsset& GetDraft() const { return draft_; }
 		AssetID GetEditingID() const { return editingID_; }
 		bool IsLoaded() const { return loaded_; }
+		bool IsDirty() const { return dirty_; }
+		bool CanUndo() const { return history_.CanUndo() || pendingBefore_.has_value(); }
+		bool CanRedo() const { return history_.CanRedo(); }
 		UUID& GetSelectedGroupID() { return selectedGroupID_; }
 	private:
 		//========================================================================
@@ -71,7 +82,12 @@ namespace Engine {
 
 		AssetID editingID_{};
 		ParticleEffectAsset draft_{};
+		ParticleEffectAsset savedDraft_{};
+		ParticleEffectAsset committedDraft_{};
+		std::optional<ParticleEffectAsset> pendingBefore_;
+		CommandHistory<ParticleEffectAsset> history_;
 		bool loaded_ = false;
+		bool dirty_ = false;
 		UUID selectedGroupID_{};
 		std::unordered_map<UUID, ParticleGroupEditState> groupEditorStates_;
 	};

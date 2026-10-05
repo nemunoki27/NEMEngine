@@ -16,4 +16,7 @@ namespace Engine::QuaternionAxisKeyUtility {
 	// 軸キーを正常な値に補正する
 	CurveQuaternionAxisKey Sanitize(const CurveQuaternionAxisKey& key);
 
+	// 軸キーと設定を同じ順序へ並べる
+	void SortKeys(CurveChannel& channel, std::vector<CurveQuaternionAxisKey>& axisKeys);
+
 } // Engine::QuaternionAxisKeyUtility

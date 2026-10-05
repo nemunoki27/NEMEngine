@@ -30,10 +30,12 @@ namespace Engine {
 
 		// 例外を診断へ変換して依存一覧を収集する
 		static bool CollectFiles(AssetID startupScene, const AssetDatabase& database,
-			std::vector<GameBuildFileEntry>& outFiles, std::string& error, SceneAssetStorage* sceneStorage);
+			std::vector<GameBuildFileEntry>& outFiles, std::string& error, SceneAssetStorage* sceneStorage,
+			std::vector<GameBuildWarning>* warnings = nullptr);
 
 		explicit GameBuildAssetCollector(const Engine::AssetDatabase& database, Engine::SceneAssetStorage* sceneStorage);
 		bool Collect(Engine::AssetID startupScene, std::vector<GameBuildFileEntry>& outFiles, std::string& outError);
+		const std::vector<GameBuildWarning>& GetWarnings() const { return warnings_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -50,11 +52,15 @@ namespace Engine {
 		std::unordered_set<std::string> scannedShaderFiles_;
 		std::map<std::string, std::filesystem::path> files_;
 		std::vector<std::string> errors_;
+		std::vector<GameBuildWarning> warnings_;
+		AssetID currentAsset_{};
 
 		//--------- functions ----------------------------------------------------
 
 		// 参照先を処理待ちへ追加
 		void AddAsset(Engine::AssetID assetID, bool required = false);
+		// 同じ欠損の診断を一度だけ保持する
+		void AddWarning(AssetID asset, AssetID reference, std::string path, std::string detail);
 		// 配置先とファイルを検証
 		void AddFile(const std::filesystem::path& source, const std::string& destination, bool required = false);
 		// 製品内の配置先を解決

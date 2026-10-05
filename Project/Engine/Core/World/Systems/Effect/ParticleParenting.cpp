@@ -4,8 +4,6 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
-#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/Foundation/Math/AffineDecompose.h>
 
 // c++
@@ -49,14 +47,12 @@ namespace {
 		}
 
 		particle.parentMatrix = Engine::Matrix4x4::Identity();
-		particle.parentLocalFileID = {};
-		particle.parentIsEmitter = false;
 		particle.hasParent = false;
 	}
 
 	void AttachParticleParent(Engine::Particle& particle, const Engine::Matrix4x4& parentMatrix,
 		const Engine::Quaternion& parentRotation, const Engine::Vector3& parentScale,
-		bool parentIsEmitter, Engine::UUID parentLocalFileID, bool preserveWorldRotationScale) {
+		bool preserveWorldRotationScale) {
 
 		const Engine::Matrix4x4 inverseParent = Engine::Matrix4x4::Inverse(parentMatrix);
 		particle.pos = Engine::Vector3::Transform(particle.pos, inverseParent);
@@ -70,16 +66,12 @@ namespace {
 		}
 
 		particle.parentMatrix = parentMatrix;
-		particle.parentLocalFileID = parentLocalFileID;
-		particle.parentIsEmitter = parentIsEmitter;
 		particle.hasParent = true;
 	}
 
 	void DetachParticleParentWithoutKeepingWorld(Engine::Particle& particle) {
 
 		particle.parentMatrix = Engine::Matrix4x4::Identity();
-		particle.parentLocalFileID = {};
-		particle.parentIsEmitter = false;
 		particle.hasParent = false;
 	}
 }
@@ -109,9 +101,7 @@ void Engine::ParticleParenting::UpdateParticleParent(Particle& particle,
 		return;
 	}
 
-	const bool sameParent = particle.hasParent &&
-		particle.parentIsEmitter == settings.useEmitter &&
-		(settings.useEmitter || particle.parentLocalFileID == settings.entityLocalFileID);
+	const bool sameParent = particle.hasParent;
 	if (sameParent) {
 		particle.parentMatrix = parent.matrix;
 		return;
@@ -120,8 +110,7 @@ void Engine::ParticleParenting::UpdateParticleParent(Particle& particle,
 	if (particle.hasParent) {
 		BakeParticleParentToWorld(particle);
 	}
-	AttachParticleParent(particle, parent.matrix, parent.rotation, parent.scale, settings.useEmitter,
-		settings.useEmitter ? UUID{} : settings.entityLocalFileID, preserveWorldRotationScale);
+	AttachParticleParent(particle, parent.matrix, parent.rotation, parent.scale, preserveWorldRotationScale);
 }
 
 void Engine::ParticleParenting::UpdateParticleParents(std::vector<Particle>& particles,
@@ -143,7 +132,7 @@ void Engine::ParticleParenting::UpdateParticleParents(std::vector<Particle>& par
 	}
 }
 
-void Engine::ParticleParenting::ResolveParticleParents(ECSWorld& world, const Matrix4x4& emitterWorld,
+void Engine::ParticleParenting::ResolveParticleParents(const Matrix4x4& emitterWorld,
 	const ParticleGroupDefinition& group, const ParticlePhaseParentSettings& parentSettings,
 	bool useAssetParentSettings, std::vector<ParticleParentPose>& outParents) {
 
@@ -155,21 +144,9 @@ void Engine::ParticleParenting::ResolveParticleParents(ECSWorld& world, const Ma
 		if (!settings.HasParent()) {
 			continue;
 		}
-		Matrix4x4 parentWorld = emitterWorld;
-		if (!settings.useEmitter) {
-
-			const Entity parentEntity = SceneObjectUtility::FindByLocalFileID(world, settings.entityLocalFileID);
-			if (!world.IsAlive(parentEntity)) { continue; }
-			ResolvedWorldTransform parentTransform{};
-			if (!TransformWorldUtility::ResolveWorldTransform(
-				world, parentEntity, parentTransform)) {
-				continue;
-			}
-			parentWorld = parentTransform.matrix;
-		}
-
 		ParticleParentPose& parent = outParents[i];
-		parent.matrix = BuildParentFollowMatrix(parentWorld,
+		// 所有Entityの姿勢だけを親空間に使う
+		parent.matrix = BuildParentFollowMatrix(emitterWorld,
 			settings.ignoreParentScale, settings.ignoreParentRotation);
 		if (!DecomposeParentMatrix(parent.matrix, parent.rotation, parent.scale) ||
 			std::abs(parent.scale.x) <= kMinScale || std::abs(parent.scale.y) <= kMinScale ||

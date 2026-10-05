@@ -40,7 +40,7 @@ Engine::GameBuildService::~GameBuildService() {
 bool Engine::GameBuildService::WriteManifest(const GameBuildSettings& settings, const AssetDatabase& database,
 	std::filesystem::path& scriptPath, std::string& error, SceneAssetStorage* sceneStorage) {
 
-	return GameBuildManifest::Write(settings, database, manifestPath_, outputDirectory_, scriptPath, error, sceneStorage);
+	return GameBuildManifest::Write(settings, database, manifestPath_, outputDirectory_, scriptPath, error, sceneStorage, warnings_);
 }
 
 void Engine::GameBuildService::RefreshScenes(const AssetDatabase& database) {
@@ -88,6 +88,7 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 
 	RemoveManifest();
 	std::filesystem::path scriptPath;
+	warnings_.clear();
 	bool manifestWritten = false;
 	try {
 		manifestWritten = WriteManifest(settings, database, scriptPath, outError, sceneStorage);
@@ -98,8 +99,9 @@ bool Engine::GameBuildService::Start(const GameBuildSettings& settings,
 	}
 	if (!manifestWritten) {
 		RemoveManifest();
-		state_ = GameBuildState::Failed;
-		statusMessage_ = "失敗しました";
+		state_ = outError == "参照先の欠損があります、診断を確認して継続するか選択してください" ?
+			GameBuildState::AwaitingConfirmation : GameBuildState::Failed;
+		statusMessage_ = state_ == GameBuildState::AwaitingConfirmation ? "欠損の確認を待っています" : "失敗しました";
 		failureDetail_ = outError;
 		return false;
 	}
@@ -178,12 +180,21 @@ void Engine::GameBuildService::ResetStatus() {
 	state_ = GameBuildState::Idle;
 	statusMessage_.clear();
 	failureDetail_.clear();
+	warnings_.clear();
 }
 
 bool Engine::GameBuildService::CollectFiles(AssetID startupScene, const AssetDatabase& database,
 	std::vector<GameBuildFileEntry>& outFiles, std::string& outError, SceneAssetStorage* sceneStorage) {
 
-	return GameBuildAssetCollector::CollectFiles(startupScene, database, outFiles, outError, sceneStorage);
+	std::vector<GameBuildWarning> warnings;
+	if (!GameBuildAssetCollector::CollectFiles(startupScene, database, outFiles, outError, sceneStorage, &warnings)) { return false; }
+	// 無人の検証では確認できない欠損を許可しない
+	if (!warnings.empty()) {
+		outFiles.clear();
+		outError = "参照先の欠損があります: " + warnings.front().assetPath + " / " + warnings.front().detail;
+		return false;
+	}
+	return true;
 }
 
 void Engine::GameBuildService::RemoveManifest() {

@@ -171,21 +171,16 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 
 	const size_t viewIndex = ToViewIndex(view.kind);
 	const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-	const bool firstViewInFrame = !previousViewValid_[viewIndex] || viewUploadFrameSerials_[viewIndex] != frameSerial;
+	const bool firstViewInFrame = viewUploadFrameSerials_[viewIndex] != frameSerial;
 
 	// 定数バッファにビュー行列を転送する
 	MeshViewConstants constants{};
 	if (const ResolvedCameraView* camera = view.FindCamera(RenderCameraDomain::Perspective)) {
 
 		constants.viewProjection = camera->matrices.viewProjectionMatrix;
-		if (firstViewInFrame) {
-			// 同じframeの追加描画で前frameの履歴を上書きしない
-			framePreviousViewProjections_[viewIndex] = previousViewValid_[viewIndex] ?
-				previousViewProjections_[viewIndex] : constants.viewProjection;
-			previousViewProjections_[viewIndex] = constants.viewProjection;
-			previousViewValid_[viewIndex] = true;
-		}
-		constants.previousViewProjection = framePreviousViewProjections_[viewIndex];
+		// 補助描画では画面Cameraの履歴を使う
+		constants.previousViewProjection = cameraHistory_.Update(
+			lodView ? *lodView : view, RenderCameraDomain::Perspective, frameSerial);
 		constants.renderCameraPos = camera->cameraPos;
 	}
 	// Shadow Mapなどの補助描画は画面CameraのLODを維持する
@@ -246,7 +241,7 @@ void Engine::MeshBatchViewResources::Release() {
 	for (auto& view : view_) {
 		view.Release();
 	}
-	previousViewValid_ = { false, false };
+	cameraHistory_.Clear();
 	retirement_ = nullptr;
 	dynamicConstantAllocator_.Release();
 	dynamicConstantFrameSerial_ = 0;

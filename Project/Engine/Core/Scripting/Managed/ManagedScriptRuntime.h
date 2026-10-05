@@ -7,7 +7,7 @@
 #include <Engine/Core/Scripting/Managed/ManagedBridgeExports.h>
 #include <Engine/Core/Scripting/Managed/ManagedSchemaCache.h>
 #include <Engine/Core/Scripting/Managed/DotnetHostResolver.h>
-#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedAlcStatus.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedALCStatus.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
@@ -127,7 +127,7 @@ namespace Engine {
 		// C#から受けたApplication終了要求を取得する
 		bool ConsumeApplicationQuitRequest();
 		// 直近のcollectible ALC unloadのtyped statusを返す、reload後にEditorが参照する
-		AlcUnloadStatus GetLastAlcUnloadStatus();
+		ALCUnloadStatus GetLastALCUnloadStatus();
 		// 各phase末から呼ぶper-frame tickでphaseは0がUpdate 1がFixedUpdate 2がEndOfFrame、TimerとCoroutineを駆動する
 		void TickFrame(int32_t phase, const SystemContext& context);
 
@@ -387,6 +387,7 @@ namespace Engine {
 		static ManagedNativeEntity __cdecl InstantiatePrefabCallback(ManagedAssetGUID prefabAssetID, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
 		static ManagedNativeEntity __cdecl InstantiateEntityCallback(ManagedNativeEntity source, ManagedVector3 position, ManagedQuaternion rotation, int32_t useTransform, ManagedNativeEntity parent);
 		static uint64_t __cdecl LoadSceneAdditiveCallback(ManagedAssetGUID sceneAssetID);
+		static uint64_t __cdecl PreloadSceneCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl LoadSceneSingleCallback(ManagedAssetGUID sceneAssetID);
 		static uint64_t __cdecl ReloadActiveSceneCallback();
 		static int32_t __cdecl DontDestroyOnLoadCallback(ManagedNativeEntity entity);
@@ -495,6 +496,8 @@ namespace Engine {
 		static int32_t __cdecl CopyUserSettingsRootCallback(char* buffer, int32_t capacity);
 		// Gameplay v7のAudioSource gameplay method
 		static void __cdecl AudioPlayCallback(ManagedNativeEntity entity);
+		static int32_t __cdecl SetAnimatorParameterCallback(ManagedNativeEntity entity, const char* name, int32_t type, float number, int32_t integer);
+		static int32_t __cdecl GetAnimatorParameterCallback(ManagedNativeEntity entity, const char* name, int32_t type, float* number, int32_t* integer);
 		static void __cdecl AudioPlayOneShotCallback(ManagedNativeEntity entity, ManagedAssetGUID clipID, float volumeScale);
 		static void __cdecl AudioPauseCallback(ManagedNativeEntity entity);
 		static void __cdecl AudioUnPauseCallback(ManagedNativeEntity entity);

@@ -3,11 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // imgui
 #include <imgui.h>

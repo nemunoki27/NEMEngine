@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/Views/RenderCameraHistory.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/BuiltinRenderBackendBase.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
@@ -49,18 +50,7 @@ namespace Engine {
 		bool geometryManagerInitialized_ = false;
 
 		FrameBatchResourcePool<PrimitiveBatchResources> resourcePool_;
-		std::array<Matrix4x4, 6> previousViewProjections_ = {
-			Matrix4x4::Identity(), Matrix4x4::Identity(),
-			Matrix4x4::Identity(), Matrix4x4::Identity(),
-			Matrix4x4::Identity(), Matrix4x4::Identity()
-		};
-		std::array<Matrix4x4, 6> framePreviousViewProjections_ = {
-			Matrix4x4::Identity(), Matrix4x4::Identity(),
-			Matrix4x4::Identity(), Matrix4x4::Identity(),
-			Matrix4x4::Identity(), Matrix4x4::Identity()
-		};
-		std::array<uint64_t, 6> viewFrameSerials_ = { 0, 0, 0, 0, 0, 0 };
-		std::array<bool, 6> previousViewValid_ = { false, false, false, false, false, false };
+		RenderCameraHistory cameraHistory_{};
 
 		PipelineBindingCache::SlotID meshConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID verticesSRVSlot_ = PipelineBindingCache::kInvalidSlot;

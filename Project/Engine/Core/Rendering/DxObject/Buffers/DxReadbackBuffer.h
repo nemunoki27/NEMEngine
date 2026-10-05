@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <stdexcept>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 
@@ -62,7 +62,7 @@ namespace Engine {
 		DxUtils::CreateReadbackBufferResource(device, candidate, sizeof(T));
 		T* mapped = nullptr;
 		const HRESULT result = candidate->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
-		if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxReadbackBuffer::Map")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxReadbackBuffer::Map")) {
 			throw std::runtime_error("Readback BufferのMapに失敗しました");
 		}
 		// 読み戻し途中の旧ResourceはGPU完了まで保持する

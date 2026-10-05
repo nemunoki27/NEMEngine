@@ -71,7 +71,8 @@ void Engine::RenderFeatureTemporalState::PrepareHistory(GraphicsCore& graphicsCo
 	uint64_t runtimeGeneration, uint64_t materialGeneration) {
 
 	HistoryState& state = historyStates_[historyKey];
-	const bool resetHistory = state.width != width ||
+	const bool resetHistory = !state.valid ||
+		state.lastWrittenFrame + 1 < GraphicsFrameState::GetFrameSerial() || state.width != width ||
 		state.height != height ||
 		state.runtimeGeneration != runtimeGeneration ||
 		state.raytracingMaterialGeneration !=
@@ -92,4 +93,21 @@ void Engine::RenderFeatureTemporalState::PrepareHistory(GraphicsCore& graphicsCo
 			materialGeneration;
 		state.valid = false;
 	}
+}
+
+void Engine::RenderFeatureTemporalState::MarkWritten(const std::string& historyKey) {
+
+	HistoryState& state = historyStates_[historyKey];
+	state.valid = true;
+	state.lastWrittenFrame = GraphicsFrameState::GetFrameSerial();
+}
+
+void Engine::RenderFeatureTemporalState::RetainViews(const std::unordered_set<std::string>& activeViews) {
+
+	// Cameraごとの履歴と解像度状態を回収する
+	const auto unused = [&activeViews](const auto& entry) {
+		return !activeViews.contains(entry.first.substr(0, entry.first.find('|')));
+	};
+	std::erase_if(historyStates_, unused);
+	std::erase_if(adaptiveResolutionStates_, unused);
 }

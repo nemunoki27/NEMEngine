@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Database/AssetDocumentPublication.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
@@ -13,45 +14,51 @@
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 
 // c++
-#include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace {
 
+	// Graphの保存範囲を揃える
 	Engine::JsonFileJournal::Scope MakeShaderGraphSaveScope() {
 
 		return {
-			Engine::RuntimePaths::GetSavedRoot() /
-				"ShaderGraphAssetRecovery",
+			Engine::RuntimePaths::GetSavedRoot() / "ShaderGraphAssetRecovery",
 			[](const std::filesystem::path& path) {
-				return Engine::StorageFileUtility::IsInside(
-					path, Engine::RuntimePaths::GetGameAssetsRoot()) ||
-					Engine::StorageFileUtility::IsInside(
-						path, Engine::RuntimePaths::GetEngineAssetsRoot());
+				return Engine::StorageFileUtility::IsInside(path, Engine::RuntimePaths::GetGameAssetsRoot()) ||
+					   Engine::StorageFileUtility::IsInside(path, Engine::RuntimePaths::GetEngineAssetsRoot());
 			},
 		};
 	}
 
-	bool RecoverShaderGraphFiles(
-		const std::filesystem::path& recovery,
-		std::string& error) {
+	// 保存先と選択中のGraphを照合する
+	bool PrepareGraphDocument(Engine::AssetDatabase& database, const std::filesystem::path& path, Engine::AssetID expectedID,
+		Engine::AssetDocumentChange& change, std::string& status) {
 
-		return Engine::JsonFileJournal::Recover(
-			MakeShaderGraphSaveScope(), recovery, error,
-			[](const std::filesystem::path&) {});
+		if (!Engine::AssetDocumentPublication::Prepare(
+				database, Engine::RuntimePaths::ToAssetPath(path), Engine::AssetType::ShaderGraph, change, status)) {
+			return false;
+		}
+		if (expectedID && change.metadata.guid != expectedID) {
+			status = "保存先のGraphと選択中のGUIDが一致しません";
+			return false;
+		}
+		if (!expectedID && change.fileRevision != "missing") {
+			status = "同名のグラフが存在します";
+			return false;
+		}
+		return true;
 	}
 
+	// 完成したShaderとPipelineを描画側へ渡す
 	void PublishShaderGraphArtifact(
-		const Engine::EditorToolContext& context,
-		Engine::ShaderGraphArtifact artifact,
-		Engine::MaterialAsset material) {
+		const Engine::EditorToolContext& context, Engine::ShaderGraphArtifact artifact, Engine::MaterialAsset material) {
 
-		if (!context.panelContext ||
-			!context.panelContext->renderPipeline) {
+		if (!context.panelContext || !context.panelContext->renderPipeline) {
 			return;
 		}
 
-		Engine::RenderAssetLibrary& library =
-			context.panelContext->renderPipeline->GetRenderAssetLibrary();
+		Engine::RenderAssetLibrary& library = context.panelContext->renderPipeline->GetRenderAssetLibrary();
 		library.RegisterDerivedShader(std::move(artifact.opaqueShader));
 		library.RegisterDerivedShader(std::move(artifact.transparentShader));
 		library.RegisterDerivedShader(std::move(artifact.depthShader));
@@ -72,85 +79,57 @@ namespace {
 
 std::string Engine::ShaderGraphPublication::GraphFileStem(const std::filesystem::path& graphPath) {
 
-	return Engine::Algorithm::PathToUTF8(
-		graphPath.stem().stem());
+	return Engine::Algorithm::PathToUTF8(graphPath.stem().stem());
 }
 
-bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& context, AssetDatabase& database, const ShaderGraphAsset& graph,
-	AssetID assetID, const std::filesystem::path& graphPath, AssetID& materialID,
+Engine::AssetID Engine::ShaderGraphPublication::SaveGraph(AssetDatabase& database, const ShaderGraphAsset& graph,
+	const std::filesystem::path& path, AssetID expectedID, std::string& status) {
+
+	// 文書とmetaを揃えてから索引を公開する
+	std::vector<AssetDocumentChange> changes(1);
+	if (!PrepareGraphDocument(database, path, expectedID, changes.front(), status)) {
+		return {};
+	}
+	changes.front().document = ToJson(graph);
+	if (!AssetDocumentPublication::Commit(database, changes, MakeShaderGraphSaveScope(), status)) {
+		return {};
+	}
+	return changes.front().metadata.guid;
+}
+
+bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& context, AssetDatabase& database,
+	const ShaderGraphAsset& graph, AssetID assetID, const std::filesystem::path& graphPath, AssetID& materialID,
 	std::vector<ShaderGraphDiagnostic>& diagnostics, std::string& status) {
 
 	ShaderGraphArtifact artifact{};
-	if (!ShaderGraphArtifactCache::Compile(
-		graph, assetID, artifact, &database)) {
-		diagnostics = artifact.compileOutput.diagnostics;
-		status =
-			artifact.compileOutput.diagnostics.empty() ?
-			"派生Shaderを生成できませんでした" :
-			artifact.compileOutput.diagnostics.front().message;
+	if (!ShaderGraphArtifactCache::Compile(graph, assetID, artifact, &database, &diagnostics)) {
+		status = diagnostics.empty() ? "派生Shaderを生成できませんでした" : diagnostics.front().message;
 		return false;
 	}
-	diagnostics = artifact.compileOutput.diagnostics;
 
 	const std::string stem = GraphFileStem(graphPath);
-	const std::filesystem::path materialPath =
-		graphPath.parent_path() /
-		Algorithm::PathFromUTF8(stem + ".material.json");
-	MaterialAsset material =
-		ShaderGraphArtifactCache::CreateMaterial(
-			graph, assetID);
-	ShaderGraphArtifactCache::ApplyToMaterial(
-		artifact, material);
-	// Graphと生成Materialを同じ保存操作で確定
-	std::string saveError;
-	const std::vector<JsonFileChange> changes = {
-		{ materialPath, ToJson(material) },
-		{ graphPath, ToJson(graph) },
-	};
-	const std::vector<std::filesystem::path> recoveriesBefore =
-		JsonFileJournal::GetRecoveries(MakeShaderGraphSaveScope());
-	if (!JsonFileJournal::Commit(
-		MakeShaderGraphSaveScope(), changes,
-		"ShaderGraphの保存", saveError,
-		RecoverShaderGraphFiles)) {
-
-		status = saveError.empty() ?
-			"GraphとMaterialを保存できませんでした" :
-			saveError;
+	const std::filesystem::path materialPath = graphPath.parent_path() / Algorithm::PathFromUTF8(stem + ".material.json");
+	MaterialAsset material = ShaderGraphArtifactCache::CreateMaterial(graph, assetID);
+	ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
+	// Graphと生成MaterialのGUIDを保存前に揃える
+	std::vector<AssetDocumentChange> changes(2);
+	if (!AssetDocumentPublication::Prepare(
+			database, RuntimePaths::ToAssetPath(materialPath), AssetType::Material, changes[0], status) ||
+		!PrepareGraphDocument(database, graphPath, assetID, changes[1], status)) {
 		return false;
 	}
-	materialID = database.ImportOrGet(
-		RuntimePaths::ToAssetPath(materialPath),
-		AssetType::Material);
-	if (!materialID) {
-		// 登録失敗時は同じ保存操作で確定したファイルを戻す
-		const std::vector<std::filesystem::path> recoveriesAfter =
-			JsonFileJournal::GetRecoveries(MakeShaderGraphSaveScope());
-		for (auto it = recoveriesAfter.rbegin();
-			it != recoveriesAfter.rend(); ++it) {
+	changes[0].document = ToJson(material);
+	changes[1].document = ToJson(graph);
 
-			if (std::find(recoveriesBefore.begin(),
-				recoveriesBefore.end(), *it) != recoveriesBefore.end()) {
-				continue;
-			}
-			std::string recoveryError;
-			if (!RecoverShaderGraphFiles(*it, recoveryError)) {
-				status = "Materialを登録できず、保存前の状態へ戻せませんでした: " +
-					recoveryError;
-				return false;
-			}
-			break;
-		}
-		status =
-			"Materialを登録できませんでした";
+	// 文書とmetaを確定してから描画用の成果物を公開する
+	if (!AssetDocumentPublication::Commit(database, changes, MakeShaderGraphSaveScope(), status)) {
 		return false;
 	}
+	materialID = changes[0].metadata.guid;
 
-	if (context.panelContext &&
-		context.panelContext->renderPipeline) {
+	if (context.panelContext && context.panelContext->renderPipeline) {
 
-		RenderPipelineRunner& renderPipeline =
-			*context.panelContext->renderPipeline;
+		RenderPipelineRunner& renderPipeline = *context.panelContext->renderPipeline;
 		renderPipeline.ReloadMaterial(materialID);
 		if (artifact.opaqueShaderID) {
 			renderPipeline.ReloadShader(artifact.opaqueShaderID);
@@ -174,43 +153,29 @@ bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& 
 			renderPipeline.ReloadShader(artifact.rayTracingShaderID);
 		}
 		material.guid = materialID;
-		ShaderGraphArtifactCache::ApplyToMaterial(
-			artifact, material);
-		PublishShaderGraphArtifact(
-			context, std::move(artifact), std::move(material));
+		ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
+		PublishShaderGraphArtifact(context, std::move(artifact), std::move(material));
 	}
 	return true;
 }
 
-bool Engine::ShaderGraphPublication::CompileAndPublishPreview(
-	const EditorToolContext& context, AssetDatabase& database,
-	const ShaderGraphAsset& graph, AssetID assetID, AssetID& materialID,
-	std::vector<ShaderGraphDiagnostic>& diagnostics, std::string& status) {
+bool Engine::ShaderGraphPublication::CompileAndPublishPreview(const EditorToolContext& context, AssetDatabase& database,
+	const ShaderGraphAsset& graph, AssetID assetID, AssetID& materialID, std::vector<ShaderGraphDiagnostic>& diagnostics,
+	std::string& status) {
 
-	const AssetID previewGraphID =
-		ShaderGraphArtifactCache::MakeDerivedID(
-			assetID, 0x5052455649455747ull);
+	const AssetID previewGraphID = ShaderGraphArtifactCache::MakeDerivedID(assetID, 0x5052455649455747ull);
 	ShaderGraphArtifact artifact{};
-	if (!ShaderGraphArtifactCache::Compile(
-		graph, previewGraphID, artifact, &database)) {
+	if (!ShaderGraphArtifactCache::Compile(graph, previewGraphID, artifact, &database, &diagnostics)) {
 
-		diagnostics = artifact.compileOutput.diagnostics;
-		status = diagnostics.empty() ?
-			"プレビューを生成できませんでした" :
-			diagnostics.front().message;
+		status = diagnostics.empty() ? "プレビューを生成できませんでした" : diagnostics.front().message;
 		return false;
 	}
-	diagnostics = artifact.compileOutput.diagnostics;
 
-	MaterialAsset material =
-		ShaderGraphArtifactCache::CreateMaterial(
-			graph, previewGraphID);
+	MaterialAsset material = ShaderGraphArtifactCache::CreateMaterial(graph, previewGraphID);
 	ShaderGraphArtifactCache::ApplyToMaterial(artifact, material);
-	materialID = ShaderGraphArtifactCache::MakeDerivedID(
-		assetID, 0x505245564945574dull);
+	materialID = ShaderGraphArtifactCache::MakeDerivedID(assetID, 0x505245564945574dull);
 	material.guid = materialID;
-	PublishShaderGraphArtifact(
-		context, std::move(artifact), std::move(material));
+	PublishShaderGraphArtifact(context, std::move(artifact), std::move(material));
 	status = "プレビューを更新しました";
 	return true;
 }

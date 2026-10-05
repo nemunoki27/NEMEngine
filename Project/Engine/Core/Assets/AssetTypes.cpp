@@ -85,7 +85,7 @@ Engine::AssetID Engine::ParseAssetReference(const nlohmann::json& in, const char
 		return id;
 	}
 
-	if (expectedType != AssetType::Unknown && meta->type != expectedType) {
+	if (!IsAssetTypeCompatible(expectedType, meta->type)) {
 		if (diagnostic) {
 			diagnostic->issue = AssetReferenceIssueType::TypeMismatch;
 			diagnostic->actualType = meta->type;
@@ -102,4 +102,11 @@ Engine::AssetID Engine::ParseAssetReference(const nlohmann::json& in, const char
 nlohmann::json Engine::ToAssetReferenceJson(AssetID assetID) {
 
 	return assetID ? nlohmann::json(ToString(assetID)) : nlohmann::json("");
+}
+
+
+bool Engine::IsAssetTypeCompatible(AssetType expectedType, AssetType actualType) {
+
+	return expectedType == AssetType::Unknown || expectedType == actualType ||
+		(expectedType == AssetType::Texture && actualType == AssetType::RenderTexture);
 }

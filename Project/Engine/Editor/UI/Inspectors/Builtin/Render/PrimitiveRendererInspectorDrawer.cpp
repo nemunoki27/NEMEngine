@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
@@ -215,7 +215,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			ValueEditResult result = MyGUI::AssetReferenceField(
 				displayName.data(), textureID,
 				context.editorContext->assetDatabase,
-				{ AssetType::Texture }, setting);
+				{ AssetType::Texture, AssetType::RenderTexture }, setting);
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;

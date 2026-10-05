@@ -1,5 +1,13 @@
 #pragma once
 
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Assets/AssetTypes.h>
+
+// c++
+#include <span>
+
 namespace Engine {
 
 	class GraphicsCore;
@@ -29,6 +37,7 @@ namespace Engine {
 
 	namespace RuntimeRenderPreloader {
 		// 描画用AssetとPipelineを事前に生成する
-		void Preload(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, RuntimeRenderPreloadContext& context);
+		void Preload(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, RuntimeRenderPreloadContext& context,
+			std::span<const AssetID> requestedAssets);
 	}
 }

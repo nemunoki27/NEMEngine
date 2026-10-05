@@ -1,4 +1,4 @@
-# 環境変数と終了コードを揃えて検証プロセスを起動する
+﻿# 環境変数と終了コードを揃えて検証プロセスを起動する
 function Invoke-HarnessProcess {
     param([string]$FilePath, [string[]]$Arguments)
 

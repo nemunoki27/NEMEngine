@@ -7,6 +7,7 @@
 #include <Engine/Core/World/Components/Camera/CameraComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <string>
 
 namespace Engine {
 
@@ -96,9 +97,8 @@ namespace Engine {
 		// 描画対象レイヤーマスク
 		uint32_t cullingMask = 0xFFFFFFFFu;
 		bool postProcessEnabled = true;
-		uint32_t volumeLayerMask = 0xffffffffu;
-		AssetID volumeProfile{};
-		AssetID renderExtension{};
+		ColorPipelineSettings colorPipeline{};
+		AssetID renderPasses{};
 
 		// 描画にしようするカメラを持つエンティティ
 		Entity sourceCamera = Entity::Null();
@@ -112,6 +112,9 @@ namespace Engine {
 		RenderViewKind kind = RenderViewKind::Game;
 		// 描画ビューの情報が有効か
 		bool valid = false;
+
+		// World切替ごとに履歴の所有を区別する
+		uint64_t historyWorldRevision = 0;
 
 		// 描画範囲
 		uint32_t width = 0;
@@ -133,6 +136,10 @@ namespace Engine {
 		ResolvedCameraView perspective{};
 		ResolvedCameraView screen{};
 
+		// Cameraと出力先から履歴の識別子を作る
+		std::string GetHistoryKey() const;
+		// 出力Cameraと投影Cameraの描画対象を合わせる
+		uint32_t GetCullingMask(RenderCameraDomain domain) const;
 		// 指定した投影方式のカメラビューを返す
 		const ResolvedCameraView* FindCamera(RenderCameraDomain domain) const;
 	};

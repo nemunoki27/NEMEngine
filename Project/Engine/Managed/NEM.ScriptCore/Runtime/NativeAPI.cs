@@ -77,6 +77,7 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiateEntity;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneAdditive;
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneSingle;
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> PreloadScene;
     internal static delegate* unmanaged[Cdecl]<ulong> ReloadActiveScene;
     internal static delegate* unmanaged[Cdecl]<ulong, void> UnloadScene;
     internal static delegate* unmanaged[Cdecl]<ulong, int> IsSceneInstanceAlive;
@@ -166,6 +167,8 @@ internal static unsafe class NativeAPI {
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int> CollisionSetShapeProperty;
     // 指定クリップ名のアニメーション合計長
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float, int, int> SetAnimatorParameter;
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float*, int*, int> GetAnimatorParameter;
     // 指定クリップを頭から再生する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopySkinnedAnimationCurrentClip;
@@ -279,6 +282,7 @@ internal static unsafe class NativeAPI {
         InstantiateEntity = callbacks->instantiateEntity;
         LoadSceneAdditive = callbacks->loadSceneAdditive;
         LoadSceneSingle = callbacks->loadSceneSingle;
+        PreloadScene = callbacks->preloadScene;
         ReloadActiveScene = callbacks->reloadActiveScene;
         UnloadScene = callbacks->unloadScene;
         IsSceneInstanceAlive = callbacks->isSceneInstanceAlive;
@@ -351,6 +355,8 @@ internal static unsafe class NativeAPI {
         CollisionGetShapeProperty = callbacks->collisionGetShapeProperty;
         CollisionSetShapeProperty = callbacks->collisionSetShapeProperty;
         GetSkinnedAnimationDuration = callbacks->getSkinnedAnimationDuration;
+        SetAnimatorParameter = callbacks->setAnimatorParameter;
+        GetAnimatorParameter = callbacks->getAnimatorParameter;
         PlaySkinnedAnimation = callbacks->playSkinnedAnimation;
         CopySkinnedAnimationCurrentClip = callbacks->copySkinnedAnimationCurrentClip;
         GetSkinnedAnimationRuntimeState = callbacks->getSkinnedAnimationRuntimeState;

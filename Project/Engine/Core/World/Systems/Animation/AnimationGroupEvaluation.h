@@ -12,5 +12,5 @@ namespace Engine::AnimationGroupEvaluation {
 	void EvaluateGroupClips(ECSWorld& world, const Entity& entity,
 		const AnimationGroup& group, const std::vector<AnimationClipRuntime>& clips,
 		std::span<const AnimationPreviewBaseValue> baseStore, SystemContext& context,
-		std::vector<AnimationEvaluatedValue>& outValues);
+		std::vector<AnimationEvaluatedValue>& outValues, bool holdFinished = false);
 }

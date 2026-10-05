@@ -5,9 +5,9 @@
 //============================================================================
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
 #include <Engine/Editor/Tools/Builtin/Animation/AnimationClipTool.h>
+#include <Engine/Editor/Tools/Builtin/Animation/AnimationControllerTool.h>
 #include <Engine/Editor/Tools/Builtin/Collision/CollisionManagerTool.h>
 #include <Engine/Editor/Tools/Builtin/RenderFeatures/RenderFeatureProfileTool.h>
-#include <Engine/Editor/Tools/Builtin/RenderFeatures/VolumeProfileTool.h>
 #include <Engine/Editor/Tools/Builtin/Material/MaterialEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEffectEditorTool.h>
 #include <Engine/Editor/Tools/Builtin/Effect/ParticleEmitterDebugDraw.h>
@@ -48,13 +48,16 @@ namespace {
 void Engine::RegisterBuiltinEditorTools() {
 
 	// 発生形状の補助描画をEditorへ接続する
+#if defined(_DEBUG) || defined(_DEVELOPBUILD)
+	// LineRendererを使用できる構成だけ補助線を接続する
 	ParticleEmitterShapeRegistry::GetInstance().SetDebugDrawFunction(&ParticleEmitterDebugDraw::Draw);
+#endif
 
 	RegisterBuiltinEditorTool<SceneViewCameraController>();
 	RegisterBuiltinEditorTool<CollisionManagerTool>();
 	RegisterBuiltinEditorTool<AnimationClipTool>();
+	RegisterBuiltinEditorTool<AnimationControllerTool>();
 	RegisterBuiltinEditorTool<RenderFeatureProfileTool>();
-	RegisterBuiltinEditorTool<VolumeProfileTool>();
 	RegisterBuiltinEditorTool<MaterialEditorTool>();
 	RegisterBuiltinEditorTool<ShaderGraphEditorTool>();
 	RegisterBuiltinEditorTool<ParticleEffectEditorTool>();

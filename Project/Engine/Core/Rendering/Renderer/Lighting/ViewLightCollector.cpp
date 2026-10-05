@@ -13,7 +13,7 @@ namespace {
 	// ライトが有効か
 	template <typename T>
 	bool IsLightVisibleToCamera(const T& item, const Engine::SceneInstance* sceneInstance,
-		const Engine::ResolvedCameraView& camera) {
+		[[maybe_unused]] const Engine::ResolvedCameraView& camera) {
 
 		// シーンインスタンスが同じ、有効な場合のみ
 		if (sceneInstance && item.common.sceneInstanceID != sceneInstance->instanceID) {
@@ -21,10 +21,6 @@ namespace {
 		}
 		// カメラドメインが一致しないライトは除外
 		if (item.common.cameraDomain != Engine::RenderCameraDomain::Perspective) {
-			return false;
-		}
-		// ライトのレイヤーマスクとカメラのカリングマスクが共通ビットを持たない場合は除外
-		if ((item.common.affectLayerMask & camera.cullingMask) == 0) {
 			return false;
 		}
 		return true;

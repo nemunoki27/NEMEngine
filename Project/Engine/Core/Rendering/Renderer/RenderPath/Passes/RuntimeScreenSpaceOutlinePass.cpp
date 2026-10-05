@@ -194,8 +194,8 @@ void Engine::RuntimeScreenSpaceOutlinePass::DrawUIRange(
 		items.items.begin() + endIndex);
 	std::erase_if(uiDrawScratch_, [&](const RenderItem* item) {
 
-		return item && context.renderExtensionRuntime &&
-			context.renderExtensionRuntime->IsItemIsolated(*item);
+		return item && context.renderPassesRuntime &&
+			context.renderPassesRuntime->IsItemIsolated(*item);
 	});
 	RenderPassExecutionHelper::Execute(graphicsCore, context,
 		uiDrawScratch_, deps_, target);
@@ -235,8 +235,8 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 
 			// マスクパスを解決できるバックエンドだけを対象にする
 			if (!item || !item->world ||
-				(context.renderExtensionRuntime &&
-					context.renderExtensionRuntime->IsItemIsolated(*item)) ||
+				(context.renderPassesRuntime &&
+					context.renderPassesRuntime->IsItemIsolated(*item)) ||
 				!RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
 				continue;
 			}

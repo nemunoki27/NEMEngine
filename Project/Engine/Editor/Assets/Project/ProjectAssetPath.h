@@ -43,6 +43,9 @@ namespace Engine::ProjectAssetPath {
 	// あるパスが指定の親パスと同一または配下かを判定する
 	bool IsSameOrChildPath(const std::filesystem::path& path, const std::filesystem::path& parent);
 
+	// 同じstemへ指定した拡張子を付ける
+	std::filesystem::path MakeSiblingPath(const std::filesystem::path& targetPath, const std::filesystem::path& extension);
+
 	// アセットパスに対応する.metaファイルのパスを作る
 	std::filesystem::path MakeMetaPath(const std::filesystem::path& path);
 }

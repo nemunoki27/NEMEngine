@@ -5,6 +5,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Database/AssetMetaStorage.h>
+#include <Engine/Core/Assets/Database/AssetFileUtility.h>
 #include <Engine/Core/Assets/Database/AssetDependencyScanner.h>
 #include <Engine/Core/Assets/Watch/AssetChangeWatcher.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
@@ -59,6 +61,15 @@ namespace NEMTests {
 		const auto atlasPath = root / "test.png";
 		const auto fontPath = root / "test.font.json";
 		const auto orphanPath = root / "orphan.png.meta";
+		const auto staging = root / ".nem-copy-0123456789abcdef0123456789abcdef";
+		std::filesystem::create_directory(staging);
+		std::ofstream(staging / "unpublished.png") << "staged";
+		std::ofstream(staging / "orphan.png.meta") << "{}";
+		if (!AssetFileUtility::IsAssetCopyStagingDirectory(staging) ||
+			AssetFileUtility::IsAssetCopyStagingDirectory(root / ".nem-copy-user") ||
+			AssetFileUtility::IsAssetCopyStagingDirectory(root / ".nem-copy-0123456789abcdef0123456789abcdeg")) {
+			return false;
+		}
 		std::ofstream(atlasPath) << "fixture";
 		if (!JsonFile::Save(fontPath, nlohmann::json{ { "atlasTexture", "" }, { "custom", 17 } }) ||
 			!JsonFile::Save(orphanPath, nlohmann::json{ { "unknown", 23 } })) {
@@ -76,6 +87,11 @@ namespace NEMTests {
 		}
 		const AssetID fontID = font->guid;
 		const AssetID atlasID = atlas->guid;
+		// 作業先を索引へ登録せず、metaも生成しない
+		if (database.FindByPath(RuntimePaths::ToAssetPath(staging / "unpublished.png")) ||
+			std::filesystem::exists(staging / "unpublished.png.meta")) {
+			return false;
+		}
 		const auto revision = database.GetStructureRevision();
 		nlohmann::json data;
 		// 走査は孤立metaと欠損Fontを診断するだけに留める
@@ -133,6 +149,19 @@ namespace NEMTests {
 		passed &= !database.RebuildMeta({ root }) && database.Find(fontID) == font;
 
 		// 型の壊れたmetaは読込先と元ファイルを保持する
+		const nlohmann::json metaSource = {{"custom", {{"enabled", true}}}, {"version", 99}};
+		nlohmann::json metaDocument = {{"retained", true}};
+		const auto retainedDocument = metaDocument;
+		AssetMeta invalidMeta = duplicate;
+		invalidMeta.importerVersion = 0;
+		passed &= !AssetMetaStorage::BuildMetaDocument(invalidMeta, metaSource, metaDocument) &&
+			metaDocument == retainedDocument;
+		passed &= !AssetMetaStorage::BuildMetaDocument(duplicate, nlohmann::json::array(), metaDocument) &&
+			metaDocument == retainedDocument;
+		passed &= AssetMetaStorage::BuildMetaDocument(duplicate, metaSource, metaDocument) &&
+			metaDocument["custom"] == metaSource["custom"] && metaDocument["guid"] == ToString(duplicate.guid) &&
+			!metaDocument.contains("version") && metaSource.contains("version");
+
 		const auto invalidPath = root / "invalid.png.meta";
 		passed &= JsonFile::Save(invalidPath, nlohmann::json{ { "schemaVersion", "bad" } });
 		AssetMeta unchanged = duplicate;

@@ -222,8 +222,13 @@ namespace NEMTests {
 		scheduler.AddSystem(std::move(observer), 0);
 		scheduler.Tick(&world, context);
 
+		// 計測を止めてもSceneの安全地点とLifecycle通知を維持する
+		auto& profiler = Engine::FrameProfiler::GetInstance();
+		const bool previousProfiling = profiler.IsEnabled();
+		profiler.SetEnabled(false);
 		world.GetCommandBuffer().EnqueueUnloadScene(firstScene);
 		scheduler.Tick(&world, context);
+		profiler.SetEnabled(previousProfiling);
 
 		const Engine::SceneInstance* activeScene = scenes.GetActive();
 		return activeScene && activeScene->instanceID == secondScene &&

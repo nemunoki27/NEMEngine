@@ -49,6 +49,8 @@ namespace Engine {
 			ShaderCookResult& outResult, std::string& outError);
 		// 製品出力かどうか
 		static bool IsCookedProduct();
+		// Cookに含まれるAssetの種別を取得する
+		static bool TryGetAssetType(AssetID assetID, AssetType& outType);
 		// Cook済みShader Assetメタデータを取得する
 		static bool LoadShaderAsset(AssetID shaderID,
 			ShaderAsset& outAsset);

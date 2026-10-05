@@ -82,19 +82,6 @@ uint PackRenderingLayerMask(
 		kRenderingLayerMaskShift;
 }
 
-// GBufferのフラグからRendererのレイヤーマスクを取得
-uint GetDeferredRenderingLayerMask(uint flags) {
-	return (flags >> kRenderingLayerMaskShift) &
-		kRenderingLayerMaskBits;
-}
-
-// LightとGBufferのRendererレイヤーが一致するか
-bool DoesDeferredLightAffectRenderingLayer(
-	uint lightLayerMask, uint flags) {
-	return (lightLayerMask &
-		GetDeferredRenderingLayerMask(flags)) != 0u;
-}
-
 // メッシュサーフェイスをGBufferに設定して返す
 GBufferOutput EncodeGBuffer(MeshSurface surface) {
 

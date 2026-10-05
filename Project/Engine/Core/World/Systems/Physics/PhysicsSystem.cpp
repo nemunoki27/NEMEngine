@@ -8,10 +8,42 @@
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
-// c++
-#include <algorithm>
-#include <cmath>
+namespace {
+
+	// Worldの積分結果を親追従座標へ適用する
+	template <typename Body>
+	void IntegrateBody(Engine::ECSWorld& world, Engine::Entity entity, Body& body,
+		Engine::TransformComponent& transform, float dt) {
+
+		// 現在の親姿勢からCCDの開始位置を求める
+		Engine::ResolvedWorldTransform parentFollow{};
+		const bool resolved = Engine::TransformWorldUtility::ResolveParentFollowTransform(world, entity, parentFollow);
+		if (resolved) {
+			body.previousWorldPosition = (Engine::MakeLocalMatrix(transform) * parentFollow.matrix).GetTranslationValue();
+		}
+		body.hasPreviousWorldPosition = resolved;
+
+		// 親座標へ戻せなくても蓄積力は一度だけ消費する
+		const Engine::RigidbodyMotion motion = Engine::RigidbodyIntegration::Integrate(body, dt);
+		Engine::Matrix4x4 inverseParent{};
+		Engine::Quaternion inverseParentRotation{};
+		if (!resolved || !Engine::Matrix4x4::TryInverse(parentFollow.matrix, inverseParent) ||
+			!Engine::Quaternion::TryInverse(parentFollow.rotation, inverseParentRotation)) {
+			return;
+		}
+
+		// Worldの移動量と回転差分をlocal値へ戻す
+		transform.localPos += Engine::Vector3::TransferNormal(motion.translation, inverseParent);
+		if (motion.rotationDelta != Engine::Quaternion::Identity()) {
+			transform.localRotation = Engine::Quaternion::Normalize(
+				inverseParentRotation * motion.rotationDelta * parentFollow.rotation * transform.localRotation);
+		}
+		Engine::MarkTransformSubtreeDirty(world, entity);
+		transform.worldMatrix = Engine::MakeLocalMatrix(transform) * parentFollow.matrix;
+	}
+}
 
 void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
 
@@ -39,11 +71,7 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 				body.accumulatedTorque = Vector3::AnyInit(0.0f);
 				return;
 			}
-			body.previousWorldPosition = transform.worldMatrix.GetTranslationValue();
-			body.hasPreviousWorldPosition = true;
-			RigidbodyIntegration::Integrate(body, transform, dt);
-			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
-			MarkTransformSubtreeDirty(world, entity);
+			IntegrateBody(world, entity, body, transform, dt);
 		});
 
 	// 2D剛体、XY平面のみ動かしZは変えない
@@ -60,10 +88,6 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 				body.accumulatedTorque = 0.0f;
 				return;
 			}
-			body.previousWorldPosition = transform.worldMatrix.GetTranslationValue();
-			body.hasPreviousWorldPosition = true;
-			RigidbodyIntegration::Integrate(body, transform, dt);
-			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
-			MarkTransformSubtreeDirty(world, entity);
+			IntegrateBody(world, entity, body, transform, dt);
 		});
 }

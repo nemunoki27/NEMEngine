@@ -331,7 +331,7 @@ void Engine::UIInputSystem::Update(ECSWorld& world, SystemContext& context) {
 				selected->runtime->previousState =
 					UISelectableState::Selected;
 				visuals_.ResetSubmitState(world.GetUUID(selected->entity));
-				PlayStateSound(selected->selectable->submitted, context);
+				PlayStateSound(world, selected->entity, selected->selectable->submitted, context);
 				ClickButton(world, selected->entity);
 				consumedInput[playerIndex] = true;
 

@@ -4,17 +4,17 @@
 //	include
 //============================================================================
 #include "ShaderGraphAppearance.h"
-#include <Engine/Editor/Tools/Core/EditorToolRenderResources.h>
+#include "ShaderGraphPreviewEvaluator.h"
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
 
 namespace Engine {
 
 	//============================================================================
 	//	ShaderGraphNodePreviews class
-	//	ノードの簡易評価とプレビュー描画資源を所有する
+	//	ノードのプレビュー画像と背景を表示する
 	//============================================================================
 	class ShaderGraphNodePreviews {
-	public:
+	  public:
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -32,24 +32,15 @@ namespace Engine {
 		void InvalidateNodePreviews();
 		// 作成した画像を破棄する
 		void ClearNodePreviews();
-	private:
+
+	  private:
 		//========================================================================
 		//	private Methods
 		//========================================================================
 
-		//--------- structure ----------------------------------------------------
-
-		struct PreviewState;
-
 		//--------- variables ----------------------------------------------------
 
-		EditorToolRenderResources resources_;
-		std::unique_ptr<PreviewState> previewState_;
-
-		//--------- functions ----------------------------------------------------
-
-		// 描画中の資源を使用して評価する
-		void UpdateResources(const EditorToolContext& context, const ShaderGraphAsset& graph,
-			const ShaderGraphAppearanceSetting& appearance, std::string& status);
+		// 評価結果と描画資源の所有
+		ShaderGraphPreviewEvaluator evaluator_;
 	};
-}
+} // Engine

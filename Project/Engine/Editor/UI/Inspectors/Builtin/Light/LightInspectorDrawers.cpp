@@ -36,19 +36,6 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "レイヤーマスク", draft.affectLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(
-			"影レイヤーを個別指定", draft.useShadowLayerMask);
-		});
-	if (draft.useShadowLayerMask) {
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawLayerMaskField(
-				context, "影レイヤーマスク", draft.shadowLayerMask);
-			});
-	}
 }
 
 void Engine::DirectionalLightInspectorDrawer::OnBeforeCommit(
@@ -93,19 +80,6 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "レイヤーマスク", draft.affectLayerMask);
-	});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(
-			"影レイヤーを個別指定", draft.useShadowLayerMask);
-		});
-	if (draft.useShadowLayerMask) {
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawLayerMaskField(
-				context, "影レイヤーマスク", draft.shadowLayerMask);
-			});
-	}
 }
 
 //============================================================================
@@ -156,20 +130,6 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context,
-			"レイヤーマスク", draft.affectLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(
-			"影レイヤーを個別指定", draft.useShadowLayerMask);
-		});
-	if (draft.useShadowLayerMask) {
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawLayerMaskField(
-				context, "影レイヤーマスク", draft.shadowLayerMask);
-			});
-	}
 }
 
 //============================================================================
@@ -219,19 +179,6 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "レイヤーマスク", draft.affectLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField(
-			"影レイヤーを個別指定", draft.useShadowLayerMask);
-		});
-	if (draft.useShadowLayerMask) {
-		DrawField(anyItemActive, [&]() {
-			return InspectorDrawerCommon::DrawLayerMaskField(
-				context, "影レイヤーマスク", draft.shadowLayerMask);
-			});
-	}
 }
 
 void Engine::SpotLightInspectorDrawer::OnBeforeCommit(

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
@@ -70,7 +70,7 @@ void Engine::RenderTexture2D::Create(ID3D12Device* device, RTVDescriptor* rtvDes
 	// リソースの生成
 	HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
 		&resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, IID_PPV_ARGS(&candidate.resource_));
-	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "RenderTexture2D::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, hr, "RenderTexture2D::Create")) {
 		throw std::runtime_error("RenderTexture2D用リソースの作成に失敗しました");
 	}
 	if (!desc.debugName.empty()) {

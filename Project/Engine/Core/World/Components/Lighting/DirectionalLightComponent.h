@@ -34,9 +34,7 @@ namespace Engine {
 
 		// 有効フラグ
 		bool enabled = true;
-		uint32_t affectLayerMask = 0xffffffffu;
-		bool useShadowLayerMask = false;
-		uint32_t shadowLayerMask = 0xffffffffu;
+
 	};
 
 	// json変換

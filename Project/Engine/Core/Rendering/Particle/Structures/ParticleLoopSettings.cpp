@@ -14,8 +14,13 @@ namespace Engine {
 
 	float ParticleLoopSettings::LoopedT(float rawT) const {
 
+		// 終端と範囲外の入力を確定してから周回する
+		rawT = std::isfinite(rawT) ? std::clamp(rawT, 0.0f, 1.0f) : 0.0f;
 		if (loopCount <= 1) {
-			return std::clamp(rawT, 0.0f, 1.0f);
+			return rawT;
+		}
+		if (type == ParticleLoopType::Repeat && rawT == 1.0f) {
+			return 1.0f;
 		}
 		float t = rawT * static_cast<float>(loopCount);
 		if (type == ParticleLoopType::PingPong) {

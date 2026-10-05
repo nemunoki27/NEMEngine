@@ -1,5 +1,7 @@
 #include "EditorRequestSession.h"
 
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -10,6 +12,19 @@
 #include <utility>
 
 namespace {
+	// Scene操作の確認文を選ぶ
+	const char* GetSceneRequestActionName(Engine::EditorSceneRequestType type) {
+
+		switch (type) {
+		case Engine::EditorSceneRequestType::NewScene:
+			return "新しいシーンを作成する";
+		case Engine::EditorSceneRequestType::OpenScene:
+			return "別のシーンを開く";
+		default:
+			return "シーンを切り替える";
+		}
+	}
+
 	constexpr const char* kUnsavedScenePopupName = "シーン未保存通知";
 	constexpr const char* kCloseUnsavedScenePopupName = "シーン未保存通知##CloseApplication";
 	constexpr const char* kSceneSaveConflictPopupName = "同一Scene保存元の選択";
@@ -38,7 +53,7 @@ void Engine::EditorRequestSession::RequestPlayFrameStep() {
 
 void Engine::EditorRequestSession::RequestNewScene(bool hasDirtyScenes) {
 
-	QueueSceneRequest({ EditorSceneRequestType::NewScene, AssetID{} }, hasDirtyScenes);
+	QueueSceneRequest({EditorSceneRequestType::NewScene, AssetID{}}, hasDirtyScenes);
 }
 
 void Engine::EditorRequestSession::RequestOpenScene(AssetID sceneAsset, bool hasDirtyScenes) {
@@ -46,12 +61,12 @@ void Engine::EditorRequestSession::RequestOpenScene(AssetID sceneAsset, bool has
 	if (!sceneAsset) {
 		return;
 	}
-	QueueSceneRequest({ EditorSceneRequestType::OpenScene, sceneAsset }, hasDirtyScenes);
+	QueueSceneRequest({EditorSceneRequestType::OpenScene, sceneAsset}, hasDirtyScenes);
 }
 
 void Engine::EditorRequestSession::RequestSaveScene() {
 
-	sceneRequest_ = { EditorSceneRequestType::SaveScene, AssetID{} };
+	sceneRequest_ = {EditorSceneRequestType::SaveScene, AssetID{}};
 }
 
 void Engine::EditorRequestSession::RequestEnterPrefabEdit(AssetID prefabAsset) {
@@ -59,27 +74,27 @@ void Engine::EditorRequestSession::RequestEnterPrefabEdit(AssetID prefabAsset) {
 	if (!prefabAsset) {
 		return;
 	}
-	sceneRequest_ = { EditorSceneRequestType::EnterPrefabEdit, prefabAsset };
+	sceneRequest_ = {EditorSceneRequestType::EnterPrefabEdit, prefabAsset};
 }
 
 void Engine::EditorRequestSession::RequestExitPrefabEdit() {
 
-	sceneRequest_ = { EditorSceneRequestType::ExitPrefabEdit, AssetID{} };
+	sceneRequest_ = {EditorSceneRequestType::ExitPrefabEdit, AssetID{}};
 }
 
 void Engine::EditorRequestSession::RequestExitPrefabEditAll() {
 
-	sceneRequest_ = { EditorSceneRequestType::ExitPrefabEditAll, AssetID{} };
+	sceneRequest_ = {EditorSceneRequestType::ExitPrefabEditAll, AssetID{}};
 }
 
 void Engine::EditorRequestSession::RequestTogglePrefabInContext() {
 
-	sceneRequest_ = { EditorSceneRequestType::TogglePrefabInContext, AssetID{} };
+	sceneRequest_ = {EditorSceneRequestType::TogglePrefabInContext, AssetID{}};
 }
 
 void Engine::EditorRequestSession::RequestSavePrefab() {
 
-	sceneRequest_ = { EditorSceneRequestType::SavePrefab, AssetID{} };
+	sceneRequest_ = {EditorSceneRequestType::SavePrefab, AssetID{}};
 }
 
 void Engine::EditorRequestSession::RequestCloseUnsavedScenePopup() {
@@ -132,8 +147,7 @@ Engine::EditorSceneRequest Engine::EditorRequestSession::ConsumeSceneRequest() {
 
 void Engine::EditorRequestSession::QueueSceneRequest(const EditorSceneRequest& request, bool hasDirtyScenes) {
 
-	if (request.type == EditorSceneRequestType::NewScene ||
-		request.type == EditorSceneRequestType::OpenScene) {
+	if (request.type == EditorSceneRequestType::NewScene || request.type == EditorSceneRequestType::OpenScene) {
 
 		if (hasDirtyScenes) {
 
@@ -143,18 +157,6 @@ void Engine::EditorRequestSession::QueueSceneRequest(const EditorSceneRequest& r
 		}
 	}
 	sceneRequest_ = request;
-}
-
-const char* Engine::EditorRequestSession::GetSceneRequestActionName(EditorSceneRequestType type) const {
-
-	switch (type) {
-	case EditorSceneRequestType::NewScene:
-		return "新しいシーンを作成する";
-	case EditorSceneRequestType::OpenScene:
-		return "別のシーンを開く";
-	default:
-		return "シーンを切り替える";
-	}
 }
 
 void Engine::EditorRequestSession::SubmitPendingSceneRequest(bool saveBeforeSubmit) {
@@ -167,10 +169,10 @@ void Engine::EditorRequestSession::SubmitPendingSceneRequest(bool saveBeforeSubm
 
 		switch (pendingSceneRequest_.type) {
 		case EditorSceneRequestType::NewScene:
-			sceneRequest_ = { EditorSceneRequestType::SaveAndNewScene, AssetID{} };
+			sceneRequest_ = {EditorSceneRequestType::SaveAndNewScene, AssetID{}};
 			break;
 		case EditorSceneRequestType::OpenScene:
-			sceneRequest_ = { EditorSceneRequestType::SaveAndOpenScene, pendingSceneRequest_.sceneAsset };
+			sceneRequest_ = {EditorSceneRequestType::SaveAndOpenScene, pendingSceneRequest_.sceneAsset};
 			break;
 		default:
 			sceneRequest_ = pendingSceneRequest_;
@@ -191,11 +193,11 @@ void Engine::EditorRequestSession::DrawUnsavedScenePopup() {
 		requestOpenUnsavedPopup_ = false;
 	}
 
-	if (!ImGui::BeginPopupModal(kUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!MyGUI::BeginPopupModal(kUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
 
-	ImGui::TextUnformatted("読み込み中のシーンに未保存の変更があります");
+	ImGui::TextWrapped("%s", "読み込み中のシーンに未保存の変更があります");
 	ImGui::Text("%s前に保存しますか？", GetSceneRequestActionName(pendingSceneRequest_.type));
 	ImGui::Separator();
 
@@ -228,12 +230,12 @@ void Engine::EditorRequestSession::DrawCloseUnsavedScenePopup() {
 		requestOpenCloseUnsavedPopup_ = false;
 	}
 
-	if (!ImGui::BeginPopupModal(kCloseUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!MyGUI::BeginPopupModal(kCloseUnsavedScenePopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
 
-	ImGui::TextUnformatted("読み込み中のシーンに未保存の変更があります");
-	ImGui::TextUnformatted("保存しますか？");
+	ImGui::TextWrapped("%s", "読み込み中のシーンに未保存の変更があります");
+	ImGui::TextWrapped("%s", "保存しますか？");
 	ImGui::Separator();
 
 	if (ImGui::Button("保存", ImVec2(120.0f, 0.0f))) {
@@ -257,8 +259,7 @@ void Engine::EditorRequestSession::DrawCloseUnsavedScenePopup() {
 	ImGui::EndPopup();
 }
 
-void Engine::EditorRequestSession::RequestSceneSaveConflict(
-	const std::vector<SceneSaveConflictChoice>& choices) {
+void Engine::EditorRequestSession::RequestSceneSaveConflict(const std::vector<SceneSaveConflictChoice>& choices) {
 
 	sceneSaveConflictChoices_ = choices;
 	sceneSaveConflictSelection_.assign(choices.size(), -1);
@@ -266,14 +267,12 @@ void Engine::EditorRequestSession::RequestSceneSaveConflict(
 	requestOpenSceneSaveConflictPopup_ = true;
 }
 
-std::optional<Engine::SceneSaveConflictResult>
-Engine::EditorRequestSession::ConsumeSceneSaveConflictResult() {
+std::optional<Engine::SceneSaveConflictResult> Engine::EditorRequestSession::ConsumeSceneSaveConflictResult() {
 
 	if (!sceneSaveConflictResult_) {
 		return std::nullopt;
 	}
-	std::optional<SceneSaveConflictResult> result =
-		std::move(sceneSaveConflictResult_);
+	std::optional<SceneSaveConflictResult> result = std::move(sceneSaveConflictResult_);
 	sceneSaveConflictResult_.reset();
 	return result;
 }
@@ -286,18 +285,16 @@ void Engine::EditorRequestSession::DrawSceneSaveConflictPopup() {
 		requestOpenSceneSaveConflictPopup_ = false;
 	}
 
-	if (!ImGui::BeginPopupModal(kSceneSaveConflictPopupName, nullptr,
-		ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!MyGUI::BeginPopupModal(kSceneSaveConflictPopupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 		return;
 	}
 
-	ImGui::TextUnformatted("同じScene Assetを複数Instanceで編集しています");
-	ImGui::TextUnformatted("保存するInstanceを選択してください。選択前はファイルを変更しません。");
-	ImGui::TextUnformatted("別の内容のInstanceは未保存のまま残ります。切替・終了時は改めて確認します。");
+	ImGui::TextWrapped("%s", "同じScene Assetを複数Instanceで編集しています");
+	ImGui::TextWrapped("%s", "保存するInstanceを選択してください。選択前はファイルを変更しません。");
+	ImGui::TextWrapped("%s", "別の内容のInstanceは未保存のまま残ります。切替・終了時は改めて確認します。");
 	ImGui::Separator();
 
-	bool canSave = !sceneSaveConflictChoices_.empty() &&
-		sceneSaveConflictSelection_.size() == sceneSaveConflictChoices_.size();
+	bool canSave = !sceneSaveConflictChoices_.empty() && sceneSaveConflictSelection_.size() == sceneSaveConflictChoices_.size();
 	for (size_t i = 0; i < sceneSaveConflictChoices_.size(); ++i) {
 
 		const SceneSaveConflictChoice& choice = sceneSaveConflictChoices_[i];
@@ -335,17 +332,16 @@ void Engine::EditorRequestSession::DrawSceneSaveConflictPopup() {
 		std::unordered_map<AssetID, UUID> selectedInstances;
 		for (size_t i = 0; i < sceneSaveConflictChoices_.size(); ++i) {
 			const auto& choice = sceneSaveConflictChoices_[i];
-			selectedInstances.emplace(choice.sceneAsset,
-				choice.instanceIDs[sceneSaveConflictSelection_[i]]);
+			selectedInstances.emplace(choice.sceneAsset, choice.instanceIDs[sceneSaveConflictSelection_[i]]);
 		}
-		if (SubmitSceneSaveConflictResult({ false, std::move(selectedInstances) })) {
+		if (SubmitSceneSaveConflictResult({false, std::move(selectedInstances)})) {
 			ImGui::CloseCurrentPopup();
 		}
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("キャンセル", ImVec2(120.0f, 0.0f))) {
 
-		SubmitSceneSaveConflictResult({ true, {} });
+		SubmitSceneSaveConflictResult({true, {}});
 		ImGui::CloseCurrentPopup();
 	}
 

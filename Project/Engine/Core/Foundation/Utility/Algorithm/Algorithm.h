@@ -24,6 +24,18 @@
 namespace Engine {
 	namespace Algorithm {
 
+		// 指定要素を移動し、間の要素順を維持する
+		template <typename T>
+		void MoveListItem(std::vector<T>& list, int32_t from, int32_t to) {
+
+			if (from < 0 || to < 0 || list.size() <= static_cast<size_t>(from) || list.size() <= static_cast<size_t>(to)) { return; }
+			if (from < to) {
+				std::rotate(list.begin() + from, list.begin() + from + 1, list.begin() + to + 1);
+			} else {
+				std::rotate(list.begin() + to, list.begin() + from, list.begin() + from + 1);
+			}
+		}
+
 		//============================================================================
 		//	Enum
 		//============================================================================

@@ -12,8 +12,10 @@
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/Foundation/Math/AffineDecompose.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Utility/Random/RandomGeneratorScope.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleShapeDataUtility.h>
+#include <Engine/Core/Rendering/Particle/Structures/ParticleEmissionClock.h>
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 #include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
@@ -83,7 +85,7 @@ void Engine::ParticleInstanceUpdater::RestartEffectInstance(
 	}
 }
 
-bool Engine::ParticleInstanceUpdater::UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
+uint32_t Engine::ParticleInstanceUpdater::UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
 	const ParticleEffectAsset& asset, float deltaTime, bool emissionEnabled) const {
 
 	if (!emissionEnabled) { return false; }
@@ -106,13 +108,13 @@ bool Engine::ParticleInstanceUpdater::UpdateGroupEmission(ParticleEffectInstance
 		}
 	}
 
-	instance.runtimeGroupEmitTimer += deltaTime;
-	if (instance.runtimeGroupEmitTimer < (std::max)(0.0f, asset.groupEmission.interval)) {
-		return false;
+	uint32_t count = AdvanceParticleEmissionClock(instance.runtimeGroupEmitTimer,
+		asset.groupEmission.interval, deltaTime);
+	if (instance.oneShot || asset.groupEmission.waitForCompletion) {
+		count = (std::min)(count, 1u);
 	}
-	instance.runtimeGroupEmitTimer = 0.0f;
-	instance.runtimeGroupEmitted = true;
-	return true;
+	instance.runtimeGroupEmitted |= count != 0;
+	return count;
 }
 
 bool Engine::ParticleInstanceUpdater::UpdateEffectInstance(ECSWorld& world,
@@ -120,6 +122,16 @@ bool Engine::ParticleInstanceUpdater::UpdateEffectInstance(ECSWorld& world,
 	const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
 	SystemContext& context, float deltaTime, bool updateSimulation,
 	bool emissionEnabled, bool drawEmitterShape, bool checkReload) {
+
+	// Effectごとの乱数列を再生開始時に初期化する
+	if (!instance.randomInitialized) {
+		if (instance.useAutoRandomSeed) {
+			instance.randomSeed = std::random_device{}();
+		}
+		instance.randomGenerator.seed(instance.randomSeed);
+		instance.randomInitialized = true;
+	}
+	RandomGeneratorScope randomScope(instance.randomGenerator);
 
 	const AssetID effectID = instance.effect ? instance.effect : BuiltinAssets::Effects::DefaultParticle;
 	if (instance.runtimeEffectID != effectID) {
@@ -146,8 +158,8 @@ bool Engine::ParticleInstanceUpdater::UpdateEffectInstance(ECSWorld& world,
 		RestartEffectInstance(instance, asset);
 	}
 
-	const bool simultaneousEmit = updateSimulation &&
-		UpdateGroupEmission(instance, asset, deltaTime, emissionEnabled);
+	const uint32_t simultaneousEmit = updateSimulation ?
+		UpdateGroupEmission(instance, asset, deltaTime, emissionEnabled) : 0;
 	for (size_t i = 0; i < asset.groups.size(); ++i) {
 
 		ParticleGroupRuntimeState& state = instance.runtimeGroups[i];
@@ -158,7 +170,7 @@ bool Engine::ParticleInstanceUpdater::UpdateEffectInstance(ECSWorld& world,
 			state.trails.clear();
 			continue;
 		}
-		UpdateGroup(world, emitterWorld, state, asset, group, effect->groups[i],
+		UpdateGroup(emitterWorld, state, asset, group, effect->groups[i],
 			parentSettings, useAssetParentSettings,
 			deltaTime, updateSimulation, simultaneousEmit, emissionEnabled,
 			instance.oneShot, drawEmitterShape);
@@ -183,15 +195,15 @@ bool Engine::ParticleInstanceUpdater::UpdateEffectInstance(ECSWorld& world,
 	return true;
 }
 
-void Engine::ParticleInstanceUpdater::UpdateGroup(ECSWorld& world, const Matrix4x4& emitterWorld,
+void Engine::ParticleInstanceUpdater::UpdateGroup(const Matrix4x4& emitterWorld,
 	ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
 	const ParticleEffectGroup& group, const ParticleGroupDefinition& runtime,
 	const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
-	float deltaTime, bool updateSimulation, bool simultaneousEmit, bool emissionEnabled,
+	float deltaTime, bool updateSimulation, uint32_t simultaneousEmit, bool emissionEnabled,
 	bool oneShot, bool drawEmitterShape) {
 
 	parentRuntimes_.assign(runtime.phases.size(), ParticleParentPose{});
-	ResolveParticleParents(world, emitterWorld, runtime,
+	ResolveParticleParents(emitterWorld, runtime,
 		parentSettings, useAssetParentSettings, parentRuntimes_);
 	const std::vector<ParticleParentPose>& parents = parentRuntimes_;
 	if (!updateSimulation) {
@@ -248,6 +260,11 @@ void Engine::ParticleInstanceUpdater::UpdateGroup(ECSWorld& world, const Matrix4
 			const ParticlePhaseDefinition& phase = runtime.phases[particle.phaseIndex];
 			UpdateParticleParent(particle, ResolveParticleParentSettings(
 				phase, parentSettings, useAssetParentSettings), parents[particle.phaseIndex]);
+			// 遷移先の初期値を適用し、指定のない形状は保持する
+			particle.rotationSpeeds.clear();
+			ExecuteSpawnModules(std::span<Particle>(&particle, 1), phase);
+			particle.previousPhaseIndex = particle.phaseIndex;
+			particle.previousAge = 0.0f;
 		}
 		particle.pos += particle.velocity * deltaTime;
 		if (!hasUpdateBatch) {
@@ -277,26 +294,28 @@ void Engine::ParticleInstanceUpdater::UpdateGroup(ECSWorld& world, const Matrix4
 	if (emitAllowed) {
 
 		const ParticleEmitterSettings& emitterSettings = group.emitter;
+		const uint32_t capacity = particles.size() < emitterSettings.maxParticles ?
+			emitterSettings.maxParticles - static_cast<uint32_t>(particles.size()) : 0;
+		uint32_t emitCount = asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous ?
+			simultaneousEmit : emitOnce ? 1u :
+			AdvanceParticleEmissionClock(state.emitTimer, emitterSettings.emitInterval, deltaTime);
+		state.emitted |= emitCount != 0;
 		uint32_t spawnCount = 0;
-		if (asset.groupEmission.mode == ParticleEffectGroupEmissionMode::Simultaneous) {
-			spawnCount = emitterSettings.emitCount.Sample();
-			state.emitted = true;
-		} else if (emitOnce) {
-
-			spawnCount = emitterSettings.emitCount.Sample();
-			state.emitted = true;
+		// 大量の追いつき発生でも上限を超えて抽選しない
+		if (emitterSettings.emitCount.type == ParticleValueType::Constant) {
+			spawnCount = static_cast<uint32_t>((std::min)(static_cast<uint64_t>(capacity),
+				static_cast<uint64_t>(emitCount) * emitterSettings.emitCount.constant));
 		} else {
-
-			state.emitTimer += deltaTime;
-			if (emitterSettings.emitInterval <= state.emitTimer) {
-
-				state.emitTimer = 0.0f;
-				spawnCount = emitterSettings.emitCount.Sample();
+			emitCount = (std::min)(emitCount, capacity);
+			for (uint32_t i = 0; i < emitCount && spawnCount < capacity; ++i) {
+				spawnCount += (std::min)(emitterSettings.emitCount.Sample(), capacity - spawnCount);
 			}
 		}
-		const uint32_t capacity = static_cast<uint32_t>(
-			(std::max)(0, static_cast<int32_t>(emitterSettings.maxParticles) - static_cast<int32_t>(particles.size())));
-		spawnCount = (std::min)(spawnCount, capacity);
+		// 全面無効の形状からは粒子を発生させない
+		const auto* emitterShape = ParticleEmitterShapeRegistry::GetInstance().Find(emitterSettings.shape);
+		if (emitterShape && !emitterShape->CanEmit(emitterSettings)) {
+			spawnCount = 0;
+		}
 		if (0 < spawnCount && !runtime.phases.empty()) {
 
 			particles.resize(particles.size() + spawnCount);
@@ -306,6 +325,11 @@ void Engine::ParticleInstanceUpdater::UpdateGroup(ECSWorld& world, const Matrix4
 			InitEmitterParticles(newborn, emitterSettings, firstPhase.lifetime,
 				asset.space == PrimitiveRenderSpace::Screen2D, state.nextParticleID);
 			state.nextParticleID += spawnCount;
+			// 最初のPhaseは基本形状、以降は直前の評価値を保持する
+			const ParticleShapeData initialShape = MakeParticleShapeData(state.renderSettings);
+			for (Particle& particle : newborn) {
+				particle.shapeData = initialShape;
+			}
 
 			// エミッターのワールド行列で発生位置と速度を変換する
 			const bool hasSpawnBatch = firstPhase.hasSpawnBatch || firstPhase.hasUpdateBatch;
@@ -373,6 +397,8 @@ void Engine::ParticleInstanceUpdater::InitEmitterParticles(std::span<Particle> n
 		if (shape) {
 			shape->InitParticle(position, direction, settings, is2D, spawnIndex);
 		}
+		// 配置とModuleで同じ発生番号を使う
+		particle.id = spawnIndex.global;
 		++spawnIndex.global;
 		++spawnIndex.batchIndex;
 
@@ -381,7 +407,6 @@ void Engine::ParticleInstanceUpdater::InitEmitterParticles(std::span<Particle> n
 		particle.spawnDirection = Vector3::NormalizeOr(direction, Vector3(0.0f, 1.0f, 0.0f));
 		particle.velocity = direction * settings.speed.Sample();
 		particle.lifetime = (std::max)(lifetime.Sample(), 0.001f);
-		particle.id = spawnIndex.global;
 	}
 }
 
@@ -394,11 +419,6 @@ void Engine::ParticleInstanceUpdater::DrawEmitterShape(const Matrix4x4& emitterW
 		return;
 	}
 
-	// エミッターのワールド位置と回転を取り出す
-	Vector3 center = Vector3::AnyInit(0.0f);
-	Quaternion rotation = Quaternion::Identity();
-	Vector3 scale{};
-	DecomposeAffine3D(emitterWorld, center, rotation, scale);
 	LineRenderer3D* renderer = nullptr;
 	if (!is2D) {
 		renderer = LineRenderer::GetInstance()->Get3D();
@@ -406,7 +426,7 @@ void Engine::ParticleInstanceUpdater::DrawEmitterShape(const Matrix4x4& emitterW
 			renderer->SetOccludedMode(true);
 		}
 	}
-	ParticleEmitterShapeRegistry::GetInstance().DrawDebugShape(settings, center, rotation, is2D);
+	ParticleEmitterShapeRegistry::GetInstance().DrawDebugShape(settings, emitterWorld, is2D);
 	if (renderer) {
 		renderer->SetOccludedMode(false);
 	}

@@ -53,6 +53,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 	if constexpr (BuildConfig::kEditorEnabled) {
 
 		editorContext_.isPlaying = worldManager_.IsPlaying();
+		editorContext_.hasDirtyScenes = editorManager_.HasDirtyScenes();
 		editorContext_.isPlayPaused = playSession_->IsPaused();
 		editorContext_.activeScenePath = activeScenePath_;
 		editorContext_.activeSceneHeader = header;

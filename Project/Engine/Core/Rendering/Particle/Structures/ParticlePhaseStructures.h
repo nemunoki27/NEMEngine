@@ -34,6 +34,8 @@ namespace Engine {
 		std::string id;
 		// モジュールごとのパラメータ
 		nlohmann::json params = nlohmann::json::object();
+		// 同種Moduleを区別する保存ID
+		UUID instanceID = UUID::New();
 	};
 
 	// フェーズ中の粒子を追従させる親設定
@@ -41,8 +43,6 @@ namespace Engine {
 
 		// エミッターを親にするか
 		bool useEmitter = false;
-		// 任意の親エンティティのシーンローカルID
-		UUID entityLocalFileID{};
 		// 親の回転を無視するか
 		bool ignoreParentRotation = false;
 		// 親のスケールを無視するか
@@ -50,7 +50,7 @@ namespace Engine {
 		// 親を解除するときにワールド姿勢を維持するか
 		bool keepWorldOnDetach = true;
 
-		bool HasParent() const { return useEmitter || static_cast<bool>(entityLocalFileID); }
+		bool HasParent() const { return useEmitter; }
 	};
 
 	// 1フェーズ分の定義
@@ -70,5 +70,6 @@ namespace Engine {
 		ParticlePhaseParentSettings parentSettings{};
 		// 使用されるモジュールのリスト
 		std::vector<ParticleEffectModuleEntry> modules;
+		UUID id = UUID::New();
 	};
 } // Engine

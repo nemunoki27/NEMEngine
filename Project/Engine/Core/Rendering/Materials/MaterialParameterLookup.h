@@ -16,6 +16,8 @@ namespace Engine::MaterialParameterLookup {
 	// IDと意味と表示名の順に値を検索する
 	const MaterialParameterValue* Find(const MaterialParameterSet& parameters, MaterialParameterID id,
 		MaterialParameterSemantic semantic, std::string_view name, const MaterialParameterSet* defaults = nullptr);
+	// パラメータが指定Assetを参照するか調べる
+	bool ReferencesAsset(const MaterialParameterSet& parameters, AssetID assetID);
 	// 標準MaterialのTexture用途を判定する
 	bool IsTextureSemantic(MaterialParameterSemantic semantic);
 	// Material用のTexture参照を判定する

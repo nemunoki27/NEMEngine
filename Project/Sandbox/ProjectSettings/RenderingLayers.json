@@ -2,8 +2,8 @@
   "layers": [
     "Default",
     "Effect",
-    "",
-    "",
+    "LeftOnly",
+    "RightOnly",
     "",
     "",
     "",

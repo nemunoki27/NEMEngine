@@ -34,6 +34,9 @@ namespace Engine {
 
 		void OpenEditorTool() override;
 		void DrawEditorTool(const EditorToolContext& context) override;
+		bool HasPendingEdits() const override;
+		void RequestResolvePendingEdits() override;
+		EditorToolCloseResult ConsumePendingEditCloseResult() override;
 		// ProjectPanelから指定エフェクトを開く
 		void OpenAsset(AssetID assetID);
 
@@ -63,7 +66,12 @@ namespace Engine {
 		bool openWindow_ = false;
 
 		// 編集中のエフェクト
-		AssetID pendingAsset_{};
+		std::optional<AssetID> pendingAsset_;
+		std::string pendingCreate_;
+		bool pendingClose_ = false;
+		bool pendingConfirmation_ = false;
+		bool resolvingClose_ = false;
+		EditorToolCloseResult closeResult_ = EditorToolCloseResult::None;
 
 		// 新規作成のファイル名入力
 		std::string createNameBuffer_{};
@@ -76,27 +84,14 @@ namespace Engine {
 
 		// ウィンドウを描画する
 		void DrawWindow(const EditorToolContext& context);
+		void DrawPendingEdits(const EditorToolContext& context);
+		void DrawHistory(const EditorToolContext& context);
 		// アセットの選択と新規作成と保存を描画する
 		void DrawAssetSection(const EditorToolContext& context);
 		// グループの発生設定を描画する、変更があればtrue
 		bool DrawGroupEmissionSection(const EditorToolContext& context);
 		// グループ一覧を描画する、変更があればtrue
 		bool DrawGroupList();
-		// 再生と描画の基本設定を描画する、変更があればtrue
-		bool DrawBasicSection(const EditorToolContext& context, ParticleEffectGroup& group);
-		// フェーズ一覧と選択フェーズの編集を描画する、変更があればtrue
-		bool DrawPhaseSection(const EditorToolContext& context,
-			ParticleEffectGroup& group, ParticleGroupEditState& editorState);
-		// 選択フェーズのモジュール一覧を描画する、変更があればtrue
-		bool DrawPhaseModules(const EditorToolContext& context, ParticleEffectGroup& group,
-			ParticleGroupEditState& editorState, ParticleEffectPhase& phase);
-		// 選択フェーズのマテリアル設定を描画する、変更があればtrue
-		bool DrawPhaseMaterialSection(const EditorToolContext& context, ParticleEffectGroup& group, ParticleEffectPhase& phase);
-		// トレイルマテリアルのテクスチャ設定を描画する、変更があればtrue
-		bool DrawTrailMaterialSection(const EditorToolContext& context, ParticleEffectGroup& group);
-		// 選択フェーズのペアレント設定を描画する、変更があればtrue
-		bool DrawPhaseParentSection(const EditorToolContext& context,
-			ParticleEffectGroup& group, ParticleEffectPhase& phase, int32_t selectedPhase);
 
 	};
 } // Engine

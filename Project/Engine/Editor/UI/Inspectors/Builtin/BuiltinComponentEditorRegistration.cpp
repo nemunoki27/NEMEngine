@@ -22,16 +22,20 @@
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/BillboardInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/InvertedHullOutlineInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Render/ScreenSpaceOutlineInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Render/VolumeInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Light/LightInspectorDrawers.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/SkinnedAnimationInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Animation/AnimationPlayerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioSourceInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Audio/AudioListenerInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/CollisionInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/RigidbodyInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Rigidbody2DInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/PhysicsJointInspectorDrawer.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/UI/UIComponentInspectorDrawers.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/UI/CanvasInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/UI/UISelectableInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/UI/UIImageButtonInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/UI/UITextButtonInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/UI/UIProgressInspectorDrawer.h>
 
 // c++
 #include <memory>
@@ -70,6 +74,7 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 	// オーディオ
 	{
 		registry.Register(MakeComponentEditorDescriptor<AudioSourceInspectorDrawer>("Audio Source", "AudioSource", "Audio"));
+		registry.Register(MakeComponentEditorDescriptor<AudioListenerInspectorDrawer>("Audio Listener", "AudioListener", "Audio"));
 	}
 	// カメラ
 	{
@@ -93,7 +98,6 @@ void Engine::RegisterBuiltinComponentEditors(ComponentEditorRegistry& registry,
 		registry.Register(MakeComponentEditorDescriptor<BillboardInspectorDrawer>("Billboard", "Billboard", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<InvertedHullOutlineInspectorDrawer>("Inverted Hull Outline", "InvertedHullOutline", "Rendering"));
 		registry.Register(MakeComponentEditorDescriptor<ScreenSpaceOutlineInspectorDrawer>("Screen Space Outline", "ScreenSpaceOutline", "Rendering"));
-		registry.Register(MakeComponentEditorDescriptor<VolumeInspectorDrawer>("Volume", "Volume", "Rendering"));
 	}
 	// 衝突
 	{

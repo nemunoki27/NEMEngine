@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include "EditorSceneOperations.h"
 #include "EditorPlaySession.h"
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
@@ -27,6 +28,11 @@ void Engine::EngineApplication::HandleEditorSceneRequests() {
 			CompleteSceneSaveRequest(savedRequest, outcome);
 		}
 		if (pendingSceneSaveRequest_) {
+			return;
+		}
+		if (editorManager_.ConsumeBuildSceneSaveRequest()) {
+			if (worldManager_.IsPlaying()) { editorManager_.CompleteBuildSceneSave(false); return; }
+			SaveScenesAndContinue({ EditorSceneSaveAction::Build, {} });
 			return;
 		}
 
@@ -112,6 +118,11 @@ void Engine::EngineApplication::CompleteSceneSaveRequest(
 	}
 	const bool saved = outcome == SceneSaveOutcome::Saved;
 	const bool remaining = outcome == SceneSaveOutcome::UnsavedInstances;
+	if (request.action == EditorSceneSaveAction::Build) {
+		// 選択した保存元のファイルを製品Buildへ渡す
+		editorManager_.CompleteBuildSceneSave(saved || remaining);
+		return;
+	}
 	if (request.action == EditorSceneSaveAction::Play) {
 		// PlayはEdit Worldを保持するため、別Instanceの編集もSnapshotへ渡せる
 		playSession_->CompleteSceneSave(saved || remaining);
@@ -170,6 +181,10 @@ bool Engine::EngineApplication::OpenEditScene(AssetID sceneAsset) {
 }
 
 void Engine::EngineApplication::RestoreEditModeUIVisuals() {
+
+	// 保存と切替の前にSceneプレビューを戻す
+	EditorToolUI::EndScenePreviews();
+	editorManager_.EndPanelPreviews();
 
 	// PlayとPrefabへの切り替え時はOnWorldExitですでに復元済み
 	if (!uiInputSystem_ || worldManager_.IsPlaying() || IsPrefabEditing()) {

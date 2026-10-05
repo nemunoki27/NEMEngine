@@ -118,7 +118,7 @@ namespace {
 		const uint32_t bit = 1u << layerIndex;
 		if (value.is_object()) {
 			for (auto& [key, child] : value.items()) {
-				if (key == "renderingLayerMask" || key == "affectLayerMask") {
+				if (key == "renderingLayerMask") {
 					if (!child.is_number_unsigned() && !child.is_number_integer()) {
 						continue;
 					}

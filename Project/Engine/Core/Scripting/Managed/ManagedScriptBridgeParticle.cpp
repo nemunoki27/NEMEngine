@@ -31,6 +31,7 @@ namespace Engine {
 			Stopped,
 			Alive,
 			ParticleCount,
+			RandomSeed,
 		};
 
 		template<typename Function>
@@ -122,12 +123,21 @@ namespace Engine {
 		const Entity root = ResolveEntity(entity);
 		if (!world || !world->IsAlive(root) ||
 			state < static_cast<int32_t>(ParticleSystemStateQuery::Playing) ||
-			static_cast<int32_t>(ParticleSystemStateQuery::ParticleCount) < state) {
+			static_cast<int32_t>(ParticleSystemStateQuery::RandomSeed) < state) {
 			return 0;
 		}
 
 		const ParticleSystemStateQuery query =
 			static_cast<ParticleSystemStateQuery>(state);
+		if (query == ParticleSystemStateQuery::RandomSeed) {
+			const auto* component = world->TryGetComponent<ParticleSystemComponent>(root);
+			if (!component) { return 0; }
+			// 編集用のSeedを書き換えず実行Instanceの使用値を返す
+			const auto* runtime = TryGetParticleSystemRuntime(*world, root);
+			const uint32_t seed = component->useAutoRandomSeed && runtime && runtime->effect.randomInitialized ?
+				runtime->effect.randomSeed : component->randomSeed;
+			return static_cast<int32_t>(seed);
+		}
 		if (query == ParticleSystemStateQuery::ParticleCount) {
 
 			int32_t particleCount = 0;

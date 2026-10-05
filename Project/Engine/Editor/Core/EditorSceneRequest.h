@@ -67,6 +67,7 @@ namespace Engine {
 		OpenScene,
 		Play,
 		Close,
+		Build,
 	};
 
 	struct EditorSceneSaveRequest {

@@ -11,6 +11,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
+#include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 
@@ -156,14 +157,18 @@ std::vector<Engine::AssetID> AssetDependencyResolver::ExtractDependencies(const 
 	for (const auto& [referencedID, expectedType] : candidates) {
 
 		const AssetMeta* referenced = database.Find(referencedID);
-		if (!referenced) {
+		AssetType actualType = referenced ? referenced->type : AssetType::Unknown;
+		// 製品の派生Shaderは元ファイルを必要としない
+		const bool resolved = referenced ||
+			(RuntimePaths::IsProductBuild() && ShaderCook::TryGetAssetType(referencedID, actualType));
+		if (!resolved) {
 
 			issues.push_back({ AssetDatabaseIssueType::MissingReference, meta.guid, referencedID,
 				expectedType, AssetType::Unknown, meta.assetPath, {}, "missing reference" });
-		} else if (expectedType != AssetType::Unknown && referenced->type != expectedType) {
+		} else if (!IsAssetTypeCompatible(expectedType, actualType)) {
 
 			issues.push_back({ AssetDatabaseIssueType::ReferenceTypeMismatch, meta.guid, referencedID,
-				expectedType, referenced->type, meta.assetPath, referenced->assetPath, "type mismatch" });
+					expectedType, actualType, meta.assetPath, referenced ? referenced->assetPath : std::string{}, "type mismatch" });
 		}
 		if (collected.insert(referencedID).second) {
 			dependencies.emplace_back(referencedID);

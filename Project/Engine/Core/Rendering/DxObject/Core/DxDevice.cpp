@@ -5,7 +5,7 @@ using namespace Engine;
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/UTFConversion.h>
 #include <initializer_list>
 #include <stdexcept>
@@ -19,7 +19,7 @@ void DxDevice::Create() {
 	if (device_) throw std::logic_error("描画Deviceは作成済みです");
 	ComPtr<IDXGIFactory7> factory;
 	const HRESULT factoryResult = CreateDXGIFactory(IID_PPV_ARGS(&factory));
-	if (!DxDredDiagnostics::CheckHRESULT(nullptr, factoryResult, "DxDevice::Create/Factory")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(nullptr, factoryResult, "DxDevice::Create/Factory")) {
 		throw std::runtime_error("DXGI Factoryの作成に失敗しました");
 	}
 
@@ -30,10 +30,10 @@ void DxDevice::Create() {
 		const HRESULT result = factory->EnumAdapterByGpuPreference(index, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
 			IID_PPV_ARGS(adapter.ReleaseAndGetAddressOf()));
 		if (result == DXGI_ERROR_NOT_FOUND) break;
-		if (!DxDredDiagnostics::CheckHRESULT(nullptr, result, "DxDevice::Create/EnumAdapter")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(nullptr, result, "DxDevice::Create/EnumAdapter")) {
 			throw std::runtime_error("GPUアダプターの列挙に失敗しました");
 		}
-		if (!DxDredDiagnostics::CheckHRESULT(nullptr, adapter->GetDesc3(&adapterDesc), "DxDevice::Create/GetDesc")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(nullptr, adapter->GetDesc3(&adapterDesc), "DxDevice::Create/GetDesc")) {
 			throw std::runtime_error("GPUアダプター情報の取得に失敗しました");
 		}
 		if (!(adapterDesc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)) break;
@@ -41,6 +41,14 @@ void DxDevice::Create() {
 	}
 	if (!adapter) throw std::runtime_error("利用可能なGPUアダプターが見つかりません");
 	std::string adapterName = Algorithm::ConvertString(std::wstring(adapterDesc.Description));
+	// APIの世代によらず同じUMD版を記録する
+	LARGE_INTEGER driverVersion{};
+	std::string versionText = "unavailable";
+	if (SUCCEEDED(adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &driverVersion))) {
+		const uint64_t value = static_cast<uint64_t>(driverVersion.QuadPart);
+		versionText = std::to_string((value >> 48) & 0xffff) + "." + std::to_string((value >> 32) & 0xffff) + "." +
+			std::to_string((value >> 16) & 0xffff) + "." + std::to_string(value & 0xffff);
+	}
 
 	// 対応するFeatureLevelでDeviceを作る
 	ComPtr<ID3D12Device8> device;
@@ -53,7 +61,7 @@ void DxDevice::Create() {
 			break;
 		}
 	}
-	if (!DxDredDiagnostics::CheckHRESULT(nullptr, deviceResult, "DxDevice::Create/Device")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(nullptr, deviceResult, "DxDevice::Create/Device")) {
 		throw std::runtime_error("DirectX 12デバイスの作成に失敗しました");
 	}
 
@@ -62,6 +70,7 @@ void DxDevice::Create() {
 	dxgiFactory_ = std::move(factory);
 	useAdapter_ = std::move(adapter);
 	adapterName_ = std::move(adapterName);
+	driverVersion_ = std::move(versionText);
 	dedicatedVideoMemoryBytes_ = adapterDesc.DedicatedVideoMemory;
 	featureLevel_ = featureLevel;
 }

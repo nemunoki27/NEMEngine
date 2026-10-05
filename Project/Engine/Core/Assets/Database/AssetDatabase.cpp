@@ -141,7 +141,7 @@ void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path
 		for (; it != end; ++it) {
 			if (it->is_directory()) {
 
-				if (IsExternalActorsDirectory(it->path())) {
+				if (IsExternalActorsDirectory(it->path()) || AssetFileUtility::IsAssetCopyStagingDirectory(it->path())) {
 					it.disable_recursion_pending();
 				}
 				continue;
@@ -356,6 +356,7 @@ void Engine::AssetDatabase::NotifyContentChanged(AssetID id) {
 
 	if (guidToMeta_.contains(id)) {
 		++contentRevisions_[id];
+		++contentRevision_;
 	}
 }
 

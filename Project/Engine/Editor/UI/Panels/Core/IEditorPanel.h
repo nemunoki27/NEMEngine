@@ -59,6 +59,8 @@ namespace Engine {
 
 		// 描画パネル
 		virtual void Draw(const EditorPanelContext& context) = 0;
+		// 非表示とWorld切替の前にPanelのプレビューを終了する
+		virtual void EndPreview() {}
 		// レイアウトへ保存するパネル固有状態を取得
 		virtual nlohmann::json SaveLayoutState() const { return nlohmann::json::object(); }
 		// レイアウトからパネル固有状態を復元

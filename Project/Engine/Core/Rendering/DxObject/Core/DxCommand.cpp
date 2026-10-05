@@ -6,7 +6,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <string>
@@ -24,7 +24,7 @@ namespace {
 		if (SUCCEEDED(result)) return true;
 		ComPtr<ID3D12Device> device;
 		object->GetDevice(IID_PPV_ARGS(&device));
-		return DxDredDiagnostics::CheckHRESULT(device.Get(), result, operation);
+		return DxDREDDiagnostics::CheckHRESULT(device.Get(), result, operation);
 	}
 }
 
@@ -38,7 +38,7 @@ void DxCommand::Create(ID3D12Device* device) {
 	for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
 		auto& context = contexts[index];
 		const HRESULT result = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.commandAllocator));
-		if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/Allocator")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/Allocator")) {
 			throw std::runtime_error("描画コマンドアロケータの作成に失敗しました");
 		}
 		context.commandAllocator->SetName((L"MainGraphicsCommandAllocator[" + std::to_wstring(index) + L"]").c_str());
@@ -47,7 +47,7 @@ void DxCommand::Create(ID3D12Device* device) {
 	ComPtr<ID3D12GraphicsCommandList6> commands;
 	const HRESULT result = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, contexts[0].commandAllocator.Get(),
 		nullptr, IID_PPV_ARGS(&commands));
-	if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/List")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxCommand::Create/List")) {
 		throw std::runtime_error("描画コマンドリストの作成に失敗しました");
 	}
 	commands->SetName(L"MainGraphicsCommandList");
@@ -92,7 +92,7 @@ void DxCommand::ResetCommandList() {
 	// Resetが成功を返す環境でもDevice消失後は記録しない
 	ComPtr<ID3D12Device> device;
 	commandList_->GetDevice(IID_PPV_ARGS(&device));
-	if (!DxDredDiagnostics::CheckDeviceState(device.Get(), "DxCommand::Reset/Device")) {
+	if (!DxDREDDiagnostics::CheckDeviceState(device.Get(), "DxCommand::Reset/Device")) {
 		throw std::runtime_error("Deviceが失われたため描画を再開できません");
 	}
 	// アロケータとリストの両方が再利用できた場合だけ記録を許可する

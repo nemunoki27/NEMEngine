@@ -34,6 +34,8 @@ namespace Engine {
 		// パス計測(BeginFrame～Resolveの間のみ有効)
 		void BeginPass(ID3D12GraphicsCommandList* commandList, const std::string& name);
 		void EndPass(ID3D12GraphicsCommandList* commandList);
+		// 次に記録するパスの描画先を設定する
+		void SetViewID(std::string viewID);
 		// 記録を締め切り、ResolveQueryDataをコマンドリストへ積む
 		void Resolve(ID3D12GraphicsCommandList* commandList);
 
@@ -54,6 +56,7 @@ namespace Engine {
 			std::string name;
 			uint32_t beginIndex = 0;
 			uint32_t endIndex = 0;
+			std::string viewID{};
 		};
 		struct FrameQueryState {
 
@@ -61,13 +64,17 @@ namespace Engine {
 			ComPtr<ID3D12Resource> readbackBuffer{};
 
 			uint64_t frameSerial = UINT64_MAX;
+			uint64_t cpuFrameID = 0;
+			bool incomplete = false;
 			bool active = false;
 			uint32_t nextTimestamp = 0;
 			std::vector<PassRecord> passes{};
 
 			bool pendingPass = false;
+			uint32_t ignoredPassDepth = 0;
 			std::string pendingName{};
 			uint32_t pendingBegin = 0;
+			std::string pendingViewID{};
 
 			bool hasResolved = false;
 			uint32_t resolvedCount = 0;
@@ -83,6 +90,7 @@ namespace Engine {
 		GraphicsResourceRetirement* retirement_ = nullptr;
 		uint64_t frequency_ = 0;
 		bool initialized_ = false;
+		std::string viewID_{};
 
 		//--------- functions ----------------------------------------------------
 

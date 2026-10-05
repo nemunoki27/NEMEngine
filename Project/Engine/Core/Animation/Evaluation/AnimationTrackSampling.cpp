@@ -160,6 +160,24 @@ namespace Engine::AnimationTrackSampling {
 		return false;
 	}
 
+	bool WriteValueChannels(AnimationValueType type, std::span<const float> values, AnimationPropertyValue& outValue) {
+
+		if (values.size() != GetAnimationValueTypeChannelCount(type)) return false;
+		// 保存型に合わせて評価成分を戻す
+		switch (type) {
+		case AnimationValueType::Float: outValue = values[0]; break;
+		case AnimationValueType::Vector2: outValue = Vector2(values[0], values[1]); break;
+		case AnimationValueType::Vector3: outValue = Vector3(values[0], values[1], values[2]); break;
+		case AnimationValueType::Vector4: outValue = Vector4(values[0], values[1], values[2], values[3]); break;
+		case AnimationValueType::Color3: outValue = Color3(values[0], values[1], values[2]); break;
+		case AnimationValueType::Color4: outValue = Color4(values[0], values[1], values[2], values[3]); break;
+		case AnimationValueType::Quaternion:
+			outValue = Quaternion::Normalize(Quaternion(values[0], values[1], values[2], values[3])); break;
+		default: return false;
+		}
+		return true;
+	}
+
 	bool ReadChannelsWithFallback(const Engine::AnimationCurveTrack& track, float time,
 		const Engine::AnimationPropertyValue& fallback, float* values, uint32_t valueCount) {
 

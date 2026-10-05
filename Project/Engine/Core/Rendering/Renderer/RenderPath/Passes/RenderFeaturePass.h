@@ -28,6 +28,8 @@ namespace Engine {
 		RenderFeaturePass(const RenderPipelineDeps& deps, RenderFeatureAnchor anchor) : deps_(deps), anchor_(anchor) {}
 		~RenderFeaturePass() override = default;
 
+		void RetainViews(const std::unordered_set<std::string>& activeViews) override;
+
 		void Execute(GraphicsCore& graphicsCore,
 			const RenderPassPhaseBuckets& passBuckets,
 			SceneExecutionContext& context) override;

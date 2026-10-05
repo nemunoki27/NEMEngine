@@ -1,12 +1,37 @@
-function Invoke-ProductCook {
+﻿function Invoke-ProductCook {
     param([string]$stageDirectory, [string]$buildToolExecutable, [string]$ManifestPath)
 
     $cookedShaderRoot = Join-Path $stageDirectory "Cooked\Shaders"
     New-Item -ItemType Directory -Path $cookedShaderRoot -Force | Out-Null
     Write-Output "シェーダーのCookを開始します"
-    & $buildToolExecutable --cook-shaders $ManifestPath $cookedShaderRoot
-    if ($LASTEXITCODE -ne 0) {
-        throw "シェーダーのCookに失敗しました。直前の診断ログを確認してください"
+    $cookManifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $cookManifest.gameRoot = [IO.Path]::GetFullPath($stageDirectory)
+    foreach ($entry in $cookManifest.files) {
+        $entry.source = Get-ChildPath -Root $stageDirectory -Relative ([string]$entry.destination)
+        Assert-FileHash ([string]$entry.source) ([long]$entry.size) ([string]$entry.sha256)
+    }
+    $snapshotPath = Get-ChildPath -Root $stageDirectory -Relative '.nemCookInputs.json'
+    Write-Utf8Json $snapshotPath $cookManifest
+    $previousPortable = $env:NEMENGINE_PORTABLE
+    try {
+        $env:NEMENGINE_PORTABLE = '1'
+        & $buildToolExecutable --cook-shaders $snapshotPath $cookedShaderRoot
+        if ($LASTEXITCODE -ne 0) {
+            throw "シェーダーのCookに失敗しました。直前の診断ログを確認してください"
+        }
+        # 処理中に入力が変わった結果は公開しない
+        foreach ($entry in $cookManifest.files) {
+            Assert-FileHash ([string]$entry.source) ([long]$entry.size) ([string]$entry.sha256)
+        }
+    } finally {
+        $env:NEMENGINE_PORTABLE = $previousPortable
+        Remove-Item -LiteralPath $snapshotPath -Force
+    }
+
+    # Cookの作業データは製品へ含めない
+    foreach ($directory in @('Library', 'Saved', 'UserSettings')) {
+        $path = Get-ChildPath -Root $stageDirectory -Relative $directory
+        if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
     }
 
     # MaterialはCook済みPassだけを参照し、製品AssetDatabaseへGraph依存を残さない

@@ -14,7 +14,7 @@
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxDepthStencilView.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <cstring>
@@ -226,7 +226,7 @@ bool NEMTests::CheckDifferentialBufferUpdates(ID3D12Device* device, ID3D12Comman
 		queue->ExecuteCommandLists(1, lists);
 		if (FAILED(queue->Signal(fence.Get(), phase + 1))) return false;
 		// GPU完了後に同じframe枠を再利用する
-		if (!Engine::DxDredDiagnostics::WaitForFence(device, fence.Get(), phase + 1, nullptr, "DifferentialBufferTest")) return false;
+		if (!Engine::DxDREDDiagnostics::WaitForFence(device, fence.Get(), phase + 1, nullptr, "DifferentialBufferTest")) return false;
 		void* mapped = nullptr;
 		D3D12_RANGE range{ 0, 12 };
 		if (FAILED(readback->Map(0, &range, &mapped))) return false;
@@ -277,7 +277,7 @@ bool NEMTests::CheckBufferCacheRetirement(ID3D12Device* device, ID3D12CommandQue
 	retirement.Collect(0);
 	valid &= descriptors.GetUseDescriptorCount() > originalDescriptors;
 	if (FAILED(queue->Signal(fence.Get(), 1)) ||
-		!Engine::DxDredDiagnostics::WaitForFence(device, fence.Get(), 1, nullptr, "BufferCacheTest")) return false;
+		!Engine::DxDREDDiagnostics::WaitForFence(device, fence.Get(), 1, nullptr, "BufferCacheTest")) return false;
 	retirement.Collect(1);
 	valid &= descriptors.GetUseDescriptorCount() == 1;
 	buffer.Release();

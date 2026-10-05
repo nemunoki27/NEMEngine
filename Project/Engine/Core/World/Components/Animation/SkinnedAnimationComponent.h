@@ -19,6 +19,7 @@ namespace Engine {
 	struct SkinnedAnimationRuntimeData {
 
 		AssetID mesh{};
+		uint64_t definitionGeneration = 0;
 		bool initialized = false;
 
 		std::string currentClip{};
@@ -28,6 +29,7 @@ namespace Engine {
 		float time = 0.0f;
 		float currentDuration = 0.0f;
 		float fromTime = 0.0f;
+		float toTime = 0.0f;
 		float blendTime = 0.0f;
 
 		bool inTransition = false;

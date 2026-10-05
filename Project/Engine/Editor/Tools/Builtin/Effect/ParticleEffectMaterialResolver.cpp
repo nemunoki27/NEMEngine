@@ -67,7 +67,7 @@ namespace Engine::ParticleEffectMaterialResolver {
 			return std::nullopt;
 		}
 		MaterialAsset material{};
-		const nlohmann::json data = JsonAdapter::Load(materialPath.string(), false);
+		const nlohmann::json data = JsonAdapter::Load(materialPath, false);
 		if (!FromJson(data, material)) {
 			return std::nullopt;
 		}

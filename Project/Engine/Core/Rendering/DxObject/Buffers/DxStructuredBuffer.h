@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <vector>
@@ -88,7 +88,7 @@ namespace Engine {
 		ComPtr<ID3D12Resource> candidate;
 		DxUtils::CreateUploadBufferResource(device, candidate, sizeof(T) * instanceCount);
 		void* mapped = nullptr;
-		if (!DxDredDiagnostics::CheckHRESULT(device, candidate->Map(0, nullptr, &mapped), "DxStructuredBuffer::Map")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device, candidate->Map(0, nullptr, &mapped), "DxStructuredBuffer::Map")) {
 			throw std::runtime_error("StructuredBufferのMapに失敗しました");
 		}
 		// 新しいMap先を作成後に切り替える

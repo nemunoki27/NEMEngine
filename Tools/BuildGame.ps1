@@ -52,9 +52,10 @@ try {
     $managedSource = Join-Path $sourceRuntime "Managed"
 
     $targetDirectory = Get-ChildPath -Root $outputRoot -Relative $productName
-    $stageName = "." + $productName + ".building-" + $PID
+    $buildID = [Guid]::NewGuid().ToString('N')
+    $stageName = "." + $productName + ".building-" + $buildID
     $stageDirectory = Get-ChildPath -Root $outputRoot -Relative $stageName
-    $backupDirectory = Get-ChildPath -Root $outputRoot -Relative ("." + $productName + ".previous-" + $PID)
+    $backupDirectory = Get-ChildPath -Root $outputRoot -Relative ("." + $productName + ".previous-" + $buildID)
 
     if (Test-Path -LiteralPath $stageDirectory) {
         Remove-Item -LiteralPath $stageDirectory -Recurse -Force
@@ -65,6 +66,9 @@ try {
     New-Item -ItemType Directory -Path $stageDirectory -Force | Out-Null
 
     Copy-ProductFiles $manifest $sourceRuntime $runtimeExecutable $stageDirectory $executableName $managedSource
+
+    # Cookも配置済みの同じ入力だけを読む
+    Write-ProductAssetRoots $manifest $stageDirectory $productName $executableName
 
     Invoke-ProductCook $stageDirectory $buildToolExecutable $ManifestPath
 

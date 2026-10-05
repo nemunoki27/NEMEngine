@@ -111,6 +111,11 @@ void Engine::EditorManager::DrawPanelsByPhase(const EditorPanelContext& context,
 	}
 }
 
+void Engine::EditorManager::EndPanelPreviews() {
+
+	for (const auto& panel : panels_) { panel->EndPreview(); }
+}
+
 Engine::EditorLayoutSnapshot Engine::EditorManager::CaptureEditorLayout() const {
 
 	EditorLayoutSnapshot layout{};

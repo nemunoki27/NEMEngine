@@ -9,6 +9,11 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
 
+// assimp
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 //============================================================================
 //	SkinnedMeshAnimationManager classMethods
 //============================================================================
@@ -61,39 +66,41 @@ void Engine::SkinnedMeshAnimationManager::Finalize() {
 
 	std::scoped_lock lock(mutex_);
 	loaded_.clear();
-	queued_.clear();
-	loading_.clear();
+	requests_.clear();
 }
 
-void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(
-	AssetDatabase& assetDatabase, AssetID meshAssetID) {
+void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(AssetDatabase& assetDatabase, AssetID meshAssetID) {
 
-	// 無効なIDは無視
-	if (!meshAssetID) {
-		return;
-	}
+	if (!meshAssetID) return;
+	LoadJob job;
 	{
+
 		std::scoped_lock lock(mutex_);
-		if (loaded_.contains(meshAssetID) || queued_.contains(meshAssetID) || loading_.contains(meshAssetID)) {
-			return;
+		RequestState& request = requests_[meshAssetID];
+		const uint64_t contentRevision = assetDatabase.GetContentRevision(meshAssetID);
+		const uint64_t structureRevision = assetDatabase.GetStructureRevision();
+		const bool first = request.serial == 0;
+		bool changed = first || request.contentRevision != contentRevision;
+		if (first || request.structureRevision != structureRevision) {
+
+			const auto path = assetDatabase.ResolveFullPath(meshAssetID);
+			changed |= path != request.fullPath;
+			request.fullPath = path;
 		}
+		request.structureRevision = structureRevision;
+		request.contentRevision = contentRevision;
+		if (!changed) return;
+		// 読込中に再更新された要求は別の番号で保持する
+		request.serial = nextSerial_++;
+		if (request.fullPath.empty()) return;
+		job = { meshAssetID, request.fullPath, request.serial };
 	}
+	const uint64_t serial = job.serial;
+	if (!workerPool_.Enqueue(std::move(job))) {
 
-	// アセットデータベースからフルパスを解決して存在を確認
-	std::filesystem::path fullPath = assetDatabase.ResolveFullPath(meshAssetID);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		return;
-	}
-	{
 		std::scoped_lock lock(mutex_);
-		queued_.insert(meshAssetID);
-	}
-
-	// ジョブをワーカープールに追加
-	if (!workerPool_.Enqueue(LoadJob{ .meshAssetID = meshAssetID,.fullPath = fullPath, })) {
-		// 終了中に受け付けなかった要求を取り除く
-		std::scoped_lock lock(mutex_);
-		queued_.erase(meshAssetID);
+		const auto found = requests_.find(meshAssetID);
+		if (found != requests_.end() && found->second.serial == serial) requests_.erase(found);
 	}
 }
 
@@ -102,32 +109,25 @@ void Engine::SkinnedMeshAnimationManager::WaitAll() {
 	workerPool_.WaitIdle();
 }
 
-const Engine::SkinnedMeshAnimationSet* Engine::SkinnedMeshAnimationManager::Find(AssetID meshAssetID) const {
+std::shared_ptr<const Engine::SkinnedMeshAnimationSet> Engine::SkinnedMeshAnimationManager::Find(AssetID meshAssetID) const {
 
 	std::scoped_lock lock(mutex_);
 	auto it = loaded_.find(meshAssetID);
 	if (it == loaded_.end()) {
 		return nullptr;
 	}
-	return &it->second;
+	return it->second;
 }
 
 void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_unused]] uint32_t workerIndex) {
 
-	// ジョブの状態を更新
-	{
-		std::scoped_lock lock(mutex_);
-		queued_.erase(job.meshAssetID);
-		loading_.insert(job.meshAssetID);
-	}
-
 	// ファイルのインポート
-	SkinnedMeshAnimationSet imported{};
+	std::shared_ptr<SkinnedMeshAnimationSet> imported;
 	bool succeeded = false;
 	try {
 
-		imported = ImportAnimationFile(job.meshAssetID, job.fullPath);
-		succeeded = imported.valid;
+		imported = std::make_shared<SkinnedMeshAnimationSet>(ImportAnimationFile(job.meshAssetID, job.fullPath));
+		succeeded = imported->valid;
 	}
 	catch (const std::exception& exception) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
@@ -144,8 +144,11 @@ void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_un
 	// 結果の保存
 	{
 		std::scoped_lock lock(mutex_);
-		loading_.erase(job.meshAssetID);
-		if (succeeded) {
+		const auto request = requests_.find(job.meshAssetID);
+		if (succeeded && request != requests_.end() && request->second.serial == job.serial) {
+
+			// 完成した世代を公開し、使用中の旧世代は参照がなくなるまで保持する
+			imported->generation = nextGeneration_++;
 			loaded_[job.meshAssetID] = std::move(imported);
 		}
 	}

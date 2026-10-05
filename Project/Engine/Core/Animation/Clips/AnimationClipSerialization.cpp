@@ -119,7 +119,7 @@ namespace {
 		}
 	}
 
-	Engine::CurveChannel ParseCurveChannel(const nlohmann::json& in) {
+	Engine::CurveChannel ParseCurveChannel(const nlohmann::json& in, bool sortKeys = true) {
 
 		Engine::CurveChannel channel{};
 		channel.name = in.value("name", channel.name);
@@ -131,7 +131,7 @@ namespace {
 			for (const nlohmann::json& keyJson : *it) {
 				channel.keys.emplace_back(ParseCurveKey(keyJson));
 			}
-			channel.SortKeys();
+			if (sortKeys) { channel.SortKeys(); }
 		}
 		return channel;
 	}
@@ -243,7 +243,8 @@ void Engine::from_json(const nlohmann::json& in, AnimationCurveTrack& track) {
 	track.channels.clear();
 	if (const auto it = in.find("channels"); it != in.end() && it->is_array()) {
 		for (const nlohmann::json& channelJson : *it) {
-			track.channels.emplace_back(ParseCurveChannel(channelJson));
+			bool preserveAxisOrder = track.binding.valueType == AnimationValueType::Quaternion && track.channels.empty();
+			track.channels.emplace_back(ParseCurveChannel(channelJson, !preserveAxisOrder));
 		}
 	}
 	track.quaternionAxisKeys.clear();
@@ -324,4 +325,9 @@ void Engine::to_json(nlohmann::json& out, const CurveChannel& channel) {
 void Engine::from_json(const nlohmann::json& in, CurveChannel& channel) {
 
 	channel = ParseCurveChannel(in);
+}
+
+void Engine::ReadCurveChannel(const nlohmann::json& in, CurveChannel& channel, bool sortKeys) {
+
+	channel = ParseCurveChannel(in, sortKeys);
 }

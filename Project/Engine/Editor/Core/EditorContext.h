@@ -52,6 +52,7 @@ namespace Engine {
 		std::string activeScenePath;
 		// アクティブシーンに未保存の変更があるか
 		bool activeSceneDirty = false;
+		bool hasDirtyScenes = false;
 		// シーンのヘッダ情報
 		const SceneHeader* activeSceneHeader = nullptr;
 		// 現在アクティブなシーンのランタイム情報

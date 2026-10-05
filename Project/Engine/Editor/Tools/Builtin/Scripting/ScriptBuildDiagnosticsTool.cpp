@@ -53,10 +53,10 @@ namespace {
 		}
 	}
 
-	const char* AlcStatusLabel(Engine::AlcUnloadStatus status) {
+	const char* ALCStatusLabel(Engine::ALCUnloadStatus status) {
 		switch (status) {
-		case Engine::AlcUnloadStatus::UnloadSucceeded: return "UnloadSucceeded";
-		case Engine::AlcUnloadStatus::LeakSuspected: return "LeakSuspected";
+		case Engine::ALCUnloadStatus::UnloadSucceeded: return "UnloadSucceeded";
+		case Engine::ALCUnloadStatus::LeakSuspected: return "LeakSuspected";
 		default: return "Unknown";
 		}
 	}
@@ -140,7 +140,7 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 			snapshot.hasUsableLastKnownGood ? "yes" : "no",
 			snapshot.lastKnownGoodUpdateFailed ? "yes" : "no");
 		ImGui::Text("ALC unload: %s | last success: %s",
-			AlcStatusLabel(snapshot.alcUnloadStatus),
+			ALCStatusLabel(snapshot.alcUnloadStatus),
 			snapshot.lastSuccessfulBuildTime.empty() ? "(none)" : snapshot.lastSuccessfulBuildTime.c_str());
 		if (!snapshot.lastFailureSummary.empty()) {
 			ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.45f, 1.0f), "last failure: %s", snapshot.lastFailureSummary.c_str());

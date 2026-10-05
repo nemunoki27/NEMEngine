@@ -314,11 +314,11 @@ internal static class NativeBindingEmitter {
         return sb.ToString();
     }
 
-    internal static string EmitNativeAPIFields(List<AbiFieldModel> fields, ulong fingerprint = 0) {
+    internal static string EmitNativeAPIFields(List<ABIFieldModel> fields, ulong fingerprint = 0) {
         var sb = new StringBuilder();
         sb.Append("// AUTO-GENERATED FROM ManagedNativeAPI.json\n");
         sb.Append($"\t\tinline static constexpr uint64_t kBindingFingerprint = 0x{fingerprint:x16}ull;\n");
-        foreach (AbiFieldModel field in fields) {
+        foreach (ABIFieldModel field in fields) {
             sb.Append($"\t\t{field.NativeType} {field.Name} = nullptr;\n");
         }
         return sb.ToString();

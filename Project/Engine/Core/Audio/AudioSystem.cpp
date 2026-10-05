@@ -6,10 +6,14 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // c++
 #include <algorithm>
+#include <cmath>
 
 Audio* Audio::instance_ = nullptr;
 
@@ -44,7 +48,20 @@ void Audio::Init() {
 	}
 	soundCache_.Init();
 	device_.Init();
-	soundCache_.LoadAllSounds();
+	// 音声は必要時に読み込み、背景再生の希望値だけ先に取得する
+	if (!settings_.Load(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kAudio))) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "音声設定を読み込めません。既定値を使用します");
+	}
+}
+
+bool Audio::SetPlayInBackground(bool enabled) {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	AudioSettings replacement = settings_;
+	replacement.playInBackground = enabled;
+	if (!replacement.Save(RuntimePaths::GetProjectSettingsPath(ConfigPaths::kAudio))) { return false; }
+	settings_ = replacement;
+	return true;
 }
 
 bool Audio::EnsureLoaded(const std::string& filename, AudioType type) {
@@ -57,11 +74,9 @@ bool Audio::EnsureLoaded(const std::filesystem::path& filename, AudioType type) 
 	std::lock_guard<std::mutex> lock(mutex_);
 	Assert::Call(device_.IsInitialized(), "Audio::EnsureLoadedより先にAudio::Initを呼び出してください");
 
-	const std::string key = Algorithm::PathToUTF8(filename.stem());
-	if (soundCache_.Find(key) != nullptr) {
-		return true;
-	}
-	if (!std::filesystem::exists(filename)) {
+	const std::string key = AudioSoundCache::NormalizeKey(Algorithm::PathToUTF8(filename));
+	std::error_code error;
+	if (!std::filesystem::exists(filename, error) || error) {
 		return false;
 	}
 
@@ -80,7 +95,6 @@ void Audio::Unload() {
 
 			inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
 			inst.voice->FlushSourceBuffers();
-			inst.voice->DestroyVoice();
 			inst.voice = nullptr;
 		}
 	}
@@ -93,29 +107,29 @@ void Audio::Unload() {
 //============================================================================
 //	再生処理
 //============================================================================
-void Audio::Play(const std::string& name, float volume) {
+void Audio::Play(const std::string& name, float volume, AudioPlaybackOwner owner) {
 
-	PlayInternal(name, true, volume);
+	PlayInternal(name, true, volume, owner);
 }
 
-void Audio::PlayOneShot(const std::string& name, float volume) {
+void Audio::PlayOneShot(const std::string& name, float volume, AudioPlaybackOwner owner) {
 
-	PlayInternal(name, false, volume);
+	PlayInternal(name, false, volume, owner);
 }
 
-uint64_t Audio::PlayManaged(const std::string& name, bool loop, float volume) {
+uint64_t Audio::PlayManaged(const std::string& name, bool loop, float volume, AudioPlaybackOwner owner, float pitch) {
 
-	return PlayInternal(name, loop, volume);
+	return PlayInternal(name, loop, volume, owner, pitch);
 }
 
-uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
+uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume, AudioPlaybackOwner owner, float pitch) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	Assert::Call(device_.IsInitialized(), "Audio::Playより先にAudio::Initを呼び出してください");
 
 	const std::string key = AudioSoundCache::NormalizeKey(name);
 
-	AudioSoundData* sound = soundCache_.Find(key);
+	const AudioSoundData* sound = soundCache_.Find(key);
 	if (!sound) {
 		return 0;
 	}
@@ -127,35 +141,36 @@ uint64_t Audio::PlayInternal(const std::string& name, bool loop, float volume) {
 	IXAudio2SourceVoice* srcVoice = nullptr;
 
 	HRESULT hr = device_.CreateSourceVoice(&srcVoice, sound->GetFormat());
-	Assert::Call(SUCCEEDED(hr), "XAudio2のソースボイス作成に失敗しました");
-	Assert::Call(srcVoice != nullptr, "XAudio2のソースボイスが作成されていません");
-
-	XAUDIO2_BUFFER buf{};
-	buf.pAudioData = sound->GetPCM();
-	buf.AudioBytes = sound->GetPCMBytes();
-	buf.Flags = XAUDIO2_END_OF_STREAM;
-
-	if (loop) {
-		buf.LoopCount = XAUDIO2_LOOP_INFINITE;
-	} else {
-		buf.LoopCount = 0;
-	}
-
-	hr = srcVoice->SubmitSourceBuffer(&buf);
-	Assert::Call(SUCCEEDED(hr), "XAudio2へ音声バッファを送信できませんでした");
-
 	VoiceInstance inst{};
-	inst.voice = srcVoice;
+	inst.sound = soundCache_.GetSnapshot(key);
+	inst.voice.reset(srcVoice);
+	inst.owner = owner;
+	if (owner == AudioPlaybackOwner::Game) { inst.playbackState = gamePlaybackState_; }
+	if (FAILED(hr) || !inst.voice) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "Audio: Source Voiceを作成できません HRESULT={}", hr);
+		return 0;
+	}
+	inst.normalMatrix = device_.GetOutputMatrix(*srcVoice, sound->GetFormat()->nChannels);
+
 	inst.voiceID = nextVoiceID_++;
 	inst.instanceVolume = volume;
 	inst.loop = loop;
+	inst.pitch = std::isfinite(pitch) ? std::clamp(pitch, -3.0f, 3.0f) : 1.0f;
+	inst.cursor.reverse = inst.pitch < 0.0f;
+	if (inst.cursor.reverse) { inst.reversePCM = ReverseAudioPCM(*inst.sound); }
+	inst.playbackState.SetPauseReason(AudioPauseReason::ZeroPitch, inst.pitch == 0.0f);
+	srcVoice->SetFrequencyRatio(std::max(std::abs(inst.pitch), XAUDIO2_MIN_FREQ_RATIO), XAUDIO2_COMMIT_NOW);
+	if (!SubmitVoiceBuffersLocked(inst, 0)) { return 0; }
 
 	ApplyVoiceVolumeLocked(key, inst);
 
-	hr = srcVoice->Start(0, XAUDIO2_COMMIT_NOW);
-	Assert::Call(SUCCEEDED(hr), "XAudio2のソースボイスを開始できませんでした");
+	hr = inst.playbackState.IsPaused() ? S_OK : srcVoice->Start(0, XAUDIO2_COMMIT_NOW);
+	if (FAILED(hr)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "Audio: 再生を開始できません HRESULT={}", hr);
+		return 0;
+	}
 
 	const uint64_t voiceID = inst.voiceID;
-	activeVoices_[key].push_back(inst);
+	activeVoices_[key].push_back(std::move(inst));
 	return voiceID;
 }

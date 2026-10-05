@@ -15,6 +15,11 @@ namespace Engine {
 
 	namespace HierarchyUtility {
 
+		// 生存している親を取得する
+		Entity GetParent(const ECSWorld& world, Entity entity);
+		// 親子関係の循環を確認する
+		bool CanSetParent(const ECSWorld& world, Entity child, Entity parent);
+
 		// 保存されている兄弟順に合わせて親の子リンクを並べ直す
 		void SortChildLinksBySiblingOrder(ECSWorld& world, Entity parent);
 

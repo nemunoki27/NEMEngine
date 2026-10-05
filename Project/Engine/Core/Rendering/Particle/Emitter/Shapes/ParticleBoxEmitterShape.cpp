@@ -29,6 +29,13 @@ void Engine::ParticleBoxEmitterShape::ToJson(nlohmann::json& data, const Particl
 	data["boxFaceNegZ"] = settings.box.faceNegZ;
 }
 
+bool Engine::ParticleBoxEmitterShape::CanEmit(const ParticleEmitterSettings& settings) const {
+
+	// 発生面がない場合は粒子を生成しない
+	return settings.box.facePosX || settings.box.faceNegX || settings.box.facePosY ||
+		settings.box.faceNegY || settings.box.facePosZ || settings.box.faceNegZ;
+}
+
 void Engine::ParticleBoxEmitterShape::InitParticle(Vector3& position, Vector3& direction,
 	const ParticleEmitterSettings& settings, [[maybe_unused]] bool is2D) const {
 

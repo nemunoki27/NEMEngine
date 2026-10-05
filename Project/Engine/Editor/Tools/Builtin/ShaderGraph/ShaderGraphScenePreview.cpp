@@ -224,5 +224,4 @@ void Engine::ShaderGraphScenePreview::RestorePreviewMaterial(
 	appliedWorld_ = nullptr;
 	appliedWorldLifetime_.reset();
 	previewMaterialApplied_ = false;
-	previewCompileDeadline_ = 0.0;
 }

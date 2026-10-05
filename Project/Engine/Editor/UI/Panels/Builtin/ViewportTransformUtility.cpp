@@ -15,8 +15,47 @@
 #include <algorithm>
 #include <optional>
 
-
 namespace Engine::ViewportTransformUtility {
+
+	bool ResolveWorldDelta(ECSWorld& world, Entity entity, const Vector3& deltaPos, const Quaternion& deltaRotation,
+		const Vector3& deltaScale, const Vector3& pivot, bool pivotAtCenter, TransformComponent& result) {
+
+		const auto* transform = world.TryGetComponent<TransformComponent>(entity);
+		if (!transform) {
+			return false;
+		}
+		// 実効親の逆行列がなければ変更しない
+		const Matrix4x4 parent = GetEntityParentWorldMatrix(world, entity);
+		Matrix4x4 inverseParent{};
+		if (!Matrix4x4::TryInverse(parent, inverseParent)) {
+			return false;
+		}
+		const Matrix4x4 current =
+			Matrix4x4::MakeAffineMatrix(transform->localScale, transform->localRotation, transform->localPos) * parent;
+		Vector3 position{};
+		Quaternion rotation{};
+		Vector3 scale{};
+		if (!DecomposeAffine3D(current, position, rotation, scale)) {
+			return false;
+		}
+
+		// 共通差分をWorldの姿勢へ適用する
+		if (pivotAtCenter) {
+			position = pivot + RotateVectorByQuaternion(deltaRotation, position - pivot) * deltaScale;
+		}
+		position += deltaPos;
+		rotation = Quaternion::Normalize(deltaRotation * rotation);
+		scale = scale * deltaScale;
+		const Matrix4x4 local = Matrix4x4::MakeAffineMatrix(scale, rotation, position) * inverseParent;
+
+		// 親座標へ戻せた場合だけ結果を公開する
+		TransformComponent resolved = *transform;
+		if (!DecomposeAffine3D(local, resolved.localPos, resolved.localRotation, resolved.localScale)) {
+			return false;
+		}
+		result = resolved;
+		return true;
+	}
 
 	Engine::Vector3 RotateVectorByQuaternion(const Engine::Quaternion& q, const Engine::Vector3& v) {
 
@@ -25,13 +64,12 @@ namespace Engine::ViewportTransformUtility {
 		return v + t * q.w + Engine::Vector3::Cross(axis, t);
 	}
 
-	bool Prefers2DGizmo(const Engine::EditorPanelContext& context,
-		Engine::ECSWorld& world, const Engine::Entity& entity) {
+	bool Prefers2DGizmo(const Engine::EditorPanelContext& context, Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 		// Transformを持たない編集対象だけ現在のマニュアルカメラ次元へフォールバックする
-		const Engine::Dimension fallback = context.editorState ?
-			Engine::ResolveSceneViewCameraDimension(context.editorState->sceneViewPickDimension) :
-			Engine::Dimension::Type3D;
+		const Engine::Dimension fallback =
+			context.editorState ? Engine::ResolveSceneViewCameraDimension(context.editorState->sceneViewPickDimension)
+								: Engine::Dimension::Type3D;
 		return Engine::ResolveEntityDimension(world, entity).value_or(fallback) == Engine::Dimension::Type2D;
 	}
 
@@ -86,19 +124,22 @@ namespace Engine::ViewportTransformUtility {
 		return grid > 0.0f ? std::round(value / grid) * grid : value;
 	}
 
-	const Engine::GridSnapAxis* SelectSnapAxis(const Engine::EntitySnapSettings& settings,
-		Engine::SceneViewManipulatorMode mode, bool use2D) {
+	const Engine::GridSnapAxis* SelectSnapAxis(
+		const Engine::EntitySnapSettings& settings, Engine::SceneViewManipulatorMode mode, bool use2D) {
 
 		switch (mode) {
-		case Engine::SceneViewManipulatorMode::Translate: return use2D ? &settings.translate2D : &settings.translate3D;
-		case Engine::SceneViewManipulatorMode::Rotate:    return use2D ? &settings.rotate2D : &settings.rotate3D;
-		case Engine::SceneViewManipulatorMode::Scale:     return use2D ? &settings.scale2D : &settings.scale3D;
-		default: return nullptr;
+		case Engine::SceneViewManipulatorMode::Translate:
+			return use2D ? &settings.translate2D : &settings.translate3D;
+		case Engine::SceneViewManipulatorMode::Rotate:
+			return use2D ? &settings.rotate2D : &settings.rotate3D;
+		case Engine::SceneViewManipulatorMode::Scale:
+			return use2D ? &settings.scale2D : &settings.scale3D;
+		default:
+			return nullptr;
 		}
 	}
 
-	void ApplyAbsoluteSnap(Engine::TransformComponent& transform,
-		Engine::SceneViewManipulatorMode mode, float grid) {
+	void ApplyAbsoluteSnap(Engine::TransformComponent& transform, Engine::SceneViewManipulatorMode mode, float grid) {
 
 		switch (mode) {
 		case Engine::SceneViewManipulatorMode::Translate:

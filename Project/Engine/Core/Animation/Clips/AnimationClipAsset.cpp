@@ -158,14 +158,8 @@ void Engine::NormalizeAnimationTrackChannels(AnimationCurveTrack& track) {
 		if (IsQuaternionAxisAngleChannels(track.channels)) {
 			track.channels[0].displayColor = GetChannelColor(track.channels[0].name);
 			track.channels[1].displayColor = GetChannelColor(track.channels[1].name);
-			track.channels[0].SortKeys();
+			QuaternionAxisKeyUtility::SortKeys(track.channels[0], track.quaternionAxisKeys);
 			track.channels[1].SortKeys();
-			while (track.quaternionAxisKeys.size() < track.channels[0].keys.size()) {
-				track.quaternionAxisKeys.emplace_back(Engine::QuaternionAxisKeyUtility::MakeDefault());
-			}
-			if (track.channels[0].keys.size() < track.quaternionAxisKeys.size()) {
-				track.quaternionAxisKeys.resize(track.channels[0].keys.size());
-			}
 			return;
 		}
 

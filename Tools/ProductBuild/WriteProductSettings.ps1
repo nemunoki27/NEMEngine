@@ -1,4 +1,4 @@
-function Write-ProductSettings {
+function Write-ProductAssetRoots {
     param($manifest, [string]$stageDirectory, [string]$productName, [string]$executableName)
 
     $packageDependencies = [ordered]@{}
@@ -25,6 +25,22 @@ function Write-ProductSettings {
         dependencies = $packageLockDependencies
     })
 
+    $descriptorName = [System.IO.Path]::GetFileNameWithoutExtension($executableName) + ".nemproject"
+    Write-Utf8Json -Path (Join-Path $stageDirectory $descriptorName) -Value @{
+        schemaVersion = 1
+        projectGuid = [string]$manifest.projectGuid
+        name = $productName
+        assetsDirectory = "GameAssets"
+        packagesDirectory = "Packages"
+        projectSettingsDirectory = "ProjectSettings"
+    }
+}
+
+function Write-ProductSettings {
+    param($manifest, [string]$stageDirectory, [string]$productName, [string]$executableName)
+
+    Write-ProductAssetRoots $manifest $stageDirectory $productName $executableName
+
     $runtimeSettingsDirectory = Join-Path $stageDirectory "ProjectSettings\Runtime"
     New-Item -ItemType Directory -Path $runtimeSettingsDirectory -Force | Out-Null
     Write-Utf8Json -Path (Join-Path $runtimeSettingsDirectory "StartupScene.json") -Value @{
@@ -35,15 +51,6 @@ function Write-ProductSettings {
         startupFullscreen = [bool]$manifest.startupFullscreen
         gameWidth = [int]$manifest.gameWidth
         gameHeight = [int]$manifest.gameHeight
-    }
-    $descriptorName = [System.IO.Path]::GetFileNameWithoutExtension($executableName) + ".nemproject"
-    Write-Utf8Json -Path (Join-Path $stageDirectory $descriptorName) -Value @{
-        schemaVersion = 1
-        projectGuid = [string]$manifest.projectGuid
-        name = $productName
-        assetsDirectory = "GameAssets"
-        packagesDirectory = "Packages"
-        projectSettingsDirectory = "ProjectSettings"
     }
     Write-Utf8Json -Path (Join-Path $stageDirectory ".nemBuildManifest.json") -Value @{
         schemaVersion = 2

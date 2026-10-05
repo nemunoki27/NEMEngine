@@ -8,7 +8,7 @@
 namespace Engine {
 
 	// front
-	struct TransformComponent;
+	struct ResolvedWorldTransform;
 
 	//============================================================================
 	//	CollisionShapeUtility class
@@ -24,7 +24,7 @@ namespace Engine {
 		~CollisionShapeUtility() = default;
 
 		// 形状をワールド空間の判定用インスタンスにする
-		static CollisionShapeInstance BuildShapeInstance(const Entity& entity,
-			const CollisionShape& shape, uint32_t shapeIndex, const TransformComponent& transform);
+		static CollisionShapeInstance BuildShapeInstance(
+			const Entity& entity, const CollisionShape& shape, uint32_t shapeIndex, const ResolvedWorldTransform& transform);
 	};
 } // Engine

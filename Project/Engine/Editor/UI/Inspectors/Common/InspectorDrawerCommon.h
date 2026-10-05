@@ -3,8 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Tools/ImGui/ImGuiEnum.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
@@ -26,6 +26,16 @@ namespace Engine::InspectorDrawerCommon {
 
 	// 値編集の結果を累積する
 	void AccumulateEditResult(const ValueEditResult& result, bool& anyItemActive, bool& commitRequested);
+
+	// フィールドを表示して編集結果をまとめる
+	template <typename DrawFunc>
+	void DrawFieldEdit(ValueEditResult& accumulated, DrawFunc&& drawFunc) {
+
+		const ValueEditResult result = std::forward<DrawFunc>(drawFunc)();
+		AccumulateEditResult(result, accumulated.anyItemActive, accumulated.editFinished);
+		accumulated.valueChanged |= result.valueChanged;
+		ImGui::Separator();
+	}
 
 	// チェックボックスフィールドを描画する
 	ValueEditResult DrawCheckboxField(const char* label, bool& value);

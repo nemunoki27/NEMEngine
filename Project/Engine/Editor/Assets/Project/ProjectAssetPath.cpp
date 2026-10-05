@@ -20,8 +20,12 @@ namespace {
 	// 文字列前後の空白を取り除く
 	std::string Trim(std::string text) {
 		auto isSpace = [](unsigned char c) { return std::isspace(c) != 0; };
-		while (!text.empty() && isSpace(static_cast<unsigned char>(text.front()))) { text.erase(text.begin()); }
-		while (!text.empty() && isSpace(static_cast<unsigned char>(text.back()))) { text.pop_back(); }
+		while (!text.empty() && isSpace(static_cast<unsigned char>(text.front()))) {
+			text.erase(text.begin());
+		}
+		while (!text.empty() && isSpace(static_cast<unsigned char>(text.back()))) {
+			text.pop_back();
+		}
 		return text;
 	}
 
@@ -34,13 +38,23 @@ namespace Engine {
 		// OSで禁止されている、または問題になりやすい文字をアンダースコアに置換
 		for (char& c : text) {
 			switch (c) {
-			case '<': case '>': case ':': case '"': case '/': case '\\': case '|': case '?': case '*':
+			case '<':
+			case '>':
+			case ':':
+			case '"':
+			case '/':
+			case '\\':
+			case '|':
+			case '?':
+			case '*':
 				c = '_';
 				break;
 			}
 		}
 		// 空文字列や予約済みディレクトリ名は避ける
-		if (text.empty() || text == "." || text == "..") { return "NewAsset"; }
+		if (text.empty() || text == "." || text == "..") {
+			return "NewAsset";
+		}
 		return text;
 	}
 
@@ -51,14 +65,19 @@ namespace Engine {
 			// アルファベット、数字、アンダースコア以外は無視してPascalCaseに変換を試みる
 			if (std::isalnum(c) || c == '_') {
 				char out = static_cast<char>(c);
-				if (upperNext && std::isalpha(c)) { out = static_cast<char>(std::toupper(c)); }
+				if (upperNext && std::isalpha(c)) {
+					out = static_cast<char>(std::toupper(c));
+				}
 				result.push_back(out);
 				upperNext = false;
+			} else {
+				upperNext = true;
 			}
-			else { upperNext = true; }
 		}
 		// 数字で始まる名前はC#のクラス名として無効なためプレフィックスを付与
-		if (result.empty() || std::isdigit(static_cast<unsigned char>(result.front()))) { result = "New" + result; }
+		if (result.empty() || std::isdigit(static_cast<unsigned char>(result.front()))) {
+			result = "New" + result;
+		}
 		return result;
 	}
 
@@ -66,27 +85,28 @@ namespace Engine {
 		const std::string fileName = Engine::Algorithm::PathToUTF8(path.filename());
 
 		// .scene.jsonなどのエンジン独自の複合拡張子を優先的に判定
-		const std::string_view suffix =
-			AssetTypeResolver::FindCompoundSuffix(path);
+		const std::string_view suffix = AssetTypeResolver::FindCompoundSuffix(path);
 		if (!suffix.empty()) {
 			const size_t suffixSize = suffix.size();
-			return { fileName.substr(0, fileName.size() - suffixSize),
-				fileName.substr(fileName.size() - suffixSize) };
+			return {fileName.substr(0, fileName.size() - suffixSize), fileName.substr(fileName.size() - suffixSize)};
 		}
 		// 複合拡張子に該当しない場合は標準のstem/extensionを使用
-		return { Engine::Algorithm::PathToUTF8(path.stem()),
-			Engine::Algorithm::PathToUTF8(path.extension()) };
+		return {Engine::Algorithm::PathToUTF8(path.stem()), Engine::Algorithm::PathToUTF8(path.extension())};
 	}
 
 	std::filesystem::path ProjectAssetPath::MakeUniquePath(const std::filesystem::path& preferredPath) {
 		// ファイルが既に存在する場合のみ、連番を付与して重複を避ける
-		if (!std::filesystem::exists(preferredPath)) { return preferredPath; }
+		if (!std::filesystem::exists(preferredPath)) {
+			return preferredPath;
+		}
 		const auto [baseName, suffix] = SplitAssetFileName(preferredPath);
 		const std::filesystem::path directory = preferredPath.parent_path();
 		for (uint32_t index = 1; index < 10000; ++index) {
 			const std::string candidateName = std::format("{} {}{}", baseName, index, suffix);
 			std::filesystem::path candidate = directory / Engine::Algorithm::PathFromUTF8(candidateName);
-			if (!std::filesystem::exists(candidate)) { return candidate; }
+			if (!std::filesystem::exists(candidate)) {
+				return candidate;
+			}
 		}
 		return {};
 	}
@@ -103,8 +123,14 @@ namespace Engine {
 
 	bool ProjectAssetPath::IsSafeRelativePath(const std::filesystem::path& path) {
 		// ディレクトリ階層を上る指定が含まれている場合は危険と判断
-		if (path.empty()) { return true; }
-		for (const auto& part : path) { if (part == "..") { return false; } }
+		if (path.empty()) {
+			return true;
+		}
+		for (const auto& part : path) {
+			if (part == "..") {
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -114,31 +140,41 @@ namespace Engine {
 
 	std::filesystem::path ProjectAssetPath::GetSourceRoot(ProjectAssetSource source) {
 		switch (source) {
-		case ProjectAssetSource::Engine: return RuntimePaths::GetEngineAssetsRoot();
-		case ProjectAssetSource::Game: return RuntimePaths::GetGameRoot() / "GameAssets";
+		case ProjectAssetSource::Engine:
+			return RuntimePaths::GetEngineAssetsRoot();
+		case ProjectAssetSource::Game:
+			return RuntimePaths::GetGameRoot() / "GameAssets";
 		}
 		// デフォルトはエンジンアセット
 		return RuntimePaths::GetEngineAssetsRoot();
 	}
 
-	std::filesystem::path ProjectAssetPath::ResolveVirtualDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath) {
+	std::filesystem::path ProjectAssetPath::ResolveVirtualDirectory(
+		ProjectAssetSource source, const std::string& directoryVirtualPath) {
 		const std::filesystem::path root = GetSourceRoot(source);
 		const std::string virtualRoot = GetSourceVirtualRoot(source);
-		if (directoryVirtualPath == virtualRoot) { return root; }
+		if (directoryVirtualPath == virtualRoot) {
+			return root;
+		}
 		const std::string prefix = virtualRoot + "/";
 		// 仮想パスがルート配下でないなら無効
-		if (directoryVirtualPath.rfind(prefix, 0) != 0) { return {}; }
-		const std::filesystem::path relative =
-			Engine::Algorithm::PathFromUTF8(directoryVirtualPath.substr(prefix.size()));
+		if (directoryVirtualPath.rfind(prefix, 0) != 0) {
+			return {};
+		}
+		const std::filesystem::path relative = Engine::Algorithm::PathFromUTF8(directoryVirtualPath.substr(prefix.size()));
 		// 親階層への移動(..)を含むパスはセキュリティのため制限
-		if (!IsSafeRelativePath(relative)) { return {}; }
+		if (!IsSafeRelativePath(relative)) {
+			return {};
+		}
 		return (root / relative).lexically_normal();
 	}
 
 	const char* ProjectAssetPath::GetSourceVirtualRoot(ProjectAssetSource source) {
 		switch (source) {
-		case ProjectAssetSource::Engine: return "Engine/Assets";
-		case ProjectAssetSource::Game: return "GameAssets";
+		case ProjectAssetSource::Engine:
+			return "Engine/Assets";
+		case ProjectAssetSource::Game:
+			return "GameAssets";
 		}
 		return "Engine/Assets";
 	}
@@ -150,7 +186,9 @@ namespace Engine {
 		auto parentIt = normalizedParent.begin();
 		// parentの全パス要素がpathの先頭部分と一致するかを走査
 		for (; parentIt != normalizedParent.end(); ++parentIt, ++pathIt) {
-			if (pathIt == normalizedPath.end() || *pathIt != *parentIt) { return false; }
+			if (pathIt == normalizedPath.end() || *pathIt != *parentIt) {
+				return false;
+			}
 		}
 		return true;
 	}
@@ -163,3 +201,12 @@ namespace Engine {
 	}
 
 } // Engine
+
+std::filesystem::path Engine::ProjectAssetPath::MakeSiblingPath(
+	const std::filesystem::path& targetPath, const std::filesystem::path& extension) {
+
+	// 元のstemへ付随ファイルの拡張子を付ける
+	std::filesystem::path result = targetPath.parent_path() / targetPath.stem();
+	result += extension;
+	return result;
+}

@@ -26,6 +26,12 @@ void Engine::ParticleRectEmitterShape::ToJson(nlohmann::json& data, const Partic
 	data["rectEdgeNegY"] = settings.rect.edgeNegY;
 }
 
+bool Engine::ParticleRectEmitterShape::CanEmit(const ParticleEmitterSettings& settings) const {
+
+	// 発生辺がない場合は粒子を生成しない
+	return settings.rect.edgePosX || settings.rect.edgeNegX || settings.rect.edgePosY || settings.rect.edgeNegY;
+}
+
 void Engine::ParticleRectEmitterShape::InitParticle(Vector3& position, Vector3& direction,
 	const ParticleEmitterSettings& settings, [[maybe_unused]] bool is2D) const {
 

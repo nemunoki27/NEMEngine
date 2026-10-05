@@ -1,4 +1,4 @@
-# 未実行と失敗を基準検証で区別する
+﻿# 未実行と失敗を基準検証で区別する
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 

@@ -39,6 +39,9 @@ namespace NEMTests {
 	bool TestBoxSeamLanding();
 	bool TestRigidbody2DRestingContact();
 	bool TestInactivePhysicsSystems();
+	bool TestCollisionParentCoordinates();
+	bool TestCollisionWorldShapes();
+	bool TestCollisionSettingsPersistence();
 	bool TestEditCollisionState();
 	bool TestCapsuleCollisions();
 	bool TestPhysicsQueryTriggers();
@@ -62,6 +65,14 @@ namespace NEMTests {
 	bool TestShaderPathDependencies();
 	bool TestRayTracingPipelineSerialization();
 	bool TestShaderGraphCompile();
+	bool TestRendererLayerCulling();
+	bool TestRenderCameraHistory();
+	bool TestSceneGridProjection();
+	bool TestProjectAssetCopyTransaction();
+	bool TestProjectAssetMoveTransaction();
+	bool TestMaterialCreationFailures();
+	bool TestShaderGraphPublication();
+	bool TestSceneViewCameraSettings();
 	bool TestRenderFeatureProfile();
 	bool TestPostProcessSourceExtension();
 	bool TestCanvasNavigationTable();

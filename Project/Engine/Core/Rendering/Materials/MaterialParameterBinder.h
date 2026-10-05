@@ -50,7 +50,7 @@ namespace Engine {
 		// フレーム開始時にアップロード位置を戻す
 		void BeginFrame();
 		// Texture公開世代が変わった時だけ番号を再解決する
-		void SetTextureRevision(uint64_t revision);
+		void SetTextureRevision(uint64_t revision, AssetID renderTextureTarget = {});
 		// アップロードヒープを破棄する
 		void Release();
 
@@ -81,6 +81,7 @@ namespace Engine {
 			uint64_t pipelineID = 0;
 			uint64_t materialHash = 0;
 			uint64_t instanceHash = 0;
+			AssetID renderTextureTarget{};
 
 			bool operator==(const CacheKey&) const = default;
 		};
@@ -115,6 +116,7 @@ namespace Engine {
 		// パラメータとテクスチャの解決済みデータ、内容変更時だけ作り直す
 		std::unordered_map<CacheKey, CachedBindingData, CacheKeyHasher> bindingCache_{};
 		uint64_t textureRevision_ = 0;
+		AssetID renderTextureTarget_{};
 		uint64_t frameIndex_ = 0;
 		FrameConstantBufferAllocator allocator_{};
 	};

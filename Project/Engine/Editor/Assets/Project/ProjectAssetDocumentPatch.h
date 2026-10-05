@@ -11,18 +11,18 @@
 namespace Engine::ProjectAssetDocumentPatch {
 
 	// JSONアセット内部の表示名をファイル名へ合わせて更新する
-	void PatchJsonAssetName(const std::filesystem::path& path, AssetType type, bool resetGuid);
+	bool PatchJsonAssetName(const std::filesystem::path& path, AssetType type);
 
 	// 複製アセットの表示名を更新する、GUIDは新しい.metaで発行する
-	void PatchDuplicatedJsonAsset(const std::filesystem::path& path, AssetType type);
+	bool PatchDuplicatedJsonAsset(const std::filesystem::path& path, AssetType type);
 
 	// リネームしたアセットの名前のみを更新する
-	void PatchRenamedJsonAsset(const std::filesystem::path& path, AssetType type);
+	bool PatchRenamedJsonAsset(const std::filesystem::path& path, AssetType type);
 
 	// 複製ディレクトリ内の全JSONアセットを一括修正する
-	void PatchDuplicatedDirectoryAssets(const std::filesystem::path& duplicatedDirectory);
+	bool PatchDuplicatedDirectoryAssets(const std::filesystem::path& duplicatedDirectory);
 
-	// コピー対象から除外すべきファイル(.meta等)かを判定する
+	// metaと一時ファイルをコピーから除外する
 	bool ShouldSkipCopyFile(const std::filesystem::path& path);
 
 	// アセットに随行するサイドカーファイルのパス一覧を作る

@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
 #include <Engine/Core/World/Components/Rendering/SkyboxRendererComponent.h>
@@ -14,25 +15,15 @@
 //	SceneSkyboxResolver classMethods
 //============================================================================
 Engine::SceneSkyboxInfo Engine::SceneSkyboxResolver::Resolve(
-	GraphicsCore& graphicsCore, AssetDatabase* assetDatabase, ECSWorld* world) {
+	GraphicsCore& graphicsCore, AssetDatabase* assetDatabase, ECSWorld* world, uint32_t cullingMask) {
 
 	SceneSkyboxInfo info{};
 	if (!world || !assetDatabase) {
 		return info;
 	}
 
-	// 最初に見つかった有効なskyboxを対象にする
-	SkyboxRendererComponent* skybox = nullptr;
-	world->ForEach<SkyboxRendererComponent>([&](Entity entity, SkyboxRendererComponent& component) {
-
-		if (skybox || !component.visible || !component.cubemapTexture) {
-			return;
-		}
-		if (!IsEntityActiveInHierarchy(*world, entity)) {
-			return;
-		}
-		skybox = &component;
-		});
+	// 背景と環境光で同じSkyboxを選ぶ
+	const SkyboxRendererComponent* skybox = Find(*world, cullingMask);
 	if (!skybox) {
 		return info;
 	}
@@ -51,4 +42,19 @@ Engine::SceneSkyboxInfo Engine::SceneSkyboxResolver::Resolve(
 	info.iblIntensity = skybox->iblIntensity;
 	info.found = true;
 	return info;
+}
+
+const Engine::SkyboxRendererComponent* Engine::SceneSkyboxResolver::Find(ECSWorld& world, uint32_t cullingMask) {
+
+	const SkyboxRendererComponent* skybox = nullptr;
+	world.ForEach<SkyboxRendererComponent>([&](const Entity& entity, const SkyboxRendererComponent& component) {
+
+		// 他のRendererと同じ可視レイヤーで選別する
+		if (skybox || !component.cubemapTexture || !RenderItemExtract::IsVisible(world, entity, component.visible) ||
+			(RenderItemExtract::GetVisibilityLayerMask(world, entity, component.renderingLayerMask) & cullingMask) == 0) {
+			return;
+		}
+		skybox = &component;
+	});
+	return skybox;
 }

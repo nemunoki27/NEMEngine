@@ -6,6 +6,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Editor/Utility/AssetEntityFactory.h>
@@ -21,26 +22,26 @@
 #include <algorithm>
 #include <optional>
 
-
 using namespace Engine::ViewportTransformUtility;
 
 void Engine::ViewportPlacementSession::HandleAssetDropPlacement(const EditorPanelContext& context, RenderViewKind viewKind,
-	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, [[maybe_unused]] bool imageHovered, const ImVec2& imageSize, bool scenePanel) {
+	const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight, [[maybe_unused]] bool imageHovered,
+	const ImVec2& imageSize, bool scenePanel) {
 
 	viewSize_ = imageSize;
 
 	ECSWorld* world = context.GetWorld();
 	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
 
-	// ドラッグ中はIsItemHoveredがアクティブアイテムにブロックされてfalseになるため、矩形内判定で重なりを見る
+	// ドラッグ中の画像との重なりを矩形で判定
 	const ImVec2 mousePos = ImGui::GetMousePos();
-	const bool overImage = mousePos.x >= imagePos.x && mousePos.x <= imagePos.x + viewSize_.x &&
-		mousePos.y >= imagePos.y && mousePos.y <= imagePos.y + viewSize_.y;
+	const bool overImage = mousePos.x >= imagePos.x && mousePos.x <= imagePos.x + viewSize_.x && mousePos.y >= imagePos.y &&
+						   mousePos.y <= imagePos.y + viewSize_.y;
 
-	// 現在ドラッグ中のプロジェクトアセットを覗き見る、ドロップ前でも参照できる
+	// ドラッグ中のAssetを取得
 	const ImGuiPayload* dragging = ImGui::GetDragDropPayload();
 	const bool draggingAsset = dragging && dragging->IsDataType(IEditorPanel::kProjectAssetDragDropPayloadType) &&
-		dragging->Data && dragging->DataSize == static_cast<int>(sizeof(EditorAssetDragDropPayload));
+							   dragging->Data && dragging->DataSize == static_cast<int>(sizeof(EditorAssetDragDropPayload));
 	const EditorAssetDragDropPayload* assetPayload =
 		draggingAsset ? static_cast<const EditorAssetDragDropPayload*>(dragging->Data) : nullptr;
 
@@ -53,40 +54,39 @@ void Engine::ViewportPlacementSession::HandleAssetDropPlacement(const EditorPane
 		dropPreviewCanceled_ = true;
 	}
 
-	// プレビューを出してよい条件、ビュー上をドラッグ中で配置可能なアセットのとき
-	const bool canPreview = draggingAsset && overImage && !dropPreviewCanceled_ && assetPayload &&
-		world && database && context.graphicsCore && context.CanEditScene() &&
-		AssetEntityFactory::CanSpawn(*assetPayload);
+	// 編集可能な画像上で配置プレビューを生成
+	const bool canPreview = draggingAsset && overImage && !dropPreviewCanceled_ && assetPayload && world && database &&
+							context.graphicsCore && context.CanEditScene() && AssetEntityFactory::CanSpawn(*assetPayload);
 
 	if (canPreview) {
 
 		// アセットが変わった、または別ワールドのときは作り直す
-		if (!dropPreviewActive_ || dropPreviewAsset_ != assetPayload->assetID || dropPreviewWorld_ != world) {
+		if (!preview_.IsActive() || dropPreviewAsset_ != assetPayload->assetID || !preview_.BelongsTo(*world)) {
 
 			DestroyDropPreview();
+			SceneCreationScope creation(*world);
 			HierarchySystem hierarchySystem{};
-			const AssetSpawnResult spawn = AssetEntityFactory::Spawn(*world, *database, *context.graphicsCore,
-				hierarchySystem, *assetPayload, context.editorContext->activeSceneInstanceID);
-			if (spawn.valid) {
+			const AssetSpawnResult spawn = AssetEntityFactory::Spawn(*world, *database, *context.graphicsCore, hierarchySystem,
+				*assetPayload, context.editorContext->activeSceneInstanceID);
+			if (spawn.valid && preview_.Begin(*world, spawn.root)) {
 
-				dropPreviewEntity_ = spawn.root;
 				dropPreviewIsThreeD_ = spawn.isThreeD;
-				dropPreviewActive_ = true;
 				dropPreviewAsset_ = assetPayload->assetID;
-				dropPreviewWorld_ = world;
+				creation.Commit();
 			}
 		}
-		// プレビュー位置を毎フレーム更新する、非同期ロードは描画側に任せ準備でき次第表示される
-		if (dropPreviewActive_ && world->IsAlive(dropPreviewEntity_) &&
-			world->HasComponent<TransformComponent>(dropPreviewEntity_)) {
+		// プレビューの配置座標を更新
+		if (preview_.IsActive() && world->IsAlive(preview_.GetEntity()) &&
+			world->HasComponent<TransformComponent>(preview_.GetEntity())) {
 
-			Vector3 position = ComputeDropPosition(context, viewKind, dropPreviewIsThreeD_, imagePos, renderWidth, renderHeight);
+			Vector3 position =
+				ComputeDropPosition(context, viewKind, dropPreviewIsThreeD_, imagePos, renderWidth, renderHeight);
 			ApplyDropSnap(context, position, dropPreviewIsThreeD_);
-			auto& transform = world->GetComponent<TransformComponent>(dropPreviewEntity_);
+			auto& transform = world->GetComponent<TransformComponent>(preview_.GetEntity());
 			transform.localPos = position;
-			MarkTransformSubtreeDirty(*world, dropPreviewEntity_);
+			MarkTransformSubtreeDirty(*world, preview_.GetEntity());
 		}
-	} else if (dropPreviewActive_) {
+	} else if (preview_.IsActive()) {
 
 		// ビュー外/キャンセル/ドラッグ終了でプレビューを片付ける
 		DestroyDropPreview();
@@ -95,39 +95,37 @@ void Engine::ViewportPlacementSession::HandleAssetDropPlacement(const EditorPane
 	// ドロップ確定、Imageの上で離されたときだけ受理する
 	if (ImGui::BeginDragDropTarget()) {
 
-		if (const ImGuiPayload* accepted =
-			ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType)) {
+		if (const ImGuiPayload* accepted = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType)) {
 
-			if (!dropPreviewCanceled_ && dropPreviewActive_ && world && world->IsAlive(dropPreviewEntity_)) {
+			if (!dropPreviewCanceled_ && preview_.IsActive() && world && world->IsAlive(preview_.GetEntity())) {
 
-				// プレビューをそのまま確定して選択する、破棄対象から外す
-				if (context.editorState) {
-					context.editorState->SelectEntity(dropPreviewEntity_);
+				// 履歴への登録成功後に仮Entityの所有を渡す
+				if (accepted->IsDelivery() && context.CanEditScene() && context.host && preview_.BelongsTo(*world) &&
+					context.host->ExecuteEditorCommand(std::make_unique<CreateDroppedEntityCommand>(preview_.GetEntity()))) {
+
+					const Entity entity = preview_.Release();
+					if (context.editorState) {
+						context.editorState->SelectEntity(entity);
+					}
+					dropPreviewAsset_ = AssetID{};
 				}
-				// 作成済みエンティティをUndo/Redo対象として履歴へ登録する
-				if (context.host) {
-					context.host->ExecuteEditorCommand(std::make_unique<CreateDroppedEntityCommand>(dropPreviewEntity_));
-				}
-				dropPreviewActive_ = false;
-				dropPreviewEntity_ = Entity::Null();
-				dropPreviewWorld_ = nullptr;
-				dropPreviewAsset_ = AssetID{};
 			}
 		}
 		ImGui::EndDragDropTarget();
 	}
 
-	// SceneViewでアセットをスナップ有効でドラッグ中なら、スナップグリッド表示を要求する
+	// 配置中のSceneViewへスナップグリッドを表示
 	if (scenePanel && context.editorState) {
 
-		context.editorState->assetDragSnapGridActive = dropPreviewActive_ && context.editorState->enableSnapEditEntity;
+		context.editorState->assetDragSnapGridActive = preview_.IsActive() && context.editorState->enableSnapEditEntity;
 		context.editorState->assetDragSnapGridIs3D = dropPreviewIsThreeD_;
 	}
 }
 
-void Engine::ViewportPlacementSession::ApplyDropSnap(const EditorPanelContext& context, Vector3& position, bool isThreeD) const {
+void Engine::ViewportPlacementSession::ApplyDropSnap(
+	const EditorPanelContext& context, Vector3& position, bool isThreeD) const {
 
-	// スナップ有効時は現在の座標スナップ設定の間隔へ吸着させる、表示しているスナップグリッドと一致させる
+	// 現在の設定で配置スナップを適用
 	if (!context.editorState || !context.editorState->enableSnapEditEntity) {
 		return;
 	}
@@ -143,8 +141,8 @@ void Engine::ViewportPlacementSession::ApplyDropSnap(const EditorPanelContext& c
 	position.z = snapAxis(position.z);
 }
 
-Engine::Vector3 Engine::ViewportPlacementSession::ComputeDropPosition(const EditorPanelContext& context, RenderViewKind viewKind,
-	bool isThreeD, const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight) const {
+Engine::Vector3 Engine::ViewportPlacementSession::ComputeDropPosition(const EditorPanelContext& context,
+	RenderViewKind viewKind, bool isThreeD, const ImVec2& imagePos, uint32_t renderWidth, uint32_t renderHeight) const {
 
 	const ImVec2 mouse = ImGui::GetMousePos();
 	float nx = (viewSize_.x > 0.0f) ? (mouse.x - imagePos.x) / viewSize_.x : 0.5f;
@@ -157,7 +155,7 @@ Engine::Vector3 Engine::ViewportPlacementSession::ComputeDropPosition(const Edit
 		return Vector3(nx * static_cast<float>(renderWidth), ny * static_cast<float>(renderHeight), 0.0f);
 	}
 
-	// 3Dは透視カメラ光線と地面Y=0平面の交点に置く
+	// 3DはCameraの光線と地面の交点へ置く
 	if (!context.renderPipeline) {
 		return Vector3::AnyInit(0.0f);
 	}
@@ -172,7 +170,8 @@ Engine::Vector3 Engine::ViewportPlacementSession::ComputeDropPosition(const Edit
 	const Vector3 nearPoint = Vector3::Transform(Vector3(ndcX, ndcY, 0.0f), invViewProj);
 	const Vector3 farPoint = Vector3::Transform(Vector3(ndcX, ndcY, 1.0f), invViewProj);
 	const Vector3 direction = Vector3::Normalize(farPoint - nearPoint);
-	const Vector3 origin = camera.cameraPos;
+	// 平行投影では画面上の位置から光線を出す
+	const Vector3 origin = camera.projectionMode == ResolvedProjectionMode::Orthographic ? nearPoint : camera.cameraPos;
 
 	// 地面と交わるならその点、平行に近ければカメラ前方の一定距離へ置く
 	if (std::abs(direction.y) > 1e-4f) {
@@ -187,14 +186,13 @@ Engine::Vector3 Engine::ViewportPlacementSession::ComputeDropPosition(const Edit
 
 void Engine::ViewportPlacementSession::DestroyDropPreview() {
 
-	if (!dropPreviewActive_) {
-		return;
-	}
-	if (dropPreviewWorld_ && dropPreviewWorld_->IsAlive(dropPreviewEntity_)) {
-		EditorEntitySnapshotUtility::DestroySubtree(*dropPreviewWorld_, dropPreviewEntity_);
-	}
-	dropPreviewActive_ = false;
-	dropPreviewEntity_ = Entity::Null();
-	dropPreviewWorld_ = nullptr;
+	// 開始Worldが生存している仮Entityだけを破棄
+	preview_.End();
 	dropPreviewAsset_ = AssetID{};
+}
+
+void Engine::ViewportPlacementSession::EndPreview() {
+
+	DestroyDropPreview();
+	dropPreviewCanceled_ = false;
 }

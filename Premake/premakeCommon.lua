@@ -117,6 +117,31 @@ end
 
 -- エンジンDLL自身が同梱する外部ライブラリとシステムライブラリをリンクする
 -- 外部ライブラリはDLL内部に静的に取り込み、利用側からは見えなくする
+local function NEM_GetAssimpLibraryName(configuration)
+    -- CMakeが決めたtoolset接尾辞とDebug接尾辞をそのまま使用する
+    local cachePath = path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/CMakeCache.txt")
+    local cache = io.open(cachePath, "r")
+    if not cache then
+        error("assimpのCMake設定がありません: " .. cachePath)
+    end
+    local values = {}
+    for line in cache:lines() do
+        local key, value = line:match("^([^#/:][^:]*):[^=]+=(.*)$")
+        if key then values[key] = value end
+    end
+    cache:close()
+    local expectedSource = path.getabsolute(path.join(NEM_PROJECT_ROOT, "Externals/assimp"))
+    if not values.CMAKE_HOME_DIRECTORY or
+        path.getabsolute(values.CMAKE_HOME_DIRECTORY):lower() ~= expectedSource:lower() or
+        values.CMAKE_GENERATOR_PLATFORM ~= "x64" or
+        (values.CMAKE_GENERATOR ~= "Visual Studio 18 2026" and values.CMAKE_GENERATOR ~= "Visual Studio 17 2022") or
+        values.LIBRARY_SUFFIX == nil or values.CMAKE_DEBUG_POSTFIX == nil then
+        error("assimpのCMake設定が現在の構築対象と異なります: " .. cachePath)
+    end
+    local debugPostfix = configuration == "Debug" and values.CMAKE_DEBUG_POSTFIX or ""
+    return "assimp" .. values.LIBRARY_SUFFIX .. debugPostfix .. ".lib"
+end
+
 function NEM_AddEngineDllLinkSettings()
     links {
         "meshoptimizer",
@@ -140,7 +165,7 @@ function NEM_AddEngineDllLinkSettings()
     filter "configurations:Debug"
         links {
             path.join(NEM_ENGINE_GENERATED_ROOT, "Outputs/DirectXTex/Debug/DirectXTex.lib"),
-            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Debug/assimp-vc145-mtd.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Debug/" .. NEM_GetAssimpLibraryName("Debug")),
             path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/contrib/zlib/Debug/zlibstaticd.lib"),
         }
         if NEM_MSDF_AVAILABLE then
@@ -155,7 +180,7 @@ function NEM_AddEngineDllLinkSettings()
     filter "configurations:Develop or Release"
         links {
             path.join(NEM_ENGINE_GENERATED_ROOT, "Outputs/DirectXTex/Release/DirectXTex.lib"),
-            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Release/assimp-vc145-mt.lib"),
+            path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/lib/Release/" .. NEM_GetAssimpLibraryName("Release")),
             path.join(NEM_ENGINE_GENERATED_ROOT, "Externals/assimp/contrib/zlib/Release/zlibstatic.lib"),
         }
         if NEM_MSDF_AVAILABLE then
@@ -308,10 +333,6 @@ function NEM_AddCoreProjectFiles()
     vpaths {
         ["Source/*"] = sourcePatterns,
     }
-
-    removefiles {
-        path.join(coreRoot, "Tools/ImGui/**"),
-    }
 end
 
 function NEM_AddRuntimeProjectFiles()
@@ -338,16 +359,6 @@ function NEM_AddEditorProjectFiles()
     files(editorAssets)
     vpaths {
         ["EditorAssets/*"] = editorAssets,
-    }
-
-    -- ImGuiの実装はEditorだけで構築する
-    local editorOwnedCore = {
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.h"),
-        path.join(NEM_PROJECT_ROOT, "Engine/Core/Tools/ImGui/**.cpp"),
-    }
-    files(editorOwnedCore)
-    vpaths {
-        ["EditorOwnedCore/*"] = editorOwnedCore,
     }
 end
 

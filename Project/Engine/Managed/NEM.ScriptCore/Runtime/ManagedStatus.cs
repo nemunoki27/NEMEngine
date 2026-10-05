@@ -8,7 +8,7 @@ public enum ManagedStatus {
     InvalidWorldHandle,
     InvalidEntityHandle,
     InvalidInstanceHandle,
-    AbiMismatch,
+    ABIMismatch,
     Unsupported,
     SerializationError,
     ScriptException,

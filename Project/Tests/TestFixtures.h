@@ -50,7 +50,7 @@ namespace NEMTests {
 	// 読込は許可し、置換と書込を失敗させる
 	class TestFileReadLock {
 	public:
-		explicit TestFileReadLock(const std::filesystem::path& path);
+		explicit TestFileReadLock(const std::filesystem::path& path, bool allowRead = true);
 		~TestFileReadLock();
 		TestFileReadLock(const TestFileReadLock&) = delete;
 		TestFileReadLock& operator=(const TestFileReadLock&) = delete;

@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $engineRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
 $operations = Join-Path $engineRoot 'Tools\ProductBuild'
@@ -32,9 +32,20 @@ Copy-ProductFiles $manifest $source 'Game.exe' $stage 'Product.exe' $managed
 if (Test-Path (Join-Path $stage 'dxcompiler.dll')) { throw '開発用DLLが製品へ混入しました' }
 if (-not (Test-Path (Join-Path $stage 'Managed\GameScripts.dll'))) { throw 'Managed成果物がありません' }
 function Invoke-TestCook {
+    param([string]$mode, [string]$inputs, [string]$output)
+    $snapshot = Get-Content -LiteralPath $inputs -Raw | ConvertFrom-Json
+    if ($snapshot.gameRoot -ne [IO.Path]::GetFullPath($stage) -or
+        $snapshot.files[0].source -ne (Join-Path $stage 'GameAssets/Example.material.json')) {
+        throw 'Cookの入力が配置済みファイルを参照していません'
+    }
+    # 元Assetの変更は確定済みのCook入力へ混ざらない
+    [IO.File]::AppendAllText($asset, 'changed during Cook')
     $global:LASTEXITCODE = 0
 }
-Invoke-ProductCook $stage 'Invoke-TestCook' (Join-Path $root 'Unused.json')
+$manifestPath = Join-Path $root 'Inputs.json'
+$manifest | Add-Member -NotePropertyName gameRoot -NotePropertyValue $root
+Write-Utf8Json $manifestPath $manifest
+Invoke-ProductCook $stage 'Invoke-TestCook' $manifestPath
 $material = Get-Content (Join-Path $stage 'GameAssets\Example.material.json') -Raw | ConvertFrom-Json
 if ($material.PSObject.Properties.Name -contains 'shaderGraph') { throw 'Graph参照が残っています' }
 Write-ProductSettings $manifest $stage 'Product' 'Product.exe'

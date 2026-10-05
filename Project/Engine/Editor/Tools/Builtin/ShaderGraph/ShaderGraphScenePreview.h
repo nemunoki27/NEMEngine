@@ -33,7 +33,6 @@ namespace Engine {
 
 		UUID& GetTargetEntityUUID() { return previewEntityUUID_; }
 		bool IsMaterialApplied() const { return previewMaterialApplied_; }
-		double& GetCompileDeadline() { return previewCompileDeadline_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -49,6 +48,5 @@ namespace Engine {
 		ECSWorld* appliedWorld_ = nullptr;
 		std::weak_ptr<const ECSWorldLifetime> appliedWorldLifetime_{};
 		bool previewMaterialApplied_ = false;
-		double previewCompileDeadline_ = 0.0;
 	};
 }

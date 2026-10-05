@@ -1,50 +1,31 @@
 #include "RenderFeatureEditSession.h"
-#include <Engine/Editor/Tools/Core/IEditorTool.h>
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
-#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
-#include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
+#include <Engine/Editor/Tools/Core/IEditorTool.h>
 
 // c++
-#include <algorithm>
 #include <filesystem>
+#include <utility>
 
-namespace {
-
-	Engine::SceneHeader* ResolveActiveSceneHeader(
-		const Engine::ToolContext& context) {
-
-		if (context.sceneInstances && context.activeSceneInstanceID) {
-			Engine::SceneInstance* scene = context.sceneInstances->Find(
-				context.activeSceneInstanceID);
-			if (scene) {
-				return &scene->header;
-			}
-		}
-		return const_cast<Engine::SceneHeader*>(context.activeSceneHeader);
-	}
-
-}
-
+//============================================================================
+//	RenderFeatureEditSession classMethods
+//============================================================================
 bool Engine::RenderFeatureEditSession::IsPassMaterialSource(AssetType assetType, std::string_view assetPath) {
 
 	return assetType == AssetType::Material ||
-		(assetType == AssetType::Shader &&
-			PostProcessAssetGenerator::IsComputeShaderSourcePath(assetPath));
+		   (assetType == AssetType::Shader && PostProcessAssetGenerator::IsComputeShaderSourcePath(assetPath));
 }
 
 Engine::AssetID Engine::RenderFeatureEditSession::ResolvePassMaterial(
-	const EditorToolContext& context, AssetID assetID,
-	AssetType assetType, std::string_view assetPath) {
+	const EditorToolContext& context, AssetID assetID, AssetType assetType, std::string_view assetPath) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (!database || !assetID) {
@@ -69,8 +50,7 @@ Engine::AssetID Engine::RenderFeatureEditSession::ResolvePassMaterial(
 		return {};
 	}
 
-	const AssetID materialID = PostProcessAssetGenerator::EnsureUserAsset(
-		database, std::string(assetPath));
+	const AssetID materialID = PostProcessAssetGenerator::EnsureUserAsset(database, std::string(assetPath));
 	if (!materialID) {
 		statusMessage_ = "Compute Shader用アセットを生成できません";
 		statusError_ = true;
@@ -83,8 +63,7 @@ Engine::AssetID Engine::RenderFeatureEditSession::ResolvePassMaterial(
 
 void Engine::RenderFeatureEditSession::SetDirty() {
 
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
+	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
 	service.MarkDirty();
 	service.RebuildRuntime();
 }
@@ -92,8 +71,7 @@ void Engine::RenderFeatureEditSession::SetDirty() {
 bool Engine::RenderFeatureEditSession::Tick(ToolContext& context) {
 
 	if (requestedProfile_) {
-		RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(
-			requestedProfile_, context.assetDatabase);
+		RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(requestedProfile_, context.assetDatabase);
 		observedProfile_ = requestedProfile_;
 		requestedProfile_ = {};
 		return true;
@@ -116,25 +94,21 @@ bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolCon
 	}
 
 	const AssetMeta* sourceMeta = database->Find(sourceProfile);
-	if (!sourceMeta || sourceMeta->type != AssetType::RenderExtension) {
-		statusMessage_ = "Render Extensionを指定してください";
+	if (!sourceMeta || sourceMeta->type != AssetType::RenderPasses) {
+		statusMessage_ = "Render Passesを指定してください";
 		statusError_ = true;
 		return false;
 	}
 
 	RenderFeatureProfileAsset source{};
-	const std::filesystem::path sourcePath =
-		database->ResolveFullPath(sourceProfile);
-	if (sourcePath.empty() ||
-		!RenderFeatureProfileSerializer::Load(sourcePath, source)) {
+	const std::filesystem::path sourcePath = database->ResolveFullPath(sourceProfile);
+	if (sourcePath.empty() || !RenderFeatureProfileSerializer::Load(sourcePath, source)) {
 
 		statusMessage_ = "取り込み元プロファイルを読み込めません";
 		statusError_ = true;
 		return false;
 	}
-
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
+	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	CopyRenderFeatureProfileSettings(service.GetProfile(), source);
 	SetDirty();
@@ -143,19 +117,10 @@ bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolCon
 	return true;
 }
 
-bool Engine::RenderFeatureEditSession::CreateProfile(const EditorToolContext& context) {
-
-	(void)context;
-	statusMessage_ = "ProjectからRender Extensionを作成してください";
-	statusError_ = false;
-	return false;
-}
-
 void Engine::RenderFeatureEditSession::SelectProfile(const EditorToolContext& context, AssetID profileAsset) {
 
 	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
-	service.SetActiveProfileAsset(
-		profileAsset, context.toolContext.assetDatabase);
+	service.SetActiveProfileAsset(profileAsset, context.toolContext.assetDatabase);
 	observedProfile_ = profileAsset;
 }
 
@@ -163,13 +128,11 @@ void Engine::RenderFeatureEditSession::Save() {
 
 	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
 	service.RebuildRuntime();
-	statusError_ = !service.GetRuntime().GetDiagnostic().empty() ||
-		!service.Save();
+	statusError_ = !service.GetRuntime().GetDiagnostic().empty() || !service.Save();
 	if (!statusError_) {
 		service.ClearDirty();
 	}
-	statusMessage_ = statusError_ ?
-		"保存できませんでした" : "保存しました";
+	statusMessage_ = statusError_ ? "保存できませんでした" : "保存しました";
 }
 
 void Engine::RenderFeatureEditSession::Reload() {
@@ -179,14 +142,39 @@ void Engine::RenderFeatureEditSession::Reload() {
 	statusError_ = false;
 }
 
-bool Engine::RenderFeatureEditSession::CanCreateProfile(const EditorToolContext& context) const {
-
-	(void)context;
-	return false;
-}
-
 void Engine::RenderFeatureEditSession::SetStatusMessage(const std::string& message, bool error) {
 
 	statusMessage_ = message;
 	statusError_ = error;
+}
+
+void Engine::RenderFeatureEditSession::SynchronizePreview(const EditorToolContext& context) {
+
+	if (!context.panelContext || !context.panelContext->renderPipeline) {
+		return;
+	}
+	RenderAssetLibrary& library = context.panelContext->renderPipeline->GetRenderAssetLibrary();
+	const AssetID assetID = GetProfileID();
+	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
+	if (previewAsset_ && previewAsset_ != assetID) {
+		// 切替前の編集を別のCameraへ残さない
+		library.DiscardPreviewRenderPasses(previewAsset_);
+		previewAsset_ = {};
+		previewGeneration_ = 0;
+	}
+	if (!assetID || context.IsPlaying() ||
+		(previewAsset_ == assetID && previewGeneration_ == service.GetRuntimeGeneration() &&
+			library.HasPreviewRenderPasses(assetID))) {
+		return;
+	}
+	// 未保存値を含む完成した構成を公開する
+	const RenderFeatureProfileAsset& profile = service.GetProfile();
+	RenderPassesAsset preview{};
+	preview.guid = assetID;
+	preview.name = profile.name;
+	preview.passes = profile.passes;
+	preview.hierarchy = profile.hierarchy;
+	library.RegisterPreviewRenderPasses(std::move(preview));
+	previewAsset_ = assetID;
+	previewGeneration_ = service.GetRuntimeGeneration();
 }

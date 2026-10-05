@@ -6,7 +6,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <cstring>
@@ -46,7 +46,7 @@ void Engine::BufferUploadService::Init(GraphicsResourceRetirement& retirement, I
 	D3D12_COMMAND_QUEUE_DESC queueDesc{};
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	HRESULT hr = device_->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&uploadQueue_));
-	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 		throw std::runtime_error("BufferUpload用コマンドキューの作成に失敗しました");
 	}
 	uploadQueue_->SetName(L"BufferUploadQueue");
@@ -56,21 +56,21 @@ void Engine::BufferUploadService::Init(GraphicsResourceRetirement& retirement, I
 	for (size_t i = 0; i < contexts_.size(); ++i) {
 		UploadFrameContext& context = contexts_[i];
 		hr = device_->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&context.allocator));
-		if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 			throw std::runtime_error("BufferUpload用コマンドアロケータの作成に失敗しました");
 		}
 		context.allocator->SetName((L"BufferUploadCommandAllocator[" + std::to_wstring(i) + L"]").c_str());
 
 		hr = device_->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, context.allocator.Get(), nullptr,
 			IID_PPV_ARGS(&context.commandList));
-		if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 			throw std::runtime_error("BufferUpload用コマンドリストの作成に失敗しました");
 		}
 		context.commandList->SetName((L"BufferUploadCommandList[" + std::to_wstring(i) + L"]").c_str());
 
 		// 作成直後は記録状態なので、BeginBatchでResetできるよう一旦閉じる
 		hr = context.commandList->Close();
-		if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService::Init/Close")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService::Init/Close")) {
 			throw std::runtime_error("BufferUpload用コマンドリストの初期化に失敗しました");
 		}
 		context.lastFenceValue = 0;
@@ -80,7 +80,7 @@ void Engine::BufferUploadService::Init(GraphicsResourceRetirement& retirement, I
 	nextFenceValue_ = 1;
 	lastSubmittedFenceValue_ = 0;
 	hr = device_->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 		throw std::runtime_error("BufferUpload用Fenceの作成に失敗しました");
 	}
 	fence_->SetName(L"BufferUploadFence");
@@ -153,11 +153,11 @@ void Engine::BufferUploadService::EnsureBatchOpened() {
 	WaitForFenceValue(context.lastFenceValue);
 
 	HRESULT hr = context.allocator->Reset();
-	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 		throw std::runtime_error("BufferUpload用コマンドアロケータのリセットに失敗しました");
 	}
 	hr = context.commandList->Reset(context.allocator.Get(), nullptr);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService")) {
 		throw std::runtime_error("BufferUpload用コマンドリストのリセットに失敗しました");
 	}
 
@@ -196,7 +196,7 @@ void Engine::BufferUploadService::EnqueueBufferUpload(
 
 	void* mapped = nullptr;
 	HRESULT hr = staging->Map(0, nullptr, &mapped);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService::EnqueueBufferUpload/Map")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "BufferUploadService::EnqueueBufferUpload/Map")) {
 		throw std::runtime_error("BufferUpload用ステージングバッファのMapに失敗しました");
 	}
 	std::memcpy(mapped, sourceData.data(), sourceData.size_bytes());
@@ -263,7 +263,7 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 	const HRESULT closed = currentContext_->commandList->Close();
 	batchOpened_ = false;
 	hasCommands_ = false;
-	if (!DxDredDiagnostics::CheckHRESULT(device_, closed, "BufferUploadService::Close")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, closed, "BufferUploadService::Close")) {
 		pendingBatches_.pop_back();
 		throw std::runtime_error("BufferUpload用コマンドリストを閉じられませんでした");
 	}
@@ -277,7 +277,7 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 
 	// 描画側の待機失敗でも提出済みBatchを再実行しない
 	if (graphicsQueue_ && graphicsQueue_ != uploadQueue_.Get()) {
-		if (!DxDredDiagnostics::CheckHRESULT(device_, graphicsQueue_->Wait(fence_.Get(), submitted), "BufferUploadService::QueueWait")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, graphicsQueue_->Wait(fence_.Get(), submitted), "BufferUploadService::QueueWait")) {
 			throw std::runtime_error("描画キューのBuffer転送待機に失敗しました");
 		}
 	}
@@ -287,7 +287,7 @@ uint64_t Engine::BufferUploadService::SubmitBatch() {
 uint64_t Engine::BufferUploadService::SignalSubmittedBatch() {
 
 	const uint64_t submitted = nextFenceValue_;
-	if (!DxDredDiagnostics::CheckHRESULT(device_, uploadQueue_->Signal(fence_.Get(), submitted), "BufferUploadService::Signal")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, uploadQueue_->Signal(fence_.Get(), submitted), "BufferUploadService::Signal")) {
 		throw std::runtime_error("BufferUpload用コマンドキューのSignalに失敗しました");
 	}
 	// Fenceを発行できたBatchだけ再利用可能にする
@@ -308,7 +308,7 @@ void Engine::BufferUploadService::TickFinalize() {
 
 	const uint64_t completed = fence_->GetCompletedValue();
 	if (completed == UINT64_MAX) {
-		DxDredDiagnostics::DumpDeviceRemovedData(device_, "BufferUploadService::TickFinalize");
+		DxDREDDiagnostics::DumpDeviceRemovedData(device_, "BufferUploadService::TickFinalize");
 		throw std::runtime_error("BufferUpload中にDeviceが失われました");
 	}
 	while (!pendingBatches_.empty()) {
@@ -334,7 +334,7 @@ void Engine::BufferUploadService::WaitForFenceValue(uint64_t fenceValue) {
 	if (fenceValue == 0) {
 		return;
 	}
-	if (!DxDredDiagnostics::WaitForFence(device_, fence_.Get(), fenceValue, fenceEvent_, "BufferUploadService::Wait")) {
+	if (!DxDREDDiagnostics::WaitForFence(device_, fence_.Get(), fenceValue, fenceEvent_, "BufferUploadService::Wait")) {
 		throw std::runtime_error("BufferUploadの完了を確認できませんでした");
 	}
 }

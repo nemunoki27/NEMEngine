@@ -39,3 +39,12 @@ Engine::Vector3 Engine::LightExtract::GetWorldDirection(
 
 	return Vector3::TransferNormal(localDirection.Normalize(), worldMatrix).Normalize();
 }
+
+void Engine::LightExtract::FillCommonFields(LightItemCommon& common, ECSWorld& world, const Entity& entity) {
+
+	// Lightの所有WorldとSceneを記録する
+	common.entity = entity;
+	common.world = &world;
+	common.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
+	common.cameraDomain = RenderCameraDomain::Perspective;
+}

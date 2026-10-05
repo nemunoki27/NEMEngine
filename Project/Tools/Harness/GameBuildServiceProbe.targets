@@ -8,7 +8,8 @@
     <TLogLocation>$(IntDir)$(TargetName).tlog\</TLogLocation>
   </PropertyGroup>
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'NEMTests'">
-    <ClCompile Remove="main.cpp" />
+    <!-- 製品収集の検証へ無関係なテスト実装を持ち込まない -->
+    <ClCompile Remove="@(ClCompile)" />
     <ClCompile Include="$(MSBuildThisFileDirectory)GameBuildServiceProbe.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Engine\Editor\Build\GameBuild*.cpp" />
   </ItemGroup>

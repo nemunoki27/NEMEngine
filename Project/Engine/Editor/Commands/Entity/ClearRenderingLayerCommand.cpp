@@ -4,10 +4,6 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
-#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
-#include <Engine/Core/World/Components/Lighting/PointLightComponent.h>
-#include <Engine/Core/World/Components/Lighting/RectLightComponent.h>
-#include <Engine/Core/World/Components/Lighting/SpotLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
@@ -53,26 +49,6 @@ bool Engine::ClearRenderingLayerCommand::Execute(EditorCommandContext& context) 
 		world->ForEach<LineRendererComponent>([&](Entity entity, LineRendererComponent& component) {
 			if ((component.renderingLayerMask & (1u << layerIndex_)) != 0u) {
 				entries_.push_back({ world->GetUUID(entity), TargetKind::Line, component.renderingLayerMask });
-			}
-		});
-		world->ForEach<DirectionalLightComponent>([&](Entity entity, DirectionalLightComponent& component) {
-			if ((component.affectLayerMask & (1u << layerIndex_)) != 0u) {
-				entries_.push_back({ world->GetUUID(entity), TargetKind::DirectionalLight, component.affectLayerMask });
-			}
-		});
-		world->ForEach<PointLightComponent>([&](Entity entity, PointLightComponent& component) {
-			if ((component.affectLayerMask & (1u << layerIndex_)) != 0u) {
-				entries_.push_back({ world->GetUUID(entity), TargetKind::PointLight, component.affectLayerMask });
-			}
-		});
-		world->ForEach<SpotLightComponent>([&](Entity entity, SpotLightComponent& component) {
-			if ((component.affectLayerMask & (1u << layerIndex_)) != 0u) {
-				entries_.push_back({ world->GetUUID(entity), TargetKind::SpotLight, component.affectLayerMask });
-			}
-		});
-		world->ForEach<RectLightComponent>([&](Entity entity, RectLightComponent& component) {
-			if ((component.affectLayerMask & (1u << layerIndex_)) != 0u) {
-				entries_.push_back({ world->GetUUID(entity), TargetKind::RectLight, component.affectLayerMask });
 			}
 		});
 		captured_ = true;
@@ -140,30 +116,6 @@ bool Engine::ClearRenderingLayerCommand::Apply(
 			if (auto* value = world->TryGetComponent<LineRendererComponent>(entity)) {
 				value->renderingLayerMask = mask;
 				world->MarkComponentModified<LineRendererComponent>(entity);
-			}
-			break;
-		case TargetKind::DirectionalLight:
-			if (auto* value = world->TryGetComponent<DirectionalLightComponent>(entity)) {
-				value->affectLayerMask = mask;
-				world->MarkComponentModified<DirectionalLightComponent>(entity);
-			}
-			break;
-		case TargetKind::PointLight:
-			if (auto* value = world->TryGetComponent<PointLightComponent>(entity)) {
-				value->affectLayerMask = mask;
-				world->MarkComponentModified<PointLightComponent>(entity);
-			}
-			break;
-		case TargetKind::SpotLight:
-			if (auto* value = world->TryGetComponent<SpotLightComponent>(entity)) {
-				value->affectLayerMask = mask;
-				world->MarkComponentModified<SpotLightComponent>(entity);
-			}
-			break;
-		case TargetKind::RectLight:
-			if (auto* value = world->TryGetComponent<RectLightComponent>(entity)) {
-				value->affectLayerMask = mask;
-				world->MarkComponentModified<RectLightComponent>(entity);
 			}
 			break;
 		}

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <stdexcept>
 #include <algorithm>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -86,7 +86,7 @@ void Engine::BottomLevelAccelerationStructure::Build(ID3D12Device8* device,
 	if (!device || !commandList || input.geometries.empty() || input.geometries.size() > UINT32_MAX) {
 		throw std::invalid_argument("BLASの構築引数が不正です");
 	}
-	if (!DxDredDiagnostics::CheckDeviceState(device, "BLAS::Build")) throw std::runtime_error("Deviceが失われました");
+	if (!DxDREDDiagnostics::CheckDeviceState(device, "BLAS::Build")) throw std::runtime_error("Deviceが失われました");
 	// 候補の作成と記録が成功してから公開する
 	retirementQueue_->ReservePending(2 + kGraphicsFrameContextCount);
 	BottomLevelAccelerationStructure candidate;

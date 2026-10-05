@@ -7,7 +7,7 @@
 #include <Engine/Core/Scripting/Managed/ManagedSourceMonitor.h>
 #include <Engine/Core/Scripting/Managed/ManagedBuildArtifacts.h>
 #include <Engine/Core/Scripting/Managed/ManagedBuildCycle.h>
-#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedAlcStatus.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedALCStatus.h>
 
 // c++
 #include <chrono>
@@ -78,7 +78,7 @@ namespace Engine {
 			bool hasUsableLastKnownGood = false;
 			bool lastKnownGoodUpdateFailed = false;
 			bool alcLeakSuspected = false;
-			AlcUnloadStatus alcUnloadStatus = AlcUnloadStatus::Unknown;
+			ALCUnloadStatus alcUnloadStatus = ALCUnloadStatus::Unknown;
 			std::string activeAssemblyPath;
 			std::string lastSuccessfulBuildTime;
 			std::string lastFailureSummary;
@@ -157,7 +157,7 @@ namespace Engine {
 
 		// Editor向けsnapshot用の状態でlog文字列をsource of truthにしない
 		bool alcLeakSuspected_ = false; // HostBridge typed status 由来で LeakSuspected のとき true
-		AlcUnloadStatus alcUnloadStatus_ = AlcUnloadStatus::Unknown;
+		ALCUnloadStatus alcUnloadStatus_ = ALCUnloadStatus::Unknown;
 		std::string lastSuccessfulBuildTimeUtf8_;
 		std::string lastFailureSummaryUtf8_;
 

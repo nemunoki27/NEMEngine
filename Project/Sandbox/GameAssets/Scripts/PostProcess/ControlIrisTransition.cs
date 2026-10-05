@@ -19,14 +19,14 @@ public sealed class ControlIrisTransition : MonoBehaviour {
 	[SerializeField]
 	private float threshold = 0.5f;
 
-	private RenderExtensionPass pass;
+	private RenderPassesPass pass;
 
 	//========================================================================
 	//	開始時処理
 	//========================================================================
 	private void Start() {
 
-		pass = RenderExtensions.FindPass(PassName);
+		pass = RenderPasses.FindPass(PassName);
 	}
 
 	//========================================================================
@@ -35,7 +35,7 @@ public sealed class ControlIrisTransition : MonoBehaviour {
 	private void Update() {
 
 		if (!pass.isValid) {
-			pass = RenderExtensions.FindPass(PassName);
+			pass = RenderPasses.FindPass(PassName);
 		}
 		if (!pass.isValid) {
 			return;

@@ -20,7 +20,7 @@ namespace Engine::UISelectableAnimation {
 	void ApplyAnimationClipOnce(ECSWorld& world, Entity entity, const AnimationClipAsset& clip, float time,
 		std::span<const AnimationPreviewBaseValue> baseValues);
 
-	void PlayStateSound(const UITransitionStyle& style, SystemContext& context);
+	void PlayStateSound(ECSWorld& world, Entity entity, const UITransitionStyle& style, SystemContext& context);
 
 	bool ConfigureAnimationRuntime(ECSWorld& world, Entity entity, const UISelectableComponent& selectable,
 		UISelectableRuntimeComponent& selectableRuntime, SystemContext& context,

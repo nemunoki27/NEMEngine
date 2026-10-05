@@ -528,11 +528,6 @@ float3 EvaluateRaytracingDirectionalLight(DirectionalLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
 
-	if (!DoesLightAffectRenderingLayer(
-		light.affectLayerMask, renderFlags)) {
-		return 0.0f.xxx;
-	}
-
 	float3 L = SafeNormalize(-light.direction, material.N);
 	if (dot(material.N, L) <= 0.0f) {
 		return 0.0f.xxx;
@@ -549,11 +544,6 @@ float3 EvaluateRaytracingDirectionalLight(DirectionalLight light,
 float3 EvaluateRaytracingPointLight(PointLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
-
-	if (!DoesLightAffectRenderingLayer(
-		light.affectLayerMask, renderFlags)) {
-		return 0.0f.xxx;
-	}
 
 	float3 toLight = light.pos - worldPosition;
 	float distanceToLight = length(toLight);
@@ -574,11 +564,6 @@ float3 EvaluateRaytracingSpotLight(SpotLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
 
-	if (!DoesLightAffectRenderingLayer(
-		light.affectLayerMask, renderFlags)) {
-		return 0.0f.xxx;
-	}
-
 	float3 toLight = light.pos - worldPosition;
 	float distanceToLight = length(toLight);
 	if (distanceToLight <= 1e-5f ||
@@ -597,11 +582,6 @@ float3 EvaluateRaytracingSpotLight(SpotLight light,
 float3 EvaluateRaytracingRectLight(RectLight light,
 	float3 worldPosition, ResolvedPBRMaterial material,
 	float3 V, float3 F0, uint renderFlags) {
-
-	if (!DoesLightAffectRenderingLayer(
-		light.affectLayerMask, renderFlags)) {
-		return 0.0f.xxx;
-	}
 
 	float centerDistance = length(light.pos - worldPosition);
 	float attenuation = ComputeDistanceAttenuation(

@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 using namespace Engine::ShaderCookStorage;
 
@@ -32,6 +33,7 @@ Engine::ShaderCookCompiler::ShaderCookCompiler(AssetDatabase& database, const st
 	database_(database), outputRoot_(outputRoot) {
 
 	compiler_.Init();
+	compiler_.SetSourceRoot(RuntimePaths::GetGameRoot());
 }
 
 bool Engine::ShaderCookCompiler::Cook(ShaderAsset shader, std::string_view sourceName, nlohmann::json& cookedManifest,

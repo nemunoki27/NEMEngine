@@ -105,13 +105,14 @@ void Engine::ColorPipelineProcessor::BeginFrame() {
 
 void Engine::ColorPipelineProcessor::Release() {
 
-	for (ViewExposureState& state : viewStates_) {
+	for (auto& [key, state] : viewStates_) {
 		state.exposureBuffer.Release();
 		state.world = nullptr;
 		state.lastUpdatedFrame = 0;
 		state.initialized = false;
 		state.bufferInitialized = false;
 	}
+	viewStates_.clear();
 	outputTransformLogged_ = false;
 	constantBufferAllocator_.Release();
 }
@@ -127,7 +128,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	ViewExposureState& state = GetViewState(context.kind);
+	ViewExposureState& state = GetViewState(context.view->GetHistoryKey());
 	if (!state.bufferInitialized) {
 		state.exposureBuffer.Init(graphicsCore.GetDXObject().GetDevice(),
 			&graphicsCore.GetSRVDescriptor());
@@ -254,9 +255,9 @@ bool Engine::ColorPipelineProcessor::PresentToBackBuffer(
 }
 
 Engine::ColorPipelineProcessor::ViewExposureState&
-Engine::ColorPipelineProcessor::GetViewState(RenderViewKind kind) {
+Engine::ColorPipelineProcessor::GetViewState(const std::string& key) {
 
-	return viewStates_[static_cast<size_t>(kind)];
+	return viewStates_[key];
 }
 
 Engine::ColorPipelineProcessor::ColorPipelineConstants

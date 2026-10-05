@@ -20,8 +20,11 @@ namespace Engine::ViewportTransformUtility {
 	// 編集座標を解決する
 	float SnapValueToGrid(float value, float grid);
 	// 編集座標を解決する
-	const Engine::GridSnapAxis* SelectSnapAxis(const Engine::EntitySnapSettings& settings,
-	Engine::SceneViewManipulatorMode mode, bool use2D);
+	const Engine::GridSnapAxis* SelectSnapAxis(
+		const Engine::EntitySnapSettings& settings, Engine::SceneViewManipulatorMode mode, bool use2D);
 	// 編集座標を解決する
 	void ApplyAbsoluteSnap(Engine::TransformComponent& transform, Engine::SceneViewManipulatorMode mode, float grid);
+	// Worldの差分を親座標へ変換して姿勢を求める
+	bool ResolveWorldDelta(ECSWorld& world, Entity entity, const Vector3& deltaPos, const Quaternion& deltaRotation,
+		const Vector3& deltaScale, const Vector3& pivot, bool pivotAtCenter, TransformComponent& result);
 }

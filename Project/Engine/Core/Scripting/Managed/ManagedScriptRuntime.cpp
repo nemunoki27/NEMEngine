@@ -410,19 +410,19 @@ void Engine::ManagedScriptRuntime::TickFrame(int32_t phase, const SystemContext&
 	}
 }
 
-Engine::AlcUnloadStatus Engine::ManagedScriptRuntime::GetLastAlcUnloadStatus() {
+Engine::ALCUnloadStatus Engine::ManagedScriptRuntime::GetLastALCUnloadStatus() {
 
-	if (!bridge_.getLastAlcUnloadStatus_) {
-		return AlcUnloadStatus::Unknown;
+	if (!bridge_.getLastALCUnloadStatus_) {
+		return ALCUnloadStatus::Unknown;
 	}
-	const int32_t status = bridge_.getLastAlcUnloadStatus_();
+	const int32_t status = bridge_.getLastALCUnloadStatus_();
 	if (status == 1) {
-		return AlcUnloadStatus::UnloadSucceeded;
+		return ALCUnloadStatus::UnloadSucceeded;
 	}
 	if (status == 2) {
-		return AlcUnloadStatus::LeakSuspected;
+		return ALCUnloadStatus::LeakSuspected;
 	}
-	return AlcUnloadStatus::Unknown;
+	return ALCUnloadStatus::Unknown;
 }
 
 Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context) :

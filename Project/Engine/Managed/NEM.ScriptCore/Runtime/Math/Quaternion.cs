@@ -156,8 +156,9 @@ public struct Quaternion : IEquatable<Quaternion> {
 
     // 2回転のなす角(度)を返す
     public static float Angle(Quaternion lhs, Quaternion rhs) {
-        float dot = Mathf.Abs(Mathf.Clamp(Dot(lhs, rhs), -1.0f, 1.0f));
-        return Mathf.RadToDeg(2.0f * Mathf.Acos(dot));
+        float dot = Mathf.Min(Mathf.Abs(Dot(lhs, rhs)), 1.0f);
+        // 同一回転の丸め誤差を角度へ変換しない
+        return dot > 1.0f - 1e-6f ? 0.0f : Mathf.RadToDeg(2.0f * Mathf.Acos(dot));
     }
 
     // 近似比較
@@ -220,6 +221,10 @@ public struct Quaternion : IEquatable<Quaternion> {
     public static Quaternion FromToRotation(Vector3 from, Vector3 to) {
         Vector3 f = Vector3.Normalize(from);
         Vector3 t = Vector3.Normalize(to);
+        // 方向を持たない入力では回転を作らない
+        if (f.sqrMagnitude == 0.0f || t.sqrMagnitude == 0.0f) {
+            return identity;
+        }
         float dot = Mathf.Clamp(Vector3.Dot(f, t), -1.0f, 1.0f);
         // ほぼ同方向は回転なし
         if (dot >= 1.0f - 1e-6f) {
@@ -239,7 +244,8 @@ public struct Quaternion : IEquatable<Quaternion> {
     // fromからtoへ最大maxDegreesDeltaだけ回す
     public static Quaternion RotateTowards(Quaternion from, Quaternion to, float maxDegreesDelta) {
         float angle = Angle(from, to);
-        return angle <= 1e-6f ? to : Slerp(from, to, Mathf.Clamp01(maxDegreesDelta / angle));
+        // 負の回転量は目標から離れる方向へ外挿する
+        return angle == 0.0f ? to : SlerpUnclamped(from, to, Mathf.Min(1.0f, maxDegreesDelta / angle));
     }
 
     // Z、X、Yの順で回転する度数法のオイラー角

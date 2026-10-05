@@ -39,11 +39,11 @@ Engine::ParticleEmitterShapeRegistry& Engine::ParticleEmitterShapeRegistry::GetI
 }
 
 void Engine::ParticleEmitterShapeRegistry::DrawDebugShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, const Quaternion& rotation, bool is2D) const {
+	const Matrix4x4& emitterWorld, bool is2D) const {
 
 	// 製品では補助描画を登録しない
 	if (debugDraw_) {
-		debugDraw_(settings, center, rotation, is2D);
+		debugDraw_(settings, emitterWorld, is2D);
 	}
 }
 

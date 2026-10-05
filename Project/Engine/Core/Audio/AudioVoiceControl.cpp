@@ -10,8 +10,60 @@ using namespace Engine;
 
 // c++
 #include <algorithm>
+#include <cmath>
 
-void Audio::Stop(const std::string& name) {
+void Audio::SetMasterVolume(float volume) {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	masterVolume_ = std::isfinite(volume) ? std::clamp(volume, 0.0f, 1.0f) : 1.0f;
+	// 再生中のVoiceにも直ちに反映する
+	for (auto& [key, voices] : activeVoices_) {
+		for (auto& voice : voices) {
+			ApplyVoiceVolumeLocked(key, voice);
+		}
+	}
+}
+
+void Audio::SetGamePauseReason(AudioPauseReason reason, bool paused) {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (gamePlaybackState_.HasPauseReason(reason) == paused) { return; }
+	gamePlaybackState_.SetPauseReason(reason, paused);
+	// GameのVoiceだけを停止し、元から停止中のVoiceは再開しない
+	for (auto& [key, voices] : activeVoices_) {
+		for (auto& inst : voices) {
+			if (inst.owner != AudioPlaybackOwner::Game || !inst.voice ||
+				!inst.playbackState.SetPauseReason(reason, paused)) { continue; }
+			if (inst.playbackState.IsPaused()) {
+				inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
+			} else {
+				inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
+			}
+		}
+	}
+}
+
+void Audio::StopGameVoices() {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	// Worldと一緒にゲームUIのOneShotも終了する
+	for (auto it = activeVoices_.begin(); it != activeVoices_.end();) {
+		// 要素移動でPCMが解放される前にVoiceを破棄する
+		for (auto& inst : it->second) {
+			if (inst.owner == AudioPlaybackOwner::Game) { inst.voice.reset(); }
+		}
+		std::erase_if(it->second, [](const VoiceInstance& voice) {
+			return voice.owner == AudioPlaybackOwner::Game;
+		});
+		if (it->second.empty()) {
+			it = activeVoices_.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+void Audio::Stop(const std::string& name, AudioPlaybackOwner owner) {
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	const std::string key = AudioSoundCache::NormalizeKey(name);
@@ -22,17 +74,16 @@ void Audio::Stop(const std::string& name) {
 	}
 
 	for (auto& inst : it->second) {
-		if (!inst.voice) {
+		if (!inst.voice || inst.owner != owner) {
 			continue;
 		}
 
 		inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
 		inst.voice->FlushSourceBuffers();
-		inst.voice->DestroyVoice();
 		inst.voice = nullptr;
 	}
-	it->second.clear();
-	activeVoices_.erase(it);
+	std::erase_if(it->second, [](const VoiceInstance& voice) { return !voice.voice; });
+	if (it->second.empty()) { activeVoices_.erase(it); }
 }
 
 void Audio::StopVoice(uint64_t voiceID) {
@@ -52,7 +103,6 @@ void Audio::StopVoice(uint64_t voiceID) {
 
 			inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
 			inst.voice->FlushSourceBuffers();
-			inst.voice->DestroyVoice();
 			inst.voice = nullptr;
 		}
 
@@ -75,10 +125,9 @@ void Audio::PauseVoice(uint64_t voiceID) {
 	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto& [key, voices] : activeVoices_) {
 		for (auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice && !inst.paused) {
+			if (inst.voiceID == voiceID && inst.voice && inst.playbackState.SetPauseReason(AudioPauseReason::Script, true)) {
 				// 再生位置を保持したまま停止する、buffer flush / destroyはしない
 				inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
-				inst.paused = true;
 			}
 		}
 	}
@@ -92,9 +141,8 @@ void Audio::ResumeVoice(uint64_t voiceID) {
 	std::lock_guard<std::mutex> lock(mutex_);
 	for (auto& [key, voices] : activeVoices_) {
 		for (auto& inst : voices) {
-			if (inst.voiceID == voiceID && inst.voice && inst.paused) {
+			if (inst.voiceID == voiceID && inst.voice && inst.playbackState.SetPauseReason(AudioPauseReason::Script, false)) {
 				inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
-				inst.paused = false;
 			}
 		}
 	}
@@ -129,11 +177,8 @@ void Audio::SetVoiceLoop(uint64_t voiceID, bool loop) {
 			if (inst.voiceID != voiceID || !inst.voice || inst.loop == loop) {
 				continue;
 			}
-			AudioSoundData* sound = soundCache_.Find(key);
-			if (!sound) {
-				return;
-			}
-			RebuildVoiceBufferLocked(*sound, inst, loop);
+			// 再生開始時のPCMで再生位置を維持する
+			RebuildVoiceBufferLocked(*inst.sound, inst, loop);
 			return;
 		}
 	}
@@ -144,12 +189,12 @@ void Audio::SetVolume(const std::string& name, float volume) {
 	std::lock_guard<std::mutex> lock(mutex_);
 	const std::string key = AudioSoundCache::NormalizeKey(name);
 
-	AudioSoundData* sound = soundCache_.Find(key);
+	const AudioSoundData* sound = soundCache_.Find(key);
 	if (!sound) {
 		return;
 	}
 
-	sound->volume = std::clamp(volume, 0.0f, 1.0f);
+	soundCache_.SetVolume(key, volume);
 
 	// 再生中の全インスタンスにも反映
 	CleanupFinishedVoicesLocked(key);
@@ -191,7 +236,7 @@ bool Audio::IsVoicePlaying(uint64_t voiceID) {
 	for (const auto& [key, voices] : activeVoices_) {
 		for (const auto& inst : voices) {
 			if (inst.voiceID == voiceID && inst.voice) {
-				return !inst.paused;
+				return !inst.playbackState.IsPaused();
 			}
 		}
 	}
@@ -221,6 +266,20 @@ void Audio::CleanupFinishedVoices() {
 	CleanupAllFinishedVoicesLocked();
 }
 
+uint64_t Audio::GetVoiceSamplePosition(uint64_t voiceID) {
+
+	std::lock_guard<std::mutex> lock(mutex_);
+	for (const auto& [key, voices] : activeVoices_) {
+		for (const auto& inst : voices) {
+			if (inst.voiceID != voiceID || !inst.voice) { continue; }
+			XAUDIO2_VOICE_STATE state{};
+			inst.voice->GetState(&state);
+			return state.SamplesPlayed;
+		}
+	}
+	return 0;
+}
+
 void Audio::CleanupFinishedVoicesLocked(const std::string& key) {
 
 	auto it = activeVoices_.find(key);
@@ -238,7 +297,6 @@ void Audio::CleanupFinishedVoicesLocked(const std::string& key) {
 
 			// BuffersQueued == 0なら再生完了
 			if (st.BuffersQueued == 0) {
-				inst.voice->DestroyVoice();
 				inst.voice = nullptr;
 				return true;
 			}
@@ -270,59 +328,15 @@ void Audio::ApplyVoiceVolumeLocked(const std::string& key, VoiceInstance& inst) 
 		return;
 	}
 
-	AudioSoundData* sound = soundCache_.Find(key);
+	const AudioSoundData* sound = soundCache_.Find(key);
 	if (!sound) {
 		return;
 	}
 
 	const float mv = std::clamp(masterVolume_, 0.0f, 1.0f);
-	const float sv = std::clamp(sound->volume, 0.0f, 1.0f);
+	const float sv = soundCache_.GetVolume(key);
 	const float iv = std::clamp(inst.instanceVolume, 0.0f, 1.0f);
 
 	const float finalVol = mv * sv * iv;
 	inst.voice->SetVolume(finalVol, XAUDIO2_COMMIT_NOW);
-}
-
-void Audio::RebuildVoiceBufferLocked(const AudioSoundData& sound, VoiceInstance& inst, bool loop) {
-
-	const WAVEFORMATEX* format = sound.GetFormat();
-	if (!inst.voice || !format || format->nBlockAlign == 0) {
-		return;
-	}
-
-	XAUDIO2_VOICE_STATE state{};
-	inst.voice->GetState(&state);
-	const uint32_t sampleCount = sound.GetPCMBytes() / format->nBlockAlign;
-	if (sampleCount == 0) {
-		return;
-	}
-	const uint32_t currentSample = static_cast<uint32_t>(state.SamplesPlayed % sampleCount);
-
-	inst.voice->Stop(0, XAUDIO2_COMMIT_NOW);
-	inst.voice->FlushSourceBuffers();
-
-	XAUDIO2_BUFFER remaining{};
-	remaining.pAudioData = sound.GetPCM();
-	remaining.AudioBytes = sound.GetPCMBytes();
-	remaining.PlayBegin = currentSample;
-	remaining.PlayLength = sampleCount - currentSample;
-	remaining.Flags = loop ? 0 : XAUDIO2_END_OF_STREAM;
-	HRESULT result = inst.voice->SubmitSourceBuffer(&remaining);
-	Assert::Call(SUCCEEDED(result), "XAudio2へ再開位置の音声バッファを送信できませんでした");
-
-	if (loop) {
-		XAUDIO2_BUFFER loopBuffer{};
-		loopBuffer.pAudioData = sound.GetPCM();
-		loopBuffer.AudioBytes = sound.GetPCMBytes();
-		loopBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
-		loopBuffer.Flags = XAUDIO2_END_OF_STREAM;
-		result = inst.voice->SubmitSourceBuffer(&loopBuffer);
-		Assert::Call(SUCCEEDED(result), "XAudio2へループ音声バッファを送信できませんでした");
-	}
-
-	inst.loop = loop;
-	if (!inst.paused) {
-		result = inst.voice->Start(0, XAUDIO2_COMMIT_NOW);
-		Assert::Call(SUCCEEDED(result), "XAudio2の音声再開に失敗しました");
-	}
 }

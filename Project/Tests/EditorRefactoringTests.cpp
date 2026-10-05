@@ -3,6 +3,8 @@
 #include "EditorEntityCommandTests.h"
 #include "EditorDeleteCommandTests.h"
 #include "EditorCloneCommandTests.h"
+#include "HierarchyCommandContractTests.h"
+#include "CurveEditorContractTests.h"
 
 //============================================================================
 //	include
@@ -190,9 +192,13 @@ bool TestEditorContracts() {
 
 	if (!NEMTests::TestCommandHistoryFailures() || !NEMTests::TestCompositeCommandFailures() ||
 		!NEMTests::TestEditorSelectionRecovery() || !NEMTests::TestEditorEntityCommandRedo() ||
-		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestBulkDeleteRecovery() || !NEMTests::TestBulkCloneRecovery() ||
+		!NEMTests::TestLogicalSelectionRoots() || !NEMTests::TestPerformanceGridCommandHistory() ||
+		!NEMTests::TestActiveSelectionCommandHistory() ||
+		!NEMTests::TestEntityPreviewOwnership() ||
+		!NEMTests::TestTransformPreviewOwnership() ||
+		!NEMTests::TestBulkDeleteRecovery() || !NEMTests::TestBulkCloneRecovery() || !NEMTests::TestHierarchyCommandContracts() ||
 		!TestSceneSaveRevision() || !TestSceneSaveConflictSelection() ||
-		!TestLayoutRoundTrip() || !TestProjectSettingsOwnership()) {
+		!TestLayoutRoundTrip() || !TestProjectSettingsOwnership() || !NEMTests::TestCurveEditorContracts()) {
 		std::cerr << "Editor state contract failed\n";
 		return false;
 	}

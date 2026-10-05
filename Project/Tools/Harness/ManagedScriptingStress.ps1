@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Managed scripting の非 GUI stress / regression harness。
   GUI(Editor) を起動せず実行可能な範囲を deterministic に回す。

@@ -8,6 +8,7 @@
 // c++
 #include <string>
 #include <unordered_map>
+#include <memory>
 
 namespace Engine {
 
@@ -36,7 +37,10 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		AudioSoundData* Find(const std::string& key);
+		const AudioSoundData* Find(const std::string& key) const;
+		std::shared_ptr<const AudioSoundData> GetSnapshot(const std::string& key) const;
+		float GetVolume(const std::string& key) const;
+		void SetVolume(const std::string& key, float volume);
 	private:
 		//============================================================================
 		//	private Methods
@@ -45,7 +49,16 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		AudioDecoder decoder_;
-		std::unordered_map<std::string, AudioSoundData> sounds_;
+		struct Entry {
+
+			// 再生中のVoiceも共有するPCM世代
+			std::shared_ptr<const AudioSoundData> sound;
+			std::filesystem::file_time_type writeTime{};
+			std::filesystem::file_time_type attemptedWriteTime{};
+			bool attempted = false;
+			float volume = 1.0f;
+		};
+		std::unordered_map<std::string, Entry> sounds_;
 
 		//--------- functions ----------------------------------------------------
 

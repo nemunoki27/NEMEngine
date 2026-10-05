@@ -7,7 +7,7 @@
 #include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 //============================================================================
 //	TransformInspectorDrawer classMethods

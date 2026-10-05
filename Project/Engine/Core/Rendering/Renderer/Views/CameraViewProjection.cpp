@@ -76,9 +76,8 @@ namespace Engine::CameraViewProjection {
 		out.farClip = (std::max)(camera.farClip, out.nearClip + 0.001f);
 		out.cullingMask = static_cast<uint32_t>(camera.common.cullingMask);
 		out.postProcessEnabled = camera.common.postProcessEnabled;
-		out.volumeLayerMask = camera.common.volumeLayerMask;
-		out.volumeProfile = camera.common.volumeProfile;
-		out.renderExtension = camera.common.renderExtension;
+		out.colorPipeline = camera.common.colorPipeline;
+		out.renderPasses = camera.common.renderPasses;
 
 		out.matrices.inverseViewMatrix = transform.worldMatrix;
 		out.matrices.viewMatrix = camera.common.viewMatrix;
@@ -105,9 +104,8 @@ namespace Engine::CameraViewProjection {
 		out.farClip = (std::max)(camera.farClip, out.nearClip + 0.001f);
 		out.cullingMask = static_cast<uint32_t>(camera.common.cullingMask);
 		out.postProcessEnabled = camera.common.postProcessEnabled;
-		out.volumeLayerMask = camera.common.volumeLayerMask;
-		out.volumeProfile = camera.common.volumeProfile;
-		out.renderExtension = camera.common.renderExtension;
+		out.colorPipeline = camera.common.colorPipeline;
+		out.renderPasses = camera.common.renderPasses;
 
 		out.matrices.inverseViewMatrix = transform.worldMatrix;
 		out.matrices.viewMatrix = camera.common.viewMatrix;

@@ -59,14 +59,10 @@ public sealed class RenderTexture : Asset {
     internal RenderTexture(AssetGUID id) : base(id) { }
 }
 
-[NativeAssetType("VolumeProfile")]
-public sealed class VolumeProfile : Asset {
-    internal VolumeProfile(AssetGUID id) : base(id) { }
-}
 
-[NativeAssetType("RenderExtension")]
-public sealed class RenderExtension : Asset {
-    internal RenderExtension(AssetGUID id) : base(id) { }
+[NativeAssetType("RenderPasses")]
+public sealed class RenderPassesAsset : Asset {
+    internal RenderPassesAsset(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Material")]
@@ -97,6 +93,11 @@ public sealed class Font : Asset {
 [NativeAssetType("AnimationClip")]
 public sealed class AnimationClip : Asset {
     internal AnimationClip(AssetGUID id) : base(id) { }
+}
+
+[NativeAssetType("AnimationController")]
+public sealed class RuntimeAnimatorController : Asset {
+    internal RuntimeAnimatorController(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("ParticleEffect")]

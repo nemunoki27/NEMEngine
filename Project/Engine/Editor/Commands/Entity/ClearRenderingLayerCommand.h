@@ -34,10 +34,6 @@ namespace Engine {
 		Primitive,
 		Text,
 		Line,
-		DirectionalLight,
-		PointLight,
-		SpotLight,
-		RectLight,
 		};
 
 		struct Entry {

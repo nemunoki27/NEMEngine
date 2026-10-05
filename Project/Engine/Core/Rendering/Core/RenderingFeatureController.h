@@ -34,7 +34,6 @@ namespace Engine {
 		void SetAllowFrustumCulling(bool enabled);
 		void SetAllowOcclusionCulling(bool enabled);
 		void SetUseGameViewCameraForSceneCulling(bool enabled);
-		void SetUseGameViewPositionForSceneVolumes(bool enabled);
 		void SetAllowContributionCulling(bool enabled);
 		void SetAllowNormalConeCulling(bool enabled);
 		// メッシュLODと切り替え閾値を設定する
@@ -62,9 +61,6 @@ namespace Engine {
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }
 		bool ShouldUseOcclusionCulling() const { return runtimeFeatures_.useOcclusionCulling; }
 		bool ShouldUseGameViewCameraForSceneCulling() const { return preferences_.useGameViewCameraForSceneCulling; }
-		bool ShouldUseGameViewPositionForSceneVolumes() const {
-			return preferences_.useGameViewPositionForSceneVolumes;
-		}
 		bool ShouldUseContributionCulling() const { return runtimeFeatures_.useContributionCulling; }
 		bool ShouldUseNormalConeCulling() const { return runtimeFeatures_.useNormalConeCulling; }
 		bool ShouldBuildRaytracingScene() const { return runtimeFeatures_.UsesAnyRayTracing(); }

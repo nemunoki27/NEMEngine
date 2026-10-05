@@ -19,7 +19,7 @@ namespace Engine {
 		//========================================================================
 
 		bool Draw(IParticleModule& module) override;
-		void SetReflectedParameters(ParticleCustomShaderParameterModule& module, const std::vector<ShaderConstantBufferVariable>& parameters);
+		void SetReflectedParameters(const std::vector<ShaderConstantBufferVariable>& parameters);
 	private:
 		//========================================================================
 		//	private Methods

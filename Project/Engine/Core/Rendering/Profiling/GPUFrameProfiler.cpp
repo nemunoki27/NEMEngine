@@ -66,6 +66,7 @@ void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 	GraphicsResourceRetirement& retirement) {
 
 	retirement_ = &retirement;
+	if (!FrameProfiler::GetInstance().IsEnabled()) { return; }
 
 	if (!EnsureInitialized(device, commandQueue)) {
 		return;
@@ -79,14 +80,17 @@ void Engine::GPUFrameProfiler::BeginFrame(ID3D12Device* device, ID3D12CommandQue
 		state.active = true;
 		return;
 	}
-	state.frameSerial = serial;
 	// 同じContextの前回結果はBeginFrameのFence待機後なので安全に読める
 	CollectResolved(state);
+	state.frameSerial = serial;
+	state.cpuFrameID = FrameProfiler::GetInstance().GetFrameID();
+	state.incomplete = false;
 
 	// このフレームの記録をリセットする
 	state.nextTimestamp = 0;
 	state.passes.clear();
 	state.pendingPass = false;
+	state.ignoredPassDepth = 0;
 	state.active = true;
 }
 
@@ -94,11 +98,14 @@ void Engine::GPUFrameProfiler::BeginPass(ID3D12GraphicsCommandList* commandList,
 
 	FrameQueryState& state =
 		frameStates_[GraphicsFrameState::GetCurrentIndex()];
-	if (!state.active || !commandList || state.pendingPass) {
+	if (!state.active || !commandList) {
 		return;
 	}
+	// 入れ子の区間を合計へ二重加算しない
+	if (state.pendingPass) { ++state.ignoredPassDepth; return; }
 	// begin/endの2つ分が残っていなければ計測しない
 	if (kMaxTimestamps < state.nextTimestamp + 2) {
+		state.incomplete = true;
 		return;
 	}
 
@@ -106,6 +113,7 @@ void Engine::GPUFrameProfiler::BeginPass(ID3D12GraphicsCommandList* commandList,
 	commandList->EndQuery(state.queryHeap.Get(),
 		D3D12_QUERY_TYPE_TIMESTAMP, state.pendingBegin);
 	state.pendingName = name;
+	state.pendingViewID = viewID_;
 	state.pendingPass = true;
 }
 
@@ -113,6 +121,7 @@ void Engine::GPUFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
 
 	FrameQueryState& state =
 		frameStates_[GraphicsFrameState::GetCurrentIndex()];
+	if (state.ignoredPassDepth) { --state.ignoredPassDepth; return; }
 	if (!state.active || !commandList || !state.pendingPass) {
 		return;
 	}
@@ -121,9 +130,14 @@ void Engine::GPUFrameProfiler::EndPass(ID3D12GraphicsCommandList* commandList) {
 	commandList->EndQuery(state.queryHeap.Get(),
 		D3D12_QUERY_TYPE_TIMESTAMP, endIndex);
 	state.passes.push_back({
-		state.pendingName, state.pendingBegin, endIndex
+		state.pendingName, state.pendingBegin, endIndex, state.pendingViewID
 		});
 	state.pendingPass = false;
+}
+
+void Engine::GPUFrameProfiler::SetViewID(std::string viewID) {
+
+	viewID_ = std::move(viewID);
 }
 
 void Engine::GPUFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
@@ -134,6 +148,7 @@ void Engine::GPUFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
 		return;
 	}
 	state.active = false;
+	state.incomplete |= state.pendingPass;
 
 	if (0 < state.nextTimestamp) {
 
@@ -151,6 +166,10 @@ void Engine::GPUFrameProfiler::Resolve(ID3D12GraphicsCommandList* commandList) {
 void Engine::GPUFrameProfiler::CollectResolved(FrameQueryState& state) {
 
 	if (!state.hasResolved || state.resolvedCount == 0 || frequency_ == 0) {
+		if (state.hasResolved) {
+			FrameProfiler::GetInstance().SetGPUFrame(state.cpuFrameID, {}, "missing");
+			state.hasResolved = false;
+		}
 		return;
 	}
 
@@ -160,6 +179,8 @@ void Engine::GPUFrameProfiler::CollectResolved(FrameQueryState& state) {
 	};
 	void* mapped = nullptr;
 	if (FAILED(state.readbackBuffer->Map(0, &readRange, &mapped)) || !mapped) {
+		FrameProfiler::GetInstance().SetGPUFrame(state.cpuFrameID, {}, "readback_failed");
+		state.hasResolved = false;
 		return;
 	}
 
@@ -170,15 +191,17 @@ void Engine::GPUFrameProfiler::CollectResolved(FrameQueryState& state) {
 
 		const uint64_t begin = timestamps[pass.beginIndex];
 		const uint64_t end = timestamps[pass.endIndex];
+		// 逆転したタイムスタンプを正常な0msとして公開しない
+		if (end < begin) { state.incomplete = true; continue; }
 		const float milliseconds = (begin < end) ?
 			static_cast<float>(end - begin) / static_cast<float>(frequency_) * 1000.0f : 0.0f;
-		passTimes.push_back({ pass.name, milliseconds });
+		passTimes.push_back({ pass.name, milliseconds, state.cpuFrameID, pass.viewID });
 	}
 
 	const D3D12_RANGE writtenRange{ 0, 0 };
 	state.readbackBuffer->Unmap(0, &writtenRange);
 
-	FrameProfiler::GetInstance().SetGPUPassTimes(passTimes);
+	FrameProfiler::GetInstance().SetGPUFrame(state.cpuFrameID, passTimes, state.incomplete ? "partial" : "complete");
 	state.hasResolved = false;
 }
 

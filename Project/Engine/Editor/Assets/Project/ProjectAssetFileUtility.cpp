@@ -1,4 +1,6 @@
 #include "ProjectAssetFileUtility.h"
+#include "ProjectAssetCopyUtility.h"
+#include "ProjectAssetMoveUtility.h"
 #include "ProjectAssetPath.h"
 #include "ProjectAssetDocumentFactory.h"
 #include "ProjectAssetDocumentPatch.h"
@@ -24,46 +26,38 @@
 #include <vector>
 
 //============================================================================
-//	ProjectAssetFileUtility structures
-//============================================================================
-namespace Engine {
-
-	struct MovedPathPair {
-		std::filesystem::path from;
-		std::filesystem::path to;
-	};
-
-	// 対象アセットと同じstemへ指定拡張子を付けた兄弟パスを作る
-	std::filesystem::path MakeSiblingPath(const std::filesystem::path& targetPath,
-		const std::filesystem::path& extension) {
-
-		std::filesystem::path result = targetPath.parent_path() / targetPath.stem();
-		result += extension;
-		return result;
-	}
-
-} // Engine
-
-//============================================================================
 //	ProjectAssetFileUtility classMethods
 //============================================================================
 
 const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFileKind kind) {
 
 	switch (kind) {
-	case ProjectAssetFileKind::Folder: return "Folder";
-	case ProjectAssetFileKind::Text: return "Text File";
-	case ProjectAssetFileKind::Script: return "C# Script";
-	case ProjectAssetFileKind::Scene: return "Scene";
-	case ProjectAssetFileKind::Prefab: return "Prefab";
-	case ProjectAssetFileKind::Material: return "Material";
-	case ProjectAssetFileKind::AnimationClip: return "AnimationClip";
-	case ProjectAssetFileKind::Shader: return "Shader";
-	case ProjectAssetFileKind::RenderPipeline: return "Render Pipeline";
-	case ProjectAssetFileKind::ShaderGraph: return "Shader Graph";
-	case ProjectAssetFileKind::VolumeProfile: return "Volume Profile";
-	case ProjectAssetFileKind::RenderExtension: return "Render Extension";
-	case ProjectAssetFileKind::RenderTexture: return "Render Texture";
+	case ProjectAssetFileKind::Folder:
+		return "Folder";
+	case ProjectAssetFileKind::Text:
+		return "Text File";
+	case ProjectAssetFileKind::Script:
+		return "C# Script";
+	case ProjectAssetFileKind::Scene:
+		return "Scene";
+	case ProjectAssetFileKind::Prefab:
+		return "Prefab";
+	case ProjectAssetFileKind::Material:
+		return "Material";
+	case ProjectAssetFileKind::AnimationClip:
+		return "AnimationClip";
+	case ProjectAssetFileKind::AnimationController:
+		return "Animation Controller";
+	case ProjectAssetFileKind::Shader:
+		return "Shader";
+	case ProjectAssetFileKind::RenderPipeline:
+		return "Render Pipeline";
+	case ProjectAssetFileKind::ShaderGraph:
+		return "Shader Graph";
+	case ProjectAssetFileKind::RenderPasses:
+		return "Render Passes";
+	case ProjectAssetFileKind::RenderTexture:
+		return "Render Texture";
 	}
 	return "Asset";
 }
@@ -71,19 +65,32 @@ const char* Engine::ProjectAssetFileUtility::GetCreateMenuLabel(ProjectAssetFile
 const char* Engine::ProjectAssetFileUtility::GetDefaultName(ProjectAssetFileKind kind) {
 
 	switch (kind) {
-	case ProjectAssetFileKind::Folder: return "New Folder";
-	case ProjectAssetFileKind::Text: return "New Text";
-	case ProjectAssetFileKind::Script: return "NewScript";
-	case ProjectAssetFileKind::Scene: return "NewScene";
-	case ProjectAssetFileKind::Prefab: return "NewPrefab";
-	case ProjectAssetFileKind::Material: return "NewMaterial";
-	case ProjectAssetFileKind::AnimationClip: return "NewAnimation";
-	case ProjectAssetFileKind::Shader: return "NewShader";
-	case ProjectAssetFileKind::RenderPipeline: return "NewPipeline";
-	case ProjectAssetFileKind::ShaderGraph: return "NewShaderGraph";
-	case ProjectAssetFileKind::VolumeProfile: return "NewVolumeProfile";
-	case ProjectAssetFileKind::RenderExtension: return "NewRenderExtension";
-	case ProjectAssetFileKind::RenderTexture: return "NewRenderTexture";
+	case ProjectAssetFileKind::Folder:
+		return "New Folder";
+	case ProjectAssetFileKind::Text:
+		return "New Text";
+	case ProjectAssetFileKind::Script:
+		return "NewScript";
+	case ProjectAssetFileKind::Scene:
+		return "NewScene";
+	case ProjectAssetFileKind::Prefab:
+		return "NewPrefab";
+	case ProjectAssetFileKind::Material:
+		return "NewMaterial";
+	case ProjectAssetFileKind::AnimationClip:
+		return "NewAnimation";
+	case ProjectAssetFileKind::AnimationController:
+		return "NewAnimationController";
+	case ProjectAssetFileKind::Shader:
+		return "NewShader";
+	case ProjectAssetFileKind::RenderPipeline:
+		return "NewPipeline";
+	case ProjectAssetFileKind::ShaderGraph:
+		return "NewShaderGraph";
+	case ProjectAssetFileKind::RenderPasses:
+		return "NewRenderPasses";
+	case ProjectAssetFileKind::RenderTexture:
+		return "NewRenderTexture";
 	}
 	return "NewAsset";
 }
@@ -127,10 +134,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 	}
 
 	// 同一名称がある場合は自動的に連番を付与して一意のパスを作成
-	const std::string requestedPath = kind == ProjectAssetFileKind::Folder ?
-		baseName : baseName + suffix;
-	const std::filesystem::path preferredPath =
-		directory / Algorithm::PathFromUTF8(requestedPath);
+	const std::string requestedPath = kind == ProjectAssetFileKind::Folder ? baseName : baseName + suffix;
+	const std::filesystem::path preferredPath = directory / Algorithm::PathFromUTF8(requestedPath);
 	const std::filesystem::path createPath = ProjectAssetPath::MakeUniquePath(preferredPath);
 	if (createPath.empty()) {
 		result.message = "Failed to build unique file path.";
@@ -144,10 +149,10 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 			result.message = "Failed to create folder.";
 			return result;
 		}
-	}
-	else {
+	} else {
 		// 種類に応じた雛形内容を書き込み
-		if (!ProjectAssetDocumentFactory::WriteTextFile(createPath, ProjectAssetDocumentFactory::BuildFileContent(kind, baseName))) {
+		if (!ProjectAssetDocumentFactory::WriteTextFile(
+				createPath, ProjectAssetDocumentFactory::BuildFileContent(kind, baseName))) {
 			result.message = "Failed to write asset file.";
 			return result;
 		}
@@ -159,133 +164,39 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAs
 	return result;
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(const ProjectAssetEntry& asset,
-	const std::shared_ptr<SceneAssetStorage>& storage) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateAsset(
+	const ProjectAssetEntry& asset, const std::shared_ptr<SceneAssetStorage>& storage) {
 
-	ProjectAssetFileResult result{};
-
-	// 元のアセットパスを解決し存在しなければ中断
-	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
-	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
-		result.message = "複製元のアセットが見つかりません";
-		return result;
-	}
-
-	// 複製先のパスを既存アセットとの競合回避で決定する
-	const std::filesystem::path targetPath = ProjectAssetPath::MakeUniquePath(sourcePath);
-	if (targetPath.empty()) {
-		result.message = "アセットの複製先を決定できません";
-		return result;
-	}
-
-	// シーンは外部Actorと内部参照も合わせて複製する
-	if (asset.type == AssetType::Scene) {
-
-		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message, storage);
-		result.fullPath = targetPath;
-		result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-		return result;
-	}
-	// ファイルをコピー
-	std::error_code ec;
-	std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::none, ec);
-	if (ec) {
-		result.message = "アセットファイルを複製できません";
-		return result;
-	}
-
-	// 複製されたアセット内部の表示名をファイル名に合わせる
-	ProjectAssetDocumentPatch::PatchDuplicatedJsonAsset(targetPath, asset.type);
-
-	// モデルのbin等のサイドカーファイルを合わせてコピーする、.metaは新規発行する
-	for (const std::string& sidecar : asset.sidecarFiles) {
-
-		const std::filesystem::path sidecarSource =
-			sourcePath.parent_path() / Algorithm::PathFromUTF8(sidecar);
-		if (!std::filesystem::exists(sidecarSource)) {
-			continue;
-		}
-
-		const std::filesystem::path sidecarTarget =
-			MakeSiblingPath(targetPath, sidecarSource.extension());
-		std::filesystem::copy_file(sidecarSource, sidecarTarget, std::filesystem::copy_options::none, ec);
-	}
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
+	return ProjectAssetCopyUtility::DuplicateAsset(asset, storage);
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::CopyAsset(const ProjectAssetEntry& asset,
 	ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath,
 	const std::shared_ptr<SceneAssetStorage>& storage) {
 
-	ProjectAssetFileResult result{};
-
-	// 元のアセットパスとコピー先ディレクトリを解決する
-	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
-	const std::filesystem::path targetDirectory = ProjectAssetPath::ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
-	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || targetDirectory.empty()) {
-		result.message = "コピー元のアセットまたはコピー先フォルダーが見つかりません";
-		return result;
-	}
-
-	// コピー先ディレクトリを確保する
-	std::error_code ec;
-	std::filesystem::create_directories(targetDirectory, ec);
-	if (ec) {
-		result.message = "コピー先フォルダーを作成できません";
-		return result;
-	}
-
-	// コピー先のパスを既存アセットとの競合回避で決定する
-	const std::filesystem::path targetPath = ProjectAssetPath::MakeUniquePath(targetDirectory / sourcePath.filename());
-	if (targetPath.empty()) {
-		result.message = "アセットのコピー先を決定できません";
-		return result;
-	}
-
-	// コピペでも単体複製と同じシーン保存処理を使う
-	if (asset.type == AssetType::Scene) {
-
-		result.success = SceneSystem::CopySceneAssets({ { sourcePath, targetPath } }, result.message, storage);
-		result.fullPath = targetPath;
-		result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-		return result;
-	}
-	// ファイルをコピー
-	std::filesystem::copy_file(sourcePath, targetPath, std::filesystem::copy_options::none, ec);
-	if (ec) {
-		result.message = "アセットファイルを複製できません";
-		return result;
-	}
-
-	// コピーされたアセット内部の表示名をファイル名に合わせる
-	ProjectAssetDocumentPatch::PatchDuplicatedJsonAsset(targetPath, asset.type);
-
-	// モデルのbin等のサイドカーファイルを合わせてコピーする、.metaは新規発行する
-	for (const std::string& sidecar : asset.sidecarFiles) {
-
-		const std::filesystem::path sidecarSource =
-			sourcePath.parent_path() / Algorithm::PathFromUTF8(sidecar);
-		if (!std::filesystem::exists(sidecarSource)) {
-			continue;
-		}
-
-		const std::filesystem::path sidecarTarget =
-			MakeSiblingPath(targetPath, sidecarSource.extension());
-		std::filesystem::copy_file(sidecarSource, sidecarTarget, std::filesystem::copy_options::none, ec);
-	}
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
+	return ProjectAssetCopyUtility::CopyAsset(asset, targetSource, targetDirectoryVirtualPath, storage);
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(const ProjectAssetEntry& asset,
-	const std::string& requestedName) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(
+	const ProjectAssetEntry& asset, const std::string& requestedName) {
+
+	return ProjectAssetMoveUtility::RenameAsset(asset, requestedName);
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameDirectory(
+	ProjectAssetSource source, const std::string& directoryVirtualPath, const std::string& requestedName) {
+
+	return ProjectAssetMoveUtility::RenameDirectory(source, directoryVirtualPath, requestedName);
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirectory(
+	ProjectAssetSource source, const std::string& directoryVirtualPath, const std::shared_ptr<SceneAssetStorage>& storage) {
+
+	return ProjectAssetCopyUtility::DuplicateDirectory(source, directoryVirtualPath, storage);
+}
+
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(
+	const ProjectAssetEntry& asset, const AssetDatabase& database, const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 
@@ -295,266 +206,16 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameAsset(cons
 		return result;
 	}
 
-	// 新しいファイル名の決定
-	const auto [currentBaseName, suffix] = ProjectAssetPath::SplitAssetFileName(sourcePath);
-	std::string baseName = ProjectAssetPath::SanitizeFileName(requestedName.empty() ? currentBaseName : requestedName);
-	baseName = ProjectAssetPath::RemoveTypedSuffix(baseName, suffix.c_str());
-	if (baseName.empty()) {
-		baseName = currentBaseName;
-	}
-
-	const std::filesystem::path targetPath =
-		sourcePath.parent_path() / Algorithm::PathFromUTF8(baseName + suffix);
-	// 変更がないなら成功扱い
-	if (targetPath == sourcePath) {
-		result.success = true;
-		result.fullPath = sourcePath;
-		result.assetPath = asset.assetPath;
-		return result;
-	}
-	if (std::filesystem::exists(targetPath)) {
-		result.message = "Target asset already exists.";
-		return result;
-	}
-
-	const std::filesystem::path sourceMetaPath = ProjectAssetPath::MakeMetaPath(sourcePath);
-	const std::filesystem::path targetMetaPath = ProjectAssetPath::MakeMetaPath(targetPath);
-	if (std::filesystem::exists(targetMetaPath)) {
-		result.message = "Target meta file already exists.";
-		return result;
-	}
-
-	// 移動履歴でエラー時に元に戻すために使用
-	std::vector<MovedPathPair> moved;
-	auto rollback = [&moved]() {
-		std::error_code rollbackEc;
-		for (auto it = moved.rbegin(); it != moved.rend(); ++it) {
-			std::filesystem::rename(it->to, it->from, rollbackEc);
-		}
-		};
-
-	std::error_code ec;
-	std::filesystem::rename(sourcePath, targetPath, ec);
-	if (ec) {
-		result.message = "Failed to rename asset file.";
-		return result;
-	}
-	moved.emplace_back(MovedPathPair{ sourcePath, targetPath });
-
-	// メタファイルも連動してリネーム
-	if (std::filesystem::exists(sourceMetaPath)) {
-		ec.clear();
-		std::filesystem::rename(sourceMetaPath, targetMetaPath, ec);
-		if (ec) {
-			rollback();
-			result.message = "Failed to rename asset meta file.";
-			return result;
-		}
-		moved.emplace_back(MovedPathPair{ sourceMetaPath, targetMetaPath });
-	}
-
-	// その他サイドカーファイルもリネーム
-	for (const std::string& sidecar : asset.sidecarFiles) {
-
-		const std::filesystem::path sidecarSource =
-			sourcePath.parent_path() / Algorithm::PathFromUTF8(sidecar);
-		if (!std::filesystem::exists(sidecarSource)) {
-			continue;
-		}
-
-		const std::filesystem::path sidecarTarget =
-			MakeSiblingPath(targetPath, sidecarSource.extension());
-
-		ec.clear();
-		std::filesystem::rename(sidecarSource, sidecarTarget, ec);
-		if (ec) {
-			rollback();
-			result.message = "Failed to rename asset sidecar file.";
-			return result;
-		}
-		moved.emplace_back(MovedPathPair{ sidecarSource, sidecarTarget });
-	}
-
-	// アセット内部の名前定義を新ファイル名に合わせて更新
-	ProjectAssetDocumentPatch::PatchRenamedJsonAsset(targetPath, asset.type);
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
-}
-
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::RenameDirectory(ProjectAssetSource source,
-	const std::string& directoryVirtualPath, const std::string& requestedName) {
-
-	ProjectAssetFileResult result{};
-	result.isDirectory = true;
-
-	const std::filesystem::path sourcePath = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
-	const std::filesystem::path rootPath = ProjectAssetPath::GetSourceRoot(source);
-	// ルートフォルダ自身はリネーム禁止
-	if (sourcePath.empty() || sourcePath == rootPath ||
-		!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
-		result.message = "Source folder was not found or cannot be renamed.";
-		return result;
-	}
-
-	// フォルダ名にも使えない文字は除去する、空になったら元の名前を維持する
-	std::string baseName = ProjectAssetPath::SanitizeFileName(requestedName.empty() ?
-		Algorithm::PathToUTF8(sourcePath.filename()) : requestedName);
-	if (baseName.empty()) {
-		baseName = Algorithm::PathToUTF8(sourcePath.filename());
-	}
-
-	const std::filesystem::path targetPath =
-		sourcePath.parent_path() / Algorithm::PathFromUTF8(baseName);
-	// 変更がないなら成功扱い
-	if (targetPath == sourcePath) {
-		result.success = true;
-		result.fullPath = sourcePath;
-		result.assetPath = directoryVirtualPath;
-		return result;
-	}
-	if (std::filesystem::exists(targetPath)) {
-		result.message = "Target folder already exists.";
-		return result;
-	}
-
-	// フォルダ名変更はアセットのGUID参照に影響しない、.meta内のGUIDで参照されるためRebuildで再解決される
-	std::error_code ec;
-	std::filesystem::rename(sourcePath, targetPath, ec);
-	if (ec) {
-		result.message = "Failed to rename folder.";
-		return result;
-	}
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
-}
-
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DuplicateDirectory(ProjectAssetSource source,
-	const std::string& directoryVirtualPath,
-	const std::shared_ptr<SceneAssetStorage>& storage) {
-
-	ProjectAssetFileResult result{};
-	result.isDirectory = true;
-	const std::filesystem::path sourcePath = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
-	if (sourcePath.empty() || sourcePath == ProjectAssetPath::GetSourceRoot(source) ||
-		!std::filesystem::is_directory(sourcePath)) {
-
-		result.message = "複製元フォルダーが存在しないかルートフォルダーです";
-		return result;
-	}
-	const std::filesystem::path targetPath = ProjectAssetPath::MakeUniquePath(sourcePath);
-	if (targetPath.empty()) {
-
-		result.message = "フォルダーの複製先を決定できません";
-		return result;
-	}
-	std::error_code ec;
-	if (!std::filesystem::create_directory(targetPath, ec) || ec) {
-
-		result.message = "複製先フォルダーを作成できません";
-		return result;
-	}
-	// 新規作成した複製先だけを取り消す
-	const auto fail = [&](const char* message) {
-
-		result.message = message;
-		std::filesystem::remove_all(targetPath, ec);
-		if (ec) {
-
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"ProjectPanel: 複製途中のフォルダーを削除できません path={}", Algorithm::PathToUTF8(targetPath));
-		}
-		return result;
-	};
-	std::vector<SceneAssetCopy> sceneCopies;
-	try {
-
-		// シーン本体は後でActorと一括複製し、その他のファイルは従来どおりコピーする
-		for (const auto& entry : std::filesystem::recursive_directory_iterator(sourcePath)) {
-
-			const std::filesystem::path relative = std::filesystem::relative(entry.path(), sourcePath);
-			if (!ProjectAssetPath::IsSafeRelativePath(relative)) {
-
-				return fail("複製元フォルダーに不正な相対パスがあります");
-			}
-			const std::filesystem::path destination = targetPath / relative;
-			if (entry.is_directory()) {
-
-				std::filesystem::create_directories(destination);
-			} else if (entry.is_regular_file() && !ProjectAssetDocumentPatch::ShouldSkipCopyFile(entry.path())) {
-
-				if (AssetTypeResolver::GuessByPath(entry.path()) == AssetType::Scene) {
-
-					sceneCopies.push_back({ entry.path(), destination });
-					continue;
-				}
-				std::filesystem::copy_file(entry.path(), destination);
-			}
-		}
-		ProjectAssetDocumentPatch::PatchDuplicatedDirectoryAssets(targetPath);
-	} catch (const std::exception&) {
-
-		return fail("フォルダーの内容を複製できません");
-	}
-	// Actorはフォルダー外に保存されるため、失敗時の取り消しもシーン側でまとめて行う
-	std::string sceneError;
-	if (!SceneSystem::CopySceneAssets(sceneCopies, sceneError, storage)) {
-
-		return fail(sceneError.c_str());
-	}
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
-}
-
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteAsset(const ProjectAssetEntry& asset, const AssetDatabase& database,
-	const std::shared_ptr<SceneAssetStorage>& storage) {
-
-	ProjectAssetFileResult result{};
-
-	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
-	if (sourcePath.empty() || !std::filesystem::exists(sourcePath)) {
-		result.message = "Source asset was not found.";
-		return result;
-	}
-
-	if (asset.type == AssetType::Scene || asset.assetPath.find("ExternalActors/") != std::string::npos) {
-		result.success = storage->Delete(sourcePath, database, result.message);
-		result.assetPath = asset.assetPath;
-		result.fullPath = sourcePath;
-		return result;
-	}
-
-	// アセット本体を削除
-	std::error_code ec;
-	std::filesystem::remove(sourcePath, ec);
-	if (ec) {
-		result.message = "Failed to delete asset file.";
-		return result;
-	}
-
-	// メタファイル等のサイドカーファイルも削除
-	for (const std::filesystem::path& sidecar : ProjectAssetDocumentPatch::BuildAssetSidecarPaths(asset, sourcePath)) {
-		if (std::filesystem::exists(sidecar)) {
-			std::filesystem::remove(sidecar, ec);
-		}
-	}
-
-	result.success = true;
+	// 本体と付随ファイルを退避し、途中失敗時はまとめて戻す
+	const auto sidecars = ProjectAssetDocumentPatch::BuildAssetSidecarPaths(asset, sourcePath);
+	result.success = storage->Delete(sourcePath, database, result.message, sidecars);
 	result.assetPath = asset.assetPath;
 	result.fullPath = sourcePath;
 	return result;
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(ProjectAssetSource source,
-	const std::string& directoryVirtualPath, const AssetDatabase& database,
-	const std::shared_ptr<SceneAssetStorage>& storage) {
+	const std::string& directoryVirtualPath, const AssetDatabase& database, const std::shared_ptr<SceneAssetStorage>& storage) {
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = true;
@@ -562,7 +223,8 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(
 	const std::filesystem::path sourcePath = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
 	const std::filesystem::path rootPath = ProjectAssetPath::GetSourceRoot(source);
 	// ルートフォルダ自身は削除禁止
-	if (sourcePath.empty() || sourcePath == rootPath || !std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
+	if (sourcePath.empty() || sourcePath == rootPath || !std::filesystem::exists(sourcePath) ||
+		!std::filesystem::is_directory(sourcePath)) {
 		result.message = "Source folder was not found or cannot be deleted.";
 		return result;
 	}
@@ -578,232 +240,28 @@ Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::DeleteDirectory(
 	return result;
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(const ProjectAssetEntry& asset,
-	ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveAsset(
+	const ProjectAssetEntry& asset, ProjectAssetSource targetSource, const std::string& targetDirectoryVirtualPath) {
 
-	ProjectAssetFileResult result{};
-
-	const std::filesystem::path sourcePath = RuntimePaths::ResolveAssetPath(asset.assetPath);
-	const std::filesystem::path targetDirectory = ProjectAssetPath::ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
-	if (sourcePath.empty() || !std::filesystem::exists(sourcePath) || targetDirectory.empty()) {
-		result.message = "Source asset or target folder was not found.";
-		return result;
-	}
-
-	// 移動先ディレクトリの確保
-	std::error_code ec;
-	std::filesystem::create_directories(targetDirectory, ec);
-	if (ec) {
-		result.message = "Failed to create target folder.";
-		return result;
-	}
-
-	// 移動後のパスを重複回避で決定する
-	const std::filesystem::path targetPath = ProjectAssetPath::MakeUniquePath(targetDirectory / sourcePath.filename());
-	if (targetPath.empty()) {
-		result.message = "Failed to build move target path.";
-		return result;
-	}
-
-	std::vector<MovedPathPair> moved;
-	auto rollback = [&moved]() {
-		std::error_code rollbackEc;
-		for (auto it = moved.rbegin(); it != moved.rend(); ++it) {
-			std::filesystem::rename(it->to, it->from, rollbackEc);
-		}
-		};
-
-	// ファイル移動の実行
-	std::filesystem::rename(sourcePath, targetPath, ec);
-	if (ec) {
-		result.message = "Failed to move asset file.";
-		return result;
-	}
-	moved.emplace_back(MovedPathPair{ sourcePath, targetPath });
-
-	// サイドカーファイルの移動でメタファイルの名前変更も含む
-	for (const std::filesystem::path& sidecarSource : ProjectAssetDocumentPatch::BuildAssetSidecarPaths(asset, sourcePath)) {
-		if (!std::filesystem::exists(sidecarSource)) {
-			continue;
-		}
-
-		const std::filesystem::path sidecarTarget = sidecarSource == ProjectAssetPath::MakeMetaPath(sourcePath) ?
-			ProjectAssetPath::MakeMetaPath(targetPath) :
-			targetPath.parent_path() / sidecarSource.filename();
-
-		ec.clear();
-		std::filesystem::rename(sidecarSource, sidecarTarget, ec);
-		if (ec) {
-			rollback();
-			result.message = "Failed to move asset sidecar file.";
-			return result;
-		}
-		moved.emplace_back(MovedPathPair{ sidecarSource, sidecarTarget });
-	}
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
+	return ProjectAssetMoveUtility::MoveAsset(asset, targetSource, targetDirectoryVirtualPath);
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveDirectory(ProjectAssetSource source,
-	const std::string& sourceDirectoryVirtualPath, const std::string& targetDirectoryVirtualPath) {
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::MoveDirectory(
+	ProjectAssetSource source, const std::string& sourceDirectoryVirtualPath, const std::string& targetDirectoryVirtualPath) {
 
-	ProjectAssetFileResult result{};
-	result.isDirectory = true;
-
-	const std::filesystem::path sourcePath = ProjectAssetPath::ResolveVirtualDirectory(source, sourceDirectoryVirtualPath);
-	const std::filesystem::path targetDirectory = ProjectAssetPath::ResolveVirtualDirectory(source, targetDirectoryVirtualPath);
-	const std::filesystem::path rootPath = ProjectAssetPath::GetSourceRoot(source);
-
-	// 移動元と移動先の検証でルートフォルダの移動や自分自身への移動は禁止
-	if (sourcePath.empty() || targetDirectory.empty() || sourcePath == rootPath ||
-		!std::filesystem::exists(sourcePath) || !std::filesystem::is_directory(sourcePath)) {
-		result.message = "Source or target folder was not found.";
-		return result;
-	}
-	if (ProjectAssetPath::IsSameOrChildPath(targetDirectory, sourcePath)) {
-		result.message = "Cannot move a folder into itself.";
-		return result;
-	}
-
-	std::error_code ec;
-	std::filesystem::create_directories(targetDirectory, ec);
-	if (ec) {
-		result.message = "Failed to create target folder.";
-		return result;
-	}
-
-	const std::filesystem::path targetPath = ProjectAssetPath::MakeUniquePath(targetDirectory / sourcePath.filename());
-	if (targetPath.empty()) {
-		result.message = "Failed to build move target path.";
-		return result;
-	}
-
-	// ディレクトリ全体の移動
-	std::filesystem::rename(sourcePath, targetPath, ec);
-	if (ec) {
-		result.message = "Failed to move folder.";
-		return result;
-	}
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
+	return ProjectAssetMoveUtility::MoveDirectory(source, sourceDirectoryVirtualPath, targetDirectoryVirtualPath);
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::ImportExternalFile(ProjectAssetSource targetSource,
 	const std::string& targetDirectoryVirtualPath, const std::filesystem::path& externalFilePath) {
 
-	ProjectAssetFileResult result{};
-
-	std::error_code ec;
-	// ディレクトリや存在しないものは取り込まない
-	if (externalFilePath.empty() || !std::filesystem::exists(externalFilePath, ec) ||
-		std::filesystem::is_directory(externalFilePath, ec)) {
-		result.message = "Dropped path is not a file.";
-		return result;
-	}
-
-	// 取り込み先ディレクトリを解決して確保する
-	const std::filesystem::path targetDirectory = ProjectAssetPath::ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
-	if (targetDirectory.empty()) {
-		result.message = "Target folder was not found.";
-		return result;
-	}
-	std::filesystem::create_directories(targetDirectory, ec);
-	if (ec) {
-		result.message = "Failed to create target folder.";
-		return result;
-	}
-
-	// 既存アセットとの競合回避でコピー先を決めて取り込む、.metaはRebuildで自動発番される
-	const std::filesystem::path targetPath = ProjectAssetPath::MakeUniquePath(targetDirectory / externalFilePath.filename());
-	if (targetPath.empty()) {
-		result.message = "Failed to build import file path.";
-		return result;
-	}
-	std::filesystem::copy_file(externalFilePath, targetPath, std::filesystem::copy_options::none, ec);
-	if (ec) {
-		result.message = "Failed to copy dropped file.";
-		return result;
-	}
-
-	result.success = true;
-	result.fullPath = targetPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(targetPath);
-	return result;
+	return ProjectAssetCopyUtility::ImportExternalFile(targetSource, targetDirectoryVirtualPath, externalFilePath);
 }
 
 Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::ImportExternalDirectory(ProjectAssetSource targetSource,
 	const std::string& targetDirectoryVirtualPath, const std::filesystem::path& externalDirectoryPath) {
 
-	ProjectAssetFileResult result{};
-	result.isDirectory = true;
-
-	std::error_code ec;
-	// フォルダ以外や存在しないものは取り込まない
-	if (externalDirectoryPath.empty() || !std::filesystem::is_directory(externalDirectoryPath, ec)) {
-		result.message = "Dropped path is not a folder.";
-		return result;
-	}
-
-	// 取り込み先ディレクトリを解決して確保する
-	const std::filesystem::path targetDirectory = ProjectAssetPath::ResolveVirtualDirectory(targetSource, targetDirectoryVirtualPath);
-	if (targetDirectory.empty()) {
-		result.message = "Target folder was not found.";
-		return result;
-	}
-	std::filesystem::create_directories(targetDirectory, ec);
-	if (ec) {
-		result.message = "Failed to create target folder.";
-		return result;
-	}
-
-	// ドロップしたフォルダ名で取り込み先に新フォルダを作る、既存と衝突したら連番にする
-	const std::filesystem::path destinationRoot = ProjectAssetPath::MakeUniquePath(targetDirectory / externalDirectoryPath.filename());
-	if (destinationRoot.empty()) {
-		result.message = "Failed to build import folder path.";
-		return result;
-	}
-	std::filesystem::create_directories(destinationRoot, ec);
-	if (ec) {
-		result.message = "Failed to create imported folder.";
-		return result;
-	}
-
-	// 中身を再帰的にコピーする、.meta等のサイドカーはRebuildで再発番させるためスキップする
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(externalDirectoryPath, ec)) {
-		if (ec) {
-			result.message = "Failed to scan dropped folder.";
-			return result;
-		}
-
-		const std::filesystem::path relative = std::filesystem::relative(entry.path(), externalDirectoryPath, ec);
-		if (ec || !ProjectAssetPath::IsSafeRelativePath(relative)) {
-			continue;
-		}
-
-		const std::filesystem::path destination = destinationRoot / relative;
-		if (entry.is_directory()) {
-			std::filesystem::create_directories(destination, ec);
-		}
-		else if (entry.is_regular_file() && !ProjectAssetDocumentPatch::ShouldSkipCopyFile(entry.path())) {
-			std::filesystem::create_directories(destination.parent_path(), ec);
-			std::filesystem::copy_file(entry.path(), destination, std::filesystem::copy_options::none, ec);
-		}
-		if (ec) {
-			result.message = "Failed to copy dropped folder contents.";
-			return result;
-		}
-	}
-
-	result.success = true;
-	result.fullPath = destinationRoot;
-	result.assetPath = ProjectAssetPath::ToAssetPath(destinationRoot);
-	return result;
+	return ProjectAssetCopyUtility::ImportExternalDirectory(targetSource, targetDirectoryVirtualPath, externalDirectoryPath);
 }
 
 namespace Engine {
@@ -814,7 +272,8 @@ namespace Engine {
 }
 
 namespace Engine {
-	std::filesystem::path ProjectAssetFileUtility::ResolveVirtualDirectory(ProjectAssetSource source, const std::string& directoryVirtualPath) {
+	std::filesystem::path ProjectAssetFileUtility::ResolveVirtualDirectory(
+		ProjectAssetSource source, const std::string& directoryVirtualPath) {
 
 		return ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
 	}

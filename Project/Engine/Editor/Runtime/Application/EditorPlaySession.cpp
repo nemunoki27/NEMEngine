@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/World/WorldManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
@@ -173,6 +174,9 @@ void Engine::EditorPlaySession::CompleteSceneSave(bool succeeded) {
 }
 
 void Engine::EditorPlaySession::StartPlayWorld() {
+
+	// 保存と切替の前にSceneプレビューを戻す
+	EditorToolUI::EndScenePreviews();
 
 	ScriptProfiler::GetInstance().Configure(ScriptProfiler::GetInstance().IsEnabled(), {}, 0);
 

@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <stdexcept>
@@ -22,7 +22,7 @@ namespace {
 		ComPtr<ID3D12Resource> candidate;
 		const HRESULT result = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
 			state, nullptr, IID_PPV_ARGS(&candidate));
-		if (!Engine::DxDredDiagnostics::CheckHRESULT(device, result, "DxUtils::CreateBuffer")) {
+		if (!Engine::DxDREDDiagnostics::CheckHRESULT(device, result, "DxUtils::CreateBuffer")) {
 			throw std::runtime_error("GPU Bufferの作成に失敗しました");
 		}
 		// 失敗時は呼び出し元の資源を維持する
@@ -41,7 +41,7 @@ void DxUtils::MakeDescriptorHeap(ComPtr<ID3D12DescriptorHeap>& descriptorHeap,
 	}
 	ComPtr<ID3D12DescriptorHeap> candidate;
 	const HRESULT result = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&candidate));
-	if (!Engine::DxDredDiagnostics::CheckHRESULT(device, result, "DxUtils::MakeDescriptorHeap")) {
+	if (!Engine::DxDREDDiagnostics::CheckHRESULT(device, result, "DxUtils::MakeDescriptorHeap")) {
 		throw std::runtime_error("DescriptorHeapの作成に失敗しました");
 	}
 	descriptorHeap = std::move(candidate);

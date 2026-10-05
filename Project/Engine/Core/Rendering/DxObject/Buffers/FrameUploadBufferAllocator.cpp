@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <algorithm>
@@ -115,7 +115,7 @@ void FrameUploadBufferAllocator::EnsureCapacity(ID3D12Device* device, FrameAlloc
 	ComPtr<ID3D12Resource> resource;
 	DxUtils::CreateUploadBufferResource(device, resource, requiredSize);
 	void* mapped = nullptr;
-	if (!DxDredDiagnostics::CheckHRESULT(device, resource->Map(0, nullptr, &mapped), "FrameUploadBufferAllocator::Map")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, resource->Map(0, nullptr, &mapped), "FrameUploadBufferAllocator::Map")) {
 		throw std::runtime_error("転送BufferのMapに失敗しました");
 	}
 

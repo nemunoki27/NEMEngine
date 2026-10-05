@@ -4500,21 +4500,75 @@
                     "name": "Camera2D"
                 },
                 "OrthographicCamera": {
-                    "cullingMask": -1,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "contrast": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gain": {
+                                "x": 0.9999992251396179,
+                                "y": 0.9999992251396179,
+                                "z": 0.9999992251396179
+                            },
+                            "gamma": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "offset": {
+                                "x": 6.309710443019867e-08,
+                                "y": 6.309710443019867e-08,
+                                "z": 6.309710443019867e-08
+                            },
+                            "saturation": {
+                                "x": 1.5500061511993408,
+                                "y": 1.5500061511993408,
+                                "z": 1.5500061511993408
+                            },
+                            "temperature": 8051.0,
+                            "tint": 0.0
+                        },
+                        "exposure": {
+                            "compensation": 1.0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0.0,
+                            "maxEV100": 20.0,
+                            "minEV100": -10.0,
+                            "mode": "Manual",
+                            "speedDown": 1.0,
+                            "speedUp": 3.0,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0.0,
+                            "shoulder": 0.0,
+                            "slope": 1.0,
+                            "toe": 0.0,
+                            "whiteClip": 0.0
+                        }
+                    },
+                    "cullingMask": 16777215,
                     "enabled": true,
                     "farClip": 1000.0,
                     "isMain": true,
-                    "nearClip": 0.0,
+                    "nearClip": 0.0010000000474974513,
                     "postProcessEnabled": true,
                     "priority": 0,
-                    "renderExtension": "6ba35c82529925140ca517bf3c45d385",
+                    "renderPasses": "6ba35c82529925140ca517bf3c45d385",
                     "targetTexture": "",
                     "viewportHeight": 1.0,
-                    "viewportWidth": 1.0,
+                    "viewportWidth": 0.009999999776482582,
                     "viewportX": 0.0,
-                    "viewportY": 0.0,
-                    "volumeLayerMask": 4294967295,
-                    "volumeProfile": "5ba35c82529925140ca517bf3c45d385"
+                    "viewportY": 0.0
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -14163,36 +14217,6 @@
                     "tag": "Untagged",
                     "visibilityLayerMask": 4294967295
                 },
-                "Script": [
-                    {
-                        "enabled": true,
-                        "lastKnownTypeName": "GJ4Scripts.Player",
-                        "scriptAsset": "8f73ec002532e9686de611bdabdb0e3e",
-                        "scriptSlotId": "dce28c183275bedf",
-                        "scriptTypeId": "365fbb89-f942-48f5-99b1-ac2abaec14b4",
-                        "serializedFields": {
-                            "fields": {
-                                "1e54e243-e770-43c1-9bc2-5ea27484ff56": {
-                                    "name": "moveSpeed",
-                                    "type": "float",
-                                    "value": 1.0
-                                },
-                                "24d52cf1-6d86-42f9-963c-9ed74b9aa263": {
-                                    "name": "stickDeadZone",
-                                    "type": "float",
-                                    "value": 0.2
-                                },
-                                "9c9c2944-e934-4460-b682-1b17ada4380d": {
-                                    "name": "jumpForce",
-                                    "type": "float",
-                                    "value": 10
-                                }
-                            },
-                            "schemaVersion": 2,
-                            "unresolvedFields": {}
-                        }
-                    }
-                ],
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
@@ -14514,7 +14538,6 @@
         {
             "Components": {
                 "DirectionalLight": {
-                    "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
                         "b": 1.0,
@@ -14529,9 +14552,7 @@
                     "enabled": true,
                     "intensity": 8.390000343322754,
                     "shadowAngularRadius": 0.27000001072883606,
-                    "shadowLayerMask": 4294967295,
-                    "shadowStrength": 0.9200000166893005,
-                    "useShadowLayerMask": false
+                    "shadowStrength": 0.9200000166893005
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -17470,7 +17491,7 @@
                     "receiveReflection": true,
                     "receiveShadow": true,
                     "renderSpace": "World3D",
-                    "renderingLayerMask": 1,
+                    "renderingLayerMask": 8,
                     "ring": {
                         "divide": 16,
                         "endAngle": 360.0,
@@ -17505,9 +17526,9 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 6.208311557769775,
-                        "y": 1.9848849773406982,
-                        "z": -6.605283260345459
+                        "x": 44.53680419921875,
+                        "y": 5.71584415435791,
+                        "z": -12.611456871032715
                     },
                     "localRotation": {
                         "w": 1.0,
@@ -17528,13 +17549,194 @@
             "Components": {
                 "Hierarchy": {
                     "parentLocalFileID": "",
+                    "siblingOrder": 14
+                },
+                "MeshRenderer": {
+                    "blendMode": "Normal",
+                    "castReflection": true,
+                    "castShadow": true,
+                    "enableZPrepass": true,
+                    "layer": 0,
+                    "lighting": true,
+                    "material": "",
+                    "mesh": "4e454d4153534554a31d53b333db8b8b",
+                    "order": 0,
+                    "queue": "Opaque",
+                    "receiveIBL": true,
+                    "receiveReflection": true,
+                    "receiveShadow": true,
+                    "renderingLayerMask": 8,
+                    "subMeshes": [
+                        {
+                            "alphaCutoff": 0.5,
+                            "localPos": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localRotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "localScale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "material": "",
+                            "materialInstance": [
+                                {
+                                    "id": "77f5c18e246c6638",
+                                    "name": "color",
+                                    "semantic": "BaseColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.6000000238418579,
+                                        "g": 0.6000000238418579,
+                                        "r": 0.6000000238418579
+                                    }
+                                },
+                                {
+                                    "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "4e454d4153534554c2ea9f4498073ab3"
+                                },
+                                {
+                                    "id": "c4617cc0ecd319d1",
+                                    "name": "emissiveColor",
+                                    "semantic": "EmissiveColor",
+                                    "value": {
+                                        "a": 1.0,
+                                        "b": 0.0,
+                                        "g": 0.0,
+                                        "r": 0.0
+                                    }
+                                }
+                            ],
+                            "name": "Mesh_0",
+                            "sourcePivot": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "sourceSubMeshIndex": 0,
+                            "sourceSurfaceMode": "Auto",
+                            "stableID": "25d3b15850adbf0d",
+                            "surfaceMode": "Auto",
+                            "uvPos": {
+                                "x": 0.0,
+                                "y": 0.0
+                            },
+                            "uvRotation": 0.0,
+                            "uvScale": {
+                                "x": 1.0,
+                                "y": 1.0
+                            },
+                            "visible": true
+                        }
+                    ],
+                    "visible": true
+                },
+                "Name": {
+                    "name": "cube"
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "81e805e3afe23f74",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 43.917171478271484,
+                        "y": 11.569262504577637,
+                        "z": -0.6782928705215454
+                    },
+                    "localRotation": {
+                        "w": 1.0,
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 1.0,
+                        "y": 1.0,
+                        "z": 1.0
+                    }
+                }
+            },
+            "LocalFileID": "81e805e3afe23f74"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
                     "siblingOrder": 0
                 },
                 "Name": {
                     "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
-                    "cullingMask": -1,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "contrast": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gain": {
+                                "x": 0.9999992251396179,
+                                "y": 0.9999992251396179,
+                                "z": 0.9999992251396179
+                            },
+                            "gamma": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "offset": {
+                                "x": 6.309710443019867e-08,
+                                "y": 6.309710443019867e-08,
+                                "z": 6.309710443019867e-08
+                            },
+                            "saturation": {
+                                "x": 1.5500061511993408,
+                                "y": 1.5500061511993408,
+                                "z": 1.5500061511993408
+                            },
+                            "temperature": 8051.0,
+                            "tint": 0.0
+                        },
+                        "exposure": {
+                            "compensation": 1.0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0.0,
+                            "maxEV100": 20.0,
+                            "minEV100": -10.0,
+                            "mode": "Manual",
+                            "speedDown": 1.0,
+                            "speedUp": 3.0,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0.0,
+                            "shoulder": 0.0,
+                            "slope": 1.0,
+                            "toe": 0.0,
+                            "whiteClip": 0.0
+                        }
+                    },
+                    "cullingMask": 16777201,
                     "editorFrustumScale": 0.0020000000949949026,
                     "enabled": true,
                     "farClip": 4000.0,
@@ -17545,14 +17747,12 @@
                     "postProcessEnabled": true,
                     "priority": 0,
                     "projectionMode": "Perspective",
-                    "renderExtension": "6ba35c82529925140ca517bf3c45d385",
+                    "renderPasses": "6ba35c82529925140ca517bf3c45d385",
                     "targetTexture": "",
                     "viewportHeight": 1.0,
                     "viewportWidth": 1.0,
                     "viewportX": 0.0,
-                    "viewportY": 0.0,
-                    "volumeLayerMask": 16777215,
-                    "volumeProfile": "5ba35c82529925140ca517bf3c45d385"
+                    "viewportY": 0.0
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -17962,6 +18162,7 @@
                     },
                     "cubemapTexture": "4e454d4153534554da18161c5ffe1aba",
                     "iblIntensity": 0.029999999329447746,
+                    "renderingLayerMask": 1,
                     "visible": true
                 },
                 "Transform": {
@@ -18004,9 +18205,9 @@
                     "order": 0,
                     "queue": "Opaque",
                     "receiveIBL": true,
-                    "receiveReflection": true,
+                    "receiveReflection": false,
                     "receiveShadow": false,
-                    "renderingLayerMask": 1,
+                    "renderingLayerMask": 8,
                     "subMeshes": [
                         {
                             "alphaCutoff": 0.5,
@@ -18037,6 +18238,12 @@
                                         "g": 0.9021276831626892,
                                         "r": 0.8445450663566589
                                     }
+                                },
+                                {
+                                    "id": "93c33e46dc8a4e8e",
+                                    "name": "baseColorTexture",
+                                    "semantic": "BaseColorTexture",
+                                    "value": "ace1959f3a765a4d1db637891d386d0e"
                                 },
                                 {
                                     "id": "c4617cc0ecd319d1",
@@ -18099,23 +18306,135 @@
                     "dimension": 1,
                     "localPos": {
                         "x": 76.02525329589844,
-                        "y": 5.720898628234863,
+                        "y": 10.156686782836914,
                         "z": -0.816554069519043
                     },
                     "localRotation": {
                         "w": 0.6800813674926758,
                         "x": 0.0,
-                        "y": -0.7331367135047913,
+                        "y": -0.7331365942955017,
                         "z": 0.0
                     },
                     "localScale": {
-                        "x": 14.624168395996094,
-                        "y": 13.408257484436035,
-                        "z": 14.542548179626465
+                        "x": 10.383162498474121,
+                        "y": 9.519865036010742,
+                        "z": 10.325212478637695
                     }
                 }
             },
             "LocalFileID": "f33344ac55e270a1"
+        },
+        {
+            "Components": {
+                "Hierarchy": {
+                    "parentLocalFileID": "",
+                    "siblingOrder": 0
+                },
+                "Name": {
+                    "name": "MonitorCamera"
+                },
+                "PerspectiveCamera": {
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1.0,
+                                "b": 1.0,
+                                "g": 1.0,
+                                "r": 1.0
+                            },
+                            "contrast": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "gain": {
+                                "x": 0.9999992251396179,
+                                "y": 0.9999992251396179,
+                                "z": 0.9999992251396179
+                            },
+                            "gamma": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            },
+                            "offset": {
+                                "x": 6.309710443019867e-08,
+                                "y": 6.309710443019867e-08,
+                                "z": 6.309710443019867e-08
+                            },
+                            "saturation": {
+                                "x": 1.5500061511993408,
+                                "y": 1.5500061511993408,
+                                "z": 1.5500061511993408
+                            },
+                            "temperature": 8051.0,
+                            "tint": 0.0
+                        },
+                        "exposure": {
+                            "compensation": 1.0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0.0,
+                            "maxEV100": 20.0,
+                            "minEV100": -10.0,
+                            "mode": "Manual",
+                            "speedDown": 1.0,
+                            "speedUp": 3.0,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0.0,
+                            "shoulder": 0.0,
+                            "slope": 1.0,
+                            "toe": 0.0,
+                            "whiteClip": 0.0
+                        }
+                    },
+                    "cullingMask": 16777201,
+                    "editorFrustumScale": 0.0020000000949949026,
+                    "enabled": true,
+                    "farClip": 4000.0,
+                    "fovY": 60.0,
+                    "isMain": false,
+                    "nearClip": 0.0010000000474974513,
+                    "orthographicSize": 5.0,
+                    "postProcessEnabled": true,
+                    "priority": -1,
+                    "projectionMode": "Perspective",
+                    "renderPasses": "6ba35c82529925140ca517bf3c45d385",
+                    "targetTexture": "ace1959f3a765a4d1db637891d386d0e",
+                    "viewportHeight": 1.0,
+                    "viewportWidth": 1.0,
+                    "viewportX": 0.0,
+                    "viewportY": 0.0
+                },
+                "SceneObject": {
+                    "activeSelf": true,
+                    "localFileId": "f9174c7fc967fa5a",
+                    "tag": "Untagged",
+                    "visibilityLayerMask": 4294967295
+                },
+                "Transform": {
+                    "dimension": 1,
+                    "localPos": {
+                        "x": 41.371986389160156,
+                        "y": 12.35183048248291,
+                        "z": -48.327396392822266
+                    },
+                    "localRotation": {
+                        "w": 0.7077210545539856,
+                        "x": 0.0,
+                        "y": 0.706492006778717,
+                        "z": 0.0
+                    },
+                    "localScale": {
+                        "x": 0.9999997615814209,
+                        "y": 1.0000115633010864,
+                        "z": 0.9999990463256836
+                    }
+                }
+            },
+            "LocalFileID": "f9174c7fc967fa5a"
         }
     ],
     "Header": {

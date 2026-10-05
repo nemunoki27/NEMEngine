@@ -157,6 +157,13 @@ void RenderPipelineRunner::SyncRequestedSurfaces(
 
 void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 
+	if (cameraWorldLifetime_ != request.world->GetLifetime()) {
+		// World切替前のCamera資源を回収窓口へ渡す
+		cameraStates_.clear();
+		cameraWorldLifetime_ = request.world->GetLifetime();
+		++historyWorldRevision_;
+	}
+
 	gameViewState_.view = {};
 	sceneViewState_.view = {};
 	gameCameraViews_.clear();
@@ -233,6 +240,19 @@ void RenderPipelineRunner::ResolveViews(const RenderFrameRequest& request) {
 			break;
 		}
 	}
+	gameViewState_.view.historyWorldRevision = historyWorldRevision_;
+	sceneViewState_.view.historyWorldRevision = historyWorldRevision_;
+	std::unordered_set<std::string> activeViews{};
+	for (ResolvedRenderView& cameraView : gameCameraViews_) {
+		cameraView.historyWorldRevision = historyWorldRevision_;
+		if (cameraView.valid) activeViews.emplace(cameraView.GetHistoryKey());
+	}
+	if (gameViewState_.view.valid) activeViews.emplace(gameViewState_.view.GetHistoryKey());
+	if (sceneViewState_.view.valid) activeViews.emplace(sceneViewState_.view.GetHistoryKey());
+	// 非表示や削除されたCameraの履歴を保持しない
+	std::erase_if(cameraStates_, [&](const auto& state) { return !activeViews.contains(state.first); });
+	colorPipelineProcessor_.RetainViews(activeViews);
+	renderPath_.RetainViews(activeViews);
 }
 
 SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCore& graphicsCore,
@@ -240,6 +260,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	RenderViewKind kind, const ResolvedRenderView& view) {
 
 	// コンテキストの構築
+	RenderPipelineViewResources& cameraState = GetCameraState(view);
 	SceneExecutionContext context{};
 	context.kind = kind;
 	context.sceneInstance = sceneInstance;
@@ -263,13 +284,9 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	}
 	if (kind == RenderViewKind::Scene && gameCamera) {
 		// SceneViewはGame Cameraの画面設定を参照する
-		context.volumeCamera = *gameCamera;
-		if (viewCamera && !graphicsCore.GetDXObject().GetFeatureController().
-			ShouldUseGameViewPositionForSceneVolumes()) {
-			context.volumeCamera.cameraPos = viewCamera->cameraPos;
-		}
+		context.postProcessCamera = *gameCamera;
 	} else if (viewCamera) {
-		context.volumeCamera = *viewCamera;
+		context.postProcessCamera = *viewCamera;
 	}
 	context.defaultSurface = view.targetTexture ?
 		viewportRenderService_->GetRenderTextureSurface(view.targetTexture) :
@@ -291,17 +308,17 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	if (!extensionCamera) {
 		extensionCamera = extensionView.FindCamera(RenderCameraDomain::Orthographic);
 	}
-	const AssetID extensionID = extensionCamera ? extensionCamera->renderExtension : AssetID{};
-	const uint64_t extensionRevision = renderAssetLibrary_.GetRenderExtensionRevision();
-	if (viewRenderExtension_ != extensionID ||
-		viewRenderExtensionAssetRevision_ != extensionRevision) {
-		const RenderExtensionAsset* extension = extensionID ?
-			renderAssetLibrary_.LoadRenderExtension(extensionID) : nullptr;
-		viewRenderExtensionRuntime_.Rebuild(extension ?
+	const AssetID extensionID = extensionCamera ? extensionCamera->renderPasses : AssetID{};
+	const uint64_t extensionRevision = renderAssetLibrary_.GetRenderPassesRevision(extensionID);
+	if (cameraState.renderPassesAsset != extensionID ||
+		cameraState.renderPassesAssetRevision != extensionRevision) {
+		const RenderPassesAsset* extension = extensionID ?
+			renderAssetLibrary_.LoadRenderPasses(extensionID) : nullptr;
+		cameraState.renderPassesRuntime.Rebuild(extension ?
 			ToRuntimeProfile(*extension) : RenderFeatureProfileAsset{});
-		viewRenderExtension_ = extensionID;
-		viewRenderExtensionAssetRevision_ = extensionRevision;
-		++viewRenderExtensionGeneration_;
+		cameraState.renderPassesAsset = extensionID;
+		cameraState.renderPassesAssetRevision = extensionRevision;
+		++cameraState.renderPassesGeneration;
 	}
 	const ResolvedCameraView* mainGameCamera = gameViewState_.view.FindCamera(
 		extensionCamera && extensionCamera->projectionMode == ResolvedProjectionMode::Orthographic ?
@@ -309,16 +326,15 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	if (kind == RenderViewKind::Game && extensionCamera && mainGameCamera &&
 		extensionCamera->sourceCamera == mainGameCamera->sourceCamera) {
 		RenderFeatureProfileService::GetInstance().SetRuntimeExtension(
-			extensionID ? renderAssetLibrary_.LoadRenderExtension(extensionID) : nullptr);
+			extensionID ? renderAssetLibrary_.LoadRenderPasses(extensionID) : nullptr, extensionRevision);
 	}
-	context.renderExtensionRuntime = &viewRenderExtensionRuntime_;
-	context.renderExtensionGeneration = viewRenderExtensionGeneration_;
+	context.renderPassesRuntime = &cameraState.renderPassesRuntime;
+	context.renderPassesGeneration = cameraState.renderPassesGeneration;
 	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
 	context.drawSceneView2DCameraBounds = request.drawSceneView2DCameraBounds;
 	context.allowSceneComponentOverlay = (kind == RenderViewKind::Scene);
 	// 種類に応じたターゲットレジストリを選択
-	RenderTargetRegistry* registry = kind == RenderViewKind::Game ?
-		&gameViewState_.targetRegistry : &sceneViewState_.targetRegistry;
+	RenderTargetRegistry* registry = &cameraState.targetRegistry;
 	context.targetRegistry = registry;
 
 	// フレーム開始処理
@@ -334,7 +350,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	}
 
 	// ビューごとの中間レンダーターゲットを確保してコンテキストに設定
-	RenderPathResources& resources = (kind == RenderViewKind::Game) ? gameViewState_.resources : sceneViewState_.resources;
+	RenderPathResources& resources = cameraState.resources;
 	resources.Resize(graphicsCore, view.width, view.height);
 	if (!resources.IsValid()) {
 
@@ -346,7 +362,7 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 	}
 	context.resources = &resources;
 	context.cullingResources = (context.cullingView == &gameViewState_.view) ?
-		&gameViewState_.resources : &resources;
+		&GetCameraState(gameViewState_.view).resources : &resources;
 	context.occlusionDepthPyramidReady =
 		context.cullingResources &&
 		context.cullingResources->GetDepthPyramid().IsBuiltForFrame(
@@ -418,24 +434,10 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		}
 	}
 
-	// ビューごとのライトGPUバッファを登録
-	switch (kind) {
-	case RenderViewKind::Game:
-
-		context.hasShadowCastingLight =
-			gameViewState_.lightSet.hasShadowCastingLight;
-		context.viewLights = &gameViewState_.lightSet;
-		gameViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
-		gameViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
-		break;
-	case RenderViewKind::Scene:
-
-		context.hasShadowCastingLight =
-			sceneViewState_.lightSet.hasShadowCastingLight;
-		context.viewLights = &sceneViewState_.lightSet;
-		sceneViewState_.lightBuffers.RegisterTo(context.bufferRegistry);
-		sceneViewState_.raytracingBuffers.RegisterTo(context.bufferRegistry);
-		break;
-	}
+	// Camera別の転送先を登録する
+	context.hasShadowCastingLight = cameraState.lightSet.hasShadowCastingLight;
+	context.viewLights = &cameraState.lightSet;
+	cameraState.lightBuffers.RegisterTo(context.bufferRegistry);
+	cameraState.raytracingBuffers.RegisterTo(context.bufferRegistry);
 	return context;
 }

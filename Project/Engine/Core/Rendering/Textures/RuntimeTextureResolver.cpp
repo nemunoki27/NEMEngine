@@ -22,6 +22,7 @@ namespace {
 	std::unordered_map<Engine::AssetID, Engine::GPUTextureResource> renderTextureViews;
 	std::unordered_set<Engine::AssetID> feedbackDiagnostics;
 	Engine::AssetID writingRenderTexture{};
+	uint64_t bindingRevision = 1;
 
 	// Importer色空間が明示済みなら描画用途に依存しない同一GPUリソースへ統合する
 	std::string MakeTextureKey(const std::string& path,
@@ -51,6 +52,7 @@ namespace Engine::RuntimeTextureResolver {
 		view.textureName = "RenderTexture";
 		view.valid = true;
 		renderTextureViews.insert_or_assign(textureAssetID, std::move(view));
+		++bindingRevision;
 	}
 
 	void UnregisterRenderTexture(AssetID textureAssetID, const RenderTexture2D* texture) {
@@ -60,6 +62,7 @@ namespace Engine::RuntimeTextureResolver {
 			renderTextures.erase(found);
 			renderTextureViews.erase(textureAssetID);
 			feedbackDiagnostics.erase(textureAssetID);
+			++bindingRevision;
 		}
 	}
 
@@ -73,6 +76,16 @@ namespace Engine::RuntimeTextureResolver {
 		if (writingRenderTexture == textureAssetID) {
 			writingRenderTexture = {};
 		}
+	}
+
+	uint64_t GetBindingRevision() {
+
+		return bindingRevision;
+	}
+
+	AssetID GetWritingRenderTexture() {
+
+		return writingRenderTexture;
 	}
 
 	TextureImportSettings ResolveImportSettings(
@@ -124,6 +137,12 @@ namespace Engine::RuntimeTextureResolver {
 			return &renderTextureView->second;
 		}
 		if (!assetDatabase) {
+			return fallback;
+		}
+
+		// Camera出力は画像ファイルとして読み込まない
+		const AssetMeta* meta = assetDatabase->Find(textureAssetID);
+		if (meta && meta->type == AssetType::RenderTexture) {
 			return fallback;
 		}
 
@@ -196,10 +215,16 @@ namespace Engine::RuntimeTextureResolver {
 					"Camera出力を同じ描画から参照したため代替Textureを使用します ID={}",
 					ToString(textureAssetID));
 			}
-			return { fallbackIndex, false };
+			return { fallbackIndex, true };
 		}
 		if (!assetDatabase) {
 			return { fallbackIndex, false };
+		}
+
+		// 出力先の生成待ちは次の描画で再解決する
+		const AssetMeta* meta = assetDatabase->Find(textureAssetID);
+		if (meta && meta->type == AssetType::RenderTexture) {
+			return { fallbackIndex, true };
 		}
 
 		const std::filesystem::path fullPath =
@@ -253,6 +278,12 @@ namespace Engine::RuntimeTextureResolver {
 		}
 
 		if (!assetDatabase) {
+			return false;
+		}
+
+		// Camera出力の生成待ちは画像Importerへ渡さない
+		const AssetMeta* meta = assetDatabase->Find(textureAssetID);
+		if (meta && meta->type == AssetType::RenderTexture) {
 			return false;
 		}
 

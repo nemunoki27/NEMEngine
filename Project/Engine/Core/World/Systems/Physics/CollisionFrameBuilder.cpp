@@ -11,6 +11,7 @@
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
@@ -24,8 +25,7 @@
 
 using namespace Engine::CollisionBodyUtility;
 
-void Engine::CollisionFrameBuilder::RebuildRuntimeShape(
-	[[maybe_unused]] ECSWorld& world, CollisionRuntimeEntity& runtime) {
+void Engine::CollisionFrameBuilder::RebuildRuntimeShape(ECSWorld& world, CollisionRuntimeEntity& runtime) {
 
 	runtime.hasShape = false;
 	if (!runtime.collision || !runtime.transform) {
@@ -34,16 +34,19 @@ void Engine::CollisionFrameBuilder::RebuildRuntimeShape(
 	if (!runtime.collision->shape.enabled) {
 		return;
 	}
-	runtime.shape = CollisionShapeUtility::BuildShapeInstance(
-		runtime.entity, runtime.collision->shape, 0, *runtime.transform);
+	// 現在の親追従から判定姿勢を作る
+	ResolvedWorldTransform transform{};
+	if (!TransformWorldUtility::ResolveWorldTransform(world, runtime.entity, transform)) {
+		return;
+	}
+	runtime.shape = CollisionShapeUtility::BuildShapeInstance(runtime.entity, runtime.collision->shape, 0, transform);
 	runtime.hasShape = true;
 }
 
 void Engine::CollisionFrameBuilder::Collect(ECSWorld& world, std::vector<CollisionRuntimeEntity>& entities) {
 
-	world.ForEach<CollisionComponent, TransformComponent>([&](
-		Entity entity, CollisionComponent& collision, TransformComponent& transform) {
-
+	world.ForEach<CollisionComponent, TransformComponent>(
+		[&](Entity entity, CollisionComponent& collision, TransformComponent& transform) {
 			if (!collision.enabled || !IsEntityActiveInHierarchy(world, entity)) {
 				return;
 			}
@@ -55,7 +58,8 @@ void Engine::CollisionFrameBuilder::Collect(ECSWorld& world, std::vector<Collisi
 			runtime.state = world.TryGetComponent<CollisionRuntimeStateComponent>(entity);
 			runtime.transform = &transform;
 			runtime.dynamicBody = IsDynamicRigidbody(world, entity);
-			runtime.surfaceBox = collision.enablePushback && IsBoxSurfaceBody(world, entity) &&
+			runtime.surfaceBox =
+				collision.enablePushback && IsBoxSurfaceBody(world, entity) &&
 				(collision.shape.type == ColliderShapeType::AABB3D || collision.shape.type == ColliderShapeType::OBB3D) &&
 				!collision.shape.isTrigger;
 			RebuildRuntimeShape(world, runtime);

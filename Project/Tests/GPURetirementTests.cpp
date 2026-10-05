@@ -1,13 +1,18 @@
 #include "TestContracts.h"
+#include "GPUCompatibilityTests.h"
+#include "TestRunner.h"
 #include "GPUPipelineRetirementTests.h"
 #include "GPUAccelerationStructureTests.h"
 #include "GPUBufferLifetimeTests.h"
 #include "GPUMeshPublicationTests.h"
+#include "GPURenderTextureBindingTests.h"
+#include "GPUParticleShapeTests.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Rendering/Profiling/GPUFrameProfiler.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
 #include <Engine/Core/Rendering/DxObject/Core/BufferUploadService.h>
@@ -161,6 +166,12 @@ namespace {
 		commands->SetDescriptorHeaps(1, heaps);
 		valid &= NEMTests::RecordPipelineOwnerRetirement(device, commands.Get(), descriptors, pipelineReadback);
 		valid &= NEMTests::CheckShaderGraphMeshPipelines(device, retirement);
+		const bool particlePipelines = NEMTests::CheckParticleShapePipelines(device, retirement);
+		if (!particlePipelines) std::cerr << "Particle shape pipeline test failed\n";
+		valid &= particlePipelines;
+		const bool textureBindings = NEMTests::CheckRenderTextureBindings(device, retirement);
+		if (!textureBindings) std::cerr << "RenderTexture binding cache test failed\n";
+		valid &= textureBindings;
 		// 同じframeの2Viewを記録し、提出前にProfilerを終了する
 		auto& profiler = Engine::GPUFrameProfiler::GetInstance();
 		const size_t beforeProfiler = retirement.GetPendingCount();
@@ -379,7 +390,8 @@ namespace {
 	}
 }
 
-bool NEMTests::TestGPURetirement(bool hardware) {
+// 指定したGPUで資源の回収と内容寿命を検証する
+static bool RunGPURetirement(bool hardware, bool compatibleHardware) {
 
 	ComPtr<ID3D12Debug1> debug;
 	if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) {
@@ -387,7 +399,8 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 		return false;
 	}
 	debug->EnableDebugLayer();
-	debug->SetEnableGPUBasedValidation(TRUE);
+	// 対応GPUではShaderのGPU検証も有効にする
+	debug->SetEnableGPUBasedValidation(compatibleHardware ? FALSE : TRUE);
 	ComPtr<IDXGIFactory4> factory;
 	ComPtr<IDXGIAdapter> adapter;
 	ComPtr<ID3D12Device> device;
@@ -402,14 +415,21 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 			ComPtr<ID3D12Device> candidateDevice;
 			if (FAILED(D3D12CreateDevice(candidate.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&candidateDevice)))) continue;
 			D3D12_FEATURE_DATA_D3D12_OPTIONS5 support{};
-			if (FAILED(candidateDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &support, sizeof(support))) ||
-				support.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED) continue;
+			candidateDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &support, sizeof(support));
+			D3D12_FEATURE_DATA_D3D12_OPTIONS7 meshSupport{};
+			candidateDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &meshSupport, sizeof(meshSupport));
+			// 対応GPUと非対応GPUを別の実機検証として扱う
+			if (compatibleHardware) {
+				if (support.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED ||
+					meshSupport.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED) { continue; }
+			} else if (support.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED) { continue; }
 			adapter = candidate;
 			device = std::move(candidateDevice);
 			break;
 		}
 		if (!device) {
-			std::cerr << "DXR-capable hardware adapter unavailable\n";
+			std::cerr << (compatibleHardware ? "Non-DXR/non-MS hardware adapter unavailable\n" :
+				"DXR-capable hardware adapter unavailable\n");
 			return false;
 		}
 	} else if (FAILED(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter))) ||
@@ -419,7 +439,8 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 	}
 	DXGI_ADAPTER_DESC adapterDesc{};
 	adapter->GetDesc(&adapterDesc);
-	std::wcout << L"GPU adapter: " << adapterDesc.Description << L'\n';
+	std::cout << "GPU adapter: " << Engine::Algorithm::ConvertString(std::wstring(adapterDesc.Description)) << '\n';
+	std::cout << "GPU based validation: " << (compatibleHardware ? "disabled" : "enabled") << std::endl;
 	ComPtr<ID3D12InfoQueue> info;
 	if (FAILED(device.As(&info))) return false;
 	info->ClearStoredMessages();
@@ -432,16 +453,18 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 	uploads.Init(bufferRetirement, device.Get(), queue.Get());
 	const uint32_t previousCount = Engine::GraphicsFrameState::GetActiveCount();
 	const uint32_t previousIndex = Engine::GraphicsFrameState::GetCurrentIndex();
-	bool valid = CheckDescriptorCapacity(device.Get()) && CheckBufferPublication(device.Get()) && CheckRenderTargetPublication(device.Get());
-	valid &= NEMTests::CheckMeshIndirectArguments(device.Get(), queue.Get());
-	valid &= NEMTests::CheckHiZSampleBounds(device.Get(), queue.Get());
-	const bool graphicsValid = CheckGraphicsFenceRetirement(device.Get(), queue.Get());
+	bool valid = NEMTests::RunTest("CheckDescriptorCapacity", [&] { return NEMTests::CheckDescriptorCapacity(device.Get()); });
+	valid &= NEMTests::RunTest("CheckBufferPublication", [&] { return NEMTests::CheckBufferPublication(device.Get()); });
+	valid &= NEMTests::RunTest("CheckRenderTargetPublication", [&] { return NEMTests::CheckRenderTargetPublication(device.Get()); });
+	valid &= NEMTests::RunTest("CheckMeshIndirectArguments", [&] { return NEMTests::CheckMeshIndirectArguments(device.Get(), queue.Get()); });
+	valid &= NEMTests::RunTest("CheckHiZSampleBounds", [&] { return NEMTests::CheckHiZSampleBounds(device.Get(), queue.Get()); });
+	const bool graphicsValid = NEMTests::RunTest("CheckGraphicsFenceRetirement", [&] { return CheckGraphicsFenceRetirement(device.Get(), queue.Get()); });
 	if (!graphicsValid) std::cerr << "Graphics owner retirement failed\n";
 	valid &= graphicsValid;
-	valid &= CheckUploadOwnerLifetime(device.Get(), queue.Get(), uploads);
-	valid &= CheckOwnerRetirement(device.Get(), uploads);
-	valid &= NEMTests::CheckDifferentialBufferUpdates(device.Get(), queue.Get()) &&
-		NEMTests::CheckBufferCacheRetirement(device.Get(), queue.Get());
+	valid &= NEMTests::RunTest("CheckUploadOwnerLifetime", [&] { return CheckUploadOwnerLifetime(device.Get(), queue.Get(), uploads); });
+	valid &= NEMTests::RunTest("CheckOwnerRetirement", [&] { return CheckOwnerRetirement(device.Get(), uploads); });
+	valid &= NEMTests::RunTest("CheckDifferentialBufferUpdates", [&] { return NEMTests::CheckDifferentialBufferUpdates(device.Get(), queue.Get()); });
+	valid &= NEMTests::RunTest("CheckBufferCacheRetirement", [&] { return NEMTests::CheckBufferCacheRetirement(device.Get(), queue.Get()); });
 	Engine::GraphicsFrameState::SetActiveCount(previousCount);
 	Engine::GraphicsFrameState::SetCurrentIndex(previousIndex);
 	uploads.Finalize();
@@ -455,5 +478,15 @@ bool NEMTests::TestGPURetirement(bool hardware) {
 			valid = false;
 		}
 	}
-	return CheckFenceWaitAndRemoval() && valid;
+	return NEMTests::RunTest("CheckFenceWaitAndRemoval", NEMTests::CheckFenceWaitAndRemoval) && valid;
+}
+
+bool NEMTests::TestGPURetirement(bool hardware) {
+
+	return RunGPURetirement(hardware, false);
+}
+
+bool NEMTests::TestGPUCompatibility() {
+
+	return RunGPURetirement(true, true);
 }

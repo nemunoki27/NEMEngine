@@ -1,4 +1,4 @@
-# マージ本体と競合レポートの保存・復旧を実行ファイルで確認する
+﻿# マージ本体と競合レポートの保存・復旧を実行ファイルで確認する
 param([string]$Configuration = 'Develop')
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

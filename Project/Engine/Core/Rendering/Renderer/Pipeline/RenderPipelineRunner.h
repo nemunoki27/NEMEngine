@@ -24,6 +24,7 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Profiling/ProfileInputSnapshot.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
@@ -53,6 +54,7 @@
 namespace Engine {
 
 	// front
+	class ECSWorldLifetime;
 	struct SceneInstance;
 	class MeshRenderBackend;
 	class PrimitiveRenderBackend;
@@ -83,8 +85,8 @@ namespace Engine {
 		const ResolvedRenderView* cullingView = nullptr;
 		// 補助描画でもLOD判定に使う元のCamera
 		const ResolvedRenderView* lodView = nullptr;
-		// Camera設定とVolume評価位置を確定した画面効果用カメラ
-		ResolvedCameraView volumeCamera{};
+		// 最終出力へ適用するCameraの画面設定
+		ResolvedCameraView postProcessCamera{};
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
@@ -128,9 +130,9 @@ namespace Engine {
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
-		// CameraのRender Extensionから構築した実行計画
-		const RenderFeatureProfileRuntime* renderExtensionRuntime = nullptr;
-		uint64_t renderExtensionGeneration = 0;
+		// CameraのRender Passesから構築した実行計画
+		const RenderFeatureProfileRuntime* renderPassesRuntime = nullptr;
+		uint64_t renderPassesGeneration = 0;
 
 		// ScreenSpaceOutline Mask描画用のper-draw値でScreenSpaceOutlineRendererが
 		// Mask描画を呼ぶ直前に設定する、Mask以外のパスでは未使用
@@ -188,7 +190,7 @@ namespace Engine {
 		// フレームの描画要求を受けて実行する
 		void Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 		// 製品実行前に全描画アセットとGPUリソースを作成する
-		void PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase);
+		void PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> assets);
 
 		// 終了処理
 		void Finalize();
@@ -276,18 +278,24 @@ namespace Engine {
 		RenderScenePreparation scenePreparation_{};
 		RenderPreviewResources previewResources_{};
 		RenderPickingState pickingState_{};
+		// 記録開始時の入力をフレームごとの条件へ添える
+		ProfileInputSnapshot profileInputSnapshot_{};
+		std::weak_ptr<const ECSWorldLifetime> profileWorldLifetime_;
+		std::weak_ptr<const uint8_t> profileAssetLifetime_;
+		uint64_t profileSceneRevision_ = 0;
+		uint64_t profileCaptureRevision_ = 0;
 
 		// ビューポート描画サービス
 		std::unique_ptr<ViewportRenderService> viewportRenderService_;
 		// 描画ビューごとの状態、ゲーム/シーンで同型
 		RenderPipelineViewResources gameViewState_{};
 		RenderPipelineViewResources sceneViewState_{};
+		// Camera別に描画資源と履歴Textureを所有する
+		std::unordered_map<std::string, std::unique_ptr<RenderPipelineViewResources>> cameraStates_{};
+		std::shared_ptr<const ECSWorldLifetime> cameraWorldLifetime_{};
+		uint64_t historyWorldRevision_ = 0;
 		// Game Viewへ順番に合成するCameraごとのView
 		std::vector<ResolvedRenderView> gameCameraViews_{};
-		RenderFeatureProfileRuntime viewRenderExtensionRuntime_{};
-		AssetID viewRenderExtension_{};
-		uint64_t viewRenderExtensionGeneration_ = 1;
-		uint64_t viewRenderExtensionAssetRevision_ = 0;
 
 		// 固定RenderPath
 		DeferredRenderPath renderPath_{};
@@ -334,6 +342,13 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 記録するフレームの描画条件を確定する
+		void CaptureProfileConditions(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
+
+		// 描画Cameraの資源を取得する
+		RenderPipelineViewResources& GetCameraState(const ResolvedRenderView& view);
+		// Panelから参照するCameraの資源を検索する
+		const RenderPipelineViewResources& FindCameraState(RenderViewKind kind) const;
 		// 描画ビューのサーフェスを要求に応じて同期する
 		void SyncRequestedSurfaces(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 		// 描画ビューの情報を要求に応じて確定させる

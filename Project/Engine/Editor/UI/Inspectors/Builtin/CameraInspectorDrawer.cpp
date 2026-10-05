@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
+#include <Engine/Editor/UI/Inspectors/Common/CameraPostProcessEditor.h>
 
 // c++
 #include <algorithm>
@@ -29,43 +30,11 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields(const EditorPanelCont
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("優先度", draft.common.priority); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("カリングマスク", draft.common.cullingMask); });
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport X", draft.common.viewportX,
-			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport Y", draft.common.viewportY,
-			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport Width", draft.common.viewportWidth,
-			{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport Height", draft.common.viewportHeight,
-			{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("出力Texture", draft.common.targetTexture,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr,
-			{ AssetType::RenderTexture });
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("ポストプロセス", draft.common.postProcessEnabled);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "Volume Layer", draft.common.volumeLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("Volume Profile", draft.common.volumeProfile,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr,
-			{ AssetType::VolumeProfile });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("Render Extension", draft.common.renderExtension,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr,
-			{ AssetType::RenderExtension });
+		uint32_t mask = static_cast<uint32_t>(draft.common.cullingMask);
+		const ValueEditResult result = InspectorDrawerCommon::DrawLayerMaskField(context, "カリングマスク", mask);
+		draft.common.cullingMask = static_cast<int32_t>(mask);
+		return result;
 		});
 
 	FloatEditSetting clipSetting{};
@@ -75,6 +44,50 @@ void Engine::OrthographicCameraInspectorDrawer::DrawFields(const EditorPanelCont
 	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("近クリップ", draft.nearClip, clipSetting); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragFloat("遠クリップ", draft.farClip, clipSetting); });
 	MyGUI::TextMatrix4x4("ビュープロジェクト行列", draft.common.viewProjectionMatrix);
+
+	ImGui::Indent();
+	if (MyGUI::CollapsingHeader("ポストプロセス設定", false)) {
+
+		DrawField(anyItemActive, [&]() {
+			AssetEditSetting setting{};
+			setting.graphicsCore = context.graphicsCore;
+			return MyGUI::AssetReferenceField("出力テクスチャ", draft.common.targetTexture,
+				context.editorContext ? context.editorContext->assetDatabase : nullptr,
+				{ AssetType::RenderTexture }, setting);
+			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField("ポストプロセス有効", draft.common.postProcessEnabled);
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::AssetReferenceField("Render Passes", draft.common.renderPasses,
+				context.editorContext ? context.editorContext->assetDatabase : nullptr,
+				{ AssetType::RenderPasses });
+			});
+		DrawField(anyItemActive, [&]() {
+			return CameraPostProcessEditor::Draw(draft.common.colorPipeline);
+			});
+	}
+
+	if (MyGUI::CollapsingHeader("画面分割設定", false)) {
+
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポートX座標", draft.common.viewportX,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポートY座標", draft.common.viewportY,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポート幅", draft.common.viewportWidth,
+				{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポート高さ", draft.common.viewportHeight,
+				{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
+			});
+	}
+	ImGui::Unindent();
 }
 
 void Engine::OrthographicCameraInspectorDrawer::OnBeforeCommit(
@@ -94,44 +107,13 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields(const EditorPanelConte
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("優先度", draft.common.priority); });
-	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("カリングマスク", draft.common.cullingMask); });
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport X", draft.common.viewportX,
-			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
+		uint32_t mask = static_cast<uint32_t>(draft.common.cullingMask);
+		const ValueEditResult result = InspectorDrawerCommon::DrawLayerMaskField(context, "カリングマスク", mask);
+		draft.common.cullingMask = static_cast<int32_t>(mask);
+		return result;
 		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport Y", draft.common.viewportY,
-			{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport Width", draft.common.viewportWidth,
-			{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::DragFloat("Viewport Height", draft.common.viewportHeight,
-			{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("出力Texture", draft.common.targetTexture,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr,
-			{ AssetType::RenderTexture });
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawCheckboxField("ポストプロセス", draft.common.postProcessEnabled);
-		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(context, "Volume Layer", draft.common.volumeLayerMask);
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("Volume Profile", draft.common.volumeProfile,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr,
-			{ AssetType::VolumeProfile });
-		});
-	DrawField(anyItemActive, [&]() {
-		return MyGUI::AssetReferenceField("Render Extension", draft.common.renderExtension,
-			context.editorContext ? context.editorContext->assetDatabase : nullptr,
-			{ AssetType::RenderExtension });
-		});
+
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawEnumComboField("投影方式", draft.projectionMode);
 		});
@@ -151,6 +133,52 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields(const EditorPanelConte
 		return MyGUI::DragFloat("錐台スケール", draft.common.editorFrustumScale,
 			{ .dragSpeed = 0.001f,.minValue = 0.0f,.maxValue = 10.0f });
 		});
+
+	MyGUI::TextMatrix4x4("ビュープロジェクト行列", draft.common.viewProjectionMatrix);
+
+	ImGui::Indent();
+	if (MyGUI::CollapsingHeader("ポストプロセス設定", false)) {
+
+		DrawField(anyItemActive, [&]() {
+			AssetEditSetting setting{};
+			setting.graphicsCore = context.graphicsCore;
+			return MyGUI::AssetReferenceField("出力テクスチャ", draft.common.targetTexture,
+				context.editorContext ? context.editorContext->assetDatabase : nullptr,
+				{ AssetType::RenderTexture }, setting);
+			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField("ポストプロセス有効", draft.common.postProcessEnabled);
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::AssetReferenceField("Render Passes", draft.common.renderPasses,
+				context.editorContext ? context.editorContext->assetDatabase : nullptr,
+				{ AssetType::RenderPasses });
+			});
+		DrawField(anyItemActive, [&]() {
+			return CameraPostProcessEditor::Draw(draft.common.colorPipeline);
+			});
+	}
+
+	if (MyGUI::CollapsingHeader("画面分割設定", false)) {
+
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポートX座標", draft.common.viewportX,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポートY座標", draft.common.viewportY,
+				{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 0.99f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポート幅", draft.common.viewportWidth,
+				{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("ビューポート高さ", draft.common.viewportHeight,
+				{ .dragSpeed = 0.01f,.minValue = 0.01f,.maxValue = 1.0f });
+			});
+	}
+	ImGui::Unindent();
 }
 
 void Engine::PerspectiveCameraInspectorDrawer::OnBeforeCommit(

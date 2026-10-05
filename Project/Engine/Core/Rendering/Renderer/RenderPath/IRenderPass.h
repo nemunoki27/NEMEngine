@@ -5,6 +5,8 @@
 //============================================================================
 #include <cstdint>
 #include <string_view>
+#include <string>
+#include <unordered_set>
 
 namespace Engine {
 
@@ -43,6 +45,9 @@ namespace Engine {
 		//============================================================================
 
 		virtual ~IRenderPass() = default;
+
+		// 使用中のCameraだけ履歴を保持する
+		virtual void RetainViews(const std::unordered_set<std::string>&) {}
 
 		// パス種別の取得
 		virtual RenderPathPassKind GetKind() const = 0;

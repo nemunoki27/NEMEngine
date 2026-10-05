@@ -14,8 +14,8 @@
 //	CompositeEditorCommand classMethods
 //============================================================================
 Engine::CompositeEditorCommand::CompositeEditorCommand(
-	std::vector<std::unique_ptr<IEditorCommand>> commands) :
-	commands_(std::move(commands)) {
+	std::vector<std::unique_ptr<IEditorCommand>> commands, bool preserveSelection)
+	: commands_(std::move(commands)), preserveSelection_(preserveSelection) {
 }
 
 bool Engine::CompositeEditorCommand::Execute(EditorCommandContext& context) {
@@ -56,6 +56,10 @@ bool Engine::CompositeEditorCommand::Apply(EditorCommandContext& context, bool r
 			++appliedCount;
 		}
 		if (appliedCount == commands_.size() && appliedCount != 0) {
+			// 値の一括編集では対象の複数選択を維持
+			if (preserveSelection_) {
+				previousSelection_.Restore(context);
+			}
 			if (redo) {
 				appliedSelection_.Restore(context);
 			} else {

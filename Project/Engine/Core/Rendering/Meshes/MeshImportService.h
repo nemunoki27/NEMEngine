@@ -3,27 +3,23 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Async/AssetWorkerPool.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportSettings.h>
-#include <Engine/Core/Rendering/Meshes/MeshNode.h>
 
 // c++
 #include <unordered_map>
 #include <unordered_set>
 #include <mutex>
 #include <filesystem>
-// assimp
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
 
 namespace Engine {
 
+	class AssetDatabase;
+
 	//============================================================================
 	//	MeshImportService class
-	//	メッシュのインポート処理を行うクラス
+	//	モデル読込の要求とworkerの状態を管理する
 	//============================================================================
 	class MeshImportService {
 	public:
@@ -55,6 +51,7 @@ namespace Engine {
 		bool IsPending(AssetID meshAssetID) const;
 		// メッシュアセットが読み込まれているか
 		bool IsLoaded(AssetID meshAssetID) const;
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -73,7 +70,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 要求と完了結果の排他
 		mutable std::mutex mutex_;
+		// 読込処理を実行するworker
 		AssetWorkerPool<MeshLoadJob> workerPool_;
 
 		// 読み込まれたメッシュアセットのマップ
@@ -86,13 +85,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		void LoadJob(MeshLoadJob&& job, uint32_t workerIndex);
-		ImportedMeshAsset ImportFile(AssetID assetID,
-			const std::filesystem::path& fullPath,
-			const MeshImportSettings& settings,
-			const std::array<std::filesystem::path, 3>& manualLODPaths,
-			bool buildGPUData = true) const;
-		MeshNode ReadNode(aiNode* node) const;
+		// 要求を実行し、成功と失敗を別々に保持する
+		void LoadJob(MeshLoadJob&& job);
 	};
 } // Engine
-

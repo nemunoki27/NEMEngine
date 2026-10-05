@@ -1,20 +1,24 @@
 #include "InputSystem.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
-#pragma comment(lib,"dInput8.lib")
-#pragma comment(lib,"dxguid.lib")
+// c++
+#include <algorithm>
+#include <cmath>
+
+#pragma comment(lib, "dInput8.lib")
+#pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib")
+
+using namespace Engine;
 
 //============================================================================
 //	Input classMethods
@@ -46,180 +50,26 @@ void Input::Finalize() {
 	}
 }
 
-bool Input::PushKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
-
-	return hardware_.GetState().key[keyNumber];
-}
-
-bool Input::TriggerKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	// 現在のフレームで押されていて、前のフレームで押されていなかった場合にtrueを返す
-	return hardware_.GetState().key[keyNumber] && !hardware_.GetState().keyPre[keyNumber];
-}
-bool Input::ReleaseKey(BYTE keyNumber, [[maybe_unused]] const std::source_location& location) {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	return !hardware_.GetState().key[keyNumber] && hardware_.GetState().keyPre[keyNumber];
-}
-bool Input::PushGamepadButton(GamePadButtons button, [[maybe_unused]] const std::source_location& location) {
-
-	const size_t index = static_cast<size_t>(button);
-	if (hardware_.GetState().gamepadButtons.size() <= index) {
-		Assert::Call(false, "GamePad Button番号が範囲外です");
-		return false;
-	}
-	return hardware_.GetState().gamepadButtons[index];
-}
-bool Input::TriggerGamepadButton(GamePadButtons button, [[maybe_unused]] const std::source_location& location) {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	if (!hardware_.GetState().padConnectedPre[0]) {
-		return false;
-	}
-	// ボタン番号が範囲外の場合はfalseを返す
-	if (hardware_.GetState().gamepadButtons.size() <= static_cast<size_t>(button)) {
-		return false;
-	}
-
-	return hardware_.GetState().gamepadButtons[static_cast<size_t>(button)] &&
-		!hardware_.GetState().gamepadButtonsPre[static_cast<size_t>(button)];
-}
-float Input::GetLeftTriggerValue() const {
-
-	return hardware_.GetState().leftTriggerValue;
-}
-float Input::GetRightTriggerValue() const {
-
-	return hardware_.GetState().rightTriggerValue;
-}
-Vector2 Input::GetLeftStickVal() const {
-	return { hardware_.GetState().leftThumbX,hardware_.GetState().leftThumbY };
-}
-Vector2 Input::GetRightStickVal() const {
-	return { hardware_.GetState().rightThumbX,hardware_.GetState().rightThumbY };
-}
-
-Vector2 Input::GetMousePos() const {
-
-	return hardware_.GetState().mousePos;
-}
-Vector2 Input::GetMousePrePos() const {
-
-	return hardware_.GetState().mousePrePos;
-}
-Vector2 Input::GetMouseMoveValue() const {
-
-	return { static_cast<float>(hardware_.GetState().mouseState.lX),static_cast<float>(hardware_.GetState().mouseState.lY) };
-}
-float Input::GetMouseWheel() {
-
-	return hardware_.GetState().wheelValue;
-}
-bool Input::PushMouseButton(size_t index, [[maybe_unused]] const std::source_location& location) const {
-
-	Assert::Call(index < hardware_.GetState().mouseButtons.size(), "Mouse Button番号が範囲外です");
-	return index < hardware_.GetState().mouseButtons.size() && hardware_.GetState().mouseButtons[index];
-}
-bool Input::PushMouse(MouseButton button, const std::source_location& location) const {
-
-	bool push = false;
-	switch (button) {
-	case MouseButton::Right: {
-
-		push = PushMouseRight(location);
-		break;
-	}
-	case MouseButton::Left: {
-
-		push = PushMouseLeft(location);
-		break;
-	}
-	case MouseButton::Center: {
-
-		push = PushMouseCenter(location);
-		break;
-	}
-	}
-	return push;
-}
-bool Input::TriggerMouseLeft([[maybe_unused]] const std::source_location& location) const {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	return !hardware_.GetState().mousePreButtons[0] && hardware_.GetState().mouseButtons[0];
-}
-bool Input::TriggerMouseRight([[maybe_unused]] const std::source_location& location) const {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	return !hardware_.GetState().mousePreButtons[1] && hardware_.GetState().mouseButtons[1];
-}
-bool Input::TriggerMouseCenter([[maybe_unused]] const std::source_location& location) const {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	return !hardware_.GetState().mousePreButtons[2] && hardware_.GetState().mouseButtons[2];
-}
-bool Input::TriggerMouse(MouseButton button, const std::source_location& location) const {
-
-	bool trigger = false;
-	switch (button) {
-	case MouseButton::Right: {
-
-		trigger = TriggerMouseRight(location);
-		break;
-	}
-	case MouseButton::Left: {
-
-		trigger = TriggerMouseLeft(location);
-		break;
-	}
-	case MouseButton::Center: {
-
-		trigger = TriggerMouseCenter(location);
-		break;
-	}
-	}
-	return trigger;
-}
-bool Input::ReleaseMouse(MouseButton button, [[maybe_unused]] const std::source_location& location) const {
-
-	if (suppressEdgesThisFrame_) {
-		return false;
-	}
-	bool released = false;
-	switch (button) {
-	case MouseButton::Left: {
-
-		released = !hardware_.GetState().mouseButtons[0] && hardware_.GetState().mousePreButtons[0];
-		break;
-	}
-	case MouseButton::Right: {
-
-		released = !hardware_.GetState().mouseButtons[1] && hardware_.GetState().mousePreButtons[1];
-		break;
-	}
-	case MouseButton::Center: {
-
-		released = !hardware_.GetState().mouseButtons[2] && hardware_.GetState().mousePreButtons[2];
-		break;
-	}
-	}
-	return released;
-}
 void Input::SetDeadZone(float deadZone) {
 
-	deadZone_ = std::clamp(deadZone, 0.0f, maxStickValue_);
+	// 非有限値では現在の閾値を維持
+	if (std::isfinite(deadZone)) {
+		configuration_.deadZone = std::clamp(deadZone, 0.0f, InputDeviceConfiguration::kMaxStickValue);
+	}
+}
+
+void Input::SetMouseArea(const Vector2& pos, const Vector2& size) {
+
+	// 次の更新で使用する移動範囲を設定
+	configuration_.mouseAreaPos = pos;
+	configuration_.mouseAreaSize = size;
+}
+
+void Input::SetMouseReleaseShortcut(int32_t modKey, int32_t triggerKey) {
+
+	// 解除に使用するキーを設定
+	configuration_.mouseReleaseModKey = modKey;
+	configuration_.mouseReleaseTriggerKey = triggerKey;
 }
 
 namespace {
@@ -229,59 +79,24 @@ namespace {
 
 void Input::LoadConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath);
+	const auto path = RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath);
 	if (!JsonAdapter::Check(path)) {
 		return;
 	}
-	const nlohmann::json data = JsonAdapter::Load(path);
-	if (!data.is_object()) {
-		return;
+	nlohmann::json data;
+	// 検証に失敗した設定は適用しない
+	if (!JsonAdapter::TryLoad(path, data) || !InputDeviceConfigurationSerialization::TryRead(data, configuration_)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "入力デバイス設定の読み込みに失敗しました");
 	}
-
-	deadZone_ = data.value("deadZone", deadZone_);
-	SetDeadZone(deadZone_);
-	backgroundInputEnabled_ = data.value("backgroundInputEnabled", false);
-	if (data.contains("players") && data["players"].is_array()) {
-		for (size_t i = 0; i < data["players"].size() && i < kMaxPlayers; ++i) {
-			const nlohmann::json& player = data["players"][i];
-			SetPlayerGamepadIndex(static_cast<uint32_t>(i),
-				player.value("gamepad", static_cast<int32_t>(i)));
-			playerKeyboardMouse_[i] = player.value("keyboardMouse", i == 0);
-		}
-	}
-
-	// マウス範囲制御を復元する
-	mouseRangeControl_ = data.value("mouseRangeControl", mouseRangeControl_);
-	mouseAreaPos_.x = data.value("mouseAreaPosX", mouseAreaPos_.x);
-	mouseAreaPos_.y = data.value("mouseAreaPosY", mouseAreaPos_.y);
-	mouseAreaSize_.x = data.value("mouseAreaSizeX", mouseAreaSize_.x);
-	mouseAreaSize_.y = data.value("mouseAreaSizeY", mouseAreaSize_.y);
-	mouseReleaseModKey_ = data.value("mouseReleaseModKey", mouseReleaseModKey_);
-	mouseReleaseTriggerKey_ = data.value("mouseReleaseTriggerKey", mouseReleaseTriggerKey_);
 }
 
 void Input::SaveConfig() const {
 
-	nlohmann::json data{};
-	data["deadZone"] = deadZone_;
-	data["backgroundInputEnabled"] = backgroundInputEnabled_;
-	data["players"] = nlohmann::json::array();
-	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
-		data["players"].push_back({
-			{ "gamepad", playerGamepads_[i] },
-			{ "keyboardMouse", playerKeyboardMouse_[i] },
-			});
+	// 保存失敗を無視せず通知する
+	if (!JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath),
+			InputDeviceConfigurationSerialization::Write(configuration_))) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "入力デバイス設定の保存に失敗しました");
 	}
-
-	data["mouseRangeControl"] = mouseRangeControl_;
-	data["mouseAreaPosX"] = mouseAreaPos_.x;
-	data["mouseAreaPosY"] = mouseAreaPos_.y;
-	data["mouseAreaSizeX"] = mouseAreaSize_.x;
-	data["mouseAreaSizeY"] = mouseAreaSize_.y;
-	data["mouseReleaseModKey"] = mouseReleaseModKey_;
-	data["mouseReleaseTriggerKey"] = mouseReleaseTriggerKey_;
-
-	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath), data);
 }
 
 void Input::UpdateInputDevice() {
@@ -293,20 +108,19 @@ void Input::UpdateInputDevice() {
 		inputType_ = InputType::GamePad;
 	}
 
-	// 範囲制御中はショートカット(modKey押下+triggerKey)で解除できるようにする
-	if (mouseRangeControl_ &&
-		PushKey(static_cast<BYTE>(mouseReleaseModKey_)) &&
-		TriggerKey(static_cast<BYTE>(mouseReleaseTriggerKey_))) {
-		mouseRangeControl_ = false;
+	// 指定キーの組合せで範囲制御を解除
+	if (configuration_.mouseRangeControl && PushKey(static_cast<BYTE>(configuration_.mouseReleaseModKey)) &&
+		TriggerKey(static_cast<BYTE>(configuration_.mouseReleaseTriggerKey))) {
+		configuration_.mouseRangeControl = false;
 	}
 
-	// 範囲制御中は毎フレーム指定矩形へクリップし直し、位置とサイズの変更も反映する
-	if (mouseRangeControl_) {
-		WinApp::ClipCursorToClientRect(mouseAreaSize_, mouseAreaPos_);
+	// 現在の移動範囲をカーソルへ適用
+	if (configuration_.mouseRangeControl) {
+		WinApp::ClipCursorToClientRect(configuration_.mouseAreaSize, configuration_.mouseAreaPos);
 	} else if (mouseRangeControlPrev_) {
 		WinApp::ReleaseCursorClip();
 	}
-	mouseRangeControlPrev_ = mouseRangeControl_;
+	mouseRangeControlPrev_ = configuration_.mouseRangeControl;
 }
 
 bool Input::HasKeyboardMouseInput() const {
@@ -344,13 +158,13 @@ bool Input::HasGamepadInput() const {
 		}
 
 		const XINPUT_GAMEPAD& current = hardware_.GetState().pads[index].Gamepad;
-		const XINPUT_GAMEPAD previous = hardware_.GetState().padConnectedPre[index]
-			? hardware_.GetState().padsPre[index].Gamepad : XINPUT_GAMEPAD{};
+		const XINPUT_GAMEPAD previous =
+			hardware_.GetState().padConnectedPre[index] ? hardware_.GetState().padsPre[index].Gamepad : XINPUT_GAMEPAD{};
 		if ((current.wButtons & ~previous.wButtons) != 0) {
 			return true;
 		}
 		if ((current.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD &&
-			previous.bLeftTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD) ||
+				previous.bLeftTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD) ||
 			(current.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD &&
 				previous.bRightTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD)) {
 			return true;
@@ -363,12 +177,10 @@ bool Input::HasGamepadInput() const {
 			const float preY = static_cast<float>(previousY);
 			const float currentLength = std::sqrt(currentX * currentX + currentY * currentY);
 			const float previousLength = std::sqrt(preX * preX + preY * preY);
-			return currentLength > deadZone_ && previousLength <= deadZone_;
+			return currentLength > configuration_.deadZone && previousLength <= configuration_.deadZone;
 		};
-		if (stickStarted(current.sThumbLX, current.sThumbLY,
-			previous.sThumbLX, previous.sThumbLY) ||
-			stickStarted(current.sThumbRX, current.sThumbRY,
-				previous.sThumbRX, previous.sThumbRY)) {
+		if (stickStarted(current.sThumbLX, current.sThumbLY, previous.sThumbLX, previous.sThumbLY) ||
+			stickStarted(current.sThumbRX, current.sThumbRY, previous.sThumbRX, previous.sThumbRY)) {
 			return true;
 		}
 	}
@@ -376,7 +188,7 @@ bool Input::HasGamepadInput() const {
 }
 
 //============================================================================
-//	gameplay向け多gamepad / text / focus
+//	ゲーム入力
 //============================================================================
 
 //============================================================================
@@ -431,29 +243,29 @@ void Engine::Input::SetPlayerGamepadIndex(uint32_t playerIndex, int32_t gamepadI
 	if (playerIndex >= kMaxPlayers || gamepadIndex < -1 || InputDeviceState::kMaxGamepads <= gamepadIndex) {
 		return;
 	}
-	playerGamepads_[playerIndex] = gamepadIndex;
+	configuration_.playerGamepads[playerIndex] = gamepadIndex;
 }
 
 int32_t Engine::Input::GetPlayerGamepadIndex(uint32_t playerIndex) const {
 
-	return playerIndex < kMaxPlayers ? playerGamepads_[playerIndex] : -1;
+	return playerIndex < kMaxPlayers ? configuration_.playerGamepads[playerIndex] : -1;
 }
 
 void Engine::Input::SetPlayerKeyboardMouseEnabled(uint32_t playerIndex, bool enabled) {
 
 	if (playerIndex < kMaxPlayers) {
-		playerKeyboardMouse_[playerIndex] = enabled;
+		configuration_.playerKeyboardMouse[playerIndex] = enabled;
 	}
 }
 
 bool Engine::Input::IsPlayerKeyboardMouseEnabled(uint32_t playerIndex) const {
 
-	return playerIndex < kMaxPlayers && playerKeyboardMouse_[playerIndex];
+	return playerIndex < kMaxPlayers && configuration_.playerKeyboardMouse[playerIndex];
 }
 
 bool Engine::Input::IsGameplayInputAvailable(uint32_t playerIndex) const {
 
-	return playerIndex < kMaxPlayers && (backgroundInputEnabled_ || HasWindowFocus());
+	return playerIndex < kMaxPlayers && (configuration_.backgroundInputEnabled || HasWindowFocus());
 }
 
 void Input::Init(WinApp* winApp) {
@@ -468,19 +280,18 @@ void Input::Init(WinApp* winApp) {
 
 void Input::Update() {
 
-	// focus復帰frameは押下状態だけを復元する
+	// フォーカス復帰時は押下状態だけ復元
 	suppressEdgesThisFrame_ = suppressEdgesOnNextUpdate_;
 	suppressEdgesOnNextUpdate_ = false;
 	hardware_.BeginFrame();
-	hardware_.PollKeyboardAndGamepads(deadZone_);
+	hardware_.PollKeyboardAndGamepads(configuration_.deadZone);
 	windowEvents_.CommitText();
 
 	// Playerごとの割り当て先へ振動を出力
 	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
-		const int32_t gamepadIndex = playerGamepads_[i];
+		const int32_t gamepadIndex = configuration_.playerGamepads[i];
 		vibrations_[i].SetGamepadIndex(gamepadIndex < 0 ? i : static_cast<uint32_t>(gamepadIndex));
-		vibrations_[i].UpdateVibration(
-			IsGameplayInputAvailable(i) && GamepadConnectedByIndex(gamepadIndex));
+		vibrations_[i].UpdateVibration(IsGameplayInputAvailable(i) && GamepadConnectedByIndex(gamepadIndex));
 	}
 
 	hardware_.PollMouse(*winApp_);
@@ -494,8 +305,7 @@ void Input::SetWindowFocus(bool focused) {
 	windowEvents_.SetWindowFocus(focused);
 }
 
-void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos,
-	const Vector2& dstSize, const Vector2& srcSize,
+void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos, const Vector2& dstSize, const Vector2& srcSize,
 	InputViewCoordinateSpace coordinateSpace) {
 
 	views_.SetViewRect(viewArea, dstPos, dstSize, srcSize, coordinateSpace);

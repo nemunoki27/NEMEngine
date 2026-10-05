@@ -262,18 +262,18 @@ void Engine::from_json(
 	component.playbackSpeed = (std::max)(in.value("playbackSpeed", 1.0f), 0.0f);
 	component.layer = in.value("layer", 0);
 	component.order = in.value("order", 0);
+	component.renderingLayerMask = in.value("renderingLayerMask", component.renderingLayerMask) & kRenderingLayerMaskBits;
 	component.stopAction = EnumAdapter<ParticleSystemStopAction>::FromString(
 		in.value("stopAction", "None")).value_or(ParticleSystemStopAction::None);
 	component.simulationSpace = EnumAdapter<ParticleSystemSimulationSpace>::FromString(
 		in.value("simulationSpace", "EffectAsset")).value_or(
 			ParticleSystemSimulationSpace::EffectAsset);
-	const std::string customTarget = in.value("customSimulationTarget", "");
-	component.customSimulationTarget = customTarget.empty() ?
-		UUID{} : FromString16Hex(customTarget);
 	component.enabled = in.value("enabled", true);
 	component.playOnAwake = in.value("playOnAwake", true);
 	component.playInEditMode = in.value("playInEditMode", true);
 	component.useUnscaledTime = in.value("useUnscaledTime", false);
+	component.useAutoRandomSeed = in.value("useAutoRandomSeed", true);
+	component.randomSeed = in.value("randomSeed", 0u);
 	component.drawEmitterShape = in.value("drawEmitterShape", false);
 	component.visible = in.value("visible", true);
 }
@@ -285,15 +285,16 @@ void Engine::to_json(
 	out["playbackSpeed"] = component.playbackSpeed;
 	out["layer"] = component.layer;
 	out["order"] = component.order;
+	out["renderingLayerMask"] = component.renderingLayerMask & kRenderingLayerMaskBits;
 	out["stopAction"] = EnumAdapter<ParticleSystemStopAction>::ToString(component.stopAction);
 	out["simulationSpace"] =
 		EnumAdapter<ParticleSystemSimulationSpace>::ToString(component.simulationSpace);
-	out["customSimulationTarget"] = component.customSimulationTarget ?
-		ToString(component.customSimulationTarget) : "";
 	out["enabled"] = component.enabled;
 	out["playOnAwake"] = component.playOnAwake;
 	out["playInEditMode"] = component.playInEditMode;
 	out["useUnscaledTime"] = component.useUnscaledTime;
+	out["useAutoRandomSeed"] = component.useAutoRandomSeed;
+	out["randomSeed"] = component.randomSeed;
 	out["drawEmitterShape"] = component.drawEmitterShape;
 	out["visible"] = component.visible;
 }

@@ -190,12 +190,8 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 		ReloadPipeline(assetID);
 		return;
 	}
-	if (meta->type == AssetType::RenderExtension) {
-		renderAssetLibrary_.InvalidateRenderExtension(assetID);
-		return;
-	}
-	if (meta->type == AssetType::VolumeProfile) {
-		renderAssetLibrary_.InvalidateVolumeProfile(assetID);
+	if (meta->type == AssetType::RenderPasses) {
+		renderAssetLibrary_.InvalidateRenderPasses(assetID);
 		return;
 	}
 	if (meta->type == AssetType::Font) {

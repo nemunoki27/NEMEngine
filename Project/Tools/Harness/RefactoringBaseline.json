@@ -32,7 +32,7 @@
         "lines": 3752
       },
       {
-        "path": "Project/Engine/Core/Tools/ImGui/ImGuiCurveEditor.cpp",
+        "path": "Project/Engine/Editor/UI/ImGui/ImGuiCurveEditor.cpp",
         "lines": 2064
       },
       {

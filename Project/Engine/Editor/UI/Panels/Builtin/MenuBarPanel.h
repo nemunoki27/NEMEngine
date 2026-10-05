@@ -4,11 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
-
-// c++
-#include <filesystem>
-#include <string>
-#include <vector>
+#include "EditorLayoutMenuSession.h"
 
 namespace Engine {
 
@@ -16,8 +12,7 @@ namespace Engine {
 	//	MenuBarPanel class
 	//	メニューバーパネル
 	//============================================================================
-	class MenuBarPanel :
-		public IEditorPanel {
+	class MenuBarPanel : public IEditorPanel {
 	public:
 		//============================================================================
 		//	public Methods
@@ -26,7 +21,9 @@ namespace Engine {
 		MenuBarPanel() = default;
 		~MenuBarPanel() = default;
 
+		// 操作と設定のメニューを表示する
 		void Draw(const EditorPanelContext& context) override;
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -34,15 +31,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::string layoutNameBuffer_;
-		std::string layoutSaveError_;
-		bool requestOpenLayoutSavePopup_ = false;
-
-		//--------- functions ----------------------------------------------------
-
-		// エディターレイアウト設定メニューを描画
-		void DrawEditorLayoutMenu(const EditorPanelContext& context);
-		// レイアウト名入力Popupを描画
-		void DrawLayoutSavePopup(const EditorPanelContext& context);
+		// レイアウト名の入力と保存要求
+		EditorLayoutMenuSession layoutSession_;
 	};
 } // Engine

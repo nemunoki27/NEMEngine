@@ -73,6 +73,11 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			const bool emissionEnabled = component.enabled &&
 				!runtime->effect.emissionStopped;
 			ResolvedWorldTransform emitterTransform{};
+			// 再生開始時だけSeed設定を実行Instanceへ渡す
+			if (!runtime->effect.randomInitialized) {
+				runtime->effect.randomSeed = component.randomSeed;
+				runtime->effect.useAutoRandomSeed = component.useAutoRandomSeed;
+			}
 			const Matrix4x4 emitterWorld =
 				TransformWorldUtility::ResolveWorldTransform(
 					world, entity, emitterTransform) ?
@@ -84,9 +89,6 @@ void Engine::ParticleSystem::Update(ECSWorld& world, SystemContext& context) {
 			switch (component.simulationSpace) {
 			case ParticleSystemSimulationSpace::Local:
 				parentSettings.useEmitter = true;
-				break;
-			case ParticleSystemSimulationSpace::Custom:
-				parentSettings.entityLocalFileID = component.customSimulationTarget;
 				break;
 			case ParticleSystemSimulationSpace::EffectAsset:
 			case ParticleSystemSimulationSpace::World:

@@ -8,7 +8,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <stdexcept>
@@ -81,7 +81,7 @@ void Engine::SkyboxIrradianceMap::EnsureResources(GraphicsCore& graphicsCore) {
 	ComPtr<ID3D12Resource> candidate;
 	HRESULT hr = device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
 		&resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&candidate));
-	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "SkyboxIrradianceMap::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, hr, "SkyboxIrradianceMap::Create")) {
 		throw std::runtime_error("SkyboxのIrradiance Cubemap作成に失敗しました");
 	}
 	candidate->SetName(L"SkyboxIrradianceMap");

@@ -13,9 +13,9 @@ namespace NEM.ComponentBindingGen;
 // Component連携の生成処理
 internal static class BindingGeneration {
 
-    internal static IReadOnlyList<(string path, string text)> Build(string outNativeDir, string outCsDir,
-        List<EnumModel> enums, List<ComponentModel> components, List<ComponentModel> bindings, List<AbiFieldModel> abiFields,
-        IReadOnlyList<AbiLayoutModel> layouts) {
+    internal static IReadOnlyList<(string path, string text)> Build(string outNativeDir, string outCSDir,
+        List<EnumModel> enums, List<ComponentModel> components, List<ComponentModel> bindings, List<ABIFieldModel> abiFields,
+        IReadOnlyList<ABILayoutModel> layouts) {
         enums.Sort((a, b) => string.CompareOrdinal(a.ManagedType, b.ManagedType));
         components.Sort((a, b) => a.ID.CompareTo(b.ID));
         bindings.Sort((a, b) => string.CompareOrdinal(a.RegistryName, b.RegistryName));
@@ -31,10 +31,10 @@ internal static class BindingGeneration {
             (Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.h"), EmitComponentRegistryHeader()),
             (Path.Combine(outNativeDir, "BuiltinComponentRegistry.generated.cpp"), EmitComponentRegistryCpp(components)),
             (Path.Combine(outNativeDir, "ManagedNativeAPIFields.generated.inl"), EmitNativeAPIFields(abiFields)),
-            (Path.Combine(outCsDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums)),
-            (Path.Combine(outCsDir, "NativeAPITable.generated.cs"), EmitManagedAPITable(abiFields)),
+            (Path.Combine(outCSDir, "ComponentBindings.generated.cs"), EmitCSharp(bindings, components, enums)),
+            (Path.Combine(outCSDir, "NativeAPITable.generated.cs"), EmitManagedAPITable(abiFields)),
             (Path.Combine(outNativeDir, "ManagedABILayout.generated.inl"), layoutText.native),
-            (Path.Combine(outCsDir, "ABILayout.generated.cs"), layoutText.managed),
+            (Path.Combine(outCSDir, "ABILayout.generated.cs"), layoutText.managed),
         };
         // 同じ番号でもpropertyの型や意味が異なる接続を拒否する
         string contract = JsonSerializer.Serialize(new { enums, components, bindings, abiFields, layouts },

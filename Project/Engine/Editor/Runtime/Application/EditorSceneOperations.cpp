@@ -10,6 +10,7 @@
 #include <Engine/Core/World/ECS/Systems/Scheduler/SystemScheduler.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Editor/Core/EditorManager.h>
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
 #include <Engine/Core/Foundation/Build/BuildConfig.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
@@ -61,6 +62,7 @@ bool EditorSceneOperations::OpenEditScene(EditorSceneOperationContext& context, 
 
 	// 読込失敗時は元のSceneと編集状態を残す
 	const std::string nextScenePath = meta->assetPath;
+	EditorToolUI::EndScenePreviews();
 	context.scheduler.DetachCurrentWorld(context.systemContext);
 
 	// SceneSystemを通してEntity/Componentを復元する

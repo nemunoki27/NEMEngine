@@ -31,11 +31,6 @@ namespace Engine {
 		// シーンインスタンス
 		UUID sceneInstanceID{};
 
-		// どのレイヤーに影響するか
-		uint32_t affectLayerMask = 0xFFFFFFFFu;
-		// 影を適用するRendererレイヤー
-		uint32_t shadowLayerMask = 0xFFFFFFFFu;
-
 		// どのカメラドメイン向けか
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
 	};

@@ -23,7 +23,7 @@ namespace Engine {
 		//========================================================================
 
 		CompositeEditorCommand() = delete;
-		explicit CompositeEditorCommand(std::vector<std::unique_ptr<IEditorCommand>> commands);
+		explicit CompositeEditorCommand(std::vector<std::unique_ptr<IEditorCommand>> commands, bool preserveSelection = false);
 		~CompositeEditorCommand() override = default;
 
 		// まとめた操作を順に適用する
@@ -34,6 +34,7 @@ namespace Engine {
 		bool Redo(EditorCommandContext& context) override;
 		// 操作名を返す
 		const char* GetName() const override;
+
 	private:
 		// 初回とRedoの適用・取消を共通化する
 		bool Apply(EditorCommandContext& context, bool redo);
@@ -43,5 +44,7 @@ namespace Engine {
 		std::vector<std::unique_ptr<IEditorCommand>> commands_;
 		EditorSelectionSnapshot previousSelection_;
 		EditorSelectionSnapshot appliedSelection_;
+		// 操作前の複数選択を維持する
+		bool preserveSelection_ = false;
 	};
 } // Engine

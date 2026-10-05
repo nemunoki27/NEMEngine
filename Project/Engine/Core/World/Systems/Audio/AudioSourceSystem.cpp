@@ -1,4 +1,5 @@
 #include "AudioSourceSystem.h"
+#include "AudioWorldVoiceStorage.h"
 
 //============================================================================
 //	include
@@ -23,6 +24,7 @@
 void Engine::AudioSourceSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]] SystemContext& context) {
 
 	playback_.StopAll(world);
+	if (auto* voices = world.GetStorage().TryGet<AudioWorldVoiceStorage>()) { voices->Clear(); }
 }
 
 void Engine::AudioSourceSystem::Update(ECSWorld& world, SystemContext& context) {
@@ -78,4 +80,5 @@ void Engine::AudioSourceSystem::LateUpdate(ECSWorld& world, SystemContext& conte
 		return;
 	}
 	playback_.StopOrphanVoices(world);
+	if (auto* voices = world.GetStorage().TryGet<AudioWorldVoiceStorage>()) { voices->Update(world); }
 }

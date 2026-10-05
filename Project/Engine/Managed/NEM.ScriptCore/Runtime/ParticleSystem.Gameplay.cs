@@ -22,6 +22,16 @@ public sealed partial class ParticleSystem {
     private const int StoppedState = 3;
     private const int AliveState = 4;
     private const int ParticleCountState = 5;
+    private const int RandomSeedState = 6;
+
+    // Seedを明示した場合は自動生成を解除する
+    public uint randomSeed {
+        get => useAutoRandomSeed ? unchecked((uint)NativeRenderingAPI.ParticleSystemStateCall(native, RandomSeedState)) : RandomSeedValue;
+        set {
+            RandomSeedValue = value;
+            useAutoRandomSeed = false;
+        }
+    }
 
     // 停止中は先頭から再生し、一時停止中は続きから再開する
     public void Play(bool withChildren = true) =>

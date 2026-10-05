@@ -1,6 +1,6 @@
 #include "EditorGameBuildMenu.h"
 
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 #include <algorithm>
@@ -31,12 +31,14 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 	}
 
 	ImGui::SetNextWindowSizeConstraints(ImVec2(1000.0f, 0.0f), ImVec2(1000.0f, FLT_MAX));
-	if (!ImGui::BeginPopupModal(popupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+	if (!MyGUI::BeginPopupModal(popupName, nullptr, ImGuiWindowFlags_AlwaysAutoResize, 1000.0f)) {
 		return;
 	}
+	session.ContinueAfterSceneSave(context);
 
 	const bool isBuilding = session.GetService().IsBuilding();
-	ImGui::BeginDisabled(isBuilding);
+	const bool waitingForSave = session.IsWaitingForSceneSave();
+	ImGui::BeginDisabled(isBuilding || waitingForSave);
 	{
 		MyGUI::ScopedPropertyLabelWidth labelWidth("GameBuildSettings");
 		MyGUI::StringCombo("最初のシーン", session.GetDraft().sceneName, session.GetSceneNames(), "<シーンがありません>");
@@ -70,8 +72,28 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 	ImGui::EndDisabled();
 
 	ImGui::Separator();
+	if (waitingForSave) { ImGui::TextWrapped("Sceneの保存を待っています"); }
+	if (session.IsSceneSaveChoiceOpen()) {
+		ImGui::TextWrapped("未保存のSceneがあります。保存してからビルドするか、保存済みの内容を使うか選択してください。");
+		const float choiceWidth = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+		if (ImGui::Button("保存してビルド", ImVec2(choiceWidth, 0.0f))) { session.RequestSceneSave(); }
+		ImGui::SameLine();
+		if (ImGui::Button("保存済み内容でビルド", ImVec2(choiceWidth, 0.0f))) { session.Start(context, false, true); }
+	}
 	const GameBuildState state = session.GetService().GetState();
-	if (state == GameBuildState::Building) {
+	if (state == GameBuildState::AwaitingConfirmation) {
+		ImGui::TextWrapped("参照先の欠損があります。継続すると欠損を含む製品を作成します。");
+		ImGui::BeginChild("BuildWarnings", ImVec2(0.0f, 160.0f));
+		for (const GameBuildWarning& warning : session.GetService().GetWarnings()) {
+			ImGui::TextWrapped("%s\n%s", warning.assetPath.c_str(), warning.detail.c_str());
+		}
+		ImGui::EndChild();
+		ImGui::BeginDisabled(waitingForSave || session.IsSceneSaveChoiceOpen());
+		if (ImGui::Button("欠損を確認してビルドを継続", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+			session.Start(context, true);
+		}
+		ImGui::EndDisabled();
+	} else if (state == GameBuildState::Building) {
 		ImGui::TextDisabled("ビルド中...");
 	} else if (state == GameBuildState::Completed) {
 		ImGui::TextColored(ImVec4(0.35f, 0.85f, 0.45f, 1.0f), "完了しました");
@@ -89,7 +111,7 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 
 	const float spacing = ImGui::GetStyle().ItemSpacing.x;
 	const float buttonWidth = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
-	ImGui::BeginDisabled(isBuilding || session.GetSceneNames().empty());
+	ImGui::BeginDisabled(isBuilding || waitingForSave || session.IsSceneSaveChoiceOpen() || session.GetSceneNames().empty());
 	if (ImGui::Button("ビルド", ImVec2(buttonWidth, 0.0f))) {
 
 		session.Start(context);
@@ -97,7 +119,7 @@ void Engine::EditorGameBuildMenu::DrawPopup(const EditorPanelContext& context, E
 	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-	ImGui::BeginDisabled(isBuilding);
+	ImGui::BeginDisabled(isBuilding || waitingForSave);
 	if (ImGui::Button("キャンセル", ImVec2(buttonWidth, 0.0f))) {
 
 		session.ResetStatus();

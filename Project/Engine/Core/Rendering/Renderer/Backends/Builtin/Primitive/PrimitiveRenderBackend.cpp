@@ -293,24 +293,10 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	PrimitiveViewConstants viewConstants{};
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
-		// ViewとCamera種類ごとに前frameの行列を保持する
-		const size_t viewIndex =
-			static_cast<size_t>(context.view->kind) * 3u +
-			static_cast<size_t>(item->cameraDomain);
+		// Cameraごとに前frameの行列を保持する
 		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-		if (viewFrameSerials_[viewIndex] != frameSerial) {
-
-			framePreviousViewProjections_[viewIndex] =
-				previousViewValid_[viewIndex] ?
-				previousViewProjections_[viewIndex] :
-				viewConstants.viewProjection;
-			previousViewProjections_[viewIndex] =
-				viewConstants.viewProjection;
-			previousViewValid_[viewIndex] = true;
-			viewFrameSerials_[viewIndex] = frameSerial;
-		}
-		viewConstants.previousViewProjection =
-			framePreviousViewProjections_[viewIndex];
+		viewConstants.previousViewProjection = cameraHistory_.Update(
+			context.lodView ? *context.lodView : *context.view, item->cameraDomain, frameSerial);
 		viewConstants.frameSerial = static_cast<uint32_t>(frameSerial);
 		viewConstants.cameraPosition = camera->cameraPos;
 	}

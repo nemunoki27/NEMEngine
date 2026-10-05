@@ -10,6 +10,7 @@
 #include <Engine/Core/Rendering/Renderer/Views/RenderFrameTypes.h>
 #include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
 #include <Engine/Core/Animation/Clips/AnimationClipManager.h>
+#include <Engine/Core/Animation/Controllers/AnimationControllerManager.h>
 #include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/ECS/World/WorldManager.h>
@@ -118,6 +119,7 @@ namespace Engine {
 
 		// AnimationClipアセットのパースキャッシュ
 		AnimationClipManager animationClipManager_{};
+		AnimationControllerManager animationControllerManager_;
 
 		// エディタ管理
 		EditorManager editorManager_;

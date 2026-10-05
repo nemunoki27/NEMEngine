@@ -12,6 +12,7 @@ void Engine::from_json(const nlohmann::json& in, SkyboxRendererComponent& compon
 	}
 	component.iblIntensity = in.value("iblIntensity", component.iblIntensity);
 	component.visible = in.value("visible", component.visible);
+	component.renderingLayerMask = in.value("renderingLayerMask", component.renderingLayerMask) & kRenderingLayerMaskBits;
 }
 
 void Engine::to_json(nlohmann::json& out, const SkyboxRendererComponent& component) {
@@ -20,4 +21,5 @@ void Engine::to_json(nlohmann::json& out, const SkyboxRendererComponent& compone
 	out["color"] = component.color.ToJson();
 	out["iblIntensity"] = component.iblIntensity;
 	out["visible"] = component.visible;
+	out["renderingLayerMask"] = component.renderingLayerMask & kRenderingLayerMaskBits;
 }

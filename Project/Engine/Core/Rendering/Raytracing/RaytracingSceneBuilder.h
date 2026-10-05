@@ -61,10 +61,10 @@ namespace Engine {
 		void BeginFrame(GraphicsCore& graphicsCore);
 
 		// シーンの構築
-		void BuildForScene(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
-			RenderAssetLibrary& assetLibrary, MaterialResolver& materialResolver,
-			MeshRenderBackend* meshBackend, PrimitiveGeometryManager* primitiveGeometryManager,
-			const RenderSceneBatch& renderBatch, SceneExecutionContext& context);
+		void BuildForScene(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, RenderAssetLibrary& assetLibrary,
+			MaterialResolver& materialResolver, MeshRenderBackend* meshBackend,
+			PrimitiveGeometryManager* primitiveGeometryManager, const RenderSceneBatch& renderBatch,
+			SceneExecutionContext& context);
 
 		// 終了処理
 		void Finalize();
@@ -75,6 +75,7 @@ namespace Engine {
 
 		const std::vector<MeshSubMeshPickRecord>& GetPickRecords() const { return result_.scenePickRecords_; }
 		const std::vector<uint32_t>& GetPickRecordOffsets() const { return result_.scenePickRecordOffsets_; }
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -147,8 +148,7 @@ namespace Engine {
 			bool operator==(const SceneEntityKey& rhs) const noexcept { return world == rhs.world && entity == rhs.entity; }
 		};
 		struct SceneEntityKeyHash {
-			size_t operator()(
-				const SceneEntityKey& key) const noexcept;
+			size_t operator()(const SceneEntityKey& key) const noexcept;
 		};
 
 		struct SceneBuildWork {
@@ -191,15 +191,11 @@ namespace Engine {
 		// 初期化済みか
 		bool initialized_ = false;
 		// 静的シーンのTransform差分更新に使うTLAS配置
-		std::vector<RaytracingTLASInstance>
-			cachedTLASInstances_{};
-		std::unordered_multimap<SceneEntityKey, uint32_t,
-			SceneEntityKeyHash> cachedTLASInstanceIndices_{};
-		std::vector<CachedMeshLODInstance>
-			cachedMeshLODInstances_{};
+		std::vector<RaytracingTLASInstance> cachedTLASInstances_{};
+		std::unordered_multimap<SceneEntityKey, uint32_t, SceneEntityKeyHash> cachedTLASInstanceIndices_{};
+		std::vector<CachedMeshLODInstance> cachedMeshLODInstances_{};
 		// TLASインスタンスからLODキャッシュをO(1)で参照する
-		std::vector<uint32_t>
-			cachedMeshLODRecordIndices_{};
+		std::vector<uint32_t> cachedMeshLODRecordIndices_{};
 
 		// 同じframeと描画条件での重複構築を避ける
 		bool builtThisFrame_ = false;
@@ -232,14 +228,17 @@ namespace Engine {
 		void BuildPrimitiveInstances(std::span<const CollectedPrimitiveInstance> scenePrimitives, SceneBuildWork& work);
 
 		// 可視メッシュインスタンスの収集
-		void CollectSceneMeshInstances(const RenderSceneBatch& renderBatch,
-			const SceneExecutionContext& context, std::vector<CollectedMeshInstance>& outInstances);
+		void CollectSceneMeshInstances(const RenderSceneBatch& renderBatch, const SceneExecutionContext& context,
+			std::vector<CollectedMeshInstance>& outInstances);
 		// 可視Primitiveインスタンスの収集
-		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch,
-			const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances);
+		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch, const SceneExecutionContext& context,
+			std::vector<CollectedPrimitiveInstance>& outInstances);
+
+		// 構築済みMeshのLODとGeometry番号を更新
+		uint32_t UpdateCachedLODSelections(MeshRenderBackend* meshBackend, const GraphicsRuntimeFeatures& runtimeFeatures,
+			const ResolvedRenderView* lodView, bool& lodResourceMissing);
 
 		// 既に構築済みのシーン情報を各ビューコンテキストに渡す
 		void PublishBuiltScene(SceneExecutionContext& context) const;
-
 	};
 } // Engine

@@ -7,7 +7,7 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Core/DxDevice.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxRenderTargetView.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
@@ -128,10 +128,10 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 	// 作成した基本Interfaceから必要なInterfaceを取得する
 	ComPtr<IDXGISwapChain1> candidate;
 	const HRESULT result = factory->CreateSwapChainForHwnd(queue, winApp->GetHwnd(), &desc_, nullptr, nullptr, &candidate);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, result, "DxSwapChain::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, result, "DxSwapChain::Create")) {
 		throw std::runtime_error("SwapChainの作成に失敗しました");
 	}
-	if (!DxDredDiagnostics::CheckHRESULT(device_, candidate.As(&swapChain_), "DxSwapChain::Create/Interface")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, candidate.As(&swapChain_), "DxSwapChain::Create/Interface")) {
 		throw std::runtime_error("SwapChainのInterfaceを取得できませんでした");
 	}
 
@@ -148,7 +148,7 @@ void DxSwapChain::Create(WinApp* winApp, ID3D12Device* device,
 		renderTarget_.format = outputFormat.rtvFormat;
 		const HRESULT fallbackResult = swapChain_->ResizeBuffers(
 			bufferCount_, width, height, desc_.Format, desc_.Flags);
-		if (!DxDredDiagnostics::CheckHRESULT(device_, fallbackResult, "DxSwapChain::Create/SDRFallback")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, fallbackResult, "DxSwapChain::Create/SDRFallback")) {
 			throw std::runtime_error("SwapChainのSDR切り替えに失敗しました");
 		}
 	}
@@ -176,7 +176,7 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 
 	const HRESULT resizeResult = swapChain_->ResizeBuffers(
 		bufferCount_, width, height, desc_.Format, desc_.Flags);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, resizeResult, "DxSwapChain::Resize/ResizeBuffers")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, resizeResult, "DxSwapChain::Resize/ResizeBuffers")) {
 		throw std::runtime_error("SwapChainのResizeBuffersに失敗しました");
 	}
 
@@ -193,7 +193,7 @@ bool DxSwapChain::Resize(uint32_t width, uint32_t height) {
 bool DxSwapChain::SupportsDisplayOutput() const {
 
 	UINT colorSpaceSupport = 0;
-	if (!DxDredDiagnostics::CheckHRESULT(device_, swapChain_->CheckColorSpaceSupport(
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->CheckColorSpaceSupport(
 		colorSpace_, &colorSpaceSupport), "DxSwapChain::SupportsDisplayOutput") ||
 		!(colorSpaceSupport &
 			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT)) {
@@ -219,16 +219,16 @@ bool DxSwapChain::SupportsDisplayOutput() const {
 bool DxSwapChain::ApplyDisplayOutput() {
 
 	UINT colorSpaceSupport = 0;
-	if (!DxDredDiagnostics::CheckHRESULT(device_, swapChain_->CheckColorSpaceSupport(
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->CheckColorSpaceSupport(
 		colorSpace_, &colorSpaceSupport), "DxSwapChain::ApplyDisplayOutput/Support") ||
 		!(colorSpaceSupport &
 			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) ||
-		!DxDredDiagnostics::CheckHRESULT(device_, swapChain_->SetColorSpace1(colorSpace_), "DxSwapChain::ApplyDisplayOutput/ColorSpace")) {
+		!DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->SetColorSpace1(colorSpace_), "DxSwapChain::ApplyDisplayOutput/ColorSpace")) {
 		return false;
 	}
 
 	if (displayOutput_.mode != DisplayOutputMode::HDR10) {
-		return DxDredDiagnostics::CheckHRESULT(device_, swapChain_->SetHDRMetaData(
+		return DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->SetHDRMetaData(
 			DXGI_HDR_METADATA_TYPE_NONE, 0, nullptr), "DxSwapChain::ApplyDisplayOutput/SDR");
 	}
 
@@ -248,7 +248,7 @@ bool DxSwapChain::ApplyDisplayOutput() {
 		displayOutput_.maxLuminanceNits);
 	metadata.MaxFrameAverageLightLevel = static_cast<uint16_t>(
 		displayOutput_.maxLuminanceNits * 0.5f);
-	return DxDredDiagnostics::CheckHRESULT(device_, swapChain_->SetHDRMetaData(
+	return DxDREDDiagnostics::CheckHRESULT(device_, swapChain_->SetHDRMetaData(
 		DXGI_HDR_METADATA_TYPE_HDR10, sizeof(metadata), &metadata), "DxSwapChain::ApplyDisplayOutput/HDR");
 }
 
@@ -264,7 +264,7 @@ bool DxSwapChain::CreateBackBufferResources(bool allocateDescriptors) {
 	for (uint32_t index = 0; index < bufferCount_; ++index) {
 
 		const HRESULT getBufferResult = swapChain_->GetBuffer(index, IID_PPV_ARGS(&resources_[index]));
-		if (!DxDredDiagnostics::CheckHRESULT(device_, getBufferResult, "DxSwapChain::CreateBackBufferResources/GetBuffer")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device_, getBufferResult, "DxSwapChain::CreateBackBufferResources/GetBuffer")) {
 			return false;
 		}
 		resources_[index]->SetName((L"backBufferResource" + std::to_wstring(index)).c_str());

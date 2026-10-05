@@ -5,6 +5,7 @@
 //============================================================================
 #include <filesystem>
 #include <string>
+#include <system_error>
 
 namespace Engine::StorageFileUtility {
 
@@ -18,4 +19,6 @@ namespace Engine::StorageFileUtility {
 	// 全byteを書き終えてから保存先を置き換える
 	bool WriteBytes(const Path& path, const std::string& serialized);
 	bool CopyFileAtomically(const Path& source, const Path& target);
+	// 移動先に現れた既存ファイルを置き換えない
+	bool MoveWithoutReplacement(const Path& source, const Path& target, std::error_code& error) noexcept;
 }

@@ -1,6 +1,6 @@
 #include "DxMappedUploadBuffer.h"
 
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <stdexcept>
 
 //============================================================================
@@ -15,7 +15,7 @@ namespace Engine {
 		ComPtr<ID3D12Resource> candidate;
 		DxUtils::CreateUploadBufferResource(device, candidate, sizeInBytes);
 		void* mapped = nullptr;
-		if (!DxDredDiagnostics::CheckHRESULT(device, candidate->Map(0, nullptr, &mapped), "DxMappedUploadBuffer::Map")) {
+		if (!DxDREDDiagnostics::CheckHRESULT(device, candidate->Map(0, nullptr, &mapped), "DxMappedUploadBuffer::Map")) {
 			throw std::runtime_error("Upload BufferのMapに失敗しました");
 		}
 		// 再生成に成功するまで旧Map先を維持する

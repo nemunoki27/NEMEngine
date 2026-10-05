@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/Tools/Core/EditorToolUI.h>
 // c++
 #include <stdexcept>
 
@@ -169,6 +170,9 @@ void Engine::EngineApplication::Init(GraphicsCore& graphicsCore) {
 }
 
 void Engine::EngineApplication::Finalize() {
+
+	// 保存と切替の前にSceneプレビューを戻す
+	EditorToolUI::EndScenePreviews();
 
 	if (initializationComplete_ && !shutdownAccepted_) {
 

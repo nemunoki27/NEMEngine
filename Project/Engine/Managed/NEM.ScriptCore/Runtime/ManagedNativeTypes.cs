@@ -3,10 +3,10 @@ using System.Runtime.InteropServices;
 
 namespace NEMEngine;
 
-// C++側 ManagedAbi と一致させるABI定数
-internal static class ManagedAbi {
+// C++側 ManagedABI と一致させるABI定数
+internal static class ManagedABI {
 
-    // C++側 kManagedAbiVersion と一致させる
+    // C++側 kManagedABIVersion と一致させる
     // v2: managed script instance handle を int32 から NativeScriptInstanceHandle へ変更
     // v3: 型登録を CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
     // v4: 固定長フィールドABIを撤廃し、二段階blob schema/runtime state API へ移行
@@ -52,7 +52,8 @@ internal static class ManagedAbi {
     // v53: スクリプトの詳細計測区間を追加
     // v54: シーンを越えてルートGameObjectを保持するAPIを追加
     // v60: 物理クエリのTrigger指定とグローバル設定を追加
-    internal const uint Version = 60;
+    // v61: Controllerの型付きParameter操作を追加
+    internal const uint Version = 66;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -111,9 +112,9 @@ public struct NativeMaterialParameterValue {
     [FieldOffset(20)] internal int reserved;
 }
 
-// C++側 ManagedAbiHeader と同一レイアウト
+// C++側 ManagedABIHeader と同一レイアウト
 [StructLayout(LayoutKind.Sequential)]
-public struct ManagedAbiHeader {
+public struct ManagedABIHeader {
 
     public uint abiVersion;
     public uint structSize;

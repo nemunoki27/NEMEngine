@@ -109,8 +109,6 @@ namespace Engine {
 		// 未保存確認の要求を処理する
 		void QueueSceneRequest(const EditorSceneRequest& request, bool hasDirtyScenes);
 		// 未保存確認の要求を処理する
-		const char* GetSceneRequestActionName(EditorSceneRequestType type) const;
-		// 未保存確認の要求を処理する
 		void SubmitPendingSceneRequest(bool saveBeforeSubmit);
 	};
 }

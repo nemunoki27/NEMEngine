@@ -1,5 +1,4 @@
 #include "ParticleEffectEditSession.h"
-#include "ParticleEditorDescriptorRegistry.h"
 
 //============================================================================
 //	include
@@ -10,6 +9,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <exception>
 
 using namespace Engine;
 
@@ -29,71 +29,78 @@ ParticleGroupEditState& ParticleEffectEditSession::GetGroupEditorState(UUID grou
 	return groupEditorStates_[groupID];
 }
 
-Engine::IParticleModule* ParticleEffectEditSession::ResolveModuleCache(ParticleModuleEditCacheEntry& cache, const ParticleEffectModuleEntry& entry) {
+bool ParticleEffectEditSession::LoadEffect(const EditorToolContext& context, AssetID effectID, std::string& statusMessage) {
 
-	// idが変わっていたら作り直し、現在のパラメータを読み込ませる
-	if (!cache.module || cache.id != entry.id) {
-
-		cache.id = entry.id;
-		ParticleModuleRegistry& registry = ParticleModuleRegistry::GetInstance();
-		cache.typeID = registry.FindTypeID(entry.id);
-		cache.module = registry.Create(cache.typeID);
-		cache.drawer = ParticleEditorDescriptorRegistry::GetInstance().CreateModuleDrawer(cache.typeID);
-		if (cache.module) {
-			cache.module->FromJson(entry.params);
-		}
-	}
-	return cache.module.get();
-}
-
-void ParticleEffectEditSession::LoadEffect(const EditorToolContext& context, AssetID effectID, std::string& statusMessage) {
-
-	loaded_ = false;
-	editingID_ = effectID;
-	groupEditorStates_.clear();
-	selectedGroupID_ = {};
 	if (!effectID || !context.toolContext.assetDatabase) {
-		return;
+		return false;
 	}
 
 	const std::filesystem::path path = context.toolContext.assetDatabase->ResolveFullPath(effectID);
 	if (path.empty()) {
 
 		statusMessage = "エフェクトファイルが見つかりません";
-		return;
+		return false;
 	}
 	const nlohmann::json data = JsonAdapter::Load(path.string(), false);
-	if (!FromJson(data, draft_)) {
+	ParticleEffectAsset replacement{};
+	try {
+		if (!FromJson(data, replacement)) {
+			statusMessage = "エフェクトファイルの読み込みに失敗しました";
+			return false;
+		}
+	} catch (const std::exception& error) {
 
-		statusMessage = "エフェクトファイルの読み込みに失敗しました";
-		return;
+		statusMessage = "エフェクトファイルの読み込みに失敗しました: " + std::string(error.what());
+		return false;
 	}
+	// 読込成功後に以前の未保存上書きと履歴を解除する
+	ParticleEffectAsset saved = replacement;
+	ParticleEffectAsset committed = replacement;
+	ParticleEffectEditBridge::GetInstance().Remove(editingID_);
+	draft_ = std::move(replacement);
+	savedDraft_ = std::move(saved);
+	committedDraft_ = std::move(committed);
+	editingID_ = effectID;
+	groupEditorStates_.clear();
+	pendingBefore_.reset();
+	history_.Clear();
+	dirty_ = false;
 	selectedGroupID_ = draft_.groups.front().id;
 	loaded_ = true;
 	statusMessage.clear();
+	return true;
 }
 
-void ParticleEffectEditSession::SaveEffect(const EditorToolContext& context, std::string& statusMessage) {
+bool ParticleEffectEditSession::SaveEffect(const EditorToolContext& context, std::string& statusMessage) {
 
 	if (!loaded_ || !editingID_ || !context.toolContext.assetDatabase) {
-		return;
+		return false;
 	}
 
 	const std::filesystem::path path = context.toolContext.assetDatabase->ResolveFullPath(editingID_);
 	if (path.empty()) {
 
 		statusMessage = "保存先のパスを解決できません";
-		return;
+		return false;
 	}
-	JsonAdapter::Save(path.string(), ToJson(draft_));
+	FinishEditing();
+	if (!JsonAdapter::SaveCanonical(path, ToJson(draft_))) {
+		statusMessage = "エフェクトの保存に失敗しました";
+		return false;
+	}
+	savedDraft_ = draft_;
+	dirty_ = false;
+	context.toolContext.assetDatabase->NotifyContentChanged(editingID_);
+	ParticleEffectEditBridge::GetInstance().Remove(editingID_);
 	statusMessage = "保存しました: " + path.filename().string();
+	return true;
 }
 
-void ParticleEffectEditSession::CreateEffect(const EditorToolContext& context, std::string& statusMessage, const std::string& createName) {
+bool ParticleEffectEditSession::CreateEffect(const EditorToolContext& context, std::string& statusMessage, const std::string& createName) {
 
 	AssetDatabase* assetDatabase = context.toolContext.assetDatabase;
 	if (!assetDatabase || createName.empty()) {
-		return;
+		return false;
 	}
 
 	// 既定のフェーズ構成で新規エフェクトを作る
@@ -113,17 +120,29 @@ void ParticleEffectEditSession::CreateEffect(const EditorToolContext& context, s
 	const std::string logical = "GameAssets/Effects/" + createName + ".effect.json";
 	const std::filesystem::path path = assetDatabase->ResolveAssetPath(logical);
 	std::error_code ec;
+	if (createName.find_first_of("/\\:*?\"<>|") != std::string::npos ||
+		createName == "." || createName == ".." || std::filesystem::exists(path, ec)) {
+		statusMessage = "作成名が無効か、同名のエフェクトが存在します";
+		return false;
+	}
+	if (ec) {
+		statusMessage = "作成先を確認できません";
+		return false;
+	}
 	std::filesystem::create_directories(path.parent_path(), ec);
-	JsonAdapter::Save(path.string(), ToJson(asset));
+	if (ec || !JsonAdapter::SaveCanonical(path, ToJson(asset))) {
+		statusMessage = "エフェクトの作成に失敗しました";
+		return false;
+	}
 
 	const AssetID assetID = assetDatabase->ImportOrGet(logical, AssetType::ParticleEffect);
 	if (!assetID) {
 
 		statusMessage = "エフェクトの作成に失敗しました";
-		return;
+		return false;
 	}
 	statusMessage = "作成しました: " + logical;
-	LoadEffect(context, assetID, statusMessage);
+	return LoadEffect(context, assetID, statusMessage);
 }
 
 void ParticleEffectEditSession::ApplyToRuntime() {

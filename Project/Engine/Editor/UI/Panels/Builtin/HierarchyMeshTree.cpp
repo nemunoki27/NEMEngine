@@ -9,7 +9,7 @@
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 #include <unordered_map>
 

@@ -48,7 +48,8 @@ namespace Engine::AssetMaintenance {
 			for (auto it = std::filesystem::recursive_directory_iterator(root);
 				it != std::filesystem::recursive_directory_iterator{}; ++it) {
 				if (it->is_directory()) {
-					if (AssetFileUtility::IsExternalActorsDirectory(it->path())) {
+					if (AssetFileUtility::IsExternalActorsDirectory(it->path()) ||
+						AssetFileUtility::IsAssetCopyStagingDirectory(it->path())) {
 						it.disable_recursion_pending();
 					}
 					continue;

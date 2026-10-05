@@ -3,6 +3,14 @@
   "comment": "Component ID、ネイティブ登録、C#公開分類、生成Bindingの単一Manifest",
   "enums": [
     {
+      "managedType": "AudioRolloffMode",
+      "nativeType": "AudioRolloffMode",
+      "members": [
+        { "name": "Logarithmic", "value": 0 },
+        { "name": "Linear", "value": 1 }
+      ]
+    },
+    {
       "managedType": "ParticleSystemStopAction",
       "nativeType": "ParticleSystemStopAction",
       "members": [
@@ -35,10 +43,6 @@
         {
           "name": "World",
           "value": 2
-        },
-        {
-          "name": "Custom",
-          "value": 3
         }
       ]
     },
@@ -112,14 +116,20 @@
         }
       ]
     },
-	{
-	  "managedType": "CollisionDetectionMode",
-	  "nativeType": "CollisionDetectionMode",
-	  "members": [
-		{ "name": "Discrete", "value": 0 },
-		{ "name": "Continuous", "value": 1 }
-	  ]
-	},
+    {
+      "managedType": "CollisionDetectionMode",
+      "nativeType": "CollisionDetectionMode",
+      "members": [
+        {
+          "name": "Discrete",
+          "value": 0
+        },
+        {
+          "name": "Continuous",
+          "value": 1
+        }
+      ]
+    },
     {
       "managedType": "CameraControlMode",
       "nativeType": "CameraControlMode",
@@ -262,38 +272,38 @@
         }
       ]
     },
-	{
-	  "managedType": "CameraProjectionMode",
-	  "nativeType": "CameraProjectionMode",
-	  "members": [
-		{
-		  "name": "Perspective",
-		  "value": 0
-		},
-		{
-		  "name": "Orthographic",
-		  "value": 1
-		}
-	  ]
-	},
-	{
-	  "managedType": "CanvasInputBlockMode",
-	  "nativeType": "CanvasInputBlockMode",
-	  "members": [
-		{
-		  "name": "None",
-		  "value": 0
-		},
-		{
-		  "name": "ConsumedFrame",
-		  "value": 1
-		},
-		{
-		  "name": "WhileVisible",
-		  "value": 2
-		}
-	  ]
-	},
+    {
+      "managedType": "CameraProjectionMode",
+      "nativeType": "CameraProjectionMode",
+      "members": [
+        {
+          "name": "Perspective",
+          "value": 0
+        },
+        {
+          "name": "Orthographic",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "managedType": "CanvasInputBlockMode",
+      "nativeType": "CanvasInputBlockMode",
+      "members": [
+        {
+          "name": "None",
+          "value": 0
+        },
+        {
+          "name": "ConsumedFrame",
+          "value": 1
+        },
+        {
+          "name": "WhileVisible",
+          "value": 2
+        }
+      ]
+    },
     {
       "managedType": "ColliderShapeType",
       "nativeType": "ColliderShapeType",
@@ -399,18 +409,32 @@
           "value": 3
         }
       ]
+    },
+    {
+      "managedType": "ExposureMode",
+      "nativeType": "ExposureMode",
+      "members": [
+        {
+          "name": "Manual",
+          "value": 0
+        },
+        {
+          "name": "Automatic",
+          "value": 1
+        }
+      ]
     }
   ],
   "components": [
     {
-      "id": 0,
-      "registryName": "AnimationPlayer",
-      "nativeType": "AnimationPlayerComponent",
-      "nativeHeader": "Engine/Core/World/Components/Animation/AnimationPlayerComponent.h",
+      "id": 63,
+      "registryName": "AudioListener",
+      "nativeType": "AudioListenerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Audio/AudioListenerComponent.h",
       "exposure": "GeneratedBinding",
-      "managedSurface": "NEMEngine.AnimationPlayer",
-      "reason": "globalSpeed/enabled の制御 + state/finished の read-only を generated property で公開。Play/CrossFade/Stop は要求フィールド経由で system が処理する。",
-      "managedType": "AnimationPlayer",
+      "managedSurface": "NEMEngine.AudioListener",
+      "reason": "Cameraから独立した単一の受音位置を指定する",
+      "managedType": "AudioListener",
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
@@ -419,9 +443,29 @@
           "nativeMember": "enabled",
           "kind": "Bool",
           "access": "ReadWrite"
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "registryName": "AnimationPlayer",
+      "nativeType": "AnimationPlayerComponent",
+      "nativeHeader": "Engine/Core/World/Components/Animation/AnimationPlayerComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.Animator",
+      "reason": "globalSpeed/enabled の制御 + state/finished の read-only を generated property で公開。Play/CrossFade/Stop は要求フィールド経由で system が処理する。",
+      "managedType": "Animator",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
         },
         {
-          "managedName": "GlobalSpeed",
+          "managedName": "speed",
           "nativeMember": "globalSpeed",
           "kind": "Float",
           "access": "ReadWrite"
@@ -467,6 +511,62 @@
           "nativeMember": "runtimeStopRequest",
           "kind": "Bool",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "runtimeAnimatorController",
+          "nativeMember": "controller",
+          "kind": "AssetRef",
+          "assetType": "RuntimeAnimatorController",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "DirectClipRequest",
+          "nativeMember": "runtimeDirectClipRequest",
+          "kind": "AssetRef",
+          "access": "ReadWrite",
+          "assetType": "AnimationClip"
+        },
+        {
+          "managedName": "NormalizedFade",
+          "nativeMember": "runtimeNormalizedFade",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "NormalizedOffset",
+          "nativeMember": "runtimeNormalizedOffset",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlaybackTimeRequest",
+          "nativeMember": "runtimePlayTime",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SeekRequest",
+          "nativeMember": "runtimeSeekRequested",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "NormalizedTimeValue",
+          "nativeMember": "runtimeNormalizedTimeValue",
+          "kind": "Float",
+          "access": "ReadOnly"
+        },
+        {
+          "managedName": "ClipDuration",
+          "nativeMember": "runtimeClipDuration",
+          "kind": "Float",
+          "access": "ReadOnly"
+        },
+        {
+          "managedName": "Looping",
+          "nativeMember": "runtimeLooping",
+          "kind": "Bool",
+          "access": "ReadOnly"
         }
       ]
     },
@@ -510,6 +610,37 @@
         {
           "managedName": "Volume",
           "nativeMember": "volume",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "SpatialBlend",
+          "nativeMember": "spatialBlend",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MinDistance",
+          "nativeMember": "minDistance",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MaxDistance",
+          "nativeMember": "maxDistance",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "RolloffMode",
+          "nativeMember": "rolloffMode",
+          "kind": "Enum",
+          "enumType": "AudioRolloffMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Pitch",
+          "nativeMember": "pitch",
           "kind": "Float",
           "access": "ReadWrite"
         }
@@ -871,19 +1002,19 @@
           "kind": "Int",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "InputBlockMode",
-		  "nativeMember": "inputBlockMode",
-		  "kind": "Enum",
-		  "enumType": "CanvasInputBlockMode",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "PlayerIndex",
-		  "nativeMember": "playerIndex",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		},
+        {
+          "managedName": "InputBlockMode",
+          "nativeMember": "inputBlockMode",
+          "kind": "Enum",
+          "enumType": "CanvasInputBlockMode",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "PlayerIndex",
+          "nativeMember": "playerIndex",
+          "kind": "UInt",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "InputInEditMode",
           "nativeMember": "inputInEditMode",
@@ -1009,36 +1140,18 @@
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "ShadowAngularRadius",
+        {
+          "managedName": "ShadowAngularRadius",
           "nativeMember": "shadowAngularRadius",
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "Enabled",
-		  "nativeMember": "enabled",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "AffectLayerMask",
-		  "nativeMember": "affectLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "UseShadowLayerMask",
-		  "nativeMember": "useShadowLayerMask",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "ShadowLayerMask",
-		  "nativeMember": "shadowLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		}
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
       ]
     },
     {
@@ -1085,6 +1198,19 @@
           "access": "ReadWrite"
         },
         {
+          "managedName": "useAutoRandomSeed",
+          "nativeMember": "useAutoRandomSeed",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "RandomSeedValue",
+          "nativeMember": "randomSeed",
+          "kind": "UInt",
+          "access": "ReadWrite",
+          "visibility": "Internal"
+        },
+        {
           "managedName": "Layer",
           "nativeMember": "layer",
           "kind": "Int",
@@ -1108,6 +1234,12 @@
           "nativeMember": "simulationSpace",
           "kind": "Enum",
           "enumType": "ParticleSystemSimulationSpace",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "RenderingLayerMask",
+          "nativeMember": "renderingLayerMask",
+          "kind": "UInt",
           "access": "ReadWrite"
         }
       ]
@@ -1401,23 +1533,137 @@
           "access": "ReadWrite"
         },
         {
-          "managedName": "VolumeLayerMask",
-          "nativeMember": "common.volumeLayerMask",
-          "kind": "UInt",
+          "managedName": "RenderPasses",
+          "nativeMember": "common.renderPasses",
+          "kind": "AssetRef",
+          "assetType": "RenderPasses",
           "access": "ReadWrite"
         },
         {
-          "managedName": "VolumeProfile",
-          "nativeMember": "common.volumeProfile",
-          "kind": "AssetRef",
-          "assetType": "VolumeProfile",
+          "managedName": "ExposureMode",
+          "nativeMember": "common.colorPipeline.exposure.mode",
+          "kind": "Enum",
+          "enumType": "ExposureMode",
           "access": "ReadWrite"
         },
         {
-          "managedName": "RenderExtension",
-          "nativeMember": "common.renderExtension",
-          "kind": "AssetRef",
-          "assetType": "RenderExtension",
+          "managedName": "ExposureEV100",
+          "nativeMember": "common.colorPipeline.exposure.manualEV100",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureCompensation",
+          "nativeMember": "common.colorPipeline.exposure.compensation",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureMinimumEV100",
+          "nativeMember": "common.colorPipeline.exposure.minEV100",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureMaximumEV100",
+          "nativeMember": "common.colorPipeline.exposure.maxEV100",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureSpeedUp",
+          "nativeMember": "common.colorPipeline.exposure.speedUp",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureSpeedDown",
+          "nativeMember": "common.colorPipeline.exposure.speedDown",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UsePreExposure",
+          "nativeMember": "common.colorPipeline.exposure.usePreExposure",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicSlope",
+          "nativeMember": "common.colorPipeline.filmic.slope",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicToe",
+          "nativeMember": "common.colorPipeline.filmic.toe",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicShoulder",
+          "nativeMember": "common.colorPipeline.filmic.shoulder",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicBlackClip",
+          "nativeMember": "common.colorPipeline.filmic.blackClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicWhiteClip",
+          "nativeMember": "common.colorPipeline.filmic.whiteClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorFilter",
+          "nativeMember": "common.colorPipeline.colorGrading.colorFilter",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorTemperature",
+          "nativeMember": "common.colorPipeline.colorGrading.temperature",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorTint",
+          "nativeMember": "common.colorPipeline.colorGrading.tint",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorSaturation",
+          "nativeMember": "common.colorPipeline.colorGrading.saturation",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorContrast",
+          "nativeMember": "common.colorPipeline.colorGrading.contrast",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorGamma",
+          "nativeMember": "common.colorPipeline.colorGrading.gamma",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorGain",
+          "nativeMember": "common.colorPipeline.colorGrading.gain",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorOffset",
+          "nativeMember": "common.colorPipeline.colorGrading.offset",
+          "kind": "Vector3",
           "access": "ReadWrite"
         }
       ]
@@ -1434,25 +1680,25 @@
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
-		{
-		  "managedName": "ProjectionMode",
-		  "nativeMember": "projectionMode",
-		  "kind": "Enum",
-		  "enumType": "CameraProjectionMode",
-		  "access": "ReadWrite"
-		},
+        {
+          "managedName": "ProjectionMode",
+          "nativeMember": "projectionMode",
+          "kind": "Enum",
+          "enumType": "CameraProjectionMode",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "FovY",
           "nativeMember": "fovY",
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "OrthographicSize",
-		  "nativeMember": "orthographicSize",
-		  "kind": "Float",
-		  "access": "ReadWrite"
-		},
+        {
+          "managedName": "OrthographicSize",
+          "nativeMember": "orthographicSize",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "NearClip",
           "nativeMember": "nearClip",
@@ -1527,23 +1773,137 @@
           "access": "ReadWrite"
         },
         {
-          "managedName": "VolumeLayerMask",
-          "nativeMember": "common.volumeLayerMask",
-          "kind": "UInt",
+          "managedName": "RenderPasses",
+          "nativeMember": "common.renderPasses",
+          "kind": "AssetRef",
+          "assetType": "RenderPasses",
           "access": "ReadWrite"
         },
         {
-          "managedName": "VolumeProfile",
-          "nativeMember": "common.volumeProfile",
-          "kind": "AssetRef",
-          "assetType": "VolumeProfile",
+          "managedName": "ExposureMode",
+          "nativeMember": "common.colorPipeline.exposure.mode",
+          "kind": "Enum",
+          "enumType": "ExposureMode",
           "access": "ReadWrite"
         },
         {
-          "managedName": "RenderExtension",
-          "nativeMember": "common.renderExtension",
-          "kind": "AssetRef",
-          "assetType": "RenderExtension",
+          "managedName": "ExposureEV100",
+          "nativeMember": "common.colorPipeline.exposure.manualEV100",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureCompensation",
+          "nativeMember": "common.colorPipeline.exposure.compensation",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureMinimumEV100",
+          "nativeMember": "common.colorPipeline.exposure.minEV100",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureMaximumEV100",
+          "nativeMember": "common.colorPipeline.exposure.maxEV100",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureSpeedUp",
+          "nativeMember": "common.colorPipeline.exposure.speedUp",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ExposureSpeedDown",
+          "nativeMember": "common.colorPipeline.exposure.speedDown",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UsePreExposure",
+          "nativeMember": "common.colorPipeline.exposure.usePreExposure",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicSlope",
+          "nativeMember": "common.colorPipeline.filmic.slope",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicToe",
+          "nativeMember": "common.colorPipeline.filmic.toe",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicShoulder",
+          "nativeMember": "common.colorPipeline.filmic.shoulder",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicBlackClip",
+          "nativeMember": "common.colorPipeline.filmic.blackClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "FilmicWhiteClip",
+          "nativeMember": "common.colorPipeline.filmic.whiteClip",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorFilter",
+          "nativeMember": "common.colorPipeline.colorGrading.colorFilter",
+          "kind": "Color4",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorTemperature",
+          "nativeMember": "common.colorPipeline.colorGrading.temperature",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorTint",
+          "nativeMember": "common.colorPipeline.colorGrading.tint",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorSaturation",
+          "nativeMember": "common.colorPipeline.colorGrading.saturation",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorContrast",
+          "nativeMember": "common.colorPipeline.colorGrading.contrast",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorGamma",
+          "nativeMember": "common.colorPipeline.colorGrading.gamma",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorGain",
+          "nativeMember": "common.colorPipeline.colorGrading.gain",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ColorOffset",
+          "nativeMember": "common.colorPipeline.colorGrading.offset",
+          "kind": "Vector3",
           "access": "ReadWrite"
         }
       ]
@@ -1590,36 +1950,18 @@
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "ShadowRadius",
+        {
+          "managedName": "ShadowRadius",
           "nativeMember": "shadowRadius",
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "Enabled",
-		  "nativeMember": "enabled",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "AffectLayerMask",
-		  "nativeMember": "affectLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "UseShadowLayerMask",
-		  "nativeMember": "useShadowLayerMask",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "ShadowLayerMask",
-		  "nativeMember": "shadowLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		}
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
       ]
     },
     {
@@ -1977,13 +2319,13 @@
           "enumType": "RigidbodyType",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "CollisionDetection",
-		  "nativeMember": "collisionDetection",
-		  "kind": "Enum",
-		  "enumType": "CollisionDetectionMode",
-		  "access": "ReadWrite"
-		},
+        {
+          "managedName": "CollisionDetection",
+          "nativeMember": "collisionDetection",
+          "kind": "Enum",
+          "enumType": "CollisionDetectionMode",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "Mass",
           "nativeMember": "mass",
@@ -2095,13 +2437,13 @@
           "enumType": "RigidbodyType",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "CollisionDetection",
-		  "nativeMember": "collisionDetection",
-		  "kind": "Enum",
-		  "enumType": "CollisionDetectionMode",
-		  "access": "ReadWrite"
-		},
+        {
+          "managedName": "CollisionDetection",
+          "nativeMember": "collisionDetection",
+          "kind": "Enum",
+          "enumType": "CollisionDetectionMode",
+          "access": "ReadWrite"
+        },
         {
           "managedName": "Mass",
           "nativeMember": "mass",
@@ -2342,8 +2684,8 @@
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "CosFalloffStart",
+        {
+          "managedName": "CosFalloffStart",
           "nativeMember": "cosFalloffStart",
           "kind": "Float",
           "access": "ReadWrite"
@@ -2360,30 +2702,12 @@
           "kind": "Float",
           "access": "ReadWrite"
         },
-		{
-		  "managedName": "Enabled",
-		  "nativeMember": "enabled",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "AffectLayerMask",
-		  "nativeMember": "affectLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "UseShadowLayerMask",
-		  "nativeMember": "useShadowLayerMask",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "ShadowLayerMask",
-		  "nativeMember": "shadowLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		}
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
       ]
     },
     {
@@ -3103,25 +3427,7 @@
           "nativeMember": "enabled",
           "kind": "Bool",
           "access": "ReadWrite"
-        },
-		{
-		  "managedName": "AffectLayerMask",
-		  "nativeMember": "affectLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "UseShadowLayerMask",
-		  "nativeMember": "useShadowLayerMask",
-		  "kind": "Bool",
-		  "access": "ReadWrite"
-		},
-		{
-		  "managedName": "ShadowLayerMask",
-		  "nativeMember": "shadowLayerMask",
-		  "kind": "UInt",
-		  "access": "ReadWrite"
-		}
+        }
       ]
     },
     {
@@ -3139,56 +3445,37 @@
     },
     {
       "id": 61,
-      "registryName": "Volume",
-      "nativeType": "VolumeComponent",
-      "nativeHeader": "Engine/Core/World/Components/Rendering/VolumeComponent.h",
+      "registryName": "FixedJoint",
+      "nativeType": "FixedJointComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/PhysicsJointComponent.h",
       "exposure": "GeneratedBinding",
-      "managedSurface": "NEMEngine.Volume",
-      "reason": "Camera位置へ適用するVolume設定を公開する",
-      "managedType": "Volume",
+      "managedSurface": "NEMEngine.FixedJoint",
+      "reason": "2つの剛体を固定拘束で接続する",
+      "managedType": "FixedJoint",
       "allowAdd": true,
       "allowRemove": true,
       "properties": [
         {
-          "managedName": "Profile",
-          "nativeMember": "profile",
-          "kind": "AssetRef",
-          "assetType": "VolumeProfile",
+          "managedName": "ConnectedBody",
+          "nativeMember": "connectedBodyLocalFileID",
+          "kind": "EntityRef",
           "access": "ReadWrite"
         },
         {
-          "managedName": "Size",
-          "nativeMember": "size",
+          "managedName": "Anchor",
+          "nativeMember": "anchor",
           "kind": "Vector3",
           "access": "ReadWrite"
         },
         {
-          "managedName": "Priority",
-          "nativeMember": "priority",
-          "kind": "Float",
+          "managedName": "ConnectedAnchor",
+          "nativeMember": "connectedAnchor",
+          "kind": "Vector3",
           "access": "ReadWrite"
         },
         {
-          "managedName": "Weight",
-          "nativeMember": "weight",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "BlendDistance",
-          "nativeMember": "blendDistance",
-          "kind": "Float",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "LayerMask",
-          "nativeMember": "layerMask",
-          "kind": "UInt",
-          "access": "ReadWrite"
-        },
-        {
-          "managedName": "IsGlobal",
-          "nativeMember": "global",
+          "managedName": "AutoConfigureConnectedAnchor",
+          "nativeMember": "autoConfigureConnectedAnchor",
           "kind": "Bool",
           "access": "ReadWrite"
         },
@@ -3200,47 +3487,73 @@
         }
       ]
     },
-	{
-	  "id": 62,
-	  "registryName": "FixedJoint",
-	  "nativeType": "FixedJointComponent",
-	  "nativeHeader": "Engine/Core/World/Components/Physics/PhysicsJointComponent.h",
-	  "exposure": "GeneratedBinding",
-	  "managedSurface": "NEMEngine.FixedJoint",
-	  "reason": "2つの剛体を固定拘束で接続する",
-	  "managedType": "FixedJoint",
-	  "allowAdd": true,
-	  "allowRemove": true,
-	  "properties": [
-		{ "managedName": "ConnectedBody", "nativeMember": "connectedBodyLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
-		{ "managedName": "Anchor", "nativeMember": "anchor", "kind": "Vector3", "access": "ReadWrite" },
-		{ "managedName": "ConnectedAnchor", "nativeMember": "connectedAnchor", "kind": "Vector3", "access": "ReadWrite" },
-		{ "managedName": "AutoConfigureConnectedAnchor", "nativeMember": "autoConfigureConnectedAnchor", "kind": "Bool", "access": "ReadWrite" },
-		{ "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" }
-	  ]
-	},
-	{
-	  "id": 63,
-	  "registryName": "HingeJoint",
-	  "nativeType": "HingeJointComponent",
-	  "nativeHeader": "Engine/Core/World/Components/Physics/PhysicsJointComponent.h",
-	  "exposure": "GeneratedBinding",
-	  "managedSurface": "NEMEngine.HingeJoint",
-	  "reason": "2つの剛体を回転軸拘束で接続する",
-	  "managedType": "HingeJoint",
-	  "allowAdd": true,
-	  "allowRemove": true,
-	  "properties": [
-		{ "managedName": "ConnectedBody", "nativeMember": "connectedBodyLocalFileID", "kind": "EntityRef", "access": "ReadWrite" },
-		{ "managedName": "Anchor", "nativeMember": "anchor", "kind": "Vector3", "access": "ReadWrite" },
-		{ "managedName": "ConnectedAnchor", "nativeMember": "connectedAnchor", "kind": "Vector3", "access": "ReadWrite" },
-		{ "managedName": "Axis", "nativeMember": "axis", "kind": "Vector3", "access": "ReadWrite" },
-		{ "managedName": "MinAngle", "nativeMember": "minAngle", "kind": "Float", "access": "ReadWrite" },
-		{ "managedName": "MaxAngle", "nativeMember": "maxAngle", "kind": "Float", "access": "ReadWrite" },
-		{ "managedName": "AutoConfigureConnectedAnchor", "nativeMember": "autoConfigureConnectedAnchor", "kind": "Bool", "access": "ReadWrite" },
-		{ "managedName": "UseLimits", "nativeMember": "useLimits", "kind": "Bool", "access": "ReadWrite" },
-		{ "managedName": "Enabled", "nativeMember": "enabled", "kind": "Bool", "access": "ReadWrite" }
-	  ]
-	}
+    {
+      "id": 62,
+      "registryName": "HingeJoint",
+      "nativeType": "HingeJointComponent",
+      "nativeHeader": "Engine/Core/World/Components/Physics/PhysicsJointComponent.h",
+      "exposure": "GeneratedBinding",
+      "managedSurface": "NEMEngine.HingeJoint",
+      "reason": "2つの剛体を回転軸拘束で接続する",
+      "managedType": "HingeJoint",
+      "allowAdd": true,
+      "allowRemove": true,
+      "properties": [
+        {
+          "managedName": "ConnectedBody",
+          "nativeMember": "connectedBodyLocalFileID",
+          "kind": "EntityRef",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Anchor",
+          "nativeMember": "anchor",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "ConnectedAnchor",
+          "nativeMember": "connectedAnchor",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Axis",
+          "nativeMember": "axis",
+          "kind": "Vector3",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MinAngle",
+          "nativeMember": "minAngle",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "MaxAngle",
+          "nativeMember": "maxAngle",
+          "kind": "Float",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "AutoConfigureConnectedAnchor",
+          "nativeMember": "autoConfigureConnectedAnchor",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseLimits",
+          "nativeMember": "useLimits",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        },
+        {
+          "managedName": "Enabled",
+          "nativeMember": "enabled",
+          "kind": "Bool",
+          "access": "ReadWrite"
+        }
+      ]
+    }
   ]
 }

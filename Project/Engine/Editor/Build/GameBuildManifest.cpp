@@ -29,7 +29,8 @@ using BuildFileEntry = Engine::GameBuildFileEntry;
 
 bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const AssetDatabase& database,
 	std::filesystem::path& manifestPath, std::filesystem::path& outputDirectory,
-	std::filesystem::path& outScriptPath, std::string& outError, SceneAssetStorage* sceneStorage) {
+	std::filesystem::path& outScriptPath, std::string& outError, SceneAssetStorage* sceneStorage,
+	std::vector<GameBuildWarning>& warnings) {
 
 	const AssetMeta* sceneMeta = database.Find(settings.startupScene);
 	if (!sceneMeta || sceneMeta->type != AssetType::Scene ||
@@ -75,12 +76,22 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 	}
 
 	std::vector<BuildFileEntry> files;
-	if (!GameBuildAssetCollector::CollectFiles(settings.startupScene, database, files, outError, sceneStorage)) {
+	if (!GameBuildAssetCollector::CollectFiles(settings.startupScene, database, files, outError, sceneStorage, &warnings)) {
+		return false;
+	}
+	// 未確認の欠損が増えた場合は再確認を要求する
+	if (!warnings.empty() && warnings != settings.confirmedWarnings) {
+		outError = "参照先の欠損があります、診断を確認して継続するか選択してください";
 		return false;
 	}
 
 	nlohmann::json manifest = nlohmann::json::object();
 	manifest["schemaVersion"] = 2;
+	manifest["confirmedWarnings"] = nlohmann::json::array();
+	for (const GameBuildWarning& warning : warnings) {
+		manifest["confirmedWarnings"].push_back({ { "assetID", ToString(warning.assetID) },
+			{ "referenceID", ToString(warning.referenceID) }, { "path", warning.assetPath }, { "detail", warning.detail } });
+	}
 	manifest["projectPath"] = Algorithm::ConvertString(projectPath.generic_wstring());
 	manifest["gameRoot"] = Algorithm::PathToUTF8(gameRoot);
 	const std::filesystem::path engineProjectRoot = RuntimePaths::GetEngineProjectRoot();
@@ -152,7 +163,7 @@ bool Engine::GameBuildManifest::Write(const GameBuildSettings& settings, const A
 		return false;
 	}
 	std::filesystem::path manifestFileName = projectNamePath;
-	manifestFileName += L".gameBuildManifest.json";
+	manifestFileName += Algorithm::PathFromUTF8("." + ToString(UUID::New()) + ".gameBuildManifest.json");
 	manifestPath = manifestDirectory / manifestFileName;
 	if (!JsonAdapter::SaveCanonical(manifestPath, manifest)) {
 		outError = "ビルド用マニフェストを作成できません";

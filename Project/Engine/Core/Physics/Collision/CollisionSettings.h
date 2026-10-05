@@ -27,9 +27,9 @@ namespace Engine {
 		// 設定が未読み込みなら読み込む
 		void EnsureLoaded();
 		// 設定ファイルからCollision設定を読み込む
-		void Load();
+		bool Load();
 		// 現在のCollision設定を設定ファイルへ保存する
-		void Save() const;
+		bool Save() const;
 		// 全シーン共通のCollision設定ファイルへ結び付ける
 		void BindGlobal();
 		// 使用するCollision設定ファイルを実ファイルパスから切り替える

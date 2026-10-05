@@ -62,9 +62,10 @@ namespace Engine::AssetDependencyScanner {
 			{ "file", Engine::AssetType::Shader },
 			{ "pipeline", Engine::AssetType::RenderPipeline },
 			{ "targetTexture", Engine::AssetType::RenderTexture },
-			{ "volumeProfile", Engine::AssetType::VolumeProfile },
-			{ "renderExtension", Engine::AssetType::RenderExtension },
+
+			{ "renderPasses", Engine::AssetType::RenderPasses },
 			{ "animationClip", Engine::AssetType::AnimationClip },
+			{ "animationController", Engine::AssetType::AnimationController },
 			{ "scene", Engine::AssetType::Scene },
 			{ "activeScene", Engine::AssetType::Scene },
 			{ "assetId", Engine::AssetType::Unknown },
@@ -110,13 +111,6 @@ namespace Engine::AssetDependencyScanner {
 		IDReferences& outIDs, PathReferences& outPaths, bool includeUnclassified) {
 
 		if (node.is_object()) {
-
-			// VolumeComponentのProfile参照だけをShader profileと区別して収集
-			if (node.contains("profile") && node.contains("blendDistance") &&
-				node.contains("global") && node.contains("layerMask")) {
-
-				TryCollectReference(node["profile"], AssetType::VolumeProfile, outIDs, outPaths);
-			}
 
 			// clip名を使うSkinnedAnimationとAsset参照を区別する
 			if (node.contains("clip")) {

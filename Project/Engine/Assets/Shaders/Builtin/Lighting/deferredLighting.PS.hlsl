@@ -31,8 +31,8 @@ struct DirectionalLight {
 
 	float shadowStrength;
 	float shadowAngularRadius;
-	uint affectLayerMask;
-	uint shadowLayerMask;
+	uint _alignmentPadding0;
+	uint _alignmentPadding1;
 };
 // 点光源
 struct PointLight {
@@ -47,8 +47,8 @@ struct PointLight {
 	float shadowStrength;
 	float shadowRadius;
 
-	uint affectLayerMask;
-	uint shadowLayerMask;
+	uint _alignmentPadding0;
+	uint _alignmentPadding1;
 	uint2 _pad1;
 };
 // スポットライト
@@ -68,8 +68,8 @@ struct SpotLight {
 	float shadowStrength;
 
 	float shadowRadius;
-	uint affectLayerMask;
-	uint shadowLayerMask;
+	uint _alignmentPadding0;
+	uint _alignmentPadding1;
 	uint _pad0;
 };
 // 矩形面光源
@@ -94,8 +94,8 @@ struct RectLight {
 	float barnDoorLength;
 	float shadowStrength;
 
-	uint affectLayerMask;
-	uint shadowLayerMask;
+	uint _alignmentPadding0;
+	uint _alignmentPadding1;
 	uint2 _pad0;
 };
 // ライト数
@@ -519,7 +519,6 @@ float3 EvaluatePointLightIndex(uint lightIndex,
 	float3 L = toLight / dist;
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
-		DoesDeferredLightAffectRenderingLayer(light.shadowLayerMask, flags) &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
 			light.shadowRadius, pixel, lightIndex);
@@ -560,7 +559,6 @@ float3 EvaluateSpotLightIndex(uint lightIndex,
 	}
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
-		DoesDeferredLightAffectRenderingLayer(light.shadowLayerMask, flags) &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 		float occlusion = TraceLocalSoftShadow(worldPos, N, toLight, dist,
 			light.shadowRadius, pixel, pointCount + lightIndex);
@@ -589,7 +587,6 @@ float3 EvaluateRectLightIndex(uint lightIndex,
 
 	float shadow = 1.0f;
 	if (useShadow && light.shadowStrength > 0.0f &&
-		DoesDeferredLightAffectRenderingLayer(light.shadowLayerMask, flags) &&
 		(flags & kMaterialFlagReceiveShadow) != 0u) {
 
 		float occlusion = TraceRectShadow(
@@ -921,14 +918,8 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 	for (uint index = 0u; index < directionalCount; ++index) {
 
 		DirectionalLight light = gDirectionalLights[index];
-		if (!DoesDeferredLightAffectRenderingLayer(
-			light.affectLayerMask, flags)) {
-			continue;
-		}
 		float shadow = 1.0f;
 		if (light.shadowStrength > 0.0f &&
-			DoesDeferredLightAffectRenderingLayer(
-				light.shadowLayerMask, flags) &&
 			(flags & kMaterialFlagReceiveShadow) != 0u) {
 
 			float occlusion = useShadow ?
@@ -957,31 +948,21 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 				gLightClusterIndices[clusterHeader.offset + clusterLight];
 			if (localIndex < pointCount) {
 
-				if (DoesDeferredLightAffectRenderingLayer(
-					gPointLights[localIndex].affectLayerMask, flags)) {
-
-					color += EvaluatePointLightIndex(localIndex,
-						worldPos, N, V, albedo, metallic, roughness,
-						F0, flags, useShadow, pixel);
-				}
+				color += EvaluatePointLightIndex(localIndex,
+					worldPos, N, V, albedo, metallic, roughness,
+					F0, flags, useShadow, pixel);
 				continue;
 			}
 			uint spotIndex = localIndex - pointCount;
 			if (spotIndex < spotCount) {
 
-				if (DoesDeferredLightAffectRenderingLayer(
-					gSpotLights[spotIndex].affectLayerMask, flags)) {
-
-					color += EvaluateSpotLightIndex(spotIndex,
-						worldPos, N, V, albedo, metallic, roughness,
-						F0, flags, useShadow, pixel);
-				}
+				color += EvaluateSpotLightIndex(spotIndex,
+					worldPos, N, V, albedo, metallic, roughness,
+					F0, flags, useShadow, pixel);
 				continue;
 			}
 			uint rectIndex = spotIndex - spotCount;
-			if (rectIndex < rectCount &&
-				DoesDeferredLightAffectRenderingLayer(
-					gRectLights[rectIndex].affectLayerMask, flags)) {
+			if (rectIndex < rectCount) {
 
 				color += EvaluateRectLightIndex(rectIndex,
 					worldPos, N, V, albedo, metallic, roughness,
@@ -993,35 +974,23 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 		[loop]
 		for (uint index = 0u; index < pointCount; ++index) {
 
-			if (DoesDeferredLightAffectRenderingLayer(
-				gPointLights[index].affectLayerMask, flags)) {
-
-				color += EvaluatePointLightIndex(index,
-					worldPos, N, V, albedo, metallic, roughness,
-					F0, flags, useShadow, pixel);
-			}
+			color += EvaluatePointLightIndex(index,
+				worldPos, N, V, albedo, metallic, roughness,
+				F0, flags, useShadow, pixel);
 		}
 		[loop]
 		for (uint index = 0u; index < spotCount; ++index) {
 
-			if (DoesDeferredLightAffectRenderingLayer(
-				gSpotLights[index].affectLayerMask, flags)) {
-
-				color += EvaluateSpotLightIndex(index,
-					worldPos, N, V, albedo, metallic, roughness,
-					F0, flags, useShadow, pixel);
-			}
+			color += EvaluateSpotLightIndex(index,
+				worldPos, N, V, albedo, metallic, roughness,
+				F0, flags, useShadow, pixel);
 		}
 		[loop]
 		for (uint index = 0u; index < rectCount; ++index) {
 
-			if (DoesDeferredLightAffectRenderingLayer(
-				gRectLights[index].affectLayerMask, flags)) {
-
-				color += EvaluateRectLightIndex(index,
-					worldPos, N, V, albedo, metallic, roughness,
-					F0, flags, useShadow, pixel);
-			}
+			color += EvaluateRectLightIndex(index,
+				worldPos, N, V, albedo, metallic, roughness,
+				F0, flags, useShadow, pixel);
 		}
 	}
 

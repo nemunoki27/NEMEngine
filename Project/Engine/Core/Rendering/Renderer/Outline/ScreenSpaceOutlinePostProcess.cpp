@@ -282,7 +282,8 @@ bool ScreenSpaceOutlinePostProcess::ExecuteComposite(GraphicsCore& graphicsCore,
 	dilatedMask->Transition(*dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	compositeTarget->TransitionForRender(*dxCommand);
 	compositeTarget->Bind(*dxCommand);
-	if (context.useViewportRect) {
+	// 中間Textureの輪郭は配置前の座標で合成する
+	if (context.useViewportRect && compositeTarget == context.defaultSurface) {
 		dxCommand->SetViewportAndScissor(
 			context.viewportX, context.viewportY,
 			context.viewportWidth, context.viewportHeight);

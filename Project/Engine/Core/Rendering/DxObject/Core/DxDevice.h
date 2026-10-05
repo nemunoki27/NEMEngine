@@ -37,6 +37,7 @@ namespace Engine {
 		IDXGIFactory7* GetDxgiFactory() const { return dxgiFactory_.Get(); }
 
 		const std::string& GetAdapterName() const { return adapterName_; }
+		const std::string& GetDriverVersion() const { return driverVersion_; }
 		uint64_t GetDedicatedVideoMemoryBytes() const { return dedicatedVideoMemoryBytes_; }
 		D3D_FEATURE_LEVEL GetFeatureLevel() const { return featureLevel_; }
 	private:
@@ -51,6 +52,7 @@ namespace Engine {
 		ComPtr<IDXGIAdapter4> useAdapter_;
 
 		std::string adapterName_{};
+		std::string driverVersion_ = "unavailable";
 		uint64_t dedicatedVideoMemoryBytes_ = 0;
 		D3D_FEATURE_LEVEL featureLevel_ = D3D_FEATURE_LEVEL_11_0;
 

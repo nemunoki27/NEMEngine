@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include "RenderFeatureProfileSerializer.h"
-#include "RenderExtensionAsset.h"
+#include "RenderPassesAsset.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
@@ -25,14 +25,13 @@ bool Engine::RenderFeatureProfileDocument::Save() const {
 	if (profilePath_.empty()) {
 		return false;
 	}
-	if (profilePath_.filename().string().ends_with(".renderextension.json")) {
-		RenderExtensionAsset extension{};
+	if (profilePath_.filename().string().ends_with(".renderpasses.json")) {
+		RenderPassesAsset extension{};
 		extension.guid = profile_.guid;
 		extension.name = profile_.name;
 		extension.passes = profile_.passes;
 		extension.hierarchy = profile_.hierarchy;
-		JsonAdapter::Save(profilePath_, ToJson(extension));
-		return true;
+		return JsonAdapter::SaveCanonical(profilePath_, ToJson(extension));
 	}
-	return RenderFeatureProfileSerializer::Save(profilePath_, profile_);
+	return false;
 }

@@ -17,6 +17,7 @@
 #include <Engine/Core/Animation/Properties/AnimationPropertyRegistry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Audio/AudioSystem.h>
+#include <Engine/Core/World/Systems/Audio/AudioWorldVoiceStorage.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
@@ -138,7 +139,8 @@ namespace Engine::UISelectableAnimation {
 		Engine::AnimationClipEvaluator::WriteValues(world, entity, values);
 	}
 
-	void PlayStateSound(const Engine::UITransitionStyle& style, Engine::SystemContext& context) {
+	void PlayStateSound(Engine::ECSWorld& world, Engine::Entity entity,
+		const Engine::UITransitionStyle& style, Engine::SystemContext& context) {
 
 		if (!style.sound || !context.assetDatabase) {
 			return;
@@ -150,8 +152,9 @@ namespace Engine::UISelectableAnimation {
 
 		Engine::Audio* audio = Engine::Audio::GetInstance();
 		if (audio->EnsureLoaded(fullPath)) {
-			audio->PlayOneShot( Engine::Algorithm::PathToUTF8(fullPath.stem()),
+			uint64_t voiceID = audio->PlayManaged(Engine::Algorithm::PathToUTF8(fullPath), false,
 				std::clamp(style.soundVolume, 0.0f, 1.0f));
+			world.GetStorage().Get<AudioWorldVoiceStorage>().Add(entity, voiceID);
 		}
 	}
 
@@ -242,7 +245,7 @@ namespace Engine::UISelectableAnimation {
 
 			if (actualStateChanged &&
 				selectableRuntime.state != Engine::UISelectableState::Submitted) {
-				PlayStateSound(style, context);
+				PlayStateSound(world, entity, style, context);
 			}
 		}
 		if (!style.animationEnabled || !style.useAnimationClip) {

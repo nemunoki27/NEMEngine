@@ -10,7 +10,7 @@
 #include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <string>

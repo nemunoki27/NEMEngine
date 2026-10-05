@@ -7,6 +7,7 @@
 
 // c++
 #include <functional>
+#include <span>
 
 namespace Engine {
 
@@ -47,6 +48,10 @@ namespace Engine {
 
 		// Release構成の事前読み込みを実行する
 		static bool Run(GraphicsCore& graphicsCore, ApplicationPreloadContext& context, bool editor);
+		// Scriptからの明示要求を安全地点で処理する
+		static bool ProcessRequests(GraphicsCore& graphicsCore, ApplicationPreloadContext& context);
+		// 指定Assetと依存先をWorld生成なしで準備する
+		static void PreloadAssets(GraphicsCore& graphicsCore, ApplicationPreloadContext& context, std::span<const AssetID> roots);
 	private:
 
 		// 更新せずにシーンの描画資源を確定する

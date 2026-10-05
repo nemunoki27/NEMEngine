@@ -23,6 +23,7 @@ namespace Engine {
 		std::string adapterName{};
 		D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 		uint64_t dedicatedVideoMemoryBytes = 0;
+		std::string driverVersion = "unavailable";
 	};
 
 
@@ -104,10 +105,7 @@ namespace Engine {
 		// 深度ピラミッドによるオクルージョンカリングを行うか
 		bool allowOcclusionCulling = true;
 		// SceneViewのカリングにGameViewのカメラを使用するか
-		bool useGameViewCameraForSceneCulling = true;
-		// SceneViewのLocal Volume判定にGameViewの位置を使用するか
-		bool useGameViewPositionForSceneVolumes = false;
-		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
+		bool useGameViewCameraForSceneCulling = true;		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
 		bool allowNormalConeCulling = false;

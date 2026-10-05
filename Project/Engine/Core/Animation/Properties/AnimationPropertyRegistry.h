@@ -49,6 +49,8 @@ namespace Engine {
 		std::function<bool(ECSWorld& world, const Entity& entity)> hasValue;
 		// 格納値を消去して既定へ戻す、material override除去に使う、静的プロパティでは空
 		std::function<bool(ECSWorld& world, const Entity& entity)> clearValue;
+		// 一括設定するPropertyの復元対象を列挙する
+		std::function<std::vector<AnimationPropertyBinding>(ECSWorld& world, const Entity& entity)> snapshotBindings;
 	};
 
 	// 動的プロパティ列挙時に渡すreflectionアクセス手段、Runtime解決には不要で空でよい

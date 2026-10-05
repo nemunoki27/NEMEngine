@@ -7,13 +7,13 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 #include <algorithm>
+#include <utility>
 
 using namespace Engine;
 
 void Engine::EditorGameBuildSession::Prepare(const EditorPanelContext& context) {
 
-	buildError_.clear();
-	gameBuildService_.ResetStatus();
+	ResetStatus();
 	gameBuildService_.RefreshScenes(*context.editorContext->assetDatabase);
 
 	buildSceneNames_.clear();
@@ -62,8 +62,16 @@ void EditorGameBuildSession::Update() {
 	}
 }
 
-void EditorGameBuildSession::Start(const EditorPanelContext& context) {
+void EditorGameBuildSession::Start(const EditorPanelContext& context, bool confirmWarnings, bool useSavedFiles) {
 
+	if (waitingForSceneSave_) { return; }
+	if (confirmWarnings) { savedConfirmedWarnings_ = gameBuildService_.GetWarnings(); }
+	if (context.editorContext && context.editorContext->hasDirtyScenes && !useSavedFiles && !sceneSaveReady_) {
+		sceneSaveChoice_ = true;
+		return;
+	}
+	sceneSaveChoice_ = false;
+	sceneSaveReady_ = false;
 	buildError_.clear();
 	GameBuildSettings settings{};
 	settings.startupScene = ResolveBuildScene();
@@ -72,6 +80,7 @@ void EditorGameBuildSession::Start(const EditorPanelContext& context) {
 	settings.gameWidth = static_cast<uint32_t>(draft_.gameWidth);
 	settings.gameHeight = static_cast<uint32_t>(draft_.gameHeight);
 	settings.startupFullscreen = draft_.startupFullscreen;
+	settings.confirmedWarnings = std::move(savedConfirmedWarnings_);
 	if (!context.editorContext || !context.editorContext->assetDatabase ||
 		!gameBuildService_.Start(settings, *context.editorContext->assetDatabase, buildError_,
 			context.editorContext->sceneStorage.get())) {
@@ -84,6 +93,12 @@ void EditorGameBuildSession::Start(const EditorPanelContext& context) {
 
 void EditorGameBuildSession::ResetStatus() {
 
+	if (waitingForSceneSave_ || gameBuildService_.IsBuilding()) { return; }
+	// 次のビルドへ保存済み通知や継続確認を持ち越さない
+	sceneSaveReady_ = false;
+	sceneSaveRequested_ = false;
+	sceneSaveChoice_ = false;
+	savedConfirmedWarnings_.clear();
 	buildError_.clear();
 	gameBuildService_.ResetStatus();
 }
@@ -91,6 +106,30 @@ void EditorGameBuildSession::ResetStatus() {
 void EditorGameBuildSession::RequestDirectory() {
 
 	buildDirectoryDialog_.Open(Algorithm::PathFromUTF8(draft_.outputPath));
+}
+
+void EditorGameBuildSession::RequestSceneSave() {
+
+	sceneSaveChoice_ = false;
+	sceneSaveRequested_ = true;
+	waitingForSceneSave_ = true;
+}
+
+bool EditorGameBuildSession::ConsumeSceneSaveRequest() {
+
+	return std::exchange(sceneSaveRequested_, false);
+}
+
+void EditorGameBuildSession::CompleteSceneSave(bool success) {
+
+	waitingForSceneSave_ = false;
+	sceneSaveReady_ = success;
+	if (!success) { buildError_ = "Sceneの保存が完了しなかったためビルドを中止しました"; }
+}
+
+void EditorGameBuildSession::ContinueAfterSceneSave(const EditorPanelContext& context) {
+
+	if (sceneSaveReady_) { Start(context); }
 }
 
 void Engine::EditorGameBuildSession::SetGameSize(int32_t width, int32_t height) {
@@ -102,13 +141,13 @@ void Engine::EditorGameBuildSession::SetGameSize(int32_t width, int32_t height) 
 
 	// 他の製品設定を保ったまま画像サイズだけを保存する
 	const std::filesystem::path path = RuntimePaths::GetProjectSettingsPath(ConfigPaths::kGameBuild);
-	nlohmann::json data = JsonAdapter::Load(path.string(), false);
+	nlohmann::json data = JsonAdapter::Load(path, false);
 	if (!data.is_object()) {
 		data = nlohmann::json::object();
 	}
 	data["gameWidth"] = draft_.gameWidth;
 	data["gameHeight"] = draft_.gameHeight;
-	JsonAdapter::Save(path.string(), data);
+	JsonAdapter::Save(path, data);
 }
 
 bool EditorGameBuildSession::ConsumeOpenPopup() {

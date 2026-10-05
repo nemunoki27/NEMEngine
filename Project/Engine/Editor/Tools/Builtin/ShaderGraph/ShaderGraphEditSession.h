@@ -30,6 +30,10 @@ namespace Engine {
 		bool SaveAndCompile(const EditorToolContext& context, const std::filesystem::path& graphPath);
 		bool CompilePreview(const EditorToolContext& context);
 		void Import(ShaderGraphAsset imported);
+		// Nodeと接続を削除して編集状態を更新する
+		void RemoveNode(UUID nodeID);
+		// 描画対象に合わせて出力と接続を更新する
+		bool ChangeTarget(ShaderGraphTarget target);
 		void CaptureHistory();
 		void Commit();
 		bool Undo();

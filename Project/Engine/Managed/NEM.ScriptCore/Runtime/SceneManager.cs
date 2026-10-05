@@ -44,6 +44,11 @@ public readonly struct SceneEvent {
 // イベント購読は DLL reload 前に自動解除される（ResetForReload）。
 public static class SceneManager {
 
+    // Entityを生成せずSceneの依存Assetを明示的に先読みする
+    public static unsafe bool PreloadScene(SceneAsset? scene) {
+        return scene != null && NativeAPI.PreloadScene(scene.id) != 0;
+    }
+
     // Play中のルートと子孫を同じ実体のまま常駐させる
     public static unsafe bool DontDestroyOnLoad(GameObject root) {
         return NativeAPI.DontDestroyOnLoad(root.native) != 0;

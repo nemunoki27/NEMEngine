@@ -1,9 +1,10 @@
-function Invoke-ProductCompilation {
+﻿function Invoke-ProductCompilation {
     param([string]$projectPath, [string]$sourceRuntime, [string]$buildToolProject, [string]$buildToolExecutable, [string]$gameScriptsProject)
 
     $msbuild = Get-MSBuildPath
+    $nativeArguments = @(Get-NativeBuildArguments 'Release')
     Write-Output "ゲームのReleaseビルドを開始します"
-    & $msbuild $projectPath /t:Build /p:Configuration=Release /p:Platform=x64 /m /nodeReuse:false /v:minimal
+    & $msbuild $projectPath @nativeArguments
     if ($LASTEXITCODE -ne 0) {
         throw "ゲームのReleaseビルドに失敗しました"
     }
@@ -36,7 +37,7 @@ function Invoke-ProductCompilation {
 
     if (-not [string]::IsNullOrWhiteSpace($buildToolProject)) {
         Write-Output "製品ビルドツールをビルドしています"
-        & $msbuild $buildToolProject /t:Build /p:Configuration=Release /p:Platform=x64 /m /nodeReuse:false /v:minimal
+        & $msbuild $buildToolProject @nativeArguments
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $buildToolExecutable -PathType Leaf)) {
             throw "製品ビルドツールのビルドに失敗しました"
         }

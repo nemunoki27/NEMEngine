@@ -17,6 +17,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 using namespace Engine;
 
@@ -33,15 +34,9 @@ namespace {
 	RuntimeTargetFormats MakeSceneMainFormats() {
 
 		RuntimeTargetFormats formats{};
-		formats.rtvFormats = {
-			DXGI_FORMAT_R32G32B32A32_FLOAT,
-			DXGI_FORMAT_R16G16B16A16_FLOAT,
-			DXGI_FORMAT_R32G32B32A32_FLOAT,
-			DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT_R11G11B10_FLOAT,
-			DXGI_FORMAT_R32_UINT,
-		};
-		formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		const auto desc = RenderPathResources::BuildSceneMainDesc(1, 1);
+		for (const auto& color : desc.colors) { formats.rtvFormats.push_back(color.format); }
+		formats.dsvFormat = desc.depth->dsvFormat;
 		return formats;
 	}
 
@@ -69,7 +64,7 @@ namespace {
 			break;
 		case Engine::MaterialPassKind::ScreenSpaceOutlineMask:
 		case Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask:
-			formats.rtvFormats = { DXGI_FORMAT_R16_UINT };
+			formats.rtvFormats = { RenderPathResources::BuildScreenSpaceOutlineMaskDesc(1, 1, {}, false).colors.front().format };
 			formats.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 			break;
 		case Engine::MaterialPassKind::Transparent:
@@ -88,16 +83,16 @@ namespace {
 }
 
 void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
-	RuntimeRenderPreloadContext& context) {
+	RuntimeRenderPreloadContext& context, std::span<const AssetID> requestedAssets) {
 
 	Logger::Output(LogType::Engine, "[実行時事前読み込み] 開始");
 	context.assetLibrary.Init(&assetDatabase);
 	context.assetGenerator.EnsureBuiltinAssets(&assetDatabase);
 
 	std::vector<const AssetMeta*> assets{};
-	assets.reserve(assetDatabase.GetAssets().size());
-	for (const auto& [assetID, meta] : assetDatabase.GetAssets()) {
-		assets.emplace_back(&meta);
+	assets.reserve(requestedAssets.size());
+	for (AssetID assetID : requestedAssets) {
+		if (const AssetMeta* meta = assetDatabase.Find(assetID)) { assets.emplace_back(meta); }
 	}
 	std::sort(assets.begin(), assets.end(), [](const AssetMeta* lhs, const AssetMeta* rhs) {
 		return lhs->assetPath < rhs->assetPath;
@@ -106,7 +101,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 	std::vector<AssetID> meshAssets{};
 	std::vector<AssetID> materialAssets{};
 	std::vector<AssetID> pipelineAssets{};
-	std::vector<AssetID> renderExtensions{};
+	std::vector<AssetID> renderPassesIDs{};
 	TextureUploadService& textureUploadService = graphicsCore.GetTextureUploadService();
 	for (const AssetMeta* meta : assets) {
 
@@ -153,19 +148,16 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 		case AssetType::Mesh:
 			meshAssets.emplace_back(meta->guid);
 			break;
-		case AssetType::RenderExtension:
-			context.assetLibrary.LoadRenderExtension(meta->guid);
-			renderExtensions.emplace_back(meta->guid);
-			break;
-		case AssetType::VolumeProfile:
-			context.assetLibrary.LoadVolumeProfile(meta->guid);
+		case AssetType::RenderPasses:
+			context.assetLibrary.LoadRenderPasses(meta->guid);
+			renderPassesIDs.emplace_back(meta->guid);
 			break;
 		default:
 			break;
 		}
 	}
 
-	// 全テクスチャのCPUデコードとGPU転送を完了する
+	// 要求したテクスチャの転送を完了する
 	textureUploadService.WaitAll();
 
 	// 通常メッシュとModel Particleは別キャッシュなので両方作成する
@@ -189,14 +181,17 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 		graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures();
 	const DXGI_FORMAT backBufferFormat = graphicsCore.GetBackBufferRenderTarget().format;
 	size_t pipelineCount = 0;
+	size_t pipelineRequests = 0;
 	auto preloadPipeline = [&](const MaterialAsset& material, const MaterialPassBinding& pass,
 		const RuntimeTargetFormats& formats, bool forceDepthTestWrite = false) {
 
 		const PipelineState* pipeline = nullptr;
+		++pipelineRequests;
+		bool raytracingCreated = false;
 		if (pass.preferredVariant == PipelineVariantKind::Raytracing) {
 			pipeline = nullptr;
-			context.raytracingPipelines.GetOrCreate(
-				graphicsCore.GetDXObject(), context.assetLibrary, pass.pipeline);
+			raytracingCreated = context.raytracingPipelines.GetOrCreate(
+				graphicsCore.GetDXObject(), context.assetLibrary, pass.pipeline) != nullptr;
 		} else if (pass.preferredVariant == PipelineVariantKind::Compute) {
 
 			PipelineStaticSamplerOverrideSet samplerOverrides{};
@@ -214,7 +209,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				pass.pipeline, pass.preferredVariant, formats.rtvFormats, formats.dsvFormat,
 				runtimeFeatures, nullptr, forceDepthTestWrite);
 		}
-		if (pipeline || pass.preferredVariant == PipelineVariantKind::Raytracing) {
+		if (pipeline || raytracingCreated) {
 			++pipelineCount;
 		}
 
@@ -227,6 +222,8 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				BuiltinAssets::Pipelines::ParticleRingMS,
 				BuiltinAssets::Pipelines::ParticleCylinderMS }) {
 
+				if (!runtimeFeatures.useMeshShader) { break; }
+				++pipelineRequests;
 				if (context.pipelines.GetORCreateComposed(graphicsCore.GetDXObject(), context.assetLibrary,
 					pass.pipeline, geometryPipeline, pass.shaderOverride, PipelineVariantKind::GraphicsMesh,
 					formats.rtvFormats, formats.dsvFormat, runtimeFeatures)) {
@@ -235,6 +232,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 			}
 			const PipelineVariantKind trailKind = runtimeFeatures.useMeshShader ?
 				PipelineVariantKind::GraphicsMesh : PipelineVariantKind::GraphicsVertex;
+			++pipelineRequests;
 			if (context.pipelines.GetORCreateComposed(graphicsCore.GetDXObject(), context.assetLibrary,
 				pass.pipeline, BuiltinAssets::Pipelines::ParticleTrail, pass.shaderOverride, trailKind,
 				formats.rtvFormats, formats.dsvFormat, runtimeFeatures)) {
@@ -251,6 +249,10 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 		}
 		for (const MaterialPassBinding& pass : material->passes) {
 
+			// 製品ではEditor専用の選択パスを作成しない
+			if (RuntimePaths::IsProductBuild() && pass.passKind == MaterialPassKind::EditorPicking) {
+				continue;
+			}
 			const RuntimeTargetFormats formats = ResolvePassFormats(*material, pass.passKind);
 			preloadPipeline(*material, pass, formats);
 			if (material->usage == MaterialUsage::Text &&
@@ -277,6 +279,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 		for (const PipelineVariantDesc& variant : pipelineAsset->variants) {
 
 			if (variant.kind == PipelineVariantKind::Raytracing) {
+				++pipelineRequests;
 				if (context.raytracingPipelines.GetOrCreate(
 					graphicsCore.GetDXObject(), context.assetLibrary, pipelineID)) {
 					++pipelineCount;
@@ -284,6 +287,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				continue;
 			}
 			if (variant.kind == PipelineVariantKind::Compute) {
+				++pipelineRequests;
 
 				if (context.pipelines.GetORCreate(graphicsCore.GetDXObject(), context.assetLibrary,
 					pipelineID, PipelineVariantKind::Compute, {}, DXGI_FORMAT_UNKNOWN,
@@ -293,31 +297,15 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				continue;
 			}
 
-			RuntimeTargetFormats formats{};
-			if (variant.numRenderTargets == 0) {
-				formats.dsvFormat = variant.dsvFormat != DXGI_FORMAT_UNKNOWN ?
-					variant.dsvFormat : DXGI_FORMAT_D24_UNORM_S8_UINT;
-			} else if (3 <= variant.numRenderTargets) {
-				formats = MakeSceneMainFormats();
-				formats.rtvFormats.resize((std::min)(formats.rtvFormats.size(),
-					static_cast<size_t>(variant.numRenderTargets)));
-			} else {
-				formats.rtvFormats.assign(variant.numRenderTargets, DXGI_FORMAT_R32G32B32A32_FLOAT);
-				formats.dsvFormat = variant.depthStencil.DepthEnable ?
-					DXGI_FORMAT_D24_UNORM_S8_UINT : DXGI_FORMAT_UNKNOWN;
-			}
-			if (context.pipelines.GetORCreate(graphicsCore.GetDXObject(), context.assetLibrary,
-				pipelineID, variant.kind, formats.rtvFormats, formats.dsvFormat, runtimeFeatures)) {
-				++pipelineCount;
-			}
+			// Graphics形式は実際の描画先が確定してから生成する
 		}
 	}
 
-	// Render Extension単位のSampler上書きを含めてCompute/DXRを事前作成する
-	for (AssetID extensionID : renderExtensions) {
+	// Render Passes単位のSampler上書きを含めてCompute/DXRを事前作成する
+	for (AssetID extensionID : renderPassesIDs) {
 
-		const RenderExtensionAsset* extension =
-			context.assetLibrary.LoadRenderExtension(extensionID);
+		const RenderPassesAsset* extension =
+			context.assetLibrary.LoadRenderPasses(extensionID);
 		if (!extension) {
 			continue;
 		}
@@ -331,6 +319,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 				continue;
 			}
 			if (featurePass.type == RenderFeaturePassType::RayTracing) {
+				++pipelineRequests;
 				if (context.raytracingPipelines.GetOrCreate(
 					graphicsCore.GetDXObject(), context.assetLibrary,
 					materialPass->pipeline,
@@ -343,6 +332,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 			if (materialPass->preferredVariant != PipelineVariantKind::Compute) {
 				continue;
 			}
+			++pipelineRequests;
 			PipelineStaticSamplerOverrideSet samplerOverrides{};
 			samplerOverrides.fillMissingSamplers = true;
 			samplerOverrides.byName = featurePass.samplerOverrides;
@@ -356,10 +346,10 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 	}
 
 	Logger::Output(LogType::Engine,
-		"[実行時事前読み込み] アセット={} テクスチャ={} メッシュ={} マテリアル={} パイプライン={}",
+		"[実行時事前読み込み] アセット={} テクスチャ={} メッシュ={} マテリアル={} パイプライン要求={} 成功={}",
 		assets.size(),
 		static_cast<size_t>(std::count_if(assets.begin(), assets.end(), [](const AssetMeta* meta) {
 			return meta->type == AssetType::Texture;
 			})),
-		meshAssets.size(), materialAssets.size(), pipelineCount);
+		meshAssets.size(), materialAssets.size(), pipelineRequests, pipelineCount);
 }

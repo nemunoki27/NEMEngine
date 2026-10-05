@@ -41,6 +41,7 @@ $ErrorActionPreference = "Stop"
 $engineRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path
 $gameProjectsRoot = Join-Path $engineRoot "Project\GameProjects"
 $generateBat = Join-Path $engineRoot "Premake\generate_vs2026.bat"
+. (Join-Path $engineRoot 'Tools\FileSystem\DirectorySafety.ps1')
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "git が見つかりません。Gitをインストールし、PATHを通してから再実行してください。"
@@ -55,7 +56,19 @@ function Invoke-Robocopy {
         [string[]]$ExcludeFiles
     )
 
-    $roboArgs = @($Source, $Destination, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/R:1", "/W:1")
+    # 検証用の取り込み先だけを元リポジトリへ揃える
+    $destinationFull = [System.IO.Path]::GetFullPath($Destination)
+    $allowedRoot = [System.IO.Path]::GetFullPath($gameProjectsRoot).TrimEnd('\', '/') + '\'
+    if (-not $destinationFull.StartsWith($allowedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "取り込み先がGameProjectsの外を参照しています: $Destination"
+    }
+    $sourceFull = [System.IO.Path]::GetFullPath($Source).TrimEnd('\', '/')
+    $destinationFull = $destinationFull.TrimEnd('\', '/')
+    Assert-SeparateDirectories $sourceFull $destinationFull
+    # 親フォルダーや子ファイルのリンク先へ上書きしない
+    Assert-DirectoryTreeWithoutLinks $sourceFull $ExcludeDirs
+    Assert-DirectoryTreeWithoutLinks $destinationFull $ExcludeDirs
+    $roboArgs = @($sourceFull, $destinationFull, "/MIR", "/XJ", "/NFL", "/NDL", "/NJH", "/NJS", "/NP", "/R:1", "/W:1")
     if ($ExcludeDirs.Count -gt 0) {
         $roboArgs += "/XD"
         $roboArgs += $ExcludeDirs
@@ -83,18 +96,20 @@ function Convert-GameScriptsCsproj {
     [xml]$csproj = Get-Content -LiteralPath $CsprojPath -Raw
     $root = $csproj.Project
 
-    # SDKパスを保持していたPropertyGroup(NEMEngineSdkManaged)を削除する
+    # SDK参照の設定だけを除き、同じGroupの独自設定は残す
     foreach ($pg in @($root.ChildNodes | Where-Object { $_.LocalName -eq 'PropertyGroup' })) {
-        $hasSdkManaged = @($pg.ChildNodes | Where-Object { $_.LocalName -eq 'NEMEngineSdkManaged' }).Count -gt 0
-        if ($hasSdkManaged) {
-            [void]$root.RemoveChild($pg)
+        foreach ($property in @($pg.ChildNodes | Where-Object { $_.LocalName -eq 'NEMEngineSdkManaged' })) {
+            [void]$pg.RemoveChild($property)
         }
     }
 
-    # SDKのDLLを指す Reference / Analyzer をすべて除去する(スクリプトプロジェクトはエンジン以外を参照しない前提)
+    # エンジンへの参照だけを置き換え、ゲーム独自の参照を保持する
     foreach ($ig in @($root.ChildNodes | Where-Object { $_.LocalName -eq 'ItemGroup' })) {
         foreach ($child in @($ig.ChildNodes)) {
-            if ($child.LocalName -eq 'Reference' -or $child.LocalName -eq 'Analyzer') {
+            if ($child.LocalName -notin @('Reference', 'Analyzer', 'ProjectReference')) { continue }
+            $include = $child.GetAttribute('Include').Replace('/', '\')
+            $engineName = [System.IO.Path]::GetFileName(($include -split ',')[0])
+            if ($engineName -match '^NEM\.Script(Core|CodeGen|Analyzers)(\.dll|\.csproj)?$') {
                 [void]$ig.RemoveChild($child)
             }
         }
@@ -235,6 +250,10 @@ try {
         (Join-Path $appRoot.FullName "Saved"),
         (Join-Path $appRoot.FullName "UserSettings")
     )
+    # 元にないローカル作業フォルダーもミラー削除から除外する
+    foreach ($localDirectory in @('Managed', 'Library', 'Saved', 'UserSettings')) {
+        $excludeDirs += Join-Path $destination $localDirectory
+    }
     $excludeFiles = @("*.vcxproj", "*.vcxproj.filters", "*.vcxproj.user")
 
     Write-Host "===== 複製中: $name -> $destination ====="

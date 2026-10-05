@@ -56,7 +56,7 @@ struct DirectionalLight {
 
 	float shadowStrength;
 	float shadowAngularRadius;
-	uint affectLayerMask;
+	uint _alignmentPadding0;
 	uint _pad1;
 };
 struct PointLight {
@@ -71,7 +71,7 @@ struct PointLight {
 	float shadowStrength;
 	float shadowRadius;
 
-	uint affectLayerMask;
+	uint _alignmentPadding0;
 	uint3 _pad1;
 };
 struct SpotLight {
@@ -90,7 +90,7 @@ struct SpotLight {
 	float shadowStrength;
 
 	float shadowRadius;
-	uint affectLayerMask;
+	uint _alignmentPadding0;
 	uint2 _pad0;
 };
 struct RectLight {
@@ -114,7 +114,7 @@ struct RectLight {
 	float barnDoorLength;
 	float shadowStrength;
 
-	uint affectLayerMask;
+	uint _alignmentPadding0;
 	uint3 _pad0;
 };
 StructuredBuffer<DirectionalLight> gDirectionalLights :
@@ -127,17 +127,6 @@ StructuredBuffer<RectLight> gRectLights :
 	register(NEM_RECT_LIGHTS_REGISTER);
 
 SamplerState gSampler : register(NEM_LIGHTING_SAMPLER_REGISTER);
-
-// Packed instance flagsからRendererのレイヤーマスクを取り出す
-uint GetRenderingLayerMask(uint instanceFlags) {
-	return (instanceFlags >> 8u) & 0x00FFFFFFu;
-}
-
-// LightとRendererのレイヤーが一致するか
-bool DoesLightAffectRenderingLayer(uint lightLayerMask,
-	uint instanceFlags) {
-	return (lightLayerMask & GetRenderingLayerMask(instanceFlags)) != 0u;
-}
 
 //============================================================================
 //	距離減衰

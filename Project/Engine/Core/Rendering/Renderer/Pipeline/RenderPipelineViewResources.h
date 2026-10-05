@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Raytracing/RaytracingViewBufferSet.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 
 namespace Engine {
 
@@ -32,12 +33,16 @@ namespace Engine {
 		//========================================================================
 		friend class RenderPipelineRunner;
 
-			ResolvedRenderView view{};
-			RenderPathResources resources{};
-			RaytracingViewBufferSet raytracingBuffers{};
-			RenderTargetRegistry targetRegistry{};
-			PerViewLightSet lightSet{};
-			ViewLightBufferSet lightBuffers{};
+		ResolvedRenderView view{};
+		RenderPathResources resources{};
+		RaytracingViewBufferSet raytracingBuffers{};
+		RenderTargetRegistry targetRegistry{};
+		RenderFeatureProfileRuntime renderPassesRuntime{};
+		AssetID renderPassesAsset{};
+		uint64_t renderPassesGeneration = 1;
+		uint64_t renderPassesAssetRevision = UINT64_MAX;
+		PerViewLightSet lightSet{};
+		ViewLightBufferSet lightBuffers{};
 
 	};
 }

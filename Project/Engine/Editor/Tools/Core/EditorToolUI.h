@@ -19,6 +19,8 @@ namespace Engine::EditorToolUI {
 
 	// 独立ツールの未確定編集を取得する
 	bool HasPendingEdits();
+	// 各ToolのSceneプレビューを終了する
+	void EndScenePreviews();
 	void RequestResolvePendingEdits();
 	EditorToolCloseResult ConsumePendingEditCloseResult();
 }

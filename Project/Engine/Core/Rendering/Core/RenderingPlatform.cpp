@@ -9,7 +9,7 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 
 // c++
@@ -34,7 +34,7 @@ namespace {
 
 void GraphicsPlatform::InitDXDevice() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	DxDredDiagnostics::EnableBeforeDeviceCreation();
+	DxDREDDiagnostics::EnableBeforeDeviceCreation();
 #endif
 
 #ifdef _DEBUG
@@ -50,7 +50,7 @@ void GraphicsPlatform::InitDXDevice() {
 #endif
 
 	dxDevice_->Create();
-	DxDredDiagnostics::ResetForNewDevice();
+	DxDREDDiagnostics::ResetForNewDevice();
 
 	ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
 	if (SUCCEEDED(dxDevice_->Get()->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
@@ -89,6 +89,7 @@ void GraphicsPlatform::DetectFeatureSupport() {
 	adapterInfo.adapterName = dxDevice_->GetAdapterName();
 	adapterInfo.featureLevel = dxDevice_->GetFeatureLevel();
 	adapterInfo.dedicatedVideoMemoryBytes = dxDevice_->GetDedicatedVideoMemoryBytes();
+	adapterInfo.driverVersion = dxDevice_->GetDriverVersion();
 
 	GraphicsFeatureSupport support{};
 	support.highestShaderModel = QueryHighestShaderModel();

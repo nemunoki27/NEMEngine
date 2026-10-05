@@ -7,14 +7,16 @@ using namespace Engine;
 //============================================================================
 // c++
 #include <algorithm>
+#include <cmath>
 // windows
 #include <Windows.h>
 #include <XInput.h>
 
 uint32_t InputVibrationPlayer::PlayVibration(const InputVibrationParams& params) {
 
-	// 再生時間が正でなければ無効
-	if (params.duration <= 0.0f) {
+	// 非有限値を振動要求へ持ち込まない
+	if (!std::isfinite(params.duration) || !std::isfinite(params.left) || !std::isfinite(params.right) ||
+		!std::isfinite(params.attack) || !std::isfinite(params.release) || params.duration <= 0.0f) {
 		return 0;
 	}
 	float l = std::clamp(params.left, 0.0f, 1.0f);
@@ -25,7 +27,9 @@ uint32_t InputVibrationPlayer::PlayVibration(const InputVibrationParams& params)
 
 	VibrationEffect e{};
 	e.handle = nextVibHandle_++;
-	if (nextVibHandle_ == 0) { nextVibHandle_ = 1; }
+	if (nextVibHandle_ == 0) {
+		nextVibHandle_ = 1;
+	}
 
 	e.left = l;
 	e.right = r;
@@ -39,14 +43,24 @@ uint32_t InputVibrationPlayer::PlayVibration(const InputVibrationParams& params)
 	return e.handle;
 }
 
+void InputVibrationPlayer::SetGamepadIndex(uint32_t index) {
+
+	if (index == gamepadIndex_) {
+		return;
+	}
+	// 旧デバイスを停止してから出力先を変更
+	StopAllVibration();
+	gamepadIndex_ = index;
+}
+
 void InputVibrationPlayer::StopVibration(uint32_t handle) {
 
 	if (handle == 0) {
 		return;
 	}
 
-	auto it = std::remove_if(vibEffects_.begin(), vibEffects_.end(),
-		[&](const VibrationEffect& e) { return e.handle == handle; });
+	auto it =
+		std::remove_if(vibEffects_.begin(), vibEffects_.end(), [&](const VibrationEffect& e) { return e.handle == handle; });
 	vibEffects_.erase(it, vibEffects_.end());
 
 	if (vibEffects_.empty()) {
@@ -70,7 +84,7 @@ void InputVibrationPlayer::SetVibrationEnabled(bool enabled) {
 
 void InputVibrationPlayer::UpdateVibration(bool gamepadConnected) {
 
-	// disabled -> always stop
+	// 無効時は予約とモーター出力を停止
 	if (!vibrationEnabled_) {
 		if (!vibEffects_.empty() || lastMotorLeft_ != 0 || lastMotorRight_ != 0) {
 			vibEffects_.clear();
@@ -79,7 +93,7 @@ void InputVibrationPlayer::UpdateVibration(bool gamepadConnected) {
 		return;
 	}
 
-	// disconnected -> clear & stop
+	// 切断時は予約とモーター出力を停止
 	if (!gamepadConnected) {
 		if (!vibEffects_.empty() || lastMotorLeft_ != 0 || lastMotorRight_ != 0) {
 
@@ -97,11 +111,11 @@ void InputVibrationPlayer::UpdateVibration(bool gamepadConnected) {
 
 	const auto now = std::chrono::steady_clock::now();
 
-	// remove expired
+	// 再生時間を過ぎた要求を削除
 	auto it = std::remove_if(vibEffects_.begin(), vibEffects_.end(), [&](const VibrationEffect& e) {
 		const float t = std::chrono::duration<float>(now - e.start).count();
 		return (t >= e.duration);
-		});
+	});
 	vibEffects_.erase(it, vibEffects_.end());
 
 	float outL = 0.0f;

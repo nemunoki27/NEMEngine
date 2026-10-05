@@ -123,7 +123,7 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Add;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::Transparent;
-		// RenderFeatureとLightが参照する描画レイヤー
+		// Cameraの描画選別に使うレイヤー
 		uint32_t renderingLayerMask = 1u;
 		// カメラ方向へ向ける回転軸、BillboardComponentと同じ軸マスク方式
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
@@ -175,7 +175,7 @@ namespace Engine {
 		BlendMode blendMode = BlendMode::Add;
 		// 描画キュー
 		RenderPhase queue = RenderPhase::Transparent;
-		// RenderFeatureとLightが参照する描画レイヤー
+		// Cameraの描画選別に使うレイヤー
 		uint32_t renderingLayerMask = 1u;
 		// カメラ方向へ向ける回転軸
 		std::vector<Axis> billboardAxes{ Axis::X, Axis::Y, Axis::Z };
@@ -197,7 +197,8 @@ namespace Engine {
 	ParticleRenderSettings MakeParticleRenderSettings(
 		PrimitiveRenderSpace space, const ParticleEffectGroup& group);
 
-	// json変換
+	// Effectの設定を読み込み、成功後に差し替える
 	bool FromJson(const nlohmann::json& data, ParticleEffectAsset& outAsset);
+	// Effectの設定をJSONへ変換する
 	nlohmann::json ToJson(const ParticleEffectAsset& asset);
 } // Engine

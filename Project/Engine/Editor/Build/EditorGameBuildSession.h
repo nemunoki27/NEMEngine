@@ -32,7 +32,12 @@ namespace Engine {
 
 		void Update();
 		void Prepare(const EditorPanelContext& context);
-		void Start(const EditorPanelContext& context);
+		void Start(const EditorPanelContext& context, bool confirmWarnings = false, bool useSavedFiles = false);
+		// Sceneの保存をApplicationの安全地点へ要求する
+		void RequestSceneSave();
+		bool ConsumeSceneSaveRequest();
+		void CompleteSceneSave(bool success);
+		void ContinueAfterSceneSave(const EditorPanelContext& context);
 		void ResetStatus();
 		void RequestDirectory();
 		// 製品画像サイズを画面内へ制限してProject設定へ保存する
@@ -46,6 +51,8 @@ namespace Engine {
 		const std::vector<std::string>& GetSceneNames() const { return buildSceneNames_; }
 		const std::string& GetError() const { return buildError_; }
 		bool IsDirectoryDialogOpen() const { return buildDirectoryDialog_.IsOpen(); }
+		bool IsSceneSaveChoiceOpen() const { return sceneSaveChoice_; }
+		bool IsWaitingForSceneSave() const { return waitingForSceneSave_; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -59,6 +66,11 @@ namespace Engine {
 		std::vector<std::string> buildSceneNames_;
 		std::string buildError_;
 		bool requestOpenBuildPopup_ = false;
+		bool sceneSaveChoice_ = false;
+		bool sceneSaveRequested_ = false;
+		bool waitingForSceneSave_ = false;
+		bool sceneSaveReady_ = false;
+		std::vector<GameBuildWarning> savedConfirmedWarnings_;
 
 		//--------- functions ----------------------------------------------------
 

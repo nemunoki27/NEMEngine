@@ -12,6 +12,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
@@ -104,18 +105,9 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// 有効なSkyboxを探す、最初に見つかった1件だけを背景に使う
-	SkyboxRendererComponent* skybox = nullptr;
-	context.world->ForEach<SkyboxRendererComponent>([&](Entity entity, SkyboxRendererComponent& component) {
-
-		if (skybox || !component.visible || !component.cubemapTexture) {
-			return;
-		}
-		if (!IsEntityActiveInHierarchy(*context.world, entity)) {
-			return;
-		}
-		skybox = &component;
-		});
+	// Cameraの描画対象レイヤーに一致する背景を使う
+	const SkyboxRendererComponent* skybox = SceneSkyboxResolver::Find(
+		*context.world, context.view->GetCullingMask(RenderCameraDomain::Perspective));
 	if (!skybox) {
 		return;
 	}

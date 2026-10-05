@@ -9,7 +9,7 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Utility/EditorShell.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 //============================================================================
 //	ProjectPanel classMethods
@@ -55,7 +55,7 @@ void Engine::ProjectSceneStorageInspector::DrawSceneStoragePopup(const EditorPan
 		requestSceneStoragePopup_ = false;
 	}
 	ImGui::SetNextWindowSize(ImVec2(850.0f, 600.0f), ImGuiCond_FirstUseEver);
-	if (!ImGui::BeginPopupModal("シーンデータの検証・修復", nullptr, ImGuiWindowFlags_None)) return;
+	if (!MyGUI::BeginPopupModal("シーンデータの検証・修復", nullptr, ImGuiWindowFlags_None)) return;
 	if (ImGui::Button("再検証")) inspect();
 	ImGui::SameLine();
 	if (ImGui::Button("退避フォルダーを開く")) EditorShell::OpenDirectory(RuntimePaths::GetSavedRoot() / "SceneAssetRecovery");
@@ -63,7 +63,7 @@ void Engine::ProjectSceneStorageInspector::DrawSceneStoragePopup(const EditorPan
 	if (!sceneStorageMessage_.empty()) ImGui::TextWrapped("%s", sceneStorageMessage_.c_str());
 	ImGui::Separator();
 	if (ImGui::BeginChild("SceneStorageIssues", ImVec2(0, 190), true)) {
-		if (sceneStorageIssues_.empty()) ImGui::TextUnformatted("シーンとExternalActorの欠損はありません");
+		if (sceneStorageIssues_.empty()) ImGui::TextWrapped("%s", "シーンとExternalActorの欠損はありません");
 		for (size_t i = 0; i < sceneStorageIssues_.size(); ++i) {
 			const auto& issue = sceneStorageIssues_[i];
 			ImGui::PushID(static_cast<int>(i));
@@ -127,7 +127,7 @@ void Engine::ProjectSceneStorageInspector::DrawSceneStoragePopup(const EditorPan
 				ImGui::OpenPopup("操作の復旧確認");
 			}
 		}
-		if (ImGui::BeginPopupModal("操作の復旧確認", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		if (MyGUI::BeginPopupModal("操作の復旧確認", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
 			ImGui::TextWrapped("この操作が変更した全ファイルを操作前へ戻します。操作後の変更がある場合は中断します。");
 			ImGui::TextWrapped("%s", actorRestorePath_.c_str());
 			if (ImGui::Button("戻す")) {

@@ -109,6 +109,12 @@ namespace Engine {
 		// Editor選択表示用のScreen-space Outline中間RT
 		ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() { return editorSelectionOutline_; }
 		const ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() const { return editorSelectionOutline_; }
+
+		// 描画と事前読み込みで同じ出力形式を使う
+		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
+		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);
+		static MultiRenderTargetCreateDesc BuildScreenSpaceOutlineMaskDesc(
+			uint32_t width, uint32_t height, std::string_view name, bool createUAV);
 	private:
 		//============================================================================
 		//	private Methods
@@ -136,11 +142,7 @@ namespace Engine {
 		// GBufferの指定アタッチメントを取得する、未生成や範囲外はnullptr
 		RenderTexture2D* GetGBufferColor(GBufferAttachment attachment) const;
 
-		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
-		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);
 		static MultiRenderTargetCreateDesc BuildSceneColorOpaqueDesc(uint32_t width, uint32_t height);
-		static MultiRenderTargetCreateDesc BuildScreenSpaceOutlineMaskDesc(
-			uint32_t width, uint32_t height, std::string_view name, bool createUAV);
 	};
 } // Engine
 

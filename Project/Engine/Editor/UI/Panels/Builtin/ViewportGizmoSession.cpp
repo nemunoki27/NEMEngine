@@ -4,19 +4,21 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Editor/Commands/Transform/SetTransformCommand.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Editor/Commands/Transform/TransformEditUtility.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include "ViewportTransformUtility.h"
 
-// c++
-#include <cmath>
-#include <algorithm>
-#include <optional>
-
-
 using namespace Engine::ViewportTransformUtility;
+
+void Engine::ViewportGizmoSession::EndPreview() {
+
+	// 開始Worldの編集だけを戻す
+	preview_.Cancel();
+	entityGizmoSession_ = {};
+	multiGizmoSession_ = {};
+}
 
 void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& context) {
 
@@ -25,20 +27,27 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 
 	ECSWorld* worldPtr = context.GetWorld();
 	if (!worldPtr) {
+		EndPreview();
 		return;
 	}
 	ECSWorld& world = *worldPtr;
+	// World切替後へ操作を持ち越さない
+	if ((entityGizmoSession_.active || multiGizmoSession_.active) && !preview_.BelongsTo(world)) {
+		EndPreview();
+	}
 
-	// フォーカスで寄っている最中はギズモを操作させない、ダブルクリックでの誤移動を防ぐ
+	// Camera移動中は操作を終了する
 	if (context.editorState->cameraFocusing) {
 		FinalizeEntityGizmoSession(context, world);
+		FinalizeMultiEntityGizmoSession(context, world);
 		return;
 	}
 
-	// SceneViewを描画できない場合はギズモセッションを終了して何もしない
+	// 描画できない場合は操作を終了する
 	if (!context.sceneRenderView || !context.sceneRenderView->valid ||
 		context.editorState->sceneViewManipulatorMode == SceneViewManipulatorMode::None) {
 		FinalizeEntityGizmoSession(context, world);
+		FinalizeMultiEntityGizmoSession(context, world);
 		return;
 	}
 	// 現在のマニピュレーター操作を取得
@@ -51,9 +60,10 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 	rect.y = rectMin.y;
 	rect.width = rectMax.x - rectMin.x;
 	rect.height = rectMax.y - rectMin.y;
-	// 描画領域が有効でない場合はギズモセッションを終了して何もしない
+	// 描画領域がなければ操作を終了する
 	if (!rect.IsValid()) {
 		FinalizeEntityGizmoSession(context, world);
+		FinalizeMultiEntityGizmoSession(context, world);
 		return;
 	}
 
@@ -61,7 +71,7 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 	//	エンティティ選択中
 	//============================================================================
 	{
-		// 複数選択中は中心ピボットで各エンティティを個別原点で動かすギズモへ切り替える
+		// 複数選択は共通ピボットへ切り替える
 		if (context.editorState->SelectionCount() > 1) {
 
 			FinalizeEntityGizmoSession(context, world);
@@ -71,7 +81,7 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 		FinalizeMultiEntityGizmoSession(context, world);
 
 		const Entity entity = context.editorState->selectedEntity;
-		// 編集不可なエンティティの場合はギズモセッションを終了して何もしない
+		// 対象がなければ操作を終了する
 		if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
 			FinalizeEntityGizmoSession(context, world);
 			return;
@@ -96,10 +106,10 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 		gizmoContext.projectionMatrix = camera->matrices.projectionMatrix;
 		gizmoContext.parentWorldMatrix = GetEntityParentWorldMatrix(world, entity);
 		gizmoContext.mode = context.editorState->sceneViewManipulatorMode;
-		gizmoContext.orthographic = camera == &context.sceneRenderView->orthographic;
+		gizmoContext.orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic;
 		gizmoContext.allowAxisFlip = !use2DTarget;
 
-		// スナップ有効時はmodeと次元に応じたグリッド単位をImGuizmoへ渡す
+		// 操作と次元に合わせてスナップ幅を渡す
 		const GridSnapAxis* snapAxis = nullptr;
 		if (context.editorState->enableSnapEditEntity) {
 
@@ -116,30 +126,34 @@ void Engine::ViewportGizmoSession::DrawSceneGizmo(const EditorPanelContext& cont
 		TransformComponent previewTransform = world.GetComponent<TransformComponent>(entity);
 
 		// ギズモを描画し、操作結果を取得する
-		const GizmoEditResult result = use2DTarget ? MyGUI::Manipulate2D("##SceneEntityGizmo2D", gizmoContext, previewTransform) :
-			MyGUI::Manipulate3D("##SceneEntityGizmo3D", gizmoContext, previewTransform);
+		const GizmoEditResult result = use2DTarget
+										   ? MyGUI::Manipulate2D("##SceneEntityGizmo2D", gizmoContext, previewTransform)
+										   : MyGUI::Manipulate3D("##SceneEntityGizmo3D", gizmoContext, previewTransform);
 
 		// 使用しているか
 		context.editorState->useSceneGizmo = result.IsUse();
 
 		if (result.isUsing && !entityGizmoSession_.active) {
 
+			const Entity target[] = {entity};
+			if (!preview_.Begin(world, target, context.IsPlaying())) {
+				return;
+			}
 			entityGizmoSession_.active = true;
 			entityGizmoSession_.runtimeOnly = context.IsPlaying();
 			entityGizmoSession_.entityUUID = world.GetUUID(entity);
-			entityGizmoSession_.beforeTransform = world.GetComponent<TransformComponent>(entity);
 		}
 
-		// 値が変更された場合はプレビュー設定をエンティティに適用する
+		// 変更値をプレビューへ反映する
 		if (result.valueChanged) {
 
-			// 絶対スナップ指定なら、操作対象の成分を最寄りのグリッドへ丸めてから適用する
+			// 絶対スナップは最寄りの格子へ丸める
 			if (snapAxis && snapAxis->absolute && snapAxis->size > 0.0f) {
 				ApplyAbsoluteSnap(previewTransform, gizmoContext.mode, snapAxis->size);
 			}
 			TransformEditUtility::ApplyImmediate(world, entity, previewTransform);
 		}
-		// 使用を終了した場合はセッションを終了する
+		// 操作終了時に履歴へ確定する
 		if (entityGizmoSession_.active && !result.isUsing) {
 
 			FinalizeEntityGizmoSession(context, world);
@@ -153,51 +167,48 @@ void Engine::ViewportGizmoSession::FinalizeEntityGizmoSession(const EditorPanelC
 		return;
 	}
 
-	// Play中はPlayWorldだけを変更し、EditWorldのUndo履歴には記録しない
-	if (!entityGizmoSession_.runtimeOnly && !context.IsPlaying() && context.host) {
-		const Entity entity = world.FindByUUID(entityGizmoSession_.entityUUID);
-		if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
-
-			const TransformComponent afterTransform = world.GetComponent<TransformComponent>(entity);
-			// トランスフォームの値が変更されている場合はコマンドを実行して変更を記録する
-			if (!SetTransformCommand::NearlyEqualTransform(entityGizmoSession_.beforeTransform, afterTransform)) {
-
-				context.host->ExecuteEditorCommand(std::make_unique<SetTransformCommand>(entity,
-					entityGizmoSession_.beforeTransform, afterTransform));
-			}
-		}
-	}
+	FinalizePreview(context, world, entityGizmoSession_.runtimeOnly);
 	entityGizmoSession_ = {};
 }
 
-void Engine::ViewportGizmoSession::DrawMultiEntityGizmo(const EditorPanelContext& context, ECSWorld& world,
-	const GizmoViewportRect& rect) {
+void Engine::ViewportGizmoSession::DrawMultiEntityGizmo(
+	const EditorPanelContext& context, ECSWorld& world, const GizmoViewportRect& rect) {
 
-	// 生存かつTransformを持つ対象だけ集め、中心を求める
+	// 有効な対象から選択中心を求める
 	std::vector<Entity> targets{};
 	Vector3 centerSum = Vector3::AnyInit(0.0f);
-	for (const Entity& entity : context.editorState->GetSelectedEntities()) {
-
-		if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
-			targets.push_back(entity);
-			centerSum += world.GetComponent<TransformComponent>(entity).worldMatrix.GetTranslationValue();
+	// 操作中は開始時の対象を固定する
+	if (multiGizmoSession_.active) {
+		for (const auto& [uuid, transform] : preview_.GetSnapshots()) {
+			const Entity entity = world.FindByUUID(uuid);
+			if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
+				targets.push_back(entity);
+				centerSum += world.GetComponent<TransformComponent>(entity).worldMatrix.GetTranslationValue();
+			}
+		}
+	} else {
+		for (Entity entity : HierarchyUtility::CollectLogicalRoots(world, context.editorState->GetSelectedEntities())) {
+			if (world.IsAlive(entity) && world.HasComponent<TransformComponent>(entity)) {
+				targets.push_back(entity);
+				centerSum += world.GetComponent<TransformComponent>(entity).worldMatrix.GetTranslationValue();
+			}
 		}
 	}
-	if (targets.size() < 2) {
+	if (targets.empty()) {
 		FinalizeMultiEntityGizmoSession(context, world);
 		return;
 	}
 	const Vector3 center = centerSum / static_cast<float>(targets.size());
 
-	// 次元はアクティブなエンティティに合わせる、選択は同次元なので代表でよい
-	const bool use2DTarget = Prefers2DGizmo(context, world, context.editorState->selectedEntity);
+	// 開始対象の次元でCameraを選ぶ
+	const bool use2DTarget = Prefers2DGizmo(context, world, targets.front());
 	const ResolvedCameraView* camera = SelectSceneGizmoCamera(*context.sceneRenderView, use2DTarget);
 	if (!camera) {
 		FinalizeMultiEntityGizmoSession(context, world);
 		return;
 	}
 
-	// ドラッグ中はピボットを持続させ、idleは中心へ単位姿勢で置く
+	// 操作中はピボットの姿勢を維持する
 	TransformComponent pivot{};
 	if (multiGizmoSession_.active) {
 		pivot = multiGizmoSession_.pivot;
@@ -214,11 +225,11 @@ void Engine::ViewportGizmoSession::DrawMultiEntityGizmo(const EditorPanelContext
 	gizmoContext.projectionMatrix = camera->matrices.projectionMatrix;
 	gizmoContext.parentWorldMatrix = Matrix4x4::Identity();
 	gizmoContext.mode = context.editorState->sceneViewManipulatorMode;
-	gizmoContext.orthographic = camera == &context.sceneRenderView->orthographic;
+	gizmoContext.orthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic;
 	gizmoContext.allowAxisFlip = !use2DTarget;
 
-	// スナップ有効時は単体ギズモと同様にmodeと次元に応じたグリッド単位をImGuizmoへ渡す
-	// ピボットの差分がグリッド単位に丸まるので各エンティティの移動もグリッド刻みになる
+	// 単体操作と同じスナップ幅を渡す
+	// 共通ピボットの差分を格子へ合わせる
 	const GridSnapAxis* snapAxis = nullptr;
 	if (context.editorState->enableSnapEditEntity) {
 
@@ -232,22 +243,19 @@ void Engine::ViewportGizmoSession::DrawMultiEntityGizmo(const EditorPanelContext
 		}
 	}
 
-	const GizmoEditResult result = use2DTarget ?
-		MyGUI::Manipulate2D("##SceneMultiGizmo2D", gizmoContext, pivot) :
-		MyGUI::Manipulate3D("##SceneMultiGizmo3D", gizmoContext, pivot);
+	const GizmoEditResult result = use2DTarget ? MyGUI::Manipulate2D("##SceneMultiGizmo2D", gizmoContext, pivot)
+											   : MyGUI::Manipulate3D("##SceneMultiGizmo3D", gizmoContext, pivot);
 
 	context.editorState->useSceneGizmo = result.IsUse();
 
-	// ドラッグ開始時にundo用の操作前姿勢を控える
+	// 操作開始時の姿勢を保持する
 	if (result.isUsing && !multiGizmoSession_.active) {
 
+		if (!preview_.Begin(world, targets, context.IsPlaying())) {
+			return;
+		}
 		multiGizmoSession_.active = true;
 		multiGizmoSession_.runtimeOnly = context.IsPlaying();
-		multiGizmoSession_.beforeTransforms.clear();
-		for (const Entity& entity : targets) {
-			multiGizmoSession_.beforeTransforms.emplace_back(
-				world.GetUUID(entity), world.GetComponent<TransformComponent>(entity));
-		}
 	}
 
 	// ピボットのフレーム差分を各エンティティへ個別原点で適用する
@@ -255,29 +263,21 @@ void Engine::ViewportGizmoSession::DrawMultiEntityGizmo(const EditorPanelContext
 
 		const Vector3 deltaPos = pivot.localPos - prevPivot.localPos;
 		const Quaternion deltaRot = pivot.localRotation * Quaternion::Inverse(prevPivot.localRotation);
-		const Vector3 deltaScale(
-			prevPivot.localScale.x != 0.0f ? pivot.localScale.x / prevPivot.localScale.x : 1.0f,
+		const Vector3 deltaScale(prevPivot.localScale.x != 0.0f ? pivot.localScale.x / prevPivot.localScale.x : 1.0f,
 			prevPivot.localScale.y != 0.0f ? pivot.localScale.y / prevPivot.localScale.y : 1.0f,
 			prevPivot.localScale.z != 0.0f ? pivot.localScale.z / prevPivot.localScale.z : 1.0f);
 
-		// 中心ピボットなら位置を中心周りにorbitさせ、個別原点なら位置はそのままにする
+		// 中心ピボットは位置も中心周りに動かす
 		const bool pivotAtCenter = context.editorState->gizmoPivotAtCenter;
 		const Vector3 pivotCenter = prevPivot.localPos;
 		for (const Entity& entity : targets) {
 
-			TransformComponent transform = world.GetComponent<TransformComponent>(entity);
-			// 移動は共通デルタ
-			transform.localPos = transform.localPos + deltaPos;
-			if (pivotAtCenter) {
-
-				// 回転と拡縮で位置を選択中心周りに動かす、modeは排他なので片方は単位
-				const Vector3 offset = transform.localPos - pivotCenter;
-				transform.localPos = pivotCenter + RotateVectorByQuaternion(deltaRot, offset) * deltaScale;
+			TransformComponent transform{};
+			// 親の回転と拡縮を含めてWorld差分を戻す
+			if (!ResolveWorldDelta(world, entity, deltaPos, deltaRot, deltaScale, pivotCenter, pivotAtCenter, transform)) {
+				continue;
 			}
-			// 回転と拡縮は各自のトランスフォームへ相対適用する
-			transform.localRotation = Quaternion::Normalize(deltaRot * transform.localRotation);
-			transform.localScale = transform.localScale * deltaScale;
-			// 絶対スナップ指定なら各エンティティの成分を最寄りのグリッドへ丸める、単体と同じ挙動
+			// 各Entityへ絶対スナップを適用する
 			if (snapAxis && snapAxis->absolute && snapAxis->size > 0.0f) {
 				ApplyAbsoluteSnap(transform, gizmoContext.mode, snapAxis->size);
 			}
@@ -297,28 +297,26 @@ void Engine::ViewportGizmoSession::FinalizeMultiEntityGizmoSession(const EditorP
 	if (!multiGizmoSession_.active) {
 		return;
 	}
-	// Play中はPlayWorldだけを変更し、EditWorldのUndo履歴には記録しない
-	if (!multiGizmoSession_.runtimeOnly && !context.IsPlaying() && context.host && context.editorState) {
-
-		// SetTransformCommandは非アクティブ対象を単一選択へ戻すため、複数選択を退避して後で復元する
-		const std::vector<Entity> savedSelection = context.editorState->GetSelectedEntities();
-
-		// 操作前後で変化したエンティティだけまとめてコマンド化する
-		for (const auto& [uuid, beforeTransform] : multiGizmoSession_.beforeTransforms) {
-
-			const Entity entity = world.FindByUUID(uuid);
-			if (!world.IsAlive(entity) || !world.HasComponent<TransformComponent>(entity)) {
-				continue;
-			}
-			const TransformComponent afterTransform = world.GetComponent<TransformComponent>(entity);
-			if (!SetTransformCommand::NearlyEqualTransform(beforeTransform, afterTransform)) {
-
-				context.host->ExecuteEditorCommand(
-					std::make_unique<SetTransformCommand>(entity, beforeTransform, afterTransform));
-			}
-		}
-		// 退避していた複数選択を復元する
-		context.editorState->SetSelectedEntities(savedSelection);
-	}
+	FinalizePreview(context, world, multiGizmoSession_.runtimeOnly);
 	multiGizmoSession_ = {};
+}
+
+void Engine::ViewportGizmoSession::FinalizePreview(const EditorPanelContext& context, ECSWorld& world, bool runtimeOnly) {
+
+	// 実行中の操作は値を維持して終了する
+	if (runtimeOnly) {
+		preview_.Release();
+		return;
+	}
+	if (!context.CanEditScene() || !context.host || !preview_.BelongsTo(world)) {
+		preview_.Cancel();
+		return;
+	}
+
+	// 仮の値を戻してから履歴へ確定する
+	auto command = preview_.BuildCommand(world);
+	preview_.Cancel();
+	if (command) {
+		context.host->ExecuteEditorCommand(std::move(command));
+	}
 }

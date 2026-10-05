@@ -37,6 +37,8 @@ namespace Engine {
 		// 独立したエディタウィンドウを描画する
 		virtual void DrawEditorTool(const EditorToolContext& context) = 0;
 		virtual bool HasPendingEdits() const { return false; }
+		// Sceneの保存とWorld切替の前にプレビューを戻す
+		virtual void EndScenePreview() {}
 		virtual void RequestResolvePendingEdits() {}
 		virtual EditorToolCloseResult ConsumePendingEditCloseResult() {
 			return EditorToolCloseResult::None;

@@ -22,9 +22,7 @@ void Engine::HierarchySystem::OnWorldEnter(ECSWorld& world, [[maybe_unused]] Sys
 	// ワールド内の全生存エンティティをスコープにして親子関係を再構築
 	std::vector<Entity> scope;
 	scope.reserve(world.GetRecordCount());
-	world.ForEachAliveEntity([&](Entity entity) {
-		scope.emplace_back(entity);
-		});
+	world.ForEachAliveEntity([&](Entity entity) { scope.emplace_back(entity); });
 	// UUIDから実行時の親子リンクを構築
 	RebuildRuntimeLinks(world, scope);
 }
@@ -68,7 +66,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		if (world.HasComponent<SceneObjectComponent>(entity)) {
 			const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
 			if (sceneObject.localFileID) {
-				entityMap[{ sceneObject.sceneInstanceID, sceneObject.localFileID }] = entity;
+				entityMap[{sceneObject.sceneInstanceID, sceneObject.localFileID}] = entity;
 			}
 		}
 	}
@@ -89,7 +87,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 
 		const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-		auto it = entityMap.find({ sceneObject.sceneInstanceID, parentLocalFileID });
+		auto it = entityMap.find({sceneObject.sceneInstanceID, parentLocalFileID});
 		if (it == entityMap.end()) {
 			continue;
 		}
@@ -166,7 +164,7 @@ bool Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 		sceneObject.activeInHierarchy = activeInHierarchy;
 		world.MarkComponentModified<SceneObjectComponent>(entity);
 	}
-	
+
 	if (!world.HasComponent<HierarchyComponent>(entity)) {
 		return activated;
 	}
@@ -175,8 +173,7 @@ bool Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
 	while (child.IsValid() && world.IsAlive(child)) {
 
-		activated |= RefreshActiveRecursive(
-			world, child, sceneObject.activeInHierarchy);
+		activated |= RefreshActiveRecursive(world, child, sceneObject.activeInHierarchy);
 		if (!world.HasComponent<HierarchyComponent>(child)) {
 			break;
 		}
@@ -193,21 +190,8 @@ void Engine::HierarchySystem::UpdateActiveInHierarchy(ECSWorld& world, const Ent
 
 void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, const Entity& newParent) {
 
-	if (!world.IsAlive(child)) {
+	if (!HierarchyUtility::CanSetParent(world, child, newParent)) {
 		return;
-	}
-	if (world.IsAlive(newParent)) {
-
-		Entity ancestor = newParent;
-		size_t remaining = world.GetRecordCount() + 1;
-		while (world.IsAlive(ancestor) && remaining-- > 0) {
-
-			if (ancestor == child) {
-				return;
-			}
-			const HierarchyComponent* hierarchy = world.TryGetComponent<HierarchyComponent>(ancestor);
-			ancestor = hierarchy ? hierarchy->parent : Entity::Null();
-		}
 	}
 
 	// 必要なコンポーネントの確保
@@ -232,7 +216,7 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 
 	auto& hierarchy = world.GetComponent<HierarchyComponent>(child);
 	auto& childSceneObject = world.GetComponent<SceneObjectComponent>(child);
-	
+
 	// 新しい親へのアタッチ
 	if (world.IsAlive(newParent)) {
 
@@ -282,12 +266,10 @@ void Engine::HierarchySystem::Detach(ECSWorld& world, const Entity& child) {
 	}
 
 	// 兄弟間のリンクを繋ぎ替える
-	if (world.IsAlive(childComponent.prevSibling) &&
-		world.HasComponent<HierarchyComponent>(childComponent.prevSibling)) {
+	if (world.IsAlive(childComponent.prevSibling) && world.HasComponent<HierarchyComponent>(childComponent.prevSibling)) {
 		world.GetComponent<HierarchyComponent>(childComponent.prevSibling).nextSibling = childComponent.nextSibling;
 	}
-	if (world.IsAlive(childComponent.nextSibling) &&
-		world.HasComponent<HierarchyComponent>(childComponent.nextSibling)) {
+	if (world.IsAlive(childComponent.nextSibling) && world.HasComponent<HierarchyComponent>(childComponent.nextSibling)) {
 		world.GetComponent<HierarchyComponent>(childComponent.nextSibling).prevSibling = childComponent.prevSibling;
 	}
 
@@ -309,8 +291,7 @@ void Engine::HierarchySystem::AttachLast(ECSWorld& world, const Entity& child, c
 	childComponent.parent = parent;
 	childComponent.prevSibling = Entity::Null();
 	childComponent.nextSibling = Entity::Null();
-	if (!world.IsAlive(parentComponent.firstChild) ||
-		!world.HasComponent<HierarchyComponent>(parentComponent.firstChild)) {
+	if (!world.IsAlive(parentComponent.firstChild) || !world.HasComponent<HierarchyComponent>(parentComponent.firstChild)) {
 
 		parentComponent.firstChild = Entity::Null();
 		parentComponent.lastChild = Entity::Null();

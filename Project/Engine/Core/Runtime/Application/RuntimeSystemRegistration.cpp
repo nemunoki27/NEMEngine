@@ -8,6 +8,7 @@
 #include <Engine/Core/World/Systems/Animation/JointAttachmentSystem.h>
 #include <Engine/Core/World/Systems/Animation/SkinnedAnimationSystem.h>
 #include <Engine/Core/World/Systems/Audio/AudioSourceSystem.h>
+#include <Engine/Core/World/Systems/Audio/AudioSpatialSystem.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraControllerSystem.h>
 #include <Engine/Core/World/Systems/Camera/CameraShakeSystem.h>
@@ -50,6 +51,8 @@ Engine::UIInputSystem* Engine::RegisterRuntimeSystems(SystemScheduler& scheduler
 	scheduler.AddSystem(std::make_unique<SkinnedAnimationSystem>(), ++order);
 	// ジョイント追従はスケルトン更新後にジョイントのワールド行列を参照する
 	scheduler.AddSystem(std::make_unique<JointAttachmentSystem>(), ++order);
+	// 受音と発音の位置は全Transform更新後に反映する
+	scheduler.AddSystem(std::make_unique<AudioSpatialSystem>(), ++order);
 	// Canvas行列は全Transform更新後に確定する
 	scheduler.AddSystem(std::make_unique<UICanvasSystem>(), ++order);
 	return result;

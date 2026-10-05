@@ -61,6 +61,7 @@ namespace Engine {
 		float samplerMaxLOD = D3D12_FLOAT32_MAX;
 	};
 
+	// Material作成中の入力と結果
 	struct MaterialCreationDraft {
 
 		// マテリアル作成セクションの入力状態
@@ -94,7 +95,6 @@ namespace Engine {
 		PipelineCreateSettings createTransparentPipeline{};
 		// 作成結果のフィードバック
 		std::string createMessage{};
-
 	};
 
 	class AssetDatabase;
@@ -110,15 +110,20 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
+		// 描画タイプの初期値を適用する
 		void ApplyTypeDefaults(MaterialCreateType type);
+		// 既存Materialの描画設定を取り込む
 		void LoadPipelineSettingsFromMaterial(AssetDatabase& assetDatabase, AssetID materialID);
+		// 既存MaterialのShaderを取り込む
 		void LoadShadersFromMaterial(AssetDatabase& assetDatabase, AssetID materialID);
+		// 描画定義とMaterialを保存して登録する
 		bool CreateMaterialAssets(const EditorToolContext& context);
 
 		//--------- accessor -----------------------------------------------------
 
 		MaterialCreationDraft& GetDraft() { return draft_; }
 		const MaterialCreationDraft& GetDraft() const { return draft_; }
+
 	private:
 		//========================================================================
 		//	private Methods

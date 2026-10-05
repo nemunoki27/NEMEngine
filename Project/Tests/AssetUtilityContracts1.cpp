@@ -53,9 +53,15 @@ namespace NEMTests {
 	bool TestContentHash() {
 
 		const std::array<uint8_t, 3> bytes = { 'a', 'b', 'c' };
-		return Engine::ContentHash::SHA256(bytes) ==
+		if (Engine::ContentHash::SHA256(bytes) !=
 			"ba7816bf8f01cfea414140de5dae2223"
-			"b00361a396177a9cb410ff61f20015ad";
+			"b00361a396177a9cb410ff61f20015ad") { return false; }
+		// 転送単位をまたぐ入力も同じSHA256へ変換する
+		std::vector<uint8_t> largeInput(131073);
+		for (size_t index = 0; index < largeInput.size(); ++index) { largeInput[index] = static_cast<uint8_t>(index % 251); }
+		const auto previous = largeInput;
+		return Engine::ContentHash::SHA256(largeInput) ==
+			"dd84db969f4ff2abb79c8c2fbc06e8d8e02c46d6481c958e057f7ad7a24c58a7" && largeInput == previous;
 	}
 
 	bool TestPackageResolver() {
@@ -313,6 +319,32 @@ namespace NEMTests {
 		if (canvasJson["navigationTable"].value("rows", 0) != 20 ||
 			canvasJson["navigationTable"].value("columns", 0) != 20 ||
 			canvasJson["navigationTable"]["cells"].size() != 400) {
+			return false;
+		}
+
+		// 編集用とECSの縮小で同じセル位置を維持する
+		if (!Engine::SetCanvasNavigationCell(draft, 22, second) ||
+			!Engine::ResizeCanvasNavigationTable(draft, 2, 3) || draft.cells[5] != second ||
+			Engine::SetCanvasNavigationCell(world, canvas, 1, 2, selectable) != Engine::CanvasNavigationTableResult::Success ||
+			Engine::ResizeCanvasNavigationTable(world, canvas, 2, 3) != Engine::CanvasNavigationTableResult::Success ||
+			Engine::GetCanvasNavigationCell(world, canvas, 1, 2, resolved) != Engine::CanvasNavigationTableResult::Success ||
+			resolved != selectable) {
+			return false;
+		}
+
+		// 大きな入力コードを有効なキーへ巻き戻さない
+		canvasJson["inputSettings"]["navigationUpKeys"] = nlohmann::json::array({4294967297ULL, 17, 17});
+		Engine::CanvasComponent::DeserializeECS(world, canvas, canvasJson, world.GetComponent<Engine::CanvasComponent>(canvas));
+		const auto bindings = Engine::GetCanvasInputBindings(world, canvas);
+		const auto invalidBinding = std::find_if(bindings.begin(), bindings.end(), [](const Engine::CanvasInputBinding& binding) {
+			return binding.device == Engine::CanvasInputDevice::Keyboard &&
+				binding.action == Engine::CanvasInputAction::Up && binding.code == 1;
+		});
+		const auto validBindings = std::count_if(bindings.begin(), bindings.end(), [](const Engine::CanvasInputBinding& binding) {
+			return binding.device == Engine::CanvasInputDevice::Keyboard &&
+				binding.action == Engine::CanvasInputAction::Up && binding.code == 17;
+		});
+		if (invalidBinding != bindings.end() || validBindings != 1) {
 			return false;
 		}
 

@@ -1,17 +1,23 @@
 {
-    "name": "particleCylinderMSShader",
-    "stages": [
-        {
-            "entry": "main",
-            "file": "4e454d4153534554eff000000000000c",
-            "profile": "ms_6_6",
-            "stage": "MS"
-        },
-        {
-            "entry": "main",
-            "file": "4e454d4153534554eff0000000000003",
-            "profile": "ps_6_0",
-            "stage": "PS"
-        }
-    ]
+  "name": "particleCylinderMSShader",
+  "stages": [
+    {
+      "entry": "main",
+      "file": "4e454d4153534554eff000000000000c",
+      "profile": "ms_6_6",
+      "stage": "MS"
+    },
+    {
+      "entry": "main",
+      "file": "4e454d4153534554eff0000000000003",
+      "profile": "ps_6_0",
+      "stage": "PS"
+    },
+    {
+      "entry": "main",
+      "file": "1ca88198962046bba0fc9f252169300a",
+      "profile": "vs_6_0",
+      "stage": "VS"
+    }
+  ]
 }

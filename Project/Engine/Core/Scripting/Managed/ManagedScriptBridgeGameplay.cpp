@@ -40,6 +40,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Runtime/Application/RuntimeAssetPreloadRequests.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
@@ -258,6 +259,18 @@ namespace Engine {
 				"DontDestroyOnLoad: Play中の有効なルートEntityを指定してください");
 			return 0;
 		}
+		return 1;
+	}
+
+	uint64_t ManagedScriptRuntime::PreloadSceneCallback(ManagedAssetGUID sceneAssetID) {
+
+		const SystemContext* context = GetCurrentContext();
+		AssetID sceneAsset = ToAssetID(sceneAssetID);
+		if (!context || !context->world || context->mode != WorldMode::Play || !context->assetDatabase) { return 0; }
+		const AssetMeta* meta = context->assetDatabase->Find(sceneAsset);
+		if (!meta || meta->type != AssetType::Scene) { return 0; }
+		// GPU資源の生成はcallback後の安全地点へ回す
+		context->world->GetStorage().Get<RuntimeAssetPreloadRequests>().Add(sceneAsset);
 		return 1;
 	}
 

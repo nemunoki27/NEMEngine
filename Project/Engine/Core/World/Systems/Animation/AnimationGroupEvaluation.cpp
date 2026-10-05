@@ -22,12 +22,12 @@ namespace Engine::AnimationGroupEvaluation {
 	void EvaluateGroupClips(ECSWorld& world, const Entity& entity,
 		const AnimationGroup& group, const std::vector<AnimationClipRuntime>& clips,
 		std::span<const AnimationPreviewBaseValue> baseStore, SystemContext& context,
-		std::vector<AnimationEvaluatedValue>& outValues) {
+		std::vector<AnimationEvaluatedValue>& outValues, bool holdFinished) {
 
 		outValues.clear();
 
 		// 開始済みクリップの評価値を集める、遅延中のクリップは寄与しない
-		std::vector<AnimationEvaluatedValue> gathered;
+		std::vector<AnimationContribution> gathered;
 		std::vector<AnimationEvaluatedValue> clipValues;
 		for (const AnimationClipRuntime& clipRt : clips) {
 
@@ -35,7 +35,7 @@ namespace Engine::AnimationGroupEvaluation {
 				continue;
 			}
 			// 終了済みクリップは書き込みを止める、最終ポーズは書き込み済みで外部からの編集を妨げない
-			if (clipRt.finished) {
+			if ((!clipRt.playing || clipRt.finished) && !clipRt.terminalPosePending && !(holdFinished && clipRt.finished)) {
 				continue;
 			}
 			const AnimationState* state = FindStateInGroup(group, clipRt.stateName);
@@ -53,8 +53,9 @@ namespace Engine::AnimationGroupEvaluation {
 				const float bridgeDur = (std::max)(state->loopBridge.duration, 0.001f);
 				const float weight = AnimationClipEvaluator::BridgeInterp(clipRt.phaseTime / bridgeDur, state->loopBridge.interpolation);
 				AnimationResolvedTime endTime{};
-				endTime.clipTime = clip->duration;
+				endTime.clipTime = clipRt.dir > 0 ? clip->duration : 0.0f;
 				AnimationResolvedTime startTime{};
+				startTime.clipTime = clipRt.dir > 0 ? 0.0f : clip->duration;
 				std::vector<AnimationEvaluatedValue> endValues;
 				std::vector<AnimationEvaluatedValue> startValues;
 				AnimationClipEvaluator::EvaluateClipValues(world, entity, *clip, endTime, baseStore, endValues);
@@ -80,22 +81,11 @@ namespace Engine::AnimationGroupEvaluation {
 			}
 
 			for (AnimationEvaluatedValue& value : clipValues) {
-				gathered.emplace_back(std::move(value));
+				gathered.push_back({ std::move(value), state->weight, state->priority, state->additive });
 			}
 		}
 
-		// 同一プロパティを2つ以上のクリップが触っていたら競合とみなし、そのプロパティは採用しない
-		for (size_t i = 0; i < gathered.size(); ++i) {
-
-			int32_t contributors = 0;
-			for (size_t j = 0; j < gathered.size(); ++j) {
-				if (SameBinding(gathered[i].binding, gathered[j].binding)) {
-					++contributors;
-				}
-			}
-			if (contributors == 1) {
-				outValues.emplace_back(gathered[i]);
-			}
-		}
+		// 別成分は共存させ、同じ成分はweightで混ぜる
+		AnimationClipEvaluator::ComposeValues(gathered, baseStore, outValues);
 	}
 }

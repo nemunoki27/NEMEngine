@@ -80,10 +80,13 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 	}
 
 	// プロファイラ用にシステムごとの処理時間をFixed/Update/LateUpdate合計で計測する
-	systemMsScratch_.assign(systems_.size(), 0.0f);
+	const bool profiling = FrameProfiler::GetInstance().IsEnabled();
+	if (profiling) { systemMsScratch_.assign(systems_.size(), 0.0f); }
 	std::vector<float>& systemMs = systemMsScratch_;
-	auto measure = [&systemMs](size_t index, auto&& fn) {
+	auto measure = [&systemMs, profiling](size_t index, auto&& fn) {
 
+		// 計測を止めてもシステムの実行順は変えない
+		if (!profiling) { fn(); return; }
 		const auto begin = std::chrono::high_resolution_clock::now();
 		fn();
 		const std::chrono::duration<float, std::milli> elapsed = std::chrono::high_resolution_clock::now() - begin;
@@ -98,7 +101,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 			measure(i, [&] { systems_[i].system->FixedUpdate(*currentWorld_, context); });
 		}
 		// 各サブステップ後に、スクリプト由来の構造変更コマンドを安全地点で適用する
-		FlushWorldCommands(context, SceneChangePhase::FixedUpdate);
+		FlushWorldCommands(context, SceneChangePhase::FixedUpdate, profiling);
 		// 蓄積した時間から固定更新の時間を引く
 		accumulator_ -= fixedDeltaTime_;
 		++steps;
@@ -110,7 +113,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		measure(i, [&] { systems_[i].system->Update(*currentWorld_, context); });
 	}
 	// Update中に積まれた構造変更コマンドを適用する
-	FlushWorldCommands(context, SceneChangePhase::Update);
+	FlushWorldCommands(context, SceneChangePhase::Update, profiling);
 
 	// 後更新処理
 	for (size_t i = 0; i < systems_.size(); ++i) {
@@ -118,7 +121,11 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		measure(i, [&] { systems_[i].system->LateUpdate(*currentWorld_, context); });
 	}
 	// LateUpdate中に積まれた構造変更コマンドを適用する
-	FlushWorldCommands(context, SceneChangePhase::LateUpdate);
+	FlushWorldCommands(context, SceneChangePhase::LateUpdate, profiling);
+
+	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
+	currentWorld_->FlushPendingDestroyEntities();
+	if (!profiling) { return; }
 
 	// 計測結果を処理順のままプロファイラへ渡す
 	systemTimesScratch_.clear();
@@ -129,10 +136,7 @@ void Engine::SystemScheduler::Tick(ECSWorld* activeWorld, SystemContext& context
 		const char* name = systems_[i].system->GetName();
 		systemTimes.push_back({ name ? name : "Unknown", systemMs[i] });
 	}
-	FrameProfiler::GetInstance().SetEcsSystemTimes(systemTimes);
-
-	// Update/LateUpdate中に予約されたエンティティ破棄をフレーム終端でまとめて反映する
-	currentWorld_->FlushPendingDestroyEntities();
+	FrameProfiler::GetInstance().SetECSSystemTimes(systemTimes);
 
 	// Chunkメモリと構造変更量をプロファイラへ渡す
 	const ECSWorldStatistics statistics = currentWorld_->GetStatistics();
@@ -195,7 +199,7 @@ void Engine::SystemScheduler::DetachWorld(ECSWorld& world, SystemContext& contex
 	}
 }
 
-void Engine::SystemScheduler::FlushWorldCommands(SystemContext& context, SceneChangePhase phase) {
+void Engine::SystemScheduler::FlushWorldCommands(SystemContext& context, SceneChangePhase phase, bool profiling) {
 
 
 	SceneInstanceManager* sceneInstances =
@@ -220,6 +224,10 @@ void Engine::SystemScheduler::FlushWorldCommands(SystemContext& context, SceneCh
 		// 新しいシーンを描画する前にスクリプト初期化と遷移要求を反映する
 		for (size_t i = 0; i < systems_.size(); ++i) {
 
+			if (!profiling) {
+				systems_[i].system->OnSceneInstancesChanged(*currentWorld_, context, phase);
+				continue;
+			}
 			const auto begin = std::chrono::high_resolution_clock::now();
 			systems_[i].system->OnSceneInstancesChanged(*currentWorld_, context, phase);
 			const std::chrono::duration<float, std::milli> elapsed = std::chrono::high_resolution_clock::now() - begin;

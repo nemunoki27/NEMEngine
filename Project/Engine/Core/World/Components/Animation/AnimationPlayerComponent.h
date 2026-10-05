@@ -6,67 +6,16 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Animation/Evaluation/AnimationClipEvaluator.h>
+#include <Engine/Core/Animation/Playback/AnimationPlaybackTypes.h>
+#include <Engine/Core/Animation/Controllers/AnimationControllerAsset.h>
 
 // c++
 #include <cstdint>
 #include <string>
+#include <limits>
 #include <vector>
 
 namespace Engine {
-
-	//============================================================================
-	//	AnimationPlayerComponent enum class
-	//============================================================================
-	// クリップ終端での扱い
-	enum class AnimationWrapMode :
-		uint8_t {
-
-		UseClip,      // クリップ自身のloop設定に従う
-		Once,         // 一度だけ再生し終端で停止
-		Loop,         // ループ再生
-		PingPong,     // 往復再生
-	};
-
-	//============================================================================
-	//	AnimationPlayerComponent struct
-	//============================================================================
-	// 名前付きで再生するクリップ1つ分の設定
-	struct AnimationState {
-
-		std::string name;
-		AssetID clip{};
-		float speed = 1.0f;
-		AnimationWrapMode wrapMode = AnimationWrapMode::UseClip;
-		// 向き相対、再生開始時の姿勢を正面として位置/回転を相対適用する(クリップ側設定を上書き)
-		bool relativeTransform = false;
-		// ループの繋ぎ補間、ループ時のみ有効(クリップ側設定を上書き)
-		AnimationLoopBridgeSettings loopBridge{};
-		// ループ回数、0=無限、N=N回で終端保持、Loop再生時のみ参照
-		int32_t loopCount = 0;
-		// 往復回数、0=無限、1往復(行って戻る)=1回、PingPong再生時のみ参照
-		int32_t pingPongCount = 0;
-		// 開始遅延(秒)、グループ再生時にこの時間だけ待ってから再生を始める
-		float startDelay = 0.0f;
-		// ループ/往復のインターバル(秒)、繋ぎ補間の後、次の再生までの待機時間
-		float interval = 0.0f;
-	};
-
-	// クリップ再生の進行フェーズ
-	enum class AnimationClipPhase :
-		uint8_t {
-
-		Play,     // クリップ本編を再生中
-		Bridge,   // ループの繋ぎ補間中
-		Interval, // 次の再生までの待機中
-	};
-
-	// 同時再生するクリップの束、Playはこのグループ名で行う
-	struct AnimationGroup {
-
-		std::string name;
-		// グループに属するクリップ設定
-		std::vector<AnimationState> states;
-	};
 
 	// グループ内クリップ1つ分の再生状態
 	struct AnimationClipRuntime {
@@ -75,6 +24,8 @@ namespace Engine {
 		std::string stateName;
 		// クリップ内時間
 		float time = 0.0f;
+		// 待機と繋ぎ補間を除いた本編の進行量
+		double normalizedTime = 0.0;
 		// PingPong用の進行方向
 		int8_t dir = 1;
 		// loop/pingpong完了回数
@@ -90,6 +41,11 @@ namespace Engine {
 		bool playing = false;
 		// 非ループ終端へ達したか
 		bool finished = false;
+		// 終端poseを一度だけ書き込む
+		bool terminalPosePending = false;
+		// 次の走査に再生開始地点のEventを含める
+		bool eventStartPending = true;
+		bool sampled = false;
 	};
 
 	struct AnimationPlayerComponent {
@@ -106,6 +62,14 @@ namespace Engine {
 		bool playInEditMode = false;
 		// 全体の再生速度倍率
 		float globalSpeed = 1.0f;
+		AssetID controller{};
+
+		AssetID runtimeControllerAsset{};
+		uint64_t runtimeControllerGeneration = 0;
+		AnimationControllerRuntime runtimeController;
+		std::vector<AnimationGroup> runtimeControllerGroups;
+		bool runtimeControllerStopped = false;
+		AnimationGroup runtimeDirectGroup;
 
 		// 再生中グループのクリップごとの再生状態、同時再生の実体
 		std::string runtimeCurrentGroup;
@@ -131,12 +95,21 @@ namespace Engine {
 		bool runtimeStarted = false;
 		// base値を捕捉済みか
 		bool runtimeBaseCaptured = false;
+		uint64_t runtimeClipRevision = 0;
 		// 再生開始時に捕捉した全プロパティのbase値
 		std::vector<AnimationPreviewBaseValue> runtimeBaseValues;
 
 		// C#からの再生要求(グループ名)、systemが立ち上がりで消費する
 		std::string runtimePlayRequest;
 		float runtimePlayFade = 0.0f;
+		AssetID runtimeDirectClipRequest{};
+		bool runtimeNormalizedFade = false;
+		bool runtimeNormalizedOffset = true;
+		float runtimePlayTime = -std::numeric_limits<float>::infinity();
+		bool runtimeSeekRequested = false;
+		float runtimeNormalizedTimeValue = 0.0f;
+		float runtimeClipDuration = 0.0f;
+		bool runtimeLooping = false;
 		// C#からの停止要求
 		bool runtimeStopRequest = false;
 	};

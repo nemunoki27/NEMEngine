@@ -12,11 +12,15 @@ namespace NEM.ComponentBindingGen;
 internal sealed class BindingInputReader {
 
     private const int SupportedSchemaVersion = 2;
-    internal int errorCount;
-    internal List<AbiLayoutModel> layouts = new();
     private static readonly string[] AllowedExposure = {
         "GeneratedBinding", "HandwrittenFacade", "RuntimeCommand", "RuntimeEvent", "InternalOnly",
     };
+
+    // 入力の診断数と共有構造体の配置
+    internal int errorCount;
+    internal List<ABILayoutModel> layouts = new();
+
+    // Componentと列挙型の入力を検証する
     internal (List<EnumModel>, List<ComponentModel>) LoadAndValidate(string path) {
 
         var enums = new List<EnumModel>();
@@ -116,9 +120,10 @@ internal sealed class BindingInputReader {
         return (enums, components);
     }
 
-    internal List<AbiFieldModel> LoadAndValidateAbi(string path) {
+    // 接続関数と共有構造体の配置を検証する
+    internal List<ABIFieldModel> LoadAndValidateABI(string path) {
 
-        var fields = new List<AbiFieldModel>();
+        var fields = new List<ABIFieldModel>();
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
         JsonElement root = doc.RootElement;
         int schema = root.TryGetProperty("schemaVersion", out JsonElement sv) ? sv.GetInt32() : 0;
@@ -129,7 +134,7 @@ internal sealed class BindingInputReader {
         var names = new HashSet<string>(StringComparer.Ordinal);
         if (root.TryGetProperty("functions", out JsonElement entries) && entries.ValueKind == JsonValueKind.Array) {
             foreach (JsonElement entry in entries.EnumerateArray()) {
-                var field = new AbiFieldModel {
+                var field = new ABIFieldModel {
                     Name = Str(entry, "name"),
                     NativeType = Str(entry, "nativeType"),
                     ManagedType = Str(entry, "managedType"),
@@ -152,7 +157,7 @@ internal sealed class BindingInputReader {
         if (root.TryGetProperty("layouts", out JsonElement layoutEntries)) {
             var layoutNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (JsonElement entry in layoutEntries.EnumerateArray()) {
-                var layout = new AbiLayoutModel {
+                var layout = new ABILayoutModel {
                     NativeType = Str(entry, "nativeType"), ManagedType = Str(entry, "managedType"),
                     Size = entry.GetProperty("size").GetInt32(),
                 };
@@ -170,10 +175,12 @@ internal sealed class BindingInputReader {
         return fields;
     }
 
+    // 文字列の項目を取得する
     internal string Str(JsonElement e, string key) {
         return e.TryGetProperty(key, out JsonElement v) && v.ValueKind == JsonValueKind.String ? (v.GetString() ?? "") : "";
     }
 
+    // 入力の診断を追加する
     internal void Error(string message) {
         ++errorCount;
         Console.Error.WriteLine($"[ComponentBindingGen] error: {message}");

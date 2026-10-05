@@ -4,7 +4,8 @@
 //	include
 //============================================================================
 // c++
-#include <list>
+#include <array>
+#include <cstddef>
 
 namespace Engine {
 
@@ -14,15 +15,29 @@ namespace Engine {
 	//============================================================================
 	class FrameProfileHistory {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
 
+		// 前フレームの累積を履歴へ確定する
 		void BeginFrame(bool firstFrame);
+
+		//--------- accessor -----------------------------------------------------
+
 		void Add(float milliseconds) { accumulator_ += milliseconds; }
 		float GetAverage() const;
 	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
 
 		//--------- variables ----------------------------------------------------
 
+		static constexpr size_t kSampleCount = 8;
+		// 現在の累積と確定済みフレームの循環履歴
 		float accumulator_ = 0.0f;
-		std::list<float> samples_;
+		std::array<float, kSampleCount> samples_{};
+		size_t nextSample_ = 0;
+		size_t sampleCount_ = 0;
 	};
-}
+} // Engine

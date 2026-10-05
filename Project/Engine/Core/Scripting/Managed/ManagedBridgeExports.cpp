@@ -30,7 +30,7 @@ bool Engine::ManagedBridgeExports::Load(DotnetHostResolver& host, const std::fil
 	success &= loadRequired(raiseApplicationQuitting_, L"RaiseApplicationQuitting");
 	success &= loadRequired(tickFrame_, L"TickFrame");
 	success &= loadRequired(configureProfiler_, L"ConfigureScriptProfiler");
-	success &= loadRequired(getLastAlcUnloadStatus_, L"GetLastAlcUnloadStatus");
+	success &= loadRequired(getLastALCUnloadStatus_, L"GetLastALCUnloadStatus");
 	success &= loadRequired(getScriptTypeCount_, L"GetScriptTypeCount");
 	success &= loadRequired(copyScriptTypeInfo_, L"CopyScriptTypeInfo");
 	success &= loadRequired(generateScriptManifest_, L"GenerateScriptManifest");

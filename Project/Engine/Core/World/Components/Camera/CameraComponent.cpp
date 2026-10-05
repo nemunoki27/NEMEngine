@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
 
 // c++
 #include <algorithm>
@@ -23,11 +24,10 @@ namespace {
 		common.targetTexture = Engine::ParseAssetReference(
 			in, "targetTexture", nullptr, Engine::AssetType::RenderTexture);
 		common.postProcessEnabled = in.value("postProcessEnabled", common.postProcessEnabled);
-		common.volumeLayerMask = in.value("volumeLayerMask", common.volumeLayerMask);
-		common.volumeProfile = Engine::ParseAssetReference(
-			in, "volumeProfile", nullptr, Engine::AssetType::VolumeProfile);
-		common.renderExtension = Engine::ParseAssetReference(
-			in, "renderExtension", nullptr, Engine::AssetType::RenderExtension);
+		// Camera内の保存値から露出と色補正を復元する
+		common.colorPipeline = Engine::RenderFeatureProfileSerializer::FromJson(in).colorPipeline;
+		common.renderPasses = Engine::ParseAssetReference(
+			in, "renderPasses", nullptr, Engine::AssetType::RenderPasses);
 	}
 
 	void WriteCommon(nlohmann::json& out, const Engine::CameraCommon& common) {
@@ -42,9 +42,11 @@ namespace {
 		out["viewportHeight"] = common.viewportHeight;
 		out["targetTexture"] = Engine::ToAssetReferenceJson(common.targetTexture);
 		out["postProcessEnabled"] = common.postProcessEnabled;
-		out["volumeLayerMask"] = common.volumeLayerMask;
-		out["volumeProfile"] = Engine::ToAssetReferenceJson(common.volumeProfile);
-		out["renderExtension"] = Engine::ToAssetReferenceJson(common.renderExtension);
+		// 設定値をCameraと同じ文書へ保存する
+		Engine::RenderFeatureProfileAsset settings{};
+		settings.colorPipeline = common.colorPipeline;
+		out["colorPipeline"] = Engine::RenderFeatureProfileSerializer::ToJson(settings)["colorPipeline"];
+		out["renderPasses"] = Engine::ToAssetReferenceJson(common.renderPasses);
 	}
 }
 

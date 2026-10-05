@@ -7,7 +7,7 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <stdexcept>
@@ -29,7 +29,7 @@ void DxCommandQueue::Create(ID3D12Device* device) {
 	commandQueue_ = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 	HRESULT hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&commandQueue_));
-	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "DxCommandQueue::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, hr, "DxCommandQueue::Create")) {
 		throw std::runtime_error("描画コマンドキューの作成に失敗しました");
 	}
 	commandQueue_->SetName(L"MainGraphicsQueue");
@@ -37,7 +37,7 @@ void DxCommandQueue::Create(ID3D12Device* device) {
 	fence_ = nullptr;
 	fenceValue_ = 0;
 	hr = device->CreateFence(fenceValue_, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence_));
-	if (!DxDredDiagnostics::CheckHRESULT(device, hr, "DxCommandQueue::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, hr, "DxCommandQueue::Create")) {
 		throw std::runtime_error("描画Fenceの作成に失敗しました");
 	}
 	fence_->SetName(L"MainGraphicsFence");
@@ -84,7 +84,7 @@ uint64_t DxCommandQueue::Signal() {
 	if (fenceValue_ >= UINT64_MAX - 1) throw std::overflow_error("描画Fence値が上限に達しました");
 	const uint64_t fenceValue = fenceValue_ + 1;
 	const HRESULT signalResult = commandQueue_->Signal(fence_.Get(), fenceValue);
-	if (!DxDredDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommandQueue::SignalAndWait/Signal")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_.Get(), signalResult, "DxCommandQueue::SignalAndWait/Signal")) {
 		throw std::runtime_error("描画コマンドキューのSignalに失敗しました");
 	}
 	fenceValue_ = fenceValue;
@@ -93,5 +93,5 @@ uint64_t DxCommandQueue::Signal() {
 
 bool DxCommandQueue::WaitForFenceValue(uint64_t expectedValue, std::string_view operation) {
 
-	return DxDredDiagnostics::WaitForFence(device_.Get(), fence_.Get(), expectedValue, fenceEvent_, operation);
+	return DxDREDDiagnostics::WaitForFence(device_.Get(), fence_.Get(), expectedValue, fenceEvent_, operation);
 }

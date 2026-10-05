@@ -103,10 +103,10 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 
 	RenderFeatureProfileService& service =
 		RenderFeatureProfileService::GetInstance();
-	if (!context.renderExtensionRuntime) {
+	if (!context.renderPassesRuntime) {
 		return;
 	}
-	const RenderFeatureProfileRuntime& runtime = *context.renderExtensionRuntime;
+	const RenderFeatureProfileRuntime& runtime = *context.renderPassesRuntime;
 	const RenderFeatureExecutionPlan plan =
 		runtime.BuildPlan(anchor_, context.kind);
 	if (!plan.IsValid()) {
@@ -181,7 +181,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		}
 		float adaptiveScale = 1.0f;
 		if (pass.adaptiveResolution) {
-			adaptiveScale = temporalState_.UpdateResolution(pass, MakeStateKey(context.kind, pass.id), profileName);
+			adaptiveScale = temporalState_.UpdateResolution(pass, MakeStateKey(*context.view, pass.id), profileName);
 		}
 		// 依存チェーン全体で同じ動的解像度係数を使い、各出力の基準倍率へ重ねて適用する
 		const float outputScale = pass.adaptiveResolution ?
@@ -190,7 +190,7 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 		RenderFeaturePassTargets targets{};
 		if (!targets.Resolve(graphicsCore, context, *deps_.postProcessTargetPool, temporalState_,
 			pass, *sceneFinal, sceneFormat, outputScale, raytracingChain, runtimeFeatures,
-			context.renderExtensionGeneration)) {
+			context.renderPassesGeneration)) {
 			return;
 		}
 
@@ -439,4 +439,9 @@ void Engine::RenderFeaturePass::Execute(GraphicsCore& graphicsCore,
 			*graphicsCore.GetDXObject().GetDxCommand());
 	}
 	lastDiagnostic_.clear();
+}
+
+void Engine::RenderFeaturePass::RetainViews(const std::unordered_set<std::string>& activeViews) {
+
+	temporalState_.RetainViews(activeViews);
 }

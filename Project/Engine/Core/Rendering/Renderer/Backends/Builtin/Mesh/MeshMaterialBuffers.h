@@ -9,6 +9,7 @@
 #include <array>
 #include <memory>
 #include <span>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -69,12 +70,12 @@ namespace Engine {
 
 		static constexpr size_t kSubMeshMaterialPassBufferCount =
 			static_cast<size_t>(MaterialPassKind::RayTracing) + 1;
-		std::array<std::unique_ptr<SubMeshMaterialParamBuffer>,
+		std::array<std::unordered_map<AssetID, std::unique_ptr<SubMeshMaterialParamBuffer>>,
 			kSubMeshMaterialPassBufferCount> subMeshParamBuffers_{};
 		SubMeshMaterialParamBuffer* activeSubMeshParamBuffer_ = nullptr;
 
 		// PassのBufferを取得する
-		SubMeshMaterialParamBuffer& GetSubMeshMaterialParamBuffer(MaterialPassKind passKind);
+		SubMeshMaterialParamBuffer& GetSubMeshMaterialParamBuffer(MaterialPassKind passKind, AssetID renderTextureTarget);
 		// BufferとDescriptorを解放する
 		void ReleaseSubMeshMaterialParamBuffer(SubMeshMaterialParamBuffer& buffer, SRVDescriptor* srvDescriptor);
 	};

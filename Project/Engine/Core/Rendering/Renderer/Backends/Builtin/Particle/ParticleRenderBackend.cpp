@@ -33,15 +33,11 @@ using namespace Engine::ParticleDrawPreparation;
 
 namespace {
 
-	// 形状アニメのパラメトリックMS生成を解決する、MS対応GPUかつ登録済み形状のみ
+	// 形状アニメーションを登録済みの生成経路へ渡す
 	const Engine::IParticleParametricShape* ResolveParametricShape(
-		const Engine::RenderDrawContext& context, const Engine::ParticleRenderSettings& settings) {
+		const Engine::ParticleRenderSettings& settings) {
 
-		if (!settings.shapeOverLifetime || settings.model ||
-			settings.space == Engine::PrimitiveRenderSpace::Screen2D) {
-			return nullptr;
-		}
-		if (!context.runtimeFeatures.useMeshShader || context.forceVertexMeshVariant) {
+		if (!settings.shapeOverLifetime || settings.model) {
 			return nullptr;
 		}
 		return Engine::ParticleParametricShapeRegistry::GetInstance().Find(settings.shape);
@@ -273,7 +269,7 @@ void Engine::ParticleRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 		// フェーズごとにマテリアルを解決して連続範囲を描画する、未設定はエフェクト共通へ落とす
 		// 形状アニメはパラメトリックMS、Model粒子はメッシュ、他は共有ジオメトリで描画する
-		const IParticleParametricShape* parametric = ResolveParametricShape(context, settings);
+		const IParticleParametricShape* parametric = ResolveParametricShape(settings);
 		uint32_t instanceOffset = 0;
 		for (size_t phaseIndex = 0; phaseIndex < phaseCounts.size(); ++phaseIndex) {
 

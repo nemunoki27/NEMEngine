@@ -282,16 +282,16 @@ internal static unsafe class ObjectContractTests {
         Check(GeneratedABILayout.IsValid());
 
         NativeAPITable table = default;
-        table.header.abiVersion = ManagedAbi.Version;
+        table.header.abiVersion = ManagedABI.Version;
         table.header.structSize = (uint)sizeof(NativeAPITable);
-        table.header.capabilities = ManagedAbi.RequiredCapabilities;
+        table.header.capabilities = ManagedABI.RequiredCapabilities;
         table.header.bindingFingerprint = NativeAPITable.BindingFingerprint;
         delegate* unmanaged[Cdecl]<NativeAPITable*, int> initialize = &HostBridge.InitializeNativeAPI;
         Check(initialize(&table) == (int)ManagedStatus.InvalidArgument);
         table.isAlive = &ReadIsAlive;
         Check(initialize(&table) == (int)ManagedStatus.InvalidArgument);
         table.header.bindingFingerprint ^= 1;
-        Check(initialize(&table) == (int)ManagedStatus.AbiMismatch);
+        Check(initialize(&table) == (int)ManagedStatus.ABIMismatch);
     }
 
     private static Texture CreateTexture(AssetGUID id) {

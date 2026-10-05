@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Assets/Database/AssetFileUtility.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
@@ -64,10 +65,18 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 		return true;
 	}
 
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(rootDesc.fullPath)) {
+	for (auto iterator = std::filesystem::recursive_directory_iterator(rootDesc.fullPath);
+		iterator != std::filesystem::recursive_directory_iterator{}; ++iterator) {
+
+		const auto& entry = *iterator;
 
 		if (entry.is_directory()) {
 
+			// コピー準備中のファイルをProjectへ公開しない
+			if (AssetFileUtility::IsAssetCopyStagingDirectory(entry.path())) {
+				iterator.disable_recursion_pending();
+				continue;
+			}
 			std::filesystem::path directory = std::filesystem::relative(entry.path(), rootDesc.fullPath);
 			EnsureDirectory(directory);
 			continue;

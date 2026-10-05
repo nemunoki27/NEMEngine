@@ -8,17 +8,19 @@
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
+#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 Engine::MeshMaterialBuffers::SubMeshMaterialParamBuffer&
 Engine::MeshMaterialBuffers::GetSubMeshMaterialParamBuffer(
-	MaterialPassKind passKind) {
+	MaterialPassKind passKind, AssetID renderTextureTarget) {
 
 	size_t index = static_cast<size_t>(passKind);
 	if (kSubMeshMaterialPassBufferCount <= index) {
 		index = static_cast<size_t>(MaterialPassKind::Invalid);
 	}
-	auto& buffer = subMeshParamBuffers_[index];
+	auto& buffer = subMeshParamBuffers_[index][renderTextureTarget];
 	if (!buffer) {
 		buffer = std::make_unique<SubMeshMaterialParamBuffer>();
 	}
@@ -65,8 +67,15 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	if (!layout.IsValid() || parameters.empty() || !device || !srvDescriptor) {
 		return;
 	}
+	// 描画中の出力を参照するMaterialは別の転送先へ分ける
+	const AssetID writingTexture = RuntimeTextureResolver::GetWritingRenderTexture();
+	const bool referencesTarget = writingTexture &&
+		((material && MaterialParameterLookup::ReferencesAsset(material->parameters, writingTexture)) ||
+			std::any_of(parameters.begin(), parameters.end(), [&](const MaterialParameterSet& values) {
+				return MaterialParameterLookup::ReferencesAsset(values, writingTexture);
+			}));
 	SubMeshMaterialParamBuffer& buffer =
-		GetSubMeshMaterialParamBuffer(drawContext.passKind);
+		GetSubMeshMaterialParamBuffer(drawContext.passKind, referencesTarget ? writingTexture : AssetID{});
 	buffer.available = false;
 
 	bool usedFallbackTexture = false;
@@ -93,7 +102,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	const uint64_t layoutHash = layout.GetContentHash();
 	const uint64_t materialHash = material ?
 		material->parameters.GetContentHash() : 0;
-	const uint64_t textureRevision = drawContext.graphicsCore->GetTextureUploadService().GetContentRevision();
+	const uint64_t textureRevision = BackendDrawCommon::GetMaterialTextureRevision(drawContext);
 	const bool rebuildPacked = buffer.textureRevision != textureRevision || buffer.dirty || buffer.layoutHash != layoutHash ||
 		buffer.materialHash != materialHash || buffer.material != material ||
 		buffer.sourceGenerations.size() != elementCount;
@@ -203,12 +212,12 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 
 void Engine::MeshMaterialBuffers::Release(SRVDescriptor* srvDescriptor) {
 
-	for (auto& buffer : subMeshParamBuffers_) {
+	for (auto& passBuffers : subMeshParamBuffers_) {
 
-		if (buffer) {
+		for (auto& [target, buffer] : passBuffers) {
 			ReleaseSubMeshMaterialParamBuffer(*buffer, srvDescriptor);
-			buffer.reset();
 		}
+		passBuffers.clear();
 	}
 	activeSubMeshParamBuffer_ = nullptr;
 }
@@ -225,8 +234,8 @@ D3D12_GPU_DESCRIPTOR_HANDLE Engine::MeshMaterialBuffers::GetGPUHandle() const {
 
 void Engine::MeshMaterialBuffers::Invalidate() {
 
-	for (auto& buffer : subMeshParamBuffers_) {
-		if (buffer) {
+	for (auto& passBuffers : subMeshParamBuffers_) {
+		for (auto& [target, buffer] : passBuffers) {
 			buffer->dirty = true;
 		}
 	}

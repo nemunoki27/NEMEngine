@@ -1,4 +1,4 @@
-function Write-Utf8Json {
+﻿function Write-Utf8Json {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Path,
@@ -8,6 +8,13 @@ function Write-Utf8Json {
 
     $json = $Value | ConvertTo-Json -Depth 16
     [System.IO.File]::WriteAllText($Path, $json, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Get-NativeBuildArguments([string]$Configuration, [string]$Target = 'Build') {
+
+    # 構築を直列化し、C++の同時コンパイルでメモリを使い切らない
+    return @("/t:$Target", "/p:Configuration=$Configuration", '/p:Platform=x64',
+        '/p:PreferredToolArchitecture=x64', '/p:CL_MPCount=2', '/m:1', '/nodeReuse:false', '/v:minimal')
 }
 
 function Get-MSBuildPath {

@@ -55,7 +55,7 @@
       <Private>false</Private>
     </Reference>
 
-    <!-- Stable ID 生成と ScriptBehaviour 診断の Roslyn analyzer（出力には含めない） -->
+    <!-- Stable ID 生成と MonoBehaviour 診断の Roslyn analyzer（出力には含めない） -->
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptCodeGen.dll" />
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptAnalyzers.dll" />
   </ItemGroup>

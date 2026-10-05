@@ -59,7 +59,8 @@ namespace Engine {
 	// v52: アクティブSceneの再読み込みAPIを追加
 	// v53: スクリプトの詳細計測区間を追加
 	// v60: 物理クエリのTrigger指定とグローバル設定を追加
-	inline constexpr uint32_t kManagedAbiVersion = 60;
+	// v61: Controllerの型付きParameter操作を追加
+	inline constexpr uint32_t kManagedABIVersion = 66;
 
 	// ネイティブが提供する機能カテゴリでcapability bitで有無を表す
 	enum class ManagedCapability : uint64_t {
@@ -93,7 +94,7 @@ namespace Engine {
 		InvalidWorldHandle,
 		InvalidEntityHandle,
 		InvalidInstanceHandle,
-		AbiMismatch,
+		ABIMismatch,
 		Unsupported,
 		SerializationError,
 		ScriptException,
@@ -436,7 +437,7 @@ namespace Engine {
 	};
 
 	// ネイティブAPIテーブル先頭に置くABIヘッダでversionとsizeとcapabilityを検証に使う
-	struct ManagedAbiHeader {
+	struct ManagedABIHeader {
 
 		uint32_t abiVersion = 0;
 		uint32_t structSize = 0;
@@ -448,7 +449,7 @@ namespace Engine {
 	struct ManagedNativeAPITable {
 
 		// 互換性検証用ヘッダで必ず先頭に置く
-		ManagedAbiHeader header{};
+		ManagedABIHeader header{};
 
 		using BeginScriptSampleCallback = uint64_t(__cdecl*)(ManagedNativeEntity, uint64_t, const char*);
 		using EndScriptSampleCallback = void(__cdecl*)(uint64_t);
@@ -497,6 +498,8 @@ namespace Engine {
 			ManagedNativeEntity, int32_t, const void*, int32_t);
 		// 指定クリップ名のアニメーション合計長を返す
 		using GetSkinnedAnimationDurationCallback = float(__cdecl*)(ManagedNativeEntity, const char*);
+		using SetAnimatorParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, int32_t, float, int32_t);
+		using GetAnimatorParameterCallback = int32_t(__cdecl*)(ManagedNativeEntity, const char*, int32_t, float*, int32_t*);
 		// 指定クリップを頭から再生する、終了フラグを同フレームで下ろす
 		using PlaySkinnedAnimationCallback = void(__cdecl*)(ManagedNativeEntity, const char*);
 		using GetSkinnedAnimationRuntimeStateCallback = int32_t(__cdecl*)(
@@ -641,7 +644,7 @@ namespace Engine {
 	static_assert(std::is_standard_layout_v<ManagedWorldHandle>);
 	static_assert(std::is_standard_layout_v<ManagedScriptInstanceHandle>);
 	static_assert(std::is_standard_layout_v<ManagedNativeEntity>);
-	static_assert(std::is_standard_layout_v<ManagedAbiHeader>);
+	static_assert(std::is_standard_layout_v<ManagedABIHeader>);
 	static_assert(std::is_standard_layout_v<ManagedNativeAPITable>);
 	static_assert(std::is_standard_layout_v<ManagedMaterialParameterValue>);
 	static_assert(std::is_standard_layout_v<ManagedCollisionEvent>);
@@ -651,7 +654,7 @@ namespace Engine {
 	static_assert(sizeof(ManagedWorldHandle) == 8);
 	static_assert(sizeof(ManagedScriptInstanceHandle) == 8);
 	static_assert(sizeof(ManagedNativeEntity) == 16);
-	static_assert(sizeof(ManagedAbiHeader) == 24);
+	static_assert(sizeof(ManagedABIHeader) == 24);
 	static_assert(sizeof(ManagedMaterialParameterValue) == 24);
 #include <Engine/Core/Scripting/Managed/Generated/ManagedABILayout.generated.inl>
 } // Engine

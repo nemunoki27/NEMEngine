@@ -56,14 +56,17 @@ void Engine::RenderFeatureProfileService::SetActiveProfileAsset(
 }
 
 void Engine::RenderFeatureProfileService::SetRuntimeExtension(
-	const RenderExtensionAsset* extension) {
+	const RenderPassesAsset* extension, uint64_t revision) {
 
 	const AssetID extensionID = extension ? extension->guid : AssetID{};
-	if (runtimeExtensionID_ == extensionID) {
+	if (runtimeExtensionID_ == extensionID && runtimeExtensionRevision_ == revision) {
 		return;
 	}
-	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
+	if (runtimeExtensionID_ != extensionID) {
+		RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
+	}
 	runtimeExtensionID_ = extensionID;
+	runtimeExtensionRevision_ = revision;
 	runtimeExtensionRuntime_.Rebuild(extension ?
 		ToRuntimeProfile(*extension) : RenderFeatureProfileAsset{});
 	++runtimeExtensionGeneration_;

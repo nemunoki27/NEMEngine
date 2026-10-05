@@ -1,4 +1,5 @@
 #include "EngineApplication.h"
+#include <Engine/Core/Audio/AudioSystem.h>
 #include "EditorRenderBenchmark.h"
 
 //============================================================================
@@ -67,6 +68,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
+	systemContext_.animationControllerManager = &animationControllerManager_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 
 	if constexpr (BuildConfig::kEditorEnabled) {
@@ -146,7 +148,7 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	// ECSシステムの更新
 	if (ShouldAdvanceActiveWorld()) {
 
-		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
+		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::ECS);
 			// callback後の安全地点でScript例外によるPauseを反映する
 		const bool playingThisTick = worldManager_.IsPlaying();
 		const uint64_t sceneRevisionBeforeTick = playingThisTick ?
@@ -169,6 +171,13 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 			playSession_->PauseForScriptException();
 		}
 	}
+	// Script例外による停止も、安全地点でゲーム音声へ反映する
+	ApplicationPreloadContext preload{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
+		[this]() { RefreshActiveWorldContext(); } };
+	if (ApplicationPreloader::ProcessRequests(graphicsCore, preload)) { requestFrameDeltaReset_ = true; }
+	Audio::GetInstance()->SetGamePauseReason(AudioPauseReason::Editor,
+		worldManager_.IsPlaying() && playSession_->IsPaused());
 	if (HandleApplicationQuitRequest()) {
 
 		world = systemContext_.world;

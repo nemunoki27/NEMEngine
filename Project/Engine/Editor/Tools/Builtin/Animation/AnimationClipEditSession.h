@@ -10,7 +10,12 @@
 #include <Engine/Editor/Animation/Curves/CurveEditorState.h>
 #include <Engine/Editor/Animation/Curves/CurveGenerator.h>
 
+// c++
+#include <memory>
+
 namespace Engine {
+
+	class ECSWorldLifetime;
 
 	//============================================================================
 	//	AnimationClipEditSession class
@@ -22,28 +27,51 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
+		AnimationClipEditSession() = default;
+		~AnimationClipEditSession();
+		AnimationClipEditSession(const AnimationClipEditSession&) = delete;
+		AnimationClipEditSession& operator=(const AnimationClipEditSession&) = delete;
+
+		// 選択したClipを読み込み、成功後に差し替える
 		void LoadClipFromSelectedAsset(const EditorToolContext& context);
+		// 編集値を保存して実行cacheを更新する
 		void SaveClipToSelectedAsset(const EditorToolContext& context);
+		// 編集値を破棄して保存済みClipを読み込む
 		void RevertClipFromSelectedAsset(const EditorToolContext& context);
-		// Propertyを追加した時点ではキーを作らず、現在値をdefaultValueとして保持する
+		// 現在値を既定値にしてPropertyを追加する
 		void AddPropertyTrack(const AnimationPropertyDescriptor& desc, ECSWorld& world, const Entity& entity);
+		// 現在のWorldから対象Entityを解決する
 		Entity GetTargetEntity(const EditorToolContext& context) const;
+		// 指定値と対象Entityから編集次元を決める
 		AnimationClipEditDimension GetEffectiveEditDimension(const EditorToolContext& context) const;
+		// 選択Trackの添字を有効範囲へ戻す
 		void NormalizeSelectedTrackIndex();
+		// 選択Trackの表示範囲を保持する
 		void StoreSelectedTrackEditorView();
+		// 選択Trackの表示範囲を取り込む
 		void LoadSelectedTrackEditorView();
-		void UpdatePreviewPlayback(const EditorToolContext& context);
-		// 現在時刻のClip評価値をTarget Entityへ直接反映する
+		// 指定した経過時間でプレビューを進める
+		void UpdatePreviewPlayback(const EditorToolContext& context, float deltaTime);
+		// 現在時刻の評価値を対象Entityへ適用する
 		void ApplyPreviewAtCurrentTime(const EditorToolContext& context, bool keepActive);
+		// プレビューを終了して開始時の値へ戻す
 		void EndPreviewAndRestore(const EditorToolContext& context);
-		// Track削除時に、そのPropertyだけを元のシーン値へ戻しbaseからも取り除く
+		// 開始したWorldへプレビューの値を戻す
+		void EndPreviewAndRestore();
+		// 削除するPropertyだけ元の値へ戻す
 		void RestoreAndDropPreviewBaseValue(const EditorToolContext& context, const AnimationPropertyBinding& binding);
+		// 再生時間とプレビューを編集結果に合わせる
 		void UpdateAutoDurationAndPreview(const EditorToolContext& context);
 
+		// World切替とGizmoによる編集を検出する
 		void UpdateExternalEdits(const EditorToolContext& context);
+		// 旧対象を復元してプレビュー先を変える
 		void SetPreviewTarget(const EditorToolContext& context, const UUID& nextTargetUUID);
+		// 対象を復元してプレビュー先を解除する
 		void ClearPreviewTarget(const EditorToolContext& context);
+		// プレビューの再生と一時停止を切り替える
 		void TogglePreviewPlayback(const EditorToolContext& context);
+		// プレビューを復元して再生時刻を戻す
 		void StopPreviewPlayback(const EditorToolContext& context);
 
 		//--------- accessor -----------------------------------------------------
@@ -72,6 +100,7 @@ namespace Engine {
 		const AnimationClipEditDimension& GetEditDimension() const { return editDimension_; }
 		CurveGeneratorState& GetGeneratorState() { return generatorState_; }
 		const CurveGeneratorState& GetGeneratorState() const { return generatorState_; }
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -87,28 +116,31 @@ namespace Engine {
 		bool clipDirty_ = false;
 		std::string clipErrorText_;
 
-		// プレビュー適用先でHierarchyからD&Dで指定するがClip保存対象には含めない
+		// Clipに保存しないプレビュー対象
 		UUID targetEntityUUID_{};
 
 		// 複数Trackを同じCurveEditorで見るための状態
 		CurveEditorState curveState_{};
-		// CurveEditorに表示しているTrackで複数PropertyのCurveが重ならないよう選択中Trackだけを表示する
+		// 編集対象と表示範囲を保持するTrack
 		int selectedTrackIndex_ = -1;
 		int editorViewTrackIndex_ = -1;
 
-		// Preview再生状態でpreviewActive_はScrub中もtrueになりStop/Closeで必ず復元する
+		// プレビュー先の寿命と再生状態
 		bool previewActive_ = false;
+		ECSWorld* previewWorld_ = nullptr;
+		std::weak_ptr<const ECSWorldLifetime> previewWorldLifetime_;
+		Entity previewEntity_{};
 		bool previewPlaying_ = false;
 		float previewTime_ = 0.0f;
 		float previewSpeed_ = 1.0f;
 		std::vector<AnimationPreviewBaseValue> previewBaseValues_;
-		// Previewでtoolが最後に書き込んだ値、Entityの現在値とズレていたら外部編集とみなす検知に使う
+		// 外部編集の検出に使う最終適用値
 		std::vector<AnimationPreviewBaseValue> lastAppliedValues_;
-		// 編集が起きたフレームだけ検知するため、前フレームのUndo/Redoカウントを覚えておく
+		// 前回のUndoとRedo件数
 		size_t lastUndoCount_ = 0;
 		size_t lastRedoCount_ = 0;
 
-		// Transform系Propertyの2D/3D候補を絞るための表示フィルタ
+		// Transformの追加候補を絞る編集次元
 		AnimationClipEditDimension editDimension_ = AnimationClipEditDimension::Auto;
 
 		// カーブ生成の設定
@@ -122,8 +154,6 @@ namespace Engine {
 		void SyncCurveStateTime();
 		// プレビュー開始時の値を保持する
 		void BeginPreview(const EditorToolContext& context);
-		// Propertyの開始値を保持済みか調べる
-		bool HasPreviewBaseValue(const AnimationPropertyBinding& binding) const;
 		// 未取得のPropertyの開始値を保持する
 		void CachePreviewBaseValues(ECSWorld& world, const Entity& entity);
 		// プレビュー開始時の値へ戻す
@@ -132,7 +162,5 @@ namespace Engine {
 		void CaptureLastAppliedValues(ECSWorld& world, const Entity& entity);
 		// 外部編集をプレビュー基準値へ反映する
 		void SyncPreviewBaseFromEntityEdits(const EditorToolContext& context);
-		// 指定ChannelへKeyを追加する
-		void AddKeyToChannel(AnimationCurveTrack& track, uint32_t channelIndex, float time);
 	};
 }

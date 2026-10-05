@@ -12,6 +12,9 @@
 
 // c++
 #include <array>
+#include <unordered_map>
+#include <unordered_set>
+#include <string>
 #include <cstdint>
 
 namespace Engine {
@@ -39,6 +42,8 @@ namespace Engine {
 
 		// フレーム単位の一時CBV領域を再利用可能にする
 		void BeginFrame();
+		// 描画対象から外れたCameraの露出Bufferを回収する
+		void RetainViews(const std::unordered_set<std::string>& activeViews);
 		// GPUバッファとDescriptorを解放する
 		void Release();
 
@@ -132,7 +137,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::array<ViewExposureState, 2> viewStates_{};
+		std::unordered_map<std::string, ViewExposureState> viewStates_{};
 		FrameConstantBufferAllocator constantBufferAllocator_{};
 		bool outputTransformLogged_ = false;
 
@@ -153,7 +158,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		ViewExposureState& GetViewState(RenderViewKind kind);
+		ViewExposureState& GetViewState(const std::string& key);
 		ColorPipelineConstants BuildConstants(GraphicsCore& graphicsCore,
 			const SceneExecutionContext& context,
 			const MultiRenderTarget& source, const ColorPipelineSettings& settings,

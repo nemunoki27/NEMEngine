@@ -39,6 +39,9 @@ namespace Engine {
 		void Update(ECSWorld& world, SystemContext& context) override;
 		// World切り替え時にEditプレビューで適用した値を元へ戻して破棄する
 		void OnWorldExit(ECSWorld& world, SystemContext& context) override;
+		// 単一対象の再生をRuntimeとEditorから共用する
+		void UpdatePlayer(ECSWorld& world, const Entity& entity,
+			AnimationPlayerComponent& player, SystemContext& context);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -55,8 +58,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// 1エンティティ分の再生を進めてComponentへ適用する、Editプレビューのbase保持を更新する
-		void UpdatePlayer(ECSWorld& world, const Entity& entity,
-			AnimationPlayerComponent& player, SystemContext& context);
+		void EvaluateController(AnimationPlayerComponent& player, SystemContext& context);
 	};
 } // Engine

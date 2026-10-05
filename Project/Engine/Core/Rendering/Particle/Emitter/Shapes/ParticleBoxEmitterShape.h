@@ -24,6 +24,7 @@ namespace Engine {
 		void FromJson(const nlohmann::json& data, ParticleEmitterSettings& settings) const override;
 		void ToJson(nlohmann::json& data, const ParticleEmitterSettings& settings) const override;
 
+		bool CanEmit(const ParticleEmitterSettings& settings) const override;
 		void InitParticle(Vector3& position, Vector3& direction,
 			const ParticleEmitterSettings& settings, bool is2D) const override;
 	};

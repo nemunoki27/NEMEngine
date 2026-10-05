@@ -132,3 +132,11 @@ void Engine::DeferredRenderPath::Execute(GraphicsCore& graphicsCore,
 		}
 	}
 }
+
+void Engine::DeferredRenderPath::RetainViews(const std::unordered_set<std::string>& activeViews) {
+
+	// 描画対象から外れたCameraの履歴を回収する
+	for (const auto& pass : passes_) {
+		pass->RetainViews(activeViews);
+	}
+}

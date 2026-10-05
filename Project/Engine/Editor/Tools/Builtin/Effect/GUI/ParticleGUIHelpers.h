@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Particle/ParticleValue.h>
 #include <Engine/Core/Rendering/Particle/Structures/ParticleLoopSettings.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/Easing.h>
 
 namespace Engine {

@@ -22,6 +22,7 @@ namespace Engine::AnimationTrackSampling {
 	bool HasAnyKey(const AnimationCurveTrack& track);
 
 	bool ReadValueChannels(const AnimationPropertyValue& value, float* values, uint32_t valueCount);
+	bool WriteValueChannels(AnimationValueType type, std::span<const float> values, AnimationPropertyValue& outValue);
 
 	bool ReadChannelsWithFallback(const AnimationCurveTrack& track, float time,
 		const AnimationPropertyValue& fallback, float* values, uint32_t valueCount);

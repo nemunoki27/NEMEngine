@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
@@ -47,12 +48,11 @@ namespace Engine {
 		float viewportHeight = 1.0f;
 		// 空ならGame Viewへ出力する
 		AssetID targetTexture{};
-		// PostProcessとVolumeの適用設定
+		// Camera固有の露出と色補正
 		bool postProcessEnabled = true;
-		uint32_t volumeLayerMask = 0xffffffffu;
-		AssetID volumeProfile{};
+		ColorPipelineSettings colorPipeline{};
 		// Camera固有の描画拡張
-		AssetID renderExtension{};
+		AssetID renderPasses{};
 
 		// エディターに表示するフラスタムのサイズ
 		float editorFrustumScale = 0.002f;

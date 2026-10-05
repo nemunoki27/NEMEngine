@@ -1,6 +1,6 @@
 #include "TopLevelAccelerationStructure.h"
 
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <stdexcept>
 #include <algorithm>
 
@@ -12,7 +12,7 @@ void Engine::TopLevelAccelerationStructure::Build(ID3D12Device8* device, ID3D12G
 
 	if (!retirementQueue_) throw std::logic_error("ASの回収窓口が設定されていません");
 	if (!device || !commandList || instances.size() > UINT32_MAX) throw std::invalid_argument("TLASの構築引数が不正です");
-	if (!DxDredDiagnostics::CheckDeviceState(device, "TLAS::Build")) throw std::runtime_error("Deviceが失われました");
+	if (!DxDREDDiagnostics::CheckDeviceState(device, "TLAS::Build")) throw std::runtime_error("Deviceが失われました");
 	// 候補の作成と記録が成功してから公開する
 	retirementQueue_->ReservePending(2 + kGraphicsFrameContextCount);
 	TopLevelAccelerationStructure candidate;

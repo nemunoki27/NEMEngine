@@ -8,51 +8,66 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/Particle/ParticleEffectEditBridge.h>
 #include <Engine/Core/Rendering/Particle/Module/Base/ParticleModuleRegistry.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+
+// c++
+#include <exception>
 
 const Engine::ParticleEffectDefinition* Engine::ParticleEffectDefinitionCache::ResolveEffect(
 	SystemContext& context, AssetID effectID, bool checkReload) {
 
-	if (!context.assetDatabase) {
-		return nullptr;
+	if (!context.assetDatabase) return nullptr;
+	if (!effectID) effectID = BuiltinAssets::Effects::DefaultParticle;
+	ParticleEffectDefinition& current = effectCache_[effectID];
+	ParticleEffectEditBridge& bridge = ParticleEffectEditBridge::GetInstance();
+	const uint64_t editRevision = bridge.GetRevision(effectID);
+	const uint64_t contentRevision = context.assetDatabase->GetContentRevision(effectID);
+	const auto path = context.assetDatabase->ResolveFullPath(effectID);
+	auto writeTime = current.lastWriteTime;
+	if (checkReload || !current.attempted || current.path != path) {
+		std::error_code error;
+		writeTime = std::filesystem::last_write_time(path, error);
+		if (error) writeTime = {};
 	}
-	// 空のエフェクトはビルトインの既定エフェクトへ解決する
-	if (!effectID) {
-		effectID = BuiltinAssets::Effects::DefaultParticle;
-	}
+	const bool reload = !current.attempted || current.appliedEditVersion != editRevision ||
+		current.contentRevision != contentRevision || current.path != path || current.lastWriteTime != writeTime;
+	if (!reload) return current.valid ? &current : nullptr;
 
-	// キャッシュ済みならエディター編集とファイル更新を確認してそのまま返す
-	auto found = effectCache_.find(effectID);
-	if (found != effectCache_.end()) {
-
-		// エディターの編集内容は保存を待たず即反映する
-		ParticleEffectAsset editedAsset{};
-		if (ParticleEffectEditBridge::GetInstance().TryConsume(
-			effectID, found->second.appliedEditVersion, editedAsset)) {
-
-			found->second.asset = std::move(editedAsset);
-			found->second.valid = true;
-			BuildGroups(found->second);
-			++found->second.revision;
-		} else if (checkReload && !found->second.path.empty()) {
-
-			std::error_code ec;
-			const auto lastWriteTime = std::filesystem::last_write_time(found->second.path, ec);
-			if (!ec && found->second.lastWriteTime != lastWriteTime) {
-
-				const uint64_t appliedEditVersion = found->second.appliedEditVersion;
-				const uint64_t revision = found->second.revision;
-				found->second = LoadEffect(context, effectID);
-				found->second.appliedEditVersion = appliedEditVersion;
-				found->second.revision = revision + 1;
-			}
+	// 失敗した入力は更新されるまで再試行しない
+	current.attempted = true;
+	current.appliedEditVersion = editRevision;
+	current.contentRevision = contentRevision;
+	current.path = path;
+	current.lastWriteTime = writeTime;
+	try {
+		ParticleEffectDefinition replacement{};
+		uint64_t consumedVersion = 0;
+		if (bridge.TryConsume(effectID, consumedVersion, replacement.asset)) {
+			BuildGroups(replacement);
+			replacement.valid = true;
+		} else {
+			replacement = LoadEffect(context, effectID);
 		}
-		return found->second.valid ? &found->second : nullptr;
+		if (replacement.valid) {
+			// 完成した定義だけを公開し、失敗時は現在の粒子を維持する
+			replacement.revision = current.revision + 1;
+			replacement.appliedEditVersion = editRevision;
+			replacement.contentRevision = contentRevision;
+			replacement.path = path;
+			replacement.lastWriteTime = writeTime;
+			replacement.attempted = true;
+			current = std::move(replacement);
+		} else {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"Effectの再読込に失敗しました path={}", path.string());
+		}
+	} catch (const std::exception& error) {
+		Logger::Output(LogType::Engine, spdlog::level::warn,
+			"Effectの再読込に失敗しました path={} 内容={}", path.string(), error.what());
+		return current.valid ? &current : nullptr;
 	}
-
-	auto [it, inserted] = effectCache_.emplace(effectID, LoadEffect(context, effectID));
-	return it->second.valid ? &it->second : nullptr;
+	return current.valid ? &current : nullptr;
 }
-
 Engine::ParticleEffectDefinition Engine::ParticleEffectDefinitionCache::LoadEffect(
 	SystemContext& context, AssetID effectID) const {
 
@@ -109,6 +124,7 @@ void Engine::ParticleEffectDefinitionCache::BuildGroups(ParticleEffectDefinition
 				const ParticleModuleRegistry::TypeID typeID = registry.FindTypeID(entry.id);
 				auto module = registry.Create(typeID);
 				if (!module) { continue; }
+				module->SetInstanceID(entry.instanceID);
 				module->FromJson(entry.params);
 				IParticleModule* modulePtr = module.get();
 				const ParticleModuleExecutionMode spawnMode = module->GetSpawnExecutionMode();

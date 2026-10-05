@@ -19,7 +19,6 @@ namespace Engine::ParticleDrawPreparation {
 	Engine::Matrix4x4 BuildParticleUVMatrix(const Engine::Particle& particle);
 
 	// 静的な形状データを作成する
-	Engine::ParticleShapeData MakeStaticShapeData(const Engine::ParticleRenderSettings& settings);
 
 	// PhaseのMaterial設定を取得する
 	const Engine::ParticlePhaseMaterialSettings& GetPhaseMaterialSettings(

@@ -1,5 +1,7 @@
 #include "ProjectAssetDiagnostics.h"
 
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+
 //============================================================================
 //	include
 //============================================================================
@@ -17,10 +19,10 @@ void Engine::ProjectAssetDiagnostics::Draw(AssetDatabase& database, bool editing
 	}
 	if (!database.GetLastRebuildError().empty()) {
 		ImGui::SameLine();
-		ImGui::TextUnformatted("索引更新に失敗しました");
+		ImGui::TextWrapped("%s", "索引更新に失敗しました");
 	}
 	ImGui::SetNextWindowSize(ImVec2(820, 540), ImGuiCond_FirstUseEver);
-	if (!ImGui::BeginPopupModal("Assetの診断・修復", nullptr, ImGuiWindowFlags_None)) {
+	if (!MyGUI::BeginPopupModal("Assetの診断・修復", nullptr, ImGuiWindowFlags_None)) {
 		return;
 	}
 	ImGui::BeginDisabled(!editing);

@@ -4,10 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
+#include <Engine/Editor/Utility/EditorTransformPreview.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
-#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
-#include <Engine/Core/Rendering/Renderer/Debug/DepthVisualizer.h>
 
 namespace Engine {
 
@@ -23,8 +21,12 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
+		// 未確定の姿勢を戻して操作を終了する
+		void EndPreview();
+
 		// シーンギズモの描画
 		void DrawSceneGizmo(const EditorPanelContext& context);
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -34,23 +36,23 @@ namespace Engine {
 
 		struct EntityGizmoSession {
 
-			bool active = false;
-			bool runtimeOnly = false;
-			UUID entityUUID{};
-			TransformComponent beforeTransform{};
+			bool active = false; // 操作中か
+			bool runtimeOnly = false; // 実行用Worldの操作か
+			UUID entityUUID{}; // 開始時の対象
 		};
 
 		struct MultiEntityGizmoSession {
 
-			bool active = false;
-			bool runtimeOnly = false;
-			// ドラッグ中フレーム間で持続する中心ピボット
+			bool active = false; // 操作中か
+			bool runtimeOnly = false; // 実行用Worldの操作か
+			// 操作中の中心ピボット
 			TransformComponent pivot{};
-			// undo用の操作前トランスフォーム
-			std::vector<std::pair<UUID, TransformComponent>> beforeTransforms{};
 		};
 
 		//--------- variables ----------------------------------------------------
+
+		// 開始Worldと対象の姿勢
+		EditorTransformPreview preview_;
 
 		// ギズモ操作セッションの情報
 		EntityGizmoSession entityGizmoSession_{};
@@ -58,9 +60,11 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 姿勢を一件の履歴へ確定する
+		void FinalizePreview(const EditorPanelContext& context, ECSWorld& world, bool runtimeOnly);
 		// ギズモ終了
 		void FinalizeEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);
-		// 複数選択ギズモの描画、中心ピボットの差分を各エンティティへ個別原点で適用する
+		// 複数選択の共通ピボットを操作する
 		void DrawMultiEntityGizmo(const EditorPanelContext& context, ECSWorld& world, const GizmoViewportRect& rect);
 		// 複数EntityのGizmo操作を確定する
 		void FinalizeMultiEntityGizmoSession(const EditorPanelContext& context, ECSWorld& world);

@@ -268,7 +268,7 @@ void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDraw
 		const AssetID& textureAssetID) {
 		return ResolveMaterialTextureIndex(context, semantic, textureAssetID);
 	};
-	binder.SetTextureRevision(context.graphicsCore->GetTextureUploadService().GetContentRevision());
+	binder.SetTextureRevision(GetMaterialTextureRevision(context), RuntimeTextureResolver::GetWritingRenderTexture());
 	const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
 		binder.ResolveAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, pipelineState, material,
 			effectiveOverrides, resolveTexture);
@@ -287,4 +287,13 @@ bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const Ren
 		first.blendMode == next.blendMode &&
 		first.surfaceMode == next.surfaceMode &&
 		first.batchKey == next.batchKey;
+}
+
+
+uint64_t Engine::BackendDrawCommon::GetMaterialTextureRevision(const RenderDrawContext& context) {
+
+	const uint64_t uploadRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
+	const uint64_t renderRevision = RuntimeTextureResolver::GetBindingRevision();
+	// Camera出力の差替えでもMaterialのSRV番号を更新する
+	return uploadRevision ^ (renderRevision + 0x9e3779b97f4a7c15ull + (uploadRevision << 6) + (uploadRevision >> 2));
 }

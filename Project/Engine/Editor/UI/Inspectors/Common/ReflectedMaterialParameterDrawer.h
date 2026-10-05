@@ -7,7 +7,7 @@
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <algorithm>
@@ -139,7 +139,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 			ValueEditResult result = MyGUI::AssetReferenceField(
 				displayName.data(), textureID,
 				context.editorContext->assetDatabase,
-				{ AssetType::Texture }, setting);
+				{ AssetType::Texture, AssetType::RenderTexture }, setting);
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;

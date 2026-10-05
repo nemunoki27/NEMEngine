@@ -36,6 +36,7 @@ size_t Engine::MaterialParameterBinder::CacheKeyHasher::operator()(const CacheKe
 	size_t result = std::hash<uint64_t>{}(key.pipelineID);
 	result = HashCombine(result, std::hash<uint64_t>{}(key.materialHash));
 	result = HashCombine(result, std::hash<uint64_t>{}(key.instanceHash));
+	result = HashCombine(result, std::hash<AssetID>{}(key.renderTextureTarget));
 	return result;
 }
 
@@ -79,10 +80,14 @@ Engine::MaterialParameterBinder::CachedBindingData& Engine::MaterialParameterBin
 	const MaterialParameterSet* overrides) {
 
 	// 内容ハッシュをキーにしてEntityが異なっても同じMaterial Instanceを共有する
+	// 描画中Textureの代替値を後続Cameraへ持ち越さない
+	const bool referencesTarget = MaterialParameterLookup::ReferencesAsset(material.parameters, renderTextureTarget_) ||
+		(overrides && MaterialParameterLookup::ReferencesAsset(*overrides, renderTextureTarget_));
 	const CacheKey key{
 		.pipelineID = pipeline.GetUniqueID(),
 		.materialHash = material.parameters.GetContentHash(),
 		.instanceHash = overrides ? overrides->GetContentHash() : 0,
+		.renderTextureTarget = referencesTarget ? renderTextureTarget_ : AssetID{},
 	};
 	CachedBindingData& cache = bindingCache_[key];
 	cache.lastUsedFrame = frameIndex_;
@@ -220,7 +225,9 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 	return cache.textures;
 }
 
-void Engine::MaterialParameterBinder::SetTextureRevision(uint64_t revision) {
+void Engine::MaterialParameterBinder::SetTextureRevision(uint64_t revision, AssetID renderTextureTarget) {
+
+	renderTextureTarget_ = renderTextureTarget;
 
 	if (textureRevision_ == revision) return;
 	textureRevision_ = revision;

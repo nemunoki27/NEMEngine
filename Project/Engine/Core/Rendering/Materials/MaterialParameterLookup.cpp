@@ -76,3 +76,19 @@ bool Engine::MaterialParameterLookup::IsTexture(const ShaderConstantBufferVariab
 		return IsTextureResource(resource) && IsSameParameter(variable, resource);
 	});
 }
+
+
+bool Engine::MaterialParameterLookup::ReferencesAsset(const MaterialParameterSet& parameters, AssetID assetID) {
+
+	if (!assetID) {
+		return false;
+	}
+	for (const auto& [name, parameter] : parameters) {
+
+		const AssetID* reference = std::get_if<AssetID>(&parameter.value);
+		if (reference && *reference == assetID) {
+			return true;
+		}
+	}
+	return false;
+}

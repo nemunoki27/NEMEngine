@@ -18,6 +18,9 @@
 #include <fstream>
 #include <iostream>
 
+// assimp
+#include <assimp/scene.h>
+
 namespace {
 
 	bool TestModelMaterialFactors() {

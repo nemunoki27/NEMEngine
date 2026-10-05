@@ -27,6 +27,10 @@ namespace Engine {
 		void BeginRenderTextureWrite(AssetID textureAssetID);
 		void EndRenderTextureWrite(AssetID textureAssetID);
 
+		// RenderTextureの公開世代と描画先を取得する
+		uint64_t GetBindingRevision();
+		AssetID GetWritingRenderTexture();
+
 		// アセットIDからGPUテクスチャリソースを解決し未ロードなら読み込み要求を行う
 		const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,
 			const AssetDatabase* assetDatabase, AssetID textureAssetID,

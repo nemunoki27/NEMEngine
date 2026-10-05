@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <string>
@@ -57,6 +57,10 @@ void Engine::AnimationPlayerInspectorDrawer::DrawFields(const EditorPanelContext
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
 	auto& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::AssetReferenceField("Controller", draft.controller,
+			context.editorContext->assetDatabase, { AssetType::AnimationController });
+		});
 
 	//============================================================================
 	//	基本設定
@@ -107,6 +111,16 @@ void Engine::AnimationPlayerInspectorDrawer::DrawFields(const EditorPanelContext
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("再生速度", state.speed,
 				{ .dragSpeed = 0.01f, .minValue = -100.0f, .maxValue = 100.0f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("weight", state.weight,
+				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragInt("優先度", state.priority);
+			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField("Additive", state.additive);
 			});
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawCheckboxField("向き相対", state.relativeTransform);

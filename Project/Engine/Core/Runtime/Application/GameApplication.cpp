@@ -117,6 +117,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
+	systemContext_.animationControllerManager = &animationControllerManager_;
 	systemContext_.runtimeWorldBaker = &runtimeWorldBaker_;
 	StartPlayWorld();
 	PreloadReleaseResources(graphicsCore);
@@ -213,6 +214,7 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 	systemContext_.assetDatabase = &assetDatabase_;
 	systemContext_.skinnedAnimationManager = &skinnedAnimationManager_;
 	systemContext_.animationClipManager = &animationClipManager_;
+	systemContext_.animationControllerManager = &animationControllerManager_;
 	RefreshActiveWorldContext();
 
 	const bool skipFirstAdvance = playWorldJustStarted_;
@@ -243,7 +245,7 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 		const uint64_t sceneRevision = playScenes_.GetRevision();
 		const uint64_t scriptExceptionVersion = ManagedScriptExceptionStore::GetInstance().Version();
 
-		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::Ecs);
+		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::ECS);
 		scheduler_.Tick(world, systemContext_);
 
 		if (sceneRevision != playScenes_.GetRevision()) {
@@ -256,6 +258,11 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 		}
 	}
 
+	// 描画開始前の安全地点で明示先読みを処理する
+	ApplicationPreloadContext preload{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
+		[this]() { RefreshActiveWorldContext(); } };
+	if (ApplicationPreloader::ProcessRequests(graphicsCore, preload)) { requestFrameDeltaReset_ = true; }
 	HandleApplicationQuitRequest();
 }
 

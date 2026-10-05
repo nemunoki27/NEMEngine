@@ -100,6 +100,8 @@ public sealed class StageManager : MonoBehaviour {
             TestCollectionSchema();
             TestPropertyFieldSchema();
             ComponentQueryTests.Run();
+            AnimationParameterTests.Run();
+            ParticleSeedTests.Run();
 			Console.WriteLine("[PASS] Object equality and Fake Null.");
 		} catch (Exception ex) {
 			++failures;
@@ -243,7 +245,7 @@ public static unsafe class RuntimeTest {
             typeof(HostBridge).GetMethod("InitializeNativeAPI")!.MethodHandle.GetFunctionPointer();
         Check(initialize(null) == (int)ManagedStatus.InvalidArgument);
         NativeAPITable invalidCallbacks = default;
-        Check(initialize(&invalidCallbacks) == (int)ManagedStatus.AbiMismatch);
+        Check(initialize(&invalidCallbacks) == (int)ManagedStatus.ABIMismatch);
         var fixture = new RuntimeFixture();
         Type entryType = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptTypeEntry")!;
         object entry = Activator.CreateInstance(entryType, true)!;

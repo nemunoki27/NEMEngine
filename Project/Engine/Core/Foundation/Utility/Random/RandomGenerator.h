@@ -6,6 +6,7 @@
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
+#include <Engine/Core/Foundation/Utility/Random/RandomGeneratorScope.h>
 
 // c++
 #include <random>
@@ -46,8 +47,8 @@ inline T RandomGenerator::Generate(T min, T max) {
 	}
 	static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type");
 
-	static std::random_device rd;
-	static std::mt19937 gen(rd());
+	// 所有Instanceの乱数列から値を生成する
+	std::mt19937& gen = RandomGeneratorScope::GetSource();
 
 	if constexpr (std::is_integral<T>::value) {
 

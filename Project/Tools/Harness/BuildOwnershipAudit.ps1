@@ -1,4 +1,4 @@
-# 構成を評価した実ファイルとオブジェクト出力を照合する
+﻿# 構成を評価した実ファイルとオブジェクト出力を照合する
 param(
     [string]$MSBuildPath = '',
     [string[]]$Configurations = @('Debug', 'Develop', 'Release')

@@ -43,7 +43,7 @@ namespace Engine {
 			return 0.0f;
 		}
 		// メッシュのアニメーションセットから指定クリップの合計長を引く
-		const SkinnedMeshAnimationSet* animationSet = context->skinnedAnimationManager->Find(renderer->mesh);
+		const auto animationSet = context->skinnedAnimationManager->Find(renderer->mesh);
 		if (!animationSet || !animationSet->valid) {
 			return 0.0f;
 		}

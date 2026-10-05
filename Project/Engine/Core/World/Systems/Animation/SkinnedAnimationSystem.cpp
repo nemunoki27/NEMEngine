@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "SkeletonPoseEvaluator.h"
+#include "SkeletonPlaybackTime.h"
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -12,6 +13,7 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using namespace Engine::SkeletonPoseEvaluator;
 
@@ -46,7 +48,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			context.skinnedAnimationManager->RequestLoadAsync(*context.assetDatabase, renderer.mesh);
 
 			// メッシュに対応するアニメーションセットを取得
-			const SkinnedMeshAnimationSet* animationSet = context.skinnedAnimationManager->Find(renderer.mesh);
+			const auto animationSet = context.skinnedAnimationManager->Find(renderer.mesh);
 			if (!animationSet || !animationSet->valid || animationSet->clips.empty()) {
 				runtime->palette.clear();
 				runtime->availableClips.clear();
@@ -55,20 +57,21 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			}
 
 			// メッシュが切り替わったか
-			bool meshChanged = (!runtime->initialized || runtime->mesh != renderer.mesh);
+			bool meshChanged = (!runtime->initialized || runtime->mesh != renderer.mesh || runtime->definitionGeneration != animationSet->generation);
 			if (meshChanged) {
 
 				// 初期クリップの名前を取得
 				runtime->currentClip = ResolveInitialClip(*animationSet, anim.clip);
 
 				runtime->mesh = renderer.mesh;
+				runtime->definitionGeneration = animationSet->generation;
 				runtime->initialized = true;
 				runtime->bindSkeleton = animationSet->skeleton;
 				runtime->skeleton = runtime->bindSkeleton;
 				runtime->palette.resize(animationSet->skeleton.joints.size());
 				runtime->fromClip.clear();
 				runtime->toClip.clear();
-				runtime->time = 0.0f;
+				runtime->time = anim.playbackSpeed < 0.0f ? animationSet->clips.at(runtime->currentClip).duration : 0.0f;
 				runtime->fromTime = 0.0f;
 				runtime->blendTime = 0.0f;
 				runtime->inTransition = false;
@@ -95,12 +98,13 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				runtime->fromClip = runtime->currentClip;
 				runtime->toClip = desiredClip;
 				runtime->fromTime = runtime->time;
+				runtime->toTime = anim.playbackSpeed < 0.0f ? animationSet->clips.at(desiredClip).duration : 0.0f;
 				runtime->blendTime = 0.0f;
 				runtime->inTransition = (anim.transitionDuration > 0.0f);
 				if (!runtime->inTransition) {
 
 					runtime->currentClip = desiredClip;
-					runtime->time = 0.0f;
+					runtime->time = runtime->toTime;
 				}
 			}
 
@@ -109,7 +113,8 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 			// Play中はTimeScale適用済みのdeltaTime、EditのプレビューはdeltaTimeが0になるためTimeScale非適用のリアル時間を使う
 			float sourceDelta = (context.mode == WorldMode::Play) ? context.deltaTime : context.unscaledDeltaTime;
 			// フレーム時間を再生速度に応じてスケーリング
-			float deltaTime = allowTimeAdvance ? sourceDelta * anim.playbackSpeed : 0.0f;
+			float deltaTime = allowTimeAdvance && std::isfinite(sourceDelta) && std::isfinite(anim.playbackSpeed) ?
+				(std::max)(sourceDelta, 0.0f) * anim.playbackSpeed : 0.0f;
 
 			// 停止中、遷移一時停止中、非ループ再生完了後はポーズが変わらないため再計算を省く
 			const bool transitionAdvances =
@@ -131,24 +136,8 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 
 				const AnimationData& clip = animationSet->clips.at(runtime->currentClip);
 				runtime->currentDuration = clip.duration;
-				if (0.0f < clip.duration) {
-
-					if (anim.loop) {
-						float nextTime = runtime->time + deltaTime;
-						// ループ再生している場合、再生時間がアニメーションクリップの長さを超えたらループ回数を増やす
-						if (clip.duration <= nextTime) {
-
-							++runtime->repeatCount;
-						}
-						runtime->time = std::fmod(nextTime, clip.duration);
-						runtime->animationFinished = false;
-					} else {
-
-						// ループ再生していない場合、再生時間がアニメーションクリップの長さを超えないようにする
-						runtime->time = (std::min)(runtime->time + deltaTime, clip.duration);
-						runtime->animationFinished = clip.duration <= runtime->time;
-					}
-				}
+				runtime->time = SkeletonPlaybackTime::Advance(runtime->time, clip.duration, deltaTime,
+					anim.loop, runtime->repeatCount, runtime->animationFinished);
 
 				// 現在再生中のアニメーションクリップをスケルトンに適用
 				auto trackIt = animationSet->clipJointTracks.find(runtime->currentClip);
@@ -165,7 +154,13 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				runtime->currentDuration = toClip.duration;
 
 				// 遷移時間を進める
-				runtime->blendTime += deltaTime;
+				runtime->blendTime += std::abs(deltaTime);
+				int32_t ignoredRepeat = 0;
+				bool ignoredFinished = false;
+				runtime->fromTime = SkeletonPlaybackTime::Advance(runtime->fromTime,
+					animationSet->clips.at(runtime->fromClip).duration, deltaTime, anim.loop, ignoredRepeat, ignoredFinished);
+				runtime->toTime = SkeletonPlaybackTime::Advance(runtime->toTime, toClip.duration,
+					deltaTime, anim.loop, runtime->repeatCount, runtime->animationFinished);
 				// 遷移時間に対する経過時間の割合を計算
 				float alpha = 0.0f < anim.transitionDuration ? runtime->blendTime / anim.transitionDuration : 1.0f;
 
@@ -174,7 +169,8 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 				auto toTrackIt = animationSet->clipJointTracks.find(runtime->toClip);
 				if (fromTrackIt != animationSet->clipJointTracks.end() && toTrackIt != animationSet->clipJointTracks.end()) {
 
-					BlendClipsToSkeleton(runtime->skeleton, fromTrackIt->second, runtime->fromTime, toTrackIt->second, 0.0f, alpha);
+					BlendClipsToSkeleton(runtime->skeleton, fromTrackIt->second, runtime->fromTime,
+						toTrackIt->second, runtime->toTime, std::clamp(alpha, 0.0f, 1.0f));
 				}
 
 				// 遷移が完了したら遷移フラグを下ろして遷移先のアニメーションクリップを再生状態にする
@@ -182,7 +178,7 @@ void Engine::SkinnedAnimationSystem::LateUpdate(ECSWorld& world, SystemContext& 
 
 					runtime->inTransition = false;
 					runtime->currentClip = runtime->toClip;
-					runtime->time = 0.0f;
+					runtime->time = runtime->toTime;
 				}
 			}
 			// スケルトンの階層を更新してGPU用のパレットを構築

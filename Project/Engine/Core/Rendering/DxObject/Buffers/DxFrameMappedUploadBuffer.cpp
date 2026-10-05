@@ -1,6 +1,6 @@
 #include "DxFrameMappedUploadBuffer.h"
 
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <stdexcept>
 
 //============================================================================
@@ -35,7 +35,7 @@ namespace Engine {
 		for (uint32_t index = 0; index < kGraphicsFrameContextCount; ++index) {
 			DxUtils::CreateUploadBufferResource(device, resources[index], newCapacity);
 			const HRESULT result = resources[index]->Map(0, nullptr, reinterpret_cast<void**>(&mapped[index]));
-			if (!DxDredDiagnostics::CheckHRESULT(device, result, "DxFrameMappedUploadBuffer::Map")) {
+			if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DxFrameMappedUploadBuffer::Map")) {
 				throw std::runtime_error("Upload BufferのMapに失敗しました");
 			}
 			if (!resourceName.empty()) {

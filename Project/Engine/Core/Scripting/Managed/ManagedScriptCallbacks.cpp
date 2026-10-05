@@ -16,7 +16,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.endScriptSample = [](uint64_t token) {
 		ScriptProfiler::GetInstance().End(token, true);
 	};
-	callbacks.header.abiVersion = kManagedAbiVersion;
+	callbacks.header.abiVersion = kManagedABIVersion;
 	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeAPITable));
 	callbacks.header.capabilities = kManagedCapabilitiesAll;
 	callbacks.header.bindingFingerprint = ManagedNativeAPITable::kBindingFingerprint;
@@ -173,6 +173,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
 	callbacks.instantiateEntity = &ManagedScriptRuntime::InstantiateEntityCallback;
 	callbacks.loadSceneAdditive = &ManagedScriptRuntime::LoadSceneAdditiveCallback;
+	callbacks.preloadScene = &ManagedScriptRuntime::PreloadSceneCallback;
 	callbacks.loadSceneSingle = &ManagedScriptRuntime::LoadSceneSingleCallback;
 	callbacks.reloadActiveScene = &ManagedScriptRuntime::ReloadActiveSceneCallback;
 	callbacks.dontDestroyOnLoad = &ManagedScriptRuntime::DontDestroyOnLoadCallback;
@@ -204,6 +205,8 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.copyUserSettingsRoot = &ManagedScriptRuntime::CopyUserSettingsRootCallback;
 	// Gameplay v7のAudioSourceメソッド
 	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
+	callbacks.setAnimatorParameter = &ManagedScriptRuntime::SetAnimatorParameterCallback;
+	callbacks.getAnimatorParameter = &ManagedScriptRuntime::GetAnimatorParameterCallback;
 	callbacks.audioPause = &ManagedScriptRuntime::AudioPauseCallback;
 	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
 	callbacks.audioIsPlaying = &ManagedScriptRuntime::AudioIsPlayingCallback;

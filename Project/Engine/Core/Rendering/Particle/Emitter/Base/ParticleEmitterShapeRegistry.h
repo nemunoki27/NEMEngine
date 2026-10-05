@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Particle/Emitter/Base/IParticleEmitterShape.h>
+#include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
 #include <memory>
@@ -25,10 +26,10 @@ namespace Engine {
 		// 形状を登録する、登録済みなら何もしない
 		uint32_t Register(ParticleEmitterShape shape, std::unique_ptr<IParticleEmitterShape> instance);
 
-		using DebugDrawFunction = void (*)(const ParticleEmitterSettings&, const Vector3&, const Quaternion&, bool);
+		using DebugDrawFunction = void (*)(const ParticleEmitterSettings&, const Matrix4x4&, bool);
 		// 登録された補助描画へ発生形状を渡す
 		void DrawDebugShape(const ParticleEmitterSettings& settings,
-			const Vector3& center, const Quaternion& rotation, bool is2D) const;
+			const Matrix4x4& emitterWorld, bool is2D) const;
 
 		//--------- accessor -----------------------------------------------------
 

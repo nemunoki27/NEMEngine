@@ -1,9 +1,5 @@
 #include "EditorManager.h"
 
-#include <Engine/Core/Rendering/Particle/Emitter/Base/ParticleEmitterShapeRegistry.h>
-#include "EditorSelectionOperations.h"
-#include <Engine/Editor/Commands/Core/EditorCommandExecution.h>
-
 //============================================================================
 //	include
 //============================================================================
@@ -20,11 +16,9 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/Core/SceneViewInteractionPolicy.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
+#include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
 
-// パネル群
-#include <Engine/Editor/UI/Panels/Builtin/BuiltinEditorPanelRegistration.h>
-#include <Engine/Editor/Tools/Builtin/BuiltinEditorTools.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/IRenderItemExtractor.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
@@ -46,15 +40,13 @@ namespace {
 	bool IsHidePanelsShortcutTriggered() {
 
 		Engine::Input* input = Engine::Input::GetInstance();
-		const bool directInputDown = input &&
-			input->PushKey(DIK_TAB) && input->PushKey(DIK_ESCAPE);
+		const bool directInputDown = input && input->PushKey(DIK_TAB) && input->PushKey(DIK_ESCAPE);
 
-		const bool imguiDown =
-			ImGui::IsKeyDown(ImGuiKey_Tab) && ImGui::IsKeyDown(ImGuiKey_Escape);
+		const bool imguiDown = ImGui::IsKeyDown(ImGuiKey_Tab) && ImGui::IsKeyDown(ImGuiKey_Escape);
 
 		const bool shortcutDown = directInputDown || imguiDown;
 
-		// 同時押しに入った瞬間だけ反応させ押しっぱなしの間は再トグルしない
+		// 同時押しの開始時だけ切り替える
 		static bool wasShortcutDown = false;
 		const bool triggered = shortcutDown && !wasShortcutDown;
 		wasShortcutDown = shortcutDown;
@@ -63,185 +55,9 @@ namespace {
 
 }
 
-void Engine::EditorManager::Init(GraphicsCore& graphicsCore) {
-
-	// すでに初期化されている場合は何もしない
-	if (initialized_) {
-		return;
-	}
-
-	auto& engineContext = graphicsCore.GetContext();
-	auto& graphicsPlatform = graphicsCore.GetDXObject();
-
-	// ImGuiの初期化
-	imguiManager_.Init(engineContext.GetWinApp()->GetHwnd(), graphicsCore.GetSwapChainDesc().BufferCount,
-		graphicsPlatform.GetDevice(), graphicsPlatform.GetCommandQueue()->GetQueue(),
-		&graphicsCore.GetSRVDescriptor(), graphicsCore.GetBackBufferRenderTarget().format,
-		DXGI_FORMAT_D24_UNORM_S8_UINT);
-
-	// ImGuizmoのImGuiコンテキストを設定
-	ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
-
-	// ImGuiのレイアウトはEditorLayoutManagerで管理する
-	ImGuiIO& io = ImGui::GetIO();
-	io.IniFilename = nullptr;
-
-	// レイアウト構築フラグをリセット
-	initialized_ = true;
-	requests_ = {};
-	dirtyState_ = {};
-	pendingDuplicatePanelID_.clear();
-	pendingEditorLayout_.reset();
-	requestBuildDefaultDockLayout_ = false;
-
-	// エディタ標準ツールの登録
-	RegisterBuiltinEditorTools();
-	// シーンビューカメラツールを取得
-	sceneViewCameraController_ = static_cast<SceneViewCameraController*>(
-		Engine::ToolRegistry::GetInstance().Find("engine.sceneViewCamera"));
-	LoadViewportPanelState();
-
-	gameBuildSession_ = std::make_unique<EditorGameBuildSession>();
-
-	// 各パネルの生成と登録
-	EditorPanelCreateContext panelCreateContext{ graphicsCore.GetTextureUploadService() };
-	for (auto& panel : CreateBuiltinEditorPanels(panelCreateContext)) {
-		panels_.emplace_back(std::move(panel));
-	}
-
-	// 保存済みセッションが無ければエンジンのDefaultレイアウトを適用する
-	editorLayoutManager_.Init();
-	EditorLayoutSnapshot startupLayout{};
-	if (editorLayoutManager_.LoadStartupLayout(startupLayout)) {
-		ApplyEditorLayout(startupLayout, graphicsCore);
-	}
-
-	// シーンビューのメッシュピック処理の初期化
-	meshSubMeshPicker_ = std::make_unique<MeshSubMeshPicker>();
-	meshSubMeshPicker_->Init(graphicsCore);
-}
-
-bool Engine::EditorManager::ExecuteEditorCommand(std::unique_ptr<IEditorCommand> command) {
-
-	if (!currentRenderContext_ || !command) {
-		return false;
-	}
-
-	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
-		[&](EditorCommandContext& commandContext) {
-			// Play中は実行Worldへ直接反映しUndoへ積まない
-			return currentRenderContext_->isPlaying ? command->Execute(commandContext) :
-				editorState_.commandHistory.Execute(std::move(command), commandContext);
-		});
-}
-
-bool Engine::EditorManager::UndoEditorCommand() {
-
-	// Play中はEdit Worldの履歴を操作しない
-	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
-		return false;
-	}
-
-	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
-		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Undo(commandContext); });
-}
-
-bool Engine::EditorManager::RedoEditorCommand() {
-
-	// Play中はEdit Worldの履歴を操作しない
-	if (!currentRenderContext_ || currentRenderContext_->isPlaying) {
-		return false;
-	}
-
-	return EditorCommandExecution::Run(*currentRenderContext_, editorState_, dirtyState_,
-		[&](EditorCommandContext& commandContext) { return editorState_.commandHistory.Redo(commandContext); });
-}
-
-bool Engine::EditorManager::HasPendingPanelEdits() const {
-
-	return EditorToolUI::HasPendingEdits() ||
-		std::any_of(panels_.begin(), panels_.end(),
-		[](const std::unique_ptr<IEditorPanel>& panel) {
-			return panel->HasPendingEdits();
-		});
-}
-
-void Engine::EditorManager::RequestResolvePendingPanelEdits() {
-
-	pendingPanelEditResolution_ = true;
-	EditorToolUI::RequestResolvePendingEdits();
-	for (const std::unique_ptr<IEditorPanel>& panel : panels_) {
-		if (panel->HasPendingEdits()) {
-			panel->RequestResolvePendingEdits();
-		}
-	}
-}
-
-Engine::EditorPanelCloseResult Engine::EditorManager::ConsumePendingPanelEditResult() {
-
-	if (!pendingPanelEditResolution_) {
-		return EditorPanelCloseResult::None;
-	}
-	bool accepted = false;
-	const EditorToolCloseResult toolResult =
-		EditorToolUI::ConsumePendingEditCloseResult();
-	if (toolResult == EditorToolCloseResult::Cancelled) {
-		pendingPanelEditResolution_ = false;
-		return EditorPanelCloseResult::Cancelled;
-	}
-	accepted |= toolResult == EditorToolCloseResult::Accepted;
-	for (const std::unique_ptr<IEditorPanel>& panel : panels_) {
-		const EditorPanelCloseResult result = panel->ConsumePendingEditCloseResult();
-		if (result == EditorPanelCloseResult::Cancelled) {
-			pendingPanelEditResolution_ = false;
-			return result;
-		}
-		accepted |= result == EditorPanelCloseResult::Accepted;
-	}
-	if (HasPendingPanelEdits()) {
-		return EditorPanelCloseResult::None;
-	}
-	pendingPanelEditResolution_ = false;
-	return accepted ? EditorPanelCloseResult::Accepted : EditorPanelCloseResult::None;
-}
-
-bool Engine::EditorManager::DuplicateSelection() {
-
-	return EditorSelectionOperations::Duplicate(currentRenderContext_, editorState_, *this);
-}
-
-bool Engine::EditorManager::DeleteSelection() {
-
-	return EditorSelectionOperations::Delete(currentRenderContext_, editorState_, *this);
-}
-
-bool Engine::EditorManager::CopySelectionToClipboardInternal(const EditorContext& context) {
-
-	return EditorSelectionOperations::Copy(context, editorState_);
-}
-
-bool Engine::EditorManager::CopySelectionToClipboard() {
-
-	if (!currentRenderContext_) {
-		return false;
-	}
-	return CopySelectionToClipboardInternal(*currentRenderContext_);
-}
-
-bool Engine::EditorManager::PasteClipboard() {
-
-	return EditorSelectionOperations::Paste(currentRenderContext_, editorState_, *this);
-}
-
-void Engine::EditorManager::RequestMarkSceneDirty() {
-
-	MarkCurrentSceneDirty();
-}
-
 void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) {
 
-	if (editorCommandPanelKind_ !=
-		EditorCommandPanelKind::Scene) {
+	if (editorCommandPanelKind_ != EditorCommandPanelKind::Scene) {
 		return;
 	}
 
@@ -257,8 +73,7 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		return;
 	}
 	// 処理を進める
-	if ((io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z)) ||
-		(io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))) {
+	if ((io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z)) || (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y))) {
 
 		RedoEditorCommand();
 		return;
@@ -269,7 +84,7 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		DuplicateSelection();
 		return;
 	}
-	// シーン保存、プレファブ編集中は隔離ワールドを.prefabへ保存する
+	// 編集中のSceneまたはPrefabを保存する
 	if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_S)) {
 
 		if (context.isPrefabEditing) {
@@ -291,14 +106,14 @@ void Engine::EditorManager::HandleGlobalShortcuts(const EditorContext& context) 
 		PasteClipboard();
 		return;
 	}
-	// 削除、複数選択をまとめて消すため対象を先にコピーしてからループする
+	// 選択範囲を一括削除する
 	if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
 		DeleteSelection();
 		return;
 	}
 	// ギズモ操作のショートカット
 	{
-		// シーンビューにカーソルが合っているときのみ
+		// Scene操作のフォーカス中に切り替える
 
 		// 座標移動
 		if (ImGui::IsKeyPressed(ImGuiKey_T)) {
@@ -365,14 +180,16 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	imguiManager_.Begin();
 	if (!layoutState_.hidePanels && IsHidePanelsShortcutTriggered()) {
 
-		// 通常表示中でもMenuBarのショートカット表記通りTab+EscでHidePanelsへ入る
+		// Panelを隠して製品サイズへ切り替える
 		layoutState_.hidePanels = true;
+		EndPanelPreviews();
 		WinApp::BeginProductSizePreview(EngineContext::GetWindowSetting().gameSize);
 		return;
 	}
 	if (layoutState_.hidePanels) {
+		EndPanelPreviews();
 
-		// HidePanels中はエディター機能を止め、Tab+Escの復帰入力だけを受け付ける
+		// Panel非表示中は復帰入力だけを処理する
 		if (IsHidePanelsShortcutTriggered()) {
 			layoutState_.hidePanels = false;
 			WinApp::EndProductSizePreview();
@@ -383,19 +200,15 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	}
 
 	// シーンビューのメッシュピック処理の結果を選択状態へ適用する
-	const MeshSubMeshPickOutcome pickOutcome =
-		meshSubMeshPicker_->ConsumePendingResult(
-			graphicsCore, context.activeWorld);
-	if (pickOutcome.resolved &&
-		pickOutcome.requestID == editorState_.scenePickRequestID) {
+	const MeshSubMeshPickOutcome pickOutcome = meshSubMeshPicker_->ConsumePendingResult(graphicsCore, context.activeWorld);
+	if (pickOutcome.resolved && pickOutcome.requestID == editorState_.scenePickRequestID) {
 
 		// 最新クリックの結果だけ候補へ反映し、リリース済みなら選択を確定する
-		const bool dimensionAllowed = pickOutcome.hit && context.activeWorld &&
-			IsScenePickDimensionAllowed(*context.activeWorld, pickOutcome.entity,
-				editorState_.sceneViewPickDimension);
+		const bool dimensionAllowed =
+			pickOutcome.hit && context.activeWorld &&
+			IsScenePickDimensionAllowed(*context.activeWorld, pickOutcome.entity, editorState_.sceneViewPickDimension);
 		editorState_.scenePickDragEntity = dimensionAllowed ? pickOutcome.entity : Entity::Null();
-		editorState_.scenePickCandidateRequestID =
-			pickOutcome.requestID;
+		editorState_.scenePickCandidateRequestID = pickOutcome.requestID;
 		if (dimensionAllowed) {
 			editorState_.scenePickCandidateSubMesh = pickOutcome.subMeshIndex;
 			editorState_.scenePickCandidateSubMeshID = pickOutcome.subMeshStableID;
@@ -403,8 +216,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 			editorState_.scenePickCandidateSubMesh = 0;
 			editorState_.scenePickCandidateSubMeshID = UUID{};
 		}
-		if (context.activeWorld &&
-			editorState_.scenePickClickPending) {
+		if (context.activeWorld && editorState_.scenePickClickPending) {
 			editorState_.CommitScenePick(*context.activeWorld);
 		}
 	}
@@ -414,23 +226,22 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 	ImGuizmo::BeginFrame();
 	DrawDockSpace();
 
-	// ダブルクリックで要求されたフォーカスを消費する、3DマニュアルカメラのときだけEntityへ寄せる
+	// 3D対象へのフォーカス要求を取り出す
 	if (sceneViewCameraController_ && editorState_.cameraFocusRequest.IsValid()) {
 
 		ECSWorld* focusWorld = context.activeWorld;
 		const Entity focusTarget = editorState_.cameraFocusRequest;
 		editorState_.cameraFocusRequest = Entity::Null();
-		const std::optional<Dimension> focusDimension = focusWorld ?
-			ResolveEntityDimension(*focusWorld, focusTarget) : std::nullopt;
+		const std::optional<Dimension> focusDimension =
+			focusWorld ? ResolveEntityDimension(*focusWorld, focusTarget) : std::nullopt;
 		if (focusDimension && *focusDimension == Dimension::Type3D &&
-			ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension) ==
-			Dimension::Type3D) {
+			ResolveSceneViewCameraDimension(editorState_.sceneViewPickDimension) == Dimension::Type3D) {
 
 			sceneViewCameraController_->FocusOn(
 				RenderItemExtract::GetWorldMatrix(*focusWorld, focusTarget).GetTranslationValue());
 		}
 	}
-	// フォーカス中の寄りを毎フレーム進める、入力可否に関わらず行う
+	// フォーカス移動を進める
 	if (sceneViewCameraController_) {
 
 		sceneViewCameraController_->UpdateFocus();
@@ -443,17 +254,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	// 各パネルの描画
 	editorCommandPanelKind_ = EditorCommandPanelKind::None;
-	EditorPanelContext panelContext{};
-	panelContext.editorContext = &context;
-	panelContext.editorState = &editorState_;
-	panelContext.layoutState = &layoutState_;
-	panelContext.host = this;
-	panelContext.gameBuildSession = gameBuildSession_.get();
-	panelContext.tagSettings = &tagSettings_;
-	panelContext.renderingLayerSettings = &renderingLayerSettings_;
+	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
 	panelContext.viewportRenderService = nullptr;
-	panelContext.graphicsCore = &graphicsCore;
-	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 
 	DrawPanelsByPhase(panelContext, EditorPanelPhase::PreScene);
 	requests_.DrawUnsavedScenePopup();
@@ -468,9 +270,8 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		return;
 	}
 
-	// スナップグリッドの表示判定の結果を描画するだけにする
-	const SceneViewSnapGridDecision gridDecision =
-		ResolveSceneViewSnapGridDecision(editorState_, context.activeWorld);
+	// 表示対象のスナップグリッドを描く
+	const SceneViewSnapGridDecision gridDecision = ResolveSceneViewSnapGridDecision(editorState_, context.activeWorld);
 	if (gridDecision.visible) {
 
 		if (gridDecision.use2D) {
@@ -484,14 +285,14 @@ void Engine::EditorManager::DrawSceneDebugObjects([[maybe_unused]] const EditorC
 		return;
 	}
 
-	// サブメッシュ単位選択中はそのサブメッシュ番号を、エンティティ選択中は-1を渡す
+	// 選択中のSubMesh番号を解決する
 	int32_t selectionSubMeshIndex = -1;
 	uint32_t resolvedSubMeshIndex = 0;
 	if (editorState_.HasValidSubMeshSelection(context.activeWorld) &&
 		editorState_.TryResolveSelectedSubMeshIndex(context.activeWorld, resolvedSubMeshIndex)) {
 		selectionSubMeshIndex = static_cast<int32_t>(resolvedSubMeshIndex);
 	}
-	// 複数選択時は全選択にアウトラインを出す、サブメッシュ番号はアクティブのみ反映し他は全体
+	// 選択範囲の補助描画をまとめる
 	const std::vector<Entity>& selectedEntities = editorState_.GetSelectedEntities();
 	if (selectedEntities.size() <= 1) {
 		InspectorDrawerCommon::DrawEntityDebugObject(*context.activeWorld, editorState_.selectedEntity, selectionSubMeshIndex);
@@ -515,24 +316,15 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 
 	if (layoutState_.hidePanels) {
 
-		// ImGuiフレームは入力更新のために開始しているが、描画コマンドは発行しない
+		// Panel非表示でもImGuiの入力更新を閉じる
 		imguiManager_.End();
 		currentRenderContext_ = nullptr;
 		return;
 	}
 
 	// 各パネルの描画
-	EditorPanelContext panelContext{};
-	panelContext.editorContext = &context;
-	panelContext.editorState = &editorState_;
-	panelContext.layoutState = &layoutState_;
-	panelContext.host = this;
-	panelContext.gameBuildSession = gameBuildSession_.get();
-	panelContext.tagSettings = &tagSettings_;
-	panelContext.renderingLayerSettings = &renderingLayerSettings_;
+	EditorPanelContext panelContext = CreatePanelContext(graphicsCore, context);
 	panelContext.viewportRenderService = viewportRenderService;
-	panelContext.graphicsCore = &graphicsCore;
-	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
 	panelContext.renderPipeline = renderPipeline;
 	panelContext.sceneRenderView = sceneRenderView;
 	panelContext.sceneViewCamera = GetSceneViewCameraState();
@@ -546,8 +338,6 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 	// パネルとツールのフォーカスが確定してからメイン編集コマンドを処理
 	HandleGlobalShortcuts(context);
 	ApplyPendingPanelDuplicate(panelContext);
-
-	//ImGui::ShowDemoWindow();
 
 	imguiManager_.End();
 	if (ImGui::GetIO().WantSaveIniSettings) {
@@ -563,7 +353,7 @@ void Engine::EditorManager::EndFrame(GraphicsCore& graphicsCore, const EditorCon
 		graphicsCore.GetDSVDescriptor().GetFrameCPUHandle());
 
 	dxCommand->SetViewportAndScissor(swapChainDesc.Width, swapChainDesc.Height);
-	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
+	dxCommand->SetDescriptorHeaps({graphicsCore.GetSRVDescriptor().GetDescriptorHeap()});
 
 	imguiManager_.Draw(dxCommand->GetCommandList());
 
@@ -578,62 +368,14 @@ void Engine::EditorManager::RenderPlatformWindows() {
 	imguiManager_.DrawPlatformWindows();
 }
 
-void Engine::EditorManager::Finalize() {
-
-	// Editor終了後の補助描画を切り離す
-	ParticleEmitterShapeRegistry::GetInstance().SetDebugDrawFunction(nullptr);
-	WinApp::EndProductSizePreview();
-
-	if (!initialized_) {
-		return;
-	}
-
-	// 現在のパネル構成とドック状態をユーザーセッションへ保存する
-	editorLayoutManager_.SaveSession(CaptureEditorLayout());
-	SaveViewportPanelState();
-
-	imguiManager_.Finalize();
-	initialized_ = false;
-	requests_.ResetPlay();
-	pendingDuplicatePanelID_.clear();
-	pendingEditorLayout_.reset();
-	requestBuildDefaultDockLayout_ = false;
-
-	panels_.clear();
-	gameBuildSession_.reset();
-	tagSettings_ = {};
-	renderingLayerSettings_ = {};
-
-	if (meshSubMeshPicker_) {
-		meshSubMeshPicker_->Finalize();
-		meshSubMeshPicker_.reset();
-	}
-}
-
-void Engine::EditorManager::ResetSceneEditingState() {
-
-	editorState_.ClearSelection();
-	editorState_.commandHistory.Clear();
-	requests_.ResetPending();
-}
-
-void Engine::EditorManager::MarkCurrentSceneDirty() {
-
-	if (!currentRenderContext_ || currentRenderContext_->isPlaying ||
-		currentRenderContext_->isPrefabEditing || !currentRenderContext_->activeSceneAsset) {
-		return;
-	}
-	dirtyState_.MarkDirty(currentRenderContext_->activeSceneAsset, currentRenderContext_->activeSceneInstanceID);
-}
-
 void Engine::EditorManager::DrawDockSpace() {
 
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
 	// ドッキングスペースのホストウィンドウのフラグ
-	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-		ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+								   ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+								   ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
 	ImGui::SetNextWindowPos(viewport->WorkPos);
 	ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -688,149 +430,18 @@ void Engine::EditorManager::BuildDefaultDockLayout(ImGuiID dockSpaceID, const Im
 	ImGui::DockBuilderFinish(dockSpaceID);
 }
 
-void Engine::EditorManager::RequestPlayToggle() {
+Engine::EditorPanelContext Engine::EditorManager::CreatePanelContext(GraphicsCore& graphicsCore, const EditorContext& context) {
 
-	requests_.RequestPlayToggle();
-}
-
-void Engine::EditorManager::RequestPlayResume() {
-
-	requests_.RequestPlayResume();
-}
-
-void Engine::EditorManager::RequestPlayPause() {
-
-	requests_.RequestPlayPause();
-}
-
-void Engine::EditorManager::RequestPlayFrameStep() {
-
-	requests_.RequestPlayFrameStep();
-}
-
-void Engine::EditorManager::RequestNewScene() {
-
-	requests_.RequestNewScene(HasDirtyScenes());
-}
-
-void Engine::EditorManager::RequestOpenScene(AssetID sceneAsset) {
-
-	requests_.RequestOpenScene(sceneAsset, HasDirtyScenes());
-}
-
-void Engine::EditorManager::RequestSaveScene() {
-
-	requests_.RequestSaveScene();
-}
-
-void Engine::EditorManager::RequestEnterPrefabEdit(AssetID prefabAsset) {
-
-	requests_.RequestEnterPrefabEdit(prefabAsset);
-}
-
-void Engine::EditorManager::RequestExitPrefabEdit() {
-
-	requests_.RequestExitPrefabEdit();
-}
-
-void Engine::EditorManager::RequestExitPrefabEditAll() {
-
-	requests_.RequestExitPrefabEditAll();
-}
-
-void Engine::EditorManager::RequestTogglePrefabInContext() {
-
-	requests_.RequestTogglePrefabInContext();
-}
-
-void Engine::EditorManager::RequestSavePrefab() {
-
-	requests_.RequestSavePrefab();
-}
-
-void Engine::EditorManager::RequestCloseUnsavedScenePopup() {
-
-	requests_.RequestCloseUnsavedScenePopup();
-}
-
-Engine::EditorUnsavedScenePopupResult Engine::EditorManager::ConsumeCloseUnsavedScenePopupResult() {
-
-	return requests_.ConsumeCloseUnsavedScenePopupResult();
-}
-
-void Engine::EditorManager::RequestSceneSaveConflict(
-	const std::vector<SceneSaveConflictChoice>& choices) {
-
-	requests_.RequestSceneSaveConflict(choices);
-}
-
-std::optional<Engine::SceneSaveConflictResult>
-Engine::EditorManager::ConsumeSceneSaveConflictResult() {
-
-	return requests_.ConsumeSceneSaveConflictResult();
-}
-
-bool Engine::EditorManager::ConsumePlayToggleRequest() {
-
-	return requests_.ConsumePlayToggleRequest();
-}
-
-bool Engine::EditorManager::ConsumePlayResumeRequest() {
-
-	return requests_.ConsumePlayResumeRequest();
-}
-
-bool Engine::EditorManager::ConsumePlayPauseRequest() {
-
-	return requests_.ConsumePlayPauseRequest();
-}
-
-bool Engine::EditorManager::ConsumePlayFrameStepRequest() {
-
-	return requests_.ConsumePlayFrameStepRequest();
-}
-
-Engine::EditorSceneRequest Engine::EditorManager::ConsumeSceneRequest() {
-
-	return requests_.ConsumeSceneRequest();
-}
-
-void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset) {
-
-	dirtyState_.MarkSceneSaved(sceneAsset);
-}
-
-void Engine::EditorManager::MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision, UUID instanceID) {
-
-	dirtyState_.MarkSceneSaved(sceneAsset, dirtyRevision, instanceID);
-}
-
-void Engine::EditorManager::MarkSceneInstanceSaved(AssetID sceneAsset, UUID instanceID) {
-
-	dirtyState_.MarkSceneInstanceSaved(sceneAsset, instanceID);
-}
-
-void Engine::EditorManager::MarkSceneInstanceDirty(AssetID sceneAsset, UUID instanceID) {
-
-	dirtyState_.MarkDirty(sceneAsset, instanceID);
-}
-
-void Engine::EditorManager::MarkAllScenesSaved() {
-
-	dirtyState_.MarkAllScenesSaved();
-}
-
-void Engine::EditorManager::ResetSceneDirtyState() {
-
-	dirtyState_.ResetSceneDirtyState();
-}
-
-bool Engine::EditorManager::IsSceneDirty(AssetID sceneAsset, UUID instanceID) const {
-
-	return dirtyState_.IsSceneDirty(sceneAsset, instanceID);
-}
-
-uint64_t Engine::EditorManager::GetSceneDirtyRevision(AssetID sceneAsset, UUID instanceID) const {
-
-	return dirtyState_.GetSceneDirtyRevision(sceneAsset, instanceID);
+	// Frame内だけで使うPanelの接続を揃える
+	EditorPanelContext panelContext{};
+	panelContext.editorContext = &context;
+	panelContext.editorState = &editorState_;
+	panelContext.layoutState = &layoutState_;
+	panelContext.host = this;
+	panelContext.gameBuildSession = gameBuildSession_.get();
+	panelContext.tagSettings = &tagSettings_;
+	panelContext.renderingLayerSettings = &renderingLayerSettings_;
+	panelContext.graphicsCore = &graphicsCore;
+	panelContext.graphicsPlatform = &graphicsCore.GetDXObject();
+	return panelContext;
 }

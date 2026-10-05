@@ -43,14 +43,14 @@ namespace Engine {
 		// ParticleEffectの再生状態を先頭へ戻す
 		void RestartEffectInstance(ParticleEffectInstanceRuntime& instance, const ParticleEffectAsset& asset) const;
 		// 同時発生を行うフレームか判定する
-		bool UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
+		uint32_t UpdateGroupEmission(ParticleEffectInstanceRuntime& instance,
 			const ParticleEffectAsset& asset, float deltaTime, bool emissionEnabled) const;
 		// グループ1つ分の粒子とトレイルを更新する
-		void UpdateGroup(ECSWorld& world, const Matrix4x4& emitterWorld,
+		void UpdateGroup(const Matrix4x4& emitterWorld,
 			ParticleGroupRuntimeState& state, const ParticleEffectAsset& asset,
 			const ParticleEffectGroup& group, const ParticleGroupDefinition& runtime,
 			const ParticlePhaseParentSettings& parentSettings, bool useAssetParentSettings,
-			float deltaTime, bool updateSimulation, bool simultaneousEmit, bool emissionEnabled,
+			float deltaTime, bool updateSimulation, uint32_t simultaneousEmit, bool emissionEnabled,
 			bool oneShot, bool drawEmitterShape);
 		// エミッター形状から発生位置と方向と初期状態を決める、firstSpawnIndexは発生順の連番の開始値
 		void InitEmitterParticles(std::span<Particle> newborn, const ParticleEmitterSettings& settings,

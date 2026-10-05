@@ -13,7 +13,7 @@ namespace Engine { class GraphicsCore; class MultiRenderTarget; class RenderTarg
 
 namespace Engine::RenderFeatureResourceUtility {
 
-	std::string MakeStateKey(Engine::RenderViewKind kind,
+	std::string MakeStateKey(const Engine::ResolvedRenderView& view,
 		Engine::UUID passID, std::string_view output = {});
 
 	DXGI_FORMAT ToDXGIFormat(

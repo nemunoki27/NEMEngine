@@ -24,7 +24,7 @@ namespace Engine {
 		// 振動要求を登録
 		uint32_t PlayVibration(const InputVibrationParams& params);
 		// 出力先のゲームパッド番号を設定
-		void SetGamepadIndex(uint32_t index) { gamepadIndex_ = index; }
+		void SetGamepadIndex(uint32_t index);
 		// 指定の振動を停止
 		void StopVibration(uint32_t handle);
 		// 全ての振動を停止
@@ -33,6 +33,7 @@ namespace Engine {
 		void SetVibrationEnabled(bool enabled);
 		// 接続状態と経過時間から出力を更新
 		void UpdateVibration(bool gamepadConnected);
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -44,8 +45,8 @@ namespace Engine {
 		struct VibrationEffect {
 
 			uint32_t handle = 0;
-			float left = 0.0f;     // 0..1
-			float right = 0.0f;    // 0..1
+			float left = 0.0f;	   // 0..1
+			float right = 0.0f;	   // 0..1
 			float duration = 0.0f; // seconds
 			float attack = 0.0f;   // seconds
 			float release = 0.0f;  // seconds

@@ -6,7 +6,7 @@
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <algorithm>
@@ -50,7 +50,7 @@ void Engine::DepthPyramidTexture::Create(ID3D12Device* device,
 		&heapProperties, D3D12_HEAP_FLAG_NONE, &resourceDesc,
 		D3D12_RESOURCE_STATE_COMMON, nullptr,
 		IID_PPV_ARGS(&candidate.resource_));
-	if (!DxDredDiagnostics::CheckHRESULT(device, result, "DepthPyramidTexture::Create")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device, result, "DepthPyramidTexture::Create")) {
 		throw std::runtime_error("DepthPyramidTexture用リソースの作成に失敗しました");
 	}
 	candidate.resource_->SetName(L"SceneDepthPyramid");

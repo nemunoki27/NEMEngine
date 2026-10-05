@@ -70,9 +70,21 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::Draw(IParticleModule& mo
 		ImGui::PushID(variable.name.c_str());
 		if (MyGUI::CollapsingHeader(variable.name.c_str(), false)) {
 
-			ParticleMaterialAnimatedParameter& parameter = parameters[variable.name];
-			parameter.componentCount = std::clamp(GetVariableComponentCount(variable), 1u, 4u);
-			changed |= DrawParameter(variable, parameter, uiStates_[variable.name]);
+			// 未指定と明示的な0を区別する
+			bool enabled = parameters.contains(variable.name);
+			if (MyGUI::Checkbox("値を上書き", enabled)) {
+				if (enabled) {
+					parameters.emplace(variable.name, ParticleMaterialAnimatedParameter{});
+				} else {
+					parameters.erase(variable.name);
+				}
+				changed = true;
+			}
+			if (enabled) {
+				ParticleMaterialAnimatedParameter& parameter = parameters.at(variable.name);
+				parameter.componentCount = std::clamp(GetVariableComponentCount(variable), 1u, 4u);
+				changed |= DrawParameter(variable, parameter, uiStates_[variable.name]);
+			}
 		}
 		ImGui::PopID();
 	}
@@ -84,14 +96,10 @@ bool Engine::ParticleCustomShaderParameterModuleDrawer::Draw(IParticleModule& mo
 }
 
 void Engine::ParticleCustomShaderParameterModuleDrawer::SetReflectedParameters(
-	ParticleCustomShaderParameterModule& module, const std::vector<ShaderConstantBufferVariable>& parameters) {
+	const std::vector<ShaderConstantBufferVariable>& parameters) {
 
+	// 表示対象の更新だけでは編集値を変更しない
 	reflectedParameters_ = parameters;
-	auto values = module.GetParameters();
-	for (const ShaderConstantBufferVariable& variable : reflectedParameters_) {
-		values[variable.name].componentCount = std::clamp(GetVariableComponentCount(variable), 1u, 4u);
-	}
-	module.SetParameters(values);
 }
 
 bool Engine::ParticleCustomShaderParameterModuleDrawer::DrawParameter(

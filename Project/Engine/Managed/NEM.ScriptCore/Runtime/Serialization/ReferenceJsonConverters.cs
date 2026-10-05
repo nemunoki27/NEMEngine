@@ -227,7 +227,7 @@ internal sealed class MonoBehaviourJsonConverter<T>(ScriptReferenceContext conte
         // 保存された型GUIDを優先し、無ければ宣言型のGUIDで引く（宣言型がabstractでも保存GUIDで解決できる）
         string typeID = root.TryGetProperty("scriptTypeId", out JsonElement t) ? (t.GetString() ?? string.Empty) : string.Empty;
         if (string.IsNullOrEmpty(typeID)) {
-            typeID = HostBridge.GetScriptTypeGuid(typeof(T)) ?? string.Empty;
+            typeID = HostBridge.GetScriptTypeGUID(typeof(T)) ?? string.Empty;
         }
         string? slotText = root.TryGetProperty("scriptSlotId", out JsonElement slotElement)
             ? slotElement.GetString() : null;
@@ -235,7 +235,7 @@ internal sealed class MonoBehaviourJsonConverter<T>(ScriptReferenceContext conte
         if (!string.IsNullOrEmpty(slotText) && !slot.isValid) {
             throw new JsonException("ScriptのSlot IDが無効です");
         }
-        T? script = HostBridge.FindScriptByGuid(owner.native, typeID, slot.value) as T;
+        T? script = HostBridge.FindScriptByGUID(owner.native, typeID, slot.value) as T;
         if (script == null) {
             throw new UnresolvedScriptReferenceException($"Script参照を解決できません: {typeID}");
         }
@@ -252,7 +252,7 @@ internal sealed class MonoBehaviourJsonConverter<T>(ScriptReferenceContext conte
         writer.WritePropertyName("entity");
         EntityRefJsonConverter.WriteIdentity(writer, identity);
         writer.WriteString("scriptSlotId", alive && value!.scriptSlotID != 0 ? new UUID(value.scriptSlotID).ToString() : string.Empty);
-        writer.WriteString("scriptTypeId", alive ? HostBridge.GetScriptTypeGuid(value!.GetType()) ?? string.Empty : string.Empty);
+        writer.WriteString("scriptTypeId", alive ? HostBridge.GetScriptTypeGUID(value!.GetType()) ?? string.Empty : string.Empty);
         writer.WriteEndObject();
     }
 }

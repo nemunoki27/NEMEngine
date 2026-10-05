@@ -11,7 +11,7 @@ namespace NEM.ComponentBindingGen;
 // Component連携の生成処理
 internal static class ManagedBindingEmitter {
 
-    internal static string EmitManagedAPITable(List<AbiFieldModel> fields, ulong fingerprint = 0) {
+    internal static string EmitManagedAPITable(List<ABIFieldModel> fields, ulong fingerprint = 0) {
         var sb = new StringBuilder();
         sb.Append(CsBanner());
         sb.Append("using System.Runtime.InteropServices;\n\n");
@@ -19,12 +19,12 @@ internal static class ManagedBindingEmitter {
         sb.Append("[StructLayout(LayoutKind.Sequential)]\n");
         sb.Append("public unsafe struct NativeAPITable {\n\n");
         sb.Append($"    internal const ulong BindingFingerprint = 0x{fingerprint:x16}ul;\n");
-        sb.Append("    public ManagedAbiHeader header;\n");
-        foreach (AbiFieldModel field in fields) {
+        sb.Append("    public ManagedABIHeader header;\n");
+        foreach (ABIFieldModel field in fields) {
             sb.Append($"    public {field.ManagedType} {field.Name};\n");
         }
         sb.Append("\n    internal readonly bool HasRequiredCallbacks() {\n");
-        foreach (AbiFieldModel field in fields) {
+        foreach (ABIFieldModel field in fields) {
             sb.Append($"        if ({field.Name} == null) return false;\n");
         }
         sb.Append("        return true;\n    }\n}\n");
@@ -93,7 +93,7 @@ internal static class ManagedBindingEmitter {
     internal static void EmitCsProperty(StringBuilder sb, PropertyModel prop, int propID) {
         switch (prop.Kind) {
             case "Bool": {
-                sb.Append($"    {prop.CsVisibility} bool {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CSVisibility} bool {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ int v = 0; NativeAPI.ComponentGet(native, TypeID, {propID}, &v, 4); return v != 0; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ int v = value ? 1 : 0; NativeAPI.ComponentSet(native, TypeID, {propID}, &v, 4); }}\n");
                 sb.Append("    }\n\n");
@@ -101,29 +101,29 @@ internal static class ManagedBindingEmitter {
             }
             case "Enum": {
                 string t = prop.EnumType!;
-                sb.Append($"    {prop.CsVisibility} {t} {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CSVisibility} {t} {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ int v = 0; NativeAPI.ComponentGet(native, TypeID, {propID}, &v, 4); return ({t})v; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ int v = (int)value; NativeAPI.ComponentSet(native, TypeID, {propID}, &v, 4); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "AssetRef": {
-                string t = prop.AssetType!;
-                sb.Append($"    {prop.CsVisibility} {t}? {prop.ManagedName} {{\n");
+                string t = prop.AssetType == "RenderPasses" ? "RenderPassesAsset" : prop.AssetType!;
+                sb.Append($"    {prop.CSVisibility} {t}? {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ AssetGUID v = AssetGUID.None; NativeAPI.ComponentGet(native, TypeID, {propID}, &v, 16); return v.isValid ? new {t}(v) : null; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ AssetGUID v = value != null ? value.assetID : AssetGUID.None; NativeAPI.ComponentSet(native, TypeID, {propID}, &v, 16); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "EntityRef": {
-                sb.Append($"    {prop.CsVisibility} GameObject? {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CSVisibility} GameObject? {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ NativeEntity v = NativeEntity.Null; NativeAPI.ComponentGet(native, TypeID, {propID}, &v, sizeof(NativeEntity)); return GameObject.FromNative(v); }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ NativeEntity v = GameObject.RawNative(value); NativeAPI.ComponentSet(native, TypeID, {propID}, &v, sizeof(NativeEntity)); }}\n");
                 sb.Append("    }\n\n");
                 break;
             }
             case "String": {
-                sb.Append($"    {prop.CsVisibility} string {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CSVisibility} string {prop.ManagedName} {{\n");
                 sb.Append($"        get => NativeAPI.ComponentGetString(native, TypeID, {propID});\n");
                 if (!prop.ReadOnly) sb.Append($"        set => NativeAPI.ComponentSetString(native, TypeID, {propID}, value);\n");
                 sb.Append("    }\n\n");
@@ -131,7 +131,7 @@ internal static class ManagedBindingEmitter {
             }
             default: {
                 (string csType, int size) = PodInfo(prop.Kind);
-                sb.Append($"    {prop.CsVisibility} {csType} {prop.ManagedName} {{\n");
+                sb.Append($"    {prop.CSVisibility} {csType} {prop.ManagedName} {{\n");
                 sb.Append($"        get {{ {csType} v = default; NativeAPI.ComponentGet(native, TypeID, {propID}, &v, {size}); return v; }}\n");
                 if (!prop.ReadOnly) sb.Append($"        set {{ NativeAPI.ComponentSet(native, TypeID, {propID}, &value, {size}); }}\n");
                 sb.Append("    }\n\n");

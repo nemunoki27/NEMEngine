@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -17,27 +18,6 @@
 //	JointAttachmentEditor internalMethods
 //============================================================================
 namespace {
-
-	// ジョイント接続によって通常階層との循環が発生するか判定する
-	bool WouldCreateAttachmentCycle(Engine::ECSWorld& world, const Engine::Entity& entity,
-		const Engine::Entity& skinnedEntity) {
-
-		Engine::Entity current = skinnedEntity;
-		for (int32_t guard = 0; guard < 4096; ++guard) {
-
-			if (!world.IsAlive(current)) {
-				return false;
-			}
-			if (current == entity) {
-				return true;
-			}
-			if (!world.HasComponent<Engine::HierarchyComponent>(current)) {
-				return false;
-			}
-			current = world.GetComponent<Engine::HierarchyComponent>(current).parent;
-		}
-		return true;
-	}
 
 	// ワールド行列を分解してTransformのローカルSRTへ設定する、ジョイント追従の相対値になる
 	void ApplyLocalFromMatrix(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::Matrix4x4& localMatrix) {
@@ -62,8 +42,8 @@ namespace {
 //============================================================================
 //	JointAttachmentEditor classMethods
 //============================================================================
-void Engine::JointAttachmentEditor::Attach(ECSWorld& world, HierarchySystem& hierarchySystem,
-	const Entity& entity, const Entity& skinnedEntity, const std::string& jointName) {
+void Engine::JointAttachmentEditor::Attach(ECSWorld& world, HierarchySystem& hierarchySystem, const Entity& entity,
+	const Entity& skinnedEntity, const std::string& jointName) {
 
 	// 自分自身や無効な対象には付けない
 	if (!world.IsAlive(entity) || !world.IsAlive(skinnedEntity) || entity == skinnedEntity) {
@@ -72,7 +52,7 @@ void Engine::JointAttachmentEditor::Attach(ECSWorld& world, HierarchySystem& hie
 	if (!world.HasComponent<TransformComponent>(entity)) {
 		return;
 	}
-	if (WouldCreateAttachmentCycle(world, entity, skinnedEntity)) {
+	if (!HierarchyUtility::CanSetParent(world, entity, skinnedEntity)) {
 		return;
 	}
 	if (!world.HasComponent<SceneObjectComponent>(skinnedEntity)) {

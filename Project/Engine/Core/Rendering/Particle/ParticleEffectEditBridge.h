@@ -30,6 +30,7 @@ namespace Engine {
 
 		// 上書きが更新されていれば取得する、取得できたらlastAppliedVersionを進める
 		bool TryConsume(AssetID assetID, uint64_t& lastAppliedVersion, ParticleEffectAsset& outAsset) const;
+		uint64_t GetRevision(AssetID assetID) const;
 
 		// シングルトン
 		static ParticleEffectEditBridge& GetInstance();
@@ -44,6 +45,7 @@ namespace Engine {
 		struct Entry {
 
 			uint64_t version = 0;
+			bool active = false;
 			ParticleEffectAsset asset{};
 		};
 
@@ -51,5 +53,6 @@ namespace Engine {
 
 		// アセットIDから上書きへのマップ
 		std::unordered_map<AssetID, Entry> entries_;
+		uint64_t nextVersion_ = 1;
 	};
 } // Engine

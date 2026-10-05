@@ -25,6 +25,19 @@ if ([string]::IsNullOrEmpty($OutDir)) {
 }
 
 . (Join-Path $PSScriptRoot "SDK\SDKFileOperations.ps1")
+. (Join-Path $PSScriptRoot "SDK\SDKBuildProvenance.ps1")
+. (Join-Path $PSScriptRoot "ProductBuild\BuildFileOperations.ps1")
+
+# 最後まで完成してから公開先を差し替える
+$sdkDestination = [System.IO.Path]::GetFullPath($OutDir).TrimEnd('\', '/')
+$sdkParent = [System.IO.Path]::GetDirectoryName($sdkDestination)
+if ($sdkDestination -eq [System.IO.Path]::GetFullPath($engineRoot).TrimEnd('\', '/') -or
+    [string]::IsNullOrWhiteSpace($sdkParent)) { throw 'SDKの出力先が不正です' }
+New-Item -ItemType Directory -Force -Path $sdkParent | Out-Null
+$OutDir = Join-Path $sdkParent ('.nem-sdk-stage-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $OutDir | Out-Null
+
+try {
 
 $msbuild = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -prerelease -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
 if (-not $msbuild) { throw "MSBuild が見つかりません（vswhere）。Visual Studio をインストールしてください。" }
@@ -43,17 +56,20 @@ if (-not $SkipBuild) {
         #     プリビルドで同一出力先へビルドするため、-mの並列ビルドで同時実行されるとファイルロック競合で失敗する。
 # Sandboxを介してエンジン(NEMRuntime)・外部ライブラリ・管理ツールチェーンまで一式ビルドされ、
         # GameProjectsはSandboxの依存に含まれないため巻き込まれない。
-        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:Sandbox -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
+        $nativeArguments = @(Get-NativeBuildArguments $cfg 'Sandbox')
+        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") @nativeArguments
         if ($LASTEXITCODE -ne 0) { throw "エンジンビルドに失敗しました（$cfg）。" }
 
         # SDK利用者はゲームSolutionのF5から構成別NEMEditorを直接起動する
-        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:NEMEditor -p:Configuration=$cfg -p:Platform=x64 -m -v:m -nologo
+        $nativeArguments = @(Get-NativeBuildArguments $cfg 'NEMEditor')
+        & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") @nativeArguments
         if ($LASTEXITCODE -ne 0) { throw "エディタービルドに失敗しました（$cfg）。" }
     }
 
     # 製品ビルドツールはゲーム側の構成にかかわらずReleaseを配布する
     Write-Host "[2/4] 製品ビルドツールをビルド中（Release）..."
-    & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") -t:NEMBuildTool -p:Configuration=Release -p:Platform=x64 -m -nodeReuse:false -v:m -nologo
+    $nativeArguments = @(Get-NativeBuildArguments 'Release' 'NEMBuildTool')
+    & $msbuild (Join-Path $engineRoot "Project\NEMEngine.slnx") @nativeArguments
     if ($LASTEXITCODE -ne 0) { throw "製品ビルドツールのビルドに失敗しました（Release）" }
 }
 
@@ -77,13 +93,14 @@ if (Test-Path -LiteralPath $engineAssetsSrc) {
     $editorShaderAssets = Join-Path $engineAssetsSrc "Shaders\Builtin\Editor"
     $editorTextureAssets = Join-Path $engineAssetsSrc "Textures\Editor"
     robocopy $engineAssetsSrc $sdkAssets /MIR /XD $editorShaderAssets $editorTextureAssets /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "エンジンAssetの配置に失敗しました: code=$LASTEXITCODE" }
 
     # SDKのVisual Studio起動ではNEMEditorも使用するためEditor専用Assetも同梱する
     if (Test-Path -LiteralPath $editorShaderAssets) {
-        robocopy $editorShaderAssets (Join-Path $sdkAssets "Shaders\Builtin\Editor") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+        Sync-DirectoryContents $editorShaderAssets (Join-Path $sdkAssets "Shaders\Builtin\Editor")
     }
     if (Test-Path -LiteralPath $editorTextureAssets) {
-        robocopy $editorTextureAssets (Join-Path $sdkAssets "Textures\Editor") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+        Sync-DirectoryContents $editorTextureAssets (Join-Path $sdkAssets "Textures\Editor")
     }
 }
 
@@ -92,16 +109,14 @@ $sdkPremake = Join-Path $OutDir "Premake"
 New-Item -ItemType Directory -Force -Path $sdkPremake | Out-Null
 foreach ($f in @("premake5.exe","nem_game.lua","patch_script_slnx.ps1","patch_vcxproj_user_debugger.ps1")) {
     $src = Join-Path $engineRoot "Premake\$f"
-    if (Test-Path -LiteralPath $src) { Copy-Item -Force $src (Join-Path $sdkPremake $f) }
+    if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { throw "SDKの構築ツールがありません: $src" }
+    Copy-Item -Force $src (Join-Path $sdkPremake $f)
 }
 
 $gameScriptsTargets = Join-Path $engineRoot "Premake\NEM.GameScripts.targets"
-$sdkManagedTools = Join-Path $OutDir "Managed\Tools"
-New-Item -ItemType Directory -Force -Path $sdkManagedTools | Out-Null
 if (-not (Test-Path -LiteralPath $gameScriptsTargets -PathType Leaf)) {
     throw "C#ゲームスクリプトの配置設定が見つかりません: $gameScriptsTargets"
 }
-Copy-Item -Force -LiteralPath $gameScriptsTargets -Destination $sdkManagedTools
 
 # エディターの製品ビルドで使用するスクリプト
 $sdkTools = Join-Path $OutDir "Tools"
@@ -148,6 +163,9 @@ $sdkMngRef       = Join-Path $OutDir "Managed\Ref"
 $sdkMngAnalyzers = Join-Path $OutDir "Managed\Analyzers"
 $sdkMngTools     = Join-Path $OutDir "Managed\Tools"
 foreach ($d in @($sdkMngRef, $sdkMngAnalyzers, $sdkMngTools)) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+if (-not (Test-Path (Join-Path $refManagedSrc "NEM.ScriptCore.dll"))) {
+    throw "C#の参照DLLがありません: $refManagedSrc"
+}
 if (Test-Path (Join-Path $refManagedSrc "NEM.ScriptCore.dll")) {
     Copy-Item -Force (Join-Path $refManagedSrc "NEM.ScriptCore.dll") $sdkMngRef
     if (Test-Path (Join-Path $refManagedSrc "NEM.ScriptCore.pdb")) { Copy-Item -Force (Join-Path $refManagedSrc "NEM.ScriptCore.pdb") $sdkMngRef }
@@ -155,10 +173,21 @@ if (Test-Path (Join-Path $refManagedSrc "NEM.ScriptCore.dll")) {
 }
 foreach ($a in @("NEM.ScriptCodeGen","NEM.ScriptAnalyzers")) {
     $aDll = Join-Path $mngRoot "$a\bin\$refConfig\netstandard2.0\$a.dll"
-    if (Test-Path $aDll) { Copy-Item -Force $aDll $sdkMngAnalyzers }
+    if (-not (Test-Path -LiteralPath $aDll -PathType Leaf)) { throw "C#の解析ツールがありません: $aDll" }
+    Copy-Item -Force $aDll $sdkMngAnalyzers
 }
 $metaSyncDir = Join-Path $mngRoot "NEM.ScriptMetaSync\bin\$refConfig\net10.0"
-if (Test-Path $metaSyncDir) { robocopy $metaSyncDir $sdkMngTools /E /NFL /NDL /NJH /NJS /NP | Out-Null }
+if (-not (Test-Path -LiteralPath (Join-Path $metaSyncDir 'NEM.ScriptMetaSync.dll') -PathType Leaf)) {
+    throw "C#のmeta同期ツールがありません: $metaSyncDir"
+}
+Sync-DirectoryContents $metaSyncDir $sdkMngTools
+
+# Tools全体の同期後にゲーム側の構築設定を加える
+Copy-Item -Force -LiteralPath $gameScriptsTargets -Destination $sdkMngTools
+$packagedGameScriptsTargets = Join-Path $sdkMngTools 'NEM.GameScripts.targets'
+if ((Get-FileSHA256 $gameScriptsTargets) -ne (Get-FileSHA256 $packagedGameScriptsTargets)) {
+    throw 'C#ゲームスクリプトの配置設定が元ファイルと一致しません'
+}
 
 # 3) 構成ごとのバイナリとランタイムを書き出す
 Write-Host "[4/4] 構成ごとのDLL/ランタイムを書き出し中..."
@@ -167,8 +196,7 @@ foreach ($cfg in $Configurations) {
     $binSrc     = Join-Path $generated "Bin\$cfg\NEMRuntime"
     $managedSrc = Join-Path $generated "Managed\NEM.ScriptCore\$cfg"
     if (-not (Test-Path (Join-Path $binSrc "NEMRuntime.dll"))) {
-        Write-Host "  [スキップ] $cfg はビルドされていません: $binSrc"
-        continue
+        throw "要求した構成がビルドされていません: $cfg / $binSrc"
     }
 
     $sdkBin     = Join-Path $OutDir "Bin\$cfg"
@@ -241,13 +269,36 @@ $packaged += $cfg
 if ($packaged.Count -eq 0) { throw "書き出せた構成がありません。先にエンジンをビルドしてください。" }
 
 # 4) SDK バージョン情報
+$nativeTypes = [IO.File]::ReadAllText((Join-Path $engineRoot 'Project\Engine\Core\Scripting\Managed\ManagedScriptTypes.h'))
+$abiMatch = [regex]::Match($nativeTypes, 'kManagedABIVersion\s*=\s*(\d+)')
+if (-not $abiMatch.Success) { throw 'Managed ABIの版番号を取得できません' }
+$dependenciesPath = Join-Path $engineRoot 'Project\Externals\dependencies.lock.json'
+if (-not (Test-Path -LiteralPath $dependenciesPath -PathType Leaf)) { throw '外部依存の記録がありません' }
+Copy-Item -LiteralPath $dependenciesPath -Destination (Join-Path $OutDir 'dependencies.lock.json')
 $version = [ordered]@{
+    schemaVersion = 1
+    managedABI = [uint32]$abiMatch.Groups[1].Value
+    build = Get-SDKBuildProvenance $engineRoot
+    externalDependenciesSHA256 = Get-FileSHA256 $dependenciesPath
     configurations = $packaged
     packagedAtUtc  = (Get-Date).ToUniversalTime().ToString("o")
 }
-$version | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutDir "sdk_version.json") -Encoding UTF8
+$version | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath (Join-Path $OutDir "sdk_version.json") -Encoding UTF8
+
+Publish-SDKDirectory $OutDir $sdkDestination
+$OutDir = ''
 
 Write-Host ""
-Write-Host "[完了] NEMEngine SDK を書き出しました: $OutDir"
+Write-Host "[完了] NEMEngine SDK を書き出しました: $sdkDestination"
 Write-Host "        構成: $($packaged -join ', ')"
+} finally {
+    # 作成途中の出力だけを片付ける
+    if ($OutDir -and (Test-Path -LiteralPath $OutDir)) {
+        $stageFull = [IO.Path]::GetFullPath($OutDir)
+        if ([IO.Path]::GetDirectoryName($stageFull) -eq $sdkParent -and
+            [IO.Path]::GetFileName($stageFull).StartsWith('.nem-sdk-stage-')) {
+            Remove-Item -LiteralPath $stageFull -Recurse -Force
+        }
+    }
+}
 exit 0

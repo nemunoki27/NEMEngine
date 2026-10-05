@@ -13,6 +13,7 @@
 // c++
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace Engine::AnimationPlaybackTime {
 
@@ -33,15 +34,17 @@ namespace Engine::AnimationPlaybackTime {
 		case Engine::AnimationWrapMode::Once: {
 
 			float t = time + delta;
-			if (t >= dur) { t = dur; finished = true; } else if (t < 0.0f) { t = 0.0f; finished = true; }
+			if (t >= dur) { t = dur; finished = true; } else if (t <= 0.0f && delta < 0.0f) { t = 0.0f; finished = true; }
 			return t;
 		}
 		case Engine::AnimationWrapMode::PingPong: {
 
-			// 端を越えた分を反射して往復させる
-			float t = time + delta * static_cast<float>(dir);
-			if (t > dur) { t = dur - (t - dur); dir = -1; } else if (t < 0.0f) { t = -t; dir = 1; }
-			return (std::clamp)(t, 0.0f, dur);
+			// 周期へ畳み込み、複数回の折返しにも対応する
+			const double period = static_cast<double>(dur) * 2.0;
+			double phase = std::fmod((dir > 0 ? time : period - time) + delta, period);
+			if (phase < 0.0) phase += period;
+			dir = phase < dur ? 1 : -1;
+			return static_cast<float>(phase <= dur ? phase : period - phase);
 		}
 		case Engine::AnimationWrapMode::Loop:
 		default: {
@@ -53,90 +56,163 @@ namespace Engine::AnimationPlaybackTime {
 		}
 	}
 
-	bool CompleteLoopIteration(Engine::AnimationClipRuntime& rt, const Engine::AnimationState& state, float dur) {
+	void RecordInterval(AnimationClipRuntime& rt, float from, float to, std::vector<Interval>* intervals) {
 
-		++rt.repeatCount;
-		rt.phase = Engine::AnimationClipPhase::Play;
+		if (intervals && (from != to || rt.eventStartPending)) {
+			intervals->push_back({ from, to, rt.eventStartPending });
+		}
+		rt.eventStartPending = false;
+	}
+
+	bool CompleteLoopIteration(AnimationClipRuntime& rt, const AnimationState& state, float dur) {
+
+		if (rt.repeatCount < (std::numeric_limits<int32_t>::max)()) ++rt.repeatCount;
+		rt.phase = AnimationClipPhase::Play;
 		rt.phaseTime = 0.0f;
 		if (state.loopCount > 0 && rt.repeatCount >= state.loopCount) {
-			rt.time = dur;
+
+			rt.time = rt.dir > 0 ? dur : 0.0f;
 			rt.playing = false;
 			rt.finished = true;
 			return false;
 		}
-		rt.time = 0.0f;
+		rt.time = rt.dir > 0 ? 0.0f : dur;
+		rt.eventStartPending = true;
 		return true;
 	}
 
-	void AdvanceLoop(Engine::AnimationClipRuntime& rt, const Engine::AnimationState& state, float dur, float delta) {
+	void AdvanceLoop(AnimationClipRuntime& rt, const AnimationState& state, float dur, float delta,
+		std::vector<Interval>* intervals) {
 
-		const bool bridgeOn = state.loopBridge.enabled && state.loopBridge.duration > 0.0f;
-		const float bridgeDur = bridgeOn ? (std::max)(state.loopBridge.duration, 0.001f) : 0.0f;
-		const float interval = (std::max)(state.interval, 0.0f);
+		if (!std::isfinite(delta) || !std::isfinite(dur) || dur <= 0.0f || delta == 0.0f) return;
+		rt.dir = delta > 0.0f ? 1 : -1;
+		const float bridgeDuration = state.loopBridge.enabled ? (std::max)(state.loopBridge.duration, 0.0f) : 0.0f;
+		const float intervalDuration = (std::max)(state.interval, 0.0f);
+		double remaining = std::abs(static_cast<double>(delta));
+		// 本編、繋ぎ補間、待機を残り時間がなくなるまで順に進める
+		while (remaining > 0.0 && !rt.finished) {
 
-		float remaining = delta;
-		for (int guard = 0; remaining > 0.0f && guard < 16; ++guard) {
+			if (rt.phase == AnimationClipPhase::Play) {
 
-			if (rt.phase == Engine::AnimationClipPhase::Play) {
+				// Event不要なら完了する周回をまとめて進める
+				if (!intervals && rt.time == (rt.dir > 0 ? 0.0f : dur)) {
 
-				const float room = dur - rt.time;
-				if (remaining < room) { rt.time += remaining; return; }
-				remaining -= room;
-				rt.time = dur;
-				if (bridgeOn) { rt.phase = Engine::AnimationClipPhase::Bridge; rt.phaseTime = 0.0f; } else if (interval > 0.0f) { rt.phase = Engine::AnimationClipPhase::Interval; rt.phaseTime = 0.0f; } else if (!CompleteLoopIteration(rt, state, dur)) { return; }
-			} else if (rt.phase == Engine::AnimationClipPhase::Bridge) {
+					const double cycleDuration = static_cast<double>(dur) + bridgeDuration + intervalDuration;
+					double cycles = std::floor(remaining / cycleDuration);
+					if (state.loopCount > 0) cycles = (std::min)(cycles, static_cast<double>((std::max)(state.loopCount - rt.repeatCount - 1, 0)));
+					if (cycles > 0.0) {
 
-				const float room = bridgeDur - rt.phaseTime;
-				if (remaining < room) { rt.phaseTime += remaining; return; }
-				remaining -= room;
-				// 繋ぎ補間は開始ポーズ(t=0)へ収束するので、以降はそこを保持する
-				rt.time = 0.0f;
-				if (interval > 0.0f) { rt.phase = Engine::AnimationClipPhase::Interval; rt.phaseTime = 0.0f; } else if (!CompleteLoopIteration(rt, state, dur)) { return; }
+						remaining -= cycles * cycleDuration;
+						rt.normalizedTime += cycles;
+						rt.repeatCount = static_cast<int32_t>((std::min)(static_cast<double>(rt.repeatCount) + cycles,
+							static_cast<double>((std::numeric_limits<int32_t>::max)())));
+						if (remaining <= 0.0) break;
+					}
+				}
+
+				const float from = rt.time;
+				const double room = rt.dir > 0 ? dur - rt.time : rt.time;
+				const double consumed = (std::min)(remaining, (std::max)(room, 0.0));
+				rt.time += static_cast<float>(consumed) * rt.dir;
+				rt.normalizedTime += consumed / dur;
+				RecordInterval(rt, from, rt.time, intervals);
+				remaining -= consumed;
+				if (consumed < room) break;
+				rt.time = rt.dir > 0 ? dur : 0.0f;
+				// 最後の周回は繋ぎ補間を挟まず終端で止める
+				if (state.loopCount > 0 && rt.repeatCount >= state.loopCount - 1) {
+
+					CompleteLoopIteration(rt, state, dur);
+					break;
+				}
+				if (bridgeDuration > 0.0f) {
+
+					rt.phase = AnimationClipPhase::Bridge;
+					rt.phaseTime = 0.0f;
+				} else if (intervalDuration > 0.0f) {
+
+					rt.phase = AnimationClipPhase::Interval;
+					rt.phaseTime = 0.0f;
+				} else if (!CompleteLoopIteration(rt, state, dur)) break;
 			} else {
 
-				const float room = interval - rt.phaseTime;
-				if (remaining < room) { rt.phaseTime += remaining; return; }
-				remaining -= room;
-				if (!CompleteLoopIteration(rt, state, dur)) { return; }
+				const float duration = rt.phase == AnimationClipPhase::Bridge ? bridgeDuration : intervalDuration;
+				const double room = (std::max)(static_cast<double>(duration - rt.phaseTime), 0.0);
+				const double consumed = (std::min)(remaining, room);
+				rt.phaseTime += static_cast<float>(consumed);
+				remaining -= consumed;
+				if (consumed < room) break;
+				if (rt.phase == AnimationClipPhase::Bridge && intervalDuration > 0.0f) {
+
+					rt.time = rt.dir > 0 ? 0.0f : dur;
+					rt.phase = AnimationClipPhase::Interval;
+					rt.phaseTime = 0.0f;
+				} else if (!CompleteLoopIteration(rt, state, dur)) break;
 			}
 		}
 	}
 
-	void AdvancePingPong(Engine::AnimationClipRuntime& rt, const Engine::AnimationState& state, float dur, float delta) {
+	void AdvancePingPong(AnimationClipRuntime& rt, const AnimationState& state, float dur, float delta,
+		std::vector<Interval>* intervals) {
 
-		const float interval = (std::max)(state.interval, 0.0f);
+		if (!std::isfinite(delta) || !std::isfinite(dur) || dur <= 0.0f || delta == 0.0f) return;
+		const int8_t sign = delta > 0.0f ? 1 : -1;
+		const float intervalDuration = (std::max)(state.interval, 0.0f);
+		double remaining = std::abs(static_cast<double>(delta));
+		// 一度の更新で跨いだ折返しをすべて処理する
+		while (remaining > 0.0 && !rt.finished) {
 
-		// インターバル待機中は消化してから逆再生を再開する
-		if (rt.phase == Engine::AnimationClipPhase::Interval) {
+			if (rt.phase == AnimationClipPhase::Interval) {
 
-			rt.phaseTime += delta;
-			if (rt.phaseTime < interval) { return; }
-			delta = rt.phaseTime - interval;
-			rt.phase = Engine::AnimationClipPhase::Play;
-			rt.phaseTime = 0.0f;
-			rt.dir = 1;
-			rt.time = 0.0f;
-			if (delta <= 0.0f) { return; }
-		}
-
-		bool finished = false;
-		const int8_t prevDir = rt.dir;
-		rt.time = AdvanceTime(dur, Engine::AnimationWrapMode::PingPong, rt.time, rt.dir, delta, finished);
-
-		// 開始位置(0)へ戻った(dir -1→+1)= 1往復完了
-		if (prevDir == -1 && rt.dir == 1) {
-
-			++rt.repeatCount;
-			if (state.pingPongCount > 0 && rt.repeatCount >= state.pingPongCount) {
-				rt.time = 0.0f;
-				rt.playing = false;
-				rt.finished = true;
-				return;
-			}
-			if (interval > 0.0f) {
-				rt.phase = Engine::AnimationClipPhase::Interval;
+				const double room = (std::max)(static_cast<double>(intervalDuration - rt.phaseTime), 0.0);
+				const double consumed = (std::min)(remaining, room);
+				rt.phaseTime += static_cast<float>(consumed);
+				remaining -= consumed;
+				if (consumed < room) break;
+				rt.phase = AnimationClipPhase::Play;
 				rt.phaseTime = 0.0f;
-				rt.time = 0.0f;
+				continue;
+			}
+			// 往復の開始点にいる場合だけ周回をまとめる
+			if (!intervals && rt.dir == 1 && rt.time == (sign > 0 ? 0.0f : dur)) {
+
+				const double cycleDuration = static_cast<double>(dur) * 2.0 + intervalDuration;
+				double cycles = std::floor(remaining / cycleDuration);
+				if (state.pingPongCount > 0) cycles = (std::min)(cycles, static_cast<double>((std::max)(state.pingPongCount - rt.repeatCount - 1, 0)));
+				if (cycles > 0.0) {
+
+					remaining -= cycles * cycleDuration;
+					rt.normalizedTime += cycles * 2.0;
+					rt.repeatCount = static_cast<int32_t>((std::min)(static_cast<double>(rt.repeatCount) + cycles,
+						static_cast<double>((std::numeric_limits<int32_t>::max)())));
+					if (remaining <= 0.0) break;
+				}
+			}
+			const int8_t direction = sign * rt.dir;
+			const float from = rt.time;
+			const double room = direction > 0 ? dur - rt.time : rt.time;
+			const double consumed = (std::min)(remaining, (std::max)(room, 0.0));
+			rt.time += static_cast<float>(consumed) * direction;
+			rt.normalizedTime += consumed / dur;
+			RecordInterval(rt, from, rt.time, intervals);
+			remaining -= consumed;
+			if (consumed < room) break;
+			rt.time = direction > 0 ? dur : 0.0f;
+			rt.dir = -rt.dir;
+			if (direction == -sign) {
+
+				if (rt.repeatCount < (std::numeric_limits<int32_t>::max)()) ++rt.repeatCount;
+				if (state.pingPongCount > 0 && rt.repeatCount >= state.pingPongCount) {
+
+					rt.playing = false;
+					rt.finished = true;
+					break;
+				}
+				if (intervalDuration > 0.0f) {
+
+					rt.phase = AnimationClipPhase::Interval;
+					rt.phaseTime = 0.0f;
+				}
 			}
 		}
 	}

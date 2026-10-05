@@ -52,7 +52,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID DefaultParticle{ 0x4e454d4153534554ull, 0xeff0000000000010ull };
 	}
 
-	namespace RenderExtensions {
+	namespace RenderPasses {
 
 		inline constexpr AssetID Default{
 			0x4e454d4153534554ull, 0x525450524f46494cull };
@@ -128,7 +128,7 @@ namespace Engine::BuiltinAssets {
 			Materials::DefaultParticle, Materials::DefaultParticle2D, Effects::DefaultParticle,
 			Pipelines::AutoExposure, Pipelines::Skinning, Pipelines::BuildIndexedIndirectArgs,
 			Pipelines::BuildDepthPyramid, Pipelines::ParticleRingMS, Pipelines::ParticleCylinderMS,
-			Pipelines::ParticleTrail, RenderExtensions::Default,
+			Pipelines::ParticleTrail, RenderPasses::Default,
 		};
 	}
 

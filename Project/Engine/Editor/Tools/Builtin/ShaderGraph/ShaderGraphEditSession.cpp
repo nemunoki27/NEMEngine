@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ShaderGraphPublication.h"
+#include "ShaderGraphEditOperations.h"
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -12,6 +13,7 @@
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
+#include <algorithm>
 #include <filesystem>
 #include <span>
 #include <utility>
@@ -20,8 +22,7 @@ using namespace Engine::ShaderGraphPublication;
 
 namespace {
 
-	std::string MakeShaderGraphCompileState(
-		const Engine::ShaderGraphAsset& graph) {
+	std::string MakeShaderGraphCompileState(const Engine::ShaderGraphAsset& graph) {
 
 		nlohmann::json data = Engine::ToJson(graph);
 		data.erase("groups");
@@ -35,29 +36,22 @@ namespace {
 		return data.dump();
 	}
 
-	bool HasCurrentGraphDefaults(
-		const Engine::MaterialAsset& material,
-		const Engine::MaterialAsset& expected) {
+	bool HasCurrentGraphDefaults(const Engine::MaterialAsset& material, const Engine::MaterialAsset& expected) {
 
 		if (material.shaderGraph != expected.shaderGraph) {
 			return false;
 		}
-		const std::span<const Engine::MaterialParameterRecord> records =
-			material.parameters.GetRecords();
-		const std::span<const Engine::MaterialParameterRecord> expectedRecords =
-			expected.parameters.GetRecords();
+		const std::span<const Engine::MaterialParameterRecord> records = material.parameters.GetRecords();
+		const std::span<const Engine::MaterialParameterRecord> expectedRecords = expected.parameters.GetRecords();
 		if (records.size() != expectedRecords.size()) {
 			return false;
 		}
 		for (size_t index = 0; index < records.size(); ++index) {
 			if (records[index].id != expectedRecords[index].id ||
-				records[index].namedValue.first !=
-				expectedRecords[index].namedValue.first ||
+				records[index].namedValue.first != expectedRecords[index].namedValue.first ||
 				records[index].semantic != expectedRecords[index].semantic ||
-				Engine::SerializeMaterialParameterValue(
-					records[index].namedValue.second) !=
-				Engine::SerializeMaterialParameterValue(
-					expectedRecords[index].namedValue.second)) {
+				Engine::SerializeMaterialParameterValue(records[index].namedValue.second) !=
+					Engine::SerializeMaterialParameterValue(expectedRecords[index].namedValue.second)) {
 
 				return false;
 			}
@@ -66,10 +60,41 @@ namespace {
 	}
 }
 
+void Engine::ShaderGraphEditSession::RemoveNode(UUID nodeID) {
+
+	// Nodeの削除とdirty通知を同じ操作にする
+	ShaderGraphEditOperations::RemoveNode(graph_, nodeID);
+	MarkDirty();
+}
+
+bool Engine::ShaderGraphEditSession::ChangeTarget(ShaderGraphTarget target) {
+
+	if (graph_.target == target) {
+		return false;
+	}
+	graph_.target = target;
+	// 描画対象に応じた出力Nodeと入力数へ揃える
+	const bool is3D = IsShaderGraph3DTarget(target);
+	for (ShaderGraphNode& node : graph_.nodes) {
+		if (node.id == graph_.outputNode) {
+			node.kind = is3D ? ShaderGraphNodeKind::SurfaceOutput : ShaderGraphNodeKind::UnlitOutput;
+			break;
+		}
+	}
+	const uint32_t inputCount = is3D ? 8u : 3u;
+	std::erase_if(graph_.links,
+		[&](const ShaderGraphLink& link) { return link.inputNode == graph_.outputNode && inputCount <= link.inputSlot; });
+	// 非対応の頂点出力と接続を取り除く
+	if (!SupportsShaderGraphVertexOutput(target) && graph_.vertexOutputNode) {
+		ShaderGraphEditOperations::RemoveNode(graph_, graph_.vertexOutputNode);
+	}
+	MarkDirty();
+	return true;
+}
+
 bool Engine::ShaderGraphEditSession::Load(const EditorToolContext& context, AssetID assetID) {
 
-	AssetDatabase* database =
-		context.toolContext.assetDatabase;
+	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (!database || !assetID) {
 		selectedAsset_ = {};
 		previewMaterial_ = {};
@@ -80,14 +105,11 @@ bool Engine::ShaderGraphEditSession::Load(const EditorToolContext& context, Asse
 		return false;
 	}
 
-	const std::filesystem::path path =
-		database->ResolveFullPath(assetID);
+	const std::filesystem::path path = database->ResolveFullPath(assetID);
 	ShaderGraphAsset loaded{};
-	if (path.empty() ||
-		!FromJson(JsonAdapter::Load(path, false), loaded)) {
+	if (path.empty() || !FromJson(JsonAdapter::Load(path, false), loaded)) {
 
-		statusMessage_ =
-			"グラフを読み込めませんでした";
+		statusMessage_ = "グラフを読み込めませんでした";
 		return false;
 	}
 
@@ -95,24 +117,17 @@ bool Engine::ShaderGraphEditSession::Load(const EditorToolContext& context, Asse
 	graph_ = std::move(loaded);
 	history_.Reset(graph_);
 	const std::filesystem::path materialPath =
-		path.parent_path() /
-		Algorithm::PathFromUTF8(
-			GraphFileStem(path) + ".material.json");
-	previewMaterial_ = std::filesystem::exists(materialPath) ?
-		database->ImportOrGet(
-			RuntimePaths::ToAssetPath(materialPath),
-			AssetType::Material) : AssetID{};
+		path.parent_path() / Algorithm::PathFromUTF8(GraphFileStem(path) + ".material.json");
+	previewMaterial_ = std::filesystem::exists(materialPath)
+						   ? database->ImportOrGet(RuntimePaths::ToAssetPath(materialPath), AssetType::Material)
+						   : AssetID{};
 	compiledGraphState_ = MakeShaderGraphCompileState(graph_);
 	previewCompileDirty_ = !previewMaterial_;
 	if (previewMaterial_) {
 		MaterialAsset material{};
-		const MaterialAsset expected =
-			ShaderGraphArtifactCache::CreateMaterial(
-				graph_, selectedAsset_);
+		const MaterialAsset expected = ShaderGraphArtifactCache::CreateMaterial(graph_, selectedAsset_);
 		previewCompileDirty_ =
-			!FromJson(
-				JsonAdapter::Load(materialPath, false), material) ||
-			!HasCurrentGraphDefaults(material, expected);
+			!FromJson(JsonAdapter::Load(materialPath, false), material) || !HasCurrentGraphDefaults(material, expected);
 	}
 	graphLoaded_ = true;
 	graphDirty_ = false;
@@ -123,13 +138,11 @@ bool Engine::ShaderGraphEditSession::Load(const EditorToolContext& context, Asse
 
 std::filesystem::path Engine::ShaderGraphEditSession::ResolveCompilePath(const EditorToolContext& context) {
 
-	AssetDatabase* database =
-		context.toolContext.assetDatabase;
+	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (!database || !selectedAsset_) {
 		return {};
 	}
-	const std::filesystem::path graphPath =
-		database->ResolveFullPath(selectedAsset_);
+	const std::filesystem::path graphPath = database->ResolveFullPath(selectedAsset_);
 	if (graphPath.empty()) {
 		statusMessage_ = "グラフのパスを解決できません";
 		return {};
@@ -138,12 +151,11 @@ std::filesystem::path Engine::ShaderGraphEditSession::ResolveCompilePath(const E
 	return graphPath;
 }
 
-bool Engine::ShaderGraphEditSession::SaveAndCompile(const EditorToolContext& context,
-	const std::filesystem::path& graphPath) {
+bool Engine::ShaderGraphEditSession::SaveAndCompile(const EditorToolContext& context, const std::filesystem::path& graphPath) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
-	if (!ShaderGraphPublication::CompileAndPublish(context, *database, graph_, selectedAsset_, graphPath,
-		previewMaterial_, latestDiagnostics_, statusMessage_)) {
+	if (!ShaderGraphPublication::CompileAndPublish(
+			context, *database, graph_, selectedAsset_, graphPath, previewMaterial_, latestDiagnostics_, statusMessage_)) {
 		return false;
 	}
 	graphDirty_ = false;
@@ -153,14 +165,12 @@ bool Engine::ShaderGraphEditSession::SaveAndCompile(const EditorToolContext& con
 	return true;
 }
 
-bool Engine::ShaderGraphEditSession::CompilePreview(
-	const EditorToolContext& context) {
+bool Engine::ShaderGraphEditSession::CompilePreview(const EditorToolContext& context) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (!database || !selectedAsset_ ||
 		!ShaderGraphPublication::CompileAndPublishPreview(
-			context, *database, graph_, selectedAsset_,
-			previewMaterial_, latestDiagnostics_, statusMessage_)) {
+			context, *database, graph_, selectedAsset_, previewMaterial_, latestDiagnostics_, statusMessage_)) {
 
 		return false;
 	}
@@ -172,18 +182,17 @@ bool Engine::ShaderGraphEditSession::CompilePreview(
 bool Engine::ShaderGraphEditSession::Save(const EditorToolContext& context) {
 
 	AssetDatabase* database = context.toolContext.assetDatabase;
-	if (const AssetMeta* meta = database ? database->Find(selectedAsset_) : nullptr) {
-		if (JsonAdapter::Save(
-			database->ResolveFullPath(meta->guid), ToJson(graph_))) {
-
-			graphDirty_ = false;
-			statusMessage_ = "保存しました";
-			return true;
-		} else {
-			statusMessage_ = "グラフを保存できませんでした";
-		}
+	if (!database || !selectedAsset_) {
+		return false;
 	}
-	return false;
+	// 保存と索引更新が揃った場合だけ未保存状態を解除する
+	const auto path = database->ResolveFullPath(selectedAsset_);
+	if (!SaveGraph(*database, graph_, path, selectedAsset_, statusMessage_)) {
+		return false;
+	}
+	graphDirty_ = false;
+	statusMessage_ = "保存しました";
+	return true;
 }
 
 void Engine::ShaderGraphEditSession::Import(ShaderGraphAsset imported) {

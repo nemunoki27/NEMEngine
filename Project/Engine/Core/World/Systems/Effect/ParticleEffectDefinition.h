@@ -58,5 +58,7 @@ namespace Engine {
 		std::filesystem::file_time_type lastWriteTime{};
 		// エディター編集の適用済みバージョン
 		uint64_t appliedEditVersion = 0;
+		uint64_t contentRevision = 0;
+		bool attempted = false;
 	};
 }

@@ -46,8 +46,8 @@ public abstract class Object {
             return (T)(Object)clone;
         }
         if (original is MonoBehaviour script) {
-            string? typeID = HostBridge.GetScriptTypeGuid(script.GetType());
-            return typeID != null && HostBridge.FindScriptByGuid(clone.native, typeID, script.scriptSlotID) is T clonedScript ?
+            string? typeID = HostBridge.GetScriptTypeGUID(script.GetType());
+            return typeID != null && HostBridge.FindScriptByGUID(clone.native, typeID, script.scriptSlotID) is T clonedScript ?
                 clonedScript : throw new InvalidOperationException("複製先のScriptを解決できません");
         }
         return clone.GetComponent<T>() ?? throw new InvalidOperationException("複製先のComponentを解決できません");

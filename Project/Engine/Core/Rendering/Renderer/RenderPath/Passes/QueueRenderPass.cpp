@@ -54,8 +54,8 @@ void Engine::QueueRenderPass::Execute(GraphicsCore& graphicsCore,
 	itemScratch_.clear();
 	itemScratch_.reserve(items.items.size());
 	for (const RenderItem* item : items.items) {
-		if (item && (!context.renderExtensionRuntime ||
-			!context.renderExtensionRuntime->IsItemIsolated(*item))) {
+		if (item && (!context.renderPassesRuntime ||
+			!context.renderPassesRuntime->IsItemIsolated(*item))) {
 			itemScratch_.emplace_back(item);
 		}
 	}

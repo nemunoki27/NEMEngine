@@ -9,7 +9,7 @@ using namespace Engine;
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 //============================================================================
 //	DSVDescriptor classMethods
@@ -51,7 +51,7 @@ void DSVDescriptor::CreateDepthResource(ComPtr<ID3D12Resource>& resource,
 		&depthClearValue,                 // Clear最適値
 		IID_PPV_ARGS(&candidate)           // 作成するResourceポインタへのポインタ
 	);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, hr, "DSVDescriptor::CreateDepthResource")) {
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, hr, "DSVDescriptor::CreateDepthResource")) {
 		throw std::runtime_error("DepthStencil用リソースの作成に失敗しました");
 	}
 	resource = std::move(candidate);

@@ -3,7 +3,6 @@
         {
             "Components": {
                 "DirectionalLight": {
-                    "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
                         "b": 1.0,
@@ -65,9 +64,7 @@
                     "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
-                    "renderExtension": "59e361770f3759eeb925dd7f27469b14",
-                    "volumeProfile": "49e361770f3759eeb925dd7f27469b14",
-                    "volumeLayerMask": 4294967295,
+                    "renderPasses": "59e361770f3759eeb925dd7f27469b14",
                     "postProcessEnabled": true,
                     "cullingMask": -1,
                     "editorFrustumScale": 0.0020000000949949026,
@@ -76,7 +73,63 @@
                     "fovY": 60.0,
                     "isMain": true,
                     "nearClip": 0.009999999776482582,
-                    "priority": 0
+                    "priority": 0,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1,
+                                "b": 1,
+                                "g": 1,
+                                "r": 1
+                            },
+                            "contrast": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "gain": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "gamma": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "offset": {
+                                "x": 0,
+                                "y": 0,
+                                "z": 0
+                            },
+                            "saturation": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "temperature": 6500,
+                            "tint": 0
+                        },
+                        "exposure": {
+                            "compensation": 0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0,
+                            "maxEV100": 20,
+                            "minEV100": -10,
+                            "mode": "Manual",
+                            "speedDown": 1,
+                            "speedUp": 3,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0,
+                            "shoulder": 0,
+                            "slope": 1,
+                            "toe": 0,
+                            "whiteClip": 0
+                        }
+                    }
                 },
                 "SceneObject": {
                     "activeSelf": true,
