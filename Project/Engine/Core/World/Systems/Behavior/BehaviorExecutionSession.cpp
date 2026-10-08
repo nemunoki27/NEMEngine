@@ -13,7 +13,6 @@
 // c++
 #include <algorithm>
 
-
 namespace {
 	constexpr uint32_t kMaxLifecycleTransitionPassCount = 64;
 }
@@ -41,8 +40,7 @@ void Engine::BehaviorExecutionSession::EnsureActiveWorld(ECSWorld& world, const 
 	// 新しいワールドをアクティブにする
 	activeWorld_ = &world;
 	ResetRuntimeState(world);
-	componentMutationListenerID_ = world.AddComponentMutationListener(
-		&BehaviorExecutionSession::OnComponentMutation, this);
+	componentMutationListenerID_ = world.AddComponentMutationListener(&BehaviorExecutionSession::OnComponentMutation, this);
 }
 
 void Engine::BehaviorExecutionSession::ResetRuntimeState([[maybe_unused]] ECSWorld& world) {
@@ -64,13 +62,12 @@ void Engine::BehaviorExecutionSession::SynchronizeLifecycle(ECSWorld& world, con
 	// ワールドを設定
 	EnsureActiveWorld(world, context);
 	// プレイモードでない、もしくはアクティブなワールドでないときは何もしない
-	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
+	if (context.mode != WorldMode::Play || activeWorld_ != &world || context.IsUpdateInterrupted()) {
 		return;
 	}
 
 	// 実行順設定が変わった場合はScript構造が同じでも並びを更新する
-	if (participantCache_.executionOrderRevision_ !=
-		BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision()) {
+	if (participantCache_.executionOrderRevision_ != BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision()) {
 
 		participantCache_.participantsDirty_ = true;
 	}
@@ -94,11 +91,14 @@ void Engine::BehaviorExecutionSession::SynchronizeLifecycle(ECSWorld& world, con
 	// ScriptかActive状態が変わった場合だけライフサイクル遷移を再評価する
 	FlushActiveTransitions(world, context);
 	// Pass4 全Awake/OnEnable後Startより前にSceneLoaded/Unloadedを発火する
-	ManagedScriptRuntime::GetInstance().PumpSceneEvents();
+	if (context.IsUpdateInterrupted()) {
+		return;
+	}
+	ManagedScriptRuntime::GetInstance().PumpSceneEvents(context);
 	FlushActiveTransitions(world, context);
 
 	// Start中に先行順のScriptが有効化された場合も同じ同期内で開始する
-	for (uint32_t pass = 0; pass < kMaxLifecycleTransitionPassCount; ++pass) {
+	for (uint32_t pass = 0; pass < kMaxLifecycleTransitionPassCount && !context.IsUpdateInterrupted(); ++pass) {
 
 		if (!InvokePendingStart(world, context)) {
 			break;
@@ -106,8 +106,8 @@ void Engine::BehaviorExecutionSession::SynchronizeLifecycle(ECSWorld& world, con
 	}
 }
 
-void Engine::BehaviorExecutionSession::OnComponentMutation(ECSWorld& world, const Entity& entity,
-	uint32_t typeID, ComponentMutationKind kind, void* userData) {
+void Engine::BehaviorExecutionSession::OnComponentMutation(
+	ECSWorld& world, const Entity& entity, uint32_t typeID, ComponentMutationKind kind, void* userData) {
 
 	auto* system = static_cast<BehaviorExecutionSession*>(userData);
 	if (!system || system->activeWorld_ != &world) {
@@ -121,14 +121,12 @@ void Engine::BehaviorExecutionSession::OnComponentMutation(ECSWorld& world, cons
 	}
 
 	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
-	if (typeID == registry.GetID<ScriptComponent>() ||
-		typeID == registry.GetID<ScriptEntry>()) {
+	if (typeID == registry.GetID<ScriptComponent>() || typeID == registry.GetID<ScriptEntry>()) {
 		system->records_.QueueScriptEntity(entity);
 		system->participantCache_.participantsDirty_ = true;
 		return;
 	}
-	if (typeID == registry.GetID<SceneObjectComponent>() ||
-		typeID == registry.GetID<HierarchyComponent>()) {
+	if (typeID == registry.GetID<SceneObjectComponent>() || typeID == registry.GetID<HierarchyComponent>()) {
 		system->enableTransitionsDirty_ = true;
 	}
 }
@@ -139,6 +137,9 @@ void Engine::BehaviorExecutionSession::InvokePendingAwake(ECSWorld& world, const
 	const std::vector<SyncParticipant> participants = participantCache_.participants_;
 	for (const SyncParticipant& participant : participants) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
 		if (!record || !record->instance || record->faulted || record->awakeCalled) {
 			continue;
@@ -153,15 +154,13 @@ void Engine::BehaviorExecutionSession::InvokePendingAwake(ECSWorld& world, const
 	}
 }
 
-bool Engine::BehaviorExecutionSession::IsParticipantEnabled(ECSWorld& world,
-	const SyncParticipant& participant, const BehaviorRecord& record) const {
+bool Engine::BehaviorExecutionSession::IsParticipantEnabled(
+	ECSWorld& world, const SyncParticipant& participant, const BehaviorRecord& record) const {
 
-	if (!world.HasComponent<ScriptComponent>(record.owner) ||
-		participant.slot < 0) {
+	if (!world.HasComponent<ScriptComponent>(record.owner) || participant.slot < 0) {
 		return false;
 	}
-	const std::span<const ScriptEntry> entries =
-		GetScriptEntries(world, record.owner);
+	const std::span<const ScriptEntry> entries = GetScriptEntries(world, record.owner);
 	if (entries.size() <= static_cast<size_t>(participant.slot)) {
 		return false;
 	}
@@ -174,13 +173,12 @@ bool Engine::BehaviorExecutionSession::IsParticipantEnabled(ECSWorld& world,
 	return entries[participant.slot].enabled;
 }
 
-bool Engine::BehaviorExecutionSession::CanInvokeParticipant(ECSWorld& world,
-	const SyncParticipant& participant, const BehaviorRecord& record) const {
+bool Engine::BehaviorExecutionSession::CanInvokeParticipant(
+	ECSWorld& world, const SyncParticipant& participant, const BehaviorRecord& record) const {
 
-	return record.instance && !record.faulted && record.enabled &&
-		world.IsAlive(record.owner) && record.owner == participant.owner &&
-		IsEntityActiveInHierarchy(world, record.owner) &&
-		IsParticipantEnabled(world, participant, record);
+	return record.instance && !record.faulted && record.enabled && world.IsAlive(record.owner) &&
+		   record.owner == participant.owner && IsEntityActiveInHierarchy(world, record.owner) &&
+		   IsParticipantEnabled(world, participant, record);
 }
 
 void Engine::BehaviorExecutionSession::RefreshFaultState(const BehaviorHandle& handle) {
@@ -193,12 +191,22 @@ void Engine::BehaviorExecutionSession::RefreshFaultState(const BehaviorHandle& h
 
 void Engine::BehaviorExecutionSession::FlushActiveTransitions(ECSWorld& world, const SystemContext& context) {
 
+	if (context.IsUpdateInterrupted()) {
+		return;
+	}
 	uint32_t pass = 0;
 	while (enableTransitionsDirty_ && pass < kMaxLifecycleTransitionPassCount) {
 
 		enableTransitionsDirty_ = false;
 		InvokePendingAwake(world, context);
-		ApplyEnableTransitions(world, context);
+		if (!context.IsUpdateInterrupted()) {
+			ApplyEnableTransitions(world, context);
+		}
+		// 未処理の有効状態遷移はResume後へ残す
+		if (context.IsUpdateInterrupted()) {
+			enableTransitionsDirty_ = true;
+			return;
+		}
 		++pass;
 	}
 	if (enableTransitionsDirty_) {
@@ -210,10 +218,10 @@ void Engine::BehaviorExecutionSession::FlushActiveTransitions(ECSWorld& world, c
 
 void Engine::BehaviorExecutionSession::SynchronizeLifecycleIfDirty(ECSWorld& world, const SystemContext& context) {
 
-	const bool executionOrderChanged = participantCache_.executionOrderRevision_ !=
-		BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision();
-	if (!fullSyncRequested_ && dirtyScriptEntities_.empty() &&
-		!participantCache_.participantsDirty_ && !enableTransitionsDirty_ && !executionOrderChanged) {
+	const bool executionOrderChanged =
+		participantCache_.executionOrderRevision_ != BehaviorTypeRegistry::GetInstance().GetExecutionOrderRevision();
+	if (!fullSyncRequested_ && dirtyScriptEntities_.empty() && !participantCache_.participantsDirty_ &&
+		!enableTransitionsDirty_ && !executionOrderChanged) {
 		return;
 	}
 	SynchronizeLifecycle(world, context, false);
@@ -224,15 +232,17 @@ void Engine::BehaviorExecutionSession::ApplyEnableTransitions(ECSWorld& world, c
 	const std::vector<SyncParticipant> participants = participantCache_.participants_;
 	for (const SyncParticipant& participant : participants) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
 		if (!record || !record->instance || record->faulted) {
 			continue;
 		}
 
 		// OnEnableはAwake後かつactiveのときだけ呼ぶ
-		const bool shouldBeEnabled =
-			IsParticipantEnabled(world, participant, *record) && record->awakeCalled &&
-			IsEntityActiveInHierarchy(world, participant.owner);
+		const bool shouldBeEnabled = IsParticipantEnabled(world, participant, *record) && record->awakeCalled &&
+									 IsEntityActiveInHierarchy(world, participant.owner);
 
 		if (shouldBeEnabled && !record->enabled) {
 
@@ -256,6 +266,9 @@ bool Engine::BehaviorExecutionSession::InvokePendingStart(ECSWorld& world, const
 	for (const SyncParticipant& participant : participants) {
 
 		FlushActiveTransitions(world, context);
+		if (context.IsUpdateInterrupted()) {
+			return invoked;
+		}
 		BehaviorRecord* record = runtime_.GetRecord(participant.handle);
 		if (!record || !CanInvokeParticipant(world, participant, *record)) {
 			continue;
@@ -272,10 +285,10 @@ bool Engine::BehaviorExecutionSession::InvokePendingStart(ECSWorld& world, const
 	return invoked;
 }
 
-void Engine::BehaviorExecutionSession::DispatchCollision(ECSWorld& world,
-	const SystemContext& context, const CollisionContact& collision, int32_t phase) {
+void Engine::BehaviorExecutionSession::DispatchCollision(
+	ECSWorld& world, const SystemContext& context, const CollisionContact& collision, int32_t phase) {
 
-	if (context.mode != WorldMode::Play || activeWorld_ != &world) {
+	if (context.mode != WorldMode::Play || activeWorld_ != &world || context.IsUpdateInterrupted()) {
 		return;
 	}
 
@@ -283,6 +296,9 @@ void Engine::BehaviorExecutionSession::DispatchCollision(ECSWorld& world,
 	const std::vector<SyncParticipant> participants = participantCache_.participants_;
 	for (const SyncParticipant& participant : participants) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		if (participant.owner != collision.self) {
 			continue;
 		}

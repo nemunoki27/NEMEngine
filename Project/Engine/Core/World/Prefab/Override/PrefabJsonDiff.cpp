@@ -38,7 +38,7 @@ namespace {
 }
 
 //============================================================================
-//	PrefabJsonDiff classMethods
+//	PrefabJsonDiff functions
 //============================================================================
 const nlohmann::json* Engine::PrefabJsonDiff::GetAtPath(const nlohmann::json& root, const std::string& path) {
 
@@ -126,7 +126,7 @@ Engine::ComponentMapDiff Engine::PrefabJsonDiff::DiffComponentMaps(const nlohman
 
 	auto isExcluded = [&](const std::string& type) {
 		return std::find(excludeTypes.begin(), excludeTypes.end(), type) != excludeTypes.end();
-		};
+	};
 
 	// インスタンス側を基準に、追加コンポーネントと値差分を集める
 	if (instance.is_object()) {

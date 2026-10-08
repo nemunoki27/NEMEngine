@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Database/AssetDocumentPublication.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
@@ -18,18 +19,6 @@
 #include <vector>
 
 namespace {
-
-	// Graphの保存範囲を揃える
-	Engine::JsonFileJournal::Scope MakeShaderGraphSaveScope() {
-
-		return {
-			Engine::RuntimePaths::GetSavedRoot() / "ShaderGraphAssetRecovery",
-			[](const std::filesystem::path& path) {
-				return Engine::StorageFileUtility::IsInside(path, Engine::RuntimePaths::GetGameAssetsRoot()) ||
-					   Engine::StorageFileUtility::IsInside(path, Engine::RuntimePaths::GetEngineAssetsRoot());
-			},
-		};
-	}
 
 	// 保存先と選択中のGraphを照合する
 	bool PrepareGraphDocument(Engine::AssetDatabase& database, const std::filesystem::path& path, Engine::AssetID expectedID,
@@ -91,7 +80,8 @@ Engine::AssetID Engine::ShaderGraphPublication::SaveGraph(AssetDatabase& databas
 		return {};
 	}
 	changes.front().document = ToJson(graph);
-	if (!AssetDocumentPublication::Commit(database, changes, MakeShaderGraphSaveScope(), status)) {
+	if (!AssetDocumentPublication::Commit(
+			database, changes, AssetDocumentRecovery::MakeScope(AssetDocumentSaveKind::ShaderGraph), status)) {
 		return {};
 	}
 	return changes.front().metadata.guid;
@@ -122,7 +112,8 @@ bool Engine::ShaderGraphPublication::CompileAndPublish(const EditorToolContext& 
 	changes[1].document = ToJson(graph);
 
 	// 文書とmetaを確定してから描画用の成果物を公開する
-	if (!AssetDocumentPublication::Commit(database, changes, MakeShaderGraphSaveScope(), status)) {
+	if (!AssetDocumentPublication::Commit(
+			database, changes, AssetDocumentRecovery::MakeScope(AssetDocumentSaveKind::ShaderGraph), status)) {
 		return false;
 	}
 	materialID = changes[0].metadata.guid;

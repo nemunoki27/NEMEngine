@@ -1,9 +1,9 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptUtility.h"
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Physics/CollisionComponent.h>
 
@@ -14,8 +14,8 @@ namespace Engine {
 
 	namespace {
 
-		Engine::CollisionShape* ResolveCollisionShape(
-			Engine::ECSWorld& world, const Engine::Entity& entity) {
+		// 対象Componentの単一形状を取得
+		Engine::CollisionShape* ResolveCollisionShape(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 			if (!world.IsAlive(entity)) {
 				return nullptr;
@@ -37,7 +37,7 @@ namespace Engine {
 			return 0;
 		}
 
-		// propertyIDはC#側のCollisionShapeRefと対応する
+		// C#と共通の番号で形状の値を取得
 		switch (propertyID) {
 		case 0: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = static_cast<int32_t>(shape->type); return 1;
 		case 1: if (size < 4) { return 0; } *reinterpret_cast<int32_t*>(out) = shape->enabled ? 1 : 0; return 1;
@@ -75,8 +75,7 @@ namespace Engine {
 		switch (propertyID) {
 		case 0:
 			if (size < 4) { return 0; }
-			shape->type = static_cast<ColliderShapeType>(
-				*reinterpret_cast<const int32_t*>(value));
+			shape->type = static_cast<ColliderShapeType>(*reinterpret_cast<const int32_t*>(value));
 			break;
 		case 1: if (size < 4) { return 0; } shape->enabled = *reinterpret_cast<const int32_t*>(value) != 0; break;
 		case 2: if (size < 4) { return 0; } shape->isTrigger = *reinterpret_cast<const int32_t*>(value) != 0; break;
@@ -95,12 +94,12 @@ namespace Engine {
 		case 11: if (size < 8) { return 0; } std::memcpy(&shape->capsuleSize2D, value, 8); break;
 		case 12:
 			if (size < 4) { return 0; }
-			shape->capsuleAxis = static_cast<CapsuleAxis>(
-				*reinterpret_cast<const int32_t*>(value));
+			shape->capsuleAxis = static_cast<CapsuleAxis>(*reinterpret_cast<const int32_t*>(value));
 			break;
 		default:
 			return 0;
 		}
+		// 形状の変更をWorldへ通知
 		world->MarkComponentModified<CollisionComponent>(resolved);
 		return 1;
 	}

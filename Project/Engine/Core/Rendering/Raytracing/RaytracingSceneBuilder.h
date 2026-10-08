@@ -7,6 +7,7 @@
 #include "RaytracingMaterialResolver.h"
 #include "RaytracingSceneResult.h"
 #include "RaytracingBLASCache.h"
+#include <Engine/Core/World/ECS/Entity/WorldEntityKey.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
@@ -22,7 +23,7 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class GraphicsCore;
 	class AssetDatabase;
 	class MeshRenderBackend;
@@ -33,13 +34,9 @@ namespace Engine {
 	class PrimitiveGeometryManager;
 	struct MaterialAsset;
 	struct SceneExecutionContext;
+	struct SceneInstance;
 	struct MeshRendererComponent;
 	struct PrimitiveRendererComponent;
-
-	//============================================================================
-	//	RaytracingSceneBuilder structures
-	//============================================================================
-	// メッシピック記録用
 
 	//============================================================================
 	//	RaytracingSceneBuilder class
@@ -81,6 +78,8 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
+		//--------- structure ----------------------------------------------------
+
 		using BLASKey = RaytracingBLASCache::BLASKey;
 		using BLASKeyHash = RaytracingBLASCache::BLASKeyHash;
 		using StaticInstanceBLASKey = RaytracingBLASCache::StaticInstanceBLASKey;
@@ -89,12 +88,6 @@ namespace Engine {
 		using DynamicBLASKey = RaytracingBLASCache::DynamicBLASKey;
 		using DynamicBLASKeyHash = RaytracingBLASCache::DynamicBLASKeyHash;
 		using DynamicBLASEntry = RaytracingBLASCache::DynamicBLASEntry;
-
-		//--------- stricture ----------------------------------------------------
-
-		// BLASのキー
-
-		// サブメッシュ固有変換を持つ静的メッシュはEntity単位でrefitする
 
 		// 静的メッシュのLOD差分更新に必要なインスタンス情報
 		struct CachedMeshLODInstance {
@@ -108,12 +101,13 @@ namespace Engine {
 			bool usesInstanceBLAS = false;
 			uint32_t tlasInstanceIndex = 0;
 			uint32_t geometryDataOffset = 0;
-			uint32_t geometryCount = 0;
+			// 可視Geometryに対応するモデル側のSubMesh番号
+			std::vector<uint32_t> geometrySubMeshIndices;
 			uint32_t lodIndex = 0;
 			Vector3 worldBoundsCenter = Vector3::AnyInit(0.0f);
 			float worldBoundsRadius = 0.0f;
 		};
-		// BLASのコレクション
+		// MeshのBLAS構築に使う描画情報
 		struct CollectedMeshInstance {
 
 			AssetID meshAssetID{};
@@ -124,7 +118,7 @@ namespace Engine {
 			bool castShadows = true;
 			bool viewDependent = false;
 		};
-		// Primitiveのコレクション
+		// PrimitiveのBLAS構築に使う描画情報
 		struct CollectedPrimitiveInstance {
 
 			Entity entity = Entity::Null();
@@ -137,20 +131,12 @@ namespace Engine {
 			Matrix4x4 uvMatrix = Matrix4x4::Identity();
 			bool castShadows = true;
 			bool viewDependent = false;
-			// 形状ハッシュ、共有ジオメトリのキー
 		};
-		// TLASインスタンスをEntityから検索するためのキー
-		struct SceneEntityKey {
+		// WorldとEntityの共通検索キー
+		using SceneEntityKey = WorldEntityKey;
+		using SceneEntityKeyHash = WorldEntityKeyHash;
 
-			ECSWorld* world = nullptr;
-			Entity entity = Entity::Null();
-
-			bool operator==(const SceneEntityKey& rhs) const noexcept { return world == rhs.world && entity == rhs.entity; }
-		};
-		struct SceneEntityKeyHash {
-			size_t operator()(const SceneEntityKey& key) const noexcept;
-		};
-
+		// Scene構築中だけ借用する処理対象と出力
 		struct SceneBuildWork {
 
 			GraphicsCore& graphicsCore;
@@ -167,7 +153,7 @@ namespace Engine {
 			std::vector<SceneEntityKey>& tlasEntityKeys;
 			std::vector<CachedMeshLODInstance>& meshLODInstances;
 			std::vector<uint32_t>& meshLODRecordIndices;
-			bool& requireTlasRebuild;
+			bool& requireTLASRebuild;
 			bool& blasContentsChanged;
 			bool& staticScene;
 			uint32_t& blasGeometryCount;
@@ -194,7 +180,7 @@ namespace Engine {
 		std::vector<RaytracingTLASInstance> cachedTLASInstances_{};
 		std::unordered_multimap<SceneEntityKey, uint32_t, SceneEntityKeyHash> cachedTLASInstanceIndices_{};
 		std::vector<CachedMeshLODInstance> cachedMeshLODInstances_{};
-		// TLASインスタンスからLODキャッシュをO(1)で参照する
+		// TLAS配置ごとのLODキャッシュ番号
 		std::vector<uint32_t> cachedMeshLODRecordIndices_{};
 
 		// 同じframeと描画条件での重複構築を避ける
@@ -205,7 +191,7 @@ namespace Engine {
 		uint64_t builtMeshResourceRevision_ = 0;
 		uint64_t builtLODViewHash_ = 0;
 		UUID builtSceneInstanceID_{};
-		// 静的シーンはWorldとMesh GPUリソースが変わるまでCPU構築結果を再利用する
+		// 静的Sceneの再構築を判定する世代
 		bool cachedStaticScene_ = false;
 		const ECSWorld* cachedWorld_ = nullptr;
 		std::shared_ptr<const ECSWorldLifetime> cachedWorldLifetime_;
@@ -228,17 +214,17 @@ namespace Engine {
 		void BuildPrimitiveInstances(std::span<const CollectedPrimitiveInstance> scenePrimitives, SceneBuildWork& work);
 
 		// 可視メッシュインスタンスの収集
-		void CollectSceneMeshInstances(const RenderSceneBatch& renderBatch, const SceneExecutionContext& context,
-			std::vector<CollectedMeshInstance>& outInstances);
-		// 可視Primitiveインスタンスの収集
-		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch, const SceneExecutionContext& context,
-			std::vector<CollectedPrimitiveInstance>& outInstances);
+		void CollectSceneMeshInstances(const RenderSceneBatch& renderBatch, const SceneInstance& scene,
+			const ResolvedRenderView* view, std::vector<CollectedMeshInstance>& outInstances);
+		// 可視Primitiveを収集
+		void CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch, const SceneInstance& scene,
+			const ResolvedRenderView* view, std::vector<CollectedPrimitiveInstance>& outInstances);
 
 		// 構築済みMeshのLODとGeometry番号を更新
 		uint32_t UpdateCachedLODSelections(MeshRenderBackend* meshBackend, const GraphicsRuntimeFeatures& runtimeFeatures,
 			const ResolvedRenderView* lodView, bool& lodResourceMissing);
 
-		// 既に構築済みのシーン情報を各ビューコンテキストに渡す
+		// 構築結果をViewへ渡す
 		void PublishBuiltScene(SceneExecutionContext& context) const;
 	};
-} // Engine
+}

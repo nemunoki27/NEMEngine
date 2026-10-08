@@ -15,9 +15,11 @@
 namespace Engine {
 
 	class ECSWorld;
+	class EntityArchetype;
 
 	//============================================================================
 	//	ComponentMutationKind enum
+	//	ComponentとEntityの変更種別
 	//============================================================================
 	enum class ComponentMutationKind : uint8_t {
 
@@ -38,8 +40,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		using ComponentMutationCallback = void(*)(
-			ECSWorld&, const Entity&, uint32_t, ComponentMutationKind, void*);
+		using ComponentMutationCallback = void(*)(ECSWorld&, const Entity&, uint32_t, ComponentMutationKind, void*);
 
 		// ワールドの変更世代を進める
 		void MarkDataModified();
@@ -66,6 +67,10 @@ namespace Engine {
 			ComponentMutationKind kind, ComponentChangeChannel channels);
 		// 保存用複製に必要な世代だけを引き継ぐ
 		void CopySerializationRevisionsFrom(const ECSChangeTracker& source);
+		// 格納済みの型から値変更の通知先をまとめる
+		static ComponentChangeChannel GetChangeChannels(const EntityArchetype& archetype);
+		// 格納済みの型から座標変更の通知先をまとめる
+		static ComponentChangeChannel GetTransformChangeChannels(const EntityArchetype& archetype);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -86,7 +91,7 @@ namespace Engine {
 		// Component変更通知の購読情報
 		struct ComponentMutationListener {
 
-			uint64_t id = 0;
+			uint64_t listenerID = 0;
 			ComponentMutationCallback callback = nullptr;
 			void* userData = nullptr;
 		};
@@ -102,8 +107,7 @@ namespace Engine {
 		static constexpr size_t kRenderTransformHistoryCount = 8;
 
 		std::vector<ComponentMutationListener> componentMutationListeners_;
-		std::deque<RenderTransformChangeBatch>
-			renderTransformChangeHistory_;
+		std::deque<RenderTransformChangeBatch> renderTransformChangeHistory_;
 		uint64_t nextComponentMutationListenerID_ = 1;
 		// 通知中は購読列の並びを変えない
 		size_t notificationDepth_ = 0;
@@ -122,5 +126,8 @@ namespace Engine {
 
 		// 0を飛ばして変更世代を進める
 		static void IncrementRevision(uint64_t& revision);
+		// 指定した型情報の通知先を集約する
+		static ComponentChangeChannel CollectChannels(const EntityArchetype& archetype,
+			ComponentChangeChannel ComponentTypeInfo::*channel);
 	};
-} // Engine
+}

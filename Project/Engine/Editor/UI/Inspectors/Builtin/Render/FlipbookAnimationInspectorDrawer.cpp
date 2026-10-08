@@ -62,8 +62,8 @@ void Engine::FlipbookAnimationInspectorDrawer::OnSyncDraftFromWorld(
 	ECSWorld& world, const Entity& entity,
 	[[maybe_unused]] const FlipbookAnimationComponent& component) {
 
-	const std::span<const int32_t> columns =
-		GetFlipbookTileValues(world, entity);
+	// 行ごとのタイル数を編集値へコピー
+	const std::span<const int32_t> columns = GetFlipbookTileValues(world, entity);
 	tileColumnDraft_.assign(columns.begin(), columns.end());
 	if (tileColumnDraft_.empty()) {
 		tileColumnDraft_.emplace_back(1);
@@ -75,6 +75,7 @@ void Engine::FlipbookAnimationInspectorDrawer::SerializeDraft(
 	const FlipbookAnimationComponent& component,
 	nlohmann::json& out) const {
 
+	// 再生設定と行ごとのタイル数を保存
 	SerializeFlipbookAnimation(component, tileColumnDraft_, out);
 }
 
@@ -82,12 +83,11 @@ void Engine::FlipbookAnimationInspectorDrawer::ApplyPreview(
 	ECSWorld& world, const Entity& entity,
 	const FlipbookAnimationComponent& previewComponent) {
 
-	if (!world.IsAlive(entity) ||
-		!world.HasComponent<FlipbookAnimationComponent>(entity)) {
+	if (!world.IsAlive(entity) || !world.HasComponent<FlipbookAnimationComponent>(entity)) {
 		return;
 	}
-	world.GetComponent<FlipbookAnimationComponent>(entity) =
-		previewComponent;
+	// 再生設定とタイル数を表示へ反映
+	world.GetComponent<FlipbookAnimationComponent>(entity) = previewComponent;
 	SetFlipbookTileColumns(world, entity, tileColumnDraft_);
 	world.MarkComponentModified<FlipbookAnimationComponent>(entity);
 }

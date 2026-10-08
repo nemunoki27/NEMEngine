@@ -6,6 +6,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 
 // imgui
 #include <imgui.h>
@@ -61,6 +62,25 @@ void Engine::ProjectAssetDiagnostics::Draw(AssetDatabase& database, bool editing
 				confirmDelete_ = false;
 			}
 			ImGui::EndDisabled();
+		} else if (selected_->type == AssetDatabaseIssueType::UnfinishedAssetSave) {
+			// 競合を解消した後に退避内容から復旧を再試行
+			if (ImGui::Button("復旧を再試行")) {
+				message_ = database.RebuildMeta() ? "復旧結果を再検査しました" : "索引を更新できません";
+				selected_.reset();
+				confirmDelete_ = false;
+			} else {
+				ImGui::TextWrapped("%s", "現在のファイルを維持する場合、内容とmetaを確認してから確定してください");
+				ImGui::Checkbox("現在の内容を維持して未完了保存を確定する", &confirmDelete_);
+				ImGui::BeginDisabled(!confirmDelete_);
+				if (ImGui::Button("現在の内容を維持")) {
+					if (AssetDocumentRecovery::KeepCurrent(Algorithm::PathFromUTF8(selected_->relatedPath), message_)) {
+						message_ = database.RebuildMeta() ? "現在の内容を維持しました" : "維持しましたが索引更新に失敗しました";
+						selected_.reset();
+						confirmDelete_ = false;
+					}
+				}
+				ImGui::EndDisabled();
+			}
 		} else if (selected_->type == AssetDatabaseIssueType::FontAtlasRepair && selected_->referencedAssetID) {
 			if (ImGui::Button("候補のAtlasへ接続")) {
 				try {

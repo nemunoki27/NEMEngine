@@ -7,6 +7,7 @@
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
@@ -46,7 +47,17 @@ namespace Engine {
 	}
 
 	Entity ResolveEntity(ManagedNativeEntity native) {
-		return Entity{ native.index, native.generation };
+		return Entity{native.index, native.generation};
+	}
+
+	ManagedStatus CompleteManagedInvocation(ManagedStatus status, uint64_t reportSequence) {
+
+		// 同じcallbackの構造化診断を二重に数えない
+		auto& store = ManagedScriptExceptionStore::GetInstance();
+		if (status == ManagedStatus::ScriptException && store.ReportSequence() == reportSequence) {
+			store.ReportFailure();
+		}
+		return status;
 	}
 
 	int32_t CopyStringToBuffer(const std::string& str, char* buffer, int32_t capacity) {
@@ -68,31 +79,31 @@ namespace Engine {
 	}
 
 	ManagedVector2 ToManagedVector2(const Vector2& value) {
-		return ManagedVector2{ value.x, value.y };
+		return ManagedVector2{value.x, value.y};
 	}
 
 	ManagedVector3 ToManagedVector3(const Vector3& value) {
-		return ManagedVector3{ value.x, value.y, value.z };
+		return ManagedVector3{value.x, value.y, value.z};
 	}
 
 	Vector3 ToVector3(const ManagedVector3& value) {
-		return Vector3{ value.x, value.y, value.z };
+		return Vector3{value.x, value.y, value.z};
 	}
 
 	ManagedQuaternion ToManagedQuaternion(const Quaternion& value) {
-		return ManagedQuaternion{ value.x, value.y, value.z, value.w };
+		return ManagedQuaternion{value.x, value.y, value.z, value.w};
 	}
 
 	Quaternion ToQuaternion(const ManagedQuaternion& value) {
-		return Quaternion{ value.x, value.y, value.z, value.w };
+		return Quaternion{value.x, value.y, value.z, value.w};
 	}
 
 	ManagedAssetGUID ToManagedAssetGUID(AssetID assetID) {
-		return ManagedAssetGUID{ assetID.high, assetID.low };
+		return ManagedAssetGUID{assetID.high, assetID.low};
 	}
 
 	AssetID ToAssetID(const ManagedAssetGUID& assetGUID) {
-		return AssetID{ assetGUID.high, assetGUID.low };
+		return AssetID{assetGUID.high, assetGUID.low};
 	}
 
 	Vector3 MakeLocalPositionFromWorld(ECSWorld& world, const Entity& entity, const Vector3& position) {

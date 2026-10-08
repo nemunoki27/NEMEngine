@@ -18,6 +18,7 @@ namespace Engine::ShaderGraphStageSource {
 			context.AddDiagnostic(graph.vertexOutputNode, "Vertex出力ノードが見つかりません");
 			return {};
 		}
+		// 形状の頂点入力から変形結果を生成する
 		const ShaderGraphExpression position =
 			context.EmitInput(*output, 0, ShaderGraphValueType::Float3, "vertex.position.xyz");
 		const ShaderGraphExpression normal = context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "vertex.normal");
@@ -93,6 +94,7 @@ namespace Engine::ShaderGraphStageSource {
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context) {
 
 		std::string source = BuildPrimitiveVertexCommonSource(graph, surfaceIncludeFile, context);
+		// Mesh経路も同じ頂点評価を使用する
 		source += "cbuffer PrimitiveMeshConstants : register(b1) {\n\n"
 				  "\tuint indexCount;\n"
 				  "\tuint3 _pad;\n"
@@ -140,6 +142,7 @@ namespace Engine::ShaderGraphStageSource {
 		const ShaderGraphExpression normal = context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "vertex.normal");
 		const ShaderGraphExpression tangent = context.EmitInput(*output, 2, ShaderGraphValueType::Float3, "vertex.tangent");
 
+		// 2DのUV変換と頂点色を入力へ渡す
 		std::string source = "// Shader Graph generated Primitive2D vertex file\n"
 							 "#include \"Builtin/Primitive/primitive2D.hlsli\"\n"
 							 "#include \"Builtin/Mesh/Common/meshShaderSharedTypes.hlsli\"\n"

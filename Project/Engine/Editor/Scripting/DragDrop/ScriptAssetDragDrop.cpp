@@ -20,6 +20,7 @@ namespace {
 			return false;
 		}
 
+		// 検証済みPayloadをコピー
 		outPayload = *static_cast<const Engine::EditorAssetDragDropPayload*>(payload->Data);
 		return outPayload.assetType == Engine::AssetType::Script;
 	}
@@ -37,8 +38,7 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& co
 		return false;
 	}
 
-	// manifestが記録したsource(.cs)とassetのパスを照合して型候補を得る
-	// 候補が0ならDLL未登録で、複数なら同名.csに複数クラスがある曖昧として採用しない
+	// Scriptのファイル名で登録済み型を照合
 	const std::vector<const BehaviorTypeInfo*> candidates =
 		BehaviorTypeRegistry::GetInstance().FindManagedBySourceFile(meta->assetPath);
 	if (candidates.empty()) {
@@ -52,6 +52,7 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& co
 		return false;
 	}
 
+	// 一意な型の識別子と名前をコピー
 	outType.scriptTypeID = candidates.front()->scriptTypeID;
 	outType.typeName = candidates.front()->name;
 	return true;
@@ -60,6 +61,7 @@ bool Engine::ScriptAssetDragDrop::ResolveScriptType(const EditorPanelContext& co
 bool Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(const EditorPanelContext& context,
 	AssetID& outAssetID, ResolvedScriptType& outType) {
 
+	// ドロップ確定時だけScriptを受け取る
 	const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(IEditorPanel::kProjectAssetDragDropPayloadType);
 	if (!payload || !payload->IsDelivery()) {
 		return false;
@@ -74,6 +76,7 @@ bool Engine::ScriptAssetDragDrop::AcceptScriptAssetDrop(const EditorPanelContext
 		return false;
 	}
 
+	// 解決済みScriptのAssetを返す
 	outAssetID = assetPayload.assetID;
 	return true;
 }

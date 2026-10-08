@@ -6,13 +6,17 @@
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 
+// c++
+#include <utility>
+
 //============================================================================
 //	EntityArchetype classMethods
 //============================================================================
-Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const std::vector<uint32_t>& types) :
-	signature_(signature), types_(types), chunkLayout_(EntityChunkLayout::Build(types)) {
+Engine::EntityArchetype::EntityArchetype(const EntitySignature& signature, const std::vector<uint32_t>& types,
+	std::shared_ptr<const ECSWorldLifetime> lifetime) :
+	signature_(signature), types_(types), chunkLayout_(EntityChunkLayout::Build(types)), lifetime_(std::move(lifetime)) {
 
-	// Archetypeが持つコンポーネント種類IDから、EntityChunk内の列番号へのマップを作る
+	// 型IDから列番号への対応表を作る
 	typeToColumn_.assign(ComponentTypeRegistry::GetInstance().GetComponentTypeCount(), kInvalidColumnIndex);
 	for (uint32_t i = 0; i < static_cast<uint32_t>(types_.size()); ++i) {
 
@@ -77,11 +81,9 @@ void* Engine::EntityArchetype::GetRaw(int32_t chunkIndex, uint32_t row, uint32_t
 	return chunks_[chunkIndex]->GetRawByColumnIndex(GetColumnIndex(typeID), row);
 }
 
-const void* Engine::EntityArchetype::GetRaw(
-	int32_t chunkIndex, uint32_t row, uint32_t typeID) const {
+const void* Engine::EntityArchetype::GetRaw(int32_t chunkIndex, uint32_t row, uint32_t typeID) const {
 
-	return chunks_[chunkIndex]->GetRawByColumnIndex(
-		GetColumnIndex(typeID), row);
+	return GetChunk(chunkIndex).GetRawByColumnIndex(GetColumnIndex(typeID), row);
 }
 
 uint32_t Engine::EntityArchetype::GetAllocatedChunkCount() const {
@@ -123,7 +125,7 @@ uint32_t Engine::EntityArchetype::FindWritableChunkIndex() {
 	}
 
 	// 空きがなければ新しいチャンクを追加
-	chunks_.push_back(std::make_unique<EntityChunk>(&chunkLayout_));
+	chunks_.push_back(std::make_unique<EntityChunk>(chunkLayout_, lifetime_));
 	firstWritableChunkIndex_ = GetChunkCount() - 1;
 	return firstWritableChunkIndex_;
 }

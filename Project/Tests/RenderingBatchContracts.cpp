@@ -38,12 +38,28 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <unordered_map>
 
 namespace NEMTests {
 
 	bool TestMeshBatchInvalidation() {
 
 		using namespace Engine;
+		// 検索キーで別WorldとEntityの世代を区別
+		ECSWorld keyWorld(ECSWorldKind::Runtime);
+		ECSWorld otherKeyWorld(ECSWorldKind::Runtime);
+		const WorldEntityKey key{ &keyWorld, Entity{ 1, 2 } };
+		const WorldEntityKey otherWorldKey{ &otherKeyWorld, key.entity };
+		const WorldEntityKey otherIndex{ &keyWorld, Entity{ 2, 2 } };
+		const WorldEntityKey otherGeneration{ &keyWorld, Entity{ 1, 3 } };
+		std::unordered_map<WorldEntityKey, int, WorldEntityKeyHash> keys;
+		keys[key] = 1;
+		keys[otherWorldKey] = 2;
+		keys[otherIndex] = 3;
+		keys[otherGeneration] = 4;
+		if (keys.size() != 4 || keys.at(WorldEntityKey{ &keyWorld, Entity{ 1, 2 } }) != 1 ||
+			keys.at(otherWorldKey) != 2 || keys.at(otherIndex) != 3 || keys.at(otherGeneration) != 4) return false;
+
 		// 同じポーズでもPSO更新と計算失敗で結果を失効させる
 		MeshBatchResources skinning;
 		if (skinning.CanReuseSkinningOutput(1) || skinning.IsSkinningDispatched()) return false;
@@ -216,17 +232,17 @@ namespace NEMTests {
 		if (reusedLights.MatchesSource(&*reusedWorld, reusedWorld->GetRenderDataRevision())) return false;
 		// Mesh側のcacheもWorldの個体を区別する
 		MeshGPUResource reusedMesh;
-		MeshBatchResources reusedCache;
+		MeshBatchIdentityCache reusedCache;
 		RenderItem reusedItem;
 		reusedItem.world = &*reusedWorld;
 		reusedItem.entity = SceneAuthoring::CreateGameObject(*reusedWorld, "Reused");
 		reusedItem.payload = reusedBatch.PushPayload(MeshRenderPayload{});
 		const std::array<const RenderItem*, 1> reusedItems{ &reusedItem };
-		reusedCache.CaptureBatchIdentity(reusedBatch, reusedItems, reusedMesh);
+		reusedCache.Capture(reusedBatch, reusedItems, reusedMesh);
 		reusedWorld.reset();
 		reusedWorld.emplace(ECSWorldKind::Runtime);
 		reusedItem.entity = SceneAuthoring::CreateGameObject(*reusedWorld, "Reused");
-		if (reusedCache.MatchesBatch(reusedBatch, reusedItems, reusedMesh) || reusedCache.RefreshMaterialColors() != 0) return false;
+		if (reusedCache.Matches(reusedBatch, reusedItems, reusedMesh)) return false;
 		ECSWorld world(ECSWorldKind::Runtime);
 		const Entity rain = SceneAuthoring::CreateGameObject(world, "Rain");
 		const Entity stage = SceneAuthoring::CreateGameObject(world, "Stage");
@@ -241,57 +257,57 @@ namespace NEMTests {
 		std::array<const RenderItem*, 3> items{ &a, &b, &c };
 		std::array<const RenderItem*, 1> stageItems{ &c };
 		MeshGPUResource mesh;
-		MeshBatchResources rainCache, stageCache;
-		rainCache.CaptureBatchIdentity(batch, items, mesh);
-		stageCache.CaptureBatchIdentity(batch, stageItems, mesh);
+		MeshBatchIdentityCache rainCache, stageCache;
+		rainCache.Capture(batch, items, mesh);
+		stageCache.Capture(batch, stageItems, mesh);
 		const uint64_t renderRevision = world.GetRenderDataRevision();
 		world.MarkMeshColorModified(rain);
 		const uint64_t colorRevision = world.GetMeshColorRevision(rain);
 		world.MarkMeshColorModified(rain);
 		if (world.GetRenderDataRevision() != renderRevision || world.GetMeshColorRevision(rain) <= colorRevision ||
-			world.GetMeshColorRevision(stage) != 0 || !rainCache.MatchesBatch(batch, items, mesh) ||
-			!stageCache.MatchesBatch(batch, stageItems, mesh)) {
+			world.GetMeshColorRevision(stage) != 0 || !rainCache.Matches(batch, items, mesh) ||
+			!stageCache.Matches(batch, stageItems, mesh)) {
 			return false;
 		}
 		// 先頭と末尾が同じでも中央のEntityやサブメッシュが異なれば再構築する
 		items[1] = &d;
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		items[1] = &b;
 		payload.subMeshIndex = 1;
 		b.payload = batch.PushPayload(payload);
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		b.payload = a.payload;
 		// 描画設定、順序、Worldの違いも同じバッチとして扱わない
 		b.material = AssetGUID::New();
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		b.material = {};
 		b.receiveShadows = false;
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		b.receiveShadows = true;
 		b.surfaceMode = MaterialSurfaceMode::Transparent;
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		b.surfaceMode = MaterialSurfaceMode::Opaque;
 		std::swap(items[0], items[1]);
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		std::swap(items[0], items[1]);
 		ECSWorld otherWorld(ECSWorldKind::Runtime);
 		b.world = &otherWorld;
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		b.world = &world;
-		if (!rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (!rainCache.Matches(batch, items, mesh)) { return false; }
 		world.MarkRenderDataModified(rain);
-		if (rainCache.MatchesBatch(batch, items, mesh) || !stageCache.MatchesBatch(batch, stageItems, mesh)) {
+		if (rainCache.Matches(batch, items, mesh) || !stageCache.Matches(batch, stageItems, mesh)) {
 			return false;
 		}
 		// 全体通知とMeshの再読み込みは確実にキャッシュを無効化する
-		rainCache.CaptureBatchIdentity(batch, items, mesh);
+		rainCache.Capture(batch, items, mesh);
 		world.MarkRenderDataModified();
-		if (rainCache.MatchesBatch(batch, items, mesh) || stageCache.MatchesBatch(batch, stageItems, mesh)) {
+		if (rainCache.Matches(batch, items, mesh) || stageCache.Matches(batch, stageItems, mesh)) {
 			return false;
 		}
-		rainCache.CaptureBatchIdentity(batch, items, mesh);
+		rainCache.Capture(batch, items, mesh);
 		++mesh.reloadGeneration;
-		if (rainCache.MatchesBatch(batch, items, mesh)) { return false; }
+		if (rainCache.Matches(batch, items, mesh)) { return false; }
 		--mesh.reloadGeneration;
 		// 色だけの更新もRaytracingが参照する内容世代へ伝える
 		batch.SetMaterialSource(world.GetMeshColorRevision());
@@ -302,6 +318,11 @@ namespace NEMTests {
 		const uint64_t unchanged = batch.GetSourceRevision();
 		batch.SetMaterialSource(world.GetMeshColorRevision());
 		if (batch.GetSourceRevision() != unchanged) { return false; }
+		// 解除後は古い構成を使わず再登録する
+		rainCache.Clear();
+		if (rainCache.Matches(batch, items, mesh)) return false;
+		rainCache.Capture(batch, items, mesh);
+		if (!rainCache.Matches(batch, items, mesh)) return false;
 		world.DestroyEntity(rain);
 		world.FlushPendingDestroyEntities();
 		return world.GetMeshColorRevision(rain) == 0 && world.GetEntityRenderRevision(rain) == 0;

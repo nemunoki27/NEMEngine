@@ -11,6 +11,7 @@
 #include "GameplayRefactoringTests.h"
 #include "SceneStorageTests.h"
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
+#include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -45,23 +46,85 @@ namespace NEMTests {
 
 	bool TestAssetGUIDRoundTrip() {
 
+		static_assert(sizeof(Engine::AssetGUID) == 16 && sizeof(Engine::UUID) == 8);
 		constexpr std::string_view source = "d0d59331ff0a4eb589ea7801cb52f208";
 		const std::optional<Engine::AssetGUID> parsed = Engine::TryParseAssetGUID32Hex(source);
-		return parsed && Engine::ToString(*parsed) == source;
+		if (!parsed || Engine::ToString(*parsed) != source) {
+			return false;
+		}
+		// 先頭ゼロと片側だけ有効な識別子を維持
+		for (const Engine::AssetGUID id :
+			{Engine::AssetGUID{0, 1}, Engine::AssetGUID{1, 0}, Engine::AssetGUID{UINT64_MAX, UINT64_MAX}}) {
+
+			if (Engine::TryParseAssetGUID32Hex(Engine::ToString(id)) != id) {
+				return false;
+			}
+		}
+		for (const std::string_view invalid : {"", "00000000000000000000000000000000", "0000000000000000000000000000000",
+				 "000000000000000000000000000000001", "0000000000000000000000000000000g", "+0000000000000010000000000000001",
+				 "0x000000000000010000000000000001", " 0000000000000010000000000000001"}) {
+
+			if (Engine::TryParseAssetGUID32Hex(invalid) || Engine::FromString32Hex(invalid)) {
+				return false;
+			}
+		}
+		// 大文字の入力も小文字で出力
+		const auto uppercase = Engine::TryParseAssetGUID32Hex("D0D59331FF0A4EB589EA7801CB52F208");
+		if (uppercase != parsed || Engine::ToString(*uppercase) != source) {
+			return false;
+		}
+		for (const Engine::UUID id : {Engine::UUID{1}, Engine::UUID{0xabcdef1234567890}, Engine::UUID{UINT64_MAX}}) {
+
+			if (Engine::TryParseUUID16Hex(Engine::ToString(id)) != id) {
+				return false;
+			}
+		}
+		for (const std::string_view invalid : {"", "0000000000000000", "000000000000001", "00000000000000001",
+				 "000000000000000g", "+000000000000001", "-000000000000001", "0x00000000000001", " 000000000000001"}) {
+
+			if (Engine::TryParseUUID16Hex(invalid) || Engine::FromString16Hex(invalid)) {
+				return false;
+			}
+		}
+		return Engine::TryParseUUID16Hex("ABCDEF1234567890") == Engine::UUID{0xabcdef1234567890} &&
+			   Engine::ToString(Engine::UUID{}) == "0000000000000000" &&
+			   Engine::ToString(Engine::AssetGUID{}) == "00000000000000000000000000000000";
 	}
 
 	bool TestContentHash() {
 
-		const std::array<uint8_t, 3> bytes = { 'a', 'b', 'c' };
-		if (Engine::ContentHash::SHA256(bytes) !=
-			"ba7816bf8f01cfea414140de5dae2223"
-			"b00361a396177a9cb410ff61f20015ad") { return false; }
+		const std::array<uint8_t, 3> bytes = {'a', 'b', 'c'};
+		if (Engine::ContentHash::SHA256(bytes) != "ba7816bf8f01cfea414140de5dae2223"
+												  "b00361a396177a9cb410ff61f20015ad") {
+			return false;
+		}
 		// 転送単位をまたぐ入力も同じSHA256へ変換する
 		std::vector<uint8_t> largeInput(131073);
-		for (size_t index = 0; index < largeInput.size(); ++index) { largeInput[index] = static_cast<uint8_t>(index % 251); }
+		for (size_t index = 0; index < largeInput.size(); ++index) {
+			largeInput[index] = static_cast<uint8_t>(index % 251);
+		}
 		const auto previous = largeInput;
-		return Engine::ContentHash::SHA256(largeInput) ==
-			"dd84db969f4ff2abb79c8c2fbc06e8d8e02c46d6481c958e057f7ad7a24c58a7" && largeInput == previous;
+		const std::string expected = "dd84db969f4ff2abb79c8c2fbc06e8d8e02c46d6481c958e057f7ad7a24c58a7";
+		if (Engine::ContentHash::SHA256(largeInput) != expected || largeInput != previous) {
+			return false;
+		}
+		// 読込単位が違っても同じ内容として照合する
+		size_t offset = 0;
+		const auto streamed = Engine::ContentHash::ReadSHA256([&](std::span<uint8_t> buffer, size_t& count) {
+			count = (std::min)({buffer.size(), largeInput.size() - offset, size_t{137}});
+			std::copy_n(largeInput.begin() + offset, count, buffer.begin());
+			offset += count;
+			return true;
+		});
+		if (streamed != expected || largeInput != previous ||
+			!Engine::ContentHash::ReadSHA256([](std::span<uint8_t>, size_t&) { return false; }).empty()) {
+			return false;
+		}
+		// 読込領域を超える結果はHashに使わない
+		return Engine::ContentHash::ReadSHA256([](std::span<uint8_t> buffer, size_t& count) {
+			count = buffer.size() + 1;
+			return true;
+		}).empty();
 	}
 
 	bool TestPackageResolver() {
@@ -95,78 +158,75 @@ namespace NEMTests {
 			file << "package content";
 		}
 
-		const Engine::PackageResolveResult result = Engine::PackageResolver::Resolve(
-			normalizedRoot, normalizedRoot / "Packages", normalizedRoot / "Library");
+		const Engine::PackageResolveResult result =
+			Engine::PackageResolver::Resolve(normalizedRoot, normalizedRoot / "Packages", normalizedRoot / "Library");
 		const bool passed = result.Succeeded() && result.packages.size() == 1 &&
-			result.packages.front().name == "com.nem.test" &&
-			result.packages.front().version == "1.0.0" &&
-			result.packages.front().contentHash != 0 &&
-			std::filesystem::exists(normalizedRoot / "Packages/packages-lock.json");
+							result.packages.front().name == "com.nem.test" && result.packages.front().version == "1.0.0" &&
+							result.packages.front().contentHash != 0 &&
+							std::filesystem::exists(normalizedRoot / "Packages/packages-lock.json");
 		return directory.Remove() && passed;
 	}
 
 	bool TestVirtualPath() {
 
 		Engine::RuntimePaths::Refresh();
-		const std::filesystem::path gamePath =
-			Engine::RuntimePaths::ResolveVirtualPath("game://Scenes/sampleScene.scene.json");
-		return gamePath == (Engine::RuntimePaths::GetGameAssetsRoot() /
-			"Scenes/sampleScene.scene.json").lexically_normal() &&
-			Engine::RuntimePaths::ResolveVirtualPath("game://../ProjectSettings").empty();
+		const std::filesystem::path gamePath = Engine::RuntimePaths::ResolveVirtualPath("game://Scenes/sampleScene.scene.json");
+		return gamePath == (Engine::RuntimePaths::GetGameAssetsRoot() / "Scenes/sampleScene.scene.json").lexically_normal() &&
+			   Engine::RuntimePaths::ResolveVirtualPath("game://../ProjectSettings").empty();
 	}
 
 	bool TestJsonSemanticMerge() {
 
 		const nlohmann::json base = {
-			{ "Entities", {
+			{"Entities",
 				{
-					{ "LocalFileID", "0000000000000001" },
-					{ "Components", { { "Transform", { { "x", 0 }, { "y", 0 } } } } },
-				},
-				{
-					{ "LocalFileID", "0000000000000002" },
-					{ "Components", { { "Transform", { { "x", 0 }, { "y", 0 } } } } },
-				},
-			} },
+					{
+						{"LocalFileID", "0000000000000001"},
+						{"Components", {{"Transform", {{"x", 0}, {"y", 0}}}}},
+					},
+					{
+						{"LocalFileID", "0000000000000002"},
+						{"Components", {{"Transform", {{"x", 0}, {"y", 0}}}}},
+					},
+				}},
 		};
 		nlohmann::json ours = base;
 		nlohmann::json theirs = base;
 		ours["Entities"][0]["Components"]["Transform"]["x"] = 10;
 		theirs["Entities"][1]["Components"]["Transform"]["y"] = 20;
 
-		const Engine::JsonMergeResult merged =
-			Engine::JsonSemanticMerge::Merge(base, ours, theirs);
-		if (!merged.Succeeded() ||
-			merged.merged["Entities"][0]["Components"]["Transform"]["x"] != 10 ||
+		const Engine::JsonMergeResult merged = Engine::JsonSemanticMerge::Merge(base, ours, theirs);
+		if (!merged.Succeeded() || merged.merged["Entities"][0]["Components"]["Transform"]["x"] != 10 ||
 			merged.merged["Entities"][1]["Components"]["Transform"]["y"] != 20) {
 			return false;
 		}
 
 		theirs["Entities"][0]["Components"]["Transform"]["x"] = 30;
-		const Engine::JsonMergeResult conflicted =
-			Engine::JsonSemanticMerge::Merge(base, ours, theirs);
-		if (conflicted.conflicts.size() != 1 || conflicted.conflicts.front().path !=
-			"/Entities/0000000000000001/Components/Transform/x") {
+		const Engine::JsonMergeResult conflicted = Engine::JsonSemanticMerge::Merge(base, ours, theirs);
+		if (conflicted.conflicts.size() != 1 ||
+			conflicted.conflicts.front().path != "/Entities/0000000000000001/Components/Transform/x") {
 			return false;
 		}
 		// Nestedの別要素に対する変更を併合する
-		for (const char* member : { "NestedPrefabInstances", "NestedInstances" }) {
-			const nlohmann::json nested = {{ member, {
-				{{ "NestedSlotID", "01" }, { "value", 0 }}, {{ "NestedSlotID", "02" }, { "value", 0 }}
-			}}};
+		for (const char* member : {"NestedPrefabInstances", "NestedInstances"}) {
+			const nlohmann::json nested = {
+				{member, {{{"NestedSlotID", "01"}, {"value", 0}}, {{"NestedSlotID", "02"}, {"value", 0}}}}};
 			auto left = nested;
 			auto right = nested;
 			left[member][0]["value"] = 10;
 			right[member][1]["value"] = 20;
 			const auto combined = Engine::JsonSemanticMerge::Merge(nested, left, right);
-			if (!combined.Succeeded() || combined.merged[member][0]["value"] != 10 || combined.merged[member][1]["value"] != 20) {
+			if (!combined.Succeeded() || combined.merged[member][0]["value"] != 10 ||
+				combined.merged[member][1]["value"] != 20) {
 				return false;
 			}
 			// 不正なkeyは例外でなく配列単位の競合にする
 			left[member][0]["NestedSlotID"] = 42;
-			if (Engine::JsonSemanticMerge::Merge(nested, left, right).Succeeded()) return false;
+			if (Engine::JsonSemanticMerge::Merge(nested, left, right).Succeeded()) {
+				return false;
+			}
 		}
-		const nlohmann::json removed = {{ "RemovedNestedSlots", nlohmann::json::array({ "01" }) }};
+		const nlohmann::json removed = {{"RemovedNestedSlots", nlohmann::json::array({"01"})}};
 		auto left = removed;
 		auto right = removed;
 		left["RemovedNestedSlots"].push_back("02");
@@ -190,16 +250,13 @@ namespace NEMTests {
 		Engine::TransformComponent legacyRestored{};
 		Engine::from_json(legacy, legacyRestored);
 
-		return serialized.value("dimension", -1) ==
-			static_cast<int>(Engine::Dimension::Type2D) &&
-			restored.dimension == Engine::Dimension::Type2D &&
-			legacyRestored.dimension == Engine::Dimension::Type3D;
+		return serialized.value("dimension", -1) == static_cast<int>(Engine::Dimension::Type2D) &&
+			   restored.dimension == Engine::Dimension::Type2D && legacyRestored.dimension == Engine::Dimension::Type3D;
 	}
 
 	bool TestUTF8Path() {
 
-		const std::string directoryName =
-			Engine::Algorithm::ConvertString(L"NEMEngineTests_日本語");
+		const std::string directoryName = Engine::Algorithm::ConvertString(L"NEMEngineTests_日本語");
 		TestDirectory directory(directoryName);
 		const auto& testRoot = directory.GetPath();
 		const std::filesystem::path texturePath = testRoot / L"normalBlock.png";
@@ -215,54 +272,49 @@ namespace NEMTests {
 		}
 
 		const std::string serializedPath = Engine::Algorithm::PathToUTF8(texturePath);
-		const std::filesystem::path restoredPath =
-			Engine::Algorithm::PathFromUTF8(serializedPath);
+		const std::filesystem::path restoredPath = Engine::Algorithm::PathFromUTF8(serializedPath);
 		const bool passed = std::filesystem::exists(restoredPath, ec) && !ec &&
-			Engine::Algorithm::PathToUTF8(testRoot.filename()).starts_with(directoryName + "_") &&
-			Engine::AssetTypeResolver::GuessByPath(restoredPath) == Engine::AssetType::Texture;
+							Engine::Algorithm::PathToUTF8(testRoot.filename()).starts_with(directoryName + "_") &&
+							Engine::AssetTypeResolver::GuessByPath(restoredPath) == Engine::AssetType::Texture;
 		return directory.Remove() && passed;
 	}
 
 	bool TestRayTracingPipelineSerialization() {
 
 		const nlohmann::json source = {
-			{ "name", "RayTracingTest" },
-			{ "variants", nlohmann::json::array({ {
-				{ "kind", "Raytracing" },
-				{ "shader", "4e454d4153534554da1b7b9bf8074052" },
-				{ "rayGenerationExports", { "RayGen" } },
-				{ "missExports", { "Miss" } },
-				{ "hitGroups", nlohmann::json::array({ {
-					{ "exportName", "HitGroup" },
-					{ "closestHitExport", "ClosestHit" },
-					{ "kind", "Triangles" },
-				} }) },
-				{ "staticSamplers", nlohmann::json::array({ {
-					{ "shaderRegister", 0 },
-				} }) },
-			} }) },
+			{"name", "RayTracingTest"},
+			{"variants", nlohmann::json::array({{
+							 {"kind", "Raytracing"},
+							 {"shader", "4e454d4153534554da1b7b9bf8074052"},
+							 {"rayGenerationExports", {"RayGen"}},
+							 {"missExports", {"Miss"}},
+							 {"hitGroups", nlohmann::json::array({{
+											   {"exportName", "HitGroup"},
+											   {"closestHitExport", "ClosestHit"},
+											   {"kind", "Triangles"},
+										   }})},
+							 {"staticSamplers", nlohmann::json::array({{
+													{"shaderRegister", 0},
+												}})},
+						 }})},
 		};
 		Engine::RenderPipelineAsset pipeline{};
-		if (!Engine::FromJson(source, pipeline) ||
-			pipeline.variants.size() != 1 ||
+		if (!Engine::FromJson(source, pipeline) || pipeline.variants.size() != 1 ||
 			pipeline.variants.front().staticSamplers.size() != 1 ||
-			pipeline.variants.front().staticSamplers.front().ShaderVisibility !=
-				D3D12_SHADER_VISIBILITY_ALL) {
+			pipeline.variants.front().staticSamplers.front().ShaderVisibility != D3D12_SHADER_VISIBILITY_ALL) {
 
 			return false;
 		}
 
 		const nlohmann::json serialized = Engine::ToJson(pipeline);
-		return serialized["variants"][0]["rayGenerationExports"][0] ==
-			"RayGen" &&
-			serialized["variants"][0]["staticSamplers"][0]
-				["shaderVisibility"] == "D3D12_SHADER_VISIBILITY_ALL";
+		return serialized["variants"][0]["rayGenerationExports"][0] == "RayGen" &&
+			   serialized["variants"][0]["staticSamplers"][0]["shaderVisibility"] == "D3D12_SHADER_VISIBILITY_ALL";
 	}
 
 	bool TestCanvasNavigationTable() {
 
 		Engine::ManagedNativeEntity firstGenerationEntity{};
-		firstGenerationEntity.world = Engine::ManagedWorldHandle{ 0, 1 };
+		firstGenerationEntity.world = Engine::ManagedWorldHandle{0, 1};
 		firstGenerationEntity.index = 0;
 		firstGenerationEntity.generation = 0;
 		if (!firstGenerationEntity.IsValid()) {
@@ -272,59 +324,50 @@ namespace NEMTests {
 		Engine::CanvasNavigationTable draft{};
 		const Engine::UUID first = Engine::UUID::New();
 		const Engine::UUID second = Engine::UUID::New();
-		if (!Engine::SetCanvasNavigationCell(draft, 0, first) ||
-			!Engine::SetCanvasNavigationCell(draft, 1, second) ||
-			!Engine::ResizeCanvasNavigationTable(draft, 20, 20) ||
-			draft.rows != 20 || draft.columns != 20 ||
+		if (!Engine::SetCanvasNavigationCell(draft, 0, first) || !Engine::SetCanvasNavigationCell(draft, 1, second) ||
+			!Engine::ResizeCanvasNavigationTable(draft, 20, 20) || draft.rows != 20 || draft.columns != 20 ||
 			draft.cells.size() != 400 || draft.cells[0] != first || draft.cells[1] != second) {
 			return false;
 		}
-		if (!Engine::SetCanvasNavigationCell(draft, 399, first) ||
-			draft.cells[0] || draft.cells[399] != first ||
+		if (!Engine::SetCanvasNavigationCell(draft, 399, first) || draft.cells[0] || draft.cells[399] != first ||
 			Engine::ResizeCanvasNavigationTable(draft, 0, 20)) {
 			return false;
 		}
 
 		Engine::ECSWorld world;
 		Engine::HierarchySystem hierarchySystem;
-		const Engine::Entity canvas =
-			Engine::SceneAuthoring::CreateGameObject(world, "Canvas");
-		const Engine::Entity selectable =
-			Engine::SceneAuthoring::CreateGameObject(world, "Selectable");
-		const Engine::Entity outside =
-			Engine::SceneAuthoring::CreateGameObject(world, "Outside");
+		const Engine::Entity canvas = Engine::SceneAuthoring::CreateGameObject(world, "Canvas");
+		const Engine::Entity selectable = Engine::SceneAuthoring::CreateGameObject(world, "Selectable");
+		const Engine::Entity outside = Engine::SceneAuthoring::CreateGameObject(world, "Outside");
 		world.AddComponent<Engine::CanvasComponent>(canvas);
 		world.AddComponent<Engine::UISelectableComponent>(selectable);
 		world.AddComponent<Engine::UISelectableComponent>(outside);
 		hierarchySystem.SetParent(world, selectable, canvas);
 
-		if (Engine::ResizeCanvasNavigationTable(world, canvas, 20, 20) !=
-			Engine::CanvasNavigationTableResult::Success ||
+		if (Engine::ResizeCanvasNavigationTable(world, canvas, 20, 20) != Engine::CanvasNavigationTableResult::Success ||
 			Engine::SetCanvasNavigationCell(world, canvas, 19, 19, selectable) !=
-			Engine::CanvasNavigationTableResult::Success ||
+				Engine::CanvasNavigationTableResult::Success ||
 			Engine::SetCanvasNavigationCell(world, canvas, 0, 0, outside) !=
-			Engine::CanvasNavigationTableResult::InvalidTarget) {
+				Engine::CanvasNavigationTableResult::InvalidTarget) {
 			return false;
 		}
 
 		Engine::Entity resolved = Engine::Entity::Null();
-		if (Engine::GetCanvasNavigationCell(world, canvas, 19, 19, resolved) !=
-			Engine::CanvasNavigationTableResult::Success || resolved != selectable) {
+		if (Engine::GetCanvasNavigationCell(world, canvas, 19, 19, resolved) != Engine::CanvasNavigationTableResult::Success ||
+			resolved != selectable) {
 			return false;
 		}
 
 		nlohmann::json canvasJson;
-		Engine::CanvasComponent::SerializeECS(
-			world, canvas, world.GetComponent<Engine::CanvasComponent>(canvas), canvasJson);
-		if (canvasJson["navigationTable"].value("rows", 0) != 20 ||
-			canvasJson["navigationTable"].value("columns", 0) != 20 ||
+		Engine::CanvasComponent::SerializeECS(world, canvas, world.GetComponent<Engine::CanvasComponent>(canvas), canvasJson);
+		if (canvasJson["navigationTable"].value("rows", 0) != 20 || canvasJson["navigationTable"].value("columns", 0) != 20 ||
 			canvasJson["navigationTable"]["cells"].size() != 400) {
 			return false;
 		}
 
 		// 編集用とECSの縮小で同じセル位置を維持する
-		if (!Engine::SetCanvasNavigationCell(draft, 22, second) ||
-			!Engine::ResizeCanvasNavigationTable(draft, 2, 3) || draft.cells[5] != second ||
+		if (!Engine::SetCanvasNavigationCell(draft, 22, second) || !Engine::ResizeCanvasNavigationTable(draft, 2, 3) ||
+			draft.cells[5] != second ||
 			Engine::SetCanvasNavigationCell(world, canvas, 1, 2, selectable) != Engine::CanvasNavigationTableResult::Success ||
 			Engine::ResizeCanvasNavigationTable(world, canvas, 2, 3) != Engine::CanvasNavigationTableResult::Success ||
 			Engine::GetCanvasNavigationCell(world, canvas, 1, 2, resolved) != Engine::CanvasNavigationTableResult::Success ||
@@ -336,32 +379,29 @@ namespace NEMTests {
 		canvasJson["inputSettings"]["navigationUpKeys"] = nlohmann::json::array({4294967297ULL, 17, 17});
 		Engine::CanvasComponent::DeserializeECS(world, canvas, canvasJson, world.GetComponent<Engine::CanvasComponent>(canvas));
 		const auto bindings = Engine::GetCanvasInputBindings(world, canvas);
-		const auto invalidBinding = std::find_if(bindings.begin(), bindings.end(), [](const Engine::CanvasInputBinding& binding) {
-			return binding.device == Engine::CanvasInputDevice::Keyboard &&
-				binding.action == Engine::CanvasInputAction::Up && binding.code == 1;
-		});
-		const auto validBindings = std::count_if(bindings.begin(), bindings.end(), [](const Engine::CanvasInputBinding& binding) {
-			return binding.device == Engine::CanvasInputDevice::Keyboard &&
-				binding.action == Engine::CanvasInputAction::Up && binding.code == 17;
-		});
+		const auto invalidBinding =
+			std::find_if(bindings.begin(), bindings.end(), [](const Engine::CanvasInputBinding& binding) {
+				return binding.device == Engine::CanvasInputDevice::Keyboard &&
+					   binding.action == Engine::CanvasInputAction::Up && binding.code == 1;
+			});
+		const auto validBindings =
+			std::count_if(bindings.begin(), bindings.end(), [](const Engine::CanvasInputBinding& binding) {
+				return binding.device == Engine::CanvasInputDevice::Keyboard &&
+					   binding.action == Engine::CanvasInputAction::Up && binding.code == 17;
+			});
 		if (invalidBinding != bindings.end() || validBindings != 1) {
 			return false;
 		}
 
 		Engine::UISelectableComponent selectableSettings{};
-		Engine::from_json(nlohmann::json{
-			{ "normal",{
-				{ "animationEnabled",false },
-				{ "overrideTexture",true }
-			} }
-			}, selectableSettings);
-		if (selectableSettings.normal.animationEnabled ||
-			!selectableSettings.normal.overrideTexture ||
+		Engine::from_json(
+			nlohmann::json{{"normal", {{"animationEnabled", false}, {"overrideTexture", true}}}}, selectableSettings);
+		if (selectableSettings.normal.animationEnabled || !selectableSettings.normal.overrideTexture ||
 			!selectableSettings.selected.animationEnabled) {
 			return false;
 		}
 		const nlohmann::json selectableJson = selectableSettings;
 		return !selectableJson["normal"].value("animationEnabled", true) &&
-			selectableJson["selected"].value("animationEnabled", false);
+			   selectableJson["selected"].value("animationEnabled", false);
 	}
 }

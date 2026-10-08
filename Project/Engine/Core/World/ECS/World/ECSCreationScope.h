@@ -5,7 +5,12 @@
 //============================================================================
 #include <Engine/Core/World/ECS/World/ECSChangeTracker.h>
 
+// c++
+#include <memory>
+
 namespace Engine {
+
+	class ECSWorldLifetime;
 
 	//============================================================================
 	//	ECSCreationScope class
@@ -33,6 +38,7 @@ namespace Engine {
 
 		bool HasCreations() const { return !created_.empty(); }
 		bool Contains(const Entity& entity) const;
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -40,14 +46,22 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 生成と取消を行うWorld
 		ECSWorld& world_;
+		// 生成元のWorld終了を確認する
+		std::shared_ptr<const ECSWorldLifetime> lifetime_;
+		// 生成通知の購読番号
 		uint64_t listenerID_ = 0;
+		// 確定前に生成したEntity
 		std::vector<Entity> created_;
 
 		//--------- functions ----------------------------------------------------
 
+		// Worldが生存している間だけ購読を解除する
+		void EndRegistration();
+
 		// 入れ子の生成も同じ範囲へ記録する
-		static void OnMutation(ECSWorld& world, const Entity& entity,
-			uint32_t typeID, ComponentMutationKind kind, void* userData);
+		static void OnMutation(
+			ECSWorld& world, const Entity& entity, uint32_t typeID, ComponentMutationKind kind, void* userData);
 	};
 }

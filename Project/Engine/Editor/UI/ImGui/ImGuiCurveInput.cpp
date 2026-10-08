@@ -16,14 +16,13 @@ namespace Engine::CurveEditorUtility {
 
 		ImGuiIO& io = ImGui::GetIO();
 		const ImVec2 mouse = io.MousePos;
-		// コンテキストメニューが開いている間はグラフのマウス操作を無効化する
-		// ポップアップ上のクリックがグラフにも伝わり、選択解除やマーキー選択を誤爆させるのを防ぐ
+		// メニュー上のクリックをグラフへ渡さない
 		const bool popupOpen = ImGui::IsPopupOpen("##CurveContextMenu");
 		const bool hovered = RectContains(graphRect, mouse) && !popupOpen;
 
 		state.hasHoveredKey = hovered && HitTestKey(graphRect, channels, state, mouse, state.hoveredKey);
 
-		// 選択中キーをまとめて削除する、矩形選択やCtrlクリックで複数選択したキーをDelete/Backspaceで消せる
+		// 削除キーで選択中のキーをまとめて消す
 		if (hovered && !state.selectedKeys.empty() &&
 			(ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_Backspace))) {
 			DeleteSelectedKeys(channels, state, quaternionAxisKeys);
@@ -71,7 +70,7 @@ namespace Engine::CurveEditorUtility {
 			state.contextMenuOnKey = state.hasHoveredKey;
 			if (state.contextMenuOnKey) {
 				state.contextMenuKey = state.hoveredKey;
-				// 未選択のキーを右クリックしたときはそのキーだけを選択して削除対象にする
+				// 未選択のキーを右クリックしたら選択を切り替える
 				if (!state.IsSelected(state.hoveredKey.channelIndex, state.hoveredKey.keyIndex)) {
 					state.SelectSingle(state.hoveredKey.channelIndex, state.hoveredKey.keyIndex);
 					result.selectionChanged = true;
@@ -81,7 +80,7 @@ namespace Engine::CurveEditorUtility {
 		}
 
 		if (ImGui::BeginPopup("##CurveContextMenu")) {
-			// 選択中キーをまとめて削除する、右クリックしたキーも選択に含めているので単体削除も兼ねる
+			// メニューから選択中のキーを削除する
 			if (!state.selectedKeys.empty()) {
 				if (ImGui::MenuItem("選択キーを削除")) {
 					DeleteSelectedKeys(channels, state, quaternionAxisKeys);

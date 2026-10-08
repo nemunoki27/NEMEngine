@@ -7,7 +7,7 @@
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
-#include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
+#include <Engine/Editor/Scripting/ManagedIDELauncher.h>
 #include <Engine/Editor/Utility/EditorShell.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -69,7 +69,7 @@ namespace {
 
 		// 共通のIDE設定でScriptを開く
 
-		return Engine::ManagedIdeLauncher::OpenFile(scriptPath, 1, 1);
+		return Engine::ManagedIDELauncher::OpenFile(scriptPath, 1, 1);
 	}
 }
 

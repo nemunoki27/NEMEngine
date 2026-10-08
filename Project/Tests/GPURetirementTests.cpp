@@ -7,6 +7,7 @@
 #include "GPUMeshPublicationTests.h"
 #include "GPURenderTextureBindingTests.h"
 #include "GPUParticleShapeTests.h"
+#include "GPUFontPublicationTests.h"
 
 //============================================================================
 //	include
@@ -456,11 +457,16 @@ static bool RunGPURetirement(bool hardware, bool compatibleHardware) {
 	bool valid = NEMTests::RunTest("CheckDescriptorCapacity", [&] { return NEMTests::CheckDescriptorCapacity(device.Get()); });
 	valid &= NEMTests::RunTest("CheckBufferPublication", [&] { return NEMTests::CheckBufferPublication(device.Get()); });
 	valid &= NEMTests::RunTest("CheckRenderTargetPublication", [&] { return NEMTests::CheckRenderTargetPublication(device.Get()); });
+	valid &= NEMTests::RunTest("CheckRenderTexturePublication", [&] { return NEMTests::CheckRenderTexturePublication(device.Get()); });
+	valid &= NEMTests::RunTest("CheckRenderTargetTransactions", [&] { return NEMTests::CheckRenderTargetTransactions(device.Get()); });
+	valid &= NEMTests::RunTest("CheckRootSignaturePlanning", [&] { return NEMTests::CheckRootSignaturePlanning(device.Get()); });
+	valid &= NEMTests::RunTest("CheckMaskCompositeResampling", [&] { return NEMTests::CheckMaskCompositeResampling(device.Get(), queue.Get()); });
 	valid &= NEMTests::RunTest("CheckMeshIndirectArguments", [&] { return NEMTests::CheckMeshIndirectArguments(device.Get(), queue.Get()); });
 	valid &= NEMTests::RunTest("CheckHiZSampleBounds", [&] { return NEMTests::CheckHiZSampleBounds(device.Get(), queue.Get()); });
 	const bool graphicsValid = NEMTests::RunTest("CheckGraphicsFenceRetirement", [&] { return CheckGraphicsFenceRetirement(device.Get(), queue.Get()); });
 	if (!graphicsValid) std::cerr << "Graphics owner retirement failed\n";
 	valid &= graphicsValid;
+	valid &= NEMTests::RunTest("CheckFontRenderPublication", [&] { return NEMTests::CheckFontRenderPublication(device.Get(), queue.Get()); });
 	valid &= NEMTests::RunTest("CheckUploadOwnerLifetime", [&] { return CheckUploadOwnerLifetime(device.Get(), queue.Get(), uploads); });
 	valid &= NEMTests::RunTest("CheckOwnerRetirement", [&] { return CheckOwnerRetirement(device.Get(), uploads); });
 	valid &= NEMTests::RunTest("CheckDifferentialBufferUpdates", [&] { return NEMTests::CheckDifferentialBufferUpdates(device.Get(), queue.Get()); });

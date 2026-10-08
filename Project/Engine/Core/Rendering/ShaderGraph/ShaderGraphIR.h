@@ -72,5 +72,9 @@ namespace Engine {
 
 		// グラフ全体を検証して中間表現を構築
 		static ShaderGraphIRModule Build(const ShaderGraphAsset& graph);
+
+		// 展開前の公開値の識別子を確認する
+		static bool ValidatePublicIdentifiers(const ShaderGraphAsset& graph,
+			std::vector<ShaderGraphDiagnostic>& diagnostics);
 	};
 } // Engine

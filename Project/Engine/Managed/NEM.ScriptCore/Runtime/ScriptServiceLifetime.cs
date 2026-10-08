@@ -30,7 +30,9 @@ internal static class ScriptServiceLifetime {
         switch (phase) {
         case 0:
             EventDispatch.FlushDeferred();
+            if (NativeApplicationAPI.ReadUpdateInterrupted()) { return; }
             Timers.Tick();
+            if (NativeApplicationAPI.ReadUpdateInterrupted()) { return; }
             Coroutines.Tick(CoroutinePhase.Update);
             break;
         case 1:

@@ -11,13 +11,8 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
-#include <cmath>
 #include <numbers>
-#include <vector>
-#include <algorithm>
-
-#include <windows.h>
-#include <windef.h>
+#include <cstdint>
 
 //============================================================================
 //	Math namespace
@@ -49,7 +44,7 @@ namespace Math {
 
 	// [0, 360)
 	float WrapDegree360(float value);
-	// [-180, 180)
+	// -180度を除き180度を含む範囲へ戻す
 	float WrapDegree180(float value);
 
 	Engine::Vector2 WrapDegree360(const Engine::Vector2& value);
@@ -64,6 +59,13 @@ namespace Math {
 	//	数学
 	//============================================================================
 
+	// float成分の二乗を桁あふれせず合計する
+	constexpr double SquaredLength(float x, float y, float z = 0.0f, float w = 0.0f) {
+
+		return static_cast<double>(x) * x + static_cast<double>(y) * y + static_cast<double>(z) * z +
+			   static_cast<double>(w) * w;
+	}
+
 	// 行列をfloat16の配列に変換する
 	void MatrixToFloat16(const Engine::Matrix4x4& src, float out[16]);
 	Engine::Matrix4x4 MatrixFromFloat16(const float in[16]);
@@ -74,9 +76,13 @@ namespace Math {
 
 	// 近似比較
 	bool NearlyEqual(float lhs, float rhs);
+	// 有限な値を符号付き32bit整数へ変換する
+	bool TryConvertToInt32(float value, int32_t& result);
+	// 有限な値を符号なし32bit整数へ変換する
+	bool TryConvertToUInt32(float value, uint32_t& result);
 
 	// 線形補間
 	float Lerp(float a, float b, float t);
 	// [0, 1]へクランプ
 	float Saturate(float v);
-} // Math
+}

@@ -3,16 +3,13 @@
 //============================================================================
 //	include
 //============================================================================
-// c++
-#include <atomic>
-#include <filesystem>
-#include <thread>
+#include <Engine/Core/Assets/Watch/AssetChangeWatcher.h>
 
 namespace Engine {
 
 	//============================================================================
 	//	ManagedSourceWatcher class
-	// 指定ディレクトリ配下の変更をReadDirectoryChangesWで監視しフラグで通知するクラス
+	// C#ソースの変更通知を共通のディレクトリ監視から取得する
 	//============================================================================
 	class ManagedSourceWatcher {
 	public:
@@ -34,28 +31,14 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 前回の確認以降に変更があったかを取り出してフラグをクリアする
-		bool ConsumeChanged() { return changed_.exchange(false); }
+		bool ConsumeChanged();
 	private:
 		//========================================================================
 		//	private Methods
 		//========================================================================
 
-		//--------- functions ----------------------------------------------------
-
-		// 監視スレッド本体
-		void ThreadMain();
-
 		//--------- variables ----------------------------------------------------
 
-		std::thread thread_;
-		// 監視対象ディレクトリのハンドルでwindows.hに依存しないようvoid*で持つ、未確保はnullptr
-		void* directoryHandle_ = nullptr;
-		// スレッド停止を通知するイベントで同じくvoid*で持つ
-		void* stopEvent_ = nullptr;
-
-		// 変更検知フラグ
-		std::atomic<bool> changed_{ false };
-		// スレッド稼働フラグ
-		std::atomic<bool> running_{ false };
+		AssetChangeWatcher watcher_;
 	};
-} // Engine
+}

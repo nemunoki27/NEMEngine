@@ -1,18 +1,11 @@
-using System.Text;
-using System.Text.Json;
-using static NEM.ComponentBindingGen.BindingTypeLayout;
-using static NEM.ComponentBindingGen.BindingOutputText;
-using static NEM.ComponentBindingGen.NativeBindingEmitter;
-using static NEM.ComponentBindingGen.ManagedBindingEmitter;
-using static NEM.ComponentBindingGen.BindingArtifactStore;
-
 namespace NEM.ComponentBindingGen;
 
-// Component連携の生成処理
+// 生成したソースの先頭表記を作る
 internal static class BindingOutputText {
 
     private const string GeneratorVersion = "4";
     private const int SupportedSchemaVersion = 2;
+    // Nativeソースの先頭表記を作る
     internal static string NativeBanner() {
         return "//============================================================================\n" +
                "//\tAUTO-GENERATED FILE - DO NOT EDIT MANUALLY\n" +
@@ -22,7 +15,8 @@ internal static class BindingOutputText {
                "//============================================================================\n";
     }
 
-    internal static string CsBanner() {
+    // Managedソースの先頭表記を作る
+    internal static string CSBanner() {
         return "//============================================================================\n" +
                "//\tAUTO-GENERATED FILE - DO NOT EDIT MANUALLY\n" +
                $"//\tgenerator: NEM.ComponentBindingGen v{GeneratorVersion}\n" +

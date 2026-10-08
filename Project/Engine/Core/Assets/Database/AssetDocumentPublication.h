@@ -7,7 +7,9 @@
 #include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
 
 // c++
+#include <optional>
 #include <span>
+#include <string>
 
 namespace Engine {
 
@@ -22,6 +24,8 @@ namespace Engine {
 		nlohmann::json metaDocument;
 		std::string fileRevision;
 		std::string metaRevision;
+		bool canonicalize = false;		  // 既存の保存形式を維持する
+		std::optional<std::string> bytes; // 画像などの保存内容
 	};
 
 	//============================================================================

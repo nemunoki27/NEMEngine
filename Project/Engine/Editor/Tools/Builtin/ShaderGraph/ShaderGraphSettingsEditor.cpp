@@ -16,7 +16,7 @@ Engine::ShaderGraphSettingsEditor::ShaderGraphSettingsEditor(
 	: editSession_(session), previewController_(preview) {
 }
 
-bool Engine::ShaderGraphSettingsEditor::Draw(const EditorToolContext& context) {
+bool Engine::ShaderGraphSettingsEditor::Draw() {
 
 	if (!MyGUI::CollapsingHeader("グラフ設定", true)) {
 		return false;
@@ -36,7 +36,7 @@ bool Engine::ShaderGraphSettingsEditor::Draw(const EditorToolContext& context) {
 	if (MyGUI::EnumCombo("描画対象", target).valueChanged) {
 
 		// 元のMaterialを復元してから描画対象を切り替える
-		previewController_.Restore(context);
+		previewController_.Restore();
 		targetChanged = editSession_.ChangeTarget(target);
 	}
 

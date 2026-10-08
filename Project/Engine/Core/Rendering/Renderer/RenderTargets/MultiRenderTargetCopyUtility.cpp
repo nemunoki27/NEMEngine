@@ -8,8 +8,8 @@
 //============================================================================
 //	MultiRenderTargetCopyUtility functions
 //============================================================================
-bool Engine::MultiRenderTargetCopy::CopyColor0Resource(GraphicsCore& graphicsCore,
-	MultiRenderTarget* source, MultiRenderTarget* dest) {
+bool Engine::MultiRenderTargetCopy::CopyColor0Resource(
+	GraphicsCore& graphicsCore, MultiRenderTarget* source, MultiRenderTarget* dest) {
 
 	if (!source || !dest) {
 		return false;
@@ -17,11 +17,14 @@ bool Engine::MultiRenderTargetCopy::CopyColor0Resource(GraphicsCore& graphicsCor
 	// blit失敗時のfallbackで、formatとサイズが完全一致するときだけresource copyできる
 	RenderTexture2D* sourceColor = source->GetColorTexture(0);
 	RenderTexture2D* destColor = dest->GetColorTexture(0);
-	if (!sourceColor || !destColor ||
-		sourceColor->GetFormat() != destColor->GetFormat() ||
+	if (!sourceColor || !destColor || sourceColor->GetFormat() != destColor->GetFormat() ||
 		sourceColor->GetRenderTarget().width != destColor->GetRenderTarget().width ||
 		sourceColor->GetRenderTarget().height != destColor->GetRenderTarget().height) {
 		return false;
+	}
+	// 同じ資源へCopyResourceを発行しない
+	if (sourceColor->GetResource() == destColor->GetResource()) {
+		return sourceColor->GetResource() != nullptr;
 	}
 
 	// copy元と先をそれぞれの状態へ遷移してからCopyResourceで丸ごと転送する

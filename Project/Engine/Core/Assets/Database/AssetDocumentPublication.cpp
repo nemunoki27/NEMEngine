@@ -5,6 +5,7 @@
 //============================================================================
 #include "AssetDatabase.h"
 #include "AssetMetaStorage.h"
+#include "AssetDocumentRecovery.h"
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 
@@ -21,6 +22,14 @@ bool Engine::AssetDocumentPublication::Prepare(const AssetDatabase& database, co
 
 	diagnostic.clear();
 	try {
+		// 未完了保存の内容を新しい編集で上書きしない
+		for (const auto kind : AssetDocumentRecovery::GetSaveKinds()) {
+			const auto pending = JsonFileJournal::GetRecoveries(AssetDocumentRecovery::MakeScope(kind), true);
+			if (!pending.empty()) {
+				diagnostic = "未完了のAsset保存があります Projectの診断画面で復旧を確認してください";
+				return false;
+			}
+		}
 		// 書込前の文書とmetaの状態を保持する
 		AssetDocumentChange next;
 		next.filePath = database.ResolveAssetPath(assetPath);
@@ -95,7 +104,7 @@ bool Engine::AssetDocumentPublication::Commit(AssetDatabase& database, std::span
 				diagnostic = "保存するAssetの識別子かパスが不正です";
 				return false;
 			}
-			documents.push_back({change.filePath, change.document});
+			documents.push_back({change.filePath, change.document, false, change.canonicalize, change.bytes});
 			documents.push_back({AssetMetaStorage::MetaPathOf(change.filePath), change.metaDocument, false, true});
 		}
 		const auto recover = [&scope](const std::filesystem::path& directory, std::string& error) {

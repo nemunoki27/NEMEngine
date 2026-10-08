@@ -1,59 +1,12 @@
 using System.Runtime.InteropServices;
 
-
 namespace NEMEngine;
 
-// C++側 ManagedABI と一致させるABI定数
+// Nativeと共通のABI定数
 internal static class ManagedABI {
 
-    // C++側 kManagedABIVersion と一致させる
-    // v2: managed script instance handle を int32 から NativeScriptInstanceHandle へ変更
-    // v3: 型登録を CopyScriptTypeInfo(Stable GUID) へ変更し、GenerateScriptManifest を追加
-    // v4: 固定長フィールドABIを撤廃し、二段階blob schema/runtime state API へ移行
-    // v5: object model(generic component access / GameObject.Destroy / MonoBehaviour.Enabled / world rotation・lossyScale)を追加
-    // v6: 自動生成 component binding 用の typed property access(get/set + string)を追加
-    // v7: gameplay API(Time拡張/TimeScale, AssetRef解決, GameObject生成, Prefab/Scene, Input拡張, Audio/Animation/Application)を追加
-    // v8: 診断 API(reportScriptException) と script descriptor の defaultExecutionOrder を追加
-    // v9: GetComponent<Script> 用に entity の script instance を scriptTypeID で引く getScriptInstance を追加
-    // v10: Scene 単一load用の loadSceneSingle を追加
-    // v11: EntityRef を runtime entity へ解決する resolveEntityRef を追加
-    // v12: ライン描画の lineSetPoints と即時描画の lineDrawImmediate lineDrawSphereImmediate を追加
-    // v13: LineRendererComponent へ1点追加する lineAddPoint を追加
-    // v14: Tag公開(copyTag/setTag)とLayerマスク公開(visibility/collision typeMask)とGameObject検索(byName/byTag/byComponent)を追加
-    // v15: 即時形状描画の汎用 lineDrawShape を追加
-    // v16: Transform 親追従の継承フラグ(ignoreParentRotation/ignoreParentScale)を追加
-    // v17: 入力タイプとマウス範囲制御の get/set を追加
-    // v18: MeshRenderer のマテリアル color 上書き setMeshMaterialColor を追加
-    // v19: Mesh/Sprite/Text のマテリアル color の get/set(setRendererMaterialColor/getRendererMaterialColor)を追加
-    // v20: GameObjectの保存identityを逆引きする getEntityReferenceIdentity を追加
-    // v21: レイキャスト(physicsRaycast/physicsRaycastAll)とカメラレイ(screenPointToRay/getMousePositionInView)とCollisionタイプ名解決を追加
-    // v22: AddComponent<Script> 用に entity へ script を runtime attach する attachScript を追加
-    // v23: イージング関数 easedValue を追加、EasingType と t からイージング済みの値を返す
-    // v26: UIが入力を消費したフレームのゲーム入力ブロック状態を追加
-    // v27: UISelectableの決定入力配列取得と設定を追加
-    // v28: UI入力配列をCanvasの上下左右と決定へ移行
-    // v29: Application.Quitの終了要求を追加
-    // v30: ワールド座標のGameView変換とCanvasローカル座標変換を追加
-    // v32: AudioSourceのPlayOneShotとUnPauseを追加
-    // v34: アセット参照を128bit AssetGUIDへ移行
-    // v35: UserSettingsルート取得APIを追加
-    // v36: Collision実行時状態をAuthoring設定から分離
-    // v37: 型安全なDynamicBufferアクセスを追加
-    // v43: 全Renderer共通の型付きMaterial Instance APIを追加
-    // v44: 廃止した描画、画面遷移APIを削除
-    // v45: RenderFeatureProfileの実行時パラメータAPIを追加
-    // v46: ParticleSystemのUnity準拠再生操作と実行状態APIを追加
-    // v47: RenderFeatureグループの有効状態APIを追加
-    // v48: RenderFeaturePassをProfile世代付きUUIDハンドルへ変更
-    // v49: Canvas遷移テーブルの取得と変更APIを追加
-    // v50: RenderFeatureのSceneColor出力切り替えAPIを追加
-    // v51: 入力タイプを実操作の取得専用に変更しsetInputTypeを削除
-    // v52: アクティブSceneの再読み込みAPIを追加
-    // v53: スクリプトの詳細計測区間を追加
-    // v54: シーンを越えてルートGameObjectを保持するAPIを追加
-    // v60: 物理クエリのTrigger指定とグローバル設定を追加
-    // v61: Controllerの型付きParameter操作を追加
-    internal const uint Version = 66;
+    // NativeとManagedを同じ版で接続する
+    internal const uint Version = 67;
 
     // ネイティブが提供する機能カテゴリ
     internal const ulong CapabilityCore = 1ul << 0;
@@ -65,13 +18,13 @@ internal static class ManagedABI {
     internal const ulong CapabilityComponentBindings = 1ul << 6;
     internal const ulong CapabilityGameplay = 1ul << 7;
 
-    // ScriptCoreが動作に必要とするcapability
+    // ScriptCoreが必要とする機能
     internal const ulong RequiredCapabilities =
         CapabilityCore | CapabilityInput | CapabilityEntity | CapabilityHierarchy | CapabilityTransform
         | CapabilityObjectModel | CapabilityComponentBindings | CapabilityGameplay;
 }
 
-// C++側 ManagedRendererMaterialTarget と一致させる
+// Nativeと共通のRenderer種別
 internal enum RendererMaterialTarget {
 
     Mesh = 0,
@@ -81,7 +34,7 @@ internal enum RendererMaterialTarget {
     Line,
 }
 
-// C++側 ManagedMaterialParameterValueType と一致させる
+// Nativeと共通のMaterial値種別
 internal enum NativeMaterialParameterValueType {
 
     Float = 0,
@@ -95,7 +48,7 @@ internal enum NativeMaterialParameterValueType {
     Bool,
 }
 
-// C++側 ManagedMaterialParameterValue と同一レイアウト
+// Nativeと共通のMaterial値配置
 [StructLayout(LayoutKind.Explicit, Size = 24)]
 public struct NativeMaterialParameterValue {
 
@@ -112,7 +65,7 @@ public struct NativeMaterialParameterValue {
     [FieldOffset(20)] internal int reserved;
 }
 
-// C++側 ManagedABIHeader と同一レイアウト
+// Nativeと共通のABI情報配置
 [StructLayout(LayoutKind.Sequential)]
 public struct ManagedABIHeader {
 
@@ -122,7 +75,7 @@ public struct ManagedABIHeader {
     public ulong bindingFingerprint;
 }
 
-// C++側 ManagedScriptInstanceHandle と同一レイアウト。単純なint indexを境界で公開しない
+// Nativeと共通のScript世代付き参照
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct NativeScriptInstanceHandle {
 
@@ -134,11 +87,12 @@ public readonly struct NativeScriptInstanceHandle {
         this.generation = generation;
     }
 
-    // default(NativeScriptInstanceHandle) = {0,0} を valid と誤認しないため generation!=0 も要求する
+    // 既定値の世代0を無効として扱う
     public bool IsValid => index != 0xffffffffu && generation != 0;
     public static NativeScriptInstanceHandle Null => new(0xffffffffu, 0);
 }
 
+// Nativeと共通の3軸値
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeVector3 {
 
@@ -159,6 +113,7 @@ public struct NativeVector3 {
     }
 }
 
+// Nativeと共通の2軸値
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeVector2 {
 
@@ -177,7 +132,7 @@ public struct NativeVector2 {
     }
 }
 
-// C++側 ManagedRaycastHit と同一レイアウト
+// Nativeと共通のレイ接触結果
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeRaycastHit {
 
@@ -189,7 +144,7 @@ public struct NativeRaycastHit {
     public int trigger;
 }
 
-// C++側 ManagedSkinnedAnimationRuntimeState と同一レイアウト
+// Nativeと共通のAnimation再生状態
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeSkinnedAnimationRuntimeState {
 
@@ -202,7 +157,7 @@ public struct NativeSkinnedAnimationRuntimeState {
     public int inTransition;
 }
 
-// C++側 ManagedUISelectableRuntimeState と同一レイアウト
+// Nativeと共通のUI選択状態
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeUISelectableRuntimeState {
 
@@ -213,7 +168,7 @@ public struct NativeUISelectableRuntimeState {
     public int disabledThisFrame;
 }
 
-// C++側 ManagedUIProgressRuntimeState と同一レイアウト
+// Nativeと共通のUI表示値
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeUIProgressRuntimeState {
 
@@ -222,6 +177,7 @@ public struct NativeUIProgressRuntimeState {
     public int initialized;
 }
 
+// Nativeと共通の色値
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeColor4 {
 
@@ -244,6 +200,7 @@ public struct NativeColor4 {
     }
 }
 
+// Nativeと共通の回転値
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeQuaternion {
 
@@ -266,7 +223,7 @@ public struct NativeQuaternion {
     }
 }
 
-// 即時形状描画の種類、値は C++ ManagedLineShapeKind と一致させる
+// Nativeと共通の即時描画形状
 public enum LineShapeType {
 
     Circle2D = 0,
@@ -279,7 +236,7 @@ public enum LineShapeType {
     Axis,
 }
 
-// C++側 ManagedLineShape と同一レイアウト、materialID を先頭に置き8バイト境界を揃える
+// Materialの8バイト境界を保つNative形状配置
 [StructLayout(LayoutKind.Sequential)]
 public struct NativeLineShape {
 
@@ -295,4 +252,45 @@ public struct NativeLineShape {
     public NativeVector3 b;
     public NativeQuaternion rotation;
     public NativeColor4 color;
+}
+
+//============================================================================
+//	NativeScriptTypeInfo structure
+//	NativeのScript型情報と配置を揃える
+//============================================================================
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct NativeScriptTypeInfo {
+
+    // 正規化済みScript型ID
+    public fixed byte scriptTypeID[40];
+    // 完全修飾型名
+    public fixed byte fullTypeName[256];
+    // 表示名
+    public fixed byte displayName[128];
+    // 定義元のソース位置
+    public fixed byte sourcePath[260];
+    // Script型IDの明示指定
+    public int hasExplicitID;
+    // 既定の実行順序
+    public int defaultExecutionOrder;
+}
+
+//============================================================================
+//	NativeCollisionEvent structure
+//============================================================================
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeCollisionEvent {
+
+    // コールバックを受け取るGameObjectと相手GameObject
+    public NativeEntity self;
+    public NativeEntity other;
+    // 接触情報
+    public NativeVector3 normal;
+    public NativeVector3 point;
+    public float penetration;
+    // 衝突した形状インデックス
+    public int selfShapeIndex;
+    public int otherShapeIndex;
+    // Trigger接触なら1
+    public int isTrigger;
 }

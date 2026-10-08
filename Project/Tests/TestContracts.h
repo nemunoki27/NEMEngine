@@ -1,16 +1,19 @@
 #pragma once
 
 namespace NEMTests {
+	bool TestManagedSchemaCache();
 	bool TestManagedLifecycleIntegration();
 
 	bool TestProfilerContracts();
 
 	bool TestAssetGUIDRoundTrip();
 	bool TestAssetDatabaseTransactions();
+	bool TestFontGenerationContracts();
 	bool TestAssetWatcherLifetime();
 	bool TestAssetDependencyCandidates();
 	bool TestBuiltinShaderSources();
 	bool TestMeshShaderConstantLayout();
+	bool TestLineShapeSegments();
 	bool TestContentHash();
 	bool TestPackageResolver();
 	bool TestVirtualPath();
@@ -50,17 +53,21 @@ namespace NEMTests {
 	bool TestBlendStates();
 	bool TestMeshBatchInvalidation();
 	bool TestMaterialParameters();
+	bool TestMaterialParameterHash();
 	bool TestMeshAuthoringCache();
+	bool TestModelImportBundle();
 	bool TestPrimitiveTangents();
 	bool TestTransformDimensionSerialization();
 	bool TestScreenSpaceOutlineBinding();
 	bool TestScreenSpaceOutlineSerialization();
 	bool TestScriptProfiler();
 	bool TestScriptFieldStorage();
+	bool TestManagedBuildDiagnostics();
 	bool TestScriptExecutionOrderSettings();
 	bool TestUTF8Path();
 	bool TestTextureImportSettings();
 	bool TestShaderReflectionMerge();
+	bool TestRootSignaturePlanning();
 	bool TestRenderFeatureRuntimeOverrides();
 	bool TestShaderPathDependencies();
 	bool TestRayTracingPipelineSerialization();
@@ -68,13 +75,24 @@ namespace NEMTests {
 	bool TestRendererLayerCulling();
 	bool TestRenderCameraHistory();
 	bool TestSceneGridProjection();
+	bool TestRenderTargetSizing();
 	bool TestProjectAssetCopyTransaction();
 	bool TestProjectAssetMoveTransaction();
 	bool TestMaterialCreationFailures();
+	bool TestMaterialReflectionCache();
+	bool TestMaterialResolverIndexChanges();
+	bool TestAssetDocumentRecovery();
 	bool TestShaderGraphPublication();
 	bool TestSceneViewCameraSettings();
 	bool TestRenderFeatureProfile();
+	bool TestRenderPassesSelectionRequests();
+	bool TestPerformanceGridCaptureRetry();
+	bool TestPerformanceGridUpdateRollback();
+	bool TestPerformanceGridWorldEnd();
+	bool TestEditorTransactionRollback();
+	bool TestRenderPassesReflectionCache();
 	bool TestPostProcessSourceExtension();
+	bool TestPostProcessPublication();
 	bool TestCanvasNavigationTable();
 	bool TestGPURetirement(bool hardware = false);
 }

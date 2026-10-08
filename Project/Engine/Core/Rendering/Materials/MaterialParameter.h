@@ -27,7 +27,7 @@ namespace Engine {
 	// 実行時の文字列検索を避ける安定パラメータID
 	struct MaterialParameterID {
 
-		uint64_t value = 0;
+		uint64_t value = 0; // 名前かUUID由来の安定ID
 
 		bool operator==(const MaterialParameterID&) const noexcept = default;
 		explicit operator bool() const noexcept { return value != 0; }
@@ -98,61 +98,43 @@ namespace Engine {
 		inline constexpr std::string_view AlphaClip = "alphaClip";
 		inline constexpr std::string_view SelectionMode = "selectionMode";
 		inline constexpr std::string_view CompositeMode = "compositeMode";
-		inline constexpr std::string_view RenderingLayerMask =
-			"renderingLayerMask";
+		inline constexpr std::string_view RenderingLayerMask = "renderingLayerMask";
 	}
 
 	// 標準PBRパラメータID
 	namespace MaterialParameterIDs {
 
-		inline constexpr MaterialParameterID SelectionMode =
-			MaterialParameterID::FromName(MaterialParameterNames::SelectionMode);
-		inline constexpr MaterialParameterID CompositeMode =
-			MaterialParameterID::FromName(MaterialParameterNames::CompositeMode);
+		inline constexpr MaterialParameterID SelectionMode = MaterialParameterID::FromName(MaterialParameterNames::SelectionMode);
+		inline constexpr MaterialParameterID CompositeMode = MaterialParameterID::FromName(MaterialParameterNames::CompositeMode);
 		inline constexpr MaterialParameterID RenderingLayerMask =
-			MaterialParameterID::FromName(
-				MaterialParameterNames::RenderingLayerMask);
+			MaterialParameterID::FromName(MaterialParameterNames::RenderingLayerMask);
 
-		inline constexpr MaterialParameterID BaseColor =
-			MaterialParameterID::FromName(MaterialParameterNames::BaseColor);
-		inline constexpr MaterialParameterID BaseColorTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::BaseColorTexture);
-		inline constexpr MaterialParameterID NormalTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::NormalTexture);
-		inline constexpr MaterialParameterID Metallic =
-			MaterialParameterID::FromName(MaterialParameterNames::Metallic);
+		inline constexpr MaterialParameterID BaseColor = MaterialParameterID::FromName(MaterialParameterNames::BaseColor);
+		inline constexpr MaterialParameterID BaseColorTexture = MaterialParameterID::FromName(MaterialParameterNames::BaseColorTexture);
+		inline constexpr MaterialParameterID NormalTexture = MaterialParameterID::FromName(MaterialParameterNames::NormalTexture);
+		inline constexpr MaterialParameterID Metallic = MaterialParameterID::FromName(MaterialParameterNames::Metallic);
 		inline constexpr MaterialParameterID MetallicRoughnessTexture =
 			MaterialParameterID::FromName(MaterialParameterNames::MetallicRoughnessTexture);
-		inline constexpr MaterialParameterID MetallicTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::MetallicTexture);
-		inline constexpr MaterialParameterID Roughness =
-			MaterialParameterID::FromName(MaterialParameterNames::Roughness);
-		inline constexpr MaterialParameterID RoughnessTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::RoughnessTexture);
+		inline constexpr MaterialParameterID MetallicTexture = MaterialParameterID::FromName(MaterialParameterNames::MetallicTexture);
+		inline constexpr MaterialParameterID Roughness = MaterialParameterID::FromName(MaterialParameterNames::Roughness);
+		inline constexpr MaterialParameterID RoughnessTexture = MaterialParameterID::FromName(MaterialParameterNames::RoughnessTexture);
 		inline constexpr MaterialParameterID DisplacementTexture =
 			MaterialParameterID::FromName(MaterialParameterNames::DisplacementTexture);
 		inline constexpr MaterialParameterID DisplacementScale =
 			MaterialParameterID::FromName(MaterialParameterNames::DisplacementScale);
 		inline constexpr MaterialParameterID DisplacementMidpoint =
 			MaterialParameterID::FromName(MaterialParameterNames::DisplacementMidpoint);
-		inline constexpr MaterialParameterID AmbientOcclusion =
-			MaterialParameterID::FromName(MaterialParameterNames::AmbientOcclusion);
+		inline constexpr MaterialParameterID AmbientOcclusion = MaterialParameterID::FromName(MaterialParameterNames::AmbientOcclusion);
 		inline constexpr MaterialParameterID AmbientOcclusionTexture =
 			MaterialParameterID::FromName(MaterialParameterNames::AmbientOcclusionTexture);
-		inline constexpr MaterialParameterID EmissiveColor =
-			MaterialParameterID::FromName(MaterialParameterNames::EmissiveColor);
-		inline constexpr MaterialParameterID EmissiveTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::EmissiveTexture);
-		inline constexpr MaterialParameterID SpecularTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::SpecularTexture);
+		inline constexpr MaterialParameterID EmissiveColor = MaterialParameterID::FromName(MaterialParameterNames::EmissiveColor);
+		inline constexpr MaterialParameterID EmissiveTexture = MaterialParameterID::FromName(MaterialParameterNames::EmissiveTexture);
+		inline constexpr MaterialParameterID SpecularTexture = MaterialParameterID::FromName(MaterialParameterNames::SpecularTexture);
 		inline constexpr MaterialParameterID EmissiveIntensity =
 			MaterialParameterID::FromName(MaterialParameterNames::EmissiveIntensity);
-		inline constexpr MaterialParameterID Opacity =
-			MaterialParameterID::FromName(MaterialParameterNames::Opacity);
-		inline constexpr MaterialParameterID OpacityTexture =
-			MaterialParameterID::FromName(MaterialParameterNames::OpacityTexture);
-		inline constexpr MaterialParameterID AlphaClip =
-			MaterialParameterID::FromName(MaterialParameterNames::AlphaClip);
+		inline constexpr MaterialParameterID Opacity = MaterialParameterID::FromName(MaterialParameterNames::Opacity);
+		inline constexpr MaterialParameterID OpacityTexture = MaterialParameterID::FromName(MaterialParameterNames::OpacityTexture);
+		inline constexpr MaterialParameterID AlphaClip = MaterialParameterID::FromName(MaterialParameterNames::AlphaClip);
 	}
 
 	// マテリアルのパラメータ値
@@ -166,9 +148,9 @@ namespace Engine {
 	// ID順で保持する1パラメータ
 	struct MaterialParameterRecord {
 
-		MaterialParameterID id{};
-		MaterialParameterSemantic semantic = MaterialParameterSemantic::None;
-		std::pair<std::string, MaterialParameterValue> namedValue{};
+		MaterialParameterID id{}; // 安定した検索ID
+		MaterialParameterSemantic semantic = MaterialParameterSemantic::None; // 標準用途
+		std::pair<std::string, MaterialParameterValue> namedValue{}; // 表示名と設定値
 	};
 
 	//============================================================================
@@ -177,12 +159,13 @@ namespace Engine {
 	//============================================================================
 	class MaterialParameterSet {
 	public:
-		//============================================================================
+		//========================================================================
 		//	public Methods
-		//============================================================================
+		//========================================================================
 
 		using value_type = std::pair<std::string, MaterialParameterValue>;
 
+		// 設定値を読み取り専用で列挙する
 		class const_iterator {
 		public:
 			const_iterator() = default;
@@ -194,9 +177,14 @@ namespace Engine {
 			bool operator==(const const_iterator&) const noexcept = default;
 		private:
 			friend class MaterialParameterSet;
-			explicit const_iterator(const MaterialParameterRecord* record) : record_(record) {}
+			//--------- variables ----------------------------------------------------
 
-			const MaterialParameterRecord* record_ = nullptr;
+			const MaterialParameterRecord* record_ = nullptr; // 列挙中の値への借用
+
+			//--------- functions ----------------------------------------------------
+
+			// 指定した値から列挙を開始する
+			explicit const_iterator(const MaterialParameterRecord* record) : record_(record) {}
 		};
 
 		MaterialParameterSet() = default;
@@ -242,23 +230,24 @@ namespace Engine {
 		uint64_t GetContentHash() const;
 		const MaterialParameterSet& Get() const { return *this; }
 	private:
-		//============================================================================
+		//========================================================================
 		//	private Methods
-		//============================================================================
+		//========================================================================
 
 		//--------- structure ----------------------------------------------------
 
+		// 設定値の領域と更新世代
 		struct Data {
 
-			std::vector<MaterialParameterRecord> records{};
-			uint64_t revision = 1;
-			mutable uint64_t contentHash = 0;
-			mutable bool contentHashDirty = true;
+			std::vector<MaterialParameterRecord> records{}; // ID順の設定値
+			uint64_t revision = 1; // 値を更新した世代
+			mutable uint64_t contentHash = 0; // 計算済みの内容Hash
+			mutable bool contentHashDirty = true; // 内容Hashの再計算が必要か
 		};
 
 		//--------- variables ----------------------------------------------------
 
-		std::unique_ptr<Data> data_{};
+		std::unique_ptr<Data> data_{}; // 値がある場合だけ確保する領域
 
 		//--------- functions ----------------------------------------------------
 

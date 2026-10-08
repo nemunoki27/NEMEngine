@@ -1,16 +1,9 @@
-using System.Text;
-using System.Text.Json;
-using static NEM.ComponentBindingGen.BindingTypeLayout;
-using static NEM.ComponentBindingGen.BindingOutputText;
-using static NEM.ComponentBindingGen.NativeBindingEmitter;
-using static NEM.ComponentBindingGen.ManagedBindingEmitter;
-using static NEM.ComponentBindingGen.BindingArtifactStore;
-
 namespace NEM.ComponentBindingGen;
 
-// Component連携の生成処理
+// 公開値の型と転送サイズを対応付ける
 internal static class BindingTypeLayout {
 
+    // 公開値の対応型を判定する
     internal static bool IsKnownKind(string kind) {
         switch (kind) {
             case "Bool": case "Byte": case "SByte": case "Short": case "UShort":
@@ -23,7 +16,8 @@ internal static class BindingTypeLayout {
         }
     }
 
-    internal static (string csType, int size) PodInfo(string kind) {
+    // 値型の名前と転送サイズを取得する
+    internal static (string csType, int size) PODInfo(string kind) {
         switch (kind) {
             case "Byte": return ("byte", 1);
             case "SByte": return ("sbyte", 1);

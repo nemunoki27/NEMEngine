@@ -40,6 +40,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tgraph.baseColor *= input.vertexColor;\n"
 			"\treturn graph;\n"
 			"}\n\n";
+		// 描画方式に応じて表面の値を出力する
 		if (!transparent) {
 			source += "GBufferOutput main(VSOutput input) {\n\n"
 					  "\tShaderGraphSurface graph = EvaluatePrimitiveShaderGraph(input);\n"
@@ -95,6 +96,7 @@ namespace Engine::ShaderGraphStageSource {
 						 : (text ? "#include \"Builtin/Text/defaultText.hlsli\"\n"
 								 : "#include \"Builtin/Primitive/primitive2D.hlsli\"\n");
 		source += "SamplerState gSampler : register(s0);\n";
+		// TextのAtlasとSpriteのUV入力を宣言する
 		if (text) {
 			source += "Texture2D<float4> gAtlas : register(t1);\n"
 					  "struct PSInstance { float2 atlasSize; float pxRange; float padding0; float4x4 uvMatrix; };\n"
@@ -167,9 +169,12 @@ namespace Engine::ShaderGraphStageSource {
 			"ShaderGraphParameters GetParticleShaderGraphParameters(VSOutput input) {\n\n"
 			"\tShaderGraphParameters result = (ShaderGraphParameters) 0;\n"
 			"\tif (input.particleIndex != 0xffffffffu) result = gParticleCustomParameters[input.particleIndex];\n";
+		// ParticleのTexture配置と公開値を対応付ける
 		uint32_t textureIndex = 0;
 		for (const ShaderGraphParameter& parameter : graph.parameters) {
-			if (parameter.type != ShaderGraphValueType::Texture2D) { continue; }
+			if (parameter.type != ShaderGraphValueType::Texture2D) {
+				continue;
+			}
 			source += "\tresult." +
 					  MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
 					  " = " + std::to_string(textureIndex++) + "u;\n";
@@ -223,6 +228,7 @@ namespace Engine::ShaderGraphStageSource {
 		source += "#include \"" + std::string(surfaceIncludeFile) + "\"\n\n";
 		source += context.BuildMaterialConstantBuffer();
 		source += "\n" + context.BuildMaterialParameterGetter();
+		// 通常描画と同じ透明度で輪郭Maskを作る
 		source += "\ncbuffer ScreenSpaceOutlineMaskConstantsBuffer : register(b1, space1) {\n\n"
 				  "\tScreenSpaceOutlineMaskConstants gMaskConstants;\n"
 				  "};\n\n"

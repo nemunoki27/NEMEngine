@@ -56,7 +56,7 @@ namespace Engine::TextLayoutBuilder {
 		glyphs.Clear();
 
 		// UTF-8 -> codepoint変換
-		std::vector<char32_t> codepoints = Engine::Algorithm::Utf8ToCodepoints(renderer.text);
+		std::vector<char32_t> codepoints = Engine::Algorithm::UTF8ToCodepoints(renderer.text);
 		if (codepoints.empty()) {
 			cache->valid = true;
 			return false;

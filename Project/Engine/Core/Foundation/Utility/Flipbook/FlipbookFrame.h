@@ -25,4 +25,4 @@ namespace Engine {
 
 	// 分割数と進行度0~1からコマUVを求める、左上から右下の順に送る
 	FlipbookFrame CalcFlipbookFrame(std::span<const int32_t> tilesX, int32_t tilesY, float progress);
-} // Engine
+}

@@ -11,6 +11,7 @@
 // c++
 #include <algorithm>
 #include <deque>
+#include <limits>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -255,7 +256,7 @@ void Engine::TextureUploadService::RequestReload(const std::string& key) {
 		std::scoped_lock lock(mutex_);
 		// 元のファイルリクエストが無いキーはsolid colorや未ロードなので対象外
 		auto it = keyRequests_.find(key);
-		if (it == keyRequests_.end()) {
+		if (it == keyRequests_.end() || it->second.description.snapshotBytes) {
 			return;
 		}
 		PrepareRequest(it->second, toEnqueue);
@@ -275,7 +276,7 @@ void Engine::TextureUploadService::RequestReloadByFile(
 	const TextureImportSettings* updatedSettings) {
 
 	// 比較はlexically_normal+小文字化でWindowsの大小やセパレータ差を吸収する
-	const std::wstring target = Algorithm::ToLowerW(fullPath.lexically_normal().generic_wstring());
+	const std::wstring target = NormalizeFilePath(fullPath);
 	if (target.empty()) {
 		return;
 	}
@@ -283,14 +284,23 @@ void Engine::TextureUploadService::RequestReloadByFile(
 	std::vector<DecodeRequest> toEnqueue;
 	{
 		std::scoped_lock lock(mutex_);
+		if (nextFileReloadRevision_ == std::numeric_limits<uint64_t>::max()) {
+			throw std::overflow_error("Textureのファイル再読込世代が上限に達しました");
+		}
+		// 固定画像は所有元が新しい一組の要求へ置き換える
+		fileReloadRevisions_[target] = nextFileReloadRevision_++;
 		for (auto& [key, request] : keyRequests_) {
 
 			auto& storedDesc = request.description;
+			// 固定した世代を通常のファイル再読込で変更しない
+			if (storedDesc.snapshotBytes) {
+				continue;
+			}
 			// このキーが指すファイルの絶対パスを求めて変更ファイルと一致するか確認する
 			const std::filesystem::path requestedPath = Algorithm::PathFromUTF8(storedDesc.assetPath);
 			const std::filesystem::path candidate = requestedPath.is_absolute() ?
 				requestedPath : RuntimePaths::ResolveAssetPath(storedDesc.assetPath);
-			if (Algorithm::ToLowerW(candidate.lexically_normal().generic_wstring()) != target) {
+			if (NormalizeFilePath(candidate) != target) {
 				continue;
 			}
 
@@ -331,6 +341,7 @@ void Engine::TextureUploadService::Finalize() {
 		failedKeys_.clear();
 		deferredReloadKeys_.clear();
 		keyRequests_.clear();
+		fileReloadRevisions_.clear();
 	}
 
 	uploader_.Finalize();

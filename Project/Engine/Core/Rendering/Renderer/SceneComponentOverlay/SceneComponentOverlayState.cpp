@@ -9,7 +9,7 @@ Engine::SceneComponentOverlayState& Engine::SceneComponentOverlayState::GetInsta
 	return instance;
 }
 
-void Engine::SceneComponentOverlayState::SetRenderedItems(ECSWorld* world,
+void Engine::SceneComponentOverlayState::SetRenderedItems(const ECSWorld* world,
 	const SceneComponentOverlayItemList& items) {
 
 	// 描画できたWorldとアイテムをそのまま次のPickerへ渡す
@@ -17,9 +17,9 @@ void Engine::SceneComponentOverlayState::SetRenderedItems(ECSWorld* world,
 	renderedItems_ = items;
 }
 
-void Engine::SceneComponentOverlayState::Clear([[maybe_unused]] ECSWorld* world) {
+void Engine::SceneComponentOverlayState::Clear() {
 
-	// World指定は将来拡張用
+	// Worldの識別値と描画済み候補を破棄
 	world_ = nullptr;
 	renderedItems_.clear();
 }

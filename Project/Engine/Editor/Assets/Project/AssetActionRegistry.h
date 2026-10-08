@@ -54,6 +54,9 @@ namespace Engine {
 
 		// アセット操作を登録する
 		bool Register(AssetActionDescriptor descriptor);
+
+		//--------- accessor -----------------------------------------------------
+
 		// 種別から操作を取得する、無ければnullptr
 		const AssetActionDescriptor* Find(AssetType type) const;
 	private:

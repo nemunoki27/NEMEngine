@@ -7,34 +7,18 @@
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
+#include <Engine/Core/World/Scene/Utility/SceneEntityKey.h>
 
 // c++
 #include <vector>
 #include <algorithm>
+#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
 namespace {
 
-	struct LocalKey {
-
-		Engine::UUID sceneInstanceID{};
-		Engine::UUID localFileID{};
-
-		bool operator==(const LocalKey& rhs) const noexcept {
-			return sceneInstanceID == rhs.sceneInstanceID && localFileID == rhs.localFileID;
-		}
-	};
-
-	struct LocalKeyHash {
-
-		size_t operator()(const LocalKey& key) const noexcept {
-			const size_t h1 = std::hash<Engine::UUID>{}(key.sceneInstanceID);
-			const size_t h2 = std::hash<Engine::UUID>{}(key.localFileID);
-			return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
-		}
-	};
-
+	// Entityの世代と番号から重複判定用のキーを作る
 	uint64_t EntityKey(const Engine::Entity& entity) {
 
 		return (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
@@ -103,13 +87,41 @@ namespace Engine::HierarchyUtility {
 		}
 	}
 
-	bool IsRoot(ECSWorld& world, Entity entity) {
+	bool IsRoot(const ECSWorld& world, Entity entity) {
+
 		if (!world.IsAlive(entity)) {
 			return true;
 		}
 		if (const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(entity)) {
 			return !world.IsAlive(hierarchy->parent);
 		}
+		return true;
+	}
+
+	int32_t FindMaxRootSiblingOrder(const ECSWorld& world, Entity exclude) {
+
+		int32_t maximum = -1;
+		// 親が生存していないEntityだけを比較する
+		world.ForEachAliveEntity([&](Entity entity) {
+			if (entity == exclude) {
+				return;
+			}
+			const auto* hierarchy = world.TryGetComponent<HierarchyComponent>(entity);
+			if (hierarchy && !world.IsAlive(hierarchy->parent)) {
+				maximum = (std::max)(maximum, hierarchy->siblingOrder);
+			}
+		});
+		return maximum;
+	}
+
+	bool TryGetNextRootSiblingOrder(const ECSWorld& world, Entity exclude, int32_t& order) {
+
+		const int32_t maximum = FindMaxRootSiblingOrder(world, exclude);
+		// 既存Entityの並びを変えず上限到達を返す
+		if (maximum == std::numeric_limits<int32_t>::max()) {
+			return false;
+		}
+		order = maximum + 1;
 		return true;
 	}
 
@@ -127,12 +139,12 @@ namespace Engine::HierarchyUtility {
 		}
 
 		// Jointの接続先を一度の走査で索引化する
-		std::unordered_map<LocalKey, Entity, LocalKeyHash> entities;
+		std::unordered_map<SceneEntityKey, Entity, SceneEntityKeyHash> entities;
 		world.ForEachAliveEntity([&](Entity entity) {
 			if (const auto* membership = world.TryGetComponent<SceneObjectComponent>(entity)) {
 				if (membership->localFileID) {
 					const auto [entry, inserted] =
-						entities.emplace(LocalKey{membership->sceneInstanceID, membership->localFileID}, entity);
+						entities.emplace(SceneEntityKey{membership->sceneInstanceID, membership->localFileID}, entity);
 					if (!inserted) {
 						entry->second = Entity::Null();
 					}
@@ -184,7 +196,7 @@ namespace Engine::HierarchyUtility {
 		}
 
 		// ジョイント接続先をシーンとローカルIDの組み合わせから引けるようにする
-		std::unordered_multimap<LocalKey, Entity, LocalKeyHash> attachedBySkinned;
+		std::unordered_multimap<SceneEntityKey, Entity, SceneEntityKeyHash> attachedBySkinned;
 		attachedBySkinned.reserve(world.GetRecordCount());
 		world.ForEachAliveEntity([&](Entity entity) {
 			if (!world.HasComponent<JointAttachmentComponent>(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
@@ -195,7 +207,7 @@ namespace Engine::HierarchyUtility {
 				return;
 			}
 			const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-			attachedBySkinned.emplace(LocalKey{sceneObject.sceneInstanceID, attachment.skinnedEntityLocalFileID}, entity);
+			attachedBySkinned.emplace(SceneEntityKey{sceneObject.sceneInstanceID, attachment.skinnedEntityLocalFileID}, entity);
 		});
 
 		std::vector<Entity> stack;
@@ -214,7 +226,7 @@ namespace Engine::HierarchyUtility {
 
 				const auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
 				const auto [begin, end] =
-					attachedBySkinned.equal_range(LocalKey{sceneObject.sceneInstanceID, sceneObject.localFileID});
+					attachedBySkinned.equal_range(SceneEntityKey{sceneObject.sceneInstanceID, sceneObject.localFileID});
 				for (auto it = begin; it != end; ++it) {
 					stack.emplace_back(it->second);
 				}

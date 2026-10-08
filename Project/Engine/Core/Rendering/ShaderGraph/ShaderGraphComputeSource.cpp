@@ -17,6 +17,7 @@ namespace Engine::ShaderGraphStageSource {
 			context.AddDiagnostic(graph.outputNode, "Post Process出力ノードが見つかりません");
 			return {};
 		}
+		// 画面の出力ピンをCompute用の式へ変換する
 		const ShaderGraphExpression color = context.EmitInput(
 			*output, 0, ShaderGraphValueType::Float4, "gSourceColor.SampleLevel(gSampler, graphInput.uv, 0.0f)");
 
@@ -102,6 +103,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\treturn float2(minimumDistance, cellValue);\n"
 				  "}\n\n";
 		source += context.BuildCustomFunctionDeclarations();
+		// 出力範囲内のピクセルへ評価結果を書き込む
 		source += "\n[numthreads(8, 8, 1)]\n"
 				  "void main(uint3 dispatchThreadID : SV_DispatchThreadID) {\n\n"
 				  "\tif (any(dispatchThreadID.xy >= uint2(resolution))) return;\n"

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Animation/Clips/AnimationChannelUtility.h>
 
 // c++
 #include <algorithm>
@@ -29,27 +30,29 @@ namespace Engine::CurveEditorUtility {
 		const float timeStep = (std::max)(0.0001f, state.gridTimeStep);
 		const float valueStep = (std::max)(0.0001f, state.gridValueStep);
 
-		// Time 0より左は出さない
-		const float timeBegin = std::ceil((std::max)(0.0f, state.visibleTimeMin) / timeStep) * timeStep;
-		for (float time = timeBegin; time <= state.visibleTimeMax + timeStep * 0.5f; time += timeStep) {
+		// 時刻0より前には目盛りを出さない
+		const CurveGridRange timeRange = BuildGridRange((std::max)(0.0f, state.visibleTimeMin), state.visibleTimeMax, timeStep);
+		for (uint32_t index = 0; index < timeRange.count; ++index) {
+			const float time = static_cast<float>(timeRange.begin + timeRange.step * index);
 			const ImVec2 pos = WorldToScreen(rect, state, time, state.visibleValueMin);
 			drawList->AddLine(ImVec2(pos.x, rect.Min.y), ImVec2(pos.x, rect.Max.y), minorColor);
 		}
 
-		const float valueBegin = std::ceil(state.visibleValueMin / valueStep) * valueStep;
-		for (float value = valueBegin; value <= state.visibleValueMax + valueStep * 0.5f; value += valueStep) {
+		const CurveGridRange valueRange = BuildGridRange(state.visibleValueMin, state.visibleValueMax, valueStep);
+		for (uint32_t index = 0; index < valueRange.count; ++index) {
+			const float value = static_cast<float>(valueRange.begin + valueRange.step * index);
 			const ImVec2 pos = WorldToScreen(rect, state, state.visibleTimeMin, value);
 			drawList->AddLine(ImVec2(rect.Min.x, pos.y), ImVec2(rect.Max.x, pos.y), minorColor);
 		}
 
-		// Time = 0の黄色線
+		// 時刻0の軸線を描く
 		if (0.0f >= state.visibleTimeMin && 0.0f <= state.visibleTimeMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, 0.0f, state.visibleValueMin);
 			const ImVec2 p1 = WorldToScreen(rect, state, 0.0f, state.visibleValueMax);
 			drawList->AddLine(ImVec2(p0.x, rect.Min.y), ImVec2(p1.x, rect.Max.y), kCurveAxisColor, 2.0f);
 		}
 
-		// Value = 0の黄色線
+		// 値0の軸線を描く
 		if (0.0f >= state.visibleValueMin && 0.0f <= state.visibleValueMax) {
 			const ImVec2 p0 = WorldToScreen(rect, state, state.visibleTimeMin, 0.0f);
 			const ImVec2 p1 = WorldToScreen(rect, state, state.visibleTimeMax, 0.0f);
@@ -68,11 +71,10 @@ namespace Engine::CurveEditorUtility {
 		const ImU32 tickColor = IM_COL32(110, 110, 116, 255);
 
 		const float timeStep = (std::max)(0.0001f, state.gridTimeStep);
-		const float timeBegin = std::ceil((std::max)(0.0f, state.visibleTimeMin) / timeStep) * timeStep;
-
-		for (float time = timeBegin; time <= state.visibleTimeMax + timeStep * 0.5f; time += timeStep) {
-			const int32_t lineIndex = static_cast<int32_t>(std::round(time / timeStep));
-			const bool major = (lineIndex % kCurveGridMajorInterval) == 0;
+		const CurveGridRange timeRange = BuildGridRange((std::max)(0.0f, state.visibleTimeMin), state.visibleTimeMax, timeStep);
+		for (uint32_t index = 0; index < timeRange.count; ++index) {
+			const float time = static_cast<float>(timeRange.begin + timeRange.step * index);
+			const bool major = IsMajorGridLine(time, timeStep);
 
 			const ImVec2 pos = WorldToScreen(
 				ImRect(ImVec2(rect.Min.x, rect.Min.y), ImVec2(rect.Max.x, rect.Max.y)), state, time, state.visibleValueMin);
@@ -99,11 +101,10 @@ namespace Engine::CurveEditorUtility {
 		const ImU32 tickColor = IM_COL32(110, 110, 116, 255);
 
 		const float valueStep = (std::max)(0.0001f, state.gridValueStep);
-		const float valueBegin = std::ceil(state.visibleValueMin / valueStep) * valueStep;
-
-		for (float value = valueBegin; value <= state.visibleValueMax + valueStep * 0.5f; value += valueStep) {
-			const int32_t lineIndex = static_cast<int32_t>(std::round(value / valueStep));
-			const bool major = (lineIndex % kCurveGridMajorInterval) == 0;
+		const CurveGridRange valueRange = BuildGridRange(state.visibleValueMin, state.visibleValueMax, valueStep);
+		for (uint32_t index = 0; index < valueRange.count; ++index) {
+			const float value = static_cast<float>(valueRange.begin + valueRange.step * index);
+			const bool major = IsMajorGridLine(value, valueStep);
 
 			const ImVec2 pos = WorldToScreen(
 				ImRect(ImVec2(rect.Min.x, rect.Min.y), ImVec2(rect.Max.x, rect.Max.y)), state, state.visibleTimeMin, value);
@@ -118,8 +119,8 @@ namespace Engine::CurveEditorUtility {
 			ImVec2 textPos(rect.Max.x - textSize.x - 4.0f, pos.y - textSize.y * 0.5f);
 
 			// ルーラー矩形の中に収める
-			textPos.x = (std::clamp)(textPos.x, rect.Min.x + 2.0f, rect.Max.x - textSize.x - 2.0f);
-			textPos.y = (std::clamp)(textPos.y, rect.Min.y + 1.0f, rect.Max.y - textSize.y - 1.0f);
+			textPos.x = (std::clamp)(textPos.x, rect.Min.x + 2.0f, (std::max)(rect.Min.x + 2.0f, rect.Max.x - textSize.x - 2.0f));
+			textPos.y = (std::clamp)(textPos.y, rect.Min.y + 1.0f, (std::max)(rect.Min.y + 1.0f, rect.Max.y - textSize.y - 1.0f));
 
 			drawList->AddText(textPos, textColor, text.c_str());
 		}
@@ -165,8 +166,7 @@ namespace Engine::CurveEditorUtility {
 			return;
 		}
 
-		const uint32_t rgbKeyCount = (std::min)({static_cast<uint32_t>(channels[0].keys.size()),
-			static_cast<uint32_t>(channels[1].keys.size()), static_cast<uint32_t>(channels[2].keys.size())});
+		const size_t rgbKeyCount = Engine::AnimationChannelUtility::GetSharedKeyCount(channels.first(3));
 		if (rgbKeyCount == 0) {
 			return;
 		}
@@ -175,7 +175,6 @@ namespace Engine::CurveEditorUtility {
 		drawList->PushClipRect(rect.Min, rect.Max, true);
 
 		ImVec2 prevPos{};
-		ImU32 prevColor = 0;
 		bool hasPrev = false;
 		for (uint32_t keyIndex = 0; keyIndex < rgbKeyCount; ++keyIndex) {
 			const float time = channels[0].keys[keyIndex].time;
@@ -187,7 +186,6 @@ namespace Engine::CurveEditorUtility {
 				drawList->AddLine(prevPos, pos, lineColor, 2.0f);
 			}
 			prevPos = pos;
-			prevColor = lineColor;
 			hasPrev = true;
 		}
 
@@ -203,8 +201,7 @@ namespace Engine::CurveEditorUtility {
 
 		if (IsColorCurveSet(channels)) {
 			if (state.IsChannelVisible(0)) {
-				const uint32_t rgbKeyCount = (std::min)({static_cast<uint32_t>(channels[0].keys.size()),
-					static_cast<uint32_t>(channels[1].keys.size()), static_cast<uint32_t>(channels[2].keys.size())});
+				const size_t rgbKeyCount = Engine::AnimationChannelUtility::GetSharedKeyCount(channels.first(3));
 				for (uint32_t keyIndex = 0; keyIndex < rgbKeyCount; ++keyIndex) {
 					const float time = channels[0].keys[keyIndex].time;
 					const Engine::Color4 color = EvaluateCurveColorAtTime(channels, time);

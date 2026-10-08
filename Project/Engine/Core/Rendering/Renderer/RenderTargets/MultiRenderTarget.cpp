@@ -81,7 +81,7 @@ void Engine::MultiRenderTarget::Destroy() {
 
 		if (color) {
 			color->Destroy();
-			// RTV/SRVを持つRenderTextureはclear任せにせず、終了時に明示resetする
+			// 子Textureの所有を解除する
 			color.reset();
 		}
 	}
@@ -111,6 +111,7 @@ void Engine::MultiRenderTarget::TransitionForRender(DxCommand& dxCommand) {
 
 void Engine::MultiRenderTarget::TransitionForShaderRead(DxCommand& dxCommand) {
 
+	// 色と深度を読み取り状態へ遷移する
 	for (auto& color : colors_) {
 
 		color->Transition(dxCommand, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -123,6 +124,7 @@ void Engine::MultiRenderTarget::TransitionForShaderRead(DxCommand& dxCommand) {
 
 void Engine::MultiRenderTarget::Bind(DxCommand& dxCommand) const {
 
+	// 色と深度の描画先を設定する
 	std::vector<RenderTarget> renderTargets = BuildRenderTargets();
 	if (depth_) {
 
@@ -172,6 +174,7 @@ void Engine::MultiRenderTarget::Clear(DxCommand& dxCommand, const MultiRenderTar
 
 std::vector<Engine::RenderTarget> Engine::MultiRenderTarget::BuildRenderTargets() const {
 
+	// 色描画先のハンドルを集める
 	std::vector<RenderTarget> result{};
 	result.reserve(colors_.size());
 	for (const auto& color : colors_) {
@@ -179,4 +182,14 @@ std::vector<Engine::RenderTarget> Engine::MultiRenderTarget::BuildRenderTargets(
 		result.emplace_back(color->GetRenderTarget());
 	}
 	return result;
+}
+
+Engine::RenderTexture2D* Engine::MultiRenderTarget::GetColorTexture(size_t index) {
+
+	return index < colors_.size() ? colors_[index].get() : nullptr;
+}
+
+const Engine::RenderTexture2D* Engine::MultiRenderTarget::GetColorTexture(size_t index) const {
+
+	return index < colors_.size() ? colors_[index].get() : nullptr;
 }

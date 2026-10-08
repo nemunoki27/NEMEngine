@@ -6,9 +6,10 @@ namespace NEM.ComponentBindingGen;
 // NativeとManagedのサイズ・配置を同じ定義から検証する
 internal static class ABILayoutEmitter {
 
+    // NativeとManagedの配置検査を生成する
     internal static (string native, string managed) Emit(IReadOnlyList<ABILayoutModel> layouts, List<ABIFieldModel> fields) {
         var native = new StringBuilder(NativeBanner());
-        var managed = new StringBuilder(CsBanner());
+        var managed = new StringBuilder(CSBanner());
         managed.Append("using System.Runtime.InteropServices;\n\nnamespace NEMEngine;\n\ninternal static class GeneratedABILayout {\n");
         managed.Append("    internal static bool IsValid() {\n");
         var table = new ABILayoutModel {

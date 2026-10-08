@@ -25,8 +25,18 @@
 #include <bit>
 
 //============================================================================
-//	InspectorDrawerCommon classMethods
+//	InspectorDrawerCommon namespaceMethods
 //============================================================================
+Engine::AssetID Engine::InspectorDrawerCommon::ResolveDefaultMaterial(
+	const EditorPanelContext& context, DefaultMaterialSlot slot) {
+
+	if (!context.editorContext || !context.editorContext->assetDatabase) {
+		return {};
+	}
+	// 無効な設定IDは描画側と同じBuiltinへ戻す
+	return MaterialResolver{}.ResolveORDefault(*context.editorContext->assetDatabase, {}, slot);
+}
+
 void Engine::InspectorDrawerCommon::AccumulateEditResult(const ValueEditResult& result,
 	bool& anyItemActive, bool& commitRequested) {
 
@@ -95,14 +105,15 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawLayerMaskField(const 
 	return result;
 }
 
-Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(const char* label, std::string& type, ImTextureID searchIcon) {
+Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(
+	const char* label, std::string& type, ImTextureID searchIcon) {
 
 	ValueEditResult result{};
 	if (!MyGUI::BeginPropertyRow(label)) {
 		return result;
 	}
 
-	// ビヘイビアの型が一つも登録されていない場合は、コンボボックスを表示せずに無効なテキストを表示する
+	// 登録されたBehaviorがなければ選択欄を出さない
 	const auto& registry = BehaviorTypeRegistry::GetInstance();
 	if (registry.GetBehaviorTypeCount() == 0) {
 		ImGui::TextDisabled("登録済みビヘイビアなし");
@@ -110,21 +121,21 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 		return result;
 	}
 
-	// 表示はクラス名のみにし識別子としては完全修飾名を保持するため、選択時にtypeへ書くのはinfo.nameのまま
+	// 表示は短い型名、保存は完全修飾名を使う
 	const auto toShortName = [](const std::string& fullName) -> std::string {
 		const size_t dot = fullName.find_last_of('.');
 		return dot == std::string::npos ? fullName : fullName.substr(dot + 1);
 	};
 
-	// プレビューも短い名前で表示する、未選択は "<None>"
+	// 選択中の型名を短く表示する
 	const std::string preview = type.empty() ? std::string("<None>") : toShortName(type);
 
-	// combo内の絞り込み検索、同時に開くcomboは1つなのでstaticで十分
+	// 開いている選択欄の検索文字を保持する
 	static TextSearchFilter typeFilter;
 
 	if (ImGui::BeginCombo("##Value", preview.c_str())) {
 
-		// Add Componentと同じく、上部に虫眼鏡アイコン付きの検索ボックスを置く
+		// 型一覧の先頭に検索欄を出す
 		typeFilter.DrawInput("##BehaviorTypeSearch", searchIcon, "検索...");
 		ImGui::Separator();
 
@@ -146,7 +157,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 				type = info.name;
 				result.valueChanged = true;
 			}
-			// 完全修飾名は曖昧さ解消用にhoverで見せる
+			// 完全修飾名をTooltipで表示する
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("%s", info.name.c_str());
 			}
@@ -158,7 +169,7 @@ Engine::ValueEditResult Engine::InspectorDrawerCommon::DrawBehaviorTypeField(con
 		ImGui::EndCombo();
 	}
 	else {
-		// comboを閉じたら検索文字を残さない
+		// 選択欄を閉じたら検索文字を消す
 		typeFilter.Clear();
 	}
 
@@ -173,27 +184,27 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 	[[maybe_unused]] const Entity& entity, [[maybe_unused]] int32_t selectionSubMeshIndex) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// トランスフォームコンポーネントが無い、もしくは無効の場合
+	// 描画できないEntityは除外する
 	if (!world.HasComponent<TransformComponent>(entity) ||
 		!world.HasComponent<SceneObjectComponent>(entity) ||
 		!world.GetComponent<SceneObjectComponent>(entity).activeInHierarchy) {
 		return;
 	}
 	// トランスフォームを取得
-	auto& transform = world.GetComponent<TransformComponent>(entity);
+	const auto& transform = world.GetComponent<TransformComponent>(entity);
 
 	LineRenderer3D* renderer3D = LineRenderer::GetInstance()->Get3D();
 
 	// 3Dカメラ
 	if (world.HasComponent<PerspectiveCameraComponent>(entity)) {
 
-		auto& camera = world.GetComponent<PerspectiveCameraComponent>(entity);
+		const auto& camera = world.GetComponent<PerspectiveCameraComponent>(entity);
 
 		// カメラフラスタム描画
 		renderer3D->DrawCameraFrustum(camera.common.viewMatrix, camera.common.aspectRatio, camera.nearClip,
 			camera.farClip, Math::DegToRad(camera.fovY), camera.common.editorFrustumScale, Color4::Yellow(), 1.0f);
 	}
-	// メッシュとプロシージャル形状、それぞれのバックエンドがマスク描画に対応している
+	// MeshとPrimitiveの選択Outlineを要求する
 	const bool hasMesh = world.HasComponent<MeshRendererComponent>(entity);
 	const bool hasPrimitive = world.HasComponent<PrimitiveRendererComponent>(entity);
 	if (hasMesh || hasPrimitive) {
@@ -205,47 +216,43 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 		style.priority = 300;
 		style.regionMode = ScreenSpaceOutlineRegionMode::ExteriorPreferred;
 
-		// MeshのみSubMesh選択を持つ、Primitiveは制限なし
+		// Meshだけ選択中のSubMeshへ制限する
 		const int32_t subMeshIndex = hasMesh ? selectionSubMeshIndex : -1;
 		EditorSelectionOutlineRequestService::GetInstance().Request(&world, entity, subMeshIndex, style);
 	}
 	// スキニングアニメーション
 	if (world.HasComponent<SkinnedAnimationComponent>(entity)) {
 
-		auto& animation = world.GetComponent<SkinnedAnimationComponent>(entity);
+		const auto& animation = world.GetComponent<SkinnedAnimationComponent>(entity);
 		if (animation.isDisplayBone) {
 			const SkinnedAnimationRuntimeData* runtime =
 				TryGetSkinnedAnimationRuntime(world, entity);
 			if (runtime) {
-				// チャンク外の更新済みポーズをデバッグ描画へ渡す
-				renderer3D->DrawSkeleton(
-					transform.worldMatrix, runtime->skeleton);
+				// 更新済みの骨をデバッグ描画へ渡す
+				renderer3D->DrawSkeleton(transform.worldMatrix, runtime->skeleton);
 			}
 		}
 	}
 	// 平行光源
 	if (world.HasComponent<DirectionalLightComponent>(entity)) {
 
-		auto& directionalLight = world.GetComponent<DirectionalLightComponent>(entity);
+		const auto& directionalLight = world.GetComponent<DirectionalLightComponent>(entity);
 		const Vector3 direction =
 			LightExtract::GetWorldDirection(directionalLight.direction, transform.worldMatrix);
 		const Quaternion rotation = Quaternion::FromToY(direction);
 
-		// DirectionalLightの向きを矢印で表示する
+		// 平行光源の向きを矢印で表示する
 		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
 			rotation, directionalLight.color, 1.0f);
 	}
 	// 矩形面光源
 	if (world.HasComponent<RectLightComponent>(entity)) {
 
-		auto& rectLight = world.GetComponent<RectLightComponent>(entity);
+		const auto& rectLight = world.GetComponent<RectLightComponent>(entity);
 		const Vector3 center = transform.worldMatrix.GetTranslationValue();
-		const Vector3 direction = LightExtract::GetWorldDirection(
-			Vector3(1.0f, 0.0f, 0.0f), transform.worldMatrix);
-		const Vector3 right = LightExtract::GetWorldDirection(
-			Vector3(0.0f, 1.0f, 0.0f), transform.worldMatrix);
-		const Vector3 up = LightExtract::GetWorldDirection(
-			Vector3(0.0f, 0.0f, 1.0f), transform.worldMatrix);
+		const Vector3 direction = LightExtract::GetWorldDirection(Vector3(1.0f, 0.0f, 0.0f), transform.worldMatrix);
+		const Vector3 right = LightExtract::GetWorldDirection(Vector3(0.0f, 1.0f, 0.0f), transform.worldMatrix);
+		const Vector3 up = LightExtract::GetWorldDirection(Vector3(0.0f, 0.0f, 1.0f), transform.worldMatrix);
 		const Vector3 halfRight =
 			right * (rectLight.sourceWidth * 0.5f);
 		const Vector3 halfUp =
@@ -267,12 +274,12 @@ void Engine::InspectorDrawerCommon::DrawEntityDebugObject([[maybe_unused]] ECSWo
 	// スポットライト
 	if (world.HasComponent<SpotLightComponent>(entity)) {
 
-		auto& spotLight = world.GetComponent<SpotLightComponent>(entity);
+		const auto& spotLight = world.GetComponent<SpotLightComponent>(entity);
 		const Vector3 direction =
 			LightExtract::GetWorldDirection(spotLight.direction, transform.worldMatrix);
 		const Quaternion rotation = Quaternion::FromToY(direction);
 
-		// SpotLightの向きを矢印で表示する
+		// Spot光源の向きを矢印で表示する
 		renderer3D->DrawArrow(transform.worldMatrix.GetTranslationValue(), 4.0f,
 			rotation, spotLight.color, 1.0f);
 	}

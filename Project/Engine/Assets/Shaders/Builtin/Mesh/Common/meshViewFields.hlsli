@@ -16,4 +16,4 @@
 	float4x4 lodView;
 	float2 lodProjectionScale;
 	float lodNearClip;
-	float _lodPad;
+	uint lodOrthographic;

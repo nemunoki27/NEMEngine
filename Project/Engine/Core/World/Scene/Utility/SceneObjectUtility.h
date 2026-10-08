@@ -20,17 +20,17 @@ namespace Engine {
 		bool SetActiveSelf(ECSWorld& world, Entity entity, bool active);
 
 		// Entityが所属するシーンインスタンスIDを取得する
-		UUID GetSceneInstanceID(ECSWorld& world, Entity entity);
+		UUID GetSceneInstanceID(const ECSWorld& world, Entity entity);
 
 		// 指定したシーンインスタンスに所属しているか
-		bool IsInScene(ECSWorld& world, Entity entity, UUID sceneInstanceID);
+		bool IsInScene(const ECSWorld& world, Entity entity, UUID sceneInstanceID);
 
-		// localFileIDからEntityを探す、Edit/Playをまたいで安定するエンティティ参照の解決に使う
-		Entity FindByLocalFileID(ECSWorld& world, UUID localFileID);
+		// 文書内IDが一意に一致するEntityを探す
+		Entity FindByLocalFileID(const ECSWorld& world, UUID localFileID);
 		// 指定したシーンインスタンス内のlocalFileIDからEntityを探す
-		Entity FindByLocalFileID(ECSWorld& world, UUID sceneInstanceID, UUID localFileID);
+		Entity FindByLocalFileID(const ECSWorld& world, UUID sceneInstanceID, UUID localFileID);
 		// AssetとLocalFileIDが一致し、一意に決まる保存参照を解決する
-		Entity ResolveReference(ECSWorld& world, AssetID sourceAsset, UUID localFileID, UUID preferredScene = {});
+		Entity ResolveReference(const ECSWorld& world, AssetID sourceAsset, UUID localFileID, UUID preferredScene = {});
 
 	} // SceneObjectUtility
 } // Engine

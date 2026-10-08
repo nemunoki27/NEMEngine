@@ -1,9 +1,10 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptUtility.h"
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
@@ -14,51 +15,25 @@
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
-#include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
-#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
-#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
-#include <Engine/Core/World/Components/UI/CanvasComponent.h>
-#include <Engine/Core/World/Components/UI/UISelectableComponent.h>
-#include <Engine/Core/World/Components/UI/UIProgressComponent.h>
-#include <Engine/Core/World/Components/UI/UIImageButtonComponent.h>
-#include <Engine/Core/World/Components/UI/UITextButtonComponent.h>
-#include <Engine/Core/World/UI/UIRuntimeService.h>
-#include <Engine/Core/Rendering/Meshes/Animation/SkinnedMeshAnimationManager.h>
-#include <Engine/Core/Rendering/Core/RenderingPlatform.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
-#include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Runtime/Application/RuntimeAssetPreloadRequests.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
 // c++
-#include <algorithm>
-#include <array>
-#include <cstring>
 #include <stdexcept>
 #include <string>
-#include <string_view>
-#include <unordered_map>
-#include <variant>
 #include <vector>
 
+//============================================================================
+//	ManagedScriptRuntime gameplayMethods
+//============================================================================
 namespace Engine {
 
 	namespace {
 
+		// 指定された親か呼出中のWorldを解決
 		ECSWorld* ResolveTargetWorld(ManagedNativeEntity parent) {
 
 			// 親が指定された場合、失効を別Worldで補わない
@@ -70,7 +45,6 @@ namespace Engine {
 			return context ? context->world : nullptr;
 		}
 	}
-
 
 	ManagedNativeEntity ManagedScriptRuntime::ResolveEntityRefCallback(
 		ManagedAssetGUID sourceAsset, uint64_t localFileID, ManagedNativeEntity owner) {
@@ -109,7 +83,7 @@ namespace Engine {
 		}
 		if (sourceAsset) { *sourceAsset = ToManagedAssetGUID(sceneObject->sourceAsset); }
 		if (localFileID) { *localFileID = sceneObject->localFileID.value; }
-		// runtime worldのentityはScene由来として扱う
+		// 保存参照はScene由来として通知
 		if (kind) { *kind = 1; }
 	}
 
@@ -265,7 +239,7 @@ namespace Engine {
 	uint64_t ManagedScriptRuntime::PreloadSceneCallback(ManagedAssetGUID sceneAssetID) {
 
 		const SystemContext* context = GetCurrentContext();
-		AssetID sceneAsset = ToAssetID(sceneAssetID);
+		const AssetID sceneAsset = ToAssetID(sceneAssetID);
 		if (!context || !context->world || context->mode != WorldMode::Play || !context->assetDatabase) { return 0; }
 		const AssetMeta* meta = context->assetDatabase->Find(sceneAsset);
 		if (!meta || meta->type != AssetType::Scene) { return 0; }
@@ -282,7 +256,7 @@ namespace Engine {
 		if (!world || !sceneAsset) {
 			return 0;
 		}
-		// instance IDを先行採番してC#のSceneHandleと一致させ、load自体はflushへ回す
+		// SceneのIDを予約しロードを安全地点へ回す
 		const UUID instanceID = UUID::New();
 		world->GetCommandBuffer().EnqueueLoadSceneAdditive(instanceID, sceneAsset);
 		return instanceID.value;
@@ -303,8 +277,7 @@ namespace Engine {
 				"SceneManager.LoadScene: SceneAssetが無効なため単一Sceneロードを拒否しました");
 			return 0;
 		}
-		SceneInstanceManager* sceneInstances =
-			world->GetCommandServices().sceneInstances;
+		SceneInstanceManager* sceneInstances = world->GetCommandServices().sceneInstances;
 		if (!sceneInstances) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"SceneManager.LoadScene: SceneInstanceManagerが未設定のため単一Sceneロードを拒否しました");
@@ -315,7 +288,7 @@ namespace Engine {
 				"SceneManager.LoadScene: 単一Sceneロード要求を処理中のため新しい要求を拒否しました");
 			return 0;
 		}
-		// 単一ロード、新sceneをactiveにし旧sceneを全てアンロードする処理はflushで行う
+		// Sceneの切替を安全地点へ予約
 		const UUID instanceID = UUID::New();
 		world->GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, sceneAsset);
 		return instanceID.value;
@@ -330,8 +303,7 @@ namespace Engine {
 				"SceneManager.ReloadActiveScene: 実行中のWorldを取得できないため再読み込みを拒否しました");
 			return 0;
 		}
-		SceneInstanceManager* sceneInstances =
-			world->GetCommandServices().sceneInstances;
+		SceneInstanceManager* sceneInstances = world->GetCommandServices().sceneInstances;
 		if (!sceneInstances) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
 				"SceneManager.ReloadActiveScene: SceneInstanceManagerが未設定のため再読み込みを拒否しました");
@@ -379,7 +351,8 @@ namespace Engine {
 		return services.sceneInstances->Find(UUID{ sceneInstanceID }) != nullptr ? 1 : 0;
 	}
 
-	void ManagedScriptRuntime::SetParentKeepWorldCallback(ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays) {
+	void ManagedScriptRuntime::SetParentKeepWorldCallback(
+		ManagedNativeEntity child, ManagedNativeEntity parent, int32_t worldPositionStays) {
 
 		EnqueueSetParentCommand(child, parent, worldPositionStays != 0);
 	}

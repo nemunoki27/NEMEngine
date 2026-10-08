@@ -10,33 +10,50 @@
 #include <format>
 #include <limits>
 
+namespace {
+
+	// 非有限値を除いてfloatの範囲へ収める
+	float FiniteFloat(double value, float fallback = 0.0f) {
+
+		if (!std::isfinite(value)) {
+			return std::isfinite(fallback) ? fallback : 0.0f;
+		}
+		return static_cast<float>((std::clamp)(value,
+			static_cast<double>(std::numeric_limits<float>::lowest()),
+			static_cast<double>(std::numeric_limits<float>::max())));
+	}
+}
+
 namespace Engine::CurveEditorUtility {
 
 	// 表示開始時刻を負にしない
 	float ClampVisibleTimeMin(float v) {
-		return (std::max)(0.0f, v);
+
+		return (std::max)(0.0f, FiniteFloat(v));
 	}
 
 	// 時間軸の表示倍率を制限する
-	float SafePixelsPerSecond(float v) {
-		return (std::clamp)(v, 32.0f, 512.0f);
+	float SafePixelsPerSecond(double v) {
+
+		return std::isfinite(v) ? static_cast<float>((std::clamp)(v, 32.0, 512.0)) : 120.0f;
 	}
 
 	// 値軸の表示倍率を制限する
-	float SafePixelsPerValue(float v) {
-		return (std::clamp)(v, 24.0f, 320.0f);
+	float SafePixelsPerValue(double v) {
+
+		return std::isfinite(v) ? static_cast<float>((std::clamp)(v, 24.0, 320.0)) : 80.0f;
 	}
 
 	// 読みやすい目盛り間隔を選ぶ
 	float NiceStep(float rawStep) {
 
-		if (rawStep <= 0.0f) {
+		if (!std::isfinite(rawStep) || rawStep <= 0.0f) {
 			return 0.1f;
 		}
 
 		const float exponent = std::floor(std::log10(rawStep));
-		const float base = std::pow(10.0f, exponent);
-		const float fraction = rawStep / base;
+		const double base = std::pow(10.0, static_cast<double>(exponent));
+		const double fraction = rawStep / base;
 
 		float niceFraction = 1.0f;
 		if (fraction <= 1.0f) {
@@ -49,14 +66,33 @@ namespace Engine::CurveEditorUtility {
 			niceFraction = 10.0f;
 		}
 
-		return niceFraction * base;
+		return static_cast<float>((std::min)(niceFraction * base, static_cast<double>(std::numeric_limits<float>::max())));
+	}
+
+	CurveGridRange BuildGridRange(float minValue, float maxValue, float step) {
+
+		// 無効な範囲から目盛りを作らない
+		if (!std::isfinite(minValue) || !std::isfinite(maxValue) || !std::isfinite(step) ||
+			maxValue < minValue || step <= 0.0f) {
+			return {};
+		}
+		// 広い範囲では目盛り間隔を広げる
+		constexpr uint32_t kMaxGridLines = 4096;
+		const double range = static_cast<double>(maxValue) - minValue;
+		const double interval = (std::max)(static_cast<double>(step), range / (kMaxGridLines - 1));
+		const double begin = std::ceil(static_cast<double>(minValue) / interval - 0.000001) * interval;
+		const double end = (std::min)(static_cast<double>(maxValue) + interval * 0.5,
+			static_cast<double>(std::numeric_limits<float>::max()));
+		const double count = (std::max)(0.0, std::floor((end - begin) / interval) + 1.0);
+		return {begin, interval, static_cast<uint32_t>((std::min)(count, static_cast<double>(kMaxGridLines)))};
 	}
 
 	// ゼロ幅の表示範囲を除算から保護する
-	float SafeRange(float minValue, float maxValue) {
+	double SafeRange(float minValue, float maxValue) {
 
-		const float range = maxValue - minValue;
-		return std::abs(range) <= 0.00001f ? 1.0f : range;
+		// float両端の差もdoubleで保持する
+		const double range = static_cast<double>(maxValue) - minValue;
+		return !std::isfinite(range) || std::abs(range) <= 0.00001 ? 1.0 : range;
 	}
 
 	// 時間軸の表示範囲を更新する
@@ -68,7 +104,7 @@ namespace Engine::CurveEditorUtility {
 		const float timeRange = graphW / state.pixelsPerSecond;
 
 		state.visibleTimeMin = ClampVisibleTimeMin(state.visibleTimeMin);
-		state.visibleTimeMax = (std::max)(state.visibleTimeMin + timeRange, state.visibleTimeMin + 0.001f);
+		state.visibleTimeMax = FiniteFloat(static_cast<double>(state.visibleTimeMin) + (std::max)(timeRange, 0.001f));
 
 		const float desiredTimeStep = 80.0f / state.pixelsPerSecond; // 約80pxごと
 		state.gridTimeStep = NiceStep(desiredTimeStep);
@@ -81,20 +117,23 @@ namespace Engine::CurveEditorUtility {
 		if (!setting.fixedTimeRange) {
 			return;
 		}
-		state.visibleTimeMin = setting.fixedTimeMin;
-		state.visibleTimeMax = (std::max)(setting.fixedTimeMax, setting.fixedTimeMin + 0.001f);
+		state.visibleTimeMin = FiniteFloat(setting.fixedTimeMin);
+		state.visibleTimeMax = (std::max)(FiniteFloat(setting.fixedTimeMax, state.visibleTimeMin),
+			FiniteFloat(static_cast<double>(state.visibleTimeMin) + 0.001));
 		state.pixelsPerSecond =
 			SafePixelsPerSecond((std::max)(1.0f, graphRect.GetWidth()) / SafeRange(state.visibleTimeMin, state.visibleTimeMax));
-		state.gridTimeStep = (std::max)(0.0001f, setting.fixedTimeStep);
+		state.gridTimeStep = (std::max)(0.0001f, FiniteFloat(setting.fixedTimeStep, 0.1f));
 	}
 
 	// 値範囲に表示倍率を合わせる
 	void UpdateVerticalZoomFromRange(const ImRect& graphRect, Engine::CurveEditorState& state) {
 
-		state.visibleValueMax = (std::max)(state.visibleValueMax, state.visibleValueMin + 0.001f);
+		state.visibleValueMin = FiniteFloat(state.visibleValueMin);
+		state.visibleValueMax = (std::max)(FiniteFloat(state.visibleValueMax, state.visibleValueMin),
+			FiniteFloat(static_cast<double>(state.visibleValueMin) + 0.001));
 
 		const float graphH = (std::max)(1.0f, graphRect.GetHeight());
-		const float valueRange = SafeRange(state.visibleValueMin, state.visibleValueMax);
+		const double valueRange = SafeRange(state.visibleValueMin, state.visibleValueMax);
 
 		state.pixelsPerValue = SafePixelsPerValue(graphH / valueRange);
 
@@ -105,28 +144,34 @@ namespace Engine::CurveEditorUtility {
 	// キー値を表示範囲へ収める
 	float ClampKeyValueToVisibleRange(const Engine::CurveEditorState& state, float value) {
 
-		return (std::clamp)(value, state.visibleValueMin, state.visibleValueMax);
+		// 逆転した表示範囲も順序を揃えて扱う
+		const float first = FiniteFloat(state.visibleValueMin);
+		const float second = FiniteFloat(state.visibleValueMax, first);
+		return (std::clamp)(FiniteFloat(value, first), (std::min)(first, second), (std::max)(first, second));
 	}
 
 	// 現在の範囲に目盛り間隔を合わせる
 	void RefreshGridStepsOnly(const ImRect& graphRect, Engine::CurveEditorState& state) {
 
 		state.visibleTimeMin = ClampVisibleTimeMin(state.visibleTimeMin);
-		state.visibleTimeMax = (std::max)(state.visibleTimeMax, state.visibleTimeMin + 0.001f);
-		state.visibleValueMax = (std::max)(state.visibleValueMax, state.visibleValueMin + 0.001f);
+		state.visibleTimeMax = (std::max)(FiniteFloat(state.visibleTimeMax, state.visibleTimeMin),
+			FiniteFloat(static_cast<double>(state.visibleTimeMin) + 0.001));
+		state.visibleValueMin = FiniteFloat(state.visibleValueMin);
+		state.visibleValueMax = (std::max)(FiniteFloat(state.visibleValueMax, state.visibleValueMin),
+			FiniteFloat(static_cast<double>(state.visibleValueMin) + 0.001));
 
 		const float graphW = (std::max)(1.0f, graphRect.GetWidth());
 		const float graphH = (std::max)(1.0f, graphRect.GetHeight());
 
-		// 画面上でだいたいこのくらいの間隔で線を出す
+		// 読みやすい間隔で目盛りを出す
 		const float targetPixelX = 80.0f;
 		const float targetPixelY = 40.0f;
 
-		const float timeRange = SafeRange(state.visibleTimeMin, state.visibleTimeMax);
-		const float valueRange = SafeRange(state.visibleValueMin, state.visibleValueMax);
+		const double timeRange = SafeRange(state.visibleTimeMin, state.visibleTimeMax);
+		const double valueRange = SafeRange(state.visibleValueMin, state.visibleValueMax);
 
-		const float desiredTimeStep = timeRange * (targetPixelX / graphW);
-		const float desiredValueStep = valueRange * (targetPixelY / graphH);
+		const float desiredTimeStep = FiniteFloat(timeRange * (targetPixelX / graphW));
+		const float desiredValueStep = FiniteFloat(valueRange * (targetPixelY / graphH));
 
 		state.gridTimeStep = NiceStep(desiredTimeStep);
 		state.gridValueStep = NiceStep(desiredValueStep);
@@ -137,31 +182,36 @@ namespace Engine::CurveEditorUtility {
 		const ImRect& graphRect, Engine::CurveEditorState& state, const ImVec2& mousePos, float wheelDelta) {
 
 		const float oldPixelsPerSecond = state.pixelsPerSecond;
-		const float newPixelsPerSecond = SafePixelsPerSecond(oldPixelsPerSecond * (wheelDelta > 0.0f ? 1.15f : (1.0f / 1.15f)));
+		const float newPixelsPerSecond =
+			SafePixelsPerSecond(static_cast<double>(oldPixelsPerSecond) * (wheelDelta > 0.0f ? 1.15 : (1.0 / 1.15)));
 
-		const float mouseRatioX = (mousePos.x - graphRect.Min.x) / (std::max)(1.0f, graphRect.GetWidth());
-		const float worldTime = state.visibleTimeMin + (state.visibleTimeMax - state.visibleTimeMin) * mouseRatioX;
+		const double width = (std::max)(1.0, static_cast<double>(graphRect.Max.x) - graphRect.Min.x);
+		const double mouseRatioX = (static_cast<double>(mousePos.x) - graphRect.Min.x) / width;
+		const double worldTime = state.visibleTimeMin +
+			(static_cast<double>(state.visibleTimeMax) - state.visibleTimeMin) * mouseRatioX;
 
 		state.pixelsPerSecond = newPixelsPerSecond;
-		const float newRange = graphRect.GetWidth() / state.pixelsPerSecond;
-		state.visibleTimeMin = worldTime - newRange * mouseRatioX;
+		const double newRange = width / state.pixelsPerSecond;
+		state.visibleTimeMin = FiniteFloat(worldTime - newRange * mouseRatioX, state.visibleTimeMin);
 		state.visibleTimeMin = ClampVisibleTimeMin(state.visibleTimeMin);
-		state.visibleTimeMax = state.visibleTimeMin + newRange;
+		state.visibleTimeMax = FiniteFloat(state.visibleTimeMin + newRange);
 	}
 
 	// 有効な間隔へキー時刻を丸める
 	float SnapTime(float time, bool enableSnap, float interval) {
 
-		if (!enableSnap || interval <= 0.0f) {
+		time = FiniteFloat(time);
+		if (!enableSnap || !std::isfinite(interval) || interval <= 0.0f) {
 			return time;
 		}
-		return std::round(time / interval) * interval;
+		// 小さい間隔でも途中の除算を溢れさせない
+		return FiniteFloat(std::round(static_cast<double>(time) / interval) * interval, time);
 	}
 
 	// キー時刻を許可範囲へ収める
 	float ClampKeyTime(const Engine::CurveEditorState& state, float time) {
 
-		time = (std::max)(0.0f, time);
+		time = (std::max)(0.0f, FiniteFloat(time));
 		if (0.0f < state.maxKeyTime) {
 			time = (std::min)(time, state.maxKeyTime);
 		}
@@ -171,6 +221,7 @@ namespace Engine::CurveEditorUtility {
 	// ゼロ近傍の表示を揃える
 	float NormalizeGridValue(float value) {
 
+		value = FiniteFloat(value);
 		return std::abs(value) <= 0.00001f ? 0.0f : value;
 	}
 
@@ -187,24 +238,42 @@ namespace Engine::CurveEditorUtility {
 		return std::format("{:.3f}", value);
 	}
 
+	bool IsMajorGridLine(float value, float step) {
+
+		// 無効な間隔と除算結果を描画判定へ渡さない
+		if (!std::isfinite(value) || !std::isfinite(step) || step <= 0.0f) {
+			return false;
+		}
+		const float index = std::round(value / step);
+		return std::isfinite(index) && std::fmod(index, static_cast<float>(kCurveGridMajorInterval)) == 0.0f;
+	}
+
 	// カーブ座標を画面座標へ変換する
 	ImVec2 WorldToScreen(const ImRect& rect, const Engine::CurveEditorState& state, float time, float value) {
 
-		const float tx = (time - state.visibleTimeMin) / SafeRange(state.visibleTimeMin, state.visibleTimeMax);
-		const float ty = (value - state.visibleValueMin) / SafeRange(state.visibleValueMin, state.visibleValueMax);
-		return ImVec2(rect.Min.x + tx * rect.GetWidth(), rect.Max.y - ty * rect.GetHeight());
+		// 範囲差と位置の補間はdoubleで計算する
+		const double tx = (static_cast<double>(time) - state.visibleTimeMin) /
+			SafeRange(state.visibleTimeMin, state.visibleTimeMax);
+		const double ty = (static_cast<double>(value) - state.visibleValueMin) /
+			SafeRange(state.visibleValueMin, state.visibleValueMax);
+		return ImVec2(FiniteFloat(rect.Min.x + tx * (static_cast<double>(rect.Max.x) - rect.Min.x), rect.Min.x),
+			FiniteFloat(rect.Max.y - ty * (static_cast<double>(rect.Max.y) - rect.Min.y), rect.Max.y));
 	}
 
 	// 画面座標をカーブ座標へ変換する
 	ImVec2 ScreenToWorld(const ImRect& rect, const Engine::CurveEditorState& state, const ImVec2& pos) {
 
-		const float tx = (pos.x - rect.Min.x) / (std::max)(1.0f, rect.GetWidth());
-		const float ty = (rect.Max.y - pos.y) / (std::max)(1.0f, rect.GetHeight());
-		return ImVec2(state.visibleTimeMin + tx * (state.visibleTimeMax - state.visibleTimeMin),
-			state.visibleValueMin + ty * (state.visibleValueMax - state.visibleValueMin));
+		const double tx = (static_cast<double>(pos.x) - rect.Min.x) /
+			(std::max)(1.0, static_cast<double>(rect.Max.x) - rect.Min.x);
+		const double ty = (static_cast<double>(rect.Max.y) - pos.y) /
+			(std::max)(1.0, static_cast<double>(rect.Max.y) - rect.Min.y);
+		return ImVec2(FiniteFloat(state.visibleTimeMin + tx *
+			(static_cast<double>(state.visibleTimeMax) - state.visibleTimeMin), state.visibleTimeMin),
+			FiniteFloat(state.visibleValueMin + ty *
+			(static_cast<double>(state.visibleValueMax) - state.visibleValueMin), state.visibleValueMin));
 	}
 
-	// 矩形内のマウス位置を判定する
+	// 境界を含めて矩形内の位置を判定する
 	bool RectContains(const ImRect& rect, const ImVec2& pos) {
 
 		return rect.Min.x <= pos.x && pos.x <= rect.Max.x && rect.Min.y <= pos.y && pos.y <= rect.Max.y;
@@ -270,20 +339,19 @@ namespace Engine::CurveEditorUtility {
 			return;
 		}
 
-		const float timePadding = (std::max)(0.1f, (timeMax - timeMin) * 0.08f);
+		const double timePadding = (std::max)(0.1, (static_cast<double>(timeMax) - timeMin) * 0.08);
 
-		state.visibleTimeMin = (std::max)(0.0f, timeMin - timePadding);
-		state.visibleTimeMax = (std::max)(state.visibleTimeMin + 0.001f, timeMax + timePadding);
+		state.visibleTimeMin = (std::max)(0.0f, FiniteFloat(timeMin - timePadding));
+		state.visibleTimeMax = (std::max)(FiniteFloat(static_cast<double>(state.visibleTimeMin) + 0.001),
+			FiniteFloat(timeMax + timePadding));
 
-		// Frameでは値方向の表示範囲は変更しない
-		// MinValue / MaxValueはユーザーが決めた値をそのまま維持する
-		// 実際のグラフサイズからズーム係数を同期する
+		// キーがある場合は指定した値範囲で倍率を揃える
 		const float graphW = (std::max)(1.0f, graphRect.GetWidth());
 
 		state.pixelsPerSecond = SafePixelsPerSecond(graphW / SafeRange(state.visibleTimeMin, state.visibleTimeMax));
 		state.gridTimeStep = NiceStep(80.0f / state.pixelsPerSecond);
 
-		// Frame直後の見た目と、その後の通常操作の基準を揃える
+		// 値範囲の最小幅と表示倍率を揃える
 		UpdateVerticalZoomFromRange(graphRect, state);
 	}
 } // Engine::CurveEditorUtility

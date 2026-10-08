@@ -6,8 +6,6 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Foundation/Math/Vector3.h>
-#include <Engine/Core/Foundation/Math/Quaternion.h>
 
 // c++
 #include <string>
@@ -34,21 +32,21 @@ namespace Engine {
 		UnloadScene,
 	};
 
-	// 1コマンド分のデータで値はすべてコピー保持する
+	// 1件の要求と共有する予約値を保持する
 	struct WorldCommand {
 
-		WorldCommandKind kind;
-		Entity target = Entity::Null();
-		Entity parent = Entity::Null();
-		bool boolValue = false;
-		// Sceneのasset、Scene instanceのUUID
+		WorldCommandKind kind;			// 適用する操作
+		Entity target = Entity::Null(); // 操作対象
+		Entity parent = Entity::Null(); // 生成と親子変更の親
+		bool boolValue = false;			// 有効状態かWorld姿勢の維持
+		// 読み込むSceneと操作するInstance
 		AssetID assetID{};
 		UUID sceneInstanceID{};
-		UUID scriptSlotID{};
-		// AddComponent/RemoveComponent/SetName/CreateEntity(name)用の文字列
+		UUID scriptSlotID{}; // 削除するScriptの保存slot
+		// Componentの型名かEntity名
 		std::string text;
 		// 追加前の読み書きで共有する値
 		std::shared_ptr<PendingComponent> component;
 	};
 
-} // Engine
+}

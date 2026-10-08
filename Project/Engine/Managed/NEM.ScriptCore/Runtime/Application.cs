@@ -41,7 +41,7 @@ public static class Application {
             prevFocus = focus;
             EventDispatch.Raise(FocusChanged, focus, "Application");
         }
-        if (paused != prevPaused) {
+        if (!NativeApplicationAPI.ReadUpdateInterrupted() && paused != prevPaused) {
             prevPaused = paused;
             EventDispatch.Raise(PauseChanged, paused, "Application");
         }

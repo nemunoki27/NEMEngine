@@ -3,49 +3,31 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
+#include "IdentityText.h"
+
 // c++
 #include <random>
 #include <limits>
-
-namespace {
-
-	uint64_t ParseHex64(std::string_view text, bool& valid) noexcept {
-
-		uint64_t value = 0;
-		for (char c : text) {
-
-			uint64_t nibble = 0;
-			if ('0' <= c && c <= '9') {
-				nibble = static_cast<uint64_t>(c - '0');
-			} else if ('a' <= c && c <= 'f') {
-				nibble = static_cast<uint64_t>(10 + (c - 'a'));
-			} else if ('A' <= c && c <= 'F') {
-				nibble = static_cast<uint64_t>(10 + (c - 'A'));
-			} else {
-				valid = false;
-				return 0;
-			}
-			value = (value << 4) | nibble;
-		}
-		return value;
-	}
-}
 
 //============================================================================
 //	AssetGUID classMethods
 //============================================================================
 bool Engine::AssetGUID::operator==(const AssetGUID& other) const noexcept {
 
+	// 上位と下位の一致を判定
 	return high == other.high && low == other.low;
 }
 
 bool Engine::AssetGUID::operator!=(const AssetGUID& other) const noexcept {
 
+	// 一致判定を反転
 	return !(*this == other);
 }
 
 bool Engine::AssetGUID::operator<(const AssetGUID& other) const noexcept {
 
+	// 上位が同じ場合だけ下位を比較
 	if (high != other.high) {
 		return high < other.high;
 	}
@@ -54,12 +36,14 @@ bool Engine::AssetGUID::operator<(const AssetGUID& other) const noexcept {
 
 Engine::AssetGUID::operator bool() const noexcept {
 
+	// 全ビットがゼロの識別子を除外
 	return high != 0 || low != 0;
 }
 
 Engine::AssetGUID Engine::AssetGUID::New() {
 
-	static thread_local std::mt19937_64 rng{ std::random_device{}() };
+	// スレッドごとの乱数で有効な識別子を生成
+	static thread_local std::mt19937_64 rng{std::random_device{}()};
 	std::uniform_int_distribution<uint64_t> dist(0, std::numeric_limits<uint64_t>::max());
 
 	AssetGUID guid{};
@@ -72,14 +56,10 @@ Engine::AssetGUID Engine::AssetGUID::New() {
 
 std::string Engine::ToString(const AssetGUID& guid) {
 
-	char buffer[33]{};
-	static constexpr char kHex[] = "0123456789abcdef";
-
-	for (int i = 0; i < 16; ++i) {
-		const int shift = (15 - i) * 4;
-		buffer[i] = kHex[(guid.high >> shift) & 0xF];
-		buffer[i + 16] = kHex[(guid.low >> shift) & 0xF];
-	}
+	// 上位と下位を同じ桁順で連結
+	char buffer[32];
+	IdentityText::WriteHex64(guid.high, std::span<char, 16>(buffer, 16));
+	IdentityText::WriteHex64(guid.low, std::span<char, 16>(buffer + 16, 16));
 	return std::string(buffer, 32);
 }
 
@@ -89,17 +69,18 @@ std::optional<Engine::AssetGUID> Engine::TryParseAssetGUID32Hex(std::string_view
 		return std::nullopt;
 	}
 
-	bool valid = true;
-	const uint64_t high = ParseHex64(text.substr(0, 16), valid);
-	const uint64_t low = ParseHex64(text.substr(16, 16), valid);
-	if (!valid || (high == 0 && low == 0)) {
+	// 上下の解析結果と無効値を確認
+	const auto high = IdentityText::TryParseHex64(text.substr(0, 16));
+	const auto low = IdentityText::TryParseHex64(text.substr(16, 16));
+	if (!high || !low || (*high == 0 && *low == 0)) {
 		return std::nullopt;
 	}
-	return AssetGUID{ high, low };
+	return AssetGUID{*high, *low};
 }
 
 Engine::AssetGUID Engine::FromString32Hex(std::string_view text) noexcept {
 
+	// 不正な入力は無効値を返す
 	const std::optional<AssetGUID> parsed = TryParseAssetGUID32Hex(text);
 	return parsed ? *parsed : AssetGUID{};
 }
@@ -112,8 +93,9 @@ namespace std {
 
 	size_t hash<Engine::AssetGUID>::operator()(const Engine::AssetGUID& guid) const noexcept {
 
+		// 上下のハッシュを合成
 		const size_t highHash = std::hash<uint64_t>{}(guid.high);
 		const size_t lowHash = std::hash<uint64_t>{}(guid.low);
-		return highHash ^ (lowHash + 0x9e3779b97f4a7c15ull + (highHash << 6) + (highHash >> 2));
+		return Engine::Algorithm::MixHash(highHash, lowHash);
 	}
 }

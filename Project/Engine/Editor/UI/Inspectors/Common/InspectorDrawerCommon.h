@@ -13,6 +13,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Assets/RenderComponentTypes.h>
+#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 
 // c++
 #include <initializer_list>
@@ -23,6 +24,9 @@
 //	インスペクターの共通描画関数
 //============================================================================
 namespace Engine::InspectorDrawerCommon {
+
+	// 描画と同じ索引から既定Materialを選ぶ
+	AssetID ResolveDefaultMaterial(const EditorPanelContext& context, DefaultMaterialSlot slot);
 
 	// 値編集の結果を累積する
 	void AccumulateEditResult(const ValueEditResult& result, bool& anyItemActive, bool& commitRequested);
@@ -39,9 +43,9 @@ namespace Engine::InspectorDrawerCommon {
 
 	// チェックボックスフィールドを描画する
 	ValueEditResult DrawCheckboxField(const char* label, bool& value);
-	// uint32のレイヤーマスクをDragIntで描画する、内部はint32経由で編集する
+	// 定義済みのRendering Layerを選択する
 	ValueEditResult DrawLayerMaskField(const EditorPanelContext& context, const char* label, uint32_t& value);
-	// enum型のコンボボックスフィールドを描画する
+	// 列挙型の選択欄を描画する
 	template <typename Enum>
 	ValueEditResult DrawEnumComboField(const char* label, Enum& value) {
 
@@ -57,10 +61,10 @@ namespace Engine::InspectorDrawerCommon {
 		MyGUI::EndPropertyRow();
 		return result;
 	}
-	// ビヘイビアの型選択フィールドを描画する、searchIconはcombo内検索欄に重ねる虫眼鏡
+	// 検索付きのBehavior型選択欄を描画する
 	ValueEditResult DrawBehaviorTypeField(const char* label, std::string& type, ImTextureID searchIcon);
 
-	// 各Rendererコンポーネントが共通で持つ描画フィールドを描く、drawFieldは各Drawerのラップを渡す
+	// Rendererの共通設定をDrawerへ渡す
 	template <typename DrawFieldFn>
 	void DrawCommonRenderFields(const EditorPanelContext& context, DrawFieldFn&& drawField,
 		int32_t& layer, int32_t& order, BlendMode& blendMode,
@@ -73,8 +77,7 @@ namespace Engine::InspectorDrawerCommon {
 		if (renderingLayerMask) {
 			drawField([&]() {
 
-				return DrawLayerMaskField(context,
-					"Rendering Layer", *renderingLayerMask);
+				return DrawLayerMaskField(context, "Rendering Layer", *renderingLayerMask);
 			});
 		}
 	}

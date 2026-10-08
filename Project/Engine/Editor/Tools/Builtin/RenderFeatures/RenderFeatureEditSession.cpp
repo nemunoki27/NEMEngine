@@ -71,12 +71,24 @@ void Engine::RenderFeatureEditSession::SetDirty() {
 bool Engine::RenderFeatureEditSession::Tick(ToolContext& context) {
 
 	if (requestedProfile_) {
-		RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(requestedProfile_, context.assetDatabase);
-		observedProfile_ = requestedProfile_;
-		requestedProfile_ = {};
+		// 空のAssetも選択解除として反映する
+		const AssetID requested = *requestedProfile_;
+		requestedProfile_.reset();
+		if (!RenderFeatureProfileService::GetInstance().SetActiveProfileAsset(requested, context.assetDatabase)) {
+			SetStatusMessage("Render Passesを読み込めません", true);
+			return false;
+		}
+		observedProfile_ = requested;
+		SetStatusMessage("", false);
 		return true;
 	}
 	return false;
+}
+
+void Engine::RenderFeatureEditSession::RequestProfile(AssetID assetID) {
+
+	// 現在の選択へ戻したときは古い予約を取り消す
+	requestedProfile_ = assetID == observedProfile_ ? std::nullopt : std::optional<AssetID>{assetID};
 }
 
 bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolContext& context, AssetID sourceProfile) {
@@ -120,8 +132,13 @@ bool Engine::RenderFeatureEditSession::ImportProfileSettings(const EditorToolCon
 void Engine::RenderFeatureEditSession::SelectProfile(const EditorToolContext& context, AssetID profileAsset) {
 
 	RenderFeatureProfileService& service = RenderFeatureProfileService::GetInstance();
-	service.SetActiveProfileAsset(profileAsset, context.toolContext.assetDatabase);
+	requestedProfile_.reset();
+	if (!service.SetActiveProfileAsset(profileAsset, context.toolContext.assetDatabase)) {
+		SetStatusMessage("Render Passesを読み込めません", true);
+		return;
+	}
 	observedProfile_ = profileAsset;
+	SetStatusMessage("", false);
 }
 
 void Engine::RenderFeatureEditSession::Save() {
@@ -137,9 +154,8 @@ void Engine::RenderFeatureEditSession::Save() {
 
 void Engine::RenderFeatureEditSession::Reload() {
 
-	RenderFeatureProfileService::GetInstance().Reload();
-	statusMessage_ = "再読み込みしました";
-	statusError_ = false;
+	statusError_ = !RenderFeatureProfileService::GetInstance().Reload();
+	statusMessage_ = statusError_ ? "再読み込みできませんでした" : "再読み込みしました";
 }
 
 void Engine::RenderFeatureEditSession::SetStatusMessage(const std::string& message, bool error) {

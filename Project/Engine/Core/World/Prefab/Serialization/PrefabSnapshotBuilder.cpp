@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/World/Prefab/Serialization/PrefabHeader.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Assets/Database/AssetDocumentPublication.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -16,7 +18,6 @@
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabDocument.h>
 
@@ -27,8 +28,7 @@ using namespace Engine::PrefabDocument;
 
 namespace {
 
-	Engine::UUID ResolvePrefabLocalFileID(Engine::ECSWorld& world, const Engine::Entity& entity,
-		Engine::AssetID prefabAsset) {
+	Engine::UUID ResolvePrefabLocalFileID(Engine::ECSWorld& world, const Engine::Entity& entity, Engine::AssetID prefabAsset) {
 
 		if (world.HasComponent<Engine::PrefabLinkComponent>(entity)) {
 
@@ -49,8 +49,7 @@ namespace {
 		Engine::PrefabReferenceRemapper::LocalFileIDMap result;
 		for (const Engine::Entity& entity : entities) {
 
-			if (!world.IsAlive(entity) ||
-				!world.HasComponent<Engine::SceneObjectComponent>(entity)) {
+			if (!world.IsAlive(entity) || !world.HasComponent<Engine::SceneObjectComponent>(entity)) {
 				continue;
 			}
 			Engine::SceneAuthoring::EnsureGameObjectDefaults(world, entity);
@@ -74,15 +73,15 @@ namespace {
 		std::vector<Engine::Entity> result;
 		for (const Engine::Entity& entity : entities) {
 
-			if (entity == root || !world.IsAlive(entity) ||
-				!world.HasComponent<Engine::PrefabLinkComponent>(entity) ||
+			if (entity == root || !world.IsAlive(entity) || !world.HasComponent<Engine::PrefabLinkComponent>(entity) ||
 				!world.GetComponent<Engine::PrefabLinkComponent>(entity).isPrefabRoot) {
 				continue;
 			}
 
 			bool reachesRoot = false;
-			Engine::Entity ancestor = world.HasComponent<Engine::HierarchyComponent>(entity) ?
-				world.GetComponent<Engine::HierarchyComponent>(entity).parent : Engine::Entity::Null();
+			Engine::Entity ancestor = world.HasComponent<Engine::HierarchyComponent>(entity)
+										  ? world.GetComponent<Engine::HierarchyComponent>(entity).parent
+										  : Engine::Entity::Null();
 			size_t remaining = world.GetRecordCount() + 1;
 			while (world.IsAlive(ancestor) && remaining-- > 0) {
 
@@ -94,8 +93,9 @@ namespace {
 					world.GetComponent<Engine::PrefabLinkComponent>(ancestor).isPrefabRoot) {
 					break;
 				}
-				ancestor = world.HasComponent<Engine::HierarchyComponent>(ancestor) ?
-					world.GetComponent<Engine::HierarchyComponent>(ancestor).parent : Engine::Entity::Null();
+				ancestor = world.HasComponent<Engine::HierarchyComponent>(ancestor)
+							   ? world.GetComponent<Engine::HierarchyComponent>(ancestor).parent
+							   : Engine::Entity::Null();
 			}
 			if (reachesRoot) {
 				result.emplace_back(entity);
@@ -104,8 +104,8 @@ namespace {
 		return result;
 	}
 
-	void AppendNestedSceneLocalFileIDs(const Engine::PrefabInstanceData& data,
-		Engine::PrefabReferenceRemapper::LocalFileIDMap& sceneToPrefabLocal) {
+	void AppendNestedSceneLocalFileIDs(
+		const Engine::PrefabInstanceData& data, Engine::PrefabReferenceRemapper::LocalFileIDMap& sceneToPrefabLocal) {
 
 		for (const auto& mapping : data.entityMap) {
 			const Engine::UUID sceneLocalFileID = mapping.second;
@@ -124,8 +124,7 @@ namespace {
 	}
 
 	void RemapNestedInstanceReferences(Engine::PrefabInstanceData& data,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& sceneToPrefabLocal,
-		Engine::AssetID prefabAsset) {
+		const Engine::PrefabReferenceRemapper::LocalFileIDMap& sceneToPrefabLocal, Engine::AssetID prefabAsset) {
 
 		auto remapSceneLocalFileID = [&](Engine::UUID value) {
 			if (!value) {
@@ -133,26 +132,23 @@ namespace {
 			}
 			auto it = sceneToPrefabLocal.find(value);
 			return it != sceneToPrefabLocal.end() ? it->second : Engine::UUID{};
-			};
-		data.rootParentSceneLocalFileID =
-			remapSceneLocalFileID(data.rootParentSceneLocalFileID);
+		};
+		data.rootParentSceneLocalFileID = remapSceneLocalFileID(data.rootParentSceneLocalFileID);
 		for (Engine::PrefabPropertyModification& modification : data.modifications) {
-			Engine::PrefabReferenceRemapper::RemapValue(modification.value, modification.path,
-				sceneToPrefabLocal, Engine::PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
+			Engine::PrefabReferenceRemapper::RemapValue(modification.value, modification.path, sceneToPrefabLocal,
+				Engine::PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 		}
 		for (Engine::PrefabComponentModification& added : data.addedComponents) {
-			Engine::PrefabReferenceRemapper::RemapComponent(added.type, added.value,
-				sceneToPrefabLocal, Engine::PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
+			Engine::PrefabReferenceRemapper::RemapComponent(added.type, added.value, sceneToPrefabLocal,
+				Engine::PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 		}
 		for (Engine::PrefabAddedEntity& added : data.addedEntities) {
-			added.parentSceneLocalFileID =
-				remapSceneLocalFileID(added.parentSceneLocalFileID);
-			Engine::PrefabReferenceRemapper::RemapComponents(added.components,
-				sceneToPrefabLocal, Engine::PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
+			added.parentSceneLocalFileID = remapSceneLocalFileID(added.parentSceneLocalFileID);
+			Engine::PrefabReferenceRemapper::RemapComponents(
+				added.components, sceneToPrefabLocal, Engine::PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 		}
 		for (Engine::PrefabHierarchyModification& hierarchy : data.hierarchyModifications) {
-			hierarchy.externalParentSceneLocalFileID =
-				remapSceneLocalFileID(hierarchy.externalParentSceneLocalFileID);
+			hierarchy.externalParentSceneLocalFileID = remapSceneLocalFileID(hierarchy.externalParentSceneLocalFileID);
 		}
 		for (Engine::PrefabInstanceData& nested : data.nestedInstances) {
 			RemapNestedInstanceReferences(nested, sceneToPrefabLocal, prefabAsset);
@@ -167,28 +163,30 @@ bool Engine::PrefabSnapshotBuilder::SavePrefabFromEntities(AssetDatabase& databa
 		return false;
 	}
 
-	// プレファブアセットを登録
-	const AssetID prefabAsset = database.ImportOrGet(prefabAssetPath, AssetType::Prefab);
-
-	nlohmann::json fileJson;
-	if (!Capture(database, world, root, entities, prefabAssetPath, prefabInstanceID, prefabAsset, fileJson)) {
+	// 索引を書き換えず保存GUIDとmetaを準備する
+	AssetDocumentChange change;
+	std::string diagnostic;
+	if (!AssetDocumentPublication::Prepare(database, prefabAssetPath, AssetType::Prefab, change, diagnostic)) {
+		Logger::Output(
+			LogType::Engine, spdlog::level::warn, "[PrefabSystem] Prefabの保存先を準備できません 内容={}", diagnostic);
 		return false;
 	}
-
-	// ファイルに保存
-	std::filesystem::path savePath = database.ResolveAssetPath(prefabAssetPath);
-	if (savePath.empty()) {
-		savePath = prefabAssetPath;
-	}
-	if (!JsonAdapter::SaveCanonical(savePath, fileJson)) {
+	if (!BuildDocument(
+			database, world, root, entities, prefabAssetPath, prefabInstanceID, change.metadata.guid, change.document)) {
 		return false;
 	}
-	database.NotifyContentChanged(prefabAsset);
+	change.canonicalize = true;
+	// 文書とmetaと参照検証を同じ保存操作へまとめる
+	if (!AssetDocumentPublication::Commit(database, std::span<const AssetDocumentChange>(&change, 1),
+			AssetDocumentRecovery::MakeScope(AssetDocumentSaveKind::Prefab), diagnostic)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "[PrefabSystem] Prefabを保存できません 内容={}", diagnostic);
+		return false;
+	}
 	return true;
 }
 
-std::string Engine::PrefabSnapshotBuilder::BuildDefaultPrefabName(ECSWorld& world,
-	const Entity& root, const std::string& prefabAssetPath) {
+std::string Engine::PrefabSnapshotBuilder::BuildDefaultPrefabName(
+	ECSWorld& world, const Entity& root, const std::string& prefabAssetPath) {
 
 	// ルートエンティティの名前をベースにする
 	if (world.IsAlive(root) && world.HasComponent<NameComponent>(root)) {
@@ -206,17 +204,20 @@ std::string Engine::PrefabSnapshotBuilder::BuildDefaultPrefabName(ECSWorld& worl
 	return Algorithm::PathToUTF8(path);
 }
 
-bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& world, const Entity& root,
-	const std::vector<Entity>& entities, const std::string& prefabAssetPath, UUID prefabInstanceID,
-	AssetID prefabAsset, nlohmann::json& fileJson) {
+bool Engine::PrefabSnapshotBuilder::BuildDocument(AssetDatabase& database, ECSWorld& world, const Entity& root,
+	const std::vector<Entity>& entities, const std::string& prefabAssetPath, UUID prefabInstanceID, AssetID prefabAsset,
+	nlohmann::json& fileJson) {
 
+	if (!world.IsAlive(root) || entities.empty()) {
+		return false;
+	}
 	// ルート情報をデフォルト構築
 	SceneAuthoring::EnsureGameObjectDefaults(world, root);
 	PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(world);
 
-	const UUID ownerInstanceID = world.HasComponent<PrefabLinkComponent>(root) ?
-		world.GetComponent<PrefabLinkComponent>(root).prefabInstanceID :
-		(prefabInstanceID ? prefabInstanceID : UUID::New());
+	const UUID ownerInstanceID = world.HasComponent<PrefabLinkComponent>(root)
+									 ? world.GetComponent<PrefabLinkComponent>(root).prefabInstanceID
+									 : (prefabInstanceID ? prefabInstanceID : UUID::New());
 	const std::vector<Entity> nestedRoots = CollectImmediateNestedPrefabRoots(world, root, entities);
 	std::unordered_set<uint64_t> nestedEntityKeys;
 	for (const Entity& nestedRoot : nestedRoots) {
@@ -226,8 +227,7 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 			rootLink.nestedSlotID = UUID::New();
 		}
 		const UUID nestedSlotID = rootLink.nestedSlotID;
-		for (const Entity& member : PrefabOverrideUtility::CollectInstanceEntities(
-			world, rootLink.prefabInstanceID)) {
+		for (const Entity& member : PrefabOverrideUtility::CollectInstanceEntities(world, rootLink.prefabInstanceID)) {
 
 			auto& memberLink = world.GetComponent<PrefabLinkComponent>(member);
 			memberLink.ownerPrefabInstanceID = ownerInstanceID;
@@ -246,8 +246,7 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 			directEntities.emplace_back(entity);
 		}
 	}
-	PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal =
-		BuildSceneToPrefabLocalMap(world, directEntities, prefabAsset);
+	PrefabReferenceRemapper::LocalFileIDMap sceneToPrefabLocal = BuildSceneToPrefabLocalMap(world, directEntities, prefabAsset);
 	std::unordered_set<UUID> directLocalIDs;
 	for (const Entity& entity : directEntities) {
 		const UUID localID = ResolvePrefabLocalFileID(world, entity, prefabAsset);
@@ -265,16 +264,17 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 		const auto& link = world.GetComponent<PrefabLinkComponent>(nestedRoot);
 		const auto base = PrefabOverrideUtility::LoadPrefabBaseEntities(database, link.prefabAsset);
 		if (base.empty()) {
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[PrefabSystem] ネストPrefabを読み込めません AssetID={}", ToString(link.prefabAsset));
+			Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] ネストPrefabを読み込めません AssetID={}",
+				ToString(link.prefabAsset));
 			return false;
 		}
-		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(
-			world, database, link.prefabInstanceID, base);
+		PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(world, database, link.prefabInstanceID, base);
 		data.ownerPrefabInstanceID = UUID{};
 		data.isPrefabAssetNested = true;
 		PrefabInstanceData validated;
-		if (!FromJson(ToJson(data), validated)) return false;
+		if (!FromJson(ToJson(data), validated)) {
+			return false;
+		}
 		AppendNestedSceneLocalFileIDs(data, sceneToPrefabLocal);
 		nestedInstances.emplace_back(std::move(data));
 	}
@@ -301,8 +301,7 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 	// エンティティごとにコンポーネントをシリアライズしてファイルのnlohmann::jsonに追加
 	for (const Entity& entity : directEntities) {
 
-		if (!world.IsAlive(entity) ||
-			!world.HasComponent<SceneObjectComponent>(entity)) {
+		if (!world.IsAlive(entity) || !world.HasComponent<SceneObjectComponent>(entity)) {
 			continue;
 		}
 
@@ -320,7 +319,8 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 		nlohmann::json components = nlohmann::json::object();
 		world.SerializeEntityComponents(entity, components);
 		if (components.contains("SceneObject") && components["SceneObject"].is_object()) {
-			components["SceneObject"]["localFileId"] = (prefabLocalFileID ? ToString(prefabLocalFileID) : ToString(sceneObject.localFileID));
+			components["SceneObject"]["localFileId"] =
+				(prefabLocalFileID ? ToString(prefabLocalFileID) : ToString(sceneObject.localFileID));
 		}
 		// プレファブルートまたは保存対象外を指すジョイント参照は持ち込まない
 		if (world.HasComponent<JointAttachmentComponent>(entity)) {
@@ -330,7 +330,8 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 				components.erase("JointAttachment");
 			}
 		}
-		PrefabReferenceRemapper::RemapComponents(components, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
+		PrefabReferenceRemapper::RemapComponents(
+			components, sceneToPrefabLocal, PrefabReferenceRemapper::ReferenceSpace::Prefab, prefabAsset);
 
 		// プレファブ自体の中に、別プレファブ由来情報は持ち込まない
 		components.erase("PrefabLink");
@@ -343,8 +344,7 @@ bool Engine::PrefabSnapshotBuilder::Capture(AssetDatabase& database, ECSWorld& w
 	// ネストPrefabは元アセットとの差分として保存し、親Prefabへ展開しない
 	for (PrefabInstanceData& data : nestedInstances) {
 
-		if (auto parentIt = sceneToPrefabLocal.find(data.rootParentSceneLocalFileID);
-			parentIt != sceneToPrefabLocal.end()) {
+		if (auto parentIt = sceneToPrefabLocal.find(data.rootParentSceneLocalFileID); parentIt != sceneToPrefabLocal.end()) {
 			data.rootParentSceneLocalFileID = parentIt->second;
 		}
 		fileJson["NestedPrefabInstances"].push_back(ToJson(data));

@@ -8,6 +8,7 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
+// c++
 #include <algorithm>
 #include <cwctype>
 
@@ -15,6 +16,7 @@ using namespace Engine::ManagedBuildUtility;
 
 namespace {
 
+	// 構築成果物と一時配置を走査から除外
 	bool IsExcludedDirectory(const std::wstring& directoryName) {
 		static const wchar_t* kExcluded[] = {
 			L"bin", L"obj", L".git", L".vs", L"Generated", L"Library", L"Temp",
@@ -28,6 +30,7 @@ namespace {
 		return false;
 	}
 
+	// 生成器が出力するScriptを走査から除外
 	bool IsGeneratedScriptFile(const std::wstring& fileName) {
 		const auto endsWith = [&fileName](const wchar_t* suffix) {
 			const size_t suffixLength = std::wcslen(suffix);
@@ -72,18 +75,18 @@ bool Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 
 		watcher_.Start(watchRoot);
 		watchedRoot_ = watchRoot;
-		// 張り直し直後は確実に一度走査するため安全走査の期限をリセットする
+		// 監視先の変更後は直ちに走査
 		nextScanTime_ = std::chrono::steady_clock::time_point{};
 	}
 
-	// 変更を検知したか取りこぼし対策の安全走査期限が来た時だけ実走査する
+	// 通知か補助走査の期限でソースを走査
 	const bool changedByWatcher = watcher_.ConsumeChanged();
 	if (!changedByWatcher && now < nextScanTime_) {
 		return false;
 	}
 	nextScanTime_ = now + scanInterval_;
 
-	// csproj単体+ Scriptsルート+ GameAssetsルートを集約する
+	// ProjectとScriptの更新情報を収集
 	std::unordered_map<std::string, SourceStamp> current;
 	const auto addFile = [&current](const std::filesystem::path& path) {
 		std::error_code timeError{};
@@ -108,7 +111,7 @@ bool Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 		if (!std::filesystem::exists(root, rootExists) || rootExists) {
 			continue;
 		}
-		// アクセス権エラーで監視全体を止めないようerror_code版で走査する
+		// 読み取れないディレクトリを除いて走査
 		std::error_code iterateError{};
 		auto iterator = std::filesystem::recursive_directory_iterator(
 			root, std::filesystem::directory_options::skip_permission_denied, iterateError);
@@ -147,7 +150,7 @@ bool Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 		return false;
 	}
 
-	// 変更判定でサイズと更新時刻と追加削除を見る
+	// 追加と削除、更新時刻、サイズを比較
 	bool changed = current.size() != sourceSnapshot_.size();
 	int32_t changedCount = 0;
 	if (!changed) {
@@ -175,11 +178,10 @@ bool Engine::ManagedSourceMonitor::Poll(const std::filesystem::path& projectPath
 
 bool Engine::ManagedSourceMonitor::IsNewerThan(const std::filesystem::path& assemblyPath) const {
 
-	// 起動時に実際にロードされるアセンブリ自体の時刻を基準にする
-	// Edit中ビルドはステージングへ出るためロード元のcanonicalは更新されない、ここはロード対象そのものを見る
+	// Stageではなくロード元Assemblyの更新時刻を比較
 	std::error_code existsError{};
 	if (assemblyPath.empty() || !std::filesystem::exists(assemblyPath, existsError) || existsError) {
-		// ロード済みアセンブリが無ければ新旧を判断できないのでPlay側のビルドに任せる
+		// AssemblyがなければPlay開始時のBuildへ委ねる
 		return false;
 	}
 	std::error_code timeError{};
@@ -188,7 +190,7 @@ bool Engine::ManagedSourceMonitor::IsNewerThan(const std::filesystem::path& asse
 		return false;
 	}
 
-	// 監視中ソースのどれかがロード対象より新しければ起動前に編集されたとみなす
+	// ロード後に更新されたソースを検出
 	for (const auto& [path, stamp] : sourceSnapshot_) {
 		if (stamp.time > assemblyTime) {
 			return true;

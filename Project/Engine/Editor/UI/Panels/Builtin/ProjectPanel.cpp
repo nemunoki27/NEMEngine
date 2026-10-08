@@ -22,7 +22,6 @@
 #include <system_error>
 #include <vector>
 
-
 //============================================================================
 //	ProjectPanel classMethods
 //============================================================================
@@ -100,22 +99,30 @@ Engine::ProjectPanel::ProjectPanel(TextureUploadService& textureUploadService, c
 
 Engine::ProjectPanel::~ProjectPanel() = default;
 
-void Engine::ProjectPanel::RebuildIndex(const AssetDatabase& database) {
+bool Engine::ProjectPanel::RebuildIndex(const AssetDatabase& database) {
 
 	// 共有AssetDatabaseを変更せず、このパネルの表示インデックスだけを更新する
-	assetIndex_.Rebuild(database, assetSource_);
+	if (!assetIndex_.Rebuild(database, assetSource_)) {
+		PreserveIndexAfterFailure(database);
+		return false;
+	}
+	failedStructureRevision_.reset();
 	if (!assetIndex_.FindDirectory(selectedDirectory_)) {
 		selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
 	}
 	// 取り込んだ構造リビジョンを控えておき、外部のファイル追加削除との差分で再構築を判断する
 	lastSeenStructureRevision_ = database.GetStructureRevision();
 	dirty_ = false;
+	return true;
 }
 
-void Engine::ProjectPanel::RefreshDatabaseAndIndex(AssetDatabase& database) {
+bool Engine::ProjectPanel::RefreshDatabaseAndIndex(AssetDatabase& database) {
 
-	database.RebuildMeta();
-	RebuildIndex(database);
+	if (!database.RebuildMeta()) {
+		PreserveIndexAfterFailure(database);
+		return false;
+	}
+	return RebuildIndex(database);
 }
 
 void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorPanelContext& context, AssetDatabase& database) {
@@ -206,8 +213,17 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 	// 自前のdirtyか、外部のファイル追加削除で進んだ構造リビジョンの差分でインデックスを再構築する
 	AssetDatabase& database = *context.editorContext->assetDatabase;
 	thumbnailCache_.SetAssetDatabase(&database);
-	if (dirty_ || database.GetStructureRevision() != lastSeenStructureRevision_) {
+	const auto structureRevision = database.GetStructureRevision();
+	if (dirty_ || (structureRevision != lastSeenStructureRevision_ && failedStructureRevision_ != structureRevision)) {
 		RebuildIndex(database);
+	}
+	// 失敗した一覧は保持し、ユーザーの操作で再試行する
+	if (failedStructureRevision_) {
+		ImGui::TextUnformatted("Projectの一覧を更新できません");
+		ImGui::SameLine();
+		if (ImGui::Button("再試行")) {
+			RefreshDatabaseAndIndex(database);
+		}
 	}
 
 	// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
@@ -307,9 +323,10 @@ void Engine::ProjectPanel::DrawSourceSelector([[maybe_unused]] const EditorPanel
 		if (ImGui::Button(label)) {
 
 			assetSource_ = source;
-			selectedDirectory_ = source == ProjectAssetSource::Engine ? "Engine/Assets" : "GameAssets";
-			selectedAsset_ = {};
-			RebuildIndex(database);
+			if (RebuildIndex(database)) {
+				selectedDirectory_ = assetIndex_.GetRoot().virtualPath;
+				selectedAsset_ = {};
+			}
 		}
 		if (selected) {
 			ImGui::EndDisabled();
@@ -432,7 +449,9 @@ void Engine::ProjectPanel::ApplyPendingFileOperationRefresh(AssetDatabase& datab
 	pendingFileOperationResult_ = {};
 	hasPendingFileOperationRefresh_ = false;
 
-	RefreshDatabaseAndIndex(database);
+	if (!RefreshDatabaseAndIndex(database)) {
+		return;
+	}
 
 	if (result.isDirectory) {
 

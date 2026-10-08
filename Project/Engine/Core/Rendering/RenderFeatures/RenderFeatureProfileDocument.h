@@ -19,9 +19,10 @@ namespace Engine {
 		//========================================================================
 
 		// 保存先から現在の内容を読み直す
-		void Read();
+		bool Read(const std::filesystem::path& path);
 		// 編集内容を保存する
 		bool Save() const;
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -29,9 +30,11 @@ namespace Engine {
 
 		friend class RenderFeatureProfileService;
 
-		bool loaded_ = false;
-		bool dirty_ = false;
-		std::filesystem::path profilePath_{};
-		RenderFeatureProfileAsset profile_{};
+		//--------- variables ----------------------------------------------------
+
+		bool loaded_ = false;				  // 読込済みの状態
+		bool dirty_ = false;				  // 未保存の編集
+		std::filesystem::path profilePath_{}; // 編集中の保存先
+		RenderFeatureProfileAsset profile_{}; // 編集用の設定
 	};
 }

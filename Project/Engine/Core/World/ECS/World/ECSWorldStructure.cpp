@@ -13,9 +13,11 @@ using namespace Engine;
 //============================================================================
 //	ECSWorld classMethods
 //============================================================================
-Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stableUUID) {
+Entity ECSWorld::CreateEntityInArchetype(EntityArchetype& archetype, UUID stableUUID) {
 
-	const std::vector<uint32_t> initialTypes = archetype->GetTypes();
+	const auto lifetime = GetLifetime();
+	const auto storage = storageState_;
+	const std::vector<uint32_t> initialTypes = archetype.GetTypes();
 	Entity entity{};
 	UUID uuid{};
 	Entity previousEntity = Entity::Null();
@@ -29,33 +31,42 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 			throw std::invalid_argument("EntityのUUIDが重複しています");
 		}
 		const uint32_t index = AllocateIndex();
-		entity = { index, records_[index].generation };
+		entity = {index, records_[index].generation};
 		bool rowCreated = false;
 		try {
 
 			// Componentの構築後にEntityを公開する
-			auto [chunkIndex, row] = archetype->Add(entity, firstInstanceID);
+			auto [chunkIndex, row] = archetype.Add(entity, firstInstanceID);
+			lifetime->ThrowIfEnded();
 			rowCreated = true;
-			records_[index].location = { archetype, chunkIndex, row };
+			records_[index].location = {&archetype, chunkIndex, row};
 			records_[index].uuid = uuid;
 			records_[index].alive = true;
 			uuidToEntity_[uuid] = entity;
 			for (uint32_t typeID : initialTypes) {
 				const auto& info = ComponentTypeRegistry::GetInstance().GetInfo(typeID);
-				info.initializeStorage(*this, entity, archetype->GetRaw(chunkIndex, row, typeID));
+				info.initializeStorage(*this, entity, archetype.GetRaw(chunkIndex, row, typeID));
+				lifetime->ThrowIfEnded();
 			}
 		} catch (...) {
 
+			if (!lifetime->IsAlive()) {
+				throw;
+			}
 			// 構築済みの外部データと行を巻き戻す
 			std::exception_ptr failure = std::current_exception();
 			if (rowCreated) {
 				try {
 					ReleaseExternalComponents(entity, nullptr);
 				} catch (...) {
+					if (!lifetime->IsAlive()) {
+						throw;
+					}
 					failure = std::current_exception();
 				}
 				const EntityLocation location = records_[index].location;
-				const Entity moved = archetype->RemoveSwap(location.chunkIndex, location.row);
+				const Entity moved = archetype.RemoveSwap(location.chunkIndex, location.row);
+				lifetime->ThrowIfEnded();
 				if (moved.IsValid()) {
 					records_[moved.index].location = location;
 				}
@@ -85,11 +96,16 @@ Entity ECSWorld::CreateEntityInArchetype(EntityArchetype* archetype, UUID stable
 			const auto& info = ComponentTypeRegistry::GetInstance().GetInfo(typeID);
 			const EntityLocation location = records_[entity.index].location;
 			info.onAdded(*this, entity, location.archetype->GetRaw(location.chunkIndex, location.row, typeID));
+			lifetime->ThrowIfEnded();
 		}
 		if (!IsAlive(entity)) {
 			throw std::runtime_error("初期化中にEntityが削除されました");
 		}
 	} catch (...) {
+		// 終了したWorldへ取消処理を持ち込まない
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
 		// 追加通知の失敗でも元のUUID対応を復元する
 		if (IsAlive(previousEntity)) {
 			const auto current = uuidToEntity_.find(uuid);
@@ -123,12 +139,16 @@ void ECSWorld::DestroyEntityImmediate(const Entity& entity) {
 		return;
 	}
 
+	const auto lifetime = GetLifetime();
 	// 通知から同じEntityを二重破棄させない
 	records_[entity.index].destroying = true;
 	std::exception_ptr failure;
 	try {
 		NotifyComponentMutation(entity, UINT32_MAX, ComponentMutationKind::EntityDestroyed);
 	} catch (...) {
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
 		failure = std::current_exception();
 	}
 	{
@@ -136,6 +156,9 @@ void ECSWorld::DestroyEntityImmediate(const Entity& entity) {
 		try {
 			ReleaseExternalComponents(entity, nullptr);
 		} catch (...) {
+			if (!lifetime->IsAlive()) {
+				throw;
+			}
 			if (!failure) {
 				failure = std::current_exception();
 			}
@@ -144,6 +167,7 @@ void ECSWorld::DestroyEntityImmediate(const Entity& entity) {
 		// 通知中の他Entityの移動を反映した現在位置から抜く
 		const EntityLocation location = records_[entity.index].location;
 		const Entity moved = location.archetype->RemoveSwap(location.chunkIndex, location.row);
+		lifetime->ThrowIfEnded();
 		if (moved.IsValid()) {
 			records_[moved.index].location = location;
 		}
@@ -209,46 +233,21 @@ uint64_t ECSWorld::GetComponentInstanceID(const Entity& entity, uint32_t typeID)
 	if (!location.archetype->Has(typeID)) {
 		return 0;
 	}
-	return location.archetype->GetChunks()[location.chunkIndex]->GetComponentInstanceID(
+	return location.archetype->GetChunk(location.chunkIndex).GetComponentInstanceID(
 		location.archetype->GetColumnIndex(typeID), location.row);
 }
 
-ECSWorld::StructuralScope::StructuralScope(ECSWorld& world) : world_(world) {
+void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSignature, const EntitySignature& newSignature,
+	const PendingComponent* pending) {
 
-	if (world_.queryDepth_ != 0 || world_.structuralChange_) {
-		throw std::logic_error("走査中または構造変更中の追加と削除はCommandへ予約してください");
-	}
-	world_.structuralChange_ = true;
-}
-
-ECSWorld::StructuralScope::~StructuralScope() {
-
-	world_.structuralChange_ = false;
-}
-
-ECSWorld::QueryScope::QueryScope(const ECSWorld& world) : world_(world) {
-
-	if (world_.structuralChange_) {
-		throw std::logic_error("構造変更途中のChunkを走査できません");
-	}
-	++world_.queryDepth_;
-}
-
-ECSWorld::QueryScope::~QueryScope() {
-
-	--world_.queryDepth_;
-}
-
-void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSignature,
-	const EntitySignature& newSignature, const PendingComponent* pending) {
-
+	const auto lifetime = GetLifetime();
 	StructuralScope scope(*this);
 	if (records_[entity.index].destroying) {
 		throw std::logic_error("破棄通知中のEntity構成を変更できません");
 	}
 	const EntityLocation oldLocation = records_[entity.index].location;
 	EntityArchetype* oldArchetype = oldLocation.archetype;
-	EntityArchetype* newArchetype = GetOrCreateArchetype(newSignature);
+	EntityArchetype* newArchetype = &GetOrCreateArchetype(newSignature);
 	auto& registry = ComponentTypeRegistry::GetInstance();
 	ComponentChangeChannel relocatedChannels = ComponentChangeChannel::None;
 	size_t addedCount = 0;
@@ -259,7 +258,7 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	}
 	uint64_t nextInstanceID = ReserveComponentInstanceIDs(addedCount);
 	const auto [newChunkIndex, newRow] = newArchetype->AddUninitialized(entity);
-	EntityChunk& newChunk = *newArchetype->GetChunks()[newChunkIndex];
+	EntityChunk& newChunk = newArchetype->GetChunk(newChunkIndex);
 	try {
 		for (uint32_t typeID : newArchetype->GetTypes()) {
 
@@ -268,18 +267,28 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 				continue;
 			}
 			// Native側が先に追加しても予約済みの個体と値を引き継ぐ
-			const PendingComponent* initial = pending && pending->GetInfo().id == typeID ?
-				pending : commandBuffer_.FindPendingComponent(entity, typeID);
+			const auto owner = commandBuffer_.AcquirePendingComponent(entity, typeID);
+			const PendingComponent* initial = pending && pending->GetInfo().id == typeID ? pending : owner.get();
 			if (initial && initial->GetInstanceID() != 0) {
-				newChunk.CopyConstructByColumnIndex(newArchetype->GetColumnIndex(typeID), newRow,
-					initial->GetData(), initial->GetInstanceID());
+				const auto value = initial->AcquireValueLease();
+				const uint64_t instanceID = initial->GetInstanceID();
+				newChunk.CopyConstructByColumnIndex(
+					newArchetype->GetColumnIndex(typeID), newRow, initial->GetData(), instanceID);
+				if (initial->GetInstanceID() != instanceID ||
+					(owner.get() == initial && commandBuffer_.FindPendingComponent(entity, typeID) != initial)) {
+					throw std::runtime_error("Componentの構築中に追加予約が取り消されました");
+				}
 			} else {
 				newArchetype->ConstructDefault(newChunkIndex, newRow, typeID, nextInstanceID++);
 			}
 			registry.GetInfo(typeID).initializeStorage(*this, entity, newArchetype->GetRaw(newChunkIndex, newRow, typeID));
+			lifetime->ThrowIfEnded();
 		}
 	} catch (...) {
 
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
 		// 新規セルだけを解放し、旧Archetypeには触れない
 		std::exception_ptr failure = std::current_exception();
 		for (uint32_t typeID : newArchetype->GetTypes()) {
@@ -287,16 +296,21 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 			if (!oldSignature.Test(typeID) && newChunk.GetComponentInstanceID(column, newRow) != 0) {
 				try {
 					registry.GetInfo(typeID).releaseExternal(*this, entity, newChunk.GetRawByColumnIndex(column, newRow));
+					lifetime->ThrowIfEnded();
 				} catch (...) {
+					if (!lifetime->IsAlive()) {
+						throw;
+					}
 					failure = std::current_exception();
 				}
 			}
 		}
 		newArchetype->RemoveSwap(newChunkIndex, newRow);
+		lifetime->ThrowIfEnded();
 		std::rethrow_exception(failure);
 	}
 
-	EntityChunk& oldChunk = *oldArchetype->GetChunks()[oldLocation.chunkIndex];
+	EntityChunk& oldChunk = oldArchetype->GetChunk(oldLocation.chunkIndex);
 	for (uint32_t typeID : newArchetype->GetTypes()) {
 		if (!oldSignature.Test(typeID)) {
 			continue;
@@ -317,19 +331,24 @@ void ECSWorld::MigrateEntity(const Entity& entity, const EntitySignature& oldSig
 	try {
 		ReleaseExternalComponents(entity, &newSignature);
 	} catch (...) {
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
 		failure = std::current_exception();
 	}
 
 	// 移動後の行を公開し、旧行の空きを詰める
 	const Entity moved = oldArchetype->RemoveSwap(oldLocation.chunkIndex, oldLocation.row);
+	lifetime->ThrowIfEnded();
 	if (moved.IsValid()) {
 		records_[moved.index].location = oldLocation;
 	}
-	records_[entity.index].location = { newArchetype, newChunkIndex, newRow };
+	records_[entity.index].location = {newArchetype, newChunkIndex, newRow};
 	// Native側で取り込んだ予約を後のFlushで再適用しない
 	for (uint32_t typeID : newArchetype->GetTypes()) {
 		if (!oldSignature.Test(typeID)) {
 			commandBuffer_.CancelPendingComponent(entity, typeID);
+			lifetime->ThrowIfEnded();
 		}
 	}
 	++structuralMigrationCount_;
@@ -349,8 +368,10 @@ void Engine::ECSWorld::ReleaseExternalComponents(const Entity& entity, const Ent
 	if (!IsAlive(entity)) {
 		return;
 	}
+	const auto lifetime = GetLifetime();
+	const bool ending = !lifetime->IsAlive();
 	const EntityLocation location = records_[entity.index].location;
-	EntityChunk& chunk = *location.archetype->GetChunks()[location.chunkIndex];
+	EntityChunk& chunk = location.archetype->GetChunk(location.chunkIndex);
 	std::exception_ptr failure;
 	for (uint32_t typeID : location.archetype->GetTypes()) {
 
@@ -361,8 +382,14 @@ void Engine::ECSWorld::ReleaseExternalComponents(const Entity& entity, const Ent
 		try {
 			const auto& info = ComponentTypeRegistry::GetInstance().GetInfo(typeID);
 			info.releaseExternal(*this, entity, chunk.GetRawByColumnIndex(column, location.row));
+			if (!ending) {
+				lifetime->ThrowIfEnded();
+			}
 		} catch (...) {
 
+			if (!ending && !lifetime->IsAlive()) {
+				throw;
+			}
 			// 1件の解放失敗で残りの所有データを放置しない
 			if (!failure) {
 				failure = std::current_exception();
@@ -374,9 +401,10 @@ void Engine::ECSWorld::ReleaseExternalComponents(const Entity& entity, const Ent
 	}
 }
 
-
 void ECSWorld::CompleteComponentChange(const Entity& entity, uint32_t typeID, ComponentMutationKind kind) {
 
+	const auto lifetime = GetLifetime();
+	const auto storage = storageState_;
 	const uint64_t instanceID = GetComponentInstanceID(entity, typeID);
 	std::exception_ptr failure;
 	try {
@@ -387,7 +415,11 @@ void ECSWorld::CompleteComponentChange(const Entity& entity, uint32_t typeID, Co
 		} else {
 			info.onRemoved(*this, entity);
 		}
+		lifetime->ThrowIfEnded();
 	} catch (...) {
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
 		failure = std::current_exception();
 	}
 	try {
@@ -408,8 +440,7 @@ void ECSWorld::CompleteComponentChange(const Entity& entity, uint32_t typeID, Co
 
 Entity ECSWorld::CreateEntityWithSignature(const EntitySignature& signature, UUID stableUUID) {
 
-	const uint32_t componentTypeCount =
-		ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
+	const uint32_t componentTypeCount = ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
 	for (uint32_t typeID = 0; typeID < kMaxComponentTypes; ++typeID) {
 		if (!signature.Test(typeID)) {
 			continue;
@@ -425,8 +456,7 @@ Entity ECSWorld::CreateEntityWithSignature(const EntitySignature& signature, UUI
 Entity ECSWorld::CreateEntityWithComponents(std::span<const uint32_t> typeIDs, UUID stableUUID) {
 
 	EntitySignature signature{};
-	const uint32_t componentTypeCount =
-		ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
+	const uint32_t componentTypeCount = ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
 	for (uint32_t typeID : typeIDs) {
 
 		if (typeID >= componentTypeCount) {
@@ -437,7 +467,6 @@ Entity ECSWorld::CreateEntityWithComponents(std::span<const uint32_t> typeIDs, U
 	}
 	return CreateEntityWithSignature(signature, stableUUID);
 }
-
 
 void ECSWorld::ValidateComponentStorage(const ComponentTypeInfo& info) const {
 

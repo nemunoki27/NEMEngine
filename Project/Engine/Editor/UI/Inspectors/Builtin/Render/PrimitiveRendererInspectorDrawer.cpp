@@ -7,7 +7,6 @@
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -26,11 +25,12 @@
 namespace {
 
 	// 描画空間に応じた既定マテリアルを返す
-	Engine::AssetID EffectiveDefaultMaterial(const Engine::PrimitiveRendererComponent& component) {
+	Engine::AssetID EffectiveDefaultMaterial(const Engine::EditorPanelContext& context,
+		const Engine::PrimitiveRendererComponent& component) {
 
-		return Engine::IsPrimitiveScreen2D(component) ?
-			Engine::DefaultMaterialSettings::GetInstance().GetPrimitive2DOrBuiltin() :
-			Engine::DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin();
+		const Engine::DefaultMaterialSlot slot = Engine::IsPrimitiveScreen2D(component) ?
+			Engine::DefaultMaterialSlot::Primitive2D : Engine::DefaultMaterialSlot::Primitive;
+		return Engine::InspectorDrawerCommon::ResolveDefaultMaterial(context, slot);
 	}
 
 }
@@ -62,7 +62,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = EffectiveDefaultMaterial(draft);
+			setting.defaultAssetID = EffectiveDefaultMaterial(context, draft);
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
@@ -154,7 +154,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	const EditorPanelContext& context, PrimitiveRendererComponent& draft, bool& anyItemActive) {
 
-	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(context, draft.material, EffectiveDefaultMaterial(draft));
+	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(context, draft.material, EffectiveDefaultMaterial(context, draft));
 	if (!reflection) {
 		return;
 	}

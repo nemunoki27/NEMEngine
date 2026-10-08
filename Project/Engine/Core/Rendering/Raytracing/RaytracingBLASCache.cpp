@@ -11,7 +11,7 @@ void Engine::RaytracingBLASCache::Clear() {
 	blases_.clear();
 	staticInstanceBLASes_.clear();
 	dynamicBlases_.clear();
-	meshBlasGeneration_.clear();
+	meshBLASGeneration_.clear();
 }
 
 void Engine::RaytracingBLASCache::CollectExpired() {

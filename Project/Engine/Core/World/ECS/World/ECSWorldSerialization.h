@@ -27,11 +27,11 @@ namespace Engine {
 
 		// 保存データからコンポーネントを追加する
 		static bool AddComponentFromJson(ECSWorld& world,
-			const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
+			const Entity& entity, std::string_view typeName, const nlohmann::json& data);
 
 		// 保存データを既存コンポーネントへ適用する
 		static bool ApplyComponentJson(ECSWorld& world,
-			const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
+			const Entity& entity, std::string_view typeName, const nlohmann::json& data);
 
 		// 保存用のワールドを複製する
 		static std::unique_ptr<ECSWorld> CloneForSerialization(const ECSWorld& world);
@@ -42,6 +42,6 @@ namespace Engine {
 
 		// 指定コンポーネントを保存データへ変換する
 		static bool SerializeComponentToJson(const ECSWorld& world,
-			const Entity& entity, const std::string_view& typeName, nlohmann::json& outData);
+			const Entity& entity, std::string_view typeName, nlohmann::json& outData);
 	};
 } // Engine

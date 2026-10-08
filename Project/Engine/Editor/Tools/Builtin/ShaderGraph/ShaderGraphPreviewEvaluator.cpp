@@ -130,8 +130,7 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 		desc.preRaster.file = "Builtin/FullscreenCopy/fullscreenCopy.VS.hlsl";
 		desc.preRaster.entry = "main";
 		desc.preRaster.profile = "vs_6_0";
-		desc.pixel.file = "Builtin/ShaderGraphPreview/"
-						  "shaderGraphPreview.PS.hlsl";
+		desc.pixel.file = "Builtin/ShaderGraphPreview/shaderGraphPreview.PS.hlsl";
 		desc.pixel.entry = "main";
 		desc.pixel.profile = "ps_6_0";
 
@@ -171,9 +170,6 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 	const std::vector<const ShaderGraphNode*> previewOrder = BuildPreviewOrder(graph);
 	std::unordered_set<std::string> textureNames{};
 	for (const ShaderGraphNode* node : previewOrder) {
-		if (!node) {
-			continue;
-		}
 
 		const std::string name = PreviewTextureName(node->id);
 		textureNames.insert(name);
@@ -218,9 +214,6 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 
 	std::unordered_map<uint64_t, uint32_t> textureIndices{};
 	for (const ShaderGraphNode* node : previewOrder) {
-		if (!node) {
-			continue;
-		}
 
 		uint32_t textureIndex = UINT32_MAX;
 		const PreviewTextureReference reference = ResolvePreviewTextureReference(graph, *node);
@@ -237,7 +230,7 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 	const uint64_t graphHash = CalculatePreviewHash(graph);
 	const bool textureChanged = textureIndices != state.textureIndices;
 	const bool timeDependent = std::any_of(previewOrder.begin(), previewOrder.end(),
-		[](const ShaderGraphNode* node) { return node && node->kind == ShaderGraphNodeKind::Time; });
+		[](const ShaderGraphNode* node) { return node->kind == ShaderGraphNodeKind::Time; });
 	if (state.previewsValid && state.graphHash == graphHash && !textureChanged && !timeDependent) {
 
 		return;
@@ -253,9 +246,6 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 
 	for (const ShaderGraphNode* node : previewOrder) {
 
-		if (!node) {
-			continue;
-		}
 		EditorToolRenderTexture* destination = resources_.FindRenderTexture(PreviewTextureName(node->id));
 		if (!destination || !destination->IsValid()) {
 
@@ -288,10 +278,7 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 		}
 
 		std::array<D3D12_GPU_DESCRIPTOR_HANDLE, 4> inputHandles{
-			fallbackHandle,
-			fallbackHandle,
-			fallbackHandle,
-			fallbackHandle,
+			fallbackHandle, fallbackHandle, fallbackHandle, fallbackHandle,
 		};
 		for (uint32_t inputSlot = 0; inputSlot < inputHandles.size(); ++inputSlot) {
 
@@ -305,11 +292,7 @@ void Engine::ShaderGraphPreviewEvaluator::UpdateResources(const EditorToolContex
 			if (source && source->kind == ShaderGraphNodeKind::Time) {
 
 				const std::array timeOutputs{
-					previewTime,
-					std::sin(previewTime),
-					std::cos(previewTime),
-					previewDeltaTime,
-					previewDeltaTime,
+					previewTime, std::sin(previewTime), std::cos(previewTime), previewDeltaTime, previewDeltaTime,
 				};
 				if (link->outputSlot < timeOutputs.size()) {
 					const float value = timeOutputs[link->outputSlot];

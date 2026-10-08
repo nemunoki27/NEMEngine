@@ -40,18 +40,22 @@ namespace {
 		return result;
 	}
 
-	std::vector<Engine::IEditorTool*> CollectEditorTools() {
-		const auto registered = Engine::ToolRegistry::GetInstance().GetTools();
-		std::vector<Engine::IEditorTool*> result;
+	std::vector<std::shared_ptr<Engine::IEditorTool>> CollectEditorTools() {
+		const auto registered = Engine::ToolRegistry::GetInstance().GetToolSnapshot();
+		std::vector<std::shared_ptr<Engine::IEditorTool>> result;
 		result.reserve(registered.size());
 
-		// ToolRegistryのcategory / order / id順をそのまま維持する。
-		for (Engine::ITool* tool : registered) {
-			if (auto* editorTool = dynamic_cast<Engine::IEditorTool*>(tool)) {
-				result.push_back(editorTool);
+		// 登録順と描画中のツール寿命を保持する
+		for (const auto& tool : registered) {
+			if (auto editorTool = std::dynamic_pointer_cast<Engine::IEditorTool>(tool)) {
+				result.push_back(std::move(editorTool));
 			}
 		}
 		return result;
+	}
+
+	bool IsRegistered(const std::shared_ptr<Engine::IEditorTool>& tool) {
+		return Engine::ToolRegistry::GetInstance().Find(tool->GetDescriptor().id) == tool.get();
 	}
 
 	const char* OwnerLabel(Engine::ToolOwner owner) {
@@ -81,9 +85,16 @@ namespace {
 		ImGui::EndTooltip();
 	}
 
-	// C++20で使えるスコープガード。描画中の借用参照を必ず解除する。
+	//============================================================================
+	//	EditorToolFrameScope class
+	//	描画終了時に借用した編集状態を解除する
+	//============================================================================
 	class EditorToolFrameScope final {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		EditorToolFrameScope(Engine::IEditorTool& tool,
 			const Engine::EditorToolContext& context) : tool_(tool) {
 			tool_.BeginEditorToolFrame(context);
@@ -97,6 +108,12 @@ namespace {
 		EditorToolFrameScope& operator=(const EditorToolFrameScope&) = delete;
 
 	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
 		Engine::IEditorTool& tool_;
 	};
 }
@@ -125,17 +142,20 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 			++last;
 		}
 
-		// 空カテゴリと、表示名が「その他」のカテゴリも識別できる。
+		// 空カテゴリと同名カテゴリのIDを分ける
 		ImGui::PushID(category.c_str());
 		if (ImGui::BeginMenu(category.empty() ? "その他" : category.c_str())) {
 			ImGui::SetWindowFontScale(0.8f);
 			for (std::size_t index = first; index < last; ++index) {
+				if (!IsRegistered(tools[index])) {
+					continue;
+				}
 				IEditorTool& tool = *tools[index];
 				const ToolDescriptor& desc = tool.GetDescriptor();
 				const bool enabled = tool.IsEnabled(toolContext);
 				const char* label = desc.name.empty() ? desc.id.c_str() : desc.name.c_str();
 
-				// 同名ツールでもIDが衝突しないよう、登録IDでスコープを分ける。
+				// 同名ツールのIDを登録IDで分ける
 				ImGui::PushID(desc.id.c_str());
 				if (ImGui::MenuItem(label, nullptr, false, enabled)) {
 					openToolID = desc.id;
@@ -153,11 +173,10 @@ void Engine::EditorToolUI::DrawMenu(const EditorPanelContext& context) {
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::EndMenu();
 
-	// 一覧の走査が終わってから開く。既存インスタンスを再利用する。
+	// 一覧の走査後に登録済みのツールを開く
 	if (!openToolID.empty()) {
-		auto* tool = dynamic_cast<IEditorTool*>(
-			ToolRegistry::GetInstance().Find(openToolID));
-		if (tool && tool->IsEnabled(toolContext)) {
+		const auto tool = std::dynamic_pointer_cast<IEditorTool>(ToolRegistry::GetInstance().Acquire(openToolID));
+		if (tool && tool->IsEnabled(toolContext) && IsRegistered(tool)) {
 			tool->OpenEditorTool();
 		}
 	}
@@ -174,33 +193,39 @@ void Engine::EditorToolUI::DrawWindows(const EditorPanelContext& context) {
 	editorToolContext.toolContext = MakeToolContext(context);
 
 	const auto tools = CollectEditorTools();
-	for (IEditorTool* tool : tools) {
-		// IsEnabledで一括スキップしない。
-		// 開閉やPlay中の表示・編集制限は従来どおり各ツールが担当する。
+	for (const auto& tool : tools) {
+		if (!IsRegistered(tool)) {
+			continue;
+		}
+		// Play中の編集制限は各ツールで判定する
 		EditorToolFrameScope frameScope(*tool, editorToolContext);
-		tool->DrawEditorTool(editorToolContext);
+		if (IsRegistered(tool)) {
+			tool->DrawEditorTool(editorToolContext);
+		}
 	}
 }
 
 bool Engine::EditorToolUI::HasPendingEdits() {
 
 	const auto tools = CollectEditorTools();
-	return std::ranges::any_of(tools, [](const IEditorTool* tool) {
-		return tool->HasPendingEdits();
+	return std::ranges::any_of(tools, [](const auto& tool) {
+		return IsRegistered(tool) && tool->HasPendingEdits();
 		});
 }
 
 void Engine::EditorToolUI::EndScenePreviews() {
 
 	// Worldの値を戻してから保存と切替へ進む
-	for (IEditorTool* tool : CollectEditorTools()) tool->EndScenePreview();
+	for (const auto& tool : CollectEditorTools()) {
+		if (IsRegistered(tool)) tool->EndScenePreview();
+	}
 }
 
 void Engine::EditorToolUI::RequestResolvePendingEdits() {
 
 	const auto tools = CollectEditorTools();
-	for (IEditorTool* tool : tools) {
-		if (tool->HasPendingEdits()) {
+	for (const auto& tool : tools) {
+		if (IsRegistered(tool) && tool->HasPendingEdits() && IsRegistered(tool)) {
 			tool->RequestResolvePendingEdits();
 		}
 	}
@@ -210,7 +235,10 @@ Engine::EditorToolCloseResult Engine::EditorToolUI::ConsumePendingEditCloseResul
 
 	bool accepted = false;
 	const auto tools = CollectEditorTools();
-	for (IEditorTool* tool : tools) {
+	for (const auto& tool : tools) {
+		if (!IsRegistered(tool)) {
+			continue;
+		}
 		const EditorToolCloseResult result =
 			tool->ConsumePendingEditCloseResult();
 		if (result == EditorToolCloseResult::Cancelled) {

@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
 namespace Engine {
 
@@ -14,6 +13,7 @@ namespace Engine {
 	class AssetDatabase;
 	class HierarchySystem;
 	class GraphicsCore;
+	struct EditorAssetDragDropPayload;
 
 	//============================================================================
 	//	AssetSpawnResult struct
@@ -38,7 +38,7 @@ namespace Engine {
 		// このペイロードのアセットからエンティティを生成できるか
 		bool CanSpawn(const EditorAssetDragDropPayload& payload);
 
-		// アセットからエンティティを生成する、prefabは展開しisThreeDは3D要素の有無で決まる
+		// AssetからEntityを生成し、描画次元と成否を返す
 		AssetSpawnResult Spawn(ECSWorld& world, AssetDatabase& database, GraphicsCore& graphicsCore,
 			HierarchySystem& hierarchySystem, const EditorAssetDragDropPayload& payload, UUID sceneInstanceID);
 	}

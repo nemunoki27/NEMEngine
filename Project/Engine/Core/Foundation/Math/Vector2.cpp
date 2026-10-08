@@ -1,284 +1,229 @@
 #include "Vector2.h"
 
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Math/Math.h>
+
+// c++
+#include <cmath>
+
 using namespace Engine;
 
 //============================================================================
 //	Vector2 structMethods
 //============================================================================
 Vector2 Vector2::operator+(const Vector2& other) const {
+
+	// 対応する成分を加算
 	return Vector2(x + other.x, y + other.y);
 }
+
 Vector2 Vector2::operator-(const Vector2& other) const {
+
+	// 対応する成分を減算
 	return Vector2(x - other.x, y - other.y);
 }
+
 Vector2 Vector2::operator*(const Vector2& other) const {
+
+	// 各成分の積を計算
 	return Vector2(x * other.x, y * other.y);
 }
+
 Vector2 Vector2::operator/(const Vector2& other) const {
+
+	// 各成分を除算
 	return Vector2(x / other.x, y / other.y);
 }
 
 Vector2& Vector2::operator+=(const Vector2& v) {
+
+	// 対応する成分を加算
 	x += v.x;
 	y += v.y;
 	return *this;
 }
+
 Vector2& Vector2::operator-=(const Vector2& v) {
+
+	// 対応する成分を減算
 	x -= v.x;
 	y -= v.y;
 	return *this;
 }
+
 Vector2& Vector2::operator*=(const Vector2& v) {
+
+	// 各成分の積を計算
 	x *= v.x;
 	y *= v.y;
 	return *this;
 }
+
 Vector2& Vector2::operator/=(const Vector2& v) {
+
+	// 各成分を除算
 	x /= v.x;
 	y /= v.y;
 	return *this;
 }
 
 Vector2 Vector2::operator+(float scalar) const {
+
+	// 対応する成分を加算
 	return Vector2(x + scalar, y + scalar);
 }
+
 Vector2 Vector2::operator-(float scalar) const {
+
+	// 対応する成分を減算
 	return Vector2(x - scalar, y - scalar);
 }
+
 Vector2 Vector2::operator*(float scalar) const {
+
+	// 各成分の積を計算
 	return Vector2(x * scalar, y * scalar);
 }
+
 Vector2 Vector2::operator/(float scalar) const {
+
+	// 各成分を除算
 	return Vector2(x / scalar, y / scalar);
 }
 
 Vector2& Vector2::operator+=(float scalar) {
+
+	// 対応する成分を加算
 	x += scalar;
 	y += scalar;
 	return *this;
 }
+
 Vector2& Vector2::operator-=(float scalar) {
+
+	// 対応する成分を減算
 	x -= scalar;
 	y -= scalar;
 	return *this;
 }
+
 Vector2& Vector2::operator*=(float scalar) {
+
+	// 各成分の積を計算
 	x *= scalar;
 	y *= scalar;
 	return *this;
 }
+
 Vector2& Vector2::operator/=(float scalar) {
+
+	// 各成分を除算
 	x /= scalar;
 	y /= scalar;
 	return *this;
 }
 
 Vector2 Vector2::operator-() const {
+
+	// 全成分の符号を反転
 	return Vector2(-x, -y);
 }
 
 bool Vector2::operator==(const Vector2& other) const {
+
+	// 全成分を比較
 	return x == other.x && y == other.y;
 }
+
 bool Vector2::operator!=(const Vector2& other) const {
+
+	// 全成分を比較
 	return !(*this == other);
 }
+
 bool Vector2::operator>=(const Vector2& other) const {
-	return this->Length() >= other.Length();
-}
-bool Vector2::operator<=(const Vector2& other) const {
-	return this->Length() <= other.Length();
+
+	// 両方の長さを比較
+	return Math::SquaredLength(x, y) >= Math::SquaredLength(other.x, other.y);
 }
 
-nlohmann::json Vector2::ToJson() const {
-	return nlohmann::json{ {"x", x}, {"y", y} };
-}
-Vector2 Vector2::FromJson(const nlohmann::json& data) {
-	Vector2 v{};
-	if (data.is_array() && data.size() == 2) {
-		v.x = data[0].get<float>();
-		v.y = data[1].get<float>();
-	} else if (data.contains("x") && data.contains("y")) {
-		v.x = data["x"].get<float>();
-		v.y = data["y"].get<float>();
-	}
-	return v;
+bool Vector2::operator<=(const Vector2& other) const {
+
+	// 両方の長さを比較
+	return Math::SquaredLength(x, y) <= Math::SquaredLength(other.x, other.y);
 }
 
 void Vector2::Init() {
+
+	// 各成分を初期化
 	this->x = 0.0f;
 	this->y = 0.0f;
 }
 
 void Vector2::Init(float value) {
+
+	// 各成分を初期化
 	this->x = value;
 	this->y = value;
 }
 
 Vector2 Engine::Vector2::AnyInit(float value) {
-	return { value, value };
+
+	// 全成分を同じ値で作成
+	return {value, value};
 }
 
 float Vector2::Length(const Vector2& v) {
-	return std::sqrtf(v.x * v.x + v.y * v.y);
+
+	// 各成分から長さを計算
+	return static_cast<float>(std::sqrt(Math::SquaredLength(v.x, v.y)));
 }
 
 float Vector2::Length() const {
-	return std::sqrtf(x * x + y * y);
+
+	// 各成分から長さを計算
+	return Length(*this);
 }
 
 Vector2 Vector2::Normalize(const Vector2& v) {
-	float length = Length(v);
-	if (length <= 0.001f) {
+
+	// 長さを揃えて正規化
+	const double length = std::hypot(static_cast<double>(v.x), v.y);
+	if (!std::isfinite(length) || length <= 0.001f) {
 		return Vector2(0.0f, 0.0f);
 	}
-	return Vector2(v.x / length, v.y / length);
+	return Vector2(static_cast<float>(v.x / length), static_cast<float>(v.y / length));
 }
 
 Vector2 Vector2::Normalize() const {
-	float length = this->Length();
-	if (length <= 0.001f) {
-		return Vector2(0.0f, 0.0f);
-	}
-	return Vector2(x / length, y / length);
+
+	// 長さを揃えて正規化
+	return Normalize(*this);
 }
 
 float Vector2::Dot(const Vector2& v0, const Vector2& v1) {
+
+	// 対応する成分の積を加算
 	return v0.x * v1.x + v0.y * v1.y;
 }
 
 Vector2 Vector2::Cross(const Vector2& v0, const Vector2& v1) {
+
+	// 符号付き外積をX成分へ格納
 	float cross = v0.x * v1.y - v0.y * v1.x;
 	return Vector2(cross, 0.0f);
 }
 
 Vector2 Vector2::Lerp(const Vector2& v0, const Vector2& v1, float lerpT) {
+
+	// 両端の値を補間
 	return Vector2(std::lerp(v0.x, v1.x, lerpT), std::lerp(v0.y, v1.y, lerpT));
 }
 
 Vector2 Vector2::Lerp(const Vector2& v0, const Vector2& v1, const Vector2& lerpT) {
+
+	// 両端の値を補間
 	return Vector2(std::lerp(v0.x, v1.x, lerpT.x), std::lerp(v0.y, v1.y, lerpT.y));
-}
-
-//============================================================================
-//	Vector2I structMethods
-//============================================================================
-Vector2I Vector2I::operator+(const Vector2I& other) const {
-	return Vector2I(x + other.x, y + other.y);
-}
-Vector2I Vector2I::operator-(const Vector2I& other) const {
-	return Vector2I(x - other.x, y - other.y);
-}
-Vector2I Vector2I::operator*(const Vector2I& other) const {
-	return Vector2I(x * other.x, y * other.y);
-}
-Vector2I Vector2I::operator/(const Vector2I& other) const {
-	return Vector2I(x / other.x, y / other.y);
-}
-
-Vector2I& Vector2I::operator+=(const Vector2I& v) {
-	x += v.x;
-	y += v.y;
-	return *this;
-}
-Vector2I& Vector2I::operator-=(const Vector2I& v) {
-	x -= v.x;
-	y -= v.y;
-	return *this;
-}
-Vector2I& Vector2I::operator*=(const Vector2I& v) {
-	x *= v.x;
-	y *= v.y;
-	return *this;
-}
-Vector2I& Vector2I::operator/=(const Vector2I& v) {
-	x /= v.x;
-	y /= v.y;
-	return *this;
-}
-
-Vector2I Vector2I::operator+(int32_t scalar) const {
-	return Vector2I(x + scalar, y + scalar);
-}
-Vector2I Vector2I::operator-(int32_t scalar) const {
-	return Vector2I(x - scalar, y - scalar);
-}
-Vector2I Vector2I::operator*(int32_t scalar) const {
-	return Vector2I(x * scalar, y * scalar);
-}
-Vector2I Vector2I::operator/(int32_t scalar) const {
-	return Vector2I(x / scalar, y / scalar);
-}
-
-Vector2I& Vector2I::operator+=(int32_t scalar) {
-	x += scalar;
-	y += scalar;
-	return *this;
-}
-Vector2I& Vector2I::operator-=(int32_t scalar) {
-	x -= scalar;
-	y -= scalar;
-	return *this;
-}
-Vector2I& Vector2I::operator*=(int32_t scalar) {
-	x *= scalar;
-	y *= scalar;
-	return *this;
-}
-Vector2I& Vector2I::operator/=(int32_t scalar) {
-	x /= scalar;
-	y /= scalar;
-	return *this;
-}
-
-Vector2I Vector2I::operator-() const {
-	return Vector2I(-x, -y);
-}
-
-bool Vector2I::operator==(const Vector2I& other) const {
-	return x == other.x && y == other.y;
-}
-bool Vector2I::operator!=(const Vector2I& other) const {
-	return !(*this == other);
-}
-bool Vector2I::operator>=(const Vector2I& other) const {
-	return std::sqrt(static_cast<double>(x) * static_cast<double>(x) + static_cast<double>(y) * static_cast<double>(y)) >=
-		std::sqrt(static_cast<double>(other.x) * static_cast<double>(other.x) + static_cast<double>(other.y) * static_cast<double>(other.y));
-}
-bool Vector2I::operator<=(const Vector2I& other) const {
-	return std::sqrt(static_cast<double>(x) * static_cast<double>(x) + static_cast<double>(y) * static_cast<double>(y)) <=
-		std::sqrt(static_cast<double>(other.x) * static_cast<double>(other.x) + static_cast<double>(other.y) * static_cast<double>(other.y));
-}
-
-nlohmann::json Vector2I::ToJson() const {
-	return nlohmann::json{ {"x", x}, {"y", y} };
-}
-Vector2I Vector2I::FromJson(const nlohmann::json& data) {
-	Vector2I v{};
-	if (data.is_array() && data.size() == 2) {
-		v.x = data[0].get<int32_t>();
-		v.y = data[1].get<int32_t>();
-	} else if (data.contains("x") && data.contains("y")) {
-		v.x = data["x"].get<int32_t>();
-		v.y = data["y"].get<int32_t>();
-	}
-	return v;
-}
-
-void Vector2I::Init() {
-	this->x = 0;
-	this->y = 0;
-}
-
-void Vector2I::Init(int32_t value) {
-	this->x = value;
-	this->y = value;
-}
-
-Vector2 Engine::Vector2I::GetFloat() const {
-	return { static_cast<float>(this->x), static_cast<float>(this->y) };
-}
-
-std::vector<uint32_t> Vector2I::ToUInt() const {
-	return { static_cast<uint32_t>(this->x), static_cast<uint32_t>(this->y) };
 }

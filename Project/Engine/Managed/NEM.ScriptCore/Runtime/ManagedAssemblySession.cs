@@ -1,12 +1,4 @@
 using System.Runtime.CompilerServices;
-
-
-
-
-
-
-
-
 namespace NEMEngine;
 
 // ゲームAssemblyの読込状態と解放順を所有する
@@ -14,17 +6,20 @@ internal sealed unsafe class ManagedAssemblySession {
 
     internal readonly ScriptTypeRegistry registry = new();
     internal readonly ScriptFieldCodec codec;
-    private readonly ScriptInstanceStore instances;
 
     // ゲーム側DLLをアンロード可能にする専用LoadContext
     internal GameScriptLoadContext? gameLoadContext;
-    // reload 診断用の連番（ALC unload ログに使う）
+    // Assembly解放の診断連番
     internal int reloadCounter = 0;
-    // 直近の collectible ALC unload の typed status（0=Unknown, 1=UnloadSucceeded, 2=LeakSuspected）。
-    // Editor は log scraping ではなくこの typed status を参照する。
-    internal int lastAlcUnloadStatus = 0;
+    // 直近のALC回収結果
+    internal int lastALCUnloadStatus = 0;
 
+    // 世代履歴をAssembly間で保持する
+    private readonly ScriptInstanceStore instances;
+
+    // 型登録と個体管理を接続する
     internal ManagedAssemblySession(ScriptInstanceStore instances) {
+
         this.instances = instances;
         codec = new ScriptFieldCodec(registry);
     }
@@ -40,7 +35,7 @@ internal sealed unsafe class ManagedAssemblySession {
             gameLoadContext = new GameScriptLoadContext(path);
             registry.gameAssembly = gameLoadContext.LoadFromAssemblyPath(path);
             registry.RebuildScriptTypes(codec);
-            // 新しい assembly の寿命を開始する（unload 前に停止/解放するための起点）
+            // 新しいAssemblyの予約処理と購読を開始する
             ScriptRuntimeLifetime.BeginAssemblyLifetime();
             NativeApplicationAPI.WriteLog(0, $"Loaded GameScripts: {path}, scriptTypes={registry.scriptTypeEntries.Count}");
             return ManagedStatus.Ok;
@@ -52,16 +47,16 @@ internal sealed unsafe class ManagedAssemblySession {
         }
     }
 
+    // 所有処理と個体と型を解放してALCを回収する
     internal void ReleaseGameAssembly(bool collect) {
 
-        // user code が登録した IDisposable / 購読解除を unload 前に実行し、reload token を cancel する。
-        // 古い assembly を参照し続ける task / timer / event を止めて ALC 回収を妨げないようにする。
+        // 型を解放する前に予約処理と購読を終了する
         ScriptRuntimeLifetime.EndAssemblyLifetime();
 
-        // ロード済みインスタンスや型情報をすべて破棄する。
-        // slot配列はclearせず全slotをreleaseしてgenerationを進める。
-        // generation履歴を保つことで、reload前のhandleがreload後の別instanceへ届かない（reload epoch相当）。
+        // 個体を解放して参照の世代を進める
         instances.ReleaseAllSlots();
+
+        // 旧Assemblyの型と保存値の参照を解除する
         registry.scriptTypeEntries.Clear();
         registry.guidToEntry.Clear();
         registry.typeToEntry.Clear();
@@ -75,7 +70,7 @@ internal sealed unsafe class ManagedAssemblySession {
             return;
         }
 
-        // ALC への strong reference を scope 外へ追い出してから unload する（回収可能にするため）。
+        // ALCの解放後に強参照を解除する
         int reloadID = ++reloadCounter;
         string contextName = loadContext.Name ?? "GameScripts";
         WeakReference weakContext = UnloadContextForCollection(loadContext);
@@ -85,7 +80,7 @@ internal sealed unsafe class ManagedAssemblySession {
             return;
         }
 
-        // 限定回数だけ GC を回して回収を促す（無制限ループはしない）。Edit reload 時のみのコスト。
+        // 回数を制限してALCの回収を確認する
         const int maxAttempts = 10;
         int attempts = 0;
         for (; attempts < maxAttempts && weakContext.IsAlive; ++attempts) {
@@ -97,8 +92,8 @@ internal sealed unsafe class ManagedAssemblySession {
 
         if (weakContext.IsAlive) {
 
-            // 回収できなかった = どこかに古い assembly への strong reference が残っている
-            lastAlcUnloadStatus = 2; // LeakSuspected
+            // 残留参照をEditorへ通知する
+            lastALCUnloadStatus = 2; // 回収未完了
             NativeApplicationAPI.WriteLog(1,
                 $"[ALC leak] GameScripts load context was not collected. reloadId={reloadID} " +
                 $"context=\"{contextName}\" attempts={attempts}. " +
@@ -106,11 +101,12 @@ internal sealed unsafe class ManagedAssemblySession {
                 "Register disposables / unsubscribes via ScriptRuntimeLifetime so they are released on reload.");
         } else {
 
-            lastAlcUnloadStatus = 1; // UnloadSucceeded
+            lastALCUnloadStatus = 1; // 回収完了
             NativeApplicationAPI.WriteLog(0, $"GameScripts load context unloaded. reloadId={reloadID} attempts={attempts}");
         }
     }
 
+    // 回収確認の呼出元へALCの強参照を残さない
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static WeakReference UnloadContextForCollection(GameScriptLoadContext context) {
 

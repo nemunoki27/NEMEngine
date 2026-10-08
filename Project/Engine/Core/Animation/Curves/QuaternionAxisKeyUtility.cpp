@@ -39,12 +39,9 @@ namespace Engine::QuaternionAxisKeyUtility {
 
 	Vector3 GetAxisDirection(const CurveQuaternionAxisKey& axisKey) {
 
-		// 軸が無効な場合はX軸に倒して、Quaternion生成時のNaNを避ける
+		// 無効な軸はX軸へ戻して正規化する
 		Vector3 axis = axisKey.useCustomAxis ? axisKey.customAxis : GetDirection(axisKey.axes);
-		if (axis.Length() <= 0.001f) {
-			axis = Vector3(1.0f, 0.0f, 0.0f);
-		}
-		return axis.Normalize();
+		return Vector3::NormalizeOr(axis, Vector3(1.0f, 0.0f, 0.0f), 0.001f);
 	}
 
 	CurveQuaternionAxisKey Sanitize(const CurveQuaternionAxisKey& key) {
@@ -54,11 +51,7 @@ namespace Engine::QuaternionAxisKeyUtility {
 			sanitized.axes = { Axis::X };
 		}
 		if (sanitized.useCustomAxis) {
-			if (sanitized.customAxis.Length() <= 0.001f) {
-				sanitized.customAxis = Vector3(1.0f, 0.0f, 0.0f);
-			} else {
-				sanitized.customAxis = sanitized.customAxis.Normalize();
-			}
+			sanitized.customAxis = GetAxisDirection(sanitized);
 		}
 		return sanitized;
 	}

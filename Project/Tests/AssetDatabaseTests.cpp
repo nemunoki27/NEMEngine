@@ -9,6 +9,7 @@
 #include <Engine/Core/Assets/Database/AssetFileUtility.h>
 #include <Engine/Core/Assets/Database/AssetDependencyScanner.h>
 #include <Engine/Core/Assets/Watch/AssetChangeWatcher.h>
+#include <Engine/Core/Scripting/Managed/ManagedSourceWatcher.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
@@ -18,12 +19,12 @@
 #include <chrono>
 #include <thread>
 
-namespace NEMTests {
+namespace {
 
-	bool TestAssetWatcherLifetime() {
+	template<class Watcher, class Consume>
+	bool CheckWatcherLifetime(Watcher& watcher, Consume&& consume) {
 
-		TestDirectory directory("AssetWatcher");
-		Engine::AssetChangeWatcher watcher;
+		NEMTests::TestDirectory directory("AssetWatcher");
 		// 通知待ちと書込直後のどちらでも停止・再開始できる
 		for (uint32_t index = 0; index < 32; ++index) {
 			if (!watcher.Start(directory.GetPath())) {
@@ -32,9 +33,7 @@ namespace NEMTests {
 			std::ofstream(directory.GetPath() / "changed.txt") << index;
 			watcher.Stop();
 			watcher.Stop();
-			std::vector<std::filesystem::path> changes;
-			watcher.DrainChanges(changes);
-			if (watcher.IsRunning() || !changes.empty()) {
+			if (consume()) {
 				return false;
 			}
 		}
@@ -43,14 +42,33 @@ namespace NEMTests {
 		}
 		// 再開始後も新しい変更を受け取れる
 		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-		std::vector<std::filesystem::path> changes;
-		while (changes.empty() && std::chrono::steady_clock::now() < deadline) {
+		bool changed = false;
+		while (!changed && std::chrono::steady_clock::now() < deadline) {
 			std::ofstream(directory.GetPath() / "changed.txt") << "restarted";
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			watcher.DrainChanges(changes);
+			changed = consume();
 		}
 		watcher.Stop();
-		return !changes.empty();
+		return changed && !consume();
+	}
+}
+
+namespace NEMTests {
+
+	bool TestAssetWatcherLifetime() {
+
+		Engine::AssetChangeWatcher assetWatcher;
+		const auto consumeAsset = [&]() {
+			std::vector<std::filesystem::path> changes;
+			assetWatcher.DrainChanges(changes);
+			return !changes.empty();
+		};
+		if (!CheckWatcherLifetime(assetWatcher, consumeAsset) || assetWatcher.IsRunning()) {
+			return false;
+		}
+		// C#監視も同じ停止と再開始の契約を使う
+		Engine::ManagedSourceWatcher sourceWatcher;
+		return CheckWatcherLifetime(sourceWatcher, [&]() { return sourceWatcher.ConsumeChanged(); });
 	}
 
 	bool TestAssetDatabaseTransactions() {

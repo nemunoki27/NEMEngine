@@ -4,6 +4,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
@@ -39,17 +40,6 @@ namespace {
 	constexpr const char* kProjectModelPreviewAtlasName = "ProjectPanelModelPreviewAtlas";
 	constexpr uint32_t kModelPreviewColorTargetCount = 3;
 	constexpr uint32_t kModelPreviewRefreshFrameCount = 30;
-
-	void HashCombine(uint64_t& seed, uint64_t value) {
-
-		seed ^= value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
-	}
-	void HashString(uint64_t& seed, const std::string& value) {
-
-		for (char c : value) {
-			HashCombine(seed, static_cast<uint8_t>(c));
-		}
-	}
 }
 
 void Engine::ProjectModelPreview::ApplyModelPreviewLightSettings() {
@@ -290,21 +280,21 @@ uint64_t Engine::ProjectModelPreview::BuildModelPreviewSignature(const AssetData
 	const std::vector<const ProjectAssetEntry*>& meshAssets) const {
 
 	uint64_t signature = 1469598103934665603ull;
-	HashString(signature, node.virtualPath);
-	HashCombine(signature, static_cast<uint64_t>(meshAssets.size()));
+	signature = Algorithm::MixHashString(signature, node.virtualPath);
+	signature = Algorithm::MixHash(signature, static_cast<uint64_t>(meshAssets.size()));
 	for (const ProjectAssetEntry* asset : meshAssets) {
 		if (!asset) {
 			continue;
 		}
-		HashCombine(signature, asset->assetID.high);
-		HashCombine(signature, asset->assetID.low);
-		HashString(signature, asset->assetPath);
-		HashCombine(signature, database.GetContentRevision(asset->assetID));
+		signature = Algorithm::MixHash(signature, asset->assetID.high);
+		signature = Algorithm::MixHash(signature, asset->assetID.low);
+		signature = Algorithm::MixHashString(signature, asset->assetPath);
+		signature = Algorithm::MixHash(signature, database.GetContentRevision(asset->assetID));
 
 		std::error_code ec{};
 		const auto writeTime = std::filesystem::last_write_time(RuntimePaths::ResolveAssetPath(asset->assetPath), ec);
 		if (!ec) {
-			HashCombine(signature, static_cast<uint64_t>(writeTime.time_since_epoch().count()));
+			signature = Algorithm::MixHash(signature, static_cast<uint64_t>(writeTime.time_since_epoch().count()));
 		}
 	}
 	return signature;

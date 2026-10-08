@@ -4,7 +4,7 @@ void Engine::MeshSkinningBufferSet::Init(ID3D12Device* device, SRVDescriptor* sr
 
 	skinningPalette.Init(device, srvDescriptor);
 	skinnedVertices.Init(device, srvDescriptor);
-	// MeshShader経路のため、スキニング結果も圧縮頂点として保持する
+	// MeshShader用の圧縮頂点も生成
 	skinnedPackedVertices.Init(device, srvDescriptor);
 	skinningConstants.Init(srvDescriptor->GetRetirementQueue(), device);
 
@@ -19,9 +19,9 @@ uint32_t Engine::MeshSkinningBufferSet::EnsureVertexCapacity(uint32_t count) {
 	const uint32_t prevCapacity = skinnedVertices.GetCapacity();
 	skinnedVertices.EnsureCapacity(count);
 	const uint32_t prevPackedCapacity = skinnedPackedVertices.GetCapacity();
-	// 通常頂点と圧縮頂点で別リソースなので、容量変更も個別に見る
+	// 通常頂点と圧縮頂点の容量を個別に更新
 	skinnedPackedVertices.EnsureCapacity(count);
-	// スキニング頂点バッファの容量が変わった場合は、リソース状態をリセットする
+	// 再生成した頂点の状態を戻す
 	if (prevCapacity != skinnedVertices.GetCapacity()) {
 
 		skinnedVertexState = D3D12_RESOURCE_STATE_COMMON;

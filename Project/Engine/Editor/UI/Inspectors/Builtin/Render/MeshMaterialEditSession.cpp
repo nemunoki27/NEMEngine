@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
@@ -122,7 +121,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawMaterialFields(
 	InspectorDrawerCommon::DrawFieldEdit(editResult, [&]() {
 		AssetEditSetting setting{};
 		setting.defaultAssetID =
-			renderer.material ? renderer.material : DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
+			renderer.material ? renderer.material : InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh);
 		return MyGUI::AssetReferenceField(
 			"マテリアル", subMesh.material, context.editorContext->assetDatabase, {AssetType::Material}, setting);
 	});
@@ -180,7 +179,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawBatch(
 	}
 
 	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(
-		context, commonMaterial, DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin());
+		context, commonMaterial, InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh));
 	if (!reflection) {
 		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
 		return editResult;
@@ -291,7 +290,7 @@ Engine::ValueEditResult Engine::MeshMaterialEditSession::DrawParameters(
 	ValueEditResult editResult{};
 
 	const ShaderReflectionInfo* reflection =
-		materialReflection_.EnsureReflection(context, materialID, DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin());
+		materialReflection_.EnsureReflection(context, materialID, InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh));
 	if (!reflection) {
 		ImGui::TextDisabled("マテリアルのパラメータを取得できません");
 		return editResult;

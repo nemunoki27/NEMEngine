@@ -17,14 +17,25 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
+		// 処理範囲の乱数列を切り替える
 		explicit RandomGeneratorScope(std::mt19937& source);
+		// 切替前の乱数列へ戻す
 		~RandomGeneratorScope();
 		RandomGeneratorScope(const RandomGeneratorScope&) = delete;
 		RandomGeneratorScope& operator=(const RandomGeneratorScope&) = delete;
+
+		//--------- accessor -----------------------------------------------------
+
+		// 現在の処理範囲の乱数列を取得する
 		static std::mt19937& GetSource();
+
 	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
 		//--------- variables ----------------------------------------------------
 
-		std::mt19937* previous_ = nullptr;
+		std::mt19937* previous_ = nullptr; // 切替前の乱数列
 	};
 }

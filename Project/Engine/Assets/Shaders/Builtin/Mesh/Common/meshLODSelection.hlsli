@@ -14,7 +14,7 @@ float ResolveMeshLODPixelRadius(MeshInstance instance) {
 	float3 center = mul(float4(meshBoundsCenter, 1.0f), instance.worldMatrix).xyz;
 	float radius = meshBoundsRadius * GetMatrixMaxScale(instance.worldMatrix);
 	float2 pixelRadii = CalcProjectedPixelRadiusXY(viewProjection, lodView, lodNearClip,
-		lodProjectionScale, viewSize, contributionPixelThreshold, center, radius);
+		lodProjectionScale, viewSize, contributionPixelThreshold, center, radius, lodOrthographic != 0u);
 	return max(pixelRadii.x, pixelRadii.y);
 }
 

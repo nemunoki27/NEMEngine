@@ -2,10 +2,14 @@
 
 // engine
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Rendering/Assets/FontRenderService.h>
 
 //============================================================================
 //	GraphicsCore classMethods
 //============================================================================
+Engine::GraphicsCore::GraphicsCore() = default;
+Engine::GraphicsCore::~GraphicsCore() = default;
+
 void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// 各コアの初期化
@@ -56,12 +60,14 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
 	textureUploadService_->Init(device, srvDescriptor_.get());
+	fontRenderService_ = std::make_unique<FontRenderService>(*textureUploadService_);
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 }
 
 void Engine::GraphicsCore::TickFrameServices() {
 
+	fontRenderService_->CollectExpired();
 	textureUploadService_->TickFinalize();
 	bufferUploadService_->TickFinalize();
 }
@@ -146,6 +152,7 @@ void Engine::GraphicsCore::Finalize() {
 	drain();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
+	fontRenderService_.reset();
 	if (builtinTextureLibrary_) {
 		builtinTextureLibrary_->Finalize();
 	}

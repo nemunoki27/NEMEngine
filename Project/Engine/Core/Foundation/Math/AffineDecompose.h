@@ -11,7 +11,7 @@ namespace Engine {
 
 	//============================================================================
 	//	AffineDecompose
-	//	行ベクトル規約のアフィン行列をSRTへ分解するための共通ヘルパー
+	//	行ベクトル行列の拡縮・回転・平行移動を求める
 	//============================================================================
 
 	// 行ベクトル規約の回転行列からクォータニオンを取り出す
@@ -27,9 +27,9 @@ namespace Engine {
 	AffineDecompositionResult DecomposeAffine3DResult(
 		const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale);
 
-	// 3Dアフィン行列を平行移動、回転、拡縮に分解する、スケールが潰れている場合はfalse
+	// 行列を拡縮・回転・平行移動へ分解し、分解失敗ならfalseを返す
 	bool DecomposeAffine3D(const Matrix4x4& matrix, Vector3& outPos, Quaternion& outRotation, Vector3& outScale);
 
-	// 親ワールド行列から、スケール/回転の無視フラグを反映した追従用行列を作る、平行移動は常に継承する
+	// 平行移動を継承し、指定した拡縮と回転だけを除く
 	Matrix4x4 BuildParentFollowMatrix(const Matrix4x4& parentWorld, bool ignoreScale, bool ignoreRotation);
 } // Engine

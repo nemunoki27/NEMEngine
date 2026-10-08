@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Math/Math.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineShapeBuilder.h>
 
 // c++
 #include <algorithm>
@@ -34,20 +35,7 @@ void Engine::LineRenderer2D::DrawGrid(float cellSize) {
 void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size,
 	const Vector2& anchor, const Color4& color, float thickness) {
 
-	// サイズ
-	Vector2 rectSize = size * anchor;
-
-	// 4頂点座標計算
-	Vector2 topLeft = Vector2(center.x - rectSize.x, center.y - rectSize.y);
-	Vector2 topRight = Vector2(center.x + rectSize.x, center.y - rectSize.y);
-	Vector2 bottomLeft = Vector2(center.x - rectSize.x, center.y + rectSize.y);
-	Vector2 bottomRight = Vector2(center.x + rectSize.x, center.y + rectSize.y);
-
-	// 4辺のライン描画
-	DrawLine(topLeft, topRight, color, thickness);
-	DrawLine(topRight, bottomRight, color, thickness);
-	DrawLine(bottomRight, bottomLeft, color, thickness);
-	DrawLine(bottomLeft, topLeft, color, thickness);
+	DrawRect(center, size, anchor, 0.0f, color, thickness);
 }
 
 void Engine::LineRenderer2D::DrawRect(const Vector2& center,
@@ -59,29 +47,12 @@ void Engine::LineRenderer2D::DrawRect(const Vector2& center,
 void Engine::LineRenderer2D::DrawRect(const Vector2& center, const Vector2& size,
 	const Vector2& anchor, float rotationDegrees, const Color4& color, float thickness) {
 
-	// サイズ
-	Vector2 rectSize = size * anchor;
-
-	const float rotationRadians = Math::DegToRad(rotationDegrees);
-	const float cos = std::cos(rotationRadians);
-	const float sin = std::sin(rotationRadians);
-
-	const Vector2 axisX(cos, sin);
-	const Vector2 axisY(-sin, cos);
-	const Vector2 halfX = axisX * rectSize.x;
-	const Vector2 halfY = axisY * rectSize.y;
-
-	// 4頂点座標計算
-	Vector2 topLeft = center - halfX - halfY;
-	Vector2 topRight = center + halfX - halfY;
-	Vector2 bottomRight = center + halfX + halfY;
-	Vector2 bottomLeft = center - halfX + halfY;
-
-	// 4辺のライン描画
-	DrawLine(topLeft, topRight, color, thickness);
-	DrawLine(topRight, bottomRight, color, thickness);
-	DrawLine(bottomRight, bottomLeft, color, thickness);
-	DrawLine(bottomLeft, topLeft, color, thickness);
+	// 回転角と半径を共通の矩形生成へ渡す
+	const Matrix4x4 rotation = Matrix4x4::MakeRotateMatrix(Vector3(0.0f, 0.0f, rotationDegrees));
+	LineShapeBuilder::ForEachRect2DLine(center, size * anchor, rotation,
+		[&](const Vector2& start, const Vector2& end) {
+			DrawLine(start, end, color, thickness);
+		});
 }
 
 void Engine::LineRenderer2D::DrawRect(const Vector2& center,
@@ -93,23 +64,14 @@ void Engine::LineRenderer2D::DrawRect(const Vector2& center,
 void Engine::LineRenderer2D::DrawCircle(const Vector2& center, float radius,
 	const Color4& color, uint32_t division, float thickness) {
 
-	// 必ず3以上
-	uint32_t actualDivision = (std::max)(division, static_cast<uint32_t>(3));
-
-	for (uint32_t i = 0; i < actualDivision; ++i) {
-
-		// 円周上の点の座標計算
-		float angle0 = Math::pi * 2.0f * (static_cast<float>(i) / actualDivision);
-		float angle1 = Math::pi * 2.0f * (static_cast<float>(i + 1) / actualDivision);
-
-		Vector2 pointA = Vector2(center.x + std::cos(angle0) * radius, center.y + std::sin(angle0) * radius);
-		Vector2 pointB = Vector2(center.x + std::cos(angle1) * radius, center.y + std::sin(angle1) * radius);
-
-		DrawLine(pointA, pointB, color, thickness);
-	}
+	// 共通の円周から描画用の線を追加
+	LineShapeBuilder::ForEachCircle2DLine(center, radius, division,
+		[&](const Vector2& start, const Vector2& end) {
+			DrawLine(start, end, color, thickness);
+		});
 }
 
-void Engine::LineRenderer2D::DrawLineImpl(GraphicsCore& /*graphicsCore*/,
+void Engine::LineRenderer2D::DrawLineImpl([[maybe_unused]] GraphicsCore& graphicsCore,
 	const ResolvedCameraView* camera, MultiRenderTarget& surface) {
 
 	if (gridDrawCount_ == 0) {
@@ -129,7 +91,7 @@ void Engine::LineRenderer2D::DrawLineImpl(GraphicsCore& /*graphicsCore*/,
 	constexpr float kGridCenterLineThickness = 2.4f;
 	const Color4 kGridColor = Color4::White(0.32f);
 
-	// 逆ViewProjで画面に映るワールド矩形を求める、2Dは1ワールド=1pxとは限らないのでカメラから求める
+	// Camera行列から画面に映る範囲を取得
 	const Matrix4x4 invViewProjection = camera->matrices.inverseProjectionMatrix * camera->matrices.inverseViewMatrix;
 	const Vector3 corner0 = Vector3::Transform(Vector3(-1.0f, -1.0f, 0.0f), invViewProjection);
 	const Vector3 corner1 = Vector3::Transform(Vector3(1.0f, -1.0f, 0.0f), invViewProjection);
@@ -140,7 +102,7 @@ void Engine::LineRenderer2D::DrawLineImpl(GraphicsCore& /*graphicsCore*/,
 	const float minY = (std::min)({ corner0.y, corner1.y, corner2.y, corner3.y });
 	const float maxY = (std::max)({ corner0.y, corner1.y, corner2.y, corner3.y });
 
-	// セルが画面上で細かすぎると線が潰れて真っ白になるので、最小ピクセル間隔まで2倍ずつ粗くする
+	// 密集したグリッドの間隔を広げる
 	constexpr float kMinCellPixels = 8.0f;
 	const float pixelsPerUnit = static_cast<float>(surface.GetWidth()) / (std::max)(maxX - minX, 0.0001f);
 	float gridCellSize = baseGridCellSize;

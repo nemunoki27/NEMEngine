@@ -1,5 +1,6 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
+#include "TestRunner.h"
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/Scripting/Managed/Generated/ManagedComponentBindings.generated.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
@@ -8,12 +9,18 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Identity/AssetGUID.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Textures/TextureImportSettings.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
+#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
+#include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -38,10 +45,87 @@
 #include <memory>
 #include <utility>
 
+namespace {
+
+	bool TestMaterialDocumentIsolation() {
+
+		using namespace Engine;
+		// 型不正のMaterialで直前のデータを壊さない
+		MaterialAsset retained = CreateDefaultMeshMaterialAsset("Retained");
+		auto before = ToJson(retained);
+		for (const auto& invalid : {nlohmann::json(42), nlohmann::json{{"name", 17}},
+			nlohmann::json{{"shaderGraph", false}}, nlohmann::json{{"domain", 3}},
+			nlohmann::json{{"renderState", {{"overridesRenderer", "wrong"}}}},
+			nlohmann::json{{"passes", nlohmann::json::array({{{"passKind", 17}}})}}}) {
+
+			if (FromJson(invalid, retained) || ToJson(retained) != before) {
+				return false;
+			}
+		}
+		MaterialParameterValue value{.value = 42u};
+		if (ParseMaterialParameterValue(nlohmann::json{{"r", "wrong"}, {"g", 0}, {"b", 0}, {"a", 1}}, value) ||
+			std::get<uint32_t>(value.value) != 42u) {
+			return false;
+		}
+		// 破損したrecordが混ざっても正常な項目は読み込む
+		MaterialInstanceParameters instance;
+		ReadMaterialInstance(nlohmann::json::array({{{"name", 17}, {"value", 1}},
+			{{"name", "speed"}, {"value", 2.0f}}, {{"name", "bad"}, {"semantic", 17}, {"value", 3}}}), instance);
+		if (instance.size() != 1 || !instance.FindByName("speed")) {
+			return false;
+		}
+		NEMTests::TestDirectory directory("MaterialSettings", RuntimePaths::GetGameAssetsRoot() / "Materials");
+		auto path = directory.GetPath() / L"既定設定.json";
+		auto pathText = Algorithm::PathToUTF8(path);
+		DefaultMaterialSettings settings;
+		AssetID mesh{1, 2}, sprite{3, 4};
+		if (!settings.Load(pathText)) {
+			return false;
+		}
+		settings.SetMesh(mesh);
+		settings.SetSprite(sprite);
+		if (!settings.Save()) {
+			return false;
+		}
+		DefaultMaterialSettings restored;
+		if (!restored.Load(pathText) || restored.GetMesh() != mesh || restored.GetSprite() != sprite) {
+			return false;
+		}
+		auto document = JsonFile::Load(path, false);
+		{
+			// 保存失敗時に以前の設定ファイルを維持する
+			NEMTests::TestFileReadLock lock(path);
+			settings.SetMesh(AssetID{5, 6});
+			if (settings.Save() || JsonFile::Load(path, false) != document) {
+				return false;
+			}
+		}
+		if (!JsonFile::Save(path, nlohmann::json{{"mesh", 42}}) || restored.Load(pathText) ||
+			restored.GetMesh() != mesh || restored.GetSprite() != sprite) {
+			return false;
+		}
+		// 別Projectの破損設定と未作成設定へ旧GUIDを持ち越さない
+		auto malformed = directory.GetPath() / "Other.json";
+		if (!JsonFile::Save(malformed, nlohmann::json{{"mesh", 42}}) ||
+			restored.Load(Algorithm::PathToUTF8(malformed)) || restored.GetMesh() || restored.GetSprite()) {
+			return false;
+		}
+		restored.SetMesh(mesh);
+		if (!restored.Load(Algorithm::PathToUTF8(directory.GetPath() / "Missing.json")) || restored.GetMesh() ||
+			restored.GetMeshOrBuiltin() != BuiltinAssets::Materials::DefaultMesh) {
+			return false;
+		}
+		return true;
+	}
+}
+
 namespace NEMTests {
 
 	bool TestMaterialParameters() {
 
+		if (!RunTest("TestMaterialDocumentIsolation", TestMaterialDocumentIsolation)) {
+			return false;
+		}
 		// JSON文字列の往復でも整数の型と全値域を維持する
 		for (uint32_t number : { 0u, 1u, 2147483647u, 2147483648u, UINT32_MAX }) {
 			Engine::MaterialParameterValue original{ .value = number }, restored;
@@ -252,6 +336,30 @@ namespace NEMTests {
 		uint32_t unsignedValue = 0;
 		std::memcpy(&unsignedValue, unsignedBytes.data(), sizeof(unsignedValue));
 		if (unsignedValue != UINT32_MAX) return false;
+		// 整数への変換は小数を切り捨て不正値をゼロで転送する
+		const std::array<float, 9> floatValues{1.75f, -0.5f, -1.75f, -2147483648.0f, 2147483648.0f,
+			4294967296.0f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(),
+			-std::numeric_limits<float>::infinity()};
+		const std::array<uint32_t, 9> signedBits{1u, 0u, static_cast<uint32_t>(-1), 0x80000000u, 0u, 0u, 0u, 0u, 0u};
+		const std::array<uint32_t, 9> unsignedBits{1u, 0u, 0u, 0u, 0x80000000u, 0u, 0u, 0u, 0u};
+		for (bool isSigned : {true, false}) {
+			unsignedVariable.valueType = isSigned ? D3D_SVT_INT : D3D_SVT_UINT;
+			unsignedLayout.Build(unsignedReflection);
+			for (size_t index = 0; index < floatValues.size(); ++index) {
+				unsignedParameters.Set(graphParameterID, "Threshold", Engine::MaterialParameterSemantic::None,
+					Engine::MaterialParameterValue{.value = floatValues[index]});
+				const auto bytes = Engine::MaterialParameterBufferBuilder::BuildElement(
+					unsignedParameters, emptyParameters, unsignedLayout, {});
+				uint32_t bits = 0;
+				std::memcpy(&bits, bytes.data(), sizeof(bits));
+				if (bits != (isSigned ? signedBits[index] : unsignedBits[index])) return false;
+			}
+		}
+		int32_t retainedSigned = 42;
+		uint32_t retainedUnsigned = 42;
+		if (Math::TryConvertToInt32(2147483648.0f, retainedSigned) || retainedSigned != 42 ||
+			Math::TryConvertToUInt32(-1.0f, retainedUnsigned) || retainedUnsigned != 42) return false;
+		unsignedVariable.valueType = D3D_SVT_UINT;
 		// 手書きShaderの標準TextureはMetadataなしでも未指定にできる
 		for (const auto name : { Engine::MaterialParameterNames::BaseColorTexture, Engine::MaterialParameterNames::SpecularTexture }) {
 			auto textureReflection = unsignedReflection;

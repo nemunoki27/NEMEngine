@@ -6,6 +6,7 @@
 #include <Engine/Core/Assets/AssetTypes.h>
 
 // c++
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -29,7 +30,7 @@ namespace Engine {
 		// 編集した構成を描画側のプレビューへ渡す
 		void SynchronizePreview(const EditorToolContext& context);
 		// 次の更新で切り替えるAssetを予約する
-		void RequestProfile(AssetID assetID) { requestedProfile_ = assetID; }
+		void RequestProfile(AssetID assetID);
 		// 保存確認後に編集対象を切り替える
 		void SelectProfile(const EditorToolContext& context, AssetID profileAsset);
 		// 別AssetのPass構成を取り込む
@@ -61,11 +62,11 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		AssetID requestedProfile_{};	 // 次の更新で切り替えるAsset
-		AssetID observedProfile_{};		 // 編集中のAsset
-		AssetID previewAsset_{};		 // 描画側へ公開済みのAsset
-		uint64_t previewGeneration_ = 0; // 公開済み構成の世代
-		std::string statusMessage_{};	 // 操作結果の表示文
-		bool statusError_ = false;		 // 操作結果の失敗状態
+		std::optional<AssetID> requestedProfile_{}; // 選択解除を含む次の切替要求
+		AssetID observedProfile_{};					// 編集中のAsset
+		AssetID previewAsset_{};					// 描画側へ公開済みのAsset
+		uint64_t previewGeneration_ = 0;			// 公開済み構成の世代
+		std::string statusMessage_{};				// 操作結果の表示文
+		bool statusError_ = false;					// 操作結果の失敗状態
 	};
 }

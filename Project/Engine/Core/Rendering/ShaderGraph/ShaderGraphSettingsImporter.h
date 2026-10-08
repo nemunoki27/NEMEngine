@@ -19,11 +19,14 @@ namespace Engine {
 	//============================================================================
 	class ShaderGraphSettingsImporter {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		ShaderGraphSettingsImporter() = delete;
 
 		// 成功時だけ出力を更新し、コピー元や保存先には書き込まない
-		static bool Import(const ShaderGraphAsset& destination, AssetID source,
-			AssetType sourceType, const ShaderGraphImportResolver& resolver,
-			ShaderGraphAsset& output, std::string& error);
+		static bool Import(const ShaderGraphAsset& destination, AssetID source, AssetType sourceType,
+			const ShaderGraphImportResolver& resolver, ShaderGraphAsset& output, std::string& error);
 	};
 }

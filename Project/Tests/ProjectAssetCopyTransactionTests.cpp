@@ -1,23 +1,30 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
+#include "ProjectCopyPreparationTests.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/Assets/Project/ProjectAssetCopyTransaction.h>
+#include <Engine/Editor/Assets/Project/ProjectDirectoryCopyTransaction.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetCopyUtility.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetMoveUtility.h>
-#include <Engine/Editor/Assets/Project/ProjectAssetDocumentPatch.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonFile.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include "ModelDocumentReferenceTests.h"
 
 // c++
 #include <fstream>
 #include <iterator>
 #include <iostream>
+#include <stdexcept>
 
 bool NEMTests::TestProjectAssetCopyTransaction() {
 
+	if (!TestProjectCopyPreparationOwnership() || !TestProjectDirectoryCopyOwnership() || !CheckProjectModelReferenceCopy()) {
+		return false;
+	}
 	TestDirectory directory("ProjectAssetCopyTransaction");
 	const auto sourceRoot = directory.GetPath() / "Source";
 	const auto targetRoot = directory.GetPath() / "Target";
@@ -43,6 +50,235 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 		}
 		return true;
 	};
+	// フォルダー公開後の外部追加と書換えを取消で消さない
+	const auto tree = targetRoot / "tree";
+	{
+		Engine::ProjectDirectoryCopyTransaction transaction(tree);
+		std::string diagnostic;
+		if (!transaction.Begin(diagnostic) || transaction.StageFile(source, "../escape.gltf", diagnostic) ||
+			transaction.StageFile(source, targetRoot / "absolute.gltf", diagnostic) ||
+			!transaction.StageFile(source, "./nested/model.gltf", diagnostic) ||
+			!transaction.StageFile(sidecar, "nested/model.bin", diagnostic) || std::filesystem::exists(tree) ||
+			!transaction.Publish(diagnostic) || transaction.AddDirectory("late", diagnostic)) {
+			return false;
+		}
+		if (!Engine::StorageFileUtility::WriteBytes(tree / "nested/model.gltf", "external change") ||
+			!Engine::StorageFileUtility::WriteBytes(tree / "nested/new.txt", "external file")) {
+			return false;
+		}
+	}
+	if (!std::filesystem::exists(tree / "nested/model.gltf") || !std::filesystem::exists(tree / "nested/new.txt") ||
+		std::filesystem::exists(tree / "nested/model.bin") || !clean()) {
+		return false;
+	}
+	// 同じbyteを持つ別フォルダーも取消で削除しない
+	const auto replaced = targetRoot / "replaced";
+	const auto owned = targetRoot / "owned";
+	{
+		Engine::ProjectDirectoryCopyTransaction transaction(replaced);
+		std::string diagnostic;
+		if (!transaction.Begin(diagnostic) || !transaction.StageFile(source, "model.gltf", diagnostic) ||
+			!transaction.Publish(diagnostic)) {
+			return false;
+		}
+		std::filesystem::rename(replaced, owned);
+		std::filesystem::create_directory(replaced);
+		std::filesystem::copy_file(source, replaced / "model.gltf");
+	}
+	if (!std::filesystem::is_regular_file(replaced / "model.gltf") || !std::filesystem::is_regular_file(owned / "model.gltf")) {
+		return false;
+	}
+	// 子フォルダーとファイルの差替えも取消で消さない
+	for (bool replaceDirectory : {false, true}) {
+		const auto copied = targetRoot / (replaceDirectory ? "childDirectory" : "childFile");
+		const auto retained = targetRoot / (replaceDirectory ? "retainedDirectory" : "retainedFile");
+		{
+			Engine::ProjectDirectoryCopyTransaction transaction(copied);
+			std::string diagnostic;
+			if (!transaction.Begin(diagnostic) || !transaction.StageFile(source, "nested/model.gltf", diagnostic) ||
+				!transaction.Publish(diagnostic)) {
+				return false;
+			}
+			std::filesystem::rename(replaceDirectory ? copied / "nested" : copied / "nested/model.gltf", retained);
+			if (replaceDirectory) {
+				std::filesystem::create_directory(copied / "nested");
+			}
+			std::filesystem::copy_file(source, copied / "nested/model.gltf");
+		}
+		if (!std::filesystem::is_regular_file(copied / "nested/model.gltf") ||
+			!std::filesystem::is_regular_file(replaceDirectory ? retained / "model.gltf" : retained)) {
+			return false;
+		}
+	}
+	// 作業中に作られた同名フォルダーは公開で置き換えない
+	const auto collision = targetRoot / "collision";
+	{
+		Engine::ProjectDirectoryCopyTransaction transaction(collision);
+		std::string diagnostic;
+		if (!transaction.Begin(diagnostic) || !transaction.StageFile(source, "model.gltf", diagnostic)) {
+			return false;
+		}
+		std::filesystem::create_directory(collision);
+		std::ofstream(collision / "existing.txt") << "existing";
+		if (transaction.Publish(diagnostic) || diagnostic.empty()) {
+			return false;
+		}
+	}
+	if (!std::filesystem::exists(collision / "existing.txt") || std::filesystem::exists(collision / "model.gltf") || !clean()) {
+		return false;
+	}
+	// 作業中のファイル編集に失敗したフォルダーは公開しない
+	const auto rejected = targetRoot / "rejected";
+	{
+		Engine::ProjectDirectoryCopyTransaction transaction(rejected);
+		std::string diagnostic;
+		if (!transaction.Begin(diagnostic) ||
+			transaction.StageFile(source, "model.gltf", diagnostic, [](const auto&, std::string&) { return false; }) ||
+			diagnostic.empty()) {
+			return false;
+		}
+	}
+	if (std::filesystem::exists(rejected) || !clean()) {
+		return false;
+	}
+
+	// 編集失敗と例外でも変更済みの作業ファイルを片付ける
+	for (bool throwException : {false, true}) {
+		{
+			Engine::ProjectAssetCopyTransaction transaction(targetRoot);
+			std::string diagnostic;
+			if (!transaction.Add(source, target) || !transaction.Stage(diagnostic)) {
+				return false;
+			}
+			const bool prepared = transaction.Prepare(
+				0,
+				[&](const auto&, std::string& bytes) {
+					bytes = "prepared";
+					if (throwException) {
+						throw std::runtime_error("prepare failed");
+					}
+					return false;
+				},
+				diagnostic);
+			if (prepared || diagnostic.empty()) {
+				return false;
+			}
+		}
+		if (std::filesystem::exists(target) || !clean()) {
+			return false;
+		}
+	}
+	// 編集後の内容を公開し、取消時も同じ内容を照合する
+	{
+		Engine::ProjectAssetCopyTransaction transaction(targetRoot);
+		std::string diagnostic;
+		if (!transaction.Add(source, target) || !transaction.Stage(diagnostic) ||
+			!transaction.Prepare(
+				0,
+				[](const auto&, std::string& bytes) {
+					bytes = "prepared";
+					return true;
+				},
+				diagnostic) ||
+			!transaction.Publish(diagnostic)) {
+			return false;
+		}
+		std::ifstream file(target);
+		const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+		if (bytes != "prepared") {
+			return false;
+		}
+	}
+	if (std::filesystem::exists(target) || !clean()) {
+		return false;
+	}
+	// 作業ファイルの差替えを編集前に拒否する
+	std::filesystem::path replacedStaging;
+	const auto retainedStage = targetRoot / "retained-stage.gltf";
+	{
+		Engine::ProjectAssetCopyTransaction transaction(targetRoot);
+		std::string diagnostic;
+		if (!transaction.Add(source, target) || !transaction.Stage(diagnostic)) {
+			return false;
+		}
+		const auto staged = transaction.GetStagedPath(0);
+		replacedStaging = staged.parent_path();
+		std::filesystem::rename(staged, retainedStage);
+		std::filesystem::copy_file(source, staged);
+		bool called = false;
+		if (transaction.Prepare(
+				0,
+				[&](const auto&, std::string&) {
+					called = true;
+					return true;
+				},
+				diagnostic) ||
+			called || diagnostic.empty() || transaction.Publish(diagnostic)) {
+			return false;
+		}
+	}
+	if (!std::filesystem::is_regular_file(replacedStaging / target.filename()) ||
+		!std::filesystem::is_regular_file(retainedStage) || std::filesystem::exists(target)) {
+		return false;
+	}
+	std::filesystem::remove(replacedStaging / target.filename());
+	std::filesystem::remove(replacedStaging);
+	std::filesystem::remove(retainedStage);
+	// 公開先の同内容の差替えも取消で消さない
+	{
+		Engine::ProjectAssetCopyTransaction transaction(targetRoot);
+		std::string diagnostic;
+		if (!transaction.Add(source, target) || !transaction.Stage(diagnostic) || !transaction.Publish(diagnostic)) {
+			return false;
+		}
+		std::filesystem::rename(target, retainedStage);
+		std::filesystem::copy_file(source, target);
+	}
+	if (!std::filesystem::is_regular_file(target) || !std::filesystem::is_regular_file(retainedStage) || !clean()) {
+		return false;
+	}
+	std::filesystem::remove(target);
+	std::filesystem::remove(retainedStage);
+
+	// 公開前の内容変更と子フォルダーの差替えを拒否する
+	for (bool replaceDirectory : {false, true}) {
+		std::filesystem::path stagedRoot;
+		const auto stagedTarget = targetRoot / "changed-tree";
+		const auto retainedChild = targetRoot / "retained-child";
+		{
+			Engine::ProjectDirectoryCopyTransaction transaction(stagedTarget);
+			std::string diagnostic;
+			if (!transaction.Begin(diagnostic) || !transaction.StageFile(source, "nested/model.gltf", diagnostic)) {
+				return false;
+			}
+			for (const auto& entry : std::filesystem::directory_iterator(targetRoot)) {
+				if (entry.path().filename().wstring().starts_with(L".nem-copy-")) {
+					stagedRoot = entry.path();
+				}
+			}
+			if (stagedRoot.empty()) {
+				return false;
+			}
+			if (replaceDirectory) {
+				std::filesystem::rename(stagedRoot / "nested", retainedChild);
+				std::filesystem::create_directory(stagedRoot / "nested");
+				std::filesystem::copy_file(source, stagedRoot / "nested/model.gltf");
+			} else {
+				std::ofstream file(stagedRoot / "nested/model.gltf", std::ios::binary | std::ios::trunc);
+				file << "changed";
+			}
+			if (transaction.Publish(diagnostic) || diagnostic.empty()) {
+				return false;
+			}
+		}
+		if (std::filesystem::exists(stagedTarget) || !std::filesystem::exists(stagedRoot / "nested/model.gltf")) {
+			return false;
+		}
+		std::filesystem::remove_all(stagedRoot);
+		if (replaceDirectory) {
+			std::filesystem::remove_all(retainedChild);
+		}
+	}
 
 	// 作業開始後に現れた既存ファイルを置き換えない
 	{
@@ -64,6 +300,22 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 	const std::string retainedBytes((std::istreambuf_iterator<char>(retained)), std::istreambuf_iterator<char>());
 	retained.close();
 	if (retainedBytes != "existing" || std::filesystem::exists(sidecarTarget) || !clean()) {
+		return false;
+	}
+	std::filesystem::remove(target);
+
+	// 公開後に外部で変更された内容は取消で消さない
+	{
+		Engine::ProjectAssetCopyTransaction transaction(targetRoot);
+		std::string diagnostic;
+		if (!transaction.Add(source, target) || !transaction.Add(sidecar, sidecarTarget) || !transaction.Stage(diagnostic) ||
+			!transaction.Publish(diagnostic) || !Engine::StorageFileUtility::WriteBytes(target, "external change")) {
+			return false;
+		}
+	}
+	if (!std::filesystem::exists(target) ||
+		Engine::StorageFileUtility::FileRevision(target) == Engine::StorageFileUtility::FileRevision(source) ||
+		std::filesystem::exists(sidecarTarget) || !clean()) {
 		return false;
 	}
 	std::filesystem::remove(target);
@@ -133,10 +385,6 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 			std::cerr << "Project rename lock contract failed: " << renamed.message << '\n';
 			return false;
 		}
-		if (ProjectAssetDocumentPatch::PatchRenamedJsonAsset(material, AssetType::Material)) {
-			std::cerr << "Project JSON save lock contract failed\n";
-			return false;
-		}
 	}
 	if (!JsonFile::TryLoad(material, data) || data["name"] != "savedName" || data["custom"] != 19) {
 		std::cerr << "Project rename retained data failed\n";
@@ -145,9 +393,14 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 
 	// 拡張子がjsonでないMaterialも表示名を更新する
 	const auto plainMaterial = assets.GetPath() / "plain.material";
-	if (!JsonFile::Save(plainMaterial, data) ||
-		!ProjectAssetDocumentPatch::PatchDuplicatedJsonAsset(plainMaterial, AssetType::Material) ||
-		!JsonFile::TryLoad(plainMaterial, data) || data["name"] != "plain" || data["custom"] != 19) {
+	if (!JsonFile::Save(plainMaterial, data)) {
+		return false;
+	}
+	entry.assetPath = RuntimePaths::ToAssetPath(plainMaterial);
+	const auto plainCopy = ProjectAssetCopyUtility::DuplicateAsset(entry, {});
+	if (!plainCopy.success || plainCopy.fullPath != assets.GetPath() / "plain 1.material" ||
+		!JsonFile::TryLoad(plainCopy.fullPath, data) || data["name"] != "plain 1" || data["custom"] != 19 ||
+		!JsonFile::TryLoad(plainMaterial, data) || data["name"] != "savedName" || data["custom"] != 19) {
 		std::cerr << "Project plain material update failed\n";
 		return false;
 	}
@@ -161,7 +414,7 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 		std::cerr << "Project corrupt copy rejection failed: " << duplicated.message << '\n';
 		return false;
 	}
-	if (std::distance(std::filesystem::directory_iterator(assets.GetPath()), std::filesystem::directory_iterator{}) != 3) {
+	if (std::distance(std::filesystem::directory_iterator(assets.GetPath()), std::filesystem::directory_iterator{}) != 4) {
 		std::cerr << "Project corrupt copy cleanup failed\n";
 		return false;
 	}
@@ -194,8 +447,7 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 			return false;
 		}
 	}
-	const auto importedFile =
-		ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, locked);
+	const auto importedFile = ProjectAssetCopyUtility::ImportExternalFile(ProjectAssetSource::Game, virtualDirectory, locked);
 	if (!importedFile.success || !std::filesystem::is_regular_file(importedFile.fullPath)) {
 		std::cerr << "Project file import retry failed\n";
 		return false;
@@ -225,8 +477,8 @@ bool NEMTests::TestProjectAssetCopyTransaction() {
 	// フォルダー複製でも準備中のファイルを含めない
 	std::filesystem::create_directory(imported.fullPath / stagingName);
 	std::ofstream(imported.fullPath / stagingName / "pending.txt") << "pending";
-	const auto copiedDirectory = ProjectAssetCopyUtility::DuplicateDirectory(ProjectAssetSource::Game,
-		virtualDirectory + "/" + imported.fullPath.filename().string(), {});
+	const auto copiedDirectory = ProjectAssetCopyUtility::DuplicateDirectory(
+		ProjectAssetSource::Game, virtualDirectory + "/" + imported.fullPath.filename().string(), {});
 	if (!copiedDirectory.success || !std::filesystem::exists(copiedDirectory.fullPath / "locked.txt") ||
 		std::filesystem::exists(copiedDirectory.fullPath / stagingName)) {
 		std::cerr << "Project folder copy staging isolation failed\n";

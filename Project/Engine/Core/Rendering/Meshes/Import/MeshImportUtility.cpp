@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <string_view>
 
+// assimp
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
 #include <assimp/material.h>
@@ -50,7 +51,7 @@ Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material) {
 		return result;
 	}
 
-	// glTFのalphaModeはテクスチャ中のα値より優先される
+	// glTFのAlphaModeを優先する
 	aiString alphaMode;
 	if (material->Get(AI_MATKEY_GLTF_ALPHAMODE, alphaMode) == AI_SUCCESS) {
 
@@ -69,7 +70,7 @@ Engine::MeshImportUtility::ReadMaterialSurface(const aiMaterial* material) {
 		return result;
 	}
 
-	// glTF以外は定数Opacityと専用Opacityテクスチャから安全側で推定する
+	// Opacityと専用Textureから表面方式を推定する
 	ai_real opacity = 1.0f;
 	if (material->Get(AI_MATKEY_OPACITY, opacity) == AI_SUCCESS &&
 		static_cast<float>(opacity) < 1.0f) {
@@ -134,7 +135,7 @@ Engine::MeshNode Engine::MeshImportUtility::ReadMeshNode(const aiNode* node) {
 
 	aiVector3D scale, translate;
 	aiQuaternion rotate;
-	// Assimpのノード変換行列をスケール、回転、平行移動に分解する
+	// 行列をスケール・回転・平行移動に分解する
 	node->mTransformation.Decompose(scale, rotate, translate);
 
 	// 符号反転でエンジン座標系へ合わせる

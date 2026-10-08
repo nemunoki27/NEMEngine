@@ -876,6 +876,11 @@
       "name": "getAnimatorParameter",
       "nativeType": "GetAnimatorParameterCallback",
       "managedType": "delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float*, int*, int>"
+    },
+    {
+      "name": "isUpdateInterrupted",
+      "nativeType": "GetNativeBoolCallback",
+      "managedType": "delegate* unmanaged[Cdecl]<int>"
     }
   ],
   "layouts": [

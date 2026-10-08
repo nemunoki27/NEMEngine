@@ -42,8 +42,8 @@ void Engine::ShaderGraphPreviewController::DrawSettings(const EditorToolContext&
 	MyGUI::EndPropertyRow();
 
 	if (clear) {
-		Restore(context);
-		scenePreview_.GetTargetEntityUUID() = {};
+		Restore();
+		scenePreview_.SetTargetEntityUUID({});
 		return;
 	}
 	if (!result.valueChanged || nextEntity == scenePreview_.GetTargetEntityUUID()) {
@@ -52,8 +52,8 @@ void Engine::ShaderGraphPreviewController::DrawSettings(const EditorToolContext&
 	}
 
 	// 元のMaterialを復元してから対象を切り替える
-	Restore(context);
-	scenePreview_.GetTargetEntityUUID() = nextEntity;
+	Restore();
+	scenePreview_.SetTargetEntityUUID(nextEntity);
 	if (!scenePreview_.GetTargetEntityUUID()) {
 		return;
 	}
@@ -65,6 +65,9 @@ void Engine::ShaderGraphPreviewController::DrawSettings(const EditorToolContext&
 }
 
 void Engine::ShaderGraphPreviewController::Update(const EditorToolContext& context) {
+
+	// 外部のWorld切替と対象の削除を確認する
+	scenePreview_.SynchronizeWorld(context.GetWorld());
 
 	if (editSession_.GetDraft().domain != ShaderGraphDomain::Surface) {
 		compileDeadline_ = 0.0;
@@ -109,11 +112,11 @@ bool Engine::ShaderGraphPreviewController::Apply(const EditorToolContext& contex
 		context, editSession_.GetDraft().target, editSession_.GetPreviewMaterialID(), editSession_.GetStatusMessage());
 }
 
-void Engine::ShaderGraphPreviewController::Restore(const EditorToolContext& context) {
+void Engine::ShaderGraphPreviewController::Restore() {
 
 	// Materialの復元に合わせて待機を解除する
 	const bool applied = scenePreview_.IsMaterialApplied();
-	scenePreview_.RestorePreviewMaterial(context);
+	scenePreview_.RestorePreviewMaterial();
 	if (applied) {
 		compileDeadline_ = 0.0;
 	}
@@ -122,6 +125,6 @@ void Engine::ShaderGraphPreviewController::Restore(const EditorToolContext& cont
 void Engine::ShaderGraphPreviewController::ResetTarget() {
 
 	// 対象の切替へ古いコンパイル待機を持ち越さない
-	scenePreview_.GetTargetEntityUUID() = {};
+	scenePreview_.SetTargetEntityUUID({});
 	compileDeadline_ = 0.0;
 }

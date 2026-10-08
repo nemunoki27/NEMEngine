@@ -35,8 +35,10 @@ Engine::FlipbookFrame Engine::CalcFlipbookFrame(std::span<const int32_t> tilesX,
 	}
 
 	// 進行度から全体のフレーム番号を求める
-	const uint64_t index = progress >= 1.0f ? frameCount - 1 : (std::min)(
-		static_cast<uint64_t>(static_cast<double>(progress) * static_cast<double>(frameCount)), frameCount - 1);
+	const uint64_t index =
+		progress >= 1.0f ? frameCount - 1
+						 : (std::min)(static_cast<uint64_t>(static_cast<double>(progress) * static_cast<double>(frameCount)),
+							   frameCount - 1);
 
 	// 全体のフレーム番号から、行と行内の列を求める
 	uint64_t remainingIndex = index;
@@ -44,8 +46,7 @@ Engine::FlipbookFrame Engine::CalcFlipbookFrame(std::span<const int32_t> tilesX,
 	uint32_t columnIndex = 0;
 
 	for (int32_t y = 0; y < rowCount; ++y) {
-		const uint32_t columns =
-			static_cast<uint32_t>((std::max)(tilesX[y], 1));
+		const uint32_t columns = static_cast<uint32_t>((std::max)(tilesX[y], 1));
 
 		if (remainingIndex < columns) {
 			rowIndex = y;
@@ -60,15 +61,9 @@ Engine::FlipbookFrame Engine::CalcFlipbookFrame(std::span<const int32_t> tilesX,
 
 	FlipbookFrame frame{};
 
-	frame.uvScale = Vector2(
-		1.0f / static_cast<float>(columns),
-		1.0f / static_cast<float>(tilesY)
-	);
+	frame.uvScale = Vector2(1.0f / static_cast<float>(columns), 1.0f / static_cast<float>(tilesY));
 
-	frame.uvOffset = Vector2(
-		static_cast<float>(columnIndex) * frame.uvScale.x,
-		static_cast<float>(rowIndex) * frame.uvScale.y
-	);
+	frame.uvOffset = Vector2(static_cast<float>(columnIndex) * frame.uvScale.x, static_cast<float>(rowIndex) * frame.uvScale.y);
 
 	return frame;
 }

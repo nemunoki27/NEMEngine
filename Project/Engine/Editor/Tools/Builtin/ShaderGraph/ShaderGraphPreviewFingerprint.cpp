@@ -3,11 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
-// c++
-#include <bit>
-#include <type_traits>
-#include <variant>
-
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterHash.h>
 namespace Engine::ShaderGraphNodePreviewUtility {
 
 	// 値と接続からプレビューの更新を判定する
@@ -46,50 +43,12 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 	// 更新判定用のハッシュへ値を加える
 	uint64_t CombinePreviewHash(uint64_t seed, uint64_t value) {
 
-		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
+		return Algorithm::MixHash(seed, value);
 	}
 
 	// 設定値の型と内容からハッシュを作る
 	uint64_t HashPreviewValue(const Engine::MaterialParameterValue& parameter) {
 
-		uint64_t hash = parameter.value.index();
-		const auto appendFloat = [&](float value) { hash = CombinePreviewHash(hash, std::bit_cast<uint32_t>(value)); };
-		std::visit(
-			[&](const auto& value) {
-				using ValueType = std::decay_t<decltype(value)>;
-
-				if constexpr (std::is_same_v<ValueType, float>) {
-					appendFloat(value);
-				} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
-
-					appendFloat(value.x);
-					appendFloat(value.y);
-				} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
-
-					appendFloat(value.x);
-					appendFloat(value.y);
-					appendFloat(value.z);
-				} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
-
-					appendFloat(value.x);
-					appendFloat(value.y);
-					appendFloat(value.z);
-					appendFloat(value.w);
-				} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
-
-					appendFloat(value.r);
-					appendFloat(value.g);
-					appendFloat(value.b);
-					appendFloat(value.a);
-				} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-
-					hash = CombinePreviewHash(hash, value.high);
-					hash = CombinePreviewHash(hash, value.low);
-				} else {
-					hash = CombinePreviewHash(hash, static_cast<uint64_t>(value));
-				}
-			},
-			parameter.value);
-		return hash;
+		return MaterialParameterHash::HashValue(parameter);
 	}
 } // Engine::ShaderGraphNodePreviewUtility

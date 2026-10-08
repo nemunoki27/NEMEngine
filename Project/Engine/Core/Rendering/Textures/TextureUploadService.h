@@ -61,6 +61,10 @@ namespace Engine {
 		void RequestSolidColor1x1(const std::string& key, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 		void RequestTextureFile(const TextureFileRequestDesc& desc);
 		void RequestTextureFile(const std::string& key, const std::string& assetPath);
+		// 固定した画像を専用キーで要求する
+		std::string RequestSnapshot(TextureFileRequestDesc description);
+		// 固定画像の所有を解放し、転送中の結果も公開しない
+		void ReleaseSnapshot(const std::string& key);
 
 		// 最新要求で再読込し、成功後にResourceとDescriptorを差し替える
 		void RequestReload(const std::string& key);
@@ -76,6 +80,8 @@ namespace Engine {
 		const GPUTextureResource* GetTexture(const std::string& key) const;
 		TextureRequestState GetState(const std::string& key) const;
 		uint64_t GetContentRevision() const { return contentRevision_.load(std::memory_order_relaxed); }
+		// 指定ファイルの再読込要求の世代を取得する
+		uint64_t GetFileReloadRevision(const std::filesystem::path& fullPath) const;
 	private:
 		//============================================================================
 		//	private Methods
@@ -100,6 +106,10 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		std::atomic<uint64_t> contentRevision_ = 0;
+		uint64_t nextSnapshotID_ = 1;
+		uint64_t nextFileReloadRevision_ = 1;
+		// 固定画像の所有元へ新しいファイル要求を伝える
+		std::unordered_map<std::wstring, uint64_t> fileReloadRevisions_;
 		SRVDescriptor* srvDescriptor_ = nullptr;
 		TextureGPUUploader uploader_;
 
@@ -121,6 +131,8 @@ namespace Engine {
 
 		// アップロードジョブの記録
 		void DecodeTextureWorker(DecodeRequest&& request, uint32_t workerIndex);
+		// ファイル比較の区切りと大小文字を揃える
+		static std::wstring NormalizeFilePath(const std::filesystem::path& path);
 		// デコード要求を投入し、受付失敗を状態へ戻す
 		bool QueueDecode(const DecodeRequest& request);
 		// 保護中の要求を更新し、進行中なら再投入を予約する

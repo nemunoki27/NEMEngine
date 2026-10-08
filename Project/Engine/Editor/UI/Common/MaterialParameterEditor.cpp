@@ -4,12 +4,34 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
+#include <Engine/Core/Rendering/Materials/MaterialParameterDefaults.h>
+#include <Engine/Core/Foundation/Math/Math.h>
 
 // c++
 #include <algorithm>
 #include <array>
 #include <type_traits>
 #include <unordered_map>
+
+namespace {
+
+	// 整数欄へ渡す値の型とfloatの範囲を確認する
+	int32_t ReadIntegerEditValue(const Engine::MaterialParameterValue& value) {
+
+		return std::visit([](const auto& item) -> int32_t {
+			using T = std::decay_t<decltype(item)>;
+			if constexpr (std::is_same_v<T, int32_t>) { return item; }
+			else if constexpr (std::is_same_v<T, uint32_t>) { return static_cast<int32_t>(item); }
+			else if constexpr (std::is_same_v<T, float>) {
+				int32_t converted = 0;
+				Math::TryConvertToInt32(item, converted);
+				return converted;
+			}
+			else if constexpr (std::is_same_v<T, bool>) { return item ? 1 : 0; }
+			else { return 0; }
+		}, value.value);
+	}
+}
 
 //============================================================================
 //	MaterialParameterEditor classMethods
@@ -128,15 +150,7 @@ namespace Engine::MaterialParameterEditor {
 
 	bool IsColorParameter(const ShaderConstantBufferVariable& var) {
 
-		if (var.isColor) {
-			return true;
-		}
-		constexpr char kColor[] = "color";
-		auto toLower = [](char c) {
-			return c >= 'A' && c <= 'Z' ? static_cast<char>(c + ('a' - 'A')) : c;
-		};
-		return std::search(var.name.begin(), var.name.end(), kColor, kColor + 5,
-			[toLower](char lhs, char rhs) { return toLower(lhs) == rhs; }) != var.name.end();
+		return MaterialParameterDefaults::IsColor(var);
 	}
 
 	bool IsMaterialTextureResource(
@@ -242,33 +256,7 @@ namespace Engine::MaterialParameterEditor {
 
 	MaterialParameterValue DefaultValueForVariable(const ShaderConstantBufferVariable& var) {
 
-		MaterialParameterValue result{};
-		const bool isColor = IsColorParameter(var);
-		if (var.valueType == D3D_SVT_FLOAT) {
-			const uint32_t componentCount = Engine::GetVariableComponentCount(var);
-			if (componentCount <= 1) {
-				result.value = 0.0f;
-			} else if (componentCount == 2) {
-				result.value = Vector2{};
-			} else if (componentCount == 3) {
-				result.value = Vector3{};
-			} else {
-				if (isColor) {
-					result.value = Color4(1.0f, 1.0f, 1.0f, 1.0f);
-				} else {
-					result.value = Vector4{};
-				}
-			}
-		} else if (var.valueType == D3D_SVT_INT) {
-			result.value = int32_t(0);
-		} else if (var.valueType == D3D_SVT_UINT) {
-			result.value = uint32_t(0);
-		} else if (var.valueType == D3D_SVT_BOOL) {
-			result.value = false;
-		} else {
-			result.value = 0.0f;
-		}
-		return result;
+		return MaterialParameterDefaults::BuildValue(var);
 	}
 
 	float ExtractFloatComponent(const MaterialParameterValue& value, int idx) {
@@ -344,26 +332,12 @@ namespace Engine::MaterialParameterEditor {
 				}
 			}
 		} else if (var.valueType == D3D_SVT_INT) {
-			int32_t v = std::visit([](const auto& val) -> int32_t {
-				using T = std::decay_t<decltype(val)>;
-				if constexpr (std::is_same_v<T, int32_t>) return val;
-				else if constexpr (std::is_same_v<T, uint32_t>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, float>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
-				else return 0;
-				}, value.value);
+			int32_t v = ReadIntegerEditValue(value);
 			ValueEditResult result = MyGUI::DragInt(label, v);
 			if (result.valueChanged) { value.value = v; }
 			return result;
 		} else if (var.valueType == D3D_SVT_UINT) {
-			int32_t iv = std::visit([](const auto& val) -> int32_t {
-				using T = std::decay_t<decltype(val)>;
-				if constexpr (std::is_same_v<T, uint32_t>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, int32_t>) return val;
-				else if constexpr (std::is_same_v<T, float>) return static_cast<int32_t>(val);
-				else if constexpr (std::is_same_v<T, bool>) return val ? 1 : 0;
-				else return 0;
-				}, value.value);
+			int32_t iv = ReadIntegerEditValue(value);
 			ValueEditResult result = MyGUI::DragInt(label, iv);
 			if (result.valueChanged) { value.value = static_cast<uint32_t>((std::max)(0, iv)); }
 			return result;

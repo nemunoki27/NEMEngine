@@ -5,8 +5,10 @@
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
+// c++
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 namespace {
 
@@ -127,7 +129,17 @@ namespace {
 
 bool Engine::ParseMaterialParameterValue(const nlohmann::json& data, MaterialParameterValue& outValue) {
 
-	return TryParseParameterValue(data, outValue);
+	MaterialParameterValue parsed;
+	try {
+		if (!TryParseParameterValue(data, parsed)) {
+			return false;
+		}
+	} catch (const nlohmann::json::exception&) {
+		return false;
+	}
+	// 型の検証後に値を渡す
+	outValue = std::move(parsed);
+	return true;
 }
 
 nlohmann::json Engine::SerializeMaterialParameterValue(const MaterialParameterValue& parameter) {
@@ -142,6 +154,12 @@ void Engine::ReadMaterialInstance(const nlohmann::json& in,
 	if (in.is_array()) {
 		for (const nlohmann::json& record : in) {
 			if (!record.is_object()) {
+				continue;
+			}
+			// 型が壊れた項目だけを読み飛ばす
+			if ((record.contains("name") && !record["name"].is_string()) ||
+				(record.contains("id") && !record["id"].is_string()) ||
+				(record.contains("semantic") && !record["semantic"].is_string())) {
 				continue;
 			}
 
@@ -183,8 +201,7 @@ void Engine::ReadMaterialInstance(const nlohmann::json& in,
 	}
 }
 
-nlohmann::json Engine::WriteMaterialInstance(
-	const MaterialInstanceParameters& overrides) {
+nlohmann::json Engine::WriteMaterialInstance(const MaterialInstanceParameters& overrides) {
 
 	nlohmann::json out = nlohmann::json::array();
 	for (const MaterialParameterRecord& record : overrides.GetRecords()) {

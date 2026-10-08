@@ -29,13 +29,13 @@ namespace Engine {
 		//========================================================================
 
 		// 例外を診断へ変換して依存一覧を収集する
-		static bool CollectFiles(AssetID startupScene, const AssetDatabase& database,
-			std::vector<GameBuildFileEntry>& outFiles, std::string& error, SceneAssetStorage* sceneStorage,
-			std::vector<GameBuildWarning>* warnings = nullptr);
+		static bool CollectFiles(AssetID startupScene, const AssetDatabase& database, std::vector<GameBuildFileEntry>& outFiles,
+			std::string& error, SceneAssetStorage* sceneStorage, std::vector<GameBuildWarning>* warnings = nullptr);
 
 		explicit GameBuildAssetCollector(const Engine::AssetDatabase& database, Engine::SceneAssetStorage* sceneStorage);
 		bool Collect(Engine::AssetID startupScene, std::vector<GameBuildFileEntry>& outFiles, std::string& outError);
 		const std::vector<GameBuildWarning>& GetWarnings() const { return warnings_; }
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -78,23 +78,14 @@ namespace Engine {
 		// 形式ごとの参照解析へ振り分ける
 		void InspectFile(const Engine::AssetMeta& meta, const std::filesystem::path& source);
 		// Sceneの分割文書を収集
-		void CollectExternalActors(const Engine::AssetMeta& sceneMeta,
-			const std::filesystem::path& scenePath,
-			const nlohmann::json& sceneData);
+		void CollectExternalActors(
+			const Engine::AssetMeta& sceneMeta, const std::filesystem::path& scenePath, const nlohmann::json& sceneData);
 		// 保存データの参照を収集
 		void InspectJson(const nlohmann::json& node);
 		// Shaderのincludeを再帰収集
 		void CollectShaderIncludes(const std::filesystem::path& shaderPath);
 		// モデル形式ごとの付随ファイルを収集
 		void CollectModelSidecars(const std::filesystem::path& modelPath);
-		// モデル文書の外部画像とBufferを収集
-		void CollectModelUris(const nlohmann::json& node, const std::filesystem::path& modelDirectory);
-		// OBJが参照するMaterialを収集
-		void CollectObjSidecars(const std::filesystem::path& modelPath);
-		// MTLが参照するTextureを収集
-		void CollectMtlTextures(const std::filesystem::path& materialPath);
-		// モデルの付随ファイルを配置一覧へ追加
-		void AddModelSidecar(const std::filesystem::path& source);
 		// 実行時必須Assetと設定を収集
 		void AddFixedRuntimeFiles();
 		// 既定Materialを必須参照へ追加

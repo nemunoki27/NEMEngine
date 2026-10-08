@@ -1,13 +1,18 @@
 #include "SkeletonPoseEvaluator.h"
 
-using namespace Engine;
-
+//============================================================================
+//	include
+//============================================================================
 // c++
 #include <algorithm>
+#include <cstddef>
+
+using namespace Engine;
 
 namespace {
 
-	Engine::Vector3 SampleKeyframes( const std::vector<KeyframeVector3>& keys, float time) {
+	// 前後の位置とスケールのキーを補間する
+	Engine::Vector3 SampleKeyframes(const std::vector<KeyframeVector3>& keys, float time) {
 
 		if (keys.empty()) {
 			return Engine::Vector3::AnyInit(0.0f);
@@ -20,9 +25,7 @@ namespace {
 		}
 
 		auto upper = std::lower_bound(keys.begin() + 1, keys.end(), time,
-			[](const Engine::KeyframeVector3& key, float value) {
-				return key.time < value;
-			});
+			[](const Engine::KeyframeVector3& key, float value) { return key.time < value; });
 
 		const Engine::KeyframeVector3& next = *upper;
 		const Engine::KeyframeVector3& prev = *(upper - 1);
@@ -36,7 +39,8 @@ namespace {
 		return Engine::Vector3::Lerp(prev.value, next.value, t);
 	}
 
-	Engine::Quaternion SampleKeyframes( const std::vector<KeyframeQuaternion>& keys, float time) {
+	// 前後の回転キーを補間して正規化する
+	Engine::Quaternion SampleKeyframes(const std::vector<KeyframeQuaternion>& keys, float time) {
 
 		if (keys.empty()) {
 			return Engine::Quaternion::Identity();
@@ -49,9 +53,7 @@ namespace {
 		}
 
 		auto upper = std::lower_bound(keys.begin() + 1, keys.end(), time,
-			[](const Engine::KeyframeQuaternion& key, float value) {
-				return key.time < value;
-			});
+			[](const Engine::KeyframeQuaternion& key, float value) { return key.time < value; });
 
 		const Engine::KeyframeQuaternion& next = *upper;
 		const Engine::KeyframeQuaternion& prev = *(upper - 1);
@@ -80,16 +82,15 @@ namespace Engine::SkeletonPoseEvaluator {
 
 		Joint* joints = skeleton.joints.data();
 		const NodeAnimation* const* tracks = jointTracks.data();
-		// 各ジョイントに対してアニメーションを適用するラムダ関数
+		// Jointごとに対応するTrackを適用する
 		auto applyOne = [joints, tracks, time](Joint& joint) {
-
 			const size_t jointIndex = static_cast<size_t>(&joint - joints);
 			const NodeAnimation* track = tracks[jointIndex];
 			if (!track) {
 				return;
 			}
 
-			// ジョイントに対して、対応するノードのアニメーションを適用
+			// 設定のある変換だけをポーズへ反映する
 			if (!track->translate.keyframes.empty()) {
 				joint.transform.translation = SampleKeyframes(track->translate.keyframes, time);
 			}
@@ -99,8 +100,8 @@ namespace Engine::SkeletonPoseEvaluator {
 			if (!track->scale.keyframes.empty()) {
 				joint.transform.scale = SampleKeyframes(track->scale.keyframes, time);
 			}
-			};
-		// ジョイント単位の並列化はスケジューリングのオーバーヘッドが処理本体を上回るため直列で回す
+		};
+		// Joint単位の小さな処理は直列で更新する
 		for (Joint& joint : skeleton.joints) {
 
 			applyOne(joint);
@@ -115,20 +116,18 @@ namespace Engine::SkeletonPoseEvaluator {
 		if (skeleton.joints.empty()) {
 			return;
 		}
-		if (fromTracks.size() != skeleton.joints.size() ||
-			toTracks.size() != skeleton.joints.size()) {
-				return;
-			}
+		if (fromTracks.size() != skeleton.joints.size() || toTracks.size() != skeleton.joints.size()) {
+			return;
+		}
 
 		Joint* joints = skeleton.joints.data();
 		const NodeAnimation* const* fromTrackPtr = fromTracks.data();
 		const NodeAnimation* const* toTrackPtr = toTracks.data();
-		// 各ジョイントに対して、遷移元と遷移先のアニメーションをブレンドして適用するラムダ関数
+		// Jointごとに遷移元と遷移先を評価する
 		auto blendOne = [joints, fromTrackPtr, toTrackPtr, fromTime, toTime, alpha](Joint& joint) {
-
 			const size_t jointIndex = static_cast<size_t>(&joint - joints);
 
-			// ジョイントに対して、対応するノードの遷移元と遷移先のアニメーションをブレンドして適用
+			// 両Clipの対応するTrackを取得する
 			const NodeAnimation* fromTrack = fromTrackPtr[jointIndex];
 			const NodeAnimation* toTrack = toTrackPtr[jointIndex];
 
@@ -166,8 +165,8 @@ namespace Engine::SkeletonPoseEvaluator {
 			joint.transform.translation = Vector3::Lerp(fromT, toT, alpha);
 			joint.transform.rotation = Quaternion::Lerp(fromR, toR, alpha).Normalize();
 			joint.transform.scale = Vector3::Lerp(fromS, toS, alpha);
-			};
-		// ジョイント単位の並列化はスケジューリングのオーバーヘッドが処理本体を上回るため直列で回す
+		};
+		// Joint単位の小さな処理は直列で更新する
 		for (Joint& joint : skeleton.joints) {
 
 			blendOne(joint);
@@ -179,8 +178,8 @@ namespace Engine::SkeletonPoseEvaluator {
 		for (auto& joint : skeleton.joints) {
 
 			// ジョイントのローカル変換行列を作成
-			joint.localMatrix = Matrix4x4::MakeAffineMatrix(joint.transform.scale,
-				joint.transform.rotation, joint.transform.translation);
+			joint.localMatrix =
+				Matrix4x4::MakeAffineMatrix(joint.transform.scale, joint.transform.rotation, joint.transform.translation);
 
 			if (joint.parent.has_value()) {
 
@@ -196,16 +195,15 @@ namespace Engine::SkeletonPoseEvaluator {
 
 		outPalette.resize(skeleton.joints.size());
 
-		// 各ジョイントに対して、GPU用のパレットを構築するラムダ関数
+		// Jointの行列と法線用行列をパレットへ格納する
 		auto buildOne = [&skeleton, &skinCluster, &outPalette](WellForGPU& well) {
-
 			size_t jointIndex = static_cast<size_t>(&well - outPalette.data());
 
-			well.skeletonSpaceMatrix = skinCluster.inverseBindPoseMatrices[jointIndex] *
-				skeleton.joints[jointIndex].skeletonSpaceMatrix;
+			well.skeletonSpaceMatrix =
+				skinCluster.inverseBindPoseMatrices[jointIndex] * skeleton.joints[jointIndex].skeletonSpaceMatrix;
 			well.skeletonSpaceInverseTransposeMatrix = Matrix4x4::Transpose(Matrix4x4::Inverse(well.skeletonSpaceMatrix));
-			};
-		// ジョイント単位の並列化はスケジューリングのオーバーヘッドが処理本体を上回るため直列で回す
+		};
+		// Joint単位の小さな処理は直列で更新する
 		for (WellForGPU& well : outPalette) {
 
 			buildOne(well);

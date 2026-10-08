@@ -15,6 +15,7 @@
 #include <condition_variable>
 #include <exception>
 #include <stdexcept>
+#include <utility>
 
 namespace Engine {
 
@@ -39,16 +40,13 @@ namespace Engine {
 			uint32_t threadCount = 0;
 			bool stopping = false;
 		};
-	public:
-		//============================================================================
-		//	public Methods
-		//============================================================================
+		// ジョブを処理する関数
+		using ProcessFn = std::function<void(T&&, uint32_t workerIndex)>;
+
+		//--------- functions ----------------------------------------------------
 
 		AssetWorkerPool() = default;
 		~AssetWorkerPool();
-
-		// 実行関数オブジェクト
-		using ProcessFn = std::function<void(T&&, uint32_t workerIndex)>;
 
 		// 開始
 		void Start(uint32_t threadCount, ProcessFn process);
@@ -313,4 +311,4 @@ namespace Engine {
 			idleCv_.notify_all();
 		}
 	}
-} // Engine
+}

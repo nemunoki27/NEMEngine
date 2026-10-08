@@ -15,6 +15,8 @@
 
 namespace Engine {
 
+	class FontRenderService;
+
 	//============================================================================
 	//	GraphicsCore class
 	//	グラフィックス全般の管理を行うクラス
@@ -25,8 +27,8 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		GraphicsCore() = default;
-		~GraphicsCore() = default;
+		GraphicsCore();
+		~GraphicsCore();
 
 		// 初期化
 		void Init(bool usesEditorUI);
@@ -62,6 +64,7 @@ namespace Engine {
 		// テクスチャ関連のアクセサ
 		TextureUploadService& GetTextureUploadService() { return *textureUploadService_; }
 		BuiltinTextureLibrary& GetBuiltinTextureLibrary() { return *builtinTextureLibrary_; }
+		FontRenderService& GetFontRenderService() { return *fontRenderService_; }
 
 		// 静的GPUバッファ転送サービスのアクセサ
 		BufferUploadService& GetBufferUploadService() { return *bufferUploadService_; }
@@ -101,6 +104,8 @@ namespace Engine {
 		// GPUテクスチャ
 		std::unique_ptr<TextureUploadService> textureUploadService_;
 		std::unique_ptr<BuiltinTextureLibrary> builtinTextureLibrary_;
+		// Fontの固定画像をTextureサービスより先に解放する
+		std::unique_ptr<FontRenderService> fontRenderService_;
 
 		// 静的GPUバッファ転送サービス
 		std::unique_ptr<BufferUploadService> bufferUploadService_;

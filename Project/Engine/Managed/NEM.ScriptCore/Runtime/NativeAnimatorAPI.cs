@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace NEMEngine;
 
 // Controllerの型付きParameterをNativeへ渡す
@@ -11,7 +9,7 @@ internal static unsafe class NativeAnimatorAPI {
         if (NativeAPI.SetAnimatorParameter == null) {
             return;
         }
-        byte[] bytes = Encoding.UTF8.GetBytes(name + '\0');
+        byte[] bytes = ManagedUTF8Transfer.GetNullTerminatedBytes(name ?? string.Empty);
         fixed (byte* pointer = bytes) {
             if (NativeAPI.SetAnimatorParameter(entity, pointer, type, number, integer) == 0) {
                 Debug.LogWarning($"Controllerに指定型のParameterがありません: {name}");
@@ -26,7 +24,7 @@ internal static unsafe class NativeAnimatorAPI {
         int integerValue = 0;
         if (NativeAPI.GetAnimatorParameter != null) {
 
-            byte[] bytes = Encoding.UTF8.GetBytes(name + '\0');
+            byte[] bytes = ManagedUTF8Transfer.GetNullTerminatedBytes(name ?? string.Empty);
             fixed (byte* pointer = bytes) {
                 if (NativeAPI.GetAnimatorParameter(entity, pointer, type, &floatValue, &integerValue) == 0) {
                     Debug.LogWarning($"Controllerに指定型のParameterがありません: {name}");

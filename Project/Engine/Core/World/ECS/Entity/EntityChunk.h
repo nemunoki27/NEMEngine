@@ -7,14 +7,13 @@
 #include <Engine/Core/Foundation/Utility/AlignedBuffer.h>
 #include <Engine/Core/World/ECS/Config/ECSConfig.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/World/ECS/World/ECSWorldLifetime.h>
 
 // c++
 #include <vector>
 #include <memory>
 #include <cstddef>
 #include <cstdint>
-#include <cassert>
-#include <algorithm>
 #include <span>
 #include <limits>
 
@@ -70,8 +69,12 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit EntityChunk(const EntityChunkLayout* layout);
+		explicit EntityChunk(const EntityChunkLayout& layout, std::shared_ptr<const ECSWorldLifetime> lifetime = {});
 		~EntityChunk();
+		EntityChunk(const EntityChunk&) = delete;
+		EntityChunk& operator=(const EntityChunk&) = delete;
+		EntityChunk(EntityChunk&&) = delete;
+		EntityChunk& operator=(EntityChunk&&) = delete;
 
 		// 新しいエンティティを追加する
 		uint32_t AddEntity(const Entity& entity, uint64_t firstInstanceID);
@@ -93,8 +96,7 @@ namespace Engine {
 		bool HasSpace() const { return GetCount() < GetCapacity(); }
 		// 指定行列のセルへのポインタを返す
 		void* GetRawByColumnIndex(uint32_t columnIndex, uint32_t row);
-		const void* GetRawByColumnIndex(
-			uint32_t columnIndex, uint32_t row) const;
+		const void* GetRawByColumnIndex(uint32_t columnIndex, uint32_t row) const;
 		// 指定列の先頭ポインタを返す
 		void* GetColumnDataByColumnIndex(uint32_t columnIndex);
 		// 指定行列の有効状態を設定する
@@ -108,13 +110,13 @@ namespace Engine {
 		// 所持しているエンティティ数
 		uint32_t GetCount() const { return count_; }
 		// 格納できるエンティティ数
-		uint32_t GetCapacity() const { return layout_->capacity; }
+		uint32_t GetCapacity() const { return layout_.capacity; }
 		// 所持しているエンティティ
 		std::span<const Entity> GetEntities() const;
 		// メモリ統計用の確保状態
-		bool IsAllocated() const { return storage_.ptr != nullptr; }
-		size_t GetAllocatedBytes() const { return IsAllocated() ? layout_->bytes : 0; }
-		size_t GetPayloadBytes() const { return layout_->GetPayloadBytes(count_); }
+		bool IsAllocated() const { return storage_.GetData() != nullptr; }
+		size_t GetAllocatedBytes() const { return IsAllocated() ? layout_.bytes : 0; }
+		size_t GetPayloadBytes() const { return layout_.GetPayloadBytes(count_); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -123,13 +125,18 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// アーキタイプが所有する共有配置
-		const EntityChunkLayout* layout_ = nullptr;
+		const EntityChunkLayout& layout_;
+		// 操作元のWorldの終了状態
+		std::shared_ptr<const ECSWorldLifetime> lifetime_;
 		// エンティティ列とコンポーネント列をまとめて保持する単一バッファ
 		AlignedBuffer storage_;
 		// 同じアーキタイプのエンティティ数
 		uint32_t count_ = 0;
 
 		//--------- functions ----------------------------------------------------
+
+		// 構築と破棄から戻った後の継続を検証する
+		void CheckWorldAlive() const;
 
 		// 構築済みのセルだけを破棄する
 		void DestroyCell(uint32_t columnIndex, uint32_t row);

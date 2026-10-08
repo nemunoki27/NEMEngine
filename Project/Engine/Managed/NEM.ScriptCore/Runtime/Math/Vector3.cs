@@ -65,7 +65,7 @@ public struct Vector3 : IEquatable<Vector3> {
 
     // ベクトルを正規化する
     public static Vector3 Normalize(Vector3 value) {
-        // 0除算を避けるため、十分小さい値は0ベクトルとして扱う
+        // 微小ベクトルはゼロを返す
         float len = Magnitude(value);
         return len <= 1e-5f ? zero : value / len;
     }
@@ -81,12 +81,14 @@ public struct Vector3 : IEquatable<Vector3> {
     );
 
     // 線形補間
-    public static Vector3 Lerp(Vector3 lhs, Vector3 rhs, float t) => new(Mathf.Lerp(lhs.x, rhs.x, t), Mathf.Lerp(lhs.y, rhs.y, t), Mathf.Lerp(lhs.z, rhs.z, t));
+    public static Vector3 Lerp(Vector3 lhs, Vector3 rhs, float t) =>
+        new(Mathf.Lerp(lhs.x, rhs.x, t), Mathf.Lerp(lhs.y, rhs.y, t), Mathf.Lerp(lhs.z, rhs.z, t));
 
     // 成分ごとの補間率で線形補間
-    public static Vector3 Lerp(Vector3 lhs, Vector3 rhs, Vector3 t) => new(Mathf.Lerp(lhs.x, rhs.x, t.x), Mathf.Lerp(lhs.y, rhs.y, t.y), Mathf.Lerp(lhs.z, rhs.z, t.z));
+    public static Vector3 Lerp(Vector3 lhs, Vector3 rhs, Vector3 t) =>
+        new(Mathf.Lerp(lhs.x, rhs.x, t.x), Mathf.Lerp(lhs.y, rhs.y, t.y), Mathf.Lerp(lhs.z, rhs.z, t.z));
 
-    // inputをnormalに反射させたベクトルを返す
+    // 法線を基準にベクトルを反射
     public static Vector3 Reflect(Vector3 input, Vector3 normal) => input - normal * (2.0f * Dot(input, normal));
 
     // 2点間の距離を返す
@@ -95,7 +97,7 @@ public struct Vector3 : IEquatable<Vector3> {
     // 長さの二乗を返す、平方根を避けたい距離比較用
     public static float SqrMagnitude(Vector3 value) => Dot(value, value);
 
-    // 2ベクトルのなす角(度)を返す
+    // ベクトル間の角度を度数で返す
     public static float Angle(Vector3 lhs, Vector3 rhs) {
         float denom = Magnitude(lhs) * Magnitude(rhs);
         if (denom < 1e-15f) {
@@ -104,13 +106,13 @@ public struct Vector3 : IEquatable<Vector3> {
         return Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(Dot(lhs, rhs) / denom, -1.0f, 1.0f)));
     }
 
-    // 長さがmaxLengthを超えないようにクランプする
+    // ベクトルの長さを上限へ収める
     public static Vector3 ClampMagnitude(Vector3 value, float maxLength) {
         float len = Magnitude(value);
         return len > maxLength && len > 0.0f ? value / len * maxLength : value;
     }
 
-    // currentからtargetへmaxDistanceDeltaを上限に近づける
+    // 指定距離を上限に目標へ近づける
     public static Vector3 MoveTowards(Vector3 current, Vector3 target, float maxDistanceDelta) {
         Vector3 diff = target - current;
         float dist = Magnitude(diff);
@@ -124,7 +126,8 @@ public struct Vector3 : IEquatable<Vector3> {
     public static Vector3 LerpUnclamped(Vector3 lhs, Vector3 rhs, float t) => lhs + (rhs - lhs) * t;
 
     // 近似比較
-    public static bool NearlyEqual(Vector3 lhs, Vector3 rhs) => Mathf.NearlyEqual(lhs.x, rhs.x) && Mathf.NearlyEqual(lhs.y, rhs.y) && Mathf.NearlyEqual(lhs.z, rhs.z);
+    public static bool NearlyEqual(Vector3 lhs, Vector3 rhs) =>
+        Mathf.NearlyEqual(lhs.x, rhs.x) && Mathf.NearlyEqual(lhs.y, rhs.y) && Mathf.NearlyEqual(lhs.z, rhs.z);
 
     // アングルを参照角度に最も近い360度系へ寄せる
     public static Vector3 MakeContinuousDegrees(Vector3 rawEuler, Vector3 referenceEuler) => new(
@@ -133,28 +136,28 @@ public struct Vector3 : IEquatable<Vector3> {
         Mathf.MakeContinuousAngleDegrees(rawEuler.z, referenceEuler.z)
     );
 
-    // onNormal方向への射影
+    // 指定方向へベクトルを射影
     public static Vector3 Project(Vector3 value, Vector3 onNormal) {
         float sqr = Dot(onNormal, onNormal);
         return sqr < 1e-12f ? zero : onNormal * (Dot(value, onNormal) / sqr);
     }
 
-    // planeNormalを法線とする平面への射影、normal成分を取り除く
+    // 法線方向の成分を除いて平面へ射影
     public static Vector3 ProjectOnPlane(Vector3 value, Vector3 planeNormal) => value - Project(value, planeNormal);
 
-    // axis周りで測ったfromからtoへの符号付き角度(度)
+    // 指定軸を基準に符号付き角度を返す
     public static float SignedAngle(Vector3 from, Vector3 to, Vector3 axis) {
         float sign = Dot(axis, Cross(from, to)) < 0.0f ? -1.0f : 1.0f;
         return Angle(from, to) * sign;
     }
 
-    // 球面線形補間、向きと長さを別々に補間する
+    // 向きと長さを球面補間
     public static Vector3 Slerp(Vector3 lhs, Vector3 rhs, float t) => SlerpUnclamped(lhs, rhs, Mathf.Clamp01(t));
 
     public static Vector3 SlerpUnclamped(Vector3 lhs, Vector3 rhs, float t) {
         float lenL = Magnitude(lhs);
         float lenR = Magnitude(rhs);
-        // どちらかが0なら球面補間できないので線形補間へ退避する
+        // ゼロ方向は線形補間へ戻す
         if (lenL < 1e-6f || lenR < 1e-6f) {
             return LerpUnclamped(lhs, rhs, t);
         }
@@ -171,11 +174,11 @@ public struct Vector3 : IEquatable<Vector3> {
         return dir * Mathf.LerpUnclamped(lenL, lenR, t);
     }
 
-    // 減衰しながらtargetへ滑らかに近づける、currentVelocityは呼び出し側で保持する
+    // 速度を更新して目標へ滑らかに追従
     public static Vector3 SmoothDamp(Vector3 current, Vector3 target, ref Vector3 currentVelocity,
         float smoothTime, float maxSpeed, float deltaTime) {
 
-        // 臨界減衰ばねによる追従、Game Programming Gems 4 の式
+        // 臨界減衰ばねで追従
         smoothTime = Mathf.Max(0.0001f, smoothTime);
         float omega = 2.0f / smoothTime;
         float x = omega * deltaTime;
@@ -196,7 +199,7 @@ public struct Vector3 : IEquatable<Vector3> {
         currentVelocity = (currentVelocity - temp * omega) * exp;
         Vector3 output = target + (change + temp) * exp;
 
-        // 目標を行き過ぎたら張り付かせて振動を防ぐ
+        // 行き過ぎた値を目標へ戻す
         if (Dot(originalTo - current, output - originalTo) > 0.0f) {
             output = originalTo;
             currentVelocity = (output - originalTo) / deltaTime;
@@ -204,11 +207,12 @@ public struct Vector3 : IEquatable<Vector3> {
         return output;
     }
 
-    // deltaTime省略版、フレーム間秒数を自動で使う
+    // 省略時はフレーム間隔を使用
     public static Vector3 SmoothDamp(Vector3 current, Vector3 target, ref Vector3 currentVelocity, float smoothTime)
         => SmoothDamp(current, target, ref currentVelocity, smoothTime, Mathf.Infinity, Time.deltaTime);
 
-    public static Vector3 SmoothDamp(Vector3 current, Vector3 target, ref Vector3 currentVelocity, float smoothTime, float maxSpeed)
+    public static Vector3 SmoothDamp(Vector3 current, Vector3 target, ref Vector3 currentVelocity,
+        float smoothTime, float maxSpeed)
         => SmoothDamp(current, target, ref currentVelocity, smoothTime, maxSpeed, Time.deltaTime);
 
     public void Normalize() { this = Normalize(this); }

@@ -6,6 +6,7 @@
 #include "TextureImportSettings.h"
 
 #include <string>
+#include <memory>
 
 namespace Engine {
 
@@ -14,6 +15,8 @@ namespace Engine {
 
 		std::string key;
 		std::string assetPath;
+		// 世代を固定した画像はファイルを再取得しない
+		std::shared_ptr<const std::string> snapshotBytes;
 
 		// .metaから解決した取り込み設定
 		TextureImportSettings importSettings{};

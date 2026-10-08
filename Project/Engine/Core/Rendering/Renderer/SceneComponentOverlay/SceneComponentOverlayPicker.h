@@ -17,8 +17,12 @@ namespace Engine {
 	//============================================================================
 	class SceneComponentOverlayPicker {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		// SceneView座標のマウス位置からOverlayをEntity単位で選択する
-		bool Pick(ECSWorld* world, const ResolvedRenderView& view,
+		bool Pick(const ECSWorld* world, const ResolvedRenderView& view,
 			const Vector2& inputPixel, Entity& outEntity) const;
 	};
 }

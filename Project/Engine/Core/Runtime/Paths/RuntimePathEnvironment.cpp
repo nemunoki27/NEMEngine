@@ -3,8 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <cstdlib>
-#include <Windows.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 namespace Engine::RuntimePathDetail {
 
@@ -26,14 +25,12 @@ namespace Engine::RuntimePathDetail {
 
 	std::filesystem::path FindEngineProjectRootFromEnvironment() {
 
-		wchar_t* root = nullptr;
-		size_t rootLength = 0;
-		if (_wdupenv_s(&root, &rootLength, L"NEMENGINE_ROOT") != 0 || root == nullptr) {
+		// 環境で指定されたEngineの配置を解決
+		const auto root = Algorithm::GetEnvironmentPath(L"NEMENGINE_ROOT");
+		if (root.empty()) {
 			return {};
 		}
-
 		std::filesystem::path result = MakeEngineProjectRoot(root);
-		std::free(root);
 		if (!result.empty()) {
 			return result;
 		}
@@ -70,19 +67,9 @@ namespace Engine::RuntimePathDetail {
 
 	std::filesystem::path GetExecutablePath() {
 
-		std::vector<wchar_t> buffer(MAX_PATH);
-		for (;;) {
-
-			const DWORD length = ::GetModuleFileNameW(
-				nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-			if (length == 0) {
-				return {};
-			}
-			if (length < buffer.size() - 1) {
-				return NormalizePath(std::filesystem::path(buffer.data(), buffer.data() + length));
-			}
-			buffer.resize(buffer.size() * 2);
-		}
+		// OSから取得した配置パスを正規化
+		const auto executable = Algorithm::GetExecutablePath();
+		return executable.empty() ? std::filesystem::path{} : NormalizePath(executable);
 	}
 
 	std::filesystem::path FindGameRoot(const std::filesystem::path& descriptorPath) {
@@ -95,14 +82,7 @@ namespace Engine::RuntimePathDetail {
 
 	std::filesystem::path GetEnvironmentPath(const wchar_t* name) {
 
-		wchar_t* value = nullptr;
-		size_t length = 0;
-		if (_wdupenv_s(&value, &length, name) != 0 || !value) {
-			return {};
-		}
-		std::filesystem::path result(value);
-		std::free(value);
-		return result;
+		return Algorithm::GetEnvironmentPath(name);
 	}
 
 	std::filesystem::path BuildUserSettingsRoot(const std::filesystem::path& gameRoot,
@@ -113,12 +93,9 @@ namespace Engine::RuntimePathDetail {
 			return NormalizePath(explicitRoot / projectGUID);
 		}
 
-		wchar_t* portable = nullptr;
-		size_t portableLength = 0;
-		const bool usePortable = _wdupenv_s(&portable, &portableLength,
-			L"NEMENGINE_PORTABLE") == 0 && portable &&
-		(std::wstring_view(portable) == L"1" || std::wstring_view(portable) == L"true");
-		std::free(portable);
+		// Portable設定はProject内の保存先を使用
+		const auto portable = Algorithm::GetEnvironmentPath(L"NEMENGINE_PORTABLE");
+		const bool usePortable = portable.native() == L"1" || portable.native() == L"true";
 		if (usePortable) {
 			return gameRoot / "UserSettings";
 		}

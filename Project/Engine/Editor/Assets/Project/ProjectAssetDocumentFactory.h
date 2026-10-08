@@ -5,9 +5,6 @@
 //============================================================================
 #include "ProjectAssetFileTypes.h"
 
-#include <utility>
-#include <vector>
-
 namespace Engine::ProjectAssetDocumentFactory {
 
 	// ファイル作成用の拡張子を取得する
@@ -16,8 +13,8 @@ namespace Engine::ProjectAssetDocumentFactory {
 	// 作成するファイルの中身を構築する
 	std::string BuildFileContent(ProjectAssetFileKind kind, const std::string& assetName);
 
-	// 作成したテキストファイルを書き出す
-	bool WriteTextFile(const std::filesystem::path& path, const std::string& content);
+	// 既存ファイルを置き換えず新しい文書を作成する
+	bool CreateTextFile(const std::filesystem::path& path, const std::string& content);
 
 	// ゲームスクリプトのルート名前空間をcsprojから取得する
 	std::string LoadGameScriptRootNamespace();

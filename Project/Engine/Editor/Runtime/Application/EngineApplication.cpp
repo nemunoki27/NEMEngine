@@ -34,9 +34,9 @@ using namespace Engine;
 
 void Engine::EngineApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {
 
-	ApplicationPreloadContext context{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+	ApplicationPreloadContext context{assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
 		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
-		[this]() { RefreshActiveWorldContext(); } };
+		[this]() { RefreshActiveWorldContext(); }};
 	if (ApplicationPreloader::Run(graphicsCore, context, true)) {
 		requestFrameDeltaReset_ = true;
 		playSession_->SetJustStarted();
@@ -99,24 +99,17 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 		float rawDelta = (!skipFirstAdvance && ShouldAdvanceActiveWorld()) ? deltaTime : 0.0f;
 		systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(rawDelta, systemContext_.fixedDeltaTime, advancePlayTime);
 		systemContext_.unscaledDeltaTime = rawDelta;
-		const float timeDelta = systemContext_.mode == WorldMode::Play ?
-			systemContext_.deltaTime : rawDelta;
+		const float timeDelta = systemContext_.mode == WorldMode::Play ? systemContext_.deltaTime : rawDelta;
 		systemContext_.time += timeDelta;
 		systemContext_.unscaledTime += rawDelta;
 		if (0.0f < rawDelta) {
-			const float smoothWeight =
-				(std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
+			const float smoothWeight = (std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
 			systemContext_.smoothDeltaTime =
-				systemContext_.smoothDeltaTime <= 0.0f ?
-				timeDelta :
-				systemContext_.smoothDeltaTime +
-				(timeDelta - systemContext_.smoothDeltaTime) *
-				smoothWeight;
+				systemContext_.smoothDeltaTime <= 0.0f
+					? timeDelta
+					: systemContext_.smoothDeltaTime + (timeDelta - systemContext_.smoothDeltaTime) * smoothWeight;
 		}
 	}
-
-	ECSWorld* world = systemContext_.world;
-	const SceneHeader* header = systemContext_.activeSceneHeader;
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 
@@ -149,40 +142,47 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	if (ShouldAdvanceActiveWorld()) {
 
 		FrameProfiler::ScopedSample ecsSample(FrameProfiler::Category::ECS);
-			// callback後の安全地点でScript例外によるPauseを反映する
+		// callback後の安全地点でScript例外によるPauseを反映する
 		const bool playingThisTick = worldManager_.IsPlaying();
-		const uint64_t sceneRevisionBeforeTick = playingThisTick ?
-			playScenes_.GetRevision() : 0;
-		const uint64_t scriptExceptionVersion = playingThisTick ?
-			ManagedScriptExceptionStore::GetInstance().Version() : 0;
+		const uint64_t sceneRevisionBeforeTick = playingThisTick ? playScenes_.GetRevision() : 0;
+		const uint64_t scriptExceptionSequence = ManagedScriptExceptionStore::GetInstance().ReportSequence();
+		const bool pauseOnScriptError =
+			BuildConfig::kEditorEnabled && playingThisTick && editorManager_.GetLayoutState().pauseOnScriptError;
+		// 更新中だけ例外の受入順を中断条件として接続する
+		systemContext_.updateInterruption = {};
+		if (pauseOnScriptError) {
+
+			systemContext_.updateInterruption = [scriptExceptionSequence] {
+				return ManagedScriptExceptionStore::GetInstance().ReportSequence() != scriptExceptionSequence;
+			};
+		}
 		auto& scriptProfiler = ScriptProfiler::GetInstance();
 		scriptProfiler.BeginFrame();
 		scheduler_.Tick(GetActiveWorld(), systemContext_);
+		systemContext_.updateInterruption = {};
 		scriptProfiler.EndFrame();
 		if (playingThisTick && sceneRevisionBeforeTick != playScenes_.GetRevision()) {
 
+			// Scene変更後のEditor参照も同じframeで更新する
+			RefreshActiveWorldContext();
 			// 同期シーン読み込みに使った時間を次のPlayフレームへ持ち越さない
 			requestFrameDeltaReset_ = true;
 			scriptProfiler.Configure(scriptProfiler.IsEnabled(), {}, 0);
 		}
-		if (playingThisTick && editorManager_.GetLayoutState().pauseOnScriptError &&
-			ManagedScriptExceptionStore::GetInstance().Version() != scriptExceptionVersion) {
+		if (pauseOnScriptError && ManagedScriptExceptionStore::GetInstance().ReportSequence() != scriptExceptionSequence) {
 
 			playSession_->PauseForScriptException();
 		}
 	}
 	// Script例外による停止も、安全地点でゲーム音声へ反映する
-	ApplicationPreloadContext preload{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+	ApplicationPreloadContext preload{assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
 		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
-		[this]() { RefreshActiveWorldContext(); } };
-	if (ApplicationPreloader::ProcessRequests(graphicsCore, preload)) { requestFrameDeltaReset_ = true; }
-	Audio::GetInstance()->SetGamePauseReason(AudioPauseReason::Editor,
-		worldManager_.IsPlaying() && playSession_->IsPaused());
-	if (HandleApplicationQuitRequest()) {
-
-		world = systemContext_.world;
-		header = systemContext_.activeSceneHeader;
+		[this]() { RefreshActiveWorldContext(); }};
+	if (ApplicationPreloader::ProcessRequests(graphicsCore, preload)) {
+		requestFrameDeltaReset_ = true;
 	}
+	Audio::GetInstance()->SetGamePauseReason(AudioPauseReason::Editor, worldManager_.IsPlaying() && playSession_->IsPaused());
+	HandleApplicationQuitRequest();
 	if (playSession_->IsFrameStepRequested()) {
 
 		playSession_->FinishFrameStep();
@@ -193,12 +193,15 @@ void Engine::EngineApplication::Tick(GraphicsCore& graphicsCore, float deltaTime
 	if constexpr (BuildConfig::kEditorEnabled) {
 		if (!editorManager_.GetLayoutState().hidePanels) {
 
+			// Toolの更新中はScene情報の世代を保持する
+			ECSWorld* world = systemContext_.world;
+			const auto sceneHeader = systemContext_.GetActiveSceneHeaderSnapshot();
 			ToolContext toolContext{};
 			toolContext.world = world;
 			toolContext.assetDatabase = &assetDatabase_;
 			toolContext.systemContext = &systemContext_;
 			toolContext.sceneInstances = editorContext_.sceneInstances;
-			toolContext.activeSceneHeader = header;
+			toolContext.activeSceneHeader = sceneHeader.get();
 			toolContext.activeSceneAsset = editorContext_.activeSceneAsset;
 			toolContext.activeSceneInstanceID = editorContext_.activeSceneInstanceID;
 			toolContext.activeScenePath = activeScenePath_;
@@ -267,10 +270,11 @@ void Engine::EngineApplication::RenderPlatformWindows([[maybe_unused]] GraphicsC
 	}
 }
 
-const Engine::RenderTexture2D* Engine::EngineApplication::GetRenderedViewTexture(RenderViewKind kind, const std::string& attachment) const {
+const Engine::RenderTexture2D* Engine::EngineApplication::GetRenderedViewTexture(
+	RenderViewKind kind, const std::string& attachment) const {
 
-	return attachment.empty() ? renderPipeline_->GetViewportRenderService().GetDisplayTexture(kind) :
-		renderPipeline_->FindViewColorTexture(kind, attachment);
+	return attachment.empty() ? renderPipeline_->GetViewportRenderService().GetDisplayTexture(kind)
+							  : renderPipeline_->FindViewColorTexture(kind, attachment);
 }
 
 int Engine::RunEditorApplication() {
@@ -279,7 +283,6 @@ int Engine::RunEditorApplication() {
 	const DWORD benchmarkLength = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK", benchmarkPath, 32768);
 	const bool benchmarkRequested = benchmarkLength != 0 && benchmarkLength < 32768;
 	auto reportFailure = [benchmarkRequested](const char* message) {
-
 		// 自動計測はダイアログ待ちにせず終了コードと診断を返す
 		if (benchmarkRequested) {
 			std::fprintf(stderr, "%s\n", message);
@@ -364,8 +367,7 @@ Engine::SceneSaveOutcome Engine::EngineApplication::SaveAllEditScenes(
 
 	const SceneSaveOutcome outcome = sceneSaveController_->SaveAllEditScenes(selectedInstances);
 	if (outcome == SceneSaveOutcome::Conflict) {
-		const std::vector<SceneSaveConflictChoice> conflicts =
-			sceneSaveController_->ConsumePendingConflicts();
+		const std::vector<SceneSaveConflictChoice> conflicts = sceneSaveController_->ConsumePendingConflicts();
 		if (!conflicts.empty()) {
 			// 保存元が決まるまでSceneファイルを書き換えない
 			editorManager_.RequestSceneSaveConflict(conflicts);
@@ -422,37 +424,16 @@ Engine::RenderFrameRequest Engine::EngineApplication::BuildRenderFrameRequest(
 
 Engine::EngineApplication::EngineApplication() {
 
-	prefabSession_ = std::make_unique<PrefabEditSession>(assetDatabase_,
-		worldManager_,
-		editScenes_,
-		playScenes_,
-		scheduler_,
-		systemContext_,
-		editorManager_);
-	sceneSaveController_ = std::make_unique<SceneSaveController>(assetDatabase_,
-		worldManager_,
-		editScenes_,
-		sceneSystem_,
-		editorManager_,
-		[this]() { RestoreEditModeUIVisuals(); });
-	playSession_ = std::make_unique<EditorPlaySession>(assetDatabase_,
-		worldManager_,
-		editScenes_,
-		playScenes_,
-		sceneSystem_,
-		scheduler_,
-		systemContext_,
-		editorManager_,
-		runtimeWorldBaker_,
-		scriptBuildService_,
-		requestFrameDeltaReset_,
-		[this]() { return IsPrefabEditing(); },
-		[this]() { SaveScenesAndContinue({ EditorSceneSaveAction::Play, {} }); },
-		[this]() { RefreshActiveWorldContext(); });
-	renderRequestBuilder_ = std::make_unique<EditorRenderRequestBuilder>(systemContext_,
-		assetDatabase_,
-		editorManager_,
-		worldManager_);
+	prefabSession_ = std::make_unique<PrefabEditSession>(
+		assetDatabase_, worldManager_, editScenes_, playScenes_, scheduler_, systemContext_, editorManager_);
+	sceneSaveController_ = std::make_unique<SceneSaveController>(
+		assetDatabase_, worldManager_, editScenes_, sceneSystem_, editorManager_, [this]() { RestoreEditModeUIVisuals(); });
+	playSession_ = std::make_unique<EditorPlaySession>(
+		assetDatabase_, worldManager_, editScenes_, playScenes_, sceneSystem_, scheduler_, systemContext_, editorManager_,
+		runtimeWorldBaker_, scriptBuildService_, requestFrameDeltaReset_, [this]() { return IsPrefabEditing(); },
+		[this]() { SaveScenesAndContinue({EditorSceneSaveAction::Play, {}}); }, [this]() { RefreshActiveWorldContext(); });
+	renderRequestBuilder_ =
+		std::make_unique<EditorRenderRequestBuilder>(systemContext_, assetDatabase_, editorManager_, worldManager_);
 }
 
 Engine::EngineApplication::~EngineApplication() = default;

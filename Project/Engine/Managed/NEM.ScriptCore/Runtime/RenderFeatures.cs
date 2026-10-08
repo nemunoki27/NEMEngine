@@ -1,8 +1,8 @@
 namespace NEMEngine;
 
 //============================================================================
-//	RenderPassesPass struct
-//	Render Passes内の描画Passへ実行時オーバーライドを設定する
+//    RenderPassesPass struct
+//    Render Passes内の描画Passへ実行時オーバーライドを設定する
 //============================================================================
 public readonly struct RenderPassesPass {
 
@@ -15,16 +15,16 @@ public readonly struct RenderPassesPass {
     }
 
     // Profile切替後の古いハンドルを含めて現在操作可能な場合にtrueを返す
-    public bool isValid => NativeAPI.ValidateRenderFeaturePassValue(
+    public bool isValid => NativeRenderingAPI.ValidateRenderFeaturePassValue(
         passID, generation);
 
     public bool SetEnabled(bool enabled) =>
-        NativeAPI.WriteRenderFeaturePassEnabled(
+        NativeRenderingAPI.WriteRenderFeaturePassEnabled(
             passID, generation, enabled);
 
     // 同じ実行位置のSceneColor出力をこのパスへ切り替える
     public bool SetSceneColorOutput(bool enabled) =>
-        NativeAPI.WriteRenderFeaturePassSceneColorOutput(passID, generation, enabled);
+        NativeRenderingAPI.WriteRenderFeaturePassSceneColorOutput(passID, generation, enabled);
 
     public bool SetFloat(string name, float value) =>
         SetFloat(MaterialParameterID.FromName(name), name, value);
@@ -207,31 +207,31 @@ public readonly struct RenderPassesPass {
         ClearParameter(MaterialParameterID.FromName(name));
 
     public bool ClearParameter(MaterialParameterID id) =>
-        NativeAPI.ClearRenderFeaturePassParameterValue(
+        NativeRenderingAPI.ClearRenderFeaturePassParameterValue(
             passID, generation, id.value);
 
     public bool Reset() =>
-        NativeAPI.ResetRenderFeaturePassValue(passID, generation);
+        NativeRenderingAPI.ResetRenderFeaturePassValue(passID, generation);
 
     private bool Set(
         MaterialParameterID id, string name,
         NativeMaterialParameterValue value) {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
-        return NativeAPI.WriteRenderFeaturePassParameter(
+        return NativeRenderingAPI.WriteRenderFeaturePassParameter(
             passID, generation, id.value, name, value);
     }
 
     private bool TryGet(
         MaterialParameterID id,
         out NativeMaterialParameterValue value) =>
-        NativeAPI.ReadRenderFeaturePassParameter(
+        NativeRenderingAPI.ReadRenderFeaturePassParameter(
             passID, generation, id.value, out value);
 }
 
 //============================================================================
-//	RenderPasses class
-//	Main CameraのRender Passesへ実行時オーバーライドを設定する
+//    RenderPasses class
+//    Main CameraのRender Passesへ実行時オーバーライドを設定する
 //============================================================================
 public static class RenderPasses {
 
@@ -260,7 +260,7 @@ public static class RenderPasses {
 
     // Profile内の表示名と一致するグループの有効状態を変更する
     public static bool SetGroupEnabled(string groupName, bool enabled) =>
-        NativeAPI.WriteRenderFeatureGroupEnabled(groupName, enabled);
+        NativeRenderingAPI.WriteRenderFeatureGroupEnabled(groupName, enabled);
 
     public static bool SetFloat(string passName, string name, float value) =>
         FindPass(passName).SetFloat(name, value);
@@ -336,5 +336,5 @@ public static class RenderPasses {
 
     // 全Passの実行時変更をProfileの保存値へ戻す
     public static void ResetAll() =>
-        NativeAPI.ResetAllRenderFeatureOverrides();
+        NativeRenderingAPI.ResetAllRenderFeatureOverrides();
 }

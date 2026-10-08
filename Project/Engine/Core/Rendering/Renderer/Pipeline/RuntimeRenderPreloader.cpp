@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Registry/RenderBackendRegistry.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
+#include <Engine/Core/Rendering/Assets/FontRenderService.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingPipelineStateCache.h>
@@ -138,7 +139,7 @@ void Engine::RuntimeRenderPreloader::Preload(GraphicsCore& graphicsCore, AssetDa
 			if (Algorithm::EndsWith(path, ".font.json") ||
 				Algorithm::EndsWith(path, ".msdf.json") ||
 				Algorithm::EndsWith(path, ".font")) {
-				context.assetLibrary.LoadFont(meta->guid);
+				graphicsCore.GetFontRenderService().Resolve(context.assetLibrary, meta->guid);
 			}
 			break;
 		}

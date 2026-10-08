@@ -14,8 +14,7 @@ namespace Engine {
 	//	SetTransformCommand class
 	//	トランスフォームのセットコマンド
 	//============================================================================
-	class SetTransformCommand :
-		public IEditorCommand {
+	class SetTransformCommand : public IEditorCommand {
 	public:
 		//============================================================================
 		//	public Methods
@@ -28,7 +27,7 @@ namespace Engine {
 		// コマンドの実行
 		bool Execute(EditorCommandContext& context) override;
 
-		// Undo / Redoを実行
+		// UndoとRedoを実行
 		void Undo(EditorCommandContext& context) override;
 		bool Redo(EditorCommandContext& context) override;
 
@@ -46,11 +45,15 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 初回実行時の対象
 		Entity initialTarget_ = Entity::Null();
 
+		// UndoとRedoで解決する対象UUID
 		UUID targetStableUUID_{};
 
+		// 変更前のTransform
 		TransformComponent beforeTransform_{};
+		// 変更後のTransform
 		TransformComponent afterTransform_{};
 
 		//--------- functions ----------------------------------------------------

@@ -12,7 +12,7 @@
 //============================================================================
 Engine::Quaternion Engine::QuaternionFromRotationMatrixRowVector(const Matrix4x4& rowVectorMatrix) {
 
-	// row-vector行列なので、標準的なcolumn-vector変換式を使うために転置して読む
+	// 行ベクトル行列を列ベクトルの変換式へ合わせる
 	const float m00 = rowVectorMatrix.m[0][0];
 	const float m01 = rowVectorMatrix.m[1][0];
 	const float m02 = rowVectorMatrix.m[2][0];
@@ -86,8 +86,8 @@ Engine::AffineDecompositionResult Engine::DecomposeAffine3DResult(
 	scale.y = std::hypot(axisY.x, axisY.y, axisY.z);
 	scale.z = std::hypot(axisZ.x, axisZ.y, axisZ.z);
 
-	if (!std::isfinite(scale.x) || !std::isfinite(scale.y) || !std::isfinite(scale.z) ||
-		scale.x <= kEps || scale.y <= kEps || scale.z <= kEps) {
+	if (!std::isfinite(scale.x) || !std::isfinite(scale.y) || !std::isfinite(scale.z) || scale.x <= kEps || scale.y <= kEps ||
+		scale.z <= kEps) {
 		return AffineDecompositionResult::Failed;
 	}
 
@@ -106,16 +106,22 @@ Engine::AffineDecompositionResult Engine::DecomposeAffine3DResult(
 	}
 
 	Matrix4x4 rotationMatrix = Matrix4x4::Identity();
-	rotationMatrix.m[0][0] = axisX.x; rotationMatrix.m[0][1] = axisX.y; rotationMatrix.m[0][2] = axisX.z;
-	rotationMatrix.m[1][0] = axisY.x; rotationMatrix.m[1][1] = axisY.y; rotationMatrix.m[1][2] = axisY.z;
-	rotationMatrix.m[2][0] = axisZ.x; rotationMatrix.m[2][1] = axisZ.y; rotationMatrix.m[2][2] = axisZ.z;
+	rotationMatrix.m[0][0] = axisX.x;
+	rotationMatrix.m[0][1] = axisX.y;
+	rotationMatrix.m[0][2] = axisX.z;
+	rotationMatrix.m[1][0] = axisY.x;
+	rotationMatrix.m[1][1] = axisY.y;
+	rotationMatrix.m[1][2] = axisY.z;
+	rotationMatrix.m[2][0] = axisZ.x;
+	rotationMatrix.m[2][1] = axisZ.y;
+	rotationMatrix.m[2][2] = axisZ.z;
 
 	// 分解が成立してから出力を更新する
 	outRotation = QuaternionFromRotationMatrixRowVector(rotationMatrix);
 	outPos = matrix.GetTranslationValue();
 	outScale = scale;
-	const bool approximate = std::abs(Vector3::Dot(axisX, axisY)) > kEps ||
-		std::abs(Vector3::Dot(axisY, axisZ)) > kEps || std::abs(Vector3::Dot(axisZ, axisX)) > kEps;
+	const bool approximate = std::abs(Vector3::Dot(axisX, axisY)) > kEps || std::abs(Vector3::Dot(axisY, axisZ)) > kEps ||
+							 std::abs(Vector3::Dot(axisZ, axisX)) > kEps;
 	return approximate ? AffineDecompositionResult::Approximate : AffineDecompositionResult::Exact;
 }
 
@@ -135,23 +141,28 @@ Engine::Matrix4x4 Engine::BuildParentFollowMatrix(const Matrix4x4& parentWorld, 
 	const Vector3 axisX(parentWorld.m[0][0], parentWorld.m[0][1], parentWorld.m[0][2]);
 	const Vector3 axisY(parentWorld.m[1][0], parentWorld.m[1][1], parentWorld.m[1][2]);
 	const Vector3 axisZ(parentWorld.m[2][0], parentWorld.m[2][1], parentWorld.m[2][2]);
-	const float scaleX = axisX.Length();
-	const float scaleY = axisY.Length();
-	const float scaleZ = axisZ.Length();
 
-	// 回転無視ならワールド軸、そうでなければ正規化した軸方向を使う
-	const Vector3 dirX = ignoreRotation ? Vector3(1.0f, 0.0f, 0.0f) : (scaleX > 1e-6f ? axisX / scaleX : Vector3(1.0f, 0.0f, 0.0f));
-	const Vector3 dirY = ignoreRotation ? Vector3(0.0f, 1.0f, 0.0f) : (scaleY > 1e-6f ? axisY / scaleY : Vector3(0.0f, 1.0f, 0.0f));
-	const Vector3 dirZ = ignoreRotation ? Vector3(0.0f, 0.0f, 1.0f) : (scaleZ > 1e-6f ? axisZ / scaleZ : Vector3(0.0f, 0.0f, 1.0f));
-	// スケール無視なら等倍
-	const float useX = ignoreScale ? 1.0f : scaleX;
-	const float useY = ignoreScale ? 1.0f : scaleY;
-	const float useZ = ignoreScale ? 1.0f : scaleZ;
+	// 巨大な軸でも向きを保って正規化
+	const Vector3 dirX = ignoreRotation ? Vector3(1, 0, 0) : Vector3::NormalizeOr(axisX, {1, 0, 0}, 1e-6f);
+	const Vector3 dirY = ignoreRotation ? Vector3(0, 1, 0) : Vector3::NormalizeOr(axisY, {0, 1, 0}, 1e-6f);
+	const Vector3 dirZ = ignoreRotation ? Vector3(0, 0, 1) : Vector3::NormalizeOr(axisZ, {0, 0, 1}, 1e-6f);
+	// 継承する軸の長さだけを計算
+	const float useX = ignoreScale ? 1.0f : std::hypot(axisX.x, axisX.y, axisX.z);
+	const float useY = ignoreScale ? 1.0f : std::hypot(axisY.x, axisY.y, axisY.z);
+	const float useZ = ignoreScale ? 1.0f : std::hypot(axisZ.x, axisZ.y, axisZ.z);
 
 	Matrix4x4 result = Matrix4x4::Identity();
-	result.m[0][0] = dirX.x * useX; result.m[0][1] = dirX.y * useX; result.m[0][2] = dirX.z * useX;
-	result.m[1][0] = dirY.x * useY; result.m[1][1] = dirY.y * useY; result.m[1][2] = dirY.z * useY;
-	result.m[2][0] = dirZ.x * useZ; result.m[2][1] = dirZ.y * useZ; result.m[2][2] = dirZ.z * useZ;
-	result.m[3][0] = translation.x; result.m[3][1] = translation.y; result.m[3][2] = translation.z;
+	result.m[0][0] = dirX.x * useX;
+	result.m[0][1] = dirX.y * useX;
+	result.m[0][2] = dirX.z * useX;
+	result.m[1][0] = dirY.x * useY;
+	result.m[1][1] = dirY.y * useY;
+	result.m[1][2] = dirY.z * useY;
+	result.m[2][0] = dirZ.x * useZ;
+	result.m[2][1] = dirZ.y * useZ;
+	result.m[2][2] = dirZ.z * useZ;
+	result.m[3][0] = translation.x;
+	result.m[3][1] = translation.y;
+	result.m[3][2] = translation.z;
 	return result;
 }

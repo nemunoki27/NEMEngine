@@ -1,10 +1,5 @@
-using System.Text;
 using System.Text.Json;
 using static NEM.ComponentBindingGen.BindingTypeLayout;
-using static NEM.ComponentBindingGen.BindingOutputText;
-using static NEM.ComponentBindingGen.NativeBindingEmitter;
-using static NEM.ComponentBindingGen.ManagedBindingEmitter;
-using static NEM.ComponentBindingGen.BindingArtifactStore;
 
 namespace NEM.ComponentBindingGen;
 

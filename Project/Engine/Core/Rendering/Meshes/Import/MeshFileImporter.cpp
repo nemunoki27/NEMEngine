@@ -5,6 +5,7 @@
 //============================================================================
 #include "AssimpMaterialTextureExtractor.h"
 #include "MeshImportUtility.h"
+#include "ModelFileIOSystem.h"
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
@@ -83,7 +84,9 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 	textureResolver.Build(fullPath);
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath),
+	auto* fileSystem = new ModelFileIOSystem(fullPath);
+	importer.SetIOHandler(fileSystem);
+	const aiScene* scene = importer.ReadFile(fileSystem->GetModelPath(),
 		aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_GenSmoothNormals |
 			aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality |
 			aiProcess_PopulateArmatureData | aiProcess_SortByPType);

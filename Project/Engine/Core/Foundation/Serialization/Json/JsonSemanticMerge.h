@@ -14,6 +14,7 @@ namespace Engine {
 	//============================================================================
 	//	JsonSemanticMerge structures
 	//============================================================================
+	// 競合位置と変更前後の三つの値
 	struct JsonMergeConflict {
 
 		std::string path;
@@ -22,11 +23,13 @@ namespace Engine {
 		nlohmann::json theirs;
 	};
 
+	// 統合した文書と競合一覧
 	struct JsonMergeResult {
 
 		nlohmann::json merged;
 		std::vector<JsonMergeConflict> conflicts;
 
+		// 競合なしで統合できたか確認する
 		bool Succeeded() const { return conflicts.empty(); }
 	};
 
@@ -43,7 +46,7 @@ namespace Engine {
 		JsonSemanticMerge() = delete;
 		~JsonSemanticMerge() = delete;
 
-		static JsonMergeResult Merge(const nlohmann::json& base,
-			const nlohmann::json& ours, const nlohmann::json& theirs);
+		// 共通の元文書から双方の変更を統合する
+		static JsonMergeResult Merge(const nlohmann::json& base, const nlohmann::json& ours, const nlohmann::json& theirs);
 	};
 } // Engine

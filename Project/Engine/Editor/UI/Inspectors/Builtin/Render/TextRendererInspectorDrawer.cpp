@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/Core/EditorContext.h>
@@ -14,8 +13,8 @@
 //============================================================================
 //	TextRendererInspectorDrawer classMethods
 //============================================================================
-void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const EditorPanelContext& context,
-	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
+void Engine::TextRendererInspectorDrawer::DrawFields(const EditorPanelContext& context,
+	ECSWorld& world, const Entity& entity, bool& anyItemActive) {
 
 	// ドラフトコンポーネントを参照
 	auto& draft = GetDraft();
@@ -27,15 +26,16 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 	//	アセットファイル
 	//============================================================================
 	{
+		const AssetID previousFont = draft.font;
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::AssetReferenceField("フォント", draft.font,
 				context.editorContext->assetDatabase, { AssetType::Font });
 			});
-		// ドロップ直後はdraft.fontが.ttf/.otfを指すので、MSDFを生成して.font.jsonの参照へ寄せる
-		ResolveFontSourceDrop(context);
+		// ソースFontを生成済みの参照へ置き換える
+		ResolveFontSourceDrop(context, previousFont);
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetTextOrBuiltin();
+			setting.defaultAssetID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Text);
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
@@ -84,7 +84,7 @@ void Engine::TextRendererInspectorDrawer::DrawFields([[maybe_unused]] const Edit
 			draft.layer, draft.order, draft.blendMode, draft.queue,
 			&draft.renderingLayerMask);
 		materialParameterDrawer_.Draw(context, draft.material,
-			DefaultMaterialSettings::GetInstance().GetTextOrBuiltin(), draft.materialInstance,
+			InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Text), draft.materialInstance,
 			[&](auto&& drawField) { DrawField(anyItemActive, std::forward<decltype(drawField)>(drawField)); });
 	}
 	//============================================================================
@@ -160,7 +160,7 @@ void Engine::TextRendererInspectorDrawer::ApplyPreview(
 	world.MarkComponentModified<TextRendererComponent>(entity);
 }
 
-void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPanelContext& context) {
+void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPanelContext& context, AssetID previousFont) {
 
 	auto& draft = GetDraft();
 
@@ -169,13 +169,13 @@ void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPane
 		return;
 	}
 
-	// 参照先がソースフォント以外なら触らない、生成済みの.font.jsonはそのまま使う
+	// 生成済みFontは再生成しない
 	const AssetMeta* meta = database->Find(draft.font);
 	if (!meta || !MSDFFontGenerator::IsFontSourceExtension(meta->assetPath)) {
 		return;
 	}
 
-	// 未生成なら隣にMSDFを作る、成否いずれでもdraft.fontはソース以外へ抜けるので毎フレーム再入はしない
+	// 生成失敗時は変更前の参照へ戻す
 	const std::filesystem::path sourcePath = database->ResolveFullPath(draft.font);
 	const MSDFFontGenerator::Result result = MSDFFontGenerator::EnsureGenerated(*database, sourcePath, false);
 	if (result.success) {
@@ -185,7 +185,7 @@ void Engine::TextRendererInspectorDrawer::ResolveFontSourceDrop(const EditorPane
 
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"[TextRendererInspector] Font生成に失敗しました {}", result.message);
-		draft.font = AssetID{};
+		draft.font = previousFont == draft.font ? AssetID{} : previousFont;
 	}
 	RequestCommit();
 }

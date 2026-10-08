@@ -3,7 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Buffers/ImmutableIndexBuffer.h>
 #include <Engine/Core/Rendering/DxObject/Common/DxTypes.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
@@ -20,7 +19,6 @@
 namespace Engine {
 
 	class AssetDatabase;
-	class DepthTexture2D;
 	class ECSWorld;
 	class GraphicsCore;
 	class MultiRenderTarget;
@@ -29,19 +27,30 @@ namespace Engine {
 
 	//============================================================================
 	//	SceneComponentOverlayRenderer class
-	//	SceneView専用Overlayを通常RenderBatchを使わずに描く
+	//	SceneViewのライトとCameraアイコンを描画
 	//============================================================================
 	class SceneComponentOverlayRenderer {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		SceneComponentOverlayRenderer();
 		~SceneComponentOverlayRenderer();
 
+		// アイコンを描画して選択候補を更新
 		void Render(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
 			const ResolvedRenderView& view, MultiRenderTarget& surface,
-			DepthTexture2D* sceneDepth, ECSWorld* world,
-			SceneComponentOverlayItemList& items);
+			const ECSWorld* world, const SceneComponentOverlayItemList& items);
+		// 描画資源を回収窓口へ渡す
 		void Finalize();
 	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- structure ----------------------------------------------------
+
 		// Overlayアイコンをピクセル座標で描くためのViewサイズ
 		struct SpriteViewConstants {
 
@@ -67,12 +76,16 @@ namespace Engine {
 			std::unique_ptr<PipelineState> sprite;
 		};
 
-		// 2Dアイコン用GPUバッファ
+		//--------- variables ----------------------------------------------------
+
+		// アイコンの描画領域を渡す定数バッファ
 		ViewConstantBuffer<SpriteViewConstants> spriteView_{ "SceneOverlaySpriteView" };
+		// 同一Textureの連続描画ごとに保持する転送先
 		std::vector<std::unique_ptr<StructuredInstanceBuffer<SpriteInstanceData>>> spriteRunInstances_{};
+		// 転送前のアイコン情報
 		std::vector<SpriteInstanceData> spriteScratch_{};
 
-		// 毎フレーム再生成しないためのPSO/テクスチャキーキャッシュ
+		// 出力形式ごとに保持するPSO
 		std::unordered_map<uint64_t, PipelinePair> pipelineCache_{};
 
 		// シェーダReflection名からRootBinding位置を引くためのキャッシュ
@@ -81,7 +94,10 @@ namespace Engine {
 		PipelineBindingCache::SlotID spriteInstancesSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID spriteTextureSlot_ = PipelineBindingCache::kInvalidSlot;
 
+		// 描画資源を初期化済みか
 		bool initialized_ = false;
+
+		//--------- functions ----------------------------------------------------
 
 		// GPUバッファを初期化する
 		void Init(GraphicsCore& graphicsCore);
@@ -96,7 +112,7 @@ namespace Engine {
 		// 深度なし・アルファありでSceneView用アイコンを2D描画する
 		void DrawSpriteIcons(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
 			const ResolvedRenderView& view, MultiRenderTarget& surface,
-			PipelineState& pipeline, SceneComponentOverlayItemList& items,
+			PipelineState& pipeline, const SceneComponentOverlayItemList& items,
 			SceneComponentOverlayItemList& renderedItems);
 	};
 }

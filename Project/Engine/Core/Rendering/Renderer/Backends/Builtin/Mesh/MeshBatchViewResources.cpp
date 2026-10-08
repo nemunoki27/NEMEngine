@@ -6,19 +6,24 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/BackendDrawCommon.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineGPUTypes.h>
+
+// c++
 #include <cmath>
 #include <cstring>
 
 namespace {
+
+	// 静的Boundsでカリングできるか
 	bool CanCullView(const Engine::RenderDrawContext& drawContext, const Engine::MeshGPUResource& gpuMesh) {
 
-		// スキニングメッシュはCPU側での静的Boundsがずれやすいため、ここでは安全側で除外する
+		// Skinningは静的Boundsによる省略を避ける
 		return drawContext.view &&
 			drawContext.cullingView &&
 			drawContext.cullingView->valid &&
 			!gpuMesh.isSkinned;
 	}
 
+	// 背面Outlineの膨張描画か
 	bool IsHullOutlinePass(Engine::MaterialPassKind passKind) {
 
 		return passKind == Engine::MaterialPassKind::Outline ||
@@ -51,8 +56,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		}
 	}
 
-	// ScreenPixelsでは近距離、投影、カメラ角度の影響を受ける
-	// 誤カリングを避けるためHullのときだけ安全側でフラスタムカリングを無効にする
+	// 画面幅のOutlineはBoundsによる省略を避ける
 	if (hullOutline && outlineMetrics.hasScreenPixelWidth) {
 		canCull = false;
 	}
@@ -85,8 +89,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 	drawConstants.frustumCullingEnabled =
 		frustumCullingEnabled ? 1u : 0u;
 
-	// 背面法では通常メッシュのnormal cone判定を流用できない
-	// 線が小さくても見えるためcontribution cullingも無効化する
+	// 輪郭の形状を省略せず描画
 	drawConstants.contributionCullingEnabled =
 		contributionCullingEnabled ? 1u : 0u;
 	drawConstants.normalConeCullingEnabled =
@@ -98,7 +101,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 	drawConstants.meshBoundsCenter = gpuMesh.boundsCenter;
 	drawConstants.meshBoundsRadius = gpuMesh.boundsRadius + maxDisplacement;
 	drawConstants.maxDisplacement = maxDisplacement;
-	// 小さすぎる値はチラつきや誤カリングの原因になるため、控えめな閾値にしている
+	// 小さい形状の省略によるちらつきを抑える
 	drawConstants.contributionPixelThreshold = 0.5f;
 	drawConstants.lodPixelThresholds = Vector3(
 		drawContext.runtimeFeatures.
@@ -133,8 +136,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 		drawConstants.lodIndexCounts[lodIndex] = lod.indexCount;
 		drawConstants.lodMeshletOffsets[lodIndex] = lod.meshletOffset;
 		drawConstants.lodMeshletCounts[lodIndex] = lod.meshletCount;
-		drawConstants.meshletCount = (std::max)(
-			drawConstants.meshletCount, lod.meshletCount);
+		drawConstants.meshletCount = (std::max)(drawConstants.meshletCount, lod.meshletCount);
 	}
 
 	BeginDynamicConstantsFrame();
@@ -158,7 +160,7 @@ void Engine::MeshBatchViewResources::UpdateDrawConstants(const RenderDrawContext
 
 void Engine::MeshBatchViewResources::UpdateIndexedIndirectArgsConstants(uint32_t indexCount, ID3D12Device* device) {
 
-	// ComputeでDrawIndexedInstanced引数を組み立てるため、Index数だけCPUから渡す
+	// 間接描画のIndex数を転送
 	MeshIndirectArgsConstants constants{};
 	constants.indexCount = indexCount;
 	BeginDynamicConstantsFrame();
@@ -190,6 +192,7 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 
 		constants.lodView = camera->matrices.viewMatrix;
 		constants.lodNearClip = camera->nearClip;
+		constants.lodOrthographic = camera->projectionMode == ResolvedProjectionMode::Orthographic ? 1u : 0u;
 		constants.lodProjectionScale = Vector2(
 			std::abs(camera->matrices.projectionMatrix.m[0][0]),
 			std::abs(camera->matrices.projectionMatrix.m[1][1]));
@@ -200,7 +203,7 @@ void Engine::MeshBatchViewResources::UpdateView(const ResolvedRenderView& view,
 	const ResolvedRenderView* cullView = cullingView ? cullingView : &view;
 	if (const ResolvedCameraView* camera = cullView->FindCamera(RenderCameraDomain::Perspective)) {
 
-		// SceneViewでは描画行列とカリング行列が別になるため、両方をGPUへ渡す
+		// 描画とカリングのCameraを分けて転送
 		constants.cullingViewProjection = camera->matrices.viewProjectionMatrix;
 		constants.cullingView = camera->matrices.viewMatrix;
 		constants.cullingCameraPos = camera->cameraPos;

@@ -39,10 +39,6 @@
 using namespace Engine::RaytracingSceneGeometryUtility;
 
 //============================================================================
-//	RaytracingSceneBuilder internal
-//============================================================================
-
-//============================================================================
 //	RaytracingSceneBuilder classMethods
 //============================================================================
 void Engine::RaytracingSceneBuilder::Init(GraphicsCore& graphicsCore) {
@@ -64,6 +60,7 @@ void Engine::RaytracingSceneBuilder::Finalize() {
 		return;
 	}
 
+	// 公開結果とSceneの借用を解除
 	result_.Release();
 	cachedTLASInstances_.clear();
 	cachedTLASInstanceIndices_.clear();
@@ -161,11 +158,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	};
 	bool lodResourceMissing = false;
 	const bool matchesStaticScene = cachedStaticScene_ && !materialResolver_.HasPendingTextures() &&
-									cachedWorld_ == context.world && cachedWorldLifetime_ && cachedWorldLifetime_->IsAlive() &&
-									renderBatch.MatchesExtractors(cachedExtractorRevision_) &&
-									cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
-									cachedRenderRevision_ == renderBatch.GetSourceRenderRevision() &&
-									cachedMeshResourceRevision_ == meshResourceRevision && tlasState_.IsBuilt();
+		cachedWorld_ == context.world && cachedWorldLifetime_ && cachedWorldLifetime_->IsAlive() &&
+		renderBatch.MatchesExtractors(cachedExtractorRevision_) &&
+		cachedSceneInstanceID_ == context.sceneInstance->instanceID &&
+		cachedRenderRevision_ == renderBatch.GetSourceRenderRevision() &&
+		cachedMeshResourceRevision_ == meshResourceRevision && tlasState_.IsBuilt();
 	if (matchesStaticScene) {
 
 		const uint64_t currentFrame = GraphicsFrameState::GetFrameSerial();
@@ -303,11 +300,11 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	// シーン内の可視メッシュインスタンスを収集する
 	std::vector<CollectedMeshInstance> sceneMeshes;
 	if (meshBackend) {
-		CollectSceneMeshInstances(renderBatch, context, sceneMeshes);
+		CollectSceneMeshInstances(renderBatch, *context.sceneInstance, context.view, sceneMeshes);
 	}
 	std::vector<CollectedPrimitiveInstance> scenePrimitives;
 	if (primitiveGeometryManager) {
-		CollectScenePrimitiveInstances(renderBatch, context, scenePrimitives);
+		CollectScenePrimitiveInstances(renderBatch, *context.sceneInstance, context.view, scenePrimitives);
 	}
 	if (sceneMeshes.empty() && scenePrimitives.empty()) {
 		return;
@@ -352,8 +349,8 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	std::vector<uint32_t> meshLODRecordIndices;
 	meshLODRecordIndices.reserve(sceneMeshes.size() + scenePrimitives.size());
 
-	// BLASリソースを新規/作り直しした場合はTLASのrefitでは反映できないため完全再構築する
-	bool requireTlasRebuild = false;
+	// BLASの差し替えをTLASの再構築へ反映
+	bool requireTLASRebuild = false;
 	bool blasContentsChanged = false;
 	// Billboardの行列はViewごとに作り直す
 	bool staticScene = std::none_of(sceneMeshes.begin(), sceneMeshes.end(), [](const auto& item) {
@@ -376,14 +373,14 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 		.tlasEntityKeys = tlasEntityKeys,
 		.meshLODInstances = meshLODInstances,
 		.meshLODRecordIndices = meshLODRecordIndices,
-		.requireTlasRebuild = requireTlasRebuild,
+		.requireTLASRebuild = requireTLASRebuild,
 		.blasContentsChanged = blasContentsChanged,
 		.staticScene = staticScene,
 		.blasGeometryCount = blasGeometryCount,
 	};
 	BuildMeshInstances(sceneMeshes, work);
 
-	// Primitiveは形状ハッシュ単位で共有BLASを使い、インスタンスごとにTLASへ登録する
+	// 形状ごとにBLASを共有してPrimitiveを追加
 	BuildPrimitiveInstances(scenePrimitives, work);
 
 	// TLASインスタンスがない場合は処理しない
@@ -395,9 +392,9 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 	// バッファ転送
 	result_.Upload();
 
-	// TLASの構築、BLASを新規/作り直しした場合はrefitでは反映できないため完全再構築する
+	// BLASの変更に合わせてTLASを構築
 	tlasState_.BuildORUpdate(
-		graphicsCore, tlasInstances, cachedTLASInstances_, cachedTLASInstanceCount_, requireTlasRebuild, blasContentsChanged);
+		graphicsCore, tlasInstances, cachedTLASInstances_, cachedTLASInstanceCount_, requireTLASRebuild, blasContentsChanged);
 
 	// 構築済みにする
 	const uint64_t sceneMaterialHash = ComputeSceneMaterialHash(result_.sceneSubMeshScratch_);
@@ -442,20 +439,4 @@ void Engine::RaytracingSceneBuilder::BuildForScene(GraphicsCore& graphicsCore, A
 void Engine::RaytracingSceneBuilder::PublishBuiltScene(SceneExecutionContext& context) const {
 
 	result_.Publish(context, tlasState_.GetResource(), sceneMaterialGeneration_, !materialResolver_.HasPendingTextures());
-}
-
-//============================================================================
-//	RaytracingSceneBuilder classMethods
-//============================================================================
-
-namespace Engine {
-
-	size_t RaytracingSceneBuilder::SceneEntityKeyHash::operator()(const SceneEntityKey& key) const noexcept {
-
-		size_t h = std::hash<void*>{}(key.world);
-		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
-		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
-		return h;
-	}
-
 }

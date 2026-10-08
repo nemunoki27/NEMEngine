@@ -6,7 +6,6 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
@@ -104,7 +103,7 @@ void Engine::LineRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-				setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetLineOrBuiltin();
+				setting.defaultAssetID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Line);
 				return MyGUI::AssetReferenceField("マテリアル", draft.material,
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});

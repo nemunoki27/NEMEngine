@@ -15,12 +15,12 @@
 
 namespace Engine {
 
-	using ShaderGraphAssetResolver =
-		std::function<bool(AssetID, ShaderGraphAsset&)>;
+	using ShaderGraphAssetResolver = std::function<bool(AssetID, ShaderGraphAsset&)>;
 
 	//============================================================================
 	//	ShaderGraphCompiler structures
 	//============================================================================
+	// NodeのSampler設定とShader上の配置
 	struct ShaderGraphSamplerBinding {
 
 		UUID node{};
@@ -29,6 +29,7 @@ namespace Engine {
 		PipelineStaticSamplerSettings settings{};
 	};
 
+	// 描画経路ごとの生成Shaderと型情報
 	struct ShaderGraphCompileOutput {
 
 		std::string surfaceHLSL;
@@ -42,16 +43,18 @@ namespace Engine {
 		std::string rayTracingHLSL;
 		std::string computeHLSL;
 		std::vector<ShaderParameterMetadata> parameters;
+		MaterialParameterSet defaultParameters;
 		std::vector<ShaderGraphSamplerBinding> samplers;
 		std::vector<ShaderGraphDiagnostic> diagnostics;
 		ShaderGraphIRModule ir;
 
+		// エラー診断がないことを確認する
 		bool Succeeded() const;
 	};
 
 	//============================================================================
 	//	ShaderGraphCompiler class
-	//	グラフを描画API非依存のSurface関数とRaster用PSへ変換する
+	//	Graphを描画経路ごとのShaderへ変換する
 	//============================================================================
 	class ShaderGraphCompiler {
 	public:
@@ -62,9 +65,8 @@ namespace Engine {
 		ShaderGraphCompiler() = delete;
 		~ShaderGraphCompiler() = delete;
 
-		static ShaderGraphCompileOutput Compile(
-			const ShaderGraphAsset& graph,
-			std::string_view surfaceIncludeFile,
+		// Graphを検証して描画経路ごとのShaderを生成する
+		static ShaderGraphCompileOutput Compile(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
 			const ShaderGraphAssetResolver& resolver = {});
 	};
-} // Engine
+}

@@ -117,7 +117,7 @@ void RenderPipelineRunner::ReloadAsset(AssetDatabase& assetDatabase, AssetID ass
 Engine::RenderTexture2D* RenderPipelineRunner::GetViewGBufferTexture(RenderViewKind kind, GBufferAttachment attachment) {
 
 	// 表示対象CameraのGBufferを参照する
-	const RenderPathResources& resources = FindCameraState(kind).resources;
+	RenderPathResources& resources = FindCameraState(kind).resources;
 	return resources.GetGBuffer(attachment);
 }
 
@@ -167,7 +167,7 @@ bool Engine::RenderPipelineRunner::TryGetMaterialComputeReflection(GraphicsCore&
 Engine::DepthTexture2D* RenderPipelineRunner::GetViewDepthTexture(RenderViewKind kind) {
 
 	// 深度はGBufferの色ではなくSceneMainの深度アタッチメントを参照する
-	const RenderPathResources& resources = FindCameraState(kind).resources;
+	RenderPathResources& resources = FindCameraState(kind).resources;
 	MultiRenderTarget* sceneMain = resources.GetSceneMain();
 	return sceneMain ? sceneMain->GetDepthTexture() : nullptr;
 }

@@ -20,6 +20,7 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureRuntimeOverrides.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileValidation.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureHierarchyEditing.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderPassesAsset.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -35,6 +36,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <initializer_list>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -126,6 +128,25 @@ namespace NEMTests {
 			!std::holds_alternative<float>(restoredThreshold->value) || std::get<float>(restoredThreshold->value) != 0.25f) {
 
 			return false;
+		}
+
+		// 出力倍率の非有限値を保存前に拒否する
+		std::string diagnostic;
+		if (!Engine::RenderFeatureProfileValidation::Validate(restored, diagnostic)) {
+			return false;
+		}
+		for (float scale : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
+
+			Engine::RenderFeatureProfileAsset invalid = restored;
+			invalid.passes[0].outputs[0].widthScale = scale;
+			if (Engine::RenderFeatureProfileValidation::Validate(invalid, diagnostic)) {
+				return false;
+			}
+			invalid.passes[0].outputs[0].widthScale = 0.5f;
+			invalid.passes[0].outputs[0].heightScale = scale;
+			if (Engine::RenderFeatureProfileValidation::Validate(invalid, diagnostic)) {
+				return false;
+			}
 		}
 
 		// 不正な移動先では階層とPass参照を保持する
@@ -298,6 +319,34 @@ namespace NEMTests {
 			return false;
 		}
 
+		// 単独Passの選択適用も実行条件を判定
+		if (!runtime.IsSelectionEnabled(*standalonePlan.nodes.front().selectionGroup, Engine::RenderViewKind::Game)) {
+			return false;
+		}
+		standaloneProfile.hierarchy[0].selection.mode = Engine::RenderFeatureSelectionMode::IsolatedLayer;
+		standaloneProfile.hierarchy[0].selection.phaseMask =
+			Engine::MakeRenderFeaturePhaseMask(Engine::RenderPhase::Transparent);
+		standaloneProfile.passes[0].enabled = false;
+		runtime.Rebuild(standaloneProfile);
+		selectedItem.renderPhase = Engine::RenderPhase::Transparent;
+		selectedItem.renderingLayerMask = 1u << 4;
+		if (runtime.IsItemIsolated(selectedItem)) {
+			return false;
+		}
+		Engine::RenderFeatureRuntimeOverrides::GetInstance().SetEnabled(standaloneProfile.passes[0].id, true);
+		runtime.Rebuild(standaloneProfile);
+		if (!runtime.IsItemIsolated(selectedItem)) {
+			return false;
+		}
+		// 対象外ViewからRendererを取り除かない
+		standaloneProfile.passes[0].sceneView = false;
+		runtime.Rebuild(standaloneProfile);
+		if (!runtime.IsItemIsolated(selectedItem, Engine::RenderViewKind::Game) ||
+			runtime.IsItemIsolated(selectedItem, Engine::RenderViewKind::Scene)) {
+			return false;
+		}
+		Engine::RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
+		selectedItem.renderingLayerMask = 1u << 3;
 		selectiveProfile.hierarchy[1].selection.mode = Engine::RenderFeatureSelectionMode::IsolatedLayer;
 		selectiveProfile.hierarchy[1].selection.phaseMask =
 			Engine::MakeRenderFeaturePhaseMask(Engine::RenderPhase::Transparent);
@@ -326,7 +375,9 @@ namespace NEMTests {
 		runtime.Rebuild(selectiveProfile);
 		const Engine::RenderFeatureExecutionPlan disabledSceneViewPlan =
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterLighting, Engine::RenderViewKind::Scene);
-		if (!disabledSceneViewPlan.nodes.empty() || disabledSceneViewPlan.sceneColorOutput.pass) {
+		if (!disabledSceneViewPlan.nodes.empty() || disabledSceneViewPlan.sceneColorOutput.pass ||
+			runtime.IsItemIsolated(selectedItem, Engine::RenderViewKind::Scene) ||
+			!runtime.IsItemIsolated(selectedItem, Engine::RenderViewKind::Game)) {
 
 			return false;
 		}

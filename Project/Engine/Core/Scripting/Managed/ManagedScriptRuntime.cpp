@@ -1,15 +1,17 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedRuntimePaths.h"
-#include "ManagedScriptUtility.h"
-#include "Generated/ManagedComponentBindings.generated.h"
-#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedRuntimePaths.h"
+#include "ManagedBuildUtility.h"
+#include "ManagedScriptUtility.h"
+#include "Generated/ManagedComponentBindings.generated.h"
+#include <Engine/Core/World/Components/Time/TimeScaleComponent.h>
 #include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ScriptProfiler.h>
+#include <Engine/Core/Scripting/Managed/Diagnostics/ManagedScriptExceptionStore.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -22,30 +24,27 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/EnvironmentUtility.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 
-// windows
-#include <windows.h>
 // c++
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 #include <system_error>
 #include <string_view>
+// windows
+#include <windows.h>
 
 //============================================================================
-//	ManagedScriptRuntime classMethods
+//	ManagedScriptRuntime internal
 //============================================================================
 namespace {
 
-	// パスをUTF-8文字列へ変換する
-	std::string ToUtf8Path(const std::filesystem::path& path) {
-		return Engine::Algorithm::ConvertString(path.wstring());
-	}
+	using Engine::ManagedBuildUtility::ToUtf8Path;
 
-	// マネージドデバッグ環境の構成でJIT最適化抑制などを行う
+	// C#のデバッグ時に最適化を抑制
 	void ConfigureManagedDebugEnvironment() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		::SetEnvironmentVariableW(L"COMPlus_ReadyToRun", L"0");
@@ -55,47 +54,65 @@ namespace {
 #endif
 	}
 
-	// スコープ内で環境変数を一時的に上書きするヘルパー
+	// スコープ終了時に環境変数を復元する
 	class ScopedEnvironmentVariableOverride final {
 	public:
-		ScopedEnvironmentVariableOverride(const wchar_t* name, const wchar_t* value) :
-			name_(name) {
+		//========================================================================
+		//	public Methods
+		//========================================================================
 
-			// _wdupenv_sが確保した領域はwstringへコピーしたらここで必ず解放し、デストラクタではwstring内部バッファに触れない
-			wchar_t* previous = nullptr;
-			size_t previousLength = 0;
-			if (_wdupenv_s(&previous, &previousLength, name_) == 0 && previous) {
+		ScopedEnvironmentVariableOverride(const wchar_t* name, const wchar_t* value) : name_(name) {
 
-				// コピー中に例外が起きてもpreviousをリークしないようにする
-				struct FreeGuard {
-					wchar_t* pointer;
-					~FreeGuard() { std::free(pointer); }
-				} freeGuard{ previous };
-
-				previousValue_ = previous;
-				hadPreviousValue_ = true;
+			// OS側の変更前の値を取得
+			if (!Engine::Algorithm::TryReadProcessEnvironment(name_, previousValue_, hadPreviousValue_)) {
+				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+					"ManagedScriptRuntime: デバッグ環境の取得に失敗しました");
+				return;
 			}
-			::SetEnvironmentVariableW(name_, value);
+			// 変更に成功した場合だけ復元対象にする
+			changed_ = ::SetEnvironmentVariableW(name_, value) != FALSE;
+			if (!changed_) {
+				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+					"ManagedScriptRuntime: デバッグ環境の変更に失敗しました error={}", ::GetLastError());
+			}
 		}
 		~ScopedEnvironmentVariableOverride() {
 
-			// 復元はSetEnvironmentVariableWのみで、wstringが所有するバッファを解放してはいけない
-			::SetEnvironmentVariableW(name_, hadPreviousValue_ ? previousValue_.c_str() : nullptr);
+			// 変更前の値へ戻す
+			if (changed_ && !::SetEnvironmentVariableW(name_, hadPreviousValue_ ? previousValue_.c_str() : nullptr)) {
+				Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
+					"ManagedScriptRuntime: デバッグ環境の復元に失敗しました error={}", ::GetLastError());
+			}
 		}
 
-		// コピーとムーブを禁止して二重復元と二重解放を防ぐ
+		// コピーとムーブによる二重復元を禁止
 		ScopedEnvironmentVariableOverride(const ScopedEnvironmentVariableOverride&) = delete;
 		ScopedEnvironmentVariableOverride& operator=(const ScopedEnvironmentVariableOverride&) = delete;
 		ScopedEnvironmentVariableOverride(ScopedEnvironmentVariableOverride&&) = delete;
 		ScopedEnvironmentVariableOverride& operator=(ScopedEnvironmentVariableOverride&&) = delete;
+
 	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// 呼出中に借用する環境変数名
 		const wchar_t* name_;
+		// 変更前に値が存在したか
 		bool hadPreviousValue_ = false;
+		// このスコープで変更したか
+		bool changed_ = false;
+		// 変更前の値
 		std::wstring previousValue_;
 	};
 
 } // namespace
 
+//============================================================================
+//	ManagedScriptRuntime classMethods
+//============================================================================
 bool Engine::ManagedScriptRuntime::Init() {
 
 	if (initialized_) {
@@ -106,12 +123,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 	scriptCoreAssemblyPath_ = ManagedRuntimePaths::ResolveScriptCoreAssemblyPath();
 	if (scriptCoreAssemblyPath_.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: NEM.ScriptCore.dllが見つかりません");
+		Logger::Output(LogType::Engine, spdlog::level::err, "ManagedScriptRuntime: NEM.ScriptCore.dllが見つかりません");
 		return false;
 	}
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: NEM.ScriptCore.dllを読み込みます path={}",
+	Logger::Output(LogType::Engine, spdlog::level::info, "ManagedScriptRuntime: NEM.ScriptCore.dllを読み込みます path={}",
 		ToUtf8Path(scriptCoreAssemblyPath_));
 
 	if (!LoadHostfxr()) {
@@ -125,11 +140,10 @@ bool Engine::ManagedScriptRuntime::Init() {
 		return false;
 	}
 
-	// ネイティブ側APIつまりC++側の機能をC#から呼ぶための関数群を初期化する
+	// C#へ渡すNativeの呼出表を作成
 	ManagedNativeAPITable callbacks = CreateNativeCallbacks();
 
-	const ManagedStatus initializeStatus = bridge_.initializeNativeAPI_ ?
-		bridge_.initializeNativeAPI_(&callbacks) : ManagedStatus::Unsupported;
+	const ManagedStatus initializeStatus = bridge_.initializeNativeAPI_(&callbacks);
 	if (initializeStatus != ManagedStatus::Ok) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
 			"ManagedScriptRuntime: Native Callbackを初期化できません Status={} NativeABI={} APIサイズ={}",
@@ -140,7 +154,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 	initialized_ = true;
 
-	// 初期アセンブリつまり現行ビルド出力をロードする、Edit中の以降のリロードはManagedScriptBuildServiceが行う
+	// 起動時のゲームAssemblyを読み込む
 	if (!ReloadGameAssembly()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: GameScripts.dllを読み込めないためManaged Scriptを利用できません");
@@ -150,7 +164,7 @@ bool Engine::ManagedScriptRuntime::Init() {
 
 void Engine::ManagedScriptRuntime::Finalize() {
 
-	// アセンブリ解放より前にApplication.Quittingを発火する、解放で購読が解除されるため
+	// Assemblyの解放前に終了Eventを通知
 	RaiseApplicationQuitting();
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 
@@ -181,31 +195,30 @@ void Engine::ManagedScriptRuntime::RefreshScriptTypes() {
 		return;
 	}
 	lastManagedTypeCount_ = typeCount;
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: Managed Script型数={}", typeCount);
+	Logger::Output(LogType::Engine, spdlog::level::info, "ManagedScriptRuntime: Managed Script型数={}", typeCount);
 	for (int32_t i = 0; i < typeCount; ++i) {
 
 		ManagedScriptTypeDescriptor descriptor{};
 		if (bridge_.copyScriptTypeInfo_(i, &descriptor) != ManagedStatus::Ok || descriptor.scriptTypeID[0] == '\0') {
 			continue;
 		}
-		// 安定GUIDを主キーに登録する、型名とソースパスは表示と旧照合とドラッグ用
-		BehaviorTypeRegistry::GetInstance().RegisterManaged(
-			descriptor.scriptTypeID, descriptor.fullTypeName, descriptor.displayName, descriptor.sourcePath,
-			descriptor.defaultExecutionOrder);
+		// 型GUIDを主キーにScriptを登録
+		BehaviorTypeRegistry::GetInstance().RegisterManaged(descriptor.scriptTypeID, descriptor.fullTypeName,
+			descriptor.displayName, descriptor.sourcePath, descriptor.defaultExecutionOrder);
 		Logger::Output(LogType::Engine, spdlog::level::info,
-			"ManagedScriptRuntime: Managed Script型を登録しました type={} ID={}",
-			descriptor.fullTypeName, descriptor.scriptTypeID);
+			"ManagedScriptRuntime: Managed Script型を登録しました type={} ID={}", descriptor.fullTypeName,
+			descriptor.scriptTypeID);
 	}
 }
 
 bool Engine::ManagedScriptRuntime::ReloadGameAssembly(bool waitForManagedDebugger) {
 
-	// ResolveGameAssemblyPathの現行ビルド出力をロードする初期ロード用
+	// 現在の構築成果物からAssemblyを読み直す
 	return LoadGameAssemblyFromPath(ManagedRuntimePaths::ResolveGameAssemblyPath(), waitForManagedDebugger);
 }
 
-bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesystem::path& dllPath, bool waitForManagedDebugger) {
+bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(
+	const std::filesystem::path& dllPath, bool waitForManagedDebugger) {
 
 	if (!initialized_) {
 		return false;
@@ -222,7 +235,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssemblyFromPath(const std::filesyste
 	};
 
 	if (waitForManagedDebugger) {
-		// マネージドデバッガのアタッチ待ちはユーザーの明示オプションで環境変数経由でC#側へ伝える
+		// 選択時だけC#デバッガの接続を待つ
 		ScopedEnvironmentVariableOverride waitOverride(L"NEM_MANAGED_WAIT_FOR_DEBUGGER", L"1");
 		return doReload();
 	}
@@ -242,6 +255,8 @@ void Engine::ManagedScriptRuntime::UnloadGameAssembly() {
 }
 
 std::filesystem::path Engine::ManagedScriptRuntime::GameScriptProjectPath() const {
+
+	// ゲーム側の構築Projectを解決
 	return ManagedRuntimePaths::ResolveGameScriptProjectPath();
 }
 
@@ -256,22 +271,23 @@ Engine::ManagedStatus Engine::ManagedScriptRuntime::GenerateScriptManifest(
 	if (!initialized_ || !bridge_.generateScriptManifest_) {
 		return ManagedStatus::Unsupported;
 	}
-	// C#側が一時的な回収可能ALCで対象DLLを反射し検証してマニフェストJSONを書き出す、現行DLLは触らない
+	// 専用ALCで型情報を収集してmanifestへ保存
 	const std::string dll = ToUtf8Path(assemblyPath);
 	const std::string out = ToUtf8Path(manifestOutputPath);
 	return bridge_.generateScriptManifest_(dll.c_str(), out.c_str());
 }
 
 Engine::ManagedScriptRuntime& Engine::ManagedScriptRuntime::GetInstance() {
+
+	// 共有Runtimeを返す
 	static ManagedScriptRuntime runtime;
 	return runtime;
 }
 
 bool Engine::ManagedScriptRuntime::LoadHostfxr() {
 
-	// nethostのget_hostfxr_pathを使った公式フローでhostfxrを解決して初期化する
-	const std::filesystem::path runtimeConfigPath =
-		scriptCoreAssemblyPath_.parent_path() / "NEM.ScriptCore.runtimeconfig.json";
+	// コアAssemblyの設定から.NETホストを初期化
+	const std::filesystem::path runtimeConfigPath = scriptCoreAssemblyPath_.parent_path() / "NEM.ScriptCore.runtimeconfig.json";
 
 	return dotnetHost_.Initialize(scriptCoreAssemblyPath_, runtimeConfigPath);
 }
@@ -284,8 +300,7 @@ bool Engine::ManagedScriptRuntime::LoadBridgeFunctions() {
 bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 
 	if (gameAssemblyPath_.empty()) {
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"ManagedScriptRuntime: GameScripts.dllが見つかりません");
+		Logger::Output(LogType::Engine, spdlog::level::warn, "ManagedScriptRuntime: GameScripts.dllが見つかりません");
 		return false;
 	}
 	if (!bridge_.loadGameAssembly_) {
@@ -293,11 +308,10 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 	}
 
 	const std::string path = ToUtf8Path(gameAssemblyPath_);
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"ManagedScriptRuntime: GameScripts.dllを読み込みます path={}", path);
+	Logger::Output(LogType::Engine, spdlog::level::info, "ManagedScriptRuntime: GameScripts.dllを読み込みます path={}", path);
 	if (bridge_.loadGameAssembly_(path.c_str()) != ManagedStatus::Ok) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"ManagedScriptRuntime: GameScripts.dllの読み込みに失敗しました path={}", path);
+		Logger::Output(
+			LogType::Engine, spdlog::level::err, "ManagedScriptRuntime: GameScripts.dllの読み込みに失敗しました path={}", path);
 		return false;
 	}
 	gameAssemblyLoaded_ = true;
@@ -306,7 +320,7 @@ bool Engine::ManagedScriptRuntime::LoadGameAssembly() {
 
 void Engine::ManagedScriptRuntime::ReleaseHostfxr() {
 
-	// hostfxrライブラリの解放とデリゲート無効化はResolverのRAIIに委譲する、Shutdownは複数回呼び出しても安全でFinalizeの多重呼び出しに対応する
+	// .NETホストと接続済み関数を解放
 	dotnetHost_.Shutdown();
 }
 
@@ -326,13 +340,16 @@ double Engine::ManagedScriptRuntime::unscaledTime_ = 0.0;
 uint64_t Engine::ManagedScriptRuntime::frameCount_ = 0;
 
 const Engine::SystemContext* Engine::ManagedScriptRuntime::GetCurrentContext() {
+
+	// 呼出中のContextを返す
 	return currentContext_;
 }
 
 namespace {
 
-	// NaNやinfは等速1.0へ、負値は0へ丸めて時間スケールを安全化する
+	// 非有限の時間倍率を1へ、負値を0へ補正
 	float SanitizeTimeScale(float value) {
+
 		if (!std::isfinite(value)) {
 			return 1.0f;
 		}
@@ -340,14 +357,13 @@ namespace {
 	}
 }
 
-void Engine::ManagedScriptRuntime::BeginPlayTime(ECSWorld* playWorld) {
+void Engine::ManagedScriptRuntime::BeginPlayTime(const ECSWorld* playWorld) {
 
-	// TimeScaleComponentがあれば初期スケールとして読み、最後に見つかった値を採用する
+	// SceneからPlay開始時の時間倍率を取得
 	timeScale_ = 1.0f;
 	if (playWorld) {
-		playWorld->ForEach<TimeScaleComponent>([&](Entity, TimeScaleComponent& component) {
-			timeScale_ = SanitizeTimeScale(component.timeScale);
-			});
+		playWorld->ForEach<TimeScaleComponent>(
+			[&](Entity, const TimeScaleComponent& component) { timeScale_ = SanitizeTimeScale(component.timeScale); });
 	}
 	scaledDeltaTime_ = 0.0f;
 	unscaledDeltaTime_ = 0.0f;
@@ -360,7 +376,7 @@ float Engine::ManagedScriptRuntime::AdvanceTime(float rawDeltaTime, float fixedD
 
 	fixedDeltaTime_ = fixedDeltaTime;
 	if (!advancing) {
-		// Editや停止中は累積せずunscaledも進めない、Play側の時間のみを扱う
+		// 停止中は差分時刻を0にする
 		scaledDeltaTime_ = 0.0f;
 		unscaledDeltaTime_ = 0.0f;
 		return 0.0f;
@@ -373,17 +389,19 @@ float Engine::ManagedScriptRuntime::AdvanceTime(float rawDeltaTime, float fixedD
 	return scaledDeltaTime_;
 }
 
-void Engine::ManagedScriptRuntime::PumpSceneEvents() {
+void Engine::ManagedScriptRuntime::PumpSceneEvents(const SystemContext& context) {
 
-	// C#側でSceneのロード/アンロード完了を検出してSceneLoaded/SceneUnloadedを発火する
+	// Sceneのロードと解放をC#へ通知
 	if (bridge_.pumpSceneEvents_) {
-		bridge_.pumpSceneEvents_();
+		ScopedInvocationContext contextScope(context);
+		const uint64_t reportSequence = ManagedScriptExceptionStore::GetInstance().ReportSequence();
+		CompleteManagedInvocation(bridge_.pumpSceneEvents_(), reportSequence);
 	}
 }
 
 void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
 
-	// 終了処理前にC#のApplication.Quittingを一度だけ発火する
+	// Applicationの終了EventをC#へ通知
 	if (bridge_.raiseApplicationQuitting_) {
 		bridge_.raiseApplicationQuitting_();
 	}
@@ -391,22 +409,26 @@ void Engine::ManagedScriptRuntime::RaiseApplicationQuitting() {
 
 bool Engine::ManagedScriptRuntime::ConsumeApplicationQuitRequest() {
 
+	// 終了要求を取得して解除
 	const bool requested = applicationQuitRequested_;
 	applicationQuitRequested_ = false;
 	return requested;
 }
 
 void Engine::ManagedScriptRuntime::RequestApplicationQuitCallback() {
+
+	// フレーム終端で終了するように予約
 	GetInstance().applicationQuitRequested_ = true;
 }
 
 void Engine::ManagedScriptRuntime::TickFrame(int32_t phase, const SystemContext& context) {
 
-	// TimerとCoroutineをメインスレッドで駆動する、phaseは0がUpdate 1がFixedUpdate 2がEndOfFrame
+	// 指定phaseのTimerとCoroutineを更新
 	if (bridge_.tickFrame_) {
-		// deltaTime参照のためcallback中だけコンテキストを設定する
+		// callback中のContextを設定
 		ScopedInvocationContext contextScope(context);
-		bridge_.tickFrame_(phase);
+		const uint64_t reportSequence = ManagedScriptExceptionStore::GetInstance().ReportSequence();
+		CompleteManagedInvocation(bridge_.tickFrame_(phase), reportSequence);
 	}
 }
 
@@ -425,22 +447,27 @@ Engine::ALCUnloadStatus Engine::ManagedScriptRuntime::GetLastALCUnloadStatus() {
 	return ALCUnloadStatus::Unknown;
 }
 
-Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context) :
-	previous_(currentContext_) {
-	// ネスト呼び出しに備えて以前のコンテキストを退避してから差し替える
+Engine::ManagedScriptRuntime::ScopedInvocationContext::ScopedInvocationContext(const SystemContext& context)
+	: previous_(currentContext_) {
+
+	// 呼出中のContextへ切り替える
 	currentContext_ = &context;
 }
 
 Engine::ManagedScriptRuntime::ScopedInvocationContext::~ScopedInvocationContext() {
+
+	// 呼出前のContextへ戻す
 	currentContext_ = previous_;
 }
 
-Engine::ManagedScriptRuntime::ScopedReferenceWorld::ScopedReferenceWorld(ECSWorld& world) :
-	previous_(currentReferenceWorld_) {
+Engine::ManagedScriptRuntime::ScopedReferenceWorld::ScopedReferenceWorld(ECSWorld& world) : previous_(currentReferenceWorld_) {
 
+	// 参照解決の対象Worldへ切り替える
 	currentReferenceWorld_ = &world;
 }
 
 Engine::ManagedScriptRuntime::ScopedReferenceWorld::~ScopedReferenceWorld() {
+
+	// 参照解決前のWorldへ戻す
 	currentReferenceWorld_ = previous_;
 }

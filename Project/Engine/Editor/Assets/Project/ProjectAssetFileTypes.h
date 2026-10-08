@@ -13,8 +13,7 @@ namespace Engine {
 	//============================================================================
 	//	ProjectAssetFileKind enum class
 	//============================================================================
-	enum class ProjectAssetFileKind :
-		uint8_t {
+	enum class ProjectAssetFileKind : uint8_t {
 
 		Folder,
 		Text,

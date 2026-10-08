@@ -45,6 +45,7 @@ namespace Engine {
 		ReferenceTypeMismatch,  // 参照先の型が期待と異なる
 		UnknownAssetType,       // 種別を判定できない
 		FontAtlasRepair,        // 欠損したFont参照の修復候補
+		UnfinishedAssetSave,    // 復旧が必要なAsset保存
 	};
 	// 構築時診断の1件分
 	struct AssetDatabaseIssue {

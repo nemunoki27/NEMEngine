@@ -19,6 +19,8 @@ namespace Engine {
 		bool canonicalize = false;
 		// JSON以外の成果物はバイト列のまま保存する
 		std::optional<std::string> bytes;
+		// 新規作成では既存ファイルを置き換えない
+		bool createOnly = false;
 	};
 
 	namespace JsonFileJournal {
@@ -40,6 +42,9 @@ namespace Engine {
 		std::vector<std::filesystem::path> GetRecoveries(const Scope& scope, bool unfinishedOnly = false);
 		// 外部変更のない未完了操作だけを保存前へ戻す
 		bool RecoverPending(const Scope& scope, std::string& error, const RecoveryCheck& check = {});
-		bool Recover(const Scope& scope, const std::filesystem::path& directory, std::string& error, const RecoveryCheck& check);
+		bool Recover(
+			const Scope& scope, const std::filesystem::path& directory, std::string& error, const RecoveryCheck& check);
+		// 外部変更を含む現在のファイルを維持して未完了記録を確定する
+		bool KeepCurrent(const Scope& scope, const std::filesystem::path& directory, std::string& error);
 	}
 }

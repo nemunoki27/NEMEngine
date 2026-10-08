@@ -5,8 +5,14 @@
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
+// c++
+#include <utility>
+// json
 #include <json.hpp>
 
+//============================================================================
+//	ManagedSchemaCache internal
+//============================================================================
 namespace {
 
 	// スキーマJSONのkind文字列を列挙へ
@@ -28,7 +34,7 @@ namespace {
 		return it != kMap.end() ? it->second : K::Unsupported;
 	}
 
-	// 1フィールドのスキーマノードを解析する、配列やnullableは要素を再帰する
+	// Fieldと子要素の編集情報を解析する
 	Engine::ManagedFieldSchema ParseFieldSchema(const nlohmann::json& node) {
 
 		Engine::ManagedFieldSchema field{};
@@ -47,7 +53,7 @@ namespace {
 		field.assetType = node.value("assetType", std::string{});
 		field.scriptType = node.value("scriptType", std::string{});
 		field.componentType = node.value("componentType", std::string{});
-		field.defaultValueJson = node.value("defaultValueJson", std::string("null"));
+		field.defaultValueJSON = node.value("defaultValueJson", std::string("null"));
 
 		if (node.contains("range") && node["range"].is_object()) {
 			field.hasRange = true;
@@ -98,13 +104,18 @@ namespace {
 	}
 }
 
-const Engine::ManagedScriptSchema& Engine::ManagedSchemaCache::Get(const std::string& scriptTypeID, bool initialized, const ManagedBridgeExports& bridge) {
+//============================================================================
+//	ManagedSchemaCache classMethods
+//============================================================================
+const Engine::ManagedScriptSchema& Engine::ManagedSchemaCache::Get(const std::string& scriptTypeID, bool initialized,
+	const ManagedBridgeExports& bridge) {
 
 	static const ManagedScriptSchema kEmpty{};
 
 	if (scriptTypeID.empty()) {
 		return kEmpty;
 	}
+	// 同じAssemblyで解析済みなら再利用
 	if (auto it = schemaCache_.find(scriptTypeID); it != schemaCache_.end()) {
 		return it->second;
 	}
@@ -112,7 +123,7 @@ const Engine::ManagedScriptSchema& Engine::ManagedSchemaCache::Get(const std::st
 		return kEmpty;
 	}
 
-	// 二段階blobで必要サイズを取得してからvector確保してコピーする、固定長バッファを使わない
+	// 必要なサイズを問い合わせてJSONを取得する
 	int32_t size = 0;
 	if (bridge.getScriptSchemaJsonSize_(scriptTypeID.c_str(), &size) != ManagedStatus::Ok || size <= 0) {
 		return kEmpty;
@@ -122,8 +133,12 @@ const Engine::ManagedScriptSchema& Engine::ManagedSchemaCache::Get(const std::st
 	if (bridge.copyScriptSchemaJson_(scriptTypeID.c_str(), buffer.data(), size, &written) != ManagedStatus::Ok) {
 		return kEmpty;
 	}
+	if (written < 0 || written > size) {
+		return kEmpty;
+	}
 	buffer.resize(static_cast<size_t>(written));
 
+	// 全Fieldを解析してから公開する
 	ManagedScriptSchema schema{};
 	schema.scriptTypeID = scriptTypeID;
 	try {
@@ -140,13 +155,15 @@ const Engine::ManagedScriptSchema& Engine::ManagedSchemaCache::Get(const std::st
 		Logger::Output(LogType::Engine, spdlog::level::warn,
 			"ManagedScriptRuntime: Script Schemaを解析できません ScriptTypeID={} 内容={}",
 			scriptTypeID, e.what());
+		return kEmpty;
 	}
 
-	auto [it, inserted] = schemaCache_.emplace(scriptTypeID, std::move(schema));
+	const auto it = schemaCache_.emplace(scriptTypeID, std::move(schema)).first;
 	return it->second;
 }
 
 void Engine::ManagedSchemaCache::Clear() {
 
+	// 旧Assemblyの型情報を破棄
 	schemaCache_.clear();
 }

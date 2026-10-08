@@ -116,7 +116,7 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		const Engine::ShaderGraphNode& node, uint32_t inputSlot, Engine::ShaderGraphValueType fallback,
 		std::unordered_set<uint64_t>& visiting);
 
-	// 入力ノードから順に評価対象を並べる
+	// 有効なNodeだけを依存順で並べる
 	std::vector<const Engine::ShaderGraphNode*> BuildPreviewOrder(const Engine::ShaderGraphAsset& graph);
 
 	// プレビューの参照パラメータを解決する

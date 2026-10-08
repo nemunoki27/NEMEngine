@@ -143,6 +143,7 @@ public static class Timers {
 
             try {
                 callback();
+                if (NativeApplicationAPI.ReadUpdateInterrupted()) { return; }
             }
             catch (Exception ex) {
                 NativeApplicationAPI.WriteLog(2, $"[Timers] callback threw\n{ex}");

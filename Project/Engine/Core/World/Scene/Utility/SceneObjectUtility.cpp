@@ -9,7 +9,7 @@
 
 namespace Engine::SceneObjectUtility {
 
-	Entity ResolveReference(ECSWorld& world, AssetID sourceAsset, UUID localFileID, UUID preferredScene) {
+	Entity ResolveReference(const ECSWorld& world, AssetID sourceAsset, UUID localFileID, UUID preferredScene) {
 
 		if (!sourceAsset || !localFileID) {
 			return Entity::Null();
@@ -70,17 +70,15 @@ namespace Engine::SceneObjectUtility {
 		HierarchySystem hierarchySystem{};
 		hierarchySystem.UpdateActiveInHierarchy(world, entity);
 
-		// 親が非アクティブでactiveInHierarchyが変化しない場合もactiveSelfの変更を通知する
-		const SceneObjectComponent* updatedSceneObject =
-			world.TryGetComponent<SceneObjectComponent>(entity);
-		if (updatedSceneObject &&
-			updatedSceneObject->activeInHierarchy == previousActiveInHierarchy) {
+		// 親が非アクティブでも自身の変更を通知する
+		const SceneObjectComponent* updatedSceneObject = world.TryGetComponent<SceneObjectComponent>(entity);
+		if (updatedSceneObject && updatedSceneObject->activeInHierarchy == previousActiveInHierarchy) {
 			world.MarkComponentModified<SceneObjectComponent>(entity);
 		}
 		return true;
 	}
 
-	UUID GetSceneInstanceID(ECSWorld& world, Entity entity) {
+	UUID GetSceneInstanceID(const ECSWorld& world, Entity entity) {
 
 		if (const auto* component = world.TryGetComponent<SceneObjectComponent>(entity)) {
 			return component->sceneInstanceID;
@@ -88,7 +86,7 @@ namespace Engine::SceneObjectUtility {
 		return {};
 	}
 
-	bool IsInScene(ECSWorld& world, Entity entity, UUID sceneInstanceID) {
+	bool IsInScene(const ECSWorld& world, Entity entity, UUID sceneInstanceID) {
 
 		if (!sceneInstanceID) {
 			return true;
@@ -96,12 +94,12 @@ namespace Engine::SceneObjectUtility {
 		return GetSceneInstanceID(world, entity) == sceneInstanceID;
 	}
 
-	Entity FindByLocalFileID(ECSWorld& world, UUID localFileID) {
+	Entity FindByLocalFileID(const ECSWorld& world, UUID localFileID) {
 
 		return FindByLocalFileID(world, UUID{}, localFileID);
 	}
 
-	Entity FindByLocalFileID(ECSWorld& world, UUID sceneInstanceID, UUID localFileID) {
+	Entity FindByLocalFileID(const ECSWorld& world, UUID sceneInstanceID, UUID localFileID) {
 
 		if (!localFileID) {
 			return Entity::Null();
@@ -114,7 +112,7 @@ namespace Engine::SceneObjectUtility {
 				found = entity;
 				++matches;
 			}
-			});
+		});
 		// 重複する番号を走査順で選ばない
 		return matches == 1 ? found : Entity::Null();
 	}

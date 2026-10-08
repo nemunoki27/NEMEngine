@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Assets/Database/AssetDocumentPublication.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
@@ -177,10 +178,7 @@ bool Engine::MaterialCreationSession::CreateMaterialAssets(const EditorToolConte
 	}
 
 	// 文書とmetaをまとめて保存し、成功後に索引を公開する
-	const JsonFileJournal::Scope scope{
-		RuntimePaths::GetSavedRoot() / "MaterialAssetRecovery", [](const std::filesystem::path& path) {
-			return StorageFileUtility::IsInside(path, RuntimePaths::GetGameAssetsRoot() / "Materials");
-		}};
+	const auto scope = AssetDocumentRecovery::MakeScope(AssetDocumentSaveKind::Material);
 	if (!AssetDocumentPublication::Commit(*assetDatabase, changes, scope, draft_.createMessage)) {
 		return false;
 	}

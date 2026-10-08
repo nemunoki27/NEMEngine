@@ -3,21 +3,25 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
+
 // c++
 #include <utility>
 
 using namespace Engine;
 using namespace Engine::ShaderGraphSourceUtility;
 
+// ノードとピンを合わせてハッシュ化する
 size_t ShaderGraphExpressionCompiler::EndpointKeyHasher::operator()(const EndpointKey& key) const noexcept {
 
 	const size_t nodeHash = std::hash<uint64_t>{}(key.node);
 	const size_t slotHash = std::hash<uint32_t>{}(key.slot);
-	return nodeHash ^ (slotHash + 0x9e3779b97f4a7c15ull + (nodeHash << 6) + (nodeHash >> 2));
+	return Algorithm::MixHash(nodeHash, slotHash);
 }
 
 // Graphの索引と接続を構築する
-ShaderGraphExpressionCompiler::ShaderGraphExpressionCompiler(const ShaderGraphAsset& graph, ShaderGraphCompileOutput& output) :
+ShaderGraphExpressionCompiler::ShaderGraphExpressionCompiler(
+	const ShaderGraphAsset& graph, ShaderGraphCompileOutput& output) :
 	graph_(graph), output_(output) {
 
 	for (const ShaderGraphNode& node : graph.nodes) {
@@ -67,7 +71,9 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitInput(
 		.node = node.id.value,
 		.slot = slot,
 	});
-	if (found == incoming_.end()) { return ShaderGraphExpression{target, std::string(fallback)}; }
+	if (found == incoming_.end()) {
+		return ShaderGraphExpression{target, std::string(fallback)};
+	}
 	const ShaderGraphLink& link = *found->second;
 	ShaderGraphExpression expression = EmitNode(link.outputNode, link.outputSlot);
 	ShaderGraphExpression converted = ConvertExpression(std::move(expression), target);
@@ -85,7 +91,9 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitNode(Engine::UUID nodeI
 		.slot = outputSlot,
 	};
 	// 共有された出力式は一度だけ生成する
-	if (const auto found = cache_.find(cacheKey); found != cache_.end()) { return found->second; }
+	if (const auto found = cache_.find(cacheKey); found != cache_.end()) {
+		return found->second;
+	}
 	const ShaderGraphNode* node = FindNode(nodeID);
 	if (!node) {
 		AddDiagnostic(nodeID, "リンク先のノードが見つかりません");
@@ -135,7 +143,9 @@ std::string ShaderGraphExpressionCompiler::BuildMaterialConstantBuffer(uint32_t 
 void ShaderGraphExpressionCompiler::AppendParameterFields(std::string& source) const {
 
 	// 空の定数領域にも型を成立させる要素を残す
-	if (graph_.parameters.empty() && keywordFields_.empty()) { source += "\tuint unused;\n"; }
+	if (graph_.parameters.empty() && keywordFields_.empty()) {
+		source += "\tuint unused;\n";
+	}
 	for (const ShaderGraphParameter& parameter : graph_.parameters) {
 		source += "\t" + HLSLType(parameter.type) + " " + parameterFields_.at(parameter.id.value) + ";\n";
 	}
@@ -147,13 +157,17 @@ std::string ShaderGraphExpressionCompiler::BuildMaterialParameterGetter() const 
 
 	std::string source = "ShaderGraphParameters GetShaderGraphParameters() {\n\n"
 						 "\tShaderGraphParameters result;\n";
-	if (graph_.parameters.empty() && keywordFields_.empty()) { source += "\tresult.unused = unused;\n"; }
+	if (graph_.parameters.empty() && keywordFields_.empty()) {
+		source += "\tresult.unused = unused;\n";
+	}
 	for (const ShaderGraphParameter& parameter : graph_.parameters) {
 		const std::string& field = parameterFields_.at(parameter.id.value);
 		source += "\tresult." + field + " = " + field + ";\n";
 	}
 	for (const ShaderGraphKeyword& keyword : graph_.keywords) {
-		if (!keyword.runtimeToggle) { continue; }
+		if (!keyword.runtimeToggle) {
+			continue;
+		}
 		const std::string& field = keywordFields_.at(keyword.id.value);
 		source += "\tresult." + field + " = " + field + ";\n";
 	}
@@ -168,7 +182,9 @@ std::string ShaderGraphExpressionCompiler::BuildCustomFunctionDeclarations() con
 	std::string source;
 	std::unordered_set<std::string> files;
 	for (const ShaderGraphNode& node : graph_.nodes) {
-		if (node.kind != ShaderGraphNodeKind::CustomFunction) { continue; }
+		if (node.kind != ShaderGraphNodeKind::CustomFunction) {
+			continue;
+		}
 		if (node.customFunctionSource == ShaderGraphCustomFunctionSource::File) {
 			if (!node.functionFile.empty() && files.insert(node.functionFile).second) {
 				source += "#include \"" + node.functionFile + "\"\n";
@@ -199,7 +215,9 @@ void ShaderGraphExpressionCompiler::AddDiagnostic(Engine::UUID node, std::string
 void ShaderGraphExpressionCompiler::AppendKeywordFields(std::string& source) const {
 
 	for (const ShaderGraphKeyword& keyword : graph_.keywords) {
-		if (!keyword.runtimeToggle) { continue; }
+		if (!keyword.runtimeToggle) {
+			continue;
+		}
 		source += "\t" + std::string(keyword.type == ShaderGraphKeywordType::Boolean ? "uint" : "int") + " " +
 				  keywordFields_.at(keyword.id.value) + ";\n";
 	}
@@ -240,6 +258,7 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitBinary(const ShaderGrap
 	};
 }
 
+// Nodeの用途に応じて式の生成先を選ぶ
 ShaderGraphExpression ShaderGraphExpressionCompiler::EmitNodeExpression(const ShaderGraphNode& node, uint32_t outputSlot) {
 
 	// Nodeの用途ごとに生成処理を分ける

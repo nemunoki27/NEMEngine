@@ -5,7 +5,6 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
 //============================================================================
@@ -45,7 +44,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-				setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+				setting.defaultAssetID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Sprite);
 				return MyGUI::AssetReferenceField("マテリアル", draft.material,
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
@@ -54,7 +53,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//	スプライト見た目パラメータ
 	//============================================================================
 	{
-		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+		const AssetID defaultMaterialID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Sprite);
 		const AssetID baseColorTexture = materialParameterDrawer_.ResolveTextureParameter(context,
 			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 
@@ -95,7 +94,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//============================================================================
 	// 描画設定
 	{
-		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+		const AssetID defaultMaterialID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Sprite);
 		const AssetID previousTexture = materialParameterDrawer_.ResolveTextureParameter(context,
 			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 

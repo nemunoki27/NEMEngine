@@ -47,4 +47,4 @@ namespace Engine {
 		ComponentMapDiff DiffComponentMaps(const nlohmann::json& base, const nlohmann::json& instance,
 			const std::vector<std::string>& excludeTypes);
 	}
-} // Engine
+}

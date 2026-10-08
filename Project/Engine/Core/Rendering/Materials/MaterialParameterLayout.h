@@ -28,14 +28,13 @@ namespace Engine {
 
 	//============================================================================
 	//	MaterialParameterLayout class
-	// Reflectionから指定名のマテリアルパラメータレイアウトを切り出して保持する
-	// 定数バッファと構造化バッファの両方で使用する
+	//	ReflectionからMaterialのGPU配置を切り出して保持するクラス
 	//============================================================================
 	class MaterialParameterLayout {
 	public:
-		//============================================================================
+		//========================================================================
 		//	public Methods
-		//============================================================================
+		//========================================================================
 
 		MaterialParameterLayout() = default;
 		~MaterialParameterLayout() = default;
@@ -55,15 +54,20 @@ namespace Engine {
 		// 値の検索方法とGPU配置を含む識別値を取得する
 		uint64_t GetContentHash() const;
 	private:
-		//============================================================================
+		//========================================================================
 		//	private Methods
-		//============================================================================
+		//========================================================================
 
 		//--------- variables ----------------------------------------------------
 
-		uint32_t sizeInBytes_ = 0;
-		uint32_t bindPoint_ = 1;
-		uint32_t space_ = 0;
-		std::vector<ShaderConstantBufferVariable> variables_{};
+		uint32_t sizeInBytes_ = 0; // 1要素のByte数
+		uint32_t bindPoint_ = 1; // バインド番号
+		uint32_t space_ = 0; // レジスター空間
+		std::vector<ShaderConstantBufferVariable> variables_{}; // ID順の変数配置
+
+		//--------- functions ----------------------------------------------------
+
+		// Texture指定を解決し、変数をID順へ並べる
+		void PrepareVariables(const ShaderReflectionInfo& reflection);
 	};
 } // Engine

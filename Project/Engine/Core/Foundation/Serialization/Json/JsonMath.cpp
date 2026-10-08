@@ -10,6 +10,7 @@ using namespace Engine;
 
 namespace {
 
+	// floatで表現できる有限値だけを取得する
 	bool TryGetFiniteFloat(const nlohmann::json& object, const char* key, float& outValue) {
 
 		const auto it = object.find(key);
@@ -28,44 +29,52 @@ namespace {
 }
 
 void JsonMath::SetVector2(nlohmann::json& json, const std::string& key, const Vector2& value) {
-	// Vector2を{x, y}オブジェクトとしてセット
-	json[key] = { {"x", value.x}, {"y", value.y} };
+
+	// 数学型の保存形式を再利用
+	json[key] = value.ToJson();
 }
 
 Vector2 JsonMath::GetVector2(const nlohmann::json& json, const std::string& key, const Vector2& defaultValue) {
 
+	// 有効な全成分が揃う場合だけ取得
 	const auto it = json.find(key);
 	if (it == json.end() || !it->is_object()) {
 		return defaultValue;
 	}
 
 	Vector2 value{};
-	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) ?
-	value : defaultValue;
+	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) ? value : defaultValue;
 }
 
 void JsonMath::SetVector3(nlohmann::json& json, const std::string& key, const Vector3& value) {
-	json[key] = { {"x", value.x}, {"y", value.y}, {"z", value.z} };
+
+	// 数学型の保存形式を再利用
+	json[key] = value.ToJson();
 }
 
 Vector3 JsonMath::GetVector3(const nlohmann::json& json, const std::string& key, const Vector3& defaultValue) {
 
+	// 有効な全成分が揃う場合だけ取得
 	const auto it = json.find(key);
 	if (it == json.end() || !it->is_object()) {
 		return defaultValue;
 	}
 
 	Vector3 value{};
-	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) &&
-	TryGetFiniteFloat(*it, "z", value.z) ? value : defaultValue;
+	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) && TryGetFiniteFloat(*it, "z", value.z)
+			   ? value
+			   : defaultValue;
 }
 
 void JsonMath::SetVector4(nlohmann::json& json, const std::string& key, const Vector4& value) {
-	json[key] = { {"x", value.x}, {"y", value.y}, {"z", value.z}, {"w", value.w} };
+
+	// 数学型の保存形式を再利用
+	json[key] = value.ToJson();
 }
 
 Vector4 JsonMath::GetVector4(const nlohmann::json& json, const std::string& key, const Vector4& defaultValue) {
 
+	// 有効な全成分が揃う場合だけ取得
 	const auto it = json.find(key);
 	if (it == json.end() || !it->is_object()) {
 		return defaultValue;
@@ -73,17 +82,20 @@ Vector4 JsonMath::GetVector4(const nlohmann::json& json, const std::string& key,
 
 	Vector4 value{};
 	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) &&
-	TryGetFiniteFloat(*it, "z", value.z) && TryGetFiniteFloat(*it, "w", value.w) ?
-	value : defaultValue;
+				   TryGetFiniteFloat(*it, "z", value.z) && TryGetFiniteFloat(*it, "w", value.w)
+			   ? value
+			   : defaultValue;
 }
 
 void JsonMath::SetQuaternion(nlohmann::json& json, const std::string& key, const Quaternion& value) {
-	// クォータニオンを{x, y, z, w}オブジェクトとして保存
-	json[key] = { {"x", value.x}, {"y", value.y}, {"z", value.z}, {"w", value.w} };
+
+	// 数学型の保存形式を再利用
+	json[key] = value.ToJson();
 }
 
 Quaternion JsonMath::GetQuaternion(const nlohmann::json& json, const std::string& key, const Quaternion& defaultValue) {
 
+	// 有効な全成分が揃う場合だけ取得
 	const auto it = json.find(key);
 	if (it == json.end() || !it->is_object()) {
 		return defaultValue;
@@ -91,34 +103,40 @@ Quaternion JsonMath::GetQuaternion(const nlohmann::json& json, const std::string
 
 	Quaternion value{};
 	return TryGetFiniteFloat(*it, "x", value.x) && TryGetFiniteFloat(*it, "y", value.y) &&
-	TryGetFiniteFloat(*it, "z", value.z) && TryGetFiniteFloat(*it, "w", value.w) ?
-	value : defaultValue;
+				   TryGetFiniteFloat(*it, "z", value.z) && TryGetFiniteFloat(*it, "w", value.w)
+			   ? value
+			   : defaultValue;
 }
 
 void JsonMath::SetColor3(nlohmann::json& json, const std::string& key, const Color3& value) {
-	// Color3を{r, g, b}オブジェクトとしてセット
-	json[key] = { {"r", value.r}, {"g", value.g}, {"b", value.b} };
+
+	// 数学型の保存形式を再利用
+	json[key] = value.ToJson();
 }
 
 Color3 JsonMath::GetColor3(const nlohmann::json& json, const std::string& key, const Color3& defaultValue) {
 
+	// 有効な全成分が揃う場合だけ取得
 	const auto it = json.find(key);
 	if (it == json.end() || !it->is_object()) {
 		return defaultValue;
 	}
 
 	Color3 value{};
-	return TryGetFiniteFloat(*it, "r", value.r) && TryGetFiniteFloat(*it, "g", value.g) &&
-	TryGetFiniteFloat(*it, "b", value.b) ? value : defaultValue;
+	return TryGetFiniteFloat(*it, "r", value.r) && TryGetFiniteFloat(*it, "g", value.g) && TryGetFiniteFloat(*it, "b", value.b)
+			   ? value
+			   : defaultValue;
 }
 
 void JsonMath::SetColor4(nlohmann::json& json, const std::string& key, const Color4& value) {
-	// Color4を{r, g, b, a}オブジェクトとしてセット
-	json[key] = { {"r", value.r}, {"g", value.g}, {"b", value.b}, {"a", value.a} };
+
+	// 数学型の保存形式を再利用
+	json[key] = value.ToJson();
 }
 
 Color4 JsonMath::GetColor4(const nlohmann::json& json, const std::string& key, const Color4& defaultValue) {
 
+	// 有効な全成分が揃う場合だけ取得
 	const auto it = json.find(key);
 	if (it == json.end() || !it->is_object()) {
 		return defaultValue;
@@ -126,6 +144,7 @@ Color4 JsonMath::GetColor4(const nlohmann::json& json, const std::string& key, c
 
 	Color4 value{};
 	return TryGetFiniteFloat(*it, "r", value.r) && TryGetFiniteFloat(*it, "g", value.g) &&
-	TryGetFiniteFloat(*it, "b", value.b) && TryGetFiniteFloat(*it, "a", value.a) ?
-	value : defaultValue;
+				   TryGetFiniteFloat(*it, "b", value.b) && TryGetFiniteFloat(*it, "a", value.a)
+			   ? value
+			   : defaultValue;
 }

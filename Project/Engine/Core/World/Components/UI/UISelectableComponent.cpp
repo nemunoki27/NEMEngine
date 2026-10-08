@@ -11,6 +11,7 @@
 //============================================================================
 namespace {
 
+	// 保存された状態別の表示設定を読む
 	void ReadStyle(const nlohmann::json& in, Engine::UITransitionStyle& style) {
 
 		if (!in.is_object()) {
@@ -37,6 +38,7 @@ namespace {
 		style.soundVolume = in.value("soundVolume", style.soundVolume);
 	}
 
+	// 状態別の表示設定を保存形式へ変換
 	nlohmann::json WriteStyle(const Engine::UITransitionStyle& style) {
 
 		return {
@@ -65,6 +67,7 @@ void Engine::UISelectableComponent::OnAdded(
 	ECSWorld& world, const Entity& entity,
 	[[maybe_unused]] UISelectableComponent& component) {
 
+	// 表示の実行状態を追加
 	if (!world.HasComponent<UISelectableRuntimeComponent>(entity)) {
 		world.AddComponent<UISelectableRuntimeComponent>(entity);
 	}
@@ -73,6 +76,7 @@ void Engine::UISelectableComponent::OnAdded(
 void Engine::UISelectableComponent::OnRemoved(
 	ECSWorld& world, const Entity& entity) {
 
+	// 表示の実行状態を削除
 	if (world.HasComponent<UISelectableRuntimeComponent>(entity)) {
 		world.RemoveComponent<UISelectableRuntimeComponent>(entity);
 	}
@@ -92,6 +96,7 @@ void Engine::UISelectableComponent::DeserializeECS(
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
 	const nlohmann::json& in, UISelectableComponent& component) {
 
+	// 保存設定を読み込む
 	from_json(in, component);
 }
 
@@ -100,11 +105,13 @@ void Engine::UISelectableComponent::SerializeECS(
 	[[maybe_unused]] const Entity& entity,
 	const UISelectableComponent& component, nlohmann::json& out) {
 
+	// 選択表示の設定を保存
 	to_json(out, component);
 }
 
 void Engine::ApplyUISelectableAuthoring(const UISelectableComponent& source, UISelectableComponent& destination) {
 
+	// 保存設定を選択表示へ反映
 	destination.interactable = source.interactable;
 	destination.normal = source.normal;
 	destination.selected = source.selected;
@@ -114,6 +121,7 @@ void Engine::ApplyUISelectableAuthoring(const UISelectableComponent& source, UIS
 
 void Engine::from_json(const nlohmann::json& in, UISelectableComponent& component) {
 
+	// 状態別の色と形状と参照を読む
 	component.interactable = in.value("interactable", component.interactable);
 	ReadStyle(in.value("normal", nlohmann::json{}), component.normal);
 	ReadStyle(in.value("selected", nlohmann::json{}), component.selected);
@@ -123,6 +131,7 @@ void Engine::from_json(const nlohmann::json& in, UISelectableComponent& componen
 
 void Engine::to_json(nlohmann::json& out, const UISelectableComponent& component) {
 
+	// 状態別の表示設定をJSONへ書き出す
 	out["interactable"] = component.interactable;
 	out["normal"] = WriteStyle(component.normal);
 	out["selected"] = WriteStyle(component.selected);

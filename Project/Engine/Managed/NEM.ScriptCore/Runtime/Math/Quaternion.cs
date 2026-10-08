@@ -34,10 +34,14 @@ public struct Quaternion : IEquatable<Quaternion> {
 
     //--------- operators ----------------------------------------------------
 
-    public static Quaternion operator +(Quaternion lhs, Quaternion rhs) => new(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
-    public static Quaternion operator -(Quaternion lhs, Quaternion rhs) => new(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
-    public static Quaternion operator *(Quaternion lhs, float rhs) => new(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs);
-    public static Quaternion operator /(Quaternion lhs, float rhs) => new(lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs);
+    public static Quaternion operator +(Quaternion lhs, Quaternion rhs) =>
+        new(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
+    public static Quaternion operator -(Quaternion lhs, Quaternion rhs) =>
+        new(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
+    public static Quaternion operator *(Quaternion lhs, float rhs) =>
+        new(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs);
+    public static Quaternion operator /(Quaternion lhs, float rhs) =>
+        new(lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs);
     public static Quaternion operator -(Quaternion value) => new(-value.x, -value.y, -value.z, -value.w);
 
     // クォータニオン同士の積
@@ -57,7 +61,8 @@ public struct Quaternion : IEquatable<Quaternion> {
 
     public static bool operator ==(Quaternion lhs, Quaternion rhs) => Dot(lhs, rhs) > 1.0f - 1e-6f;
     public static bool operator !=(Quaternion lhs, Quaternion rhs) => !(lhs == rhs);
-    public readonly bool Equals(Quaternion other) => x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w);
+    public readonly bool Equals(Quaternion other) =>
+        x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w);
     public override readonly bool Equals(object? other) => other is Quaternion value && Equals(value);
     public override readonly int GetHashCode() => HashCode.Combine(x, y, z, w);
     public void Normalize() { this = Normalize(this); }
@@ -69,13 +74,14 @@ public struct Quaternion : IEquatable<Quaternion> {
 
     // 正規化する
     public static Quaternion Normalize(Quaternion value) {
-        // 0除算を避けるため、十分小さい値はidentityとして扱う
+        // 微小な回転は単位回転を返す
         float len = Length(value);
         return len < float.Epsilon ? identity : value / len;
     }
 
     // 内積を返す
-    public static float Dot(Quaternion lhs, Quaternion rhs) => lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
+    public static float Dot(Quaternion lhs, Quaternion rhs) =>
+        lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
 
     // 共役を返す
     public static Quaternion Conjugate(Quaternion value) => new(-value.x, -value.y, -value.z, value.w);
@@ -87,7 +93,7 @@ public struct Quaternion : IEquatable<Quaternion> {
         return normSq < float.Epsilon ? identity : conjugate / normSq;
     }
 
-    // 任意軸回転を作成する
+    // 任意軸とラジアンから回転を生成
     public static Quaternion MakeAxisAngle(Vector3 axis, float angle) {
         float halfAngle = angle * 0.5f;
         float sinHalfAngle = Mathf.Sin(halfAngle);
@@ -101,7 +107,7 @@ public struct Quaternion : IEquatable<Quaternion> {
         float hy = eulerRadians.y * 0.5f;
         float hz = eulerRadians.z * 0.5f;
 
-        // 半角のsin/cos
+        // 半角の正弦と余弦
         float sx = Mathf.Sin(hx);
         float cx = Mathf.Cos(hx);
         float sy = Mathf.Sin(hy);
@@ -134,7 +140,8 @@ public struct Quaternion : IEquatable<Quaternion> {
     }
 
     // 球面線形補間
-    public static Quaternion Slerp(Quaternion lhs, Quaternion rhs, float t) => SlerpUnclamped(lhs, rhs, Mathf.Clamp01(t));
+    public static Quaternion Slerp(Quaternion lhs, Quaternion rhs, float t) =>
+        SlerpUnclamped(lhs, rhs, Mathf.Clamp01(t));
 
     // 回転角を保って外挿する
     public static Quaternion SlerpUnclamped(Quaternion lhs, Quaternion rhs, float t) {
@@ -154,7 +161,7 @@ public struct Quaternion : IEquatable<Quaternion> {
         return Normalize(lhs * (Mathf.Sin((1.0f - t) * theta) / sinTheta) + rhs * (Mathf.Sin(t * theta) / sinTheta));
     }
 
-    // 2回転のなす角(度)を返す
+    // 回転間の角度を度数で返す
     public static float Angle(Quaternion lhs, Quaternion rhs) {
         float dot = Mathf.Min(Mathf.Abs(Dot(lhs, rhs)), 1.0f);
         // 同一回転の丸め誤差を角度へ変換しない
@@ -164,15 +171,16 @@ public struct Quaternion : IEquatable<Quaternion> {
     // 近似比較
     public static bool NearlyEqual(Quaternion lhs, Quaternion rhs) => 1.0f - 0.001f <= Mathf.Abs(Dot(lhs, rhs));
 
-    // 度数指定の任意軸回転、Unity互換の引数順(角度,軸)。軸は正規化する
+    // 角度と軸から回転を生成
     public static Quaternion AngleAxis(float angleDegrees, Vector3 axis) => axis.sqrMagnitude <= 1e-10f
         ? identity : MakeAxisAngle(Vector3.Normalize(axis), Mathf.DegToRad(angleDegrees));
 
-    // 度数法オイラー角からの生成、Unity互換エイリアス
-    public static Quaternion Euler(float xDegrees, float yDegrees, float zDegrees) => FromEulerDegrees(new Vector3(xDegrees, yDegrees, zDegrees));
+    // 度数のXYZ成分から回転を生成
+    public static Quaternion Euler(float xDegrees, float yDegrees, float zDegrees) =>
+        FromEulerDegrees(new Vector3(xDegrees, yDegrees, zDegrees));
     public static Quaternion Euler(Vector3 eulerDegrees) => FromEulerDegrees(eulerDegrees);
 
-    // forwardを+Zへ、upを基準に向ける回転、ネイティブQuaternion::LookRotationと同一規約(左手系)
+    // 前方と上方向から左手系の回転を生成
     public static Quaternion LookRotation(Vector3 forward, Vector3 up) {
         float forwardLength = Vector3.Magnitude(forward);
         if (forwardLength <= 1e-6f) {
@@ -180,7 +188,7 @@ public struct Quaternion : IEquatable<Quaternion> {
         }
         Vector3 axisZ = forward / forwardLength;
 
-        // 右ベクトルはup×forward、forwardと平行なら別の基準upでやり直す
+        // 平行な方向は別の上方向を使用
         Vector3 r = Vector3.Cross(up, axisZ);
         float rightLength = Vector3.Magnitude(r);
         if (rightLength <= 1e-6f) {
@@ -214,10 +222,10 @@ public struct Quaternion : IEquatable<Quaternion> {
         return Normalize(result);
     }
 
-    // up省略版、ワールド上方向を基準にする
+    // 省略時はワールドの上方向を使用
     public static Quaternion LookRotation(Vector3 forward) => LookRotation(forward, Vector3.up);
 
-    // fromの向きをtoの向きへ合わせる最小回転
+    // 方向を合わせる最小回転を生成
     public static Quaternion FromToRotation(Vector3 from, Vector3 to) {
         Vector3 f = Vector3.Normalize(from);
         Vector3 t = Vector3.Normalize(to);
@@ -241,7 +249,7 @@ public struct Quaternion : IEquatable<Quaternion> {
         return MakeAxisAngle(Vector3.Normalize(Vector3.Cross(f, t)), Mathf.Acos(dot));
     }
 
-    // fromからtoへ最大maxDegreesDeltaだけ回す
+    // 指定角度を上限に目標へ回転
     public static Quaternion RotateTowards(Quaternion from, Quaternion to, float maxDegreesDelta) {
         float angle = Angle(from, to);
         // 負の回転量は目標から離れる方向へ外挿する

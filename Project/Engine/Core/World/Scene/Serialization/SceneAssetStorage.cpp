@@ -17,7 +17,6 @@
 // c++
 #include <algorithm>
 #include <mutex>
-#include <set>
 #include <unordered_set>
 
 using namespace Engine::SceneStorageFiles;
@@ -235,28 +234,10 @@ bool Engine::SceneAssetStorage::Save(SceneSaveSnapshot snapshot, std::string& er
 			}
 		}
 		std::vector<SceneStorageChange> changes;
-		std::set<std::string> used;
+		std::unordered_set<std::string> used;
 		const Path actorRoot = ResolveActorRoot(snapshot.scenePath, snapshot.sceneAsset);
-		if (snapshot.useExternalActors) {
-			if (actorRoot.empty()) {
-				throw std::runtime_error("Actorの配置先を解決できません");
-			}
-			auto ids = nlohmann::json::array();
-			for (auto actor : snapshot.root.at("Entities")) {
-				const auto id = TryParseUUID16Hex(actor.value("LocalFileID", std::string{}));
-				if (!id || !used.insert(ToString(*id) + ".actor.json").second) {
-					throw std::runtime_error("保存Actor IDが不正または重複しています");
-				}
-				actor["SchemaVersion"] = 1;
-				ids.push_back(ToString(*id));
-				changes.push_back({actorRoot / (ToString(*id) + ".actor.json"), std::move(actor)});
-			}
-			snapshot.root.erase("Entities");
-			snapshot.root["ExternalActors"] = std::move(ids);
-		} else {
-			snapshot.root.erase("ExternalActors");
-		}
-		changes.push_back({snapshot.scenePath, snapshot.root});
+		// SceneとActorの保存値を共通処理で作成
+		AppendSaveChanges(snapshot, changes, used);
 		std::error_code ec;
 		if (!actorRoot.empty() && std::filesystem::exists(actorRoot)) {
 			for (const auto& entry : std::filesystem::directory_iterator(actorRoot)) {

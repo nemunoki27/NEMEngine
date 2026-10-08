@@ -7,6 +7,8 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 #include <Engine/Core/Rendering/Raytracing/AccelerationStructure/BottomLevelAccelerationStructure.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
+
+// c++
 #include <array>
 #include <memory>
 #include <unordered_map>
@@ -35,23 +37,30 @@ namespace Engine {
 		//========================================================================
 		friend class RaytracingSceneBuilder;
 
+		//--------- structure ----------------------------------------------------
+
+		// 共有Meshの形状世代とLODを区別するキー
 		struct BLASKey {
 
 			AssetID meshAssetID{};
-			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
+			// 再読み込み後は別のBLASとして構築
 			uint32_t reloadGeneration = 0;
-			// 静的メッシュのLODごとにBLASを共有する
+			// 共有するLOD番号
 			uint32_t lodIndex = 0;
 			// サブメッシュローカル行列を含むジオメトリ配置
 			uint64_t geometryLayoutHash = 0;
 
+			// 形状世代とLODと配置が一致するか
 			bool operator==(const BLASKey& rhs) const noexcept;
 		};
 
+		// 共有Meshの検索用Hash
 		struct BLASKeyHash {
+			// 検索用Hashを計算
 			size_t operator()(const BLASKey& key) const noexcept;
 		};
 
+		// 固有変換を持つ静的Meshのキー
 		struct StaticInstanceBLASKey {
 
 			ECSWorld* world = nullptr;
@@ -60,14 +69,18 @@ namespace Engine {
 			AssetID meshAssetID{};
 			uint32_t reloadGeneration = 0;
 
+			// 同じ形状とEntityの組み合わせか
 			bool operator==(const StaticInstanceBLASKey& rhs) const noexcept;
 		};
 
+		// 静的Meshの検索用Hash
 		struct StaticInstanceBLASKeyHash {
 
+			// 検索用Hashを計算
 			size_t operator()(const StaticInstanceBLASKey& key) const noexcept;
 		};
 
+		// 固有変換を反映したLOD別BLAS
 		struct StaticInstanceBLASEntry {
 
 			std::array<BottomLevelAccelerationStructure,
@@ -80,22 +93,27 @@ namespace Engine {
 			bool dedicated = false;
 		};
 
+		// Skinning対象のEntityと形状世代
 		struct DynamicBLASKey {
 
 			ECSWorld* world = nullptr;
 			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity = Entity::Null();
 			AssetID meshAssetID{};
-			// ホットリロード世代、差し替えで別キーになり古いBLASを再利用しない
+			// 再読み込み後は別のBLASとして構築
 			uint32_t reloadGeneration = 0;
 
+			// 同じ形状とEntityの組み合わせか
 			bool operator==(const DynamicBLASKey& rhs) const noexcept;
 		};
 
+		// Skinning対象の検索用Hash
 		struct DynamicBLASKeyHash {
+			// 検索用Hashを計算
 			size_t operator()(const DynamicBLASKey& key) const noexcept;
 		};
 
+		// Skinning用BLASと転送世代
 		struct DynamicBLASEntry {
 
 			BottomLevelAccelerationStructure blas{};
@@ -107,13 +125,15 @@ namespace Engine {
 			uint32_t consecutiveRefitCount = 0;
 		};
 
+		//--------- variables ----------------------------------------------------
+
 		std::unordered_map<BLASKey, BottomLevelAccelerationStructure, BLASKeyHash> blases_;
 		std::unordered_map<StaticInstanceBLASKey, StaticInstanceBLASEntry,
 			StaticInstanceBLASKeyHash> staticInstanceBLASes_{};
 		std::unordered_map<DynamicBLASKey,
 			DynamicBLASEntry, DynamicBLASKeyHash> dynamicBlases_{};
-		// メッシュごとに最後に構築したリロード世代、変化時に旧世代BLASを破棄する
-		std::unordered_map<AssetID, uint32_t> meshBlasGeneration_;
+		// 構築済みMeshの読み込み世代
+		std::unordered_map<AssetID, uint32_t> meshBLASGeneration_;
 
 	};
 }

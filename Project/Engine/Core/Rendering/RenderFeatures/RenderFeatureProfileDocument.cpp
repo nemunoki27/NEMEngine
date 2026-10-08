@@ -8,16 +8,30 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
-void Engine::RenderFeatureProfileDocument::Read() {
+// c++
+#include <type_traits>
+#include <utility>
 
-	profile_ = RenderFeatureProfileAsset{};
-	if (!profilePath_.empty() &&
-		!RenderFeatureProfileSerializer::Load(profilePath_, profile_)) {
+//============================================================================
+//	RenderFeatureProfileDocument classMethods
+//============================================================================
 
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[レンダー機能] プロファイルの読み込みに失敗しました path={}",
-			profilePath_.string());
+bool Engine::RenderFeatureProfileDocument::Read(const std::filesystem::path& path) {
+
+	// 読込失敗時は現在の編集を保持する
+	std::filesystem::path candidatePath = path;
+	RenderFeatureProfileAsset candidate{};
+	if (!candidatePath.empty() && !RenderFeatureProfileSerializer::Load(candidatePath, candidate)) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err, "[レンダー機能] プロファイルの読み込みに失敗しました path={}",
+			candidatePath.string());
+		return false;
 	}
+	static_assert(std::is_nothrow_move_assignable_v<std::filesystem::path>);
+	static_assert(std::is_nothrow_move_assignable_v<RenderFeatureProfileAsset>);
+	profilePath_ = std::move(candidatePath);
+	profile_ = std::move(candidate);
+	return true;
 }
 
 bool Engine::RenderFeatureProfileDocument::Save() const {

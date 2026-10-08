@@ -4,10 +4,6 @@
 //	include
 //============================================================================
 // c++
-#include <cmath>
-#include <vector>
-#include <algorithm>
-#include <numbers>
 // json
 #include <json.hpp>
 
@@ -19,6 +15,7 @@ namespace Engine {
 
 	//============================================================================
 	//	Quaternion structure
+	//	回転の演算と変換
 	//============================================================================
 	struct Quaternion final {
 	public:
@@ -26,7 +23,14 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		float x, y, z, w;
+		//--------- variables ----------------------------------------------------
+
+		float x; // X成分
+		float y; // Y成分
+		float z; // Z成分
+		float w; // 実数成分
+
+		//--------- functions ----------------------------------------------------
 
 		Quaternion() : x(0.0f), y(0.0f), z(0.0f), w(1.0f) {}
 		Quaternion(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
@@ -106,4 +110,4 @@ namespace Engine {
 		// 近似比較
 		static bool NearlyEqual(const Quaternion& q0, const Quaternion& q1);
 	};
-} // Engine
+}

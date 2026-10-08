@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Animation/Clips/AnimationChannelUtility.h>
 
 // c++
 #include <algorithm>
@@ -25,8 +26,7 @@ namespace Engine::CurveEditorUtility {
 
 		if (IsColorCurveSet(channels)) {
 			if (state.IsChannelVisible(0)) {
-				const uint32_t rgbKeyCount = (std::min)({static_cast<uint32_t>(channels[0].keys.size()),
-					static_cast<uint32_t>(channels[1].keys.size()), static_cast<uint32_t>(channels[2].keys.size())});
+				const size_t rgbKeyCount = Engine::AnimationChannelUtility::GetSharedKeyCount(channels.first(3));
 				for (uint32_t keyIndex = 0; keyIndex < rgbKeyCount; ++keyIndex) {
 					const float time = channels[0].keys[keyIndex].time;
 					const Engine::Color4 color = EvaluateCurveColorAtTime(channels, time);
@@ -122,7 +122,7 @@ namespace Engine::CurveEditorUtility {
 			return;
 		}
 
-		// 色カーブはR/G/Bを1キーとしてまとめて消し、Alphaは別チャンネルとして消す
+		// RGBはまとめて削除し、Alphaは個別に削除する
 		if (IsColorCurveSet(channels)) {
 			std::vector<uint32_t> rgbKeys{};
 			std::vector<uint32_t> alphaKeys{};
@@ -133,7 +133,7 @@ namespace Engine::CurveEditorUtility {
 					rgbKeys.emplace_back(selection.keyIndex);
 				}
 			}
-			// indexずれを避けるため降順にし、重複keyは1回だけ消す
+			// 重複を除き、後ろのキーから削除する
 			const auto sortUniqueDesc = [](std::vector<uint32_t>& keys) {
 				std::sort(keys.begin(), keys.end(), [](uint32_t lhs, uint32_t rhs) { return lhs > rhs; });
 				keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
@@ -152,7 +152,7 @@ namespace Engine::CurveEditorUtility {
 			return;
 		}
 
-		// 後ろから削除できるようにチャンネル/キーを降順に並べる
+		// チャンネルとキーを削除順に並べる
 		std::sort(state.selectedKeys.begin(), state.selectedKeys.end(),
 			[](const Engine::CurveKeySelection& lhs, const Engine::CurveKeySelection& rhs) {
 				if (lhs.channelIndex != rhs.channelIndex) {
@@ -160,7 +160,7 @@ namespace Engine::CurveEditorUtility {
 				}
 				return lhs.keyIndex > rhs.keyIndex;
 			});
-		// indexずれを避けながら削除する
+		// 後ろから削除してキー番号のずれを防ぐ
 		for (const Engine::CurveKeySelection& selection : state.selectedKeys) {
 			if (selection.channelIndex < channels.size()) {
 				channels[selection.channelIndex].RemoveKey(selection.keyIndex);

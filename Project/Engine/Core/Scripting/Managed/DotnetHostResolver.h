@@ -11,7 +11,7 @@ namespace Engine {
 
 	//============================================================================
 	//	DotnetHostResolver class
-	//	nethostでhostfxrを探索しload_assembly_and_get_function_pointerデリゲートまで取得して保持するRAIIサービス
+	//	hostfxrとManaged呼出入口を所有する
 	//============================================================================
 	class DotnetHostResolver {
 	public:
@@ -22,20 +22,21 @@ namespace Engine {
 		DotnetHostResolver() = default;
 		~DotnetHostResolver();
 
-		// 多重解放、二重復元を防ぐためコピー/ムーブ禁止
+		// DLLの二重解放を防ぐためコピーを禁止
 		DotnetHostResolver(const DotnetHostResolver&) = delete;
 		DotnetHostResolver& operator=(const DotnetHostResolver&) = delete;
 
-		// 初期化
+		// Managed呼出入口を初期化
 		bool Initialize(const std::filesystem::path& scriptCoreAssemblyPath, const std::filesystem::path& runtimeConfigPath);
 
-		// hostfxrライブラリを解放しデリゲートを無効化する、複数回呼び出しても安全
+		// 呼出入口を無効化してDLLを解放
 		void Shutdown();
 
 		//--------- accessor -----------------------------------------------------
 
-		// load_assembly_and_get_function_pointerデリゲート、戻り値はhostfxrロード中のみ有効で呼び出し側が実シグネチャへcastする
+		// DLL保持中のみ有効なAssembly読込入口
 		void* GetLoadAssemblyDelegate() const { return loadAssemblyDelegate_; }
+		// DLLと呼出入口を保持しているか
 		bool IsInitialized() const { return library_ != nullptr && loadAssemblyDelegate_ != nullptr; }
 	private:
 		//============================================================================
@@ -44,9 +45,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// hostfxr.dllのHMODULE、windows.h非公開化のためvoid*で保持する
+		// 所有するhostfxrのDLLハンドル
 		void* library_ = nullptr;
-		// load_assembly_and_get_function_pointerデリゲート
+		// ManagedAssemblyの読込入口
 		void* loadAssemblyDelegate_ = nullptr;
 	};
-} // Engine
+}

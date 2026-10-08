@@ -37,6 +37,7 @@ namespace {
 		return hash != 0 ? hash : 1;
 	}
 
+	// 展開に失敗した参照元を診断へ残す
 	void AddExpansionDiagnostic(std::vector<ShaderGraphDiagnostic>& diagnostics, Engine::UUID node, std::string message) {
 
 		diagnostics.emplace_back(ShaderGraphDiagnostic{
@@ -48,13 +49,21 @@ namespace {
 		});
 	}
 
+	// 子Graphを展開して親の接続先へつなぐ
 	bool ExpandSubGraphs(ShaderGraphAsset& graph, const ShaderGraphAssetResolver& resolver,
 		std::vector<ShaderGraphDiagnostic>& diagnostics, std::unordered_set<AssetID>& resolving) {
+
+		// 定数への置換前に公開値のIDを確認する
+		if (!ShaderGraphIRBuilder::ValidatePublicIdentifiers(graph, diagnostics)) {
+			return false;
+		}
 
 		while (true) {
 			const auto instance = std::find_if(graph.nodes.begin(), graph.nodes.end(),
 				[](const ShaderGraphNode& node) { return node.kind == ShaderGraphNodeKind::SubGraph; });
-			if (instance == graph.nodes.end()) { return true; }
+			if (instance == graph.nodes.end()) {
+				return true;
+			}
 
 			const ShaderGraphNode subGraphNode = *instance;
 			if (!resolver || !subGraphNode.subGraph) {
@@ -66,6 +75,7 @@ namespace {
 				return false;
 			}
 
+			// 子Graphの参照循環を先に解消する
 			ShaderGraphAsset child{};
 			if (!resolver(subGraphNode.subGraph, child)) {
 				resolving.erase(subGraphNode.subGraph);
@@ -83,9 +93,12 @@ namespace {
 			}
 			resolving.erase(subGraphNode.subGraph);
 
+			// 公開値の順序を接続ピンへ対応付ける
 			std::vector<const ShaderGraphParameter*> interfaceParameters;
 			for (const ShaderGraphParameter& parameter : child.parameters) {
-				if (parameter.exposed) { interfaceParameters.emplace_back(&parameter); }
+				if (parameter.exposed) {
+					interfaceParameters.emplace_back(&parameter);
+				}
 			}
 			std::vector<std::optional<GraphEndpoint>> instanceInputs(interfaceParameters.size());
 			for (const ShaderGraphLink& link : graph.links) {
@@ -97,10 +110,19 @@ namespace {
 				}
 			}
 
+			// 子のノードを呼出元ごとのIDへ置き換える
 			std::unordered_map<uint64_t, GraphEndpoint> endpointMap;
 			std::vector<ShaderGraphNode> expandedNodes;
+			std::vector<ShaderGraphKeyword> expandedKeywords;
+			for (const ShaderGraphKeyword& keyword : child.keywords) {
+				ShaderGraphKeyword clone = keyword;
+				clone.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, keyword.id.value, 6)};
+				expandedKeywords.emplace_back(std::move(clone));
+			}
 			for (const ShaderGraphNode& source : child.nodes) {
-				if (source.id == child.outputNode || source.id == child.vertexOutputNode) { continue; }
+				if (source.id == child.outputNode || source.id == child.vertexOutputNode) {
+					continue;
+				}
 				if (source.kind == ShaderGraphNodeKind::Parameter) {
 					const auto parameter = std::find_if(child.parameters.begin(), child.parameters.end(),
 						[&](const ShaderGraphParameter& value) { return value.id == source.parameterID; });
@@ -110,12 +132,13 @@ namespace {
 					}
 					const auto interfaceParameter =
 						std::find(interfaceParameters.begin(), interfaceParameters.end(), &(*parameter));
-					if (interfaceParameter != interfaceParameters.end() &&
-						instanceInputs[static_cast<size_t>(std::distance(interfaceParameters.begin(), interfaceParameter))]) {
+					if (interfaceParameter != interfaceParameters.end()) {
 						const size_t parameterIndex =
 							static_cast<size_t>(std::distance(interfaceParameters.begin(), interfaceParameter));
-						endpointMap[source.id.value] = *instanceInputs[parameterIndex];
-						continue;
+						if (instanceInputs[parameterIndex]) {
+							endpointMap[source.id.value] = *instanceInputs[parameterIndex];
+							continue;
+						}
 					}
 
 					ShaderGraphNode constant{
@@ -136,6 +159,16 @@ namespace {
 
 				ShaderGraphNode clone = source;
 				clone.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, source.id.value, 2)};
+				// Keywordの参照先も呼出元の定義へ置き換える
+				if (source.kind == ShaderGraphNodeKind::Keyword) {
+					const auto keyword = std::find_if(child.keywords.begin(), child.keywords.end(),
+						[&](const ShaderGraphKeyword& value) { return value.id == source.keywordID; });
+					if (keyword == child.keywords.end()) {
+						AddExpansionDiagnostic(diagnostics, subGraphNode.id, "Sub Graph内のKeywordが見つかりません");
+						return false;
+					}
+					clone.keywordID = Engine::UUID{MakeExpandedID(subGraphNode.id.value, source.keywordID.value, 6)};
+				}
 				for (ShaderGraphPort& port : clone.inputPorts) {
 					port.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, port.id.value, 3)};
 				}
@@ -151,7 +184,9 @@ namespace {
 
 			const auto resolveEndpoint = [&](Engine::UUID node, uint32_t slot) -> std::optional<GraphEndpoint> {
 				const auto found = endpointMap.find(node.value);
-				if (found == endpointMap.end()) { return std::nullopt; }
+				if (found == endpointMap.end()) {
+					return std::nullopt;
+				}
 				GraphEndpoint endpoint = found->second;
 				if (std::find_if(child.nodes.begin(), child.nodes.end(), [&](const ShaderGraphNode& value) {
 						return value.id == node && value.kind == ShaderGraphNodeKind::Parameter;
@@ -167,17 +202,24 @@ namespace {
 				AddExpansionDiagnostic(diagnostics, subGraphNode.id, "Sub GraphのOutputノードが見つかりません");
 				return false;
 			}
+			// 子の出力ピンと親の接続先を対応付ける
 			std::vector<std::optional<GraphEndpoint>> outputs(GetShaderGraphInputCount(*childOutput));
 			std::vector<ShaderGraphLink> expandedLinks;
 			for (const ShaderGraphLink& sourceLink : child.links) {
 				const std::optional<GraphEndpoint> source = resolveEndpoint(sourceLink.outputNode, sourceLink.outputSlot);
-				if (!source) { continue; }
+				if (!source) {
+					continue;
+				}
 				if (sourceLink.inputNode == child.outputNode) {
-					if (sourceLink.inputSlot < outputs.size()) { outputs[sourceLink.inputSlot] = source; }
+					if (sourceLink.inputSlot < outputs.size()) {
+						outputs[sourceLink.inputSlot] = source;
+					}
 					continue;
 				}
 				const auto destination = endpointMap.find(sourceLink.inputNode.value);
-				if (destination == endpointMap.end()) { continue; }
+				if (destination == endpointMap.end()) {
+					continue;
+				}
 				expandedLinks.emplace_back(ShaderGraphLink{
 					.id = Engine::UUID{MakeExpandedID(subGraphNode.id.value, sourceLink.id.value, 5)},
 					.outputNode = source->node,
@@ -188,7 +230,9 @@ namespace {
 			}
 
 			for (ShaderGraphLink& link : graph.links) {
-				if (link.outputNode != subGraphNode.id) { continue; }
+				if (link.outputNode != subGraphNode.id) {
+					continue;
+				}
 				if (link.outputSlot >= outputs.size() || !outputs[link.outputSlot]) {
 					AddExpansionDiagnostic(diagnostics, subGraphNode.id, "Sub Graphの未接続出力が使用されています");
 					return false;
@@ -203,6 +247,8 @@ namespace {
 				std::make_move_iterator(expandedNodes.end()));
 			graph.links.insert(graph.links.end(), std::make_move_iterator(expandedLinks.begin()),
 				std::make_move_iterator(expandedLinks.end()));
+			graph.keywords.insert(graph.keywords.end(), std::make_move_iterator(expandedKeywords.begin()),
+				std::make_move_iterator(expandedKeywords.end()));
 		}
 	}
 

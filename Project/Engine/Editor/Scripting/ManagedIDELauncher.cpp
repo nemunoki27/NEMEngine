@@ -1,10 +1,12 @@
-#include "ManagedIdeLauncher.h"
+#include "ManagedIDELauncher.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/UTFConversion.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
 // c++
 #include <fstream>
@@ -21,46 +23,25 @@
 
 namespace {
 
-	Engine::ManagedIdeSettings g_settings;
+	Engine::ManagedIDESettings g_settings;
 	bool g_loaded = false;
 
-	std::wstring Widen(const std::string& text) {
-		if (text.empty()) {
-			return std::wstring();
-		}
-		const int size = ::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0);
-		std::wstring result(static_cast<size_t>(size), L'\0');
-		::MultiByteToWideChar(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), result.data(), size);
-		return result;
-	}
-
+	// Project共通のScript設定を取得
 	std::filesystem::path ProjectSettingsPath() {
 		return Engine::RuntimePaths::GetProjectSettingsPath("ManagedScripting.json");
 	}
 
+	// 使用者ごとのIDE設定を取得
 	std::filesystem::path UserSettingsPath() {
 		return Engine::RuntimePaths::GetUserSettingsPath("Editor/ManagedIDE.json");
-	}
-
-	// 環境変数からpathを取得する、Program Filesの探索に使う
-	std::filesystem::path GetEnvironmentPath(const char* name) {
-
-		char* value = nullptr;
-		size_t valueLength = 0;
-		if (_dupenv_s(&value, &valueLength, name) != 0 || value == nullptr) {
-			return {};
-		}
-		std::filesystem::path result = value;
-		std::free(value);
-		return result;
 	}
 
 	// インストール済みVisual Studioのdevenv.exeを探す
 	std::filesystem::path FindVisualStudioExecutable() {
 
 		const std::filesystem::path roots[] = {
-			GetEnvironmentPath("ProgramFiles"),
-			GetEnvironmentPath("ProgramFiles(x86)"),
+			Engine::Algorithm::GetEnvironmentPath(L"ProgramFiles"),
+			Engine::Algorithm::GetEnvironmentPath(L"ProgramFiles(x86)"),
 		};
 		const char* versions[] = { "18", "17", "16" };
 		const char* editions[] = { "Community", "Professional", "Enterprise", "Preview" };
@@ -84,13 +65,13 @@ namespace {
 		return {};
 	}
 
+	// 設定されたScriptプロジェクトを解決
 	std::filesystem::path ProjectPath() {
-		// {project}はGameRoot基準の相対pathとして解決する
+		// ゲームの配置先を基準に解決
 		return (Engine::RuntimePaths::GetGameRoot() / g_settings.project).lexically_normal();
 	}
 
-	// argumentsテンプレート中のtokenをcontrolledに展開する
-	// 値に空白が含まれるpathは二重引用符で囲み、token以外の波括弧はそのまま残す
+	// 起動引数へファイルと行位置を展開
 	std::string ExpandArguments(const std::string& templ, const std::filesystem::path& file, int line, int column) {
 
 		const auto quoteIfNeeded = [](const std::string& value) -> std::string {
@@ -105,7 +86,7 @@ namespace {
 		for (size_t i = 0; i < templ.size();) {
 			if (templ[i] == '{') {
 				if (templ.compare(i, 6, "{file}") == 0) {
-					result += quoteIfNeeded(file.string());
+					result += quoteIfNeeded(Engine::Algorithm::PathToUTF8(file));
 					i += 6;
 					continue;
 				}
@@ -120,7 +101,7 @@ namespace {
 					continue;
 				}
 				if (templ.compare(i, 9, "{project}") == 0) {
-					result += quoteIfNeeded(ProjectPath().string());
+					result += quoteIfNeeded(Engine::Algorithm::PathToUTF8(ProjectPath()));
 					i += 9;
 					continue;
 				}
@@ -131,18 +112,17 @@ namespace {
 		return result;
 	}
 
-	// IDE起動失敗をlogに残す
-	// 診断storeのIngestはMSBuild診断行parse専用のためIDE起動失敗はここではLoggerのみに出す
+	// IDEの起動失敗をログへ記録
 	void ReportLaunchDiagnostic(const std::string& message) {
 
 		Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::warn, "Managed IDE起動: {}", message);
 	}
 }
 
-void Engine::ManagedIdeLauncher::ReloadSettings() {
+void Engine::ManagedIDELauncher::ReloadSettings() {
 
 	g_loaded = true;
-	g_settings = ManagedIdeSettings{}; // 既定値へ戻してから上書き
+	g_settings = ManagedIDESettings{}; // 既定値へ戻してから上書き
 
 	const std::filesystem::path projectPath = ProjectSettingsPath();
 	const std::filesystem::path userPath = UserSettingsPath();
@@ -156,7 +136,7 @@ void Engine::ManagedIdeLauncher::ReloadSettings() {
 		const nlohmann::json root = nlohmann::json::parse(file, nullptr, false);
 		if (!root.is_object()) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"Managed IDE起動: 設定を解析できないため既定値を使用します path={}", path.string());
+				"Managed IDE起動: 設定を解析できないため既定値を使用します path={}", Engine::Algorithm::PathToUTF8(path));
 			return;
 		}
 		if (projectSettings) {
@@ -171,7 +151,7 @@ void Engine::ManagedIdeLauncher::ReloadSettings() {
 	load(userPath, false);
 }
 
-const Engine::ManagedIdeSettings& Engine::ManagedIdeLauncher::GetSettings() {
+const Engine::ManagedIDESettings& Engine::ManagedIDELauncher::GetSettings() {
 
 	if (!g_loaded) {
 		ReloadSettings();
@@ -179,7 +159,7 @@ const Engine::ManagedIdeSettings& Engine::ManagedIdeLauncher::GetSettings() {
 	return g_settings;
 }
 
-bool Engine::ManagedIdeLauncher::OpenFile(const std::filesystem::path& file, int32_t line, int32_t column) {
+bool Engine::ManagedIDELauncher::OpenFile(const std::filesystem::path& file, int32_t line, int32_t column) {
 
 	if (!g_loaded) {
 		ReloadSettings();
@@ -187,16 +167,16 @@ bool Engine::ManagedIdeLauncher::OpenFile(const std::filesystem::path& file, int
 
 	std::error_code ec{};
 	if (file.empty() || !std::filesystem::exists(file, ec)) {
-		ReportLaunchDiagnostic("target file does not exist: " + file.string());
+		ReportLaunchDiagnostic("target file does not exist: " + Engine::Algorithm::PathToUTF8(file));
 		return false;
 	}
 
-	// VisualStudioモードは既定、devenv.exeを探して/Editで開き、見つからなければsystem defaultへ
+	// VisualStudioが見つかれば既存のウィンドウで開く
 	if (g_settings.mode == "VisualStudio") {
 
 		const std::filesystem::path devenv = FindVisualStudioExecutable();
 		if (!devenv.empty()) {
-			// /Editは既存インスタンスがあればそれでfileを開く
+			// 既存のインスタンスへファイルを渡す
 			const std::wstring parameters = L"/Edit \"" + file.wstring() + L"\"";
 			const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", devenv.wstring().c_str(),
 				parameters.c_str(), nullptr, SW_SHOWNORMAL);
@@ -208,7 +188,7 @@ bool Engine::ManagedIdeLauncher::OpenFile(const std::filesystem::path& file, int
 		else {
 			ReportLaunchDiagnostic("Visual Studio (devenv.exe) not found. falling back to system default open.");
 		}
-		// 見つからない場合は下のsystem default経路へ落ちる
+		// 見つからない場合はOSの関連付けを使用
 	}
 	else if (g_settings.mode == "Executable") {
 
@@ -216,31 +196,31 @@ bool Engine::ManagedIdeLauncher::OpenFile(const std::filesystem::path& file, int
 			ReportLaunchDiagnostic("Executable mode but no executable configured.");
 			return false;
 		}
-		// {project}を使う設定ならprojectの存在も検証する
+		// 引数で使用するプロジェクトの存在を確認
 		if (g_settings.arguments.find("{project}") != std::string::npos) {
 			if (!std::filesystem::exists(ProjectPath(), ec)) {
-				ReportLaunchDiagnostic("configured project not found: " + ProjectPath().string());
-				// project無しでもfileは開けるようfallbackへ進みdiagnosticは残す
+				ReportLaunchDiagnostic("configured project not found: " + Engine::Algorithm::PathToUTF8(ProjectPath()));
+				// 診断を残してファイルを開く
 			}
 		}
 		const std::string args = ExpandArguments(g_settings.arguments, file, line, column);
-		const std::wstring exeW = Widen(g_settings.executable);
-		const std::wstring argsW = Widen(args);
+		const std::wstring exeW = Engine::Algorithm::ConvertString(g_settings.executable);
+		const std::wstring argsW = Engine::Algorithm::ConvertString(args);
 		const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", exeW.c_str(),
 			argsW.c_str(), nullptr, SW_SHOWNORMAL);
 		if (reinterpret_cast<INT_PTR>(result) > 32) {
 			return true;
 		}
-		// 起動失敗時はfileのみのfallbackへ
+		// 起動失敗時はOSの関連付けを使用
 		ReportLaunchDiagnostic("failed to launch configured executable. falling back to system default open.");
 	}
 
-	// SystemDefaultもしくは上の失敗時のfallback、OS既定の関連付けでfileを開きlineとcolumnは無視する
-	const std::wstring fileW = Widen(file.string());
+	// OSの関連付けでファイルを開く
+	const std::wstring fileW = file.wstring();
 	const HINSTANCE result = ::ShellExecuteW(nullptr, L"open", fileW.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
 	if (reinterpret_cast<INT_PTR>(result) > 32) {
 		return true;
 	}
-	ReportLaunchDiagnostic("system default open failed for: " + file.string());
+	ReportLaunchDiagnostic("system default open failed for: " + Engine::Algorithm::PathToUTF8(file));
 	return false;
 }

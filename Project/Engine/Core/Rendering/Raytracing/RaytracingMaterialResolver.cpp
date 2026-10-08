@@ -9,6 +9,8 @@
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
 namespace {
+
+	// 名前IDを優先して標準Parameterを取得
 	const Engine::MaterialParameterValue* FindStandardMaterialParameter(
 		const Engine::MaterialParameterSet* parameters,
 		Engine::MaterialParameterID id,
@@ -30,13 +32,12 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 	const MaterialAsset& material, const MaterialParameterSet* materialInstance,
 	const Matrix4x4& uvMatrix) {
 
+	// Instanceの上書きを優先してMaterial値を解決
 	const auto resolveValue = [&](MaterialParameterID id,
 		MaterialParameterSemantic semantic) {
 
-		const MaterialParameterValue* value = FindStandardMaterialParameter(
-			materialInstance, id, semantic);
-		return value ? value : FindStandardMaterialParameter(
-			&material.parameters, id, semantic);
+		const MaterialParameterValue* value = FindStandardMaterialParameter(materialInstance, id, semantic);
+		return value ? value : FindStandardMaterialParameter(&material.parameters, id, semantic);
 	};
 	const auto resolveColor = [&](MaterialParameterID id,
 		MaterialParameterSemantic semantic, const Color4& fallback) {
@@ -138,7 +139,7 @@ uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(Graph
 	hasPendingTextureDescriptors_ |= resolved.retry;
 	const uint32_t descriptorIndex =
 		resolved.srvIndex != UINT32_MAX ? resolved.srvIndex : errorIndex;
-	// 失敗時のErrorTextureは保持せず、次のシーン差分更新で復旧できるようにする
+	// 読み込み失敗はキャッシュせず次回再取得
 	if (!resolved.retry && descriptorIndex != errorIndex) {
 		descriptorCache[textureAssetID] = descriptorIndex;
 	}

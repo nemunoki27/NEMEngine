@@ -4,7 +4,19 @@
     {
       "kind": "Compute",
       "pipelineType": "Compute",
-      "shader": "4e454d415353455450504d41534b0002"
+      "shader": "4e454d415353455450504d41534b0002",
+      "staticSamplers": [
+        {
+          "shaderRegister": 0,
+          "registerSpace": 0,
+          "filter": "D3D12_FILTER_MIN_MAG_MIP_LINEAR",
+          "addressU": "D3D12_TEXTURE_ADDRESS_MODE_CLAMP",
+          "addressV": "D3D12_TEXTURE_ADDRESS_MODE_CLAMP",
+          "addressW": "D3D12_TEXTURE_ADDRESS_MODE_CLAMP",
+          "comparisonFunc": "D3D12_COMPARISON_FUNC_ALWAYS",
+          "shaderVisibility": "D3D12_SHADER_VISIBILITY_ALL"
+        }
+      ]
     }
   ]
 }

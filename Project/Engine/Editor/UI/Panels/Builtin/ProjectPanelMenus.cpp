@@ -7,7 +7,7 @@
 #include <Engine/Editor/Core/EditorContext.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetOperations.h>
-#include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
+#include <Engine/Editor/Scripting/ManagedIDELauncher.h>
 #include <Engine/Editor/Utility/EditorShell.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -184,7 +184,7 @@ void Engine::ProjectPanel::DrawCreateAssetPopup(AssetDatabase& database) {
 			RefreshAfterFileOperation(database, result);
 			// 作成したScriptをIDEで開く
 			if (pendingCreateKind_ == ProjectAssetFileKind::Script && !result.fullPath.empty()) {
-				ManagedIdeLauncher::OpenFile(result.fullPath, 1, 1);
+				ManagedIDELauncher::OpenFile(result.fullPath, 1, 1);
 			}
 			ImGui::CloseCurrentPopup();
 		} else {

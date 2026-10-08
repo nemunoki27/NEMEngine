@@ -14,8 +14,7 @@ namespace Engine {
 
 	//============================================================================
 	//	AssetChangeWatcher class
-	//	指定ディレクトリ配下の変更ファイルパスをReadDirectoryChangesWで非同期収集するクラス
-	//	メインループに影響を出さないよう監視は専用スレッドで行い、結果はmainスレッドが取り出す
+	//	ディレクトリの変更通知を非同期に収集する
 	//============================================================================
 	class AssetChangeWatcher {
 	public:
@@ -45,20 +44,17 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		//--------- functions ----------------------------------------------------
-
-		// 監視スレッド本体
-		void ThreadMain();
-
 		//--------- variables ----------------------------------------------------
 
 		std::thread thread_;
-		// 監視対象ディレクトリで変更通知のファイル名を絶対パス化するために保持する
+		// 通知ファイル名の基準ディレクトリ
 		std::filesystem::path directory_;
-		// 監視対象ディレクトリのハンドルでwindows.hに依存しないようvoid*で持つ、未確保はnullptr
+		// windows.hを公開しないハンドル所有
 		void* directoryHandle_ = nullptr;
-		// スレッド停止を通知するイベントで同じくvoid*で持つ
+		// 停止通知のイベント
 		void* stopEvent_ = nullptr;
+		// 通知I/Oの完了イベント
+		void* changeEvent_ = nullptr;
 
 		// スレッド稼働フラグ
 		std::atomic<bool> running_{ false };
@@ -68,5 +64,10 @@ namespace Engine {
 		// 収集した変更ファイルの絶対パスを保護するミューテックス
 		std::mutex mutex_;
 		std::vector<std::filesystem::path> changedPaths_;
+
+		//--------- functions ----------------------------------------------------
+
+		// 監視スレッド本体
+		void ThreadMain();
 	};
-} // Engine
+}

@@ -348,6 +348,7 @@ namespace Engine {
 		// 描画Cameraの資源を取得する
 		RenderPipelineViewResources& GetCameraState(const ResolvedRenderView& view);
 		// Panelから参照するCameraの資源を検索する
+		RenderPipelineViewResources& FindCameraState(RenderViewKind kind);
 		const RenderPipelineViewResources& FindCameraState(RenderViewKind kind) const;
 		// 描画ビューのサーフェスを要求に応じて同期する
 		void SyncRequestedSurfaces(GraphicsCore& graphicsCore, const RenderFrameRequest& request);

@@ -13,6 +13,7 @@
 #include <cstdint>
 // directX
 #include <d3d12.h>
+#include <d3d12shader.h>
 #include <dxcapi.h>
 
 namespace Engine {
@@ -21,8 +22,7 @@ namespace Engine {
 	//	ShaderReflection structures
 	//============================================================================
 	// シェーダ―の種類
-	enum class ShaderStage :
-		uint32_t {
+	enum class ShaderStage : uint32_t {
 
 		None = 0,
 		VS = 1 << 0,
@@ -33,8 +33,8 @@ namespace Engine {
 		CS = 1 << 5,
 		Lib = 1 << 6,
 	};
-	 ShaderStage operator|(ShaderStage a, ShaderStage b);
-	 ShaderStage& operator|=(ShaderStage& a, ShaderStage b);
+	ShaderStage operator|(ShaderStage a, ShaderStage b);
+	ShaderStage& operator|=(ShaderStage& a, ShaderStage b);
 	// シェーダーリソースの種類
 	enum class ShaderBindingKind {
 
@@ -98,7 +98,7 @@ namespace Engine {
 		bool used = true;
 		// 色として編集するか、シェーダー側メタデータで立てる
 		bool isColor = false;
-		// bindless indexをTextureアセットとして編集するか
+		// Bindless番号をTextureアセットとして編集するか
 		bool isTexture = false;
 	};
 	// 定数バッファの情報
@@ -129,7 +129,7 @@ namespace Engine {
 		std::vector<ShaderResourceBinding> resources;
 		// シェーダー入力セマンティクスの情報
 		std::vector<ShaderInputSemantic> inputs;
-		// 定数バッファの中身でMaterial Parametersの自動詰め込みに使用する
+		// Material値の詰め込みに使う定数バッファ
 		std::vector<ShaderConstantBufferInfo> constantBuffers;
 		// StructuredBufferの要素サイズとメンバー情報
 		std::vector<ShaderStructuredBufferInfo> structuredBuffers;
@@ -177,4 +177,4 @@ namespace Engine {
 
 	// 変数のスカラー成分数を安全側に求める、宣言成分数とサイズから1から4で返す
 	uint32_t GetVariableComponentCount(const ShaderConstantBufferVariable& variable);
-} // Engine
+}

@@ -33,7 +33,11 @@ namespace Engine::CurveEditorUtility {
 	// キー値を軸番号へ変換する
 	Engine::Axis ToAxis(float value) {
 
-		const int32_t axisIndex = (std::clamp)(static_cast<int32_t>(std::round(value)), 0, 2);
+		// 整数変換の前に有限値と軸の範囲を確認する
+		if (!std::isfinite(value)) {
+			return Engine::Axis::X;
+		}
+		const int32_t axisIndex = static_cast<int32_t>((std::clamp)(std::round(value), 0.0f, 2.0f));
 		return static_cast<Engine::Axis>(axisIndex);
 	}
 
@@ -183,12 +187,8 @@ namespace Engine::CurveEditorUtility {
 	bool IsRGBSelection(std::span<Engine::CurveChannel> channels, const Engine::CurveKeySelection& selection) {
 
 		return IsColorCurveSet(channels) && selection.channelIndex == 0 &&
-
-			   selection.keyIndex < channels[0].keys.size() &&
-
-			   selection.keyIndex < channels[1].keys.size() &&
-
-			   selection.keyIndex < channels[2].keys.size();
+			selection.keyIndex < channels[0].keys.size() && selection.keyIndex < channels[1].keys.size() &&
+			selection.keyIndex < channels[2].keys.size();
 	}
 
 	// Alphaキーの選択を検証する
@@ -201,21 +201,13 @@ namespace Engine::CurveEditorUtility {
 	Engine::Color4 EvaluateCurveColorAtTime(std::span<Engine::CurveChannel> channels, float time) {
 
 		const float r = channels[0].Evaluate(time);
-
 		const float g = channels[1].Evaluate(time);
-
 		const float b = channels[2].Evaluate(time);
-
 		const float a = HasAlphaChannel(channels) ? channels[3].Evaluate(time) : 1.0f;
-
 		return Engine::Color4(
-
 			(std::clamp)(r, 0.0f, 1.0f),
-
 			(std::clamp)(g, 0.0f, 1.0f),
-
 			(std::clamp)(b, 0.0f, 1.0f),
-
 			(std::clamp)(a, 0.0f, 1.0f));
 	}
 
@@ -223,13 +215,9 @@ namespace Engine::CurveEditorUtility {
 	uint32_t AddColorRGBKey(std::span<Engine::CurveChannel> channels, float time) {
 
 		const Engine::Color4 color = EvaluateCurveColorAtTime(channels, time);
-
 		const uint32_t index = channels[0].AddKey(time, color.r);
-
 		channels[1].AddKey(time, color.g);
-
 		channels[2].AddKey(time, color.b);
-
 		return index;
 	}
 
@@ -237,13 +225,9 @@ namespace Engine::CurveEditorUtility {
 	bool RemoveColorRGBKey(std::span<Engine::CurveChannel> channels, uint32_t keyIndex) {
 
 		bool removed = false;
-
 		removed |= channels[0].RemoveKey(keyIndex);
-
 		removed |= channels[1].RemoveKey(keyIndex);
-
 		removed |= channels[2].RemoveKey(keyIndex);
-
 		return removed;
 	}
 
@@ -251,9 +235,7 @@ namespace Engine::CurveEditorUtility {
 	void SortColorRGBKeys(std::span<Engine::CurveChannel> channels) {
 
 		channels[0].SortKeys();
-
 		channels[1].SortKeys();
-
 		channels[2].SortKeys();
 	}
 

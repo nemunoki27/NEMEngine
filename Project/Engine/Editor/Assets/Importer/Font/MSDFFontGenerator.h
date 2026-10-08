@@ -15,7 +15,7 @@ namespace Engine {
 
 	//============================================================================
 	//	MSDFFontGenerator
-	//	.ttf/.otfからMSDFアトラスと.font.jsonをインプロセス生成するモジュール
+	//	Fontソースから画像と文字配置を生成する
 	//============================================================================
 	namespace MSDFFontGenerator {
 
@@ -23,17 +23,17 @@ namespace Engine {
 		struct Result {
 
 			bool success = false;
-			AssetID fontAssetID{};        // 生成された.font.jsonの識別ID
-			std::string fontAssetPath;    // 生成された.font.jsonの論理アセットパス
-			AssetID atlasAssetID{};       // 生成されたアトラスの識別ID
-			std::string atlasAssetPath;   // 生成されたアトラスの論理アセットパス
-			std::string message;          // 失敗時の理由
+			AssetID fontAssetID{};		// Fontの識別子
+			std::string fontAssetPath;	// Fontの論理パス
+			AssetID atlasAssetID{};		// Atlasの識別子
+			std::string atlasAssetPath; // Atlasの論理パス
+			std::string message;		// 失敗時の理由
 		};
 
-		// 拡張子が.ttf/.otfかどうか
+		// 対応するFontソースか調べる
 		bool IsFontSourceExtension(const std::filesystem::path& path);
 
-		// フォントソースの隣に<name>_msdf.font.jsonとアトラスを用意する、非強制かつ既存ならそれを再利用する
+		// FontとAtlasを生成し、一組で登録する
 		Result EnsureGenerated(AssetDatabase& database, const std::filesystem::path& fontSourcePath, bool forceRegenerate);
 	}
-} // Engine
+}

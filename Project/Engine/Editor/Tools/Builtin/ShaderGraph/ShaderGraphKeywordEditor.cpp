@@ -27,9 +27,7 @@ void Engine::ShaderGraphKeywordEditor::Draw(ShaderGraphEditSession& session) {
 	if (ImGui::Button("追加##Keyword", ImVec2(buttonWidth, 0.0f))) {
 		const uint32_t suffix = static_cast<uint32_t>(session.GetDraft().keywords.size() + 1);
 		session.GetDraft().keywords.emplace_back(ShaderGraphKeyword{
-			.id = UUID::New(),
-			.name = "Keyword" + std::to_string(suffix),
-			.referenceName = "KEYWORD_" + std::to_string(suffix),
+			.id = UUID::New(), .name = "Keyword" + std::to_string(suffix), .referenceName = "KEYWORD_" + std::to_string(suffix),
 		});
 		selected_ = static_cast<int32_t>(session.GetDraft().keywords.size() - 1);
 		session.MarkDirty();
@@ -82,8 +80,7 @@ void Engine::ShaderGraphKeywordEditor::Draw(ShaderGraphEditSession& session) {
 	}
 
 	int32_t defaultIndex = static_cast<int32_t>(keyword.defaultIndex);
-	if (MyGUI::DragInt("既定値", defaultIndex,
-			{
+	if (MyGUI::DragInt("既定値", defaultIndex, {
 				.dragSpeed = 1.0f,
 				.minValue = 0,
 				.maxValue = (std::max)(static_cast<int32_t>(keyword.entries.size()) - 1, 0),

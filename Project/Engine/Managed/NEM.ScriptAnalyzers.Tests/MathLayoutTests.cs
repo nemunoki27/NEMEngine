@@ -21,6 +21,7 @@ internal static class MathLayoutTests {
         CheckRotationBoundaries();
         CheckEulerAngles();
         CheckVectors();
+        CheckAngleWrapping();
         Vector3 value = new(1.0f, 2.0f, 3.0f);
 		Vector3 sum = value + Vector3.one;
 		if (sum.x != 2.0f || sum.y != 3.0f || sum.z != 4.0f ||
@@ -28,6 +29,23 @@ internal static class MathLayoutTests {
 			throw new InvalidOperationException("Math values changed.");
 		}
 	}
+
+    // 巨大角度と非有限値で停止せず戻す
+    private static void CheckAngleWrapping() {
+        if (Mathf.WrapDegree360(-1.0f) != 359.0f || Mathf.WrapDegree360(720.0f) != 0.0f ||
+            Mathf.WrapDegree360(-360.0f) != 0.0f || Mathf.WrapDegree180(-180.0f) != 180.0f ||
+            !float.IsPositiveInfinity(Mathf.WrapDegree360(float.PositiveInfinity)) ||
+            !float.IsNegativeInfinity(Mathf.WrapDegree360(float.NegativeInfinity)) ||
+            !float.IsNaN(Mathf.WrapDegree360(float.NaN))) {
+            throw new InvalidOperationException("Angle wrapping boundary contract failed.");
+        }
+        foreach (float value in new[] { float.MaxValue, float.MinValue, -float.Epsilon, 1e30f, -1e30f }) {
+            float angle = Mathf.WrapDegree360(value);
+            if (!float.IsFinite(angle) || angle < 0.0f || angle >= 360.0f) {
+                throw new InvalidOperationException("Large angle failed to wrap into range.");
+            }
+        }
+    }
 
     private static void CheckVectors() {
         Vector3 value = new(3, 4, 0);
@@ -84,7 +102,8 @@ internal static class MathLayoutTests {
             throw new InvalidOperationException("Quaternion rotation direction contract failed.");
         }
 
-        if (Quaternion.FromToRotation(Vector3.zero, Vector3.forward) != Quaternion.identity ||
+        if (Quaternion.AngleAxis(45.0f, Vector3.zero) != Quaternion.identity ||
+            Quaternion.FromToRotation(Vector3.zero, Vector3.forward) != Quaternion.identity ||
             Quaternion.FromToRotation(Vector3.forward, Vector3.zero) != Quaternion.identity ||
             Quaternion.FromToRotation(Vector3.zero, Vector3.zero) != Quaternion.identity) {
             throw new InvalidOperationException("A zero direction produced a non-unit quaternion.");

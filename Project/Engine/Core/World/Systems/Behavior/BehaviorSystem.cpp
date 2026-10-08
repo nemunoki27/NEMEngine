@@ -26,8 +26,8 @@ void Engine::BehaviorSystem::OnWorldEnter(ECSWorld& world, SystemContext& contex
 	// ワールドをアクティブにする
 	session_.EnsureActiveWorld(world, context);
 	if (session_.activeWorld_ == &world && session_.componentMutationListenerID_ == 0) {
-		session_.componentMutationListenerID_ = world.AddComponentMutationListener(
-			&BehaviorExecutionSession::OnComponentMutation, &session_);
+		session_.componentMutationListenerID_ =
+			world.AddComponentMutationListener(&BehaviorExecutionSession::OnComponentMutation, &session_);
 	}
 
 	// プレイモードでワールドに入ったときは、スクリプトのビヘイビアの実体化と初期化を行う
@@ -56,7 +56,7 @@ void Engine::BehaviorSystem::OnWorldExit(ECSWorld& world, SystemContext& context
 void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context) {
 
 	// プレイモード以外は処理しない
-	if (context.mode != WorldMode::Play) {
+	if (context.mode != WorldMode::Play || context.IsUpdateInterrupted()) {
 		return;
 	}
 
@@ -67,6 +67,9 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 	const std::vector<BehaviorParticipantCache::SyncParticipant> participants = session_.participantCache_.participants_;
 	for (const BehaviorParticipantCache::SyncParticipant& participant : participants) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		BehaviorRecord* record = session_.runtime_.GetRecord(participant.handle);
 		if (!record || !session_.CanInvokeParticipant(world, participant, *record)) {
 			continue;
@@ -77,6 +80,9 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 	}
 
 	// FixedUpdate末でWaitForFixedUpdateのコルーチンをresumeする
+	if (context.IsUpdateInterrupted()) {
+		return;
+	}
 	ManagedScriptRuntime::GetInstance().TickFrame(1, context);
 	session_.SynchronizeLifecycleIfDirty(world, context);
 }
@@ -84,7 +90,7 @@ void Engine::BehaviorSystem::FixedUpdate(ECSWorld& world, SystemContext& context
 void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	// プレイモード以外は処理しない
-	if (context.mode != WorldMode::Play) {
+	if (context.mode != WorldMode::Play || context.IsUpdateInterrupted()) {
 		return;
 	}
 	session_.participantCache_.lateUpdateParticipants_.clear();
@@ -96,6 +102,9 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 	const std::vector<BehaviorParticipantCache::SyncParticipant> participants = session_.participantCache_.participants_;
 	for (const BehaviorParticipantCache::SyncParticipant& participant : participants) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		BehaviorRecord* record = session_.runtime_.GetRecord(participant.handle);
 		if (!record || !session_.CanInvokeParticipant(world, participant, *record)) {
 			continue;
@@ -107,6 +116,9 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 	}
 
 	// Update末でTimerとコルーチンを駆動する
+	if (context.IsUpdateInterrupted()) {
+		return;
+	}
 	ManagedScriptRuntime::GetInstance().TickFrame(0, context);
 	session_.SynchronizeLifecycleIfDirty(world, context);
 }
@@ -114,12 +126,15 @@ void Engine::BehaviorSystem::Update(ECSWorld& world, SystemContext& context) {
 void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context) {
 
 	// プレイモード以外、もしくはアクティブワールドでないときは処理しない
-	if (context.mode != WorldMode::Play || session_.activeWorld_ != &world) {
+	if (context.mode != WorldMode::Play || session_.activeWorld_ != &world || context.IsUpdateInterrupted()) {
 		return;
 	}
 	// LateUpdateは同じフレームでUpdateを実行したparticipantだけに呼ぶ
 	for (const BehaviorParticipantCache::SyncParticipant& participant : session_.participantCache_.lateUpdateParticipants_) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		BehaviorRecord* record = session_.runtime_.GetRecord(participant.handle);
 		if (!record || !session_.CanInvokeParticipant(world, participant, *record)) {
 			continue;
@@ -130,12 +145,15 @@ void Engine::BehaviorSystem::LateUpdate(ECSWorld& world, SystemContext& context)
 	}
 
 	// LateUpdate末でWaitForEndOfFrameのコルーチンをresumeする
+	if (context.IsUpdateInterrupted()) {
+		return;
+	}
 	ManagedScriptRuntime::GetInstance().TickFrame(2, context);
 	session_.SynchronizeLifecycleIfDirty(world, context);
 }
 
-void Engine::BehaviorSystem::OnSceneInstancesChanged(ECSWorld& world,
-	SystemContext& context, [[maybe_unused]] SceneChangePhase phase) {
+void Engine::BehaviorSystem::OnSceneInstancesChanged(
+	ECSWorld& world, SystemContext& context, [[maybe_unused]] SceneChangePhase phase) {
 
 	if (context.mode != WorldMode::Play || session_.activeWorld_ != &world) {
 		return;

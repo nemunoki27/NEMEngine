@@ -9,6 +9,7 @@
 #include <Engine/Core/World/ECS/World/WorldCommandBuffer.h>
 #include <Engine/Core/World/ECS/World/ECSQueryCache.h>
 #include <Engine/Core/World/ECS/World/ECSChangeTracker.h>
+#include <Engine/Core/World/ECS/World/ECSWorldLifetime.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 
@@ -17,7 +18,9 @@
 #include <deque>
 #include <memory>
 #include <span>
-#include <tuple>
+#include <stdexcept>
+#include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -26,6 +29,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ECSWorldKind enum
+	//	編集用と実行用のWorldを区別する
 	//============================================================================
 	enum class ECSWorldKind : uint8_t {
 
@@ -36,15 +40,6 @@ namespace Engine {
 	//============================================================================
 	//	ECSWorld structures
 	//============================================================================
-	// World終了を外部から確認する状態
-	class ECSWorldLifetime {
-	public:
-		bool IsAlive() const { return alive_; }
-	private:
-		friend class ECSWorld;
-		bool alive_ = true;
-	};
-
 	// エンティティの位置を表す構造体
 	struct EntityLocation {
 
@@ -61,10 +56,10 @@ namespace Engine {
 		bool destroying = false;
 		uint32_t nextFree = UINT32_MAX;
 
-		// シーン側の永続UUID
+		// 保存と複製で引き継ぐUUID
 		UUID uuid{};
 
-		// どのArchetype/Chunk/Rowにいるか
+		// 格納先のアーキタイプと行位置
 		EntityLocation location{};
 	};
 
@@ -131,14 +126,16 @@ namespace Engine {
 		//============================================================================
 		//	スクリプト由来の構造変更を遅延適用するコマンドバッファ
 		//============================================================================
-		// scripting callbackからの構造変更はここへ積み、安全地点でFlushする
+		// スクリプトの構造変更を安全地点まで保持する
 		WorldCommandBuffer& GetCommandBuffer() { return commandBuffer_; }
 		// 積まれた構造変更コマンドをまとめて適用する
 		void FlushWorldCommands() { commandBuffer_.Flush(*this); }
 
-		// Prefab/SceneコマンドのFlush適用に必要な外部サービスでEngineApplicationが毎フレーム設定する
-		void SetCommandServices(const WorldCommandServices& services) { commandServices_ = services; }
+		// Scene操作で借用するサービスを接続する
+		void SetCommandServices(const WorldCommandServices& services);
 		const WorldCommandServices& GetCommandServices() const { return commandServices_; }
+		// 接続の変更番号を取得する
+		uint64_t GetCommandServiceRevision() const { return commandServiceRevision_; }
 
 		//============================================================================
 		//	コンポーネントに対して行う操作
@@ -148,11 +145,11 @@ namespace Engine {
 		// エンティティにコンポーネントを追加
 		template <typename T>
 		T& AddComponent(const Entity& entity);
-		bool AddComponentByName(const Entity& entity, const std::string_view& typeName);
+		bool AddComponentByName(const Entity& entity, std::string_view typeName);
 		// エンティティからコンポーネントを削除
 		template <typename T>
 		void RemoveComponent(const Entity& entity);
-		bool RemoveComponentByName(const Entity& entity, const std::string_view& typeName);
+		bool RemoveComponentByName(const Entity& entity, std::string_view typeName);
 		// DynamicBufferを追加する
 		template <typename T>
 		DynamicBuffer<T> AddBuffer(const Entity& entity);
@@ -163,25 +160,25 @@ namespace Engine {
 		template <typename T>
 		void RemoveBuffer(const Entity& entity);
 
-		// jsonからエンティティに対してコンポーネントを追加
-		bool AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
-		// 追加済みコンポーネントへjsonを適用
-		bool ApplyComponentJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data);
-		// 保存対象Componentを同じEntity IDの独立Worldへ複製する
+		// JSONからComponentを追加する
+		bool AddComponentFromJson(const Entity& entity, std::string_view typeName, const nlohmann::json& data);
+		// 追加済みComponentへJSONを適用する
+		bool ApplyComponentJson(const Entity& entity, std::string_view typeName, const nlohmann::json& data);
+		// 保存対象を同じEntity IDの独立ワールドへ複製する
 		std::unique_ptr<ECSWorld> CloneForSerialization() const;
-		// エンティティのコンポーネントをjsonに変換
+		// EntityのComponentをJSONへ変換する
 		void SerializeEntityComponents(const Entity& entity, nlohmann::json& outComponents) const;
-		bool SerializeComponentToJson(const Entity& entity, const std::string_view& typeName, nlohmann::json& outData) const;
+		bool SerializeComponentToJson(const Entity& entity, std::string_view typeName, nlohmann::json& outData) const;
 
-		// Componentの非構造的な値変更を購読側へ通知する
+		// 構造を変えない値変更を購読側へ通知する
 		template <typename T>
 		void MarkComponentModified(const Entity& entity);
 		void MarkComponentModified(const Entity& entity, uint32_t typeID);
-		// 複数Componentの内部更新をまとめて描画抽出などへ通知する
+		// 複数の値変更をまとめて描画抽出へ通知する
 		void MarkDataModified();
-		// 描画構成と描画Transformの変更世代を個別に進める
+		// 描画構成と描画座標の変更世代を個別に進める
 		void MarkRenderDataModified();
-		// 対象が分かる描画変更はEntity単位で記録する
+		// 対象が分かる描画変更をエンティティ単位で記録する
 		void MarkRenderDataModified(const Entity& entity);
 		// 色だけの変更は描画構成と分離する
 		void MarkMeshColorModified(const Entity& entity);
@@ -189,11 +186,9 @@ namespace Engine {
 		uint64_t GetMeshColorRevision(const Entity& entity) const;
 		uint64_t GetMeshColorRevision() const { return changes_.GetMeshColorRevision(); }
 		uint64_t GetRenderResetRevision() const { return changes_.GetRenderResetRevision(); }
-		void MarkTransformConsumersModified(
-			ComponentChangeChannel channels,
-			std::span<const Entity> changedTransforms);
+		void MarkTransformConsumersModified(ComponentChangeChannel channels, std::span<const Entity> changedTransforms);
 
-		// Component変更通知の購読を追加、削除する
+		// 値変更通知の購読を追加と削除する
 		uint64_t AddComponentMutationListener(ComponentMutationCallback callback, void* userData);
 		void RemoveComponentMutationListener(uint64_t listenerID);
 
@@ -203,10 +198,16 @@ namespace Engine {
 		// シグネチャにマッチするエンティティ全てに対して関数を呼び出す
 		template <typename... T, typename Fn>
 		void ForEach(Fn&& fn);
-		// DynamicBufferを持つエンティティを走査する
+		// 読み取り専用WorldからComponentを変更せず走査する
+		template <typename... T, typename Fn>
+		void ForEach(Fn&& fn) const;
+		// 値の編集と通知が終わるまで構造変更を予約へ回す
+		template <typename Fn>
+		void WithStableStructure(Fn&& action);
+		// 可変長バッファを持つエンティティを走査する
 		template <typename T, typename Fn>
 		void ForEachBuffer(Fn&& fn);
-		// 固定ComponentType IDに一致するエンティティをアーキタイプ単位で走査
+		// 指定の型IDを持つエンティティを走査する
 		template <typename Fn>
 		void ForEach(uint32_t typeID, Fn&& fn, ECSQueryMode mode = ECSQueryMode::EnabledOnly);
 		template <typename Fn>
@@ -227,19 +228,21 @@ namespace Engine {
 		template <typename T>
 		bool HasComponent(const Entity& entity) const;
 		bool HasComponent(const Entity& entity, uint32_t typeID) const;
-		bool HasComponent(const Entity& entity, const std::string_view& typeName) const;
+		bool HasComponent(const Entity& entity, std::string_view typeName) const;
 		// エンティティのコンポーネントを返す
 		template <typename T>
 		T& GetComponent(const Entity& entity);
+		template <typename T>
+		const T& GetComponent(const Entity& entity) const;
 		// コンポーネントがあればポインタを返す
 		template <typename T>
 		T* TryGetComponent(const Entity& entity);
 		template <typename T>
 		const T* TryGetComponent(const Entity& entity) const;
-		// DynamicBufferを持っているか
+		// 可変長バッファを持っているか
 		template <typename T>
 		bool HasBuffer(const Entity& entity) const;
-		// DynamicBufferを返す
+		// 可変長バッファを返す
 		template <typename T>
 		DynamicBuffer<T> GetBuffer(const Entity& entity);
 		template <typename T>
@@ -250,12 +253,10 @@ namespace Engine {
 		DynamicBuffer<const T> TryGetBuffer(const Entity& entity) const;
 		template <typename T>
 		std::span<const T> GetBufferSpan(const Entity& entity) const;
-		// 実行時ComponentType IDからPOD Bufferを操作する
-		UntypedDynamicBuffer TryGetUntypedBuffer(
-			const Entity& entity, uint32_t typeID);
-		ReadOnlyUntypedDynamicBuffer TryGetUntypedBuffer(
-			const Entity& entity, uint32_t typeID) const;
-		// Enableable Componentの有効状態
+		// 実行時の型IDからPODバッファを操作する
+		UntypedDynamicBuffer TryGetUntypedBuffer(const Entity& entity, uint32_t typeID);
+		ReadOnlyUntypedDynamicBuffer TryGetUntypedBuffer(const Entity& entity, uint32_t typeID) const;
+		// 個別に切り替えられる有効状態
 		template <typename T>
 		void SetComponentEnabled(const Entity& entity, bool enabled);
 		template <typename T>
@@ -285,29 +286,27 @@ namespace Engine {
 		ECSWorldKind GetKind() const { return kind_; }
 		// Worldを所有せず終了状態だけを保持する
 		std::shared_ptr<const ECSWorldLifetime> GetLifetime() const { return lifetime_; }
-		// 構造またはComponent値が変わるたびに進む世代
+		// 構造または値が変わるたびに進む世代
 		uint64_t GetDataRevision() const { return changes_.GetDataRevision(); }
-		// 描画構成、描画Transform、ライト抽出の変更世代
+		// 描画構成と座標、照明抽出の変更世代
 		uint64_t GetRenderDataRevision() const { return changes_.GetRenderDataRevision(); }
 		uint64_t GetRenderTransformRevision() const { return changes_.GetRenderTransformRevision(); }
 		uint64_t GetLightDataRevision() const { return changes_.GetLightDataRevision(); }
-		// 指定世代より後に描画へ影響したTransform一覧を取得
-		bool CollectRenderTransformChanges(
-			uint64_t afterRevision, std::vector<Entity>& outEntities) const;
-		// EntityのTransformが影響する抽出先を返す
-		ComponentChangeChannel GetTransformChangeChannels(
-			const Entity& entity) const;
+		// 指定世代より後に描画へ影響した座標を取得する
+		bool CollectRenderTransformChanges(uint64_t afterRevision, std::vector<Entity>& outEntities) const;
+		// エンティティの座標が影響する抽出先を返す
+		ComponentChangeChannel GetTransformChangeChannels(const Entity& entity) const;
 		// 現在レコードされているエンティティの数を返す
 		uint32_t GetRecordCount() const { return static_cast<uint32_t>(records_.size()); }
-		// 現在のArchetype数を返す、ForEachが走査するArchetypeの数
-		uint32_t GetArchetypeCount() const { return static_cast<uint32_t>(archetypes_.size()); }
+		// 現在のアーキタイプ数を返す
+		uint32_t GetArchetypeCount() const { return static_cast<uint32_t>(storageState_->archetypes.size()); }
 		// ECSのメモリ使用量と構造変更量を返す
 		ECSWorldStatistics GetStatistics() const;
 		// フレーム単位の構造変更統計をリセット
 		void ResetFrameStatistics();
 		// チャンク外データの所有先
-		ECSStorageRegistry& GetStorage() { return storage_; }
-		const ECSStorageRegistry& GetStorage() const { return storage_; }
+		ECSStorageRegistry& GetStorage() { return storageState_->storage; }
+		const ECSStorageRegistry& GetStorage() const { return storageState_->storage; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -315,24 +314,66 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
+		// 操作中にWorldが終了しても構築先を保持する
+		struct StorageState {
+
+			// Chunk破棄後に外部データを解放する
+			ECSStorageRegistry storage;
+			// シグネチャごとのChunk所有先
+			std::unordered_map<EntitySignature, std::unique_ptr<EntityArchetype>, EntitySignatureHash> archetypes;
+		};
+
+		// 構造変更の終了まで格納先を保持する
 		class StructuralScope {
 		public:
+			//====================================================================
+			//	public Methods
+			//====================================================================
+
 			explicit StructuralScope(ECSWorld& world);
 			~StructuralScope();
 			StructuralScope(const StructuralScope&) = delete;
 			StructuralScope& operator=(const StructuralScope&) = delete;
+
 		private:
+			//====================================================================
+			//	private Methods
+			//====================================================================
+
+			//--------- variables ------------------------------------------------
+
 			ECSWorld& world_;
+			// 構造変更中のWorld終了を確認する
+			std::shared_ptr<const ECSWorldLifetime> lifetime_;
+			std::shared_ptr<StorageState> storageState_;
 		};
 
+		// 走査の終了まで格納先を保持する
 		class QueryScope {
 		public:
+			//====================================================================
+			//	public Methods
+			//====================================================================
+
 			explicit QueryScope(const ECSWorld& world);
 			~QueryScope();
 			QueryScope(const QueryScope&) = delete;
 			QueryScope& operator=(const QueryScope&) = delete;
+
+			//--------- accessor -------------------------------------------------
+
+			// 走査元のWorldが終了していないか
+			bool IsWorldAlive() const { return lifetime_->IsAlive(); }
 		private:
+			//====================================================================
+			//	private Methods
+			//====================================================================
+
+			//--------- variables ------------------------------------------------
+
 			const ECSWorld& world_;
+			std::shared_ptr<const ECSWorldLifetime> lifetime_;
+			std::shared_ptr<StorageState> storageState_;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -355,23 +396,21 @@ namespace Engine {
 		std::deque<Entity> pendingDestroyEntities_;
 		// 破棄通知からのFlush再入を防ぐ
 		bool flushingDestroy_ = false;
-		// スクリプト由来の構造変更を遅延適用するコマンドバッファでworld破棄時に未処理分は安全に破棄される
+		// 安全地点まで構造変更を保持する
 		WorldCommandBuffer commandBuffer_;
-		// Prefab/SceneコマンドがFlushで参照する外部サービスで非所有ポインタ、EngineApplicationが設定する
+		// Scene操作で借用する外部サービス
 		WorldCommandServices commandServices_{};
-		// シーン側の永続UUIDからエンティティIDへのマップ
+		uint64_t commandServiceRevision_ = 0; // Scene操作の接続変更
+		// 保存と複製で引き継ぐUUIDからEntityを検索する
 		std::unordered_map<UUID, Entity> uuidToEntity_;
-		// ワールドに属するチャンク外データ
-		ECSStorageRegistry storage_;
+		// Chunkと外部データを操作終了まで保持する
+		std::shared_ptr<StorageState> storageState_ = std::make_shared<StorageState>();
 
-		// シグネチャからArchetypeへのマップ
-		std::unordered_map<EntitySignature, std::unique_ptr<EntityArchetype>, EntitySignatureHash> archetypes_;
-
-		// 空のArchetypeでコンポーネントを持たないエンティティはここにまとめる
+		// 値を持たないエンティティを空のアーキタイプへまとめる
 		EntityArchetype* emptyArchetype_ = nullptr;
 
 		// クエリに一致するアーキタイプの検索計画
-		ECSQueryCache queryCache_;
+		mutable ECSQueryCache queryCache_;
 		// アーキタイプ追加時の検索計画更新に使う世代
 		uint32_t archetypeVersion_ = 0;
 
@@ -394,24 +433,23 @@ namespace Engine {
 		// 連続したComponent個体番号を予約する
 		uint64_t ReserveComponentInstanceIDs(size_t count);
 		// 指定アーキタイプへエンティティを作成する本体
-		Entity CreateEntityInArchetype(EntityArchetype* archetype, UUID stableUUID);
+		Entity CreateEntityInArchetype(EntityArchetype& archetype, UUID stableUUID);
 		// エンティティが存在することを確認する、存在しない場合はアサート
 		void AssertAlive(const Entity& entity) const;
 		// 安全地点の削除と生成取消でEntityを即時破棄する
 		void DestroyEntityImmediate(const Entity& entity);
 
-		// エンティティが所属するArchetypeを移動する本体
+		// エンティティの所属アーキタイプを移動する
 		void MigrateEntity(const Entity& entity, const EntitySignature& oldSignature,
 			const EntitySignature& newSignature, const PendingComponent* pending = nullptr);
-		// シグネチャにマッチするArchetypeがあれば返し、なければ作成して返す
-		EntityArchetype* GetOrCreateArchetype(const EntitySignature& signature);
+		// シグネチャに合うアーキタイプを取得または作成する
+		EntityArchetype& GetOrCreateArchetype(const EntitySignature& signature);
 		// 関連Component処理の成否にかかわらず変更を通知する
 		void CompleteComponentChange(const Entity& entity, uint32_t typeID, ComponentMutationKind kind);
 		// Component変更を購読側へ通知する
 		void NotifyComponentMutation(const Entity& entity, uint32_t typeID, ComponentMutationKind kind);
 		// Entityが持つComponentの値変更先をまとめる
-		ComponentChangeChannel GetChangeChannels(
-			const Entity& entity) const;
+		ComponentChangeChannel GetChangeChannels(const Entity& entity) const;
 		// 指定エンティティから外れるチャンク外データを解放する
 		void ReleaseExternalComponents(const Entity& entity, const EntitySignature* retainedSignature);
 		// コンポーネントをこのワールドへ格納できるか
@@ -422,14 +460,12 @@ namespace Engine {
 		void* TryGetPendingComponentData(const Entity& entity, uint32_t typeID);
 		const void* TryGetPendingComponentData(const Entity& entity, uint32_t typeID) const;
 
-		// Archetype上のtypeID配列から列番号配列を一度だけ解決する
-		template <size_t N, size_t... I>
-		static std::array<uint32_t, N> ResolveColumnIndices(EntityArchetype* archetype,
-			const std::array<uint32_t, N>& typeIDs, std::index_sequence<I...>);
-		// 行ごとにコンポーネント取得を挟まず、列へ直接アクセスして走査する
-		template <typename... T, typename Fn, size_t... I>
-		static void ForEachChunkFast(EntityChunk& chunk, const std::array<uint32_t, sizeof...(T)>& columnIndices,
-			Fn& fn, std::index_sequence<I...>);
+		// Worldの読取条件を保ってComponentを取得する
+		template <typename T, typename World>
+		static decltype(auto) GetComponentValue(World& world, const Entity& entity);
+		// Worldの読取条件を保って共通のQuery計画を走査する
+		template <typename... T, typename World, typename Fn>
+		static void ForEachComponents(World& world, Fn&& fn);
 	};
 
 	//============================================================================
@@ -457,12 +493,12 @@ namespace Engine {
 
 			auto& location = records_[entity.index].location;
 			void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
-			return *(T*)ptr;
+			return *static_cast<T*>(ptr);
 		}
 
 		EntitySignature newSignature = oldSignature;
 		newSignature.Set(typeID);
-		// シグネチャを更新してArchetypeを移動する
+		// シグネチャを更新して所属アーキタイプを移動する
 		MigrateEntity(entity, oldSignature, newSignature);
 
 		// 通知中の構造移動後も同じ個体だけを返す
@@ -496,9 +532,9 @@ namespace Engine {
 		EntitySignature newSignature = oldSignature;
 		newSignature.Reset(typeID);
 
-		// シグネチャを更新してArchetypeを移動する
+		// シグネチャを更新して所属アーキタイプを移動する
 		MigrateEntity(entity, oldSignature, newSignature);
-		// 本体削除後に関連BufferやRuntime Componentを連動して外す
+		// 本体削除後に関連バッファと実行用の値を外す
 		CompleteComponentChange(entity, typeID, ComponentMutationKind::Removed);
 	}
 
@@ -511,14 +547,18 @@ namespace Engine {
 
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		ValidateComponentStorage(ComponentTypeRegistry::GetInstance().GetInfo(typeID));
-		EntitySignature oldSignature =
-			records_[entity.index].location.archetype->GetSignature();
+		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
 		if (!oldSignature.Test(typeID)) {
 
 			EntitySignature newSignature = oldSignature;
 			newSignature.Set(typeID);
 			MigrateEntity(entity, oldSignature, newSignature);
+			// 通知で置き換わった別のBufferを追加結果にしない
+			const uint64_t instanceID = GetComponentInstanceID(entity, typeID);
 			NotifyComponentMutation(entity, typeID, ComponentMutationKind::Added);
+			if (!HasBuffer<T>(entity) || GetComponentInstanceID(entity, typeID) != instanceID) {
+				throw std::runtime_error("追加通知中にBufferが削除されました");
+			}
 		}
 		return GetBuffer<T>(entity);
 	}
@@ -545,8 +585,7 @@ namespace Engine {
 		AssertAlive(entity);
 
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
-		EntitySignature oldSignature =
-			records_[entity.index].location.archetype->GetSignature();
+		EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
 		if (!oldSignature.Test(typeID)) {
 			return;
 		}
@@ -567,8 +606,32 @@ namespace Engine {
 		MarkComponentModified(entity, typeID);
 	}
 
-	template <typename ...T, typename Fn>
+	template <typename Fn>
+	inline void ECSWorld::WithStableStructure(Fn&& action) {
+
+		const auto lifetime = GetLifetime();
+		QueryScope query(*this);
+		action();
+		// 通知中に終了したWorldへ戻らない
+		if (!lifetime->IsAlive()) {
+			throw std::runtime_error("処理中にWorldが終了しました");
+		}
+	}
+
+	template <typename... T, typename Fn>
 	inline void ECSWorld::ForEach(Fn&& fn) {
+
+		ForEachComponents<T...>(*this, std::forward<Fn>(fn));
+	}
+
+	template <typename... T, typename Fn>
+	inline void ECSWorld::ForEach(Fn&& fn) const {
+
+		ForEachComponents<T...>(*this, std::forward<Fn>(fn));
+	}
+
+	template <typename... T, typename World, typename Fn>
+	inline void ECSWorld::ForEachComponents(World& world, Fn&& fn) {
 
 		static_assert(((ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Buffer) && ...),
 			"DynamicBufferはForEachBufferを使用してください");
@@ -576,34 +639,37 @@ namespace Engine {
 			"Tagを値として取得できません");
 
 		// 必要な型IDは最初に一度だけ取得する
-		QueryScope query(*this);
+		QueryScope query(world);
 		ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
-		const std::array<uint32_t, sizeof...(T)> requiredTypeIDs = { registry.GetID<T>()... };
+		const std::array<uint32_t, sizeof...(T)> requiredTypeIDs = {registry.GetID<T>()...};
 
 		EntitySignature required{};
 		for (uint32_t typeID : requiredTypeIDs) {
 			required.Set(typeID);
 		}
 
-		// signatureにマッチするarchetype一覧をキャッシュし、毎回の全archetype走査を避ける
-		const auto& matchingArchetypes = queryCache_.Resolve(required, archetypes_, archetypeVersion_);
+		// 条件に合うアーキタイプの一覧を再利用する
+		const auto& matchingArchetypes =
+			world.queryCache_.Resolve(required, world.storageState_->archetypes, world.archetypeVersion_);
 
 		// 関数を同一実体のまま全チャンクで再利用する
 		Fn& fnRef = fn;
 		for (EntityArchetype* archetype : matchingArchetypes) {
 
-			// このArchetypeに対する列番号を一度だけ解決する
-			const std::array<uint32_t, sizeof...(T)> columnIndices = ResolveColumnIndices(
-				archetype, requiredTypeIDs, std::index_sequence_for<T...>{});
+			// アーキタイプごとに列番号を一度だけ解決する
+			const std::array<uint32_t, sizeof...(T)> columnIndices =
+				ECSQueryCache::ResolveColumnIndices(*archetype, requiredTypeIDs, std::index_sequence_for<T...>{});
 
 			// チャンクを走査
-			for (auto& chunk : archetype->GetChunks()) {
+			std::conditional_t<std::is_const_v<World>, const EntityArchetype, EntityArchetype>& selectedArchetype = *archetype;
+			for (uint32_t index = 0; index < selectedArchetype.GetChunkCount(); ++index) {
 
-				if (chunk->GetCount() == 0) {
+				auto& chunk = selectedArchetype.GetChunk(index);
+				if (chunk.GetCount() == 0) {
 					continue;
 				}
 				// レコード再検索を挟まず直接列アクセスする
-				ForEachChunkFast<T...>(*chunk, columnIndices, fnRef, std::index_sequence_for<T...>{});
+				ECSQueryCache::ForEachChunkFast<T...>(chunk, columnIndices, fnRef, query, std::index_sequence_for<T...>{});
 			}
 		}
 	}
@@ -614,9 +680,7 @@ namespace Engine {
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() == ComponentStorageKind::Buffer,
 			"DynamicBuffer要素へkStorageKindを設定してください");
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
-		ForEach(typeID, [&](const Entity& entity) {
-			fn(entity, GetBuffer<T>(entity));
-			});
+		ForEach(typeID, [&](const Entity& entity) { fn(entity, GetBuffer<T>(entity)); });
 	}
 
 	template <typename Fn>
@@ -630,20 +694,24 @@ namespace Engine {
 		EntitySignature required{};
 		required.Set(typeID);
 
-		const auto& matchingArchetypes = queryCache_.Resolve(required, archetypes_, archetypeVersion_);
+		const auto& matchingArchetypes = queryCache_.Resolve(required, storageState_->archetypes, archetypeVersion_);
 
 		Fn& fnRef = fn;
 		for (EntityArchetype* archetype : matchingArchetypes) {
-			for (auto& chunk : archetype->GetChunks()) {
+			for (uint32_t index = 0; index < archetype->GetChunkCount(); ++index) {
 
-				const auto entities = chunk->GetEntities();
-				const uint32_t count = chunk->GetCount();
+				const auto& chunk = archetype->GetChunk(index);
+				const auto entities = chunk.GetEntities();
+				const uint32_t count = chunk.GetCount();
 				const uint32_t column = archetype->GetColumnIndex(typeID);
 				for (uint32_t row = 0; row < count; ++row) {
-					if (mode == ECSQueryMode::EnabledOnly && !chunk->IsEnabledByColumnIndex(column, row)) {
+					if (mode == ECSQueryMode::EnabledOnly && !chunk.IsEnabledByColumnIndex(column, row)) {
 						continue;
 					}
 					fnRef(entities[row]);
+					if (!query.IsWorldAlive()) {
+						throw std::runtime_error("走査中にWorldが終了しました");
+					}
 				}
 			}
 		}
@@ -652,6 +720,7 @@ namespace Engine {
 	template <typename Fn>
 	inline void ECSWorld::ForEachAliveEntity(Fn&& fn) const {
 
+		const auto lifetime = GetLifetime();
 		if (structuralChange_) {
 			throw std::logic_error("構造変更途中のEntityを走査できません");
 		}
@@ -660,12 +729,15 @@ namespace Engine {
 		entities.reserve(records_.size());
 		for (uint32_t index = 0; index < records_.size(); ++index) {
 			if (records_[index].alive) {
-				entities.push_back({ index, records_[index].generation });
+				entities.push_back({index, records_[index].generation});
 			}
 		}
 		for (const Entity& entity : entities) {
 			if (IsAlive(entity)) {
 				fn(entity);
+				if (!lifetime->IsAlive()) {
+					throw std::runtime_error("走査中にWorldが終了しました");
+				}
 			}
 		}
 	}
@@ -688,21 +760,30 @@ namespace Engine {
 	template <typename T>
 	inline T& ECSWorld::GetComponent(const Entity& entity) {
 
+		return GetComponentValue<T>(*this, entity);
+	}
+
+	template <typename T>
+	inline const T& ECSWorld::GetComponent(const Entity& entity) const {
+
+		return GetComponentValue<T>(*this, entity);
+	}
+
+	template <typename T, typename World>
+	inline decltype(auto) ECSWorld::GetComponentValue(World& world, const Entity& entity) {
+
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Tag,
 			"Tagは値を持たないAPIを使用してください");
 		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Buffer,
 			"DynamicBuffer要素はGetBufferを使用してください");
-		static_assert(ComponentTypeTraits::ResolveStorageKind<T>() != ComponentStorageKind::Tag,
-			"Tagは値を持ちません");
 
-		// エンティティが存在することを確認
-		AssertAlive(entity);
-
-		// 型をタイプIDに変換
-		uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
-		auto& location = records_[entity.index].location;
-		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
-		return *(T*)ptr;
+		// EntityとComponentの列を確認して取得する
+		world.AssertAlive(entity);
+		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
+		const auto& location = world.records_[entity.index].location;
+		std::conditional_t<std::is_const_v<World>, const EntityArchetype, EntityArchetype>& archetype = *location.archetype;
+		return *reinterpret_cast<std::conditional_t<std::is_const_v<World>, const T*, T*>>(
+			archetype.GetRaw(location.chunkIndex, location.row, typeID));
 	}
 
 	template <typename T>
@@ -740,8 +821,7 @@ namespace Engine {
 		if (!location.archetype->Has(typeID)) {
 			return nullptr;
 		}
-		return reinterpret_cast<const T*>(
-			location.archetype->GetRaw(location.chunkIndex, location.row, typeID));
+		return reinterpret_cast<const T*>(location.archetype->GetRaw(location.chunkIndex, location.row, typeID));
 	}
 
 	template <typename T>
@@ -765,8 +845,7 @@ namespace Engine {
 
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		auto& location = records_[entity.index].location;
-		void* ptr = location.archetype->GetRaw(
-			location.chunkIndex, location.row, typeID);
+		void* ptr = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
 		return DynamicBuffer<T>(static_cast<DynamicBufferHeader*>(ptr));
 	}
 
@@ -804,14 +883,13 @@ namespace Engine {
 	template <typename T>
 	inline void ECSWorld::SetComponentEnabled(const Entity& entity, bool enabled) {
 
-		static_assert(ComponentTypeTraits::ResolveEnableable<T>(),
-			"kEnableableがtrueのComponentだけ状態を変更できます");
+		static_assert(ComponentTypeTraits::ResolveEnableable<T>(), "kEnableableがtrueのComponentだけ状態を変更できます");
 		AssertAlive(entity);
 
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		auto& location = records_[entity.index].location;
 		const uint32_t columnIndex = location.archetype->GetColumnIndex(typeID);
-		EntityChunk* chunk = location.archetype->GetChunks()[location.chunkIndex].get();
+		EntityChunk* chunk = &location.archetype->GetChunk(location.chunkIndex);
 		if (chunk->IsEnabledByColumnIndex(columnIndex, location.row) == enabled) {
 			return;
 		}
@@ -831,34 +909,7 @@ namespace Engine {
 			return false;
 		}
 		const uint32_t columnIndex = location.archetype->GetColumnIndex(typeID);
-		return location.archetype->GetChunks()[location.chunkIndex]->IsEnabledByColumnIndex(
-			columnIndex, location.row);
-	}
-
-	template <size_t N, size_t... I>
-	inline std::array<uint32_t, N> ECSWorld::ResolveColumnIndices(EntityArchetype* archetype,
-		const std::array<uint32_t, N>& typeIDs, std::index_sequence<I...>) {
-
-		return { archetype->GetColumnIndex(typeIDs[I])... };
-	}
-
-	template <typename... T, typename Fn, size_t... I>
-	inline void ECSWorld::ForEachChunkFast(EntityChunk& chunk, const std::array<uint32_t, sizeof...(T)>& columnIndices,
-		Fn& fn, std::index_sequence<I...>) {
-
-		const auto entities = chunk.GetEntities();
-		const uint32_t count = chunk.GetCount();
-		const std::tuple<T*...> columns{
-			reinterpret_cast<T*>(chunk.GetColumnDataByColumnIndex(columnIndices[I]))...
-		};
-		for (uint32_t row = 0; row < count; ++row) {
-
-			if (!(chunk.IsEnabledByColumnIndex(columnIndices[I], row) && ...)) {
-				continue;
-			}
-			// チャンクごとに一度解決した列先頭から行を取り出す
-			fn(entities[row], (std::get<I>(columns)[row])...);
-		}
+		return location.archetype->GetChunk(location.chunkIndex).IsEnabledByColumnIndex(columnIndex, location.row);
 	}
 
 	template <typename T>
@@ -876,16 +927,24 @@ namespace Engine {
 	template <typename T>
 	inline const T* ECSWorld::TryGetComponentForBinding(const Entity& entity) const {
 
-		if (!IsAlive(entity) || IsPendingDestroy(entity)) return nullptr;
-		if (const T* component = TryGetComponent<T>(entity)) return component;
+		if (!IsAlive(entity) || IsPendingDestroy(entity)) {
+			return nullptr;
+		}
+		if (const T* component = TryGetComponent<T>(entity)) {
+			return component;
+		}
 		return static_cast<const T*>(TryGetPendingComponentData(entity, ComponentTypeRegistry::GetInstance().GetID<T>()));
 	}
 
 	template <typename T>
 	inline DynamicBuffer<const T> ECSWorld::TryGetBufferForBinding(const Entity& entity) const {
 
-		if (!IsAlive(entity) || IsPendingDestroy(entity)) return {};
-		if (auto buffer = TryGetBuffer<T>(entity); buffer.IsValid()) return buffer;
+		if (!IsAlive(entity) || IsPendingDestroy(entity)) {
+			return {};
+		}
+		if (auto buffer = TryGetBuffer<T>(entity); buffer.IsValid()) {
+			return buffer;
+		}
 		const uint32_t typeID = ComponentTypeRegistry::GetInstance().GetID<T>();
 		return DynamicBuffer<const T>(static_cast<const DynamicBufferHeader*>(TryGetPendingComponentData(entity, typeID)));
 	}

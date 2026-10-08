@@ -215,7 +215,7 @@ void Engine::EngineApplication::Finalize() {
 	}
 
 	// ツールが持つGPUリソースをGraphicsCore終了前に確実に解放する
-	ToolRegistry::GetInstance().Clear();
+	ToolRegistry::GetInstance().ClearNoThrow();
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 

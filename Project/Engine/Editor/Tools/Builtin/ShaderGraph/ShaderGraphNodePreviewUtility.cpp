@@ -47,21 +47,17 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 			result = parameter ? parameter->type : node.valueType;
 			break;
 		}
-		case NodeKind::Constant:
-			result = node.valueType;
+		case NodeKind::Constant: result = node.valueType;
 			break;
 		case NodeKind::UV:
 		case NodeKind::TilingAndOffset:
-		case NodeKind::PolarCoordinates:
-			result = ValueType::Float2;
+		case NodeKind::PolarCoordinates: result = ValueType::Float2;
 			break;
 		case NodeKind::WorldNormal:
 		case NodeKind::WorldPosition:
-		case NodeKind::NormalUnpack:
-			result = ValueType::Float3;
+		case NodeKind::NormalUnpack: result = ValueType::Float3;
 			break;
-		case NodeKind::Time:
-			result = ValueType::Float;
+		case NodeKind::Time: result = ValueType::Float;
 			break;
 		case NodeKind::Add:
 		case NodeKind::Subtract:
@@ -81,8 +77,7 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		case NodeKind::Remap:
 			result = ResolvePreviewInputType(graph, node, 0, ValueType::Float, visiting);
 			break;
-		case NodeKind::Split:
-			result = ValueType::Float;
+		case NodeKind::Split: result = ValueType::Float;
 			break;
 		case NodeKind::Combine:
 			result = outputSlot == 0 ? ValueType::Float4 : (outputSlot == 1 ? ValueType::Float3 : ValueType::Float2);
@@ -114,21 +109,14 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		if (source.kind == NodeKind::TextureSample || source.kind == NodeKind::SceneColor) {
 
 			static constexpr std::array swizzles{
-				PreviewSwizzle::Identity,
-				PreviewSwizzle::RGB,
-				PreviewSwizzle::R,
-				PreviewSwizzle::G,
-				PreviewSwizzle::B,
+				PreviewSwizzle::Identity, PreviewSwizzle::RGB, PreviewSwizzle::R, PreviewSwizzle::G, PreviewSwizzle::B,
 				PreviewSwizzle::A,
 			};
 			return outputSlot < swizzles.size() ? swizzles[outputSlot] : PreviewSwizzle::Identity;
 		}
 		if (source.kind == NodeKind::Split) {
 			static constexpr std::array swizzles{
-				PreviewSwizzle::R,
-				PreviewSwizzle::G,
-				PreviewSwizzle::B,
-				PreviewSwizzle::A,
+				PreviewSwizzle::R, PreviewSwizzle::G, PreviewSwizzle::B, PreviewSwizzle::A,
 			};
 			return outputSlot < swizzles.size() ? swizzles[outputSlot] : PreviewSwizzle::Identity;
 		}
@@ -224,8 +212,7 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 	Engine::Vector4 ToPreviewVector(const Engine::MaterialParameterValue& parameter, Engine::ShaderGraphValueType type) {
 
 		Engine::Vector4 result{};
-		std::visit(
-			[&](const auto& value) {
+		std::visit([&](const auto& value) {
 				using ValueType = std::decay_t<decltype(value)>;
 				if constexpr (std::is_same_v<ValueType, float>) {
 					result.x = value;
@@ -251,8 +238,7 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 
 					result.x = value ? 1.0f : 0.0f;
 				}
-			},
-			parameter.value);
+			}, parameter.value);
 		if (type == Engine::ShaderGraphValueType::Float4 || type == Engine::ShaderGraphValueType::Color) {
 
 			return result;
@@ -363,9 +349,8 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		const Engine::ShaderGraphNode* source = FindPreviewNode(graph, link->outputNode);
 		return source ? ResolvePreviewOutputType(graph, *source, link->outputSlot, visiting) : fallback;
 	}
-	std::vector<const Engine::ShaderGraphNode*>
 	// 入力ノードから順に評価対象を並べる
-	BuildPreviewOrder(const Engine::ShaderGraphAsset& graph) {
+	std::vector<const Engine::ShaderGraphNode*> BuildPreviewOrder(const Engine::ShaderGraphAsset& graph) {
 
 		std::vector<const Engine::ShaderGraphNode*> result{};
 		std::unordered_map<uint64_t, uint8_t> states{};
@@ -381,9 +366,7 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 					continue;
 				}
 				const Engine::ShaderGraphNode* source = FindPreviewNode(graph, link.outputNode);
-				if (source &&
-					// プレビューで扱えるノードか確認する
-					IsPreviewableNode(source->kind)) {
+				if (source && IsPreviewableNode(source->kind)) {
 
 					visit(*source);
 				}
@@ -406,9 +389,8 @@ namespace Engine::ShaderGraphNodePreviewUtility {
 		}
 		return result;
 	}
-	const Engine::ShaderGraphParameter*
 	// IDが一致するパラメータを取得する
-	FindPreviewParameter(const Engine::ShaderGraphAsset& graph, Engine::UUID id) {
+	const Engine::ShaderGraphParameter* FindPreviewParameter(const Engine::ShaderGraphAsset& graph, Engine::UUID id) {
 
 		const auto found = std::find_if(graph.parameters.begin(), graph.parameters.end(),
 			[&](const Engine::ShaderGraphParameter& parameter) { return parameter.id == id; });

@@ -37,13 +37,14 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// タイル数と再生設定を表示
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
-		void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity,
-			const FlipbookAnimationComponent& component) override;
-		void SerializeDraft(ECSWorld& world, const Entity& entity,
-			const FlipbookAnimationComponent& component,
+		// 行ごとの横タイル数を編集値へ取り込む
+		void OnSyncDraftFromWorld(ECSWorld& world, const Entity& entity, const FlipbookAnimationComponent& component) override;
+		// 編集値とタイル数を保存用JSONへ変換
+		void SerializeDraft(ECSWorld& world, const Entity& entity, const FlipbookAnimationComponent& component,
 			nlohmann::json& out) const override;
-		void ApplyPreview(ECSWorld& world, const Entity& entity,
-			const FlipbookAnimationComponent& previewComponent) override;
+		// 編集中のタイル数を表示へ反映
+		void ApplyPreview(ECSWorld& world, const Entity& entity, const FlipbookAnimationComponent& previewComponent) override;
 	};
 } // Engine

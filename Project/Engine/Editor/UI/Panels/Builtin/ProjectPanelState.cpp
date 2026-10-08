@@ -18,6 +18,14 @@ namespace {
 	}
 }
 
+void Engine::ProjectPanel::PreserveIndexAfterFailure(const AssetDatabase& database) {
+
+	// 表示中のソースへ戻し、同じ失敗を毎frame繰り返さない
+	assetSource_ = assetIndex_.GetSource();
+	failedStructureRevision_ = database.GetStructureRevision();
+	dirty_ = false;
+}
+
 nlohmann::json Engine::ProjectPanel::SaveLayoutState() const {
 
 	return {

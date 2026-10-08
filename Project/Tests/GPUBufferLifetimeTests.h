@@ -9,6 +9,10 @@ namespace NEMTests {
 	bool CheckDescriptorCapacity(ID3D12Device* device);
 	bool CheckBufferPublication(ID3D12Device* device);
 	bool CheckRenderTargetPublication(ID3D12Device* device);
+	bool CheckRenderTexturePublication(ID3D12Device* device);
+	bool CheckRenderTargetTransactions(ID3D12Device* device);
+	bool CheckRootSignaturePlanning(ID3D12Device* device);
+	bool CheckMaskCompositeResampling(ID3D12Device* device, ID3D12CommandQueue* queue);
 	bool CheckBufferCacheRetirement(ID3D12Device* device, ID3D12CommandQueue* queue);
 	bool CheckDifferentialBufferUpdates(ID3D12Device* device, ID3D12CommandQueue* queue);
 	bool RecordStaticBufferRetirement(ID3D12Device* device, ID3D12CommandQueue* queue,

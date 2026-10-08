@@ -38,8 +38,7 @@
 namespace {
 
 	constexpr const char* kFrameRateConfigPath = Engine::ConfigPaths::kFrameRate;
-	constexpr const char* kDefaultMaterialConfigPath =
-		"GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
+	constexpr const char* kDefaultMaterialConfigPath = "GameAssets/Materials/Config/defaultMaterials.materialSettings.json";
 
 	bool RequestGameApplicationClose() {
 
@@ -69,11 +68,8 @@ void Engine::GameApplication::SaveActiveSceneConfig() const {
 
 void Engine::GameApplication::InitFirstScene() {
 
-	if (!activeScene_ ||
-		!editScenes_.LoadSceneTree(
-			assetDatabase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"GameApplication: 起動シーンを読み込めません");
+	if (!activeScene_ || !editScenes_.LoadSceneTree(assetDatabase_, sceneSystem_, worldManager_.GetEditWorld(), activeScene_)) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "GameApplication: 起動シーンを読み込めません");
 		// 起動に失敗したWorldを更新せず終了処理へ戻す
 		throw std::runtime_error("Startup scene loading failed");
 	}
@@ -88,8 +84,7 @@ void Engine::GameApplication::Init(GraphicsCore& graphicsCore) {
 	assetDatabase_.RebuildMeta();
 	LoadActiveSceneConfig();
 
-	FrameRateSettings::GetInstance().Load(
-		Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
+	FrameRateSettings::GetInstance().Load(Algorithm::PathToUTF8(RuntimePaths::GetProjectSettingsPath(kFrameRateConfigPath)));
 	FrameRateSettings::GetInstance().SetUseEditorTargetFps(false);
 	DefaultMaterialSettings::GetInstance().Load(
 		Algorithm::PathToUTF8(RuntimePaths::GetGameRoot() / kDefaultMaterialConfigPath));
@@ -132,8 +127,7 @@ void Engine::GameApplication::StartPlayWorld() {
 	if (!worldManager_.GetPlayWorld() ||
 		!playScenes_.LoadSnapshot(assetDatabase_, sceneSystem_, *worldManager_.GetPlayWorld(), snapshot)) {
 
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"GameApplication: 起動シーンのSnapshot読み込みに失敗しました");
+		Logger::Output(LogType::Engine, spdlog::level::err, "GameApplication: 起動シーンのSnapshot読み込みに失敗しました");
 		playScenes_ = SceneInstanceManager{};
 		worldManager_.DestroyPlayWorld();
 		return;
@@ -158,8 +152,7 @@ void Engine::GameApplication::StopPlayWorld() {
 	RenderFeatureRuntimeOverrides::GetInstance().ResetAll();
 	runtimeWorldBaker_.Detach();
 	if (ECSWorld* playWorld = worldManager_.GetPlayWorld()) {
-		ManagedWorldRegistry::GetInstance().Unregister(
-			ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
+		ManagedWorldRegistry::GetInstance().Unregister(ManagedWorldRegistry::GetInstance().TryGetHandle(*playWorld));
 	}
 	worldManager_.DestroyPlayWorld();
 	playScenes_ = SceneInstanceManager{};
@@ -179,7 +172,7 @@ void Engine::GameApplication::RefreshActiveWorldContext() {
 	SceneInstanceManager& scenes = worldManager_.IsPlaying() ? playScenes_ : editScenes_;
 	systemContext_.mode = worldManager_.IsPlaying() ? WorldMode::Play : WorldMode::Edit;
 	systemContext_.world = world;
-	systemContext_.activeSceneHeader = GetActiveSceneHeader();
+	systemContext_.SetActiveSceneHeader(GetActiveSceneHeader());
 
 	if (world) {
 		WorldCommandServices services{};
@@ -197,8 +190,7 @@ bool Engine::GameApplication::HandleApplicationQuitRequest() {
 		return false;
 	}
 
-	Logger::Output(LogType::Engine, spdlog::level::info,
-		"GameApplication: Application.Quit要求を受けたため終了します");
+	Logger::Output(LogType::Engine, spdlog::level::info, "GameApplication: Application.Quit要求を受けたため終了します");
 	WinApp::RequestCloseWindow();
 	return true;
 }
@@ -223,19 +215,15 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 	systemContext_.deltaTime = ManagedScriptRuntime::AdvanceTime(
 		rawDelta, systemContext_.fixedDeltaTime, worldManager_.IsPlaying() && !skipFirstAdvance);
 	systemContext_.unscaledDeltaTime = rawDelta;
-	const float timeDelta = worldManager_.IsPlaying() ?
-		systemContext_.deltaTime : rawDelta;
+	const float timeDelta = worldManager_.IsPlaying() ? systemContext_.deltaTime : rawDelta;
 	systemContext_.time += timeDelta;
 	systemContext_.unscaledTime += rawDelta;
 	if (0.0f < rawDelta) {
-		const float smoothWeight =
-			(std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
+		const float smoothWeight = (std::clamp)(rawDelta * 8.0f, 0.0f, 1.0f);
 		systemContext_.smoothDeltaTime =
-			systemContext_.smoothDeltaTime <= 0.0f ?
-				timeDelta :
-				systemContext_.smoothDeltaTime +
-				(timeDelta - systemContext_.smoothDeltaTime) *
-				smoothWeight;
+			systemContext_.smoothDeltaTime <= 0.0f
+				? timeDelta
+				: systemContext_.smoothDeltaTime + (timeDelta - systemContext_.smoothDeltaTime) * smoothWeight;
 	}
 
 	LineImmediateBuffer::GetInstance().BeginFrame();
@@ -253,16 +241,17 @@ void Engine::GameApplication::Tick(GraphicsCore& graphicsCore, float deltaTime) 
 			RefreshActiveWorldContext();
 		}
 		if (scriptExceptionVersion != ManagedScriptExceptionStore::GetInstance().Version()) {
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"GameApplication: Play中にScript例外が発生しました");
+			Logger::Output(LogType::Engine, spdlog::level::err, "GameApplication: Play中にScript例外が発生しました");
 		}
 	}
 
 	// 描画開始前の安全地点で明示先読みを処理する
-	ApplicationPreloadContext preload{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+	ApplicationPreloadContext preload{assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
 		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
-		[this]() { RefreshActiveWorldContext(); } };
-	if (ApplicationPreloader::ProcessRequests(graphicsCore, preload)) { requestFrameDeltaReset_ = true; }
+		[this]() { RefreshActiveWorldContext(); }};
+	if (ApplicationPreloader::ProcessRequests(graphicsCore, preload)) {
+		requestFrameDeltaReset_ = true;
+	}
 	HandleApplicationQuitRequest();
 }
 
@@ -309,16 +298,13 @@ void Engine::GameApplication::Render(GraphicsCore& graphicsCore) {
 }
 
 void Engine::GameApplication::RenderPlatformWindows([[maybe_unused]] GraphicsCore& graphicsCore) {
-
 }
-
-
 
 void Engine::GameApplication::PreloadReleaseResources(GraphicsCore& graphicsCore) {
 
-	ApplicationPreloadContext context{ assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
+	ApplicationPreloadContext context{assetDatabase_, sceneSystem_, *renderPipeline_, skinnedAnimationManager_,
 		animationClipManager_, systemContext_, worldManager_, playScenes_, runtimeWorldBaker_, activeScene_,
-		[this]() { RefreshActiveWorldContext(); } };
+		[this]() { RefreshActiveWorldContext(); }};
 	if (ApplicationPreloader::Run(graphicsCore, context, false)) {
 		requestFrameDeltaReset_ = true;
 		playWorldJustStarted_ = true;

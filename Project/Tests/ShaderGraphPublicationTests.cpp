@@ -161,8 +161,14 @@ bool NEMTests::TestShaderGraphPublication() {
 		return false;
 	}
 	interrupted["state"] = "pending";
+	// 作業ファイルの配置に依存せず生成内容から中断を再現
+	const auto changedSource = ShaderGraphCompiler::Compile(changedGraph, retained.surfacePath.filename().string());
+	if (!changedSource.Succeeded()) {
+		return false;
+	}
 	if (!JsonFile::Save(sourceRecovery / "operation.json", interrupted) ||
-		!StorageFileUtility::CopyFileAtomically(sourceRecovery / "0.after", retained.surfacePath)) {
+		!StorageFileUtility::WriteBytes(retained.surfacePath, changedSource.surfaceHLSL) ||
+		StorageFileUtility::FileRevision(retained.surfacePath) != interrupted["files"][0]["after"].get<std::string>()) {
 		return false;
 	}
 	// 中断後の外部変更は上書きせず旧成果物を維持する
@@ -176,7 +182,7 @@ bool NEMTests::TestShaderGraphPublication() {
 		return false;
 	}
 	// 外部変更を解消した後は復旧と再生成を続行する
-	if (!StorageFileUtility::CopyFileAtomically(sourceRecovery / "0.after", retained.surfacePath) ||
+	if (!StorageFileUtility::WriteBytes(retained.surfacePath, changedSource.surfaceHLSL) ||
 		!ShaderGraphArtifactCache::Compile(graph, graphID, retained, &database) ||
 		StorageFileUtility::FileRevision(retained.surfacePath) != surfaceRevision ||
 		!JsonFile::TryLoad(sourceRecovery / "operation.json", interrupted) || interrupted["state"] != "recovered") {

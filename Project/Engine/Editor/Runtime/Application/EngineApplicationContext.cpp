@@ -19,8 +19,12 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 
 	if constexpr (BuildConfig::kEditorEnabled) {
 		std::vector<AssetID> protectedAssets;
-		for (const auto& scene : editScenes_.GetAll()) protectedAssets.push_back(scene.sceneAsset);
-		for (const auto& scene : GetActiveScenes().GetAll()) protectedAssets.push_back(scene.sceneAsset);
+		for (const auto& scene : editScenes_.GetAll()) {
+			protectedAssets.push_back(scene.sceneAsset);
+		}
+		for (const auto& scene : GetActiveScenes().GetAll()) {
+			protectedAssets.push_back(scene.sceneAsset);
+		}
 		sceneSystem_.GetStorage()->SetProtectedScenes(protectedAssets);
 	}
 
@@ -29,8 +33,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 	SceneInstanceManager& activeScenes = GetActiveScenes();
 	const SceneInstance* activeSceneInstance = activeScenes.GetActive();
 	if (activeSceneInstance) {
-		if (const AssetMeta* meta =
-			assetDatabase_.Find(activeSceneInstance->sceneAsset)) {
+		if (const AssetMeta* meta = assetDatabase_.Find(activeSceneInstance->sceneAsset)) {
 			activeScenePath_ = meta->assetPath;
 		}
 	}
@@ -47,7 +50,7 @@ void Engine::EngineApplication::RefreshActiveWorldContext() {
 		world->SetCommandServices(services);
 	}
 
-	systemContext_.activeSceneHeader = header;
+	systemContext_.SetActiveSceneHeader(header);
 	CollisionSettings::GetInstance().BindGlobal();
 
 	if constexpr (BuildConfig::kEditorEnabled) {

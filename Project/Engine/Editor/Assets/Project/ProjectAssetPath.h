@@ -16,19 +16,19 @@ namespace Engine::ProjectAssetPath {
 	// ファイル名からC#クラス名として有効な文字列を生成する
 	std::string MakeCSharpClassName(const std::string& fileName);
 
-	// ファイル名をベース名とサフィックス(複合拡張子含む)に分割する
+	// 複合拡張子を優先してファイル名を分割する
 	std::pair<std::string, std::string> SplitAssetFileName(const std::filesystem::path& path);
 
-	// 既存ファイルと衝突しない一意なパスを作る
+	// 本体とmetaの両方に衝突しないパスを作る
 	std::filesystem::path MakeUniquePath(const std::filesystem::path& preferredPath);
 
 	// 末尾のアセット拡張子を取り除く
 	std::string RemoveTypedSuffix(std::string name, const char* suffix);
 
-	// 親階層への移動(..)を含まない安全な相対パスかを判定する
+	// 絶対指定と親階層への移動を含まない相対パスを判定する
 	bool IsSafeRelativePath(const std::filesystem::path& path);
 
-	// 実パスからAssets/...形式の仮想パスへ変換する
+	// 実パスを所属するAssetルートの論理パスへ変換する
 	std::string ToAssetPath(const std::filesystem::path& fullPath);
 
 	// ソースに対応する実ファイル上のルートを取得する

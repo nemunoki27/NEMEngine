@@ -23,22 +23,26 @@
 
 using namespace Engine;
 
-bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore,
-	[[maybe_unused]] ApplicationPreloadContext& context, [[maybe_unused]] bool editor) {
+bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore, [[maybe_unused]] ApplicationPreloadContext& context,
+	[[maybe_unused]] bool editor) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	return false;
 #else
 	const auto startTime = std::chrono::steady_clock::now();
-	Logger::Output(LogType::Engine, editor ? "[RuntimePreload] Release起動時の事前読み込みを開始します" :
-		"[実行時事前読み込み] Release起動時の事前読み込みを開始します");
+	Logger::Output(LogType::Engine, editor ? "[RuntimePreload] Release起動時の事前読み込みを開始します"
+										   : "[実行時事前読み込み] Release起動時の事前読み込みを開始します");
 
 	// 開いているSceneとその依存だけを準備する
 	std::vector<AssetID> roots;
 	for (const SceneInstance& scene : context.playScenes.GetAll()) {
-		if (scene.sceneAsset) { roots.push_back(scene.sceneAsset); }
+		if (scene.sceneAsset) {
+			roots.push_back(scene.sceneAsset);
+		}
 	}
-	if (roots.empty() && context.activeScene) { roots.push_back(context.activeScene); }
+	if (roots.empty() && context.activeScene) {
+		roots.push_back(context.activeScene);
+	}
 	PreloadAssets(graphicsCore, context, roots);
 	context.systemContext.engineContext = &graphicsCore.GetContext();
 	context.systemContext.graphicsPlatform = &graphicsCore.GetDXObject();
@@ -52,23 +56,27 @@ bool ApplicationPreloader::Run([[maybe_unused]] GraphicsCore& graphicsCore,
 	}
 	context.refreshActiveWorldContext();
 	if (ECSWorld* playWorld = context.worldManager.GetPlayWorld()) {
-		if (editor) Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupを開始します");
+		if (editor) {
+			Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupを開始します");
+		}
 		Warmup(graphicsCore, *playWorld, context.playScenes, context.systemContext, context, editor);
-		if (editor) Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupが完了しました");
+		if (editor) {
+			Logger::Output(LogType::Engine, "[RuntimePreload] 起動シーンのWarmupが完了しました");
+		}
 	}
 
 	graphicsCore.GetTextureUploadService().WaitAll();
 	graphicsCore.GetBufferUploadService().FlushAndWait();
 	graphicsCore.GetDXObject().WaitForGPU();
 
-	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-		std::chrono::steady_clock::now() - startTime).count();
+	const auto elapsed =
+		std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - startTime).count();
 	if (editor) {
-		Logger::Output(LogType::Engine,
-			"[RuntimePreload] Release起動時の事前読み込みが完了しました Scene数={} 経過={}ms", roots.size(), elapsed);
+		Logger::Output(LogType::Engine, "[RuntimePreload] Release起動時の事前読み込みが完了しました Scene数={} 経過={}ms",
+			roots.size(), elapsed);
 	} else {
-		Logger::Output(LogType::Engine,
-			"[実行時事前読み込み] Release起動時の事前読み込みが完了しました シーン数={} 経過={}ms", roots.size(), elapsed);
+		Logger::Output(LogType::Engine, "[実行時事前読み込み] Release起動時の事前読み込みが完了しました シーン数={} 経過={}ms",
+			roots.size(), elapsed);
 	}
 	Logger::Flush(LogType::Engine);
 	return true;
@@ -79,19 +87,24 @@ bool ApplicationPreloader::ProcessRequests(GraphicsCore& graphicsCore, Applicati
 
 	ECSWorld* world = context.systemContext.world;
 	auto* requests = world ? world->GetStorage().TryGet<RuntimeAssetPreloadRequests>() : nullptr;
-	if (!requests) { return false; }
+	if (!requests) {
+		return false;
+	}
 	std::vector<AssetID> roots = requests->Take();
-	if (roots.empty()) { return false; }
+	if (roots.empty()) {
+		return false;
+	}
 	PreloadAssets(graphicsCore, context, roots);
 	return true;
 }
 
-void ApplicationPreloader::PreloadAssets(GraphicsCore& graphicsCore, ApplicationPreloadContext& context,
-	std::span<const AssetID> roots) {
+void ApplicationPreloader::PreloadAssets(
+	GraphicsCore& graphicsCore, ApplicationPreloadContext& context, std::span<const AssetID> roots) {
 
 	RuntimeAssetPreloadPlan plan = RuntimeAssetPreloadPlan::Collect(context.assetDatabase, roots);
 	for (AssetID missing : plan.missing) {
-		Logger::Output(LogType::Engine, spdlog::level::warn, "[実行時事前読み込み] 参照先がありません GUID={}", ToString(missing));
+		Logger::Output(
+			LogType::Engine, spdlog::level::warn, "[実行時事前読み込み] 参照先がありません GUID={}", ToString(missing));
 	}
 	// ScriptやEntityを生成せず共有Assetだけを準備する
 	for (AssetID asset : plan.assets) {
@@ -114,8 +127,8 @@ void ApplicationPreloader::PreloadAssets(GraphicsCore& graphicsCore, Application
 	context.renderPipeline.PreloadRuntimeAssets(graphicsCore, context.assetDatabase, plan.assets);
 }
 
-void ApplicationPreloader::Warmup(GraphicsCore& graphicsCore, ECSWorld& world,
-	SceneInstanceManager& scenes, SystemContext& context, ApplicationPreloadContext& preload, bool editor) {
+void ApplicationPreloader::Warmup(GraphicsCore& graphicsCore, ECSWorld& world, SceneInstanceManager& scenes,
+	SystemContext& context, ApplicationPreloadContext& preload, bool editor) {
 
 	const SceneInstance* activeScene = scenes.GetActive();
 	if (!activeScene) {
@@ -123,7 +136,7 @@ void ApplicationPreloader::Warmup(GraphicsCore& graphicsCore, ECSWorld& world,
 	}
 
 	context.world = &world;
-	context.activeSceneHeader = &activeScene->header;
+	context.SetActiveSceneHeader(&activeScene->header);
 	context.deltaTime = 0.0f;
 	context.unscaledDeltaTime = 0.0f;
 
@@ -153,11 +166,17 @@ void ApplicationPreloader::Warmup(GraphicsCore& graphicsCore, ECSWorld& world,
 		Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録を開始します");
 	}
 	preload.renderPipeline.Render(graphicsCore, request);
-	if (editor) Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録が完了しました");
+	if (editor) {
+		Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画コマンドの記録が完了しました");
+	}
 	// Scene固有Bufferが破棄される前にCopy Queueを提出し、描画Queueとの依存を確定する
 	graphicsCore.GetBufferUploadService().SubmitBatch();
-	if (editor) Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機を開始します");
+	if (editor) {
+		Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機を開始します");
+	}
 	graphicsCore.GetDXObject().WaitForGPU();
 	graphicsCore.GetBufferUploadService().FlushAndWait();
-	if (editor) Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機が完了しました");
+	if (editor) {
+		Logger::Output(LogType::Engine, "[RuntimePreload] シーン描画のGPU完了待機が完了しました");
+	}
 }

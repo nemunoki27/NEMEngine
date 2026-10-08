@@ -5,6 +5,8 @@
 //============================================================================
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
+
+// c++
 #include <unordered_map>
 
 namespace Engine {
@@ -33,16 +35,23 @@ namespace Engine {
 			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB);
 		// 解決cacheを破棄する
 		void Clear();
+		// 現在FrameのTexture待ちを解除
 		void ResetPending() { hasPendingTextureDescriptors_ = false; }
+
+		//--------- accessor -----------------------------------------------------
+
+		// 読込待ちのTextureが残っているか
 		bool HasPendingTextures() const { return hasPendingTextureDescriptors_; }
 	private:
 		//========================================================================
 		//	private Methods
 		//========================================================================
 
+		//--------- variables ----------------------------------------------------
+
 		std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
 		std::unordered_map<AssetID, uint32_t> sRGBTextureDescriptorIndexCache_{};
-		// 非同期読込中は静的シーンのマテリアルバッファを次フレームも再構築する
+		// 読込中は次のFrameでもMaterial値を再解決
 		bool hasPendingTextureDescriptors_ = false;
 	};
 }

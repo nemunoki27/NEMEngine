@@ -6,6 +6,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
+// c++
 #include <memory>
 #include <vector>
 #include <utility>
@@ -68,7 +69,9 @@ namespace Engine {
 
 		// 同じframeのView切替では先行Batchを再利用しない
 		const uint64_t serial = GraphicsFrameState::GetFrameSerial();
-		if (frameSerial_ == serial) return;
+		if (frameSerial_ == serial) {
+			return;
+		}
 		// 長期間使っていない末尾のBatchを所有元から外す
 		while (!resources_.empty() && HasExpiredGraphicsResource(resources_.back().lastUsedSerial, serial)) {
 			resources_.pop_back();
@@ -104,5 +107,5 @@ namespace Engine {
 		++usedCount_;
 		return resource;
 	}
-} // Engine
+}
 

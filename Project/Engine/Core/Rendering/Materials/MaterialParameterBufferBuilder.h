@@ -10,34 +10,31 @@
 #include <cstdint>
 #include <functional>
 #include <span>
-#include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace Engine {
 
 	//============================================================================
 	//	MaterialParameterBufferBuilder class
-	// MaterialAsset.parametersをHLSL側のCBV offsetに合わせて詰める補助クラス
-	// reflectionのoffset/型に追従するため、シェーダーのcbufferパッキングに自動で合う
+	//	Materialの値をGPUの宣言配置へ詰めるクラス
 	//============================================================================
 	class MaterialParameterBufferBuilder {
 	public:
+		// Texture番号と代替値のCache可否
 		struct TextureResolveResult {
 
-			uint32_t index = kNoTextureIndex;
-			bool cacheable = true;
+			uint32_t index = kNoTextureIndex; // 解決したSRV番号
+			bool cacheable = true; // 次のframeも再利用できるか
 		};
-		//============================================================================
+		//========================================================================
 		//	public Methods
-		//============================================================================
+		//========================================================================
 
 		MaterialParameterBufferBuilder() = default;
 		~MaterialParameterBufferBuilder() = default;
 
 		// テクスチャSemanticとAssetIDからbindless SRV indexを解決する
-		using TextureResolver = std::function<TextureResolveResult(
-			MaterialParameterSemantic, const AssetID&)>;
+		using TextureResolver = std::function<TextureResolveResult(MaterialParameterSemantic, const AssetID&)>;
 
 		// MaterialAssetの値を指定レイアウトのbyte列に変換する
 		static std::vector<uint8_t> Build(const MaterialAsset& material,
@@ -50,9 +47,8 @@ namespace Engine {
 			const TextureResolver& resolveTexture = {},
 			bool* outTextureValuesCacheable = nullptr);
 
-		// マテリアル既定値にサブメッシュ上書きを重ね、テクスチャはbindless indexへ解決して1要素分を詰める
-		static std::vector<uint8_t> BuildElement(
-			const MaterialParameterSet& defaults,
+		// 上書きとTexture番号を解決して1要素分を詰める
+		static std::vector<uint8_t> BuildElement(const MaterialParameterSet& defaults,
 			const MaterialParameterSet& overrides,
 			const MaterialParameterLayout& layout,
 			const TextureResolver& resolveTexture,
@@ -66,7 +62,6 @@ namespace Engine {
 			bool* outTextureValuesCacheable = nullptr);
 
 		// キャッシュ変更検知用の順序非依存ハッシュを計算する
-		static uint64_t ComputeHash(
-			const MaterialParameterSet& parameters);
+		static uint64_t ComputeHash(const MaterialParameterSet& parameters);
 	};
 } // Engine

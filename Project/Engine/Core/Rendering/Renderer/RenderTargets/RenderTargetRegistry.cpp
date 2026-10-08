@@ -1,8 +1,16 @@
 #include "RenderTargetRegistry.h"
 
 //============================================================================
-//	RenderTargetRegistry classMethods
+//	include
 //============================================================================
+#include "RenderTargetSizing.h"
+#include <Engine/Core/Rendering/Core/RenderingCore.h>
+
+// c++
+#include <type_traits>
+#include <utility>
+#include <unordered_set>
+
 namespace {
 
 	// 名前配列が同一か
@@ -65,13 +73,16 @@ namespace {
 	}
 }
 
+//============================================================================
+//	RenderTargetRegistry classMethods
+//============================================================================
 bool Engine::RegisteredRenderTargetSet::Matches(const RenderTargetSetReference& reference) const {
 
 	if (!surface) {
 		return false;
 	}
 
-	// ビューならtrueを返す
+	// 登録した別名との一致を調べる
 	if (reference.colors.size() == 1 && !reference.depth.has_value()) {
 		if (reference.colors.front() == alias) {
 			return true;
@@ -84,7 +95,7 @@ bool Engine::RegisteredRenderTargetSet::Matches(const RenderTargetSetReference& 
 	if (reference.depth.has_value() != depthName.has_value()) {
 		return false;
 	}
-	if (reference.depth.has_value() && depthName.has_value()) {
+	if (reference.depth.has_value()) {
 		if (*reference.depth != *depthName) {
 			return false;
 		}
@@ -94,7 +105,7 @@ bool Engine::RegisteredRenderTargetSet::Matches(const RenderTargetSetReference& 
 
 void Engine::RenderTargetRegistry::Clear() {
 
-	// transientのMultiRenderTargetはDescriptorを持つため、map破棄任せにせず明示解放する
+	// 一時描画先の資源を回収へ渡す
 	for (auto& entry : transients_) {
 		if (entry.second.surface) {
 			entry.second.surface->Destroy();
@@ -122,25 +133,28 @@ void Engine::RenderTargetRegistry::BeginFrame() {
 void Engine::RenderTargetRegistry::RegisterOrUpdate(std::string alias, MultiRenderTarget* surface,
 	const std::vector<std::string>& colorNames, const std::optional<std::string>& depthName) {
 
-	auto found = aliasTable_.find(alias);
+	// 名前と参照を揃えてから登録表を更新する
+	RegisteredRenderTargetSet candidate{};
+	candidate.alias = std::move(alias);
+	candidate.surface = surface;
+	candidate.colorNames = colorNames;
+	candidate.depthName = depthName;
+	static_assert(std::is_nothrow_swappable_v<RegisteredRenderTargetSet>);
+	auto found = aliasTable_.find(candidate.alias);
 	if (found == aliasTable_.end()) {
 
-		// レンダーターゲットセットのエントリーを構築する
-		RegisteredRenderTargetSet entry{};
-		entry.alias = std::move(alias);
-		entry.surface = surface;
-		entry.colorNames = colorNames;
-		entry.depthName = depthName;
-		// 登録
-		aliasTable_[entry.alias] = entries_.size();
-		entries_.emplace_back(std::move(entry));
+		// 別名の登録に失敗したら追加分を戻す
+		entries_.emplace_back(std::move(candidate));
+		try {
+			aliasTable_.emplace(entries_.back().alias, entries_.size() - 1);
+		} catch (...) {
+			entries_.pop_back();
+			throw;
+		}
 		return;
 	}
-	// すでに登録されているエントリーを更新する
-	RegisteredRenderTargetSet& entry = entries_[found->second];
-	entry.surface = surface;
-	entry.colorNames = colorNames;
-	entry.depthName = depthName;
+	// 既存の名前と参照をまとめて差し替える
+	std::swap(entries_[found->second], candidate);
 }
 
 Engine::MultiRenderTarget* Engine::RenderTargetRegistry::Find(const std::string& alias) const {
@@ -152,8 +166,7 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::Find(const std::string&
 	return entries_[it->second].surface;
 }
 
-Engine::MultiRenderTarget* Engine::RenderTargetRegistry::Resolve(
-	const RenderTargetSetReference& reference) const {
+Engine::MultiRenderTarget* Engine::RenderTargetRegistry::Resolve(const RenderTargetSetReference& reference) const {
 
 	// 未指定なら規定のビューを返す
 	if (reference.colors.empty() && !reference.depth.has_value()) {
@@ -216,26 +229,20 @@ std::vector<Engine::MultiRenderTarget*> Engine::RenderTargetRegistry::GatherUniq
 	return result;
 }
 
-Engine::MultiRenderTargetCreateDesc Engine::RenderTargetRegistry::BuildCreateDesc(
+std::optional<Engine::MultiRenderTargetCreateDesc> Engine::RenderTargetRegistry::BuildCreateDesc(
 	const SceneRenderTargetDesc& desc, uint32_t viewWidth, uint32_t viewHeight) {
 
-	uint32_t width = 1;
-	uint32_t height = 1;
-
-	// モードに応じてサイズを決定する
-	if (desc.sizeMode == SceneRenderTargetSizeMode::Fixed) {
-
-		width = (std::max)(1u, desc.fixedWidth);
-		height = (std::max)(1u, desc.fixedHeight);
-	} else {
-
-		width = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(viewWidth) * desc.widthScale));
-		height = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(viewHeight) * desc.heightScale));
+	// モードに応じてサイズを検証する
+	auto size = desc.sizeMode == SceneRenderTargetSizeMode::Fixed ?
+		RenderTargetSizing::ResolveSize(desc.fixedWidth, desc.fixedHeight) :
+		RenderTargetSizing::ResolveSize(viewWidth, viewHeight, desc.widthScale, desc.heightScale);
+	if (!size) {
+		return std::nullopt;
 	}
 
 	MultiRenderTargetCreateDesc createDesc{};
-	createDesc.width = width;
-	createDesc.height = height;
+	createDesc.width = size->width;
+	createDesc.height = size->height;
 
 	// 色レンダーテクスチャの情報を構築する
 	createDesc.colors.reserve(desc.colors.size());
@@ -254,13 +261,13 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderTargetRegistry::BuildCreateDes
 	if (desc.withDepth) {
 
 		DepthTextureCreateDesc depth{};
-		depth.width = width;
-		depth.height = height;
+		depth.width = size->width;
+		depth.height = size->height;
 		depth.resourceFormat = DXGI_FORMAT_R24G8_TYPELESS;
 		depth.dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		depth.srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 
-		const std::string depthName = GetEffectiveDepthName(desc).value_or("Depth");
+		std::string depthName = GetEffectiveDepthName(desc).value_or("Depth");
 		depth.debugName = std::wstring(depthName.begin(), depthName.end());
 
 		createDesc.depth = depth;
@@ -272,11 +279,33 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderTargetRegistry::BuildCreateDes
 Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(GraphicsCore& graphicsCore,
 	const SceneRenderTargetDesc& desc, uint32_t viewWidth, uint32_t viewHeight) {
 
+	// 不正な指定ではGraphicsの初期化状態に触れない
+	auto createDesc = BuildCreateDesc(desc, viewWidth, viewHeight);
+	if (desc.name.empty() || !createDesc) {
+		return nullptr;
+	}
+	RenderTargetCreationContext context{graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
+		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()};
+	return PublishTransient(context, desc, *createDesc);
+}
+
+Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(const RenderTargetCreationContext& context,
+	const SceneRenderTargetDesc& desc, uint32_t viewWidth, uint32_t viewHeight) {
+
 	if (desc.name.empty()) {
 		return nullptr;
 	}
 
-	MultiRenderTargetCreateDesc createDesc = BuildCreateDesc(desc, viewWidth, viewHeight);
+	// 不正なサイズでは既存の描画先を変更しない
+	auto resolvedDesc = BuildCreateDesc(desc, viewWidth, viewHeight);
+	if (!resolvedDesc) {
+		return nullptr;
+	}
+	return PublishTransient(context, desc, *resolvedDesc);
+}
+
+Engine::MultiRenderTarget* Engine::RenderTargetRegistry::PublishTransient(const RenderTargetCreationContext& context,
+	const SceneRenderTargetDesc& desc, const MultiRenderTargetCreateDesc& createDesc) {
 
 	// すでに同名のエントリーが存在するか
 	auto found = transients_.find(desc.name);
@@ -302,26 +331,32 @@ Engine::MultiRenderTarget* Engine::RenderTargetRegistry::ResizeTransient(Graphic
 	// 条件が変わったらサーフェイスを再生成
 	if (needsCreate) {
 
-		// DSV/RTV/SRVの上限は小さいため、新しいSurfaceを作る前に古いDescriptorを返す
-		// map代入で後から破棄すると、一時的に使用数が倍になりBaseDescriptor::Allocateで落ちる
-		TransientEntry& entry = transients_[desc.name];
-		if (entry.surface) {
-			// 実行中フレームが旧Surfaceを参照している可能性がある
-			graphicsCore.GetDXObject().WaitForGPU();
-			entry.surface->Destroy();
-			entry.surface.reset();
-		}
+		// 新しい描画先が完成するまで旧資源を保持する
+		TransientEntry candidate{};
+		candidate.desc = desc;
+		candidate.resolvedWidth = createDesc.width;
+		candidate.resolvedHeight = createDesc.height;
+		candidate.surface = std::make_unique<MultiRenderTarget>();
+		candidate.surface->Create(context.device, &context.targets, &context.depths, &context.shaders, createDesc);
+		static_assert(std::is_nothrow_swappable_v<TransientEntry>);
 
-		entry.desc = desc;
-		entry.resolvedWidth = createDesc.width;
-		entry.resolvedHeight = createDesc.height;
-		entry.surface = std::make_unique<MultiRenderTarget>();
-		entry.surface->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
-			&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(), createDesc);
+		// 登録に失敗した空の所有枠だけ取り除く
+		auto [slot, inserted] = transients_.try_emplace(desc.name);
+		try {
+			RegisterOrUpdate(desc.name, candidate.surface.get(), GetEffectiveColorNames(desc), GetEffectiveDepthName(desc));
+		} catch (...) {
+			if (inserted) {
+				transients_.erase(slot);
+			}
+			throw;
+		}
+		// 公開後に所有を移し、旧資源を回収へ渡す
+		std::swap(slot->second, candidate);
+		return slot->second.surface.get();
 	}
 
 	// レンダーターゲットセットを登録表に登録する
-	MultiRenderTarget* surface = transients_[desc.name].surface.get();
+	MultiRenderTarget* surface = found->second.surface.get();
 	RegisterOrUpdate(desc.name, surface, GetEffectiveColorNames(desc), GetEffectiveDepthName(desc));
 	return surface;
 }

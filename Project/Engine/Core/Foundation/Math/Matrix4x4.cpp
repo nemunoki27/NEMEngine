@@ -1,7 +1,5 @@
 #include "Matrix4x4.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
@@ -12,10 +10,14 @@ using namespace Engine;
 #include <cmath>
 #include <limits>
 
+using namespace Engine;
+
 //============================================================================
 //	Matrix4x4 structMethods
 //============================================================================
 Matrix4x4 Matrix4x4::operator+(const Matrix4x4& other) const {
+
+	// 対応する成分を加算
 	Matrix4x4 result;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
@@ -24,7 +26,10 @@ Matrix4x4 Matrix4x4::operator+(const Matrix4x4& other) const {
 	}
 	return result;
 }
+
 Matrix4x4 Matrix4x4::operator-(const Matrix4x4& other) const {
+
+	// 対応する成分を減算
 	Matrix4x4 result;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
@@ -33,7 +38,10 @@ Matrix4x4 Matrix4x4::operator-(const Matrix4x4& other) const {
 	}
 	return result;
 }
+
 Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
+
+	// 行と列の積を加算
 	Matrix4x4 matrix{};
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
@@ -45,7 +53,10 @@ Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
 	}
 	return matrix;
 }
+
 Matrix4x4 Matrix4x4::operator/(float scalar) const {
+
+	// 各成分を除算
 	Matrix4x4 result;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
@@ -56,6 +67,8 @@ Matrix4x4 Matrix4x4::operator/(float scalar) const {
 }
 
 Matrix4x4& Matrix4x4::operator+=(const Matrix4x4& other) {
+
+	// 対応する成分を加算
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
 			this->m[i][j] += other.m[i][j];
@@ -63,7 +76,10 @@ Matrix4x4& Matrix4x4::operator+=(const Matrix4x4& other) {
 	}
 	return *this;
 }
+
 Matrix4x4& Matrix4x4::operator-=(const Matrix4x4& other) {
+
+	// 対応する成分を減算
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
 			this->m[i][j] -= other.m[i][j];
@@ -71,12 +87,14 @@ Matrix4x4& Matrix4x4::operator-=(const Matrix4x4& other) {
 	}
 	return *this;
 }
+
 Matrix4x4& Matrix4x4::operator*=(const Matrix4x4& other) {
 
 	// 自分自身との積も元の全要素から計算する
 	*this = *this * other;
 	return *this;
 }
+
 Matrix4x4& Matrix4x4::operator/=(const Matrix4x4& other) {
 
 	// 右側の変換を逆行列との積で取り除く
@@ -85,6 +103,8 @@ Matrix4x4& Matrix4x4::operator/=(const Matrix4x4& other) {
 }
 
 Matrix4x4& Matrix4x4::operator=(const Matrix4x4& other) {
+
+	// 全成分を代入
 	if (this != &other) {
 		for (int i = 0; i < 4; ++i) {
 			for (int j = 0; j < 4; ++j) {
@@ -96,6 +116,8 @@ Matrix4x4& Matrix4x4::operator=(const Matrix4x4& other) {
 }
 
 bool Matrix4x4::operator==(const Matrix4x4& other) const {
+
+	// 全成分を比較
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
 			if (m[i][j] != other.m[i][j]) {
@@ -105,6 +127,7 @@ bool Matrix4x4::operator==(const Matrix4x4& other) const {
 	}
 	return true;
 }
+
 bool Matrix4x4::operator!=(const Matrix4x4& other) const {
 
 	// 1要素でも異なれば不一致とする
@@ -113,10 +136,13 @@ bool Matrix4x4::operator!=(const Matrix4x4& other) const {
 
 void Matrix4x4::Init() {
 
+	// 単位行列へ初期化
 	*this = Identity();
 }
 
 Matrix4x4 Matrix4x4::Identity() {
+
+	// 対角成分を1に設定
 	Matrix4x4 matrix{};
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
@@ -127,6 +153,8 @@ Matrix4x4 Matrix4x4::Identity() {
 }
 
 Matrix4x4 Matrix4x4::Zero() {
+
+	// 全成分をゼロに初期化
 	Matrix4x4 matrix{};
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
@@ -203,6 +231,8 @@ bool Matrix4x4::TryInverse(const Matrix4x4& matrix, Matrix4x4& inverse) {
 }
 
 Matrix4x4 Matrix4x4::Transpose(const Matrix4x4& m) {
+
+	// 行と列を入れ替え
 	Matrix4x4 matrix;
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
@@ -213,73 +243,73 @@ Matrix4x4 Matrix4x4::Transpose(const Matrix4x4& m) {
 }
 
 Matrix4x4 Matrix4x4::MakeScaleMatrix(const Vector3& scale) {
+
+	// 対角成分に拡大率を設定
 	Matrix4x4 scaleMatrix = {
-		scale.x, 0.0f, 0.0f ,0.0f,
-		0.0f, scale.y, 0.0f, 0.0f,
-		0.0f, 0.0f, scale.z, 0.0f,
-		0.0f ,0.0f, 0.0f, 1.0f
-	};
+		scale.x, 0.0f, 0.0f, 0.0f, 0.0f, scale.y, 0.0f, 0.0f, 0.0f, 0.0f, scale.z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 	return scaleMatrix;
 }
 
 Matrix4x4 Matrix4x4::MakePitchMatrix(float degree) {
-	
+
+	// 角度をラジアンへ変換してX軸回転を作成
+
 	return MakePitchMatrixRadians(Math::DegToRad(degree));
 }
 
 Matrix4x4 Matrix4x4::MakeYawMatrix(float degree) {
-	
+
+	// 角度をラジアンへ変換してY軸回転を作成
+
 	return MakeYawMatrixRadians(Math::DegToRad(degree));
 }
 
 Matrix4x4 Matrix4x4::MakeRollMatrix(float degree) {
-	
+
+	// 角度をラジアンへ変換してZ軸回転を作成
+
 	return MakeRollMatrixRadians(Math::DegToRad(degree));
 }
 
 Matrix4x4 Engine::Matrix4x4::MakePitchMatrixRadians(float radian) {
+
+	// X軸まわりの回転を作成
 	float cosTheta = std::cos(radian);
 	float sinTheta = std::sin(radian);
 	Matrix4x4 pitchMatrix = {
-		1.0f, 0.0f,0.0f,0.0f,
-		0.0f, cosTheta, sinTheta, 0.0f,
-		0.0f, -sinTheta, cosTheta, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
+		1.0f, 0.0f, 0.0f, 0.0f, 0.0f, cosTheta, sinTheta, 0.0f, 0.0f, -sinTheta, cosTheta, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 	return pitchMatrix;
 }
 
 Matrix4x4 Engine::Matrix4x4::MakeYawMatrixRadians(float radian) {
+
+	// Y軸まわりの回転を作成
 	float cosTheta = std::cos(radian);
 	float sinTheta = std::sin(radian);
 	Matrix4x4 yawMatrix = {
-		cosTheta, 0.0f, -sinTheta, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		sinTheta, 0.0f, cosTheta, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
+		cosTheta, 0.0f, -sinTheta, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, sinTheta, 0.0f, cosTheta, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 	return yawMatrix;
 }
 
 Matrix4x4 Engine::Matrix4x4::MakeRollMatrixRadians(float radian) {
+
+	// Z軸まわりの回転を作成
 	float cosTheta = std::cos(radian);
 	float sinTheta = std::sin(radian);
 	Matrix4x4 rollMatrix = {
-		cosTheta, sinTheta, 0.0f, 0.0f,
-		-sinTheta, cosTheta, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
-	};
+		cosTheta, sinTheta, 0.0f, 0.0f, -sinTheta, cosTheta, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 	return rollMatrix;
 }
 
 Matrix4x4 Matrix4x4::MakeRotateMatrix(const Vector3& rotateDegrees) {
 
+	// 角度をラジアンへ変換して回転を作成
 	return MakeRotateMatrixRadians(Math::DegToRad(rotateDegrees));
 }
 
 Matrix4x4 Engine::Matrix4x4::MakeRotateMatrixRadians(const Vector3& rotateRadians) {
 
+	// XYZの順に回転を合成
 	Matrix4x4 pitchMatrix = MakePitchMatrixRadians(rotateRadians.x);
 	Matrix4x4 yawMatrix = MakeYawMatrixRadians(rotateRadians.y);
 	Matrix4x4 rollMatrix = MakeRollMatrixRadians(rotateRadians.z);
@@ -288,21 +318,24 @@ Matrix4x4 Engine::Matrix4x4::MakeRotateMatrixRadians(const Vector3& rotateRadian
 }
 
 Matrix4x4 Matrix4x4::MakeTranslateMatrix(const Vector3& translate) {
+
+	// 最終行に移動量を設定
 	Matrix4x4 translateMatrix = {
-	1.0f, 0.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f, 0.0f,
-	0.0f, 0.0f, 1.0f, 0.0f,
-	translate.x, translate.y, translate.z, 1.0f
-	};
+		1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, translate.x, translate.y, translate.z, 1.0f};
 	return translateMatrix;
 }
 
 Matrix4x4 Matrix4x4::MakeAffineMatrix(const Vector3& scale, const Vector3& rotateDegrees, const Vector3& translate) {
-	
+
+	// 回転角をラジアンへ変換して変換行列を作成
+
 	return MakeAffineMatrixRadians(scale, Math::DegToRad(rotateDegrees), translate);
 }
 
-Matrix4x4 Engine::Matrix4x4::MakeAffineMatrixRadians(const Vector3& scale, const Vector3& rotateRadians, const Vector3& translate) {
+Matrix4x4 Engine::Matrix4x4::MakeAffineMatrixRadians(
+	const Vector3& scale, const Vector3& rotateRadians, const Vector3& translate) {
+
+	// 拡大と回転と移動を順に合成
 	Matrix4x4 matrix = {};
 	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
 	Matrix4x4 rotateMatrix = MakeRotateMatrixRadians(rotateRadians);
@@ -313,6 +346,8 @@ Matrix4x4 Engine::Matrix4x4::MakeAffineMatrixRadians(const Vector3& scale, const
 }
 
 Matrix4x4 Matrix4x4::MakeAffineMatrix(const Vector3& scale, const Quaternion& rotate, const Vector3& translate) {
+
+	// 拡大と回転と移動を順に合成
 	Matrix4x4 matrix = {};
 	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
 	Matrix4x4 rotateMatrix = Quaternion::MakeRotateMatrix(rotate);
@@ -323,6 +358,8 @@ Matrix4x4 Matrix4x4::MakeAffineMatrix(const Vector3& scale, const Quaternion& ro
 }
 
 Matrix4x4 Matrix4x4::MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip) {
+
+	// 表示範囲とClip距離から平行投影を作成
 	Matrix4x4 matrix = Zero();
 	matrix.m[0][0] = 2.0f / (right - left);
 	matrix.m[1][1] = 2.0f / (top - bottom);
@@ -335,12 +372,16 @@ Matrix4x4 Matrix4x4::MakeOrthographicMatrix(float left, float top, float right, 
 }
 
 Matrix4x4 Matrix4x4::MakePerspectiveFovMatrix(float fovYDegrees, float aspectRatio, float nearClip, float farClip) {
-	
+
+	// 画角をラジアンへ変換して透視投影を作成
+
 	return MakePerspectiveFovMatrixRadians(Math::DegToRad(fovYDegrees), aspectRatio, nearClip, farClip);
 }
 
-Matrix4x4 Engine::Matrix4x4::MakePerspectiveFovMatrixRadians(float fovYRadians, float aspectRatio, float nearClip, float farClip) {
+Matrix4x4 Engine::Matrix4x4::MakePerspectiveFovMatrixRadians(
+	float fovYRadians, float aspectRatio, float nearClip, float farClip) {
 
+	// 画角と縦横比から透視投影を作成
 	Matrix4x4 matrix = Zero();
 	matrix.m[0][0] = 1.0f / (aspectRatio * std::tanf(fovYRadians / 2.0f));
 	matrix.m[1][1] = 1.0f / std::tanf(fovYRadians / 2.0f);
@@ -348,10 +389,11 @@ Matrix4x4 Engine::Matrix4x4::MakePerspectiveFovMatrixRadians(float fovYRadians, 
 	matrix.m[2][3] = 1.0f;
 	matrix.m[3][2] = (-farClip * nearClip) / (farClip - nearClip);
 	return matrix;
-
 }
 
 Matrix4x4 Matrix4x4::MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
+
+	// 正規化座標を画面座標と深度へ変換
 	Matrix4x4 matrix = Zero();
 	matrix.m[0][0] = width / 2.0f;
 	matrix.m[1][1] = -height / 2.0f;
@@ -364,5 +406,7 @@ Matrix4x4 Matrix4x4::MakeViewportMatrix(float left, float top, float width, floa
 }
 
 Vector3 Matrix4x4::GetTranslationValue() const {
+
+	// 平行移動の成分を取得
 	return Vector3(m[3][0], m[3][1], m[3][2]);
 }

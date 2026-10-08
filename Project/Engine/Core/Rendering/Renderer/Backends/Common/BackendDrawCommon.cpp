@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
@@ -295,5 +296,5 @@ uint64_t Engine::BackendDrawCommon::GetMaterialTextureRevision(const RenderDrawC
 	const uint64_t uploadRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
 	const uint64_t renderRevision = RuntimeTextureResolver::GetBindingRevision();
 	// Camera出力の差替えでもMaterialのSRV番号を更新する
-	return uploadRevision ^ (renderRevision + 0x9e3779b97f4a7c15ull + (uploadRevision << 6) + (uploadRevision >> 2));
+	return Algorithm::MixHash(uploadRevision, renderRevision);
 }

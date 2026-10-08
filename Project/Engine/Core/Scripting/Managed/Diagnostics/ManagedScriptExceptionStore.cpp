@@ -3,14 +3,16 @@
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptExceptionParser.h"
+#include <Engine/Core/Scripting/Managed/ManagedWorldRegistry.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
+
 // c++
 #include <ctime>
 
-#include <json.hpp>
-
 namespace {
 
-	// HH:MM:SSのタイムスタンプManagedBuildDiagnosticStoreと同じ書式に合わせる
+	// 報告時刻をHH:MM:SSで取得
 	std::string NowTimeString() {
 		const std::time_t now = std::time(nullptr);
 		std::tm local{};
@@ -24,79 +26,39 @@ namespace {
 		return std::string(buffer);
 	}
 
-	// JSONから文字列を安全に取り出す型不一致や欠落は空文字にし上限で切り詰める
-	std::string ReadString(const nlohmann::json& node, const char* key, size_t maxLength) {
-
-		auto it = node.find(key);
-		if (it == node.end() || !it->is_string()) {
-			return std::string();
-		}
-		std::string value = it->get<std::string>();
-		if (value.size() > maxLength) {
-			value.resize(maxLength);
-		}
-		return value;
-	}
-
-	// JSONから整数を取り出す欠落や型不一致はfallbackを返す
-	int64_t ReadInt(const nlohmann::json& node, const char* key, int64_t fallback) {
-
-		auto it = node.find(key);
-		if (it == node.end() || !it->is_number_integer() && !it->is_number_unsigned()) {
-			return fallback;
-		}
-		return it->get<int64_t>();
-	}
 }
 
-void Engine::ManagedScriptExceptionStore::ReportJson(const char* jsonUtf8) {
+Engine::Entity Engine::ManagedScriptException::ResolveOwner(const ECSWorld& world) const {
 
-	if (!jsonUtf8 || jsonUtf8[0] == '\0') {
-		return;
+	// WorldとEntityの世代が一致する場合だけ選択する
+	const Entity owner{entityIndex, entityGeneration};
+	const ManagedWorldHandle handle{worldIndex, worldGeneration};
+	if (!handle.IsValid() || ManagedWorldRegistry::GetInstance().TryResolve(handle) != &world) {
+		return Entity::Null();
 	}
+	return owner.IsValid() && world.IsAlive(owner) ? owner : Entity::Null();
+}
 
-	// 報告点で1度だけparseし例外発生時のみ通る経路なのでhot pathには乗らない、壊れたDTOでengineを巻き込まないようparse失敗は握り潰す
-	nlohmann::json root = nlohmann::json::parse(jsonUtf8, nullptr, false);
-	if (root.is_discarded() || !root.is_object()) {
-		return;
-	}
+void Engine::ManagedScriptExceptionStore::ReportJSON(const char* jsonUTF8) {
 
+	// 壊れた診断を履歴へ追加しない
 	ManagedScriptException entry{};
-	entry.id = nextID_++;
-	entry.timestamp = NowTimeString();
-	entry.callback = ReadString(root, "callback", kMaxStringLength);
-	entry.scriptSlotID = static_cast<uint64_t>(ReadInt(root, "slotId", 0));
-	entry.scriptTypeID = ReadString(root, "scriptTypeId", kMaxStringLength);
-	entry.typeName = ReadString(root, "typeName", kMaxStringLength);
-	entry.exceptionType = ReadString(root, "exceptionType", kMaxStringLength);
-	entry.message = ReadString(root, "message", kMaxMessageLength);
-	entry.entityIndex = static_cast<uint32_t>(ReadInt(root, "entityIndex", 0));
-	entry.entityGeneration = static_cast<uint32_t>(ReadInt(root, "entityGeneration", 0));
-	entry.entityName = ReadString(root, "entityName", kMaxStringLength);
-
-	// stack frameは上限まで深い再帰例外で履歴が肥大しないようにする
-	auto framesIt = root.find("frames");
-	if (framesIt != root.end() && framesIt->is_array()) {
-		for (const nlohmann::json& frameNode : *framesIt) {
-
-			if (entry.frames.size() >= kMaxFrames) {
-				break;
-			}
-			if (!frameNode.is_object()) {
-				continue;
-			}
-			ManagedScriptExceptionFrame frame{};
-			frame.method = ReadString(frameNode, "method", kMaxStringLength);
-			frame.file = ReadString(frameNode, "file", kMaxStringLength);
-			frame.line = static_cast<int32_t>(ReadInt(frameNode, "line", 0));
-			frame.column = static_cast<int32_t>(ReadInt(frameNode, "column", 0));
-			entry.frames.push_back(std::move(frame));
-		}
+	if (!ParseManagedScriptException(jsonUTF8, entry)) {
+		return;
 	}
-
+	entry.exceptionID = nextID_;
+	entry.timestamp = NowTimeString();
 	entries_.push_back(std::move(entry));
+	++nextID_;
+	ReportFailure();
 	EnforceBounds();
 	++version_;
+}
+
+void Engine::ManagedScriptExceptionStore::ReportFailure() noexcept {
+
+	// 履歴の削除では失敗通知を巻き戻さない
+	++reportSequence_;
 }
 
 void Engine::ManagedScriptExceptionStore::Clear() {
@@ -110,7 +72,7 @@ void Engine::ManagedScriptExceptionStore::Clear() {
 
 void Engine::ManagedScriptExceptionStore::EnforceBounds() {
 
-	// 古い側から間引いて最新の例外を優先して残す
+	// 最新の例外を優先して残す
 	while (entries_.size() > kMaxEntries) {
 		entries_.pop_front();
 	}

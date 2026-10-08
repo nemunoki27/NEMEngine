@@ -3,14 +3,18 @@
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedBuildDiagnosticParser.h"
+
+// c++
 #include <algorithm>
-#include <charconv>
-#include <cctype>
 #include <ctime>
+#include <utility>
 
 namespace {
 
+	// 診断を受け取った時刻を文字列にする
 	std::string NowTimeString() {
+
 		const std::time_t now = std::time(nullptr);
 		std::tm local{};
 #if defined(_WIN32)
@@ -22,31 +26,11 @@ namespace {
 		std::strftime(buffer, sizeof(buffer), "%H:%M:%S", &local);
 		return std::string(buffer);
 	}
-
-	void Truncate(std::string& text, size_t maxLength) {
-		if (text.size() > maxLength) {
-			text.resize(maxLength);
-		}
-	}
-
-	// 末尾のMSBuildが付けるproject注記をmessageから取り除く
-	void StripTrailingProjectNote(std::string& message) {
-		// 末尾空白を削る
-		while (!message.empty() && (message.back() == ' ' || message.back() == '\t' || message.back() == '\r')) {
-			message.pop_back();
-		}
-		if (!message.empty() && message.back() == ']') {
-			const size_t open = message.find_last_of('[');
-			if (open != std::string::npos && open > 0 && message[open - 1] == ' ') {
-				message.erase(open - 1);
-				while (!message.empty() && (message.back() == ' ' || message.back() == '\t')) {
-					message.pop_back();
-				}
-			}
-		}
-	}
 }
 
+//============================================================================
+//	ManagedBuildDiagnosticStore classMethods
+//============================================================================
 Engine::ManagedBuildDiagnosticStore& Engine::ManagedBuildDiagnosticStore::GetInstance() {
 
 	static ManagedBuildDiagnosticStore instance;
@@ -55,98 +39,17 @@ Engine::ManagedBuildDiagnosticStore& Engine::ManagedBuildDiagnosticStore::GetIns
 
 std::optional<Engine::ManagedBuildDiagnostic> Engine::ManagedBuildDiagnosticStore::ParseLine(const std::string& rawLine) {
 
-	// MSBuild や C# compiler の診断行を ": error " ": warning " を境界に左を location 右を code と message として parse する、想定する形は次の 3 種
-	//   file(line,col): error CSxxxx: message [proj]
-	//   file(line): warning CSxxxx: message
-	//   error CSxxxx: message            globalでfile無し
-	size_t severityPos = std::string::npos;
-	DiagnosticSeverity severity = DiagnosticSeverity::Info;
-	size_t severityLen = 0;
-
-	const size_t errorPos = rawLine.find(": error ");
-	const size_t warningPos = rawLine.find(": warning ");
-	if (errorPos != std::string::npos && (warningPos == std::string::npos || errorPos < warningPos)) {
-		severityPos = errorPos;
-		severity = DiagnosticSeverity::Error;
-		severityLen = 8; // ": error " の長さ
-	} else if (warningPos != std::string::npos) {
-		severityPos = warningPos;
-		severity = DiagnosticSeverity::Warning;
-		severityLen = 10; // ": warning " の長さ
-	} else {
-		// 診断行ではない
-		return std::nullopt;
+	// 共通の解析結果へ受信時刻を付ける
+	auto diagnostic = ManagedBuildDiagnosticParser::ParseLine(rawLine);
+	if (diagnostic) {
+		diagnostic->timestamp = NowTimeString();
 	}
-
-	ManagedBuildDiagnostic diagnostic{};
-	diagnostic.severity = severity;
-	diagnostic.rawLine = rawLine;
-	Truncate(diagnostic.rawLine, kMaxRawLength);
-
-	// 右側はcodeとmessage
-	const std::string right = rawLine.substr(severityPos + severityLen);
-	const size_t codeEnd = right.find(": ");
-	if (codeEnd == std::string::npos) {
-		// code区切りが無い形なのでcodeは空にしてmessageに全体を入れる
-		diagnostic.message = right;
-	} else {
-		diagnostic.code = right.substr(0, codeEnd);
-		diagnostic.message = right.substr(codeEnd + 2);
-	}
-	StripTrailingProjectNote(diagnostic.message);
-	Truncate(diagnostic.message, kMaxMessageLength);
-
-	// 左側はfileとlineとcol、またはglobalで空
-	std::string left = rawLine.substr(0, severityPos);
-	// 行頭の空白を削る
-	size_t start = 0;
-	while (start < left.size() && (left[start] == ' ' || left[start] == '\t')) {
-		++start;
-	}
-	left = left.substr(start);
-
-	if (!left.empty() && left.back() == ')') {
-		const size_t open = left.find_last_of('(');
-		if (open != std::string::npos) {
-			diagnostic.file = left.substr(0, open);
-			Truncate(diagnostic.file, kMaxPathLength);
-			const std::string location = left.substr(open + 1, left.size() - open - 2);
-			const size_t comma = location.find(',');
-			const std::string_view lineText = comma == std::string::npos ?
-				std::string_view(location) : std::string_view(location).substr(0, comma);
-			const std::string_view columnText = comma == std::string::npos ?
-				std::string_view{} : std::string_view(location).substr(comma + 1);
-			auto parseInteger = [](std::string_view text, int32_t& out) {
-
-				if (text.empty()) {
-					return false;
-				}
-				const auto result = std::from_chars(text.data(), text.data() + text.size(), out);
-				return result.ec == std::errc() && result.ptr == text.data() + text.size();
-			};
-			if (!parseInteger(lineText, diagnostic.line) ||
-				(!columnText.empty() && !parseInteger(columnText, diagnostic.column))) {
-
-				// locationが数値でない場合はfile扱いをやめてlocationもfileに含める
-				diagnostic.file = left;
-				Truncate(diagnostic.file, kMaxPathLength);
-				diagnostic.line = 0;
-				diagnostic.column = 0;
-			}
-		}
-	} else {
-		// file locationなし、global error等
-		diagnostic.file = left;
-		Truncate(diagnostic.file, kMaxPathLength);
-	}
-
-	diagnostic.timestamp = NowTimeString();
 	return diagnostic;
 }
 
 void Engine::ManagedBuildDiagnosticStore::BeginBuild(uint64_t buildID) {
 
-	// 新しいbuildを履歴へ積み、上限超過で最古buildのentryを間引く
+	// 上限を超えたビルドの診断を除く
 	if (buildHistory_.empty() || buildHistory_.back() != buildID) {
 		buildHistory_.push_back(buildID);
 	}
@@ -166,10 +69,12 @@ void Engine::ManagedBuildDiagnosticStore::BeginBuild(uint64_t buildID) {
 bool Engine::ManagedBuildDiagnosticStore::Ingest(uint64_t buildID, uint64_t reloadID,
 	ManagedBuildProcessKind kind, const std::string& rawLine) {
 
+	// 診断行だけを履歴へ取り込む
 	std::optional<ManagedBuildDiagnostic> parsed = ParseLine(rawLine);
 	if (!parsed) {
 		return false;
 	}
+	// 呼出し元のビルドと工程を診断へ付ける
 	parsed->buildID = buildID;
 	parsed->reloadID = reloadID;
 	parsed->processKind = kind;
@@ -179,6 +84,7 @@ bool Engine::ManagedBuildDiagnosticStore::Ingest(uint64_t buildID, uint64_t relo
 	} else if (parsed->severity == DiagnosticSeverity::Warning) {
 		++warningCount_;
 	}
+	// 履歴へ追加し表示の更新を通知
 	entries_.push_back(std::move(*parsed));
 	EnforceBounds();
 	++version_;
@@ -187,6 +93,7 @@ bool Engine::ManagedBuildDiagnosticStore::Ingest(uint64_t buildID, uint64_t relo
 
 void Engine::ManagedBuildDiagnosticStore::EnforceBounds() {
 
+	// 総件数を超えた古い診断を除く
 	while (entries_.size() > kMaxEntries) {
 		const ManagedBuildDiagnostic& front = entries_.front();
 		if (front.severity == DiagnosticSeverity::Error && errorCount_ > 0) {
@@ -200,6 +107,7 @@ void Engine::ManagedBuildDiagnosticStore::EnforceBounds() {
 
 void Engine::ManagedBuildDiagnosticStore::RecountSeverities() {
 
+	// 保持中の診断から重大度別件数を集計
 	errorCount_ = 0;
 	warningCount_ = 0;
 	for (const ManagedBuildDiagnostic& d : entries_) {
@@ -213,6 +121,7 @@ void Engine::ManagedBuildDiagnosticStore::RecountSeverities() {
 
 void Engine::ManagedBuildDiagnosticStore::Clear() {
 
+	// 診断とビルド履歴をまとめて破棄
 	entries_.clear();
 	buildHistory_.clear();
 	errorCount_ = 0;

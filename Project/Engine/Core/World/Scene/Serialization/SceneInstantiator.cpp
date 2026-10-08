@@ -24,10 +24,10 @@
 
 using namespace Engine::SceneDocument;
 
-bool Engine::SceneInstantiator::LoadFromJson(const nlohmann::json& sourceRoot, ECSWorld& world,
-	AssetDatabase* assetDatabase, AssetID sourceAsset, UUID sceneInstanceID,
-	std::vector<Entity>* outCreatedEntities) {
+bool Engine::SceneInstantiator::LoadFromJson(const nlohmann::json& sourceRoot, ECSWorld& world, AssetDatabase* assetDatabase,
+	AssetID sourceAsset, UUID sceneInstanceID, std::vector<Entity>* outCreatedEntities) {
 
+	const auto lifetime = world.GetLifetime();
 	std::vector<Entity> created;
 	try {
 		SceneCreationScope creation(world);
@@ -41,31 +41,33 @@ bool Engine::SceneInstantiator::LoadFromJson(const nlohmann::json& sourceRoot, E
 		creation.Commit();
 		return true;
 	} catch (const std::exception& error) {
+		// World終了を通常の読込失敗へ変換しない
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
 		Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] Entity読込に失敗しました 詳細={}", error.what());
 		return false;
 	}
 }
 
-bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, ECSWorld& world,
-	AssetDatabase* assetDatabase, AssetID sourceAsset, UUID sceneInstanceID,
-	std::vector<Entity>* outCreatedEntities) {
+bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, ECSWorld& world, AssetDatabase* assetDatabase,
+	AssetID sourceAsset, UUID sceneInstanceID, std::vector<Entity>* outCreatedEntities) {
 
 	// 壊れた配列を空Sceneとして受け入れない
 	if (!sourceRoot.is_object()) {
 		return false;
 	}
-	for (const char* name : { "Entities", "PrefabInstances" }) {
+	for (const char* name : {"Entities", "PrefabInstances"}) {
 		if (sourceRoot.contains(name) && !sourceRoot[name].is_array()) {
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[SceneSystem] 保存配列の形式が不正です 項目={}", name);
+			Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] 保存配列の形式が不正です 項目={}", name);
 			return false;
 		}
 	}
 	auto root = sourceRoot;
 	std::string recoveryDiagnostic;
 	if (!PrefabReferenceRemapper::NormalizeLegacySceneInstances(root, sourceAsset, recoveryDiagnostic, assetDatabase)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] Prefab旧データを復旧できません Scene={} 詳細={}", ToString(sourceAsset), recoveryDiagnostic);
+		Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] Prefab旧データを復旧できません Scene={} 詳細={}",
+			ToString(sourceAsset), recoveryDiagnostic);
 		return false;
 	}
 	// 生成を始める前に全インスタンスを検証する
@@ -74,21 +76,20 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 			PrefabInstanceData validated;
 			if (!FromJson(instance, validated)) {
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[SceneSystem] Prefabインスタンスの保存データが不正です Scene={} InstanceID={}",
-					ToString(sourceAsset), instance.value("InstanceID", ""));
+					"[SceneSystem] Prefabインスタンスの保存データが不正です Scene={} InstanceID={}", ToString(sourceAsset),
+					instance.value("InstanceID", ""));
 				return false;
 			}
 		}
 	}
 	if (!recoveryDiagnostic.empty()) {
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[SceneSystem] 旧Prefab対応を先頭IDへ統合しました Scene={} 通常保存で確定します 詳細={}",
-			ToString(sourceAsset), recoveryDiagnostic);
+			"[SceneSystem] 旧Prefab対応を先頭IDへ統合しました Scene={} 通常保存で確定します 詳細={}", ToString(sourceAsset),
+			recoveryDiagnostic);
 	}
 
 	if (!ValidateSerializedLocalFileIDs(root)) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[SceneSystem] シーン内に不正または重複したLocalFileIDがあります");
+		Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] シーン内に不正または重複したLocalFileIDがあります");
 		return false;
 	}
 
@@ -105,22 +106,19 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 			return false;
 		}
 
-		const UUID localFileID =
-			FromString16Hex(entityJson.value("LocalFileID", std::string{}));
+		const UUID localFileID = FromString16Hex(entityJson.value("LocalFileID", std::string{}));
 
 		const nlohmann::json* components =
-			(entityJson.contains("Components") && entityJson["Components"].is_object()) ?
-			&entityJson["Components"] : nullptr;
+			(entityJson.contains("Components") && entityJson["Components"].is_object()) ? &entityJson["Components"] : nullptr;
 		std::vector<uint32_t> componentTypeIDs;
 		if (components) {
 			componentTypeIDs.reserve(components->size());
 			for (auto it = components->begin(); it != components->end(); ++it) {
 
-				const ComponentTypeInfo* info =
-					ComponentTypeRegistry::GetInstance().FindByName(it.key());
+				const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(it.key());
 				if (!info) {
-					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[SceneSystem] 未登録のComponentTypeです: {}", it.key());
+					Logger::Output(
+						LogType::Engine, spdlog::level::err, "[SceneSystem] 未登録のComponentTypeです: {}", it.key());
 					return false;
 				}
 				componentTypeIDs.emplace_back(info->id);
@@ -167,11 +165,10 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 	if (assetDatabase && root.contains("PrefabInstances") && root["PrefabInstances"].is_array()) {
 
 		HierarchySystem hierarchySystem{};
-		PrefabGenerationContext generation{ *assetDatabase, hierarchySystem, world };
+		PrefabGenerationContext generation{*assetDatabase, hierarchySystem, world};
 		std::unordered_set<UUID> reservedInstances;
-		world.ForEach<PrefabLinkComponent>([&](Entity, const PrefabLinkComponent& link) {
-			reservedInstances.emplace(link.prefabInstanceID);
-		});
+		world.ForEach<PrefabLinkComponent>(
+			[&](Entity, const PrefabLinkComponent& link) { reservedInstances.emplace(link.prefabInstanceID); });
 		const auto reserveInstance = [&](auto&& self, PrefabInstanceData& data, UUID owner) -> void {
 			data.savedInstanceID = data.instanceID;
 			while (!reservedInstances.insert(data.instanceID).second) {
@@ -187,18 +184,16 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 			PrefabInstanceData data{};
 			if (!FromJson(instanceJson, data)) {
 
-				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[SceneSystem] Prefabインスタンスの保存データが不正です");
+				Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] Prefabインスタンスの保存データが不正です");
 				return false;
 			}
 			reserveInstance(reserveInstance, data, UUID{});
-			const Entity instanceRoot =
-				PrefabInstanceRebuilder::RebuildInstance(generation, data, sceneInstanceID, 0);
+			const Entity instanceRoot = PrefabInstanceRebuilder::RebuildInstance(generation, data, sceneInstanceID, 0);
 			if (!world.IsAlive(instanceRoot)) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[SceneSystem] Prefabインスタンスを復元できません AssetID={} InstanceID={}",
-					ToString(data.prefabAsset), ToString(data.instanceID));
+					"[SceneSystem] Prefabインスタンスを復元できません AssetID={} InstanceID={}", ToString(data.prefabAsset),
+					ToString(data.instanceID));
 				return false;
 			}
 			// 生成したインスタンスの実体を作成リストへ加える、追加実体はsceneInstanceIDで保存時に回収される
@@ -213,9 +208,7 @@ bool Engine::SceneInstantiator::Instantiate(const nlohmann::json& sourceRoot, EC
 	// 全Prefab生成後に外部親参照を含む階層をまとめて解決する
 	std::vector<Entity> hierarchyScope;
 	hierarchyScope.reserve(world.GetRecordCount());
-	world.ForEachAliveEntity([&](Entity entity) {
-		hierarchyScope.emplace_back(entity);
-		});
+	world.ForEachAliveEntity([&](Entity entity) { hierarchyScope.emplace_back(entity); });
 	HierarchySystem hierarchySystem{};
 	hierarchySystem.RebuildRuntimeLinks(world, hierarchyScope);
 	return true;

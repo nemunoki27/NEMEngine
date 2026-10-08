@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include "MeshMaterialBuffers.h"
+#include "MeshBatchIdentityCache.h"
+#include "MeshBatchTypes.h"
 #include "MeshBatchViewResources.h"
 #include "MeshSkinningBufferSet.h"
 #include <Engine/Core/Rendering/Renderer/Backends/Common/DefaultStructuredInstanceBuffer.h>
@@ -22,6 +24,7 @@
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/World/ECS/Entity/WorldEntityKey.h>
 
 // c++
 #include <array>
@@ -33,7 +36,7 @@
 
 namespace Engine {
 
-	// front
+	// 型の前方宣言
 	class GraphicsCore;
 	class ECSWorld;
 	class ECSWorldLifetime;
@@ -43,76 +46,8 @@ namespace Engine {
 	struct MeshRendererComponent;
 
 	//============================================================================
-	//	MeshBatchResources structures
-	//============================================================================
-	// 定数バッファ
-
-	static_assert(sizeof(MeshViewConstants) % 16 == 0);
-
-	// 頂点/メッシュシェーダインスタンスデータ
-	struct MeshInstanceData {
-
-		// エンティティワールド行列(位置・Bounds・Culling用)
-		Matrix4x4 worldMatrix = Matrix4x4::Identity();
-		Matrix4x4 previousWorldMatrix = Matrix4x4::Identity();
-		// worldMatrixの法線変換行列transpose(inverse(worldMatrix))
-		// 非一様スケール・負スケールでも法線が壊れないよう位置用とは別に持つ
-		Matrix4x4 normalMatrix = Matrix4x4::Identity();
-
-		// このインスタンスのサブメッシュ配列先頭
-		uint32_t subMeshDataOffset = 0;
-		uint32_t subMeshCount = 0;
-
-		// スキニングするか
-		uint32_t flags = 0;
-		// スキニングする場合の、スキン頂点配列のオフセット
-		uint32_t skinnedVertexOffset = 0;
-
-		// このインスタンスが参照するアウトラインGPUデータのインデックス
-		uint32_t outlineDataIndex = 0;
-		// worldMatrixの線形部の行列式の符号で負スケールのmirror時に-1
-		float orientationSign = 1.0f;
-		// エディターラスターピック用のEntity ID
-		uint32_t entityIndex = UINT32_MAX;
-		uint32_t entityGeneration = UINT32_MAX;
-
-		// per-instanceの乗算色tint、同マテリアルのまま個体ごとに色を変えるために使う
-		Color4 color = Color4::White();
-		uint32_t motionFrameSerial = 0;
-		uint32_t _motionPad[3] = { 0, 0, 0 };
-	};
-	static_assert(sizeof(MeshInstanceData) % 16 == 0);
-	// MeshInstanceDataのflagsで、スキニングするか
-	static constexpr uint32_t kMeshInstanceFlagSkinned = 1u;
-	// MeshRenderFlagsから写すピクセル側で参照するフラグ
-	static constexpr uint32_t kMeshInstanceFlagLighting = 1u << 1;
-	static constexpr uint32_t kMeshInstanceFlagReceiveShadow = 1u << 2;
-	static constexpr uint32_t kMeshInstanceFlagReceiveIBL = 1u << 3;
-	static constexpr uint32_t kMeshInstanceFlagReceiveReflection = 1u << 4;
-	static constexpr uint32_t kMeshInstanceFlagLODDither = 1u << 5;
-
-	// スキニングメッシュを持つエンティティの記録
-	struct SkinnedEntityRecord {
-
-		ECSWorld* world = nullptr;
-		Entity entity = Entity::Null();
-		uint32_t vertexOffset = 0;
-	};
-	// メッシュインスタンスをEntityから検索するためのキー
-	struct MeshEntityLookupKey {
-
-		ECSWorld* world = nullptr;
-		Entity entity = Entity::Null();
-
-		bool operator==(const MeshEntityLookupKey& rhs) const noexcept;
-	};
-	struct MeshEntityLookupKeyHash {
-		size_t operator()(const MeshEntityLookupKey& key) const noexcept;
-	};
-
-	//============================================================================
 	//	MeshBatchResources class
-	//	メッシュをインスタンシングで描画するためのリソースを管理するクラス
+	//	Meshのバッチ構築と描画資源を管理
 	//============================================================================
 	class MeshBatchResources {
 	public:
@@ -131,47 +66,43 @@ namespace Engine {
 		// 描画に使用するビューを更新する
 		void UpdateView(const ResolvedRenderView& view, const ResolvedRenderView* cullingView,
 			const ResolvedRenderView* lodView = nullptr);
+		// 描画対象のCPUデータを構築して転送
 		void UploadBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
-			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh);
 		// 順序付きの描画構成とEntityの更新世代を照合する
 		bool MatchesBatch(const RenderSceneBatch& batch, std::span<const RenderItem* const> items,
 			const MeshGPUResource& gpuMesh) const;
-		void CaptureBatchIdentity(const RenderSceneBatch& batch, std::span<const RenderItem* const> items,
-			const MeshGPUResource& gpuMesh);
 		// 色だけが変わったインスタンスのパラメータを更新する
 		uint32_t RefreshMaterialColors();
 		// 構成再抽出後も一致するバッチは行列だけ同期する
 		void RefreshBatchTransforms(std::span<const RenderItem* const> items);
-		// 静的バッチの構成を維持したままインスタンス行列だけを更新する
-		bool RefreshInstanceTransforms(
-			std::span<const RenderTransformChange> changes);
-		// 静的キャッシュが保持するCPU配列を現在のフレーム用バッファへ転送する
+		// 現在のFrameへ未反映の範囲を転送
 		void UploadCachedBatchData();
-		// 描画パスごとに変わるMeshDrawConstantsを毎描画更新しキャッシュヒット時も必ず呼ぶ
+		// 描画ごとにPassの定数を更新
 		void UpdateDrawConstants(const RenderDrawContext& drawContext,
 			const MeshGPUResource& gpuMesh, uint32_t subMeshIndex,
 			uint32_t subMeshGroupIndex, const MaterialAsset* material, bool normalConeAllowed);
-		// ExecuteIndirectで使用する頂点描画引数の定数を更新する
+		// 間接描画のIndex数を更新
 		void UpdateIndexedIndirectArgsConstants(uint32_t indexCount);
 
-		// reflection駆動のサブメッシュ単位マテリアルパラメータを詰めて可変stride構造化バッファへ転送する
+		// Shaderの配置に合わせてサブメッシュのMaterial値を転送
 		void UploadSubMeshMaterialParams(const MaterialAsset* material,
 			const MaterialParameterLayout& layout, const RenderDrawContext& drawContext);
 
 		// スキニングに使用するリソースを確保する
 		void EnsureSkinningResources(GraphicsCore& graphicsCore);
+		// 現在のポーズに対するスキニング処理完了を記録する
+		void MarkSkinningDispatched(uint64_t pipelineID);
+		// 再計算に必要なパレットと定数を転送する
+		void UploadSkinningInputs(const MeshGPUResource& gpuMesh);
 
 		//--------- accessor -----------------------------------------------------
 
 		// スキニングするインスタンスの頂点オフセットを取得する
-		bool FindSkinnedVertexOffset(ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const;
+		bool FindSkinnedVertexOffset(const ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const;
 
-		// 現在のポーズに対するスキニング処理完了を記録する
-		void MarkSkinningDispatched(uint64_t pipelineID);
 		// 同じポーズとパイプラインの計算結果を再利用する
 		bool CanReuseSkinningOutput(uint64_t pipelineID) const;
-		// 再計算に必要なパレットと定数を転送する
-		void UploadSkinningInputs(const MeshGPUResource& gpuMesh);
 		// 未計算の頂点を使わず元の形状へ戻す
 		void SetSkinningAvailable(bool available);
 		// スキニング頂点のリソース状態をセット
@@ -189,12 +120,12 @@ namespace Engine {
 		// GPUアドレスを取得する
 		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress(RenderViewKind kind) const { return viewResources_.GetViewGPUAddress(kind); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetInstanceMeshGPUAddress() const { return meshData_.GetGPUAddress(); }
-		// カリングComputeが書き込み、ExecuteIndirect/ASが読む可視インスタンス配列
+		// カリング後のInstance配列を取得
 		D3D12_GPU_VIRTUAL_ADDRESS GetVisibleInstanceMeshGPUAddress() const { return visibleMeshData_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetDrawGPUAddress() const { return viewResources_.GetDrawGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetIndirectArgsConstantsGPUAddress() const { return viewResources_.GetIndirectGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshGPUAddress() const { return subMeshData_.GetGPUAddress(); }
-		// reflection駆動のサブメッシュ単位マテリアルパラメータバッファ
+		// Shaderの配置に対応するMaterialバッファ
 		bool HasSubMeshMaterialParams() const { return materialBuffers_.IsAvailable(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSubMeshMaterialParamGPUAddress() const;
 		D3D12_GPU_DESCRIPTOR_HANDLE GetSubMeshMaterialParamGPUHandle() const;
@@ -202,12 +133,12 @@ namespace Engine {
 		// 背面法アウトラインのインスタンス別GPUデータ
 		D3D12_GPU_VIRTUAL_ADDRESS GetOutlineGPUAddress() const { return outlineData_.GetGPUAddress(); }
 		std::string_view GetOutlineBindingName() const { return outlineData_.GetBindingName(); }
-		// ScreenSpaceOutline Mask描画用のper-draw定数(Style ID / SubMesh制限)
+		// 輪郭MaskのStyleと対象サブメッシュを取得
 		D3D12_GPU_VIRTUAL_ADDRESS GetScreenSpaceOutlineMaskGPUAddress() const { return viewResources_.GetMaskGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningPaletteGPUAddress() const { return skinning_->skinningPalette.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinningConstantsGPUAddress() const { return skinning_->skinningConstants.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedVerticesGPUAddress() const { return skinning_->skinnedVertices.GetGPUAddress(); }
-		// MeshShader経路は圧縮頂点を読むため、スキニング後も圧縮頂点SRVを渡す
+		// Skinning済みの圧縮頂点を取得
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedPackedVerticesGPUAddress() const { return skinning_->skinnedPackedVertices.GetGPUAddress(); }
 
 		// SRV/UAVハンドルを取得する
@@ -226,7 +157,7 @@ namespace Engine {
 		D3D12_RESOURCE_STATES GetVisibleInstanceMeshState() const { return visibleMeshDataState_; }
 		void SetVisibleInstanceMeshState(D3D12_RESOURCE_STATES state) { visibleMeshDataState_ = state; }
 
-		// 描画バウンディング名を取得する
+		// ShaderのBinding名を取得
 		std::string_view GetViewBindingName() const { return "ViewConstants"; }
 		std::string_view GetInstanceMeshBindingName() const { return meshData_.GetBindingName(); }
 		std::string_view GetDrawBindingName() const { return "MeshDrawConstants"; }
@@ -259,10 +190,9 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// スキニング用のリソースをまとめた構造体
-
-		// 同一フレーム内で別パスが通常描画のUpload Heapを書き換えないよう、
-		// MaterialPass単位で独立した可変strideバッファを保持する
+		// WorldとEntityの共通検索キー
+		using MeshEntityLookupKey = WorldEntityKey;
+		using MeshEntityLookupKeyHash = WorldEntityKeyHash;
 
 		//--------- variables ----------------------------------------------------
 
@@ -270,18 +200,16 @@ namespace Engine {
 		MeshBatchViewResources viewResources_{};
 		// バッファ
 		DefaultStructuredInstanceBuffer<MeshInstanceData> meshData_{ "gMeshInstances" };
-		// ExecuteIndirect/AmplificationShaderのカリング結果を書き戻す可視インスタンスバッファ
+		// カリングで残ったインスタンスを書き戻すバッファ
 		StructuredRWBuffer<MeshInstanceData> visibleMeshData_{ "gVisibleMeshInstances" };
-		// 同一フレーム内の複数パスで上書きしないper-draw定数領域
-
 		DefaultStructuredInstanceBuffer<MeshSubMeshShaderData> subMeshData_{ "gSubMeshes" };
 		// 背面法アウトラインのインスタンス別GPUデータ
 		DefaultStructuredInstanceBuffer<MeshOutlineGPUData> outlineData_{ "gMeshOutlines" };
 
-		// サブメッシュ単位マテリアルパラメータ用の可変stride構造化バッファ
+		// Material転送に使用するDeviceとDescriptor
 		ID3D12Device* device_ = nullptr;
 		SRVDescriptor* srvDescriptor_ = nullptr;
-		// UploadBatchDataで集めるインスタンス×サブメッシュ単位の上書きパラメータ
+		// InstanceとSubMeshごとのMaterial上書き
 		std::vector<MaterialParameterSet> subMeshParamScratch_{};
 		MeshMaterialBuffers materialBuffers_{};
 		// 頂点変位Boundsのマテリアル別キャッシュ
@@ -297,27 +225,8 @@ namespace Engine {
 		// スキニング用バッファ
 		std::unique_ptr<MeshSkinningBufferSet> skinning_{};
 
-		// キャッシュへECSのComponentポインターを保持しない
-		struct CachedInstance {
-			ECSWorld* world = nullptr;
-			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
-			Entity entity{};
-			AssetID material{};
-			uint64_t batchKey = 0;
-			uint64_t renderRevision = 0;
-			uint64_t resetRevision = 0;
-			uint64_t colorRevision = 0;
-			uint32_t subMeshIndex = kAllMeshSubMeshes;
-			uint32_t subMeshGroupIndex = UINT32_MAX;
-			MaterialSurfaceMode surfaceMode = MaterialSurfaceMode::Opaque;
-			RenderPhase phase = RenderPhase::Opaque;
-			BlendMode blend = BlendMode::Normal;
-			bool receiveShadows = true;
-			bool operator==(const CachedInstance&) const = default;
-		};
-		std::vector<CachedInstance> cachedInstances_;
-		AssetID cachedMesh_{};
-		uint32_t cachedMeshGeneration_ = 0;
+		// CPU側の構成とWorldの寿命を保持
+		MeshBatchIdentityCache batchIdentity_{};
 		uint64_t parameterGeneration_ = 1;
 		std::vector<uint64_t> subMeshParamGenerations_;
 
@@ -328,15 +237,12 @@ namespace Engine {
 		std::vector<MeshSubMeshShaderData> subMeshScratch_{};
 		std::vector<MeshOutlineGPUData> outlineScratch_{};
 
-		// upload済みアウトラインデータから計算した保守的メトリクス
-
+		// 転送済みの輪郭を包む描画範囲
 		OutlineBatchMetrics outlineMetrics_{};
 
 		// スキニング用の毎バッチ再利用するデータ
 		std::vector<WellForGPU> paletteScratch_{};
 
-		// スキニングメッシュを持つエンティティの記録
-		std::vector<SkinnedEntityRecord> skinnedRecords_{};
 		std::unordered_map<MeshEntityLookupKey, uint32_t,
 			MeshEntityLookupKeyHash> skinnedVertexOffsetMap_{};
 
@@ -355,7 +261,7 @@ namespace Engine {
 		uint64_t dispatchedSkinningPipelineID_ = 0;
 		uint64_t skinningResultGeneration_ = 0;
 		bool skinningDrawEnabled_ = true;
-		// 出力バッファ再生成を動的BLASへ伝える世代
+		// Skinningの再生成をBLASへ伝える世代
 		uint64_t skinningBufferGeneration_ = 0;
 		bool usesFallbackTexture_ = false;
 
@@ -363,12 +269,9 @@ namespace Engine {
 
 		// 描画対象からCPU転送データを構築する
 		void BuildBatchData(const RenderDrawContext& drawContext, const RenderSceneBatch& batch,
-			const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh);
+			std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh);
 
-		// CPU側のキャッシュ識別情報を取得する
-		static CachedInstance MakeCachedInstance(const RenderSceneBatch& batch, const RenderItem& item);
-		// 現在のフレームスロットを再利用する前にper-draw定数の切り出し位置を戻す
 		// マテリアルとサブメッシュ上書きから最大頂点変位量を求める
 		float ResolveMaxDisplacement(const MaterialAsset* material);
 	};
-} // Engine
+}

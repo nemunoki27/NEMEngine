@@ -7,6 +7,7 @@
 #include <Engine/Core/Assets/Database/AssetMetaStorage.h>
 #include <Engine/Core/Assets/Database/AssetDependencyResolver.h>
 #include <Engine/Core/Assets/Database/AssetMaintenance.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
@@ -15,6 +16,7 @@
 
 // c++
 #include <algorithm>
+#include <iterator>
 #include <optional>
 #include <system_error>
 #include <unordered_set>
@@ -50,7 +52,7 @@ bool Engine::AssetDatabase::Init() {
 bool Engine::AssetDatabase::RebuildMeta() {
 
 	const std::filesystem::path gameAssetsRoot = RuntimePaths::GetGameAssetsRoot();
-	std::vector<std::filesystem::path> scanRoots{ assetsRoot_ };
+	std::vector<std::filesystem::path> scanRoots{assetsRoot_};
 	if (gameAssetsRoot != assetsRoot_) {
 		scanRoots.emplace_back(gameAssetsRoot);
 	}
@@ -62,6 +64,23 @@ bool Engine::AssetDatabase::RebuildMeta() {
 
 bool Engine::AssetDatabase::RebuildMeta(const std::vector<std::filesystem::path>& scanRoots) {
 
+	// 指定範囲の走査でも未完了保存を先に復旧
+	std::vector<AssetDatabaseIssue> recoveryIssues;
+	const bool recovered = AssetDocumentRecovery::RecoverPending(recoveryIssues);
+	std::erase_if(
+		issues_, [](const AssetDatabaseIssue& issue) { return issue.type == AssetDatabaseIssueType::UnfinishedAssetSave; });
+	if (!recovered) {
+
+		// 部分保存を索引へ公開せず、復旧診断だけを更新
+		lastRebuildError_ = "未完了のAsset保存を解消するまで旧索引を保持します";
+		for (const auto& issue : recoveryIssues) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[AssetDatabase] 未完了の保存を復旧できません path={} 詳細={}",
+				issue.relatedPath, issue.detail);
+		}
+		issues_.insert(
+			issues_.end(), std::make_move_iterator(recoveryIssues.begin()), std::make_move_iterator(recoveryIssues.end()));
+		return false;
+	}
 	// 候補の走査と依存解決が完了するまで旧索引を保持する
 	AssetDatabase candidate;
 	candidate.projectRoot_ = projectRoot_;
@@ -87,7 +106,7 @@ bool Engine::AssetDatabase::RebuildMeta(const std::vector<std::filesystem::path>
 	scanRoots_.swap(candidate.scanRoots_);
 	lastRebuildError_.clear();
 
-	// 診断のサマリをまとめて出力する(詳細は先頭数件のみ)
+	// 診断を集計し、詳細は先頭の問題だけ表示
 	size_t duplicateCount = 0;
 	size_t orphanCount = 0;
 	size_t missingCount = 0;
@@ -108,8 +127,8 @@ bool Engine::AssetDatabase::RebuildMeta(const std::vector<std::filesystem::path>
 		}
 	}
 	Logger::Output(LogType::Engine,
-		"[AssetDatabase] 再構築が完了しました Asset数={} 問題数={} GUID重複={} 孤立Meta={} 参照欠損={}",
-		guidToMeta_.size(), issues_.size(), duplicateCount, orphanCount, missingCount);
+		"[AssetDatabase] 再構築が完了しました Asset数={} 問題数={} GUID重複={} 孤立Meta={} 参照欠損={}", guidToMeta_.size(),
+		issues_.size(), duplicateCount, orphanCount, missingCount);
 
 	constexpr size_t kMaxDetailLog = 16;
 	const size_t detailCount = (std::min)(kMaxDetailLog, issues_.size());
@@ -117,9 +136,8 @@ bool Engine::AssetDatabase::RebuildMeta(const std::vector<std::filesystem::path>
 
 		const AssetDatabaseIssue& issue = issues_[i];
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[AssetDatabase] 問題を検出しました 種別={} Asset={} 参照={} path={} 詳細={}",
-			static_cast<int>(issue.type), ToString(issue.assetID), ToString(issue.referencedAssetID),
-			issue.assetPath, issue.detail);
+			"[AssetDatabase] 問題を検出しました 種別={} Asset={} 参照={} path={} 詳細={}", static_cast<int>(issue.type),
+			ToString(issue.assetID), ToString(issue.referencedAssetID), issue.assetPath, issue.detail);
 	}
 
 	// アセット集合が変わったことを外部へ知らせる、ProjectPanel等がこのリビジョン差分で再構築を判断する
@@ -187,9 +205,8 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 			return {};
 		}
 		if (existing && existing->assetPath != assetPath) {
-			AddIssue({ AssetDatabaseIssueType::DuplicatePath, it->second, {},
-				AssetType::Unknown, AssetType::Unknown, existing->assetPath, assetPath,
-				"path lookup key collision" });
+			AddIssue({AssetDatabaseIssueType::DuplicatePath, it->second, {}, AssetType::Unknown, AssetType::Unknown,
+				existing->assetPath, assetPath, "path lookup key collision"});
 		}
 		return it->second;
 	}
@@ -208,21 +225,19 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 		if (!ReadMetaFile(metaFull, meta)) {
 
 			// 壊れた.metaは静かに新UIDで上書きせず診断に残してスキップする
-			AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
-				AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
-				"failed to parse .meta" });
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[AssetDatabase] 壊れた.metaを無視しました: {}", assetPath);
+			AddIssue({AssetDatabaseIssueType::CorruptMeta, {}, {}, AssetType::Unknown, AssetType::Unknown, assetPath,
+				Algorithm::PathToUTF8(metaFull), "failed to parse .meta"});
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[AssetDatabase] 壊れた.metaを無視しました: {}", assetPath);
 			return {};
 		}
 
 		// 論理パスは現在の走査結果で最新化する
 		meta.assetPath = assetPath;
-		if (meta.type != AssetType::Unknown && guessedType != AssetType::Unknown &&
-			guessedType != AssetType::DefaultAsset && meta.type != guessedType) {
+		if (meta.type != AssetType::Unknown && guessedType != AssetType::Unknown && guessedType != AssetType::DefaultAsset &&
+			meta.type != guessedType) {
 
-			AddIssue({ AssetDatabaseIssueType::CorruptMeta, meta.guid, {}, guessedType, meta.type,
-				assetPath, Algorithm::PathToUTF8(metaFull), "asset type mismatch" });
+			AddIssue({AssetDatabaseIssueType::CorruptMeta, meta.guid, {}, guessedType, meta.type, assetPath,
+				Algorithm::PathToUTF8(metaFull), "asset type mismatch"});
 			return {};
 		}
 
@@ -235,8 +250,8 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 			}
 		} else if (meta.type == AssetType::Unknown) {
 
-			AddIssue({ AssetDatabaseIssueType::UnknownAssetType, meta.guid, {},
-				AssetType::Unknown, AssetType::Unknown, assetPath, {}, "unresolved asset type" });
+			AddIssue({AssetDatabaseIssueType::UnknownAssetType, meta.guid, {}, AssetType::Unknown, AssetType::Unknown,
+				assetPath, {}, "unresolved asset type"});
 		}
 	} else {
 
@@ -250,9 +265,8 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 	}
 
 	if (!meta.guid) {
-		AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
-			AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
-			"invalid guid" });
+		AddIssue({AssetDatabaseIssueType::CorruptMeta, {}, {}, AssetType::Unknown, AssetType::Unknown, assetPath,
+			Algorithm::PathToUTF8(metaFull), "invalid guid"});
 		return {};
 	}
 
@@ -260,11 +274,9 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 	if (auto existing = guidToMeta_.find(meta.guid);
 		existing != guidToMeta_.end() && existing->second.assetPath != meta.assetPath) {
 
-		AddIssue({ AssetDatabaseIssueType::DuplicateGuid, meta.guid, {},
-			AssetType::Unknown, AssetType::Unknown, existing->second.assetPath, meta.assetPath,
-			"duplicate guid" });
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[AssetDatabase] GUIDが重複しています {} : '{}' と '{}'",
+		AddIssue({AssetDatabaseIssueType::DuplicateGuid, meta.guid, {}, AssetType::Unknown, AssetType::Unknown,
+			existing->second.assetPath, meta.assetPath, "duplicate guid"});
+		Logger::Output(LogType::Engine, spdlog::level::warn, "[AssetDatabase] GUIDが重複しています {} : '{}' と '{}'",
 			ToString(meta.guid), existing->second.assetPath, meta.assetPath);
 		return {};
 	}
@@ -336,7 +348,7 @@ bool Engine::AssetDatabase::RefreshDependencies(AssetID id) {
 		issues_.reserve(issues_.size() + nextIssues.size());
 		std::erase_if(issues_, [id](const AssetDatabaseIssue& issue) {
 			return issue.assetID == id && (issue.type == AssetDatabaseIssueType::MissingReference ||
-				issue.type == AssetDatabaseIssueType::ReferenceTypeMismatch);
+											  issue.type == AssetDatabaseIssueType::ReferenceTypeMismatch);
 		});
 		for (auto& issue : nextIssues) {
 			issues_.emplace_back(std::move(issue));
@@ -366,8 +378,7 @@ uint64_t Engine::AssetDatabase::GetContentRevision(AssetID id) const {
 	return found == contentRevisions_.end() ? 0 : found->second;
 }
 
-bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id,
-	const nlohmann::json& settings, uint32_t importerVersion) {
+bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id, const nlohmann::json& settings, uint32_t importerVersion) {
 
 	if (!settings.is_object() || importerVersion == 0) {
 		return false;
@@ -395,71 +406,6 @@ bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id,
 void Engine::AssetDatabase::AddIssue(AssetDatabaseIssue&& issue) {
 
 	issues_.emplace_back(std::move(issue));
-}
-
-const Engine::AssetMeta* Engine::AssetDatabase::Find(AssetID id) const {
-
-	auto it = guidToMeta_.find(id);
-	return (it == guidToMeta_.end()) ? nullptr : &it->second;
-}
-
-const Engine::AssetMeta* Engine::AssetDatabase::FindByPath(const std::string& assetPath) const {
-
-	auto it = pathToGuid_.find(NormalizeLookupKey(assetPath));
-	return (it == pathToGuid_.end()) ? nullptr : Find(it->second);
-}
-
-std::filesystem::path Engine::AssetDatabase::ResolveFullPath(AssetID id) const {
-
-	const auto* meta = Find(id);
-	if (!meta) {
-		return {};
-	}
-	return ResolveAssetPath(meta->assetPath);
-}
-
-std::filesystem::path Engine::AssetDatabase::ResolveAssetPath(const std::string& assetPath) const {
-
-	return RuntimePaths::ResolveAssetPath(assetPath);
-}
-
-const std::vector<Engine::AssetID>& Engine::AssetDatabase::FindDependencies(AssetID id) const {
-
-	static const std::vector<AssetID> kEmpty;
-	auto it = guidToMeta_.find(id);
-	return (it == guidToMeta_.end()) ? kEmpty : it->second.dependencies;
-}
-
-const std::vector<Engine::AssetID>& Engine::AssetDatabase::FindReferencers(AssetID id) const {
-
-	static const std::vector<AssetID> kEmpty;
-	auto it = referencersByGuid_.find(id);
-	return (it == referencersByGuid_.end()) ? kEmpty : it->second;
-}
-
-std::vector<Engine::AssetID>
-Engine::AssetDatabase::FindReferencersRecursive(AssetID id) const {
-
-	std::vector<AssetID> result;
-	std::vector<AssetID> pending{ id };
-	std::unordered_set<AssetID> visited{ id };
-	for (size_t index = 0; index < pending.size(); ++index) {
-
-		for (AssetID referencer : FindReferencers(pending[index])) {
-			if (!visited.insert(referencer).second) {
-				continue;
-			}
-			result.emplace_back(referencer);
-			pending.emplace_back(referencer);
-		}
-	}
-	return result;
-}
-
-bool Engine::AssetDatabase::HasReferencers(AssetID id) const {
-
-	auto it = referencersByGuid_.find(id);
-	return it != referencersByGuid_.end() && !it->second.empty();
 }
 
 std::string Engine::AssetDatabase::NormalizeLookupKey(const std::string& assetPath) {

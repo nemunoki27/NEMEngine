@@ -19,7 +19,7 @@ namespace {
 
 		// 描画先と必須の依存が1つでも欠けていれば何もしない
 		Engine::MultiRenderTarget* target = surface.colorSurface;
-		if (!target || !deps.dispatcher || !deps.backendRegistry ||
+		if (!target || !deps.renderBatch || !deps.dispatcher || !deps.backendRegistry ||
 			!deps.assetLibrary || !deps.pipelineCache || !deps.materialResolver) {
 			return;
 		}

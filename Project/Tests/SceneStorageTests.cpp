@@ -79,7 +79,7 @@ bool TestSceneStorageSession() {
 	}
 	// 削除途中まで進み、復旧されたことも確認する
 	bool recovered = false;
-	for (const auto& recovery : directory.GetSceneRecoveries()) {
+	for (const auto& recovery : directory.GetStorageRecoveries()) {
 		const auto record = Engine::JsonAdapter::Load(recovery / "operation.json", false);
 		recovered |= record.value("label", "") == "アセット削除" && record.value("state", "") == "recovered" &&
 					 record.at("files").size() == paths.size();

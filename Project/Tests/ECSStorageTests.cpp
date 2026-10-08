@@ -13,8 +13,49 @@
 #include <array>
 #include <functional>
 #include <stdexcept>
+#include <type_traits>
+#include <utility>
 
 namespace {
+
+	// 所有の移動とconst取得で領域の寿命を確認する
+	bool CheckAlignedBufferOwnership() {
+
+		using namespace Engine;
+		static_assert(!std::is_copy_constructible_v<AlignedBuffer> && !std::is_copy_assignable_v<AlignedBuffer>);
+		static_assert(std::is_nothrow_move_constructible_v<AlignedBuffer>);
+		static_assert(std::is_same_v<decltype(std::declval<const AlignedBuffer&>().GetData()), const std::byte*>);
+		static_assert(std::is_same_v<decltype(std::declval<const EntityArchetype&>().GetChunk(0)), const EntityChunk&>);
+		static_assert(!std::is_move_constructible_v<EntityArchetype> && !std::is_move_constructible_v<EntityChunk>);
+		AlignedBuffer source(64, 64);
+		source.GetData()[0] = std::byte{37};
+		AlignedBuffer moved(std::move(source));
+		if (source.GetData() || source.GetSize() || source.GetAlignment() || moved.GetData()[0] != std::byte{37}) {
+			return false;
+		}
+		// 条件不正では確保済みの領域を維持する
+		const auto* before = moved.GetData();
+		bool rejected = false;
+		try {
+			moved.Reset(128, 3);
+		} catch (const std::invalid_argument&) {
+			rejected = true;
+		}
+		if (!rejected || moved.GetData() != before || moved.GetSize() != 64 || moved.GetAlignment() != 64) {
+			return false;
+		}
+		moved.Reserve(129, 128, 64);
+		if (moved.GetSize() < 129 || moved.GetAlignment() < 128 || moved.GetData()[0] != std::byte{37}) {
+			return false;
+		}
+		AlignedBuffer destination(16, 16);
+		destination = std::move(moved);
+		if (moved.GetData() || moved.GetSize() || moved.GetAlignment() || destination.GetData()[0] != std::byte{37}) {
+			return false;
+		}
+		destination.Release();
+		return !destination.GetData() && !destination.GetSize() && !destination.GetAlignment();
+	}
 
 	// 構築と破棄の途中からPool操作を呼び出す
 	class PoolValue {
@@ -318,7 +359,8 @@ namespace NEMTests {
 		blobs.Clear();
 		const auto blobD = blobs.Acquire(blobData);
 		return !blobs.IsAlive(blobC) && blobs.IsAlive(blobD) && CheckPoolLifetime() &&
-			CheckTypeRegistration() && CheckWorldHandles() && CheckBlobAlignment() && CheckStorageRegistration();
+			CheckTypeRegistration() && CheckWorldHandles() && CheckBlobAlignment() && CheckStorageRegistration() &&
+			CheckAlignedBufferOwnership();
 	}
 
 }

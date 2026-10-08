@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/Entity/Entity.h>
 
 // c++
+#include <cstdint>
 #include <vector>
 #include <span>
 
@@ -24,7 +25,11 @@ namespace Engine {
 		void SortChildLinksBySiblingOrder(ECSWorld& world, Entity parent);
 
 		// 指定したエンティティが親なしのルートか判定する
-		bool IsRoot(ECSWorld& world, Entity entity);
+		bool IsRoot(const ECSWorld& world, Entity entity);
+		// 対象を除くルートの最大兄弟順を取得する
+		int32_t FindMaxRootSiblingOrder(const ECSWorld& world, Entity exclude);
+		// 上限を越えず末尾の兄弟順を取得する
+		bool TryGetNextRootSiblingOrder(const ECSWorld& world, Entity exclude, int32_t& order);
 
 		// 通常の子とジョイント接続された子を含むサブツリーを収集する
 		std::vector<Entity> CollectLogicalSubtree(ECSWorld& world, Entity root);

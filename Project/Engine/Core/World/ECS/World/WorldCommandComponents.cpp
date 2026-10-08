@@ -38,13 +38,19 @@ uint64_t Engine::WorldCommandBuffer::StageAddComponent(ECSWorld& world, const En
 		return pending->GetInstanceID();
 	}
 
+	const auto lifetime = world.GetLifetime();
 	// 構築に成功した値を予約と取得索引で共有する
 	auto component = std::make_shared<PendingComponent>(info, world.ReserveComponentInstanceIDs(1));
+	// 構築中に終了したWorldの予約へ戻らない
+	lifetime->ThrowIfEnded();
+	if (!world.IsAlive(entity) || world.IsPendingDestroy(entity)) {
+		return 0;
+	}
 	WorldCommand command{};
 	command.kind = WorldCommandKind::AddComponentValue;
 	command.target = entity;
 	command.component = component;
-	const ComponentKey key{ entity.index, entity.generation, typeID };
+	const ComponentKey key{entity.index, entity.generation, typeID};
 	const auto [entry, inserted] = pendingComponents_.emplace(key, component);
 	if (!inserted) {
 		return entry->second->GetInstanceID();
@@ -60,23 +66,35 @@ uint64_t Engine::WorldCommandBuffer::StageAddComponent(ECSWorld& world, const En
 
 Engine::PendingComponent* Engine::WorldCommandBuffer::FindPendingComponent(const Entity& entity, uint32_t typeID) {
 
-	const auto entry = pendingComponents_.find({ entity.index, entity.generation, typeID });
+	const auto entry = pendingComponents_.find({entity.index, entity.generation, typeID});
 	return entry != pendingComponents_.end() ? entry->second.get() : nullptr;
 }
 
 const Engine::PendingComponent* Engine::WorldCommandBuffer::FindPendingComponent(const Entity& entity, uint32_t typeID) const {
 
-	const auto entry = pendingComponents_.find({ entity.index, entity.generation, typeID });
+	const auto entry = pendingComponents_.find({entity.index, entity.generation, typeID});
 	return entry != pendingComponents_.end() ? entry->second.get() : nullptr;
 }
 
-void Engine::WorldCommandBuffer::CollectPendingComponents(const Entity& entity, std::vector<const PendingComponent*>& out) const {
+std::shared_ptr<const Engine::PendingComponent> Engine::WorldCommandBuffer::AcquirePendingComponent(
+	const Entity& entity, uint32_t typeID) const {
+
+	const auto entry = pendingComponents_.find({entity.index, entity.generation, typeID});
+	return entry != pendingComponents_.end() ? entry->second : nullptr;
+}
+
+void Engine::WorldCommandBuffer::CollectPendingComponents(
+	const Entity& entity, std::vector<std::shared_ptr<const PendingComponent>>& out) const {
 
 	out.clear();
 	// Entityの世代が一致する範囲だけを走査する
-	for (auto it = pendingComponents_.lower_bound({ entity.index, entity.generation, 0 }); it != pendingComponents_.end(); ++it) {
-		if (std::get<0>(it->first) != entity.index || std::get<1>(it->first) != entity.generation) break;
-		if (it->second->GetInstanceID() != 0) out.push_back(it->second.get());
+	for (auto it = pendingComponents_.lower_bound({entity.index, entity.generation, 0}); it != pendingComponents_.end(); ++it) {
+		if (std::get<0>(it->first) != entity.index || std::get<1>(it->first) != entity.generation) {
+			break;
+		}
+		if (it->second->GetInstanceID() != 0) {
+			out.push_back(it->second);
+		}
 	}
 }
 
@@ -93,7 +111,7 @@ void Engine::WorldCommandBuffer::CollectUnappliedCommands(std::vector<WorldComma
 
 void Engine::WorldCommandBuffer::CancelPendingComponent(const Entity& entity, uint32_t typeID) {
 
-	const auto entry = pendingComponents_.find({ entity.index, entity.generation, typeID });
+	const auto entry = pendingComponents_.find({entity.index, entity.generation, typeID});
 	if (entry == pendingComponents_.end()) {
 		return;
 	}
@@ -108,15 +126,15 @@ void Engine::WorldCommandBuffer::RemovePendingComponent(const WorldCommand& comm
 		return;
 	}
 	// 適用失敗や対象失効でも予約を残さない
-	const ComponentKey key{ command.target.index, command.target.generation, command.component->GetInfo().id };
+	const ComponentKey key{command.target.index, command.target.generation, command.component->GetInfo().id};
 	const auto entry = pendingComponents_.find(key);
 	if (entry != pendingComponents_.end() && entry->second == command.component) {
 		pendingComponents_.erase(entry);
 	}
 }
 
-void Engine::WorldCommandBuffer::EnqueueCreateEntity(ECSWorld& world, const Entity& reserved,
-	std::string_view name, const Entity& parent) {
+void Engine::WorldCommandBuffer::EnqueueCreateEntity(
+	ECSWorld& world, const Entity& reserved, std::string_view name, const Entity& parent) {
 
 	if (!world.IsAlive(reserved) || world.IsPendingDestroy(reserved)) {
 		throw std::invalid_argument("生成対象のEntityが無効です");

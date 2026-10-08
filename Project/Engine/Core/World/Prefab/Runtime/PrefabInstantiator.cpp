@@ -41,6 +41,7 @@ namespace {
 bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& context, AssetID prefabAsset,
 	PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc) {
 
+	const auto lifetime = context.world.GetLifetime();
 	outResult = {};
 	try {
 		SceneCreationScope creation(context.world);
@@ -53,8 +54,12 @@ bool Engine::PrefabInstantiator::InstantiatePrefab(PrefabGenerationContext& cont
 		creation.Commit();
 		return true;
 	} catch (const std::exception& error) {
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[PrefabSystem] Prefab生成に失敗しました AssetID={} 詳細={}", ToString(prefabAsset), error.what());
+		// World終了後に呼出し元の復元処理を続けない
+		if (!lifetime->IsAlive()) {
+			throw;
+		}
+		Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] Prefab生成に失敗しました AssetID={} 詳細={}",
+			ToString(prefabAsset), error.what());
 		outResult = {};
 		return false;
 	}
@@ -77,8 +82,8 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	}
 	if (desc.nestedDepth > kMaximumNestedPrefabDepth) {
 
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[PrefabSystem] ネストPrefabの深度上限を超えました AssetID={}", ToString(prefabAsset));
+		Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] ネストPrefabの深度上限を超えました AssetID={}",
+			ToString(prefabAsset));
 		return false;
 	}
 	PrefabReferenceRemapper::NormalizePrefabFileHierarchy(fileJson);
@@ -92,12 +97,13 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	header.guid = prefabAsset;
 	if (!header.rootLocalFileID) {
 
-		const bool hasNestedPrefab = fileJson.contains("NestedPrefabInstances") &&
+		const bool hasNestedPrefab =
+			fileJson.contains("NestedPrefabInstances") &&
 			(!fileJson["NestedPrefabInstances"].is_array() || !fileJson["NestedPrefabInstances"].empty());
 		if (!fileJson["Entities"].empty() || hasNestedPrefab) {
 
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[PrefabSystem] Prefabのルート情報が不正です AssetID={}", ToString(prefabAsset));
+			Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] Prefabのルート情報が不正です AssetID={}",
+				ToString(prefabAsset));
 			return false;
 		}
 
@@ -108,9 +114,8 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 		sceneObject.localFileID = context.AllocateLocalFileID();
 		sceneObject.sourceAsset = prefabAsset;
 		sceneObject.sceneInstanceID = desc.ownerSceneInstanceID;
-		PrefabOwnership::SetPrefabLink(world, outResult.root, prefabAsset, sceneObject.localFileID,
-			outResult.prefabInstanceID, true, desc.ownerPrefabInstanceID,
-			desc.nestedSlotID, desc.isPrefabAssetNested);
+		PrefabOwnership::SetPrefabLink(world, outResult.root, prefabAsset, sceneObject.localFileID, outResult.prefabInstanceID,
+			true, desc.ownerPrefabInstanceID, desc.nestedSlotID, desc.isPrefabAssetNested);
 		outResult.createdEntities.emplace_back(outResult.root);
 		outResult.sourceLocalToEntity.emplace(sceneObject.localFileID, outResult.root);
 		if (world.IsAlive(desc.parent)) {
@@ -123,12 +128,11 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	for (const auto& entityJson : fileJson["Entities"]) {
 
 		const UUID localFileID = ReadEntityLocalFileID(entityJson);
-		if (!localFileID || !entityJson.contains("Components") ||
-			!entityJson["Components"].is_object() ||
+		if (!localFileID || !entityJson.contains("Components") || !entityJson["Components"].is_object() ||
 			!prefabLocalFileIDs.insert(localFileID).second) {
 
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[PrefabSystem] Prefab内のEntity情報が不正です AssetID={}", ToString(prefabAsset));
+			Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] Prefab内のEntity情報が不正です AssetID={}",
+				ToString(prefabAsset));
 			return false;
 		}
 		for (auto it = entityJson["Components"].begin(); it != entityJson["Components"].end(); ++it) {
@@ -139,8 +143,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 			if (!ComponentTypeRegistry::GetInstance().FindByName(it.key())) {
 
 				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[PrefabSystem] 未登録のComponentTypeです AssetID={} Component={}",
-					ToString(prefabAsset), it.key());
+					"[PrefabSystem] 未登録のComponentTypeです AssetID={} Component={}", ToString(prefabAsset), it.key());
 				return false;
 			}
 		}
@@ -154,19 +157,18 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 		for (const auto& nestedJson : fileJson["NestedPrefabInstances"]) {
 
 			PrefabInstanceData nested{};
-			if (!FromJson(nestedJson, nested) || !nested.nestedSlotID ||
-				!nestedSlotIDs.insert(nested.nestedSlotID).second) {
+			if (!FromJson(nestedJson, nested) || !nested.nestedSlotID || !nestedSlotIDs.insert(nested.nestedSlotID).second) {
 
-				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[PrefabSystem] ネストPrefab情報が不正です AssetID={}", ToString(prefabAsset));
+				Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] ネストPrefab情報が不正です AssetID={}",
+					ToString(prefabAsset));
 				return false;
 			}
 		}
 	}
 	if (!prefabLocalFileIDs.contains(header.rootLocalFileID)) {
 
-		Logger::Output(LogType::Engine, spdlog::level::err,
-			"[PrefabSystem] PrefabのルートEntityが存在しません AssetID={}", ToString(prefabAsset));
+		Logger::Output(LogType::Engine, spdlog::level::err, "[PrefabSystem] PrefabのルートEntityが存在しません AssetID={}",
+			ToString(prefabAsset));
 		return false;
 	}
 
@@ -209,28 +211,24 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 		std::vector<uint32_t> componentTypeIDs;
 		const auto& prefabComponents = entityJson["Components"];
 		componentTypeIDs.reserve(prefabComponents.size() + 1);
-		componentTypeIDs.emplace_back(
-			ComponentTypeRegistry::GetInstance().GetID<PrefabLinkComponent>());
+		componentTypeIDs.emplace_back(ComponentTypeRegistry::GetInstance().GetID<PrefabLinkComponent>());
 		for (auto it = prefabComponents.begin(); it != prefabComponents.end(); ++it) {
 
 			// JointAttachmentは参照先を解決できたエンティティだけ後から追加する
 			if (it.key() == "JointAttachment") {
 				continue;
 			}
-			const ComponentTypeInfo* info =
-				ComponentTypeRegistry::GetInstance().FindByName(it.key());
+			const ComponentTypeInfo* info = ComponentTypeRegistry::GetInstance().FindByName(it.key());
 			if (!info) {
 				return false;
 			}
 			componentTypeIDs.emplace_back(info->id);
 		}
 		UUID stableUUID{};
-		if (auto stableIt = stableUUIDLookup.find(prefabLocalFileID);
-			stableIt != stableUUIDLookup.end()) {
+		if (auto stableIt = stableUUIDLookup.find(prefabLocalFileID); stableIt != stableUUIDLookup.end()) {
 			stableUUID = stableIt->second;
 		}
-		const Entity entity = SceneAuthoring::CreateGameObject(
-			world, "Entity", componentTypeIDs, stableUUID);
+		const Entity entity = SceneAuthoring::CreateGameObject(world, "Entity", componentTypeIDs, stableUUID);
 		// 復元時は保存済みのシーンローカルIDを使い、無ければ新規採番する
 		UUID newSceneLocalFileID{};
 		if (auto remapIt = remapLookup.find(prefabLocalFileID); remapIt != remapLookup.end() && remapIt->second) {
@@ -254,9 +252,9 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 			sceneObject.sceneInstanceID = desc.ownerSceneInstanceID;
 		}
 		// プレファブリンク初期化
-		PrefabOwnership::SetPrefabLink(world, entity, prefabAsset, prefabLocalFileID,
-			outResult.prefabInstanceID, prefabLocalFileID == header.rootLocalFileID,
-			desc.ownerPrefabInstanceID, desc.nestedSlotID, desc.isPrefabAssetNested);
+		PrefabOwnership::SetPrefabLink(world, entity, prefabAsset, prefabLocalFileID, outResult.prefabInstanceID,
+			prefabLocalFileID == header.rootLocalFileID, desc.ownerPrefabInstanceID, desc.nestedSlotID,
+			desc.isPrefabAssetNested);
 
 		// 作成したエンティティを結果に追加
 		outResult.createdEntities.emplace_back(entity);
@@ -285,8 +283,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 			if (typeName == "JointAttachment") {
 
 				const UUID entityLocalFileID = ReadEntityLocalFileID(*entityJson);
-				if (entityLocalFileID == header.rootLocalFileID ||
-					!HasPrefabLocalJointTarget(data, prefabLocalToSceneLocal)) {
+				if (entityLocalFileID == header.rootLocalFileID || !HasPrefabLocalJointTarget(data, prefabLocalToSceneLocal)) {
 					continue;
 				}
 			}
@@ -344,8 +341,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	}
 
 	// 新規生成のときだけルート名を.prefabのベース名にする、シーン復元では保存済みの名前を尊重する
-	if (desc.renameRootToPrefabName && world.IsAlive(outResult.root) &&
-		world.HasComponent<NameComponent>(outResult.root)) {
+	if (desc.renameRootToPrefabName && world.IsAlive(outResult.root) && world.HasComponent<NameComponent>(outResult.root)) {
 
 		// プレファブは ".prefab.json" の二重拡張子なので、stemを二段かけて純粋な名前を取り出す
 		std::filesystem::path namePath = fullPath.stem();
@@ -373,7 +369,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 				continue;
 			}
 			const bool isRoot = !world.HasComponent<HierarchyComponent>(entity) ||
-				!world.IsAlive(world.GetComponent<HierarchyComponent>(entity).parent);
+								!world.IsAlive(world.GetComponent<HierarchyComponent>(entity).parent);
 			if (isRoot) {
 				hierarchySystem.SetParent(world, entity, outResult.root);
 			}
@@ -387,8 +383,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	}
 
 	// 親Prefabアセットに保存されたネストPrefabを差分付きで生成する
-	const PrefabReferenceRemapper::LocalFileIDMap directPrefabLocalToSceneLocal =
-		prefabLocalToSceneLocal;
+	const PrefabReferenceRemapper::LocalFileIDMap directPrefabLocalToSceneLocal = prefabLocalToSceneLocal;
 	PrefabNestedInstanceBuilder nestedBuilder(context, desc, outResult, prefabLocalToSceneLocal);
 	if (!nestedBuilder.Build(fileJson)) {
 		return false;
@@ -397,8 +392,7 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	// ネスト先を指す参照だけを、全IDが確定した状態でもう一度読み込む
 	for (auto& [entity, entityJson] : pendingLoads) {
 
-		if (!world.IsAlive(entity) || !entityJson->contains("Components") ||
-			!(*entityJson)["Components"].is_object()) {
+		if (!world.IsAlive(entity) || !entityJson->contains("Components") || !(*entityJson)["Components"].is_object()) {
 			continue;
 		}
 		const auto& components = (*entityJson)["Components"];
@@ -410,10 +404,10 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 			}
 			nlohmann::json directData = it.value();
 			nlohmann::json completeData = it.value();
-			PrefabReferenceRemapper::RemapComponent(typeName, directData,
-				directPrefabLocalToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
-			PrefabReferenceRemapper::RemapComponent(typeName, completeData,
-				prefabLocalToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
+			PrefabReferenceRemapper::RemapComponent(typeName, directData, directPrefabLocalToSceneLocal,
+				PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
+			PrefabReferenceRemapper::RemapComponent(
+				typeName, completeData, prefabLocalToSceneLocal, PrefabReferenceRemapper::ReferenceSpace::Scene, prefabAsset);
 			if (directData == completeData) {
 				continue;
 			}
@@ -425,9 +419,9 @@ bool Engine::PrefabInstantiator::Instantiate(PrefabGenerationContext& context, A
 	return true;
 }
 
-bool Engine::PrefabInstantiator::InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem,
-	ECSWorld& world, AssetID prefabAsset, PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc) {
+bool Engine::PrefabInstantiator::InstantiatePrefab(AssetDatabase& database, HierarchySystem& hierarchySystem, ECSWorld& world,
+	AssetID prefabAsset, PrefabInstantiateResult& outResult, const PrefabInstantiateDesc& desc) {
 
-	PrefabGenerationContext context{ database, hierarchySystem, world };
+	PrefabGenerationContext context{database, hierarchySystem, world};
 	return InstantiatePrefab(context, prefabAsset, outResult, desc);
 }

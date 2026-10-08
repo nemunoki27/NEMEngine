@@ -121,7 +121,7 @@ public static class SceneManager {
     internal static void PumpEvents() {
 
         // load 完了検出（instance が alive になった）
-        for (int i = pendingLoad.Count - 1; i >= 0; --i) {
+        for (int i = pendingLoad.Count - 1; i >= 0 && !NativeApplicationAPI.ReadUpdateInterrupted(); --i) {
             if (NativeEntityAPI.SceneInstanceAlive(pendingLoad[i].handle.instanceID)) {
                 SceneEvent ev = new(pendingLoad[i].handle, pendingLoad[i].asset);
                 pendingLoad.RemoveAt(i);
@@ -129,7 +129,7 @@ public static class SceneManager {
             }
         }
         // unload 完了検出（instance が alive でなくなった）
-        for (int i = pendingUnload.Count - 1; i >= 0; --i) {
+        for (int i = pendingUnload.Count - 1; i >= 0 && !NativeApplicationAPI.ReadUpdateInterrupted(); --i) {
             if (!NativeEntityAPI.SceneInstanceAlive(pendingUnload[i].handle.instanceID)) {
                 SceneEvent ev = new(pendingUnload[i].handle, pendingUnload[i].asset);
                 pendingUnload.RemoveAt(i);

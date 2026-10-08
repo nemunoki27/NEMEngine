@@ -1,10 +1,10 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
-#include "ManagedMaterialConversion.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptUtility.h"
+#include "ManagedMaterialConversion.h"
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
@@ -23,6 +23,7 @@ namespace Engine {
 
 	namespace {
 
+		// Renderer種別に応じてInstance値を操作
 		template<typename Function>
 		int32_t VisitRendererMaterialInstances(
 			Engine::ECSWorld& world, const Engine::Entity& entity,
@@ -83,10 +84,8 @@ namespace Engine {
 			return count;
 		}
 
-		// CollisionComponentの単一形状を取得する
-
-
 	}
+
 	int32_t ManagedScriptRuntime::SetRendererMaterialParameterCallback(
 		ManagedNativeEntity entity, int32_t target, int32_t subMeshIndex,
 		uint64_t parameterID, const char* name,
@@ -126,11 +125,10 @@ namespace Engine {
 						return;
 					}
 				}
-				materialInstance.Set(
-					id, parameterName,
-					ResolveMaterialParameterSemantic(parameterName), decoded);
+				materialInstance.Set(id, parameterName, ResolveMaterialParameterSemantic(parameterName), decoded);
 				changed = true;
 			});
+		// 色だけの変更と描画構成の変更を分けて通知
 		if (changed) {
 			if (colorOnly) {
 				world->MarkMeshColorModified(resolved);
@@ -166,8 +164,7 @@ namespace Engine {
 				if (found) {
 					return;
 				}
-				const MaterialParameterSet& readOnly =
-					materialInstance;
+				const MaterialParameterSet& readOnly = materialInstance;
 				const MaterialParameterValue* value =
 					readOnly.Find(MaterialParameterID{ parameterID });
 				found = value && EncodeMaterialParameterValue(*value, *outValue);
@@ -193,8 +190,7 @@ namespace Engine {
 			*world, resolved,
 			static_cast<ManagedRendererMaterialTarget>(target), subMeshIndex,
 			[&](MaterialParameterSet& materialInstance) {
-				removed += static_cast<int32_t>(
-					materialInstance.erase(MaterialParameterID{ parameterID }));
+				removed += static_cast<int32_t>(materialInstance.erase(MaterialParameterID{ parameterID }));
 			});
 		if (removed != 0) {
 			world->MarkRenderDataModified();

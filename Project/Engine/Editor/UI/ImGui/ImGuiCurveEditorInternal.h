@@ -9,6 +9,16 @@
 
 namespace Engine::CurveEditorUtility {
 
+	// 目盛りを加算誤差なく列挙するための範囲
+	struct CurveGridRange {
+
+		double begin = 0.0;
+		double step = 0.0;
+		uint32_t count = 0;
+	};
+	// 有効な表示範囲から目盛りの開始位置と個数を求める
+	CurveGridRange BuildGridRange(float minValue, float maxValue, float step);
+
 	// 上部ボタンサイズ
 	inline constexpr ImVec2 kCurveToolbarItemSize = ImVec2(80.0f, 20.0f);
 	// 右キーインスペクタの幅
@@ -57,6 +67,8 @@ namespace Engine::CurveEditorUtility {
 
 	// 目盛り間隔に表示桁数を合わせる
 	std::string FormatGridValue(float value, float step);
+	// 整数へ変換せず主目盛りの位置を判定する
+	bool IsMajorGridLine(float value, float step);
 
 	// カーブ座標を画面座標へ変換する
 	ImVec2 WorldToScreen(const ImRect& rect, const Engine::CurveEditorState& state, float time, float value);

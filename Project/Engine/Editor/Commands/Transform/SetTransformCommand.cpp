@@ -10,8 +10,7 @@
 //============================================================================
 //	SetTransformCommand classMethods
 //============================================================================
-Engine::SetTransformCommand::SetTransformCommand(const Entity& targetEntity,
-	const TransformComponent& beforeTransform,
+Engine::SetTransformCommand::SetTransformCommand(const Entity& targetEntity, const TransformComponent& beforeTransform,
 	const TransformComponent& afterTransform) :
 	initialTarget_(targetEntity),
 	beforeTransform_(beforeTransform),
@@ -37,7 +36,7 @@ bool Engine::SetTransformCommand::ApplyTransform(EditorCommandContext& context, 
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world || !targetStableUUID_) {
+	if (!targetStableUUID_) {
 		return false;
 	}
 
@@ -70,11 +69,7 @@ bool Engine::SetTransformCommand::Execute(EditorCommandContext& context) {
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world) {
-		return false;
-	}
-
-	// 初回の実行時は対象エンティティのUUIDを取得し、トランスフォームが変更されていない場合はコマンドを実行しない
+	// 初回の対象UUIDを保存し変更なしなら終了
 	if (!targetStableUUID_) {
 
 		if (!world->IsAlive(initialTarget_)) {

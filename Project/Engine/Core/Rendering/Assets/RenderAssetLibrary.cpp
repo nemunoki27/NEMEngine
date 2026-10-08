@@ -66,10 +66,13 @@ void Engine::RenderAssetLibrary::Init(AssetDatabase* database) {
 void Engine::RenderAssetLibrary::Clear() {
 
 	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
+	const auto fontIdentity = std::make_shared<const uint64_t>(*fontCacheIdentity_ + 1);
 	shaderCache_.clear();
 	pipelineCache_.clear();
 	materialCache_.clear();
 	fontCache_.clear();
+	invalidatedFonts_.clear();
+	fontCacheIdentity_ = fontIdentity;
 	particleEffectCache_.clear();
 	renderTextureCache_.clear();
 	renderPassesCache_.clear();
@@ -187,19 +190,6 @@ const Engine::RenderPipelineAsset* Engine::RenderAssetLibrary::LoadPipeline(Asse
 const Engine::MaterialAsset* Engine::RenderAssetLibrary::LoadMaterial(AssetID assetID) {
 
 	return LoadCachedAsset(materialCache_, assetID);
-}
-
-const Engine::MSDFFontAsset* Engine::RenderAssetLibrary::LoadFont(AssetID assetID) {
-
-	const MSDFFontAsset* font = LoadCachedAsset(fontCache_, assetID);
-	if (!font || font->contentRevision != 0) {
-		return font;
-	}
-
-	// 新しく読み込んだフォントへ内容リビジョンを割り当てる
-	MSDFFontAsset& loadedFont = fontCache_.at(assetID);
-	loadedFont.contentRevision = nextFontContentRevision_++;
-	return &loadedFont;
 }
 
 const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffect(AssetID assetID) {

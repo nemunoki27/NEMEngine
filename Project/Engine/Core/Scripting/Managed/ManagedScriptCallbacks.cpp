@@ -9,13 +9,11 @@
 Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallbacks() {
 
 	ManagedNativeAPITable callbacks{};
-	// ABIヘッダを先頭に設定する、C#側はバージョンとサイズと機能を検証し不一致なら初期化を拒否する
+	// 計測接続とABIの識別情報を設定する
 	callbacks.beginScriptSample = [](ManagedNativeEntity entity, uint64_t slotID, const char* name) -> uint64_t {
 		return ScriptProfiler::GetInstance().BeginDetail(entity, slotID, name);
 	};
-	callbacks.endScriptSample = [](uint64_t token) {
-		ScriptProfiler::GetInstance().End(token, true);
-	};
+	callbacks.endScriptSample = [](uint64_t token) { ScriptProfiler::GetInstance().End(token, true); };
 	callbacks.header.abiVersion = kManagedABIVersion;
 	callbacks.header.structSize = static_cast<uint32_t>(sizeof(ManagedNativeAPITable));
 	callbacks.header.capabilities = kManagedCapabilitiesAll;
@@ -73,12 +71,12 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.getScriptInstance = &ManagedScriptRuntime::GetScriptInstanceCallback;
 	callbacks.attachScript = &ManagedScriptRuntime::AttachScriptCallback;
 	callbacks.removeScript = &ManagedScriptRuntime::RemoveScriptCallback;
-	// 自動生成コンポーネントバインディングの型付きプロパティ振り分け、ManagedComponentBindings.json由来
+	// 自動生成のComponent接続を使う
 	callbacks.getComponentProperty = &GeneratedComponentBindings::GetComponentProperty;
 	callbacks.setComponentProperty = &GeneratedComponentBindings::SetComponentProperty;
 	callbacks.getComponentStringProperty = &GeneratedComponentBindings::GetComponentStringProperty;
 	callbacks.setComponentStringProperty = &GeneratedComponentBindings::SetComponentStringProperty;
-	// Gameplay v7のTime拡張とTimeScale
+	// 時刻と入力と描画の操作を接続する
 	callbacks.getUnscaledDeltaTime = &ManagedScriptRuntime::GetUnscaledDeltaTimeCallback;
 	callbacks.getUnscaledFixedDeltaTime = &ManagedScriptRuntime::GetUnscaledFixedDeltaTimeCallback;
 	callbacks.getTimeSinceStartup = &ManagedScriptRuntime::GetTimeSinceStartupCallback;
@@ -88,74 +86,47 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.getInputType = &ManagedScriptRuntime::GetInputTypeCallback;
 	callbacks.getMouseRangeControl = &ManagedScriptRuntime::GetMouseRangeControlCallback;
 	callbacks.setMouseRangeControl = &ManagedScriptRuntime::SetMouseRangeControlCallback;
-	callbacks.setRendererMaterialParameter =
-		&ManagedScriptRuntime::SetRendererMaterialParameterCallback;
-	callbacks.getRendererMaterialParameter =
-		&ManagedScriptRuntime::GetRendererMaterialParameterCallback;
-	callbacks.clearRendererMaterialParameter =
-		&ManagedScriptRuntime::ClearRendererMaterialParameterCallback;
-	callbacks.isRayTracingSupported =
-		&ManagedScriptRuntime::IsRayTracingSupportedCallback;
-	callbacks.isRayTracingActive =
-		&ManagedScriptRuntime::IsRayTracingActiveCallback;
-	callbacks.resolveRenderFeaturePass =
-		&ManagedScriptRuntime::ResolveRenderFeaturePassCallback;
-	callbacks.validateRenderFeaturePass =
-		&ManagedScriptRuntime::ValidateRenderFeaturePassCallback;
-	callbacks.setRenderFeaturePassEnabled =
-		&ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback;
-	callbacks.setRenderFeaturePassSceneColorOutput =
-		&ManagedScriptRuntime::SetRenderFeaturePassSceneColorOutputCallback;
-	callbacks.setRenderFeatureGroupEnabled =
-		&ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback;
-	callbacks.setRenderFeaturePassParameter =
-		&ManagedScriptRuntime::SetRenderFeaturePassParameterCallback;
-	callbacks.getRenderFeaturePassParameter =
-		&ManagedScriptRuntime::GetRenderFeaturePassParameterCallback;
-	callbacks.clearRenderFeaturePassParameter =
-		&ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback;
-	callbacks.resetRenderFeaturePass =
-		&ManagedScriptRuntime::ResetRenderFeaturePassCallback;
-	callbacks.resetRenderFeatureOverrides =
-		&ManagedScriptRuntime::ResetRenderFeatureOverridesCallback;
+	callbacks.setRendererMaterialParameter = &ManagedScriptRuntime::SetRendererMaterialParameterCallback;
+	callbacks.getRendererMaterialParameter = &ManagedScriptRuntime::GetRendererMaterialParameterCallback;
+	callbacks.clearRendererMaterialParameter = &ManagedScriptRuntime::ClearRendererMaterialParameterCallback;
+	callbacks.isRayTracingSupported = &ManagedScriptRuntime::IsRayTracingSupportedCallback;
+	callbacks.isRayTracingActive = &ManagedScriptRuntime::IsRayTracingActiveCallback;
+	callbacks.resolveRenderFeaturePass = &ManagedScriptRuntime::ResolveRenderFeaturePassCallback;
+	callbacks.validateRenderFeaturePass = &ManagedScriptRuntime::ValidateRenderFeaturePassCallback;
+	callbacks.setRenderFeaturePassEnabled = &ManagedScriptRuntime::SetRenderFeaturePassEnabledCallback;
+	callbacks.setRenderFeaturePassSceneColorOutput = &ManagedScriptRuntime::SetRenderFeaturePassSceneColorOutputCallback;
+	callbacks.setRenderFeatureGroupEnabled = &ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback;
+	callbacks.setRenderFeaturePassParameter = &ManagedScriptRuntime::SetRenderFeaturePassParameterCallback;
+	callbacks.getRenderFeaturePassParameter = &ManagedScriptRuntime::GetRenderFeaturePassParameterCallback;
+	callbacks.clearRenderFeaturePassParameter = &ManagedScriptRuntime::ClearRenderFeaturePassParameterCallback;
+	callbacks.resetRenderFeaturePass = &ManagedScriptRuntime::ResetRenderFeaturePassCallback;
+	callbacks.resetRenderFeatureOverrides = &ManagedScriptRuntime::ResetRenderFeatureOverridesCallback;
 	callbacks.collisionGetShapeProperty = &ManagedScriptRuntime::CollisionGetShapePropertyCallback;
 	callbacks.collisionSetShapeProperty = &ManagedScriptRuntime::CollisionSetShapePropertyCallback;
 	callbacks.getSkinnedAnimationDuration = &ManagedScriptRuntime::GetSkinnedAnimationDurationCallback;
 	callbacks.playSkinnedAnimation = &ManagedScriptRuntime::PlaySkinnedAnimationCallback;
-	callbacks.copySkinnedAnimationCurrentClip =
-		&ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;
-	callbacks.getSkinnedAnimationRuntimeState =
-		&ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback;
-	callbacks.particleSystemControl =
-		&ManagedScriptRuntime::ParticleSystemControlCallback;
-	callbacks.particleSystemState =
-		&ManagedScriptRuntime::ParticleSystemStateCallback;
+	callbacks.copySkinnedAnimationCurrentClip = &ManagedScriptRuntime::CopySkinnedAnimationCurrentClipCallback;
+	callbacks.getSkinnedAnimationRuntimeState = &ManagedScriptRuntime::GetSkinnedAnimationRuntimeStateCallback;
+	callbacks.particleSystemControl = &ManagedScriptRuntime::ParticleSystemControlCallback;
+	callbacks.particleSystemState = &ManagedScriptRuntime::ParticleSystemStateCallback;
 	callbacks.getUIBlocksGameplayInput = &ManagedScriptRuntime::GetUIBlocksGameplayInputCallback;
-	callbacks.getUISelectableRuntimeState =
-		&ManagedScriptRuntime::GetUISelectableRuntimeStateCallback;
-	callbacks.getUIProgressRuntimeState =
-		&ManagedScriptRuntime::GetUIProgressRuntimeStateCallback;
-	callbacks.getCanvasInputLocked =
-		&ManagedScriptRuntime::GetCanvasInputLockedCallback;
-	callbacks.getUIButtonClicked =
-		&ManagedScriptRuntime::GetUIButtonClickedCallback;
+	callbacks.getUISelectableRuntimeState = &ManagedScriptRuntime::GetUISelectableRuntimeStateCallback;
+	callbacks.getUIProgressRuntimeState = &ManagedScriptRuntime::GetUIProgressRuntimeStateCallback;
+	callbacks.getCanvasInputLocked = &ManagedScriptRuntime::GetCanvasInputLockedCallback;
+	callbacks.getUIButtonClicked = &ManagedScriptRuntime::GetUIButtonClickedCallback;
 	callbacks.canvasCopyInputBindings = &ManagedScriptRuntime::CanvasCopyInputBindingsCallback;
 	callbacks.canvasSetInputBindings = &ManagedScriptRuntime::CanvasSetInputBindingsCallback;
-	callbacks.canvasGetNavigationTableSize =
-		&ManagedScriptRuntime::CanvasGetNavigationTableSizeCallback;
-	callbacks.canvasResizeNavigationTable =
-		&ManagedScriptRuntime::CanvasResizeNavigationTableCallback;
-	callbacks.canvasGetNavigationCell =
-		&ManagedScriptRuntime::CanvasGetNavigationCellCallback;
-	callbacks.canvasSetNavigationCell =
-		&ManagedScriptRuntime::CanvasSetNavigationCellCallback;
+	callbacks.canvasGetNavigationTableSize = &ManagedScriptRuntime::CanvasGetNavigationTableSizeCallback;
+	callbacks.canvasResizeNavigationTable = &ManagedScriptRuntime::CanvasResizeNavigationTableCallback;
+	callbacks.canvasGetNavigationCell = &ManagedScriptRuntime::CanvasGetNavigationCellCallback;
+	callbacks.canvasSetNavigationCell = &ManagedScriptRuntime::CanvasSetNavigationCellCallback;
 	callbacks.requestApplicationQuit = &ManagedScriptRuntime::RequestApplicationQuitCallback;
 	callbacks.worldToScreenPoint = &ManagedScriptRuntime::WorldToScreenPointCallback;
 	callbacks.canvasScreenToLocalPoint = &ManagedScriptRuntime::CanvasScreenToLocalPointCallback;
 	callbacks.audioPlayOneShot = &ManagedScriptRuntime::AudioPlayOneShotCallback;
 	callbacks.audioUnPause = &ManagedScriptRuntime::AudioUnPauseCallback;
 	callbacks.getEntityReferenceIdentity = &ManagedScriptRuntime::GetEntityReferenceIdentityCallback;
-	// v21のレイキャストとカメラレイとCollisionタイプ名解決
+	// 形状QueryとCamera座標変換を接続する
 	callbacks.physicsRaycast = &ManagedScriptRuntime::PhysicsRaycastCallback;
 	callbacks.physicsRaycastAll = &ManagedScriptRuntime::PhysicsRaycastAllCallback;
 	callbacks.getQueriesHitTriggers = &ManagedScriptRuntime::GetQueriesHitTriggersCallback;
@@ -165,10 +136,10 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.getCollisionTypeMaskByName = &ManagedScriptRuntime::GetCollisionTypeMaskByNameCallback;
 	callbacks.easedValue = &ManagedScriptRuntime::EasedValueCallback;
 	callbacks.getFrameCount = &ManagedScriptRuntime::GetFrameCountCallback;
-	// Gameplay v7のAssetRef実行時解決
+	// Asset参照の検索を接続する
 	callbacks.assetExists = &ManagedScriptRuntime::AssetExistsCallback;
 	callbacks.copyAssetDisplayName = &ManagedScriptRuntime::CopyAssetDisplayNameCallback;
-	// Gameplay v7のEntity生成/Prefab/Scene/SetParent
+	// EntityとSceneの操作を接続する
 	callbacks.createEntity = &ManagedScriptRuntime::CreateEntityCallback;
 	callbacks.instantiatePrefab = &ManagedScriptRuntime::InstantiatePrefabCallback;
 	callbacks.instantiateEntity = &ManagedScriptRuntime::InstantiateEntityCallback;
@@ -178,7 +149,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.reloadActiveScene = &ManagedScriptRuntime::ReloadActiveSceneCallback;
 	callbacks.dontDestroyOnLoad = &ManagedScriptRuntime::DontDestroyOnLoadCallback;
 	callbacks.resolveEntityRef = &ManagedScriptRuntime::ResolveEntityRefCallback;
-	// ライン描画v12のcomponent点列設定と即時描画
+	// Lineの点列と即時描画を接続する
 	callbacks.lineSetPoints = &ManagedScriptRuntime::LineSetPointsCallback;
 	callbacks.lineDrawImmediate = &ManagedScriptRuntime::LineDrawImmediateCallback;
 	callbacks.lineDrawSphereImmediate = &ManagedScriptRuntime::LineDrawSphereImmediateCallback;
@@ -187,7 +158,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.unloadScene = &ManagedScriptRuntime::UnloadSceneCallback;
 	callbacks.isSceneInstanceAlive = &ManagedScriptRuntime::IsSceneInstanceAliveCallback;
 	callbacks.setParentKeepWorld = &ManagedScriptRuntime::SetParentKeepWorldCallback;
-	// Gameplay v7の入力拡張で複数ゲームパッドや軸や文字や入力フォーカス
+	// Player別の入力と振動を接続する
 	callbacks.getGamepadButtonIndexed = &ManagedScriptRuntime::GetGamepadButtonIndexedCallback;
 	callbacks.getGamepadButtonDownIndexed = &ManagedScriptRuntime::GetGamepadButtonDownIndexedCallback;
 	callbacks.getGamepadButtonUpIndexed = &ManagedScriptRuntime::GetGamepadButtonUpIndexedCallback;
@@ -203,7 +174,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.copyTextInput = &ManagedScriptRuntime::CopyTextInputCallback;
 	callbacks.copyProjectRoot = &ManagedScriptRuntime::CopyProjectRootCallback;
 	callbacks.copyUserSettingsRoot = &ManagedScriptRuntime::CopyUserSettingsRootCallback;
-	// Gameplay v7のAudioSourceメソッド
+	// 音声とAnimatorの操作を接続する
 	callbacks.audioPlay = &ManagedScriptRuntime::AudioPlayCallback;
 	callbacks.setAnimatorParameter = &ManagedScriptRuntime::SetAnimatorParameterCallback;
 	callbacks.getAnimatorParameter = &ManagedScriptRuntime::GetAnimatorParameterCallback;
@@ -211,7 +182,8 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.audioStop = &ManagedScriptRuntime::AudioStopCallback;
 	callbacks.audioIsPlaying = &ManagedScriptRuntime::AudioIsPlayingCallback;
 	callbacks.reportScriptException = &ManagedScriptRuntime::ReportScriptExceptionCallback;
-	// v14のTag公開とLayerマスク公開とEntity検索
+	callbacks.isUpdateInterrupted = &ManagedScriptRuntime::IsUpdateInterruptedCallback;
+	// TagとLayerとEntity検索を接続する
 	callbacks.copyTag = &ManagedScriptRuntime::CopyTagCallback;
 	callbacks.setTag = &ManagedScriptRuntime::SetTagCallback;
 	callbacks.getVisibilityLayerMask = &ManagedScriptRuntime::GetVisibilityLayerMaskCallback;
@@ -225,7 +197,7 @@ Engine::ManagedNativeAPITable Engine::ManagedScriptRuntime::CreateNativeCallback
 	callbacks.findEntityByComponent = &ManagedScriptRuntime::FindEntityByComponentCallback;
 	callbacks.findEntitiesByComponent = &ManagedScriptRuntime::FindEntitiesByComponentCallback;
 	callbacks.lineDrawShape = &ManagedScriptRuntime::LineDrawShapeCallback;
-	// v16のTransform親追従の継承フラグ
+	// 親座標の継承設定を接続する
 	callbacks.getIgnoreParentRotation = &ManagedScriptRuntime::GetIgnoreParentRotationCallback;
 	callbacks.setIgnoreParentRotation = &ManagedScriptRuntime::SetIgnoreParentRotationCallback;
 	callbacks.getIgnoreParentScale = &ManagedScriptRuntime::GetIgnoreParentScaleCallback;

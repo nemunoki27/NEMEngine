@@ -8,10 +8,12 @@
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
+#include <Engine/Core/World/Scene/Utility/SceneEntityKey.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 
 // c++
 #include <algorithm>
+#include <unordered_map>
 
 //============================================================================
 //	HierarchySystem classMethods
@@ -23,30 +25,14 @@ void Engine::HierarchySystem::OnWorldEnter(ECSWorld& world, [[maybe_unused]] Sys
 	std::vector<Entity> scope;
 	scope.reserve(world.GetRecordCount());
 	world.ForEachAliveEntity([&](Entity entity) { scope.emplace_back(entity); });
-	// UUIDから実行時の親子リンクを構築
+	// 文書内IDから実行時の親子リンクを構築
 	RebuildRuntimeLinks(world, scope);
 }
 
 void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::vector<Entity>& scope) {
 
-	// ローカルIDとシーンインスタンスIDの組み合わせをキーにしてエンティティを高速検索するためのマップ
-	struct LocalKey {
-		UUID sceneInstanceID{};
-		UUID localFileID{};
-
-		bool operator==(const LocalKey& rhs) const noexcept {
-			return sceneInstanceID == rhs.sceneInstanceID && localFileID == rhs.localFileID;
-		}
-	};
-	struct LocalKeyHash {
-		size_t operator()(const LocalKey& key) const noexcept {
-			size_t h1 = std::hash<UUID>{}(key.sceneInstanceID);
-			size_t h2 = std::hash<UUID>{}(key.localFileID);
-			return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
-		}
-	};
-
-	std::unordered_map<LocalKey, Entity, LocalKeyHash> entityMap;
+	// Sceneの実体ごとに文書内IDを索引化する
+	std::unordered_map<SceneEntityKey, Entity, SceneEntityKeyHash> entityMap;
 	entityMap.reserve(scope.size());
 
 	// 各エンティティの親子リンクを初期化し、IDマップへ登録
@@ -71,7 +57,7 @@ void Engine::HierarchySystem::RebuildRuntimeLinks(ECSWorld& world, const std::ve
 		}
 	}
 
-	// 保存されていた親IDから実際のEntityポインタを解決してリンクを繋ぐ
+	// 保存した親IDからEntityを解決する
 	for (const auto& entity : scope) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<HierarchyComponent>(entity)) {
@@ -144,7 +130,7 @@ void Engine::HierarchySystem::RefreshActiveTree(ECSWorld& world, const Entity& r
 		}
 	}
 	if (RefreshActiveRecursive(world, root, parentActive)) {
-		// 再有効化された部分木は停止中に保持したlocal値からworldMatrixを再構築する
+		// 再有効化した部分木の変換を再計算する
 		MarkTransformSubtreeDirty(world, root);
 	}
 }
@@ -169,11 +155,11 @@ bool Engine::HierarchySystem::RefreshActiveRecursive(ECSWorld& world, const Enti
 		return activated;
 	}
 
-	// 子に対しても再帰的に適用する、階層が深い場合はスタックオーバーフローに注意が必要だが通常は許容範囲
+	// 通知前に確定した状態を子へ伝播する
 	Entity child = world.GetComponent<HierarchyComponent>(entity).firstChild;
 	while (child.IsValid() && world.IsAlive(child)) {
 
-		activated |= RefreshActiveRecursive(world, child, sceneObject.activeInHierarchy);
+		activated |= RefreshActiveRecursive(world, child, activeInHierarchy);
 		if (!world.HasComponent<HierarchyComponent>(child)) {
 			break;
 		}
@@ -222,7 +208,7 @@ void Engine::HierarchySystem::SetParent(ECSWorld& world, const Entity& child, co
 
 		const auto& parentSceneObject = world.GetComponent<SceneObjectComponent>(newParent);
 		hierarchy.parentLocalFileID = parentSceneObject.localFileID;
-		// シーンインスタンスIDの継承で基本的には親と同じシーンに属するようにする
+		// 未所属のEntityへ親のScene所属を引き継ぐ
 		if (!childSceneObject.sceneInstanceID) {
 			childSceneObject.sceneInstanceID = parentSceneObject.sceneInstanceID;
 		}
@@ -304,7 +290,7 @@ void Engine::HierarchySystem::AttachLast(ECSWorld& world, const Entity& child, c
 		return;
 	}
 
-	// 親の子リストの末尾に追加する、lastChildがキャッシュされていれば高速でなければ辿る
+	// 末尾キャッシュを使い、無効な場合は子リンクをたどる
 	Entity last = parentComponent.lastChild;
 	if (!world.IsAlive(last) || !world.HasComponent<HierarchyComponent>(last)) {
 		last = parentComponent.firstChild;

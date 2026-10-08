@@ -32,19 +32,20 @@ namespace Engine {
 
 	//============================================================================
 	//	ShaderGraphEditorTool class
-	//	Graphの編集画面と保存とpreviewを接続する
+	//	グラフの編集画面と保存とプレビューを接続する
 	//============================================================================
-	class ShaderGraphEditorTool :
-		public IEditorTool, private IShaderGraphToolbarActions {
+	class ShaderGraphEditorTool : public IEditorTool, private IShaderGraphToolbarActions {
 	public:
-		//============================================================================
+		//========================================================================
 		//	public Methods
-		//============================================================================
+		//========================================================================
 
 		ShaderGraphEditorTool();
 		~ShaderGraphEditorTool() override;
 
 		void OpenEditorTool() override;
+		// 保存とWorld切替の前に元のMaterialを戻す
+		void EndScenePreview() override;
 		void DrawEditorTool(const EditorToolContext& context) override;
 		bool HasPendingEdits() const override;
 		void RequestResolvePendingEdits() override;
@@ -52,14 +53,17 @@ namespace Engine {
 		// ProjectPanelから指定グラフを開く
 		void OpenAsset(AssetID assetID);
 
+		//--------- accessor -----------------------------------------------------
+
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
 	private:
-		//============================================================================
+		//========================================================================
 		//	private Methods
-		//============================================================================
+		//========================================================================
 
 		//--------- variables ----------------------------------------------------
 
+		// ツール一覧へ公開する情報
 		ToolDescriptor descriptor_{
 			.id = "engine.shader_graph",
 			.name = "シェーダーグラフ",
@@ -69,6 +73,7 @@ namespace Engine {
 			.order = 2,
 		};
 
+		// ウィンドウの表示と切替予約
 		bool openWindow_ = false;
 		AssetID pendingAsset_{};
 		AssetID requestedAsset_{};
@@ -76,10 +81,12 @@ namespace Engine {
 		bool requestGraphCreate_ = false;
 		bool requestWindowClose_ = false;
 		bool requestUnsavedPrompt_ = false;
-		EditorToolCloseResult pendingEditCloseResult_ =
-			EditorToolCloseResult::None;
+		EditorToolCloseResult pendingEditCloseResult_ = EditorToolCloseResult::None;
+		// 保存用の編集状態
 		ShaderGraphEditSession editSession_;
+		// 操作キーの受付状態
 		bool commandPanelFocused_ = false;
+		// 項目ごとの表示と入力状態
 		ShaderGraphParameterEditor parameterEditor_;
 		ShaderGraphKeywordEditor keywordEditor_;
 		ShaderGraphNodeInspector nodeInspector_;
@@ -101,6 +108,8 @@ namespace Engine {
 
 		// ツールの編集画面を表示する
 		void DrawWindow(const EditorToolContext& context);
+		// 未保存なら終了を保留し保存済みならプレビューを戻す
+		void HandleWindowClose();
 		// 未保存の編集を切替前に解決する
 		void DrawUnsavedPrompt(const EditorToolContext& context);
 		// 公開Parameterの一覧を表示する
@@ -110,7 +119,7 @@ namespace Engine {
 		// GraphのNodeと接続を表示する
 		void DrawGraph(const EditorToolContext& context);
 		// Graphの描画設定を編集する
-		void DrawGraphSettings(const EditorToolContext& context);
+		void DrawGraphSettings();
 		// 選択Nodeの詳細を編集する
 		void DrawSelectedNodeEditor(const EditorToolContext& context);
 
@@ -131,7 +140,7 @@ namespace Engine {
 		// 位置を確定してGraphの保存とコンパイルを要求する
 		bool SaveAndCompile(const EditorToolContext& context) override;
 		// Sceneの元のMaterialを復元する
-		void RestorePreviewMaterial(const EditorToolContext& context);
+		void RestorePreviewMaterial();
 		// Node Editorの位置をGraphへ取り込む
 		void CaptureNodePositions();
 		// Node Editorの表示状態を再作成する

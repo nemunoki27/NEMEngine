@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
+#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
 #include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
@@ -19,7 +20,7 @@
 //============================================================================
 namespace {
 
-	// ワールド行列を分解してTransformのローカルSRTへ設定する、ジョイント追従の相対値になる
+	// 行列を分解してローカル変換へ反映する
 	void ApplyLocalFromMatrix(Engine::ECSWorld& world, const Engine::Entity& entity, const Engine::Matrix4x4& localMatrix) {
 
 		if (!world.HasComponent<Engine::TransformComponent>(entity)) {
@@ -62,13 +63,13 @@ void Engine::JointAttachmentEditor::Attach(ECSWorld& world, HierarchySystem& hie
 	if (!skinnedLocalFileID) {
 		return;
 	}
-	// ジョイントが存在するか確認しておく、無効なジョイントには付けない
+	// 接続先のJointを検証する
 	Matrix4x4 jointWorld{};
 	if (!JointAttachmentUtility::GetJointWorldMatrix(world, skinnedEntity, jointName, jointWorld)) {
 		return;
 	}
 
-	// エンティティ親から切り離してルートにし、ジョイント駆動へ切り替える
+	// Entityの親から切り離してJoint駆動へ切り替える
 	hierarchySystem.SetParent(world, entity, Entity::Null());
 
 	// ジョイント参照を設定する
@@ -79,7 +80,7 @@ void Engine::JointAttachmentEditor::Attach(ECSWorld& world, HierarchySystem& hie
 	attachment.skinnedEntityLocalFileID = skinnedLocalFileID;
 	attachment.jointName = jointName;
 
-	// ローカルSRTをリセットしてジョイント原点へ合わせる、付け替えても確実にジョイントへ移動する
+	// ローカル変換を初期化してJoint原点へ合わせる
 	auto& transform = world.GetComponent<TransformComponent>(entity);
 	transform.localPos = Vector3::AnyInit(0.0f);
 	transform.localRotation = Quaternion::Identity();
@@ -92,13 +93,13 @@ void Engine::JointAttachmentEditor::Detach(ECSWorld& world, const Entity& entity
 	if (!world.IsAlive(entity) || !world.HasComponent<JointAttachmentComponent>(entity)) {
 		return;
 	}
-	// 解除前のワールド行列を控える、ルートに戻してもワールド位置を維持する
+	// 解除前のワールド行列を保持する
 	Matrix4x4 currentWorld = Matrix4x4::Identity();
 	if (world.HasComponent<TransformComponent>(entity)) {
 		currentWorld = world.GetComponent<TransformComponent>(entity).worldMatrix;
 	}
 	world.RemoveComponent<JointAttachmentComponent>(entity);
 
-	// ルートなのでローカル = ワールドとして設定する
+	// ルートのローカル変換へワールド行列を反映する
 	ApplyLocalFromMatrix(world, entity, currentWorld);
 }

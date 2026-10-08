@@ -13,10 +13,10 @@ namespace Engine {
 
 	//============================================================================
 	//	UIProgressComponent structures
-	//	Primitiveを方向指定で切り抜いてプログレス表示する
+	//	切り抜き方向と値の補間でプログレスを表示
 	//============================================================================
-	enum class UIProgressFillDirection :
-		uint8_t {
+	// プログレスの切り抜き方向
+	enum class UIProgressFillDirection : uint8_t {
 
 		LeftToRight,
 		RightToLeft,
@@ -24,6 +24,7 @@ namespace Engine {
 		BottomToTop,
 	};
 
+	// 対象Materialの変更前の値を保持
 	struct UIProgressTargetRuntime {
 
 		UUID localFileID{};
@@ -36,7 +37,7 @@ namespace Engine {
 		bool valid = false;
 	};
 
-	// チャンク外で所有するProgressの実行時データ
+	// チャンク外で所有する表示値と補間状態
 	struct UIProgressRuntimeData {
 
 		float displayedValue = 1.0f;
@@ -52,10 +53,8 @@ namespace Engine {
 	};
 
 	struct UIProgressRuntimeStorageTag;
-	using UIProgressRuntimeStorage =
-		GenerationalPool<UIProgressRuntimeData, UIProgressRuntimeStorageTag>;
-	using UIProgressRuntimeHandle =
-		UIProgressRuntimeStorage::Handle;
+	using UIProgressRuntimeStorage = GenerationalPool<UIProgressRuntimeData, UIProgressRuntimeStorageTag>;
+	using UIProgressRuntimeHandle = UIProgressRuntimeStorage::Handle;
 
 	// ECSチャンクには世代付きハンドルだけを保持する
 	struct UIProgressRuntimeComponent {
@@ -65,18 +64,16 @@ namespace Engine {
 
 		UIProgressRuntimeHandle handle{};
 
-		static void OnAdded(
-			ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
-		static void InitializeStorage(
-			ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
-		static void ReleaseStorage(
-			ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
+		static void OnAdded(ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
+		static void InitializeStorage(ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
+		static void ReleaseStorage(ECSWorld& world, const Entity& entity, UIProgressRuntimeComponent& component);
 		static void DeserializeECS(ECSWorld& world, const Entity& entity,
 			const nlohmann::json& in, UIProgressRuntimeComponent& component);
 		static void SerializeECS(const ECSWorld& world, const Entity& entity,
 			const UIProgressRuntimeComponent& component, nlohmann::json& out);
 	};
 
+	// プログレスの表示範囲と補間設定
 	struct UIProgressComponent {
 
 		static constexpr bool kHasECSHooks = true;
@@ -102,14 +99,11 @@ namespace Engine {
 		EasingType delayedEasing = EasingType::EaseOutSine;
 		bool useUnscaledTime = true;
 
-		// Registryから呼ばれるRuntime状態のライフサイクル
-		static void OnAdded(
-			ECSWorld& world, const Entity& entity, UIProgressComponent& component);
+		// 登録hookによる実行状態の初期化と解放
+		static void OnAdded(ECSWorld& world, const Entity& entity, UIProgressComponent& component);
 		static void OnRemoved(ECSWorld& world, const Entity& entity);
-		static void InitializeStorage(
-			ECSWorld& world, const Entity& entity, UIProgressComponent& component);
-		static void ReleaseStorage(
-			ECSWorld& world, const Entity& entity, UIProgressComponent& component);
+		static void InitializeStorage(ECSWorld& world, const Entity& entity, UIProgressComponent& component);
+		static void ReleaseStorage(ECSWorld& world, const Entity& entity, UIProgressComponent& component);
 		static void DeserializeECS(ECSWorld& world, const Entity& entity,
 			const nlohmann::json& in, UIProgressComponent& component);
 		static void SerializeECS(const ECSWorld& world, const Entity& entity,
@@ -122,9 +116,7 @@ namespace Engine {
 	void from_json(const nlohmann::json& in, UIProgressComponent& component);
 	void to_json(nlohmann::json& out, const UIProgressComponent& component);
 	void ResetUIProgressRuntime(UIProgressRuntimeData& runtime, float value);
-	UIProgressRuntimeData* TryGetUIProgressRuntime(
-		ECSWorld& world, const Entity& entity);
-	const UIProgressRuntimeData* TryGetUIProgressRuntime(
-		const ECSWorld& world, const Entity& entity);
+	UIProgressRuntimeData* TryGetUIProgressRuntime(ECSWorld& world, const Entity& entity);
+	const UIProgressRuntimeData* TryGetUIProgressRuntime(const ECSWorld& world, const Entity& entity);
 
 } // Engine

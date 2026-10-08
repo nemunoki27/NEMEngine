@@ -127,6 +127,10 @@ bool Engine::PipelineStateBuilder::BuildGraphics(PipelineState& state, ID3D12Dev
 	AutoRootSignatureBuilder signatureBuilder{};
 	RootSignatureBuildResult rootSignatureResult = signatureBuilder.Build(
 		device, desc.type, shaderPtrs, staticSamplers);
+	if (!rootSignatureResult.rootSignature) {
+		Logger::EndSection(LogType::Engine);
+		return false;
+	}
 	// 結果を設定
 	state.rootSignature_ = rootSignatureResult.rootSignature;
 	state.bindings_ = std::move(rootSignatureResult.bindings);
@@ -308,6 +312,10 @@ bool Engine::PipelineStateBuilder::BuildCompute(PipelineState& state, ID3D12Devi
 		BuildPipelineStaticSamplers(shader.reflection, desc.staticSamplers,
 			desc.staticSamplerOverrides);
 	auto rootSignatureResult = builder.Build(device, PipelineType::Compute, { &shader }, staticSamplers);
+	if (!rootSignatureResult.rootSignature) {
+		Logger::EndSection(LogType::Engine);
+		return false;
+	}
 	// 結果を設定
 	state.rootSignature_ = rootSignatureResult.rootSignature;
 	state.bindings_ = std::move(rootSignatureResult.bindings);

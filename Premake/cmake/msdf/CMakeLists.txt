@@ -30,3 +30,7 @@ set(MSDFGEN_BUILD_STANDALONE OFF CACHE BOOL "" FORCE)
 set(MSDFGEN_DISABLE_SVG ON CACHE BOOL "" FORCE)
 set(MSDFGEN_DISABLE_PNG ON CACHE BOOL "" FORCE)
 add_subdirectory("${EXTERNALS_ROOT}/msdf-atlas-gen" "${CMAKE_BINARY_DIR}/msdf-atlas-gen")
+
+# 外部ソースは変更せず、include失敗を返す文字集合Parserを構築する
+include("${CMAKE_CURRENT_SOURCE_DIR}/charset-parser-patch.cmake")
+nem_patch_msdf_charset(msdf-atlas-gen "${EXTERNALS_ROOT}/msdf-atlas-gen/msdf-atlas-gen/charset-parser.cpp")

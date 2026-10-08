@@ -66,13 +66,16 @@ bool Engine::SetPerformanceGridCommand::Execute(Engine::EditorCommandContext& co
 
 			previousRoots.emplace_back(trackedRoot);
 		}
-		previousSnapshots_.reserve(previousRoots.size());
+		std::vector<Engine::EditorEntityTreeSnapshot> snapshots;
+		snapshots.reserve(previousRoots.size());
 		for (const Engine::Entity& previousRoot : previousRoots) {
 
 			Engine::EditorEntityTreeSnapshot snapshot;
 			Engine::EditorEntitySnapshotUtility::CaptureSubtree(*world, previousRoot, snapshot);
-			previousSnapshots_.emplace_back(std::move(snapshot));
+			snapshots.emplace_back(std::move(snapshot));
 		}
+		// 全ルートの取得後に取消用データを確定する
+		previousSnapshots_ = std::move(snapshots);
 		previousCaptured_ = true;
 	}
 	return CreateGrid(context);
@@ -86,26 +89,60 @@ void Engine::SetPerformanceGridCommand::Undo(Engine::EditorCommandContext& conte
 	}
 
 	const Engine::Entity currentRoot = world->FindByUUID(rootStableUUID_);
+	EditorEntityTreeSnapshot currentSnapshot;
 	if (world->IsAlive(currentRoot)) {
-		Engine::EditorEntitySnapshotUtility::DestroySubtree(*world, currentRoot);
+		// Undo開始時の表示を失敗時の復元用に保持
+		EditorEntitySnapshotUtility::CaptureSubtree(*world, currentRoot, currentSnapshot);
 	}
-
-	Engine::Entity selected = Engine::Entity::Null();
-	for (const Engine::EditorEntityTreeSnapshot& snapshot : previousSnapshots_) {
-
-		if (snapshot.IsEmpty()) {
-			continue;
+	const UUID selectedID = context.editorState ? world->GetUUID(context.editorState->selectedEntity) : UUID{};
+	try {
+		SceneCreationScope creation(*world);
+		if (world->IsAlive(currentRoot)) {
+			EditorEntitySnapshotUtility::DestroySubtree(*world, currentRoot);
 		}
-		const std::vector<Engine::Entity> restored = Engine::EditorEntitySnapshotUtility::RestoreSubtree(*world, snapshot);
-		Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, snapshot, restored);
-		if (!world->IsAlive(selected)) {
-			selected = world->FindByUUID(snapshot.rootStableUUID);
+		Entity selected = Entity::Null();
+		for (const EditorEntityTreeSnapshot& snapshot : previousSnapshots_) {
+			if (snapshot.IsEmpty()) {
+				continue;
+			}
+			const std::vector<Entity> restored = EditorEntitySnapshotUtility::RestoreSubtree(*world, snapshot);
+			EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, snapshot, restored);
+			if (!world->IsAlive(selected)) {
+				selected = world->FindByUUID(snapshot.rootStableUUID);
+			}
 		}
-	}
-
-	context.RebuildHierarchyAll();
-	if (context.editorState) {
-		context.editorState->SelectEntity(world->IsAlive(selected) ? selected : Engine::Entity::Null());
+		context.RebuildHierarchyAll();
+		if (context.editorState) {
+			context.editorState->SelectEntity(world->IsAlive(selected) ? selected : Entity::Null());
+		}
+		// 全ルートと表示の復元後にUndoを確定
+		creation.Commit();
+	} catch (...) {
+		const std::exception_ptr failure = std::current_exception();
+		try {
+			// 部分復元を片付けてUndo開始時の配置へ戻す
+			if (!currentSnapshot.IsEmpty()) {
+				for (const SerializedEntitySnapshot& saved : currentSnapshot.entities) {
+					const Entity entity = world->FindByUUID(saved.stableUUID);
+					if (world->IsAlive(entity)) {
+						world->DestroyEntity(entity);
+					}
+				}
+				world->FlushPendingDestroyEntities();
+				SceneCreationScope recovery(*world);
+				const std::vector<Entity> restored = EditorEntitySnapshotUtility::RestoreSubtree(*world, currentSnapshot);
+				EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(context, *world, currentSnapshot, restored);
+				recovery.Commit();
+			}
+			context.RebuildHierarchyAll();
+			if (context.editorState) {
+				context.editorState->SelectEntity(world->FindByUUID(selectedID));
+			}
+		} catch (...) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "負荷確認用グリッドのUndo復元に失敗しました");
+			throw;
+		}
+		std::rethrow_exception(failure);
 	}
 }
 

@@ -3,76 +3,26 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
-#include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
-#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
-#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
 #include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
-#include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
-
-#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
-#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
-#include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
-#include <bit>
-#include <cmath>
-#include <cstddef>
-#include <memory>
-#include <span>
 #include <unordered_set>
-#include <variant>
 
 //============================================================================
-//	RaytracingSceneBuilder internal
+//	RaytracingSceneBuilder classMethods
 //============================================================================
-namespace {
-
-	// サブメッシュごとの描画アイテムからEntity単位のTLASインスタンスへまとめるキー
-	struct RaytracingEntityKey {
-
-		const Engine::ECSWorld* world = nullptr;
-		Engine::Entity entity{};
-
-		bool operator==(const RaytracingEntityKey& other) const {
-			return world == other.world && entity == other.entity;
-		}
-	};
-
-	struct RaytracingEntityKeyHash {
-
-		size_t operator()(const RaytracingEntityKey& key) const {
-
-			uint64_t hash = reinterpret_cast<uintptr_t>(key.world);
-			Engine::Algorithm::HashCombine(hash,
-				static_cast<uint64_t>(key.entity.index));
-			Engine::Algorithm::HashCombine(hash,
-				static_cast<uint64_t>(key.entity.generation));
-			return static_cast<size_t>(hash);
-		}
-	};
-
-}
-
 void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderSceneBatch& renderBatch,
-	const SceneExecutionContext& context, std::vector<CollectedMeshInstance>& outInstances) {
+	const SceneInstance& scene, const ResolvedRenderView* view, std::vector<CollectedMeshInstance>& outInstances) {
 
 	outInstances.clear();
-	std::unordered_set<RaytracingEntityKey,
-		RaytracingEntityKeyHash> collectedEntities{};
+	std::unordered_set<SceneEntityKey, SceneEntityKeyHash> collectedEntities{};
 
 	// シーンインスタンスIDを取得する
-	const UUID sceneInstanceID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
+	const UUID sceneInstanceID = scene.instanceID;
 	for (const RenderItem& item : renderBatch.GetItems()) {
 
 		// メッシュ描画アイテムで、かつシーンインスタンスIDが一致するものを対象とする
@@ -86,7 +36,7 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		if (!payload || !payload->mesh) {
 			continue;
 		}
-		const RaytracingEntityKey entityKey{
+		const SceneEntityKey entityKey{
 			.world = item.world,
 			.entity = item.entity,
 		};
@@ -100,8 +50,8 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 		instance.entity = item.entity;
 		instance.world = item.world;
 		instance.worldMatrix = item.worldMatrix;
-		if (context.view) {
-			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
+		if (view) {
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *view);
 		}
 		instance.renderer = nullptr;
 		instance.castShadows = item.castShadows;
@@ -117,11 +67,11 @@ void Engine::RaytracingSceneBuilder::CollectSceneMeshInstances(const RenderScene
 }
 
 void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const RenderSceneBatch& renderBatch,
-	const SceneExecutionContext& context, std::vector<CollectedPrimitiveInstance>& outInstances) {
+	const SceneInstance& scene, const ResolvedRenderView* view, std::vector<CollectedPrimitiveInstance>& outInstances) {
 
 	outInstances.clear();
 
-	const UUID sceneInstanceID = context.sceneInstance ? context.sceneInstance->instanceID : UUID{};
+	const UUID sceneInstanceID = scene.instanceID;
 	for (const RenderItem& item : renderBatch.GetItems()) {
 
 		if (item.backendID != RenderBackendID::Primitive) {
@@ -144,7 +94,7 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 		}
 		const PrimitiveRendererComponent& renderer = *payload->renderer;
 
-		// 2D描画はスクリーン空間のUIなので影/反射の対象にしない
+		// 画面座標のPrimitiveを影と反射から除外
 		if (IsPrimitiveScreen2D(renderer)) {
 			continue;
 		}
@@ -153,8 +103,8 @@ void Engine::RaytracingSceneBuilder::CollectScenePrimitiveInstances(const Render
 		instance.entity = item.entity;
 		instance.world = item.world;
 		instance.worldMatrix = item.worldMatrix;
-		if (context.view) {
-			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *context.view);
+		if (view) {
+			instance.worldMatrix = RenderBillboard::ResolveWorldMatrix(item, *view);
 		}
 		instance.renderer = &renderer;
 		instance.materialInstance = payload->materialInstance;

@@ -33,6 +33,8 @@ namespace Engine {
 		//========================================================================
 		friend class MeshBatchResources;
 
+		//--------- variables ----------------------------------------------------
+
 		StructuredInstanceBuffer<WellForGPU> skinningPalette{ "gSkinningPalette" };
 		StructuredRWBuffer<MeshVertex> skinnedVertices{ "gSkinnedVertices" };
 		// MeshShader用に法線をOct圧縮したスキニング結果を保持する

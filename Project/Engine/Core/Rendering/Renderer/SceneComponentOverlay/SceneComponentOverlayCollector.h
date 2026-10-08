@@ -8,7 +8,7 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class ECSWorld;
 
 	//============================================================================
@@ -17,15 +17,15 @@ namespace Engine {
 	//============================================================================
 	class SceneComponentOverlayCollector {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		SceneComponentOverlayCollector() = default;
 		~SceneComponentOverlayCollector() = default;
 
-		void Collect(ECSWorld& world, const ResolvedRenderView& view,
-			const SceneComponentOverlayRegistry& registry,
-			const SceneComponentOverlaySettings& settings,
-			SceneComponentOverlayItemList& outItems) const;
-	private:
-		// 射影時の0除算や極小wを避けるための余白
-		static constexpr float kProjectionEpsilon = 0.0001f;
+		// カメラと照明の表示位置を集める
+		void Collect(const ECSWorld& world, const ResolvedRenderView& view, const SceneComponentOverlayRegistry& registry,
+			const SceneComponentOverlaySettings& settings, SceneComponentOverlayItemList& outItems) const;
 	};
 }

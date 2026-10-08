@@ -4,15 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Entity/Entity.h>
-#include <Engine/Core/World/Systems/Animation/JointAttachmentUtility.h>
-#include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
 #include <string>
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class ECSWorld;
 	class HierarchySystem;
 
@@ -22,13 +20,11 @@ namespace Engine {
 	//============================================================================
 	namespace JointAttachmentEditor {
 
-		// GetJointWorldMatrix / GetAttachedJointWorldMatrix はCore側へ移設済み
+		// EntityをJointへ接続して原点へ合わせる
+		void Attach(ECSWorld& world, HierarchySystem& hierarchySystem, const Entity& entity, const Entity& skinnedEntity,
+			const std::string& jointName);
 
-		// エンティティをジョイントへ親子付けする、ローカルをリセットしてジョイント原点へ合わせる
-		void Attach(ECSWorld& world, HierarchySystem& hierarchySystem, const Entity& entity,
-			const Entity& skinnedEntity, const std::string& jointName);
-
-		// ジョイント親子付けを解除し、ワールド位置を維持したままルートへ戻す
+		// Joint接続を解除してワールド位置を維持する
 		void Detach(ECSWorld& world, const Entity& entity);
 	}
 } // Engine

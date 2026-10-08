@@ -3,7 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Math/Math.h>
+
 // c++
+#include <bit>
 #include <iomanip>
 #include <sstream>
 #include <type_traits>
@@ -81,7 +84,7 @@ namespace Engine::ShaderGraphSourceUtility {
 	std::string MakeIdentifier(std::string_view name, Engine::UUID id) {
 
 		std::string result = "p_";
-		result.reserve(name.size() + 12);
+		result.reserve(name.size() + 20);
 		for (const char character : name) {
 			const bool valid = ('a' <= character && character <= 'z') || ('A' <= character && character <= 'Z') ||
 							   ('0' <= character && character <= '9') || character == '_';
@@ -89,7 +92,8 @@ namespace Engine::ShaderGraphSourceUtility {
 		}
 		const std::string idText = ToString(id);
 		result += "_";
-		result += idText.substr(8);
+		// ID全体を使い、同名の公開値を区別する
+		result += idText;
 		return result;
 	}
 
@@ -130,7 +134,20 @@ namespace Engine::ShaderGraphSourceUtility {
 
 		if (type == ShaderGraphValueType::Texture2D) { return "kNoTexture"; }
 		if (type == ShaderGraphValueType::Boolean) { return component(0, 0.0f) != 0.0f ? "1u" : "0u"; }
-		if (type == ShaderGraphValueType::Integer) { return std::to_string(static_cast<int32_t>(component(0, 0.0f))); }
+		if (type == ShaderGraphValueType::Integer) {
+
+			// 整数はfloatを経由せず精度を保つ
+			if (const auto* integer = std::get_if<int32_t>(&value.value)) {
+				return std::to_string(*integer);
+			}
+			if (const auto* integer = std::get_if<uint32_t>(&value.value)) {
+				return std::to_string(std::bit_cast<int32_t>(*integer));
+			}
+			// 実数の範囲外と非有限値はMaterial転送と同じく0へ戻す
+			int32_t integer = 0;
+			Math::TryConvertToInt32(component(0, 0.0f), integer);
+			return std::to_string(integer);
+		}
 		if (type == ShaderGraphValueType::Matrix4) {
 			return "float4x4(1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)";
 		}

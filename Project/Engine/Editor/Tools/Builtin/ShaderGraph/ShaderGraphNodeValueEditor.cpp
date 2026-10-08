@@ -244,8 +244,7 @@ void Engine::ShaderGraphNodeValueEditor::DrawPopup(ShaderGraphEditSession& sessi
 		break;
 	}
 	case NodeValuePopupKind::None:
-	default:
-		ImGui::CloseCurrentPopup();
+	default: ImGui::CloseCurrentPopup();
 		break;
 	}
 	ImGui::EndPopup();

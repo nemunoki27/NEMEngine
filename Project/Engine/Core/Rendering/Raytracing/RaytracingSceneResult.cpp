@@ -60,7 +60,7 @@ void Engine::RaytracingSceneResult::UploadCached() {
 void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
 	ID3D12Resource* tlas, uint64_t materialGeneration, bool texturesReady) const {
 
-	// RaytracingSceneInstances
+	// インスタンスの転送先を公開
 	if (sceneInstances_.GetResource()) {
 		context.bufferRegistry.Register({
 			.alias = "RaytracingSceneInstances",
@@ -80,7 +80,7 @@ void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
 		});
 	}
 
-	// RaytracingGeometries
+	// 形状の転送先を公開
 	if (sceneGeometries_.GetResource()) {
 		context.bufferRegistry.Register({
 			.alias = "RaytracingGeometries",
@@ -100,7 +100,7 @@ void Engine::RaytracingSceneResult::Publish(SceneExecutionContext& context,
 			});
 	}
 
-	// RaytracingSubMeshes
+	// Material値の転送先を公開
 	if (sceneSubMeshes_.GetResource()) {
 		context.bufferRegistry.Register({
 			.alias = "RaytracingSubMeshes",

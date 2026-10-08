@@ -3,38 +3,18 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
-#include <Engine/Core/Rendering/Materials/MaterialResolver.h>
-#include <Engine/Core/Rendering/Materials/MaterialParameter.h>
-#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Common/RenderBillboardUtility.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshDrawPathCommon.h>
-#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
-#include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
-#include <Engine/Core/Rendering/Primitive/PrimitiveMeshGenerator.h>
-#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Mesh/MeshRenderBackend.h>
-
-#include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
-#include <Engine/Core/Rendering/Meshes/Utility/MeshNormalMatrixUtility.h>
-#include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 
 // c++
+#include <algorithm>
 #include <bit>
 #include <cmath>
-#include <cstddef>
-#include <memory>
-#include <span>
-#include <unordered_set>
-#include <variant>
 
 //============================================================================
-//	RaytracingSceneBuilder internal
+//	RaytracingSceneGeometryUtility namespaceMethods
 //============================================================================
 namespace Engine::RaytracingSceneGeometryUtility {
 
@@ -69,14 +49,13 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 			result |= kRaytracingRenderFlagReceiveReflection;
 		}
-		// Lighting flagとRenderer maskを同じinstance flagsへ詰める
+		// Rendererの照明設定をインスタンスへ格納
 		return result | ((renderingLayerMask &
 			kRaytracingRenderingLayerMaskBits) <<
 			kRaytracingRenderingLayerMaskShift);
 	}
 
-	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(
-		const D3D12_RASTERIZER_DESC& rasterizer) {
+	D3D12_RAYTRACING_INSTANCE_FLAGS ToRaytracingCullFlags(const D3D12_RASTERIZER_DESC& rasterizer) {
 
 		D3D12_RAYTRACING_INSTANCE_FLAGS flags =
 			D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
@@ -119,9 +98,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 			nullptr;
 	}
 
-	uint64_t ComputeGeometryLayoutHash(
-		std::span<const Engine::SubMeshMaterial> subMeshes,
-		uint32_t geometryCount) {
+	uint64_t ComputeGeometryLayoutHash(std::span<const Engine::SubMeshMaterial> subMeshes, uint32_t geometryCount) {
 
 		uint64_t hash = geometryCount;
 		for (uint32_t index = 0; index < geometryCount; ++index) {
@@ -143,8 +120,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		return hash;
 	}
 
-	uint64_t ComputeSceneMaterialHash(
-		std::span<const Engine::MeshSubMeshShaderData> subMeshes) {
+	uint64_t ComputeSceneMaterialHash(std::span<const Engine::MeshSubMeshShaderData> subMeshes) {
 
 		uint64_t hash = 1469598103934665603ull;
 		Engine::Algorithm::HashCombine(hash,
@@ -196,8 +172,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		return hash;
 	}
 
-	bool RequiresTLASRebuildForTraceQuality(
-		size_t instanceCount, uint32_t changedInstanceCount) {
+	bool RequiresTLASRebuildForTraceQuality(size_t instanceCount, uint32_t changedInstanceCount) {
 
 		return 256 <= changedInstanceCount &&
 			instanceCount <=
@@ -246,8 +221,7 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		const Engine::Matrix4x4& worldMatrix,
 		Engine::Vector3& outCenter, float& outRadius) {
 
-		outCenter = Engine::Vector3::Transform(
-			meshResource.boundsCenter, worldMatrix);
+		outCenter = Engine::Vector3::Transform(meshResource.boundsCenter, worldMatrix);
 		outRadius = meshResource.boundsRadius *
 			GetMatrixMaxScale(worldMatrix);
 		if (subMeshes.empty()) {
@@ -264,14 +238,12 @@ namespace Engine::RaytracingSceneGeometryUtility {
 				Engine::MeshSubMeshRuntime::
 					BuildRenderLocalMatrix(subMesh);
 			const Engine::Vector3 localCenter =
-				Engine::Vector3::Transform(
-					meshResource.boundsCenter, localMatrix);
+				Engine::Vector3::Transform(meshResource.boundsCenter, localMatrix);
 			const float localRadius =
 				meshResource.boundsRadius *
 				GetMatrixMaxScale(localMatrix);
 			const Engine::Vector3 worldCenter =
-				Engine::Vector3::Transform(
-					localCenter, worldMatrix);
+				Engine::Vector3::Transform(localCenter, worldMatrix);
 			const float worldRadius =
 				localRadius * GetMatrixMaxScale(worldMatrix);
 			if (!initialized) {
@@ -280,21 +252,36 @@ namespace Engine::RaytracingSceneGeometryUtility {
 				initialized = true;
 				continue;
 			}
-			EncapsulateSphere(
-				worldCenter, worldRadius, outCenter, outRadius);
+			EncapsulateSphere(worldCenter, worldRadius, outCenter, outRadius);
 		}
 	}
 
-	const Engine::MeshLODRange& ResolveRaytracingLODRange(
-		const Engine::SubMeshDesc& subMesh, uint32_t lodIndex) {
+	const Engine::MeshLODRange& ResolveRaytracingLODRange(const Engine::SubMeshDesc& subMesh, uint32_t lodIndex) {
 
-		uint32_t resolvedLOD = (std::min)(
-			lodIndex, Engine::kMeshLODCount - 1);
+		uint32_t resolvedLOD = (std::min)(lodIndex, Engine::kMeshLODCount - 1);
 		while (0 < resolvedLOD &&
 			subMesh.lods[resolvedLOD].indexCount < 3) {
 			--resolvedLOD;
 		}
 		return subMesh.lods[resolvedLOD];
+	}
+
+	bool UpdateGeometryLODOffsets(std::span<const Engine::SubMeshDesc> subMeshes,
+		std::span<const uint32_t> subMeshIndices, uint32_t lodIndex,
+		std::span<Engine::RaytracingGeometryShaderData> geometries) {
+
+		// 対応が壊れている場合は更新前に中止
+		if (subMeshIndices.size() != geometries.size() ||
+			std::any_of(subMeshIndices.begin(), subMeshIndices.end(), [&](uint32_t index) {
+				return subMeshes.size() <= index;
+			})) {
+			return false;
+		}
+		// 非表示SubMeshを飛ばした配列順に揃える
+		for (size_t index = 0; index < geometries.size(); ++index) {
+			geometries[index].indexOffset = ResolveRaytracingLODRange(subMeshes[subMeshIndices[index]], lodIndex).indexOffset;
+		}
+		return true;
 	}
 
 	uint32_t ResolveMeshLOD(
@@ -313,23 +300,23 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		}
 
 		const Engine::Vector3 viewCenter =
-			Engine::Vector3::Transform(
-				center, camera->matrices.viewMatrix);
+			Engine::Vector3::Transform(center, camera->matrices.viewMatrix);
 		const float nearZ = viewCenter.z - radius;
 		if (nearZ <= (std::max)(camera->nearClip, 0.00001f)) {
 			return 0;
 		}
 
-		const float projectionX = std::abs(
-			camera->matrices.projectionMatrix.m[0][0]);
-		const float projectionY = std::abs(
-			camera->matrices.projectionMatrix.m[1][1]);
+		const float projectionX = std::abs(camera->matrices.projectionMatrix.m[0][0]);
+		const float projectionY = std::abs(camera->matrices.projectionMatrix.m[1][1]);
+		// 平行投影では距離による縮小を適用しない
+		const float projectionDepth = camera->projectionMode ==
+			Engine::ResolvedProjectionMode::Orthographic ? 1.0f : nearZ;
 		const float pixelRadiusX =
-			std::abs(radius * projectionX / nearZ) *
+			std::abs(radius * projectionX / projectionDepth) *
 			static_cast<float>((std::max)(lodView->width, 1u)) *
 			0.5f;
 		const float pixelRadiusY =
-			std::abs(radius * projectionY / nearZ) *
+			std::abs(radius * projectionY / projectionDepth) *
 			static_cast<float>((std::max)(lodView->height, 1u)) *
 			0.5f;
 		const float pixelRadius =
@@ -352,14 +339,11 @@ namespace Engine::RaytracingSceneGeometryUtility {
 
 		uint64_t hash = features.useMeshLOD ? 1ull : 0ull;
 		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(
-				features.meshLOD0PixelThreshold));
+			std::bit_cast<uint32_t>(features.meshLOD0PixelThreshold));
 		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(
-				features.meshLOD1PixelThreshold));
+			std::bit_cast<uint32_t>(features.meshLOD1PixelThreshold));
 		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(
-				features.meshLOD2PixelThreshold));
+			std::bit_cast<uint32_t>(features.meshLOD2PixelThreshold));
 		if (!lodView) {
 			return hash;
 		}
@@ -372,23 +356,20 @@ namespace Engine::RaytracingSceneGeometryUtility {
 		if (!camera || !camera->valid) {
 			return hash;
 		}
+		Engine::Algorithm::HashCombine(hash, static_cast<uint32_t>(camera->projectionMode));
 		Engine::Algorithm::HashCombine(hash,
 			std::bit_cast<uint32_t>(camera->nearClip));
 		for (uint32_t row = 0; row < 4; ++row) {
 			for (uint32_t column = 0; column < 4; ++column) {
 
 				Engine::Algorithm::HashCombine(hash,
-					std::bit_cast<uint32_t>(
-						camera->matrices.viewMatrix.
-							m[row][column]));
+					std::bit_cast<uint32_t>(camera->matrices.viewMatrix.m[row][column]));
 			}
 		}
 		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(
-				camera->matrices.projectionMatrix.m[0][0]));
+			std::bit_cast<uint32_t>(camera->matrices.projectionMatrix.m[0][0]));
 		Engine::Algorithm::HashCombine(hash,
-			std::bit_cast<uint32_t>(
-				camera->matrices.projectionMatrix.m[1][1]));
+			std::bit_cast<uint32_t>(camera->matrices.projectionMatrix.m[1][1]));
 		return hash;
 	}
 }

@@ -190,7 +190,7 @@ bool ScreenSpaceOutlineRenderer::BuildDrawRecords(
 void ScreenSpaceOutlineRenderer::ClearMask(
 	GraphicsCore& graphicsCore, ScreenSpaceOutlineViewResources& resources) const {
 
-	if (!resources.mask || !resources.projectedCoverageMask) {
+	if (!resources.GetMask() || !resources.GetProjectedCoverageMask()) {
 		return;
 	}
 
@@ -198,28 +198,28 @@ void ScreenSpaceOutlineRenderer::ClearMask(
 
 	// Visible Mask
 	{
-		resources.mask->TransitionForRender(*dxCommand);
-		resources.mask->Bind(*dxCommand);
+		resources.GetMask()->TransitionForRender(*dxCommand);
+		resources.GetMask()->Bind(*dxCommand);
 
 		MultiRenderTargetClearDesc clear{};
 		clear.clearColor = true;
 		clear.clearColorValue = Color4::Black();
 		clear.clearDepth = false;
 		clear.clearStencil = false;
-		resources.mask->Clear(*dxCommand, clear);
+		resources.GetMask()->Clear(*dxCommand, clear);
 	}
 
 	// 投影カバレッジマスク
 	{
-		resources.projectedCoverageMask->TransitionForRender(*dxCommand);
-		resources.projectedCoverageMask->Bind(*dxCommand);
+		resources.GetProjectedCoverageMask()->TransitionForRender(*dxCommand);
+		resources.GetProjectedCoverageMask()->Bind(*dxCommand);
 
 		MultiRenderTargetClearDesc clear{};
 		clear.clearColor = true;
 		clear.clearColorValue = Color4::Black();
 		clear.clearDepth = false;
 		clear.clearStencil = false;
-		resources.projectedCoverageMask->Clear(*dxCommand, clear);
+		resources.GetProjectedCoverageMask()->Clear(*dxCommand, clear);
 	}
 }
 
@@ -228,7 +228,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	ScreenSpaceOutlineViewResources& resources, std::span<const RenderPhase> phases,
 	DepthTexture2D* depthOverride) {
 
-	if (!resources.mask || !resources.projectedCoverageMask || phases.empty()) {
+	if (!resources.GetMask() || !resources.GetProjectedCoverageMask() || phases.empty()) {
 		return;
 	}
 
@@ -314,7 +314,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	// 1. Visible Mask (Depth Testあり)
 	{
 		RenderPassSurfaceBinding maskBinding{};
-		maskBinding.colorSurface = resources.mask.get();
+		maskBinding.colorSurface = resources.GetMask();
 		maskBinding.depthOverride = depthOverride;
 		drawGroupedMask(maskBinding, kMaskPassKind, false);
 	}
@@ -322,7 +322,7 @@ void ScreenSpaceOutlineRenderer::DrawMask(GraphicsCore& graphicsCore, SceneExecu
 	// 2. Projected Coverage Mask (Depth Test無し)
 	{
 		RenderPassSurfaceBinding coverageBinding{};
-		coverageBinding.colorSurface = resources.projectedCoverageMask.get();
+		coverageBinding.colorSurface = resources.GetProjectedCoverageMask();
 		// 遮蔽判定を行わないのでDepth不要
 		drawGroupedMask(coverageBinding, kCoverageMaskPassKind, true);
 	}

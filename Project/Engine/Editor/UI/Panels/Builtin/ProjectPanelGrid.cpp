@@ -136,10 +136,10 @@ void Engine::ProjectPanel::DrawDirectoryContents(
 	}
 
 	// フォルダ
-	for (const auto& child : node.children) {
+	for (const auto& child : node.GetChildren()) {
 
 		ImGui::TableNextColumn();
-		DrawFolderGridItem(context, database, *child, iconSize);
+		DrawFolderGridItem(context, database, child, iconSize);
 	}
 
 	// アセット
@@ -350,12 +350,12 @@ void Engine::ProjectPanel::CollectSearchMatches(const ProjectDirectoryNode& node
 	std::vector<const ProjectDirectoryNode*>& outFolders, std::vector<const ProjectAssetEntry*>& outAssets) const {
 
 	// 子フォルダは名前で、アセットは表示名で一致判定しながらツリー全体を辿る
-	for (const auto& child : node.children) {
+	for (const auto& child : node.GetChildren()) {
 
-		if (fileSearchFilter_.Matches(child->name)) {
-			outFolders.emplace_back(child.get());
+		if (fileSearchFilter_.Matches(child.name)) {
+			outFolders.emplace_back(&child);
 		}
-		CollectSearchMatches(*child, outFolders, outAssets);
+		CollectSearchMatches(child, outFolders, outAssets);
 	}
 	for (const ProjectAssetEntry& asset : node.assets) {
 

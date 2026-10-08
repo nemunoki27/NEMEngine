@@ -2,7 +2,7 @@
 
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
-#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptSchema.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedBuildDiagnosticStore.h>
 #include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
 #include <Engine/Core/World/Behavior/BehaviorHandle.h>
@@ -78,7 +78,7 @@ namespace Engine::ScriptFieldInspector {
 	Engine::ValueEditResult DrawNullable(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx);
 	Engine::ValueEditResult DrawObjectMembers(nlohmann::json& value,
-		const std::vector<std::shared_ptr<Engine::ManagedFieldSchema>>& members, const DrawContext& ctx);
+		const std::vector<std::shared_ptr<const Engine::ManagedFieldSchema>>& members, const DrawContext& ctx);
 	Engine::ValueEditResult DrawObject(const char* label, nlohmann::json& value,
 		const Engine::ManagedFieldSchema& field, const DrawContext& ctx);
 	Engine::ValueEditResult DrawManagedReference(const char* label, nlohmann::json& value,

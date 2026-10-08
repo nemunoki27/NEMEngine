@@ -29,9 +29,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const ShaderGraphAppearanceSetting& GetSettings() const {
-			return settings_;
-		}
+		const ShaderGraphAppearanceSetting& GetSettings() const { return settings_; }
 
 	private:
 		//========================================================================

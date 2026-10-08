@@ -49,11 +49,13 @@ namespace NEMTests {
 		bool passed = true;
 		std::string error;
 		auto check = [&](bool condition, const char* name) {
-			if (!condition) std::cerr << "Scene storage: " << name << " / " << error << '\n';
+			if (!condition) {
+				std::cerr << "Scene storage: " << name << " / " << error << '\n';
+			}
 			passed &= condition;
 		};
-		const nlohmann::json emptyScene = {{ "SchemaVersion", 3 }, { "Header", Engine::ToJson(Engine::SceneHeader{}) },
-			{ "Entities", nlohmann::json::array() }, { "PrefabInstances", nlohmann::json::array() }};
+		const nlohmann::json emptyScene = {{"SchemaVersion", 3}, {"Header", Engine::ToJson(Engine::SceneHeader{})},
+			{"Entities", nlohmann::json::array()}, {"PrefabInstances", nlohmann::json::array()}};
 		Engine::JsonAdapter::SaveCanonical(scenePath, emptyScene);
 		Engine::AssetDatabase database;
 		database.Init();
@@ -61,7 +63,7 @@ namespace NEMTests {
 		// 後続文書の失敗で先行ファイルを正規化しない
 		const auto invalidPath = testRoot / "Invalid.scene.json";
 		auto originalScene = emptyScene;
-		originalScene["Extra"] = { 3, 1, 2 };
+		originalScene["Extra"] = {3, 1, 2};
 		{
 			std::ofstream file(scenePath);
 			file << originalScene.dump();
@@ -75,22 +77,25 @@ namespace NEMTests {
 		invalidScene["SchemaVersion"] = 3.5;
 		Engine::JsonAdapter::SaveCanonical(invalidPath, invalidScene);
 		const auto originalHash = Engine::ContentHash::FileSHA256(scenePath);
-		check(!storage.Canonicalize({ scenePath, invalidPath }, error) &&
-			Engine::ContentHash::FileSHA256(scenePath) == originalHash, "canonicalization validates entire batch before writing");
-		storage.SetProtectedScenes({ id });
-		check(!storage.Canonicalize({ scenePath }, error) && Engine::ContentHash::FileSHA256(scenePath) == originalHash,
+		check(!storage.Canonicalize({scenePath, invalidPath}, error) &&
+				  Engine::ContentHash::FileSHA256(scenePath) == originalHash,
+			"canonicalization validates entire batch before writing");
+		storage.SetProtectedScenes({id});
+		check(!storage.Canonicalize({scenePath}, error) && Engine::ContentHash::FileSHA256(scenePath) == originalHash,
 			"canonicalization rejects an open scene");
 		storage.SetProtectedScenes({});
-		check(storage.Canonicalize({ scenePath, scenePath }, error) && Engine::JsonAdapter::Load(scenePath) == originalScene,
+		check(storage.Canonicalize({scenePath, scenePath}, error) && Engine::JsonAdapter::Load(scenePath) == originalScene,
 			"canonicalization preserves unknown data and deduplicates paths");
 		const std::string canonical = Engine::JsonAdapter::SerializeCanonical(originalScene);
 		const auto canonicalBytes = std::span(reinterpret_cast<const uint8_t*>(canonical.data()), canonical.size());
 		check(Engine::ContentHash::FileSHA256(scenePath) == Engine::ContentHash::SHA256(canonicalBytes) &&
-			Engine::ContentHash::FileSHA256(scenePath) != originalHash, "canonicalization writes formatting-only changes");
+				  Engine::ContentHash::FileSHA256(scenePath) != originalHash,
+			"canonicalization writes formatting-only changes");
 		const auto canonicalTime = std::filesystem::last_write_time(scenePath);
 		const auto canonicalRecords = storage.GetRecoveries().size();
-		check(storage.Canonicalize({ scenePath }, error) && std::filesystem::last_write_time(scenePath) == canonicalTime &&
-			storage.GetRecoveries().size() == canonicalRecords, "repeated canonicalization preserves file and journal");
+		check(storage.Canonicalize({scenePath}, error) && std::filesystem::last_write_time(scenePath) == canonicalTime &&
+				  storage.GetRecoveries().size() == canonicalRecords,
+			"repeated canonicalization preserves file and journal");
 		Engine::JsonAdapter::SaveCanonical(scenePath, emptyScene);
 		std::filesystem::remove(invalidPath);
 		std::filesystem::remove(std::filesystem::path(invalidPath.wstring() + L".meta"));
@@ -100,30 +105,33 @@ namespace NEMTests {
 		const auto parentPath = actorRoot / (Engine::ToString(parentID) + ".actor.json");
 		const auto childPath = actorRoot / (Engine::ToString(childID) + ".actor.json");
 		auto actor = [](Engine::UUID actorID, Engine::UUID parent) {
-			return nlohmann::json{{ "LocalFileID", Engine::ToString(actorID) }, { "Components", {
-				{ "Hierarchy", {{ "parentLocalFileID", parent ? Engine::ToString(parent) : "" }} },
-				{ "Name", {{ "name", "StorageActor" }} } } }};
+			return nlohmann::json{{"LocalFileID", Engine::ToString(actorID)},
+				{"Components", {{"Hierarchy", {{"parentLocalFileID", parent ? Engine::ToString(parent) : ""}}},
+								   {"Name", {{"name", "StorageActor"}}}}}};
 		};
 		Engine::SceneSaveSnapshot snapshot;
 		snapshot.scenePath = scenePath;
 		snapshot.sceneAsset = id;
 		snapshot.useExternalActors = true;
 		snapshot.root = emptyScene;
-		snapshot.root["Entities"] = { actor(parentID, {}), actor(childID, parentID) };
+		snapshot.root["Entities"] = {actor(parentID, {}), actor(childID, parentID)};
 		check(storage.Save(snapshot, error), "initial save");
-		if (!passed) return false;
+		if (!passed) {
+			return false;
+		}
 		check(storage.Validate(scenePath, id).empty(), "validate saved actors");
 		const auto validScene = Engine::JsonAdapter::Load(scenePath, false);
 		const auto validActor = Engine::JsonAdapter::Load(parentPath, false);
 		// 版番号の丸め込みを検査と実読込の両方で拒否する
-		const nlohmann::json invalidVersions = { 1.5, 4294967297ULL, -4294967295LL, "1", true, nullptr };
+		const nlohmann::json invalidVersions = {1.5, 4294967297ULL, -4294967295LL, "1", true, nullptr};
 		for (const auto& version : invalidVersions) {
 			auto invalidActor = validActor;
 			invalidActor["SchemaVersion"] = version;
 			Engine::JsonAdapter::SaveCanonical(parentPath, invalidActor);
 			check(!storage.Validate(scenePath, id).empty(), "invalid actor version rejected by inspection");
 			auto loading = validScene;
-			check(!Engine::SceneDocument::LoadExternalActors(scenePath, id, loading), "invalid actor version rejected by loading");
+			check(!Engine::SceneDocument::LoadExternalActors(scenePath, id, loading),
+				"invalid actor version rejected by loading");
 		}
 		Engine::JsonAdapter::SaveCanonical(parentPath, validActor);
 		// 追加読込で開いているInstanceの外部変更検出を解除しない
@@ -133,7 +141,7 @@ namespace NEMTests {
 		externallyChanged["Header"]["name"] = "ExternallyChanged";
 		Engine::JsonAdapter::SaveCanonical(scenePath, externallyChanged);
 		check(!storage.MatchesRevision(scenePath, id, readRevision), "changed read revision");
-		storage.SetProtectedScenes({ id });
+		storage.SetProtectedScenes({id});
 		storage.TrackLoaded(scenePath, id);
 		check(!storage.Save(snapshot, error), "additional load preserves original save baseline");
 		storage.SetProtectedScenes({});
@@ -147,7 +155,7 @@ namespace NEMTests {
 		check(!storage.Validate(scenePath, id).empty(), "invalid actor path rejected");
 		Engine::JsonAdapter::SaveCanonical(scenePath, validScene);
 		const auto undoSnapshot = snapshot;
-		snapshot.root["Entities"] = nlohmann::json::array({ actor(childID, {}) });
+		snapshot.root["Entities"] = nlohmann::json::array({actor(childID, {})});
 		check(storage.Save(snapshot, error) && !std::filesystem::exists(parentPath), "delete and save");
 		check(storage.Save(undoSnapshot, error) && std::filesystem::exists(parentPath), "undo and save");
 		check(storage.Save(snapshot, error) && !std::filesystem::exists(parentPath), "redo and save");
@@ -157,7 +165,7 @@ namespace NEMTests {
 		failing.root["Header"]["name"] = "Changed";
 		{
 			TestFileReadLock lockedScene(scenePath);
-			storage.SetProtectedScenes({ id });
+			storage.SetProtectedScenes({id});
 			check(!storage.Save(failing, error), "save failure is reported");
 			check(Engine::ContentHash::FileSHA256(childPath) == beforeFailure, "rollback restores changed actor");
 			storage.SetProtectedScenes({});
@@ -186,18 +194,21 @@ namespace NEMTests {
 		check(!storage.RemoveMissingActor(scenePath, parentID, error), "unknown reference blocks removal");
 		child["Components"].erase("UnknownReference");
 		const auto otherScene = Engine::AssetGUID::New();
-		const nlohmann::json targetReference = {{ "kind", "Scene" }, { "sourceAsset", Engine::ToString(id) }, { "localFileId", Engine::ToString(parentID) }};
+		const nlohmann::json targetReference = {
+			{"kind", "Scene"}, {"sourceAsset", Engine::ToString(id)}, {"localFileId", Engine::ToString(parentID)}};
 		child["Components"]["TargetReference"] = targetReference;
-		child["Components"]["OtherReference"] = {{ "kind", "Scene" }, { "sourceAsset", Engine::ToString(otherScene) }, { "localFileId", Engine::ToString(parentID) }};
+		child["Components"]["OtherReference"] = {
+			{"kind", "Scene"}, {"sourceAsset", Engine::ToString(otherScene)}, {"localFileId", Engine::ToString(parentID)}};
 		Engine::JsonAdapter::SaveCanonical(childPath, child);
 		const auto prefabPath = testRoot / "References.prefab.json";
-		Engine::JsonAdapter::SaveCanonical(prefabPath, {{ "reference", targetReference }});
+		Engine::JsonAdapter::SaveCanonical(prefabPath, {{"reference", targetReference}});
 		std::vector<std::filesystem::path> affectedFiles;
 		check(storage.PreviewMissingActorRemoval(scenePath, parentID, affectedFiles, error), "preview missing actor removal");
 		check(affectedFiles.size() == 3, "preview lists scene child and external reference");
 		check(Engine::JsonAdapter::Load(childPath, false) == child, "preview does not change files");
 		check(storage.RemoveMissingActor(scenePath, parentID, error), "confirm missing parent deletion");
-		check(Engine::JsonAdapter::Load(childPath)["Components"]["Hierarchy"]["parentLocalFileID"] == "", "preserve child at root");
+		check(Engine::JsonAdapter::Load(childPath)["Components"]["Hierarchy"]["parentLocalFileID"] == "",
+			"preserve child at root");
 		const auto repairedChild = Engine::JsonAdapter::Load(childPath, false);
 		check(repairedChild["Components"]["TargetReference"]["kind"] == "Null", "clear typed scene reference");
 		check(repairedChild["Components"]["OtherReference"]["kind"] == "Scene", "preserve other scene reference");
@@ -208,13 +219,14 @@ namespace NEMTests {
 		std::filesystem::remove(scenePath);
 		check(!storage.Save(snapshot, error), "external scene deletion blocks save");
 		Engine::JsonAdapter::SaveCanonical(scenePath, repairedScene);
-		storage.SetProtectedScenes({ id });
+		storage.SetProtectedScenes({id});
 		check(!storage.Delete(scenePath, database, error), "loaded scene protected");
 		storage.SetProtectedScenes({});
 		auto referencedScene = emptyScene;
-		referencedScene["Header"]["subScenes"] = {{{ "scene", Engine::ToString(id) }}};
+		referencedScene["Header"]["subScenes"] = {{{"scene", Engine::ToString(id)}}};
 		Engine::JsonAdapter::SaveCanonical(referencerPath, referencedScene);
-		const auto referencerID = database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(referencerPath), Engine::AssetType::Scene);
+		const auto referencerID =
+			database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(referencerPath), Engine::AssetType::Scene);
 		check(!storage.Delete(scenePath, database, error), "referenced scene protected");
 		Engine::SceneSaveSnapshot referenceSnapshot;
 		referenceSnapshot.scenePath = referencerPath;
@@ -222,21 +234,24 @@ namespace NEMTests {
 		referenceSnapshot.useExternalActors = true;
 		referenceSnapshot.root = emptyScene;
 		auto referenceActor = actor(Engine::UUID::New(), {});
-		referenceActor["Components"]["Script"] = nlohmann::json::array({ {{ "serializedFields", {{ "type", "AssetRef" }, { "value", {{ "assetId", Engine::ToString(id) }} }} }} });
-		referenceSnapshot.root["Entities"] = nlohmann::json::array({ referenceActor });
+		referenceActor["Components"]["Script"] = nlohmann::json::array(
+			{{{"serializedFields", {{"type", "AssetRef"}, {"value", {{"assetId", Engine::ToString(id)}}}}}}});
+		referenceSnapshot.root["Entities"] = nlohmann::json::array({referenceActor});
 		check(storage.Save(referenceSnapshot, error), "save external actor reference");
 		check(!storage.Delete(scenePath, database, error), "external actor scene reference protected");
 		const auto referencerActorRoot = Storage::ResolveActorRoot(referencerPath, referencerID);
 		check(!storage.Delete(Engine::RuntimePaths::GetGameAssetsRoot(), database, error), "asset root protected");
 		directory.CaptureSceneAssets();
 		check(storage.Delete(testRoot, database, error), "delete containing directory and owned actors");
-		check(!std::filesystem::exists(scenePath) && !std::filesystem::exists(actorRoot) && !std::filesystem::exists(referencerActorRoot), "no remaining owned actors");
-		const auto records = directory.GetSceneRecoveries();
+		check(!std::filesystem::exists(scenePath) && !std::filesystem::exists(actorRoot) &&
+				  !std::filesystem::exists(referencerActorRoot),
+			"no remaining owned actors");
+		const auto records = directory.GetStorageRecoveries();
 		bool recoveredDeletion = false;
 		for (const auto& recovery : records) {
 			const auto record = Engine::JsonAdapter::Load(recovery / "operation.json", false);
 			if (record.value("label", "") == "アセット削除" && record.value("state", "") == "completed") {
-				storage.SetProtectedScenes({ id });
+				storage.SetProtectedScenes({id});
 				check(!storage.Recover(recovery, error), "deleted loaded scene protected during recovery");
 				storage.SetProtectedScenes({});
 				auto interrupted = record;
@@ -247,7 +262,8 @@ namespace NEMTests {
 				check(!storage.Delete(testRoot, database, error), "pending recovery blocks new operations");
 				check(storage.Recover(recovery, error), "recover deleted scene recovery");
 				recoveredDeletion = true;
-				check(std::filesystem::exists(scenePath) && std::filesystem::exists(childPath), "recovery includes external actors");
+				check(std::filesystem::exists(scenePath) && std::filesystem::exists(childPath),
+					"recovery includes external actors");
 			}
 		}
 		check(recoveredDeletion, "deletion recovery record exists");
@@ -266,14 +282,13 @@ namespace NEMTests {
 
 		Engine::AssetDatabase database;
 		database.Init();
-		const std::filesystem::path scenePath =
-			testRoot / "ExternalActors.scene.json";
+		const std::filesystem::path scenePath = testRoot / "ExternalActors.scene.json";
 		{
 			const nlohmann::json emptyScene = {
-				{ "SchemaVersion", 3 },
-				{ "Header", Engine::ToJson(Engine::SceneHeader{}) },
-				{ "ExternalActors", nlohmann::json::array() },
-				{ "PrefabInstances", nlohmann::json::array() },
+				{"SchemaVersion", 3},
+				{"Header", Engine::ToJson(Engine::SceneHeader{})},
+				{"ExternalActors", nlohmann::json::array()},
+				{"PrefabInstances", nlohmann::json::array()},
 			};
 			if (!Engine::JsonAdapter::SaveCanonical(scenePath, emptyScene)) {
 				return false;
@@ -284,73 +299,50 @@ namespace NEMTests {
 
 		Engine::ECSWorld sourceWorld;
 		const Engine::Entity sourceEntity = sourceWorld.CreateEntity();
-		Engine::SceneAuthoring::EnsureGameObjectDefaults(
-			sourceWorld, sourceEntity, "ExternalActor");
-		const Engine::UUID localFileID =
-			sourceWorld.GetComponent<Engine::SceneObjectComponent>(
-				sourceEntity).localFileID;
+		Engine::SceneAuthoring::EnsureGameObjectDefaults(sourceWorld, sourceEntity, "ExternalActor");
+		const Engine::UUID localFileID = sourceWorld.GetComponent<Engine::SceneObjectComponent>(sourceEntity).localFileID;
 
 		Engine::SceneHeader header{};
 		header.guid = sceneAsset;
 		header.name = "ExternalActors";
 		Engine::SceneSystem sceneSystem;
 		Engine::SceneSaveSnapshot externalSnapshot{};
-		bool passed = sceneSystem.CaptureSaveSnapshot(
-			scenePath, sourceWorld, header, database,
-			externalSnapshot);
+		bool passed = sceneSystem.CaptureSaveSnapshot(scenePath, sourceWorld, header, database, externalSnapshot);
 		if (passed) {
 			externalSnapshot.useExternalActors = true;
-			passed = Engine::SceneSystem::WriteSaveSnapshot(
-				std::move(externalSnapshot));
+			passed = Engine::SceneSystem::WriteSaveSnapshot(std::move(externalSnapshot));
 		}
 
 		const nlohmann::json savedScene = Engine::JsonAdapter::Load(scenePath);
 		const std::filesystem::path actorRoot =
-			Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" /
-			Engine::ToString(sceneAsset);
-		const std::filesystem::path actorPath =
-			actorRoot / (Engine::ToString(localFileID) + ".actor.json");
-		passed &= savedScene.value("SchemaVersion", 0) == 3 &&
-			!savedScene.contains("Entities") &&
-			savedScene.contains("ExternalActors") &&
-			savedScene["ExternalActors"].is_array() &&
-			savedScene["ExternalActors"].size() == 1 &&
-			std::filesystem::exists(actorPath);
+			Engine::RuntimePaths::GetGameAssetsRoot() / "ExternalActors" / Engine::ToString(sceneAsset);
+		const std::filesystem::path actorPath = actorRoot / (Engine::ToString(localFileID) + ".actor.json");
+		passed &= savedScene.value("SchemaVersion", 0) == 3 && !savedScene.contains("Entities") &&
+				  savedScene.contains("ExternalActors") && savedScene["ExternalActors"].is_array() &&
+				  savedScene["ExternalActors"].size() == 1 && std::filesystem::exists(actorPath);
 
 		Engine::ECSWorld loadedWorld;
 		std::vector<Engine::Entity> loadedEntities;
-		passed &= sceneSystem.LoadScene(scenePath, loadedWorld, &database,
-			sceneAsset, Engine::UUID{ 300 }, nullptr, &loadedEntities);
-		passed &= loadedEntities.size() == 1 &&
-			loadedWorld.IsAlive(loadedEntities.front()) &&
-			loadedWorld.GetComponent<Engine::SceneObjectComponent>(
-				loadedEntities.front()).localFileID == localFileID;
+		passed &=
+			sceneSystem.LoadScene(scenePath, loadedWorld, &database, sceneAsset, Engine::UUID{300}, nullptr, &loadedEntities);
+		passed &= loadedEntities.size() == 1 && loadedWorld.IsAlive(loadedEntities.front()) &&
+				  loadedWorld.GetComponent<Engine::SceneObjectComponent>(loadedEntities.front()).localFileID == localFileID;
 
 		database.RebuildMeta();
-		const bool actorWasImported = std::any_of(
-			database.GetAssets().begin(), database.GetAssets().end(),
-			[](const auto& entry) {
-				return entry.second.assetPath.ends_with(".actor.json");
-			});
+		const bool actorWasImported = std::any_of(database.GetAssets().begin(), database.GetAssets().end(),
+			[](const auto& entry) { return entry.second.assetPath.ends_with(".actor.json"); });
 		passed &= !actorWasImported;
 
 		Engine::SceneSaveSnapshot monolithicSnapshot{};
-		passed &= sceneSystem.CaptureSaveSnapshot(
-			scenePath, sourceWorld, header, database,
-			monolithicSnapshot);
+		passed &= sceneSystem.CaptureSaveSnapshot(scenePath, sourceWorld, header, database, monolithicSnapshot);
 		if (passed) {
 			monolithicSnapshot.useExternalActors = false;
-			passed &= Engine::SceneSystem::WriteSaveSnapshot(
-				std::move(monolithicSnapshot));
+			passed &= Engine::SceneSystem::WriteSaveSnapshot(std::move(monolithicSnapshot));
 		}
-		const nlohmann::json monolithicScene =
-			Engine::JsonAdapter::Load(scenePath);
-		passed &= monolithicScene.value("SchemaVersion", 0) == 3 &&
-			monolithicScene.contains("Entities") &&
-			monolithicScene["Entities"].is_array() &&
-			monolithicScene["Entities"].size() == 1 &&
-			!monolithicScene.contains("ExternalActors") &&
-			!std::filesystem::exists(actorRoot);
+		const nlohmann::json monolithicScene = Engine::JsonAdapter::Load(scenePath);
+		passed &= monolithicScene.value("SchemaVersion", 0) == 3 && monolithicScene.contains("Entities") &&
+				  monolithicScene["Entities"].is_array() && monolithicScene["Entities"].size() == 1 &&
+				  !monolithicScene.contains("ExternalActors") && !std::filesystem::exists(actorRoot);
 
 		directory.Remove();
 		ec.clear();

@@ -93,6 +93,7 @@ public sealed class StageManager : MonoBehaviour {
             FieldIdentityTests.Run();
             ScriptCallbackTests.Run();
             SerializationFieldTests.Run();
+            HostBridgeSnapshotTests.Run();
             TestNestedReferenceSchema();
             TestMetadataValidation();
             TestAnalyzerBoundaries();
@@ -231,7 +232,7 @@ public static unsafe class RuntimeTest {
     static object Registry => Session.GetType().GetField("registry", Fields)!.GetValue(Session)!;
     static object Call(string name, params object[] args) {
         if (name == "CanReadRuntimeField" || name == "IsUnsupportedField") {
-            Type codec = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptFieldCodec")!;
+            Type codec = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptFieldTypeUtility")!;
             return codec.GetMethod(name, PrivateStatic)!.Invoke(null, args)!;
         }
         return Instances.GetType().GetMethod(name, Fields)!.Invoke(Instances, args)!;
@@ -248,7 +249,8 @@ public static unsafe class RuntimeTest {
         Check(initialize(&invalidCallbacks) == (int)ManagedStatus.ABIMismatch);
         var fixture = new RuntimeFixture();
         Type entryType = typeof(HostBridge).Assembly.GetType("NEMEngine.ScriptTypeEntry")!;
-        object entry = Activator.CreateInstance(entryType, true)!;
+        object entry = Activator.CreateInstance(entryType, BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null, args: new object[] { typeof(RuntimeFixture) }, culture: null)!;
         var map = (Dictionary<string, FieldInfo>)entryType.GetField("runtimeFieldMap", Fields)!.GetValue(entry)!;
         var fields = (Dictionary<string, FieldInfo>)entryType.GetField("fieldMap", Fields)!.GetValue(entry)!;
         foreach (string name in new[] { "speed", "values", "missing", "unsupported", "hidden" }) {

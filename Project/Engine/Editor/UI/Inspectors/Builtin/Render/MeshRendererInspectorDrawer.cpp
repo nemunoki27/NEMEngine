@@ -6,7 +6,6 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 //============================================================================
@@ -51,7 +50,7 @@ void Engine::MeshRendererInspectorDrawer::DrawFields(const EditorPanelContext& c
 		});
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetMeshOrBuiltin();
+			setting.defaultAssetID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Mesh);
 			return MyGUI::AssetReferenceField(
 				"既定マテリアル", draft.material, context.editorContext->assetDatabase, {AssetType::Material}, setting);
 		});

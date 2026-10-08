@@ -1,22 +1,17 @@
 #include "ShaderGraphEditorTool.h"
-#include "ShaderGraphCanvasID.h"
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <algorithm>
-#include <filesystem>
 #include <utility>
 
 #include <imgui.h>
 #include <imgui_node_editor.h>
 
-using namespace Engine::ShaderGraphAppearance;
-using namespace Engine::ShaderGraphCanvasID;
 
 namespace {
 
@@ -33,15 +28,27 @@ Engine::ShaderGraphEditorTool::ShaderGraphEditorTool()
 	  groupEditor_(editSession_, appearanceEditor_.GetSettings()),
 	  canvasMenu_(editSession_, canvas_, groupEditor_, nodeTransfer_),
 	  canvasView_(editSession_, canvas_, appearanceEditor_, nodePreviews_, nodeDrawer_, groupEditor_, canvasMenu_),
-	  previewController_(editSession_, scenePreview_), settingsEditor_(editSession_, previewController_) {
+	previewController_(editSession_, scenePreview_), settingsEditor_(editSession_, previewController_) {
 
+	// ノード画像の描画状態を初期化する
 	nodePreviews_.Init();
 }
 
 Engine::ShaderGraphEditorTool::~ShaderGraphEditorTool() {
 
+	// Sceneの一時的なMaterialを戻す
+	EndScenePreview();
+
+	// 描画資源を回収へ渡して編集画面を解除する
 	nodePreviews_.ClearNodePreviews();
 	ResetNodeEditor();
+}
+
+void Engine::ShaderGraphEditorTool::EndScenePreview() {
+
+	// 一時的な差替えを保存先と次のWorldへ持ち越さない
+	previewController_.Restore();
+	previewController_.ResetTarget();
 }
 
 void Engine::ShaderGraphEditorTool::OpenEditorTool() {
@@ -57,6 +64,7 @@ void Engine::ShaderGraphEditorTool::OpenAsset(AssetID assetID) {
 
 void Engine::ShaderGraphEditorTool::DrawEditorTool(const EditorToolContext& context) {
 
+	// 外部から指定されたグラフへ切替を要求する
 	commandPanelFocused_ = false;
 	if (pendingAsset_) {
 		RequestGraphSwitch(context, pendingAsset_);
@@ -67,7 +75,7 @@ void Engine::ShaderGraphEditorTool::DrawEditorTool(const EditorToolContext& cont
 	}
 	DrawUnsavedPrompt(context);
 	if (!openWindow_) {
-		RestorePreviewMaterial(context);
+		RestorePreviewMaterial();
 		return;
 	}
 	previewController_.Update(context);
@@ -82,17 +90,12 @@ void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context)
 
 		ImGui::End();
 		if (wasOpen && !openWindow_) {
-			if (editSession_.IsDirty()) {
-				openWindow_ = true;
-				requestWindowClose_ = true;
-				requestUnsavedPrompt_ = true;
-			} else {
-				RestorePreviewMaterial(context);
-			}
+			HandleWindowClose();
 		}
 		return;
 	}
 
+	// 操作欄と設定とキャンバスを順に表示する
 	toolbar_.Draw(context, editSession_, *this);
 	ImGui::Separator();
 
@@ -115,14 +118,20 @@ void Engine::ShaderGraphEditorTool::DrawWindow(const EditorToolContext& context)
 	}
 	ImGui::End();
 	if (wasOpen && !openWindow_) {
-		if (editSession_.IsDirty()) {
-			openWindow_ = true;
-			requestWindowClose_ = true;
-			requestUnsavedPrompt_ = true;
-		} else {
-			RestorePreviewMaterial(context);
-		}
+		HandleWindowClose();
 	}
+}
+
+void Engine::ShaderGraphEditorTool::HandleWindowClose() {
+
+	// 未保存の編集を確認するまでウィンドウを保持する
+	if (editSession_.IsDirty()) {
+		openWindow_ = true;
+		requestWindowClose_ = true;
+		requestUnsavedPrompt_ = true;
+		return;
+	}
+	RestorePreviewMaterial();
 }
 
 bool Engine::ShaderGraphEditorTool::HasPendingEdits() const {
@@ -189,9 +198,9 @@ void Engine::ShaderGraphEditorTool::DrawUnsavedPrompt(const EditorToolContext& c
 	ImGui::EndPopup();
 }
 
-void Engine::ShaderGraphEditorTool::DrawGraphSettings(const EditorToolContext& context) {
+void Engine::ShaderGraphEditorTool::DrawGraphSettings() {
 
-	if (settingsEditor_.Draw(context)) {
+	if (settingsEditor_.Draw()) {
 		ResetNodeEditor();
 		canvas_.RequestPositionRestore();
 	}
@@ -244,8 +253,8 @@ void Engine::ShaderGraphEditorTool::ImportGraphSettings(const EditorToolContext&
 
 	CaptureNodePositions();
 	editSession_.CaptureHistory();
-	RestorePreviewMaterial(context);
-	// プレビューの自動保存で取り込み直後の内容を確定しない
+	RestorePreviewMaterial();
+	// 取り込み前のプレビュー対象と再生成待機を解除する
 	previewController_.ResetTarget();
 	nodePreviews_.ClearNodePreviews();
 	editSession_.Import(std::move(imported));
@@ -259,7 +268,7 @@ void Engine::ShaderGraphEditorTool::ImportGraphSettings(const EditorToolContext&
 
 bool Engine::ShaderGraphEditorTool::CreateGraph(const EditorToolContext& context) {
 
-	RestorePreviewMaterial(context);
+	RestorePreviewMaterial();
 	AssetDatabase* database = context.toolContext.assetDatabase;
 	if (!database) {
 		editSession_.GetStatusMessage() = "作成先を設定してください";
@@ -270,9 +279,9 @@ bool Engine::ShaderGraphEditorTool::CreateGraph(const EditorToolContext& context
 	return assetID && LoadGraph(context, assetID);
 }
 
-void Engine::ShaderGraphEditorTool::RestorePreviewMaterial(const EditorToolContext& context) {
+void Engine::ShaderGraphEditorTool::RestorePreviewMaterial() {
 
-	previewController_.Restore(context);
+	previewController_.Restore();
 }
 
 void Engine::ShaderGraphEditorTool::CaptureNodePositions() {
@@ -347,7 +356,7 @@ void Engine::ShaderGraphEditorTool::CommitGraphHistory() {
 
 bool Engine::ShaderGraphEditorTool::LoadGraph(const EditorToolContext& context, AssetID assetID) {
 
-	RestorePreviewMaterial(context);
+	RestorePreviewMaterial();
 	const bool loaded = editSession_.Load(context, assetID);
 	if (!loaded) {
 		if (!context.toolContext.assetDatabase || !assetID) {
@@ -369,7 +378,7 @@ void Engine::ShaderGraphEditorTool::RequestGraphSwitch(const EditorToolContext& 
 		return;
 	}
 	if (!editSession_.IsDirty()) {
-		RestorePreviewMaterial(context);
+		RestorePreviewMaterial();
 		LoadGraph(context, assetID);
 		return;
 	}
@@ -382,7 +391,7 @@ void Engine::ShaderGraphEditorTool::RequestGraphSwitch(const EditorToolContext& 
 
 void Engine::ShaderGraphEditorTool::ApplyPendingTransition(const EditorToolContext& context) {
 
-	RestorePreviewMaterial(context);
+	RestorePreviewMaterial();
 	if (requestAssetSwitch_) {
 		const AssetID assetID = requestedAsset_;
 		requestAssetSwitch_ = false;
@@ -420,7 +429,7 @@ void Engine::ShaderGraphEditorTool::DrawParameterPanel(const EditorToolContext& 
 	}
 
 	ImGui::Separator();
-	DrawGraphSettings(context);
+	DrawGraphSettings();
 
 	if (editSession_.GetDraft().domain == ShaderGraphDomain::Surface) {
 		previewController_.DrawSettings(context);

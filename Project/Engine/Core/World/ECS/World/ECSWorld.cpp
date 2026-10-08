@@ -1,28 +1,28 @@
 #include "ECSWorld.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/World/ECS/World/ECSWorldSerialization.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
 
 // c++
 #include <algorithm>
 #include <exception>
 #include <stdexcept>
 
+using namespace Engine;
+
 //============================================================================
 //	ECSWorld classMethods
 //============================================================================
-ECSWorld::ECSWorld(ECSWorldKind kind) :
-	kind_(kind) {
+ECSWorld::ECSWorld(ECSWorldKind kind) : kind_(kind) {
 
+	storageState_->storage.SetOwner(lifetime_, storageState_);
 	// 最初は空のアーキタイプだけを作っておく
 	EntitySignature empty{};
-	emptyArchetype_ = GetOrCreateArchetype(empty);
+	emptyArchetype_ = &GetOrCreateArchetype(empty);
 }
 
 ECSWorld::~ECSWorld() {
@@ -37,22 +37,36 @@ ECSWorld::~ECSWorld() {
 			continue;
 		}
 		try {
-			ReleaseExternalComponents(Entity{ index, records_[index].generation }, nullptr);
+			ReleaseExternalComponents(Entity{index, records_[index].generation}, nullptr);
 		} catch (...) {
 			// 解放失敗を記録し、残りのEntityの終了を続ける
 			try {
-				Logger::Output(LogType::Engine, spdlog::level::err, "World終了時のComponent解放に失敗しました Entity={}", index);
+				Logger::Output(
+					LogType::Engine, spdlog::level::err, "World終了時のComponent解放に失敗しました Entity={}", index);
 			} catch (...) {
 				// 診断の失敗をデストラクタの外へ出さない
 			}
 		}
 	}
-	storage_.Clear();
+}
+
+void ECSWorld::SetCommandServices(const WorldCommandServices& services) {
+
+	if (commandServices_.assetDatabase == services.assetDatabase &&
+		commandServices_.sceneInstances == services.sceneInstances && commandServices_.sceneSystem == services.sceneSystem) {
+		return;
+	}
+	// 切断する接続のSingle予約を解除する
+	if (commandServices_.sceneInstances) {
+		commandServices_.sceneInstances->ClearSingleLoadRequest();
+	}
+	commandServices_ = services;
+	++commandServiceRevision_;
 }
 
 Entity ECSWorld::CreateEntity(UUID stableUUID) {
 
-	return CreateEntityInArchetype(emptyArchetype_, stableUUID);
+	return CreateEntityInArchetype(*emptyArchetype_, stableUUID);
 }
 
 void ECSWorld::DestroyEntity(const Entity& entity) {
@@ -77,6 +91,7 @@ void ECSWorld::FlushPendingDestroyEntities() {
 		return;
 	}
 
+	const auto lifetime = GetLifetime();
 	flushingDestroy_ = true;
 	const size_t count = pendingDestroyEntities_.size();
 	try {
@@ -90,13 +105,16 @@ void ECSWorld::FlushPendingDestroyEntities() {
 			}
 		}
 	} catch (...) {
-		flushingDestroy_ = false;
+		// 通知で終了したWorldの状態を戻さない
+		if (lifetime->IsAlive()) {
+			flushingDestroy_ = false;
+		}
 		throw;
 	}
 	flushingDestroy_ = false;
 }
 
-bool Engine::ECSWorld::AddComponentByName(const Entity& entity, const std::string_view& typeName) {
+bool Engine::ECSWorld::AddComponentByName(const Entity& entity, std::string_view typeName) {
 
 	// エンティティが有効でなければ追加できない
 	AssertAlive(entity);
@@ -121,7 +139,7 @@ bool Engine::ECSWorld::AddComponentByName(const Entity& entity, const std::strin
 	return true;
 }
 
-bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, const std::string_view& typeName) {
+bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, std::string_view typeName) {
 
 	// エンティティが有効でなければ削除できない
 	AssertAlive(entity);
@@ -146,13 +164,12 @@ bool Engine::ECSWorld::RemoveComponentByName(const Entity& entity, const std::st
 	return true;
 }
 
-bool ECSWorld::AddComponentFromJson(const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
+bool ECSWorld::AddComponentFromJson(const Entity& entity, std::string_view typeName, const nlohmann::json& data) {
 
 	return ECSWorldSerialization::AddComponentFromJson(*this, entity, typeName, data);
 }
 
-bool Engine::ECSWorld::ApplyComponentJson(
-	const Entity& entity, const std::string_view& typeName, const nlohmann::json& data) {
+bool Engine::ECSWorld::ApplyComponentJson(const Entity& entity, std::string_view typeName, const nlohmann::json& data) {
 
 	return ECSWorldSerialization::ApplyComponentJson(*this, entity, typeName, data);
 }
@@ -182,7 +199,9 @@ void Engine::ECSWorld::MarkRenderDataModified(const Entity& entity) {
 
 void Engine::ECSWorld::MarkMeshColorModified(const Entity& entity) {
 
-	if (!IsAlive(entity)) { return; }
+	if (!IsAlive(entity)) {
+		return;
+	}
 	changes_.MarkMeshColorModified(entity);
 }
 
@@ -197,34 +216,24 @@ uint64_t Engine::ECSWorld::GetMeshColorRevision(const Entity& entity) const {
 }
 
 void Engine::ECSWorld::MarkTransformConsumersModified(
-	ComponentChangeChannel channels,
-	std::span<const Entity> changedTransforms) {
+	ComponentChangeChannel channels, std::span<const Entity> changedTransforms) {
 
 	changes_.MarkTransformConsumersModified(channels, changedTransforms);
 }
 
-bool Engine::ECSWorld::CollectRenderTransformChanges(
-	uint64_t afterRevision, std::vector<Entity>& outEntities) const {
+bool Engine::ECSWorld::CollectRenderTransformChanges(uint64_t afterRevision, std::vector<Entity>& outEntities) const {
 
 	return changes_.CollectRenderTransformChanges(afterRevision, outEntities);
 }
 
-ComponentChangeChannel Engine::ECSWorld::GetTransformChangeChannels(
-	const Entity& entity) const {
+ComponentChangeChannel Engine::ECSWorld::GetTransformChangeChannels(const Entity& entity) const {
 
 	if (!IsAlive(entity)) {
 		return ComponentChangeChannel::None;
 	}
 
-	ComponentChangeChannel channels =
-		ComponentChangeChannel::None;
-	const EntityArchetype* archetype =
-		records_[entity.index].location.archetype;
-	for (uint32_t typeID : archetype->GetTypes()) {
-		channels |= ComponentTypeRegistry::GetInstance().
-			GetInfo(typeID).transformChannels;
-	}
-	return channels;
+	const EntityArchetype* archetype = records_[entity.index].location.archetype;
+	return ECSChangeTracker::GetTransformChangeChannels(*archetype);
 }
 
 bool Engine::ECSWorld::CanStoreComponent(const ComponentTypeInfo& info) const {
@@ -238,8 +247,7 @@ bool Engine::ECSWorld::CanStoreComponent(const ComponentTypeInfo& info) const {
 	return info.worldDomain == ComponentWorldDomain::Runtime;
 }
 
-uint64_t Engine::ECSWorld::AddComponentMutationListener(
-	ComponentMutationCallback callback, void* userData) {
+uint64_t Engine::ECSWorld::AddComponentMutationListener(ComponentMutationCallback callback, void* userData) {
 
 	return changes_.AddComponentMutationListener(callback, userData);
 }
@@ -249,43 +257,30 @@ void Engine::ECSWorld::RemoveComponentMutationListener(uint64_t listenerID) {
 	changes_.RemoveComponentMutationListener(listenerID);
 }
 
-void Engine::ECSWorld::NotifyComponentMutation(
-	const Entity& entity, uint32_t typeID, ComponentMutationKind kind) {
+void Engine::ECSWorld::NotifyComponentMutation(const Entity& entity, uint32_t typeID, ComponentMutationKind kind) {
 
 	MarkDataModified();
-	ComponentChangeChannel channels =
-		ComponentChangeChannel::None;
-	const uint32_t componentTypeCount =
-		ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
+	ComponentChangeChannel channels = ComponentChangeChannel::None;
+	const uint32_t componentTypeCount = ComponentTypeRegistry::GetInstance().GetComponentTypeCount();
 	if (typeID < componentTypeCount) {
-		channels = ComponentTypeRegistry::GetInstance().
-			GetInfo(typeID).changeChannels;
+		channels = ComponentTypeRegistry::GetInstance().GetInfo(typeID).changeChannels;
 	} else if (kind == ComponentMutationKind::EntityDestroyed) {
 		channels = GetChangeChannels(entity);
 	}
 	changes_.Notify(*this, entity, typeID, kind, channels);
 }
 
-ComponentChangeChannel Engine::ECSWorld::GetChangeChannels(
-	const Entity& entity) const {
+ComponentChangeChannel Engine::ECSWorld::GetChangeChannels(const Entity& entity) const {
 
 	if (!IsAlive(entity)) {
 		return ComponentChangeChannel::None;
 	}
 
-	ComponentChangeChannel channels =
-		ComponentChangeChannel::None;
-	const EntityArchetype* archetype =
-		records_[entity.index].location.archetype;
-	for (uint32_t typeID : archetype->GetTypes()) {
-		channels |= ComponentTypeRegistry::GetInstance().
-			GetInfo(typeID).changeChannels;
-	}
-	return channels;
+	const EntityArchetype* archetype = records_[entity.index].location.archetype;
+	return ECSChangeTracker::GetChangeChannels(*archetype);
 }
 
-std::unique_ptr<Engine::ECSWorld>
-Engine::ECSWorld::CloneForSerialization() const {
+std::unique_ptr<Engine::ECSWorld> Engine::ECSWorld::CloneForSerialization() const {
 
 	return ECSWorldSerialization::CloneForSerialization(*this);
 }
@@ -295,7 +290,8 @@ void ECSWorld::SerializeEntityComponents(const Entity& entity, nlohmann::json& o
 	ECSWorldSerialization::SerializeEntityComponents(*this, entity, outComponents);
 }
 
-bool Engine::ECSWorld::SerializeComponentToJson(const Entity& entity, const std::string_view& typeName, nlohmann::json& outData) const {
+bool Engine::ECSWorld::SerializeComponentToJson(
+	const Entity& entity, std::string_view typeName, nlohmann::json& outData) const {
 
 	return ECSWorldSerialization::SerializeComponentToJson(*this, entity, typeName, outData);
 }
@@ -345,7 +341,7 @@ Engine::ECSWorldStatistics Engine::ECSWorld::GetStatistics() const {
 	for (const EntityRecord& record : records_) {
 		statistics.aliveEntityCount += record.alive ? 1u : 0u;
 	}
-	for (const auto& [signature, archetype] : archetypes_) {
+	for (const auto& [signature, archetype] : storageState_->archetypes) {
 
 		statistics.chunkSlotCount += archetype->GetChunkCount();
 		statistics.allocatedChunkCount += archetype->GetAllocatedChunkCount();
@@ -370,7 +366,7 @@ bool Engine::ECSWorld::HasComponent(const Entity& entity, uint32_t typeID) const
 	return records_[entity.index].location.archetype->Has(typeID);
 }
 
-bool Engine::ECSWorld::HasComponent(const Entity& entity, const std::string_view& typeName) const {
+bool Engine::ECSWorld::HasComponent(const Entity& entity, std::string_view typeName) const {
 
 	// エンティティが有効かどうか
 	if (!IsAlive(entity)) {
@@ -389,14 +385,12 @@ const Engine::ComponentTypeInfo* Engine::ECSWorld::FindBufferType(const Entity& 
 	if (!IsAlive(entity)) {
 		return nullptr;
 	}
-	ComponentTypeRegistry& registry =
-		ComponentTypeRegistry::GetInstance();
+	ComponentTypeRegistry& registry = ComponentTypeRegistry::GetInstance();
 	if (typeID >= registry.GetComponentTypeCount()) {
 		return nullptr;
 	}
 	const ComponentTypeInfo& info = registry.GetInfo(typeID);
-	if (info.storageKind != ComponentStorageKind::Buffer ||
-		!HasComponent(entity, typeID)) {
+	if (info.storageKind != ComponentStorageKind::Buffer || !HasComponent(entity, typeID)) {
 		return nullptr;
 	}
 
@@ -411,8 +405,8 @@ Engine::UntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(const Entity&
 	}
 	EntityLocation& location = records_[entity.index].location;
 	void* storage = location.archetype->GetRaw(location.chunkIndex, location.row, typeID);
-	return UntypedDynamicBuffer(static_cast<DynamicBufferHeader*>(storage),
-		info->elementSize, info->elementAlign, info->bufferElementTriviallyCopyable);
+	return UntypedDynamicBuffer(static_cast<DynamicBufferHeader*>(storage), info->elementSize, info->elementAlign,
+		info->bufferElementTriviallyCopyable);
 }
 
 Engine::ReadOnlyUntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(const Entity& entity, uint32_t typeID) const {
@@ -424,8 +418,8 @@ Engine::ReadOnlyUntypedDynamicBuffer Engine::ECSWorld::TryGetUntypedBuffer(const
 	const EntityLocation& location = records_[entity.index].location;
 	const EntityArchetype& archetype = *location.archetype;
 	const void* storage = archetype.GetRaw(location.chunkIndex, location.row, typeID);
-	return ReadOnlyUntypedDynamicBuffer(static_cast<const DynamicBufferHeader*>(storage),
-		info->elementSize, info->elementAlign, info->bufferElementTriviallyCopyable);
+	return ReadOnlyUntypedDynamicBuffer(static_cast<const DynamicBufferHeader*>(storage), info->elementSize, info->elementAlign,
+		info->bufferElementTriviallyCopyable);
 }
 
 void ECSWorld::AssertAlive(const Entity& entity) const {
@@ -435,16 +429,16 @@ void ECSWorld::AssertAlive(const Entity& entity) const {
 	}
 }
 
-EntityArchetype* ECSWorld::GetOrCreateArchetype(const EntitySignature& signature) {
+EntityArchetype& ECSWorld::GetOrCreateArchetype(const EntitySignature& signature) {
 
 	if (queryDepth_ != 0) {
 		throw std::logic_error("走査中にArchetypeを追加できません");
 	}
 
 	// すでにあるならそれを返す
-	auto it = archetypes_.find(signature);
-	if (it != archetypes_.end()) {
-		return it->second.get();
+	auto it = storageState_->archetypes.find(signature);
+	if (it != storageState_->archetypes.end()) {
+		return *it->second;
 	}
 
 	// シグネチャからアーキタイプを作る
@@ -464,10 +458,10 @@ EntityArchetype* ECSWorld::GetOrCreateArchetype(const EntitySignature& signature
 	}
 
 	// 新しいアーキタイプを作る
-	auto archetype = std::make_unique<EntityArchetype>(signature, std::move(types));
+	auto archetype = std::make_unique<EntityArchetype>(signature, std::move(types), lifetime_);
 	EntityArchetype* raw = archetype.get();
-	archetypes_.emplace(signature, std::move(archetype));
-	// archetypeが増えたのでForEachのmatchPlanを無効化するためversionを進める
+	storageState_->archetypes.emplace(signature, std::move(archetype));
+	// アーキタイプの追加を検索計画へ伝える
 	++archetypeVersion_;
-	return raw;
+	return *raw;
 }

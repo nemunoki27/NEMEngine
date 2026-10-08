@@ -7,7 +7,7 @@
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
 // c++
-#include <type_traits>
+#include <utility>
 
 //============================================================================
 //	MaterialAsset classMethods
@@ -18,60 +18,69 @@ bool Engine::FromJson(const nlohmann::json& data, MaterialAsset& outAsset) {
 		return false;
 	}
 
-	outAsset = MaterialAsset{};
-	outAsset.name = data.value("name", "UnnamedMaterial");
-	outAsset.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface")).value_or(MaterialDomain::Surface);
-	outAsset.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic")).value_or(MaterialUsage::Generic);
-	outAsset.shaderGraph = ParseAssetID(data, "shaderGraph");
-	if (data.contains("renderState") && data["renderState"].is_object()) {
-		const nlohmann::json& renderState = data["renderState"];
-		outAsset.renderState.overridesRenderer =
-			renderState.value("overridesRenderer", false);
-		outAsset.renderState.phase = RenderPhaseFromString(
-			renderState.value("phase", "Opaque"), RenderPhase::Opaque);
-		outAsset.renderState.surfaceMode =
-			EnumAdapter<MaterialSurfaceMode>::FromString(
-				renderState.value("surfaceMode",
-					outAsset.renderState.phase == RenderPhase::Transparent ?
-					"Transparent" : "Opaque")).
-			value_or(MaterialSurfaceMode::Opaque);
-		outAsset.renderState.blendMode =
-			EnumAdapter<BlendMode>::FromString(
-				renderState.value("blendMode", "Normal")).
-			value_or(BlendMode::Normal);
-		outAsset.renderState.castShadows =
-			renderState.value("castShadows", true);
-		outAsset.renderState.receiveShadows =
-			renderState.value("receiveShadows", true);
-	}
-	if (data.contains("passes") && data["passes"].is_array()) {
-		for (const auto& passJson : data["passes"]) {
-
-			if (!passJson.is_object()) {
-				continue;
-			}
-
-			MaterialPassBinding binding{};
-			const auto passKind = EnumAdapter<MaterialPassKind>::FromString(passJson.value("passKind", ""));
-			if (!passKind || *passKind == MaterialPassKind::Invalid) {
-				continue;
-			}
-			binding.passKind = *passKind;
-			binding.pipeline = ParseAssetID(passJson, "pipeline");
-			binding.shaderOverride = ParseAssetID(passJson, "shaderOverride");
-			binding.preferredVariant = EnumAdapter<PipelineVariantKind>::FromString(passJson.value("preferredVariant",
-				"GraphicsVertex")).value_or(PipelineVariantKind::GraphicsVertex);
-
-			if (!binding.pipeline) {
-				continue;
-			}
-			outAsset.passes.emplace_back(std::move(binding));
+	MaterialAsset loaded;
+	try {
+		// Materialの用途と元Graphを読み込む
+		loaded.name = data.value("name", "UnnamedMaterial");
+		loaded.domain = EnumAdapter<MaterialDomain>::FromString(data.value("domain", "Surface"))
+			.value_or(MaterialDomain::Surface);
+		loaded.usage = EnumAdapter<MaterialUsage>::FromString(data.value("usage", "Generic"))
+			.value_or(MaterialUsage::Generic);
+		loaded.shaderGraph = ParseAssetID(data, "shaderGraph");
+		// Rendererを上書きする描画設定を読み込む
+		if (data.contains("renderState") && data["renderState"].is_object()) {
+			const nlohmann::json& renderState = data["renderState"];
+			loaded.renderState.overridesRenderer =
+				renderState.value("overridesRenderer", false);
+			loaded.renderState.phase = RenderPhaseFromString(renderState.value("phase", "Opaque"), RenderPhase::Opaque);
+			loaded.renderState.surfaceMode =
+				EnumAdapter<MaterialSurfaceMode>::FromString(
+					renderState.value("surfaceMode",
+						loaded.renderState.phase == RenderPhase::Transparent ?
+						"Transparent" : "Opaque")).
+				value_or(MaterialSurfaceMode::Opaque);
+			loaded.renderState.blendMode = EnumAdapter<BlendMode>::FromString(renderState.value("blendMode", "Normal"))
+				.value_or(BlendMode::Normal);
+			loaded.renderState.castShadows =
+				renderState.value("castShadows", true);
+			loaded.renderState.receiveShadows =
+				renderState.value("receiveShadows", true);
 		}
-	}
+		// 使用可能なPassの対応を読み込む
+		if (data.contains("passes") && data["passes"].is_array()) {
+			for (const auto& passJson : data["passes"]) {
 
-	if (data.contains("parameters")) {
-		ReadMaterialInstance(data["parameters"], outAsset.parameters);
+				if (!passJson.is_object()) {
+					continue;
+				}
+
+				MaterialPassBinding binding{};
+				const auto passKind = EnumAdapter<MaterialPassKind>::FromString(passJson.value("passKind", ""));
+				if (!passKind || *passKind == MaterialPassKind::Invalid) {
+					continue;
+				}
+				binding.passKind = *passKind;
+				binding.pipeline = ParseAssetID(passJson, "pipeline");
+				binding.shaderOverride = ParseAssetID(passJson, "shaderOverride");
+				binding.preferredVariant = EnumAdapter<PipelineVariantKind>::FromString(passJson.value("preferredVariant",
+					"GraphicsVertex")).value_or(PipelineVariantKind::GraphicsVertex);
+
+				if (!binding.pipeline) {
+					continue;
+				}
+				loaded.passes.emplace_back(std::move(binding));
+			}
+		}
+
+		// 公開パラメータを保存済みのIDで復元する
+		if (data.contains("parameters")) {
+			ReadMaterialInstance(data["parameters"], loaded.parameters);
+		}
+	} catch (const nlohmann::json::exception&) {
+		return false;
 	}
+	// 全項目の解析後にMaterialを差し替える
+	outAsset = std::move(loaded);
 	return true;
 }
 

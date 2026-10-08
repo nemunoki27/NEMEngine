@@ -122,7 +122,7 @@ namespace Engine::ScriptFieldInspector {
 	}
 
 	Engine::ValueEditResult DrawObjectMembers(nlohmann::json& value,
-		const std::vector<std::shared_ptr<Engine::ManagedFieldSchema>>& members, const DrawContext& ctx) {
+		const std::vector<std::shared_ptr<const Engine::ManagedFieldSchema>>& members, const DrawContext& ctx) {
 
 		Engine::ValueEditResult result{};
 		if (!value.is_object()) { value = nlohmann::json::object(); }

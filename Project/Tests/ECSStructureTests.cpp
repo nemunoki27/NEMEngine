@@ -1,6 +1,8 @@
 #include "TestContracts.h"
 #include "ECSBindingContractTests.h"
 #include "ECSQueryContractTests.h"
+#include "ECSSerializationLifetimeTests.h"
+#include "ECSStorageOwnerLifetimeTests.h"
 
 //============================================================================
 //	include
@@ -463,7 +465,7 @@ bool NEMTests::TestECSStructureSafety() {
 	return CheckStructureFailure() && ThrowingComponent::liveCount == 0 && CheckQueryMutation() &&
 		   ThrowingComponent::liveCount == 0 && CheckNotificationMutation() && ThrowingComponent::liveCount == 0 &&
 		   CheckPendingComponents() && ThrowingComponent::liveCount == 0 && CheckPendingBuffer() && CheckPendingGameObject() &&
-		   CheckQueryModes() && CheckWorldReleaseFailure() && CheckBufferAssignFailure<ThrowingComponent>() &&
-		   ThrowingComponent::liveCount == 0 && CheckBufferAssignFailure<ThrowingBufferValue>() &&
-		   ThrowingComponent::liveCount == 0;
+		   CheckQueryModes() && CheckNotificationWorldLifetime() && CheckECSSerializationLifetime() &&
+		   CheckWorldReleaseFailure() && CheckBufferAssignFailure<ThrowingComponent>() && ThrowingComponent::liveCount == 0 &&
+		   CheckBufferAssignFailure<ThrowingBufferValue>() && ThrowingComponent::liveCount == 0 && CheckECSStorageOwnerLifetime();
 }

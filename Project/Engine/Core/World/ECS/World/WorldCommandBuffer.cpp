@@ -13,6 +13,7 @@
 //============================================================================
 void Engine::WorldCommandBuffer::EnqueueDestroyEntity(const Entity& entity) {
 
+	// 破棄対象を予約する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::DestroyEntity;
 	command.target = entity;
@@ -21,6 +22,7 @@ void Engine::WorldCommandBuffer::EnqueueDestroyEntity(const Entity& entity) {
 
 void Engine::WorldCommandBuffer::EnqueueAddComponentByName(const Entity& entity, std::string_view typeName) {
 
+	// 型名を保持して追加を予約する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::AddComponentByName;
 	command.target = entity;
@@ -30,6 +32,7 @@ void Engine::WorldCommandBuffer::EnqueueAddComponentByName(const Entity& entity,
 
 void Engine::WorldCommandBuffer::EnqueueRemoveComponentByName(const Entity& entity, std::string_view typeName) {
 
+	// 型名を保持して削除を予約する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::RemoveComponentByName;
 	command.target = entity;
@@ -45,6 +48,7 @@ void Engine::WorldCommandBuffer::EnqueueRemoveComponentByName(const Entity& enti
 
 void Engine::WorldCommandBuffer::EnqueueRemoveScript(const Entity& entity, const UUID& scriptSlotID) {
 
+	// 保存slotでScriptの削除を予約する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::RemoveScript;
 	command.target = entity;
@@ -54,6 +58,7 @@ void Engine::WorldCommandBuffer::EnqueueRemoveScript(const Entity& entity, const
 
 void Engine::WorldCommandBuffer::EnqueueSetNameEnsuringComponent(const Entity& entity, std::string_view name) {
 
+	// 設定する名前を予約へコピーする
 	WorldCommand command{};
 	command.kind = WorldCommandKind::SetNameEnsuringComponent;
 	command.target = entity;
@@ -63,6 +68,7 @@ void Engine::WorldCommandBuffer::EnqueueSetNameEnsuringComponent(const Entity& e
 
 void Engine::WorldCommandBuffer::EnqueueSetActiveSelfEnsuringComponent(const Entity& entity, bool active) {
 
+	// 設定する有効状態を保持する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::SetActiveSelfEnsuringComponent;
 	command.target = entity;
@@ -72,6 +78,7 @@ void Engine::WorldCommandBuffer::EnqueueSetActiveSelfEnsuringComponent(const Ent
 
 void Engine::WorldCommandBuffer::EnqueueSetParent(const Entity& child, const Entity& parent, bool worldPositionStays) {
 
+	// 親とWorld姿勢の維持を予約する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::SetParent;
 	command.target = child;
@@ -82,6 +89,7 @@ void Engine::WorldCommandBuffer::EnqueueSetParent(const Entity& child, const Ent
 
 void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset) {
 
+	// Sceneと先行採番したInstanceを保持する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::LoadSceneAdditive;
 	command.sceneInstanceID = sceneInstanceID;
@@ -91,6 +99,7 @@ void Engine::WorldCommandBuffer::EnqueueLoadSceneAdditive(const UUID& sceneInsta
 
 void Engine::WorldCommandBuffer::EnqueueUnloadScene(const UUID& sceneInstanceID) {
 
+	// 解放するScene Instanceを保持する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::UnloadScene;
 	command.sceneInstanceID = sceneInstanceID;
@@ -99,6 +108,7 @@ void Engine::WorldCommandBuffer::EnqueueUnloadScene(const UUID& sceneInstanceID)
 
 void Engine::WorldCommandBuffer::EnqueueLoadSceneSingle(const UUID& sceneInstanceID, AssetID sceneAsset) {
 
+	// 切り替え先のScene Instanceを保持する
 	WorldCommand command{};
 	command.kind = WorldCommandKind::LoadSceneSingle;
 	command.sceneInstanceID = sceneInstanceID;
@@ -108,10 +118,12 @@ void Engine::WorldCommandBuffer::EnqueueLoadSceneSingle(const UUID& sceneInstanc
 
 void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 
-	// 再入時はネストせず、外側のbatchループに任せる
+	// 再入した予約は外側のFlushで適用する
 	if (flushing_ || world.IsStructuralChangeDeferred()) {
 		return;
 	}
+	const auto lifetime = world.GetLifetime();
+	const bool ownedByWorld = &world.GetCommandBuffer() == this;
 	flushing_ = true;
 
 	int32_t batchCount = 0;
@@ -134,9 +146,13 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 			WorldCommand command = std::move(activeBatch_[activeCommandIndex_++]);
 			RemovePendingComponent(command);
 			WorldCommandExecutor::Apply(world, command);
+			lifetime->ThrowIfEnded();
 		}
 	} catch (...) {
-		flushing_ = false;
+		// Worldとともに終了したCommandBufferへ戻らない
+		if (!ownedByWorld || lifetime->IsAlive()) {
+			flushing_ = false;
+		}
 		throw;
 	}
 	flushing_ = false;
@@ -144,6 +160,7 @@ void Engine::WorldCommandBuffer::Flush(ECSWorld& world) {
 
 void Engine::WorldCommandBuffer::Clear() {
 
+	// 予約値と適用中のbatchを解放する
 	pendingComponents_.clear();
 	activeBatch_.clear();
 	activeCommandIndex_ = 0;

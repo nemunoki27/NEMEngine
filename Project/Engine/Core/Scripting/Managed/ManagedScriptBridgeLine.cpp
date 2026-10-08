@@ -1,10 +1,9 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
+#include "ManagedScriptUtility.h"
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
@@ -18,7 +17,7 @@ namespace Engine {
 
 	namespace {
 
-		// ManagedLinePointをエンジンのLinePointへ変換する
+		// C#の点を描画用の点へ変換
 		LinePoint ToLinePoint(const ManagedLinePoint& src) {
 
 			LinePoint point{};
@@ -28,6 +27,7 @@ namespace Engine {
 			return point;
 		}
 	}
+
 	void ManagedScriptRuntime::LineSetPointsCallback(ManagedNativeEntity entity,
 		const ManagedLinePoint* points, int32_t count, int32_t loop) {
 
@@ -42,9 +42,9 @@ namespace Engine {
 			return;
 		}
 
-		// Managed配列を一度変換し、DynamicBufferをまとめて差し替える
+		// 点の配列を変換してBufferを差し替える
 		std::vector<LinePoint> converted{};
-		if (points != nullptr && count > 0) {
+		if (count > 0) {
 
 			converted.reserve(static_cast<size_t>(count));
 			for (int32_t i = 0; i < count; ++i) {
@@ -81,7 +81,7 @@ namespace Engine {
 			static_cast<int32_t>(ManagedDynamicBufferOperation::Append), 0, &converted, 1)) {
 			return -1;
 		}
-		// 追加した点の位置をC#へ返す、UpdatePointの対象指定に使う
+		// 追加した点の番号を返す
 		return DynamicBufferLengthCallback(entity, typeID, sizeof(LinePoint)) - 1;
 	}
 
@@ -97,7 +97,7 @@ namespace Engine {
 		if (!line) {
 			return;
 		}
-		// ClearやSetPoints後に残った古いindexを弾く
+		// 現在の点数で番号の範囲を検証
 		const int32_t typeID = static_cast<int32_t>(ComponentTypeRegistry::GetInstance().GetID<LinePoint>());
 		const LinePoint converted = ToLinePoint(point);
 		DynamicBufferMutateCallback(entity, typeID, sizeof(LinePoint),
@@ -162,7 +162,8 @@ namespace Engine {
 			LineShapeBuilder::BuildOBB(a, b, rotation, color, shape->thickness, segments);
 			break;
 		case ManagedLineShapeKind::Cone:
-			LineShapeBuilder::BuildCone(a, shape->radius, shape->radius2, shape->height, rotation, color, division, shape->thickness, segments);
+			LineShapeBuilder::BuildCone(a, shape->radius, shape->radius2, shape->height,
+				rotation, color, division, shape->thickness, segments);
 			break;
 		case ManagedLineShapeKind::Arrow:
 			LineShapeBuilder::BuildArrow(a, shape->height, rotation, color, shape->thickness, segments);
@@ -177,7 +178,7 @@ namespace Engine {
 		if (segments.size() < 2) {
 			return;
 		}
-		// 形状は2点ずつ独立した線分リストなのでconnected=falseで積む
+		// 独立した線分として即時描画へ渡す
 		LineImmediateBuffer::GetInstance().AddPolyline(segments.data(), static_cast<uint32_t>(segments.size()),
 			false, false, shape->is2D != 0, ToAssetID(shape->materialID));
 	}

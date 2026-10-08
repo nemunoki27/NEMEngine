@@ -6,15 +6,68 @@
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Rendering/ShaderGraph/ShaderGraphCompiler.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphSourceUtility.h>
 
 // c++
 #include <algorithm>
 #include <array>
+#include <limits>
+#include <string_view>
+#include <utility>
 
 namespace NEMTests {
 
 	// 演算ノードの既定値と保存値を確認する
 	bool TestShaderGraphNodeDefaults() {
+
+		// 整数の境界値と実数の変換失敗を確認する
+		const std::array<std::pair<Engine::MaterialParameterValue, std::string_view>, 8> integerCases{{
+			{{int32_t(2147483647)}, "2147483647"},
+			{{std::numeric_limits<int32_t>::min()}, "-2147483648"},
+			{{int32_t(16777217)}, "16777217"},
+			{{std::numeric_limits<uint32_t>::max()}, "-1"},
+			{{3.75f}, "3"},
+			{{2147483648.0f}, "0"},
+			{{std::numeric_limits<float>::infinity()}, "0"},
+			{{std::numeric_limits<float>::quiet_NaN()}, "0"},
+		}};
+		for (const auto& [value, expected] : integerCases) {
+			if (Engine::ShaderGraphSourceUtility::MakeLiteral(value, Engine::ShaderGraphValueType::Integer) != expected) {
+				return false;
+			}
+		}
+
+		// 描画方式ごとのScene Textureの入力名を確認する
+		constexpr std::array sceneKinds{
+			Engine::ShaderGraphNodeKind::SceneColor,
+			Engine::ShaderGraphNodeKind::SceneMaterial,
+			Engine::ShaderGraphNodeKind::SceneEmissive,
+		};
+		for (bool postProcess : {false, true}) {
+			for (const Engine::ShaderGraphNodeKind kind : sceneKinds) {
+				Engine::ShaderGraphAsset sceneGraph = postProcess ?
+					Engine::CreateDefaultPostProcessShaderGraph("SceneInput") :
+					Engine::CreateDefaultSurfaceShaderGraph("SceneInput");
+				sceneGraph.surfaceMode = Engine::ShaderGraphSurfaceMode::Transparent;
+				std::erase_if(sceneGraph.links, [&](const Engine::ShaderGraphLink& link) {
+					return link.inputNode == sceneGraph.outputNode && link.inputSlot == 0;
+				});
+				const Engine::UUID nodeID = Engine::UUID::New();
+				sceneGraph.nodes.emplace_back(Engine::ShaderGraphNode{.id = nodeID, .kind = kind});
+				sceneGraph.links.emplace_back(Engine::ShaderGraphLink{
+					.id = Engine::UUID::New(), .outputNode = nodeID, .inputNode = sceneGraph.outputNode,
+				});
+				const Engine::ShaderGraphCompileOutput output =
+					Engine::ShaderGraphCompiler::Compile(sceneGraph, "SceneInput.surface.hlsli");
+				const std::string& source = postProcess ? output.computeHLSL : output.surfaceHLSL;
+				const char* textureName = kind == Engine::ShaderGraphNodeKind::SceneMaterial ? "gShaderGraphSceneMaterial" :
+					kind == Engine::ShaderGraphNodeKind::SceneEmissive ? "gShaderGraphSceneEmissive" :
+					postProcess ? "gSourceColor" : "gShaderGraphSceneColor";
+				if (!output.Succeeded() || source.find(std::string(textureName) + ".SampleLevel(") == std::string::npos) {
+					return false;
+				}
+			}
+		}
 
 		constexpr std::array additionalNodeKinds{
 			Engine::ShaderGraphNodeKind::Subtract,

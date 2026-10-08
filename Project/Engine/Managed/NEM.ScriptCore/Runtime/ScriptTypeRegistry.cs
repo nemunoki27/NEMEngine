@@ -12,7 +12,7 @@ internal sealed unsafe class ScriptTypeRegistry {
     // 実行型からField情報を解決する
     internal Dictionary<Type, ScriptTypeEntry> typeToEntry = new();
     // 編集用の既定値を型ごとに保持する
-    internal Dictionary<Type, object?> defaultInstanceCache = new();
+    internal Dictionary<Type, object> defaultInstanceCache = new();
 
     internal Assembly? gameAssembly;
 
@@ -51,6 +51,74 @@ internal sealed unsafe class ScriptTypeRegistry {
         gameAssembly = assembly;
     }
 
+    // 型IDと通知先と実行順序を登録する
+    internal void AddScriptTypeEntry(string rawGUID, Type type, string fullName, string displayName,
+        string sourcePath, bool hasExplicitID) {
+
+        string? normalized = ScriptGeneratedMetadata.NormalizeGUID(rawGUID);
+        if (normalized == null || guidToEntry.ContainsKey(normalized) || typeToEntry.ContainsKey(type)) {
+            throw new InvalidOperationException($"Invalid or duplicate Script Type GUID: {rawGUID}, type: {fullName}");
+        }
+        if (!typeof(MonoBehaviour).IsAssignableFrom(type) || type.IsAbstract || type.ContainsGenericParameters) {
+            throw new InvalidOperationException($"Invalid MonoBehaviour type: {fullName}");
+        }
+
+        // 型登録時に既定の実行順序を取得する
+        int defaultExecutionOrder = 0;
+        DefaultExecutionOrderAttribute? orderAttribute = type.GetCustomAttribute<DefaultExecutionOrderAttribute>();
+        if (orderAttribute != null) {
+            defaultExecutionOrder = orderAttribute.Order;
+        }
+
+        var entry = new ScriptTypeEntry(type) {
+            scriptTypeID = normalized,
+            fullTypeName = fullName,
+            displayName = string.IsNullOrEmpty(displayName) ? type.Name : displayName,
+            sourcePath = sourcePath ?? string.Empty,
+            hasExplicitID = hasExplicitID,
+            defaultExecutionOrder = defaultExecutionOrder,
+        };
+        scriptTypeEntries.Add(entry);
+        guidToEntry[normalized] = entry;
+        typeToEntry[type] = entry;
+    }
+
+    // 正規化した保存IDから型情報を返す
+    internal bool TryGetEntry(string? scriptTypeID, out ScriptTypeEntry entry) {
+
+        entry = null!;
+        string? normalized = ScriptGeneratedMetadata.NormalizeGUID(scriptTypeID);
+        if (normalized == null) {
+            return false;
+        }
+        return guidToEntry.TryGetValue(normalized, out entry!);
+    }
+
+    // 登録型の保存Fieldを解決する
+    internal bool TryGetFieldInfo(Type type, string fieldID, out FieldInfo field) {
+
+        field = null!;
+        if (typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) &&
+            entry.fieldMap.TryGetValue(fieldID, out FieldInfo? info)) {
+            field = info;
+            return true;
+        }
+        return false;
+    }
+
+    // 型ごとに初期値の取得元を保持する
+    internal object CreateDefaultInstance(Type type) {
+
+        if (defaultInstanceCache.TryGetValue(type, out object? cached)) {
+            return cached;
+        }
+        object instance = Activator.CreateInstance(type)
+            ?? throw new InvalidOperationException($"Failed to create default instance: {type.FullName}");
+        defaultInstanceCache[type] = instance;
+        return instance;
+    }
+
+    // Fieldの対応と参照遅延と保存schemaを確定する
     private void BuildSchemaRegistry(ScriptFieldCodec codec, JsonObject generatedByType) {
 
         if (generatedByType.Count != scriptTypeEntries.Count) {
@@ -67,8 +135,8 @@ internal sealed unsafe class ScriptTypeRegistry {
                 throw new InvalidOperationException($"Generated script schema was not found: {entry.fullTypeName}");
             }
 
-            // field map を作りつつ defaultValueJson を埋める
-            object? defaults = CreateDefaultInstance(entry.type);
+            // Fieldの対応と既定値を作成する
+            object defaults = CreateDefaultInstance(entry.type);
             ScriptReferenceGraph defaultGraph = codec.CreateReferenceGraph(entry.type.Assembly);
             if (typeNode["fields"] is not JsonArray fields) {
                 throw new InvalidOperationException($"Missing field schema: {entry.fullTypeName}");
@@ -83,98 +151,32 @@ internal sealed unsafe class ScriptTypeRegistry {
                     string fieldName = fieldObj["name"]?.GetValue<string>() ?? string.Empty;
                     string declaringType = fieldObj["declaringType"]?.GetValue<string>() ?? string.Empty;
                     FieldInfo? info = ScriptGeneratedMetadata.ResolveFieldInfo(entry.type, declaringType, fieldName);
-                    string? normalizedID = ScriptGeneratedMetadata.NormalizeGuid(fieldID);
+                    string? normalizedID = ScriptGeneratedMetadata.NormalizeGUID(fieldID);
                     if (info == null || normalizedID != fieldID || info.IsStatic || info.IsInitOnly || info.IsLiteral ||
                         !registeredFields.Add(info) || !entry.fieldMap.TryAdd(fieldID, info)) {
                         throw new InvalidOperationException($"Invalid or duplicate field: {entry.fullTypeName}.{fieldName}");
                     }
                     {
 
-                        if (ScriptFieldCodec.IsUnsupportedField(fieldObj)) {
+                        if (ScriptFieldTypeUtility.IsUnsupportedField(fieldObj)) {
                             entry.unsupportedFields.Add(fieldID);
                         }
-                        if (ScriptFieldCodec.CanReadRuntimeField(fieldObj)) {
+                        if (ScriptFieldTypeUtility.CanReadRuntimeField(fieldObj)) {
                             entry.runtimeFieldMap[fieldID] = info;
                         }
-                        // 参照解決を伴うフィールドは適用を遅延させる([SerializeReference]は候補型に参照が含まれ得る)
+                        // 個体生成後に参照を解決するFieldを登録する
                         if (info.GetCustomAttribute<SerializeReferenceAttribute>() != null ||
-                            ScriptFieldCodec.IsDeferredReferenceType(info.FieldType, null)) {
+                            ScriptFieldTypeUtility.IsDeferredReferenceType(info.FieldType, null)) {
                             entry.deferredFields.Add(fieldID);
                         }
                     }
-                    // 既定値（authoring 未設定時の初期値）を埋める
-                    fieldObj["defaultValueJson"] = ScriptFieldCodec.IsUnsupportedField(fieldObj)
+                    // 未設定時の初期値を保存schemaへ渡す
+                    fieldObj["defaultValueJson"] = ScriptFieldTypeUtility.IsUnsupportedField(fieldObj)
                         ? "null" : codec.SerializeFieldDefault(info, defaults, defaultGraph);
                 }
             }
 
-            entry.schemaJson = typeNode.ToJsonString();
+            entry.schemaJSON = typeNode.ToJsonString();
         }
-    }
-
-    internal void AddScriptTypeEntry(string rawGuid, Type type, string fullName, string displayName,
-        string sourcePath, bool hasExplicitID) {
-
-        string? normalized = ScriptGeneratedMetadata.NormalizeGuid(rawGuid);
-        if (normalized == null || guidToEntry.ContainsKey(normalized) || typeToEntry.ContainsKey(type)) {
-            throw new InvalidOperationException($"Invalid or duplicate Script Type GUID: {rawGuid}, type: {fullName}");
-        }
-        if (!typeof(MonoBehaviour).IsAssignableFrom(type) || type.IsAbstract || type.ContainsGenericParameters) {
-            throw new InvalidOperationException($"Invalid MonoBehaviour type: {fullName}");
-        }
-
-        // [DefaultExecutionOrder] を load 時に一度だけ反射で読む（hot path では参照しない）。
-        // 値は native の registry まで流れ、Editor override が無いときの default order になる。
-        int defaultExecutionOrder = 0;
-        DefaultExecutionOrderAttribute? orderAttribute = type.GetCustomAttribute<DefaultExecutionOrderAttribute>();
-        if (orderAttribute != null) {
-            defaultExecutionOrder = orderAttribute.Order;
-        }
-
-        var entry = new ScriptTypeEntry {
-            scriptTypeID = normalized,
-            type = type,
-            callbacks = new ScriptCallbacks(type),
-            fullTypeName = fullName,
-            displayName = string.IsNullOrEmpty(displayName) ? type.Name : displayName,
-            sourcePath = sourcePath ?? string.Empty,
-            hasExplicitID = hasExplicitID,
-            defaultExecutionOrder = defaultExecutionOrder,
-        };
-        scriptTypeEntries.Add(entry);
-        guidToEntry[normalized] = entry;
-        typeToEntry[type] = entry;
-    }
-
-    internal bool TryGetEntry(string? scriptTypeID, out ScriptTypeEntry entry) {
-
-        entry = null!;
-        string? normalized = ScriptGeneratedMetadata.NormalizeGuid(scriptTypeID);
-        if (normalized == null) {
-            return false;
-        }
-        return guidToEntry.TryGetValue(normalized, out entry!);
-    }
-
-    internal bool TryGetFieldInfo(Type type, string fieldID, out FieldInfo field) {
-
-        field = null!;
-        if (typeToEntry.TryGetValue(type, out ScriptTypeEntry? entry) &&
-            entry.fieldMap.TryGetValue(fieldID, out FieldInfo? info)) {
-            field = info;
-            return true;
-        }
-        return false;
-    }
-
-    internal object? CreateDefaultInstance(Type type) {
-
-        if (defaultInstanceCache.TryGetValue(type, out object? cached)) {
-            return cached;
-        }
-        object instance = Activator.CreateInstance(type)
-            ?? throw new InvalidOperationException($"Failed to create default instance: {type.FullName}");
-        defaultInstanceCache[type] = instance;
-        return instance;
     }
 }

@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 // c++
 #include <algorithm>
@@ -14,6 +15,28 @@ using namespace Engine;
 //============================================================================
 //	ECSChangeTracker classMethods
 //============================================================================
+ComponentChangeChannel ECSChangeTracker::GetChangeChannels(const EntityArchetype& archetype) {
+
+	return CollectChannels(archetype, &ComponentTypeInfo::changeChannels);
+}
+
+ComponentChangeChannel ECSChangeTracker::GetTransformChangeChannels(const EntityArchetype& archetype) {
+
+	return CollectChannels(archetype, &ComponentTypeInfo::transformChannels);
+}
+
+ComponentChangeChannel ECSChangeTracker::CollectChannels(const EntityArchetype& archetype,
+	ComponentChangeChannel ComponentTypeInfo::*channel) {
+
+	// 値変更と座標変更で同じ型一覧を集約する
+	ComponentChangeChannel channels = ComponentChangeChannel::None;
+	const auto& registry = ComponentTypeRegistry::GetInstance();
+	for (uint32_t typeID : archetype.GetTypes()) {
+		channels |= registry.GetInfo(typeID).*channel;
+	}
+	return channels;
+}
+
 void ECSChangeTracker::MarkDataModified() {
 
 	IncrementRevision(dataRevision_);
@@ -21,6 +44,7 @@ void ECSChangeTracker::MarkDataModified() {
 
 void ECSChangeTracker::MarkRenderDataModified() {
 
+	// 全体更新ではEntityごとの差分を破棄する
 	IncrementRevision(renderDataRevision_);
 	renderResetRevision_ = renderDataRevision_;
 	entityRenderRevisions_.clear();
@@ -37,6 +61,7 @@ void ECSChangeTracker::MarkRenderDataModified(const Entity& entity) {
 
 void ECSChangeTracker::MarkMeshColorModified(const Entity& entity) {
 
+	// 色の差分と保存用の変更世代を進める
 	IncrementRevision(meshColorRevision_);
 	const uint64_t key = (static_cast<uint64_t>(entity.generation) << 32) | entity.index;
 	meshColorRevisions_[key] = meshColorRevision_;
@@ -57,24 +82,22 @@ uint64_t ECSChangeTracker::GetMeshColorRevision(const Entity& entity) const {
 	return found == meshColorRevisions_.end() ? 0 : found->second;
 }
 
-void ECSChangeTracker::MarkTransformConsumersModified(ComponentChangeChannel channels, std::span<const Entity> changedTransforms) {
+void ECSChangeTracker::MarkTransformConsumersModified(ComponentChangeChannel channels,
+	std::span<const Entity> changedTransforms) {
 
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Render)) {
+	// 描画に必要な直近のTransform差分を保持する
+	if (HasComponentChangeChannel(channels, ComponentChangeChannel::Render)) {
 		IncrementRevision(renderTransformRevision_);
 
 		RenderTransformChangeBatch batch{};
 		batch.revision = renderTransformRevision_;
-		batch.entities.assign(
-			changedTransforms.begin(), changedTransforms.end());
+		batch.entities.assign(changedTransforms.begin(), changedTransforms.end());
 		renderTransformChangeHistory_.emplace_back(std::move(batch));
-		while (kRenderTransformHistoryCount <
-			renderTransformChangeHistory_.size()) {
+		while (kRenderTransformHistoryCount < renderTransformChangeHistory_.size()) {
 			renderTransformChangeHistory_.pop_front();
 		}
 	}
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Lighting)) {
+	if (HasComponentChangeChannel(channels, ComponentChangeChannel::Lighting)) {
 		IncrementRevision(lightDataRevision_);
 	}
 }
@@ -88,20 +111,18 @@ bool ECSChangeTracker::CollectRenderTransformChanges(uint64_t afterRevision, std
 	if (renderTransformRevision_ < afterRevision) {
 		return false;
 	}
-	if (renderTransformChangeHistory_.empty() ||
-		afterRevision + 1 <
-		renderTransformChangeHistory_.front().revision) {
+	// 履歴より古い要求は全体更新へ戻す
+	if (renderTransformChangeHistory_.empty() || afterRevision + 1 < renderTransformChangeHistory_.front().revision) {
 		return false;
 	}
 
-	for (const RenderTransformChangeBatch& batch :
-		renderTransformChangeHistory_) {
+	for (const RenderTransformChangeBatch& batch : renderTransformChangeHistory_) {
 		if (batch.revision <= afterRevision) {
 			continue;
 		}
-		outEntities.insert(outEntities.end(),
-			batch.entities.begin(), batch.entities.end());
+		outEntities.insert(outEntities.end(), batch.entities.begin(), batch.entities.end());
 	}
+	// 複数世代で変更された同じEntityをまとめる
 	std::sort(outEntities.begin(), outEntities.end(),
 		[](const Entity& lhs, const Entity& rhs) {
 			if (lhs.index != rhs.index) {
@@ -109,9 +130,7 @@ bool ECSChangeTracker::CollectRenderTransformChanges(uint64_t afterRevision, std
 			}
 			return lhs.generation < rhs.generation;
 		});
-	outEntities.erase(
-		std::unique(outEntities.begin(), outEntities.end()),
-		outEntities.end());
+	outEntities.erase(std::unique(outEntities.begin(), outEntities.end()), outEntities.end());
 	return true;
 }
 
@@ -126,7 +145,7 @@ uint64_t ECSChangeTracker::AddComponentMutationListener(ComponentMutationCallbac
 	}
 	const uint64_t listenerID = nextComponentMutationListenerID_;
 	componentMutationListeners_.emplace_back(ComponentMutationListener{
-		.id = listenerID,
+		.listenerID = listenerID,
 		.callback = callback,
 		.userData = userData,
 		});
@@ -140,12 +159,13 @@ void ECSChangeTracker::RemoveComponentMutationListener(uint64_t listenerID) {
 		return;
 	}
 	for (auto& listener : componentMutationListeners_) {
-		if (listener.id == listenerID) {
+		if (listener.listenerID == listenerID) {
 			listener.callback = nullptr;
 			listener.userData = nullptr;
 			break;
 		}
 	}
+	// 通知中の削除は走査終了まで並びを保つ
 	if (notificationDepth_ == 0) {
 		std::erase_if(componentMutationListeners_, [](const auto& listener) { return !listener.callback; });
 	}
@@ -162,12 +182,10 @@ void ECSChangeTracker::IncrementRevision(uint64_t& revision) {
 void ECSChangeTracker::Notify(ECSWorld& world, const Entity& entity, uint32_t typeID,
 	ComponentMutationKind kind, ComponentChangeChannel channels) {
 
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Render)) {
+	if (HasComponentChangeChannel(channels, ComponentChangeChannel::Render)) {
 		MarkRenderDataModified(entity);
 	}
-	if (HasComponentChangeChannel(
-		channels, ComponentChangeChannel::Lighting)) {
+	if (HasComponentChangeChannel(channels, ComponentChangeChannel::Lighting)) {
 		IncrementRevision(lightDataRevision_);
 	}
 	// 破棄通知で作られた世代記録もここで回収する
@@ -177,6 +195,7 @@ void ECSChangeTracker::Notify(ECSWorld& world, const Entity& entity, uint32_t ty
 		entityRenderRevisions_.erase(key);
 	}
 	// 通知開始時の件数までを対象にし、削除済み購読は呼ばない
+	const auto lifetime = world.GetLifetime();
 	const size_t count = componentMutationListeners_.size();
 	++notificationDepth_;
 	std::exception_ptr failure;
@@ -193,6 +212,13 @@ void ECSChangeTracker::Notify(ECSWorld& world, const Entity& entity, uint32_t ty
 			if (!failure) {
 				failure = std::current_exception();
 			}
+		}
+		// 終了したWorldの購読配列へ戻らない
+		if (!lifetime->IsAlive()) {
+			if (failure) {
+				std::rethrow_exception(failure);
+			}
+			throw std::runtime_error("Component通知中にWorldが終了しました");
 		}
 	}
 	--notificationDepth_;
@@ -211,6 +237,7 @@ void ECSChangeTracker::MarkLightDataModified() {
 
 void ECSChangeTracker::CopySerializationRevisionsFrom(const ECSChangeTracker& source) {
 
+	// 購読と差分履歴を共有せず保存用の世代だけを移す
 	dataRevision_ = source.dataRevision_;
 	renderDataRevision_ = source.renderDataRevision_;
 	renderTransformRevision_ = source.renderTransformRevision_;

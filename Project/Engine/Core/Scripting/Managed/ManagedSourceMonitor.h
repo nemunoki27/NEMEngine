@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedSourceWatcher.h>
 
+// c++
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -38,6 +39,7 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
+		// 更新時刻とサイズによる変更判定
 		struct SourceStamp {
 
 			std::filesystem::file_time_type time{};

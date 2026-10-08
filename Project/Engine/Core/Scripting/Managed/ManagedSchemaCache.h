@@ -3,9 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>
+#include <Engine/Core/Scripting/Managed/ManagedScriptSchema.h>
 #include <Engine/Core/Scripting/Managed/ManagedBridgeExports.h>
 
+// c++
 #include <unordered_map>
 
 namespace Engine {
@@ -21,7 +22,8 @@ namespace Engine {
 		//========================================================================
 
 		// スキーマを取得し必要なら解析する
-		const ManagedScriptSchema& Get(const std::string& scriptTypeID, bool initialized, const ManagedBridgeExports& bridge);
+		const ManagedScriptSchema& Get(const std::string& scriptTypeID, bool initialized,
+			const ManagedBridgeExports& bridge);
 		// Assembly切替時に解析結果を破棄する
 		void Clear();
 	private:
@@ -31,6 +33,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 現在のAssemblyから解析した型情報
 		std::unordered_map<std::string, ManagedScriptSchema> schemaCache_;
 	};
 }

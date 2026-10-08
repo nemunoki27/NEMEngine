@@ -44,10 +44,14 @@ public struct Vector4 : IEquatable<Vector4> {
 
     //--------- operators ----------------------------------------------------
 
-    public static Vector4 operator +(Vector4 lhs, Vector4 rhs) => new(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
-    public static Vector4 operator -(Vector4 lhs, Vector4 rhs) => new(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
-    public static Vector4 operator *(Vector4 lhs, Vector4 rhs) => new(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w);
-    public static Vector4 operator /(Vector4 lhs, Vector4 rhs) => new(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w);
+    public static Vector4 operator +(Vector4 lhs, Vector4 rhs) =>
+        new(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w);
+    public static Vector4 operator -(Vector4 lhs, Vector4 rhs) =>
+        new(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w);
+    public static Vector4 operator *(Vector4 lhs, Vector4 rhs) =>
+        new(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w);
+    public static Vector4 operator /(Vector4 lhs, Vector4 rhs) =>
+        new(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w);
     public static Vector4 operator +(Vector4 lhs, float rhs) => new(lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs);
     public static Vector4 operator -(Vector4 lhs, float rhs) => new(lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs);
     public static Vector4 operator *(Vector4 lhs, float rhs) => new(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs);
@@ -59,7 +63,8 @@ public struct Vector4 : IEquatable<Vector4> {
     // 演算子は近似、Equalsは成分の一致で比較する
     public static bool operator ==(Vector4 lhs, Vector4 rhs) => (lhs - rhs).sqrMagnitude < 1e-10f;
     public static bool operator !=(Vector4 lhs, Vector4 rhs) => !(lhs == rhs);
-    public readonly bool Equals(Vector4 other) => x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w);
+    public readonly bool Equals(Vector4 other) =>
+        x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w);
     public override readonly bool Equals(object? other) => other is Vector4 value && Equals(value);
     public override readonly int GetHashCode() => HashCode.Combine(x, y, z, w);
 

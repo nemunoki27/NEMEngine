@@ -1,7 +1,5 @@
 #include "MeshNormalMatrixUtility.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
@@ -13,7 +11,7 @@ using namespace Engine;
 //============================================================================
 namespace {
 
-	// 線形部の左上3x3の行列式で行列式は転置で不変なのでrow/columnの添字順は問わない
+	// 線形部の3x3行列式を計算
 	float Calc3x3Determinant(const Engine::Matrix4x4& m) {
 
 		return
@@ -22,7 +20,7 @@ namespace {
 			m.m[0][2] * (m.m[1][0] * m.m[2][1] - m.m[1][1] * m.m[2][0]);
 	}
 
-	// 全要素が有限か(NaN/Infを含まないか)
+	// 全要素が有限か確認
 	bool IsMatrixFinite(const Engine::Matrix4x4& m) {
 
 		for (int i = 0; i < 4; ++i) {
@@ -35,7 +33,7 @@ namespace {
 		return true;
 	}
 
-	// 平行移動成分を落として線形部だけ残しfallback時に法線変換へそのまま流用する
+	// 平行移動と射影成分を除去
 	Engine::Matrix4x4 ExtractLinearPart(const Engine::Matrix4x4& m) {
 
 		Engine::Matrix4x4 linear = m;
@@ -54,7 +52,7 @@ Engine::MeshNormalMatrixResult Engine::BuildSafeMeshNormalMatrix(const Matrix4x4
 
 	MeshNormalMatrixResult result{};
 
-	// 入力自体が壊れている場合はIdentityへ倒す
+	// 非有限の入力には単位行列を使用
 	if (!IsMatrixFinite(transform)) {
 
 		result.matrix = Matrix4x4::Identity();
@@ -65,23 +63,23 @@ Engine::MeshNormalMatrixResult Engine::BuildSafeMeshNormalMatrix(const Matrix4x4
 
 	const float det = Calc3x3Determinant(transform);
 
-	// 行列式の符号で向きのmirrorを判定し退化時も符号だけは決めておく
+	// 行列式から従法線の向きを決定
 	result.orientationSign = (det < 0.0f) ? -1.0f : 1.0f;
 
-	// 0スケールや極小スケールではinverseが発散するため、逆行列を呼ばずfallbackする
+	// 退化した線形部の逆行列計算を避ける
 	constexpr float kDeterminantEpsilon = 1e-8f;
 	if (!std::isfinite(det) || std::abs(det) <= kDeterminantEpsilon) {
 
-		// fallbackは決定的にし線形部をそのまま法線変換へ流用して最低限描画を壊さない
+		// 代替の線形行列を使用
 		result.matrix = ExtractLinearPart(transform);
 		result.usedFallback = true;
 		return result;
 	}
 
-	// 通常時はinverse-transposeを法線変換行列とする
+	// 法線用の逆転置行列を計算
 	const Matrix4x4 normalMatrix = Matrix4x4::Transpose(Matrix4x4::Inverse(transform));
 
-	// inverseが万一NaN/Infを生んだ場合の保険
+	// 逆行列の計算結果を確認
 	if (!IsMatrixFinite(normalMatrix)) {
 
 		result.matrix = ExtractLinearPart(transform);

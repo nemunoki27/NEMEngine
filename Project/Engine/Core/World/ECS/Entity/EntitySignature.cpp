@@ -1,6 +1,11 @@
 #include "EntitySignature.h"
 
 //============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
+
+//============================================================================
 //	EntitySignature classMethods
 //============================================================================
 bool Engine::operator==(const Engine::EntitySignature& signatureA, const Engine::EntitySignature& signatureB) {
@@ -44,7 +49,7 @@ size_t Engine::EntitySignatureHash::operator()(const EntitySignature& signature)
 	size_t hash = 1469598103934665603ull;
 	for (const auto& word : signature.words) {
 
-		hash ^= static_cast<size_t>(word) + 0x9e3779b97f4a7c15ull + (hash << 6) + (hash >> 2);
+		hash = Algorithm::MixHash(hash, static_cast<size_t>(word));
 	}
 	return hash;
 }

@@ -1,9 +1,9 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptUtility.h"
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/World/Components/UI/UISelectableComponent.h>
@@ -21,6 +21,7 @@ namespace Engine {
 
 	namespace {
 
+		// 操作と機器の番号を検証
 		bool IsCanvasBindingCategoryValid(int32_t action, int32_t device) {
 
 			return 0 <= action &&
@@ -77,15 +78,14 @@ namespace Engine {
 			return 0;
 		}
 
-		// 外部Runtimeストレージから固定長スナップショットだけを渡す
+		// C#へ固定長の実行状態をコピー
 		outState->displayedValue = runtime->displayedValue;
 		outState->delayedValue = runtime->delayedValue;
 		outState->initialized = runtime->initialized ? 1 : 0;
 		return 1;
 	}
 
-	int32_t ManagedScriptRuntime::GetCanvasInputLockedCallback(
-		ManagedNativeEntity entity) {
+	int32_t ManagedScriptRuntime::GetCanvasInputLockedCallback(ManagedNativeEntity entity) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
@@ -96,8 +96,7 @@ namespace Engine {
 		return runtime && runtime->inputLocked ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::GetUIButtonClickedCallback(
-		ManagedNativeEntity entity, int32_t buttonType) {
+	int32_t ManagedScriptRuntime::GetUIButtonClickedCallback(ManagedNativeEntity entity, int32_t buttonType) {
 
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
@@ -136,8 +135,8 @@ namespace Engine {
 			static_cast<CanvasInputAction>(action);
 		const CanvasInputDevice targetDevice =
 			static_cast<CanvasInputDevice>(device);
-		const std::span<const CanvasInputBinding> stored =
-			GetCanvasInputBindings(*world, resolved);
+		// 指定された操作と機器のBindingだけをコピー
+		const std::span<const CanvasInputBinding> stored = GetCanvasInputBindings(*world, resolved);
 		int32_t count = 0;
 		for (const CanvasInputBinding& binding : stored) {
 			if (binding.action == targetAction &&
@@ -176,6 +175,7 @@ namespace Engine {
 			targetDevice == CanvasInputDevice::Keyboard ?
 			255 : static_cast<int32_t>(GamePadButtons::Counts) - 1;
 
+		// 対象以外のBindingを残して重複を除外
 		std::vector<CanvasInputBinding> replaced;
 		const std::span<const CanvasInputBinding> stored =
 			GetCanvasInputBindings(*world, resolved);
@@ -192,8 +192,7 @@ namespace Engine {
 			if (code < minCode || maxCode < code) {
 				continue;
 			}
-			const bool duplicated = std::any_of(
-				replaced.begin(), replaced.end(),
+			const bool duplicated = std::any_of(replaced.begin(), replaced.end(),
 				[&](const CanvasInputBinding& binding) {
 					return binding.code == code &&
 						binding.action == targetAction &&
@@ -237,8 +236,7 @@ namespace Engine {
 		if (!world) {
 			return static_cast<int32_t>(CanvasNavigationTableResult::InvalidCanvas);
 		}
-		return static_cast<int32_t>(
-			ResizeCanvasNavigationTable(*world, resolved, rows, columns));
+		return static_cast<int32_t>(ResizeCanvasNavigationTable(*world, resolved, rows, columns));
 	}
 
 	int32_t ManagedScriptRuntime::CanvasGetNavigationCellCallback(
@@ -283,8 +281,7 @@ namespace Engine {
 				return static_cast<int32_t>(CanvasNavigationTableResult::InvalidTarget);
 			}
 		}
-		return static_cast<int32_t>(
-			SetCanvasNavigationCell(*world, resolved, row, column, resolvedTarget));
+		return static_cast<int32_t>(SetCanvasNavigationCell(*world, resolved, row, column, resolvedTarget));
 	}
 
 	int32_t ManagedScriptRuntime::CanvasScreenToLocalPointCallback(

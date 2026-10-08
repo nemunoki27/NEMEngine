@@ -17,6 +17,7 @@ namespace Engine::ShaderGraphStageSource {
 							 "#include \"Builtin/Raytracing/reflection.RT.hlsl\"\n"
 							 "#include \"" +
 							 std::string(surfaceIncludeFile) + "\"\n\n";
+		// 命中面の属性を表面評価へ渡す
 		source += context.BuildMaterialConstantBuffer(5, "RayTracingParameters");
 		source += "\n" + context.BuildMaterialParameterGetter() + "\n";
 		source += "ShaderGraphSurface EvaluateRayTracingShaderGraph(\n"
@@ -229,6 +230,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\treturn result;\n"
 				  "}\n\n";
 		source += context.BuildCustomFunctionDeclarations();
+		// 画面入力からRay生成の出力式を評価する
 		source += "\n[shader(\"raygeneration\")]\n"
 				  "void RenderFeatureRayGeneration() {\n\n"
 				  "\tuint2 pixel = DispatchRaysIndex().xy;\n"

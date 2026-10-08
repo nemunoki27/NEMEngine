@@ -11,9 +11,7 @@ internal enum ScriptCollisionCallback {
 // Script通知の参照解決と例外境界をまとめる
 internal sealed unsafe class ScriptCallbackInvoker {
 
-    private readonly ScriptInstanceStore instances;
-    private readonly ManagedAssemblySession session;
-
+    // 個体管理と保存参照の解決を接続する
     internal ScriptCallbackInvoker(ScriptInstanceStore instances, ManagedAssemblySession session) {
 
         this.instances = instances;
@@ -29,7 +27,9 @@ internal sealed unsafe class ScriptCallbackInvoker {
 
         try {
             // 保留値と保存callbackも例外境界内で処理する
-            session.codec.FlushPendingReferenceFields();
+            if (!PrepareInvocation(handle, script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
             body(script);
             return ManagedStatus.Ok;
         }
@@ -53,7 +53,9 @@ internal sealed unsafe class ScriptCallbackInvoker {
         };
         try {
             // 未解決参照の再適用も例外境界へ含める
-            session.codec.FlushPendingReferenceFields();
+            if (!PrepareInvocation(handle, script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
             Action<MonoBehaviour, Collision>? callback = phase switch {
                 ScriptCollisionCallback.Enter => script.callbacks.OnCollisionEnter,
                 ScriptCollisionCallback.Stay => script.callbacks.OnCollisionStay,
@@ -76,7 +78,9 @@ internal sealed unsafe class ScriptCallbackInvoker {
             return ManagedStatus.InvalidInstanceHandle;
         }
         try {
-            session.codec.FlushPendingReferenceFields();
+            if (!PrepareInvocation(handle, script)) {
+                return ManagedStatus.InvalidInstanceHandle;
+            }
             script.callbacks.OnAnimationEvent?.Invoke(script, new AnimationEvent(
                 ManagedUTF8Transfer.PtrToString(name) ?? string.Empty, floatParam, intParam,
                 ManagedUTF8Transfer.PtrToString(stringParam) ?? string.Empty));
@@ -87,5 +91,15 @@ internal sealed unsafe class ScriptCallbackInvoker {
                 session.registry, script, nameof(ScriptCallbacks.OnAnimationEvent), ex);
             return ManagedStatus.ScriptException;
         }
+    }
+
+    private readonly ScriptInstanceStore instances;
+    private readonly ManagedAssemblySession session;
+
+    // 参照解決後も同じ個体と世代なら通知する
+    private bool PrepareInvocation(NativeScriptInstanceHandle handle, MonoBehaviour script) {
+
+        session.codec.FlushPendingReferenceFields();
+        return instances.TryResolveSlot(handle, out MonoBehaviour current) && ReferenceEquals(script, current);
     }
 }

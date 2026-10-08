@@ -62,7 +62,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	uint64_t parameterGeneration, bool& usesFallbackTexture) {
 
 	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
-	// シェーダーがMaterialParameters構造化バッファを宣言していないバッチはここで早期に無効化する
+	// Materialの転送先を検証
 	activeSubMeshParamBuffer_ = nullptr;
 	if (!layout.IsValid() || parameters.empty() || !device || !srvDescriptor) {
 		return;
@@ -80,14 +80,12 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 
 	bool usedFallbackTexture = false;
 
-	// テクスチャSemanticからsRGB可否を決めてbindless indexへ解決する
-	// 未指定はkNoTextureを返しシェーダー側でテクスチャなしの分岐に乗せる
+	// Textureの用途に合わせてGPU番号を解決
 	auto resolveTexture = [&](MaterialParameterSemantic semantic,
 		const AssetID& id) {
 
 		const MaterialParameterBufferBuilder::TextureResolveResult result =
-			BackendDrawCommon::ResolveMaterialTextureIndex(
-				drawContext, semantic, id);
+			BackendDrawCommon::ResolveMaterialTextureIndex(drawContext, semantic, id);
 		usedFallbackTexture |= !result.cacheable;
 		return result;
 		};
@@ -96,7 +94,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 	const MaterialParameterSet& defaults =
 		material ? material->parameters : emptyMap;
 
-	// リフレクションから取得した構造体strideをそのまま使用する
+	// Shaderの要素配置に合わせて転送領域を準備
 	const uint32_t stride = layout.GetSizeInBytes();
 	const uint32_t elementCount = static_cast<uint32_t>(parameters.size());
 	const uint64_t layoutHash = layout.GetContentHash();
@@ -117,7 +115,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 		for (uint32_t i = 0; i < elementCount; ++i) {
 			if (!rebuildPacked && buffer.sourceGenerations[i] == generations[i]) { continue; }
 			const size_t offset = static_cast<size_t>(stride) * i;
-			// 小さいstrideもBuilderの最小領域を満たし、要素ごとのヒープ確保を避ける
+			// 小さい要素はスタック上で構築
 			std::array<uint8_t, 16> smallElement{};
 			const std::span<uint8_t> destination(buffer.packedScratch.data() + offset, stride);
 			const std::span<uint8_t> element = stride < smallElement.size() ?
@@ -143,7 +141,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 		buffer.packedSourceGeneration = parameterGeneration;
 	}
 
-	// 容量不足時は全フレーム分を拡張し、stride変更時はSRVだけを更新する
+	// Bufferの容量とSRVの要素幅を更新
 	const uint32_t requiredBytes =
 		static_cast<uint32_t>(buffer.packedScratch.size());
 	const std::string resourceName =
@@ -160,8 +158,7 @@ void Engine::MeshMaterialBuffers::UploadSubMeshMaterialParams(const MaterialAsse
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = (std::max)(
-			static_cast<uint32_t>(buffer.buffer.GetCapacity()) / stride, 1u);
+		srvDesc.Buffer.NumElements = (std::max)(static_cast<uint32_t>(buffer.buffer.GetCapacity()) / stride, 1u);
 		srvDesc.Buffer.StructureByteStride = stride;
 		srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 		for (uint32_t frameIndex = 0;

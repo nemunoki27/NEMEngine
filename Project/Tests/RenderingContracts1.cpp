@@ -1,7 +1,6 @@
 #include "TestContracts.h"
 #include "TestFixtures.h"
 #include <Engine/Core/Rendering/Pipelines/ShaderSourcePathResolver.h>
-#include <Engine/Core/Rendering/Pipelines/Stage/BlendState.h>
 #include <Engine/Core/Rendering/Core/GraphicsFeatureSelection.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderCompiler.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -14,6 +13,8 @@
 #include <Engine/Core/World/Components/UI/CanvasComponent.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineImmediateBuffer.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Line/LineRenderItemExtractor.h>
+#include <Engine/Core/Rendering/DebugDraw/Lines/Dimensions/LineRenderer3D.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Builtin/Particle/ParticleRenderDataUtility.h>
 #include <Engine/Core/World/Components/Rendering/LineRendererComponent.h>
 
 //============================================================================
@@ -40,6 +41,14 @@
 #include <utility>
 
 namespace NEMTests {
+
+	// 球描画の省略引数で呼出先が曖昧にならないことを確認する
+	static_assert(requires(Engine::LineRenderer3D& renderer, const Engine::Vector3& center, const Engine::Color4& color) {
+		renderer.DrawSphere(center, 1.0f, color);
+		renderer.DrawSphere(center, 1.0f, color, 2.0f);
+		renderer.DrawSphereGrid(center, 1.0f, color);
+		renderer.DrawSphereGrid(center, 1.0f, color, 8, 2.0f);
+	});
 
 	bool TestBuiltinShaderSources() {
 
@@ -71,6 +80,25 @@ namespace NEMTests {
 	}
 
 	bool TestMeshShaderConstantLayout() {
+
+		// 不正なoffsetでもParticleの転送先を変更しない
+		std::vector<uint8_t> customData(8, 0x5a);
+		const auto initialData = customData;
+		Engine::ShaderConstantBufferVariable variable{};
+		variable.valueType = D3D_SVT_FLOAT;
+		variable.size = sizeof(float);
+		variable.offset = (std::numeric_limits<uint32_t>::max)();
+		const Engine::Vector4 parameter(2.0f, 0.0f, 0.0f, 0.0f);
+		Engine::WriteParticleCustomParameter(customData, variable, parameter);
+		if (customData != initialData) return false;
+		variable.offset = 5;
+		Engine::WriteParticleCustomParameter(customData, variable, parameter);
+		if (customData != initialData) return false;
+		variable.offset = 4;
+		Engine::WriteParticleCustomParameter(customData, variable, parameter);
+		float storedValue = 0.0f;
+		std::memcpy(&storedValue, customData.data() + 4, sizeof(storedValue));
+		if (storedValue != parameter.x || !std::equal(customData.begin(), customData.begin() + 4, initialData.begin())) return false;
 
 		Engine::DxShaderCompiler compiler;
 		compiler.Init();
@@ -109,6 +137,7 @@ namespace NEMTests {
 				{ "renderCameraPos", offsetof(Engine::MeshViewConstants, renderCameraPos) },
 				{ "lodView", offsetof(Engine::MeshViewConstants, lodView) },
 				{ "lodNearClip", offsetof(Engine::MeshViewConstants, lodNearClip) },
+				{ "lodOrthographic", offsetof(Engine::MeshViewConstants, lodOrthographic) },
 			};
 			for (const auto& [name, offset] : offsets) {
 				const auto found = std::find_if(view->variables.begin(), view->variables.end(),
@@ -197,6 +226,28 @@ namespace NEMTests {
 
 	bool TestMeshLODGeneration() {
 
+		// 非表示SubMeshを除いてもLODの対応を崩さない
+		std::array<Engine::SubMeshDesc, 3> sparseSubMeshes{};
+		sparseSubMeshes[0].lods[2] = { .indexOffset = 10, .indexCount = 3 };
+		sparseSubMeshes[1].lods[2] = { .indexOffset = 20, .indexCount = 3 };
+		sparseSubMeshes[2].lods[2] = { .indexOffset = 30, .indexCount = 3 };
+		const std::array<uint32_t, 2> visibleIndices{ 1, 2 };
+		std::array<Engine::RaytracingGeometryShaderData, 3> geometryData{};
+		geometryData[0] = { .subMeshDataIndex = 7, .indexOffset = 1, .pickRecordIndex = 8 };
+		geometryData[1] = { .subMeshDataIndex = 9, .indexOffset = 2, .pickRecordIndex = 10 };
+		geometryData[2].indexOffset = 1234;
+		const auto firstMesh = std::span<Engine::RaytracingGeometryShaderData>(geometryData).first(2);
+		using Engine::RaytracingSceneGeometryUtility::UpdateGeometryLODOffsets;
+		if (!UpdateGeometryLODOffsets(sparseSubMeshes, visibleIndices, 2, firstMesh) ||
+			geometryData[0].indexOffset != 20 || geometryData[1].indexOffset != 30 || geometryData[2].indexOffset != 1234 ||
+			geometryData[0].subMeshDataIndex != 7 || geometryData[0].pickRecordIndex != 8 ||
+			geometryData[1].subMeshDataIndex != 9 || geometryData[1].pickRecordIndex != 10) return false;
+		// 不正な対応番号は適用済みのGeometryも変更しない
+		const std::array<uint32_t, 2> invalidIndices{ 0, 3 };
+		if (UpdateGeometryLODOffsets(sparseSubMeshes, invalidIndices, 2, firstMesh) ||
+			UpdateGeometryLODOffsets(sparseSubMeshes, visibleIndices, 2, firstMesh.first(1)) ||
+			geometryData[0].indexOffset != 20 || geometryData[1].indexOffset != 30 || geometryData[2].indexOffset != 1234) return false;
+
 		// 同じ形状でも描画Cameraの距離に応じてLODを選ぶ
 		Engine::GraphicsRuntimeFeatures features;
 		features.useMeshLOD = true;
@@ -213,6 +264,16 @@ namespace NEMTests {
 		if (ResolveMeshLOD(features, &nearView, center, 1.0f) != 1 ||
 			ResolveMeshLOD(features, &farView, center, 1.0f) != 3 ||
 			ComputeLODViewHash(features, &nearView) == ComputeLODViewHash(features, &farView)) return false;
+		// 平行投影のLODは距離で変わらず、投影倍率に応じて切り替わる
+		Engine::ResolvedRenderView orthoView = nearView;
+		orthoView.perspective.projectionMode = Engine::ResolvedProjectionMode::Orthographic;
+		if (ResolveMeshLOD(features, &orthoView, center, 1.0f) != 0 ||
+			ComputeLODViewHash(features, &orthoView) == ComputeLODViewHash(features, &nearView)) return false;
+		orthoView.perspective.matrices.projectionMatrix.m[0][0] = 0.1f;
+		orthoView.perspective.matrices.projectionMatrix.m[1][1] = 0.1f;
+		if (ResolveMeshLOD(features, &orthoView, center, 1.0f) != 1) return false;
+		orthoView.perspective.matrices.viewMatrix.m[3][2] = 1000.0f;
+		if (ResolveMeshLOD(features, &orthoView, center, 1.0f) != 1) return false;
 		features.useMeshLOD = false;
 		if (ResolveMeshLOD(features, &farView, center, 1.0f) != 0) return false;
 		constexpr uint32_t gridSize = 32;
@@ -389,51 +450,5 @@ namespace NEMTests {
 			dispatchRaysFeatures.useDispatchRays;
 	}
 
-	bool TestBlendStates() {
-
-		struct ExpectedBlendState {
-
-			Engine::BlendMode mode;
-			D3D12_BLEND source;
-			D3D12_BLEND destination;
-			D3D12_BLEND_OP operation;
-		};
-		constexpr std::array expectedStates = {
-			ExpectedBlendState{ Engine::BlendMode::Normal,
-				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_INV_SRC_ALPHA,
-				D3D12_BLEND_OP_ADD },
-			ExpectedBlendState{ Engine::BlendMode::Add,
-				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_ONE,
-				D3D12_BLEND_OP_ADD },
-			ExpectedBlendState{ Engine::BlendMode::Subtract,
-				D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_ONE,
-				D3D12_BLEND_OP_REV_SUBTRACT },
-			ExpectedBlendState{ Engine::BlendMode::Multiply,
-				D3D12_BLEND_ZERO, D3D12_BLEND_SRC_COLOR,
-				D3D12_BLEND_OP_ADD },
-			ExpectedBlendState{ Engine::BlendMode::Screen,
-				D3D12_BLEND_INV_DEST_COLOR, D3D12_BLEND_ONE,
-				D3D12_BLEND_OP_ADD },
-			ExpectedBlendState{ Engine::BlendMode::Premultiplied,
-				D3D12_BLEND_ONE, D3D12_BLEND_INV_SRC_ALPHA,
-				D3D12_BLEND_OP_ADD },
-		};
-		for (const ExpectedBlendState& expected : expectedStates) {
-
-			D3D12_RENDER_TARGET_BLEND_DESC desc{};
-			Engine::BlendState{}.Create(expected.mode, desc);
-			if (!desc.BlendEnable ||
-				desc.SrcBlend != expected.source ||
-				desc.DestBlend != expected.destination ||
-				desc.BlendOp != expected.operation ||
-				desc.SrcBlendAlpha != D3D12_BLEND_ONE ||
-				desc.DestBlendAlpha != D3D12_BLEND_INV_SRC_ALPHA ||
-				desc.BlendOpAlpha != D3D12_BLEND_OP_ADD) {
-
-				return false;
-			}
-		}
-		return true;
-	}
 
 }

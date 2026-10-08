@@ -28,7 +28,9 @@ namespace Engine {
 		template <typename T>
 		void MoveListItem(std::vector<T>& list, int32_t from, int32_t to) {
 
-			if (from < 0 || to < 0 || list.size() <= static_cast<size_t>(from) || list.size() <= static_cast<size_t>(to)) { return; }
+			if (from < 0 || to < 0 || list.size() <= static_cast<size_t>(from) || list.size() <= static_cast<size_t>(to)) {
+				return;
+			}
 			if (from < to) {
 				std::rotate(list.begin() + from, list.begin() + from + 1, list.begin() + to + 1);
 			} else {
@@ -39,7 +41,7 @@ namespace Engine {
 		//============================================================================
 		//	Enum
 		//============================================================================
-		// 列挙の0..(enumValue-1)をuint32配列として取得する
+		// 先頭から指定した列挙値の直前まで取得する
 		template <typename Enum, typename = std::enable_if_t<std::is_enum_v<Enum>>>
 		std::vector<uint32_t> GetEnumArray(Enum enumValue) {
 
@@ -62,43 +64,33 @@ namespace Engine {
 		//============================================================================
 		//	Find
 		//============================================================================
-		// メンバfindを持つ連想系コンテナでキーの存在を判定する、必要に応じAssert::Call
+		// コンテナがキーによる探索を持つか判定する
 		template <typename, typename = std::void_t<>>
 		struct has_find_method : std::false_type {};
 		template <typename T>
 		struct has_find_method<T, std::void_t<decltype(std::declval<T>().find(std::declval<typename T::key_type>()))>>
-			: std::true_type {
-		};
+			: std::true_type {};
 		template <typename T>
 		constexpr bool has_find_method_v = has_find_method<T>::value;
 
-		// 連想コンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
+		// コンテナからキーを探索する
 		template <typename TA, typename TB>
-		typename std::enable_if_t<has_find_method_v<TA>, bool>
-			Find(const TA& object, const TB& key, bool assertionEnable = false) {
+		bool Find(const TA& object, const TB& key, bool assertionEnable = false) {
 
-			auto it = object.find(key);
-			bool found = it != object.end();
-
+			// コンテナの探索方法を選択
+			const bool found = [&]() {
+				if constexpr (has_find_method_v<TA>) {
+					return object.find(key) != object.end();
+				} else {
+					return std::find(object.begin(), object.end(), key) != object.end();
+				}
+			}();
+			// 指定された場合だけ未発見を通知
 			if (!found && assertionEnable) {
 				Assert::Call(false, "対象オブジェクトが見つかりません");
 			}
-			return found;
-		}
-		// シーケンスコンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
-		template <typename TA, typename TB>
-		typename std::enable_if_t<!has_find_method_v<TA>, bool>
-			Find(const TA& object, const TB& key, bool assertionEnable = false) {
-
-			auto it = std::find(object.begin(), object.end(), key);
-			bool found = it != object.end();
-
-			if (!found && assertionEnable) {
-				Assert::Call(false, "対象オブジェクトが見つかりません");
-			}
-
 			return found;
 		}
 
 	}
-}; // Engine
+}

@@ -6,6 +6,8 @@
 #include <Engine/Core/Rendering/DxObject/Buffers/DxFrameMappedUploadBuffer.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+
+// c++
 #include <array>
 #include <memory>
 #include <span>
@@ -35,7 +37,12 @@ namespace Engine {
 		void Release(SRVDescriptor* srvDescriptor);
 		// パラメータの再構築を要求する
 		void Invalidate();
+		// 現在Passの転送先を解除
 		void ResetActive() { activeSubMeshParamBuffer_ = nullptr; }
+
+		//--------- accessor -----------------------------------------------------
+
+		// 現在Passの転送先を使用できるか
 		bool IsAvailable() const { return activeSubMeshParamBuffer_ && activeSubMeshParamBuffer_->available; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const;
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle() const;
@@ -44,6 +51,9 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- structure ----------------------------------------------------
+
+		// Passの転送先とMaterial値の更新世代
 		struct SubMeshMaterialParamBuffer {
 
 			DxFrameMappedUploadBuffer buffer{};
@@ -68,11 +78,15 @@ namespace Engine {
 			bool dirty = true;
 		};
 
+		//--------- variables ----------------------------------------------------
+
 		static constexpr size_t kSubMeshMaterialPassBufferCount =
 			static_cast<size_t>(MaterialPassKind::RayTracing) + 1;
 		std::array<std::unordered_map<AssetID, std::unique_ptr<SubMeshMaterialParamBuffer>>,
 			kSubMeshMaterialPassBufferCount> subMeshParamBuffers_{};
 		SubMeshMaterialParamBuffer* activeSubMeshParamBuffer_ = nullptr;
+
+		//--------- functions ----------------------------------------------------
 
 		// PassのBufferを取得する
 		SubMeshMaterialParamBuffer& GetSubMeshMaterialParamBuffer(MaterialPassKind passKind, AssetID renderTextureTarget);

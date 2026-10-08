@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
+
 // c++
 #include <algorithm>
 #include <array>
@@ -27,29 +29,7 @@ namespace {
 		//	public Methods
 		//========================================================================
 
-		SHA256Context() {
-
-			// 鍵を使わないSHA-256を開く
-			if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&algorithm_, BCRYPT_SHA256_ALGORITHM, nullptr, 0))) {
-				return;
-			}
-
-			// Hashの管理領域と出力長を取得する
-			ULONG resultSize = 0;
-			if (!BCRYPT_SUCCESS(BCryptGetProperty(algorithm_, BCRYPT_OBJECT_LENGTH, reinterpret_cast<PUCHAR>(&objectSize_),
-					sizeof(objectSize_), &resultSize, 0)) ||
-				!BCRYPT_SUCCESS(BCryptGetProperty(
-					algorithm_, BCRYPT_HASH_LENGTH, reinterpret_cast<PUCHAR>(&hashSize_), sizeof(hashSize_), &resultSize, 0))) {
-				return;
-			}
-
-			// Contextの所有領域にHashを作成する
-			object_.resize(objectSize_);
-			if (!BCRYPT_SUCCESS(
-					BCryptCreateHash(algorithm_, &hash_, object_.data(), static_cast<ULONG>(object_.size()), nullptr, 0, 0))) {
-				hash_ = nullptr;
-			}
-		}
+		SHA256Context() = default;
 
 		~SHA256Context() {
 
@@ -64,6 +44,32 @@ namespace {
 
 		SHA256Context(const SHA256Context&) = delete;
 		SHA256Context& operator=(const SHA256Context&) = delete;
+
+		// 初期化途中の例外でもContextの所有資源を解放する
+		bool Initialize() {
+
+			// 鍵を使わないSHA-256を開く
+			if (!BCRYPT_SUCCESS(BCryptOpenAlgorithmProvider(&algorithm_, BCRYPT_SHA256_ALGORITHM, nullptr, 0))) {
+				return false;
+			}
+
+			// Hashの管理領域と出力長を取得する
+			ULONG resultSize = 0;
+			if (!BCRYPT_SUCCESS(BCryptGetProperty(algorithm_, BCRYPT_OBJECT_LENGTH, reinterpret_cast<PUCHAR>(&objectSize_),
+					sizeof(objectSize_), &resultSize, 0)) ||
+				!BCRYPT_SUCCESS(BCryptGetProperty(
+					algorithm_, BCRYPT_HASH_LENGTH, reinterpret_cast<PUCHAR>(&hashSize_), sizeof(hashSize_), &resultSize, 0))) {
+				return false;
+			}
+
+			// Contextの所有領域にHashを作成する
+			object_.resize(objectSize_);
+			if (!BCRYPT_SUCCESS(
+					BCryptCreateHash(algorithm_, &hash_, object_.data(), static_cast<ULONG>(object_.size()), nullptr, 0, 0))) {
+				hash_ = nullptr;
+			}
+			return IsValid();
+		}
 
 		// 読み取り専用データをHashへ追加する
 		bool Update(const void* data, size_t size) {
@@ -105,6 +111,7 @@ namespace {
 			}
 			return result;
 		}
+
 		//--------- accessor -----------------------------------------------------
 
 		// Hashの作成に成功したか取得する
@@ -131,7 +138,7 @@ std::string Engine::ContentHash::SHA256(std::span<const uint8_t> bytes) {
 
 	// 呼出元のデータを変更せずHash化する
 	SHA256Context context;
-	if (!context.IsValid() || !context.Update(bytes.data(), bytes.size())) {
+	if (!context.Initialize() || !context.Update(bytes.data(), bytes.size())) {
 		return {};
 	}
 	return context.Finish();
@@ -140,23 +147,37 @@ std::string Engine::ContentHash::SHA256(std::span<const uint8_t> bytes) {
 std::string Engine::ContentHash::FileSHA256(const std::filesystem::path& path) {
 
 	// ファイルを分割して読み込む
-	std::ifstream file(path, std::ios::binary);
+	std::ifstream file(Algorithm::ToFileSystemPath(path), std::ios::binary);
 	if (!file.is_open()) {
 		return {};
 	}
 
+	return ReadSHA256([&file](std::span<uint8_t> buffer, size_t& count) {
+
+		file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
+		count = static_cast<size_t>(file.gcount());
+		return !file.bad() && (!file.fail() || file.eof());
+	});
+}
+
+std::string Engine::ContentHash::ReadSHA256(const std::function<bool(std::span<uint8_t>, size_t&)>& read) {
+
 	SHA256Context context;
-	if (!context.IsValid()) {
+	if (!read || !context.Initialize()) {
 		return {};
 	}
-
-	std::array<char, 64 * 1024> buffer{};
-	while (file) {
-
-		file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-		if (!context.Update(buffer.data(), static_cast<size_t>(file.gcount()))) {
+	// 読込元に依存せず同じ管理領域でHash化する
+	std::array<uint8_t, 64 * 1024> buffer{};
+	for (;;) {
+		size_t count = 0;
+		if (!read(buffer, count) || count > buffer.size()) {
+			return {};
+		}
+		if (count == 0) {
+			return context.Finish();
+		}
+		if (!context.Update(buffer.data(), count)) {
 			return {};
 		}
 	}
-	return file.eof() ? context.Finish() : std::string{};
 }

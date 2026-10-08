@@ -29,11 +29,12 @@ namespace NEMTests {
 		bool Remove();
 		// Scene削除前に外部Actorの所有を保持する
 		void CaptureSceneAssets();
-		std::vector<std::filesystem::path> GetSceneRecoveries() const;
+		std::vector<std::filesystem::path> GetStorageRecoveries() const;
 
 		//--------- accessor -----------------------------------------------------
 
 		const std::filesystem::path& GetPath() const { return path_; }
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -43,7 +44,6 @@ namespace NEMTests {
 
 		// この検証だけが所有する作業先
 		std::filesystem::path path_;
-		std::filesystem::path recoveryRoot_;
 		std::vector<std::filesystem::path> actorRoots_;
 	};
 
@@ -54,6 +54,7 @@ namespace NEMTests {
 		~TestFileReadLock();
 		TestFileReadLock(const TestFileReadLock&) = delete;
 		TestFileReadLock& operator=(const TestFileReadLock&) = delete;
+
 	private:
 		void* handle_ = nullptr;
 	};
@@ -67,8 +68,7 @@ namespace NEMTests {
 
 	struct TestBufferElement {
 
-		static constexpr Engine::ComponentStorageKind kStorageKind =
-			Engine::ComponentStorageKind::Buffer;
+		static constexpr Engine::ComponentStorageKind kStorageKind = Engine::ComponentStorageKind::Buffer;
 
 		int32_t value = 0;
 	};
@@ -79,11 +79,10 @@ namespace NEMTests {
 		Engine::BlobArray<int32_t> values{};
 	};
 
-	class SceneContextObserverSystem final :
-		public Engine::ISystem {
+	class SceneContextObserverSystem final : public Engine::ISystem {
 	public:
-		void OnSceneInstancesChanged(Engine::ECSWorld& world, Engine::SystemContext& context,
-			Engine::SceneChangePhase phase) override;
+		void OnSceneInstancesChanged(
+			Engine::ECSWorld& world, Engine::SystemContext& context, Engine::SceneChangePhase phase) override;
 
 		const char* GetName() const override { return "SceneContextObserverSystem"; }
 

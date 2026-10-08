@@ -1,4 +1,5 @@
 #include "ShaderGraphMaterialBuilder.h"
+#include "ShaderGraphParameterDefaults.h"
 
 //============================================================================
 //	include
@@ -112,32 +113,18 @@ namespace Engine::ShaderGraphMaterialBuilder {
 			material.renderState.castShadows = graph.renderState.castShadows;
 			material.renderState.receiveShadows = graph.renderState.receiveShadows;
 		}
-		// 公開Parameterの初期値を登録する
-		for (const ShaderGraphParameter& parameter : graph.parameters) {
-			if (!parameter.exposed || parameter.scope == ShaderGraphParameterScope::Global) {
-				continue;
-			}
-			material.parameters.Set(
-				MaterialParameterID::FromUUID(parameter.id), parameter.name, parameter.semantic, parameter.defaultValue);
-		}
-		// 実行時に切り替えるKeywordを登録する
-		for (const ShaderGraphKeyword& keyword : graph.keywords) {
-			if (!keyword.runtimeToggle) {
-				continue;
-			}
-			MaterialParameterValue value{};
-			if (keyword.type == ShaderGraphKeywordType::Boolean) {
-				value.value = keyword.defaultIndex != 0;
-			} else {
-				value.value = static_cast<int32_t>(keyword.defaultIndex);
-			}
-			material.parameters.Set(
-				MaterialParameterID::FromUUID(keyword.id), keyword.name, MaterialParameterSemantic::None, value);
+		// 公開値の初期設定を基本Materialへ加える
+		const auto defaults = ShaderGraphParameterDefaults::Build(graph);
+		for (const MaterialParameterRecord& record : defaults.GetRecords()) {
+			material.parameters.Set(record.id, record.namedValue.first, record.semantic, record.namedValue.second);
 		}
 		return material;
 	}
 
 	void ApplyToMaterial(const ShaderGraphArtifact& artifact, MaterialAsset& material) {
+
+		// 既存の編集値を保ち、展開で増えた初期値だけを加える
+		ShaderGraphParameterDefaults::ApplyMissing(artifact.compileOutput.defaultParameters, material.parameters);
 
 		if (MaterialPassBinding* pass = FindPass(material, MaterialPassKind::ZPrepass)) {
 			if (artifact.depthPipelineID) {

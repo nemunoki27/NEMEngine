@@ -34,6 +34,7 @@ int NEMTests::RunAllTests() {
 	}
 	if (!RunTest("TestAssetGUIDRoundTrip", TestAssetGUIDRoundTrip) ||
 		!RunTest("TestAssetDatabaseTransactions", TestAssetDatabaseTransactions) ||
+		!RunTest("TestFontGenerationContracts", TestFontGenerationContracts) ||
 		!RunTest("TestAssetWatcherLifetime", TestAssetWatcherLifetime) ||
 		!RunTest("TestAssetDependencyCandidates", TestAssetDependencyCandidates)) {
 		std::cerr << "AssetGUID round-trip failed\n";
@@ -67,8 +68,7 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Semantic JSON merge failed\n";
 		return 6;
 	}
-	if (!RunTest("TestSubScenes", TestSubScenes) ||
-		!RunTest("TestSceneSnapshotTransactions", TestSceneSnapshotTransactions)) {
+	if (!RunTest("TestSubScenes", TestSubScenes) || !RunTest("TestSceneSnapshotTransactions", TestSceneSnapshotTransactions)) {
 		std::cerr << "SubScene failed\n";
 		return 7;
 	}
@@ -80,13 +80,17 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Scene lifecycle context failed\n";
 		return 36;
 	}
-	if (!RunTest("TestSceneAssetStorage", TestSceneAssetStorage) || !RunTest("TestExternalActors", TestExternalActors) || !RunTest("TestSceneAssetCopy", TestSceneAssetCopy)) {
+	if (!RunTest("TestSceneAssetStorage", TestSceneAssetStorage) || !RunTest("TestExternalActors", TestExternalActors) ||
+		!RunTest("TestSceneAssetCopy", TestSceneAssetCopy)) {
 		std::cerr << "ExternalActors failed\n";
 		return 8;
 	}
 	if (!RunTest("TestBuiltinShaderSources", TestBuiltinShaderSources)) {
 		std::cerr << "Builtin shader source resolution failed\n";
 		return 9;
+	}
+	if (!RunTest("TestLineShapeSegments", TestLineShapeSegments)) {
+		return 44;
 	}
 	if (!RunTest("TestMeshShaderConstantLayout", TestMeshShaderConstantLayout)) {
 		std::cerr << "Mesh shader constant layout failed\n";
@@ -124,16 +128,20 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Transform dimension serialization failed\n";
 		return 26;
 	}
-	if (!RunTest("TestScreenSpaceOutlineSerialization", TestScreenSpaceOutlineSerialization) || !RunTest("TestScreenSpaceOutlineBinding", TestScreenSpaceOutlineBinding)) {
+	if (!RunTest("TestScreenSpaceOutlineSerialization", TestScreenSpaceOutlineSerialization) ||
+		!RunTest("TestScreenSpaceOutlineBinding", TestScreenSpaceOutlineBinding)) {
 		std::cerr << "Screen space outline serialization failed\n";
 		return 29;
 	}
-	if (!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) ||
-		!RunTest("TestScriptFieldStorage", TestScriptFieldStorage) || !RunTest("TestScriptProfiler", TestScriptProfiler)) {
+	if (!RunTest("TestManagedBuildDiagnostics", TestManagedBuildDiagnostics) ||
+		!RunTest("TestScriptExecutionOrderSettings", TestScriptExecutionOrderSettings) ||
+		!RunTest("TestScriptFieldStorage", TestScriptFieldStorage) || !RunTest("TestManagedSchemaCache", TestManagedSchemaCache) ||
+		!RunTest("TestScriptProfiler", TestScriptProfiler)) {
 		std::cerr << "Script execution order settings failed\n";
 		return 35;
 	}
-	if (!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) || !RunTest("TestRigidbodyBoxSeams", TestRigidbodyBoxSeams) || !RunTest("TestBoxSeamNeighborState", TestBoxSeamNeighborState) || !RunTest("TestBoxSeamLanding", TestBoxSeamLanding)) {
+	if (!RunTest("TestBoxInternalFaces", TestBoxInternalFaces) || !RunTest("TestRigidbodyBoxSeams", TestRigidbodyBoxSeams) ||
+		!RunTest("TestBoxSeamNeighborState", TestBoxSeamNeighborState) || !RunTest("TestBoxSeamLanding", TestBoxSeamLanding)) {
 		std::cerr << "Box collider seam contact failed\n";
 		return 27;
 	}
@@ -173,13 +181,16 @@ int NEMTests::RunAllTests() {
 		std::cerr << "Blend state failed\n";
 		return 30;
 	}
-	if (!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) || !RunTest("TestMaterialParameters", TestMaterialParameters) ||
+	if (!RunTest("TestMeshBatchInvalidation", TestMeshBatchInvalidation) ||
+		!RunTest("TestMaterialParameters", TestMaterialParameters) ||
+		!RunTest("TestMaterialParameterHash", TestMaterialParameterHash) ||
 		!RunTest("TestMeshAuthoringCache", TestMeshAuthoringCache) ||
 		!RunTest("TestPrimitiveTangents", TestPrimitiveTangents)) {
 		std::cerr << "Material parameter storage failed\n";
 		return 17;
 	}
-	if (!RunTest("TestShaderReflectionMerge", TestShaderReflectionMerge)) {
+	if (!RunTest("TestShaderReflectionMerge", TestShaderReflectionMerge) ||
+		!RunTest("TestRootSignaturePlanning", TestRootSignaturePlanning)) {
 		std::cerr << "Shader reflection merge failed\n";
 		return 23;
 	}
@@ -202,13 +213,25 @@ int NEMTests::RunAllTests() {
 	if (!RunTest("TestRendererLayerCulling", TestRendererLayerCulling) ||
 		!RunTest("TestRenderCameraHistory", TestRenderCameraHistory) ||
 		!RunTest("TestSceneGridProjection", TestSceneGridProjection) ||
+		!RunTest("TestRenderTargetSizing", TestRenderTargetSizing) ||
 		!RunTest("TestProjectAssetCopyTransaction", TestProjectAssetCopyTransaction) ||
+		!RunTest("TestModelImportBundle", TestModelImportBundle) ||
 		!RunTest("TestProjectAssetMoveTransaction", TestProjectAssetMoveTransaction) ||
 		!RunTest("TestMaterialCreationFailures", TestMaterialCreationFailures) ||
+		!RunTest("TestMaterialReflectionCache", TestMaterialReflectionCache) ||
+		!RunTest("TestMaterialResolverIndexChanges", TestMaterialResolverIndexChanges) ||
+		!RunTest("TestAssetDocumentRecovery", TestAssetDocumentRecovery) ||
 		!RunTest("TestShaderGraphPublication", TestShaderGraphPublication) ||
 		!RunTest("TestSceneViewCameraSettings", TestSceneViewCameraSettings) ||
 		!RunTest("TestRenderFeatureProfile", TestRenderFeatureProfile) ||
-		!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension)) {
+		!RunTest("TestRenderPassesSelectionRequests", TestRenderPassesSelectionRequests) ||
+		!RunTest("TestPerformanceGridCaptureRetry", TestPerformanceGridCaptureRetry) ||
+		!RunTest("TestPerformanceGridUpdateRollback", TestPerformanceGridUpdateRollback) ||
+		!RunTest("TestPerformanceGridWorldEnd", TestPerformanceGridWorldEnd) ||
+		!RunTest("TestEditorTransactionRollback", TestEditorTransactionRollback) ||
+		!RunTest("TestRenderPassesReflectionCache", TestRenderPassesReflectionCache) ||
+		!RunTest("TestPostProcessSourceExtension", TestPostProcessSourceExtension) ||
+		!RunTest("TestPostProcessPublication", TestPostProcessPublication)) {
 		std::cerr << "RenderFeature profile failed\n";
 		return 22;
 	}

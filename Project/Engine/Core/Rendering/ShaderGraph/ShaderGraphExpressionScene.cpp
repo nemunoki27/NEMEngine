@@ -19,20 +19,14 @@ ShaderGraphExpression ShaderGraphExpressionCompiler::EmitSceneNode(const ShaderG
 	case ShaderGraphNodeKind::SceneMaterial:
 	case ShaderGraphNodeKind::SceneEmissive: {
 		ShaderGraphExpression uv = EmitInput(node, 0, ShaderGraphValueType::Float2, "graphInput.uv");
-		const char* textureName = nullptr;
-		switch (node.kind) {
-		case ShaderGraphNodeKind::SceneColor:
-			textureName =
-				graph_.domain == ShaderGraphDomain::PostProcess ? "gSourceColor" : ShaderGraphBindingNames::kSceneColor;
-			break;
-		case ShaderGraphNodeKind::SceneMaterial:
+		// 対象の3種類から参照するTextureを決める
+		const char* textureName = ShaderGraphBindingNames::kSceneColor;
+		if (node.kind == ShaderGraphNodeKind::SceneMaterial) {
 			textureName = ShaderGraphBindingNames::kSceneMaterial;
-			break;
-		case ShaderGraphNodeKind::SceneEmissive:
+		} else if (node.kind == ShaderGraphNodeKind::SceneEmissive) {
 			textureName = ShaderGraphBindingNames::kSceneEmissive;
-			break;
-		default:
-			break;
+		} else if (graph_.domain == ShaderGraphDomain::PostProcess) {
+			textureName = "gSourceColor";
 		}
 		const std::string sample = std::string(textureName) + ".SampleLevel(gSampler, " + uv.code + ", 0.0f)";
 		switch (outputSlot) {

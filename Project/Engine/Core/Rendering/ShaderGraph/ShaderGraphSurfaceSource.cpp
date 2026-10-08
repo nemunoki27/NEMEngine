@@ -21,28 +21,28 @@ namespace Engine::ShaderGraphStageSource {
 			return {};
 		}
 
+		// 出力ピンから表面の値を生成する
 		const ShaderGraphExpression baseColor =
 			context.EmitInput(*output, 0, ShaderGraphValueType::Float4, "float4(1.0f, 1.0f, 1.0f, 1.0f)");
-		const ShaderGraphExpression normal =
-			is3D ? context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "graphInput.worldNormal")
-				 : ShaderGraphExpression{
-					   ShaderGraphValueType::Float3,
-					   "graphInput.worldNormal",
-				   };
-		const ShaderGraphExpression metallic = is3D ? context.EmitInput(*output, 2, ShaderGraphValueType::Float, "0.0f")
-													: ShaderGraphExpression{ShaderGraphValueType::Float, "0.0f"};
-		const ShaderGraphExpression roughness = is3D ? context.EmitInput(*output, 3, ShaderGraphValueType::Float, "0.5f")
-													 : ShaderGraphExpression{ShaderGraphValueType::Float, "0.5f"};
-		const ShaderGraphExpression ao = is3D ? context.EmitInput(*output, 4, ShaderGraphValueType::Float, "1.0f")
-											  : ShaderGraphExpression{ShaderGraphValueType::Float, "1.0f"};
-		const ShaderGraphExpression emissive = is3D ? context.EmitInput(*output, 5, ShaderGraphValueType::Float3, "0.0f.xxx")
-													: ShaderGraphExpression{
-														  ShaderGraphValueType::Float3,
-														  "0.0f.xxx",
-													  };
+		const ShaderGraphExpression normal = is3D ?
+			context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "graphInput.worldNormal") :
+			ShaderGraphExpression{ShaderGraphValueType::Float3, "graphInput.worldNormal"};
+		const ShaderGraphExpression metallic = is3D ?
+			context.EmitInput(*output, 2, ShaderGraphValueType::Float, "0.0f") :
+			ShaderGraphExpression{ShaderGraphValueType::Float, "0.0f"};
+		const ShaderGraphExpression roughness = is3D ?
+			context.EmitInput(*output, 3, ShaderGraphValueType::Float, "0.5f") :
+			ShaderGraphExpression{ShaderGraphValueType::Float, "0.5f"};
+		const ShaderGraphExpression ao = is3D ?
+			context.EmitInput(*output, 4, ShaderGraphValueType::Float, "1.0f") :
+			ShaderGraphExpression{ShaderGraphValueType::Float, "1.0f"};
+		const ShaderGraphExpression emissive = is3D ?
+			context.EmitInput(*output, 5, ShaderGraphValueType::Float3, "0.0f.xxx") :
+			ShaderGraphExpression{ShaderGraphValueType::Float3, "0.0f.xxx"};
 		const ShaderGraphExpression opacity = context.EmitInput(*output, is3D ? 6u : 1u, ShaderGraphValueType::Float, "1.0f");
 		const ShaderGraphExpression alphaClip = context.EmitInput(*output, is3D ? 7u : 2u, ShaderGraphValueType::Float, "0.0f");
 
+		// 各描画経路で使う表面入力を宣言する
 		std::string source = "#ifndef NEM_GENERATED_SHADER_GRAPH_SURFACE\n"
 							 "#define NEM_GENERATED_SHADER_GRAPH_SURFACE\n\n"
 							 "#include \"Builtin/Common/descriptorHeapCompatibility.hlsli\"\n\n";
@@ -95,10 +95,13 @@ namespace Engine::ShaderGraphStageSource {
 				  "\tuint2 cell = uint2(floor(frac(pixelPosition / 4.0f) * 4.0f));\n"
 				  "\treturn thresholds[cell.x * 4u + cell.y] / 17.0f;\n"
 				  "}\n\n";
+		// Particleは個別Textureを固定の入力へ配置する
 		if (particleTarget) {
 			uint32_t textureRegister = 1;
 			for (const ShaderGraphParameter& parameter : graph.parameters) {
-				if (parameter.type != ShaderGraphValueType::Texture2D) { continue; }
+				if (parameter.type != ShaderGraphValueType::Texture2D) {
+				continue;
+			}
 				source +=
 					"Texture2D<float4> " +
 					MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
@@ -108,7 +111,9 @@ namespace Engine::ShaderGraphStageSource {
 				"\nfloat4 SampleGraphTexture(uint textureIndex, float2 uv, SamplerState sampler, float4 fallbackValue) {\n\n";
 			uint32_t textureIndex = 0;
 			for (const ShaderGraphParameter& parameter : graph.parameters) {
-				if (parameter.type != ShaderGraphValueType::Texture2D) { continue; }
+				if (parameter.type != ShaderGraphValueType::Texture2D) {
+				continue;
+			}
 				source +=
 					"\tif (textureIndex == " + std::to_string(textureIndex++) + "u) return " +
 					MakeIdentifier(parameter.referenceName.empty() ? parameter.name : parameter.referenceName, parameter.id) +
@@ -155,6 +160,7 @@ namespace Engine::ShaderGraphStageSource {
 				  "\t}\n"
 				  "\treturn float2(minimumDistance, cellValue);\n"
 				  "}\n\n";
+		// 共有評価式から表面の出力値を組み立てる
 		source += context.BuildCustomFunctionDeclarations();
 		source += "ShaderGraphSurface EvaluateShaderGraphSurface(\n"
 				  "\tShaderGraphSurfaceInput graphInput,\n"

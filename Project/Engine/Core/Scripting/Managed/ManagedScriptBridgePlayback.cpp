@@ -1,9 +1,9 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptUtility.h"
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
@@ -26,6 +26,7 @@ namespace Engine {
 				outWorld->HasComponent<AudioSourceComponent>(outEntity);
 		}
 	}
+
 	float ManagedScriptRuntime::GetSkinnedAnimationDurationCallback(ManagedNativeEntity entity, const char* clipName) {
 
 		if (!clipName) {
@@ -42,7 +43,7 @@ namespace Engine {
 		if (!renderer || !renderer->mesh) {
 			return 0.0f;
 		}
-		// メッシュのアニメーションセットから指定クリップの合計長を引く
+		// 指定Clipの再生時間を取得
 		const auto animationSet = context->skinnedAnimationManager->Find(renderer->mesh);
 		if (!animationSet || !animationSet->valid) {
 			return 0.0f;
@@ -66,8 +67,7 @@ namespace Engine {
 		if (!anim) {
 			return;
 		}
-		// 指定クリップへ切り替えて再生する、終了フラグを同フレームで下ろす
-		// 実際の遷移や再生時間のリセットはSkinnedAnimationSystemが行う
+		// クリップの切替を更新システムへ通知
 		anim->clip = clipName;
 		anim->enabled = true;
 		if (SkinnedAnimationRuntimeData* runtime =
@@ -112,7 +112,7 @@ namespace Engine {
 			return 0;
 		}
 
-		// 可変長データを跨がせずC#が必要な固定長状態だけを複写する
+		// C#へ固定長の実行状態をコピー
 		outState->currentTime = runtime->time;
 		outState->currentDuration = runtime->currentDuration;
 		outState->blendTime = runtime->blendTime;
@@ -124,6 +124,8 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::AudioPlayCallback(ManagedNativeEntity entity) {
+
+		// 所有Worldを解決して再生を要求
 		ECSWorld* world = nullptr;
 		Entity resolved = Entity::Null();
 		if (ResolveAudioSource(entity, world, resolved)) {
@@ -143,6 +145,8 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::AudioPauseCallback(ManagedNativeEntity entity) {
+
+		// 所有Worldを解決して一時停止を要求
 		ECSWorld* world = nullptr;
 		Entity resolved = Entity::Null();
 		if (ResolveAudioSource(entity, world, resolved)) {
@@ -151,6 +155,8 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::AudioUnPauseCallback(ManagedNativeEntity entity) {
+
+		// 所有Worldを解決して一時停止の解除を要求
 		ECSWorld* world = nullptr;
 		Entity resolved = Entity::Null();
 		if (ResolveAudioSource(entity, world, resolved)) {
@@ -159,6 +165,8 @@ namespace Engine {
 	}
 
 	void ManagedScriptRuntime::AudioStopCallback(ManagedNativeEntity entity) {
+
+		// 所有Worldを解決して停止を要求
 		ECSWorld* world = nullptr;
 		Entity resolved = Entity::Null();
 		if (ResolveAudioSource(entity, world, resolved)) {
@@ -167,6 +175,8 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::AudioIsPlayingCallback(ManagedNativeEntity entity) {
+
+		// 対象AudioSourceの実行状態を取得
 		ECSWorld* world = nullptr;
 		Entity resolved = Entity::Null();
 		return ResolveAudioSource(entity, world, resolved) &&

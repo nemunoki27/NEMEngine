@@ -14,7 +14,7 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class DxCommand;
 	class SRVDescriptor;
 
@@ -58,6 +58,7 @@ namespace Engine {
 		static constexpr std::string_view kBindingName =
 			"gOcclusionDepthPyramid";
 	private:
+		friend class RenderPathResources;
 		//============================================================================
 		//	private Methods
 		//============================================================================
@@ -86,4 +87,4 @@ namespace Engine {
 		void Swap(DepthPyramidTexture& other) noexcept;
 
 	};
-} // Engine
+}

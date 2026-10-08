@@ -69,7 +69,7 @@ public static class InputActions {
     public static bool BlockGameplayInput { get; set; }
 
     private static bool IsGameplayInputBlocked(int playerIndex) => BlockGameplayInput ||
-        !PlayerInput.IsAvailable(playerIndex) || NativeAPI.ReadUIBlocksGameplayInput(playerIndex);
+        !PlayerInput.IsAvailable(playerIndex) || NativeInputAPI.ReadUIBlocksGameplayInput(playerIndex);
 
     private static readonly object gate = new();
     private static InputActionDefinition[] actions = Array.Empty<InputActionDefinition>();

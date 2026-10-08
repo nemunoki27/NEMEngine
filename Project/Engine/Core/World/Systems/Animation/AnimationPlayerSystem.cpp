@@ -31,8 +31,8 @@ using namespace Engine::AnimationGroupEvaluation;
 //	AnimationPlayerSystem classMethods
 //============================================================================
 
-void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& entity,
-	AnimationPlayerComponent& player, SystemContext& context) {
+void Engine::AnimationPlayerSystem::UpdatePlayer(
+	ECSWorld& world, const Entity& entity, AnimationPlayerComponent& player, SystemContext& context) {
 
 	const bool isPlay = (context.mode == WorldMode::Play);
 	const bool wantApply = player.enabled && (isPlay || player.playInEditMode);
@@ -94,9 +94,10 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 		std::vector<AnimationPreviewBaseValue> additions;
 		CaptureBaseValues(world, entity, player, context, additions);
 		for (auto& value : additions) {
-			if (std::none_of(baseStore->begin(), baseStore->end(), [&](const auto& base) {
-				return AnimationGroupLookup::SameBinding(base.binding, value.binding);
-			})) baseStore->push_back(std::move(value));
+			if (std::none_of(baseStore->begin(), baseStore->end(),
+					[&](const auto& base) { return AnimationGroupLookup::SameBinding(base.binding, value.binding); })) {
+				baseStore->push_back(std::move(value));
+			}
 		}
 	}
 	player.runtimeClipRevision = context.animationClipManager->GetRevision();
@@ -159,19 +160,22 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 	// 発火分は再入を避けるため一旦ためて、書き込み後にまとめて配送する
 	std::vector<AnimationEvent> firedEvents;
 	for (AnimationClipRuntime& clipRt : player.runtimeCurrentClips) {
-		if (seekApplied) continue;
+		if (seekApplied) {
+			continue;
+		}
 		AdvanceClip(player, *currentGroup, clipRt, context, &firedEvents);
 	}
 	std::vector<AnimationEvaluatedValue> outValues;
-	EvaluateGroupClips(world, entity, *currentGroup, player.runtimeCurrentClips, *baseStore, context, outValues, player.runtimeInTransition);
+	EvaluateGroupClips(
+		world, entity, *currentGroup, player.runtimeCurrentClips, *baseStore, context, outValues, player.runtimeInTransition);
 
 	// クロスフェード中は遷移元グループも進めて評価し、fadeで合成する
 	if (player.runtimeInTransition) {
 
 		// 終了frameにも遷移先のposeを完全に適用する
 		const float baseDelta = isPlay ? context.deltaTime : context.unscaledDeltaTime;
-		player.runtimeFade = (std::min)(1.0f, player.runtimeFade +
-			(player.runtimeFadeDuration > 0.0f ? baseDelta / player.runtimeFadeDuration : 1.0f));
+		player.runtimeFade = (std::min)(1.0f,
+			player.runtimeFade + (player.runtimeFadeDuration > 0.0f ? baseDelta / player.runtimeFadeDuration : 1.0f));
 		const AnimationGroup* fromGroup = FindGroup(player, player.runtimeFromGroup);
 		if (fromGroup) {
 
@@ -192,8 +196,12 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 		}
 	}
 	AnimationClipEvaluator::WriteValues(world, entity, outValues);
-	for (auto& clip : player.runtimeCurrentClips) clip.terminalPosePending = false;
-	for (auto& clip : player.runtimeFromClips) clip.terminalPosePending = false;
+	for (auto& clip : player.runtimeCurrentClips) {
+		clip.terminalPosePending = false;
+	}
+	for (auto& clip : player.runtimeFromClips) {
+		clip.terminalPosePending = false;
+	}
 
 	// C#公開用ミラーを更新する、いずれかのクリップが再生中ならplaying、全て終端ならfinished
 	player.runtimeCurrent = player.runtimeCurrentGroup;
@@ -208,8 +216,8 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 	}
 	player.runtimeFinished = !player.runtimeCurrentClips.empty() && allFinished;
 	player.runtimeRepeatCount = maxRepeat;
-	player.runtimeNormalizedTimeValue = player.runtimeCurrentClips.empty() ? 0.0f :
-		static_cast<float>(player.runtimeCurrentClips.front().normalizedTime);
+	player.runtimeNormalizedTimeValue =
+		player.runtimeCurrentClips.empty() ? 0.0f : static_cast<float>(player.runtimeCurrentClips.front().normalizedTime);
 	player.runtimeClipDuration = 0.0f;
 	player.runtimeLooping = false;
 	if (!currentGroup->states.empty()) {
@@ -227,9 +235,11 @@ void Engine::AnimationPlayerSystem::UpdatePlayer(ECSWorld& world, const Entity& 
 
 	// callback後はComponentを借用せず、削除されたEntityへ配送しない
 	for (const AnimationEvent& event : firedEvents) {
-		if (!world.IsAlive(entity)) break;
-		BehaviorSystem::DispatchAnimationEvent(world, context, entity,
-			event.name, event.floatParam, event.intParam, event.stringParam);
+		if (context.IsUpdateInterrupted() || !world.IsAlive(entity)) {
+			break;
+		}
+		BehaviorSystem::DispatchAnimationEvent(
+			world, context, entity, event.name, event.floatParam, event.intParam, event.stringParam);
 	}
 }
 
@@ -249,9 +259,9 @@ void Engine::AnimationPlayerSystem::OnWorldExit(ECSWorld& world, [[maybe_unused]
 void Engine::AnimationPlayerSystem::Update(ECSWorld& world, SystemContext& context) {
 
 	world.ForEach<AnimationPlayerComponent>([&](Entity entity, AnimationPlayerComponent& player) {
-		if (!IsEntityActiveInHierarchy(world, entity)) {
+		if (context.IsUpdateInterrupted() || !IsEntityActiveInHierarchy(world, entity)) {
 			return;
 		}
 		UpdatePlayer(world, entity, player, context);
-		});
+	});
 }

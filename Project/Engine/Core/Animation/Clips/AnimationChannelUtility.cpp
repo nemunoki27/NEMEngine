@@ -1,10 +1,16 @@
 #include "AnimationChannelUtility.h"
 
+//============================================================================
+//	include
+//============================================================================
+// c++
+#include <algorithm>
+
 namespace Engine::AnimationChannelUtility {
 
 	Engine::Color4 GetChannelColor(std::string_view name) {
 
-		// X/Y/Z/WとR/G/B/Aを同じ色規則にして、Vector/Colorで見た目を揃える
+		// 座標と色のチャンネルを同じ配色にする
 		if (name == "X" || name == "R") {
 			return Engine::Color4::Red();
 		}
@@ -24,5 +30,18 @@ namespace Engine::AnimationChannelUtility {
 			return Engine::Color4(0.25f, 0.65f, 1.0f, 1.0f);
 		}
 		return Engine::Color4::White();
+	}
+
+	size_t GetSharedKeyCount(std::span<const CurveChannel> channels) {
+
+		if (channels.empty()) {
+			return 0;
+		}
+		// 最も短いチャンネルへ共通の範囲を揃える
+		size_t count = channels.front().keys.size();
+		for (const CurveChannel& channel : channels.subspan(1)) {
+			count = (std::min)(count, channel.keys.size());
+		}
+		return count;
 	}
 }

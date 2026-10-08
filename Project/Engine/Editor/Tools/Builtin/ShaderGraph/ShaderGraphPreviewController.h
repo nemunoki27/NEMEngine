@@ -23,7 +23,7 @@ namespace Engine {
 		// 入力の確定を待って未保存Graphをコンパイルする
 		void Update(const EditorToolContext& context);
 		// 適用前のMaterialとコンパイル待機を復元する
-		void Restore(const EditorToolContext& context);
+		void Restore();
 		// 復元済みの対象とコンパイル待機を解除する
 		void ResetTarget();
 

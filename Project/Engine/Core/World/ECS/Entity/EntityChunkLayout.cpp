@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 
 // c++
+#include <algorithm>
 #include <stdexcept>
 
 namespace {

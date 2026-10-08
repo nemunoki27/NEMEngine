@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/ScopedTransaction.h>
 #include <algorithm>
 #include <string_view>
 
@@ -90,9 +91,11 @@ namespace Engine::RenderFeatureHierarchyEditing {
 		std::unordered_set<uint64_t> passIDs{};
 		// 削除範囲を確定して階層とPassを同期
 		CollectPassIDs((*location.siblings)[location.index], passIDs);
+		ScopedTransaction transaction(profile);
 		location.siblings->erase(location.siblings->begin() + location.index);
 		ErasePasses(profile, passIDs);
 		Engine::SynchronizeRenderFeaturePassOrder(profile);
+		transaction.Commit();
 		return true;
 	}
 
@@ -169,6 +172,7 @@ namespace Engine::RenderFeatureHierarchyEditing {
 		};
 		// 子要素の領域を確保してから選択Passを移動
 		group.children.reserve(lastIndex - firstIndex + 1);
+		ScopedTransaction transaction(profile);
 		for (size_t index = firstIndex; index <= lastIndex; ++index) {
 			group.children.emplace_back(std::move((*siblings)[index]));
 		}
@@ -176,6 +180,7 @@ namespace Engine::RenderFeatureHierarchyEditing {
 		const Engine::UUID groupID = group.id;
 		siblings->insert(siblings->begin() + firstIndex, std::move(group));
 		Engine::SynchronizeRenderFeaturePassOrder(profile);
+		transaction.Commit();
 		return groupID;
 	}
 
@@ -193,6 +198,7 @@ namespace Engine::RenderFeatureHierarchyEditing {
 			return false;
 		}
 		// 挿入先の確保で変わった階層位置を取り直す
+		ScopedTransaction transaction(profile);
 		groupLocation.siblings->reserve(groupLocation.siblings->size() + 1);
 		FindItemLocation(profile.hierarchy, HierarchyItemType::Pass, passID, passLocation);
 		HierarchyItem pass = std::move((*passLocation.siblings)[passLocation.index]);
@@ -204,6 +210,7 @@ namespace Engine::RenderFeatureHierarchyEditing {
 		}
 		groupLocation.siblings->insert(groupLocation.siblings->begin() + groupLocation.index + 1, std::move(pass));
 		Engine::SynchronizeRenderFeaturePassOrder(profile);
+		transaction.Commit();
 		return true;
 	}
 
@@ -229,6 +236,7 @@ namespace Engine::RenderFeatureHierarchyEditing {
 			return false;
 		}
 		std::vector<HierarchyItem>& children = (*targetLocation.siblings)[targetLocation.index].children;
+		ScopedTransaction transaction(profile);
 		children.reserve(children.size() + 1);
 		HierarchyItemLocation sourceLocation{};
 		if (!FindItemLocation(profile.hierarchy, type, itemID, sourceLocation)) {
@@ -244,6 +252,7 @@ namespace Engine::RenderFeatureHierarchyEditing {
 		}
 		(*targetLocation.siblings)[targetLocation.index].children.emplace_back(std::move(moved));
 		Engine::SynchronizeRenderFeaturePassOrder(profile);
+		transaction.Commit();
 		return true;
 	}
 

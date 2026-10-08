@@ -3,13 +3,10 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLookup.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 // c++
-#include <filesystem>
+#include <variant>
 
 //============================================================================
 //	ReflectedMaterialParameterDrawer classMethods
@@ -17,28 +14,8 @@
 const Engine::ShaderReflectionInfo* Engine::ReflectedMaterialParameterDrawer::EnsureMaterialReflection(
 	const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID) {
 
-	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
-		return nullptr;
-	}
-	if (!materialID) {
-		materialID = defaultMaterialID;
-	}
-	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
-
-		cachedMaterialValid_ = false;
-		cachedMaterialID_ = materialID;
-		cachedMaterial_ = MaterialAsset{};
-		const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(materialID);
-		if (!path.empty()) {
-
-			nlohmann::json data = JsonAdapter::Load(path.string(), false);
-			cachedMaterialValid_ = FromJson(data, cachedMaterial_);
-		}
-	}
-	if (!cachedMaterialValid_) {
-		return nullptr;
-	}
-	return context.renderPipeline->FindMaterialDrawReflection(cachedMaterial_);
+	// 既定値の読込を共通の解決処理へ渡す
+	return materialReflection_.EnsureReflection(context, materialID, defaultMaterialID);
 }
 
 Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureParameter(
@@ -52,6 +29,7 @@ Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureParamete
 		return AssetID{};
 	}
 
+	// IDと用途から対応するTexture入力を探す
 	const MaterialParameterID requestedID =
 		MaterialParameterID::FromName(name);
 	const MaterialParameterSemantic requestedSemantic =
@@ -61,37 +39,33 @@ Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureParamete
 			continue;
 		}
 		const std::string_view displayName =
-			MaterialParameterEditor::GetReflectedTextureDisplayName(
-				resource, *reflection);
+			MaterialParameterEditor::GetReflectedTextureDisplayName(resource, *reflection);
 		const MaterialParameterID parameterID =
-			MaterialParameterEditor::GetReflectedTextureParameterID(
-				resource, *reflection);
+			MaterialParameterEditor::GetReflectedTextureParameterID(resource, *reflection);
 		const MaterialParameterSemantic semantic =
-			MaterialParameterEditor::GetReflectedTextureSemantic(
-				resource, *reflection);
+			MaterialParameterEditor::GetReflectedTextureSemantic(resource, *reflection);
 		if (resource.name == name || displayName == name ||
 			parameterID == requestedID ||
 			(requestedSemantic != MaterialParameterSemantic::None &&
 				semantic == requestedSemantic)) {
-			return ResolveTextureValue(
-				parameters, parameterID, semantic, displayName);
+			return ResolveTextureValue(parameters, parameterID, semantic, displayName);
 		}
 	}
-	return ResolveTextureValue(
-		parameters, requestedID, requestedSemantic, name);
+	return ResolveTextureValue(parameters, requestedID, requestedSemantic, name);
 }
 
 Engine::MaterialParameterValue Engine::ReflectedMaterialParameterDrawer::ResolveParamValue(
 	const MaterialParameterSet& parameters,
 	const ShaderConstantBufferVariable& variable) const {
 
+	// Instanceの値を優先してMaterialの既定値へ戻す
 	if (const MaterialParameterValue* value =
 		parameters.Find(variable.parameterID)) {
 
 		return *value;
 	}
 	if (const MaterialParameterValue* value =
-		cachedMaterial_.parameters.Find(variable.parameterID)) {
+		materialReflection_.GetMaterial().parameters.Find(variable.parameterID)) {
 
 		return *value;
 	}
@@ -105,8 +79,9 @@ Engine::AssetID Engine::ReflectedMaterialParameterDrawer::ResolveTextureValue(
 	std::string_view name) const {
 
 	// 値の有無と空Textureの上書きを区別する
-	const auto* value = MaterialParameterLookup::Find(parameters, parameterID, semantic, name, &cachedMaterial_.parameters);
-	if (!value) value = MaterialParameterLookup::Find(cachedMaterial_.parameters, parameterID, semantic, name);
+	const MaterialParameterSet& defaults = materialReflection_.GetMaterial().parameters;
+	const auto* value = MaterialParameterLookup::Find(parameters, parameterID, semantic, name, &defaults);
+	if (!value) value = MaterialParameterLookup::Find(defaults, parameterID, semantic, name);
 	const auto* texture = value ? std::get_if<AssetID>(&value->value) : nullptr;
 	return texture ? *texture : AssetID{};
 }

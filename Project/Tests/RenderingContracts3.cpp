@@ -154,6 +154,39 @@ namespace NEMTests {
 			runtime.BuildPlan(Engine::RenderFeatureAnchor::AfterTransparent, Engine::RenderViewKind::Game).nodes.size() == 1;
 		const bool visibleEnabled =
 			!overrides.IsEnabled(passID, true) && overrides.SetEnabled(passID, true) && overrides.IsEnabled(passID, false);
+
+		// Scriptで有効にした前段Passを別Anchorから参照
+		const auto beforeDependency = profile;
+		profile.passes.front().enabled = false;
+		profile.passes.front().anchor = Engine::RenderFeatureAnchor::BeforeLighting;
+		Engine::RenderFeaturePassSettings dependent = profilePass;
+		dependent.id = Engine::UUID{9011};
+		dependent.name = "RuntimeDependent";
+		dependent.enabled = true;
+		dependent.anchor = Engine::RenderFeatureAnchor::AfterLighting;
+		dependent.sourceKind = Engine::RenderFeatureSourceKind::PassOutput;
+		dependent.source.pass = passID;
+		profile.passes.push_back(dependent);
+		runtime.Rebuild(profile);
+		const auto dependencyPlan = runtime.BuildPlan(dependent.anchor, Engine::RenderViewKind::Game);
+		if (!dependencyPlan.IsValid() || dependencyPlan.nodes.size() != 1 ||
+			dependencyPlan.nodes.front().source.pass != passID) {
+			return false;
+		}
+		overrides.SetEnabled(passID, false);
+		if (runtime.BuildPlan(dependent.anchor, Engine::RenderViewKind::Game).IsValid()) {
+			return false;
+		}
+		// 無効で保存されたPassも有効化時に出力名を検証
+		overrides.SetEnabled(passID, true);
+		profile.passes.back().enabled = false;
+		profile.passes.back().source.output = "Missing";
+		overrides.SetEnabled(dependent.id, true);
+		runtime.Rebuild(profile);
+		if (runtime.BuildPlan(dependent.anchor, Engine::RenderViewKind::Game).IsValid()) {
+			return false;
+		}
+		profile = beforeDependency;
 		overrides.ResetAll();
 
 		// SceneColor出力の切り替えは保存値とパスの有効状態を変更しない

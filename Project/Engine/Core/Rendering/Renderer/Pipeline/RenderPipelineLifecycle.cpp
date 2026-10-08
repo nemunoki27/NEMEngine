@@ -69,7 +69,6 @@ void RenderPipelineRunner::Init() {
 
 	renderAssetLibrary_.Clear();
 	pipelineStateCache_.Clear();
-	materialResolver_.Clear();
 	postProcessExecutor_.Release();
 	rayTracingExecutor_.Release();
 	colorPipelineProcessor_.Release();
@@ -135,7 +134,6 @@ void RenderPipelineRunner::Finalize() {
 	extractorRegistry_.Clear();
 	renderAssetLibrary_.Clear();
 	pipelineStateCache_.Clear();
-	materialResolver_.Clear();
 	postProcessExecutor_.Release();
 	rayTracingExecutor_.Release();
 	colorPipelineProcessor_.Release();

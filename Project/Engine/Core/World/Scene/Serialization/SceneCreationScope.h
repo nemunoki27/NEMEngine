@@ -26,6 +26,7 @@ namespace Engine {
 		void Commit();
 		// 生成したEntityへ削除差分を適用する
 		void DestroyCreated(const Entity& entity);
+
 	private:
 		//========================================================================
 		//	private Methods
@@ -33,8 +34,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		ECSWorld& world_;
-		ECSCreationScope creation_;
-		bool committed_ = false;
+		ECSWorld& world_;								   // 生成と階層復元を行うWorld
+		std::shared_ptr<const ECSWorldLifetime> lifetime_; // 生成元のWorldの寿命
+		ECSCreationScope creation_;						   // 未確定の生成物
+		bool committed_ = false;						   // 生成結果の確定
 	};
 }

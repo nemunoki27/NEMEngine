@@ -9,21 +9,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 
 // c++
-#include <array>
-#include <cctype>
-#include <fstream>
-#include <format>
-#include <iterator>
+#include <exception>
 #include <system_error>
-#include <vector>
 
 //============================================================================
 //	ProjectAssetFileUtility classMethods
@@ -105,62 +96,84 @@ std::string Engine::ProjectAssetFileUtility::GetProtectedAssetSuffix(const Proje
 	return ProjectAssetPath::SplitAssetFileName(Algorithm::PathFromUTF8(asset.assetPath)).second;
 }
 
-Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAssetSource source,
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::PlanCreate(ProjectAssetSource source,
 	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName) {
 
 	ProjectAssetFileResult result{};
 	result.isDirectory = kind == ProjectAssetFileKind::Folder;
+	try {
 
-	// 仮想パスから実ディレクトリを特定し失敗なら中断
-	const std::filesystem::path directory = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
-	if (directory.empty()) {
-		result.message = "Invalid directory path.";
+		// 仮想パスから実ディレクトリを特定し失敗なら中断
+		const std::filesystem::path directory = ProjectAssetPath::ResolveVirtualDirectory(source, directoryVirtualPath);
+		if (directory.empty()) {
+			result.message = "作成先のフォルダーを解決できません";
+			return result;
+		}
+		if (std::filesystem::exists(directory) && !std::filesystem::is_directory(directory)) {
+			result.message = "作成先がフォルダーではありません";
+			return result;
+		}
+
+		// 拡張子の決定とファイル名のサニタイズ
+		const char* suffix = ProjectAssetDocumentFactory::GetFileSuffix(kind);
+		std::string baseName = ProjectAssetPath::SanitizeFileName(requestedName.empty() ? GetDefaultName(kind) : requestedName);
+		if (kind != ProjectAssetFileKind::Folder) {
+			baseName = ProjectAssetPath::RemoveTypedSuffix(baseName, suffix);
+		}
+
+		// 同一名称がある場合は自動的に連番を付与して一意のパスを作成
+		const std::string requestedPath = kind == ProjectAssetFileKind::Folder ? baseName : baseName + suffix;
+		const std::filesystem::path preferredPath = directory / Algorithm::PathFromUTF8(requestedPath);
+		const std::filesystem::path createPath = ProjectAssetPath::MakeUniquePath(preferredPath);
+		if (createPath.empty()) {
+			result.message = "Assetの作成先を決定できません";
+			return result;
+		}
+
+		// 公開後に確保が必要な結果は先に準備する
+		result.fullPath = createPath;
+		result.assetPath = ProjectAssetPath::ToAssetPath(createPath);
+		result.success = true;
+		return result;
+	} catch (const std::exception& error) {
+		// 作成先の確認に失敗しても既存ファイルを残す
+		result.message = "Assetの作成先を確認できません: " + std::string(error.what());
 		return result;
 	}
+}
 
-	// ディレクトリがなければ作成
+Engine::ProjectAssetFileResult Engine::ProjectAssetFileUtility::Create(ProjectAssetSource source,
+	const std::string& directoryVirtualPath, ProjectAssetFileKind kind, const std::string& requestedName) {
+
+	auto result = PlanCreate(source, directoryVirtualPath, kind, requestedName);
+	if (!result.success) {
+		return result;
+	}
+	result.success = false;
+	// 公開先の親を用意してから本体を作る
 	std::error_code ec;
-	std::filesystem::create_directories(directory, ec);
+	std::filesystem::create_directories(result.fullPath.parent_path(), ec);
 	if (ec) {
-		result.message = "Failed to create directory.";
+		result.message = "作成先のフォルダーを用意できません";
 		return result;
 	}
-
-	// 拡張子の決定とファイル名のサニタイズ
-	const char* suffix = ProjectAssetDocumentFactory::GetFileSuffix(kind);
-	std::string baseName = ProjectAssetPath::SanitizeFileName(requestedName.empty() ? GetDefaultName(kind) : requestedName);
-	if (kind != ProjectAssetFileKind::Folder) {
-		baseName = ProjectAssetPath::RemoveTypedSuffix(baseName, suffix);
-	}
-
-	// 同一名称がある場合は自動的に連番を付与して一意のパスを作成
-	const std::string requestedPath = kind == ProjectAssetFileKind::Folder ? baseName : baseName + suffix;
-	const std::filesystem::path preferredPath = directory / Algorithm::PathFromUTF8(requestedPath);
-	const std::filesystem::path createPath = ProjectAssetPath::MakeUniquePath(preferredPath);
-	if (createPath.empty()) {
-		result.message = "Failed to build unique file path.";
-		return result;
-	}
-
-	// フォルダまたはファイルの作成
+	// 既存のファイルとフォルダーを所有しない
 	if (kind == ProjectAssetFileKind::Folder) {
-		std::filesystem::create_directories(createPath, ec);
-		if (ec) {
-			result.message = "Failed to create folder.";
+		if (!std::filesystem::create_directory(result.fullPath, ec) || ec) {
+			result.message = "フォルダーを作成できません";
 			return result;
 		}
 	} else {
-		// 種類に応じた雛形内容を書き込み
-		if (!ProjectAssetDocumentFactory::WriteTextFile(
-				createPath, ProjectAssetDocumentFactory::BuildFileContent(kind, baseName))) {
-			result.message = "Failed to write asset file.";
+		// 確定したファイル名で文書とScriptの型名を作る
+		if (!ProjectAssetDocumentFactory::CreateTextFile(
+				result.fullPath, ProjectAssetDocumentFactory::BuildFileContent(
+									 kind, ProjectAssetPath::SplitAssetFileName(result.fullPath).first))) {
+			result.message = "Assetの文書を作成できません";
 			return result;
 		}
 	}
 
 	result.success = true;
-	result.fullPath = createPath;
-	result.assetPath = ProjectAssetPath::ToAssetPath(createPath);
 	return result;
 }
 

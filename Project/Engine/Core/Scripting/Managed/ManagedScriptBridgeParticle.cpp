@@ -1,9 +1,9 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedScriptUtility.h"
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Components/Rendering/ParticleSystemComponent.h>
@@ -12,8 +12,8 @@ namespace Engine {
 
 	namespace {
 
-		enum class ParticleSystemOperation :
-			int32_t {
+		// C#から指定される再生操作
+		enum class ParticleSystemOperation : int32_t {
 
 			Play,
 			Pause,
@@ -22,8 +22,8 @@ namespace Engine {
 			PlayOneShot,
 		};
 
-		enum class ParticleSystemStateQuery :
-			int32_t {
+		// C#から指定される状態照会
+		enum class ParticleSystemStateQuery : int32_t {
 
 			Playing,
 			Emitting,
@@ -34,6 +34,7 @@ namespace Engine {
 			RandomSeed,
 		};
 
+		// 対象と子孫のParticleへ操作を適用
 		template<typename Function>
 		void ForEachParticleSystem(ECSWorld& world, const Entity& root,
 			bool withChildren, Function&& function) {
@@ -45,8 +46,7 @@ namespace Engine {
 				return;
 			}
 
-			for (const Entity& entity :
-				HierarchyUtility::CollectLogicalSubtree(world, root)) {
+			for (const Entity& entity : HierarchyUtility::CollectLogicalSubtree(world, root)) {
 
 				if (world.HasComponent<ParticleSystemComponent>(entity)) {
 					function(entity);
@@ -54,6 +54,7 @@ namespace Engine {
 			}
 		}
 
+		// 再生状態を照会種別に応じて取得
 		bool QueryParticleSystemState(const ECSWorld& world,
 			const Entity& entity, ParticleSystemStateQuery state) {
 
@@ -74,6 +75,7 @@ namespace Engine {
 			return false;
 		}
 	}
+
 	void ManagedScriptRuntime::ParticleSystemControlCallback(
 		ManagedNativeEntity entity, int32_t operation,
 		int32_t stopBehavior, int32_t withChildren) {

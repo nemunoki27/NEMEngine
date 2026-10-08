@@ -12,10 +12,17 @@ namespace Engine {
 	// 登録内容の個体を区別する
 	struct RegistryRevision final {};
 
-	// リスト形式のレジストリ基底クラス
+	//============================================================================
+	//	ListRegistryBase class
+	//	登録順に項目を所有する共通基盤
+	//============================================================================
 	template <typename T>
 	class ListRegistryBase {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		virtual ~ListRegistryBase() = default;
 
 		// 登録
@@ -30,7 +37,7 @@ namespace Engine {
 		// クリア
 		virtual void Clear() {
 			auto revision = std::make_shared<const RegistryRevision>();
-			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する
+			// 登録順に所有項目を解放
 			for (auto& item : items_) {
 				item.reset();
 			}
@@ -38,19 +45,37 @@ namespace Engine {
 			revision_ = std::move(revision);
 		}
 
-		// アイテムリストの取得
+		//--------- accessor -----------------------------------------------------
+
+		// 登録された項目を借用する
 		const std::vector<std::unique_ptr<T>>& GetItems() const { return items_; }
+		// 登録内容の世代を借用する
 		const std::shared_ptr<const RegistryRevision>& GetRevision() const { return revision_; }
 
 	protected:
+		//========================================================================
+		//	protected Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// 登録した項目の所有
 		std::vector<std::unique_ptr<T>> items_;
+		// 登録変更を区別する世代
 		std::shared_ptr<const RegistryRevision> revision_ = std::make_shared<const RegistryRevision>();
 	};
 
-	// マップ形式のレジストリ基底クラス
+	//============================================================================
+	//	MapRegistryBase class
+	//	キーに対応する項目を所有する共通基盤
+	//============================================================================
 	template <typename Key, typename T>
 	class MapRegistryBase {
 	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
 		virtual ~MapRegistryBase() = default;
 
 		// 登録
@@ -62,7 +87,7 @@ namespace Engine {
 
 		// クリア
 		virtual void Clear() {
-			// unique_ptrはclear任せにせず、終了経路で明示的にresetして所有リソースを解放する
+			// 現在の走査順で所有項目を解放
 			for (auto& [key, item] : items_) {
 				item.reset();
 			}
@@ -75,17 +100,26 @@ namespace Engine {
 			return (it != items_.end()) ? it->second.get() : nullptr;
 		}
 
-		// 検索(const)
+		// 読み取り専用で検索する
 		virtual const T* Find(Key key) const {
 			auto it = items_.find(key);
 			return (it != items_.end()) ? it->second.get() : nullptr;
 		}
 
-		// マップの取得
+		//--------- accessor -----------------------------------------------------
+
+		// キーと項目の対応を借用する
 		const std::unordered_map<Key, std::unique_ptr<T>>& GetMap() const { return items_; }
 
 	protected:
+		//========================================================================
+		//	protected Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// 登録した項目の所有
 		std::unordered_map<Key, std::unique_ptr<T>> items_;
 	};
 
-} // Engine
+}

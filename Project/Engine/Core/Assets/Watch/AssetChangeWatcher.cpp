@@ -10,7 +10,6 @@
 #include <array>
 #include <cstddef>
 #include <exception>
-#include <system_error>
 
 //============================================================================
 //	AssetChangeWatcher classMethods
@@ -30,7 +29,7 @@ bool Engine::AssetChangeWatcher::Start(const std::filesystem::path& directory) {
 		return false;
 	}
 
-	// 変更通知を受け取るためディレクトリをFILE_LIST_DIRECTORYかつoverlappedで開く
+	// 変更通知を非同期に受け取るディレクトリを開く
 	const HANDLE handle = CreateFileW(directory.wstring().c_str(), FILE_LIST_DIRECTORY,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
 		FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
@@ -46,10 +45,16 @@ bool Engine::AssetChangeWatcher::Start(const std::filesystem::path& directory) {
 
 	directoryHandle_ = handle;
 	stopEvent_ = stop;
+	// 開始成功を返す前にI/O完了イベントを確保する
+	changeEvent_ = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+	if (!changeEvent_) {
+		Stop();
+		return false;
+	}
 	running_.store(true);
 	try {
 		thread_ = std::thread(&AssetChangeWatcher::ThreadMain, this);
-	} catch (const std::system_error&) {
+	} catch (const std::exception&) {
 
 		// スレッド生成に失敗したハンドルを戻す
 		Stop();
@@ -62,7 +67,7 @@ void Engine::AssetChangeWatcher::Stop() {
 
 	running_.store(false);
 
-	// 待機中のスレッドを起こし、進行中のReadDirectoryChangesWを解除する
+	// 待機を解除して通知I/Oを取り消す
 	if (stopEvent_) {
 		SetEvent(static_cast<HANDLE>(stopEvent_));
 	}
@@ -81,6 +86,10 @@ void Engine::AssetChangeWatcher::Stop() {
 	if (stopEvent_) {
 		CloseHandle(static_cast<HANDLE>(stopEvent_));
 		stopEvent_ = nullptr;
+	}
+	if (changeEvent_) {
+		CloseHandle(static_cast<HANDLE>(changeEvent_));
+		changeEvent_ = nullptr;
 	}
 
 	std::scoped_lock lock(mutex_);
@@ -119,14 +128,9 @@ void Engine::AssetChangeWatcher::ThreadMain() {
 	// I/O完了まで通知バッファを保持する
 	alignas(DWORD) std::array<uint8_t, 64 * 1024> buffer{};
 	OVERLAPPED overlapped{};
-	overlapped.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-	if (!overlapped.hEvent) {
-		rescanRequired_.store(true);
-		running_.store(false);
-		return;
-	}
+	overlapped.hEvent = static_cast<HANDLE>(changeEvent_);
 
-	// 変更通知バッファ、深い階層でも溢れにくいよう大きめに確保する
+	// ファイル名と内容の変更を監視する
 	const DWORD notifyFilter = FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME |
 		FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE;
 
@@ -161,7 +165,7 @@ void Engine::AssetChangeWatcher::ThreadMain() {
 				continue;
 			}
 
-			// FILE_NOTIFY_INFORMATIONの連鎖を辿って、変更ファイルの絶対パスを集める
+			// 通知の連鎖から変更ファイルの絶対パスを集める
 			std::vector<std::filesystem::path> collected;
 			DWORD offset = 0;
 			for (;;) {
@@ -214,6 +218,5 @@ void Engine::AssetChangeWatcher::ThreadMain() {
 		rescanRequired_.store(true);
 	}
 
-	CloseHandle(overlapped.hEvent);
 	running_.store(false);
 }

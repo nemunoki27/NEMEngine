@@ -3,20 +3,20 @@
 //============================================================================
 //	include
 //============================================================================
+// c++
+#include <cstdint>
 #include <filesystem>
 #include <string>
 
 namespace Engine {
 
 	//============================================================================
-	//	ManagedIdeSettings struct
+	//	ManagedIDESettings struct
 	//	ProjectSettingsのスクリプト構成とUserSettingsのIDE設定
 	//============================================================================
-	struct ManagedIdeSettings {
+	struct ManagedIDESettings {
 
-		// VisualStudioはインストール済みdevenv.exeを探して/Editで開く、既定で従来挙動
-		// SystemDefaultはOS既定の関連付けでfileを開く、lineとcolumnは無視する
-		// Executableはexecutableとargumentsのtoken展開で起動する
+		// VisualStudio、OSの関連付け、指定EXEから起動方式を選択
 		std::string mode = "VisualStudio";
 		std::string executable;
 		// tokenは{project} {file} {line} {column}
@@ -26,18 +26,17 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	ManagedIdeLauncher
-	//	ProjectPanelのcs openとCompiler Error ListのjumpとScript exceptionのstack jumpで共通利用するIDE起動
+	//	ManagedIDELauncher
+	//	Scriptと診断の位置をIDEで開く
 	//============================================================================
-	namespace ManagedIdeLauncher {
+	namespace ManagedIDELauncher {
 
 		// プロジェクト構成とIDE設定を読み直す、無ければ既定値
 		void ReloadSettings();
-		// 現在の設定を返す、読み込み済みでなければloadする
-		const ManagedIdeSettings& GetSettings();
+		// 設定が未取得なら読み込んで返す
+		const ManagedIDESettings& GetSettings();
 
-		// fileをIDEで開く、lineとcolumnは対応モードのみ使いSystemDefaultはfileのみのfallback
-		// 成功でtrue、missing executableやmissing projectやlaunch失敗はfalseでdiagnosticに記録する
+		// ファイルと対応する行位置をIDEで開く
 		bool OpenFile(const std::filesystem::path& file, int32_t line = 0, int32_t column = 0);
 	}
-} // Engine
+}

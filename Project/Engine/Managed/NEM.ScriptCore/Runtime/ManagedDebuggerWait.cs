@@ -1,22 +1,15 @@
 using System.Diagnostics;
-
-
 using System.Runtime.InteropServices;
-
-
-
-
-
-
 
 namespace NEMEngine;
 
 // 指定された場合だけデバッガ接続を待つ
 internal static unsafe class ManagedDebuggerWait {
 
+    // 指定された接続待機を開始
     internal static void WaitForManagedDebuggerIfRequested() {
 
-        // 環境変数が立っている時だけ、C#デバッガのAttachを待つ
+        // 環境変数でC#デバッガの接続待機を選択
         string? wait = Environment.GetEnvironmentVariable("NEM_MANAGED_WAIT_FOR_DEBUGGER");
         if (wait != "1" || Debugger.IsAttached) {
             return;
@@ -29,20 +22,20 @@ internal static unsafe class ManagedDebuggerWait {
             return;
         }
 
-        // 待機時間は環境変数で上書きできる
-        int timeoutMs = 15000;
+        // 環境変数から待機時間を取得
+        int timeoutMS = 15000;
         string? timeoutText = Environment.GetEnvironmentVariable("NEM_MANAGED_WAIT_TIMEOUT_MS");
         if (!string.IsNullOrWhiteSpace(timeoutText) &&
             int.TryParse(timeoutText, out int parsedTimeout) &&
             0 < parsedTimeout) {
-            timeoutMs = parsedTimeout;
+            timeoutMS = parsedTimeout;
         }
 
-        NativeApplicationAPI.WriteLog(0, $"Waiting for managed debugger attach... timeout={timeoutMs}ms");
+        NativeApplicationAPI.WriteLog(0, $"Waiting for managed debugger attach... timeout={timeoutMS}ms");
 
-        // C++側の実行を止めすぎないよう、タイムアウト付きでAttachを待つ
+        // 接続かタイムアウトまで待機
         Stopwatch stopwatch = Stopwatch.StartNew();
-        while (!Debugger.IsAttached && stopwatch.ElapsedMilliseconds < timeoutMs) {
+        while (!Debugger.IsAttached && stopwatch.ElapsedMilliseconds < timeoutMS) {
             Thread.Sleep(100);
         }
 
@@ -53,6 +46,7 @@ internal static unsafe class ManagedDebuggerWait {
         }
     }
 
+    // Nativeデバッガの接続を確認
     [DllImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsDebuggerPresent();

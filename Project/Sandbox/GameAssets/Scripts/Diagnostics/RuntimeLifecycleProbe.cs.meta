@@ -12,15 +12,33 @@
       "formerNames": [],
       "fields": [
         {
+          "fieldId": "20da6d5a-9d30-4fde-a6a9-b37f9cf3b4ba",
+          "name": "throwInUpdate",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
           "fieldId": "6ae09a0e-2e17-4405-ae7c-2f39a2d7d39b",
           "name": "lifecycleMask",
           "type": "int",
           "formerNames": []
         },
         {
+          "fieldId": "9b7d3d9c-34cd-4898-b540-5dfd6cc1e243",
+          "name": "throwInAwake",
+          "type": "bool",
+          "formerNames": []
+        },
+        {
           "fieldId": "bda98a95-8333-4c86-b4d1-0320f6e3032a",
           "name": "testValue",
           "type": "float",
+          "formerNames": []
+        },
+        {
+          "fieldId": "f1880865-e87f-4b96-985a-6639a1158053",
+          "name": "callbackUpdates",
+          "type": "int",
           "formerNames": []
         }
       ]

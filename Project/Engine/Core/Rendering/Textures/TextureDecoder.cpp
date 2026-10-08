@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 
 #include <algorithm>
 #include <deque>
@@ -274,22 +275,40 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 			job.importSettings, job.requestedColorSpace);
 
 	DirectX::ScratchImage loaded{};
+	// WICを使用するスレッドのCOM寿命を読込中だけ保持する
+	const bool usesWIC = extension != ".dds" && extension != ".tga" && extension != ".hdr";
+	const HRESULT initialized = usesWIC ? CoInitializeEx(nullptr, COINIT_MULTITHREADED) : E_NOTIMPL;
+	if (usesWIC && FAILED(initialized) && initialized != RPC_E_CHANGED_MODE) {
+		result.result = initialized;
+		result.failureStage = "COMInitialize";
+		return result;
+	}
+	ScopedCleanup comCleanup([initialized]() noexcept {
+		if (SUCCEEDED(initialized)) {
+			CoUninitialize();
+		}
+	});
 	HRESULT hr = E_FAIL;
 	const char* failureStage = "Decode";
 	DirectX::TexMetadata loadedMeta{};
 	if (extension == ".dds") {
 
-		hr = DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded);
+		hr = job.snapshotBytes ? DirectX::LoadFromDDSMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
+			DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded) :
+			DirectX::LoadFromDDSFile(fullPathW.c_str(), DirectX::DDS_FLAGS_NONE, &loadedMeta, loaded);
 	} else if (extension == ".tga") {
 
-		hr = DirectX::LoadFromTGAFile(fullPathW.c_str(), &loadedMeta, loaded);
+		hr = job.snapshotBytes ? DirectX::LoadFromTGAMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
+			&loadedMeta, loaded) : DirectX::LoadFromTGAFile(fullPathW.c_str(), &loadedMeta, loaded);
 	} else if (extension == ".hdr") {
 
-		hr = DirectX::LoadFromHDRFile(fullPathW.c_str(), &loadedMeta, loaded);
+		hr = job.snapshotBytes ? DirectX::LoadFromHDRMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
+			&loadedMeta, loaded) : DirectX::LoadFromHDRFile(fullPathW.c_str(), &loadedMeta, loaded);
 	} else {
 
-		hr = DirectX::LoadFromWICFile(fullPathW.c_str(), ResolveWICFlags(colorSpace),
-			&loadedMeta, loaded);
+		hr = job.snapshotBytes ? DirectX::LoadFromWICMemory(job.snapshotBytes->data(), job.snapshotBytes->size(),
+			ResolveWICFlags(colorSpace), &loadedMeta, loaded) :
+			DirectX::LoadFromWICFile(fullPathW.c_str(), ResolveWICFlags(colorSpace), &loadedMeta, loaded);
 	}
 	if (SUCCEEDED(hr)) {
 

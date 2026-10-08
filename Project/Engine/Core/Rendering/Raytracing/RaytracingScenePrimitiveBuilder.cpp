@@ -54,7 +54,7 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		const PipelineVariantDesc* pipelineVariant =
 			ResolvePrimitivePipelineVariant(
 				work.assetLibrary, *material, src.surfaceMode, work.runtimeFeatures);
-		// 半透明パスがないMaterialは通常描画と同じくPrimitive既定Materialへ戻す
+		// 半透明パスがない場合は既定Materialへ戻す
 		if (!pipelineVariant &&
 			src.surfaceMode == MaterialSurfaceMode::Transparent) {
 
@@ -75,14 +75,14 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		if (!geometry) {
 			continue;
 		}
-		// BLASを共有ジオメトリから作る、初めて作ったフレームだけTLASを完全再構築する
+		// 新規BLASの構築後にTLASも再構築
 		const bool wasBuilt = geometry->blasBuilt;
 		if (!work.primitiveGeometryManager->EnsureBLAS(work.device, work.commandList, *geometry)) {
 			continue;
 		}
 		if (!wasBuilt) {
 			FrameProfiler::GetInstance().AddBLASBuild(1);
-			work.requireTlasRebuild = true;
+			work.requireTLASRebuild = true;
 		} else {
 
 			FrameProfiler::GetInstance().AddBLASSkip(1);
@@ -131,15 +131,10 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		if (HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastReflection)) {
 			instance.mask |= kRaytracingMaskReflectionCaster;
 		}
-		instance.flags = ToRaytracingCullFlags(
-			pipelineVariant->rasterizer);
+		instance.flags = ToRaytracingCullFlags(pipelineVariant->rasterizer);
 		instance.worldMatrix = src.worldMatrix;
 		work.tlasInstances.emplace_back(instance);
-		work.tlasEntityKeys.emplace_back(
-			SceneEntityKey{
-				.world = src.world,
-				.entity = src.entity,
-			});
+		work.tlasEntityKeys.emplace_back(SceneEntityKey{ .world = src.world, .entity = src.entity, });
 		work.meshLODRecordIndices.emplace_back(UINT32_MAX);
 	}
 }

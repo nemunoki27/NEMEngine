@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
+#include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
 
 // c++
 #include <algorithm>
@@ -101,8 +102,10 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 	}
 
 	Assimp::Importer importer;
+	auto* fileSystem = new ModelFileIOSystem(fullPath);
+	importer.SetIOHandler(fileSystem);
 	const aiScene* scene = importer.ReadFile(
-		Algorithm::PathToUTF8(fullPath),
+		fileSystem->GetModelPath(),
 		aiProcess_Triangulate |
 		aiProcess_JoinIdenticalVertices |
 		aiProcess_SortByPType);

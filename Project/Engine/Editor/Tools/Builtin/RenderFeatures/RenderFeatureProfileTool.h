@@ -9,6 +9,7 @@
 
 // c++
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -94,7 +95,7 @@ namespace Engine {
 
 		bool openWindow_ = false;										  // 編集画面の表示状態
 		bool pendingClose_ = false;										  // 未保存確認後の終了要求
-		AssetID pendingAsset_{};										  // 未保存確認後の切替先
+		std::optional<AssetID> pendingAsset_{};							  // 選択解除を含む未保存確認後の切替先
 		RenderFeatureEditSession editSession_;							  // 編集値と保存状態
 		UUID selectedPass_{};											  // 詳細を表示するPass
 		UUID selectedGroup_{};											  // 詳細を表示するGroup

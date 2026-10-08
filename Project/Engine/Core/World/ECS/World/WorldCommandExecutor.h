@@ -27,7 +27,9 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
+		//--------- functions ----------------------------------------------------
+
 		// Sceneの読込と破棄を外部サービスへ渡す
 		static void ApplyScene(ECSWorld& world, const WorldCommand& command);
 	};
-} // Engine
+}

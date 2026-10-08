@@ -51,7 +51,7 @@ void Engine::WriteParticleCustomParameter(std::vector<uint8_t>& data,
 
 	const uint32_t componentCount = GetVariableComponentCount(variable);
 	const uint32_t writeSize = (std::min)(componentCount * static_cast<uint32_t>(sizeof(float)), variable.size);
-	if (writeSize == 0 || variable.offset + writeSize > data.size()) {
+	if (writeSize == 0 || variable.offset > data.size() || writeSize > data.size() - variable.offset) {
 		return;
 	}
 	const float values[4] = { value.x, value.y, value.z, value.w };
@@ -87,8 +87,9 @@ const Engine::ParticleGroupRuntimeState* Engine::ResolveParticleRenderGroup(
 	if (!item.world) {
 		return nullptr;
 	}
-	const ParticleSystemRuntimeData* runtime =
-		TryGetParticleSystemRuntime(*item.world, item.entity);
+	// 表示の参照時は実行Storageを作成しない
+	const ECSWorld& world = *item.world;
+	const ParticleSystemRuntimeData* runtime = TryGetParticleSystemRuntime(world, item.entity);
 	if (!runtime) {
 		return nullptr;
 	}

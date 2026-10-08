@@ -95,8 +95,11 @@ namespace Engine {
 	}
 
 	std::filesystem::path ProjectAssetPath::MakeUniquePath(const std::filesystem::path& preferredPath) {
-		// ファイルが既に存在する場合のみ、連番を付与して重複を避ける
-		if (!std::filesystem::exists(preferredPath)) {
+		// 孤立metaが持つ別Assetの識別子も引き継がない
+		const auto available = [](const std::filesystem::path& path) {
+			return !std::filesystem::exists(path) && !std::filesystem::exists(MakeMetaPath(path));
+		};
+		if (available(preferredPath)) {
 			return preferredPath;
 		}
 		const auto [baseName, suffix] = SplitAssetFileName(preferredPath);
@@ -104,7 +107,7 @@ namespace Engine {
 		for (uint32_t index = 1; index < 10000; ++index) {
 			const std::string candidateName = std::format("{} {}{}", baseName, index, suffix);
 			std::filesystem::path candidate = directory / Engine::Algorithm::PathFromUTF8(candidateName);
-			if (!std::filesystem::exists(candidate)) {
+			if (available(candidate)) {
 				return candidate;
 			}
 		}
@@ -122,7 +125,10 @@ namespace Engine {
 	}
 
 	bool ProjectAssetPath::IsSafeRelativePath(const std::filesystem::path& path) {
-		// ディレクトリ階層を上る指定が含まれている場合は危険と判断
+		// 絶対指定とドライブ付き指定を拒否する
+		if (path.has_root_path()) {
+			return false;
+		}
 		if (path.empty()) {
 			return true;
 		}
@@ -162,7 +168,7 @@ namespace Engine {
 			return {};
 		}
 		const std::filesystem::path relative = Engine::Algorithm::PathFromUTF8(directoryVirtualPath.substr(prefix.size()));
-		// 親階層への移動(..)を含むパスはセキュリティのため制限
+		// ルートの外へ出る相対指定を拒否する
 		if (!IsSafeRelativePath(relative)) {
 			return {};
 		}

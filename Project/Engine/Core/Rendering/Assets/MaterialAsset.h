@@ -18,8 +18,7 @@ namespace Engine {
 	//	MaterialAsset structures
 	//============================================================================
 	// マテリアルの種類
-	enum class MaterialDomain :
-		uint8_t {
+	enum class MaterialDomain : uint8_t {
 
 		Surface,
 		UI,
@@ -28,8 +27,7 @@ namespace Engine {
 		RayTracing,
 	};
 	// マテリアルを使用する描画機能
-	enum class MaterialUsage :
-		uint8_t {
+	enum class MaterialUsage : uint8_t {
 
 		Generic,
 		Mesh,
@@ -40,8 +38,7 @@ namespace Engine {
 	};
 
 	// マテリアル内の固定パス種別
-	enum class MaterialPassKind :
-		uint8_t {
+	enum class MaterialPassKind : uint8_t {
 
 		Invalid = 0,
 		ZPrepass,

@@ -4,17 +4,25 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 
+// c++
 #include <vector>
-#include <windows.h>
 
+//============================================================================
+//	ManagedRuntimePaths functions
+//============================================================================
 namespace Engine::ManagedRuntimePaths {
 
+	// 現在の構成名を取得
 	std::string GetBuildProfile() {
+
 		return _PROFILE;
 	}
 
+	// 優先順で最初に存在するパスを取得
 	std::filesystem::path FindFirstExistingPath(const std::vector<std::filesystem::path>& paths) {
+
 		for (const auto& path : paths) {
 			if (std::filesystem::exists(path)) {
 				return path;
@@ -24,15 +32,14 @@ namespace Engine::ManagedRuntimePaths {
 	}
 
 	std::filesystem::path GetExecutableDirectory() {
-		std::vector<wchar_t> buffer(1024);
-		const DWORD length = ::GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-		if (length == 0 || length >= buffer.size()) {
-			return {};
-		}
-		return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
+
+		// EXE隣のManaged配置を探索する起点
+		return Algorithm::GetExecutablePath().parent_path();
 	}
 
+	// 配布先と構成別のコアAssemblyを探索
 	std::filesystem::path ResolveScriptCoreAssemblyPath() {
+
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		const std::filesystem::path exeDir = GetExecutableDirectory();
@@ -45,7 +52,9 @@ namespace Engine::ManagedRuntimePaths {
 			});
 	}
 
+	// 配布先と構成別のゲームAssemblyを探索
 	std::filesystem::path ResolveGameAssemblyPath() {
+
 		const std::string profile = GetBuildProfile();
 		const std::filesystem::path current = std::filesystem::current_path();
 		const std::filesystem::path exeDir = GetExecutableDirectory();
@@ -56,7 +65,9 @@ namespace Engine::ManagedRuntimePaths {
 			});
 	}
 
+	// ゲーム側のScriptプロジェクトを探索
 	std::filesystem::path ResolveGameScriptProjectPath() {
+
 		const std::filesystem::path current = std::filesystem::current_path();
 		return FindFirstExistingPath({
 			current / "Scripts/GameScripts.csproj",

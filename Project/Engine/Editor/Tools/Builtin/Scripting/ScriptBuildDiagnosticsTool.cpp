@@ -6,7 +6,7 @@
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/Core/EditorContext.h>
-#include <Engine/Editor/Scripting/ManagedIdeLauncher.h>
+#include <Engine/Editor/Scripting/ManagedIDELauncher.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptBuildService.h>
 #include <Engine/Core/Scripting/Managed/Diagnostics/ManagedBuildDiagnosticStore.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
@@ -14,8 +14,6 @@
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
-#include <algorithm>
-#include <cctype>
 #include <fstream>
 #include <string>
 
@@ -23,7 +21,9 @@ namespace {
 
 	using State = Engine::ManagedScriptBuildService::State;
 
+	// ビルド状態を表示名へ変換
 	const char* BuildStateLabel(State state) {
+
 		switch (state) {
 		case State::Idle: return "Idle";
 		case State::Debouncing: return "Debouncing";
@@ -43,17 +43,21 @@ namespace {
 		}
 	}
 
+	// 診断元の工程を表示名へ変換
 	const char* ProcessKindLabel(Engine::ManagedBuildProcessKind kind) {
+
 		switch (kind) {
 		case Engine::ManagedBuildProcessKind::MetadataSync: return "MetadataSync";
 		case Engine::ManagedBuildProcessKind::Build: return "Build";
 		case Engine::ManagedBuildProcessKind::ProjectRefresh: return "ProjectRefresh";
-		case Engine::ManagedBuildProcessKind::IdeLaunch: return "IdeLaunch";
+		case Engine::ManagedBuildProcessKind::IDELaunch: return "IDELaunch";
 		default: return "Other";
 		}
 	}
 
+	// Assembly解放の結果を表示名へ変換
 	const char* ALCStatusLabel(Engine::ALCUnloadStatus status) {
+
 		switch (status) {
 		case Engine::ALCUnloadStatus::UnloadSucceeded: return "UnloadSucceeded";
 		case Engine::ALCUnloadStatus::LeakSuspected: return "LeakSuspected";
@@ -61,17 +65,18 @@ namespace {
 		}
 	}
 
-	// GameScripts.csprojを無条件再生成せず、必須要素をvalidateして不足をdiagnosticに出す
-	void RefreshIdeProject() {
+	// IDEのプロジェクトに必要な参照を確認
+	void RefreshIDEProject() {
 
 		const std::filesystem::path csproj =
-			(Engine::RuntimePaths::GetGameRoot() / Engine::ManagedIdeLauncher::GetSettings().project).lexically_normal();
+			(Engine::RuntimePaths::GetGameRoot() / Engine::ManagedIDELauncher::GetSettings().project).lexically_normal();
 		std::error_code ec{};
 		if (!std::filesystem::exists(csproj, ec)) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::err,
-				"RefreshIdeProject: csprojが見つかりません: {}", csproj.string());
+				"RefreshIDEProject: csprojが見つかりません: {}", csproj.string());
 			return;
 		}
+		// 保存済みのプロジェクト設定を読む
 		std::ifstream file(csproj);
 		std::string text((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
@@ -83,6 +88,7 @@ namespace {
 			{ "NEM.ScriptCodeGen", "NEM.ScriptCodeGen analyzer reference", true },
 			{ "NEM.ScriptAnalyzers", "NEM.ScriptAnalyzers analyzer reference", true },
 		};
+		// 必須参照の不足を診断へ出力
 		bool allOk = true;
 		for (const Check& check : checks) {
 			if (text.find(check.needle) == std::string::npos) {
@@ -91,24 +97,26 @@ namespace {
 				}
 				Engine::Logger::Output(Engine::LogType::Engine,
 					check.required ? spdlog::level::err : spdlog::level::warn,
-					"RefreshIdeProject: {}に{}がありません 種別={}",
+					"RefreshIDEProject: {}に{}がありません 種別={}",
 					csproj.filename().string(), check.label, check.required ? "必須" : "任意または将来用");
 			}
 		}
 		if (allOk) {
 			Engine::Logger::Output(Engine::LogType::Engine, spdlog::level::info,
-				"RefreshIdeProject: {}の必須参照を確認しました", csproj.filename().string());
+				"RefreshIDEProject: {}の必須参照を確認しました", csproj.filename().string());
 		}
 	}
 }
 
 void Engine::ScriptBuildDiagnosticsTool::OpenEditorTool() {
 
+	// 表示要求を有効にする
 	openWindow_ = true;
 }
 
 void Engine::ScriptBuildDiagnosticsTool::DrawEditorTool(const EditorToolContext& context) {
 
+	// 開いている間だけ診断画面を描画
 	if (openWindow_) {
 		DrawWindow(context);
 	}
@@ -121,13 +129,13 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		return;
 	}
 
-	// build serviceへの参照、read-only snapshotとrequestのみでLogger internalsは読まない
+	// Editorが所有するビルドサービスを取得
 	ManagedScriptBuildService* service = nullptr;
 	if (context.panelContext && context.panelContext->editorContext) {
 		service = context.panelContext->editorContext->scriptBuildService;
 	}
 
-	//---------上部: build status + actions ---------------------------------
+	// ビルド状態と再実行操作を表示
 	if (service) {
 		const ManagedScriptBuildService::Snapshot snapshot = service->GetSnapshot();
 		ImGui::Text("State: %s  | build #%llu  reload #%llu",
@@ -152,13 +160,13 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		ImGui::SameLine();
 		if (ImGui::Button("Metadata Sync")) { service->RequestMetadataSync(); }
 		ImGui::SameLine();
-		if (ImGui::Button("Refresh IDE Project")) { RefreshIdeProject(); }
+		if (ImGui::Button("Refresh IDE Project")) { RefreshIDEProject(); }
 	} else {
 		ImGui::TextDisabled("build service が利用できません。");
 	}
 	ImGui::Separator();
 
-	//--------- filter -------------------------------------------------------
+	// 診断の表示条件とクリア操作を表示
 	ManagedBuildDiagnosticStore& store = ManagedBuildDiagnosticStore::GetInstance();
 	ImGui::Checkbox("Errors", &showErrors_);
 	ImGui::SameLine();
@@ -176,13 +184,13 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 		static_cast<unsigned long long>(store.WarningCount()),
 		static_cast<unsigned long long>(ManagedBuildDiagnosticStore::kMaxEntries));
 
-	// latest build idを決定する、最後のentryのbuildIDを使う
+	// 最後の診断から表示対象のビルドIDを取得
 	uint64_t latestBuildID = 0;
 	if (!store.Entries().empty()) {
 		latestBuildID = store.Entries().back().buildID;
 	}
 
-	//--------- list ---------------------------------------------------------
+	// 条件に合う診断を一覧表示
 	const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg
 		| ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable;
 	if (ImGui::BeginTable("##diagTable", 5, tableFlags)) {
@@ -218,11 +226,11 @@ void Engine::ScriptBuildDiagnosticsTool::DrawWindow(const EditorToolContext& con
 			ImGui::TextUnformatted(d.code.c_str());
 
 			ImGui::TableSetColumnIndex(2);
-			// クリック/ダブルクリックで共通IDE launcherを使って該当位置を開く
+			// ダブルクリックで診断位置をIDEへ渡す
 			const std::string fileLabel = d.file.empty() ? "(global)" : d.file;
 			ImGui::Selectable(fileLabel.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick);
 			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && !d.file.empty()) {
-				ManagedIdeLauncher::OpenFile(d.file, d.line, d.column);
+				ManagedIDELauncher::OpenFile(d.file, d.line, d.column);
 			}
 
 			ImGui::TableSetColumnIndex(3);

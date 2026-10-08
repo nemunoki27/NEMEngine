@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -13,11 +14,13 @@
 //============================================================================
 //	SceneCreationScope classMethods
 //============================================================================
-Engine::SceneCreationScope::SceneCreationScope(ECSWorld& world) : world_(world), creation_(world) {}
+Engine::SceneCreationScope::SceneCreationScope(ECSWorld& world)
+	: world_(world), lifetime_(world.GetLifetime()), creation_(world) {
+}
 
 Engine::SceneCreationScope::~SceneCreationScope() {
 
-	if (committed_ || !creation_.HasCreations()) {
+	if (committed_ || !creation_.HasCreations() || !lifetime_->IsAlive()) {
 		return;
 	}
 	std::exception_ptr failure;
@@ -28,6 +31,10 @@ Engine::SceneCreationScope::~SceneCreationScope() {
 	}
 	try {
 
+		// 取消通知で終了したWorldへ戻らない
+		if (!lifetime_->IsAlive()) {
+			return;
+		}
 		// 消した生成物を親子リンクから取り除く
 		std::vector<Entity> remaining;
 		world_.ForEachAliveEntity([&](Entity entity) { remaining.emplace_back(entity); });
@@ -47,12 +54,14 @@ Engine::SceneCreationScope::~SceneCreationScope() {
 
 void Engine::SceneCreationScope::Commit() {
 
+	lifetime_->ThrowIfEnded();
 	creation_.Commit();
 	committed_ = true;
 }
 
 void Engine::SceneCreationScope::DestroyCreated(const Entity& entity) {
 
+	lifetime_->ThrowIfEnded();
 	if (!creation_.Contains(entity)) {
 		throw std::invalid_argument("生成範囲外のEntityは取消できません");
 	}

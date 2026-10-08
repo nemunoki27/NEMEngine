@@ -9,51 +9,54 @@
 namespace Engine {
 
 	//============================================================================
-	//	ManagedBridgeExports structure
+	//	ManagedBridgeExports
 	//	接続済みManaged関数と取得処理
 	//============================================================================
 	struct ManagedBridgeExports {
 
-		// load_assembly_and_get_function_pointerデリゲートのシグネチャ、x64では__stdcallと__cdeclが同一ABIで呼び出し可能
+		// x64用のAssembly読込接続
 		using LoadAssemblyAndGetFunctionPointerFn = int32_t(__cdecl*)(const wchar_t*, const wchar_t*,
 			const wchar_t*, const wchar_t*, void*, void**);
 
-		// 全exportは例外を境界外へ出さずManagedStatusで返し、値を返すAPIはout parameter形式にする
+		// 実行結果と出力値を分ける接続
 		using InitializeNativeAPIFn = ManagedStatus(__cdecl*)(ManagedNativeAPITable*);
 		using LoadGameAssemblyFn = ManagedStatus(__cdecl*)(const char*);
 		using UnloadGameAssemblyFn = ManagedStatus(__cdecl*)();
 		using GetScriptTypeCountFn = ManagedStatus(__cdecl*)(int32_t*);
 		using CopyScriptTypeInfoFn = ManagedStatus(__cdecl*)(int32_t, ManagedScriptTypeDescriptor*);
 		using GenerateScriptManifestFn = ManagedStatus(__cdecl*)(const char*, const char*);
-		// 二段階blob schema APIで固定長bufferを使わない
+		// Field情報をサイズ取得後にコピーする接続
 		using GetScriptSchemaJsonSizeFn = ManagedStatus(__cdecl*)(const char*, int32_t*);
 		using CopyScriptSchemaJsonFn = ManagedStatus(__cdecl*)(const char*, char*, int32_t, int32_t*);
-		// Play中runtime Inspectorのためのinstance値readback / set
+		// 実行中のField値を読み書きする接続
 		using GetRuntimeStateSizeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, int32_t*);
 		using CopyRuntimeStateFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, char*, int32_t, int32_t*);
 		using SetRuntimeFieldFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, const char*);
-		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, uint64_t, ManagedScriptInstanceHandle*);
+		using CreateInstanceFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, const char*, uint64_t,
+			ManagedScriptInstanceHandle*);
 		using SetSerializedFieldsFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*);
 		using DestroyInstanceFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
 		using ConfigureProfilerFn = ManagedStatus(__cdecl*)(const char*, ManagedNativeEntity, uint64_t);
 		using InvokeFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle);
 		using InvokeCollisionFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, ManagedCollisionEvent);
-		using InvokeAnimationEventFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, float, int32_t, const char*);
+		using InvokeAnimationEventFn = ManagedStatus(__cdecl*)(ManagedScriptInstanceHandle, const char*, float, int32_t,
+			const char*);
 
 		using TickFrameFn = ManagedStatus(__cdecl*)(int32_t);
+		// Assemblyの解放状態を直接返す接続
 		using IntNoArgFn = int32_t(__cdecl*)();
 
 		InitializeNativeAPIFn initializeNativeAPI_ = nullptr;
 		ConfigureProfilerFn configureProfiler_ = nullptr;
 		LoadGameAssemblyFn loadGameAssembly_ = nullptr;
 		UnloadGameAssemblyFn unloadGameAssembly_ = nullptr;
-		// SceneイベントpumpのPumpSceneEventsでUnloadGameAssemblyFnと同じ無引数シグネチャ
+		// SceneのEvent通知
 		UnloadGameAssemblyFn pumpSceneEvents_ = nullptr;
-		// application終了通知のRaiseApplicationQuittingで同じ無引数シグネチャ
+		// Applicationの終了通知
 		UnloadGameAssemblyFn raiseApplicationQuitting_ = nullptr;
-		// per-frame tickのTickFrameでphaseを引数に取る
+		// phaseごとの予約処理
 		TickFrameFn tickFrame_ = nullptr;
-		// 直近ALC unload statusのGetLastALCUnloadStatusでintを返す無引数
+		// 直近のAssembly解放結果
 		IntNoArgFn getLastALCUnloadStatus_ = nullptr;
 		GetScriptTypeCountFn getScriptTypeCount_ = nullptr;
 		CopyScriptTypeInfoFn copyScriptTypeInfo_ = nullptr;
@@ -109,6 +112,7 @@ namespace Engine {
 			return false;
 		}
 
+		// HostBridgeの公開関数を取得する
 		void* function = nullptr;
 		const wchar_t* typeName = L"NEMEngine.HostBridge, NEM.ScriptCore";
 		const wchar_t* unmanagedCallersOnly = reinterpret_cast<const wchar_t*>(-1);

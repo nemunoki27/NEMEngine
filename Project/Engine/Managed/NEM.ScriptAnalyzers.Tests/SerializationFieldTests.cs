@@ -106,6 +106,19 @@ internal static class SerializationFieldTests {
         public Data data = new();
     }
 
+    private sealed class ReleasingCallback : MonoBehaviour, ISerializationCallbackReceiver {
+
+        internal Action afterDeserialize = null!;
+        internal int notifications;
+
+        public void OnBeforeSerialize() { }
+        public void OnAfterDeserialize() { afterDeserialize(); }
+        private void OnCollisionEnter(Collision collision) { ++notifications; }
+        private void OnCollisionStay(Collision collision) { ++notifications; }
+        private void OnCollisionExit(Collision collision) { ++notifications; }
+        private void OnAnimationEvent(AnimationEvent animationEvent) { ++notifications; }
+    }
+
     private sealed class EntityReferenceFixture : MonoBehaviour {
         public GameObject? target = null;
     }
@@ -134,7 +147,7 @@ internal static class SerializationFieldTests {
         try {
             codec.ApplySerializedFields(fixture, saved);
             codec.FlushPendingReferenceFields();
-            Check(fixture.target is null && JsonNode.DeepEquals(JsonNode.Parse(saved), JsonNode.Parse(codec.BuildSavedStateJson(fixture))));
+            Check(fixture.target is null && JsonNode.DeepEquals(JsonNode.Parse(saved), JsonNode.Parse(codec.BuildSavedStateJSON(fixture))));
             referenceAvailable = true;
             codec.FlushPendingReferenceFields(retryUnresolved: true);
             Check(fixture.target != null);
@@ -209,6 +222,7 @@ internal static class SerializationFieldTests {
         TestHostReferences();
         TestSerializationCallbacks();
         TestCallbackBoundary();
+        TestCallbackRelease();
         TestNumericConversion();
         Console.WriteLine("[PASS] serialized fields and atomic schema registration.");
     }
@@ -220,7 +234,7 @@ internal static class SerializationFieldTests {
         const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
         var session = (ManagedAssemblySession)typeof(HostBridge).GetField("session", flags)!.GetValue(null)!;
         var instances = (ScriptInstanceStore)typeof(HostBridge).GetField("instances", flags)!.GetValue(null)!;
-        var entry = new ScriptTypeEntry { type = typeof(MovementFixture), callbacks = new ScriptCallbacks(typeof(MovementFixture)) };
+        var entry = new ScriptTypeEntry(typeof(MovementFixture));
         FieldInfo field = typeof(MovementFixture).GetField("moveSpeed", BindingFlags.Instance | BindingFlags.NonPublic)!;
         entry.fieldMap.Add(fieldID, field);
         entry.runtimeFieldMap.Add(fieldID, field);
@@ -292,8 +306,8 @@ internal static class SerializationFieldTests {
         registry.AddScriptTypeEntry("46e4ec2f-c4a7-4d44-8326-1914311d4903", typeof(ReloadFixture), typeof(ReloadFixture).FullName!, "Reload", "", true);
         var codec = new ScriptFieldCodec(registry);
         var script = new ReloadFixture();
-        Check(JsonNode.Parse(codec.BuildSavedStateJson(script))!.AsObject().Count == 0);
-        JsonObject captured = JsonNode.Parse(codec.BuildReloadStateJson(script))!.AsObject();
+        Check(JsonNode.Parse(codec.BuildSavedStateJSON(script))!.AsObject().Count == 0);
+        JsonObject captured = JsonNode.Parse(codec.BuildReloadStateJSON(script))!.AsObject();
         string prefix = "$private:" + typeof(ReloadFixture).FullName + "/";
         Check(captured.Count == 3 && (int)captured[prefix + "counter"]! == 17);
         Check((int)captured[prefix + "callback"]!["number"]! == 12 && (int)captured[prefix + "numbers"]![1]! == 7);
@@ -301,7 +315,7 @@ internal static class SerializationFieldTests {
         codec.ApplyReloadFields(script, captured.ToJsonString());
         codec.FlushPendingReferenceFields(true);
         Check(script.Current == 61);
-        Check(JsonNode.Parse(codec.BuildSavedStateJson(script))!.AsObject().Count == 0);
+        Check(JsonNode.Parse(codec.BuildSavedStateJSON(script))!.AsObject().Count == 0);
     }
 
     // 入れ子の旧名を引き継ぎ、曖昧な対応付けを拒否する
@@ -395,7 +409,7 @@ internal static class SerializationFieldTests {
         const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
         var session = (ManagedAssemblySession)typeof(HostBridge).GetField("session", flags)!.GetValue(null)!;
         var instances = (ScriptInstanceStore)typeof(HostBridge).GetField("instances", flags)!.GetValue(null)!;
-        var entry = new ScriptTypeEntry { type = typeof(ThrowingCallback) };
+        var entry = new ScriptTypeEntry(typeof(ThrowingCallback));
         session.registry.typeToEntry.Add(typeof(ThrowingCallback), entry);
         var script = new ThrowingCallback { callbacks = new ScriptCallbacks(typeof(ThrowingCallback)) };
         NativeScriptInstanceHandle handle = instances.AllocateSlot(script);
@@ -411,6 +425,54 @@ internal static class SerializationFieldTests {
         }
     }
 
+    // 参照解決中に解放された個体へ通知しない
+    private static unsafe void TestCallbackRelease() {
+
+        foreach (bool release in new[] { false, true }) {
+            for (int notification = 0; notification < 5; ++notification) {
+
+                var instances = new ScriptInstanceStore();
+                var session = new ManagedAssemblySession(instances);
+                var invoker = new ScriptCallbackInvoker(instances, session);
+                var script = new ReleasingCallback { callbacks = new ScriptCallbacks(typeof(ReleasingCallback)) };
+                session.registry.typeToEntry.Add(typeof(ReleasingCallback), new ScriptTypeEntry(typeof(ReleasingCallback)));
+                NativeScriptInstanceHandle handle = instances.AllocateSlot(script);
+                NativeScriptInstanceHandle replacement = NativeScriptInstanceHandle.Null;
+                script.afterDeserialize = () => {
+                    if (!release) {
+                        return;
+                    }
+                    session.codec.ReleaseInstance(script);
+                    instances.ReleaseSlot(handle);
+                    replacement = instances.AllocateSlot(new ReleasingCallback());
+                };
+                session.codec.ApplySerializedFields(script, "{}");
+
+                NativeEntity owner = new() { world = new() { index = 1, generation = 1 }, index = 0 };
+                NativeCollisionEvent collision = new() { self = owner, other = owner };
+
+                // 同じslotが再利用されても古い世代を拒否する
+                ManagedStatus status = notification switch {
+                    0 => invoker.Invoke(handle, "fixture", current => ++((ReleasingCallback)current).notifications),
+                    1 => invoker.InvokeCollision(handle, collision, ScriptCollisionCallback.Enter),
+                    2 => invoker.InvokeCollision(handle, collision, ScriptCollisionCallback.Stay),
+                    3 => invoker.InvokeCollision(handle, collision, ScriptCollisionCallback.Exit),
+                    _ => invoker.InvokeAnimationEvent(handle, null, 0, 0, null),
+                };
+                if (release) {
+                    Check(status == ManagedStatus.InvalidInstanceHandle && script.notifications == 0);
+                    Check(replacement.index == handle.index && replacement.generation != handle.generation);
+                    Check(instances.TryResolveSlot(replacement, out _));
+                    instances.ReleaseSlot(replacement);
+                } else {
+                    Check(status == ManagedStatus.Ok && script.notifications == 1);
+                    session.codec.ReleaseInstance(script);
+                    instances.ReleaseSlot(handle);
+                }
+            }
+        }
+    }
+
     // 保存元のcallbackを参照先より先に一度だけ呼ぶ
     private static void TestSerializationCallbacks() {
         var registry = new ScriptTypeRegistry { gameAssembly = typeof(CallbackFixture).Assembly };
@@ -423,7 +485,7 @@ internal static class SerializationFieldTests {
         }
         var codec = new ScriptFieldCodec(registry);
         var source = new CallbackFixture();
-        string json = codec.BuildSavedStateJson(source);
+        string json = codec.BuildSavedStateJSON(source);
         Check(source.before == 1 && source.first.before == 1);
         var restored = new CallbackFixture();
         codec.ApplySerializedFields(restored, json);
@@ -432,7 +494,7 @@ internal static class SerializationFieldTests {
         Check(restored.after == 1 && restored.first.after == 1 && restored.referencesReady);
         codec.FlushPendingReferenceFields();
         Check(restored.after == 1 && restored.first.after == 1);
-        codec.BuildRuntimeStateJson(restored);
+        codec.BuildRuntimeStateJSON(restored);
         Check(restored.before == 0);
     }
 
@@ -452,7 +514,7 @@ internal static class SerializationFieldTests {
         var original = new ReferenceFixture { first = new DerivedNode() };
         original.second = original.first;
         original.first.next = original.first;
-        string json = codec.BuildSavedStateJson(original);
+        string json = codec.BuildSavedStateJSON(original);
         var restored = new ReferenceFixture();
         codec.ApplySerializedFields(restored, json);
         codec.FlushPendingReferenceFields();
@@ -464,7 +526,7 @@ internal static class SerializationFieldTests {
         codec.ApplyFieldValue(restored, entry.fieldMap["first"], "null");
         Check(restored.first is null && restored.second!.number == 28);
         var detached = new ReferenceFixture();
-        codec.ApplySerializedFields(detached, codec.BuildSavedStateJson(restored));
+        codec.ApplySerializedFields(detached, codec.BuildSavedStateJSON(restored));
         codec.FlushPendingReferenceFields();
         Check(detached.first is null && detached.second!.number == 28 && ReferenceEquals(detached.second, detached.second.next));
 
@@ -473,7 +535,7 @@ internal static class SerializationFieldTests {
         missing["first"]!["type"] = "Missing.ReferenceType";
         var unavailable = new ReferenceFixture();
         codec.ApplySerializedFields(unavailable, missing.ToJsonString());
-        string retained = codec.BuildSavedStateJson(unavailable);
+        string retained = codec.BuildSavedStateJSON(unavailable);
         Check(JsonNode.DeepEquals(missing, JsonNode.Parse(retained)));
         Check(unavailable.first is null && unavailable.second is null);
     }
@@ -560,7 +622,7 @@ internal static class SerializationFieldTests {
         // 変換不能な既存値と未登録Fieldを保存し直しても失わない
         string source = new JsonObject { [fieldID] = "incompatible", ["removed-field"] = 71 }.ToJsonString();
         codec.ApplySerializedFields(fixture, source);
-        JsonNode saved = JsonNode.Parse(codec.BuildSavedStateJson(fixture))!;
+        JsonNode saved = JsonNode.Parse(codec.BuildSavedStateJSON(fixture))!;
         Check((string)saved[fieldID]! == "incompatible" && (int)saved["removed-field"]! == 71);
         Check(fixture.data.value == 11);
         bool failed = false;
@@ -570,7 +632,7 @@ internal static class SerializationFieldTests {
 
         // 明示編集の成功後は新しい値を保存する
         codec.ApplyFieldValue(fixture, published.fieldMap[fieldID], "{\"value\":37}");
-        saved = JsonNode.Parse(codec.BuildSavedStateJson(fixture))!;
+        saved = JsonNode.Parse(codec.BuildSavedStateJSON(fixture))!;
         Check((int)saved[fieldID]!["value"]! == 37 && (int)saved["removed-field"]! == 71);
     }
 
@@ -606,6 +668,28 @@ internal static class SerializationFieldTests {
         ExpectFailure(pending.Flush);
         pending.Flush();
         Check(attempts == 2);
+
+        // Field単位の取消は同じScriptの別Fieldを残す
+        FieldInfo secondField = typeof(ReferenceFixture).GetField(nameof(ReferenceFixture.second))!;
+        var appliedFields = new List<FieldInfo>();
+        pending = new PendingScriptReferences((_, appliedField, _) => appliedFields.Add(appliedField));
+        pending.Add(first, field, value.RootElement);
+        pending.Add(first, secondField, value.RootElement);
+        pending.AddUnresolved(first, field, value.RootElement);
+        pending.AddUnresolved(first, secondField, value.RootElement);
+        pending.Remove(first, field);
+        pending.RetryUnresolved();
+        pending.Flush();
+        Check(appliedFields.Count == 2 && appliedFields.All(item => item.Equals(secondField)));
+
+        // Script単位の取消は未解決の再予約も止める
+        appliedFields.Clear();
+        pending.Add(first, field, value.RootElement);
+        pending.AddUnresolved(first, secondField, value.RootElement);
+        pending.Remove(first);
+        pending.RetryUnresolved();
+        pending.Flush();
+        Check(appliedFields.Count == 0);
     }
 
     private static void ExpectFailure(Action action) {

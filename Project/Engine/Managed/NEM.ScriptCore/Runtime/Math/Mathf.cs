@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace NEMEngine;
 
 //============================================================================
@@ -9,7 +7,7 @@ public static class Mathf {
 
     // 円周率
     public const float PI = System.MathF.PI;
-    // degreeからDeg2Radへ変換する係数
+    // 度数からラジアンへ変換する係数
     public const float Deg2Rad = PI / 180.0f;
     // ラジアンから度へ変換する係数
     public const float Rad2Deg = 180.0f / PI;
@@ -55,10 +53,11 @@ public static class Mathf {
     public static float Exp(float value) => System.MathF.Exp(value);
     public static float Log(float value) => System.MathF.Log(value);
 
-    // lhs..rhs間でのvalueの正規化位置を返す
-    public static float InverseLerp(float lhs, float rhs, float value) => lhs == rhs ? 0.0f : Clamp01((value - lhs) / (rhs - lhs));
+    // 範囲内の位置を0から1で返す
+    public static float InverseLerp(float lhs, float rhs, float value) =>
+        lhs == rhs ? 0.0f : Clamp01((value - lhs) / (rhs - lhs));
 
-    // currentからtargetへmaxDeltaを上限に近づける
+    // 指定量を上限に目標へ近づける
     public static float MoveTowards(float current, float target, float maxDelta) {
         if (Abs(target - current) <= maxDelta) {
             return target;
@@ -66,10 +65,10 @@ public static class Mathf {
         return current + Sign(target - current) * maxDelta;
     }
 
-    // 0..lengthでループした値を返す
+    // 指定長で値を繰り返す
     public static float Repeat(float t, float length) => Clamp(t - Floor(t / length) * length, 0.0f, length);
 
-    // 0..lengthを往復した値を返す
+    // ゼロと指定長の間を往復
     public static float PingPong(float t, float length) {
         t = Repeat(t, length * 2.0f);
         return length - Abs(t - length);
@@ -82,7 +81,7 @@ public static class Mathf {
         return lhs + (rhs - lhs) * t;
     }
 
-    // 2角度の最短差分(度)を返す
+    // 角度の最短差分を度数で返す
     public static float DeltaAngle(float current, float target) {
         float delta = Repeat(target - current, 360.0f);
         if (delta > 180.0f) {
@@ -91,28 +90,31 @@ public static class Mathf {
         return delta;
     }
 
-    // 角度(度)を最短経路で補間する
+    // 度数の角度を最短経路で補間
     public static float LerpAngle(float lhs, float rhs, float t) => lhs + DeltaAngle(lhs, rhs) * Clamp01(t);
 
-    // 近似比較のUnity互換エイリアス
-    public static bool Approximately(float lhs, float rhs) => Abs(lhs - rhs) < Max(1e-6f * Max(Abs(lhs), Abs(rhs)), Epsilon * 8.0f);
+    // 値の大きさに応じて近似比較
+    public static bool Approximately(float lhs, float rhs) =>
+        Abs(lhs - rhs) < Max(1e-6f * Max(Abs(lhs), Abs(rhs)), Epsilon * 8.0f);
 
     // ラジアンから度に変換する
     public static float RadToDeg(float rad) => rad * (180.0f / PI);
     public static Vector2 RadToDeg(Vector2 rad) => new(RadToDeg(rad.x), RadToDeg(rad.y));
     public static Vector3 RadToDeg(Vector3 rad) => new(RadToDeg(rad.x), RadToDeg(rad.y), RadToDeg(rad.z));
-    public static Vector4 RadToDeg(Vector4 rad) => new(RadToDeg(rad.x), RadToDeg(rad.y), RadToDeg(rad.z), RadToDeg(rad.w));
+    public static Vector4 RadToDeg(Vector4 rad) =>
+        new(RadToDeg(rad.x), RadToDeg(rad.y), RadToDeg(rad.z), RadToDeg(rad.w));
 
     // 度からラジアンに変換する
     public static float DegToRad(float deg) => deg * Deg2Rad;
     public static Vector2 DegToRad(Vector2 deg) => new(DegToRad(deg.x), DegToRad(deg.y));
     public static Vector3 DegToRad(Vector3 deg) => new(DegToRad(deg.x), DegToRad(deg.y), DegToRad(deg.z));
-    public static Vector4 DegToRad(Vector4 deg) => new(DegToRad(deg.x), DegToRad(deg.y), DegToRad(deg.z), DegToRad(deg.w));
+    public static Vector4 DegToRad(Vector4 deg) =>
+        new(DegToRad(deg.x), DegToRad(deg.y), DegToRad(deg.z), DegToRad(deg.w));
 
-    // [0, 360)へ丸める
+    // 角度を0度以上360度未満へ戻す
     public static float WrapDegree360(float value) => WrapRange(value, 0.0f, 360.0f);
 
-    // [-180, 180]付近へ丸める
+    // 角度を負180度より大きく180度以下へ戻す
     public static float WrapDegree180(float value) {
         value = System.MathF.IEEERemainder(value, 360.0f);
         if (value <= -180.0f) {
@@ -125,28 +127,34 @@ public static class Mathf {
     }
 
     public static Vector2 WrapDegree360(Vector2 value) => new(WrapDegree360(value.x), WrapDegree360(value.y));
-    public static Vector3 WrapDegree360(Vector3 value) => new(WrapDegree360(value.x), WrapDegree360(value.y), WrapDegree360(value.z));
+    public static Vector3 WrapDegree360(Vector3 value) =>
+        new(WrapDegree360(value.x), WrapDegree360(value.y), WrapDegree360(value.z));
     public static Vector2 WrapDegree180(Vector2 value) => new(WrapDegree180(value.x), WrapDegree180(value.y));
-    public static Vector3 WrapDegree180(Vector3 value) => new(WrapDegree180(value.x), WrapDegree180(value.y), WrapDegree180(value.z));
+    public static Vector3 WrapDegree180(Vector3 value) =>
+        new(WrapDegree180(value.x), WrapDegree180(value.y), WrapDegree180(value.z));
 
-    // rawAngleをreferenceAngleから見て最も近い角度表現へ寄せる
-    public static float MakeContinuousAngleDegrees(float rawAngle, float referenceAngle) => referenceAngle + System.MathF.IEEERemainder(rawAngle - referenceAngle, 360.0f);
+    // 基準角度に最も近い表現へ戻す
+    public static float MakeContinuousAngleDegrees(float rawAngle, float referenceAngle) =>
+        referenceAngle + System.MathF.IEEERemainder(rawAngle - referenceAngle, 360.0f);
 
     // 近似比較
     public static bool NearlyEqual(float lhs, float rhs) => Abs(lhs - rhs) <= 0.001f;
 
-    // 値を[minValue, maxValue)の範囲に収める
+    // 値を下限以上かつ上限未満へ戻す
     private static float WrapRange(float value, float minValue, float maxValue) {
         float range = maxValue - minValue;
         if (range <= 0.0f) {
             return value;
         }
-        while (value < minValue) {
-            value += range;
+        // 非有限値をそのまま伝える
+        if (!float.IsFinite(value)) {
+            return value;
         }
-        while (value >= maxValue) {
-            value -= range;
+        // 大きな角度も剰余で一度に戻す
+        float wrapped = (value - minValue) % range;
+        if (wrapped < 0.0f) {
+            wrapped += range;
         }
-        return value;
+        return wrapped < range ? minValue + wrapped : minValue;
     }
 }

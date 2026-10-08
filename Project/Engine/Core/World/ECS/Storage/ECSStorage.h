@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/AlignedBuffer.h>
+#include <Engine/Core/World/ECS/World/ECSWorldLifetime.h>
 
 // c++
 #include <algorithm>
@@ -291,7 +292,7 @@ namespace Engine {
 
 		Root& GetRoot();
 		const Root& GetRoot() const;
-		std::span<const std::byte> GetBytes() const { return { bytes_.ptr, size_ }; }
+		std::span<const std::byte> GetBytes() const { return { bytes_.GetData(), size_ }; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -311,6 +312,7 @@ namespace Engine {
 	//	ワールドに属するチャンク外データの所有先
 	//============================================================================
 	class ECSStorageRegistry {
+		friend class ECSWorld;
 	public:
 		//============================================================================
 		//	public Methods
@@ -357,12 +359,17 @@ namespace Engine {
 		std::unordered_map<const void*, std::unique_ptr<IStorage>> storages_;
 		size_t constructionDepth_ = 0;
 		bool clearing_ = false;
+		// 新規構築中だけWorldの所有データを保持する
+		std::weak_ptr<void> owner_;
+		std::shared_ptr<const ECSWorldLifetime> ownerLifetime_;
 
 		//--------- functions ----------------------------------------------------
 
 		// 型を識別するアドレスを返す
 		template <typename Storage>
 		static const void* GetTypeKey();
+		// Worldの終了状態とデータの所有先を接続する
+		void SetOwner(std::shared_ptr<const ECSWorldLifetime> lifetime, std::weak_ptr<void> owner);
 	};
 } // Engine
 
@@ -616,13 +623,13 @@ inline Engine::BlobBuilder<Root>::BlobBuilder() {
 
 template <typename Root>
 inline Engine::BlobBuilder<Root>::BlobBuilder(const BlobBuilder& other) :
-	bytes_((std::max)(sizeof(Root), other.size_), (std::max)(alignof(Root), other.bytes_.align)),
+	bytes_((std::max)(sizeof(Root), other.size_), (std::max)(alignof(Root), other.bytes_.GetAlignment())),
 	size_((std::max)(sizeof(Root), other.size_)) {
 
 	if (other.size_ != 0) {
-		std::memcpy(bytes_.ptr, other.bytes_.ptr, size_);
+		std::memcpy(bytes_.GetData(), other.bytes_.GetData(), size_);
 	} else {
-		std::memset(bytes_.ptr, 0, size_);
+		std::memset(bytes_.GetData(), 0, size_);
 	}
 }
 
@@ -647,7 +654,7 @@ inline void Engine::BlobBuilder<Root>::EnsureRoot() {
 	if (size_ == 0) {
 		bytes_.Reset(sizeof(Root), alignof(Root));
 		size_ = sizeof(Root);
-		std::memset(bytes_.ptr, 0, size_);
+		std::memset(bytes_.GetData(), 0, size_);
 	}
 }
 
@@ -665,7 +672,7 @@ template <typename Root>
 inline void Engine::BlobBuilder<Root>::SetRoot(const Root& root) {
 
 	EnsureRoot();
-	std::memmove(bytes_.ptr, &root, sizeof(Root));
+	std::memmove(bytes_.GetData(), &root, sizeof(Root));
 }
 
 template <typename Root>
@@ -683,7 +690,7 @@ inline Engine::BlobArray<T> Engine::BlobBuilder<Root>::AddArray(
 	const size_t alignedOffset = size_ + padding;
 	const size_t newSize = alignedOffset + values.size_bytes();
 	const uintptr_t sourceAddress = reinterpret_cast<uintptr_t>(values.data());
-	const uintptr_t beginAddress = reinterpret_cast<uintptr_t>(bytes_.ptr);
+	const uintptr_t beginAddress = reinterpret_cast<uintptr_t>(bytes_.GetData());
 	const bool internalSource = !values.empty() && sourceAddress >= beginAddress && sourceAddress - beginAddress < size_;
 	const size_t sourceOffset = internalSource ? sourceAddress - beginAddress : 0;
 	if (internalSource && values.size_bytes() > size_ - sourceOffset) {
@@ -692,10 +699,10 @@ inline Engine::BlobArray<T> Engine::BlobBuilder<Root>::AddArray(
 	bytes_.Reserve(newSize, alignof(T), size_);
 	// 再確保した内部入力を引き直して末尾へ追加する
 	if (!values.empty()) {
-		const void* source = internalSource ? bytes_.ptr + sourceOffset : static_cast<const void*>(values.data());
-		std::memcpy(bytes_.ptr + alignedOffset, source, values.size_bytes());
+		const void* source = internalSource ? bytes_.GetData() + sourceOffset : static_cast<const void*>(values.data());
+		std::memcpy(bytes_.GetData() + alignedOffset, source, values.size_bytes());
 	}
-	std::memset(bytes_.ptr + size_, 0, padding);
+	std::memset(bytes_.GetData() + size_, 0, padding);
 	size_ = newSize;
 
 	BlobArray<T> result{};
@@ -712,14 +719,14 @@ inline Engine::BlobAssetReference<Root> Engine::BlobBuilder<Root>::Build(
 		throw std::logic_error("移動済みのBlobBuilderは公開できません");
 	}
 	// 内容Hashが一致するBlobは共有され、同じColliderやRender配列の重複を避ける
-	return BlobAssetReference<Root>{ store.Acquire(std::span<const std::byte>(bytes_.ptr, size_), bytes_.align) };
+	return BlobAssetReference<Root>{ store.Acquire(std::span<const std::byte>(bytes_.GetData(), size_), bytes_.GetAlignment()) };
 }
 
 template <typename Root>
 inline Root& Engine::BlobBuilder<Root>::GetRoot() {
 
 	EnsureRoot();
-	return *reinterpret_cast<Root*>(bytes_.ptr);
+	return *reinterpret_cast<Root*>(bytes_.GetData());
 }
 
 template <typename Root>
@@ -728,7 +735,7 @@ inline const Root& Engine::BlobBuilder<Root>::GetRoot() const {
 	if (size_ == 0) {
 		throw std::logic_error("移動済みのBlobBuilderは参照できません");
 	}
-	return *reinterpret_cast<const Root*>(bytes_.ptr);
+	return *reinterpret_cast<const Root*>(bytes_.GetData());
 }
 
 //============================================================================
@@ -751,10 +758,19 @@ inline Storage& Engine::ECSStorageRegistry::Get() {
 	}
 
 	// 構築中の別型登録で索引が再配置されても予約を維持する
+	const auto owner = owner_.lock();
 	auto& reserved = entry->second;
+	std::unique_ptr<StorageEntry<Storage>> candidate;
 	++constructionDepth_;
 	try {
-		reserved = std::make_unique<StorageEntry<Storage>>();
+		if (ownerLifetime_) {
+			ownerLifetime_->ThrowIfEnded();
+		}
+		candidate = std::make_unique<StorageEntry<Storage>>();
+		if (ownerLifetime_) {
+			ownerLifetime_->ThrowIfEnded();
+		}
+		reserved = std::move(candidate);
 	} catch (...) {
 		--constructionDepth_;
 		storages_.erase(typeKey);

@@ -2,17 +2,15 @@ using System.Text;
 using System.Text.Json;
 using System.Security.Cryptography;
 using System.Buffers.Binary;
-using static NEM.ComponentBindingGen.BindingTypeLayout;
-using static NEM.ComponentBindingGen.BindingOutputText;
 using static NEM.ComponentBindingGen.NativeBindingEmitter;
 using static NEM.ComponentBindingGen.ManagedBindingEmitter;
-using static NEM.ComponentBindingGen.BindingArtifactStore;
 
 namespace NEM.ComponentBindingGen;
 
 // Component連携の生成処理
 internal static class BindingGeneration {
 
+    // 生成順を確定して全成果物を作る
     internal static IReadOnlyList<(string path, string text)> Build(string outNativeDir, string outCSDir,
         List<EnumModel> enums, List<ComponentModel> components, List<ComponentModel> bindings, List<ABIFieldModel> abiFields,
         IReadOnlyList<ABILayoutModel> layouts) {

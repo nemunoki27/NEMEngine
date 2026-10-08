@@ -6,9 +6,9 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetSizing.h>
 
 // c++
-#include <algorithm>
 #include <utility>
 
 //============================================================================
@@ -34,12 +34,19 @@ Engine::MultiRenderTarget* Engine::PostProcessTemporaryTargetPool::Acquire(
 		return nullptr;
 	}
 
+	// 整数変換前にサイズを検証する
+	auto size = RenderTargetSizing::ResolveSize(source.GetWidth(), source.GetHeight(),
+		tempDesc.widthScale, tempDesc.heightScale);
+	if (!size) {
+		return nullptr;
+	}
+
 	// レンダーターゲットの情報を構築
 	SceneRenderTargetDesc desc{};
 	desc.name = tempDesc.name;
 	desc.sizeMode = SceneRenderTargetSizeMode::Fixed;
-	desc.fixedWidth = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(source.GetWidth()) * tempDesc.widthScale));
-	desc.fixedHeight = (std::max)(1u, static_cast<uint32_t>(static_cast<float>(source.GetHeight()) * tempDesc.heightScale));
+	desc.fixedWidth = size->width;
+	desc.fixedHeight = size->height;
 	desc.withDepth = false;
 	// 色情報
 	SceneRenderTargetColorDesc color{};
@@ -48,7 +55,7 @@ Engine::MultiRenderTarget* Engine::PostProcessTemporaryTargetPool::Acquire(
 	color.createUAV = tempDesc.createUAV;
 	desc.colors.emplace_back(std::move(color));
 
-	// ResizeTransientは同名RTを保持し、サイズ/フォーマットが変わった時だけ作り直す
+	// 同名RTを保持し、サイズ・形式の変更時だけ作り直す
 	return registry.ResizeTransient(graphicsCore, desc, desc.fixedWidth, desc.fixedHeight);
 }
 

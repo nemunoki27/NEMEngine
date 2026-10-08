@@ -4,10 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-
-// c++
-#include <filesystem>
+#include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
 //	DefaultMaterialSettings classMethods
@@ -18,90 +16,66 @@ Engine::DefaultMaterialSettings& Engine::DefaultMaterialSettings::GetInstance() 
 	return instance;
 }
 
-void Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
+bool Engine::DefaultMaterialSettings::Load(const std::string& configPath) {
 
+	// 別Projectの設定を読込失敗へ持ち越さない
+	if (configPath_ != configPath) {
+		configuration_ = {};
+	}
 	configPath_ = configPath;
+	if (!DefaultMaterialConfigurationIO::Read(Algorithm::PathFromUTF8(configPath_), configuration_)) {
 
-	// ファイルが無ければ未設定のままにする
-	if (!JsonAdapter::Check(configPath_, false)) {
-		return;
+		Logger::Output(LogType::Engine, spdlog::level::warn, "[Material] 既定設定の読み込みに失敗しました path={}", configPath_);
+		return false;
 	}
-
-	const nlohmann::json data = JsonAdapter::Load(configPath_, false);
-	if (!data.is_object()) {
-		return;
-	}
-
-	// GUID参照で保存しているので存在検証はせず読み込むだけにする
-	mesh_ = ParseAssetID(data, "mesh");
-	sprite_ = ParseAssetID(data, "sprite");
-	text_ = ParseAssetID(data, "text");
-	line_ = ParseAssetID(data, "line");
-	primitive_ = ParseAssetID(data, "primitive");
-	primitive2D_ = ParseAssetID(data, "primitive2D");
-	raytracingReflection_ =
-		ParseAssetID(
-			data, "raytracingReflection");
+	return true;
 }
 
-void Engine::DefaultMaterialSettings::Save() const {
+bool Engine::DefaultMaterialSettings::Save() const {
 
-	// パス未設定なら保存しない
 	if (configPath_.empty()) {
-		return;
+		return false;
 	}
+	// 保存結果を呼出し元へ返す
+	if (!DefaultMaterialConfigurationIO::Write(Algorithm::PathFromUTF8(configPath_), configuration_)) {
 
-	// GameAssets配下のConfigフォルダはまだ無いことがあるので作ってから書き出す
-	std::error_code ec;
-	std::filesystem::create_directories(std::filesystem::path(configPath_).parent_path(), ec);
-
-	nlohmann::json data = nlohmann::json::object();
-	data["mesh"] = ToAssetReferenceJson(mesh_);
-	data["sprite"] = ToAssetReferenceJson(sprite_);
-	data["text"] = ToAssetReferenceJson(text_);
-	data["line"] = ToAssetReferenceJson(line_);
-	data["primitive"] = ToAssetReferenceJson(primitive_);
-	data["primitive2D"] = ToAssetReferenceJson(primitive2D_);
-	data["raytracingReflection"] =
-		ToAssetReferenceJson(
-			raytracingReflection_);
-	JsonAdapter::Save(configPath_, data);
+		Logger::Output(LogType::Engine, spdlog::level::err, "[Material] 既定設定の保存に失敗しました path={}", configPath_);
+		return false;
+	}
+	return true;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetMeshOrBuiltin() const {
 
-	return mesh_ ? mesh_ : BuiltinAssets::Materials::DefaultMesh;
+	return configuration_.mesh ? configuration_.mesh : BuiltinAssets::Materials::DefaultMesh;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetSpriteOrBuiltin() const {
 
-	return sprite_ ? sprite_ : BuiltinAssets::Materials::DefaultSprite;
+	return configuration_.sprite ? configuration_.sprite : BuiltinAssets::Materials::DefaultSprite;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetTextOrBuiltin() const {
 
-	return text_ ? text_ : BuiltinAssets::Materials::DefaultText;
+	return configuration_.text ? configuration_.text : BuiltinAssets::Materials::DefaultText;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetLineOrBuiltin() const {
 
-	return line_ ? line_ : BuiltinAssets::Materials::DefaultLine;
+	return configuration_.line ? configuration_.line : BuiltinAssets::Materials::DefaultLine;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitiveOrBuiltin() const {
 
-	return primitive_ ? primitive_ : BuiltinAssets::Materials::DefaultPrimitive;
+	return configuration_.primitive ? configuration_.primitive : BuiltinAssets::Materials::DefaultPrimitive;
 }
 
 Engine::AssetID Engine::DefaultMaterialSettings::GetPrimitive2DOrBuiltin() const {
 
-	return primitive2D_ ? primitive2D_ : BuiltinAssets::Materials::DefaultPrimitive2D;
+	return configuration_.primitive2D ? configuration_.primitive2D : BuiltinAssets::Materials::DefaultPrimitive2D;
 }
 
-Engine::AssetID Engine::DefaultMaterialSettings::
-GetRaytracingReflectionOrBuiltin() const {
+Engine::AssetID Engine::DefaultMaterialSettings::GetRaytracingReflectionOrBuiltin() const {
 
-	return raytracingReflection_ ?
-		raytracingReflection_ :
-		BuiltinAssets::Materials::RaytracingReflection;
+	return configuration_.raytracingReflection ? configuration_.raytracingReflection : BuiltinAssets::Materials::RaytracingReflection;
 }

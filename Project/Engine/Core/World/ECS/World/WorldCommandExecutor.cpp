@@ -23,7 +23,7 @@ namespace {
 
 	using namespace Engine;
 
-	// entityとその子孫をまとめて破棄予約する
+	// 論理的な子孫から順番に破棄を予約する
 	void DestroyEntitySubtree(ECSWorld& world, const Entity& entity) {
 
 		const std::vector<Entity> entities = HierarchyUtility::CollectLogicalSubtree(world, entity);
@@ -37,7 +37,7 @@ namespace {
 		}
 	}
 
-	// childをnewParentの子にすると循環するか、newParentの祖先にchildが居るか
+	// 親の祖先を走査して循環を検出する
 	bool WouldCreateCycle(ECSWorld& world, const Entity& child, const Entity& newParent) {
 
 		Entity current = newParent;
@@ -57,9 +57,8 @@ namespace {
 		return true;
 	}
 
-	// worldPositionStays:親変更前のchild world姿勢を、変更後の親追従Transform基準のlocal値へ落として維持する
-	void PreserveWorldTransform(ECSWorld& world, const Entity& child,
-		const ResolvedWorldTransform& childWorldBefore) {
+	// 変更前のWorld姿勢を新しい親のLocal姿勢へ変換する
+	void PreserveWorldTransform(ECSWorld& world, const Entity& child, const ResolvedWorldTransform& childWorldBefore) {
 
 		TransformComponent* childTransform = world.TryGetComponent<TransformComponent>(child);
 		if (!childTransform) {
@@ -71,14 +70,13 @@ namespace {
 		}
 
 		const Vector3 worldPos = childWorldBefore.matrix.GetTranslationValue();
-		childTransform->localPos = Vector3::Transform(
-			worldPos, Matrix4x4::Inverse(parentFollow.matrix));
-		childTransform->localRotation = Quaternion::Normalize(
-			Quaternion::Inverse(parentFollow.rotation) * childWorldBefore.rotation);
-		childTransform->localScale = Vector3(
-			parentFollow.scale.x != 0.0f ? childWorldBefore.scale.x / parentFollow.scale.x : childWorldBefore.scale.x,
-			parentFollow.scale.y != 0.0f ? childWorldBefore.scale.y / parentFollow.scale.y : childWorldBefore.scale.y,
-			parentFollow.scale.z != 0.0f ? childWorldBefore.scale.z / parentFollow.scale.z : childWorldBefore.scale.z);
+		childTransform->localPos = Vector3::Transform(worldPos, Matrix4x4::Inverse(parentFollow.matrix));
+		childTransform->localRotation =
+			Quaternion::Normalize(Quaternion::Inverse(parentFollow.rotation) * childWorldBefore.rotation);
+		childTransform->localScale =
+			Vector3(parentFollow.scale.x != 0.0f ? childWorldBefore.scale.x / parentFollow.scale.x : childWorldBefore.scale.x,
+				parentFollow.scale.y != 0.0f ? childWorldBefore.scale.y / parentFollow.scale.y : childWorldBefore.scale.y,
+				parentFollow.scale.z != 0.0f ? childWorldBefore.scale.z / parentFollow.scale.z : childWorldBefore.scale.z);
 	}
 }
 
@@ -115,7 +113,7 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 		break;
 	case WorldCommandKind::AddComponentByName:
 
-		// 同一componentのAdd/Removeが混在しても、enqueue順(=呼び出し順)で決定的に適用する
+		// 追加と削除は予約した順番で適用する
 		world.AddComponentByName(command.target, command.text);
 		break;
 	case WorldCommandKind::RemoveComponentByName:
@@ -129,14 +127,29 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 			break;
 		}
 		auto entries = world.GetBuffer<ScriptEntry>(command.target);
+		const auto& registry = ComponentTypeRegistry::GetInstance();
+		const uint32_t bufferTypeID = registry.GetID<ScriptEntry>();
+		const uint32_t scriptTypeID = registry.GetID<ScriptComponent>();
+		const uint64_t bufferInstanceID = world.GetComponentInstanceID(command.target, bufferTypeID);
+		const uint64_t scriptInstanceID = world.GetComponentInstanceID(command.target, scriptTypeID);
 		for (uint32_t index = 0; index < entries.GetSize(); ++index) {
 			if (entries[index].scriptSlotID != command.scriptSlotID) {
 				continue;
 			}
 			entries.RemoveAt(index);
 			world.MarkComponentModified<ScriptEntry>(command.target);
+			// 通知中に置き換わったScriptやBufferへ戻らない
+			if (world.GetComponentInstanceID(command.target, bufferTypeID) != bufferInstanceID ||
+				world.GetComponentInstanceID(command.target, scriptTypeID) != scriptInstanceID) {
+				break;
+			}
 			world.MarkComponentModified<ScriptComponent>(command.target);
-			if (entries.GetSize() == 0) {
+			if (world.GetComponentInstanceID(command.target, bufferTypeID) != bufferInstanceID ||
+				world.GetComponentInstanceID(command.target, scriptTypeID) != scriptInstanceID) {
+				break;
+			}
+			// 構造移動後のBufferから残りのslotを確認する
+			if (world.GetBuffer<ScriptEntry>(command.target).GetSize() == 0) {
 				world.RemoveComponent<ScriptComponent>(command.target);
 			}
 			break;
@@ -161,20 +174,19 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 
 		if (world.IsAlive(command.parent) && world.IsPendingDestroy(command.parent)) {
 
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: 破棄予約済みEntityは親に設定できません");
+			Logger::Output(LogType::Engine, spdlog::level::warn, "WorldCommandBuffer: 破棄予約済みEntityは親に設定できません");
 			break;
 		}
 		// 親が破棄済みならルート化する
 		Entity parent = world.IsAlive(command.parent) ? command.parent : Entity::Null();
-		// 循環を作る付け替えは拒否する、childがparentの祖先になるケース
+		// 親子階層が循環する変更を拒否する
 		if (world.IsAlive(parent) && WouldCreateCycle(world, command.target, parent)) {
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"WorldCommandBuffer: 親子階層が循環するためSetParentを拒否しました");
+			Logger::Output(
+				LogType::Engine, spdlog::level::warn, "WorldCommandBuffer: 親子階層が循環するためSetParentを拒否しました");
 			break;
 		}
 
-		// worldPositionStays:付け替え前のworld姿勢を控えておき、付け替え後にlocalへ落として復元する
+		// 親変更前のWorld姿勢を保持する
 		ResolvedWorldTransform worldBefore{};
 		bool keepWorld = command.boolValue;
 		if (keepWorld) {
@@ -191,13 +203,14 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 	}
 	case WorldCommandKind::CreateEntity: {
 
-		// 予約済みの空EntityをGameObjectとしてmaterializeしTransform/SceneObject/Nameを付与する
+		// 予約したEntityの初期Componentを確定する
 		SceneAuthoring::EnsureGameObjectDefaults(world, command.target);
-		// 生成EntityをsceneInstanceへ所属させる、InstantiatePrefabと同様に未設定だと描画フィルタで除外される
+		// 親かActive Sceneの所属を引き継ぐ
 		const WorldCommandServices& services = world.GetCommandServices();
 		if (SceneObjectComponent* sceneObject = world.TryGetComponent<SceneObjectComponent>(command.target)) {
 			if (world.IsAlive(command.parent)) {
-				if (const SceneObjectComponent* parentSceneObject = world.TryGetComponent<SceneObjectComponent>(command.parent)) {
+				if (const SceneObjectComponent* parentSceneObject =
+						world.TryGetComponent<SceneObjectComponent>(command.parent)) {
 					sceneObject->sceneInstanceID = parentSceneObject->sceneInstanceID;
 				}
 			}
@@ -219,7 +232,18 @@ void Engine::WorldCommandExecutor::Apply(ECSWorld& world, const WorldCommand& co
 
 void Engine::WorldCommandExecutor::ApplyScene(ECSWorld& world, const WorldCommand& command) {
 
-	const WorldCommandServices& services = world.GetCommandServices();
+	const auto lifetime = world.GetLifetime();
+	const uint64_t serviceRevision = world.GetCommandServiceRevision();
+	const WorldCommandServices services = world.GetCommandServices();
+	const auto connected = [&]() {
+		lifetime->ThrowIfEnded();
+		if (world.GetCommandServiceRevision() != serviceRevision) {
+			Logger::Output(LogType::Engine, spdlog::level::warn,
+				"WorldCommandBuffer: Scene操作中に接続が変更されたため後続処理を中止しました");
+			return false;
+		}
+		return true;
+	};
 	if (!services.sceneInstances || !services.assetDatabase || !services.sceneSystem) {
 		if (command.kind == WorldCommandKind::LoadSceneSingle && services.sceneInstances) {
 			services.sceneInstances->ClearSingleLoadRequest();
@@ -229,12 +253,11 @@ void Engine::WorldCommandExecutor::ApplyScene(ECSWorld& world, const WorldComman
 		return;
 	}
 	if (command.kind == WorldCommandKind::LoadSceneAdditive) {
-		services.sceneInstances->LoadAdditive(*services.assetDatabase, *services.sceneSystem, world,
-			command.assetID, command.sceneInstanceID);
+		services.sceneInstances->LoadAdditive(
+			*services.assetDatabase, *services.sceneSystem, world, command.assetID, command.sceneInstanceID);
 	} else if (command.kind == WorldCommandKind::LoadSceneSingle) {
 
-		// 単一ロード、UnityのadditiveでないLoadScene相当
-		// 新sceneをloadする前に現在ロード中のsceneIDを退避し、新sceneをactiveにしてから旧sceneを全てunloadする
+		// 新Sceneの読み込み成功後に旧Sceneを解放する
 		std::vector<UUID> previousScenes;
 		previousScenes.reserve(services.sceneInstances->GetAll().size());
 		for (const SceneInstance& scene : services.sceneInstances->GetAll()) {
@@ -242,9 +265,12 @@ void Engine::WorldCommandExecutor::ApplyScene(ECSWorld& world, const WorldComman
 				previousScenes.emplace_back(scene.instanceID);
 			}
 		}
-		const bool loaded = services.sceneInstances->LoadAdditive(*services.assetDatabase,
-			*services.sceneSystem, world, command.assetID,
-			command.sceneInstanceID);
+		const bool loaded = services.sceneInstances->LoadAdditive(
+			*services.assetDatabase, *services.sceneSystem, world, command.assetID, command.sceneInstanceID);
+		// 読込通知後に別の接続へ旧Sceneの破棄を渡さない
+		if (!connected()) {
+			return;
+		}
 		services.sceneInstances->ClearSingleLoadRequest();
 		if (!loaded) {
 			Logger::Output(LogType::Engine, spdlog::level::warn,
@@ -253,10 +279,13 @@ void Engine::WorldCommandExecutor::ApplyScene(ECSWorld& world, const WorldComman
 			return;
 		}
 		services.sceneInstances->SetActive(command.sceneInstanceID);
-		// 新scene以外の旧sceneを全てunloadする
+		// 常駐Sceneと新Sceneを残して旧Sceneを解放する
 		for (const UUID& previous : previousScenes) {
 			if (previous != command.sceneInstanceID) {
 				services.sceneInstances->Unload(world, previous);
+				if (!connected()) {
+					return;
+				}
 			}
 		}
 	} else {

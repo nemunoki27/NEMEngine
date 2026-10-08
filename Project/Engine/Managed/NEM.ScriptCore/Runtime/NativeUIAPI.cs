@@ -5,8 +5,8 @@ using static NEMEngine.NativeAPI;
 // 接続済みcallbackを用途別に呼び出す
 internal static unsafe class NativeUIAPI {
 
-    internal static NativeUISelectableRuntimeState ReadUISelectableRuntimeState(
-        NativeEntity entity) {
+    // UIの選択状態と遷移を取得する
+    internal static NativeUISelectableRuntimeState ReadUISelectableRuntimeState(NativeEntity entity) {
 
         NativeUISelectableRuntimeState state = default;
         if (GetUISelectableRuntimeState != null) {
@@ -15,8 +15,8 @@ internal static unsafe class NativeUIAPI {
         return state;
     }
 
-    internal static NativeUIProgressRuntimeState ReadUIProgressRuntimeState(
-        NativeEntity entity) {
+    // UIの補間済み表示値を取得する
+    internal static NativeUIProgressRuntimeState ReadUIProgressRuntimeState(NativeEntity entity) {
 
         NativeUIProgressRuntimeState state = default;
         if (GetUIProgressRuntimeState != null) {
@@ -25,8 +25,8 @@ internal static unsafe class NativeUIAPI {
         return state;
     }
 
-    internal static int[] CanvasGetInputBindings(
-        NativeEntity entity, int action, int device) {
+    // Canvasの入力割当を読む
+    internal static int[] CanvasGetInputBindings(NativeEntity entity, int action, int device) {
 
         if (CanvasCopyInputBindings == null) {
             return Array.Empty<int>();
@@ -39,8 +39,7 @@ internal static unsafe class NativeUIAPI {
         int[] bindings = new int[count];
         int currentCount;
         fixed (int* values = bindings) {
-            currentCount = CanvasCopyInputBindings(
-                entity, action, device, values, count);
+            currentCount = CanvasCopyInputBindings(entity, action, device, values, count);
         }
         if (currentCount < count) {
             Array.Resize(ref bindings, Mathf.Max(currentCount, 0));
@@ -48,8 +47,9 @@ internal static unsafe class NativeUIAPI {
         return bindings;
     }
 
-    internal static void CanvasSetInputBindingsValue(
-        NativeEntity entity, int action, int device, ReadOnlySpan<int> bindings) {
+    // Canvasの入力割当を設定する
+    internal static void CanvasSetInputBindingsValue(NativeEntity entity, int action, int device,
+        ReadOnlySpan<int> bindings) {
 
         if (CanvasSetInputBindings == null) {
             return;
@@ -59,13 +59,12 @@ internal static unsafe class NativeUIAPI {
             return;
         }
         fixed (int* values = bindings) {
-            CanvasSetInputBindings(
-                entity, action, device, values, bindings.Length);
+            CanvasSetInputBindings(entity, action, device, values, bindings.Length);
         }
     }
 
-    internal static int ReadCanvasNavigationTableSize(
-        NativeEntity entity, out int rows, out int columns) {
+    // Canvasの選択表の行数と列数を取得する
+    internal static int ReadCanvasNavigationTableSize(NativeEntity entity, out int rows, out int columns) {
 
         int rowValue = 0;
         int columnValue = 0;
@@ -74,22 +73,21 @@ internal static unsafe class NativeUIAPI {
             columns = 0;
             return 1;
         }
-        int result = CanvasGetNavigationTableSize(
-            entity, &rowValue, &columnValue);
+        int result = CanvasGetNavigationTableSize(entity, &rowValue, &columnValue);
         rows = rowValue;
         columns = columnValue;
         return result;
     }
 
-    internal static int ResizeCanvasNavigationTableValue(
-        NativeEntity entity, int rows, int columns) {
+    // Canvasの選択表の行数と列数を変更する
+    internal static int ResizeCanvasNavigationTableValue(NativeEntity entity, int rows, int columns) {
 
         return CanvasResizeNavigationTable != null ?
             CanvasResizeNavigationTable(entity, rows, columns) : 1;
     }
 
-    internal static int ReadCanvasNavigationCell(
-        NativeEntity entity, int row, int column, out GameObject? target) {
+    // Canvasの選択先を取得する
+    internal static int ReadCanvasNavigationCell(NativeEntity entity, int row, int column, out GameObject? target) {
 
         NativeEntity nativeTarget = NativeEntity.Null;
         int result = CanvasGetNavigationCell != null ?
@@ -98,23 +96,23 @@ internal static unsafe class NativeUIAPI {
         return result;
     }
 
-    internal static int WriteCanvasNavigationCell(
-        NativeEntity entity, int row, int column, GameObject? target) {
+    // Canvasの選択先を設定する
+    internal static int WriteCanvasNavigationCell(NativeEntity entity, int row, int column, GameObject? target) {
 
         return CanvasSetNavigationCell != null ?
             CanvasSetNavigationCell(entity, row, column, GameObject.RawNative(target)) : 1;
     }
 
-    internal static bool ReadCanvasScreenToLocalPoint(
-        NativeEntity entity, Vector2 screenPosition, out Vector2 localPosition) {
+    // 画面座標をCanvas座標へ変換する
+    internal static bool ReadCanvasScreenToLocalPoint(NativeEntity entity, Vector2 screenPosition,
+        out Vector2 localPosition) {
 
         localPosition = Vector2.zero;
         if (CanvasScreenToLocalPoint == null) {
             return false;
         }
         NativeVector2 nativePosition = default;
-        if (CanvasScreenToLocalPoint(
-            entity, NativeVector2.From(screenPosition), &nativePosition) == 0) {
+        if (CanvasScreenToLocalPoint(entity, NativeVector2.From(screenPosition), &nativePosition) == 0) {
             return false;
         }
         localPosition = nativePosition.ToVector2();

@@ -5,6 +5,7 @@
 //============================================================================
 #include "TextLayoutBuilder.h"
 #include "TextGlyphInstanceBuilder.h"
+#include <Engine/Core/Rendering/Assets/FontRenderService.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
@@ -31,13 +32,13 @@ Engine::TextRenderBackend::~TextRenderBackend() {
 namespace {
 
 	// 描画に使用するフォントを描画アイテムのペイロードから解決する
-	const Engine::MSDFFontAsset* ResolveFont(const Engine::RenderDrawContext& context, const Engine::RenderItem& item) {
+	Engine::FontRenderGeneration ResolveFont(const Engine::RenderDrawContext& context, const Engine::RenderItem& item) {
 
 		const auto* payload = context.batch->GetPayload<Engine::TextRenderPayload>(item);
 		if (!payload || !payload->font) {
-			return nullptr;
+			return {};
 		}
-		return context.assetLibrary->LoadFont(payload->font);
+		return context.graphicsCore->GetFontRenderService().Resolve(*context.assetLibrary, payload->font);
 	}
 }
 
@@ -74,13 +75,10 @@ void Engine::TextRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 
 	// 描画に使用するフォントを解決する
-	const MSDFFontAsset* font = ResolveFont(context, *items.front());
-	if (!font) {
-		return;
-	}
-	// 描画に使用するテクスチャを解決する
-	const GPUTextureResource* atlasTexture = BackendDrawCommon::ResolveTextureAsset(context, graphicsCore, font->atlasTexture);
-	if (!atlasTexture) {
+	const auto generation = ResolveFont(context, *items.front());
+	const MSDFFontAsset* font = generation.font;
+	const GPUTextureResource* atlasTexture = generation.atlas;
+	if (!font || !atlasTexture) {
 		return;
 	}
 

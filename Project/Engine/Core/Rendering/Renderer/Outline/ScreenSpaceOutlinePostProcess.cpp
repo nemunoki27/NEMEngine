@@ -44,9 +44,10 @@ namespace {
 	constexpr Engine::MaterialPassKind kCompositePassKind =
 		Engine::MaterialPassKind::ScreenSpaceOutlineComposite;
 
-	RenderTexture2D* GetColor0(MultiRenderTarget* target) {
+	template<typename T>
+	auto GetColor0(T* target) -> decltype(target->GetColorTexture(0)) {
 
-		if (!target || target->GetColorCount() == 0) {
+		if (!target) {
 			return nullptr;
 		}
 		return target->GetColorTexture(0);
@@ -101,9 +102,9 @@ void Engine::ScreenSpaceOutlinePostProcess::UploadStyles(std::span<const ScreenS
 bool ScreenSpaceOutlinePostProcess::ValidateDilationResources(
 	const ScreenSpaceOutlineViewResources& resources) {
 
-	return GetColor0(resources.mask.get()) != nullptr &&
-		GetColor0(resources.horizontalDilatedMask.get()) != nullptr &&
-		GetColor0(resources.dilatedMask.get()) != nullptr;
+	return GetColor0(resources.GetMask()) != nullptr &&
+		GetColor0(resources.GetHorizontalDilatedMask()) != nullptr &&
+		GetColor0(resources.GetDilatedMask()) != nullptr;
 }
 
 bool ScreenSpaceOutlinePostProcess::ExecuteDilation(GraphicsCore& graphicsCore,
@@ -129,16 +130,16 @@ bool ScreenSpaceOutlinePostProcess::ExecuteDilation(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	RenderTexture2D* mask = GetColor0(resources.mask.get());
-	RenderTexture2D* horizontalMask = GetColor0(resources.horizontalDilatedMask.get());
-	RenderTexture2D* dilatedMask = GetColor0(resources.dilatedMask.get());
+	RenderTexture2D* mask = GetColor0(resources.GetMask());
+	RenderTexture2D* horizontalMask = GetColor0(resources.GetHorizontalDilatedMask());
+	RenderTexture2D* dilatedMask = GetColor0(resources.GetDilatedMask());
 
-	// Horizontal: mask(SRV) -> horizontalDilatedMask(UAV) -> NON_PIXEL_SHADER_RESOURCE
+	// Maskを横方向へ膨張し、次の計算用に遷移する
 	if (!ExecuteDilationPass(graphicsCore, deps, horizontalPass->pipeline, resources,
 		mask, horizontalMask, safeRadius, false, L"SSOutline.Dilation.Horizontal", styleCount)) {
 		return false;
 	}
-	// Vertical: horizontalDilatedMask(SRV) -> dilatedMask(UAV) -> PIXEL_SHADER_RESOURCE
+	// 縦方向へ膨張し、合成用に遷移する
 	if (!ExecuteDilationPass(graphicsCore, deps, verticalPass->pipeline, resources,
 		horizontalMask, dilatedMask, safeRadius, true, L"SSOutline.Dilation.Vertical", styleCount)) {
 		return false;
@@ -166,8 +167,8 @@ bool ScreenSpaceOutlinePostProcess::ExecuteDilationPass(GraphicsCore& graphicsCo
 	// thread group size /解像度/ handleが揃わなければDispatchしない(GPU Hang・不正アクセス防止)
 	const uint32_t threadGroupX = pipelineState->GetThreadGroupX();
 	const uint32_t threadGroupY = pipelineState->GetThreadGroupY();
-	const uint32_t width = resources.mask->GetWidth();
-	const uint32_t height = resources.mask->GetHeight();
+	const uint32_t width = resources.GetMask()->GetWidth();
+	const uint32_t height = resources.GetMask()->GetHeight();
 	if (threadGroupX == 0u || threadGroupY == 0u || width == 0u || height == 0u) {
 		Logger::Output(LogType::Engine, "[ScreenSpaceOutline] 膨張処理のThread Groupまたは描画サイズが0です");
 		return false;
@@ -236,9 +237,9 @@ bool ScreenSpaceOutlinePostProcess::ExecuteComposite(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	RenderTexture2D* mask = GetColor0(resources.mask.get());
-	RenderTexture2D* projectedCoverageMask = GetColor0(resources.projectedCoverageMask.get());
-	RenderTexture2D* dilatedMask = GetColor0(resources.dilatedMask.get());
+	RenderTexture2D* mask = GetColor0(resources.GetMask());
+	RenderTexture2D* projectedCoverageMask = GetColor0(resources.GetProjectedCoverageMask());
+	RenderTexture2D* dilatedMask = GetColor0(resources.GetDilatedMask());
 	if (!mask || !projectedCoverageMask || !dilatedMask || compositeTarget->GetColorCount() == 0) {
 		return false;
 	}

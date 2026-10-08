@@ -6,20 +6,18 @@
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
-#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include "MaterialReflectionCache.h"
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <algorithm>
-#include <utility>
-#include <variant>
 #include <vector>
 
 namespace Engine {
 
 	//============================================================================
 	//	ReflectedMaterialParameterDrawer class
-	//	サーフェスマテリアルのreflection駆動パラメータ編集
+	//	Materialの描画パラメータを編集する
 	//============================================================================
 	class ReflectedMaterialParameterDrawer {
 	public:
@@ -30,7 +28,7 @@ namespace Engine {
 		ReflectedMaterialParameterDrawer() = default;
 		~ReflectedMaterialParameterDrawer() = default;
 
-		// reflectionした定数とテクスチャを描画する
+		// Shaderの数値とTextureを編集する
 		template <typename DrawFieldFn>
 		void Draw(const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID,
 			MaterialParameterSet& parameters, DrawFieldFn&& drawField);
@@ -46,17 +44,15 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// マテリアル既定値とreflection解決のためのキャッシュ
-		AssetID cachedMaterialID_{};
-		MaterialAsset cachedMaterial_{};
-		bool cachedMaterialValid_ = false;
+		// 既定値の読込と描画情報の解決
+		MaterialReflectionCache materialReflection_{};
 
 		//--------- functions ----------------------------------------------------
 
 		// マテリアルのDrawパスreflectionを解決する
 		const ShaderReflectionInfo* EnsureMaterialReflection(const EditorPanelContext& context,
 			AssetID materialID, AssetID defaultMaterialID);
-		// param最終値を解決する
+		// 数値の実効値を解決する
 		MaterialParameterValue ResolveParamValue(
 			const MaterialParameterSet& parameters,
 			const ShaderConstantBufferVariable& variable) const;
@@ -67,7 +63,7 @@ namespace Engine {
 			MaterialParameterSemantic semantic,
 			std::string_view name) const;
 	};
-} // Engine
+}
 
 //============================================================================
 //	ReflectedMaterialParameterDrawer classTemplateMethods
@@ -85,6 +81,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 		return;
 	}
 
+	// 数値とTextureを分けて表示順を揃える
 	bool hasParameter = false;
 	MaterialParameterLayout layout{};
 	layout.Build(*reflection, MaterialParameterCBuffer::kSurface);
@@ -98,8 +95,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 				MaterialParameterEditor::IsInternalPaddingParameter(variable)) {
 				continue;
 			}
-			if (MaterialParameterEditor::IsReflectedTextureParam(
-				variable, *reflection)) {
+			if (MaterialParameterEditor::IsReflectedTextureParam(variable, *reflection)) {
 				textureVariables.emplace_back(&variable);
 			} else {
 				scalarVariables.emplace_back(&variable);
@@ -109,17 +105,15 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 	MaterialParameterEditor::SortScalarParametersForDisplay(scalarVariables);
 	MaterialParameterEditor::SortTextureParametersForDisplay(textureVariables);
 
+	// 編集値を確定したときだけ設定へ戻す
 	for (const ShaderConstantBufferVariable* variable : scalarVariables) {
 		hasParameter = true;
 		MaterialParameterValue value = ResolveParamValue(parameters, *variable);
 		drawField([&]() {
 
-			ValueEditResult result = MaterialParameterEditor::DrawValueEdit(
-				*variable, value);
+			ValueEditResult result = MaterialParameterEditor::DrawValueEdit(*variable, value);
 			if (result.valueChanged) {
-				parameters.Set(
-					variable->parameterID, variable->name,
-					variable->semantic, value);
+				parameters.Set(variable->parameterID, variable->name, variable->semantic, value);
 			}
 			return result;
 			});
@@ -129,12 +123,12 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 		MaterialParameterSemantic semantic, std::string_view displayName) {
 
 		hasParameter = true;
-		AssetID textureID = ResolveTextureValue(
-			parameters, parameterID, semantic, displayName);
+		AssetID textureID = ResolveTextureValue(parameters, parameterID, semantic, displayName);
 		drawField([&]() {
 
 			AssetEditSetting setting{};
 			setting.graphicsCore = context.graphicsCore;
+			// この欄の右クリック操作を有効にする
 			const auto labelContextMenu = MaterialParameterEditor::MakeLabelContextMenu(parameterID, displayName);
 			ValueEditResult result = MyGUI::AssetReferenceField(
 				displayName.data(), textureID,
@@ -143,8 +137,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;
-				parameters.Set(
-					parameterID, displayName, semantic, value);
+				parameters.Set(parameterID, displayName, semantic, value);
 			}
 			return result;
 			});
@@ -155,6 +148,7 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 			variable->semantic, variable->name);
 	}
 
+	// 定数側で編集済みのTextureを重複表示しない
 	std::vector<const ShaderResourceBinding*> textures;
 	for (const ShaderResourceBinding& resource : reflection->resources) {
 
@@ -162,10 +156,8 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 			continue;
 		}
 		if (const ShaderConstantBufferVariable* variable =
-			MaterialParameterEditor::FindReflectedTextureParameter(
-				resource, *reflection)) {
-			if (MaterialParameterEditor::IsReflectedTextureParam(
-				*variable, *reflection)) {
+			MaterialParameterEditor::FindReflectedTextureParameter(resource, *reflection)) {
+			if (MaterialParameterEditor::IsReflectedTextureParam(*variable, *reflection)) {
 				continue;
 			}
 		}
@@ -175,21 +167,17 @@ inline void Engine::ReflectedMaterialParameterDrawer::Draw(const EditorPanelCont
 		[](const ShaderResourceBinding* lhs, const ShaderResourceBinding* rhs) {
 			return MaterialParameterEditor::GetTextureDisplayRank(
 				lhs->semantic, lhs->name) <
-				MaterialParameterEditor::GetTextureDisplayRank(
-					rhs->semantic, rhs->name);
+				MaterialParameterEditor::GetTextureDisplayRank(rhs->semantic, rhs->name);
 		});
 
 	for (const ShaderResourceBinding* resource : textures) {
 
 		const std::string_view displayName =
-			MaterialParameterEditor::GetReflectedTextureDisplayName(
-				*resource, *reflection);
+			MaterialParameterEditor::GetReflectedTextureDisplayName(*resource, *reflection);
 		const MaterialParameterID parameterID =
-			MaterialParameterEditor::GetReflectedTextureParameterID(
-				*resource, *reflection);
+			MaterialParameterEditor::GetReflectedTextureParameterID(*resource, *reflection);
 		const MaterialParameterSemantic semantic =
-			MaterialParameterEditor::GetReflectedTextureSemantic(
-				*resource, *reflection);
+			MaterialParameterEditor::GetReflectedTextureSemantic(*resource, *reflection);
 		drawTexture(parameterID, semantic, displayName);
 	}
 

@@ -64,7 +64,7 @@ namespace Engine::ShaderGraphAppearance {
 	// 見た目設定を有効範囲へ補正する
 	void ClampAppearanceSettings(ShaderGraphAppearanceSetting& settings);
 	// ImGuiの色表現を変換する
-ImVec4 ToImVec4(const Engine::Color4& color);
+	ImVec4 ToImVec4(const Engine::Color4& color);
 	// ImGuiの色表現を変換する
-Engine::Color4 ToColor4(const ImVec4& color);
+	Engine::Color4 ToColor4(const ImVec4& color);
 }

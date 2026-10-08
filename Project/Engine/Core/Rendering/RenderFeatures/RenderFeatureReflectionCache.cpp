@@ -1,79 +1,63 @@
 #include "RenderFeatureReflectionCache.h"
 
+//============================================================================
+//	include
+//============================================================================
 #include <algorithm>
+#include <type_traits>
+#include <utility>
 
-void Engine::RenderFeatureReflectionCache::CacheReflection(
-	AssetID materialID, MaterialPassKind passKind,
-	const std::vector<ShaderConstantBufferVariable>& variables,
-	const std::vector<ShaderResourceBinding>& resources,
+//============================================================================
+//	RenderFeatureReflectionCache classMethods
+//============================================================================
+
+void Engine::RenderFeatureReflectionCache::CacheReflection(AssetID materialID, MaterialPassKind passKind,
+	const std::vector<ShaderConstantBufferVariable>& variables, const std::vector<ShaderResourceBinding>& resources,
 	const std::vector<ShaderResourceBinding>& samplers) {
 
-	const ReflectionKey key{ materialID, passKind };
-	reflectionVariables_[key] = variables;
-	reflectionResources_[key] = resources;
-	reflectionSamplers_[key] = samplers;
+	const ReflectionKey key{materialID, passKind};
+	// 全種類の取得後に同じ世代として公開する
+	ReflectionData candidate{variables, resources, samplers};
+	static_assert(std::is_nothrow_move_assignable_v<ReflectionData>);
+	entries_.insert_or_assign(key, std::move(candidate));
 }
 
-void Engine::RenderFeatureReflectionCache::ClearReflection(
-	AssetID materialID) {
+void Engine::RenderFeatureReflectionCache::ClearReflection(AssetID materialID) {
 
-	std::erase_if(reflectionVariables_,
-		[materialID](const auto& entry) {
-
-			return entry.first.material == materialID;
-		});
-	std::erase_if(reflectionResources_,
-		[materialID](const auto& entry) {
-
-			return entry.first.material == materialID;
-		});
-	std::erase_if(reflectionSamplers_,
-		[materialID](const auto& entry) {
-
-			return entry.first.material == materialID;
-		});
+	// Materialに属する全用途の型情報を破棄する
+	std::erase_if(entries_, [materialID](const auto& entry) { return entry.first.material == materialID; });
 }
 
 void Engine::RenderFeatureReflectionCache::ClearReflectionCache() {
 
-	reflectionVariables_.clear();
-	reflectionResources_.clear();
-	reflectionSamplers_.clear();
+	entries_.clear();
 }
 
-const std::vector<Engine::ShaderConstantBufferVariable>*
-Engine::RenderFeatureReflectionCache::FindReflectionVariables(
+const std::vector<Engine::ShaderConstantBufferVariable>* Engine::RenderFeatureReflectionCache::FindReflectionVariables(
 	AssetID materialID, MaterialPassKind passKind) const {
 
-	const auto found = reflectionVariables_.find(
-		ReflectionKey{ materialID, passKind });
-	return found == reflectionVariables_.end() ? nullptr : &found->second;
+	const auto found = entries_.find(ReflectionKey{materialID, passKind});
+	return found == entries_.end() ? nullptr : &found->second.variables;
 }
 
-const std::vector<Engine::ShaderResourceBinding>*
-Engine::RenderFeatureReflectionCache::FindReflectionResources(
+const std::vector<Engine::ShaderResourceBinding>* Engine::RenderFeatureReflectionCache::FindReflectionResources(
 	AssetID materialID, MaterialPassKind passKind) const {
 
-	const auto found = reflectionResources_.find(
-		ReflectionKey{ materialID, passKind });
-	return found == reflectionResources_.end() ? nullptr : &found->second;
+	const auto found = entries_.find(ReflectionKey{materialID, passKind});
+	return found == entries_.end() ? nullptr : &found->second.resources;
 }
 
-const std::vector<Engine::ShaderResourceBinding>*
-Engine::RenderFeatureReflectionCache::FindReflectionSamplers(
+const std::vector<Engine::ShaderResourceBinding>* Engine::RenderFeatureReflectionCache::FindReflectionSamplers(
 	AssetID materialID, MaterialPassKind passKind) const {
 
-	const auto found = reflectionSamplers_.find(
-		ReflectionKey{ materialID, passKind });
-	return found == reflectionSamplers_.end() ? nullptr : &found->second;
+	const auto found = entries_.find(ReflectionKey{materialID, passKind});
+	return found == entries_.end() ? nullptr : &found->second.samplers;
 }
 
 namespace Engine {
 
 	size_t RenderFeatureReflectionCache::ReflectionKeyHash::operator()(const ReflectionKey& key) const noexcept {
 
-		return std::hash<AssetID>{}(key.material) ^
-			(std::hash<uint8_t>{}(
-				static_cast<uint8_t>(key.passKind)) << 1);
+		return std::hash<AssetID>{}(key.material) ^ (std::hash<uint8_t>{}(static_cast<uint8_t>(key.passKind)) << 1);
 	}
 }

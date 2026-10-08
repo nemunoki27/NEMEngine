@@ -24,8 +24,15 @@ namespace Engine {
 	//============================================================================
 
 	void ManagedScriptRuntime::ReportScriptExceptionCallback(const char* jsonUtf8) {
-		// C#境界のGuardInstanceで捕捉した未処理例外の構造化DTOをbounded storeへ渡す、ConsoleログはC#側が出すためここではstoreへの追加のみ行う
-		ManagedScriptExceptionStore::GetInstance().ReportJson(jsonUtf8);
+		// C#の診断JSONを例外履歴へ渡す
+		ManagedScriptExceptionStore::GetInstance().ReportJSON(jsonUtf8);
+	}
+
+	int32_t ManagedScriptRuntime::IsUpdateInterruptedCallback() {
+
+		// callback中だけ接続された中断条件を取得する
+		const SystemContext* context = GetCurrentContext();
+		return context && context->IsUpdateInterrupted() ? 1 : 0;
 	}
 
 	float ManagedScriptRuntime::EasedValueCallback(int32_t easingType, float t) {
@@ -38,8 +45,7 @@ namespace Engine {
 		spdlog::level::level_enum logLevel = spdlog::level::info;
 		if (level == 1) {
 			logLevel = spdlog::level::warn;
-		}
-		else if (level == 2) {
+		} else if (level == 2) {
 			logLevel = spdlog::level::err;
 		}
 		// エンジン共通のロガーを通じて出力し、エディタのコンソール等へ反映される
@@ -118,8 +124,7 @@ namespace Engine {
 		return context->assetDatabase->Find(resolvedID) != nullptr ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::CopyAssetDisplayNameCallback(
-		ManagedAssetGUID assetID, char* buffer, int32_t capacity) {
+	int32_t ManagedScriptRuntime::CopyAssetDisplayNameCallback(ManagedAssetGUID assetID, char* buffer, int32_t capacity) {
 
 		const SystemContext* context = GetCurrentContext();
 		const AssetID resolvedID = ToAssetID(assetID);

@@ -54,7 +54,7 @@ public struct Vector2 : IEquatable<Vector2> {
 
     // ベクトルを正規化する
     public static Vector2 Normalize(Vector2 value) {
-        // 0除算を避けるため、十分小さい値は0ベクトルとして扱う
+        // 微小ベクトルはゼロを返す
         float len = Magnitude(value);
         return len <= 1e-5f ? zero : value / len;
     }
@@ -69,10 +69,12 @@ public struct Vector2 : IEquatable<Vector2> {
     }
 
     // 線形補間
-    public static Vector2 Lerp(Vector2 lhs, Vector2 rhs, float t) => new(Mathf.Lerp(lhs.x, rhs.x, t), Mathf.Lerp(lhs.y, rhs.y, t));
+    public static Vector2 Lerp(Vector2 lhs, Vector2 rhs, float t) =>
+        new(Mathf.Lerp(lhs.x, rhs.x, t), Mathf.Lerp(lhs.y, rhs.y, t));
 
     // 成分ごとの補間率で線形補間
-    public static Vector2 Lerp(Vector2 lhs, Vector2 rhs, Vector2 t) => new(Mathf.Lerp(lhs.x, rhs.x, t.x), Mathf.Lerp(lhs.y, rhs.y, t.y));
+    public static Vector2 Lerp(Vector2 lhs, Vector2 rhs, Vector2 t) =>
+        new(Mathf.Lerp(lhs.x, rhs.x, t.x), Mathf.Lerp(lhs.y, rhs.y, t.y));
 
     // 2点間の距離を返す
     public static float Distance(Vector2 lhs, Vector2 rhs) => Magnitude(lhs - rhs);
@@ -80,13 +82,13 @@ public struct Vector2 : IEquatable<Vector2> {
     // 長さの二乗を返す、平方根を避けたい距離比較用
     public static float SqrMagnitude(Vector2 value) => Dot(value, value);
 
-    // 2ベクトルのなす角(度)を返す
+    // ベクトル間の角度を度数で返す
     public static float Angle(Vector2 lhs, Vector2 rhs) {
         float denom = Magnitude(lhs) * Magnitude(rhs);
         return denom < 1e-15f ? 0.0f : Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(Dot(lhs, rhs) / denom, -1.0f, 1.0f)));
     }
 
-    // fromからtoへの符号付き角度(度)、反時計回りが正
+    // 反時計回りを正とする符号付き角度
     public static float SignedAngle(Vector2 from, Vector2 to) {
         float sign = (from.x * to.y - from.y * to.x) < 0.0f ? -1.0f : 1.0f;
         return Angle(from, to) * sign;
@@ -95,24 +97,24 @@ public struct Vector2 : IEquatable<Vector2> {
     // 反時計回りに90度回した垂直ベクトル
     public static Vector2 Perpendicular(Vector2 value) => new(-value.y, value.x);
 
-    // currentからtargetへmaxDistanceDeltaを上限に近づける
+    // 指定距離を上限に目標へ近づける
     public static Vector2 MoveTowards(Vector2 current, Vector2 target, float maxDistanceDelta) {
         Vector2 diff = target - current;
         float dist = Magnitude(diff);
         return (dist <= maxDistanceDelta || dist == 0.0f) ? target : current + diff / dist * maxDistanceDelta;
     }
 
-    // 長さがmaxLengthを超えないようにクランプする
+    // ベクトルの長さを上限へ収める
     public static Vector2 ClampMagnitude(Vector2 value, float maxLength) {
         float len = Magnitude(value);
         return len > maxLength && len > 0.0f ? value / len * maxLength : value;
     }
 
-    // 減衰しながらtargetへ滑らかに近づける、currentVelocityは呼び出し側で保持する
+    // 速度を更新して目標へ滑らかに追従
     public static Vector2 SmoothDamp(Vector2 current, Vector2 target, ref Vector2 currentVelocity,
         float smoothTime, float maxSpeed, float deltaTime) {
 
-        // 成分ごとにVector3版の臨界減衰ばねを使い回す
+        // Vector3の追従をXY成分へ適用
         Vector3 vel = new(currentVelocity.x, currentVelocity.y, 0.0f);
         Vector3 result = Vector3.SmoothDamp(new Vector3(current.x, current.y, 0.0f),
             new Vector3(target.x, target.y, 0.0f), ref vel, smoothTime, maxSpeed, deltaTime);
@@ -120,11 +122,12 @@ public struct Vector2 : IEquatable<Vector2> {
         return new Vector2(result.x, result.y);
     }
 
-    // deltaTime省略版、フレーム間秒数を自動で使う
+    // 省略時はフレーム間隔を使用
     public static Vector2 SmoothDamp(Vector2 current, Vector2 target, ref Vector2 currentVelocity, float smoothTime)
         => SmoothDamp(current, target, ref currentVelocity, smoothTime, Mathf.Infinity, Time.deltaTime);
 
-    public static Vector2 SmoothDamp(Vector2 current, Vector2 target, ref Vector2 currentVelocity, float smoothTime, float maxSpeed)
+    public static Vector2 SmoothDamp(Vector2 current, Vector2 target, ref Vector2 currentVelocity,
+        float smoothTime, float maxSpeed)
         => SmoothDamp(current, target, ref currentVelocity, smoothTime, maxSpeed, Time.deltaTime);
 
     // 範囲外へ外挿する線形補間

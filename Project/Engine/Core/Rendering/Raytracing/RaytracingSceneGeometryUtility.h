@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshResourceTypes.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
+#include <Engine/Core/Rendering/Raytracing/RaytracingStructures.h>
 
 // c++
 #include <span>
@@ -57,6 +58,11 @@ namespace Engine::RaytracingSceneGeometryUtility {
 	// LOD範囲を選択する
 	const Engine::MeshLODRange& ResolveRaytracingLODRange(
 		const Engine::SubMeshDesc& subMesh, uint32_t lodIndex);
+	// 可視SubMeshの対応番号でGeometryのLODを更新
+	bool UpdateGeometryLODOffsets(std::span<const Engine::SubMeshDesc> subMeshes,
+		std::span<const uint32_t> subMeshIndices, uint32_t lodIndex,
+		std::span<Engine::RaytracingGeometryShaderData> geometries);
+
 	// 画面上の大きさからLODを選択する
 	uint32_t ResolveMeshLOD(
 		const Engine::GraphicsRuntimeFeatures& features,

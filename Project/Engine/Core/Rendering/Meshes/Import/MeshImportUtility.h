@@ -37,7 +37,7 @@ namespace Engine::MeshImportUtility {
 		bool hasRoughness = false;
 	};
 
-	// サブメッシュの表示名を構築する、メッシュ名→マテリアル名→連番の順で決める
+	// Mesh名・Material名・連番から表示名を決める
 	std::string BuildSubMeshName(const aiMesh* mesh, uint32_t meshIndex, const aiMaterial* material);
 	// 三角形を持つMeshだけを描画と編集の対象にする
 	bool HasTriangleGeometry(const aiMesh* mesh);
@@ -46,9 +46,9 @@ namespace Engine::MeshImportUtility {
 	// PBR係数を優先し、従来Materialの色とOpacityを補完する
 	ImportedMaterialFactors ReadMaterialFactors(const aiMaterial* material);
 
-	// assimpのノードをエンジン座標系へ変換して読み込む
+	// ノードをエンジン座標へ変換する
 	MeshNode ReadMeshNode(const aiNode* node);
-	// assimpのノード階層をエンジン座標系へ変換して再帰的に読み込む
+	// ノード階層を再帰的に読み込む
 	MeshNode ReadMeshNodeTree(const aiNode* node);
 
-} // Engine::MeshImportUtility
+}

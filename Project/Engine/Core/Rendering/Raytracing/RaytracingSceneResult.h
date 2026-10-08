@@ -7,12 +7,15 @@
 #include <Engine/Core/Rendering/Renderer/Backends/Common/StructuredInstanceBuffer.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshShaderSharedTypes.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
+
+// c++
 #include <array>
 
 namespace Engine {
 
 	class GraphicsCore;
 	struct SceneExecutionContext;
+	// Pickingで返すEntityとサブメッシュの対応
 	struct MeshSubMeshPickRecord {
 
 		Entity entity = Entity::Null();
@@ -39,12 +42,15 @@ namespace Engine {
 		// 同じFrameへの重複転送を避ける
 		void UploadCached();
 		// 構築結果を描画Contextへ公開する
-		void Publish(SceneExecutionContext& context, ID3D12Resource* tlas, uint64_t materialGeneration, bool texturesReady) const;
+		void Publish(SceneExecutionContext& context, ID3D12Resource* tlas,
+			uint64_t materialGeneration, bool texturesReady) const;
 	private:
 		//========================================================================
 		//	private Methods
 		//========================================================================
 		friend class RaytracingSceneBuilder;
+
+		//--------- variables ----------------------------------------------------
 
 		// シーンインスタンスバッファ
 		StructuredInstanceBuffer<RaytracingInstanceShaderData> sceneInstances_{ "gRaytracingSceneInstances" };

@@ -14,6 +14,7 @@ namespace Engine::ShaderGraphStageSource {
 
 		std::string source = "// Shader Graph generated file\n"
 							 "#define NEM_SHADER_GRAPH_MATERIAL\n";
+		// 不透明はGBufferへ透明はLighting結果へ出力する
 		if (transparent) {
 			source += "#include \"Builtin/Mesh/Common/meshSurfaceLighting.hlsli\"\n";
 		} else {
@@ -121,6 +122,7 @@ namespace Engine::ShaderGraphStageSource {
 			"\tgraphInput.tangentToWorld = BuildMeshTBN(input);\n"
 			"\treturn EvaluateShaderGraphSurface(graphInput, GetShaderGraphParameters(input.instanceID, input.subMeshIndex));\n"
 			"}\n\n";
+		// 同じ透明度評価を選択と影へ適用する
 		if (picking) {
 			source += "uint4 main(VSOutput input) : SV_Target0 {\n\n"
 					  "\tShaderGraphSurface graph = EvaluateRasterShaderGraph(input);\n"
@@ -149,7 +151,9 @@ namespace Engine::ShaderGraphStageSource {
 		}
 		// 頂点出力がないグラフは元の頂点をそのまま使用する
 		const ShaderGraphNode defaultOutput{};
-		if (!output) { output = &defaultOutput; }
+		if (!output) {
+			output = &defaultOutput;
+		}
 		const ShaderGraphExpression position =
 			context.EmitInput(*output, 0, ShaderGraphValueType::Float3, "vertex.position.xyz");
 		const ShaderGraphExpression normal = context.EmitInput(*output, 1, ShaderGraphValueType::Float3, "vertex.normal");
@@ -207,6 +211,7 @@ namespace Engine::ShaderGraphStageSource {
 	std::string BuildMeshVertexSource(
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context) {
 
+		// 共通の頂点評価を通常の頂点経路へ接続する
 		std::string source = BuildMeshVertexCommonSource(graph, surfaceIncludeFile, context);
 		source += "VSOutput main(uint vertexID : SV_VertexID, uint instanceID : SV_InstanceID) {\n\n"
 				  "\tMeshVertex vertex = LoadMeshVertex(instanceID, vertexID);\n"
@@ -243,6 +248,7 @@ namespace Engine::ShaderGraphStageSource {
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context) {
 
 		std::string source = BuildMeshVertexCommonSource(graph, surfaceIncludeFile, context);
+		// Meshlet内で変換行列を共有する
 		source += "groupshared float4x4 gGraphWorldMatrix;\n"
 				  "groupshared float4x4 gGraphNormalMatrix;\n"
 				  "groupshared float gGraphOrientationSign;\n\n"

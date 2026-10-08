@@ -71,15 +71,18 @@ uint32_t Engine::RaytracingSceneBuilder::UpdateCachedLODSelections(MeshRenderBac
 
 		// BLASとShader側のGeometry番号を同じLODへ同期
 		cachedTLASInstances_[record.tlasInstanceIndex].blas = blasResource;
-		const uint32_t geometryCount = (std::min)(record.geometryCount, static_cast<uint32_t>(meshResource->subMeshes.size()));
-		for (uint32_t geometryIndex = 0; geometryIndex < geometryCount; ++geometryIndex) {
-
-			const uint32_t dataIndex = record.geometryDataOffset + geometryIndex;
-			if (result_.sceneGeometryScratch_.size() <= dataIndex) {
-				break;
-			}
-			result_.sceneGeometryScratch_[dataIndex].indexOffset =
-				ResolveRaytracingLODRange(meshResource->subMeshes[geometryIndex], lodIndex).indexOffset;
+		const size_t offset = record.geometryDataOffset;
+		const size_t geometryCount = record.geometrySubMeshIndices.size();
+		if (result_.sceneGeometryScratch_.size() < offset ||
+			result_.sceneGeometryScratch_.size() - offset < geometryCount) {
+			lodResourceMissing = true;
+			continue;
+		}
+		const auto geometries =
+			std::span<RaytracingGeometryShaderData>(result_.sceneGeometryScratch_).subspan(offset, geometryCount);
+		if (!UpdateGeometryLODOffsets(meshResource->subMeshes, record.geometrySubMeshIndices, lodIndex, geometries)) {
+			lodResourceMissing = true;
+			continue;
 		}
 		record.lodIndex = lodIndex;
 		++changedCount;

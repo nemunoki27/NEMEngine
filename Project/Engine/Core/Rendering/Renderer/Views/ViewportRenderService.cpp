@@ -69,15 +69,15 @@ void Engine::ViewportRenderService::SyncSurface(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	ReleaseSlot(slot);
-	slot.width = width;
-	slot.height = height;
-
+	// 作成が終わるまでは旧描画先を維持する
 	MultiRenderTargetCreateDesc desc = BuildDefaultDesc(kind, width, height);
 
-	slot.surface = std::make_unique<MultiRenderTarget>();
-	slot.surface->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
+	auto candidate = std::make_unique<MultiRenderTarget>();
+	candidate->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
 		&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(), desc);
+	slot.surface.swap(candidate);
+	slot.width = width;
+	slot.height = height;
 }
 
 void Engine::ViewportRenderService::SyncRenderTextureSurface(GraphicsCore& graphicsCore,
@@ -92,19 +92,17 @@ void Engine::ViewportRenderService::SyncRenderTextureSurface(GraphicsCore& graph
 		return;
 	}
 
-	if (slot.surface) {
-		RuntimeTextureResolver::UnregisterRenderTexture(
-			assetID, slot.surface->GetColorTexture(0));
-	}
-	ReleaseSlot(slot);
-	slot.width = width;
-	slot.height = height;
-	slot.surface = std::make_unique<MultiRenderTarget>();
-	slot.surface->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
+	// 新しい出力Textureを作成する
+	auto candidate = std::make_unique<MultiRenderTarget>();
+	candidate->Create(graphicsCore.GetDXObject().GetDevice(), &graphicsCore.GetRTVDescriptor(),
 		&graphicsCore.GetDSVDescriptor(), &graphicsCore.GetSRVDescriptor(),
 		BuildRenderTextureDesc(assetID, width, height));
+	// 公開に成功してから所有とサイズを切り替える
 	RuntimeTextureResolver::RegisterRenderTexture(
-		assetID, slot.surface->GetColorTexture(0));
+		assetID, candidate->GetColorTexture(0));
+	slot.surface.swap(candidate);
+	slot.width = width;
+	slot.height = height;
 }
 
 void Engine::ViewportRenderService::Finalize() {
@@ -156,7 +154,7 @@ const Engine::ViewportRenderService::SurfaceSlot& Engine::ViewportRenderService:
 void Engine::ViewportRenderService::ReleaseSlot(SurfaceSlot& slot) {
 
 	if (slot.surface) {
-		// ViewportのMultiRenderTargetはDescriptorとGPUリソースを持つため明示Destroy/resetする
+		// 描画先の資源を回収へ渡す
 		slot.surface->Destroy();
 		slot.surface.reset();
 	}

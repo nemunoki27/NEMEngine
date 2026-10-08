@@ -1,213 +1,378 @@
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
-
 namespace NEMEngine;
 
+// Nativeの接続表を所有する
 internal static unsafe class NativeAPI {
 
-
+    // 実行中の更新停止要求を返す
+    internal static delegate* unmanaged[Cdecl]<int> IsUpdateInterrupted;
+    // 倍率を適用した差分時刻を返す
     internal static delegate* unmanaged[Cdecl]<float> GetDeltaTime;
+    // 固定更新の差分時刻を返す
     internal static delegate* unmanaged[Cdecl]<float> GetFixedDeltaTime;
+    // C#のログをNativeへ渡す
     internal static delegate* unmanaged[Cdecl]<int, byte*, void> Log;
+    // キーの押下状態を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetKey;
+    // キーの押下開始を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetKeyDown;
+    // キーの解放を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetKeyUp;
+    // マウスボタンの押下状態を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetMouseButton;
+    // マウスボタンの押下開始を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetMouseButtonDown;
+    // マウスボタンの解放を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetMouseButtonUp;
+    // マウスの位置を返す
     internal static delegate* unmanaged[Cdecl]<NativeVector2> GetMousePosition;
+    // マウスの移動量を返す
     internal static delegate* unmanaged[Cdecl]<NativeVector2> GetMouseDelta;
+    // マウスのホイール量を返す
     internal static delegate* unmanaged[Cdecl]<float> GetMouseWheel;
+    // ゲームパッドのボタン状態を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetGamepadButton;
+    // ゲームパッドの押下開始を返す
     internal static delegate* unmanaged[Cdecl]<int, int> GetGamepadButtonDown;
+    // ゲームパッドの接続状態を返す
     internal static delegate* unmanaged[Cdecl]<int> IsGamepadConnected;
+    // 左スティックの入力を返す
     internal static delegate* unmanaged[Cdecl]<NativeVector2> GetLeftStick;
+    // 右スティックの入力を返す
     internal static delegate* unmanaged[Cdecl]<NativeVector2> GetRightStick;
+    // 左トリガーの入力を返す
     internal static delegate* unmanaged[Cdecl]<float> GetLeftTrigger;
+    // 右トリガーの入力を返す
     internal static delegate* unmanaged[Cdecl]<float> GetRightTrigger;
+    // Entityの生存状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> IsAlive;
+    // Entity名を指定バッファへコピーする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopyName;
+    // Entity名を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> SetName;
+    // Entity自身の有効状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetActiveSelf;
+    // Entity自身の有効状態を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetActiveSelf;
+    // 親階層を含む有効状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetActiveInHierarchy;
+    // 親Entityを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity> GetParent;
+    // 最初の子Entityを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity> GetFirstChild;
+    // 次の兄弟Entityを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity> GetNextSibling;
+    // 親変更をCommandへ登録する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, void> SetParent;
+    // ワールド位置を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetPosition;
+    // ワールド位置を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> SetPosition;
+    // ローカル位置を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetLocalPosition;
+    // ローカル位置を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> SetLocalPosition;
+    // ローカル拡縮率を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetLocalScale;
+    // ローカル拡縮率を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, void> SetLocalScale;
+    // ローカル回転を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> GetLocalRotation;
+    // ローカル回転を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> SetLocalRotation;
+    // ワールド回転を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion> GetRotation;
+    // ワールド回転を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeQuaternion, void> SetRotation;
+    // ワールド拡縮率を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3> GetLossyScale;
+    // Componentの有無を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> HasComponent;
+    // Componentの実行IDを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, ulong> GetComponentInstanceID;
+    // Component追加を予約する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> AddComponent;
+    // Component削除を予約する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> RemoveComponent;
+    // Entityの破棄を予約する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> DestroyEntity;
+    // Scriptの有効状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int> GetScriptEnabled;
+    // Scriptの有効状態を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, int, void> SetScriptEnabled;
+    // Entity上のScriptを型IDで検索する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> GetScriptInstance;
+    // EntityへScriptを追加する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, NativeScriptInstanceHandle> AttachScript;
+    // EntityからScriptを削除する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, void> RemoveScript;
+    // Componentの値を取得する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> GetComponentProperty;
+    // Componentの値を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, void*, int, int> SetComponentProperty;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*, int> GetComponentStringProperty;
+    // Componentの文字列を取得する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int*,
+        int> GetComponentStringProperty;
+    // Componentの文字列を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, byte*, int, int> SetComponentStringProperty;
-    // Gameplay(v7): Time 拡張 / TimeScale / AssetRef 解決
+    // 倍率適用前の差分時刻を返す
     internal static delegate* unmanaged[Cdecl]<float> GetUnscaledDeltaTime;
+    // 倍率適用前の固定差分時刻を返す
     internal static delegate* unmanaged[Cdecl]<float> GetUnscaledFixedDeltaTime;
+    // 倍率適用後の経過時間を返す
     internal static delegate* unmanaged[Cdecl]<double> GetTimeSinceStartup;
+    // 倍率適用前の経過時間を返す
     internal static delegate* unmanaged[Cdecl]<double> GetUnscaledTime;
+    // 時間倍率を返す
     internal static delegate* unmanaged[Cdecl]<float> GetTimeScale;
+    // 時間倍率を設定する
     internal static delegate* unmanaged[Cdecl]<float, void> SetTimeScale;
+    // 実行中のフレーム数を返す
     internal static delegate* unmanaged[Cdecl]<ulong> GetFrameCount;
+    // Assetの存在を確認する
     internal static delegate* unmanaged[Cdecl]<AssetGUID, int> AssetExists;
+    // Assetの表示名をコピーする
     internal static delegate* unmanaged[Cdecl]<AssetGUID, byte*, int, int> CopyAssetDisplayName;
-    // Gameplay(v7): GameObject 生成 / Prefab / Scene / SetParent(worldPositionStays)
+    // Entityの生成を予約する
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity, NativeEntity> CreateEntity;
-    internal static delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiatePrefab;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, NativeQuaternion, int, NativeEntity, NativeEntity> InstantiateEntity;
+    // Prefabの実体生成を予約する
+    internal static delegate* unmanaged[Cdecl]<AssetGUID, NativeVector3, NativeQuaternion, int, NativeEntity,
+        NativeEntity> InstantiatePrefab;
+    // Entity階層の複製を予約する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector3, NativeQuaternion, int, NativeEntity,
+        NativeEntity> InstantiateEntity;
+    // Sceneの追加読込を要求する
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneAdditive;
+    // Sceneの単独読込を要求する
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> LoadSceneSingle;
+    // Sceneの事前読込を要求する
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong> PreloadScene;
+    // Active Sceneの再読込を要求する
     internal static delegate* unmanaged[Cdecl]<ulong> ReloadActiveScene;
+    // Sceneの解放を要求する
     internal static delegate* unmanaged[Cdecl]<ulong, void> UnloadScene;
+    // Scene実体の生存状態を返す
     internal static delegate* unmanaged[Cdecl]<ulong, int> IsSceneInstanceAlive;
+    // 座標保持を指定して親変更を予約する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeEntity, int, void> SetParentKeepWorld;
-    // Gameplay(v7): raw Input 拡張（多 gamepad / axis / text / focus）
+    // 指定パッドのボタン状態を返す
     internal static delegate* unmanaged[Cdecl]<int, int, int> GetGamepadButtonIndexed;
+    // 指定パッドの押下開始を返す
     internal static delegate* unmanaged[Cdecl]<int, int, int> GetGamepadButtonDownIndexed;
+    // 指定パッドの解放を返す
     internal static delegate* unmanaged[Cdecl]<int, int, int> GetGamepadButtonUpIndexed;
+    // 指定パッドの軸値を返す
     internal static delegate* unmanaged[Cdecl]<int, int, float> GetGamepadAxisIndexed;
+    // 指定パッドの接続状態を返す
     internal static delegate* unmanaged[Cdecl]<int, int> IsGamepadConnectedIndexed;
+    // 接続中のパッド数を返す
     internal static delegate* unmanaged[Cdecl]<int> GetConnectedGamepadCount;
+    // アプリのフォーカス状態を返す
     internal static delegate* unmanaged[Cdecl]<int> GetHasFocus;
+    // 入力された文字列をコピーする
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyTextInput;
+    // Projectのルートをコピーする
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyProjectRoot;
+    // ユーザー設定のルートをコピーする
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> CopyUserSettingsRoot;
-    // Gameplay(v7): AudioSource gameplay method
+    // Audioの再生を開始する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPlay;
+    // Audioの再生を一時停止する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioPause;
+    // Audioの再生を終了する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioStop;
+    // Audioの再生状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> AudioIsPlaying;
+    // Audioを一度だけ重ねて再生する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID, float, void> AudioPlayOneShot;
+    // Audioの一時停止を解除する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, void> AudioUnPause;
-    // Diagnostics(v8): script callback 例外の構造化報告
+    // Script例外をNativeへ報告する
     internal static delegate* unmanaged[Cdecl]<byte*, void> ReportScriptException;
-    // v11: EntityRef(sourceAsset, localFileID) を runtime entity へ解決する
+    // 保存参照を対象Entityへ解決する
     internal static delegate* unmanaged[Cdecl]<AssetGUID, ulong, NativeEntity, NativeEntity> ResolveEntityRef;
+    // Lineの点列を置き換える
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint*, int, int, void> LineSetPoints;
+    // 点列から即時Lineを描く
     internal static delegate* unmanaged[Cdecl]<LinePoint*, int, int, int, AssetGUID, void> LineDrawImmediate;
-    internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID, void> LineDrawSphereImmediate;
+    // 球形の即時Lineを描く
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, float, NativeColor4, int, float, AssetGUID,
+        void> LineDrawSphereImmediate;
+    // Lineへ点を追加する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, int> LineAddPoint;
+    // Lineの指定点を更新する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, LinePoint, void> LineUpdatePoint;
-    // v14: Tag / Layerマスク / GameObject検索
+    // EntityのTagをコピーする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopyTag;
+    // EntityのTagを設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> SetTag;
+    // 描画対象のLayerを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetVisibilityLayerMask;
+    // 描画対象のLayerを設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetVisibilityLayerMask;
+    // CollisionのLayerを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCollisionTypeMask;
+    // Collisionの接触状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCollisionRuntimeState;
+    // CollisionのLayerを設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetCollisionTypeMask;
+    // 名前でEntityを検索する
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity> FindEntityByName;
+    // TagでEntityを検索する
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity> FindEntityByTag;
+    // TagでEntity一覧を取得する
     internal static delegate* unmanaged[Cdecl]<byte*, NativeEntity*, int, int> FindEntitiesByTag;
+    // ComponentでEntityを検索する
     internal static delegate* unmanaged[Cdecl]<int, NativeEntity> FindEntityByComponent;
+    // ComponentでEntity一覧を取得する
     internal static delegate* unmanaged[Cdecl]<int, NativeEntity*, int, int> FindEntitiesByComponent;
+    // 指定形状の即時Lineを描く
     internal static delegate* unmanaged[Cdecl]<NativeLineShape*, void> LineDrawShape;
+    // 親回転の継承除外状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetIgnoreParentRotation;
+    // 親回転の継承除外を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetIgnoreParentRotation;
+    // 親拡縮率の継承除外状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetIgnoreParentScale;
+    // 親拡縮率の継承除外を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void> SetIgnoreParentScale;
 
-    // 入力デバイス
+    // 現在の入力種別を返す
     internal static delegate* unmanaged[Cdecl]<int> GetInputType;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*, int> SetRendererMaterialParameter;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*, int> GetRendererMaterialParameter;
+    // RendererのMaterial値を設定する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, byte*, NativeMaterialParameterValue*,
+        int> SetRendererMaterialParameter;
+    // RendererのMaterial値を取得する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, NativeMaterialParameterValue*,
+        int> GetRendererMaterialParameter;
+    // RendererのMaterial値を解除する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, ulong, int> ClearRendererMaterialParameter;
+    // GPUのRayTracing対応を返す
     internal static delegate* unmanaged[Cdecl]<int> IsRayTracingSupported;
+    // RayTracingの実行状態を返す
     internal static delegate* unmanaged[Cdecl]<int> IsRayTracingActive;
-    // v48: RenderFeaturePassのProfile世代付きUUIDハンドル
+    // 名前から描画Passと世代を解決する
     internal static delegate* unmanaged[Cdecl]<byte*, ulong*, ulong*, int> ResolveRenderFeaturePass;
+    // 描画Passの世代を検証する
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int> ValidateRenderFeaturePass;
+    // 実行中の描画Passを切り替える
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassEnabled;
+    // 描画Passの画面出力を切り替える
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int, int> SetRenderFeaturePassSceneColorOutput;
+    // 実行中の描画Groupを切り替える
     internal static delegate* unmanaged[Cdecl]<byte*, int, int> SetRenderFeatureGroupEnabled;
-    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, byte*,
-        NativeMaterialParameterValue*, int> SetRenderFeaturePassParameter;
-    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong,
-        NativeMaterialParameterValue*, int> GetRenderFeaturePassParameter;
+    // 実行中の描画Pass値を設定する
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, byte*, NativeMaterialParameterValue*,
+        int> SetRenderFeaturePassParameter;
+    // 実行中の描画Pass値を取得する
+    internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, NativeMaterialParameterValue*,
+        int> GetRenderFeaturePassParameter;
+    // 実行中の描画Pass値を解除する
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, ulong, int> ClearRenderFeaturePassParameter;
+    // 描画Passの実行変更を解除する
     internal static delegate* unmanaged[Cdecl]<ulong, ulong, int> ResetRenderFeaturePass;
+    // 描画構成の実行変更を解除する
     internal static delegate* unmanaged[Cdecl]<void> ResetRenderFeatureOverrides;
+    // マウス範囲制御の状態を返す
     internal static delegate* unmanaged[Cdecl]<int> GetMouseRangeControl;
+    // マウス範囲制御を設定する
     internal static delegate* unmanaged[Cdecl]<int, void> SetMouseRangeControl;
-    // v20: GameObjectの保存identityを逆引きする
+    // Entityの保存参照IDを取得する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, AssetGUID*, ulong*, int*, void> GetEntityReferenceIdentity;
-    // v21: レイキャストとカメラレイとCollisionタイプ名解決
-    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*, int> PhysicsRaycast;
-    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*, int, int> PhysicsRaycastAll;
+    // レイに最も近い接触を返す
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*,
+        int> PhysicsRaycast;
+    // レイの全接触を距離順で返す
+    internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3, float, uint, uint, uint, NativeRaycastHit*,
+        int, int> PhysicsRaycastAll;
+    // QueryのTrigger対象設定を返す
     internal static delegate* unmanaged[Cdecl]<int> GetQueriesHitTriggers;
+    // QueryのTrigger対象設定を変更する
     internal static delegate* unmanaged[Cdecl]<int, void> SetQueriesHitTriggers;
+    // 画面座標からワールドレイを作る
     internal static delegate* unmanaged[Cdecl]<float, float, NativeVector3*, NativeVector3*, int> ScreenPointToRay;
+    // View内のマウス座標を返す
     internal static delegate* unmanaged[Cdecl]<NativeVector2*, int> GetMousePositionInView;
+    // 名前からCollisionのマスクを取得する
     internal static delegate* unmanaged[Cdecl]<byte*, uint> GetCollisionTypeMaskByName;
-    // v23: EasingType と t からイージング済みの値を返す
+    // 指定した補間曲線の値を返す
     internal static delegate* unmanaged[Cdecl]<int, float, float> EasedValue;
-    // Collision単一形状操作
+    // Colliderの形状値を取得する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int> CollisionGetShapeProperty;
+    // Colliderの形状値を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, void*, int, int> CollisionSetShapeProperty;
-    // 指定クリップ名のアニメーション合計長
+    // 指定Clipの再生時間を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, float> GetSkinnedAnimationDuration;
+    // AnimatorのParameterを設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float, int, int> SetAnimatorParameter;
+    // AnimatorのParameterを取得する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, float*, int*, int> GetAnimatorParameter;
-    // 指定クリップを頭から再生する
+    // 指定Clipを先頭から再生する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, void> PlaySkinnedAnimation;
+    // 再生中のClip名をコピーする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, byte*, int, int> CopySkinnedAnimationCurrentClip;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*, int> GetSkinnedAnimationRuntimeState;
-    // v46: ParticleSystemの再生操作と実行状態
+    // 骨格アニメーションの実行状態を返す
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeSkinnedAnimationRuntimeState*,
+        int> GetSkinnedAnimationRuntimeState;
+    // Particleの再生操作を予約する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void> ParticleSystemControl;
+    // Particleの実行状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> ParticleSystemState;
-    // v37: POD BufferをGameObjectと固定Type IDから解決して操作する
+    // Bufferの要素数を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> DynamicBufferLength;
+    // Bufferの要素を指定範囲へコピーする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, void*, int, int> DynamicBufferCopy;
+    // Bufferへ要素の変更を適用する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int, int, void*, int, int> DynamicBufferMutate;
-    // v26: UI入力ブロック状態
-	internal static delegate* unmanaged[Cdecl]<int, int> GetUIBlocksGameplayInput;
-	internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerGamepadIndex;
-	internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerKeyboardMouseEnabled;
-	internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerInputAvailable;
-	internal static delegate* unmanaged[Cdecl]<int, float, float, float, float, float, uint> PlayPlayerVibration;
-	internal static delegate* unmanaged[Cdecl]<int, uint, void> StopPlayerVibration;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUISelectableRuntimeState*, int> GetUISelectableRuntimeState;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*, int> GetUIProgressRuntimeState;
+    // Playerのゲーム入力遮断状態を返す
+    internal static delegate* unmanaged[Cdecl]<int, int> GetUIBlocksGameplayInput;
+    // Playerのパッド割当を返す
+    internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerGamepadIndex;
+    // Playerのキーとマウスの割当を返す
+    internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerKeyboardMouseEnabled;
+    // Playerの入力可否を返す
+    internal static delegate* unmanaged[Cdecl]<int, int> GetPlayerInputAvailable;
+    // Playerのパッド振動を開始する
+    internal static delegate* unmanaged[Cdecl]<int, float, float, float, float, float, uint> PlayPlayerVibration;
+    // Playerのパッド振動を止める
+    internal static delegate* unmanaged[Cdecl]<int, uint, void> StopPlayerVibration;
+    // UIの選択状態を返す
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUISelectableRuntimeState*,
+        int> GetUISelectableRuntimeState;
+    // UIの補間済み表示値を返す
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeUIProgressRuntimeState*,
+        int> GetUIProgressRuntimeState;
+    // Canvasの入力遮断状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> GetCanvasInputLocked;
+    // UIボタンのクリック状態を返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int> GetUIButtonClicked;
-    // v28: Canvasの操作別入力配列
+    // Canvasの入力割当をコピーする
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, int> CanvasCopyInputBindings;
+    // Canvasの入力割当を設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int*, int, void> CanvasSetInputBindings;
+    // Canvasの選択表サイズを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int*, int*, int> CanvasGetNavigationTableSize;
+    // Canvasの選択表サイズを変更する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, int> CanvasResizeNavigationTable;
+    // Canvasの選択先Entityを返す
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeEntity*, int> CanvasGetNavigationCell;
+    // Canvasの選択先Entityを設定する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int, int, NativeEntity, int> CanvasSetNavigationCell;
-    // v29: Application終了要求
+    // フレーム終端の終了を要求する
     internal static delegate* unmanaged[Cdecl]<void> RequestApplicationQuit;
-    // v30: GameViewとCanvas座標変換
+    // ワールド座標を画面座標へ変換する
     internal static delegate* unmanaged[Cdecl]<NativeVector3, NativeVector3*, int> WorldToScreenPoint;
-    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*, int> CanvasScreenToLocalPoint;
+    // 画面座標をCanvas座標へ変換する
+    internal static delegate* unmanaged[Cdecl]<NativeEntity, NativeVector2, NativeVector2*,
+        int> CanvasScreenToLocalPoint;
 
+    // Scriptの詳細計測を開始する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, ulong, byte*, ulong> BeginScriptSample;
+    // Scriptの詳細計測を終了する
     internal static delegate* unmanaged[Cdecl]<ulong, void> EndScriptSample;
+    // Scene切替時にEntityを保持する
     internal static delegate* unmanaged[Cdecl]<NativeEntity, int> DontDestroyOnLoad;
 
+    // 検証済みのNative接続を保持する
     internal static void SetCallbacks(NativeAPITable* callbacks) {
         BeginScriptSample = callbacks->beginScriptSample;
         EndScriptSample = callbacks->endScriptSample;
@@ -302,6 +467,7 @@ internal static unsafe class NativeAPI {
         AudioStop = callbacks->audioStop;
         AudioIsPlaying = callbacks->audioIsPlaying;
         ReportScriptException = callbacks->reportScriptException;
+        IsUpdateInterrupted = callbacks->isUpdateInterrupted;
         ResolveEntityRef = callbacks->resolveEntityRef;
         LineSetPoints = callbacks->lineSetPoints;
         LineDrawImmediate = callbacks->lineDrawImmediate;
@@ -365,12 +531,12 @@ internal static unsafe class NativeAPI {
         DynamicBufferLength = callbacks->dynamicBufferLength;
         DynamicBufferCopy = callbacks->dynamicBufferCopy;
         DynamicBufferMutate = callbacks->dynamicBufferMutate;
-		GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
-		GetPlayerGamepadIndex = callbacks->getPlayerGamepadIndex;
-		GetPlayerKeyboardMouseEnabled = callbacks->getPlayerKeyboardMouseEnabled;
-		GetPlayerInputAvailable = callbacks->getPlayerInputAvailable;
-		PlayPlayerVibration = callbacks->playPlayerVibration;
-		StopPlayerVibration = callbacks->stopPlayerVibration;
+        GetUIBlocksGameplayInput = callbacks->getUIBlocksGameplayInput;
+        GetPlayerGamepadIndex = callbacks->getPlayerGamepadIndex;
+        GetPlayerKeyboardMouseEnabled = callbacks->getPlayerKeyboardMouseEnabled;
+        GetPlayerInputAvailable = callbacks->getPlayerInputAvailable;
+        PlayPlayerVibration = callbacks->playPlayerVibration;
+        StopPlayerVibration = callbacks->stopPlayerVibration;
         GetUISelectableRuntimeState = callbacks->getUISelectableRuntimeState;
         GetUIProgressRuntimeState = callbacks->getUIProgressRuntimeState;
         GetCanvasInputLocked = callbacks->getCanvasInputLocked;
@@ -387,152 +553,5 @@ internal static unsafe class NativeAPI {
         AudioPlayOneShot = callbacks->audioPlayOneShot;
         AudioUnPause = callbacks->audioUnPause;
     }
-
-	internal static bool ValidateRenderFeaturePassValue(
-		ulong passID, ulong generation) =>
-		ValidateRenderFeaturePass != null && passID != 0ul &&
-		generation != 0ul &&
-		ValidateRenderFeaturePass(passID, generation) != 0;
-
-	internal static bool WriteRenderFeaturePassEnabled(
-		ulong passID, ulong generation, bool enabled) =>
-		SetRenderFeaturePassEnabled != null && passID != 0ul &&
-		generation != 0ul && SetRenderFeaturePassEnabled(
-			passID, generation, enabled ? 1 : 0) != 0;
-
-	internal static bool WriteRenderFeaturePassSceneColorOutput(
-		ulong passID, ulong generation, bool enabled) =>
-		SetRenderFeaturePassSceneColorOutput != null &&
-		SetRenderFeaturePassSceneColorOutput(passID, generation, enabled ? 1 : 0) != 0;
-
-	internal static bool WriteRenderFeaturePassParameter(
-		ulong passID, ulong generation, ulong parameterID,
-		string parameterName,
-		NativeMaterialParameterValue value) {
-
-		if (SetRenderFeaturePassParameter == null || parameterID == 0ul ||
-			passID == 0ul || generation == 0ul ||
-			string.IsNullOrEmpty(parameterName)) {
-
-			return false;
-		}
-        int parameterByteCount = Encoding.UTF8.GetByteCount(parameterName);
-        Span<byte> parameterBytes = parameterByteCount < 256
-            ? stackalloc byte[parameterByteCount + 1]
-            : new byte[parameterByteCount + 1];
-        Encoding.UTF8.GetBytes(parameterName, parameterBytes);
-        parameterBytes[parameterByteCount] = 0;
-		fixed (byte* parameterNamePtr = parameterBytes) {
-			return SetRenderFeaturePassParameter(
-				passID, generation, parameterID,
-				parameterNamePtr, &value) != 0;
-		}
-	}
-
-	internal static bool ReadRenderFeaturePassParameter(
-		ulong passID, ulong generation, ulong parameterID,
-		out NativeMaterialParameterValue value) {
-
-		NativeMaterialParameterValue result = default;
-		bool found = GetRenderFeaturePassParameter != null &&
-			passID != 0ul && generation != 0ul && parameterID != 0ul &&
-			GetRenderFeaturePassParameter(
-				passID, generation, parameterID, &result) != 0;
-		value = result;
-		return found;
-	}
-
-	internal static bool WriteRenderFeatureGroupEnabled(
-		string groupName, bool enabled) {
-
-		if (SetRenderFeatureGroupEnabled == null ||
-			string.IsNullOrEmpty(groupName)) {
-			return false;
-		}
-		int byteCount = Encoding.UTF8.GetByteCount(groupName);
-		Span<byte> bytes = byteCount < 256
-			? stackalloc byte[byteCount + 1]
-			: new byte[byteCount + 1];
-		Encoding.UTF8.GetBytes(groupName, bytes);
-		bytes[byteCount] = 0;
-		fixed (byte* groupNamePtr = bytes) {
-			return SetRenderFeatureGroupEnabled(
-				groupNamePtr, enabled ? 1 : 0) != 0;
-		}
-	}
-
-	internal static bool ClearRenderFeaturePassParameterValue(
-		ulong passID, ulong generation, ulong parameterID) =>
-		ClearRenderFeaturePassParameter != null && passID != 0ul &&
-		generation != 0ul && parameterID != 0ul &&
-		ClearRenderFeaturePassParameter(
-			passID, generation, parameterID) != 0;
-
-	internal static bool ResetRenderFeaturePassValue(
-		ulong passID, ulong generation) =>
-		ResetRenderFeaturePass != null && passID != 0ul &&
-		generation != 0ul &&
-		ResetRenderFeaturePass(passID, generation) != 0;
-
-	internal static void ResetAllRenderFeatureOverrides() {
-
-		if (ResetRenderFeatureOverrides != null) {
-			ResetRenderFeatureOverrides();
-		}
-	}
-
-    // POD property を outValue へ取得する。失敗時は outValue を変更しない
-    internal static void ComponentGet(NativeEntity entity, int typeID, int propertyID, void* outValue, int valueSize) {
-        if (GetComponentProperty == null) { throw new NotSupportedException("Component getter is not connected."); }
-        RequireComponentStatus(GetComponentProperty(entity, typeID, propertyID, outValue, valueSize));
-    }
-
-    internal static void ComponentSet(NativeEntity entity, int typeID, int propertyID, void* value, int valueSize) {
-        if (SetComponentProperty == null) { throw new NotSupportedException("Component setter is not connected."); }
-        RequireComponentStatus(SetComponentProperty(entity, typeID, propertyID, value, valueSize));
-    }
-
-    // string property を length query + buffer で取得する（固定長 buffer を使わない）
-    internal static string ComponentGetString(NativeEntity entity, int typeID, int propertyID) {
-        if (GetComponentStringProperty == null) { throw new NotSupportedException("Component string getter is not connected."); }
-        // まず必要 byte 数を問い合わせる（buffer=null, capacity=0 → written に必要量）
-        int needed = 0;
-        int status = GetComponentStringProperty(entity, typeID, propertyID, null, 0, &needed);
-        if (status != (int)ManagedStatus.BufferTooSmall) { RequireComponentStatus(status); }
-        if (needed < 0) { throw new InvalidOperationException("Invalid component string size."); }
-        if (needed <= 0) {
-            return string.Empty;
-        }
-        byte[] bytes = new byte[needed];
-        int written = 0;
-        fixed (byte* ptr = bytes) {
-            RequireComponentStatus(GetComponentStringProperty(entity, typeID, propertyID, ptr, needed, &written));
-            if (written < 0 || written > needed) { throw new InvalidOperationException("Invalid component string length."); }
-        }
-        return written <= 0 ? string.Empty : Encoding.UTF8.GetString(bytes, 0, written);
-    }
-
-    internal static void ComponentSetString(NativeEntity entity, int typeID, int propertyID, string value) {
-        if (SetComponentStringProperty == null) { throw new NotSupportedException("Component string setter is not connected."); }
-        string safe = value ?? string.Empty;
-        byte[] bytes = Encoding.UTF8.GetBytes(safe);
-        fixed (byte* ptr = bytes) {
-            RequireComponentStatus(SetComponentStringProperty(entity, typeID, propertyID, ptr, bytes.Length));
-        }
-    }
-
-    // Native側の失敗を値の取得成功として扱わない
-    private static void RequireComponentStatus(int result) {
-        ManagedStatus status = (ManagedStatus)result;
-        if (status == ManagedStatus.Ok) { return; }
-        if (status is ManagedStatus.InvalidEntityHandle or ManagedStatus.InvalidWorldHandle or ManagedStatus.InvalidInstanceHandle) {
-            throw new MissingReferenceException($"Component access failed: {status}");
-        }
-        throw new InvalidOperationException($"Component access failed: {status}");
-    }
-
-	internal static bool ReadUIBlocksGameplayInput(int playerIndex) {
-		return GetUIBlocksGameplayInput != null && GetUIBlocksGameplayInput(playerIndex) != 0;
-	}
 
 }

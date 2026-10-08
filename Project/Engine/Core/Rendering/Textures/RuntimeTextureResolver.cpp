@@ -10,16 +10,24 @@
 
 // c++
 #include <format>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 //============================================================================
 //	RuntimeTextureResolver internal
 //============================================================================
 namespace {
 
-	std::unordered_map<Engine::AssetID, Engine::RenderTexture2D*> renderTextures;
-	std::unordered_map<Engine::AssetID, Engine::GPUTextureResource> renderTextureViews;
+	// Textureと公開用GPU情報を一組で保持する
+	struct RenderTexturePublication {
+
+		Engine::RenderTexture2D* texture = nullptr;
+		Engine::GPUTextureResource view{};
+	};
+	static_assert(std::is_nothrow_move_assignable_v<RenderTexturePublication>);
+	std::unordered_map<Engine::AssetID, RenderTexturePublication> renderTextures;
 	std::unordered_set<Engine::AssetID> feedbackDiagnostics;
 	Engine::AssetID writingRenderTexture{};
 	uint64_t bindingRevision = 1;
@@ -44,23 +52,24 @@ namespace Engine::RuntimeTextureResolver {
 		if (!textureAssetID || !texture || !texture->IsValid()) {
 			return;
 		}
-		renderTextures[textureAssetID] = texture;
-		GPUTextureResource view{};
+		// 公開情報が揃うまでは旧Textureを維持する
+		RenderTexturePublication publication{};
+		publication.texture = texture;
+		GPUTextureResource& view = publication.view;
 		view.resource = texture->GetResource();
 		view.gpuHandle = texture->GetSRVGPUHandle();
 		view.srvIndex = texture->GetSRVIndex();
 		view.textureName = "RenderTexture";
 		view.valid = true;
-		renderTextureViews.insert_or_assign(textureAssetID, std::move(view));
+		renderTextures.insert_or_assign(textureAssetID, std::move(publication));
 		++bindingRevision;
 	}
 
 	void UnregisterRenderTexture(AssetID textureAssetID, const RenderTexture2D* texture) {
 
 		const auto found = renderTextures.find(textureAssetID);
-		if (found != renderTextures.end() && found->second == texture) {
+		if (found != renderTextures.end() && found->second.texture == texture) {
 			renderTextures.erase(found);
-			renderTextureViews.erase(textureAssetID);
 			feedbackDiagnostics.erase(textureAssetID);
 			++bindingRevision;
 		}
@@ -116,9 +125,7 @@ namespace Engine::RuntimeTextureResolver {
 
 		// Camera出力は通常Textureと同じSRVとして公開する
 		const auto renderTexture = renderTextures.find(textureAssetID);
-		const auto renderTextureView = renderTextureViews.find(textureAssetID);
-		if (renderTexture != renderTextures.end() &&
-			renderTextureView != renderTextureViews.end()) {
+		if (renderTexture != renderTextures.end()) {
 
 			if (textureAssetID == writingRenderTexture) {
 				if (feedbackDiagnostics.emplace(textureAssetID).second) {
@@ -129,12 +136,12 @@ namespace Engine::RuntimeTextureResolver {
 				return fallback;
 			}
 			if (DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand()) {
-				renderTexture->second->Transition(*dxCommand,
+				renderTexture->second.texture->Transition(*dxCommand,
 					static_cast<D3D12_RESOURCE_STATES>(
 						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 						D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 			}
-			return &renderTextureView->second;
+			return &renderTexture->second.view;
 		}
 		if (!assetDatabase) {
 			return fallback;
@@ -190,17 +197,17 @@ namespace Engine::RuntimeTextureResolver {
 
 		// Cameraが出力したRenderTextureを同じAssetIDで解決
 		const auto renderTexture = renderTextures.find(textureAssetID);
-		if (renderTexture != renderTextures.end() && renderTexture->second &&
-			renderTexture->second->IsValid() &&
+		if (renderTexture != renderTextures.end() &&
+			renderTexture->second.texture->IsValid() &&
 			textureAssetID != writingRenderTexture) {
 
 			if (DxCommand* dxCommand = graphicsCore.GetDXObject().GetDxCommand()) {
-				renderTexture->second->Transition(*dxCommand,
+				renderTexture->second.texture->Transition(*dxCommand,
 					static_cast<D3D12_RESOURCE_STATES>(
 						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE |
 						D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 			}
-			return { renderTexture->second->GetSRVIndex(), false };
+			return { renderTexture->second.texture->GetSRVIndex(), false };
 		}
 
 		const GPUTextureResource* fallback =
@@ -269,10 +276,10 @@ namespace Engine::RuntimeTextureResolver {
 		}
 
 		const auto renderTexture = renderTextures.find(textureAssetID);
-		if (renderTexture != renderTextures.end() && renderTexture->second &&
-			renderTexture->second->IsValid()) {
+		if (renderTexture != renderTextures.end() &&
+			renderTexture->second.texture->IsValid()) {
 
-			const D3D12_RESOURCE_DESC desc = renderTexture->second->GetResource()->GetDesc();
+			const D3D12_RESOURCE_DESC desc = renderTexture->second.texture->GetResource()->GetDesc();
 			outSize = Vector2(static_cast<float>(desc.Width), static_cast<float>(desc.Height));
 			return true;
 		}
@@ -321,4 +328,4 @@ namespace Engine::RuntimeTextureResolver {
 		return true;
 	}
 
-} // Engine::RuntimeTextureResolver
+}

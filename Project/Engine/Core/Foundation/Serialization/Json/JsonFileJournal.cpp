@@ -1,116 +1,27 @@
-#include "JsonFileJournal.h"
+#include "JsonFileJournalInternal.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Foundation/Serialization/StoragePreparationDirectory.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
+#include <span>
 #include <chrono>
 #include <format>
 #include <unordered_set>
 #include <stdexcept>
-
-// Windows
-#include <Windows.h>
+#include <utility>
 
 using namespace Engine;
 using namespace Engine::StorageFileUtility;
 
-namespace {
-
-	// 文書と生成ソースで同じ保存と復旧の窓口を使う
-	bool SaveChange(const Path& path, const JsonFileChange& change) {
-
-		return change.bytes ? WriteBytes(path, *change.bytes) : JsonAdapter::SaveCanonical(path, change.data);
-	}
-
-	class ScopeLock {
-	public:
-		explicit ScopeLock(const Engine::JsonFileJournal::Scope& scope) {
-
-			if (scope.recoveryRoot.empty() || !scope.isWritable) throw std::invalid_argument("保存範囲が未設定です");
-			std::filesystem::create_directories(scope.recoveryRoot);
-			file_ = CreateFileW((scope.recoveryRoot / "operation.lock").c_str(), GENERIC_READ | GENERIC_WRITE,
-				0, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-			if (file_ == INVALID_HANDLE_VALUE) throw std::runtime_error("同じ保存範囲を使用中か、操作記録を開けません");
-		}
-		~ScopeLock() { Release(); }
-		ScopeLock(const ScopeLock&) = delete;
-		ScopeLock& operator=(const ScopeLock&) = delete;
-
-		void Release() {
-
-			if (file_ != INVALID_HANDLE_VALUE) {
-				CloseHandle(file_);
-				file_ = INVALID_HANDLE_VALUE;
-			}
-		}
-	private:
-		HANDLE file_ = INVALID_HANDLE_VALUE;
-	};
-
-	// pending公開前の退避だけを片付ける
-	class PreparationDirectory {
-	public:
-		explicit PreparationDirectory(const Path& path) : path_(path) {}
-		~PreparationDirectory() {
-
-			if (!published_) {
-				std::error_code error;
-				std::filesystem::remove_all(path_, error);
-			}
-		}
-		PreparationDirectory(const PreparationDirectory&) = delete;
-		PreparationDirectory& operator=(const PreparationDirectory&) = delete;
-		void Publish() { published_ = true; }
-	private:
-		Path path_;
-		bool published_ = false;
-	};
-
-	nlohmann::json ReadJournal(const Path& directory) {
-
-		for (const char* name : { "operation.json", "operation.json.bak", "operation.json.tmp" }) {
-			auto journal = JsonAdapter::Load(directory / name, false);
-			if (!journal.is_object() || !journal.contains("files") || !journal["files"].is_array() ||
-				!journal.contains("state") || !journal["state"].is_string()) continue;
-			const auto& state = journal["state"].get_ref<const std::string&>();
-			if (state != "pending" && state != "completed" && state != "recovered") continue;
-			if (std::string_view(name) != "operation.json") journal["state"] = "pending";
-			return journal;
-		}
-		return {};
-	}
-
-	// 復旧先と退避元を適用直前にも照合する
-	Path ValidateRecoveryFile(const JsonFileJournal::Scope& scope, const Path& directory,
-		const nlohmann::json& entry, bool pending) {
-
-		const Path target = Algorithm::PathFromUTF8(entry.at("path").get<std::string>());
-		if (!scope.isWritable(target) || IsInside(target, scope.recoveryRoot) ||
-			PathKey(target) == PathKey(scope.recoveryRoot)) {
-			throw std::runtime_error("復旧対象のパスが保存範囲の外側です");
-		}
-		const std::string before = entry.at("before").get<std::string>();
-		const std::string current = FileRevision(target);
-		// 旧保存方式の置換中断も退避内容で確認する
-		const bool interruptedReplace = current == "missing" && pending && before != "missing" &&
-			FileRevision(Path(target.wstring() + L".bak")) == before;
-		if (!interruptedReplace && current != before && current != entry.at("after").get<std::string>()) {
-			throw std::runtime_error("操作後の外部変更を検出しました: " + Algorithm::PathToUTF8(target));
-		}
-		const Path backup = directory / entry.at("backup").get<std::string>();
-		if (!IsInside(backup, directory) || (before != "missing" && FileRevision(backup) != before)) {
-			throw std::runtime_error("退避データが不正です");
-		}
-		return target;
-	}
-}
+using namespace Engine::JsonFileJournal::Internal;
 
 bool Engine::JsonFileJournal::Commit(const Scope& scope, const std::vector<JsonFileChange>& changes, const std::string& label,
 	std::string& error, const RecoveryAction& recover, const CommitCheck& check, const CommitCheck& afterWriteCheck) {
@@ -124,9 +35,13 @@ bool Engine::JsonFileJournal::Commit(const Scope& scope, const std::vector<JsonF
 			return false;
 		}
 		// 保存範囲を確保してから読込時の状態を照合する
-		if (check) check();
+		if (check) {
+			check();
+		}
 		if (changes.empty()) {
-			if (afterWriteCheck) afterWriteCheck();
+			if (afterWriteCheck) {
+				afterWriteCheck();
+			}
 			return true;
 		}
 		std::unordered_set<std::string> paths;
@@ -137,22 +52,36 @@ bool Engine::JsonFileJournal::Commit(const Scope& scope, const std::vector<JsonF
 				error = "変更対象のパスが不正または重複しています";
 				return false;
 			}
-			if (change.remove && !std::filesystem::exists(change.path)) continue;
+			if (change.createOnly && (change.remove || std::filesystem::exists(change.path))) {
+				error = "新規作成先が既に存在するか、削除要求と競合しています";
+				return false;
+			}
+			if (change.remove && !std::filesystem::exists(change.path)) {
+				continue;
+			}
 			nlohmann::json existing;
 			if (!change.remove && change.bytes) {
 				const auto bytes = std::span(reinterpret_cast<const uint8_t*>(change.bytes->data()), change.bytes->size());
-				if (FileRevision(change.path) == ContentHash::SHA256(bytes)) continue;
+				if (FileRevision(change.path) == ContentHash::SHA256(bytes)) {
+					continue;
+				}
 			} else if (!change.remove && JsonAdapter::TryLoad(change.path, existing) && existing == change.data) {
-				if (!change.canonicalize) continue;
+				if (!change.canonicalize) {
+					continue;
+				}
 				// 正規化では字下げや改行だけの差も保存する
 				const std::string serialized = JsonAdapter::SerializeCanonical(change.data);
 				const auto bytes = std::span(reinterpret_cast<const uint8_t*>(serialized.data()), serialized.size());
-				if (FileRevision(change.path) == ContentHash::SHA256(bytes)) continue;
+				if (FileRevision(change.path) == ContentHash::SHA256(bytes)) {
+					continue;
+				}
 			}
 			effective.push_back(&change);
 		}
 		if (effective.empty()) {
-			if (afterWriteCheck) afterWriteCheck();
+			if (afterWriteCheck) {
+				afterWriteCheck();
+			}
 			return true;
 		}
 		const Path recovery = scope.recoveryRoot / ToString(Engine::UUID::New());
@@ -160,25 +89,47 @@ bool Engine::JsonFileJournal::Commit(const Scope& scope, const std::vector<JsonF
 			error = "復旧記録先が既に存在します";
 			return false;
 		}
-		PreparationDirectory preparation(recovery);
-		nlohmann::json journal = {{ "state", "preparing" }, { "label", label }, { "files", nlohmann::json::array() }};
-		journal["createdAtUtc"] = std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
+		StoragePreparationDirectory preparation(recovery);
+		StorageDirectoryLease recoveryLease(recovery, preparation.GetIdentity());
+		std::vector<StorageFilePublication> publications;
+		publications.reserve(effective.size());
+		nlohmann::json journal = {{"state", "preparing"}, {"label", label}, {"files", nlohmann::json::array()}};
+		journal["createdAtUtc"] =
+			std::format("{:%Y-%m-%d %H:%M:%S}", std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now()));
 		for (const JsonFileChange* entry : effective) {
 			const JsonFileChange& change = *entry;
 			const std::string before = FileRevision(change.path);
+			if (change.createOnly && before != "missing") {
+				throw std::runtime_error("保存準備中に新規作成先が使用されました");
+			}
 			const size_t index = journal["files"].size();
 			const std::string backup = std::to_string(index) + ".before";
-			const Path staged = recovery / (std::to_string(index) + ".after");
+			std::optional<std::string> serialized;
 			if (before != "missing") {
-				std::filesystem::copy_file(change.path, recovery / backup);
-				if (FileRevision(recovery / backup) != before) throw std::runtime_error("退避中に外部変更を検出しました");
+				preparation.Track(recovery / backup, before);
+				// 読み取った元データを非置換で退避
+				const std::string original = ReadVerifiedBytes(change.path, before);
+				FileIdentity identity;
+				if (!WriteBytesWithoutReplacement(recovery / backup, original, identity)) {
+					throw std::runtime_error("元データを退避できません");
+				}
+				preparation.Capture(recovery / backup, identity);
+				if (FileRevision(recovery / backup) != before) {
+					throw std::runtime_error("退避中に外部変更を検出しました");
+				}
 			}
-			if (!change.remove && !SaveChange(staged, change)) {
-				error = "保存データを準備できません";
-				return false;
+			if (!change.remove) {
+				serialized = change.bytes ? *change.bytes : JsonAdapter::SerializeCanonical(change.data);
+				if (!change.bytes && serialized->empty()) {
+					throw std::runtime_error("保存データを準備できません");
+				}
 			}
-			journal["files"].push_back({{ "path", Algorithm::PathToUTF8(std::filesystem::absolute(change.path)) },
-				{ "backup", backup }, { "before", before }, { "after", change.remove ? "missing" : FileRevision(staged) }});
+			// 保存先のボリュームに公開用の所有を確保
+			publications.emplace_back(change.path, before, serialized);
+			const auto& publication = publications.back().GetRecord();
+			journal["files"].push_back({{"path", Algorithm::PathToUTF8(std::filesystem::absolute(change.path))},
+				{"backup", backup}, {"before", before}, {"after", publication.after},
+				{"publications", nlohmann::json::array({EncodePublication(publication)})}});
 		}
 		journal["state"] = "pending";
 		if (!JsonAdapter::SaveCanonical(recovery / "operation.json", journal)) {
@@ -186,24 +137,25 @@ bool Engine::JsonFileJournal::Commit(const Scope& scope, const std::vector<JsonF
 			return false;
 		}
 		preparation.Publish();
+		// 操作記録へ回収の所有を渡してから適用
+		for (auto& publication : publications) {
+			publication.Persist();
+		}
 		try {
-			for (size_t i = 0; i < effective.size(); ++i) {
-				const JsonFileChange& change = *effective[i];
-				if (FileRevision(change.path) != journal["files"][i]["before"].get<std::string>()) {
-					throw std::runtime_error("操作中に外部変更を検出しました");
-				}
-				if (change.remove) {
-					std::filesystem::remove(change.path);
-				} else if (!SaveChange(change.path, change)) {
-					throw std::runtime_error("ファイルを保存できません");
-				}
+			for (auto& publication : publications) {
+				// 所有と内容を排他照合して退避と公開
+				publication.Retire();
+				publication.Publish();
 			}
 			// 参照を含めた保存結果を確定前に検証する
-			if (afterWriteCheck) afterWriteCheck();
+			if (afterWriteCheck) {
+				afterWriteCheck();
+			}
 			journal["state"] = "completed";
 			if (!JsonAdapter::SaveCanonical(recovery / "operation.json", journal)) {
 				throw std::runtime_error("操作の完了を記録できません");
 			}
+			CleanupPublications(journal);
 			return true;
 		} catch (const std::exception& exception) {
 			error = exception.what();
@@ -211,84 +163,13 @@ bool Engine::JsonFileJournal::Commit(const Scope& scope, const std::vector<JsonF
 			lock.Release();
 			std::string rollbackError;
 			const bool recovered = recover(recovery, rollbackError);
-			if (!recovered) error += " / 復旧が必要です: " + rollbackError;
+			if (!recovered) {
+				error += " / 復旧が必要です: " + rollbackError;
+			}
 			return false;
 		}
 	} catch (const std::exception& exception) {
 		error = exception.what();
 		return false;
 	}
-}
-
-std::vector<std::filesystem::path> Engine::JsonFileJournal::GetRecoveries(const Scope& scope, bool unfinishedOnly) {
-
-	std::vector<Path> result;
-	std::error_code ec;
-	for (std::filesystem::directory_iterator it(scope.recoveryRoot, ec), end;
-		!ec && it != end; it.increment(ec)) {
-		if (!it->is_directory()) continue;
-		const auto journal = ReadJournal(it->path());
-		const bool invalid = !journal.is_object() && (std::filesystem::exists(it->path() / "operation.json") ||
-			std::filesystem::exists(it->path() / "operation.json.bak") || std::filesystem::exists(it->path() / "operation.json.tmp"));
-		if (invalid || (journal.is_object() && (!unfinishedOnly || journal.value("state", std::string{}) == "pending"))) result.push_back(it->path());
-	}
-	if (ec && ec != std::errc::no_such_file_or_directory) {
-		throw std::filesystem::filesystem_error("復旧記録を列挙できません", scope.recoveryRoot, ec);
-	}
-	return result;
-}
-
-bool Engine::JsonFileJournal::RecoverPending(const Scope& scope, std::string& error, const RecoveryCheck& check) {
-
-	error.clear();
-	try {
-		// 各操作の保存範囲と退避内容を復元前に照合する
-		for (const Path& directory : GetRecoveries(scope, true)) {
-			if (!Recover(scope, directory, error, check)) {
-				return false;
-			}
-		}
-		return true;
-	} catch (const std::exception& exception) {
-		error = exception.what();
-		return false;
-	}
-}
-
-bool Engine::JsonFileJournal::Recover(const Scope& scope, const Path& directory, std::string& error, const RecoveryCheck& check) {
-
-	error.clear();
-	try {
-		ScopeLock lock(scope);
-		if (!IsInside(directory, scope.recoveryRoot)) throw std::runtime_error("退避先が不正です");
-		auto journal = ReadJournal(directory);
-		if (!journal.is_object()) throw std::runtime_error("操作記録を読み込めません、退避フォルダーを確認してください");
-		const auto& files = journal.at("files");
-		std::unordered_set<std::string> targets;
-		for (const auto& entry : files) {
-			const Path target = Algorithm::PathFromUTF8(entry.at("path").get<std::string>());
-			if (check) check(target);
-			ValidateRecoveryFile(scope, directory, entry, journal.value("state", "") == "pending");
-			if (!targets.insert(PathKey(target)).second) throw std::runtime_error("復旧対象のパスが重複しています");
-		}
-		// 復旧自体が中断しても次回起動で再開を案内する
-		journal["state"] = "pending";
-		if (!JsonAdapter::SaveCanonical(directory / "operation.json", journal)) throw std::runtime_error("復旧開始を記録できません");
-		for (auto it = files.rbegin(); it != files.rend(); ++it) {
-			if (check) check(Algorithm::PathFromUTF8(it->at("path").get<std::string>()));
-			const Path target = ValidateRecoveryFile(scope, directory, *it, true);
-			if (FileRevision(target) == it->at("before").get<std::string>()) continue;
-			if (it->at("before") == "missing") {
-				std::filesystem::remove(target);
-			} else {
-				std::filesystem::create_directories(target.parent_path());
-				if (!CopyFileAtomically(directory / it->at("backup").get<std::string>(), target)) {
-					throw std::runtime_error("退避ファイルを復旧できません");
-				}
-			}
-		}
-		journal["state"] = "recovered";
-		if (!JsonAdapter::SaveCanonical(directory / "operation.json", journal)) throw std::runtime_error("復旧完了を記録できません");
-		return true;
-	} catch (const std::exception& exception) { error = exception.what(); return false; }
 }

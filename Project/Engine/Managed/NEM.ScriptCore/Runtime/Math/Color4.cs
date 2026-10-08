@@ -33,19 +33,24 @@ public struct Color4 {
 
     //--------- operators ----------------------------------------------------
 
-    public static Color4 operator +(Color4 lhs, Color4 rhs) => new(lhs.r + rhs.r, lhs.g + rhs.g, lhs.b + rhs.b, lhs.a + rhs.a);
-    public static Color4 operator -(Color4 lhs, Color4 rhs) => new(lhs.r - rhs.r, lhs.g - rhs.g, lhs.b - rhs.b, lhs.a - rhs.a);
-    public static Color4 operator *(Color4 lhs, Color4 rhs) => new(lhs.r * rhs.r, lhs.g * rhs.g, lhs.b * rhs.b, lhs.a * rhs.a);
-    public static Color4 operator /(Color4 lhs, Color4 rhs) => new(lhs.r / rhs.r, lhs.g / rhs.g, lhs.b / rhs.b, lhs.a / rhs.a);
+    public static Color4 operator +(Color4 lhs, Color4 rhs) =>
+        new(lhs.r + rhs.r, lhs.g + rhs.g, lhs.b + rhs.b, lhs.a + rhs.a);
+    public static Color4 operator -(Color4 lhs, Color4 rhs) =>
+        new(lhs.r - rhs.r, lhs.g - rhs.g, lhs.b - rhs.b, lhs.a - rhs.a);
+    public static Color4 operator *(Color4 lhs, Color4 rhs) =>
+        new(lhs.r * rhs.r, lhs.g * rhs.g, lhs.b * rhs.b, lhs.a * rhs.a);
+    public static Color4 operator /(Color4 lhs, Color4 rhs) =>
+        new(lhs.r / rhs.r, lhs.g / rhs.g, lhs.b / rhs.b, lhs.a / rhs.a);
     public static Color4 operator *(Color4 lhs, float rhs) => new(lhs.r * rhs, lhs.g * rhs, lhs.b * rhs, lhs.a * rhs);
     public static Color4 operator /(Color4 lhs, float rhs) => new(lhs.r / rhs, lhs.g / rhs, lhs.b / rhs, lhs.a / rhs);
 
     //--------- functions ----------------------------------------------------
 
     // 線形補間
-    public static Color4 Lerp(Color4 lhs, Color4 rhs, float t) => new(Mathf.Lerp(lhs.r, rhs.r, t), Mathf.Lerp(lhs.g, rhs.g, t), Mathf.Lerp(lhs.b, rhs.b, t), Mathf.Lerp(lhs.a, rhs.a, t));
+    public static Color4 Lerp(Color4 lhs, Color4 rhs, float t) =>
+        new(Mathf.Lerp(lhs.r, rhs.r, t), Mathf.Lerp(lhs.g, rhs.g, t), Mathf.Lerp(lhs.b, rhs.b, t), Mathf.Lerp(lhs.a, rhs.a, t));
 
-    // 0xRRGGBBAAをリニアRGB + alphaに変換する
+    // 16進数の色をリニアRGBと透明度へ変換
     public static Color4 FromHex(uint hex) {
         // 入力はsRGBとして扱う
         float sr = ((hex >> 24) & 0xFF) / 255.0f;
@@ -56,7 +61,8 @@ public struct Color4 {
     }
 
     // sRGBからリニアRGBに変換する
-    public static float SRGBToLinear(float value) => value <= 0.04045f ? value / 12.92f : Mathf.Pow((value + 0.055f) / 1.055f, 2.4f);
+    public static float SRGBToLinear(float value) =>
+        value <= 0.04045f ? value / 12.92f : Mathf.Pow((value + 0.055f) / 1.055f, 2.4f);
 
     public override readonly string ToString() => $"({r}, {g}, {b}, {a})";
 }

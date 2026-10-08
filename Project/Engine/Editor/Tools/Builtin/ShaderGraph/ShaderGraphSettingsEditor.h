@@ -19,7 +19,7 @@ namespace Engine {
 		ShaderGraphSettingsEditor(ShaderGraphEditSession& session, ShaderGraphPreviewController& preview);
 
 		// 設定を表示して描画対象の変更を返す
-		bool Draw(const EditorToolContext& context);
+		bool Draw();
 
 	private:
 		//========================================================================

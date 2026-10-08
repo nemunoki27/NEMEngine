@@ -94,9 +94,9 @@ namespace Engine::ScriptFieldInspector {
 	}
 
 	nlohmann::json ParseDefaultValue(const Engine::ManagedFieldSchema& field) {
-		if (!field.defaultValueJson.empty() && field.defaultValueJson != "null") {
+		if (!field.defaultValueJSON.empty() && field.defaultValueJSON != "null") {
 			try {
-				return nlohmann::json::parse(field.defaultValueJson);
+				return nlohmann::json::parse(field.defaultValueJSON);
 			}
 			catch (const nlohmann::json::exception&) {
 			}

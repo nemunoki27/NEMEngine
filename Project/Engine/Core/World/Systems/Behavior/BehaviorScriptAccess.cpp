@@ -14,9 +14,8 @@
 // c++
 #include <algorithm>
 
-
-void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
-	SystemContext& context, const CollisionContact& collision) {
+void Engine::BehaviorSystem::DispatchCollisionEnter(
+	ECSWorld& world, SystemContext& context, const CollisionContact& collision) {
 
 	// アクティブなBehaviorSystemへ衝突開始を渡す
 	if (activeSystem_) {
@@ -24,8 +23,7 @@ void Engine::BehaviorSystem::DispatchCollisionEnter(ECSWorld& world,
 	}
 }
 
-void Engine::BehaviorSystem::DispatchCollisionStay(ECSWorld& world,
-	SystemContext& context, const CollisionContact& collision) {
+void Engine::BehaviorSystem::DispatchCollisionStay(ECSWorld& world, SystemContext& context, const CollisionContact& collision) {
 
 	// アクティブなBehaviorSystemへ衝突継続を渡す
 	if (activeSystem_) {
@@ -33,8 +31,7 @@ void Engine::BehaviorSystem::DispatchCollisionStay(ECSWorld& world,
 	}
 }
 
-void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
-	SystemContext& context, const CollisionContact& collision) {
+void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world, SystemContext& context, const CollisionContact& collision) {
 
 	// アクティブなBehaviorSystemへ衝突終了を渡す
 	if (activeSystem_) {
@@ -45,14 +42,19 @@ void Engine::BehaviorSystem::DispatchCollisionExit(ECSWorld& world,
 void Engine::BehaviorSystem::DispatchAnimationEvent(ECSWorld& world, SystemContext& context, const Entity& entity,
 	const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam) {
 
-	if (!activeSystem_ || context.mode != WorldMode::Play || activeSystem_->session_.activeWorld_ != &world) {
+	if (!activeSystem_ || context.mode != WorldMode::Play || activeSystem_->session_.activeWorld_ != &world ||
+		context.IsUpdateInterrupted()) {
 		return;
 	}
 
 	// 実行順を保ったスナップショットから対象Entityだけへ通知する
-	const std::vector<BehaviorParticipantCache::SyncParticipant> participants = activeSystem_->session_.participantCache_.participants_;
+	const std::vector<BehaviorParticipantCache::SyncParticipant> participants =
+		activeSystem_->session_.participantCache_.participants_;
 	for (const BehaviorParticipantCache::SyncParticipant& participant : participants) {
 
+		if (context.IsUpdateInterrupted()) {
+			return;
+		}
 		if (participant.owner != entity) {
 			continue;
 		}
@@ -66,21 +68,20 @@ void Engine::BehaviorSystem::DispatchAnimationEvent(ECSWorld& world, SystemConte
 	}
 }
 
-void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(ECSWorld& world, const SystemContext& context,
-	std::span<const Entity> entities) {
+void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(
+	ECSWorld& world, const SystemContext& context, std::span<const Entity> entities) {
 
-	if (!activeSystem_ || context.mode != WorldMode::Play ||
-		activeSystem_->session_.activeWorld_ != &world || entities.empty()) {
+	if (!activeSystem_ || context.mode != WorldMode::Play || activeSystem_->session_.activeWorld_ != &world ||
+		entities.empty()) {
 		return;
 	}
 
 	// Prefab追加通知を通常同期へ残すと返却後にSerializeFieldを再適用するため先に消費する
 	auto& dirtyEntities = activeSystem_->session_.dirtyScriptEntities_;
-	dirtyEntities.erase(std::remove_if(dirtyEntities.begin(), dirtyEntities.end(),
-		[entities](const Entity& dirty) {
-
-			return std::find(entities.begin(), entities.end(), dirty) != entities.end();
-		}), dirtyEntities.end());
+	dirtyEntities.erase(
+		std::remove_if(dirtyEntities.begin(), dirtyEntities.end(),
+			[entities](const Entity& dirty) { return std::find(entities.begin(), entities.end(), dirty) != entities.end(); }),
+		dirtyEntities.end());
 
 	// 全Script実体を先に作りPrefab内参照をAwakeより前に解決できる状態へ揃える
 	for (const Entity& entity : entities) {
@@ -102,8 +103,7 @@ void Engine::BehaviorSystem::SynchronizeInstantiatedEntities(ECSWorld& world, co
 
 bool Engine::BehaviorSystem::PrepareManagedReload(ECSWorld& world, const SystemContext& context) {
 
-	if (!activeSystem_ || context.mode != WorldMode::Play ||
-		activeSystem_->session_.activeWorld_ != &world) {
+	if (!activeSystem_ || context.mode != WorldMode::Play || activeSystem_->session_.activeWorld_ != &world) {
 		return false;
 	}
 	BehaviorExecutionSession& session = activeSystem_->session_;
@@ -111,7 +111,6 @@ bool Engine::BehaviorSystem::PrepareManagedReload(ECSWorld& world, const SystemC
 		std::vector<BehaviorExecutionSession::ReloadSnapshot> snapshots;
 		bool captured = true;
 		session.runtime_.ForEachAlive([&](BehaviorRecord& record) {
-
 			auto* behavior = dynamic_cast<ManagedBehavior*>(record.instance.get());
 			if (!behavior) {
 				return;
@@ -140,8 +139,7 @@ bool Engine::BehaviorSystem::PrepareManagedReload(ECSWorld& world, const SystemC
 	// 有効なScriptへ切替前のOnDisableを一度だけ通知する
 	for (const BehaviorExecutionSession::ReloadSnapshot& snapshot : session.reloadSnapshots_) {
 
-		const BehaviorHandle handle = session.runtime_.FindHandleBySlot(
-			snapshot.owner, snapshot.scriptSlotID);
+		const BehaviorHandle handle = session.runtime_.FindHandleBySlot(snapshot.owner, snapshot.scriptSlotID);
 		BehaviorRecord* record = session.runtime_.GetRecord(handle);
 		if (!record || !record->instance) {
 			continue;
@@ -164,8 +162,7 @@ bool Engine::BehaviorSystem::PrepareManagedReload(ECSWorld& world, const SystemC
 
 bool Engine::BehaviorSystem::RestoreManagedReload(ECSWorld& world, const SystemContext& context) {
 
-	if (!activeSystem_ || !activeSystem_->session_.reloadPrepared_ ||
-		activeSystem_->session_.activeWorld_ != &world) {
+	if (!activeSystem_ || !activeSystem_->session_.reloadPrepared_ || activeSystem_->session_.activeWorld_ != &world) {
 		return false;
 	}
 	BehaviorExecutionSession& session = activeSystem_->session_;
@@ -173,8 +170,7 @@ bool Engine::BehaviorSystem::RestoreManagedReload(ECSWorld& world, const SystemC
 	bool restored = true;
 	for (const BehaviorExecutionSession::ReloadSnapshot& snapshot : session.reloadSnapshots_) {
 
-		const BehaviorHandle handle = session.runtime_.FindHandleBySlot(
-			snapshot.owner, snapshot.scriptSlotID);
+		const BehaviorHandle handle = session.runtime_.FindHandleBySlot(snapshot.owner, snapshot.scriptSlotID);
 		BehaviorRecord* record = session.runtime_.GetRecord(handle);
 		if (!record || !record->instance) {
 			continue;
@@ -222,8 +218,8 @@ nlohmann::json Engine::BehaviorSystem::GetRuntimeSerializedState(BehaviorHandle 
 	return record->instance->GetRuntimeSerializedState();
 }
 
-bool Engine::BehaviorSystem::CaptureSavedFields(ECSWorld& world, const Entity& owner, UUID slotID,
-	nlohmann::json& fields, bool& enabled) {
+bool Engine::BehaviorSystem::CaptureSavedFields(
+	ECSWorld& world, const Entity& owner, UUID slotID, nlohmann::json& fields, bool& enabled) {
 
 	if (!activeSystem_) {
 		return true;
@@ -258,8 +254,8 @@ bool Engine::BehaviorSystem::CaptureSavedFields(ECSWorld& world, const Entity& o
 	return true;
 }
 
-void Engine::BehaviorSystem::SetRuntimeSerializedField(BehaviorHandle handle,
-	const std::string& fieldID, const nlohmann::json& value) {
+void Engine::BehaviorSystem::SetRuntimeSerializedField(
+	BehaviorHandle handle, const std::string& fieldID, const nlohmann::json& value) {
 
 	if (!activeSystem_ || !activeSystem_->session_.runtime_.IsAlive(handle)) {
 		return;
@@ -273,7 +269,8 @@ void Engine::BehaviorSystem::SetRuntimeSerializedField(BehaviorHandle handle,
 namespace {
 
 	// active worldのowner Entity上でscriptSlotID一致のScriptEntryを探す
-	Engine::ScriptEntry* FindScriptEntryBySlot(Engine::ECSWorld& world, const Engine::Entity& owner, const Engine::UUID& slotID) {
+	Engine::ScriptEntry* FindScriptEntryBySlot(
+		Engine::ECSWorld& world, const Engine::Entity& owner, const Engine::UUID& slotID) {
 
 		if (!world.HasComponent<Engine::ScriptComponent>(owner)) {
 			return nullptr;
@@ -297,8 +294,7 @@ int32_t Engine::BehaviorSystem::GetScriptEnabled(const Entity& owner, const UUID
 		return -1;
 	}
 	// runtime overrideがあればそれを、無ければauthoringのenabledを返す
-	const BehaviorHandle handle =
-		activeSystem_->session_.runtime_.FindHandleBySlot(owner, scriptSlotID);
+	const BehaviorHandle handle = activeSystem_->session_.runtime_.FindHandleBySlot(owner, scriptSlotID);
 	if (BehaviorRecord* record = activeSystem_->session_.runtime_.GetRecord(handle)) {
 		if (record->hasRuntimeEnabledOverride) {
 			return record->runtimeEnabledOverride ? 1 : 0;
@@ -317,8 +313,7 @@ void Engine::BehaviorSystem::SetScriptEnabled(const Entity& owner, const UUID& s
 		return;
 	}
 	// runtime overrideだけ立て、authoringのenabledは変更しない、次のsyncで反映される
-	const BehaviorHandle handle =
-		activeSystem_->session_.runtime_.FindHandleBySlot(owner, scriptSlotID);
+	const BehaviorHandle handle = activeSystem_->session_.runtime_.FindHandleBySlot(owner, scriptSlotID);
 	if (BehaviorRecord* record = activeSystem_->session_.runtime_.GetRecord(handle)) {
 		record->runtimeEnabledOverride = enabled;
 		record->hasRuntimeEnabledOverride = true;
@@ -326,8 +321,7 @@ void Engine::BehaviorSystem::SetScriptEnabled(const Entity& owner, const UUID& s
 	}
 }
 
-Engine::BehaviorHandle Engine::BehaviorSystem::FindRuntimeHandle(
-	const Entity& owner, const UUID& scriptSlotID) {
+Engine::BehaviorHandle Engine::BehaviorSystem::FindRuntimeHandle(const Entity& owner, const UUID& scriptSlotID) {
 
 	if (!activeSystem_ || !activeSystem_->session_.activeWorld_) {
 		return BehaviorHandle::Null();
@@ -345,13 +339,11 @@ Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& o
 	if (!activeSystem_->session_.activeWorld_->HasComponent<ScriptComponent>(owner)) {
 		return nullptr;
 	}
-	for (ScriptEntry& entry :
-		GetScriptEntries(*activeSystem_->session_.activeWorld_, owner)) {
+	for (ScriptEntry& entry : GetScriptEntries(*activeSystem_->session_.activeWorld_, owner)) {
 		if (entry.scriptTypeID != scriptTypeID) {
 			continue;
 		}
-		const BehaviorHandle handle =
-			activeSystem_->session_.runtime_.FindHandleBySlot(owner, entry.scriptSlotID);
+		const BehaviorHandle handle = activeSystem_->session_.runtime_.FindHandleBySlot(owner, entry.scriptSlotID);
 		if (BehaviorRecord* record = activeSystem_->session_.runtime_.GetRecord(handle)) {
 			if (record->instance) {
 				return record->instance.get();
@@ -361,7 +353,8 @@ Engine::MonoBehavior* Engine::BehaviorSystem::FindScriptInstance(const Entity& o
 	return nullptr;
 }
 
-Engine::MonoBehavior* Engine::BehaviorSystem::AttachScript(const Entity& owner, const std::string& scriptTypeID, const SystemContext& context) {
+Engine::MonoBehavior* Engine::BehaviorSystem::AttachScript(
+	const Entity& owner, const std::string& scriptTypeID, const SystemContext& context) {
 
 	if (!activeSystem_ || !activeSystem_->session_.activeWorld_ || scriptTypeID.empty()) {
 		return nullptr;
@@ -384,12 +377,9 @@ Engine::MonoBehavior* Engine::BehaviorSystem::AttachScript(const Entity& owner, 
 	}
 
 	// ScriptEntryをBufferへ追加してinstanceを即時生成する
-	DynamicBuffer<ScriptEntry> entries =
-		world.GetBuffer<ScriptEntry>(owner);
-	ScriptEntry& entry =
-		entries.EmplaceBack(MakeScriptEntry(info->scriptTypeID, info->name));
-	const BehaviorHandle handle = activeSystem_->session_.runtime_.Create(
-		info->id, owner, entry.scriptSlotID);
+	DynamicBuffer<ScriptEntry> entries = world.GetBuffer<ScriptEntry>(owner);
+	ScriptEntry& entry = entries.EmplaceBack(MakeScriptEntry(info->scriptTypeID, info->name));
+	const BehaviorHandle handle = activeSystem_->session_.runtime_.Create(info->id, owner, entry.scriptSlotID);
 
 	BehaviorRecord* record = activeSystem_->session_.runtime_.GetRecord(handle);
 	if (!record || !record->instance) {

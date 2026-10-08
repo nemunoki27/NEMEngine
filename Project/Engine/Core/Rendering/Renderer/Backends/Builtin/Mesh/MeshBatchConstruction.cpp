@@ -31,6 +31,7 @@
 //============================================================================
 namespace {
 
+	// 描画対象のMesh設定を取得
 	const Engine::MeshRendererComponent* ResolveRenderer(const Engine::RenderItem* item) {
 
 		if (!item || !item->world) {
@@ -38,15 +39,16 @@ namespace {
 		}
 		return item->world->TryGetComponent<Engine::MeshRendererComponent>(item->entity);
 	}
-	const Engine::SkinnedAnimationRuntimeData* ResolveSkinnedAnimationRuntime(
-		const Engine::RenderItem* item) {
+	// Skinningの実行状態を読み取り専用で取得
+	const Engine::SkinnedAnimationRuntimeData* ResolveSkinnedAnimationRuntime(const Engine::RenderItem* item) {
 
 		if (!item || !item->world) {
 			return nullptr;
 		}
-		return Engine::TryGetSkinnedAnimationRuntime(
-			*item->world, item->entity);
+		const Engine::ECSWorld& world = *item->world;
+		return Engine::TryGetSkinnedAnimationRuntime(world, item->entity);
 	}
+	// 背面Outlineの設定を取得
 	const Engine::InvertedHullOutlineComponent* ResolveOutline(const Engine::RenderItem* item) {
 
 		if (!item || !item->world) {
@@ -58,7 +60,7 @@ namespace {
 }
 
 void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawContext,
-	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh) {
+	const RenderSceneBatch& batch, std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) {
 
 	// バッチ再構築と転送を別の区間で計測する
 	FrameProfiler::ScopedSample profileSample(FrameProfiler::Category::MeshBatchUpload);
@@ -77,7 +79,6 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	cachedMaxDisplacement_ = 0.0f;
 	outlineScratch_.clear();
 	paletteScratch_.clear();
-	skinnedRecords_.clear();
 	skinnedVertexOffsetMap_.clear();
 	skinnedInstanceCount_ = 0;
 	skinningDrawEnabled_ = true;
@@ -86,14 +87,14 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	usesFallbackTexture_ = false;
 	// アウトラインの保守的メトリクスを初期化する
 	outlineMetrics_ = OutlineBatchMetrics{};
-	// インスタンスと同数のアウトラインデータを必ず作るため、先に容量を確保する
+	// Instance数に合わせてOutlineの容量を確保
 	outlineScratch_.reserve(items.size());
 	// 描画アイテム数に応じて必要なバッファサイズを確保する
 	if (meshScratch_.capacity() < items.size()) {
 		meshScratch_.reserve(items.size());
 	}
 
-	// サブメッシュ分割バッチは対象スロットだけを転送し、多数スロット時の二乗的な転送を避ける
+	// 分割バッチは対象SubMeshだけ転送
 	uint32_t batchSubMeshIndex = kAllMeshSubMeshes;
 	if (!items.empty()) {
 		const MeshRenderPayload* payload =
@@ -111,8 +112,6 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 
 		subMeshScratch_.reserve(totalSubMeshCount);
 	}
-	// カメラ移動で可視数が増えた瞬間にGPUバッファを作り直さないよう、カリング前の最大数で先に確保する
-
 	GraphicsCore& graphicsCore = *drawContext.graphicsCore;
 
 	// スキニング可能メッシュのときだけリソース生成する
@@ -125,8 +124,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	const GPUTextureResource* fallback = graphicsCore.GetBuiltinTextureLibrary().GetErrorTexture();
 	uint32_t fallbackSRVIndex = (fallback && fallback->srvIndex != UINT32_MAX) ? fallback->srvIndex : 0;
 
-	// テクスチャアセットIDからSRVインデックスを取得するヘルパー
-	// assetIDが無効ならUINT32_MAXを返しシェーダー側で未使用として扱う
+	// 未指定Textureは未使用の番号を返す
 	auto ResolveSRVIndex = [&](AssetID assetID, bool sRGB) -> uint32_t {
 
 		if (!assetID) {
@@ -160,12 +158,10 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 		std::vector<MeshSubMeshRenderState> renderGroups;
 		std::vector<uint32_t> subMeshGroupIndices;
 		if (renderer && !subMeshes.empty()) {
-			MeshDrawPathCommon::BuildSubMeshRenderGroups(
-				*renderer, subMeshes,
-				renderGroups, subMeshGroupIndices);
+			MeshDrawPathCommon::BuildSubMeshRenderGroups(*renderer, subMeshes, renderGroups, subMeshGroupIndices);
 		}
 
-		// MS/VS
+		// 描画経路で共通のインスタンスを構築
 		{
 			const ResolvedRenderView* billboardView = drawContext.billboardView ? drawContext.billboardView : drawContext.view;
 			MeshInstanceData instance{};
@@ -177,12 +173,12 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 			MeshNormalMatrixResult instanceNormal = BuildSafeMeshNormalMatrix(instance.worldMatrix);
 			instance.normalMatrix = instanceNormal.matrix;
 			instance.orientationSign = instanceNormal.orientationSign;
-			// 色はサブメッシュ単位のreflection paramへ移したのでper-instance tintは白固定にする
+			// 色の上書きはサブメッシュ側へ渡す
 			instance.color = Color4::White();
 			instance.subMeshDataOffset = static_cast<uint32_t>(subMeshScratch_.size());
 			instance.subMeshCount = subMeshCountPerInstance;
 
-			// MeshRenderFlagsのうちピクセル側で参照するものをinstance.flagsへ写す
+			// PixelShaderへ渡す描画フラグを設定
 			MeshRenderFlags renderFlags = renderer ? renderer->renderFlags : MeshRenderFlags::Default;
 			SetMeshRenderFlag(renderFlags,
 				MeshRenderFlags::ReceiveShadow,
@@ -223,8 +219,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 				Algorithm::HashCombine(currentSkinningPoseHash_,
 					skinnedRuntime->poseGeneration);
 
-				// スキニングするインスタンスのレコードを追加
-				skinnedRecords_.push_back({ item->world,item->entity,instance.skinnedVertexOffset });
+				// スキニング頂点の位置を検索表へ登録
 				MeshEntityLookupKey key{};
 				key.world = item->world;
 				key.entity = item->entity;
@@ -234,7 +229,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 				++skinnedInstanceCount_;
 			}
 
-			// アウトラインGPUデータをインスタンスごとに必ず1件作る
+			// InstanceごとにOutlineの転送値を生成
 			MeshOutlineGPUData outlineGPU{};
 			if (const InvertedHullOutlineComponent* outline = ResolveOutline(item)) {
 
@@ -249,7 +244,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 					outlineGPU.flags |= kMeshOutlineFlagRespectMaterialSurface;
 				}
 
-				// Baked Normal / Outline SamplerはLinearとして解決する
+				// 輪郭の法線と幅のTextureをLinearで取得
 				if (outline->useBakedNormal && outline->bakedNormalTexture) {
 					outlineGPU.flags |= kMeshOutlineFlagUseBakedNormal;
 					outlineGPU.bakedNormalTextureIndex = ResolveSRVIndex(outline->bakedNormalTexture, false);
@@ -259,13 +254,14 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 					outlineGPU.outlineSamplerTextureIndex = ResolveSRVIndex(outline->outlineSamplerTexture, false);
 				}
 
-				// AS/instance-culling CS用の安全側メトリクスを更新する
+				// 輪郭の膨張範囲をカリングへ反映
 				if (outlineGPU.widthMode == static_cast<uint32_t>(OutlineWidthMode::ScreenPixels)) {
 					outlineMetrics_.hasScreenPixelWidth = true;
 				} else {
 					outlineMetrics_.maxModelExpansion = (std::max)(outlineMetrics_.maxModelExpansion, outlineGPU.width);
 				}
-				outlineMetrics_.maxAbsCameraZOffset = (std::max)(outlineMetrics_.maxAbsCameraZOffset, std::abs(outlineGPU.cameraZOffset));
+				outlineMetrics_.maxAbsCameraZOffset = (std::max)(
+					outlineMetrics_.maxAbsCameraZOffset, std::abs(outlineGPU.cameraZOffset));
 			}
 
 			instance.outlineDataIndex = static_cast<uint32_t>(outlineScratch_.size());
@@ -276,9 +272,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 			MeshEntityLookupKey instanceKey{};
 			instanceKey.world = item->world;
 			instanceKey.entity = item->entity;
-			meshInstanceIndexMap_.emplace(
-				instanceKey,
-				static_cast<uint32_t>(meshScratch_.size()));
+			meshInstanceIndexMap_.emplace(instanceKey, static_cast<uint32_t>(meshScratch_.size()));
 			meshScratch_.emplace_back(instance);
 		}
 
@@ -290,26 +284,26 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 				batchSubMeshIndex == kAllMeshSubMeshes ?
 				localSubMeshIndex : batchSubMeshIndex;
 
-			// 色やテクスチャはreflection paramへ移したのでgSubMeshesには幾何情報のみ詰める
+			// サブメッシュの形状データを構築
 			MeshSubMeshShaderData data{};
 			data.importedBaseColor = gpuMesh.subMeshes[subMeshIndex].baseColor;
 			if (subMeshIndex < subMeshes.size()) {
 
 				const auto& authoring = subMeshes[subMeshIndex];
-				// 保存値からGPU転送値を構築し、Componentへ実行時行列を書き戻さない
+				// 保存値から描画用の行列を構築
 				data.uvMatrix = MeshSubMeshRuntime::BuildUVMatrix(authoring);
 				data.localMatrix = MeshSubMeshRuntime::BuildRenderLocalMatrix(authoring);
-				// localMatrixからも法線変換行列を構築し最終的にinstance.normalMatrixと合成される
+				// サブメッシュの法線変換を構築
 				const MeshNormalMatrixResult localNormal = BuildSafeMeshNormalMatrix(data.localMatrix);
 				data.localNormalMatrix = localNormal.matrix;
 				data.localOrientationSign = localNormal.orientationSign;
-				// Position Scaling膨張の基準で原点基準にならないようサブメッシュのピボットを渡す
+				// 輪郭を膨張する基準点を設定
 				data.sourcePivot = authoring.sourcePivot;
 				if (subMeshIndex < subMeshGroupIndices.size()) {
 					data.renderGroupIndex =
 						subMeshGroupIndices[subMeshIndex];
 				}
-				// reflection paramの上書きをインスタンス×サブメッシュ単位で集める
+				// インスタンスとサブメッシュごとにMaterial値を収集
 				MaterialParameterSet materialParams = authoring.materialInstance;
 				MaterialParameterValue alphaClip{};
 				alphaClip.value = item->surfaceMode == MaterialSurfaceMode::Masked ?
@@ -322,7 +316,7 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 				subMeshParamScratch_.emplace_back(std::move(materialParams));
 			} else {
 
-				// rendererが無いときも要素数をgSubMeshesと揃える
+				// 設定がなくてもSubMeshの要素数を揃える
 				subMeshParamScratch_.emplace_back();
 			}
 			subMeshScratch_.emplace_back(data);
@@ -333,11 +327,10 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 	instanceCount_ = static_cast<uint32_t>(meshScratch_.size());
 	Algorithm::HashCombine(currentSkinningPoseHash_, skinnedInstanceCount_);
 
-	// 静的データはDEFAULT heapへまとめて転送する
-	meshData_.MarkFullUpdate(
-		static_cast<uint32_t>(meshScratch_.size()));
+	// 静的データをまとめて転送
+	meshData_.MarkFullUpdate(static_cast<uint32_t>(meshScratch_.size()));
 	const uint32_t prevVisibleCapacity = visibleMeshData_.GetCapacity();
-	// 可視インスタンスRWバッファはカリング前のインスタンス数分だけ確保する
+	// カリング前のInstance数に合わせて容量を確保
 	const size_t visibleCapacity =
 		(std::max)(meshScratch_.size(), size_t(1)) * kMeshLODCount;
 	visibleMeshData_.EnsureCapacity(static_cast<uint32_t>(visibleCapacity));
@@ -345,11 +338,9 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 
 		visibleMeshDataState_ = D3D12_RESOURCE_STATE_COMMON;
 	}
-	subMeshData_.MarkFullUpdate(
-		static_cast<uint32_t>(subMeshScratch_.size()));
-	// アウトラインGPUデータの転送でMeshDrawConstantsはUpdateDrawConstantsで毎描画更新する
-	outlineData_.MarkFullUpdate(
-		static_cast<uint32_t>(outlineScratch_.size()));
+	subMeshData_.MarkFullUpdate(static_cast<uint32_t>(subMeshScratch_.size()));
+	// 輪郭のインスタンスデータを転送対象へ追加
+	outlineData_.MarkFullUpdate(static_cast<uint32_t>(outlineScratch_.size()));
 
 	if (skinning_) {
 
@@ -366,5 +357,5 @@ void Engine::MeshBatchResources::BuildBatchData(const RenderDrawContext& drawCon
 			currentSkinningPoseHash_ == dispatchedSkinningPoseHash_;
 	}
 	subMeshParamGenerations_.assign(subMeshParamScratch_.size(), ++parameterGeneration_);
-	CaptureBatchIdentity(batch, items, gpuMesh);
+	batchIdentity_.Capture(batch, items, gpuMesh);
 }

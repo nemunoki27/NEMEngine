@@ -17,6 +17,7 @@
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 
 namespace Engine {
@@ -28,16 +29,14 @@ namespace Engine {
 	//	ProjectPanel class
 	//	プロジェクトパネル
 	//============================================================================
-	class ProjectPanel :
-		public IEditorPanel {
+	class ProjectPanel : public IEditorPanel {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		ProjectPanel(TextureUploadService& textureUploadService,
-			const std::string& instanceID = "project.primary", bool primaryInstance = true,
-			const std::string& displayName = "Project");
+		ProjectPanel(TextureUploadService& textureUploadService, const std::string& instanceID = "project.primary",
+			bool primaryInstance = true, const std::string& displayName = "Project");
 		~ProjectPanel();
 
 		void Draw(const EditorPanelContext& context) override;
@@ -47,6 +46,7 @@ namespace Engine {
 
 		EditorPanelPhase GetPhase() const override { return EditorPanelPhase::PostScene; }
 		bool CanDuplicate([[maybe_unused]] const EditorPanelContext& context) const override { return true; }
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -77,6 +77,8 @@ namespace Engine {
 		bool dirty_ = true;
 		// 最後に取り込んだAssetDatabaseの構造リビジョン、外部のファイル追加削除を検知して再構築する
 		uint64_t lastSeenStructureRevision_ = 0;
+		// 失敗した世代の自動再試行を抑える
+		std::optional<uint64_t> failedStructureRevision_;
 
 		// 新規作成ポップアップで作るアセット種別
 		ProjectAssetFileKind pendingCreateKind_ = ProjectAssetFileKind::Folder;
@@ -123,9 +125,11 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 現在のAssetDatabaseから表示用インデックスを再構築する
-		void RebuildIndex(const AssetDatabase& database);
+		bool RebuildIndex(const AssetDatabase& database);
 		// AssetDatabaseを更新して表示用インデックスを再構築する
-		void RefreshDatabaseAndIndex(AssetDatabase& database);
+		bool RefreshDatabaseAndIndex(AssetDatabase& database);
+		// 一覧と選択を保持し、次の更新要求まで待つ
+		void PreserveIndexAfterFailure(const AssetDatabase& database);
 		// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
 		void HandleExternalFileDrop(const EditorPanelContext& context, AssetDatabase& database);
 		// 上部のファイル検索ボックスを描画する、左端に検索アイコンを重ねる
@@ -135,19 +139,19 @@ namespace Engine {
 		// Engine/Gameのソース切り替えを描画する
 		void DrawSourceSelector(const EditorPanelContext& context, AssetDatabase& database);
 		// 現在ディレクトリ内のフォルダとアセットを描画する
-		void DrawDirectoryContents(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
+		void DrawDirectoryContents(
+			const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// 検索中に一致したフォルダとアセットを横断的に一覧表示する
 		void DrawSearchResults(const EditorPanelContext& context, AssetDatabase& database);
 		// 検索フィルタに一致するフォルダとアセットをツリー全体から集める
-		void CollectSearchMatches(const ProjectDirectoryNode& node,
-			std::vector<const ProjectDirectoryNode*>& outFolders,
+		void CollectSearchMatches(const ProjectDirectoryNode& node, std::vector<const ProjectDirectoryNode*>& outFolders,
 			std::vector<const ProjectAssetEntry*>& outAssets) const;
 		// グリッドのフォルダ1項目を描画する、クリックで移動し検索を解除する
-		void DrawFolderGridItem(const EditorPanelContext& context, AssetDatabase& database,
-			const ProjectDirectoryNode& node, float iconSize);
+		void DrawFolderGridItem(
+			const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node, float iconSize);
 		// グリッドのアセット1項目を描画する
-		void DrawAssetGridItem(const EditorPanelContext& context, AssetDatabase& database,
-			const ProjectAssetEntry& asset, float iconSize);
+		void DrawAssetGridItem(
+			const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset, float iconSize);
 		// アセット種別ごとのアイコンを解決する
 		ImTextureID ResolveAssetIconTextureID(const ProjectAssetEntry& asset, ImVec2& outUV0, ImVec2& outUV1);
 		// アセットのドラッグソースを描画する
@@ -155,7 +159,8 @@ namespace Engine {
 		// 空白部分の右クリックメニューを描画する
 		void DrawDirectoryContextMenu(AssetDatabase& database, const ProjectDirectoryNode& node);
 		// フォルダ右クリックメニューを描画する
-		void DrawFolderContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
+		void DrawFolderContextMenu(
+			const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// アセット右クリックメニューを描画する
 		void DrawAssetContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset);
 		// 新規作成用の名前入力ポップアップを描画する
@@ -172,8 +177,8 @@ namespace Engine {
 		bool SaveDroppedEntityAsPrefab(const EditorPanelContext& context, AssetDatabase& database,
 			const std::string& directoryVirtualPath, const void* payloadData, int32_t payloadSize);
 		// Hierarchy EntityのPrefab化ドロップ先を描画する
-		void DrawPrefabCreateDropTarget(const EditorPanelContext& context, AssetDatabase& database,
-			const std::string& directoryVirtualPath);
+		void DrawPrefabCreateDropTarget(
+			const EditorPanelContext& context, AssetDatabase& database, const std::string& directoryVirtualPath);
 		// Project内ファイル/フォルダ移動のドロップ先を描画する
 		void DrawProjectItemMoveDropTarget(AssetDatabase& database, const std::string& targetDirectoryVirtualPath);
 		// Project内ファイル/フォルダ移動を実行する

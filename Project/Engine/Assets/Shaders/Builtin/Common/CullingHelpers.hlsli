@@ -97,7 +97,9 @@ bool IsSphereInFrustum(float4x4 cullingViewProj, float3 center, float radius) {
 }
 
 // 投影されたピクセル半径を計算
-float2 CalcProjectedPixelRadiusXY(float4x4 cullingViewProj, float4x4 cullingView, float cullingNearClip, float2 cullingProjectionScale, float2 cullingViewSize, float contributionPixelThreshold, float3 center, float radius) {
+float2 CalcProjectedPixelRadiusXY(float4x4 cullingViewProj, float4x4 cullingView, float cullingNearClip,
+	float2 cullingProjectionScale, float2 cullingViewSize, float contributionPixelThreshold,
+	float3 center, float radius, bool orthographic) {
 
 	float4 clip = mul(float4(center, 1.0f), cullingViewProj);
 	if (clip.w <= 0.00001f) {
@@ -110,8 +112,21 @@ float2 CalcProjectedPixelRadiusXY(float4x4 cullingViewProj, float4x4 cullingView
 		return float2(1000000.0f, 1000000.0f);
 	}
 
-	float2 projectedRadius = abs(radius * cullingProjectionScale / nearZ);
+	// 平行投影では奥行きで半径を縮めない
+	float projectionDepth = orthographic ? 1.0f : nearZ;
+	float2 projectedRadius = abs(radius * cullingProjectionScale / projectionDepth);
 	return projectedRadius * cullingViewSize * 0.5f;
+}
+
+// 投影行列のW成分からカリングCameraの投影方式を選ぶ
+float2 CalcProjectedPixelRadiusXY(float4x4 cullingViewProj, float4x4 cullingView, float cullingNearClip,
+	float2 cullingProjectionScale, float2 cullingViewSize, float contributionPixelThreshold,
+	float3 center, float radius) {
+
+	float3 projectionW = float3(cullingViewProj[0][3], cullingViewProj[1][3], cullingViewProj[2][3]);
+	bool orthographic = dot(projectionW, projectionW) <= 0.0000000001f;
+	return CalcProjectedPixelRadiusXY(cullingViewProj, cullingView, cullingNearClip, cullingProjectionScale,
+		cullingViewSize, contributionPixelThreshold, center, radius, orthographic);
 }
 
 // 球の画面矩形とカメラに最も近い深度をHi-Z判定用に求める

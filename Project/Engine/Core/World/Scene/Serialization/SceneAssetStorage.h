@@ -18,6 +18,7 @@ namespace Engine {
 
 	class AssetDatabase;
 	struct SceneSaveSnapshot;
+	struct SceneAssetCopySnapshot;
 	struct JsonFileChange;
 	using SceneStorageChange = JsonFileChange;
 
@@ -53,6 +54,8 @@ namespace Engine {
 		void SetProtectedScenes(const std::vector<AssetID>& sceneAssets);
 		// 変更前のファイルを退避して保存する
 		bool Save(SceneSaveSnapshot snapshot, std::string& error);
+		// SceneとmetaとActorを新規作成としてまとめて保存する
+		bool CreateCopies(const std::vector<SceneAssetCopySnapshot>& copies, std::string& error);
 		// 全文書の検証後に整列結果をまとめて保存する
 		bool Canonicalize(const std::vector<std::filesystem::path>& paths, std::string& error);
 		// シーンまたはフォルダーと所有Actorを退避して削除する
@@ -88,6 +91,10 @@ namespace Engine {
 
 		// MetaからSceneのGUIDを取得
 		static AssetID ReadSceneID(const std::filesystem::path& path);
+
+		// SceneとActorの共通保存文書を作成する
+		static void AppendSaveChanges(
+			const SceneSaveSnapshot& snapshot, std::vector<SceneStorageChange>& changes, std::unordered_set<std::string>& used);
 
 		// 操作中の失敗では自身の保護判定を除いて復旧する
 		bool RecoverInternal(const std::filesystem::path& directory, std::string& error, bool rollingBack);

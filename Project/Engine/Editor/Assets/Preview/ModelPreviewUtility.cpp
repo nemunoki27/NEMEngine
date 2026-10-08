@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
+#include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
 
 // c++
 #include <algorithm>
@@ -119,7 +120,9 @@ void Engine::ModelPreviewUtility::ImportReferencedTextures(AssetDatabase& databa
 	textureResolver.Build(fullPath);
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath), kModelPreviewAssimpFlags);
+	auto* fileSystem = new ModelFileIOSystem(fullPath);
+	importer.SetIOHandler(fileSystem);
+	const aiScene* scene = importer.ReadFile(fileSystem->GetModelPath(), kModelPreviewAssimpFlags);
 	if (!scene || scene->mNumMaterials == 0) {
 		return;
 	}
@@ -148,7 +151,9 @@ bool Engine::ModelPreviewUtility::ComputeBounds(const AssetDatabase& database, A
 	}
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath), kModelPreviewAssimpFlags);
+	auto* fileSystem = new ModelFileIOSystem(fullPath);
+	importer.SetIOHandler(fileSystem);
+	const aiScene* scene = importer.ReadFile(fileSystem->GetModelPath(), kModelPreviewAssimpFlags);
 	if (!scene || !scene->HasMeshes()) {
 		return false;
 	}

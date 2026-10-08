@@ -27,14 +27,14 @@ internal static class BindingGeneratorSelfTests {
                   ""exposure"": ""GeneratedBinding"", ""managedType"": ""TestComp"", ""properties"": [
                     { ""managedName"": ""Target"", ""nativeMember"": ""target"", ""kind"": ""EntityRef"" },
                     { ""managedName"": ""Value"", ""nativeMember"": ""value"", ""kind"": ""Float"" } ] } ] }";
-            const string goodAbi = @"{ ""schemaVersion"": 1, ""functions"": [
+            const string goodABI = @"{ ""schemaVersion"": 1, ""functions"": [
                 { ""name"": ""test"", ""nativeType"": ""TestCallback"", ""managedType"": ""delegate* unmanaged[Cdecl]<int>"" } ],
                 ""layouts"": [{ ""nativeType"": ""TestValue"", ""managedType"": ""TestValue"", ""size"": 8, ""members"": { ""value"": 0 } }] }";
 
             string manifestPath = Path.Combine(temp, "manifest.json");
             string abiPath = Path.Combine(temp, "abi.json");
             File.WriteAllText(manifestPath, goodManifest);
-            File.WriteAllText(abiPath, goodAbi);
+            File.WriteAllText(abiPath, goodABI);
 
             GenerateForSelfTest(manifestPath, abiPath, nativeDir, csDir);
             Expect("EntityRef native dispatch generated",
@@ -52,9 +52,9 @@ internal static class BindingGeneratorSelfTests {
             // NativeとManagedへ同じlayoutを出力し、範囲外offsetを拒否する
             Expect("shared layout generated", File.ReadAllText(Path.Combine(csDir, "ABILayout.generated.cs")).Contains("TestValue") &&
                 File.ReadAllText(Path.Combine(nativeDir, "ManagedABILayout.generated.inl")).Contains("sizeof(TestValue) == 8"));
-            File.WriteAllText(abiPath, goodAbi.Replace("\"value\": 0", "\"value\": 8"));
+            File.WriteAllText(abiPath, goodABI.Replace("\"value\": 0", "\"value\": 8"));
             Expect("out of range member offset fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
-            File.WriteAllText(abiPath, goodAbi);
+            File.WriteAllText(abiPath, goodABI);
             // 同じサイズのpropertyでも意味が変われば接続識別値を変える
             string originalTable = File.ReadAllText(Path.Combine(csDir, "NativeAPITable.generated.cs"));
             File.WriteAllText(manifestPath, goodManifest.Replace("\"nativeMember\": \"value\"", "\"nativeMember\": \"other\""));
@@ -94,7 +94,7 @@ internal static class BindingGeneratorSelfTests {
                 { ""name"": ""test"", ""nativeType"": ""TestCallback"", ""managedType"": ""delegate* unmanaged[Cdecl]<int>"" } ] }");
             Expect("duplicate ABI field fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);
 
-            File.WriteAllText(abiPath, goodAbi);
+            File.WriteAllText(abiPath, goodABI);
             GenerateForSelfTest(manifestPath, abiPath, nativeDir, csDir);
             File.AppendAllText(Path.Combine(nativeDir, "ManagedComponentBindings.generated.cpp"), "\n// drifted\n");
             Expect("generated drift fails", RunVerify(manifestPath, abiPath, nativeDir, csDir) != 0);

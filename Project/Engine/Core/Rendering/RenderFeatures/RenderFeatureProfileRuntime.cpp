@@ -19,31 +19,24 @@ namespace {
 
 	using namespace Engine::RenderFeatureProfileValidation;
 
-	void CollectSelectionGroups(
-		const std::vector<Engine::RenderFeatureHierarchyItem>& items,
+	void CollectSelectionGroups(const std::vector<Engine::RenderFeatureHierarchyItem>& items,
 		const Engine::RenderFeatureHierarchyItem* parentSelection,
-		std::unordered_map<uint64_t,
-			const Engine::RenderFeatureHierarchyItem*>& outGroups,
+		std::unordered_map<uint64_t, const Engine::RenderFeatureHierarchyItem*>& outGroups,
 		std::vector<const Engine::RenderFeatureHierarchyItem*>& outIsolated,
-		std::unordered_map<const Engine::RenderFeatureHierarchyItem*,
-			std::vector<const Engine::RenderFeatureHierarchyItem*>>& outLineages,
-		std::unordered_map<uint64_t,
-			std::vector<const Engine::RenderFeatureHierarchyItem*>>& outPassLineages,
+		std::unordered_map<const Engine::RenderFeatureHierarchyItem*, std::vector<const Engine::RenderFeatureHierarchyItem*>>&
+			outLineages,
+		std::unordered_map<uint64_t, std::vector<const Engine::RenderFeatureHierarchyItem*>>& outPassLineages,
 		std::vector<const Engine::RenderFeatureHierarchyItem*> lineage = {}) {
 
 		for (const Engine::RenderFeatureHierarchyItem& item : items) {
-			if (item.type ==
-				Engine::RenderFeatureHierarchyItemType::Pass) {
+			if (item.type == Engine::RenderFeatureHierarchyItemType::Pass) {
 
 				const Engine::RenderFeatureHierarchyItem* selection =
-					item.selection.mode ==
-						Engine::RenderFeatureSelectionMode::Organization ?
-							parentSelection : &item;
+					item.selection.mode == Engine::RenderFeatureSelectionMode::Organization ? parentSelection : &item;
 				if (selection) {
 					outGroups[item.id.value] = selection;
 				}
-				if (item.selection.mode ==
-					Engine::RenderFeatureSelectionMode::IsolatedLayer) {
+				if (item.selection.mode == Engine::RenderFeatureSelectionMode::IsolatedLayer) {
 
 					outIsolated.emplace_back(&item);
 				}
@@ -51,18 +44,14 @@ namespace {
 				continue;
 			}
 			const Engine::RenderFeatureHierarchyItem* selection =
-				item.selection.mode ==
-					Engine::RenderFeatureSelectionMode::Organization ?
-						parentSelection : &item;
+				item.selection.mode == Engine::RenderFeatureSelectionMode::Organization ? parentSelection : &item;
 			lineage.emplace_back(&item);
 			outLineages[&item] = lineage;
-			if (item.selection.mode ==
-				Engine::RenderFeatureSelectionMode::IsolatedLayer) {
+			if (item.selection.mode == Engine::RenderFeatureSelectionMode::IsolatedLayer) {
 
 				outIsolated.emplace_back(&item);
 			}
-			CollectSelectionGroups(item.children, selection, outGroups,
-				outIsolated, outLineages, outPassLineages, lineage);
+			CollectSelectionGroups(item.children, selection, outGroups, outIsolated, outLineages, outPassLineages, lineage);
 			lineage.pop_back();
 		}
 	}
@@ -87,37 +76,38 @@ namespace {
 		}
 	}
 
-	bool IsEnabledForView(
-		const Engine::RenderFeaturePassSettings& pass,
-		Engine::RenderViewKind viewKind) {
+	bool IsEnabledForView(const Engine::RenderFeaturePassSettings& pass, Engine::RenderViewKind viewKind) {
 
 		return (viewKind == Engine::RenderViewKind::Game && pass.gameView) ||
-			(viewKind == Engine::RenderViewKind::Scene && pass.sceneView);
+			   (viewKind == Engine::RenderViewKind::Scene && pass.sceneView);
 	}
 }
 
 //============================================================================
 //	RenderFeatureProfileRuntime classMethods
 //============================================================================
-void Engine::RenderFeatureProfileRuntime::Rebuild(
-	const RenderFeatureProfileAsset& profile) {
+void Engine::RenderFeatureProfileRuntime::Rebuild(const RenderFeatureProfileAsset& profile) {
 
 	auto snapshot = std::make_shared<RenderFeatureProfileAsset>(profile);
 	ApplyRenderFeatureHierarchy(*snapshot);
+	// 参照表と診断を同じsnapshotから作成する
+	decltype(selectionGroupsByPass_) groups;
+	decltype(isolatedGroups_) isolated;
+	decltype(groupLineages_) groupLineages;
+	decltype(passLineages_) passLineages;
+	std::string diagnostic;
+	CollectSelectionGroups(snapshot->hierarchy, nullptr, groups, isolated, groupLineages, passLineages);
+	RenderFeatureProfileValidation::Validate(*snapshot, diagnostic);
+	// 作成途中の失敗では公開中の計画を保持する
 	profile_ = std::move(snapshot);
-	selectionGroupsByPass_.clear();
-	isolatedGroups_.clear();
-	groupLineages_.clear();
-	passLineages_.clear();
-	CollectSelectionGroups(profile_->hierarchy, nullptr,
-		selectionGroupsByPass_, isolatedGroups_, groupLineages_,
-		passLineages_);
-	diagnostic_.clear();
-	RenderFeatureProfileValidation::Validate(*profile_, diagnostic_);
+	selectionGroupsByPass_.swap(groups);
+	isolatedGroups_.swap(isolated);
+	groupLineages_.swap(groupLineages);
+	passLineages_.swap(passLineages);
+	diagnostic_.swap(diagnostic);
 }
 
-Engine::RenderFeatureExecutionPlan
-Engine::RenderFeatureProfileRuntime::BuildPlan(
+Engine::RenderFeatureExecutionPlan Engine::RenderFeatureProfileRuntime::BuildPlan(
 	RenderFeatureAnchor anchor, RenderViewKind viewKind) const {
 
 	RenderFeatureExecutionPlan plan{};
@@ -126,20 +116,15 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		plan.diagnostic = diagnostic_;
 		return plan;
 	}
-	std::unordered_map<uint64_t, const RenderFeaturePassSettings*>
-		activePasses{};
-	std::unordered_map<uint64_t, RenderFeatureOutputReference>
-		sources{};
+	std::unordered_map<uint64_t, const RenderFeaturePassSettings*> activePasses{};
+	std::unordered_map<uint64_t, const RenderFeaturePassSettings*> definedPasses{};
+	for (const auto& pass : profile_->passes) {
+		definedPasses.emplace(pass.id.value, &pass);
+	}
+	std::unordered_map<uint64_t, RenderFeatureOutputReference> sources{};
 	RenderFeatureOutputReference previous{};
 	const auto isActive = [&](const RenderFeaturePassSettings& pass) {
-
-		const RenderFeaturePassRuntimeOverride* runtimeOverride =
-			RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
-		const bool enabled = pass.enabled ||
-			(runtimeOverride && runtimeOverride->enabled == true);
-		return enabled && pass.material && pass.anchor == anchor &&
-			IsEnabledForView(pass, viewKind) &&
-			IsPassHierarchyEnabled(pass.id);
+		return pass.anchor == anchor && IsPassConfiguredActive(pass, viewKind);
 	};
 
 	// 同じAnchor内の省略入力は直前Passの主出力へ接続する
@@ -148,8 +133,11 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		if (!isActive(pass)) {
 			continue;
 		}
-		if (!pass.id ||
-			!activePasses.emplace(pass.id.value, &pass).second) {
+		// 実行時に有効化したPassも同じ参照検証を通す
+		if (!ValidatePassInputs(pass, definedPasses, plan.diagnostic)) {
+			return plan;
+		}
+		if (!pass.id || !activePasses.emplace(pass.id.value, &pass).second) {
 
 			plan.diagnostic = "RenderFeatureのPass IDが重複しています";
 			return plan;
@@ -167,14 +155,11 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		}
 		previous = RenderFeatureOutputReference{
 			.pass = pass.id,
-			.output = pass.outputs.empty() ?
-				"Color" : pass.outputs.front().name,
+			.output = pass.outputs.empty() ? "Color" : pass.outputs.front().name,
 		};
-		if (RenderFeatureRuntimeOverrides::GetInstance().IsSceneColorOutput(
-			pass.id, pass.sceneColorOutput)) {
+		if (RenderFeatureRuntimeOverrides::GetInstance().IsSceneColorOutput(pass.id, pass.sceneColorOutput)) {
 			if (plan.sceneColorOutput.pass) {
-				plan.diagnostic =
-					"同じ実行位置にSceneColor出力が複数あります";
+				plan.diagnostic = "同じ実行位置にSceneColor出力が複数あります";
 				return plan;
 			}
 			plan.sceneColorOutput = previous;
@@ -182,9 +167,7 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 	}
 
 	std::unordered_map<uint64_t, uint8_t> states{};
-	std::function<bool(const RenderFeaturePassSettings&)> visit =
-		[&](const RenderFeaturePassSettings& pass) {
-
+	std::function<bool(const RenderFeaturePassSettings&)> visit = [&](const RenderFeaturePassSettings& pass) {
 		uint8_t& state = states[pass.id.value];
 		if (state == 2u) {
 			return true;
@@ -217,21 +200,12 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 				continue;
 			}
 
-			const auto external = std::find_if(
-				profile_->passes.begin(), profile_->passes.end(),
-				[dependencyID](const RenderFeaturePassSettings& candidate) {
+			const auto external = std::find_if(profile_->passes.begin(), profile_->passes.end(),
+				[dependencyID](const RenderFeaturePassSettings& candidate) { return candidate.id.value == dependencyID; });
+			if (external == profile_->passes.end() || !IsPassConfiguredActive(*external, viewKind) ||
+				GetRenderFeatureAnchorOrder(anchor) <= GetRenderFeatureAnchorOrder(external->anchor)) {
 
-					return candidate.id.value == dependencyID;
-				});
-			if (external == profile_->passes.end() || !external->enabled ||
-				!external->material ||
-				!IsEnabledForView(*external, viewKind) ||
-				!IsPassHierarchyEnabled(external->id) ||
-				GetRenderFeatureAnchorOrder(anchor) <=
-				GetRenderFeatureAnchorOrder(external->anchor)) {
-
-				plan.diagnostic =
-					"無効または後段のRenderFeatureを参照しています";
+				plan.diagnostic = "無効または後段のRenderFeatureを参照しています";
 				return false;
 			}
 		}
@@ -240,8 +214,7 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		const auto selection = selectionGroupsByPass_.find(pass.id.value);
 		plan.nodes.emplace_back(RenderFeaturePlanNode{
 			.pass = &pass,
-			.selectionGroup = selection == selectionGroupsByPass_.end() ?
-				nullptr : selection->second,
+			.selectionGroup = selection == selectionGroupsByPass_.end() ? nullptr : selection->second,
 			.source = source,
 		});
 		return true;
@@ -264,23 +237,24 @@ Engine::RenderFeatureProfileRuntime::BuildPlan(
 		if (!node.selectionGroup) {
 			continue;
 		}
-		node.selectionBegin = index == 0 ||
-			plan.nodes[index - 1].selectionGroup != node.selectionGroup;
-		node.selectionEnd = index + 1 == plan.nodes.size() ||
-			plan.nodes[index + 1].selectionGroup != node.selectionGroup;
+		node.selectionBegin = index == 0 || plan.nodes[index - 1].selectionGroup != node.selectionGroup;
+		node.selectionEnd = index + 1 == plan.nodes.size() || plan.nodes[index + 1].selectionGroup != node.selectionGroup;
 	}
 	return plan;
 }
 
-bool Engine::RenderFeatureProfileRuntime::IsItemIsolated(
-	const RenderItem& item) const {
+bool Engine::RenderFeatureProfileRuntime::IsItemIsolated(const RenderItem& item) const {
+
+	return IsItemIsolated(item, RenderViewKind::Game);
+}
+
+bool Engine::RenderFeatureProfileRuntime::IsItemIsolated(const RenderItem& item, RenderViewKind viewKind) const {
 
 	if (!diagnostic_.empty()) {
 		return false;
 	}
 	for (const RenderFeatureHierarchyItem* selection : isolatedGroups_) {
-		if (selection && MatchesRenderFeatureSelection(
-			item, selection->selection) && IsSelectionEnabled(*selection)) {
+		if (MatchesRenderFeatureSelection(item, selection->selection) && IsSelectionEnabled(*selection, viewKind)) {
 
 			return true;
 		}
@@ -289,31 +263,40 @@ bool Engine::RenderFeatureProfileRuntime::IsItemIsolated(
 }
 
 bool Engine::RenderFeatureProfileRuntime::IsSelectionEnabled(
-	const RenderFeatureHierarchyItem& item) const {
+	const RenderFeatureHierarchyItem& item, RenderViewKind viewKind) const {
 
 	if (item.type == RenderFeatureHierarchyItemType::Group) {
-		return IsGroupEnabled(item);
-	}
-	const auto pass = std::find_if(profile_->passes.begin(),
-		profile_->passes.end(), [&item](const RenderFeaturePassSettings& value) {
-
-			return value.id == item.id;
+		if (!IsGroupEnabled(item)) {
+			return false;
+		}
+		// 実行するPassがないViewでは通常描画を残す
+		return std::ranges::any_of(profile_->passes, [&](const auto& pass) {
+			const auto group = selectionGroupsByPass_.find(pass.id.value);
+			return group != selectionGroupsByPass_.end() && group->second == &item && IsPassConfiguredActive(pass, viewKind);
 		});
-	return pass != profile_->passes.end() && pass->enabled &&
-		IsPassHierarchyEnabled(pass->id);
+	}
+	const auto pass = std::find_if(profile_->passes.begin(), profile_->passes.end(),
+		[&item](const RenderFeaturePassSettings& value) { return value.id == item.id; });
+	return pass != profile_->passes.end() && IsPassConfiguredActive(*pass, viewKind);
 }
 
-bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(
-	const RenderFeatureHierarchyItem& group) const {
+bool Engine::RenderFeatureProfileRuntime::IsPassConfiguredActive(
+	const RenderFeaturePassSettings& pass, RenderViewKind viewKind) const {
+
+	const RenderFeaturePassRuntimeOverride* runtimeOverride = RenderFeatureRuntimeOverrides::GetInstance().Find(pass.id);
+	// 無効化したPassも主入力を引き継ぐため計画へ残す
+	const bool enabled = pass.enabled || (runtimeOverride && runtimeOverride->enabled == true);
+	return enabled && pass.material && IsEnabledForView(pass, viewKind) && IsPassHierarchyEnabled(pass.id);
+}
+
+bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(const RenderFeatureHierarchyItem& group) const {
 
 	const auto lineage = groupLineages_.find(&group);
 	if (lineage == groupLineages_.end()) {
 		return false;
 	}
 	for (const RenderFeatureHierarchyItem* entry : lineage->second) {
-		if (!entry || !entry->enabled ||
-			!RenderFeatureRuntimeOverrides::GetInstance().IsGroupEnabled(
-				entry->name, true)) {
+		if (!entry->enabled || !RenderFeatureRuntimeOverrides::GetInstance().IsGroupEnabled(entry->name, true)) {
 
 			return false;
 		}
@@ -321,28 +304,23 @@ bool Engine::RenderFeatureProfileRuntime::IsGroupEnabled(
 	return true;
 }
 
-bool Engine::RenderFeatureProfileRuntime::IsPassHierarchyEnabled(
-	UUID passID) const {
+bool Engine::RenderFeatureProfileRuntime::IsPassHierarchyEnabled(UUID passID) const {
 
 	const auto lineage = passLineages_.find(passID.value);
 	if (lineage == passLineages_.end()) {
 		return true;
 	}
 	for (const RenderFeatureHierarchyItem* group : lineage->second) {
-		if (!group || !IsGroupEnabled(*group)) {
+		if (!IsGroupEnabled(*group)) {
 			return false;
 		}
 	}
 	return true;
 }
 
-bool Engine::MatchesRenderFeatureSelection(const RenderItem& item,
-	const RenderFeatureSelectionSettings& selection) {
+bool Engine::MatchesRenderFeatureSelection(const RenderItem& item, const RenderFeatureSelectionSettings& selection) {
 
-	return (item.renderingLayerMask &
-		selection.renderingLayerMask) != 0u &&
-		(selection.phaseMask & MakeRenderFeaturePhaseMask(
-			item.renderPhase)) != 0u &&
-		(selection.rendererMask &
-			GetRendererMaskBit(item.backendID)) != 0u;
+	return (item.renderingLayerMask & selection.renderingLayerMask) != 0u &&
+		   (selection.phaseMask & MakeRenderFeaturePhaseMask(item.renderPhase)) != 0u &&
+		   (selection.rendererMask & GetRendererMaskBit(item.backendID)) != 0u;
 }

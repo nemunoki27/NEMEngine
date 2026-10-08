@@ -169,13 +169,16 @@ void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(const EditorToolC
 	ImGui::TextWrapped("%s", "変更を保存しますか？");
 	const auto finish = [&]() {
 		if (pendingAsset_) {
-			editSession_.SelectProfile(context, pendingAsset_);
+			editSession_.SelectProfile(context, *pendingAsset_);
+			if (editSession_.HasError()) {
+				return;
+			}
 			ClearSelection();
 		}
 		if (pendingClose_) {
 			openWindow_ = false;
 		}
-		pendingAsset_ = {};
+		pendingAsset_.reset();
 		pendingClose_ = false;
 		if (resolvePendingEdits_) {
 			closeResult_ = EditorToolCloseResult::Accepted;
@@ -192,11 +195,13 @@ void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(const EditorToolC
 	ImGui::SameLine();
 	if (ImGui::Button("破棄")) {
 		editSession_.Reload();
-		finish();
+		if (!editSession_.HasError()) {
+			finish();
+		}
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("キャンセル")) {
-		pendingAsset_ = {};
+		pendingAsset_.reset();
 		pendingClose_ = false;
 		openWindow_ = true;
 		if (resolvePendingEdits_) {
@@ -205,12 +210,17 @@ void Engine::RenderFeatureProfileTool::DrawUnsavedChangesPopup(const EditorToolC
 		}
 		ImGui::CloseCurrentPopup();
 	}
+	if (editSession_.HasError()) {
+		ImGui::TextWrapped("%s", editSession_.GetStatusMessage().c_str());
+	}
 	ImGui::EndPopup();
 }
 
 void Engine::RenderFeatureProfileTool::RequestAssetSwitch(AssetID assetID) {
 
 	if (assetID == editSession_.GetProfileID()) {
+		pendingAsset_.reset();
+		editSession_.RequestProfile(assetID);
 		return;
 	}
 	if (RenderFeatureProfileService::GetInstance().IsDirty()) {

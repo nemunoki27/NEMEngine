@@ -14,7 +14,7 @@
 //============================================================================
 //	ECSCreationScope classMethods
 //============================================================================
-Engine::ECSCreationScope::ECSCreationScope(ECSWorld& world) : world_(world) {
+Engine::ECSCreationScope::ECSCreationScope(ECSWorld& world) : world_(world), lifetime_(world.GetLifetime()) {
 
 	if (world.IsStructuralChangeDeferred()) {
 		throw std::logic_error("走査中のEntity生成はCommandへ予約してください");
@@ -38,17 +38,15 @@ Engine::ECSCreationScope::~ECSCreationScope() {
 void Engine::ECSCreationScope::Commit() {
 
 	// 外側の生成範囲は引き続き同じEntityを保持する
-	world_.RemoveComponentMutationListener(listenerID_);
-	listenerID_ = 0;
+	EndRegistration();
 	created_.clear();
 }
 
 void Engine::ECSCreationScope::Rollback() {
 
-	world_.RemoveComponentMutationListener(listenerID_);
-	listenerID_ = 0;
+	EndRegistration();
 	std::exception_ptr failure;
-	while (!created_.empty()) {
+	while (lifetime_->IsAlive() && !created_.empty()) {
 
 		// 通知が失敗しても残りの生成物を回収する
 		const Entity entity = created_.back();
@@ -61,6 +59,8 @@ void Engine::ECSCreationScope::Rollback() {
 			}
 		}
 	}
+	// World終了で回収済みの記録を残さない
+	created_.clear();
 	if (failure) {
 		std::rethrow_exception(failure);
 	}
@@ -68,6 +68,7 @@ void Engine::ECSCreationScope::Rollback() {
 
 void Engine::ECSCreationScope::DestroyCreated(const Entity& entity) {
 
+	lifetime_->ThrowIfEnded();
 	// 別の操作で予約された削除には触れない
 	if (!Contains(entity)) {
 		throw std::invalid_argument("生成範囲外のEntityは取消できません");
@@ -78,6 +79,14 @@ void Engine::ECSCreationScope::DestroyCreated(const Entity& entity) {
 bool Engine::ECSCreationScope::Contains(const Entity& entity) const {
 
 	return std::find(created_.begin(), created_.end(), entity) != created_.end();
+}
+
+void Engine::ECSCreationScope::EndRegistration() {
+
+	if (lifetime_->IsAlive()) {
+		world_.RemoveComponentMutationListener(listenerID_);
+	}
+	listenerID_ = 0;
 }
 
 void Engine::ECSCreationScope::OnMutation([[maybe_unused]] ECSWorld& world, const Entity& entity,

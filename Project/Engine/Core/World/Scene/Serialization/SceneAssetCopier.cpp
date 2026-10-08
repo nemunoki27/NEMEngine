@@ -4,11 +4,12 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetCopySnapshot.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/World/Scene/Runtime/SceneSystem.h>
 #include <Engine/Core/World/Scene/Serialization/SceneDocument.h>
 
 // c++
@@ -20,14 +21,12 @@ using namespace Engine::SceneDocument;
 
 namespace {
 
-	void RemapCopiedSceneReferences(nlohmann::json& value,
-		Engine::AssetID sourceAsset, Engine::AssetID targetAsset) {
+	void RemapCopiedSceneReferences(nlohmann::json& value, Engine::AssetID sourceAsset, Engine::AssetID targetAsset) {
 
 		if (value.is_object()) {
 
-			if (value.contains("kind") && value["kind"] == "Scene" &&
-				value.contains("localFileId") && value.contains("sourceAsset") &&
-				value["sourceAsset"].is_string() &&
+			if (value.contains("kind") && value["kind"] == "Scene" && value.contains("localFileId") &&
+				value.contains("sourceAsset") && value["sourceAsset"].is_string() &&
 				Engine::TryParseAssetGUID32Hex(value["sourceAsset"].get<std::string>()) == sourceAsset) {
 
 				value["sourceAsset"] = Engine::ToString(targetAsset);
@@ -46,54 +45,20 @@ namespace {
 	}
 }
 
-bool Engine::SceneAssetCopier::CopySceneAssets(const std::vector<SceneAssetCopy>& copies, std::string& error,
-	std::shared_ptr<SceneAssetStorage> storage) {
-
-	struct CopyEntry {
-
-		SceneSaveSnapshot snapshot;
-		AssetMeta meta;
-		std::filesystem::path metaPath;
-		std::filesystem::path actorRoot;
-		bool started = false;
-		bool ownsActors = false;
-	};
+bool Engine::SceneAssetCopier::CopySceneAssets(
+	const std::vector<SceneAssetCopy>& copies, std::string& error, std::shared_ptr<SceneAssetStorage> storage) {
 
 	if (!storage) {
 		storage = std::make_shared<SceneAssetStorage>();
 	}
 	error.clear();
-	std::vector<CopyEntry> entries;
+	std::vector<SceneAssetCopySnapshot> entries;
 	std::unordered_set<std::string> targetPaths;
 	std::filesystem::path currentPath;
-	// 今回作成したファイルだけを取り消し、元のシーンには触れない
+	// 保存を始める前の読込・検証失敗を通知
 	const auto fail = [&](const char* message) {
-
 		error = std::string(message) + " 対象=" + Algorithm::PathToUTF8(currentPath);
 		Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] {}", error);
-		for (const CopyEntry& entry : entries) {
-
-			if (!entry.started) {
-				continue;
-			}
-			std::error_code ec;
-			for (const std::filesystem::path& path : { entry.snapshot.scenePath, entry.metaPath }) {
-
-				std::filesystem::remove(path, ec);
-				if (ec) {
-					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[SceneSystem] 複製途中のファイルを削除できません path={}", Algorithm::PathToUTF8(path));
-				}
-			}
-			if (entry.ownsActors) {
-
-				std::filesystem::remove_all(entry.actorRoot, ec);
-				if (ec) {
-					Logger::Output(LogType::Engine, spdlog::level::err,
-						"[SceneSystem] 複製途中のActorを削除できません path={}", Algorithm::PathToUTF8(entry.actorRoot));
-				}
-			}
-		}
 		return false;
 	};
 
@@ -103,7 +68,7 @@ bool Engine::SceneAssetCopier::CopySceneAssets(const std::vector<SceneAssetCopy>
 		for (const SceneAssetCopy& copy : copies) {
 
 			currentPath = copy.sourcePath;
-			CopyEntry entry{};
+			SceneAssetCopySnapshot entry{};
 			entry.snapshot.storage = storage;
 			std::filesystem::path sourceMetaPath = copy.sourcePath;
 			sourceMetaPath += L".meta";
@@ -116,10 +81,11 @@ bool Engine::SceneAssetCopier::CopySceneAssets(const std::vector<SceneAssetCopy>
 				return fail("複製元シーンの保存形式が不正です");
 			}
 			entry.snapshot.useExternalActors = entry.snapshot.root.contains("ExternalActors");
-			if (entry.snapshot.useExternalActors &&
-				!LoadExternalActors(copy.sourcePath, sourceAsset, entry.snapshot.root)) {
+			if (entry.snapshot.useExternalActors && !LoadExternalActors(copy.sourcePath, sourceAsset, entry.snapshot.root)) {
 				return fail("複製元シーンの外部Actorを読み込めません");
 			}
+			// 読込後は通常保存と同じEntity文書に揃える
+			entry.snapshot.root.erase("ExternalActors");
 			if (!ValidateSerializedLocalFileIDs(entry.snapshot.root)) {
 				return fail("複製元シーンのLocalFileIDが不正です");
 			}
@@ -131,11 +97,10 @@ bool Engine::SceneAssetCopier::CopySceneAssets(const std::vector<SceneAssetCopy>
 			}
 			currentPath = copy.targetPath;
 			entry.snapshot.scenePath = NormalizePath(copy.targetPath);
-			entry.metaPath = entry.snapshot.scenePath;
-			entry.metaPath += L".meta";
+			const std::filesystem::path metaPath(entry.snapshot.scenePath.wstring() + L".meta");
 			if (copy.targetPath.empty() || RuntimePaths::ToAssetPath(entry.snapshot.scenePath).empty() ||
 				!std::filesystem::is_directory(entry.snapshot.scenePath.parent_path()) ||
-				std::filesystem::exists(entry.snapshot.scenePath) || std::filesystem::exists(entry.metaPath) ||
+				std::filesystem::exists(entry.snapshot.scenePath) || std::filesystem::exists(metaPath) ||
 				std::filesystem::exists(entry.snapshot.scenePath.wstring() + L".tmp") ||
 				!targetPaths.insert(Algorithm::ToLower(Algorithm::PathToUTF8(entry.snapshot.scenePath))).second) {
 				return fail("シーンの複製先が存在するか使用できません");
@@ -143,33 +108,18 @@ bool Engine::SceneAssetCopier::CopySceneAssets(const std::vector<SceneAssetCopy>
 			entry.meta.guid = AssetGUID::New();
 			entry.meta.assetPath = RuntimePaths::ToAssetPath(entry.snapshot.scenePath);
 			entry.snapshot.sceneAsset = entry.meta.guid;
-			entry.actorRoot = ResolveExternalActorsRoot(entry.snapshot.scenePath, entry.meta.guid);
-			if (entry.actorRoot.empty() || std::filesystem::exists(entry.actorRoot)) {
+			const std::filesystem::path actorRoot = ResolveExternalActorsRoot(entry.snapshot.scenePath, entry.meta.guid);
+			if (actorRoot.empty() || std::filesystem::exists(actorRoot)) {
 				return fail("シーンの複製先Actorフォルダーを使用できません");
 			}
 			entry.snapshot.root["Header"]["name"] = MakeSceneAssetName(copy.targetPath);
 			RemapCopiedSceneReferences(entry.snapshot.root, sourceAsset, entry.meta.guid);
 			entries.emplace_back(std::move(entry));
 		}
-		for (CopyEntry& entry : entries) {
-
-			currentPath = entry.snapshot.scenePath;
-			if (std::filesystem::exists(currentPath) || std::filesystem::exists(entry.metaPath)) {
-				return fail("シーンの複製先が既に存在します");
-			}
-			entry.started = true;
-			if (entry.snapshot.useExternalActors) {
-
-				std::filesystem::create_directories(entry.actorRoot.parent_path());
-				entry.ownsActors = std::filesystem::create_directory(entry.actorRoot);
-				if (!entry.ownsActors) {
-					return fail("複製先のActorフォルダーを作成できません");
-				}
-			}
-			if (!AssetDatabase::WriteMetaFile(entry.metaPath, entry.meta) ||
-				!SceneSystem::WriteSaveSnapshot(entry.snapshot)) {
-				return fail("シーンの複製データを書き込めません");
-			}
+		// 全SceneのmetaとActorを同じ復旧記録で保存
+		if (!storage->CreateCopies(entries, error)) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "[SceneSystem] 複製を中断しました: {}", error);
+			return false;
 		}
 	} catch (const std::exception&) {
 

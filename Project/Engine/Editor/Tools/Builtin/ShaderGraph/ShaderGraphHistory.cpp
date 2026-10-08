@@ -3,8 +3,7 @@
 //============================================================================
 //	ShaderGraphHistory classMethods
 //============================================================================
-void Engine::ShaderGraphHistory::Reset(
-	const ShaderGraphAsset& graph) {
+void Engine::ShaderGraphHistory::Reset(const ShaderGraphAsset& graph) {
 
 	current_ = graph;
 	currentState_ = ToJson(graph).dump();
@@ -12,8 +11,7 @@ void Engine::ShaderGraphHistory::Reset(
 	redo_.clear();
 }
 
-bool Engine::ShaderGraphHistory::Commit(
-	const ShaderGraphAsset& graph) {
+bool Engine::ShaderGraphHistory::Commit(const ShaderGraphAsset& graph) {
 
 	const std::string state = ToJson(graph).dump();
 	if (state == currentState_) {
@@ -29,8 +27,7 @@ bool Engine::ShaderGraphHistory::Commit(
 	return true;
 }
 
-bool Engine::ShaderGraphHistory::Undo(
-	ShaderGraphAsset& outGraph) {
+bool Engine::ShaderGraphHistory::Undo(ShaderGraphAsset& outGraph) {
 
 	if (undo_.empty()) {
 		return false;
@@ -43,8 +40,7 @@ bool Engine::ShaderGraphHistory::Undo(
 	return true;
 }
 
-bool Engine::ShaderGraphHistory::Redo(
-	ShaderGraphAsset& outGraph) {
+bool Engine::ShaderGraphHistory::Redo(ShaderGraphAsset& outGraph) {
 
 	if (redo_.empty()) {
 		return false;

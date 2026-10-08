@@ -1,23 +1,20 @@
 using System.Text;
-using System.Text.Json;
 using static NEM.ComponentBindingGen.BindingTypeLayout;
 using static NEM.ComponentBindingGen.BindingOutputText;
-using static NEM.ComponentBindingGen.NativeBindingEmitter;
-using static NEM.ComponentBindingGen.ManagedBindingEmitter;
-using static NEM.ComponentBindingGen.BindingArtifactStore;
 
 namespace NEM.ComponentBindingGen;
 
-// Component連携の生成処理
+// NativeのComponent接続と登録処理を生成する
 internal static class NativeBindingEmitter {
 
+    // Component接続の宣言を生成する
     internal static string EmitNativeHeader() {
         var sb = new StringBuilder();
         sb.Append(NativeBanner());
         sb.Append("#pragma once\n\n");
         sb.Append("#include <Engine/Core/Scripting/Managed/ManagedScriptTypes.h>\n\n");
         sb.Append("namespace Engine::GeneratedComponentBindings {\n\n");
-        sb.Append("\t// 自動生成 component wrapper の typed property dispatch。ManagedScriptRuntime が table へ結線する。\n");
+        sb.Append("\t// Componentの型とプロパティ番号で操作を振り分ける\n");
         sb.Append("\tManagedStatus GetComponentProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, void* outValue, int32_t valueSize);\n");
         sb.Append("\tManagedStatus SetComponentProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, const void* value, int32_t valueSize);\n");
         sb.Append("\tManagedStatus GetComponentStringProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, char* buffer, int32_t capacity, int32_t* written);\n");
@@ -26,6 +23,7 @@ internal static class NativeBindingEmitter {
         return sb.ToString();
     }
 
+    // Component別処理と振分けを生成する
     internal static string EmitNativeCpp(List<ComponentModel> components, Dictionary<string, EnumModel> enumByName) {
         var sb = new StringBuilder();
         sb.Append(NativeBanner());
@@ -52,13 +50,13 @@ internal static class NativeBindingEmitter {
         sb.Append("\t\t\t}\n");
         sb.Append("\t\t}\n\n");
 
-        // 各 component の get/set/str ハンドラ
+        // Component別の操作を生成する
         for (int i = 0; i < components.Count; ++i) {
             EmitCppComponentHandlers(sb, components[i], enumByName);
         }
         sb.Append("\t} // anonymous namespace\n\n");
 
-        // dispatch entry points
+        // 型番号で操作を振り分ける
         EmitCppDispatch(sb, components, "GetComponentProperty", "GetProp", "void* outValue, int32_t valueSize", "outValue, valueSize", checkOut: true);
         EmitCppDispatch(sb, components, "SetComponentProperty", "SetProp", "const void* value, int32_t valueSize", "value, valueSize", checkOut: false, valueArg: "value");
         EmitCppStringDispatch(sb, components);
@@ -67,6 +65,7 @@ internal static class NativeBindingEmitter {
         return sb.ToString();
     }
 
+    // Componentの値と文字列の操作を生成する
     internal static void EmitCppComponentHandlers(StringBuilder sb, ComponentModel comp, Dictionary<string, EnumModel> enumByName) {
 
         string nt = comp.NativeType;
@@ -88,7 +87,7 @@ internal static class NativeBindingEmitter {
             }
         }
 
-        // --- POD get ---
+        // 値の取得
         string unused = podGet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
         sb.Append($"\t\tManagedStatus {comp.ManagedType}_GetProp({unused}ECSWorld& world, {unused}const Entity& entity, " +
             $"{unused}int32_t propertyID, {unused}void* out, {unused}int32_t size) {{\n");
@@ -100,14 +99,14 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\tswitch (propertyID) {\n");
             foreach (int p in podGet) {
                 sb.Append($"\t\t\tcase {p}: {{\n");
-                EmitCppGet(sb, comp.Properties[p], enumByName);
+                EmitCppGet(sb, comp.Properties[p]);
                 sb.Append("\t\t\t}\n");
             }
             sb.Append("\t\t\tdefault: return ManagedStatus::InvalidArgument;\n");
             sb.Append("\t\t\t}\n\t\t}\n\n");
         }
 
-        // --- POD set ---
+        // 値の設定
         unused = podSet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
         sb.Append($"\t\tManagedStatus {comp.ManagedType}_SetProp({unused}ECSWorld& world, {unused}const Entity& entity, " +
             $"{unused}int32_t propertyID, {unused}const void* value, {unused}int32_t size) {{\n");
@@ -126,7 +125,7 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\t}\n\t\t}\n\n");
         }
 
-        // --- string get ---
+        // 文字列の取得
         unused = strGet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
         sb.Append($"\t\tManagedStatus {comp.ManagedType}_GetStr({unused}ECSWorld& world, {unused}const Entity& entity, " +
             $"{unused}int32_t propertyID, {unused}char* buffer, {unused}int32_t capacity, {unused}int32_t* written) {{\n");
@@ -150,7 +149,7 @@ internal static class NativeBindingEmitter {
             sb.Append("\t\t\t}\n\t\t}\n\n");
         }
 
-        // --- string set ---
+        // 文字列の設定
         unused = strSet.Count == 0 ? "[[maybe_unused]] " : string.Empty;
         sb.Append($"\t\tManagedStatus {comp.ManagedType}_SetStr({unused}ECSWorld& world, {unused}const Entity& entity, " +
             $"{unused}int32_t propertyID, {unused}const char* utf8, {unused}int32_t length) {{\n");
@@ -172,7 +171,8 @@ internal static class NativeBindingEmitter {
         }
     }
 
-    internal static void EmitCppGet(StringBuilder sb, PropertyModel prop, Dictionary<string, EnumModel> enumByName) {
+    // 型に応じた値の取得を生成する
+    internal static void EmitCppGet(StringBuilder sb, PropertyModel prop) {
         string m = prop.NativeMember;
         switch (prop.Kind) {
             case "Bool":
@@ -180,10 +180,8 @@ internal static class NativeBindingEmitter {
                 sb.Append($"\t\t\t\t*reinterpret_cast<int32_t*>(out) = c->{m} ? 1 : 0;\n");
                 break;
             case "Enum": {
-                EnumModel e = enumByName[prop.EnumType!];
                 sb.Append("\t\t\t\tif (size < 4) { return ManagedStatus::InvalidArgument; }\n");
                 sb.Append($"\t\t\t\t*reinterpret_cast<int32_t*>(out) = static_cast<int32_t>(c->{m});\n");
-                _ = e;
                 break;
             }
             case "AssetRef":
@@ -196,7 +194,7 @@ internal static class NativeBindingEmitter {
                 sb.Append("\t\t\t\t*reinterpret_cast<ManagedNativeEntity*>(out) = world.IsAlive(target) ? MakeNativeEntity(world, target) : MakeNullNativeEntity();\n");
                 break;
             default: {
-                (_, int podSize) = PodInfo(prop.Kind);
+                (_, int podSize) = PODInfo(prop.Kind);
                 sb.Append($"\t\t\t\tif (size < {podSize}) {{ return ManagedStatus::InvalidArgument; }}\n");
                 sb.Append($"\t\t\t\tstd::memcpy(out, &(c->{m}), {podSize});\n");
                 break;
@@ -205,6 +203,7 @@ internal static class NativeBindingEmitter {
         sb.Append("\t\t\t\treturn ManagedStatus::Ok;\n");
     }
 
+    // 型に応じた値の設定を生成する
     internal static void EmitCppSet(StringBuilder sb, PropertyModel prop,
         Dictionary<string, EnumModel> enumByName, string nativeType) {
         string m = prop.NativeMember;
@@ -231,7 +230,7 @@ internal static class NativeBindingEmitter {
                 sb.Append($"\t\t\t\tc->{m} = sceneObject ? sceneObject->localFileID : UUID{{}};\n");
                 break;
             default: {
-                (_, int podSize) = PodInfo(prop.Kind);
+                (_, int podSize) = PODInfo(prop.Kind);
                 sb.Append($"\t\t\t\tif (size < {podSize}) {{ return ManagedStatus::InvalidArgument; }}\n");
                 sb.Append($"\t\t\t\tstd::memcpy(&(c->{m}), value, {podSize});\n");
                 break;
@@ -241,6 +240,7 @@ internal static class NativeBindingEmitter {
         sb.Append("\t\t\t\treturn ManagedStatus::Ok;\n");
     }
 
+    // Component番号で値の操作を振り分ける
     internal static void EmitCppDispatch(StringBuilder sb, List<ComponentModel> components, string fnName, string handler,
         string extraParams, string extraArgs, bool checkOut, string? valueArg = null) {
 
@@ -261,6 +261,7 @@ internal static class NativeBindingEmitter {
         sb.Append("\t\t}\n\t}\n\n");
     }
 
+    // Component番号で文字列の操作を振り分ける
     internal static void EmitCppStringDispatch(StringBuilder sb, List<ComponentModel> components) {
         sb.Append("\tManagedStatus GetComponentStringProperty(ManagedNativeEntity entity, int32_t typeID, int32_t propertyID, char* buffer, int32_t capacity, int32_t* written) {\n");
         sb.Append("\t\tECSWorld* world = ResolveWorld(entity);\n");
@@ -285,6 +286,7 @@ internal static class NativeBindingEmitter {
         sb.Append("\t\t}\n\t}\n\n");
     }
 
+    // 組込みComponentの登録宣言を生成する
     internal static string EmitComponentRegistryHeader() {
         var sb = new StringBuilder();
         sb.Append(NativeBanner());
@@ -297,6 +299,7 @@ internal static class NativeBindingEmitter {
         return sb.ToString();
     }
 
+    // 固定番号に対応する型の登録を生成する
     internal static string EmitComponentRegistryCpp(List<ComponentModel> components) {
         var sb = new StringBuilder();
         sb.Append(NativeBanner());
@@ -314,6 +317,7 @@ internal static class NativeBindingEmitter {
         return sb.ToString();
     }
 
+    // Nativeの接続関数表を生成する
     internal static string EmitNativeAPIFields(List<ABIFieldModel> fields, ulong fingerprint = 0) {
         var sb = new StringBuilder();
         sb.Append("// AUTO-GENERATED FROM ManagedNativeAPI.json\n");

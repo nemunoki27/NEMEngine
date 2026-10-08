@@ -1,10 +1,9 @@
 #include "ManagedScriptRuntime.h"
-#include "ManagedScriptUtility.h"
-#include "ManagedMaterialConversion.h"
 
 //============================================================================
 //	include
 //============================================================================
+#include "ManagedMaterialConversion.h"
 #include <Engine/Core/World/ECS/Systems/Context/SystemContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
@@ -21,6 +20,7 @@ namespace Engine {
 
 	namespace {
 
+		// 世代とIDが一致する実行Passを解決
 		const Engine::RenderFeaturePassSettings* ResolveRenderFeaturePass(
 			uint64_t passID, uint64_t generation) {
 
@@ -71,8 +71,7 @@ namespace Engine {
 		return 1;
 	}
 
-	int32_t ManagedScriptRuntime::ValidateRenderFeaturePassCallback(
-		uint64_t passID, uint64_t generation) {
+	int32_t ManagedScriptRuntime::ValidateRenderFeaturePassCallback(uint64_t passID, uint64_t generation) {
 
 		return ResolveRenderFeaturePass(passID, generation) ? 1 : 0;
 	}
@@ -99,8 +98,7 @@ namespace Engine {
 			UUID{ passID }, enabled != 0) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback(
-		const char* groupName, int32_t enabled) {
+	int32_t ManagedScriptRuntime::SetRenderFeatureGroupEnabledCallback(const char* groupName, int32_t enabled) {
 
 		return groupName && RenderFeatureRuntimeOverrides::GetInstance().
 			SetGroupEnabled(groupName, enabled != 0) ? 1 : 0;
@@ -150,8 +148,7 @@ namespace Engine {
 				UUID{ passID }, MaterialParameterID{ parameterID }) ? 1 : 0;
 	}
 
-	int32_t ManagedScriptRuntime::ResetRenderFeaturePassCallback(
-		uint64_t passID, uint64_t generation) {
+	int32_t ManagedScriptRuntime::ResetRenderFeaturePassCallback(uint64_t passID, uint64_t generation) {
 
 		return ResolveRenderFeaturePass(passID, generation) &&
 			RenderFeatureRuntimeOverrides::GetInstance().ResetPass(

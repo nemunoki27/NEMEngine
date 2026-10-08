@@ -1,27 +1,13 @@
 #include "ShaderReflection.h"
 
+//============================================================================
+//	include
+//============================================================================
 // c++
 #include <algorithm>
+#include <type_traits>
 
 using namespace Engine;
-
-//============================================================================
-//	CompiledShader classMethods
-//============================================================================
-bool Engine::CompiledShader::IsValid() const noexcept {
-
-	return object || !bytecode.empty();
-}
-
-const void* Engine::CompiledShader::GetBytecodePointer() const noexcept {
-
-	return object ? object->GetBufferPointer() : bytecode.data();
-}
-
-size_t Engine::CompiledShader::GetBytecodeSize() const noexcept {
-
-	return object ? object->GetBufferSize() : bytecode.size();
-}
 
 //============================================================================
 //	ShaderReflection internal
@@ -49,12 +35,8 @@ namespace {
 			found->isColor |= sourceVariable.isColor;
 			found->isTexture |= sourceVariable.isTexture;
 			found->size = (std::max)(found->size, sourceVariable.size);
-			found->declaredComponentCount = (std::max)(
-				found->declaredComponentCount,
-				sourceVariable.declaredComponentCount);
-			found->declaredByteSize = (std::max)(
-				found->declaredByteSize,
-				sourceVariable.declaredByteSize);
+			found->declaredComponentCount = (std::max)(found->declaredComponentCount, sourceVariable.declaredComponentCount);
+			found->declaredByteSize = (std::max)(found->declaredByteSize, sourceVariable.declaredByteSize);
 			if (found->semantic == MaterialParameterSemantic::None) {
 				found->semantic = sourceVariable.semantic;
 			}
@@ -63,7 +45,25 @@ namespace {
 }
 
 //============================================================================
-//	ShaderReflection classMethods
+//	CompiledShader classMethods
+//============================================================================
+bool Engine::CompiledShader::IsValid() const noexcept {
+
+	return object || !bytecode.empty();
+}
+
+const void* Engine::CompiledShader::GetBytecodePointer() const noexcept {
+
+	return object ? object->GetBufferPointer() : bytecode.data();
+}
+
+size_t Engine::CompiledShader::GetBytecodeSize() const noexcept {
+
+	return object ? object->GetBufferSize() : bytecode.size();
+}
+
+//============================================================================
+//	ShaderReflection functions
 //============================================================================
 ShaderStage Engine::operator|(ShaderStage a, ShaderStage b) {
 
@@ -114,10 +114,9 @@ const Engine::ShaderStructuredBufferInfo* Engine::FindStructuredBuffer(
 	return nullptr;
 }
 
-void Engine::MergeShaderReflection(
-	ShaderReflectionInfo& target,
-	const ShaderReflectionInfo& source) {
+void Engine::MergeShaderReflection(ShaderReflectionInfo& target, const ShaderReflectionInfo& source) {
 
+	// 同じRegisterの種類・配列数・使用ステージをまとめる
 	for (const ShaderResourceBinding& resource : source.resources) {
 		auto found = std::find_if(target.resources.begin(), target.resources.end(),
 			[&](const ShaderResourceBinding& current) {
@@ -134,6 +133,7 @@ void Engine::MergeShaderReflection(
 			target.resources.emplace_back(resource);
 		}
 	}
+	// 定数バッファの使用変数を統合する
 	for (const ShaderConstantBufferInfo& buffer : source.constantBuffers) {
 		auto found = std::find_if(target.constantBuffers.begin(),
 			target.constantBuffers.end(), [&](const ShaderConstantBufferInfo& current) {
@@ -148,6 +148,7 @@ void Engine::MergeShaderReflection(
 			MergeBufferVariables(found->variables, buffer.variables);
 		}
 	}
+	// StructuredBufferの要素情報を統合する
 	for (const ShaderStructuredBufferInfo& buffer : source.structuredBuffers) {
 		auto found = std::find_if(target.structuredBuffers.begin(),
 			target.structuredBuffers.end(), [&](const ShaderStructuredBufferInfo& current) {

@@ -1,4 +1,8 @@
 #include "MaterialParameterLayout.h"
+
+//============================================================================
+//	include
+//============================================================================
 #include "MaterialParameterLookup.h"
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -11,12 +15,14 @@
 //============================================================================
 namespace {
 
+	// 定数バッファのByte数を16Byte境界へ揃える
 	uint32_t AlignConstantBufferSize(uint32_t size) {
 
 		constexpr uint32_t kAlignment = 16;
 		return (size + kAlignment - 1u) & ~(kAlignment - 1u);
 	}
 
+	// 未使用の変数も宣言済みの領域を確保する
 	uint32_t GetDeclaredVariableByteSize(const Engine::ShaderConstantBufferVariable& variable) {
 
 		if (variable.declaredByteSize > 0) {
@@ -37,6 +43,7 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 	space_ = 0;
 	variables_.clear();
 
+	// 定数バッファの宣言配置を取り込む
 	const ShaderConstantBufferInfo* buffer = FindConstantBuffer(reflection, cbufferName);
 	if (buffer) {
 
@@ -45,20 +52,16 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 		space_ = buffer->space;
 		variables_ = buffer->variables;
 
-		for (ShaderConstantBufferVariable& variable : variables_) {
-			variable.isTexture = MaterialParameterLookup::IsTexture(variable, reflection);
+		for (const ShaderConstantBufferVariable& variable : variables_) {
 			const uint32_t declaredEnd = variable.offset + GetDeclaredVariableByteSize(variable);
 			sizeInBytes_ = (std::max)(sizeInBytes_, declaredEnd);
 		}
-		std::sort(variables_.begin(), variables_.end(),
-			[](const ShaderConstantBufferVariable& lhs,
-				const ShaderConstantBufferVariable& rhs) {
-				return lhs.parameterID.value < rhs.parameterID.value;
-			});
+		PrepareVariables(reflection);
 		sizeInBytes_ = AlignConstantBufferSize(sizeInBytes_);
 		return;
 	}
 
+	// 構造化バッファは既存のstrideを維持する
 	const ShaderStructuredBufferInfo* structuredBuffer = FindStructuredBuffer(reflection, cbufferName);
 	if (structuredBuffer) {
 
@@ -66,17 +69,24 @@ void Engine::MaterialParameterLayout::Build(const ShaderReflectionInfo& reflecti
 		bindPoint_ = structuredBuffer->bindPoint;
 		space_ = structuredBuffer->space;
 		variables_ = structuredBuffer->variables;
-		for (auto& variable : variables_) variable.isTexture = MaterialParameterLookup::IsTexture(variable, reflection);
-		std::sort(variables_.begin(), variables_.end(),
-			[](const ShaderConstantBufferVariable& lhs,
-				const ShaderConstantBufferVariable& rhs) {
-				return lhs.parameterID.value < rhs.parameterID.value;
-			});
+		PrepareVariables(reflection);
 	}
 }
 
-const Engine::ShaderConstantBufferVariable*
-Engine::MaterialParameterLayout::Find(MaterialParameterID id) const {
+void Engine::MaterialParameterLayout::PrepareVariables(const ShaderReflectionInfo& reflection) {
+
+	// GPUのTexture番号として扱う変数を判別する
+	for (auto& variable : variables_) {
+		variable.isTexture = MaterialParameterLookup::IsTexture(variable, reflection);
+	}
+	// GPUのoffsetを維持して検索順だけを揃える
+	std::sort(variables_.begin(), variables_.end(),
+		[](const ShaderConstantBufferVariable& lhs, const ShaderConstantBufferVariable& rhs) {
+			return lhs.parameterID.value < rhs.parameterID.value;
+		});
+}
+
+const Engine::ShaderConstantBufferVariable* Engine::MaterialParameterLayout::Find(MaterialParameterID id) const {
 
 	const auto position = std::lower_bound(variables_.begin(), variables_.end(), id.value,
 		[](const ShaderConstantBufferVariable& variable, uint64_t target) {

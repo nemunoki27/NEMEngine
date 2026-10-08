@@ -167,6 +167,7 @@ internal static class Coroutines {
                 if (Step(r)) {
                     FreeAt(i);
                 }
+                if (NativeApplicationAPI.ReadUpdateInterrupted()) { return; }
             }
             catch {
                 // 例外が出たCoroutineは再開対象へ残さない
@@ -180,6 +181,7 @@ internal static class Coroutines {
     private static bool Step(Routine r) {
         int steps = 0;
         while (r.stack.Count > 0) {
+            if (NativeApplicationAPI.ReadUpdateInterrupted()) { return false; }
             if (++steps > MaxStepsPerResume) {
                 NativeApplicationAPI.WriteLog(2, "[Coroutines] step budget exceeded (possible runaway nested yield). stopping routine.");
                 return true;

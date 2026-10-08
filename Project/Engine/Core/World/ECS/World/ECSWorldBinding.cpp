@@ -72,7 +72,9 @@ void Engine::ECSWorld::ApplyPendingComponent(const Entity& entity, const Pending
 	const EntitySignature oldSignature = records_[entity.index].location.archetype->GetSignature();
 	EntitySignature newSignature = oldSignature;
 	newSignature.Set(component.GetInfo().id);
+	const uint32_t typeID = component.GetInfo().id;
+	const auto owner = commandBuffer_.AcquirePendingComponent(entity, typeID);
 	// 予約時の値と個体番号を追加後も引き継ぐ
 	MigrateEntity(entity, oldSignature, newSignature, &component);
-	CompleteComponentChange(entity, component.GetInfo().id, ComponentMutationKind::Added);
+	CompleteComponentChange(entity, typeID, ComponentMutationKind::Added);
 }

@@ -44,7 +44,7 @@ void Engine::MeshBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
 	SRVDescriptor* srvDescriptor = &graphicsCore.GetSRVDescriptor();
-	// 可変stride構造化バッファを後から生成するため保持しておく
+	// Material転送のDeviceとDescriptorを保持
 	device_ = device;
 	srvDescriptor_ = srvDescriptor;
 
@@ -81,16 +81,14 @@ void Engine::MeshBatchResources::Finalize() {
 	visibleMeshData_.Release();
 	subMeshData_.Release();
 	outlineData_.Release();
-	// MeshSkinningBufferSetは内部にSRV/UAV付きGPUバッファを持つため、終了時に明示resetする
+	// SkinningのBufferとDescriptorを回収
 	skinning_.reset();
-	// パス別の可変strideマテリアルパラメータバッファを解放する
+	// PassごとのMaterial転送先を解放
 	materialBuffers_.Release(srvDescriptor_);
 	viewResources_.Release();
 	subMeshParamScratch_.clear();
 	subMeshParamGenerations_.clear();
-	cachedInstances_.clear();
-	cachedMesh_ = {};
-	cachedMeshGeneration_ = 0;
+	batchIdentity_.Clear();
 	parameterGeneration_ = 1;
 	displacementMetricMaterial_ = nullptr;
 	displacementMetricMaterialHash_ = 0;
@@ -101,7 +99,6 @@ void Engine::MeshBatchResources::Finalize() {
 	subMeshScratch_.clear();
 	outlineScratch_.clear();
 	paletteScratch_.clear();
-	skinnedRecords_.clear();
 	skinnedVertexOffsetMap_.clear();
 	instanceCount_ = 0;
 	skinnedInstanceCount_ = 0;
@@ -119,8 +116,7 @@ void Engine::MeshBatchResources::Finalize() {
 	initialized_ = false;
 }
 
-float Engine::MeshBatchResources::ResolveMaxDisplacement(
-	const MaterialAsset* material) {
+float Engine::MeshBatchResources::ResolveMaxDisplacement(const MaterialAsset* material) {
 
 	if (!material) {
 		return 0.0f;
@@ -150,8 +146,7 @@ float Engine::MeshBatchResources::ResolveMaxDisplacement(
 	};
 	const auto resolveOne = [&](const MaterialParameterSet& overrides) {
 
-		const MaterialParameterValue* texture = resolveValue(
-			overrides, MaterialParameterIDs::DisplacementTexture);
+		const MaterialParameterValue* texture = resolveValue(overrides, MaterialParameterIDs::DisplacementTexture);
 		const AssetID* textureID = texture ?
 			std::get_if<AssetID>(&texture->value) : nullptr;
 		if (!textureID || !*textureID) {
@@ -162,8 +157,7 @@ float Engine::MeshBatchResources::ResolveMaxDisplacement(
 			MaterialParameterIDs::DisplacementScale, 0.0f);
 		const float midpoint = resolveFloat(overrides,
 			MaterialParameterIDs::DisplacementMidpoint, 0.5f);
-		const float heightRange = (std::max)(
-			std::abs(midpoint), std::abs(1.0f - midpoint));
+		const float heightRange = (std::max)(std::abs(midpoint), std::abs(1.0f - midpoint));
 		return std::abs(scale) * heightRange;
 	};
 
@@ -174,8 +168,7 @@ float Engine::MeshBatchResources::ResolveMaxDisplacement(
 	} else {
 
 		for (const MaterialParameterSet& overrides : subMeshParamScratch_) {
-			cachedMaxDisplacement_ = (std::max)(
-				cachedMaxDisplacement_, resolveOne(overrides));
+			cachedMaxDisplacement_ = (std::max)(cachedMaxDisplacement_, resolveOne(overrides));
 		}
 	}
 	displacementMetricMaterial_ = material;
@@ -217,7 +210,8 @@ void Engine::MeshBatchResources::EnsureSkinningResources(GraphicsCore& graphicsC
 	++skinningBufferGeneration_;
 }
 
-bool Engine::MeshBatchResources::FindSkinnedVertexOffset(ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const {
+bool Engine::MeshBatchResources::FindSkinnedVertexOffset(
+	const ECSWorld* world, Entity entity, uint32_t& outVertexOffset) const {
 
 	MeshEntityLookupKey key{};
 	key.world = world;
@@ -237,7 +231,7 @@ void Engine::MeshBatchResources::UpdateView(const ResolvedRenderView& view,
 }
 
 void Engine::MeshBatchResources::UploadBatchData(const RenderDrawContext& drawContext,
-	const RenderSceneBatch& batch, const std::span<const RenderItem* const>& items, const MeshGPUResource& gpuMesh) {
+	const RenderSceneBatch& batch, std::span<const RenderItem* const> items, const MeshGPUResource& gpuMesh) {
 
 	BuildBatchData(drawContext, batch, items, gpuMesh);
 	UploadCachedBatchData();
@@ -248,7 +242,7 @@ void Engine::MeshBatchResources::UploadCachedBatchData() {
 	FrameProfiler::ScopedSample total(FrameProfiler::Category::MeshBatchUpload);
 
 	FrameProfiler::ScopedSample transfer(FrameProfiler::Category::MeshBufferTransfer);
-	// 各Frame Contextへ未反映の範囲だけ転送する
+	// 現在Frameへ未反映の範囲を転送
 	const uint64_t bytes = meshData_.UploadCurrentFrame(meshScratch_) +
 		subMeshData_.UploadCurrentFrame(subMeshScratch_) + outlineData_.UploadCurrentFrame(outlineScratch_);
 	FrameProfiler::GetInstance().AddMeshTransferBytes(bytes);
@@ -266,20 +260,6 @@ void Engine::MeshBatchResources::UploadSubMeshMaterialParams(const MaterialAsset
 //============================================================================
 
 namespace Engine {
-
-	bool MeshEntityLookupKey::operator==(const MeshEntityLookupKey& rhs) const noexcept {
-
-		return world == rhs.world && entity.index == rhs.entity.index &&
-			entity.generation == rhs.entity.generation;
-	}
-
-	size_t MeshEntityLookupKeyHash::operator()(const MeshEntityLookupKey& key) const noexcept {
-
-		size_t h = std::hash<void*>{}(key.world);
-		h ^= (std::hash<uint32_t>{}(key.entity.index) << 1);
-		h ^= (std::hash<uint32_t>{}(key.entity.generation) << 2);
-		return h;
-	}
 
 	void MeshBatchResources::MarkSkinningDispatched(uint64_t pipelineID) {
 

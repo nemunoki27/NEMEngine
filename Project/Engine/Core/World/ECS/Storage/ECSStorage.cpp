@@ -20,8 +20,8 @@ Engine::BlobStore::Handle Engine::BlobStore::Acquire(std::span<const std::byte> 
 
 		// Hash衝突時は内容まで比較し、異なるBlobを誤共有しない
 		Entry* entry = entries_.TryGet(it->second);
-		if (entry && entry->bytes.bytes == bytes.size() && entry->bytes.align >= alignment &&
-			std::equal(bytes.begin(), bytes.end(), entry->bytes.ptr)) {
+		if (entry && entry->bytes.GetSize() == bytes.size() && entry->bytes.GetAlignment() >= alignment &&
+			std::equal(bytes.begin(), bytes.end(), entry->bytes.GetData())) {
 
 			if (entry->referenceCount == (std::numeric_limits<uint32_t>::max)()) {
 				throw std::overflow_error("Blobの参照数が上限に達しました");
@@ -34,7 +34,7 @@ Engine::BlobStore::Handle Engine::BlobStore::Acquire(std::span<const std::byte> 
 	Entry entry{};
 	entry.bytes.Reset(bytes.size(), alignment);
 	if (!bytes.empty()) {
-		std::memcpy(entry.bytes.ptr, bytes.data(), bytes.size());
+		std::memcpy(entry.bytes.GetData(), bytes.data(), bytes.size());
 	}
 	entry.hash = hash;
 	entry.referenceCount = 1;
@@ -81,7 +81,7 @@ void Engine::BlobStore::Clear() {
 std::span<const std::byte> Engine::BlobStore::Get(Handle handle) const {
 
 	const Entry* entry = entries_.TryGet(handle);
-	return entry ? std::span<const std::byte>(entry->bytes.ptr, entry->bytes.bytes) : std::span<const std::byte>{};
+	return entry ? std::span<const std::byte>(entry->bytes.GetData(), entry->bytes.GetSize()) : std::span<const std::byte>{};
 }
 
 bool Engine::BlobStore::IsAlive(Handle handle) const {
@@ -112,6 +112,12 @@ uint64_t Engine::BlobStore::Hash(std::span<const std::byte> bytes) {
 Engine::ECSStorageRegistry::~ECSStorageRegistry() {
 
 	Clear();
+}
+
+void Engine::ECSStorageRegistry::SetOwner(std::shared_ptr<const ECSWorldLifetime> lifetime, std::weak_ptr<void> owner) {
+
+	ownerLifetime_ = std::move(lifetime);
+	owner_ = std::move(owner);
 }
 
 void Engine::ECSStorageRegistry::Clear() {

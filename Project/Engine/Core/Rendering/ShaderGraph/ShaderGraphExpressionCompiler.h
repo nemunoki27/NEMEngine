@@ -57,6 +57,7 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
+		// ノードとピンの組
 		struct EndpointKey {
 
 			uint64_t node = 0;
@@ -65,8 +66,10 @@ namespace Engine {
 			bool operator==(const EndpointKey&) const = default;
 		};
 
+		// 接続先のハッシュ
 		struct EndpointKeyHasher {
 
+			// ノードとピンを合わせてハッシュ化する
 			size_t operator()(const EndpointKey& key) const noexcept;
 		};
 

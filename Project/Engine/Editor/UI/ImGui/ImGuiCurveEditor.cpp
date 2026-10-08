@@ -29,14 +29,14 @@ namespace {
 
 		ImGui::PushID(id);
 
-		// 初回表示時だけ設定値からstateへスナップ設定を取り込む
+		// 間隔が未設定ならスナップ設定を取り込む
 		if (state.snapInterval <= 0.0f) {
 			state.snapEnabled = setting.snap;
 			state.snapInterval = setting.snapInterval;
 		}
 		// 固定時間範囲のときはキー時刻の上限も揃える
 		state.maxKeyTime = setting.fixedTimeRange ? setting.fixedTimeMax : 0.0f;
-		// 未初期化の表示範囲を0から1へ揃える
+		// ゼロ幅と旧既定の値範囲を0から1へ揃える
 		if ((state.visibleValueMin == 0.0f && state.visibleValueMax == 0.0f) ||
 			(state.visibleValueMin == -1.0f && state.visibleValueMax == 1.0f)) {
 			state.visibleValueMin = 0.0f;
@@ -45,11 +45,12 @@ namespace {
 		// チャンネル数に合わせて表示状態配列を用意する
 		state.EnsureChannelCount(static_cast<uint32_t>(channels.size()));
 		std::array<uint32_t, 64> keyCounts{};
-		for (uint32_t i = 0; i < channels.size() && i < keyCounts.size(); ++i) {
+		const size_t channelCount = (std::min)(channels.size(), keyCounts.size());
+		for (size_t i = 0; i < channelCount; ++i) {
 			keyCounts[i] = static_cast<uint32_t>(channels[i].keys.size());
 		}
 		// 削除済みキーを指す選択をここで破棄する
-		state.RemoveInvalidSelections(static_cast<uint32_t>(channels.size()), keyCounts.data());
+		state.RemoveInvalidSelections(std::span<const uint32_t>(keyCounts).first(channelCount));
 
 		const ImVec2 avail = ImGui::GetContentRegionAvail();
 		const ImVec2 editorSize = setting.autoFit ? avail : setting.size;
@@ -58,7 +59,7 @@ namespace {
 		const float previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
 		ImGui::SetWindowFontScale(kCurveEditorFontScale);
 
-		// ツールバーはGraph本体より先に描画する
+		// ツールバーをグラフより先に描画する
 		if (setting.showToolbar) {
 			DrawToolbar(channels, state, result);
 			ImGui::Separator();
@@ -66,7 +67,7 @@ namespace {
 
 		const float mainAreaHeight = (std::max)(1.0f, ImGui::GetContentRegionAvail().y);
 		const float centerHeight = (std::max)(1.0f, mainAreaHeight);
-		// 右パネル分を差し引いた幅をGraphに使う
+		// 詳細パネル分を差し引いてグラフを配置する
 		const float sideWidth = setting.showSidePanels ? kCurveInspectorWidth + ImGui::GetStyle().ItemSpacing.x : 0.0f;
 		ImGui::BeginGroup();
 
@@ -96,7 +97,7 @@ namespace {
 		}
 		ApplyFixedTimeRange(graphRect, setting, state);
 
-		// Graphの入力をImGuiで受け取る
+		// グラフをImGuiの入力領域へ登録する
 		ImGui::SetCursorScreenPos(graphRect.Min);
 		ImGui::InvisibleButton("##CurveGraphInput", graphRect.GetSize(),
 			ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
@@ -183,8 +184,7 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(
 			continue;
 		}
 
-		// CurveEditor本体は連続したCurveChannel配列を前提にしている
-		// Trackをまたぐ編集では、ここで一度作業用配列へ写し、描画後に元のTrackへ戻す
+		// 参照するチャンネルを連続した編集用配列へ写す
 		CurveChannel editChannel = *channels[i].channel;
 		if (!channels[i].displayName.empty()) {
 			editChannel.name = channels[i].displayName;
@@ -201,9 +201,9 @@ Engine::CurveEditResult Engine::MyGUI::CurveEditor(
 		if (!source) {
 			continue;
 		}
-		const std::string originalName = source->name;
+		std::string originalName = source->name;
 		*source = std::move(editChannels[i]);
-		source->name = originalName;
+		source->name = std::move(originalName);
 	}
 	return result;
 }

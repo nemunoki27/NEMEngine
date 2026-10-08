@@ -30,10 +30,10 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
-			const Entity& entity, bool& anyItemActive) override;
-		void OnBeforeCommit(const DirectionalLightComponent& beforeComponent,
-			DirectionalLightComponent& afterComponent) override;
+		// 光源の編集値を表示
+		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
+		// 編集確定前に光源の向きを補正
+		void OnBeforeCommit(const DirectionalLightComponent& beforeComponent, DirectionalLightComponent& afterComponent) override;
 	};
 
 	//============================================================================
@@ -55,8 +55,8 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
-			const Entity& entity, bool& anyItemActive) override;
+		// 光源の編集値を表示
+		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
 	};
 
 	//============================================================================
@@ -78,8 +78,8 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
-			const Entity& entity, bool& anyItemActive) override;
+		// 光源の編集値を表示
+		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
 	};
 
 	//============================================================================
@@ -101,8 +101,9 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
-			const Entity& entity, bool& anyItemActive) override;
+		// 光源の編集値を表示
+		void DrawFields(const EditorPanelContext& context, ECSWorld& world, const Entity& entity, bool& anyItemActive) override;
+		// 編集確定前に光源の向きを補正
 		void OnBeforeCommit(const SpotLightComponent& beforeComponent,
 			SpotLightComponent& afterComponent) override;
 	};

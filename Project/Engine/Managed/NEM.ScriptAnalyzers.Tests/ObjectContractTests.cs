@@ -46,6 +46,8 @@ internal static unsafe class ObjectContractTests {
         CheckInstantiateContract();
         CheckMissingNativeContracts();
         CheckLongNativeStrings();
+        CheckNullTerminatedStrings();
+        CheckNativeStringTransfers();
         CheckNativeStatus();
         CheckFailedAddition();
     }
@@ -85,7 +87,7 @@ internal static unsafe class ObjectContractTests {
         try {
             int value = 123;
             bool failed = false;
-            try { NativeAPI.ComponentGet(default, 0, 0, &value, sizeof(int)); }
+            try { NativeComponentAPI.ComponentGet(default, 0, 0, &value, sizeof(int)); }
             catch (InvalidOperationException) { failed = true; }
             Check(failed && value == 123);
         }
@@ -99,6 +101,129 @@ internal static unsafe class ObjectContractTests {
 
     private static readonly string longName = new string('名', 300) + "end";
     private static readonly byte[] longNameBytes = Encoding.UTF8.GetBytes(longName);
+
+    private static int stringTransferMode;
+    private static int stringTransferCopies;
+    private static AssetGUID stringTransferAsset;
+    private static NativeEntity stringTransferEntity;
+
+    // 可変長文字列の再取得と不正サイズを確認する
+    private static void CheckNativeStringTransfers() {
+
+        var previousRoot = NativeAPI.CopyProjectRoot;
+        var previousUser = NativeAPI.CopyUserSettingsRoot;
+        var previousText = NativeAPI.CopyTextInput;
+        var previousAsset = NativeAPI.CopyAssetDisplayName;
+        var previousClip = NativeAPI.CopySkinnedAnimationCurrentClip;
+        NativeAPI.CopyProjectRoot = &CopyTransferString;
+        NativeAPI.CopyUserSettingsRoot = &CopyTransferString;
+        NativeAPI.CopyTextInput = &CopyTransferString;
+        NativeAPI.CopyAssetDisplayName = &CopyTransferAssetString;
+        NativeAPI.CopySkinnedAnimationCurrentClip = &CopyTransferEntityString;
+        try {
+            stringTransferMode = 0;
+            stringTransferCopies = 0;
+            AssetGUID assetID = new(17, 29);
+            NativeEntity entity = new() { index = 31, generation = 7 };
+            Check(NativeApplicationAPI.ReadProjectRoot() == longName);
+            Check(NativeApplicationAPI.ReadUserSettingsRoot() == longName);
+            Check(NativeInputAPI.ReadTextInput() == longName);
+            Check(NativeApplicationAPI.ReadAssetDisplayName(assetID) == longName && stringTransferAsset == assetID);
+            Check(NativePlaybackAPI.ReadSkinnedAnimationCurrentClip(entity) == longName &&
+                stringTransferEntity.index == entity.index && stringTransferEntity.generation == entity.generation);
+
+            // 取得中に長くなっても途中の文字列を返さない
+            stringTransferMode = 4;
+            stringTransferCopies = 0;
+            Check(ManagedUTF8Transfer.ReadString(&CopyTransferString) == longName && stringTransferCopies == 2);
+            stringTransferMode = 6;
+            stringTransferCopies = 0;
+            Check(ManagedUTF8Transfer.ReadString(&CopyTransferString) == string.Empty);
+
+            foreach (int mode in new[] { 1, 2, 3, 5 }) {
+                stringTransferMode = mode;
+                stringTransferCopies = 0;
+                bool rejected = false;
+                try { _ = ManagedUTF8Transfer.ReadString(&CopyTransferString); }
+                catch (InvalidOperationException) { rejected = mode != 2; }
+                catch (OverflowException) { rejected = mode == 2; }
+                Check(rejected);
+                if (mode == 5) { Check(stringTransferCopies == 3); }
+            }
+        }
+        finally {
+            NativeAPI.CopyProjectRoot = previousRoot;
+            NativeAPI.CopyUserSettingsRoot = previousUser;
+            NativeAPI.CopyTextInput = previousText;
+            NativeAPI.CopyAssetDisplayName = previousAsset;
+            NativeAPI.CopySkinnedAnimationCurrentClip = previousClip;
+        }
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static int CopyTransferString(byte* buffer, int capacity) => CopyTransferStringValue(buffer, capacity);
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static int CopyTransferAssetString(AssetGUID assetID, byte* buffer, int capacity) {
+        stringTransferAsset = assetID;
+        return CopyTransferStringValue(buffer, capacity);
+    }
+
+    [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+    private static int CopyTransferEntityString(NativeEntity entity, byte* buffer, int capacity) {
+        stringTransferEntity = entity;
+        return CopyTransferStringValue(buffer, capacity);
+    }
+
+    // Nativeの切り詰めと長さの変化を模擬する
+    private static int CopyTransferStringValue(byte* buffer, int capacity) {
+        if (buffer == null) {
+            return stringTransferMode switch {
+                1 => -1,
+                2 => int.MaxValue,
+                4 when stringTransferCopies == 0 => 3,
+                5 => 1 + stringTransferCopies,
+                _ => longNameBytes.Length,
+            };
+        }
+        ++stringTransferCopies;
+        if (stringTransferMode == 3) { return capacity; }
+        if (stringTransferMode == 6) { buffer[0] = 0; return 0; }
+        int count = stringTransferMode == 5 ? capacity - 1 : Math.Min(longNameBytes.Length, capacity - 1);
+        if (stringTransferMode == 5) {
+            new Span<byte>(buffer, count).Fill((byte)'x');
+        } else {
+            longNameBytes.AsSpan(0, count).CopyTo(new Span<byte>(buffer, count));
+        }
+        buffer[count] = 0;
+        return count;
+    }
+
+    // null終端の容量と書込範囲を確認する
+    private static void CheckNullTerminatedStrings() {
+
+        foreach (string value in new[] { string.Empty, "名前", longName, "first\0second" }) {
+            byte[] expected = Encoding.UTF8.GetBytes(value + '\0');
+            byte[] actual = ManagedUTF8Transfer.GetNullTerminatedBytes(value);
+            Check(actual.AsSpan().SequenceEqual(expected));
+            Check(ManagedUTF8Transfer.GetNullTerminatedCapacity(value) == expected.Length);
+
+            byte[] destination = new byte[expected.Length + 2];
+            Array.Fill(destination, (byte)0x7f);
+            ManagedUTF8Transfer.WriteNullTerminated(value, destination);
+            Check(destination.AsSpan(0, expected.Length).SequenceEqual(expected));
+            Check(destination[^1] == 0x7f && destination[^2] == 0x7f);
+        }
+        bool emptyRejected = false;
+        try { ManagedUTF8Transfer.WriteNullTerminated("", Span<byte>.Empty); }
+        catch (ArgumentException) { emptyRejected = true; }
+        Check(emptyRejected);
+
+        bool shortRejected = false;
+        try { ManagedUTF8Transfer.WriteNullTerminated("名", new byte[3]); }
+        catch (ArgumentException) { shortRejected = true; }
+        Check(shortRejected);
+    }
 
     // 長いUTF-8名と固定長の境界を確認する
     private static void CheckLongNativeStrings() {
