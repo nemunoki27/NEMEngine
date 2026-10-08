@@ -105,13 +105,14 @@ void Engine::ColorPipelineProcessor::BeginFrame() {
 
 void Engine::ColorPipelineProcessor::Release() {
 
-	for (ViewExposureState& state : viewStates_) {
+	for (auto& [key, state] : viewStates_) {
 		state.exposureBuffer.Release();
 		state.world = nullptr;
 		state.lastUpdatedFrame = 0;
 		state.initialized = false;
 		state.bufferInitialized = false;
 	}
+	viewStates_.clear();
 	outputTransformLogged_ = false;
 	constantBufferAllocator_.Release();
 }
@@ -127,7 +128,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 		return false;
 	}
 
-	ViewExposureState& state = GetViewState(context.kind);
+	ViewExposureState& state = GetViewState(context.view->GetHistoryKey());
 	if (!state.bufferInitialized) {
 		state.exposureBuffer.Init(graphicsCore.GetDXObject().GetDevice(),
 			&graphicsCore.GetSRVDescriptor());
@@ -143,8 +144,8 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	const bool resetExposure = !state.initialized;
 	const ColorPipelineConstants constants = BuildConstants(
 		graphicsCore, context, *source, settings, resetExposure);
-	const PostProcessConstantBufferAllocation allocation =
-		constantBufferAllocator_.AllocateAndUpload(
+	const FrameConstantBufferAllocation allocation =
+		constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice(), constants);
 	if (!allocation.gpuAddress) {
 		return false;
@@ -162,7 +163,7 @@ bool Engine::ColorPipelineProcessor::ToneMap(GraphicsCore& graphicsCore,
 	}
 
 	const bool drawn = DrawToneMap(graphicsCore, *source, *dest,
-		assetLibrary, pipelineCache, state, allocation.gpuAddress);
+		assetLibrary, pipelineCache, state, allocation.gpuAddress, context);
 	if (drawn) {
 		dest->TransitionForShaderRead(
 			*graphicsCore.GetDXObject().GetDxCommand());
@@ -209,8 +210,8 @@ bool Engine::ColorPipelineProcessor::PresentToBackBuffer(
 	constants.outputMode = static_cast<uint32_t>(output.mode);
 	constants.paperWhiteNits = output.paperWhiteNits;
 	constants.maxLuminanceNits = output.maxLuminanceNits;
-	const PostProcessConstantBufferAllocation allocation =
-		constantBufferAllocator_.AllocateAndUpload(
+	const FrameConstantBufferAllocation allocation =
+		constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
 			graphicsCore.GetDXObject().GetDevice(), constants);
 	if (!allocation.gpuAddress) {
 		return false;
@@ -254,9 +255,9 @@ bool Engine::ColorPipelineProcessor::PresentToBackBuffer(
 }
 
 Engine::ColorPipelineProcessor::ViewExposureState&
-Engine::ColorPipelineProcessor::GetViewState(RenderViewKind kind) {
+Engine::ColorPipelineProcessor::GetViewState(const std::string& key) {
 
-	return viewStates_[static_cast<size_t>(kind)];
+	return viewStates_[key];
 }
 
 Engine::ColorPipelineProcessor::ColorPipelineConstants
@@ -368,7 +369,8 @@ bool Engine::ColorPipelineProcessor::DrawToneMap(
 	GraphicsCore& graphicsCore, MultiRenderTarget& source,
 	MultiRenderTarget& dest, RenderAssetLibrary& assetLibrary,
 	PipelineStateCache& pipelineCache, ViewExposureState& state,
-	D3D12_GPU_VIRTUAL_ADDRESS constantsAddress) {
+	D3D12_GPU_VIRTUAL_ADDRESS constantsAddress,
+	const SceneExecutionContext& context) {
 
 	const MaterialAsset* material = assetLibrary.LoadMaterial(
 		BuiltinAssets::Materials::ToneMapToView);
@@ -411,6 +413,10 @@ bool Engine::ColorPipelineProcessor::DrawToneMap(
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	if (!BindColorTargetsOnly(graphicsCore, dest)) {
 		return false;
+	}
+	if (context.useViewportRect && context.viewportWidth > 0 && context.viewportHeight > 0) {
+		dxCommand->SetViewportAndScissor(context.viewportX, context.viewportY,
+			context.viewportWidth, context.viewportHeight);
 	}
 	dxCommand->SetDescriptorHeaps({
 		graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });

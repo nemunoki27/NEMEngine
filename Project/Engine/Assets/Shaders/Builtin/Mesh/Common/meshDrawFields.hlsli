@@ -1,0 +1,28 @@
+// VSとMSとカリングComputeで同じ定数配置を使う
+uint meshletCount;
+	uint subMeshCount;
+	uint instanceCount;
+	uint cullingEnabled;
+	uint packedMeshletVertexIndices;
+	uint frustumCullingEnabled;
+	uint contributionCullingEnabled;
+	uint normalConeCullingEnabled;
+	float3 meshBoundsCenter;
+	float meshBoundsRadius;
+	float contributionPixelThreshold;
+	uint invertedHullOutlinePass;
+	float outlineMaxModelExpansion;
+	float outlineMaxAbsCameraZOffset;
+	uint outlineHasScreenPixelWidth;
+	uint occlusionCullingEnabled;
+	uint subMeshGroupIndex;
+	float maxDisplacement;
+	uint4 lodIndexOffsets;
+	uint4 lodIndexCounts;
+	uint4 lodMeshletOffsets;
+	uint4 lodMeshletCounts;
+	float3 lodPixelThresholds;
+	uint lodCount;
+	uint lodDitherEnabled;
+	uint preserveInstanceOrder;
+	uint2 _lodDrawPad;

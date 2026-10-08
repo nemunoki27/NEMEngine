@@ -13,6 +13,7 @@
 // c++
 #include <unordered_map>
 #include <vector>
+#include <random>
 
 namespace Engine {
 
@@ -40,7 +41,6 @@ namespace Engine {
 		EffectAsset,
 		Local,
 		World,
-		Custom,
 	};
 
 	// ParticleSystemへ積む再生要求
@@ -69,6 +69,10 @@ namespace Engine {
 	// ParticleEffectアセット1つ分の実行状態
 	struct ParticleEffectInstanceRuntime {
 
+		std::mt19937 randomGenerator{};
+		uint32_t randomSeed = 0;
+		bool randomInitialized = false;
+		bool useAutoRandomSeed = true;
 		AssetID effect{};
 		bool oneShot = false;
 		bool emissionStopped = false;
@@ -141,10 +145,11 @@ namespace Engine {
 			ComponentChangeChannel::Render;
 
 		AssetID effect{};
-		UUID customSimulationTarget{};
 		float playbackSpeed = 1.0f;
 		int32_t layer = 0;
 		int32_t order = 0;
+		// Cameraの描画対象レイヤー
+		uint32_t renderingLayerMask = 1u;
 		ParticleSystemStopAction stopAction = ParticleSystemStopAction::None;
 		ParticleSystemSimulationSpace simulationSpace =
 			ParticleSystemSimulationSpace::EffectAsset;
@@ -152,6 +157,8 @@ namespace Engine {
 		bool playOnAwake = true;
 		bool playInEditMode = true;
 		bool useUnscaledTime = false;
+		bool useAutoRandomSeed = true;
+		uint32_t randomSeed = 0;
 		bool drawEmitterShape = false;
 		bool visible = true;
 

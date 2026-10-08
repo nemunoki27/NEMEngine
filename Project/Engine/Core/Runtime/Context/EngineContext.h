@@ -65,6 +65,8 @@ namespace Engine {
 
 		// ウィンドウ設定の取得
 		static const WindowSetting& GetWindowSetting() { return windowSetting_; }
+		// Editorで使用するゲーム画像サイズを更新する
+		static void SetGameSize(const Vector2I& size);
 		// グラフィックス設定の取得
 		static const GraphicsSetting& GetGraphicsSetting() { return graphicsSetting_; }
 		// ウィンドウ管理クラスの取得

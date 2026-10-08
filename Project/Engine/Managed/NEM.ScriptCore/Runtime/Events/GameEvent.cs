@@ -1,7 +1,7 @@
 namespace NEMEngine;
 
 // インスタンスイベント。C# の event Action のように += / -= で購読でき、
-// 例外隔離・owner 破棄での自動解除・次フレーム遅延発火を備える。
+// 例外時はその回の配信を打ち切り、owner 破棄での自動解除・次フレーム遅延発火を備える。
 // スクリプトのフィールドに公開して使う（例: public readonly GameEvent OnDied = new();）。
 // += / -= は C# の event と同じくこのインスタンスを直接書き換える（戻り値は同一参照）。
 // readonly フィールドでは += が使えないため Subscribe / Unsubscribe を使う。main thread 専用。
@@ -22,7 +22,7 @@ public sealed class GameEvent {
     }
 
     // owner 破棄時に自動解除される購読。owner の Awake/OnEnable から張る用途
-    public EventSubscription Subscribe(ScriptBehaviour owner, Action handler) {
+    public EventSubscription Subscribe(MonoBehaviour owner, Action handler) {
         EventSubscription sub = Subscribe(handler);
         EventOwnerTracker.Track(owner, sub);
         return sub;
@@ -32,7 +32,7 @@ public sealed class GameEvent {
         handlers -= handler;
     }
 
-    // 即時発火。購読順・例外隔離（1 人が例外を投げても残りは呼ばれる）
+    // 即時発火。購読順に呼び、例外時はその回の配信を打ち切る
     public void Invoke() {
         EventDispatch.Raise(handlers, Tag);
     }
@@ -74,7 +74,7 @@ public sealed class GameEvent<T> {
         return new EventSubscription(() => handlers -= handler);
     }
 
-    public EventSubscription Subscribe(ScriptBehaviour owner, Action<T> handler) {
+    public EventSubscription Subscribe(MonoBehaviour owner, Action<T> handler) {
         EventSubscription sub = Subscribe(handler);
         EventOwnerTracker.Track(owner, sub);
         return sub;

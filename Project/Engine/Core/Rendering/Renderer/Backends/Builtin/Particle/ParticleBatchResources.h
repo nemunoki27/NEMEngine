@@ -135,16 +135,12 @@ namespace Engine {
 
 		D3D12_GPU_VIRTUAL_ADDRESS GetGeometryGPUAddress() const { return geometry_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsGPUAddress() const { return materials_.GetGPUAddress(); }
-		D3D12_GPU_VIRTUAL_ADDRESS GetCustomParametersGPUAddress() const {
-			return customParameterBuffer_.GetGPUAddress();
-		}
+		D3D12_GPU_VIRTUAL_ADDRESS GetCustomParametersGPUAddress() const { return customParameterBuffer_.GetGPUAddress(); }
 		uint32_t GetInstanceCount() const { return instanceCount_; }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailPointsGPUAddress() const { return trailPoints_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailSegmentsGPUAddress() const { return trailSegments_.GetGPUAddress(); }
 		D3D12_GPU_VIRTUAL_ADDRESS GetTrailMaterialsGPUAddress() const { return trailMaterials_.GetGPUAddress(); }
-		D3D12_GPU_VIRTUAL_ADDRESS GetTrailCustomParametersGPUAddress() const {
-			return trailCustomParameterBuffer_.GetGPUAddress();
-		}
+		D3D12_GPU_VIRTUAL_ADDRESS GetTrailCustomParametersGPUAddress() const { return trailCustomParameterBuffer_.GetGPUAddress(); }
 		uint32_t GetTrailSegmentCount() const { return trailSegmentCount_; }
 	private:
 		//========================================================================

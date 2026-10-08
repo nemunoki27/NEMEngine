@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RaytracingPipelineBuilder.h"
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
@@ -26,6 +27,7 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 	AssetID shaderOverrideAssetID,
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
+	retirement_ = &graphicsPlatform.GetResourceRetirement();
 	CollectRetiredStates();
 
 	// 無効なIDの場合はnullptrを返す
@@ -88,15 +90,15 @@ Engine::RaytracingPipelineState* Engine::RaytracingPipelineStateCache::GetOrCrea
 			*variant, composedShader, samplerOverrides);
 	}
 	// パイプラインステートを作成してキャッシュする
-	std::unique_ptr<RaytracingPipelineState> state = std::make_unique<RaytracingPipelineState>();
-	if (!state->Create(graphicsPlatform.GetDevice(),
-		graphicsPlatform.GetDxShaderCompiler(), *variant, composedShader,
-		samplerOverrides)) {
+	auto state = RaytracingPipelineBuilder::Create(graphicsPlatform.GetDevice(),
+		graphicsPlatform.GetDxShaderCompiler(), *variant, composedShader, samplerOverrides);
+	if (!state) {
 
 		failedRevisions_[key] = revisions_[key];
 		return FindFallback(pipelineAssetID, shaderOverrideAssetID,
 			key.samplerHash);
 	}
+	state->SetRetirementQueue(*retirement_);
 	auto [it, inserted] = cache_.emplace(key, std::move(state));
 	failedRevisions_.erase(key);
 	RetireFallbacks(pipelineAssetID, shaderOverrideAssetID,
@@ -132,6 +134,10 @@ void Engine::RaytracingPipelineStateCache::Clear() {
 void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 	AssetID pipelineAssetID) {
 
+	// 初回生成に失敗した構成も更新後に再試行する
+	std::erase_if(failedRevisions_, [pipelineAssetID](const auto& entry) {
+		return entry.first.pipelineAsset == pipelineAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end();) {
 		if (it->first.pipelineAsset == pipelineAssetID) {
 			++revisions_[it->first];
@@ -153,6 +159,10 @@ void Engine::RaytracingPipelineStateCache::InvalidateByPipelineAsset(
 void Engine::RaytracingPipelineStateCache::InvalidateByShaderAsset(
 	AssetID shaderAssetID) {
 
+	// 有効な旧StateがなくてもShaderの修正を反映する
+	std::erase_if(failedRevisions_, [shaderAssetID](const auto& entry) {
+		return entry.first.pipelineShaderAsset == shaderAssetID || entry.first.shaderOverrideAsset == shaderAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end();) {
 		if (it->first.pipelineShaderAsset == shaderAssetID ||
 			it->first.shaderOverrideAsset == shaderAssetID) {
@@ -274,6 +284,7 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 		if (completedRevision != revisions_[key]) {
 			RetireState(std::move(state));
 		} else if (state) {
+			state->SetRetirementQueue(*retirement_);
 			auto [created, inserted] = cache_.emplace(key, std::move(state));
 			RetireFallbacks(key.pipelineAsset, key.shaderOverrideAsset,
 				key.samplerHash);
@@ -310,17 +321,27 @@ Engine::RaytracingPipelineStateCache::UpdateAsyncBuild(
 
 			DxShaderCompiler compiler{};
 			compiler.Init();
-			auto state = std::make_unique<RaytracingPipelineState>();
-			if (!state->Create(retainedDevice.Get(), &compiler,
-				variant, shader,
-				hasSamplerOverrides ? &samplerCopy : nullptr)) {
-
-				return std::unique_ptr<RaytracingPipelineState>{};
-			}
-			return state;
+			return RaytracingPipelineBuilder::Create(retainedDevice.Get(), &compiler,
+				variant, shader, hasSamplerOverrides ? &samplerCopy : nullptr);
 		});
 	pendingBuilds_.emplace(key, std::move(build));
 	Logger::Output(LogType::Engine,
 		"[レイトレーシングパイプライン] ホットリロード用ビルドを開始しました");
 	return fallback;
+}
+
+//============================================================================
+//	RaytracingPipelineStateCache classMethods
+//============================================================================
+
+namespace Engine {
+
+	size_t RaytracingPipelineStateCache::RaytracingPipelineCacheKeyHash::operator()(const RaytracingPipelineCacheKey& key) const noexcept {
+
+		size_t hash = std::hash<AssetID>{}(key.pipelineAsset);
+		hash ^= std::hash<AssetID>{}(key.pipelineShaderAsset) << 1;
+		hash ^= std::hash<AssetID>{}(key.shaderOverrideAsset) << 2;
+		hash ^= std::hash<uint64_t>{}(key.samplerHash) << 3;
+		return hash;
+	}
 }

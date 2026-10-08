@@ -5,19 +5,20 @@
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Serialization/ContentHash.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSemanticMerge.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
-#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
 
 // c++
-#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <string_view>
-#include <unordered_set>
+#include <vector>
 
 namespace {
 
@@ -47,109 +48,22 @@ namespace {
 			database.GetIssues().empty() ? 0 : 4;
 	}
 
-	bool CanonicalizeSceneFile(const std::filesystem::path& path) {
-
-		nlohmann::json root = Engine::JsonAdapter::Load(path);
-		if (!root.is_object()) {
-			return false;
-		}
-		const bool hasExternalActors =
-			root.contains("ExternalActors") &&
-			root["ExternalActors"].is_array();
-		const bool hasEntities =
-			root.contains("Entities") &&
-			root["Entities"].is_array();
-		if (root.value("SchemaVersion", 0u) != 3u ||
-			!root.contains("Header") || !root["Header"].is_object() ||
-			!root.contains("PrefabInstances") || !root["PrefabInstances"].is_array() ||
-			hasExternalActors == hasEntities) {
-			return false;
-		}
-
-		if (auto header = root.find("Header");
-			header != root.end() && header->is_object()) {
-
-			auto subScenes = header->find("subScenes");
-			if (subScenes != header->end() && subScenes->is_array()) {
-
-				for (size_t index = 0; index < subScenes->size(); ++index) {
-
-					nlohmann::json& item = (*subScenes)[index];
-					if (!item.is_object() ||
-						!Engine::TryParseUUID16Hex(
-							item.value("slotID", std::string{}))) {
-						return false;
-					}
-				}
-			}
-		}
-
-		if (hasExternalActors) {
-			std::sort(root["ExternalActors"].begin(),
-				root["ExternalActors"].end());
-		} else {
-
-			std::unordered_set<Engine::UUID> localFileIDs;
-			for (const nlohmann::json& entity : root["Entities"]) {
-
-				if (!entity.is_object() ||
-					!entity.contains("Components") ||
-					!entity["Components"].is_object()) {
-					return false;
-				}
-				const std::optional<Engine::UUID> localFileID =
-					Engine::TryParseUUID16Hex(
-						entity.value("LocalFileID", std::string{}));
-				if (!localFileID ||
-					!localFileIDs.insert(*localFileID).second) {
-					return false;
-				}
-			}
-			std::sort(root["Entities"].begin(),
-				root["Entities"].end(),
-				[](const auto& lhs, const auto& rhs) {
-					return lhs.value("LocalFileID", std::string{}) <
-						rhs.value("LocalFileID", std::string{});
-				});
-		}
-		for (auto& item : root["PrefabInstances"]) {
-
-			Engine::PrefabInstanceData data{};
-			if (!Engine::FromJson(item, data)) {
-				return false;
-			}
-			item = Engine::ToJson(data);
-		}
-		std::sort(root["PrefabInstances"].begin(), root["PrefabInstances"].end(),
-			[](const auto& lhs, const auto& rhs) {
-			return lhs.value("InstanceID", std::string{}) <
-				rhs.value("InstanceID", std::string{});
-			});
-		return Engine::JsonAdapter::SaveCanonical(path, root);
-	}
-
-	bool CanonicalizeSceneRoot(const std::filesystem::path& root, size_t& sceneCount) {
+	bool CollectScenePaths(const std::filesystem::path& root, std::vector<std::filesystem::path>& paths) {
 
 		std::error_code ec;
-		for (auto it = std::filesystem::recursive_directory_iterator(
-			root, std::filesystem::directory_options::skip_permission_denied, ec);
-			it != std::filesystem::recursive_directory_iterator{}; it.increment(ec)) {
+		auto it = std::filesystem::recursive_directory_iterator(root, ec);
+		while (!ec && it != std::filesystem::recursive_directory_iterator{}) {
 
-			if (ec) {
-				ec.clear();
-				continue;
+			// 列挙失敗を対象なしとして扱わない
+			if (it->is_regular_file(ec) &&
+				Engine::AssetTypeResolver::GuessByPath(it->path()) == Engine::AssetType::Scene) {
+				paths.push_back(it->path());
 			}
-			if (!it->is_regular_file(ec) ||
-				Engine::AssetTypeResolver::GuessByPath(it->path()) != Engine::AssetType::Scene) {
-				continue;
-			}
-			if (!CanonicalizeSceneFile(it->path())) {
-				std::cerr << "シーンの正規化に失敗しました: " << it->path() << '\n';
-				return false;
-			}
-			++sceneCount;
+			if (ec) break;
+			it.increment(ec);
 		}
-		return true;
+		if (ec) std::cerr << "シーンの列挙に失敗しました: " << root << " / " << ec.message() << '\n';
+		return !ec;
 	}
 
 	int CanonicalizeScenes(const std::filesystem::path& projectPath, bool includeEngine) {
@@ -162,16 +76,52 @@ namespace {
 		}
 		Engine::RuntimePaths::Refresh();
 
-		size_t sceneCount = 0;
-		if (!CanonicalizeSceneRoot(Engine::RuntimePaths::GetGameAssetsRoot(), sceneCount)) {
+		std::vector<std::filesystem::path> paths;
+		if (!CollectScenePaths(Engine::RuntimePaths::GetGameAssetsRoot(), paths)) {
 			return 5;
 		}
 		if (includeEngine &&
-			!CanonicalizeSceneRoot(Engine::RuntimePaths::GetEngineAssetsRoot(), sceneCount)) {
+			!CollectScenePaths(Engine::RuntimePaths::GetEngineAssetsRoot(), paths)) {
 			return 5;
 		}
-		std::cout << "正規化したシーン数: " << sceneCount << '\n';
+		Engine::SceneAssetStorage storage;
+		std::string error;
+		if (!storage.Canonicalize(paths, error)) {
+			std::cerr << error << '\n';
+			return 5;
+		}
+		std::cout << "正規化したシーン数: " << paths.size() << '\n';
 		return 0;
+	}
+
+	Engine::JsonFileJournal::Scope MakeMergeScope(const std::filesystem::path& outputPath) {
+
+		const auto outputKey = Engine::StorageFileUtility::PathKey(outputPath);
+		auto reportPath = outputPath;
+		reportPath += L".merge-conflicts.json";
+		const auto reportKey = Engine::StorageFileUtility::PathKey(reportPath);
+		return {
+			std::filesystem::absolute(outputPath).parent_path() / ".NEMMergeRecovery",
+			[outputKey, reportKey](const std::filesystem::path& path) {
+				const auto key = Engine::StorageFileUtility::PathKey(path);
+				return key == outputKey || key == reportKey;
+			}
+		};
+	}
+
+	int RecoverMergeJson(const std::filesystem::path& outputPath, const std::filesystem::path& recovery) {
+
+		try {
+			std::string error;
+			if (!Engine::JsonFileJournal::Recover(MakeMergeScope(outputPath), recovery, error, [](const std::filesystem::path&) {})) {
+				std::cerr << "マージ結果を復旧できません: " << error << '\n';
+				return 6;
+			}
+			return 0;
+		} catch (const std::exception& exception) {
+			std::cerr << "マージ結果を復旧できません: " << exception.what() << '\n';
+			return 6;
+		}
 	}
 
 	int MergeJsonFiles(const std::filesystem::path& basePath,
@@ -179,46 +129,42 @@ namespace {
 		const std::filesystem::path& theirPath,
 		const std::filesystem::path& outputPath) {
 
-		const nlohmann::json base = Engine::JsonAdapter::Load(basePath);
-		const nlohmann::json ours = Engine::JsonAdapter::Load(ourPath);
-		const nlohmann::json theirs = Engine::JsonAdapter::Load(theirPath);
-		if (base.is_null() || ours.is_null() || theirs.is_null()) {
-			std::cerr << "マージ元ファイルを読み込めません\n";
+		try {
+			nlohmann::json base, ours, theirs;
+			if (!Engine::JsonAdapter::TryLoad(basePath, base) || !Engine::JsonAdapter::TryLoad(ourPath, ours) ||
+				!Engine::JsonAdapter::TryLoad(theirPath, theirs)) {
+				std::cerr << "マージ元ファイルを読み込めません\n";
+				return 6;
+			}
+			const auto result = Engine::JsonSemanticMerge::Merge(base, ours, theirs);
+			std::filesystem::path conflictPath = outputPath;
+			conflictPath += L".merge-conflicts.json";
+			nlohmann::json report = {{ "conflicts", nlohmann::json::array() }};
+			for (const auto& conflict : result.conflicts) {
+				report["conflicts"].push_back({{ "path", conflict.path }, { "base", conflict.base },
+					{ "ours", conflict.ours }, { "theirs", conflict.theirs }});
+			}
+
+			// 2文書の退避と準備が終わってから結果を公開する
+			const auto scope = MakeMergeScope(outputPath);
+			const std::vector<Engine::JsonFileChange> changes{
+				{ conflictPath, report, result.Succeeded() }, { outputPath, result.merged, false }
+			};
+			std::string error;
+			if (!Engine::JsonFileJournal::Commit(scope, changes, "JSON Merge", error,
+				[&scope](const std::filesystem::path& directory, std::string& rollbackError) {
+					return Engine::JsonFileJournal::Recover(scope, directory, rollbackError, [](const std::filesystem::path&) {});
+				})) {
+				std::cerr << "マージ結果を保存できません: " << error << '\n';
+				return 6;
+			}
+			if (result.Succeeded()) return 0;
+			std::cerr << "構造化マージの競合数: " << result.conflicts.size() << '\n';
+			return 7;
+		} catch (const std::exception& error) {
+			std::cerr << "マージ処理に失敗しました: " << error.what() << '\n';
 			return 6;
 		}
-
-		const Engine::JsonMergeResult result =
-			Engine::JsonSemanticMerge::Merge(base, ours, theirs);
-		if (!Engine::JsonAdapter::SaveCanonical(outputPath, result.merged)) {
-			std::cerr << "マージ結果を保存できません\n";
-			return 6;
-		}
-
-		std::filesystem::path conflictPath = outputPath;
-		conflictPath += L".merge-conflicts.json";
-		if (result.Succeeded()) {
-
-			std::error_code ec;
-			std::filesystem::remove(conflictPath, ec);
-			return 0;
-		}
-
-		nlohmann::json conflictReport = nlohmann::json::object();
-		conflictReport["conflicts"] = nlohmann::json::array();
-		for (const Engine::JsonMergeConflict& conflict : result.conflicts) {
-			conflictReport["conflicts"].push_back({
-				{ "path", conflict.path },
-				{ "base", conflict.base },
-				{ "ours", conflict.ours },
-				{ "theirs", conflict.theirs },
-				});
-		}
-		if (!Engine::JsonAdapter::SaveCanonical(conflictPath, conflictReport)) {
-			return 6;
-		}
-		std::cerr << "構造化マージの競合数: " <<
-			result.conflicts.size() << '\n';
-		return 7;
 	}
 
 	int VerifyCook(const std::filesystem::path& manifestPath,
@@ -301,6 +247,9 @@ int main(int argc, char** argv) {
 		std::string_view(argv[3]) == "--include-engine") {
 		return CanonicalizeScenes(std::filesystem::path(argv[2]), true);
 	}
+	if (argc == 4 && std::string_view(argv[1]) == "--recover-json-merge") {
+		return RecoverMergeJson(argv[2], argv[3]);
+	}
 	if (argc == 6 && std::string_view(argv[1]) == "--merge-json") {
 		return MergeJsonFiles(argv[2], argv[3], argv[4], argv[5]);
 	}
@@ -314,6 +263,7 @@ int main(int argc, char** argv) {
 	std::cout << "使い方:\nNEMBuildTool --validate-project <プロジェクトフォルダー>\n"
 		"NEMBuildTool --canonicalize-scenes <プロジェクトフォルダー> [--include-engine]\n"
 		"NEMBuildTool --merge-json <共通祖先> <自分側> <相手側> <出力先>\n"
+		"NEMBuildTool --recover-json-merge <出力先> <復旧記録ディレクトリ>\n"
 		"NEMBuildTool --verify-cook <マニフェスト> <検証対象フォルダー>\n"
 		"NEMBuildTool --cook-shaders <製品ビルドマニフェスト> <出力先>\n";
 	return argc == 1 ? 0 : 1;

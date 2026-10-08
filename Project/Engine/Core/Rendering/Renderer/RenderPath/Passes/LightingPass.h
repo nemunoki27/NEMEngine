@@ -8,10 +8,13 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RegistryAutoBindTable.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/SkyboxIrradianceMap.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/DirectionalShadowMapRenderer.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Foundation/Math/Vector3.h>
+#include <Engine/Core/Foundation/Math/Vector4.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
@@ -24,27 +27,28 @@ namespace Engine {
 	// front
 	class GraphicsCore;
 	class RenderTexture2D;
+	struct RenderPipelineDeps;
 
 	//============================================================================
 	//	LightingPass class
 	//	GBufferを入力に全ライトをSceneColorFinalへ書くライティングパス
 	//============================================================================
-	class LightingPass :
-		public IRenderPass {
+	class LightingPass : public IRenderPass {
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
-		LightingPass();
+		explicit LightingPass(const RenderPipelineDeps& deps);
 		~LightingPass() override = default;
 
-		void Execute(GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-			SceneExecutionContext& context) override;
+		void Execute(
+			GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::Lighting; }
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -60,6 +64,7 @@ namespace Engine {
 
 			Matrix4x4 inverseViewProjection = Matrix4x4::Identity();
 			Matrix4x4 viewMatrix = Matrix4x4::Identity();
+			Matrix4x4 viewProjectionMatrix = Matrix4x4::Identity();
 
 			Color4 skyboxColor = Color4::White();
 
@@ -77,21 +82,27 @@ namespace Engine {
 			float iblIntensity = 1.0f;
 
 			uint32_t softShadowSampleCount = 4;
-			uint32_t _pad0[3]{};
+			uint32_t shadowMapAvailable = 0;
+			uint32_t shadowMapLightIndex = UINT32_MAX;
+			uint32_t reflectionFeatureActive = 0;
+
+			std::array<Matrix4x4, 4> shadowViewProjections{};
+			Vector4 shadowCascadeSplits = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
+			Vector4 shadowDepthRanges = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 		};
 
 		//--------- variables ----------------------------------------------------
 
 		// シャドウ無しPSOと、TLASによる平行光源シャドウ付きPSO
-		PipelineState pipeline_{};
-		PipelineState pipelineShadowed_{};
+		std::unique_ptr<PipelineState> pipeline_{};
+		std::unique_ptr<PipelineState> pipelineShadowed_{};
 		bool initialized_ = false;
 		// shadow版PSOが構築できたか、inlineRT非対応環境では作れないので分けて持つ
 		bool shadowedAvailable_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ
-		std::array<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>,
-			kGraphicsFrameContextCount> constantBuffers_{};
+		std::array<std::vector<std::unique_ptr<DxConstBuffer<LightingConstants>>>, kGraphicsFrameContextCount>
+			constantBuffers_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> constantBufferIndices_{};
 		std::array<uint64_t, kGraphicsFrameContextCount> constantBufferFrameSerials_{};
 
@@ -104,12 +115,15 @@ namespace Engine {
 		PipelineBindingCache::SlotID emissiveSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID flagsSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID constantsSlot_ = PipelineBindingCache::kInvalidSlot;
+		std::array<PipelineBindingCache::SlotID, 4> shadowMapSlots_{};
 
 		// ライトバッファをレジストリから自動バインドする
 		RegistryAutoBindTable registryAutoBindTable_{};
 
 		// skyboxのcubemapから作る拡散IBL用の放射照度cubemap
 		SkyboxIrradianceMap irradianceMap_{};
+		const RenderPipelineDeps& deps_;
+		DirectionalShadowMapRenderer directionalShadows_;
 
 		//--------- functions ----------------------------------------------------
 
@@ -118,6 +132,7 @@ namespace Engine {
 		// フレーム内で再利用する定数バッファを確保する
 		DxConstBuffer<LightingConstants>& AllocateConstantBuffer(GraphicsCore& graphicsCore);
 		// GBufferのSRVを対応スロットへバインドする
-		void BindGBufferSRV(ID3D12GraphicsCommandList* commandList, PipelineBindingCache::SlotID slot, RenderTexture2D* texture);
+		void BindGBufferSRV(
+			ID3D12GraphicsCommandList* commandList, PipelineBindingCache::SlotID slot, RenderTexture2D* texture);
 	};
 } // Engine

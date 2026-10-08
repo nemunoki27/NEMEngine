@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
+#include "MaterialParameterLookup.h"
 #include <Engine/Core/Rendering/Materials/MaterialParameterBufferBuilder.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
@@ -16,52 +18,23 @@
 //============================================================================
 namespace {
 
-	size_t HashCombine(size_t seed, size_t value) {
-
-		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
-	}
-
+	// TextureのIDと用途と名前で値を探す
 	const Engine::MaterialParameterValue* FindTextureParameter(
 		const Engine::MaterialParameterSet& parameters,
 		const Engine::ShaderResourceBinding& resource,
 		const Engine::MaterialParameterSet* defaults = nullptr) {
 
-		if (const Engine::MaterialParameterValue* value =
-			parameters.Find(resource.parameterID)) {
-
-			return value;
-		}
-		if (resource.semantic != Engine::MaterialParameterSemantic::None) {
-			if (const Engine::MaterialParameterValue* value =
-				parameters.Find(resource.semantic)) {
-
-				return value;
-			}
-		}
-		if (const Engine::MaterialParameterValue* value =
-			parameters.FindByName(resource.name)) {
-
-			return value;
-		}
-		if (!defaults) {
-			return nullptr;
-		}
-		for (const Engine::MaterialParameterRecord& parameter :
-			defaults->GetRecords()) {
-
-			if (parameter.id == resource.parameterID) {
-				return parameters.FindByName(parameter.namedValue.first);
-			}
-		}
-		return nullptr;
+		return Engine::MaterialParameterLookup::Find(parameters, resource.parameterID, resource.semantic, resource.name, defaults);
 	}
 }
 
 size_t Engine::MaterialParameterBinder::CacheKeyHasher::operator()(const CacheKey& key) const noexcept {
 
+	// Pipelineと値と描画先でCacheのHashを作る
 	size_t result = std::hash<uint64_t>{}(key.pipelineID);
-	result = HashCombine(result, std::hash<uint64_t>{}(key.materialHash));
-	result = HashCombine(result, std::hash<uint64_t>{}(key.instanceHash));
+	result = Algorithm::MixHash(result, std::hash<uint64_t>{}(key.materialHash));
+	result = Algorithm::MixHash(result, std::hash<uint64_t>{}(key.instanceHash));
+	result = Algorithm::MixHash(result, std::hash<AssetID>{}(key.renderTextureTarget));
 	return result;
 }
 
@@ -70,7 +43,7 @@ void Engine::MaterialParameterBinder::BeginFrame() {
 	allocator_.BeginFrame();
 	++frameIndex_;
 
-	// ECS移動などで参照されなくなったアドレスのキャッシュを定期的に破棄する
+	// 使用されなくなった解決結果を定期的に破棄する
 	constexpr uint64_t kCacheRetainFrames = 300;
 	if (frameIndex_ % kCacheRetainFrames == 0) {
 
@@ -82,7 +55,9 @@ void Engine::MaterialParameterBinder::BeginFrame() {
 
 void Engine::MaterialParameterBinder::Release() {
 
+	// 転送資源を回収へ渡す
 	allocator_.Release();
+	// CPUの解決結果を解除する
 	layoutCache_.clear();
 	bindingCache_.clear();
 }
@@ -93,6 +68,7 @@ const Engine::MaterialParameterLayout& Engine::MaterialParameterBinder::ResolveL
 	auto found = layoutCache_.find(pipeline.GetUniqueID());
 	if (found == layoutCache_.end()) {
 
+		// Pipelineの不変reflectionから配置を構築する
 		MaterialParameterLayout layout{};
 		layout.Build(pipeline.GetGraphicsReflection(), MaterialParameterCBuffer::kSurface);
 		found = layoutCache_.emplace(pipeline.GetUniqueID(), std::move(layout)).first;
@@ -104,75 +80,59 @@ Engine::MaterialParameterBinder::CachedBindingData& Engine::MaterialParameterBin
 	const PipelineState& pipeline, const MaterialAsset& material,
 	const MaterialParameterSet* overrides) {
 
-	// 内容ハッシュをキーにしてEntityが異なっても同じMaterial Instanceを共有する
+	// 内容Hashと描画対象で解決結果を共有する
+	const bool referencesTarget = MaterialParameterLookup::ReferencesAsset(material.parameters, renderTextureTarget_) ||
+		(overrides && MaterialParameterLookup::ReferencesAsset(*overrides, renderTextureTarget_));
 	const CacheKey key{
 		.pipelineID = pipeline.GetUniqueID(),
 		.materialHash = material.parameters.GetContentHash(),
 		.instanceHash = overrides ? overrides->GetContentHash() : 0,
+		.renderTextureTarget = referencesTarget ? renderTextureTarget_ : AssetID{},
 	};
 	CachedBindingData& cache = bindingCache_[key];
 	cache.lastUsedFrame = frameIndex_;
 	return cache;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
-	const PipelineState& pipeline, const MaterialAsset& material,
-	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
+D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(
+	GraphicsResourceRetirement& retirement, ID3D12Device* device, const PipelineState& pipeline,
+	const MaterialAsset& material, const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
-	const MaterialParameterLayout& layout = ResolveLayout(pipeline);
-	if (!layout.IsValid()) {
-		return 0;
-	}
-
-	CachedBindingData& cache = ResolveCacheEntry(pipeline, material, nullptr);
-	if (!cache.parametersValid && cache.packedFrame != frameIndex_) {
-
-		cache.packedParameters.resize((std::max)(layout.GetSizeInBytes(), 16u));
-		bool textureValuesCacheable = true;
-		if (!MaterialParameterBufferBuilder::BuildInto(cache.packedParameters,
-			material, layout, resolveTexture, &textureValuesCacheable)) {
-			cache.packedParameters.clear();
-			return 0;
-		}
-		cache.parametersValid = textureValuesCacheable;
-		cache.packedFrame = frameIndex_;
-	}
-	if (cache.packedParameters.empty()) {
-		return 0;
-	}
-	if (cache.uploadedFrame == frameIndex_ && cache.gpuAddress != 0) {
-		return cache.gpuAddress;
-	}
-
-	const PostProcessConstantBufferAllocation allocation =
-		allocator_.AllocateAndUploadBytes(device, cache.packedParameters);
-	cache.uploadedFrame = frameIndex_;
-	cache.gpuAddress = allocation.gpuAddress;
-	return cache.gpuAddress;
+	return ResolveAndUploadParameters(retirement, device, pipeline, material, nullptr, resolveTexture);
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D12Device* device,
-	const PipelineState& pipeline, const MaterialAsset& material,
-	const MaterialParameterSet& overrides,
+D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(
+	GraphicsResourceRetirement& retirement, ID3D12Device* device, const PipelineState& pipeline,
+	const MaterialAsset& material, const MaterialParameterSet& overrides,
 	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
-	if (overrides.empty()) {
-		return ResolveAndUpload(device, pipeline, material, resolveTexture);
-	}
+	// 空の上書きは既定値だけのCacheへ揃える
+	return ResolveAndUploadParameters(retirement, device, pipeline, material,
+		overrides.empty() ? nullptr : &overrides, resolveTexture);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUploadParameters(
+	GraphicsResourceRetirement& retirement, ID3D12Device* device, const PipelineState& pipeline,
+	const MaterialAsset& material, const MaterialParameterSet* overrides,
+	const MaterialParameterBufferBuilder::TextureResolver& resolveTexture) {
 
 	const MaterialParameterLayout& layout = ResolveLayout(pipeline);
 	if (!layout.IsValid()) {
 		return 0;
 	}
 
-	CachedBindingData& cache = ResolveCacheEntry(pipeline, material, &overrides);
+	CachedBindingData& cache = ResolveCacheEntry(pipeline, material, overrides);
 	if (!cache.parametersValid && cache.packedFrame != frameIndex_) {
 
 		cache.packedParameters.resize((std::max)(layout.GetSizeInBytes(), 16u));
 		bool textureValuesCacheable = true;
-		if (!MaterialParameterBufferBuilder::BuildElementInto(
-			cache.packedParameters, material.parameters, overrides,
-			layout, resolveTexture, &textureValuesCacheable)) {
+		// Textureの一時代替値は次のframeで再解決する
+		bool built = overrides ?
+			MaterialParameterBufferBuilder::BuildElementInto(cache.packedParameters, material.parameters, *overrides,
+				layout, resolveTexture, &textureValuesCacheable) :
+			MaterialParameterBufferBuilder::BuildInto(cache.packedParameters, material, layout,
+				resolveTexture, &textureValuesCacheable);
+		if (!built) {
 			cache.packedParameters.clear();
 			return 0;
 		}
@@ -182,12 +142,14 @@ D3D12_GPU_VIRTUAL_ADDRESS Engine::MaterialParameterBinder::ResolveAndUpload(ID3D
 	if (cache.packedParameters.empty()) {
 		return 0;
 	}
+	// 同じframeの転送先を再利用する
 	if (cache.uploadedFrame == frameIndex_ && cache.gpuAddress != 0) {
 		return cache.gpuAddress;
 	}
 
-	const PostProcessConstantBufferAllocation allocation =
-		allocator_.AllocateAndUploadBytes(device, cache.packedParameters);
+	// 未転送の値を新しい領域へ書き込む
+	const FrameConstantBufferAllocation allocation =
+		allocator_.AllocateAndUploadBytes(retirement, device, cache.packedParameters);
 	cache.uploadedFrame = frameIndex_;
 	cache.gpuAddress = allocation.gpuAddress;
 	return cache.gpuAddress;
@@ -204,6 +166,7 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 	}
 
 	cache.textures.clear();
+	// Material用のTextureとRootBindingを対応付ける
 	for (const ShaderResourceBinding& resource : pipeline.GetGraphicsReflection().resources) {
 
 		if (resource.kind != ShaderBindingKind::SRV || resource.space != 2 ||
@@ -218,6 +181,7 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 
 		AssetID textureID{};
 		bool textureOverridden = false;
+		// 明示した空Textureも上書きとして使う
 		if (overrides) {
 			if (const MaterialParameterValue* value =
 				FindTextureParameter(*overrides, resource,
@@ -244,4 +208,18 @@ Engine::MaterialParameterBinder::ResolveTextures(const PipelineState& pipeline,
 	}
 	cache.texturesValid = true;
 	return cache.textures;
+}
+
+void Engine::MaterialParameterBinder::SetTextureRevision(uint64_t revision, AssetID renderTextureTarget) {
+
+	renderTextureTarget_ = renderTextureTarget;
+
+	if (textureRevision_ == revision) return;
+	textureRevision_ = revision;
+	// 旧drawの転送先を保持し、次のdrawで新しい番号を詰める
+	for (auto& [key, cache] : bindingCache_) {
+		cache.parametersValid = false;
+		cache.packedFrame = UINT64_MAX;
+		cache.uploadedFrame = UINT64_MAX;
+	}
 }

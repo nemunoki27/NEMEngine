@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Editor/Core/Layout/EditorLayoutTypes.h>
+#include "EditorStoredLayout.h"
 
 // c++
 #include <filesystem>
@@ -53,14 +53,6 @@ namespace Engine {
 		//	private Methods
 		//============================================================================
 
-		//--------- structure ----------------------------------------------------
-
-		struct StoredLayout {
-
-			EditorLayoutSnapshot layout;
-			bool imported = false;
-		};
-
 		//--------- variables ----------------------------------------------------
 
 		std::filesystem::path engineCatalogPath_;
@@ -68,18 +60,12 @@ namespace Engine {
 		std::filesystem::path sessionPath_;
 		std::string engineDefaultLayoutID_ = "engine.default";
 		std::string activeLayoutID_;
-		std::vector<StoredLayout> engineLayouts_;
-		std::vector<StoredLayout> userLayouts_;
+		std::vector<EditorStoredLayout> engineLayouts_;
+		std::vector<EditorStoredLayout> userLayouts_;
 		std::vector<EditorLayoutMenuEntry> menuEntries_;
 
 		//--------- functions ----------------------------------------------------
 
-		// レイアウトカタログを読み込む
-		void LoadCatalog(const std::filesystem::path& path, bool imported,
-			std::vector<StoredLayout>& outLayouts, std::string* outDefaultLayoutID = nullptr);
-		// レイアウトカタログを保存
-		void SaveCatalog(const std::filesystem::path& path, const std::vector<StoredLayout>& layouts,
-			const std::string* defaultLayoutID = nullptr) const;
 		// レイアウト一覧を再構築
 		void RebuildMenuEntries();
 		// 保存名を検証

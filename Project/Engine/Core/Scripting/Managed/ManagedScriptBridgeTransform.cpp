@@ -24,7 +24,7 @@ namespace Engine {
 
 		// LateUpdate前でも現在のlocal値と継承設定から正しいワールド座標を返す
 		ResolvedWorldTransform worldTransform{};
-		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform) ?
+		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform, true) ?
 			ToManagedVector3(worldTransform.matrix.GetTranslationValue()) : ManagedVector3{};
 	}
 
@@ -35,12 +35,7 @@ namespace Engine {
 			return;
 		}
 
-		// 予約直後でまだmaterializeしていないEntityはTransformが無いためstagingしflushで付与後に適用する
-		if (world->GetCommandBuffer().StageCreatePosition(resolved, ToVector3(value))) {
-			return;
-		}
-
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}
@@ -58,7 +53,7 @@ namespace Engine {
 			return {};
 		}
 
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		// 親からの相対座標をそのまま返す
 		return transform ? ToManagedVector3(transform->localPos) : ManagedVector3{};
 	}
@@ -70,11 +65,7 @@ namespace Engine {
 			return;
 		}
 
-		if (world->GetCommandBuffer().StageCreatePosition(resolved, ToVector3(value))) {
-			return;
-		}
-
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}
@@ -91,7 +82,7 @@ namespace Engine {
 			return ManagedVector3{ 1.0f, 1.0f, 1.0f };
 		}
 
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		// 親からの相対スケールを返す、デフォルトは等倍の1.0
 		return transform ? ToManagedVector3(transform->localScale) : ManagedVector3{ 1.0f, 1.0f, 1.0f };
 	}
@@ -103,11 +94,7 @@ namespace Engine {
 			return;
 		}
 
-		if (world->GetCommandBuffer().StageCreateScale(resolved, ToVector3(value))) {
-			return;
-		}
-
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}
@@ -124,7 +111,7 @@ namespace Engine {
 			return {};
 		}
 
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		// 親からの相対回転をクォータニオンで返す
 		return transform ? ToManagedQuaternion(transform->localRotation) : ManagedQuaternion{};
 	}
@@ -136,11 +123,7 @@ namespace Engine {
 			return;
 		}
 
-		if (world->GetCommandBuffer().StageCreateRotation(resolved, Quaternion::Normalize(ToQuaternion(value)))) {
-			return;
-		}
-
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}
@@ -158,7 +141,7 @@ namespace Engine {
 		}
 		// LateUpdate前でも現在のlocal値と継承設定から正しいワールド回転を返す
 		ResolvedWorldTransform worldTransform{};
-		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform) ?
+		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform, true) ?
 			ToManagedQuaternion(worldTransform.rotation) : ManagedQuaternion{};
 	}
 
@@ -168,17 +151,14 @@ namespace Engine {
 		if (!world) {
 			return;
 		}
-		if (world->GetCommandBuffer().StageCreateRotation(resolved, Quaternion::Normalize(ToQuaternion(value)))) {
-			return;
-		}
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}
 
 		// 継承設定を反映した親回転で打ち消してワールド回転をlocalへ変換する
 		ResolvedWorldTransform parentFollow{};
-		if (!TransformWorldUtility::ResolveParentFollowTransform(*world, resolved, parentFollow)) {
+		if (!TransformWorldUtility::ResolveParentFollowTransform(*world, resolved, parentFollow, true)) {
 			return;
 		}
 		transform->localRotation = Quaternion::Normalize(
@@ -193,7 +173,7 @@ namespace Engine {
 			return ManagedVector3{ 1.0f, 1.0f, 1.0f };
 		}
 		ResolvedWorldTransform worldTransform{};
-		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform) ?
+		return TransformWorldUtility::ResolveWorldTransform(*world, resolved, worldTransform, true) ?
 			ToManagedVector3(worldTransform.scale) : ManagedVector3{ 1.0f, 1.0f, 1.0f };
 	}
 
@@ -203,7 +183,7 @@ namespace Engine {
 		if (!world) {
 			return 0;
 		}
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		return (transform && transform->ignoreParentRotation) ? 1 : 0;
 	}
 
@@ -213,7 +193,7 @@ namespace Engine {
 		if (!world) {
 			return;
 		}
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}
@@ -227,7 +207,7 @@ namespace Engine {
 		if (!world) {
 			return 0;
 		}
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		return (transform && transform->ignoreParentScale) ? 1 : 0;
 	}
 
@@ -237,7 +217,7 @@ namespace Engine {
 		if (!world) {
 			return;
 		}
-		TransformComponent* transform = world->TryGetComponent<TransformComponent>(resolved);
+		TransformComponent* transform = world->TryGetComponentForBinding<TransformComponent>(resolved);
 		if (!transform) {
 			return;
 		}

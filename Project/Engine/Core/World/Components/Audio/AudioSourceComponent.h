@@ -6,6 +6,7 @@
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/World/ECS/Storage/ECSStorage.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Audio/AudioSpatialState.h>
 
 // c++
 #include <cstdint>
@@ -101,6 +102,12 @@ namespace Engine {
 		bool loop = false;
 		// 音量
 		float volume = 1.0f;
+		float pitch = 1.0f;
+		// 0は2D、1は3D
+		float spatialBlend = 0.0f;
+		float minDistance = 1.0f;
+		float maxDistance = 500.0f;
+		AudioRolloffMode rolloffMode = AudioRolloffMode::Logarithmic;
 
 		// Registryから呼ばれるRuntime状態のライフサイクル
 		static void OnAdded(

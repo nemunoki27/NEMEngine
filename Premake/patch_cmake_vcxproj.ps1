@@ -4,6 +4,7 @@ param(
 )
 
 $build = [IO.Path]::GetFullPath($BuildRoot)
+$buildXML = [Security.SecurityElement]::Escape($build)
 $encoding = New-Object System.Text.UTF8Encoding($false)
 
 Get-ChildItem -LiteralPath $build -Recurse -Filter *.vcxproj | ForEach-Object {
@@ -15,21 +16,21 @@ Get-ChildItem -LiteralPath $build -Recurse -Filter *.vcxproj | ForEach-Object {
         '<IntDir([^>]*)>\$\(Platform\)\\\$\(Configuration\)\\\$\(ProjectName\)\\</IntDir>',
         {
             param($match)
-            '<IntDir' + $match.Groups[1].Value + '>' + $build + '\Intermediate\$(ProjectName)\$(Configuration)\</IntDir>'
+            '<IntDir' + $match.Groups[1].Value + '>' + $buildXML + '\Intermediate\$(ProjectName)\$(Configuration)\</IntDir>'
         })
 
     # 2. Add OutDir for ZERO_CHECK (CMake standard boilerplate) if missing
     if ($_.Name -eq 'ZERO_CHECK.vcxproj' -and $updated -notmatch '<OutDir Condition=') {
         $outDirs =
-            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''Debug|x64''">' + $build + '\Output\$(ProjectName)\Debug\</OutDir>' + "`r`n" +
-            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''Release|x64''">' + $build + '\Output\$(ProjectName)\Release\</OutDir>' + "`r`n" +
-            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''MinSizeRel|x64''">' + $build + '\Output\$(ProjectName)\MinSizeRel\</OutDir>' + "`r`n" +
-            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''RelWithDebInfo|x64''">' + $build + '\Output\$(ProjectName)\RelWithDebInfo\</OutDir>' + "`r`n"
+            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''Debug|x64''">' + $buildXML + '\Output\$(ProjectName)\Debug\</OutDir>' + "`r`n" +
+            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''Release|x64''">' + $buildXML + '\Output\$(ProjectName)\Release\</OutDir>' + "`r`n" +
+            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''MinSizeRel|x64''">' + $buildXML + '\Output\$(ProjectName)\MinSizeRel\</OutDir>' + "`r`n" +
+            '    <OutDir Condition="''$(Configuration)|$(Platform)''==''RelWithDebInfo|x64''">' + $buildXML + '\Output\$(ProjectName)\RelWithDebInfo\</OutDir>' + "`r`n"
 
         $updated = [regex]::Replace(
             $updated,
             '(<_ProjectFileVersion>[^<]+</_ProjectFileVersion>\s*)',
-            '$1' + $outDirs,
+            { param($match) $match.Groups[1].Value + $outDirs },
             1)
     }
 

@@ -20,6 +20,8 @@
 
 namespace Engine {
 
+	class GraphicsResourceRetirement;
+
 	//============================================================================
 	//	PipelineState structures
 	//============================================================================
@@ -105,25 +107,34 @@ namespace Engine {
 	//	パイプラインステートオブジェクトの生成に必要な情報を保持するクラス
 	//============================================================================
 	class PipelineState {
+		friend class PipelineStateBuilder;
 	public:
 		//============================================================================
 		//	public Methods
 		//============================================================================
 
 		PipelineState() = default;
-		~PipelineState() = default;
+		~PipelineState();
 
-		// パイプラインステートオブジェクトの生成
-		bool CreateGraphics(ID3D12Device8* device, DxShaderCompiler* compiler, const GraphicsPipelineDesc& desc);
-		bool CreateCompute(ID3D12Device8* device, DxShaderCompiler* compiler, const ComputePipelineDesc& desc);
-		// Asset側の安定IDと表示情報をReflectionへ適用する
-		void ApplyShaderMetadata(const ShaderAsset& asset);
+		PipelineState(const PipelineState&) = delete;
+		PipelineState& operator=(const PipelineState&) = delete;
+
+		// GPU完了までRoot Signatureと全PSOを回収窓口へ保持する
+		void RetireGPUObjects(GraphicsResourceRetirement& retirement) const;
+
+		// GPU使用後の回収先を設定する
+		void SetRetirementQueue(GraphicsResourceRetirement& retirement);
 
 		//--------- accessor -----------------------------------------------------
 
 		// ルート引数の配置情報の取得
 		const RootBindingLocation* FindBinding(ShaderBindingKind kind, UINT bindPoint, UINT space = 0) const;
 		const RootBindingLocation* FindBindingByName(const std::string_view& name, ShaderBindingKind kind) const;
+		// SM6.0互換ShaderへグローバルDescriptor Heapの先頭を渡す
+		void BindGlobalDescriptorTablesGraphics(ID3D12GraphicsCommandList* commandList,
+			D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const;
+		void BindGlobalDescriptorTablesCompute(ID3D12GraphicsCommandList* commandList,
+			D3D12_GPU_DESCRIPTOR_HANDLE heapStart) const;
 
 		// ルートシグネイチャとパイプラインステートオブジェクトの取得
 		ID3D12RootSignature* GetRootSignature() const { return rootSignature_.Get(); }
@@ -154,23 +165,15 @@ namespace Engine {
 			UINT bindPoint = 0;
 			UINT space = 0;
 
-			bool operator==(const BindingRegisterKey& rhs) const noexcept {
-				return kind == rhs.kind && bindPoint == rhs.bindPoint && space == rhs.space;
-			}
+			bool operator==(const BindingRegisterKey& rhs) const noexcept;
 		};
 		struct BindingRegisterKeyHash {
-			size_t operator()(const BindingRegisterKey& key) const noexcept {
-				size_t h1 = std::hash<uint32_t>{}(static_cast<uint32_t>(key.kind));
-				size_t h2 = std::hash<UINT>{}(key.bindPoint);
-				size_t h3 = std::hash<UINT>{}(key.space);
-				size_t result = h1;
-				result ^= h2 + 0x9e3779b9 + (result << 6) + (result >> 2);
-				result ^= h3 + 0x9e3779b9 + (result << 6) + (result >> 2);
-				return result;
-			}
+			size_t operator()(const BindingRegisterKey& key) const noexcept;
 		};
 
 		//--------- variables ----------------------------------------------------
+
+		GraphicsResourceRetirement* retirement_ = nullptr;
 
 		// ルートバインドの種類の数
 		static constexpr size_t kBindingKindCount = static_cast<size_t>(ShaderBindingKind::AccelStruct) + 1;
@@ -210,4 +213,3 @@ namespace Engine {
 		static uint64_t NextUniqueID();
 	};
 } // Engine
-

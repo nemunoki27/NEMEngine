@@ -42,6 +42,6 @@ uint main(VSOutput input) : SV_Target0 {
 	const float4 outputColor = textureColor * color;
 	const float alpha = ResolveScreenSpaceOutlineAlpha(
 		textureColor, outputColor, gMaskConstants.alphaSource);
-	clip(alpha - (0.5f / 255.0f));
+	clip(alpha - gMaskConstants.alphaThreshold);
 	return gMaskConstants.styleID;
 }

@@ -134,6 +134,8 @@ void Engine::from_json(const nlohmann::json& in, ScreenSpaceOutlineComponent& co
 				"[ScreenSpaceOutline] uiOcclusionMode '{}'は未対応のためRespectRenderOrderを使用します", text);
 		}
 	}
+	component.alphaThreshold = std::clamp(
+		in.value("alphaThreshold", component.alphaThreshold), 0.0f, 1.0f);
 }
 
 void Engine::to_json(nlohmann::json& out, const ScreenSpaceOutlineComponent& component) {
@@ -145,6 +147,7 @@ void Engine::to_json(nlohmann::json& out, const ScreenSpaceOutlineComponent& com
 	out["visibilityMode"] = EnumAdapter<ScreenSpaceOutlineVisibilityMode>::ToString(component.visibilityMode);
 	out["regionMode"] = EnumAdapter<ScreenSpaceOutlineRegionMode>::ToString(component.regionMode);
 	out["alphaSource"] = EnumAdapter<ScreenSpaceOutlineAlphaSource>::ToString(component.alphaSource);
+	out["alphaThreshold"] = std::clamp(component.alphaThreshold, 0.0f, 1.0f);
 	out["uiOcclusionMode"] =
 		EnumAdapter<ScreenSpaceOutlineUIOcclusionMode>::ToString(component.uiOcclusionMode);
 }

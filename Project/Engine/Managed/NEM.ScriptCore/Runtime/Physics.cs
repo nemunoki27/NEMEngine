@@ -18,8 +18,8 @@ public struct Ray {
 // レイキャストのヒット結果
 public struct RaycastHit {
 
-    // ヒットしたコライダーの所有Entity
-    public Entity entity;
+    // ヒットしたコライダーの所有GameObject
+    public GameObject? gameObject;
 
     // ワールド空間のヒット点と法線
     public Vector3 point;
@@ -32,11 +32,11 @@ public struct RaycastHit {
     // Trigger形状へのヒットか
     public bool isTrigger;
 
-    public Transform transform => entity.transform;
+    public Transform? transform => gameObject?.transform;
 
     internal static RaycastHit From(NativeRaycastHit native) {
         return new RaycastHit {
-            entity = new Entity(native.entity),
+            gameObject = GameObject.FromNative(native.entity),
             point = native.point.ToVector3(),
             normal = native.normal.ToVector3(),
             distance = native.distance,
@@ -55,6 +55,14 @@ public enum RaycastTargets : uint {
     All = Colliders,
 }
 
+// Triggerを物理クエリへ含める条件
+public enum QueryTriggerInteraction : uint {
+
+    UseGlobal,
+    Ignore,
+    Collide,
+}
+
 // 物理クエリ。コライダーの3D形状に対してレイを飛ばす。
 // 判定はコライダー基準(見た目のメッシュではない)で、Transformは前フレームのLateUpdate確定値を参照する。
 public static class Physics {
@@ -62,17 +70,29 @@ public static class Physics {
     // 全レイヤーを対象にするマスク
     public const uint AllLayers = 0xFFFFFFFFu;
 
+    // UseGlobalのクエリでTriggerを対象にするか
+    public static bool queriesHitTriggers {
+        get => NativePhysicsAPI.ReadQueriesHitTriggers();
+        set => NativePhysicsAPI.WriteQueriesHitTriggers(value);
+    }
+
     // 最近ヒットの有無だけを返す
     public static bool Raycast(Vector3 origin, Vector3 direction,
-        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
-        return NativeApi.RaycastClosest(origin, direction, maxDistance, layerMask, (uint)targets, out _);
+        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers,
+        RaycastTargets targets = RaycastTargets.All,
+        QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal) {
+        return NativePhysicsAPI.RaycastClosest(origin, direction, maxDistance,
+            layerMask, (uint)targets, queryTriggerInteraction, out _);
     }
 
     // 最近ヒットを取得する、ヒット無しはfalse
     public static bool Raycast(Vector3 origin, Vector3 direction, out RaycastHit hit,
-        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
+        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers,
+        RaycastTargets targets = RaycastTargets.All,
+        QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal) {
 
-        if (NativeApi.RaycastClosest(origin, direction, maxDistance, layerMask, (uint)targets, out NativeRaycastHit native)) {
+        if (NativePhysicsAPI.RaycastClosest(origin, direction, maxDistance,
+            layerMask, (uint)targets, queryTriggerInteraction, out NativeRaycastHit native)) {
             hit = RaycastHit.From(native);
             return true;
         }
@@ -81,33 +101,42 @@ public static class Physics {
     }
 
     public static bool Raycast(Ray ray, out RaycastHit hit,
-        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
-        return Raycast(ray.origin, ray.direction, out hit, maxDistance, layerMask, targets);
+        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers,
+        RaycastTargets targets = RaycastTargets.All,
+        QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal) {
+        return Raycast(ray.origin, ray.direction, out hit, maxDistance,
+            layerMask, targets, queryTriggerInteraction);
     }
 
     // 2点間の線分でレイキャストする
     public static bool Linecast(Vector3 start, Vector3 end, out RaycastHit hit,
-        uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
+        uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All,
+        QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal) {
 
         Vector3 delta = end - start;
-        float length = Vector3.Length(delta);
+        float length = Vector3.Magnitude(delta);
         if (length <= 0.0001f) {
             hit = default;
             return false;
         }
-        return Raycast(start, delta * (1.0f / length), out hit, length, layerMask, targets);
+        return Raycast(start, delta * (1.0f / length), out hit, length,
+            layerMask, targets, queryTriggerInteraction);
     }
 
     // 全ヒットを距離昇順で返す
     public static RaycastHit[] RaycastAll(Vector3 origin, Vector3 direction,
-        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
+        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers,
+        RaycastTargets targets = RaycastTargets.All,
+        QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal) {
 
         // 総数がbufferを超えた場合だけ広げて取り直す
         var buffer = new NativeRaycastHit[64];
-        int total = NativeApi.RaycastMany(origin, direction, maxDistance, layerMask, (uint)targets, buffer);
+        int total = NativePhysicsAPI.RaycastMany(origin, direction, maxDistance,
+            layerMask, (uint)targets, queryTriggerInteraction, buffer);
         if (buffer.Length < total) {
             buffer = new NativeRaycastHit[total];
-            total = NativeApi.RaycastMany(origin, direction, maxDistance, layerMask, (uint)targets, buffer);
+            total = NativePhysicsAPI.RaycastMany(origin, direction, maxDistance,
+                layerMask, (uint)targets, queryTriggerInteraction, buffer);
         }
 
         int count = total < buffer.Length ? total : buffer.Length;
@@ -119,8 +148,11 @@ public static class Physics {
     }
 
     public static RaycastHit[] RaycastAll(Ray ray,
-        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers, RaycastTargets targets = RaycastTargets.All) {
-        return RaycastAll(ray.origin, ray.direction, maxDistance, layerMask, targets);
+        float maxDistance = float.PositiveInfinity, uint layerMask = AllLayers,
+        RaycastTargets targets = RaycastTargets.All,
+        QueryTriggerInteraction queryTriggerInteraction = QueryTriggerInteraction.UseGlobal) {
+        return RaycastAll(ray.origin, ray.direction, maxDistance,
+            layerMask, targets, queryTriggerInteraction);
     }
 
     // Collisionタイプ名からレイヤーマスクを作る。未登録の名前は無視される
@@ -128,7 +160,7 @@ public static class Physics {
 
         uint mask = 0;
         foreach (string name in typeNames) {
-            mask |= NativeApi.ReadCollisionTypeMask(name);
+            mask |= NativePhysicsAPI.ReadCollisionTypeMask(name);
         }
         return mask;
     }

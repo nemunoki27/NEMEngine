@@ -92,7 +92,7 @@ void Engine::MeshRendererComponent::SerializeECS(
 	const ECSWorld& world, const Entity& entity,
 	const MeshRendererComponent& component, nlohmann::json& out) {
 
-	SerializeMeshRenderer(component, GetMeshSubMeshes(world, entity), out);
+	SerializeMeshRenderer(component, world.TryGetBufferForBinding<SubMeshMaterial>(entity).GetSpan(), out);
 }
 
 void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMaterial) {
@@ -101,6 +101,7 @@ void Engine::from_json(const nlohmann::json& in, SubMeshMaterial& subMeshMateria
 	const std::string stableID = in.value("stableID", "");
 	subMeshMaterial.stableID = stableID.empty() ? UUID{} : FromString16Hex(stableID);
 	subMeshMaterial.sourceSubMeshIndex = in.value("sourceSubMeshIndex", 0u);
+	subMeshMaterial.visible = in.value("visible", true);
 	subMeshMaterial.material = ParseAssetID(in, "material");
 	subMeshMaterial.surfaceMode = EnumAdapter<MaterialSurfaceMode>::FromString(
 		in.value("surfaceMode", "Auto")).value_or(MaterialSurfaceMode::Auto);
@@ -128,6 +129,7 @@ void Engine::to_json(nlohmann::json& out, const SubMeshMaterial& subMeshMaterial
 	out["name"] = subMeshMaterial.name;
 	out["stableID"] = subMeshMaterial.stableID ? ToString(subMeshMaterial.stableID) : "";
 	out["sourceSubMeshIndex"] = subMeshMaterial.sourceSubMeshIndex;
+	out["visible"] = subMeshMaterial.visible;
 	out["material"] = ToAssetReferenceJson(subMeshMaterial.material);
 	out["surfaceMode"] = EnumAdapter<MaterialSurfaceMode>::ToString(
 		subMeshMaterial.surfaceMode);
@@ -213,18 +215,8 @@ bool Engine::SetMeshSubMesh(ECSWorld& world, const Entity& entity,
 void Engine::SetMeshSubMeshes(ECSWorld& world, const Entity& entity,
 	std::span<const SubMeshMaterial> subMeshes) {
 
-	DynamicBuffer<SubMeshMaterial> buffer =
-		world.TryGetBuffer<SubMeshMaterial>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<SubMeshMaterial>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(subMeshes.size()));
-	for (const SubMeshMaterial& subMesh : subMeshes) {
-		buffer.Add(subMesh);
-	}
-	// Buffer要素の変更は構造変更を伴わないため明示的に通知する
-	world.MarkComponentModified<SubMeshMaterial>(entity);
+	// 自身のSubMesh列を渡した場合も変更前の値を保持する
+	world.SetBuffer<SubMeshMaterial>(entity, subMeshes);
 }
 
 void Engine::SerializeMeshRenderer(
@@ -260,4 +252,30 @@ Engine::Matrix4x4 Engine::MeshSubMeshRuntime::BuildRenderLocalMatrix(const SubMe
 	Matrix4x4 invPivot = Matrix4x4::MakeTranslateMatrix(Vector3(
 		-subMesh.sourcePivot.x, -subMesh.sourcePivot.y, -subMesh.sourcePivot.z));
 	return invPivot * BuildLocalMatrix(subMesh) * pivot;
+}
+
+//============================================================================
+//	MeshRendererComponent classMethods
+//============================================================================
+
+namespace Engine {
+
+	MeshRenderFlags operator|(MeshRenderFlags lhs, MeshRenderFlags rhs) {
+
+		return static_cast<MeshRenderFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+	}
+
+	bool HasMeshRenderFlag(MeshRenderFlags flags, MeshRenderFlags target) {
+
+		return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(target)) != 0;
+	}
+
+	void SetMeshRenderFlag(MeshRenderFlags& flags, MeshRenderFlags target, bool enabled) {
+
+		if (enabled) {
+			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) | static_cast<uint32_t>(target));
+		} else {
+			flags = static_cast<MeshRenderFlags>(static_cast<uint32_t>(flags) & ~static_cast<uint32_t>(target));
+		}
+	}
 }

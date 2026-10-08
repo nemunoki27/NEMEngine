@@ -19,14 +19,13 @@ namespace Engine {
 	//	AnimationCurve enum class
 	//============================================================================
 	// キー間を補間する方法
-	enum class CurveInterpolationMode :
-		uint8_t {
+	enum class CurveInterpolationMode : uint8_t {
 
 		Constant, // 次のキーまで現在値を維持する
 		Linear,   // 前後のキーを直線でつなぐ
 		Bezier,   // 手動接線を使ってつなぐ
 		Spline,   // 自動接線を使って滑らかにつなぐ
-		Squad,    // Quaternion専用でfloat channelではSpline相当として扱う
+		Squad,    // 回転専用で数値カーブではSplineとして扱う
 	};
 
 	//============================================================================
@@ -41,14 +40,14 @@ namespace Engine {
 		float value = 0.0f;
 		// 次のキーまでの補間方法
 		CurveInterpolationMode interpolation = CurveInterpolationMode::Spline;
-		// Bezier用の入出力ハンドルでtime/value空間の相対座標として扱う
+		// Bezierの接線を時間と値の相対座標で保持する
 		Vector2 inTangent = Vector2::AnyInit(0.0f);
 		Vector2 outTangent = Vector2::AnyInit(0.0f);
 	};
 	// 1つの値成分を持つカーブ
 	struct CurveChannel {
 
-		// Inspectorやチャンネル一覧に表示する名前
+		// チャンネルの表示名
 		std::string name = "Value";
 		// カーブ線とキーの表示色
 		Color4 displayColor = Color4::White();
@@ -77,6 +76,7 @@ namespace Engine {
 		CurveChannel channel;
 
 		CurveFloat();
+		// 指定時間の値を取得する
 		float Evaluate(float time) const;
 	};
 	struct CurveVector3 {
@@ -84,6 +84,7 @@ namespace Engine {
 		std::array<CurveChannel, 3> channels;
 
 		CurveVector3();
+		// 各成分の値を合成する
 		Vector3 Evaluate(float time) const;
 	};
 	struct CurveColor3 {
@@ -91,6 +92,7 @@ namespace Engine {
 		std::array<CurveChannel, 3> channels;
 
 		CurveColor3();
+		// RGBの値を合成する
 		Color3 Evaluate(float time) const;
 	};
 	struct CurveColor4 {
@@ -98,31 +100,36 @@ namespace Engine {
 		std::array<CurveChannel, 4> channels;
 
 		CurveColor4();
+		// RGBAの値を合成する
 		Color4 Evaluate(float time) const;
 	};
 	struct CurveQuaternionAxisKey {
 
-		// falseならaxesから軸を作りtrueならcustomAxisをそのまま使う
+		// 任意の回転軸を使用する
 		bool useCustomAxis = false;
 		std::vector<Axis> axes{ Axis::X };
 		Vector3 customAxis = Vector3(1.0f, 0.0f, 0.0f);
 	};
 	struct CurveQuaternion {
 
-		// channels[0]は軸キー、channels[1]は角度キーとして扱う
+		// 軸と角度のチャンネル
 		std::array<CurveChannel, 2> channels;
-		// Axisチャンネルのキーと同じ数だけ保持する軸設定
+		// 軸チャンネルのキーに対応する回転軸
 		std::vector<CurveQuaternionAxisKey> axisKeys;
 
 		CurveQuaternion();
+		// 指定時間の回転軸を取得する
 		Vector3 EvaluateAxis(float time) const;
+		// 指定時間の回転角度を取得する
 		float EvaluateAngle(float time) const;
+		// 回転軸と角度からQuaternionを作る
 		Quaternion Evaluate(float time) const;
+		// 軸設定の数をキー数へ揃える
 		void EnsureAxisKeyCount();
 	};
 
 	// 共通処理
-	// カーブ型ごとに編集対象チャンネルをspanで取得する
+	// カーブの種類に対応するチャンネルを取得する
 	std::span<CurveChannel> GetCurveChannels(CurveFloat& curve);
 	std::span<CurveChannel> GetCurveChannels(CurveVector3& curve);
 	std::span<CurveChannel> GetCurveChannels(CurveColor3& curve);

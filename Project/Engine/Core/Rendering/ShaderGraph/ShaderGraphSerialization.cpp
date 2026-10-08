@@ -1,0 +1,413 @@
+#include "ShaderGraphAsset.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
+
+// c++
+#include <limits>
+#include <utility>
+
+namespace {
+
+	using namespace Engine;
+
+	// 保存したPortと初期値を読み込む
+	void ReadPorts(const nlohmann::json& data, std::vector<ShaderGraphPort>& outPorts) {
+
+		if (!data.is_array()) {
+			return;
+		}
+		for (const nlohmann::json& item : data) {
+
+			ShaderGraphPort port{};
+			port.id = FromString16Hex(item.value("id", ""));
+			port.name = item.value("name", "");
+			port.type = EnumAdapter<ShaderGraphValueType>::FromString(item.value("type", "Float"))
+							.value_or(ShaderGraphValueType::Float);
+			if (item.contains("defaultValue")) {
+				ParseMaterialParameterValue(item["defaultValue"], port.defaultValue);
+			}
+			if (!port.id) {
+				port.id = Engine::UUID::New();
+			}
+			if (!port.name.empty()) {
+				outPorts.emplace_back(std::move(port));
+			}
+		}
+	}
+
+	// PortのIDと初期値を保存する
+	nlohmann::json WritePorts(const std::vector<ShaderGraphPort>& ports) {
+
+		nlohmann::json data = nlohmann::json::array();
+		for (const ShaderGraphPort& port : ports) {
+			data.push_back({
+				{"id", ToString(port.id)},
+				{"name", port.name},
+				{"type", EnumAdapter<ShaderGraphValueType>::ToString(port.type)},
+				{"defaultValue", SerializeMaterialParameterValue(port.defaultValue)},
+			});
+		}
+		return data;
+	}
+
+	// Samplerの保存値を読み込む
+	void ReadSampler(const nlohmann::json& data, PipelineStaticSamplerSettings& outSampler) {
+
+		if (!data.is_object()) {
+			return;
+		}
+		outSampler.filter = EnumAdapter<D3D12_FILTER>::FromString(data.value("filter", "D3D12_FILTER_MIN_MAG_MIP_LINEAR"))
+								.value_or(D3D12_FILTER_MIN_MAG_MIP_LINEAR);
+		outSampler.addressU =
+			EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::FromString(data.value("addressU", "D3D12_TEXTURE_ADDRESS_MODE_WRAP"))
+				.value_or(D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+		outSampler.addressV =
+			EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::FromString(data.value("addressV", "D3D12_TEXTURE_ADDRESS_MODE_WRAP"))
+				.value_or(D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+		outSampler.addressW =
+			EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::FromString(data.value("addressW", "D3D12_TEXTURE_ADDRESS_MODE_WRAP"))
+				.value_or(D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+		outSampler.comparisonFunc =
+			EnumAdapter<D3D12_COMPARISON_FUNC>::FromString(data.value("comparisonFunc", "D3D12_COMPARISON_FUNC_ALWAYS"))
+				.value_or(D3D12_COMPARISON_FUNC_ALWAYS);
+		outSampler.borderColor = EnumAdapter<D3D12_STATIC_BORDER_COLOR>::FromString(
+			data.value("borderColor", "D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK"))
+									 .value_or(D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
+		outSampler.maxAnisotropy = data.value("maxAnisotropy", 1u);
+		outSampler.mipLODBias = data.value("mipLODBias", 0.0f);
+		outSampler.minLOD = data.value("minLOD", 0.0f);
+		outSampler.maxLOD = data.value("maxLOD", D3D12_FLOAT32_MAX);
+	}
+
+	// Samplerの設定を保存する
+	nlohmann::json WriteSampler(const PipelineStaticSamplerSettings& sampler) {
+
+		return {
+			{"filter", EnumAdapter<D3D12_FILTER>::ToString(sampler.filter)},
+			{"addressU", EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(sampler.addressU)},
+			{"addressV", EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(sampler.addressV)},
+			{"addressW", EnumAdapter<D3D12_TEXTURE_ADDRESS_MODE>::ToString(sampler.addressW)},
+			{"comparisonFunc", EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(sampler.comparisonFunc)},
+			{"borderColor", EnumAdapter<D3D12_STATIC_BORDER_COLOR>::ToString(sampler.borderColor)},
+			{"maxAnisotropy", sampler.maxAnisotropy},
+			{"mipLODBias", sampler.mipLODBias},
+			{"minLOD", sampler.minLOD},
+			{"maxLOD", sampler.maxLOD},
+		};
+	}
+
+	// 未指定のSamplerを初期化する
+	void SetDefaultSampler(PipelineStaticSamplerSettings& sampler) {
+
+		sampler.addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		sampler.addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	}
+}
+
+bool Engine::FromJson(const nlohmann::json& data, ShaderGraphAsset& outAsset) {
+
+	if (!data.is_object()) {
+		return false;
+	}
+
+	outAsset = ShaderGraphAsset{};
+	const uint32_t schemaVersion = data.value("schemaVersion", 0u);
+	outAsset.name = data.value("name", "NewShaderGraph");
+	outAsset.domain =
+		EnumAdapter<ShaderGraphDomain>::FromString(data.value("domain", "Surface")).value_or(ShaderGraphDomain::Surface);
+	outAsset.surfaceMode = EnumAdapter<ShaderGraphSurfaceMode>::FromString(data.value("surfaceMode", "Opaque"))
+							   .value_or(ShaderGraphSurfaceMode::Opaque);
+	outAsset.target =
+		EnumAdapter<ShaderGraphTarget>::FromString(data.value("target", "Mesh")).value_or(ShaderGraphTarget::Mesh);
+	outAsset.defaultPrecision = EnumAdapter<ShaderGraphPrecision>::FromString(data.value("defaultPrecision", "Float"))
+									.value_or(ShaderGraphPrecision::Float);
+	if (data.contains("renderState") && data["renderState"].is_object()) {
+
+		const nlohmann::json& renderState = data["renderState"];
+		outAsset.renderState.twoSided = renderState.value("twoSided", false);
+		outAsset.renderState.depthWrite = renderState.value("depthWrite", true);
+		outAsset.renderState.depthTest = renderState.value("depthTest", true);
+		outAsset.renderState.alphaClipping = renderState.value("alphaClipping", false);
+		outAsset.renderState.castShadows = renderState.value("castShadows", true);
+		outAsset.renderState.receiveShadows = renderState.value("receiveShadows", true);
+		outAsset.renderState.blendMode =
+			EnumAdapter<BlendMode>::FromString(renderState.value("blendMode", "Normal")).value_or(BlendMode::Normal);
+		outAsset.renderState.fillMode =
+			EnumAdapter<D3D12_FILL_MODE>::FromString(renderState.value("fillMode", "D3D12_FILL_MODE_SOLID"))
+				.value_or(D3D12_FILL_MODE_SOLID);
+		outAsset.renderState.cullMode =
+			EnumAdapter<D3D12_CULL_MODE>::FromString(renderState.value("cullMode", "D3D12_CULL_MODE_BACK"))
+				.value_or(D3D12_CULL_MODE_BACK);
+		outAsset.renderState.frontCounterClockwise = renderState.value("frontCounterClockwise", false);
+		outAsset.renderState.depthClipEnable = renderState.value("depthClipEnable", true);
+		outAsset.renderState.depthFunc =
+			EnumAdapter<D3D12_COMPARISON_FUNC>::FromString(renderState.value("depthFunc", "D3D12_COMPARISON_FUNC_LESS_EQUAL"))
+				.value_or(D3D12_COMPARISON_FUNC_LESS_EQUAL);
+		outAsset.renderState.stencilEnable = renderState.value("stencilEnable", false);
+	}
+	outAsset.outputNode = FromString16Hex(data.value("outputNode", ""));
+	outAsset.vertexOutputNode = FromString16Hex(data.value("vertexOutputNode", ""));
+
+	if (data.contains("parameters") && data["parameters"].is_array()) {
+		for (const nlohmann::json& item : data["parameters"]) {
+
+			ShaderGraphParameter parameter{};
+			parameter.id = FromString16Hex(item.value("id", ""));
+			parameter.name = item.value("name", "");
+			parameter.type = EnumAdapter<ShaderGraphValueType>::FromString(item.value("type", "Float"))
+								 .value_or(ShaderGraphValueType::Float);
+			parameter.semantic = EnumAdapter<MaterialParameterSemantic>::FromString(item.value("semantic", "None"))
+									 .value_or(MaterialParameterSemantic::None);
+			parameter.precision = EnumAdapter<ShaderGraphPrecision>::FromString(item.value("precision", "Inherit"))
+									  .value_or(ShaderGraphPrecision::Inherit);
+			parameter.scope = EnumAdapter<ShaderGraphParameterScope>::FromString(item.value("scope", "PerMaterial"))
+								  .value_or(ShaderGraphParameterScope::PerMaterial);
+			parameter.exposed = item.value("exposed", true);
+			parameter.referenceName = item.value("referenceName", parameter.name);
+			if (item.contains("defaultValue")) {
+				ParseMaterialParameterValue(item["defaultValue"], parameter.defaultValue);
+			}
+			if (parameter.id && !parameter.name.empty()) {
+				outAsset.parameters.emplace_back(std::move(parameter));
+			}
+		}
+	}
+
+	if (data.contains("keywords") && data["keywords"].is_array()) {
+		for (const nlohmann::json& item : data["keywords"]) {
+
+			ShaderGraphKeyword keyword{};
+			keyword.id = FromString16Hex(item.value("id", ""));
+			keyword.name = item.value("name", "");
+			keyword.referenceName = item.value("referenceName", keyword.name);
+			keyword.type = EnumAdapter<ShaderGraphKeywordType>::FromString(item.value("type", "Boolean"))
+							   .value_or(ShaderGraphKeywordType::Boolean);
+			keyword.defaultIndex = item.value("defaultIndex", 0u);
+			keyword.runtimeToggle = item.value("runtimeToggle", false);
+			if (item.contains("entries") && item["entries"].is_array()) {
+				keyword.entries = item["entries"].get<std::vector<std::string>>();
+			}
+			if (keyword.id && !keyword.name.empty()) {
+				outAsset.keywords.emplace_back(std::move(keyword));
+			}
+		}
+	}
+
+	if (data.contains("nodes") && data["nodes"].is_array()) {
+		for (const nlohmann::json& item : data["nodes"]) {
+
+			ShaderGraphNode node{};
+			node.id = FromString16Hex(item.value("id", ""));
+			node.groupID = FromString16Hex(item.value("groupID", ""));
+			node.kind = EnumAdapter<ShaderGraphNodeKind>::FromString(item.value("kind", "Constant"))
+							.value_or(ShaderGraphNodeKind::Constant);
+			node.parameterID = FromString16Hex(item.value("parameterID", ""));
+			node.valueType = EnumAdapter<ShaderGraphValueType>::FromString(item.value("valueType", "Float"))
+								 .value_or(ShaderGraphValueType::Float);
+			if (item.contains("value")) {
+				ParseMaterialParameterValue(item["value"], node.value);
+			}
+			if (node.kind == ShaderGraphNodeKind::TextureSample && !std::holds_alternative<Color4>(node.value.value) &&
+				!std::holds_alternative<Vector4>(node.value.value)) {
+
+				// fallback未保存の旧グラフは未設定Textureを白として扱う
+				node.value.value = Color4::White();
+			}
+			if (node.kind == ShaderGraphNodeKind::SamplerState) {
+				SetDefaultSampler(node.sampler);
+				ReadSampler(item.value("sampler", nlohmann::json{}), node.sampler);
+			}
+			node.position = Vector2::FromJson(item.value("position", nlohmann::json{}));
+			node.stage = EnumAdapter<ShaderGraphStage>::FromString(item.value("stage", "Any")).value_or(ShaderGraphStage::Any);
+			node.precision = EnumAdapter<ShaderGraphPrecision>::FromString(item.value("precision", "Inherit"))
+								 .value_or(ShaderGraphPrecision::Inherit);
+			ReadPorts(item.value("inputPorts", nlohmann::json::array()), node.inputPorts);
+			ReadPorts(item.value("outputPorts", nlohmann::json::array()), node.outputPorts);
+			node.subGraph = ParseAssetID(item, "subGraph");
+			node.keywordID = FromString16Hex(item.value("keywordID", ""));
+			node.customFunctionSource =
+				EnumAdapter<ShaderGraphCustomFunctionSource>::FromString(item.value("customFunctionSource", "Inline"))
+					.value_or(ShaderGraphCustomFunctionSource::Inline);
+			node.functionName = item.value("functionName", "");
+			node.functionFileAsset = ParseAssetID(item, "functionFileAsset");
+			node.functionFile = item.value("functionFile", "");
+			node.functionBody = item.value("functionBody", "");
+			node.previewExpanded = item.value(
+				"previewExpanded", node.kind != ShaderGraphNodeKind::Parameter && node.kind != ShaderGraphNodeKind::Constant);
+			if (node.id) {
+				outAsset.nodes.emplace_back(std::move(node));
+			}
+		}
+	}
+
+	if (data.contains("groups") && data["groups"].is_array()) {
+		for (const nlohmann::json& item : data["groups"]) {
+
+			ShaderGraphGroup group{};
+			group.id = FromString16Hex(item.value("id", ""));
+			group.name = item.value("name", "Group");
+			group.position = Vector2::FromJson(item.value("position", nlohmann::json{}));
+			group.size = Vector2::FromJson(item.value("size", nlohmann::json{}));
+			if (group.id && 0.0f < group.size.x && 0.0f < group.size.y) {
+
+				outAsset.groups.emplace_back(std::move(group));
+			}
+		}
+	}
+	if (schemaVersion < 7 && !outAsset.groups.empty()) {
+
+		// 所属IDがないグラフは最も近い包含グループへ一度だけ移行
+		for (ShaderGraphNode& node : outAsset.nodes) {
+			if (node.groupID) {
+				continue;
+			}
+
+			const ShaderGraphGroup* nearestGroup = nullptr;
+			float nearestDistance = (std::numeric_limits<float>::max)();
+			for (const ShaderGraphGroup& group : outAsset.groups) {
+				const Vector2 maximum = group.position + group.size;
+				if (node.position.x < group.position.x || node.position.y < group.position.y || maximum.x < node.position.x ||
+					maximum.y < node.position.y) {
+
+					continue;
+				}
+
+				const Vector2 center = group.position + group.size * 0.5f;
+				const Vector2 offset = node.position - center;
+				const float distance = offset.x * offset.x + offset.y * offset.y;
+				if (distance < nearestDistance) {
+					nearestDistance = distance;
+					nearestGroup = &group;
+				}
+			}
+			if (nearestGroup) {
+				node.groupID = nearestGroup->id;
+			}
+		}
+	}
+
+	if (data.contains("links") && data["links"].is_array()) {
+		for (const nlohmann::json& item : data["links"]) {
+
+			ShaderGraphLink link{};
+			link.id = FromString16Hex(item.value("id", ""));
+			link.outputNode = FromString16Hex(item.value("outputNode", ""));
+			link.outputSlot = item.value("outputSlot", 0u);
+			link.inputNode = FromString16Hex(item.value("inputNode", ""));
+			link.inputSlot = item.value("inputSlot", 0u);
+			if (link.id && link.outputNode && link.inputNode) {
+				outAsset.links.emplace_back(std::move(link));
+			}
+		}
+	}
+	return outAsset.outputNode && !outAsset.nodes.empty();
+}
+
+nlohmann::json Engine::ToJson(const ShaderGraphAsset& asset) {
+
+	nlohmann::json data{
+		{"schemaVersion", 8},
+		{"name", asset.name},
+		{"domain", EnumAdapter<ShaderGraphDomain>::ToString(asset.domain)},
+		{"surfaceMode", EnumAdapter<ShaderGraphSurfaceMode>::ToString(asset.surfaceMode)},
+		{"target", EnumAdapter<ShaderGraphTarget>::ToString(asset.target)},
+		{"defaultPrecision", EnumAdapter<ShaderGraphPrecision>::ToString(asset.defaultPrecision)},
+		{"renderState",
+			{
+				{"twoSided", asset.renderState.twoSided},
+				{"depthWrite", asset.renderState.depthWrite},
+				{"depthTest", asset.renderState.depthTest},
+				{"alphaClipping", asset.renderState.alphaClipping},
+				{"castShadows", asset.renderState.castShadows},
+				{"receiveShadows", asset.renderState.receiveShadows},
+				{"blendMode", EnumAdapter<BlendMode>::ToString(asset.renderState.blendMode)},
+				{"fillMode", EnumAdapter<D3D12_FILL_MODE>::ToString(asset.renderState.fillMode)},
+				{"cullMode", EnumAdapter<D3D12_CULL_MODE>::ToString(asset.renderState.cullMode)},
+				{"frontCounterClockwise", asset.renderState.frontCounterClockwise},
+				{"depthClipEnable", asset.renderState.depthClipEnable},
+				{"depthFunc", EnumAdapter<D3D12_COMPARISON_FUNC>::ToString(asset.renderState.depthFunc)},
+				{"stencilEnable", asset.renderState.stencilEnable},
+			}},
+		{"outputNode", asset.outputNode ? ToString(asset.outputNode) : ""},
+		{"vertexOutputNode", asset.vertexOutputNode ? ToString(asset.vertexOutputNode) : ""},
+		{"parameters", nlohmann::json::array()},
+		{"keywords", nlohmann::json::array()},
+		{"nodes", nlohmann::json::array()},
+		{"groups", nlohmann::json::array()},
+		{"links", nlohmann::json::array()},
+	};
+
+	for (const ShaderGraphParameter& parameter : asset.parameters) {
+		data["parameters"].push_back({
+			{"id", ToString(parameter.id)},
+			{"name", parameter.name},
+			{"type", EnumAdapter<ShaderGraphValueType>::ToString(parameter.type)},
+			{"semantic", EnumAdapter<MaterialParameterSemantic>::ToString(parameter.semantic)},
+			{"defaultValue", SerializeMaterialParameterValue(parameter.defaultValue)},
+			{"precision", EnumAdapter<ShaderGraphPrecision>::ToString(parameter.precision)},
+			{"scope", EnumAdapter<ShaderGraphParameterScope>::ToString(parameter.scope)},
+			{"exposed", parameter.exposed},
+			{"referenceName", parameter.referenceName},
+		});
+	}
+	for (const ShaderGraphKeyword& keyword : asset.keywords) {
+		data["keywords"].push_back({
+			{"id", ToString(keyword.id)},
+			{"name", keyword.name},
+			{"referenceName", keyword.referenceName},
+			{"type", EnumAdapter<ShaderGraphKeywordType>::ToString(keyword.type)},
+			{"entries", keyword.entries},
+			{"defaultIndex", keyword.defaultIndex},
+			{"runtimeToggle", keyword.runtimeToggle},
+		});
+	}
+	for (const ShaderGraphNode& node : asset.nodes) {
+		nlohmann::json nodeData{
+			{"id", ToString(node.id)},
+			{"groupID", node.groupID ? ToString(node.groupID) : ""},
+			{"kind", EnumAdapter<ShaderGraphNodeKind>::ToString(node.kind)},
+			{"parameterID", node.parameterID ? ToString(node.parameterID) : ""},
+			{"valueType", EnumAdapter<ShaderGraphValueType>::ToString(node.valueType)},
+			{"value", SerializeMaterialParameterValue(node.value)},
+			{"position", node.position.ToJson()},
+			{"stage", EnumAdapter<ShaderGraphStage>::ToString(node.stage)},
+			{"precision", EnumAdapter<ShaderGraphPrecision>::ToString(node.precision)},
+			{"inputPorts", WritePorts(node.inputPorts)},
+			{"outputPorts", WritePorts(node.outputPorts)},
+			{"subGraph", ToAssetReferenceJson(node.subGraph)},
+			{"keywordID", node.keywordID ? ToString(node.keywordID) : ""},
+			{"customFunctionSource", EnumAdapter<ShaderGraphCustomFunctionSource>::ToString(node.customFunctionSource)},
+			{"functionName", node.functionName},
+			{"functionFileAsset", ToAssetReferenceJson(node.functionFileAsset)},
+			{"functionFile", node.functionFile},
+			{"functionBody", node.functionBody},
+			{"previewExpanded", node.previewExpanded},
+		};
+		if (node.kind == ShaderGraphNodeKind::SamplerState) {
+			nodeData["sampler"] = WriteSampler(node.sampler);
+		}
+		data["nodes"].push_back(std::move(nodeData));
+	}
+	for (const ShaderGraphGroup& group : asset.groups) {
+		data["groups"].push_back({
+			{"id", ToString(group.id)},
+			{"name", group.name},
+			{"position", group.position.ToJson()},
+			{"size", group.size.ToJson()},
+		});
+	}
+	for (const ShaderGraphLink& link : asset.links) {
+		data["links"].push_back({
+			{"id", ToString(link.id)},
+			{"outputNode", ToString(link.outputNode)},
+			{"outputSlot", link.outputSlot},
+			{"inputNode", ToString(link.inputNode)},
+			{"inputSlot", link.inputSlot},
+		});
+	}
+	return data;
+}

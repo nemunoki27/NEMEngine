@@ -6,12 +6,12 @@
 #include <Engine/Core/Platform/Input/InputSystem.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
-// magic_enum
-#include <magic_enum.hpp>
-// imgui
-#include <imgui.h>
 // c++
 #include <array>
+#include <string>
+
+#include <magic_enum.hpp>
+#include <imgui.h>
 
 //============================================================================
 //	InputDeviceTool helpers
@@ -43,10 +43,9 @@ namespace {
 //	InputDeviceTool classMethods
 //============================================================================
 
-void Engine::InputDeviceTool::Tick(ToolContext& context) {
+void Engine::InputDeviceTool::Tick([[maybe_unused]] ToolContext& context) {
 
 	// 入力更新自体はEngineFrameworkで毎フレーム行うためここでは何もしない
-	(void)context;
 }
 
 void Engine::InputDeviceTool::OpenEditorTool() {
@@ -54,9 +53,8 @@ void Engine::InputDeviceTool::OpenEditorTool() {
 	openWindow_ = true;
 }
 
-void Engine::InputDeviceTool::DrawEditorTool(const EditorToolContext& context) {
+void Engine::InputDeviceTool::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
 
-	(void)context;
 	if (openWindow_) {
 		DrawWindow();
 	}
@@ -84,6 +82,25 @@ void Engine::InputDeviceTool::DrawWindow() {
 		float deadZone = input->GetDeadZone();
 		if (ImGui::DragFloat("デッドゾーン", &deadZone, 100.0f, 0.0f, 32767.0f)) {
 			input->SetDeadZone(deadZone);
+		}
+
+		bool backgroundInput = input->IsBackgroundInputEnabled();
+		if (ImGui::Checkbox("バックグラウンド入力", &backgroundInput)) {
+			input->SetBackgroundInputEnabled(backgroundInput);
+		}
+		for (uint32_t playerIndex = 0; playerIndex < Input::kMaxPlayers; ++playerIndex) {
+			ImGui::PushID(static_cast<int32_t>(playerIndex));
+			ImGui::SeparatorText(("Player " + std::to_string(playerIndex)).c_str());
+			int32_t gamepadIndex = input->GetPlayerGamepadIndex(playerIndex);
+			if (ImGui::SliderInt("ゲームパッド", &gamepadIndex, -1, 3,
+				gamepadIndex < 0 ? "なし" : "%d")) {
+				input->SetPlayerGamepadIndex(playerIndex, gamepadIndex);
+			}
+			bool keyboardMouse = input->IsPlayerKeyboardMouseEnabled(playerIndex);
+			if (ImGui::Checkbox("キーボード／マウス", &keyboardMouse)) {
+				input->SetPlayerKeyboardMouseEnabled(playerIndex, keyboardMouse);
+			}
+			ImGui::PopID();
 		}
 
 		ImGui::SeparatorText("マウス範囲制御");

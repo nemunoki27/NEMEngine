@@ -27,6 +27,14 @@ namespace Engine {
 		PostScene,
 	};
 
+	// パネルの未確定編集を閉じる要求の結果
+	enum class EditorPanelCloseResult : uint8_t {
+
+		None,
+		Accepted,
+		Cancelled,
+	};
+
 	// ドラッグ&ドロップのペイロード構造体
 	struct EditorAssetDragDropPayload {
 
@@ -51,19 +59,22 @@ namespace Engine {
 
 		// 描画パネル
 		virtual void Draw(const EditorPanelContext& context) = 0;
+		// 非表示とWorld切替の前にPanelのプレビューを終了する
+		virtual void EndPreview() {}
 		// レイアウトへ保存するパネル固有状態を取得
 		virtual nlohmann::json SaveLayoutState() const { return nlohmann::json::object(); }
 		// レイアウトからパネル固有状態を復元
 		virtual void LoadLayoutState([[maybe_unused]] const nlohmann::json& state) {}
 		// 複製先へ渡すパネル固有状態を取得
-		virtual nlohmann::json MakeDuplicateState([[maybe_unused]] const EditorPanelContext& context) const {
-			return SaveLayoutState();
-		}
+		virtual nlohmann::json MakeDuplicateState([[maybe_unused]] const EditorPanelContext& context) const;
 
 		//--------- accessor -----------------------------------------------------
 
 		virtual EditorPanelPhase GetPhase() const { return EditorPanelPhase::PreScene; }
 		virtual bool CanDuplicate([[maybe_unused]] const EditorPanelContext& context) const { return false; }
+		virtual bool HasPendingEdits() const { return false; }
+		virtual void RequestResolvePendingEdits() {}
+		virtual EditorPanelCloseResult ConsumePendingEditCloseResult() { return EditorPanelCloseResult::None; }
 		const std::string& GetPanelTypeID() const { return panelTypeID_; }
 		const std::string& GetInstanceID() const { return instanceID_; }
 		bool IsPrimaryInstance() const { return primaryInstance_; }

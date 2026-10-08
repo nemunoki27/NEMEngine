@@ -60,8 +60,5 @@ namespace Engine {
 
 		// シーン構成ウィンドウを描画
 		void DrawWindow(const EditorToolContext& context);
-		// 変更を検証してロード中SubSceneへ反映
-		bool ApplyChanges(const EditorToolContext& context,
-			SceneInstance& instance, const std::vector<SubSceneSlotDesc>& previous);
 	};
 } // Engine

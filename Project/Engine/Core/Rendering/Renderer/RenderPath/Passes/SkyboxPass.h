@@ -34,9 +34,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		explicit SkyboxPass(const RenderPipelineDeps& deps) : deps_(deps) {
-			cbvSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
-		}
+		explicit SkyboxPass(const RenderPipelineDeps& deps);
 		~SkyboxPass() override = default;
 
 		RenderPathPassKind GetKind() const override { return RenderPathPassKind::Skybox; }
@@ -62,7 +60,7 @@ namespace Engine {
 
 		const RenderPipelineDeps& deps_;
 
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		bool initialized_ = false;
 
 		// 同一フレームでビューごとに複数回描いても定数が上書きされないようプールで持つ

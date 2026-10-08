@@ -10,7 +10,9 @@
 cbuffer PrimitiveMeshConstants : register(b1) {
 
 	uint indexCount;
-	uint3 _pad;
+	uint triangleOffset;
+	uint instanceOffset;
+	uint _pad;
 };
 StructuredBuffer<MeshVertex> gVertices : register(t0);
 StructuredBuffer<PrimitiveInstance> gInstances : register(t1);
@@ -30,7 +32,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 	out indices uint3 tris[PRIMITIVE_GROUP_TRIANGLES]) {
 
 	const uint totalTriangles = indexCount / 3u;
-	const uint triangleBase = groupID.x * PRIMITIVE_GROUP_TRIANGLES;
+	const uint triangleBase = triangleOffset + groupID.x * PRIMITIVE_GROUP_TRIANGLES;
 	// SetMeshOutputCountsは全パスで1回だけ呼ぶ、範囲外グループは0件にする
 	const uint triangleCount = (triangleBase < totalTriangles) ?
 		min((uint)PRIMITIVE_GROUP_TRIANGLES, totalTriangles - triangleBase) : 0u;
@@ -40,7 +42,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 		return;
 	}
 
-	PrimitiveInstance instance = gInstances[groupID.y];
+	PrimitiveInstance instance = gInstances[instanceOffset + groupID.y];
 	const uint localTriangle = groupThreadID;
 	const uint indexBase = (triangleBase + localTriangle) * 3u;
 

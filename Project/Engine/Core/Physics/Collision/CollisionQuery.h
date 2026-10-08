@@ -25,10 +25,15 @@ namespace Engine {
 		All = Colliders,
 	};
 
-	inline bool HasRaycastTarget(RaycastTargets targets, RaycastTargets target) {
+	bool HasRaycastTarget(RaycastTargets targets, RaycastTargets target);
 
-		return (static_cast<uint32_t>(targets) & static_cast<uint32_t>(target)) != 0;
-	}
+	// Triggerをクエリへ含める条件
+	enum class QueryTriggerInteraction : uint32_t {
+
+		UseGlobal,
+		Ignore,
+		Collide,
+	};
 
 	//============================================================================
 	//	CollisionQuery class
@@ -45,10 +50,12 @@ namespace Engine {
 
 		// 最近ヒットを返す、ヒット無しはfalse
 		static bool Raycast(ECSWorld& world, const Ray& ray, float maxDistance,
-			uint32_t layerMask, RaycastTargets targets, RaycastHit3D& outHit);
+			uint32_t layerMask, RaycastTargets targets,
+			QueryTriggerInteraction triggerInteraction, RaycastHit3D& outHit);
 		// 全ヒットを距離昇順で返す
 		static void RaycastAll(ECSWorld& world, const Ray& ray, float maxDistance,
-			uint32_t layerMask, RaycastTargets targets, std::vector<RaycastHit3D>& outHits);
+			uint32_t layerMask, RaycastTargets targets,
+			QueryTriggerInteraction triggerInteraction, std::vector<RaycastHit3D>& outHits);
 	private:
 		//========================================================================
 		//	private Methods
@@ -58,6 +65,6 @@ namespace Engine {
 
 		// CollisionComponentの3D形状のヒットを集める
 		static void RaycastColliders(ECSWorld& world, const Ray& ray, float maxDistance,
-			uint32_t layerMask, std::vector<RaycastHit3D>& outHits);
+			uint32_t layerMask, bool includeTriggers, std::vector<RaycastHit3D>& outHits);
 	};
 } // Engine

@@ -15,6 +15,7 @@ namespace Engine {
 	class GraphicsCore;
 	class AssetDatabase;
 	class ECSWorld;
+	struct SkyboxRendererComponent;
 
 	//============================================================================
 	//	SceneSkyboxResolver structures
@@ -47,7 +48,9 @@ namespace Engine {
 		SceneSkyboxResolver() = default;
 		~SceneSkyboxResolver() = default;
 
+		// Cameraから見える最初のSkyboxを取得する
+		static const SkyboxRendererComponent* Find(ECSWorld& world, uint32_t cullingMask);
 		// 最初に見つかった有効なskyboxのcubemapを解決する
-		static SceneSkyboxInfo Resolve(GraphicsCore& graphicsCore, AssetDatabase* assetDatabase, ECSWorld* world);
+		static SceneSkyboxInfo Resolve(GraphicsCore& graphicsCore, AssetDatabase* assetDatabase, ECSWorld* world, uint32_t cullingMask);
 	};
 } // Engine

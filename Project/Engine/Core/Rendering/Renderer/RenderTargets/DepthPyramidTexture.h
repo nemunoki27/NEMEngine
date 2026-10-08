@@ -14,7 +14,7 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class DxCommand;
 	class SRVDescriptor;
 
@@ -30,6 +30,8 @@ namespace Engine {
 
 		DepthPyramidTexture() = default;
 		~DepthPyramidTexture();
+		DepthPyramidTexture(const DepthPyramidTexture&) = delete;
+		DepthPyramidTexture& operator=(const DepthPyramidTexture&) = delete;
 
 		// サイズに合わせて全MipのSRV/UAVを生成する
 		void Create(ID3D12Device* device, SRVDescriptor* srvDescriptor,
@@ -48,26 +50,15 @@ namespace Engine {
 		uint32_t GetWidth() const { return width_; }
 		uint32_t GetHeight() const { return height_; }
 		uint32_t GetMipCount() const { return mipCount_; }
-		void MarkBuilt(uint64_t frameSerial) {
-			lastBuiltFrameSerial_ = frameSerial;
-		}
-		bool IsBuiltForFrame(uint64_t frameSerial) const {
-			return lastBuiltFrameSerial_ == frameSerial;
-		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const {
-			return srvGPUHandle_;
-		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipSRVGPUHandle(
-			uint32_t mipIndex) const {
-			return mipSRVGPUHandles_[mipIndex];
-		}
-		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipUAVGPUHandle(
-			uint32_t mipIndex) const {
-			return mipUAVGPUHandles_[mipIndex];
-		}
+		void MarkBuilt(uint64_t frameSerial) { lastBuiltFrameSerial_ = frameSerial; }
+		bool IsBuiltForFrame(uint64_t frameSerial) const { return lastBuiltFrameSerial_ == frameSerial; }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const { return srvGPUHandle_; }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipSRVGPUHandle( uint32_t mipIndex) const { return mipSRVGPUHandles_[mipIndex]; }
+		const D3D12_GPU_DESCRIPTOR_HANDLE& GetMipUAVGPUHandle( uint32_t mipIndex) const { return mipUAVGPUHandles_[mipIndex]; }
 		static constexpr std::string_view kBindingName =
 			"gOcclusionDepthPyramid";
 	private:
+		friend class RenderPathResources;
 		//============================================================================
 		//	private Methods
 		//============================================================================
@@ -92,5 +83,8 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		static uint32_t CalculateMipCount(uint32_t width, uint32_t height);
+		// 完成した資源と管理状態を交換する
+		void Swap(DepthPyramidTexture& other) noexcept;
+
 	};
-} // Engine
+}

@@ -3,7 +3,6 @@
         {
             "Components": {
                 "DirectionalLight": {
-                    "affectLayerMask": 4294967295,
                     "color": {
                         "a": 1.0,
                         "b": 1.0,
@@ -64,12 +63,15 @@
                     "name": "Camera2D"
                 },
                 "OrthographicCamera": {
+                    "renderPasses": "4e454d4153534554421a1287b7323a99",
+                    "postProcessEnabled": true,
                     "cullingMask": -1,
                     "enabled": true,
                     "farClip": 1000.0,
                     "isMain": true,
                     "nearClip": 0.0,
-                    "priority": 0
+                    "priority": 0,
+                    "colorPipeline": {}
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -108,6 +110,8 @@
                     "name": "Camera3D"
                 },
                 "PerspectiveCamera": {
+                    "renderPasses": "4e454d4153534554421a1287b7323a99",
+                    "postProcessEnabled": true,
                     "cullingMask": -1,
                     "editorFrustumScale": 0.0020000000949949026,
                     "enabled": true,
@@ -115,7 +119,8 @@
                     "fovY": 60.0,
                     "isMain": true,
                     "nearClip": 0.009999999776482582,
-                    "priority": 0
+                    "priority": 0,
+                    "colorPipeline": {}
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -147,7 +152,6 @@
     ],
     "Header": {
         "name": "Sample",
-        "renderFeatureProfile": "4e454d4153534554421a1287b7323a99",
         "subScenes": []
     },
     "PrefabInstances": [],

@@ -97,12 +97,70 @@
                     "name": "Camera2D"
                 },
                 "OrthographicCamera": {
+                    "renderPasses": "89cfa963f2f31e55de5b232ba487ee57",
+                    "postProcessEnabled": true,
                     "cullingMask": -1,
                     "enabled": true,
                     "farClip": 1000.0,
                     "isMain": true,
                     "nearClip": 0.0,
-                    "priority": 0
+                    "priority": 0,
+                    "colorPipeline": {
+                        "colorGrading": {
+                            "colorFilter": {
+                                "a": 1,
+                                "b": 1,
+                                "g": 1,
+                                "r": 1
+                            },
+                            "contrast": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "gain": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "gamma": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
+                            },
+                            "offset": {
+                                "x": 0,
+                                "y": 0,
+                                "z": 0
+                            },
+                            "saturation": {
+                                "x": 1.0000022649765015,
+                                "y": 1.0000022649765015,
+                                "z": 1.0000022649765015
+                            },
+                            "temperature": 6500,
+                            "tint": 0
+                        },
+                        "exposure": {
+                            "compensation": 0,
+                            "histogramHighPercent": 0.949999988079071,
+                            "histogramLowPercent": 0.800000011920929,
+                            "manualEV100": 0,
+                            "maxEV100": 20,
+                            "minEV100": -10,
+                            "mode": "Manual",
+                            "speedDown": 1,
+                            "speedUp": 3,
+                            "usePreExposure": true
+                        },
+                        "filmic": {
+                            "blackClip": 0,
+                            "shoulder": 0,
+                            "slope": 1,
+                            "toe": 0,
+                            "whiteClip": 0
+                        }
+                    }
                 },
                 "SceneObject": {
                     "activeSelf": true,
@@ -135,7 +193,6 @@
     ],
     "Header": {
         "name": "Stage1",
-        "renderFeatureProfile": "89cfa963f2f31e55de5b232ba487ee57",
         "subScenes": []
     },
     "PrefabInstances": [

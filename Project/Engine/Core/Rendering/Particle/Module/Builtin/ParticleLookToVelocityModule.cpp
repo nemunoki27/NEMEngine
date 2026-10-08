@@ -13,26 +13,18 @@ nlohmann::json Engine::ParticleLookToVelocityModule::ToJson() const {
 	return nlohmann::json();
 }
 
-bool Engine::ParticleLookToVelocityModule::DrawImGui() {
-#if defined(NEM_EDITOR_UI_ENABLED)
-	// 調整項目なし
-	return false;
-#else
-	return false;
-#endif
-}
-
 void Engine::ParticleLookToVelocityModule::OnSpawn(Particle& particle) {
 
-	// 進行方向から、回転を設定する
-	particle.rotation = Quaternion::LookRotation(
-		particle.velocity.Normalize(), Vector3(0.0f, 1.0f, 0.0f)).Normalize();
+	OnUpdate(particle, 0.0f);
 }
 
-void Engine::ParticleLookToVelocityModule::OnUpdate(
-	Particle& particle, [[maybe_unused]] float deltaTime) {
+void Engine::ParticleLookToVelocityModule::OnUpdate(Particle& particle, [[maybe_unused]] float deltaTime) {
 
-	// 進行方向から、回転を設定する
+	// 停止中は最後の向きを保持する
+	if (Vector3::Length(particle.velocity) <= 0.000001f) {
+		return;
+	}
+	// 進行方向から回転を設定する
 	particle.rotation = Quaternion::LookRotation(
 		particle.velocity.Normalize(), Vector3(0.0f, 1.0f, 0.0f)).Normalize();
 }

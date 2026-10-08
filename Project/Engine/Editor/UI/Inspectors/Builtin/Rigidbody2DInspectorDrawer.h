@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		Rigidbody2DInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Rigidbody 2D", "Rigidbody2D") {
-		}
+		Rigidbody2DInspectorDrawer() : SerializedComponentInspectorDrawer("Rigidbody 2D", "Rigidbody2D") {}
 		~Rigidbody2DInspectorDrawer() = default;
 	private:
 		//============================================================================

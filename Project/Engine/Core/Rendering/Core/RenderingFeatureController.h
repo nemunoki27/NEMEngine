@@ -60,9 +60,7 @@ namespace Engine {
 		// 描画側はPreferencesではなくRuntimeFeaturesを参照して最終状態だけを見る
 		bool ShouldUseFrustumCulling() const { return runtimeFeatures_.useFrustumCulling; }
 		bool ShouldUseOcclusionCulling() const { return runtimeFeatures_.useOcclusionCulling; }
-		bool ShouldUseGameViewCameraForSceneCulling() const {
-			return preferences_.useGameViewCameraForSceneCulling;
-		}
+		bool ShouldUseGameViewCameraForSceneCulling() const { return preferences_.useGameViewCameraForSceneCulling; }
 		bool ShouldUseContributionCulling() const { return runtimeFeatures_.useContributionCulling; }
 		bool ShouldUseNormalConeCulling() const { return runtimeFeatures_.useNormalConeCulling; }
 		bool ShouldBuildRaytracingScene() const { return runtimeFeatures_.UsesAnyRayTracing(); }
@@ -84,8 +82,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// ユーザー設定をサポート状況に合わせて調整する
-		void ClampPreferencesToSupport();
 		// サポート状況とユーザー設定から、ランタイムで使用する機能を決定する
 		void RebuildRuntimeFeatures();
 		// 現在の状態をログ出力する

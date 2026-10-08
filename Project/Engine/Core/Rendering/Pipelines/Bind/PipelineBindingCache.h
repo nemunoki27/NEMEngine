@@ -13,10 +13,7 @@ namespace Engine {
 
 	//============================================================================
 	//	PipelineBindingCache class
-	// パイプラインのスロット解決結果をキャッシュするクラス
-	//	AddSlot / AddSlotByRegisterでスロットを事前登録し、毎フレームSyncを
-	// 呼ぶことでパイプラインが変わった時だけFindBindingByName / FindBindingを実行する
-	// スロットIDでO(1)アクセス可能
+	// パイプラインごとのスロット解決結果を保持する
 	//============================================================================
 	class PipelineBindingCache {
 	public:
@@ -32,18 +29,18 @@ namespace Engine {
 		PipelineBindingCache() = default;
 		~PipelineBindingCache() = default;
 
-		// 名前ベースのスロットをInit時に登録し識別用IDを返す
+		// 初期化時に名前検索のスロットを登録する
 		SlotID AddSlot(std::string_view name, ShaderBindingKind kind);
 
-		// register/spaceベースのスロットをInit時に登録し識別用IDを返す
+		// 初期化時にレジスター検索のスロットを登録する
 		SlotID AddSlotByRegister(ShaderBindingKind kind, UINT bindPoint, UINT space = 0);
 
-		// パイプラインが変わった時だけ全スロットを再解決する毎フレーム呼び出し
+		// 使用するパイプラインが変わったらスロットを解決する
 		void Sync(const PipelineState& pipeline);
 
 		//--------- accessor -----------------------------------------------------
 
-		// スロットIDに対応するロケーションを取得するSync後に有効
+		// 同期済みの参照を返しパイプラインの寿命中だけ有効
 		const RootBindingLocation* Get(SlotID id) const;
 
 		// スロットが有効なロケーションを持つか
@@ -58,7 +55,7 @@ namespace Engine {
 
 		struct SlotEntry {
 
-			// 空の場合はregister/spaceで検索
+			// 空ならレジスターで検索
 			std::string name;
 			ShaderBindingKind kind;
 			UINT bindPoint = 0;
@@ -68,8 +65,9 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
+		// 初期化時に登録した検索条件と借用結果
 		std::vector<SlotEntry> slots_;
-		// 直近にSyncしたパイプラインの一意ID、ポインタ同一性だと再生成時に誤判定するためIDで持つ
+		// 再生成を区別する同期済みパイプラインのID
 		uint64_t lastPipelineID_ = 0;
 	};
 } // Engine

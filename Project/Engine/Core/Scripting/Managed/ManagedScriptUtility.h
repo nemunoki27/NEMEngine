@@ -28,6 +28,9 @@ namespace Engine {
 	ECSWorld* ResolveWorld(ManagedNativeEntity native);
 	Entity ResolveEntity(ManagedNativeEntity native);
 
+	// 診断が届かなかったcallbackの失敗を補完する
+	ManagedStatus CompleteManagedInvocation(ManagedStatus status, uint64_t reportSequence);
+
 	// 文字列のバッファコピーユーティリティ
 	int32_t CopyStringToBuffer(const std::string& str, char* buffer, int32_t capacity);
 

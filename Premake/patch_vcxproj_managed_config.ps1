@@ -104,9 +104,9 @@ $preBuildCommand = @(
     ('dotnet build "' + $scriptMetaSyncProject + '" -c "$(Configuration)"'),
     # script metadata 同期（CI は NEMScriptMetadataMode=ValidateOnly で自動採番せず error）
     'if "%NEMScriptMetadataMode%"=="" set NEMScriptMetadataMode=EditorSync',
-    ('if exist "$(ProjectDir)GameAssets" dotnet "' + $scriptMetaSyncDll + '" --root "$(ProjectDir)GameAssets" --mode "%NEMScriptMetadataMode%"'),
+    ('if exist "$(ProjectDir)GameAssets" dotnet "' + $scriptMetaSyncDll + '" --root "$(ProjectDir)GameAssets" --configuration "$(Configuration)" --mode "%NEMScriptMetadataMode%"'),
     'if errorlevel 1 exit /b 1',
-    'if exist "$(ProjectDir)Scripts\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\GameScripts.csproj" -c "$(Configuration)" --no-dependencies -p:NEMScriptMetadataMode=%NEMScriptMetadataMode%'
+    'if exist "$(ProjectDir)Scripts\GameScripts.csproj" dotnet build "$(ProjectDir)Scripts\GameScripts.csproj" -c "$(Configuration)" --no-dependencies -m:1 -nodeReuse:false -p:NEMScriptMetadataMode=%NEMScriptMetadataMode%'
 ) -join "`r`n"
 
 # Generated/ と Project/Externals/ はリポジトリルート基準で参照する。プロジェクトの階層深さ

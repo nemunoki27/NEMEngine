@@ -3,9 +3,13 @@
 //============================================================================
 //	include
 //============================================================================
+#include "ShaderGraphArtifactBuilder.h"
+#include "ShaderGraphMaterialBuilder.h"
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonFileJournal.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
@@ -13,515 +17,223 @@
 
 // c++
 #include <algorithm>
-#include <fstream>
+#include <type_traits>
+#include <utility>
 
-namespace {
-
-	bool WriteTextFile(const std::filesystem::path& path,
-		std::string_view source) {
-
-		std::error_code ec;
-		std::filesystem::create_directories(path.parent_path(), ec);
-		if (ec) {
-			return false;
-		}
-		std::ofstream stream(path,
-			std::ios::binary | std::ios::trunc);
-		if (!stream.is_open()) {
-			return false;
-		}
-		stream.write(source.data(),
-			static_cast<std::streamsize>(source.size()));
-		return stream.good();
-	}
-
-	Engine::ShaderAsset MakePixelShader(
-		std::string_view name,
-		Engine::AssetID shaderID,
-		const std::filesystem::path& path,
-		std::string_view entry,
-		const std::vector<Engine::ShaderParameterMetadata>& parameters) {
-
-		Engine::ShaderAsset shader{};
-		shader.guid = shaderID;
-		shader.name = std::string(name);
-		shader.stages.emplace_back(Engine::ShaderStageEntry{
-			.stage = Engine::ShaderStage::PS,
-			.file = Engine::Algorithm::PathToUTF8(path),
-			.entry = std::string(entry),
-			.profile = "ps_6_6",
-			});
-		shader.parameters = parameters;
-		for (const Engine::ShaderParameterMetadata& parameter : parameters) {
-			if (parameter.isColor) {
-				shader.colorParameters.emplace_back(parameter.shaderName);
-			}
-		}
-		return shader;
-	}
-
-	Engine::ShaderAsset MakeComputeShader(
-		std::string_view name,
-		Engine::AssetID shaderID,
-		const std::filesystem::path& path,
-		const std::vector<Engine::ShaderParameterMetadata>& parameters) {
-
-		Engine::ShaderAsset shader{};
-		shader.guid = shaderID;
-		shader.name = std::string(name);
-		shader.stages.emplace_back(Engine::ShaderStageEntry{
-			.stage = Engine::ShaderStage::CS,
-			.file = Engine::Algorithm::PathToUTF8(path),
-			.entry = "main",
-			.profile = "cs_6_6",
-			});
-		shader.parameters = parameters;
-		for (const Engine::ShaderParameterMetadata& parameter : parameters) {
-			if (parameter.isColor) {
-				shader.colorParameters.emplace_back(parameter.shaderName);
-			}
-		}
-		return shader;
-	}
-
-	Engine::ShaderAsset MakeRayTracingShader(
-		std::string_view name,
-		Engine::AssetID shaderID,
-		const std::filesystem::path& path,
-		const std::vector<Engine::ShaderParameterMetadata>& parameters,
-		bool renderFeature) {
-
-		Engine::ShaderAsset shader{};
-		shader.guid = shaderID;
-		shader.name = std::string(name);
-		const std::vector<const char*> entries = renderFeature ?
-			std::vector<const char*>{ "RenderFeatureRayGeneration",
-				"ReflectionMiss", "ReflectionClosestHit" } :
-			std::vector<const char*>{ "ReflectionClosestHit",
-				"ReflectionAnyHit" };
-		for (const char* entry : entries) {
-			shader.stages.emplace_back(Engine::ShaderStageEntry{
-				.stage = Engine::ShaderStage::Lib,
-				.file = Engine::Algorithm::PathToUTF8(path),
-				.entry = entry,
-				.profile = "lib_6_6",
-				});
-		}
-		shader.parameters = parameters;
-		for (const Engine::ShaderParameterMetadata& parameter : parameters) {
-			if (parameter.isColor) {
-				shader.colorParameters.emplace_back(parameter.shaderName);
-			}
-		}
-		return shader;
-	}
-
-	Engine::AssetID ResolveBasePipeline(
-		Engine::ShaderGraphTarget target, bool transparent) {
-
-		using namespace Engine;
-		switch (target) {
-		case ShaderGraphTarget::Mesh:
-			return transparent ? BuiltinAssets::Pipelines::DefaultMeshTransparent :
-				BuiltinAssets::Pipelines::DefaultMesh;
-		case ShaderGraphTarget::Primitive3D:
-			return transparent ? BuiltinAssets::Pipelines::DefaultPrimitiveTransparent :
-				BuiltinAssets::Pipelines::DefaultPrimitive;
-		case ShaderGraphTarget::Sprite:
-			return BuiltinAssets::Pipelines::DefaultSprite;
-		case ShaderGraphTarget::Text:
-			return BuiltinAssets::Pipelines::DefaultText;
-		case ShaderGraphTarget::Primitive2D:
-			return BuiltinAssets::Pipelines::DefaultPrimitive2D;
-		case ShaderGraphTarget::Particle:
-			return BuiltinAssets::Pipelines::DefaultParticle;
-		case ShaderGraphTarget::Trail:
-			return BuiltinAssets::Pipelines::ParticleTrail;
-		}
-		return {};
-	}
-
-	D3D12_STATIC_SAMPLER_DESC MakeGraphSampler(
-		const Engine::PipelineStaticSamplerSettings& settings,
-		uint32_t shaderRegister) {
-
-		D3D12_STATIC_SAMPLER_DESC sampler{};
-		sampler.Filter = settings.filter;
-		sampler.AddressU = settings.addressU;
-		sampler.AddressV = settings.addressV;
-		sampler.AddressW = settings.addressW;
-		sampler.MipLODBias = settings.mipLODBias;
-		sampler.MaxAnisotropy = (std::clamp)(settings.maxAnisotropy, 1u, 16u);
-		sampler.ComparisonFunc = settings.comparisonFunc;
-		sampler.BorderColor = settings.borderColor;
-		sampler.MinLOD = settings.minLOD;
-		sampler.MaxLOD = settings.maxLOD;
-		sampler.ShaderRegister = shaderRegister;
-		sampler.RegisterSpace = 0;
-		sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		return sampler;
-	}
-
-	bool MakeGraphPipeline(const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphCompileOutput& compileOutput,
-		Engine::AssetID graphID, bool transparent,
-		Engine::AssetDatabase* database,
-		Engine::RenderPipelineAsset& outPipeline,
-		Engine::AssetID& outPipelineID,
-		Engine::AssetID baseOverride = {},
-		uint64_t derivedDiscriminator = 0,
-		std::string_view nameSuffix = {}) {
-
-		if (!database) {
-			return false;
-		}
-		const Engine::AssetID baseID = baseOverride ? baseOverride :
-			ResolveBasePipeline(graph.target, transparent);
-		const std::filesystem::path path =
-			database->ResolveFullPath(baseID);
-		if (!baseID || path.empty() ||
-			!Engine::FromJson(Engine::JsonAdapter::Load(path, true), outPipeline)) {
-			return false;
-		}
-		const uint64_t discriminator = derivedDiscriminator != 0 ?
-			derivedDiscriminator :
-			(transparent ? 0x5452414e535f504cull :
-				0x4f50415155455f4cull) ^ static_cast<uint64_t>(graph.target);
-		outPipelineID = Engine::ShaderGraphArtifactCache::MakeDerivedID(
-			graphID, discriminator);
-		outPipeline.guid = outPipelineID;
-		outPipeline.name = graph.name +
-			(nameSuffix.empty() ?
-				(transparent ? "TransparentPipeline" : "OpaquePipeline") :
-				std::string(nameSuffix));
-		for (Engine::PipelineVariantDesc& variant : outPipeline.variants) {
-			variant.rasterizer.FillMode = graph.renderState.fillMode;
-			variant.rasterizer.CullMode = graph.renderState.twoSided ?
-				D3D12_CULL_MODE_NONE : graph.renderState.cullMode;
-			variant.rasterizer.FrontCounterClockwise =
-				graph.renderState.frontCounterClockwise;
-			variant.rasterizer.DepthClipEnable =
-				graph.renderState.depthClipEnable;
-			variant.depthStencil.DepthEnable = graph.renderState.depthTest;
-			variant.depthStencil.DepthWriteMask = graph.renderState.depthWrite ?
-				D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
-			variant.depthStencil.DepthFunc = graph.renderState.depthFunc;
-			variant.depthStencil.StencilEnable = graph.renderState.stencilEnable;
-			Engine::PipelineStaticSamplerSettings defaultSampler{};
-			defaultSampler.addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-			defaultSampler.addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-			defaultSampler.addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-			const auto addOrReplaceSampler =
-				[&variant](const D3D12_STATIC_SAMPLER_DESC& sampler) {
-					const auto found = std::find_if(
-						variant.staticSamplers.begin(),
-						variant.staticSamplers.end(),
-						[&sampler](const D3D12_STATIC_SAMPLER_DESC& current) {
-							return current.ShaderRegister == sampler.ShaderRegister &&
-								current.RegisterSpace == sampler.RegisterSpace;
-						});
-					if (found != variant.staticSamplers.end()) {
-						*found = sampler;
-					} else {
-						variant.staticSamplers.emplace_back(sampler);
-					}
-				};
-			addOrReplaceSampler(MakeGraphSampler(defaultSampler, 0));
-			for (const Engine::ShaderGraphSamplerBinding& sampler :
-				compileOutput.samplers) {
-				addOrReplaceSampler(MakeGraphSampler(
-					sampler.settings, sampler.shaderRegister));
-			}
-		}
-		return true;
-	}
-
-	bool MakeRayTracingPipeline(
-		const Engine::ShaderGraphAsset& graph,
-		const Engine::ShaderGraphCompileOutput& compileOutput,
-		Engine::AssetID graphID, Engine::AssetDatabase* database,
-		Engine::RenderPipelineAsset& outPipeline,
-		Engine::AssetID& outPipelineID) {
-
-		if (!database) {
-			return false;
-		}
-		const std::filesystem::path path = database->ResolveFullPath(
-			Engine::BuiltinAssets::Pipelines::RaytracingReflection);
-		if (path.empty() || !Engine::FromJson(
-			Engine::JsonAdapter::Load(path, true), outPipeline)) {
-
-			return false;
-		}
-		outPipelineID = Engine::ShaderGraphArtifactCache::MakeDerivedID(
-			graphID, 0x5241595452414350ull);
-		outPipeline.guid = outPipelineID;
-		outPipeline.name = graph.name + "RayTracingPipeline";
-		for (Engine::PipelineVariantDesc& variant : outPipeline.variants) {
-			if (variant.kind != Engine::PipelineVariantKind::Raytracing) {
-				continue;
-			}
-			if (graph.domain == Engine::ShaderGraphDomain::RayTracingEffect) {
-				variant.rayGenerationExports = {
-					"RenderFeatureRayGeneration" };
-			} else {
-				for (Engine::RaytracingHitGroupDesc& hitGroup :
-					variant.hitGroups) {
-
-					if (hitGroup.closestHitExport == "ReflectionClosestHit") {
-						hitGroup.anyHitExport = "ReflectionAnyHit";
-					}
-				}
-			}
-			for (const Engine::ShaderGraphSamplerBinding& sampler :
-				compileOutput.samplers) {
-
-				const D3D12_STATIC_SAMPLER_DESC graphSampler =
-					MakeGraphSampler(sampler.settings, sampler.shaderRegister);
-				const auto found = std::find_if(
-					variant.staticSamplers.begin(), variant.staticSamplers.end(),
-					[&graphSampler](const D3D12_STATIC_SAMPLER_DESC& current) {
-						return current.ShaderRegister == graphSampler.ShaderRegister &&
-							current.RegisterSpace == graphSampler.RegisterSpace;
-					});
-				if (found != variant.staticSamplers.end()) {
-					*found = graphSampler;
-				} else {
-					variant.staticSamplers.emplace_back(graphSampler);
-				}
-			}
-		}
-		return true;
-	}
-}
+using namespace Engine::ShaderGraphArtifactBuilder;
 
 //============================================================================
 //	ShaderGraphArtifactCache classMethods
 //============================================================================
-bool Engine::ShaderGraphArtifactCache::Compile(
-	const ShaderGraphAsset& graph, AssetID graphID,
-	ShaderGraphArtifact& outArtifact,
-	AssetDatabase* database) {
+bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, AssetID graphID, ShaderGraphArtifact& outArtifact,
+	AssetDatabase* database, std::vector<ShaderGraphDiagnostic>* diagnostics) {
 
-	outArtifact = ShaderGraphArtifact{};
+	// 成功するまで呼出し元の成果物を維持
+	ShaderGraphArtifact artifact;
+	if (diagnostics) {
+		diagnostics->clear();
+	}
 	if (!graphID) {
 		return false;
 	}
 
 	const std::string graphIDText = ToString(graphID);
-	const std::string targetName = graph.domain == ShaderGraphDomain::PostProcess ?
-		"PostProcess" :
-		std::string(EnumAdapter<ShaderGraphTarget>::ToString(graph.target));
-	outArtifact.root = RuntimePaths::GetLibraryPath(
-		Algorithm::PathFromUTF8(
-			"ShaderGraph/" + graphIDText + "/" + targetName));
-	outArtifact.surfacePath = outArtifact.root / "surface.generated.hlsli";
-	outArtifact.opaquePixelPath = outArtifact.root / "opaque.PS.hlsl";
-	outArtifact.transparentPixelPath = outArtifact.root / "transparent.PS.hlsl";
-	outArtifact.depthPixelPath = outArtifact.root / "depth.PS.hlsl";
-	outArtifact.pickingPixelPath = outArtifact.root / "picking.PS.hlsl";
-	outArtifact.vertexPath = outArtifact.root / "vertex.VS.hlsl";
-	outArtifact.meshPath = outArtifact.root / "mesh.MS.hlsl";
-	outArtifact.computePath = outArtifact.root / "postProcess.CS.hlsl";
-	outArtifact.rayTracingPath = outArtifact.root / "rayTracing.RT.hlsl";
-
-	const ShaderGraphAssetResolver resolver =
-		[database](AssetID assetID, ShaderGraphAsset& outGraph) {
-			if (!database) {
-				return false;
-			}
-			const std::filesystem::path path =
-				database->ResolveFullPath(assetID);
-			return !path.empty() &&
-				FromJson(JsonAdapter::Load(path, true), outGraph);
+	const std::string targetName = graph.domain == ShaderGraphDomain::PostProcess
+									   ? "PostProcess"
+									   : std::string(EnumAdapter<ShaderGraphTarget>::ToString(graph.target));
+	artifact.root = RuntimePaths::GetLibraryPath(Algorithm::PathFromUTF8("ShaderGraph/" + graphIDText + "/" + targetName));
+	artifact.surfacePath = artifact.root / "surface.generated.hlsli";
+	artifact.opaquePixelPath = artifact.root / "opaque.PS.hlsl";
+	artifact.transparentPixelPath = artifact.root / "transparent.PS.hlsl";
+	artifact.depthPixelPath = artifact.root / "depth.PS.hlsl";
+	artifact.pickingPixelPath = artifact.root / "picking.PS.hlsl";
+	artifact.outlinePixelPath = artifact.root / "outline.PS.hlsl";
+	artifact.vertexPath = artifact.root / "vertex.VS.hlsl";
+	artifact.meshPath = artifact.root / "mesh.MS.hlsl";
+	artifact.computePath = artifact.root / "postProcess.CS.hlsl";
+	artifact.rayTracingPath = artifact.root / "rayTracing.RT.hlsl";
+	std::vector<JsonFileChange> sources;
+	const auto queueSource = [&](const std::filesystem::path& path, const std::string& source) {
+		JsonFileChange change;
+		change.path = path;
+		change.bytes = source;
+		sources.emplace_back(std::move(change));
+	};
+	const auto publishArtifact = [&] {
+		const JsonFileJournal::Scope scope{
+			.recoveryRoot = artifact.root / "Recovery",
+			.isWritable = [root = artifact.root](
+							  const std::filesystem::path& path) { return StorageFileUtility::IsInside(path, root); },
 		};
+		std::string error;
+		const auto recover = [&](const std::filesystem::path& directory, std::string& diagnostic) {
+			return JsonFileJournal::Recover(scope, directory, diagnostic, {});
+		};
+		// 前回中断した生成ソースを復旧してから保存する
+		if (!JsonFileJournal::RecoverPending(scope, error)) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderGraph] 中断した成果物を復旧できません graph={} 詳細={}",
+				ToString(graphID), error);
+			return false;
+		}
+		// 全Passの構成と保存が揃ってから結果を公開
+		if (!JsonFileJournal::Commit(scope, sources, "ShaderGraph成果物生成", error, recover)) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderGraph] 成果物を保存できません graph={} 詳細={}",
+				ToString(graphID), error);
+			return false;
+		}
+		static_assert(std::is_nothrow_move_assignable_v<ShaderGraphArtifact>);
+		outArtifact = std::move(artifact);
+		return true;
+	};
+
+	// SubGraphと外部関数の参照を解決する
+	const ShaderGraphAssetResolver resolver = [database](AssetID assetID, ShaderGraphAsset& outGraph) {
+		if (!database) {
+			return false;
+		}
+		const std::filesystem::path path = database->ResolveFullPath(assetID);
+		return !path.empty() && FromJson(JsonAdapter::Load(path, true), outGraph);
+	};
 	ShaderGraphAsset resolvedGraph = graph;
 	if (database) {
 		for (ShaderGraphNode& node : resolvedGraph.nodes) {
-			if (node.customFunctionSource !=
-				ShaderGraphCustomFunctionSource::File ||
-				!node.functionFileAsset) {
+			if (node.customFunctionSource != ShaderGraphCustomFunctionSource::File || !node.functionFileAsset) {
 
 				continue;
 			}
-			const std::filesystem::path functionPath =
-				database->ResolveFullPath(node.functionFileAsset);
-			node.functionFile = Algorithm::PathToUTF8(
-				functionPath.lexically_normal());
-			std::replace(node.functionFile.begin(),
-				node.functionFile.end(), '\\', '/');
+			const std::filesystem::path functionPath = database->ResolveFullPath(node.functionFileAsset);
+			node.functionFile = Algorithm::PathToUTF8(functionPath.lexically_normal());
+			std::replace(node.functionFile.begin(), node.functionFile.end(), '\\', '/');
 		}
 	}
-	outArtifact.compileOutput = ShaderGraphCompiler::Compile(
-		resolvedGraph,
-		Algorithm::PathToUTF8(outArtifact.surfacePath.filename()),
-		resolver);
-	if (!outArtifact.compileOutput.Succeeded()) {
-		for (const ShaderGraphDiagnostic& diagnostic :
-			outArtifact.compileOutput.diagnostics) {
+	// Graphを解析してShaderソースを作る
+	artifact.compileOutput =
+		ShaderGraphCompiler::Compile(resolvedGraph, Algorithm::PathToUTF8(artifact.surfacePath.filename()), resolver);
+	if (diagnostics) {
+		*diagnostics = artifact.compileOutput.diagnostics;
+	}
+	if (!artifact.compileOutput.Succeeded()) {
+		for (const ShaderGraphDiagnostic& diagnostic : artifact.compileOutput.diagnostics) {
 
-			Logger::Output(LogType::Engine, spdlog::level::err,
-				"[ShaderGraph] graph={} node={} stage={} 内容={}",
-				ToString(graphID), ToString(diagnostic.node),
-				EnumAdapter<ShaderGraphStage>::ToString(diagnostic.stage),
+			Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderGraph] graph={} node={} stage={} 内容={}",
+				ToString(graphID), ToString(diagnostic.node), EnumAdapter<ShaderGraphStage>::ToString(diagnostic.stage),
 				diagnostic.message);
 		}
 		return false;
 	}
+	// PostProcessの構成を作る
 	if (graph.domain == ShaderGraphDomain::PostProcess) {
-		if (!WriteTextFile(outArtifact.computePath,
-			outArtifact.compileOutput.computeHLSL)) {
+		queueSource(artifact.computePath, artifact.compileOutput.computeHLSL);
+		artifact.computeShaderID = MakeDerivedID(graphID, 0x504f535450524f43ull);
+		artifact.computeShader = MakeComputeShader(
+			graph.name + "Compute", artifact.computeShaderID, artifact.computePath, artifact.compileOutput.parameters);
+		if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.computePipeline,
+				artifact.computePipelineID, BuiltinAssets::Pipelines::PostProcessMaskComposite, 0x504f535450495045ull,
+				"ComputePipeline")) {
 			return false;
 		}
-		outArtifact.computeShaderID = MakeDerivedID(
-			graphID, 0x504f535450524f43ull);
-		outArtifact.computeShader = MakeComputeShader(
-			graph.name + "Compute", outArtifact.computeShaderID,
-			outArtifact.computePath,
-			outArtifact.compileOutput.parameters);
-		MakeGraphPipeline(graph, outArtifact.compileOutput,
-			graphID, false, database,
-			outArtifact.computePipeline,
-			outArtifact.computePipelineID,
-			BuiltinAssets::Pipelines::PostProcessMaskComposite,
-			0x504f535450495045ull, "ComputePipeline");
-		Logger::Output(LogType::Engine,
-			"[ShaderGraph] コンパイル完了 graph={} target=PostProcess shader={}",
-			ToString(graphID), ToString(outArtifact.computeShaderID));
+		if (!publishArtifact()) {
+			return false;
+		}
+		Logger::Output(LogType::Engine, "[ShaderGraph] コンパイル完了 graph={} target=PostProcess shader={}", ToString(graphID),
+			ToString(outArtifact.computeShaderID));
 		return true;
 	}
+	// RayTracingの構成を作る
 	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
-		if (outArtifact.compileOutput.rayTracingHLSL.empty() ||
-			!WriteTextFile(outArtifact.rayTracingPath,
-				outArtifact.compileOutput.rayTracingHLSL)) {
+		if (artifact.compileOutput.rayTracingHLSL.empty()) {
 
 			return false;
 		}
-		outArtifact.rayTracingShaderID = MakeDerivedID(
-			graphID, 0x5241594645415455ull);
-		outArtifact.rayTracingShader = MakeRayTracingShader(
-			graph.name + "RayTracingFeature",
-			outArtifact.rayTracingShaderID,
-			outArtifact.rayTracingPath,
-			outArtifact.compileOutput.parameters, true);
-		if (!MakeRayTracingPipeline(graph, outArtifact.compileOutput,
-			graphID, database, outArtifact.rayTracingPipeline,
-			outArtifact.rayTracingPipelineID)) {
+		queueSource(artifact.rayTracingPath, artifact.compileOutput.rayTracingHLSL);
+		artifact.rayTracingShaderID = MakeDerivedID(graphID, 0x5241594645415455ull);
+		artifact.rayTracingShader = MakeRayTracingShader(graph.name + "RayTracingFeature", artifact.rayTracingShaderID,
+			artifact.rayTracingPath, artifact.compileOutput.parameters, true);
+		if (!MakeRayTracingPipeline(
+				graph, artifact.compileOutput, graphID, database, artifact.rayTracingPipeline, artifact.rayTracingPipelineID)) {
 
 			return false;
 		}
-		Logger::Output(LogType::Engine,
-			"[ShaderGraph] コンパイル完了 graph={} target=RayTracingFeature shader={}",
+		if (!publishArtifact()) {
+			return false;
+		}
+		Logger::Output(LogType::Engine, "[ShaderGraph] コンパイル完了 graph={} target=RayTracingFeature shader={}",
 			ToString(graphID), ToString(outArtifact.rayTracingShaderID));
 		return true;
 	}
-	if (!WriteTextFile(outArtifact.surfacePath,
-		outArtifact.compileOutput.surfaceHLSL) ||
-		!WriteTextFile(outArtifact.opaquePixelPath,
-			outArtifact.compileOutput.opaquePixelHLSL) ||
-		!WriteTextFile(outArtifact.transparentPixelPath,
-			outArtifact.compileOutput.transparentPixelHLSL)) {
-
-		return false;
+	// 描画PassのShaderソースを保存する
+	queueSource(artifact.surfacePath, artifact.compileOutput.surfaceHLSL);
+	queueSource(artifact.opaquePixelPath, artifact.compileOutput.opaquePixelHLSL);
+	queueSource(artifact.transparentPixelPath, artifact.compileOutput.transparentPixelHLSL);
+	if (!artifact.compileOutput.outlinePixelHLSL.empty()) {
+		queueSource(artifact.outlinePixelPath, artifact.compileOutput.outlinePixelHLSL);
+		artifact.outlineShaderID = MakeDerivedID(graphID, 0x4f55544c494e4550ull ^ static_cast<uint64_t>(graph.target));
+		artifact.outlineShader = MakePixelShader(graph.name + "Outline", artifact.outlineShaderID, artifact.outlinePixelPath,
+			"main", artifact.compileOutput.parameters);
 	}
-	if (!outArtifact.compileOutput.rayTracingHLSL.empty()) {
-		if (!WriteTextFile(outArtifact.rayTracingPath,
-			outArtifact.compileOutput.rayTracingHLSL)) {
-
-			return false;
-		}
-		outArtifact.rayTracingShaderID = MakeDerivedID(
-			graphID, 0x5241595452414345ull ^
-				static_cast<uint64_t>(graph.target));
-		outArtifact.rayTracingShader = MakeRayTracingShader(
-			graph.name + "RayTracing", outArtifact.rayTracingShaderID,
-			outArtifact.rayTracingPath,
-			outArtifact.compileOutput.parameters, false);
-		if (!MakeRayTracingPipeline(graph, outArtifact.compileOutput,
-			graphID, database, outArtifact.rayTracingPipeline,
-			outArtifact.rayTracingPipelineID)) {
+	if (!artifact.compileOutput.rayTracingHLSL.empty()) {
+		queueSource(artifact.rayTracingPath, artifact.compileOutput.rayTracingHLSL);
+		artifact.rayTracingShaderID = MakeDerivedID(graphID, 0x5241595452414345ull ^ static_cast<uint64_t>(graph.target));
+		artifact.rayTracingShader = MakeRayTracingShader(graph.name + "RayTracing", artifact.rayTracingShaderID,
+			artifact.rayTracingPath, artifact.compileOutput.parameters, false);
+		if (!MakeRayTracingPipeline(
+				graph, artifact.compileOutput, graphID, database, artifact.rayTracingPipeline, artifact.rayTracingPipelineID)) {
 
 			return false;
 		}
 	}
 
-	outArtifact.opaqueShaderID = MakeDerivedID(
-		graphID, 0x4f50415155455f50ull ^
-			static_cast<uint64_t>(graph.target));
-	outArtifact.transparentShaderID = MakeDerivedID(
-		graphID, 0x5452414e535f5053ull ^
-			static_cast<uint64_t>(graph.target));
-	outArtifact.opaqueShader = MakePixelShader(
-		graph.name + "Opaque", outArtifact.opaqueShaderID,
-		outArtifact.opaquePixelPath, "main",
-		outArtifact.compileOutput.parameters);
-	outArtifact.transparentShader = MakePixelShader(
-		graph.name + "Transparent", outArtifact.transparentShaderID,
-		outArtifact.transparentPixelPath,
-		IsShaderGraph3DTarget(graph.target) ? "mainTransparent" : "main",
-		outArtifact.compileOutput.parameters);
-	const bool hasVertexGraph =
-		!outArtifact.compileOutput.vertexHLSL.empty();
-	const bool hasMeshGraph =
-		!outArtifact.compileOutput.meshHLSL.empty();
-	if (hasVertexGraph &&
-		(!WriteTextFile(outArtifact.vertexPath,
-			outArtifact.compileOutput.vertexHLSL) ||
-		 (hasMeshGraph &&
-			!WriteTextFile(outArtifact.meshPath,
-				outArtifact.compileOutput.meshHLSL)))) {
-
-		return false;
+	// 不透明と透明のShaderを構成する
+	artifact.opaqueShaderID = MakeDerivedID(graphID, 0x4f50415155455f50ull ^ static_cast<uint64_t>(graph.target));
+	artifact.transparentShaderID = MakeDerivedID(graphID, 0x5452414e535f5053ull ^ static_cast<uint64_t>(graph.target));
+	artifact.opaqueShader = MakePixelShader(
+		graph.name + "Opaque", artifact.opaqueShaderID, artifact.opaquePixelPath, "main", artifact.compileOutput.parameters);
+	artifact.transparentShader =
+		MakePixelShader(graph.name + "Transparent", artifact.transparentShaderID, artifact.transparentPixelPath,
+			IsShaderGraph3DTarget(graph.target) ? "mainTransparent" : "main", artifact.compileOutput.parameters);
+	// 頂点変形のShader段階を追加する
+	const bool hasVertexGraph = !artifact.compileOutput.vertexHLSL.empty();
+	const bool hasMeshGraph = !artifact.compileOutput.meshHLSL.empty();
+	if (hasVertexGraph) {
+		queueSource(artifact.vertexPath, artifact.compileOutput.vertexHLSL);
+		if (hasMeshGraph) {
+			queueSource(artifact.meshPath, artifact.compileOutput.meshHLSL);
+		}
 	}
-	const auto appendGeneratedGeometryStages =
-		[&](ShaderAsset& shader) {
-
+	const auto appendGeneratedGeometryStages = [&](ShaderAsset& shader) {
 		shader.stages.emplace_back(ShaderStageEntry{
 			.stage = ShaderStage::VS,
-			.file = Algorithm::PathToUTF8(
-				outArtifact.vertexPath),
+			.file = Algorithm::PathToUTF8(artifact.vertexPath),
 			.entry = "main",
 			.profile = "vs_6_6",
 		});
 		if (hasMeshGraph) {
 			shader.stages.emplace_back(ShaderStageEntry{
 				.stage = ShaderStage::MS,
-				.file = Algorithm::PathToUTF8(
-					outArtifact.meshPath),
+				.file = Algorithm::PathToUTF8(artifact.meshPath),
 				.entry = "main",
 				.profile = "ms_6_6",
 			});
 		}
 	};
+	// Meshの深度と選択Shaderを構成する
 	if (graph.target == ShaderGraphTarget::Mesh) {
-		if (!WriteTextFile(outArtifact.depthPixelPath,
-			outArtifact.compileOutput.depthPixelHLSL) ||
-			!WriteTextFile(outArtifact.pickingPixelPath,
-				outArtifact.compileOutput.pickingPixelHLSL)) {
+		queueSource(artifact.depthPixelPath, artifact.compileOutput.depthPixelHLSL);
+		queueSource(artifact.pickingPixelPath, artifact.compileOutput.pickingPixelHLSL);
+		artifact.depthShaderID = MakeDerivedID(graphID, 0x44455054485f5053ull);
+		artifact.pickingShaderID = MakeDerivedID(graphID, 0x5049434b494e4750ull);
+		artifact.depthShader = MakePixelShader(
+			graph.name + "Depth", artifact.depthShaderID, artifact.depthPixelPath, "main", artifact.compileOutput.parameters);
+		artifact.pickingShader = MakePixelShader(graph.name + "Picking", artifact.pickingShaderID, artifact.pickingPixelPath,
+			"main", artifact.compileOutput.parameters);
 
-			return false;
-		}
-		outArtifact.depthShaderID = MakeDerivedID(
-			graphID, 0x44455054485f5053ull);
-		outArtifact.pickingShaderID = MakeDerivedID(
-			graphID, 0x5049434b494e4750ull);
-		outArtifact.depthShader = MakePixelShader(
-			graph.name + "Depth", outArtifact.depthShaderID,
-			outArtifact.depthPixelPath, "main",
-			outArtifact.compileOutput.parameters);
-		outArtifact.pickingShader = MakePixelShader(
-			graph.name + "Picking", outArtifact.pickingShaderID,
-			outArtifact.pickingPixelPath, "main",
-			outArtifact.compileOutput.parameters);
-
-		const std::filesystem::path vertexPath = hasVertexGraph ?
-			outArtifact.vertexPath : RuntimePaths::GetEngineAssetPath(
-				"Shaders/Builtin/Mesh/Common/meshGeometry.VS.hlsl");
-		const std::filesystem::path meshPath = hasVertexGraph ?
-			outArtifact.meshPath : RuntimePaths::GetEngineAssetPath(
-				"Shaders/Builtin/Mesh/Common/meshGeometry.MS.hlsl");
+		const std::filesystem::path vertexPath =
+			hasVertexGraph ? artifact.vertexPath
+						   : RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Mesh/Common/meshGeometry.VS.hlsl");
+		const std::filesystem::path meshPath =
+			hasVertexGraph ? artifact.meshPath
+						   : RuntimePaths::GetEngineAssetPath("Shaders/Builtin/Mesh/Common/meshGeometry.MS.hlsl");
 		const auto appendGeometryStages = [&](ShaderAsset& shader) {
-
 			shader.stages.emplace_back(ShaderStageEntry{
 				.stage = ShaderStage::VS,
 				.file = Algorithm::PathToUTF8(vertexPath),
@@ -535,12 +247,12 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 				.profile = "ms_6_6",
 			});
 		};
-		// Alpha Clip評価にはUV等が必要なため、深度専用Geometryを通常Geometryへ差し替える
-		appendGeometryStages(outArtifact.depthShader);
+		// 切り抜き用のUVを通常Geometryから渡す
+		appendGeometryStages(artifact.depthShader);
 		if (hasVertexGraph) {
-			appendGeometryStages(outArtifact.opaqueShader);
-			appendGeometryStages(outArtifact.transparentShader);
-			outArtifact.pickingShader.stages.emplace_back(ShaderStageEntry{
+			appendGeometryStages(artifact.opaqueShader);
+			appendGeometryStages(artifact.transparentShader);
+			artifact.pickingShader.stages.emplace_back(ShaderStageEntry{
 				.stage = ShaderStage::VS,
 				.file = Algorithm::PathToUTF8(vertexPath),
 				.entry = "main",
@@ -548,243 +260,76 @@ bool Engine::ShaderGraphArtifactCache::Compile(
 			});
 		}
 	} else if (hasVertexGraph &&
-		(graph.target == ShaderGraphTarget::Primitive3D ||
-		 graph.target == ShaderGraphTarget::Primitive2D)) {
+			   (graph.target == ShaderGraphTarget::Primitive3D || graph.target == ShaderGraphTarget::Primitive2D)) {
 
-		appendGeneratedGeometryStages(outArtifact.opaqueShader);
-		appendGeneratedGeometryStages(outArtifact.transparentShader);
+		appendGeneratedGeometryStages(artifact.opaqueShader);
+		appendGeneratedGeometryStages(artifact.transparentShader);
+		if (artifact.outlineShaderID) {
+			appendGeneratedGeometryStages(artifact.outlineShader);
+		}
 	}
-	MakeGraphPipeline(graph, outArtifact.compileOutput,
-		graphID, false, database,
-		outArtifact.opaquePipeline, outArtifact.opaquePipelineID);
-	MakeGraphPipeline(graph, outArtifact.compileOutput,
-		graphID, true, database,
-		outArtifact.transparentPipeline, outArtifact.transparentPipelineID);
+	// 全描画PassのPipelineが揃わなければ公開しない
+	if (!MakeGraphPipeline(
+			graph, artifact.compileOutput, graphID, false, database, artifact.opaquePipeline, artifact.opaquePipelineID) ||
+		!MakeGraphPipeline(graph, artifact.compileOutput, graphID, true, database, artifact.transparentPipeline,
+			artifact.transparentPipelineID)) {
+		return false;
+	}
+	if (artifact.outlineShaderID) {
+		const AssetID basePipeline = graph.target == ShaderGraphTarget::Sprite
+										 ? BuiltinAssets::Pipelines::SpriteOutlineMask
+										 : BuiltinAssets::Pipelines::Primitive2DOutlineMask;
+		if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.outlinePipeline,
+				artifact.outlinePipelineID, basePipeline, 0x4f55544c494e4551ull, "OutlinePipeline")) {
+
+			return false;
+		}
+	}
+	// Meshの深度と選択Shaderを構成する
 	if (graph.target == ShaderGraphTarget::Mesh) {
-		MakeGraphPipeline(graph, outArtifact.compileOutput,
-			graphID, false, database,
-			outArtifact.depthPipeline, outArtifact.depthPipelineID,
-			BuiltinAssets::Pipelines::DefaultMeshZPrepass,
-			0x44455054485f504cull, "DepthPipeline");
-		MakeGraphPipeline(graph, outArtifact.compileOutput,
-			graphID, false, database,
-			outArtifact.pickingPipeline, outArtifact.pickingPipelineID,
-			BuiltinAssets::Pipelines::DefaultMeshEditorPicking,
-			0x5049434b494e4750ull, "PickingPipeline");
+		if (!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.depthPipeline,
+				artifact.depthPipelineID, BuiltinAssets::Pipelines::DefaultMeshZPrepass, 0x44455054485f504cull,
+				"DepthPipeline") ||
+			!MakeGraphPipeline(graph, artifact.compileOutput, graphID, false, database, artifact.pickingPipeline,
+				artifact.pickingPipelineID, BuiltinAssets::Pipelines::DefaultMeshEditorPicking, 0x5049434b494e4750ull,
+				"PickingPipeline")) {
+			return false;
+		}
 	}
-	Logger::Output(LogType::Engine,
-		"[ShaderGraph] コンパイル完了 graph={} target={} opaqueShader={} transparentShader={}",
-		ToString(graphID), EnumAdapter<ShaderGraphTarget>::ToString(graph.target),
-		ToString(outArtifact.opaqueShaderID),
+	if (!publishArtifact()) {
+		return false;
+	}
+	Logger::Output(LogType::Engine, "[ShaderGraph] コンパイル完了 graph={} target={} opaqueShader={} transparentShader={}",
+		ToString(graphID), EnumAdapter<ShaderGraphTarget>::ToString(graph.target), ToString(outArtifact.opaqueShaderID),
 		ToString(outArtifact.transparentShaderID));
 	return true;
 }
 
-Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(
-	const ShaderGraphAsset& graph, AssetID graphID) {
+Engine::MaterialAsset Engine::ShaderGraphArtifactCache::CreateMaterial(const ShaderGraphAsset& graph, AssetID graphID) {
 
-	MaterialAsset material{};
-	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
-		material.name = graph.name.empty() ?
-			"NewRayTracingFeatureMaterial" : graph.name;
-		material.domain = MaterialDomain::RayTracing;
-		material.usage = MaterialUsage::Generic;
-		material.passes.emplace_back(MaterialPassBinding{
-			.passKind = MaterialPassKind::RayTracing,
-			.pipeline = BuiltinAssets::Pipelines::RaytracingReflection,
-			.preferredVariant = PipelineVariantKind::Raytracing,
-		});
-	} else if (graph.domain == ShaderGraphDomain::PostProcess) {
-		material.name = graph.name.empty() ?
-			"NewPostProcessMaterial" : graph.name;
-		material.domain = MaterialDomain::Compute;
-		material.usage = MaterialUsage::Generic;
-		material.passes.emplace_back(MaterialPassBinding{
-			.passKind = MaterialPassKind::PostProcess,
-			.pipeline = BuiltinAssets::Pipelines::PostProcessMaskComposite,
-			.preferredVariant = PipelineVariantKind::Compute,
-			});
-	} else if (graph.target == ShaderGraphTarget::Mesh) {
-		material = CreateDefaultMeshMaterialAsset(graph.name);
-	} else {
-		material.name = graph.name.empty() ?
-			"NewMaterial" : graph.name;
-		material.domain =
-			graph.target == ShaderGraphTarget::Sprite ||
-			graph.target == ShaderGraphTarget::Text ||
-			graph.target == ShaderGraphTarget::Primitive2D ?
-			MaterialDomain::UI : MaterialDomain::Surface;
-		material.usage =
-			graph.target == ShaderGraphTarget::Sprite ? MaterialUsage::Sprite :
-			(graph.target == ShaderGraphTarget::Text ? MaterialUsage::Text :
-				((graph.target == ShaderGraphTarget::Particle ||
-					graph.target == ShaderGraphTarget::Trail) ?
-					MaterialUsage::Particle : MaterialUsage::Generic));
-
-		const auto addPass = [&](MaterialPassKind passKind,
-			AssetID pipeline, PipelineVariantKind variant) {
-
-			material.passes.emplace_back(MaterialPassBinding{
-				.passKind = passKind,
-				.pipeline = pipeline,
-				.preferredVariant = variant,
-				});
-		};
-		switch (graph.target) {
-		case ShaderGraphTarget::Primitive3D:
-			addPass(MaterialPassKind::Draw,
-				BuiltinAssets::Pipelines::DefaultPrimitive,
-				PipelineVariantKind::GraphicsMesh);
-			addPass(MaterialPassKind::Transparent,
-				BuiltinAssets::Pipelines::DefaultPrimitiveTransparent,
-				PipelineVariantKind::GraphicsMesh);
-			break;
-		case ShaderGraphTarget::Sprite:
-			addPass(MaterialPassKind::Draw,
-				BuiltinAssets::Pipelines::DefaultSprite,
-				PipelineVariantKind::GraphicsVertex);
-			break;
-		case ShaderGraphTarget::Text:
-			addPass(MaterialPassKind::Draw,
-				BuiltinAssets::Pipelines::DefaultText,
-				PipelineVariantKind::GraphicsVertex);
-			break;
-		case ShaderGraphTarget::Primitive2D:
-			addPass(MaterialPassKind::Draw,
-				BuiltinAssets::Pipelines::DefaultPrimitive2D,
-				PipelineVariantKind::GraphicsVertex);
-			break;
-		case ShaderGraphTarget::Particle:
-			addPass(MaterialPassKind::Transparent,
-				BuiltinAssets::Pipelines::DefaultParticle,
-				PipelineVariantKind::GraphicsVertex);
-			break;
-		case ShaderGraphTarget::Trail:
-			addPass(MaterialPassKind::Transparent,
-				BuiltinAssets::Pipelines::ParticleTrail,
-				PipelineVariantKind::GraphicsMesh);
-			break;
-		case ShaderGraphTarget::Mesh:
-			break;
-		}
-	}
-
-	material.shaderGraph = graphID;
-	if (graph.domain == ShaderGraphDomain::Surface) {
-		if (IsShaderGraph3DTarget(graph.target) &&
-			!FindPass(material, MaterialPassKind::RayTracing)) {
-
-			material.passes.emplace_back(MaterialPassBinding{
-				.passKind = MaterialPassKind::RayTracing,
-				.pipeline = BuiltinAssets::Pipelines::RaytracingReflection,
-				.preferredVariant = PipelineVariantKind::Raytracing,
-				});
-		}
-		material.renderState.overridesRenderer = true;
-		material.renderState.surfaceMode =
-			graph.surfaceMode == ShaderGraphSurfaceMode::Transparent ?
-			MaterialSurfaceMode::Transparent :
-			(graph.renderState.alphaClipping ?
-				MaterialSurfaceMode::Masked :
-				MaterialSurfaceMode::Opaque);
-		material.renderState.phase =
-			graph.surfaceMode == ShaderGraphSurfaceMode::Transparent ?
-			RenderPhase::Transparent : RenderPhase::Opaque;
-		material.renderState.blendMode = graph.renderState.blendMode;
-		material.renderState.castShadows = graph.renderState.castShadows;
-		material.renderState.receiveShadows = graph.renderState.receiveShadows;
-	}
-	for (const ShaderGraphParameter& parameter : graph.parameters) {
-		if (!parameter.exposed ||
-			parameter.scope == ShaderGraphParameterScope::Global) {
-			continue;
-		}
-		material.parameters.Set(
-			MaterialParameterID::FromUUID(parameter.id),
-			parameter.name, parameter.semantic,
-			parameter.defaultValue);
-	}
-	for (const ShaderGraphKeyword& keyword : graph.keywords) {
-		if (!keyword.runtimeToggle) {
-			continue;
-		}
-		MaterialParameterValue value{};
-		if (keyword.type == ShaderGraphKeywordType::Boolean) {
-			value.value = keyword.defaultIndex != 0;
-		} else {
-			value.value = static_cast<int32_t>(keyword.defaultIndex);
-		}
-		material.parameters.Set(
-			MaterialParameterID::FromUUID(keyword.id),
-			keyword.name, MaterialParameterSemantic::None,
-			value);
-	}
-	return material;
+	// Materialの構成を専用処理へ渡す
+	return ShaderGraphMaterialBuilder::CreateMaterial(graph, graphID);
 }
 
-void Engine::ShaderGraphArtifactCache::ApplyToMaterial(
-	const ShaderGraphArtifact& artifact,
-	MaterialAsset& material) {
+void Engine::ShaderGraphArtifactCache::ApplyToMaterial(const ShaderGraphArtifact& artifact, MaterialAsset& material) {
 
-	if (MaterialPassBinding* pass =
-		FindPass(material, MaterialPassKind::ZPrepass)) {
-		if (artifact.depthPipelineID) {
-			pass->pipeline = artifact.depthPipelineID;
-		}
-		pass->shaderOverride = artifact.depthShaderID;
-	}
-	if (MaterialPassBinding* pass =
-		FindPass(material, MaterialPassKind::EditorPicking)) {
-		if (artifact.pickingPipelineID) {
-			pass->pipeline = artifact.pickingPipelineID;
-		}
-		pass->shaderOverride = artifact.pickingShaderID;
-	}
-	// 切り抜きも通常描画と同じグラフで評価する
-	for (const auto kind : { MaterialPassKind::Draw, MaterialPassKind::Masked }) {
-		if (MaterialPassBinding* pass = FindPass(material, kind)) {
-			if (artifact.opaquePipelineID) {
-				pass->pipeline = artifact.opaquePipelineID;
-			}
-			pass->shaderOverride = artifact.opaqueShaderID;
-		}
-	}
-	if (MaterialPassBinding* pass =
-		FindPass(material, MaterialPassKind::Transparent)) {
-		if (artifact.transparentPipelineID) {
-			pass->pipeline = artifact.transparentPipelineID;
-		}
-		pass->shaderOverride = artifact.transparentShaderID;
-	}
-	if (MaterialPassBinding* pass =
-		FindPass(material, MaterialPassKind::PostProcess)) {
-		if (artifact.computePipelineID) {
-			pass->pipeline = artifact.computePipelineID;
-		}
-		pass->shaderOverride = artifact.computeShaderID;
-	}
-	if (MaterialPassBinding* pass =
-		FindPass(material, MaterialPassKind::RayTracing)) {
-		if (artifact.rayTracingPipelineID) {
-			pass->pipeline = artifact.rayTracingPipelineID;
-		}
-		pass->shaderOverride = artifact.rayTracingShaderID;
-	}
+	// Passへの割当を専用処理へ渡す
+	ShaderGraphMaterialBuilder::ApplyToMaterial(artifact, material);
 }
 
 Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences(
 	const ShaderGraphAsset& graph, AssetID graphID) {
 
 	ShaderGraphArtifact artifact;
-	const auto derived = [&](uint64_t discriminator) {
-		return MakeDerivedID(graphID, discriminator);
-	};
+	const auto derived = [&](uint64_t discriminator) { return MakeDerivedID(graphID, discriminator); };
 	const auto target = static_cast<uint64_t>(graph.target);
+	// PostProcessの構成を作る
 	if (graph.domain == ShaderGraphDomain::PostProcess) {
 		artifact.computePipelineID = derived(0x504f535450495045ull);
 		artifact.computeShaderID = derived(0x504f535450524f43ull);
 		return artifact;
 	}
+	// RayTracingの構成を作る
 	if (graph.domain == ShaderGraphDomain::RayTracingEffect) {
 		artifact.rayTracingPipelineID = derived(0x5241595452414350ull);
 		artifact.rayTracingShaderID = derived(0x5241594645415455ull);
@@ -794,6 +339,12 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 	artifact.opaqueShaderID = derived(0x4f50415155455f50ull ^ target);
 	artifact.transparentPipelineID = derived(0x5452414e535f504cull ^ target);
 	artifact.transparentShaderID = derived(0x5452414e535f5053ull ^ target);
+	if (graph.target == ShaderGraphTarget::Sprite || graph.target == ShaderGraphTarget::Primitive2D) {
+
+		artifact.outlinePipelineID = derived(0x4f55544c494e4551ull);
+		artifact.outlineShaderID = derived(0x4f55544c494e4550ull ^ target);
+	}
+	// Meshの深度と選択Shaderを構成する
 	if (graph.target == ShaderGraphTarget::Mesh) {
 		artifact.depthPipelineID = derived(0x44455054485f504cull);
 		artifact.depthShaderID = derived(0x44455054485f5053ull);
@@ -807,11 +358,9 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 	return artifact;
 }
 
-Engine::AssetID Engine::ShaderGraphArtifactCache::MakeDerivedID(
-	AssetID graphID, uint64_t discriminator) {
+Engine::AssetID Engine::ShaderGraphArtifactCache::MakeDerivedID(AssetID graphID, uint64_t discriminator) {
 
 	auto hash = [](uint64_t seed, uint64_t value) {
-
 		for (uint32_t byte = 0; byte < 8; ++byte) {
 			seed ^= static_cast<uint8_t>(value >> (byte * 8));
 			seed *= 1099511628211ull;
@@ -828,5 +377,5 @@ Engine::AssetID Engine::ShaderGraphArtifactCache::MakeDerivedID(
 	if (high == 0 && low == 0) {
 		low = 1;
 	}
-	return AssetID{ high, low };
+	return AssetID{high, low};
 }

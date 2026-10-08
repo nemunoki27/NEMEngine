@@ -38,6 +38,15 @@ Engine::ParticleEmitterShapeRegistry& Engine::ParticleEmitterShapeRegistry::GetI
 	return instance;
 }
 
+void Engine::ParticleEmitterShapeRegistry::DrawDebugShape(const ParticleEmitterSettings& settings,
+	const Matrix4x4& emitterWorld, bool is2D) const {
+
+	// 製品では補助描画を登録しない
+	if (debugDraw_) {
+		debugDraw_(settings, emitterWorld, is2D);
+	}
+}
+
 uint32_t Engine::ParticleEmitterShapeRegistry::Register(
 	ParticleEmitterShape shape, std::unique_ptr<IParticleEmitterShape> instance) {
 

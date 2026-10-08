@@ -10,10 +10,11 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Time/FrameRateSettings.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 
 // c++
 #include <thread>
+#include <stdexcept>
 
 //============================================================================
 //	FramePresenter classMethods
@@ -77,9 +78,8 @@ uint64_t FramePresenter::PresentAndSignal(IDXGISwapChain4* swapChain) {
 
 	// GPUとOSに画面の交換を行うように通知する
 	const HRESULT presentResult = swapChain->Present(syncInterval, presentFlags);
-	if (!DxDredDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::PresentAndSignal/Present")) {
-		Assert::Call(false, "SwapChainのPresentに失敗しました");
-		return 0;
+	if (!DxDREDDiagnostics::CheckHRESULT(device_, presentResult, "FramePresenter::PresentAndSignal/Present")) {
+		throw std::runtime_error("SwapChainのPresentに失敗しました");
 	}
 	return commandQueue_->Signal();
 }

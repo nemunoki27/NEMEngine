@@ -3,21 +3,24 @@
 //============================================================================
 //	include
 //============================================================================
+#include "FrameProfileHistory.h"
+
 // c++
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <list>
 #include <string>
 #include <string_view>
 #include <vector>
+#include <memory>
 
 namespace Engine {
 
+	class ProfileCapture;
+
 	//============================================================================
 	//	FrameProfiler class
-	// フレームごとのCPU/GPU処理時間を集計し、エディタへ提供するシングルトン
-	// 各フェーズの計測値を1フレーム分累積し、フレーム開始で確定して平均化する
+	//	フレームのCPUとGPUの計測結果を集計して公開する
 	//============================================================================
 	class FrameProfiler {
 	public:
@@ -29,7 +32,7 @@ namespace Engine {
 		enum class Category : uint32_t {
 
 			Update,  // 更新全体でEngineApplication::Tick相当
-			Ecs,     // ECSシステムの処理
+			ECS,     // ECSシステムの処理
 			Script,  // C#スクリプトの処理
 			Draw,    // 描画処理
 			GPUWait, // GPU完了待ちでCPUがブロックした時間
@@ -45,6 +48,8 @@ namespace Engine {
 
 			std::string name;
 			float milliseconds = 0.0f;
+			uint64_t frameID = 0;
+			std::string viewID{};
 		};
 		using GPUPassTime = NamedTime;
 
@@ -109,8 +114,16 @@ namespace Engine {
 		void AddSample(Category category, float milliseconds);
 		// GPU計測結果を各パスごとに設定する、空なら未計測扱い
 		void SetGPUPassTimes(const std::vector<NamedTime>& passes);
+		// GPU結果を元のCPUフレームへ接続する
+		void SetGPUFrame(uint64_t frameID, const std::vector<NamedTime>& passes, std::string_view status);
+		// 次のフレームから記録を開始する
+		bool StartCapture(uint32_t frameLimit);
+		// 入力の収集中のフレームを計測記録から除く
+		void SkipCaptureFrame();
+		// Scriptの確定結果を現在のフレームへ接続する
+		void SetScriptFrame(std::string snapshot);
 		// ECSシステムごとの処理時間を処理順で設定する、空なら未計測扱い
-		void SetEcsSystemTimes(const std::vector<NamedTime>& systems);
+		void SetECSSystemTimes(const std::vector<NamedTime>& systems);
 		// ECSのarchetype数を設定する、ForEachが走査するarchetypeの数
 		void SetArchetypeCount(uint32_t count) { archetypeCount_ = count; }
 		// ECSのチャンクメモリと構造変更統計を設定する
@@ -142,8 +155,18 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
+		uint64_t GetFrameID() const { return frameID_; }
+		uint64_t GetGPUFrameID() const { return gpuFrameID_; }
+		const std::string& GetGPUStatus() const { return gpuStatus_; }
+		ProfileCapture& GetCapture();
+		bool IsCaptureRecording() const;
+		uint64_t GetCaptureRevision() const { return captureRevision_; }
+		bool IsEnabled() const { return enabled_; }
+		void SetEnabled(bool enabled);
+		void SetConditions(std::string conditions);
+
 		float GetDeltaTimeSec() const { return deltaTimeSec_; }
-		float GetFps() const { return deltaTimeSec_ > 0.0f ? 1.0f / deltaTimeSec_ : 0.0f; }
+		float GetFPS() const { return deltaTimeSec_ > 0.0f ? 1.0f / deltaTimeSec_ : 0.0f; }
 		float GetTotalTimeSec() const { return totalTimeSec_; }
 		// カテゴリの平均処理時間(ms)
 		float GetAverageMs(Category category) const;
@@ -154,8 +177,8 @@ namespace Engine {
 		bool HasGPUData() const { return !gpuPassTimes_.empty(); }
 
 		// ECSシステムごとの処理時間を処理順で保持
-		const std::vector<NamedTime>& GetEcsSystemTimes() const { return ecsSystemTimes_; }
-		bool HasEcsSystemData() const { return !ecsSystemTimes_.empty(); }
+		const std::vector<NamedTime>& GetECSSystemTimes() const { return ecsSystemTimes_; }
+		bool HasECSSystemData() const { return !ecsSystemTimes_.empty(); }
 		// ECSのarchetype数
 		uint32_t GetArchetypeCount() const { return archetypeCount_; }
 		// ECSのチャンクメモリと構造変更統計
@@ -169,47 +192,37 @@ namespace Engine {
 		//============================================================================
 		class ScopedSample {
 		public:
-			explicit ScopedSample(Category category) :
-				category_(category), start_(std::chrono::high_resolution_clock::now()) {
-			}
-			~ScopedSample() {
-
-				const std::chrono::duration<float, std::milli> elapsed =
-					std::chrono::high_resolution_clock::now() - start_;
-				FrameProfiler::GetInstance().AddSample(category_, elapsed.count());
-			}
+			explicit ScopedSample(Category category);
+			~ScopedSample();
 
 			ScopedSample(const ScopedSample&) = delete;
 			ScopedSample& operator=(const ScopedSample&) = delete;
 		private:
 			Category category_;
-			std::chrono::high_resolution_clock::time_point start_;
+			bool enabled_ = false;
+			std::chrono::high_resolution_clock::time_point start_{};
 		};
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
-		//--------- structure ----------------------------------------------------
-
-		// カテゴリごとの計測情報
-		struct Measure {
-
-			// 今フレームの累積時間(ms)
-			float accumulator = 0.0f;
-			// 確定済みフレームの計測履歴
-			std::list<float> samples;
-		};
-
 		//--------- variables ----------------------------------------------------
-
-		// 平均化するサンプル数
-		static constexpr size_t kSmoothingSample = 8;
 
 		float deltaTimeSec_ = 0.0f;
 		float totalTimeSec_ = 0.0f;
+		uint64_t frameID_ = 0;
+		uint64_t gpuFrameID_ = 0;
+		std::string gpuStatus_ = "pending";
+		bool enabled_ = true;
+		std::unique_ptr<ProfileCapture> capture_;
+		std::string conditions_ = "{}";
+		std::string scriptFrame_ = "{}";
+		uint64_t captureStartFrame_ = 0;
+		uint64_t captureRevision_ = 0;
+		std::array<float, static_cast<size_t>(Category::Count)> frameSamples_{};
 
-		std::array<Measure, static_cast<size_t>(Category::Count)> measures_{};
+		std::array<FrameProfileHistory, static_cast<size_t>(Category::Count)> measures_{};
 		std::vector<NamedTime> gpuPassTimes_{};
 		std::vector<NamedTime> ecsSystemTimes_{};
 		// ECSのarchetype数の最新値
@@ -223,6 +236,11 @@ namespace Engine {
 
 		// 最初のBeginFrameでは空の累積を確定させない
 		bool firstFrame_ = true;
+
+		//--------- functions ----------------------------------------------------
+
+		FrameProfiler();
+		~FrameProfiler();
 	};
 } // Engine
 

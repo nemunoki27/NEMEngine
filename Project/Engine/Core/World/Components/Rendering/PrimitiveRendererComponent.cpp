@@ -195,3 +195,16 @@ void Engine::to_json(nlohmann::json& out, const PrimitiveRendererComponent& comp
 		component.renderingLayerMask &
 		kRenderingLayerMaskBits;
 }
+
+//============================================================================
+//	PrimitiveRendererComponent classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool IsPrimitiveScreen2D(const PrimitiveRendererComponent& component) {
+
+		return component.renderSpace == PrimitiveRenderSpace::Screen2D &&
+			(component.type == PrimitiveType::Plane || component.type == PrimitiveType::Ring);
+	}
+}

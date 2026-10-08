@@ -65,12 +65,21 @@ void Engine::RenderAssetLibrary::Init(AssetDatabase* database) {
 
 void Engine::RenderAssetLibrary::Clear() {
 
+	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
+	const auto fontIdentity = std::make_shared<const uint64_t>(*fontCacheIdentity_ + 1);
 	shaderCache_.clear();
 	pipelineCache_.clear();
 	materialCache_.clear();
 	fontCache_.clear();
+	invalidatedFonts_.clear();
+	fontCacheIdentity_ = fontIdentity;
 	particleEffectCache_.clear();
-	renderFeatureProfileCache_.clear();
+	renderTextureCache_.clear();
+	renderPassesCache_.clear();
+	renderPassesPreviews_.clear();
+	renderPassesAssetRevisions_.clear();
+	renderPassesResetRevision_ = ++renderPassesRevision_;
+	materialRevision_ = revision;
 }
 
 void Engine::RenderAssetLibrary::ResolveRuntimeReferences(ShaderAsset& asset) {
@@ -123,12 +132,14 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	RegisterDerivedShader(std::move(artifact.transparentShader));
 	RegisterDerivedShader(std::move(artifact.depthShader));
 	RegisterDerivedShader(std::move(artifact.pickingShader));
+	RegisterDerivedShader(std::move(artifact.outlineShader));
 	RegisterDerivedShader(std::move(artifact.computeShader));
 	RegisterDerivedShader(std::move(artifact.rayTracingShader));
 	RegisterDerivedPipeline(std::move(artifact.opaquePipeline));
 	RegisterDerivedPipeline(std::move(artifact.transparentPipeline));
 	RegisterDerivedPipeline(std::move(artifact.depthPipeline));
 	RegisterDerivedPipeline(std::move(artifact.pickingPipeline));
+	RegisterDerivedPipeline(std::move(artifact.outlinePipeline));
 	RegisterDerivedPipeline(std::move(artifact.computePipeline));
 	RegisterDerivedPipeline(std::move(artifact.rayTracingPipeline));
 	ShaderGraphArtifactCache::ApplyToMaterial(artifact, asset);
@@ -181,28 +192,28 @@ const Engine::MaterialAsset* Engine::RenderAssetLibrary::LoadMaterial(AssetID as
 	return LoadCachedAsset(materialCache_, assetID);
 }
 
-const Engine::MSDFFontAsset* Engine::RenderAssetLibrary::LoadFont(AssetID assetID) {
-
-	const MSDFFontAsset* font = LoadCachedAsset(fontCache_, assetID);
-	if (!font || font->contentRevision != 0) {
-		return font;
-	}
-
-	// 新しく読み込んだフォントへ内容リビジョンを割り当てる
-	MSDFFontAsset& loadedFont = fontCache_.at(assetID);
-	loadedFont.contentRevision = nextFontContentRevision_++;
-	return &loadedFont;
-}
-
 const Engine::ParticleEffectAsset* Engine::RenderAssetLibrary::LoadParticleEffect(AssetID assetID) {
 
 	return LoadCachedAsset(particleEffectCache_, assetID);
 }
 
-const Engine::RenderFeatureProfileAsset*
-Engine::RenderAssetLibrary::LoadRenderFeatureProfile(AssetID assetID) {
+const Engine::RenderTextureAsset* Engine::RenderAssetLibrary::LoadRenderTexture(AssetID assetID) {
 
-	return LoadCachedAsset(renderFeatureProfileCache_, assetID);
+	return LoadCachedAsset(renderTextureCache_, assetID);
+}
+
+const Engine::RenderPassesAsset* Engine::RenderAssetLibrary::LoadRenderPasses(AssetID assetID) {
+
+	// 未保存編集をファイルのキャッシュより優先する
+	const auto preview = renderPassesPreviews_.find(assetID);
+	if (preview != renderPassesPreviews_.end()) {
+		return &preview->second;
+	}
+	// 旧形式や別種類のJSONをPass設定として読まない
+	if (!database_ || !database_->ResolveFullPath(assetID).filename().string().ends_with(".renderpasses.json")) {
+		return nullptr;
+	}
+	return LoadCachedAsset(renderPassesCache_, assetID);
 }
 
 void Engine::RenderAssetLibrary::RegisterDerivedShader(
@@ -227,7 +238,48 @@ void Engine::RenderAssetLibrary::RegisterDerivedMaterial(
 	MaterialAsset material) {
 
 	if (material.guid) {
+		const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
 		materialCache_.insert_or_assign(
 			material.guid, std::move(material));
+		materialRevision_ = revision;
 	}
+}
+
+void Engine::RenderAssetLibrary::RegisterPreviewRenderPasses(RenderPassesAsset extension) {
+
+	if (!extension.guid) {
+		return;
+	}
+	// 値を所有して次の描画から新しい構成を使う
+	const AssetID assetID = extension.guid;
+	renderPassesPreviews_.insert_or_assign(assetID, std::move(extension));
+	renderPassesAssetRevisions_[assetID] = ++renderPassesRevision_;
+}
+
+void Engine::RenderAssetLibrary::DiscardPreviewRenderPasses(AssetID assetID) {
+
+	if (renderPassesPreviews_.erase(assetID) != 0) {
+		InvalidateRenderPasses(assetID);
+	}
+}
+
+void Engine::RenderAssetLibrary::InvalidateMaterial(AssetID assetID) {
+
+	// 静的な描画結果にもMaterialの再読込を伝える
+	const auto revision = std::make_shared<const uint64_t>(*materialRevision_ + 1);
+	materialCache_.erase(assetID);
+	materialRevision_ = revision;
+}
+
+void Engine::RenderAssetLibrary::InvalidateRenderPasses(AssetID assetID) {
+
+	// 対象Assetを使うCameraだけ実行計画を更新する
+	renderPassesCache_.erase(assetID);
+	renderPassesAssetRevisions_[assetID] = ++renderPassesRevision_;
+}
+
+uint64_t Engine::RenderAssetLibrary::GetRenderPassesRevision(AssetID assetID) const {
+
+	const auto revision = renderPassesAssetRevisions_.find(assetID);
+	return revision == renderPassesAssetRevisions_.end() ? renderPassesResetRevision_ : revision->second;
 }

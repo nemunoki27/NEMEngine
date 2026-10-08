@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include "pbrShading.hlsli"
+#include "../../Common/descriptorHeapCompatibility.hlsli"
 
 //============================================================================
 //	MeshのPBR共通定義、サブメッシュバッファ依存部分
@@ -18,7 +19,7 @@ float4 SamplePBRTexture(uint textureIndex, float2 uv, float4 fallbackValue) {
 	if (textureIndex == kNoTexture) {
 		return fallbackValue;
 	}
-	Texture2D<float4> texture = ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
+	Texture2D<float4> texture = NEM_TEXTURE2D(textureIndex);
 	return texture.Sample(gSampler, uv);
 }
 
@@ -35,6 +36,7 @@ ResolvedPBRMaterial ResolvePBRMaterial(VSOutput input) {
 
 	// ベースカラー = マテリアル色 × ベースカラーテクスチャ
 	float4 baseColor = SamplePBRTexture(params.baseColorTexture, uv, 1.0f.xxxx);
+	baseColor.a *= SamplePBRTexture(params.opacityTexture, uv, 1.0f.xxxx).r;
 	baseColor *= params.color;
 
 	// メタリックとラフネスは係数にmetallicRoughnessテクスチャを掛ける、glTF流でB=metallic G=roughness

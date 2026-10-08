@@ -3,6 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RenderPreviewResources.h"
+#include "RenderPickingState.h"
+#include "RenderAssetReloadService.h"
+#include "RenderPipelineViewResources.h"
+#include "RenderScenePreparation.h"
 #include <Engine/Core/Rendering/Renderer/RenderPath/DeferredRenderPath.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderQueue.h>
@@ -19,6 +24,7 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Profiling/ProfileInputSnapshot.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
@@ -26,6 +32,7 @@
 #include <Engine/Core/Rendering/PostProcess/PostProcessExecutor.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessTemporaryTargetPool.h>
 #include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineStateCache.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/RenderBufferRegistry.h>
 #include <Engine/Core/Rendering/Raytracing/RaytracingSceneBuilder.h>
@@ -39,6 +46,7 @@
 // c++
 #include <memory>
 #include <optional>
+#include <span>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -46,6 +54,7 @@
 namespace Engine {
 
 	// front
+	class ECSWorldLifetime;
 	struct SceneInstance;
 	class MeshRenderBackend;
 	class PrimitiveRenderBackend;
@@ -74,6 +83,10 @@ namespace Engine {
 		// SceneViewのエディター表示で参照するGameView
 		const ResolvedRenderView* gameView = nullptr;
 		const ResolvedRenderView* cullingView = nullptr;
+		// 補助描画でもLOD判定に使う元のCamera
+		const ResolvedRenderView* lodView = nullptr;
+		// 最終出力へ適用するCameraの画面設定
+		ResolvedCameraView postProcessCamera{};
 		MultiRenderTarget* defaultSurface = nullptr;
 		RenderTargetRegistry* targetRegistry = nullptr;
 		// 固定RenderPath用の中間レンダーターゲット
@@ -89,6 +102,8 @@ namespace Engine {
 		uint32_t viewportY = 0;
 		uint32_t viewportWidth = 0;
 		uint32_t viewportHeight = 0;
+		// 複数Cameraを合成するときだけ既定サーフェスを最初にクリアする
+		bool clearDefaultSurface = true;
 		RenderBufferRegistry bufferRegistry{};
 		// レイトレーシングの情報
 		RaytracingSceneRuntimeContext raytracing{};
@@ -96,6 +111,7 @@ namespace Engine {
 		bool disableInlineRayTracing = false;
 		// 現在のビューに影強度が0より大きいライトが存在するか
 		bool hasShadowCastingLight = false;
+		const PerViewLightSet* viewLights = nullptr;
 		// SceneViewのデフォルトグリッドを描画する
 		bool drawSceneViewDefaultGrid = false;
 		// SceneViewへ現在の2Dゲームカメラ範囲を描画する
@@ -106,16 +122,24 @@ namespace Engine {
 		bool forceVertexMeshVariant = false;
 		// ピッキングなど画面外判定を再利用できない描画ではメッシュカリングを無効化する
 		bool disableMeshCulling = false;
+		// Shadow Mapでは片面形状も遮蔽物として描く
+		bool forceTwoSidedRasterizer = false;
+		// 補助描画では画面座標に依存するLODディザを使わない
+		bool disableLODDither = false;
 		// ECSワールドとシステムコンテキスト
 		ECSWorld* world = nullptr;
 		const SystemContext* systemContext = nullptr;
 		AssetDatabase* assetDatabase = nullptr;
+		// CameraのRender Passesから構築した実行計画
+		const RenderFeatureProfileRuntime* renderPassesRuntime = nullptr;
+		uint64_t renderPassesGeneration = 0;
 
 		// ScreenSpaceOutline Mask描画用のper-draw値でScreenSpaceOutlineRendererが
 		// Mask描画を呼ぶ直前に設定する、Mask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
 		uint32_t screenSpaceOutlineMaskAlphaSource = 0;
+		float screenSpaceOutlineMaskAlphaThreshold = 0.1f;
 	};
 
 	// エディタツール用のEntityプレビュー描画要求
@@ -166,7 +190,7 @@ namespace Engine {
 		// フレームの描画要求を受けて実行する
 		void Render(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 		// 製品実行前に全描画アセットとGPUリソースを作成する
-		void PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase);
+		void PreloadRuntimeAssets(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase, std::span<const AssetID> assets);
 
 		// 終了処理
 		void Finalize();
@@ -187,9 +211,7 @@ namespace Engine {
 
 		// 構築済みグラフィックスパイプラインの統合reflectionを引く、未構築ならnullptr
 		// マテリアルインスペクタがシェーダーの要求パラメータを自動列挙するために使う
-		const ShaderReflectionInfo* FindPipelineGraphicsReflection(AssetID pipelineAssetID) const {
-			return pipelineStateCache_.FindGraphicsReflection(pipelineAssetID);
-		}
+		const ShaderReflectionInfo* FindPipelineGraphicsReflection(AssetID pipelineAssetID) const;
 
 		// マテリアルの構築済みDraw/Transparentパスからグラフィックスreflectionを引く
 		const ShaderReflectionInfo* FindMaterialDrawReflection(const MaterialAsset& material) const;
@@ -207,11 +229,15 @@ namespace Engine {
 		bool PresentViewToBackBuffer(GraphicsCore& graphicsCore, RenderViewKind kind, AssetID material = {});
 		// エディタツール専用RenderTextureへ、指定Entityと子階層だけを描画する
 		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
+		// プレビューMeshの読込結果を公開し、現在の世代を返す
+		uint64_t PreparePreviewMeshes(GraphicsCore& graphicsCore, AssetDatabase& database, std::span<const AssetID> assets);
 
 		//--------- accessor -----------------------------------------------------
 
 		ViewportRenderService& GetViewportRenderService() { return *viewportRenderService_.get(); }
 		const ViewportRenderService& GetViewportRenderService() const { return *viewportRenderService_.get(); }
+		// 描画結果の検証用にView内の色Bufferを貸し出す
+		const RenderTexture2D* FindViewColorTexture(RenderViewKind kind, const std::string& name) const;
 		RenderAssetLibrary& GetRenderAssetLibrary() { return renderAssetLibrary_; }
 		const RenderAssetLibrary& GetRenderAssetLibrary() const { return renderAssetLibrary_; }
 
@@ -219,19 +245,17 @@ namespace Engine {
 		const ResolvedRenderView& GetResolvedView(RenderViewKind kind) const { return (kind == RenderViewKind::Game) ? gameViewState_.view : sceneViewState_.view; }
 
 		//今フレームの全ライト
-		const FrameLightBatch& GetFrameLightBatch() const { return frameLightBatch_; }
+		const FrameLightBatch& GetFrameLightBatch() const { return scenePreparation_.frameLightBatch_; }
 		// ルートシーン用のビュー別ライト集合
-		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const {
-			return (kind == RenderViewKind::Game) ? gameViewState_.lightSet : sceneViewState_.lightSet;
-		}
+		const PerViewLightSet& GetResolvedViewLightSet(RenderViewKind kind) const;
 
 		// ピック用のTLASリソースとサブメッシュ情報の取得
-		ID3D12Resource* GetGameViewTLASResource() const { return tlasResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickRecords_; }
-		const std::vector<uint32_t>& GetGameViewPickRecordOffsets() const { return pickRecordOffsets_; }
-		ID3D12Resource* GetSceneViewTLASResource() const { return tlasResource_; }
-		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickRecords_; }
-		const std::vector<uint32_t>& GetSceneViewPickRecordOffsets() const { return pickRecordOffsets_; }
+		ID3D12Resource* GetGameViewTLASResource() const { return pickingState_.tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetGameViewPickRecords() const { return pickingState_.pickRecords_; }
+		const std::vector<uint32_t>& GetGameViewPickRecordOffsets() const { return pickingState_.pickRecordOffsets_; }
+		ID3D12Resource* GetSceneViewTLASResource() const { return pickingState_.tlasResource_; }
+		const std::vector<MeshSubMeshPickRecord>& GetSceneViewPickRecords() const { return pickingState_.pickRecords_; }
+		const std::vector<uint32_t>& GetSceneViewPickRecordOffsets() const { return pickingState_.pickRecordOffsets_; }
 
 		// 指定ピクセルだけを1x1整数RTへ描画する
 		bool RenderMeshPicking(GraphicsCore& graphicsCore,
@@ -249,28 +273,29 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// 描画ビュー1つ分の状態をまとめる、ゲーム/シーンの2ビューで同型を使う
-		struct PerViewRenderState {
-
-			ResolvedRenderView view{};
-			RenderPathResources resources{};
-			RaytracingViewBufferSet raytracingBuffers{};
-			RenderTargetRegistry targetRegistry{};
-			PerViewLightSet lightSet{};
-			ViewLightBufferSet lightBuffers{};
-		};
-
 		//--------- variables ----------------------------------------------------
 
-		// 描画バッチ
-		RenderSceneBatch renderBatch_;
-		// ライトバッチ
-		FrameLightBatch frameLightBatch_{};
+		RenderScenePreparation scenePreparation_{};
+		RenderPreviewResources previewResources_{};
+		RenderPickingState pickingState_{};
+		// 記録開始時の入力をフレームごとの条件へ添える
+		ProfileInputSnapshot profileInputSnapshot_{};
+		std::weak_ptr<const ECSWorldLifetime> profileWorldLifetime_;
+		std::weak_ptr<const uint8_t> profileAssetLifetime_;
+		uint64_t profileSceneRevision_ = 0;
+		uint64_t profileCaptureRevision_ = 0;
+
 		// ビューポート描画サービス
 		std::unique_ptr<ViewportRenderService> viewportRenderService_;
 		// 描画ビューごとの状態、ゲーム/シーンで同型
-		PerViewRenderState gameViewState_{};
-		PerViewRenderState sceneViewState_{};
+		RenderPipelineViewResources gameViewState_{};
+		RenderPipelineViewResources sceneViewState_{};
+		// Camera別に描画資源と履歴Textureを所有する
+		std::unordered_map<std::string, std::unique_ptr<RenderPipelineViewResources>> cameraStates_{};
+		std::shared_ptr<const ECSWorldLifetime> cameraWorldLifetime_{};
+		uint64_t historyWorldRevision_ = 0;
+		// Game Viewへ順番に合成するCameraごとのView
+		std::vector<ResolvedRenderView> gameCameraViews_{};
 
 		// 固定RenderPath
 		DeferredRenderPath renderPath_{};
@@ -280,11 +305,6 @@ namespace Engine {
 		// レイトレシーンの構築でBillboardはゲームビューにのみ合わせるため1つでよい
 		RaytracingSceneBuilder raytracingSceneBuilder_{};
 		RayTracingExecutor rayTracingExecutor_{};
-
-		// ピック用のTLASリソースとサブメッシュ情報
-		ID3D12Resource* tlasResource_ = nullptr;
-		std::vector<MeshSubMeshPickRecord> pickRecords_{};
-		std::vector<uint32_t> pickRecordOffsets_{};
 
 		// 描画アイテム抽出器のレジストリ
 		RenderExtractorRegistry extractorRegistry_{};
@@ -307,45 +327,33 @@ namespace Engine {
 		PostProcessDebugInjector postProcessDebugInjector_{};
 		PostProcessAssetGenerator postProcessAssetGenerator_{};
 
-		// ツールプレビュー専用のライト集合
-		PerViewLightSet previewLightSet_{};
-		// ツールプレビューは同一フレーム内に複数回描くため、ライトGPUバッファも描画ごとに分ける
-		FrameBatchResourcePool<ViewLightBufferSet> previewLightBufferPool_{};
-
-		// ツールプレビュー専用の描画バックエンドでメインビューのGPUバッファを上書きしないため分離する
-		RenderBackendRegistry previewBackendRegistry_{};
-		// 同一フレーム内の複数プレビューがGPUバッファを再利用して上書きしないための開始済みフラグ
-		bool previewBackendFrameStarted_ = false;
-
-		// 前回通知したProfileでシーン切り替え時の再ロードを検出する
-		AssetID lastNotifiedRenderFeatureProfile_{};
+		RenderAssetReloadService assetReloadService_{ renderAssetLibrary_, pipelineStateCache_,
+			raytracingPipelineStateCache_, postProcessExecutor_, rayTracingExecutor_ };
 
 		// ワールド切り替え時の静的バッチキャッシュ破棄用
 		ECSWorld* lastRenderedWorld_ = nullptr;
-		// メイン描画後のエディターピックで同じシーン情報を使う
-		RenderFrameRequest lastRenderRequest_{};
-		const SceneInstance* lastActiveScene_ = nullptr;
 
 		// 毎フレーム使い回すスクラッチで再確保を避ける
-		std::unordered_set<AssetID> visibleMeshSet_{};
-		std::vector<AssetID> visibleMeshes_{};
-		std::unordered_map<AssetID, MaterialRenderState>
-			materialRenderStateCache_{};
 		RenderPassPhaseBuckets passBuckets_{};
 		// 型付きMeshバックエンドのキャッシュで毎フレームのdynamic_castを避ける
 		MeshRenderBackend* meshBackend_ = nullptr;
-		MeshRenderBackend* previewMeshBackend_ = nullptr;
 		PrimitiveRenderBackend* primitiveBackend_ = nullptr;
 		ParticleRenderBackend* particleBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 
+		// 記録するフレームの描画条件を確定する
+		void CaptureProfileConditions(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
+
+		// 描画Cameraの資源を取得する
+		RenderPipelineViewResources& GetCameraState(const ResolvedRenderView& view);
+		// Panelから参照するCameraの資源を検索する
+		RenderPipelineViewResources& FindCameraState(RenderViewKind kind);
+		const RenderPipelineViewResources& FindCameraState(RenderViewKind kind) const;
 		// 描画ビューのサーフェスを要求に応じて同期する
 		void SyncRequestedSurfaces(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 		// 描画ビューの情報を要求に応じて確定させる
 		void ResolveViews(const RenderFrameRequest& request);
-		// Materialが描画状態を所有する場合にRendererの抽出値へ反映する
-		void ApplyMaterialRenderStates();
 
 		// ビューの情報に応じたコンテキストを構築
 		SceneExecutionContext BuildViewExecutionContext(GraphicsCore& graphicsCore,
@@ -353,4 +361,3 @@ namespace Engine {
 			RenderViewKind kind, const ResolvedRenderView& view);
 	};
 } // Engine
-

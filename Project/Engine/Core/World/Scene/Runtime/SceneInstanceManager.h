@@ -12,6 +12,7 @@
 
 // c++
 #include <cstdint>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -82,11 +83,15 @@ namespace Engine {
 		bool SaveActive(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world) const;
 		// 指定アセットのシーンインスタンスをファイルに保存する
 		bool Save(AssetDatabase& database, const SceneSystem& sceneSystem,
-			ECSWorld& world, AssetID sceneAsset) const;
+			ECSWorld& world, AssetID sceneAsset, UUID instanceID = {}) const;
 		// 指定された保存用Worldからシーン保存スナップショットを確定する
 		bool CaptureSave(AssetDatabase& database,
 			const SceneSystem& sceneSystem, ECSWorld& world,
-			AssetID sceneAsset, SceneSaveSnapshot& outSnapshot) const;
+			AssetID sceneAsset, SceneSaveSnapshot& outSnapshot, UUID instanceID = {}) const;
+		// 全保存の書込前に同じ保存先の内容を照合する
+		bool CaptureAllSaves(AssetDatabase& database, const SceneSystem& sceneSystem, ECSWorld& world,
+			std::vector<SceneSaveSnapshot>& outSnapshots, std::vector<AssetID>& outConflicts,
+			const std::unordered_map<AssetID, UUID>& selectedInstances = {}) const;
 
 		// シーンの処理を開始するときのスナップショット
 		nlohmann::json SerializeSnapshot(const SceneSystem& sceneSystem, ECSWorld& world) const;
@@ -110,6 +115,8 @@ namespace Engine {
 		const SceneInstance* GetActive() const;
 		// 全てのシーンインスタンスのリストを取得する
 		const std::vector<SceneInstance>& GetAll() const { return scenes_; }
+		// 指定Assetを持つ非常駐InstanceのIDを取得する
+		std::vector<UUID> FindInstanceIDs(AssetID sceneAsset) const;
 		// シーン構成の変更番号を取得する
 		uint64_t GetRevision() const { return revision_; }
 	private:

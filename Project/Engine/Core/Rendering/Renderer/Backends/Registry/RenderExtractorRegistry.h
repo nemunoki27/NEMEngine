@@ -27,5 +27,8 @@ namespace Engine {
 
 		// 描画アイテムの抽出
 		void BuildBatch(ECSWorld& world, RenderSceneBatch& batch);
+	private:
+		// 外部データの世代を登録順に保持する
+		std::vector<uint64_t> contentRevisions_;
 	};
 } // Engine

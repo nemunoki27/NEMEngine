@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 //============================================================================
 //	RigidbodyInspectorDrawer classMethods
@@ -21,6 +21,9 @@ void Engine::RigidbodyInspectorDrawer::DrawFields([[maybe_unused]] const EditorP
 	{
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("種別", draft.bodyType);
+			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawEnumComboField("衝突検出", draft.collisionDetection);
 			});
 		DrawField(anyItemActive, [&]() {
 			return MyGUI::DragFloat("質量", draft.mass,

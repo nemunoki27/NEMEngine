@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Foundation/Utility/ScopedValue.h>
 
 namespace {
 
@@ -18,7 +19,7 @@ namespace {
 
 		// 描画先と必須の依存が1つでも欠けていれば何もしない
 		Engine::MultiRenderTarget* target = surface.colorSurface;
-		if (!target || !deps.dispatcher || !deps.backendRegistry ||
+		if (!target || !deps.renderBatch || !deps.dispatcher || !deps.backendRegistry ||
 			!deps.assetLibrary || !deps.pipelineCache || !deps.materialResolver) {
 			return;
 		}
@@ -72,8 +73,8 @@ namespace {
 			target->Bind(*dxCommand);
 		}
 
-		// ツールプレビュー等でviewport矩形指定があればそれを使い、無ければtarget全体
-		if (context.useViewportRect) {
+		// 出力先だけ配置矩形を使い、中間Textureは全体へ描く
+		if (context.useViewportRect && target == context.defaultSurface) {
 			dxCommand->SetViewportAndScissor(
 				context.viewportX, context.viewportY,
 				context.viewportWidth, context.viewportHeight);
@@ -81,16 +82,15 @@ namespace {
 			dxCommand->SetViewportAndScissor(target->GetWidth(), target->GetHeight());
 		}
 
-		// このパスだけ頂点メッシュvariant強制を上書きし、後で元へ戻す
-		const bool prevForce = context.forceVertexMeshVariant;
-		context.forceVertexMeshVariant = forceVertexMeshVariant || prevForce;
+		// このPassだけ頂点描画の指定を変更する
+		Engine::ScopedValue forceVertex(context.forceVertexMeshVariant,
+			forceVertexMeshVariant || context.forceVertexMeshVariant);
 
 		// depthOnly/外部DSVのフォーマット解決が正しく行われるよう、depthOverrideとdepthOnlyを渡す
 		deps.dispatcher->Dispatch(graphicsCore, context, *deps.renderBatch,
 			*deps.backendRegistry, *deps.assetLibrary, *deps.pipelineCache,
 			*deps.materialResolver, items, target, surface.depthOverride, passKind, depthOnly);
 
-		context.forceVertexMeshVariant = prevForce;
 	}
 }
 

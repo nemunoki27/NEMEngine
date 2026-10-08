@@ -3,22 +3,23 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/World/ECS/Entity/Entity.h>
+#include <Engine/Core/World/ECS/World/WorldCommand.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
-#include <Engine/Core/Foundation/Math/Vector3.h>
-#include <Engine/Core/Foundation/Math/Quaternion.h>
 
 // c++
+#include <cstddef>
+#include <memory>
 #include <cstdint>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
+#include <map>
+#include <tuple>
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class ECSWorld;
 	class AssetDatabase;
 	class SceneInstanceManager;
@@ -28,19 +29,21 @@ namespace Engine {
 	//	WorldCommandServices struct
 	//============================================================================
 
-	// Prefab/SceneコマンドのFlush適用時に必要となる外部サービス
+	// Scene操作で借用する外部サービス
 	struct WorldCommandServices {
 
-		AssetDatabase* assetDatabase = nullptr;
-		SceneInstanceManager* sceneInstances = nullptr;
-		SceneSystem* sceneSystem = nullptr;
+		AssetDatabase* assetDatabase = nullptr;			// Scene Assetの解決
+		SceneInstanceManager* sceneInstances = nullptr; // Sceneの所属とロード状態
+		SceneSystem* sceneSystem = nullptr;				// Scene文書の読み込み
 	};
 
 	//============================================================================
 	//	WorldCommandBuffer class
-	//	scripting由来の構造変更を安全地点までキューに積んで遅延適用する
+	//	構造変更の予約値を保持し、安全地点で順番に適用する
 	//============================================================================
 	class WorldCommandBuffer {
+		friend class ECSWorld;
+
 	public:
 		//============================================================================
 		//	public Methods
@@ -56,107 +59,77 @@ namespace Engine {
 		// 型名でコンポーネント追加/削除
 		void EnqueueAddComponentByName(const Entity& entity, std::string_view typeName);
 		void EnqueueRemoveComponentByName(const Entity& entity, std::string_view typeName);
-		// 名前設定でNameComponentが無ければ追加してから設定する
+		// 指定したScriptの個体だけを削除する
+		void EnqueueRemoveScript(const Entity& entity, const UUID& scriptSlotID);
+		// Nameを確保して名前を設定する
 		void EnqueueSetNameEnsuringComponent(const Entity& entity, std::string_view name);
-		// アクティブ設定でSceneObjectComponentが無ければ追加してから設定する
+		// SceneObjectを確保して有効状態を設定する
 		void EnqueueSetActiveSelfEnsuringComponent(const Entity& entity, bool active);
-		// 親子付けでworldPositionStays=trueなら親変更前後でworld transformを維持する
+		// 親子関係を変更し、必要ならWorld姿勢を維持する
 		void EnqueueSetParent(const Entity& child, const Entity& parent, bool worldPositionStays = false);
 
-		// 予約済みEntityをmaterializeしてTransform/SceneObject/Nameを付与しstaged SRTとparentを適用する
-		void EnqueueCreateEntity(const Entity& reserved, std::string_view name, const Entity& parent);
-		// Sceneをadditive load / unloadする、instanceはUUID
+		// 初期値を予約し、親子関係を安全地点で確定する
+		void EnqueueCreateEntity(ECSWorld& world, const Entity& reserved, std::string_view name, const Entity& parent);
+		// Sceneの追加読み込みを予約する
 		void EnqueueLoadSceneAdditive(const UUID& sceneInstanceID, AssetID sceneAsset);
+		// 指定Sceneの解放を予約する
 		void EnqueueUnloadScene(const UUID& sceneInstanceID);
-		// Sceneを単一loadする、新sceneをloadしてactiveにし、それまでの全sceneをunloadする
+		// 常駐Sceneを残して単一Sceneへ切り替える
 		void EnqueueLoadSceneSingle(const UUID& sceneInstanceID, AssetID sceneAsset);
 
-		// 予約直後のEntityへのtransform書き込みをstagingする、flush前は実componentが無いため
-		// 対象がpending CreateEntityコマンドに無ければfalseで呼び出し側は通常処理へ
-		bool StageCreatePosition(const Entity& reserved, const Vector3& position);
-		bool StageCreateRotation(const Entity& reserved, const Quaternion& rotation);
-		bool StageCreateScale(const Entity& reserved, const Vector3& scale);
-		// 対象が予約中の未materialize Entityか
-		bool IsPendingCreate(const Entity& reserved) const;
+		// 追加前に読み書きできるComponentを予約する
+		uint64_t StageAddComponent(ECSWorld& world, const Entity& entity, uint32_t typeID);
+		// 予約したComponentの値を取得する
+		PendingComponent* FindPendingComponent(const Entity& entity, uint32_t typeID);
+		const PendingComponent* FindPendingComponent(const Entity& entity, uint32_t typeID) const;
+		// 処理中の追加予約を取消後も保持する
+		std::shared_ptr<const PendingComponent> AcquirePendingComponent(const Entity& entity, uint32_t typeID) const;
+		// 対象Entityの未適用の値を読み取り用に列挙する
+		void CollectPendingComponents(const Entity& entity, std::vector<std::shared_ptr<const PendingComponent>>& out) const;
+		// 保存用複製へ未適用Commandを順番どおり渡す
+		void CollectUnappliedCommands(std::vector<WorldCommand>& out) const;
 
 		//--------- flush --------------------------------------------------------
 
-		// 積まれたコマンドを適用する、Flush中に積まれたコマンドは次batchへ回す
+		// 予約を順番に適用し、新しい予約は次のbatchへ回す
 		void Flush(ECSWorld& world);
-		// 未処理コマンドをworld破棄時などに破棄する
+		// 未処理の予約と値を破棄する
 		void Clear();
 
 		//--------- accessor -----------------------------------------------------
 
-		bool IsEmpty() const { return commands_.empty(); }
+		bool IsEmpty() const { return commands_.empty() && activeCommandIndex_ == activeBatch_.size(); }
+
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
-		//--------- types --------------------------------------------------------
+		//--------- structure ----------------------------------------------------
 
-		// コマンド種別
-		enum class CommandKind : uint8_t {
-
-			DestroyEntity,
-			AddComponentByName,
-			RemoveComponentByName,
-			SetNameEnsuringComponent,
-			SetActiveSelfEnsuringComponent,
-			SetParent,
-			CreateEntity,
-			LoadSceneAdditive,
-			LoadSceneSingle,
-			UnloadScene,
-		};
-
-		// transform stagingのどの成分が指定されたか
-		enum CommandFlags : uint8_t {
-
-			FlagWorldPositionStays = 1 << 0,
-			FlagHasPosition = 1 << 1,
-			FlagHasRotation = 1 << 2,
-			FlagHasScale = 1 << 3,
-		};
-
-		// 1コマンド分のデータで値はすべてコピー保持する
-		struct Command {
-
-			CommandKind kind;
-			Entity target = Entity::Null();
-			Entity parent = Entity::Null();
-			bool boolValue = false;
-			uint8_t flags = 0;
-			// Sceneのasset、Scene instanceのUUID
-			AssetID assetID{};
-			UUID sceneInstanceID{};
-			// CreateEntityの初期SRTでstagingされた値を保持する
-			Vector3 position{};
-			Quaternion rotation = Quaternion::Identity();
-			Vector3 scale = Vector3::AnyInit(1.0f);
-			// AddComponent/RemoveComponent/SetName/CreateEntity(name)用の文字列
-			std::string text;
-		};
+		// Entityの世代と型で追加予約を区別する
+		using ComponentKey = std::tuple<uint32_t, uint32_t, uint32_t>;
 
 		//--------- variables ----------------------------------------------------
 
-		std::vector<Command> commands_;
-		// 予約Entityからpending CreateEntityコマンドのindexを引くmapで線形走査を避ける
-		std::unordered_map<uint64_t, size_t> createCommandIndex_;
+		// 1回のFlushで適用するbatch数の上限
+		static constexpr int32_t kMaxFlushBatches = 8;
+		// 追加直後に読み書きできる予約値
+		std::map<ComponentKey, std::shared_ptr<PendingComponent>> pendingComponents_;
+		// 次の安全地点で適用する予約
+		std::vector<WorldCommand> commands_;
+		// 失敗後も未処理のCommandを保持する
+		std::vector<WorldCommand> activeBatch_;
+		// 適用中のbatchの次の予約
+		size_t activeCommandIndex_ = 0;
 		// Flush再入を防ぐ
 		bool flushing_ = false;
-		// 1回のFlushで許容する最大batch数でコマンドが自分自身を再生産し続ける無限ループを防ぐ
-		static constexpr int32_t kMaxFlushBatches = 8;
 
 		//--------- functions ----------------------------------------------------
 
-		// 1コマンドを適用する、適用前にentity/worldを再検証する
-		void Apply(ECSWorld& world, const Command& command);
-		// 予約Entityをmapキーへ変換する
-		static uint64_t EntityKey(const Entity& entity) { return (static_cast<uint64_t>(entity.index) << 32) | entity.generation; }
-		// 予約Entityを対象にするpending CreateEntityコマンドを探す
-		Command* FindPendingCreateCommand(const Entity& reserved);
-		const Command* FindPendingCreateCommand(const Entity& reserved) const;
+		// 適用を開始する予約を索引から外す
+		void RemovePendingComponent(const WorldCommand& command);
+		// 適用済みまたは取消済みの予約値を解放する
+		void CancelPendingComponent(const Entity& entity, uint32_t typeID);
 	};
-} // Engine
+}

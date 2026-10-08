@@ -15,6 +15,16 @@
 
 namespace Engine {
 
+	namespace {
+
+		// ゲーム用検索から非activeと破棄待ちを除く
+		bool IsSearchable(ECSWorld& world, const Entity& entity) {
+
+			const SceneObjectComponent* scene = world.TryGetComponent<SceneObjectComponent>(entity);
+			return !world.IsPendingDestroy(entity) && (!scene || scene->activeInHierarchy);
+		}
+	}
+
 	//============================================================================
 	//	Query Callbacks
 	//	C#側のTag公開とLayerマスク公開とEntity検索のネイティブ実装
@@ -31,7 +41,7 @@ namespace Engine {
 		}
 
 		// SceneObjectComponentにタグを持たせている、無ければUntagged扱い
-		SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
+		SceneObjectComponent* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved);
 		return CopyStringToBuffer(sceneObject ? sceneObject->tag : std::string("Untagged"), buffer, capacity);
 	}
 
@@ -43,7 +53,7 @@ namespace Engine {
 		}
 
 		// tagは非構造的な値変更なので即時反映する、SceneObjectが無ければ何もしない
-		if (SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved)) {
+		if (SceneObjectComponent* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved)) {
 			sceneObject->tag = tag ? std::string(tag) : std::string("Untagged");
 		}
 	}
@@ -56,7 +66,7 @@ namespace Engine {
 		}
 
 		// 描画カリング用のマスク、カメラのcullingMaskと照合される
-		SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
+		SceneObjectComponent* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved);
 		return sceneObject ? static_cast<int32_t>(sceneObject->visibilityLayerMask) : 0;
 	}
 
@@ -66,7 +76,7 @@ namespace Engine {
 		if (!world || !world->IsAlive(resolved)) {
 			return;
 		}
-		if (SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved)) {
+		if (SceneObjectComponent* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved)) {
 			sceneObject->visibilityLayerMask = static_cast<uint32_t>(mask);
 		}
 	}
@@ -79,7 +89,7 @@ namespace Engine {
 		}
 
 		// 衝突フィルタ用のタイプビットマスク、CollisionManagerのマトリクスと照合される
-		CollisionComponent* collision = world->TryGetComponent<CollisionComponent>(resolved);
+		CollisionComponent* collision = world->TryGetComponentForBinding<CollisionComponent>(resolved);
 		return collision ? static_cast<int32_t>(collision->typeMask) : 0;
 	}
 
@@ -100,7 +110,7 @@ namespace Engine {
 		if (!world || !world->IsAlive(resolved)) {
 			return;
 		}
-		if (CollisionComponent* collision = world->TryGetComponent<CollisionComponent>(resolved)) {
+		if (CollisionComponent* collision = world->TryGetComponentForBinding<CollisionComponent>(resolved)) {
 			collision->typeMask = static_cast<uint32_t>(mask);
 		}
 	}
@@ -116,7 +126,7 @@ namespace Engine {
 		const std::string target(name);
 		Entity found = Entity::Null();
 		world->ForEach<NameComponent>([&](Entity entity, NameComponent& nameComponent) {
-			if (!found.IsValid() && nameComponent.name == target) {
+			if (!found.IsValid() && nameComponent.name == target && IsSearchable(*world, entity)) {
 				found = entity;
 			}
 			});
@@ -133,7 +143,7 @@ namespace Engine {
 		const std::string target(tag);
 		Entity found = Entity::Null();
 		world->ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent& sceneObject) {
-			if (!found.IsValid() && sceneObject.tag == target) {
+			if (!found.IsValid() && sceneObject.tag == target && IsSearchable(*world, entity)) {
 				found = entity;
 			}
 			});
@@ -151,7 +161,7 @@ namespace Engine {
 		const std::string target(tag);
 		int32_t count = 0;
 		world->ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent& sceneObject) {
-			if (sceneObject.tag != target) {
+			if (sceneObject.tag != target || !IsSearchable(*world, entity)) {
 				return;
 			}
 			if (buffer && count < capacity) {
@@ -179,7 +189,7 @@ namespace Engine {
 			if (!found.IsValid()) {
 				found = entity;
 			}
-			});
+			}, ECSQueryMode::IncludeDisabled);
 		return found.IsValid() ? MakeNativeEntity(*world, found) : MakeNullNativeEntity();
 	}
 
@@ -201,7 +211,7 @@ namespace Engine {
 				buffer[count] = MakeNativeEntity(*world, entity);
 			}
 			++count;
-			});
+			}, ECSQueryMode::IncludeDisabled);
 		return count;
 	}
 } // Engine

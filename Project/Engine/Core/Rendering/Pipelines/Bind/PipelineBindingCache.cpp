@@ -3,9 +3,9 @@
 //============================================================================
 //	PipelineBindingCache classMethods
 //============================================================================
-Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlot(
-	std::string_view name, ShaderBindingKind kind) {
+Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlot(std::string_view name, ShaderBindingKind kind) {
 
+	// 名前を所有して同期時の検索条件へ登録
 	slots_.push_back({ std::string(name), kind, 0, 0, nullptr });
 	return static_cast<SlotID>(slots_.size() - 1);
 }
@@ -13,7 +13,7 @@ Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlot(
 Engine::PipelineBindingCache::SlotID Engine::PipelineBindingCache::AddSlotByRegister(
 	ShaderBindingKind kind, UINT bindPoint, UINT space) {
 
-	// 名前を空にしてregister/space検索として登録する
+	// 名前を空にしてレジスター検索へ登録
 	slots_.push_back({ {}, kind, bindPoint, space, nullptr });
 	return static_cast<SlotID>(slots_.size() - 1);
 }
@@ -29,10 +29,10 @@ void Engine::PipelineBindingCache::Sync(const PipelineState& pipeline) {
 	for (SlotEntry& slot : slots_) {
 
 		if (!slot.name.empty()) {
-			// 名前ベース検索
+			// 名前で検索
 			slot.location = pipeline.FindBindingByName(slot.name, slot.kind);
 		} else {
-			// register/spaceベース検索
+			// レジスターで検索
 			slot.location = pipeline.FindBinding(slot.kind, slot.bindPoint, slot.space);
 		}
 	}
@@ -40,6 +40,7 @@ void Engine::PipelineBindingCache::Sync(const PipelineState& pipeline) {
 
 const Engine::RootBindingLocation* Engine::PipelineBindingCache::Get(SlotID id) const {
 
+	// 未登録のIDは未解決として返す
 	if (id >= static_cast<SlotID>(slots_.size())) {
 		return nullptr;
 	}
@@ -48,5 +49,6 @@ const Engine::RootBindingLocation* Engine::PipelineBindingCache::Get(SlotID id) 
 
 bool Engine::PipelineBindingCache::Has(SlotID id) const {
 
+	// 登録範囲と解決結果を確認
 	return id < static_cast<SlotID>(slots_.size()) && slots_[id].location != nullptr;
 }

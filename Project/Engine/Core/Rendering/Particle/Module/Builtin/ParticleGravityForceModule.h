@@ -14,6 +14,23 @@ namespace Engine {
 	class ParticleGravityForceModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// 速度へ加算する重力
+			Vector3 gravity = Vector3(0.0f, -9.8f, 0.0f);
+
+			// 地面で反射させるか
+			bool reflectGround = false;
+			// TODO: エミッターの位置を地面の高さに自動設定する
+			bool autoGroundEmitter = false;
+			// 地面の高さ
+			float reflectGroundY = 0.0f;
+			// 反発係数
+			float restitution = 0.4f;
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -23,10 +40,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -34,17 +55,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 速度へ加算する重力
-		Vector3 gravity_ = Vector3(0.0f, -9.8f, 0.0f);
+		Settings settings_{};
 
-		// 地面で反射させるか
-		bool reflectGround_ = false;
-		// TODO: エミッターの位置を地面の高さに自動設定する
-		bool autoGroundEmitter_ = false;
-		// 地面の高さ
-		float reflectGroundY_ = 0.0f;
-		// 反発係数
-		float restitution_ = 0.4f;
 	};
 
 } // Engine

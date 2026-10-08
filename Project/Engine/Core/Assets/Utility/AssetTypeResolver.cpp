@@ -19,9 +19,11 @@ namespace {
 		Engine::AssetType type = Engine::AssetType::DefaultAsset;
 	};
 
-	constexpr std::array<CompoundAssetSuffix, 15> kCompoundAssetSuffixes = {
+	constexpr std::array<CompoundAssetSuffix, 17> kCompoundAssetSuffixes = {
+		CompoundAssetSuffix{ ".animcontroller.json", Engine::AssetType::AnimationController },
 		CompoundAssetSuffix{ ".scene.json", Engine::AssetType::Scene },
-		CompoundAssetSuffix{ ".renderfeatureprofile.json", Engine::AssetType::RenderFeatureProfile },
+		CompoundAssetSuffix{ ".rendertexture.json", Engine::AssetType::RenderTexture },
+		CompoundAssetSuffix{ ".renderpasses.json", Engine::AssetType::RenderPasses },
 		CompoundAssetSuffix{ ".effect.json", Engine::AssetType::ParticleEffect },
 		CompoundAssetSuffix{ ".prefab.json", Engine::AssetType::Prefab },
 		CompoundAssetSuffix{ ".material.json", Engine::AssetType::Material },
@@ -116,13 +118,29 @@ bool Engine::AssetTypeResolver::IsJsonAssetType(AssetType type) {
 	case AssetType::Prefab:
 	case AssetType::Material:
 	case AssetType::AnimationClip:
+	case AssetType::AnimationController:
 	case AssetType::Shader:
 	case AssetType::RenderPipeline:
 	case AssetType::ParticleEffect:
 	case AssetType::ShaderGraph:
-	case AssetType::RenderFeatureProfile:
+	case AssetType::RenderTexture:
+	case AssetType::RenderPasses:
 		return true;
 	default:
 		return false;
 	}
+}
+
+bool Engine::AssetTypeResolver::IsJsonAssetFile(AssetType type, const std::filesystem::path& path) {
+
+	const auto extension = Algorithm::ToLower(Algorithm::PathToUTF8(path.extension()));
+	if (type == AssetType::Font) {
+		return extension == ".json";
+	}
+	if (!IsJsonAssetType(type)) {
+		return false;
+	}
+	return extension == ".json" || extension == ".scene" || extension == ".prefab" ||
+		extension == ".effect" || extension == ".material" || extension == ".shadergraph" ||
+		extension == ".shader" || extension == ".animclip";
 }

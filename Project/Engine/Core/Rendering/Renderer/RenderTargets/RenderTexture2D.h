@@ -48,6 +48,8 @@ namespace Engine {
 
 		RenderTexture2D() = default;
 		~RenderTexture2D();
+		RenderTexture2D(const RenderTexture2D&) = delete;
+		RenderTexture2D& operator=(const RenderTexture2D&) = delete;
 
 		// リソース作成
 		void Create(ID3D12Device* device, RTVDescriptor* rtvDescriptor,
@@ -69,6 +71,7 @@ namespace Engine {
 		// GPUディスクリプタハンドルの取得
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetSRVGPUHandle() const { return srvGPUHandle_; }
 		const D3D12_GPU_DESCRIPTOR_HANDLE& GetUAVGPUHandle() const { return uavGPUHandle_; }
+		uint32_t GetSRVIndex() const { return srvIndex_; }
 
 		// 現在のリソース状態の取得
 		D3D12_RESOURCE_STATES GetCurrentState() const { return currentState_; }
@@ -103,6 +106,9 @@ namespace Engine {
 		uint32_t rtvIndex_ = UINT32_MAX;
 		uint32_t srvIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
+		// 完成した資源と管理状態を交換する
+		void Swap(RenderTexture2D& other) noexcept;
+
 	};
 } // Engine
 

@@ -5,6 +5,7 @@
 //	include
 //============================================================================
 #include "lightingCommon.hlsli"
+#include "../../Common/descriptorHeapCompatibility.hlsli"
 
 //============================================================================
 //	Mesh描画のライティング共通定義、VSOutput依存部分
@@ -22,7 +23,7 @@ float3 ComputeWorldNormal(VSOutput input, uint normalTextureIndex, float2 uv) {
 
 	// TBN構築
 	float3x3 TBN = BuildMeshTBN(input);
-	Texture2D<float4> normalTex = ResourceDescriptorHeap[NonUniformResourceIndex(normalTextureIndex)];
+	Texture2D<float4> normalTex = NEM_TEXTURE2D(normalTextureIndex);
 	float3 tangentNormal = normalTex.Sample(gSampler, uv).xyz * 2.0f - 1.0f;
 
 	return normalize(mul(tangentNormal, TBN));

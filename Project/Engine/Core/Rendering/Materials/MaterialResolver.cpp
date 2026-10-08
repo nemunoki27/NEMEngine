@@ -10,15 +10,15 @@
 //============================================================================
 //	MaterialResolver classMethods
 //============================================================================
-Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& database, AssetID requested, DefaultMaterialSlot slot)  const {
+Engine::AssetID Engine::MaterialResolver::ResolveORDefault(
+	const AssetDatabase& database, AssetID requested, DefaultMaterialSlot slot) const {
 
-	// 要求されたIDが有効であればそれを返す
+	// 指定されたIDを優先する
 	if (requested) {
 		return requested;
 	}
 
-	// マテリアルツールで設定されたデフォルトがあればbuiltinより優先する
-	// 設定はGUID参照なのでDBに存在しMaterialのときだけ採用し、壊れていればbuiltinへ落とす
+	// 登録済みの設定MaterialをBuiltinより優先する
 	AssetID configured{};
 	switch (slot) {
 	case DefaultMaterialSlot::Mesh:   configured = DefaultMaterialSettings::GetInstance().GetMesh();   break;
@@ -36,49 +36,10 @@ Engine::AssetID Engine::MaterialResolver::ResolveORDefault(AssetDatabase& databa
 		}
 	}
 
-	// デフォルトマテリアルのIDを確保する
-	EnsureDefaults(database);
-	// スロットに応じたデフォルトマテリアルのIDを返す
-	const AssetID defaultMaterial = defaultMaterials_[static_cast<size_t>(slot)];
-	return defaultMaterial;
-}
-
-void Engine::MaterialResolver::Clear() {
-
-	initialized_ = false;
-	defaultMaterials_.fill(AssetID());
-}
-
-void Engine::MaterialResolver::EnsureDefaults(AssetDatabase& database) const {
-
-	if (initialized_) {
-		return;
-	}
-
-	// ID配列を無効なIDで初期化
-	defaultMaterials_.fill(AssetID{});
-
-	auto assignIfRegistered = [&](DefaultMaterialSlot slot, AssetType type) {
-		const AssetID assetID = GetDefaultAssetID(slot);
-		const AssetMeta* meta = database.Find(assetID);
-		if (!meta || meta->type != type) {
-			return;
-		}
-		// .metaに登録済みのGUIDだけを使い、移動後のパスには依存しない
-		defaultMaterials_[static_cast<size_t>(slot)] = assetID;
-		};
-
-	assignIfRegistered(DefaultMaterialSlot::Sprite, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::Text, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::Mesh, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::MeshOutline, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::FullscreenCopy, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::Line, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::Primitive, AssetType::Material);
-	assignIfRegistered(DefaultMaterialSlot::Primitive2D, AssetType::Material);
-
-	// 初期化済み
-	initialized_ = true;
+	// 固定GUIDを現在の索引で確認する
+	AssetID assetID = GetDefaultAssetID(slot);
+	const AssetMeta* meta = database.Find(assetID);
+	return meta && meta->type == AssetType::Material ? assetID : AssetID{};
 }
 
 Engine::AssetID Engine::MaterialResolver::GetDefaultAssetID(DefaultMaterialSlot slot) {

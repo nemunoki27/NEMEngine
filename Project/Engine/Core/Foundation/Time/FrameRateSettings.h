@@ -40,9 +40,7 @@ namespace Engine {
 		// エディター用のフレームレート上限を使用するか設定する
 		void SetUseEditorTargetFps(bool useEditor) { useEditorTargetFps_ = useEditor; }
 		// Presentで使用する現在のフレームレート上限を取得する
-		uint32_t GetPresentTargetFps() const {
-			return useEditorTargetFps_ ? editorTargetFps_ : targetFps_;
-		}
+		uint32_t GetPresentTargetFps() const { return useEditorTargetFps_ ? editorTargetFps_ : targetFps_; }
 
 		// シングルトン
 		static FrameRateSettings& GetInstance();

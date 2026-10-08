@@ -13,29 +13,55 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class GraphicsCore;
 
 	//============================================================================
 	//	ScreenSpaceOutlineViewResources structure
-	// Screen-space outlineで使うview単位の中間RT
-	// RuntimeとEditor選択で混線しないよう、RenderPathResources内で別々に持つ
+	//	ViewごとにOutlineの中間描画先を保持する
 	//============================================================================
 	struct ScreenSpaceOutlineViewResources {
+	public:
+		//============================================================================
+		//	public Methods
+		//============================================================================
 
-		// SceneDepth付きで描く、実際に見えている選択対象のMask
-		std::unique_ptr<MultiRenderTarget> mask;
+		ScreenSpaceOutlineViewResources() = default;
+		ScreenSpaceOutlineViewResources(const ScreenSpaceOutlineViewResources&) = delete;
+		ScreenSpaceOutlineViewResources& operator=(const ScreenSpaceOutlineViewResources&) = delete;
+		ScreenSpaceOutlineViewResources(ScreenSpaceOutlineViewResources&&) noexcept = default;
+		ScreenSpaceOutlineViewResources& operator=(ScreenSpaceOutlineViewResources&&) noexcept = default;
 
-		// Depth Test無しで描く、選択対象本来の画面投影範囲
-		// ExteriorPreferred時に遮蔽物由来の内周を除外するために使う
-		std::unique_ptr<MultiRenderTarget> projectedCoverageMask;
-
-		// Separable Dilationの中間出力(横方向のみDilate済み)
-		std::unique_ptr<MultiRenderTarget> horizontalDilatedMask;
-		std::unique_ptr<MultiRenderTarget> dilatedMask;
-
+		// 全描画先が有効か調べる
 		bool IsValid() const;
+		// 中間描画先を破棄する
 		void Destroy();
+
+		//--------- accessor -----------------------------------------------------
+
+		MultiRenderTarget* GetMask() { return mask_.get(); }
+		const MultiRenderTarget* GetMask() const { return mask_.get(); }
+		MultiRenderTarget* GetProjectedCoverageMask() { return projectedCoverageMask_.get(); }
+		const MultiRenderTarget* GetProjectedCoverageMask() const { return projectedCoverageMask_.get(); }
+		MultiRenderTarget* GetHorizontalDilatedMask() { return horizontalDilatedMask_.get(); }
+		const MultiRenderTarget* GetHorizontalDilatedMask() const { return horizontalDilatedMask_.get(); }
+		MultiRenderTarget* GetDilatedMask() { return dilatedMask_.get(); }
+		const MultiRenderTarget* GetDilatedMask() const { return dilatedMask_.get(); }
+	private:
+		friend class RenderPathResources;
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// SceneDepth付きで描く選択対象のMask
+		std::unique_ptr<MultiRenderTarget> mask_;
+		// 遮蔽物の内周を除くための投影範囲
+		std::unique_ptr<MultiRenderTarget> projectedCoverageMask_;
+		// 横方向と最終の輪郭膨張結果
+		std::unique_ptr<MultiRenderTarget> horizontalDilatedMask_;
+		std::unique_ptr<MultiRenderTarget> dilatedMask_;
 	};
 
 	//============================================================================
@@ -73,6 +99,7 @@ namespace Engine {
 
 		// サイズに応じてレンダーターゲットを生成/再生成する
 		void Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height);
+		void Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height);
 
 		// 破棄
 		void Destroy();
@@ -80,40 +107,52 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		// 有効か
-		bool IsValid() const {
+		bool IsValid() const;
 
-			return sceneMain_ && sceneMain_->IsValid() &&
-				sceneFinal_ && sceneFinal_->IsValid() &&
-				sceneColorOpaque_ && sceneColorOpaque_->IsValid();
-		}
-
-		// DeferredのGBufferサーフェス、color並びはGBufferAttachmentと一致させる
-		// color0 albedo / color1 normal / color2 worldPosition / color3 material / color4 emissive / color5 flags + 深度
-		// color0は移行中ライティング済み色を保持し、color2のworldPositionは将来depth復元へ置換予定
-		MultiRenderTarget* GetSceneMain() const { return sceneMain_.get(); }
-		// Raytracing/Transparent/PostProcess用の1色(UAV)サーフェス、ライティング結果の合成先
-		MultiRenderTarget* GetSceneFinal() const { return sceneFinal_.get(); }
-		MultiRenderTarget* GetSceneColorOpaque() const { return sceneColorOpaque_.get(); }
+		// Deferred用のGBufferと深度
+		MultiRenderTarget* GetSceneMain() { return sceneMain_.get(); }
+		const MultiRenderTarget* GetSceneMain() const { return sceneMain_.get(); }
+		// Lightingと後段描画の合成先
+		MultiRenderTarget* GetSceneFinal() { return sceneFinal_.get(); }
+		const MultiRenderTarget* GetSceneFinal() const { return sceneFinal_.get(); }
+		MultiRenderTarget* GetSceneColorOpaque() { return sceneColorOpaque_.get(); }
+		const MultiRenderTarget* GetSceneColorOpaque() const { return sceneColorOpaque_.get(); }
 		// 深度プリパスから生成するHi-Zテクスチャ
 		DepthPyramidTexture& GetDepthPyramid() { return depthPyramid_; }
 		const DepthPyramidTexture& GetDepthPyramid() const { return depthPyramid_; }
 
 		// GBuffer各アタッチメントの取得、ライティングパスが属性ごとに参照する
-		RenderTexture2D* GetGBufferAlbedo() const { return GetGBufferColor(GBufferAttachment::Albedo); }
-		RenderTexture2D* GetGBufferNormal() const { return GetGBufferColor(GBufferAttachment::Normal); }
-		RenderTexture2D* GetGBufferPosition() const { return GetGBufferColor(GBufferAttachment::Position); }
-		RenderTexture2D* GetGBufferMaterial() const { return GetGBufferColor(GBufferAttachment::Material); }
-		RenderTexture2D* GetGBufferEmissive() const { return GetGBufferColor(GBufferAttachment::Emissive); }
-		RenderTexture2D* GetGBufferFlags() const { return GetGBufferColor(GBufferAttachment::Flags); }
-		RenderTexture2D* GetGBufferMotion() const { return GetGBufferColor(GBufferAttachment::Motion); }
+		RenderTexture2D* GetGBufferAlbedo() { return GetGBufferColor(GBufferAttachment::Albedo); }
+		const RenderTexture2D* GetGBufferAlbedo() const { return GetGBufferColor(GBufferAttachment::Albedo); }
+		RenderTexture2D* GetGBufferNormal() { return GetGBufferColor(GBufferAttachment::Normal); }
+		const RenderTexture2D* GetGBufferNormal() const { return GetGBufferColor(GBufferAttachment::Normal); }
+		RenderTexture2D* GetGBufferPosition() { return GetGBufferColor(GBufferAttachment::Position); }
+		const RenderTexture2D* GetGBufferPosition() const { return GetGBufferColor(GBufferAttachment::Position); }
+		RenderTexture2D* GetGBufferMaterial() { return GetGBufferColor(GBufferAttachment::Material); }
+		const RenderTexture2D* GetGBufferMaterial() const { return GetGBufferColor(GBufferAttachment::Material); }
+		RenderTexture2D* GetGBufferEmissive() { return GetGBufferColor(GBufferAttachment::Emissive); }
+		const RenderTexture2D* GetGBufferEmissive() const { return GetGBufferColor(GBufferAttachment::Emissive); }
+		RenderTexture2D* GetGBufferFlags() { return GetGBufferColor(GBufferAttachment::Flags); }
+		const RenderTexture2D* GetGBufferFlags() const { return GetGBufferColor(GBufferAttachment::Flags); }
+		RenderTexture2D* GetGBufferMotion() { return GetGBufferColor(GBufferAttachment::Motion); }
+		const RenderTexture2D* GetGBufferMotion() const { return GetGBufferColor(GBufferAttachment::Motion); }
 		// 属性を動的に選んで取得する、GBufferデバッグ表示などで使う
-		RenderTexture2D* GetGBuffer(GBufferAttachment attachment) const { return GetGBufferColor(attachment); }
+		RenderTexture2D* GetGBuffer(GBufferAttachment attachment) { return GetGBufferColor(attachment); }
+		const RenderTexture2D* GetGBuffer(GBufferAttachment attachment) const { return GetGBufferColor(attachment); }
 		// Runtime Component用のScreen-space Outline中間RT
 		ScreenSpaceOutlineViewResources& GetRuntimeScreenSpaceOutline() { return runtimeOutline_; }
 		const ScreenSpaceOutlineViewResources& GetRuntimeScreenSpaceOutline() const { return runtimeOutline_; }
 		// Editor選択表示用のScreen-space Outline中間RT
-		ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() { return editorSelectionOutline_; }
-		const ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() const { return editorSelectionOutline_; }
+		ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline();
+		const ScreenSpaceOutlineViewResources& GetEditorSelectionScreenSpaceOutline() const;
+
+		// DeferredのGBufferと深度の作成情報を構築する
+		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
+		// Lightingと後段描画の合成先を構築する
+		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);
+		// Outlineの整数Maskの作成情報を構築する
+		static MultiRenderTargetCreateDesc BuildScreenSpaceOutlineMaskDesc(
+			uint32_t width, uint32_t height, std::string_view name, bool createUAV);
 	private:
 		//============================================================================
 		//	private Methods
@@ -124,9 +163,9 @@ namespace Engine {
 		uint32_t currentWidth_ = 0;
 		uint32_t currentHeight_ = 0;
 
-		// SceneColorMain + SceneNormalMain + ScenePositionMain + Depth
+		// GBufferと深度の描画先
 		std::unique_ptr<MultiRenderTarget> sceneMain_;
-		// SceneColorFinal (UAV付き)
+		// UAV付きの合成先
 		std::unique_ptr<MultiRenderTarget> sceneFinal_;
 		// SceneFinalと同形式の透明Surface用読み取りコピー
 		std::unique_ptr<MultiRenderTarget> sceneColorOpaque_;
@@ -138,21 +177,19 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 寸法と全資源の状態から再生成を判定する
+		bool NeedsResize(uint32_t width, uint32_t height) const;
+		// 公開前の描画資源をまとめて生成する
+		void Create(const RenderTargetCreationContext& context, uint32_t width, uint32_t height);
+		// 完成した資源と確定寸法を入れ替える
+		void Swap(RenderPathResources& other) noexcept;
+
 		// GBufferの指定アタッチメントを取得する、未生成や範囲外はnullptr
-		RenderTexture2D* GetGBufferColor(GBufferAttachment attachment) const {
+		RenderTexture2D* GetGBufferColor(GBufferAttachment attachment);
+		const RenderTexture2D* GetGBufferColor(GBufferAttachment attachment) const;
 
-			const uint32_t index = static_cast<uint32_t>(attachment);
-			if (!sceneMain_ || index >= sceneMain_->GetColorCount()) {
-				return nullptr;
-			}
-			return sceneMain_->GetColorTexture(index);
-		}
-
-		static MultiRenderTargetCreateDesc BuildSceneMainDesc(uint32_t width, uint32_t height);
-		static MultiRenderTargetCreateDesc BuildSceneFinalDesc(uint32_t width, uint32_t height);
+		// 透明描画が読む背景の作成情報を構築する
 		static MultiRenderTargetCreateDesc BuildSceneColorOpaqueDesc(uint32_t width, uint32_t height);
-		static MultiRenderTargetCreateDesc BuildScreenSpaceOutlineMaskDesc(
-			uint32_t width, uint32_t height, std::string_view name, bool createUAV);
 	};
-} // Engine
+}
 

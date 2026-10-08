@@ -63,6 +63,16 @@ Write-TestJson $collisionPath @{
 [System.IO.File]::WriteAllText((Join-Path $gameRoot "GameAssets\Stage.csv"), "0,1,2`n3,4,5`n", $OutputEncoding)
 
 Invoke-Collect "MinimumProject"
+# 新規ゲームの既定Sceneにも解決不能な組込参照を残さない
+$previousSceneID = $sceneID
+try {
+    $sampleMeta = Get-Content -LiteralPath (Join-Path $gameRoot "Engine\Assets\Scenes\Sample.scene.json.meta") -Raw |
+        ConvertFrom-Json
+    $sceneID = $sampleMeta.guid
+    Invoke-Collect "BuiltinSampleScene"
+} finally {
+    $sceneID = $previousSceneID
+}
 $files = @((Get-Content -LiteralPath (Join-Path $testRoot "MinimumProject.json") -Raw -Encoding UTF8 | ConvertFrom-Json) | ForEach-Object { $_ })
 $collisionFile = @($files | Where-Object destination -eq "ProjectSettings/CollisionSettings.json")
 if ($collisionFile.Count -ne 1 -or [System.IO.Path]::GetFullPath($collisionFile[0].source) -ne $collisionPath) {
@@ -192,6 +202,7 @@ if ($Product) {
     New-Item -ItemType Directory -Path $sdkToolRoot, (Join-Path $gameRoot "Include") | Out-Null
     Copy-Item -LiteralPath (Join-Path $SdkRoot "Include\NEMEngineRuntime.h") -Destination (Join-Path $gameRoot "Include")
     Copy-Item -LiteralPath (Join-Path $engineRoot "Tools\BuildGame.ps1") -Destination (Join-Path $gameRoot "Tools")
+    Copy-Item -Recurse -LiteralPath (Join-Path $engineRoot "Tools\ProductBuild") -Destination (Join-Path $gameRoot "Tools")
     Get-ChildItem -LiteralPath (Split-Path -Parent $BuildTool) -File | Where-Object {
         $_.Extension -in @(".exe", ".dll", ".json")
     } | Copy-Item -Destination $sdkToolRoot

@@ -19,8 +19,7 @@ namespace {
 
 		if (data.is_number_unsigned()) {
 			const uint64_t value = data.get<uint64_t>();
-			outValue = static_cast<int32_t>((std::min)(value,
-				static_cast<uint64_t>((std::numeric_limits<int32_t>::max)())));
+			outValue = static_cast<int32_t>((std::min)(value, static_cast<uint64_t>((std::numeric_limits<int32_t>::max)())));
 			outValue = (std::max)(outValue, 1);
 			return true;
 		}
@@ -28,8 +27,8 @@ namespace {
 			return false;
 		}
 		const int64_t value = data.get<int64_t>();
-		outValue = static_cast<int32_t>(std::clamp(value, static_cast<int64_t>(1),
-			static_cast<int64_t>((std::numeric_limits<int32_t>::max)())));
+		outValue = static_cast<int32_t>(
+			std::clamp(value, static_cast<int64_t>(1), static_cast<int64_t>((std::numeric_limits<int32_t>::max)())));
 		return true;
 	}
 
@@ -67,6 +66,7 @@ namespace {
 //============================================================================
 void Engine::NormalizeFlipbookTileLayout(std::vector<int32_t>& tilesX, int32_t& tilesY) {
 
+	// 行数と各行の列数を有効範囲へ補正
 	tilesY = std::clamp(tilesY, 1, 256);
 	for (int32_t& tileX : tilesX) {
 		tileX = (std::max)(tileX, 1);
@@ -75,13 +75,14 @@ void Engine::NormalizeFlipbookTileLayout(std::vector<int32_t>& tilesX, int32_t& 
 		tilesX.resize(static_cast<size_t>(tilesY), 1);
 		return;
 	}
+	// 不足する行は最後の列数で補う
 	const int32_t fillTileX = tilesX.back();
 	tilesX.resize(static_cast<size_t>(tilesY), fillTileX);
 }
 
-void Engine::ReadFlipbookTileLayout(const nlohmann::json& in,
-	std::vector<int32_t>& tilesX, int32_t& tilesY) {
+void Engine::ReadFlipbookTileLayout(const nlohmann::json& in, std::vector<int32_t>& tilesX, int32_t& tilesY) {
 
+	// 保存項目がある場合だけ編集値を読み取る
 	if (const auto it = in.find("tilesY"); it != in.end()) {
 		ReadTileCount(*it, tilesY);
 	}
@@ -93,12 +94,13 @@ void Engine::ReadFlipbookTileLayout(const nlohmann::json& in,
 			tilesX = std::move(loadedTilesX);
 		}
 	}
+	// 読込後に行と列の対応を揃える
 	NormalizeFlipbookTileLayout(tilesX, tilesY);
 }
 
-void Engine::WriteFlipbookTileLayout(nlohmann::json& out,
-	const std::vector<int32_t>& tilesX, int32_t tilesY) {
+void Engine::WriteFlipbookTileLayout(nlohmann::json& out, const std::vector<int32_t>& tilesX, int32_t tilesY) {
 
+	// 元の編集値を変更せず保存用に補正
 	std::vector<int32_t> normalizedTilesX = tilesX;
 	NormalizeFlipbookTileLayout(normalizedTilesX, tilesY);
 	out["tilesX"] = normalizedTilesX;

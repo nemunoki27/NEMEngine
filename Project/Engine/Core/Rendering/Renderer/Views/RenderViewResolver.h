@@ -11,6 +11,7 @@
 
 // c++
 #include <cstdint>
+#include <vector>
 
 namespace Engine {
 
@@ -29,6 +30,9 @@ namespace Engine {
 
 		// リクエストから描画ビューを確定させる
 		static ResolvedRenderView Resolve(const RenderViewRequest& request, ECSWorld& world);
+		// Game Viewへ出力する各CameraのViewを確定する
+		static std::vector<ResolvedRenderView> ResolveGameCameraViews(
+			const RenderViewRequest& request, ECSWorld& world);
 	private:
 		//============================================================================
 		//	private Methods
@@ -43,22 +47,5 @@ namespace Engine {
 		static ResolvedRenderView BuildFromManualCamera(RenderViewKind kind,
 			const ManualRenderCameraState& state, uint32_t width, uint32_t height);
 
-		//-------- orthographic --------------------------------------------------
-
-		static ResolvedCameraView ResolveBestOrthographicCamera(ECSWorld& world, uint32_t width, uint32_t height);
-		static ResolvedCameraView BuildFromOrthographicCamera(const Entity& entity,
-			const TransformComponent& transform, OrthographicCameraComponent& camera);
-		static ResolvedCameraView BuildManualOrthographic(const ManualRenderCameraState& state, uint32_t width, uint32_t height);
-		static ResolvedCameraView ResolvePreferredOrthographicCamera(ECSWorld& world, UUID preferredCameraUUID,
-			uint32_t width, uint32_t height);
-
-		//-------- perspective ---------------------------------------------------
-
-		static ResolvedCameraView ResolveBestPerspectiveCamera(ECSWorld& world, uint32_t width, uint32_t height);
-		static ResolvedCameraView BuildFromPerspectiveCamera(const Entity& entity,
-			const TransformComponent& transform, PerspectiveCameraComponent& camera);
-		static ResolvedCameraView BuildManualPerspective(const ManualRenderCameraState& state, uint32_t width, uint32_t height);
-		static ResolvedCameraView ResolvePreferredPerspectiveCamera(ECSWorld& world, UUID preferredCameraUUID,
-			uint32_t width, uint32_t height);
 	};
 } // Engine

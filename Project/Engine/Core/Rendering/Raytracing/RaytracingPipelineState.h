@@ -16,6 +16,8 @@
 
 namespace Engine {
 
+	class GraphicsResourceRetirement;
+
 	//============================================================================
 	//	RaytracingPipelineState class
 	//	レイトレーシング実行に必要なパイプラインステートを管理するクラス
@@ -27,7 +29,9 @@ namespace Engine {
 		//============================================================================
 
 		RaytracingPipelineState() = default;
-		~RaytracingPipelineState() = default;
+		~RaytracingPipelineState();
+		RaytracingPipelineState(const RaytracingPipelineState&) = delete;
+		RaytracingPipelineState& operator=(const RaytracingPipelineState&) = delete;
 
 		//--------- constants ----------------------------------------------------
 
@@ -36,18 +40,23 @@ namespace Engine {
 			((kHandleSize + (D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1)) &
 				~(D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT - 1));
 		static constexpr UINT64 kTableAlign = D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT;
+		// 個々のRayGenをDispatchの開始位置にできるようにする
+		static constexpr UINT64 kRayGenerationStride = (kRecordStride + kTableAlign - 1) & ~(kTableAlign - 1);
 
 		//--------- functions ----------------------------------------------------
 
+		// GPU完了までState ObjectとShader Tableを保持する
+		void RetireGPUObjects(GraphicsResourceRetirement& retirement) const;
+
 		// パイプライン作成
-		bool Create(ID3D12Device8* device, DxShaderCompiler* compiler,
-			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
-			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr);
 
 		// レイトレーシングのディスパッチ記述子を構築
 		D3D12_DISPATCH_RAYS_DESC BuildDispatchDesc(uint32_t width,
 			uint32_t height, uint32_t depth = 1,
 			uint32_t rayGenerationIndex = 0) const;
+
+		// GPU使用後の回収先を設定する
+		void SetRetirementQueue(GraphicsResourceRetirement& retirement);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -61,11 +70,14 @@ namespace Engine {
 		uint32_t GetRayGenerationCount() const { return rayGenerationCount_; }
 		bool IsValid() const { return stateObject_ && stateProps_ && shaderTable_; }
 	private:
+		friend class RaytracingPipelineBuilder;
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
 		//--------- variables ----------------------------------------------------
+
+		GraphicsResourceRetirement* retirement_ = nullptr;
 
 		// パイプライン
 		ComPtr<ID3D12StateObject> stateObject_;
@@ -90,20 +102,12 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// グローバルルートシグネチャの構築
-		bool BuildGlobalRootSignature(ID3D12Device8* device,
-			const std::vector<const CompiledShader*>& shaders,
-			const std::vector<D3D12_STATIC_SAMPLER_DESC>& staticSamplers);
-		// レイトレーシングパイプラインステートの構築
-		bool BuildStateObject(ID3D12Device8* device, DxShaderCompiler* compiler,
-			const PipelineVariantDesc& variant, const ShaderAsset& shaderAsset,
-			const PipelineStaticSamplerOverrideSet* samplerOverrides);
-		// シェーダーテーブルの構築
-		bool BuildShaderTable(ID3D12Device8* device,
-			const std::vector<std::wstring>& rayGenerationExports,
-			const std::vector<std::wstring>& missExports,
-			const std::vector<std::wstring>& hitGroupExports,
-			const std::vector<std::wstring>& callableExports);
 
+		// レイトレーシングパイプラインステートの構築
+
+		// シェーダーテーブルの構築
+
+		// Pipelineの識別番号を採番する
 		static uint64_t NextUniqueID();
 	};
 } // Engine

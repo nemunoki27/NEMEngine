@@ -41,6 +41,15 @@ namespace Engine {
 		std::array<ScriptProfileValue, 300> history{};
 	};
 
+	// 読取側が所有する確定履歴
+	struct ScriptProfileSnapshot {
+
+		std::vector<ScriptProfileRow> rows;
+		uint32_t frameCount = 0;
+		uint32_t lastFrame = 0;
+		bool overflowed = false;
+	};
+
 	//============================================================================
 	//	ScriptProfiler class
 	//	コールバックと明示区間を上限付きで集計する
@@ -59,6 +68,7 @@ namespace Engine {
 		uint64_t BeginCallback(ManagedScriptInstanceHandle handle, const char* name);
 		uint64_t BeginDetail(ManagedNativeEntity entity, uint64_t slotID, const char* name);
 		void End(uint64_t token, bool detail);
+		ScriptProfileSnapshot Capture() const;
 
 		bool IsEnabled() const { return enabled_; }
 		bool IsOverflowed() const { return overflowed_; }
@@ -91,13 +101,6 @@ namespace Engine {
 			double childrenMs = 0;
 		};
 
-		// 既存の行を再利用し、上限を超えた区間は記録しない
-		int32_t FindRow(const ScriptProfileOwner& owner, const char* name, bool detail, bool grouped, int32_t parent);
-		// 記録可能な区間だけ時計を開始する
-		uint64_t Begin(const ScriptProfileOwner& owner, const char* name, bool detail);
-		// 選択対象をManaged側へ通知し、計測しない区間の境界呼び出しを省く
-		void NotifySelection();
-
 		std::map<uint64_t, ScriptProfileOwner> owners_;
 		std::map<EntityKey, uint64_t> entityOwners_;
 		std::map<RowKey, int32_t, RowLess> rowLookup_;
@@ -111,6 +114,16 @@ namespace Engine {
 		uint32_t frameCount_ = 0;
 		bool enabled_ = false;
 		bool overflowed_ = false;
+
+		//--------- functions ----------------------------------------------------
+
+		// 既存の行を再利用し、上限を超えた区間は記録しない
+		int32_t FindRow(const ScriptProfileOwner& owner, const char* name, bool detail, bool grouped, int32_t parent);
+		// 記録可能な区間だけ時計を開始する
+		uint64_t Begin(const ScriptProfileOwner& owner, const char* name, bool detail);
+		// 選択対象をManaged側へ通知し、計測しない区間の境界呼び出しを省く
+		void NotifySelection();
+
 	};
 
 	// コールバックの早期終了でも区間を閉じる

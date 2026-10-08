@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		OrthographicCameraInspectorDrawer() :
-			SerializedComponentInspectorDrawer("OrthographicCamera", "OrthographicCamera") {
-		}
+		OrthographicCameraInspectorDrawer() : SerializedComponentInspectorDrawer("OrthographicCamera", "OrthographicCamera") {}
 		~OrthographicCameraInspectorDrawer() = default;
 	private:
 		//============================================================================
@@ -45,9 +43,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		PerspectiveCameraInspectorDrawer() :
-			SerializedComponentInspectorDrawer("PerspectiveCamera", "PerspectiveCamera") {
-		}
+		PerspectiveCameraInspectorDrawer() : SerializedComponentInspectorDrawer("PerspectiveCamera", "PerspectiveCamera") {}
 		~PerspectiveCameraInspectorDrawer() = default;
 	private:
 		//============================================================================

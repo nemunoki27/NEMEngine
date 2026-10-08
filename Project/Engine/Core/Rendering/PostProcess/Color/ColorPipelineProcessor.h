@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/DxObject/Buffers/DxRWStructuredBuffer.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
@@ -12,6 +12,9 @@
 
 // c++
 #include <array>
+#include <unordered_map>
+#include <unordered_set>
+#include <string>
 #include <cstdint>
 
 namespace Engine {
@@ -39,6 +42,8 @@ namespace Engine {
 
 		// フレーム単位の一時CBV領域を再利用可能にする
 		void BeginFrame();
+		// 描画対象から外れたCameraの露出Bufferを回収する
+		void RetainViews(const std::unordered_set<std::string>& activeViews);
 		// GPUバッファとDescriptorを解放する
 		void Release();
 
@@ -132,8 +137,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::array<ViewExposureState, 2> viewStates_{};
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		std::unordered_map<std::string, ViewExposureState> viewStates_{};
+		FrameConstantBufferAllocator constantBufferAllocator_{};
 		bool outputTransformLogged_ = false;
 
 		PipelineBindingCache exposureBindingCache_{};
@@ -153,7 +158,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		ViewExposureState& GetViewState(RenderViewKind kind);
+		ViewExposureState& GetViewState(const std::string& key);
 		ColorPipelineConstants BuildConstants(GraphicsCore& graphicsCore,
 			const SceneExecutionContext& context,
 			const MultiRenderTarget& source, const ColorPipelineSettings& settings,
@@ -166,7 +171,8 @@ namespace Engine {
 		bool DrawToneMap(GraphicsCore& graphicsCore, MultiRenderTarget& source,
 			MultiRenderTarget& dest, RenderAssetLibrary& assetLibrary,
 			PipelineStateCache& pipelineCache, ViewExposureState& state,
-			D3D12_GPU_VIRTUAL_ADDRESS constantsAddress);
+			D3D12_GPU_VIRTUAL_ADDRESS constantsAddress,
+			const SceneExecutionContext& context);
 		static Vector3 CalculateWhiteBalance(float temperature, float tint);
 	};
 } // Engine

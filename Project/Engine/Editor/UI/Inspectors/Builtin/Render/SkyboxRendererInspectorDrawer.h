@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SkyboxRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Skybox Renderer", "SkyboxRenderer") {
-		}
+		SkyboxRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Skybox Renderer", "SkyboxRenderer") {}
 		~SkyboxRendererInspectorDrawer() = default;
 	private:
 		//============================================================================

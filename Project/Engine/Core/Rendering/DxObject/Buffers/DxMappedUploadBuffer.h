@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/DxUtils.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
 #include <cstddef>
@@ -23,10 +23,17 @@ namespace Engine {
 		//============================================================================
 
 		DxMappedUploadBuffer() = default;
-		~DxMappedUploadBuffer() = default;
+		~DxMappedUploadBuffer();
+		DxMappedUploadBuffer(const DxMappedUploadBuffer&) = delete;
+		DxMappedUploadBuffer& operator=(const DxMappedUploadBuffer&) = delete;
+		DxMappedUploadBuffer(DxMappedUploadBuffer&& other) noexcept;
+		DxMappedUploadBuffer& operator=(DxMappedUploadBuffer&& other) noexcept;
 
 		// 指定バイト数でUPLOAD heapリソースを確保し永続マップする
-		void Create(ID3D12Device* device, size_t sizeInBytes);
+		void Create(GraphicsResourceRetirement& retirement, ID3D12Device* device, size_t sizeInBytes);
+
+		// GPU利用中の資源を返す
+		void Release();
 
 		// マップ領域へ先頭からのオフセット位置にバイト列を書き込む
 		void Write(const void* src, size_t sizeInBytes, size_t dstOffset = 0);
@@ -52,46 +59,16 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		ComPtr<ID3D12Resource> resource_;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::byte* mappedData_ = nullptr;
 
 		// 確保したバイト数で転送時の容量チェックに使う
 		size_t capacityInBytes_ = 0;
 
 		bool isCreated_ = false;
+
+		// 所有とMap先をまとめて交換する
+		void Swap(DxMappedUploadBuffer& other) noexcept;
 	};
-
-	//============================================================================
-	//	DxMappedUploadBuffer methods
-	//============================================================================
-	inline void DxMappedUploadBuffer::Create(ID3D12Device* device, size_t sizeInBytes) {
-
-		// サイズ0でのリソース作成は行わない
-		if (sizeInBytes == 0) {
-			return;
-		}
-
-		// UPLOAD heapのバッファリソースを作成する
-		DxUtils::CreateBufferResource(device, resource_, sizeInBytes);
-
-		// マッピング
-		HRESULT hr = resource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedData_));
-		Assert::Call(SUCCEEDED(hr), "DxMappedUploadBufferのMapに失敗しました");
-
-		capacityInBytes_ = sizeInBytes;
-		isCreated_ = true;
-	}
-
-	inline void DxMappedUploadBuffer::Write(const void* src, size_t sizeInBytes, size_t dstOffset) {
-
-		// 未マップや空データは何もしない
-		if (!mappedData_ || src == nullptr || sizeInBytes == 0) {
-			return;
-		}
-
-		// 確保済み容量を超える転送は不具合のためアサートで弾く
-		Assert::Call(dstOffset + sizeInBytes <= capacityInBytes_, "DxMappedUploadBufferの書き込みが容量を超えています");
-
-		std::memcpy(mappedData_ + dstOffset, src, sizeInBytes);
-	}
 
 } // Engine

@@ -6,7 +6,7 @@ namespace NEMEngine;
 public sealed partial class PrimitiveRenderer {
 
     public MaterialInstance MaterialInstance =>
-        new(entity, RendererMaterialTarget.Primitive);
+        new(gameObject, RendererMaterialTarget.Primitive);
 
     // 形状ごとのアクセサ、生成 wrapper 1 つにつき遅延生成してキャッシュする
     private PlaneAccessor? plane_;

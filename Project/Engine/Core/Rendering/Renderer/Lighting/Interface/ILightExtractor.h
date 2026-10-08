@@ -47,22 +47,6 @@ namespace Engine {
 		Vector3 GetWorldDirection(const Vector3& localDirection, const Matrix4x4& worldMatrix);
 
 		// 共通フィールド設定
-		template<class TLightComponent>
-		inline void FillCommonFields(LightItemCommon& common, ECSWorld& world,
-			const Entity& entity, const TLightComponent& component) {
-
-			const SceneObjectComponent* sceneObject = GetSceneObject(world, entity);
-
-			common.entity = entity;
-			common.world = &world;
-			common.sceneInstanceID = SceneObjectUtility::GetSceneInstanceID(world, entity);
-
-			common.affectLayerMask = component.affectLayerMask;
-			if (sceneObject) {
-
-				common.affectLayerMask &= sceneObject->visibilityLayerMask;
-			}
-			common.cameraDomain = RenderCameraDomain::Perspective;
-		}
+		void FillCommonFields(LightItemCommon& common, ECSWorld& world, const Entity& entity);
 	}
 } // Engine

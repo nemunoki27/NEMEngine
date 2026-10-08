@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Utility/ReadOnlyPointeeRange.h>
 
 // c++
 #include <memory>
@@ -23,33 +24,46 @@ namespace Engine {
 		AssetID assetID{};
 		AssetType type = AssetType::Unknown;
 
-		// Assets/...
+		// 論理Assetパス
 		std::string assetPath;
 		// 実ファイル名
 		std::string fileName;
 		// パネル表示名
 		std::string displayName;
-		// サイドカーファイルのパスでAssets/から始まる
+		// Assetと同じフォルダーにある所有ファイル名
 		std::vector<std::string> sidecarFiles;
 	};
 	// プロジェクト内のディレクトリノード
 	struct ProjectDirectoryNode {
+		friend class ProjectAssetIndex;
 
 		// ディレクトリ名
 		std::string name;
-		// ディレクトリの仮想パスでAssets/から始まる
+		// ディレクトリの仮想パス
 		std::string virtualPath;
-		// 子ディレクトリ
-		std::vector<std::unique_ptr<ProjectDirectoryNode>> children;
 		// ディレクトリ内のアセット
 		std::vector<ProjectAssetEntry> assets;
+
+		//--------- accessor -----------------------------------------------------
+
+		// 子ディレクトリを読取専用で列挙する
+		auto GetChildren() const { return ReadOnlyPointeeRange(children_); }
+
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		// 子ディレクトリの所有は索引へ限定する
+		std::vector<std::unique_ptr<ProjectDirectoryNode>> children_;
 	};
 
 	//============================================================================
 	//	ProjectAssetSource enum class
 	//============================================================================
-	enum class ProjectAssetSource :
-		uint8_t {
+	enum class ProjectAssetSource : uint8_t {
 
 		Engine,
 		Game,
@@ -73,8 +87,10 @@ namespace Engine {
 		//--------- accessor -----------------------------------------------------
 
 		const ProjectDirectoryNode& GetRoot() const { return root_; }
+		ProjectAssetSource GetSource() const { return source_; }
 		const ProjectDirectoryNode* FindDirectory(const std::string& virtualPath) const;
 		const ProjectAssetEntry* FindAssetByPath(const std::string& assetPath) const;
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -84,13 +100,16 @@ namespace Engine {
 
 		// プロジェクトのルートディレクトリノード
 		ProjectDirectoryNode root_{};
+		// 公開済みの一覧が属するソース
+		ProjectAssetSource source_ = ProjectAssetSource::Engine;
 
 		//--------- functions ----------------------------------------------------
 
+		// 構築用の索引へファイル一覧を収集する
+		void BuildRoot(const AssetDatabase& database, ProjectAssetSource source);
+
 		// ブラウザ上に表示しないファイルかを判定する
 		static bool ShouldHideInBrowser(const std::filesystem::path& fullPath);
-		// 表示アセットに紐付く付属ファイルを集める
-		static std::vector<std::string> CollectSidecars(const std::filesystem::path& fullPath);
 		// アセット一覧で使う表示名を作る
 		static std::string MakeDisplayName(const std::filesystem::path& fullPath);
 
@@ -104,4 +123,3 @@ namespace Engine {
 		static const ProjectAssetEntry* FindAssetRecursive(const ProjectDirectoryNode& node, const std::string& assetPath);
 	};
 } // Engine
-

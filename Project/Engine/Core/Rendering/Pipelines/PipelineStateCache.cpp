@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "PipelineDescriptionBuilder.h"
+#include "PipelineStateBuilder.h"
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -11,164 +13,7 @@
 //	PipelineStateCache classMethods
 //============================================================================
 
-namespace {
-
-	// シェーダーステージエントリからエントリポイントを解決する、存在しない場合は "main" を返す
-	std::string ResolveEntryOrDefault(const Engine::ShaderStageEntry* stage) {
-
-		if (!stage || stage->entry.empty()) {
-			return "main";
-		}
-		return stage->entry;
-	}
-	// シェーダーステージエントリからプロファイルを解決する、存在しない場合はステージに応じたデフォルトを返す
-	std::string ResolveProfileOrDefault(Engine::ShaderStage shaderStage, const Engine::ShaderStageEntry* stage) {
-
-		if (stage && !stage->profile.empty()) {
-			return stage->profile;
-		}
-		switch (shaderStage) {
-		case Engine::ShaderStage::VS: return "vs_6_0";
-		case Engine::ShaderStage::GS: return "gs_6_0";
-		case Engine::ShaderStage::PS: return "ps_6_0";
-		case Engine::ShaderStage::CS: return "cs_6_0";
-		case Engine::ShaderStage::MS: return "ms_6_6";
-		case Engine::ShaderStage::AS: return "as_6_6";
-		default:                      return "";
-		}
-	}
-	// パイプラインバリアントの情報とシェーダーアセットからグラフィックスパイプラインの記述を構築する
-	bool BuildGraphicsPipelineDesc(const Engine::PipelineVariantDesc& variant, const Engine::ShaderAsset& shaderAsset,
-		std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
-		const Engine::PipelineStaticSamplerOverrideSet* samplerOverrides,
-		Engine::GraphicsPipelineDesc& outDesc) {
-
-		// 基本的な情報をセット
-		outDesc = Engine::GraphicsPipelineDesc{};
-		outDesc.type = variant.pipelineType;
-		outDesc.staticSamplers = variant.staticSamplers;
-		if (samplerOverrides) {
-			outDesc.staticSamplerOverrides = *samplerOverrides;
-		}
-		outDesc.rasterizer = variant.rasterizer;
-		outDesc.depthStencil = variant.depthStencil;
-		outDesc.sampleDesc = variant.sampleDesc;
-		outDesc.topologyType = variant.topologyType;
-
-		// シェーダーステージのエントリを取得
-		const Engine::ShaderStageEntry* vs = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::VS);
-		const Engine::ShaderStageEntry* gs = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::GS);
-		const Engine::ShaderStageEntry* ms = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::MS);
-		const Engine::ShaderStageEntry* ps = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::PS);
-		const Engine::ShaderStageEntry* as = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::AS);
-
-		// 種類に応じてシェーダーファイル名をセット
-		switch (variant.pipelineType) {
-		case Engine::PipelineType::Vertex:
-
-			if (!vs || !ps) {
-				return false;
-			}
-			outDesc.preRaster.shader = vs->ownerShader;
-			outDesc.preRaster.file = vs->file;
-			outDesc.preRaster.entry = ResolveEntryOrDefault(vs);
-			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::VS, vs);
-			outDesc.pixel.shader = ps->ownerShader;
-			outDesc.pixel.file = ps->file;
-			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
-			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);
-			break;
-		case Engine::PipelineType::Geometry:
-
-			// GSパイプラインはVS→GS→PSの3段、VSで頂点を通しGSで太線へ展開する
-			if (!vs || !gs || !ps) {
-				return false;
-			}
-			outDesc.preRaster.shader = vs->ownerShader;
-			outDesc.preRaster.file = vs->file;
-			outDesc.preRaster.entry = ResolveEntryOrDefault(vs);
-			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::VS, vs);
-			outDesc.geometry.shader = gs->ownerShader;
-			outDesc.geometry.file = gs->file;
-			outDesc.geometry.entry = ResolveEntryOrDefault(gs);
-			outDesc.geometry.profile = ResolveProfileOrDefault(Engine::ShaderStage::GS, gs);
-			outDesc.pixel.shader = ps->ownerShader;
-			outDesc.pixel.file = ps->file;
-			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
-			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);
-			break;
-		case Engine::PipelineType::Mesh:
-
-			if (!ms || !ps) {
-				return false;
-			}
-			outDesc.preRaster.shader = ms->ownerShader;
-			outDesc.preRaster.file = ms->file;
-			outDesc.preRaster.entry = ResolveEntryOrDefault(ms);
-			outDesc.preRaster.profile = ResolveProfileOrDefault(Engine::ShaderStage::MS, ms);
-			outDesc.pixel.shader = ps->ownerShader;
-			outDesc.pixel.file = ps->file;
-			outDesc.pixel.entry = ResolveEntryOrDefault(ps);
-			outDesc.pixel.profile = ResolveProfileOrDefault(Engine::ShaderStage::PS, ps);
-			if (as) {
-				outDesc.amplification.shader = as->ownerShader;
-				outDesc.amplification.file = as->file;
-				outDesc.amplification.entry = ResolveEntryOrDefault(as);
-				outDesc.amplification.profile = ResolveProfileOrDefault(Engine::ShaderStage::AS, as);
-			}
-			break;
-		default:
-			return false;
-		}
-
-		std::vector<DXGI_FORMAT> finalRTVFormats = variant.rtvFormats;
-
-		if (variant.numRenderTargets == 0) {
-			outDesc.numRenderTargets = 0;
-			outDesc.dsvFormat = (variant.dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant.dsvFormat : runtimeDSVFormat;
-			return true;
-		}
-
-		if (variant.dynamicRenderTargetFormats || finalRTVFormats.empty()) {
-			finalRTVFormats.assign(runtimeRTVFormats.begin(), runtimeRTVFormats.end());
-		}
-
-		// 動的指定でも空だった場合だけ1枚フォールバック
-		if (finalRTVFormats.empty()) {
-
-			finalRTVFormats.emplace_back(DXGI_FORMAT_R32G32B32A32_FLOAT);
-		}
-		outDesc.numRenderTargets = static_cast<UINT>((std::min)(size_t(8), finalRTVFormats.size()));
-		for (UINT i = 0; i < outDesc.numRenderTargets; ++i) {
-			outDesc.rtvFormats[i] = finalRTVFormats[i];
-		}
-		outDesc.dsvFormat = (variant.dsvFormat != DXGI_FORMAT_UNKNOWN) ? variant.dsvFormat : runtimeDSVFormat;
-		return true;
-	}
-	// パイプラインバリアントの情報とシェーダーアセットからコンピュートパイプラインの記述を構築する
-	bool BuildComputePipelineDesc(const Engine::PipelineVariantDesc& variant,
-		const Engine::ShaderAsset& shaderAsset,
-		const Engine::PipelineStaticSamplerOverrideSet* samplerOverrides, Engine::ComputePipelineDesc& outDesc) {
-
-		// 基本的な情報をセット
-		outDesc = Engine::ComputePipelineDesc{};
-		outDesc.staticSamplers = variant.staticSamplers;
-		if (samplerOverrides) {
-			outDesc.staticSamplerOverrides = *samplerOverrides;
-		}
-
-		// シェーダーステージのエントリを取得
-		const Engine::ShaderStageEntry* cs = Engine::FindShaderStage(shaderAsset, Engine::ShaderStage::CS);
-		if (!cs) {
-			return false;
-		}
-		outDesc.compute.shader = cs->ownerShader;
-		outDesc.compute.file = cs->file;
-		outDesc.compute.entry = ResolveEntryOrDefault(cs);
-		outDesc.compute.profile = ResolveProfileOrDefault(Engine::ShaderStage::CS, cs);
-		return true;
-	}
-}
+using namespace Engine::PipelineDescriptionBuilder;
 
 bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noexcept {
 	return pipelineAsset == rhs.pipelineAsset &&
@@ -182,6 +27,7 @@ bool Engine::PipelineCacheKey::operator==(const PipelineCacheKey& rhs) const noe
 		inlineRayTracingEnabled == rhs.inlineRayTracingEnabled &&
 		dispatchRaysEnabled == rhs.dispatchRaysEnabled &&
 		depthForcedTestWrite == rhs.depthForcedTestWrite &&
+		twoSidedRasterizer == rhs.twoSidedRasterizer &&
 		samplerHash == rhs.samplerHash;
 }
 
@@ -189,7 +35,8 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
 	AssetID shaderOverrideAssetID, PipelineVariantKind desiredKind,
 	std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
-	const GraphicsRuntimeFeatures& runtimeFeatures, const PipelineVariantDesc** outVariant) {
+	const GraphicsRuntimeFeatures& runtimeFeatures, const PipelineVariantDesc** outVariant,
+	bool forceTwoSidedRasterizer) {
 
 	const RenderPipelineAsset* statePipeline = assetLibrary.LoadPipeline(pipelineAssetID);
 	const RenderPipelineAsset* geometryPipeline = assetLibrary.LoadPipeline(geometryPipelineAssetID);
@@ -216,11 +63,15 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 	key.meshEnabled = runtimeFeatures.useMeshShader;
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
+	key.twoSidedRasterizer = forceTwoSidedRasterizer;
 	key.formatHash = HashFormats(runtimeRTVFormats,
 		(stateVariant->dsvFormat != DXGI_FORMAT_UNKNOWN) ? stateVariant->dsvFormat : runtimeDSVFormat);
 
 	if (auto found = cache_.find(key); found != cache_.end()) {
 		return found->second.get();
+	}
+	if (failedKeys_.contains(key)) {
+		return nullptr;
 	}
 	auto restoreFallback = [&]() -> const PipelineState* {
 
@@ -268,12 +119,15 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreateComposed(Gra
 		runtimeRTVFormats, runtimeDSVFormat, nullptr, desc)) {
 		return restoreFallback();
 	}
-	std::unique_ptr<PipelineState> pipelineState = std::make_unique<PipelineState>();
-	if (!pipelineState->CreateGraphics(graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc)) {
+	if (forceTwoSidedRasterizer) {
+		desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+	}
+	std::unique_ptr<PipelineState> pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(),
+		graphicsPlatform.GetDevice(), graphicsPlatform.GetDxShaderCompiler(), desc, &composedShader);
+	if (!pipelineState) {
+		failedKeys_.insert(key);
 		return restoreFallback();
 	}
-	pipelineState->ApplyShaderMetadata(
-		composedShader);
 
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
@@ -297,7 +151,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	const GraphicsRuntimeFeatures& runtimeFeatures,
 	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
 	const PipelineStaticSamplerOverrideSet* samplerOverrides,
-	AssetID shaderOverrideAssetID) {
+	AssetID shaderOverrideAssetID, bool forceTwoSidedRasterizer) {
 
 	// アセットライブラリからパイプラインアセットをロード
 	const RenderPipelineAsset* pipelineAsset = assetLibrary.LoadPipeline(pipelineAssetID);
@@ -326,6 +180,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	key.inlineRayTracingEnabled = runtimeFeatures.useInlineRayTracing;
 	key.dispatchRaysEnabled = runtimeFeatures.useDispatchRays;
 	key.depthForcedTestWrite = forceDepthTestWrite;
+	key.twoSidedRasterizer = forceTwoSidedRasterizer;
 	key.formatHash = HashFormats(runtimeRTVFormats,
 		variant->dsvFormat != DXGI_FORMAT_UNKNOWN ?
 		variant->dsvFormat : runtimeDSVFormat);
@@ -335,6 +190,9 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 	auto found = cache_.find(key);
 	if (found != cache_.end()) {
 		return found->second.get();
+	}
+	if (failedKeys_.contains(key)) {
+		return nullptr;
 	}
 	auto restoreFallback = [&]() -> const PipelineState* {
 
@@ -364,8 +222,7 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 		shaderAsset = &composedShader;
 	}
 
-	std::unique_ptr<PipelineState> pipelineState = std::make_unique<PipelineState>();
-	bool created = false;
+	std::unique_ptr<PipelineState> pipelineState;
 	switch (variant->kind) {
 	case PipelineVariantKind::GraphicsVertex:
 	case PipelineVariantKind::GraphicsGeometry:
@@ -385,9 +242,12 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 			desc.depthStencil.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 			desc.depthStencil.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 		}
+		if (forceTwoSidedRasterizer) {
+			desc.rasterizer.CullMode = D3D12_CULL_MODE_NONE;
+		}
 		// パイプラインステートオブジェクトを生成
-		created = pipelineState->CreateGraphics(graphicsPlatform.GetDevice(),
-			graphicsPlatform.GetDxShaderCompiler(), desc);
+		pipelineState = PipelineStateBuilder::CreateGraphics(graphicsPlatform.GetResourceRetirement(), graphicsPlatform.GetDevice(),
+			graphicsPlatform.GetDxShaderCompiler(), desc, shaderAsset);
 		break;
 	}
 	case PipelineVariantKind::Compute:
@@ -398,19 +258,18 @@ const Engine::PipelineState* Engine::PipelineStateCache::GetORCreate(GraphicsPla
 			return restoreFallback();
 		}
 		// パイプラインステートオブジェクトを生成
-		created = pipelineState->CreateCompute(graphicsPlatform.GetDevice(),
-			graphicsPlatform.GetDxShaderCompiler(), desc);
+		pipelineState = PipelineStateBuilder::CreateCompute(graphicsPlatform.GetResourceRetirement(), graphicsPlatform.GetDevice(),
+			graphicsPlatform.GetDxShaderCompiler(), desc, shaderAsset);
 		break;
 	}
 	default:
 		return nullptr;
 	}
 	// 生成に失敗した場合は退避した旧PSOへ戻す
-	if (!created) {
+	if (!pipelineState) {
+		failedKeys_.insert(key);
 		return restoreFallback();
 	}
-	pipelineState->ApplyShaderMetadata(
-		*shaderAsset);
 	// キャッシュに保存
 	auto [it, inserted] = cache_.emplace(key, std::move(pipelineState));
 	fallbackCache_.erase(key);
@@ -433,6 +292,7 @@ const Engine::ShaderReflectionInfo* Engine::PipelineStateCache::FindGraphicsRefl
 
 void Engine::PipelineStateCache::Clear() {
 
+	failedKeys_.clear();
 	// PipelineStateはRootSignature/PSOを持つため、cache破棄前に明示resetする
 	for (auto& entry : cache_) {
 		entry.second.reset();
@@ -447,6 +307,10 @@ void Engine::PipelineStateCache::Clear() {
 
 void Engine::PipelineStateCache::InvalidateByPipelineAsset(AssetID pipelineAssetID) {
 
+	// Pipeline更新後は失敗した構成も再試行する
+	std::erase_if(failedKeys_, [pipelineAssetID](const PipelineCacheKey& key) {
+		return key.pipelineAsset == pipelineAssetID || key.geometryPipelineAsset == pipelineAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
 		if (it->first.pipelineAsset == pipelineAssetID || it->first.geometryPipelineAsset == pipelineAssetID) {
 			graphicsReflectionByPipeline_.erase(it->first.pipelineAsset);
@@ -489,6 +353,11 @@ uint64_t Engine::PipelineStateCache::HashFormats(std::span<const DXGI_FORMAT> rt
 
 void Engine::PipelineStateCache::InvalidateByShaderAsset(AssetID shaderAssetID) {
 
+	// Shader更新後は旧PSOの有無に関係なく再試行する
+	std::erase_if(failedKeys_, [shaderAssetID](const PipelineCacheKey& key) {
+		return key.pipelineShaderAsset == shaderAssetID || key.geometryShaderAsset == shaderAssetID ||
+			key.shaderOverrideAsset == shaderAssetID;
+	});
 	for (auto it = cache_.begin(); it != cache_.end(); ) {
 		if (it->first.pipelineShaderAsset == shaderAssetID ||
 			it->first.geometryShaderAsset == shaderAssetID ||
@@ -523,4 +392,29 @@ uint64_t Engine::PipelineStateCache::HashStaticSamplerOverrides(
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
 	return HashPipelineStaticSamplerOverrides(samplerOverrides);
+}
+
+//============================================================================
+//	PipelineStateCache classMethods
+//============================================================================
+
+namespace Engine {
+
+	size_t PipelineStateCache::PipelineCacheKeyHash::operator()(const PipelineCacheKey& key) const noexcept {
+
+		size_t h = std::hash<AssetID>{}(key.pipelineAsset);
+		h ^= (std::hash<AssetID>{}(key.geometryPipelineAsset) << 1);
+		h ^= (std::hash<AssetID>{}(key.pipelineShaderAsset) << 2);
+		h ^= (std::hash<AssetID>{}(key.geometryShaderAsset) << 3);
+		h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 4);
+		h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 5);
+		h ^= (std::hash<uint64_t>{}(key.formatHash) << 6);
+		h ^= (std::hash<bool>{}(key.meshEnabled) << 7);
+		h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 8);
+		h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 9);
+		h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 10);
+		h ^= (std::hash<bool>{}(key.twoSidedRasterizer) << 11);
+		h ^= (std::hash<uint64_t>{}(key.samplerHash) << 12);
+		return h;
+	}
 }

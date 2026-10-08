@@ -183,3 +183,16 @@ namespace Engine::RenderBillboard {
 	}
 
 } // namespace Engine::RenderBillboard
+
+//============================================================================
+//	RenderBillboardUtility classMethods
+//============================================================================
+
+namespace Engine::RenderBillboard {
+
+	bool HasBillboard(const RenderItem& item) {
+
+		return item.world && item.world->IsAlive(item.entity) &&
+			item.world->HasComponent<BillboardComponent>(item.entity);
+	}
+}

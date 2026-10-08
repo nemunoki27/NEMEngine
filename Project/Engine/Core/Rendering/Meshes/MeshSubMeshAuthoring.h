@@ -10,10 +10,6 @@
 #include <vector>
 #include <string>
 #include <filesystem>
-// assimp
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
 
 namespace Engine {
 
@@ -68,7 +64,7 @@ namespace Engine::MeshSubMeshAuthoring {
 	// モデル更新時に該当レイアウトの再解析を要求する
 	void InvalidateCachedLayout(AssetID meshAssetID);
 
-	// レイアウトに合わせてサブメッシュを正規化する
+	// 編集値を保持して同期し、保持しない場合はモデルの初期値へ戻す
 	bool SyncComponentToLayout(const std::vector<MeshSubMeshLayoutItem>& layout,
 		std::vector<SubMeshMaterial>& subMeshes, bool preserveOverrides);
 

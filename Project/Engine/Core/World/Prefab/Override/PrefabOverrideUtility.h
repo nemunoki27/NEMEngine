@@ -60,9 +60,7 @@ namespace Engine {
 		std::vector<std::string> removedComponentTypes;
 
 		// オーバーライドが何か在るか
-		bool HasAnyOverride() const {
-			return !modifiedPaths.empty() || !addedComponentTypes.empty() || !removedComponentTypes.empty();
-		}
+		bool HasAnyOverride() const { return !modifiedPaths.empty() || !addedComponentTypes.empty() || !removedComponentTypes.empty(); }
 	};
 
 	//============================================================================
@@ -77,12 +75,6 @@ namespace Engine {
 		// プレファブファイルを読み、プレファブ内ローカルIDからベース実体へのマップを作る
 		std::unordered_map<UUID, PrefabBaseEntity> LoadPrefabBaseEntities(AssetDatabase& database,
 			AssetID prefabAsset, UUID* outRootLocalFileID = nullptr);
-
-		// LoadPrefabBaseEntitiesをファイル更新時刻でキャッシュして返す、毎フレーム呼ばれても更新が無ければ再読込しない
-		const std::unordered_map<UUID, PrefabBaseEntity>& LoadPrefabBaseEntitiesCached(
-			AssetDatabase& database, AssetID prefabAsset);
-		// 保存直後に更新時刻が変化しない場合へ備えてキャッシュを破棄する
-		void InvalidatePrefabBaseCache(AssetID prefabAsset);
 
 		// インスタンスに属する全エンティティを集める
 		std::vector<Entity> CollectInstanceEntities(ECSWorld& world, UUID instanceID);
@@ -121,5 +113,7 @@ namespace Engine {
 	//	PrefabInstanceData json変換
 	//============================================================================
 	nlohmann::json ToJson(const PrefabInstanceData& data);
+	// Scene保存時だけ実行用IDを保存元のIDへ戻す
+	nlohmann::json ToSceneJson(const PrefabInstanceData& data);
 	bool FromJson(const nlohmann::json& json, PrefabInstanceData& data);
 } // Engine

@@ -44,9 +44,9 @@ void Engine::BuiltinRenderBackendBase::SyncAndBindRegistry(const PipelineState& 
 			.smoothDeltaTime = systemContext.smoothDeltaTime,
 			.unscaledTime = systemContext.unscaledTime,
 		};
-		const PostProcessConstantBufferAllocation allocation =
-			constantBufferAllocator_.AllocateAndUpload(
-				context.graphicsCore->GetDXObject().GetDevice(),
+		const FrameConstantBufferAllocation allocation =
+			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(),
+			context.graphicsCore->GetDXObject().GetDevice(),
 				constants);
 		shaderGraphTimeGPUAddress_ = allocation.gpuAddress;
 	}
@@ -67,4 +67,19 @@ void Engine::BuiltinRenderBackendBase::BindMaterial(const RenderDrawContext& con
 		material, overrides, perDrawBindCache_, materialParamsCBVSlot_, commandList);
 	BackendDrawCommon::BindMaterialTextures(context, pipelineState, materialParamBinder_,
 		material, commandList, overrides);
+}
+
+//============================================================================
+//	BuiltinRenderBackendBase classMethods
+//============================================================================
+
+namespace Engine {
+
+	BuiltinRenderBackendBase::BuiltinRenderBackendBase() {
+
+		viewCBVSlot_ = perDrawBindCache_.AddSlot("ViewConstants", ShaderBindingKind::CBV);
+		shaderGraphTimeCBVSlot_ = perDrawBindCache_.AddSlot(
+			"ShaderGraphTimeConstants", ShaderBindingKind::CBV);
+		materialParamsCBVSlot_ = perDrawBindCache_.AddSlot(MaterialParameterCBuffer::kSurface, ShaderBindingKind::CBV);
+	}
 }

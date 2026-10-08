@@ -1,9 +1,10 @@
 #pragma once
 
-// directX
-#include <d3d12.h>
 // c++
 #include <string_view>
+
+// directX
+#include <d3d12.h>
 
 namespace Engine {
 

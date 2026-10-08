@@ -14,6 +14,7 @@ Texture2D<float4> gEffectColor : register(t1);
 Texture2D<float4> gSelectionMask : register(t2);
 Texture2D<uint> gSourceFlags : register(t3);
 RWTexture2D<float4> gDestColor : register(u0);
+SamplerState gColorSampler : register(s0);
 
 //============================================================================
 //	main
@@ -27,14 +28,19 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID) {
 		return;
 	}
 
-	const float4 source = gSourceColor[dispatchThreadID.xy];
-	const float4 effect = gEffectColor[dispatchThreadID.xy];
-	const uint flags = gSourceFlags[dispatchThreadID.xy];
+	// 出力解像度に合わせて入力カラーを取得
+	const float2 uv = (float2(dispatchThreadID.xy) + 0.5f) / float2(size);
+	const float4 source = gSourceColor.SampleLevel(gColorSampler, uv, 0);
+	const float4 effect = gEffectColor.SampleLevel(gColorSampler, uv, 0);
+	uint2 flagsSize;
+	gSourceFlags.GetDimensions(flagsSize.x, flagsSize.y);
+	const uint2 flagsPixel = min(uint2(uv * float2(flagsSize)), flagsSize - 1u);
+	const uint flags = gSourceFlags[flagsPixel];
 	const uint opaqueLayerMask = (flags >> 8u) & 0x00FFFFFFu;
 	const float opaqueCoverage = selectionMode == 1u &&
 		(opaqueLayerMask & renderingLayerMask) != 0u ? 1.0f : 0.0f;
 	const float coverage = max(opaqueCoverage,
-		saturate(gSelectionMask[dispatchThreadID.xy].a));
+		saturate(gSelectionMask.SampleLevel(gColorSampler, uv, 0).a));
 	if (coverage <= 0.0f) {
 		gDestColor[dispatchThreadID.xy] = source;
 		return;

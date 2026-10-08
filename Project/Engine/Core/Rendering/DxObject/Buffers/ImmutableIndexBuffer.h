@@ -25,6 +25,10 @@ namespace Engine {
 
 		ImmutableIndexBuffer() = default;
 		~ImmutableIndexBuffer() = default;
+		ImmutableIndexBuffer(const ImmutableIndexBuffer&) = delete;
+		ImmutableIndexBuffer& operator=(const ImmutableIndexBuffer&) = delete;
+		ImmutableIndexBuffer(ImmutableIndexBuffer&&) noexcept = default;
+		ImmutableIndexBuffer& operator=(ImmutableIndexBuffer&&) noexcept = default;
 
 		// 32bitインデックスでDEFAULT heap本体を作成し、転送を依頼する
 		// BLAS入力など別用途でも読む場合はfinalStateにGENERIC_READを指定する
@@ -43,9 +47,7 @@ namespace Engine {
 		ID3D12Resource* GetResource() const { return buffer_.GetResource(); }
 		DXGI_FORMAT GetFormat() const { return indexBufferView_.Format; }
 		// 1インデックスのバイト数(R16なら2、R32なら4)
-		uint32_t GetIndexSizeInBytes() const {
-			return (indexBufferView_.Format == DXGI_FORMAT_R16_UINT) ? sizeof(uint16_t) : sizeof(uint32_t);
-		}
+		uint32_t GetIndexSizeInBytes() const;
 		bool IsCreatedResource() const { return buffer_.IsCreatedResource(); }
 	private:
 		//============================================================================

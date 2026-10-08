@@ -17,6 +17,15 @@ if ([string]::IsNullOrWhiteSpace($SdkRoot)) {
 $SdkRoot = (Resolve-Path -LiteralPath $SdkRoot).Path
 $buildTool = Join-Path $SdkRoot "Tools\NEMBuildTool\NEMBuildTool.exe"
 $buildScript = Join-Path $SdkRoot "Tools\BuildGame.ps1"
+$sdkVersion = Get-Content -LiteralPath (Join-Path $SdkRoot 'sdk_version.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($sdkVersion.managedABI -le 0 -or $sdkVersion.build.externals.Count -eq 0) {
+    throw 'SDKのABI版または構築条件がありません'
+}
+foreach ($external in $sdkVersion.build.externals) {
+    if ($external.available -and ($null -eq $external.settings -or $external.settings -is [string])) {
+        throw 'SDKの外部ライブラリ構築条件が省略されています'
+    }
+}
 foreach ($required in @($buildTool, $buildScript)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "SDKの検証に必要なファイルが見つかりません: $required"
@@ -83,6 +92,9 @@ try {
             }
         }
     }
+    # 新規ゲームの参照情報を確定してから意味解析へ渡す
+    & dotnet restore (Join-Path $appRoot 'Scripts\GameScripts.csproj') --ignore-failed-sources
+    if ($LASTEXITCODE -ne 0) { throw '検証用ゲームのC#参照復元に失敗しました' }
     # 検証先のGeneratedが除外判定に入らないよう相対パスでメタを同期する
     Push-Location $appRoot
     try {
@@ -145,6 +157,8 @@ try {
         projectGuid = $descriptor.projectGuid
         startupScene = $sceneGUID
         startupFullscreen = $false
+		gameWidth = 1280
+		gameHeight = 720
         packages = @()
         files = $files
         cookHash = "sdk-product-build-regression"
@@ -204,12 +218,12 @@ try {
     $shaderManifest = Get-Content -LiteralPath (Join-Path $productRoot "Cooked\Shaders\ShaderCookManifest.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     foreach ($required in @(
         @("4e454d41535345548ed3590f7d583b7a", "VS", "main", "vs_6_0"),
-        @("4e454d41535345544c49474854000001", "PS", "main", "ps_6_6"),
+        @("4e454d41535345544c49474854000001", "PS", "main", "ps_6_0"),
         @("4e454d41535345544c49474854000002", "PS", "mainShadowed", "ps_6_6"),
-        @("4e454d41535345544c49474854000003", "CS", "main", "cs_6_6"),
+        @("4e454d41535345544c49474854000003", "CS", "main", "cs_6_0"),
         @("4e454d41535345544c49474854000004", "PS", "main", "ps_6_0"),
         @("4e454d41535345544c49474854000005", "VS", "main", "vs_6_0"),
-        @("4e454d41535345544c49474854000005", "PS", "main", "ps_6_6")
+        @("4e454d41535345544c49474854000005", "PS", "main", "ps_6_0")
     )) {
         $shader = @($shaderManifest.shaders | Where-Object { $_.asset.guid -eq $required[0] })
         $stage = @($shader | ForEach-Object { $_.stages } | Where-Object {

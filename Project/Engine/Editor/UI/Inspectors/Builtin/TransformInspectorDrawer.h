@@ -21,7 +21,7 @@ namespace Engine {
 		//============================================================================
 
 		TransformInspectorDrawer() = default;
-		~TransformInspectorDrawer() = default;
+		~TransformInspectorDrawer();
 
 		void Draw(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) override;
 
@@ -37,6 +37,8 @@ namespace Engine {
 
 		// 編集中のエンティティのUUID
 		UUID editingEntityStableUUID_{};
+		std::weak_ptr<const ECSWorldLifetime> editingWorld_;
+		ECSWorld* editingWorldPointer_ = nullptr;
 
 		// ドラフトのトランスフォーム
 		TransformComponent draftTransform_{};
@@ -60,5 +62,7 @@ namespace Engine {
 		void CommitTransformIfNeeded(const EditorPanelContext& context, ECSWorld& world, const Entity& entity);
 		// プレビューが必要なら適用する
 		void ApplyPreviewIfNeeded(ECSWorld& world, const Entity& entity);
+		// 編集対象を失う前に未確定プレビューを戻す
+		void RestorePreview();
 	};
 } // Engine

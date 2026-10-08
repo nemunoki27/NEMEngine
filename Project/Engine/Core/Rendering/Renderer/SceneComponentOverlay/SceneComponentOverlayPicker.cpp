@@ -33,7 +33,7 @@ namespace {
 //============================================================================
 //	SceneComponentOverlayPicker classMethods
 //============================================================================
-bool Engine::SceneComponentOverlayPicker::Pick([[maybe_unused]] ECSWorld* world,
+bool Engine::SceneComponentOverlayPicker::Pick([[maybe_unused]] const ECSWorld* world,
 	[[maybe_unused]] const ResolvedRenderView& view, [[maybe_unused]] const Vector2& inputPixel,
 	Entity& outEntity) const {
 
@@ -43,7 +43,7 @@ bool Engine::SceneComponentOverlayPicker::Pick([[maybe_unused]] ECSWorld* world,
 		return false;
 	}
 
-	// GameViewやPreviewの状態を拾わないよう、描画済みWorldと一致する時だけ使う
+	// 描画済み候補のWorldが一致するか確認
 	const SceneComponentOverlayState& state = SceneComponentOverlayState::GetInstance();
 	if (state.GetWorld() != world) {
 		return false;

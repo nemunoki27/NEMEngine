@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 #include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
@@ -12,7 +13,7 @@
 //============================================================================
 void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch& batch) {
 
-	world.ForEach<TextRendererComponent>([&](const Entity& entity, TextRendererComponent& renderer) {
+	world.ForEach<TextRendererComponent>([&](const Entity& entity, const TextRendererComponent& renderer) {
 
 		// 描画可能か
 		if (!RenderItemExtract::IsVisible(world, entity, renderer.visible)) {
@@ -28,7 +29,7 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		if (const UVTransformComponent* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
 			payload.uvMatrix = uvTransform->uvMatrix;
 		}
-		// Renderer固有Material Instanceを描画時に既定値へ重ねる
+		// Rendererの上書き値を参照する
 		payload.materialInstance = &renderer.materialInstance.Get();
 		// 描画アイテムの構築
 		RenderItem item{};
@@ -45,9 +46,9 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 			item.sortingOrder += uiRuntime->canvasOrder;
 			item.orderedUI = true;
 			item.hierarchyOrder = uiRuntime->hierarchyOrder;
-		// 2DはOrthographicでScreenUI、3DはPerspectiveで深度ありのTransparentパスに乗せる
 		} else if (renderer.dimension == Dimension::Type3D) {
 
+			// 3Dは深度付きの透過描画へ渡す
 			item.cameraDomain = RenderCameraDomain::Perspective;
 			if (item.renderPhase == RenderPhase::ScreenUI) {
 				item.renderPhase = RenderPhase::Transparent;
@@ -56,11 +57,9 @@ void Engine::TextRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 
 			item.cameraDomain = RenderCameraDomain::Orthographic;
 		}
-		// フォントとMaterial Instance値が同じTextを同一バッチへまとめる
+		// 同じフォントと上書き値で描画をまとめる
 		const uint64_t fontHash = std::hash<AssetID>{}(renderer.font);
-		item.batchKey = fontHash ^
-			(renderer.materialInstance.GetContentHash() + 0x9e3779b97f4a7c15ull +
-				(fontHash << 6) + (fontHash >> 2));
+		item.batchKey = Algorithm::MixHash(fontHash, renderer.materialInstance.GetContentHash());
 		item.payload = batch.PushPayload(payload);
 		// 描画アイテムをバッチに追加
 		batch.Add(std::move(item));

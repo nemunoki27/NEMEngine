@@ -41,8 +41,7 @@ namespace Engine {
 
 		// 有効フラグ
 		bool enabled = true;
-		// 影響レイヤー
-		uint32_t affectLayerMask = 0xffffffffu;
+
 	};
 
 	// json変換

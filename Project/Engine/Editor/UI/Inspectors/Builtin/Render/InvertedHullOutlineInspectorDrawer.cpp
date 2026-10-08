@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 //============================================================================
 //	InvertedHullOutlineInspectorDrawer classMethods
@@ -68,6 +68,16 @@ void Engine::InvertedHullOutlineInspectorDrawer::DrawFields(const EditorPanelCon
 			return MyGUI::AssetReferenceField("Outline Sampler", draft.outlineSamplerTexture,
 				context.editorContext->assetDatabase, { AssetType::Texture }, setting);
 			});
+		DrawField(anyItemActive, [&]() {
+			return InspectorDrawerCommon::DrawCheckboxField(
+				"Materialの透明度を反映", draft.respectMaterialSurface);
+			});
+		if (draft.respectMaterialSurface) {
+			DrawField(anyItemActive, [&]() {
+				return MyGUI::DragFloat("Alpha閾値", draft.alphaThreshold,
+					{ .dragSpeed = 0.01f,.minValue = 0.0f,.maxValue = 1.0f });
+				});
+		}
 	}
 	//============================================================================
 	//	ステンシル設定

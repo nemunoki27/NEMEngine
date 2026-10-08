@@ -17,6 +17,19 @@ namespace Engine {
 	class ParticleFlipbookModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// テクスチャの分割数
+			// 行ごとの横タイル数
+			std::vector<int32_t> tilesX{ 1 };
+			// 縦タイル数
+			int32_t tilesY = 1;
+			// 寿命内で何周させるか
+			float cycles = 1.0f;
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -26,10 +39,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -37,13 +54,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// テクスチャの分割数
-		// 行ごとの横タイル数
-		std::vector<int32_t> tilesX_{ 1 };
-		// 縦タイル数
-		int32_t tilesY_ = 1;
-		// 寿命内で何周させるか
-		float cycles_ = 1.0f;
+		Settings settings_{};
+
 	};
 
 } // Engine

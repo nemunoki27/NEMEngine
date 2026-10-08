@@ -1,5 +1,7 @@
 #include "RenderingPlatform.h"
 
+#include <stdexcept>
+
 using namespace Engine;
 
 //============================================================================
@@ -7,7 +9,7 @@ using namespace Engine;
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Time/FrameProfiler.h>
-#include <Engine/Core/Rendering/DxObject/Debug/DxDredDiagnostics.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Rendering/Shaders/ShaderCook.h>
 
 // c++
@@ -32,7 +34,7 @@ namespace {
 
 void GraphicsPlatform::InitDXDevice() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	DxDredDiagnostics::EnableBeforeDeviceCreation();
+	DxDREDDiagnostics::EnableBeforeDeviceCreation();
 #endif
 
 #ifdef _DEBUG
@@ -48,7 +50,7 @@ void GraphicsPlatform::InitDXDevice() {
 #endif
 
 	dxDevice_->Create();
-	DxDredDiagnostics::ResetForNewDevice();
+	DxDREDDiagnostics::ResetForNewDevice();
 
 	ComPtr<ID3D12InfoQueue> infoQueue = nullptr;
 	if (SUCCEEDED(dxDevice_->Get()->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
@@ -87,6 +89,7 @@ void GraphicsPlatform::DetectFeatureSupport() {
 	adapterInfo.adapterName = dxDevice_->GetAdapterName();
 	adapterInfo.featureLevel = dxDevice_->GetFeatureLevel();
 	adapterInfo.dedicatedVideoMemoryBytes = dxDevice_->GetDedicatedVideoMemoryBytes();
+	adapterInfo.driverVersion = dxDevice_->GetDriverVersion();
 
 	GraphicsFeatureSupport support{};
 	support.highestShaderModel = QueryHighestShaderModel();
@@ -168,6 +171,8 @@ void GraphicsPlatform::SubmitFrame() {
 void GraphicsPlatform::PresentFrame(IDXGISwapChain4* swapChain) {
 
 	framePresenter_->Present(swapChain);
+	resourceRetirement_.Seal(dxCommand_->GetFrameFenceValue(dxCommand_->GetCurrentFrameIndex()));
+	resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
 }
 
 void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
@@ -181,8 +186,9 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 	const uint64_t fenceValue = dxCommand_->GetFrameFenceValue(frameIndex);
 	const std::chrono::high_resolution_clock::time_point waitStart =
 		std::chrono::high_resolution_clock::now();
-	dxCommandQueue_->WaitForFenceValue(
-		fenceValue, "GraphicsPlatform::BeginFrame/FrameContextReuse");
+	if (!dxCommandQueue_->WaitForFenceValue(fenceValue, "GraphicsPlatform::BeginFrame/FrameContextReuse")) {
+		throw std::runtime_error("GPUの完了を確認できませんでした");
+	}
 	const std::chrono::duration<float, std::milli> waitElapsed =
 		std::chrono::high_resolution_clock::now() - waitStart;
 	FrameProfiler::GetInstance().AddSample(
@@ -191,6 +197,7 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 	dxCommand_->BeginFrame(frameIndex);
 	const uint64_t completedFenceValue =
 		dxCommandQueue_->GetCompletedFenceValue();
+	resourceRetirement_.Collect(completedFenceValue);
 	const uint64_t lastFenceValue =
 		dxCommandQueue_->GetLastSignaledFenceValue();
 	FrameProfiler::GetInstance().SetFrameContextStatistics(
@@ -200,19 +207,38 @@ void GraphicsPlatform::BeginFrame(uint32_t frameIndex) {
 
 void GraphicsPlatform::WaitForGPU() {
 
+	if (IsDeviceRemoved()) {
+		throw std::runtime_error("Deviceが失われたため描画を継続できません");
+	}
+
+	// 初期化途中でQueueを作れなかった場合は提出対象がない
+	if (!dxCommandQueue_ || !dxCommandQueue_->IsInitialized()) {
+		return;
+	}
 	// 現在積んでいるリストを実行してGPU完了まで待つ、終了時のドレイン用
-	if (dxCommand_->IsRecording()) {
+	if (dxCommand_ && dxCommand_->IsRecording()) {
 		dxCommand_->CloseCommandList();
 		dxCommandQueue_->ExecuteCommandList(dxCommand_->GetCommandList());
 		const uint64_t fenceValue = dxCommandQueue_->Signal();
-		dxCommandQueue_->WaitForFenceValue(
-			fenceValue, "GraphicsPlatform::WaitForGPU/Drain");
+		if (!dxCommandQueue_->WaitForFenceValue(fenceValue, "GraphicsPlatform::WaitForGPU/Drain")) {
+			throw std::runtime_error("GPUの完了を確認できませんでした");
+		}
+		resourceRetirement_.Seal(fenceValue);
+		resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
 		dxCommand_->SetCurrentFrameFenceValue(fenceValue);
 		dxCommand_->ResetCommandList();
 		return;
 	}
 
 	const uint64_t fenceValue = dxCommandQueue_->Signal();
-	dxCommandQueue_->WaitForFenceValue(
-		fenceValue, "GraphicsPlatform::WaitForGPU/QueueDrain");
+	if (!dxCommandQueue_->WaitForFenceValue(fenceValue, "GraphicsPlatform::WaitForGPU/QueueDrain")) {
+		throw std::runtime_error("GPUの完了を確認できませんでした");
+	}
+	resourceRetirement_.Seal(fenceValue);
+	resourceRetirement_.Collect(dxCommandQueue_->GetCompletedFenceValue());
+}
+
+bool Engine::GraphicsPlatform::IsDeviceRemoved() const {
+
+	return dxDevice_ && dxDevice_->Get() && FAILED(dxDevice_->Get()->GetDeviceRemovedReason());
 }

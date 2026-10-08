@@ -33,7 +33,7 @@ void Engine::ClearRenderTargetsPass::Execute(GraphicsCore& graphicsCore,
 	dxCommand->SetViewportAndScissor(sceneMain->GetWidth(), sceneMain->GetHeight());
 	sceneMain->Clear(*dxCommand, clearDesc);
 	// 出力先サーフェスがあればそちらもクリアする
-	if (context.defaultSurface) {
+	if (context.defaultSurface && context.clearDefaultSurface) {
 
 		// サーフェイス設定
 		MultiRenderTargetClearDesc surfaceClearDesc{};

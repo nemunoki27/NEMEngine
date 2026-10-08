@@ -111,9 +111,14 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 		return;
 	}
 	BackendDrawCommon::ResolvedMaterialPass resolvedPass = sourcePass;
-	if (IsOutlineMaskPass(context.passKind) &&
-		!ResolveSpriteOutlinePass(context, resolvedPass)) {
-		return;
+	if (IsOutlineMaskPass(context.passKind)) {
+		if (const MaterialPassBinding* graphPass = sourcePass.material ?
+			FindPass(*sourcePass.material, context.passKind) : nullptr) {
+
+			resolvedPass.pass = graphPass;
+		} else if (!ResolveSpriteOutlinePass(context, resolvedPass)) {
+			return;
+		}
 	}
 	const MaterialAsset* bindingMaterial = sourcePass.material;
 	const SpriteRenderPayload* firstPayload = context.batch->GetPayload<SpriteRenderPayload>(*items.front());
@@ -189,9 +194,10 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 			maskConstants.restrictSubMeshIndex =
 				context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 			maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
-			const PostProcessConstantBufferAllocation maskAlloc =
-				constantBufferAllocator_.AllocateAndUpload(
-					graphicsCore.GetDXObject().GetDevice(), maskConstants);
+			maskConstants.alphaThreshold = context.screenSpaceOutlineMaskAlphaThreshold;
+			const FrameConstantBufferAllocation maskAlloc =
+				constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), maskConstants);
 			RootBindingCommand::SetGraphicsCBV(
 				commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_),
 				maskAlloc.gpuAddress);
@@ -200,4 +206,21 @@ void Engine::SpriteRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	// インスタンシングで描画
 	commandList->DrawIndexedInstanced(6, resources.GetInstanceCount(), 0, 0, 0);
+}
+
+//============================================================================
+//	SpriteRenderBackend classMethods
+//============================================================================
+
+namespace Engine {
+
+	SpriteRenderBackend::SpriteRenderBackend() {
+
+		vsInstSRVSlot_ = perDrawBindCache_.AddSlot("gVSInstances", ShaderBindingKind::SRV);
+		psInstSRVSlot_ = perDrawBindCache_.AddSlot("gPSInstances", ShaderBindingKind::SRV);
+		outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(
+			ShaderBindingKind::CBV,
+			kScreenSpaceOutlineMaskCBVRegister,
+			kScreenSpaceOutlineMaskCBVSpace);
+	}
 }

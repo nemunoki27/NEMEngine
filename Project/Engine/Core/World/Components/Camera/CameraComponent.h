@@ -4,12 +4,25 @@
 //	include
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
+#include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
 // c++
 #include <cstdint>
 
 namespace Engine {
+
+	//============================================================================
+	//	CameraProjectionMode enum
+	//	3Dカメラの投影方式
+	//============================================================================
+	enum class CameraProjectionMode :
+		int32_t {
+
+		Perspective,
+		Orthographic,
+	};
 
 	//============================================================================
 	//	CameraComponent struct
@@ -28,6 +41,18 @@ namespace Engine {
 		bool enabled = true;
 		// MainCameraとして扱うか
 		bool isMain = true;
+		// 出力先内の正規化描画範囲
+		float viewportX = 0.0f;
+		float viewportY = 0.0f;
+		float viewportWidth = 1.0f;
+		float viewportHeight = 1.0f;
+		// 空ならGame Viewへ出力する
+		AssetID targetTexture{};
+		// Camera固有の露出と色補正
+		bool postProcessEnabled = true;
+		ColorPipelineSettings colorPipeline{};
+		// Camera固有の描画拡張
+		AssetID renderPasses{};
 
 		// エディターに表示するフラスタムのサイズ
 		float editorFrustumScale = 0.002f;
@@ -50,8 +75,12 @@ namespace Engine {
 	// 3Dカメラ
 	struct PerspectiveCameraComponent {
 
+		// 投影方式
+		CameraProjectionMode projectionMode = CameraProjectionMode::Perspective;
 		// 画角
 		float fovY = 60.0f;
+		// 平行投影の縦半径
+		float orthographicSize = 5.0f;
 		// クリップ範囲
 		float nearClip = 0.01f;
 		float farClip = 4000.0f;

@@ -4,85 +4,14 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
-
-// imgui
-#include <imgui.h>
 
 // c++
 #include <algorithm>
 #include <string>
 
-//============================================================================
-//	ParticleSystemInspectorDrawer internal
-//============================================================================
-namespace {
-
-	// 親localFileIDから表示名を作る
-	std::string MakeSimulationTargetLabel(
-		Engine::ECSWorld& world, Engine::UUID target) {
-
-		if (!target) {
-			return "なし";
-		}
-		const Engine::Entity entity =
-			Engine::SceneObjectUtility::FindByLocalFileID(world, target);
-		if (!world.IsAlive(entity)) {
-			return "不明 : " + Engine::ToString(target);
-		}
-		const Engine::NameComponent* name =
-			world.TryGetComponent<Engine::NameComponent>(entity);
-		return name ? name->name : Engine::ToString(target);
-	}
-
-	// ヒエラルキーからカスタム空間の対象を設定する
-	Engine::ValueEditResult DrawSimulationTarget(
-		Engine::ECSWorld& world, Engine::UUID& target) {
-
-		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow("カスタム空間")) {
-			return result;
-		}
-
-		constexpr float kClearWidth = 56.0f;
-		const std::string label = MakeSimulationTargetLabel(world, target);
-		ImGui::Button(label.c_str(), ImVec2((std::max)(0.0f,
-			ImGui::GetContentRegionAvail().x - kClearWidth), 0.0f));
-		result.anyItemActive = ImGui::IsItemActive();
-		if (ImGui::BeginDragDropTarget()) {
-
-			const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
-				Engine::IEditorPanel::kHierarchyDragDropPayloadType);
-			if (payload && payload->DataSize == sizeof(Engine::UUID)) {
-
-				const Engine::Entity dropped = world.FindByUUID(
-					*static_cast<const Engine::UUID*>(payload->Data));
-				const Engine::SceneObjectComponent* sceneObject =
-					world.TryGetComponent<Engine::SceneObjectComponent>(dropped);
-				if (sceneObject && target != sceneObject->localFileID) {
-					target = sceneObject->localFileID;
-					result.valueChanged = true;
-					result.editFinished = true;
-				}
-			}
-			ImGui::EndDragDropTarget();
-		}
-
-		ImGui::SameLine();
-		if (ImGui::Button("クリア", ImVec2(kClearWidth, 0.0f)) && target) {
-			target = {};
-			result.valueChanged = true;
-			result.editFinished = true;
-		}
-		Engine::MyGUI::EndPropertyRow();
-		return result;
-	}
-}
+#include <imgui.h>
 
 //============================================================================
 //	ParticleSystemInspectorDrawer classMethods
@@ -92,6 +21,9 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 	const Entity& entity, bool& anyItemActive) {
 
 	ParticleSystemComponent& draft = GetDraft();
+	DrawField(anyItemActive, [&]() {
+		return InspectorDrawerCommon::DrawLayerMaskField(context, "Rendering Layer", draft.renderingLayerMask);
+		});
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("表示", draft.visible);
 		});
@@ -122,13 +54,24 @@ void Engine::ParticleSystemInspectorDrawer::DrawFields(
 			{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 100.0f });
 		});
 	DrawField(anyItemActive, [&]() {
-		return MyGUI::EnumCombo("シミュレーション空間", draft.simulationSpace);
+		return InspectorDrawerCommon::DrawCheckboxField(
+			"Seedを自動生成", draft.useAutoRandomSeed);
 		});
-	if (draft.simulationSpace == ParticleSystemSimulationSpace::Custom) {
+	if (!draft.useAutoRandomSeed) {
 		DrawField(anyItemActive, [&]() {
-			return DrawSimulationTarget(world, draft.customSimulationTarget);
+			ValueEditResult result{};
+			if (MyGUI::BeginPropertyRow("Seed")) {
+				result.valueChanged = ImGui::InputScalar("##RandomSeed", ImGuiDataType_U32, &draft.randomSeed);
+				result.anyItemActive = ImGui::IsItemActive();
+				result.editFinished = ImGui::IsItemDeactivatedAfterEdit();
+				MyGUI::EndPropertyRow();
+			}
+			return result;
 			});
 	}
+	DrawField(anyItemActive, [&]() {
+		return MyGUI::EnumCombo("シミュレーション空間", draft.simulationSpace);
+		});
 	DrawField(anyItemActive, [&]() {
 		return MyGUI::EnumCombo("終了時の処理", draft.stopAction);
 		});

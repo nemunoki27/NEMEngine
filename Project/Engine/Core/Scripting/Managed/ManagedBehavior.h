@@ -30,7 +30,13 @@ namespace Engine {
 
 		// Play中runtime Inspector用：C#インスタンスの現在値取得/単一field即時設定
 		nlohmann::json GetRuntimeSerializedState() override;
+		bool CaptureSavedFields(ECSWorld& world, nlohmann::json& fields) override;
 		void SetRuntimeSerializedField(ECSWorld& world, const std::string& fieldID, const nlohmann::json& value) override;
+		// Hot Reload用のprivate Fieldを含む値を取得・復元する
+		bool CaptureReloadFields(ECSWorld& world, nlohmann::json& fields);
+		bool ApplyReloadFields(ECSWorld& world, const nlohmann::json& fields);
+		// Assembly解放前にManagedインスタンスを切り離す
+		void ReleaseForReload();
 
 		// scriptSlotIDを受け取り、CreateInstance時にC#へ転送する
 		void SetSlotID(uint64_t scriptSlotID) override { scriptSlotID_ = scriptSlotID; }
@@ -57,7 +63,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		// C#側callbackで例外が発生し、faulted状態になったか
+		// C#側インスタンスを継続できない状態か
 		bool IsFaulted() const override { return faulted_; }
 
 		// GetComponent<Script>でC#側インスタンスを引くためのhandleを返す、未生成はNull
@@ -79,7 +85,7 @@ namespace Engine {
 		nlohmann::json serializedFields_ = nlohmann::json::object();
 		// C#側インスタンスハンドルで世代付き、未生成はNull
 		ManagedScriptInstanceHandle managedHandle_ = ManagedScriptInstanceHandle::Null();
-		// C#側callbackで例外が発生したらtrue、以降このインスタンスのcallbackは呼ばない
+		// インスタンス生成に失敗して継続できない状態
 		bool faulted_ = false;
 
 		//--------- functions ----------------------------------------------------
@@ -88,7 +94,7 @@ namespace Engine {
 		void EnsureCreated(ECSWorld& world, const Entity& entity);
 		// C#側インスタンスを解放する
 		void ReleaseInstance();
-		// Invoke結果を判定し、ScriptExceptionならfaulted化して一度だけ診断ログを出す
+		// Invoke結果を判定し、例外を診断へ渡す
 		void HandleStatus(ManagedStatus status, const char* callbackName, const Entity& entity);
 	};
 } // Engine

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Renderer/Outline/ScreenSpaceOutlineConstants.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
@@ -49,6 +49,10 @@ void Engine::ScreenSpaceOutlineInspectorDrawer::DrawFields(
 	if (supportsAlphaSource) {
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("Alpha判定元", draft.alphaSource);
+			});
+		DrawField(anyItemActive, [&]() {
+			return MyGUI::DragFloat("Alpha閾値", draft.alphaThreshold,
+				{ .dragSpeed = 0.01f, .minValue = 0.0f, .maxValue = 1.0f });
 			});
 		DrawField(anyItemActive, [&]() {
 			return InspectorDrawerCommon::DrawEnumComboField("UI重なり", draft.uiOcclusionMode);

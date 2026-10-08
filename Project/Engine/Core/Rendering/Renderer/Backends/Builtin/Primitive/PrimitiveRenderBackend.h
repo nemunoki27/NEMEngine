@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Renderer/Views/RenderCameraHistory.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Core/BuiltinRenderBackendBase.h>
 #include <Engine/Core/Rendering/Renderer/Backends/Builtin/Primitive/PrimitiveBatchResources.h>
 #include <Engine/Core/Rendering/Primitive/PrimitiveGeometryManager.h>
@@ -25,16 +26,7 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		PrimitiveRenderBackend() {
-
-			meshConstantsCBVSlot_ = perDrawBindCache_.AddSlot("PrimitiveMeshConstants", ShaderBindingKind::CBV);
-			verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
-			instancesSRVSlot_ = perDrawBindCache_.AddSlot("gInstances", ShaderBindingKind::SRV);
-			indicesSRVSlot_ = perDrawBindCache_.AddSlot("gIndices", ShaderBindingKind::SRV);
-			// 選択アウトラインのマスク描画で使うStyle ID
-			outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,
-				kScreenSpaceOutlineMaskCBVRegister, kScreenSpaceOutlineMaskCBVSpace);
-		}
+		PrimitiveRenderBackend();
 		~PrimitiveRenderBackend() override;
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
@@ -58,14 +50,7 @@ namespace Engine {
 		bool geometryManagerInitialized_ = false;
 
 		FrameBatchResourcePool<PrimitiveBatchResources> resourcePool_;
-		std::array<Matrix4x4, 2> previousViewProjections_ = {
-			Matrix4x4::Identity(), Matrix4x4::Identity()
-		};
-		std::array<Matrix4x4, 2> framePreviousViewProjections_ = {
-			Matrix4x4::Identity(), Matrix4x4::Identity()
-		};
-		std::array<uint64_t, 2> viewFrameSerials_ = { 0, 0 };
-		std::array<bool, 2> previousViewValid_ = { false, false };
+		RenderCameraHistory cameraHistory_{};
 
 		PipelineBindingCache::SlotID meshConstantsCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID verticesSRVSlot_ = PipelineBindingCache::kInvalidSlot;

@@ -1,263 +1,48 @@
 #include "InspectorPanel.h"
+#include "InspectorSelectionDisplay.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Editor/Commands/Entity/EntityPropertyCommands.h>
-#include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Editor/Settings/ProjectTagSettings.h>
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Tools/Registry/ToolRegistry.h>
-#include <Engine/Editor/Commands/Components/AddComponentCommand.h>
-#include <Engine/Editor/Commands/Components/AddScriptEntryCommand.h>
-#include <Engine/Editor/Commands/Components/RemoveComponentCommand.h>
 #include <Engine/Editor/UI/Panels/Core/IEditorPanelHost.h>
-#include <Engine/Editor/Scripting/DragDrop/ScriptAssetDragDrop.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Assets/BuiltinAssetIDs.h>
-#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
-#include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
-#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
-#include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
-#include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
-#include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
-#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
-#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
-#include <Engine/Editor/Utility/EditorTextureHelper.h>
-#include <Engine/Core/Runtime/Context/EngineContext.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
-#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Components/Scripting/ScriptComponent.h>
-#include <Engine/Core/World/Behavior/Registry/BehaviorTypeRegistry.h>
-#include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
-#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
-#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/SpriteRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/TextRendererComponent.h>
-#include <Engine/Core/World/Components/Rendering/BillboardComponent.h>
-#include <Engine/Core/World/Components/Animation/SkinnedAnimationComponent.h>
-#include <Engine/Core/World/Components/Camera/CameraComponent.h>
-#include <Engine/Core/World/Components/Camera/CameraControllerComponent.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
-#include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
-#include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
-#include <Engine/Core/World/Components/Animation/JointAttachmentComponent.h>
-#include <Engine/Editor/Utility/JointAttachmentUtility.h>
-#include <Engine/Core/World/Components/Prefab/PrefabLinkComponent.h>
-#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Asset/MeshAssetInspectorDrawer.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/Foundation/Diagnostics/Log.h>
-#include <Engine/Core/Platform/Input/InputSystem.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/BuiltinComponentEditorRegistration.h>
-#include <Engine/Editor/UI/Inspectors/Builtin/Render/MeshRendererInspectorDrawer.h>
 
 // c++
-#include <algorithm>
-#include <cfloat>
-#include <cmath>
-#include <filesystem>
-#include <initializer_list>
-#include <limits>
-#include <string_view>
-#include <type_traits>
-#include <unordered_set>
+#include <memory>
+#include <string>
 #include <vector>
-#include <span>
-
-#include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
-#include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 //============================================================================
 //	InspectorPanel classMethods
 //============================================================================
-namespace {
-
-	// Material JSON内のパス参照をAssetIDに解決して、Inspectorで編集できる形にする
-	void ResolveMaterialPipelineReferences(Engine::AssetDatabase& database, nlohmann::json& data) {
-
-		if (!data.contains("passes") || !data["passes"].is_array()) {
-			return;
-		}
-		for (auto& passJson : data["passes"]) {
-
-			if (!passJson.is_object() || !passJson["pipeline"].is_string()) {
-				continue;
-			}
-
-			const std::string text = passJson["pipeline"].get<std::string>();
-			if (text.empty() || Engine::TryParseAssetGUID32Hex(text)) {
-				continue;
-			}
-
-			const std::filesystem::path fullPath = database.ResolveAssetPath(text);
-			if (!std::filesystem::exists(fullPath)) {
-				continue;
-			}
-
-			const Engine::AssetID pipeline = database.ImportOrGet(text, Engine::AssetType::RenderPipeline);
-			if (pipeline) {
-				passJson["pipeline"] = Engine::ToString(pipeline);
-			}
-		}
-	}
-
-	// MaterialDomainの編集フィールドを描画する
-	Engine::ValueEditResult DrawMaterialDomainField(const char* label, Engine::MaterialDomain& value) {
-
-		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return result;
-		}
-
-		Engine::MaterialDomain edited = value;
-		result.valueChanged = Engine::EnumAdapter<Engine::MaterialDomain>::Combo("##Value", &edited);
-		if (result.valueChanged) {
-			value = edited;
-		}
-		result.anyItemActive = ImGui::IsItemActive();
-		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
-		Engine::MyGUI::EndPropertyRow();
-		return result;
-	}
-
-	// PipelineVariantKindの編集フィールドを描画する
-	Engine::ValueEditResult DrawPipelineVariantField(const char* label, Engine::PipelineVariantKind& value) {
-
-		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return result;
-		}
-
-		Engine::PipelineVariantKind edited = value;
-		result.valueChanged = Engine::EnumAdapter<Engine::PipelineVariantKind>::Combo("##Value", &edited);
-		if (result.valueChanged) {
-			value = edited;
-		}
-		result.anyItemActive = ImGui::IsItemActive();
-		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
-		Engine::MyGUI::EndPropertyRow();
-		return result;
-	}
-
-	// MaterialPassKindの編集フィールドを描画する
-	Engine::ValueEditResult DrawMaterialPassKindField(const char* label, Engine::MaterialPassKind& value) {
-
-		Engine::ValueEditResult result{};
-		if (!Engine::MyGUI::BeginPropertyRow(label)) {
-			return result;
-		}
-
-		Engine::MaterialPassKind edited = value;
-		result.valueChanged = Engine::EnumAdapter<Engine::MaterialPassKind>::Combo("##Value", &edited);
-		if (result.valueChanged) {
-			value = edited;
-		}
-		result.anyItemActive = ImGui::IsItemActive();
-		result.editFinished = result.valueChanged || ImGui::IsItemDeactivatedAfterEdit();
-		Engine::MyGUI::EndPropertyRow();
-		return result;
-	}
-
-	// Materialパラメーターの型名を表示用に取得する
-	const char* GetMaterialParameterTypeName(const Engine::MaterialParameterValue& parameter) {
-
-		return std::visit([](const auto& value) -> const char* {
-			using ValueType = std::decay_t<decltype(value)>;
-
-			if constexpr (std::is_same_v<ValueType, float>) {
-				return "Float";
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
-				return "Vector2";
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
-				return "Vector3";
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
-				return "Vector4";
-			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
-				return "Color4";
-			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-				return "Asset";
-			} else if constexpr (std::is_same_v<ValueType, int32_t>) {
-				return "Int";
-			} else if constexpr (std::is_same_v<ValueType, uint32_t>) {
-				return "UInt";
-			} else {
-				return "Unknown";
-			}
-			}, parameter.value);
-	}
-
-	// Materialパラメーターの値を型に応じたUIで描画する
-	Engine::ValueEditResult DrawMaterialParameterValue(const char* label,
-		Engine::MaterialParameterValue& parameter, const Engine::AssetDatabase* assetDatabase) {
-
-		return std::visit([&](auto& value) -> Engine::ValueEditResult {
-			using ValueType = std::decay_t<decltype(value)>;
-
-			if constexpr (std::is_same_v<ValueType, float>) {
-				return Engine::MyGUI::DragFloat(label, value);
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
-				return Engine::MyGUI::DragVector2(label, value);
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
-				return Engine::MyGUI::DragVector3(label, value);
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
-				return Engine::MyGUI::DragVector4(label, value);
-			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
-				return Engine::MyGUI::ColorEdit(label, value);
-			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-				return Engine::MyGUI::AssetReferenceField(label, value, assetDatabase, { Engine::AssetType::Texture });
-			} else if constexpr (std::is_same_v<ValueType, int32_t>) {
-				return Engine::MyGUI::DragInt(label, value);
-			} else if constexpr (std::is_same_v<ValueType, uint32_t>) {
-				int32_t signedValue = static_cast<int32_t>(value);
-				Engine::ValueEditResult result = Engine::MyGUI::DragInt(label, signedValue,
-					{ .dragSpeed = 1.0f, .minValue = 0, .maxValue = (std::numeric_limits<int32_t>::max)() });
-				if (result.valueChanged) {
-					value = static_cast<uint32_t>(signedValue);
-				}
-				return result;
-			} else {
-				return Engine::ValueEditResult{};
-			}
-			}, parameter.value);
-	}
-
-}
 
 Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool primaryInstance) {
 
 	ConfigureInstance("Inspector", instanceID, primaryInstance);
-	modelPreviewCameraController_ =
-		std::make_unique<SceneViewCameraController>(false);
-	modelPreviewCameraController_->MakeDefaultState();
-	modelPreviewCameraController_->SetSavePath(RuntimePaths::GetUserSettingsPath(
-		ConfigPaths::kInspectorModelPreviewCamera).string());
 
-	RegisterBuiltinComponentEditors(componentEditorRegistry_, meshRendererDrawer_);
+	componentSession_.Init();
 
 	// アセット種別ごとのInspector表示を登録する
 	assetInspectorRegistry_.Register(std::make_unique<TextureAssetInspectorDrawer>());
-}
-
-void Engine::InspectorPanel::DrawEditorTool([[maybe_unused]] const EditorToolContext& context) {
-
-	// InspectorPanelはToolPanel上の独立ウィンドウを持たず、RenderTexture作成機能だけを利用する
+	assetInspectorRegistry_.Register(std::make_unique<MeshAssetInspectorDrawer>());
 }
 
 nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
 
 	return {
-		{ "mode", lockedEntityUUID_ ? "LockedEntity" : "FollowSelection" },
-		{ "lockedEntityUUID", lockedEntityUUID_ ? ToString(lockedEntityUUID_) : std::string{} },
+		{"mode", lockedEntityUUID_ ? "LockedEntity" : "FollowSelection"},
+		{"lockedEntityUUID", lockedEntityUUID_ ? ToString(lockedEntityUUID_) : std::string{}},
 	};
 }
 
@@ -274,16 +59,16 @@ nlohmann::json Engine::InspectorPanel::MakeDuplicateState(const EditorPanelConte
 
 	UUID targetUUID = lockedEntityUUID_;
 	ECSWorld* world = context.GetWorld();
-	const bool entitySelection = context.editorState &&
-		(context.editorState->selectionKind == EditorSelectionKind::Entity ||
-			context.editorState->selectionKind == EditorSelectionKind::MeshSubMesh);
+	const bool entitySelection =
+		context.editorState && (context.editorState->selectionKind == EditorSelectionKind::Entity ||
+								   context.editorState->selectionKind == EditorSelectionKind::MeshSubMesh);
 	if (!targetUUID && world && entitySelection && context.editorState->HasValidSelection(world)) {
 		targetUUID = world->GetUUID(context.editorState->selectedEntity);
 	}
 
 	return {
-		{ "mode", "LockedEntity" },
-		{ "lockedEntityUUID", targetUUID ? ToString(targetUUID) : std::string{} },
+		{"mode", "LockedEntity"},
+		{"lockedEntityUUID", targetUUID ? ToString(targetUUID) : std::string{}},
 	};
 }
 
@@ -296,19 +81,39 @@ bool Engine::InspectorPanel::CanDuplicate(const EditorPanelContext& context) con
 	if (lockedEntityUUID_) {
 		return world->IsAlive(world->FindByUUID(lockedEntityUUID_));
 	}
-	if (!context.editorState ||
-		(context.editorState->selectionKind != EditorSelectionKind::Entity &&
-			context.editorState->selectionKind != EditorSelectionKind::MeshSubMesh)) {
+	if (!context.editorState || (context.editorState->selectionKind != EditorSelectionKind::Entity &&
+									context.editorState->selectionKind != EditorSelectionKind::MeshSubMesh)) {
 		return false;
 	}
 	return context.editorState->HasValidSelection(world);
+}
+
+void Engine::InspectorPanel::EndPreview() {
+
+	componentSession_.EndPreview();
 }
 
 void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 
 	// インスペクターパネルの表示状態を確認
 	bool* open = ResolveOpenState(&context.layoutState->showInspector);
+	ECSWorld* previewWorld = context.GetWorld();
+	Entity previewEntity = Entity::Null();
+	if (*open && previewWorld) {
+		if (lockedEntityUUID_) {
+			previewEntity = previewWorld->FindByUUID(lockedEntityUUID_);
+		} else if (context.editorState->selectionKind == EditorSelectionKind::Entity &&
+				   context.editorState->HasValidSelection(previewWorld)) {
+			previewEntity = context.editorState->selectedEntity;
+		}
+	}
+	componentSession_.SyncPreviewOwner(previewWorld, previewEntity);
 	if (!*open) {
+		EndPreview();
+	}
+	assetEditSession_.KeepPanelOpen(*open);
+	if (!*open) {
+		prefabSession_.Clear();
 		return;
 	}
 
@@ -318,16 +123,20 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	if (lockedEntityUUID_) {
 
 		lockedEntity = world ? world->FindByUUID(lockedEntityUUID_) : Entity::Null();
-		displayName = world && world->IsAlive(lockedEntity) ?
-			"Inspector: " + GetEntityDisplayName(*world, lockedEntity) : "Inspector: Missing Entity";
+		displayName = world && world->IsAlive(lockedEntity) ? "Inspector: " + GetEntityDisplayName(*world, lockedEntity)
+															: "Inspector: Missing Entity";
 	}
 
 	const std::string windowName = MakeWindowName(displayName);
 	ApplyInitialDock();
 	const bool visible = ImGui::Begin(windowName.c_str(), open);
+	assetEditSession_.KeepPanelOpen(*open);
+	if (assetEditSession_.ResolvePanelClose(context, *open)) {
+		ImGui::End();
+		return;
+	}
 	if (context.host && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
-		context.host->NotifyEditorCommandPanelFocused(
-			EditorCommandPanelKind::Scene);
+		context.host->NotifyEditorCommandPanelFocused(EditorCommandPanelKind::Scene);
 	}
 	if (!visible) {
 		DrawTitleBarContextMenu(context);
@@ -348,7 +157,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	if (!lockedEntityUUID_ && context.editorState->selectionKind == EditorSelectionKind::Joint) {
 
 		ImGui::SetWindowFontScale(fontScale_);
-		DrawJointInspector(context);
+		InspectorSelectionDisplay::DrawJointInspector(context);
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::End();
 		return;
@@ -375,11 +184,8 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	// サブメッシュが選択されている場合はサブメッシュのインスペクターを表示
 	if (!lockedEntityUUID_ && context.editorState->HasValidSubMeshSelection(world)) {
 
-		DrawSelectedSubMeshHeader(context, *world, selected);
-		if (meshRendererDrawer_ && meshRendererDrawer_->CanDraw(*world, selected)) {
-
-			meshRendererDrawer_->Draw(context, *world, selected);
-		}
+		InspectorSelectionDisplay::DrawSelectedSubMeshHeader(context, *world, selected);
+		componentSession_.DrawSubMesh(context, *world, selected);
 		ImGui::SetWindowFontScale(1.0f);
 		ImGui::End();
 		return;
@@ -388,21 +194,19 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 	// エンティティのヘッダー部分を描画
 	DrawEntityHeader(context, *world, selected);
 	// コンポーネント操作UI
-	DrawComponentToolbar(context, *world, selected);
+	componentSession_.DrawComponentToolbar(context, *world, selected);
 
 	// プレファブインスタンスならオーバーライド一覧UIを描画する
-	DrawPrefabOverrideUI(context, *world, selected);
+	prefabSession_.Draw(context, *world, selected);
 
 	// Entity情報と操作ボタンを固定し、コンポーネント一覧だけを残り領域でスクロールする
-	const bool componentsVisible =
-		ImGui::BeginChild("##InspectorComponents", ImVec2(0.0f, 0.0f), true);
+	const bool componentsVisible = ImGui::BeginChild("##InspectorComponents", ImVec2(0.0f, 0.0f), true);
 	// Childは別Windowとして扱われるため、Inspectorの文字倍率を明示的に引き継ぐ
 	ImGui::SetWindowFontScale(fontScale_);
 	if (componentsVisible) {
 
 		// D&D中もコンポーネント一覧上のホイール操作を受け付ける
-		if (ImGui::GetDragDropPayload() != nullptr &&
-			ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
+		if (ImGui::GetDragDropPayload() != nullptr && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
 
 			const float wheel = ImGui::GetIO().MouseWheel;
 			if (wheel != 0.0f) {
@@ -410,17 +214,10 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 			}
 		}
 
-		// 登録済みコンポーネント描画
-		for (const auto& drawer : componentEditorRegistry_.GetDrawers()) {
-
-			if (!drawer->CanDraw(*world, selected)) {
-				continue;
-			}
-			drawer->Draw(context, *world, selected);
-		}
+		componentSession_.DrawComponents(context, *world, selected);
 	}
 	ImGui::EndChild();
-	DrawScriptAssetDropTarget(context, *world, selected);
+	componentSession_.DrawScriptAssetDropTarget(context, selected);
 
 	ImGui::SetWindowFontScale(1.0f);
 
@@ -429,7 +226,7 @@ void Engine::InspectorPanel::Draw(const EditorPanelContext& context) {
 
 void Engine::InspectorPanel::SyncNameBufferIfNeeded(ECSWorld& world, const Entity& entity) {
 
-	// エンティティが存在しない場合は何もしない
+	// 同じEntityの編集中はバッファを保持する
 	const UUID stableUUID = world.GetUUID(entity);
 	if (editingNameEntityStableUUID_ == stableUUID) {
 		return;
@@ -446,8 +243,7 @@ void Engine::InspectorPanel::SyncNameBufferIfNeeded(ECSWorld& world, const Entit
 	}
 }
 
-void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
-	ECSWorld& world, const Entity& entity) {
+void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
 
 	// エンティティのハンドル情報を表示
 	ImGui::Text("Entity Handle : [%u:%u]", entity.index, entity.generation);
@@ -471,8 +267,15 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 	auto editResult = MyGUI::InputText("Name", nameEditBuffer_);
 	if (editResult.editFinished) {
 		if (nameEditBuffer_ != currentName) {
-
-			context.host->ExecuteEditorCommand(std::make_unique<RenameEntityCommand>(entity, nameEditBuffer_));
+			if (context.IsPlaying()) {
+				// Play中は実行Worldの名前だけを書き換える
+				if (auto* name = world.TryGetComponent<NameComponent>(entity)) {
+					name->name = nameEditBuffer_;
+					world.MarkComponentModified<NameComponent>(entity);
+				}
+			} else {
+				context.host->ExecuteEditorCommand(std::make_unique<RenameEntityCommand>(entity, nameEditBuffer_));
+			}
 		}
 	}
 
@@ -489,15 +292,22 @@ void Engine::InspectorPanel::DrawEntityHeader(const EditorPanelContext& context,
 		currentTag = world.GetComponent<SceneObjectComponent>(entity).tag;
 	}
 
-	const std::vector<std::string>& tags = ProjectTagSettings::GetTags();
+	const std::vector<std::string>& tags = context.tagSettings->GetTags();
 	std::string editTag = currentTag;
 	auto tagResult = MyGUI::StringCombo("Tag", editTag, std::span<const std::string>(tags.data(), tags.size()));
 	if (tagResult.valueChanged && editTag != currentTag) {
-
-		context.host->ExecuteEditorCommand(std::make_unique<SetEntityTagCommand>(entity, editTag));
+		if (context.IsPlaying()) {
+			// Play中は実行Worldのタグだけを書き換える
+			if (auto* sceneObject = world.TryGetComponent<SceneObjectComponent>(entity)) {
+				sceneObject->tag = editTag;
+				world.MarkComponentModified<SceneObjectComponent>(entity);
+			}
+		} else {
+			context.host->ExecuteEditorCommand(std::make_unique<SetEntityTagCommand>(entity, editTag));
+		}
 	}
 
-	// タグの追加削除はTag Managerツールで行う、Unityのタグ管理と同じ導線
+	// タグ管理ツールを開く
 	ImGui::SameLine();
 	if (ImGui::SmallButton("...##OpenTagManager")) {
 		if (ITool* tool = ToolRegistry::GetInstance().Find("engine.tag_manager")) {
@@ -533,1233 +343,45 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 	ImGui::Text("ID   : %s", ToString(meta->guid).c_str());
 	ImGui::Spacing();
 
-	// Registryへ移行済みの種別はそちらへ委ねる、Textureはここに含まれる
+	// Asset種別の編集Drawerへ渡す
 	if (IAssetInspectorDrawer* drawer = assetInspectorRegistry_.Find(meta->type)) {
 
+		assetEditSession_.TrackDrawer(drawer, meta->guid);
 		drawer->Draw(context, *meta);
+		if (meta->type == AssetType::Mesh) {
+			// インポート設定とモデルプレビューを同時に表示する
+			modelPreview_.DrawMeshAssetInspector(context, *meta);
+		}
 		return;
 	}
+	assetEditSession_.TrackDrawer(nullptr, {});
 
-	// Material/Meshは編集やプレビューでPanel内部状態を持つため当面ここに残す
+	// Materialの専用編集へ渡す
 	if (meta->type == AssetType::Material) {
 
-		DrawMaterialAssetInspector(context, *meta);
+		materialSession_.DrawMaterialAssetInspector(context, *meta);
 		return;
 	}
 	if (meta->type == AssetType::Mesh) {
 
-		DrawMeshAssetInspector(context, *meta);
+		modelPreview_.DrawMeshAssetInspector(context, *meta);
 		return;
 	}
 
 	ImGui::TextDisabled("No inspector for this asset type.");
 }
 
-void Engine::InspectorPanel::DrawMeshAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {
+bool Engine::InspectorPanel::HasPendingEdits() const {
 
-	if (!context.editorContext || !context.editorContext->assetDatabase || !context.editorState) {
-
-		ImGui::TextDisabled("Mesh preview is not available.");
-		return;
-	}
-
-	const uint64_t selectionRevision = context.editorState->assetSelectionRevision;
-	if (modelPreviewAsset_ != meta.guid || modelPreviewSelectionRevision_ != selectionRevision) {
-
-		modelPreviewSelectionRevision_ = selectionRevision;
-		RebuildModelAssetPreviewWorld(context, meta);
-	}
-
-	ImGui::Text("Mesh Preview");
-	ImGui::Separator();
-
-	const float availableWidth = (std::max)(ImGui::GetContentRegionAvail().x, 64.0f);
-	const float displayWidth = (std::min)(availableWidth, static_cast<float>(kModelPreviewSize_.x));
-	const float displayHeight = displayWidth * static_cast<float>(kModelPreviewSize_.y) /
-		static_cast<float>((std::max)(kModelPreviewSize_.x, 1));
-	const ImVec2 displaySize(displayWidth, displayHeight);
-
-	if (!context.graphicsCore || !context.renderPipeline || !modelPreviewWorld_ ||
-		!modelPreviewWorld_->IsAlive(modelPreviewEntity_)) {
-
-		ImGui::Dummy(displaySize);
-		ImGui::TextDisabled("Mesh preview render target is not available.");
-		return;
-	}
-
-	modelPreviewImagePos_ = ImGui::GetCursorScreenPos();
-	Input::GetInstance()->SetViewRect(InputViewArea::InspectorModelPreview,
-		Vector2(modelPreviewImagePos_.x, modelPreviewImagePos_.y),
-		Vector2(displaySize.x, displaySize.y),
-		EngineContext::GetWindowSetting().gameSize.GetFloat(),
-		InputViewCoordinateSpace::Screen);
-
-	ToolContext toolContext{};
-	toolContext.world = context.editorContext->activeWorld;
-	toolContext.assetDatabase = context.editorContext->assetDatabase;
-	toolContext.sceneInstances = context.editorContext->sceneInstances;
-	toolContext.activeSceneHeader = context.editorContext->activeSceneHeader;
-	toolContext.activeSceneAsset = context.editorContext->activeSceneAsset;
-	toolContext.activeSceneInstanceID = context.editorContext->activeSceneInstanceID;
-	toolContext.activeScenePath = context.editorContext->activeScenePath;
-	toolContext.isPlaying = context.IsPlaying();
-	toolContext.canEditScene = context.CanEditScene();
-
-	EditorToolContext editorToolContext{};
-	editorToolContext.panelContext = &context;
-	editorToolContext.toolContext = toolContext;
-
-	BeginEditorToolFrame(editorToolContext);
-	EditorToolRenderTexture* preview = CreateRenderTexture("InspectorModelAssetPreview",
-		kModelPreviewSize_, kModelPreviewColor_, kModelPreviewColorTargetCount_);
-	if (preview) {
-
-		RenderModelAssetPreview(editorToolContext, *preview);
-		ImGui::Image(preview->GetImTextureID(), displaySize);
-	} else {
-
-		ImGui::Dummy(displaySize);
-		ImGui::TextDisabled("Mesh preview render target is not available.");
-	}
-	EndEditorToolFrame();
+	return assetEditSession_.HasPendingEdits();
 }
 
-void Engine::InspectorPanel::RebuildModelAssetPreviewWorld(const EditorPanelContext& context, const AssetMeta& meta) {
+void Engine::InspectorPanel::RequestResolvePendingEdits() {
 
-	modelPreviewAsset_ = meta.guid;
-	modelPreviewWorld_ = std::make_unique<ECSWorld>();
-	modelPreviewEntity_ = Entity::Null();
-	modelPreviewLightEntity_ = Entity::Null();
-	modelPreviewBounds_ = ComputeModelAssetPreviewBounds(context, meta);
-
-	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
-	if (!database || !meta.guid) {
-
-		ResetModelAssetPreviewCamera();
-		return;
-	}
-	ModelPreviewUtility::ImportReferencedTextures(*database, meta.guid);
-
-	Entity lightEntity = modelPreviewWorld_->CreateEntity(UUID::New());
-	auto& lightTransform = modelPreviewWorld_->AddComponent<TransformComponent>(lightEntity);
-	lightTransform.worldMatrix = Matrix4x4::Identity();
-	lightTransform.isDirty = false;
-	auto& light = modelPreviewWorld_->AddComponent<DirectionalLightComponent>(lightEntity);
-	light.direction = Vector3(0.35f, -0.65f, 0.65f).Normalize();
-	light.intensity = 1.5f;
-	modelPreviewLightEntity_ = lightEntity;
-
-	Entity entity = modelPreviewWorld_->CreateEntity(UUID::New());
-	auto& transform = modelPreviewWorld_->AddComponent<TransformComponent>(entity);
-	transform.worldMatrix = Matrix4x4::Identity();
-	transform.isDirty = false;
-
-	auto& renderer = modelPreviewWorld_->AddComponent<MeshRendererComponent>(entity);
-	renderer.mesh = meta.guid;
-	renderer.material = {};
-	renderer.queue = RenderPhase::Opaque;
-	renderer.visible = true;
-	renderer.enableZPrepass = true;
-	MeshSubMeshAuthoring::SyncEntity(
-		database, *modelPreviewWorld_, entity, false);
-
-	modelPreviewEntity_ = entity;
-	ResetModelAssetPreviewCamera();
+	assetEditSession_.RequestResolvePendingEdits();
 }
 
-void Engine::InspectorPanel::RenderModelAssetPreview(const EditorToolContext& toolContext,
-	EditorToolRenderTexture& preview) {
+Engine::EditorPanelCloseResult Engine::InspectorPanel::ConsumePendingEditCloseResult() {
 
-	if (!toolContext.panelContext || !toolContext.panelContext->renderPipeline || !modelPreviewWorld_ ||
-		!modelPreviewWorld_->IsAlive(modelPreviewEntity_)) {
-
-		RenderToTexture(preview, [](EditorToolRenderContext&) {}, preview.clearColor);
-		return;
-	}
-
-	RenderToTexture(preview, [&](EditorToolRenderContext& renderContext) {
-
-		if (modelPreviewCameraController_) {
-
-			modelPreviewCameraController_->Update(Dimension::Type3D, InputViewArea::InspectorModelPreview);
-		}
-
-		EntityPreviewRenderRequest request{};
-		request.world = modelPreviewWorld_.get();
-		request.systemContext = toolContext.toolContext.systemContext;
-		request.assetDatabase = toolContext.toolContext.assetDatabase;
-		request.sceneHeader = toolContext.toolContext.activeSceneHeader;
-		request.sceneInstanceID = {};
-		request.rootEntity = modelPreviewEntity_;
-		request.surface = preview.GetRenderTarget();
-		request.camera = modelPreviewCameraController_->GetCameraState();
-		request.clearColor = preview.clearColor;
-		request.drawGrid3D = true;
-
-		toolContext.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
-		}, preview.clearColor);
-}
-
-Engine::InspectorPanel::ModelAssetPreviewBounds Engine::InspectorPanel::ComputeModelAssetPreviewBounds(
-	const EditorPanelContext& context, const AssetMeta& meta) const {
-
-	ModelAssetPreviewBounds bounds{};
-	const AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
-	if (database) {
-		bounds.valid = ModelPreviewUtility::ComputeBounds(*database, meta.guid,
-			bounds.min, bounds.max, bounds.center, bounds.radius);
-	}
-	return bounds;
-}
-
-void Engine::InspectorPanel::ResetModelAssetPreviewCamera() {
-
-	if (!modelPreviewCameraController_) {
-		return;
-	}
-
-	const Vector3 center = modelPreviewBounds_.valid ? modelPreviewBounds_.center : Vector3::AnyInit(0.0f);
-	const float radius = (std::max)(modelPreviewBounds_.valid ? modelPreviewBounds_.radius : 1.0f, 0.1f);
-	const float fovY = 35.0f;
-	const float pitchDegrees = 8.0f;
-	const float yawDegrees = 180.0f;
-	const float aspectRatio = static_cast<float>(kModelPreviewSize_.x) /
-		static_cast<float>((std::max)(kModelPreviewSize_.y, 1));
-	const float distance = modelPreviewBounds_.valid ?
-		ModelPreviewUtility::CalculateCameraDistance(modelPreviewBounds_.min, modelPreviewBounds_.max, center,
-			pitchDegrees, yawDegrees, fovY, aspectRatio, 2.0f) :
-		radius * 2.0f;
-	const Matrix4x4 cameraRotation = Matrix4x4::MakeRotateMatrix(Vector3(pitchDegrees, yawDegrees, 0.0f));
-	const Vector3 cameraForward(cameraRotation.m[2][0], cameraRotation.m[2][1], cameraRotation.m[2][2]);
-
-	ManualRenderCameraState& camera = modelPreviewCameraController_->GetCameraState();
-	camera = {};
-	camera.enableOrthographic = false;
-	camera.enablePerspective = true;
-	camera.perspectiveFovY = fovY;
-	camera.perspectiveNearClip = 0.01f;
-	camera.perspectiveFarClip = (std::max)(4000.0f, distance + radius * 4.0f);
-	camera.perspectiveCullingMask = -1;
-	camera.transform3D.pos = center - cameraForward * distance;
-	camera.transform3D.rotation = Vector3(pitchDegrees, yawDegrees, 0.0f);
-}
-
-void Engine::InspectorPanel::DrawMaterialAssetInspector(const EditorPanelContext& context, const AssetMeta& meta) {
-
-	if (!LoadMaterialDraft(context, meta)) {
-
-		ImGui::TextDisabled("Failed to load material.");
-		return;
-	}
-
-	bool saveRequested = false;
-
-	ImGui::Text("Material");
-	ImGui::Separator();
-
-	ValueEditResult nameResult = MyGUI::InputText("Name", materialDraft_.name);
-	saveRequested |= nameResult.editFinished;
-
-	ValueEditResult domainResult = DrawMaterialDomainField("Domain", materialDraft_.domain);
-	saveRequested |= domainResult.editFinished;
-
-	if (ImGui::Button("Use Mesh Template", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-		const AssetID guid = materialDraft_.guid;
-		materialDraft_ = CreateDefaultMeshMaterialAsset(materialDraft_.name);
-		materialDraft_.guid = guid;
-		saveRequested = true;
-	}
-
-	ImGui::Spacing();
-	if (MyGUI::CollapsingHeader("Passes")) {
-
-		int32_t removeIndex = -1;
-		for (int32_t index = 0; index < static_cast<int32_t>(materialDraft_.passes.size()); ++index) {
-
-			MaterialPassBinding& pass = materialDraft_.passes[index];
-			ImGui::PushID(index);
-			const std::string_view passLabel = EnumAdapter<MaterialPassKind>::ToStringView(pass.passKind);
-			if (ImGui::TreeNodeEx("Pass", ImGuiTreeNodeFlags_DefaultOpen, "%.*s",
-				static_cast<int>(passLabel.size()), passLabel.data())) {
-
-				ValueEditResult passKindResult = DrawMaterialPassKindField("Pass Kind", pass.passKind);
-				saveRequested |= passKindResult.editFinished;
-
-				ValueEditResult pipelineResult = MyGUI::AssetReferenceField("Pipeline", pass.pipeline,
-					context.editorContext->assetDatabase, { AssetType::RenderPipeline });
-				saveRequested |= pipelineResult.editFinished;
-
-				ValueEditResult shaderResult = MyGUI::AssetReferenceField("Shader Override", pass.shaderOverride,
-					context.editorContext->assetDatabase, { AssetType::Shader });
-				saveRequested |= shaderResult.editFinished;
-
-				ValueEditResult variantResult = DrawPipelineVariantField("Variant", pass.preferredVariant);
-				saveRequested |= variantResult.editFinished;
-
-				if (ImGui::Button("Remove Pass", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-					removeIndex = index;
-				}
-				ImGui::TreePop();
-			}
-			ImGui::PopID();
-		}
-		if (0 <= removeIndex && removeIndex < static_cast<int32_t>(materialDraft_.passes.size())) {
-
-			materialDraft_.passes.erase(materialDraft_.passes.begin() + removeIndex);
-			saveRequested = true;
-		}
-		if (ImGui::Button("Add Pass", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-			materialDraft_.passes.push_back({
-				.passKind = MaterialPassKind::Draw,
-				.pipeline = {},
-				.preferredVariant = PipelineVariantKind::GraphicsMesh,
-				});
-			saveRequested = true;
-		}
-	}
-
-	// シェーダーが要求するパラメータ名をリフレクションから集める、描画済みパイプラインのみ取得できる
-	std::unordered_set<std::string> reflectedNames;
-	std::vector<const ShaderReflectionInfo*> reflections;
-	if (context.renderPipeline) {
-
-		std::unordered_set<const ShaderReflectionInfo*> seenReflections;
-		for (const MaterialPassBinding& pass : materialDraft_.passes) {
-
-			if (!pass.pipeline) {
-				continue;
-			}
-			MaterialAsset passMaterial{};
-			passMaterial.passes.emplace_back(pass);
-			const ShaderReflectionInfo* reflection = context.renderPipeline->FindMaterialDrawReflection(passMaterial);
-			if (!reflection && !pass.shaderOverride) {
-				reflection = context.renderPipeline->FindPipelineGraphicsReflection(pass.pipeline);
-			}
-			if (!reflection || seenReflections.count(reflection) != 0) {
-				continue;
-			}
-			seenReflections.insert(reflection);
-			reflections.push_back(reflection);
-			if (const ShaderConstantBufferInfo* cb = FindConstantBuffer(*reflection, MaterialParameterCBuffer::kSurface)) {
-				for (const ShaderConstantBufferVariable& var : cb->variables) {
-					if (MaterialParameterEditor::IsInternalPaddingParameter(var)) {
-						continue;
-					}
-					reflectedNames.insert(var.name);
-				}
-			}
-			// space2のテクスチャSRVもマテリアルテクスチャとして自動列挙対象にする
-			for (const ShaderResourceBinding& res : reflection->resources) {
-				if (MaterialParameterEditor::IsMaterialTextureResource(res)) {
-					reflectedNames.insert(std::string(
-						MaterialParameterEditor::GetReflectedTextureDisplayName(
-							res, *reflection)));
-				}
-			}
-		}
-	}
-
-	// シェーダーのMaterialParameters cbufferを最初から編集可能な状態で自動列挙する
-	ImGui::Spacing();
-	if (MyGUI::CollapsingHeader("Shader Parameters", true)) {
-
-		if (reflections.empty()) {
-
-			ImGui::TextDisabled("シェーダー未構築か MaterialParameters cbuffer がありません");
-			ImGui::TextDisabled("対象マテリアルが一度描画されると自動で列挙されます");
-		} else {
-			for (const ShaderReflectionInfo* reflection : reflections) {
-				if (MaterialParameterEditor::DrawReflectedCBufferParameters(
-					*reflection, MaterialParameterCBuffer::kSurface, materialDraft_.parameters)) {
-
-					saveRequested = true;
-				}
-			}
-		}
-	}
-
-	// space2のマテリアルテクスチャをリフレクションから自動列挙する、未指定なら描画時に白テクスチャになる
-	ImGui::Spacing();
-	if (MyGUI::CollapsingHeader("Shader Textures", true)) {
-
-		std::unordered_set<uint64_t> drawnTextures;
-		bool anyTexture = false;
-		const auto drawTexture = [&](MaterialParameterID parameterID,
-			MaterialParameterSemantic semantic, std::string_view displayName) {
-
-			if (!parameterID ||
-				drawnTextures.count(parameterID.value) != 0) {
-				return;
-			}
-			drawnTextures.insert(parameterID.value);
-			anyTexture = true;
-
-			AssetID textureID{};
-			const MaterialParameterValue* value =
-				materialDraft_.parameters.Find(parameterID);
-			if (!value && semantic != MaterialParameterSemantic::None) {
-				value = materialDraft_.parameters.Find(semantic);
-			}
-			if (!value) {
-				value = materialDraft_.parameters.FindByName(displayName);
-			}
-			if (value) {
-				if (const AssetID* id =
-					std::get_if<AssetID>(&value->value)) {
-					textureID = *id;
-				}
-			}
-			if (MyGUI::AssetReferenceField(
-				displayName.data(), textureID,
-				context.editorContext->assetDatabase,
-				{ AssetType::Texture }).editFinished) {
-
-				MaterialParameterValue parameter{};
-				parameter.value = textureID;
-				materialDraft_.parameters.Set(
-					parameterID, displayName, semantic, parameter);
-				saveRequested = true;
-			}
-			};
-
-		for (const ShaderReflectionInfo* reflection : reflections) {
-			MaterialParameterLayout layout{};
-			layout.Build(
-				*reflection, MaterialParameterCBuffer::kSurface);
-			if (layout.IsValid()) {
-				for (const ShaderConstantBufferVariable& variable :
-					layout.GetVariables()) {
-
-					if (variable.used &&
-						MaterialParameterEditor::IsReflectedTextureParam(
-							variable, *reflection)) {
-						drawTexture(variable.parameterID,
-							variable.semantic, variable.name);
-					}
-				}
-			}
-			for (const ShaderResourceBinding& res : reflection->resources) {
-
-				if (!MaterialParameterEditor::IsMaterialTextureResource(res)) {
-					continue;
-				}
-				const MaterialParameterID parameterID =
-					MaterialParameterEditor::GetReflectedTextureParameterID(
-						res, *reflection);
-				const std::string_view displayName =
-					MaterialParameterEditor::GetReflectedTextureDisplayName(
-						res, *reflection);
-				const MaterialParameterSemantic semantic =
-					MaterialParameterEditor::GetReflectedTextureSemantic(
-						res, *reflection);
-				drawTexture(parameterID, semantic, displayName);
-			}
-		}
-		if (!anyTexture) {
-			ImGui::TextDisabled("space2のマテリアルテクスチャがありません");
-		}
-	}
-
-	ImGui::Spacing();
-	if (MyGUI::CollapsingHeader("Custom Parameters")) {
-
-		std::string removeKey;
-		for (auto& [key, parameter] : materialDraft_.parameters) {
-
-			// シェーダーが要求するパラメータはShader Parametersで編集するため重複表示しない
-			if (reflectedNames.count(key) != 0) {
-				continue;
-			}
-
-			ImGui::PushID(key.c_str());
-			ImGui::TextDisabled("%s", GetMaterialParameterTypeName(parameter));
-			ValueEditResult parameterResult = DrawMaterialParameterValue(key.c_str(), parameter,
-				context.editorContext->assetDatabase);
-			saveRequested |= parameterResult.editFinished;
-			if (ImGui::Button("Remove", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-				removeKey = key;
-			}
-			ImGui::Separator();
-			ImGui::PopID();
-		}
-		if (!removeKey.empty()) {
-
-			materialDraft_.parameters.erase(removeKey);
-			saveRequested = true;
-		}
-
-		if (ImGui::Button("Add BaseColor", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-			materialDraft_.parameters.Set(MaterialParameterIDs::BaseColor,
-				MaterialParameterNames::BaseColor,
-				MaterialParameterSemantic::BaseColor,
-				MaterialParameterValue{ .value = Color4::White() });
-			saveRequested = true;
-		}
-		if (ImGui::Button("Add MainTexture", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-			materialDraft_.parameters.Set(MaterialParameterIDs::BaseColorTexture,
-				MaterialParameterNames::BaseColorTexture,
-				MaterialParameterSemantic::BaseColorTexture,
-				MaterialParameterValue{ .value = AssetID{} });
-			saveRequested = true;
-		}
-		if (ImGui::Button("Add Float", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-
-			std::string name = "Float";
-			uint32_t suffix = 1;
-			while (materialDraft_.parameters.contains(name)) {
-				name = "Float" + std::to_string(suffix++);
-			}
-			materialDraft_.parameters[name] = MaterialParameterValue{ .value = 0.0f };
-			saveRequested = true;
-		}
-	}
-
-	if (saveRequested) {
-
-		SaveMaterialDraft(context, meta);
-	}
-}
-
-bool Engine::InspectorPanel::LoadMaterialDraft(const EditorPanelContext& context, const AssetMeta& meta) {
-
-	if (materialDraftValid_ && editingMaterialAsset_ == meta.guid) {
-		return true;
-	}
-
-	materialDraftValid_ = false;
-	editingMaterialAsset_ = meta.guid;
-	materialDraft_ = MaterialAsset{};
-
-	if (!context.editorContext || !context.editorContext->assetDatabase) {
-		return false;
-	}
-
-	const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(meta.guid);
-	if (path.empty()) {
-		return false;
-	}
-
-	nlohmann::json data = JsonAdapter::Load(path.string(), false);
-	ResolveMaterialPipelineReferences(*context.editorContext->assetDatabase, data);
-	if (!FromJson(data, materialDraft_)) {
-		return false;
-	}
-	if (!materialDraft_.guid) {
-		materialDraft_.guid = meta.guid;
-	}
-	if (materialDraft_.name.empty()) {
-		materialDraft_.name = path.stem().stem().string();
-	}
-
-	materialDraftValid_ = true;
-	return true;
-}
-
-void Engine::InspectorPanel::SaveMaterialDraft(const EditorPanelContext& context, const AssetMeta& meta) {
-
-	if (!materialDraftValid_ || !context.editorContext || !context.editorContext->assetDatabase) {
-		return;
-	}
-
-	materialDraft_.guid = meta.guid;
-
-	const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(meta.guid);
-	if (path.empty()) {
-		return;
-	}
-
-	JsonAdapter::Save(path.string(), ToJson(materialDraft_));
-
-	// 実行中のマテリアルキャッシュを破棄して編集を即反映する、エディタを止めずに調整できるようにする
-	if (context.renderPipeline) {
-		context.renderPipeline->ReloadMaterial(meta.guid);
-	}
-}
-
-void Engine::InspectorPanel::DrawComponentToolbar(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
-
-	float spacing = ImGui::GetStyle().ItemSpacing.x;
-	float width = (ImGui::GetContentRegionAvail().x - spacing) * 0.5f;
-
-	if (!context.CanEditScene()) {
-		ImGui::BeginDisabled();
-	}
-
-	// コンポーネントの追加、削除のボタンを表示する
-	if (ImGui::Button("コンポーネント追加", ImVec2(width, 0.0f))) {
-		addComponentSearchFilter_.Clear();
-		addScriptSearchFilter_.Clear();
-		ImGui::OpenPopup("##Inspector_AddComponentPopup");
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("コンポーネント削除", ImVec2(width, 0.0f))) {
-		ImGui::OpenPopup("##Inspector_RemoveComponentPopup");
-	}
-
-	if (!context.CanEditScene()) {
-		ImGui::EndDisabled();
-	}
-
-	// 追加、削除のポップアップを表示する
-	DrawAddComponentPopup(context, world, entity);
-	DrawRemoveComponentPopup(context, world, entity);
-
-	ImGui::Spacing();
-	ImGui::Separator();
-}
-
-void Engine::InspectorPanel::DrawComponentPopupEntries(const EditorPanelContext& context,
-	TextSearchFilter& searchFilter, const char* searchInputID, const char* emptyText,
-	const std::function<bool(const ComponentEditorDescriptor&)>& shouldShow,
-	const std::function<bool(const ComponentEditorDescriptor&)>& onSelect,
-	const std::function<bool(const ComponentEditorDescriptor&)>& drawCustomEntry) {
-
-	// 検索欄の左端にProjectPanelと同じ虫眼鏡アイコンを重ねる
-	const ImTextureID searchIcon = EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
-	searchFilter.DrawInput(searchInputID, searchIcon, "検索...");
-	ImGui::Separator();
-
-	// カテゴリ区切りつきで対象コンポーネントのメニューを表示する
-	bool hasAny = false;
-	std::string_view currentCategory;
-	for (const auto& entry : componentEditorRegistry_.GetDescriptors()) {
-
-		if (!entry.showInComponentMenu) {
-			continue;
-		}
-		// 追加可否や所持状態など対象判定は呼び出し側に委ねる
-		if (!shouldShow(entry)) {
-			continue;
-		}
-		if (!searchFilter.Matches(std::string_view(entry.menuLabel)) &&
-			!searchFilter.Matches(std::string_view(entry.typeName))) {
-			continue;
-		}
-
-		const std::string_view entryCategory(entry.category);
-		if (currentCategory != entryCategory) {
-
-			if (hasAny) {
-				ImGui::Separator();
-			}
-			currentCategory = entryCategory;
-		}
-		hasAny = true;
-		if (drawCustomEntry && drawCustomEntry(entry)) {
-			continue;
-		}
-		if (ImGui::MenuItem(entry.menuLabel.c_str())) {
-
-			if (onSelect(entry)) {
-				ImGui::CloseCurrentPopup();
-			}
-		}
-	}
-	// 対象コンポーネントがない
-	if (!hasAny) {
-		ImGui::TextDisabled(emptyText);
-	}
-}
-
-void Engine::InspectorPanel::DrawAddComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
-
-	ImGui::SetNextWindowSize(ImVec2(300.0f, 420.0f), ImGuiCond_Appearing);
-	if (!ImGui::BeginPopup("##Inspector_AddComponentPopup")) {
-		return;
-	}
-
-	DrawComponentPopupEntries(context, addComponentSearchFilter_, "##AddComponentSearch",
-		"追加できるコンポーネントはありません",
-		// すでに持っているコンポーネントは追加できない、複数追加を許可したものは除く
-		[&](const ComponentEditorDescriptor& entry) {
-			return componentEditorRegistry_.CanAdd(entry, world, entity);
-		},
-		[&](const ComponentEditorDescriptor& entry) {
-
-			std::unique_ptr<IEditorCommand> command =
-				componentEditorRegistry_.CreateAddCommand(entry, entity);
-			if (!command) {
-				command = std::make_unique<AddComponentCommand>(entity, entry.typeName);
-			}
-			context.host->ExecuteEditorCommand(std::move(command));
-			return true;
-		},
-		[&](const ComponentEditorDescriptor& entry) {
-
-			if (entry.typeName != ScriptComponent::kTypeName) {
-				return false;
-			}
-
-			ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_Appearing);
-			if (ImGui::BeginMenu(entry.menuLabel.c_str())) {
-				DrawAddScriptEntries(context, world, entity);
-				ImGui::EndMenu();
-			}
-			return true;
-		});
-
-	ImGui::EndPopup();
-}
-
-void Engine::InspectorPanel::DrawAddScriptEntries(const EditorPanelContext& context,
-	[[maybe_unused]] ECSWorld& world, const Entity& entity) {
-
-	const ImTextureID searchIcon =
-		EditorTextureHelper::GetSearchIcon(context.graphicsCore->GetTextureUploadService());
-	addScriptSearchFilter_.DrawInput("##AddScriptSearch", searchIcon, "スクリプト検索...");
-	ImGui::Separator();
-
-	const BehaviorTypeRegistry& registry = BehaviorTypeRegistry::GetInstance();
-	bool hasAny = false;
-	for (uint32_t i = 0; i < registry.GetBehaviorTypeCount(); ++i) {
-
-		const BehaviorTypeInfo& info = registry.GetInfo(i);
-		if (!info.managed || info.scriptTypeID.empty() || info.name.empty() || !info.construct) {
-			continue;
-		}
-
-		const std::string& displayName = info.displayName.empty() ? info.name : info.displayName;
-		if (!addScriptSearchFilter_.Matches(displayName) &&
-			!addScriptSearchFilter_.Matches(info.name)) {
-			continue;
-		}
-
-		hasAny = true;
-		ImGui::PushID(static_cast<int32_t>(i));
-		if (ImGui::Selectable(displayName.c_str())) {
-
-			AssetID scriptAsset{};
-			if (context.editorContext && context.editorContext->assetDatabase) {
-				if (const AssetMeta* meta =
-					context.editorContext->assetDatabase->FindByPath(info.sourcePath)) {
-					scriptAsset = meta->guid;
-				}
-			}
-			context.host->ExecuteEditorCommand(std::make_unique<AddScriptEntryCommand>(
-				entity, info.scriptTypeID, info.name, scriptAsset));
-			ImGui::CloseCurrentPopup();
-		}
-		if (ImGui::IsItemHovered() && displayName != info.name) {
-			ImGui::SetTooltip("%s", info.name.c_str());
-		}
-		ImGui::PopID();
-	}
-	if (!hasAny) {
-		ImGui::TextDisabled("一致するスクリプトはありません");
-	}
-}
-
-void Engine::InspectorPanel::DrawScriptAssetDropTarget(const EditorPanelContext& context,
-	[[maybe_unused]] ECSWorld& world, const Entity& entity) {
-
-	if (!context.CanEditScene() || !context.host) {
-		return;
-	}
-
-	ImGuiWindow* window = ImGui::GetCurrentWindow();
-	if (!window || !ImGui::BeginDragDropTargetCustom(
-		window->InnerRect, window->GetID("##InspectorScriptDropTarget"))) {
-		return;
-	}
-
-	AssetID scriptAsset{};
-	ScriptAssetDragDrop::ResolvedScriptType resolved{};
-	if (ScriptAssetDragDrop::AcceptScriptAssetDrop(context, scriptAsset, resolved)) {
-		context.host->ExecuteEditorCommand(std::make_unique<AddScriptEntryCommand>(
-			entity, resolved.scriptTypeID, resolved.typeName, scriptAsset));
-	}
-	ImGui::EndDragDropTarget();
-}
-
-void Engine::InspectorPanel::DrawRemoveComponentPopup(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
-
-	if (!ImGui::BeginPopup("##Inspector_RemoveComponentPopup")) {
-		return;
-	}
-
-	DrawComponentPopupEntries(context, removeComponentSearchFilter_, "##RemoveComponentSearch",
-		"No removable components.",
-		// 持っていないコンポーネントは削除できない
-		[&](const ComponentEditorDescriptor& entry) {
-			return entry.showInRemoveMenu && world.HasComponent(entity, entry.typeName);
-		},
-		[&](const ComponentEditorDescriptor& entry) {
-
-			context.host->ExecuteEditorCommand(std::make_unique<RemoveComponentCommand>(entity, entry.typeName));
-			return true;
-		});
-
-	ImGui::EndPopup();
-}
-
-void Engine::InspectorPanel::DrawSelectedSubMeshHeader(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
-
-	// サブメッシュが選択されていることを前提に、サブメッシュの情報を表示する
-	if (!context.editorState || !context.editorState->HasValidSubMeshSelection(&world)) {
-		return;
-	}
-	if (!world.HasComponent<MeshRendererComponent>(entity)) {
-		return;
-	}
-
-	const std::span<const SubMeshMaterial> subMeshes =
-		GetMeshSubMeshes(world, entity);
-
-	// 選択されているサブメッシュのインデックスを取得
-	uint32_t subMeshIndex = 0;
-	if (!context.editorState->TryResolveSelectedSubMeshIndex(&world, subMeshIndex)) {
-		return;
-	}
-	if (subMeshes.size() <= subMeshIndex) {
-		return;
-	}
-
-	const auto& subMesh = subMeshes[subMeshIndex];
-
-	// エンティティ名とサブメッシュ名を決定
-	std::string entityName = world.HasComponent<NameComponent>(entity) ?
-		world.GetComponent<NameComponent>(entity).name : "Entity";
-	std::string subMeshName = subMesh.name.empty() ?
-		("SubMesh_" + std::to_string(subMesh.sourceSubMeshIndex)) : subMesh.name;
-
-	ImGui::TextDisabled("選択対象: サブメッシュ");
-	ImGui::Text("所有Entity: %s", entityName.c_str());
-	ImGui::Text("サブメッシュ: [%u] %s", subMeshIndex, subMeshName.c_str());
-
-	if (ImGui::Button("Entityへ戻る")) {
-
-		context.editorState->SelectEntity(entity);
-	}
-	ImGui::Spacing();
-	ImGui::Separator();
-}
-
-void Engine::InspectorPanel::DrawPrefabOverrideUI(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) {
-
-	// プレファブ編集中はUIを表示しない
-	if (!context.editorContext || context.editorContext->isPrefabEditing) {
-		return;
-	}
-
-	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
-	if (!database || !world.HasComponent<PrefabLinkComponent>(entity)) {
-		return;
-	}
-	// Play中は実行状態をプレファブ差分として計算しない
-	if (context.IsPlaying()) {
-		ImGui::TextDisabled("Prefab上書きはPlay停止後に操作できます");
-		ImGui::Spacing();
-		return;
-	}
-
-	// 差分一覧を開くまで所属同期と差分計算を行わない
-	if (ImGui::Button("Prefab 上書きパラメータ###PrefabOverrideButton", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
-		overrideChoices_.clear();
-		ImGui::OpenPopup("PrefabOverridesPopup");
-	}
-	ImGui::Spacing();
-	if (!ImGui::BeginPopup("PrefabOverridesPopup")) {
-		return;
-	}
-
-	const PrefabLinkComponent link = world.GetComponent<PrefabLinkComponent>(entity);
-
-	// 一覧表示に必要なインスタンス差分を取得
-	const auto& base = PrefabOverrideUtility::LoadPrefabBaseEntitiesCached(*database, link.prefabAsset);
-	PrefabOverrideUtility::SynchronizeNestedPrefabOwnership(world);
-	PrefabInstanceData data = PrefabOverrideUtility::CaptureInstance(
-		world, *database, link.prefabInstanceID, base);
-	data.prefabAsset = link.prefabAsset;
-	const UUID sceneInstanceID = world.HasComponent<SceneObjectComponent>(entity) ?
-		world.GetComponent<SceneObjectComponent>(entity).sceneInstanceID : UUID{};
-
-	// SceneローカルIDから同じSceneのEntityを引く
-	auto findSceneEntity = [&](UUID localFileID) -> Entity {
-
-		Entity found = Entity::Null();
-		world.ForEach<SceneObjectComponent>([&](const Entity& candidate, SceneObjectComponent& sceneObject) {
-
-			if (!found.IsValid() && sceneObject.sceneInstanceID == sceneInstanceID &&
-				sceneObject.localFileID == localFileID) {
-				found = candidate;
-			}
-			});
-		return found;
-		};
-
-	// 追加Entityは親も追加Entityなら子なのでルートだけを一覧に出す
-	std::unordered_set<UUID> addedSceneLocalFileIDs;
-	for (const auto& added : data.addedEntities) {
-		addedSceneLocalFileIDs.insert(added.sceneLocalFileID);
-	}
-	std::vector<Entity> addedEntityRoots;
-	for (const auto& added : data.addedEntities) {
-
-		if (addedSceneLocalFileIDs.contains(added.parentSceneLocalFileID)) {
-			continue;
-		}
-		const Entity addedRoot = findSceneEntity(added.sceneLocalFileID);
-		if (world.IsAlive(addedRoot)) {
-			addedEntityRoots.emplace_back(addedRoot);
-		}
-	}
-
-	const int overrideCount = static_cast<int>(data.modifications.size() + data.addedComponents.size() +
-		data.removedComponents.size() + addedEntityRoots.size() + data.removedEntities.size());
-
-	// 件数は差分を計算した一覧内だけに表示
-	ImGui::TextDisabled("上書きパラメータ: %d", overrideCount);
-
-	const bool applyClicked = ImGui::Button("設定を適用");
-	ImGui::Separator();
-
-	// 各差分の選択ボタンを描画する、アクティブな選択を青で強調しデフォルトはそのまま
-	auto drawChoice = [&](const std::string& key, bool allowApply) {
-
-		int& choice = overrideChoices_[key];
-		auto button = [&](const char* label, int value, bool enabled) {
-
-			const bool active = (choice == value);
-			if (active) { ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.05f, 0.05f, 0.95f, 1.0f)); }
-			if (!enabled) { ImGui::BeginDisabled(); }
-			if (ImGui::SmallButton((std::string(label) + "##" + key).c_str())) { choice = value; }
-			if (!enabled) { ImGui::EndDisabled(); }
-			if (active) { ImGui::PopStyleColor(); }
-			};
-		button("プレファブへ反映", 1, allowApply);
-		ImGui::SameLine();
-		button("元に戻す", 2, true);
-		ImGui::SameLine();
-		button("このインスタンスのみ維持", 0, true);
-		};
-
-	if (overrideCount == 0) {
-		ImGui::TextDisabled("差分はありません");
-	}
-
-	// プロパティ差分
-	for (const auto& mod : data.modifications) {
-
-		const std::string key = "M|" + ToString(mod.target) + "|" + mod.path;
-		const nlohmann::json* baseValue = nullptr;
-		auto baseIt = base.find(mod.target);
-		if (baseIt != base.end()) {
-			baseValue = PrefabJsonDiff::GetAtPath(baseIt->second.components, mod.path);
-		}
-		ImGui::TextUnformatted(mod.path.c_str());
-		const std::string valueText = (baseValue ? baseValue->dump() : std::string("(none)")) + "  ->  " + mod.value.dump();
-		ImGui::TextDisabled("%s", valueText.c_str());
-		drawChoice(key, true);
-		ImGui::Separator();
-	}
-	// 追加コンポーネント
-	for (const auto& added : data.addedComponents) {
-
-		const std::string key = "AC|" + ToString(added.target) + "|" + added.type;
-		ImGui::Text("+ %s  追加コンポーネント", added.type.c_str());
-		drawChoice(key, true);
-		ImGui::Separator();
-	}
-	// 削除コンポーネント
-	for (const auto& removed : data.removedComponents) {
-
-		const std::string key = "RC|" + ToString(removed.target) + "|" + removed.type;
-		ImGui::Text("- %s  削除コンポーネント", removed.type.c_str());
-		drawChoice(key, true);
-		ImGui::Separator();
-	}
-	// 追加Entity
-	for (const Entity& addedRoot : addedEntityRoots) {
-
-		const UUID localFileID = world.GetComponent<SceneObjectComponent>(addedRoot).localFileID;
-		const std::string key = "AE|" + ToString(localFileID);
-		const std::string name = world.HasComponent<NameComponent>(addedRoot) ?
-			world.GetComponent<NameComponent>(addedRoot).name : "Entity";
-		const bool canApply = PrefabOverrideUtility::CanPromoteAddedEntitySubtree(
-			world, addedRoot, link.prefabInstanceID);
-		ImGui::Text("+ %s  追加Entity", name.c_str());
-		drawChoice(key, canApply);
-		if (!canApply) {
-			ImGui::TextDisabled("Nested Prefabを含むサブツリーは反映できません");
-		}
-		ImGui::Separator();
-	}
-	// 旧Sceneの削除差分は復元用に読み込みを維持する
-	for (size_t i = 0; i < data.removedEntities.size(); ++i) {
-		ImGui::TextDisabled("- 取り除かれた子エンティティ");
-	}
-
-	// 適用ボタンで各差分の選択を反映する
-	if (applyClicked) {
-
-		std::vector<UUID> selectedUUIDs;
-		if (context.editorState) {
-			selectedUUIDs.reserve(context.editorState->selectedEntities.size());
-			for (const Entity& selected : context.editorState->selectedEntities) {
-				if (world.IsAlive(selected)) {
-					selectedUUIDs.emplace_back(world.GetUUID(selected));
-				}
-			}
-		}
-
-		// インスタンス内の対象エンティティを引く
-		auto findInstanceEntity = [&](UUID target) -> Entity {
-
-			for (const Entity& candidate : PrefabOverrideUtility::CollectInstanceEntities(world, link.prefabInstanceID)) {
-				if (world.GetComponent<PrefabLinkComponent>(candidate).prefabLocalFileID == target) {
-					return candidate;
-				}
-			}
-			return Entity::Null();
-			};
-
-		// プレファブファイルを読み、Apply対象を書き込む
-		const auto prefabPath = database->ResolveFullPath(link.prefabAsset);
-		nlohmann::json prefabFileJson = JsonAdapter::Load(prefabPath.string(), true);
-		const auto oldBase = base;
-		bool prefabChanged = false;
-		bool instanceHierarchyChanged = false;
-		std::vector<PrefabPropertyModification> propertiesToRevert;
-		std::vector<PrefabComponentModification> addedComponentsToRevert;
-		std::vector<PrefabComponentModification> removedComponentsToRevert;
-
-		for (const auto& mod : data.modifications) {
-
-			const std::string key = "M|" + ToString(mod.target) + "|" + mod.path;
-			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
-			if (choice == 1) {
-
-				prefabChanged |= PrefabOverrideUtility::SetPrefabEntityLeaf(prefabFileJson, mod.target, mod.path, mod.value);
-			} else if (choice == 2) {
-				propertiesToRevert.emplace_back(mod);
-			}
-		}
-		for (const auto& added : data.addedComponents) {
-
-			const std::string key = "AC|" + ToString(added.target) + "|" + added.type;
-			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
-			if (choice == 1) {
-
-				prefabChanged |= PrefabOverrideUtility::SetPrefabEntityComponent(prefabFileJson, added.target, added.type, added.value);
-			} else if (choice == 2) {
-				addedComponentsToRevert.emplace_back(added);
-			}
-		}
-		for (const auto& removed : data.removedComponents) {
-
-			const std::string key = "RC|" + ToString(removed.target) + "|" + removed.type;
-			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
-			if (choice == 1) {
-
-				prefabChanged |= PrefabOverrideUtility::RemovePrefabEntityComponent(prefabFileJson, removed.target, removed.type);
-			} else if (choice == 2) {
-				removedComponentsToRevert.emplace_back(removed);
-			}
-		}
-
-		// 追加Entityはサブツリー単位でPrefabへ反映または破棄する
-		std::vector<Entity> addedRootsToApply;
-		std::vector<Entity> addedRootsToRevert;
-		for (const Entity& addedRoot : addedEntityRoots) {
-
-			if (!world.IsAlive(addedRoot) || !world.HasComponent<SceneObjectComponent>(addedRoot)) {
-				continue;
-			}
-			const UUID localFileID = world.GetComponent<SceneObjectComponent>(addedRoot).localFileID;
-			const std::string key = "AE|" + ToString(localFileID);
-			const int choice = overrideChoices_.count(key) ? overrideChoices_[key] : 0;
-			if (choice == 1 && PrefabOverrideUtility::CanPromoteAddedEntitySubtree(
-				world, addedRoot, link.prefabInstanceID)) {
-				addedRootsToApply.emplace_back(addedRoot);
-			} else if (choice == 2) {
-				addedRootsToRevert.emplace_back(addedRoot);
-			}
-		}
-		if (!addedRootsToApply.empty()) {
-
-			prefabChanged |= PrefabOverrideUtility::PromoteAddedEntitySubtrees(
-				prefabFileJson, world, link.prefabAsset, link.prefabInstanceID, addedRootsToApply);
-		}
-		bool applySucceeded = true;
-		if (prefabChanged) {
-			PrefabReferenceRemapper::NormalizePrefabFileHierarchy(prefabFileJson);
-			PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(prefabFileJson);
-			applySucceeded = JsonAdapter::SaveCanonical(prefabPath, prefabFileJson);
-			if (applySucceeded) {
-				PrefabOverrideUtility::InvalidatePrefabBaseCache(link.prefabAsset);
-			}
-			if (!applySucceeded) {
-
-				for (const Entity& addedRoot : addedRootsToApply) {
-					for (const Entity& promoted :
-						EditorEntitySnapshotUtility::CollectSubtreeEntities(world, addedRoot)) {
-
-						if (world.IsAlive(promoted) && world.HasComponent<PrefabLinkComponent>(promoted)) {
-							world.RemoveComponentByName(promoted, "PrefabLink");
-						}
-					}
-				}
-				Logger::Output(LogType::Engine, spdlog::level::err,
-					"[Prefab] Prefabアセットを保存できなかったため反映を中止しました path={}",
-					prefabPath.string());
-			}
-		}
-		if (applySucceeded) {
-
-			// ファイル保存が必要な操作は保存成功後にだけライブEntityへ反映する
-			for (const auto& mod : propertiesToRevert) {
-
-				const Entity target = findInstanceEntity(mod.target);
-				auto baseIt = oldBase.find(mod.target);
-				if (!world.IsAlive(target) || baseIt == oldBase.end()) {
-					continue;
-				}
-				const nlohmann::json* baseValue =
-					PrefabJsonDiff::GetAtPath(baseIt->second.components, mod.path);
-				if (!baseValue) {
-					continue;
-				}
-				const size_t slash = mod.path.find('/');
-				const std::string type = slash == std::string::npos ? mod.path : mod.path.substr(0, slash);
-				const std::string leaf = slash == std::string::npos ? std::string{} : mod.path.substr(slash + 1);
-				nlohmann::json current;
-				world.SerializeComponentToJson(target, type, current);
-				PrefabJsonDiff::SetAtPath(current, leaf, *baseValue);
-				world.AddComponentFromJson(target, type, current);
-			}
-			for (const auto& added : addedComponentsToRevert) {
-
-				const Entity target = findInstanceEntity(added.target);
-				if (world.IsAlive(target)) {
-					world.RemoveComponentByName(target, added.type);
-				}
-			}
-			for (const auto& removed : removedComponentsToRevert) {
-
-				const Entity target = findInstanceEntity(removed.target);
-				auto baseIt = oldBase.find(removed.target);
-				if (world.IsAlive(target) && baseIt != oldBase.end() &&
-					baseIt->second.components.contains(removed.type)) {
-
-					world.AddComponentFromJson(target, removed.type, baseIt->second.components[removed.type]);
-				}
-			}
-			for (const Entity& addedRoot : addedRootsToRevert) {
-
-				if (world.IsAlive(addedRoot)) {
-					EditorEntitySnapshotUtility::DestroySubtree(world, addedRoot);
-					instanceHierarchyChanged = true;
-				}
-			}
-		}
-		if (instanceHierarchyChanged && !prefabChanged) {
-
-			std::vector<Entity> hierarchyScope;
-			world.ForEachAliveEntity([&](Entity candidate) { hierarchyScope.emplace_back(candidate); });
-			HierarchySystem hierarchySystem{};
-			hierarchySystem.RebuildRuntimeLinks(world, hierarchyScope);
-		}
-		if (prefabChanged && applySucceeded) {
-
-			// 変更を全インスタンスへ伝播し、関係ないOverrideは保持する
-			HierarchySystem hierarchySystem{};
-			applySucceeded = PrefabOverrideUtility::PropagateToInstances(
-				world, *database, hierarchySystem, link.prefabAsset, oldBase);
-		}
-		if (context.editorState && !selectedUUIDs.empty()) {
-
-			std::vector<Entity> restoredSelection;
-			restoredSelection.reserve(selectedUUIDs.size());
-			for (UUID stableUUID : selectedUUIDs) {
-				const Entity selected = world.FindByUUID(stableUUID);
-				if (world.IsAlive(selected)) {
-					restoredSelection.emplace_back(selected);
-				}
-			}
-			context.editorState->SetSelectedEntities(restoredSelection);
-		}
-
-		if (applySucceeded) {
-			ImGui::CloseCurrentPopup();
-		}
-	}
-
-	ImGui::EndPopup();
-}
-
-void Engine::InspectorPanel::DrawJointInspector(const EditorPanelContext& context) {
-
-	ECSWorld* world = context.GetWorld();
-	if (!world || !context.editorState) {
-		return;
-	}
-	const Entity skinned = context.editorState->selectedJointSkinnedEntity;
-	const int32_t jointIndex = context.editorState->selectedJointIndex;
-	if (!world->IsAlive(skinned) || !world->HasComponent<SkinnedAnimationComponent>(skinned)) {
-
-		ImGui::TextDisabled("ジョイントが無効です");
-		return;
-	}
-	const SkinnedAnimationRuntimeData* runtime =
-		TryGetSkinnedAnimationRuntime(*world, skinned);
-	if (!runtime) {
-
-		ImGui::TextDisabled("ジョイントが無効です");
-		return;
-	}
-	const Skeleton& skeleton = runtime->skeleton;
-	if (jointIndex < 0 || jointIndex >= static_cast<int32_t>(skeleton.joints.size())) {
-
-		ImGui::TextDisabled("ジョイントが無効です");
-		return;
-	}
-	const Joint& joint = skeleton.joints[jointIndex];
-
-	// ジョイントの基本情報を出す、リネーム等はしない
-	ImGui::Text("Joint : %s", joint.name.empty() ? "(no name)" : joint.name.c_str());
-	ImGui::Text("Index : %d", jointIndex);
-	if (joint.parent && *joint.parent >= 0 && *joint.parent < static_cast<int32_t>(skeleton.joints.size())) {
-		ImGui::Text("親 : %s", skeleton.joints[*joint.parent].name.c_str());
-	} else {
-		ImGui::TextDisabled("親 : (root)");
-	}
-
-	// このジョイントへ親子付けされた子エンティティがあるか調べる
-	UUID skinnedLocalFileID{};
-	if (world->HasComponent<SceneObjectComponent>(skinned)) {
-		skinnedLocalFileID = world->GetComponent<SceneObjectComponent>(skinned).localFileID;
-	}
-	bool hasAttachedEntity = false;
-	if (skinnedLocalFileID) {
-		world->ForEachAliveEntity([&](Entity other) {
-
-			if (hasAttachedEntity || !world->HasComponent<JointAttachmentComponent>(other)) {
-				return;
-			}
-			const auto& attachment = world->GetComponent<JointAttachmentComponent>(other);
-			const int32_t attachedJointIndex =
-				FindSkeletonJointIndex(skeleton, attachment.jointName);
-			if (attachment.skinnedEntityLocalFileID == skinnedLocalFileID &&
-				attachedJointIndex == jointIndex) {
-				hasAttachedEntity = true;
-			}
-			});
-	}
-
-	// 子エンティティがある場合は、ジョイントのワールド行列をTransformの行列表示と同じ形で出す
-	if (hasAttachedEntity) {
-
-		ImGui::Spacing();
-		ImGui::Separator();
-		Matrix4x4 jointWorld{};
-		if (JointAttachmentUtility::GetJointWorldMatrix(*world, skinned, joint.name, jointWorld)) {
-			MyGUI::TextMatrix4x4("ワールド行列", jointWorld);
-		}
-	}
+	return assetEditSession_.ConsumePendingEditCloseResult();
 }

@@ -24,7 +24,7 @@ void Engine::BuiltinLightExtractor<Engine::DirectionalLightComponent>::Extract(
 		const Matrix4x4 worldMatrix = LightExtract::GetWorldMatrix(world, entity);
 
 		DirectionalLightItem item{};
-		LightExtract::FillCommonFields(item.common, world, entity, light);
+		LightExtract::FillCommonFields(item.common, world, entity);
 		item.color = light.color;
 		item.intensity = light.intensity;
 		item.shadowStrength = light.shadowStrength;
@@ -45,7 +45,7 @@ void Engine::BuiltinLightExtractor<Engine::PointLightComponent>::Extract(
 		}
 
 		PointLightItem item{};
-		LightExtract::FillCommonFields(item.common, world, entity, light);
+		LightExtract::FillCommonFields(item.common, world, entity);
 		item.color = light.color;
 		item.pos = LightExtract::GetWorldPos(world, entity);
 		item.intensity = light.intensity;
@@ -71,7 +71,7 @@ void Engine::BuiltinLightExtractor<Engine::RectLightComponent>::Extract(
 			LightExtract::GetWorldMatrix(world, entity);
 
 		RectLightItem item{};
-		LightExtract::FillCommonFields(item.common, world, entity, light);
+		LightExtract::FillCommonFields(item.common, world, entity);
 		item.color = light.color;
 		item.pos = worldMatrix.GetTranslationValue();
 		item.direction = LightExtract::GetWorldDirection(
@@ -105,7 +105,7 @@ void Engine::BuiltinLightExtractor<Engine::SpotLightComponent>::Extract(
 		const Matrix4x4 worldMatrix = LightExtract::GetWorldMatrix(world, entity);
 
 		SpotLightItem item{};
-		LightExtract::FillCommonFields(item.common, world, entity, light);
+		LightExtract::FillCommonFields(item.common, world, entity);
 		item.color = light.color;
 		item.pos = worldMatrix.GetTranslationValue();
 		item.direction = LightExtract::GetWorldDirection(light.direction, worldMatrix);

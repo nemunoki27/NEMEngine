@@ -3,35 +3,39 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include "InputDeviceConfiguration.h"
+#include "InputHardware.h"
+#include "InputViewMapping.h"
+#include "InputWindowEvents.h"
+#include "InputVibrationPlayer.h"
 #include <Engine/Core/Platform/Input/InputTypes.h>
 #include <Engine/Core/Foundation/Math/Vector2.h>
+
+// c++
+#include <string>
+#include <cstdint>
+#include <array>
+#include <optional>
+#include <source_location>
+#include <vector>
 
 // directInput
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <XInput.h>
-// c++
-#include <cmath>
-#include <string>
-#include <string_view>
-#include <cstdint>
-#include <array>
-#include <cassert>
-#include <optional>
-#include <source_location>
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class WinApp;
 
 	//============================================================================
 	//	Input class
-	//	デバイスに応じた入力を管理、キーボード操作、ゲームパッド操作、マウス操作を扱う
+	//	入力機器とPlayerの操作状態を管理する
 	//============================================================================
 	class Input {
 	public:
+		static constexpr uint32_t kMaxPlayers = InputDeviceConfiguration::kMaxPlayers;
 		//============================================================================
 		//	public Methods
 		//============================================================================
@@ -41,14 +45,15 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		// key
+		// キーボード
 		bool PushKey(BYTE keyNumber, const std::source_location& location = std::source_location::current());
 		bool TriggerKey(BYTE keyNumber, const std::source_location& location = std::source_location::current());
 		bool ReleaseKey(BYTE keyNumber, const std::source_location& location = std::source_location::current());
 
-		// gamePad
+		// ゲームパッド
 		bool PushGamepadButton(GamePadButtons button, const std::source_location& location = std::source_location::current());
-		bool TriggerGamepadButton(GamePadButtons button, const std::source_location& location = std::source_location::current());
+		bool TriggerGamepadButton(
+			GamePadButtons button, const std::source_location& location = std::source_location::current());
 
 		Vector2 GetLeftStickVal() const;
 		Vector2 GetRightStickVal() const;
@@ -56,10 +61,10 @@ namespace Engine {
 		float GetLeftTriggerValue() const;
 		float GetRightTriggerValue() const;
 
-		// mouse
-		bool PushMouseLeft(const std::source_location& location = std::source_location::current()) const { return PushMouseButton(0, location); }
-		bool PushMouseRight(const std::source_location& location = std::source_location::current()) const { return PushMouseButton(1, location); }
-		bool PushMouseCenter(const std::source_location& location = std::source_location::current()) const { return PushMouseButton(2, location); }
+		// マウス
+		bool PushMouseLeft(const std::source_location& location = std::source_location::current()) const;
+		bool PushMouseRight(const std::source_location& location = std::source_location::current()) const;
+		bool PushMouseCenter(const std::source_location& location = std::source_location::current()) const;
 		bool PushMouse(MouseButton button, const std::source_location& location = std::source_location::current()) const;
 
 		bool TriggerMouseLeft(const std::source_location& location = std::source_location::current()) const;
@@ -76,34 +81,34 @@ namespace Engine {
 
 		InputType GetType() const { return inputType_; }
 
-		// deadZone
+		// デッドゾーン
 		void SetDeadZone(float deadZone);
-		float GetDeadZone() const { return deadZone_; }
+		float GetDeadZone() const { return configuration_.deadZone; }
 
 		// 実際の入力操作から入力タイプを更新しマウス範囲制御も行う
 		void UpdateInputDevice();
 
 		// マウス移動範囲制御
-		void SetMouseRangeControl(bool enabled) { mouseRangeControl_ = enabled; }
-		bool GetMouseRangeControl() const { return mouseRangeControl_; }
-		void SetMouseArea(const Vector2& pos, const Vector2& size) { mouseAreaPos_ = pos; mouseAreaSize_ = size; }
-		Vector2 GetMouseAreaPos() const { return mouseAreaPos_; }
-		Vector2 GetMouseAreaSize() const { return mouseAreaSize_; }
-		// 範囲制御解除ショートカット、modKeyを押しながらtriggerKeyで解除、共にDIKコード
-		void SetMouseReleaseShortcut(int32_t modKey, int32_t triggerKey) { mouseReleaseModKey_ = modKey; mouseReleaseTriggerKey_ = triggerKey; }
-		int32_t GetMouseReleaseModKey() const { return mouseReleaseModKey_; }
-		int32_t GetMouseReleaseTriggerKey() const { return mouseReleaseTriggerKey_; }
+		void SetMouseRangeControl(bool enabled) { configuration_.mouseRangeControl = enabled; }
+		bool GetMouseRangeControl() const { return configuration_.mouseRangeControl; }
+		void SetMouseArea(const Vector2& pos, const Vector2& size);
+		Vector2 GetMouseAreaPos() const { return configuration_.mouseAreaPos; }
+		Vector2 GetMouseAreaSize() const { return configuration_.mouseAreaSize; }
+		// 範囲制御を解除するキーの組合せ
+		void SetMouseReleaseShortcut(int32_t modKey, int32_t triggerKey);
+		int32_t GetMouseReleaseModKey() const { return configuration_.mouseReleaseModKey; }
+		int32_t GetMouseReleaseTriggerKey() const { return configuration_.mouseReleaseTriggerKey; }
 
 		// UserSettingsの入力デバイス設定を読み書きする
 		void LoadConfig();
 		void SaveConfig() const;
 
-		// maxStickValue
-		float GetMaxStickValue() const { return maxStickValue_; }
+		// スティックの最大値
+		float GetMaxStickValue() const { return InputDeviceConfiguration::kMaxStickValue; }
 
-		// view
-		void SetViewRect(InputViewArea viewArea, const Vector2& dstPos,
-			const Vector2& dstSize, const Vector2& srcSize = Vector2::AnyInit(0.0f),
+		// 表示領域
+		void SetViewRect(InputViewArea viewArea, const Vector2& dstPos, const Vector2& dstSize,
+			const Vector2& srcSize = Vector2::AnyInit(0.0f),
 			InputViewCoordinateSpace coordinateSpace = InputViewCoordinateSpace::Client);
 		bool HasViewRect(InputViewArea viewArea) const;
 		bool IsMouseOnView(InputViewArea viewArea) const;
@@ -112,185 +117,91 @@ namespace Engine {
 
 		// ゲームパッドの振動
 		uint32_t PlayVibration(const InputVibrationParams& params);
+		uint32_t PlayVibration(uint32_t playerIndex, const InputVibrationParams& params);
 		// 指定のID振動の停止
 		void StopVibration(uint32_t handle);
+		void StopVibration(uint32_t playerIndex, uint32_t handle);
 		// 全ての振動を停止
 		void StopAllVibration();
 		// 振動の有効、無効の設定
 		void SetVibrationEnabled(bool enabled);
+		void SetVibrationEnabled(uint32_t playerIndex, bool enabled);
+		void SetPlayerGamepadIndex(uint32_t playerIndex, int32_t gamepadIndex);
+		int32_t GetPlayerGamepadIndex(uint32_t playerIndex) const;
+		void SetPlayerKeyboardMouseEnabled(uint32_t playerIndex, bool enabled);
+		bool IsPlayerKeyboardMouseEnabled(uint32_t playerIndex) const;
+		void SetBackgroundInputEnabled(bool enabled) { configuration_.backgroundInputEnabled = enabled; }
+		bool IsBackgroundInputEnabled() const { return configuration_.backgroundInputEnabled; }
+		bool IsGameplayInputAvailable(uint32_t playerIndex) const;
 		// ゲームパッドが繋がっているかどうか
-		bool IsGamepadConnected() const { return gamepadConnected_; }
+		bool IsGamepadConnected() const { return hardware_.GetState().gamepadConnected; }
 
-		//--------- gameplay向け多gamepad / text / focus -------------------------
-		// 既存のsingle-gamepad path上の各accessorは変更せず、scripting用に独立のsnapshotを持つ
-		// button / axisのindexはC#のGamepadButton / GamepadAxis enumに対応する
+		//--------- ゲーム入力 ---------------------------------------------------
+		// ボタンと軸の番号はC#の列挙型に対応
 		bool GamepadConnectedByIndex(int index) const;
 		int ConnectedGamepadCount() const;
 		bool GamepadButtonByIndex(int index, int button) const;
 		bool GamepadButtonDownByIndex(int index, int button) const;
 		bool GamepadButtonUpByIndex(int index, int button) const;
 		float GamepadAxisByIndex(int index, int axis) const;
-		// このフレームで読める確定テキストでUTF-8のframe-local
-		const std::string& FrameTextInput() const { return frameText_; }
+		// このフレームの確定テキストを取得
+		const std::string& FrameTextInput() const { return windowEvents_.FrameTextInput(); }
 		// ウィンドウがフォーカスを持っているか
-		bool HasWindowFocus() const { return hasFocus_; }
-		// WinAppのWM_CHAR / focusメッセージからmain threadで呼ぶ
-		void AppendTextInputUtf16(wchar_t code) { pendingWide_.push_back(code); }
-		void SetWindowFocus(bool focused) { hasFocus_ = focused; }
+		bool HasWindowFocus() const { return windowEvents_.HasWindowFocus(); }
+		// Windowの文字入力とフォーカスを通知
+		void AppendTextInputUtf16(wchar_t code) { windowEvents_.AppendTextInputUtf16(code); }
+		void SetWindowFocus(bool focused);
 
 		// 外部エクスプローラーからのファイルドロップを画面座標で積む
-		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint) {
-			if (paths.empty()) { return; }
-			droppedFiles_ = paths;
-			droppedFilesPoint_ = screenPoint;
-			hasDroppedFiles_ = true;
-		}
+		void PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint);
 		// 溜めたファイルドロップを取り出して消費する、未着なら何もせずfalse
-		bool TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) {
-			if (!hasDroppedFiles_) { return false; }
-			outPaths = std::move(droppedFiles_);
-			outClientPoint = droppedFilesPoint_;
-			droppedFiles_.clear();
-			hasDroppedFiles_ = false;
-			return true;
-		}
+		bool TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint);
 		// 溜めたファイルドロップを消費せず取得する
-		bool PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const {
-			if (!hasDroppedFiles_) { return false; }
-			outPaths = droppedFiles_;
-			outClientPoint = droppedFilesPoint_;
-			return true;
-		}
+		bool PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const;
 
-		// singleton
+		// 共有インスタンス
 		static Input* GetInstance();
+		// 生存中の入力だけを取得し、新規作成しない
+		static Input* TryGetInstance();
 		static void Finalize();
+
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
-		//--------- structure ----------------------------------------------------
-
-		// 描画矩形
-		struct ViewRect {
-
-			Vector2 dstPos;   // ウィンドウ内の貼り付け左上
-			Vector2 dstSize;  // ウィンドウ内の貼り付けサイズ
-			Vector2 srcSize;  // 元サイズ
-			InputViewCoordinateSpace coordinateSpace = InputViewCoordinateSpace::Client;
-		};
-
 		//--------- variables ----------------------------------------------------
 
 		static Input* instance_;
 
-		WinApp* winApp_;
+		WinApp* winApp_ = nullptr;
+		InputHardware hardware_;
+		InputWindowEvents windowEvents_;
 
 		// 入力状態
 		InputType inputType_ = InputType::Keyboard;
 
-		// key
-		std::array<BYTE, 256> key_{};
-		std::array<BYTE, 256> keyPre_{};
-
-		ComPtr<IDirectInput8> dInput_;
-		ComPtr<IDirectInputDevice8> keyboard_;
-
-		// gamePad、状態はindex0の多gamepad snapshotを共有して保持する
-		XINPUT_STATE gamepadState_{};
-		bool gamepadConnected_ = false;
-
-		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtons_{};
-		std::array<bool, static_cast<size_t>(GamePadButtons::Counts)> gamepadButtonsPre_{};
-
-		// gameplay用の独立snapshotで最大4台、既存single-gamepad pathとは別管理
-		static constexpr int kMaxGamepads = 4;
-		std::array<XINPUT_STATE, kMaxGamepads> pads_{};
-		std::array<XINPUT_STATE, kMaxGamepads> padsPre_{};
-		std::array<bool, kMaxGamepads> padConnected_{};
-		std::array<bool, kMaxGamepads> padConnectedPre_{};
-		// 文字入力はpendingWide_にWM_CHARを溜め、UpdateでframeText_(UTF-8)へ確定する
-		std::wstring pendingWide_;
-		std::string frameText_;
-		// ウィンドウフォーカス状態
-		bool hasFocus_ = true;
-
-		// 外部からドロップされたファイル、クライアント座標の点と一緒に消費待ちで持つ
-		std::vector<std::string> droppedFiles_{};
-		Vector2 droppedFilesPoint_{};
-		bool hasDroppedFiles_ = false;
-
-		float leftThumbX_;
-		float leftThumbY_;
-		float rightThumbX_;
-		float rightThumbY_;
-
-		// デッドゾーンの閾値
-		float deadZone_ = 8000.0f;
-		// スティック入力の最大値
-		const float maxStickValue_ = 32767.0f;
-
-		// マウス移動範囲制御
-		bool mouseRangeControl_ = false;
+		// 保存設定と前フレームの範囲制御
+		InputDeviceConfiguration configuration_;
 		bool mouseRangeControlPrev_ = false;
-		Vector2 mouseAreaPos_{};
-		Vector2 mouseAreaSize_{};
-		// 範囲制御解除ショートカットのDIKキー、既定はCtrl+Enter
-		int32_t mouseReleaseModKey_ = DIK_LCONTROL;
-		int32_t mouseReleaseTriggerKey_ = DIK_RETURN;
-
-		// LTボタン
-		float leftTriggerValue_ = 0.0f;
-		// RTボタン
-		float rightTriggerValue_ = 0.0f;
-
-		// mouse
-		DIMOUSESTATE mouseState_;
-
-		ComPtr<IDirectInputDevice8> mouse_; // マウスデバイス
-
-		std::array<bool, 3> mouseButtons_;    // マウスボタンの状態
-		std::array<bool, 3> mousePreButtons_; // 1フレ前のマウスボタンの状態
-		Vector2 mousePos_;                    // マウスの座標
-		Vector2 mouseScreenPos_;              // デスクトップ上のマウス座標
-		Vector2 mousePrePos_;                 // マウスの前座標
-		float wheelValue_;                    // ホイール移動量
 
 		// 描画矩形範囲
-		std::unordered_map<InputViewArea, ViewRect> viewRects_;
+		InputViewMapping views_;
 
-		// 振動エフェクト
-		struct VibrationEffect {
-
-			uint32_t handle = 0;
-			float left = 0.0f;     // 0..1
-			float right = 0.0f;    // 0..1
-			float duration = 0.0f; // seconds
-			float attack = 0.0f;   // seconds
-			float release = 0.0f;  // seconds
-			int priority = 0;
-			std::chrono::steady_clock::time_point start;
-		};
-		bool vibrationEnabled_ = true;
-		std::vector<VibrationEffect> vibEffects_{};
-		uint32_t nextVibHandle_ = 1;
-		uint16_t lastMotorLeft_ = 0;
-		uint16_t lastMotorRight_ = 0;
+		std::array<InputVibrationPlayer, kMaxPlayers> vibrations_{};
+		bool suppressEdgesThisFrame_ = false;
+		bool suppressEdgesOnNextUpdate_ = false;
 
 		//--------- functions ----------------------------------------------------
 
-		// helper
+		// 指定したマウスボタンの現在値を取得
 		bool PushMouseButton(size_t index, const std::source_location& location) const;
-		float ApplyDeadZone(float value);
+		// キーボードかマウスの操作を検出
 		bool HasKeyboardMouseInput() const;
+		// ゲームパッドの操作を検出
 		bool HasGamepadInput() const;
 
-		// ゲームパッド
-		void UpdateVibration();
-		void ApplyVibration(uint16_t left, uint16_t right);
-		static uint16_t ToMotorSpeed(float v01);
-
+		// 生成と複製を共有インスタンスに限定
 		Input() = default;
 		~Input() = default;
 		Input(const Input&) = delete;

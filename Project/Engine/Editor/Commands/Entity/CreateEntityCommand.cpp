@@ -25,18 +25,18 @@
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
-
-// c++
-#include <algorithm>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 
 //============================================================================
 //	CreateEntityCommand classMethods
 //============================================================================
 namespace {
 
+	// 保存した親IDから生存Entityを取得する
 	Engine::Entity FindParentEntity(Engine::ECSWorld& world, Engine::UUID id) {
 
 		if (!id) {
@@ -44,10 +44,10 @@ namespace {
 		}
 		return world.FindByUUID(id);
 	}
+
 	// エンティティの所属先を解決する
-	void ResolveOwnerRuntimeState(const Engine::EditorCommandContext& context,
-		Engine::ECSWorld& world, const Engine::Entity& parent,
-		Engine::UUID& outSceneInstanceID, Engine::AssetID& outSourceAsset) {
+	void ResolveOwnerRuntimeState(const Engine::EditorCommandContext& context, Engine::ECSWorld& world,
+		const Engine::Entity& parent, Engine::UUID& outSceneInstanceID, Engine::AssetID& outSourceAsset) {
 
 		outSceneInstanceID = Engine::UUID{};
 		outSourceAsset = Engine::AssetID{};
@@ -72,34 +72,13 @@ namespace {
 			}
 		}
 	}
-	// 既存のルートエンティティの中で最大の兄弟順を返し1つも無ければ-1
-	// ヒエラルキーはルートをsiblingOrderの昇順で並べているため、
-	// 末尾に並べたい新規エンティティはこの値より大きい順番を持たせる
-	int32_t FindMaxRootSiblingOrder(Engine::ECSWorld& world, const Engine::Entity& exclude) {
 
-		int32_t maxOrder = -1;
-		world.ForEachAliveEntity([&](Engine::Entity entity) {
-
-			if (entity == exclude) {
-				return;
-			}
-			if (!world.HasComponent<Engine::HierarchyComponent>(entity)) {
-				return;
-			}
-			// 親が生存していないものだけがルート
-			const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(entity);
-			if (world.IsAlive(hierarchy.parent)) {
-				return;
-			}
-			maxOrder = (std::max)(maxOrder, hierarchy.siblingOrder);
-			});
-		return maxOrder;
-	}
 }
 
-Engine::CreateEntityCommand::CreateEntityCommand(const std::string& name, UUID parentStableUUID,
-	EntityCreationPreset preset, Dimension dimension) :
-	name_(name), parentStableUUID_(parentStableUUID), preset_(preset), dimension_(dimension) {}
+Engine::CreateEntityCommand::CreateEntityCommand(
+	const std::string& name, UUID parentStableUUID, EntityCreationPreset preset, Dimension dimension)
+	: name_(name), parentStableUUID_(parentStableUUID), preset_(preset), dimension_(dimension) {
+}
 
 void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& entity) {
 
@@ -250,6 +229,7 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 	}
 
 	// Redoでも同じUUIDを使えるようにする
+	SceneCreationScope creation(*world);
 	Entity entity = world->CreateEntity(createdStableUUID_);
 	if (!createdStableUUID_) {
 
@@ -258,8 +238,7 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 
 	// デフォルトのコンポーネントを追加する
 	SceneAuthoring::EnsureGameObjectDefaults(*world, entity, name_);
-	if (TransformComponent* transform =
-		world->TryGetComponent<TransformComponent>(entity)) {
+	if (TransformComponent* transform = world->TryGetComponent<TransformComponent>(entity)) {
 		transform->dimension = dimension_;
 	}
 
@@ -293,15 +272,20 @@ bool Engine::CreateEntityCommand::CreateInternal(EditorCommandContext& context) 
 
 		// ルート直下に作る場合は、ヒエラルキー上で末尾に並ぶよう兄弟順を最後にする
 		auto& hierarchy = world->GetComponent<HierarchyComponent>(entity);
-		hierarchy.siblingOrder = FindMaxRootSiblingOrder(*world, entity) + 1;
+		if (!HierarchyUtility::TryGetNextRootSiblingOrder(*world, entity, hierarchy.siblingOrder)) {
+			return false;
+		}
 	}
 
 	ApplyPreset(*world, entity);
+	// LocalFileIDと初期値もRedoで再利用する
+	EditorEntitySnapshotUtility::CaptureSubtree(*world, entity, snapshot_);
 
 	if (context.editorState) {
 
 		context.editorState->SelectEntity(entity);
 	}
+	creation.Commit();
 	return true;
 }
 
@@ -334,5 +318,5 @@ void Engine::CreateEntityCommand::Undo(EditorCommandContext& context) {
 
 bool Engine::CreateEntityCommand::Redo(EditorCommandContext& context) {
 
-	return CreateInternal(context);
+	return EditorEntitySnapshotUtility::RestoreCommandSnapshot(context, snapshot_).IsValid();
 }

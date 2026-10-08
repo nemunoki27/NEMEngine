@@ -1,4 +1,6 @@
 #include "EditorLayoutManager.h"
+#include "EditorLayoutStorage.h"
+#include "EditorLayoutSerialization.h"
 
 //============================================================================
 //	include
@@ -16,109 +18,9 @@
 //============================================================================
 //	EditorLayoutManager classMethods
 //============================================================================
+using namespace Engine::EditorLayoutSerialization;
+
 namespace {
-
-	constexpr int32_t kSchemaVersion = 1;
-
-	nlohmann::json MakeVisibilityJson(const Engine::EditorPanelVisibility& visibility) {
-
-		return {
-			{ "hierarchy", visibility.showHierarchy },
-			{ "inspector", visibility.showInspector },
-			{ "project", visibility.showProject },
-			{ "console", visibility.showConsole },
-			{ "sceneView", visibility.showSceneView },
-			{ "gameView", visibility.showGameView },
-			{ "toolbar", visibility.showToolbar },
-			{ "tool", visibility.showTool },
-		};
-	}
-
-	Engine::EditorPanelVisibility ReadVisibility(const nlohmann::json& data) {
-
-		Engine::EditorPanelVisibility visibility{};
-		if (!data.is_object()) {
-			return visibility;
-		}
-
-		visibility.showHierarchy = data.value("hierarchy", visibility.showHierarchy);
-		visibility.showInspector = data.value("inspector", visibility.showInspector);
-		visibility.showProject = data.value("project", visibility.showProject);
-		visibility.showConsole = data.value("console", visibility.showConsole);
-		visibility.showSceneView = data.value("sceneView", visibility.showSceneView);
-		visibility.showGameView = data.value("gameView", visibility.showGameView);
-		visibility.showToolbar = data.value("toolbar", visibility.showToolbar);
-		visibility.showTool = data.value("tool", visibility.showTool);
-		return visibility;
-	}
-
-	nlohmann::json MakeLayoutJson(const Engine::EditorLayoutSnapshot& layout, bool imported) {
-
-		nlohmann::json panels = nlohmann::json::array();
-		for (const Engine::EditorPanelLayoutSnapshot& panel : layout.panels) {
-
-			panels.push_back({
-				{ "typeID", panel.typeID },
-				{ "instanceID", panel.instanceID },
-				{ "primary", panel.primary },
-				{ "open", panel.open },
-				{ "state", panel.state },
-				});
-		}
-
-		return {
-			{ "layoutID", layout.layoutID },
-			{ "displayName", layout.displayName },
-			{ "order", layout.order },
-			{ "builtinDefault", layout.builtinDefault },
-			{ "imported", imported },
-			{ "visibility", MakeVisibilityJson(layout.visibility) },
-			{ "panels", panels },
-			{ "imguiIniData", layout.imguiIniData },
-		};
-	}
-
-	bool ReadLayout(const nlohmann::json& data, Engine::EditorLayoutSnapshot& outLayout, bool& outImported) {
-
-		if (!data.is_object()) {
-			return false;
-		}
-
-		outLayout.layoutID = data.value("layoutID", std::string{});
-		outLayout.displayName = data.value("displayName", std::string{});
-		if (outLayout.layoutID.empty() || outLayout.displayName.empty()) {
-			return false;
-		}
-
-		outLayout.order = data.value("order", 0);
-		outLayout.builtinDefault = data.value("builtinDefault", false);
-		outImported = data.value("imported", false);
-		outLayout.visibility = ReadVisibility(data.value("visibility", nlohmann::json::object()));
-		outLayout.imguiIniData = data.value("imguiIniData", std::string{});
-		outLayout.panels.clear();
-
-		const nlohmann::json panels = data.value("panels", nlohmann::json::array());
-		if (panels.is_array()) {
-			for (const nlohmann::json& panelData : panels) {
-
-				if (!panelData.is_object()) {
-					continue;
-				}
-
-				Engine::EditorPanelLayoutSnapshot panel{};
-				panel.typeID = panelData.value("typeID", std::string{});
-				panel.instanceID = panelData.value("instanceID", std::string{});
-				if (panel.typeID.empty() || panel.instanceID.empty()) {
-					continue;
-				}
-				panel.primary = panelData.value("primary", false);
-				panel.open = panelData.value("open", true);
-				panel.state = panelData.value("state", nlohmann::json::object());
-				outLayout.panels.emplace_back(std::move(panel));
-			}
-		}
-		return true;
-	}
 
 	std::string MakeComparableName(const std::string& name) {
 
@@ -137,12 +39,12 @@ void Engine::EditorLayoutManager::Init() {
 	userCatalogPath_ = RuntimePaths::GetUserSettingsPath(ConfigPaths::kEditorLayouts);
 	sessionPath_ = RuntimePaths::GetUserSettingsPath(ConfigPaths::kEditorLayoutSession);
 
-	LoadCatalog(engineCatalogPath_, false, engineLayouts_, &engineDefaultLayoutID_);
+	EditorLayoutStorage::LoadCatalog(engineCatalogPath_, false, engineLayouts_, &engineDefaultLayoutID_);
 	if (engineLayouts_.empty()) {
 		engineLayouts_.push_back({ MakeBuiltinDefaultLayout(), false });
 		engineDefaultLayoutID_ = engineLayouts_.front().layout.layoutID;
 	}
-	LoadCatalog(userCatalogPath_, false, userLayouts_);
+	EditorLayoutStorage::LoadCatalog(userCatalogPath_, false, userLayouts_);
 	RebuildMenuEntries();
 }
 
@@ -182,7 +84,7 @@ bool Engine::EditorLayoutManager::SaveUserLayout(const std::string& name,
 	}
 
 	const std::string comparableName = MakeComparableName(name);
-	auto found = std::find_if(userLayouts_.begin(), userLayouts_.end(), [&](const StoredLayout& stored) {
+	auto found = std::find_if(userLayouts_.begin(), userLayouts_.end(), [&](const EditorStoredLayout& stored) {
 		return MakeComparableName(stored.layout.displayName) == comparableName;
 		});
 	if (found != userLayouts_.end()) {
@@ -202,7 +104,7 @@ bool Engine::EditorLayoutManager::SaveUserLayout(const std::string& name,
 		const EditorLayoutSnapshot* defaultLayout = FindLayout(engineDefaultLayoutID_);
 		if (defaultLayout && MakeComparableName(defaultLayout->displayName) == comparableName) {
 
-			StoredLayout stored{};
+			EditorStoredLayout stored{};
 			stored.layout = source;
 			stored.layout.layoutID = engineDefaultLayoutID_;
 			stored.layout.displayName = defaultLayout->displayName;
@@ -213,7 +115,7 @@ bool Engine::EditorLayoutManager::SaveUserLayout(const std::string& name,
 			outLayoutID = engineDefaultLayoutID_;
 		} else {
 
-			StoredLayout stored{};
+			EditorStoredLayout stored{};
 			stored.layout = source;
 			stored.layout.layoutID = "user." + ToString(UUID::New());
 			stored.layout.displayName = name;
@@ -226,7 +128,7 @@ bool Engine::EditorLayoutManager::SaveUserLayout(const std::string& name,
 	}
 
 	activeLayoutID_ = outLayoutID;
-	SaveCatalog(userCatalogPath_, userLayouts_);
+	EditorLayoutStorage::SaveCatalog(userCatalogPath_, userLayouts_);
 	RebuildMenuEntries();
 	return true;
 }
@@ -244,30 +146,30 @@ bool Engine::EditorLayoutManager::SaveAllEngineLayouts(std::string& outError) {
 		return false;
 	}
 
-	std::vector<StoredLayout> exportedLayouts;
+	std::vector<EditorStoredLayout> exportedLayouts;
 	exportedLayouts.reserve(userLayouts_.size() + 1);
-	StoredLayout exportedDefault{};
+	EditorStoredLayout exportedDefault{};
 	exportedDefault.layout = *defaultLayout;
 	exportedDefault.layout.layoutID = engineDefaultLayoutID_;
 	exportedDefault.layout.order = 0;
 	exportedDefault.layout.builtinDefault = true;
 	exportedLayouts.emplace_back(std::move(exportedDefault));
 
-	std::vector<const StoredLayout*> sortedLayouts;
+	std::vector<const EditorStoredLayout*> sortedLayouts;
 	sortedLayouts.reserve(userLayouts_.size());
-	for (const StoredLayout& stored : userLayouts_) {
+	for (const EditorStoredLayout& stored : userLayouts_) {
 		if (stored.layout.layoutID != engineDefaultLayoutID_) {
 			sortedLayouts.emplace_back(&stored);
 		}
 	}
-	std::stable_sort(sortedLayouts.begin(), sortedLayouts.end(), [](const StoredLayout* lhs, const StoredLayout* rhs) {
+	std::stable_sort(sortedLayouts.begin(), sortedLayouts.end(), [](const EditorStoredLayout* lhs, const EditorStoredLayout* rhs) {
 		return lhs->layout.order < rhs->layout.order;
 		});
 
 	int32_t order = 1;
-	for (const StoredLayout* source : sortedLayouts) {
+	for (const EditorStoredLayout* source : sortedLayouts) {
 
-		StoredLayout exported{};
+		EditorStoredLayout exported{};
 		exported.layout = source->layout;
 		exported.layout.order = order++;
 		exported.layout.builtinDefault = false;
@@ -277,7 +179,7 @@ bool Engine::EditorLayoutManager::SaveAllEngineLayouts(std::string& outError) {
 		if (!engineLayoutID) {
 
 			const std::string comparableName = MakeComparableName(exported.layout.displayName);
-			const auto found = std::find_if(engineLayouts_.begin(), engineLayouts_.end(), [&](const StoredLayout& stored) {
+			const auto found = std::find_if(engineLayouts_.begin(), engineLayouts_.end(), [&](const EditorStoredLayout& stored) {
 				return stored.layout.layoutID != engineDefaultLayoutID_ &&
 					MakeComparableName(stored.layout.displayName) == comparableName;
 				});
@@ -288,23 +190,22 @@ bool Engine::EditorLayoutManager::SaveAllEngineLayouts(std::string& outError) {
 	}
 
 	engineLayouts_ = std::move(exportedLayouts);
-	SaveCatalog(engineCatalogPath_, engineLayouts_, &engineDefaultLayoutID_);
+	EditorLayoutStorage::SaveCatalog(engineCatalogPath_, engineLayouts_, &engineDefaultLayoutID_);
 	RebuildMenuEntries();
 	return true;
 }
 
-bool Engine::EditorLayoutManager::ImportEngineLayouts(EditorLayoutSnapshot& outDefaultLayout,
-	std::string& outError) {
+bool Engine::EditorLayoutManager::ImportEngineLayouts(EditorLayoutSnapshot& outDefaultLayout, std::string& outError) {
 
-	std::vector<StoredLayout> loadedLayouts;
+	std::vector<EditorStoredLayout> loadedLayouts;
 	std::string loadedDefaultLayoutID = engineDefaultLayoutID_;
-	LoadCatalog(engineCatalogPath_, false, loadedLayouts, &loadedDefaultLayoutID);
+	EditorLayoutStorage::LoadCatalog(engineCatalogPath_, false, loadedLayouts, &loadedDefaultLayoutID);
 	if (loadedLayouts.empty()) {
 		outError = "エンジンレイアウトが見つかりません";
 		return false;
 	}
 
-	const auto defaultFound = std::find_if(loadedLayouts.begin(), loadedLayouts.end(), [&](const StoredLayout& stored) {
+	const auto defaultFound = std::find_if(loadedLayouts.begin(), loadedLayouts.end(), [&](const EditorStoredLayout& stored) {
 		return stored.layout.layoutID == loadedDefaultLayoutID;
 		});
 	const EditorLayoutSnapshot* defaultLayout = defaultFound != loadedLayouts.end() ? &defaultFound->layout : nullptr;
@@ -319,16 +220,16 @@ bool Engine::EditorLayoutManager::ImportEngineLayouts(EditorLayoutSnapshot& outD
 
 	std::unordered_set<std::string> engineLayoutIDs;
 	engineLayoutIDs.reserve(engineLayouts_.size());
-	for (const StoredLayout& engineLayout : engineLayouts_) {
+	for (const EditorStoredLayout& engineLayout : engineLayouts_) {
 		engineLayoutIDs.emplace(engineLayout.layout.layoutID);
 	}
-	userLayouts_.erase(std::remove_if(userLayouts_.begin(), userLayouts_.end(), [&](const StoredLayout& stored) {
+	userLayouts_.erase(std::remove_if(userLayouts_.begin(), userLayouts_.end(), [&](const EditorStoredLayout& stored) {
 		return stored.imported && !engineLayoutIDs.contains(stored.layout.layoutID);
 		}), userLayouts_.end());
 
-	for (const StoredLayout& engineLayout : engineLayouts_) {
+	for (const EditorStoredLayout& engineLayout : engineLayouts_) {
 
-		auto found = std::find_if(userLayouts_.begin(), userLayouts_.end(), [&](const StoredLayout& userLayout) {
+		auto found = std::find_if(userLayouts_.begin(), userLayouts_.end(), [&](const EditorStoredLayout& userLayout) {
 			return userLayout.layout.layoutID == engineLayout.layout.layoutID;
 			});
 		if (found != userLayouts_.end()) {
@@ -339,7 +240,7 @@ bool Engine::EditorLayoutManager::ImportEngineLayouts(EditorLayoutSnapshot& outD
 			found->imported = true;
 		} else {
 
-			StoredLayout imported = engineLayout;
+			EditorStoredLayout imported = engineLayout;
 			imported.layout.order = imported.layout.layoutID == engineDefaultLayoutID_ ? 0 : GetNextUserOrder();
 			imported.imported = true;
 			userLayouts_.emplace_back(std::move(imported));
@@ -347,7 +248,7 @@ bool Engine::EditorLayoutManager::ImportEngineLayouts(EditorLayoutSnapshot& outD
 	}
 
 	activeLayoutID_ = engineDefaultLayoutID_;
-	SaveCatalog(userCatalogPath_, userLayouts_);
+	EditorLayoutStorage::SaveCatalog(userCatalogPath_, userLayouts_);
 	RebuildMenuEntries();
 	return true;
 }
@@ -358,7 +259,7 @@ bool Engine::EditorLayoutManager::DeleteLayout(const std::string& layoutID) {
 		return false;
 	}
 
-	const auto found = std::find_if(userLayouts_.begin(), userLayouts_.end(), [&](const StoredLayout& stored) {
+	const auto found = std::find_if(userLayouts_.begin(), userLayouts_.end(), [&](const EditorStoredLayout& stored) {
 		return stored.layout.layoutID == layoutID;
 		});
 	if (found == userLayouts_.end()) {
@@ -369,7 +270,7 @@ bool Engine::EditorLayoutManager::DeleteLayout(const std::string& layoutID) {
 	if (activeLayoutID_ == layoutID) {
 		activeLayoutID_ = engineDefaultLayoutID_;
 	}
-	SaveCatalog(userCatalogPath_, userLayouts_);
+	EditorLayoutStorage::SaveCatalog(userCatalogPath_, userLayouts_);
 	RebuildMenuEntries();
 	return true;
 }
@@ -385,8 +286,8 @@ void Engine::EditorLayoutManager::SaveSession(const EditorLayoutSnapshot& layout
 
 const Engine::EditorLayoutSnapshot* Engine::EditorLayoutManager::FindLayout(const std::string& layoutID) const {
 
-	const auto find = [&](const std::vector<StoredLayout>& layouts) -> const EditorLayoutSnapshot* {
-		const auto found = std::find_if(layouts.begin(), layouts.end(), [&](const StoredLayout& stored) {
+	const auto find = [&](const std::vector<EditorStoredLayout>& layouts) -> const EditorLayoutSnapshot* {
+		const auto found = std::find_if(layouts.begin(), layouts.end(), [&](const EditorStoredLayout& stored) {
 			return stored.layout.layoutID == layoutID;
 			});
 		return found != layouts.end() ? &found->layout : nullptr;
@@ -405,51 +306,6 @@ bool Engine::EditorLayoutManager::IsEngineSourceProject() const {
 		RuntimePaths::GetProjectRoot(), RuntimePaths::GetEngineProjectRoot(), ec) && !ec;
 }
 
-void Engine::EditorLayoutManager::LoadCatalog(const std::filesystem::path& path, bool imported,
-	std::vector<StoredLayout>& outLayouts, std::string* outDefaultLayoutID) {
-
-	outLayouts.clear();
-	if (!JsonAdapter::Check(path.string(), false)) {
-		return;
-	}
-
-	const nlohmann::json data = JsonAdapter::Load(path.string(), false);
-	if (!data.is_object() || data.value("schemaVersion", 0) != kSchemaVersion) {
-		return;
-	}
-	if (outDefaultLayoutID) {
-		*outDefaultLayoutID = data.value("defaultLayoutID", *outDefaultLayoutID);
-	}
-
-	const nlohmann::json layouts = data.value("layouts", nlohmann::json::array());
-	if (!layouts.is_array()) {
-		return;
-	}
-	for (const nlohmann::json& layoutData : layouts) {
-
-		StoredLayout stored{};
-		stored.imported = imported;
-		if (ReadLayout(layoutData, stored.layout, stored.imported)) {
-			outLayouts.emplace_back(std::move(stored));
-		}
-	}
-}
-
-void Engine::EditorLayoutManager::SaveCatalog(const std::filesystem::path& path,
-	const std::vector<StoredLayout>& layouts, const std::string* defaultLayoutID) const {
-
-	nlohmann::json data = nlohmann::json::object();
-	data["schemaVersion"] = kSchemaVersion;
-	if (defaultLayoutID) {
-		data["defaultLayoutID"] = *defaultLayoutID;
-	}
-	data["layouts"] = nlohmann::json::array();
-	for (const StoredLayout& stored : layouts) {
-		data["layouts"].push_back(MakeLayoutJson(stored.layout, stored.imported));
-	}
-	JsonAdapter::Save(path.string(), data);
-}
-
 void Engine::EditorLayoutManager::RebuildMenuEntries() {
 
 	menuEntries_.clear();
@@ -462,18 +318,18 @@ void Engine::EditorLayoutManager::RebuildMenuEntries() {
 			});
 	}
 
-	std::vector<const StoredLayout*> sorted;
+	std::vector<const EditorStoredLayout*> sorted;
 	sorted.reserve(userLayouts_.size());
-	for (const StoredLayout& layout : userLayouts_) {
+	for (const EditorStoredLayout& layout : userLayouts_) {
 		if (layout.layout.layoutID != engineDefaultLayoutID_) {
 			sorted.push_back(&layout);
 		}
 	}
-	std::stable_sort(sorted.begin(), sorted.end(), [](const StoredLayout* lhs, const StoredLayout* rhs) {
+	std::stable_sort(sorted.begin(), sorted.end(), [](const EditorStoredLayout* lhs, const EditorStoredLayout* rhs) {
 		return lhs->layout.order < rhs->layout.order;
 		});
 
-	for (const StoredLayout* stored : sorted) {
+	for (const EditorStoredLayout* stored : sorted) {
 		menuEntries_.push_back({
 			.layoutID = stored->layout.layoutID,
 			.displayName = stored->layout.displayName,
@@ -513,7 +369,7 @@ Engine::EditorLayoutSnapshot Engine::EditorLayoutManager::MakeBuiltinDefaultLayo
 int32_t Engine::EditorLayoutManager::GetNextUserOrder() const {
 
 	int32_t order = 0;
-	for (const StoredLayout& layout : userLayouts_) {
+	for (const EditorStoredLayout& layout : userLayouts_) {
 		order = (std::max)(order, layout.layout.order + 1);
 	}
 	return order;

@@ -1,4 +1,5 @@
 #include "FrameLightBatch.h"
+#include <Engine/Core/World/ECS/World/ECSWorld.h>
 
 //============================================================================
 //	FrameLightBatch classMethods
@@ -21,6 +22,8 @@ void Engine::PerViewLightSet::Clear() {
 
 	view = nullptr;
 	camera = nullptr;
+	sourceWorld = nullptr;
+	sourceWorldLifetime.reset();
 	sceneInstanceID = {};
 	sourceRevision = 0;
 	directionalLights.clear();
@@ -94,6 +97,8 @@ void Engine::FrameLightBatch::Clear() {
 	rectLights_.clear();
 	spotLights_.clear();
 	sourceWorld_ = nullptr;
+	sourceWorldLifetime_.reset();
+	extractorRevision_.reset();
 	sourceRevision_ = 0;
 }
 
@@ -105,8 +110,23 @@ void Engine::FrameLightBatch::Sort() {
 	std::sort(spotLights_.begin(), spotLights_.end(), LightItemLess<SpotLightItem>);
 }
 
-void Engine::FrameLightBatch::SetSource(const ECSWorld* world, uint64_t revision) {
+void Engine::FrameLightBatch::SetSource(const ECSWorld* world, uint64_t revision,
+	std::shared_ptr<const RegistryRevision> extractorRevision) {
 
 	sourceWorld_ = world;
+	sourceWorldLifetime_ = world ? world->GetLifetime() : nullptr;
+	extractorRevision_ = std::move(extractorRevision);
 	sourceRevision_ = revision;
+}
+
+//============================================================================
+//	FrameLightBatch classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool FrameLightBatch::MatchesSource(const ECSWorld* world, uint64_t revision) const {
+
+		return sourceWorld_ == world && sourceWorldLifetime_ && sourceWorldLifetime_->IsAlive() && sourceRevision_ == revision;
+	}
 }

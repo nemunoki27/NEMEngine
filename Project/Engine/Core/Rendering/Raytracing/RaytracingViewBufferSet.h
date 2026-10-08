@@ -86,7 +86,7 @@ namespace Engine {
 		void RegisterTo(RenderBufferRegistry& registry) const;
 
 		// 未初期化状態にして解放する
-		void Release() { initialized_ = false; }
+		void Release();
 
 		//--------- accessor -----------------------------------------------------
 

@@ -4,7 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 #include <Engine/Core/Foundation/Math/Math.h>
@@ -141,7 +141,7 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		FrameConstantBufferAllocator constantBufferAllocator_{};
 		std::unordered_map<const PipelineState*, PipelineCacheEntry> parameterLayoutCache_{};
 		float elapsedTime_ = 0.0f;
 		uint32_t frameIndex_ = 0;

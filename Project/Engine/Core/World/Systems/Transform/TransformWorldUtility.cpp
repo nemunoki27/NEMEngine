@@ -20,6 +20,7 @@ namespace {
 	struct ResolveContext {
 
 		std::vector<Entity> stack;
+		bool includePending = false;
 	};
 
 	Vector3 MultiplyScale(const Vector3& lhs, const Vector3& rhs) {
@@ -59,7 +60,8 @@ namespace {
 	bool ResolveParentFollowTransformInternal(ECSWorld& world, const Entity& entity,
 		ResolvedWorldTransform& outTransform, ResolveContext& context) {
 
-		const TransformComponent* transform = world.TryGetComponent<TransformComponent>(entity);
+		const TransformComponent* transform = context.includePending ?
+			world.TryGetComponentForBinding<TransformComponent>(entity) : world.TryGetComponent<TransformComponent>(entity);
 		if (!transform) {
 			return false;
 		}
@@ -85,7 +87,8 @@ namespace {
 		if (!world.IsAlive(entity)) {
 			return false;
 		}
-		const TransformComponent* transform = world.TryGetComponent<TransformComponent>(entity);
+		const TransformComponent* transform = context.includePending ?
+			world.TryGetComponentForBinding<TransformComponent>(entity) : world.TryGetComponent<TransformComponent>(entity);
 		if (!transform) {
 			return false;
 		}
@@ -113,19 +116,21 @@ namespace {
 //	TransformWorldUtility methods
 //============================================================================
 bool Engine::TransformWorldUtility::ResolveWorldTransform(ECSWorld& world, const Entity& entity,
-	ResolvedWorldTransform& outTransform) {
+	ResolvedWorldTransform& outTransform, bool includePending) {
 
 	ResolveContext context{};
+	context.includePending = includePending;
 	return ResolveWorldTransformInternal(world, entity, outTransform, context);
 }
 
 bool Engine::TransformWorldUtility::ResolveParentFollowTransform(ECSWorld& world, const Entity& entity,
-	ResolvedWorldTransform& outTransform) {
+	ResolvedWorldTransform& outTransform, bool includePending) {
 
 	if (!world.IsAlive(entity)) {
 		return false;
 	}
 	ResolveContext context{};
+	context.includePending = includePending;
 	context.stack.emplace_back(entity);
 	return ResolveParentFollowTransformInternal(world, entity, outTransform, context);
 }

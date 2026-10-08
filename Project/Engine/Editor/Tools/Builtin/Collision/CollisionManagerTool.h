@@ -11,8 +11,7 @@ namespace Engine {
 	//	CollisionManagerTool class
 	//	Collisionタイプと衝突マトリクスを編集するツール
 	//============================================================================
-	class CollisionManagerTool :
-		public IEditorTool {
+	class CollisionManagerTool : public IEditorTool {
 	public:
 		//============================================================================
 		//	public Methods
@@ -32,6 +31,7 @@ namespace Engine {
 
 		// ツール情報を取得する
 		const ToolDescriptor& GetDescriptor() const override { return descriptor_; }
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -61,11 +61,8 @@ namespace Engine {
 		// CollisionManagerウィンドウを描画する
 		void DrawWindow(const EditorToolContext& context);
 		// Collisionタイプ一覧を描画する、変更があればtrue
-		bool DrawTypes();
+		bool DrawTypes(const EditorToolContext& context);
 		// Collisionタイプ同士の衝突マトリクスを描画する、変更があればtrue
 		bool DrawMatrix();
-		// World内のCollision形状をLineRendererで描画する
-		void DrawCollisionWorld(ECSWorld& world) const;
 	};
 } // Engine
-

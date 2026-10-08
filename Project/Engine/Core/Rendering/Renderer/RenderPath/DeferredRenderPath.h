@@ -70,6 +70,7 @@ namespace Engine {
 
 		// パスの初期化でdepsはRenderPipelineRunnerが所有するメンバーへのポインタを渡す
 		void Initialize(const RenderPipelineDeps& deps);
+		void RetainViews(const std::unordered_set<std::string>& activeViews);
 		// 終了処理
 		void Finalize();
 

@@ -74,14 +74,16 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
-		// 指定typeNameが登録済みか
-		bool HasDescriptor(const std::string& typeName) const;
-
 		//--------- variables ----------------------------------------------------
 
 		// 登録された編集情報
 		std::vector<ComponentEditorDescriptor> descriptors_{};
 		// 登録された描画処理
 		std::vector<std::unique_ptr<IInspectorComponentDrawer>> drawers_{};
+
+		//--------- functions ----------------------------------------------------
+
+		// 指定typeNameが登録済みか
+		bool HasDescriptor(const std::string& typeName) const;
 	};
 } // Engine

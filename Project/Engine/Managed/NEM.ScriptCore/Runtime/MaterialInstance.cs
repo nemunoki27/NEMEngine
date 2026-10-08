@@ -65,9 +65,9 @@ public static class MaterialParameterNames {
     public const string BaseColor = "color";
     public const string BaseColorTexture = "baseColorTexture";
     public const string NormalTexture = "normalTexture";
-    public const string Metallic = "Metallic";
+    public const string Metallic = "metallic";
     public const string MetallicRoughnessTexture = "metallicRoughnessTexture";
-    public const string Roughness = "Roughness";
+    public const string Roughness = "roughness";
     public const string AmbientOcclusion = "ambientOcclusion";
     public const string AmbientOcclusionTexture = "occlusionTexture";
     public const string EmissiveColor = "emissiveColor";
@@ -108,17 +108,17 @@ public static class MaterialParameterIDs {
         MaterialParameterID.FromName(MaterialParameterNames.AlphaClip);
 }
 
-// Renderer上のMaterial Assetへ重ねるEntity固有パラメータ
+// Renderer上のMaterial Assetへ重ねるGameObject固有パラメータ
 public readonly struct MaterialInstance {
 
-    private readonly Entity entity;
+    private readonly GameObject gameObject;
     private readonly RendererMaterialTarget target;
     private readonly int subMeshIndex;
 
     internal MaterialInstance(
-        Entity entity, RendererMaterialTarget target, int subMeshIndex = -1) {
+        GameObject gameObject, RendererMaterialTarget target, int subMeshIndex = -1) {
 
-        this.entity = entity;
+        this.gameObject = gameObject;
         this.target = target;
         this.subMeshIndex = subMeshIndex;
     }
@@ -192,7 +192,7 @@ public readonly struct MaterialInstance {
 
     public bool SetTexture(MaterialParameterID id, string name, Texture? value) {
         NativeMaterialParameterValue native = new() {
-            assetID = value?.assetId ?? AssetGUID.None,
+            assetID = value?.assetID ?? AssetGUID.None,
             type = NativeMaterialParameterValueType.Texture
         };
         return Set(id, name, native);
@@ -304,8 +304,8 @@ public readonly struct MaterialInstance {
         Clear(MaterialParameterID.FromName(name));
 
     public bool Clear(MaterialParameterID id) {
-        return NativeApi.ClearRendererMaterialParameterValue(
-            entity.native, target, subMeshIndex, id.value);
+        return NativeRenderingAPI.ClearRendererMaterialParameterValue(
+            gameObject.native, target, subMeshIndex, id.value);
     }
 
     private bool Set(
@@ -313,15 +313,15 @@ public readonly struct MaterialInstance {
         NativeMaterialParameterValue value) {
 
         ArgumentException.ThrowIfNullOrEmpty(name);
-        return NativeApi.WriteRendererMaterialParameter(
-            entity.native, target, subMeshIndex, id.value, name, value);
+        return NativeRenderingAPI.WriteRendererMaterialParameter(
+            gameObject.native, target, subMeshIndex, id.value, name, value);
     }
 
     private bool TryGet(
         MaterialParameterID id,
         out NativeMaterialParameterValue value) {
 
-        return NativeApi.ReadRendererMaterialParameter(
-            entity.native, target, subMeshIndex, id.value, out value);
+        return NativeRenderingAPI.ReadRendererMaterialParameter(
+            gameObject.native, target, subMeshIndex, id.value, out value);
     }
 }

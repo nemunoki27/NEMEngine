@@ -11,9 +11,12 @@
 #include <Engine/Core/Foundation/Math/Color.h>
 
 // c++
+#include <memory>
 #include <vector>
 
 namespace Engine {
+
+	struct RegistryRevision;
 
 	//============================================================================
 	//	FrameLightBatch structures
@@ -27,9 +30,6 @@ namespace Engine {
 
 		// シーンインスタンス
 		UUID sceneInstanceID{};
-
-		// どのレイヤーに影響するか
-		uint32_t affectLayerMask = 0xFFFFFFFFu;
 
 		// どのカメラドメイン向けか
 		RenderCameraDomain cameraDomain = RenderCameraDomain::Perspective;
@@ -102,6 +102,8 @@ namespace Engine {
 
 		const ResolvedRenderView* view = nullptr;
 		const ResolvedCameraView* camera = nullptr;
+		const ECSWorld* sourceWorld = nullptr;
+		std::shared_ptr<const ECSWorldLifetime> sourceWorldLifetime;
 		UUID sceneInstanceID{};
 		uint64_t sourceRevision = 0;
 
@@ -151,7 +153,8 @@ namespace Engine {
 		// ソート
 		void Sort();
 		// 抽出元Worldと変更世代を記録する
-		void SetSource(const ECSWorld* world, uint64_t revision);
+		void SetSource(const ECSWorld* world, uint64_t revision,
+			std::shared_ptr<const RegistryRevision> extractorRevision = {});
 
 		//--------- accessor -----------------------------------------------------
 
@@ -166,14 +169,12 @@ namespace Engine {
 		uint32_t GetPointCount() const { return static_cast<uint32_t>(pointLights_.size()); }
 		uint32_t GetRectCount() const { return static_cast<uint32_t>(rectLights_.size()); }
 		uint32_t GetSpotCount() const { return static_cast<uint32_t>(spotLights_.size()); }
-		uint32_t GetTotalCount() const {
-			return GetDirectionalCount() + GetPointCount() +
-				GetRectCount() + GetSpotCount();
-		}
+		uint32_t GetTotalCount() const { return GetDirectionalCount() + GetPointCount() + GetRectCount() + GetSpotCount(); }
 		uint64_t GetSourceRevision() const { return sourceRevision_; }
-		bool MatchesSource(const ECSWorld* world, uint64_t revision) const {
-			return sourceWorld_ == world && sourceRevision_ == revision;
-		}
+		const ECSWorld* GetSourceWorld() const { return sourceWorld_; }
+		const std::shared_ptr<const ECSWorldLifetime>& GetSourceWorldLifetime() const { return sourceWorldLifetime_; }
+		bool MatchesSource(const ECSWorld* world, uint64_t revision) const;
+		bool MatchesExtractors(const std::shared_ptr<const RegistryRevision>& revision) const { return extractorRevision_ == revision; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -186,6 +187,8 @@ namespace Engine {
 		std::vector<RectLightItem> rectLights_{};
 		std::vector<SpotLightItem> spotLights_{};
 		const ECSWorld* sourceWorld_ = nullptr;
+		std::shared_ptr<const ECSWorldLifetime> sourceWorldLifetime_;
+		std::shared_ptr<const RegistryRevision> extractorRevision_;
 		uint64_t sourceRevision_ = 0;
 	};
 } // Engine

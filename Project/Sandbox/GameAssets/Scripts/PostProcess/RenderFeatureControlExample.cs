@@ -5,7 +5,7 @@ namespace SandboxScripts;
 //============================================================================
 //	RenderFeatureControlExample
 //============================================================================
-public sealed class RenderFeatureControlExample : ScriptBehaviour {
+public sealed class RenderFeatureControlExample : MonoBehaviour {
 
 	private const string ThresholdName = "Threshold";
 	private static readonly MaterialParameterID ThresholdID =
@@ -31,15 +31,15 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	[SerializeField]
 	private float customComputeStrength = 1.0f;
 
-	private RenderFeaturePass shaderGraphPass;
-	private RenderFeaturePass customComputePass;
+	private RenderPassesPass shaderGraphPass;
+	private RenderPassesPass customComputePass;
 	private bool missingShaderGraphPassLogged = false;
 	private bool missingCustomComputePassLogged = false;
 
 	//========================================================================
 	//	開始時処理
 	//========================================================================
-	public override void Start() {
+	private void Start() {
 
 		ResolvePass();
 	}
@@ -47,7 +47,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	//========================================================================
 	//	毎フレーム更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
 		if (!shaderGraphPass.isValid || !customComputePass.isValid) {
 			ResolvePass();
@@ -69,7 +69,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	//========================================================================
 	//	無効化時処理
 	//========================================================================
-	public override void OnDisable() {
+	private void OnDisable() {
 
 		if (shaderGraphPass.isValid) {
 			shaderGraphPass.Reset();
@@ -84,7 +84,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 	//========================================================================
 	private void ResolvePass() {
 
-		shaderGraphPass = RenderFeatures.FindPass(passName);
+		shaderGraphPass = RenderPasses.FindPass(passName);
 		if (shaderGraphPass.isValid) {
 			missingShaderGraphPassLogged = false;
 		} else if (!missingShaderGraphPassLogged) {
@@ -93,7 +93,7 @@ public sealed class RenderFeatureControlExample : ScriptBehaviour {
 			missingShaderGraphPassLogged = true;
 		}
 
-		customComputePass = RenderFeatures.FindPass(customComputePassName);
+		customComputePass = RenderPasses.FindPass(customComputePassName);
 		if (customComputePass.isValid) {
 			missingCustomComputePassLogged = false;
 		} else if (!missingCustomComputePassLogged) {

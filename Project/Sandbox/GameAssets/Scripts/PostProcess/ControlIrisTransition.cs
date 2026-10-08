@@ -5,7 +5,7 @@ namespace SandboxScripts;
 //============================================================================
 //	ControlIrisTransition
 //============================================================================
-public sealed class ControlIrisTransition : ScriptBehaviour {
+public sealed class ControlIrisTransition : MonoBehaviour {
 
 	private const string PassName = "irisTransition";
 	private const string ThresholdName = "Threshold";
@@ -19,23 +19,23 @@ public sealed class ControlIrisTransition : ScriptBehaviour {
 	[SerializeField]
 	private float threshold = 0.5f;
 
-	private RenderFeaturePass pass;
+	private RenderPassesPass pass;
 
 	//========================================================================
 	//	開始時処理
 	//========================================================================
-	public override void Start() {
+	private void Start() {
 
-		pass = RenderFeatures.FindPass(PassName);
+		pass = RenderPasses.FindPass(PassName);
 	}
 
 	//========================================================================
 	//	毎フレーム更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
 		if (!pass.isValid) {
-			pass = RenderFeatures.FindPass(PassName);
+			pass = RenderPasses.FindPass(PassName);
 		}
 		if (!pass.isValid) {
 			return;
@@ -47,7 +47,7 @@ public sealed class ControlIrisTransition : ScriptBehaviour {
 	//========================================================================
 	//	無効化時処理
 	//========================================================================
-	public override void OnDisable() {
+	private void OnDisable() {
 
 		if (pass.isValid) {
 			pass.Reset();

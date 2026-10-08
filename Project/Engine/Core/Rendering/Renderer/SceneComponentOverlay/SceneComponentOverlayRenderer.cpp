@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -15,7 +16,6 @@
 
 // c++
 #include <algorithm>
-#include <filesystem>
 #include <optional>
 
 //============================================================================
@@ -94,9 +94,9 @@ void Engine::SceneComponentOverlayRenderer::Init(GraphicsCore& graphicsCore) {
 		return;
 	}
 
-	// 通常RenderBatchとは別に、Overlay専用の小さなGPUバッファを持つ
+	// Overlay描画用の定数バッファを初期化
 	ID3D12Device* device = graphicsCore.GetDXObject().GetDevice();
-	spriteView_.Init(device);
+	spriteView_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 
 	initialized_ = true;
 }
@@ -105,9 +105,7 @@ void Engine::SceneComponentOverlayRenderer::Finalize() {
 
 	// Renderer寿命に合わせてOverlay専用GPUリソースを解放する
 	for (auto& spriteInstances : spriteRunInstances_) {
-		if (spriteInstances) {
-			spriteInstances->Release();
-		}
+		spriteInstances->Release();
 	}
 	spriteRunInstances_.clear();
 	pipelineCache_.clear();
@@ -128,7 +126,6 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 	DxShaderCompiler* compiler = graphicsCore.GetDXObject().GetDxShaderCompiler();
 
 	PipelinePair pair{};
-	pair.sprite = std::make_unique<PipelineState>();
 	{
 		GraphicsPipelineDesc desc{};
 		desc.type = PipelineType::Vertex;
@@ -146,7 +143,8 @@ Engine::SceneComponentOverlayRenderer::PipelinePair* Engine::SceneComponentOverl
 		desc.numRenderTargets = 1;
 		desc.rtvFormats[0] = rtvFormat;
 		desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
-		if (!pair.sprite->CreateGraphics(device, compiler, desc)) {
+		pair.sprite = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc);
+		if (!pair.sprite) {
 			return nullptr;
 		}
 	}
@@ -181,12 +179,12 @@ Engine::SceneComponentOverlayRenderer::GetOrCreateSpriteRunBuffer(GraphicsCore& 
 
 void Engine::SceneComponentOverlayRenderer::Render([[maybe_unused]] GraphicsCore& graphicsCore,
 	[[maybe_unused]] AssetDatabase& assetDatabase, [[maybe_unused]] const ResolvedRenderView& view,
-	[[maybe_unused]] MultiRenderTarget& surface, [[maybe_unused]] DepthTexture2D* sceneDepth,
-	[[maybe_unused]] ECSWorld* world, [[maybe_unused]] SceneComponentOverlayItemList& items) {
+	[[maybe_unused]] MultiRenderTarget& surface, [[maybe_unused]] const ECSWorld* world,
+	[[maybe_unused]] const SceneComponentOverlayItemList& items) {
 
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 	// 前フレームの描画済みアイテムがPickerへ残らないよう、最初に必ず消す
-	SceneComponentOverlayState::GetInstance().Clear(world);
+	SceneComponentOverlayState::GetInstance().Clear();
 	if (items.empty() || !view.valid || surface.GetWidth() == 0 || surface.GetHeight() == 0) {
 		return;
 	}
@@ -212,7 +210,7 @@ void Engine::SceneComponentOverlayRenderer::Render([[maybe_unused]] GraphicsCore
 
 void Engine::SceneComponentOverlayRenderer::DrawSpriteIcons(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
 	const ResolvedRenderView& view, MultiRenderTarget& surface, PipelineState& pipeline,
-	SceneComponentOverlayItemList& items, SceneComponentOverlayItemList& renderedItems) {
+	const SceneComponentOverlayItemList& items, SceneComponentOverlayItemList& renderedItems) {
 
 	std::vector<const SceneComponentOverlayItem*> spriteItems{};
 	spriteItems.reserve(items.size());
@@ -291,7 +289,7 @@ void Engine::SceneComponentOverlayRenderer::DrawSpriteIcons(GraphicsCore& graphi
 		if (spriteScratch_.empty()) {
 			continue;
 		}
-		// runごとに別バッファへ積みGPU実行前に後続Uploadで前のDraw元を上書きしないため
+		// 連続描画ごとに転送先を分けて上書きを防ぐ
 		auto& spriteInstances = GetOrCreateSpriteRunBuffer(graphicsCore, runBufferIndex++);
 		spriteInstances.Upload(spriteScratch_);
 		RootBindingCommand::SetGraphicsSRV(commandList, spriteBindingCache_.Get(spriteInstancesSlot_),

@@ -1,3 +1,5 @@
+#include "../Common/descriptorHeapCompatibility.hlsli"
+
 //============================================================================
 //	input
 //============================================================================
@@ -30,7 +32,7 @@ float4 main(VSOutput input) : SV_TARGET0 {
 	float3 viewDir = normalize(worldFar - cameraPosition);
 
 	// cubemapはbindlessで方向ベクトルからサンプルする
-	TextureCube<float4> cube = ResourceDescriptorHeap[NonUniformResourceIndex(cubemapIndex)];
+	TextureCube<float4> cube = NEM_TEXTURECUBE(cubemapIndex);
 	float4 sampled = cube.SampleLevel(gSampler, viewDir, 0.0f);
 	return sampled * color;
 }

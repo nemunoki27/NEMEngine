@@ -31,9 +31,9 @@ public static class Random {
     public static Vector2 insideUnitCircle {
         get {
             // 面積を一様にするため半径はsqrtで補正する
-            float angle = Range(0.0f, Math.pi * 2.0f);
-            float radius = Math.Sqrt(value);
-            return new Vector2(Math.Cos(angle) * radius, Math.Sin(angle) * radius);
+            float angle = Range(0.0f, Mathf.PI * 2.0f);
+            float radius = Mathf.Sqrt(value);
+            return new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius);
         }
     }
 
@@ -41,9 +41,9 @@ public static class Random {
     public static Vector3 onUnitSphere {
         get {
             float z = Range(-1.0f, 1.0f);
-            float angle = Range(0.0f, Math.pi * 2.0f);
-            float r = Math.Sqrt(Math.Max(0.0f, 1.0f - z * z));
-            return new Vector3(Math.Cos(angle) * r, Math.Sin(angle) * r, z);
+            float angle = Range(0.0f, Mathf.PI * 2.0f);
+            float r = Mathf.Sqrt(Mathf.Max(0.0f, 1.0f - z * z));
+            return new Vector3(Mathf.Cos(angle) * r, Mathf.Sin(angle) * r, z);
         }
     }
 
@@ -51,7 +51,7 @@ public static class Random {
     public static Vector3 insideUnitSphere {
         get {
             // 体積を一様にするため半径はcbrtで補正する
-            float radius = Math.Pow(value, 1.0f / 3.0f);
+            float radius = Mathf.Pow(value, 1.0f / 3.0f);
             return onUnitSphere * radius;
         }
     }
@@ -62,14 +62,14 @@ public static class Random {
             float u1 = value;
             float u2 = value;
             float u3 = value;
-            float sqrt1MinusU1 = Math.Sqrt(1.0f - u1);
-            float sqrtU1 = Math.Sqrt(u1);
-            float twoPi = Math.pi * 2.0f;
+            float sqrt1MinusU1 = Mathf.Sqrt(1.0f - u1);
+            float sqrtU1 = Mathf.Sqrt(u1);
+            float twoPi = Mathf.PI * 2.0f;
             return new Quaternion(
-                sqrt1MinusU1 * Math.Sin(twoPi * u2),
-                sqrt1MinusU1 * Math.Cos(twoPi * u2),
-                sqrtU1 * Math.Sin(twoPi * u3),
-                sqrtU1 * Math.Cos(twoPi * u3));
+                sqrt1MinusU1 * Mathf.Sin(twoPi * u2),
+                sqrt1MinusU1 * Mathf.Cos(twoPi * u2),
+                sqrtU1 * Mathf.Sin(twoPi * u3),
+                sqrtU1 * Mathf.Cos(twoPi * u3));
         }
     }
 }

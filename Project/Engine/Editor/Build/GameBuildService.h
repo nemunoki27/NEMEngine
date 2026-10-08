@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/AssetTypes.h>
+#include "GameBuildTypes.h"
 #include <Engine/Core/Scripting/Managed/ManagedProcessRunner.h>
 
 // c++
@@ -13,43 +13,9 @@
 
 namespace Engine {
 
-	//============================================================================
-	//	GameBuild structures
-	//============================================================================
-	// ビルド対象のシーン
-	struct GameBuildSceneEntry {
-
-		AssetID assetID{};
-		std::string assetPath;
-		std::string displayName;
-	};
-	// 製品へ配置するファイル
-	struct GameBuildFileEntry {
-
-		std::filesystem::path source;
-		std::string destination;
-		uintmax_t size = 0;
-		std::string sha256;
-	};
-	// 製品ビルド設定
-	struct GameBuildSettings {
-
-		AssetID startupScene{};
-		std::string executableName;
-		std::filesystem::path outputRoot;
-		bool startupFullscreen = false;
-	};
-	// 製品ビルドの進行状態
-	enum class GameBuildState {
-
-		Idle,
-		Building,
-		Completed,
-		Failed,
-	};
-
 	// front
 	class AssetDatabase;
+	class SceneAssetStorage;
 
 	//============================================================================
 	//	GameBuildService class
@@ -71,9 +37,9 @@ namespace Engine {
 		void RefreshScenes(const AssetDatabase& database);
 		// 実行ファイルを構築せず製品へ配置する依存ファイルを検証する
 		static bool CollectFiles(AssetID startupScene, const AssetDatabase& database,
-			std::vector<GameBuildFileEntry>& outFiles, std::string& outError);
+			std::vector<GameBuildFileEntry>& outFiles, std::string& outError, SceneAssetStorage* sceneStorage = nullptr);
 		// 製品ビルドを開始
-		bool Start(const GameBuildSettings& settings, const AssetDatabase& database, std::string& outError);
+		bool Start(const GameBuildSettings& settings, const AssetDatabase& database, std::string& outError, SceneAssetStorage* sceneStorage = nullptr);
 		// 子プロセスの進行を更新
 		void Update();
 		// 完了表示を待機状態へ戻す
@@ -87,6 +53,7 @@ namespace Engine {
 		const std::string& GetStatusMessage() const { return statusMessage_; }
 		const std::string& GetFailureDetail() const { return failureDetail_; }
 		const std::filesystem::path& GetOutputDirectory() const { return outputDirectory_; }
+		const std::vector<GameBuildWarning>& GetWarnings() const { return warnings_; }
 	private:
 		//============================================================================
 		//	private Methods
@@ -96,6 +63,7 @@ namespace Engine {
 
 		ManagedProcessRunner processRunner_;
 		std::vector<GameBuildSceneEntry> scenes_;
+		std::vector<GameBuildWarning> warnings_;
 		GameBuildState state_ = GameBuildState::Idle;
 		std::string statusMessage_;
 		std::string failureDetail_;
@@ -106,7 +74,7 @@ namespace Engine {
 
 		// ビルド設定とアセット一覧を一時マニフェストへ保存
 		bool WriteManifest(const GameBuildSettings& settings, const AssetDatabase& database,
-			std::filesystem::path& outScriptPath, std::string& outError);
+			std::filesystem::path& outScriptPath, std::string& outError, SceneAssetStorage* sceneStorage);
 		// 一時マニフェストを削除
 		void RemoveManifest();
 	};

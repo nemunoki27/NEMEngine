@@ -165,10 +165,9 @@ namespace Engine {
 		// Undo / Redo履歴
 		EditorCommandHistory commandHistory{};
 		// Copy / Paste用クリップボード、複数選択をまとめて保持する
-		EditorEntityTreeSnapshot clipboardSnapshot{};
-		UUID clipboardParentStableUUID{};
 		std::vector<EditorEntityTreeSnapshot> clipboardSnapshots{};
 		std::vector<UUID> clipboardParentUUIDs{};
+		std::weak_ptr<const ECSWorldLifetime> clipboardWorld;
 
 		// シーンビューのカメラ選択状態
 		SceneViewCameraSelection sceneViewCamera{};

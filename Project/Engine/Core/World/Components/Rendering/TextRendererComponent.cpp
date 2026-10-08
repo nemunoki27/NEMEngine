@@ -139,7 +139,7 @@ void Engine::TextRendererComponent::SerializeECS(
 	const TextRendererComponent& component, nlohmann::json& out) {
 
 	SerializeTextRenderer(
-		component, GetTextCharTransforms(world, entity), out);
+		component, world.TryGetBufferForBinding<TextCharTransform>(entity).GetSpan(), out);
 }
 
 void Engine::from_json(const nlohmann::json& in, TextRendererComponent& component) {
@@ -168,17 +168,8 @@ std::span<const Engine::TextCharTransform> Engine::GetTextCharTransforms(
 void Engine::SetTextCharTransforms(ECSWorld& world, const Entity& entity,
 	std::span<const TextCharTransform> transforms) {
 
-	DynamicBuffer<TextCharTransform> buffer =
-		world.TryGetBuffer<TextCharTransform>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<TextCharTransform>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(transforms.size()));
-	for (const TextCharTransform& transform : transforms) {
-		buffer.Add(transform);
-	}
-	world.MarkComponentModified<TextCharTransform>(entity);
+	// 文字ごとの変形値を入力の寿命を保って置き換える
+	world.SetBuffer<TextCharTransform>(entity, transforms);
 }
 
 std::span<Engine::TextLayoutGlyph> Engine::GetTextLayoutGlyphs(
@@ -196,17 +187,8 @@ std::span<const Engine::TextLayoutGlyph> Engine::GetTextLayoutGlyphs(
 void Engine::SetTextLayoutGlyphs(ECSWorld& world, const Entity& entity,
 	std::span<const TextLayoutGlyph> glyphs) {
 
-	DynamicBuffer<TextLayoutGlyph> buffer =
-		world.TryGetBuffer<TextLayoutGlyph>(entity);
-	if (!buffer.IsValid()) {
-		buffer = world.AddBuffer<TextLayoutGlyph>(entity);
-	}
-	buffer.Clear();
-	buffer.Reserve(static_cast<uint32_t>(glyphs.size()));
-	for (const TextLayoutGlyph& glyph : glyphs) {
-		buffer.Add(glyph);
-	}
-	world.MarkComponentModified<TextLayoutGlyph>(entity);
+	// 配置済み文字列と同じ領域の入力も保護する
+	world.SetBuffer<TextLayoutGlyph>(entity, glyphs);
 }
 
 void Engine::InvalidateTextLayout(ECSWorld& world, const Entity& entity) {

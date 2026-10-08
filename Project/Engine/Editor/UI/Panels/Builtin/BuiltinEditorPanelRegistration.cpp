@@ -11,7 +11,6 @@
 #include <Engine/Editor/UI/Panels/Builtin/HierarchyPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/InspectorPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ConsolePanel.h>
-#include <Engine/Editor/UI/Panels/Builtin/ToolPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ProjectPanel.h>
 #include <Engine/Editor/UI/Panels/Builtin/ViewportPanel.h>
 
@@ -30,7 +29,6 @@ std::vector<std::unique_ptr<Engine::IEditorPanel>> Engine::CreateBuiltinEditorPa
 	panels.emplace_back(std::make_unique<HierarchyPanel>(textureUploadService));
 	panels.emplace_back(std::make_unique<InspectorPanel>());
 	panels.emplace_back(std::make_unique<ConsolePanel>());
-	panels.emplace_back(std::make_unique<ToolPanel>());
 	panels.emplace_back(std::make_unique<ProjectPanel>(textureUploadService));
 	panels.emplace_back(std::make_unique<ViewportPanel>("GameView", "GameView", ViewportPanelKind::Game, textureUploadService));
 	panels.emplace_back(std::make_unique<ViewportPanel>("SceneView", "SceneView", ViewportPanelKind::Scene, textureUploadService));

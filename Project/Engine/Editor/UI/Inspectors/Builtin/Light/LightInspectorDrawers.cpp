@@ -12,6 +12,7 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 	[[maybe_unused]] const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
+	// 光源の編集値を取得
 	auto& draft = GetDraft();
 
 	DrawField(anyItemActive, [&]() {
@@ -36,15 +37,13 @@ void Engine::DirectionalLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
-		});
 }
 
 void Engine::DirectionalLightInspectorDrawer::OnBeforeCommit(
 	[[maybe_unused]] const DirectionalLightComponent& beforeComponent,
 	DirectionalLightComponent& afterComponent) {
 
+	// 光源の方向を単位ベクトルへ補正
 	afterComponent.direction = Vector3::Normalize(afterComponent.direction);
 }
 
@@ -55,6 +54,7 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 	[[maybe_unused]] const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
+	// 光源の編集値を取得
 	auto& draft = GetDraft();
 
 	DrawField(anyItemActive, [&]() {
@@ -83,9 +83,6 @@ void Engine::PointLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
-	});
 }
 
 //============================================================================
@@ -96,6 +93,7 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity,
 	bool& anyItemActive) {
 
+	// 光源の編集値を取得
 	auto& draft = GetDraft();
 
 	DrawField(anyItemActive, [&]() {
@@ -136,10 +134,6 @@ void Engine::RectLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField(
-			"レイヤーマスク", draft.affectLayerMask);
-		});
 }
 
 //============================================================================
@@ -149,6 +143,7 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 	[[maybe_unused]] const EditorPanelContext& context,
 	[[maybe_unused]] ECSWorld& world, [[maybe_unused]] const Entity& entity, bool& anyItemActive) {
 
+	// 光源の編集値を取得
 	auto& draft = GetDraft();
 
 	DrawField(anyItemActive, [&]() {
@@ -189,14 +184,12 @@ void Engine::SpotLightInspectorDrawer::DrawFields(
 	DrawField(anyItemActive, [&]() {
 		return InspectorDrawerCommon::DrawCheckboxField("有効", draft.enabled);
 		});
-	DrawField(anyItemActive, [&]() {
-		return InspectorDrawerCommon::DrawLayerMaskField("レイヤーマスク", draft.affectLayerMask);
-		});
 }
 
 void Engine::SpotLightInspectorDrawer::OnBeforeCommit(
 	[[maybe_unused]] const SpotLightComponent& beforeComponent,
 	SpotLightComponent& afterComponent) {
 
+	// 光源の方向を単位ベクトルへ補正
 	afterComponent.direction = Vector3::Normalize(afterComponent.direction);
 }

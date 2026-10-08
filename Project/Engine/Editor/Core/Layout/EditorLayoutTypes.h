@@ -3,12 +3,12 @@
 //============================================================================
 //	include
 //============================================================================
-#include <json.hpp>
-
 // c++
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#include <json.hpp>
 
 namespace Engine {
 
@@ -25,7 +25,6 @@ namespace Engine {
 		bool showSceneView = true;
 		bool showGameView = true;
 		bool showToolbar = true;
-		bool showTool = true;
 	};
 
 	// パネルインスタンスの保存状態

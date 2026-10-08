@@ -41,5 +41,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, in 
 		MeshVertex vertex = LoadMeshVertex(instanceIndex, vertexIndex);
 		outVerts[groupThreadID] = BuildOutlineVertex(
 			instanceIndex, localSubMeshIndex, vertex, gMeshletWorldMatrix, gMeshletNormalMatrix);
+		outVerts[groupThreadID].lodCoverage =
+			payload.lodCoverages[groupID.x];
 	}
 }

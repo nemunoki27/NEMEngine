@@ -8,6 +8,7 @@
 
 // c++
 #include <memory>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -32,12 +33,17 @@ namespace Engine {
 
 		// 描画ビューのサーフェスを生成する
 		void SyncSurface(GraphicsCore& graphicsCore, RenderViewKind kind, uint32_t width, uint32_t height);
+		// CameraのRenderTexture出力先を生成する
+		void SyncRenderTextureSurface(GraphicsCore& graphicsCore, AssetID assetID,
+			uint32_t width, uint32_t height);
 
 		//--------- accessor -----------------------------------------------------
 
 		// 描画ビューのサーフェスの取得
 		MultiRenderTarget* GetSurface(RenderViewKind kind);
 		const MultiRenderTarget* GetSurface(RenderViewKind kind) const;
+		MultiRenderTarget* GetRenderTextureSurface(AssetID assetID);
+		const MultiRenderTarget* GetRenderTextureSurface(AssetID assetID) const;
 
 		// 描画ビューのサーフェスの色レンダーテクスチャの取得
 		RenderTexture2D* GetDisplayTexture(RenderViewKind kind, size_t colorIndex = 0);
@@ -68,6 +74,7 @@ namespace Engine {
 		// 各ビューのスロット
 		SurfaceSlot game_;
 		SurfaceSlot scene_;
+		std::unordered_map<AssetID, SurfaceSlot> renderTextures_{};
 
 		//--------- functions ----------------------------------------------------
 
@@ -77,6 +84,8 @@ namespace Engine {
 
 		// 描画ビューのサーフェスの情報を構築する
 		static MultiRenderTargetCreateDesc BuildDefaultDesc(RenderViewKind kind, uint32_t width, uint32_t height);
+		static MultiRenderTargetCreateDesc BuildRenderTextureDesc(AssetID assetID,
+			uint32_t width, uint32_t height);
 	};
 } // Engine
 

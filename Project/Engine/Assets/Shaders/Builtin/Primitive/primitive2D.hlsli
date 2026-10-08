@@ -10,8 +10,9 @@
 cbuffer ViewConstants : register(b0) {
 
 	float4x4 viewProjection;
+	float4x4 previousViewProjection;
 	float3 cameraPosition;
-	float _viewPad0;
+	uint frameSerial;
 };
 
 struct PrimitiveInstance {

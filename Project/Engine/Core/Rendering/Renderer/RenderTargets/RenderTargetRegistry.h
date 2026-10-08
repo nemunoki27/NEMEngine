@@ -5,16 +5,19 @@
 //============================================================================
 #include <Engine/Core/World/Scene/Serialization/SceneHeader.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
-#include <Engine/Core/Rendering/Core/RenderingCore.h>
 
 // c++
 #include <string>
 #include <vector>
 #include <optional>
+#include <memory>
+#include <cstdint>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace Engine {
+
+	// 前方宣言
+	class GraphicsCore;
 
 	//============================================================================
 	//	RenderTargetRegistry struct
@@ -69,6 +72,8 @@ namespace Engine {
 		// レンダーターゲットセットをリサイズする
 		MultiRenderTarget* ResizeTransient(GraphicsCore& graphicsCore,
 			const SceneRenderTargetDesc& desc, uint32_t viewWidth, uint32_t viewHeight);
+		MultiRenderTarget* ResizeTransient(const RenderTargetCreationContext& context,
+			const SceneRenderTargetDesc& desc, uint32_t viewWidth, uint32_t viewHeight);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -112,10 +117,13 @@ namespace Engine {
 		// レンダーターゲットセットを登録または更新する
 		void RegisterOrUpdate(std::string alias, MultiRenderTarget* surface,
 			const std::vector<std::string>& colorNames, const std::optional<std::string>& depthName);
+		// 完成した描画先と名前をまとめて公開する
+		MultiRenderTarget* PublishTransient(const RenderTargetCreationContext& context,
+			const SceneRenderTargetDesc& desc, const MultiRenderTargetCreateDesc& createDesc);
 		// レンダーターゲットセットの情報から作成情報を構築する
-		static MultiRenderTargetCreateDesc BuildCreateDesc(const SceneRenderTargetDesc& desc,
+		static std::optional<MultiRenderTargetCreateDesc> BuildCreateDesc(const SceneRenderTargetDesc& desc,
 			uint32_t viewWidth, uint32_t viewHeight);
 		// シーンレンダーターゲットのフォーマットをDXGI_FORMATに変換する
 		static DXGI_FORMAT ToColorFormat(SceneRenderTargetFormat format);
 	};
-} // Engine
+}

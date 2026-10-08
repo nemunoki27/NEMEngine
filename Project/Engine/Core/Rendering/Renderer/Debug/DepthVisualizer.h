@@ -5,7 +5,7 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/PipelineBindingCache.h>
-#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/ViewConstantBuffer.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
@@ -54,10 +54,9 @@ namespace Engine {
 			uint32_t _pad[3] = {};
 		};
 
-		PipelineState pipeline_{};
+		std::unique_ptr<PipelineState> pipeline_{};
 		PipelineBindingCache bindCache_{};
-		std::array<DxConstBuffer<DepthVisualizeConstants>,
-			kGraphicsFrameContextCount> constantBuffers_{};
+		ViewConstantBuffer<DepthVisualizeConstants> constants_{};
 		PipelineBindingCache::SlotID constantsSlot_ =
 			PipelineBindingCache::kInvalidSlot;
 		PipelineBindingCache::SlotID depthSlot_ = PipelineBindingCache::kInvalidSlot;

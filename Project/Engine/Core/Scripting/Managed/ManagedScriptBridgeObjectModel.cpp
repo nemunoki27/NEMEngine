@@ -9,6 +9,7 @@
 #include <Engine/Core/World/Systems/Behavior/BehaviorSystem.h>
 #include <Engine/Core/Scripting/Managed/ManagedBehavior.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 // c++
 #include <cstring>
@@ -38,7 +39,7 @@ namespace {
 			!info.bufferElementTriviallyCopyable) {
 			return {};
 		}
-		return world->TryGetUntypedBuffer(entity, resolvedTypeID);
+		return world->TryGetBufferForBinding(entity, resolvedTypeID);
 	}
 }
 
@@ -51,6 +52,11 @@ namespace Engine {
 
 	int32_t ManagedScriptRuntime::HasComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
 
+		return GetComponentInstanceIDCallback(entity, typeID) != 0 ? 1 : 0;
+	}
+
+	uint64_t ManagedScriptRuntime::GetComponentInstanceIDCallback(ManagedNativeEntity entity, int32_t typeID) {
+
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
 		if (!world || !world->IsAlive(resolved) || typeID < 0) {
@@ -60,7 +66,7 @@ namespace Engine {
 		if (componentTypeID >= ComponentTypeRegistry::GetInstance().GetComponentTypeCount()) {
 			return 0;
 		}
-		return world->HasComponent(resolved, componentTypeID) ? 1 : 0;
+		return world->GetBindingComponentInstanceID(resolved, componentTypeID);
 	}
 
 	void ManagedScriptRuntime::AddComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
@@ -74,8 +80,14 @@ namespace Engine {
 		if (static_cast<uint32_t>(typeID) >= registry.GetComponentTypeCount()) {
 			return;
 		}
-		// archetype移動を伴う構造変更はForEach走査を壊さないようWorldCommandBuffer経由で遅延適用する、重複追加や適用前のentity失効はApply側で再検証され安全に扱われる
-		world->GetCommandBuffer().EnqueueAddComponentByName(resolved, registry.GetInfo(static_cast<uint32_t>(typeID)).name);
+		// 走査中は値を保持し、安全地点で構造へ反映する
+		try {
+			world->GetCommandBuffer().StageAddComponent(*world, resolved, static_cast<uint32_t>(typeID));
+		} catch (const std::exception& exception) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "Componentの追加予約に失敗しました: {}", exception.what());
+		} catch (...) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "Componentの追加予約に失敗しました");
+		}
 	}
 
 	void ManagedScriptRuntime::RemoveComponentCallback(ManagedNativeEntity entity, int32_t typeID) {
@@ -227,14 +239,28 @@ namespace Engine {
 		return managed ? managed->GetManagedHandle() : ManagedScriptInstanceHandle::Null();
 	}
 
-	int32_t ManagedScriptRuntime::AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID) {
+	void ManagedScriptRuntime::RemoveScriptCallback(ManagedNativeEntity owner, uint64_t scriptSlotID) {
 
-		// owner EntityへscriptTypeIDのscriptをruntime attachし、instance生成の成否を返す
-		if (!scriptTypeID) {
-			return 0;
+		ECSWorld* world = ResolveWorld(owner);
+		const Entity entity = ResolveEntity(owner);
+		if (!world || !world->IsAlive(entity) || scriptSlotID == 0) {
+			return;
 		}
+		// callbackから戻るまでScriptの実体を保持する
+		world->GetCommandBuffer().EnqueueRemoveScript(entity, UUID{ scriptSlotID });
+	}
+
+	ManagedScriptInstanceHandle ManagedScriptRuntime::AttachScriptCallback(ManagedNativeEntity owner, const char* scriptTypeID) {
+
+		const SystemContext* context = GetCurrentContext();
+		ECSWorld* world = ResolveWorld(owner);
 		const Entity resolved = ResolveEntity(owner);
-		return BehaviorSystem::AttachScript(resolved, scriptTypeID) ? 1 : 0;
+		if (!scriptTypeID || !context || !world || context->world != world || !world->IsAlive(resolved)) {
+			return ManagedScriptInstanceHandle::Null();
+		}
+		// 同型の既存Scriptを検索せず、今回生成した個体を返す
+		auto* instance = dynamic_cast<ManagedBehavior*>(BehaviorSystem::AttachScript(resolved, scriptTypeID, *context));
+		return instance ? instance->GetManagedHandle() : ManagedScriptInstanceHandle::Null();
 	}
 
 } // Engine

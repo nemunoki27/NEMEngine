@@ -90,6 +90,30 @@ void Engine::MeshRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 			std::vector<uint32_t> groupIndices;
 			MeshDrawPathCommon::BuildSubMeshRenderGroups(
 				renderer, subMeshes, groups, groupIndices);
+			const bool hasHiddenSubMesh = std::any_of(
+				subMeshes.begin(), subMeshes.end(),
+				[](const SubMeshMaterial& subMesh) {
+					return !subMesh.visible;
+				});
+			if (hasHiddenSubMesh) {
+				// 非表示を除外する場合は対象範囲だけを個別描画する
+				for (uint32_t subMeshIndex = 0;
+					subMeshIndex < static_cast<uint32_t>(subMeshes.size());
+					++subMeshIndex) {
+
+					if (!subMeshes[subMeshIndex].visible ||
+						groupIndices.size() <= subMeshIndex) {
+						continue;
+					}
+					const uint32_t groupIndex = groupIndices[subMeshIndex];
+					if (groups.size() <= groupIndex) {
+						continue;
+					}
+					addItem(subMeshIndex, UINT32_MAX,
+						&subMeshes[subMeshIndex], &groups[groupIndex]);
+				}
+				return;
+			}
 
 			// 同じ描画状態のモデルは従来の一括バッチを使いスキニングと転送の重複を避ける
 			if (groups.size() == 1) {

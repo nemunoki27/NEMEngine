@@ -80,11 +80,11 @@ namespace Engine {
 		// SRV/UAVのインデックス
 		uint32_t srvIndex_ = UINT32_MAX;
 		uint32_t uavIndex_ = UINT32_MAX;
-		std::vector<std::unique_ptr<DxStructuredBuffer<T>>> retiredBuffers_{};
-		std::vector<uint32_t> retiredDescriptorIndices_{};
 
-		//--------- structure ----------------------------------------------------
+		//--------- functions ----------------------------------------------------
 
+		// 現在のResourceと両Descriptorを回収する
+		void RetireBuffer();
 		uint32_t RoundUpCapacity(uint32_t value) const;
 	};
 
@@ -94,6 +94,9 @@ namespace Engine {
 	template<typename T>
 	inline void StructuredRWBuffer<T>::Init(ID3D12Device* device, SRVDescriptor* srvDescriptor) {
 
+		if (!device || !srvDescriptor || (device_ && (device_ != device || srvDescriptor_ != srvDescriptor))) {
+			throw std::logic_error("RWBufferのDeviceまたはDescriptorが不正です");
+		}
 		device_ = device;
 		srvDescriptor_ = srvDescriptor;
 	}
@@ -101,24 +104,7 @@ namespace Engine {
 	template<typename T>
 	inline void StructuredRWBuffer<T>::Release() {
 
-		// SRV/UAVを両方解放
-		if (srvDescriptor_) {
-			if (srvIndex_ != UINT32_MAX) {
-				srvDescriptor_->Free(srvIndex_);
-				srvIndex_ = UINT32_MAX;
-			}
-			if (uavIndex_ != UINT32_MAX) {
-				srvDescriptor_->Free(uavIndex_);
-				uavIndex_ = UINT32_MAX;
-			}
-			for (uint32_t index : retiredDescriptorIndices_) {
-				srvDescriptor_->Free(index);
-			}
-		}
-
-		buffer_.reset();
-		retiredBuffers_.clear();
-		retiredDescriptorIndices_.clear();
+		RetireBuffer();
 		capacity_ = 0;
 		currentState_ = D3D12_RESOURCE_STATE_COMMON;
 		srvGPUHandle_ = {};
@@ -136,43 +122,46 @@ namespace Engine {
 			return;
 		}
 
+		if (!device_) throw std::logic_error("RWBufferが初期化されていません");
 		const uint32_t newCapacity = RoundUpCapacity(requiredCount);
-		if (buffer_) {
-			retiredBuffers_.emplace_back(std::move(buffer_));
+		auto candidate = std::make_unique<DxStructuredBuffer<T>>();
+		candidate->CreateUAVBuffer(device_, newCapacity);
+		if (!bindingName_.empty()) candidate->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
+		uint32_t srv = UINT32_MAX;
+		uint32_t uav = UINT32_MAX;
+		// 両Descriptorの作成が成功するまで旧Bufferを保つ
+		try {
+			srvDescriptor_->CreateSRV(srv, candidate->GetResource(), candidate->GetSRVDesc(newCapacity));
+			srvDescriptor_->CreateUAV(uav, candidate->GetResource(), candidate->GetUAVDesc(newCapacity));
+			RetireBuffer();
+		} catch (...) {
+			if (srv != UINT32_MAX) srvDescriptor_->Free(srv);
+			if (uav != UINT32_MAX) srvDescriptor_->Free(uav);
+			throw;
 		}
+		buffer_ = std::move(candidate);
+		srvIndex_ = srv;
+		uavIndex_ = uav;
+		srvGPUHandle_ = srvDescriptor_->GetGPUHandle(srv);
+		uavGPUHandle_ = srvDescriptor_->GetGPUHandle(uav);
+		capacity_ = newCapacity;
+		currentState_ = D3D12_RESOURCE_STATE_COMMON;
+	}
+
+	template<typename T>
+	void StructuredRWBuffer<T>::RetireBuffer() {
+
+		if (buffer_) srvDescriptor_->GetRetirementQueue().ReservePending(2);
+		// 所有元を離れてもResourceとDescriptorを残す
 		if (srvIndex_ != UINT32_MAX) {
-			retiredDescriptorIndices_.emplace_back(srvIndex_);
+			srvDescriptor_->Retire(srvIndex_, ComPtr<ID3D12Resource>(buffer_->GetResource()));
 			srvIndex_ = UINT32_MAX;
 		}
 		if (uavIndex_ != UINT32_MAX) {
-			retiredDescriptorIndices_.emplace_back(uavIndex_);
+			srvDescriptor_->Retire(uavIndex_, ComPtr<ID3D12Resource>(buffer_->GetResource()));
 			uavIndex_ = UINT32_MAX;
 		}
-
-		// バッファ作成
-		buffer_ = std::make_unique<DxStructuredBuffer<T>>();
-		buffer_->CreateUAVBuffer(device_, newCapacity);
-		currentState_ = D3D12_RESOURCE_STATE_COMMON;
-		if (!bindingName_.empty()) {
-			buffer_->GetResource()->SetName(Algorithm::ConvertString(bindingName_).c_str());
-		}
-
-		// SRV作成
-		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = buffer_->GetSRVDesc(newCapacity);
-			srvDescriptor_->CreateSRV(srvIndex_, buffer_->GetResource(), srvDesc);
-			srvGPUHandle_ = srvDescriptor_->GetGPUHandle(srvIndex_);
-			buffer_->SetSRVGPUHandle(srvGPUHandle_);
-		}
-		// UAV作成
-		{
-			D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = buffer_->GetUAVDesc(newCapacity);
-			srvDescriptor_->CreateUAV(uavIndex_, buffer_->GetResource(), uavDesc);
-			uavGPUHandle_ = srvDescriptor_->GetGPUHandle(uavIndex_);
-			buffer_->SetUAVGPUHandle(uavGPUHandle_);
-		}
-		// 容量更新
-		capacity_ = newCapacity;
+		buffer_.reset();
 	}
 
 	template<typename T>
@@ -190,7 +179,7 @@ namespace Engine {
 
 		uint32_t capacity = 64;
 		while (capacity < value) {
-			capacity *= 2;
+			capacity = capacity > UINT32_MAX / 2 ? value : capacity * 2;
 		}
 		return capacity;
 	}

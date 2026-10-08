@@ -198,12 +198,13 @@ PSOutput main(VSOutput input) {
 		discard;
 	}
 
-	float t = (gridPlaneY - cameraPosition.y) / denom;
+	// 平行投影でも画面位置ごとに視線を分ける
+	float t = (gridPlaneY - nearWorld.y) / denom;
 	if (t <= 0.0f) {
 		discard;
 	}
 
-	float3 worldPos = cameraPosition + rayDirection * t;
+	float3 worldPos = nearWorld.xyz + rayDirection * t;
 
 	float4 gridClip = mul(float4(worldPos, 1.0f), viewProjectionMatrix);
 	if (gridClip.w <= 1e-6f) {

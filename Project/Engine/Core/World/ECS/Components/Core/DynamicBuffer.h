@@ -11,8 +11,12 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 #include <span>
 #include <type_traits>
+#include <vector>
 
 namespace Engine {
 
@@ -33,6 +37,43 @@ namespace Engine {
 	};
 
 	//============================================================================
+	//	ReadOnlyUntypedDynamicBuffer class
+	//	実行時型情報を持つBufferを変更せずに参照する
+	//============================================================================
+	class ReadOnlyUntypedDynamicBuffer {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
+
+		ReadOnlyUntypedDynamicBuffer() = default;
+		ReadOnlyUntypedDynamicBuffer(const DynamicBufferHeader* header,
+			size_t elementSize, size_t elementAlign, bool triviallyCopyable);
+
+		// 要素列を呼び出し側Bufferへコピーする
+		uint32_t CopyTo(void* destination, uint32_t capacity, uint32_t startIndex = 0) const;
+
+		//--------- accessor -----------------------------------------------------
+
+		bool IsValid() const { return header_ && elementSize_ != 0 && elementAlign_ != 0; }
+		bool IsTriviallyCopyable() const { return triviallyCopyable_; }
+		uint32_t GetSize() const { return header_ ? header_->size : 0; }
+		size_t GetElementSize() const { return elementSize_; }
+		const void* GetData() const { return header_ ? header_->data : nullptr; }
+	private:
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		const DynamicBufferHeader* header_ = nullptr;
+		size_t elementSize_ = 0;
+		size_t elementAlign_ = 0;
+		bool triviallyCopyable_ = false;
+	};
+
+	//============================================================================
 	//	UntypedDynamicBuffer class
 	//	trivially copyableなBufferを実行時型情報から操作する
 	//============================================================================
@@ -44,12 +85,7 @@ namespace Engine {
 
 		UntypedDynamicBuffer() = default;
 		UntypedDynamicBuffer(DynamicBufferHeader* header,
-			size_t elementSize, size_t elementAlign, bool triviallyCopyable) :
-			header_(header),
-			elementSize_(elementSize),
-			elementAlign_(elementAlign),
-			triviallyCopyable_(triviallyCopyable) {
-		}
+			size_t elementSize, size_t elementAlign, bool triviallyCopyable);
 		~UntypedDynamicBuffer() = default;
 
 		// 要素列を同一レイアウトのデータで置き換える
@@ -66,9 +102,8 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		bool IsValid() const {
-			return header_ && elementSize_ != 0 && elementAlign_ != 0;
-		}
+		ReadOnlyUntypedDynamicBuffer GetReadOnly() const;
+		bool IsValid() const { return header_ && elementSize_ != 0 && elementAlign_ != 0; }
 		bool IsTriviallyCopyable() const { return triviallyCopyable_; }
 		uint32_t GetSize() const { return header_ ? header_->size : 0; }
 		size_t GetElementSize() const { return elementSize_; }
@@ -88,8 +123,11 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 必要な要素数を格納する領域を確保する
 		bool Reserve(uint32_t capacity);
+		// チャンク内の要素領域を取得する
 		void* GetInternalData() const;
+		// 現在の要素領域がチャンク内か判定する
 		bool UsesInternalStorage() const;
 	};
 
@@ -105,24 +143,26 @@ namespace Engine {
 		//============================================================================
 
 		DynamicBuffer() = default;
-		explicit DynamicBuffer(DynamicBufferHeader* header) :
+		explicit DynamicBuffer(std::conditional_t<std::is_const_v<T>, const DynamicBufferHeader, DynamicBufferHeader>* header) :
 			header_(header) {
 		}
 		~DynamicBuffer() = default;
 
 		// 要素を末尾へ追加する
-		void Add(const T& value);
+		void Add(const T& value) requires (!std::is_const_v<T>);
 		// 要素を末尾へ構築する
 		template <typename... Args>
-		T& EmplaceBack(Args&&... args);
+		T& EmplaceBack(Args&&... args) requires (!std::is_const_v<T>);
 		// 指定位置を削除して後続要素を詰める
-		void RemoveAt(uint32_t index);
+		void RemoveAt(uint32_t index) requires (!std::is_const_v<T>);
 		// 全要素を削除する
-		void Clear();
+		void Clear() requires (!std::is_const_v<T>);
 		// 要素数を変更する
-		void Resize(uint32_t size);
+		void Resize(uint32_t size) requires (!std::is_const_v<T>);
 		// 必要な要素数を事前確保する
-		void Reserve(uint32_t capacity);
+		void Reserve(uint32_t capacity) requires (!std::is_const_v<T>);
+		// 同じBufferからの入力も保護して要素列を置き換える
+		void Assign(std::span<const T> values) requires (!std::is_const_v<T>);
 
 		//--------- accessor -----------------------------------------------------
 
@@ -150,11 +190,13 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		DynamicBufferHeader* header_ = nullptr;
+		std::conditional_t<std::is_const_v<T>, const DynamicBufferHeader, DynamicBufferHeader>* header_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
 
+		// 現在の要素領域がチャンク内か判定する
 		bool UsesInternalStorage() const;
+		// チャンク内の要素領域を取得する
 		T* GetInternalData() const;
 	};
 
@@ -182,143 +224,74 @@ namespace Engine {
 //============================================================================
 //	UntypedDynamicBuffer classMethods
 //============================================================================
-inline bool Engine::UntypedDynamicBuffer::SetData(
-	const void* data, uint32_t count) {
 
-	if ((count != 0 && !data) || !Resize(count)) {
-		return false;
-	}
-	if (count != 0) {
-		std::memcpy(GetData(), data, elementSize_ * count);
-	}
-	return true;
-}
-
-inline bool Engine::UntypedDynamicBuffer::SetElement(
-	uint32_t index, const void* data) {
-
-	if (!IsValid() || !triviallyCopyable_ || !data ||
-		index >= header_->size) {
-		return false;
-	}
-	std::memcpy(
-		static_cast<std::byte*>(header_->data) + elementSize_ * index,
-		data, elementSize_);
-	return true;
-}
-
-inline bool Engine::UntypedDynamicBuffer::RemoveAt(uint32_t index) {
-
-	if (!IsValid() || !triviallyCopyable_ || index >= header_->size) {
-		return false;
-	}
-	const uint32_t moveCount = header_->size - index - 1;
-	if (moveCount != 0) {
-		std::memmove(
-			static_cast<std::byte*>(header_->data) + elementSize_ * index,
-			static_cast<std::byte*>(header_->data) + elementSize_ * (index + 1),
-			elementSize_ * moveCount);
-	}
-	--header_->size;
-	return true;
-}
-
-inline bool Engine::UntypedDynamicBuffer::Resize(uint32_t size) {
-
-	if (!IsValid() || !triviallyCopyable_) {
-		return false;
-	}
-	const uint32_t oldSize = header_->size;
-	if (size > header_->capacity && !Reserve(size)) {
-		return false;
-	}
-	if (size > oldSize) {
-		// C#側へ未初期化メモリを公開しないよう追加領域を初期化する
-		std::memset(
-			static_cast<std::byte*>(header_->data) + elementSize_ * oldSize,
-			0, elementSize_ * (size - oldSize));
-	}
-	header_->size = size;
-	return true;
-}
-
-inline uint32_t Engine::UntypedDynamicBuffer::CopyTo(
-	void* destination, uint32_t capacity, uint32_t startIndex) const {
-
-	if (!IsValid() || !triviallyCopyable_ ||
-		startIndex >= header_->size) {
-		return 0;
-	}
-	const uint32_t copyCount =
-		(std::min)(header_->size - startIndex, capacity);
-	if (copyCount != 0 && destination) {
-		std::memcpy(
-			destination,
-			static_cast<const std::byte*>(GetData()) +
-			elementSize_ * startIndex,
-			elementSize_ * copyCount);
-	}
-	return copyCount;
-}
-
-inline bool Engine::UntypedDynamicBuffer::Reserve(uint32_t capacity) {
-
-	if (!IsValid() || !triviallyCopyable_) {
-		return false;
-	}
-	if (capacity <= header_->capacity) {
-		return true;
-	}
-
-	void* destination = ::operator new(
-		elementSize_ * capacity, std::align_val_t(elementAlign_));
-	if (header_->size != 0) {
-		std::memcpy(
-			destination, header_->data, elementSize_ * header_->size);
-	}
-	if (!UsesInternalStorage()) {
-		::operator delete(header_->data, std::align_val_t(elementAlign_));
-	}
-	header_->data = destination;
-	header_->capacity = capacity;
-	return true;
-}
-
-inline void* Engine::UntypedDynamicBuffer::GetInternalData() const {
-
-	if (!header_) {
-		return nullptr;
-	}
-	const uintptr_t headerEnd =
-		reinterpret_cast<uintptr_t>(header_) + sizeof(DynamicBufferHeader);
-	const uintptr_t aligned =
-		(headerEnd + elementAlign_ - 1) &
-		~(static_cast<uintptr_t>(elementAlign_) - 1);
-	return reinterpret_cast<void*>(aligned);
-}
-
-inline bool Engine::UntypedDynamicBuffer::UsesInternalStorage() const {
-
-	return header_ && header_->data == GetInternalData();
-}
+inline bool Engine::UntypedDynamicBuffer::UsesInternalStorage() const { return header_ && header_->data == GetInternalData(); }
 
 //============================================================================
 //	DynamicBuffer classTemplateMethods
 //============================================================================
 template <typename T>
-inline void Engine::DynamicBuffer<T>::Add(const T& value) {
+inline void Engine::DynamicBuffer<T>::Add(const T& value) requires (!std::is_const_v<T>) {
 
 	EmplaceBack(value);
 }
 
 template <typename T>
+inline void Engine::DynamicBuffer<T>::Assign(std::span<const T> values) requires (!std::is_const_v<T>) {
+
+	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
+	if (values.size() > UINT32_MAX || values.size() > (std::numeric_limits<size_t>::max)() / sizeof(T)) {
+		throw std::length_error("DynamicBufferの要素数が上限を超えています");
+	}
+	if (values.data() == GetData() && values.size() == GetSize()) return;
+	if (values.empty()) { Clear(); return; }
+	const uint32_t count = static_cast<uint32_t>(values.size());
+	if constexpr (std::is_trivially_copyable_v<T>) {
+		// 単純な値は領域を再利用して重なりを保護する
+		UntypedDynamicBuffer buffer(header_, sizeof(T), alignof(T), true);
+		if (!buffer.SetData(values.data(), count)) throw std::runtime_error("DynamicBufferの置換に失敗しました");
+	} else if constexpr (std::is_nothrow_move_constructible_v<T>) {
+		// コピーと容量確保が成功してから旧要素を破棄する
+		std::vector<T> copied(values.begin(), values.end());
+		Reserve(count);
+		Clear();
+		for (T& value : copied) EmplaceBack(std::move(value));
+	} else {
+		// 移動でも例外が出る型は完成した領域ごと差し替える
+		T* copied = static_cast<T*>(::operator new(sizeof(T) * count, std::align_val_t(alignof(T))));
+		uint32_t constructed = 0;
+		try {
+			for (; constructed < count; ++constructed) new (copied + constructed) T(values[constructed]);
+		} catch (...) {
+			while (constructed) copied[--constructed].~T();
+			::operator delete(copied, std::align_val_t(alignof(T)));
+			throw;
+		}
+		Clear();
+		if (!UsesInternalStorage()) ::operator delete(header_->data, std::align_val_t(alignof(T)));
+		header_->data = copied;
+		header_->size = count;
+		header_->capacity = count;
+	}
+}
+
+template <typename T>
 template <typename... Args>
-inline T& Engine::DynamicBuffer<T>::EmplaceBack(Args&&... args) {
+inline T& Engine::DynamicBuffer<T>::EmplaceBack(Args&&... args) requires (!std::is_const_v<T>) {
 
 	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (header_->size == header_->capacity) {
-		// チャンク内領域を使い切った時だけ外部領域へ拡張する
-		Reserve((std::max)(1u, header_->capacity * 2u));
+		if (header_->size == UINT32_MAX) {
+			throw std::length_error("DynamicBufferの要素数が上限に達しました");
+		}
+		// 追加元が同じBufferでも拡張前に値を保持する
+		T value(std::forward<Args>(args)...);
+		const uint32_t capacity = header_->capacity > UINT32_MAX / 2 ? UINT32_MAX : (std::max)(1u, header_->capacity * 2u);
+		Reserve(capacity);
+		T* destination = GetData() + header_->size;
+		new (destination) T(std::move_if_noexcept(value));
+		++header_->size;
+		return *destination;
 	}
 	T* destination = GetData() + header_->size;
 	new (destination) T(std::forward<Args>(args)...);
@@ -327,7 +300,7 @@ inline T& Engine::DynamicBuffer<T>::EmplaceBack(Args&&... args) {
 }
 
 template <typename T>
-inline void Engine::DynamicBuffer<T>::RemoveAt(uint32_t index) {
+inline void Engine::DynamicBuffer<T>::RemoveAt(uint32_t index) requires (!std::is_const_v<T>) {
 
 	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	Assert::Call(index < header_->size, "DynamicBufferの削除位置が要素数を超えています");
@@ -341,7 +314,7 @@ inline void Engine::DynamicBuffer<T>::RemoveAt(uint32_t index) {
 }
 
 template <typename T>
-inline void Engine::DynamicBuffer<T>::Clear() {
+inline void Engine::DynamicBuffer<T>::Clear() requires (!std::is_const_v<T>) {
 
 	if (!header_) {
 		return;
@@ -354,7 +327,7 @@ inline void Engine::DynamicBuffer<T>::Clear() {
 }
 
 template <typename T>
-inline void Engine::DynamicBuffer<T>::Resize(uint32_t size) {
+inline void Engine::DynamicBuffer<T>::Resize(uint32_t size) requires (!std::is_const_v<T>) {
 
 	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (size < header_->size) {
@@ -369,27 +342,50 @@ inline void Engine::DynamicBuffer<T>::Resize(uint32_t size) {
 		Reserve(size);
 	}
 	T* data = GetData();
-	for (uint32_t i = header_->size; i < size; ++i) {
-		new (data + i) T();
+	uint32_t constructed = header_->size;
+	try {
+		for (; constructed < size; ++constructed) {
+			new (data + constructed) T();
+		}
+	} catch (...) {
+		while (constructed > header_->size) {
+			data[--constructed].~T();
+		}
+		throw;
 	}
 	header_->size = size;
 }
 
 template <typename T>
-inline void Engine::DynamicBuffer<T>::Reserve(uint32_t capacity) {
+inline void Engine::DynamicBuffer<T>::Reserve(uint32_t capacity) requires (!std::is_const_v<T>) {
 
 	Assert::Call(header_ != nullptr, "DynamicBufferがStorageへ接続されていません");
 	if (capacity <= header_->capacity) {
 		return;
 	}
 
-	T* destination = static_cast<T*>(::operator new(
-		sizeof(T) * capacity, std::align_val_t(alignof(T))));
+	if (capacity > (std::numeric_limits<size_t>::max)() / sizeof(T)) {
+		throw std::length_error("DynamicBufferの容量が上限を超えています");
+	}
+	static_assert(std::is_nothrow_move_constructible_v<T> || std::is_copy_constructible_v<T>);
+	T* destination = static_cast<T*>(::operator new(sizeof(T) * capacity, std::align_val_t(alignof(T))));
 	T* source = GetData();
-	// 要素の順序を維持したまま新しい連続領域へ移動する
-	for (uint32_t i = 0; i < header_->size; ++i) {
-		new (destination + i) T(std::move(source[i]));
-		source[i].~T();
+	uint32_t constructed = 0;
+	try {
+
+		// 失敗し得る移動はコピーに替え、旧データを保持する
+		for (; constructed < header_->size; ++constructed) {
+			new (destination + constructed) T(std::move_if_noexcept(source[constructed]));
+		}
+	} catch (...) {
+		while (constructed != 0) {
+			destination[--constructed].~T();
+		}
+		::operator delete(destination, std::align_val_t(alignof(T)));
+		throw;
+	}
+	for (uint32_t index = 0; index < header_->size; ++index) {
+		source[index].~T();
 	}
 	if (!UsesInternalStorage()) {
 		::operator delete(source, std::align_val_t(alignof(T)));
@@ -493,12 +489,18 @@ inline void Engine::DynamicBufferStorage::Copy(
 		static_cast<const DynamicBufferHeader*>(source);
 	Construct<T>(destination, sourceHeader->internalCapacity);
 
-	DynamicBuffer<T> sourceBuffer(
-		const_cast<DynamicBufferHeader*>(sourceHeader));
+	DynamicBuffer<const T> sourceBuffer(sourceHeader);
 	DynamicBuffer<T> destinationBuffer(
 		static_cast<DynamicBufferHeader*>(destination));
-	destinationBuffer.Reserve(sourceHeader->size);
-	for (const T& value : sourceBuffer.GetSpan()) {
-		destinationBuffer.EmplaceBack(value);
+	try {
+		destinationBuffer.Reserve(sourceHeader->size);
+		for (const T& value : sourceBuffer.GetSpan()) {
+			destinationBuffer.EmplaceBack(value);
+		}
+	} catch (...) {
+
+		// 複製途中の要素と外部領域を解放する
+		Destroy<T>(destination);
+		throw;
 	}
 }

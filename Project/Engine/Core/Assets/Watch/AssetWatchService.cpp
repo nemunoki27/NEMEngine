@@ -65,6 +65,7 @@ void Engine::AssetWatchService::Start(AssetDatabase* assetDatabase, TextureUploa
 
 void Engine::AssetWatchService::Stop() {
 
+	++sessionRevision_;
 	for (std::unique_ptr<AssetChangeWatcher>& watcher : watchers_) {
 		watcher->Stop();
 	}
@@ -72,6 +73,10 @@ void Engine::AssetWatchService::Stop() {
 	pendingChanges_.clear();
 	assetDatabase_ = nullptr;
 	textureUploadService_ = nullptr;
+	meshReloadCallback_ = {};
+	renderAssetReloadCallback_ = {};
+	frameCounter_ = 0;
+	rebuildPending_ = false;
 }
 
 void Engine::AssetWatchService::Update() {
@@ -90,6 +95,13 @@ void Engine::AssetWatchService::Update() {
 	std::vector<std::filesystem::path> changed;
 	for (std::unique_ptr<AssetChangeWatcher>& watcher : watchers_) {
 		watcher->DrainChanges(changed);
+		if (!watcher->IsRunning()) {
+
+			// 終了した監視は通知を回収してから張り直す
+			const auto directory = watcher->GetDirectory();
+			watcher->Start(directory);
+			rebuildPending_ = true;
+		}
 	}
 
 	const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -102,29 +114,30 @@ void Engine::AssetWatchService::Update() {
 
 	// debounce窓を過ぎて安定した変更だけを処理へ回す
 	// 内容リロードできなかった変更(追加/削除/リネーム等)はアセット集合の構造変更とみなす
-	bool structureChanged = false;
+	std::vector<std::filesystem::path> ready;
 	for (auto it = pendingChanges_.begin(); it != pendingChanges_.end();) {
 
 		if (now - it->second >= kDebounceDuration) {
 
-			const std::filesystem::path& path = it->first;
-			if (!DispatchReload(path)) {
-
-				// .metaはRebuildMetaが自前で発番する管理ファイルなので、再構築ループ回避のため無視する
-				if (Algorithm::ToLower(
-					Algorithm::PathToUTF8(path.extension())) != ".meta") {
-					structureChanged = true;
-				}
-			}
+			ready.emplace_back(it->first);
 			it = pendingChanges_.erase(it);
 		} else {
 			++it;
 		}
 	}
 
-	// 構造変更があればAssetDatabaseを作り直し、構造リビジョンを進めてProjectPanel等へ知らせる
-	if (structureChanged && assetDatabase_) {
-		assetDatabase_->RebuildMeta();
+	// callback内で停止・再開始したら旧sessionの残りを破棄する
+	const uint64_t sessionRevision = sessionRevision_;
+	for (const auto& path : ready) {
+		const bool reloaded = DispatchReload(path);
+		if (sessionRevision != sessionRevision_) {
+			return;
+		}
+		rebuildPending_ |= !reloaded;
+	}
+	// 書込途中で失敗した索引は次回も再構築する
+	if (rebuildPending_ && assetDatabase_) {
+		rebuildPending_ = !assetDatabase_->RebuildMeta();
 	}
 }
 
@@ -145,7 +158,11 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		// Importer設定の外部変更をDBと既存GPUテクスチャへ同時に反映する
 		std::filesystem::path assetFullPath = path;
 		assetFullPath.replace_extension();
-		assetDatabase_->RebuildMeta();
+		if (!assetDatabase_->RebuildMeta()) {
+
+			pendingChanges_[path] = std::chrono::steady_clock::now();
+			return false;
+		}
 		if (textureUploadService_) {
 
 			const std::string changedAssetPath = RuntimePaths::ToAssetPath(assetFullPath);
@@ -180,7 +197,8 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 		const std::string objAssetPath = RuntimePaths::ToAssetPath(objPath);
 		if (const AssetMeta* objMeta = objAssetPath.empty() ? nullptr : assetDatabase_->FindByPath(objAssetPath)) {
 
-			meshReloadCallback_(objMeta->guid);
+			const auto callback = meshReloadCallback_;
+			callback(objMeta->guid);
 			Logger::Output(LogType::Engine, "[AssetWatch] mtl変更によりModelの再読み込みを要求します: {}", objAssetPath);
 		}
 		return true;
@@ -208,14 +226,16 @@ bool Engine::AssetWatchService::DispatchReload(const std::filesystem::path& path
 	} else if (meta->type == AssetType::Mesh && isModel && meshReloadCallback_) {
 
 		// モデルはbackend側のmesh管理へAssetIDで委譲する
-		meshReloadCallback_(meta->guid);
+		const auto callback = meshReloadCallback_;
+		callback(meta->guid);
 		Logger::Output(LogType::Engine, "[AssetWatch] Model変更により再読み込みを要求します: {}", assetPath);
 	} else if ((meta->type == AssetType::Material || meta->type == AssetType::Shader ||
 		meta->type == AssetType::RenderPipeline || meta->type == AssetType::Font) &&
 		renderAssetReloadCallback_) {
 
 		// 描画アセットは依存関係を含めてRenderPipelineRunner側で再ロードする
-		renderAssetReloadCallback_(meta->guid);
+		const auto callback = renderAssetReloadCallback_;
+		callback(meta->guid);
 		Logger::Output(LogType::Engine, "[AssetWatch] 描画Asset変更により再読み込みを要求します: {}", assetPath);
 	} else {
 		return false;

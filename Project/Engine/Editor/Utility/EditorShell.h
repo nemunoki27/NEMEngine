@@ -27,12 +27,14 @@ namespace Engine::EditorShell {
 
 		// フォルダ選択ダイアログを開く
 		bool Open(const std::filesystem::path& initialDirectory = {});
-		// 完了結果を取得、キャンセル時は空のoptionalを返す
+		// 選択結果を取得する、キャンセル時は空を返す
 		bool Poll(std::optional<std::filesystem::path>& outSelected);
 
 		//--------- accessor -----------------------------------------------------
 
+		// 選択結果の取得待ちか判定する
 		bool IsOpen() const;
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -44,10 +46,11 @@ namespace Engine::EditorShell {
 
 		//--------- variables ----------------------------------------------------
 
+		// 終了を待ってから破棄するダイアログの状態
 		std::unique_ptr<State> state_;
 	};
 
-	// OS既定の関連付けでファイルを開く、txtなど専用エディタを持たないアセット向け
+	// OS既定のアプリでファイルを開く
 	bool OpenWithSystemDefault(const std::filesystem::path& file);
 	// 指定したディレクトリをエクスプローラーで開く
 	bool OpenDirectory(const std::filesystem::path& directory);

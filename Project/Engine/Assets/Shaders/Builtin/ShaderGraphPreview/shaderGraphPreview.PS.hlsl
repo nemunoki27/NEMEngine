@@ -1,3 +1,5 @@
+#include "../Common/descriptorHeapCompatibility.hlsli"
+
 //============================================================================
 //	resources
 //============================================================================
@@ -143,8 +145,7 @@ float4 SampleTextureValue(float2 uv, float4 fallbackValue) {
 	if (textureIndex == kInvalidTexture) {
 		return fallbackValue;
 	}
-	Texture2D<float4> texture =
-		ResourceDescriptorHeap[NonUniformResourceIndex(textureIndex)];
+	Texture2D<float4> texture = NEM_TEXTURE2D(textureIndex);
 	return texture.SampleLevel(gPreviewSampler, uv, 0.0f);
 }
 

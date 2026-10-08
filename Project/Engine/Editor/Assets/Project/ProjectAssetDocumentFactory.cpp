@@ -1,0 +1,208 @@
+#include "ProjectAssetDocumentFactory.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include "ProjectAssetPath.h"
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
+#include <Engine/Core/Rendering/Assets/MaterialAsset.h>
+#include <Engine/Core/Animation/Controllers/AnimationControllerAsset.h>
+#include <Engine/Core/Rendering/Assets/RenderTextureAsset.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphAsset.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderPassesAsset.h>
+#include <Engine/Core/World/Components/Scene/NameComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Components/Transform/HierarchyComponent.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
+#include <Engine/Core/World/Prefab/Serialization/PrefabHeader.h>
+
+// c++
+#include <fstream>
+#include <format>
+#include <iterator>
+
+namespace Engine {
+
+	const char* ProjectAssetDocumentFactory::GetFileSuffix(ProjectAssetFileKind kind) {
+		// ファイルの種類に応じた拡張子を返す
+		switch (kind) {
+		case ProjectAssetFileKind::Text:
+			return ".txt";
+		case ProjectAssetFileKind::Script:
+			return ".cs";
+		case ProjectAssetFileKind::Scene:
+			return ".scene.json";
+		case ProjectAssetFileKind::Prefab:
+			return ".prefab.json";
+		case ProjectAssetFileKind::Material:
+			return ".material.json";
+		case ProjectAssetFileKind::AnimationClip:
+			return ".animClip.json";
+		case ProjectAssetFileKind::AnimationController:
+			return ".animController.json";
+		case ProjectAssetFileKind::Shader:
+			return ".shader.json";
+		case ProjectAssetFileKind::RenderPipeline:
+			return ".pipeline.json";
+		case ProjectAssetFileKind::ShaderGraph:
+			return ".shadergraph.json";
+		case ProjectAssetFileKind::RenderPasses:
+			return ".renderpasses.json";
+		case ProjectAssetFileKind::RenderTexture:
+			return ".renderTexture.json";
+		case ProjectAssetFileKind::Folder:
+		default:
+			break;
+		}
+		return "";
+	}
+
+	std::string ProjectAssetDocumentFactory::BuildFileContent(ProjectAssetFileKind kind, const std::string& assetName) {
+		// 新規作成されるファイルの中身を雛形から生成
+		switch (kind) {
+		case ProjectAssetFileKind::Script: {
+			// Scriptの名前空間と型名を設定する
+			const std::string rootNamespace = LoadGameScriptRootNamespace();
+			const std::string className = ProjectAssetPath::MakeCSharpClassName(assetName);
+			return std::format("using NEMEngine;\n"
+							   "\n"
+							   "namespace {0};\n"
+							   "\n"
+							   "//============================================================================\n"
+							   "//\t{1}\n"
+							   "//============================================================================\n"
+							   "public sealed class {1} : MonoBehaviour\n"
+							   "{{\n"
+							   "\n"
+							   "    //========================================================================\n"
+							   "    //\t開始時処理\n"
+							   "    //========================================================================\n"
+							   "    private void Start()\n"
+							   "    {{\n"
+							   "    }}\n"
+							   "\n"
+							   "    //========================================================================\n"
+							   "    //\t毎フレーム更新処理\n"
+							   "    //========================================================================\n"
+							   "    private void Update()\n"
+							   "    {{\n"
+							   "    }}\n"
+							   "}}\n",
+				rootNamespace, className);
+		}
+		case ProjectAssetFileKind::Scene:
+			return std::format("{{\n"
+							   "  \"ExternalActors\": [],\n"
+							   "  \"Header\": {{\n"
+							   "    \"name\": \"{}\",\n"
+							   "    \"subScenes\": []\n"
+							   "  }},\n"
+							   "  \"PrefabInstances\": [],\n"
+							   "  \"SchemaVersion\": 3\n"
+							   "}}\n",
+				assetName);
+		case ProjectAssetFileKind::Prefab: {
+			// 新規Prefabは編集可能な空GameObjectをルートとして持つ
+			const UUID localFileID = UUID::New();
+			NameComponent name{};
+			name.name = assetName;
+			SceneObjectComponent sceneObject{};
+			sceneObject.localFileID = localFileID;
+
+			nlohmann::json components = nlohmann::json::object();
+			components["Hierarchy"] = HierarchyComponent{};
+			components["Name"] = name;
+			components["SceneObject"] = sceneObject;
+			components["Transform"] = TransformComponent{};
+
+			nlohmann::json entity = nlohmann::json::object();
+			entity["Components"] = std::move(components);
+			entity["LocalFileID"] = ToString(localFileID);
+
+			PrefabHeader header{};
+			header.name = assetName;
+			header.rootLocalFileID = localFileID;
+			header.version = 2;
+
+			nlohmann::json prefab = nlohmann::json::object();
+			prefab["Entities"] = nlohmann::json::array({std::move(entity)});
+			prefab["Header"] = ToJson(header);
+			prefab["NestedPrefabInstances"] = nlohmann::json::array();
+			prefab["SchemaVersion"] = 2;
+			return JsonAdapter::SerializeCanonical(prefab, 2);
+		}
+		case ProjectAssetFileKind::Material: {
+			// 標準PBRの型付き既定値からマテリアル雛形を生成する
+			return JsonAdapter::SerializeCanonical(ToJson(CreateDefaultMeshMaterialAsset(assetName)), 2);
+		}
+		case ProjectAssetFileKind::AnimationClip:
+			return std::format("{{\n  \"guid\": \"\",\n  \"name\": \"{}\",\n  \"duration\": 1.0,\n  \"curveTracks\": [],\n  "
+							   "\"events\": []\n}}\n",
+				assetName);
+		case ProjectAssetFileKind::Shader:
+			return std::format("{{\n  \"name\": \"{}\",\n  \"stages\": []\n}}\n", assetName);
+		case ProjectAssetFileKind::RenderPipeline:
+			return std::format("{{\n  \"name\": \"{}\",\n  \"variants\": []\n}}\n", assetName);
+		case ProjectAssetFileKind::ShaderGraph:
+			// 新規グラフは標準PBRノードを接続済みの状態で作成する
+			return JsonAdapter::SerializeCanonical(ToJson(CreateDefaultSurfaceShaderGraph(assetName)), 2);
+		case ProjectAssetFileKind::RenderPasses: {
+			RenderPassesAsset extension{};
+			extension.name = assetName;
+			return JsonAdapter::SerializeCanonical(ToJson(extension), 2);
+		}
+		case ProjectAssetFileKind::RenderTexture:
+			return JsonAdapter::SerializeCanonical(ToJson(RenderTextureAsset{}), 2);
+		case ProjectAssetFileKind::AnimationController: {
+			AnimationControllerAsset controller;
+			controller.name = assetName;
+			controller.defaultState = "Idle";
+			controller.states.push_back({"Idle", {}});
+			return JsonAdapter::SerializeCanonical(nlohmann::json(controller), 2);
+		}
+		case ProjectAssetFileKind::Text:
+			return "";
+		case ProjectAssetFileKind::Folder:
+		default:
+			break;
+		}
+		return "";
+	}
+
+	bool ProjectAssetDocumentFactory::CreateTextFile(const std::filesystem::path& path, const std::string& content) {
+
+		// 既存ファイルを置き換えず全byteを書き込む
+		StorageFileUtility::FileIdentity identity;
+		return StorageFileUtility::WriteBytesWithoutReplacement(path, content, identity);
+	}
+
+	std::string ProjectAssetDocumentFactory::LoadGameScriptRootNamespace() {
+		// csprojからScriptの名前空間を取得する
+		const std::filesystem::path csproj = RuntimePaths::GetGameRoot() / "Scripts/GameScripts.csproj";
+		std::ifstream ifs(csproj);
+		if (!ifs.is_open()) {
+			return "GameScripts";
+		}
+		std::string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+
+		const std::string beginTag = "<RootNamespace>";
+		const std::string endTag = "</RootNamespace>";
+		const size_t begin = text.find(beginTag);
+		if (begin == std::string::npos) {
+			return "GameScripts";
+		}
+
+		const size_t valueBegin = begin + beginTag.size();
+		const size_t end = text.find(endTag, valueBegin);
+		if (end == std::string::npos) {
+			return "GameScripts";
+		}
+
+		std::string rootNamespace = text.substr(valueBegin, end - valueBegin);
+		return rootNamespace.empty() ? "GameScripts" : rootNamespace;
+	}
+
+} // Engine

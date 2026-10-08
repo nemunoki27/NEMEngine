@@ -50,6 +50,6 @@ namespace Engine {
 
 	// helpers
 	// 階層内でアクティブか
-	bool IsEntityActiveInHierarchy(ECSWorld& world, const Entity& entity);
+	bool IsEntityActiveInHierarchy(const ECSWorld& world, const Entity& entity);
 
 } // Engine

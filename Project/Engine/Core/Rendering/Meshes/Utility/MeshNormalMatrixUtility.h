@@ -14,21 +14,18 @@ namespace Engine {
 	// 安全に構築した法線変換行列の結果
 	struct MeshNormalMatrixResult {
 
-		// transpose(inverse(transform))で法線方向の変換に使う
+		// 法線方向へ適用する逆転置行列
 		Matrix4x4 matrix = Matrix4x4::Identity();
-		// 線形部の行列式の符号で負スケールのmirrorで-1になり従法線の向き補正に使う
+		// 負スケールによる従法線の向き補正
 		float orientationSign = 1.0f;
-		// 退化行列やNaN/Infでfallbackした場合true
+		// 退化行列や非有限値で代替行列を使用したか
 		bool usedFallback = false;
 	};
 
 	//============================================================================
 	//	MeshNormalMatrixUtility functions
 	//============================================================================
-	// worldMatrix/localMatrixから法線変換行列を安全に構築する
-	// 非一様スケールや負スケールでも法線を正しく変換でき、0スケールなどの退化時も
-	// NaN/InfをGPUバッファへ送らないようfallbackする
-	// HLSL側はmul(localNormal, (float3x3)matrix)で使う前提(row-vector規約)
+	// 非有限値と退化行列を避けて法線用の逆転置行列を作る
 	MeshNormalMatrixResult BuildSafeMeshNormalMatrix(const Matrix4x4& transform);
 
-} // Engine
+}

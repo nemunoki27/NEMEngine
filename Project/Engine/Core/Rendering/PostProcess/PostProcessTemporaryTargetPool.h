@@ -13,7 +13,7 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class GraphicsCore;
 	class MultiRenderTarget;
 	class RenderTargetRegistry;
@@ -47,7 +47,7 @@ namespace Engine {
 		// sourceと同じサイズのUAV付き一時RTを取得する
 		MultiRenderTarget* Acquire(GraphicsCore& graphicsCore, RenderTargetRegistry& registry,
 			const std::string& name, const MultiRenderTarget& source);
-		// descriptorに従い、サイズ/フォーマット/UAV要件が変わった時だけ中間RTを作り直す
+		// サイズ・形式・UAV設定に合わせて中間RTを取得する
 		MultiRenderTarget* Acquire(GraphicsCore& graphicsCore, RenderTargetRegistry& registry,
 			const PostProcessTemporaryTargetDesc& desc, const MultiRenderTarget& source);
 	private:
@@ -57,7 +57,8 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// GPU形式をSceneの形式へ変換する
 		static SceneRenderTargetFormat ToSceneFormat(DXGI_FORMAT format);
 	};
-} // Engine
+}
 

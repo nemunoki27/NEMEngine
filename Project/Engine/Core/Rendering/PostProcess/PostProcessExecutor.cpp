@@ -128,6 +128,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	dxCommand->SetDescriptorHeaps({ graphicsCore.GetSRVDescriptor().GetDescriptorHeap() });
 	commandList->SetComputeRootSignature(pipelineState->GetRootSignature());
 	commandList->SetPipelineState(pipelineState->GetComputePipeline());
+	pipelineState->BindGlobalDescriptorTablesCompute(commandList,
+		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
 	std::vector<ComputeBindItem> binds{};
 	binds.reserve(8);
@@ -135,6 +137,11 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	const ShaderReflectionInfo& reflection = pipelineState->GetComputeReflection();
 	for (const ShaderResourceBinding& binding : reflection.resources) {
 		if (!IsResourceBinding(binding)) {
+			continue;
+		}
+		if (binding.name == "gNEMGlobalTexture2D" ||
+			binding.name == "gNEMGlobalTextureCube") {
+
 			continue;
 		}
 
@@ -191,7 +198,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 			}
 		}
 
-		auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetDevice(), constants);
+		auto allocation = constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), constants);
 		binds.push_back({ cacheEntry.hasFrameConstantsByName ? std::string_view(kFrameConstantsName) : std::string_view{},
 			ComputeBindValueType::CBV, allocation.gpuAddress, {}, 0, 0 });
 	}
@@ -229,7 +237,8 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 				*materialAsset, parameterLayout, resolveTexture);
 		}
 
-		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetDevice(), bytes);
+		auto allocation = constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), bytes);
 
 		binds.push_back({ kParameterConstantsName, ComputeBindValueType::CBV,
 			allocation.gpuAddress, {}, parameterLayout.GetBindPoint(), parameterLayout.GetSpace() });
@@ -276,7 +285,6 @@ bool Engine::PostProcessExecutor::Execute(GraphicsCore& graphicsCore, [[maybe_un
 	std::unordered_set<RenderTexture2D*> outputTextures{ destColor };
 	for (const auto& [name, targetName] : desc.outputTargets) {
 
-		(void)name;
 		if (RenderTexture2D* output =
 			context.targetRegistry->FindColorByName(targetName)) {
 

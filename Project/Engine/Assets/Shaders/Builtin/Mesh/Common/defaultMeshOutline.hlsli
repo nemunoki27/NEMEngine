@@ -12,6 +12,7 @@ static const uint OUTLINE_WIDTH_MODEL_UNITS = 0u;
 static const uint OUTLINE_WIDTH_SCREEN_PIXELS = 1u;
 static const uint MESH_OUTLINE_FLAG_USE_BAKED_NORMAL = 1u << 0;
 static const uint MESH_OUTLINE_FLAG_USE_OUTLINE_SAMPLER = 1u << 1;
+static const uint MESH_OUTLINE_FLAG_RESPECT_MATERIAL_SURFACE = 1u << 2;
 
 //============================================================================
 //	resources
@@ -30,7 +31,7 @@ struct MeshOutlineGPUData {
 	uint bakedNormalTextureIndex;
 	uint outlineSamplerTextureIndex;
 	uint flags;
-	uint _pad0;
+	float alphaThreshold;
 };
 // 既存割り当てと衝突しない番号を使う
 StructuredBuffer<MeshOutlineGPUData> gMeshOutlines : register(t7, space1);
@@ -39,6 +40,13 @@ struct OutlineVertexOutput {
 
 	float4 position : SV_Position;
 	nointerpolation float4 color : COLOR0;
+	nointerpolation float lodCoverage : LODCOVERAGE0;
+	float2 uv : TEXCOORD0;
+	nointerpolation float baseAlpha : TEXCOORD1;
+	nointerpolation uint baseColorTextureIndex : TEXCOORD2;
+	nointerpolation uint opacityTextureIndex : TEXCOORD3;
+	nointerpolation uint flags : TEXCOORD4;
+	nointerpolation float alphaThreshold : TEXCOORD5;
 };
 
 //============================================================================
@@ -52,8 +60,8 @@ float SampleOutlineWidthMultiplier(MeshOutlineGPUData outline, float2 uv) {
 		return 1.0f;
 	}
 
-	Texture2D<float4> tex = ResourceDescriptorHeap[
-		NonUniformResourceIndex(outline.outlineSamplerTextureIndex)];
+	Texture2D<float4> tex = NEM_TEXTURE2D(
+		outline.outlineSamplerTextureIndex);
 	return saturate(tex.SampleLevel(gOutlineSampler, uv, 0.0f).r);
 }
 
@@ -65,8 +73,8 @@ float3 ResolveOutlineLocalNormal(MeshOutlineGPUData outline, MeshVertex vertex) 
 		return normalize(vertex.normal);
 	}
 
-	Texture2D<float4> tex = ResourceDescriptorHeap[
-		NonUniformResourceIndex(outline.bakedNormalTextureIndex)];
+	Texture2D<float4> tex = NEM_TEXTURE2D(
+		outline.bakedNormalTextureIndex);
 	float3 encoded = tex.SampleLevel(gOutlineSampler, vertex.uv, 0.0f).xyz;
 	float3 normal = encoded * 2.0f - 1.0f;
 	return normalize(normal);
@@ -171,5 +179,15 @@ OutlineVertexOutput BuildOutlineVertex(uint instanceID, uint localSubMeshIndex,
 		output.position = mul(float4(worldPos, 1.0f), viewProjection);
 	}
 	output.color = outline.color;
+	output.lodCoverage = GetMeshInstanceLODCoverage(instanceID);
+	const MeshMaterialParameters material =
+		GetInstanceMeshMaterialParameters(instanceID, localSubMeshIndex);
+	output.uv = mul(float4(vertex.uv, 0.0f, 1.0f), subMesh.uvMatrix).xy;
+	output.baseAlpha = subMesh.importedBaseColor.a * subMesh.color.a *
+		instance.color.a * material.color.a;
+	output.baseColorTextureIndex = material.baseColorTexture;
+	output.opacityTextureIndex = material.opacityTexture;
+	output.flags = outline.flags;
+	output.alphaThreshold = max(outline.alphaThreshold, material.alphaClip);
 	return output;
 }

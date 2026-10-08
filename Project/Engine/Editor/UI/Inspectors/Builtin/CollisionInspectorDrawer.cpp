@@ -3,10 +3,11 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Editor/UI/ImGui/ImGuiEnum.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // imgui
 #include <imgui.h>
@@ -118,7 +119,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawShapeTypeField(Col
 		return result;
 	}
 
-	if (EnumAdapter<ColliderShapeType>::Combo("##Value", &type)) {
+	if (Engine::ImGuiUtility::EnumCombo<ColliderShapeType>("##Value", &type)) {
 		result.valueChanged = true;
 		result.editFinished = true;
 	}
@@ -151,7 +152,7 @@ Engine::ValueEditResult Engine::CollisionInspectorDrawer::DrawCapsuleAxisField(
 			}
 			ImGui::EndCombo();
 		}
-	} else if (EnumAdapter<CapsuleAxis>::Combo("##Value", &axis)) {
+	} else if (Engine::ImGuiUtility::EnumCombo<CapsuleAxis>("##Value", &axis)) {
 		result.valueChanged = true;
 		result.editFinished = true;
 	}

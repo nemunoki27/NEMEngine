@@ -8,6 +8,17 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
+#include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
+
+// c++
+#include <algorithm>
+#include <exception>
+#include <utility>
+
+// assimp
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 
 //============================================================================
 //	SkinnedMeshAnimationManager classMethods
@@ -17,7 +28,7 @@ namespace {
 	// アニメーションの名前を解決
 	std::string ResolveClipName(const aiAnimation* anim, uint32_t index, uint32_t totalCount) {
 
-		if (anim && anim->mName.length > 0) {
+		if (anim->mName.length > 0) {
 			return anim->mName.C_Str();
 		}
 		if (totalCount == 1) {
@@ -50,9 +61,7 @@ void Engine::SkinnedMeshAnimationManager::Init(uint32_t threadCount) {
 
 	// ワーカープールを開始
 	workerPool_.Start((std::max)(1u, threadCount),
-		[this](LoadJob&& job, uint32_t workerIndex) {
-			LoadJobAsync(std::move(job), workerIndex);
-		});
+		[this](LoadJob&& job, uint32_t workerIndex) { LoadJobAsync(std::move(job), workerIndex); });
 }
 
 void Engine::SkinnedMeshAnimationManager::Finalize() {
@@ -61,36 +70,50 @@ void Engine::SkinnedMeshAnimationManager::Finalize() {
 
 	std::scoped_lock lock(mutex_);
 	loaded_.clear();
-	queued_.clear();
-	loading_.clear();
+	requests_.clear();
 }
 
-void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(
-	AssetDatabase& assetDatabase, AssetID meshAssetID) {
+void Engine::SkinnedMeshAnimationManager::RequestLoadAsync(AssetDatabase& assetDatabase, AssetID meshAssetID) {
 
-	// 無効なIDは無視
 	if (!meshAssetID) {
 		return;
 	}
+	LoadJob job;
 	{
+
 		std::scoped_lock lock(mutex_);
-		if (loaded_.contains(meshAssetID) || queued_.contains(meshAssetID) || loading_.contains(meshAssetID)) {
+		RequestState& request = requests_[meshAssetID];
+		const uint64_t contentRevision = assetDatabase.GetContentRevision(meshAssetID);
+		const uint64_t structureRevision = assetDatabase.GetStructureRevision();
+		const bool first = request.serial == 0;
+		bool changed = first || request.contentRevision != contentRevision;
+		if (first || request.structureRevision != structureRevision) {
+
+			const auto path = assetDatabase.ResolveFullPath(meshAssetID);
+			changed |= path != request.fullPath;
+			request.fullPath = path;
+		}
+		request.structureRevision = structureRevision;
+		request.contentRevision = contentRevision;
+		if (!changed) {
 			return;
 		}
+		// 読込中に再更新された要求は別の番号で保持する
+		request.serial = nextSerial_++;
+		if (request.fullPath.empty()) {
+			return;
+		}
+		job = {meshAssetID, request.fullPath, request.serial};
 	}
+	const uint64_t serial = job.serial;
+	if (!workerPool_.Enqueue(std::move(job))) {
 
-	// アセットデータベースからフルパスを解決して存在を確認
-	std::filesystem::path fullPath = assetDatabase.ResolveFullPath(meshAssetID);
-	if (fullPath.empty() || !std::filesystem::exists(fullPath)) {
-		return;
-	}
-	{
 		std::scoped_lock lock(mutex_);
-		queued_.insert(meshAssetID);
+		const auto found = requests_.find(meshAssetID);
+		if (found != requests_.end() && found->second.serial == serial) {
+			requests_.erase(found);
+		}
 	}
-
-	// ジョブをワーカープールに追加
-	workerPool_.Enqueue(LoadJob{ .meshAssetID = meshAssetID,.fullPath = fullPath, });
 }
 
 void Engine::SkinnedMeshAnimationManager::WaitAll() {
@@ -98,50 +121,43 @@ void Engine::SkinnedMeshAnimationManager::WaitAll() {
 	workerPool_.WaitIdle();
 }
 
-const Engine::SkinnedMeshAnimationSet* Engine::SkinnedMeshAnimationManager::Find(AssetID meshAssetID) const {
+std::shared_ptr<const Engine::SkinnedMeshAnimationSet> Engine::SkinnedMeshAnimationManager::Find(AssetID meshAssetID) const {
 
 	std::scoped_lock lock(mutex_);
 	auto it = loaded_.find(meshAssetID);
 	if (it == loaded_.end()) {
 		return nullptr;
 	}
-	return &it->second;
+	return it->second;
 }
 
 void Engine::SkinnedMeshAnimationManager::LoadJobAsync(LoadJob&& job, [[maybe_unused]] uint32_t workerIndex) {
 
-	// ジョブの状態を更新
-	{
-		std::scoped_lock lock(mutex_);
-		queued_.erase(job.meshAssetID);
-		loading_.insert(job.meshAssetID);
-	}
-
 	// ファイルのインポート
-	SkinnedMeshAnimationSet imported{};
+	std::shared_ptr<SkinnedMeshAnimationSet> imported;
 	bool succeeded = false;
 	try {
 
-		imported = ImportAnimationFile(job.meshAssetID, job.fullPath);
-		succeeded = imported.valid;
-	}
-	catch (const std::exception& exception) {
+		imported = std::make_shared<SkinnedMeshAnimationSet>(ImportAnimationFile(job.meshAssetID, job.fullPath));
+		succeeded = imported->valid;
+	} catch (const std::exception& exception) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"SkinnedMesh Animationの非同期読み込み中に例外が発生しました path={} 内容={}",
-			Algorithm::PathToUTF8(job.fullPath), exception.what());
+			"SkinnedMesh Animationの非同期読み込み中に例外が発生しました path={} 内容={}", Algorithm::PathToUTF8(job.fullPath),
+			exception.what());
 		succeeded = false;
-	}
-	catch (...) {
+	} catch (...) {
 		Logger::Output(LogType::Engine, spdlog::level::err,
-			"SkinnedMesh Animationの非同期読み込み中に不明な例外が発生しました path={}",
-			Algorithm::PathToUTF8(job.fullPath));
+			"SkinnedMesh Animationの非同期読み込み中に不明な例外が発生しました path={}", Algorithm::PathToUTF8(job.fullPath));
 		succeeded = false;
 	}
 	// 結果の保存
 	{
 		std::scoped_lock lock(mutex_);
-		loading_.erase(job.meshAssetID);
-		if (succeeded) {
+		const auto request = requests_.find(job.meshAssetID);
+		if (succeeded && request != requests_.end() && request->second.serial == job.serial) {
+
+			// 完成した世代を公開し、共有中の旧世代は保持する
+			imported->generation = nextGeneration_++;
 			loaded_[job.meshAssetID] = std::move(imported);
 		}
 	}
@@ -154,8 +170,9 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 	result.meshAssetID = meshAssetID;
 
 	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(Algorithm::PathToUTF8(fullPath),
-		aiProcess_PopulateArmatureData);
+	auto* fileSystem = new ModelFileIOSystem(fullPath);
+	importer.SetIOHandler(fileSystem);
+	const aiScene* scene = importer.ReadFile(fileSystem->GetModelPath(), aiProcess_PopulateArmatureData);
 	if (!scene || !scene->mRootNode) {
 		return result;
 	}
@@ -202,10 +219,11 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 		AnimationData clip{};
 
 		// 再生時間の計算に必要な情報があるか
-		bool vaildDuration = 0.0 < anim->mTicksPerSecond;
+		bool validDuration = 0.0 < anim->mTicksPerSecond;
 
 		// 再生時間
-		clip.duration = vaildDuration ? static_cast<float>(anim->mDuration / anim->mTicksPerSecond) : static_cast<float>(anim->mDuration);
+		clip.duration =
+			validDuration ? static_cast<float>(anim->mDuration / anim->mTicksPerSecond) : static_cast<float>(anim->mDuration);
 
 		for (uint32_t c = 0; c < anim->mNumChannels; ++c) {
 
@@ -214,21 +232,19 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 				continue;
 			}
 
-			const int32_t jointIndex =
-				FindSkeletonJointIndex(result.skeleton, nodeAnim->mNodeName.C_Str());
+			const int32_t jointIndex = FindSkeletonJointIndex(result.skeleton, nodeAnim->mNodeName.C_Str());
 			if (jointIndex < 0) {
 				continue;
 			}
-			NodeAnimation& dst =
-				clip.nodeAnimations[result.skeleton.joints[jointIndex].nodePath];
+			NodeAnimation& dst = clip.nodeAnimations[result.skeleton.joints[jointIndex].nodePath];
 			// キーフレーム構築
 			// 座標
 			for (uint32_t k = 0; k < nodeAnim->mNumPositionKeys; ++k) {
 
 				const aiVectorKey& kv = nodeAnim->mPositionKeys[k];
 				KeyframeVector3 f{};
-				f.time = vaildDuration ? static_cast<float>(kv.mTime / anim->mTicksPerSecond) : static_cast<float>(kv.mTime);
-				f.value = { -kv.mValue.x, kv.mValue.y, kv.mValue.z };
+				f.time = validDuration ? static_cast<float>(kv.mTime / anim->mTicksPerSecond) : static_cast<float>(kv.mTime);
+				f.value = {-kv.mValue.x, kv.mValue.y, kv.mValue.z};
 				dst.translate.keyframes.emplace_back(f);
 			}
 			// 回転
@@ -236,8 +252,8 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 
 				const aiQuatKey& kv = nodeAnim->mRotationKeys[k];
 				KeyframeQuaternion f{};
-				f.time = vaildDuration ? static_cast<float>(kv.mTime / anim->mTicksPerSecond) : static_cast<float>(kv.mTime);
-				f.value = { kv.mValue.x, -kv.mValue.y, -kv.mValue.z, kv.mValue.w };
+				f.time = validDuration ? static_cast<float>(kv.mTime / anim->mTicksPerSecond) : static_cast<float>(kv.mTime);
+				f.value = {kv.mValue.x, -kv.mValue.y, -kv.mValue.z, kv.mValue.w};
 				dst.rotate.keyframes.emplace_back(f);
 			}
 			// スケール
@@ -245,8 +261,8 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 
 				const aiVectorKey& kv = nodeAnim->mScalingKeys[k];
 				KeyframeVector3 f{};
-				f.time = vaildDuration ? static_cast<float>(kv.mTime / anim->mTicksPerSecond) : static_cast<float>(kv.mTime);
-				f.value = { kv.mValue.x, kv.mValue.y, kv.mValue.z };
+				f.time = validDuration ? static_cast<float>(kv.mTime / anim->mTicksPerSecond) : static_cast<float>(kv.mTime);
+				f.value = {kv.mValue.x, kv.mValue.y, kv.mValue.z};
 				dst.scale.keyframes.emplace_back(f);
 			}
 		}
@@ -260,7 +276,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 		result.clips[clipName] = std::move(clip);
 	}
 
-	// アニメーションクリップの名前->ジョイントインデックスに対応したNodeAnimation*配列を構築
+	// Clip別にJointへ対応するTrack参照を作る
 	result.clipJointTracks.reserve(result.clips.size());
 	for (auto& [clipName, clip] : result.clips) {
 
@@ -275,7 +291,7 @@ Engine::SkinnedMeshAnimationSet Engine::SkinnedMeshAnimationManager::ImportAnima
 		}
 	}
 
-	// スケルトンとアニメーションクリップの両方が存在する場合、有効なアニメーションセットとする
+	// 骨格とClipの両方がある定義を有効にする
 	result.valid = !result.skeleton.joints.empty() && !result.clips.empty();
 	return result;
 }

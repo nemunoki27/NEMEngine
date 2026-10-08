@@ -4,15 +4,17 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <span>
 #include <vector>
+
+// directX
+#include <d3d12.h>
 
 namespace Engine {
 
@@ -29,10 +31,12 @@ namespace Engine {
 		//============================================================================
 
 		BufferUploadService() = default;
-		~BufferUploadService() = default;
+		~BufferUploadService();
+		BufferUploadService(const BufferUploadService&) = delete;
+		BufferUploadService& operator=(const BufferUploadService&) = delete;
 
 		// アップロード専用のキュー/アロケータ/リスト/フェンスを作成する
-		void Init(ID3D12Device* device, ID3D12CommandQueue* graphicsQueue);
+		void Init(GraphicsResourceRetirement& retirement, ID3D12Device* device, ID3D12CommandQueue* graphicsQueue);
 		// GPU利用中のstagingを安全に解放してから破棄する
 		void Finalize();
 
@@ -59,6 +63,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
+		GraphicsResourceRetirement& GetResourceRetirement() const;
 		bool HasOpenBatch() const { return batchOpened_; }
 		bool HasPendingUploads() const { return !pendingBatches_.empty(); }
 	private:
@@ -68,11 +73,11 @@ namespace Engine {
 
 		//--------- structure ----------------------------------------------------
 
-		// Submit済みでGPU完了待ちのstaging一式
+		// Submit済みでGPU完了待ちの転送元と転送先
 		struct PendingBufferUploadBatch {
 
 			uint64_t fenceValue = 0;
-			std::vector<ComPtr<ID3D12Resource>> stagingResources;
+			std::vector<ComPtr<ID3D12Resource>> retainedResources;
 		};
 
 		// アロケータ/リストを使い回すためのリングコンテキスト
@@ -82,8 +87,8 @@ namespace Engine {
 			ComPtr<ID3D12GraphicsCommandList> commandList;
 			// このコンテキストで最後に積んだBatchのFence値(Reset安全性の判定に使う)
 			uint64_t lastFenceValue = 0;
-			// Submitまで保持するstaging
-			std::vector<ComPtr<ID3D12Resource>> stagingResources;
+			// Submitまで保持する転送元と転送先
+			std::vector<ComPtr<ID3D12Resource>> retainedResources;
 		};
 
 		//--------- variables ----------------------------------------------------
@@ -92,6 +97,7 @@ namespace Engine {
 		static constexpr uint32_t kUploadContextCount = 3;
 
 		ID3D12Device* device_ = nullptr;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		ID3D12CommandQueue* graphicsQueue_ = nullptr;
 
 		ComPtr<ID3D12CommandQueue> uploadQueue_;
@@ -115,6 +121,8 @@ namespace Engine {
 		void EnsureBatchOpened();
 		// 指定Fence値の完了をCPUで待つ
 		void WaitForFenceValue(uint64_t fenceValue);
+		// 提出済みBatchへFenceを対応付ける
+		uint64_t SignalSubmittedBatch();
 		// 全Submit分の完了を待つ
 		void WaitForAllUploads();
 	};

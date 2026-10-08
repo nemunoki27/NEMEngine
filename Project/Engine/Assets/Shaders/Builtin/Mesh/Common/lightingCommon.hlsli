@@ -56,7 +56,8 @@ struct DirectionalLight {
 
 	float shadowStrength;
 	float shadowAngularRadius;
-	float2 _pad1;
+	uint _alignmentPadding0;
+	uint _pad1;
 };
 struct PointLight {
 
@@ -69,6 +70,9 @@ struct PointLight {
 	float decay;
 	float shadowStrength;
 	float shadowRadius;
+
+	uint _alignmentPadding0;
+	uint3 _pad1;
 };
 struct SpotLight {
 
@@ -86,7 +90,8 @@ struct SpotLight {
 	float shadowStrength;
 
 	float shadowRadius;
-	float3 _pad0;
+	uint _alignmentPadding0;
+	uint2 _pad0;
 };
 struct RectLight {
 
@@ -108,6 +113,9 @@ struct RectLight {
 	float barnDoorAngle;
 	float barnDoorLength;
 	float shadowStrength;
+
+	uint _alignmentPadding0;
+	uint3 _pad0;
 };
 StructuredBuffer<DirectionalLight> gDirectionalLights :
 	register(NEM_DIRECTIONAL_LIGHTS_REGISTER);

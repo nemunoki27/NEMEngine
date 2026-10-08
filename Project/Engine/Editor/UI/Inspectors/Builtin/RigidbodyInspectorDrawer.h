@@ -19,9 +19,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		RigidbodyInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Rigidbody", "Rigidbody") {
-		}
+		RigidbodyInspectorDrawer() : SerializedComponentInspectorDrawer("Rigidbody", "Rigidbody") {}
 		~RigidbodyInspectorDrawer() = default;
 	private:
 		//============================================================================

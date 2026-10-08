@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
+#include <Engine/Core/Rendering/Renderer/Backends/Common/QuadGeometry.h>
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
 
 //============================================================================
@@ -21,7 +22,7 @@ void Engine::TextBatchResources::Init(GraphicsCore& graphicsCore) {
 
 	// バッファ作成
 	CreateQuadBuffers(device, graphicsCore.GetBufferUploadService());
-	view_.Init(device);
+	view_.Init(graphicsCore.GetDXObject().GetResourceRetirement(), device);
 	vsData_.Init(device, srvDescriptor);
 	psData_.Init(device, srvDescriptor);
 	vsData_.EnsureCapacity(256);
@@ -31,30 +32,11 @@ void Engine::TextBatchResources::Init(GraphicsCore& graphicsCore) {
 	initialized_ = true;
 }
 
-void Engine::TextBatchResources::CreateQuadBuffers(ID3D12Device* device, BufferUploadService& uploadService) {
+void Engine::TextBatchResources::CreateQuadBuffers(
+	ID3D12Device* device, BufferUploadService& uploadService) {
 
-	// 頂点データを作成
-	std::vector<TextVertex> vertices = {
-		// 左下
-		{ Vector2(0.0f, 1.0f), Vector2(0.0f, 1.0f) },
-		// 左上
-		{ Vector2(0.0f, 0.0f), Vector2(0.0f, 0.0f) },
-		// 右下
-		{ Vector2(1.0f, 1.0f), Vector2(1.0f, 1.0f) },
-		// 右上
-		{ Vector2(1.0f, 0.0f), Vector2(1.0f, 0.0f) },
-	};
-	// インデックスデータを作成
-	std::vector<uint32_t> indices = {
-		0, 1, 2,
-		1, 3, 2
-	};
-
-	// TextのGlyph Quad形状は初期化後に変わらないため、DEFAULT heapへ置きUploadServiceで初期転送する
-	vertexBuffer_.Create(device, uploadService, std::span<const TextVertex>(vertices.data(), vertices.size()));
-	indexBuffer_.Create(device, uploadService, std::span<const uint32_t>(indices.data(), indices.size()));
-	// 固定Glyph Quadの転送はInit中に完結させ、以後の描画ではDEFAULT heapだけを参照する
-	uploadService.SubmitBatch();
+	// 単位矩形の静的Bufferを作成
+	QuadGeometry::CreateBuffers(device, uploadService, vertexBuffer_, indexBuffer_);
 }
 
 void Engine::TextBatchResources::UpdateView(const ResolvedRenderView& view, RenderCameraDomain cameraDomain) {

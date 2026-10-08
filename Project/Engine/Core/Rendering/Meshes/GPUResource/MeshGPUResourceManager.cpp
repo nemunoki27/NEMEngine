@@ -3,252 +3,22 @@
 //============================================================================
 //	include
 //============================================================================
+#include "MeshGPUBuilder.h"
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 
 // c++
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <span>
+#include <stdexcept>
+#include <utility>
 
 //============================================================================
 //	MeshGPUResourceManager classMethods
 //============================================================================
-namespace {
-
-	// テクスチャアセットIDをパスから解決する、見つからない場合はインポートする
-	Engine::AssetID ResolveTextureAssetIDFromPath(Engine::AssetDatabase& assetDatabase, const std::string& assetPath) {
-
-		if (assetPath.empty()) {
-			return {};
-		}
-		if (const auto* meta = assetDatabase.FindByPath(assetPath)) {
-			return meta->guid;
-		}
-		return assetDatabase.ImportOrGet(assetPath, Engine::AssetType::Texture);
-	}
-	// サブメッシュのテクスチャアセットIDを解決する、エディタ編集で上書きされたテクスチャがあればそちらを優先する
-	void ResolveSubMeshDefaultTextureAssets(Engine::AssetDatabase& assetDatabase,
-		Engine::MeshGPUResource& mesh) {
-
-		for (auto& subMesh : mesh.subMeshes) {
-
-			auto& dst = subMesh.defaultTextureAssets;
-			const auto& src = subMesh.defaultTextures;
-
-			dst.baseColorTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.baseColorTexturePath);
-			dst.normalTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.normalTexturePath);
-			dst.metallicRoughnessTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.metallicRoughnessTexturePath);
-			dst.metallicTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.metallicTexturePath);
-			dst.roughnessTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.roughnessTexturePath);
-			dst.displacementTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.displacementTexturePath);
-			dst.specularTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.specularTexturePath);
-			dst.emissiveTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.emissiveTexturePath);
-			dst.occlusionTexture = ResolveTextureAssetIDFromPath(assetDatabase, src.occlusionTexturePath);
-		}
-	}
-	// BLASのPrimitiveIndex()と一致する並びでサブメッシュインデックスを並べる
-	std::vector<uint32_t> BuildPrimitiveSubMeshTable(const std::vector<Engine::SubMeshDesc>& subMeshes,
-		uint32_t indexCount) {
-
-		uint32_t primitiveCount = indexCount / 3;
-		std::vector<uint32_t> table(primitiveCount, 0);
-		for (uint32_t subMeshIndex = 0; subMeshIndex < static_cast<uint32_t>(subMeshes.size()); ++subMeshIndex) {
-
-			const Engine::SubMeshDesc& subMesh = subMeshes[subMeshIndex];
-
-			// サブメッシュのプリミティブ範囲を求める
-			uint32_t firstPrimitive = subMesh.indexOffset / 3;
-			uint32_t subMeshPrimitiveCount = subMesh.indexCount / 3;
-			for (uint32_t primitiveOffset = 0; primitiveOffset < subMeshPrimitiveCount; ++primitiveOffset) {
-
-				const uint32_t primitiveIndex = firstPrimitive + primitiveOffset;
-				if (primitiveIndex < table.size()) {
-
-					table[primitiveIndex] = subMeshIndex;
-				}
-			}
-		}
-		return table;
-	}
-	// メッシュ全体のバウンディング球を構築する
-	void CalcMeshBounds(const std::vector<Engine::MeshVertex>& vertices, Engine::Vector3& outCenter, float& outRadius) {
-
-		// 空メッシュはカリングできるBoundsを持たないので半径0にする
-		if (vertices.empty()) {
-			outCenter = Engine::Vector3::AnyInit(0.0f);
-			outRadius = 0.0f;
-			return;
-		}
-
-		auto toPosition3 = [](const Engine::Vector4& position) {
-			return Engine::Vector3(position.x, position.y, position.z);
-			};
-
-		Engine::Vector3 minPos = toPosition3(vertices.front().position);
-		Engine::Vector3 maxPos = minPos;
-		// メッシュ全体のAABBを求める
-		for (const Engine::MeshVertex& vertex : vertices) {
-
-			const Engine::Vector3 pos = toPosition3(vertex.position);
-			minPos.x = (std::min)(minPos.x, pos.x);
-			minPos.y = (std::min)(minPos.y, pos.y);
-			minPos.z = (std::min)(minPos.z, pos.z);
-			maxPos.x = (std::max)(maxPos.x, pos.x);
-			maxPos.y = (std::max)(maxPos.y, pos.y);
-			maxPos.z = (std::max)(maxPos.z, pos.z);
-		}
-
-		outCenter = (minPos + maxPos) * 0.5f;
-		outRadius = 0.0f;
-		// AABB中心から最遠点までを球半径にする
-		for (const Engine::MeshVertex& vertex : vertices) {
-
-			const Engine::Vector3 pos = toPosition3(vertex.position);
-			outRadius = (std::max)(outRadius, Engine::Vector3::Length(pos - outCenter));
-		}
-	}
-
-	int16_t QuantizeSnorm16(float value) {
-
-		// 法線のOct成分を16bit符号付き正規化値へ丸める
-		value = (std::clamp)(value, -1.0f, 1.0f);
-		return static_cast<int16_t>(std::round(value * 32767.0f));
-	}
-
-	uint32_t EncodeOctNormal(const Engine::Vector3& normal) {
-
-		// 3成分法線を2成分のOctahedral表現へ変換する
-		Engine::Vector3 n = normal.Normalize();
-		const float length = std::abs(n.x) + std::abs(n.y) + std::abs(n.z);
-		if (length <= 0.00001f) {
-			return 0;
-		}
-
-		float x = n.x / length;
-		float y = n.y / length;
-		if (n.z < 0.0f) {
-
-			// 裏面側の半球を2D平面へ折り返す
-			const float oldX = x;
-			x = (1.0f - std::abs(y)) * (oldX >= 0.0f ? 1.0f : -1.0f);
-			y = (1.0f - std::abs(oldX)) * (y >= 0.0f ? 1.0f : -1.0f);
-		}
-
-		const uint16_t packedX = static_cast<uint16_t>(QuantizeSnorm16(x));
-		const uint16_t packedY = static_cast<uint16_t>(QuantizeSnorm16(y));
-		return static_cast<uint32_t>(packedX) | (static_cast<uint32_t>(packedY) << 16);
-	}
-
-	std::vector<Engine::MeshPackedVertex> BuildPackedVertices(const std::vector<Engine::MeshVertex>& vertices) {
-
-		// MeshShaderで読む法線・接線を圧縮した頂点配列を作る
-		std::vector<Engine::MeshPackedVertex> packed{};
-		packed.reserve(vertices.size());
-		for (const Engine::MeshVertex& vertex : vertices) {
-
-			Engine::MeshPackedVertex dst{};
-			dst.normalOct = EncodeOctNormal(vertex.normal);
-			dst.tangentOct = EncodeOctNormal(vertex.tangent);
-			// 接線の利き手は圧縮せずそのまま保持する
-			dst.tangentSign = vertex.tangentSign;
-			dst.uv = vertex.uv;
-			dst.position = vertex.position;
-			packed.emplace_back(dst);
-		}
-		return packed;
-	}
-
-	template <typename T>
-	void CreateImmutableSRV(ID3D12Device* device, Engine::BufferUploadService& uploadService,
-		Engine::SRVDescriptor& srvDescriptor, Engine::MeshStructuredHandle<T>& out,
-		const std::vector<T>& data, const wchar_t* debugName) {
-
-		// 空データはWidth 0のD3D12 bufferを作れないため、SRV自体を未生成として扱う
-		if (data.empty()) {
-			return;
-		}
-
-		// 静的メッシュデータはDEFAULT heapへ置き、初期転送だけをUploadServiceで行う
-		out.buffer = std::make_unique<Engine::DxImmutableStructuredBuffer<T>>();
-		out.buffer->Create(device, uploadService, std::span<const T>(data.data(), data.size()));
-		if (ID3D12Resource* resource = out.buffer->GetResource()) {
-			resource->SetName(debugName);
-		}
-		// DescriptorはMeshStructuredHandle::Releaseで解放するため、handle側にindex/handleを保持する
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = out.buffer->GetSRVDesc();
-		srvDescriptor.CreateSRV(out.srvIndex, out.buffer->GetResource(), srvDesc);
-		out.srvGPUHandle = srvDescriptor.GetGPUHandle(out.srvIndex);
-	}
-
-	bool CanPackMeshletVertexIndices(const std::vector<uint32_t>& indices) {
-
-		// 16bitに収まる場合だけ2要素/uint32_tへ圧縮する
-		for (uint32_t index : indices) {
-			if (0xFFFFu < index) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	std::vector<uint32_t> BuildPackedMeshletVertexIndices(const std::vector<uint32_t>& indices) {
-
-		// 16bitのメッシュレット頂点Indexを2つずつuint32_tへ詰める
-		std::vector<uint32_t> packed((indices.size() + 1) / 2, 0);
-		for (size_t i = 0; i < indices.size(); ++i) {
-
-			const uint32_t value = indices[i] & 0xFFFFu;
-			if ((i & 1u) == 0) {
-				packed[i >> 1] |= value;
-			} else {
-				packed[i >> 1] |= value << 16;
-			}
-		}
-		return packed;
-	}
-
-	std::vector<uint16_t> BuildIndex16(const std::vector<uint32_t>& indices) {
-
-		// IBV用に32bit Indexを16bitへ変換する
-		std::vector<uint16_t> packed{};
-		packed.reserve(indices.size());
-		for (uint32_t index : indices) {
-			packed.emplace_back(static_cast<uint16_t>(index));
-		}
-		return packed;
-	}
-
-	std::vector<Engine::MeshletDrawDesc> BuildMeshletDrawDescs(const std::vector<Engine::MeshletDesc>& meshlets) {
-
-		// MSが読む範囲情報だけを抜き出す
-		std::vector<Engine::MeshletDrawDesc> result{};
-		result.reserve(meshlets.size());
-		for (const Engine::MeshletDesc& meshlet : meshlets) {
-
-			Engine::MeshletDrawDesc desc{};
-			desc.vertexOffset = meshlet.vertexOffset;
-			desc.vertexCount = meshlet.vertexCount;
-			desc.primitiveOffset = meshlet.primitiveOffset;
-			desc.primitiveCount = meshlet.primitiveCount;
-			desc.subMeshIndex = meshlet.subMeshIndex;
-			result.emplace_back(desc);
-		}
-		return result;
-	}
-
-	std::vector<Engine::MeshletBounds> BuildMeshletBounds(const std::vector<Engine::MeshletDesc>& meshlets) {
-
-		// ASのメッシュレット単位カリングで使うBoundsだけを分離する
-		std::vector<Engine::MeshletBounds> result{};
-		result.reserve(meshlets.size());
-		for (const Engine::MeshletDesc& meshlet : meshlets) {
-
-			result.emplace_back(Engine::MeshletBounds{ meshlet.boundsCenter, meshlet.boundsRadius,
-				meshlet.coneAxis, meshlet.coneCutoff });
-		}
-		return result;
-	}
-}
 
 Engine::MeshGPUResourceManager::~MeshGPUResourceManager() {
 
@@ -257,14 +27,19 @@ Engine::MeshGPUResourceManager::~MeshGPUResourceManager() {
 
 void Engine::MeshGPUResourceManager::Init(GraphicsCore& graphicsCore) {
 
+	Init(graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetBufferUploadService(), graphicsCore.GetSRVDescriptor());
+}
+
+void Engine::MeshGPUResourceManager::Init(ID3D12Device* device, BufferUploadService& uploads, SRVDescriptor& descriptors) {
+
 	// すでに初期化されている場合は何もしない
 	if (initialized_) {
 		return;
 	}
 
-	device_ = graphicsCore.GetDXObject().GetDevice();
-	srvDescriptor_ = &graphicsCore.GetSRVDescriptor();
-	uploadService_ = &graphicsCore.GetBufferUploadService();
+	device_ = device;
+	srvDescriptor_ = &descriptors;
+	uploadService_ = &uploads;
 
 	// メッシュインポートサービスの初期化
 	importService_.Init(4);
@@ -283,8 +58,13 @@ void Engine::MeshGPUResourceManager::Finalize() {
 		for (auto& [id, mesh] : gpuMeshes_) {
 			ReleaseMeshResource(mesh);
 		}
+		// 所有元の終了も描画側のcacheへ伝える
+		if (!gpuMeshes_.empty()) {
+			++resourceRevision_;
+		}
 		gpuMeshes_.clear();
 		requested_.clear();
+		requestRevisions_.clear();
 	}
 	device_ = nullptr;
 	srvDescriptor_ = nullptr;
@@ -311,22 +91,11 @@ void Engine::MeshGPUResourceManager::RequestMesh(AssetDatabase& assetDatabase, A
 		return;
 	}
 
-	{
-		std::scoped_lock lock(mutex_);
-		if (gpuMeshes_.contains(meshAssetID) || requested_.contains(meshAssetID)) {
-			return;
-		}
-	}
-
-	// 実際にロード要求が通ったときだけ
-	if (!importService_.RequestLoadAsync(assetDatabase, meshAssetID)) {
+	std::scoped_lock lock(mutex_);
+	if (gpuMeshes_.contains(meshAssetID) || requested_.contains(meshAssetID)) {
 		return;
 	}
-
-	std::scoped_lock lock(mutex_);
-	if (!gpuMeshes_.contains(meshAssetID)) {
-		requested_.insert(meshAssetID);
-	}
+	BeginRequest(meshAssetID);
 }
 
 void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
@@ -335,88 +104,66 @@ void Engine::MeshGPUResourceManager::RequestReload(AssetID meshAssetID) {
 		return;
 	}
 
-	{
-		std::scoped_lock lock(mutex_);
-		auto it = gpuMeshes_.find(meshAssetID);
-		// まだロードされていないメッシュは差し替える対象が無いので無視する
-		if (it == gpuMeshes_.end()) {
-			return;
-		}
-
-		// 旧GPUリソースを解放して破棄する、呼び出しは描画前のフレーム先頭で前フレームのGPU使用は完了している
-		ReleaseMeshResource(it->second);
-		gpuMeshes_.erase(it);
-		requested_.erase(meshAssetID);
-		// 世代を進めて、TLAS等のキャッシュが古いジオメトリを使わないようにする
-		++reloadGeneration_[meshAssetID];
-		++resourceRevision_;
+	std::scoped_lock lock(mutex_);
+	// 初回読込中や失敗後も、要求済みAssetなら最新内容を受け付ける
+	if (!requestRevisions_.contains(meshAssetID)) {
+		return;
 	}
-
-	// インポートサービスは初回ロード後にidの記録を残さないため、同じ要求で再パースされる
-	if (importService_.RequestLoadAsync(*assetDatabase_, meshAssetID)) {
-
-		std::scoped_lock lock(mutex_);
-		requested_.insert(meshAssetID);
-	}
+	BeginRequest(meshAssetID);
 }
 
 void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) {
 
-	mesh.vertexSRV.Release(srvDescriptor_);
-	mesh.packedVertexSRV.Release(srvDescriptor_);
-	mesh.indexSRV.Release(srvDescriptor_);
-	mesh.vertexSubMeshIndexSRV.Release(srvDescriptor_);
-	mesh.primitiveSubMeshIndexSRV.Release(srvDescriptor_);
-	mesh.meshletDrawSRV.Release(srvDescriptor_);
-	mesh.meshletBoundsSRV.Release(srvDescriptor_);
-	mesh.meshletVertexIndexSRV.Release(srvDescriptor_);
-	mesh.packedMeshletVertexIndexSRV.Release(srvDescriptor_);
-	mesh.meshletPrimitiveIndexSRV.Release(srvDescriptor_);
-	mesh.skinInfluenceSRV.Release(srvDescriptor_);
+	MeshGPUBuilder::Release(mesh);
 }
 
 void Engine::MeshGPUResourceManager::FlushUploads() {
 
 	// 読み込み待ちのメッシュアセットのうち、GPUにアップロードされていないものをアップロードする
-	std::vector<AssetID> pending{};
+	std::vector<std::pair<AssetID, uint64_t>> pending{};
 	{
 		std::scoped_lock lock(mutex_);
 		pending.reserve(requested_.size());
-		for (const AssetID& id : requested_) {
-			pending.emplace_back(id);
+		for (const auto& request : requested_) {
+			pending.emplace_back(request);
 		}
 	}
 
-	for (const AssetID& id : pending) {
+	for (const auto& [id, revision] : pending) {
 
 		ImportedMeshAsset imported{};
 		if (!importService_.TakeImported(id, imported)) {
+			if (importService_.ConsumeFailed(id)) {
+				// 失敗時は旧表示を残し、次回要求を受け付けられる状態へ戻す
+				Logger::Output(LogType::Engine, spdlog::level::err,
+					"Meshの読み込みに失敗しました asset={}", ToString(id));
+				CompleteRequest(id, revision);
+			}
 			continue;
 		}
 
-		{
-			std::scoped_lock lock(mutex_);
-			if (gpuMeshes_.contains(id)) {
-				requested_.erase(id);
-				continue;
-			}
-		}
-
 		// GPUにアップロード
-		UploadImported(imported);
-
-		// アップロード完了したものは要求リストから削除
-		{
-			std::scoped_lock lock(mutex_);
-			requested_.erase(id);
+		try {
+			UploadImported(imported, revision);
+		} catch (...) {
+			CompleteRequest(id, revision);
+			throw;
 		}
+		CompleteRequest(id, revision);
 	}
 }
 
 void Engine::MeshGPUResourceManager::WaitAll() {
 
-	importService_.WaitAll();
-	FlushUploads();
+	for (;;) {
+		importService_.WaitAll();
+		FlushUploads();
+		// 完了時に再投入した最新要求も待つ
+		std::scoped_lock lock(mutex_);
+		if (requested_.empty()) {
+			return;
+		}
+	}
 }
 
 const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID meshAssetID) const {
@@ -429,127 +176,113 @@ const Engine::MeshGPUResource* Engine::MeshGPUResourceManager::Find(AssetID mesh
 	return &it->second;
 }
 
-void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imported) {
+void Engine::MeshGPUResourceManager::UploadImported(const ImportedMeshAsset& imported, uint64_t revision) {
 
 	if (!uploadService_) {
 		return;
 	}
-
-	// リソース情報を設定
-	MeshGPUResource mesh{};
-	mesh.assetID = imported.assetID;
-	mesh.vertexCount = static_cast<uint32_t>(imported.vertices.size());
-	mesh.lods = imported.lods;
-	mesh.indexCount = mesh.lods[0].indexCount;
-	mesh.meshletCount = mesh.lods[0].meshletCount;
-	mesh.isSkinned = imported.isSkinned;
-	mesh.boneCount = imported.boneCount;
-	// インスタンス単位カリングで使用するメッシュ全体Boundsを作る
-	CalcMeshBounds(imported.vertices, mesh.boundsCenter, mesh.boundsRadius);
-
-	mesh.subMeshes = imported.subMeshes;
-	if (mesh.subMeshes.empty() && 0 < mesh.indexCount) {
-		mesh.subMeshes.emplace_back(SubMeshDesc{ 0, mesh.indexCount });
-	}
-
-	// サブメッシュのテクスチャアセットIDを解決
-	ResolveSubMeshDefaultTextureAssets(*assetDatabase_, mesh);
-
-	// 頂点SRVリソース
-	{
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.vertexSRV, imported.vertices, L"MeshVertices");
-	}
-
-	// 描画用圧縮頂点SRVリソース
-	{
-		// MeshShader側の帯域削減用に、法線を圧縮した頂点バッファも作る
-		std::vector<MeshPackedVertex> packedVertices = BuildPackedVertices(imported.vertices);
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.packedVertexSRV, packedVertices, L"MeshPackedVertices");
-	}
-
-	// インデックスバッファ
-	{
-		// 16bitに収まるメッシュはIBVだけ16bit化して帯域を減らす
-		const bool useIndex16 = CanPackMeshletVertexIndices(imported.indices);
-		if (useIndex16) {
-			const std::vector<uint16_t> indices16 = BuildIndex16(imported.indices);
-			// BLAS構築でも同じIBを読むため、最終状態はINDEX_BUFFER単独ではなくGENERIC_READにする
-			mesh.indexBuffer.Create(device_, *uploadService_, std::span(indices16),
-				D3D12_RESOURCE_STATE_GENERIC_READ);
-		} else {
-			// SRV用indexSRVは32bitのまま別途保持し、IBVだけ描画向けに最適化する
-			mesh.indexBuffer.Create(device_, *uploadService_, std::span(imported.indices),
-				DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_STATE_GENERIC_READ);
-		}
-	}
-
-	// インデックスSRVリソース
-	{
-		// シェーダ側では32bit Indexとして読むため、SRVは従来どおり32bitを保持する
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.indexSRV, imported.indices, L"MeshIndices");
-	}
-
-	// スキニングインフルエンスSRVリソース
-	if (mesh.isSkinned && !imported.vertexInfluences.empty()) {
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.skinInfluenceSRV, imported.vertexInfluences, L"SkinInfluences");
-	}
-
-	// 頂点サブメッシュインデックスSRVリソース
-	{
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.vertexSubMeshIndexSRV, imported.vertexSubMeshIndices, L"MeshVertexSubMeshIndices");
-	}
-
-	// PrimitiveIndex()->サブメッシュインデックス参照用
-	{
-		std::vector<uint32_t> primitiveSubMeshTable = BuildPrimitiveSubMeshTable(mesh.subMeshes, mesh.indexCount);
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.primitiveSubMeshIndexSRV, primitiveSubMeshTable, L"MeshPrimitiveSubMeshIndices");
-	}
-
-	// メッシュレットSRVリソース
-	if (!imported.meshlets.empty()) {
-		// MSが使う範囲情報だけを分離して読み込み量を減らす
-		std::vector<MeshletDrawDesc> drawDescs = BuildMeshletDrawDescs(imported.meshlets);
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.meshletDrawSRV, drawDescs, L"MeshletDrawDescs");
-
-		// ASで先にカリングできるようBounds/NormalConeだけを分離する
-		std::vector<MeshletBounds> bounds = BuildMeshletBounds(imported.meshlets);
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.meshletBoundsSRV, bounds, L"MeshletBounds");
-	}
-	if (!imported.meshletVertexIndices.empty()) {
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.meshletVertexIndexSRV, imported.meshletVertexIndices, L"MeshletVertexIndices");
-
-		mesh.usePackedMeshletVertexIndices = CanPackMeshletVertexIndices(imported.meshletVertexIndices);
-		if (mesh.usePackedMeshletVertexIndices) {
-
-			// 16bitに収まるメッシュレット頂点Indexは2個ずつ詰めて転送量を減らす
-			std::vector<uint32_t> packedIndices = BuildPackedMeshletVertexIndices(imported.meshletVertexIndices);
-			CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-				mesh.packedMeshletVertexIndexSRV, packedIndices, L"PackedMeshletVertexIndices");
-		}
-	}
-	if (!imported.meshletPrimitiveIndices.empty()) {
-		CreateImmutableSRV(device_, *uploadService_, *srvDescriptor_,
-			mesh.meshletPrimitiveIndexSRV, imported.meshletPrimitiveIndices, L"MeshletPrimitiveIndices");
-	}
-
-	// このメッシュで積んだDEFAULT heap初期転送を1Batchとして提出し描画Queue側はGPU Waitで順序保証する
-	uploadService_->SubmitBatch();
-
-	// GPUリソースを保存
 	{
 		std::scoped_lock lock(mutex_);
-		// 現在のリロード世代を焼き込み、BLAS等のキャッシュが差し替えを検知できるようにする
-		mesh.reloadGeneration = reloadGeneration_[imported.assetID];
-		gpuMeshes_.emplace(imported.assetID, std::move(mesh));
+		// 古い読込結果のGPU生成を省く
+		if (requestRevisions_.at(imported.assetID) != revision) {
+			return;
+		}
+	}
+
+	MeshGPUResource mesh{};
+	try {
+		mesh = MeshGPUBuilder::Create(imported, assetDatabase_, device_, uploadService_, srvDescriptor_);
+	}
+	catch (const std::exception& exception) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"MeshのGPU資源作成に失敗しました asset={} 内容={}",
+			ToString(imported.assetID), exception.what());
+		return;
+	}
+	catch (...) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"MeshのGPU資源作成に失敗しました asset={} 内容=不明な例外",
+			ToString(imported.assetID));
+		return;
+	}
+	if (!mesh.IsValid()) {
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"MeshのGPU資源作成に失敗しました asset={}", ToString(imported.assetID));
+		ReleaseMeshResource(mesh);
+		return;
+	}
+
+	MeshGPUResource old{};
+	bool retireOld = false;
+	// 成功した候補を公開してから旧GPU資源を回収へ渡す
+	{
+		std::scoped_lock lock(mutex_);
+		// GPU生成中に新しい要求を受けた候補も公開しない
+		if (requestRevisions_.at(imported.assetID) != revision) {
+			return;
+		}
+		auto it = gpuMeshes_.find(imported.assetID);
+		auto& generation = reloadGeneration_[imported.assetID];
+		if (generation == UINT32_MAX) {
+			throw std::overflow_error("Meshの公開世代が上限に達しました");
+		}
+		mesh.reloadGeneration = generation + 1;
+		if (it == gpuMeshes_.end()) {
+			gpuMeshes_.emplace(imported.assetID, std::move(mesh));
+		} else {
+			old = std::move(it->second);
+			it->second = std::move(mesh);
+			retireOld = true;
+		}
+		++generation;
 		++resourceRevision_;
+	}
+	if (retireOld) {
+		ReleaseMeshResource(old);
+	}
+	// GPU公開に成功した世代だけ編集layoutの解析を失効させる
+	MeshSubMeshAuthoring::InvalidateCachedLayout(imported.assetID);
+}
+
+void Engine::MeshGPUResourceManager::BeginRequest(AssetID asset) {
+
+	auto& revision = requestRevisions_[asset];
+	if (revision == UINT64_MAX) {
+		throw std::overflow_error("Meshの要求世代が上限に達しました");
+	}
+	++revision;
+	if (!requested_.contains(asset)) {
+		QueueLatestRequest(asset, revision);
+	}
+}
+
+void Engine::MeshGPUResourceManager::QueueLatestRequest(AssetID asset, uint64_t revision) {
+
+	// workerの開始前に受付状態を確保する
+	const auto [entry, inserted] = requested_.emplace(asset, revision);
+	if (!inserted) {
+		return;
+	}
+	try {
+		if (!importService_.RequestLoadAsync(*assetDatabase_, asset)) {
+			requested_.erase(entry);
+		}
+	} catch (...) {
+		requested_.erase(entry);
+		throw;
+	}
+}
+
+void Engine::MeshGPUResourceManager::CompleteRequest(AssetID asset, uint64_t revision) {
+
+	std::scoped_lock lock(mutex_);
+	const auto active = requested_.find(asset);
+	if (active == requested_.end() || active->second != revision) {
+		return;
+	}
+	requested_.erase(active);
+	const uint64_t latest = requestRevisions_.at(asset);
+	if (latest != revision) {
+		QueueLatestRequest(asset, latest);
 	}
 }

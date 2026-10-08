@@ -1,20 +1,24 @@
 #include "InputSystem.h"
 
-using namespace Engine;
-
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
-#include <Engine/Core/Foundation/Diagnostics/Assert.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
-#pragma comment(lib,"dInput8.lib")
-#pragma comment(lib,"dxguid.lib")
+// c++
+#include <algorithm>
+#include <cmath>
+
+#pragma comment(lib, "dInput8.lib")
+#pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "xinput.lib")
+
+using namespace Engine;
 
 //============================================================================
 //	Input classMethods
@@ -22,136 +26,16 @@ using namespace Engine;
 
 Input* Input::instance_ = nullptr;
 
-void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos,
-	const Vector2& dstSize, const Vector2& srcSize,
-	InputViewCoordinateSpace coordinateSpace) {
-
-	ViewRect& rect = viewRects_[viewArea];
-	rect.dstPos = dstPos;
-	rect.dstSize = dstSize;
-	rect.coordinateSpace = coordinateSpace;
-	if (srcSize.x <= 0.0f || srcSize.y <= 0.0f) {
-		rect.srcSize = dstSize;
-	} else {
-		rect.srcSize = srcSize;
-	}
-}
-
-bool Engine::Input::HasViewRect(InputViewArea viewArea) const {
-
-	return viewRects_.find(viewArea) != viewRects_.end();
-}
-
-bool Input::IsMouseOnView(InputViewArea viewArea) const {
-
-	auto found = viewRects_.find(viewArea);
-	if (found == viewRects_.end()) {
-		return false;
-	}
-	const ViewRect& rect = found->second;
-	const Vector2 mouse = rect.coordinateSpace == InputViewCoordinateSpace::Screen ?
-		mouseScreenPos_ : mousePos_;
-	return (mouse.x >= rect.dstPos.x && mouse.y >= rect.dstPos.y &&
-		mouse.x < rect.dstPos.x + rect.dstSize.x &&
-		mouse.y < rect.dstPos.y + rect.dstSize.y);
-}
-
-std::optional<Vector2> Input::GetMousePosInView(InputViewArea viewArea) const {
-
-	if (!IsMouseOnView(viewArea)) {
-		return std::nullopt;
-	}
-
-	ViewRect rect = viewRects_.at(viewArea);
-	if (rect.dstSize.x <= 0.0f || rect.dstSize.y <= 0.0f) {
-		return std::nullopt;
-	}
-	const Vector2 mouse = rect.coordinateSpace == InputViewCoordinateSpace::Screen ?
-		mouseScreenPos_ : mousePos_;
-	Vector2 local = Vector2(mouse.x - rect.dstPos.x, mouse.y - rect.dstPos.y);
-	if (rect.srcSize.x <= 0.0f || rect.srcSize.y <= 0.0f) {
-		return local;
-	}
-	return local * (rect.srcSize / rect.dstSize);
-}
-
-Vector2 Input::GetMouseMoveValueInView(InputViewArea viewArea) const {
-
-	const auto it = viewRects_.find(viewArea);
-	if (it == viewRects_.end()) {
-		return GetMouseMoveValue();
-	}
-
-	const ViewRect& rect = it->second;
-	if (rect.dstSize.x <= 0.0f || rect.dstSize.y <= 0.0f ||
-		rect.srcSize.x <= 0.0f || rect.srcSize.y <= 0.0f) {
-		return GetMouseMoveValue();
-	}
-	return GetMouseMoveValue() * (rect.srcSize / rect.dstSize);
-}
-
-uint32_t Engine::Input::PlayVibration(const InputVibrationParams& params) {
-
-	// 再生時間が正でなければ無効
-	if (params.duration <= 0.0f) {
-		return 0;
-	}
-	float l = std::clamp(params.left, 0.0f, 1.0f);
-	float r = std::clamp(params.right, 0.0f, 1.0f);
-	if (l <= 0.0f && r <= 0.0f) {
-		return 0;
-	}
-
-	VibrationEffect e{};
-	e.handle = nextVibHandle_++;
-	if (nextVibHandle_ == 0) { nextVibHandle_ = 1; }
-
-	e.left = l;
-	e.right = r;
-	e.duration = params.duration;
-	e.attack = (std::max)(0.0f, params.attack);
-	e.release = (std::max)(0.0f, params.release);
-	e.priority = params.priority;
-	e.start = std::chrono::steady_clock::now();
-
-	vibEffects_.push_back(e);
-	return e.handle;
-}
-
-void Engine::Input::StopVibration(uint32_t handle) {
-
-	if (handle == 0) {
-		return;
-	}
-
-	auto it = std::remove_if(vibEffects_.begin(), vibEffects_.end(),
-		[&](const VibrationEffect& e) { return e.handle == handle; });
-	vibEffects_.erase(it, vibEffects_.end());
-
-	if (vibEffects_.empty()) {
-		ApplyVibration(0, 0);
-	}
-}
-
-void Engine::Input::StopAllVibration() {
-
-	vibEffects_.clear();
-	ApplyVibration(0, 0);
-}
-
-void Engine::Input::SetVibrationEnabled(bool enabled) {
-
-	vibrationEnabled_ = enabled;
-	if (!vibrationEnabled_) {
-		StopAllVibration();
-	}
-}
-
 Input* Input::GetInstance() {
 
 	if (instance_ == nullptr) {
 		instance_ = new Input();
 	}
+	return instance_;
+}
+
+Input* Input::TryGetInstance() {
+
 	return instance_;
 }
 
@@ -166,217 +50,26 @@ void Input::Finalize() {
 	}
 }
 
-bool Input::PushKey(BYTE keyNumber, const std::source_location& location) {
-
-	(void)location;
-	return key_[keyNumber];
-}
-
-bool Input::TriggerKey(BYTE keyNumber, const std::source_location& location) {
-
-	// 現在のフレームで押されていて、前のフレームで押されていなかった場合にtrueを返す
-	(void)location;
-	return key_[keyNumber] && !keyPre_[keyNumber];
-}
-bool Input::ReleaseKey(BYTE keyNumber, const std::source_location& location) {
-
-	(void)location;
-	return !key_[keyNumber] && keyPre_[keyNumber];
-}
-bool Input::PushGamepadButton(GamePadButtons button, const std::source_location& location) {
-
-	const size_t index = static_cast<size_t>(button);
-	(void)location;
-	if (gamepadButtons_.size() <= index) {
-		Assert::Call(false, "GamePad Button番号が範囲外です");
-		return false;
-	}
-	return gamepadButtons_[index];
-}
-bool Input::TriggerGamepadButton(GamePadButtons button, const std::source_location& location) {
-
-	// ボタン番号が範囲外の場合はfalseを返す
-	if (gamepadButtons_.size() <= static_cast<size_t>(button)) {
-		return false;
-	}
-
-	(void)location;
-	return gamepadButtons_[static_cast<size_t>(button)] &&
-		!gamepadButtonsPre_[static_cast<size_t>(button)];
-}
-float Input::GetLeftTriggerValue() const {
-
-	return leftTriggerValue_;
-}
-float Input::GetRightTriggerValue() const {
-
-	return rightTriggerValue_;
-}
-Vector2 Input::GetLeftStickVal() const {
-	return { leftThumbX_,leftThumbY_ };
-}
-Vector2 Input::GetRightStickVal() const {
-	return { rightThumbX_,rightThumbY_ };
-}
-float Input::ApplyDeadZone(float value) {
-
-	if (std::fabs(value) < deadZone_) {
-		return 0.0f;
-	}
-	return value;
-}
-Vector2 Input::GetMousePos() const {
-
-	return mousePos_;
-}
-Vector2 Input::GetMousePrePos() const {
-
-	return mousePrePos_;
-}
-Vector2 Input::GetMouseMoveValue() const {
-
-	return { static_cast<float>(mouseState_.lX),static_cast<float>(mouseState_.lY) };
-}
-float Input::GetMouseWheel() {
-
-	return wheelValue_;
-}
-bool Input::PushMouseButton(size_t index, const std::source_location& location) const {
-
-	(void)location;
-	Assert::Call(index < mouseButtons_.size(), "Mouse Button番号が範囲外です");
-	return index < mouseButtons_.size() && mouseButtons_[index];
-}
-bool Input::PushMouse(MouseButton button, const std::source_location& location) const {
-
-	bool push = false;
-	switch (button) {
-	case MouseButton::Right: {
-
-		push = PushMouseRight(location);
-		break;
-	}
-	case MouseButton::Left: {
-
-		push = PushMouseLeft(location);
-		break;
-	}
-	case MouseButton::Center: {
-
-		push = PushMouseCenter(location);
-		break;
-	}
-	}
-	return push;
-}
-bool Input::TriggerMouseLeft(const std::source_location& location) const {
-
-	(void)location;
-	return !mousePreButtons_[0] && mouseButtons_[0];
-}
-bool Input::TriggerMouseRight(const std::source_location& location) const {
-
-	(void)location;
-	return !mousePreButtons_[1] && mouseButtons_[1];
-}
-bool Input::TriggerMouseCenter(const std::source_location& location) const {
-
-	(void)location;
-	return !mousePreButtons_[2] && mouseButtons_[2];
-}
-bool Input::TriggerMouse(MouseButton button, const std::source_location& location) const {
-
-	bool trigger = false;
-	switch (button) {
-	case MouseButton::Right: {
-
-		trigger = TriggerMouseRight(location);
-		break;
-	}
-	case MouseButton::Left: {
-
-		trigger = TriggerMouseLeft(location);
-		break;
-	}
-	case MouseButton::Center: {
-
-		trigger = TriggerMouseCenter(location);
-		break;
-	}
-	}
-	return trigger;
-}
-bool Input::ReleaseMouse(MouseButton button, const std::source_location& location) const {
-
-	bool released = false;
-	switch (button) {
-	case MouseButton::Left: {
-
-		(void)location;
-		released = !mouseButtons_[0] && mousePreButtons_[0];
-		break;
-	}
-	case MouseButton::Right: {
-
-		(void)location;
-		released = !mouseButtons_[1] && mousePreButtons_[1];
-		break;
-	}
-	case MouseButton::Center: {
-
-		(void)location;
-		released = !mouseButtons_[2] && mousePreButtons_[2];
-		break;
-	}
-	}
-	return released;
-}
 void Input::SetDeadZone(float deadZone) {
 
-	deadZone_ = std::clamp(deadZone, 0.0f, maxStickValue_);
+	// 非有限値では現在の閾値を維持
+	if (std::isfinite(deadZone)) {
+		configuration_.deadZone = std::clamp(deadZone, 0.0f, InputDeviceConfiguration::kMaxStickValue);
+	}
 }
 
-void Input::Init(WinApp* winApp) {
+void Input::SetMouseArea(const Vector2& pos, const Vector2& size) {
 
-	winApp_ = winApp;
+	// 次の更新で使用する移動範囲を設定
+	configuration_.mouseAreaPos = pos;
+	configuration_.mouseAreaSize = size;
+}
 
-	HRESULT hr;
+void Input::SetMouseReleaseShortcut(int32_t modKey, int32_t triggerKey) {
 
-	// DirectInputの初期化
-	dInput_ = nullptr;
-	hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&dInput_, nullptr);
-	Assert::Call(SUCCEEDED(hr), "DirectInputの初期化に失敗しました");
-
-	// キーボードデバイスの初期化
-	keyboard_ = nullptr;
-	hr = dInput_->CreateDevice(GUID_SysKeyboard, &keyboard_, NULL);
-	Assert::Call(SUCCEEDED(hr), "キーボード入力デバイスの作成に失敗しました");
-
-	// 入力データ形式のセット標準形式
-	hr = keyboard_->SetDataFormat(&c_dfDIKeyboard);
-	Assert::Call(SUCCEEDED(hr), "キーボード入力形式の設定に失敗しました");
-
-	// 排他制御レベルのリセット
-	hr = keyboard_->SetCooperativeLevel(winApp_->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
-	Assert::Call(SUCCEEDED(hr), "キーボードの協調レベル設定に失敗しました");
-
-	// マウスデバイスの初期化
-	hr = dInput_->CreateDevice(GUID_SysMouse, &mouse_, NULL);
-	Assert::Call(SUCCEEDED(hr), "マウス入力デバイスの作成に失敗しました");
-
-	// 入力データ形式のセット
-	hr = mouse_->SetDataFormat(&c_dfDIMouse);
-	Assert::Call(SUCCEEDED(hr), "マウス入力形式の設定に失敗しました");
-
-	// 排他制御レベルのリセット
-	hr = mouse_->SetCooperativeLevel(winApp_->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
-	Assert::Call(SUCCEEDED(hr), "マウスの協調レベル設定に失敗しました");
-
-	// マウスの取得開始
-	hr = mouse_->Acquire();
-
-	// 保存済み設定があれば上書きする
-	LoadConfig();
+	// 解除に使用するキーを設定
+	configuration_.mouseReleaseModKey = modKey;
+	configuration_.mouseReleaseTriggerKey = triggerKey;
 }
 
 namespace {
@@ -386,42 +79,24 @@ namespace {
 
 void Input::LoadConfig() {
 
-	const std::filesystem::path path = RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath);
+	const auto path = RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath);
 	if (!JsonAdapter::Check(path)) {
 		return;
 	}
-	const nlohmann::json data = JsonAdapter::Load(path);
-	if (!data.is_object()) {
-		return;
+	nlohmann::json data;
+	// 検証に失敗した設定は適用しない
+	if (!JsonAdapter::TryLoad(path, data) || !InputDeviceConfigurationSerialization::TryRead(data, configuration_)) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "入力デバイス設定の読み込みに失敗しました");
 	}
-
-	deadZone_ = data.value("deadZone", deadZone_);
-	SetDeadZone(deadZone_);
-
-	// マウス範囲制御を復元する
-	mouseRangeControl_ = data.value("mouseRangeControl", mouseRangeControl_);
-	mouseAreaPos_.x = data.value("mouseAreaPosX", mouseAreaPos_.x);
-	mouseAreaPos_.y = data.value("mouseAreaPosY", mouseAreaPos_.y);
-	mouseAreaSize_.x = data.value("mouseAreaSizeX", mouseAreaSize_.x);
-	mouseAreaSize_.y = data.value("mouseAreaSizeY", mouseAreaSize_.y);
-	mouseReleaseModKey_ = data.value("mouseReleaseModKey", mouseReleaseModKey_);
-	mouseReleaseTriggerKey_ = data.value("mouseReleaseTriggerKey", mouseReleaseTriggerKey_);
 }
 
 void Input::SaveConfig() const {
 
-	nlohmann::json data{};
-	data["deadZone"] = deadZone_;
-
-	data["mouseRangeControl"] = mouseRangeControl_;
-	data["mouseAreaPosX"] = mouseAreaPos_.x;
-	data["mouseAreaPosY"] = mouseAreaPos_.y;
-	data["mouseAreaSizeX"] = mouseAreaSize_.x;
-	data["mouseAreaSizeY"] = mouseAreaSize_.y;
-	data["mouseReleaseModKey"] = mouseReleaseModKey_;
-	data["mouseReleaseTriggerKey"] = mouseReleaseTriggerKey_;
-
-	JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath), data);
+	// 保存失敗を無視せず通知する
+	if (!JsonAdapter::Save(RuntimePaths::GetUserSettingsPath(kInputDeviceConfigPath),
+			InputDeviceConfigurationSerialization::Write(configuration_))) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "入力デバイス設定の保存に失敗しました");
+	}
 }
 
 void Input::UpdateInputDevice() {
@@ -433,34 +108,33 @@ void Input::UpdateInputDevice() {
 		inputType_ = InputType::GamePad;
 	}
 
-	// 範囲制御中はショートカット(modKey押下+triggerKey)で解除できるようにする
-	if (mouseRangeControl_ &&
-		PushKey(static_cast<BYTE>(mouseReleaseModKey_)) &&
-		TriggerKey(static_cast<BYTE>(mouseReleaseTriggerKey_))) {
-		mouseRangeControl_ = false;
+	// 指定キーの組合せで範囲制御を解除
+	if (configuration_.mouseRangeControl && PushKey(static_cast<BYTE>(configuration_.mouseReleaseModKey)) &&
+		TriggerKey(static_cast<BYTE>(configuration_.mouseReleaseTriggerKey))) {
+		configuration_.mouseRangeControl = false;
 	}
 
-	// 範囲制御中は毎フレーム指定矩形へクリップし直し、位置とサイズの変更も反映する
-	if (mouseRangeControl_) {
-		WinApp::ClipCursorToClientRect(mouseAreaSize_, mouseAreaPos_);
+	// 現在の移動範囲をカーソルへ適用
+	if (configuration_.mouseRangeControl) {
+		WinApp::ClipCursorToClientRect(configuration_.mouseAreaSize, configuration_.mouseAreaPos);
 	} else if (mouseRangeControlPrev_) {
 		WinApp::ReleaseCursorClip();
 	}
-	mouseRangeControlPrev_ = mouseRangeControl_;
+	mouseRangeControlPrev_ = configuration_.mouseRangeControl;
 }
 
 bool Input::HasKeyboardMouseInput() const {
 
 	// 任意キーが押されたフレームをPC操作として扱う
-	for (size_t i = 0; i < key_.size(); ++i) {
-		if (key_[i] && !keyPre_[i]) {
+	for (size_t i = 0; i < hardware_.GetState().key.size(); ++i) {
+		if (hardware_.GetState().key[i] && !hardware_.GetState().keyPre[i]) {
 			return true;
 		}
 	}
 
 	// マウスボタンが押されたフレームをPC操作として扱う
-	for (size_t i = 0; i < mouseButtons_.size(); ++i) {
-		if (mouseButtons_[i] && !mousePreButtons_[i]) {
+	for (size_t i = 0; i < hardware_.GetState().mouseButtons.size(); ++i) {
+		if (hardware_.GetState().mouseButtons[i] && !hardware_.GetState().mousePreButtons[i]) {
 			return true;
 		}
 	}
@@ -471,26 +145,26 @@ bool Input::HasKeyboardMouseInput() const {
 	if (std::sqrt(move.x * move.x + move.y * move.y) > kMouseMoveThreshold) {
 		return true;
 	}
-	return wheelValue_ != 0.0f;
+	return hardware_.GetState().wheelValue != 0.0f;
 }
 
 bool Input::HasGamepadInput() const {
 
 	// 接続状態では切り替えず、ボタンとアナログ入力の開始だけを操作として扱う
-	for (int i = 0; i < kMaxGamepads; ++i) {
+	for (int i = 0; i < InputDeviceState::kMaxGamepads; ++i) {
 		const size_t index = static_cast<size_t>(i);
-		if (!padConnected_[index]) {
+		if (!hardware_.GetState().padConnected[index]) {
 			continue;
 		}
 
-		const XINPUT_GAMEPAD& current = pads_[index].Gamepad;
-		const XINPUT_GAMEPAD previous = padConnectedPre_[index]
-			? padsPre_[index].Gamepad : XINPUT_GAMEPAD{};
+		const XINPUT_GAMEPAD& current = hardware_.GetState().pads[index].Gamepad;
+		const XINPUT_GAMEPAD previous =
+			hardware_.GetState().padConnectedPre[index] ? hardware_.GetState().padsPre[index].Gamepad : XINPUT_GAMEPAD{};
 		if ((current.wButtons & ~previous.wButtons) != 0) {
 			return true;
 		}
 		if ((current.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD &&
-			previous.bLeftTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD) ||
+				previous.bLeftTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD) ||
 			(current.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD &&
 				previous.bRightTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD)) {
 			return true;
@@ -503,321 +177,171 @@ bool Input::HasGamepadInput() const {
 			const float preY = static_cast<float>(previousY);
 			const float currentLength = std::sqrt(currentX * currentX + currentY * currentY);
 			const float previousLength = std::sqrt(preX * preX + preY * preY);
-			return currentLength > deadZone_ && previousLength <= deadZone_;
+			return currentLength > configuration_.deadZone && previousLength <= configuration_.deadZone;
 		};
-		if (stickStarted(current.sThumbLX, current.sThumbLY,
-			previous.sThumbLX, previous.sThumbLY) ||
-			stickStarted(current.sThumbRX, current.sThumbRY,
-				previous.sThumbRX, previous.sThumbRY)) {
+		if (stickStarted(current.sThumbLX, current.sThumbLY, previous.sThumbLX, previous.sThumbLY) ||
+			stickStarted(current.sThumbRX, current.sThumbRY, previous.sThumbRX, previous.sThumbRY)) {
 			return true;
 		}
 	}
 	return false;
 }
 
+//============================================================================
+//	ゲーム入力
+//============================================================================
+
+//============================================================================
+//	InputSystem classMethods
+//============================================================================
+
+uint32_t Engine::Input::PlayVibration(const InputVibrationParams& params) {
+
+	return PlayVibration(0, params);
+}
+
+uint32_t Engine::Input::PlayVibration(uint32_t playerIndex, const InputVibrationParams& params) {
+
+	return playerIndex < kMaxPlayers ? vibrations_[playerIndex].PlayVibration(params) : 0;
+}
+
+void Engine::Input::StopVibration(uint32_t handle) {
+
+	StopVibration(0, handle);
+}
+
+void Engine::Input::StopVibration(uint32_t playerIndex, uint32_t handle) {
+
+	if (playerIndex < kMaxPlayers) {
+		vibrations_[playerIndex].StopVibration(handle);
+	}
+}
+
+void Engine::Input::StopAllVibration() {
+
+	for (InputVibrationPlayer& vibration : vibrations_) {
+		vibration.StopAllVibration();
+	}
+}
+
+void Engine::Input::SetVibrationEnabled(bool enabled) {
+
+	for (InputVibrationPlayer& vibration : vibrations_) {
+		vibration.SetVibrationEnabled(enabled);
+	}
+}
+
+void Engine::Input::SetVibrationEnabled(uint32_t playerIndex, bool enabled) {
+
+	if (playerIndex < kMaxPlayers) {
+		vibrations_[playerIndex].SetVibrationEnabled(enabled);
+	}
+}
+
+void Engine::Input::SetPlayerGamepadIndex(uint32_t playerIndex, int32_t gamepadIndex) {
+
+	if (playerIndex >= kMaxPlayers || gamepadIndex < -1 || InputDeviceState::kMaxGamepads <= gamepadIndex) {
+		return;
+	}
+	configuration_.playerGamepads[playerIndex] = gamepadIndex;
+}
+
+int32_t Engine::Input::GetPlayerGamepadIndex(uint32_t playerIndex) const {
+
+	return playerIndex < kMaxPlayers ? configuration_.playerGamepads[playerIndex] : -1;
+}
+
+void Engine::Input::SetPlayerKeyboardMouseEnabled(uint32_t playerIndex, bool enabled) {
+
+	if (playerIndex < kMaxPlayers) {
+		configuration_.playerKeyboardMouse[playerIndex] = enabled;
+	}
+}
+
+bool Engine::Input::IsPlayerKeyboardMouseEnabled(uint32_t playerIndex) const {
+
+	return playerIndex < kMaxPlayers && configuration_.playerKeyboardMouse[playerIndex];
+}
+
+bool Engine::Input::IsGameplayInputAvailable(uint32_t playerIndex) const {
+
+	return playerIndex < kMaxPlayers && (configuration_.backgroundInputEnabled || HasWindowFocus());
+}
+
+void Input::Init(WinApp* winApp) {
+
+	winApp_ = winApp;
+	hardware_.Init(*winApp_);
+	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
+		vibrations_[i].SetGamepadIndex(i);
+	}
+	LoadConfig();
+}
+
 void Input::Update() {
 
-	mousePrePos_ = mousePos_;
-	mousePreButtons_ = mouseButtons_;
+	// フォーカス復帰時は押下状態だけ復元
+	suppressEdgesThisFrame_ = suppressEdgesOnNextUpdate_;
+	suppressEdgesOnNextUpdate_ = false;
+	hardware_.BeginFrame();
+	hardware_.PollKeyboardAndGamepads(configuration_.deadZone);
+	windowEvents_.CommitText();
 
-	HRESULT hr;
-
-	// キーボード情報の取得開始
-	hr = keyboard_->Acquire();
-
-	// 前回のキー入力を保存
-	std::memcpy(keyPre_.data(), key_.data(), key_.size());
-
-	// 全キーの入力状態を取得する
-	hr = keyboard_->GetDeviceState(static_cast<DWORD>(key_.size()), key_.data());
-
-	// 前回のゲームパッドの状態を保存
-	std::memcpy(gamepadButtonsPre_.data(), gamepadButtons_.data(), gamepadButtons_.size());
-
-	// gameplay用の多gamepad snapshotを更新する、indexはC# GamepadButton / GamepadAxis enumに対応する
-	padsPre_ = pads_;
-	padConnectedPre_ = padConnected_;
-	for (int i = 0; i < kMaxGamepads; ++i) {
-		ZeroMemory(&pads_[i], sizeof(XINPUT_STATE));
-		padConnected_[i] = (XInputGetState(static_cast<DWORD>(i), &pads_[i]) == ERROR_SUCCESS);
+	// Playerごとの割り当て先へ振動を出力
+	for (uint32_t i = 0; i < kMaxPlayers; ++i) {
+		const int32_t gamepadIndex = configuration_.playerGamepads[i];
+		vibrations_[i].SetGamepadIndex(gamepadIndex < 0 ? i : static_cast<uint32_t>(gamepadIndex));
+		vibrations_[i].UpdateVibration(IsGameplayInputAvailable(i) && GamepadConnectedByIndex(gamepadIndex));
 	}
 
-	// 既存single-gamepad pathはindex0のsnapshotを共有し、XInputGetStateの二重ポーリングを避ける
-	gamepadState_ = pads_[0];
-	gamepadConnected_ = padConnected_[0];
-
-	if (gamepadConnected_) {
-
-#pragma region ///ゲームパッドが接続されている場合の処理 ///
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::ARROW_UP)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::ARROW_DOWN)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::ARROW_LEFT)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::ARROW_RIGHT)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::START)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_START) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::BACK)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::LEFT_THUMB)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::RIGHT_THUMB)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::LEFT_SHOULDER)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::RIGHT_SHOULDER)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::LEFT_TRIGGER)] = (leftTriggerValue_ > 0);
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::RIGHT_TRIGGER)] = (rightTriggerValue_ > 0);
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::A)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_A) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::B)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_B) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::X)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_X) != 0;
-		gamepadButtons_[static_cast<size_t>(GamePadButtons::Y)] = (gamepadState_.Gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0;
-
-		// スティックの状態を更新
-		leftThumbX_ = ApplyDeadZone(gamepadState_.Gamepad.sThumbLX);
-		leftThumbY_ = ApplyDeadZone(gamepadState_.Gamepad.sThumbLY);
-		rightThumbX_ = ApplyDeadZone(gamepadState_.Gamepad.sThumbRX);
-		rightThumbY_ = ApplyDeadZone(gamepadState_.Gamepad.sThumbRY);
-
-		leftTriggerValue_ = static_cast<float>(gamepadState_.Gamepad.bLeftTrigger) / 255.0f;
-		rightTriggerValue_ = static_cast<float>(gamepadState_.Gamepad.bRightTrigger) / 255.0f;
-#pragma endregion
-	} else {
-
-		// ゲームパッドが接続されていない場合の処理
-		std::fill(gamepadButtons_.begin(), gamepadButtons_.end(), false);
-
-		leftThumbX_ = 0.0f;
-		leftThumbY_ = 0.0f;
-		rightThumbX_ = 0.0f;
-		rightThumbY_ = 0.0f;
-
-		leftTriggerValue_ = 0.0f;
-		rightTriggerValue_ = 0.0f;
-	}
-
-	// 文字入力を確定し直前のmessage pumpで溜めたWM_CHAR分をframe-localテキストにする
-	if (!pendingWide_.empty()) {
-		const int needed = ::WideCharToMultiByte(CP_UTF8, 0, pendingWide_.c_str(),
-			static_cast<int>(pendingWide_.size()), nullptr, 0, nullptr, nullptr);
-		if (needed > 0) {
-			frameText_.resize(static_cast<size_t>(needed));
-			::WideCharToMultiByte(CP_UTF8, 0, pendingWide_.c_str(), static_cast<int>(pendingWide_.size()),
-				frameText_.data(), needed, nullptr, nullptr);
-		} else {
-			frameText_.clear();
-		}
-		pendingWide_.clear();
-	} else {
-		frameText_.clear();
-	}
-
-	// デバイス振動の更新
-	UpdateVibration();
-
-	// マウス情報の取得開始
-	hr = mouse_->Acquire();
-	if (FAILED(hr)) {
-		if (hr == DIERR_INPUTLOST || hr == DIERR_NOTACQUIRED) {
-
-			mouse_->Acquire();
-		}
-	}
-
-	hr = mouse_->GetDeviceState(sizeof(DIMOUSESTATE), &mouseState_);
-
-	POINT screenPoint{};
-	if (GetCursorPos(&screenPoint)) {
-		mouseScreenPos_.x = static_cast<float>(screenPoint.x);
-		mouseScreenPos_.y = static_cast<float>(screenPoint.y);
-
-		POINT clientPoint = screenPoint;
-		ScreenToClient(winApp_->GetHwnd(), &clientPoint);
-		mousePos_.x = static_cast<float>(clientPoint.x);
-		mousePos_.y = static_cast<float>(clientPoint.y);
-	}
-
-	if (FAILED(hr)) {
-		// 取得失敗時の処理
-		ZeroMemory(&mouseState_, sizeof(DIMOUSESTATE));
-		std::fill(mouseButtons_.begin(), mouseButtons_.end(), false);
-		wheelValue_ = 0.0f;
-	} else {
-
-		// マウスボタンの状態を保存
-		mouseButtons_[0] = (mouseState_.rgbButtons[0] & 0x80) != 0;
-		mouseButtons_[1] = (mouseState_.rgbButtons[1] & 0x80) != 0;
-		mouseButtons_[2] = (mouseState_.rgbButtons[2] & 0x80) != 0;
-
-		// ホイール値
-		wheelValue_ = static_cast<float>(mouseState_.lZ) / WHEEL_DELTA;
-	}
+	hardware_.PollMouse(*winApp_);
 }
 
-void Input::UpdateVibration() {
+void Input::SetWindowFocus(bool focused) {
 
-	// disabled -> always stop
-	if (!vibrationEnabled_) {
-		if (!vibEffects_.empty() || lastMotorLeft_ != 0 || lastMotorRight_ != 0) {
-			vibEffects_.clear();
-			ApplyVibration(0, 0);
-		}
-		return;
+	if (focused && !windowEvents_.HasWindowFocus()) {
+		suppressEdgesOnNextUpdate_ = true;
 	}
-
-	// disconnected -> clear & stop
-	if (!gamepadConnected_) {
-		if (!vibEffects_.empty() || lastMotorLeft_ != 0 || lastMotorRight_ != 0) {
-
-			vibEffects_.clear();
-			ApplyVibration(0, 0);
-		}
-		return;
-	}
-
-	if (vibEffects_.empty()) {
-		// モーターを確実に停止する
-		ApplyVibration(0, 0);
-		return;
-	}
-
-	const auto now = std::chrono::steady_clock::now();
-
-	// remove expired
-	auto it = std::remove_if(vibEffects_.begin(), vibEffects_.end(), [&](const VibrationEffect& e) {
-		const float t = std::chrono::duration<float>(now - e.start).count();
-		return (t >= e.duration);
-		});
-	vibEffects_.erase(it, vibEffects_.end());
-
-	float outL = 0.0f;
-	float outR = 0.0f;
-
-	for (const auto& e : vibEffects_) {
-		const float t = std::chrono::duration<float>(now - e.start).count();
-		const float remain = (std::max)(0.0f, e.duration - t);
-
-		float gain = 1.0f;
-		if (e.attack > 0.0f && t < e.attack) {
-			gain = (std::min)(gain, t / e.attack);
-		}
-		if (e.release > 0.0f && remain < e.release) {
-			gain = (std::min)(gain, remain / e.release);
-		}
-
-		outL = (std::max)(outL, e.left * gain);
-		outR = ((std::max))(outR, e.right * gain);
-	}
-
-	// 振動を適用
-	ApplyVibration(ToMotorSpeed(outL), ToMotorSpeed(outR));
+	windowEvents_.SetWindowFocus(focused);
 }
 
-void Input::ApplyVibration(uint16_t left, uint16_t right) {
+void Input::SetViewRect(InputViewArea viewArea, const Vector2& dstPos, const Vector2& dstSize, const Vector2& srcSize,
+	InputViewCoordinateSpace coordinateSpace) {
 
-	// 同じ値なら呼び出しを省く
-	if (left == lastMotorLeft_ && right == lastMotorRight_) {
-		return;
-	}
-	lastMotorLeft_ = left;
-	lastMotorRight_ = right;
-
-	XINPUT_VIBRATION vib{};
-	vib.wLeftMotorSpeed = left;
-	vib.wRightMotorSpeed = right;
-	XInputSetState(0, &vib);
+	views_.SetViewRect(viewArea, dstPos, dstSize, srcSize, coordinateSpace);
 }
 
-uint16_t Input::ToMotorSpeed(float v01) {
+bool Engine::Input::HasViewRect(InputViewArea viewArea) const {
 
-	v01 = std::clamp(v01, 0.0f, 1.0f);
-	return static_cast<uint16_t>(v01 * 65535.0f + 0.5f);
+	return views_.HasViewRect(viewArea);
 }
 
-//============================================================================
-//	gameplay向け多gamepad / text / focus
-//============================================================================
-namespace {
+bool Input::IsMouseOnView(InputViewArea viewArea) const {
 
-	// C# GamepadButton enum(0..15)をXINPUTのボタンマスクへ対応付ける、トリガは別扱いで0
-	WORD XInputMaskOfGamepadButton(int button) {
-		switch (button) {
-		case 0:  return XINPUT_GAMEPAD_DPAD_UP;
-		case 1:  return XINPUT_GAMEPAD_DPAD_DOWN;
-		case 2:  return XINPUT_GAMEPAD_DPAD_LEFT;
-		case 3:  return XINPUT_GAMEPAD_DPAD_RIGHT;
-		case 4:  return XINPUT_GAMEPAD_START;
-		case 5:  return XINPUT_GAMEPAD_BACK;
-		case 6:  return XINPUT_GAMEPAD_LEFT_THUMB;
-		case 7:  return XINPUT_GAMEPAD_RIGHT_THUMB;
-		case 8:  return XINPUT_GAMEPAD_LEFT_SHOULDER;
-		case 9:  return XINPUT_GAMEPAD_RIGHT_SHOULDER;
-		case 12: return XINPUT_GAMEPAD_A;
-		case 13: return XINPUT_GAMEPAD_B;
-		case 14: return XINPUT_GAMEPAD_X;
-		case 15: return XINPUT_GAMEPAD_Y;
-		default: return 0;
-		}
-	}
-
-	// 指定stateでそのボタンが押されているか、トリガ10/11は閾値判定
-	bool IsGamepadButtonPressed(const XINPUT_STATE& state, int button) {
-		if (button == 10) {
-			return state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
-		}
-		if (button == 11) {
-			return state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
-		}
-		const WORD mask = XInputMaskOfGamepadButton(button);
-		return mask != 0 && (state.Gamepad.wButtons & mask) != 0;
-	}
+	return views_.IsMouseOnView(viewArea, hardware_.GetState());
 }
 
-bool Input::GamepadConnectedByIndex(int index) const {
-	return index >= 0 && index < kMaxGamepads && padConnected_[static_cast<size_t>(index)];
+std::optional<Vector2> Input::GetMousePosInView(InputViewArea viewArea) const {
+
+	return views_.GetMousePosInView(viewArea, hardware_.GetState());
 }
 
-int Input::ConnectedGamepadCount() const {
-	int count = 0;
-	for (int i = 0; i < kMaxGamepads; ++i) {
-		if (padConnected_[static_cast<size_t>(i)]) {
-			++count;
-		}
-	}
-	return count;
+Vector2 Input::GetMouseMoveValueInView(InputViewArea viewArea) const {
+
+	return views_.GetMouseMoveValueInView(viewArea, GetMouseMoveValue());
 }
 
-bool Input::GamepadButtonByIndex(int index, int button) const {
-	if (!GamepadConnectedByIndex(index)) {
-		return false;
-	}
-	return IsGamepadButtonPressed(pads_[static_cast<size_t>(index)], button);
+void Input::PushDroppedFiles(const std::vector<std::string>& paths, const Vector2& screenPoint) {
+
+	windowEvents_.PushDroppedFiles(paths, screenPoint);
 }
 
-bool Input::GamepadButtonDownByIndex(int index, int button) const {
-	if (index < 0 || index >= kMaxGamepads) {
-		return false;
-	}
-	const bool now = padConnected_[static_cast<size_t>(index)] && IsGamepadButtonPressed(pads_[static_cast<size_t>(index)], button);
-	const bool pre = padConnectedPre_[static_cast<size_t>(index)] && IsGamepadButtonPressed(padsPre_[static_cast<size_t>(index)], button);
-	return now && !pre;
+bool Input::TakeDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) {
+
+	return windowEvents_.TakeDroppedFiles(outPaths, outClientPoint);
 }
 
-bool Input::GamepadButtonUpByIndex(int index, int button) const {
-	if (index < 0 || index >= kMaxGamepads) {
-		return false;
-	}
-	const bool now = padConnected_[static_cast<size_t>(index)] && IsGamepadButtonPressed(pads_[static_cast<size_t>(index)], button);
-	const bool pre = padConnectedPre_[static_cast<size_t>(index)] && IsGamepadButtonPressed(padsPre_[static_cast<size_t>(index)], button);
-	return pre && !now;
-}
+bool Input::PeekDroppedFiles(std::vector<std::string>& outPaths, Vector2& outClientPoint) const {
 
-float Input::GamepadAxisByIndex(int index, int axis) const {
-	if (!GamepadConnectedByIndex(index)) {
-		return 0.0f;
-	}
-	// raw値を返しdead zoneはAction Map側で適用する、stickは[-1,1]でトリガは[0,1]
-	const XINPUT_GAMEPAD& pad = pads_[static_cast<size_t>(index)].Gamepad;
-	switch (axis) {
-	case 0:  return std::clamp(static_cast<float>(pad.sThumbLX) / 32767.0f, -1.0f, 1.0f);
-	case 1:  return std::clamp(static_cast<float>(pad.sThumbLY) / 32767.0f, -1.0f, 1.0f);
-	case 2:  return std::clamp(static_cast<float>(pad.sThumbRX) / 32767.0f, -1.0f, 1.0f);
-	case 3:  return std::clamp(static_cast<float>(pad.sThumbRY) / 32767.0f, -1.0f, 1.0f);
-	case 4:  return static_cast<float>(pad.bLeftTrigger) / 255.0f;
-	case 5:  return static_cast<float>(pad.bRightTrigger) / 255.0f;
-	default: return 0.0f;
-	}
+	return windowEvents_.PeekDroppedFiles(outPaths, outClientPoint);
 }

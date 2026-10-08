@@ -24,11 +24,15 @@ bool Engine::CurveEditorState::IsChannelVisible(uint32_t channelIndex) const {
 
 void Engine::CurveEditorState::SetChannelVisible(uint32_t channelIndex, bool visible) {
 
+	// 表示マスクの範囲外は変更しない
+	if (channelIndex >= 64) {
+		return;
+	}
 	// 未登録のチャンネルでも直接指定できるように表示配列を拡張する
 	EnsureChannelCount(channelIndex + 1);
 	channelVisible[channelIndex] = visible;
 
-	// 高速な一括判定用のbit maskも同期する
+	// チャンネルごとの表示マスクを同期する
 	if (visible) {
 		activeChannelMask |= 1ull << channelIndex;
 	} else {
@@ -50,7 +54,8 @@ void Engine::CurveEditorState::ClearSelection() {
 
 bool Engine::CurveEditorState::IsSelected(uint32_t channelIndex, uint32_t keyIndex) const {
 
-	return std::find(selectedKeys.begin(), selectedKeys.end(), CurveKeySelection{ channelIndex, keyIndex }) != selectedKeys.end();
+	return std::find(selectedKeys.begin(), selectedKeys.end(),
+		CurveKeySelection{ channelIndex, keyIndex }) != selectedKeys.end();
 }
 
 void Engine::CurveEditorState::SelectSingle(uint32_t channelIndex, uint32_t keyIndex) {
@@ -70,11 +75,23 @@ void Engine::CurveEditorState::ToggleSelection(uint32_t channelIndex, uint32_t k
 	selectedKeys.push_back(selection);
 }
 
-void Engine::CurveEditorState::RemoveInvalidSelections(uint32_t channelCount, const uint32_t* keyCounts) {
+void Engine::CurveEditorState::RemoveInvalidSelections(std::span<const uint32_t> keyCounts) {
 
 	// チャンネル数やキー数が変わったあと、範囲外になった選択を消す
 	selectedKeys.erase(std::remove_if(selectedKeys.begin(), selectedKeys.end(),
 		[&](const CurveKeySelection& selection) {
-			return channelCount <= selection.channelIndex || keyCounts[selection.channelIndex] <= selection.keyIndex;
+			return keyCounts.size() <= selection.channelIndex || keyCounts[selection.channelIndex] <= selection.keyIndex;
 		}), selectedKeys.end());
+}
+
+//============================================================================
+//	CurveEditorState classMethods
+//============================================================================
+
+namespace Engine {
+
+	bool CurveKeySelection::operator==(const CurveKeySelection& other) const {
+
+		return channelIndex == other.channelIndex && keyIndex == other.keyIndex;
+	}
 }

@@ -110,30 +110,12 @@ void Engine::RenderPassItemCollector::BuildBucketsForViewAndScene(const RenderSc
 bool Engine::RenderPassItemCollector::IsVisibleToView(const RenderItem& item,
 	RenderPhase renderPhase, const ResolvedRenderView& view) {
 
-	// 描画フェーズが一致しない、無効な場合は非表示
-	if (!view.valid || item.renderPhase != renderPhase) {
-		return false;
-	}
-	// カリングマスクに一致しない場合は非表示
-	const ResolvedCameraView* camera = view.FindCamera(item.cameraDomain);
-	if (!camera) {
-		return false;
-	}
-	if ((item.visibilityLayerMask & camera->cullingMask) == 0) {
-		return false;
-	}
-	return true;
+	// フェーズとCameraの選別を共通判定へ渡す
+	return item.renderPhase == renderPhase && IsVisibleToView(item, view);
 }
 
 bool Engine::RenderPassItemCollector::IsVisibleToView(const RenderItem& item, const ResolvedRenderView& view) {
 
-	// カリングマスクに一致しない場合は非表示
-	const ResolvedCameraView* camera = view.FindCamera(item.cameraDomain);
-	if (!camera) {
-		return false;
-	}
-	if ((item.visibilityLayerMask & camera->cullingMask) == 0) {
-		return false;
-	}
-	return true;
+	// 全Rendererで出力Cameraのカリングマスクを使う
+	return view.valid && (item.visibilityLayerMask & view.GetCullingMask(item.cameraDomain)) != 0;
 }

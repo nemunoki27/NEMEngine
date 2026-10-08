@@ -15,6 +15,21 @@ namespace Engine {
 	class ParticleEmissiveModule :
 		public IParticleModule {
 	public:
+
+		// 保存と実行に使う設定
+		struct Settings {
+
+			// 発光色の始点と終点
+			Color3 startColor = Color3::White();
+			Color3 endColor = Color3::White();
+			// 発光の強さの始点と終点
+			float startIntensity = 1.0f;
+			float endIntensity = 1.0f;
+			// 発光色と強度のイージング
+			EasingType colorEasingType = EasingType::EaseOutSine;
+			EasingType intensityEasingType = EasingType::EaseOutSine;
+		};
+
 		//========================================================================
 		//	public Methods
 		//========================================================================
@@ -24,10 +39,14 @@ namespace Engine {
 
 		void FromJson(const nlohmann::json& params) override;
 		nlohmann::json ToJson() const override;
-		bool DrawImGui();
 
 		ParticleModuleExecutionMode GetUpdateExecutionMode() const override { return ParticleModuleExecutionMode::PerParticle; }
 		void OnUpdate(Particle& particle, float deltaTime) override;
+
+		//--------- accessor -----------------------------------------------------
+
+		const Settings& GetSettings() const { return settings_; }
+		void SetSettings(const Settings& settings) { settings_ = settings; }
 	private:
 		//========================================================================
 		//	private Methods
@@ -35,15 +54,8 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		// 発光色の始点と終点
-		Color3 startColor_ = Color3::White();
-		Color3 endColor_ = Color3::White();
-		// 発光の強さの始点と終点
-		float startIntensity_ = 1.0f;
-		float endIntensity_ = 1.0f;
-		// 発光色と強度のイージング
-		EasingType colorEasingType_ = EasingType::EaseOutSine;
-		EasingType intensityEasingType_ = EasingType::EaseOutSine;
+		Settings settings_{};
+
 	};
 
 } // Engine

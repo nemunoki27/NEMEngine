@@ -47,6 +47,9 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
+		GraphicsResourceRetirement& GetResourceRetirement() { return resourceRetirement_; }
+
+		bool IsDeviceRemoved() const;
 		ID3D12Device8* GetDevice() const { return dxDevice_->Get(); }
 		IDXGIFactory7* GetDxgiFactory() const { return dxDevice_->GetDxgiFactory(); }
 
@@ -76,6 +79,7 @@ namespace Engine {
 		std::unique_ptr<DxShaderCompiler> dxShaderComplier_;
 
 		GraphicsFeatureController featureController_{};
+		GraphicsResourceRetirement resourceRetirement_{};
 
 		//--------- functions ----------------------------------------------------
 

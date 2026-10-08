@@ -9,14 +9,24 @@ groupshared MeshDispatchPayload payload;
 void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 
 	const uint localMeshletIndex = groupID.x * 32u + groupThreadID;
-	const uint instanceIndex = groupID.y;
+	const uint instanceIndex = groupID.y % instanceCount;
+	const uint lodPart = groupID.y / instanceCount;
 	uint meshletIndex = 0u;
-	bool inRange = instanceIndex < instanceCount;
+	float lodCoverage = 1.0f;
+	bool inRange = instanceIndex < instanceCount && lodPart < 2u;
 	if (inRange) {
 
-		const uint lodIndex = ResolveMeshLOD(gMeshInstances[instanceIndex]);
-		inRange = localMeshletIndex < lodMeshletCounts[lodIndex];
-		meshletIndex = lodMeshletOffsets[lodIndex] + localMeshletIndex;
+		MeshLODSelection selection = ResolveMeshLODSelection(
+			gMeshInstances[instanceIndex]);
+		const uint lodIndex = lodPart == 0u ?
+			selection.firstLOD : selection.secondLOD;
+		lodCoverage = lodPart == 0u ?
+			selection.firstCoverage : selection.secondCoverage;
+		inRange = lodIndex != 0xFFFFFFFFu && lodCoverage > 0.0f;
+		if (inRange) {
+			inRange = localMeshletIndex < lodMeshletCounts[lodIndex];
+			meshletIndex = lodMeshletOffsets[lodIndex] + localMeshletIndex;
+		}
 	}
 	const bool visible = inRange && IsMeshletVisible(meshletIndex, instanceIndex);
 
@@ -26,6 +36,7 @@ void main(uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) {
 
 		payload.meshletIndices[visibleOffset] = meshletIndex;
 		payload.instanceIndices[visibleOffset] = instanceIndex;
+		payload.lodCoverages[visibleOffset] = lodCoverage;
 	}
 	GroupMemoryBarrierWithGroupSync();
 

@@ -1,21 +1,25 @@
 namespace NEMEngine;
 
-// Prefabアセット参照。Instantiateは子階層とcomponentとscriptを実体化してからルートEntityを返す。
+// Prefabアセット参照。Instantiateは子階層とcomponentとscriptを実体化してからルートGameObjectを返す。
 // prefab-localな参照のinstanceへの再マップはPrefabSystemのsourceLocalToEntity / prefabInstanceIDが担う。
 [NativeAssetType("Prefab")]
 public sealed class Prefab : Asset {
 
     internal Prefab(AssetGUID id) : base(id) { }
 
-    public Entity Instantiate() {
-        return NativeApi.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, Entity.nullEntity);
+    public GameObject? Instantiate() {
+        return NativeEntityAPI.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, null);
     }
 
-    public Entity Instantiate(Vector3 position, Quaternion rotation) {
-        return NativeApi.SpawnPrefab(id, position, rotation, true, Entity.nullEntity);
+    public GameObject? Instantiate(GameObject? parent) {
+        return NativeEntityAPI.SpawnPrefab(id, Vector3.zero, Quaternion.identity, false, parent);
     }
 
-    public Entity Instantiate(Vector3 position, Quaternion rotation, Entity parent) {
-        return NativeApi.SpawnPrefab(id, position, rotation, true, parent);
+    public GameObject? Instantiate(Vector3 position, Quaternion rotation) {
+        return NativeEntityAPI.SpawnPrefab(id, position, rotation, true, null);
+    }
+
+    public GameObject? Instantiate(Vector3 position, Quaternion rotation, GameObject? parent) {
+        return NativeEntityAPI.SpawnPrefab(id, position, rotation, true, parent);
     }
 }

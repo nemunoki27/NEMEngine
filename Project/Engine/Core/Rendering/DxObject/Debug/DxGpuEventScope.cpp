@@ -1,9 +1,8 @@
 #include "DxGPUEventScope.h"
 
-// engine
-#include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 // c++
 #include <string>
+
 // pix
 #include <WinPixEventRuntime/pix3.h>
 
@@ -13,32 +12,30 @@
 
 namespace Engine {
 
-	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, std::string_view label)
+	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, [[maybe_unused]] std::string_view label)
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
+			// 終端付き文字列を渡す
 			const std::string text(label);
 			PIXBeginEvent(commandList_, PIX_COLOR_DEFAULT, "%s", text.c_str());
 		}
-#else
-		(void)label;
 #endif
 	}
 
-	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, const wchar_t* label)
+	DxGPUEventScope::DxGPUEventScope(ID3D12GraphicsCommandList* commandList, [[maybe_unused]] const wchar_t* label)
 		: commandList_(commandList) {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
 			PIXBeginEvent(commandList_, PIX_COLOR_DEFAULT, L"%ls", label);
 		}
-#else
-		(void)label;
 #endif
 	}
 
 	DxGPUEventScope::~DxGPUEventScope() {
 #if defined(_DEBUG) || defined(_DEVELOPBUILD)
 		if (commandList_) {
+			// 開始したイベントを閉じる
 			PIXEndEvent(commandList_);
 		}
 #endif

@@ -3,11 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/DxObject/Buffers/DxConstantBuffer.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
 
 // c++
 #include <array>
+#include <string>
+#include <string_view>
+#include <stdexcept>
 
 namespace Engine {
 
@@ -27,7 +30,10 @@ namespace Engine {
 		~ViewConstantBuffer() = default;
 
 		// 初期化
-		void Init(ID3D12Device* device);
+		void Init(GraphicsResourceRetirement& retirement, ID3D12Device* device);
+
+		// 使用中の定数領域を回収窓口へ渡す
+		void Release();
 
 		// データ転送
 		void Upload(const T& value);
@@ -36,8 +42,7 @@ namespace Engine {
 
 		// 内部リソースを取得する
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUAddress() const {
-			return buffers_[GraphicsFrameState::GetCurrentIndex()]
-				.GetResource()->GetGPUVirtualAddress();
+			return addresses_[GraphicsFrameState::GetCurrentIndex()];
 		}
 
 		// 描画バウンディング名を取得する
@@ -53,26 +58,40 @@ namespace Engine {
 		std::string bindingName_{};
 
 		// バッファ
-		std::array<DxConstBuffer<T>, kGraphicsFrameContextCount> buffers_{};
+		FrameConstantBufferAllocator allocator_{ sizeof(T) };
+		std::array<D3D12_GPU_VIRTUAL_ADDRESS, kGraphicsFrameContextCount> addresses_{};
+		ID3D12Device* device_ = nullptr;
+		GraphicsResourceRetirement* retirement_ = nullptr;
 	};
 
 	//============================================================================
 	//	ViewConstantBuffer templateMethods
 	//============================================================================
 	template<typename T>
-	inline void ViewConstantBuffer<T>::Init(ID3D12Device* device) {
+	inline void ViewConstantBuffer<T>::Init(GraphicsResourceRetirement& retirement, ID3D12Device* device) {
 
-		for (DxConstBuffer<T>& buffer : buffers_) {
-
-			if (!buffer.IsCreatedResource()) {
-				buffer.CreateBuffer(device);
-			}
+		if (!device || (device_ && (device_ != device || retirement_ != &retirement))) {
+			throw std::logic_error("View定数BufferのDeviceまたは回収先が不正です");
 		}
+		if (device_) return;
+		device_ = device;
+		retirement_ = &retirement;
+	}
+
+	template<typename T>
+	inline void ViewConstantBuffer<T>::Release() {
+
+		allocator_.Release();
+		addresses_ = {};
+		device_ = nullptr;
+		retirement_ = nullptr;
 	}
 
 	template<typename T>
 	inline void ViewConstantBuffer<T>::Upload(const T& value) {
 
-		buffers_[GraphicsFrameState::GetCurrentIndex()].TransferData(value);
+		if (!retirement_) throw std::logic_error("View定数Bufferが初期化されていません");
+		// 同じframeの再転送でも先の描画領域を維持する
+		addresses_[GraphicsFrameState::GetCurrentIndex()] = allocator_.AllocateAndUpload(*retirement_, device_, value).gpuAddress;
 	}
 } // Engine

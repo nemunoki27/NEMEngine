@@ -24,6 +24,13 @@ namespace Engine {
 		Static,      // 完全に動かない
 	};
 
+	enum class CollisionDetectionMode :
+		int32_t {
+
+		Discrete,
+		Continuous,
+	};
+
 	//============================================================================
 	//	RigidbodyComponent structure
 	//	3D物理の剛体で速度と力で運動を表す
@@ -47,6 +54,7 @@ namespace Engine {
 		float friction = 0.4f;
 		// 角速度の減衰率
 		float angularDamping = 0.05f;
+		CollisionDetectionMode collisionDetection = CollisionDetectionMode::Discrete;
 
 		// 軸ごとの移動拘束
 		bool freezePositionX = false;
@@ -63,6 +71,8 @@ namespace Engine {
 		Vector3 accumulatedForce = Vector3::AnyInit(0.0f);
 		// このステップで適用する蓄積トルク、保存しない
 		Vector3 accumulatedTorque = Vector3::AnyInit(0.0f);
+		Vector3 previousWorldPosition = Vector3::AnyInit(0.0f);
+		bool hasPreviousWorldPosition = false;
 	};
 
 	// jsonからコンポーネントへ変換する

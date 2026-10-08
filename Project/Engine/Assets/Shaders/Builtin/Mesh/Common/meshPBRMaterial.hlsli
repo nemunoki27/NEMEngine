@@ -24,7 +24,8 @@ struct MeshMaterialParameters {
 
 	float displacementMidpoint;
 	float displacementScale;
-	float2 _padding;
+	uint opacityTexture;
+	uint _padding;
 };
 StructuredBuffer<MeshMaterialParameters> gMeshMaterialParameters : register(t0, space3);
 

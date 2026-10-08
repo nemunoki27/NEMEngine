@@ -22,6 +22,10 @@ namespace Engine {
 
 		// 描画
 		virtual void Draw(const EditorPanelContext& context, ECSWorld& world, const Entity& entity) = 0;
+		// 選択先変更時に前の対象へのプレビューを終了する
+		virtual void SyncPreviewOwner([[maybe_unused]] ECSWorld* world, [[maybe_unused]] const Entity& entity) {}
+		// Panelの非表示と破棄前にプレビューを終了する
+		virtual void EndPreview() {}
 
 		//--------- accessor -----------------------------------------------------
 

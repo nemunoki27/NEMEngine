@@ -43,9 +43,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 中間出力先を切り替えても以前のobj/binに残る生成コードをコンパイルしない -->
+    <Compile Remove="obj\**\*.cs" />
+    <Compile Remove="bin\**\*.cs" />
     <Compile Include="..\GameAssets\**\*.cs" Link="GameAssets\%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- sidecar metadata を source generator へ AdditionalFiles として渡す（Stable ID の正） -->
-    <AdditionalFiles Include="..\GameAssets\**\*.cs.meta" />
     <CompilerVisibleProperty Include="NEMScriptMetadataMode" />
 
     <!-- gameplay API はSDK同梱のDLLを参照する -->
@@ -54,7 +55,7 @@
       <Private>false</Private>
     </Reference>
 
-    <!-- Stable ID 生成と ScriptBehaviour 診断の Roslyn analyzer（出力には含めない） -->
+    <!-- Stable ID 生成と MonoBehaviour 診断の Roslyn analyzer（出力には含めない） -->
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptCodeGen.dll" />
     <Analyzer Include="$(NEMEngineSdkManaged)\Analyzers\NEM.ScriptAnalyzers.dll" />
   </ItemGroup>

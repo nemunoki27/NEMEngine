@@ -3,8 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
 
 //============================================================================
 //	ParticleSphereEmitterShape classMethods
@@ -23,30 +21,7 @@ void Engine::ParticleSphereEmitterShape::InitParticle(Vector3& position, Vector3
 	const ParticleEmitterSettings& settings, [[maybe_unused]] bool is2D) const {
 
 	// 球面上から外向きに飛ばす
-	direction = Vector3::Normalize(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)));
+	direction = Vector3::NormalizeOr(RandomGenerator::Generate(Vector3::AnyInit(-1.0f), Vector3::AnyInit(1.0f)),
+		Vector3(0.0f, 1.0f, 0.0f));
 	position = direction * settings.sphere.radius;
-}
-
-void Engine::ParticleSphereEmitterShape::DrawShape(const ParticleEmitterSettings& settings,
-	const Vector3& center, [[maybe_unused]] const Quaternion& rotation, [[maybe_unused]] bool is2D) const {
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-
-	LineRenderer3D* renderer = LineRenderer::GetInstance()->Get3D();
-	if (!renderer) {
-		return;
-	}
-	renderer->DrawSphere(center, settings.sphere.radius, Color4::Red(), 1.0f);
-#endif
-}
-
-bool Engine::ParticleSphereEmitterShape::DrawImGui(ParticleEmitterSettings& settings) const {
-#if defined(NEM_EDITOR_UI_ENABLED)
-
-	bool result = MyGUI::DragFloat("半径", settings.sphere.radius, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
-
-	return result;
-#else
-	(void)settings;
-	return false;
-#endif
 }

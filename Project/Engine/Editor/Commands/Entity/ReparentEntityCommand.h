@@ -5,22 +5,19 @@
 //============================================================================
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/World/ECS/Entity/Entity.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/World/Components/Transform/TransformComponent.h>
 
 // c++
-#include <memory>
 #include <string>
-#include <vector>
 
 namespace Engine {
 
 	//============================================================================
 	//	ReparentEntityCommand class
-	//	エンティティの親を変更するコマンド
+	//	Entityの親とJoint接続を変更する
 	//============================================================================
-	class ReparentEntityCommand :
-		public IEditorCommand {
+	class ReparentEntityCommand : public IEditorCommand {
 	public:
 		//============================================================================
 		//	public Methods
@@ -33,13 +30,14 @@ namespace Engine {
 		// コマンドの実行
 		bool Execute(EditorCommandContext& context) override;
 
-		// Undo / Redoを実行
+		// 変更を取り消して再適用する
 		void Undo(EditorCommandContext& context) override;
 		bool Redo(EditorCommandContext& context) override;
 
 		//--------- accessor -----------------------------------------------------
 
 		const char* GetName() const override { return "Reparent Entity"; }
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -91,88 +89,4 @@ namespace Engine {
 		// 親子付け先が同じか
 		bool IsSameParent(const ParentState& lhs, const ParentState& rhs) const;
 	};
-
-	//============================================================================
-	//	ReparentEntitiesCommand class
-	//	複数エンティティの親をまとめて変更するコマンド
-	//============================================================================
-	class ReparentEntitiesCommand :
-		public IEditorCommand {
-	public:
-		//============================================================================
-		//	public Methods
-		//============================================================================
-
-		ReparentEntitiesCommand(std::vector<Entity> targetEntities,
-			UUID newParentStableUUID = UUID{});
-		~ReparentEntitiesCommand() = default;
-
-		bool Execute(EditorCommandContext& context) override;
-		void Undo(EditorCommandContext& context) override;
-		bool Redo(EditorCommandContext& context) override;
-
-		const char* GetName() const override { return "Reparent Entities"; }
-	private:
-		//============================================================================
-		//	private Methods
-		//============================================================================
-
-		//--------- variables ----------------------------------------------------
-
-		std::vector<Entity> targetEntities_{};
-		UUID newParentStableUUID_{};
-		std::vector<std::unique_ptr<ReparentEntityCommand>> commands_{};
-		bool initialized_ = false;
-
-		//--------- functions ----------------------------------------------------
-
-		void RestoreSelection(EditorCommandContext& context) const;
-	};
-
-	//============================================================================
-	//	ReorderEntityCommand class
-	//	同じ階層内でエンティティの表示順を変更するコマンド
-	//============================================================================
-	class ReorderEntityCommand :
-		public IEditorCommand {
-	public:
-		//============================================================================
-		//	public Methods
-		//============================================================================
-
-		ReorderEntityCommand(const Entity& targetEntity, const Entity& anchorEntity, bool insertAfter);
-		~ReorderEntityCommand() = default;
-
-		// コマンドの実行
-		bool Execute(EditorCommandContext& context) override;
-
-		// Undo / Redoを実行
-		void Undo(EditorCommandContext& context) override;
-		bool Redo(EditorCommandContext& context) override;
-
-		//--------- accessor -----------------------------------------------------
-
-		const char* GetName() const override { return "Reorder Entity"; }
-	private:
-		//============================================================================
-		//	private Methods
-		//============================================================================
-
-		//--------- variables ----------------------------------------------------
-
-		Entity initialTarget_ = Entity::Null();
-		Entity initialAnchor_ = Entity::Null();
-		bool insertAfter_ = false;
-
-		UUID targetStableUUID_{};
-		UUID parentStableUUID_{};
-		std::vector<UUID> oldOrder_{};
-		std::vector<UUID> newOrder_{};
-
-		//--------- functions ----------------------------------------------------
-
-		// 指定した順序を適用する
-		bool ApplyOrder(EditorCommandContext& context, const std::vector<UUID>& order);
-	};
 } // Engine
-

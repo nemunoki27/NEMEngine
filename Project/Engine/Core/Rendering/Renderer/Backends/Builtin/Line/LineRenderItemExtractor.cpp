@@ -85,6 +85,7 @@ void Engine::LineRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		RenderItem item{};
 		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Line;
+		item.canRefreshTransform = false;
 		item.material = renderer.material;
 		// 同じMaterial Instance値を持つLineを同一バッチへまとめる
 		item.batchKey = renderer.materialInstance.GetContentHash();
@@ -130,4 +131,9 @@ void Engine::LineRenderItemExtractor::Extract(ECSWorld& world, RenderSceneBatch&
 		item.payload = batch.PushPayload(payload);
 		batch.Add(std::move(item));
 	}
+}
+
+uint64_t Engine::LineRenderItemExtractor::GetContentRevision() const {
+
+	return LineImmediateBuffer::GetInstance().GetContentRevision();
 }

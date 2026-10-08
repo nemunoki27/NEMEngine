@@ -99,9 +99,17 @@ void Engine::MeshShaderDrawPath::Draw(const MeshPathDrawContext& context) {
 	}
 
 	Assert::Call(meshletCount <= 65535, "Meshlet数が現在の上限65535を超えています");
-	Assert::Call(prepared.instanceCount <= 65535, "Instance数が現在の上限65535を超えています");
+	const bool usesLODDither =
+		context.drawContext->runtimeFeatures.useMeshLOD &&
+		context.drawContext->passKind != MaterialPassKind::Transparent &&
+		prepared.gpuMesh->ditherLODTransitions;
+	const uint32_t lodInstanceMultiplier = usesLODDither ? 2u : 1u;
+	Assert::Call(prepared.instanceCount <= 65535u / lodInstanceMultiplier,
+		"Instance数が現在のLOD描画上限を超えています");
 
 	// X方向は32メッシュレット単位、Y方向はインスタンス単位でASを起動する
 	const uint32_t meshletGroupCount = DxUtils::RoundUp(meshletCount, 32);
-	context.commandList->DispatchMesh(meshletGroupCount, prepared.instanceCount, 1);
+	context.commandList->DispatchMesh(
+		meshletGroupCount,
+		prepared.instanceCount * lodInstanceMultiplier, 1);
 }

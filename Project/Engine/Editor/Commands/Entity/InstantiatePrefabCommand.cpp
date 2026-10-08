@@ -8,6 +8,7 @@
 #include <Engine/Editor/Commands/Entity/EditorEntitySnapshot.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 
 //============================================================================
 //	InstantiatePrefabCommand classMethods
@@ -32,6 +33,7 @@ bool Engine::InstantiatePrefabCommand::InstantiateInternal(EditorCommandContext&
 	}
 
 	// 親指定がある場合はUUIDから現在のEntityを引き直す
+	SceneCreationScope creation(*world);
 	Entity parent = Entity::Null();
 	if (parentStableUUID_) {
 
@@ -65,11 +67,14 @@ bool Engine::InstantiatePrefabCommand::InstantiateInternal(EditorCommandContext&
 	}
 	instantiatedRootStableUUID_ = world->GetUUID(result.root);
 	context.RebuildHierarchyAll();
+	// 元Assetが更新されてもRedoは初回の生成結果を復元する
+	EditorEntitySnapshotUtility::CaptureSubtree(*world, result.root, snapshot_);
 
 	// 生成後はPrefabルートを選択する
 	if (context.editorState) {
 		context.editorState->SelectEntity(result.root);
 	}
+	creation.Commit();
 	return true;
 }
 
@@ -103,5 +108,5 @@ void Engine::InstantiatePrefabCommand::Undo(EditorCommandContext& context) {
 
 bool Engine::InstantiatePrefabCommand::Redo(EditorCommandContext& context) {
 
-	return InstantiateInternal(context);
+	return EditorEntitySnapshotUtility::RestoreCommandSnapshot(context, snapshot_).IsValid();
 }

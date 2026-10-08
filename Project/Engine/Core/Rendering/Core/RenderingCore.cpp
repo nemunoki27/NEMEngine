@@ -2,10 +2,14 @@
 
 // engine
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Rendering/Assets/FontRenderService.h>
 
 //============================================================================
 //	GraphicsCore classMethods
 //============================================================================
+Engine::GraphicsCore::GraphicsCore() = default;
+Engine::GraphicsCore::~GraphicsCore() = default;
+
 void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// 各コアの初期化
@@ -30,6 +34,10 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 	dsvDescriptor_->Init(device, DescriptorType(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE));
 	srvDescriptor_ = std::make_unique<SRVDescriptor>();
 	srvDescriptor_->Init(device, DescriptorType(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE));
+	auto& retirement = graphicsPlatform_->GetResourceRetirement();
+	rtvDescriptor_->SetRetirementQueue(retirement);
+	dsvDescriptor_->SetRetirementQueue(retirement);
+	srvDescriptor_->SetRetirementQueue(retirement);
 	// フレームバッファ用のDSVを初期化
 	dsvDescriptor_->InitFrameBufferDSV(frameWidth, frameHeight);
 
@@ -47,17 +55,19 @@ void Engine::GraphicsCore::Init(bool usesEditorUI) {
 
 	// 静的GPUバッファ転送サービスの初期化(テクスチャ用とは独立)
 	bufferUploadService_ = std::make_unique<BufferUploadService>();
-	bufferUploadService_->Init(device, graphicsPlatform_->GetCommandQueue()->GetQueue());
+	bufferUploadService_->Init(graphicsPlatform_->GetResourceRetirement(), device, graphicsPlatform_->GetCommandQueue()->GetQueue());
 
 	// テクスチャ関連の初期化
 	textureUploadService_ = std::make_unique<TextureUploadService>();
-	textureUploadService_->Init(device, srvDescriptor_.get(), graphicsPlatform_->GetCommandQueue()->GetQueue());
+	textureUploadService_->Init(device, srvDescriptor_.get());
+	fontRenderService_ = std::make_unique<FontRenderService>(*textureUploadService_);
 	builtinTextureLibrary_ = std::make_unique<BuiltinTextureLibrary>();
 	builtinTextureLibrary_->Init(*textureUploadService_);
 }
 
 void Engine::GraphicsCore::TickFrameServices() {
 
+	fontRenderService_->CollectExpired();
 	textureUploadService_->TickFinalize();
 	bufferUploadService_->TickFinalize();
 }
@@ -129,10 +139,20 @@ void Engine::GraphicsCore::EndRenderFrame() {
 
 void Engine::GraphicsCore::Finalize() {
 
-	// GPUが完了するまで待機
-	graphicsPlatform_->WaitForGPU();
+	// Device消失後は待機せず、所有元の終了を続ける
+	auto drain = [&] {
+		if (graphicsPlatform_ && graphicsPlatform_->IsDeviceRemoved()) return;
+		try {
+			if (bufferUploadService_) bufferUploadService_->FlushAndWait();
+			if (graphicsPlatform_) graphicsPlatform_->WaitForGPU();
+		} catch (...) {
+			if (!graphicsPlatform_ || !graphicsPlatform_->IsDeviceRemoved()) throw;
+		}
+	};
+	drain();
 
 	// Device/Queue/Descriptorを参照するサービスはGraphicsPlatformより先に解放する
+	fontRenderService_.reset();
 	if (builtinTextureLibrary_) {
 		builtinTextureLibrary_->Finalize();
 	}
@@ -146,6 +166,12 @@ void Engine::GraphicsCore::Finalize() {
 	builtinTextureLibrary_.reset();
 	textureUploadService_.reset();
 	bufferUploadService_.reset();
+
+	// サービス終了中の退避もDescriptor破棄前に回収する
+	drain();
+	if (graphicsPlatform_ && graphicsPlatform_->IsDeviceRemoved()) {
+		graphicsPlatform_->GetResourceRetirement().ReleaseAfterDeviceRemoval(graphicsPlatform_->GetDevice());
+	}
 
 	// 描画リソースとDescriptor heapをDevice破棄前に解放する
 	swapChain_.reset();

@@ -6,7 +6,9 @@
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Scene/NameComponent.h>
@@ -22,6 +24,7 @@
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
 #include <Engine/Editor/Assets/Importer/Font/MSDFFontGenerator.h>
+#include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 
 // c++
 #include <filesystem>
@@ -35,39 +38,24 @@ namespace {
 	// アセットパスから表示名を作る
 	std::string MakeNameFromPath(const char* assetPath) {
 
-		std::string stem = Engine::Algorithm::PathToUTF8(
-			Engine::Algorithm::PathFromUTF8(assetPath).stem());
+		std::string stem = Engine::Algorithm::PathToUTF8(Engine::Algorithm::PathFromUTF8(assetPath).stem());
 		return stem.empty() ? std::string("Entity") : stem;
 	}
 
-	// ルートエンティティをヒエラルキー上の末尾へ並べる、右クリック作成と同じ見え方にする
-	void PlaceRootAtBottom(Engine::ECSWorld& world, const Engine::Entity& entity) {
+	// ルートEntityをヒエラルキーの末尾へ並べる
+	bool PlaceRootAtBottom(Engine::ECSWorld& world, const Engine::Entity& entity) {
 
 		if (!world.IsAlive(entity) || !world.HasComponent<Engine::HierarchyComponent>(entity)) {
-			return;
+			return false;
 		}
-		// 既存ルートの最大siblingOrderを調べ、その次の値を割り当てる
-		int32_t maxOrder = -1;
-		world.ForEachAliveEntity([&](Engine::Entity other) {
-
-			if (other == entity || !world.HasComponent<Engine::HierarchyComponent>(other)) {
-				return;
-			}
-			const auto& hierarchy = world.GetComponent<Engine::HierarchyComponent>(other);
-			// 親が生存していないものだけがルート
-			if (world.IsAlive(hierarchy.parent)) {
-				return;
-			}
-			if (hierarchy.siblingOrder > maxOrder) {
-				maxOrder = hierarchy.siblingOrder;
-			}
-			});
-		world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder = maxOrder + 1;
+		// 既存ルートの末尾へ兄弟順を合わせる
+		return Engine::HierarchyUtility::TryGetNextRootSiblingOrder(
+			world, entity, world.GetComponent<Engine::HierarchyComponent>(entity).siblingOrder);
 	}
 
 	// 生成した単一エンティティに共通の初期化を施す
-	Engine::Entity CreateBaseEntity(Engine::ECSWorld& world, const char* assetPath,
-		Engine::UUID sceneInstanceID, Engine::Dimension dimension) {
+	Engine::Entity CreateBaseEntity(
+		Engine::ECSWorld& world, const char* assetPath, Engine::UUID sceneInstanceID, Engine::Dimension dimension) {
 
 		Engine::Entity entity = world.CreateEntity();
 		Engine::SceneAuthoring::EnsureGameObjectDefaults(world, entity);
@@ -83,9 +71,8 @@ namespace {
 		return entity;
 	}
 
-	// エフェクトアセットの描画空間からTransform次元を決める
-	Engine::Dimension ResolveParticleEffectDimension(
-		Engine::AssetDatabase& database, Engine::AssetID effectID) {
+	// Effectの描画空間から変換の次元を決める
+	Engine::Dimension ResolveParticleEffectDimension(Engine::AssetDatabase& database, Engine::AssetID effectID) {
 
 		const std::filesystem::path path = database.ResolveFullPath(effectID);
 		if (path.empty()) {
@@ -95,13 +82,12 @@ namespace {
 		if (!Engine::FromJson(Engine::JsonAdapter::Load(path, false), effect)) {
 			return Engine::Dimension::Type3D;
 		}
-		return effect.space == Engine::PrimitiveRenderSpace::Screen2D ?
-			Engine::Dimension::Type2D : Engine::Dimension::Type3D;
+		return effect.space == Engine::PrimitiveRenderSpace::Screen2D ? Engine::Dimension::Type2D : Engine::Dimension::Type3D;
 	}
 }
 
 //============================================================================
-//	AssetEntityFactory classMethods
+//	AssetEntityFactory namespaceMethods
 //============================================================================
 bool Engine::AssetEntityFactory::CanSpawn(const EditorAssetDragDropPayload& payload) {
 
@@ -121,18 +107,20 @@ bool Engine::AssetEntityFactory::CanSpawn(const EditorAssetDragDropPayload& payl
 	}
 }
 
-Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, AssetDatabase& database,
-	GraphicsCore& graphicsCore, HierarchySystem& hierarchySystem,
-	const EditorAssetDragDropPayload& payload, UUID sceneInstanceID) {
+Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, AssetDatabase& database, GraphicsCore& graphicsCore,
+	HierarchySystem& hierarchySystem, const EditorAssetDragDropPayload& payload, UUID sceneInstanceID) {
 
 	AssetSpawnResult result{};
+	if (!CanSpawn(payload)) {
+		return result;
+	}
+	// 初期化と配置が終わるまで生成物を保持する
+	SceneCreationScope creation(world);
 
 	switch (payload.assetType) {
-	case AssetType::Mesh:
-	{
+	case AssetType::Mesh: {
 		// モデルはMeshRendererを持つ3Dエンティティにする
-		const Entity entity = CreateBaseEntity(
-			world, payload.assetPath, sceneInstanceID, Dimension::Type3D);
+		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID, Dimension::Type3D);
 		auto& renderer = world.AddComponent<MeshRendererComponent>(entity);
 		renderer.mesh = payload.assetID;
 		renderer.material = {};
@@ -146,21 +134,16 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		result.valid = true;
 		break;
 	}
-	case AssetType::Texture:
-	{
+	case AssetType::Texture: {
 		// テクスチャはSpriteRendererを持つ2Dエンティティにする
-		const Entity entity = CreateBaseEntity(
-			world, payload.assetPath, sceneInstanceID, Dimension::Type2D);
+		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID, Dimension::Type2D);
 		auto& renderer = world.AddComponent<SpriteRendererComponent>(entity);
 		MaterialParameterValue texture{};
 		texture.value = payload.assetID;
-		renderer.materialInstance.Set(
-			MaterialParameterIDs::BaseColorTexture,
-			MaterialParameterNames::BaseColorTexture,
-			MaterialParameterSemantic::BaseColorTexture,
-			texture);
+		renderer.materialInstance.Set(MaterialParameterIDs::BaseColorTexture, MaterialParameterNames::BaseColorTexture,
+			MaterialParameterSemantic::BaseColorTexture, texture);
 
-		// 初期サイズをテクスチャの実サイズに合わせる、未ロードなら既定サイズのままにする
+		// 読込済みTextureの実サイズを初期サイズにする
 		Vector2 textureSize{};
 		if (RuntimeTextureResolver::TryResolveSize(graphicsCore, &database, payload.assetID, textureSize)) {
 			renderer.size = textureSize;
@@ -171,16 +154,13 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		result.valid = true;
 		break;
 	}
-	case AssetType::Font:
-	{
-		// フォントはTextRendererを持つ2Dエンティティにする、フォントを割り当て初期文字で表示する
-		const Entity entity = CreateBaseEntity(
-			world, payload.assetPath, sceneInstanceID, Dimension::Type2D);
+	case AssetType::Font: {
+		// FontはTextRendererを持つ2Dエンティティにする
+		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID, Dimension::Type2D);
 		auto& renderer = world.AddComponent<TextRendererComponent>(entity);
 		renderer.dimension = Dimension::Type2D;
 
-		// ソースフォント(.ttf/.otf)はそのまま参照すると描画側でJSONとして読み込んで失敗するため、
-		// インスペクターのドロップ時と同じくMSDFを生成して.font.jsonの参照へ寄せる
+		// 元FontからMSDFを生成して描画用の参照を設定する
 		AssetID fontAsset = payload.assetID;
 		const std::filesystem::path sourcePath = database.ResolveFullPath(payload.assetID);
 		if (MSDFFontGenerator::IsFontSourceExtension(sourcePath)) {
@@ -195,13 +175,10 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		result.valid = true;
 		break;
 	}
-	case AssetType::ParticleEffect:
-	{
+	case AssetType::ParticleEffect: {
 		// エフェクトはParticleSystemを持つ単一エンティティにする
-		const Dimension dimension = ResolveParticleEffectDimension(
-			database, payload.assetID);
-		const Entity entity = CreateBaseEntity(
-			world, payload.assetPath, sceneInstanceID, dimension);
+		const Dimension dimension = ResolveParticleEffectDimension(database, payload.assetID);
+		const Entity entity = CreateBaseEntity(world, payload.assetPath, sceneInstanceID, dimension);
 		auto& particleSystem = world.AddComponent<ParticleSystemComponent>(entity);
 		particleSystem.effect = payload.assetID;
 
@@ -210,9 +187,8 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		result.valid = true;
 		break;
 	}
-	case AssetType::Prefab:
-	{
-		// プレファブは展開してインスタンス化する、3D要素があれば3D扱いにする
+	case AssetType::Prefab: {
+		// Prefabを展開して3D要素の有無を調べる
 		PrefabSystem prefabSystem{};
 		PrefabInstantiateResult instantiateResult{};
 		PrefabInstantiateDesc desc{};
@@ -239,9 +215,12 @@ Engine::AssetSpawnResult Engine::AssetEntityFactory::Spawn(ECSWorld& world, Asse
 		break;
 	}
 
-	// 右クリック作成と同じく、生成したルートはヒエラルキーの末尾に並べる
+	// 生成したルートをヒエラルキーの末尾へ並べる
 	if (result.valid) {
-		PlaceRootAtBottom(world, result.root);
+		if (!PlaceRootAtBottom(world, result.root)) {
+			return {};
+		}
+		creation.Commit();
 	}
 	return result;
 }

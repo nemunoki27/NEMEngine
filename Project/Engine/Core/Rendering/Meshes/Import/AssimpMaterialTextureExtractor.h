@@ -3,9 +3,20 @@
 //============================================================================
 //	include
 //============================================================================
+// c++
+#include <filesystem>
 #include <string>
 #include <initializer_list>
+#include <vector>
+
+// assimp
 #include <assimp/material.h>
+
+namespace Engine {
+
+	class TextureAssetResolver;
+	struct ImportedMeshTextureSet;
+}
 
 namespace Engine::AssimpMaterialTextureExtractor {
 
@@ -18,9 +29,16 @@ namespace Engine::AssimpMaterialTextureExtractor {
 		std::string displacement{};
 	};
 
-	// Assimpのマテリアルから指定した複数のテクスチャタイプのうち最初に見つかったテクスチャのパスを参照文字列として取得する
-	std::string Extract(aiMaterial* material, std::initializer_list<aiTextureType> textureTypes);
+	// 指定したTexture用途から最初の参照を取得する
+	std::string Extract(const aiMaterial* material, std::initializer_list<aiTextureType> textureTypes);
 	// AssimpのPBRテクスチャを統合MRと個別M/Rへ重複なく分類する
-	PBRTextureReferences ExtractPBR(aiMaterial* material);
+	PBRTextureReferences ExtractPBR(const aiMaterial* material);
+	// 標準Materialの外部Textureを用途別に解決する
+	ImportedMeshTextureSet ExtractResolved(const aiMaterial* material, const TextureAssetResolver& resolver);
+	// 解決済み画像を登録・配布用に重複なく列挙する
+	std::vector<std::string> CollectResolvedPaths(const aiMaterial* material, const TextureAssetResolver& resolver);
 
-} // Engine::AssimpMaterialTextureExtractor
+	// 同じ用途判定からProject外を含む実ファイルを列挙する
+	std::vector<std::filesystem::path> CollectResolvedFiles(const aiMaterial* material, const TextureAssetResolver& resolver);
+
+}

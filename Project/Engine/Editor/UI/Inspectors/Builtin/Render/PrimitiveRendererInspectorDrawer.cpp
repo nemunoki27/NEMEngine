@@ -5,9 +5,8 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameter.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
@@ -26,11 +25,12 @@
 namespace {
 
 	// 描画空間に応じた既定マテリアルを返す
-	Engine::AssetID EffectiveDefaultMaterial(const Engine::PrimitiveRendererComponent& component) {
+	Engine::AssetID EffectiveDefaultMaterial(const Engine::EditorPanelContext& context,
+		const Engine::PrimitiveRendererComponent& component) {
 
-		return Engine::IsPrimitiveScreen2D(component) ?
-			Engine::DefaultMaterialSettings::GetInstance().GetPrimitive2DOrBuiltin() :
-			Engine::DefaultMaterialSettings::GetInstance().GetPrimitiveOrBuiltin();
+		const Engine::DefaultMaterialSlot slot = Engine::IsPrimitiveScreen2D(component) ?
+			Engine::DefaultMaterialSlot::Primitive2D : Engine::DefaultMaterialSlot::Primitive;
+		return Engine::InspectorDrawerCommon::ResolveDefaultMaterial(context, slot);
 	}
 
 }
@@ -62,13 +62,13 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-			setting.defaultAssetID = EffectiveDefaultMaterial(draft);
+			setting.defaultAssetID = EffectiveDefaultMaterial(context, draft);
 			return MyGUI::AssetReferenceField("マテリアル", draft.material,
 				context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
 	}
 	// 描画パラメータ
-	InspectorDrawerCommon::DrawCommonRenderFields(
+	InspectorDrawerCommon::DrawCommonRenderFields(context,
 		[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 		draft.layer, draft.order, draft.blendMode, draft.queue,
 		&draft.renderingLayerMask);
@@ -151,71 +151,10 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawFields(const EditorPanelConte
 	DrawReflectedParameters(context, draft, anyItemActive);
 }
 
-const Engine::ShaderReflectionInfo* Engine::PrimitiveRendererInspectorDrawer::EnsureMaterialReflection(
-	const EditorPanelContext& context, AssetID materialID, AssetID defaultMaterialID) {
-
-	if (!context.renderPipeline || !context.editorContext || !context.editorContext->assetDatabase) {
-		return nullptr;
-	}
-	// 空マテリアルは描画時にデフォルトへ解決されるので、reflectionも実効デフォルトから引く
-	if (!materialID) {
-		materialID = defaultMaterialID;
-	}
-	// マテリアルが変わったときだけファイルを読み直す
-	if (!cachedMaterialValid_ || cachedMaterialID_ != materialID) {
-
-		cachedMaterialValid_ = false;
-		cachedMaterialID_ = materialID;
-		cachedMaterial_ = MaterialAsset{};
-		const std::filesystem::path path = context.editorContext->assetDatabase->ResolveFullPath(materialID);
-		if (!path.empty()) {
-
-			nlohmann::json data = JsonAdapter::Load(path.string(), false);
-			cachedMaterialValid_ = FromJson(data, cachedMaterial_);
-		}
-	}
-	if (!cachedMaterialValid_) {
-		return nullptr;
-	}
-	return context.renderPipeline->FindMaterialDrawReflection(cachedMaterial_);
-}
-
-Engine::MaterialParameterValue Engine::PrimitiveRendererInspectorDrawer::ResolveParamValue(
-	const PrimitiveRendererComponent& draft, const ShaderConstantBufferVariable& var) const {
-
-	if (const MaterialParameterValue* value =
-		draft.materialInstance.Find(var.parameterID)) {
-
-		return *value;
-	}
-	if (var.semantic != MaterialParameterSemantic::None) {
-
-		if (const MaterialParameterValue* value =
-			draft.materialInstance.Find(var.semantic)) {
-
-			return *value;
-		}
-	}
-	if (const MaterialParameterValue* value =
-		cachedMaterial_.parameters.Find(var.parameterID)) {
-
-		return *value;
-	}
-	if (var.semantic != MaterialParameterSemantic::None) {
-
-		if (const MaterialParameterValue* value =
-			cachedMaterial_.parameters.Find(var.semantic)) {
-
-			return *value;
-		}
-	}
-	return MaterialParameterEditor::DefaultValueForVariable(var);
-}
-
 void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	const EditorPanelContext& context, PrimitiveRendererComponent& draft, bool& anyItemActive) {
 
-	const ShaderReflectionInfo* reflection = EnsureMaterialReflection(context, draft.material, EffectiveDefaultMaterial(draft));
+	const ShaderReflectionInfo* reflection = materialReflection_.EnsureReflection(context, draft.material, EffectiveDefaultMaterial(context, draft));
 	if (!reflection) {
 		return;
 	}
@@ -250,7 +189,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 
 	for (const ShaderConstantBufferVariable* var : scalarVariables) {
 
-		MaterialParameterValue value = ResolveParamValue(draft, *var);
+		MaterialParameterValue value = materialReflection_.ResolveValue(draft.materialInstance, *var);
 		const FloatEditSetting floatSetting{};
 		DrawField(anyItemActive, [&]() {
 
@@ -276,7 +215,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			ValueEditResult result = MyGUI::AssetReferenceField(
 				displayName.data(), textureID,
 				context.editorContext->assetDatabase,
-				{ AssetType::Texture }, setting);
+				{ AssetType::Texture, AssetType::RenderTexture }, setting);
 			if (result.valueChanged) {
 				MaterialParameterValue value{};
 				value.value = textureID;
@@ -290,7 +229,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 	for (const ShaderConstantBufferVariable* variable : textureVariables) {
 		AssetID textureID{};
 		const MaterialParameterValue value =
-			ResolveParamValue(draft, *variable);
+			materialReflection_.ResolveValue(draft.materialInstance, *variable);
 		if (const AssetID* resolved =
 			std::get_if<AssetID>(&value.value)) {
 			textureID = *resolved;
@@ -356,7 +295,7 @@ void Engine::PrimitiveRendererInspectorDrawer::DrawReflectedParameters(
 			};
 		AssetID textureID = resolveTexture(draft.materialInstance);
 		if (!textureID) {
-			textureID = resolveTexture(cachedMaterial_.parameters);
+			textureID = resolveTexture(materialReflection_.GetMaterial().parameters);
 		}
 		drawTexture(parameterID, semantic, displayName, textureID);
 	}

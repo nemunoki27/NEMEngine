@@ -204,11 +204,7 @@ namespace Engine {
 	};
 
 	// Plane/Ringかつ描画空間がScreen2Dのときだけ2D描画になる
-	inline bool IsPrimitiveScreen2D(const PrimitiveRendererComponent& component) {
-
-		return component.renderSpace == PrimitiveRenderSpace::Screen2D &&
-			(component.type == PrimitiveType::Plane || component.type == PrimitiveType::Ring);
-	}
+	bool IsPrimitiveScreen2D(const PrimitiveRendererComponent& component);
 
 	// 形状パラメータのjson変換、コンポーネントとエフェクトアセットで共用する
 	void from_json(const nlohmann::json& in, PrimitivePlaneParams& params);

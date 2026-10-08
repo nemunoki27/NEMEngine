@@ -12,6 +12,7 @@
 
 void Engine::ScriptExecutionOrderTool::OpenEditorTool() {
 
+	// 実行順の編集画面を開く
 	openWindow_ = true;
 }
 
@@ -29,6 +30,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 		return;
 	}
 
+	// 保存と再読込は停止中だけ受け付ける
 	BehaviorTypeRegistry& registry = BehaviorTypeRegistry::GetInstance();
 	ImGui::BeginDisabled(context.IsPlaying());
 	if (ImGui::Button("保存")) {
@@ -55,6 +57,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 	searchFilter_.DrawInput("##ScriptExecutionOrderSearch");
 	ImGui::Separator();
 
+	// 検索条件に一致するManaged型を収集
 	std::vector<const BehaviorTypeInfo*> scripts;
 	for (uint32_t index = 0; index < registry.GetBehaviorTypeCount(); ++index) {
 
@@ -69,6 +72,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 		}
 		scripts.push_back(&info);
 	}
+	// 実行順と表示名で並べる
 	std::sort(scripts.begin(), scripts.end(),
 		[](const BehaviorTypeInfo* lhs, const BehaviorTypeInfo* rhs) {
 
@@ -84,6 +88,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 		return;
 	}
 
+	// 既定値と編集用の実行順を表示
 	const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
 		ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY;
 	if (ImGui::BeginTable("##ScriptExecutionOrderTable", 4, tableFlags)) {
@@ -108,6 +113,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 			ImGui::Text("%d", info->defaultExecutionOrder);
 
 			ImGui::TableSetColumnIndex(2);
+			// 変更した実行順を登録済み型へ反映
 			int32_t executionOrder = info->executionOrder;
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			ImGui::BeginDisabled(context.IsPlaying());
@@ -120,6 +126,7 @@ void Engine::ScriptExecutionOrderTool::DrawWindow(const EditorToolContext& conte
 			ImGui::EndDisabled();
 
 			ImGui::TableSetColumnIndex(3);
+			// 上書きを解除して既定の実行順へ戻す
 			const bool hasOverride =
 				ScriptExecutionOrderSettings::HasOverride(info->scriptTypeID);
 			ImGui::BeginDisabled(context.IsPlaying() || !hasOverride);

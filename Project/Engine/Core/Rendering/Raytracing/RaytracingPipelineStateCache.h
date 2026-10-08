@@ -66,14 +66,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		struct RaytracingPipelineCacheKeyHash {
-			size_t operator()(const RaytracingPipelineCacheKey& key) const noexcept {
-
-				size_t hash = std::hash<AssetID>{}(key.pipelineAsset);
-				hash ^= std::hash<AssetID>{}(key.pipelineShaderAsset) << 1;
-				hash ^= std::hash<AssetID>{}(key.shaderOverrideAsset) << 2;
-				hash ^= std::hash<uint64_t>{}(key.samplerHash) << 3;
-				return hash;
-			}
+			size_t operator()(const RaytracingPipelineCacheKey& key) const noexcept;
 		};
 		struct PendingBuild {
 
@@ -81,6 +74,7 @@ namespace Engine {
 			uint64_t revision = 0;
 		};
 
+		GraphicsResourceRetirement* retirement_ = nullptr;
 		std::unordered_map<RaytracingPipelineCacheKey,
 			std::unique_ptr<RaytracingPipelineState>,
 			RaytracingPipelineCacheKeyHash> cache_{};

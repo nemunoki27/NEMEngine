@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/Pipelines/PipelineStateBuilder.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxCommand.h>
@@ -11,6 +12,7 @@
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
 #include <Engine/Core/Rendering/Renderer/Views/RenderViewTypes.h>
+#include <Engine/Core/Rendering/Renderer/Lighting/SceneSkyboxResolver.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/MultiRenderTarget.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
@@ -38,11 +40,11 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.preRaster.entry = "main";
 	desc.preRaster.profile = "vs_6_0";
 
-	// cubemapをbindlessで引くためPixelはSM6_6を使う
+	// Descriptor Table経由でSM6.0でもCubemapを参照する
 	desc.pixel.file = BuiltinShaderSource::Skybox::PS;
 	desc.pixel.shader = BuiltinAssets::Shaders::Skybox;
 	desc.pixel.entry = "main";
-	desc.pixel.profile = "ps_6_6";
+	desc.pixel.profile = "ps_6_0";
 
 	// cubemap用の静的サンプラー
 	D3D12_STATIC_SAMPLER_DESC sampler{};
@@ -73,7 +75,7 @@ void Engine::SkyboxPass::EnsurePipeline(GraphicsCore& graphicsCore) {
 	desc.rtvFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	desc.dsvFormat = DXGI_FORMAT_UNKNOWN;
 
-	initialized_ = pipeline_.CreateGraphics(device, compiler, desc);
+	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 }
 
 Engine::DxConstBuffer<Engine::SkyboxPass::SkyboxConstants>& Engine::SkyboxPass::AllocateConstantBuffer(
@@ -90,7 +92,7 @@ Engine::DxConstBuffer<Engine::SkyboxPass::SkyboxConstants>& Engine::SkyboxPass::
 	if (buffers.size() <= bufferIndex) {
 
 		auto buffer = std::make_unique<DxConstBuffer<SkyboxConstants>>();
-		buffer->CreateBuffer(graphicsCore.GetDXObject().GetDevice());
+		buffer->CreateBuffer(graphicsCore.GetDXObject().GetResourceRetirement(), graphicsCore.GetDXObject().GetDevice());
 		buffers.push_back(std::move(buffer));
 	}
 	return *buffers[bufferIndex++];
@@ -103,18 +105,9 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	// 有効なSkyboxを探す、最初に見つかった1件だけを背景に使う
-	SkyboxRendererComponent* skybox = nullptr;
-	context.world->ForEach<SkyboxRendererComponent>([&](Entity entity, SkyboxRendererComponent& component) {
-
-		if (skybox || !component.visible || !component.cubemapTexture) {
-			return;
-		}
-		if (!IsEntityActiveInHierarchy(*context.world, entity)) {
-			return;
-		}
-		skybox = &component;
-		});
+	// Cameraの描画対象レイヤーに一致する背景を使う
+	const SkyboxRendererComponent* skybox = SceneSkyboxResolver::Find(
+		*context.world, context.view->GetCullingMask(RenderCameraDomain::Perspective));
 	if (!skybox) {
 		return;
 	}
@@ -164,10 +157,12 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 	DxConstBuffer<SkyboxConstants>& buffer = AllocateConstantBuffer(graphicsCore);
 	buffer.TransferData(constants);
 
-	commandList->SetGraphicsRootSignature(pipeline_.GetRootSignature());
-	commandList->SetPipelineState(pipeline_.GetGraphicsPipeline(BlendMode::Normal));
+	commandList->SetGraphicsRootSignature(pipeline_->GetRootSignature());
+	commandList->SetPipelineState(pipeline_->GetGraphicsPipeline(BlendMode::Normal));
+	pipeline_->BindGlobalDescriptorTablesGraphics(commandList,
+		graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
 
-	bindCache_.Sync(pipeline_);
+	bindCache_.Sync(*pipeline_);
 	if (bindCache_.Has(cbvSlot_)) {
 		RootBindingCommand::SetGraphicsCBV(commandList, bindCache_.Get(cbvSlot_),
 			buffer.GetResource()->GetGPUVirtualAddress());
@@ -175,4 +170,16 @@ void Engine::SkyboxPass::Execute(GraphicsCore& graphicsCore,
 
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawInstanced(3, 1, 0, 0);
+}
+
+//============================================================================
+//	SkyboxPass classMethods
+//============================================================================
+
+namespace Engine {
+
+	SkyboxPass::SkyboxPass(const RenderPipelineDeps& deps) : deps_(deps) {
+
+		cbvSlot_ = bindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
+	}
 }

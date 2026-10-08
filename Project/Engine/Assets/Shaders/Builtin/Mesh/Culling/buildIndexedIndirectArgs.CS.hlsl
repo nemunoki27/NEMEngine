@@ -15,46 +15,11 @@ cbuffer IndirectArgsConstants : register(b0) {
 };
 cbuffer ViewConstants : register(b1) {
 
-	float4x4 viewProjection;
-	float4x4 cullingViewProjection;
-	float4x4 cullingView;
-	float3 cullingCameraPos;
-	float cullingNearClip;
-	float3 cullingCameraForward;
-	float _cullingPad0;
-	float2 viewSize;
-	float2 cullingViewSize;
-	float2 cullingProjectionScale;
-	float2 _viewPad0;
-	float3 renderCameraPos;
-	float _viewPad1;
+#include "../Common/meshViewFields.hlsli"
 };
 cbuffer MeshDrawConstants : register(b2) {
 
-	uint meshletCount;
-	uint subMeshCount;
-	uint instanceCount;
-	uint cullingEnabled;
-	uint packedMeshletVertexIndices;
-	uint frustumCullingEnabled;
-	uint contributionCullingEnabled;
-	uint normalConeCullingEnabled;
-	float3 meshBoundsCenter;
-	float meshBoundsRadius;
-	float contributionPixelThreshold;
-	uint invertedHullOutlinePass;
-	float outlineMaxModelExpansion;
-	float outlineMaxAbsCameraZOffset;
-	uint outlineHasScreenPixelWidth;
-	uint occlusionCullingEnabled;
-	uint _meshDrawReservedGroup;
-	float maxDisplacement;
-	uint4 lodIndexOffsets;
-	uint4 lodIndexCounts;
-	uint4 lodMeshletOffsets;
-	uint4 lodMeshletCounts;
-	float3 lodPixelThresholds;
-	uint lodCount;
+#include "../Common/meshDrawFields.hlsli"
 };
 StructuredBuffer<MeshInstance> gMeshInstances : register(t0);
 StructuredBuffer<SubMeshShaderData> gSubMeshes : register(t3, space1);
@@ -177,27 +142,34 @@ bool IsInstanceVisible(MeshInstance instance) {
 	return true;
 }
 
-uint ResolveMeshLOD(MeshInstance instance) {
+#include "../Common/meshLODSelection.hlsli"
 
-	if (lodCount <= 1u ||
-		(instance.flags & MESH_INSTANCE_FLAG_SKINNED) != 0u) {
-		return 0u;
-	}
+void AppendVisibleInstance(MeshInstance instance) {
 
-	float3 center;
-	float radius;
-	CalcInstanceCullBounds(instance, center, radius);
-	float pixelRadius = CalcProjectedPixelRadius(center, radius);
-	if (pixelRadius >= lodPixelThresholds.x) {
-		return 0u;
+	MeshLODSelection selection = ResolveMeshLODSelection(instance);
+	MeshInstance firstInstance = instance;
+	if (selection.secondLOD != 0xFFFFFFFFu) {
+		firstInstance.flags |= MESH_INSTANCE_FLAG_LOD_DITHER;
+		firstInstance._motionPad.x = asuint(selection.firstCoverage);
 	}
-	if (pixelRadius >= lodPixelThresholds.y) {
-		return 1u;
+	uint firstVisibleIndex = 0;
+	gIndexedIndirectArgs.InterlockedAdd(
+		selection.firstLOD * 20u + 4u, 1u, firstVisibleIndex);
+	gVisibleMeshInstances[
+		selection.firstLOD * instanceCount + firstVisibleIndex] = firstInstance;
+
+	if (selection.secondLOD != 0xFFFFFFFFu &&
+		selection.secondCoverage > 0.0f) {
+
+		MeshInstance secondInstance = instance;
+		secondInstance.flags |= MESH_INSTANCE_FLAG_LOD_DITHER;
+		secondInstance._motionPad.x = asuint(selection.secondCoverage);
+		uint secondVisibleIndex = 0;
+		gIndexedIndirectArgs.InterlockedAdd(
+			selection.secondLOD * 20u + 4u, 1u, secondVisibleIndex);
+		gVisibleMeshInstances[
+			selection.secondLOD * instanceCount + secondVisibleIndex] = secondInstance;
 	}
-	if (pixelRadius >= lodPixelThresholds.z) {
-		return 2u;
-	}
-	return min(3u, lodCount - 1u);
 }
 
 //============================================================================
@@ -219,7 +191,19 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 			gIndexedIndirectArgs.Store(argsOffset + 16u, 0u);
 		}
 	}
-	GroupMemoryBarrierWithGroupSync();
+	// UAVの初期化を全スレッドへ反映してから加算する
+	DeviceMemoryBarrierWithGroupSync();
+	if (preserveInstanceOrder != 0u) {
+		if (groupThreadID == 0u) {
+			for (uint i = 0u; i < instanceCount; ++i) {
+				MeshInstance instance = gMeshInstances[i];
+				if (IsInstanceVisible(instance)) {
+					AppendVisibleInstance(instance);
+				}
+			}
+		}
+		return;
+	}
 
 	for (uint i = groupThreadID; i < instanceCount; i += 256u) {
 
@@ -228,11 +212,6 @@ void main(uint groupThreadID : SV_GroupThreadID) {
 			continue;
 		}
 
-		const uint lodIndex = ResolveMeshLOD(instance);
-		uint visibleIndex = 0;
-		gIndexedIndirectArgs.InterlockedAdd(
-			lodIndex * 20u + 4u, 1u, visibleIndex);
-		gVisibleMeshInstances[
-			lodIndex * instanceCount + visibleIndex] = instance;
+		AppendVisibleInstance(instance);
 	}
 }

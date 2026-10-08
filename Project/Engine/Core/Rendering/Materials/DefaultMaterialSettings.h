@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/AssetTypes.h>
+#include "DefaultMaterialConfiguration.h"
 
 // c++
 #include <string>
@@ -12,8 +12,7 @@ namespace Engine {
 
 	//============================================================================
 	//	DefaultMaterialSettings class
-	// Mesh/Sprite/Textのデフォルトマテリアルを保持し設定ファイルへ永続化するシングルトン
-	// 空マテリアルの解決先をbuiltinから差し替える用途で、未設定スロットはbuiltinへフォールバックする
+	//	描画種別ごとの既定Materialを保持して保存するクラス
 	//============================================================================
 	class DefaultMaterialSettings {
 	public:
@@ -24,34 +23,30 @@ namespace Engine {
 		DefaultMaterialSettings() = default;
 		~DefaultMaterialSettings() = default;
 
-		// 設定ファイルパスを記憶して値を読み込む、ファイルが無ければ未設定のまま
-		void Load(const std::string& configPath);
-		// 現在の設定を記憶済みのパスへ保存する
-		void Save() const;
+		// 保存先を記憶し、未作成なら空の設定を読み込む
+		bool Load(const std::string& configPath);
+		// 現在の設定を保存し、成功したか返す
+		bool Save() const;
 
 		//--------- accessor -----------------------------------------------------
 
 		// 設定値の取得、未設定なら空IDを返す
-		AssetID GetMesh() const { return mesh_; }
-		AssetID GetSprite() const { return sprite_; }
-		AssetID GetText() const { return text_; }
-		AssetID GetLine() const { return line_; }
-		AssetID GetPrimitive() const { return primitive_; }
-		AssetID GetPrimitive2D() const { return primitive2D_; }
-		AssetID GetRaytracingReflection() const {
-			return raytracingReflection_;
-		}
+		AssetID GetMesh() const { return configuration_.mesh; }
+		AssetID GetSprite() const { return configuration_.sprite; }
+		AssetID GetText() const { return configuration_.text; }
+		AssetID GetLine() const { return configuration_.line; }
+		AssetID GetPrimitive() const { return configuration_.primitive; }
+		AssetID GetPrimitive2D() const { return configuration_.primitive2D; }
+		AssetID GetRaytracingReflection() const { return configuration_.raytracingReflection; }
 
 		// 設定値の更新
-		void SetMesh(AssetID id) { mesh_ = id; }
-		void SetSprite(AssetID id) { sprite_ = id; }
-		void SetText(AssetID id) { text_ = id; }
-		void SetLine(AssetID id) { line_ = id; }
-		void SetPrimitive(AssetID id) { primitive_ = id; }
-		void SetPrimitive2D(AssetID id) { primitive2D_ = id; }
-		void SetRaytracingReflection(AssetID id) {
-			raytracingReflection_ = id;
-		}
+		void SetMesh(AssetID id) { configuration_.mesh = id; }
+		void SetSprite(AssetID id) { configuration_.sprite = id; }
+		void SetText(AssetID id) { configuration_.text = id; }
+		void SetLine(AssetID id) { configuration_.line = id; }
+		void SetPrimitive(AssetID id) { configuration_.primitive = id; }
+		void SetPrimitive2D(AssetID id) { configuration_.primitive2D = id; }
+		void SetRaytracingReflection(AssetID id) { configuration_.raytracingReflection = id; }
 
 		// 未設定ならbuiltinデフォルトへフォールバックした実効値を返す
 		AssetID GetMeshOrBuiltin() const;
@@ -72,13 +67,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// 各描画タイプのデフォルトマテリアルで未設定は空ID
-		AssetID mesh_{};
-		AssetID sprite_{};
-		AssetID text_{};
-		AssetID line_{};
-		AssetID primitive_{};
-		AssetID primitive2D_{};
-		AssetID raytracingReflection_{};
+		DefaultMaterialConfiguration configuration_;
 
 		// 保存先の設定ファイルパス
 		std::string configPath_{};

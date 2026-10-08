@@ -82,10 +82,10 @@ void Engine::FrameTimer::EndMeasure(Measurement& measure) {
 
 	// 計測終了
 	measure.end = std::chrono::high_resolution_clock::now();
-	measure.resultSeconds = measure.end - measure.start;
+	measure.resultMilliseconds = measure.end - measure.start;
 
 	// 計測結果を保存
-	measure.times.emplace_back(measure.resultSeconds.count());
+	measure.times.emplace_back(measure.resultMilliseconds.count());
 	// 平均化するサンプル数を超えたら古いデータを削除
 	if (kSmoothingSample < measure.times.size()) {
 

@@ -43,6 +43,10 @@ struct ImGui_ImplDX12_InitInfo
 
     // Allocating SRV descriptors for textures is up to the application, so we provide callbacks.
     // (current version of the backend will only allocate one descriptor, from 1.92 the backend will need to allocate more)
+    // NEM: GPU完了まで保持する任意の回収窓口
+    // NEM: Device状態を確認する待機窓口
+    bool                        (*WaitForGPUFn)(ImGui_ImplDX12_InitInfo* info, ID3D12Fence* fence, UINT64 value, HANDLE event);
+    void                        (*ResourceRetireFn)(ImGui_ImplDX12_InitInfo* info, ID3D12Object* resource);
     ID3D12DescriptorHeap*       SrvDescriptorHeap;
     void                        (*SrvDescriptorAllocFn)(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* out_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_desc_handle);
     void                        (*SrvDescriptorFreeFn)(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE gpu_desc_handle);

@@ -54,5 +54,13 @@ namespace Engine {
 		virtual void OnSpawnBatch([[maybe_unused]] std::span<Particle> particles) {}
 		// 生存粒子を一括更新する
 		virtual void OnUpdateBatch([[maybe_unused]] std::span<Particle> particles, [[maybe_unused]] float deltaTime) {}
+
+		//--------- accessor -----------------------------------------------------
+
+		UUID GetInstanceID() const { return instanceID_; }
+		void SetInstanceID(UUID instanceID) { instanceID_ = instanceID; }
+	private:
+		// 保存されたModule識別子
+		UUID instanceID_ = UUID::New();
 	};
 } // Engine

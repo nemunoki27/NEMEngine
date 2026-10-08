@@ -16,7 +16,7 @@ namespace Engine {
 
 	//============================================================================
 	//	ToolRegistry class
-	//	Engine/Game両方から追加されるツールを管理する
+	//	エンジンとゲームのツールを管理する
 	//============================================================================
 	class ToolRegistry {
 	public:
@@ -26,6 +26,8 @@ namespace Engine {
 
 		ToolRegistry() = default;
 		~ToolRegistry();
+		ToolRegistry(const ToolRegistry&) = delete;
+		ToolRegistry& operator=(const ToolRegistry&) = delete;
 
 		// ツールを登録
 		bool Register(std::unique_ptr<ITool> tool);
@@ -33,6 +35,8 @@ namespace Engine {
 		bool Unregister(std::string_view id);
 		// 全ツールを解除
 		void Clear();
+		// 終了通知の失敗を診断して解除を続ける
+		void ClearNoThrow() noexcept;
 
 		// 毎フレーム更新
 		void Tick(ToolContext& context);
@@ -43,6 +47,10 @@ namespace Engine {
 		const ITool* Find(std::string_view id) const;
 		std::vector<ITool*> GetTools();
 		std::vector<const ITool*> GetTools() const;
+		// コールバック中も対象の寿命を保持する
+		std::shared_ptr<ITool> Acquire(std::string_view id);
+		// 走査開始時の順序と対象の寿命を保持する
+		std::vector<std::shared_ptr<ITool>> GetToolSnapshot();
 		bool Empty() const { return tools_.empty(); }
 
 		// シングルトン
@@ -54,8 +62,10 @@ namespace Engine {
 
 		//--------- variables ----------------------------------------------------
 
-		std::vector<std::unique_ptr<ITool>> tools_;
+		std::vector<std::shared_ptr<ITool>> tools_;
 		std::unordered_map<std::string, uint32_t> idToIndex_;
+		// 終了通知中の新規登録を拒否する
+		bool clearing_ = false;
 
 		//--------- functions ----------------------------------------------------
 
@@ -67,5 +77,5 @@ namespace Engine {
 
 #define ENGINE_REGISTER_TOOL(T) \
 	inline const bool kRegisteredTool_##T = Engine::ToolRegistry::GetInstance().Register(std::make_unique<T>());
-} // Engine
+}
 

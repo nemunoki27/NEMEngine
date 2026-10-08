@@ -1,3 +1,5 @@
+#include "../Common/descriptorHeapCompatibility.hlsli"
+
 //============================================================================
 //	定数
 //============================================================================
@@ -60,7 +62,7 @@ void main(uint3 dispatchID : SV_DispatchThreadID) {
 	float3 tangent = normalize(cross(up, N));
 	float3 bitangent = cross(N, tangent);
 
-	TextureCube<float4> sourceCubemap = ResourceDescriptorHeap[NonUniformResourceIndex(sourceCubemapIndex)];
+	TextureCube<float4> sourceCubemap = NEM_TEXTURECUBE(sourceCubemapIndex);
 
 	// 半球をphi/thetaで等間隔サンプリングしてcos重み付きで畳み込む
 	float3 irradiance = 0.0f.xxx;

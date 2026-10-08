@@ -6,6 +6,16 @@
     <NEMGameManagedOutput>$(NEMGameRoot)\Generated\Output\$(Configuration)\$(NEMGameName)\Managed</NEMGameManagedOutput>
   </PropertyGroup>
 
+  <!-- コンパイル対象と同じソースの保存IDを生成器へ渡す -->
+  <Target Name="NEMCollectScriptMetadata" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <AdditionalFiles Remove="@(Compile->'%(FullPath).meta')" />
+      <NEMScriptMetadataCandidate Remove="@(NEMScriptMetadataCandidate)" />
+      <NEMScriptMetadataCandidate Include="@(Compile->'%(FullPath).meta')" />
+      <AdditionalFiles Include="@(NEMScriptMetadataCandidate)" Condition="Exists('%(NEMScriptMetadataCandidate.Identity)')" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="NEMDeployGameScripts" AfterTargets="Build"
           Condition="'$(NEMScriptStagingOutput)' == ''">
     <Error Condition="!Exists('$(TargetPath)')"

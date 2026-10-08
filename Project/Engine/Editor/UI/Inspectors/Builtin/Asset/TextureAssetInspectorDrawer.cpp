@@ -8,7 +8,7 @@
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
 // c++
 #include <algorithm>
@@ -101,6 +101,38 @@ void Engine::TextureAssetInspectorDrawer::Draw(
 	DrawImportSettings(context, meta);
 }
 
+bool Engine::TextureAssetInspectorDrawer::ApplySettings(
+	const EditorPanelContext& context, const AssetMeta& meta) {
+
+	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	if (!database || !database->UpdateImporterSettings(
+		meta.guid, ToJson(draftSettings_), kTextureImporterVersion)) {
+
+		statusMessage_ = "適用に失敗しました";
+		return false;
+	}
+	const std::filesystem::path fullPath = database->ResolveFullPath(meta.guid);
+	context.graphicsCore->GetTextureUploadService().RequestReloadByFile(
+		fullPath, &draftSettings_);
+	savedSettings_ = draftSettings_;
+	statusMessage_ = "適用しました";
+	return true;
+}
+
+bool Engine::TextureAssetInspectorDrawer::ApplyPendingChanges(
+	const EditorPanelContext& context) {
+
+	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
+	const AssetMeta* meta = database ? database->Find(selectedAsset_) : nullptr;
+	return meta && ApplySettings(context, *meta);
+}
+
+void Engine::TextureAssetInspectorDrawer::DiscardPendingChanges() {
+
+	draftSettings_ = savedSettings_;
+	statusMessage_.clear();
+}
+
 void Engine::TextureAssetInspectorDrawer::SyncSelection(const AssetMeta& meta) {
 
 	if (selectedAsset_ == meta.guid) {
@@ -147,20 +179,7 @@ void Engine::TextureAssetInspectorDrawer::DrawImportSettings(
 	ImGui::BeginDisabled(!dirty);
 	if (ImGui::Button("適用", ImVec2(width, 0.0f))) {
 
-		AssetDatabase* database = context.editorContext ?
-			context.editorContext->assetDatabase : nullptr;
-		if (database && database->UpdateImporterSettings(
-			meta.guid, ToJson(draftSettings_), kTextureImporterVersion)) {
-
-			const std::filesystem::path fullPath = database->ResolveFullPath(meta.guid);
-			context.graphicsCore->GetTextureUploadService().RequestReloadByFile(
-				fullPath, &draftSettings_);
-			savedSettings_ = draftSettings_;
-			statusMessage_ = "適用しました";
-		} else {
-
-			statusMessage_ = "適用に失敗しました";
-		}
+		ApplySettings(context, meta);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("元に戻す", ImVec2(width, 0.0f))) {

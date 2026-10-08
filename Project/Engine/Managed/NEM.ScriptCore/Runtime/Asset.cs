@@ -23,10 +23,10 @@ public abstract class Asset : Object {
         this.id = id;
     }
 
-    public AssetGUID assetId => id;
+    public AssetGUID assetID => id;
 
     // assetが現在のAssetDatabaseに存在するか。hot pathで繰り返す場合は結果を呼び出し側でcacheする想定
-    public bool exists => id.isValid && NativeApi.ReadAssetExists(id);
+    public bool exists => id.isValid && NativeApplicationAPI.ReadAssetExists(id);
 
     // 表示名(拡張子なしファイル名)。Missing/未設定はnull。path文字列そのものは返さない
     public string? name {
@@ -34,7 +34,7 @@ public abstract class Asset : Object {
             if (!id.isValid) {
                 return null;
             }
-            string displayName = NativeApi.ReadAssetDisplayName(id);
+            string displayName = NativeApplicationAPI.ReadAssetDisplayName(id);
             return string.IsNullOrEmpty(displayName) ? null : displayName;
         }
     }
@@ -52,6 +52,17 @@ public abstract class Asset : Object {
 [NativeAssetType("Texture")]
 public sealed class Texture : Asset {
     internal Texture(AssetGUID id) : base(id) { }
+}
+
+[NativeAssetType("RenderTexture")]
+public sealed class RenderTexture : Asset {
+    internal RenderTexture(AssetGUID id) : base(id) { }
+}
+
+
+[NativeAssetType("RenderPasses")]
+public sealed class RenderPassesAsset : Asset {
+    internal RenderPassesAsset(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("Material")]
@@ -82,6 +93,11 @@ public sealed class Font : Asset {
 [NativeAssetType("AnimationClip")]
 public sealed class AnimationClip : Asset {
     internal AnimationClip(AssetGUID id) : base(id) { }
+}
+
+[NativeAssetType("AnimationController")]
+public sealed class RuntimeAnimatorController : Asset {
+    internal RuntimeAnimatorController(AssetGUID id) : base(id) { }
 }
 
 [NativeAssetType("ParticleEffect")]

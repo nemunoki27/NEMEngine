@@ -14,6 +14,7 @@ namespace Engine {
 
 	//============================================================================
 	//	TextRendererInspectorDrawer class
+	//	Fontと文字別変換の編集を表示する
 	//============================================================================
 	class TextRendererInspectorDrawer :
 		public SerializedComponentInspectorDrawer<TextRendererComponent> {
@@ -22,9 +23,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		TextRendererInspectorDrawer() :
-			SerializedComponentInspectorDrawer("Text Renderer", "TextRenderer") {
-		}
+		TextRendererInspectorDrawer() : SerializedComponentInspectorDrawer("Text Renderer", "TextRenderer") {}
 		~TextRendererInspectorDrawer() = default;
 	private:
 		//============================================================================
@@ -40,6 +39,7 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
+		// 表示と文字の設定をドラフトへ編集する
 		void DrawFields(const EditorPanelContext& context, ECSWorld& world,
 			const Entity& entity, bool& anyItemActive) override;
 		// ワールドの文字別変換をドラフトへ同期する
@@ -52,7 +52,7 @@ namespace Engine {
 		void ApplyPreview(ECSWorld& world, const Entity& entity,
 			const TextRendererComponent& previewComponent) override;
 
-		// フォント欄に.ttf/.otfがドロップされたらMSDFを生成し.font.jsonの参照へ差し替える
-		void ResolveFontSourceDrop(const EditorPanelContext& context);
+		// ソースFontを生成し、成功後に参照を差し替える
+		void ResolveFontSourceDrop(const EditorPanelContext& context, AssetID previousFont);
 	};
 } // Engine

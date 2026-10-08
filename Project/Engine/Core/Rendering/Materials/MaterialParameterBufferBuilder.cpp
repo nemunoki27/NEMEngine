@@ -3,6 +3,8 @@
 //============================================================================
 //	include
 //============================================================================
+#include "MaterialParameterLookup.h"
+#include <Engine/Core/Foundation/Math/Math.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 
@@ -20,6 +22,7 @@
 //============================================================================
 namespace {
 
+	// 宣言領域と配置領域に収まる成分数を取得する
 	template<typename TValue>
 	uint32_t GetMaxWritableComponentCount(const Engine::ShaderConstantBufferVariable& variable,
 		uint32_t layoutSizeInBytes) {
@@ -41,6 +44,7 @@ namespace {
 		return (std::min)(static_cast<uint32_t>(writableBytes / sizeof(TValue)), 4u);
 	}
 
+	// 未使用成分も宣言された成分数で扱う
 	uint32_t GetDeclaredComponentCount(const Engine::ShaderConstantBufferVariable& variable) {
 
 		uint32_t count = variable.declaredComponentCount;
@@ -53,7 +57,7 @@ namespace {
 		return std::clamp<uint32_t>(count, 1u, 4u);
 	}
 
-
+	// 診断用に保存値の型名を取得する
 	const char* GetParameterValueTypeName(const Engine::MaterialParameterValue& parameter) {
 
 		return std::visit([](const auto& value) -> const char* {
@@ -83,6 +87,7 @@ namespace {
 			}, parameter.value);
 	}
 
+	// Debug設定で詳細ログを切り替える
 	bool IsParameterDebugLogEnabled() {
 
 #if defined(_DEBUG)
@@ -107,6 +112,7 @@ namespace {
 #endif
 	}
 
+	// 宣言された成分だけをoffsetへ書き込む
 	template<typename TValue>
 	uint32_t WriteScalarArray(std::span<uint8_t> bytes,
 		const Engine::ShaderConstantBufferVariable& variable,
@@ -127,6 +133,7 @@ namespace {
 		return count;
 	}
 
+	// 数値とVectorと色を浮動小数点の成分へ変換する
 	std::array<float, 4> ToFloatArray(const Engine::MaterialParameterValue& parameter, uint32_t& outCount) {
 
 		outCount = 1;
@@ -157,6 +164,7 @@ namespace {
 			}, parameter.value);
 	}
 
+	// 存在しない成分はゼロとして取得する
 	float ExtractFloatComponent(const Engine::MaterialParameterValue& parameter, uint32_t index) {
 
 		uint32_t count = 0;
@@ -164,6 +172,7 @@ namespace {
 		return index < values.size() ? values[index] : 0.0f;
 	}
 
+	// 宣言されたVector幅へ値を揃える
 	Engine::MaterialParameterValue NormalizeParameterValueForVariable(
 		const Engine::ShaderConstantBufferVariable& variable,
 		const Engine::MaterialParameterValue& src) {
@@ -194,6 +203,7 @@ namespace {
 		return out;
 	}
 
+	// Boolと数値を符号なし整数の成分へ変換する
 	std::array<uint32_t, 4> ToUIntArray(const Engine::MaterialParameterValue& parameter, uint32_t& outCount) {
 
 		outCount = 1;
@@ -207,13 +217,17 @@ namespace {
 			} else if constexpr (std::is_same_v<ValueType, bool>) {
 				return { value ? 1u : 0u, 0u, 0u, 0u };
 			} else if constexpr (std::is_same_v<ValueType, float>) {
-				return { static_cast<uint32_t>(value), 0u, 0u, 0u };
+				// 変換できない値は未定義動作を避けてゼロにする
+				uint32_t converted = 0;
+				Math::TryConvertToUInt32(value, converted);
+				return { converted, 0u, 0u, 0u };
 			} else {
 				return {};
 			}
 			}, parameter.value);
 	}
 
+	// Boolと数値を符号付き整数の成分へ変換する
 	std::array<int32_t, 4> ToIntArray(const Engine::MaterialParameterValue& parameter, uint32_t& outCount) {
 
 		outCount = 1;
@@ -227,13 +241,17 @@ namespace {
 			} else if constexpr (std::is_same_v<ValueType, bool>) {
 				return { value ? 1 : 0, 0, 0, 0 };
 			} else if constexpr (std::is_same_v<ValueType, float>) {
-				return { static_cast<int32_t>(value), 0, 0, 0 };
+				// 変換できない値は未定義動作を避けてゼロにする
+				int32_t converted = 0;
+				Math::TryConvertToInt32(value, converted);
+				return { converted, 0, 0, 0 };
 			} else {
 				return {};
 			}
 			}, parameter.value);
 	}
 
+	// Shaderの宣言型で値を書き込む
 	void WriteParameterValue(std::span<uint8_t> bytes,
 		const Engine::ShaderConstantBufferVariable& variable,
 		const Engine::MaterialParameterValue& parameter,
@@ -278,86 +296,23 @@ namespace {
 		}
 	}
 
+	// MaterialのIDと用途と名前で既定値を探す
 	const Engine::MaterialParameterValue* FindParameterValue(
 		const Engine::MaterialParameterSet& parameters,
 		const Engine::ShaderConstantBufferVariable& variable) {
 
-		if (const Engine::MaterialParameterValue* value =
-			parameters.Find(variable.parameterID)) {
-
-			return value;
-		}
-		if (variable.semantic !=
-			Engine::MaterialParameterSemantic::None) {
-
-			if (const Engine::MaterialParameterValue* value =
-				parameters.Find(variable.semantic)) {
-
-				return value;
-			}
-		}
-		return parameters.FindByName(variable.name);
+		return Engine::MaterialParameterLookup::Find(parameters, variable.parameterID, variable.semantic, variable.name);
 	}
 
+	// 明示IDと既定値の名前でInstanceの上書きを探す
 	const Engine::MaterialParameterValue* FindOverrideParameterValue(
 		const Engine::MaterialParameterSet& defaults,
 		const Engine::MaterialParameterSet& overrides,
 		const Engine::ShaderConstantBufferVariable& variable) {
 
-		if (const Engine::MaterialParameterValue* value =
-			FindParameterValue(overrides, variable)) {
-
-			return value;
-		}
-		for (const Engine::MaterialParameterRecord& parameter :
-			defaults.GetRecords()) {
-
-			if (parameter.id != variable.parameterID) {
-				continue;
-			}
-			return overrides.FindByName(parameter.namedValue.first);
-		}
-		return nullptr;
+		return Engine::MaterialParameterLookup::Find(overrides, variable.parameterID, variable.semantic, variable.name, &defaults);
 	}
 
-	size_t HashCombine(size_t seed, size_t value) {
-
-		return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
-	}
-
-	size_t HashParameterValue(const Engine::MaterialParameterValue& parameter) {
-
-		size_t seed = parameter.value.index();
-		std::visit([&](const auto& value) {
-			using ValueType = std::decay_t<decltype(value)>;
-
-			if constexpr (std::is_same_v<ValueType, float>) {
-				seed = HashCombine(seed, std::hash<float>{}(value));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector2>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.x));
-				seed = HashCombine(seed, std::hash<float>{}(value.y));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector3>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.x));
-				seed = HashCombine(seed, std::hash<float>{}(value.y));
-				seed = HashCombine(seed, std::hash<float>{}(value.z));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Vector4>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.x));
-				seed = HashCombine(seed, std::hash<float>{}(value.y));
-				seed = HashCombine(seed, std::hash<float>{}(value.z));
-				seed = HashCombine(seed, std::hash<float>{}(value.w));
-			} else if constexpr (std::is_same_v<ValueType, Engine::Color4>) {
-				seed = HashCombine(seed, std::hash<float>{}(value.r));
-				seed = HashCombine(seed, std::hash<float>{}(value.g));
-				seed = HashCombine(seed, std::hash<float>{}(value.b));
-				seed = HashCombine(seed, std::hash<float>{}(value.a));
-			} else if constexpr (std::is_same_v<ValueType, Engine::AssetID>) {
-				seed = HashCombine(seed, std::hash<Engine::AssetID>{}(value));
-			} else {
-				seed = HashCombine(seed, std::hash<ValueType>{}(value));
-			}
-			}, parameter.value);
-		return seed;
-	}
 }
 
 std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
@@ -365,11 +320,8 @@ std::vector<uint8_t> Engine::MaterialParameterBufferBuilder::Build(
 	const TextureResolver& resolveTexture,
 	bool* outTextureValuesCacheable) {
 
-	const uint32_t layoutSizeInBytes = layout.GetSizeInBytes();
-	std::vector<uint8_t> bytes((std::max)(layoutSizeInBytes, 16u), 0);
-	BuildInto(bytes, material, layout, resolveTexture,
-		outTextureValuesCacheable);
-	return bytes;
+	// 既定値だけの構築も共通経路へ揃える
+	return BuildElement(material.parameters, MaterialParameterSet{}, layout, resolveTexture, outTextureValuesCacheable);
 }
 
 bool Engine::MaterialParameterBufferBuilder::BuildInto(std::span<uint8_t> bytes,
@@ -413,7 +365,7 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 
 	const std::vector<ShaderConstantBufferVariable>& variables = layout.GetVariables();
 
-	// 1変数分を詰める、AssetID値はテクスチャ扱いでbindless indexへ解決しuintとして書く
+	// AssetIDをTexture番号へ解決して宣言位置へ書き込む
 	auto writeOne = [&](const ShaderConstantBufferVariable& variable, const MaterialParameterValue& value) {
 
 		if (std::holds_alternative<AssetID>(value.value)) {
@@ -439,7 +391,7 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 
 	for (const ShaderConstantBufferVariable& variable : variables) {
 
-		// 上書きを優先しなければマテリアル既定値を使う
+		// 上書きを優先し、未指定なら既定値を使う
 		if (const MaterialParameterValue* overrideValue =
 			FindOverrideParameterValue(defaults, overrides, variable)) {
 			writeOne(variable, *overrideValue);
@@ -450,8 +402,8 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 			writeOne(variable, *defaultValue);
 			continue;
 		}
-		// テクスチャindexはcbuffer内でuintとして現れる、未指定はkNoTextureにしてテクスチャなし分岐へ乗せる
-		if (variable.valueType == D3D_SVT_UINT &&
+		// Textureだけを未指定扱いにし、通常のuintはゼロを維持する
+		if (variable.isTexture && variable.valueType == D3D_SVT_UINT &&
 			static_cast<size_t>(variable.offset) + sizeof(uint32_t) <= bytes.size()) {
 
 			const uint32_t noTexture = kNoTextureIndex;
@@ -464,8 +416,7 @@ bool Engine::MaterialParameterBufferBuilder::BuildElementInto(std::span<uint8_t>
 	return true;
 }
 
-uint64_t Engine::MaterialParameterBufferBuilder::ComputeHash(
-	const MaterialParameterSet& parameters) {
+uint64_t Engine::MaterialParameterBufferBuilder::ComputeHash(const MaterialParameterSet& parameters) {
 
 	return parameters.GetContentHash();
 }

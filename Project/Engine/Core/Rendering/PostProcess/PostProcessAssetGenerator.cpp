@@ -3,478 +3,203 @@
 //============================================================================
 //	include
 //============================================================================
+#include "PostProcessAssetPublication.h"
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
+#include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 
 // c++
-#include <algorithm>
-#include <cctype>
+#include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
+#include <vector>
 
-// json
-#include <json.hpp>
-
-//============================================================================
-//	PostProcessAssetGenerator classMethods
-//============================================================================
 namespace {
 
-	constexpr const char* kGeneratedBy = "PostProcessAssetGenerator";
+	using namespace Engine;
 
-	struct BuiltinPostProcessSource {
+	// 二重拡張子を除いた生成名を取得する
+	std::string BaseName(const std::string& path) {
 
-		std::string baseName;
-		std::string folder;
-		std::string sourceShaderPath;
-		std::filesystem::path hlslPath;
-		std::filesystem::path shaderJsonPath;
-		std::filesystem::path pipelineJsonPath;
-		std::filesystem::path materialJsonPath;
-	};
-
-	bool EndsWith(std::string_view text, std::string_view suffix) {
-
-		if (text.size() < suffix.size()) {
-			return false;
-		}
-		return text.substr(text.size() - suffix.size()) == suffix;
+		const auto stem = Algorithm::PathFromUTF8(path).stem();
+		return Algorithm::PathToUTF8(stem.stem());
 	}
 
-	std::string ToLower(std::string text) {
+	// 元Shaderと同じフォルダーに生成先を揃える
+	PostProcessAssetSource UserSource(const std::string& path) {
 
-		std::transform(text.begin(), text.end(), text.begin(),
-			[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-		return text;
+		const auto normalized = Algorithm::PathFromUTF8(path).lexically_normal();
+		PostProcessAssetSource source;
+		source.name = BaseName(path);
+		source.sourceShader = Algorithm::ConvertString(normalized.generic_wstring());
+		source.shaderFile = source.sourceShader;
+		const auto parent = normalized.parent_path();
+		source.shaderPath = Algorithm::ConvertString((parent / (source.name + ".shader.json")).generic_wstring());
+		source.pipelinePath = Algorithm::ConvertString((parent / (source.name + ".pipeline.json")).generic_wstring());
+		source.materialPath = Algorithm::ConvertString((parent / (source.name + ".material.json")).generic_wstring());
+		return source;
 	}
 
-	std::string ToDisplayName(const std::string& baseName, const std::string& folder) {
+	// 標準HLSLの生成先を収集する
+	std::vector<PostProcessAssetSource> GatherSources() {
 
-		if (!folder.empty()) {
-			const std::filesystem::path folderPath(folder);
-			std::string name = folderPath.filename().string();
-			if (!name.empty()) {
-				return name;
-			}
-		}
-		if (baseName.empty()) {
-			return {};
-		}
-
-		std::string result = baseName;
-		result.front() = static_cast<char>(std::toupper(static_cast<unsigned char>(result.front())));
-		return result;
-	}
-
-	nlohmann::json MakeDefaultParameters(const std::string& baseName) {
-
-		const std::string key = ToLower(baseName);
-		if (key == "invert" || key == "grayscale") {
-			return { { "strength", 1.0f } };
-		}
-		if (key == "vignette") {
-			return { { "intensity", 0.45f }, { "radius", 0.75f }, { "softness", 0.35f } };
-		}
-		if (key == "blurhorizontal" || key == "blurvertical") {
-			return { { "radius", 1.0f } };
-		}
-		if (key == "bloomprefilter") {
-			return { { "threshold", 1.0f }, { "knee", 0.5f }, { "intensity", 1.0f } };
-		}
-		if (key == "bloomcomposite") {
-			return { { "intensity", 0.75f } };
-		}
-		return nlohmann::json::object();
-	}
-
-	nlohmann::json AddGeneratedMetadata(nlohmann::json data, const BuiltinPostProcessSource& source) {
-
-		data["generated"] = true;
-		data["generatedBy"] = kGeneratedBy;
-		data["sourceShader"] = source.sourceShaderPath;
-		return data;
-	}
-
-	nlohmann::json MakeShaderJson(const BuiltinPostProcessSource& source) {
-
-		return AddGeneratedMetadata(nlohmann::json{
-			{ "name", source.baseName + "Shader" },
-			{ "stages", nlohmann::json::array({
-				{
-					{ "stage", "CS" },
-					{ "file", "Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".CS.hlsl" },
-					{ "entry", "main" },
-					{ "profile", "cs_6_0" }
-				}
-			}) }
-			}, source);
-	}
-
-	nlohmann::json MakePipelineJson(const BuiltinPostProcessSource& source, Engine::AssetID shaderID) {
-
-		return AddGeneratedMetadata(nlohmann::json{
-			{ "name", source.baseName + "Pipeline" },
-			{ "variants", nlohmann::json::array({
-				{
-					{ "kind", "Compute" },
-					{ "pipelineType", "Compute" },
-					{ "shader", Engine::ToAssetReferenceJson(shaderID) }
-				}
-			}) }
-			}, source);
-	}
-
-	nlohmann::json MakeMaterialJson(const BuiltinPostProcessSource& source, Engine::AssetID pipelineID) {
-
-		return AddGeneratedMetadata(nlohmann::json{
-			{ "name", source.baseName + "Material" },
-			{ "domain", "Compute" },
-			{ "passes", nlohmann::json::array({
-				{
-					{ "passKind", "PostProcess" },
-					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
-					{ "preferredVariant", "Compute" }
-				}
-			}) },
-			{ "parameters", MakeDefaultParameters(source.baseName) }
-			}, source);
-	}
-
-	bool IsGeneratedByThisTool(const nlohmann::json& data) {
-
-		return data.value("generated", false) &&
-			data.value("generatedBy", std::string{}) == kGeneratedBy;
-	}
-
-	bool CanOverwriteAsset(const std::filesystem::path& path) {
-
-		if (!std::filesystem::exists(path)) {
-			return true;
-		}
-
-		std::ifstream ifs(path, std::ios::binary);
-		nlohmann::json oldData = nlohmann::json::parse(ifs, nullptr, false);
-		if (oldData.is_discarded()) {
-			return false;
-		}
-		return IsGeneratedByThisTool(oldData);
-	}
-
-	void WriteGeneratedJson(const std::filesystem::path& path, const nlohmann::json& data) {
-
-		std::filesystem::create_directories(path.parent_path());
-		const std::string newText = data.dump(4);
-
-		if (std::filesystem::exists(path)) {
-
-			if (!CanOverwriteAsset(path)) {
-				Engine::Logger::Output(Engine::LogType::Engine,
-					"[PostProcessAssetGenerator] Custom Assetのため上書きを省略します path=" + path.generic_string());
-				return;
-			}
-
-			std::ifstream ifs(path, std::ios::binary);
-			const std::string oldText((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-			if (oldText == newText) {
-				return;
-			}
-		}
-
-		std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
-		ofs << newText;
-		Engine::Logger::Output(Engine::LogType::Engine,
-			"[PostProcessAssetGenerator] Assetを書き込みます path=" + path.generic_string());
-	}
-
-	std::vector<BuiltinPostProcessSource> GatherPostProcessSources(const std::filesystem::path& assetRoot) {
-
-		std::vector<BuiltinPostProcessSource> sources{};
-		const std::filesystem::path shaderRoot = assetRoot / "Shaders/Builtin/PostProcess";
+		std::vector<PostProcessAssetSource> sources;
+		const auto shaderRoot = RuntimePaths::GetEngineAssetsRoot() / "Shaders/Builtin/PostProcess";
 		if (!std::filesystem::exists(shaderRoot)) {
 			return sources;
 		}
-
 		for (const auto& entry : std::filesystem::recursive_directory_iterator(shaderRoot)) {
 			if (!entry.is_regular_file()) {
 				continue;
 			}
-
-			const std::string fileName = entry.path().filename().string();
-			if (!EndsWith(fileName, ".CS.hlsl")) {
+			const auto filename = Algorithm::PathToUTF8(entry.path().filename());
+			if (!std::string_view(filename).ends_with(".CS.hlsl")) {
 				continue;
 			}
-
-			std::filesystem::path relative = std::filesystem::relative(entry.path(), shaderRoot);
-			std::filesystem::path relativeFolder = relative.parent_path();
-			std::string baseName = fileName.substr(0, fileName.size() - std::string(".CS.hlsl").size());
-			const std::filesystem::path assetFolder =
-				entry.path().parent_path();
-			// 固定パス専用の手書きアセットは汎用PostProcessとして重複生成しない
-			if (std::filesystem::exists(
-				assetFolder / (baseName + ".shader.json")) &&
-				std::filesystem::exists(
-					assetFolder / (baseName + ".pipeline.json")) &&
-				std::filesystem::exists(
-					assetFolder / (baseName + ".material.json"))) {
-
+			const auto relative = std::filesystem::relative(entry.path(), shaderRoot);
+			const auto folder = relative.parent_path();
+			const auto name = BaseName(filename);
+			const auto assetFolder = entry.path().parent_path();
+			// 固定パスの手書きAssetは重複生成しない
+			if (std::filesystem::exists(assetFolder / (name + ".shader.json")) &&
+				std::filesystem::exists(assetFolder / (name + ".pipeline.json")) &&
+				std::filesystem::exists(assetFolder / (name + ".material.json"))) {
 				continue;
 			}
-			std::string folder = relativeFolder.generic_string();
-			if (folder.empty()) {
-				folder = baseName;
-			}
-
-			BuiltinPostProcessSource source{};
-			source.baseName = baseName;
-			source.folder = folder;
-			source.sourceShaderPath = "Engine/Assets/Shaders/Builtin/PostProcess/" + relative.generic_string();
-			source.hlslPath = entry.path();
-			source.shaderJsonPath = shaderRoot / relativeFolder / (baseName + ".shader.json");
-			source.pipelineJsonPath = assetRoot / "Pipelines/Builtin/PostProcess" /
-				relativeFolder / (baseName + ".pipeline.json");
-			source.materialJsonPath = assetRoot / "Materials/Builtin/PostProcess" /
-				relativeFolder / (baseName + ".material.json");
-			sources.emplace_back(std::move(source));
+			PostProcessAssetSource source;
+			source.name = name;
+			source.builtin = true;
+			source.sourceShader =
+				"Engine/Assets/Shaders/Builtin/PostProcess/" + Algorithm::ConvertString(relative.generic_wstring());
+			source.shaderFile = "Builtin/PostProcess/" + Algorithm::ConvertString(relative.generic_wstring());
+			source.shaderPath = "Engine/Assets/Shaders/Builtin/PostProcess/" +
+								Algorithm::ConvertString((folder / (name + ".shader.json")).generic_wstring());
+			source.pipelinePath = "Engine/Assets/Pipelines/Builtin/PostProcess/" +
+								  Algorithm::ConvertString((folder / (name + ".pipeline.json")).generic_wstring());
+			source.materialPath = "Engine/Assets/Materials/Builtin/PostProcess/" +
+								  Algorithm::ConvertString((folder / (name + ".material.json")).generic_wstring());
+			sources.push_back(std::move(source));
 		}
 		return sources;
 	}
 
-	void AddMaterialAlias(std::unordered_map<std::string, Engine::AssetID>& table,
-		const std::string& alias, Engine::AssetID materialID) {
+	// 失敗した生成を診断へ残す
+	void ReportFailure(const PostProcessAssetSource& source, const std::string& diagnostic) {
 
-		if (!alias.empty() && materialID) {
-			table[alias] = materialID;
-		}
+		Logger::Output(LogType::Engine, spdlog::level::err, "[PostProcessAssetGenerator] Assetを生成できません path={} 内容={}",
+			source.materialPath, diagnostic);
 	}
 }
 
+//============================================================================
+//	PostProcessAssetGenerator classMethods
+//============================================================================
 void Engine::PostProcessAssetGenerator::EnsureBuiltinAssets(AssetDatabase* database) {
 
-	if (!database) {
+	if (!database || (generated_ && database_ == database && !databaseLifetime_.expired() &&
+						 structureRevision_ == database->GetStructureRevision())) {
 		return;
 	}
-	if (generated_ && database_ == database) {
-		return;
-	}
-
-	materialTable_.clear();
-	database_ = database;
-	generated_ = true;
-
-	const std::filesystem::path assetRoot = RuntimePaths::GetEngineAssetsRoot();
-	const auto sources = GatherPostProcessSources(assetRoot);
-	for (const BuiltinPostProcessSource& source : sources) {
-
-		const std::string shaderAssetPath =
-			"Engine/Assets/Shaders/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".shader.json";
-		const std::string pipelineAssetPath =
-			"Engine/Assets/Pipelines/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".pipeline.json";
-		const std::string materialAssetPath =
-			"Engine/Assets/Materials/Builtin/PostProcess/" + source.folder + "/" + source.baseName + ".material.json";
-
-		WriteGeneratedJson(source.shaderJsonPath, MakeShaderJson(source));
-		const AssetID shaderID = database->ImportOrGet(shaderAssetPath, AssetType::Shader);
-		WriteGeneratedJson(source.pipelineJsonPath, MakePipelineJson(source, shaderID));
-		const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
-		WriteGeneratedJson(source.materialJsonPath, MakeMaterialJson(source, pipelineID));
-		const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
-		if (!materialID) {
-			continue;
+	try {
+		// 生成途中の一覧を公開しない
+		const auto sources = GatherSources();
+		std::vector<AssetID> identifiers;
+		std::string diagnostic;
+		if (!PostProcessAssetPublication::PublishBatch(*database, sources, identifiers, diagnostic)) {
+			Logger::Output(LogType::Engine, spdlog::level::err, "[PostProcessAssetGenerator] 標準Assetを生成できません 内容={}",
+				diagnostic);
+			return;
 		}
-
-		const std::string displayName = ToDisplayName(source.baseName, source.folder);
-		AddMaterialAlias(materialTable_, source.baseName, materialID);
-		AddMaterialAlias(materialTable_, displayName, materialID);
-		AddMaterialAlias(materialTable_, source.baseName + "Material", materialID);
-		AddMaterialAlias(materialTable_, displayName + "Material", materialID);
+		std::unordered_map<std::string, AssetID> candidate;
+		for (size_t index = 0; index < sources.size(); ++index) {
+			const auto& source = sources[index];
+			const auto id = identifiers[index];
+			const auto folder = Algorithm::PathFromUTF8(source.shaderFile).parent_path();
+			const auto display =
+				folder == std::filesystem::path("Builtin/PostProcess") ? source.name : Algorithm::PathToUTF8(folder.filename());
+			candidate[source.name] = id;
+			candidate[display] = id;
+			candidate[source.name + "Material"] = id;
+			candidate[display + "Material"] = id;
+		}
+		// 全効果の生成成功後に一覧を公開
+		materialTable_.swap(candidate);
+		database_ = database;
+		databaseLifetime_ = database->GetCacheLifetime();
+		structureRevision_ = database->GetStructureRevision();
+		generated_ = true;
+	} catch (const std::exception& error) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[PostProcessAssetGenerator] 標準Assetの生成を中止しました 内容={}",
+			error.what());
 	}
 }
 
 Engine::AssetID Engine::PostProcessAssetGenerator::FindBuiltinMaterial(std::string_view name) const {
 
-	auto found = materialTable_.find(std::string(name));
+	if (databaseLifetime_.expired() || structureRevision_ != database_->GetStructureRevision()) {
+		return {};
+	}
+	// 登録済みの標準効果を名前で取得
+	const auto found = materialTable_.find(std::string(name));
 	return found == materialTable_.end() ? AssetID{} : found->second;
 }
 
-bool Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(
-	std::string_view assetPath) {
+bool Engine::PostProcessAssetGenerator::IsComputeShaderSourcePath(std::string_view path) {
 
-	return EndsWith(ToLower(std::string(assetPath)), ".cs.hlsl");
+	return std::string_view(Algorithm::ToLower(std::string(path))).ends_with(".cs.hlsl");
 }
 
 void Engine::PostProcessAssetGenerator::Clear() {
 
+	// 一覧と生成状態を解除
 	materialTable_.clear();
 	database_ = nullptr;
+	databaseLifetime_.reset();
+	structureRevision_ = 0;
 	generated_ = false;
 }
 
-namespace {
+Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase* database, const std::string& path) {
 
-	// 論理アセットパスのディレクトリ区切りを "/" に統一する
-	std::string NormalizeSeparators(std::string path) {
-
-		std::replace(path.begin(), path.end(), '\\', '/');
-		return path;
-	}
-
-	// .CS.hlslの論理パスからbaseNameを取得する
-	std::string BaseNameFromCsHlsl(const std::string& csHlslPath) {
-
-		std::filesystem::path p(csHlslPath);
-		const std::string stem1 = p.stem().string(); // "Bloom.CS"
-		const std::string stem2 = std::filesystem::path(stem1).stem().string(); // "Bloom"
-		return stem2;
-	}
-
-	// .shader.jsonの論理パスからbaseNameを取得する
-	std::string BaseNameFromShaderJson(const std::string& shaderPath) {
-
-		std::filesystem::path p(shaderPath);
-		const std::string stem1 = p.stem().string(); // "Bloom.shader"
-		const std::string stem2 = std::filesystem::path(stem1).stem().string(); // "Bloom"
-		return stem2;
-	}
-
-	nlohmann::json MakeUserShaderJson(const std::string& csHlslAssetPath, const std::string& baseName) {
-
-		return nlohmann::json{
-			{ "generated", true },
-			{ "generatedBy", kGeneratedBy },
-			{ "sourceShader", csHlslAssetPath },
-			{ "name", baseName + "Shader" },
-			{ "stages", nlohmann::json::array({
-				{
-					{ "stage", "CS" },
-					{ "file", csHlslAssetPath },
-					{ "entry", "main" },
-					{ "profile", "cs_6_0" }
-				}
-			}) }
-		};
-	}
-
-	nlohmann::json MakeUserPipelineJson(Engine::AssetID shaderID, const std::string& baseName) {
-
-		return nlohmann::json{
-			{ "generated", true },
-			{ "generatedBy", kGeneratedBy },
-			{ "name", baseName + "Pipeline" },
-			{ "variants", nlohmann::json::array({
-				{
-					{ "kind", "Compute" },
-					{ "pipelineType", "Compute" },
-					{ "shader", Engine::ToAssetReferenceJson(shaderID) }
-				}
-			}) }
-		};
-	}
-
-	nlohmann::json MakeUserMaterialJson(Engine::AssetID pipelineID, const std::string& baseName) {
-
-		return nlohmann::json{
-			{ "generated", true },
-			{ "generatedBy", kGeneratedBy },
-			{ "name", baseName + "Material" },
-			{ "domain", "Compute" },
-			{ "passes", nlohmann::json::array({
-				{
-					{ "passKind", "PostProcess" },
-					{ "pipeline", Engine::ToAssetReferenceJson(pipelineID) },
-					{ "preferredVariant", "Compute" }
-				}
-			}) },
-			{ "parameters", nlohmann::json::object() }
-		};
-	}
-}
-
-Engine::AssetID Engine::PostProcessAssetGenerator::EnsureUserAsset(AssetDatabase* database,
-	const std::string& csHlslAssetPath) {
-
-	if (!database || !IsComputeShaderSourcePath(csHlslAssetPath)) {
+	if (!database || !IsComputeShaderSourcePath(path)) {
 		return {};
 	}
-
-	const std::string normalized = NormalizeSeparators(csHlslAssetPath);
-	const std::string baseName = BaseNameFromCsHlsl(normalized);
-	if (baseName.empty()) {
+	const auto source = UserSource(path);
+	if (source.name.empty()) {
 		return {};
 	}
-
-	// 親ディレクトリで.CS.hlslを除いたパス
-	const std::string parentDir = NormalizeSeparators(
-		std::filesystem::path(normalized).parent_path().generic_string());
-
-	// 各アセットの論理パスを導出する
-	// pipeline/materialはシェーダーと同じフォルダに生成し、Pipelines/Materialsツリーは使わない
-	const std::string shaderAssetPath = parentDir + "/" + baseName + ".shader.json";
-	const std::string pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
-	const std::string materialAssetPath = parentDir + "/" + baseName + ".material.json";
-
-	// 既存アセットがあればそれを使う
-	const AssetMeta* existing = database->FindByPath(materialAssetPath);
-	if (existing) {
+	if (const auto* existing = database->FindByPath(source.materialPath)) {
 		return existing->guid;
 	}
-
-	// アセットが存在しない場合は生成する
-	const std::filesystem::path shaderFullPath = RuntimePaths::ResolveAssetPath(shaderAssetPath);
-	const std::filesystem::path pipelineFullPath = RuntimePaths::ResolveAssetPath(pipelineAssetPath);
-	const std::filesystem::path materialFullPath = RuntimePaths::ResolveAssetPath(materialAssetPath);
-
-	WriteGeneratedJson(shaderFullPath, MakeUserShaderJson(normalized, baseName));
-	const AssetID shaderID = database->ImportOrGet(shaderAssetPath, AssetType::Shader);
-	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderID, baseName));
-	const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
-	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineID, baseName));
-	const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
-
-	Logger::Output(LogType::Engine,
-		"[PostProcessAssetGenerator] User Assetの準備が完了しました material={}", materialAssetPath);
-	return materialID;
+	// 全Assetの保存成功を呼出し元へ返す
+	std::string diagnostic;
+	const auto id = PostProcessAssetPublication::Publish(*database, source, diagnostic);
+	if (!id) {
+		ReportFailure(source, diagnostic);
+	}
+	return id;
 }
 
-Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader(AssetDatabase* database,
-	const std::string& shaderAssetPath) {
+Engine::AssetID Engine::PostProcessAssetGenerator::FindOrCreateMaterialForShader(
+	AssetDatabase* database, const std::string& path) {
 
-	if (!database || shaderAssetPath.empty()) {
+	if (!database || path.empty()) {
 		return {};
 	}
-
-	const std::string normalized = NormalizeSeparators(shaderAssetPath);
-	const std::string baseName = BaseNameFromShaderJson(normalized);
-	if (baseName.empty()) {
+	auto source = UserSource(path);
+	if (source.name.empty()) {
 		return {};
 	}
-
-	const std::string parentDir = NormalizeSeparators(
-		std::filesystem::path(normalized).parent_path().generic_string());
-
-	// pipeline/materialはシェーダーと同じフォルダに生成する
-	const std::string pipelineAssetPath = parentDir + "/" + baseName + ".pipeline.json";
-	const std::string materialAssetPath = parentDir + "/" + baseName + ".material.json";
-
-	// 既存アセットがあればそれを使う
-	const AssetMeta* existing = database->FindByPath(materialAssetPath);
-	if (existing) {
+	if (const auto* existing = database->FindByPath(source.materialPath)) {
 		return existing->guid;
 	}
-
-	// アセットが存在しない場合は生成する
-	const std::filesystem::path pipelineFullPath = RuntimePaths::ResolveAssetPath(pipelineAssetPath);
-	const std::filesystem::path materialFullPath = RuntimePaths::ResolveAssetPath(materialAssetPath);
-
-	const AssetMeta* shaderMeta = database->FindByPath(normalized);
-	const AssetID shaderID = shaderMeta ? shaderMeta->guid : database->ImportOrGet(normalized, AssetType::Shader);
-	WriteGeneratedJson(pipelineFullPath, MakeUserPipelineJson(shaderID, baseName));
-	const AssetID pipelineID = database->ImportOrGet(pipelineAssetPath, AssetType::RenderPipeline);
-	WriteGeneratedJson(materialFullPath, MakeUserMaterialJson(pipelineID, baseName));
-	const AssetID materialID = database->ImportOrGet(materialAssetPath, AssetType::Material);
-
-	Logger::Output(LogType::Engine,
-		"[PostProcessAssetGenerator] Shader用Materialを作成しました material={}", materialAssetPath);
-	return materialID;
+	// 既存Shaderを維持し、PipelineとMaterialだけを生成
+	source.shaderPath = source.sourceShader;
+	source.shaderFile.clear();
+	std::string diagnostic;
+	const auto id = PostProcessAssetPublication::Publish(*database, source, diagnostic);
+	if (!id) {
+		ReportFailure(source, diagnostic);
+	}
+	return id;
 }

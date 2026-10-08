@@ -17,6 +17,9 @@
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/Foundation/Math/Matrix4x4.h>
 
+// c++
+#include <algorithm>
+
 //============================================================================
 //	PrimitiveRenderBackend internal
 //============================================================================
@@ -65,13 +68,15 @@ namespace {
 	struct PrimitiveMeshConstants {
 
 		uint32_t indexCount = 0;
-		uint32_t pad0 = 0;
-		uint32_t pad1 = 0;
-		uint32_t pad2 = 0;
+		uint32_t triangleOffset = 0;
+		uint32_t instanceOffset = 0;
+		uint32_t pad = 0;
 	};
 
 	// MeshShaderの1グループが担当する三角形数
 	constexpr uint32_t kMeshGroupTriangles = 32;
+	constexpr uint32_t kMaxMeshDispatchGroups =
+		D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 
 	bool ResolvePrimitivePass(const Engine::RenderDrawContext& context, Engine::AssetID requestedMaterial,
 		bool is2D, Engine::BackendDrawCommon::ResolvedMaterialPass& outResolved) {
@@ -79,6 +84,18 @@ namespace {
 		// アウトラインマスクは次元ごとの専用マテリアルから解決する
 		if (context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineMask ||
 			context.passKind == Engine::MaterialPassKind::ScreenSpaceOutlineCoverageMask) {
+			if (const Engine::MaterialAsset* source =
+				context.assetLibrary->LoadMaterial(requestedMaterial)) {
+
+				if (const Engine::MaterialPassBinding* pass =
+					Engine::FindPass(*source, context.passKind)) {
+
+					outResolved.materialID = requestedMaterial;
+					outResolved.material = source;
+					outResolved.pass = pass;
+					return true;
+				}
+			}
 
 			const Engine::AssetID materialID = is2D ?
 				Engine::BuiltinAssets::Materials::Primitive2DOutlineMask :
@@ -254,10 +271,8 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	}
 	const bool useMeshShader = variant && variant->kind == PipelineVariantKind::GraphicsMesh;
 
-	// 形状ハッシュ単位の共有ジオメトリを取得する、無ければ生成する
-	// batchKeyは上書き分離を含むためジオメトリ共有には形状ハッシュを使う
-	const uint64_t geometryHash = PrimitiveMeshGenerator::ComputeHash(*payload->renderer);
-	const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, geometryHash, *payload->renderer);
+	// 正規化した形状キーから共有ジオメトリを取得する
+	const PrimitiveGeometry* geometry = geometryManager_.GetOrCreate(graphicsCore, *payload->renderer);
 	if (!geometry || geometry->indexCount == 0 || !geometry->vertexBuffer.buffer) {
 		return;
 	}
@@ -278,26 +293,15 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 	PrimitiveViewConstants viewConstants{};
 	if (const ResolvedCameraView* camera = context.view->FindCamera(item->cameraDomain); camera && camera->valid) {
 		viewConstants.viewProjection = camera->matrices.viewProjectionMatrix;
-		const size_t viewIndex = static_cast<size_t>(context.view->kind);
+		// Cameraごとに前frameの行列を保持する
 		const uint64_t frameSerial = GraphicsFrameState::GetFrameSerial();
-		if (viewFrameSerials_[viewIndex] != frameSerial) {
-
-			framePreviousViewProjections_[viewIndex] =
-				previousViewValid_[viewIndex] ?
-				previousViewProjections_[viewIndex] :
-				viewConstants.viewProjection;
-			previousViewProjections_[viewIndex] =
-				viewConstants.viewProjection;
-			previousViewValid_[viewIndex] = true;
-			viewFrameSerials_[viewIndex] = frameSerial;
-		}
-		viewConstants.previousViewProjection =
-			framePreviousViewProjections_[viewIndex];
+		viewConstants.previousViewProjection = cameraHistory_.Update(
+			context.lodView ? *context.lodView : *context.view, item->cameraDomain, frameSerial);
 		viewConstants.frameSerial = static_cast<uint32_t>(frameSerial);
 		viewConstants.cameraPosition = camera->cameraPos;
 	}
-	const PostProcessConstantBufferAllocation viewAlloc =
-		constantBufferAllocator_.AllocateAndUpload(device, viewConstants);
+	const FrameConstantBufferAllocation viewAlloc =
+		constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, viewConstants);
 
 	// パイプラインを設定する
 	ID3D12GraphicsCommandList6* commandList = BackendDrawCommon::SetupGraphicsPipeline(
@@ -329,8 +333,9 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		maskConstants.styleID = context.screenSpaceOutlineMaskStyleID;
 		maskConstants.restrictSubMeshIndex = context.screenSpaceOutlineMaskRestrictSubMeshIndex;
 		maskConstants.alphaSource = context.screenSpaceOutlineMaskAlphaSource;
-		const PostProcessConstantBufferAllocation maskAlloc =
-			constantBufferAllocator_.AllocateAndUpload(device, maskConstants);
+		maskConstants.alphaThreshold = context.screenSpaceOutlineMaskAlphaThreshold;
+		const FrameConstantBufferAllocation maskAlloc =
+			constantBufferAllocator_.AllocateAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, maskConstants);
 		RootBindingCommand::SetGraphicsCBV(
 			commandList, perDrawBindCache_.Get(outlineMaskCBVSlot_),
 			maskAlloc.gpuAddress);
@@ -338,23 +343,38 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 
 	if (useMeshShader) {
 
-		// MeshShader経路、インデックスSRVと三角形数を渡してDispatchMeshする
-		PrimitiveMeshConstants meshConstants{};
-		meshConstants.indexCount = geometry->indexCount;
-		const PostProcessConstantBufferAllocation meshAlloc =
-			constantBufferAllocator_.AllocateAndUpload(device, meshConstants);
-		if (perDrawBindCache_.Has(meshConstantsCBVSlot_)) {
-			RootBindingCommand::SetGraphicsCBV(
-				commandList, perDrawBindCache_.Get(meshConstantsCBVSlot_),
-				meshAlloc.gpuAddress);
-		}
+		// MeshShader経路へインデックスSRVを渡す
 		if (perDrawBindCache_.Has(indicesSRVSlot_)) {
 			RootBindingCommand::SetGraphicsSRV(commandList, perDrawBindCache_.Get(indicesSRVSlot_),
 				geometry->indexSRV.buffer->GetResource()->GetGPUVirtualAddress(), {});
 		}
 		const uint32_t triangleCount = geometry->indexCount / 3;
-		const uint32_t groupCount = (triangleCount + kMeshGroupTriangles - 1) / kMeshGroupTriangles;
-		commandList->DispatchMesh(groupCount, resources.GetInstanceCount(), 1);
+		const uint32_t maxTriangles = kMaxMeshDispatchGroups * kMeshGroupTriangles;
+		for (uint32_t triangleOffset = 0; triangleOffset < triangleCount; triangleOffset += maxTriangles) {
+
+			const uint32_t dispatchTriangles = std::min(maxTriangles, triangleCount - triangleOffset);
+			const uint32_t groupCount =
+				(dispatchTriangles + kMeshGroupTriangles - 1) / kMeshGroupTriangles;
+			for (uint32_t instanceOffset = 0; instanceOffset < resources.GetInstanceCount();
+				instanceOffset += kMaxMeshDispatchGroups) {
+
+				// DispatchMeshの各軸上限内へ分割する
+				PrimitiveMeshConstants meshConstants{};
+				meshConstants.indexCount = geometry->indexCount;
+				meshConstants.triangleOffset = triangleOffset;
+				meshConstants.instanceOffset = instanceOffset;
+				const FrameConstantBufferAllocation meshAlloc =
+					constantBufferAllocator_.AllocateAndUpload(
+						context.graphicsCore->GetDXObject().GetResourceRetirement(), device, meshConstants);
+				if (perDrawBindCache_.Has(meshConstantsCBVSlot_)) {
+					RootBindingCommand::SetGraphicsCBV(
+						commandList, perDrawBindCache_.Get(meshConstantsCBVSlot_), meshAlloc.gpuAddress);
+				}
+				const uint32_t instanceCount =
+					std::min(kMaxMeshDispatchGroups, resources.GetInstanceCount() - instanceOffset);
+				commandList->DispatchMesh(groupCount, instanceCount, 1);
+			}
+		}
 	} else {
 
 		// VS経路、共有インデックスバッファでインスタンシング描画する
@@ -362,5 +382,23 @@ void Engine::PrimitiveRenderBackend::DrawBatch(const RenderDrawContext& context,
 		const D3D12_INDEX_BUFFER_VIEW indexBufferView = geometry->indexBuffer.GetIndexBufferView();
 		commandList->IASetIndexBuffer(&indexBufferView);
 		commandList->DrawIndexedInstanced(geometry->indexCount, resources.GetInstanceCount(), 0, 0, 0);
+	}
+}
+
+//============================================================================
+//	PrimitiveRenderBackend classMethods
+//============================================================================
+
+namespace Engine {
+
+	PrimitiveRenderBackend::PrimitiveRenderBackend() {
+
+		meshConstantsCBVSlot_ = perDrawBindCache_.AddSlot("PrimitiveMeshConstants", ShaderBindingKind::CBV);
+		verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
+		instancesSRVSlot_ = perDrawBindCache_.AddSlot("gInstances", ShaderBindingKind::SRV);
+		indicesSRVSlot_ = perDrawBindCache_.AddSlot("gIndices", ShaderBindingKind::SRV);
+		// 選択アウトラインのマスク描画で使うStyle ID
+		outlineMaskCBVSlot_ = perDrawBindCache_.AddSlotByRegister(ShaderBindingKind::CBV,
+			kScreenSpaceOutlineMaskCBVRegister, kScreenSpaceOutlineMaskCBVSpace);
 	}
 }

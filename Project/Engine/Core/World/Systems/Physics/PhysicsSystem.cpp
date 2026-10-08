@@ -3,28 +3,45 @@
 //============================================================================
 //	include
 //============================================================================
+#include "RigidbodyIntegration.h"
 #include <Engine/Core/World/Components/Physics/RigidbodyComponent.h>
 #include <Engine/Core/World/Components/Physics/Rigidbody2DComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
-
-// c++
-#include <algorithm>
-#include <cmath>
+#include <Engine/Core/World/Systems/Transform/TransformWorldUtility.h>
 
 namespace {
 
-	// 3DはY+が上、2Dスクリーン座標はY+が下
-	const Engine::Vector3 kGravity3D = Engine::Vector3(0.0f, -9.81f, 0.0f);
-	const Engine::Vector2 kGravity2D = Engine::Vector2(0.0f, 9.81f);
+	// Worldの積分結果を親追従座標へ適用する
+	template <typename Body>
+	void IntegrateBody(Engine::ECSWorld& world, Engine::Entity entity, Body& body,
+		Engine::TransformComponent& transform, float dt) {
 
-	// 力と重力を速度へ反映して減衰させる、2Dと3Dで共通
-	template <typename Vec>
-	void IntegrateVelocity(Vec& velocity, const Vec& force, const Vec& gravityStep, float mass, float damping, float dt) {
+		// 現在の親姿勢からCCDの開始位置を求める
+		Engine::ResolvedWorldTransform parentFollow{};
+		const bool resolved = Engine::TransformWorldUtility::ResolveParentFollowTransform(world, entity, parentFollow);
+		if (resolved) {
+			body.previousWorldPosition = (Engine::MakeLocalMatrix(transform) * parentFollow.matrix).GetTranslationValue();
+		}
+		body.hasPreviousWorldPosition = resolved;
 
-		velocity += force * (dt / mass);
-		velocity += gravityStep;
-		velocity *= std::clamp(1.0f - damping * dt, 0.0f, 1.0f);
+		// 親座標へ戻せなくても蓄積力は一度だけ消費する
+		const Engine::RigidbodyMotion motion = Engine::RigidbodyIntegration::Integrate(body, dt);
+		Engine::Matrix4x4 inverseParent{};
+		Engine::Quaternion inverseParentRotation{};
+		if (!resolved || !Engine::Matrix4x4::TryInverse(parentFollow.matrix, inverseParent) ||
+			!Engine::Quaternion::TryInverse(parentFollow.rotation, inverseParentRotation)) {
+			return;
+		}
+
+		// Worldの移動量と回転差分をlocal値へ戻す
+		transform.localPos += Engine::Vector3::TransferNormal(motion.translation, inverseParent);
+		if (motion.rotationDelta != Engine::Quaternion::Identity()) {
+			transform.localRotation = Engine::Quaternion::Normalize(
+				inverseParentRotation * motion.rotationDelta * parentFollow.rotation * transform.localRotation);
+		}
+		Engine::MarkTransformSubtreeDirty(world, entity);
+		transform.worldMatrix = Engine::MakeLocalMatrix(transform) * parentFollow.matrix;
 	}
 }
 
@@ -54,36 +71,7 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 				body.accumulatedTorque = Vector3::AnyInit(0.0f);
 				return;
 			}
-			const float mass = body.mass > 0.0f ? body.mass : 1.0f;
-			const Vector3 gravityStep = body.useGravity ?
-				kGravity3D * (body.gravityScale * dt) : Vector3::AnyInit(0.0f);
-			IntegrateVelocity(body.linearVelocity, body.accumulatedForce, gravityStep, mass, body.linearDamping, dt);
-
-			// 拘束軸の速度を止める
-			if (body.freezePositionX) { body.linearVelocity.x = 0.0f; }
-			if (body.freezePositionY) { body.linearVelocity.y = 0.0f; }
-			if (body.freezePositionZ) { body.linearVelocity.z = 0.0f; }
-
-			// 位置を更新して蓄積力を消費する
-			transform.localPos += body.linearVelocity * dt;
-			body.accumulatedForce = Vector3::AnyInit(0.0f);
-
-			// 蓄積トルクを角速度へ反映する、慣性は質量スカラで近似する
-			body.angularVelocity += body.accumulatedTorque * (dt / mass);
-			body.accumulatedTorque = Vector3::AnyInit(0.0f);
-
-			// 角速度で姿勢を更新して減衰させる
-			const float angSpeed = body.angularVelocity.Length();
-			if (angSpeed > 1e-5f) {
-
-				const Vector3 axis = Vector3::Normalize(body.angularVelocity);
-				const Quaternion spin = Quaternion::MakeAxisAngle(axis, angSpeed * dt);
-				transform.localRotation = Quaternion::Normalize(spin * transform.localRotation);
-			}
-			body.angularVelocity *= std::clamp(1.0f - body.angularDamping * dt, 0.0f, 1.0f);
-
-			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
-			MarkTransformSubtreeDirty(world, entity);
+			IntegrateBody(world, entity, body, transform, dt);
 		});
 
 	// 2D剛体、XY平面のみ動かしZは変えない
@@ -100,31 +88,6 @@ void Engine::PhysicsSystem::FixedUpdate(ECSWorld& world, SystemContext& context)
 				body.accumulatedTorque = 0.0f;
 				return;
 			}
-			const float mass = body.mass > 0.0f ? body.mass : 1.0f;
-			const Vector2 gravityStep = body.useGravity ?
-				kGravity2D * (body.gravityScale * dt) : Vector2::AnyInit(0.0f);
-			IntegrateVelocity(body.linearVelocity, body.accumulatedForce, gravityStep, mass, body.linearDamping, dt);
-
-			if (body.freezePositionX) { body.linearVelocity.x = 0.0f; }
-			if (body.freezePositionY) { body.linearVelocity.y = 0.0f; }
-
-			transform.localPos.x += body.linearVelocity.x * dt;
-			transform.localPos.y += body.linearVelocity.y * dt;
-			body.accumulatedForce = Vector2::AnyInit(0.0f);
-
-			// 蓄積トルクをZ軸角速度へ反映する、慣性は質量スカラで近似する
-			body.angularVelocity += body.accumulatedTorque * (dt / mass);
-			body.accumulatedTorque = 0.0f;
-
-			// Z軸まわりの角速度で姿勢を更新して減衰させる
-			if (!body.freezeRotation && std::fabs(body.angularVelocity) > 1e-5f) {
-
-				const Quaternion spin = Quaternion::MakeAxisAngle(Vector3(0.0f, 0.0f, 1.0f), body.angularVelocity * dt);
-				transform.localRotation = Quaternion::Normalize(spin * transform.localRotation);
-			}
-			body.angularVelocity *= std::clamp(1.0f - body.angularDamping * dt, 0.0f, 1.0f);
-
-			// localPosとlocalRotationを直接動かすので、TransformSystemへ再計算を促すためdirtyにする
-			MarkTransformSubtreeDirty(world, entity);
+			IntegrateBody(world, entity, body, transform, dt);
 		});
 }

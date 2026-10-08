@@ -5,6 +5,11 @@
 //============================================================================
 #include <Engine/Editor/UI/ImGui/ImGuiManager.h>
 #include <Engine/Editor/Core/EditorContext.h>
+#include "EditorRequestSession.h"
+#include <Engine/Editor/Build/EditorGameBuildSession.h>
+#include "EditorSceneDirtyState.h"
+#include <Engine/Editor/Settings/ProjectTagSettings.h>
+#include <Engine/Editor/Settings/ProjectRenderingLayerSettings.h>
 #include <Engine/Editor/Core/EditorState.h>
 #include <Engine/Editor/Core/Layout/EditorLayoutManager.h>
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
@@ -33,45 +38,10 @@ namespace Engine {
 	class RenderPipelineRunner;
 
 	//============================================================================
-	//	EditorSceneRequest structures
-	//============================================================================
-	enum class EditorSceneRequestType :
-		uint8_t {
-
-		None,
-		NewScene,
-		OpenScene,
-		SaveScene,
-		SaveAndNewScene,
-		SaveAndOpenScene,
-		EnterPrefabEdit,
-		ExitPrefabEdit,
-		ExitPrefabEditAll,
-		TogglePrefabInContext,
-		SavePrefab,
-	};
-
-	enum class EditorUnsavedScenePopupResult :
-		uint8_t {
-
-		None,
-		Save,
-		DontSave,
-		Cancel,
-	};
-
-	struct EditorSceneRequest {
-
-		EditorSceneRequestType type = EditorSceneRequestType::None;
-		AssetID sceneAsset{};
-	};
-
-	//============================================================================
 	//	EditorManager class
 	//	ImGuiを使用してエディタのUI全般を管理するクラス
 	//============================================================================
-	class EditorManager :
-		public IEditorPanelHost {
+	class EditorManager : public IEditorPanelHost {
 	public:
 		//============================================================================
 		//	public Methods
@@ -93,6 +63,8 @@ namespace Engine {
 
 		// 終了処理
 		void Finalize();
+		// World切替とPanel非表示の前にプレビューを終了する
+		void EndPanelPreviews();
 
 		// レイアウトリセット要求
 		bool ConsumePlayToggleRequest();
@@ -104,8 +76,9 @@ namespace Engine {
 		// 指定シーンを保存済み状態にする
 		void MarkSceneSaved(AssetID sceneAsset);
 		// 保存開始時の変更世代と一致する場合だけ保存済み状態にする
-		void MarkSceneSaved(AssetID sceneAsset,
-			uint64_t dirtyRevision);
+		void MarkSceneSaved(AssetID sceneAsset, uint64_t dirtyRevision, UUID instanceID = {});
+		void MarkSceneInstanceSaved(AssetID sceneAsset, UUID instanceID);
+		void MarkSceneInstanceDirty(AssetID sceneAsset, UUID instanceID);
 		// 全シーンを保存済み状態にする
 		void MarkAllScenesSaved();
 		// シーン切り替え後の編集状態をリセットする
@@ -121,10 +94,10 @@ namespace Engine {
 
 		// 編集操作
 		bool DuplicateSelection() override;
+		bool DeleteSelection() override;
 		bool CopySelectionToClipboard() override;
 		bool PasteClipboard() override;
-		void NotifyEditorCommandPanelFocused(
-			EditorCommandPanelKind kind) override;
+		void NotifyEditorCommandPanelFocused(EditorCommandPanelKind kind) override;
 
 		// パネル複製要求
 		void RequestDuplicatePanel(const std::string& instanceID) override;
@@ -162,10 +135,18 @@ namespace Engine {
 		void RequestCloseUnsavedScenePopup();
 		// 終了時の未保存確認結果
 		EditorUnsavedScenePopupResult ConsumeCloseUnsavedScenePopupResult();
+		// 同一Sceneの保存元選択を要求する
+		void RequestSceneSaveConflict(const std::vector<SceneSaveConflictChoice>& choices);
+		// 保存元選択の結果を取り出す
+		std::optional<SceneSaveConflictResult> ConsumeSceneSaveConflictResult();
+		// パネル内の未確定編集を終了前に解決する
+		bool HasPendingPanelEdits() const;
+		void RequestResolvePendingPanelEdits();
+		EditorPanelCloseResult ConsumePendingPanelEditResult();
 
 		// シーンビューのメッシュピック処理
-		void ExecuteSceneMeshPicking(GraphicsCore& graphicsCore,
-			const EditorContext& context, RenderPipelineRunner& renderPipeline);
+		void ExecuteSceneMeshPicking(
+			GraphicsCore& graphicsCore, const EditorContext& context, RenderPipelineRunner& renderPipeline);
 		// SceneView描画前に選択エンティティのデバッグラインを積む
 		void DrawSceneDebugObjects(const EditorContext& context);
 
@@ -174,11 +155,13 @@ namespace Engine {
 		// エディタの状態の取得
 		const EditorLayoutState& GetLayoutState() const { return layoutState_; }
 		const EditorState& GetEditorState() const { return editorState_; }
-		bool IsSceneDirty(AssetID sceneAsset) const;
-		uint64_t GetSceneDirtyRevision(
-			AssetID sceneAsset) const;
-		bool HasDirtyScenes() const { return !dirtySceneAssets_.empty(); }
-		const std::unordered_set<AssetID>& GetDirtySceneAssets() const { return dirtySceneAssets_; }
+		bool IsSceneDirty(AssetID sceneAsset, UUID instanceID = {}) const;
+		uint64_t GetSceneDirtyRevision(AssetID sceneAsset, UUID instanceID = {}) const;
+		bool HasDirtyScenes() const { return dirtyState_.HasDirtyScenes(); }
+		// 製品ビルド前のScene保存をApplicationへ渡す
+		bool ConsumeBuildSceneSaveRequest();
+		void CompleteBuildSceneSave(bool success);
+		const std::unordered_set<AssetID>& GetDirtySceneAssets() const { return dirtyState_.GetDirtySceneAssets(); }
 
 		// シーンビュー用のエディタカメラの状態の取得
 		const ManualRenderCameraState& GetSceneViewCameraState() const { return sceneViewCameraController_->GetCameraState(); }
@@ -189,12 +172,18 @@ namespace Engine {
 		bool ShouldDrawSceneView2DCameraBounds() const {
 			return editorState_.sceneViewPickDimension == SceneViewPickDimension::Type2D;
 		}
+
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
 		//--------- variables ----------------------------------------------------
+
+		// 製品ビルドの入力と子プロセス
+		std::unique_ptr<EditorGameBuildSession> gameBuildSession_;
+		ProjectTagSettings tagSettings_;
+		ProjectRenderingLayerSettings renderingLayerSettings_;
 
 		// ImGui管理クラス
 		ImGuiManager imguiManager_;
@@ -204,40 +193,26 @@ namespace Engine {
 		EditorLayoutState layoutState_{};
 		EditorLayoutManager editorLayoutManager_{};
 
-		// 初期化済みか
+		// 終了処理が必要な資源を所有しているか
 		bool initialized_ = false;
-		// プレイ/ストップの切り替え要求フラグ
-		bool requestTogglePlay_ = false;
-		bool requestResumePlay_ = false;
-		bool requestPausePlay_ = false;
-		bool requestPlayFrameStep_ = false;
-		// シーン操作要求
-		EditorSceneRequest sceneRequest_{};
-		// 未保存確認後に実行するシーン操作要求
-		EditorSceneRequest pendingSceneRequest_{};
-		// 未保存確認ポップアップを開くか
-		bool requestOpenUnsavedPopup_ = false;
-		// 終了時の未保存確認ポップアップを開くか
-		bool requestOpenCloseUnsavedPopup_ = false;
-		// 終了時の未保存確認結果
-		EditorUnsavedScenePopupResult closeUnsavedScenePopupResult_ = EditorUnsavedScenePopupResult::None;
-		// 未保存の変更があるシーンアセット
-		std::unordered_set<AssetID> dirtySceneAssets_;
-		// 非同期保存中の再編集を保存済みにしないためのシーン別変更世代
-		std::unordered_map<AssetID, uint64_t> dirtySceneRevisions_;
-		uint64_t dirtySceneRevision_ = 0;
+		// 設定を保存できる状態まで初期化されたか
+		bool initializationComplete_ = false;
+		// 再生と未保存確認の要求
+		EditorRequestSession requests_;
+		// シーン保存の変更世代
+		EditorSceneDirtyState dirtyState_;
 		// パネル複製要求
 		std::string pendingDuplicatePanelID_;
 		// 次のフレーム開始時に適用するレイアウト
 		std::optional<EditorLayoutSnapshot> pendingEditorLayout_;
+		bool pendingPanelEditResolution_ = false;
 		// ビルトインDefaultドックを再構築するか
 		bool requestBuildDefaultDockLayout_ = false;
 
 		// 各パネル
 		std::vector<std::unique_ptr<IEditorPanel>> panels_;
 		// メイン編集コマンドを受け取るパネルがフォーカス中か
-		EditorCommandPanelKind editorCommandPanelKind_ =
-			EditorCommandPanelKind::None;
+		EditorCommandPanelKind editorCommandPanelKind_ = EditorCommandPanelKind::None;
 
 		// エディタコンテキスト
 		const EditorContext* currentRenderContext_ = nullptr;
@@ -254,26 +229,16 @@ namespace Engine {
 		// 2Dエンティティのピック処理を実行
 		Entity Execute2DPick(const Vector2& inputPixel, const ResolvedRenderView& view, ECSWorld* world);
 
-		// コマンド実行のためのコンテキストを作成する
-		EditorCommandContext MakeCommandContext(const EditorContext& context);
 		// 操作ショートカット
 		void HandleGlobalShortcuts(const EditorContext& context);
-		// シーン操作要求をキューに積む
-		void QueueSceneRequest(const EditorSceneRequest& request);
 		// 現在編集中のシーンを未保存状態にする
 		void MarkCurrentSceneDirty();
-		// 未保存シーンの確認ポップアップを描画する
-		void DrawUnsavedScenePopup();
-		// 終了時の未保存シーン確認ポップアップを描画する
-		void DrawCloseUnsavedScenePopup();
-		// シーン操作要求の種類をポップアップ表示用の名前に変換する
-		const char* GetSceneRequestActionName(EditorSceneRequestType type) const;
-		// 未保存確認の結果をシーン操作要求へ反映する
-		void SubmitPendingSceneRequest(bool saveBeforeSubmit);
 		// エディタのドッキングスペースを描画する
 		void DrawDockSpace();
 		// 編集操作の実装
 		bool CopySelectionToClipboardInternal(const EditorContext& context);
+		// Frame内のPanel接続を作る
+		EditorPanelContext CreatePanelContext(GraphicsCore& graphicsCore, const EditorContext& context);
 		// 各フェーズのパネルを描画する
 		void DrawPanelsByPhase(const EditorPanelContext& context, EditorPanelPhase phase);
 		// 現在のエディターレイアウトを取得
@@ -294,7 +259,7 @@ namespace Engine {
 		void UpdateSceneViewManualCamera();
 		// ViewportPanelの表示状態を保存、復元する
 		void LoadViewportPanelState();
+		// Viewportの表示設定を保存する
 		void SaveViewportPanelState() const;
 	};
 } // Engine
-

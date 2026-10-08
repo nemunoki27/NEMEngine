@@ -3,201 +3,45 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Assets/Database/AssetFileUtility.h>
+#include <Engine/Core/Assets/Database/AssetMetaStorage.h>
+#include <Engine/Core/Assets/Database/AssetDependencyResolver.h>
+#include <Engine/Core/Assets/Database/AssetMaintenance.h>
+#include <Engine/Core/Assets/Database/AssetDocumentRecovery.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
-#include <Engine/Core/World/Scene/Serialization/SceneAssetStorage.h>
-#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphArtifactCache.h>
 
 // c++
 #include <algorithm>
-#include <fstream>
 #include <iterator>
 #include <optional>
 #include <system_error>
-#include <unordered_map>
 #include <unordered_set>
+#include <stdexcept>
 
 //============================================================================
 //	AssetDatabase classMethods
 //============================================================================
-namespace {
+using Engine::AssetFileUtility::IsExternalActorsDirectory;
 
-	constexpr uint32_t kAssetMetaSchemaVersion = 2;
+Engine::AssetDatabase::CacheLifetime::CacheLifetime(const CacheLifetime&) {
 
-	bool IsExternalActorsDirectory(const std::filesystem::path& path) {
+	// コピーした索引には別の派生データを持たせる
+}
 
-		return Engine::Algorithm::ToLower(
-			Engine::Algorithm::PathToUTF8(path.filename())) == "externalactors";
-	}
+Engine::AssetDatabase::CacheLifetime& Engine::AssetDatabase::CacheLifetime::operator=(const CacheLifetime&) {
 
-	std::string_view ResolveImporterName(Engine::AssetType type) {
-
-		switch (type) {
-		case Engine::AssetType::Texture:          return "TextureImporter";
-		case Engine::AssetType::Mesh:             return "MeshImporter";
-		case Engine::AssetType::Audio:            return "AudioImporter";
-		case Engine::AssetType::Script:           return "ScriptImporter";
-		case Engine::AssetType::Font:             return "FontImporter";
-		case Engine::AssetType::Scene:            return "SceneImporter";
-		case Engine::AssetType::Prefab:           return "PrefabImporter";
-		case Engine::AssetType::Material:         return "MaterialImporter";
-		case Engine::AssetType::Shader:           return "ShaderImporter";
-		case Engine::AssetType::RenderPipeline:   return "RenderPipelineImporter";
-		case Engine::AssetType::AnimationClip:    return "AnimationClipImporter";
-		case Engine::AssetType::ParticleEffect:   return "ParticleEffectImporter";
-		case Engine::AssetType::ShaderGraph:      return "ShaderGraphImporter";
-		case Engine::AssetType::RenderFeatureProfile:
-			return "RenderFeatureProfileImporter";
-		default:                                  return "DefaultImporter";
-		}
-	}
-
-	// 例外を投げずにJSONファイルを読み解析失敗時はis_discarded()のjsonを返す
-	// 大量のファイルを走査するため、parse_errorの一次例外でデバッガを埋めないようにする
-	nlohmann::json LoadJsonFileNoThrow(const std::filesystem::path& path) {
-
-		std::ifstream ifs(path, std::ios::binary);
-		if (!ifs.is_open()) {
-			return nlohmann::json{};
-		}
-		const std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		return nlohmann::json::parse(content, nullptr, false);
-	}
-
-	// 依存抽出で対象にする参照キーと、その期待AssetType
-	// stableID/localFileID等のScene内部IDはここに無いため誤検出しない
-	const std::unordered_map<std::string, Engine::AssetType>& ReferenceKeyMap() {
-
-		static const std::unordered_map<std::string, Engine::AssetType> kMap = {
-			{ "mesh", Engine::AssetType::Mesh },
-			{ "material", Engine::AssetType::Material },
-			{ "materials", Engine::AssetType::Material },
-			{ "materialGuid", Engine::AssetType::Material },
-			{ "shaderGraph", Engine::AssetType::ShaderGraph },
-			{ "subGraph", Engine::AssetType::ShaderGraph },
-			{ "texture", Engine::AssetType::Texture },
-			{ "baseColorTexture", Engine::AssetType::Texture },
-			{ "normalTexture", Engine::AssetType::Texture },
-			{ "metallicRoughnessTexture", Engine::AssetType::Texture },
-			{ "metallicTexture", Engine::AssetType::Texture },
-			{ "roughnessTexture", Engine::AssetType::Texture },
-			{ "displacementTexture", Engine::AssetType::Texture },
-			{ "emissiveTexture", Engine::AssetType::Texture },
-			{ "occlusionTexture", Engine::AssetType::Texture },
-			{ "specularTexture", Engine::AssetType::Texture },
-			{ "font", Engine::AssetType::Font },
-			{ "atlasTexture", Engine::AssetType::Texture },
-			{ "audioClip", Engine::AssetType::Audio },
-			{ "script", Engine::AssetType::Script },
-			{ "scriptAsset", Engine::AssetType::Script },
-			{ "prefab", Engine::AssetType::Prefab },
-			{ "prefabAsset", Engine::AssetType::Prefab },
-			{ "effect", Engine::AssetType::ParticleEffect },
-			{ "shader", Engine::AssetType::Shader },
-			{ "shaderOverride", Engine::AssetType::Shader },
-			{ "sourceShader", Engine::AssetType::Shader },
-			{ "functionFileAsset", Engine::AssetType::Shader },
-			{ "file", Engine::AssetType::Shader },
-			{ "pipeline", Engine::AssetType::RenderPipeline },
-			{ "renderFeatureProfile", Engine::AssetType::RenderFeatureProfile },
-			{ "animationClip", Engine::AssetType::AnimationClip },
-			{ "scene", Engine::AssetType::Scene },
-			{ "activeScene", Engine::AssetType::Scene },
-			{ "assetId", Engine::AssetType::Unknown },
-			{ "controller", Engine::AssetType::Unknown },
-		};
-		return kMap;
-	}
-
-	// 1つのJSON値を参照候補として登録する(UID形式のときだけ)
-	void TryCollectReference(const nlohmann::json& value,
-		Engine::AssetType expectedType,
-		std::unordered_map<Engine::AssetID, Engine::AssetType>& outIDs,
-		std::unordered_map<std::string, Engine::AssetType>& outPaths) {
-
-		if (!value.is_string()) {
-			return;
-		}
-		const std::string reference = value.get<std::string>();
-		const std::optional<Engine::AssetID> parsed =
-			Engine::TryParseAssetGUID32Hex(reference);
-		if (parsed) {
-			// 同一IDが複数キーで現れた場合は最初の期待型を維持する
-			outIDs.emplace(*parsed, expectedType);
-			return;
-		}
-		if (expectedType != Engine::AssetType::Unknown &&
-			!reference.empty()) {
-
-			outPaths.emplace(reference, expectedType);
-		}
-	}
-
-	// JSONを再帰走査し、既知の参照キー配下のUIDと論理パスを収集する
-	void ScanReferences(const nlohmann::json& node,
-		std::unordered_map<Engine::AssetID, Engine::AssetType>& outIDs,
-		std::unordered_map<std::string, Engine::AssetType>& outPaths) {
-
-		if (node.is_object()) {
-
-			// EntityRefの所有アセットもシーン削除時の参照保護に含める
-			if (node.contains("kind") && node.contains("sourceAsset") && node.contains("localFileId")) {
-				TryCollectReference(node["sourceAsset"], Engine::AssetType::Unknown, outIDs, outPaths);
-			}
-
-			// Material Instanceのrecord形式ではTexture GUIDがvalue配下に保存される
-			if (node.contains("id") &&
-				node.contains("name") &&
-				node.contains("value")) {
-
-				TryCollectReference(
-					node["value"],
-					Engine::AssetType::Texture,
-					outIDs, outPaths);
-			}
-			// Shader GraphのTexture2D既定値も生成Material作成前から依存として保持する
-			if (node.value("type", std::string{}) == "Texture2D" &&
-				node.contains("defaultValue")) {
-
-				TryCollectReference(
-					node["defaultValue"],
-					Engine::AssetType::Texture,
-					outIDs, outPaths);
-			}
-
-			const auto& keyMap = ReferenceKeyMap();
-			for (auto it = node.begin(); it != node.end(); ++it) {
-
-				const auto found = keyMap.find(it.key());
-				if (found != keyMap.end()) {
-
-					if (it->is_array()) {
-						for (const auto& element : *it) {
-							TryCollectReference(element, found->second,
-								outIDs, outPaths);
-						}
-					} else {
-						TryCollectReference(*it, found->second,
-							outIDs, outPaths);
-					}
-				}
-				// 参照キーでなくても、ネストした参照を拾うため再帰する
-				ScanReferences(*it, outIDs, outPaths);
-			}
-		} else if (node.is_array()) {
-
-			for (const auto& element : node) {
-				ScanReferences(element, outIDs, outPaths);
-			}
-		}
-	}
+	identity = std::make_shared<const uint8_t>(0);
+	return *this;
 }
 
 bool Engine::AssetDatabase::Init() {
 
+	// 再初期化前の派生データを失効させる
+	cacheLifetime_.identity = std::make_shared<const uint8_t>(0);
 	// ファイルパスの初期化
 	projectRoot_ = RuntimePaths::GetProjectRoot();
 	assetsRoot_ = RuntimePaths::GetEngineAssetsRoot();
@@ -207,35 +51,62 @@ bool Engine::AssetDatabase::Init() {
 
 bool Engine::AssetDatabase::RebuildMeta() {
 
-	guidToMeta_.clear();
-	pathToGuid_.clear();
-	referencersByGuid_.clear();
-	issues_.clear();
-
 	const std::filesystem::path gameAssetsRoot = RuntimePaths::GetGameAssetsRoot();
-	std::vector<std::filesystem::path> scanRoots{ assetsRoot_ };
+	std::vector<std::filesystem::path> scanRoots{assetsRoot_};
 	if (gameAssetsRoot != assetsRoot_) {
 		scanRoots.emplace_back(gameAssetsRoot);
 	}
 	for (const ResolvedPackage& package : RuntimePaths::GetPackages()) {
 		scanRoots.emplace_back(package.root);
 	}
+	return RebuildMeta(scanRoots);
+}
 
-	// 前回規模をヒントに再ハッシュを減らす
-	const size_t reserveHint = (std::max<size_t>)(256, guidToMeta_.bucket_count());
-	guidToMeta_.reserve(reserveHint);
-	pathToGuid_.reserve(reserveHint);
-	referencersByGuid_.reserve(reserveHint);
+bool Engine::AssetDatabase::RebuildMeta(const std::vector<std::filesystem::path>& scanRoots) {
 
-	// 先にUID索引を作り、実体のない.metaを拾ってから依存関係を解決する
-	// 依存抽出を索引構築と同時にやると、後から登録される正常アセットをMissing扱いしてしまう
-	RebuildIndex(scanRoots);
-	DetectOrphanMeta(scanRoots);
-	// 依存解決の前に、font.jsonのatlasTextureを隣接アトラスの現在GUIDへ直しておく
-	ReconcileFontAtlasReferences();
-	RebuildDependencies();
+	// 指定範囲の走査でも未完了保存を先に復旧
+	std::vector<AssetDatabaseIssue> recoveryIssues;
+	const bool recovered = AssetDocumentRecovery::RecoverPending(recoveryIssues);
+	std::erase_if(
+		issues_, [](const AssetDatabaseIssue& issue) { return issue.type == AssetDatabaseIssueType::UnfinishedAssetSave; });
+	if (!recovered) {
 
-	// 診断のサマリをまとめて出力する(詳細は先頭数件のみ)
+		// 部分保存を索引へ公開せず、復旧診断だけを更新
+		lastRebuildError_ = "未完了のAsset保存を解消するまで旧索引を保持します";
+		for (const auto& issue : recoveryIssues) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[AssetDatabase] 未完了の保存を復旧できません path={} 詳細={}",
+				issue.relatedPath, issue.detail);
+		}
+		issues_.insert(
+			issues_.end(), std::make_move_iterator(recoveryIssues.begin()), std::make_move_iterator(recoveryIssues.end()));
+		return false;
+	}
+	// 候補の走査と依存解決が完了するまで旧索引を保持する
+	AssetDatabase candidate;
+	candidate.projectRoot_ = projectRoot_;
+	candidate.assetsRoot_ = assetsRoot_;
+	try {
+		candidate.scanRoots_ = scanRoots;
+		candidate.buildingIndex_ = true;
+		candidate.guidToMeta_.reserve((std::max<size_t>)(256, guidToMeta_.size()));
+		candidate.RebuildIndex(scanRoots);
+		candidate.DetectOrphanMeta(scanRoots);
+		candidate.RebuildDependencies();
+		AssetMaintenance::DetectFontAtlasReferences(candidate, candidate.issues_);
+	} catch (const std::exception& error) {
+		lastRebuildError_ = error.what();
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[AssetDatabase] 索引の更新に失敗しました 旧索引を保持します 詳細={}", lastRebuildError_);
+		return false;
+	}
+	guidToMeta_.swap(candidate.guidToMeta_);
+	pathToGuid_.swap(candidate.pathToGuid_);
+	referencersByGuid_.swap(candidate.referencersByGuid_);
+	issues_.swap(candidate.issues_);
+	scanRoots_.swap(candidate.scanRoots_);
+	lastRebuildError_.clear();
+
+	// 診断を集計し、詳細は先頭の問題だけ表示
 	size_t duplicateCount = 0;
 	size_t orphanCount = 0;
 	size_t missingCount = 0;
@@ -256,8 +127,8 @@ bool Engine::AssetDatabase::RebuildMeta() {
 		}
 	}
 	Logger::Output(LogType::Engine,
-		"[AssetDatabase] 再構築が完了しました Asset数={} 問題数={} GUID重複={} 孤立Meta={} 参照欠損={}",
-		guidToMeta_.size(), issues_.size(), duplicateCount, orphanCount, missingCount);
+		"[AssetDatabase] 再構築が完了しました Asset数={} 問題数={} GUID重複={} 孤立Meta={} 参照欠損={}", guidToMeta_.size(),
+		issues_.size(), duplicateCount, orphanCount, missingCount);
 
 	constexpr size_t kMaxDetailLog = 16;
 	const size_t detailCount = (std::min)(kMaxDetailLog, issues_.size());
@@ -265,9 +136,8 @@ bool Engine::AssetDatabase::RebuildMeta() {
 
 		const AssetDatabaseIssue& issue = issues_[i];
 		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[AssetDatabase] 問題を検出しました 種別={} Asset={} 参照={} path={} 詳細={}",
-			static_cast<int>(issue.type), ToString(issue.assetID), ToString(issue.referencedAssetID),
-			issue.assetPath, issue.detail);
+			"[AssetDatabase] 問題を検出しました 種別={} Asset={} 参照={} path={} 詳細={}", static_cast<int>(issue.type),
+			ToString(issue.assetID), ToString(issue.referencedAssetID), issue.assetPath, issue.detail);
 	}
 
 	// アセット集合が変わったことを外部へ知らせる、ProjectPanel等がこのリビジョン差分で再構築を判断する
@@ -275,78 +145,26 @@ bool Engine::AssetDatabase::RebuildMeta() {
 	return true;
 }
 
-void Engine::AssetDatabase::ReconcileFontAtlasReferences() {
-
-	// .font.jsonのatlasTextureを隣接する同名アトラス画像の現在GUIDへ揃えて書き戻す
-	// フォントを.meta無しでコピーするとGUIDが再採番され参照が切れるため、永続的に直す
-	const std::string fontSuffix = ".font.json";
-	for (const auto& [guid, meta] : guidToMeta_) {
-
-		if (meta.type != AssetType::Font || !Algorithm::EndsWith(meta.assetPath, fontSuffix)) {
-			continue;
-		}
-		// <name>.font.jsonと同じ場所の<name>.pngをアトラスとする
-		const std::string atlasPath = meta.assetPath.substr(0, meta.assetPath.size() - fontSuffix.size()) + ".png";
-		const AssetMeta* atlasMeta = FindByPath(atlasPath);
-		if (!atlasMeta) {
-			continue;
-		}
-		const std::filesystem::path fullPath = ResolveFullPath(guid);
-		nlohmann::json data = LoadJsonFileNoThrow(fullPath);
-		if (!data.is_object()) {
-			continue;
-		}
-		// 既に有効なTextureのGUIDを指しているなら尊重して触らない、ここが冪等性も担保する
-		if (const std::optional<AssetID> currentGuid = TryParseAssetGUID32Hex(data.value("atlasTexture", std::string{}))) {
-			const AssetMeta* current = Find(*currentGuid);
-			if (current && current->type == AssetType::Texture) {
-				continue;
-			}
-		}
-
-		// 参照が切れている(パス指定/空/未登録GUID)ので隣接アトラスのGUIDへ直す
-		data["atlasTexture"] = ToString(atlasMeta->guid);
-		std::ofstream ofs(fullPath, std::ios::binary | std::ios::trunc);
-		if (!ofs.is_open()) {
-			continue;
-		}
-		ofs << data.dump(2);
-		Logger::Output(LogType::Engine, spdlog::level::info,
-			"[AssetDatabase] Font Atlasを再接続しました Font={} Atlas={}", meta.assetPath, atlasPath);
-	}
-}
-
 void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path>& scanRoots) {
 
 	for (const std::filesystem::path& scanRoot : scanRoots) {
 
-		std::error_code ec;
-		if (!std::filesystem::exists(scanRoot, ec) || !std::filesystem::is_directory(scanRoot, ec)) {
-			continue;
+		if (!std::filesystem::is_directory(scanRoot)) {
+			throw std::runtime_error("Asset directory is unavailable: " + Algorithm::PathToUTF8(scanRoot));
 		}
 
-		auto it = std::filesystem::recursive_directory_iterator(
-			scanRoot, std::filesystem::directory_options::skip_permission_denied, ec);
+		auto it = std::filesystem::recursive_directory_iterator(scanRoot);
 		const std::filesystem::recursive_directory_iterator end{};
-		if (ec) {
-			continue;
-		}
 
-		for (; it != end; it.increment(ec)) {
+		for (; it != end; ++it) {
+			if (it->is_directory()) {
 
-			if (ec) {
-				// アクセス不能なものはスキップして走査を継続する
-				ec.clear();
-				continue;
-			}
-			if (it->is_directory(ec)) {
-
-				if (IsExternalActorsDirectory(it->path())) {
+				if (IsExternalActorsDirectory(it->path()) || AssetFileUtility::IsAssetCopyStagingDirectory(it->path())) {
 					it.disable_recursion_pending();
 				}
 				continue;
 			}
-			if (!it->is_regular_file(ec)) {
+			if (!it->is_regular_file()) {
 				continue;
 			}
 
@@ -357,7 +175,9 @@ void Engine::AssetDatabase::RebuildIndex(const std::vector<std::filesystem::path
 				continue;
 			}
 
-			RegisterAssetFile(fullPath);
+			if (!RegisterAssetFile(fullPath)) {
+				throw std::runtime_error("Asset registration failed: " + Algorithm::PathToUTF8(fullPath));
+			}
 		}
 	}
 }
@@ -380,16 +200,22 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 	if (auto it = pathToGuid_.find(lookupKey); it != pathToGuid_.end()) {
 
 		const AssetMeta* existing = Find(it->second);
+		if (existing && guessedType != AssetType::Unknown && guessedType != AssetType::DefaultAsset &&
+			existing->type != guessedType) {
+			return {};
+		}
 		if (existing && existing->assetPath != assetPath) {
-			AddIssue({ AssetDatabaseIssueType::DuplicatePath, it->second, {},
-				AssetType::Unknown, AssetType::Unknown, existing->assetPath, assetPath,
-				"path lookup key collision" });
+			AddIssue({AssetDatabaseIssueType::DuplicatePath, it->second, {}, AssetType::Unknown, AssetType::Unknown,
+				existing->assetPath, assetPath, "path lookup key collision"});
 		}
 		return it->second;
 	}
 
 	const std::filesystem::path assetFull = ResolveAssetPath(assetPath);
 	const std::filesystem::path metaFull = MetaPathOf(assetFull);
+	if (!std::filesystem::is_regular_file(assetFull)) {
+		return {};
+	}
 
 	AssetMeta meta{};
 	meta.assetPath = assetPath;
@@ -399,40 +225,48 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 		if (!ReadMetaFile(metaFull, meta)) {
 
 			// 壊れた.metaは静かに新UIDで上書きせず診断に残してスキップする
-			AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
-				AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
-				"failed to parse .meta" });
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[AssetDatabase] 壊れた.metaを無視しました: {}", assetPath);
+			AddIssue({AssetDatabaseIssueType::CorruptMeta, {}, {}, AssetType::Unknown, AssetType::Unknown, assetPath,
+				Algorithm::PathToUTF8(metaFull), "failed to parse .meta"});
+			Logger::Output(LogType::Engine, spdlog::level::warn, "[AssetDatabase] 壊れた.metaを無視しました: {}", assetPath);
 			return {};
 		}
 
 		// 論理パスは現在の走査結果で最新化する
 		meta.assetPath = assetPath;
+		if (meta.type != AssetType::Unknown && guessedType != AssetType::Unknown && guessedType != AssetType::DefaultAsset &&
+			meta.type != guessedType) {
+
+			AddIssue({AssetDatabaseIssueType::CorruptMeta, meta.guid, {}, guessedType, meta.type, assetPath,
+				Algorithm::PathToUTF8(metaFull), "asset type mismatch"});
+			return {};
+		}
 
 		// typeがUnknownでもパスから一意に判定できるなら補正して保存する
 		if (meta.type == AssetType::Unknown && guessedType != AssetType::Unknown) {
 
 			meta.type = guessedType;
-			WriteMetaFile(metaFull, meta);
+			if (!WriteMetaFile(metaFull, meta)) {
+				return {};
+			}
 		} else if (meta.type == AssetType::Unknown) {
 
-			AddIssue({ AssetDatabaseIssueType::UnknownAssetType, meta.guid, {},
-				AssetType::Unknown, AssetType::Unknown, assetPath, {}, "unresolved asset type" });
+			AddIssue({AssetDatabaseIssueType::UnknownAssetType, meta.guid, {}, AssetType::Unknown, AssetType::Unknown,
+				assetPath, {}, "unresolved asset type"});
 		}
 	} else {
 
 		// .meta未作成なら新規発行して保存してよい
 		meta.guid = AssetGUID::New();
 		meta.type = guessedType;
-		meta.importer = ResolveImporterName(guessedType);
-		WriteMetaFile(metaFull, meta);
+		meta.importer = AssetMetaStorage::ResolveImporterName(guessedType);
+		if (!WriteMetaFile(metaFull, meta)) {
+			return {};
+		}
 	}
 
 	if (!meta.guid) {
-		AddIssue({ AssetDatabaseIssueType::CorruptMeta, {}, {},
-			AssetType::Unknown, AssetType::Unknown, assetPath, Algorithm::PathToUTF8(metaFull),
-			"invalid guid" });
+		AddIssue({AssetDatabaseIssueType::CorruptMeta, {}, {}, AssetType::Unknown, AssetType::Unknown, assetPath,
+			Algorithm::PathToUTF8(metaFull), "invalid guid"});
 		return {};
 	}
 
@@ -440,18 +274,30 @@ Engine::AssetID Engine::AssetDatabase::ImportOrGet(const std::string& assetPath,
 	if (auto existing = guidToMeta_.find(meta.guid);
 		existing != guidToMeta_.end() && existing->second.assetPath != meta.assetPath) {
 
-		AddIssue({ AssetDatabaseIssueType::DuplicateGuid, meta.guid, {},
-			AssetType::Unknown, AssetType::Unknown, existing->second.assetPath, meta.assetPath,
-			"duplicate guid" });
-		Logger::Output(LogType::Engine, spdlog::level::warn,
-			"[AssetDatabase] GUIDが重複しています {} : '{}' と '{}'",
+		AddIssue({AssetDatabaseIssueType::DuplicateGuid, meta.guid, {}, AssetType::Unknown, AssetType::Unknown,
+			existing->second.assetPath, meta.assetPath, "duplicate guid"});
+		Logger::Output(LogType::Engine, spdlog::level::warn, "[AssetDatabase] GUIDが重複しています {} : '{}' と '{}'",
 			ToString(meta.guid), existing->second.assetPath, meta.assetPath);
 		return {};
 	}
 
 	const AssetID guid = meta.guid;
 	guidToMeta_.emplace(guid, std::move(meta));
-	pathToGuid_.emplace(lookupKey, guid);
+	try {
+		pathToGuid_.emplace(lookupKey, guid);
+		if (!buildingIndex_) {
+			if (!RefreshDependencies(guid)) {
+				pathToGuid_.erase(lookupKey);
+				guidToMeta_.erase(guid);
+				return {};
+			}
+			++structureRevision_;
+		}
+	} catch (...) {
+		pathToGuid_.erase(lookupKey);
+		guidToMeta_.erase(guid);
+		throw;
+	}
 	return guid;
 }
 
@@ -470,309 +316,96 @@ void Engine::AssetDatabase::RebuildDependencies() {
 	}
 }
 
-void Engine::AssetDatabase::RefreshDependencies(AssetID id) {
+bool Engine::AssetDatabase::RefreshDependencies(AssetID id) {
 
 	auto found = guidToMeta_.find(id);
 	if (found == guidToMeta_.end()) {
-		return;
+		return false;
 	}
 
-	// 古い逆引き参照を外してから現在のファイル内容で張り直す
-	for (AssetID dependency : found->second.dependencies) {
-		auto referencers = referencersByGuid_.find(dependency);
-		if (referencers == referencersByGuid_.end()) {
-			continue;
+	try {
+		// 新しい依存集合を完成させてから逆引きと同時に公開する
+		std::vector<AssetDatabaseIssue> nextIssues;
+		auto dependencies = AssetDependencyResolver::ExtractDependencies(*this, found->second, nextIssues);
+		auto referencerMap = referencersByGuid_;
+		for (AssetID dependency : found->second.dependencies) {
+			auto referencers = referencerMap.find(dependency);
+			if (referencers == referencerMap.end()) {
+				continue;
+			}
+			std::erase(referencers->second, id);
+			if (referencers->second.empty()) {
+				referencerMap.erase(referencers);
+			}
 		}
-		std::erase(referencers->second, id);
-		if (referencers->second.empty()) {
-			referencersByGuid_.erase(referencers);
-		}
-	}
 
-	found->second.dependencies = ExtractDependencies(found->second);
-	for (AssetID dependency : found->second.dependencies) {
-		auto& referencers = referencersByGuid_[dependency];
-		if (std::find(referencers.begin(), referencers.end(), id) == referencers.end()) {
-			referencers.emplace_back(id);
+		for (AssetID dependency : dependencies) {
+			auto& referencers = referencerMap[dependency];
+			if (std::find(referencers.begin(), referencers.end(), id) == referencers.end()) {
+				referencers.emplace_back(id);
+			}
 		}
+		issues_.reserve(issues_.size() + nextIssues.size());
+		std::erase_if(issues_, [id](const AssetDatabaseIssue& issue) {
+			return issue.assetID == id && (issue.type == AssetDatabaseIssueType::MissingReference ||
+											  issue.type == AssetDatabaseIssueType::ReferenceTypeMismatch);
+		});
+		for (auto& issue : nextIssues) {
+			issues_.emplace_back(std::move(issue));
+		}
+		found->second.dependencies.swap(dependencies);
+		referencersByGuid_.swap(referencerMap);
+		return true;
+	} catch (const std::exception& error) {
+
+		Logger::Output(LogType::Engine, spdlog::level::err,
+			"[AssetDatabase] 依存の更新に失敗しました 旧参照を保持します ID={} 詳細={}", ToString(id), error.what());
+		return false;
 	}
 }
 
-bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id,
-	const nlohmann::json& settings, uint32_t importerVersion) {
+void Engine::AssetDatabase::NotifyContentChanged(AssetID id) {
 
+	if (guidToMeta_.contains(id)) {
+		++contentRevisions_[id];
+		++contentRevision_;
+	}
+}
+
+uint64_t Engine::AssetDatabase::GetContentRevision(AssetID id) const {
+
+	const auto found = contentRevisions_.find(id);
+	return found == contentRevisions_.end() ? 0 : found->second;
+}
+
+bool Engine::AssetDatabase::UpdateImporterSettings(AssetID id, const nlohmann::json& settings, uint32_t importerVersion) {
+
+	if (!settings.is_object() || importerVersion == 0) {
+		return false;
+	}
 	auto found = guidToMeta_.find(id);
 	if (found == guidToMeta_.end()) {
 		return false;
 	}
 
-	AssetMeta& meta = found->second;
-	const nlohmann::json previousSettings = meta.importerSettings;
-	const uint32_t previousVersion = meta.importerVersion;
-	meta.importerSettings = settings.is_object() ? settings : nlohmann::json::object();
-	meta.importerVersion = importerVersion;
+	// 保存する候補を作り、成功するまで公開値を変更しない
+	AssetMeta candidate = found->second;
+	candidate.importerSettings = settings;
+	candidate.importerVersion = importerVersion;
 
-	const std::filesystem::path fullPath = ResolveAssetPath(meta.assetPath);
-	if (!WriteMetaFile(MetaPathOf(fullPath), meta)) {
-
-		meta.importerSettings = previousSettings;
-		meta.importerVersion = previousVersion;
+	const std::filesystem::path fullPath = ResolveAssetPath(candidate.assetPath);
+	if (!WriteMetaFile(MetaPathOf(fullPath), candidate)) {
 		return false;
 	}
+	found->second.importerSettings.swap(candidate.importerSettings);
+	found->second.importerVersion = importerVersion;
+	++structureRevision_;
 	return true;
-}
-
-std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const AssetMeta& meta) {
-
-	std::vector<AssetID> dependencies;
-
-	// JSONベースのアセットだけが内部に参照を持つ
-	if (!AssetTypeResolver::IsJsonAssetType(meta.type)) {
-		return dependencies;
-	}
-
-	const std::filesystem::path fullPath = ResolveAssetPath(meta.assetPath);
-	if (fullPath.empty()) {
-		return dependencies;
-	}
-	// Shader種別には.hlsl/.hlsli等の非JSONも含まれるため、実体が.jsonのものだけ解析する
-	if (Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension())) != ".json") {
-		return dependencies;
-	}
-
-	nlohmann::json data = LoadJsonFileNoThrow(fullPath);
-	if (!data.is_object() && !data.is_array()) {
-		return dependencies;
-	}
-	if (RuntimePaths::IsProductBuild() && data.is_object()) {
-		// 製品のシェーダーソース参照はCook済みデータが所有する
-		if (meta.type == AssetType::Shader) {
-			data.erase("stages");
-			data.erase("sourceShader");
-		}
-		// 製品では編集用ピッキングの依存先を使用しない
-		if (meta.type == AssetType::Material &&
-			data.contains("passes") && data["passes"].is_array()) {
-			auto& passes = data["passes"];
-			passes.erase(std::remove_if(passes.begin(), passes.end(),
-				[](const nlohmann::json& pass) {
-					return pass.is_object() && pass.value("passKind", "") == "EditorPicking";
-				}), passes.end());
-		}
-	}
-
-	// 既知の参照キー配下からGUIDとシェーダー等の論理パスを収集する
-	std::unordered_map<AssetID, AssetType> candidates;
-	std::unordered_map<std::string, AssetType> pathCandidates;
-	ScanReferences(data, candidates, pathCandidates);
-	// シーンから分離したActor内のスクリプト参照も依存先へ含める
-	if (meta.type == AssetType::Scene && data.contains("ExternalActors") && data["ExternalActors"].is_array()) {
-		const auto actorRoot = SceneAssetStorage::ResolveActorRoot(fullPath, meta.guid);
-		for (const auto& actorID : data["ExternalActors"]) {
-			if (!actorID.is_string() || !TryParseUUID16Hex(actorID.get<std::string>())) continue;
-			ScanReferences(LoadJsonFileNoThrow(actorRoot / (actorID.get<std::string>() + ".actor.json")), candidates, pathCandidates);
-		}
-	}
-	// 編集時の派生参照は元グラフから再生成され、通常アセットには登録されない
-	if (!RuntimePaths::IsProductBuild() && meta.type == AssetType::Material) {
-		const AssetID graphID = ParseAssetReference(data, "shaderGraph", nullptr, AssetType::ShaderGraph);
-		const AssetMeta* graphMeta = Find(graphID);
-		if (graphMeta && graphMeta->type == AssetType::ShaderGraph) {
-			const auto graphData = LoadJsonFileNoThrow(ResolveFullPath(graphID));
-			if (graphData.is_object() && graphData.contains("domain") && graphData["domain"].is_string() &&
-				graphData.contains("target") && graphData["target"].is_string()) {
-				// 参照IDに必要な種別だけを読み、ノードの解析はインポーターへ任せる
-				ShaderGraphAsset graph;
-				graph.domain = EnumAdapter<ShaderGraphDomain>::FromString(
-					graphData["domain"].get<std::string>()).value_or(ShaderGraphDomain::Surface);
-				graph.target = EnumAdapter<ShaderGraphTarget>::FromString(
-					graphData["target"].get<std::string>()).value_or(ShaderGraphTarget::Mesh);
-				const auto artifact = ShaderGraphArtifactCache::DescribeReferences(graph, graphID);
-				const auto removeGenerated = [&](AssetID id, AssetType type) {
-					const auto found = candidates.find(id);
-					if (id && found != candidates.end() && found->second == type) {
-						candidates.erase(found);
-					}
-				};
-				for (const AssetID id : { artifact.opaqueShaderID, artifact.transparentShaderID,
-					artifact.depthShaderID, artifact.pickingShaderID, artifact.computeShaderID,
-					artifact.rayTracingShaderID }) {
-					removeGenerated(id, AssetType::Shader);
-				}
-				for (const AssetID id : { artifact.opaquePipelineID, artifact.transparentPipelineID,
-					artifact.depthPipelineID, artifact.pickingPipelineID, artifact.computePipelineID,
-					artifact.rayTracingPipelineID }) {
-					removeGenerated(id, AssetType::RenderPipeline);
-				}
-			}
-		}
-	}
-	for (const auto& [assetPath, expectedType] : pathCandidates) {
-
-		const AssetMeta* referenced = FindByPath(assetPath);
-		if (!referenced) {
-			AddIssue({ AssetDatabaseIssueType::MissingReference, meta.guid, {},
-				expectedType, AssetType::Unknown, meta.assetPath, assetPath,
-				"missing path reference" });
-			continue;
-		}
-		candidates.emplace(referenced->guid, expectedType);
-	}
-
-	dependencies.reserve(candidates.size());
-	for (const auto& [referencedID, expectedType] : candidates) {
-
-		const AssetMeta* referenced = Find(referencedID);
-		if (!referenced) {
-
-			AddIssue({ AssetDatabaseIssueType::MissingReference, meta.guid, referencedID,
-				expectedType, AssetType::Unknown, meta.assetPath, {}, "missing reference" });
-		} else if (expectedType != AssetType::Unknown && referenced->type != expectedType) {
-
-			AddIssue({ AssetDatabaseIssueType::ReferenceTypeMismatch, meta.guid, referencedID,
-				expectedType, referenced->type, meta.assetPath, referenced->assetPath, "type mismatch" });
-		}
-		dependencies.emplace_back(referencedID);
-	}
-	return dependencies;
-}
-
-void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::path>& scanRoots) {
-
-	// 走査中にファイルを消すとiteratorが壊れるので、先に孤立.metaを集めてから削除する
-	std::vector<std::filesystem::path> orphanMetas;
-
-	for (const std::filesystem::path& scanRoot : scanRoots) {
-
-		std::error_code ec;
-		if (!std::filesystem::exists(scanRoot, ec) || !std::filesystem::is_directory(scanRoot, ec)) {
-			continue;
-		}
-
-		auto it = std::filesystem::recursive_directory_iterator(
-			scanRoot, std::filesystem::directory_options::skip_permission_denied, ec);
-		const std::filesystem::recursive_directory_iterator end{};
-		if (ec) {
-			continue;
-		}
-
-		for (; it != end; it.increment(ec)) {
-
-			if (ec) {
-				ec.clear();
-				continue;
-			}
-			if (it->is_directory(ec)) {
-
-				if (IsExternalActorsDirectory(it->path())) {
-					it.disable_recursion_pending();
-				}
-				continue;
-			}
-			if (!it->is_regular_file(ec)) {
-				continue;
-			}
-
-			const std::filesystem::path metaPath = it->path();
-			// "<asset>.meta" のみを対象にする(.meta.バックアップ等は対象外)
-			const std::string filename = Algorithm::PathToUTF8(metaPath.filename());
-			if (!Algorithm::EndsWith(filename, ".meta") || filename.find(".meta.") != std::string::npos) {
-				continue;
-			}
-
-			std::filesystem::path assetFull = metaPath;
-			assetFull.replace_extension("");
-			if (!std::filesystem::exists(assetFull, ec)) {
-				orphanMetas.emplace_back(metaPath);
-			}
-		}
-	}
-
-	// 元アセットが消えた孤立.metaは自動削除する、読み取り専用などで消せなければ警告だけ出す
-	for (const std::filesystem::path& metaPath : orphanMetas) {
-
-		std::error_code ec;
-		if (std::filesystem::remove(metaPath, ec)) {
-
-			Logger::Output(LogType::Engine, "[AssetDatabase] 孤立した.metaを削除しました path={}",
-				Algorithm::PathToUTF8(metaPath));
-		} else {
-
-			Logger::Output(LogType::Engine, spdlog::level::warn,
-				"[AssetDatabase] 孤立した.metaを削除できません path={}",
-				Algorithm::PathToUTF8(metaPath));
-		}
-	}
 }
 
 void Engine::AssetDatabase::AddIssue(AssetDatabaseIssue&& issue) {
 
 	issues_.emplace_back(std::move(issue));
-}
-
-const Engine::AssetMeta* Engine::AssetDatabase::Find(AssetID id) const {
-
-	auto it = guidToMeta_.find(id);
-	return (it == guidToMeta_.end()) ? nullptr : &it->second;
-}
-
-const Engine::AssetMeta* Engine::AssetDatabase::FindByPath(const std::string& assetPath) const {
-
-	auto it = pathToGuid_.find(NormalizeLookupKey(assetPath));
-	return (it == pathToGuid_.end()) ? nullptr : Find(it->second);
-}
-
-std::filesystem::path Engine::AssetDatabase::ResolveFullPath(AssetID id) const {
-
-	const auto* meta = Find(id);
-	if (!meta) {
-		return {};
-	}
-	return ResolveAssetPath(meta->assetPath);
-}
-
-std::filesystem::path Engine::AssetDatabase::ResolveAssetPath(const std::string& assetPath) const {
-
-	return RuntimePaths::ResolveAssetPath(assetPath);
-}
-
-const std::vector<Engine::AssetID>& Engine::AssetDatabase::FindDependencies(AssetID id) const {
-
-	static const std::vector<AssetID> kEmpty;
-	auto it = guidToMeta_.find(id);
-	return (it == guidToMeta_.end()) ? kEmpty : it->second.dependencies;
-}
-
-const std::vector<Engine::AssetID>& Engine::AssetDatabase::FindReferencers(AssetID id) const {
-
-	static const std::vector<AssetID> kEmpty;
-	auto it = referencersByGuid_.find(id);
-	return (it == referencersByGuid_.end()) ? kEmpty : it->second;
-}
-
-std::vector<Engine::AssetID>
-Engine::AssetDatabase::FindReferencersRecursive(AssetID id) const {
-
-	std::vector<AssetID> result;
-	std::vector<AssetID> pending{ id };
-	std::unordered_set<AssetID> visited{ id };
-	for (size_t index = 0; index < pending.size(); ++index) {
-
-		for (AssetID referencer : FindReferencers(pending[index])) {
-			if (!visited.insert(referencer).second) {
-				continue;
-			}
-			result.emplace_back(referencer);
-			pending.emplace_back(referencer);
-		}
-	}
-	return result;
-}
-
-bool Engine::AssetDatabase::HasReferencers(AssetID id) const {
-
-	auto it = referencersByGuid_.find(id);
-	return it != referencersByGuid_.end() && !it->second.empty();
 }
 
 std::string Engine::AssetDatabase::NormalizeLookupKey(const std::string& assetPath) {
@@ -785,72 +418,25 @@ std::string Engine::AssetDatabase::NormalizeLookupKey(const std::string& assetPa
 
 std::filesystem::path Engine::AssetDatabase::MetaPathOf(const std::filesystem::path& assetFullPath) {
 
-	std::filesystem::path metaPath = assetFullPath;
-	metaPath += L".meta";
-	return metaPath;
+	return AssetMetaStorage::MetaPathOf(assetFullPath);
 }
 
 bool Engine::AssetDatabase::ReadMetaFile(const std::filesystem::path& metaFullPath, AssetMeta& out) {
 
-	const nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
-	if (!data.is_object() || data.value("schemaVersion", 0u) != kAssetMetaSchemaVersion) {
-		return false;
-	}
-
-	// guidは厳密にパースし欠落や不正や0はすべて破損扱い
-	const std::string guidStr = data.value("guid", "");
-	const std::optional<AssetID> parsedGuid = TryParseAssetGUID32Hex(guidStr);
-	if (!parsedGuid) {
-		return false;
-	}
-	out.guid = *parsedGuid;
-
-	// 未知typeでも例外にせず、Unknownとして扱う(補正は呼び出し側)
-	const std::string typeStr = data.value("type", "Unknown");
-	out.type = EnumAdapter<AssetType>::FromString(typeStr).value_or(AssetType::Unknown);
-	out.importer = data.value("importer", std::string(ResolveImporterName(out.type)));
-	out.importerVersion = data.value("importerVersion", 1u);
-	if (const auto it = data.find("settings"); it != data.end() && it->is_object()) {
-		out.importerSettings = *it;
-	} else {
-		out.importerSettings = nlohmann::json::object();
-	}
-
-	std::filesystem::path assetFullPath = metaFullPath;
-	assetFullPath.replace_extension("");
-	out.assetPath = RuntimePaths::ToAssetPath(assetFullPath);
-	if (out.assetPath.empty()) {
-		return false;
-	}
-	return true;
+	return AssetMetaStorage::ReadMetaFile(metaFullPath, out);
 }
 
 bool Engine::AssetDatabase::WriteMetaFile(const std::filesystem::path& metaFullPath, const AssetMeta& meta) {
 
-	// 既存の .meta を読み、script importer が書く "scripts" 等の未知キーを保持したまま
-	// 既知キーだけ更新し、AssetDatabaseがguid採番で書き直してもsidecarの追加情報を壊さない
-	nlohmann::json data = LoadJsonFileNoThrow(metaFullPath);
-	if (!data.is_object()) {
-		data = nlohmann::json::object();
-	}
+	return AssetMetaStorage::WriteMetaFile(metaFullPath, meta);
+}
 
-	data["schemaVersion"] = kAssetMetaSchemaVersion;
-	data["guid"] = ToString(meta.guid);
-	data["type"] = std::string(EnumAdapter<AssetType>::ToString(meta.type));
-	data["importer"] = meta.importer.empty() ?
-		std::string(ResolveImporterName(meta.type)) : meta.importer;
-	data["importerVersion"] = meta.importerVersion;
-	data["settings"] = meta.importerSettings.is_object() ?
-		meta.importerSettings : nlohmann::json::object();
-	data.erase("version");
+std::vector<Engine::AssetID> Engine::AssetDatabase::ExtractDependencies(const AssetMeta& meta) {
 
-	std::ofstream ofs(metaFullPath, std::ios::binary | std::ios::trunc);
-	if (!ofs.is_open()) {
-		return false;
-	}
+	return AssetDependencyResolver::ExtractDependencies(*this, meta, issues_);
+}
 
-	// ファイルに書き込む
-	ofs << data.dump(2);
-	ofs.flush();
-	return ofs.good();
+void Engine::AssetDatabase::DetectOrphanMeta(const std::vector<std::filesystem::path>& scanRoots) {
+
+	AssetMaintenance::DetectOrphanMeta(scanRoots, issues_);
 }

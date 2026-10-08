@@ -5,15 +5,17 @@ namespace NEMEngine;
 public static class Debug {
 
     public static void Log(object? message) {
-        NativeApi.WriteLog(0, message?.ToString() ?? string.Empty);
+        NativeApplicationAPI.WriteLog(0, message?.ToString() ?? string.Empty);
     }
 
     public static void LogWarning(object? message) {
-        NativeApi.WriteLog(1, message?.ToString() ?? string.Empty);
+        NativeApplicationAPI.WriteLog(1, message?.ToString() ?? string.Empty);
     }
 
     public static void LogError(object? message) {
-        NativeApi.WriteLog(2, message?.ToString() ?? string.Empty);
+        string text = message?.ToString() ?? string.Empty;
+        NativeApplicationAPI.WriteLog(2, text);
+        ScriptInvocationDiagnostics.ReportLogError(text);
     }
 
     // そのフレームだけGameViewへ線を描く(Unity互換の可視化、LineDrawへの糖衣)

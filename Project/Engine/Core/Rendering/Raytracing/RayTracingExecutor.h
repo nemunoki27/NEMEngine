@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/PostProcess/PostProcessConstantBufferAllocator.h>
+#include <Engine/Core/Rendering/DxObject/Buffers/FrameConstantBufferAllocator.h>
 #include <Engine/Core/Rendering/Materials/MaterialParameterLayout.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfile.h>
 
@@ -52,23 +52,17 @@ namespace Engine {
 			const RayTracingExecutionResources& resources,
 			const RenderFeaturePassRuntimeOverride* runtimeOverride = nullptr);
 
-		void ClearParameterLayoutCache() {
-			parameterLayoutCache_.clear();
-			diagnostics_.clear();
-		}
+		void ClearParameterLayoutCache();
 
 		// 最後に実行したDXRシェーダーのReflectionを取得する
-		const ShaderReflectionInfo* GetLastReflection() const {
-
-			return lastReflection_;
-		}
+		const ShaderReflectionInfo* GetLastReflection() const { return lastReflection_; }
 
 	private:
 		//============================================================================
 		//	private Methods
 		//============================================================================
 
-		PostProcessConstantBufferAllocator constantBufferAllocator_{};
+		FrameConstantBufferAllocator constantBufferAllocator_{};
 		std::unordered_map<uint64_t, MaterialParameterLayout>
 			parameterLayoutCache_{};
 		uint64_t allocatorFrameSerial_ = 0;

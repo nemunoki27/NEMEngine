@@ -5,6 +5,9 @@
 //============================================================================
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
 
+// c++
+#include <filesystem>
+#include <utility>
 // directX
 #include <d3d12shader.h>
 
@@ -29,6 +32,10 @@ namespace Engine {
 		// シェーダーコンパイル
 		CompiledShader CompileShader(const std::wstring& filePath,
 			const wchar_t* profile, const wchar_t* entry, ShaderStage stage);
+
+		//--------- accessor -----------------------------------------------------
+
+		void SetSourceRoot(std::filesystem::path root) { sourceRoot_ = std::move(root); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -40,5 +47,6 @@ namespace Engine {
 		ComPtr<IDxcCompiler3> dxcCompiler_;
 		ComPtr<IDxcIncludeHandler> includeHandler_;
 		HMODULE dxcompilerModule_ = nullptr;
+		std::filesystem::path sourceRoot_{};
 	};
 }; // Engine

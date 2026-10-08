@@ -48,6 +48,8 @@ PSOutput main(VSOutput input) {
 
 	const float edge = 1.0f - saturate(dissolveValue / max(custom.edgeWidth, 0.0001f));
 	float4 result = textureColor * input.vertexColor * material.materialColor;
+	// 通常描画と同じAlpha閾値を適用する
+	clip(result.a - material.materialParams.x);
 	result.rgb += custom.edgeColor.rgb * custom.edgeColor.a * edge;
 	result.rgb += material.emissive.rgb * material.emissive.w;
 	result = PrepareParticleBlendColor(result, material);

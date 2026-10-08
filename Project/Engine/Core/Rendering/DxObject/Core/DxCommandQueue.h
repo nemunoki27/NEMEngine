@@ -5,11 +5,12 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <cstdint>
 #include <string_view>
+
+// directX
+#include <d3d12.h>
 
 //============================================================================
 //	DxCommandQueue class
@@ -24,7 +25,9 @@ public:
 	//============================================================================
 
 	DxCommandQueue() = default;
-	~DxCommandQueue() = default;
+	~DxCommandQueue();
+	DxCommandQueue(const DxCommandQueue&) = delete;
+	DxCommandQueue& operator=(const DxCommandQueue&) = delete;
 
 	// デバイスからキュー/フェンス/イベントを生成し初期化する
 	void Create(ID3D12Device* device);
@@ -44,6 +47,7 @@ public:
 
 	//--------- accessor -----------------------------------------------------
 
+	bool IsInitialized() const { return commandQueue_ && fence_ && fenceEvent_; }
 	ID3D12CommandQueue* GetQueue() const { return commandQueue_.Get(); }
 	uint64_t GetCompletedFenceValue() const { return fence_->GetCompletedValue(); }
 	uint64_t GetLastSignaledFenceValue() const { return fenceValue_; }

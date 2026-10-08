@@ -27,7 +27,7 @@ public sealed partial class CameraController {
             get => combined ? controller.FollowLookAtFollowEnabled : controller.FollowEnabled;
             set { if (combined) controller.FollowLookAtFollowEnabled = value; else controller.FollowEnabled = value; }
         }
-        public Entity Target {
+        public GameObject? Target {
             get => combined ? controller.FollowLookAtFollowTarget : controller.FollowTarget;
             set { if (combined) controller.FollowLookAtFollowTarget = value; else controller.FollowTarget = value; }
         }
@@ -92,7 +92,7 @@ public sealed partial class CameraController {
             get => combined ? controller.FollowLookAtLookAtEnabled : controller.LookAtEnabled;
             set { if (combined) controller.FollowLookAtLookAtEnabled = value; else controller.LookAtEnabled = value; }
         }
-        public Entity Target {
+        public GameObject? Target {
             get => combined ? controller.FollowLookAtLookAtTarget : controller.LookAtTarget;
             set { if (combined) controller.FollowLookAtLookAtTarget = value; else controller.LookAtTarget = value; }
         }

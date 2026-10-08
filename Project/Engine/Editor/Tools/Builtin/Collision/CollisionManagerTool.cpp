@@ -3,324 +3,26 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Editor/Utility/CollisionDebugDraw.h>
 #include <Engine/Core/Physics/Collision/CollisionSettings.h>
-#include <Engine/Core/Physics/Collision/CollisionShapeUtility.h>
-#include <Engine/Core/World/Components/Physics/CollisionComponent.h>
-#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
-#include <Engine/Core/World/Components/Transform/TransformComponent.h>
-#include <Engine/Core/Foundation/Math/Matrix4x4.h>
-#include <Engine/Core/Foundation/Math/Quaternion.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-#include <Engine/Core/Rendering/DebugDraw/Lines/LineRenderer.h>
-#endif
-
-// imgui
-#include <imgui.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/Settings/ProjectSettingsOperations.h>
 
 // c++
-#include <algorithm>
-#include <cmath>
 #include <string>
+// imgui
+#include <imgui.h>
 
 //============================================================================
 //	CollisionManagerTool classMethods
 //============================================================================
-namespace {
-
-	// Vector3の各要素を絶対値にする
-	Engine::Vector3 AbsVector(const Engine::Vector3& value) {
-
-		return Engine::Vector3(std::fabs(value.x), std::fabs(value.y), std::fabs(value.z));
-	}
-
-	// 行列から指定基底方向の軸を取り出す
-	Engine::Vector3 ExtractAxis(const Engine::Matrix4x4& matrix, const Engine::Vector3& basis) {
-
-		return Engine::Vector3::TransferNormal(basis, matrix);
-	}
-
-	// 行列から指定基底方向のスケールを取り出す
-	float ExtractScale(const Engine::Matrix4x4& matrix, const Engine::Vector3& basis) {
-
-		const float length = ExtractAxis(matrix, basis).Length();
-		return length <= 0.0001f ? 1.0f : length;
-	}
-
-	// TransformのworldMatrixからワールドスケールを取り出す
-	Engine::Vector3 ExtractWorldScale(const Engine::TransformComponent& transform) {
-
-		return Engine::Vector3(
-			ExtractScale(transform.worldMatrix, Engine::Vector3(1.0f, 0.0f, 0.0f)),
-			ExtractScale(transform.worldMatrix, Engine::Vector3(0.0f, 1.0f, 0.0f)),
-			ExtractScale(transform.worldMatrix, Engine::Vector3(0.0f, 0.0f, 1.0f)));
-	}
-
-	// 形状のワールド中心を作成する
-	Engine::Vector3 MakeWorldCenter(const Engine::CollisionShape& shape, const Engine::TransformComponent& transform) {
-
-		return transform.worldMatrix.GetTranslationValue() +
-			Engine::Vector3::TransferNormal(shape.offset, transform.worldMatrix);
-	}
-
-	// 形状の2Dワールド中心を作成する
-	Engine::Vector2 MakeWorldCenter2D(const Engine::CollisionShape& shape, const Engine::TransformComponent& transform) {
-
-		const Engine::Vector3 center = MakeWorldCenter(shape, transform);
-		return Engine::Vector2(center.x, center.y);
-	}
-
-	// 形状に適用する回転行列を作成する
-	Engine::Matrix4x4 MakeShapeRotationMatrix(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform) {
-
-		Engine::Quaternion rotation = Engine::Quaternion::FromEulerDegrees(shape.rotationDegrees);
-		if (shape.useTransformRotation) {
-			rotation = rotation * transform.localRotation;
-		}
-		return Engine::Quaternion::MakeRotateMatrix(rotation.Normalize());
-	}
-
-	// 形状の2D回転角を取得する
-	float MakeShapeRotationDegrees2D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform) {
-
-		Engine::Quaternion rotation = Engine::Quaternion::FromEulerDegrees(shape.rotationDegrees);
-		if (shape.useTransformRotation) {
-			rotation = rotation * transform.localRotation;
-		}
-		return Engine::Quaternion::ToEulerDegrees(rotation.Normalize()).z;
-	}
-
-	// Triggerは黄色、通常形状はシアンで表示する
-	Engine::Color4 GetShapeColor(const Engine::CollisionShape& shape) {
-
-		return shape.isTrigger ? Engine::Color4::Yellow(1.0f) : Engine::Color4::Cyan(1.0f);
-	}
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// Circle2DをXY平面に描画する
-	void DrawCircle2D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer2D* renderer = Engine::LineRenderer::GetInstance()->Get2D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const float radius = shape.radius * (std::max)(scale.x, scale.y);
-		renderer->DrawCircle(MakeWorldCenter2D(shape, transform), radius, color, 16, thickness);
-	}
-
-	// Quad2DをXY平面に描画する
-	void DrawQuad2D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer2D* renderer = Engine::LineRenderer::GetInstance()->Get2D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const Engine::Vector2 center = MakeWorldCenter2D(shape, transform);
-		const Engine::Vector2 halfSize(shape.halfSize2D.x * scale.x, shape.halfSize2D.y * scale.y);
-		if (shape.rotatedQuad) {
-			renderer->DrawRect(center, halfSize * 2.0f,
-				MakeShapeRotationDegrees2D(shape, transform), color, thickness);
-		} else {
-			renderer->DrawRect(center, halfSize * 2.0f, color, thickness);
-		}
-	}
-
-	// Capsule2DをXY平面に描画する
-	void DrawCapsule2D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform,
-		const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer2D* renderer = Engine::LineRenderer::GetInstance()->Get2D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::CollisionShapeInstance capsule =
-			Engine::CollisionShapeUtility::BuildShapeInstance(
-				Engine::Entity::Null(), shape, 0, transform);
-		const Engine::Vector2 start(capsule.segmentStart.x, capsule.segmentStart.y);
-		const Engine::Vector2 end(capsule.segmentEnd.x, capsule.segmentEnd.y);
-		const Engine::Vector2 segment = end - start;
-		const float segmentLength = segment.Length();
-		constexpr uint32_t kArcDivision = 16;
-		if (segmentLength <= 0.0001f) {
-			renderer->DrawCircle(
-				start, capsule.radius, color, kArcDivision * 2, thickness);
-			return;
-		}
-
-		const Engine::Vector2 axis = segment / segmentLength;
-		const Engine::Vector2 perpendicular(-axis.y, axis.x);
-		renderer->DrawLine(start + perpendicular * capsule.radius,
-			end + perpendicular * capsule.radius, color, thickness);
-		renderer->DrawLine(start - perpendicular * capsule.radius,
-			end - perpendicular * capsule.radius, color, thickness);
-
-		for (uint32_t i = 0; i < kArcDivision; ++i) {
-
-			const float angle0 = Math::pi * static_cast<float>(i) /
-				static_cast<float>(kArcDivision);
-			const float angle1 = Math::pi * static_cast<float>(i + 1) /
-				static_cast<float>(kArcDivision);
-			const Engine::Vector2 start0 = start +
-				(perpendicular * std::cos(angle0) - axis * std::sin(angle0)) * capsule.radius;
-			const Engine::Vector2 start1 = start +
-				(perpendicular * std::cos(angle1) - axis * std::sin(angle1)) * capsule.radius;
-			const Engine::Vector2 end0 = end +
-				(-perpendicular * std::cos(angle0) + axis * std::sin(angle0)) * capsule.radius;
-			const Engine::Vector2 end1 = end +
-				(-perpendicular * std::cos(angle1) + axis * std::sin(angle1)) * capsule.radius;
-			renderer->DrawLine(start0, start1, color, thickness);
-			renderer->DrawLine(end0, end1, color, thickness);
-		}
-	}
-
-	// Sphere3Dを描画する
-	void DrawSphere3D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const float radius = shape.radius * (std::max)({ scale.x, scale.y, scale.z });
-		renderer->DrawSphere(MakeWorldCenter(shape, transform), radius, color, thickness);
-	}
-
-	// Capsule3Dを描画する
-	void DrawCapsule3D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform,
-		const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::CollisionShapeInstance capsule =
-			Engine::CollisionShapeUtility::BuildShapeInstance(
-				Engine::Entity::Null(), shape, 0, transform);
-		renderer->DrawSphere(
-			capsule.segmentStart, capsule.radius, color, thickness);
-		if ((capsule.segmentEnd - capsule.segmentStart).Length() <= 0.0001f) {
-			return;
-		}
-		renderer->DrawSphere(
-			capsule.segmentEnd, capsule.radius, color, thickness);
-
-		const Engine::Vector3 axis = Engine::Vector3::NormalizeOr(
-			capsule.segmentEnd - capsule.segmentStart,
-			Engine::Vector3(0.0f, 1.0f, 0.0f));
-		const Engine::Vector3 reference = std::fabs(axis.y) < 0.99f ?
-			Engine::Vector3(0.0f, 1.0f, 0.0f) : Engine::Vector3(1.0f, 0.0f, 0.0f);
-		const Engine::Vector3 right = Engine::Vector3::NormalizeOr(
-			Engine::Vector3::Cross(axis, reference), Engine::Vector3(1.0f, 0.0f, 0.0f));
-		const Engine::Vector3 forward = Engine::Vector3::NormalizeOr(
-			Engine::Vector3::Cross(axis, right), Engine::Vector3(0.0f, 0.0f, 1.0f));
-		for (const Engine::Vector3& direction : { right, -right, forward, -forward }) {
-			renderer->DrawLine(
-				capsule.segmentStart + direction * capsule.radius,
-				capsule.segmentEnd + direction * capsule.radius,
-				color, thickness);
-		}
-	}
-
-	// AABB3Dを描画する
-	void DrawAABB3D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const Engine::Vector3 center = MakeWorldCenter(shape, transform);
-		const Engine::Vector3 halfExtents = shape.halfExtents3D * scale;
-		renderer->DrawAABB(center - halfExtents, center + halfExtents, color, thickness);
-	}
-
-	// OBB3Dを描画する
-	void DrawOBB3D(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform, const Engine::Color4& color, float thickness) {
-
-		Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
-		if (!renderer) {
-			return;
-		}
-
-		const Engine::Vector3 scale = AbsVector(ExtractWorldScale(transform));
-		const Engine::Vector3 halfExtents = shape.halfExtents3D * scale;
-		renderer->DrawOBB(MakeWorldCenter(shape, transform), halfExtents,
-			MakeShapeRotationMatrix(shape, transform), color, thickness);
-	}
-
-	// 形状タイプごとの描画関数へ振り分ける、collidingなら衝突中として赤で描く
-	void DrawCollisionShape(const Engine::CollisionShape& shape,
-		const Engine::TransformComponent& transform, bool colliding) {
-
-		// 衝突中は形状種別に関わらず赤、それ以外はTrigger黄/通常シアン
-		const Engine::Color4 color = colliding ? Engine::Color4::Red(1.0f) : GetShapeColor(shape);
-		const float thickness = 2.0f;
-		switch (shape.type) {
-		case Engine::ColliderShapeType::Circle2D:
-			DrawCircle2D(shape, transform, color, thickness);
-			break;
-		case Engine::ColliderShapeType::Quad2D:
-			DrawQuad2D(shape, transform, color, thickness);
-			break;
-		case Engine::ColliderShapeType::Capsule2D:
-			DrawCapsule2D(shape, transform, color, thickness);
-			break;
-		case Engine::ColliderShapeType::Sphere3D:
-		case Engine::ColliderShapeType::AABB3D:
-		case Engine::ColliderShapeType::OBB3D:
-		case Engine::ColliderShapeType::Capsule3D: {
-
-			// 3D形状は不透明メッシュに隠れるよう深度オクルージョン対象バッチへ積む
-			Engine::LineRenderer3D* renderer = Engine::LineRenderer::GetInstance()->Get3D();
-			if (renderer) {
-				renderer->SetOccludedMode(true);
-			}
-			if (shape.type == Engine::ColliderShapeType::Sphere3D) {
-				DrawSphere3D(shape, transform, color, thickness);
-			} else if (shape.type == Engine::ColliderShapeType::AABB3D) {
-				DrawAABB3D(shape, transform, color, thickness);
-			} else if (shape.type == Engine::ColliderShapeType::Capsule3D) {
-				DrawCapsule3D(shape, transform, color, thickness);
-			} else {
-				DrawOBB3D(shape, transform, color, thickness);
-			}
-			if (renderer) {
-				renderer->SetOccludedMode(false);
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	}
-#endif
-}
 
 void Engine::CollisionManagerTool::Tick(ToolContext& context) {
 
 	if (!CollisionSettings::GetInstance().GetDrawCollisionWorld() || !context.world) {
 		return;
 	}
-	DrawCollisionWorld(*context.world);
+	CollisionDebugDraw::DrawWorld(*context.world);
 }
 
 void Engine::CollisionManagerTool::OpenEditorTool() {
@@ -335,8 +37,7 @@ void Engine::CollisionManagerTool::DrawEditorTool(const EditorToolContext& conte
 	}
 }
 
-void Engine::CollisionManagerTool::DrawWindow(
-	[[maybe_unused]] const EditorToolContext& context) {
+void Engine::CollisionManagerTool::DrawWindow([[maybe_unused]] const EditorToolContext& context) {
 
 	if (!ImGui::Begin("衝突設定", &openWindow_)) {
 		ImGui::End();
@@ -355,13 +56,17 @@ void Engine::CollisionManagerTool::DrawWindow(
 
 	// Save/Reloadボタン
 	if (ImGui::Button("保存")) {
-		settings.Save();
-		dirty_ = false;
+		// 保存失敗時は未保存表示を維持する
+		if (settings.Save()) {
+			dirty_ = false;
+		}
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("読み込み##RELOAD")) {
-		settings.Load();
-		dirty_ = false;
+		// 読込失敗時は編集中の設定を残す
+		if (settings.Load()) {
+			dirty_ = false;
+		}
 	}
 
 	ImGui::Separator();
@@ -372,8 +77,13 @@ void Engine::CollisionManagerTool::DrawWindow(
 		settings.SetDrawCollisionWorld(drawWorld);
 		dirty_ = true;
 	}
+	bool queriesHitTriggers = settings.GetQueriesHitTriggers();
+	if (ImGui::Checkbox("物理クエリでTriggerを検出", &queriesHitTriggers)) {
+		settings.SetQueriesHitTriggers(queriesHitTriggers);
+		dirty_ = true;
+	}
 	ImGui::Separator();
-	if (DrawTypes()) {
+	if (DrawTypes(context)) {
 		dirty_ = true;
 	}
 	ImGui::Spacing();
@@ -387,7 +97,7 @@ void Engine::CollisionManagerTool::DrawWindow(
 	ImGui::End();
 }
 
-bool Engine::CollisionManagerTool::DrawTypes() {
+bool Engine::CollisionManagerTool::DrawTypes(const EditorToolContext& context) {
 
 	CollisionSettings& settings = CollisionSettings::GetInstance();
 	bool changed = false;
@@ -453,9 +163,12 @@ bool Engine::CollisionManagerTool::DrawTypes() {
 
 			ImGui::SameLine();
 			if (ImGui::Button("削除", ImVec2(deleteButtonWidth, 0.0f))) {
-				settings.RemoveType(static_cast<uint32_t>(removeTypeIndex_));
-				removeTypeIndex_ = 0;
-				changed = true;
+				const uint32_t removeIndex = static_cast<uint32_t>(removeTypeIndex_);
+				if (ProjectSettingsOperations::RemoveCollisionType(context, removeIndex)) {
+					settings.RemoveType(removeIndex);
+					removeTypeIndex_ = 0;
+					changed = true;
+				}
 			}
 			MyGUI::EndPropertyRow();
 		}
@@ -479,10 +192,7 @@ bool Engine::CollisionManagerTool::DrawMatrix() {
 	}
 
 	const ImGuiTableFlags flags =
-		ImGuiTableFlags_Borders |
-		ImGuiTableFlags_RowBg |
-		ImGuiTableFlags_SizingFixedFit |
-		ImGuiTableFlags_ScrollX;
+		ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX;
 	if (!ImGui::BeginTable("##CollisionMatrix", static_cast<int32_t>(count + 1), flags)) {
 		return changed;
 	}
@@ -515,23 +225,4 @@ bool Engine::CollisionManagerTool::DrawMatrix() {
 
 	ImGui::EndTable();
 	return changed;
-}
-
-void Engine::CollisionManagerTool::DrawCollisionWorld([[maybe_unused]] ECSWorld& world) const {
-
-#if defined(_DEBUG) || defined(_DEVELOPBUILD)
-	// World内の有効なCollision形状をすべて描画する
-	world.ForEach<CollisionComponent, TransformComponent>([&world](
-		Entity entity, CollisionComponent& collision, TransformComponent& transform) {
-
-			if (!collision.enabled || !IsEntityActiveInHierarchy(world, entity)) {
-				return;
-			}
-			if (!collision.shape.enabled) {
-				return;
-			}
-			DrawCollisionShape(
-				collision.shape, transform, IsCollisionColliding(world, entity));
-		});
-#endif
 }

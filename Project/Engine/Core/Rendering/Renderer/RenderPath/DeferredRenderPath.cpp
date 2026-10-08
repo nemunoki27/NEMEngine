@@ -41,7 +41,7 @@ void Engine::DeferredRenderPath::Initialize(const RenderPipelineDeps& deps) {
 		.phase = RenderPhase::Opaque,
 		.target = QueueRenderPass::Target::SceneMain
 		}));
-	fixedPasses.emplace_back(std::make_unique<LightingPass>());
+	fixedPasses.emplace_back(std::make_unique<LightingPass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<InvertedHullOutlinePass>(deps_));
 	fixedPasses.emplace_back(std::make_unique<QueueRenderPass>(deps_, QueueRenderPass::Desc{
 		.kind = RenderPathPassKind::Transparent,
@@ -130,5 +130,13 @@ void Engine::DeferredRenderPath::Execute(GraphicsCore& graphicsCore,
 		if (profileWholePass) {
 			GPUFrameProfiler::GetInstance().EndPass(commandList);
 		}
+	}
+}
+
+void Engine::DeferredRenderPath::RetainViews(const std::unordered_set<std::string>& activeViews) {
+
+	// 描画対象から外れたCameraの履歴を回収する
+	for (const auto& pass : passes_) {
+		pass->RetainViews(activeViews);
 	}
 }

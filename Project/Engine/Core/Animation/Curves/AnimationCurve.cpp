@@ -17,9 +17,10 @@
 //============================================================================
 namespace {
 
+	// 前後の値と接線でHermite補間する
 	float Hermite(float p0, float p1, float m0, float m1, float t, float length) {
 
-		// Spline用のHermite補間でm0/m1は時間あたりの傾きとして渡す
+		// 時間あたりの傾きから補間係数を作る
 		const float t2 = t * t;
 		const float t3 = t2 * t;
 
@@ -30,6 +31,7 @@ namespace {
 		return h00 * p0 + h10 * m0 * length + h01 * p1 + h11 * m1 * length;
 	}
 
+	// 四つの制御点でBezier補間する
 	float CubicBezier(float p0, float p1, float p2, float p3, float t) {
 
 		const float u = 1.0f - t;
@@ -39,15 +41,16 @@ namespace {
 			t * t * t * p3;
 	}
 
+	// 時刻に対応するBezier曲線の値を求める
 	float EvaluateBezierSegment(const Engine::CurveKey& prev, const Engine::CurveKey& next, float time, float normalizedT) {
 
-		// BezierはX軸にもハンドルを持つため、timeからBezierパラメータを逆算する
+		// 時刻からBezierの位置を逆算する
 		const float p0x = prev.time;
 		const float p1x = prev.time + prev.outTangent.x;
 		const float p2x = next.time + next.inTangent.x;
 		const float p3x = next.time;
 
-		// Tangentが設定されていない古いデータでは、Linearに近い見た目へ倒す
+		// 接線が未指定なら直線で補間する
 		if (std::abs(prev.outTangent.x) <= 0.00001f && std::abs(next.inTangent.x) <= 0.00001f) {
 			return Math::Lerp(prev.value, next.value, normalizedT);
 		}
@@ -57,7 +60,7 @@ namespace {
 		float bezierT = normalizedT;
 		for (uint32_t i = 0; i < 16; ++i) {
 
-			// 単調でないハンドルでも破綻しにくいよう、二分探索で近い時刻を探す
+			// 二分探索で指定時刻に近い位置を探す
 			bezierT = (low + high) * 0.5f;
 			const float x = CubicBezier(p0x, p1x, p2x, p3x, bezierT);
 			if (x < time) {
@@ -74,9 +77,10 @@ namespace {
 		return CubicBezier(p0y, p1y, p2y, p3y, bezierT);
 	}
 
+	// 前後のキーから自動接線を求める
 	float CalcAutoTangent(const std::vector<Engine::CurveKey>& keys, size_t index) {
 
-		// Spline用の自動接線で端では片側キーだけを使う
+		// 端のキーは片側の傾きを使う
 		if (keys.size() <= 1) {
 			return 0.0f;
 		}
@@ -94,6 +98,7 @@ namespace {
 		return (keys[next].value - keys[prev].value) / timeLength;
 	}
 
+	// チャンネルの表示と既定値を設定する
 	void SetupChannel(Engine::CurveChannel& channel, const char* name, const Engine::Color4& color, float defaultValue) {
 
 		channel.name = name;
@@ -101,9 +106,10 @@ namespace {
 		channel.defaultValue = defaultValue;
 	}
 
+	// 現在時刻に対応する軸キーの番号を求める
 	uint32_t FindAxisKeyIndex(const Engine::CurveChannel& axisChannel, float time) {
 
-		// Axis設定はAxisチャンネルのキー単位で持つため、現在時刻の前キーを採用する
+		// 先頭と末尾では端のキーを使う
 		if (axisChannel.keys.empty()) {
 			return 0;
 		}
@@ -124,7 +130,7 @@ namespace {
 
 float Engine::CurveChannel::Evaluate(float time) const {
 
-	// キーが無いチャンネルは、Track追加直後などの既定値としてdefaultValueを返す
+	// キーがなければチャンネルの既定値を返す
 	if (keys.empty()) {
 		return defaultValue;
 	}
@@ -159,7 +165,7 @@ float Engine::CurveChannel::Evaluate(float time) const {
 	case CurveInterpolationMode::Spline:
 	case CurveInterpolationMode::Squad:
 	{
-		// SquadはQuaternion専用指定だが、float channel上ではSpline相当として扱う
+		// 数値カーブのSquad指定はSplineで評価する
 		const size_t prevIndex = static_cast<size_t>((nextIt - 1) - keys.begin());
 		const size_t nextIndex = static_cast<size_t>(nextIt - keys.begin());
 		const float leaveTangent = CalcAutoTangent(keys, prevIndex);
@@ -174,7 +180,7 @@ float Engine::CurveChannel::Evaluate(float time) const {
 
 uint32_t Engine::CurveChannel::AddKey(float time, float value, CurveInterpolationMode interpolation) {
 
-	// 追加後に必ず時間順へ並べ、CurveEditorの選択に使えるindexを返す
+	// キーを追加して時間順へ並べる
 	CurveKey key{};
 	key.time = time;
 	key.value = value;
@@ -182,6 +188,7 @@ uint32_t Engine::CurveChannel::AddKey(float time, float value, CurveInterpolatio
 	keys.emplace_back(key);
 	SortKeys();
 
+	// 追加した値と時刻に一致するキーの番号を返す
 	for (uint32_t i = 0; i < keys.size(); ++i) {
 		if (keys[i].time == time && keys[i].value == value) {
 			return i;
@@ -192,6 +199,7 @@ uint32_t Engine::CurveChannel::AddKey(float time, float value, CurveInterpolatio
 
 bool Engine::CurveChannel::RemoveKey(uint32_t index) {
 
+	// 存在するキーだけを削除する
 	if (keys.size() <= index) {
 		return false;
 	}
@@ -201,6 +209,7 @@ bool Engine::CurveChannel::RemoveKey(uint32_t index) {
 
 void Engine::CurveChannel::SortKeys() {
 
+	// 補間で参照する時間順へ揃える
 	std::sort(keys.begin(), keys.end(),
 		[](const CurveKey& lhs, const CurveKey& rhs) {
 			return lhs.time < rhs.time;
@@ -213,6 +222,7 @@ bool Engine::CurveChannel::GetTimeRange(float& outMinTime, float& outMaxTime) co
 		return false;
 	}
 
+	// 全キーの時間範囲を求める
 	outMinTime = keys.front().time;
 	outMaxTime = keys.front().time;
 	for (const CurveKey& key : keys) {
@@ -228,6 +238,7 @@ bool Engine::CurveChannel::GetValueRange(float& outMinValue, float& outMaxValue)
 		return false;
 	}
 
+	// 全キーの値の範囲を求める
 	outMinValue = keys.front().value;
 	outMaxValue = keys.front().value;
 	for (const CurveKey& key : keys) {
@@ -296,7 +307,7 @@ Engine::CurveQuaternion::CurveQuaternion() {
 
 Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
 
-	// Axis/Angle表現からQuaternionへ変換して返す
+	// 回転軸と角度からQuaternionへ変換する
 	const Vector3 axis = EvaluateAxis(time);
 	const float angleDegrees = EvaluateAngle(time);
 	return Quaternion::Normalize(Quaternion::MakeAxisAngle(axis, Math::DegToRad(angleDegrees)));
@@ -304,6 +315,7 @@ Engine::Quaternion Engine::CurveQuaternion::Evaluate(float time) const {
 
 Engine::Vector3 Engine::CurveQuaternion::EvaluateAxis(float time) const {
 
+	// 対応する軸設定がなければ既定の軸を使う
 	const uint32_t axisKeyIndex = FindAxisKeyIndex(channels[0], time);
 	const CurveQuaternionAxisKey fallbackAxisKey = QuaternionAxisKeyUtility::MakeDefault();
 	const CurveQuaternionAxisKey& axisKey = axisKeyIndex < axisKeys.size() ? axisKeys[axisKeyIndex] : fallbackAxisKey;
@@ -317,7 +329,7 @@ float Engine::CurveQuaternion::EvaluateAngle(float time) const {
 
 void Engine::CurveQuaternion::EnsureAxisKeyCount() {
 
-	// Axisチャンネルのキー数と軸設定数を揃える
+	// 軸設定の数をキー数へ揃える
 	if (channels[0].keys.empty()) {
 		axisKeys.clear();
 		return;

@@ -16,11 +16,6 @@ namespace Engine::RenderBackendCapabilities {
 	//============================================================================
 
 	// 選択/実行時アウトラインのマスク描画に対応しているか
-	inline bool SupportsOutlineMask(uint32_t backendID) {
-
-		return backendID == RenderBackendID::Mesh ||
-			backendID == RenderBackendID::Primitive ||
-			backendID == RenderBackendID::Sprite;
-	}
+	bool SupportsOutlineMask(uint32_t backendID);
 
 } // namespace Engine::RenderBackendCapabilities

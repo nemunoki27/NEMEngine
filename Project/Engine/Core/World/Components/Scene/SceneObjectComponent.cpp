@@ -31,7 +31,7 @@ void Engine::to_json(nlohmann::json& out, const SceneObjectComponent& component)
 	out["visibilityLayerMask"] = component.visibilityLayerMask;
 }
 
-bool Engine::IsEntityActiveInHierarchy(ECSWorld& world, const Entity& entity) {
+bool Engine::IsEntityActiveInHierarchy(const ECSWorld& world, const Entity& entity) {
 
 	if (const SceneObjectComponent* sceneObject = world.TryGetComponent<Engine::SceneObjectComponent>(entity)) {
 		return sceneObject->activeInHierarchy;

@@ -252,9 +252,9 @@ bool Engine::RayTracingExecutor::Execute(
 		};
 		const std::vector<uint8_t> bytes = MaterialParameterBufferBuilder::Build(
 			merged, layout->second, resolveTexture);
-		const PostProcessConstantBufferAllocation allocation =
-			constantBufferAllocator_.AllocateAndUploadBytes(
-				graphicsCore.GetDXObject().GetDevice(), bytes);
+		const FrameConstantBufferAllocation allocation =
+			constantBufferAllocator_.AllocateAndUploadBytes(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), bytes);
 		const RootBindingLocation* parameterBinding =
 			pipeline->FindBindingByName(kParameterBufferName,
 				ShaderBindingKind::CBV);
@@ -274,9 +274,9 @@ bool Engine::RayTracingExecutor::Execute(
 			.smoothDeltaTime = context.systemContext->smoothDeltaTime,
 			.unscaledTime = context.systemContext->unscaledTime,
 		};
-		const PostProcessConstantBufferAllocation allocation =
-			constantBufferAllocator_.AllocateAndUpload(
-				graphicsCore.GetDXObject().GetDevice(), constants);
+		const FrameConstantBufferAllocation allocation =
+			constantBufferAllocator_.AllocateAndUpload(graphicsCore.GetDXObject().GetResourceRetirement(),
+			graphicsCore.GetDXObject().GetDevice(), constants);
 		if (allocation.gpuAddress) {
 			RootBindingCommand::SetComputeCBV(commandList,
 				timeBinding, allocation.gpuAddress);
@@ -294,7 +294,6 @@ bool Engine::RayTracingExecutor::Execute(
 	commandList->DispatchRays(&dispatch);
 	for (const auto& [name, output] : resources.outputs) {
 
-		(void)name;
 		if (!output) {
 			continue;
 		}
@@ -305,4 +304,17 @@ bool Engine::RayTracingExecutor::Execute(
 				D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 	}
 	return true;
+}
+
+//============================================================================
+//	RayTracingExecutor classMethods
+//============================================================================
+
+namespace Engine {
+
+	void RayTracingExecutor::ClearParameterLayoutCache() {
+
+		parameterLayoutCache_.clear();
+		diagnostics_.clear();
+	}
 }

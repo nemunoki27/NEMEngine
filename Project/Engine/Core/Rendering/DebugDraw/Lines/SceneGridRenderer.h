@@ -25,7 +25,7 @@ namespace Engine {
 
 	//============================================================================
 	//	SceneGridRenderer class
-	//	analytic grid shaderによるシーングリッド描画
+	//	Sceneのグリッドを描画する
 	//============================================================================
 	class SceneGridRenderer {
 	public:
@@ -33,9 +33,7 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		SceneGridRenderer() {
-			gridCBVSlot_ = gridBindCache_.AddSlotByRegister(ShaderBindingKind::CBV, 0, 0);
-		}
+		SceneGridRenderer();
 		~SceneGridRenderer();
 
 		void Init(GraphicsCore& graphicsCore);
@@ -43,9 +41,9 @@ namespace Engine {
 		// フレーム開始処理
 		void BeginFrame();
 
-		// fixedMinorStepが0より大きいとき、自動フィットせずその値を最小グリッド間隔として描画する
-		// スナップ距離に合わせたグリッドを出す用途で使う、α減衰や軸色は通常時と同じ
-		// occlusionDepthを渡すとsurfaceの深度ではなくその深度でテストし、線がメッシュに隠れる
+		// 正のfixedMinorStepで間隔を固定する
+		// 色と減衰は通常描画と共通
+		// 指定した深度でMeshの後ろの線を隠す
 		void Render(GraphicsCore& graphicsCore, const ResolvedCameraView& camera, MultiRenderTarget& surface,
 			float fixedMinorStep = 0.0f, DepthTexture2D* occlusionDepth = nullptr);
 
@@ -61,29 +59,28 @@ namespace Engine {
 			Matrix4x4 inverseViewProjectionMatrix = Matrix4x4::Identity();
 			Matrix4x4 viewProjectionMatrix = Matrix4x4::Identity();
 
-			// xyz : camera position, w : grid plane Y
+			// xyz: Camera位置、w: グリッド高さ
 			Vector4 cameraPositionAndPlaneY = Vector4(0.0f, 0.0f, 0.0f, 0.0f);
 
-			// x : width, y : height
+			// xy: 描画幅と高さ
 			Vector4 viewportSize = Vector4(1.0f, 1.0f, 0.0f, 0.0f);
 
-			// x : minor step, y : major step, z : coarse step, w : visible radius
-			// x : minor step0, y : major step0, z : coarse step0, w : visible radius
+			// xyz: 下側の線間隔、w: 表示半径
 			Vector4 stepData0 = Vector4(1.0f, 10.0f, 100.0f, 1000.0f);
 
-			// x : minor step1, y : major step1, z : coarse step1, w : step cross-fade blend
+			// xyz: 上側の線間隔、w: 補間率
 			Vector4 stepData1 = Vector4(2.0f, 20.0f, 200.0f, 0.0f);
 
-			// x : thickness fade power
-			// y : minimum half thickness
-			// z : horizon fade start (abs(rayDir.y))
-			// w : horizon fade end   (abs(rayDir.y))
+			// x: 線幅の減衰指数
+			// y: 最小半幅
+			// z: 地平線の減衰開始
+			// w: 地平線の減衰終了
 			Vector4 thicknessFadeAndHorizon = Vector4(0.65f, 0.28f, 0.015f, 0.08f);
 
 			Color4 minorColor = Color4(1.0f, 1.0f, 1.0f, 0.12f);
-			// x : half thickness, y : far thickness rate, z : fade start distance, w : fade end distance
+			// xy: 半幅と遠方の線幅率、zw: 減衰距離
 			Vector4 minorParams0 = Vector4(1.0f, 0.15f, 0.0f, 300.0f);
-			// x : fade power
+			// x: 減衰指数
 			Vector4 minorParams1 = Vector4(1.50f, 0.0f, 0.0f, 0.0f);
 
 			Color4 majorColor = Color4(1.0f, 1.0f, 1.0f, 0.20f);
@@ -96,26 +93,34 @@ namespace Engine {
 
 			Color4 axisXColor = Color4(0.95f, 0.25f, 0.25f, 0.95f);
 			Color4 axisZColor = Color4(0.30f, 0.50f, 1.00f, 0.95f);
-			// x : half thickness, w : axis visible distance
+			// x: 軸線の半幅、w: 表示距離
 			Vector4 axisParams = Vector4(2.4f, 0.0f, 0.0f, 1000.0f);
 		};
 
+		//--------- functions ----------------------------------------------------
+
+		// 表示範囲からGrid描画定数を作成する
+		GridPassConstants BuildPassConstants(
+			const ResolvedCameraView& camera, uint32_t width, uint32_t height, float fixedMinorStep) const;
+		// 描画回数に対応する定数Bufferを確保する
+		DxConstBuffer<GridPassConstants>& AllocatePassBuffer(GraphicsCore& graphicsCore);
+
 		//--------- variables ----------------------------------------------------
 
-		PipelineState pipeline_{};
-		// 同じコマンドリスト内で複数回描画しても、後のカメラ定数で上書きしないためのバッファ
-		std::array<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>,
-			kGraphicsFrameContextCount> passBuffers_{};
+		std::unique_ptr<PipelineState> pipeline_{};
+		// frameと描画ごとに定数Bufferを保持する
+		std::array<std::vector<std::unique_ptr<DxConstBuffer<GridPassConstants>>>, kGraphicsFrameContextCount> passBuffers_{};
 		std::array<uint32_t, kGraphicsFrameContextCount> passBufferIndices_{};
+		uint64_t passFrameSerial_ = UINT64_MAX;
 
-		// グリッドパス定数バッファb0のスロットキャッシュ
+		// グリッド定数のBinding slot
 		PipelineBindingCache gridBindCache_{};
 		PipelineBindingCache::SlotID gridCBVSlot_ = PipelineBindingCache::kInvalidSlot;
 
 		bool initialized_ = false;
 
 		//------------------------------------------------------------------------
-		// grid plane / horizon
+		// グリッド平面と地平線
 		//------------------------------------------------------------------------
 
 		float gridPlaneY_ = 0.0f;
@@ -123,7 +128,7 @@ namespace Engine {
 		float gridHorizonFadeEnd_ = 0.6042f;
 
 		//------------------------------------------------------------------------
-		// visible polygon / ray hit
+		// 表示範囲と視線距離
 		//------------------------------------------------------------------------
 
 		int gridVisiblePolygonSamplesPerEdge_ = 80;
@@ -137,10 +142,9 @@ namespace Engine {
 		float gridMinorBaseMinStep_ = 0.020f;
 		float gridMinorTargetPixelMin_ = 64.0f;
 		float gridMinorTargetPixelMax_ = 256.0f;
-		int gridMinorStepAdjustMaxIteration_ = 18;
 
 		//------------------------------------------------------------------------
-		// visible radius
+		// 表示半径
 		//------------------------------------------------------------------------
 
 		float gridRadiusCoarseStepRate_ = 20.0f;
@@ -148,14 +152,14 @@ namespace Engine {
 		float gridRadiusMax_ = 8000.0f;
 
 		//------------------------------------------------------------------------
-		// thickness fade
+		// 線幅の減衰
 		//------------------------------------------------------------------------
 
 		float gridThicknessFadePower_ = 8.0f;
 		float gridMinHalfThickness_ = 0.010f;
 
 		//------------------------------------------------------------------------
-		// axis
+		// 軸線
 		//------------------------------------------------------------------------
 
 		Color4 gridAxisXLineColor_ = Color4::FromHex(0xFF0009FF);
@@ -163,7 +167,7 @@ namespace Engine {
 		float gridAxisLineThickness_ = 0.4f;
 
 		//------------------------------------------------------------------------
-		// coarse layer
+		// 粗い補助線
 		//------------------------------------------------------------------------
 
 		float gridCoarseBaseAlpha_ = 0.220f;
@@ -174,7 +178,7 @@ namespace Engine {
 		float gridCoarseFadePower_ = 2.900f;
 
 		//------------------------------------------------------------------------
-		// major layer
+		// 主補助線
 		//------------------------------------------------------------------------
 
 		float gridMajorBaseAlpha_ = 0.120f;
@@ -185,7 +189,7 @@ namespace Engine {
 		float gridMajorFadePower_ = 3.200f;
 
 		//------------------------------------------------------------------------
-		// minor layer
+		// 細い補助線
 		//------------------------------------------------------------------------
 
 		float gridMinorBaseAlpha_ = 0.050f;
@@ -194,12 +198,5 @@ namespace Engine {
 		float gridMinorFadeStartRate_ = 0.000f;
 		float gridMinorFadeEndRate_ = 0.980f;
 		float gridMinorFadePower_ = 0.790f;
-
-		//--------- functions ----------------------------------------------------
-
-		GridPassConstants BuildPassConstants(const ResolvedCameraView& camera, uint32_t width, uint32_t height,
-			float fixedMinorStep) const;
-		DxConstBuffer<GridPassConstants>& AllocatePassBuffer(GraphicsCore& graphicsCore);
 	};
 } // Engine
-

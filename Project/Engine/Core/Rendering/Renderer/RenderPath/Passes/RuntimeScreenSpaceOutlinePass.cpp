@@ -8,7 +8,6 @@
 #include <Engine/Core/Rendering/Renderer/Queues/RenderPassItemCollector.h>
 #include <Engine/Core/Rendering/Renderer/Queues/RenderBackendCapabilities.h>
 #include <Engine/Core/Rendering/Renderer/RenderPath/RenderPathResources.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/World/Components/Rendering/ScreenSpaceOutlineComponent.h>
 #include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
 #include <Engine/Core/World/ECS/World/ECSWorld.h>
@@ -43,10 +42,9 @@ namespace {
 	}
 }
 
-void Engine::RuntimeScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
-	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
+void Engine::RuntimeScreenSpaceOutlinePass::Execute(
+	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	RenderFeatureProfileService::GetInstance().EnsureLoaded();
 	if (!context.resources) {
 		return;
 	}
@@ -68,31 +66,38 @@ void Engine::RuntimeScreenSpaceOutlinePass::Execute(GraphicsCore& graphicsCore,
 	}
 
 	// 集めた要求を専用rendererへ渡してruntime用のScreenSpaceOutlineへ描く
-	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_,
-		context.resources->GetRuntimeScreenSpaceOutline(), phases,
-		compositeTarget, depthOverride);
+	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests_, context.resources->GetRuntimeScreenSpaceOutline(),
+		phases, compositeTarget, depthOverride);
+}
+
+Engine::RenderPathPassKind Engine::RuntimeScreenSpaceOutlinePass::GetKind() const {
+
+	switch (scope_) {
+	case Scope::PostProcessUI:
+		return RenderPathPassKind::PostProcessUI;
+	case Scope::ScreenUI:
+		return RenderPathPassKind::ScreenUI;
+	default:
+		return RenderPathPassKind::RuntimeScreenSpaceOutline;
+	}
 }
 
 void Engine::RuntimeScreenSpaceOutlinePass::ExecuteOrderedUI(
-	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-	SceneExecutionContext& context) {
+	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context) {
 
-	const RenderPhase phase = scope_ == Scope::PostProcessUI ?
-		RenderPhase::PostProcessUI : RenderPhase::ScreenUI;
-	MultiRenderTarget* target = scope_ == Scope::PostProcessUI ?
-		context.resources->GetSceneFinal() : context.defaultSurface;
+	const RenderPhase phase = scope_ == Scope::PostProcessUI ? RenderPhase::PostProcessUI : RenderPhase::ScreenUI;
+	MultiRenderTarget* target = scope_ == Scope::PostProcessUI ? context.resources->GetSceneFinal() : context.defaultSurface;
 	const RenderPassItemList& uiItems = passBuckets.Get(phase);
 	if (!target || uiItems.IsEmpty()) {
 		return;
 	}
 
-	const std::span<const RenderPhase> phases = scope_ == Scope::PostProcessUI ?
-		std::span<const RenderPhase>(kPostProcessUIOutlinePhases) :
-		std::span<const RenderPhase>(kScreenUIOutlinePhases);
+	const std::span<const RenderPhase> phases = scope_ == Scope::PostProcessUI
+													? std::span<const RenderPhase>(kPostProcessUIOutlinePhases)
+													: std::span<const RenderPhase>(kScreenUIOutlinePhases);
 	CollectRequests(context, passBuckets, phases);
 	if (requests_.empty()) {
-		DrawUIRange(graphicsCore, uiItems, context, target,
-			0, uiItems.items.size());
+		DrawUIRange(graphicsCore, uiItems, context, target, 0, uiItems.items.size());
 		return;
 	}
 
@@ -113,8 +118,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::ExecuteOrderedUI(
 	requestBatchScratch_.reserve(requests_.size());
 	for (const ScreenSpaceOutlineRequest& request : requests_) {
 
-		if (request.uiOcclusionMode ==
-			ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible) {
+		if (request.uiOcclusionMode == ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible) {
 
 			continue;
 		}
@@ -123,93 +127,72 @@ void Engine::RuntimeScreenSpaceOutlinePass::ExecuteOrderedUI(
 		if (found == lastItemIndices.end()) {
 			continue;
 		}
-		scheduledUIRequests_.push_back({ found->second, request });
+		scheduledUIRequests_.push_back({found->second, request});
 	}
 	std::stable_sort(scheduledUIRequests_.begin(), scheduledUIRequests_.end(),
-		[](const ScheduledUIRequest& lhs, const ScheduledUIRequest& rhs) {
-			return lhs.afterItemIndex < rhs.afterItemIndex;
-		});
+		[](const ScheduledUIRequest& lhs, const ScheduledUIRequest& rhs) { return lhs.afterItemIndex < rhs.afterItemIndex; });
 
 	// 描画順を尊重する要求は対象直後へ合成し、後続UIに上書きさせる
 	size_t drawBegin = 0;
 	size_t scheduleBegin = 0;
 	while (scheduleBegin < scheduledUIRequests_.size()) {
 
-		const size_t afterItemIndex =
-			scheduledUIRequests_[scheduleBegin].afterItemIndex;
-		DrawUIRange(graphicsCore, uiItems, context, target,
-			drawBegin, afterItemIndex + 1);
+		const size_t afterItemIndex = scheduledUIRequests_[scheduleBegin].afterItemIndex;
+		DrawUIRange(graphicsCore, uiItems, context, target, drawBegin, afterItemIndex + 1);
 		drawBegin = afterItemIndex + 1;
 
 		requestBatchScratch_.clear();
 		size_t scheduleEnd = scheduleBegin;
-		while (scheduleEnd < scheduledUIRequests_.size() &&
-			scheduledUIRequests_[scheduleEnd].afterItemIndex == afterItemIndex) {
+		while (
+			scheduleEnd < scheduledUIRequests_.size() && scheduledUIRequests_[scheduleEnd].afterItemIndex == afterItemIndex) {
 
-			requestBatchScratch_.emplace_back(
-				scheduledUIRequests_[scheduleEnd].request);
+			requestBatchScratch_.emplace_back(scheduledUIRequests_[scheduleEnd].request);
 			++scheduleEnd;
 		}
-		RenderUIRequests(graphicsCore, passBuckets, context,
-			phase, target, requestBatchScratch_);
+		RenderUIRequests(graphicsCore, passBuckets, context, phase, target, requestBatchScratch_);
 		scheduleBegin = scheduleEnd;
 	}
-	DrawUIRange(graphicsCore, uiItems, context, target,
-		drawBegin, uiItems.items.size());
+	DrawUIRange(graphicsCore, uiItems, context, target, drawBegin, uiItems.items.size());
 
 	// 常に手前の要求は全UI描画後にまとめて合成する
 	requestBatchScratch_.clear();
 	for (const ScreenSpaceOutlineRequest& request : requests_) {
 
-		if (request.uiOcclusionMode ==
-			ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible) {
+		if (request.uiOcclusionMode == ScreenSpaceOutlineUIOcclusionMode::AlwaysVisible) {
 
 			requestBatchScratch_.emplace_back(request);
 		}
 	}
-	RenderUIRequests(graphicsCore, passBuckets, context,
-		phase, target, requestBatchScratch_);
+	RenderUIRequests(graphicsCore, passBuckets, context, phase, target, requestBatchScratch_);
 }
 
-void Engine::RuntimeScreenSpaceOutlinePass::DrawUIRange(
-	GraphicsCore& graphicsCore, const RenderPassItemList& items,
-	SceneExecutionContext& context, MultiRenderTarget* target,
-	size_t beginIndex, size_t endIndex) {
+void Engine::RuntimeScreenSpaceOutlinePass::DrawUIRange(GraphicsCore& graphicsCore, const RenderPassItemList& items,
+	SceneExecutionContext& context, MultiRenderTarget* target, size_t beginIndex, size_t endIndex) {
 
 	if (!target || beginIndex >= endIndex || endIndex > items.items.size()) {
 		return;
 	}
-	uiDrawScratch_.assign(
-		items.items.begin() + beginIndex,
-		items.items.begin() + endIndex);
-	RenderFeatureProfileService& featureService =
-		RenderFeatureProfileService::GetInstance();
-	featureService.EnsureLoaded();
+	uiDrawScratch_.assign(items.items.begin() + beginIndex, items.items.begin() + endIndex);
 	std::erase_if(uiDrawScratch_, [&](const RenderItem* item) {
-
-		return item && featureService.GetRuntime().IsItemIsolated(*item);
+		return item && context.renderPassesRuntime && context.renderPassesRuntime->IsItemIsolated(*item, context.kind);
 	});
-	RenderPassExecutionHelper::Execute(graphicsCore, context,
-		uiDrawScratch_, deps_, target);
+	RenderPassExecutionHelper::Execute(graphicsCore, context, uiDrawScratch_, deps_, target);
 }
 
-void Engine::RuntimeScreenSpaceOutlinePass::RenderUIRequests(
-	GraphicsCore& graphicsCore, const RenderPassPhaseBuckets& passBuckets,
-	SceneExecutionContext& context, RenderPhase phase, MultiRenderTarget* target,
+void Engine::RuntimeScreenSpaceOutlinePass::RenderUIRequests(GraphicsCore& graphicsCore,
+	const RenderPassPhaseBuckets& passBuckets, SceneExecutionContext& context, RenderPhase phase, MultiRenderTarget* target,
 	std::span<const ScreenSpaceOutlineRequest> requests) {
 
 	if (!target || requests.empty()) {
 		return;
 	}
-	const std::array<RenderPhase, 1> phases = { phase };
-	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests,
-		context.resources->GetRuntimeScreenSpaceOutline(),
+	const std::array<RenderPhase, 1> phases = {phase};
+	renderer_.Render(graphicsCore, context, passBuckets, deps_, requests, context.resources->GetRuntimeScreenSpaceOutline(),
 		phases, target, nullptr);
 }
 
 void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
-	const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets,
-	std::span<const RenderPhase> phases) {
+	const SceneExecutionContext& context, const RenderPassPhaseBuckets& passBuckets, std::span<const RenderPhase> phases) {
 
 	requests_.clear();
 
@@ -227,8 +210,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 
 			// マスクパスを解決できるバックエンドだけを対象にする
 			if (!item || !item->world ||
-				RenderFeatureProfileService::GetInstance().GetRuntime().
-					IsItemIsolated(*item) ||
+				(context.renderPassesRuntime && context.renderPassesRuntime->IsItemIsolated(*item, context.kind)) ||
 				!RenderBackendCapabilities::SupportsOutlineMask(item->backendID)) {
 				continue;
 			}
@@ -243,13 +225,11 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 			// Outlineが有効でwidthが有限の正値のものだけ採用する
 			const ScreenSpaceOutlineComponent* outline =
 				item->world->TryGetComponent<ScreenSpaceOutlineComponent>(item->entity);
-			if (!outline || !outline->enabled ||
-				!std::isfinite(outline->widthPixels) || outline->widthPixels <= 0.0f) {
+			if (!outline || !outline->enabled || !std::isfinite(outline->widthPixels) || outline->widthPixels <= 0.0f) {
 				continue;
 			}
 			// 階層的に非アクティブなEntityは描かない
-			const SceneObjectComponent* sceneObject =
-				item->world->TryGetComponent<SceneObjectComponent>(item->entity);
+			const SceneObjectComponent* sceneObject = item->world->TryGetComponent<SceneObjectComponent>(item->entity);
 			if (sceneObject && !sceneObject->activeInHierarchy) {
 				continue;
 			}
@@ -265,6 +245,7 @@ void Engine::RuntimeScreenSpaceOutlinePass::CollectRequests(
 			request.style.visibilityMode = outline->visibilityMode;
 			request.style.regionMode = outline->regionMode;
 			request.alphaSource = outline->alphaSource;
+			request.alphaThreshold = outline->alphaThreshold;
 			request.uiOcclusionMode = outline->uiOcclusionMode;
 			request.source = ScreenSpaceOutlineSource::RuntimeComponent;
 			requests_.emplace_back(request);

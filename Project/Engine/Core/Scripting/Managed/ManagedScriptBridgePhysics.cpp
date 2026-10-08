@@ -48,7 +48,8 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::PhysicsRaycastCallback(ManagedVector3 origin, ManagedVector3 direction,
-		float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* outHit) {
+		float maxDistance, uint32_t layerMask, uint32_t targets,
+		uint32_t triggerInteraction, ManagedRaycastHit* outHit) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
@@ -58,7 +59,8 @@ namespace Engine {
 
 		RaycastHit3D hit{};
 		if (!CollisionQuery::Raycast(*world, MakeRay(origin, direction), maxDistance,
-			layerMask, static_cast<RaycastTargets>(targets), hit)) {
+			layerMask, static_cast<RaycastTargets>(targets),
+			static_cast<QueryTriggerInteraction>(triggerInteraction), hit)) {
 			return 0;
 		}
 		*outHit = ToManagedRaycastHit(*world, hit);
@@ -66,7 +68,8 @@ namespace Engine {
 	}
 
 	int32_t ManagedScriptRuntime::PhysicsRaycastAllCallback(ManagedVector3 origin, ManagedVector3 direction,
-		float maxDistance, uint32_t layerMask, uint32_t targets, ManagedRaycastHit* buffer, int32_t capacity) {
+		float maxDistance, uint32_t layerMask, uint32_t targets,
+		uint32_t triggerInteraction, ManagedRaycastHit* buffer, int32_t capacity) {
 
 		const SystemContext* context = GetCurrentContext();
 		ECSWorld* world = context ? context->world : nullptr;
@@ -76,7 +79,8 @@ namespace Engine {
 
 		std::vector<RaycastHit3D> hits{};
 		CollisionQuery::RaycastAll(*world, MakeRay(origin, direction), maxDistance,
-			layerMask, static_cast<RaycastTargets>(targets), hits);
+			layerMask, static_cast<RaycastTargets>(targets),
+			static_cast<QueryTriggerInteraction>(triggerInteraction), hits);
 
 		// capacity分だけ書き込み、総数を返してC#側の再確保判断に使う
 		if (buffer && 0 < capacity) {
@@ -86,6 +90,18 @@ namespace Engine {
 			}
 		}
 		return static_cast<int32_t>(hits.size());
+	}
+
+	int32_t ManagedScriptRuntime::GetQueriesHitTriggersCallback() {
+
+		CollisionSettings& settings = CollisionSettings::GetInstance();
+		settings.EnsureLoaded();
+		return settings.GetQueriesHitTriggers() ? 1 : 0;
+	}
+
+	void ManagedScriptRuntime::SetQueriesHitTriggersCallback(int32_t enabled) {
+
+		CollisionSettings::GetInstance().SetQueriesHitTriggers(enabled != 0);
 	}
 
 	int32_t ManagedScriptRuntime::ScreenPointToRayCallback(float x, float y,

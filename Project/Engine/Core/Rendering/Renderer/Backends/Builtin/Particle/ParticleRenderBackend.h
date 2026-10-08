@@ -31,22 +31,14 @@ namespace Engine {
 		//	public Methods
 		//========================================================================
 
-		ParticleRenderBackend() {
-
-			shapeConstantsCBVSlot_ = perDrawBindCache_.AddSlot("ParticleShapeConstants", ShaderBindingKind::CBV);
-			trailConstantsCBVSlot_ = perDrawBindCache_.AddSlot("ParticleTrailConstants", ShaderBindingKind::CBV);
-			verticesSRVSlot_ = perDrawBindCache_.AddSlot("gVertices", ShaderBindingKind::SRV);
-			geometrySRVSlot_ = perDrawBindCache_.AddSlot("gParticleGeometry", ShaderBindingKind::SRV);
-			materialsSRVSlot_ = perDrawBindCache_.AddSlot("gParticleMaterials", ShaderBindingKind::SRV);
-			customParametersSRVSlot_ = perDrawBindCache_.AddSlot("gParticleCustomParameters", ShaderBindingKind::SRV);
-			trailPointsSRVSlot_ = perDrawBindCache_.AddSlot("gTrailPoints", ShaderBindingKind::SRV);
-			trailSegmentsSRVSlot_ = perDrawBindCache_.AddSlot("gTrailSegments", ShaderBindingKind::SRV);
-		}
+		ParticleRenderBackend();
 		~ParticleRenderBackend() override;
 
 		// Model形状で使う全メッシュを同期作成する
 		void PreloadMeshes(GraphicsCore& graphicsCore, AssetDatabase& assetDatabase,
 			std::span<const AssetID> meshAssets);
+		// Model粒子のメッシュを旧表示を保ったまま再読込する
+		void RequestMeshReload(AssetID meshAssetID);
 
 		void BeginFrame(GraphicsCore& graphicsCore) override;
 
@@ -84,11 +76,6 @@ namespace Engine {
 
 		//--------- functions ----------------------------------------------------
 
-		// バッチのインスタンスデータをフェーズごとに集める、粒子ごとにビルボードのワールド行列を作る
-		void CollectInstances(const RenderDrawContext& context, std::span<const RenderItem* const> items,
-			const std::vector<ParticleCustomParameterLayout>& customLayouts,
-			std::vector<ParticleDrawInstanceData>& outInstances, std::vector<uint32_t>& outPhaseCounts,
-			std::vector<uint8_t>& outCustomParameters, std::vector<uint32_t>& outCustomOffsets) const;
 		// パラメトリックMS生成で描画する、パイプラインを解決できなければfalse
 		bool DrawParametricShapePath(const RenderDrawContext& context, const RenderItem* item,
 			const IParticleParametricShape& parametric, const ParticleRenderSettings& settings,

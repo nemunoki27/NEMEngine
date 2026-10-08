@@ -1,4 +1,6 @@
 {
-  "gameName": "Sandbox",
-  "startupFullscreen": false
+    "gameHeight": 720,
+    "gameName": "Sandbox",
+    "gameWidth": 1280,
+    "startupFullscreen": false
 }

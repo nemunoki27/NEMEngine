@@ -11,10 +11,17 @@ namespace Engine {
 
 	//============================================================================
 	//	Matrix4x4 structure
+	//	行ベクトル規約の4行4列行列
 	//============================================================================
 	struct Matrix4x4 final {
+	public:
+		//========================================================================
+		//	public Methods
+		//========================================================================
 
-		float m[4][4];
+		//--------- variables ----------------------------------------------------
+
+		float m[4][4]; // 行と列の各成分
 
 		//--------- operators ----------------------------------------------------
 
@@ -42,6 +49,8 @@ namespace Engine {
 
 		// 逆/転置行列
 		static Matrix4x4 Inverse(const Matrix4x4& m);
+		// 逆行列を求め、失敗時は出力を変更しない
+		static bool TryInverse(const Matrix4x4& matrix, Matrix4x4& inverse);
 		static Matrix4x4 Transpose(const Matrix4x4& m);
 
 		// 拡縮行列
@@ -71,10 +80,11 @@ namespace Engine {
 		// 射影行列
 		static Matrix4x4 MakePerspectiveFovMatrix(float fovYDegrees, float aspectRatio, float nearClip, float farClip);
 		static Matrix4x4 MakePerspectiveFovMatrixRadians(float fovYRadians, float aspectRatio, float nearClip, float farClip);
-		static Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float bottom, float nearClip, float farClip);
+		static Matrix4x4 MakeOrthographicMatrix(
+			float left, float top, float right, float bottom, float nearClip, float farClip);
 		static Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth);
 
 		// 行列から特定成分を取得
 		Vector3 GetTranslationValue() const;
 	};
-} // Engine
+}

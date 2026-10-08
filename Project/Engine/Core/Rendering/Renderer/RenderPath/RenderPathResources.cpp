@@ -5,39 +5,53 @@
 //============================================================================
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetNames.h>
+#include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetSizing.h>
 
 // c++
-#include <algorithm>
 #include <string>
+#include <type_traits>
+#include <utility>
+
+namespace {
+
+	// 所有元の読み書きに合わせて色Textureを取得する
+	template<typename T>
+	auto ResolveGBufferColor(T* surface, Engine::GBufferAttachment attachment) {
+
+		uint32_t index = static_cast<uint32_t>(attachment);
+		return surface ? surface->GetColorTexture(index) : nullptr;
+	}
+}
 
 //============================================================================
 //	ScreenSpaceOutlineViewResources classMethods
 //============================================================================
 bool Engine::ScreenSpaceOutlineViewResources::IsValid() const {
 
-	return mask && mask->IsValid() &&
-		projectedCoverageMask && projectedCoverageMask->IsValid() &&
-		horizontalDilatedMask && horizontalDilatedMask->IsValid() &&
-		dilatedMask && dilatedMask->IsValid();
+	return mask_ && mask_->IsValid() &&
+		projectedCoverageMask_ && projectedCoverageMask_->IsValid() &&
+		horizontalDilatedMask_ && horizontalDilatedMask_->IsValid() &&
+		dilatedMask_ && dilatedMask_->IsValid();
 }
 
 void Engine::ScreenSpaceOutlineViewResources::Destroy() {
 
-	if (mask) {
-		mask->Destroy();
-		mask.reset();
+	// 各Maskの所有を解除する
+	if (mask_) {
+		mask_->Destroy();
+		mask_.reset();
 	}
-	if (projectedCoverageMask) {
-		projectedCoverageMask->Destroy();
-		projectedCoverageMask.reset();
+	if (projectedCoverageMask_) {
+		projectedCoverageMask_->Destroy();
+		projectedCoverageMask_.reset();
 	}
-	if (horizontalDilatedMask) {
-		horizontalDilatedMask->Destroy();
-		horizontalDilatedMask.reset();
+	if (horizontalDilatedMask_) {
+		horizontalDilatedMask_->Destroy();
+		horizontalDilatedMask_.reset();
 	}
-	if (dilatedMask) {
-		dilatedMask->Destroy();
-		dilatedMask.reset();
+	if (dilatedMask_) {
+		dilatedMask_->Destroy();
+		dilatedMask_.reset();
 	}
 }
 
@@ -46,130 +60,80 @@ void Engine::ScreenSpaceOutlineViewResources::Destroy() {
 //============================================================================
 void Engine::RenderPathResources::Resize(GraphicsCore& graphicsCore, uint32_t width, uint32_t height) {
 
-	if (width == 0 || height == 0) {
+	// 不正なサイズや変更なしなら生成を省く
+	if (!NeedsResize(width, height)) {
 		return;
 	}
-	if (width == currentWidth_ && height == currentHeight_ && IsValid()) {
+	RenderTargetCreationContext context{graphicsCore.GetDXObject().GetDevice(), graphicsCore.GetRTVDescriptor(),
+		graphicsCore.GetDSVDescriptor(), graphicsCore.GetSRVDescriptor()};
+	Resize(context, width, height);
+}
+
+void Engine::RenderPathResources::Resize(const RenderTargetCreationContext& context, uint32_t width, uint32_t height) {
+
+	if (!NeedsResize(width, height)) {
 		return;
 	}
+	// 全描画先が完成してからサイズと所有を切り替える
+	RenderPathResources candidate;
+	candidate.Create(context, width, height);
+	candidate.currentWidth_ = width;
+	candidate.currentHeight_ = height;
+	Swap(candidate);
+}
 
-	// 旧RTを参照中のフレームを完了させてからDescriptorとResourceを再利用する
-	if (IsValid()) {
-		graphicsCore.GetDXObject().WaitForGPU();
-	}
-	currentWidth_ = width;
-	currentHeight_ = height;
+bool Engine::RenderPathResources::NeedsResize(uint32_t width, uint32_t height) const {
 
-	// Descriptorを超過しないよう、旧リソースを先に破棄してから新規作成
-	if (sceneMain_) {
-		sceneMain_->Destroy();
-	}
-	if (sceneFinal_) {
-		sceneFinal_->Destroy();
-	}
-	if (sceneColorOpaque_) {
-		sceneColorOpaque_->Destroy();
-	}
-	depthPyramid_.Destroy();
-	runtimeOutline_.Destroy();
-	editorSelectionOutline_.Destroy();
+	return width != 0 && height != 0 && RenderTargetSizing::ResolveSize(width, height).has_value() &&
+		(width != currentWidth_ || height != currentHeight_ || !IsValid());
+}
 
-	sceneMain_ = std::make_unique<MultiRenderTarget>();
-	sceneMain_->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildSceneMainDesc(width, height));
+void Engine::RenderPathResources::Swap(RenderPathResources& other) noexcept {
 
-	sceneFinal_ = std::make_unique<MultiRenderTarget>();
-	sceneFinal_->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildSceneFinalDesc(width, height));
+	// GPU資源と確定寸法をまとめて入れ替える
+	static_assert(std::is_nothrow_swappable_v<ScreenSpaceOutlineViewResources>);
+	sceneMain_.swap(other.sceneMain_);
+	sceneFinal_.swap(other.sceneFinal_);
+	sceneColorOpaque_.swap(other.sceneColorOpaque_);
+	depthPyramid_.Swap(other.depthPyramid_);
+	std::swap(runtimeOutline_, other.runtimeOutline_);
+	std::swap(editorSelectionOutline_, other.editorSelectionOutline_);
+	std::swap(currentWidth_, other.currentWidth_);
+	std::swap(currentHeight_, other.currentHeight_);
+}
 
-	sceneColorOpaque_ = std::make_unique<MultiRenderTarget>();
-	sceneColorOpaque_->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildSceneColorOpaqueDesc(width, height));
+void Engine::RenderPathResources::Create(const RenderTargetCreationContext& context, uint32_t width, uint32_t height) {
 
-	depthPyramid_.Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetSRVDescriptor(),
-		width, height);
+	// 同じDeviceとDescriptorで各描画先を生成する
+	auto createSurface = [&](const MultiRenderTargetCreateDesc& desc) {
 
-	runtimeOutline_.mask = std::make_unique<MultiRenderTarget>();
-	runtimeOutline_.mask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.Mask", false));
+		auto surface = std::make_unique<MultiRenderTarget>();
+		surface->Create(context.device, &context.targets, &context.depths, &context.shaders, desc);
+		return surface;
+	};
+	// GBuffer・合成先・透明描画用の背景を生成する
+	sceneMain_ = createSurface(BuildSceneMainDesc(width, height));
+	sceneFinal_ = createSurface(BuildSceneFinalDesc(width, height));
+	sceneColorOpaque_ = createSurface(BuildSceneColorOpaqueDesc(width, height));
+	depthPyramid_.Create(context.device, &context.shaders, width, height);
 
-	runtimeOutline_.projectedCoverageMask = std::make_unique<MultiRenderTarget>();
-	runtimeOutline_.projectedCoverageMask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.ProjectedCoverageMask", false));
+	// RuntimeとEditorで同じOutline構成を使う
+	auto createOutline = [&](ScreenSpaceOutlineViewResources& outline, const std::string& prefix) {
 
-	runtimeOutline_.horizontalDilatedMask = std::make_unique<MultiRenderTarget>();
-	runtimeOutline_.horizontalDilatedMask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.HorizontalDilatedMask", true));
-
-	runtimeOutline_.dilatedMask = std::make_unique<MultiRenderTarget>();
-	runtimeOutline_.dilatedMask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.Runtime.FinalDilatedMask", true));
-
-	editorSelectionOutline_.mask = std::make_unique<MultiRenderTarget>();
-	editorSelectionOutline_.mask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.Mask", false));
-
-	editorSelectionOutline_.projectedCoverageMask = std::make_unique<MultiRenderTarget>();
-	editorSelectionOutline_.projectedCoverageMask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.ProjectedCoverageMask", false));
-
-	editorSelectionOutline_.horizontalDilatedMask = std::make_unique<MultiRenderTarget>();
-	editorSelectionOutline_.horizontalDilatedMask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.HorizontalDilatedMask", true));
-
-	editorSelectionOutline_.dilatedMask = std::make_unique<MultiRenderTarget>();
-	editorSelectionOutline_.dilatedMask->Create(
-		graphicsCore.GetDXObject().GetDevice(),
-		&graphicsCore.GetRTVDescriptor(),
-		&graphicsCore.GetDSVDescriptor(),
-		&graphicsCore.GetSRVDescriptor(),
-		BuildScreenSpaceOutlineMaskDesc(width, height, "SSOutline.EditorSelection.FinalDilatedMask", true));
+		outline.mask_ = createSurface(BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".Mask", false));
+		outline.projectedCoverageMask_ = createSurface(
+			BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".ProjectedCoverageMask", false));
+		outline.horizontalDilatedMask_ = createSurface(
+			BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".HorizontalDilatedMask", true));
+		outline.dilatedMask_ = createSurface(BuildScreenSpaceOutlineMaskDesc(width, height, prefix + ".FinalDilatedMask", true));
+	};
+	createOutline(runtimeOutline_, "SSOutline.Runtime");
+	createOutline(editorSelectionOutline_, "SSOutline.EditorSelection");
 }
 
 void Engine::RenderPathResources::Destroy() {
 
+	// Viewに属するGPU資源を回収へ渡す
 	if (sceneMain_) {
 		sceneMain_->Destroy();
 		sceneMain_.reset();
@@ -219,8 +183,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	color2.createUAV = false;
 	desc.colors.emplace_back(color2);
 
-	// SceneMaterialMain、Deferredライティングが参照するmetallic/roughness/occlusionを束ねる
-	// rgbに各係数を入れ、8bitで足りる質感パラメータなのでR8G8B8A8で帯域を抑える
+	// Metallic・Roughness・Occlusionを8bitで保持する
 	ColorAttachmentDesc color3{};
 	color3.name = RenderTargetNames::kSceneMaterialMain;
 	color3.format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -228,8 +191,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	color3.createUAV = false;
 	desc.colors.emplace_back(color3);
 
-	// SceneEmissiveMain、自己発光をHDRで保持しライティング加算の初期色に使う
-	// intensityを乗算済みの発光色を入れるためalpha不要のR11G11B10で十分
+	// 強度を乗算した発光色をHDRで保持する
 	ColorAttachmentDesc color4{};
 	color4.name = RenderTargetNames::kSceneEmissiveMain;
 	color4.format = DXGI_FORMAT_R11G11B10_FLOAT;
@@ -237,8 +199,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneMainD
 	color4.createUAV = false;
 	desc.colors.emplace_back(color4);
 
-	// SceneFlagsMain、マテリアル単位の挙動フラグをライティングパスへ渡す
-	// EnableLighting無効画素のスキップ等に使い、0クリアで未描画画素を非ライティング扱いにする
+	// 0クリアで未描画画素のLightingを省く
 	ColorAttachmentDesc color5{};
 	color5.name = RenderTargetNames::kSceneFlagsMain;
 	color5.format = DXGI_FORMAT_R32_UINT;
@@ -273,7 +234,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneFinal
 	desc.width = width;
 	desc.height = height;
 
-	// SceneColorFinal (UAV付き、RaytracingのDispatchRays書き込み先)
+	// Ray Tracingの書込先をUAV付きで生成する
 	ColorAttachmentDesc color{};
 	color.name = RenderTargetNames::kSceneColorFinal;
 	color.format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -284,14 +245,10 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneFinal
 	return desc;
 }
 
-Engine::MultiRenderTargetCreateDesc
-Engine::RenderPathResources::BuildSceneColorOpaqueDesc(
-	uint32_t width, uint32_t height) {
+Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildSceneColorOpaqueDesc(uint32_t width, uint32_t height) {
 
-	MultiRenderTargetCreateDesc desc =
-		BuildSceneFinalDesc(width, height);
-	desc.colors[0].name =
-		RenderTargetNames::kSceneColorOpaque;
+	MultiRenderTargetCreateDesc desc = BuildSceneFinalDesc(width, height);
+	desc.colors[0].name = RenderTargetNames::kSceneColorOpaque;
 	desc.colors[0].createUAV = false;
 	return desc;
 }
@@ -303,7 +260,7 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildScreenSpac
 	desc.width = width;
 	desc.height = height;
 
-	// Style IDを整数値のまま保持し0はoutlineなしとして毎回clearする
+	// Style IDを整数で保持し、0を輪郭なしとしてクリアする
 	ColorAttachmentDesc color{};
 	color.name = std::string(name);
 	color.format = DXGI_FORMAT_R16_UINT;
@@ -312,4 +269,32 @@ Engine::MultiRenderTargetCreateDesc Engine::RenderPathResources::BuildScreenSpac
 	desc.colors.emplace_back(color);
 
 	return desc;
+}
+
+bool Engine::RenderPathResources::IsValid() const {
+
+	return sceneMain_ && sceneMain_->IsValid() &&
+		sceneFinal_ && sceneFinal_->IsValid() &&
+		sceneColorOpaque_ && sceneColorOpaque_->IsValid() && depthPyramid_.IsValid() &&
+		runtimeOutline_.IsValid() && editorSelectionOutline_.IsValid();
+}
+
+Engine::RenderTexture2D* Engine::RenderPathResources::GetGBufferColor(GBufferAttachment attachment) {
+
+	return ResolveGBufferColor(GetSceneMain(), attachment);
+}
+
+const Engine::RenderTexture2D* Engine::RenderPathResources::GetGBufferColor(GBufferAttachment attachment) const {
+
+	return ResolveGBufferColor(GetSceneMain(), attachment);
+}
+
+Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::GetEditorSelectionScreenSpaceOutline() {
+
+	return editorSelectionOutline_;
+}
+
+const Engine::ScreenSpaceOutlineViewResources& Engine::RenderPathResources::GetEditorSelectionScreenSpaceOutline() const {
+
+	return editorSelectionOutline_;
 }

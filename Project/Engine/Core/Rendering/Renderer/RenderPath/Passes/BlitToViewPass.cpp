@@ -16,7 +16,6 @@
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessDebugInjector.h>
 #include <Engine/Core/Rendering/PostProcess/Color/ColorPipelineProcessor.h>
-#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 
 //============================================================================
 //	BlitToViewPass classMethods
@@ -52,13 +51,15 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 		dest = context.defaultSurface;
 	}
 
-	RenderFeatureProfileService& service =
-		RenderFeatureProfileService::GetInstance();
-	service.EnsureLoaded();
+	ColorPipelineSettings colorPipeline{};
+	// 描画Cameraの設定を最終出力へ適用する
+	if (context.postProcessCamera.valid && context.postProcessCamera.postProcessEnabled) {
+		colorPipeline = context.postProcessCamera.colorPipeline;
+	}
 	// 露出更新は最終ビュー出力で1フレームに1回だけ行う
 	if (!deps_.colorPipelineProcessor->ToneMap(graphicsCore, context,
 		source, dest, *deps_.assetLibrary, *deps_.pipelineCache,
-		service.GetProfile().colorPipeline, true)) {
+		colorPipeline, true)) {
 
 		MultiRenderTargetCopy::CopyColor0Resource(graphicsCore, source, dest);
 	}

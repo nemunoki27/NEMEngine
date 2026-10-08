@@ -4,8 +4,7 @@
 //	include
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
-#include <Engine/Core/Rendering/Materials/DefaultMaterialSettings.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 
 //============================================================================
@@ -13,8 +12,7 @@
 //============================================================================
 namespace {
 
-	const std::string kBaseColorTextureParameter(
-		Engine::MaterialParameterNames::BaseColorTexture);
+	const std::string kBaseColorTextureParameter(Engine::MaterialParameterNames::BaseColorTexture);
 
 	// 設定中テクスチャの実サイズを取得する、未ロードや未設定ならfalse
 	bool TryResolveTextureSize(const Engine::EditorPanelContext& context,
@@ -46,7 +44,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	{
 		DrawField(anyItemActive, [&]() {
 			AssetEditSetting setting{};
-				setting.defaultAssetID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+				setting.defaultAssetID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Sprite);
 				return MyGUI::AssetReferenceField("マテリアル", draft.material,
 					context.editorContext->assetDatabase, { AssetType::Material }, setting);
 			});
@@ -55,7 +53,7 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//	スプライト見た目パラメータ
 	//============================================================================
 	{
-		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+		const AssetID defaultMaterialID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Sprite);
 		const AssetID baseColorTexture = materialParameterDrawer_.ResolveTextureParameter(context,
 			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 
@@ -96,11 +94,11 @@ void Engine::SpriteRendererInspectorDrawer::DrawFields(const EditorPanelContext&
 	//============================================================================
 	// 描画設定
 	{
-		const AssetID defaultMaterialID = DefaultMaterialSettings::GetInstance().GetSpriteOrBuiltin();
+		const AssetID defaultMaterialID = InspectorDrawerCommon::ResolveDefaultMaterial(context, DefaultMaterialSlot::Sprite);
 		const AssetID previousTexture = materialParameterDrawer_.ResolveTextureParameter(context,
 			draft.material, defaultMaterialID, draft.materialInstance, kBaseColorTextureParameter);
 
-		InspectorDrawerCommon::DrawCommonRenderFields(
+		InspectorDrawerCommon::DrawCommonRenderFields(context,
 			[&](auto&& f) { DrawField(anyItemActive, std::forward<decltype(f)>(f)); },
 			draft.layer, draft.order, draft.blendMode, draft.queue,
 			&draft.renderingLayerMask);

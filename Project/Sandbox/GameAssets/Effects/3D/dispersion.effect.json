@@ -152,6 +152,7 @@
             "name": "Group 1",
             "phases": [
                 {
+                    "id": "553dea63ebe94267",
                     "lifeEndMode": "Kill",
                     "lifetime": {
                         "constant": 1.0,
@@ -167,6 +168,7 @@
                     "modules": [
                         {
                             "id": "ColorOverLifetime",
+                            "instanceID": "dac88acff2ad48b4",
                             "params": {
                                 "curveChannels": [
                                     {

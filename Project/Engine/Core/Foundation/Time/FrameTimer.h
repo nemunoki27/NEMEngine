@@ -28,15 +28,16 @@ namespace Engine {
 
 		// フレーム時間の更新
 		void Update();
-		// 現在時刻を次フレーム基準にしてdeltaTimeの跳ね上がりを防ぐ
+		// フレーム経過時間の基準を現在時刻へ戻す
 		void ResetDeltaTimeBase();
 
-		// 時間計測
-		// 更新
+		// 更新時間の計測を開始する
 		void BeginUpdateCount();
+		// 更新時間の計測を終了する
 		void EndUpdateCount();
-		// 描画
+		// 描画時間の計測を開始する
 		void BeginDrawCount();
+		// 描画時間の計測を終了する
 		void EndDrawCount();
 
 		//--------- accessor -----------------------------------------------------
@@ -45,6 +46,7 @@ namespace Engine {
 		float GetDeltaTime() const { return deltaTime_; }
 		// 起動してからの合計時間を取得
 		float GetTotalTime() const;
+
 	private:
 		//============================================================================
 		//	private Methods
@@ -57,7 +59,7 @@ namespace Engine {
 
 			std::chrono::time_point<std::chrono::high_resolution_clock> start; // 開始時間
 			std::chrono::time_point<std::chrono::high_resolution_clock> end;   // 終了時間
-			std::chrono::duration<float, std::milli> resultSeconds; // 実行時間
+			std::chrono::duration<float, std::milli> resultMilliseconds;	   // 実行時間のミリ秒
 
 			// 各フレームの処理時間
 			std::list<float> times;
@@ -83,9 +85,9 @@ namespace Engine {
 		// 計測平均時間を取得
 		float GetAverageTime(const Measurement& measure) const;
 
-		// 計測時間処理
+		// 計測の開始時刻を記録する
 		void BeginMeasure(Measurement& measure);
+		// 計測を終了し履歴へ追加する
 		void EndMeasure(Measurement& measure);
-	}; 
+	};
 } // Engine
-

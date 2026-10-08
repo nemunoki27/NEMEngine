@@ -6,6 +6,7 @@
 #include <Engine/Core/Physics/Collision/CollisionTypes.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
 #include <Engine/Core/Scripting/Managed/ManagedScriptUtility.h>
+#include <Engine/Core/Scripting/Managed/ScriptFieldStorage.h>
 #include <Engine/Core/Foundation/Diagnostics/Log.h>
 
 //============================================================================
@@ -29,8 +30,8 @@ namespace {
 	}
 }
 
-Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeID, std::string displayName) :
-	scriptTypeID_(std::move(scriptTypeID)), displayName_(std::move(displayName)) {
+Engine::ManagedBehavior::ManagedBehavior(std::string scriptTypeID, std::string displayName)
+	: scriptTypeID_(std::move(scriptTypeID)), displayName_(std::move(displayName)) {
 }
 
 Engine::ManagedBehavior::~ManagedBehavior() {
@@ -67,13 +68,39 @@ nlohmann::json Engine::ManagedBehavior::GetRuntimeSerializedState() {
 	return ManagedScriptRuntime::GetInstance().GetRuntimeSerializedState(managedHandle_);
 }
 
-void Engine::ManagedBehavior::SetRuntimeSerializedField(ECSWorld& world,
-	const std::string& fieldID, const nlohmann::json& value) {
+bool Engine::ManagedBehavior::CaptureSavedFields(ECSWorld& world, nlohmann::json& fields) {
+
+	nlohmann::json values;
+	if (!ManagedScriptRuntime::GetInstance().CaptureSavedValueMap(managedHandle_, world, values)) {
+		return false;
+	}
+	ScriptFieldStorage::MergeValues(fields, values);
+	return true;
+}
+
+void Engine::ManagedBehavior::SetRuntimeSerializedField(
+	ECSWorld& world, const std::string& fieldID, const nlohmann::json& value) {
 
 	if (!managedHandle_.IsValid()) {
 		return;
 	}
 	ManagedScriptRuntime::GetInstance().SetRuntimeSerializedField(managedHandle_, world, fieldID, value);
+}
+
+bool Engine::ManagedBehavior::CaptureReloadFields(ECSWorld& world, nlohmann::json& fields) {
+
+	return managedHandle_.IsValid() && ManagedScriptRuntime::GetInstance().CaptureReloadValueMap(managedHandle_, world, fields);
+}
+
+bool Engine::ManagedBehavior::ApplyReloadFields(ECSWorld& world, const nlohmann::json& fields) {
+
+	return managedHandle_.IsValid() && ManagedScriptRuntime::GetInstance().ApplyReloadValueMap(managedHandle_, world, fields);
+}
+
+void Engine::ManagedBehavior::ReleaseForReload() {
+
+	ReleaseInstance();
+	faulted_ = false;
 }
 
 void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
@@ -82,11 +109,11 @@ void Engine::ManagedBehavior::Awake([[maybe_unused]] ECSWorld& world, const Syst
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
-	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context), "Awake", entity);
+	const ManagedStatus status = ManagedScriptRuntime::GetInstance().InvokeAwake(managedHandle_, context);
+	HandleStatus(status, "Awake", entity);
 }
 
-void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
@@ -94,8 +121,7 @@ void Engine::ManagedBehavior::Start([[maybe_unused]] ECSWorld& world,
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeStart(managedHandle_, context), "Start", entity);
 }
 
-void Engine::ManagedBehavior::OnEnable([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::OnEnable([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
@@ -103,8 +129,7 @@ void Engine::ManagedBehavior::OnEnable([[maybe_unused]] ECSWorld& world,
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnEnable(managedHandle_, context), "OnEnable", entity);
 }
 
-void Engine::ManagedBehavior::OnDisable([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::OnDisable([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
@@ -112,8 +137,7 @@ void Engine::ManagedBehavior::OnDisable([[maybe_unused]] ECSWorld& world,
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeOnDisable(managedHandle_, context), "OnDisable", entity);
 }
 
-void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid()) {
 		return;
@@ -125,8 +149,8 @@ void Engine::ManagedBehavior::OnDestroy([[maybe_unused]] ECSWorld& world,
 	ReleaseInstance();
 }
 
-void Engine::ManagedBehavior::FixedUpdate([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::FixedUpdate(
+	[[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
@@ -134,8 +158,7 @@ void Engine::ManagedBehavior::FixedUpdate([[maybe_unused]] ECSWorld& world,
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeFixedUpdate(managedHandle_, context), "FixedUpdate", entity);
 }
 
-void Engine::ManagedBehavior::Update([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::Update([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
@@ -143,8 +166,7 @@ void Engine::ManagedBehavior::Update([[maybe_unused]] ECSWorld& world,
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeUpdate(managedHandle_, context), "Update", entity);
 }
 
-void Engine::ManagedBehavior::LateUpdate([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity) {
+void Engine::ManagedBehavior::LateUpdate([[maybe_unused]] ECSWorld& world, const SystemContext& context, const Entity& entity) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
@@ -152,53 +174,56 @@ void Engine::ManagedBehavior::LateUpdate([[maybe_unused]] ECSWorld& world,
 	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeLateUpdate(managedHandle_, context), "LateUpdate", entity);
 }
 
-void Engine::ManagedBehavior::OnCollisionEnter(ECSWorld& world,
-	const SystemContext& context, const CollisionContact& collision) {
+void Engine::ManagedBehavior::OnCollisionEnter(
+	ECSWorld& world, const SystemContext& context, const CollisionContact& collision) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnCollisionEnterへ渡す
-	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionEnter(managedHandle_, context,
-		ToManagedCollision(world, collision)), "OnCollisionEnter", collision.self);
+	HandleStatus(
+		ManagedScriptRuntime::GetInstance().InvokeCollisionEnter(managedHandle_, context, ToManagedCollision(world, collision)),
+		"OnCollisionEnter", collision.self);
 }
 
-void Engine::ManagedBehavior::OnCollisionStay(ECSWorld& world,
-	const SystemContext& context, const CollisionContact& collision) {
+void Engine::ManagedBehavior::OnCollisionStay(
+	ECSWorld& world, const SystemContext& context, const CollisionContact& collision) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnCollisionStayへ渡す
-	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionStay(managedHandle_, context,
-		ToManagedCollision(world, collision)), "OnCollisionStay", collision.self);
+	HandleStatus(
+		ManagedScriptRuntime::GetInstance().InvokeCollisionStay(managedHandle_, context, ToManagedCollision(world, collision)),
+		"OnCollisionStay", collision.self);
 }
 
-void Engine::ManagedBehavior::OnCollisionExit(ECSWorld& world,
-	const SystemContext& context, const CollisionContact& collision) {
+void Engine::ManagedBehavior::OnCollisionExit(
+	ECSWorld& world, const SystemContext& context, const CollisionContact& collision) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnCollisionExitへ渡す
-	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeCollisionExit(managedHandle_, context,
-		ToManagedCollision(world, collision)), "OnCollisionExit", collision.self);
+	HandleStatus(
+		ManagedScriptRuntime::GetInstance().InvokeCollisionExit(managedHandle_, context, ToManagedCollision(world, collision)),
+		"OnCollisionExit", collision.self);
 }
 
-void Engine::ManagedBehavior::OnAnimationEvent([[maybe_unused]] ECSWorld& world,
-	const SystemContext& context, const Entity& entity,
-	const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam) {
+void Engine::ManagedBehavior::OnAnimationEvent([[maybe_unused]] ECSWorld& world, const SystemContext& context,
+	const Entity& entity, const std::string& name, float floatParam, int32_t intParam, const std::string& stringParam) {
 
 	if (!managedHandle_.IsValid() || faulted_) {
 		return;
 	}
 
 	// C#側のOnAnimationEventへ渡す
-	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAnimationEvent(managedHandle_, context,
-		name.c_str(), floatParam, intParam, stringParam.c_str()), "OnAnimationEvent", entity);
+	HandleStatus(ManagedScriptRuntime::GetInstance().InvokeAnimationEvent(
+					 managedHandle_, context, name.c_str(), floatParam, intParam, stringParam.c_str()),
+		"OnAnimationEvent", entity);
 }
 
 bool Engine::ManagedBehavior::EnsureInstance(ECSWorld& world, const Entity& entity) {
@@ -214,8 +239,8 @@ void Engine::ManagedBehavior::EnsureCreated(ECSWorld& world, const Entity& entit
 		return;
 	}
 	auto& runtime = ManagedScriptRuntime::GetInstance();
-	managedHandle_ = runtime.CreateInstance(scriptTypeID_, world, entity,
-		runtime.BuildSerializedValueMap(serializedFields_), scriptSlotID_);
+	managedHandle_ =
+		runtime.CreateInstance(scriptTypeID_, world, entity, runtime.BuildSerializedValueMap(serializedFields_), scriptSlotID_);
 }
 
 void Engine::ManagedBehavior::ReleaseInstance() {
@@ -232,12 +257,11 @@ void Engine::ManagedBehavior::HandleStatus(ManagedStatus status, const char* cal
 	if (status == ManagedStatus::Ok) {
 		return;
 	}
-	// C#側でユーザーのコールバックが例外を投げた場合のみ異常化する、全文はC#側GuardInstanceがログ済みでここでは型とコールバックとエンティティを残す
-	if (status == ManagedStatus::ScriptException && !faulted_) {
+	// callback例外はPlayを止めるが、Resume後の次callbackから同じScriptを継続する
+	if (status == ManagedStatus::ScriptException) {
 
-		faulted_ = true;
 		Logger::Output(LogType::GameLogic, spdlog::level::err,
-			"ManagedBehavior: Script例外を検出したため無効化します type={} ScriptTypeID={} Callback={} Entity={}:{}",
-			displayName_, scriptTypeID_, callbackName, entity.index, entity.generation);
+			"ManagedBehavior: Script例外を検出しました type={} ScriptTypeID={} Callback={} Entity={}:{}", displayName_,
+			scriptTypeID_, callbackName, entity.index, entity.generation);
 	}
 }

@@ -11,6 +11,7 @@
 #include <memory>
 #include <span>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Engine {
 
@@ -43,6 +44,8 @@ namespace Engine {
 		bool dispatchRaysEnabled = false;
 		// 深度テスト+書き込みを強制した派生PSOか、3Dテキストなど次元で深度挙動を変える用途で別エントリにする
 		bool depthForcedTestWrite = false;
+		// Shadow Map用にCullModeをNONEへ上書きした派生PSOか
+		bool twoSidedRasterizer = false;
 		// 静的サンプラー上書きのハッシュ値
 		uint64_t samplerHash = 0;
 
@@ -74,14 +77,15 @@ namespace Engine {
 			const GraphicsRuntimeFeatures& runtimeFeatures,
 			const PipelineVariantDesc** outVariant = nullptr, bool forceDepthTestWrite = false,
 			const PipelineStaticSamplerOverrideSet* samplerOverrides = nullptr,
-			AssetID shaderOverrideAssetID = {});
+			AssetID shaderOverrideAssetID = {}, bool forceTwoSidedRasterizer = false);
 		// 状態、形状ステージ、Materialステージを合成して取得する
 		const PipelineState* GetORCreateComposed(GraphicsPlatform& graphicsPlatform,
 			RenderAssetLibrary& assetLibrary, AssetID pipelineAssetID, AssetID geometryPipelineAssetID,
 			AssetID shaderOverrideAssetID, PipelineVariantKind desiredKind,
 			std::span<const DXGI_FORMAT> runtimeRTVFormats, DXGI_FORMAT runtimeDSVFormat,
 			const GraphicsRuntimeFeatures& runtimeFeatures,
-			const PipelineVariantDesc** outVariant = nullptr);
+			const PipelineVariantDesc** outVariant = nullptr,
+			bool forceTwoSidedRasterizer = false);
 
 		// データクリア
 		void Clear();
@@ -105,27 +109,15 @@ namespace Engine {
 
 		// ハッシュ関数の定義
 		struct PipelineCacheKeyHash {
-			size_t operator()(const PipelineCacheKey& key) const noexcept {
-				size_t h = std::hash<AssetID>{}(key.pipelineAsset);
-				h ^= (std::hash<AssetID>{}(key.geometryPipelineAsset) << 1);
-				h ^= (std::hash<AssetID>{}(key.pipelineShaderAsset) << 2);
-				h ^= (std::hash<AssetID>{}(key.geometryShaderAsset) << 3);
-				h ^= (std::hash<AssetID>{}(key.shaderOverrideAsset) << 4);
-				h ^= (std::hash<uint32_t>{}(static_cast<uint32_t>(key.resolvedKind)) << 5);
-				h ^= (std::hash<uint64_t>{}(key.formatHash) << 6);
-				h ^= (std::hash<bool>{}(key.meshEnabled) << 7);
-				h ^= (std::hash<bool>{}(key.inlineRayTracingEnabled) << 8);
-				h ^= (std::hash<bool>{}(key.dispatchRaysEnabled) << 9);
-				h ^= (std::hash<bool>{}(key.depthForcedTestWrite) << 10);
-				h ^= (std::hash<uint64_t>{}(key.samplerHash) << 11);
-				return h;
-			}
+			size_t operator()(const PipelineCacheKey& key) const noexcept;
 		};
 
 		//--------- variables ----------------------------------------------------
 
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> cache_;
 		std::unordered_map<PipelineCacheKey, std::unique_ptr<PipelineState>, PipelineCacheKeyHash> fallbackCache_;
+		// 入力が更新されるまで失敗したPSOの再生成を抑える
+		std::unordered_set<PipelineCacheKey, PipelineCacheKeyHash> failedKeys_;
 		// pipelineAsset別の統合reflection、エディタからPSO再生成なしで参照するために保持する
 		std::unordered_map<AssetID, ShaderReflectionInfo> graphicsReflectionByPipeline_;
 

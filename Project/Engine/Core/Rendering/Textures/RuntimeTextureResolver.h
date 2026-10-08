@@ -11,6 +11,7 @@
 namespace Engine {
 
 	class GraphicsCore;
+	class RenderTexture2D;
 
 	namespace RuntimeTextureResolver {
 		struct BindlessResolveResult {
@@ -18,6 +19,17 @@ namespace Engine {
 			uint32_t srvIndex = UINT32_MAX;
 			bool retry = false;
 		};
+
+		// 実行中のRenderTextureをAssetIDへ対応付ける
+		void RegisterRenderTexture(AssetID textureAssetID, RenderTexture2D* texture);
+		void UnregisterRenderTexture(AssetID textureAssetID, const RenderTexture2D* texture);
+		// 描画中のRenderTextureを入力として再利用しない
+		void BeginRenderTextureWrite(AssetID textureAssetID);
+		void EndRenderTextureWrite(AssetID textureAssetID);
+
+		// RenderTextureの公開世代と描画先を取得する
+		uint64_t GetBindingRevision();
+		AssetID GetWritingRenderTexture();
 
 		// アセットIDからGPUテクスチャリソースを解決し未ロードなら読み込み要求を行う
 		const GPUTextureResource* Resolve(GraphicsCore& graphicsCore,

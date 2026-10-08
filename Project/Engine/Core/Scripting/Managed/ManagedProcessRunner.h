@@ -56,6 +56,7 @@ namespace Engine {
 		void* process_ = nullptr;     // HANDLE
 		void* thread_ = nullptr;      // HANDLE
 		void* stdoutRead_ = nullptr;  // HANDLE pipe read end
+		void* job_ = nullptr;         // 子孫プロセスをまとめて回収するJob Object
 
 		// 改行未満の残りバイト
 		std::string pending_;

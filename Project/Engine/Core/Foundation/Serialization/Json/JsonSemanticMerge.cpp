@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 #include <string_view>
+#include <utility>
 
 //============================================================================
 //	JsonSemanticMerge classMethods
@@ -16,6 +17,7 @@ namespace {
 
 	using Json = nlohmann::json;
 
+	// 要素の削除とJSON値を区別して比較する
 	bool SameValue(const Json* lhs, const Json* rhs) {
 
 		if (!lhs || !rhs) {
@@ -24,22 +26,31 @@ namespace {
 		return *lhs == *rhs;
 	}
 
+	// 競合一覧へ削除済みの印を残す
 	Json MissingValue() {
 
 		return Json{ { "$missing", true } };
 	}
 
+	// 競合対象を値として保持する
 	Json CopyValue(const Json* value) {
 
 		return value ? *value : MissingValue();
 	}
 
-	std::optional<std::string> ArrayItemKey(
-		std::string_view memberName, const Json& item) {
+	// 文字列の識別子だけを読み取る
+	std::string ReadString(const Json& item, const char* name) {
+
+		const auto found = item.find(name);
+		return found != item.end() && found->is_string() ? found->get<std::string>() : std::string{};
+	}
+
+	// 配列の用途に応じた安定IDを取得する
+	std::optional<std::string> ArrayItemKey(std::string_view memberName, const Json& item) {
 
 		if (item.is_string() &&
 			(memberName == "ExternalActors" ||
-				memberName == "RemovedEntities")) {
+				memberName == "RemovedEntities" || memberName == "RemovedNestedSlots")) {
 			return item.get<std::string>();
 		}
 		if (!item.is_object()) {
@@ -47,47 +58,50 @@ namespace {
 		}
 
 		if (memberName == "Entities") {
-			const std::string key =
-				item.value("LocalFileID", std::string{});
+			const std::string key = ReadString(item, "LocalFileID");
+			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
+		}
+		if (memberName == "NestedPrefabInstances" || memberName == "NestedInstances") {
+			const std::string key = ReadString(item, "NestedSlotID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "PrefabInstances") {
-			const std::string key = item.value("InstanceID", std::string{});
+			const std::string key = ReadString(item, "InstanceID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "EntityMap") {
-			const std::string key = item.value("S", std::string{});
+			const std::string key = ReadString(item, "S");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "Modifications") {
-			const std::string target = item.value("Target", std::string{});
-			const std::string path = item.value("Path", std::string{});
+			const std::string target = ReadString(item, "Target");
+			const std::string path = ReadString(item, "Path");
 			return target.empty() || path.empty() ? std::nullopt :
 				std::optional<std::string>{ target + "/" + path };
 		}
 		if (memberName == "AddedComponents" ||
 			memberName == "RemovedComponents") {
-			const std::string target = item.value("Target", std::string{});
-			const std::string type = item.value("Type", std::string{});
+			const std::string target = ReadString(item, "Target");
+			const std::string type = ReadString(item, "Type");
 			return target.empty() || type.empty() ? std::nullopt :
 				std::optional<std::string>{ target + "/" + type };
 		}
 		if (memberName == "HierarchyMods") {
-			const std::string key = item.value("Target", std::string{});
+			const std::string key = ReadString(item, "Target");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "AddedEntities") {
-			const std::string key =
-				item.value("SceneLocalFileID", std::string{});
+			const std::string key = ReadString(item, "SceneLocalFileID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		if (memberName == "subScenes") {
-			const std::string key = item.value("slotID", std::string{});
+			const std::string key = ReadString(item, "slotID");
 			return key.empty() ? std::nullopt : std::optional<std::string>{ key };
 		}
 		return std::nullopt;
 	}
 
+	// 配列を識別子で対応付け、重複と未指定を拒否する
 	bool BuildArrayMap(std::string_view memberName, const Json& array,
 		std::map<std::string, Json>& outItems) {
 
@@ -96,8 +110,7 @@ namespace {
 		}
 		for (const Json& item : array) {
 
-			const std::optional<std::string> key =
-				ArrayItemKey(memberName, item);
+			const std::optional<std::string> key = ArrayItemKey(memberName, item);
 			if (!key || !outItems.emplace(*key, item).second) {
 				return false;
 			}
@@ -105,6 +118,7 @@ namespace {
 		return true;
 	}
 
+	// 対応する要素がなければ削除済みとして返す
 	const Json* FindValue(const std::map<std::string, Json>& values,
 		const std::string& key) {
 
@@ -112,10 +126,12 @@ namespace {
 		return it == values.end() ? nullptr : &it->second;
 	}
 
+	// 同一・片側変更・双方変更を分けて統合する
 	std::optional<Json> MergeValue(const Json* base, const Json* ours,
 		const Json* theirs, const std::string& path,
 		std::vector<Engine::JsonMergeConflict>& conflicts);
 
+	// 安定IDを持つ配列を要素単位で統合する
 	std::optional<Json> MergeArray(const Json& base, const Json& ours,
 		const Json& theirs, const std::string& path,
 		std::vector<Engine::JsonMergeConflict>& conflicts) {
@@ -132,11 +148,13 @@ namespace {
 			return std::nullopt;
 		}
 
+		// 追加と削除を含む全ての識別子を揃える
 		std::set<std::string> keys;
 		for (const auto& [key, value] : baseItems) { keys.insert(key); }
 		for (const auto& [key, value] : ourItems) { keys.insert(key); }
 		for (const auto& [key, value] : theirItems) { keys.insert(key); }
 
+		// 統合後に残る要素だけを順番に保持する
 		Json result = Json::array();
 		for (const std::string& key : keys) {
 
@@ -152,10 +170,12 @@ namespace {
 		return result;
 	}
 
+	// オブジェクトの各項目を再帰的に統合する
 	std::optional<Json> MergeObject(const Json& base, const Json& ours,
 		const Json& theirs, const std::string& path,
 		std::vector<Engine::JsonMergeConflict>& conflicts) {
 
+		// 双方で追加・削除された項目も照合する
 		std::set<std::string> keys;
 		for (auto it = base.begin(); it != base.end(); ++it) { keys.insert(it.key()); }
 		for (auto it = ours.begin(); it != ours.end(); ++it) { keys.insert(it.key()); }
@@ -167,8 +187,7 @@ namespace {
 			const Json* baseValue = base.contains(key) ? &base.at(key) : nullptr;
 			const Json* ourValue = ours.contains(key) ? &ours.at(key) : nullptr;
 			const Json* theirValue = theirs.contains(key) ? &theirs.at(key) : nullptr;
-			std::optional<Json> merged = MergeValue(
-				baseValue, ourValue, theirValue, path + "/" + key, conflicts);
+			std::optional<Json> merged = MergeValue(baseValue, ourValue, theirValue, path + "/" + key, conflicts);
 			if (merged) {
 				result[key] = std::move(*merged);
 			}
@@ -176,10 +195,12 @@ namespace {
 		return result;
 	}
 
+	// 同一・片側変更・双方変更を分けて統合する
 	std::optional<Json> MergeValue(const Json* base, const Json* ours,
 		const Json* theirs, const std::string& path,
 		std::vector<Engine::JsonMergeConflict>& conflicts) {
 
+		// 同じ変更と片側だけの変更はそのまま採用する
 		if (SameValue(ours, theirs)) {
 			return ours ? std::optional<Json>{ *ours } : std::nullopt;
 		}
@@ -203,6 +224,7 @@ namespace {
 			}
 		}
 
+		// 解決できない双方の変更を競合として残す
 		conflicts.push_back({
 			.path = path,
 			.base = CopyValue(base),
@@ -218,8 +240,8 @@ Engine::JsonMergeResult Engine::JsonSemanticMerge::Merge(
 	const nlohmann::json& theirs) {
 
 	JsonMergeResult result{};
-	const std::optional<nlohmann::json> merged =
-		MergeValue(&base, &ours, &theirs, "", result.conflicts);
-	result.merged = merged.value_or(nlohmann::json::object());
+	// 作成した文書の所有を結果へ渡す
+	std::optional<nlohmann::json> merged = MergeValue(&base, &ours, &theirs, "", result.conflicts);
+	result.merged = merged ? std::move(*merged) : nlohmann::json::object();
 	return result;
 }

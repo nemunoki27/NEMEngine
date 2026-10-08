@@ -391,6 +391,8 @@ ResolvedPBRMaterial ResolveRaytracingHitMaterial(
 	float4 baseColor = subMesh.importedBaseColor * subMesh.color;
 	baseColor *= SampleHitTexture(
 		subMesh.baseColorTextureIndex, uv, textureMip, 1.0f.xxxx);
+	baseColor.a *= SampleHitTexture(
+		subMesh.opacityTextureIndex, uv, textureMip, 1.0f.xxxx).r;
 
 	// glTFのmetallic-roughness規約に合わせてBとGを参照する
 	float4 metallicRoughness = SampleHitTexture(

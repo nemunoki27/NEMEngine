@@ -10,18 +10,15 @@
 #include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
 #include <Engine/Editor/Commands/Core/EditorCommandContext.h>
+#include <Engine/Editor/Core/EditorState.h>
+#include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
+
+// c++
+#include <stdexcept>
 
 //============================================================================
 //	EditorEntitySnapshot classMethods
 //============================================================================
-void Engine::EditorEntityTreeSnapshot::Clear() {
-
-	rootStableUUID = UUID{};
-	ownerSceneInstanceID = UUID{};
-	ownerSourceAsset = AssetID{};
-	entities.clear();
-}
-
 std::vector<Engine::Entity> Engine::EditorEntitySnapshotUtility::CollectSubtreeEntities(ECSWorld& world, const Entity& root) {
 
 	return HierarchyUtility::CollectLogicalSubtree(world, root);
@@ -30,57 +27,36 @@ std::vector<Engine::Entity> Engine::EditorEntitySnapshotUtility::CollectSubtreeE
 void Engine::EditorEntitySnapshotUtility::CaptureSubtree(ECSWorld& world,
 	const Entity& root, EditorEntityTreeSnapshot& outSnapshot) {
 
-	// スナップショットをクリアする
-	outSnapshot.Clear();
-	if (!world.IsAlive(root)) {
-		return;
-	}
-
-	// ルートエンティティのUUIDをスナップショットに保存する
-	outSnapshot.rootStableUUID = world.GetUUID(root);
-
-	// ランタイム情報をスナップショットに保存する
-	if (world.HasComponent<SceneObjectComponent>(root)) {
-
-		const auto& sceneObject = world.GetComponent<SceneObjectComponent>(root);
-		outSnapshot.ownerSceneInstanceID = sceneObject.sceneInstanceID;
-		outSnapshot.ownerSourceAsset = sceneObject.sourceAsset;
-	}
-
-	// ルートを含むサブツリーを収集する
-	const std::vector<Entity> entities = CollectSubtreeEntities(world, root);
-	outSnapshot.entities.reserve(entities.size());
-	for (const auto& entity : entities) {
-
-		// エンティティのUUIDとコンポーネントをスナップショットに保存する
-		SerializedEntitySnapshot snapshot{};
-		snapshot.stableUUID = world.GetUUID(entity);
-		world.SerializeEntityComponents(entity, snapshot.components);
-
-		// スナップショットに追加する
-		outSnapshot.entities.emplace_back(std::move(snapshot));
-	}
+	EntitySnapshotUtility::CaptureSubtree(world, root, outSnapshot);
 }
 
 std::vector<Engine::Entity> Engine::EditorEntitySnapshotUtility::RestoreSubtree(ECSWorld& world,
 	const EditorEntityTreeSnapshot& snapshot) {
 
-	// スナップショットが空の場合は何もしない
-	std::vector<Entity> restored;
-	restored.reserve(snapshot.entities.size());
-	for (const auto& entitySnapshot : snapshot.entities) {
+	return EntitySnapshotUtility::RestoreSubtree(world, snapshot);
+}
 
-		// スナップショットからエンティティを復元する
-		Entity entity = world.CreateEntity(entitySnapshot.stableUUID);
+Engine::Entity Engine::EditorEntitySnapshotUtility::RestoreCommandSnapshot(EditorCommandContext& context,
+	const EditorEntityTreeSnapshot& snapshot) {
 
-		// スナップショットからコンポーネントを復元する
-		for (auto it = entitySnapshot.components.begin(); it != entitySnapshot.components.end(); ++it) {
-
-			world.AddComponentFromJson(entity, it.key(), it.value());
-		}
-		restored.emplace_back(entity);
+	if (!context.CanEditScene() || snapshot.IsEmpty()) {
+		return Entity::Null();
 	}
-	return restored;
+	ECSWorld& world = *context.GetWorld();
+	SceneCreationScope creation(world);
+	const std::vector<Entity> restored = RestoreSubtree(world, snapshot);
+	RefreshRestoredRuntimeState(context, world, snapshot, restored);
+	context.RebuildHierarchyAll();
+	const Entity root = world.FindByUUID(snapshot.rootStableUUID);
+	if (!world.IsAlive(root)) {
+		throw std::runtime_error("復元した階層にルートがありません");
+	}
+	if (context.editorState) {
+		context.editorState->SelectEntity(root);
+	}
+	// 後処理まで成功してから生成物を公開
+	creation.Commit();
+	return root;
 }
 
 void Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(const EditorCommandContext& context,
@@ -110,10 +86,10 @@ void Engine::EditorEntitySnapshotUtility::RefreshRestoredRuntimeState(const Edit
 		if (world.HasComponent<SceneObjectComponent>(entity)) {
 
 			auto& sceneObject = world.GetComponent<SceneObjectComponent>(entity);
-			if (sceneInstanceID) {
+			if (!sceneObject.sceneInstanceID && sceneInstanceID) {
 				sceneObject.sceneInstanceID = sceneInstanceID;
 			}
-			if (sourceAsset) {
+			if (!sceneObject.sourceAsset && sourceAsset) {
 				sceneObject.sourceAsset = sourceAsset;
 			}
 		}

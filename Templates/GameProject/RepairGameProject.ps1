@@ -166,6 +166,12 @@ function Sync-PremakeFiles([string]$ResolvedGameRoot, [string]$ResolvedSupportRo
     $gamePremakeDir = Join-Path $ResolvedGameRoot "Premake"
     New-Item -ItemType Directory -Force -Path $gamePremakeDir | Out-Null
 
+    $gameSettings = Join-Path $gamePremakeDir "game_settings.lua"
+    $settingsTemplate = Join-Path $ResolvedSupportRoot "Premake\game_settings.lua"
+    if (-not (Test-Path -LiteralPath $gameSettings) -and (Test-Path -LiteralPath $settingsTemplate)) {
+        Copy-Item -LiteralPath $settingsTemplate -Destination $gameSettings
+    }
+
     $srcPremakeLua = Join-Path $ResolvedSupportRoot "Premake\premake5.lua"
     if (Test-Path -LiteralPath $srcPremakeLua) {
         $text = [System.IO.File]::ReadAllText($srcPremakeLua).Replace("__GAME_NAME__", $GameName)

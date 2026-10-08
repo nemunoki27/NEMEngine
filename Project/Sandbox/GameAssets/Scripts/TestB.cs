@@ -5,7 +5,7 @@ namespace SandboxScripts;
 //============================================================================
 //	TestB
 //============================================================================
-public sealed class TestB : ScriptBehaviour {
+public sealed class TestB : MonoBehaviour {
 
 	[SerializeField]
 	private float testB = 0.0f;
@@ -13,14 +13,14 @@ public sealed class TestB : ScriptBehaviour {
 	//========================================================================
 	//	開始時処理
 	//========================================================================
-	public override void Start() {
+	private void Start() {
 	}
 
 	//========================================================================
 	//	毎フレーム更新処理
 	//========================================================================
-	public override void Update() {
+	private void Update() {
 
-		testB += 0.01f * Time.DeltaTime;
+		testB += 0.01f * Time.deltaTime;
 	}
 }

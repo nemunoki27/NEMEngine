@@ -152,6 +152,7 @@
             "name": "default",
             "phases": [
                 {
+                    "id": "e5c2d381e2d8455d",
                     "lifeEndMode": "Kill",
                     "lifetime": {
                         "constant": 1.0,
@@ -167,10 +168,12 @@
                     "modules": [
                         {
                             "id": "SizeOverLifetime",
+                            "instanceID": "04e60bb892d34bc6",
                             "params": {}
                         },
                         {
                             "id": "ColorOverLifetime",
+                            "instanceID": "a83cd2a8d7d347b5",
                             "params": {}
                         }
                     ],

@@ -16,4 +16,4 @@ namespace Math {
 
 	// 位置から3成分のノイズベクトルを作る、パーティクルの乱流などに使う
 	Engine::Vector3 PerlinNoiseVector3(const Engine::Vector3& position, float frequency);
-} // Math
+}

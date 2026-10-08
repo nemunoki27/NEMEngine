@@ -17,6 +17,7 @@
 
 // c++
 #include <array>
+#include <utility>
 
 namespace Engine {
 
@@ -142,6 +143,7 @@ namespace Engine {
 		std::string roughnessTexturePath;
 		std::string displacementTexturePath;
 		std::string specularTexturePath;
+		std::string opacityTexturePath;
 		std::string emissiveTexturePath;
 		std::string occlusionTexturePath;
 	};
@@ -157,6 +159,7 @@ namespace Engine {
 		AssetID specularTexture{};
 		AssetID emissiveTexture{};
 		AssetID occlusionTexture{};
+		AssetID opacityTexture{};
 	};
 	// メッシュレット情報
 	struct MeshletDesc {
@@ -260,31 +263,91 @@ namespace Engine {
 		// メッシュレット内の三角形を構成するPrimitiveIndex配列
 		std::vector<uint32_t> meshletPrimitiveIndices;
 		std::array<MeshLODRange, kMeshLODCount> lods{};
+		// LOD0または手動指定した形状かを保持する
+		std::array<bool, kMeshLODCount> authoredLODs = {
+			true, false, false, false,
+		};
+		bool ditherLODTransitions = false;
 
 		MeshNode rootNode{};
 
 		// スキニング情報
 		bool isSkinned = false;
 		uint32_t boneCount = 0;
+		// 手動LODのスケルトン対応を検証する
+		std::vector<std::string> skeletonJointPaths{};
 		std::vector<VertexInfluence> vertexInfluences{};
 	};
-	// 静的メッシュSRVリソース(DEFAULT heap、ロード後は更新しない)
+	// 静的メッシュのBufferとSRV番号を所有する
 	template <typename T>
 	struct MeshStructuredHandle {
+
+		MeshStructuredHandle() = default;
+		~MeshStructuredHandle() { Release(); }
+		MeshStructuredHandle(const MeshStructuredHandle&) = delete;
+		MeshStructuredHandle& operator=(const MeshStructuredHandle&) = delete;
+		MeshStructuredHandle(MeshStructuredHandle&& other) noexcept { Swap(other); }
+		MeshStructuredHandle& operator=(MeshStructuredHandle&& other) noexcept {
+
+			if (this != &other) {
+				Release();
+				Swap(other);
+			}
+			return *this;
+		}
 
 		std::unique_ptr<DxImmutableStructuredBuffer<T>> buffer;
 		uint32_t srvIndex = UINT32_MAX;
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGPUHandle{};
 
-		// リソース解放
-		void Release(SRVDescriptor* srvDescriptor) {
+		// BufferとSRVの作成後に公開する
+		void Create(ID3D12Device* device, BufferUploadService& uploadService, SRVDescriptor& descriptor,
+			std::span<const T> data, const wchar_t* debugName) {
 
-			if (srvDescriptor && srvIndex != UINT32_MAX) {
-				srvDescriptor->Free(srvIndex);
+			if (data.empty()) return;
+			// 途中失敗した候補も所有元の破棄で回収する
+			MeshStructuredHandle candidate;
+			candidate.descriptor_ = &descriptor;
+			candidate.buffer = std::make_unique<DxImmutableStructuredBuffer<T>>();
+			candidate.buffer->Create(device, uploadService, data);
+			candidate.buffer->GetResource()->SetName(debugName);
+			descriptor.CreateSRV(candidate.srvIndex, candidate.buffer->GetResource(), candidate.buffer->GetSRVDesc());
+			candidate.srvGPUHandle = descriptor.GetGPUHandle(candidate.srvIndex);
+			Swap(candidate);
+		}
+
+		// GPU完了までBufferとSRV番号を保持する
+		void Release() {
+
+			if (srvIndex != UINT32_MAX) {
+				// 番号とBuffer本体を回収する領域を先に確保する
+				descriptor_->GetRetirementQueue().ReservePending(2);
+				descriptor_->Retire(srvIndex, {});
 			}
 			srvIndex = UINT32_MAX;
 			srvGPUHandle = {};
 			buffer.reset();
+			descriptor_ = nullptr;
+		}
+	private:
+		//============================================================================
+		//	private Methods
+		//============================================================================
+
+		//--------- variables ----------------------------------------------------
+
+		SRVDescriptor* descriptor_ = nullptr;
+
+		//--------- functions ----------------------------------------------------
+
+		// Bufferと番号の所有をまとめて交換する
+		void Swap(MeshStructuredHandle& other) noexcept {
+
+			using std::swap;
+			swap(buffer, other.buffer);
+			swap(srvIndex, other.srvIndex);
+			swap(srvGPUHandle, other.srvGPUHandle);
+			swap(descriptor_, other.descriptor_);
 		}
 	};
 	// GPU上のメッシュリソース
@@ -323,6 +386,7 @@ namespace Engine {
 		uint32_t indexCount = 0;
 		uint32_t meshletCount = 0;
 		std::array<MeshLODRange, kMeshLODCount> lods{};
+		bool ditherLODTransitions = false;
 		// packedMeshletVertexIndexSRVを使える場合だけtrueにする
 		bool usePackedMeshletVertexIndices = false;
 		std::vector<SubMeshDesc> subMeshes;
@@ -330,6 +394,12 @@ namespace Engine {
 		Vector3 boundsCenter = Vector3::AnyInit(0.0f);
 		// インスタンス単位カリングで使用するメッシュ全体のローカルBounds
 		float boundsRadius = 0.0f;
+
+		// 描画に必要なGPU資源が揃っているか確認する
+		bool IsValid() const {
+			return assetID && vertexCount > 0u && indexCount > 0u &&
+				indexBuffer.IsCreatedResource();
+		}
 
 		// スキニングするか
 		bool isSkinned = false;

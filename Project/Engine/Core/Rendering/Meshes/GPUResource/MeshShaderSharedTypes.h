@@ -71,6 +71,9 @@ namespace Engine {
 		// 投影半径が閾値以上ならLOD0/1/2を選び、それ未満はLOD3にする
 		Vector3 lodPixelThresholds = Vector3(160.0f, 80.0f, 32.0f);
 		uint32_t lodCount = kMeshLODCount;
+		uint32_t lodDitherEnabled = 0;
+		uint32_t preserveInstanceOrder = 0;
+		uint32_t _lodDrawPad[2] = { 0, 0 };
 	};
 	static_assert(sizeof(MeshDrawConstants) % 16 == 0);
 
@@ -87,13 +90,14 @@ namespace Engine {
 		uint32_t bakedNormalTextureIndex = UINT32_MAX;
 		uint32_t outlineSamplerTextureIndex = UINT32_MAX;
 		uint32_t flags = 0;
-		uint32_t _pad0 = 0;
+		float alphaThreshold = 0.1f;
 	};
 	static_assert(sizeof(MeshOutlineGPUData) % 16 == 0);
 
 	// MeshOutlineGPUDataのflags
 	static constexpr uint32_t kMeshOutlineFlagUseBakedNormal = 1u << 0;
 	static constexpr uint32_t kMeshOutlineFlagUseOutlineSampler = 1u << 1;
+	static constexpr uint32_t kMeshOutlineFlagRespectMaterialSurface = 1u << 2;
 
 	struct MeshSubMeshShaderData {
 
@@ -109,7 +113,8 @@ namespace Engine {
 
 		float metallic = 0.0f;
 		float roughness = 0.5f;
-		float _materialPad[2] = { 0.0f, 0.0f };
+		uint32_t opacityTextureIndex = UINT32_MAX;
+		uint32_t _materialPad = 0;
 
 		// サブメッシュごとのローカル行列(位置・Bounds・Culling用)
 		Matrix4x4 localMatrix = Matrix4x4::Identity();

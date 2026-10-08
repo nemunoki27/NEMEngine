@@ -20,22 +20,19 @@ namespace Engine {
 	//	CanvasComponent struct
 	//	スクリーンUIの基準解像度と入力設定を管理する
 	//============================================================================
-	enum class CanvasScaleMode :
-		uint8_t {
+	enum class CanvasScaleMode : uint8_t {
 
 		ConstantPixelSize,
 		ScaleWithScreenSize,
 	};
 
-	enum class CanvasNavigationMode :
-		uint8_t {
+	enum class CanvasNavigationMode : uint8_t {
 
 		Automatic,
 		TransitionTable,
 	};
 
-	enum class CanvasInputAction :
-		uint8_t {
+	enum class CanvasInputAction : uint8_t {
 
 		Up,
 		Down,
@@ -44,8 +41,7 @@ namespace Engine {
 		Submit,
 	};
 
-	enum class CanvasInputDevice :
-		uint8_t {
+	enum class CanvasInputDevice : uint8_t {
 
 		Keyboard,
 		Gamepad,
@@ -54,8 +50,7 @@ namespace Engine {
 	// Canvasの操作と入力コードを1本のBufferへ集約する
 	struct CanvasInputBinding {
 
-		static constexpr ComponentStorageKind kStorageKind =
-			ComponentStorageKind::Buffer;
+		static constexpr ComponentStorageKind kStorageKind = ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 16;
 		static constexpr bool kSerializable = false;
 
@@ -67,8 +62,7 @@ namespace Engine {
 	// 遷移テーブルのセル
 	struct CanvasNavigationCell {
 
-		static constexpr ComponentStorageKind kStorageKind =
-			ComponentStorageKind::Buffer;
+		static constexpr ComponentStorageKind kStorageKind = ComponentStorageKind::Buffer;
 		static constexpr uint32_t kInternalBufferCapacity = 9;
 		static constexpr bool kSerializable = false;
 
@@ -95,8 +89,15 @@ namespace Engine {
 		std::vector<UUID> cells = std::vector<UUID>(9);
 	};
 
-	enum class CanvasNavigationTableResult :
-		uint8_t {
+	// Canvasがゲーム入力を止める条件
+	enum class CanvasInputBlockMode : uint8_t {
+
+		None,
+		ConsumedFrame,
+		WhileVisible,
+	};
+
+	enum class CanvasNavigationTableResult : uint8_t {
 
 		Success,
 		InvalidCanvas,
@@ -121,7 +122,8 @@ namespace Engine {
 		int32_t sortingLayer = 0;
 		int32_t order = 0;
 
-		bool blockGameplayInput = true;
+		CanvasInputBlockMode inputBlockMode = CanvasInputBlockMode::None;
+		uint32_t playerIndex = 0;
 		bool inputInEditMode = false;
 		bool blockInputAfterSubmit = false;
 		bool keyboardInputEnabled = true;
@@ -139,17 +141,18 @@ namespace Engine {
 		UUID firstSelectedLocalFileID{};
 
 		// Registryから呼ばれる入力BufferとRuntime状態のライフサイクル
-		static void OnAdded(
-			ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		static void OnAdded(ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		// Canvasに付随するBufferと実行状態を取り除く
 		static void OnRemoved(ECSWorld& world, const Entity& entity);
-		static void InitializeStorage(
-			ECSWorld& world, const Entity& entity, CanvasComponent& component);
-		static void ReleaseStorage(
-			ECSWorld& world, const Entity& entity, CanvasComponent& component);
-		static void DeserializeECS(ECSWorld& world, const Entity& entity,
-			const nlohmann::json& in, CanvasComponent& component);
-		static void SerializeECS(const ECSWorld& world, const Entity& entity,
-			const CanvasComponent& component, nlohmann::json& out);
+		// Buffer以外の追加保存領域を初期化する
+		static void InitializeStorage(ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		// Buffer以外の追加保存領域を解放する
+		static void ReleaseStorage(ECSWorld& world, const Entity& entity, CanvasComponent& component);
+		// 設定と付随Bufferを読み込む
+		static void DeserializeECS(ECSWorld& world, const Entity& entity, const nlohmann::json& in, CanvasComponent& component);
+		// 設定と追加待ちを含むBufferを保存する
+		static void SerializeECS(
+			const ECSWorld& world, const Entity& entity, const CanvasComponent& component, nlohmann::json& out);
 	};
 
 	// 遷移テーブルのセル数を安全に計算する
@@ -170,22 +173,24 @@ namespace Engine {
 	CanvasNavigationTableResult SetCanvasNavigationCell(
 		ECSWorld& world, const Entity& canvas, int32_t row, int32_t column, const Entity& target);
 
+	// JSONからCanvasの基本設定を読み込む
 	void from_json(const nlohmann::json& in, CanvasComponent& component);
+	// Canvasの基本設定をJSONへ書き出す
 	void to_json(nlohmann::json& out, const CanvasComponent& component);
-	std::span<CanvasInputBinding> GetCanvasInputBindings(
-		ECSWorld& world, const Entity& entity);
-	std::span<const CanvasInputBinding> GetCanvasInputBindings(
-		const ECSWorld& world, const Entity& entity);
-	void SetCanvasInputBindings(ECSWorld& world, const Entity& entity,
-		std::span<const CanvasInputBinding> bindings);
-	std::span<CanvasNavigationCell> GetCanvasNavigationCells(
-		ECSWorld& world, const Entity& entity);
-	std::span<const CanvasNavigationCell> GetCanvasNavigationCells(
-		const ECSWorld& world, const Entity& entity);
-	void SetCanvasNavigationCells(ECSWorld& world, const Entity& entity,
-		std::span<const UUID> cells);
-	void SerializeCanvas(const CanvasComponent& component,
-		std::span<const CanvasInputBinding> bindings,
+	// 編集可能な入力割当を借用する
+	std::span<CanvasInputBinding> GetCanvasInputBindings(ECSWorld& world, const Entity& entity);
+	// 入力割当を読み取りだけで借用する
+	std::span<const CanvasInputBinding> GetCanvasInputBindings(const ECSWorld& world, const Entity& entity);
+	// 入力割当をまとめて差し替える
+	void SetCanvasInputBindings(ECSWorld& world, const Entity& entity, std::span<const CanvasInputBinding> bindings);
+	// 編集可能な選択遷移セルを借用する
+	std::span<CanvasNavigationCell> GetCanvasNavigationCells(ECSWorld& world, const Entity& entity);
+	// 選択遷移セルを読み取りだけで借用する
+	std::span<const CanvasNavigationCell> GetCanvasNavigationCells(const ECSWorld& world, const Entity& entity);
+	// 選択遷移の参照IDをまとめて差し替える
+	void SetCanvasNavigationCells(ECSWorld& world, const Entity& entity, std::span<const UUID> cells);
+	// 設定と付随Bufferを同じ文書へ保存する
+	void SerializeCanvas(const CanvasComponent& component, std::span<const CanvasInputBinding> bindings,
 		std::span<const CanvasNavigationCell> cells, nlohmann::json& out);
 
 } // Engine

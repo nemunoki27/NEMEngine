@@ -37,13 +37,6 @@ namespace Engine {
 		//	private Methods
 		//========================================================================
 
-		//--------- functions ----------------------------------------------------
-
-		void DrawWindow(const EditorToolContext& context);
-
-		// fromからtoへ開いているシーンのタグを付け替えるコマンドを発行する
-		void RequestRemap(const EditorToolContext& context, const std::string& from, const std::string& to);
-
 		//--------- variables ----------------------------------------------------
 
 		// ToolPanelへ登録する情報
@@ -64,11 +57,12 @@ namespace Engine {
 		std::string renamingTag_;
 		// リネーム後の入力
 		char renameBuffer_[128]{};
-		// 未保存の編集があるか
-		bool dirty_ = false;
-		// Rendering Layerに未保存の編集があるか
-		bool renderingLayersDirty_ = false;
 		// 追加するRendering Layer名の入力
 		char addRenderingLayerBuffer_[128]{};
+		//--------- functions ----------------------------------------------------
+
+		// ツールの編集画面を表示する
+		void DrawWindow(const EditorToolContext& context);
+
 	};
 } // Engine

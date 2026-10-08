@@ -1,0 +1,25 @@
+#pragma once
+
+//============================================================================
+//	include
+//============================================================================
+#include <Engine/Editor/Tools/Core/EditorToolContext.h>
+#include <Engine/Core/Rendering/ShaderGraph/ShaderGraphIR.h>
+
+#include <filesystem>
+
+namespace Engine::ShaderGraphPublication {
+
+	// 派生Assetの基準名を取得する
+	std::string GraphFileStem(const std::filesystem::path& path);
+	// Graph文書と索引を同じ保存操作で確定する
+	AssetID SaveGraph(AssetDatabase& database, const ShaderGraphAsset& graph, const std::filesystem::path& path,
+		AssetID expectedID, std::string& status);
+	// コンパイル結果を保存して描画側へ公開する
+	bool CompileAndPublish(const EditorToolContext& context, AssetDatabase& database, const ShaderGraphAsset& graph,
+		AssetID assetID, const std::filesystem::path& graphPath, AssetID& materialID,
+		std::vector<ShaderGraphDiagnostic>& diagnostics, std::string& status);
+	// 編集中の成果物をファイルへ保存せず描画側へ公開する
+	bool CompileAndPublishPreview(const EditorToolContext& context, AssetDatabase& database, const ShaderGraphAsset& graph,
+		AssetID assetID, AssetID& materialID, std::vector<ShaderGraphDiagnostic>& diagnostics, std::string& status);
+}

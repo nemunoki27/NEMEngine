@@ -5,11 +5,12 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
+// c++
+#include <cstdint>
+
 // directX
 #include <d3d12.h>
 #include <Externals/DirectX12/d3dx12.h>
-// c++
-#include <cstdint>
 
 //============================================================================
 //	DxUtils namespace

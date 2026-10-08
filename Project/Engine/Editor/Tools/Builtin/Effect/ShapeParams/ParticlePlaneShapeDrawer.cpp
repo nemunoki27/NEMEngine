@@ -3,7 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Rendering/Particle/Gui/ParticleGuiHelpers.h>
+#include <Engine/Editor/Tools/Builtin/Effect/GUI/ParticleGUIHelpers.h>
 
 //============================================================================
 //	ParticlePlaneShapeDrawer classMethods
@@ -12,6 +12,6 @@ bool Engine::ParticlePlaneShapeDrawer::DrawImGui(ParticleEffectGroup& group) con
 
 	bool changed = false;
 	changed |= MyGUI::EnumCombo("面タイプ", group.plane.axis).valueChanged;
-	changed |= MyGUI::DragVector2("大きさ", group.plane.size, ParticleGui::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
+	changed |= MyGUI::DragVector2("大きさ", group.plane.size, ParticleGUI::MakeDragSetting(0.0f, 10000.0f)).valueChanged;
 	return changed;
 }

@@ -26,6 +26,8 @@ namespace Engine {
 		AnimationPropertyValue value;
 		// Preview開始時に値が存在したか、material override未設定はfalseで復元時に除去する
 		bool present = true;
+		// 一括Propertyの代表値は評価だけに使う
+		bool restore = true;
 	};
 
 	struct AnimationResolvedTime {
@@ -43,6 +45,15 @@ namespace Engine {
 
 		AnimationPropertyBinding binding;
 		AnimationPropertyValue value;
+		uint8_t channelMask = 0x0f;
+	};
+
+	struct AnimationContribution {
+
+		AnimationEvaluatedValue evaluated;
+		float weight = 1.0f;
+		int32_t priority = 0;
+		bool additive = false;
 	};
 
 	//============================================================================
@@ -80,6 +91,9 @@ namespace Engine {
 		static void BlendValues(std::span<const AnimationEvaluatedValue> fromValues,
 			std::span<const AnimationEvaluatedValue> toValues, std::span<const AnimationPreviewBaseValue> baseValues,
 			float weight, std::vector<AnimationEvaluatedValue>& outValues);
+		// 同じ成分を優先度とweightで合成する
+		static void ComposeValues(std::span<const AnimationContribution> contributions,
+			std::span<const AnimationPreviewBaseValue> baseValues, std::vector<AnimationEvaluatedValue>& outValues);
 		// 評価済み値を対象EntityのComponentへ書き込む
 		static void WriteValues(ECSWorld& world, const Entity& entity, std::span<const AnimationEvaluatedValue> values);
 		// キーの無いチャネルは書き込まず、対象Entityの現在値のまま残す(スクリプト等が持つ未キー成分を保持する)

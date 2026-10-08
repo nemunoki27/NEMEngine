@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Math/Vector2.h>
+#include <Engine/Core/Platform/Windows/WindowCursor.h>
+#include <Engine/Core/Platform/Windows/WindowPlacement.h>
 
 // windows
 #include <Windows.h>
@@ -37,7 +39,7 @@ namespace Engine {
 		// フルスクリーンの有効/無効を切り替える
 		static void SetFullscreen(bool fullscreen);
 		// 現在フルスクリーンか
-		static bool IsFullscreen() { return fullscreen_; }
+		static bool IsFullscreen() { return placement_.IsFullscreen(); }
 		// カーソル範囲制限をON/OFF
 		static void SetCursorClipEnabled(bool enabled);
 		// クライアント座標系の任意矩形でクリップ
@@ -52,12 +54,18 @@ namespace Engine {
 
 		// カーソルの表示/非表示
 		static void SetCursorVisible(bool visible);
-		static bool IsCursorVisible() { return cursorVisible_; }
+		static bool IsCursorVisible() { return cursor_.IsCursorVisible(); }
 
 		// 現在のウィンドウハンドル(HWND)を返す
 		static HWND GetHwnd() { return hwnd_; }
 		// 現在のクライアント領域サイズを返す
 		static Vector2I GetClientSize();
+		// 製品画像と同じクライアントサイズへ一時変更する
+		static bool BeginProductSizePreview(const Vector2I& size);
+		// 一時変更前のEditorウィンドウへ戻す
+		static void EndProductSizePreview();
+		// 現在のモニターへ収まる最大クライアントサイズを返す
+		static Vector2I GetMaximumClientSize();
 		// ウィンドウを閉じる前に呼ぶ確認処理を設定する
 		static void SetCloseRequestCallback(bool (*callback)()) { closeRequestCallback_ = callback; }
 		// Editor UIがWin32メッセージを処理する場合の転送先
@@ -74,31 +82,16 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		static HWND hwnd_;
+		static WindowCursor cursor_;
 
-		static bool cursorClipEnabled_;
-		static bool useCustomClipRect_;
-		static RECT customClientClipRect_;
-
-		static bool cursorVisible_;
 		static bool (*closeRequestCallback_)();
 		static MessageHandler messageHandler_;
-		static bool fullscreen_;
+		static WindowPlacement placement_;
 
 		UINT windowStyle_;
-		static RECT windowRect_;
 
 		//--------- functions ----------------------------------------------------
 
-		// カーソルの強制表示/非表示
-		static void ForceShowCursor(bool show);
-		// 必要に応じてカーソルの表示/非表示を行う
-		static void ApplyCursorVisibilityIfNeeded();
-
-		// 必要に応じてカーソルのクリッピングを行う
-		static void ApplyCursorClipIfNeeded();
-
-		// クライアント領域のRECTをスクリーン座標のRECTに変換する
-		static RECT ClientRectToScreenRect(HWND hwnd, const RECT& clientRect);
 		// プロセスをモニターごとのDPIへ対応させる
 		static void EnablePerMonitorDpiAwareness();
 

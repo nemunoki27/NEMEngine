@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/World/ECS/Components/Registry/ComponentTypeRegistry.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/Assets/RenderComponentTypes.h>
 #include <Engine/Core/Foundation/Math/Color.h>
 
 namespace Engine {
@@ -21,6 +22,8 @@ namespace Engine {
 		Color4 color = Color4::White();
 		// cubemapから作る拡散IBL環境光の強さ
 		float iblIntensity = 1.0f;
+		// Cameraの描画対象レイヤー
+		uint32_t renderingLayerMask = 1u;
 		// 表示フラグ
 		bool visible = true;
 	};

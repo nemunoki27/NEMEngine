@@ -1,16 +1,17 @@
 #include "ImGuiManager.h"
-
-using namespace Engine;
+#include "ImGuiAppearance.h"
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Descriptors/DxShaderResourceView.h>
+#include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
+#include <Engine/Core/Rendering/DxObject/Debug/DxDREDDiagnostics.h>
 #include <Engine/Core/Platform/Windows/Win32Window.h>
 #include <Engine/Core/Platform/Input/InputSystem.h>
 
 // c++
-#include <filesystem>
+#include <stdexcept>
 
 // windows
 #include <shellapi.h>
@@ -21,18 +22,21 @@ using namespace Engine;
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx12.h>
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
-	HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+using namespace Engine;
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
 namespace {
 
 	LRESULT ForwardImGuiMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
 
+		// 入力メッセージをImGuiへ渡す
 		return ImGui_ImplWin32_WndProcHandler(hwnd, message, wparam, lparam);
 	}
 
 	void ApplyDarkWindowFrame(HWND hwnd) {
 
+		// OSが提供するWindowの配色設定を取得する
 		using DwmSetWindowAttributeFunction = HRESULT(WINAPI*)(HWND, DWORD, LPCVOID, DWORD);
 
 		HMODULE dwmapi = LoadLibraryW(L"dwmapi.dll");
@@ -40,17 +44,15 @@ namespace {
 			return;
 		}
 
-		auto setWindowAttribute = reinterpret_cast<DwmSetWindowAttributeFunction>(
-			GetProcAddress(dwmapi, "DwmSetWindowAttribute"));
+		auto setWindowAttribute =
+			reinterpret_cast<DwmSetWindowAttributeFunction>(GetProcAddress(dwmapi, "DwmSetWindowAttribute"));
 		if (setWindowAttribute) {
 
 			const BOOL enabled = TRUE;
 			constexpr DWORD kUseImmersiveDarkMode = 20;
 			constexpr DWORD kUseImmersiveDarkModeLegacy = 19;
-			if (FAILED(setWindowAttribute(hwnd, kUseImmersiveDarkMode,
-				&enabled, sizeof(enabled)))) {
-				setWindowAttribute(hwnd, kUseImmersiveDarkModeLegacy,
-					&enabled, sizeof(enabled));
+			if (FAILED(setWindowAttribute(hwnd, kUseImmersiveDarkMode, &enabled, sizeof(enabled)))) {
+				setWindowAttribute(hwnd, kUseImmersiveDarkModeLegacy, &enabled, sizeof(enabled));
 			}
 		}
 		FreeLibrary(dwmapi);
@@ -63,7 +65,7 @@ ImGuiManager* ImGuiManager::instance_ = nullptr;
 //	ImGuiManager classMethods
 //============================================================================
 void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D12CommandQueue* commandQueue,
-	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) {
+	SRVDescriptor* srvDescriptor, DXGI_FORMAT rtvFormat, DXGI_FORMAT dsvFormat) try {
 
 	if (initialized_) {
 		return;
@@ -75,6 +77,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	contextCreated_ = true;
 
 	// コンフィグ設定
 	ImGuiIO& io = ImGui::GetIO();
@@ -87,8 +90,11 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	io.ConfigDpiScaleViewports = true;
 
 	ImGui::StyleColorsDark();
-	//Win32初期化
-	ImGui_ImplWin32_Init(hwnd);
+	// Win32の入力とWindow処理を接続する
+	platformInitialized_ = ImGui_ImplWin32_Init(hwnd);
+	if (!platformInitialized_) {
+		throw std::runtime_error("ImGuiのWindow初期化に失敗しました");
+	}
 	WinApp::SetMessageHandler(ForwardImGuiMessage);
 
 	// DX12初期化
@@ -100,163 +106,25 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	dxInitInfo.DSVFormat = dsvFormat;
 	dxInitInfo.SrvDescriptorHeap = srvDescriptor->GetDescriptorHeap();
 	dxInitInfo.UserData = this;
+	dxInitInfo.WaitForGPUFn = &ImGuiManager::WaitForGPU;
+	dxInitInfo.ResourceRetireFn = &ImGuiManager::RetireResource;
 	dxInitInfo.SrvDescriptorAllocFn = &ImGuiManager::AllocateSRVDescriptor;
 	dxInitInfo.SrvDescriptorFreeFn = &ImGuiManager::FreeSRVDescriptor;
-	ImGui_ImplDX12_Init(&dxInitInfo);
-
-	//============================================================================
-	//	imguiConfig
-	//============================================================================
-	// ImGuiのフォント設定
-	ImFontConfig cfg{};
-	cfg.FontNo = 0;
-	
-	const char* fontPath = "C:\\Windows\\Fonts\\meiryob.ttc";
-	if (std::filesystem::exists(fontPath)) {
-		io.FontDefault = io.Fonts->AddFontFromFileTTF(fontPath, 20.0f, &cfg, io.Fonts->GetGlyphRangesJapanese());
-	}
-	else {
-		// フォントがない場合のデフォルトフォントへのフォールバック
-		io.Fonts->AddFontDefault();
+	rendererInitialized_ = ImGui_ImplDX12_Init(&dxInitInfo);
+	if (!rendererInitialized_) {
+		throw std::runtime_error("ImGuiの描画初期化に失敗しました");
 	}
 
-	ImGuiStyle& style = ImGui::GetStyle();
-	ImVec4* colors = style.Colors;
-
-	auto C = [](int r, int g, int b, int a = 255) -> ImVec4 {
-		return ImVec4(r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
-		};
-
-	//============================================================================
-	// Almost Pure Black Theme + Deep Orange Accent
-	//============================================================================
-	// ---- Base ----
-	// ほぼ黒で紺っぽさを完全に消す
-	const ImVec4 bg0 = C(0, 0, 0);          // WindowBg
-	const ImVec4 bg1 = C(2, 2, 2);          // Child/Popup
-	const ImVec4 topbar = C(3, 3, 3);          // Title/Menu
-	const ImVec4 panel = C(6, 6, 6);          // Frame/Button/Header
-	const ImVec4 panelH = C(12, 12, 12);       // Hover
-	const ImVec4 panelA = C(18, 18, 18);       // Active
-	const ImVec4 border = C(28, 28, 28, 130);  // Border
-
-	// ---- Accent ----
-	// 黒背景向けの暗め・濃いブルー
-	const ImVec4 accent = C(12, 45, 115, 255);
-	const ImVec4 accentH = C(18, 62, 150, 230);
-	const ImVec4 accentA = C(26, 82, 190, 255);
-	const ImVec4 accentLo = C(12, 45, 115, 70);
-
-	// Text
-	colors[ImGuiCol_Text] = C(125, 125, 125);
-	colors[ImGuiCol_TextDisabled] = C(78, 78, 78, 153);
-
-	// Window
-	colors[ImGuiCol_WindowBg] = bg0;
-	colors[ImGuiCol_ChildBg] = bg0;
-	colors[ImGuiCol_PopupBg] = C(2, 2, 2, 245);
-
-	// Borders
-	colors[ImGuiCol_Border] = border;
-	colors[ImGuiCol_BorderShadow] = C(0, 0, 0, 0);
-
-	// Frame
-	colors[ImGuiCol_FrameBg] = C(5, 5, 5);
-	colors[ImGuiCol_FrameBgHovered] = C(10, 10, 10);
-	colors[ImGuiCol_FrameBgActive] = C(0, 13, 85, 255);
-
-	// Titlebar
-	colors[ImGuiCol_TitleBg] = topbar;
-	colors[ImGuiCol_TitleBgActive] = C(5, 5, 5);
-	colors[ImGuiCol_TitleBgCollapsed] = C(0, 0, 0);
-	colors[ImGuiCol_MenuBarBg] = C(4, 4, 4);
-
-	// Scrollbar
-	colors[ImGuiCol_ScrollbarBg] = bg0;
-	colors[ImGuiCol_ScrollbarGrab] = C(12, 12, 12);
-	colors[ImGuiCol_ScrollbarGrabHovered] = C(20, 20, 20);
-	colors[ImGuiCol_ScrollbarGrabActive] = C(32, 32, 32);
-
-	// Checkmark / Slider
-	colors[ImGuiCol_CheckMark] = C(0, 40, 255, 255);
-	colors[ImGuiCol_CheckboxSelectedBg] = C(7, 7, 7, 255);
-	colors[ImGuiCol_SliderGrab] = C(120, 120, 120, 150);
-	colors[ImGuiCol_SliderGrabActive] = accentA;
-
-	// Buttons
-	colors[ImGuiCol_Button] = panel;
-	colors[ImGuiCol_ButtonHovered] = C(0, 13, 85, 255);
-	colors[ImGuiCol_ButtonActive] = C(0, 7, 45, 255);
-
-	// Header
-	colors[ImGuiCol_Header] = C(13, 13, 13, 255);
-	colors[ImGuiCol_HeaderHovered] = C(0, 13, 85, 255);
-	colors[ImGuiCol_HeaderActive] = C(0, 7, 45, 255);
-
-	// Separator / ResizeGrip
-	colors[ImGuiCol_Separator] = border;
-	colors[ImGuiCol_SeparatorHovered] = accentH;
-	colors[ImGuiCol_SeparatorActive] = accentA;
-
-	colors[ImGuiCol_ResizeGrip] = accentLo;
-	colors[ImGuiCol_ResizeGripHovered] = C(18, 62, 150, 145);
-	colors[ImGuiCol_ResizeGripActive] = C(0, 7, 45, 255);
-
-	// Tabs
-	colors[ImGuiCol_Tab] = topbar;
-	colors[ImGuiCol_TabHovered] = C(0, 13, 85, 255);
-	colors[ImGuiCol_TabSelected] = C(8, 8, 8);
-	colors[ImGuiCol_TabSelectedOverline] = accentA;
-	colors[ImGuiCol_TabDimmed] = C(1, 1, 1);
-	colors[ImGuiCol_TabDimmedSelected] = C(5, 5, 5);
-	colors[ImGuiCol_TabDimmedSelectedOverline] = C(18, 62, 150, 145);
-
-	// Docking
-	colors[ImGuiCol_DockingPreview] = C(12, 45, 115, 65);
-	colors[ImGuiCol_DockingEmptyBg] = bg0;
-
-	// Plots
-	colors[ImGuiCol_PlotLines] = C(130, 130, 130);
-	colors[ImGuiCol_PlotLinesHovered] = accentA;
-	colors[ImGuiCol_PlotHistogram] = C(130, 130, 130);
-	colors[ImGuiCol_PlotHistogramHovered] = accentA;
-
-	// Selection / DragDrop
-	colors[ImGuiCol_TextSelectedBg] = accentLo;
-	colors[ImGuiCol_DragDropTarget] = C(0, 15, 98);
-
-	// Nav highlight
-	colors[ImGuiCol_NavHighlight] = accentA;
-	colors[ImGuiCol_NavWindowingHighlight] = C(18, 62, 150, 170);
-	colors[ImGuiCol_NavWindowingDimBg] = C(0, 0, 0, 180);
-	colors[ImGuiCol_ModalWindowDimBg] = C(0, 0, 0, 205);
-
-	colors[ImGuiCol_TableBorderStrong] = C(31, 31, 31);
-	colors[ImGuiCol_TableBorderLight] = C(31, 31, 31);
-	colors[ImGuiCol_TableRowBgAlt] = C(4, 4, 4);
-	colors[ImGuiCol_TableHeaderBg] = C(2, 2, 2);
-
-	// Shape / Layout
-	style.WindowRounding = 2.0f;
-	style.ChildRounding = 2.0f;
-	style.FrameRounding = 2.0f;
-	style.FramePadding = ImVec2(2.0f, 2.0f);
-	style.ScrollbarRounding = 2.0f;
-	style.GrabRounding = 2.0f;
-	style.TabRounding = 2.0f;
-
-	style.WindowBorderSize = 1.0f;
-	style.FrameBorderSize = 0.0f;
-
-	style.DockingSeparatorSize = 2.0f;
-
-	// 外部ウィンドウではOS枠と重なるImGui装飾を平坦化する
-	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		style.WindowRounding = 0.0f;
-		colors[ImGuiCol_WindowBg].w = 1.0f;
-	}
+	// フォントと外部Window用の外観を揃える
+	ImGuiAppearance::ConfigureFont(io);
+	ImGuiAppearance::ApplyTheme(ImGui::GetStyle(), (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) != 0);
 
 	initialized_ = true;
+} catch (...) {
+
+	// 初期化途中の接続と資源を戻す
+	Finalize();
+	throw;
 }
 
 void ImGuiManager::Begin() {
@@ -266,6 +134,7 @@ void ImGuiManager::Begin() {
 	}
 
 	ImGui_ImplDX12_NewFrame();
+	CheckGPUFailure();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 }
@@ -279,6 +148,7 @@ void ImGuiManager::End() {
 	ImGui::Render();
 	if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
 		ImGui::UpdatePlatformWindows();
+		CheckGPUFailure();
 		RegisterPlatformWindows();
 	}
 }
@@ -289,65 +159,94 @@ void ImGuiManager::Draw(ID3D12GraphicsCommandList* commandList) {
 		return;
 	}
 
-	ID3D12DescriptorHeap* heaps[] = { srvDescriptor_->GetDescriptorHeap() };
+	ID3D12DescriptorHeap* heaps[] = {srvDescriptor_->GetDescriptorHeap()};
 	commandList->SetDescriptorHeaps(1, heaps);
 
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+	CheckGPUFailure();
 }
 
 void ImGuiManager::DrawPlatformWindows() {
 
-	if (!initialized_ ||
-		!(ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)) {
+	if (!initialized_ || !(ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)) {
 		return;
 	}
 	ImGui::RenderPlatformWindowsDefault();
+	CheckGPUFailure();
 }
 
 void ImGuiManager::Finalize() {
 
-	if (!initialized_) {
-		return;
+	if (contextCreated_) {
+
+		// 外部Windowの接続を戻してBackendを終了
+		RestorePlatformWindowProcedures();
+		WinApp::SetMessageHandler(nullptr);
+		if (rendererInitialized_) {
+			ImGui_ImplDX12_Shutdown();
+			rendererInitialized_ = false;
+		}
+		if (platformInitialized_) {
+			ImGui_ImplWin32_Shutdown();
+			platformInitialized_ = false;
+		}
+		ImGui::DestroyContext();
+		contextCreated_ = false;
 	}
 
-	// 外部ViewportのWndProcを戻してから各Backendに所有資源を破棄させる
-	RestorePlatformWindowProcedures();
-	WinApp::SetMessageHandler(nullptr);
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-
+	// 初期化前の失敗でも借用を解除
 	imguiSRVIndices_.clear();
 	platformWindowProcedures_.clear();
 	srvDescriptor_ = nullptr;
-	instance_ = nullptr;
+	if (instance_ == this) {
+		instance_ = nullptr;
+	}
 	initialized_ = false;
+	gpuFailed_ = false;
 }
 
-void ImGuiManager::AllocateSRVDescriptor(ImGui_ImplDX12_InitInfo* info,
-	D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle) {
+bool ImGuiManager::WaitForGPU(ImGui_ImplDX12_InitInfo* info, ID3D12Fence* fence, UINT64 value, HANDLE event) {
 
-	auto* manager = static_cast<ImGuiManager*>(info ? info->UserData : nullptr);
-	if (!manager) {
-		*outCPUHandle = {};
-		*outGPUHandle = {};
-		return;
+	// Backendの待機失敗を次の描画処理へ伝える
+	auto& manager = *static_cast<ImGuiManager*>(info->UserData);
+	const bool completed = fence   ? DxDREDDiagnostics::WaitForFence(info->Device, fence, value, event, "ImGui::Fence")
+						   : event ? DxDREDDiagnostics::WaitForEvent(info->Device, event, "ImGui::Present")
+								   : DxDREDDiagnostics::CheckDeviceState(info->Device, "ImGui::Device");
+	manager.gpuFailed_ |= !completed;
+	return completed;
+}
+
+void ImGuiManager::CheckGPUFailure() const {
+
+	if (gpuFailed_) {
+		throw std::runtime_error("ImGuiのGPU処理を継続できません");
 	}
-	manager->AllocateImGuiSRV(outCPUHandle, outGPUHandle);
 }
 
-void ImGuiManager::FreeSRVDescriptor(ImGui_ImplDX12_InitInfo* info,
-	D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
+void ImGuiManager::RetireResource(ImGui_ImplDX12_InitInfo* info, ID3D12Object* resource) {
 
-	auto* manager = static_cast<ImGuiManager*>(info ? info->UserData : nullptr);
-	if (!manager) {
-		return;
-	}
-	manager->FreeImGuiSRV(gpuHandle);
+	// Backendの解放後も提出済みdrawの参照を保持する
+	auto& manager = *static_cast<ImGuiManager*>(info->UserData);
+	manager.srvDescriptor_->GetRetirementQueue().Retire(ComPtr<ID3D12Object>(resource));
 }
 
-void ImGuiManager::AllocateImGuiSRV(D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle,
-	D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle) {
+void ImGuiManager::AllocateSRVDescriptor(
+	ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle) {
+
+	// 初期化時に接続した所有元へDescriptor要求を渡す
+	auto& manager = *static_cast<ImGuiManager*>(info->UserData);
+	manager.AllocateImGuiSRV(outCPUHandle, outGPUHandle);
+}
+
+void ImGuiManager::FreeSRVDescriptor(
+	ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
+
+	// Backend終了まで有効な所有元へ返却する
+	auto& manager = *static_cast<ImGuiManager*>(info->UserData);
+	manager.FreeImGuiSRV(gpuHandle);
+}
+
+void ImGuiManager::AllocateImGuiSRV(D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGPUHandle) {
 
 	if (!srvDescriptor_) {
 		*outCPUHandle = {};
@@ -356,6 +255,7 @@ void ImGuiManager::AllocateImGuiSRV(D3D12_CPU_DESCRIPTOR_HANDLE* outCPUHandle,
 	}
 
 	const uint32_t index = srvDescriptor_->Allocate();
+	// 使用番号を記録してBackendへHandleを渡す
 	*outCPUHandle = srvDescriptor_->GetCPUHandle(index);
 	*outGPUHandle = srvDescriptor_->GetGPUHandle(index);
 	imguiSRVIndices_[static_cast<uint64_t>(outGPUHandle->ptr)] = index;
@@ -369,7 +269,8 @@ void ImGuiManager::FreeImGuiSRV(D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
 	}
 
 	if (srvDescriptor_) {
-		srvDescriptor_->Free(it->second);
+		// GPU完了後にDescriptorを再利用する
+		srvDescriptor_->Retire(it->second, {});
 	}
 	imguiSRVIndices_.erase(it);
 }
@@ -387,9 +288,8 @@ void ImGuiManager::RegisterPlatformWindows() {
 
 		ApplyDarkWindowFrame(hwnd);
 		DragAcceptFiles(hwnd, TRUE);
-		WNDPROC previous = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(
-			hwnd, GWLP_WNDPROC,
-			reinterpret_cast<LONG_PTR>(&ImGuiManager::PlatformWindowProc)));
+		WNDPROC previous = reinterpret_cast<WNDPROC>(
+			SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&ImGuiManager::PlatformWindowProc)));
 		if (previous) {
 			platformWindowProcedures_.emplace(hwnd, previous);
 		}
@@ -400,8 +300,7 @@ void ImGuiManager::RestorePlatformWindowProcedures() {
 
 	for (const auto& [hwnd, procedure] : platformWindowProcedures_) {
 		if (IsWindow(hwnd)) {
-			SetWindowLongPtrW(hwnd, GWLP_WNDPROC,
-				reinterpret_cast<LONG_PTR>(procedure));
+			SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(procedure));
 		}
 	}
 	platformWindowProcedures_.clear();
@@ -409,12 +308,10 @@ void ImGuiManager::RestorePlatformWindowProcedures() {
 
 bool ImGuiManager::IsEditorWindow(HWND hwnd) const {
 
-	return hwnd == WinApp::GetHwnd() ||
-		platformWindowProcedures_.contains(hwnd);
+	return hwnd == WinApp::GetHwnd() || platformWindowProcedures_.contains(hwnd);
 }
 
-LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message,
-	WPARAM wparam, LPARAM lparam) {
+LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
 
 	if (!instance_) {
 		return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -428,14 +325,13 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message,
 
 	switch (message) {
 	case WM_SETFOCUS:
-		if (Input* input = Input::GetInstance()) {
+		if (Input* input = Input::TryGetInstance()) {
 			input->SetWindowFocus(true);
 		}
 		break;
 	case WM_KILLFOCUS:
-		if (Input* input = Input::GetInstance()) {
-			input->SetWindowFocus(
-				instance_->IsEditorWindow(reinterpret_cast<HWND>(wparam)));
+		if (Input* input = Input::TryGetInstance()) {
+			input->SetWindowFocus(instance_->IsEditorWindow(reinterpret_cast<HWND>(wparam)));
 		}
 		break;
 	case WM_DROPFILES:
@@ -443,8 +339,7 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message,
 		return 0;
 	}
 
-	const LRESULT result = CallWindowProcW(previous,
-		hwnd, message, wparam, lparam);
+	const LRESULT result = CallWindowProcW(previous, hwnd, message, wparam, lparam);
 	if (message == WM_NCDESTROY) {
 		instance_->platformWindowProcedures_.erase(hwnd);
 	}

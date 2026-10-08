@@ -39,15 +39,9 @@ namespace Engine {
 		Experimental = 1 << 2,
 	};
 
-	inline ToolFlags operator|(ToolFlags lhs, ToolFlags rhs) {
+	ToolFlags operator|(ToolFlags lhs, ToolFlags rhs);
 
-		return static_cast<ToolFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
-	}
-
-	inline bool HasToolFlag(ToolFlags flags, ToolFlags target) {
-
-		return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(target)) != 0;
-	}
+	bool HasToolFlag(ToolFlags flags, ToolFlags target);
 
 	// ツール一覧や検索に使う情報
 	struct ToolDescriptor {

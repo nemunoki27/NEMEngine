@@ -158,4 +158,6 @@ namespace Engine {
 	// カーブチャンネルのjson変換、エフェクトのカーブ保存でも共用する
 	void to_json(nlohmann::json& out, const CurveChannel& channel);
 	void from_json(const nlohmann::json& in, CurveChannel& channel);
+	// 軸設定を読むまでキーの入力順を保持できる読込
+	void ReadCurveChannel(const nlohmann::json& in, CurveChannel& channel, bool sortKeys);
 } // Engine

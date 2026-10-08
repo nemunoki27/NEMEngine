@@ -6,6 +6,7 @@
 #include <Engine/Editor/Commands/Core/IEditorCommand.h>
 #include <Engine/Core/Assets/AssetTypes.h>
 #include <Engine/Core/Foundation/Identity/UUID.h>
+#include <Engine/Core/World/Scene/Serialization/EntityTreeSnapshot.h>
 
 namespace Engine {
 
@@ -46,6 +47,7 @@ namespace Engine {
 		UUID parentStableUUID_{};
 		// 最後に生成したPrefabインスタンスのルートEntity
 		UUID instantiatedRootStableUUID_{};
+		EntityTreeSnapshot snapshot_;
 
 		//--------- functions ----------------------------------------------------
 

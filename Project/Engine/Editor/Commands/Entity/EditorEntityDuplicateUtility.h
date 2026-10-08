@@ -8,9 +8,7 @@
 
 // c++
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <cctype>
+#include <string_view>
 
 namespace Engine::EditorEntityDuplicateUtility {
 
@@ -22,10 +20,6 @@ namespace Engine::EditorEntityDuplicateUtility {
 
 	// クリップボードへ入れるためにルートの親参照を切る
 	void ClearRootParentLink(EditorEntityTreeSnapshot& snapshot);
-
-	// 元スナップショットから複製用のスナップショットを作る
-	void BuildDuplicateSnapshot(const EditorEntityTreeSnapshot& sourceSnapshot,
-		const std::string_view& duplicatedRootName, EditorEntityTreeSnapshot& outSnapshot);
 
 	// 準備したスナップショットからインスタンスを生成する
 	Entity InstantiatePreparedSnapshot(ECSWorld& world, const EditorEntityTreeSnapshot& preparedSnapshot,

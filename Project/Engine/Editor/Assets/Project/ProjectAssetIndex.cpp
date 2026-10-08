@@ -4,8 +4,16 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
+#include <Engine/Core/Assets/Database/AssetFileUtility.h>
 #include <Engine/Core/Assets/Utility/AssetTypeResolver.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
+
+// c++
+#include <algorithm>
+#include <exception>
+#include <string_view>
+#include <utility>
 
 //============================================================================
 //	ProjectAssetIndex classMethods
@@ -13,7 +21,7 @@
 namespace {
 
 	// 同じファイル名で特定の拡張子を持つ兄弟ファイルが存在するか
-	static bool ExistsSiblingWithSameStem(const std::filesystem::path& fullPath, const char* extension) {
+	bool ExistsSiblingWithSameStem(const std::filesystem::path& fullPath, const char* extension) {
 		std::filesystem::path sibling = fullPath.parent_path() / fullPath.stem();
 		sibling += Engine::Algorithm::PathFromUTF8(extension);
 		return std::filesystem::exists(sibling);
@@ -21,28 +29,26 @@ namespace {
 
 	struct AssetRootDesc {
 
-		std::string name;
-		std::string virtualPath;
-		std::filesystem::path fullPath;
+		std::string name;				// 表示するルート名
+		std::string virtualPath;		// Project内のルート名
+		std::filesystem::path fullPath; // 走査する実フォルダー
 	};
 
 	AssetRootDesc MakeAssetRootDesc(const Engine::AssetDatabase& database, Engine::ProjectAssetSource source) {
 
 		switch (source) {
 		case Engine::ProjectAssetSource::Engine:
-			return { "Engine", "Engine/Assets", database.GetAssetsRoot() };
+			return {"Engine", "Engine/Assets", database.GetAssetsRoot()};
 		case Engine::ProjectAssetSource::Game:
-			return { "Game", "GameAssets", Engine::RuntimePaths::GetGameRoot() / "GameAssets" };
+			return {"Game", "GameAssets", Engine::RuntimePaths::GetGameRoot() / "GameAssets"};
 		}
-		return { "Engine", "Engine/Assets", database.GetAssetsRoot() };
+		return {"Engine", "Engine/Assets", database.GetAssetsRoot()};
 	}
 
 	Engine::AssetType GuessBrowserAssetType(const std::filesystem::path& fullPath) {
 
-		const std::string fileName = Engine::Algorithm::ToLower(
-			Engine::Algorithm::PathToUTF8(fullPath.filename()));
-		const std::string extension = Engine::Algorithm::ToLower(
-			Engine::Algorithm::PathToUTF8(fullPath.extension()));
+		const std::string fileName = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(fullPath.filename()));
+		const std::string extension = Engine::Algorithm::ToLower(Engine::Algorithm::PathToUTF8(fullPath.extension()));
 
 		if (Engine::Algorithm::EndsWith(fileName, ".animclip.json") || extension == ".animclip") {
 			return Engine::AssetType::AnimationClip;
@@ -53,7 +59,23 @@ namespace {
 
 bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAssetSource source) {
 
+	try {
+		// 全ての走査が成功してから一覧を差し替える
+		ProjectAssetIndex next;
+		next.BuildRoot(database, source);
+		root_ = std::move(next.root_);
+		source_ = next.source_;
+		return true;
+	} catch (const std::exception& error) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "Projectの一覧を更新できません 詳細={}", error.what());
+		return false;
+	}
+}
+
+void Engine::ProjectAssetIndex::BuildRoot(const AssetDatabase& database, ProjectAssetSource source) {
+
 	const AssetRootDesc rootDesc = MakeAssetRootDesc(database, source);
+	source_ = source;
 
 	// Assets配下を再帰走査してインデックスを構築
 	root_ = {};
@@ -61,13 +83,21 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 	root_.virtualPath = rootDesc.virtualPath;
 
 	if (!std::filesystem::exists(rootDesc.fullPath) || !std::filesystem::is_directory(rootDesc.fullPath)) {
-		return true;
+		return;
 	}
 
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(rootDesc.fullPath)) {
+	for (auto iterator = std::filesystem::recursive_directory_iterator(rootDesc.fullPath);
+		iterator != std::filesystem::recursive_directory_iterator{}; ++iterator) {
+
+		const auto& entry = *iterator;
 
 		if (entry.is_directory()) {
 
+			// コピー準備中のファイルをProjectへ公開しない
+			if (AssetFileUtility::IsAssetCopyStagingDirectory(entry.path())) {
+				iterator.disable_recursion_pending();
+				continue;
+			}
 			std::filesystem::path directory = std::filesystem::relative(entry.path(), rootDesc.fullPath);
 			EnsureDirectory(directory);
 			continue;
@@ -97,7 +127,6 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 		browserEntry.assetPath = assetPath;
 		browserEntry.fileName = Algorithm::PathToUTF8(fullPath.filename());
 		browserEntry.displayName = MakeDisplayName(fullPath);
-		browserEntry.sidecarFiles = CollectSidecars(fullPath);
 
 		// ディレクトリノードに追加
 		std::filesystem::path directory = std::filesystem::relative(fullPath.parent_path(), rootDesc.fullPath);
@@ -106,7 +135,6 @@ bool Engine::ProjectAssetIndex::Rebuild(const AssetDatabase& database, ProjectAs
 	}
 	// ディレクトリノードをソート
 	SortRecursive(root_);
-	return true;
 }
 
 const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindDirectory(const std::string& virtualPath) const {
@@ -122,10 +150,8 @@ const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetByPath(cons
 bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path& fullPath) {
 
 	// ファイル名と拡張子を小文字化して取得
-	const std::string fileName = Algorithm::ToLower(
-		Algorithm::PathToUTF8(fullPath.filename()));
-	const std::string extension = Algorithm::ToLower(
-		Algorithm::PathToUTF8(fullPath.extension()));
+	const std::string fileName = Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.filename()));
+	const std::string extension = Algorithm::ToLower(Algorithm::PathToUTF8(fullPath.extension()));
 
 	// .metaファイルは常に非表示
 	if (Engine::Algorithm::EndsWith(fileName, ".meta") || fileName.find(".meta.") != std::string::npos) {
@@ -137,8 +163,7 @@ bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path&
 		return true;
 	}
 
-	// MSDFフォントの生成物はブラウザ上では扱わせない、参照元の.ttf/.otfへ操作を集約するため非表示にする
-	// .font.json本体と、隣接する同名アトラス(<stem>.font.jsonを持つ.png)の両方を隠す
+	// Fontの生成情報と同名Atlasを非表示にする
 	if (Engine::Algorithm::EndsWith(fileName, ".font.json")) {
 		return true;
 	}
@@ -146,46 +171,12 @@ bool Engine::ProjectAssetIndex::ShouldHideInBrowser(const std::filesystem::path&
 		return true;
 	}
 
-	// base_charsetは固定の基底文字集合なので直接編集対象にしない、game_charsetのみ編集させる
+	// 固定の基底文字集合を非表示にする
 	if (fileName == "base_charset.txt") {
 		return true;
 	}
 
-	// .objの付属ファイル
-	if (extension == ".mtl" && ExistsSiblingWithSameStem(fullPath, ".obj")) {
-		return true;
-	}
-	// .gltf/.glbの付属バイナリ
-	if (extension == ".bin" && (ExistsSiblingWithSameStem(fullPath, ".gltf") || ExistsSiblingWithSameStem(fullPath, ".glb"))) {
-		return true;
-	}
 	return false;
-}
-
-std::vector<std::string> Engine::ProjectAssetIndex::CollectSidecars(const std::filesystem::path& fullPath) {
-
-	std::vector<std::string> result;
-	const std::string extension = Algorithm::ToLower(
-		Algorithm::PathToUTF8(fullPath.extension()));
-	// .objの付属ファイル
-	if (extension == ".obj") {
-
-		std::filesystem::path mtl = fullPath.parent_path() / fullPath.stem();
-		mtl += L".mtl";
-		if (std::filesystem::exists(mtl)) {
-			result.emplace_back(Algorithm::PathToUTF8(mtl.filename()));
-		}
-	}
-	// .gltf/.glbの付属バイナリ
-	if (extension == ".gltf" || extension == ".glb") {
-
-		std::filesystem::path bin = fullPath.parent_path() / fullPath.stem();
-		bin += L".bin";
-		if (std::filesystem::exists(bin)) {
-			result.emplace_back(Algorithm::PathToUTF8(bin.filename()));
-		}
-	}
-	return result;
 }
 
 std::string Engine::ProjectAssetIndex::MakeDisplayName(const std::filesystem::path& fullPath) {
@@ -201,31 +192,29 @@ std::string Engine::ProjectAssetIndex::MakeDisplayName(const std::filesystem::pa
 
 Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const std::filesystem::path& relativeDirectory) {
 
-	// ルートが"Assets"なので、相対パスが空もしくは"."の場合はルートを返す
+	// 相対パスが空ならルートを返す
 	ProjectDirectoryNode* current = &root_;
 	if (relativeDirectory.empty() || relativeDirectory == ".") {
 		return current;
 	}
 
-	// 相対パスを"/"区切りで分割して順にディレクトリノードをたどり存在しない場合は新規作成する
+	// 相対パスの階層ごとにディレクトリを確保する
 	std::string currentPath = root_.virtualPath;
 	for (const auto& part : relativeDirectory) {
 
 		const std::string name = Algorithm::PathToUTF8(part);
 		currentPath += "/" + name;
-		auto it = std::find_if(current->children.begin(), current->children.end(),
-			[&](const std::unique_ptr<ProjectDirectoryNode>& child) {
-				return child->name == name;
-			});
+		auto it = std::find_if(current->children_.begin(), current->children_.end(),
+			[&](const std::unique_ptr<ProjectDirectoryNode>& child) { return child->name == name; });
 
 		// 存在しない場合は新規作成して移動、存在する場合はそのノードに移動
-		if (it == current->children.end()) {
+		if (it == current->children_.end()) {
 
 			auto child = std::make_unique<ProjectDirectoryNode>();
 			child->name = name;
 			child->virtualPath = currentPath;
-			current->children.emplace_back(std::move(child));
-			current = current->children.back().get();
+			current->children_.emplace_back(std::move(child));
+			current = current->children_.back().get();
 		} else {
 
 			current = it->get();
@@ -237,17 +226,15 @@ Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::EnsureDirectory(const s
 void Engine::ProjectAssetIndex::SortRecursive(ProjectDirectoryNode& node) {
 
 	// 子ディレクトリを名前順にソート
-	std::sort(node.children.begin(), node.children.end(),
+	std::sort(node.children_.begin(), node.children_.end(),
 		[](const std::unique_ptr<ProjectDirectoryNode>& a, const std::unique_ptr<ProjectDirectoryNode>& b) {
 			return a->name < b->name;
 		});
 	// ディレクトリ内のアセットを表示名順にソート
 	std::sort(node.assets.begin(), node.assets.end(),
-		[](const ProjectAssetEntry& a, const ProjectAssetEntry& b) {
-			return a.displayName < b.displayName;
-		});
+		[](const ProjectAssetEntry& a, const ProjectAssetEntry& b) { return a.displayName < b.displayName; });
 	// 子ディレクトリも再帰的にソート
-	for (auto& child : node.children) {
+	for (auto& child : node.children_) {
 
 		SortRecursive(*child);
 	}
@@ -261,8 +248,8 @@ const Engine::ProjectDirectoryNode* Engine::ProjectAssetIndex::FindRecursive(
 		return &node;
 	}
 	// 子ディレクトリを再帰的に検索
-	for (const auto& child : node.children) {
-		if (const ProjectDirectoryNode* found = FindRecursive(*child, virtualPath)) {
+	for (const auto& child : node.GetChildren()) {
+		if (const ProjectDirectoryNode* found = FindRecursive(child, virtualPath)) {
 
 			return found;
 		}
@@ -278,8 +265,8 @@ const Engine::ProjectAssetEntry* Engine::ProjectAssetIndex::FindAssetRecursive(
 			return &asset;
 		}
 	}
-	for (const auto& child : node.children) {
-		if (const ProjectAssetEntry* found = FindAssetRecursive(*child, assetPath)) {
+	for (const auto& child : node.GetChildren()) {
+		if (const ProjectAssetEntry* found = FindAssetRecursive(child, assetPath)) {
 			return found;
 		}
 	}

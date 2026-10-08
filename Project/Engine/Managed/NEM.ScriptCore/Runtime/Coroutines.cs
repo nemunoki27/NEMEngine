@@ -49,13 +49,13 @@ internal enum CoroutinePhase {
 
 // Unity 風 Coroutine service。main thread でのみ resume する。
 // Update / FixedUpdate / EndOfFrame の resume queue を phase で分離する。
-// owner ScriptBehaviour 破棄 / DLL unload / Play Stop で停止し、IEnumerator 参照を手放す。
+// owner MonoBehaviour 破棄 / DLL unload / Play Stop で停止し、IEnumerator 参照を手放す。
 internal static class Coroutines {
 
     private sealed class Routine {
         public uint generation;        // 0 = 空きスロット
         public bool active;
-        public ScriptBehaviour? owner;
+        public MonoBehaviour? owner;
         public readonly Stack<IEnumerator> stack = new();
         public CoroutinePhase resumePhase;
         public bool waitingTime;       // WaitForSeconds(Realtime) 待機中か
@@ -74,7 +74,7 @@ internal static class Coroutines {
             && routines[handle.index].active && routines[handle.index].generation == handle.generation;
     }
 
-    internal static CoroutineHandle Start(ScriptBehaviour owner, IEnumerator routine) {
+    internal static CoroutineHandle Start(MonoBehaviour owner, IEnumerator routine) {
         if (routine == null) {
             return default;
         }
@@ -103,8 +103,15 @@ internal static class Coroutines {
 
         CoroutineHandle handle = new(index, entry.generation);
         // Unity と同様、最初の yield までは即時に実行する
-        if (Step(entry)) {
+        try {
+            if (Step(entry)) {
+                FreeAt(index);
+            }
+        }
+        catch {
+            // 例外が出たCoroutineは再開対象へ残さない
             FreeAt(index);
+            throw;
         }
         return handle;
     }
@@ -117,7 +124,7 @@ internal static class Coroutines {
         return true;
     }
 
-    internal static void StopAllForOwner(ScriptBehaviour owner) {
+    internal static void StopAllForOwner(MonoBehaviour owner) {
         for (int i = 0; i < routines.Count; ++i) {
             if (routines[i].active && ReferenceEquals(routines[i].owner, owner)) {
                 FreeAt(i);
@@ -127,17 +134,23 @@ internal static class Coroutines {
 
     // 指定 phase の resume を実行する（BehaviorSystem から main thread で）。
     internal static void Tick(CoroutinePhase phase) {
-        float scaledDelta = Time.DeltaTime;
-        float unscaledDelta = Time.UnscaledDeltaTime;
+        float scaledDelta = Time.deltaTime;
+        float unscaledDelta = Time.unscaledDeltaTime;
         int count = routines.Count;
         for (int i = 0; i < count && i < routines.Count; ++i) {
             Routine r = routines[i];
             if (!r.active) {
                 continue;
             }
-            // owner 破棄で停止
-            if (r.owner != null && !r.owner.entity.isAlive) {
+            // owner破棄で終了し、非activeまたはScript無効中は待機する
+            if (r.owner is not null && !r.owner.objectAlive) {
                 FreeAt(i);
+                continue;
+            }
+            if (r.owner is not null && !r.owner.gameObject.activeInHierarchy) {
+                continue;
+            }
+            if (r.owner is not null && !r.owner.isActiveAndEnabled) {
                 continue;
             }
             if (r.resumePhase != phase) {
@@ -150,8 +163,16 @@ internal static class Coroutines {
                 }
                 r.waitingTime = false;
             }
-            if (Step(r)) {
+            try {
+                if (Step(r)) {
+                    FreeAt(i);
+                }
+                if (NativeApplicationAPI.ReadUpdateInterrupted()) { return; }
+            }
+            catch {
+                // 例外が出たCoroutineは再開対象へ残さない
                 FreeAt(i);
+                throw;
             }
         }
     }
@@ -160,8 +181,9 @@ internal static class Coroutines {
     private static bool Step(Routine r) {
         int steps = 0;
         while (r.stack.Count > 0) {
+            if (NativeApplicationAPI.ReadUpdateInterrupted()) { return false; }
             if (++steps > MaxStepsPerResume) {
-                NativeApi.WriteLog(2, "[Coroutines] step budget exceeded (possible runaway nested yield). stopping routine.");
+                NativeApplicationAPI.WriteLog(2, "[Coroutines] step budget exceeded (possible runaway nested yield). stopping routine.");
                 return true;
             }
             IEnumerator top = r.stack.Peek();
@@ -170,8 +192,8 @@ internal static class Coroutines {
                 moved = top.MoveNext();
             }
             catch (Exception ex) {
-                NativeApi.WriteLog(2, $"[Coroutines] routine threw\n{ex}");
-                return true; // この routine を停止（他は継続）
+                NativeApplicationAPI.WriteLog(2, $"[Coroutines] routine threw\n{ex}");
+                throw;
             }
             if (!moved) {
                 // この階層が終了 → pop して親を継続

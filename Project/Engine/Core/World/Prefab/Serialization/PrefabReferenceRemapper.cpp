@@ -1,11 +1,9 @@
 #include "PrefabReferenceRemapper.h"
+#include "PrefabReferenceFields.h"
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
-#include <Engine/Core/World/Prefab/Override/PrefabJsonDiff.h>
 
 // c++
 #include <cstdint>
@@ -16,7 +14,7 @@
 //============================================================================
 //	PrefabReferenceRemapper internalMethods
 //============================================================================
-namespace {
+namespace Engine::PrefabReferenceFields {
 
 	// 参照空間をJSON文字列へ変換する
 	const char* ToReferenceKind(Engine::PrefabReferenceRemapper::ReferenceSpace referenceSpace) {
@@ -84,8 +82,8 @@ namespace {
 	}
 
 	// 指定キーのUUID値をリマップする
-	void RemapUUIDKey(nlohmann::json& object, const char* key,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
+	void RemapUUIDKey(
+		nlohmann::json& object, const char* key, const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
 
 		if (!object.is_object() || !object.contains(key)) {
 			return;
@@ -104,13 +102,11 @@ namespace {
 	// EntityRef形式か判定する
 	bool IsEntityRefObject(const nlohmann::json& value) {
 
-		return value.is_object() && value.contains("kind") &&
-			value.contains("sourceAsset") && value.contains("localFileId");
+		return value.is_object() && value.contains("kind") && value.contains("sourceAsset") && value.contains("localFileId");
 	}
 
 	// EntityRefオブジェクトをリマップする
-	void RemapEntityRef(nlohmann::json& value,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap,
+	void RemapEntityRef(nlohmann::json& value, const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap,
 		Engine::PrefabReferenceRemapper::ReferenceSpace referenceSpace, Engine::AssetID sourceAsset) {
 
 		const Engine::UUID current = ReadUUIDKey(value, "localFileId");
@@ -127,26 +123,33 @@ namespace {
 	}
 
 	// JSONツリー内のEntity参照を再帰的にリマップする
-	void RemapTree(nlohmann::json& value,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap,
-		Engine::PrefabReferenceRemapper::ReferenceSpace referenceSpace, Engine::AssetID sourceAsset) {
+	template <typename Mapper>
+	void RemapTree(nlohmann::json& value, const Mapper& mapper) {
 
 		if (value.is_object()) {
 
 			if (IsEntityRefObject(value)) {
-				RemapEntityRef(value, localFileIDMap, referenceSpace, sourceAsset);
+				mapper(value);
 				return;
 			}
 			for (auto it = value.begin(); it != value.end(); ++it) {
-				RemapTree(it.value(), localFileIDMap, referenceSpace, sourceAsset);
+				RemapTree(it.value(), mapper);
 			}
 			return;
 		}
 		if (value.is_array()) {
 			for (auto& element : value) {
-				RemapTree(element, localFileIDMap, referenceSpace, sourceAsset);
+				RemapTree(element, mapper);
 			}
 		}
+	}
+
+	// Prefab保存用の参照空間へ変換する
+	void RemapTree(nlohmann::json& value, const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap,
+		Engine::PrefabReferenceRemapper::ReferenceSpace referenceSpace, Engine::AssetID sourceAsset) {
+
+		RemapTree(
+			value, [&](nlohmann::json& reference) { RemapEntityRef(reference, localFileIDMap, referenceSpace, sourceAsset); });
 	}
 
 	// JSONツリー内に残ったScene参照を空にする
@@ -175,8 +178,8 @@ namespace {
 	}
 
 	// カメラ制御設定内のtargetをリマップする
-	void RemapCameraTarget(nlohmann::json& component, const char* group,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
+	void RemapCameraTarget(
+		nlohmann::json& component, const char* group, const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
 
 		if (!component.contains(group) || !component[group].is_object()) {
 			return;
@@ -185,8 +188,8 @@ namespace {
 	}
 
 	// 追従と注視を併用するカメラ設定をリマップする
-	void RemapFollowLookAtTarget(nlohmann::json& component,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
+	void RemapFollowLookAtTarget(
+		nlohmann::json& component, const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
 
 		if (!component.contains("followLookAt") || !component["followLookAt"].is_object()) {
 			return;
@@ -220,20 +223,15 @@ namespace {
 	// 差分パスがローカルIDのリーフか判定する
 	bool IsLocalFileIDLeafPath(const std::string& path) {
 
-		return path == "Hierarchy/parentLocalFileID" ||
-			path == "LineRenderer/parentLocalFileID" ||
-			path == "JointAttachment/skinnedEntityLocalFileID" ||
-			path == "CameraController/follow/target" ||
-			path == "CameraController/lookAt/target" ||
-			path == "CameraController/followLookAt/follow/target" ||
-			path == "CameraController/followLookAt/lookAt/target" ||
-			path == "ParticleSystem/customSimulationTarget" ||
-			path.ends_with("/localFileId");
+		return path == "Hierarchy/parentLocalFileID" || path == "LineRenderer/parentLocalFileID" ||
+			   path == "JointAttachment/skinnedEntityLocalFileID" || path == "CameraController/follow/target" ||
+			   path == "CameraController/lookAt/target" || path == "CameraController/followLookAt/follow/target" ||
+			   path == "CameraController/followLookAt/lookAt/target" || path == "ParticleSystem/customSimulationTarget" ||
+			   path.ends_with("/localFileId");
 	}
 
 	// 差分リーフのUUID値をリマップする
-	void RemapLeafValue(nlohmann::json& value,
-		const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
+	void RemapLeafValue(nlohmann::json& value, const Engine::PrefabReferenceRemapper::LocalFileIDMap& localFileIDMap) {
 
 		const Engine::UUID current = ReadUUIDValue(value);
 		if (!current) {
@@ -251,168 +249,52 @@ namespace {
 //============================================================================
 //	PrefabReferenceRemapper classMethods
 //============================================================================
-bool Engine::PrefabReferenceRemapper::NormalizeLegacySceneInstances(
-	nlohmann::json& scene, AssetID sourceAsset, std::string& diagnostic, AssetDatabase* database) {
 
-	diagnostic.clear();
-	if (!scene.is_object() || !scene.contains("PrefabInstances")) {
-		return true;
-	}
-	// 失敗時は入力を保持し、実体の作成前に全シーンの競合を検査する
-	auto candidate = scene;
-	LocalFileIDMap aliases;
-	std::unordered_set<UUID> sceneIDs;
-	std::unordered_set<UUID> instanceIDs;
-	const auto reserveID = [&](UUID id) {
-		if (!id || !sceneIDs.insert(id).second) {
-			diagnostic = "シーンIDが不正または別の実体と競合しています ID=" + ToString(id);
-			return false;
-		}
-		return true;
-	};
-	try {
-		for (const auto& entity : candidate.value("Entities", nlohmann::json::array())) {
-			if (!reserveID(ReadUUIDKey(entity, "LocalFileID"))) return false;
-		}
-		std::function<bool(nlohmann::json&, uint32_t)> normalize;
-		normalize = [&](nlohmann::json& instance, uint32_t depth) {
-			if (depth >= 32 || !instance.is_object() || !instance.contains("EntityMap") ||
-				!instance["EntityMap"].is_array()) {
-				diagnostic = "Prefabの対応表またはネスト階層が不正です";
-				return false;
-			}
-			LocalFileIDMap firstIDs;
-			const UUID instanceID = ReadUUIDKey(instance, "InstanceID");
-			if (!instanceID || !instanceIDs.insert(instanceID).second) {
-				diagnostic = "PrefabインスタンスIDが不正または重複しています ID=" + ToString(instanceID);
-				return false;
-			}
-			nlohmann::json pairs = nlohmann::json::array();
-			for (const auto& pair : instance["EntityMap"]) {
-				const UUID prefabID = ReadUUIDKey(pair, "P");
-				const UUID sceneID = ReadUUIDKey(pair, "S");
-				if (!prefabID) {
-					diagnostic = "Prefab内IDが不正です InstanceID=" + ToString(instanceID);
-					return false;
-				}
-				if (!reserveID(sceneID)) return false;
-				const auto [first, inserted] = firstIDs.emplace(prefabID, sceneID);
-				if (inserted) {
-					pairs.push_back(pair);
-				} else {
-					aliases.emplace(sceneID, first->second);
-					diagnostic += "InstanceID=" + instance.value("InstanceID", "") +
-						" PrefabID=" + ToString(prefabID) + " " + ToString(sceneID) +
-						" -> " + ToString(first->second) + "\n";
-				}
-			}
-			instance["EntityMap"] = std::move(pairs);
-			for (const auto& added : instance.value("AddedEntities", nlohmann::json::array())) {
-				if (!reserveID(ReadUUIDKey(added, "SceneLocalFileID"))) return false;
-			}
-			if (instance.contains("NestedInstances")) {
-				if (!instance["NestedInstances"].is_array()) return false;
-				for (auto& nested : instance["NestedInstances"]) {
-					if (!normalize(nested, depth + 1)) return false;
-				}
-			}
-			return true;
-		};
-		if (!candidate["PrefabInstances"].is_array()) return false;
-		for (auto& instance : candidate["PrefabInstances"]) {
-			if (!normalize(instance, 0)) return false;
-		}
-		if (aliases.empty()) return true;
+using namespace Engine::PrefabReferenceFields;
 
-		// 他アセットやPrefab空間の同名IDには触れない
-		std::function<void(nlohmann::json&)> remapReferences;
-		remapReferences = [&](nlohmann::json& value) {
-			if (IsEntityRefObject(value)) {
-				const auto asset = value.value("sourceAsset", "");
-				if (value.value("kind", "") == "Scene" &&
-					(asset.empty() || asset == ToString(sourceAsset))) {
-					RemapUUIDKey(value, "localFileId", aliases);
-				}
-				return;
-			}
-			if (value.is_object() || value.is_array()) {
-				for (auto& child : value) remapReferences(child);
-			}
-		};
-		const auto remapComponents = [&](nlohmann::json& components) {
-			if (!components.is_object()) return;
-			for (auto it = components.begin(); it != components.end(); ++it) {
-				RemapNativeComponentFields(it.key(), it.value(), aliases);
-			}
-			remapReferences(components);
-		};
-		bool referencesValid = true;
-		std::function<void(nlohmann::json&)> remapInstance;
-		remapInstance = [&](nlohmann::json& instance) {
-			RemapUUIDKey(instance, "RootParent", aliases);
-			for (auto& added : instance["AddedEntities"]) {
-				RemapUUIDKey(added, "Parent", aliases);
-				remapComponents(added["Components"]);
-			}
-			for (auto& mod : instance["HierarchyMods"]) RemapUUIDKey(mod, "ExternalParent", aliases);
-			for (auto& mod : instance["AddedComponents"]) {
-				RemapNativeComponentFields(mod.value("Type", ""), mod["Value"], aliases);
-				remapReferences(mod["Value"]);
-			}
-			for (auto& mod : instance["Modifications"]) {
-				const auto path = mod.value("Path", "");
-				if (path.ends_with("/localFileId") && aliases.contains(ReadUUIDValue(mod["Value"]))) {
-					// リーフ差分の参照空間は元コンポーネントと同じ対象の差分から復元する
-					nlohmann::json components = nlohmann::json::object();
-					if (database) {
-						const auto asset = ParseAssetID(instance, "PrefabAsset");
-						const auto file = JsonAdapter::Load(database->ResolveFullPath(asset), false);
-						if (file.contains("Entities") && file["Entities"].is_array()) {
-							for (const auto& entity : file["Entities"]) {
-								if (entity.value("LocalFileID", "") == mod.value("Target", "")) {
-									components = entity.value("Components", nlohmann::json::object());
-									break;
-								}
-							}
-						}
-					}
-					for (const auto& field : instance["Modifications"]) {
-						if (field.value("Target", "") == mod.value("Target", "")) {
-							PrefabJsonDiff::SetAtPath(components, field.value("Path", ""), field["Value"]);
-						}
-					}
-					const auto* reference = PrefabJsonDiff::GetAtPath(components, path.substr(0, path.rfind('/')));
-					if (!reference || !IsEntityRefObject(*reference)) {
-						diagnostic = "差分の参照空間を復元できません InstanceID=" + instance.value("InstanceID", "") +
-							" Path=" + path;
-						referencesValid = false;
-					} else if (reference->value("kind", "") == "Scene" &&
-						(reference->value("sourceAsset", "").empty() || reference->value("sourceAsset", "") == ToString(sourceAsset))) {
-						RemapLeafValue(mod["Value"], aliases);
-					}
-				}
-				if (IsLocalFileIDLeafPath(path) && !path.ends_with("/localFileId")) {
-					RemapLeafValue(mod["Value"], aliases);
-				}
-				if (path.find('/') == std::string::npos) RemapNativeComponentFields(path, mod["Value"], aliases);
-				remapReferences(mod["Value"]);
-			}
-			for (auto& nested : instance["NestedInstances"]) remapInstance(nested);
-		};
-		for (auto& entity : candidate["Entities"]) remapComponents(entity["Components"]);
-		for (auto& instance : candidate["PrefabInstances"]) remapInstance(instance);
-		if (!referencesValid) return false;
-	} catch (const nlohmann::json::exception& error) {
-		diagnostic = "Prefab復旧データの解析に失敗しました: " + std::string(error.what());
+bool Engine::PrefabReferenceRemapper::TryReadEntityReference(
+	const nlohmann::json& reference, AssetID& sourceAsset, UUID& localFileID) {
+
+	if (!IsEntityRefObject(reference) || !reference["kind"].is_string() || !reference["sourceAsset"].is_string() ||
+		!reference["localFileId"].is_string()) {
 		return false;
 	}
-	scene = std::move(candidate);
-	diagnostic = "統合件数=" + std::to_string(aliases.size()) + "\n" + diagnostic;
+	const std::string kind = reference["kind"].get<std::string>();
+	if (kind != "Scene" && kind != "Prefab") {
+		return false;
+	}
+	const AssetID asset = ParseAssetID(reference, "sourceAsset");
+	// 不正なAsset文字列を相対参照として扱わない
+	if (!asset && !reference["sourceAsset"].get_ref<const std::string&>().empty()) {
+		return false;
+	}
+	const UUID localID = FromString16Hex(reference["localFileId"].get<std::string>());
+	if (!localID) {
+		return false;
+	}
+	sourceAsset = asset;
+	localFileID = localID;
 	return true;
 }
 
-void Engine::PrefabReferenceRemapper::RemapComponents(nlohmann::json& components,
-	const LocalFileIDMap& localFileIDMap, ReferenceSpace referenceSpace, AssetID sourceAsset) {
+void Engine::PrefabReferenceRemapper::RemapMatchedEntityReference(
+	nlohmann::json& reference, const LocalFileIDMap& localFileIDMap, const std::unordered_map<UUID, AssetID>& sourceAssets) {
+
+	AssetID asset;
+	UUID localID;
+	if (!TryReadEntityReference(reference, asset, localID)) {
+		return;
+	}
+	const auto target = localFileIDMap.find(localID);
+	const auto source = sourceAssets.find(localID);
+	if (target == localFileIDMap.end() || source == sourceAssets.end() || (asset && asset != source->second)) {
+		return;
+	}
+	reference["localFileId"] = ToString(target->second);
+}
+
+void Engine::PrefabReferenceRemapper::RemapComponents(
+	nlohmann::json& components, const LocalFileIDMap& localFileIDMap, ReferenceSpace referenceSpace, AssetID sourceAsset) {
 
 	if (!components.is_object() || localFileIDMap.empty()) {
 		return;
@@ -430,6 +312,13 @@ void Engine::PrefabReferenceRemapper::RemapComponent(const std::string& componen
 	}
 	RemapNativeComponentFields(componentType, component, localFileIDMap);
 	RemapTree(component, localFileIDMap, referenceSpace, sourceAsset);
+}
+
+void Engine::PrefabReferenceRemapper::RemapComponentReferences(const std::string& componentType, nlohmann::json& component,
+	const LocalFileIDMap& localFileIDMap, const EntityReferenceMapper& mapper) {
+
+	RemapNativeComponentFields(componentType, component, localFileIDMap);
+	RemapTree(component, mapper);
 }
 
 void Engine::PrefabReferenceRemapper::RemapValue(nlohmann::json& value, const std::string& path,
@@ -452,8 +341,7 @@ void Engine::PrefabReferenceRemapper::ClearExternalSceneReferences(nlohmann::jso
 
 void Engine::PrefabReferenceRemapper::NormalizePrefabFileHierarchy(nlohmann::json& prefabFileJson) {
 
-	if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") ||
-		!prefabFileJson["Entities"].is_array()) {
+	if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") || !prefabFileJson["Entities"].is_array()) {
 		return;
 	}
 
@@ -481,8 +369,7 @@ void Engine::PrefabReferenceRemapper::NormalizePrefabFileHierarchy(nlohmann::jso
 
 void Engine::PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(nlohmann::json& prefabFileJson) {
 
-	if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") ||
-		!prefabFileJson["Entities"].is_array()) {
+	if (!prefabFileJson.is_object() || !prefabFileJson.contains("Entities") || !prefabFileJson["Entities"].is_array()) {
 		return;
 	}
 
@@ -499,10 +386,8 @@ void Engine::PrefabReferenceRemapper::NormalizePrefabFileJointAttachments(nlohma
 		if (!components.contains("JointAttachment") || !components["JointAttachment"].is_object()) {
 			continue;
 		}
-		const UUID targetLocalFileID =
-			ReadUUIDKey(components["JointAttachment"], "skinnedEntityLocalFileID");
-		if (localFileID == rootLocalFileID || !targetLocalFileID ||
-			!entityLocalFileIDs.contains(targetLocalFileID)) {
+		const UUID targetLocalFileID = ReadUUIDKey(components["JointAttachment"], "skinnedEntityLocalFileID");
+		if (localFileID == rootLocalFileID || !targetLocalFileID || !entityLocalFileIDs.contains(targetLocalFileID)) {
 			components.erase("JointAttachment");
 			continue;
 		}

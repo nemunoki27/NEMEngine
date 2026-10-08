@@ -32,5 +32,7 @@ namespace Engine {
 			const std::filesystem::path& assetFullPath);
 		// 内部にUID等を持つJSONアセット種別か(複製時の再採番対象判定に使う)
 		static bool IsJsonAssetType(AssetType type);
+		// バイナリFontとShaderソースを除いた参照解析対象か
+		static bool IsJsonAssetFile(AssetType type, const std::filesystem::path& path);
 	};
 } // Engine

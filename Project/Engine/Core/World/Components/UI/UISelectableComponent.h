@@ -16,8 +16,8 @@ namespace Engine {
 	//	UISelectableComponent structures
 	//	ボタンなどの選択状態と遷移表示を管理する
 	//============================================================================
-	enum class UISelectableState :
-		uint8_t {
+	// UIの選択と決定の状態
+	enum class UISelectableState : uint8_t {
 
 		Normal,
 		Selected,
@@ -25,6 +25,7 @@ namespace Engine {
 		Disabled,
 	};
 
+	// 状態に応じた色と形状の表示設定
 	struct UITransitionStyle {
 
 		bool animationEnabled = true;
@@ -42,7 +43,7 @@ namespace Engine {
 		float soundVolume = 1.0f;
 	};
 
-	// UI選択表示のフレーム状態
+	// 選択表示の実行状態
 	struct UISelectableRuntimeComponent {
 
 		static constexpr bool kSerializable = false;
@@ -68,6 +69,7 @@ namespace Engine {
 		bool disabledThisFrame = false;
 	};
 
+	// 選択状態ごとの表示設定
 	struct UISelectableComponent {
 
 		static constexpr bool kHasECSHooks = true;
@@ -88,16 +90,15 @@ namespace Engine {
 			.scale = Vector2::AnyInit(1.0f)
 		};
 
-		// Registryから呼ばれるRuntime状態のライフサイクル
-		static void OnAdded(
-			ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		// 登録時に呼ばれる実行状態の追加と解放
+		static void OnAdded(ECSWorld& world, const Entity& entity, UISelectableComponent& component);
 		static void OnRemoved(ECSWorld& world, const Entity& entity);
-		static void InitializeStorage(
-			ECSWorld& world, const Entity& entity, UISelectableComponent& component);
-		static void ReleaseStorage(
-			ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		static void InitializeStorage(ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		static void ReleaseStorage(ECSWorld& world, const Entity& entity, UISelectableComponent& component);
+		// 設定をJSONから読み込む
 		static void DeserializeECS(ECSWorld& world, const Entity& entity,
 			const nlohmann::json& in, UISelectableComponent& component);
+		// 設定をJSONへ保存する
 		static void SerializeECS(const ECSWorld& world, const Entity& entity,
 			const UISelectableComponent& component, nlohmann::json& out);
 	};

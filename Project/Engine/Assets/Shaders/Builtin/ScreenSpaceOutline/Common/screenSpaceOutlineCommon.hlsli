@@ -18,7 +18,7 @@ struct ScreenSpaceOutlineMaskConstants {
 	uint styleID;
 	int restrictSubMeshIndex;
 	uint alphaSource;
-	uint padding;
+	float alphaThreshold;
 };
 
 static const uint SCREEN_SPACE_OUTLINE_ALPHA_TEXTURE_COLOR = 0u;

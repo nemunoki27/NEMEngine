@@ -4,11 +4,13 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Foundation/Diagnostics/Log.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Runtime/Paths/ConfigPaths.h>
 
 // c++
 #include <algorithm>
+#include <utility>
 
 //============================================================================
 //	CollisionSettings classMethods
@@ -26,64 +28,89 @@ void Engine::CollisionSettings::EnsureLoaded() {
 	}
 }
 
-void Engine::CollisionSettings::Load() {
+bool Engine::CollisionSettings::Load() {
 
-	if (settingsPath_.empty()) {
+	// 初回の失敗でも既定の衝突設定を使えるようにする
+	if (!loaded_) {
 		ResetDefault();
+		drawCollisionWorld_ = false;
 		loaded_ = true;
-		return;
 	}
-	ResetDefault();
+	// 読込完了まで現在の設定を維持する
+	CollisionSettings next = *this;
+	next.ResetDefault();
+	std::error_code error;
+	const bool exists = !settingsPath_.empty() && std::filesystem::exists(settingsPath_, error);
+	if (error) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "衝突設定を確認できません path={} 内容={}",
+			settingsPath_.string(), error.message());
+		return false;
+	}
 
-	// 設定ファイルが存在する場合のみ、デフォルト設定を上書きする
-	if (std::filesystem::exists(settingsPath_)) {
+	// ファイルがない場合は既定値を使う
+	if (exists) {
 
-		const nlohmann::json data = JsonAdapter::Load(settingsPath_, false);
-		if (data.is_object()) {
+		nlohmann::json data;
+		std::string diagnostic;
+		if (!JsonAdapter::TryLoad(settingsPath_, data, &diagnostic) || !data.is_object()) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "衝突設定を読み込めません path={} 内容={}",
+				settingsPath_.string(), diagnostic);
+			return false;
+		}
+		try {
 
-			drawCollisionWorld_ = data.value("drawCollisionWorld", false);
+			next.drawCollisionWorld_ = data.value("drawCollisionWorld", false);
+			next.queriesHitTriggers_ = data.value("queriesHitTriggers", true);
 
 			// Collisionタイプを読み込む
-			types_.clear();
+			next.types_.clear();
 			if (data.contains("types") && data["types"].is_array()) {
 				for (const auto& typeJson : data["types"]) {
-					if (types_.size() >= kMaxCollisionTypes) {
+					if (next.types_.size() >= kMaxCollisionTypes) {
 						break;
 					}
 					CollisionTypeDefinition type{};
 					type.name = typeJson.value("name", "CollisionType");
 					type.enabled = typeJson.value("enabled", true);
-					types_.push_back(type);
+					next.types_.push_back(type);
 				}
 			}
-			if (types_.empty()) {
-				types_.push_back({ "Default", true });
+			if (next.types_.empty()) {
+				next.types_.push_back({ "Default", true });
 			}
 
 			// Collision Matrixを読み込む
-			matrixRows_.fill(0);
+			next.matrixRows_.fill(0);
 			if (data.contains("matrixRows") && data["matrixRows"].is_array()) {
 				const uint32_t count = std::min<uint32_t>(static_cast<uint32_t>(data["matrixRows"].size()), kMaxCollisionTypes);
 				for (uint32_t i = 0; i < count; ++i) {
-					matrixRows_[i] = data["matrixRows"][i].get<uint32_t>();
+					next.matrixRows_[i] = data["matrixRows"][i].get<uint32_t>();
 				}
 			} else {
-				for (uint32_t i = 0; i < GetTypeCount(); ++i) {
-					matrixRows_[i] = (GetTypeCount() >= kMaxCollisionTypes) ? 0xFFFFFFFFu : ((1u << GetTypeCount()) - 1u);
+				for (uint32_t i = 0; i < next.GetTypeCount(); ++i) {
+					next.matrixRows_[i] = (next.GetTypeCount() >= kMaxCollisionTypes) ? 0xFFFFFFFFu : ((1u << next.GetTypeCount()) - 1u);
 				}
 			}
+		} catch (const nlohmann::json::exception& exception) {
+			Logger::Output(LogType::Engine, spdlog::level::warn, "衝突設定の値が不正です path={} 内容={}",
+				settingsPath_.string(), exception.what());
+			return false;
 		}
 	}
 
-	TrimMatrix();
-	loaded_ = true;
+	// 解析した設定をまとめて差し替える
+	next.TrimMatrix();
+	next.loaded_ = true;
+	*this = std::move(next);
+	return true;
 }
 
-void Engine::CollisionSettings::Save() const {
+bool Engine::CollisionSettings::Save() const {
 
 	nlohmann::json data = nlohmann::json::object();
 
 	data["drawCollisionWorld"] = drawCollisionWorld_;
+	data["queriesHitTriggers"] = queriesHitTriggers_;
 
 	// Collisionタイプを書き出す
 	data["types"] = nlohmann::json::array();
@@ -100,11 +127,23 @@ void Engine::CollisionSettings::Save() const {
 		data["matrixRows"].push_back(matrixRows_[i]);
 	}
 	if (settingsPath_.empty()) {
+		return false;
+	}
+	// 保存の完了を呼出元へ返す
+	const bool saved = JsonAdapter::Save(settingsPath_, data);
+	if (!saved) {
+		Logger::Output(LogType::Engine, spdlog::level::warn, "衝突設定を保存できません path={}", settingsPath_.string());
+	}
+	return saved;
+}
+
+void Engine::CollisionSettings::SetQueriesHitTriggers(bool enabled) {
+
+	EnsureLoaded();
+	if (queriesHitTriggers_ == enabled) {
 		return;
 	}
-	std::error_code ec;
-	std::filesystem::create_directories(settingsPath_.parent_path(), ec);
-	JsonAdapter::Save(settingsPath_, data);
+	queriesHitTriggers_ = enabled;
 }
 
 void Engine::CollisionSettings::BindGlobal() {
@@ -249,6 +288,7 @@ bool Engine::CollisionSettings::CanCollide(uint32_t typeMaskA, uint32_t typeMask
 
 void Engine::CollisionSettings::ResetDefault() {
 
+	queriesHitTriggers_ = true;
 	types_.clear();
 	types_.push_back({ "Default", true });
 	matrixRows_.fill(0);

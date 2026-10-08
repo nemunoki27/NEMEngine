@@ -41,10 +41,9 @@ void Engine::ParticleRenderItemExtractor::Extract(
 				item.sceneInstanceID =
 					SceneObjectUtility::GetSceneInstanceID(world, entity);
 				item.renderPhase = group.renderSettings.queue;
-				if (const SceneObjectComponent* sceneObject =
-					RenderItemExtract::GetSceneObject(world, entity)) {
-					item.visibilityLayerMask = sceneObject->visibilityLayerMask;
-				}
+				// 全Groupに所有Rendererの可視レイヤーを適用する
+				item.visibilityLayerMask = RenderItemExtract::GetVisibilityLayerMask(
+					world, entity, component.renderingLayerMask);
 				item.sortingLayer = component.layer;
 				item.sortingOrder = component.order;
 				item.blendMode = group.renderSettings.blendMode;

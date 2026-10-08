@@ -10,6 +10,7 @@ using namespace Engine;
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Rendering/DxObject/Core/DxShaderReflectionParser.h>
+#include "ShaderSourceIncludeHandler.h"
 
 // c++
 #include <algorithm>
@@ -325,6 +326,12 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	out.stage = stage;
 	out.entry = entry;
 	out.profile = profile;
+	// Cookでは取り込んだ入力以外のソースを使用しない
+	if (!sourceRoot_.empty() && !IsShaderSourceWithinRoot(filePath, sourceRoot_)) {
+		Logger::Output(LogType::Engine, spdlog::level::err, "[ShaderCompileError] Cook入力外のソースです: {}",
+			Algorithm::ConvertString(filePath));
+		return out;
+	}
 
 	const std::string filePathStr = Algorithm::ConvertString(filePath);
 	const std::string entryStr = Algorithm::ConvertString(std::wstring(entry));
@@ -363,6 +370,11 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 		L"-O3",
 #endif
 	};
+	const std::wstring profileName(profile);
+	if (profileName.ends_with(L"_6_0")) {
+		args.emplace_back(L"-D");
+		args.emplace_back(L"NEM_DESCRIPTOR_TABLE_COMPAT=1");
+	}
 	for (const std::wstring& includePath : includePaths) {
 		args.emplace_back(L"-I");
 		args.emplace_back(includePath.c_str());
@@ -370,8 +382,9 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 
 	// コンパイル実行
 	ComPtr<IDxcResult> result;
+	ComPtr<IDxcIncludeHandler> restrictedHandler = CreateShaderSourceIncludeHandler(includeHandler_.Get(), sourceRoot_);
 	hr = dxcCompiler_->Compile(&srcBuf, args.data(), static_cast<UINT32>(args.size()),
-		includeHandler_.Get(), IID_PPV_ARGS(&result));
+		restrictedHandler ? restrictedHandler.Get() : includeHandler_.Get(), IID_PPV_ARGS(&result));
 	if (FAILED(hr)) {
 		Logger::Output(LogType::Engine,
 			"[ShaderCompileError]\nPath: {}\nEntry: {}\nTarget: {}\n内容: DXCの呼び出しに失敗しました",
@@ -386,6 +399,7 @@ CompiledShader DxShaderCompiler::CompileShader(const std::wstring& filePath,
 	if (errors && errors->GetStringLength() > 0) {
 
 		const char* msg = reinterpret_cast<const char*>(errors->GetBufferPointer());
+		out.diagnostics.assign(msg, errors->GetStringLength());
 		if (FAILED(status)) {
 
 			Logger::Output(LogType::Engine,

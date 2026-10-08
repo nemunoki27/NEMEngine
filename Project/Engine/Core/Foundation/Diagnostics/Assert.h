@@ -3,15 +3,15 @@
 //============================================================================
 //	include
 //============================================================================
-// windows
-#include <windows.h>
 // c++
-#include <crtdbg.h>
 #include <iostream>
 #include <string>
 #include <cassert>
 #include <sstream>
 #include <source_location>
+
+#include <windows.h>
+#include <crtdbg.h>
 
 namespace Engine {
 

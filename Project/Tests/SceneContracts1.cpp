@@ -1,0 +1,338 @@
+#include "TestContracts.h"
+#include "TestFixtures.h"
+#include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
+#include <Engine/Core/World/Prefab/Runtime/PrefabSystem.h>
+
+#include "ApplicationPlatformTests.h"
+
+//============================================================================
+//	include
+//============================================================================
+#include "FoundationTests.h"
+#include "EditorRefactoringTests.h"
+#include "GameplayRefactoringTests.h"
+#include "SceneStorageTests.h"
+#include <Engine/Core/Foundation/Identity/AssetGUID.h>
+#include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
+#include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileSerializer.h>
+#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/World/Components/Audio/AudioSourceComponent.h>
+#include <Engine/Core/World/Components/Scene/SceneObjectComponent.h>
+#include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
+#include <Engine/Core/World/Scene/Serialization/SceneDocument.h>
+#include <Engine/Core/World/Scene/Runtime/SceneInstanceManager.h>
+#include <Engine/Core/World/ECS/Storage/ECSStorage.h>
+#include <Engine/Core/World/Systems/Hierarchy/HierarchySystem.h>
+
+// c++
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <utility>
+
+namespace NEMTests {
+
+	bool TestCanonicalSceneData() {
+
+		nlohmann::json data = nlohmann::json::object();
+		data["z"] = -0.0;
+		data["a"] = 1;
+		const std::string serialized = Engine::JsonAdapter::SerializeCanonical(data, 2);
+		if (serialized.empty() || serialized.back() != '\n' ||
+			serialized.find("-0.0") != std::string::npos ||
+			serialized.find("\"a\"") > serialized.find("\"z\"")) {
+			return false;
+		}
+
+		Engine::PrefabInstanceData prefab{};
+		prefab.entityMap.emplace_back(Engine::UUID{ 3 }, Engine::UUID{ 30 });
+		prefab.entityMap.emplace_back(Engine::UUID{ 1 }, Engine::UUID{ 10 });
+		prefab.modifications.push_back({ Engine::UUID{ 2 }, "Transform/localScale", 1.0f });
+		prefab.modifications.push_back({ Engine::UUID{ 2 }, "Transform/localPos", 0.0f });
+		const nlohmann::json prefabJson = Engine::ToJson(prefab);
+		if (prefabJson["EntityMap"][0]["P"] != "0000000000000001" ||
+			prefabJson["Modifications"][0]["Path"] != "Transform/localPos") return false;
+
+		// 未知の項目と利用者の配列順を正規化後も保持する
+		prefab.instanceID = Engine::UUID{ 100 };
+		prefab.prefabAsset = Engine::AssetID::New();
+		auto stored = Engine::ToJson(prefab);
+		stored["Extra"] = { { "EntityMap", { 3, 1, 2 } } };
+		stored["EntityMap"][0]["Extra"] = "first";
+		stored["EntityMap"][1]["Extra"] = "second";
+		std::reverse(stored["EntityMap"].begin(), stored["EntityMap"].end());
+		stored["Modifications"][0]["Value"] = { { "Entities", { 3, 1, 2 } } };
+		auto nested = stored;
+		nested["InstanceID"] = Engine::ToString(Engine::UUID{ 101 });
+		nested["NestedSlotID"] = Engine::ToString(Engine::UUID{ 102 });
+		nested["OwnerPrefabInstanceID"] = Engine::ToString(prefab.instanceID);
+		stored["NestedInstances"].push_back(nested);
+		nlohmann::json scene = { { "SchemaVersion", 3 }, { "Header", nlohmann::json::object() },
+			{ "Entities", nlohmann::json::array() }, { "PrefabInstances", { stored } }, { "Extra", { 9, 7 } } };
+		if (!Engine::SceneDocument::Canonicalize(scene)) return false;
+		const auto& canonical = scene["PrefabInstances"][0];
+		if (canonical["EntityMap"][0]["Extra"] != "first" || canonical["EntityMap"][1]["Extra"] != "second" ||
+			canonical["Extra"] != stored["Extra"] || canonical["Modifications"] != stored["Modifications"] ||
+			canonical["NestedInstances"][0]["EntityMap"][0]["Extra"] != "first" || scene["Extra"] != nlohmann::json({ 9, 7 })) return false;
+		const auto canonicalScene = scene;
+		if (!Engine::SceneDocument::Canonicalize(scene) || scene != canonicalScene) return false;
+
+		// 不正な版番号と重複参照では入力を変更しない
+		for (const auto& version : { nlohmann::json(3.5), nlohmann::json(4294967299ULL), nlohmann::json("3") }) {
+			scene = canonicalScene;
+			scene["SchemaVersion"] = version;
+			const auto original = scene;
+			if (Engine::SceneDocument::Canonicalize(scene) || scene != original) return false;
+		}
+		scene = canonicalScene;
+		scene.erase("Entities");
+		scene["ExternalActors"] = { Engine::ToString(Engine::UUID{ 1 }), Engine::ToString(Engine::UUID{ 1 }) };
+		const auto invalid = scene;
+		return !Engine::SceneDocument::Canonicalize(scene) && scene == invalid;
+	}
+
+	bool TestSubScenes() {
+
+		TestDirectory directory("SubScenes", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
+		if (testRoot.parent_path().lexically_normal() !=
+			Engine::RuntimePaths::GetGameAssetsRoot().lexically_normal()) {
+			return false;
+		}
+
+		std::error_code ec;
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+
+		const auto SaveScene = [](const std::filesystem::path& path,
+			const Engine::SceneHeader& header) {
+
+			const nlohmann::json root = {
+				{ "SchemaVersion", 3 },
+				{ "Header", Engine::ToJson(header) },
+				{ "ExternalActors", nlohmann::json::array() },
+				{ "PrefabInstances", nlohmann::json::array() },
+			};
+			return Engine::JsonAdapter::SaveCanonical(path, root);
+			};
+
+		Engine::AssetDatabase database;
+		database.Init();
+
+		const std::filesystem::path childPath = testRoot / "Child.scene.json";
+		Engine::SceneHeader childHeader{};
+		childHeader.name = "Child";
+		if (!SaveScene(childPath, childHeader)) {
+			return false;
+		}
+		const Engine::AssetID childAsset =
+			database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(testRoot / "Child.scene.json"), Engine::AssetType::Scene);
+
+		const std::filesystem::path rootPath = testRoot / "Root.scene.json";
+		Engine::SceneHeader rootHeader{};
+		rootHeader.name = "Root";
+		rootHeader.subScenes.push_back({
+			.slotID = Engine::UUID{ 101 },
+			.slotName = "Child",
+			.sceneAsset = childAsset,
+			.enabled = true,
+			});
+		if (!SaveScene(rootPath, rootHeader)) {
+			return false;
+		}
+		const Engine::AssetID rootAsset =
+			database.ImportOrGet(Engine::RuntimePaths::ToAssetPath(testRoot / "Root.scene.json"), Engine::AssetType::Scene);
+
+		Engine::ECSWorld world;
+		Engine::SceneSystem sceneSystem;
+		Engine::SceneInstanceManager scenes;
+		bool passed = scenes.LoadSceneTree(database, sceneSystem, world, rootAsset) &&
+			scenes.GetAll().size() == 2;
+		const Engine::SceneInstance* active = scenes.GetActive();
+		const Engine::UUID rootInstanceID = active ? active->instanceID : Engine::UUID{};
+
+		Engine::UUID childInstanceID{};
+		if (active && !active->childScenes.empty()) {
+			childInstanceID = active->childScenes.front().childInstanceID;
+		}
+		Engine::SceneInstance* editableRoot = active ?
+			scenes.Find(active->instanceID) : nullptr;
+		if (editableRoot && !editableRoot->header.subScenes.empty()) {
+			editableRoot->header.subScenes.front().slotName = "RenamedChild";
+			passed &= scenes.SynchronizeSubScenes(
+				database, sceneSystem, world, editableRoot->instanceID);
+		} else {
+			passed = false;
+		}
+		editableRoot = scenes.GetActive() ?
+			scenes.Find(scenes.GetActive()->instanceID) : nullptr;
+		passed &= editableRoot && !editableRoot->childScenes.empty() &&
+			editableRoot->childScenes.front().childInstanceID == childInstanceID &&
+			editableRoot->childScenes.front().slotName == "RenamedChild";
+
+		// 後続の追加に失敗しても、先行した無効化と追加を残さない
+		if (editableRoot) {
+			const auto originalSlots = editableRoot->header.subScenes;
+			const auto revision = scenes.GetRevision();
+			editableRoot->header.subScenes.front().enabled = false;
+			editableRoot->header.subScenes.push_back({ .slotID = Engine::UUID{ 103 }, .slotName = "Added",
+				.sceneAsset = childAsset, .enabled = true });
+			editableRoot->header.subScenes.push_back({ .slotID = Engine::UUID{ 104 }, .slotName = "Missing",
+				.sceneAsset = Engine::AssetID{ 901, 902 }, .enabled = true });
+			passed &= !scenes.SynchronizeSubScenes(database, sceneSystem, world, rootInstanceID) &&
+				scenes.GetAll().size() == 2 && scenes.Find(childInstanceID) && scenes.GetRevision() == revision;
+			editableRoot = scenes.Find(rootInstanceID);
+			passed &= editableRoot && editableRoot->childScenes.size() == 1 &&
+				editableRoot->childScenes.front().childInstanceID == childInstanceID;
+			if (editableRoot) {
+				editableRoot->header.subScenes = originalSlots;
+			}
+			passed &= !scenes.LoadSceneTree(database, sceneSystem, world, Engine::AssetID{ 901, 902 }) &&
+				scenes.GetAll().size() == 2 && scenes.Find(childInstanceID) && scenes.GetRevision() == revision;
+		}
+
+		passed &= rootInstanceID && scenes.Unload(world, rootInstanceID) && scenes.GetAll().empty();
+
+		childHeader.subScenes.push_back({
+			.slotID = Engine::UUID{ 102 },
+			.slotName = "Root",
+			.sceneAsset = rootAsset,
+			.enabled = true,
+			});
+		passed &= SaveScene(childPath, childHeader);
+		passed &= !scenes.LoadSceneTree(database, sceneSystem, world, rootAsset);
+		passed &= scenes.GetAll().empty();
+		size_t aliveCount = 0;
+		world.ForEachAliveEntity([&aliveCount](Engine::Entity) { ++aliveCount; });
+		passed &= aliveCount == 0;
+
+		directory.Remove();
+		return passed && !ec;
+	}
+
+	bool TestSingleSceneLoadReservation() {
+
+		TestDirectory directory("SingleSceneLoad", Engine::RuntimePaths::GetGameAssetsRoot());
+		const auto& testRoot = directory.GetPath();
+		std::error_code ec;
+		std::filesystem::create_directories(testRoot, ec);
+		if (ec) {
+			return false;
+		}
+		Engine::AssetDatabase database;
+		database.Init();
+		std::array<Engine::AssetID, 3> sceneAssets{};
+		for (size_t i = 0; i < sceneAssets.size(); ++i) {
+
+			Engine::SceneHeader header{};
+			header.name = "Single" + std::to_string(i + 1);
+			const std::filesystem::path path = testRoot /
+				(header.name + ".scene.json");
+			const nlohmann::json root = {
+				{ "SchemaVersion", 3 },
+				{ "Header", Engine::ToJson(header) },
+				{ "ExternalActors", nlohmann::json::array() },
+				{ "PrefabInstances", nlohmann::json::array() },
+			};
+			if (!Engine::JsonAdapter::SaveCanonical(path, root)) {
+				directory.Remove();
+				return false;
+			}
+			sceneAssets[i] = database.ImportOrGet(
+				Engine::RuntimePaths::ToAssetPath(path), Engine::AssetType::Scene);
+			if (!sceneAssets[i]) {
+				directory.Remove();
+				return false;
+			}
+		}
+
+		Engine::ECSWorld world;
+		Engine::SceneSystem sceneSystem;
+		Engine::SceneInstanceManager scenes;
+		Engine::WorldCommandServices services{};
+		services.sceneInstances = &scenes;
+		world.SetCommandServices(services);
+
+		// Scene用Service不足で処理できない場合も予約を残さない
+		bool passed = scenes.TryBeginSingleLoadRequest();
+		world.GetCommandBuffer().EnqueueLoadSceneSingle(Engine::UUID::New(), sceneAssets.front());
+		world.GetCommandBuffer().Flush(world);
+		passed &= scenes.TryBeginSingleLoadRequest();
+		scenes.ClearSingleLoadRequest();
+
+		services.assetDatabase = &database;
+		services.sceneSystem = &sceneSystem;
+		world.SetCommandServices(services);
+		for (const Engine::AssetID sceneAsset : sceneAssets) {
+
+			if (!scenes.TryBeginSingleLoadRequest()) {
+				passed = false;
+				break;
+			}
+			const Engine::UUID instanceID = Engine::UUID::New();
+			world.GetCommandBuffer().EnqueueLoadSceneSingle(instanceID, sceneAsset);
+			world.GetCommandBuffer().Flush(world);
+			const Engine::SceneInstance* active = scenes.GetActive();
+			passed &= active && active->instanceID == instanceID &&
+				active->sceneAsset == sceneAsset && scenes.GetAll().size() == 1;
+		}
+		passed &= scenes.TryBeginSingleLoadRequest();
+		scenes.ClearSingleLoadRequest();
+
+		// 常駐化は親子の実体と音声Runtimeを保持し、Singleの破棄対象から外す
+		if (!passed || !scenes.GetActive()) {
+			directory.Remove();
+			return false;
+		}
+		const Engine::Entity music = Engine::SceneAuthoring::CreateGameObject(world, "Music");
+		const Engine::Entity source = Engine::SceneAuthoring::CreateGameObject(world, "Source");
+		Engine::HierarchySystem hierarchy;
+		hierarchy.SetParent(world, source, music);
+		const Engine::UUID owner = scenes.GetActive()->instanceID;
+		for (Engine::Entity entity : { music, source }) {
+			world.GetComponent<Engine::SceneObjectComponent>(entity).sceneInstanceID = owner;
+			scenes.Find(owner)->createdEntities.emplace_back(entity);
+		}
+		world.AddComponent<Engine::AudioSourceComponent>(source);
+		const auto* audioRuntime = Engine::TryGetAudioSourceRuntime(world, source);
+		passed &= audioRuntime != nullptr;
+		passed &= !scenes.DontDestroyOnLoad(world, source);
+		passed &= scenes.DontDestroyOnLoad(world, music);
+		passed &= scenes.DontDestroyOnLoad(world, music);
+		const Engine::UUID persistentID = world.GetComponent<Engine::SceneObjectComponent>(music).sceneInstanceID;
+		passed &= persistentID != owner && scenes.Find(persistentID)->persistent;
+		passed &= scenes.Find(owner)->createdEntities.empty();
+		passed &= !scenes.Unload(world, persistentID);
+		scenes.SetActive(persistentID);
+		passed &= scenes.GetActive()->instanceID == owner;
+		for (Engine::AssetID asset : sceneAssets) {
+			passed &= scenes.TryBeginSingleLoadRequest();
+			world.GetCommandBuffer().EnqueueLoadSceneSingle(Engine::UUID::New(), asset);
+			world.GetCommandBuffer().Flush(world);
+			passed &= world.IsAlive(music) && world.IsAlive(source) && scenes.GetAll().size() == 2;
+			passed &= Engine::TryGetAudioSourceRuntime(world, source) == audioRuntime;
+		}
+		passed &= scenes.SerializeSnapshot(sceneSystem, world)["Scenes"].size() == 1;
+		world.GetCommandBuffer().EnqueueDestroyEntity(music);
+		world.GetCommandBuffer().Flush(world);
+		world.FlushPendingDestroyEntities();
+		passed &= !world.IsAlive(music) && !world.IsAlive(source);
+		passed &= !scenes.DontDestroyOnLoad(world, music);
+		const Engine::Entity second = Engine::SceneAuthoring::CreateGameObject(world, "Second");
+		passed &= scenes.DontDestroyOnLoad(world, second);
+		scenes.UnloadAll(world);
+		passed &= !world.IsAlive(second) && scenes.GetAll().empty();
+
+		directory.Remove();
+		return passed && !ec;
+	}
+}

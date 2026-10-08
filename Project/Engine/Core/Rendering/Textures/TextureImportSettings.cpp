@@ -14,6 +14,7 @@
 //============================================================================
 namespace {
 
+	// 不明な列挙値は既定値へ戻す
 	template<typename T>
 	T ParseEnum(const nlohmann::json& data, const char* key, T fallback) {
 
@@ -24,6 +25,7 @@ namespace {
 		return Engine::EnumAdapter<T>::FromString(found->get<std::string>()).value_or(fallback);
 	}
 
+	// 設定値をハッシュへ合成
 	void HashMix(uint64_t& hash, uint64_t value) {
 
 		hash ^= value;
@@ -88,8 +90,7 @@ Engine::TextureImportSettings Engine::ParseTextureImportSettings(const nlohmann:
 		return MakeTextureImportSettings(TextureImportPreset::Default);
 	}
 
-	const TextureImportPreset preset = ParseEnum(
-		data, "preset", TextureImportPreset::Default);
+	const TextureImportPreset preset = ParseEnum(data, "preset", TextureImportPreset::Default);
 	TextureImportSettings settings = MakeTextureImportSettings(preset);
 	settings.colorSpace = ParseEnum(data, "colorSpace", settings.colorSpace);
 	settings.filter = ParseEnum(data, "filter", settings.filter);
@@ -98,8 +99,7 @@ Engine::TextureImportSettings Engine::ParseTextureImportSettings(const nlohmann:
 	settings.generateMipmaps = data.value("generateMipmaps", settings.generateMipmaps);
 	settings.maxAnisotropy = static_cast<uint32_t>((std::clamp)(
 		data.value("maxAnisotropy", static_cast<int32_t>(settings.maxAnisotropy)), 1, 16));
-	settings.normalConvention = ParseEnum(
-		data, "normalConvention", settings.normalConvention);
+	settings.normalConvention = ParseEnum(data, "normalConvention", settings.normalConvention);
 	settings.alphaColorBleed = data.value("alphaColorBleed", settings.alphaColorBleed);
 	return settings;
 }

@@ -21,11 +21,14 @@ namespace Engine {
 		bool showSceneView = true;
 		bool showGameView = true;
 		bool showToolbar = true;
-		bool showTool = true;
 		// trueの間はMenuBarを含む全エディターUIを描画せず、GameViewを直接表示する
 		bool hidePanels = false;
 		// Play開始時にManagedデバッガのアタッチ待機を行う
 		bool waitForManagedDebuggerOnPlay = false;
+		// Play開始前に編集中のSceneを保存する
+		bool autoSaveScenesOnPlay = true;
+		// Script例外とDebug.LogErrorでPlayを一時停止する
+		bool pauseOnScriptError = true;
 
 		// 各ウィンドウのサイズ
 		ImVec2 lastSceneViewSize = ImVec2(0.0f, 0.0f);

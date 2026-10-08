@@ -11,23 +11,25 @@
 //============================================================================
 //	RenameEntityCommand classMethods
 //============================================================================
-Engine::RenameEntityCommand::RenameEntityCommand(
-	const Entity& targetEntity, const std::string_view& newName) :
+Engine::RenameEntityCommand::RenameEntityCommand(const Entity& targetEntity, std::string_view newName) :
 	initialTarget_(targetEntity),
 	newName_(newName) {
 }
 
 bool Engine::RenameEntityCommand::ApplyName(EditorCommandContext& context, const std::string& name) {
 
+	// 編集対象のWorldを確認
 	if (!context.CanEditScene()) {
 		return false;
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world || !targetStableUUID_) {
+	// 初回の対象と変更前の値を保存
+	if (!targetStableUUID_) {
 		return false;
 	}
 
+	// 保存したUUIDで現在のEntityを検索
 	const Entity target = world->FindByUUID(targetStableUUID_);
 	if (!world->IsAlive(target)) {
 		return false;
@@ -37,7 +39,9 @@ bool Engine::RenameEntityCommand::ApplyName(EditorCommandContext& context, const
 		world->AddComponent<NameComponent>(target);
 	}
 
+	// Entity名を更新
 	world->GetComponent<NameComponent>(target).name = name;
+	// 操作したEntityを選択
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);
 	}
@@ -46,15 +50,13 @@ bool Engine::RenameEntityCommand::ApplyName(EditorCommandContext& context, const
 
 bool Engine::RenameEntityCommand::Execute(EditorCommandContext& context) {
 
+	// 編集対象のWorldを確認
 	if (!context.CanEditScene()) {
 		return false;
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world) {
-		return false;
-	}
-
+	// 初回の対象と変更前の値を保存
 	if (!targetStableUUID_) {
 		if (!world->IsAlive(initialTarget_)) {
 			return false;
@@ -93,15 +95,18 @@ Engine::SetEntityActiveCommand::SetEntityActiveCommand(const Entity& targetEntit
 
 bool Engine::SetEntityActiveCommand::Apply(EditorCommandContext& context, bool activeSelf) {
 
+	// 編集対象のWorldを確認
 	if (!context.CanEditScene()) {
 		return false;
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world || !targetStableUUID_) {
+	// 初回の対象と変更前の値を保存
+	if (!targetStableUUID_) {
 		return false;
 	}
 
+	// 保存したUUIDで現在のEntityを検索
 	const Entity target = world->FindByUUID(targetStableUUID_);
 	if (!world->IsAlive(target)) {
 		return false;
@@ -114,7 +119,9 @@ bool Engine::SetEntityActiveCommand::Apply(EditorCommandContext& context, bool a
 		sceneObject.activeInHierarchy = true;
 	}
 
+	// 子孫を含めた有効状態を更新
 	SceneObjectUtility::SetActiveSelf(*world, target, activeSelf);
+	// 操作したEntityを選択
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);
 	}
@@ -123,15 +130,13 @@ bool Engine::SetEntityActiveCommand::Apply(EditorCommandContext& context, bool a
 
 bool Engine::SetEntityActiveCommand::Execute(EditorCommandContext& context) {
 
+	// 編集対象のWorldを確認
 	if (!context.CanEditScene()) {
 		return false;
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world) {
-		return false;
-	}
-
+	// 初回の対象と変更前の値を保存
 	if (!targetStableUUID_) {
 		if (!world->IsAlive(initialTarget_)) {
 			return false;
@@ -170,15 +175,18 @@ Engine::SetEntityTagCommand::SetEntityTagCommand(const Entity& targetEntity, con
 
 bool Engine::SetEntityTagCommand::Apply(EditorCommandContext& context, const std::string& tag) {
 
+	// 編集対象のWorldを確認
 	if (!context.CanEditScene()) {
 		return false;
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world || !targetStableUUID_) {
+	// 初回の対象と変更前の値を保存
+	if (!targetStableUUID_) {
 		return false;
 	}
 
+	// 保存したUUIDで現在のEntityを検索
 	const Entity target = world->FindByUUID(targetStableUUID_);
 	if (!world->IsAlive(target)) {
 		return false;
@@ -189,7 +197,9 @@ bool Engine::SetEntityTagCommand::Apply(EditorCommandContext& context, const std
 		sceneObject.localFileID = UUID::New();
 	}
 
+	// Entityのタグを更新
 	world->GetComponent<SceneObjectComponent>(target).tag = tag;
+	// 操作したEntityを選択
 	if (context.editorState) {
 		context.editorState->SelectEntity(target);
 	}
@@ -198,15 +208,13 @@ bool Engine::SetEntityTagCommand::Apply(EditorCommandContext& context, const std
 
 bool Engine::SetEntityTagCommand::Execute(EditorCommandContext& context) {
 
+	// 編集対象のWorldを確認
 	if (!context.CanEditScene()) {
 		return false;
 	}
 
 	ECSWorld* world = context.GetWorld();
-	if (!world) {
-		return false;
-	}
-
+	// 初回の対象と変更前の値を保存
 	if (!targetStableUUID_) {
 		if (!world->IsAlive(initialTarget_)) {
 			return false;

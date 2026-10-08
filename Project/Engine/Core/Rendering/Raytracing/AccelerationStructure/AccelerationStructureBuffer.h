@@ -30,6 +30,9 @@ namespace Engine {
 		void Create(ID3D12Device* device, UINT64 sizeInBytes, D3D12_RESOURCE_FLAGS flags,
 			D3D12_RESOURCE_STATES initialState, D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT);
 
+		// このBufferへのGPUアクセスを同期する
+		void InsertUAVBarrier(ID3D12GraphicsCommandList* commandList) const;
+
 		// リセット
 		void Reset() { resource_.Reset(); }
 		// 所有リソースを退避用に移動する

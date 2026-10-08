@@ -63,3 +63,15 @@ void Engine::IEditorPanel::ApplyInitialDock() {
 	ImGui::SetNextWindowDockID(initialDockID_, ImGuiCond_Always);
 	initialDockID_ = 0;
 }
+
+//============================================================================
+//	IEditorPanel classMethods
+//============================================================================
+
+namespace Engine {
+
+	nlohmann::json IEditorPanel::MakeDuplicateState([[maybe_unused]] const EditorPanelContext& context) const {
+
+		return SaveLayoutState();
+	}
+}

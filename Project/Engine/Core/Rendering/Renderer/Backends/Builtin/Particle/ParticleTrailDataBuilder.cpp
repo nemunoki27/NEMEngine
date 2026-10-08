@@ -168,6 +168,14 @@ void Engine::ParticleTrailDataBuilder::Build(const RenderDrawContext& context,
 			const uint32_t pointOffset = static_cast<uint32_t>(outData.points.size());
 			for (size_t pointIndex = 0; pointIndex < trailPoints.size(); ++pointIndex) {
 
+				// 重複点を除いた後もUVの両端を0と1に合わせる
+				float ribbonT = static_cast<float>(pointIndex) / static_cast<float>(trailPoints.size() - 1);
+				EvaluatedTrailPoint& point = trailPoints[pointIndex];
+				if (settings.trail.pointLifetime <= 0.0f) {
+					point = EvaluatePoint(ParticleTrailPoint{ point.render.position, point.age, point.phaseIndex }, ribbonT, settings);
+				} else {
+					point.render.ribbonT = ribbonT;
+				}
 				const Vector3& previous = trailPoints[pointIndex == 0 ? 0 : pointIndex - 1].render.position;
 				const Vector3& next = trailPoints[(std::min)(pointIndex + 1, trailPoints.size() - 1)].render.position;
 				trailPoints[pointIndex].render.tangent = Vector3::NormalizeOr(

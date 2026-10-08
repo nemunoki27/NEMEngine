@@ -3,6 +3,7 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 #include <Engine/Core/World/Components/Rendering/PrimitiveRendererComponent.h>
 #include <Engine/Core/World/Components/Rendering/UVTransformComponent.h>
 #include <Engine/Core/World/UI/UIRuntimeService.h>
@@ -21,7 +22,7 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 			return;
 		}
 
-		// ペイロード構築、UVTransformComponentがあればUV行列を渡す
+		// 形状とUVと上書き値を参照する
 		PrimitiveRenderPayload payload{};
 		payload.renderer = &renderer;
 		if (const auto* uvTransform = world.TryGetComponent<UVTransformComponent>(entity)) {
@@ -36,22 +37,17 @@ void Engine::PrimitiveRenderItemExtractor::Extract(ECSWorld& world, RenderSceneB
 			UIRuntimeService::GetInstance().Find(world, entity) : nullptr;
 		const Matrix4x4 worldMatrix = uiRuntime ?
 			uiRuntime->screenMatrix : RenderItemExtract::GetWorldMatrix(world, entity);
-		RenderItemExtract::FillCommonFields(
-			item, world, entity, renderer, worldMatrix);
+		RenderItemExtract::FillCommonFields(item, world, entity, renderer, worldMatrix);
 		item.backendID = RenderBackendID::Primitive;
 		item.material = renderer.material;
-		item.castShadows = HasMeshRenderFlag(
-			renderer.renderFlags, MeshRenderFlags::CastShadow);
-		item.receiveShadows = HasMeshRenderFlag(
-			renderer.renderFlags, MeshRenderFlags::ReceiveShadow);
-		// 同一形状と同じMaterial Instance値を同一バッチへまとめる
+		item.castShadows = HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::CastShadow);
+		item.receiveShadows = HasMeshRenderFlag(renderer.renderFlags, MeshRenderFlags::ReceiveShadow);
+		// 同じ形状と上書き値で描画をまとめる
 		const uint64_t shapeHash = PrimitiveMeshGenerator::ComputeHash(renderer);
 		const uint64_t materialHash = renderer.materialInstance.GetContentHash();
-		item.batchKey = shapeHash ^
-			(materialHash + 0x9e3779b97f4a7c15ull +
-				(shapeHash << 6) + (shapeHash >> 2));
+		item.batchKey = Algorithm::MixHash(shapeHash, materialHash);
 		item.cameraDomain = RenderCameraDomain::Perspective;
-		// Plane/Ringのみ2D描画に対応し、Canvas配下ではスクリーン行列と描画順を使う
+		// 2D形状はCanvasの行列と描画順を使う
 		if (isScreen2D) {
 			if (uiRuntime) {
 				if (!item.sceneInstanceID) {

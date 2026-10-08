@@ -5,10 +5,10 @@ namespace NEMEngine;
 public sealed partial class TextRenderer {
 
     public DynamicBuffer<TextCharacterTransform> CharacterTransforms =>
-        entity.GetBuffer<TextCharacterTransform>();
+        gameObject.GetBuffer<TextCharacterTransform>();
 
     public MaterialInstance MaterialInstance =>
-        new(entity, RendererMaterialTarget.Text);
+        new(gameObject, RendererMaterialTarget.Text);
 
     // マテリアル color を上書きする。
     public void SetColor(Color4 color) {

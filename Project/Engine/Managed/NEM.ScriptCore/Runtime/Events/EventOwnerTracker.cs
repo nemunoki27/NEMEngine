@@ -2,16 +2,16 @@ namespace NEMEngine;
 
 //============================================================================
 //	EventOwnerTracker
-//	owner(ScriptBehaviour) ごとに購読を束ね、owner 破棄時に一括解除する。
+//	owner(MonoBehaviour) ごとに購読を束ね、owner 破棄時に一括解除する。
 //	owner 付き Subscribe 経路だけが Track し、HostBridge.ReleaseSlot から CancelOwnedBy される。
 //============================================================================
 // Timers/Coroutines の owner 紐付けと同じ役割。main thread 専用。
 internal static class EventOwnerTracker {
 
     // owner -> その owner が張った購読群。参照比較で owner を識別する
-    private static readonly Dictionary<ScriptBehaviour, List<EventSubscription>> byOwner = new();
+    private static readonly Dictionary<MonoBehaviour, List<EventSubscription>> byOwner = new();
 
-    internal static void Track(ScriptBehaviour owner, EventSubscription sub) {
+    internal static void Track(MonoBehaviour owner, EventSubscription sub) {
         if (owner == null || sub == null || !sub.IsActive) {
             return;
         }
@@ -24,8 +24,8 @@ internal static class EventOwnerTracker {
     }
 
     // owner 破棄時に呼ぶ。束ねた購読を全 Dispose する（Dispose は多重でも安全）
-    internal static void CancelOwnedBy(ScriptBehaviour owner) {
-        if (owner == null || !byOwner.Remove(owner, out List<EventSubscription>? list)) {
+    internal static void CancelOwnedBy(MonoBehaviour owner) {
+        if (owner is null || !byOwner.Remove(owner, out List<EventSubscription>? list)) {
             return;
         }
         foreach (EventSubscription sub in list) {

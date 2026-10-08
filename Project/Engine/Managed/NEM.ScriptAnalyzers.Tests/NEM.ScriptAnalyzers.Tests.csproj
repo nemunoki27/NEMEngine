@@ -11,6 +11,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Platforms>AnyCPU;x64</Platforms>
     <IsPackable>false</IsPackable>
@@ -18,16 +19,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- fixture が ScriptBehaviour/Debug/Entity を解決できるよう ScriptCore を参照する -->
+    <!-- fixture が MonoBehaviour/Debug/Entity を解決できるよう ScriptCore を参照する -->
     <ProjectReference Include="..\NEM.ScriptCore\NEM.ScriptCore.csproj" />
     <!-- analyzer 本体をクラスとして直接 new するため通常参照（Analyzer 参照ではない） -->
     <ProjectReference Include="..\NEM.ScriptAnalyzers\NEM.ScriptAnalyzers.csproj" />
     <!-- schema generatorのSerializeReference診断をin-memory compileで検証する -->
     <ProjectReference Include="..\NEM.ScriptCodeGen\NEM.ScriptCodeGen.csproj" />
+    <ProjectReference Include="..\NEM.ScriptMetaSync\NEM.ScriptMetaSync.csproj" />
   </ItemGroup>
 
 </Project>

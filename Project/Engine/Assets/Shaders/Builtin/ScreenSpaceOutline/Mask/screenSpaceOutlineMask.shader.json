@@ -5,7 +5,7 @@
       "stage": "VS",
       "file": "4e454d41535345543227ffb9ea895aee",
       "entry": "main",
-      "profile": "vs_6_6"
+      "profile": "vs_6_0"
     },
     {
       "stage": "AS",
@@ -23,7 +23,7 @@
       "stage": "PS",
       "file": "4e454d4153534554ed6d653ef5510204",
       "entry": "main",
-      "profile": "ps_6_6"
+      "profile": "ps_6_0"
     }
   ]
 }

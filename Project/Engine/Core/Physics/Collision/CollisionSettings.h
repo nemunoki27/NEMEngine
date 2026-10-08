@@ -27,9 +27,9 @@ namespace Engine {
 		// 設定が未読み込みなら読み込む
 		void EnsureLoaded();
 		// 設定ファイルからCollision設定を読み込む
-		void Load();
+		bool Load();
 		// 現在のCollision設定を設定ファイルへ保存する
-		void Save() const;
+		bool Save() const;
 		// 全シーン共通のCollision設定ファイルへ結び付ける
 		void BindGlobal();
 		// 使用するCollision設定ファイルを実ファイルパスから切り替える
@@ -37,6 +37,9 @@ namespace Engine {
 		// 衝突形状を描画するか
 		void SetDrawCollisionWorld(bool drawEnable) { drawCollisionWorld_ = drawEnable; }
 		bool GetDrawCollisionWorld() const { return drawCollisionWorld_; }
+		// Triggerを物理クエリへ含めるか
+		void SetQueriesHitTriggers(bool enabled);
+		bool GetQueriesHitTriggers() const { return queriesHitTriggers_; }
 
 		// Collisionタイプを追加する
 		bool AddType(const std::string& name);
@@ -78,6 +81,7 @@ namespace Engine {
 		bool loaded_ = false;
 		// シーン上のCollision形状を描画するか
 		bool drawCollisionWorld_ = false;
+		bool queriesHitTriggers_ = true;
 
 		// 設定ファイルパス
 		std::filesystem::path settingsPath_{};

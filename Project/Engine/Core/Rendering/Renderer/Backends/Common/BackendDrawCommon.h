@@ -88,6 +88,9 @@ namespace Engine::BackendDrawCommon {
 		const RenderDrawContext& context, MaterialParameterSemantic semantic,
 		const AssetID& textureAssetID);
 
+	// 通常TextureとCamera出力の公開世代を合わせる
+	uint64_t GetMaterialTextureRevision(const RenderDrawContext& context);
+
 	// マテリアルテクスチャをreflection駆動でバインドする
 	// 規約はregister space2のテクスチャSRVだけマテリアルテクスチャ扱い、エンジン供給SRVはspace0か1
 	// material.parametersの同名AssetIDを解決し、未指定や失敗なら既定の白テクスチャを使う

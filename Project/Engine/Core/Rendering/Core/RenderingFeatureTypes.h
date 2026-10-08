@@ -3,12 +3,13 @@
 //============================================================================
 //	include
 //============================================================================
-#include <d3d12.h>
-
 // c++
 #include <array>
 #include <cstdint>
 #include <string>
+
+// directX
+#include <d3d12.h>
 
 namespace Engine {
 
@@ -22,6 +23,7 @@ namespace Engine {
 		std::string adapterName{};
 		D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 		uint64_t dedicatedVideoMemoryBytes = 0;
+		std::string driverVersion = "unavailable";
 	};
 
 
@@ -40,7 +42,17 @@ namespace Engine {
 		bool SupportsShaderModel6_6() const { return D3D_SHADER_MODEL_6_6 <= highestShaderModel; }
 		bool SupportsMeshShaderPath() const { return SupportsShaderModel6_6() && meshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED; }
 		// レイトレーシング対応しているか
-		bool SupportsRayTracingPath() const { return D3D12_RAYTRACING_TIER_1_0 <= raytracingTier; }
+		bool SupportsInlineRayTracingPath() const {
+			return D3D_SHADER_MODEL_6_5 <= highestShaderModel &&
+				D3D12_RAYTRACING_TIER_1_1 <= raytracingTier;
+		}
+		bool SupportsDispatchRaysPath() const {
+			return D3D_SHADER_MODEL_6_3 <= highestShaderModel &&
+				D3D12_RAYTRACING_TIER_1_0 <= raytracingTier;
+		}
+		bool SupportsRayTracingPath() const {
+			return SupportsInlineRayTracingPath() || SupportsDispatchRaysPath();
+		}
 		bool SupportsRayTracingTier1_1() const { return D3D12_RAYTRACING_TIER_1_1 <= raytracingTier; }
 	};
 
@@ -93,13 +105,13 @@ namespace Engine {
 		// 深度ピラミッドによるオクルージョンカリングを行うか
 		bool allowOcclusionCulling = true;
 		// SceneViewのカリングにGameViewのカメラを使用するか
-		bool useGameViewCameraForSceneCulling = true;
-		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
+		bool useGameViewCameraForSceneCulling = true;		// 画面上の寄与が小さいメッシュ/メッシュレットを省くか
 		bool allowContributionCulling = true;
 		// MeshShader経路でメッシュレットの法線コーン判定を行うか
 		bool allowNormalConeCulling = false;
 		// メッシュLODを使用するか
-		bool allowMeshLOD = true;
+		// LODは明示的に有効化したときだけ使用する
+		bool allowMeshLOD = false;
 		// 投影半径が閾値を下回ったとき次のLODへ移る
 		float meshLOD0PixelThreshold =
 			GraphicsMeshLOD::kDefaultPixelThresholds[0];

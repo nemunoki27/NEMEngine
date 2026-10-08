@@ -3,15 +3,6 @@
 //============================================================================
 //	include
 //============================================================================
-// spdlog
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#if defined(_MSC_VER)
-#include <spdlog/sinks/msvc_sink.h>
-#endif
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/fmt/fmt.h>
-
 // c++
 #include <filesystem>
 #include <cstdint>
@@ -22,6 +13,15 @@
 #include <chrono>
 #include <string>
 #include <string_view>
+
+// spdlog
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#if defined(_MSC_VER)
+#include <spdlog/sinks/msvc_sink.h>
+#endif
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/fmt/fmt.h>
 
 namespace Engine {
 
@@ -110,15 +110,10 @@ namespace Engine {
 		static ScopedOutput Scoped(LogType type, fmt::format_string<Args...> fmtStr, Args&&... args) {
 			return ScopedOutput(type, fmtStr, std::forward<Args>(args)...);
 		}
-		static ScopedOutput Scoped(LogType type, std::string label) {
-			return ScopedOutput(type, std::move(label));
-		}
+		static ScopedOutput Scoped(LogType type, std::string label) { return ScopedOutput(type, std::move(label)); }
 
 		// accessor
-		static std::shared_ptr<spdlog::logger>& Get(LogType type) {
-			const std::size_t index = static_cast<std::size_t>(type);
-			return index < loggers_.size() ? loggers_[index] : invalidLogger_;
-		}
+		static std::shared_ptr<spdlog::logger> Get(LogType type);
 		static const std::filesystem::path& GetLogDir() { return logDir_; }
 
 	private:
@@ -127,13 +122,14 @@ namespace Engine {
 		//============================================================================
 
 		static void EnsureInitialized();
+		static void CreateLogFilesLocked(const std::filesystem::path& logDir, bool truncate);
 		static std::string_view TypeToFileName(LogType type);
 		static std::string_view TypeToLoggerName(LogType type);
 		static void AppendRecentLog(LogType type, spdlog::level::level_enum level, std::string&& message);
 
 		static inline std::vector<std::shared_ptr<spdlog::logger>> loggers_;
-		// 不正なLogType参照を安全に受ける空Logger
-		static inline std::shared_ptr<spdlog::logger> invalidLogger_;
+		// 明示的に開始するまで終了後の自動生成を止める
+		static inline bool finalized_ = false;
 		static inline std::filesystem::path logDir_ = "./Log";
 		static inline std::mutex mutex_;
 		static inline bool initialized_{ false };
@@ -148,7 +144,7 @@ namespace Engine {
 		Args&&... args) {
 
 		EnsureInitialized();
-		auto& lg = Get(type);
+		auto lg = Get(type);
 		if (!lg) return;
 
 		std::string text = fmt::format(fmtStr, std::forward<Args>(args)...);

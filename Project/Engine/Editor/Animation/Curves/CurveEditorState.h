@@ -5,6 +5,7 @@
 //============================================================================
 // c++
 #include <cstdint>
+#include <span>
 #include <vector>
 // imgui
 #include <imgui.h>
@@ -21,13 +22,10 @@ namespace Engine {
 		uint32_t channelIndex = 0;
 		uint32_t keyIndex = 0;
 
-		bool operator==(const CurveKeySelection& other) const {
-			return channelIndex == other.channelIndex && keyIndex == other.keyIndex;
-		}
+		bool operator==(const CurveKeySelection& other) const;
 	};
 	// カーブエディター上で現在行っているドラッグ操作
-	enum class CurveEditorDragMode :
-		uint8_t {
+	enum class CurveEditorDragMode : uint8_t {
 
 		None,    // 操作なし
 		Key,     // キーの移動
@@ -64,12 +62,13 @@ namespace Engine {
 		bool valueChanged = false;
 		// 選択状態が変更されたか
 		bool selectionChanged = false;
-		// 編集中のImGui itemがあるか
+		// 編集中の入力項目があるか
 		bool anyItemActive = false;
 		// ドラッグや数値編集が確定したか
 		bool editFinished = false;
 	};
 
+	// 表示範囲と選択とドラッグの状態を保持する
 	struct CurveEditorState {
 
 		// 表示している時間範囲の最小値
@@ -82,9 +81,9 @@ namespace Engine {
 		float visibleValueMax = 1.0f;
 		// 現在時刻カーソル
 		float currentTime = 0.0f;
-		// editor state側で保持するスナップ有効状態
+		// 時間スナップの有効状態
 		bool snapEnabled = true;
-		// editor state側で保持するスナップ間隔
+		// 時間スナップの間隔
 		float snapInterval = 0.01f;
 		// キー時刻の上限、0以下で無制限、固定時間範囲の設定から毎フレーム反映される
 		float maxKeyTime = 0.0f;
@@ -92,9 +91,9 @@ namespace Engine {
 		float gridTimeStep = 0.25f;
 		float gridValueStep = 0.25f;
 
-		// Time方向のズーム倍率
+		// 時間軸の表示倍率
 		float pixelsPerSecond = 120.0f;
-		// Value方向のズーム倍率
+		// 値軸の表示倍率
 		float pixelsPerValue = 80.0f;
 
 		// 右クリックした位置のワールド座標
@@ -103,15 +102,15 @@ namespace Engine {
 		CurveKeySelection contextMenuKey{};
 		bool contextMenuOnKey = false;
 
-		// 64chまでを簡易的にON/OFFする表示マスク
+		// 64チャンネルまでの表示マスク
 		uint64_t activeChannelMask = ~0ull;
 		// チャンネルごとの表示状態
 		std::vector<bool> channelVisible;
 		// 選択中キーのリスト
 		std::vector<CurveKeySelection> selectedKeys;
-		// hover中のキー
+		// マウスが重なっているキー
 		CurveKeySelection hoveredKey{};
-		// キーにhoverしているか
+		// マウスがキーに重なっているか
 		bool hasHoveredKey = false;
 
 		// 現在のドラッグ操作
@@ -125,7 +124,7 @@ namespace Engine {
 		ImVec2 marqueeMax = ImVec2(0.0f, 0.0f);
 		// 矩形選択中か
 		bool marqueeActive = false;
-		// 次の描画でFit Viewを行う要求
+		// 次の描画で全キーを表示する要求
 		bool frameSelectionRequest = false;
 
 		// 指定チャンネルが表示対象か
@@ -143,6 +142,6 @@ namespace Engine {
 		// 指定キーの選択状態を反転する
 		void ToggleSelection(uint32_t channelIndex, uint32_t keyIndex);
 		// 削除やソート後に無効になった選択を取り除く
-		void RemoveInvalidSelections(uint32_t channelCount, const uint32_t* keyCounts);
+		void RemoveInvalidSelections(std::span<const uint32_t> keyCounts);
 	};
 } // Engine

@@ -5,13 +5,13 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
+// c++
+#include <string>
+#include <cstdint>
+
 // directX
 #include <d3d12.h>
 #include <dxgi1_6.h>
-// c++
-#include <string>
-#include <cassert>
-#include <cstdint>
 
 namespace Engine {
 
@@ -37,6 +37,7 @@ namespace Engine {
 		IDXGIFactory7* GetDxgiFactory() const { return dxgiFactory_.Get(); }
 
 		const std::string& GetAdapterName() const { return adapterName_; }
+		const std::string& GetDriverVersion() const { return driverVersion_; }
 		uint64_t GetDedicatedVideoMemoryBytes() const { return dedicatedVideoMemoryBytes_; }
 		D3D_FEATURE_LEVEL GetFeatureLevel() const { return featureLevel_; }
 	private:
@@ -51,13 +52,10 @@ namespace Engine {
 		ComPtr<IDXGIAdapter4> useAdapter_;
 
 		std::string adapterName_{};
+		std::string driverVersion_ = "unavailable";
 		uint64_t dedicatedVideoMemoryBytes_ = 0;
 		D3D_FEATURE_LEVEL featureLevel_ = D3D_FEATURE_LEVEL_11_0;
 
-		//--------- functions ----------------------------------------------------
-
-		// 内部ヘルパ:ワイド文字列をUTF-8へ変換する
-		std::string WStringToString(const std::wstring& wstr);
 	};
 
 }; // Engine

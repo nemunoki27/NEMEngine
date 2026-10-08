@@ -27,30 +27,14 @@ namespace Engine {
 		//	public Methods
 		//============================================================================
 
-		static EditorSelectionOutlineRequestService& GetInstance() {
-
-			static EditorSelectionOutlineRequestService instance;
-			return instance;
-		}
+		static EditorSelectionOutlineRequestService& GetInstance();
 
 		// フレーム開始時にtemporary requestをクリアする
 		void BeginFrame() { requests_.clear(); }
 
 		// 選択アウトライン要求を積み、subMeshIndexが負ならEntity全体
 		void Request(ECSWorld* world, const Entity& entity, int32_t subMeshIndex,
-			const ScreenSpaceOutlineStyle& style) {
-
-			if (!world) {
-				return;
-			}
-			ScreenSpaceOutlineRequest request{};
-			request.world = world;
-			request.entity = entity;
-			request.subMeshIndex = subMeshIndex;
-			request.style = style;
-			request.source = ScreenSpaceOutlineSource::EditorSelection;
-			requests_.emplace_back(request);
-		}
+			const ScreenSpaceOutlineStyle& style);
 
 		//--------- accessor -----------------------------------------------------
 

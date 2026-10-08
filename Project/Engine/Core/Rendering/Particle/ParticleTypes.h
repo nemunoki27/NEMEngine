@@ -14,6 +14,7 @@
 // c++
 #include <cstdint>
 #include <deque>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -61,8 +62,8 @@ namespace Engine {
 
 		// 現在の回転
 		Quaternion rotation = Quaternion::Identity();
-		// 角速度ベクトル
-		Vector3 rotationSpeed = Vector3::AnyInit(0.0f);
+		// Moduleごとに抽選した角速度
+		std::unordered_map<UUID, Vector3> rotationSpeeds;
 
 		// フリップブックのUVスケールとオフセット
 		Vector2 uvScale = Vector2::AnyInit(1.0f);
@@ -86,8 +87,6 @@ namespace Engine {
 
 		// 現在追従している親の情報
 		Matrix4x4 parentMatrix = Matrix4x4::Identity();
-		UUID parentLocalFileID{};
-		bool parentIsEmitter = false;
 		bool hasParent = false;
 
 		// 形状アニメーションの評価結果

@@ -65,14 +65,8 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		const D3D12_VERTEX_BUFFER_VIEW& GetVBV() const {
-			return vertexBuffers_[GraphicsFrameState::GetCurrentIndex()]
-				.GetVertexBufferView();
-		}
-		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress() const {
-			return viewBuffers_[GraphicsFrameState::GetCurrentIndex()]
-				.GetResource()->GetGPUVirtualAddress();
-		}
+		const D3D12_VERTEX_BUFFER_VIEW& GetVBV() const;
+		D3D12_GPU_VIRTUAL_ADDRESS GetViewGPUAddress() const;
 		uint32_t GetVertexCount() const { return vertexCount_; }
 	private:
 		//========================================================================

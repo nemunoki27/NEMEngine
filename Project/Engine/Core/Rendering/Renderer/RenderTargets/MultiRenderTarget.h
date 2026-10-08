@@ -15,7 +15,7 @@
 
 namespace Engine {
 
-	// front
+	// 前方宣言
 	class RTVDescriptor;
 	class DSVDescriptor;
 	class SRVDescriptor;
@@ -24,6 +24,14 @@ namespace Engine {
 	//============================================================================
 	//	MultiRenderTarget structures
 	//============================================================================
+	// 描画先の生成に使うDeviceとDescriptor
+	struct RenderTargetCreationContext {
+
+		ID3D12Device* device;
+		RTVDescriptor& targets;
+		DSVDescriptor& depths;
+		SRVDescriptor& shaders;
+	};
 	// 色レンダーテクスチャの情報
 	struct ColorAttachmentDesc {
 
@@ -51,7 +59,7 @@ namespace Engine {
 	};
 	// レンダーターゲットのクリア情報
 	struct MultiRenderTargetClearDesc {
-		
+
 		// 色情報をクリアするか
 		bool clearColor = true;
 		std::optional<Color4> clearColorValue;
@@ -101,13 +109,12 @@ namespace Engine {
 		uint32_t GetHeight() const { return height_; }
 
 		// 色レンダーテクスチャの取得
-		RenderTexture2D* GetColorTexture(size_t index) const {
-
-			return index < colors_.size() ? colors_[index].get() : nullptr;
-		}
+		RenderTexture2D* GetColorTexture(size_t index);
+		const RenderTexture2D* GetColorTexture(size_t index) const;
 		uint32_t GetColorCount() const { return static_cast<uint32_t>(colors_.size()); }
 		// 深度レンダーテクスチャの取得
-		DepthTexture2D* GetDepthTexture() const { return depth_.get(); }
+		DepthTexture2D* GetDepthTexture() { return depth_.get(); }
+		const DepthTexture2D* GetDepthTexture() const { return depth_.get(); }
 	private:
 		//============================================================================
 		//	private Methods
@@ -129,5 +136,5 @@ namespace Engine {
 		// レンダーターゲットの情報を構築する
 		std::vector<RenderTarget> BuildRenderTargets() const;
 	};
-} // Engine
+}
 

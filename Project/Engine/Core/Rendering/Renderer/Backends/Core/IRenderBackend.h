@@ -47,6 +47,8 @@ namespace Engine {
 		const ResolvedRenderView* cullingView = nullptr;
 		// ビルボード計算に使用するビューでSceneViewでもGameViewを指す場合がある
 		const ResolvedRenderView* billboardView = nullptr;
+		// 補助描画でLOD判定に使用する元のビュー
+		const ResolvedRenderView* lodView = nullptr;
 		const SystemContext* systemContext = nullptr;
 		const RenderSceneBatch* batch = nullptr;
 		// ライトなど、描画パス共通で使うGPUバッファの参照先
@@ -71,12 +73,15 @@ namespace Engine {
 		// 描画で使用するMaterialパス
 		MaterialPassKind passKind = MaterialPassKind::Draw;
 		bool depthOnly = false;
+		bool forceTwoSidedRasterizer = false;
+		bool disableLODDither = false;
 
 		// ScreenSpaceOutline Mask描画でこの描画単位へ渡すStyle IDとSubMesh制限
 		// 0なら描画せずMask以外のパスでは未使用
 		uint32_t screenSpaceOutlineMaskStyleID = 0;
 		int32_t screenSpaceOutlineMaskRestrictSubMeshIndex = -1;
 		uint32_t screenSpaceOutlineMaskAlphaSource = 0;
+		float screenSpaceOutlineMaskAlphaThreshold = 0.1f;
 
 		std::span<const DXGI_FORMAT> GetRTVFormats() const { return std::span<const DXGI_FORMAT>(rtvFormats.data(), numRTVFormats); }
 	};

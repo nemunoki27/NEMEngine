@@ -45,33 +45,14 @@ void Engine::LineRenderer3D::RenderDefaultGrid(GraphicsCore& graphicsCore,
 	gridRenderer_->Render(graphicsCore, *camera, surface, 0.0f, occlusionDepth);
 }
 
-void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius,
+void Engine::LineRenderer3D::DrawSphereGrid(const Vector3& center, float radius,
 	const Color4& color, uint32_t division, float thickness) {
 
-	const float kLatEvery = Math::pi / division;        // 緯度
-	const float kLonEvery = 2.0f * Math::pi / division; // 経度
-
-	auto calculatePoint = [&](float lat, float lon) -> Vector3 {
-		return {
-			radius * std::cos(lat) * std::cos(lon),
-			radius * std::sin(lat),
-			radius * std::cos(lat) * std::sin(lon)
-		};
-		};
-	for (uint32_t latIndex = 0; latIndex < division; ++latIndex) {
-
-		float lat = -Math::pi / 2.0f + kLatEvery * latIndex;
-		for (uint32_t lonIndex = 0; lonIndex < division; ++lonIndex) {
-			float lon = lonIndex * kLonEvery;
-
-			Vector3 pointA = calculatePoint(lat, lon);
-			Vector3 pointB = calculatePoint(lat + kLatEvery, lon);
-			Vector3 pointC = calculatePoint(lat, lon + kLonEvery);
-
-			DrawLine(pointA + center, pointB + center, color, thickness);
-			DrawLine(pointA + center, pointC + center, color, thickness);
-		}
-	}
+	// 共通の形状から描画用の線を追加
+	LineShapeBuilder::ForEachSphereLine(center, radius, division,
+		[&](const Vector3& start, const Vector3& end) {
+			DrawLine(start, end, color, thickness);
+		});
 }
 
 void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, const Color4& color, float thickness) {
@@ -132,32 +113,11 @@ void Engine::LineRenderer3D::DrawSphere(const Vector3& center, float radius, con
 
 void Engine::LineRenderer3D::DrawAABB(const Vector3& min, const Vector3& max, const Color4& color, float thickness) {
 
-	// AABBの各頂点
-	std::vector<Vector3> vertices = {
-		{min.x, min.y, min.z},
-		{max.x, min.y, min.z},
-		{min.x, max.y, min.z},
-		{max.x, max.y, min.z},
-		{min.x, min.y, max.z},
-		{max.x, min.y, max.z},
-		{min.x, max.y, max.z},
-		{max.x, max.y, max.z} };
-
-	// 各辺
-	std::vector<std::pair<int, int>> edges = {
-		{0, 1}, {1, 3}, {3, 2}, {2, 0}, // 前面
-		{4, 5}, {5, 7}, {7, 6}, {6, 4}, // 背面
-		{0, 4}, {1, 5}, {2, 6}, {3, 7}  // 前面と背面を繋ぐ辺
-	};
-
-	for (const auto& edge : edges) {
-
-		const Vector3& start = vertices[edge.first];
-		const Vector3& end = vertices[edge.second];
-
-		// 各辺の描画
-		DrawLine(start, end, color, thickness);
-	}
+	// 中心と半径に揃えて箱の辺を生成
+	LineShapeBuilder::ForEachOBBLine((min + max) * 0.5f, (max - min) * 0.5f, Matrix4x4::Identity(),
+		[&](const Vector3& start, const Vector3& end) {
+			DrawLine(start, end, color, thickness);
+		});
 }
 
 void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Skeleton& skeleton) {
@@ -176,7 +136,7 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 		}
 	}
 
-	// 秒が定数
+	// 骨の分割数と太さを揃える
 	constexpr int32_t kDivision = 4;
 	constexpr float kRatioTop = 0.02f;
 	constexpr float kRatioBase = 0.088f;
@@ -186,7 +146,7 @@ void Engine::LineRenderer3D::DrawSkeleton(const Matrix4x4& worldMatrix, const Sk
 	for (size_t i = 0; i < skeleton.joints.size(); ++i) {
 
 		worldPos[i] = Vector3::Transform(Vector3::AnyInit(0.0f), skeleton.joints[i].skeletonSpaceMatrix * worldMatrix);
-		DrawSphere(worldPos[i], 0.02f, Color4::Yellow(), kDivision, 1.0f);
+		DrawSphereGrid(worldPos[i], 0.02f, Color4::Yellow(), kDivision, 1.0f);
 	}
 	// 親から子に向けて描画
 	for (size_t parent = 0; parent < skeleton.joints.size(); ++parent) {

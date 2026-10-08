@@ -1,17 +1,23 @@
 {
-    "name": "particleRingMSShader",
-    "stages": [
-        {
-            "entry": "main",
-            "file": "4e454d4153534554eff0000000000009",
-            "profile": "ms_6_6",
-            "stage": "MS"
-        },
-        {
-            "entry": "main",
-            "file": "4e454d4153534554eff0000000000003",
-            "profile": "ps_6_6",
-            "stage": "PS"
-        }
-    ]
+  "name": "particleRingMSShader",
+  "stages": [
+    {
+      "entry": "main",
+      "file": "4e454d4153534554eff0000000000009",
+      "profile": "ms_6_6",
+      "stage": "MS"
+    },
+    {
+      "entry": "main",
+      "file": "4e454d4153534554eff0000000000003",
+      "profile": "ps_6_0",
+      "stage": "PS"
+    },
+    {
+      "entry": "main",
+      "file": "23ee13f4d01f49d7a10dfc771d457cc1",
+      "profile": "vs_6_0",
+      "stage": "VS"
+    }
+  ]
 }

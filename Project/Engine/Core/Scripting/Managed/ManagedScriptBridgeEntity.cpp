@@ -34,7 +34,7 @@ namespace Engine {
 		}
 
 		// 名前コンポーネントからエンティティ名を取得してマネージド側バッファへコピー
-		NameComponent* name = world->TryGetComponent<NameComponent>(resolved);
+		NameComponent* name = world->TryGetComponentForBinding<NameComponent>(resolved);
 		return CopyStringToBuffer(name ? name->name : std::string{}, buffer, capacity);
 	}
 
@@ -48,7 +48,7 @@ namespace Engine {
 
 		// 既にNameComponentがあれば即時反映する非構造的な値変更、無い場合の自動追加はarchetype移動でForEach走査を壊し得るためコマンドバッファへ積む
 		const std::string newName = name ? std::string(name) : std::string{};
-		if (NameComponent* nameComponent = world->TryGetComponent<NameComponent>(resolved)) {
+		if (NameComponent* nameComponent = world->TryGetComponentForBinding<NameComponent>(resolved)) {
 			nameComponent->name = newName;
 		} else {
 			world->GetCommandBuffer().EnqueueSetNameEnsuringComponent(resolved, newName);
@@ -63,7 +63,7 @@ namespace Engine {
 		}
 
 		// エンティティ自身の有効状態を返す、コンポーネントがなければデフォルト有効とみなす
-		SceneObjectComponent* sceneObject = world->TryGetComponent<SceneObjectComponent>(resolved);
+		SceneObjectComponent* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved);
 		return (!sceneObject || sceneObject->activeSelf) ? 1 : 0;
 	}
 
@@ -77,6 +77,11 @@ namespace Engine {
 		// 既にSceneObjectComponentがあれば即時反映する値変更とアクティブ伝播は非構造、無い場合の自動追加は構造変更になるためコマンドバッファへ積む
 		if (world->TryGetComponent<SceneObjectComponent>(resolved)) {
 			SceneObjectUtility::SetActiveSelf(*world, resolved, active != 0);
+		} else if (auto* pending = world->TryGetComponentForBinding<SceneObjectComponent>(resolved)) {
+
+			// 初期Componentの予約値へ反映する
+			pending->activeSelf = active != 0;
+			pending->activeInHierarchy = pending->activeSelf;
 		} else {
 			world->GetCommandBuffer().EnqueueSetActiveSelfEnsuringComponent(resolved, active != 0);
 		}
@@ -86,7 +91,11 @@ namespace Engine {
 		ECSWorld* world = ResolveWorld(entity);
 		const Entity resolved = ResolveEntity(entity);
 		// 自身と親すべてが有効であるかを確認する、描画や更新の最終的な判断基準
-		return (world && IsEntityActiveInHierarchy(*world, resolved)) ? 1 : 0;
+		if (!world || !world->IsAlive(resolved)) {
+			return 0;
+		}
+		const auto* sceneObject = world->TryGetComponentForBinding<SceneObjectComponent>(resolved);
+		return !sceneObject || sceneObject->activeInHierarchy ? 1 : 0;
 	}
 
 } // Engine

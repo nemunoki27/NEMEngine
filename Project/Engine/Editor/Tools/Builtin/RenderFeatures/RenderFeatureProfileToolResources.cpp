@@ -9,14 +9,13 @@
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileService.h>
 #include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 #include <Engine/Core/Rendering/Pipelines/Stage/ShaderReflection.h>
-#include <Engine/Core/Tools/ImGui/ImGuiHelpers.h>
+#include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Editor/UI/Common/MaterialParameterEditor.h>
-
-// imgui
-#include <imgui.h>
 
 // c++
 #include <algorithm>
+
+#include <imgui.h>
 
 namespace {
 
@@ -94,8 +93,7 @@ bool Engine::RenderFeatureProfileTool::DrawOutputReferenceCombo(
 	return true;
 }
 
-bool Engine::RenderFeatureProfileTool::DrawSamplerSettings(
-	PipelineStaticSamplerSettings& settings) {
+bool Engine::RenderFeatureProfileTool::DrawSamplerSettings(PipelineStaticSamplerSettings& settings) {
 
 	bool changed = false;
 	changed |= MyGUI::EnumCombo("フィルタ", settings.filter).valueChanged;
@@ -119,8 +117,7 @@ bool Engine::RenderFeatureProfileTool::DrawSamplerSettings(
 	return changed;
 }
 
-void Engine::RenderFeatureProfileTool::DrawOutputs(
-	RenderFeaturePassSettings& pass) {
+void Engine::RenderFeatureProfileTool::DrawOutputs(RenderFeaturePassSettings& pass) {
 
 	if (!MyGUI::CollapsingHeader("出力", false)) {
 		return;
@@ -178,12 +175,11 @@ void Engine::RenderFeatureProfileTool::DrawOutputs(
 	}
 	ImGui::Unindent();
 	if (changed) {
-		SetDirty();
+		editSession_.SetDirty();
 	}
 }
 
-void Engine::RenderFeatureProfileTool::DrawResources(
-	const EditorToolContext& context, RenderFeaturePassSettings& pass) {
+void Engine::RenderFeatureProfileTool::DrawResources(const EditorToolContext& context, RenderFeaturePassSettings& pass) {
 
 	if (!MyGUI::CollapsingHeader("リソースとパラメータ", false)) {
 		return;
@@ -408,6 +404,6 @@ void Engine::RenderFeatureProfileTool::DrawResources(
 		}
 	}
 	if (changed) {
-		SetDirty();
+		editSession_.SetDirty();
 	}
 }

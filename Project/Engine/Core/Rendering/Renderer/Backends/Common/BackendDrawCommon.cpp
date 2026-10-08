@@ -3,12 +3,14 @@
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
 #include <Engine/Core/Rendering/Assets/MaterialAsset.h>
 #include <Engine/Core/Rendering/Textures/RuntimeTextureResolver.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Pipelines/PipelineState.h>
 #include <Engine/Core/Rendering/Pipelines/Bind/RootBindingCommandHelper.h>
 #include <Engine/Core/Rendering/Textures/GPUTextureResource.h>
+#include <Engine/Core/Rendering/Textures/TextureUploadService.h>
 
 // c++
 #include <variant>
@@ -63,17 +65,19 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveGraphicsPipeline(
 	const PipelineVariantDesc** outVariant, bool forceDepthTestWrite,
 	const PipelineStaticSamplerOverrideSet* samplerOverrides) {
 
-	const PipelineVariantKind desiredKind = context.forceVertexMeshVariant ?
+	// 半透明はGPU実行順で前後関係を崩さない頂点経路を使う
+	const bool preserveTransparentOrder =
+		context.passKind == MaterialPassKind::Transparent &&
+		passBinding.preferredVariant == PipelineVariantKind::GraphicsMesh;
+	const PipelineVariantKind desiredKind =
+		context.forceVertexMeshVariant || preserveTransparentOrder ?
 		PipelineVariantKind::GraphicsVertex :
 		passBinding.preferredVariant;
-	if (passBinding.shaderOverride) {
-		return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
-			passBinding.pipeline, passBinding.pipeline, passBinding.shaderOverride, desiredKind,
-			context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant);
-	}
+	// Shader差替え時も深度とSamplerの指定を引き継ぐ
 	return context.pipelineCache->GetORCreate(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, desiredKind, context.GetRTVFormats(), context.dsvFormat,
-		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides);
+		context.runtimeFeatures, outVariant, forceDepthTestWrite, samplerOverrides,
+		passBinding.shaderOverride, context.forceTwoSidedRasterizer);
 }
 
 const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsPipeline(
@@ -82,7 +86,8 @@ const Engine::PipelineState* Engine::BackendDrawCommon::ResolveComposedGraphicsP
 
 	return context.pipelineCache->GetORCreateComposed(context.graphicsCore->GetDXObject(), *context.assetLibrary,
 		passBinding.pipeline, geometryPipeline, passBinding.shaderOverride, desiredKind,
-		context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant);
+		context.GetRTVFormats(), context.dsvFormat, context.runtimeFeatures, outVariant,
+		context.forceTwoSidedRasterizer);
 }
 
 ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(const RenderDrawContext& context,
@@ -93,6 +98,8 @@ ID3D12GraphicsCommandList6* Engine::BackendDrawCommon::SetupGraphicsPipeline(con
 
 	// パイプラインを設定
 	commandList->SetGraphicsRootSignature(pipelineState.GetRootSignature());
+	pipelineState.BindGlobalDescriptorTablesGraphics(commandList,
+		context.graphicsCore->GetSRVDescriptor().GetGPUHandle(0));
 	commandList->SetPipelineState(pipelineState.GetGraphicsPipeline(blendMode));
 
 	return commandList;
@@ -262,8 +269,9 @@ void Engine::BackendDrawCommon::BindReflectedMaterialParameters(const RenderDraw
 		const AssetID& textureAssetID) {
 		return ResolveMaterialTextureIndex(context, semantic, textureAssetID);
 	};
+	binder.SetTextureRevision(GetMaterialTextureRevision(context), RuntimeTextureResolver::GetWritingRenderTexture());
 	const D3D12_GPU_VIRTUAL_ADDRESS materialParamsAddress =
-		binder.ResolveAndUpload(device, pipelineState, material,
+		binder.ResolveAndUpload(context.graphicsCore->GetDXObject().GetResourceRetirement(), device, pipelineState, material,
 			effectiveOverrides, resolveTexture);
 	if (materialParamsAddress != 0) {
 		RootBindingCommand::SetGraphicsCBV(commandList, bindCache.Get(slot), materialParamsAddress);
@@ -280,4 +288,13 @@ bool Engine::BackendDrawCommon::CanBatchBasic(const RenderItem& first, const Ren
 		first.blendMode == next.blendMode &&
 		first.surfaceMode == next.surfaceMode &&
 		first.batchKey == next.batchKey;
+}
+
+
+uint64_t Engine::BackendDrawCommon::GetMaterialTextureRevision(const RenderDrawContext& context) {
+
+	const uint64_t uploadRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
+	const uint64_t renderRevision = RuntimeTextureResolver::GetBindingRevision();
+	// Camera出力の差替えでもMaterialのSRV番号を更新する
+	return Algorithm::MixHash(uploadRevision, renderRevision);
 }

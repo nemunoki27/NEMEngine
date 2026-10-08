@@ -4,8 +4,10 @@
 //	include
 //============================================================================
 #include <Engine/Core/Foundation/Diagnostics/Assert.h>
-#include <Engine/Core/Foundation/Math/Vector3.h>
-#include <Engine/Core/Foundation/Math/Quaternion.h>
+#include "StringUtility.h"
+#include "UTFConversion.h"
+#include "PathUtility.h"
+#include "HashUtility.h"
 
 // c++
 #include <cstdint>
@@ -13,27 +15,33 @@
 #include <utility>
 #include <algorithm>
 #include <filesystem>
-#include <locale>
+#include <type_traits>
 
 //============================================================================
 //	Algorithm namespace
-// 汎用アルゴリズム(列挙→配列化／文字列処理／探索／補間／範囲判定)を提供する
+//	列挙・探索と用途別の共通処理を提供する
 //============================================================================
 namespace Engine {
 	namespace Algorithm {
 
+		// 指定要素を移動し、間の要素順を維持する
+		template <typename T>
+		void MoveListItem(std::vector<T>& list, int32_t from, int32_t to) {
+
+			if (from < 0 || to < 0 || list.size() <= static_cast<size_t>(from) || list.size() <= static_cast<size_t>(to)) {
+				return;
+			}
+			if (from < to) {
+				std::rotate(list.begin() + from, list.begin() + from + 1, list.begin() + to + 1);
+			} else {
+				std::rotate(list.begin() + to, list.begin() + from, list.begin() + from + 1);
+			}
+		}
+
 		//============================================================================
 		//	Enum
 		//============================================================================
-		// クラス名整形時の先頭大文字/小文字/無加工の指定を行う
-		enum class LeadingCase {
-
-			AsIs,  // 変更しない
-			Lower, // 先頭を小文字にする
-			Upper  // 先頭を大文字にする
-		};
-
-		// 列挙の0..(enumValue-1)をuint32配列として取得する
+		// 先頭から指定した列挙値の直前まで取得する
 		template <typename Enum, typename = std::enable_if_t<std::is_enum_v<Enum>>>
 		std::vector<uint32_t> GetEnumArray(Enum enumValue) {
 
@@ -54,91 +62,35 @@ namespace Engine {
 		}
 
 		//============================================================================
-		//	String
-		//============================================================================
-		// inputからtoRemoveをすべて取り除いた文字列を返す
-		std::string RemoveSubstring(const std::string& input, const std::string& toRemove);
-
-		//	先頭文字の大文字/小文字/無加工を指定どおりに整形する
-		std::string AdjustLeadingCase(std::string string, LeadingCase leadingCase);
-
-		// UTF-8のstd::stringをstd::wstringへ変換する
-		std::wstring ConvertString(const std::string& str);
-		// std::wstringをUTF-8のstd::stringへ変換する
-		std::string ConvertString(const std::wstring& wstr);
-		// UTF-8のパス文字列をOSのパスへ変換する
-		std::filesystem::path PathFromUTF8(const std::string& path);
-		// OSのパスをUTF-8文字列へ変換する
-		std::string PathToUTF8(const std::filesystem::path& path);
-
-		// ワイド文字列を小文字化して返す
-		std::wstring ToLowerW(std::wstring s);
-		std::string ToLower(std::string s);
-
-		// ワイド文字列が指定サフィックスで終わるか判定する
-		bool EndsWithW(const std::wstring& s, const std::wstring& suf);
-		// 文字列が特定のサフィックスで終わるか
-		bool EndsWith(const std::string& s, const std::string& suf);
-
-		// haystackにneedleが大小無視で含まれるか、needleが空なら常にtrue
-		bool ContainsCaseInsensitive(const std::string& haystack, const std::string& needle);
-
-		// UTF-8をUnicodeコードポイント列(char32_t)へ変換
-		// 不正なシーケンスはU+FFFDに置換
-		std::vector<char32_t> Utf8ToCodepoints(const std::string& s);
-		// Unicodeコードポイント列(char32_t)をUTF-8へ変換
-		std::string CodepointToUtf8(char32_t cp);
-
-		//============================================================================
-		//	Hash
-		//============================================================================
-		// FNV系の混合でhashへvalueを畳み込む、複数値からハッシュを積み上げる用途
-		inline void HashCombine(uint64_t& hash, uint64_t value) {
-
-			hash ^= value;
-			hash *= 1099511628211ull;
-		}
-
-		//============================================================================
 		//	Find
 		//============================================================================
-		// メンバfindを持つ連想系コンテナでキーの存在を判定する、必要に応じAssert::Call
+		// コンテナがキーによる探索を持つか判定する
 		template <typename, typename = std::void_t<>>
 		struct has_find_method : std::false_type {};
 		template <typename T>
 		struct has_find_method<T, std::void_t<decltype(std::declval<T>().find(std::declval<typename T::key_type>()))>>
-			: std::true_type {
-		};
+			: std::true_type {};
 		template <typename T>
 		constexpr bool has_find_method_v = has_find_method<T>::value;
 
-		// 連想コンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
+		// コンテナからキーを探索する
 		template <typename TA, typename TB>
-		typename std::enable_if_t<has_find_method_v<TA>, bool>
-			Find(const TA& object, const TB& key, bool assertionEnable = false) {
+		bool Find(const TA& object, const TB& key, bool assertionEnable = false) {
 
-			auto it = object.find(key);
-			bool found = it != object.end();
-
+			// コンテナの探索方法を選択
+			const bool found = [&]() {
+				if constexpr (has_find_method_v<TA>) {
+					return object.find(key) != object.end();
+				} else {
+					return std::find(object.begin(), object.end(), key) != object.end();
+				}
+			}();
+			// 指定された場合だけ未発見を通知
 			if (!found && assertionEnable) {
 				Assert::Call(false, "対象オブジェクトが見つかりません");
 			}
-			return found;
-		}
-		// シーケンスコンテナに対しkeyの存在を返す、assertionEnable時に未発見ならAssert::Call
-		template <typename TA, typename TB>
-		typename std::enable_if_t<!has_find_method_v<TA>, bool>
-			Find(const TA& object, const TB& key, bool assertionEnable = false) {
-
-			auto it = std::find(object.begin(), object.end(), key);
-			bool found = it != object.end();
-
-			if (!found && assertionEnable) {
-				Assert::Call(false, "対象オブジェクトが見つかりません");
-			}
-
 			return found;
 		}
 
 	}
-}; // Engine
+}

@@ -9,15 +9,39 @@
 
 namespace Engine::SceneObjectUtility {
 
+	Entity ResolveReference(const ECSWorld& world, AssetID sourceAsset, UUID localFileID, UUID preferredScene) {
+
+		if (!sourceAsset || !localFileID) {
+			return Entity::Null();
+		}
+		Entity match = Entity::Null();
+		Entity preferred = Entity::Null();
+		uint32_t matches = 0;
+		uint32_t preferredMatches = 0;
+		world.ForEach<SceneObjectComponent>([&](Entity entity, const SceneObjectComponent& object) {
+			if (world.IsPendingDestroy(entity) || object.sourceAsset != sourceAsset || object.localFileID != localFileID) {
+				return;
+			}
+			match = entity;
+			++matches;
+			if (preferredScene && object.sceneInstanceID == preferredScene) {
+				preferred = entity;
+				++preferredMatches;
+			}
+		});
+		// 所有Scene内でも複数一致した参照は未解決のまま返す
+		if (preferredMatches != 0) {
+			return preferredMatches == 1 ? preferred : Entity::Null();
+		}
+		return matches == 1 ? match : Entity::Null();
+	}
+
 	SceneObjectComponent& EnsureSceneObject(ECSWorld& world, Entity entity) {
 
 		// シーンオブジェクトが存在しないなら付ける
 		if (!world.HasComponent<SceneObjectComponent>(entity)) {
 
-			auto& sceneObject = world.AddComponent<SceneObjectComponent>(entity);
-			sceneObject.localFileID = UUID::New();
-			sceneObject.activeSelf = true;
-			sceneObject.activeInHierarchy = true;
+			world.AddComponent<SceneObjectComponent>(entity);
 		}
 
 		// ローカルIDが存在しないなら新しく生成する
@@ -46,17 +70,15 @@ namespace Engine::SceneObjectUtility {
 		HierarchySystem hierarchySystem{};
 		hierarchySystem.UpdateActiveInHierarchy(world, entity);
 
-		// 親が非アクティブでactiveInHierarchyが変化しない場合もactiveSelfの変更を通知する
-		const SceneObjectComponent* updatedSceneObject =
-			world.TryGetComponent<SceneObjectComponent>(entity);
-		if (updatedSceneObject &&
-			updatedSceneObject->activeInHierarchy == previousActiveInHierarchy) {
+		// 親が非アクティブでも自身の変更を通知する
+		const SceneObjectComponent* updatedSceneObject = world.TryGetComponent<SceneObjectComponent>(entity);
+		if (updatedSceneObject && updatedSceneObject->activeInHierarchy == previousActiveInHierarchy) {
 			world.MarkComponentModified<SceneObjectComponent>(entity);
 		}
 		return true;
 	}
 
-	UUID GetSceneInstanceID(ECSWorld& world, Entity entity) {
+	UUID GetSceneInstanceID(const ECSWorld& world, Entity entity) {
 
 		if (const auto* component = world.TryGetComponent<SceneObjectComponent>(entity)) {
 			return component->sceneInstanceID;
@@ -64,7 +86,7 @@ namespace Engine::SceneObjectUtility {
 		return {};
 	}
 
-	bool IsInScene(ECSWorld& world, Entity entity, UUID sceneInstanceID) {
+	bool IsInScene(const ECSWorld& world, Entity entity, UUID sceneInstanceID) {
 
 		if (!sceneInstanceID) {
 			return true;
@@ -72,23 +94,26 @@ namespace Engine::SceneObjectUtility {
 		return GetSceneInstanceID(world, entity) == sceneInstanceID;
 	}
 
-	Entity FindByLocalFileID(ECSWorld& world, UUID localFileID) {
+	Entity FindByLocalFileID(const ECSWorld& world, UUID localFileID) {
 
 		return FindByLocalFileID(world, UUID{}, localFileID);
 	}
 
-	Entity FindByLocalFileID(ECSWorld& world, UUID sceneInstanceID, UUID localFileID) {
+	Entity FindByLocalFileID(const ECSWorld& world, UUID sceneInstanceID, UUID localFileID) {
 
 		if (!localFileID) {
 			return Entity::Null();
 		}
 		Entity found = Entity::Null();
-		world.ForEach<SceneObjectComponent>([&](Entity entity, SceneObjectComponent& sceneObject) {
-			if (!found.IsValid() && sceneObject.localFileID == localFileID &&
+		uint32_t matches = 0;
+		world.ForEach<SceneObjectComponent>([&](Entity entity, const SceneObjectComponent& sceneObject) {
+			if (!world.IsPendingDestroy(entity) && sceneObject.localFileID == localFileID &&
 				(!sceneInstanceID || sceneObject.sceneInstanceID == sceneInstanceID)) {
 				found = entity;
+				++matches;
 			}
-			});
-		return found;
+		});
+		// 重複する番号を走査順で選ばない
+		return matches == 1 ? found : Entity::Null();
 	}
 } // Engine::SceneObjectUtility

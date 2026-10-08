@@ -48,6 +48,8 @@ namespace Engine {
 
 		DepthTexture2D() = default;
 		~DepthTexture2D();
+		DepthTexture2D(const DepthTexture2D&) = delete;
+		DepthTexture2D& operator=(const DepthTexture2D&) = delete;
 
 		// リソース作成
 		void Create(DSVDescriptor* dsvDescriptor, SRVDescriptor* srvDescriptor, const DepthTextureCreateDesc& desc);
@@ -110,6 +112,9 @@ namespace Engine {
 		// デスクリプタヒープのインデックス
 		uint32_t dsvIndex_ = UINT32_MAX;
 		uint32_t srvIndex_ = UINT32_MAX;
+		// 完成した資源と管理状態を交換する
+		void Swap(DepthTexture2D& other) noexcept;
+
 	};
 } // Engine
 

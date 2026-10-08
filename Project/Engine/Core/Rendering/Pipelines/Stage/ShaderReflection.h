@@ -13,6 +13,7 @@
 #include <cstdint>
 // directX
 #include <d3d12.h>
+#include <d3d12shader.h>
 #include <dxcapi.h>
 
 namespace Engine {
@@ -21,8 +22,7 @@ namespace Engine {
 	//	ShaderReflection structures
 	//============================================================================
 	// シェーダ―の種類
-	enum class ShaderStage :
-		uint32_t {
+	enum class ShaderStage : uint32_t {
 
 		None = 0,
 		VS = 1 << 0,
@@ -33,8 +33,8 @@ namespace Engine {
 		CS = 1 << 5,
 		Lib = 1 << 6,
 	};
-	 ShaderStage operator|(ShaderStage a, ShaderStage b);
-	 ShaderStage& operator|=(ShaderStage& a, ShaderStage b);
+	ShaderStage operator|(ShaderStage a, ShaderStage b);
+	ShaderStage& operator|=(ShaderStage& a, ShaderStage b);
 	// シェーダーリソースの種類
 	enum class ShaderBindingKind {
 
@@ -57,6 +57,7 @@ namespace Engine {
 		ShaderBindingKind kind;
 
 		UINT bindPoint = 0;
+		// 0はTexture等の非有界配列を表す
 		UINT bindCount = 1;
 		UINT space = 0;
 		ShaderStage stageMask = ShaderStage::None;
@@ -97,7 +98,7 @@ namespace Engine {
 		bool used = true;
 		// 色として編集するか、シェーダー側メタデータで立てる
 		bool isColor = false;
-		// bindless indexをTextureアセットとして編集するか
+		// Bindless番号をTextureアセットとして編集するか
 		bool isTexture = false;
 	};
 	// 定数バッファの情報
@@ -128,7 +129,7 @@ namespace Engine {
 		std::vector<ShaderResourceBinding> resources;
 		// シェーダー入力セマンティクスの情報
 		std::vector<ShaderInputSemantic> inputs;
-		// 定数バッファの中身でMaterial Parametersの自動詰め込みに使用する
+		// Material値の詰め込みに使う定数バッファ
 		std::vector<ShaderConstantBufferInfo> constantBuffers;
 		// StructuredBufferの要素サイズとメンバー情報
 		std::vector<ShaderStructuredBufferInfo> structuredBuffers;
@@ -153,18 +154,17 @@ namespace Engine {
 		ComPtr<IDxcBlob> object;
 		// Cook済み製品ではdxcompiler.dllを使わず所有する
 		std::vector<uint8_t> bytecode;
+		// コンパイル失敗時のDXC診断
+		std::string diagnostics;
 		// シェーダーのリフレクション情報
 		ShaderReflectionInfo reflection;
 
-		bool IsValid() const noexcept {
-			return object || !bytecode.empty();
-		}
-		const void* GetBytecodePointer() const noexcept {
-			return object ? object->GetBufferPointer() : bytecode.data();
-		}
-		size_t GetBytecodeSize() const noexcept {
-			return object ? object->GetBufferSize() : bytecode.size();
-		}
+		// 使用できるバイナリを保持しているか
+		bool IsValid() const noexcept;
+		// コンパイル結果を優先してバイナリの先頭を取得する
+		const void* GetBytecodePointer() const noexcept;
+		// コンパイル結果を優先してバイナリのサイズを取得する
+		size_t GetBytecodeSize() const noexcept;
 	};
 
 	// reflectionから指定名の定数バッファを探す、無ければnullptr
@@ -177,4 +177,4 @@ namespace Engine {
 
 	// 変数のスカラー成分数を安全側に求める、宣言成分数とサイズから1から4で返す
 	uint32_t GetVariableComponentCount(const ShaderConstantBufferVariable& variable);
-} // Engine
+}

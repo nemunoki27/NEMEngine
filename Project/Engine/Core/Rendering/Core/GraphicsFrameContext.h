@@ -5,18 +5,28 @@
 //============================================================================
 #include <Engine/Core/Rendering/DxObject/Common/ComPtr.h>
 
-// directX
-#include <d3d12.h>
 // c++
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <utility>
 #include <vector>
 
+// directX
+#include <d3d12.h>
+
 namespace Engine {
+
+	class BaseDescriptor;
 
 	// GPUリソース配列が確保する最大フレーム数
 	constexpr uint32_t kGraphicsFrameContextCount = 3;
+	// 未使用領域を再利用候補として残すframe数
+	constexpr uint64_t kGraphicsResourceReuseFrames = 120;
+
+	// 再利用の猶予を過ぎた領域か調べる
+	bool HasExpiredGraphicsResource(uint64_t lastUsedSerial, uint64_t frameSerial);
 
 	//============================================================================
 	//	GraphicsFrameContext structure
@@ -33,19 +43,9 @@ namespace Engine {
 	//============================================================================
 	class GraphicsFrameState {
 	public:
-		static void SetActiveCount(uint32_t count) {
-			activeCount_ = count < 1 ? 1 :
-				(count > kGraphicsFrameContextCount ?
-					kGraphicsFrameContextCount : count);
-			currentIndex_ %= activeCount_;
-		}
-		static void SetCurrentIndex(uint32_t index) {
-			currentIndex_ = index % activeCount_;
-		}
-		static void BeginFrame(uint32_t index) {
-			SetCurrentIndex(index);
-			++frameSerial_;
-		}
+		static void SetActiveCount(uint32_t count);
+		static void SetCurrentIndex(uint32_t index) { currentIndex_ = index % activeCount_; }
+		static void BeginFrame(uint32_t index);
 		static uint32_t GetCurrentIndex() { return currentIndex_; }
 		static uint32_t GetActiveCount() { return activeCount_; }
 		static uint64_t GetFrameSerial() { return frameSerial_; }
@@ -57,47 +57,57 @@ namespace Engine {
 	};
 
 	//============================================================================
-	//	GraphicsDeferredReleaseQueue class
-	// GPUが参照中のリソースをフレームコンテキスト再利用まで保持する
+	//	GraphicsResourceRetirement class
+	//	描画提出後のFence完了まで資源とDescriptorを保持する
 	//============================================================================
-	class GraphicsDeferredReleaseQueue {
+	class GraphicsResourceRetirement {
 	public:
-		// 現在フレームで不要になったリソースを遅延解放する
-		void Retire(ComPtr<ID3D12Resource> resource) {
+		//========================================================================
+		//	public Methods
+		//========================================================================
 
-			if (!resource) {
-				return;
-			}
-			Collect();
-			resources_[GraphicsFrameState::GetCurrentIndex()].emplace_back(
-				std::move(resource));
-		}
+		GraphicsResourceRetirement() = default;
+		GraphicsResourceRetirement(const GraphicsResourceRetirement&) = delete;
+		GraphicsResourceRetirement& operator=(const GraphicsResourceRetirement&) = delete;
 
-		// 再利用可能になったフレームスロットのリソースを解放する
-		void Collect() {
+		// 複数資源の登録前に保持領域を確保する
+		void ReservePending(size_t additionalCount);
+		// 次の描画提出に対応する回収候補を登録する
+		void Retire(ComPtr<ID3D12Object> object, BaseDescriptor* descriptor = nullptr, uint32_t index = UINT32_MAX);
+		// 登録済み候補へ描画キューの提出Fenceを対応付ける
+		void Seal(uint64_t fenceValue);
+		// 描画キューの完了済み候補を回収する
+		void Collect(uint64_t completedFenceValue);
 
-			const uint32_t frameIndex =
-				GraphicsFrameState::GetCurrentIndex();
-			const uint64_t frameSerial =
-				GraphicsFrameState::GetFrameSerial();
-			if (frameSerials_[frameIndex] == frameSerial) {
-				return;
-			}
+		// Device消失を確認して終了時の保持を解除する
+		void ReleaseAfterDeviceRemoval(ID3D12Device* device);
 
-			resources_[frameIndex].clear();
-			frameSerials_[frameIndex] = frameSerial;
-		}
+		//--------- accessor -----------------------------------------------------
 
-		// 保持中の全リソースを解放する
-		void Clear() {
-
-			resources_ = {};
-			frameSerials_ = {};
-		}
+		size_t GetPendingCount() const { return pendingCount_; }
 	private:
-		std::array<std::vector<ComPtr<ID3D12Resource>>,
-			kGraphicsFrameContextCount> resources_{};
-		std::array<uint64_t,
-			kGraphicsFrameContextCount> frameSerials_{};
+		//========================================================================
+		//	private Methods
+		//========================================================================
+
+		//--------- structure ----------------------------------------------------
+
+		struct Entry {
+
+			ComPtr<ID3D12Object> object;
+			BaseDescriptor* descriptor = nullptr;
+			uint32_t index = UINT32_MAX;
+		};
+		struct Batch {
+
+			uint64_t fenceValue = 0;
+			std::vector<Entry> entries;
+		};
+
+		//--------- variables ----------------------------------------------------
+
+		std::vector<Entry> pending_;
+		std::deque<Batch> batches_;
+		size_t pendingCount_ = 0;
 	};
 } // Engine

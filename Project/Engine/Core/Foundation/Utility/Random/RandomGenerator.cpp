@@ -7,17 +7,12 @@ using namespace Engine;
 //============================================================================
 Vector3 RandomGenerator::Generate(const Engine::Vector3& min, const Engine::Vector3& max) {
 
-	return Vector3{
-	Generate(min.x, max.x),
-	Generate(min.y, max.y),
-	Generate(min.z, max.z) };
+	// XYZの順に乱数を生成
+	return Vector3{Generate(min.x, max.x), Generate(min.y, max.y), Generate(min.z, max.z)};
 }
 
 Color4 RandomGenerator::Generate(const Engine::Color4& min, const Engine::Color4& max) {
 
-	return Color4{
-		Generate(min.r, max.r),
-		Generate(min.g, max.g),
-		Generate(min.b, max.b),
-		Generate(min.a, max.a) };
+	// RGBAの順に乱数を生成
+	return Color4{Generate(min.r, max.r), Generate(min.g, max.g), Generate(min.b, max.b), Generate(min.a, max.a)};
 }

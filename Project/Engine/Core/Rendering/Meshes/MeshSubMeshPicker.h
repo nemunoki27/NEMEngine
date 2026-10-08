@@ -61,9 +61,7 @@ namespace Engine {
 
 		//--------- accessor -----------------------------------------------------
 
-		MultiRenderTarget* GetRenderTarget() {
-			return renderTarget_.IsValid() ? &renderTarget_ : nullptr;
-		}
+		MultiRenderTarget* GetRenderTarget() { return renderTarget_.IsValid() ? &renderTarget_ : nullptr; }
 	private:
 		//============================================================================
 		//	private Methods
