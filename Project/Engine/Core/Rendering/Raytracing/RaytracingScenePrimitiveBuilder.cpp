@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
+#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationGeometry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
@@ -75,28 +76,51 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		if (!geometry) {
 			continue;
 		}
+		// PrimitiveのGraph変形を共有形状から分離
+		SkinnedVertexSource vertexSource;
+		ID3D12Resource* deformedBLAS = nullptr;
+		const MaterialParameterSet emptyParameters;
+		const bool deformed = giGeometry_ && giGeometry_->PreparePrimitive(work.graphicsCore, work.context, work.assetLibrary,
+			src.world, src.entity, renderer, *geometry, *material,
+			src.materialInstance ? *src.materialInstance : emptyParameters, src.worldMatrix, src.uvMatrix, vertexSource, deformedBLAS);
+		if (deformed) {
+
+			work.staticScene = false;
+			work.blasContentsChanged = true;
+		}
 		// 新規BLASの構築後にTLASも再構築
 		const bool wasBuilt = geometry->blasBuilt;
-		if (!work.primitiveGeometryManager->EnsureBLAS(work.device, work.commandList, *geometry)) {
+		if (!deformed && !work.primitiveGeometryManager->EnsureBLAS(work.device, work.commandList, *geometry)) {
 			continue;
 		}
-		if (!wasBuilt) {
-			FrameProfiler::GetInstance().AddBLASBuild(1);
-			work.requireTLASRebuild = true;
-		} else {
+		if (!deformed) {
 
-			FrameProfiler::GetInstance().AddBLASSkip(1);
+			if (!wasBuilt) {
+
+				FrameProfiler::GetInstance().AddBLASBuild(1);
+				work.requireTLASRebuild = true;
+			} else {
+
+				FrameProfiler::GetInstance().AddBLASSkip(1);
+			}
 		}
 
 		const uint32_t subMeshDataIndex = static_cast<uint32_t>(result_.sceneSubMeshScratch_.size());
 
-		const MeshSubMeshShaderData subMeshData = materialResolver_.BuildPrimitiveSubMeshData(
+		MeshSubMeshShaderData subMeshData = materialResolver_.BuildPrimitiveSubMeshData(
 			work.graphicsCore, work.assetDatabase, *material,
 			src.materialInstance, src.uvMatrix);
+		if (globalIlluminationScene_ && src.surfaceMode == MaterialSurfaceMode::Masked) {
+
+			const auto* cutoff = src.materialInstance ? src.materialInstance->Find(MaterialParameterIDs::AlphaClip) : nullptr;
+			if (!cutoff) cutoff = material->parameters.Find(MaterialParameterIDs::AlphaClip);
+			const float* value = cutoff ? std::get_if<float>(&cutoff->value) : nullptr;
+			subMeshData._materialPad = std::bit_cast<uint32_t>(value ? *value : 0.5f);
+		}
 		result_.sceneSubMeshScratch_.emplace_back(subMeshData);
 
 		RaytracingInstanceShaderData instanceShaderData{};
-		instanceShaderData.vertexDescriptorIndex = geometry->vertexBuffer.srvIndex;
+		instanceShaderData.vertexDescriptorIndex = deformed ? vertexSource.srvIndex : geometry->vertexBuffer.srvIndex;
 		instanceShaderData.indexDescriptorIndex = geometry->indexSRV.srvIndex;
 		instanceShaderData.vertexOffset = 0;
 		instanceShaderData.geometryDataOffset =
@@ -117,10 +141,24 @@ void Engine::RaytracingSceneBuilder::BuildPrimitiveInstances(
 		RaytracingGeometryShaderData geometryData{};
 		geometryData.subMeshDataIndex = subMeshDataIndex;
 		geometryData.pickRecordIndex = pickRecordIndex;
+		if (giMaterials_) {
+
+			const MaterialParameterSet empty;
+			// Camera出力の読み取り準備はScene再構築と分ける
+			CollectRenderTextureParameters(material->parameters, work.assetDatabase, renderTextureInputs_);
+			CollectRenderTextureParameters(src.materialInstance ? *src.materialInstance : empty,
+				work.assetDatabase, renderTextureInputs_);
+			const auto binding = giMaterials_->Resolve(work.graphicsCore, work.assetDatabase, work.assetLibrary,
+				*material, src.materialInstance ? *src.materialInstance : empty);
+			geometryData.giCallableIndex = binding.callableIndex;
+			geometryData.giParametersDescriptor = binding.parametersDescriptor;
+			geometryData.giPrimitiveColorDescriptor = giMaterials_->ResolvePrimitiveColor(work.graphicsCore, renderer);
+			geometryData.giOriginalVertexDescriptor = geometry->vertexBuffer.srvIndex;
+		}
 		result_.sceneGeometryScratch_.emplace_back(geometryData);
 
 		RaytracingTLASInstance instance{};
-		instance.blas = geometry->blas.GetResource();
+		instance.blas = deformed ? deformedBLAS : geometry->blas.GetResource();
 		instance.instanceID = shaderInstanceIndex;
 		instance.hitGroupIndex = 0;
 		// CastShadow/CastReflectionに応じて影レイと反射レイの当たり判定を分ける

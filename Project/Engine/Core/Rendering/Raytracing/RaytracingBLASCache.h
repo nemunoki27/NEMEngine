@@ -63,6 +63,7 @@ namespace Engine {
 		// 固有変換を持つ静的Meshのキー
 		struct StaticInstanceBLASKey {
 
+			bool globalIllumination = false;
 			ECSWorld* world = nullptr;
 			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity = Entity::Null();
@@ -96,6 +97,7 @@ namespace Engine {
 		// Skinning対象のEntityと形状世代
 		struct DynamicBLASKey {
 
+			const void* deformationOwner = nullptr;
 			ECSWorld* world = nullptr;
 			std::shared_ptr<const ECSWorldLifetime> worldLifetime;
 			Entity entity = Entity::Null();

@@ -65,6 +65,7 @@ namespace Engine {
 		float perspectiveNearClip = 0.01f;
 		float perspectiveFarClip = 4000.0f;
 		int32_t perspectiveCullingMask = -1;
+		bool useGlobalIllumination = true;
 	};
 
 	// 投影方式ごとのカメラ行列
@@ -79,6 +80,8 @@ namespace Engine {
 
 	// 描画時に使用する確定済みカメラ情報
 	struct ResolvedCameraView {
+
+		bool useGlobalIllumination = false;
 
 		// ビュー情報が有効か
 		bool valid = false;

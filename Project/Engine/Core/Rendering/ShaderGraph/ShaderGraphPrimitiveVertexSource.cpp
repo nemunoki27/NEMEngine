@@ -25,7 +25,9 @@ namespace Engine::ShaderGraphStageSource {
 		const ShaderGraphExpression tangent = context.EmitInput(*output, 2, ShaderGraphValueType::Float3, "vertex.tangent");
 
 		std::string source = "// Shader Graph generated Primitive vertex file\n"
+							 "#define MaterialParameters BuiltinPrimitiveMaterialParameters\n"
 							 "#include \"Builtin/Primitive/primitive.hlsli\"\n"
+							 "#undef MaterialParameters\n"
 							 "#include \"Builtin/Mesh/Common/meshShaderSharedTypes.hlsli\"\n"
 							 "SamplerState gSampler : register(s0);\n"
 							 "#include \"" +
@@ -66,6 +68,28 @@ namespace Engine::ShaderGraphStageSource {
 		source += "\tresult.tangent = normalize(" + tangent.code + ");\n";
 		source += "\treturn result;\n"
 				  "}\n\n";
+		return source;
+	}
+
+	std::string BuildPrimitiveGIVertexSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
+		ShaderGraphExpressionCompiler& context) {
+
+		// Primitiveの頂点色とUVも通常描画から引き継ぐ
+		std::string source = BuildPrimitiveVertexCommonSource(graph, surfaceIncludeFile, context);
+		source += "cbuffer GIVertexConstants : register(b0, space7) {\n"
+			"\tuint sourceDescriptor; uint sourceOffset; uint vertexCount; uint activeSubMesh;\n"
+			"};\n"
+			"RWStructuredBuffer<MeshVertex> gGIVertices : register(u0, space7);\n"
+			"[numthreads(64, 1, 1)]\n"
+			"void main(uint3 dispatchID : SV_DispatchThreadID) {\n\n"
+			"\tuint index = dispatchID.x;\n"
+			"\tif (index >= vertexCount) return;\n"
+			"\tStructuredBuffer<MeshVertex> inputVertices = ResourceDescriptorHeap[NonUniformResourceIndex(sourceDescriptor)];\n"
+			"\tMeshVertex vertex = inputVertices[sourceOffset + index];\n";
+		source += "\tShaderGraphPrimitiveVertexResult result = EvaluatePrimitiveShaderGraphVertex(vertex, gInstances[0u]);\n"
+			"\tvertex.position = float4(result.position, 1.0f);\n"
+			"\tvertex.normal = result.normal; vertex.tangent = result.tangent;\n"
+			"\tgGIVertices[index] = vertex;\n}\n";
 		return source;
 	}
 

@@ -210,6 +210,12 @@ bool Engine::ShaderCook::Cook(const std::filesystem::path& manifestPath,
 			!cookShader(std::move(artifact.computeShader), meta->assetPath)) {
 			return false;
 		}
+		if (artifact.giVertexShader.guid &&
+			!cookShader(std::move(artifact.giVertexShader), meta->assetPath)) return false;
+		if (artifact.giReflectionShader.guid &&
+			!cookShader(std::move(artifact.giReflectionShader), meta->assetPath)) return false;
+		if (artifact.giMaterialShader.guid &&
+			!cookShader(std::move(artifact.giMaterialShader), meta->assetPath)) return false;
 		if (artifact.rayTracingShader.guid &&
 			!cookShader(std::move(artifact.rayTracingShader), meta->assetPath)) {
 			return false;

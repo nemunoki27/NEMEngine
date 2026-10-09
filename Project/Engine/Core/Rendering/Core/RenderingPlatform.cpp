@@ -45,7 +45,12 @@ void GraphicsPlatform::InitDXDevice() {
 		debugController->EnableDebugLayer();
 
 		// さらにGPU側でもチェックを行うようにする
-		debugController->SetEnableGPUBasedValidation(TRUE);
+		// 性能比較ではGPU検証の追加Shaderを計測へ混ぜない
+		wchar_t benchmark[2]{};
+		wchar_t quick[2]{};
+		const bool measuring = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK", benchmark, 2) > 0;
+		const bool validating = GetEnvironmentVariableW(L"NEM_RENDER_BENCHMARK_QUICK", quick, 2) == 1 && quick[0] == L'1';
+		debugController->SetEnableGPUBasedValidation(!measuring || validating);
 	}
 #endif
 

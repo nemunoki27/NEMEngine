@@ -4,8 +4,14 @@
 //	include
 //============================================================================
 #include <Engine/Core/Runtime/Framework/EngineFramework.h>
+#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationSettings.h>
 #include <filesystem>
 #include <chrono>
+
+// DirectX
+#include <d3d12sdklayers.h>
+#include <wrl/client.h>
+
 #include <json.hpp>
 
 namespace Engine {
@@ -15,7 +21,7 @@ namespace Engine {
 
 	//============================================================================
 	//	EditorRenderBenchmark class
-	//	同じEditorでMSとVSの定常フレームを比較する
+	//	同じEditorで描画機能の定常フレームを比較する
 	//============================================================================
 	class EditorRenderBenchmark final : public IEngineApplication {
 	public:
@@ -43,9 +49,15 @@ namespace Engine {
 		// 通常Editorへの委譲先と結果の保存先
 		std::unique_ptr<EngineApplication> application_;
 		std::filesystem::path output_;
+		// Debug Layerの診断を計測ログへ接続
+		Microsoft::WRL::ComPtr<ID3D12InfoQueue1> diagnostics_;
+		DWORD diagnosticsCookie_ = 0;
 		// 計測終了時に元の描画設定へ戻す
 		GraphicsFeatureController* features_ = nullptr;
 		bool originalMeshShader_ = false;
+		GlobalIlluminationSettings originalGlobalIllumination_;
+		bool compareGlobalIllumination_ = false;
+		bool quickCheck_ = false;
 		// 画像比較時だけScene内の時刻を固定する
 		bool freezeAnimation_ = false;
 		// 切替後の読込とフレーム安定を待つ

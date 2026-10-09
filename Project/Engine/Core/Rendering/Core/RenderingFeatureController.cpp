@@ -36,6 +36,7 @@ void Engine::GraphicsFeatureController::ApplyDetectedSupport(
 	if (firstApply) {
 
 		LoadPreferencesFromConfig();
+		preferences_.globalIllumination = GlobalIlluminationStorage::Load();
 		initialized_ = true;
 	}
 	// 対応状況で実行経路だけを制限し、ユーザー設定は保持する
@@ -55,6 +56,14 @@ void Engine::GraphicsFeatureController::SetAllowMeshShader(bool enabled) {
 	SavePreferencesToConfig();
 
 	Logger::Output(LogType::Engine, "Mesh Shader経路: {}", GetEnabledText(runtimeFeatures_.useMeshShader));
+}
+
+void Engine::GraphicsFeatureController::SetGlobalIllumination(const GlobalIlluminationSettings& settings) {
+
+	// 希望値と実行可否を分けて更新
+	preferences_.globalIllumination = GlobalIlluminationStorage::Validate(settings);
+	RebuildRuntimeFeatures();
+	GlobalIlluminationStorage::Save(preferences_.globalIllumination);
 }
 
 void Engine::GraphicsFeatureController::SetAllowInlineRayTracing(bool enabled) {

@@ -16,6 +16,7 @@ namespace Engine {
 
 	// front
 	class GraphicsCore;
+	struct PrimitiveRendererComponent;
 
 	//============================================================================
 	//	PrimitiveInstanceData
@@ -39,6 +40,8 @@ namespace Engine {
 		uint32_t entityGeneration = UINT32_MAX;
 	};
 	static_assert(sizeof(PrimitiveInstanceData) == 288);
+	// 頂点色と形状設定を通常描画とGIへ共通適用
+	void ApplyPrimitiveShapeToInstance(const PrimitiveRendererComponent& renderer, PrimitiveInstanceData& instance);
 
 	//============================================================================
 	//	PrimitiveBatchResources class

@@ -38,7 +38,7 @@ void Engine::BlitToViewPass::Execute(GraphicsCore& graphicsCore,
 		return;
 	}
 
-	if (deps_.postProcessDebugInjector && deps_.postProcessExecutor &&
+	if (context.postProcessCamera.postProcessEnabled && deps_.postProcessDebugInjector && deps_.postProcessExecutor &&
 		deps_.postProcessTargetPool && deps_.postProcessAssetGenerator) {
 
 		deps_.postProcessDebugInjector->TryExecuteBeforeBlit(graphicsCore,

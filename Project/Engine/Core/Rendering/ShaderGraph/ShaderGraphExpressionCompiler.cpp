@@ -153,23 +153,29 @@ void ShaderGraphExpressionCompiler::AppendParameterFields(std::string& source) c
 }
 
 // Material値の取得関数を生成する
-std::string ShaderGraphExpressionCompiler::BuildMaterialParameterGetter() const {
+std::string ShaderGraphExpressionCompiler::BuildMaterialParameterGetter(bool bindless) const {
 
-	std::string source = "ShaderGraphParameters GetShaderGraphParameters() {\n\n"
-						 "\tShaderGraphParameters result;\n";
+	// 取得元に合わせてMaterial参照を生成
+	const std::string prefix = bindless ? "parameters." : "";
+	std::string source = bindless ? "ShaderGraphParameters GetShaderGraphParameters(uint descriptor) {\n\n" :
+		"ShaderGraphParameters GetShaderGraphParameters() {\n\n";
+	if (bindless) {
+		source += "\tConstantBuffer<ShaderGraphParameters> parameters = ResourceDescriptorHeap[NonUniformResourceIndex(descriptor)];\n";
+	}
+	source += "\tShaderGraphParameters result;\n";
 	if (graph_.parameters.empty() && keywordFields_.empty()) {
-		source += "\tresult.unused = unused;\n";
+		source += "\tresult.unused = " + prefix + "unused;\n";
 	}
 	for (const ShaderGraphParameter& parameter : graph_.parameters) {
 		const std::string& field = parameterFields_.at(parameter.id.value);
-		source += "\tresult." + field + " = " + field + ";\n";
+		source += "\tresult." + field + " = " + prefix + field + ";\n";
 	}
 	for (const ShaderGraphKeyword& keyword : graph_.keywords) {
 		if (!keyword.runtimeToggle) {
 			continue;
 		}
 		const std::string& field = keywordFields_.at(keyword.id.value);
-		source += "\tresult." + field + " = " + field + ";\n";
+		source += "\tresult." + field + " = " + prefix + field + ";\n";
 	}
 	source += "\treturn result;\n"
 			  "}\n";

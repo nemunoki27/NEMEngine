@@ -37,21 +37,6 @@ namespace {
 	// ドッキングスペースのホストウィンドウ名
 	constexpr const char* kDockSpaceHostWindow = "##EditorDockSpaceHost";
 	constexpr const char* kDockSpaceID = "EngineEditorDockSpace";
-	bool IsHidePanelsShortcutTriggered() {
-
-		Engine::Input* input = Engine::Input::GetInstance();
-		const bool directInputDown = input && input->PushKey(DIK_TAB) && input->PushKey(DIK_ESCAPE);
-
-		const bool imguiDown = ImGui::IsKeyDown(ImGuiKey_Tab) && ImGui::IsKeyDown(ImGuiKey_Escape);
-
-		const bool shortcutDown = directInputDown || imguiDown;
-
-		// 同時押しの開始時だけ切り替える
-		static bool wasShortcutDown = false;
-		const bool triggered = shortcutDown && !wasShortcutDown;
-		wasShortcutDown = shortcutDown;
-		return triggered;
-	}
 
 }
 
@@ -178,7 +163,8 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 
 	// フレーム開始
 	imguiManager_.Begin();
-	if (!layoutState_.hidePanels && IsHidePanelsShortcutTriggered()) {
+	const bool togglePanels = imguiManager_.ConsumeHidePanelsShortcut();
+	if (!layoutState_.hidePanels && togglePanels) {
 
 		// Panelを隠して製品サイズへ切り替える
 		layoutState_.hidePanels = true;
@@ -190,7 +176,7 @@ void Engine::EditorManager::BeginFrame(GraphicsCore& graphicsCore, const EditorC
 		EndPanelPreviews();
 
 		// Panel非表示中は復帰入力だけを処理する
-		if (IsHidePanelsShortcutTriggered()) {
+		if (togglePanels) {
 			layoutState_.hidePanels = false;
 			WinApp::EndProductSizePreview();
 		} else {

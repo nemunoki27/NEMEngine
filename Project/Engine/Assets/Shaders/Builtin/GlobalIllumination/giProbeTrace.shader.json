@@ -1,0 +1,29 @@
+{
+  "name": "GIProbeTrace",
+  "stages": [
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000103",
+      "entry": "GIProbeRayGen",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000103",
+      "entry": "GIMiss",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000103",
+      "entry": "GIClosestHit",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000103",
+      "entry": "GIAnyHit",
+      "profile": "lib_6_6"
+    }
+  ]
+}

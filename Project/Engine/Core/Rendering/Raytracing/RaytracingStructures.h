@@ -83,8 +83,14 @@ namespace Engine {
 		uint32_t indexOffset = 0;
 		// エディターピック記録のインデックス
 		uint32_t pickRecordIndex = 0;
-		uint32_t _pad = 0;
+		uint32_t giCallableIndex = UINT32_MAX;
+		uint32_t giParametersDescriptor = UINT32_MAX;
+		uint32_t giPrimitiveColorDescriptor = UINT32_MAX;
+		uint32_t giOriginalVertexDescriptor = UINT32_MAX;
+		uint32_t giPadding = 0;
 	};
+	static_assert(sizeof(RaytracingGeometryShaderData) == 32,
+		"RaytracingGeometryShaderData must match HLSL layout");
 	// GPUへ渡すシーン共通データ
 	struct RaytracingScene {
 

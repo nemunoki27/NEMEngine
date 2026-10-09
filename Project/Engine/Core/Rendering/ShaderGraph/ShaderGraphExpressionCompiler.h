@@ -37,7 +37,7 @@ namespace Engine {
 		std::string BuildMaterialConstantBuffer(
 			uint32_t bindPoint = 3, std::string_view bufferName = "MaterialParameters") const;
 		// Material値の取得関数を生成する
-		std::string BuildMaterialParameterGetter() const;
+		std::string BuildMaterialParameterGetter(bool bindless = false) const;
 		// 外部関数の宣言を生成する
 		std::string BuildCustomFunctionDeclarations() const;
 		// 生成時の診断を追加する

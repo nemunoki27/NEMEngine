@@ -93,6 +93,7 @@ namespace Engine::CameraViewProjection {
 
 		// カメラコンポーネントから描画ビューの情報を構築する
 		ResolvedCameraView out{};
+		out.useGlobalIllumination = camera.useGlobalIllumination;
 		out.valid = true;
 		out.projectionMode = camera.projectionMode == CameraProjectionMode::Orthographic ?
 			ResolvedProjectionMode::Orthographic : ResolvedProjectionMode::Perspective;
@@ -156,6 +157,7 @@ namespace Engine::CameraViewProjection {
 		const ManualRenderCameraState& state, uint32_t width, uint32_t height) {
 
 		ResolvedCameraView out{};
+		out.useGlobalIllumination = state.useGlobalIllumination;
 		if (!state.enablePerspective) {
 			return out;
 		}

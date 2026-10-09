@@ -72,6 +72,8 @@ namespace Engine {
 
 		// 計測と画像保存に直近のView出力を貸し出す
 		const RenderTexture2D* GetRenderedViewTexture(RenderViewKind kind, const std::string& attachment = {}) const;
+		// 描画要求したMeshの読込完了を取得する
+		bool AreSceneMeshesReady() const;
 	private:
 		//============================================================================
 		//	private Methods

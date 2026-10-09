@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Common/CameraPostProcessEditor.h>
+#include <Engine/Core/Rendering/Core/RenderingPlatform.h>
 
 // c++
 #include <algorithm>
@@ -104,6 +105,10 @@ void Engine::PerspectiveCameraInspectorDrawer::DrawFields(const EditorPanelConte
 
 	auto& draft = GetDraft();
 	MyGUI::TextFloat("アスペクト比", draft.common.aspectRatio, 3);
+	// Projectの希望設定が有効な間だけCamera側を編集
+	ImGui::BeginDisabled(!context.graphicsPlatform->GetFeatureController().GetPreferences().globalIllumination.enabled);
+	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("GIを使用", draft.useGlobalIllumination); });
+	ImGui::EndDisabled();
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("有効", draft.common.enabled); });
 	DrawField(anyItemActive, [&]() { return InspectorDrawerCommon::DrawCheckboxField("メインカメラ", draft.common.isMain); });
 	DrawField(anyItemActive, [&]() { return MyGUI::DragInt("優先度", draft.common.priority); });

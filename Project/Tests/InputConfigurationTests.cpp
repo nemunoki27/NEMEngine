@@ -1,4 +1,5 @@
 #include "InputConfigurationTests.h"
+#include <Engine/Editor/Core/EditorShortcutState.h>
 
 //============================================================================
 //	include
@@ -17,6 +18,25 @@ namespace NEMTests {
 
 	// 不正な保存設定で確定済みの入力設定を変更しない
 	bool TestInputConfiguration() {
+
+		// 重いframeの間に解放した操作も一度だけ取り出す
+		EditorShortcutState shortcut;
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_TAB, 0);
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_ESCAPE, 0);
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_ESCAPE, LPARAM{ 1 } << 30);
+		shortcut.ProcessMessage(WM_KEYUP, VK_ESCAPE, 0);
+		shortcut.ProcessMessage(WM_KEYUP, VK_TAB, 0);
+		if (!shortcut.Consume() || shortcut.Consume()) return false;
+		// 逆順と再入力とフォーカス解除を確認
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_ESCAPE, 0);
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_TAB, 0);
+		if (!shortcut.Consume() || shortcut.Consume()) return false;
+		shortcut.ProcessMessage(WM_KEYUP, VK_TAB, 0);
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_TAB, 0);
+		shortcut.Reset();
+		if (shortcut.Consume()) return false;
+		shortcut.ProcessMessage(WM_KEYDOWN, VK_TAB, 0);
+		if (shortcut.Consume()) return false;
 
 		InputDeviceConfiguration configuration;
 		configuration.deadZone = 12000.0f;

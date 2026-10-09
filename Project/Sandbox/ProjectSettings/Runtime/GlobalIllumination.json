@@ -1,0 +1,7 @@
+{
+    "enabled": true,
+    "maxRayDistance": 80.0,
+    "probeSpacing": 2.0,
+    "quality": 2,
+    "updateBudgetMilliseconds": 0.949999988079071
+}

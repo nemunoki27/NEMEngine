@@ -4,6 +4,7 @@ Engine::GraphicsRuntimeFeatures Engine::GraphicsFeatureSelection::Resolve(
 	const GraphicsFeatureSupport& support, const GraphicsFeaturePreferences& preferences) {
 
 	GraphicsRuntimeFeatures features{};
+	features.useGlobalIllumination = support.SupportsGlobalIllumination() && preferences.globalIllumination.enabled;
 
 	// GPU対応が必要な機能はsupportで絞り、カリング系は描画側で安全側に倒せるよう設定を直で反映する
 	features.useMeshShader = support.SupportsMeshShaderPath() && preferences.allowMeshShader;

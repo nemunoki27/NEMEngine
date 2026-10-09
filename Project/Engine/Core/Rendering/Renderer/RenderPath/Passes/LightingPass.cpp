@@ -64,9 +64,9 @@ Engine::LightingPass::LightingPass(const RenderPipelineDeps& deps) : deps_(deps)
 	}
 }
 
-void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat) {
+void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat, bool useGI) {
 
-	if (initialized_) {
+	if (initialized_ && (!useGI || pipelineGI_)) {
 		return;
 	}
 
@@ -119,15 +119,32 @@ void Engine::LightingPass::EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMA
 
 	// シャドウ無し版、gSceneTLASを参照しない
 	desc.pixel.entry = "main";
-	initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(
-						graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
+	if (!initialized_) {
+		initialized_ = (pipeline_ = PipelineStateBuilder::CreateGraphics(
+							graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
 
-	// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
-	desc.pixel.entry = "mainShadowed";
-	desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
-	desc.pixel.profile = "ps_6_6";
-	shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
-							  graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
+		// TLASシャドウ付き版、inlineRT非対応環境ではPSO構築に失敗するためフラグで持つ
+		desc.pixel.entry = "mainShadowed";
+		desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowed;
+		desc.pixel.profile = "ps_6_6";
+		if (graphicsCore.GetDXObject().GetFeatureController().GetSupport().SupportsInlineRayTracingPath()) {
+			shadowedAvailable_ = (pipelineShadowed_ = PipelineStateBuilder::CreateGraphics(
+				graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc)) != nullptr;
+		}
+	}
+	if (useGI) {
+
+		// GIを使用する描画だけ専用の入出力を持つ
+		desc.pixel.file = "Builtin/Lighting/deferredLightingGI.PS.hlsl";
+		desc.pixel.entry = "main";
+		desc.pixel.profile = "ps_6_0";
+		desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingGI;
+		pipelineGI_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc);
+		desc.pixel.entry = "mainShadowed";
+		desc.pixel.profile = "ps_6_6";
+		desc.pixel.shader = BuiltinAssets::Shaders::DeferredLightingShadowedGI;
+		pipelineShadowedGI_ = PipelineStateBuilder::CreateGraphics(graphicsCore.GetDXObject().GetResourceRetirement(), device, compiler, desc);
+	}
 }
 
 Engine::DxConstBuffer<Engine::LightingPass::LightingConstants>& Engine::LightingPass::AllocateConstantBuffer(
@@ -177,7 +194,8 @@ void Engine::LightingPass::Execute(
 		return;
 	}
 
-	EnsurePipeline(graphicsCore, destColor->GetFormat());
+	const bool giReady = context.globalIllumination && context.globalIllumination->IsReady();
+	EnsurePipeline(graphicsCore, destColor->GetFormat(), giReady);
 	if (!initialized_) {
 		return;
 	}
@@ -209,11 +227,14 @@ void Engine::LightingPass::Execute(
 	const bool tlasAvailable = context.bufferRegistry.Find("gSceneTLAS") != nullptr;
 	const bool useShadow =
 		context.hasShadowCastingLight && shadowedAvailable_ && runtimeFeatures.useInlineRayTracing && tlasAvailable;
-	PipelineState& activePipeline = useShadow ? *pipelineShadowed_ : *pipeline_;
+	const bool useGI = giReady && pipelineGI_ && (!useShadow || pipelineShadowedGI_);
+	PipelineState& activePipeline = useGI ? (useShadow ? *pipelineShadowedGI_ : *pipelineGI_) :
+		(useShadow ? *pipelineShadowed_ : *pipeline_);
 
 	commandList->SetGraphicsRootSignature(activePipeline.GetRootSignature());
 	commandList->SetPipelineState(activePipeline.GetGraphicsPipeline(BlendMode::Normal));
 	activePipeline.BindGlobalDescriptorTablesGraphics(commandList, graphicsCore.GetSRVDescriptor().GetGPUHandle(0));
+	if (useGI) context.globalIllumination->BindLighting(graphicsCore, activePipeline);
 
 	// ライトバッファとTLASを名前でバインド
 	registryAutoBindTable_.Sync(activePipeline, context.bufferRegistry);

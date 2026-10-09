@@ -1,0 +1,11 @@
+{
+  "name": "DeferredLightingGI",
+  "stages": [
+    {
+      "stage": "PS",
+      "file": "4e454d41535345544749000000000101",
+      "entry": "main",
+      "profile": "ps_6_0"
+    }
+  ]
+}

@@ -277,6 +277,11 @@ const Engine::RenderTexture2D* Engine::EngineApplication::GetRenderedViewTexture
 							  : renderPipeline_->FindViewColorTexture(kind, attachment);
 }
 
+bool Engine::EngineApplication::AreSceneMeshesReady() const {
+
+	return renderPipeline_->AreSceneMeshesReady();
+}
+
 int Engine::RunEditorApplication() {
 
 	wchar_t benchmarkPath[32768]{};

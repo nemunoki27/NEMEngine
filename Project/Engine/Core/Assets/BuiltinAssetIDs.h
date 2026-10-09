@@ -97,6 +97,13 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID FullscreenCopy{ 0x4e454d4153534554ull, 0x8ed3590f7d583b7aull };
 		inline constexpr AssetID DeferredLighting{ 0x4e454d4153534554ull, 0x4c49474854000001ull };
 		inline constexpr AssetID DeferredLightingShadowed{ 0x4e454d4153534554ull, 0x4c49474854000002ull };
+		inline constexpr AssetID DeferredLightingGI{ 0x4e454d4153534554ull, 0x4749000000000001ull };
+		inline constexpr AssetID DeferredLightingShadowedGI{ 0x4e454d4153534554ull, 0x4749000000000002ull };
+		inline constexpr AssetID RaytracingReflection{ 0x4e454d4153534554ull, 0xda1b7b9bf8074052ull };
+		inline constexpr AssetID RaytracingReflectionGI{ 0x4e454d4153534554ull, 0x4749000000000006ull };
+		inline constexpr AssetID GIProbeTrace{ 0x4e454d4153534554ull, 0x4749000000000003ull };
+		inline constexpr AssetID GIVertexCopy{ 0x4e454d4153534554ull, 0x4749000000000005ull };
+		inline constexpr AssetID GIProbeBlend{ 0x4e454d4153534554ull, 0x4749000000000004ull };
 		inline constexpr AssetID SkyboxIrradiance{ 0x4e454d4153534554ull, 0x4c49474854000003ull };
 		inline constexpr AssetID DepthVisualize{ 0x4e454d4153534554ull, 0x4c49474854000004ull };
 		inline constexpr AssetID Skybox{ 0x4e454d4153534554ull, 0x4c49474854000005ull };
@@ -104,6 +111,7 @@ namespace Engine::BuiltinAssets {
 		inline constexpr AssetID FixedRuntime[] = {
 			FullscreenCopy, DeferredLighting, DeferredLightingShadowed,
 			SkyboxIrradiance, DepthVisualize, Skybox,
+			DeferredLightingGI, DeferredLightingShadowedGI, GIProbeTrace, GIProbeBlend, GIVertexCopy, RaytracingReflectionGI,
 		};
 
 		inline constexpr AssetID MeshGeometryVS{ 0x4e454d4153534554ull, 0xf6485468f3b0f105ull };

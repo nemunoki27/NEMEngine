@@ -1,0 +1,23 @@
+{
+  "name": "ReflectionRaytracingGI",
+  "stages": [
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000106",
+      "entry": "ReflectionRayGen",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000106",
+      "entry": "ReflectionMiss",
+      "profile": "lib_6_6"
+    },
+    {
+      "stage": "Lib",
+      "file": "4e454d41535345544749000000000106",
+      "entry": "ReflectionClosestHit",
+      "profile": "lib_6_6"
+    }
+  ]
+}

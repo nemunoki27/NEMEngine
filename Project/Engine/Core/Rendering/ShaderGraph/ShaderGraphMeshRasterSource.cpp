@@ -207,6 +207,31 @@ namespace Engine::ShaderGraphStageSource {
 		return source;
 	}
 
+	std::string BuildMeshGIVertexSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
+		ShaderGraphExpressionCompiler& context) {
+
+		// 通常描画と同じ頂点式をGPU上で評価
+		std::string source = BuildMeshVertexCommonSource(graph, surfaceIncludeFile, context);
+		source += "cbuffer GIVertexConstants : register(b0, space7) {\n"
+			"\tuint sourceDescriptor; uint sourceOffset; uint vertexCount; uint activeSubMesh;\n"
+			"};\n"
+			"RWStructuredBuffer<MeshVertex> gGIVertices : register(u0, space7);\n"
+			"[numthreads(64, 1, 1)]\n"
+			"void main(uint3 dispatchID : SV_DispatchThreadID) {\n\n"
+			"\tuint index = dispatchID.x;\n"
+			"\tif (index >= vertexCount) return;\n"
+			"\tStructuredBuffer<MeshVertex> inputVertices = ResourceDescriptorHeap[NonUniformResourceIndex(sourceDescriptor)];\n"
+			"\tMeshVertex vertex = inputVertices[sourceOffset + index];\n";
+		source += "\tuint subMesh = gVertexSubMeshIndices[index];\n"
+			"\tif (subMesh != activeSubMesh) return;\n"
+			"\tShaderGraphVertexResult result = EvaluateShaderGraphVertex(vertex, 0u, subMesh,\n"
+			"\t\tGetInstanceSubMeshWorldMatrix(0u, subMesh), GetInstanceSubMeshNormalMatrix(0u, subMesh));\n"
+			"\tvertex.position = float4(result.position, 1.0f);\n"
+			"\tvertex.normal = result.normal; vertex.tangent = result.tangent;\n"
+			"\tgGIVertices[index] = vertex;\n}\n";
+		return source;
+	}
+
 	// Mesh描画のShaderを生成する
 	std::string BuildMeshVertexSource(
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context) {

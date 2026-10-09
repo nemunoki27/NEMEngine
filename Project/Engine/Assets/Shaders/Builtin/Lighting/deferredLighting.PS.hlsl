@@ -5,6 +5,9 @@
 #include "../Mesh/Common/deferredGBuffer.hlsli"
 #include "../Common/pbrMath.hlsli"
 #include "../Common/descriptorHeapCompatibility.hlsli"
+#ifdef NEM_GLOBAL_ILLUMINATION
+#include "../GlobalIllumination/giProbeSampling.hlsli"
+#endif
 
 //============================================================================
 //	GBuffer入力
@@ -996,18 +999,27 @@ float3 EvaluateSurfaceLighting(int2 pixel, float3 worldPos,
 
 	if ((flags & kMaterialFlagReceiveIBL) != 0u) {
 
+		float3 diffuseAmbient = 0.0f.xxx;
+
 		if (hasSkybox != 0u && irradianceCubemapIndex != kNoCubemap) {
 
 			TextureCube<float4> irradianceMap =
 				NEM_TEXTURECUBE(irradianceCubemapIndex);
 			float3 irradiance =
 				irradianceMap.SampleLevel(gSampler, N, 0.0f).rgb;
-			color += irradiance * skyboxColor.rgb * iblIntensity *
+			diffuseAmbient = irradiance * skyboxColor.rgb * iblIntensity *
 				albedo * ao;
 		} else {
 
-			color += ambientIntensity * albedo * ao;
+			diffuseAmbient = ambientIntensity * albedo * ao;
 		}
+#ifdef NEM_GLOBAL_ILLUMINATION
+		// 有効なProbeの範囲だけ拡散環境光を置き換える
+		float4 indirect = SampleGlobalIllumination(worldPos, N, V);
+		diffuseAmbient = diffuseAmbient * (1.0f - indirect.a) +
+			GIDiffuseContribution(indirect, albedo, metallic, ao);
+#endif
+		color += diffuseAmbient;
 	}
 	return color + emissive;
 }
@@ -1063,6 +1075,27 @@ float4 ResolvePixel(VSOutput input, bool useShadow) {
 
 	float3 V = normalize(cameraPos - worldPos);
 	float3 F0 = lerp(0.04f.xxx, albedo, metallic);
+#ifdef NEM_GLOBAL_ILLUMINATION
+	// 確認表示を使う場合だけProbeを追加評価
+	if (giDebugMode == 1u || giDebugMode == 2u) {
+
+		float4 giDebug = SampleGlobalIllumination(worldPos, N, V);
+		if (giDebugMode == 1u) {
+
+			const uint giFlags = kMaterialFlagReceiveIBL | kMaterialFlagLighting;
+			float3 contribution = (flags & giFlags) == giFlags ?
+				GIDiffuseContribution(giDebug, albedo, metallic, ao) : 0.0f.xxx;
+			return float4(contribution, 1.0f);
+		}
+		return float4(giDebug.a, 1.0f - giDebug.a, 0.0f, 1.0f);
+	}
+	if (giDebugMode == 3u) {
+
+		float3 cell = abs(frac(worldPos / giGridOrigins[0].w + 0.5f) - 0.5f);
+		float gridLine = 1.0f - smoothstep(0.02f, 0.04f, min(cell.x, min(cell.y, cell.z)));
+		return float4(lerp(albedo * 0.1f, float3(0.0f, 1.0f, 1.0f), gridLine), 1.0f);
+	}
+#endif
 	float3 color = EvaluateSurfaceLighting(
 		pixel.xy, worldPos, N, V, albedo, metallic,
 		roughness, ao, emissive, flags, useShadow);

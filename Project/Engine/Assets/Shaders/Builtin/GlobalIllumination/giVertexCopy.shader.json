@@ -1,0 +1,12 @@
+{
+  "name": "GIVertexCopy",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345544749000000000105",
+      "entry": "main",
+      "profile": "cs_6_6"
+    }
+  ],
+  "guid": "4e454d41535345544749000000000005"
+}

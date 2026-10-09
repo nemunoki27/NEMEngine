@@ -38,7 +38,7 @@ cbuffer ColorPipelineConstants : register(b0) {
 	float filmicShoulder;
 	float filmicBlackClip;
 	float filmicWhiteClip;
-	float _pad0;
+	float postProcessEnabled;
 
 	float4 colorFilter;
 	float3 whiteBalance;
@@ -107,6 +107,8 @@ float3 ApplyFilmicControls(float3 color) {
 float4 main(VSOutput input) : SV_TARGET0 {
 
 	float4 src = gTexture.Sample(gSampler, input.texcoord);
+	// 無効時は露出と色補正を加えずLinear色を出力
+	if (postProcessEnabled == 0.0f) return float4(max(src.rgb, 0.0f.xxx), 1.0f);
 
 	float3 hdrColor = max(src.rgb, 0.0f);
 

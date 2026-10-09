@@ -1905,6 +1905,12 @@
           "nativeMember": "common.colorPipeline.colorGrading.offset",
           "kind": "Vector3",
           "access": "ReadWrite"
+        },
+        {
+          "managedName": "UseGlobalIllumination",
+          "nativeMember": "useGlobalIllumination",
+          "kind": "Bool",
+          "access": "ReadWrite"
         }
       ]
     },

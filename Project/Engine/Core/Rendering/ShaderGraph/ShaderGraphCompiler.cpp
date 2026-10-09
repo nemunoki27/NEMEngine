@@ -116,6 +116,7 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 		}
 		if (IsShaderGraph3DTarget(expandedGraph.target)) {
 			output.rayTracingHLSL = BuildRayTracingSource(surfaceIncludeFile, context);
+			output.giMaterialHLSL = BuildGIMaterialSource(surfaceIncludeFile, context);
 		}
 		if (expandedGraph.target == ShaderGraphTarget::Mesh) {
 			// DepthとPickingも同じSurfaceを参照する
@@ -124,12 +125,19 @@ Engine::ShaderGraphCompileOutput Engine::ShaderGraphCompiler::Compile(const Shad
 			ShaderGraphExpressionCompiler vertexContext(expandedGraph, output);
 			// VSとMSはそれぞれの評価状態で頂点処理を生成する
 			output.vertexHLSL = BuildMeshVertexSource(expandedGraph, surfaceIncludeFile, vertexContext);
+			if (expandedGraph.vertexOutputNode) {
+
+				ShaderGraphExpressionCompiler giContext(expandedGraph, output);
+				output.giVertexHLSL = BuildMeshGIVertexSource(expandedGraph, surfaceIncludeFile, giContext);
+			}
 			ShaderGraphExpressionCompiler meshContext(expandedGraph, output);
 			output.meshHLSL = BuildMeshShaderSource(expandedGraph, surfaceIncludeFile, meshContext);
 		} else if (expandedGraph.target == ShaderGraphTarget::Primitive3D && expandedGraph.vertexOutputNode) {
 
 			ShaderGraphExpressionCompiler vertexContext(expandedGraph, output);
 			output.vertexHLSL = BuildPrimitiveVertexSource(expandedGraph, surfaceIncludeFile, vertexContext);
+			ShaderGraphExpressionCompiler giContext(expandedGraph, output);
+			output.giVertexHLSL = BuildPrimitiveGIVertexSource(expandedGraph, surfaceIncludeFile, giContext);
 			ShaderGraphExpressionCompiler meshContext(expandedGraph, output);
 			output.meshHLSL = BuildPrimitiveMeshShaderSource(expandedGraph, surfaceIncludeFile, meshContext);
 		} else if (expandedGraph.target == ShaderGraphTarget::Primitive2D && expandedGraph.vertexOutputNode) {

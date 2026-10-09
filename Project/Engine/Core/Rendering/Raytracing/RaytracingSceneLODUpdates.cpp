@@ -41,13 +41,14 @@ uint32_t Engine::RaytracingSceneBuilder::UpdateCachedLODSelections(MeshRenderBac
 		if (record.usesInstanceBLAS) {
 
 			StaticInstanceBLASKey key{};
+			key.globalIllumination = globalIlluminationScene_;
 			key.world = record.world;
 			key.worldLifetime = record.world->GetLifetime();
 			key.entity = record.entity;
 			key.meshAssetID = record.meshAssetID;
 			key.reloadGeneration = record.reloadGeneration;
-			auto blasIt = blasCache_.staticInstanceBLASes_.find(key);
-			if (blasIt == blasCache_.staticInstanceBLASes_.end() ||
+			auto blasIt = blasCache_->staticInstanceBLASes_.find(key);
+			if (blasIt == blasCache_->staticInstanceBLASes_.end() ||
 				blasIt->second.lodGeometryLayoutHashes[lodIndex] != record.geometryLayoutHash ||
 				!blasIt->second.lodBLASes[lodIndex].IsBuilt()) {
 				lodResourceMissing = true;
@@ -61,8 +62,8 @@ uint32_t Engine::RaytracingSceneBuilder::UpdateCachedLODSelections(MeshRenderBac
 			key.reloadGeneration = record.reloadGeneration;
 			key.lodIndex = lodIndex;
 			key.geometryLayoutHash = record.geometryLayoutHash;
-			auto blasIt = blasCache_.blases_.find(key);
-			if (blasIt == blasCache_.blases_.end() || !blasIt->second.IsBuilt()) {
+			auto blasIt = blasCache_->blases_.find(key);
+			if (blasIt == blasCache_->blases_.end() || !blasIt->second.IsBuilt()) {
 				lodResourceMissing = true;
 				continue;
 			}

@@ -1,0 +1,11 @@
+{
+  "name": "DeferredLightingShadowedGI",
+  "stages": [
+    {
+      "stage": "PS",
+      "file": "4e454d41535345544749000000000101",
+      "entry": "mainShadowed",
+      "profile": "ps_6_6"
+    }
+  ]
+}

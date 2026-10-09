@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/EditorPanelContext.h>
 #include <Engine/Core/Rendering/Core/RenderingPlatform.h>
+#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 
@@ -161,6 +162,51 @@ void Engine::EditorGraphicsMenu::Draw(const EditorPanelContext& context) {
 					GraphicsMeshLOD::kDefaultPixelThresholds[1], GraphicsMeshLOD::kDefaultPixelThresholds[2]);
 			}
 			DrawGraphicsTooltip("LOD切り替え閾値を160 / 80 / 32 pxへ戻します");
+			ImGui::EndMenu();
+		}
+
+		// GIの更新量と確認表示を設定
+		if (ImGui::BeginMenu("グローバルイルミネーション")) {
+
+			auto settings = preferences.globalIllumination;
+			bool changed = ImGui::Checkbox("GIを使用", &settings.enabled);
+			const char* qualityLabels[] = { "低", "中", "高" };
+			int quality = static_cast<int>(settings.quality);
+			if (ImGui::Combo("品質", &quality, qualityLabels, 3)) {
+				settings.quality = static_cast<uint32_t>(quality);
+				changed = true;
+			}
+			changed |= ImGui::DragFloat("Probe間隔", &settings.probeSpacing, 0.05f, 0.05f, 1000.0f);
+			DrawGraphicsTooltip("World座標での間隔です。広げると範囲は増えますが、近くの照明を拾いにくくなります");
+			changed |= ImGui::DragFloat("最大Ray距離", &settings.maxRayDistance, 1.0f, 0.1f, 100000.0f);
+			DrawGraphicsTooltip("各Probeから追跡する距離です。Probeの配置範囲は変わりません");
+			changed |= ImGui::DragFloat("更新予算", &settings.updateBudgetMilliseconds, 0.1f, 0.25f, 8.0f, "%.2f ms");
+			const char* debugLabels[] = { "通常描画", "間接光", "Probe有効率", "Probe格子" };
+			int debugMode = static_cast<int>(settings.debugMode);
+			if (ImGui::Combo("確認表示", &debugMode, debugLabels, 4)) {
+				settings.debugMode = static_cast<uint32_t>(debugMode);
+				changed = true;
+			}
+			if (ImGui::Button("品質設定を既定へ戻す")) {
+
+				const GlobalIlluminationSettings defaults;
+				settings.quality = defaults.quality;
+				settings.probeSpacing = defaults.probeSpacing;
+				settings.maxRayDistance = defaults.maxRayDistance;
+				settings.updateBudgetMilliseconds = defaults.updateBudgetMilliseconds;
+				changed = true;
+			}
+			if (changed) featureController.SetGlobalIllumination(settings);
+			// 確定済みのGPU時間をCamera全体で表示
+			float updateTime = 0.0f;
+			float geometryTime = 0.0f;
+			for (const auto& pass : FrameProfiler::GetInstance().GetGPUPassTimes()) {
+
+				if (pass.name == "GI/ProbeUpdate") updateTime += pass.milliseconds;
+				if (pass.name == "GI/Geometry") geometryTime += pass.milliseconds;
+			}
+			ImGui::Text("GI更新: %.2f ms", updateTime);
+			ImGui::Text("GI形状: %.2f ms", geometryTime);
 			ImGui::EndMenu();
 		}
 

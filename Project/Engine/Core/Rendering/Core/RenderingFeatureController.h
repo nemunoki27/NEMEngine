@@ -26,6 +26,8 @@ namespace Engine {
 
 		// ユーザー設定変更
 		void SetAllowMeshShader(bool enabled);
+		// Project共通の間接光設定を更新する
+		void SetGlobalIllumination(const GlobalIlluminationSettings& settings);
 		void SetAllowInlineRayTracing(bool enabled);
 		void SetAllowDispatchRays(bool enabled);
 		void SetAllowRaytracingDownsampling(bool enabled);

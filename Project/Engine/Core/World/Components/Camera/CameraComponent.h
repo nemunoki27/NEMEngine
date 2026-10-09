@@ -75,6 +75,9 @@ namespace Engine {
 	// 3Dカメラ
 	struct PerspectiveCameraComponent {
 
+		// Projectの間接光をこのCameraで使用するか
+		bool useGlobalIllumination = true;
+
 		// 投影方式
 		CameraProjectionMode projectionMode = CameraProjectionMode::Perspective;
 		// 画角

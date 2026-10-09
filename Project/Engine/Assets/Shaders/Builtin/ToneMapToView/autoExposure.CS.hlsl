@@ -32,7 +32,7 @@ cbuffer ColorPipelineConstants : register(b0) {
 	float filmicShoulder;
 	float filmicBlackClip;
 	float filmicWhiteClip;
-	float _pad0;
+	float postProcessEnabled;
 
 	float4 colorFilter;
 	float3 whiteBalance;

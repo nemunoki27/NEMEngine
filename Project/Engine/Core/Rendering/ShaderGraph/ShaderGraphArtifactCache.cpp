@@ -17,6 +17,7 @@
 
 // c++
 #include <algorithm>
+#include <regex>
 #include <type_traits>
 #include <utility>
 
@@ -161,6 +162,41 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 			ToString(graphID), ToString(outArtifact.rayTracingShaderID));
 		return true;
 	}
+	// GIの変形頂点をBLASへ渡すComputeを保存
+	if (!artifact.compileOutput.giVertexHLSL.empty()) {
+
+		const auto path = artifact.root / "giVertex.CS.hlsl";
+		queueSource(path, artifact.compileOutput.giVertexHLSL);
+		artifact.giVertexShader = MakeComputeShader(graph.name + "GIVertex",
+			MakeDerivedID(graphID, 0x4749564552544558ull), path, artifact.compileOutput.parameters);
+		artifact.giVertexShader.stages[0].profile = "cs_6_6";
+	}
+	// GIのCallableはGraphごとにExportとSampler領域を分ける
+	if (!artifact.compileOutput.giMaterialHLSL.empty()) {
+
+		artifact.giMaterialShaderID = MakeDerivedID(graphID, 0x47494d415445524cull);
+		const auto path = artifact.root / "giMaterial.RT.hlsl";
+		const auto surface = artifact.root / "giSurface.generated.hlsli";
+		std::string surfaceSource = artifact.compileOutput.surfaceHLSL;
+		const auto space = 16u + static_cast<uint32_t>(graphID.low & 0x7fffffffu);
+		surfaceSource = std::regex_replace(surfaceSource, std::regex("register\\(s([0-9]+)\\)"),
+			"register(s$1, space" + std::to_string(space) + ")");
+		queueSource(surface, surfaceSource);
+		std::string source = artifact.compileOutput.giMaterialHLSL;
+		const auto include = source.find(Algorithm::PathToUTF8(artifact.surfacePath.filename()));
+		if (include != std::string::npos) source.replace(include, artifact.surfacePath.filename().string().size(),
+			surface.filename().string());
+		const std::string entry = "GIMaterial_" + graphIDText;
+		const auto exportPosition = source.find("void GIMaterial(");
+		source.replace(exportPosition + 5, 10, entry);
+		queueSource(path, source);
+		artifact.giMaterialShader.guid = artifact.giMaterialShaderID;
+		artifact.giMaterialShader.name = graph.name + "GI";
+		artifact.giMaterialShader.parameters = artifact.compileOutput.parameters;
+		artifact.giMaterialShader.stages.push_back({ .stage = ShaderStage::Lib,
+			.file = Algorithm::PathToUTF8(path), .entry = entry, .profile = "lib_6_6",
+			.ownerShader = artifact.giMaterialShaderID });
+	}
 	// 描画PassのShaderソースを保存する
 	queueSource(artifact.surfacePath, artifact.compileOutput.surfaceHLSL);
 	queueSource(artifact.opaquePixelPath, artifact.compileOutput.opaquePixelHLSL);
@@ -176,6 +212,11 @@ bool Engine::ShaderGraphArtifactCache::Compile(const ShaderGraphAsset& graph, As
 		artifact.rayTracingShaderID = MakeDerivedID(graphID, 0x5241595452414345ull ^ static_cast<uint64_t>(graph.target));
 		artifact.rayTracingShader = MakeRayTracingShader(graph.name + "RayTracing", artifact.rayTracingShaderID,
 			artifact.rayTracingPath, artifact.compileOutput.parameters, false);
+		// GIありの反射を独立したCook成果物へ分ける
+		const auto giPath = artifact.root / "giReflection.RT.hlsl";
+		queueSource(giPath, "#define NEM_REFLECTION_GI\n" + artifact.compileOutput.rayTracingHLSL);
+		artifact.giReflectionShader = MakeRayTracingShader(graph.name + "GIReflection",
+			MakeDerivedID(graphID, 0x47495245464c4543ull), giPath, artifact.compileOutput.parameters, false);
 		if (!MakeRayTracingPipeline(
 				graph, artifact.compileOutput, graphID, database, artifact.rayTracingPipeline, artifact.rayTracingPipelineID)) {
 
@@ -354,6 +395,7 @@ Engine::ShaderGraphArtifact Engine::ShaderGraphArtifactCache::DescribeReferences
 	if (IsShaderGraph3DTarget(graph.target)) {
 		artifact.rayTracingPipelineID = derived(0x5241595452414350ull);
 		artifact.rayTracingShaderID = derived(0x5241595452414345ull ^ target);
+		artifact.giMaterialShaderID = derived(0x47494d415445524cull);
 	}
 	return artifact;
 }

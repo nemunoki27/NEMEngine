@@ -328,7 +328,9 @@ SceneExecutionContext RenderPipelineRunner::BuildViewExecutionContext(GraphicsCo
 		RenderFeatureProfileService::GetInstance().SetRuntimeExtension(
 			extensionID ? renderAssetLibrary_.LoadRenderPasses(extensionID) : nullptr, extensionRevision);
 	}
-	context.renderPassesRuntime = &cameraState.renderPassesRuntime;
+	// 無効なCameraは追加Passと選択描画を使用しない
+	context.renderPassesRuntime = context.postProcessCamera.valid && context.postProcessCamera.postProcessEnabled ?
+		&cameraState.renderPassesRuntime : nullptr;
 	context.renderPassesGeneration = cameraState.renderPassesGeneration;
 	context.drawSceneViewDefaultGrid = request.drawSceneViewDefaultGrid;
 	context.drawSceneView2DCameraBounds = request.drawSceneView2DCameraBounds;

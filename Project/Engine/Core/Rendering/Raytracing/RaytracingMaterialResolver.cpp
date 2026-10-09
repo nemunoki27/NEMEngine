@@ -118,6 +118,14 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
 	AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB, bool normalMap) {
 
+	// Camera出力はサイズ変更とGPU状態をその都度解決する
+	const auto* meta = assetDatabase.Find(textureAssetID);
+	if (meta && meta->type == AssetType::RenderTexture) {
+
+		const auto resolved = RuntimeTextureResolver::ResolveBindless(graphicsCore, &assetDatabase, textureAssetID,
+			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear, normalMap);
+		return resolved.srvIndex;
+	}
 	auto& descriptorCache = normalMap ? normalTextureDescriptorIndexCache_ :
 		(sRGB ? sRGBTextureDescriptorIndexCache_ : textureDescriptorIndexCache_);
 	if (auto it = descriptorCache.find(textureAssetID);

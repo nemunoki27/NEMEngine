@@ -96,6 +96,8 @@ namespace Engine {
 		// シャドウ無しPSOと、TLASによる平行光源シャドウ付きPSO
 		std::unique_ptr<PipelineState> pipeline_{};
 		std::unique_ptr<PipelineState> pipelineShadowed_{};
+		std::unique_ptr<PipelineState> pipelineGI_{};
+		std::unique_ptr<PipelineState> pipelineShadowedGI_{};
 		bool initialized_ = false;
 		// shadow版PSOが構築できたか、inlineRT非対応環境では作れないので分けて持つ
 		bool shadowedAvailable_ = false;
@@ -128,7 +130,7 @@ namespace Engine {
 		//--------- functions ----------------------------------------------------
 
 		// 初回描画時にパイプラインを生成する
-		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat);
+		void EnsurePipeline(GraphicsCore& graphicsCore, DXGI_FORMAT colorFormat, bool useGI);
 		// フレーム内で再利用する定数バッファを確保する
 		DxConstBuffer<LightingConstants>& AllocateConstantBuffer(GraphicsCore& graphicsCore);
 		// GBufferのSRVを対応スロットへバインドする

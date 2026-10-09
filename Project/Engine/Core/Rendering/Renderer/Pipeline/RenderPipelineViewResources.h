@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Renderer/RenderTargets/RenderTargetRegistry.h>
 #include <Engine/Core/Rendering/RenderFeatures/RenderFeatureProfileRuntime.h>
+#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationView.h>
 
 namespace Engine {
 
@@ -43,6 +44,7 @@ namespace Engine {
 		uint64_t renderPassesAssetRevision = UINT64_MAX;
 		PerViewLightSet lightSet{};
 		ViewLightBufferSet lightBuffers{};
+		GlobalIlluminationView globalIllumination;
 
 	};
 }

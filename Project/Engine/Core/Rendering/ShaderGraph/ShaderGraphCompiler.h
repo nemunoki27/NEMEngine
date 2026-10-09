@@ -41,6 +41,8 @@ namespace Engine {
 		std::string vertexHLSL;
 		std::string meshHLSL;
 		std::string rayTracingHLSL;
+		std::string giMaterialHLSL;
+		std::string giVertexHLSL;
 		std::string computeHLSL;
 		std::vector<ShaderParameterMetadata> parameters;
 		MaterialParameterSet defaultParameters;

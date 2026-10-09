@@ -177,6 +177,8 @@ project "NEMTests"
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveViewGeometry.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveKeyUtility.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiCurveSelection.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorShortcutState.cpp"),
+        path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/Panels/Builtin/ConsoleGPUPassTooltip.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorSceneDirtyState.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/Core/EditorRequestSession.cpp"),
         path.join(NEM_PROJECT_ROOT, "Engine/Editor/UI/ImGui/ImGuiHelpersPopup.cpp"),

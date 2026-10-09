@@ -55,6 +55,10 @@ namespace {
 		library.RegisterDerivedShader(std::move(artifact.outlineShader));
 		library.RegisterDerivedShader(std::move(artifact.computeShader));
 		library.RegisterDerivedShader(std::move(artifact.rayTracingShader));
+		// PreviewのGIも編集後のGraphへ差し替える
+		library.RegisterDerivedShader(std::move(artifact.giMaterialShader));
+		library.RegisterDerivedShader(std::move(artifact.giVertexShader));
+		library.RegisterDerivedShader(std::move(artifact.giReflectionShader));
 		library.RegisterDerivedPipeline(std::move(artifact.opaquePipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.transparentPipeline));
 		library.RegisterDerivedPipeline(std::move(artifact.depthPipeline));

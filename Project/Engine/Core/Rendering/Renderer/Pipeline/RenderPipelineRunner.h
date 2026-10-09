@@ -74,6 +74,9 @@ namespace Engine {
 	// シーンを処理する描画パスの実行に必要なコンテキスト
 	struct SceneExecutionContext {
 
+		// 現在のCameraで確定した間接光
+		GlobalIlluminationView* globalIllumination = nullptr;
+
 		// ビューの種類
 		RenderViewKind kind = RenderViewKind::Game;
 		// シーンインスタンスの情報
@@ -239,6 +242,8 @@ namespace Engine {
 		const ViewportRenderService& GetViewportRenderService() const { return *viewportRenderService_.get(); }
 		// 描画結果の検証用にView内の色Bufferを貸し出す
 		const RenderTexture2D* FindViewColorTexture(RenderViewKind kind, const std::string& name) const;
+		// 要求したScene MeshのGPU生成完了を確認する
+		bool AreSceneMeshesReady() const;
 		RenderAssetLibrary& GetRenderAssetLibrary() { return renderAssetLibrary_; }
 		const RenderAssetLibrary& GetRenderAssetLibrary() const { return renderAssetLibrary_; }
 

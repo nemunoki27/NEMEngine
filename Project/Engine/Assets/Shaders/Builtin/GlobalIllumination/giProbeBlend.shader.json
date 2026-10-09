@@ -1,0 +1,11 @@
+{
+  "name": "GIProbeBlend",
+  "stages": [
+    {
+      "stage": "CS",
+      "file": "4e454d41535345544749000000000104",
+      "entry": "main",
+      "profile": "cs_6_0"
+    }
+  ]
+}

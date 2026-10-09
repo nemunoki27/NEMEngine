@@ -135,6 +135,9 @@ void Engine::RenderAssetLibrary::ResolveRuntimeReferences(
 	RegisterDerivedShader(std::move(artifact.outlineShader));
 	RegisterDerivedShader(std::move(artifact.computeShader));
 	RegisterDerivedShader(std::move(artifact.rayTracingShader));
+	RegisterDerivedShader(std::move(artifact.giMaterialShader));
+	RegisterDerivedShader(std::move(artifact.giReflectionShader));
+	RegisterDerivedShader(std::move(artifact.giVertexShader));
 	RegisterDerivedPipeline(std::move(artifact.opaquePipeline));
 	RegisterDerivedPipeline(std::move(artifact.transparentPipeline));
 	RegisterDerivedPipeline(std::move(artifact.depthPipeline));

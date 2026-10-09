@@ -51,7 +51,15 @@ using namespace Engine;
 const RenderTexture2D* RenderPipelineRunner::FindViewColorTexture(RenderViewKind kind, const std::string& name) const {
 
 	const auto& state = FindCameraState(kind);
+	// 通常の描画結果とProbeの検証結果を同じ窓口へ接続
+	if (const auto* texture = state.globalIllumination.FindDiagnosticTexture(name)) return texture;
 	return state.targetRegistry.FindColorByName(name);
+}
+
+bool RenderPipelineRunner::AreSceneMeshesReady() const {
+
+	// 描画要求と同じMesh集合で読込完了を確認
+	return meshBackend_ && meshBackend_->AreMeshesReady(scenePreparation_.visibleMeshes_);
 }
 
 //============================================================================
@@ -267,6 +275,20 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 	GameViewCameraSnapshot::Set(cameraSnapshot);
 
 	// 描画ビューごとに描画を実行
+	// Game Cameraを優先しつつSceneViewにも更新予算を割り当てる
+	const auto& giSettings = graphicsCore.GetDXObject().GetFeatureController().GetPreferences().globalIllumination;
+	const auto* giGameRequest = request.FindView(RenderViewKind::Game);
+	const auto* giSceneRequest = request.FindView(RenderViewKind::Scene);
+	const bool renderGameGI = giGameRequest && giGameRequest->renderThisFrame;
+	uint32_t giGameCameraCount = 0;
+	for (const auto& cameraView : gameCameraViews_) {
+		if (renderGameGI && cameraView.perspective.valid && cameraView.perspective.useGlobalIllumination) ++giGameCameraCount;
+	}
+	if (renderGameGI && gameCameraViews_.empty() && gameViewState_.view.perspective.valid &&
+		gameViewState_.view.perspective.useGlobalIllumination) ++giGameCameraCount;
+	const bool giSceneView = giSceneRequest && giSceneRequest->renderThisFrame &&
+		sceneViewState_.view.perspective.valid && sceneViewState_.view.perspective.useGlobalIllumination;
+	const float giWeightSum = static_cast<float>(std::max(giGameCameraCount * 2u + (giSceneView ? 1u : 0u), 1u));
 	auto renderView = [&](RenderViewKind kind, const ResolvedRenderView& view, bool clearDefaultSurface) {
 		const RenderViewRequest* viewRequest = request.FindView(kind);
 		if (!view.valid || !viewRequest || !viewRequest->renderThisFrame) {
@@ -325,6 +347,13 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 		}
 
 		// TLASバッファをリソースレジストリに登録
+		PrimitiveGeometryManager* giPrimitiveGeometry = primitiveBackend_ ? &primitiveBackend_->GetGeometryManager() : nullptr;
+		const float giBudget = giSettings.updateBudgetMilliseconds * (kind == RenderViewKind::Game ? 2.0f : 1.0f) / giWeightSum;
+		viewState.globalIllumination.ShareGeometryCache(raytracingSceneBuilder_);
+		const uint32_t giUpdates = viewState.globalIllumination.GetUpdateCount(giBudget, view, giSettings.quality);
+		viewState.globalIllumination.Update(graphicsCore, context, renderAssetLibrary_, materialResolver_, meshBackend,
+			giPrimitiveGeometry, scenePreparation_.renderBatch_, giUpdates);
+
 		if (context.raytracing.tlasResource) {
 
 			context.bufferRegistry.Register({.alias = "SceneTLAS",

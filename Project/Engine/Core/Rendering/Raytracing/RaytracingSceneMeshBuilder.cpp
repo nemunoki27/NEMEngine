@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "RaytracingSceneGeometryUtility.h"
+#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationGeometry.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
 #include <Engine/Core/Rendering/Core/GraphicsFrameContext.h>
@@ -59,8 +60,34 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		if (meshResource->subMeshes.empty()) {
 			continue;
 		}
-		const std::span<const SubMeshMaterial> subMeshes =
+		std::span<const SubMeshMaterial> subMeshes =
 			src.world ? GetMeshSubMeshes(*src.world, src.entity) : std::span<const SubMeshMaterial>{};
+		// GIは半透明を除きMaterialの既定値を取り込む
+		std::vector<SubMeshMaterial> giSubMeshes;
+		if (globalIlluminationScene_ && src.renderer) {
+
+			giSubMeshes.assign(subMeshes.begin(), subMeshes.end());
+			std::vector<MeshSubMeshRenderState> groups;
+			std::vector<uint32_t> indices;
+			MeshDrawPathCommon::BuildSubMeshRenderGroups(*src.renderer, subMeshes, groups, indices);
+			for (size_t index = 0; index < giSubMeshes.size(); ++index) {
+
+				const auto& group = groups[indices[index]];
+				auto& authoring = giSubMeshes[index];
+				authoring.visible = authoring.visible && group.surfaceMode != MaterialSurfaceMode::Transparent;
+				authoring.surfaceMode = group.surfaceMode;
+				const AssetID materialID = work.materialResolver.ResolveORDefault(
+					work.assetDatabase, group.material, DefaultMaterialSlot::Mesh);
+				authoring.material = materialID;
+				if (const auto* material = work.assetLibrary.LoadMaterial(materialID)) {
+
+					MaterialParameterSet parameters = material->parameters;
+					parameters.MergeFrom(authoring.materialInstance);
+					authoring.materialInstance = std::move(parameters);
+				}
+			}
+			subMeshes = giSubMeshes;
+		}
 		uint32_t visibleSubMeshCount = 0;
 		for (uint32_t index = 0; index < static_cast<uint32_t>(meshResource->subMeshes.size()); ++index) {
 
@@ -78,6 +105,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		const bool hasCustomGeometryTransforms =
 			geometryLayoutHash != ComputeGeometryLayoutHash({}, static_cast<uint32_t>(meshResource->subMeshes.size()));
 		StaticInstanceBLASKey staticInstanceKey{};
+		staticInstanceKey.globalIllumination = globalIlluminationScene_;
 		StaticInstanceBLASEntry* staticInstanceEntry = nullptr;
 		bool usesInstanceBLAS = false;
 		if (!meshResource->isSkinned && hasCustomGeometryTransforms) {
@@ -87,7 +115,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			staticInstanceKey.entity = src.entity;
 			staticInstanceKey.meshAssetID = src.meshAssetID;
 			staticInstanceKey.reloadGeneration = meshResource->reloadGeneration;
-			StaticInstanceBLASEntry& entry = blasCache_.staticInstanceBLASes_[staticInstanceKey];
+			StaticInstanceBLASEntry& entry = blasCache_->staticInstanceBLASes_[staticInstanceKey];
 			entry.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
 			if (!entry.layoutInitialized) {
 				entry.geometryLayoutHash = geometryLayoutHash;
@@ -101,6 +129,14 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		Vector3 worldBoundsCenter{};
 		float worldBoundsRadius = 0.0f;
 		CalculateMeshWorldBounds(*meshResource, subMeshes, src.worldMatrix, worldBoundsCenter, worldBoundsRadius);
+		// SkinningとGraph変形は未確定の境界で省略しない
+		const bool graphMaterial = globalIlluminationScene_ && src.renderer && std::any_of(subMeshes.begin(), subMeshes.end(), [&](const auto& subMesh) {
+
+			const auto* material = work.assetLibrary.LoadMaterial(subMesh.material ? subMesh.material : src.renderer->material);
+			return material && material->shaderGraph;
+		});
+		if (globalIlluminationScene_ && !meshResource->isSkinned && !graphMaterial && giRangeRadius_ > 0.0f &&
+			(worldBoundsCenter - giRangeCenter_).Length() > giRangeRadius_ + worldBoundsRadius) continue;
 		const uint32_t selectedLOD =
 			meshResource->isSkinned ? 0
 									: ResolveMeshLOD(work.runtimeFeatures, work.lodView, worldBoundsCenter, worldBoundsRadius);
@@ -111,22 +147,31 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		bool hasSkinnedSource = meshResource->isSkinned && work.meshBackend->FindSkinnedVertexSource(
 															   src.world, src.entity, src.meshAssetID, skinnedSource);
 
+		// Skinning後に通常描画と同じGraphの頂点式を評価
+		const bool graphDeformed = giGeometry_ && src.renderer && giGeometry_->PrepareMesh(work.graphicsCore, work.context,
+			work.assetLibrary, src.world, src.entity, *src.renderer, *meshResource, subMeshes, src.worldMatrix, skinnedSource);
+		if (graphDeformed) {
+
+			hasSkinnedSource = true;
+			work.staticScene = false;
+		}
+
 		// ホットリロードで世代が変わったら、このメッシュの旧世代BLASを破棄してから作り直す
 		const uint32_t reloadGeneration = meshResource->reloadGeneration;
-		auto generationIt = blasCache_.meshBLASGeneration_.find(src.meshAssetID);
-		if (generationIt != blasCache_.meshBLASGeneration_.end() && generationIt->second != reloadGeneration) {
+		auto generationIt = blasCache_->meshBLASGeneration_.find(src.meshAssetID);
+		if (generationIt != blasCache_->meshBLASGeneration_.end() && generationIt->second != reloadGeneration) {
 
-			std::erase_if(blasCache_.blases_, [&](const auto& pair) {
+			std::erase_if(blasCache_->blases_, [&](const auto& pair) {
 				return pair.first.meshAssetID == src.meshAssetID && pair.first.reloadGeneration != reloadGeneration;
 			});
-			std::erase_if(blasCache_.dynamicBlases_, [&](const auto& pair) {
+			std::erase_if(blasCache_->dynamicBlases_, [&](const auto& pair) {
 				return pair.first.meshAssetID == src.meshAssetID && pair.first.reloadGeneration != reloadGeneration;
 			});
-			std::erase_if(blasCache_.staticInstanceBLASes_, [&](const auto& pair) {
+			std::erase_if(blasCache_->staticInstanceBLASes_, [&](const auto& pair) {
 				return pair.first.meshAssetID == src.meshAssetID && pair.first.reloadGeneration != reloadGeneration;
 			});
 		}
-		blasCache_.meshBLASGeneration_[src.meshAssetID] = reloadGeneration;
+		blasCache_->meshBLASGeneration_[src.meshAssetID] = reloadGeneration;
 
 		// 1メッシュの全サブメッシュを1つのBLASへまとめる
 		std::vector<RaytracingBLASGeometryInput> geometries{};
@@ -247,6 +292,10 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				const auto& authoring = subMeshes[subMeshIndex];
 				// 標準Parameterから反射用のMaterial値を設定
 				const auto& params = authoring.materialInstance;
+				if (globalIlluminationScene_ && authoring.surfaceMode == MaterialSurfaceMode::Masked) {
+
+					subMeshData._materialPad = std::bit_cast<uint32_t>(authoring.alphaCutoff);
+				}
 				auto findColor = [&](MaterialParameterID id, const Color4& fallback) -> Color4 {
 					const MaterialParameterValue* value = params.Find(id);
 					return value && std::holds_alternative<Color4>(value->value) ? std::get<Color4>(value->value) : fallback;
@@ -286,6 +335,21 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			geometryData.subMeshDataIndex = subMeshDataIndex;
 			geometryData.indexOffset = selectedRange.indexOffset;
 			geometryData.pickRecordIndex = static_cast<uint32_t>(result_.scenePickRecords_.size() - 1);
+			if (giMaterials_ && hasMesh) {
+
+				const auto& authoring = subMeshes[subMeshIndex];
+				const AssetID materialID = work.materialResolver.ResolveORDefault(work.assetDatabase,
+					authoring.material ? authoring.material : src.renderer->material, DefaultMaterialSlot::Mesh);
+				if (const auto* material = work.assetLibrary.LoadMaterial(materialID)) {
+
+					// Camera出力の読み取り準備はScene再構築と分ける
+					CollectRenderTextureParameters(authoring.materialInstance, work.assetDatabase, renderTextureInputs_);
+					const auto binding = giMaterials_->Resolve(work.graphicsCore, work.assetDatabase, work.assetLibrary,
+						*material, authoring.materialInstance);
+					geometryData.giCallableIndex = binding.callableIndex;
+					geometryData.giParametersDescriptor = binding.parametersDescriptor;
+				}
+			}
 			result_.sceneGeometryScratch_.emplace_back(geometryData);
 		}
 
@@ -309,13 +373,14 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 		if (hasSkinnedSource) {
 
 			DynamicBLASKey key{};
+			key.deformationOwner = graphDeformed ? this : nullptr;
 			key.world = src.world;
 			key.worldLifetime = src.world ? src.world->GetLifetime() : nullptr;
 			key.entity = src.entity;
 			key.meshAssetID = src.meshAssetID;
 			key.reloadGeneration = reloadGeneration;
 
-			DynamicBLASEntry& entry = blasCache_.dynamicBlases_[key];
+			DynamicBLASEntry& entry = blasCache_->dynamicBlases_[key];
 			entry.lastUsedFrame = GraphicsFrameState::GetFrameSerial();
 			if (!entry.blas.IsBuilt()) {
 
@@ -388,8 +453,8 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				key.lodIndex = lodIndex;
 				key.geometryLayoutHash = geometryLayoutHash;
 
-				auto blasIt = blasCache_.blases_.find(key);
-				if (blasIt != blasCache_.blases_.end() && blasIt->second.IsBuilt()) {
+				auto blasIt = blasCache_->blases_.find(key);
+				if (blasIt != blasCache_->blases_.end() && blasIt->second.IsBuilt()) {
 
 					FrameProfiler::GetInstance().AddBLASSkip(static_cast<uint32_t>(geometries.size()));
 					if (lodIndex == selectedLOD) {
@@ -404,7 +469,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 				lodInput.geometries = lodGeometries;
 				lodInput.allowUpdate = false;
 
-				BottomLevelAccelerationStructure& blas = blasCache_.blases_[key];
+				BottomLevelAccelerationStructure& blas = blasCache_->blases_[key];
 				blas.SetRetirementQueue(work.graphicsCore.GetDXObject().GetResourceRetirement());
 				blas.Build(work.device, work.commandList, lodInput);
 				FrameProfiler::GetInstance().AddBLASBuild(static_cast<uint32_t>(lodGeometries.size()));

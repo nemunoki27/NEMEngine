@@ -28,12 +28,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT mes
 
 namespace {
 
-	LRESULT ForwardImGuiMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
-
-		// 入力メッセージをImGuiへ渡す
-		return ImGui_ImplWin32_WndProcHandler(hwnd, message, wparam, lparam);
-	}
-
 	void ApplyDarkWindowFrame(HWND hwnd) {
 
 		// OSが提供するWindowの配色設定を取得する
@@ -95,7 +89,7 @@ void ImGuiManager::Init(HWND hwnd, UINT bufferCount, ID3D12Device* device, ID3D1
 	if (!platformInitialized_) {
 		throw std::runtime_error("ImGuiのWindow初期化に失敗しました");
 	}
-	WinApp::SetMessageHandler(ForwardImGuiMessage);
+	WinApp::SetMessageHandler(ForwardWindowMessage);
 
 	// DX12初期化
 	ImGui_ImplDX12_InitInfo dxInitInfo = {};
@@ -322,6 +316,7 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam,
 		return DefWindowProcW(hwnd, message, wparam, lparam);
 	}
 	WNDPROC previous = found->second;
+	instance_->shortcutState_.ProcessMessage(message, wparam, lparam);
 
 	switch (message) {
 	case WM_SETFOCUS:
@@ -330,6 +325,7 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam,
 		}
 		break;
 	case WM_KILLFOCUS:
+		instance_->shortcutState_.Reset();
 		if (Input* input = Input::TryGetInstance()) {
 			input->SetWindowFocus(instance_->IsEditorWindow(reinterpret_cast<HWND>(wparam)));
 		}
@@ -344,4 +340,19 @@ LRESULT ImGuiManager::PlatformWindowProc(HWND hwnd, UINT message, WPARAM wparam,
 		instance_->platformWindowProcedures_.erase(hwnd);
 	}
 	return result;
+}
+
+LRESULT Engine::ImGuiManager::ForwardWindowMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+
+	// ImGuiの消費状態に依存せず切替入力を保持
+	instance_->shortcutState_.ProcessMessage(message, wparam, lparam);
+	if (message == WM_KILLFOCUS || (message == WM_ACTIVATE && LOWORD(wparam) == WA_INACTIVE)) {
+		instance_->shortcutState_.Reset();
+	}
+	return ImGui_ImplWin32_WndProcHandler(hwnd, message, wparam, lparam);
+}
+
+bool Engine::ImGuiManager::ConsumeHidePanelsShortcut() {
+
+	return shortcutState_.Consume();
 }

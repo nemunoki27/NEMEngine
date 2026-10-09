@@ -16,6 +16,11 @@ namespace Engine::ShaderGraphStageSource {
 	// Mesh描画のShaderを生成する
 	std::string BuildMeshVertexSource(
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context);
+	// GI用の頂点変形を生成する
+	std::string BuildMeshGIVertexSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
+		ShaderGraphExpressionCompiler& context);
+	std::string BuildPrimitiveGIVertexSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
+		ShaderGraphExpressionCompiler& context);
 	// Mesh描画のShaderを生成する
 	std::string BuildMeshShaderSource(
 		const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile, ShaderGraphExpressionCompiler& context);
@@ -43,6 +48,7 @@ namespace Engine::ShaderGraphStageSource {
 	std::string BuildPixelSource(const ShaderGraphAsset& graph, std::string_view surfaceIncludeFile,
 		const ShaderGraphExpressionCompiler& context, bool transparent);
 	// RayTracingのShaderを生成する
+	std::string BuildGIMaterialSource(std::string_view surfaceIncludeFile, const ShaderGraphExpressionCompiler& context);
 	std::string BuildRayTracingSource(std::string_view surfaceIncludeFile, const ShaderGraphExpressionCompiler& context);
 	// RayTracingのShaderを生成する
 	std::string BuildRayTracingEffectSource(const ShaderGraphAsset& graph, ShaderGraphExpressionCompiler& context);

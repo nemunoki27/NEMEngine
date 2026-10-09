@@ -100,13 +100,18 @@ namespace Engine {
 		// BLAS構築対象と同じシーン内メッシュを収集し、GameViewにPerspectiveカメラがない場合も先に頂点を更新する
 		RenderPassPhaseBuckets sceneBuckets{};
 		const UUID sceneInstanceID = context.sceneInstance->instanceID;
+		const auto* camera = context.view ? context.view->FindCamera(RenderCameraDomain::Perspective) : nullptr;
+		const bool includeGI = graphicsCore.GetDXObject().GetFeatureController().GetRuntimeFeatures().useGlobalIllumination &&
+			camera && camera->useGlobalIllumination;
 		for (const RenderItem& item : renderBatch.GetItems()) {
 
 			if (item.backendID != RenderBackendID::Mesh) {
 				continue;
 			}
 			if (sceneInstanceID && item.sceneInstanceID != sceneInstanceID) {
-				continue;
+
+				// GIへ寄与する別SceneのSkinningも先に更新
+				if (!includeGI || (item.visibilityLayerMask & camera->cullingMask) == 0u) continue;
 			}
 			sceneBuckets.Get(item.renderPhase).items.emplace_back(&item);
 		}

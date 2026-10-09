@@ -7,6 +7,7 @@
 #include "RaytracingMaterialResolver.h"
 #include "RaytracingSceneResult.h"
 #include "RaytracingBLASCache.h"
+#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationMaterials.h>
 #include <Engine/Core/World/ECS/Entity/WorldEntityKey.h>
 #include <Engine/Core/Rendering/Core/RenderingFeatureTypes.h>
 #include <Engine/Core/Assets/AssetTypes.h>
@@ -20,11 +21,13 @@
 // c++
 #include <array>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Engine {
 
 	// 前方宣言
 	class GraphicsCore;
+	class GlobalIlluminationGeometry;
 	class AssetDatabase;
 	class MeshRenderBackend;
 	class RenderAssetLibrary;
@@ -65,6 +68,15 @@ namespace Engine {
 
 		// 終了処理
 		void Finalize();
+		// GI専用の対象収集へ切り替える
+		void SetGlobalIlluminationScene(bool enabled) { globalIlluminationScene_ = enabled; }
+
+		// 形状のGPU資源を共有する
+		void ShareGeometryCache(const RaytracingSceneBuilder& source);
+		// Probeと影Rayの到達範囲を設定する
+		void SetGlobalIlluminationRange(const Vector3& center, float radius);
+		void SetGlobalIlluminationMaterials(GlobalIlluminationMaterials* materials) { giMaterials_ = materials; }
+		void SetGlobalIlluminationGeometry(GlobalIlluminationGeometry* geometry) { giGeometry_ = geometry; }
 
 		//--------- accessor -----------------------------------------------------
 
@@ -140,6 +152,7 @@ namespace Engine {
 		struct SceneBuildWork {
 
 			GraphicsCore& graphicsCore;
+			SceneExecutionContext& context;
 			AssetDatabase& assetDatabase;
 			RenderAssetLibrary& assetLibrary;
 			MaterialResolver& materialResolver;
@@ -162,7 +175,7 @@ namespace Engine {
 		//--------- variables ----------------------------------------------------
 
 		// BLAS
-		RaytracingBLASCache blasCache_{};
+		std::shared_ptr<RaytracingBLASCache> blasCache_ = std::make_shared<RaytracingBLASCache>();
 		// TLAS
 		RaytracingTLASState tlasState_{};
 
@@ -170,12 +183,19 @@ namespace Engine {
 
 		// テクスチャ解決キャッシュ
 		RaytracingMaterialResolver materialResolver_{};
+		// 静的Sceneでも読み取り状態へ戻すCamera出力
+		std::unordered_set<AssetID> renderTextureInputs_{};
 		// 反射履歴の無効化に使うマテリアル内容の世代
 		uint64_t sceneMaterialGeneration_ = 0;
 		uint64_t cachedSceneMaterialHash_ = 0;
 
 		// 初期化済みか
 		bool initialized_ = false;
+		bool globalIlluminationScene_ = false;
+		Vector3 giRangeCenter_{};
+		float giRangeRadius_ = 0.0f;
+		GlobalIlluminationMaterials* giMaterials_ = nullptr;
+		GlobalIlluminationGeometry* giGeometry_ = nullptr;
 		// 静的シーンのTransform差分更新に使うTLAS配置
 		std::vector<RaytracingTLASInstance> cachedTLASInstances_{};
 		std::unordered_multimap<SceneEntityKey, uint32_t, SceneEntityKeyHash> cachedTLASInstanceIndices_{};

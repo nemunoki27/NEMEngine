@@ -5,19 +5,19 @@
                 "DirectionalLight": {
                     "color": {
                         "a": 1.0,
-                        "b": 0.6306021213531494,
-                        "g": 0.7741263508796692,
-                        "r": 0.8468084931373596
+                        "b": 1.0,
+                        "g": 1.0,
+                        "r": 1.0
                     },
                     "direction": {
-                        "x": -0.11744694411754608,
-                        "y": -0.9788386225700378,
-                        "z": -0.16757452487945557
+                        "x": -0.2921784818172455,
+                        "y": -0.9560841917991638,
+                        "z": 0.023123985156416893
                     },
                     "enabled": true,
-                    "intensity": 15.489999771118164,
+                    "intensity": 12.020000457763672,
                     "shadowAngularRadius": 0.27000001072883606,
-                    "shadowStrength": 0.5899999737739563
+                    "shadowStrength": 0.9200000166893005
                 },
                 "Hierarchy": {
                     "parentLocalFileID": "",
@@ -5195,7 +5195,7 @@
                                 "z": 5.21309757232666
                             },
                             "sourceSubMeshIndex": 56,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "09155b9c139e34f6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -5375,7 +5375,7 @@
                                 "z": 3.3976023197174072
                             },
                             "sourceSubMeshIndex": 58,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a73dbae8e718ba95",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -5555,7 +5555,7 @@
                                 "z": -7.669439792633057
                             },
                             "sourceSubMeshIndex": 60,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "fafdccafcc12cac3",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -33746,7 +33746,7 @@
                                 "z": -1.4219391345977783
                             },
                             "sourceSubMeshIndex": 381,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "918f3420512c3b01",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -34001,7 +34001,7 @@
                                 "z": -15.53989028930664
                             },
                             "sourceSubMeshIndex": 384,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b5ce1f0fcd0fd8eb",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -34256,7 +34256,7 @@
                                 "z": -11.52132797241211
                             },
                             "sourceSubMeshIndex": 387,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "78499f7c45a4595c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -34511,7 +34511,7 @@
                                 "z": -7.408831596374512
                             },
                             "sourceSubMeshIndex": 390,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0c0d3c36b3998a6a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -34766,7 +34766,7 @@
                                 "z": 6.0424089431762695
                             },
                             "sourceSubMeshIndex": 393,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "2771bb75e50ccc9b",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -35021,7 +35021,7 @@
                                 "z": 7.871696472167969
                             },
                             "sourceSubMeshIndex": 396,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "74341cfbe58d83fa",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -35276,7 +35276,7 @@
                                 "z": 9.626461029052734
                             },
                             "sourceSubMeshIndex": 399,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "cbcf41fc7061ea6b",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -35531,7 +35531,7 @@
                                 "z": 11.182138442993164
                             },
                             "sourceSubMeshIndex": 402,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a7ba45ae21c573f0",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -35786,7 +35786,7 @@
                                 "z": 3.5983991622924805
                             },
                             "sourceSubMeshIndex": 405,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4dcdd2ae978ede21",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -36041,7 +36041,7 @@
                                 "z": -8.213306427001953
                             },
                             "sourceSubMeshIndex": 408,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "360aa143b3b6be57",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -36296,7 +36296,7 @@
                                 "z": 5.355625152587891
                             },
                             "sourceSubMeshIndex": 411,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "8b536be87221066d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -36551,7 +36551,7 @@
                                 "z": 7.123584270477295
                             },
                             "sourceSubMeshIndex": 414,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "1d2037b04b2f69fc",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -36638,7 +36638,7 @@
                                 "z": -11.715776443481445
                             },
                             "sourceSubMeshIndex": 415,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ec54cbc4db2d73d2",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -37688,7 +37688,7 @@
                                 "z": -3.094388484954834
                             },
                             "sourceSubMeshIndex": 427,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ecc393024e09d49a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -37862,7 +37862,7 @@
                                 "z": 1.0129179954528809
                             },
                             "sourceSubMeshIndex": 429,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0548f0f3ad80798e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -38036,7 +38036,7 @@
                                 "z": -6.951964378356934
                             },
                             "sourceSubMeshIndex": 431,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "688bd834e05f3016",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -38210,7 +38210,7 @@
                                 "z": -12.059832572937012
                             },
                             "sourceSubMeshIndex": 433,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "68363d56d65ab680",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -38384,7 +38384,7 @@
                                 "z": 3.068336009979248
                             },
                             "sourceSubMeshIndex": 435,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "bd1fa35ed04be333",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -46736,7 +46736,7 @@
                                 "z": 22.071372985839844
                             },
                             "sourceSubMeshIndex": 531,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b2a86437cd9031cf",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -46823,7 +46823,7 @@
                                 "z": 25.59569549560547
                             },
                             "sourceSubMeshIndex": 532,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "6c6bef2501227d67",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -61091,7 +61091,7 @@
                                 "z": 37.880367279052734
                             },
                             "sourceSubMeshIndex": 696,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "1006ded84b396d8e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -62483,7 +62483,7 @@
                                 "z": 38.539459228515625
                             },
                             "sourceSubMeshIndex": 712,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "34f1022cad6dd098",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -63527,7 +63527,7 @@
                                 "z": -48.88054656982422
                             },
                             "sourceSubMeshIndex": 724,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4e8c59986052607e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -63875,7 +63875,7 @@
                                 "z": -47.94103240966797
                             },
                             "sourceSubMeshIndex": 728,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b0f2f33c05b7394e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -65180,7 +65180,7 @@
                                 "z": -31.524410247802734
                             },
                             "sourceSubMeshIndex": 743,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "acd147ca91181cfe",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -65528,7 +65528,7 @@
                                 "z": -31.456239700317383
                             },
                             "sourceSubMeshIndex": 747,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "776c9fff3a024422",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -66137,7 +66137,7 @@
                                 "z": -60.09169006347656
                             },
                             "sourceSubMeshIndex": 754,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b66808592e96654e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -66224,7 +66224,7 @@
                                 "z": -70.54856872558594
                             },
                             "sourceSubMeshIndex": 755,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "e87b8c533c1390be",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -66485,7 +66485,7 @@
                                 "z": -60.1260986328125
                             },
                             "sourceSubMeshIndex": 758,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "19517829e418f9bb",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -66572,7 +66572,7 @@
                                 "z": -69.78883361816406
                             },
                             "sourceSubMeshIndex": 759,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "551b98559a088967",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -68051,7 +68051,7 @@
                                 "z": -28.77837371826172
                             },
                             "sourceSubMeshIndex": 776,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "c903ff3e293b05b2",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -68225,7 +68225,7 @@
                                 "z": -28.807418823242188
                             },
                             "sourceSubMeshIndex": 778,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d4574df3f2555feb",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -69617,7 +69617,7 @@
                                 "z": 47.60151290893555
                             },
                             "sourceSubMeshIndex": 794,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "396f36c05507750f",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -69878,7 +69878,7 @@
                                 "z": -2.959482192993164
                             },
                             "sourceSubMeshIndex": 797,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0545ec2ba65fa39b",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -71531,7 +71531,7 @@
                                 "z": 19.136859893798828
                             },
                             "sourceSubMeshIndex": 816,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "938741116ffba9da",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -72836,7 +72836,7 @@
                                 "z": 19.583372116088867
                             },
                             "sourceSubMeshIndex": 831,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3084093696aa47fc",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -74750,7 +74750,7 @@
                                 "z": 19.566835403442383
                             },
                             "sourceSubMeshIndex": 853,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "bbd6b804f2422a8e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -74924,7 +74924,7 @@
                                 "z": 19.566835403442383
                             },
                             "sourceSubMeshIndex": 855,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ef4efb2efb56c6d3",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75011,7 +75011,7 @@
                                 "z": 19.56683349609375
                             },
                             "sourceSubMeshIndex": 856,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9fe5aac9135b0f71",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75098,7 +75098,7 @@
                                 "z": 22.718990325927734
                             },
                             "sourceSubMeshIndex": 857,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "db5e0cea2df36eb8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75185,7 +75185,7 @@
                                 "z": 20.962736129760742
                             },
                             "sourceSubMeshIndex": 858,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "e901ec80e04282e6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75272,7 +75272,7 @@
                                 "z": 22.718990325927734
                             },
                             "sourceSubMeshIndex": 859,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3244a10085c744e8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75359,7 +75359,7 @@
                                 "z": 20.962970733642578
                             },
                             "sourceSubMeshIndex": 860,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3bb932ca4d540283",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75446,7 +75446,7 @@
                                 "z": 22.718990325927734
                             },
                             "sourceSubMeshIndex": 861,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "95bc4ca8d0eaba10",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75533,7 +75533,7 @@
                                 "z": 20.966657638549805
                             },
                             "sourceSubMeshIndex": 862,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f8825c1142ff2f70",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75620,7 +75620,7 @@
                                 "z": 17.353927612304688
                             },
                             "sourceSubMeshIndex": 863,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "16bf0d621ff90888",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75707,7 +75707,7 @@
                                 "z": 15.554731369018555
                             },
                             "sourceSubMeshIndex": 864,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "548a5ebb6dc0a730",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75881,7 +75881,7 @@
                                 "z": 17.353927612304688
                             },
                             "sourceSubMeshIndex": 866,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "2528c6dbf8bfc91c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -75968,7 +75968,7 @@
                                 "z": 15.554730415344238
                             },
                             "sourceSubMeshIndex": 867,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "77f73412296c056a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -76055,7 +76055,7 @@
                                 "z": 17.353927612304688
                             },
                             "sourceSubMeshIndex": 868,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "6c20e63dd926e40a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -76142,7 +76142,7 @@
                                 "z": 15.554730415344238
                             },
                             "sourceSubMeshIndex": 869,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "abdad490801b6fb0",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -76229,7 +76229,7 @@
                                 "z": 15.554731369018555
                             },
                             "sourceSubMeshIndex": 870,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "e4b677bd2eb08808",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -76316,7 +76316,7 @@
                                 "z": 17.353927612304688
                             },
                             "sourceSubMeshIndex": 871,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "1ce35a78bf2fde05",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -78056,7 +78056,7 @@
                                 "z": -43.092071533203125
                             },
                             "sourceSubMeshIndex": 891,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "2ff866a95a62ebf8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -79274,7 +79274,7 @@
                                 "z": -43.24674987792969
                             },
                             "sourceSubMeshIndex": 905,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "944f8550f40ad352",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81101,7 +81101,7 @@
                                 "z": -43.23377227783203
                             },
                             "sourceSubMeshIndex": 926,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "07a47eb3a271bff4",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81188,7 +81188,7 @@
                                 "z": -43.23377227783203
                             },
                             "sourceSubMeshIndex": 927,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d119bdf661260b70",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81275,7 +81275,7 @@
                                 "z": -43.23377227783203
                             },
                             "sourceSubMeshIndex": 928,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "7248004724d7c940",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81362,7 +81362,7 @@
                                 "z": -34.86302185058594
                             },
                             "sourceSubMeshIndex": 929,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9a56a1fd87e4d709",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81449,7 +81449,7 @@
                                 "z": -38.897579193115234
                             },
                             "sourceSubMeshIndex": 930,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0de7145778166fe9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81536,7 +81536,7 @@
                                 "z": -34.86302185058594
                             },
                             "sourceSubMeshIndex": 931,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d838de971495b235",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81623,7 +81623,7 @@
                                 "z": -38.89704132080078
                             },
                             "sourceSubMeshIndex": 932,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b6a2d5f20f5010de",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81710,7 +81710,7 @@
                                 "z": -34.86302185058594
                             },
                             "sourceSubMeshIndex": 933,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9fea9393e3e5dc77",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81797,7 +81797,7 @@
                                 "z": -38.88856887817383
                             },
                             "sourceSubMeshIndex": 934,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "1344e98cea026db8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81884,7 +81884,7 @@
                                 "z": -47.18791198730469
                             },
                             "sourceSubMeshIndex": 935,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "dfde7cc6724e8df2",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -81971,7 +81971,7 @@
                                 "z": -51.32111358642578
                             },
                             "sourceSubMeshIndex": 936,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "edb639bdb9881879",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -82058,7 +82058,7 @@
                                 "z": -47.18791198730469
                             },
                             "sourceSubMeshIndex": 937,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b9761686092934ed",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -82145,7 +82145,7 @@
                                 "z": -51.32111358642578
                             },
                             "sourceSubMeshIndex": 938,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f2e5b4ee0f1783c4",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -82232,7 +82232,7 @@
                                 "z": -47.18791198730469
                             },
                             "sourceSubMeshIndex": 939,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d5c98eae11d72140",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -82319,7 +82319,7 @@
                                 "z": -51.32111358642578
                             },
                             "sourceSubMeshIndex": 940,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "63ef638d9e52a5ab",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -82406,7 +82406,7 @@
                                 "z": -51.32111358642578
                             },
                             "sourceSubMeshIndex": 941,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "7fd4fb2e99282b84",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -82493,7 +82493,7 @@
                                 "z": -47.18791198730469
                             },
                             "sourceSubMeshIndex": 942,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "5cd4126db1201bce",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -85016,7 +85016,7 @@
                                 "z": -25.665721893310547
                             },
                             "sourceSubMeshIndex": 971,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "cc2008f90a454a5a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -85277,7 +85277,7 @@
                                 "z": -24.774818420410156
                             },
                             "sourceSubMeshIndex": 974,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4ca72ea8d1f61c8a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -87104,7 +87104,7 @@
                                 "z": 69.03116607666016
                             },
                             "sourceSubMeshIndex": 995,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "5e518d7051703e6c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -87974,7 +87974,7 @@
                                 "z": -40.35215759277344
                             },
                             "sourceSubMeshIndex": 1005,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "51c9b91ee3fb133b",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -88409,7 +88409,7 @@
                                 "z": 21.901308059692383
                             },
                             "sourceSubMeshIndex": 1010,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "06ee717ead4dcfc9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -88844,7 +88844,7 @@
                                 "z": 19.65643310546875
                             },
                             "sourceSubMeshIndex": 1015,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3004d5131ae542bf",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -91895,7 +91895,7 @@
                                 "z": -4.275805473327637
                             },
                             "sourceSubMeshIndex": 1050,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "781b7edbebf24f2b",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -104042,7 +104042,7 @@
                                 "z": -15.863503456115723
                             },
                             "sourceSubMeshIndex": 1189,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4e59aa63ef47e4c5",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -105521,7 +105521,7 @@
                                 "z": -2.8587419986724854
                             },
                             "sourceSubMeshIndex": 1206,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "5a35d303b70b0703",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -105608,7 +105608,7 @@
                                 "z": -11.840673446655273
                             },
                             "sourceSubMeshIndex": 1207,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "30399e454d4191f4",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -105695,7 +105695,7 @@
                                 "z": -11.789331436157227
                             },
                             "sourceSubMeshIndex": 1208,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "e00881805159f160",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -105782,7 +105782,7 @@
                                 "z": -15.797776222229004
                             },
                             "sourceSubMeshIndex": 1209,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "134b6cb023346e5d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -105869,7 +105869,7 @@
                                 "z": -15.797776222229004
                             },
                             "sourceSubMeshIndex": 1210,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "788f597764867a3e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -105956,7 +105956,7 @@
                                 "z": -11.789329528808594
                             },
                             "sourceSubMeshIndex": 1211,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ccf4b71e6bca42b4",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -106304,7 +106304,7 @@
                                 "z": -6.758882522583008
                             },
                             "sourceSubMeshIndex": 1215,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "140c038676dee623",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -106739,7 +106739,7 @@
                                 "z": 6.301755905151367
                             },
                             "sourceSubMeshIndex": 1220,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "72dcb956df85b243",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -106826,7 +106826,7 @@
                                 "z": 4.527823448181152
                             },
                             "sourceSubMeshIndex": 1221,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4a2642dd8b1af2c9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -107087,7 +107087,7 @@
                                 "z": 4.515796661376953
                             },
                             "sourceSubMeshIndex": 1224,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "87680f4b9124076f",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -107522,7 +107522,7 @@
                                 "z": 6.300042152404785
                             },
                             "sourceSubMeshIndex": 1229,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0b9ddccc26eea6d8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -107783,7 +107783,7 @@
                                 "z": 7.914865493774414
                             },
                             "sourceSubMeshIndex": 1232,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f89933377a42cfd6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -108044,7 +108044,7 @@
                                 "z": 6.297706604003906
                             },
                             "sourceSubMeshIndex": 1235,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "bab7a68bb48a7391",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -108218,7 +108218,7 @@
                                 "z": 4.488037586212158
                             },
                             "sourceSubMeshIndex": 1237,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3469768a7b960163",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -108392,7 +108392,7 @@
                                 "z": 2.8142848014831543
                             },
                             "sourceSubMeshIndex": 1239,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "6c60d871e28fd9b6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -113003,7 +113003,7 @@
                                 "z": -6.989877223968506
                             },
                             "sourceSubMeshIndex": 1292,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ee5d1c2406400e7a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -113090,7 +113090,7 @@
                                 "z": 2.5365023612976074
                             },
                             "sourceSubMeshIndex": 1293,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ca8b1c57d75f16d6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -113699,7 +113699,7 @@
                                 "z": -1.301895260810852
                             },
                             "sourceSubMeshIndex": 1300,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4c09850878c51280",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115091,7 +115091,7 @@
                                 "z": -1.4743363857269287
                             },
                             "sourceSubMeshIndex": 1316,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "10b44a1a705058a1",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115178,7 +115178,7 @@
                                 "z": 4.134880542755127
                             },
                             "sourceSubMeshIndex": 1317,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "bf91ee9ada3b9d13",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115265,7 +115265,7 @@
                                 "z": 5.956696033477783
                             },
                             "sourceSubMeshIndex": 1318,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "dcdcf28879f1716f",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115352,7 +115352,7 @@
                                 "z": 4.134881019592285
                             },
                             "sourceSubMeshIndex": 1319,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "227debdd64ddce0e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115439,7 +115439,7 @@
                                 "z": 5.956696510314941
                             },
                             "sourceSubMeshIndex": 1320,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a2b09c24b1c2fe84",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115526,7 +115526,7 @@
                                 "z": 7.574305534362793
                             },
                             "sourceSubMeshIndex": 1321,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "fbbdb4f8b7291889",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115613,7 +115613,7 @@
                                 "z": 5.956696033477783
                             },
                             "sourceSubMeshIndex": 1322,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "439e22bf155e5cd3",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115700,7 +115700,7 @@
                                 "z": 4.134880542755127
                             },
                             "sourceSubMeshIndex": 1323,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "1257bb4301dad21d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115787,7 +115787,7 @@
                                 "z": 2.550549030303955
                             },
                             "sourceSubMeshIndex": 1324,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "50945407de162aa8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115874,7 +115874,7 @@
                                 "z": -3.0358657836914063
                             },
                             "sourceSubMeshIndex": 1325,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "7c67a1a6c23dd7c6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -115961,7 +115961,7 @@
                                 "z": -11.711370468139648
                             },
                             "sourceSubMeshIndex": 1326,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "94d6a616f54257ad",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -116048,7 +116048,7 @@
                                 "z": -15.624518394470215
                             },
                             "sourceSubMeshIndex": 1327,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "942302a0540106e3",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -116135,7 +116135,7 @@
                                 "z": -15.624518394470215
                             },
                             "sourceSubMeshIndex": 1328,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "019c27942591a434",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -116222,7 +116222,7 @@
                                 "z": -11.711370468139648
                             },
                             "sourceSubMeshIndex": 1329,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ccee88d8d67bd1ff",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -116309,7 +116309,7 @@
                                 "z": -15.774415969848633
                             },
                             "sourceSubMeshIndex": 1330,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a52209cea1b1dcb0",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -116744,7 +116744,7 @@
                                 "z": -11.711372375488281
                             },
                             "sourceSubMeshIndex": 1335,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a964f2ee09530c2d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -116918,7 +116918,7 @@
                                 "z": -6.601218223571777
                             },
                             "sourceSubMeshIndex": 1337,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f20a5ef2d4a4d50d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -118484,7 +118484,7 @@
                                 "z": 5.212972640991211
                             },
                             "sourceSubMeshIndex": 1355,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "dcdada73ca8f3182",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -118571,7 +118571,7 @@
                                 "z": -12.359315872192383
                             },
                             "sourceSubMeshIndex": 1356,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a89552ed8a413b5c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -119006,7 +119006,7 @@
                                 "z": -2.9800655841827393
                             },
                             "sourceSubMeshIndex": 1361,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "8eb467b99c328419",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -120137,7 +120137,7 @@
                                 "z": 7.624881744384766
                             },
                             "sourceSubMeshIndex": 1374,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "5e700df529ef778c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -120311,7 +120311,7 @@
                                 "z": -11.672542572021484
                             },
                             "sourceSubMeshIndex": 1376,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "11549d1e4ad98b24",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -120485,7 +120485,7 @@
                                 "z": 4.198178768157959
                             },
                             "sourceSubMeshIndex": 1378,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f652bb90d1b7bee9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -120746,7 +120746,7 @@
                                 "z": -11.672542572021484
                             },
                             "sourceSubMeshIndex": 1381,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a1da480297d91ab8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -121355,7 +121355,7 @@
                                 "z": -15.680988311767578
                             },
                             "sourceSubMeshIndex": 1388,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "11a08a99246d19bf",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -121529,7 +121529,7 @@
                                 "z": -15.680988311767578
                             },
                             "sourceSubMeshIndex": 1390,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4ad79492ed5c9c63",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -121790,7 +121790,7 @@
                                 "z": -15.732332229614258
                             },
                             "sourceSubMeshIndex": 1393,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "21ff67096591d91f",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -122225,7 +122225,7 @@
                                 "z": -2.999596357345581
                             },
                             "sourceSubMeshIndex": 1398,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0ff87564899ebd19",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -122399,7 +122399,7 @@
                                 "z": -6.678853988647461
                             },
                             "sourceSubMeshIndex": 1400,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "68ffa9b45a41b290",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -122660,7 +122660,7 @@
                                 "z": -11.723886489868164
                             },
                             "sourceSubMeshIndex": 1403,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "afd9eb9f8780f041",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -123443,7 +123443,7 @@
                                 "z": -1.3851031064987183
                             },
                             "sourceSubMeshIndex": 1412,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a39a01e5e03bad0f",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -130577,7 +130577,7 @@
                                 "z": 40.283897399902344
                             },
                             "sourceSubMeshIndex": 1494,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "41bfe93278ae0160",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -130664,7 +130664,7 @@
                                 "z": 40.42278289794922
                             },
                             "sourceSubMeshIndex": 1495,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "c83b6e4b1210ea5c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -130838,7 +130838,7 @@
                                 "z": -5.546053409576416
                             },
                             "sourceSubMeshIndex": 1497,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "a7afcd629760b80a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -130925,7 +130925,7 @@
                                 "z": 9.355844497680664
                             },
                             "sourceSubMeshIndex": 1498,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ae136d1a799c3e3d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -131186,7 +131186,7 @@
                                 "z": 8.209249496459961
                             },
                             "sourceSubMeshIndex": 1501,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "01a07a4b513be1de",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -131360,7 +131360,7 @@
                                 "z": 9.173803329467773
                             },
                             "sourceSubMeshIndex": 1503,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "4603a7245e0b30d3",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -131447,7 +131447,7 @@
                                 "z": 9.044200897216797
                             },
                             "sourceSubMeshIndex": 1504,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3b77b87cbb38cdd9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -131621,7 +131621,7 @@
                                 "z": 10.338133811950684
                             },
                             "sourceSubMeshIndex": 1506,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ee75729cf21b573d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -131795,7 +131795,7 @@
                                 "z": 11.765228271484375
                             },
                             "sourceSubMeshIndex": 1508,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "82fbea87420dc9d6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -131969,7 +131969,7 @@
                                 "z": 18.28705406188965
                             },
                             "sourceSubMeshIndex": 1510,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9705d40da4e791d2",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132230,7 +132230,7 @@
                                 "z": 25.444984436035156
                             },
                             "sourceSubMeshIndex": 1513,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b074526d112768af",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132404,7 +132404,7 @@
                                 "z": 21.02651023864746
                             },
                             "sourceSubMeshIndex": 1515,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "8ef81bb9352749e9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132491,7 +132491,7 @@
                                 "z": -0.836990237236023
                             },
                             "sourceSubMeshIndex": 1516,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d6c929b4644a3eaf",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132578,7 +132578,7 @@
                                 "z": 58.49528121948242
                             },
                             "sourceSubMeshIndex": 1517,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "b2fbfe9b556d18ab",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132665,7 +132665,7 @@
                                 "z": 47.79885482788086
                             },
                             "sourceSubMeshIndex": 1518,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f0c307da67db237e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132752,7 +132752,7 @@
                                 "z": -38.51101303100586
                             },
                             "sourceSubMeshIndex": 1519,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "866b0898160dcee9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132839,7 +132839,7 @@
                                 "z": -28.68263816833496
                             },
                             "sourceSubMeshIndex": 1520,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "17aa38111eeb26ac",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -132926,7 +132926,7 @@
                                 "z": -20.781450271606445
                             },
                             "sourceSubMeshIndex": 1521,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "5a62e35bf07ea9ff",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133013,7 +133013,7 @@
                                 "z": -25.266950607299805
                             },
                             "sourceSubMeshIndex": 1522,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "88c473697c7732d0",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133100,7 +133100,7 @@
                                 "z": 40.112144470214844
                             },
                             "sourceSubMeshIndex": 1523,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9d2dc0d2eb906867",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133187,7 +133187,7 @@
                                 "z": 36.98712921142578
                             },
                             "sourceSubMeshIndex": 1524,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3d1b2be535c13c15",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133274,7 +133274,7 @@
                                 "z": 35.60753631591797
                             },
                             "sourceSubMeshIndex": 1525,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "78b807c132f1eedb",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133361,7 +133361,7 @@
                                 "z": 39.6990966796875
                             },
                             "sourceSubMeshIndex": 1526,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "25a5ecbd1e195386",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133448,7 +133448,7 @@
                                 "z": 43.618709564208984
                             },
                             "sourceSubMeshIndex": 1527,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "13b5bf56fa1a4a44",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133535,7 +133535,7 @@
                                 "z": 42.553367614746094
                             },
                             "sourceSubMeshIndex": 1528,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "5e1a726d966e0be7",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133622,7 +133622,7 @@
                                 "z": -13.427762985229492
                             },
                             "sourceSubMeshIndex": 1529,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "02015554fbf232e4",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133709,7 +133709,7 @@
                                 "z": -25.932357788085938
                             },
                             "sourceSubMeshIndex": 1530,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0e282a773f7158e8",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133796,7 +133796,7 @@
                                 "z": -18.281574249267578
                             },
                             "sourceSubMeshIndex": 1531,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9da55e158dad569d",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133883,7 +133883,7 @@
                                 "z": -14.085794448852539
                             },
                             "sourceSubMeshIndex": 1532,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "6cd2cf00537cd6d0",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -133970,7 +133970,7 @@
                                 "z": 26.477680206298828
                             },
                             "sourceSubMeshIndex": 1533,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "9902dd322613bcee",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134057,7 +134057,7 @@
                                 "z": 36.673789978027344
                             },
                             "sourceSubMeshIndex": 1534,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "630b24b48df947cc",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134144,7 +134144,7 @@
                                 "z": -27.84551239013672
                             },
                             "sourceSubMeshIndex": 1535,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "1de7422d9357584e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134231,7 +134231,7 @@
                                 "z": -24.34073257446289
                             },
                             "sourceSubMeshIndex": 1536,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "514c6daa821028b7",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134318,7 +134318,7 @@
                                 "z": -21.318387985229492
                             },
                             "sourceSubMeshIndex": 1537,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d0ba203c20190d93",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134405,7 +134405,7 @@
                                 "z": -17.464107513427734
                             },
                             "sourceSubMeshIndex": 1538,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "8f5494cade03a2ca",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134492,7 +134492,7 @@
                                 "z": 21.43947982788086
                             },
                             "sourceSubMeshIndex": 1539,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "728c9c237a0ac020",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134579,7 +134579,7 @@
                                 "z": 32.02448272705078
                             },
                             "sourceSubMeshIndex": 1540,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "50f75168a0cf0679",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134666,7 +134666,7 @@
                                 "z": -42.20220184326172
                             },
                             "sourceSubMeshIndex": 1541,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "6d3b6dda9e78fea7",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134753,7 +134753,7 @@
                                 "z": 19.591083526611328
                             },
                             "sourceSubMeshIndex": 1542,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "d0586024b735a230",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134840,7 +134840,7 @@
                                 "z": 66.92811584472656
                             },
                             "sourceSubMeshIndex": 1543,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "c43d5fb24fcf9943",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -134927,7 +134927,7 @@
                                 "z": 9.433582305908203
                             },
                             "sourceSubMeshIndex": 1544,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "601e9e953a4ed4f6",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135014,7 +135014,7 @@
                                 "z": 13.087738037109375
                             },
                             "sourceSubMeshIndex": 1545,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "781be5c0f328b323",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135101,7 +135101,7 @@
                                 "z": 11.908363342285156
                             },
                             "sourceSubMeshIndex": 1546,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "81eb4dd862aef10c",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135188,7 +135188,7 @@
                                 "z": -3.4621682167053223
                             },
                             "sourceSubMeshIndex": 1547,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "23d5705e888dfb7a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135275,7 +135275,7 @@
                                 "z": 1.7644256353378296
                             },
                             "sourceSubMeshIndex": 1548,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "55809b80bd237763",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135362,7 +135362,7 @@
                                 "z": 6.8451128005981445
                             },
                             "sourceSubMeshIndex": 1549,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "cb3bd5bce3837c9e",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135449,7 +135449,7 @@
                                 "z": 8.014551162719727
                             },
                             "sourceSubMeshIndex": 1550,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "f4280fa257b9cb04",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135536,7 +135536,7 @@
                                 "z": 9.330863952636719
                             },
                             "sourceSubMeshIndex": 1551,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ff13830e1d7c84eb",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135623,7 +135623,7 @@
                                 "z": 10.584613800048828
                             },
                             "sourceSubMeshIndex": 1552,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "3651f50e7c6a33cd",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -135971,7 +135971,7 @@
                                 "z": 58.28264236450195
                             },
                             "sourceSubMeshIndex": 1556,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "ece62ca13bf9daec",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -136145,7 +136145,7 @@
                                 "z": 47.444740295410156
                             },
                             "sourceSubMeshIndex": 1558,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "be8e0a974032a68b",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -136319,7 +136319,7 @@
                                 "z": -26.135332107543945
                             },
                             "sourceSubMeshIndex": 1560,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "35c95c916b25cd60",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -136493,7 +136493,7 @@
                                 "z": -18.5949764251709
                             },
                             "sourceSubMeshIndex": 1562,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "dc82e7d12f8561c9",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -136667,7 +136667,7 @@
                                 "z": -27.85901641845703
                             },
                             "sourceSubMeshIndex": 1564,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "6d3d60306689338a",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -136841,7 +136841,7 @@
                                 "z": -19.975509643554688
                             },
                             "sourceSubMeshIndex": 1566,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "fe64fef3c555aa24",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -137015,7 +137015,7 @@
                                 "z": -12.074586868286133
                             },
                             "sourceSubMeshIndex": 1568,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "017c197d5aeed918",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -138932,7 +138932,7 @@
                                 "z": 6.599383354187012
                             },
                             "sourceSubMeshIndex": 1589,
-                            "sourceSurfaceMode": "Auto",
+                            "sourceSurfaceMode": "Masked",
                             "stableID": "0366ce52786fa0d5",
                             "surfaceMode": "Auto",
                             "uvPos": {
@@ -139092,9 +139092,9 @@
                                 "r": 1.0
                             },
                             "contrast": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
+                                "x": 0.989998459815979,
+                                "y": 0.989998459815979,
+                                "z": 0.989998459815979
                             },
                             "gain": {
                                 "x": 1.0,
@@ -139107,20 +139107,20 @@
                                 "z": 1.0
                             },
                             "offset": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
+                                "x": 5.513429641723633e-07,
+                                "y": 5.513429641723633e-07,
+                                "z": 5.513429641723633e-07
                             },
                             "saturation": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
+                                "x": 1.0000004768371582,
+                                "y": 1.0000004768371582,
+                                "z": 1.0000004768371582
                             },
                             "temperature": 6500.0,
                             "tint": 0.0
                         },
                         "exposure": {
-                            "compensation": 0.0,
+                            "compensation": 1.3799999952316284,
                             "histogramHighPercent": 0.949999988079071,
                             "histogramLowPercent": 0.800000011920929,
                             "manualEV100": 0.0,
@@ -139140,7 +139140,7 @@
                         }
                     },
                     "cullingMask": 16777215,
-                    "editorFrustumScale": 0.0020000000949949026,
+                    "editorFrustumScale": 0.0,
                     "enabled": true,
                     "farClip": 4000.0,
                     "fovY": 60.0,
@@ -139152,6 +139152,7 @@
                     "projectionMode": "Perspective",
                     "renderPasses": "4e454d4153534554525450524f46494c",
                     "targetTexture": "",
+                    "useGlobalIllumination": true,
                     "viewportHeight": 1.0,
                     "viewportWidth": 1.0,
                     "viewportX": 0.0,
@@ -139166,15 +139167,15 @@
                 "Transform": {
                     "dimension": 1,
                     "localPos": {
-                        "x": 14.979999542236328,
-                        "y": 5.52400016784668,
-                        "z": 1.8070000410079956
+                        "x": 14.128434181213379,
+                        "y": 4.680217266082764,
+                        "z": 3.8607308864593506
                     },
                     "localRotation": {
                         "w": 0.7295908331871033,
-                        "x": 0.05870148539543152,
+                        "x": 0.05870147794485092,
                         "y": -0.6791651844978333,
-                        "z": 0.054644327610731125
+                        "z": 0.05464433506131172
                     },
                     "localScale": {
                         "x": 1.0,

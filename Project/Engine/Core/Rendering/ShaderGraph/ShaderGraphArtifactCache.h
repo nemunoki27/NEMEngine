@@ -23,6 +23,7 @@ namespace Engine {
 		AssetID pickingShaderID{};					// 選択Shaderの派生ID
 		AssetID outlineShaderID{};					// 輪郭Shaderの派生ID
 		AssetID computeShaderID{};					// Compute Shaderの派生ID
+		AssetID giMaterialShaderID{};
 		AssetID rayTracingShaderID{};				// DXR Shaderの派生ID
 		AssetID opaquePipelineID{};					// 不透明Pipelineの派生ID
 		AssetID transparentPipelineID{};			// 透明Pipelineの派生ID
@@ -48,6 +49,9 @@ namespace Engine {
 		ShaderAsset pickingShader{};				// 選択Shaderの構成
 		ShaderAsset outlineShader{};				// 輪郭Shaderの構成
 		ShaderAsset computeShader{};				// Compute Shaderの構成
+		ShaderAsset giVertexShader{};
+		ShaderAsset giMaterialShader{};
+		ShaderAsset giReflectionShader{};
 		ShaderAsset rayTracingShader{};				// DXR Shaderの構成
 		RenderPipelineAsset opaquePipeline{};		// 不透明Pipelineの構成
 		RenderPipelineAsset transparentPipeline{};	// 透明Pipelineの構成

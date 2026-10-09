@@ -1,8 +1,11 @@
 #pragma once
 
+
 //============================================================================
 //	include
 //============================================================================
+#include <Engine/Core/Rendering/GlobalIllumination/GlobalIlluminationSettings.h>
+
 // c++
 #include <array>
 #include <cstdint>
@@ -54,6 +57,7 @@ namespace Engine {
 			return SupportsInlineRayTracingPath() || SupportsDispatchRaysPath();
 		}
 		bool SupportsRayTracingTier1_1() const { return D3D12_RAYTRACING_TIER_1_1 <= raytracingTier; }
+		bool SupportsGlobalIllumination() const { return SupportsShaderModel6_6() && SupportsRayTracingTier1_1(); }
 	};
 
 	// メッシュLODの切り替え閾値
@@ -92,6 +96,8 @@ namespace Engine {
 	// ユーザー参照設定
 	struct GraphicsFeaturePreferences {
 
+		GlobalIlluminationSettings globalIllumination{};
+
 		// GPU対応状況とは別に、ユーザーが描画経路を許可するか
 		bool allowMeshShader = true;
 		bool allowInlineRayTracing = true;
@@ -128,6 +134,8 @@ namespace Engine {
 	// ランタイムで使用する機能
 	struct GraphicsRuntimeFeatures {
 
+		bool useGlobalIllumination = false;
+
 		// 対応状況とユーザー設定を解決した最終的な描画経路
 		bool useMeshShader = false;
 		bool useInlineRayTracing = false;
@@ -147,7 +155,7 @@ namespace Engine {
 		float meshLOD2PixelThreshold =
 			GraphicsMeshLOD::kDefaultPixelThresholds[2];
 
-		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays; }
+		bool UsesAnyRayTracing() const { return useInlineRayTracing || useDispatchRays || useGlobalIllumination; }
 	};
 
 	// エディター汎用関数

@@ -12,6 +12,8 @@ namespace Engine {
 		inline constexpr const char* kInputDevice = "Runtime/InputDevice.json";
 		// 描画フィーチャー切り替え設定
 		inline constexpr const char* kGraphicsFeatureSettings = "Runtime/GraphicsFeatures.json";
+		// 全Cameraで共有する間接光設定
+		inline constexpr const char* kGlobalIllumination = "Runtime/GlobalIllumination.json";
 		// シーンビューカメラの保存状態
 		inline constexpr const char* kSceneViewCamera = "Editor/SceneViewCamera.json";
 		// 起動時に開くアクティブシーン
@@ -27,7 +29,7 @@ namespace Engine {
 		// 製品へ引き継ぐプロジェクト設定
 		inline constexpr const char* ProductSettings[] = {
 			"InputActions.json", "TagSettings.json", "RenderingLayers.json",
-			kScriptExecutionOrder, kCollisionSettings, kFrameRate, kAudio,
+			kScriptExecutionOrder, kCollisionSettings, kFrameRate, kAudio, kGlobalIllumination,
 		};
 		// ビューポートパネルの表示状態
 		inline constexpr const char* kViewportPanel = "Editor/ViewportPanel.json";
