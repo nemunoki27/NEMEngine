@@ -441,7 +441,6 @@ void Engine::ConsolePanel::Draw(const EditorPanelContext& context) {
 			if (ImGui::BeginTabBar("ConsoleEngineTabBar")) {
 				if (ImGui::BeginTabItem("Measurement")) {
 
-					DrawCaptureControls();
 					DrawMeasurementTab();
 					ImGui::EndTabItem();
 				}

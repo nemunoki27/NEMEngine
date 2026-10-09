@@ -9,6 +9,7 @@
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
+#include <Engine/Core/Rendering/Meshes/Import/FBXScenePreparation.h>
 
 // c++
 #include <algorithm>
@@ -109,6 +110,7 @@ bool Engine::MeshSubMeshAuthoring::TryBuildLayout(AssetDatabase* assetDatabase,
 		aiProcess_Triangulate |
 		aiProcess_JoinIdenticalVertices |
 		aiProcess_SortByPType);
+	scene = FBXScenePreparation::Prepare(importer, scene, fullPath);
 	if (!scene || !scene->HasMeshes()) {
 		return false;
 	}

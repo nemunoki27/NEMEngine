@@ -6,6 +6,7 @@
 #include "AssimpMaterialTextureExtractor.h"
 #include "MeshImportUtility.h"
 #include "ModelFileIOSystem.h"
+#include "FBXScenePreparation.h"
 #include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Rendering/Meshes/GPUResource/MeshletBuilder.h>
 #include <Engine/Core/Rendering/Meshes/SkeletonBuilder.h>
@@ -90,6 +91,7 @@ Engine::ImportedMeshAsset Engine::MeshFileImporter::ImportFile(AssetID assetID, 
 		aiProcess_FlipWindingOrder | aiProcess_FlipUVs | aiProcess_Triangulate | aiProcess_GenSmoothNormals |
 			aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_ImproveCacheLocality |
 			aiProcess_PopulateArmatureData | aiProcess_SortByPType);
+	scene = FBXScenePreparation::Prepare(importer, scene, fullPath);
 
 	if (!scene || !scene->HasMeshes()) {
 		return result;

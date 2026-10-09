@@ -29,7 +29,7 @@ bool Engine::ModelFileDependencyCollector::Collect(
 
 	dependencies = {};
 	diagnostic.clear();
-	// OBJ・glTFの文書解析を通常読込と共有
+	// OBJ・glTF・FBXの文書解析を通常読込と共有
 	Assimp::Importer importer;
 	auto* fileSystem = new ModelFileIOSystem(modelPath, &dependencies);
 	importer.SetIOHandler(fileSystem);

@@ -302,10 +302,10 @@ void Engine::EditorManager::UpdateSceneViewManualCamera() {
 
 	// ビューが非表示なら更新しない
 	// カメラモードがマニュアルでないなら更新しない
-	// シーンギズモを使用している場合は更新しない
+	// 左ドラッグによるギズモ操作中だけカメラを止める
 	if (!layoutState_.showSceneView ||
 		editorState_.sceneViewCamera.mode != SceneViewCameraMode::DebugManual ||
-		editorState_.useSceneGizmo) {
+		(editorState_.useSceneGizmo && ImGui::IsMouseDown(ImGuiMouseButton_Left))) {
 		return;
 	}
 

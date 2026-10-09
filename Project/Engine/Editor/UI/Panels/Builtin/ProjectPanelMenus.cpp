@@ -43,11 +43,11 @@ void Engine::ProjectPanel::DrawFolderContextMenu(
 		return;
 	}
 
-	if (ImGui::MenuItem("開く")) {
+	if (ImGui::MenuItem("エクスプローラーで開く")) {
 
-		selectedDirectory_ = node.virtualPath;
-		selectedAsset_ = {};
+		EditorShell::OpenDirectory(RuntimePaths::ResolveAssetPath(node.virtualPath));
 	}
+	DrawGitContextMenu(RuntimePaths::ResolveAssetPath(node.virtualPath), true);
 	if (ImGui::MenuItem("名前変更")) {
 
 		BeginRenameDirectory(node);
@@ -68,7 +68,7 @@ void Engine::ProjectPanel::DrawFolderContextMenu(
 		ProjectAssetFileResult result = ProjectAssetFileUtility::DeleteDirectory(
 			assetSource_, node.virtualPath, database, context.editorContext->sceneStorage);
 		if (!result.success) {
-			sceneStorageInspector_.ReportFailure(result.message);
+			Logger::Output(LogType::Engine, spdlog::level::err, "[Project] {}", result.message);
 		}
 		RefreshAfterFileOperation(database, result);
 	}
@@ -83,6 +83,7 @@ void Engine::ProjectPanel::DrawAssetContextMenu(
 	}
 
 	selectedAsset_ = asset.assetID;
+	DrawGitContextMenu(RuntimePaths::ResolveAssetPath(asset.assetPath), false);
 
 	if (ImGui::MenuItem("名前変更")) {
 

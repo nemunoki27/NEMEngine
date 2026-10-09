@@ -126,7 +126,6 @@ void Engine::ProjectPanel::DrawDirectoryContents(
 	const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node) {
 
 	float iconSize = 64.0f;
-	modelPreview_.PrepareModelPreviewAtlas(context, database, node);
 
 	int32_t columnCount = CalcGridColumnCount(ImGui::GetContentRegionAvail().x, iconSize + 8.0f);
 
@@ -273,7 +272,12 @@ void Engine::ProjectPanel::DrawAssetGridItem(
 
 	ImVec2 uv0(0.0f, 0.0f);
 	ImVec2 uv1(1.0f, 1.0f);
-	ImTextureID textureID = ResolveAssetIconTextureID(asset, uv0, uv1);
+	// 画面外の画像は読込を要求しない
+	const bool visible = ImGui::IsRectVisible(ImVec2(iconSize, iconSize));
+	if (visible && asset.type == AssetType::Mesh) {
+		modelPreview_.RequestVisibleMesh(asset.assetID);
+	}
+	ImTextureID textureID = visible ? ResolveAssetIconTextureID(asset, uv0, uv1) : ImTextureID{};
 
 	bool clicked = false;
 	Vector2 textureSize{};

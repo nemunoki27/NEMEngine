@@ -209,7 +209,7 @@ void Engine::RaytracingSceneBuilder::BuildMeshInstances(
 			AssetID specularAsset =
 				MeshDrawPathCommon::ResolveSubMeshSpecularTextureAssetID(*meshResource, subMeshes, subMeshIndex);
 			subMeshData.normalTextureIndex = normalAsset ? materialResolver_.ResolveTextureDescriptorIndex(
-															   work.graphicsCore, work.assetDatabase, normalAsset, false)
+															   work.graphicsCore, work.assetDatabase, normalAsset, false, true)
 														 : UINT32_MAX;
 			subMeshData.metallicRoughnessTextureIndex = metallicRoughnessAsset
 															? materialResolver_.ResolveTextureDescriptorIndex(work.graphicsCore,

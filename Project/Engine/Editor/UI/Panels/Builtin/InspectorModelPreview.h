@@ -60,6 +60,15 @@ namespace Engine {
 		AssetID modelPreviewAsset_{};
 		// Inspectorで最後に処理したアセット選択Revision
 		uint64_t modelPreviewSelectionRevision_ = 0;
+		// 公開されたMeshの世代だけCameraを合わせ直す
+		uint32_t modelPreviewMeshGeneration_ = 0;
+		bool modelPreviewRendered_ = false;
+		uint64_t modelPreviewTextureRevision_ = 0;
+		uint64_t modelPreviewObservedTextureRevision_ = 0;
+		uint32_t modelPreviewTextureQuietFrames_ = 0;
+		Vector3 modelPreviewCameraPos_{};
+		Vector3 modelPreviewCameraRotation_{};
+		std::weak_ptr<const uint8_t> modelPreviewDatabaseLifetime_;
 		// Inspectorモデルプレビュー専用の一時World
 		std::unique_ptr<ECSWorld> modelPreviewWorld_;
 		// プレビューWorld内のモデルEntity
@@ -79,8 +88,6 @@ namespace Engine {
 		void RebuildModelAssetPreviewWorld(const EditorPanelContext& context, const AssetMeta& meta);
 		// Meshアセットプレビューをレンダーターゲットへ描画する
 		void RenderModelAssetPreview(const EditorToolContext& toolContext, EditorToolRenderTexture& preview);
-		// Meshアセットの境界を計算する
-		ModelAssetPreviewBounds ComputeModelAssetPreviewBounds(const EditorPanelContext& context, const AssetMeta& meta) const;
 		// Meshアセット境界に合わせてInspector側の手動カメラを初期化する
 		void ResetModelAssetPreviewCamera();
 	};

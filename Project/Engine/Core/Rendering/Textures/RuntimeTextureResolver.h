@@ -38,7 +38,7 @@ namespace Engine {
 		// bindless SRV indexを解決し、非同期ロード中なら次フレーム再試行を要求する
 		BindlessResolveResult ResolveBindless(GraphicsCore& graphicsCore,
 			const AssetDatabase* assetDatabase, AssetID textureAssetID,
-			TextureColorSpace requestedColorSpace = TextureColorSpace::Auto);
+			TextureColorSpace requestedColorSpace = TextureColorSpace::Auto, bool normalMap = false);
 		// アセットの.metaから正規化済みImporter設定を取得する
 		TextureImportSettings ResolveImportSettings(
 			const AssetDatabase* assetDatabase, AssetID textureAssetID);

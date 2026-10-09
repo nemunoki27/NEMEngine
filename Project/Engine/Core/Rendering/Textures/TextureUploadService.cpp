@@ -54,11 +54,19 @@ void Engine::TextureUploadService::Init(ID3D12Device* device, SRVDescriptor* srv
 
 void Engine::TextureUploadService::TickFinalize() {
 
-	// アップロードジョブをスワップしてロックを解放する
+	// 完了画像の転送をframeへ分散する
 	std::deque<CompletedRequest> jobs{};
 	{
 		std::scoped_lock lock(mutex_);
-		jobs.swap(pendingUploads_);
+		size_t imageCount = 0;
+		while (!pendingUploads_.empty()) {
+			const bool solidColor = pendingUploads_.front().texture.isSolidColor;
+			if (!solidColor && imageCount >= 2) { break; }
+			// 起動用の1pixel画像は同じ更新で揃える
+			if (!solidColor) { ++imageCount; }
+			jobs.emplace_back(std::move(pendingUploads_.front()));
+			pendingUploads_.pop_front();
+		}
 	}
 
 	// 記録されたジョブを処理する

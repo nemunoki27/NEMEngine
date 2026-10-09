@@ -68,9 +68,6 @@ namespace Engine {
 		bool isRunning_ = false;
 		// Applicationの初期化を開始したか
 		bool applicationStarted_ = false;
-		// 製品実行の明示計測先と通常フレームでの結果回収猶予
-		std::filesystem::path profileCapturePath_;
-		uint32_t profileCaptureDrainFrames_ = 0;
 
 		// フレーム計測
 		FrameTimer frameTimer_;
@@ -96,11 +93,6 @@ namespace Engine {
 
 		// 終了処理
 		void Finalize();
-		// 環境設定で指定された製品計測を開始する
-		void InitProfileCapture();
-		// 通常の描画で取得した結果を保存する
-		void UpdateProfileCapture();
-		void SaveProfileCapture();
 
 	};
 }; // Engine

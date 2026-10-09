@@ -27,6 +27,7 @@
 #include <Engine/Core/World/Scene/Authoring/SceneAuthoring.h>
 #include <Engine/Core/World/Scene/Serialization/SceneCreationScope.h>
 #include <Engine/Core/Assets/BuiltinAssetIDs.h>
+#include <Engine/Editor/Assets/Project/EditorSceneDefaults.h>
 
 #include <Engine/Core/World/Scene/Utility/SceneObjectUtility.h>
 #include <Engine/Core/World/Systems/Hierarchy/HierarchyUtility.h>
@@ -91,7 +92,7 @@ void Engine::CreateEntityCommand::ApplyPreset(ECSWorld& world, const Entity& ent
 		if (dimension_ == Dimension::Type2D) {
 			world.AddComponent<OrthographicCameraComponent>(entity);
 		} else {
-			world.AddComponent<PerspectiveCameraComponent>(entity);
+			world.AddComponent<PerspectiveCameraComponent>(entity) = EditorSceneDefaults::MakeCamera();
 		}
 		break;
 	case EntityCreationPreset::StaticMesh:

@@ -21,7 +21,7 @@ namespace Engine {
 			case AssetType::Texture:          return ".png/.jpg/.dds";
 			case AssetType::Material:         return ".material";
 			case AssetType::ShaderGraph:      return ".shadergraph";
-			case AssetType::Mesh:             return ".gltf/.obj";
+			case AssetType::Mesh:             return ".obj/.gltf/.glb/.fbx";
 			case AssetType::Font:             return ".font";
 			case AssetType::Audio:            return ".wav/.mp3";
 			case AssetType::AnimationClip:    return ".animclip";

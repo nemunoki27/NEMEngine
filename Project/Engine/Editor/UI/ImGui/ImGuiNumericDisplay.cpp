@@ -95,6 +95,24 @@ namespace {
 
 }
 
+void Engine::MyGUI::Text(const char* label, const std::string& value) {
+
+	if (!BeginPropertyRow(label)) {
+		return;
+	}
+	// 長いパスも欄内で折り返す
+	ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x);
+	ImGui::TextUnformatted(value.c_str());
+	ImGui::PopTextWrapPos();
+	if (ImGui::BeginPopupContextItem("##TextContextMenu")) {
+		if (ImGui::MenuItem("コピー")) {
+			ImGui::SetClipboardText(value.c_str());
+		}
+		ImGui::EndPopup();
+	}
+	EndPropertyRow();
+}
+
 void Engine::MyGUI::TextFloat(const char* label, float value, uint32_t precision) {
 
 	DrawScalarTextField(label, value, precision);

@@ -382,7 +382,6 @@ void RenderPipelineRunner::Render(GraphicsCore& graphicsCore, const RenderFrameR
 
 	// 記録したパスのタイムスタンプを解決してリードバックバッファへ書き出す
 	GPUFrameProfiler::GetInstance().Resolve(graphicsCore.GetDXObject().GetDxCommand()->GetCommandList());
-	CaptureProfileConditions(graphicsCore, request);
 }
 
 //============================================================================

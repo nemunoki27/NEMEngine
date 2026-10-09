@@ -184,6 +184,11 @@ void Engine::ProjectPanel::HandleExternalFileDrop([[maybe_unused]] const EditorP
 
 void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
+	// Panelを閉じてもGit設定の完了を取り込む
+	if (const auto message = gitIgnore_.Poll(); !message.empty()) {
+		Logger::Output(LogType::Engine, gitIgnore_.HasError() ? spdlog::level::err : spdlog::level::info,
+			"[Project Git] {}", message);
+	}
 	// プロジェクトパネルの表示状態を確認
 	bool* open = ResolveOpenState(&context.layoutState->showProject);
 	if (!*open) {
@@ -228,11 +233,10 @@ void Engine::ProjectPanel::Draw(const EditorPanelContext& context) {
 
 	// 外部エクスプローラーからドロップされたファイルをカレントフォルダへ取り込む
 	HandleExternalFileDrop(context, database);
+	modelPreview_.PrepareModelPreviews(context, database);
 
 	ImGui::SetWindowFontScale(0.8f);
 	DrawSourceSelector(context, database);
-	sceneStorageInspector_.DrawSceneStoragePopup(context, database);
-	assetDiagnostics_.Draw(database, !context.editorContext->isPlaying && !context.editorContext->isPrefabEditing);
 	DrawSearchBar(context);
 	ImGui::SetWindowFontScale(1.0f);
 	ImGui::Separator();

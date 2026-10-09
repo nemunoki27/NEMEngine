@@ -66,7 +66,7 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 
 		const AssetID texture = resolveTexture(id, semantic);
 		return texture ? ResolveTextureDescriptorIndex(
-			graphicsCore, assetDatabase, texture, sRGB) : UINT32_MAX;
+			graphicsCore, assetDatabase, texture, sRGB, semantic == MaterialParameterSemantic::NormalTexture) : UINT32_MAX;
 	};
 
 	MeshSubMeshShaderData data{};
@@ -116,10 +116,10 @@ Engine::MeshSubMeshShaderData Engine::RaytracingMaterialResolver::BuildPrimitive
 }
 
 uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
-	AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB) {
+	AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB, bool normalMap) {
 
-	auto& descriptorCache = sRGB ?
-		sRGBTextureDescriptorIndexCache_ : textureDescriptorIndexCache_;
+	auto& descriptorCache = normalMap ? normalTextureDescriptorIndexCache_ :
+		(sRGB ? sRGBTextureDescriptorIndexCache_ : textureDescriptorIndexCache_);
 	if (auto it = descriptorCache.find(textureAssetID);
 		it != descriptorCache.end()) {
 		return it->second;
@@ -135,7 +135,7 @@ uint32_t Engine::RaytracingMaterialResolver::ResolveTextureDescriptorIndex(Graph
 	const RuntimeTextureResolver::BindlessResolveResult resolved =
 		RuntimeTextureResolver::ResolveBindless(
 			graphicsCore, &assetDatabase, textureAssetID,
-			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear);
+			sRGB ? TextureColorSpace::SRGB : TextureColorSpace::Linear, normalMap);
 	hasPendingTextureDescriptors_ |= resolved.retry;
 	const uint32_t descriptorIndex =
 		resolved.srvIndex != UINT32_MAX ? resolved.srvIndex : errorIndex;
@@ -150,5 +150,6 @@ void Engine::RaytracingMaterialResolver::Clear() {
 
 	textureDescriptorIndexCache_.clear();
 	sRGBTextureDescriptorIndexCache_.clear();
+	normalTextureDescriptorIndexCache_.clear();
 	hasPendingTextureDescriptors_ = false;
 }

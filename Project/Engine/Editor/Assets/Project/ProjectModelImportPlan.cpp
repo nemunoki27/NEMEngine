@@ -8,6 +8,7 @@
 #include <Engine/Core/Rendering/Meshes/Import/ModelFileDependencyCollector.h>
 #include <Engine/Core/Rendering/Meshes/Import/ModelDocumentReferences.h>
 #include <Engine/Core/Rendering/Meshes/Import/GLTFFileReference.h>
+#include <Engine/Core/Rendering/Meshes/Import/FBXDocumentReferences.h>
 #include <Engine/Core/Foundation/Serialization/StorageFileUtility.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
@@ -96,6 +97,10 @@ std::filesystem::path Engine::ProjectModelImportPlan::ResolveReference(
 	const auto path = GLTFDocumentReferences::IsDocumentPath(document)
 		? GLTFFileReference::Decode(reference) : Algorithm::PathFromUTF8(reference);
 	const auto resolved = (document.parent_path() / path).lexically_normal();
+	if (FBXDocumentReferences::IsDocumentPath(document)) {
+		// FBXの絶対参照と画像名補完を通常描画へ合わせる
+		return textures_.ResolveFilePath(reference);
+	}
 	if (IsMaterial(document)) {
 		// MTLの位置を含む参照を通常の画像補完へ渡す
 		return textures_.ResolveFilePath(Algorithm::PathToUTF8(resolved));

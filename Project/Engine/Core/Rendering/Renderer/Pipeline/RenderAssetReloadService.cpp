@@ -194,6 +194,11 @@ void RenderAssetReloadService::ReloadAsset(AssetDatabase& assetDatabase, AssetID
 		renderAssetLibrary_.InvalidateRenderPasses(assetID);
 		return;
 	}
+	if (meta->type == AssetType::RenderTexture) {
+		// 次の描画で変更後のサイズを読み直す
+		renderAssetLibrary_.InvalidateRenderTexture(assetID);
+		return;
+	}
 	if (meta->type == AssetType::Font) {
 		renderAssetLibrary_.InvalidateFont(assetID);
 		return;

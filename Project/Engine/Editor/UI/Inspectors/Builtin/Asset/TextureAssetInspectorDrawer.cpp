@@ -264,14 +264,11 @@ void Engine::TextureAssetInspectorDrawer::DrawPreview(
 	const std::string_view formatName = EnumAdapter<DXGI_FORMAT>::ToStringView(
 		resourceDesc.Format);
 	if (!formatName.empty()) {
-		ImGui::Text("Format: %.*s", static_cast<int>(formatName.size()),
-			formatName.data());
+		MyGUI::Text("Format", std::string(formatName));
 	} else {
-		ImGui::Text("Format: DXGI_FORMAT(%u)",
-			static_cast<uint32_t>(resourceDesc.Format));
+		MyGUI::Text("Format", std::format("DXGI_FORMAT({})", static_cast<uint32_t>(resourceDesc.Format)));
 	}
-	ImGui::Text("サイズ: %llu x %u",
-		static_cast<unsigned long long>(resourceDesc.Width), resourceDesc.Height);
-	ImGui::Text("ミップ数: %u", static_cast<uint32_t>(resourceDesc.MipLevels));
-	ImGui::Text("推測用途: %s", GuessTextureUsageLabel(meta.assetPath));
+	MyGUI::Text("サイズ", std::format("{} x {}", resourceDesc.Width, resourceDesc.Height));
+	MyGUI::Text("ミップ数", std::to_string(resourceDesc.MipLevels));
+	MyGUI::Text("推測用途", GuessTextureUsageLabel(meta.assetPath));
 }

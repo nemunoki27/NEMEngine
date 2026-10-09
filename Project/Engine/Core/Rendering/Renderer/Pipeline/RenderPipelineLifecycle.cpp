@@ -58,6 +58,7 @@ void RenderPipelineRunner::Init() {
 	meshBackend_ = dynamic_cast<MeshRenderBackend*>(backendRegistry_.Find(RenderBackendID::Mesh));
 	previewResources_.previewMeshBackend_ =
 		dynamic_cast<MeshRenderBackend*>(previewResources_.previewBackendRegistry_.Find(RenderBackendID::Mesh));
+	previewResources_.previewMeshBackend_->SetUploadLimit(1);
 	primitiveBackend_ = dynamic_cast<PrimitiveRenderBackend*>(backendRegistry_.Find(RenderBackendID::Primitive));
 	particleBackend_ = dynamic_cast<ParticleRenderBackend*>(backendRegistry_.Find(RenderBackendID::Particle));
 	// ライト抽出器の登録

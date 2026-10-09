@@ -18,6 +18,7 @@
 // c++
 #include <array>
 #include <utility>
+#include <memory>
 
 namespace Engine {
 
@@ -241,11 +242,27 @@ namespace Engine {
 		// Masked描画のα破棄閾値
 		float alphaCutoff = 0.5f;
 	};
+	// workerで構築した描画用配列
+	struct MeshUploadData {
+
+		Vector3 boundsCenter{};
+		float boundsRadius = 0.0f;
+		bool useIndex16 = false;
+		bool usePackedMeshletIndices = false;
+		std::vector<MeshPackedVertex> packedVertices;
+		std::vector<uint16_t> indices16;
+		std::vector<uint32_t> primitiveSubMeshIndices;
+		std::vector<MeshletDrawDesc> meshletDraws;
+		std::vector<MeshletBounds> meshletBounds;
+		std::vector<uint32_t> packedMeshletIndices;
+	};
 	// 読みこまれたメッシュアセットの情報
 	struct ImportedMeshAsset {
 
 		// アセットID
 		AssetID assetID{};
+		// 公開まで変更しない描画用配列
+		std::shared_ptr<const MeshUploadData> uploadData;
 		// ソースファイルのパス
 		std::string sourcePath;
 

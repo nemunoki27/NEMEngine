@@ -37,7 +37,9 @@ namespace Engine {
 		// 旧Meshを保持して再インポートし、成功後に差し替える
 		void RequestReload(AssetID meshAssetID);
 		// 読み込み待ちのメッシュアセットがあればGPUにアップロードする
-		void FlushUploads();
+		void FlushUploads(bool unlimited = false);
+		// Previewなどの転送数をframe単位で制限する
+		void SetUploadLimit(uint32_t limit) { uploadLimit_ = limit; }
 		// 要求した全メッシュの読み込みとGPUリソース作成を完了する
 		void WaitAll();
 
@@ -76,6 +78,8 @@ namespace Engine {
 		// 再初期化を越えて保持するMeshの公開世代
 		std::unordered_map<AssetID, uint32_t> reloadGeneration_;
 		uint64_t resourceRevision_ = 1;
+		uint32_t uploadLimit_ = UINT32_MAX;
+		uint32_t uploadedThisFrame_ = 0;
 
 		//--------- functions ----------------------------------------------------
 

@@ -7,7 +7,6 @@
 #include "ParticleEffectRuntimeTests.h"
 #include "AudioDecoderTests.h"
 #include "RuntimePreloadTests.h"
-#include "ProfileCaptureTests.h"
 #include "ShaderCookInputTests.h"
 #include "ShaderCookDependencyTests.h"
 
@@ -419,10 +418,6 @@ bool TestGameplayContracts() {
 
 	if (!NEMTests::TestShaderCookInputs() || !NEMTests::TestShaderCookDependencies()) {
 		std::cerr << "Shader Cook input contract failed\n";
-		return false;
-	}
-	if (!NEMTests::TestProfileCapture()) {
-		std::cerr << "Profile capture contract failed\n";
 		return false;
 	}
 	if (!NEMTests::TestRuntimePreload()) {

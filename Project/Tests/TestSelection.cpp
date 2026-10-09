@@ -12,6 +12,9 @@
 #include "GameplayRefactoringTests.h"
 #include "AudioHardwareTests.h"
 #include "SceneStorageTests.h"
+#include "FBXImportTests.h"
+#include "EditorAssetWorkflowTests.h"
+#include "ProjectGitIgnoreTests.h"
 #include <Engine/Core/Foundation/Utility/Algorithm/PathUtility.h>
 #include <Engine/Core/World/Prefab/Override/PrefabOverrideUtility.h>
 #include <Engine/Core/World/Prefab/Serialization/PrefabReferenceRemapper.h>
@@ -26,6 +29,21 @@ using namespace NEMTests;
 // 引数で指定された検証だけを実行する
 std::optional<int> NEMTests::RunSelectedTests(int argc, char* argv[]) {
 
+	if (1 < argc && std::string_view(argv[1]) == "--project-git-ignore") {
+		return RunTest("TestProjectGitIgnoreDocument", TestProjectGitIgnoreDocument) ? 0 : 54;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--project-git-status") {
+		return RunTest("TestProjectGitIgnoreReadOnly", TestProjectGitIgnoreReadOnly) ? 0 : 54;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--bistro-normals") {
+		return RunTest("TestBistroNormalTextures", TestBistroNormalTextures) ? 0 : 53;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--editor-asset-workflow") {
+		return RunTest("TestEditorAssetWorkflow", TestEditorAssetWorkflow) ? 0 : 53;
+	}
+	if (1 < argc && std::string_view(argv[1]) == "--fbx-import") {
+		return RunTest("TestFBXImport", TestFBXImport) ? 0 : 52;
+	}
 	if (1 < argc && std::string_view(argv[1]) == "--gpu-compatible-hardware") {
 		return RunTest("TestGPUCompatibility", TestGPUCompatibility) ? 0 : 47;
 	}

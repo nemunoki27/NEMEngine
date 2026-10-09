@@ -75,6 +75,8 @@ void Engine::MeshGPUResourceManager::Finalize() {
 
 void Engine::MeshGPUResourceManager::BeginFrame(GraphicsCore& graphicsCore) {
 
+	uploadedThisFrame_ = 0;
+
 	// 初期化されていない場合は初期化する
 	if (!initialized_) {
 
@@ -117,7 +119,7 @@ void Engine::MeshGPUResourceManager::ReleaseMeshResource(MeshGPUResource& mesh) 
 	MeshGPUBuilder::Release(mesh);
 }
 
-void Engine::MeshGPUResourceManager::FlushUploads() {
+void Engine::MeshGPUResourceManager::FlushUploads(bool unlimited) {
 
 	// 読み込み待ちのメッシュアセットのうち、GPUにアップロードされていないものをアップロードする
 	std::vector<std::pair<AssetID, uint64_t>> pending{};
@@ -131,6 +133,8 @@ void Engine::MeshGPUResourceManager::FlushUploads() {
 
 	for (const auto& [id, revision] : pending) {
 
+		if (!unlimited && uploadedThisFrame_ >= uploadLimit_) { break; }
+
 		ImportedMeshAsset imported{};
 		if (!importService_.TakeImported(id, imported)) {
 			if (importService_.ConsumeFailed(id)) {
@@ -142,6 +146,7 @@ void Engine::MeshGPUResourceManager::FlushUploads() {
 			continue;
 		}
 
+		++uploadedThisFrame_;
 		// GPUにアップロード
 		try {
 			UploadImported(imported, revision);
@@ -157,7 +162,7 @@ void Engine::MeshGPUResourceManager::WaitAll() {
 
 	for (;;) {
 		importService_.WaitAll();
-		FlushUploads();
+		FlushUploads(true);
 		// 完了時に再投入した最新要求も待つ
 		std::scoped_lock lock(mutex_);
 		if (requested_.empty()) {

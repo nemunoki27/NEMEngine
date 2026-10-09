@@ -4,6 +4,7 @@
 //	include
 //============================================================================
 #include "ProjectAssetPath.h"
+#include "EditorSceneDefaults.h"
 #include <Engine/Core/Runtime/Paths/RuntimePaths.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 #include <Engine/Core/Foundation/Serialization/Json/JsonSerializer.h>
@@ -94,16 +95,8 @@ namespace Engine {
 				rootNamespace, className);
 		}
 		case ProjectAssetFileKind::Scene:
-			return std::format("{{\n"
-							   "  \"ExternalActors\": [],\n"
-							   "  \"Header\": {{\n"
-							   "    \"name\": \"{}\",\n"
-							   "    \"subScenes\": []\n"
-							   "  }},\n"
-							   "  \"PrefabInstances\": [],\n"
-							   "  \"SchemaVersion\": 3\n"
-							   "}}\n",
-				assetName);
+			// CameraとLightを配置したシーンを作る
+			return JsonAdapter::SerializeCanonical(EditorSceneDefaults::MakeScene(assetName), 2);
 		case ProjectAssetFileKind::Prefab: {
 			// 新規Prefabは編集可能な空GameObjectをルートとして持つ
 			const UUID localFileID = UUID::New();

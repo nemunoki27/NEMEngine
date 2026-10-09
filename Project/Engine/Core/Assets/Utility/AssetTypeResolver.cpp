@@ -83,7 +83,7 @@ Engine::AssetType Engine::AssetTypeResolver::GuessByPath(const std::filesystem::
 		extension == ".gif" || extension == ".hdr") {
 		return AssetType::Texture;
 	}
-	if (extension == ".obj" || extension == ".gltf" || extension == ".glb") {
+	if (extension == ".obj" || extension == ".gltf" || extension == ".glb" || extension == ".fbx") {
 		return AssetType::Mesh;
 	}
 	if (extension == ".ttf" || extension == ".otf" ||

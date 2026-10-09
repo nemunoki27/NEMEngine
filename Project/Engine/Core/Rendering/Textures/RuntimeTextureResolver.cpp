@@ -189,7 +189,7 @@ namespace Engine::RuntimeTextureResolver {
 
 	BindlessResolveResult ResolveBindless(GraphicsCore& graphicsCore,
 		const AssetDatabase* assetDatabase, AssetID textureAssetID,
-		TextureColorSpace requestedColorSpace) {
+		TextureColorSpace requestedColorSpace, bool normalMap) {
 
 		if (!textureAssetID) {
 			return {};
@@ -243,10 +243,14 @@ namespace Engine::RuntimeTextureResolver {
 		TextureUploadService& uploadService =
 			graphicsCore.GetTextureUploadService();
 		const std::string basePath = Algorithm::PathToUTF8(fullPath);
-		const TextureImportSettings importSettings = ResolveImportSettings(
-			assetDatabase, textureAssetID);
-		const std::string key = MakeTextureKey(
-			basePath, importSettings, requestedColorSpace);
+		TextureImportSettings importSettings = ResolveImportSettings(assetDatabase, textureAssetID);
+		// 法線用途は色画像や2成分データと別の読込結果を使う
+		if (normalMap) {
+			importSettings.preset = TextureImportPreset::NormalMap;
+			importSettings.colorSpace = TextureColorSpace::Linear;
+		}
+		const std::string key = MakeTextureKey(basePath, importSettings, requestedColorSpace) +
+			(normalMap ? ":normal" : "");
 		TextureRequestState state = uploadService.GetState(key);
 		if (state == TextureRequestState::None) {
 
@@ -255,6 +259,7 @@ namespace Engine::RuntimeTextureResolver {
 			desc.assetPath = basePath;
 			desc.importSettings = importSettings;
 			desc.requestedColorSpace = requestedColorSpace;
+			desc.normalMap = normalMap;
 			uploadService.RequestTextureFile(desc);
 			state = TextureRequestState::Queued;
 		}

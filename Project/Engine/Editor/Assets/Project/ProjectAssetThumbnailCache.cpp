@@ -198,6 +198,8 @@ ImTextureID Engine::ProjectAssetThumbnailCache::GetAssetTextureID(const std::str
 			}
 		}
 		desc.requestedColorSpace = TextureColorSpace::SRGB;
+		desc.previewMaxDimension = 256;
+		desc.importSettings.generateMipmaps = false;
 		textureUploadService_->RequestTextureFile(desc);
 	}
 	// フォールバックアイコン

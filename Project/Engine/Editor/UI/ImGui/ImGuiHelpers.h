@@ -249,6 +249,8 @@ namespace Engine {
 		//	数学関連
 		//============================================================================
 		// 表示
+		// 読み取り専用の文字列を表示する
+		static void Text(const char* label, const std::string& value);
 		static void TextFloat(const char* label, float value, uint32_t precision = 3);
 		static void TextVector2(const char* label, const Vector2& value, uint32_t precision = 3);
 		static void TextVector3(const char* label, const Vector3& value, uint32_t precision = 3);

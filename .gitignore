@@ -47,3 +47,7 @@ Project/Sandbox/UserSettings/
 
 # Optional: local premake binary
 premake5.exe
+# NEMEngine Project exclusions begin
+/Project/Sandbox/GameAssets/Models/Bistro/
+/Project/Sandbox/GameAssets/Models/Bistro.meta
+# NEMEngine Project exclusions end

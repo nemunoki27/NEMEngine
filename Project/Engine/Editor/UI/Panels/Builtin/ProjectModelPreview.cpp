@@ -1,336 +1,179 @@
 #include "ProjectModelPreview.h"
-#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
 
 //============================================================================
 //	include
 //============================================================================
-#include <Engine/Core/Foundation/Utility/Algorithm/HashUtility.h>
-#include <Engine/Core/Runtime/Paths/RuntimePaths.h>
+#include <Engine/Core/Rendering/Renderer/Pipeline/RenderPipelineRunner.h>
+#include <Engine/Core/Assets/Database/AssetDatabase.h>
 #include <Engine/Core/World/Components/Transform/TransformComponent.h>
 #include <Engine/Core/World/Components/Lighting/DirectionalLightComponent.h>
 #include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
-#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Editor/Tools/Core/EditorToolContext.h>
 #include <Engine/Editor/Assets/Preview/ModelPreviewUtility.h>
 
 // c++
 #include <algorithm>
-#include <array>
-#include <cfloat>
 #include <cmath>
-#include <cstring>
-#include <cstdlib>
-#include <fstream>
-#include <filesystem>
-#include <initializer_list>
-#include <stack>
-#include <string>
-#include <system_error>
-#include <vector>
-#include <windows.h>
-#include <shellapi.h>
 
-
-//============================================================================
-//	ProjectPanel modelPreview classMethods
-//	モデルサムネイルプレビューのatlas生成と描画
-//============================================================================
 namespace {
 
-	constexpr const char* kProjectModelPreviewAtlasName = "ProjectPanelModelPreviewAtlas";
-	constexpr uint32_t kModelPreviewColorTargetCount = 3;
-	constexpr uint32_t kModelPreviewRefreshFrameCount = 30;
+	constexpr size_t kCacheCapacity = 64;
+	constexpr int32_t kThumbnailSize = 192;
+	const Engine::Color4 kClearColor(0.04f, 0.06f, 0.16f, 1.0f);
+
+	// 公開済みMeshの境界球へCameraを合わせる
+	Engine::ManualRenderCameraState MakeCamera(const Engine::MeshGPUResource& mesh) {
+
+		Engine::ManualRenderCameraState camera{};
+		camera.enableOrthographic = false;
+		camera.enablePerspective = true;
+		camera.perspectiveFovY = 35.0f;
+		camera.perspectiveNearClip = 0.01f;
+		const float radius = (std::max)(0.1f, mesh.boundsRadius);
+		const float distance = radius / std::sin(35.0f * 0.5f * 3.1415926535f / 180.0f) * 1.08f;
+		camera.perspectiveFarClip = (std::max)(10000.0f, distance + radius * 4.0f);
+		camera.transform3D.rotation = Engine::Vector3(25.0f, 215.0f, 0.0f);
+		const auto rotation = Engine::Matrix4x4::MakeRotateMatrix(camera.transform3D.rotation);
+		const Engine::Vector3 forward(rotation.m[2][0], rotation.m[2][1], rotation.m[2][2]);
+		camera.transform3D.pos = mesh.boundsCenter - forward * distance;
+		return camera;
+	}
 }
 
-void Engine::ProjectModelPreview::ApplyModelPreviewLightSettings() {
+void Engine::ProjectModelPreview::RequestVisibleMesh(AssetID asset) {
 
-	if (!modelPreviewWorld_ || !modelPreviewWorld_->IsAlive(modelPreviewLightEntity_)) {
-		return;
+	if (std::find(visibleAssets_.begin(), visibleAssets_.end(), asset) == visibleAssets_.end()) {
+		visibleAssets_.push_back(asset);
 	}
-
-	DirectionalLightComponent* light = modelPreviewWorld_->TryGetComponent<DirectionalLightComponent>(modelPreviewLightEntity_);
-	if (!light) {
-		return;
-	}
-
-	light->direction = modelPreviewSettings_.lightDirection.Normalize();
-	light->intensity = modelPreviewSettings_.lightIntensity;
 }
 
-void Engine::ProjectModelPreview::PrepareModelPreviewAtlas(const EditorPanelContext& context,
-	AssetDatabase& database, const ProjectDirectoryNode& node) {
+std::string Engine::ProjectModelPreview::MakeTextureName(AssetID asset) {
 
-	std::vector<const ProjectAssetEntry*> meshAssets{};
-	meshAssets.reserve(node.assets.size());
-	for (const auto& asset : node.assets) {
-		if (asset.type == AssetType::Mesh) {
-			meshAssets.emplace_back(&asset);
+	return "ProjectModelPreview:" + ToString(asset);
+}
+
+void Engine::ProjectModelPreview::Reset(const AssetDatabase& database) {
+
+	for (const auto& [asset, entry] : entries_) {
+		resources_.DestroyRenderTexture(MakeTextureName(asset));
+	}
+	entries_.clear();
+	world_ = std::make_unique<ECSWorld>();
+	databaseLifetime_ = database.GetCacheLifetime();
+	// Preview専用Worldのライトはモデル間で共有する
+	const Entity light = world_->CreateEntity(UUID::New());
+	world_->AddComponent<TransformComponent>(light).isDirty = false;
+	auto& directional = world_->AddComponent<DirectionalLightComponent>(light);
+	directional.direction = Vector3(0.35f, -0.65f, 0.65f).Normalize();
+	directional.intensity = 1.5f;
+}
+
+void Engine::ProjectModelPreview::TrimCache() {
+
+	while (entries_.size() > kCacheCapacity) {
+		const auto oldest = std::min_element(entries_.begin(), entries_.end(), [](const auto& left, const auto& right) {
+			return left.second.lastUsedFrame < right.second.lastUsedFrame;
+		});
+		// 現在表示中の項目は追い出さない
+		if (oldest->second.lastUsedFrame == frame_) {
+			break;
+		}
+		resources_.DestroyRenderTexture(MakeTextureName(oldest->first));
+		world_->DestroyEntity(oldest->second.entity);
+		entries_.erase(oldest);
+	}
+}
+
+void Engine::ProjectModelPreview::PrepareModelPreviews(const EditorPanelContext& context, AssetDatabase& database) {
+
+	if (!context.graphicsCore || !context.renderPipeline) {
+		return;
+	}
+	if (!world_ || databaseLifetime_.lock() != database.GetCacheLifetime().lock()) {
+		Reset(database);
+	}
+	++frame_;
+	std::vector<AssetID> assets;
+	assets.swap(visibleAssets_);
+	// 重いモデル解析は既存workerへ渡し、完了待ちは行わない
+	context.renderPipeline->PreparePreviewMeshes(*context.graphicsCore, database, assets);
+	for (const AssetID asset : assets) {
+		const auto [found, inserted] = entries_.try_emplace(asset);
+		auto& entry = found->second;
+		entry.lastUsedFrame = frame_;
+		if (inserted) {
+			entry.entity = world_->CreateEntity(UUID::New());
+			auto& transform = world_->AddComponent<TransformComponent>(entry.entity);
+			transform.worldMatrix = Matrix4x4::Identity();
+			transform.isDirty = false;
+			auto& renderer = world_->AddComponent<MeshRendererComponent>(entry.entity);
+			renderer.mesh = asset;
+			renderer.renderFlags = MeshRenderFlags::None;
 		}
 	}
-
-	if (meshAssets.empty()) {
-		modelPreviewWorld_.reset();
-		modelPreviewSlots_.clear();
-		modelPreviewSlotByAsset_.clear();
-		modelPreviewSignature_ = 0;
-		modelPreviewDirectory_ = node.virtualPath;
-		modelPreviewLightEntity_ = Entity::Null();
-		modelPreviewAtlasSize_.Init();
-		modelPreviewRefreshFrames_ = 0;
-		resources_.DestroyRenderTexture(kProjectModelPreviewAtlasName);
+	TrimCache();
+	if (assets.empty()) {
 		return;
 	}
-
-	const uint64_t signature = BuildModelPreviewSignature(database, node, meshAssets);
-	if (signature != modelPreviewSignature_ || modelPreviewDirectory_ != node.virtualPath) {
-		RebuildModelPreviewSlots(database, node, meshAssets, signature);
-	}
-
-	if (!context.graphicsCore || !context.renderPipeline || !modelPreviewWorld_ ||
-		modelPreviewSlots_.empty() || modelPreviewAtlasSize_.x <= 0 || modelPreviewAtlasSize_.y <= 0) {
-		return;
-	}
-
-	// 描画を休止したAtlasでも読込結果の公開を進める
-	std::vector<AssetID> previewAssets;
-	previewAssets.reserve(meshAssets.size());
-	for (const auto* asset : meshAssets) {
-		previewAssets.push_back(asset->assetID);
-	}
-	const uint64_t meshRevision = context.renderPipeline->PreparePreviewMeshes(*context.graphicsCore, database, previewAssets);
-	const uint64_t textureRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
-	if (meshRevision != modelPreviewMeshRevision_ || textureRevision != modelPreviewTextureRevision_) {
-		modelPreviewMeshRevision_ = meshRevision;
-		modelPreviewTextureRevision_ = textureRevision;
-		modelPreviewRefreshFrames_ = (std::max)(modelPreviewRefreshFrames_, 1u);
-	}
-
 	EditorToolContext toolContext{};
 	toolContext.panelContext = &context;
-	toolContext.toolContext.world = context.editorContext ? context.editorContext->activeWorld : nullptr;
 	toolContext.toolContext.assetDatabase = &database;
-	toolContext.toolContext.sceneInstances = context.editorContext ? context.editorContext->sceneInstances : nullptr;
-	toolContext.toolContext.activeSceneHeader = context.editorContext ? context.editorContext->activeSceneHeader : nullptr;
-	toolContext.toolContext.activeSceneAsset = context.editorContext ? context.editorContext->activeSceneAsset : AssetID{};
-	toolContext.toolContext.activeSceneInstanceID = context.editorContext ? context.editorContext->activeSceneInstanceID : UUID{};
-	if (context.editorContext) {
-		toolContext.toolContext.activeScenePath = context.editorContext->activeScenePath;
-	}
-	toolContext.toolContext.isPlaying = context.IsPlaying();
-	toolContext.toolContext.canEditScene = context.CanEditScene();
-
 	resources_.BeginEditorToolFrame(toolContext);
-
-	EditorToolRenderTexture* atlas = resources_.FindRenderTexture(kProjectModelPreviewAtlasName);
-	if (atlas && (atlas->size.x != modelPreviewAtlasSize_.x ||
-		atlas->size.y != modelPreviewAtlasSize_.y)) {
-
-		resources_.DestroyRenderTexture(kProjectModelPreviewAtlasName);
-		atlas = nullptr;
-		modelPreviewRefreshFrames_ = kModelPreviewRefreshFrameCount;
-	}
-	if (!atlas) {
-		modelPreviewRefreshFrames_ = kModelPreviewRefreshFrameCount;
-		atlas = resources_.CreateRenderTexture(kProjectModelPreviewAtlasName,
-			modelPreviewAtlasSize_, modelPreviewSettings_.clearColor, kModelPreviewColorTargetCount);
-	}
-	if (atlas && modelPreviewRefreshFrames_ > 0) {
-		if (RenderModelPreviewAtlas(toolContext, *atlas)) {
-			--modelPreviewRefreshFrames_;
+	const uint64_t textureRevision = context.graphicsCore->GetTextureUploadService().GetContentRevision();
+	textureQuietFrames_ = observedTextureRevision_ == textureRevision ? (std::min)(textureQuietFrames_ + 1, 8u) : 0;
+	observedTextureRevision_ = textureRevision;
+	// 1frameに1モデルだけ描画し、完成画像はフォルダー切替後も保持する
+	for (size_t index = 0; index < assets.size(); ++index) {
+		const size_t cursor = (nextEntry_ + index) % assets.size();
+		const AssetID asset = assets[cursor];
+		const MeshGPUResource* mesh = context.renderPipeline->FindPreviewMesh(asset);
+		auto& entry = entries_.at(asset);
+		if (!mesh || (entry.rendered && entry.meshGeneration == mesh->reloadGeneration &&
+			(entry.textureRevision == textureRevision || textureQuietFrames_ < 8))) {
+			continue;
 		}
-	}
-
-	resources_.EndEditorToolFrame();
-}
-
-void Engine::ProjectModelPreview::RebuildModelPreviewSlots(AssetDatabase& database, const ProjectDirectoryNode& node,
-	const std::vector<const ProjectAssetEntry*>& meshAssets, uint64_t signature) {
-
-	modelPreviewWorld_ = std::make_unique<ECSWorld>();
-	modelPreviewSlots_.clear();
-	modelPreviewSlotByAsset_.clear();
-	modelPreviewDirectory_ = node.virtualPath;
-	modelPreviewSignature_ = signature;
-	modelPreviewRefreshFrames_ = kModelPreviewRefreshFrameCount;
-
-	const int32_t count = static_cast<int32_t>(meshAssets.size());
-	const int32_t columns = (std::max)(1, static_cast<int32_t>(std::ceil(std::sqrt(static_cast<float>(count)))));
-	const int32_t rows = (std::max)(1, (count + columns - 1) / columns);
-	const int32_t tileSize = modelPreviewSettings_.tileSize;
-	modelPreviewAtlasSize_ = Vector2I(columns * tileSize, rows * tileSize);
-
-	Entity lightEntity = modelPreviewWorld_->CreateEntity(UUID::New());
-	auto& lightTransform = modelPreviewWorld_->AddComponent<TransformComponent>(lightEntity);
-	lightTransform.worldMatrix = Matrix4x4::Identity();
-	lightTransform.isDirty = false;
-	auto& light = modelPreviewWorld_->AddComponent<DirectionalLightComponent>(lightEntity);
-	light.direction = modelPreviewSettings_.lightDirection.Normalize();
-	light.intensity = modelPreviewSettings_.lightIntensity;
-	modelPreviewLightEntity_ = lightEntity;
-
-	modelPreviewSlots_.reserve(meshAssets.size());
-	for (int32_t i = 0; i < count; ++i) {
-		const ProjectAssetEntry& asset = *meshAssets[static_cast<size_t>(i)];
-		ModelPreviewUtility::ImportReferencedTextures(database, asset.assetID);
-
-		Entity entity = modelPreviewWorld_->CreateEntity(UUID::New());
-		auto& transform = modelPreviewWorld_->AddComponent<TransformComponent>(entity);
-		transform.worldMatrix = Matrix4x4::Identity();
-		transform.isDirty = false;
-
-		auto& renderer = modelPreviewWorld_->AddComponent<MeshRendererComponent>(entity);
-		renderer.mesh = asset.assetID;
-		renderer.material = {};
-		renderer.queue = RenderPhase::Opaque;
-		renderer.visible = true;
-		renderer.enableZPrepass = true;
-		MeshSubMeshAuthoring::SyncEntity(
-			&database, *modelPreviewWorld_, entity, false);
-
-		const int32_t column = i % columns;
-		const int32_t row = i / columns;
-		const Vector2I pixelPos(column * tileSize, row * tileSize);
-		const Vector2I pixelSize(tileSize, tileSize);
-
-		ModelPreviewSlot slot{};
-		slot.assetID = asset.assetID;
-		slot.assetPath = asset.assetPath;
-		slot.entity = entity;
-		slot.pixelPos = pixelPos;
-		slot.pixelSize = pixelSize;
-		slot.uv0 = ImVec2(
-			static_cast<float>(pixelPos.x) / static_cast<float>(modelPreviewAtlasSize_.x),
-			static_cast<float>(pixelPos.y) / static_cast<float>(modelPreviewAtlasSize_.y));
-		slot.uv1 = ImVec2(
-			static_cast<float>(pixelPos.x + pixelSize.x) / static_cast<float>(modelPreviewAtlasSize_.x),
-			static_cast<float>(pixelPos.y + pixelSize.y) / static_cast<float>(modelPreviewAtlasSize_.y));
-		slot.bounds = ComputeModelPreviewBounds(database, asset.assetID);
-
-		modelPreviewSlotByAsset_[slot.assetID] = modelPreviewSlots_.size();
-		modelPreviewSlots_.emplace_back(std::move(slot));
-	}
-}
-
-bool Engine::ProjectModelPreview::RenderModelPreviewAtlas(const EditorToolContext& toolContext,
-	EditorToolRenderTexture& atlas) {
-
-	if (!toolContext.panelContext || !toolContext.panelContext->renderPipeline || !modelPreviewWorld_) {
-		return false;
-	}
-
-	ApplyModelPreviewLightSettings();
-	bool allRendered = true;
-	resources_.RenderToTexture(atlas, [&](EditorToolRenderContext& renderContext) {
-
-		for (const ModelPreviewSlot& slot : modelPreviewSlots_) {
-			if (!modelPreviewWorld_->IsAlive(slot.entity)) {
-				continue;
-			}
-
+		// 初回とMesh更新時だけプレビューのMaterialを同期する
+		if (!entry.rendered || entry.meshGeneration != mesh->reloadGeneration) {
+			const auto materials = ModelPreviewUtility::BuildMaterials(mesh->subMeshes);
+			SetMeshSubMeshes(*world_, entry.entity, materials);
+		}
+		auto* texture = resources_.CreateRenderTexture(MakeTextureName(asset), Vector2I(kThumbnailSize, kThumbnailSize), kClearColor, 3);
+		if (!texture) {
+			continue;
+		}
+		bool rendered = false;
+		resources_.RenderToTexture(*texture, [&](EditorToolRenderContext& renderContext) {
 			EntityPreviewRenderRequest request{};
-			request.world = modelPreviewWorld_.get();
-			request.systemContext = toolContext.toolContext.systemContext;
-			request.assetDatabase = toolContext.toolContext.assetDatabase;
-			request.sceneHeader = toolContext.toolContext.activeSceneHeader;
-			request.sceneInstanceID = {};
-			request.rootEntity = slot.entity;
-			request.surface = atlas.GetRenderTarget();
-			request.camera = BuildModelPreviewCamera(slot.bounds);
-			request.clearColor = atlas.clearColor;
-			request.clearSurface = false;
-			request.useViewportRect = true;
-			request.viewportX = static_cast<uint32_t>(slot.pixelPos.x);
-			request.viewportY = static_cast<uint32_t>(slot.pixelPos.y);
-			request.viewportWidth = static_cast<uint32_t>(slot.pixelSize.x);
-			request.viewportHeight = static_cast<uint32_t>(slot.pixelSize.y);
-
-			allRendered &=
-				toolContext.panelContext->renderPipeline->RenderEntityPreview(
-					*renderContext.graphicsCore, request);
-		}
-		}, atlas.clearColor);
-	return allRendered;
+			request.world = world_.get();
+			request.assetDatabase = &database;
+			request.rootEntity = entry.entity;
+			request.surface = texture->GetRenderTarget();
+			request.camera = MakeCamera(*mesh);
+			request.clearColor = kClearColor;
+			rendered = context.renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
+		}, kClearColor);
+		entry.rendered = rendered;
+		entry.meshGeneration = mesh->reloadGeneration;
+		entry.textureRevision = textureRevision;
+		nextEntry_ = cursor + 1;
+		break;
+	}
+	resources_.EndEditorToolFrame();
 }
 
 bool Engine::ProjectModelPreview::TryGetModelPreviewImage(AssetID assetID,
 	ImTextureID& outTextureID, ImVec2& outUV0, ImVec2& outUV1) const {
 
-	const auto it = modelPreviewSlotByAsset_.find(assetID);
-	if (it == modelPreviewSlotByAsset_.end() || modelPreviewSlots_.size() <= it->second) {
+	const auto found = entries_.find(assetID);
+	if (found == entries_.end() || !found->second.rendered) {
 		return false;
 	}
-
-	const EditorToolRenderTexture* atlas = resources_.FindRenderTexture(kProjectModelPreviewAtlasName);
-	if (!atlas || !atlas->IsValid()) {
+	const auto* texture = resources_.FindRenderTexture(MakeTextureName(assetID));
+	if (!texture || !texture->IsValid()) {
 		return false;
 	}
-
-	outTextureID = atlas->GetImTextureID();
-	if (outTextureID == static_cast<ImTextureID>(0)) {
-		return false;
-	}
-
-	const ModelPreviewSlot& slot = modelPreviewSlots_[it->second];
-	outUV0 = slot.uv0;
-	outUV1 = slot.uv1;
+	outTextureID = texture->GetImTextureID();
+	outUV0 = ImVec2(0.0f, 0.0f);
+	outUV1 = ImVec2(1.0f, 1.0f);
 	return true;
-}
-
-uint64_t Engine::ProjectModelPreview::BuildModelPreviewSignature(const AssetDatabase& database, const ProjectDirectoryNode& node,
-	const std::vector<const ProjectAssetEntry*>& meshAssets) const {
-
-	uint64_t signature = 1469598103934665603ull;
-	signature = Algorithm::MixHashString(signature, node.virtualPath);
-	signature = Algorithm::MixHash(signature, static_cast<uint64_t>(meshAssets.size()));
-	for (const ProjectAssetEntry* asset : meshAssets) {
-		if (!asset) {
-			continue;
-		}
-		signature = Algorithm::MixHash(signature, asset->assetID.high);
-		signature = Algorithm::MixHash(signature, asset->assetID.low);
-		signature = Algorithm::MixHashString(signature, asset->assetPath);
-		signature = Algorithm::MixHash(signature, database.GetContentRevision(asset->assetID));
-
-		std::error_code ec{};
-		const auto writeTime = std::filesystem::last_write_time(RuntimePaths::ResolveAssetPath(asset->assetPath), ec);
-		if (!ec) {
-			signature = Algorithm::MixHash(signature, static_cast<uint64_t>(writeTime.time_since_epoch().count()));
-		}
-	}
-	return signature;
-}
-
-Engine::ProjectModelPreview::ModelPreviewBounds Engine::ProjectModelPreview::ComputeModelPreviewBounds(
-	AssetDatabase& database, AssetID meshAssetID) const {
-
-	ModelPreviewBounds bounds{};
-	bounds.valid = ModelPreviewUtility::ComputeBounds(database, meshAssetID,
-		bounds.min, bounds.max, bounds.center, bounds.radius);
-	return bounds;
-}
-
-Engine::ManualRenderCameraState Engine::ProjectModelPreview::BuildModelPreviewCamera(
-	const ModelPreviewBounds& bounds) const {
-
-	const Vector3 center = bounds.valid ? bounds.center : Vector3::AnyInit(0.0f);
-	const float radius = (std::max)(bounds.valid ? bounds.radius : 1.0f, 0.1f);
-	const float fovY = modelPreviewSettings_.cameraFovY;
-	const float pitchDegrees = modelPreviewSettings_.cameraPitchDegrees;
-	const float yawDegrees = modelPreviewSettings_.cameraYawDegrees;
-	const float distance = bounds.valid ?
-		ModelPreviewUtility::CalculateCameraDistance(bounds.min, bounds.max, center, pitchDegrees, yawDegrees, fovY,
-			1.0f, modelPreviewSettings_.cameraDistanceScale) :
-		radius * modelPreviewSettings_.cameraDistanceScale;
-	const Matrix4x4 cameraRotation = Matrix4x4::MakeRotateMatrix(Vector3(pitchDegrees, yawDegrees, 0.0f));
-	const Vector3 cameraForward(cameraRotation.m[2][0], cameraRotation.m[2][1], cameraRotation.m[2][2]);
-
-	ManualRenderCameraState camera{};
-	camera.enableOrthographic = false;
-	camera.enablePerspective = true;
-	camera.perspectiveFovY = fovY;
-	camera.perspectiveNearClip = 0.01f;
-	camera.perspectiveFarClip = (std::max)(10000.0f, distance + radius * 4.0f);
-	camera.transform3D.pos = center - cameraForward * distance;
-	camera.transform3D.rotation = Vector3(pitchDegrees, yawDegrees, 0.0f);
-	return camera;
 }

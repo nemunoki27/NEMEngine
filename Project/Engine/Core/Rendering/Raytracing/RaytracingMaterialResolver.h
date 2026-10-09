@@ -32,7 +32,7 @@ namespace Engine {
 			const MaterialParameterSet* materialInstance, const Matrix4x4& uvMatrix);
 		// TextureをDescriptorへ解決する
 		uint32_t ResolveTextureDescriptorIndex(GraphicsCore& graphicsCore,
-			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB);
+			AssetDatabase& assetDatabase, AssetID textureAssetID, bool sRGB, bool normalMap = false);
 		// 解決cacheを破棄する
 		void Clear();
 		// 現在FrameのTexture待ちを解除
@@ -51,6 +51,8 @@ namespace Engine {
 
 		std::unordered_map<AssetID, uint32_t> textureDescriptorIndexCache_{};
 		std::unordered_map<AssetID, uint32_t> sRGBTextureDescriptorIndexCache_{};
+		// 法線用途の変換済みTextureを区別する
+		std::unordered_map<AssetID, uint32_t> normalTextureDescriptorIndexCache_{};
 		// 読込中は次のFrameでもMaterial値を再解決
 		bool hasPendingTextureDescriptors_ = false;
 	};

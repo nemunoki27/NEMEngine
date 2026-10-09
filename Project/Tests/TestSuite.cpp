@@ -11,6 +11,9 @@
 #include "GameplayRefactoringTests.h"
 #include "AudioHardwareTests.h"
 #include "SceneStorageTests.h"
+#include "FBXImportTests.h"
+#include "EditorAssetWorkflowTests.h"
+#include "ProjectGitIgnoreTests.h"
 
 // c++
 #include <iostream>
@@ -56,6 +59,8 @@ int NEMTests::RunAllTests() {
 		std::cerr << "UTF-8 path failed\n";
 		return 24;
 	}
+	if (!RunTest("TestEditorAssetWorkflow", TestEditorAssetWorkflow)) { return 53; }
+	if (!RunTest("TestProjectGitIgnoreDocument", TestProjectGitIgnoreDocument)) { return 54; }
 	if (!RunTest("TestTextureImportSettings", TestTextureImportSettings)) {
 		std::cerr << "Texture import settings failed\n";
 		return 25;
@@ -216,6 +221,7 @@ int NEMTests::RunAllTests() {
 		!RunTest("TestRenderTargetSizing", TestRenderTargetSizing) ||
 		!RunTest("TestProjectAssetCopyTransaction", TestProjectAssetCopyTransaction) ||
 		!RunTest("TestModelImportBundle", TestModelImportBundle) ||
+		!RunTest("TestFBXImport", TestFBXImport) ||
 		!RunTest("TestProjectAssetMoveTransaction", TestProjectAssetMoveTransaction) ||
 		!RunTest("TestMaterialCreationFailures", TestMaterialCreationFailures) ||
 		!RunTest("TestMaterialReflectionCache", TestMaterialReflectionCache) ||

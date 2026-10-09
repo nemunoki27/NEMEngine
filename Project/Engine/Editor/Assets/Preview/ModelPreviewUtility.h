@@ -5,6 +5,7 @@
 //============================================================================
 #include <Engine/Core/Foundation/Math/Vector3.h>
 #include <Engine/Core/Assets/AssetTypes.h>
+#include <Engine/Core/World/Components/Rendering/MeshRendererComponent.h>
 
 // c++
 #include <vector>
@@ -17,12 +18,16 @@ namespace Engine {
 
 	// front
 	class AssetDatabase;
+	struct SubMeshDesc;
 
 	//============================================================================
 	//	ModelPreviewUtility namespace
 	//	ProjectPanelとInspectorPanelで共有するモデルサムネイルプレビュー用の補助関数
 	//============================================================================
 	namespace ModelPreviewUtility {
+
+		// 公開済みMeshから色と画像だけのプレビュー設定を作る
+		std::vector<SubMeshMaterial> BuildMaterials(std::span<const SubMeshDesc> subMeshes);
 
 		// モデルのノード階層を辿って全頂点位置をエンジン座標で集める
 		void CollectNodePositions(const aiScene* scene, const aiNode* node, std::vector<Vector3>& outPositions);

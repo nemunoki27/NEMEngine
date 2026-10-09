@@ -19,6 +19,12 @@
 
 using namespace Engine;
 
+const MeshGPUResource* RenderPipelineRunner::FindPreviewMesh(AssetID asset) const {
+
+	// 非同期読込の公開済み結果だけを参照する
+	return previewResources_.previewMeshBackend_ ? previewResources_.previewMeshBackend_->FindMeshResource(asset) : nullptr;
+}
+
 //============================================================================
 //	RenderPipelineRunner classMethods (Preview)
 //============================================================================
@@ -29,7 +35,8 @@ uint64_t RenderPipelineRunner::PreparePreviewMeshes(GraphicsCore& graphicsCore, 
 	if (!previewResources_.previewMeshBackend_) {
 		return 0;
 	}
-	// Atlasを再描画しないframeも非同期読込を完了させる
+	previewResources_.BeginFrame(graphicsCore);
+	// 再描画しないframeも非同期読込を完了させる
 	previewResources_.previewMeshBackend_->RequestMeshes(graphicsCore, database, assets);
 	return previewResources_.previewMeshBackend_->GetMeshResourceRevision();
 }

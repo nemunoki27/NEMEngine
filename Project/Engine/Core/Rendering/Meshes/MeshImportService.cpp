@@ -1,4 +1,5 @@
 #include "MeshImportService.h"
+#include <Engine/Core/Rendering/Meshes/GPUResource/MeshUploadPreparation.h>
 
 //============================================================================
 //	include
@@ -146,6 +147,10 @@ void Engine::MeshImportService::LoadJob(MeshLoadJob&& job) {
 	try {
 		imported = MeshFileImporter::ImportFile(job.assetID, job.fullPath, job.settings, job.manualLODPaths);
 		succeeded = !imported.vertices.empty() && !imported.indices.empty();
+		if (succeeded) {
+			// 圧縮頂点やIndex変換もworkerで完了する
+			imported.uploadData = std::make_shared<MeshUploadData>(MeshUploadPreparation::Build(imported));
+		}
 	} catch (const std::exception& exception) {
 		Logger::Output(LogType::Engine, spdlog::level::err, "Meshの非同期読み込み中に例外が発生しました path={} 内容={}",
 			Algorithm::PathToUTF8(job.fullPath), exception.what());

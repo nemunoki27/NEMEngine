@@ -190,7 +190,8 @@ Engine::BackendDrawCommon::ResolveMaterialTextureIndex(
 		RuntimeTextureResolver::ResolveBindless(
 			*context.graphicsCore, context.assetDatabase,
 			textureAssetID, IsSRGBMaterialTexture(semantic) ?
-			TextureColorSpace::SRGB : TextureColorSpace::Linear);
+			TextureColorSpace::SRGB : TextureColorSpace::Linear,
+			semantic == MaterialParameterSemantic::NormalTexture);
 	uint32_t textureIndex = result.srvIndex;
 	if (semantic == MaterialParameterSemantic::DisplacementTexture) {
 

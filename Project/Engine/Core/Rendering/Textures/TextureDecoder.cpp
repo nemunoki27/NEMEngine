@@ -1,4 +1,5 @@
 #include "TextureDecoder.h"
+#include "TexturePreviewResize.h"
 
 //============================================================================
 //	include
@@ -8,6 +9,7 @@
 #include <Engine/Core/Foundation/Utility/ScopedCleanup.h>
 
 #include <algorithm>
+#include <cmath>
 #include <deque>
 #include <vector>
 #include <DirectXMath.h>
@@ -150,13 +152,13 @@ namespace {
 	}
 
 	// 法線を正規化し必要ならOpenGLのY成分をDirectX規約へ変換する
-	bool NormalizeNormalMap(DirectX::ScratchImage& image, bool invertGreen) {
+	bool NormalizeNormalMap(DirectX::ScratchImage& image, bool invertGreen, bool reconstructZ = false) {
 
 		const DirectX::TexMetadata& metadata = image.GetMetadata();
 		DirectX::ScratchImage normalized{};
 		const HRESULT hr = DirectX::TransformImage(
 			image.GetImages(), image.GetImageCount(), metadata,
-			[invertGreen](DirectX::XMVECTOR* output, const DirectX::XMVECTOR* input,
+			[invertGreen, reconstructZ](DirectX::XMVECTOR* output, const DirectX::XMVECTOR* input,
 				size_t width, size_t) {
 
 				const DirectX::XMVECTOR one = DirectX::XMVectorReplicate(1.0f);
@@ -165,6 +167,12 @@ namespace {
 
 					DirectX::XMVECTOR normal = DirectX::XMVectorSubtract(
 						DirectX::XMVectorScale(input[x], 2.0f), one);
+					// BC5に保存されていない正のZ成分を復元する
+					if (reconstructZ) {
+						const float nx = DirectX::XMVectorGetX(normal);
+						const float ny = DirectX::XMVectorGetY(normal);
+						normal = DirectX::XMVectorSetZ(normal, std::sqrt((std::max)(0.0f, 1.0f - nx * nx - ny * ny)));
+					}
 					if (invertGreen) {
 						normal = DirectX::XMVectorSetY(normal,
 							-DirectX::XMVectorGetY(normal));
@@ -312,13 +320,40 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 	}
 	if (SUCCEEDED(hr)) {
 
-		OverrideColorSpace(loaded, colorSpace);
+		OverrideColorSpace(loaded, job.normalMap ? TextureColorSpace::Linear : colorSpace);
 		bool processingSucceeded = true;
-		const bool isNormalMap = job.importSettings.preset == TextureImportPreset::NormalMap;
+		const bool isNormalMap = job.normalMap || job.importSettings.preset == TextureImportPreset::NormalMap;
 		if (isNormalMap) {
 
 			failureStage = "NormalConvert";
-			if (loaded.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM) {
+			const DXGI_FORMAT sourceFormat = loaded.GetMetadata().format;
+			const bool reconstructZ = sourceFormat == DXGI_FORMAT_BC5_UNORM || sourceFormat == DXGI_FORMAT_BC5_SNORM;
+			if (DirectX::IsCompressed(sourceFormat)) {
+				// 圧縮画像を展開してから法線へ変換する
+				DirectX::ScratchImage expanded{};
+				hr = DirectX::Decompress(loaded.GetImages(), loaded.GetImageCount(), loaded.GetMetadata(),
+					sourceFormat == DXGI_FORMAT_BC5_SNORM ? DXGI_FORMAT_R32G32B32A32_FLOAT : DXGI_FORMAT_R8G8B8A8_UNORM, expanded);
+				if (SUCCEEDED(hr) && sourceFormat == DXGI_FORMAT_BC5_SNORM) {
+					// 符号付きXYを通常の法線画像の範囲へ揃える
+					DirectX::ScratchImage encoded{};
+					hr = DirectX::TransformImage(expanded.GetImages(), expanded.GetImageCount(), expanded.GetMetadata(),
+						[](DirectX::XMVECTOR* output, const DirectX::XMVECTOR* input, size_t width, size_t) {
+							for (size_t x = 0; x < width; ++x) {
+								output[x] = DirectX::XMVectorSet(DirectX::XMVectorGetX(input[x]) * 0.5f + 0.5f,
+									DirectX::XMVectorGetY(input[x]) * 0.5f + 0.5f, 0.5f, 1.0f);
+							}
+						}, encoded);
+					if (SUCCEEDED(hr)) {
+						expanded = std::move(encoded);
+					}
+				}
+				if (SUCCEEDED(hr)) {
+					loaded = std::move(expanded);
+				} else {
+					processingSucceeded = false;
+				}
+			}
+			if (processingSucceeded && loaded.GetMetadata().format != DXGI_FORMAT_R8G8B8A8_UNORM) {
 
 				DirectX::ScratchImage linearImage{};
 				hr = DirectX::Convert(loaded.GetImages(), loaded.GetImageCount(), loaded.GetMetadata(),
@@ -334,7 +369,7 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 
 				failureStage = "NormalNormalize";
 				processingSucceeded = NormalizeNormalMap(loaded,
-					job.importSettings.normalConvention == TextureNormalConvention::OpenGL);
+					job.importSettings.normalConvention == TextureNormalConvention::OpenGL, reconstructZ);
 			}
 		} else if (job.importSettings.alphaColorBleed &&
 			(job.importSettings.preset == TextureImportPreset::Color ||
@@ -343,6 +378,10 @@ Engine::DecodedTexture Engine::TextureDecoder::Decode(const TextureFileRequestDe
 			BleedTransparentPixels(loaded);
 		}
 
+		if (processingSucceeded) {
+			failureStage = "PreviewResize";
+			processingSucceeded = ResizeTexturePreview(loaded, job.previewMaxDimension);
+		}
 		const DirectX::TexMetadata& metadata = loaded.GetMetadata();
 		const bool authoredDDSMips = extension == ".dds" && 1 < metadata.mipLevels;
 		const bool needsMipChain = job.importSettings.generateMipmaps &&

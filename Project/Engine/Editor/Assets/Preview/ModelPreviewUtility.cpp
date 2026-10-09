@@ -10,6 +10,8 @@
 #include <Engine/Core/Rendering/Meshes/Import/AssimpMaterialTextureExtractor.h>
 #include <Engine/Core/Rendering/Meshes/Import/MeshImportUtility.h>
 #include <Engine/Core/Rendering/Meshes/Import/ModelFileIOSystem.h>
+#include <Engine/Core/Rendering/Meshes/Import/FBXScenePreparation.h>
+#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 
 // c++
 #include <algorithm>
@@ -42,6 +44,30 @@ namespace {
 
 		return Engine::Vector3(-pos.x, pos.y, pos.z);
 	}
+}
+
+std::vector<Engine::SubMeshMaterial> Engine::ModelPreviewUtility::BuildMaterials(std::span<const SubMeshDesc> subMeshes) {
+
+	// モデルの再解析をせず、読み込み済みの色と画像を使う
+	std::vector<MeshSubMeshLayoutItem> layout;
+	layout.reserve(subMeshes.size());
+	for (uint32_t index = 0; index < subMeshes.size(); ++index) {
+
+		const auto& source = subMeshes[index];
+		MeshSubMeshLayoutItem item{};
+		item.sourceSubMeshIndex = index;
+		item.name = source.name;
+		item.baseColorFactor = source.baseColor;
+		item.hasBaseColorFactor = true;
+		item.defaultTextureAssets.baseColorTexture = source.defaultTextureAssets.baseColorTexture;
+		item.sourceSurfaceMode = source.surfaceMode;
+		item.alphaCutoff = source.alphaCutoff;
+		layout.emplace_back(std::move(item));
+	}
+	// 通常のMaterial設定と同じ変換を使う
+	std::vector<SubMeshMaterial> materials;
+	MeshSubMeshAuthoring::SyncComponentToLayout(layout, materials, false);
+	return materials;
 }
 
 void Engine::ModelPreviewUtility::CollectNodePositions(const aiScene* scene, const aiNode* node,
@@ -154,6 +180,7 @@ bool Engine::ModelPreviewUtility::ComputeBounds(const AssetDatabase& database, A
 	auto* fileSystem = new ModelFileIOSystem(fullPath);
 	importer.SetIOHandler(fileSystem);
 	const aiScene* scene = importer.ReadFile(fileSystem->GetModelPath(), kModelPreviewAssimpFlags);
+	scene = FBXScenePreparation::Prepare(importer, scene, fullPath);
 	if (!scene || !scene->HasMeshes()) {
 		return false;
 	}

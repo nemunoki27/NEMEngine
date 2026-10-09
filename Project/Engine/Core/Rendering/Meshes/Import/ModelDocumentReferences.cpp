@@ -4,6 +4,8 @@
 //	include
 //============================================================================
 #include "GLTFFileReference.h"
+#include "FBXDocumentReferences.h"
+#include <Engine/Core/Rendering/Textures/TextureAssetResolver.h>
 #include <Engine/Core/Foundation/Utility/Algorithm/Algorithm.h>
 
 // c++
@@ -113,7 +115,7 @@ namespace {
 
 bool Engine::ModelDocumentReferences::IsDocumentPath(const std::filesystem::path& path) {
 
-	return GLTFDocumentReferences::IsDocumentPath(path) ||
+	return GLTFDocumentReferences::IsDocumentPath(path) || FBXDocumentReferences::IsDocumentPath(path) ||
 		   Algorithm::ToLower(Algorithm::PathToUTF8(path.extension())) == ".obj";
 }
 
@@ -122,6 +124,9 @@ bool Engine::ModelDocumentReferences::Rewrite(const std::filesystem::path& path,
 
 	if (GLTFDocumentReferences::IsDocumentPath(path)) {
 		return GLTFDocumentReferences::Rewrite(bytes, rewrite, diagnostic);
+	}
+	if (FBXDocumentReferences::IsDocumentPath(path)) {
+		return FBXDocumentReferences::Rewrite(bytes, rewrite, diagnostic);
 	}
 	diagnostic.clear();
 	try {
@@ -154,6 +159,20 @@ bool Engine::ModelDocumentReferences::Rebase(
 	try {
 		const auto sourceDirectory = std::filesystem::absolute(source).parent_path().lexically_normal();
 		const auto targetDirectory = std::filesystem::absolute(target).parent_path().lexically_normal();
+		if (FBXDocumentReferences::IsDocumentPath(source)) {
+			// FBXの画像補完先も移動前の実ファイルへ固定する
+			TextureAssetResolver textures;
+			textures.Build(source);
+			return Rewrite(source, bytes, [&](std::string& reference) {
+				const auto resolved = textures.ResolveFilePath(reference);
+				const auto relative = resolved.lexically_relative(targetDirectory);
+				if (resolved.empty()) {
+					return false;
+				}
+				reference = Algorithm::ConvertString((relative.empty() ? resolved : relative).generic_wstring());
+				return true;
+			}, diagnostic);
+		}
 		const bool obj = !GLTFDocumentReferences::IsDocumentPath(source);
 		return Rewrite(
 			source, bytes,

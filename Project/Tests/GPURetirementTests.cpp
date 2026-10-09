@@ -5,6 +5,7 @@
 #include "GPUAccelerationStructureTests.h"
 #include "GPUBufferLifetimeTests.h"
 #include "GPUMeshPublicationTests.h"
+#include "GPUFBXDrawTests.h"
 #include "GPURenderTextureBindingTests.h"
 #include "GPUParticleShapeTests.h"
 #include "GPUFontPublicationTests.h"
@@ -191,6 +192,10 @@ namespace {
 			NEMTests::RecordMeshPublication(device, queue, commands.Get(), descriptors, meshReadback);
 		if (!meshPublication) std::cerr << "Mesh publication test failed\n";
 		valid &= meshPublication;
+		ComPtr<ID3D12Resource> fbxReadback;
+		const bool fbxDraw = NEMTests::RecordFBXDraw(device, queue, commands.Get(), descriptors, fbxReadback);
+		if (!fbxDraw) std::cerr << "FBX GPU draw recording failed\n";
+		valid &= fbxDraw;
 		ComPtr<ID3D12Resource> guiReadback;
 		ComPtr<ID3D12CommandAllocator> guiAllocator;
 		ComPtr<ID3D12GraphicsCommandList6> guiCommands;
@@ -266,6 +271,7 @@ namespace {
 		const std::array<float, 2> expectedMeshHeights{ 5.0f, 7.0f };
 		valid &= std::memcmp(mapped, expectedMeshHeights.data(), sizeof(expectedMeshHeights)) == 0;
 		meshReadback->Unmap(0, &writtenRange);
+		valid &= NEMTests::CheckFBXDraw(fbxReadback.Get());
 		readRange.End = 8 * D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
 		if (!guiReadback || FAILED(guiReadback->Map(0, &readRange, &mapped))) return false;
 		const std::array<uint8_t, 4> expectedGUI{ 255, 255, 255, 255 };

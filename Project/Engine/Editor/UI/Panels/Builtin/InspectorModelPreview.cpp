@@ -6,7 +6,6 @@
 //============================================================================
 #include <Engine/Editor/Tools/Core/IEditorTool.h>
 #include <Engine/Core/Assets/Database/AssetDatabase.h>
-#include <Engine/Core/Rendering/Meshes/MeshSubMeshAuthoring.h>
 #include <Engine/Editor/Tools/Builtin/Camera/SceneViewCameraController.h>
 #include <Engine/Editor/Utility/EditorTextureHelper.h>
 #include <Engine/Core/Runtime/Context/EngineContext.h>
@@ -51,10 +50,30 @@ void Engine::InspectorModelPreview::DrawMeshAssetInspector(const EditorPanelCont
 	}
 
 	const uint64_t selectionRevision = context.editorState->assetSelectionRevision;
-	if (modelPreviewAsset_ != meta.guid || modelPreviewSelectionRevision_ != selectionRevision) {
+	if (modelPreviewAsset_ != meta.guid || modelPreviewSelectionRevision_ != selectionRevision ||
+		modelPreviewDatabaseLifetime_.lock() != context.editorContext->assetDatabase->GetCacheLifetime().lock()) {
 
 		modelPreviewSelectionRevision_ = selectionRevision;
 		RebuildModelAssetPreviewWorld(context, meta);
+	}
+	// 境界も非同期Mesh読込の結果から取得する
+	const AssetID assets[] = { meta.guid };
+	if (context.graphicsCore && context.renderPipeline) {
+		context.renderPipeline->PreparePreviewMeshes(*context.graphicsCore, *context.editorContext->assetDatabase, assets);
+		if (const auto* mesh = context.renderPipeline->FindPreviewMesh(meta.guid);
+			mesh && (!modelPreviewBounds_.valid || modelPreviewMeshGeneration_ != mesh->reloadGeneration)) {
+			modelPreviewMeshGeneration_ = mesh->reloadGeneration;
+			// 詳細プレビューも公開済みの色と画像を使う
+			const auto materials = ModelPreviewUtility::BuildMaterials(mesh->subMeshes);
+			SetMeshSubMeshes(*modelPreviewWorld_, modelPreviewEntity_, materials);
+			modelPreviewRendered_ = false;
+			modelPreviewBounds_.valid = true;
+			modelPreviewBounds_.center = mesh->boundsCenter;
+			modelPreviewBounds_.radius = (std::max)(mesh->boundsRadius, 0.1f);
+			modelPreviewBounds_.min = mesh->boundsCenter - Vector3::AnyInit(modelPreviewBounds_.radius);
+			modelPreviewBounds_.max = mesh->boundsCenter + Vector3::AnyInit(modelPreviewBounds_.radius);
+			ResetModelAssetPreviewCamera();
+		}
 	}
 
 	ImGui::Text("Mesh Preview");
@@ -102,7 +121,11 @@ void Engine::InspectorModelPreview::DrawMeshAssetInspector(const EditorPanelCont
 	if (preview) {
 
 		RenderModelAssetPreview(editorToolContext, *preview);
-		ImGui::Image(preview->GetImTextureID(), displaySize);
+		// 画像上のホイールはPreviewだけが消費する
+		ImGui::GetWindowDrawList()->AddImage(preview->GetImTextureID(), modelPreviewImagePos_,
+			ImVec2(modelPreviewImagePos_.x + displaySize.x, modelPreviewImagePos_.y + displaySize.y));
+		ImGui::InvisibleButton("##MeshPreviewInput", displaySize);
+		ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
 	} else {
 
 		ImGui::Dummy(displaySize);
@@ -117,7 +140,10 @@ void Engine::InspectorModelPreview::RebuildModelAssetPreviewWorld(const EditorPa
 	modelPreviewWorld_ = std::make_unique<ECSWorld>();
 	modelPreviewEntity_ = Entity::Null();
 	modelPreviewLightEntity_ = Entity::Null();
-	modelPreviewBounds_ = ComputeModelAssetPreviewBounds(context, meta);
+	modelPreviewBounds_ = {};
+	modelPreviewMeshGeneration_ = 0;
+	modelPreviewRendered_ = false;
+	modelPreviewDatabaseLifetime_ = context.editorContext->assetDatabase->GetCacheLifetime();
 
 	AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
 	if (!database || !meta.guid) {
@@ -125,7 +151,6 @@ void Engine::InspectorModelPreview::RebuildModelAssetPreviewWorld(const EditorPa
 		ResetModelAssetPreviewCamera();
 		return;
 	}
-	ModelPreviewUtility::ImportReferencedTextures(*database, meta.guid);
 
 	Entity lightEntity = modelPreviewWorld_->CreateEntity(UUID::New());
 	auto& lightTransform = modelPreviewWorld_->AddComponent<TransformComponent>(lightEntity);
@@ -147,8 +172,6 @@ void Engine::InspectorModelPreview::RebuildModelAssetPreviewWorld(const EditorPa
 	renderer.queue = RenderPhase::Opaque;
 	renderer.visible = true;
 	renderer.enableZPrepass = true;
-	MeshSubMeshAuthoring::SyncEntity(
-		database, *modelPreviewWorld_, entity, false);
 
 	modelPreviewEntity_ = entity;
 	ResetModelAssetPreviewCamera();
@@ -164,12 +187,19 @@ void Engine::InspectorModelPreview::RenderModelAssetPreview(const EditorToolCont
 		return;
 	}
 
+	modelPreviewCameraController_->Update(Dimension::Type3D, InputViewArea::InspectorModelPreview);
+	const auto& camera = modelPreviewCameraController_->GetCameraState();
+	const uint64_t textureRevision = toolContext.panelContext->graphicsCore->GetTextureUploadService().GetContentRevision();
+	// 連続したTexture読込ごとの再描画をまとめる
+	modelPreviewTextureQuietFrames_ = modelPreviewObservedTextureRevision_ == textureRevision ?
+		(std::min)(modelPreviewTextureQuietFrames_ + 1, 8u) : 0;
+	modelPreviewObservedTextureRevision_ = textureRevision;
+	// CameraとAssetが変わったときだけ描き直す
+	if (modelPreviewRendered_ && modelPreviewCameraPos_ == camera.transform3D.pos &&
+		modelPreviewCameraRotation_ == camera.transform3D.rotation && (modelPreviewTextureRevision_ == textureRevision || modelPreviewTextureQuietFrames_ < 8)) {
+		return;
+	}
 	resources_.RenderToTexture(preview, [&](EditorToolRenderContext& renderContext) {
-
-		if (modelPreviewCameraController_) {
-
-			modelPreviewCameraController_->Update(Dimension::Type3D, InputViewArea::InspectorModelPreview);
-		}
 
 		EntityPreviewRenderRequest request{};
 		request.world = modelPreviewWorld_.get();
@@ -183,20 +213,11 @@ void Engine::InspectorModelPreview::RenderModelAssetPreview(const EditorToolCont
 		request.clearColor = preview.clearColor;
 		request.drawGrid3D = true;
 
-		toolContext.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
+		modelPreviewRendered_ = toolContext.panelContext->renderPipeline->RenderEntityPreview(*renderContext.graphicsCore, request);
 		}, preview.clearColor);
-}
-
-Engine::InspectorModelPreview::ModelAssetPreviewBounds Engine::InspectorModelPreview::ComputeModelAssetPreviewBounds(
-	const EditorPanelContext& context, const AssetMeta& meta) const {
-
-	ModelAssetPreviewBounds bounds{};
-	const AssetDatabase* database = context.editorContext ? context.editorContext->assetDatabase : nullptr;
-	if (database) {
-		bounds.valid = ModelPreviewUtility::ComputeBounds(*database, meta.guid,
-			bounds.min, bounds.max, bounds.center, bounds.radius);
-	}
-	return bounds;
+	modelPreviewCameraPos_ = camera.transform3D.pos;
+	modelPreviewCameraRotation_ = camera.transform3D.rotation;
+	modelPreviewTextureRevision_ = textureRevision;
 }
 
 void Engine::InspectorModelPreview::ResetModelAssetPreviewCamera() {

@@ -15,6 +15,7 @@
 #include <Engine/Editor/UI/Inspectors/Common/InspectorDrawerCommon.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/TextureAssetInspectorDrawer.h>
 #include <Engine/Editor/UI/Inspectors/Builtin/Asset/MeshAssetInspectorDrawer.h>
+#include <Engine/Editor/UI/Inspectors/Builtin/Asset/RenderTextureAssetInspectorDrawer.h>
 #include <Engine/Editor/UI/ImGui/ImGuiHelpers.h>
 #include <Engine/Core/Foundation/Utility/Enum/EnumAdapter.h>
 
@@ -36,6 +37,7 @@ Engine::InspectorPanel::InspectorPanel(const std::string& instanceID, bool prima
 	// アセット種別ごとのInspector表示を登録する
 	assetInspectorRegistry_.Register(std::make_unique<TextureAssetInspectorDrawer>());
 	assetInspectorRegistry_.Register(std::make_unique<MeshAssetInspectorDrawer>());
+	assetInspectorRegistry_.Register(std::make_unique<RenderTextureAssetInspectorDrawer>());
 }
 
 nlohmann::json Engine::InspectorPanel::SaveLayoutState() const {
@@ -338,9 +340,9 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 
 	ImGui::Text("Asset");
 	ImGui::Separator();
-	ImGui::Text("Path : %s", meta->assetPath.c_str());
-	ImGui::Text("Type : %s", EnumAdapter<AssetType>::ToString(meta->type));
-	ImGui::Text("ID   : %s", ToString(meta->guid).c_str());
+	MyGUI::Text("Path", meta->assetPath);
+	MyGUI::Text("Type", EnumAdapter<AssetType>::ToString(meta->type));
+	MyGUI::Text("ID", ToString(meta->guid));
 	ImGui::Spacing();
 
 	// Asset種別の編集Drawerへ渡す
@@ -368,7 +370,7 @@ void Engine::InspectorPanel::DrawSelectedAssetInspector(const EditorPanelContext
 		return;
 	}
 
-	ImGui::TextDisabled("No inspector for this asset type.");
+	ImGui::TextDisabled("この種類のアセットには詳細編集がありません");
 }
 
 bool Engine::InspectorPanel::HasPendingEdits() const {

@@ -1,11 +1,9 @@
 #include "ScriptProfiler.h"
-#include <Engine/Core/Foundation/Time/FrameProfiler.h>
 
 //============================================================================
 //	include
 //============================================================================
 #include <Engine/Core/Scripting/Managed/ManagedScriptRuntime.h>
-#include <json.hpp>
 
 // c++
 #include <algorithm>
@@ -105,9 +103,6 @@ namespace Engine {
 
 	void ScriptProfiler::EndFrame() {
 		if (!enabled_) {
-			if (FrameProfiler::GetInstance().IsCaptureRecording()) {
-				FrameProfiler::GetInstance().SetScriptFrame("{\"status\":\"disabled\"}");
-			}
 			return;
 		}
 		// yieldやawaitを跨いだ区間は次フレームへ持ち越さない
@@ -115,22 +110,6 @@ namespace Engine {
 		detailStack_.clear();
 		for (auto& row : rows_) {
 			row.history[frameIndex_] = row.current;
-		}
-		if (FrameProfiler::GetInstance().IsCaptureRecording()) {
-			// 集約行を除き、所有WorldとInstanceを保った結果を記録する
-			nlohmann::json records = nlohmann::json::array();
-			for (size_t i = 0; i < rows_.size(); ++i) {
-				const auto& row = rows_[i];
-				if (row.grouped || row.current.calls == 0) { continue; }
-				records.push_back({ { "rowID", i }, { "parent", row.parent }, { "detail", row.detail },
-					{ "world", { row.owner.entity.world.index, row.owner.entity.world.generation } },
-					{ "entity", { row.owner.entity.index, row.owner.entity.generation } }, { "slotID", row.owner.slotID },
-					{ "typeID", row.owner.typeID }, { "type", row.owner.typeName }, { "name", row.name },
-					{ "inclusiveMilliseconds", row.current.inclusiveMs }, { "selfMilliseconds", row.current.selfMs },
-					{ "calls", row.current.calls } });
-			}
-			const nlohmann::json snapshot{ { "status", overflowed_ ? "partial" : "complete" }, { "rows", std::move(records) } };
-			FrameProfiler::GetInstance().SetScriptFrame(snapshot.dump());
 		}
 		frameIndex_ = (frameIndex_ + 1) % 300;
 		frameCount_ = std::min(frameCount_ + 1, 300u);

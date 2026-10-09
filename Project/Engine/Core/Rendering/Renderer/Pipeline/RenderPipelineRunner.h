@@ -24,7 +24,6 @@
 #include <Engine/Core/Rendering/Renderer/Lighting/Registry/LightExtractorRegistry.h>
 #include <Engine/Core/Rendering/Renderer/Lighting/GPU/ViewLightBufferSet.h>
 #include <Engine/Core/Rendering/Core/RenderingCore.h>
-#include <Engine/Core/Rendering/Profiling/ProfileInputSnapshot.h>
 #include <Engine/Core/Rendering/Assets/RenderAssetLibrary.h>
 #include <Engine/Core/Rendering/Materials/MaterialResolver.h>
 #include <Engine/Core/Rendering/PostProcess/PostProcessAssetGenerator.h>
@@ -231,6 +230,8 @@ namespace Engine {
 		bool RenderEntityPreview(GraphicsCore& graphicsCore, const EntityPreviewRenderRequest& request);
 		// プレビューMeshの読込結果を公開し、現在の世代を返す
 		uint64_t PreparePreviewMeshes(GraphicsCore& graphicsCore, AssetDatabase& database, std::span<const AssetID> assets);
+		// 非同期読込が完了したPreviewのMeshを取得する
+		const MeshGPUResource* FindPreviewMesh(AssetID asset) const;
 
 		//--------- accessor -----------------------------------------------------
 
@@ -278,12 +279,6 @@ namespace Engine {
 		RenderScenePreparation scenePreparation_{};
 		RenderPreviewResources previewResources_{};
 		RenderPickingState pickingState_{};
-		// 記録開始時の入力をフレームごとの条件へ添える
-		ProfileInputSnapshot profileInputSnapshot_{};
-		std::weak_ptr<const ECSWorldLifetime> profileWorldLifetime_;
-		std::weak_ptr<const uint8_t> profileAssetLifetime_;
-		uint64_t profileSceneRevision_ = 0;
-		uint64_t profileCaptureRevision_ = 0;
 
 		// ビューポート描画サービス
 		std::unique_ptr<ViewportRenderService> viewportRenderService_;
@@ -341,9 +336,6 @@ namespace Engine {
 		ParticleRenderBackend* particleBackend_ = nullptr;
 
 		//--------- functions ----------------------------------------------------
-
-		// 記録するフレームの描画条件を確定する
-		void CaptureProfileConditions(GraphicsCore& graphicsCore, const RenderFrameRequest& request);
 
 		// 描画Cameraの資源を取得する
 		RenderPipelineViewResources& GetCameraState(const ResolvedRenderView& view);

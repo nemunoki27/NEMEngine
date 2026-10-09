@@ -5,8 +5,7 @@
 //============================================================================
 #include <Engine/Editor/UI/Panels/Core/IEditorPanel.h>
 #include "ProjectModelPreview.h"
-#include "ProjectSceneStorageInspector.h"
-#include "ProjectAssetDiagnostics.h"
+#include <Engine/Editor/Assets/Project/ProjectGitIgnoreService.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetIndex.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetThumbnailCache.h>
 #include <Engine/Editor/Assets/Project/ProjectAssetFileUtility.h>
@@ -56,6 +55,8 @@ namespace Engine {
 
 		// モデル一覧のプレビュー
 		ProjectModelPreview modelPreview_;
+		// Gitの状態取得と除外設定
+		ProjectGitIgnoreService gitIgnore_;
 
 		// プロジェクト内のアセットのインデックスとサムネイルキャッシュ
 		ProjectAssetIndex assetIndex_;
@@ -109,9 +110,6 @@ namespace Engine {
 		// 削除対象を参照しているアセットのパス一覧(確認表示用)
 		std::vector<std::string> pendingDeleteReferencers_;
 		std::string deleteErrorMessage_;
-		// シーン保存の検証と修復表示
-		ProjectSceneStorageInspector sceneStorageInspector_;
-		ProjectAssetDiagnostics assetDiagnostics_;
 		// 削除確認ポップアップを次の描画で開くか
 		bool requestOpenDeletePopup_ = false;
 		// ファイル操作結果の遅延反映用キャッシュ
@@ -163,6 +161,8 @@ namespace Engine {
 			const EditorPanelContext& context, AssetDatabase& database, const ProjectDirectoryNode& node);
 		// アセット右クリックメニューを描画する
 		void DrawAssetContextMenu(const EditorPanelContext& context, AssetDatabase& database, const ProjectAssetEntry& asset);
+		// フォルダーとアセット共通のGit設定を描画する
+		void DrawGitContextMenu(const std::filesystem::path& path, bool directory);
 		// 新規作成用の名前入力ポップアップを描画する
 		void DrawCreateAssetPopup(AssetDatabase& database);
 		// アセットリネーム用の名前入力ポップアップを描画する

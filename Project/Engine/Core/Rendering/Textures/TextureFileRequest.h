@@ -24,6 +24,10 @@ namespace Engine {
 		TextureColorSpace requestedColorSpace = TextureColorSpace::Auto;
 		// InspectorプレビューでImporter設定より表示色空間を優先する
 		bool overrideImportColorSpace = false;
+		// Materialの法線入力として読み込む
+		bool normalMap = false;
+		// Previewだけに適用する画像辺の上限、0は元のサイズ
+		uint32_t previewMaxDimension = 0;
 		// エディタプレビュー用のチャンネル変換
 		TexturePreviewChannel previewChannel = TexturePreviewChannel::Color;
 	};
